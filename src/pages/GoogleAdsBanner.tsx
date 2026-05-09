@@ -140,6 +140,7 @@ function getImagePreviewUrl(imageUrl: string): string {
   return imageUrl.replace('/upload/', '/upload/f_auto,q_auto:good,w_1600,c_limit/');
 }
 const GoogleAdsBanner: React.FC = () => {
+  const NEW_BUILDER_ACTIVE = true;
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const getProductQuerySlug = useCallback((type: ProductTypeSlug) => {
@@ -1839,7 +1840,7 @@ const GoogleAdsBanner: React.FC = () => {
         </section>
 
         <section ref={orderRef} id="order-builder" className="mt-8 py-12 px-4 bg-gray-50">
-          <div className="max-w-4xl lg:max-w-7xl mx-auto">
+          <div className="max-w-[1600px] mx-auto">
             {/* Product type switcher — public for all users */}
             <ProductTypeSwitcher productType={productType} onProductTypeChange={handleProductTypeChange} mobileStickyTopPx={56} />
             <h2
@@ -1849,6 +1850,35 @@ const GoogleAdsBanner: React.FC = () => {
             >
               {isYardSign ? 'Build Your Yard Sign Order' : isCarMagnet ? 'Design Your Custom Car Magnets' : 'Build Your Banner'}
             </h2>
+          {NEW_BUILDER_ACTIVE ? (
+            <section className="product-builder-shell mb-8">
+              <div className="builder-grid grid lg:grid-cols-[minmax(0,1fr)_430px] gap-6 max-w-[1600px] mx-auto">
+                <div className="preview-column rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="mb-3 inline-flex items-center rounded-full bg-amber-100 border border-amber-300 px-3 py-1 text-xs font-bold text-amber-800">NEW BUILDER ACTIVE</div>
+                  <h3 className="text-2xl font-bold text-slate-900">Design Your Banner</h3>
+                  <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 min-h-[340px] flex items-center justify-center text-slate-500 text-sm">Live preview workspace placeholder (commit 2 shell)</div>
+                  <div className="mt-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">Preview controls placeholder</div>
+                  <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-white px-4 py-3 h-[120px] flex items-center text-sm text-slate-600">Compact upload placeholder container</div>
+                </div>
+                <aside className="customize-sidebar">
+                  <div className="sticky-config-card sticky top-[100px] rounded-2xl border border-slate-200 bg-white p-5 shadow-sm min-h-[420px]">
+                    <h3 className="text-xl font-bold text-slate-900 mb-3">Customize Your Banner</h3>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600"><div className="text-sm font-semibold text-slate-900 mb-2">1. Choose your size</div>
+                      <div className="inline-flex items-center rounded-lg border border-gray-200 bg-white p-0.5 text-xs mb-3" role="group" aria-label="Display unit">
+                        <button type="button" aria-pressed={unit === 'in'} onClick={() => setUnit('in')} className={`px-2.5 py-1 rounded-md transition-colors ${unit === 'in' ? 'bg-orange-500 text-white font-semibold' : 'text-gray-600 hover:text-gray-800'}`}>Inches</button>
+                        <button type="button" aria-pressed={unit === 'ft'} onClick={() => setUnit('ft')} className={`px-2.5 py-1 rounded-md transition-colors ${unit === 'ft' ? 'bg-orange-500 text-white font-semibold' : 'text-gray-600 hover:text-gray-800'}`}>Feet</button>
+                      </div>
+                      {!isCarMagnet && (<><div className="text-sm font-semibold text-slate-900 mt-4 mb-2">2. Select material</div><div className="relative"><button type="button" onClick={() => setMaterialDropdownOpen(prev => !prev)} className="w-full border rounded-xl px-3 py-2.5 text-sm bg-white flex items-center gap-3 cursor-pointer hover:border-gray-400 transition-colors"><img src={selectedMaterial.image} alt={selectedMaterial.label} className="w-8 h-8 rounded object-cover flex-shrink-0 bg-gray-100" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} /><span className="font-medium text-gray-800">{selectedMaterial.label}</span><svg className={`ml-auto w-4 h-4 text-gray-400 transition-transform ${materialDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg></button>{materialDropdownOpen && (<div className="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden max-h-72 overflow-y-auto">{MATERIALS.map(m => (<button key={m.key} type="button" onClick={() => { setMaterial(m.mapped); setMaterialDropdownOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-3 text-left transition-colors cursor-pointer ${m.mapped === material ? 'bg-orange-50 border-l-2 border-orange-500' : 'hover:bg-gray-50 border-l-2 border-transparent'}`}><img src={m.image} alt={m.label} className="w-9 h-9 rounded object-cover flex-shrink-0 bg-gray-100" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} /><div className="min-w-0"><div className={`text-sm font-medium ${m.mapped === material ? 'text-orange-700' : 'text-gray-800'}`}>{m.label}</div></div></button>))}</div>)}</div></>)}
+                      <div className="grid grid-cols-3 gap-2">
+                        {(isCarMagnet ? CAR_MAGNET_SIZES.map((p) => ({ key: p.label, label: p.label, onClick: () => setCarMagnetSizeLabel(p.label), active: carMagnetSizeLabel === p.label })) : PRESET_SIZES.map((p, i) => ({ key: String(i), label: formatPresetLabel(p.w, p.h, unit), onClick: () => applyPreset(i), active: activePreset === i }))).map((opt) => (
+                          <button key={opt.key} onClick={opt.onClick} className={`border rounded-xl py-2 px-2 text-xs font-medium transition-all ${opt.active ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>{opt.label}</button>
+                        ))}
+                      </div></div>
+                  </div>
+                </aside>
+              </div>
+            </section>
+          ) : null}
             {/* Mobile-only step progress — driven by the same step machine as
                 the sticky CTA so they can never disagree. Hidden on yard sign
                 (uses a different multi-design flow). */}
@@ -1859,7 +1889,7 @@ const GoogleAdsBanner: React.FC = () => {
             )}
             {isYardSign ? (
               /* ========== YARD SIGN ORDER BUILDER (v2) ========== */
-              <div className="grid md:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-10 max-w-full">
+              <div className="grid md:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_420px] xl:grid-cols-[minmax(0,1fr)_460px] gap-6 xl:gap-8 max-w-full">
                 <div className="space-y-8 min-w-0 max-w-full">
                   <YardSignConfigurator
                     designs={yardSignDesigns}
@@ -1945,7 +1975,7 @@ const GoogleAdsBanner: React.FC = () => {
               </div>
             ) : (
             /* ========== BANNER ORDER BUILDER (existing) ========== */
-            <div className="grid md:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-10 max-w-full">
+            <div className="grid md:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_420px] xl:grid-cols-[minmax(0,1fr)_460px] gap-6 xl:gap-8 max-w-full">
               <div className="space-y-6 min-w-0 max-w-full">
                 {false ? (
                   null /* placeholder — yard sign path handled above */
@@ -1953,7 +1983,7 @@ const GoogleAdsBanner: React.FC = () => {
                   <>
                 {/* Step 1 — Choose your size. Wraps the in/ft toggle (header right slot, banner only),
                     popular sizes, and custom size inputs. */}
-                <ConfigCard
+                {!NEW_BUILDER_ACTIVE && <ConfigCard
                   step={1}
                   title="Choose your size"
                   id="size-section"
@@ -2082,8 +2112,8 @@ const GoogleAdsBanner: React.FC = () => {
                     </div>
                     )}
                   </div>
-                </ConfigCard>
-                <ConfigCard step={2} title="Select material" id="material-section">
+                </ConfigCard>}
+                {!NEW_BUILDER_ACTIVE && <ConfigCard step={2} title="Select material" id="material-section">
                   <div ref={materialDropdownRef} className="relative">
                     {isCarMagnet ? (
                       <div className="w-full border rounded-xl px-3 py-2.5 text-base bg-gray-50 text-gray-800 font-medium">
@@ -2138,7 +2168,7 @@ const GoogleAdsBanner: React.FC = () => {
                       </>
                     )}
                   </div>
-                </ConfigCard>
+                </ConfigCard>}
                   </>
                 )}
                 {/* Banner-only: Quantity + Finishing Options (yard signs include these in their config panel) */}
@@ -2340,7 +2370,7 @@ const GoogleAdsBanner: React.FC = () => {
                 </ConfigCard>
               </div>
 
-              <div className="space-y-6 min-w-0 max-w-full lg:sticky lg:top-24 self-start">
+              <div className="space-y-6 min-w-0 max-w-full lg:sticky lg:top-[100px] self-start">
                 <p className="text-sm text-emerald-700 -mt-1 font-medium">
                   Includes next-day production &amp; <span className="text-emerald-700 font-semibold">free shipping</span>
                 </p>

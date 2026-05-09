@@ -286,12 +286,12 @@ const FinishingCard: React.FC<FinishingCardProps> = ({
     onClick={onClick}
     className={`relative flex flex-col md:flex-row rounded-xl border cursor-pointer transition-all duration-150 overflow-hidden ${
       active
-        ? 'border-blue-500 ring-2 ring-blue-500 bg-white shadow-md'
-        : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
+        ? 'border-orange-500 ring-1 ring-orange-500 bg-white shadow-sm'
+        : 'border-gray-200 bg-white hover:border-gray-300'
     }`}
   >
     {/* Left: radio + text (appears first on mobile) */}
-    <div className="order-1 md:order-none flex-1 p-4 min-w-0">
+    <div className="flex-1 p-3 min-w-0">
       <div className="flex items-start gap-3">
         {/* Radio circle */}
         <div
@@ -304,7 +304,7 @@ const FinishingCard: React.FC<FinishingCardProps> = ({
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-bold text-gray-900 text-base">{title}</span>
+            <span className="font-semibold text-gray-900 text-sm">{title}</span>
             {badge && (
               <span
                 className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
@@ -320,44 +320,22 @@ const FinishingCard: React.FC<FinishingCardProps> = ({
           {priceLabel && (
             <p className="text-xs font-semibold text-green-600 mt-0.5">{priceLabel}</p>
           )}
-          <p className="text-sm text-gray-500 mt-1 leading-snug">{description}</p>
+          <p className="text-xs text-gray-500 mt-1 leading-snug">{description}</p>
           {children}
         </div>
       </div>
     </div>
 
-    {/* Right: large product photo + callout annotation
-        On mobile this becomes a full-width row that appears LAST (below text & dropdown).
-        On desktop (md+) it stays as the right-hand column with absolute-positioned cover image. */}
-    <div className="order-2 md:order-none flex items-stretch flex-shrink-0 w-full md:w-auto md:self-stretch">
-      {/* Main photo: explicit height + object-contain on mobile; absolute cover on desktop */}
-      <div className="relative w-full h-[120px] md:w-56 md:h-auto md:self-stretch overflow-hidden">
-        <img
-          src={imageSrc}
-          alt={title}
-          className="w-full h-full object-contain px-3 pb-3 md:p-0 md:absolute md:inset-0 md:object-cover"
-          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-        />
-      </div>
-
-      {/* Callout annotation — desktop only (hidden on mobile to avoid cramped stacked layout) */}
-      <div className="hidden md:flex flex-col items-center justify-center gap-1.5 pr-3 pl-2 py-3 w-20 sm:w-24 flex-shrink-0">
-        {/* Annotation text */}
-        <p className="text-[10px] text-blue-600 font-medium text-center leading-tight">
-          {calloutText}
-        </p>
-        {/* Circular callout spot */}
-        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-blue-400 overflow-hidden flex-shrink-0 shadow-sm bg-white">
-          <img
-            src={imageSrc}
-            alt={`${title} detail`}
-            className="w-full h-full object-cover scale-150"
-            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-          />
-        </div>
-      </div>
+    {/* Right: compact thumbnail */}
+    <div className="flex items-center justify-center pr-3 py-3"> 
+      <img
+        src={imageSrc}
+        alt={title}
+        className="w-12 h-12 rounded-md object-cover border border-gray-200"
+        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+      />
     </div>
-  </div>
+</div>
 );
 
 export default FinishingOptionsCard;
