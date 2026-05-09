@@ -26,7 +26,7 @@ import {
   Palette,
   Upload,
   ChevronLeft,
-  ChevronRight
+  ChevronRight, AlertTriangle
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -150,6 +150,15 @@ const AdminOrders: React.FC = () => {
     graduationIntakes: 0,
   });
 
+
+  const [recovering, setRecovering] = useState(false);
+  const [recoverForm, setRecoverForm] = useState<any>({
+    customerName: '', customerEmail: '', phone: '', shippingName: '', shippingStreet: '', shippingCity: '', shippingState: '', shippingZip: '',
+    billingStreet: '', billingCity: '', billingState: '', billingZip: '',
+    productType: 'banner', widthIn: '', heightIn: '', material: '13oz', quantity: 1, finishing: 'none', designUrl: '', previewUrl: '', printFileUrl: '',
+    provider: 'paypal', transactionId: '', amount: '', tax: '', shipping: '', discount: '', recoveryReason: '', notes: '', originalPaymentDate: ''
+  });
+
   const [globalOverviewLoading, setGlobalOverviewLoading] = useState({
     orders: false,
     events: false,
@@ -169,6 +178,33 @@ const AdminOrders: React.FC = () => {
       loadGlobalOverview(user.email);
     }
   }, [user, authLoading, navigate]);
+
+
+  const submitRecoveryOrder = async () => {
+    if (!user?.email) return;
+    setRecovering(true);
+    try {
+      const response = await fetch('/.netlify/functions/recover-missing-order', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adminEmail: user.email,
+          recoveryReason: recoverForm.recoveryReason,
+          notes: recoverForm.notes,
+          originalPaymentDate: recoverForm.originalPaymentDate,
+          customer: { name: recoverForm.customerName, email: recoverForm.customerEmail, phone: recoverForm.phone },
+          shippingAddress: { name: recoverForm.shippingName || recoverForm.customerName, street: recoverForm.shippingStreet, city: recoverForm.shippingCity, state: recoverForm.shippingState, zip: recoverForm.shippingZip, country: 'US' },
+          billingAddress: { street: recoverForm.billingStreet, city: recoverForm.billingCity, state: recoverForm.billingState, zip: recoverForm.billingZip },
+          item: { productType: recoverForm.productType, widthIn: recoverForm.widthIn, heightIn: recoverForm.heightIn, material: recoverForm.material, quantity: recoverForm.quantity, finishing: recoverForm.finishing, designUrl: recoverForm.designUrl, previewUrl: recoverForm.previewUrl, printFileUrl: recoverForm.printFileUrl },
+          payment: { provider: recoverForm.provider, transactionId: recoverForm.transactionId, amount: recoverForm.amount, tax: recoverForm.tax, shipping: recoverForm.shipping, discount: recoverForm.discount },
+        })
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || 'Recovery failed');
+      toast({ title: 'Recovered order created', description: `Order ${data.orderId} saved. Customer email: ${data.customerEmailSent ? 'sent' : 'failed'}, Admin email: ${data.adminEmailSent ? 'sent' : 'failed'}` });
+      await loadOrders(page);
+    } catch (e:any) { toast({ title: 'Recover missing order failed', description: e.message, variant: 'destructive' }); }
+    finally { setRecovering(false); }
+  };
 
   const loadAllOrdersForOverview = async () => {
     const ordersAdapter = await getOrdersAdapter();
@@ -1112,6 +1148,29 @@ const AdminOrders: React.FC = () => {
                 </div>
               </div>
             </div>
+          </div>
+
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center gap-2 mb-3 font-semibold text-orange-900"><AlertTriangle className="h-4 w-4" />Recover Missing Order</div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+              <Input placeholder="Customer name" value={recoverForm.customerName} onChange={(e)=>setRecoverForm((f:any)=>({...f,customerName:e.target.value}))} />
+              <Input placeholder="Customer email" value={recoverForm.customerEmail} onChange={(e)=>setRecoverForm((f:any)=>({...f,customerEmail:e.target.value}))} />
+              <Input placeholder="Transaction ID" value={recoverForm.transactionId} onChange={(e)=>setRecoverForm((f:any)=>({...f,transactionId:e.target.value}))} />
+              <Input placeholder="Payment amount" value={recoverForm.amount} onChange={(e)=>setRecoverForm((f:any)=>({...f,amount:e.target.value}))} />
+              <Input placeholder="Product type" value={recoverForm.productType} onChange={(e)=>setRecoverForm((f:any)=>({...f,productType:e.target.value}))} />
+              <Input placeholder="Size (WxH in) e.g. 72x24" value={`${recoverForm.widthIn}x${recoverForm.heightIn}`} onChange={(e)=>{const [w,h]=e.target.value.split('x');setRecoverForm((f:any)=>({...f,widthIn:w||'',heightIn:h||''}));}} />
+              <Input placeholder="Material" value={recoverForm.material} onChange={(e)=>setRecoverForm((f:any)=>({...f,material:e.target.value}))} />
+              <Input placeholder="Quantity" value={recoverForm.quantity} onChange={(e)=>setRecoverForm((f:any)=>({...f,quantity:Number(e.target.value||1)}))} />
+              <Input placeholder="Shipping street" value={recoverForm.shippingStreet} onChange={(e)=>setRecoverForm((f:any)=>({...f,shippingStreet:e.target.value}))} />
+              <Input placeholder="City" value={recoverForm.shippingCity} onChange={(e)=>setRecoverForm((f:any)=>({...f,shippingCity:e.target.value}))} />
+              <Input placeholder="State" value={recoverForm.shippingState} onChange={(e)=>setRecoverForm((f:any)=>({...f,shippingState:e.target.value}))} />
+              <Input placeholder="ZIP" value={recoverForm.shippingZip} onChange={(e)=>setRecoverForm((f:any)=>({...f,shippingZip:e.target.value}))} />
+              <Input placeholder="Design URL" value={recoverForm.designUrl} onChange={(e)=>setRecoverForm((f:any)=>({...f,designUrl:e.target.value}))} />
+              <Input placeholder="Preview URL" value={recoverForm.previewUrl} onChange={(e)=>setRecoverForm((f:any)=>({...f,previewUrl:e.target.value}))} />
+              <Input placeholder="Print file URL" value={recoverForm.printFileUrl} onChange={(e)=>setRecoverForm((f:any)=>({...f,printFileUrl:e.target.value}))} />
+              <Input placeholder="Recovery reason" value={recoverForm.recoveryReason} onChange={(e)=>setRecoverForm((f:any)=>({...f,recoveryReason:e.target.value}))} />
+            </div>
+            <div className="mt-3"><Button onClick={submitRecoveryOrder} disabled={recovering}>{recovering ? 'Creating recovered order…' : 'Create recovered order and send emails'}</Button></div>
           </div>
 
           {/* Search */}

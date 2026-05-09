@@ -48,6 +48,25 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
   const { toast } = useToast();
   const { user } = useAuth();
   const [pdfGenerating, setPdfGenerating] = useState<Record<number, boolean>>({});
+  const [resendLoading, setResendLoading] = useState<string | null>(null);
+
+  const resendOrderEmails = async (mode: 'customer' | 'admin' | 'both') => {
+    if (!isAdminUser) return;
+    setResendLoading(mode);
+    try {
+      const response = await fetch('/.netlify/functions/notify-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: order.id, forceResendBoth: mode === 'both', resendCustomerOnly: mode === 'customer', resendAdminOnly: mode === 'admin' }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || 'Failed to resend email(s)');
+      toast({ title: 'Email resend complete', description: `Customer: ${data.customerEmailSent ? 'sent' : 'not sent'} • Admin: ${data.adminEmailSent ? 'sent' : 'not sent'}` });
+    } catch (e: any) {
+      toast({ title: 'Email resend failed', description: e.message || 'Unable to resend emails', variant: 'destructive' });
+    } finally { setResendLoading(null); }
+  };
+
   const isAdminUser = user && isAdmin(user);
 
   // Detect designer-assisted (graduation) deposit orders so the View modal
@@ -622,6 +641,18 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
               / shipped) failed via Resend. Includes a per-email retry. */}
           {isAdminUser && (
             <EmailDeliveryStatus order={order} />
+          )}
+
+
+          {isAdminUser && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center"><Mail className="h-5 w-5 text-amber-600 mr-2" />Email Tools</h3>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" onClick={() => resendOrderEmails('customer')} disabled={!!resendLoading}>{resendLoading==='customer' ? 'Sending…' : 'Resend customer confirmation'}</Button>
+                <Button size="sm" variant="outline" onClick={() => resendOrderEmails('admin')} disabled={!!resendLoading}>{resendLoading==='admin' ? 'Sending…' : 'Resend admin notification'}</Button>
+                <Button size="sm" onClick={() => resendOrderEmails('both')} disabled={!!resendLoading}>{resendLoading==='both' ? 'Sending…' : 'Send both again'}</Button>
+              </div>
+            </div>
           )}
 
           {/* Customer Information */}
