@@ -7,7 +7,7 @@ import { useCartStore, type CartItem } from '@/store/cart';
 import { useUIStore } from '@/store/ui';
 import { calcTotals, usd, PRICE_PER_SQFT } from '@/lib/pricing';
 import { calculateBannerPricing, type RopePlacement } from '@/lib/bannerPricingEngine';
-import { muteVideoElement, stripCloudinaryAudio } from '@/lib/muteVideo';
+import { heroBackgroundStyle } from '@/lib/heroBackground';
 import { resolvePromo } from '@/lib/promoEngine';
 import { DESIGN_GROMMET_OPTIONS } from '@/lib/grommets';
 import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
@@ -91,7 +91,7 @@ function formatPresetLabel(w: number, h: number, unit: 'in' | 'ft'): string {
 }
 
 const PROMO_NEW20_DISCOUNT_RATE = 0.2;
-const HERO_BG_VIDEO_URL = stripCloudinaryAudio('https://res.cloudinary.com/dtrxl120u/video/upload/v1776752374/Multi-Shot_Video_-_Create_a_premium__high-end_commercial_background_video_for_a_fast_custom_printing_plodlm.mp4');
+
 
 const TESTIMONIALS = [
   {
@@ -1736,22 +1736,10 @@ const GoogleAdsBanner: React.FC = () => {
         </header>
 
         {/* HERO */}
-        <section className="relative overflow-hidden px-4 pt-10 pb-12 md:pt-14 md:pb-14 bg-slate-900">
-          <video
-            ref={muteVideoElement}
-            className="pointer-events-none absolute left-1/2 top-1/2 h-full w-full -translate-x-1/2 -translate-y-1/2 object-cover z-0"
-            autoPlay
-            muted
-            loop
-            playsInline
-            controls={false}
-            preload="auto"
-            aria-hidden="true"
-            onLoadedMetadata={(e) => muteVideoElement(e.currentTarget)}
-            onPlay={(e) => muteVideoElement(e.currentTarget)}
-          >
-            <source src={HERO_BG_VIDEO_URL} type="video/mp4" />
-          </video>
+        <section
+          className="relative overflow-hidden px-4 pt-10 pb-12 md:pt-14 md:pb-14 bg-slate-900"
+          style={heroBackgroundStyle}
+        >
           <div
             className="absolute inset-0 z-[1]"
             style={{
