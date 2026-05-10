@@ -198,3 +198,32 @@
 [[edge_functions]]
   path = "/graduation-signs"
   function = "social-meta-injector"
+
+# Preview/branch deploy crawler protection
+[context.deploy-preview]
+  command = "npm run build"
+
+[[context.deploy-preview.headers]]
+  for = "/*"
+  [context.deploy-preview.headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[context.deploy-preview.redirects]]
+  from = "/robots.txt"
+  to = "/robots-preview.txt"
+  status = 200
+  force = true
+
+[context.branch-deploy]
+  command = "npm run build"
+
+[[context.branch-deploy.headers]]
+  for = "/*"
+  [context.branch-deploy.headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[context.branch-deploy.redirects]]
+  from = "/robots.txt"
+  to = "/robots-preview.txt"
+  status = 200
+  force = true

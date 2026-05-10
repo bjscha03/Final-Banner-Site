@@ -5,12 +5,14 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
+import { Helmet } from "react-helmet-async";
 import { ThemeProvider } from "@/components/theme-provider";
 import { useCartSync } from "@/hooks/useCartSync";
 import { useCartRevalidation } from "@/hooks/useCartRevalidation";
 import { useCartStore } from "@/store/cart";
 import { toast } from "@/components/ui/use-toast";
 import { initPostHog } from "@/lib/posthog";
+import { isPreviewEnvironment } from "@/lib/environment";
 // DISABLED: Popup promo flow replaced with static NEW20 code in PromoBanner
 // import { PromoPopup } from "@/components/PromoPopup";
 // import { usePromoPopup } from "@/hooks/usePromoPopup";
@@ -140,8 +142,19 @@ const CartSyncWrapper = ({ children }: { children: React.ReactNode }) => {
 
 const queryClient = new QueryClient();
 
+const PreviewNoindexGuard = () => {
+  if (!isPreviewEnvironment()) return null;
+
+  return (
+    <Helmet>
+      <meta name="robots" content="noindex,nofollow,noarchive,nosnippet,noimageindex" />
+    </Helmet>
+  );
+};
+
 const App = () => (
   <HelmetProvider>
+  <PreviewNoindexGuard />
   <ThemeProvider defaultTheme="light">
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>

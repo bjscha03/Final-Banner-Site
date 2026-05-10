@@ -12,6 +12,11 @@ Allow: /
 
 User-agent: *
 Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /admin/*
+Disallow: /proof
+Disallow: /proof/
 
 # Sitemap
 Sitemap: https://bannersonthefly.com/sitemap.xml
