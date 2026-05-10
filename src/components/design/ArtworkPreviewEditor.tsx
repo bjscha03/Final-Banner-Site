@@ -80,6 +80,13 @@ const CLAMP_MAX = 5;
 
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 
+
+const snapToDevicePixel = (n: number, dpr: number) => {
+  if (!Number.isFinite(n)) return 0;
+  const safeDpr = dpr > 0 ? dpr : 1;
+  return Math.round(n * safeDpr) / safeDpr;
+};
+
 const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
   src,
   alt = 'Artwork preview',
@@ -575,6 +582,9 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
       s = canvasAspect / imgAspect;
     }
     s = clamp(s, 1, CLAMP_MAX);
+    if (import.meta.env.DEV) {
+      console.log('[ArtworkPreviewEditor:action]', { action: 'fill', scale: s, src });
+    }
     onChange({ x: 0, y: 0, scaleX: s, scaleY: s });
   }, [onChange, naturalSize]);
 
@@ -634,6 +644,50 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
   const nubSize = compactControls ? 14 : 16;
   const hitSize = 44;
 
+  const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+  const baseRect = containedRect
+    ? { left: containedRect.left, top: containedRect.top, width: containedRect.w, height: containedRect.h }
+    : canvasSize
+      ? { left: 0, top: 0, width: canvasSize.w, height: canvasSize.h }
+      : null;
+
+  const artworkFrame = baseRect
+    ? (() => {
+        const scaledW = baseRect.width * value.scaleX;
+        const scaledH = baseRect.height * value.scaleY;
+        const left = baseRect.left + (baseRect.width - scaledW) / 2 + value.x;
+        const top = baseRect.top + (baseRect.height - scaledH) / 2 + value.y;
+        return {
+          left: snapToDevicePixel(left, dpr),
+          top: snapToDevicePixel(top, dpr),
+          width: Math.max(1, snapToDevicePixel(scaledW, dpr)),
+          height: Math.max(1, snapToDevicePixel(scaledH, dpr)),
+        };
+      })()
+    : null;
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    if (!artworkFrame) return;
+    const tag = '[ArtworkPreviewEditor:render-debug]';
+    console.log(tag, {
+      selected,
+      src,
+      naturalWidth: naturalSize?.w ?? null,
+      naturalHeight: naturalSize?.h ?? null,
+      renderedWidth: artworkFrame.width,
+      renderedHeight: artworkFrame.height,
+      left: artworkFrame.left,
+      top: artworkFrame.top,
+      scaleX: value.scaleX,
+      scaleY: value.scaleY,
+      translateX: value.x,
+      translateY: value.y,
+      devicePixelRatio: dpr,
+      containRect: containedRect ? { w: containedRect.w, h: containedRect.h } : null,
+    });
+  }, [selected, src, naturalSize, artworkFrame, value.scaleX, value.scaleY, value.x, value.y, dpr, containedRect]);
+
   const handlePositions: Record<Corner, React.CSSProperties> = {
     tl: { top: 0, left: 0, transform: 'translate(-50%, -50%)', cursor: 'nwse-resize' },
     tr: { top: 0, right: 0, transform: 'translate(50%, -50%)', cursor: 'nesw-resize' },
@@ -652,8 +706,7 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
         style={{
           paddingBottom: paddingPct,
           touchAction: 'none',
-          WebkitTransform: 'translateZ(0)',
-          transform: 'translateZ(0)',
+          
           cursor: isImageLoading ? 'default' : selected ? 'move' : 'pointer',
           ...canvasStyle,
         }}
@@ -700,21 +753,17 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
         <div
           className="absolute"
           style={
-            containedRect
+            artworkFrame
               ? {
-                  left: containedRect.left,
-                  top: containedRect.top,
-                  width: containedRect.w,
-                  height: containedRect.h,
-                  transform: `translate3d(${value.x}px, ${value.y}px, 0) scale(${value.scaleX}, ${value.scaleY})`,
-                  transformOrigin: '50% 50%',
-                  willChange: 'transform',
+                  left: artworkFrame.left,
+                  top: artworkFrame.top,
+                  width: artworkFrame.width,
+                  height: artworkFrame.height,
+                  backfaceVisibility: 'hidden',
                 }
               : {
                   inset: 0,
-                  transform: `translate3d(${value.x}px, ${value.y}px, 0) scale(${value.scaleX}, ${value.scaleY})`,
-                  transformOrigin: '50% 50%',
-                  willChange: 'transform',
+                  backfaceVisibility: 'hidden',
                 }
           }
         >
@@ -728,6 +777,11 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
               'absolute inset-0 w-full h-full pointer-events-none ' +
               (containedRect ? '' : 'object-contain')
             }
+            style={{
+              imageRendering: 'auto',
+              WebkitBackfaceVisibility: 'hidden',
+              backfaceVisibility: 'hidden',
+            }}
           />
           {/* Selection bounding box + handles (only when selected) */}
           {!isImageLoading && selected && (
