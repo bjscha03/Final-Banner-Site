@@ -111,6 +111,12 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
     setQuote({ grommets: value });
   };
 
+  const resetConfiguratorAfterSuccessfulCartAdd = useCallback(() => {
+    window.dispatchEvent(new Event('clearUploadedImages'));
+    resetDesign();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [resetDesign]);
+
   // Check if user should see upsell (only if there are actually options to upsell)
   const shouldShowUpsell = useMemo(() => {
     if (dontShowUpsellAgain) return false;
@@ -1496,16 +1502,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
       });
     }
     
-    // Clear uploaded images from AssetsPanel after successful add to cart
-    window.dispatchEvent(new Event('clearUploadedImages'));
-      
-    // Scroll to top so user can see the cart
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    
-    // Reset design area after successful add
-    console.log('🔄 RESET: About to call resetDesign() after add to cart');
-    resetDesign();
-    console.log('🔄 RESET: resetDesign() called');
+    resetConfiguratorAfterSuccessfulCartAdd();
     } finally {
       setIsProcessingCart(false);
     }
@@ -1721,7 +1718,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
         console.log('🛒 [DESIGN SERVICE UPSELL] Navigating to checkout');
         navigate('/checkout');
       } else {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        resetConfiguratorAfterSuccessfulCartAdd();
       }
 
       setPendingAction(null);
@@ -1979,24 +1976,15 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
       }
     }
     
-    // Clear uploaded images
-    window.dispatchEvent(new Event('clearUploadedImages'));
-    
     // Close modal
     setShowUpsellModal(false);
-    
-    // Reset design
-    console.log('🔄 RESET: About to call resetDesign() after upsell');
-    resetDesign();
-    console.log('🔄 RESET: resetDesign() called');
     
     // Navigate based on pending action
     if (pendingAction === 'checkout') {
       console.log('🛒 [UPSELL] Navigating to checkout after upsell');
       navigate('/checkout');
     } else {
-      // Scroll to top so user can see the cart
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      resetConfiguratorAfterSuccessfulCartAdd();
     }
     
     setPendingAction(null);
