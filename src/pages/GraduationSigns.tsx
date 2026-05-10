@@ -472,7 +472,7 @@ const GraduationSigns: React.FC = () => {
           className="absolute inset-0 bg-cover bg-center sm:bg-right"
           style={{
             backgroundImage:
-              "url('https://res.cloudinary.com/dtrxl120u/image/upload/v1777023371/hero_tbmims.png')",
+              "url('https://res.cloudinary.com/dtrxl120u/image/upload/e_brightness:12,e_shadow:12/v1777023371/hero_tbmims.png')",
           }}
           aria-hidden="true"
         />
@@ -481,7 +481,7 @@ const GraduationSigns: React.FC = () => {
           className="absolute inset-0"
           style={{
             background:
-              'linear-gradient(to right, rgba(11,31,58,0.92) 0%, rgba(11,31,58,0.88) 35%, rgba(11,31,58,0.65) 55%, rgba(11,31,58,0.2) 75%, rgba(11,31,58,0) 100%)',
+              'linear-gradient(to right, rgba(11,31,58,0.86) 0%, rgba(11,31,58,0.80) 35%, rgba(11,31,58,0.58) 55%, rgba(11,31,58,0.18) 75%, rgba(11,31,58,0) 100%)',
           }}
           aria-hidden="true"
         />

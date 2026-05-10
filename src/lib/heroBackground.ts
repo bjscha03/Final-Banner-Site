@@ -7,7 +7,7 @@ import type { CSSProperties } from 'react';
  * autoplaying video.
  */
 export const HERO_BG_IMAGE_URL =
-  'https://res.cloudinary.com/dtrxl120u/image/upload/v1778430298/8072d966-0283-4b44-b972-4964edf3351a_n2fxia.png';
+  'https://res.cloudinary.com/dtrxl120u/image/upload/e_brightness:10,e_shadow:12/v1778430298/8072d966-0283-4b44-b972-4964edf3351a_n2fxia.png';
 
 /**
  * Inline style applying the hero image with a dark overlay so foreground
@@ -15,7 +15,7 @@ export const HERO_BG_IMAGE_URL =
  * or an absolutely-positioned background `<div>`.
  */
 export const heroBackgroundStyle: CSSProperties = {
-  backgroundImage: `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.58)), url("${HERO_BG_IMAGE_URL}")`,
+  backgroundImage: `linear-gradient(rgba(0,0,0,0.38), rgba(0,0,0,0.52)), url("${HERO_BG_IMAGE_URL}")`,
   backgroundSize: 'cover',
   backgroundPosition: 'center center',
   backgroundRepeat: 'no-repeat',
