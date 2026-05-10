@@ -524,6 +524,7 @@ const Design: React.FC = () => {
   // build flow. Reset whenever the user starts another build (changes
   // product type, taps a step pill, etc.).
   const [hasJustAddedToCart, setHasJustAddedToCart] = useState(false);
+  const [showPostAddResetNotice, setShowPostAddResetNotice] = useState(false);
 
   // Preview modal state
   const [showPreview, setShowPreview] = useState(false);
@@ -722,6 +723,11 @@ const Design: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('banner-unit-pref', unit);
   }, [unit]);
+  useEffect(() => {
+    if (!showPostAddResetNotice) return;
+    const t = window.setTimeout(() => setShowPostAddResetNotice(false), 4000);
+    return () => window.clearTimeout(t);
+  }, [showPostAddResetNotice]);
 
   // Show drag hint briefly when artwork is first uploaded
   useEffect(() => {
@@ -1050,6 +1056,13 @@ const Design: React.FC = () => {
     }
   }, [isYardSign]);
 
+  const resetAfterSuccessfulAdd = useCallback(() => {
+    resetPreview();
+    setShowPostAddResetNotice(true);
+    const target = builderStartRef.current ?? orderRef.current;
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [resetPreview]);
+
   // Shared post-add-to-cart UX:
   //  - 'checkout' -> open cart drawer + navigate to /checkout (fast, no awaits)
   //  - 'cart'     -> stay on page, show toast confirmation, flip to "View Cart"
@@ -1068,15 +1081,10 @@ const Design: React.FC = () => {
       toast({
         title: 'Added to cart ✓',
       });
-      // Flip to the post-add-to-cart success state. The mobile sticky CTA
-      // becomes "View Cart (n)" and the step progress indicator hides.
-      // We deliberately keep the uploaded artwork on screen — tapping
-      // "Start another" (handled by the page) is what calls resetPreview.
-      setHasJustAddedToCart(true);
+      resetAfterSuccessfulAdd();
       logUx('add_to_cart_completed', { source: 'finish_add_to_cart' });
-      logUx('post_add_to_cart_cta_rendered', { variant: 'view_cart' });
     }
-  }, [setIsCartOpen, navigate, toast]);
+  }, [setIsCartOpen, navigate, toast, resetAfterSuccessfulAdd]);
 
   // Background helper: render a positioned thumbnail dataUrl (synchronously
   // from cached image), upload it to Cloudinary, then patch the cart item's
@@ -1743,7 +1751,11 @@ const Design: React.FC = () => {
     materialConfirmed: hasConfirmedMaterial,
     quantityConfirmed: hasConfirmedQuantity,
     optionsReviewed: hasReviewedOptions,
-  }), [showEntryCta, widthIn, heightIn, material, isCarMagnet, quantity, isUploading, uploadError, uploadedFile, hasConfirmedSize, hasConfirmedMaterial, hasConfirmedQuantity, hasReviewedOptions]);
+    sizeLabel: `${widthIn}" × ${heightIn}"`,
+    materialLabel: material === '13oz' ? '13oz Vinyl' : material === '15oz' ? '15oz Vinyl' : material,
+    quantityLabel: `Qty ${quantity}`,
+    optionsLabel: finishingType === 'none' ? 'No finishing selected' : 'Finishing selected',
+  }), [showEntryCta, widthIn, heightIn, material, isCarMagnet, quantity, isUploading, uploadError, uploadedFile, hasConfirmedSize, hasConfirmedMaterial, hasConfirmedQuantity, hasReviewedOptions, finishingType]);
 
   const builderProgress = useMemo(() => getProgress(builderState), [builderState]);
 
@@ -1818,13 +1830,11 @@ const Design: React.FC = () => {
       const desc = getYardSignCtaState({
         showEntryCta,
         printSideSelected: Boolean(yardSignSidedness),
-        printSideReviewed: hasReviewedYardSignPrintSide,
         designCount: yardSignDesigns.length,
         unconfirmedDesignId: yardSignUnconfirmedDesignId,
         totalQuantity: yardSignTotalQty,
         quantityValid: yardSignQuantityValid.valid,
         quantityValidationMessage: yardSignQuantityValid.message ?? null,
-        stakesReviewed: hasReviewedYardSignStakes,
         isUploading: yardSignUploadStatus.isUploading,
         uploadError: yardSignUploadStatus.uploadError,
         hasJustAddedToCart: false,
@@ -2023,7 +2033,7 @@ const Design: React.FC = () => {
               onClick={scrollToOrder}
               className="group inline-flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white font-bold text-lg px-10 py-4 rounded-xl shadow-[0_4px_14px_rgba(251,146,60,0.4)] hover:shadow-[0_6px_20px_rgba(251,146,60,0.5)] transition-all w-full sm:w-auto"
             >
-              Upload Design &amp; Continue
+              Start Order
             </button>
           </div>
         </div>
@@ -2040,10 +2050,13 @@ const Design: React.FC = () => {
           >
             {isYardSign ? 'Build Your Yard Sign Order' : isCarMagnet ? 'Design Your Custom Car Magnets' : 'Build Your Banner'}
           </h2>
+          {showPostAddResetNotice && (
+            <p className="mb-4 text-sm text-green-700 text-center">Added to cart. Start another design or checkout when ready.</p>
+          )}
           {/* Mobile-only step progress — driven by the same step machine as the
               sticky CTA so they can never disagree. Hidden on yard sign (uses a
               different multi-design flow). */}
-          {!isYardSign && !hasJustAddedToCart && (
+          {false && (
             <div className="mb-4">
               <MobileStepProgress progress={builderProgress} onStepClick={handleStepPillClick} />
             </div>
@@ -2721,15 +2734,10 @@ const Design: React.FC = () => {
         </div>
       </section>
 
-      {/* Mobile sticky bottom-bar spacer — keeps page content from being
-          obscured by the fixed CTA below. Roughly matches the bar height
-          (Total + button + helper line + safe-area inset). */}
-      <div aria-hidden="true" className="md:hidden h-32" />
-
-      {/* Mobile sticky CTA — single contextual action so users always know
-          what tapping the button will do (or why it is disabled). */}
+      {/* Mobile sticky subtotal bar (no progression CTA). */}
+      <div aria-hidden="true" className="md:hidden h-20" />
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 pt-3 shadow-lg z-40 overflow-x-clip" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0.75rem))' }}>
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3 min-h-[44px]">
           <div className="min-w-0">
             {/* Pre-tax subtotal — labeled "Subtotal" so it lines up with the
                 cart/checkout breakdown (which shows Subtotal → Tax → Total).
@@ -2748,36 +2756,8 @@ const Design: React.FC = () => {
               <p className="text-xl font-bold text-gray-900">{usd(totals.materialTotal)}</p>
             )}
           </div>
-          <button
-            type="button"
-            onClick={mobileCta.disabled ? undefined : mobileCta.onClick}
-            disabled={mobileCta.disabled}
-            aria-disabled={mobileCta.disabled}
-            aria-busy={mobileCta.loading}
-            aria-live="polite"
-            className="flex-1 inline-flex items-center justify-center gap-2 min-h-[48px] bg-orange-500 hover:bg-orange-600 active:scale-[0.99] text-white font-bold py-3 px-6 rounded-xl disabled:bg-orange-300 disabled:cursor-not-allowed disabled:active:scale-100 transition-colors"
-          >
-            {mobileCta.loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
-            {mobileCta.label}
-          </button>
+          <p className="text-xs text-gray-500">Scroll to review options, upload artwork, and checkout.</p>
         </div>
-        {mobileCta.helper && (
-          <p className={`mt-2 text-xs ${uploadError && mobileCta.label === 'Retry Upload' ? 'text-red-600' : hasJustAddedToCart ? 'text-green-700' : 'text-gray-500'}`} role="status">
-            {mobileCta.helper}
-            {hasJustAddedToCart && (
-              <>
-                {' · '}
-                <button
-                  type="button"
-                  onClick={handleStartAnother}
-                  className="underline text-orange-600 hover:text-orange-700 font-medium"
-                >
-                  Start another
-                </button>
-              </>
-            )}
-          </p>
-        )}
       </div>
 
       {/* Preview Modal */}

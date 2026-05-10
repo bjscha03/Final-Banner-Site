@@ -52,26 +52,21 @@ export interface BuilderStepState {
   optionsRequired?: boolean;
   /** When `optionsRequired` is true, set this to whether they're satisfied. */
   optionsValid?: boolean;
-  /**
-   * Explicit user-confirmation flags. The step machine treats a step as
-   * incomplete unless the user has actively interacted with it — default
-   * preselected values (e.g. material `13oz`, quantity `1`, preset size 0)
-   * never advance the progress indicator on their own. All four default
-   * to `true` for backward compatibility so callers that don't track
-   * confirmation get the old "any valid value = complete" behaviour.
-   *
-   * Pages restoring a saved cart-edit state should pre-set every flag
-   * to true so the user doesn't have to re-confirm an existing order.
-   */
+  /** True after the user has meaningfully engaged with the configurator. */
+  hasReviewedDefaults?: boolean;
   sizeConfirmed?: boolean;
   materialConfirmed?: boolean;
   quantityConfirmed?: boolean;
   optionsReviewed?: boolean;
+  sizeLabel?: string | null;
+  materialLabel?: string | null;
+  quantityLabel?: string | null;
+  optionsLabel?: string | null;
 }
 
 export interface BuilderCtaDescriptor {
   /** Which step the CTA is currently pointing at. */
-  step: BuilderStepKey | 'entry' | 'add_to_cart' | 'uploading' | 'upload_error';
+  step: BuilderStepKey | 'entry' | 'review' | 'add_to_cart' | 'uploading' | 'upload_error';
   /** Visible button label. */
   label: string;
   /** DOM `id` to scroll into view, or null if the CTA performs a non-scroll action. */
@@ -117,33 +112,25 @@ const STEP_ANCHORS: Record<BuilderStepKey, string> = {
 };
 
 function isSizeValid(state: BuilderStepState): boolean {
-  if (!(state.widthIn && state.heightIn && state.widthIn > 0 && state.heightIn > 0)) return false;
-  return state.sizeConfirmed !== false;
+  return Boolean(state.widthIn && state.heightIn && state.widthIn > 0 && state.heightIn > 0);
 }
 
 function isMaterialValid(state: BuilderStepState): boolean {
   if (state.materialRequired === false) return true;
-  if (!state.material) return false;
-  return state.materialConfirmed !== false;
+  return Boolean(state.material);
 }
 
 function isQuantityValid(state: BuilderStepState): boolean {
   const q = state.quantity;
-  if (!(typeof q === 'number' && Number.isFinite(q) && q >= 1)) return false;
-  return state.quantityConfirmed !== false;
+  return Boolean(typeof q === 'number' && Number.isFinite(q) && q >= 1);
 }
 
 function isOptionsComplete(state: BuilderStepState): boolean {
-  // Even when the options card is informational (default), a step-by-step
-  // mobile flow still wants the user to acknowledge the section before
-  // moving on to upload — so an explicit `optionsReviewed === false` always
-  // marks this step incomplete. When the caller doesn't track review
-  // (`optionsReviewed` undefined), fall back to the previous behaviour
-  // (informational = always complete; required = check `optionsValid`).
-  if (state.optionsReviewed === false) return false;
   if (!state.optionsRequired) return true;
   return Boolean(state.optionsValid);
 }
+
+const isReviewed = (flag: boolean | undefined): boolean => Boolean(flag);
 
 /**
  * Compute the per-step completion bitmap used by the progress indicator.
@@ -151,10 +138,10 @@ function isOptionsComplete(state: BuilderStepState): boolean {
 export function getProgress(state: BuilderStepState): BuilderProgress {
   const visibleSteps = BUILDER_STEPS.filter((k) => !(k === 'material' && state.materialRequired === false));
   const completed: Record<BuilderStepKey, boolean> = {
-    size: isSizeValid(state),
-    material: isMaterialValid(state),
-    quantity: isQuantityValid(state),
-    options: isOptionsComplete(state),
+    size: isReviewed(state.sizeConfirmed),
+    material: isReviewed(state.materialConfirmed),
+    quantity: isReviewed(state.quantityConfirmed),
+    options: !state.optionsRequired || isReviewed(state.optionsReviewed),
     upload: state.hasUpload,
   };
   // Current step = first incomplete step, or final step if all done.
@@ -216,10 +203,10 @@ export function getNextStep(state: BuilderStepState): BuilderCtaDescriptor {
     };
   }
 
-  if (!isSizeValid(state)) {
+  if (!isReviewed(state.sizeConfirmed)) {
     return {
       step: 'size',
-      label: 'Choose Size',
+      label: `${state.sizeLabel ?? 'Size'} selected — Continue`,
       scrollTargetId: STEP_ANCHORS.size,
       disabled: false,
       loading: false,
@@ -227,10 +214,10 @@ export function getNextStep(state: BuilderStepState): BuilderCtaDescriptor {
     };
   }
 
-  if (!isMaterialValid(state)) {
+  if (!isReviewed(state.materialConfirmed)) {
     return {
       step: 'material',
-      label: 'Select Material',
+      label: `${state.materialLabel ?? 'Material'} selected — Continue`,
       scrollTargetId: STEP_ANCHORS.material,
       disabled: false,
       loading: false,
@@ -238,10 +225,10 @@ export function getNextStep(state: BuilderStepState): BuilderCtaDescriptor {
     };
   }
 
-  if (!isQuantityValid(state)) {
+  if (!isReviewed(state.quantityConfirmed)) {
     return {
       step: 'quantity',
-      label: 'Choose Quantity',
+      label: `${state.quantityLabel ?? 'Qty selected'} — Continue`,
       scrollTargetId: STEP_ANCHORS.quantity,
       disabled: false,
       loading: false,
@@ -249,10 +236,10 @@ export function getNextStep(state: BuilderStepState): BuilderCtaDescriptor {
     };
   }
 
-  if (!isOptionsComplete(state)) {
+  if (!isReviewed(state.optionsReviewed)) {
     return {
       step: 'options',
-      label: 'More options',
+      label: `${state.optionsLabel ?? 'Options selected'} — Continue`,
       scrollTargetId: STEP_ANCHORS.options,
       disabled: false,
       loading: false,
@@ -263,7 +250,7 @@ export function getNextStep(state: BuilderStepState): BuilderCtaDescriptor {
   if (!state.hasUpload) {
     return {
       step: 'upload',
-      label: 'Upload Design & Continue',
+      label: 'Upload Artwork',
       scrollTargetId: STEP_ANCHORS.upload,
       disabled: false,
       loading: false,
@@ -302,6 +289,10 @@ export function scrollToStepAnchor(anchorId: string | null): void {
   if (!el) return;
   if (typeof el.scrollIntoView === 'function') {
     el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    el.classList.add('ring-2', 'ring-orange-400', 'ring-offset-2');
+    window.setTimeout(() => {
+      el.classList.remove('ring-2', 'ring-orange-400', 'ring-offset-2');
+    }, 1200);
     return;
   }
   if (typeof window !== 'undefined') {
@@ -335,8 +326,6 @@ export interface YardSignCtaState {
   showEntryCta: boolean;
   /** Print side selected? Yard signs default to 'single', so this is true unless the user explicitly cleared it. */
   printSideSelected: boolean;
-  /** Has the user actively confirmed/reviewed the print side card? */
-  printSideReviewed: boolean;
   /** Number of uploaded designs. */
   designCount: number;
   /** ID of the first design that has NOT yet been preview-confirmed (no previewThumbnailUrl), if any. */
@@ -347,8 +336,6 @@ export interface YardSignCtaState {
   quantityValid: boolean;
   /** Validation message when quantityValid is false. */
   quantityValidationMessage: string | null;
-  /** Has the user reviewed/confirmed the Add Stakes step? */
-  stakesReviewed: boolean;
   /** Yard-sign-side upload lifecycle (mirrored from YardSignConfigurator). */
   isUploading: boolean;
   uploadError: string | null;
@@ -455,7 +442,7 @@ export function getYardSignCtaState(state: YardSignCtaState): YardSignCtaDescrip
   if (state.designCount === 0) {
     return {
       step: 'add_design',
-      label: 'Add a Design',
+      label: 'Upload Artwork',
       scrollTargetId: YARD_SIGN_ANCHORS.upload,
       disabled: false,
       loading: false,
@@ -500,18 +487,6 @@ export function getYardSignCtaState(state: YardSignCtaState): YardSignCtaDescrip
       helper:
         state.quantityValidationMessage ??
         'Yard signs must be ordered in increments of 10 (10, 20, 30, etc.).',
-    };
-  }
-
-  // Step 5 — Stakes review (optional but explicit).
-  if (!state.stakesReviewed) {
-    return {
-      step: 'review_stakes',
-      label: 'Review Stakes',
-      scrollTargetId: YARD_SIGN_ANCHORS.finishing,
-      disabled: false,
-      loading: false,
-      helper: 'Optional — choose whether to add wire H-stakes.',
     };
   }
 
