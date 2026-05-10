@@ -7,7 +7,7 @@ import { useCartStore, type CartItem } from '@/store/cart';
 import { useUIStore } from '@/store/ui';
 import { calcTotals, usd, PRICE_PER_SQFT } from '@/lib/pricing';
 import { calculateBannerPricing, type RopePlacement } from '@/lib/bannerPricingEngine';
-import { heroBackgroundStyle } from '@/lib/heroBackground';
+import { heroBackgroundStyle, heroCinematicOverlayStyle } from '@/lib/heroBackground';
 import { resolvePromo } from '@/lib/promoEngine';
 import { DESIGN_GROMMET_OPTIONS } from '@/lib/grommets';
 import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
@@ -1742,12 +1742,15 @@ const GoogleAdsBanner: React.FC = () => {
         >
           <div
             className="absolute inset-0 z-[1]"
-            style={{
-              background: 'linear-gradient(to bottom, rgba(0,0,0,0.48), rgba(0,0,0,0.30))',
-            }}
+            style={heroCinematicOverlayStyle}
             aria-hidden="true"
           />
-          <div className="relative z-[2] max-w-2xl mx-auto text-center space-y-5">
+          <div
+            className="absolute left-1/2 top-[34%] h-[340px] w-[640px] -translate-x-1/2 -translate-y-1/2 rounded-full z-[1] md:hidden"
+            style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.14) 0%, rgba(2,6,23,0) 68%)' }}
+            aria-hidden="true"
+          />
+          <div className="relative z-[2] max-w-2xl mx-auto text-center space-y-5 rounded-2xl px-2 py-4 sm:px-6 sm:py-6 bg-black/20 backdrop-blur-[1.8px]">
             <h1 className="text-white text-3xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight">
               {isYardSign ? 'Custom Yard Signs' : isCarMagnet ? 'Design Your Custom Car Magnets' : 'Custom Banner Printing'}
               <br />
