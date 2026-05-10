@@ -172,6 +172,15 @@ exports.handler = async (event, context) => {
       `saturday_fee_cents INTEGER DEFAULT 0`,
       `order_timestamp_et TEXT`,
       `same_day_qualified BOOLEAN DEFAULT FALSE`,
+      // Payment-related columns referenced by the admin WHERE filter below.
+      // Missing any of these crashes the whole get-orders query (500 →
+      // empty admin / my-orders pages), so we ensure they exist defensively
+      // even if the matching create-order/checkout migration hasn't run yet.
+      `payment_method TEXT`,
+      `paypal_order_id TEXT`,
+      `paypal_capture_id TEXT`,
+      `stripe_charge_id TEXT`,
+      `stripe_payment_intent_id TEXT`,
     ];
     if (!_migrationsRan) {
       for (const col of orderColumns) {
