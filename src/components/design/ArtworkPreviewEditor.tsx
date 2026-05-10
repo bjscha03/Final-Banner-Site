@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { RotateCcw, Maximize2, Minimize2, Lock, Unlock } from 'lucide-react';
+import { RotateCcw, Maximize2, Minimize2, Link2, Unlink2 } from 'lucide-react';
 
 /**
  * PR3 — Modern Canva-style artwork editor used inside the live preview canvas.
@@ -56,7 +56,7 @@ export interface ArtworkPreviewEditorProps {
   /** Optional inline style for the canvas surface (border/shadow/bg). */
   canvasStyle?: React.CSSProperties;
   /**
-   * Optional mount point for rendering the Fit/Fill/Reset/Locked toolbar
+   * Optional mount point for rendering the Fit/Fill/Reset/Resize-mode toolbar
    * BELOW the canvas. When provided, the floating canvas overlay is hidden
    * on EVERY screen size (desktop + mobile) and the toolbar is rendered
    * via React portal into this container. This keeps the toolbar off the
@@ -838,6 +838,7 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
     // has plenty of room, so always show labels there.
     const labelClass = variant === 'mobile' ? 'inline' : 'hidden sm:inline';
     return (
+      <div className="flex flex-col items-center">
       <div
         data-artwork-toolbar="true"
         // Bubble-phase only. Do NOT use capture-phase stopPropagation:
@@ -893,12 +894,17 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
               ? 'text-orange-600 hover:bg-orange-50'
               : 'text-gray-600 hover:bg-gray-100')
           }
-          title={constrain ? 'Constrain proportions: ON' : 'Constrain proportions: OFF (freeform)'}
+          aria-label={constrain ? 'Keep proportions enabled' : 'Free resize enabled'}
+          title={constrain ? 'Keep proportions: ON' : 'Free resize: ON'}
         >
-          {constrain ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
-          <span className={labelClass}>{constrain ? 'Locked' : 'Free'}</span>
+          {constrain ? <Link2 className="w-4 h-4" /> : <Unlink2 className="w-4 h-4" />}
+          <span className={labelClass}>{constrain ? 'Keep Proportions' : 'Free Resize'}</span>
         </button>
       </div>
+      <p className="mt-1.5 px-2 text-[11px] leading-snug text-gray-500 text-center">
+        Keep proportions on to avoid stretched or distorted artwork.
+      </p>
+    </div>
     );
   }
 };
