@@ -524,6 +524,7 @@ const Design: React.FC = () => {
   // build flow. Reset whenever the user starts another build (changes
   // product type, taps a step pill, etc.).
   const [hasJustAddedToCart, setHasJustAddedToCart] = useState(false);
+  const [hasReviewedDefaultSelections, setHasReviewedDefaultSelections] = useState(false);
 
   // Preview modal state
   const [showPreview, setShowPreview] = useState(false);
@@ -1739,7 +1740,8 @@ const Design: React.FC = () => {
     uploadError: uploadError || null,
     hasUpload: Boolean(uploadedFile),
     optionsRequired: false, // finishing options are upsell-only, never blocking
-  }), [showEntryCta, widthIn, heightIn, material, isCarMagnet, quantity, isUploading, uploadError, uploadedFile, hasConfirmedSize, hasConfirmedMaterial, hasConfirmedQuantity, hasReviewedOptions]);
+    hasReviewedDefaults: hasReviewedDefaultSelections,
+  }), [showEntryCta, widthIn, heightIn, material, isCarMagnet, quantity, isUploading, uploadError, uploadedFile, hasReviewedDefaultSelections]);
 
   const builderProgress = useMemo(() => getProgress(builderState), [builderState]);
 
@@ -1762,6 +1764,7 @@ const Design: React.FC = () => {
     setHasJustAddedToCart(false);
     logUx('step_scrolled', { step: key, source: 'progress_pill' });
     scrollToStepAnchor(STEP_ANCHOR_FOR(key));
+    setHasReviewedDefaultSelections(true);
     if (key !== 'upload') confirmStep(key);
   }, [confirmStep]);
 
@@ -1814,13 +1817,11 @@ const Design: React.FC = () => {
       const desc = getYardSignCtaState({
         showEntryCta,
         printSideSelected: Boolean(yardSignSidedness),
-        printSideReviewed: hasReviewedYardSignPrintSide,
         designCount: yardSignDesigns.length,
         unconfirmedDesignId: yardSignUnconfirmedDesignId,
         totalQuantity: yardSignTotalQty,
         quantityValid: yardSignQuantityValid.valid,
         quantityValidationMessage: yardSignQuantityValid.message ?? null,
-        stakesReviewed: hasReviewedYardSignStakes,
         isUploading: yardSignUploadStatus.isUploading,
         uploadError: yardSignUploadStatus.uploadError,
         hasJustAddedToCart: false,
@@ -1936,6 +1937,18 @@ const Design: React.FC = () => {
         return { label: desc.label, onClick: undefined, disabled: true, loading: true, helper: desc.helper };
       case 'upload_error':
         return { label: desc.label, onClick: wrap(scrollToUpload), disabled: false, loading: false, helper: desc.helper };
+      case 'review':
+        return {
+          label: desc.label,
+          onClick: wrap(() => {
+            setHasEnteredBuilder(true);
+            setHasReviewedDefaultSelections(true);
+            scrollToStepAnchor(desc.scrollTargetId);
+          }),
+          disabled: false,
+          loading: false,
+          helper: desc.helper,
+        };
       case 'add_to_cart':
         return { label: desc.label, onClick: wrap(() => { logUx('add_to_cart_attempted', { productType }); handleAddToCart(); }), disabled: false, loading: false, helper: null };
       case 'size':

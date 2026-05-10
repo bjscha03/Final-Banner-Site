@@ -247,6 +247,7 @@ const GoogleAdsBanner: React.FC = () => {
   const [yardSignUploadStatus, setYardSignUploadStatus] = useState<{ isUploading: boolean; uploadError: string | null }>({ isUploading: false, uploadError: null });
   const [yardSignPreviewTrigger, setYardSignPreviewTrigger] = useState<{ designId: string; nonce: number } | null>(null);
   const [hasJustAddedToCart, setHasJustAddedToCart] = useState(false);
+  const [hasReviewedDefaultSelections, setHasReviewedDefaultSelections] = useState(false);
 
   // Preview modal state
   const [showPreview, setShowPreview] = useState(false);
@@ -1553,7 +1554,8 @@ const GoogleAdsBanner: React.FC = () => {
     uploadError: uploadError || null,
     hasUpload: Boolean(uploadedFile),
     optionsRequired: false,
-  }), [showEntryCta, widthIn, heightIn, material, quantity, isUploading, uploadError, uploadedFile, hasConfirmedSize, hasConfirmedMaterial, hasConfirmedQuantity, hasReviewedOptions]);
+    hasReviewedDefaults: hasReviewedDefaultSelections,
+  }), [showEntryCta, widthIn, heightIn, material, quantity, isUploading, uploadError, uploadedFile, hasReviewedDefaultSelections]);
 
   const builderProgress = useMemo(() => getProgress(builderState), [builderState]);
 
@@ -1569,6 +1571,7 @@ const GoogleAdsBanner: React.FC = () => {
     setHasJustAddedToCart(false);
     logUx('step_scrolled', { step: key, source: 'progress_pill' });
     scrollToStepAnchor(STEP_ANCHOR_FOR(key));
+    setHasReviewedDefaultSelections(true);
     if (key !== 'upload') confirmStep(key);
   }, [confirmStep]);
 
@@ -1609,13 +1612,11 @@ const GoogleAdsBanner: React.FC = () => {
       const desc = getYardSignCtaState({
         showEntryCta,
         printSideSelected: Boolean(yardSignSidedness),
-        printSideReviewed: hasReviewedYardSignPrintSide,
         designCount: yardSignDesigns.length,
         unconfirmedDesignId: yardSignUnconfirmedDesignId,
         totalQuantity: yardSignTotalQty,
         quantityValid: yardSignQuantityValid.valid,
         quantityValidationMessage: yardSignQuantityValid.message ?? null,
-        stakesReviewed: hasReviewedYardSignStakes,
         isUploading: yardSignUploadStatus.isUploading,
         uploadError: yardSignUploadStatus.uploadError,
         hasJustAddedToCart: false,
@@ -1664,6 +1665,18 @@ const GoogleAdsBanner: React.FC = () => {
         return { label: desc.label, onClick: undefined, disabled: true, loading: true, helper: desc.helper };
       case 'upload_error':
         return { label: desc.label, onClick: wrap(scrollToUpload), disabled: false, loading: false, helper: desc.helper };
+      case 'review':
+        return {
+          label: desc.label,
+          onClick: wrap(() => {
+            setHasEnteredBuilder(true);
+            setHasReviewedDefaultSelections(true);
+            scrollToStepAnchor(desc.scrollTargetId);
+          }),
+          disabled: false,
+          loading: false,
+          helper: desc.helper,
+        };
       case 'add_to_cart':
         return { label: desc.label, onClick: wrap(() => { logUx('add_to_cart_attempted', { productType }); handleAddToCart(); }), disabled: false, loading: false, helper: null };
       case 'size':

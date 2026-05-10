@@ -56,7 +56,7 @@ const MobileStepProgress: React.FC<MobileStepProgressProps> = ({
           const isCurrent = !isComplete && i + 1 === safeCurrent;
           const stepLabel = STEP_LABEL_FOR(key);
           const dotClass = isDone
-            ? 'bg-green-600 text-white border-green-600'
+            ? 'bg-gray-100 text-gray-500 border-gray-300'
             : isCurrent
               ? 'bg-white text-orange-600 border-orange-500'
               : 'bg-white text-gray-400 border-gray-300';
@@ -74,7 +74,7 @@ const MobileStepProgress: React.FC<MobileStepProgressProps> = ({
               </button>
               {i < BUILDER_STEPS.length - 1 && (
                 <span
-                  className={`flex-1 h-0.5 rounded-full ${completed[key] ? 'bg-green-500' : 'bg-gray-200'}`}
+                  className={`flex-1 h-0.5 rounded-full ${completed[key] ? 'bg-gray-300' : 'bg-gray-200'}`}
                 />
               )}
             </li>

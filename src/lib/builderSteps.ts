@@ -52,11 +52,13 @@ export interface BuilderStepState {
   optionsRequired?: boolean;
   /** When `optionsRequired` is true, set this to whether they're satisfied. */
   optionsValid?: boolean;
+  /** True after the user has meaningfully engaged with the configurator. */
+  hasReviewedDefaults?: boolean;
 }
 
 export interface BuilderCtaDescriptor {
   /** Which step the CTA is currently pointing at. */
-  step: BuilderStepKey | 'entry' | 'add_to_cart' | 'uploading' | 'upload_error';
+  step: BuilderStepKey | 'entry' | 'review' | 'add_to_cart' | 'uploading' | 'upload_error';
   /** Visible button label. */
   label: string;
   /** DOM `id` to scroll into view, or null if the CTA performs a non-scroll action. */
@@ -237,6 +239,17 @@ export function getNextStep(state: BuilderStepState): BuilderCtaDescriptor {
   }
 
   if (!state.hasUpload) {
+    const hasValidDefaults = isSizeValid(state) && isMaterialValid(state) && isQuantityValid(state);
+    if (hasValidDefaults && !state.hasReviewedDefaults) {
+      return {
+        step: 'review',
+        label: 'Review & Continue',
+        scrollTargetId: STEP_ANCHORS.size,
+        disabled: false,
+        loading: false,
+        helper: 'Your defaults are selected and editable.',
+      };
+    }
     return {
       step: 'upload',
       label: 'Upload Artwork',
