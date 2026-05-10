@@ -247,7 +247,6 @@ const GoogleAdsBanner: React.FC = () => {
   const [yardSignUploadStatus, setYardSignUploadStatus] = useState<{ isUploading: boolean; uploadError: string | null }>({ isUploading: false, uploadError: null });
   const [yardSignPreviewTrigger, setYardSignPreviewTrigger] = useState<{ designId: string; nonce: number } | null>(null);
   const [hasJustAddedToCart, setHasJustAddedToCart] = useState(false);
-  const [hasReviewedDefaultSelections, setHasReviewedDefaultSelections] = useState(false);
 
   // Preview modal state
   const [showPreview, setShowPreview] = useState(false);
@@ -1554,8 +1553,15 @@ const GoogleAdsBanner: React.FC = () => {
     uploadError: uploadError || null,
     hasUpload: Boolean(uploadedFile),
     optionsRequired: false,
-    hasReviewedDefaults: hasReviewedDefaultSelections,
-  }), [showEntryCta, widthIn, heightIn, material, quantity, isUploading, uploadError, uploadedFile, hasReviewedDefaultSelections]);
+    sizeConfirmed: hasConfirmedSize,
+    materialConfirmed: hasConfirmedMaterial,
+    quantityConfirmed: hasConfirmedQuantity,
+    optionsReviewed: hasReviewedOptions,
+    sizeLabel: `${widthIn}" × ${heightIn}"`,
+    materialLabel: material === '13oz' ? '13oz Vinyl' : material === '15oz' ? '15oz Vinyl' : material,
+    quantityLabel: `Qty ${quantity}`,
+    optionsLabel: finishingType === 'none' ? 'No finishing selected' : 'Finishing selected',
+  }), [showEntryCta, widthIn, heightIn, material, quantity, isUploading, uploadError, uploadedFile, hasConfirmedSize, hasConfirmedMaterial, hasConfirmedQuantity, hasReviewedOptions, finishingType]);
 
   const builderProgress = useMemo(() => getProgress(builderState), [builderState]);
 
@@ -1571,7 +1577,6 @@ const GoogleAdsBanner: React.FC = () => {
     setHasJustAddedToCart(false);
     logUx('step_scrolled', { step: key, source: 'progress_pill' });
     scrollToStepAnchor(STEP_ANCHOR_FOR(key));
-    setHasReviewedDefaultSelections(true);
     if (key !== 'upload') confirmStep(key);
   }, [confirmStep]);
 
@@ -1665,18 +1670,6 @@ const GoogleAdsBanner: React.FC = () => {
         return { label: desc.label, onClick: undefined, disabled: true, loading: true, helper: desc.helper };
       case 'upload_error':
         return { label: desc.label, onClick: wrap(scrollToUpload), disabled: false, loading: false, helper: desc.helper };
-      case 'review':
-        return {
-          label: desc.label,
-          onClick: wrap(() => {
-            setHasEnteredBuilder(true);
-            setHasReviewedDefaultSelections(true);
-            scrollToStepAnchor(desc.scrollTargetId);
-          }),
-          disabled: false,
-          loading: false,
-          helper: desc.helper,
-        };
       case 'add_to_cart':
         return { label: desc.label, onClick: wrap(() => { logUx('add_to_cart_attempted', { productType }); handleAddToCart(); }), disabled: false, loading: false, helper: null };
       case 'size':
@@ -1815,7 +1808,7 @@ const GoogleAdsBanner: React.FC = () => {
                 onClick={scrollToOrder}
                 className="group inline-flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white font-bold text-lg px-10 py-4 rounded-xl shadow-[0_4px_14px_rgba(251,146,60,0.4)] hover:shadow-[0_6px_20px_rgba(251,146,60,0.5)] transition-all w-full sm:w-auto"
               >
-                Upload Design &amp; Continue
+                Start Order
               </button>
               <div className="text-xs text-gray-200 text-center space-y-1"><p>Upload your design in minutes.</p><p>We review files before printing.</p><p>Printed within 24 hours and shipped free via next-day air.</p></div>
 

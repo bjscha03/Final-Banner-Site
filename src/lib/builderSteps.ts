@@ -54,6 +54,14 @@ export interface BuilderStepState {
   optionsValid?: boolean;
   /** True after the user has meaningfully engaged with the configurator. */
   hasReviewedDefaults?: boolean;
+  sizeConfirmed?: boolean;
+  materialConfirmed?: boolean;
+  quantityConfirmed?: boolean;
+  optionsReviewed?: boolean;
+  sizeLabel?: string | null;
+  materialLabel?: string | null;
+  quantityLabel?: string | null;
+  optionsLabel?: string | null;
 }
 
 export interface BuilderCtaDescriptor {
@@ -118,10 +126,11 @@ function isQuantityValid(state: BuilderStepState): boolean {
 }
 
 function isOptionsComplete(state: BuilderStepState): boolean {
-
   if (!state.optionsRequired) return true;
   return Boolean(state.optionsValid);
 }
+
+const isReviewed = (flag: boolean | undefined): boolean => Boolean(flag);
 
 /**
  * Compute the per-step completion bitmap used by the progress indicator.
@@ -129,10 +138,10 @@ function isOptionsComplete(state: BuilderStepState): boolean {
 export function getProgress(state: BuilderStepState): BuilderProgress {
   const visibleSteps = BUILDER_STEPS.filter((k) => !(k === 'material' && state.materialRequired === false));
   const completed: Record<BuilderStepKey, boolean> = {
-    size: isSizeValid(state),
-    material: isMaterialValid(state),
-    quantity: isQuantityValid(state),
-    options: isOptionsComplete(state),
+    size: isReviewed(state.sizeConfirmed),
+    material: isReviewed(state.materialConfirmed),
+    quantity: isReviewed(state.quantityConfirmed),
+    options: !state.optionsRequired || isReviewed(state.optionsReviewed),
     upload: state.hasUpload,
   };
   // Current step = first incomplete step, or final step if all done.
@@ -194,10 +203,10 @@ export function getNextStep(state: BuilderStepState): BuilderCtaDescriptor {
     };
   }
 
-  if (!isSizeValid(state)) {
+  if (!isReviewed(state.sizeConfirmed)) {
     return {
       step: 'size',
-      label: 'Choose Size',
+      label: `${state.sizeLabel ?? 'Size'} selected — Continue`,
       scrollTargetId: STEP_ANCHORS.size,
       disabled: false,
       loading: false,
@@ -205,10 +214,10 @@ export function getNextStep(state: BuilderStepState): BuilderCtaDescriptor {
     };
   }
 
-  if (!isMaterialValid(state)) {
+  if (!isReviewed(state.materialConfirmed)) {
     return {
       step: 'material',
-      label: 'Select Material',
+      label: `${state.materialLabel ?? 'Material'} selected — Continue`,
       scrollTargetId: STEP_ANCHORS.material,
       disabled: false,
       loading: false,
@@ -216,10 +225,10 @@ export function getNextStep(state: BuilderStepState): BuilderCtaDescriptor {
     };
   }
 
-  if (!isQuantityValid(state)) {
+  if (!isReviewed(state.quantityConfirmed)) {
     return {
       step: 'quantity',
-      label: 'Choose Quantity',
+      label: `${state.quantityLabel ?? 'Qty selected'} — Continue`,
       scrollTargetId: STEP_ANCHORS.quantity,
       disabled: false,
       loading: false,
@@ -227,10 +236,10 @@ export function getNextStep(state: BuilderStepState): BuilderCtaDescriptor {
     };
   }
 
-  if (!isOptionsComplete(state)) {
+  if (!isReviewed(state.optionsReviewed)) {
     return {
       step: 'options',
-      label: 'More options',
+      label: `${state.optionsLabel ?? 'Options selected'} — Continue`,
       scrollTargetId: STEP_ANCHORS.options,
       disabled: false,
       loading: false,
@@ -239,17 +248,6 @@ export function getNextStep(state: BuilderStepState): BuilderCtaDescriptor {
   }
 
   if (!state.hasUpload) {
-    const hasValidDefaults = isSizeValid(state) && isMaterialValid(state) && isQuantityValid(state);
-    if (hasValidDefaults && !state.hasReviewedDefaults) {
-      return {
-        step: 'review',
-        label: 'Review & Continue',
-        scrollTargetId: STEP_ANCHORS.size,
-        disabled: false,
-        loading: false,
-        helper: 'Your defaults are selected and editable.',
-      };
-    }
     return {
       step: 'upload',
       label: 'Upload Artwork',
