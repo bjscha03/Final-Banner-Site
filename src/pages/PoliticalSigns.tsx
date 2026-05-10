@@ -77,11 +77,11 @@ const PoliticalSigns: React.FC = () => {
           className="absolute inset-0 bg-cover bg-center sm:bg-right"
           style={{
             backgroundImage:
-              "url('https://res.cloudinary.com/dtrxl120u/image/upload/v1778177853/political_banners_cdgdgp.png')",
+              "url('https://res.cloudinary.com/dtrxl120u/image/upload/e_brightness:10,e_shadow:10/v1778177853/political_banners_cdgdgp.png')",
           }}
           aria-hidden="true"
         />
-        <div className="absolute inset-0 bg-[#0B1F3A]/75" aria-hidden="true" />
+        <div className="absolute inset-0 bg-[#0B1F3A]/68" aria-hidden="true" />
         <div className="relative z-[2] max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-24 lg:py-28">
           <div className="max-w-2xl">
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight leading-tight text-white">

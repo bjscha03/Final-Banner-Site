@@ -1996,7 +1996,7 @@ const Design: React.FC = () => {
         <div
           className="absolute inset-0 z-[1]"
           style={{
-            background: 'linear-gradient(to bottom, rgba(0,0,0,0.55), rgba(0,0,0,0.35))',
+            background: 'linear-gradient(to bottom, rgba(0,0,0,0.48), rgba(0,0,0,0.30))',
           }}
           aria-hidden="true"
         />
