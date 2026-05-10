@@ -208,7 +208,9 @@ const AdminOrders: React.FC = () => {
     ] = await Promise.allSettled([
       loadAllOrdersForOverview(),
       fetchEvents(),
-      fetch('/.netlify/functions/get-abandoned-carts').then(async (response) => {
+      fetch('/.netlify/functions/get-abandoned-carts', {
+        headers: adminEmail ? { 'x-user-email': adminEmail.toLowerCase() } : {},
+      }).then(async (response) => {
         if (!response.ok) throw new Error('Failed to fetch abandoned carts');
         return response.json();
       }),

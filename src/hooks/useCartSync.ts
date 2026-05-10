@@ -193,6 +193,7 @@ export function useCartSync() {
     // User logged out
     if (prevUserId && !currentUserId) {
       console.log('🚪 User logged out');
+      console.log('[cart-event] logout_preserved_cart', { itemCount: useCartStore.getState().items.length, source: 'logout' });
       console.log('🚪 CRITICAL: Saving cart to database before clearing...');
       
       // CRITICAL FIX: Save cart to database BEFORE clearing
@@ -222,26 +223,15 @@ export function useCartSync() {
         console.log('ℹ️  No items to save (cart is empty)');
       }
       
-      // Clear cart from UI (cart is saved to database above)
-      console.log('🚪 Clearing cart from UI');
-      useCartStore.setState({ items: [] });
-      
-      // CRITICAL: Also clear the Zustand persist storage to prevent stale data
-      // This ensures the next user doesn't see any remnants of this user's cart
+      // Preserve cart in UI/local storage for guest continuity unless user explicitly clears cart.
+      console.log('🚪 Preserving cart in UI/localStorage after logout');
+
       if (typeof localStorage !== 'undefined') {
         localStorage.removeItem('cart_owner_user_id');
-        // Also clear the Zustand cart-storage to prevent rehydration issues
-        localStorage.removeItem('cart-storage');
-        console.log('🚪 Cleared cart-storage from localStorage');
       }
       
-      // CRITICAL FIX: Clear session cookie to prevent cross-account pollution
-      // Without this, the next user who logs in would get the previous user's guest cart!
-      cartSyncService.clearSessionCookie();
-      console.log('🚪 Cleared session cookie');
-      
       hasMergedRef.current = false;
-      console.log('✅ Cart cleared from UI - will be restored from database on next login');
+      console.log('✅ Cart preserved after logout');
     }
     
     // Update the ref

@@ -21,6 +21,13 @@ exports.handler = async (event, context) => {
   }
 
   try {
+    const requestPath = '/.netlify/functions/get-abandoned-carts';
+    const requestEmail = (event.headers?.['x-user-email'] || event.headers?.['X-User-Email'] || '').toLowerCase().trim();
+    if (!requestEmail) {
+      console.warn('[admin-access-denied]', { path: requestPath, reason: 'unauthenticated', timestamp: new Date().toISOString() });
+      return { statusCode: 401, headers, body: JSON.stringify({ error: 'Authentication required' }) };
+    }
+
     const databaseUrl = process.env.DATABASE_URL || process.env.NETLIFY_DATABASE_URL || process.env.VITE_DATABASE_URL;
     
     if (!databaseUrl) {
@@ -33,6 +40,15 @@ exports.handler = async (event, context) => {
     }
 
     const sql = neon(databaseUrl);
+    const profileRows = await sql`SELECT is_admin FROM profiles WHERE LOWER(email) = ${requestEmail} LIMIT 1`;
+    if (profileRows.length === 0) {
+      console.warn('[admin-access-denied]', { path: requestPath, email: requestEmail, reason: 'missing_profile', timestamp: new Date().toISOString() });
+      return { statusCode: 403, headers, body: JSON.stringify({ error: 'Forbidden' }) };
+    }
+    if (profileRows[0].is_admin !== true) {
+      console.warn('[admin-access-denied]', { path: requestPath, email: requestEmail, reason: 'non_admin', timestamp: new Date().toISOString() });
+      return { statusCode: 403, headers, body: JSON.stringify({ error: 'Forbidden' }) };
+    }
 
     // Get all carts (including recovered for analytics)
     // NOTE: We extract only thumbnail URLs from cart_contents to avoid massive response sizes
