@@ -247,6 +247,7 @@ const GoogleAdsBanner: React.FC = () => {
   const [yardSignUploadStatus, setYardSignUploadStatus] = useState<{ isUploading: boolean; uploadError: string | null }>({ isUploading: false, uploadError: null });
   const [yardSignPreviewTrigger, setYardSignPreviewTrigger] = useState<{ designId: string; nonce: number } | null>(null);
   const [hasJustAddedToCart, setHasJustAddedToCart] = useState(false);
+  const [showPostAddResetNotice, setShowPostAddResetNotice] = useState(false);
 
   // Preview modal state
   const [showPreview, setShowPreview] = useState(false);
@@ -434,6 +435,11 @@ const GoogleAdsBanner: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('banner-unit-pref', unit);
   }, [unit]);
+  useEffect(() => {
+    if (!showPostAddResetNotice) return;
+    const t = window.setTimeout(() => setShowPostAddResetNotice(false), 4000);
+    return () => window.clearTimeout(t);
+  }, [showPostAddResetNotice]);
 
   // Show drag hint briefly when artwork is first uploaded
   useEffect(() => {
@@ -925,6 +931,12 @@ const GoogleAdsBanner: React.FC = () => {
       setYardSignDesigns([]);
     }
   }, [isYardSign]);
+  const resetAfterSuccessfulAdd = useCallback(() => {
+    resetPreview();
+    setShowPostAddResetNotice(true);
+    const target = builderStartRef.current ?? orderRef.current;
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [resetPreview]);
 
   // Shared post-add-to-cart UX:
   //  - 'checkout' -> open cart drawer + navigate to /checkout (no awaits)
@@ -944,14 +956,10 @@ const GoogleAdsBanner: React.FC = () => {
       toast({
         title: 'Added to cart ✓',
       });
-      // Flip to the post-add-to-cart success state (sticky CTA becomes
-      // "View Cart (n)"); MobileStepProgress hides; cleared on "Start
-      // another" / step pill click / product type change.
-      setHasJustAddedToCart(true);
+      resetAfterSuccessfulAdd();
       logUx('add_to_cart_completed', { source: 'finish_add_to_cart' });
-      logUx('post_add_to_cart_cta_rendered', { variant: 'view_cart' });
     }
-  }, [setIsCartOpen, navigate, toast]);
+  }, [setIsCartOpen, navigate, toast, resetAfterSuccessfulAdd]);
 
   // Background helper: upload positioned thumbnail to Cloudinary and patch
   // the cart item once it completes. Failures are silently swallowed —
@@ -1839,6 +1847,9 @@ const GoogleAdsBanner: React.FC = () => {
             >
               {isYardSign ? 'Build Your Yard Sign Order' : isCarMagnet ? 'Design Your Custom Car Magnets' : 'Build Your Banner'}
             </h2>
+            {showPostAddResetNotice && (
+              <p className="mb-4 text-sm text-green-700 text-center">Added to cart. Start another design or checkout when ready.</p>
+            )}
             {/* Mobile-only step progress — driven by the same step machine as
                 the sticky CTA so they can never disagree. Hidden on yard sign
                 (uses a different multi-design flow). */}

@@ -524,6 +524,7 @@ const Design: React.FC = () => {
   // build flow. Reset whenever the user starts another build (changes
   // product type, taps a step pill, etc.).
   const [hasJustAddedToCart, setHasJustAddedToCart] = useState(false);
+  const [showPostAddResetNotice, setShowPostAddResetNotice] = useState(false);
 
   // Preview modal state
   const [showPreview, setShowPreview] = useState(false);
@@ -722,6 +723,11 @@ const Design: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('banner-unit-pref', unit);
   }, [unit]);
+  useEffect(() => {
+    if (!showPostAddResetNotice) return;
+    const t = window.setTimeout(() => setShowPostAddResetNotice(false), 4000);
+    return () => window.clearTimeout(t);
+  }, [showPostAddResetNotice]);
 
   // Show drag hint briefly when artwork is first uploaded
   useEffect(() => {
@@ -1050,6 +1056,13 @@ const Design: React.FC = () => {
     }
   }, [isYardSign]);
 
+  const resetAfterSuccessfulAdd = useCallback(() => {
+    resetPreview();
+    setShowPostAddResetNotice(true);
+    const target = builderStartRef.current ?? orderRef.current;
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [resetPreview]);
+
   // Shared post-add-to-cart UX:
   //  - 'checkout' -> open cart drawer + navigate to /checkout (fast, no awaits)
   //  - 'cart'     -> stay on page, show toast confirmation, flip to "View Cart"
@@ -1068,15 +1081,10 @@ const Design: React.FC = () => {
       toast({
         title: 'Added to cart ✓',
       });
-      // Flip to the post-add-to-cart success state. The mobile sticky CTA
-      // becomes "View Cart (n)" and the step progress indicator hides.
-      // We deliberately keep the uploaded artwork on screen — tapping
-      // "Start another" (handled by the page) is what calls resetPreview.
-      setHasJustAddedToCart(true);
+      resetAfterSuccessfulAdd();
       logUx('add_to_cart_completed', { source: 'finish_add_to_cart' });
-      logUx('post_add_to_cart_cta_rendered', { variant: 'view_cart' });
     }
-  }, [setIsCartOpen, navigate, toast]);
+  }, [setIsCartOpen, navigate, toast, resetAfterSuccessfulAdd]);
 
   // Background helper: render a positioned thumbnail dataUrl (synchronously
   // from cached image), upload it to Cloudinary, then patch the cart item's
@@ -2042,6 +2050,9 @@ const Design: React.FC = () => {
           >
             {isYardSign ? 'Build Your Yard Sign Order' : isCarMagnet ? 'Design Your Custom Car Magnets' : 'Build Your Banner'}
           </h2>
+          {showPostAddResetNotice && (
+            <p className="mb-4 text-sm text-green-700 text-center">Added to cart. Start another design or checkout when ready.</p>
+          )}
           {/* Mobile-only step progress — driven by the same step machine as the
               sticky CTA so they can never disagree. Hidden on yard sign (uses a
               different multi-design flow). */}
