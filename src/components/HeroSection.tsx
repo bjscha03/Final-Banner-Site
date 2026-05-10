@@ -1,7 +1,7 @@
 import React from 'react';
 import { Star, Lock, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { heroBackgroundStyle } from '@/lib/heroBackground';
+import { heroBackgroundStyle, heroCinematicOverlayStyle } from '@/lib/heroBackground';
 
 const HeroSection: React.FC = () => {
   const navigate = useNavigate();
@@ -18,6 +18,12 @@ const HeroSection: React.FC = () => {
       className="relative w-full overflow-hidden bg-slate-950 py-14 sm:py-16 md:py-20 lg:py-24"
       style={heroBackgroundStyle}
     >
+      <div className="absolute inset-0 z-[1]" style={heroCinematicOverlayStyle} aria-hidden="true" />
+      <div
+        className="absolute left-1/2 top-[35%] h-[420px] w-[780px] -translate-x-1/2 -translate-y-1/2 rounded-full z-[1]"
+        style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(2,6,23,0) 70%)' }}
+        aria-hidden="true"
+      />
       <div className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div
           className="rounded-2xl border border-white/10 bg-black/15 p-6 sm:p-10 md:p-12 lg:p-16 backdrop-blur-[1px]"
