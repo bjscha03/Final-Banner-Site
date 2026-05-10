@@ -1553,10 +1553,6 @@ const GoogleAdsBanner: React.FC = () => {
     uploadError: uploadError || null,
     hasUpload: Boolean(uploadedFile),
     optionsRequired: false,
-    sizeConfirmed: hasConfirmedSize,
-    materialConfirmed: hasConfirmedMaterial,
-    quantityConfirmed: hasConfirmedQuantity,
-    optionsReviewed: hasReviewedOptions,
   }), [showEntryCta, widthIn, heightIn, material, quantity, isUploading, uploadError, uploadedFile, hasConfirmedSize, hasConfirmedMaterial, hasConfirmedQuantity, hasReviewedOptions]);
 
   const builderProgress = useMemo(() => getProgress(builderState), [builderState]);

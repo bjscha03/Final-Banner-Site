@@ -1739,10 +1739,6 @@ const Design: React.FC = () => {
     uploadError: uploadError || null,
     hasUpload: Boolean(uploadedFile),
     optionsRequired: false, // finishing options are upsell-only, never blocking
-    sizeConfirmed: hasConfirmedSize,
-    materialConfirmed: hasConfirmedMaterial,
-    quantityConfirmed: hasConfirmedQuantity,
-    optionsReviewed: hasReviewedOptions,
   }), [showEntryCta, widthIn, heightIn, material, isCarMagnet, quantity, isUploading, uploadError, uploadedFile, hasConfirmedSize, hasConfirmedMaterial, hasConfirmedQuantity, hasReviewedOptions]);
 
   const builderProgress = useMemo(() => getProgress(builderState), [builderState]);

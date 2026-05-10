@@ -52,21 +52,6 @@ export interface BuilderStepState {
   optionsRequired?: boolean;
   /** When `optionsRequired` is true, set this to whether they're satisfied. */
   optionsValid?: boolean;
-  /**
-   * Explicit user-confirmation flags. The step machine treats a step as
-   * incomplete unless the user has actively interacted with it — default
-   * preselected values (e.g. material `13oz`, quantity `1`, preset size 0)
-   * never advance the progress indicator on their own. All four default
-   * to `true` for backward compatibility so callers that don't track
-   * confirmation get the old "any valid value = complete" behaviour.
-   *
-   * Pages restoring a saved cart-edit state should pre-set every flag
-   * to true so the user doesn't have to re-confirm an existing order.
-   */
-  sizeConfirmed?: boolean;
-  materialConfirmed?: boolean;
-  quantityConfirmed?: boolean;
-  optionsReviewed?: boolean;
 }
 
 export interface BuilderCtaDescriptor {
@@ -117,30 +102,21 @@ const STEP_ANCHORS: Record<BuilderStepKey, string> = {
 };
 
 function isSizeValid(state: BuilderStepState): boolean {
-  if (!(state.widthIn && state.heightIn && state.widthIn > 0 && state.heightIn > 0)) return false;
-  return state.sizeConfirmed !== false;
+  return Boolean(state.widthIn && state.heightIn && state.widthIn > 0 && state.heightIn > 0);
 }
 
 function isMaterialValid(state: BuilderStepState): boolean {
   if (state.materialRequired === false) return true;
-  if (!state.material) return false;
-  return state.materialConfirmed !== false;
+  return Boolean(state.material);
 }
 
 function isQuantityValid(state: BuilderStepState): boolean {
   const q = state.quantity;
-  if (!(typeof q === 'number' && Number.isFinite(q) && q >= 1)) return false;
-  return state.quantityConfirmed !== false;
+  return Boolean(typeof q === 'number' && Number.isFinite(q) && q >= 1);
 }
 
 function isOptionsComplete(state: BuilderStepState): boolean {
-  // Even when the options card is informational (default), a step-by-step
-  // mobile flow still wants the user to acknowledge the section before
-  // moving on to upload — so an explicit `optionsReviewed === false` always
-  // marks this step incomplete. When the caller doesn't track review
-  // (`optionsReviewed` undefined), fall back to the previous behaviour
-  // (informational = always complete; required = check `optionsValid`).
-  if (state.optionsReviewed === false) return false;
+
   if (!state.optionsRequired) return true;
   return Boolean(state.optionsValid);
 }
@@ -263,7 +239,7 @@ export function getNextStep(state: BuilderStepState): BuilderCtaDescriptor {
   if (!state.hasUpload) {
     return {
       step: 'upload',
-      label: 'Upload Design & Continue',
+      label: 'Upload Artwork',
       scrollTargetId: STEP_ANCHORS.upload,
       disabled: false,
       loading: false,
@@ -302,6 +278,10 @@ export function scrollToStepAnchor(anchorId: string | null): void {
   if (!el) return;
   if (typeof el.scrollIntoView === 'function') {
     el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    el.classList.add('ring-2', 'ring-orange-400', 'ring-offset-2');
+    window.setTimeout(() => {
+      el.classList.remove('ring-2', 'ring-orange-400', 'ring-offset-2');
+    }, 1200);
     return;
   }
   if (typeof window !== 'undefined') {
@@ -335,8 +315,6 @@ export interface YardSignCtaState {
   showEntryCta: boolean;
   /** Print side selected? Yard signs default to 'single', so this is true unless the user explicitly cleared it. */
   printSideSelected: boolean;
-  /** Has the user actively confirmed/reviewed the print side card? */
-  printSideReviewed: boolean;
   /** Number of uploaded designs. */
   designCount: number;
   /** ID of the first design that has NOT yet been preview-confirmed (no previewThumbnailUrl), if any. */
@@ -347,8 +325,6 @@ export interface YardSignCtaState {
   quantityValid: boolean;
   /** Validation message when quantityValid is false. */
   quantityValidationMessage: string | null;
-  /** Has the user reviewed/confirmed the Add Stakes step? */
-  stakesReviewed: boolean;
   /** Yard-sign-side upload lifecycle (mirrored from YardSignConfigurator). */
   isUploading: boolean;
   uploadError: string | null;
@@ -455,7 +431,7 @@ export function getYardSignCtaState(state: YardSignCtaState): YardSignCtaDescrip
   if (state.designCount === 0) {
     return {
       step: 'add_design',
-      label: 'Add a Design',
+      label: 'Upload Artwork',
       scrollTargetId: YARD_SIGN_ANCHORS.upload,
       disabled: false,
       loading: false,
@@ -500,18 +476,6 @@ export function getYardSignCtaState(state: YardSignCtaState): YardSignCtaDescrip
       helper:
         state.quantityValidationMessage ??
         'Yard signs must be ordered in increments of 10 (10, 20, 30, etc.).',
-    };
-  }
-
-  // Step 5 — Stakes review (optional but explicit).
-  if (!state.stakesReviewed) {
-    return {
-      step: 'review_stakes',
-      label: 'Review Stakes',
-      scrollTargetId: YARD_SIGN_ANCHORS.finishing,
-      disabled: false,
-      loading: false,
-      helper: 'Optional — choose whether to add wire H-stakes.',
     };
   }
 
