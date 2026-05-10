@@ -6,10 +6,39 @@ import { isPreviewEnvironment, isProductionHost } from './lib/environment';
 
 const PREVIEW_SESSION_KEY = 'preview_access_granted';
 
+declare global {
+  interface Window {
+    __ENV__?: {
+      VITE_PREVIEW_ACCESS_PASSWORD?: string;
+    };
+  }
+}
+
+function getPreviewAccessPassword(): string {
+  const vitePassword = import.meta.env.VITE_PREVIEW_ACCESS_PASSWORD;
+
+  if (typeof vitePassword === 'string' && vitePassword.length > 0) {
+    return vitePassword;
+  }
+
+  if (typeof window !== 'undefined') {
+    const runtimePassword = window.__ENV__?.VITE_PREVIEW_ACCESS_PASSWORD;
+    if (typeof runtimePassword === 'string' && runtimePassword.length > 0) {
+      return runtimePassword;
+    }
+  }
+
+  return '';
+}
+
 function PreviewAccessGate() {
-  const expectedPassword = import.meta.env.VITE_PREVIEW_ACCESS_PASSWORD;
+  const expectedPassword = getPreviewAccessPassword();
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+
+  if (isPreviewEnvironment()) {
+    console.log('[preview-gate] env present:', !!expectedPassword);
+  }
 
   const isConfigured = useMemo(() => {
     return typeof expectedPassword === 'string' && expectedPassword.length > 0;
