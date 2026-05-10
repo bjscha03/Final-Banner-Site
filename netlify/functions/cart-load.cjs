@@ -31,8 +31,11 @@ exports.handler = async (event, context) => {
     let result;
 
     if (userId) {
-      if (!uuidRegex.test(userId)) {
-        console.log('[cart-load] Invalid UUID format for userId, returning empty cart');
+      if (!uuidRegex.test(userId) || userId === '00000000-0000-0000-0000-000000000000') {
+        // Treat the nil UUID as "no user" — it's a sentinel value that
+        // otherwise passes the format regex and causes the SQL query to
+        // hang against a non-existent user, eventually returning 502.
+        console.log('[cart-load] Invalid or nil UUID for userId, returning empty cart');
         return { statusCode: 200, headers, body: JSON.stringify({ cartData: [] }) };
       }
       console.log('[cart-load] Querying database for user_id:', userId);
