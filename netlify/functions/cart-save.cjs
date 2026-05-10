@@ -102,8 +102,8 @@ exports.handler = async (event, context) => {
     console.log('[cart-save] Cleaned cart data for', cleanedCartData.length, 'items');
 
     // Validate userId is a valid UUID before attempting database operations
-    if (userId && !uuidRegex.test(userId)) {
-      console.log('[cart-save] Invalid UUID format for userId, skipping save');
+    if (userId && (!uuidRegex.test(userId) || userId === '00000000-0000-0000-0000-000000000000')) {
+      console.log('[cart-save] Invalid or nil UUID for userId, skipping save');
       return {
         statusCode: 200,
         headers,

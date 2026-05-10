@@ -117,7 +117,15 @@ class CartSyncService {
       const userStr = localStorage.getItem('banners_current_user');
       if (!userStr) return null;
       const user = JSON.parse(userStr);
-      return user?.id || null;
+      const id = user?.id;
+      if (!id) return null;
+      // Defensive: treat the nil UUID (all zeros) as "no user". This sentinel
+      // can leak into localStorage from various server/auth paths and would
+      // otherwise pass the server's UUID format check, then cause the
+      // cart-load/cart-save Netlify functions to hang to gateway timeout
+      // (502/504) and strand the checkout page on "Loading your cart...".
+      if (id === '00000000-0000-0000-0000-000000000000') return null;
+      return id;
     } catch (error) {
       console.error('Error getting user ID:', error);
       return null;
@@ -240,8 +248,17 @@ class CartSyncService {
 
       console.log('[cart-load] Calling Netlify function:', { userId: userId ? `${userId.substring(0, 8)}...` : null, sessionId: sessionId ? `${sessionId.substring(0, 12)}...` : null });
 
-      const response = await fetch(`/.netlify/functions/cart-load?${params.toString()}`);
-      
+      // Guard against hung Netlify functions stranding the UI in a loading
+      // state. Abort after 10s and let the caller handle the failure path.
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      let response: Response;
+      try {
+        response = await fetch(`/.netlify/functions/cart-load?${params.toString()}`, { signal: controller.signal });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${await response.text()}`);
       }
@@ -308,17 +325,27 @@ class CartSyncService {
     try {
       console.log('[cart-save] Calling Netlify function:', { userId: userId ? `${userId.substring(0, 8)}...` : null, sessionId: sessionId ? `${sessionId.substring(0, 12)}...` : null, itemCount: items.length });
 
-      const response = await fetch('/.netlify/functions/cart-save', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId,
-          sessionId,
-          cartData: items,
-        }),
-      });
+      // Guard against hung Netlify functions stranding the UI. Abort after
+      // 10s; saveCart returns false on failure and the caller carries on.
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      let response: Response;
+      try {
+        response = await fetch('/.netlify/functions/cart-save', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId,
+            sessionId,
+            cartData: items,
+          }),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${await response.text()}`);
