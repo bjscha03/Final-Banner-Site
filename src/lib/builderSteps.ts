@@ -98,11 +98,11 @@ export interface BuilderProgress {
 }
 
 const STEP_LABELS: Record<BuilderStepKey, string> = {
-  size: 'Choose size',
-  material: 'Select material',
-  quantity: 'Choose quantity',
-  options: 'Choose options',
-  upload: 'Upload artwork',
+  size: 'Size',
+  material: 'Material',
+  quantity: 'Upload',
+  options: 'Finishing',
+  upload: 'Checkout',
 };
 
 /** Label rendered when every step is complete and Add-to-Cart is the next action. */
@@ -219,7 +219,7 @@ export function getNextStep(state: BuilderStepState): BuilderCtaDescriptor {
   if (!isSizeValid(state)) {
     return {
       step: 'size',
-      label: 'Choose Size',
+      label: 'Continue to Material',
       scrollTargetId: STEP_ANCHORS.size,
       disabled: false,
       loading: false,
@@ -230,7 +230,7 @@ export function getNextStep(state: BuilderStepState): BuilderCtaDescriptor {
   if (!isMaterialValid(state)) {
     return {
       step: 'material',
-      label: 'Select Material',
+      label: 'Continue to Upload',
       scrollTargetId: STEP_ANCHORS.material,
       disabled: false,
       loading: false,
@@ -241,7 +241,7 @@ export function getNextStep(state: BuilderStepState): BuilderCtaDescriptor {
   if (!isQuantityValid(state)) {
     return {
       step: 'quantity',
-      label: 'Choose Quantity',
+      label: 'Continue to Finishing',
       scrollTargetId: STEP_ANCHORS.quantity,
       disabled: false,
       loading: false,
@@ -252,7 +252,7 @@ export function getNextStep(state: BuilderStepState): BuilderCtaDescriptor {
   if (!isOptionsComplete(state)) {
     return {
       step: 'options',
-      label: 'More options',
+      label: 'Continue to Upload',
       scrollTargetId: STEP_ANCHORS.options,
       disabled: false,
       loading: false,
@@ -263,7 +263,7 @@ export function getNextStep(state: BuilderStepState): BuilderCtaDescriptor {
   if (!state.hasUpload) {
     return {
       step: 'upload',
-      label: 'Upload Design & Continue',
+      label: 'Continue to Design',
       scrollTargetId: STEP_ANCHORS.upload,
       disabled: false,
       loading: false,
@@ -273,7 +273,7 @@ export function getNextStep(state: BuilderStepState): BuilderCtaDescriptor {
 
   return {
     step: 'add_to_cart',
-    label: 'Add to Cart',
+    label: 'Continue to Checkout',
     scrollTargetId: null,
     disabled: false,
     loading: false,

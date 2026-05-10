@@ -679,6 +679,11 @@ const GoogleAdsBanner: React.FC = () => {
     const target = builderStartRef.current ?? orderRef.current;
     target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
+  const autoAdvanceMobileStep = useCallback((nextAnchorId: string) => {
+    if (typeof window === 'undefined') return;
+    if (window.innerWidth >= 1024) return;
+    window.setTimeout(() => scrollToStepAnchor(nextAnchorId), 250);
+  }, []);
 
   useEffect(() => {
     const section = orderRef.current;
@@ -774,6 +779,7 @@ const GoogleAdsBanner: React.FC = () => {
     setHeightInRStr(String(p.h % 12));
     setActivePreset(idx);
     setHasConfirmedSize(true);
+    autoAdvanceMobileStep('material-section');
   };
 
   const handlePromoApply = () => {
@@ -2111,7 +2117,7 @@ const GoogleAdsBanner: React.FC = () => {
                               <button
                                 key={m.key}
                                 type="button"
-                                onClick={() => { setMaterial(m.mapped); setMaterialDropdownOpen(false); }}
+                                onClick={() => { setMaterial(m.mapped); setMaterialDropdownOpen(false); autoAdvanceMobileStep('upload-section'); }}
                                 className={`w-full flex items-center gap-3 px-3 py-3 text-left transition-colors cursor-pointer ${
                                   m.mapped === material
                                     ? 'bg-orange-50 border-l-2 border-orange-500'
@@ -2146,11 +2152,11 @@ const GoogleAdsBanner: React.FC = () => {
                   <>
                 <ConfigCard step={3} title="Quantity" id="quantity-section">
                   <div className="flex items-center gap-3">
-                    <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="w-9 h-9 flex items-center justify-center border border-gray-200 rounded-xl hover:border-gray-400 transition-colors">
+                    <button onClick={() => { setQuantity(q => Math.max(1, q - 1)); autoAdvanceMobileStep('options-section'); }} className="w-9 h-9 flex items-center justify-center border border-gray-200 rounded-xl hover:border-gray-400 transition-colors">
                       <Minus className="h-4 w-4 text-gray-600" />
                     </button>
-                    <input type="number" min={1} max={999} value={quantity} onChange={e => setQuantity(Math.max(1, +e.target.value || 1))} className="w-20 border rounded-xl px-3 py-1.5 text-base text-center" />
-                    <button onClick={() => setQuantity(q => Math.min(999, q + 1))} className="w-9 h-9 flex items-center justify-center border border-gray-200 rounded-xl hover:border-gray-400 transition-colors">
+                    <input type="number" min={1} max={999} value={quantity} onChange={e => { setQuantity(Math.max(1, +e.target.value || 1)); autoAdvanceMobileStep('options-section'); }} className="w-20 border rounded-xl px-3 py-1.5 text-base text-center" />
+                    <button onClick={() => { setQuantity(q => Math.min(999, q + 1)); autoAdvanceMobileStep('options-section'); }} className="w-9 h-9 flex items-center justify-center border border-gray-200 rounded-xl hover:border-gray-400 transition-colors">
                       <Plus className="h-4 w-4 text-gray-600" />
                     </button>
                   </div>
