@@ -10,7 +10,6 @@ import { usd, formatDimensions, getFeatureFlags, getPricingOptions, computeTotal
 import { validateMinimumOrder, canProceedToCheckout } from '@/lib/validation/minimumOrder';
 import PayPalCheckout from '@/components/checkout/PayPalCheckout';
 import StripeCheckout from '@/components/checkout/StripeCheckout';
-import SignUpEncouragementModal from '@/components/checkout/SignUpEncouragementModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ArrowLeft, Package, Plus, Minus, Trash2, Eye, Tag, Lock, Truck, CircleCheck } from 'lucide-react';
@@ -22,8 +21,6 @@ import ThumbnailPreviewWrapper from '@/components/preview/ThumbnailPreviewWrappe
 import CartItemBreakdown from '@/components/cart/CartItemBreakdown';
 import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
 import DeliveryTimer from '@/components/delivery/DeliveryTimer';
-import { useCheckoutContext } from '@/store/checkoutContext';
-import { cartSyncService } from '@/lib/cartSync';
 import { trackBeginCheckout, trackViewCart, trackFBInitiateCheckout } from '@/lib/analytics';
 import { trackPromoEvent } from '@/lib/posthog';
 import { getItemDisplayName, isYardSignItem, getProductCategory, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
@@ -36,11 +33,8 @@ const Checkout: React.FC = () => {
   // CRITICAL: Use migrated items to ensure rope/pole pocket costs are calculated
   const items = getMigratedItems();
   const { user } = useAuth();
-  const { setCheckoutContext } = useCheckoutContext();
   const [isAdminUser, setIsAdminUser] = useState(false);
   const { toast } = useToast();
-  const [showSignUpModal, setShowSignUpModal] = useState(false);
-  const [hasShownModal, setHasShownModal] = useState(false);
   const [discountCodeInput, setDiscountCodeInput] = useState('');
   const [isValidatingDiscount, setIsValidatingDiscount] = useState(false);
   const [discountError, setDiscountError] = useState('');
@@ -291,17 +285,6 @@ const Checkout: React.FC = () => {
   };
 
 
-  // Show sign-up modal for non-authenticated users (only once per session)
-  useEffect(() => {
-    if (!user && !hasShownModal && items.length > 0) {
-      const timer = setTimeout(() => {
-        setShowSignUpModal(true);
-        setHasShownModal(true);
-      }, 1000); // Show after 1 second delay
-
-      return () => clearTimeout(timer);
-    }
-  }, [user, hasShownModal, items.length]);
 
   // Track begin checkout event
   useEffect(() => {
@@ -966,18 +949,6 @@ const Checkout: React.FC = () => {
                       </label>
                       
                       {/* Email input for guests */}
-                      {!user && (
-                        <Input
-                          id="discount-email"
-                          type="email"
-                          placeholder="Your email address"
-                          value={guestDiscountEmail}
-                          onChange={(e) => setGuestDiscountEmail(e.target.value)}
-                          className="h-12 text-base border-2 focus:border-[#18448D] transition-colors"
-                          disabled={isValidatingDiscount}
-                        />
-                      )}
-                      
                       <div className="flex gap-2">
                         <Input
                           id="discount-code"
@@ -1334,56 +1305,26 @@ const Checkout: React.FC = () => {
               )}
 
               {!user && (
-                <div className="bg-gradient-to-br from-gray-50 to-slate-50 border border-gray-200 rounded-xl p-6 shadow-sm">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-gray-500 to-gray-600 rounded-full flex items-center justify-center shadow-md">
-                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
-                    </div>
-                    <h3 className="font-bold text-gray-900 text-lg">Guest Checkout</h3>
-                  </div>
-                  <p className="text-gray-700 text-base mb-4 leading-relaxed">
-                    You're checking out as a guest. Create an account to track your orders and reorder easily.
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 sm:p-5">
+                  <h3 className="font-semibold text-gray-900 text-base mb-2">Checking Out as a Guest</h3>
+                  <p className="text-sm text-gray-600 leading-relaxed">
+                    You can optionally create a free account after purchase to save your order history and reorder faster next time.
                   </p>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => setShowSignUpModal(true)}
-                      className="text-[#18448D] border-slate-200 hover:bg-slate-100 text-sm"
-                      size="sm"
-                    >
-                      Create Account
-                    </Button>
+                  <div className="flex items-center gap-3 mt-3 text-sm">
                     <Button
                       variant="link"
-                      onClick={async () => {
-                        // CRITICAL FIX: Ensure cart is synced to database before navigating to sign-in
-                        const guestSessionId = cartSyncService.getSessionId();
-                        console.log('🛒 CHECKOUT: Preparing to save guest cart before sign-in', {
-                          guestSessionId: guestSessionId ? `${guestSessionId.substring(0, 12)}...` : 'none',
-                          itemCount: items.length
-                        });
-                        
-                        // Sync cart to database (this ensures all items are saved)
-                        if (items.length > 0) {
-                          try {
-                            await syncToServer();
-                          } catch (syncError) {
-                            console.error('Failed to sync cart before sign-in:', syncError);
-                            // Continue with navigation even if sync fails
-                          }
-                        }
-                        
-                        // Set checkout context
-                        setCheckoutContext('/checkout', guestSessionId);
-                        
-                        // Navigate to sign-in
-                        navigate('/sign-in?from=checkout&next=/checkout');
-                      }}
-                      className="p-0 h-auto text-[#18448D] underline text-sm"
+                      onClick={() => navigate('/sign-in?from=checkout&next=/checkout')}
+                      className="p-0 h-auto text-[#18448D]"
                     >
                       Sign In
+                    </Button>
+                    <span className="text-gray-300">•</span>
+                    <Button
+                      variant="link"
+                      onClick={() => navigate('/sign-up?from=checkout&next=/checkout')}
+                      className="p-0 h-auto text-gray-600 hover:text-[#18448D]"
+                    >
+                      Create Account
                     </Button>
                   </div>
                 </div>
@@ -1392,17 +1333,6 @@ const Checkout: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* Sign-up Encouragement Modal */}
-      <SignUpEncouragementModal
-        isOpen={showSignUpModal}
-        onClose={() => setShowSignUpModal(false)}
-        onContinueAsGuest={() => {
-          // User chose to continue as guest, don't show modal again
-          setHasShownModal(true);
-        }}
-        productType={dominantProductType}
-      />
     </Layout>
   );
 };

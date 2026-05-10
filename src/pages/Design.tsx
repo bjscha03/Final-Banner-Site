@@ -1079,7 +1079,7 @@ const Design: React.FC = () => {
   }, [resetPreview]);
 
   // Shared post-add-to-cart UX:
-  //  - 'checkout' -> open cart drawer + navigate to /checkout (fast, no awaits)
+  //  - 'checkout' -> navigate directly to /checkout (no cart drawer hop)
   //  - 'cart'     -> stay on page, show toast confirmation, flip to "View Cart"
   const finishAddToCart = useCallback((
     actionType: 'checkout' | 'cart',
@@ -1087,7 +1087,6 @@ const Design: React.FC = () => {
   ) => {
     setPendingCheckoutData(null);
     if (actionType === 'checkout') {
-      setIsCartOpen(true);
       if (navigateUrl) {
         window.history.replaceState(null, '', navigateUrl);
       }
@@ -1099,7 +1098,7 @@ const Design: React.FC = () => {
       resetAfterSuccessfulAdd();
       logUx('add_to_cart_completed', { source: 'finish_add_to_cart' });
     }
-  }, [setIsCartOpen, navigate, toast, resetAfterSuccessfulAdd]);
+  }, [navigate, toast, resetAfterSuccessfulAdd]);
 
   // Background helper: render a positioned thumbnail dataUrl (synchronously
   // from cached image), upload it to Cloudinary, then patch the cart item's
