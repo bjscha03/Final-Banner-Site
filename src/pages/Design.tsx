@@ -2045,7 +2045,7 @@ const Design: React.FC = () => {
           {/* Mobile-only step progress — driven by the same step machine as the
               sticky CTA so they can never disagree. Hidden on yard sign (uses a
               different multi-design flow). */}
-          {!isYardSign && !hasJustAddedToCart && (
+          {false && (
             <div className="mb-4">
               <MobileStepProgress progress={builderProgress} onStepClick={handleStepPillClick} />
             </div>
@@ -2723,15 +2723,10 @@ const Design: React.FC = () => {
         </div>
       </section>
 
-      {/* Mobile sticky bottom-bar spacer — keeps page content from being
-          obscured by the fixed CTA below. Roughly matches the bar height
-          (Total + button + helper line + safe-area inset). */}
-      <div aria-hidden="true" className="md:hidden h-32" />
-
-      {/* Mobile sticky CTA — single contextual action so users always know
-          what tapping the button will do (or why it is disabled). */}
+      {/* Mobile sticky subtotal bar (no progression CTA). */}
+      <div aria-hidden="true" className="md:hidden h-20" />
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 pt-3 shadow-lg z-40 overflow-x-clip" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0.75rem))' }}>
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3 min-h-[44px]">
           <div className="min-w-0">
             {/* Pre-tax subtotal — labeled "Subtotal" so it lines up with the
                 cart/checkout breakdown (which shows Subtotal → Tax → Total).
@@ -2750,36 +2745,8 @@ const Design: React.FC = () => {
               <p className="text-xl font-bold text-gray-900">{usd(totals.materialTotal)}</p>
             )}
           </div>
-          <button
-            type="button"
-            onClick={mobileCta.disabled ? undefined : mobileCta.onClick}
-            disabled={mobileCta.disabled}
-            aria-disabled={mobileCta.disabled}
-            aria-busy={mobileCta.loading}
-            aria-live="polite"
-            className="flex-1 inline-flex items-center justify-center gap-2 min-h-[48px] bg-orange-500 hover:bg-orange-600 active:scale-[0.99] text-white font-bold py-3 px-6 rounded-xl disabled:bg-orange-300 disabled:cursor-not-allowed disabled:active:scale-100 transition-colors"
-          >
-            {mobileCta.loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
-            {mobileCta.label}
-          </button>
+          <p className="text-xs text-gray-500">Scroll to review options, upload artwork, and checkout.</p>
         </div>
-        {mobileCta.helper && (
-          <p className={`mt-2 text-xs ${uploadError && mobileCta.label === 'Retry Upload' ? 'text-red-600' : hasJustAddedToCart ? 'text-green-700' : 'text-gray-500'}`} role="status">
-            {mobileCta.helper}
-            {hasJustAddedToCart && (
-              <>
-                {' · '}
-                <button
-                  type="button"
-                  onClick={handleStartAnother}
-                  className="underline text-orange-600 hover:text-orange-700 font-medium"
-                >
-                  Start another
-                </button>
-              </>
-            )}
-          </p>
-        )}
       </div>
 
       {/* Preview Modal */}
