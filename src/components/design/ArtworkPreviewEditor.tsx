@@ -652,8 +652,7 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
         style={{
           paddingBottom: paddingPct,
           touchAction: 'none',
-          WebkitTransform: 'translateZ(0)',
-          transform: 'translateZ(0)',
+          
           cursor: isImageLoading ? 'default' : selected ? 'move' : 'pointer',
           ...canvasStyle,
         }}
@@ -706,15 +705,15 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
                   top: containedRect.top,
                   width: containedRect.w,
                   height: containedRect.h,
-                  transform: `translate3d(${value.x}px, ${value.y}px, 0) scale(${value.scaleX}, ${value.scaleY})`,
+                  transform: `translate(${value.x}px, ${value.y}px) scale(${value.scaleX}, ${value.scaleY})`,
                   transformOrigin: '50% 50%',
-                  willChange: 'transform',
+                  backfaceVisibility: 'hidden',
                 }
               : {
                   inset: 0,
-                  transform: `translate3d(${value.x}px, ${value.y}px, 0) scale(${value.scaleX}, ${value.scaleY})`,
+                  transform: `translate(${value.x}px, ${value.y}px) scale(${value.scaleX}, ${value.scaleY})`,
                   transformOrigin: '50% 50%',
-                  willChange: 'transform',
+                  backfaceVisibility: 'hidden',
                 }
           }
         >
@@ -728,6 +727,11 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
               'absolute inset-0 w-full h-full pointer-events-none ' +
               (containedRect ? '' : 'object-contain')
             }
+            style={{
+              imageRendering: 'auto',
+              WebkitBackfaceVisibility: 'hidden',
+              backfaceVisibility: 'hidden',
+            }}
           />
           {/* Selection bounding box + handles (only when selected) */}
           {!isImageLoading && selected && (
