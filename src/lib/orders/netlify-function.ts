@@ -68,7 +68,13 @@ export const netlifyFunctionOrdersAdapter: OrdersAdapter = {
   },
 
   listAll: async (page = 1): Promise<Order[]> => {
-    const response = await fetch(getNetlifyFunctionUrl(`get-orders?page=${page}`));
+    const currentUserRaw = typeof localStorage !== 'undefined' ? localStorage.getItem('banners_current_user') : null;
+    const currentUser = currentUserRaw ? JSON.parse(currentUserRaw) : null;
+    const response = await fetch(getNetlifyFunctionUrl(`get-orders?page=${page}`), {
+      headers: {
+        ...(currentUser?.email ? { 'x-user-email': String(currentUser.email).toLowerCase() } : {}),
+      },
+    });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));

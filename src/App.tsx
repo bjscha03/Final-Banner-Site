@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { useAuth, isAdmin } from "@/lib/auth";
 import { HelmetProvider } from "react-helmet-async";
 import { ThemeProvider } from "@/components/theme-provider";
 import { useCartSync } from "@/hooks/useCartSync";
@@ -82,6 +83,29 @@ const AdminAbandonedCarts = lazy(() => import("./pages/admin/AbandonedCarts"));
 const AdminEvents = lazy(() => import("./pages/admin/Events"));
 const AdminGraduationIntakes = lazy(() => import("./pages/admin/GraduationIntakes"));
 const AdminGraduationIntake = lazy(() => import("./pages/admin/GraduationIntake"));
+
+const AdminGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, loading } = useAuth();
+
+  useEffect(() => {
+    const existing = document.querySelector('meta[name="robots"]');
+    if (!existing) {
+      const meta = document.createElement('meta');
+      meta.setAttribute('name', 'robots');
+      meta.setAttribute('content', 'noindex,nofollow,noarchive');
+      document.head.appendChild(meta);
+    } else if (window.location.pathname.startsWith('/admin')) {
+      existing.setAttribute('content', 'noindex,nofollow,noarchive');
+    }
+  }, []);
+
+  if (loading) {
+    return <div className="min-h-screen bg-gray-50" aria-live="polite" />;
+  }
+  if (!user) return <Navigate to="/sign-in" replace />;
+  if (!isAdmin(user)) return <Navigate to="/" replace />;
+  return <>{children}</>;
+};
 const AdminSetup = lazy(() => import("./pages/AdminSetup"));
 const ProofApproval = lazy(() => import("./pages/ProofApproval"));
 
@@ -199,11 +223,11 @@ const App = () => (
             
             {/* Admin routes */}
             <Route path="/admin" element={<Navigate to="/admin/orders" replace />} />
-            <Route path="/admin/orders" element={<AdminOrders />} />
-            <Route path="/admin/abandoned-carts" element={<AdminAbandonedCarts />} />
-            <Route path="/admin/events" element={<AdminEvents />} />
-            <Route path="/admin/graduation-intakes" element={<AdminGraduationIntakes />} />
-            <Route path="/admin/graduation/:intakeId" element={<AdminGraduationIntake />} />
+            <Route path="/admin/orders" element={<AdminGuard><AdminOrders /></AdminGuard>} />
+            <Route path="/admin/abandoned-carts" element={<AdminGuard><AdminAbandonedCarts /></AdminGuard>} />
+            <Route path="/admin/events" element={<AdminGuard><AdminEvents /></AdminGuard>} />
+            <Route path="/admin/graduation-intakes" element={<AdminGuard><AdminGraduationIntakes /></AdminGuard>} />
+            <Route path="/admin/graduation/:intakeId" element={<AdminGuard><AdminGraduationIntake /></AdminGuard>} />
             {/* Admin login / setup page — password gate that grants admin access */}
             <Route path="/admin/setup" element={<AdminSetup />} />
             {/* Legacy dev placeholder routes — redirect any deep links to the real admin entry */}

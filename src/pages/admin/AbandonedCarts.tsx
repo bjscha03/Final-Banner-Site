@@ -90,7 +90,9 @@ const AbandonedCarts: React.FC = () => {
   const loadCarts = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/.netlify/functions/get-abandoned-carts');
+      const response = await fetch('/.netlify/functions/get-abandoned-carts', {
+        headers: { 'x-user-email': user.email.toLowerCase() },
+      });
       
       if (!response.ok) {
         throw new Error('Failed to fetch abandoned carts');

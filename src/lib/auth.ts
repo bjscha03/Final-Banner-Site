@@ -49,10 +49,8 @@ class SecureAuthAdapter implements AuthAdapter {
       }
 
       // Debug logging for production troubleshooting
-      const hasAdminCookie = typeof document !== 'undefined' && document.cookie.includes('admin=1');
       console.log('🔍 getCurrentUser Debug:', {
         hasStoredUser: !!user,
-        hasAdminCookie,
         hostname: typeof window !== 'undefined' ? window.location.hostname : 'unknown',
         storedUser: user ? { id: user.id, email: user.email, is_admin: user.is_admin } : null
       });
@@ -68,23 +66,6 @@ class SecureAuthAdapter implements AuthAdapter {
         safeStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
         console.log('✅ Migrated user ID to:' , newId);
       }
-      // If no user but admin cookie is present, create a temporary admin user
-      if (!user && hasAdminCookie) {
-        console.log('🆕 Creating temporary admin user from cookie');
-        user = {
-          id: '00000000-0000-0000-0000-000000000001', // ✅ Valid UUID for admin dev user
-          email: 'admin@dev.local',
-          is_admin: true,
-        };
-        safeStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
-      }
-
-      // Update admin status based on cookie
-      if (user && hasAdminCookie) {
-        console.log('🔧 Updating user admin status from cookie');
-        user.is_admin = true;
-      }
-
       console.log('✅ getCurrentUser result:', user ? { id: user.id, email: user.email, is_admin: user.is_admin } : null);
 
       // Upgrade admin status from server-side allowlist (ADMIN_TEST_PAY_ALLOWLIST)
@@ -143,11 +124,6 @@ class SecureAuthAdapter implements AuthAdapter {
       }
 
       const user: User = result.user;
-
-      // Check for admin cookie to override admin status if needed
-      if (typeof document !== 'undefined' && document.cookie.includes('admin=1')) {
-        user.is_admin = true;
-      }
 
       console.log('✅ Secure sign-in successful for:', user.email);
       safeStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
@@ -217,13 +193,6 @@ class SecureAuthAdapter implements AuthAdapter {
       console.log('🚪 Cleared cart owner ID from localStorage');
     }
 
-    // Clear admin cookie if it exists
-    if (typeof document !== 'undefined') {
-      // Set the admin cookie to expire immediately
-      document.cookie = 'admin=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax';
-      console.log('🍪 Cleared admin cookie during logout');
-    }
-    
     // Dispatch custom event to notify useAuth hook
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new Event('user-changed'));

@@ -191,6 +191,24 @@ exports.handler = async (event, context) => {
     }
 
     const { user_id, page = 1 } = event.queryStringParameters || {};
+    const requestPath = '/.netlify/functions/get-orders';
+    const requestEmail = (event.headers?.['x-user-email'] || event.headers?.['X-User-Email'] || '').toLowerCase().trim();
+
+    if (!user_id) {
+      if (!requestEmail) {
+        console.warn('[admin-access-denied]', { path: requestPath, reason: 'unauthenticated', timestamp: new Date().toISOString() });
+        return { statusCode: 401, headers, body: JSON.stringify({ error: 'Authentication required' }) };
+      }
+      const profileRows = await sql`SELECT is_admin FROM profiles WHERE LOWER(email) = ${requestEmail} LIMIT 1`;
+      if (profileRows.length === 0) {
+        console.warn('[admin-access-denied]', { path: requestPath, email: requestEmail, reason: 'missing_profile', timestamp: new Date().toISOString() });
+        return { statusCode: 403, headers, body: JSON.stringify({ error: 'Forbidden' }) };
+      }
+      if (profileRows[0].is_admin !== true) {
+        console.warn('[admin-access-denied]', { path: requestPath, email: requestEmail, reason: 'non_admin', timestamp: new Date().toISOString() });
+        return { statusCode: 403, headers, body: JSON.stringify({ error: 'Forbidden' }) };
+      }
+    }
     const limit = 20;
     const offset = (page - 1) * limit;
 

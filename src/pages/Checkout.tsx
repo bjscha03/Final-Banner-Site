@@ -59,6 +59,15 @@ const Checkout: React.FC = () => {
   // while still offering Stripe card + wallet flows as a secondary option.
   const [showCardForm, setShowCardForm] = useState(false);
   const [showPromoCode, setShowPromoCode] = useState(false);
+  useEffect(() => {
+    console.log('[cart-event] checkout_loaded', { itemCount: items.length, source: 'checkout' });
+  }, []);
+  useEffect(() => {
+    console.log('[cart-event] cart_hydrated', { itemCount: items.length, source: 'checkout' });
+  }, [isLoading]);
+  useEffect(() => {
+    console.log('[cart-event] auth_state_changed', { itemCount: items.length, source: user ? 'authenticated' : 'guest' });
+  }, [user?.id]);
 
   // Get totals from cart store methods
   const subtotalCents = getSubtotalCents();
@@ -356,6 +365,7 @@ const Checkout: React.FC = () => {
 
   // Redirect if cart is empty
   if (items.length === 0) {
+    console.warn('[cart-event] cart_empty_rendered', { itemCount: 0, source: 'checkout' });
     return (
       <Layout>
         <div className="bg-gray-50 py-8 min-h-[calc(100vh-4rem)]">
