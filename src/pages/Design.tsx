@@ -1057,9 +1057,25 @@ const Design: React.FC = () => {
   }, [isYardSign]);
 
   const resetAfterSuccessfulAdd = useCallback(() => {
+    const scrollProductPageToTop = () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      const scrollRoots = document.querySelectorAll<HTMLElement>('main, [data-product-scroll-root], [data-scroll-root]');
+      scrollRoots.forEach((el) => {
+        if (el.scrollHeight > el.clientHeight) {
+          el.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      });
+      window.requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+      window.setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }, 180);
+    };
+
     resetPreview();
     setShowPostAddResetNotice(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    scrollProductPageToTop();
   }, [resetPreview]);
 
   // Shared post-add-to-cart UX:
