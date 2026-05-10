@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Package, Zap, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -19,9 +19,19 @@ const SignUpEncouragementModal: React.FC<SignUpEncouragementModalProps> = ({
   onContinueAsGuest,
   productType,
 }) => {
+  const [isVisible, setIsVisible] = useState(false);
   const navigate = useNavigate();
   const { setCheckoutContext } = useCheckoutContext();
   const copy = getProductCopy(productType);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setIsVisible(false);
+      return;
+    }
+    const frame = window.requestAnimationFrame(() => setIsVisible(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -63,12 +73,14 @@ const SignUpEncouragementModal: React.FC<SignUpEncouragementModalProps> = ({
       <div className="flex min-h-full items-center justify-center p-4">
         {/* Backdrop */}
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 transition-opacity z-[9998]"
+          className={`fixed inset-0 bg-black/50 z-[9998] transition-opacity duration-200 ease-out motion-reduce:transition-none ${isVisible ? 'opacity-100' : 'opacity-0'}`}
           onClick={onClose}
         />
 
         {/* Modal */}
-        <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6 z-[10000]">
+        <div
+          className={`relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6 z-[10000] transform-gpu transition-all duration-200 ease-out motion-reduce:transition-none ${isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-3 scale-[0.98]'}`}
+        >
           {/* Close button */}
           <button
             onClick={onClose}

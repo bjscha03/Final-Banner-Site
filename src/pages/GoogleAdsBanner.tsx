@@ -932,10 +932,25 @@ const GoogleAdsBanner: React.FC = () => {
     }
   }, [isYardSign]);
   const resetAfterSuccessfulAdd = useCallback(() => {
+    const scrollProductPageToTop = () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      const scrollRoots = document.querySelectorAll<HTMLElement>('main, [data-product-scroll-root], [data-scroll-root]');
+      scrollRoots.forEach((el) => {
+        if (el.scrollHeight > el.clientHeight) {
+          el.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      });
+      window.requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+      window.setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }, 180);
+    };
+
     resetPreview();
     setShowPostAddResetNotice(true);
-    const target = builderStartRef.current ?? orderRef.current;
-    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    scrollProductPageToTop();
   }, [resetPreview]);
 
   // Shared post-add-to-cart UX:
@@ -1848,7 +1863,7 @@ const GoogleAdsBanner: React.FC = () => {
               {isYardSign ? 'Build Your Yard Sign Order' : isCarMagnet ? 'Design Your Custom Car Magnets' : 'Build Your Banner'}
             </h2>
             {showPostAddResetNotice && (
-              <p className="mb-4 text-sm text-green-700 text-center">Added to cart. Start another design or checkout when ready.</p>
+              <p className="mb-4 text-sm text-green-700 text-center">Added to cart. Start another order or view your cart.</p>
             )}
             {/* Mobile-only step progress — driven by the same step machine as
                 the sticky CTA so they can never disagree. Hidden on yard sign
@@ -2573,7 +2588,7 @@ const GoogleAdsBanner: React.FC = () => {
       </div>
 
         {/* Mobile sticky subtotal bar (no progression CTA). */}
-        <div aria-hidden="true" className="md:hidden h-20" />
+        <div aria-hidden="true" className="md:hidden h-24" />
         <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 pt-3 shadow-lg z-40 overflow-x-clip" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0.75rem))' }}>
           <div className="flex items-center justify-between gap-3 min-h-[44px]">
             <div className="min-w-0">
@@ -2593,7 +2608,13 @@ const GoogleAdsBanner: React.FC = () => {
                 <p className="text-xl font-bold text-gray-900">{usd(totals.materialTotal)}</p>
               )}
             </div>
-            <p className="text-xs text-gray-500">Scroll to review options, upload artwork, and checkout.</p>
+            <button
+              type="button"
+              onClick={openCartDrawer}
+              className="shrink-0 inline-flex items-center rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-[#18448D] hover:bg-slate-50 transition-colors"
+            >
+              View Cart ({cartItemCount})
+            </button>
           </div>
         </div>
 
