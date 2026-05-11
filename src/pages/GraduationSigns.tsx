@@ -97,23 +97,19 @@ const STYLE_OPTIONS = [
 const FAQS: { q: string; a: string }[] = [
   {
     q: 'Can I upload my own graduation design?',
-    a: 'Yes! Choose “Upload My Own Design” to use our normal banner, yard sign, or car magnet builder. You\u2019ll see a live preview and can add to cart immediately.',
-  },
-  {
-    q: 'Can you design it for me?',
-    a: 'Absolutely. Choose “Let Our Designers Design It For You,” fill out the intake form, and pay a $19 design fee. Our designers create a custom proof for you to review.',
+    a: 'Yes. Upload your artwork, choose your product, and preview your graduation sign live before adding it to cart.',
   },
   {
     q: 'When does production start?',
-    a: 'For uploaded designs, production starts as soon as your order is paid. For designer-assisted orders, production begins after you approve your proof and pay the final product balance.',
+    a: 'Production begins after your order is placed and artwork is approved if needed. Most graduation signs are printed within 24 hours.',
   },
   {
     q: 'How long does shipping take?',
-    a: 'All orders ship FREE next-day air after production is complete. Most orders are produced within 24 hours of approval.',
+    a: 'All graduation sign orders ship free via next-day air after production is complete.',
   },
   {
     q: 'What happens if I need edits?',
-    a: 'On the proof approval page you can request edits with notes. Our designers will revise the proof and send you a new version for review.',
+    a: 'If you notice an issue before ordering, you can update your design directly in the builder preview before adding it to cart.',
   },
 ];
 
@@ -124,7 +120,7 @@ const GraduationSigns: React.FC = () => {
   const { toast } = useToast();
   const addDesignDeposit = useCartStore((state) => state.addDesignDeposit);
 
-  const [flow, setFlow] = useState<Flow>(null);
+  const [flow, setFlow] = useState<Flow>('upload');
 
   // Upload-Own-Design product picker
   const [uploadProduct, setUploadProduct] = useState<ProductType>('banner');
@@ -187,7 +183,7 @@ const GraduationSigns: React.FC = () => {
   const [uploadingCategory, setUploadingCategory] = useState<InspirationFile['category'] | null>(null);
 
   const handleStartOver = () => {
-    setFlow(null);
+    setFlow('upload');
     try { sessionStorage.removeItem(INTAKE_STORAGE_KEY); } catch (_e) {}
   };
 
@@ -521,7 +517,7 @@ const GraduationSigns: React.FC = () => {
               Custom <span className="text-[#FF6A00]">Graduation Signs</span> Made Easy
             </h1>
             <p className="mt-5 text-lg md:text-xl text-white/90">
-              Upload your own design or let our designers create one for you.
+              Upload your design and get it printed fast.
             </p>
             <div className="mt-8">
               <button
@@ -532,9 +528,6 @@ const GraduationSigns: React.FC = () => {
                 <Upload className="h-5 w-5" /> Upload My Design
               </button>
             </div>
-            <p className="mt-4 text-xs text-white/70 max-w-sm">
-              Need a design? Start with a $19 design deposit. We'll create a proof, email it for approval, then you pay the final product balance after you approve.
-            </p>
             <ul className="mt-6 grid sm:grid-cols-2 gap-2.5 text-sm font-medium">
               {[
                 { icon: Clock, text: 'Printed in 24 hours after approval' },
@@ -553,12 +546,6 @@ const GraduationSigns: React.FC = () => {
       {/* Dynamic flow section */}
       <section id="choose-product-section" className="bg-white py-14 sm:py-20">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          {flow === null && (
-            <div className="text-center text-gray-500">
-              <p>Choose an option above to get started.</p>
-            </div>
-          )}
-
           {flow === 'upload' && (
             <div>
               <div className="text-center mb-10">
