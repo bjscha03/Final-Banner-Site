@@ -120,7 +120,7 @@ const GraduationSigns: React.FC = () => {
   const { toast } = useToast();
   const addDesignDeposit = useCartStore((state) => state.addDesignDeposit);
 
-  const [flow, setFlow] = useState<Flow>(null);
+  const [flow, setFlow] = useState<Flow>('upload');
 
   // Upload-Own-Design product picker
   const [uploadProduct, setUploadProduct] = useState<ProductType>('banner');
@@ -183,7 +183,7 @@ const GraduationSigns: React.FC = () => {
   const [uploadingCategory, setUploadingCategory] = useState<InspirationFile['category'] | null>(null);
 
   const handleStartOver = () => {
-    setFlow(null);
+    setFlow('upload');
     try { sessionStorage.removeItem(INTAKE_STORAGE_KEY); } catch (_e) {}
   };
 
@@ -546,12 +546,6 @@ const GraduationSigns: React.FC = () => {
       {/* Dynamic flow section */}
       <section id="choose-product-section" className="bg-white py-14 sm:py-20">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          {flow === null && (
-            <div className="text-center text-gray-500">
-              <p>Choose an option above to get started.</p>
-            </div>
-          )}
-
           {flow === 'upload' && (
             <div>
               <div className="text-center mb-10">
