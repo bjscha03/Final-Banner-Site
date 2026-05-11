@@ -678,10 +678,6 @@ const GraduationSigns: React.FC = () => {
                 >
                   Open the {PRODUCT_LABELS[uploadProduct]} Builder <ArrowRight className="h-5 w-5" />
                 </button>
-                <p className="mt-3 text-sm text-gray-500">
-                  Uses our existing builder, cart, upsell, PayPal checkout, admin order, and print-file
-                  pipeline.
-                </p>
               </div>
             </div>
           )}
