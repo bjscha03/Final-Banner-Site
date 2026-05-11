@@ -196,6 +196,22 @@ const GraduationSigns: React.FC = () => {
     setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 50);
   };
 
+
+  const scrollToProductSection = useCallback(() => {
+    setFlow('upload');
+
+    window.requestAnimationFrame(() => {
+      const section = document.getElementById('choose-product-section');
+      if (!section) return;
+
+      const header = document.querySelector('header');
+      const headerOffset = header ? header.getBoundingClientRect().height : 96;
+      const top = section.getBoundingClientRect().top + window.scrollY - headerOffset - 16;
+
+      window.scrollTo({ top: Math.max(top, 0), behavior: 'smooth' });
+    });
+  }, []);
+
   const handleFileUpload = useCallback(
     async (file: File, category: InspirationFile['category']) => {
       if (file.size > 25 * 1024 * 1024) {
@@ -507,32 +523,13 @@ const GraduationSigns: React.FC = () => {
             <p className="mt-5 text-lg md:text-xl text-white/90">
               Upload your own design or let our designers create one for you.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="mt-8">
               <button
                 type="button"
-                onClick={() => {
-                  setFlow('upload');
-                  setTimeout(
-                    () => document.getElementById('flow-section')?.scrollIntoView({ behavior: 'smooth' }),
-                    50
-                  );
-                }}
+                onClick={scrollToProductSection}
                 className="inline-flex items-center gap-2 rounded-lg bg-[#FF6A00] hover:bg-[#E65F00] text-white font-bold px-6 py-3.5 text-base shadow-lg transition"
               >
                 <Upload className="h-5 w-5" /> Upload My Design
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setFlow('designer');
-                  setTimeout(
-                    () => document.getElementById('flow-section')?.scrollIntoView({ behavior: 'smooth' }),
-                    50
-                  );
-                }}
-                className="inline-flex items-center gap-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/30 text-white font-bold px-6 py-3.5 text-base shadow-lg transition backdrop-blur"
-              >
-                <Sparkles className="h-5 w-5" /> Have Us Design It
               </button>
             </div>
             <p className="mt-4 text-xs text-white/70 max-w-sm">
@@ -553,89 +550,8 @@ const GraduationSigns: React.FC = () => {
         </div>
       </section>
 
-      {/* Choose how to start */}
-      <section id="choose" className="bg-[#F7F7F7] py-14 sm:py-20">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-10">
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-[#0B1F3A]">
-              Choose how you want to start
-            </h2>
-            <p className="mt-3 text-gray-600 max-w-2xl mx-auto">
-              Upload artwork you already have, or let our team design something custom for your
-              graduate. Either way, we print and ship fast.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-6 items-stretch">
-            <button
-              type="button"
-              onClick={() => {
-                setFlow('upload');
-                setTimeout(
-                  () => document.getElementById('flow-section')?.scrollIntoView({ behavior: 'smooth' }),
-                  50
-                );
-              }}
-              className={`text-left rounded-2xl border bg-white p-7 shadow-sm hover:shadow-md transition group ${
-                flow === 'upload'
-                  ? 'border-[#FF6A00] ring-2 ring-[#FF6A00]/30'
-                  : 'border-[#E5E5E5] hover:border-[#FF6A00]/50'
-              }`}
-            >
-              <div className="flex items-center gap-3 mb-3">
-                <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-[#0B1F3A]/5 text-[#0B1F3A]">
-                  <Upload className="h-6 w-6" />
-                </span>
-                <h3 className="text-2xl font-bold text-[#0B1F3A]">Upload My Own Design</h3>
-              </div>
-              <p className="text-gray-600">
-                Already have a graduation design? Upload your artwork, choose your product, and check
-                out in minutes with our normal builder.
-              </p>
-              <div className="mt-5 inline-flex items-center font-semibold text-[#FF6A00] group-hover:gap-2 gap-1 transition-all">
-                Start uploading <ArrowRight className="h-4 w-4" />
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setFlow('designer');
-                setTimeout(
-                  () => document.getElementById('flow-section')?.scrollIntoView({ behavior: 'smooth' }),
-                  50
-                );
-              }}
-              className={`relative text-left rounded-2xl border-2 bg-white p-7 shadow-md hover:shadow-xl transition group ${
-                flow === 'designer'
-                  ? 'border-[#FF6A00] ring-2 ring-[#FF6A00]/30'
-                  : 'border-[#FF6A00]'
-              }`}
-            >
-              <span className="absolute -top-3 left-7 inline-flex items-center rounded-full bg-[#FF6A00] px-3 py-0.5 text-xs font-bold uppercase tracking-wide text-white shadow">
-                Most Popular
-              </span>
-              <div className="flex items-center gap-3 mb-3">
-                <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-[#FF6A00]/10 text-[#FF6A00]">
-                  <Sparkles className="h-6 w-6" />
-                </span>
-                <h3 className="text-2xl font-bold text-[#0B1F3A]">Let Our Designers Design It For You</h3>
-              </div>
-              <p className="text-gray-600">
-                Tell us about your graduate and we’ll create a custom proof for approval.
-                <span className="font-semibold text-[#0B1F3A]"> $19 design fee due today.</span> Final
-                product cost is paid after you approve your proof.
-              </p>
-              <div className="mt-5 inline-flex items-center font-semibold text-[#FF6A00] group-hover:gap-2 gap-1 transition-all">
-                Start the intake form <ArrowRight className="h-4 w-4" />
-              </div>
-            </button>
-          </div>
-        </div>
-      </section>
-
       {/* Dynamic flow section */}
-      <section id="flow-section" className="bg-white py-14 sm:py-20">
+      <section id="choose-product-section" className="bg-white py-14 sm:py-20">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           {flow === null && (
             <div className="text-center text-gray-500">
