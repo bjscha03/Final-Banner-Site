@@ -1,32 +1,84 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import Design from '@/pages/Design';
-import { useAuth, isAdmin } from '@/lib/auth';
 import Layout from '@/components/Layout';
-import { Loader2 } from 'lucide-react';
+import { useAuth, isAdmin } from '@/lib/auth';
+import { AdminAIPromptPanel } from '@/components/admin-ai/AdminAIPromptPanel';
+import { AdminAICanvasPreview } from '@/components/admin-ai/AdminAICanvasPreview';
+import { AdminAIOptionsPanel } from '@/components/admin-ai/AdminAIOptionsPanel';
+import { AdminAIActionsPanel } from '@/components/admin-ai/AdminAIActionsPanel';
+import { AdminAIVersionHistory } from '@/components/admin-ai/AdminAIVersionHistory';
+import type { AIVersion } from '@/components/admin-ai/types';
+import { calculateBannerPricing } from '@/lib/bannerPricingEngine';
 
-const AdminAIDesigner: React.FC = () => {
-  const { user, loading: authLoading } = useAuth();
+const AdminAIDesignerPage: React.FC = () => {
+  const { user, loading } = useAuth();
+  const [widthIn, setWidthIn] = useState(8);
+  const [heightIn, setHeightIn] = useState(4);
+  const [material, setMaterial] = useState('13oz-vinyl');
+  const [quantity, setQuantity] = useState(1);
+  const [finishing, setFinishing] = useState('none');
+  const [prompt, setPrompt] = useState('');
+  const [originalPrompt, setOriginalPrompt] = useState('');
+  const [enhancedPrompt, setEnhancedPrompt] = useState('');
+  const [referenceImage, setReferenceImage] = useState<string | null>(null);
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
+  const [versions, setVersions] = useState<AIVersion[]>([]);
+  const [editPrompt, setEditPrompt] = useState('');
+  const [enhancing, setEnhancing] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mirror /admin/orders guard behavior: wait for auth state to finish
-  // loading before evaluating admin redirect conditions.
-  if (authLoading) {
-    return (
-      <Layout>
-        <div className="min-h-[50vh] flex items-center justify-center">
-          <div className="inline-flex items-center gap-2 text-gray-600">
-            <Loader2 className="w-5 h-5 animate-spin" />
-            <span>Checking admin access…</span>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
+  const price = useMemo(() => calculateBannerPricing({ widthIn: widthIn*12, heightIn: heightIn*12, quantity, material, grommets: finishing==='grommets'?'corners':'none', polePockets: finishing==='pole_pockets'?'both':'none', addRope: finishing==='rope'}), [widthIn,heightIn,quantity,material,finishing]);
 
-  if (!user || !isAdmin(user)) {
-    return <Navigate to="/admin/setup" replace />;
-  }
-  return <Design allowAdminAI />;
-};
+  if (loading) return <Layout><div className='p-10 text-white'>Checking admin access…</div></Layout>;
+  if (!user || !isAdmin(user)) return <Navigate to='/admin/setup' replace />;
 
-export default AdminAIDesigner;
+  const enhancePrompt = async () => {
+    if (!prompt.trim()) return;
+    setEnhancing(true); setError(null);
+    try {
+      const res = await fetch('/.netlify/functions/generate-ai-designs', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ userEmail:user.email, prompt: prompt.trim(), size:{wIn:widthIn*12,hIn:heightIn*12}, width:widthIn*12,height:heightIn*12, material, fastMode:true })});
+      const body = await res.json().catch(()=>({}));
+      if (!res.ok) throw new Error('AI generation failed. Please try again.');
+      setOriginalPrompt(prompt.trim());
+      setEnhancedPrompt(body?.prompt || prompt.trim());
+    } catch {
+      setError('AI generation failed. Please try again.');
+    } finally { setEnhancing(false); }
+  };
+
+  const generate = async () => {
+    setGenerating(true); setError(null);
+    try {
+      const usePrompt = (enhancedPrompt || prompt).trim();
+      const res = await fetch('/.netlify/functions/generate-ai-designs', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ userEmail:user.email, prompt: usePrompt, size:{wIn:widthIn*12,hIn:heightIn*12}, width:widthIn*12,height:heightIn*12, material, inspirationImage: referenceImage })});
+      const body = await res.json().catch(()=>({}));
+      if (!res.ok || !body?.image?.url) throw new Error('AI generation failed. Please try again.');
+      const url = body.image.url as string;
+      setCurrentImageUrl(url);
+      setVersions((p)=>[{id:String(Date.now()), imageUrl:url, promptUsed:usePrompt, createdAt:Date.now()}, ...p]);
+    } catch {
+      setError('AI generation failed. Please try again.');
+    } finally { setGenerating(false); }
+  };
+
+  const editWithAI = async () => {
+    if (!currentImageUrl || !editPrompt.trim()) return;
+    setGenerating(true); setError(null);
+    try {
+      const res = await fetch('/.netlify/functions/edit-design', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({productType:'banner', width:widthIn*12,height:heightIn*12,material, originalPrompt: enhancedPrompt||prompt, editPrompt})});
+      const body = await res.json().catch(()=>({}));
+      if (!res.ok || !body?.imageBase64) throw new Error('AI generation failed. Please try again.');
+      const url = `data:${body.mimeType||'image/png'};base64,${body.imageBase64}`;
+      setCurrentImageUrl(url);
+      setVersions((p)=>[{id:String(Date.now()), imageUrl:url, promptUsed:enhancedPrompt||prompt, editPrompt, createdAt:Date.now()}, ...p]);
+      setEditPrompt('');
+    } catch {
+      setError('AI generation failed. Please try again.');
+    } finally { setGenerating(false); }
+  };
+
+  return <Layout><main className='max-w-[1600px] mx-auto px-4 py-6'><div className='grid grid-cols-1 xl:grid-cols-12 gap-4'><div className='xl:col-span-3'><AdminAIPromptPanel prompt={prompt} setPrompt={setPrompt} enhancedPrompt={enhancedPrompt} setEnhancedPrompt={setEnhancedPrompt} enhancing={enhancing} generating={generating} onEnhance={enhancePrompt} onUseOriginal={()=>setEnhancedPrompt(originalPrompt || prompt)} referencePreview={referenceImage} onReferenceFile={(f)=>{const r=new FileReader(); r.onload=()=>setReferenceImage(String(r.result)); r.readAsDataURL(f);}}/></div><div className='xl:col-span-6 space-y-4'><AdminAICanvasPreview widthIn={widthIn} heightIn={heightIn} imageUrl={currentImageUrl} generating={generating}/><AdminAIVersionHistory versions={versions} onSelect={(id)=>{const v=versions.find(x=>x.id===id); if(v) setCurrentImageUrl(v.imageUrl);}}/><AdminAIActionsPanel error={error}/></div><div className='xl:col-span-3'><AdminAIOptionsPanel widthIn={widthIn} heightIn={heightIn} setWidthIn={setWidthIn} setHeightIn={setHeightIn} material={material} setMaterial={setMaterial} quantity={quantity} setQuantity={setQuantity} finishing={finishing} setFinishing={setFinishing} priceLabel={`$${(price.total/100).toFixed(2)}`} onGenerate={generate} generating={generating} onEdit={editWithAI} editPrompt={editPrompt} setEditPrompt={setEditPrompt} onRevert={()=>{if(versions[1]) setCurrentImageUrl(versions[1].imageUrl);}} canRevert={versions.length>1}/></div></div></main></Layout>
+}
+
+export default AdminAIDesignerPage;
