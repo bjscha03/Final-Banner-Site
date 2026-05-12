@@ -9,6 +9,20 @@ cloudinary.config({
 });
 
 const SUPPORTED_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/webp']);
+const TARGET_PREVIEW_LONG_EDGE_PX = 2400;
+
+function normalizeTargetDimensions(widthIn, heightIn) {
+  const w = Number(widthIn);
+  const h = Number(heightIn);
+  if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) {
+    return { widthPx: 2048, heightPx: 1024 };
+  }
+  const ratio = w / h;
+  if (ratio >= 1) {
+    return { widthPx: TARGET_PREVIEW_LONG_EDGE_PX, heightPx: Math.max(512, Math.round(TARGET_PREVIEW_LONG_EDGE_PX / ratio)) };
+  }
+  return { widthPx: Math.max(512, Math.round(TARGET_PREVIEW_LONG_EDGE_PX * ratio)), heightPx: TARGET_PREVIEW_LONG_EDGE_PX };
+}
 
 function enhancePrompt({ prompt, size, inspirationImage, brandMatchStrength = 'strong', styleChips = [] }) {
   const aspect = size?.wIn && size?.hIn ? `${size.wIn}:${size.hIn}` : '';
@@ -282,7 +296,25 @@ Professional large-format ${productType || 'banner'} for ${width || size.wIn}x${
     const cloudinaryMs = Date.now() - cloudStart;
     debug.cloudinaryStatus = 'ok';
     console.log('[AI-Gen] Cloudinary upload end', { at: new Date().toISOString(), cloudinaryUploadMs: cloudinaryMs });
-    console.log('[AI-Gen] final image URL', { url: uploaded.secure_url });
+    // Normalize to exact requested dimensions ratio from a single canonical source.
+    const normalizedDims = normalizeTargetDimensions(width || size?.wIn, height || size?.hIn);
+    const correctedUrl = cloudinary.url(uploaded.public_id, {
+      secure: true,
+      resource_type: 'image',
+      type: 'upload',
+      transformation: [
+        {
+          width: normalizedDims.widthPx,
+          height: normalizedDims.heightPx,
+          crop: 'fill',
+          gravity: 'auto',
+          fetch_format: 'auto',
+          quality: 'auto:best',
+          dpr: 'auto',
+        },
+      ],
+    });
+    console.log('[AI-Gen] final image URL', { url: correctedUrl, normalizedDims });
 
     const totalMs = Date.now() - fnStart;
     debug.success = true;
@@ -291,7 +323,13 @@ Professional large-format ${productType || 'banner'} for ${width || size.wIn}x${
 
     return buildResponse(200, {
       success: true,
-      image: { url: uploaded.secure_url, cloudinary_public_id: uploaded.public_id, width: uploaded.width, height: uploaded.height },
+      image: {
+        url: correctedUrl,
+        original_url: uploaded.secure_url,
+        cloudinary_public_id: uploaded.public_id,
+        width: normalizedDims.widthPx,
+        height: normalizedDims.heightPx,
+      },
       prompt: promptText,
       metadata: { model: debug.model, count: 1 },
       debug: isProduction ? undefined : debug
