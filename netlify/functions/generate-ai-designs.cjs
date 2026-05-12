@@ -1,6 +1,6 @@
-const OpenAI = require('openai');
 const cloudinary = require('cloudinary').v2;
 const { neon } = require('@neondatabase/serverless');
+const { GoogleAuth } = require('google-auth-library');
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -111,7 +111,46 @@ async function assertAdminAccess(userEmail) {
   return false;
 }
 
-const OPENAI_TIMEOUT_MS = Number(process.env.OPENAI_IMAGE_TIMEOUT_MS || 25000);
+const GOOGLE_TIMEOUT_MS = Number(process.env.GOOGLE_IMAGE_TIMEOUT_MS || 30000);
+
+function getGoogleAuth() {
+  const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
+  const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
+  const rawPrivateKey = process.env.GOOGLE_PRIVATE_KEY;
+  if (!projectId || !clientEmail || !rawPrivateKey) {
+    throw new Error('Google AI credentials are not configured');
+  }
+  return new GoogleAuth({
+    projectId,
+    credentials: { client_email: clientEmail, private_key: rawPrivateKey.replace(/\\n/g, '\n') },
+    scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+  });
+}
+
+async function getGoogleAccessToken() {
+  const auth = getGoogleAuth();
+  const client = await auth.getClient();
+  const tokenResponse = await client.getAccessToken();
+  const token = typeof tokenResponse === 'string' ? tokenResponse : tokenResponse.token;
+  if (!token) throw new Error('Failed to get Google access token');
+  return token;
+}
+
+async function enhancePromptWithGemini({ promptText, location, projectId, accessToken }) {
+  const endpoint = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/gemini-2.5-flash:generateContent`;
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: `Rewrite this for Imagen 3 print-ready banner generation. Return only the improved prompt.\n\n${promptText}` }] }],
+      generationConfig: { temperature: 0.4, maxOutputTokens: 400 },
+    }),
+  });
+  if (!res.ok) return promptText;
+  const data = await res.json().catch(() => ({}));
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  return typeof text === 'string' && text.trim() ? text.trim() : promptText;
+}
 
 exports.handler = async (event) => {
   const fnStart = Date.now();
@@ -139,7 +178,7 @@ exports.handler = async (event) => {
   }
 
   const isProduction = process.env.CONTEXT === 'production' || process.env.NODE_ENV === 'production';
-  const debug = { success: false, stepFailed: null, durationMs: 0, model: 'gpt-image-1', openaiStatus: null, cloudinaryStatus: null, imageDetected: false, inspirationIncluded: false, fallbackAttempted: false, fallbackSucceeded: false, error: null, errorMessage: null, openaiError: null, cloudinaryError: null };
+  const debug = { success: false, stepFailed: null, durationMs: 0, model: 'imagen-3.0-generate-002', openaiStatus: null, cloudinaryStatus: null, imageDetected: false, inspirationIncluded: false, fallbackAttempted: false, fallbackSucceeded: false, error: null, errorMessage: null, openaiError: null, cloudinaryError: null };
 
   const buildResponse = (statusCode, extra = {}) => ({
     statusCode,
@@ -183,10 +222,10 @@ exports.handler = async (event) => {
       debug.stepFailed = 'request_validation';
       return buildResponse(400, { error: { category: 'request_validation', message: 'Size with wIn and hIn is required' } });
     }
-    if (!process.env.OPENAI_API_KEY) {
+    if (!process.env.GOOGLE_CLOUD_PROJECT_ID || !process.env.GOOGLE_CLIENT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY) {
       debug.durationMs = Date.now() - fnStart;
-      debug.stepFailed = 'openai_request';
-      return buildResponse(500, { error: { category: 'openai_request', message: 'OpenAI API key not configured' } });
+      debug.stepFailed = 'google_request';
+      return buildResponse(500, { error: { category: 'google_request', message: 'Google AI credentials not configured' } });
     }
     if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
       debug.durationMs = Date.now() - fnStart;
@@ -217,55 +256,35 @@ Professional large-format ${productType || 'banner'} for ${width || size.wIn}x${
     console.log('[AI-Gen] inspiration image', { detected: parsedImage.imageDetected, byteSize: parsedImage.byteSize, mimeType: parsedImage.mimeType, includedInApiRequest: parsedImage.includedInApiRequest });
     console.log('[AI-Gen] selected model', { model: debug.model, imageSize: dalleSize, mimeType: parsedImage.mimeType });
 
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    console.log('[AI-Gen] OpenAI config', {
-      hasOpenAIKey: Boolean(process.env.OPENAI_API_KEY),
-      model: debug.model,
-      imageInputIncluded: parsedImage.includedInApiRequest
-    });
-
-    const openaiPayload = { model: debug.model, prompt: promptText, n: 1, size: dalleSize };
-    const openaiEditPayload = parsedImage.includedInApiRequest
-      ? { model: debug.model, image: inspirationImage, prompt: promptText, n: 1, size: dalleSize }
-      : null;
-
-    console.log('[AI-Gen] OpenAI request start', {
-      at: new Date().toISOString(),
-      endpoint: openaiEditPayload ? 'images.edit' : 'images.generate',
-      requestPayloadKeys: Object.keys(openaiEditPayload || openaiPayload)
-    });
+    const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
+    const location = process.env.VERTEX_AI_LOCATION || 'us-central1';
+    const accessToken = await getGoogleAccessToken();
+    const enhancedPrompt = await enhancePromptWithGemini({ promptText, location, projectId, accessToken });
+    const endpoint = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagen-3.0-generate-002:predict`;
     const openaiStart = Date.now();
-    let response;
-    const openaiController = new AbortController();
-    const openaiTimer = setTimeout(() => openaiController.abort(), OPENAI_TIMEOUT_MS);
-    try {
-      response = openaiEditPayload
-        ? await openai.images.edit({ ...openaiEditPayload, signal: openaiController.signal })
-        : await openai.images.generate({ ...openaiPayload, signal: openaiController.signal });
-    } catch (primaryErr) {
-      const primaryDetails = extractOpenAIError(primaryErr);
-      debug.openaiError = primaryDetails;
-      console.error('[AI-Gen] OpenAI exact error response', primaryDetails);
-      if (openaiEditPayload) {
-        console.log('[AI-Gen] Retrying OpenAI with TEXT-ONLY fallback mode');
-        debug.fallbackAttempted = true;
-        response = await openai.images.generate({ ...openaiPayload, signal: openaiController.signal });
-        debug.fallbackSucceeded = true;
-        debug.inspirationIncluded = false;
-      } else {
-        throw primaryErr;
-      }
-    } finally {
-      clearTimeout(openaiTimer);
-    }
+    const googleController = new AbortController();
+    const googleTimer = setTimeout(() => googleController.abort(), GOOGLE_TIMEOUT_MS);
+    const imagenRes = await fetch(endpoint, {
+      method: 'POST',
+      signal: googleController.signal,
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        instances: [{ prompt: enhancedPrompt }],
+        parameters: { sampleCount: 1, aspectRatio: size.wIn >= size.hIn ? '16:9' : '9:16' },
+      }),
+    });
+    clearTimeout(googleTimer);
+    if (!imagenRes.ok) throw new Error(`Imagen request failed (${imagenRes.status})`);
+    const response = await imagenRes.json();
     const openaiMs = Date.now() - openaiStart;
     debug.openaiStatus = 'ok';
     console.log('[AI-Gen] OpenAI response received', { at: new Date().toISOString(), openaiRequestMs: openaiMs });
 
-    const image = response?.data?.[0] || {};
-    const imageSource = image.url || (image.b64_json ? `data:image/png;base64,${image.b64_json}` : null);
-    if (!response?.data) {
-      const e = new Error('Malformed OpenAI response'); e.code = 'MALFORMED_RESPONSE'; throw e;
+    const prediction = Array.isArray(response?.predictions) ? response.predictions[0] : null;
+    const imageB64 = prediction?.bytesBase64Encoded || prediction?.image || prediction?.b64Json || null;
+    const imageSource = imageB64 ? `data:image/png;base64,${imageB64}` : null;
+    if (!response?.predictions) {
+      const e = new Error('Malformed Imagen response'); e.code = 'MALFORMED_RESPONSE'; throw e;
     }
     if (!imageSource) {
       const e = new Error('OpenAI returned no image'); e.code = 'NO_IMAGE_FROM_OPENAI'; throw e;

@@ -91,8 +91,9 @@ const CreateWithAIModalImpl: React.FC<CreateWithAIModalProps> = ({ open, onOpenC
       const result = await generate(prompt.trim(), regenerate);
       setDesign(result); setVersions((prev) => [result, ...prev].slice(0, 8)); setGenerationStep('finalizing');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Unable to generate design.';
-      setError(msg); toast({ title: 'Generation failed', description: msg, variant: 'destructive' });
+      const msg = 'AI generation failed. Please try again.';
+      setError(msg);
+      toast({ title: 'Generation failed', description: msg, variant: 'destructive' });
     } finally { setIsGenerating(false); setGenerationStep('idle'); }
   };
   const handleEditDesign = async () => {
