@@ -82,6 +82,7 @@ const GraduationSignsThankYou = lazy(() => import("./pages/GraduationSignsThankY
 const AdminOrders = lazy(() => import("./pages/admin/Orders"));
 const AdminAbandonedCarts = lazy(() => import("./pages/admin/AbandonedCarts"));
 const AdminEvents = lazy(() => import("./pages/admin/Events"));
+const AdminAIDesigner = lazy(() => import("./pages/admin/AIDesigner"));
 const AdminGraduationIntakes = lazy(() => import("./pages/admin/GraduationIntakes"));
 const AdminGraduationIntake = lazy(() => import("./pages/admin/GraduationIntake"));
 const AdminSetup = lazy(() => import("./pages/AdminSetup"));
@@ -215,6 +216,7 @@ const App = () => (
             <Route path="/admin/orders" element={<AdminOrders />} />
             <Route path="/admin/abandoned-carts" element={<AdminAbandonedCarts />} />
             <Route path="/admin/events" element={<AdminEvents />} />
+            <Route path="/admin/ai-designer" element={<AdminAIDesigner />} />
             <Route path="/admin/graduation-intakes" element={<AdminGraduationIntakes />} />
             <Route path="/admin/graduation/:intakeId" element={<AdminGraduationIntake />} />
             {/* Admin login / setup page — password gate that grants admin access */}

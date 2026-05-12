@@ -53,7 +53,6 @@ import {
 import { BANNER_MATERIALS as MATERIALS } from '@/lib/banner-materials';
 import CreateWithAIModal, { type CreateWithAIResult } from '@/components/design/CreateWithAIModal';
 import EditWithAIModal from '@/components/design/EditWithAIModal';
-import { ENABLE_AI } from '@/lib/featureFlags';
 import { base64ToFile } from '@/utils/base64ToFile';
 import { computeSameDayFeesCents } from '@/lib/sameDayService';
 import ConfigCard from '@/components/design/layout/ConfigCard';
@@ -155,7 +154,8 @@ const GoogleAdsBanner: React.FC = () => {
   // Admin detection for yard signs visibility
   const { user } = useAuth();
   const userIsAdmin = isAdmin(user);
-  const showCreateWithAI = ENABLE_AI && !!user && userIsAdmin;
+  // Public page hard-disable: AI Designer is isolated to /admin/ai-designer.
+  const showCreateWithAI = false;
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;

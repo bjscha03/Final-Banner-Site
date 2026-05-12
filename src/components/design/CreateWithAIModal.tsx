@@ -36,7 +36,6 @@ const CreateWithAIModalImpl: React.FC<CreateWithAIModalProps> = ({ open, onOpenC
   const [brandMatchStrength, setBrandMatchStrength] = useState<BrandMatch>('strong');
   const [error, setError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<GenerationDebug | null>(null);
   const [generationStep, setGenerationStep] = useState<'idle' | 'enhancing' | 'rendering' | 'finalizing'>('idle');
   const requirementsMet = useMemo(() => Number(widthIn) > 0 && Number(heightIn) > 0 && !!material, [widthIn, heightIn, material]);
   const runDebugFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<{ debugRecord: FetchDebugRecord; response: Response | null }> => {
@@ -59,12 +58,10 @@ const CreateWithAIModalImpl: React.FC<CreateWithAIModalProps> = ({ open, onOpenC
 
   const generate = async (basePrompt: string, regenerate = false) => {
     const payload = { prompt: basePrompt, regenerate, productType, width: widthIn, height: heightIn, material, quantity, size: { wIn: widthIn, hIn: heightIn }, inspirationImage: inspirationDataUrl, brandMatchStrength, styleChips: CHIPS.filter((c)=>basePrompt.includes(c)) };
-    const targetSize = Number(widthIn) >= Number(heightIn) ? '1536x1024' : '1024x1536';
-    const { response: res, debugRecord } = await runDebugFetch('/.netlify/functions/ai-smoke-test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: basePrompt, size: targetSize }) });
+    const { response: res, debugRecord } = await runDebugFetch('/.netlify/functions/generate-ai-designs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     setGenerationStep('rendering');
     const body: any = (debugRecord.parsedJson && typeof debugRecord.parsedJson === 'object' ? debugRecord.parsedJson : {}) as any;
-    if (!res) throw new Error(debugRecord.fetchError || 'Network error while calling ai-smoke-test');
-    setDebugInfo(body?.debug || body || null);
+    if (!res) throw new Error(debugRecord.fetchError || 'Network error while calling generate-ai-designs');
     if (!res.ok) {
       const errObj = typeof body?.error === 'object' ? body.error : null;
       const backendCategory = body?.stepFailed || errObj?.category || null;
@@ -81,10 +78,9 @@ const CreateWithAIModalImpl: React.FC<CreateWithAIModalProps> = ({ open, onOpenC
       ].filter(Boolean).join('\n');
       throw new Error(detail || JSON.stringify(body));
     }
-    const smokeImageUrl = body?.imageUrl || null;
-    const smokeImageBase64 = body?.imageBase64 || null;
-    if (!smokeImageUrl && !smokeImageBase64) throw new Error(JSON.stringify(body));
-    const imageUrl = smokeImageUrl || `data:image/png;base64,${smokeImageBase64}`;
+    const canonicalImageUrl = body?.image?.url || null;
+    if (!canonicalImageUrl) throw new Error(JSON.stringify(body));
+    const imageUrl = canonicalImageUrl;
     return { imageUrl, prompt: body?.prompt || basePrompt, originalPrompt: basePrompt, revision: (design?.revision || 0) + 1 };
   };
 
@@ -99,33 +95,6 @@ const CreateWithAIModalImpl: React.FC<CreateWithAIModalProps> = ({ open, onOpenC
       setError(msg); toast({ title: 'Generation failed', description: msg, variant: 'destructive' });
     } finally { setIsGenerating(false); setGenerationStep('idle'); }
   };
-
-
-
-  const handleRunAITest = async () => {
-    setIsGenerating(true);
-    setError(null);
-    try {
-      const { response: res, debugRecord } = await runDebugFetch('/.netlify/functions/ai-generate-banner-test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: prompt.trim() })
-      });
-      // keep debug response internal; production UI should stay clean
-      const body = (debugRecord.parsedJson && typeof debugRecord.parsedJson === 'object' ? debugRecord.parsedJson : {}) as any;
-      if (!res) throw new Error(debugRecord.fetchError || 'Network error while calling ai-generate-banner-test');
-      if (!res.ok) throw new Error(JSON.stringify(body));
-      const testImage = body?.image?.url;
-      if (testImage) setDesign((prev) => ({ imageUrl: testImage, prompt: body?.prompt || prompt, originalPrompt: prompt, revision: (prev?.revision || 0) + 1 }));
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'AI test failed';
-      setError(msg);
-      toast({ title: 'AI test failed', description: msg, variant: 'destructive' });
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
   const handleEditDesign = async () => {
     if (!design || !editInstruction.trim()) return;
     setIsGenerating(true); setError(null);

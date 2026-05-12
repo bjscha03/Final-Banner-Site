@@ -210,10 +210,14 @@ function getImagePreviewUrl(imageUrl: string): string {
   return imageUrl.replace('/upload/', '/upload/f_auto,q_auto:good,w_1600,c_limit/');
 }
 
-const Design: React.FC = () => {
+interface DesignProps {
+  allowAdminAI?: boolean;
+}
+
+const Design: React.FC<DesignProps> = ({ allowAdminAI = false }) => {
   const { user } = useAuth();
   const userIsAdmin = isAdmin(user);
-  const showCreateWithAI = ENABLE_AI && !!user && userIsAdmin;
+  const showCreateWithAI = ENABLE_AI && allowAdminAI && !!user && userIsAdmin;
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;
