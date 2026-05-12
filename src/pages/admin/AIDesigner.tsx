@@ -100,7 +100,21 @@ const AdminAIDesignerPage: React.FC = () => {
     } finally { setGenerating(false); }
   };
 
-  return <Layout><main className='max-w-[1600px] mx-auto px-4 py-6'><div className='grid grid-cols-1 xl:grid-cols-12 gap-4'><div className='xl:col-span-3'><AdminAIPromptPanel prompt={prompt} setPrompt={setPrompt} enhancedPrompt={enhancedPrompt} setEnhancedPrompt={setEnhancedPrompt} enhancing={enhancing} generating={generating} onEnhance={enhancePrompt} onUseOriginal={()=>setEnhancedPrompt(originalPrompt || prompt)} referencePreview={referenceImage} onReferenceFile={(f)=>{const r=new FileReader(); r.onload=()=>setReferenceImage(String(r.result)); r.readAsDataURL(f);}}/></div><div className='xl:col-span-6 space-y-4'><AdminAICanvasPreview widthIn={widthIn} heightIn={heightIn} imageUrl={currentImageUrl} generating={generating}/><AdminAIVersionHistory versions={versions} onSelect={(id)=>{const v=versions.find(x=>x.id===id); if(v) setCurrentImageUrl(v.imageUrl);}}/><AdminAIActionsPanel error={error}/></div><div className='xl:col-span-3'><AdminAIOptionsPanel widthIn={widthIn} heightIn={heightIn} setWidthIn={setWidthIn} setHeightIn={setHeightIn} material={material} setMaterial={setMaterial} quantity={quantity} setQuantity={setQuantity} finishing={finishing} setFinishing={setFinishing} priceLabel={priceLabel} onGenerate={generate} generating={generating} onEdit={editWithAI} editPrompt={editPrompt} setEditPrompt={setEditPrompt} onRevert={()=>{if(versions.length>1){const [, ...rest]=versions; setVersions(rest); setCurrentImageUrl(rest[0]?.imageUrl||null);}}} canRevert={versions.length>1}/></div></div></main></Layout>
+  const runDebugCheck = async () => {
+    try {
+      const res = await fetch('/.netlify/functions/generate-ai-designs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'debug' }),
+      });
+      const data = await res.json().catch(() => ({}));
+      console.log('[admin-ai] generate-ai-designs debug response', { status: res.status, data });
+    } catch (err) {
+      console.error('[admin-ai] debug request failed', err);
+    }
+  };
+
+  return <Layout><main className='max-w-[1600px] mx-auto px-4 py-6'><div className='grid grid-cols-1 xl:grid-cols-12 gap-4'><div className='xl:col-span-3'><AdminAIPromptPanel prompt={prompt} setPrompt={setPrompt} enhancedPrompt={enhancedPrompt} setEnhancedPrompt={setEnhancedPrompt} enhancing={enhancing} generating={generating} onEnhance={enhancePrompt} onUseOriginal={()=>setEnhancedPrompt(originalPrompt || prompt)} referencePreview={referenceImage} onReferenceFile={(f)=>{const r=new FileReader(); r.onload=()=>setReferenceImage(String(r.result)); r.readAsDataURL(f);}}/></div><div className='xl:col-span-6 space-y-4'><AdminAICanvasPreview widthIn={widthIn} heightIn={heightIn} imageUrl={currentImageUrl} generating={generating}/><AdminAIVersionHistory versions={versions} onSelect={(id)=>{const v=versions.find(x=>x.id===id); if(v) setCurrentImageUrl(v.imageUrl);}}/><AdminAIActionsPanel error={error}/></div><div className='xl:col-span-3'><AdminAIOptionsPanel widthIn={widthIn} heightIn={heightIn} setWidthIn={setWidthIn} setHeightIn={setHeightIn} material={material} setMaterial={setMaterial} quantity={quantity} setQuantity={setQuantity} finishing={finishing} setFinishing={setFinishing} priceLabel={priceLabel} onGenerate={generate} generating={generating} onEdit={editWithAI} editPrompt={editPrompt} setEditPrompt={setEditPrompt} onRevert={()=>{if(versions.length>1){const [, ...rest]=versions; setVersions(rest); setCurrentImageUrl(rest[0]?.imageUrl||null);}}} canRevert={versions.length>1} onDebug={runDebugCheck}/></div></div></main></Layout>
 }
 
 export default AdminAIDesignerPage;

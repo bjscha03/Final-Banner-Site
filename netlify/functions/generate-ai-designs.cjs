@@ -1,4 +1,5 @@
 const cloudinary = require('cloudinary').v2;
+console.log("[generate-ai-designs] function file loaded");
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -93,6 +94,11 @@ async function generateImage({ prompt, width, height }) {
 }
 
 exports.handler = async function(event, context) {
+  console.log("[generate-ai-designs] handler invoked", {
+    method: event?.httpMethod,
+    path: event?.path,
+    hasBody: !!event?.body
+  });
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
@@ -110,6 +116,18 @@ exports.handler = async function(event, context) {
 
   let body;
   try { body = JSON.parse(event.body || '{}'); } catch { return buildError('bad_request', 'generate', 400); }
+  if (body?.action === 'debug') {
+    return jsonResponse(200, {
+      ok: true,
+      message: 'generate-ai-designs function reachable',
+      envPresent: {
+        GOOGLE_GENAI_API_KEY: !!process.env.GOOGLE_GENAI_API_KEY,
+        CLOUDINARY_CLOUD_NAME: !!process.env.CLOUDINARY_CLOUD_NAME,
+        CLOUDINARY_API_KEY: !!process.env.CLOUDINARY_API_KEY,
+        CLOUDINARY_API_SECRET: !!process.env.CLOUDINARY_API_SECRET,
+      },
+    });
+  }
   const action = body.fastMode ? 'enhance' : 'generate';
   const prompt = String(body.prompt || '').trim();
   const width = Number(body.width || body?.size?.wIn || 96);
