@@ -217,6 +217,8 @@ interface DesignProps {
 const Design: React.FC<DesignProps> = ({ allowAdminAI = false }) => {
   const { user } = useAuth();
   const userIsAdmin = isAdmin(user);
+  // Public /design stays AI-disabled by default (`allowAdminAI` defaults false).
+  // Only /admin/ai-designer passes `allowAdminAI` true.
   const showCreateWithAI = ENABLE_AI && allowAdminAI && !!user && userIsAdmin;
 
   useEffect(() => {
