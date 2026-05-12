@@ -27,11 +27,21 @@ function missingEnv() {
 }
 
 function buildError(detailCode, action, statusCode = 500) {
-  return {
-    statusCode,
-    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' },
-    body: JSON.stringify({ error: action === 'enhance' ? 'enhance_failed' : 'generate_failed', detailCode }),
+  return jsonResponse(statusCode, {
+    error: action === 'enhance' ? 'enhance_failed' : 'generate_failed',
+    detailCode,
+  });
+}
+
+function jsonResponse(statusCode, payload, extraHeaders = {}) {
+  const headers = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    ...extraHeaders,
   };
+  return { statusCode, headers, body: JSON.stringify(payload ?? {}) };
 }
 
 async function enhancePrompt({ prompt, width, height }) {
@@ -82,10 +92,15 @@ async function generateImage({ prompt, width, height }) {
   return b64;
 }
 
-exports.handler = async (event) => {
-  const headers = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
-  if (event.httpMethod !== 'POST') return { statusCode: 405, headers, body: JSON.stringify({ error: 'bad_request', detailCode: 'bad_request' }) };
+exports.handler = async function(event, context) {
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  };
+  try {
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: corsHeaders, body: '' };
+  if (event.httpMethod !== 'POST') return jsonResponse(400, { error: 'generate_failed', detailCode: 'bad_request' });
 
   const missing = missingEnv();
   if (missing.length) {
@@ -111,7 +126,7 @@ exports.handler = async (event) => {
   try {
     if (action === 'enhance') {
       const enhancedPrompt = await enhancePrompt({ prompt, width, height });
-      return { statusCode: 200, headers, body: JSON.stringify({ success: true, prompt: enhancedPrompt }) };
+      return jsonResponse(200, { enhancedPrompt });
     }
 
     const enhancedPrompt = await enhancePrompt({ prompt, width, height });
@@ -133,11 +148,7 @@ exports.handler = async (event) => {
       transformation: [{ width: dims.widthPx, height: dims.heightPx, crop: 'fill', gravity: 'auto', fetch_format: 'auto', quality: 'auto:best', dpr: 'auto' }],
     });
 
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({ success: true, image: { url: correctedUrl, original_url: uploaded.secure_url, cloudinary_public_id: uploaded.public_id, width: dims.widthPx, height: dims.heightPx } }),
-    };
+    return jsonResponse(200, { image: { url: correctedUrl, original_url: uploaded.secure_url, width: dims.widthPx, height: dims.heightPx } });
   } catch (err) {
     console.error('[generate-ai-designs] provider failure', {
       action,
@@ -147,5 +158,15 @@ exports.handler = async (event) => {
       payload: err?.payload ? JSON.stringify(err.payload).slice(0, 600) : null,
     });
     return buildError('google_api_error', action, 500);
+  }
+  } catch (err) {
+    const action = event?.body && String(event.body).includes('"fastMode":true') ? 'enhance' : 'generate';
+    console.error('[generate-ai-designs] unhandled', {
+      action,
+      name: err?.name || 'Error',
+      message: err?.message || 'Unknown error',
+      stack: String(err?.stack || '').split('\n')[0] || null,
+    });
+    return buildError('server_error', action, 500);
   }
 };
