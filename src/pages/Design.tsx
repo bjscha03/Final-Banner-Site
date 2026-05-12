@@ -44,12 +44,9 @@ import {
   type CarMagnetRoundedCorner,
 } from '@/lib/car-magnet-pricing';
 import { BANNER_MATERIALS as MATERIALS } from '@/lib/banner-materials';
-import CreateWithAIModal, { type CreateWithAIResult } from '@/components/design/CreateWithAIModal';
-import EditWithAIModal from '@/components/design/EditWithAIModal';
 import GrommetOverlay from '@/components/preview/GrommetOverlay';
 import PreviewRulerFrame from '@/components/preview/PreviewRulerFrame';
 import ArtworkPreviewEditor from '@/components/design/ArtworkPreviewEditor';
-import { ENABLE_AI } from '@/lib/featureFlags';
 import { base64ToFile } from '@/utils/base64ToFile';
 import { computeSameDayFeesCents } from '@/lib/sameDayService';
 import ConfigCard from '@/components/design/layout/ConfigCard';
@@ -213,7 +210,7 @@ function getImagePreviewUrl(imageUrl: string): string {
 const Design: React.FC = () => {
   const { user } = useAuth();
   const userIsAdmin = isAdmin(user);
-  const showCreateWithAI = ENABLE_AI && !!user && userIsAdmin;
+  const showCreateWithAI = false; // Legacy AI designer disabled; use /admin/ai-designer only.
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;

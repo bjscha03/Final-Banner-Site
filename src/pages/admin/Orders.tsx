@@ -941,6 +941,13 @@ const AdminOrders: React.FC = () => {
                     Graduation Intakes
                   </a>
                 </TabsTrigger>
+                {/* Admin-gated AI Designer entry. Keep admin-only until customer rollout. */}
+                <TabsTrigger value="ai-designer" className="flex items-center gap-2 min-w-0" asChild>
+                  <a href="/admin/ai-designer">
+                    <Star className="h-4 w-4" />
+                    AI Designer
+                  </a>
+                </TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
