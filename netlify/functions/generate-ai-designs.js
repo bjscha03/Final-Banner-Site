@@ -11,6 +11,7 @@ const REQUIRED_ENV = [
   'CLOUDINARY_API_KEY',
   'CLOUDINARY_API_SECRET',
 ];
+const ENHANCE_REQUIRED_ENV = ['GOOGLE_GENAI_API_KEY'];
 
 const headers = {
   'Content-Type': 'application/json',
@@ -31,11 +32,11 @@ const normalizeTargetDimensions = (widthIn, heightIn) => {
     : { widthPx: Math.max(512, Math.round(longEdge * ratio)), heightPx: longEdge };
 };
 
-const missingEnv = () => REQUIRED_ENV.filter((k) => !process.env[k]);
+const missingEnv = (keys) => keys.filter((k) => !process.env[k]);
 
 async function enhancePrompt(prompt, width, height) {
   const key = process.env.GOOGLE_GENAI_API_KEY;
-  if (!key) return prompt;
+  if (!key) throw new Error('enhance_missing_key');
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
   const res = await fetch(endpoint, {
     method: 'POST',
@@ -88,12 +89,6 @@ export const handler = async (event, context) => {
     }
     if (event.httpMethod !== 'POST') return json(400, { error: 'generate_failed', detailCode: 'bad_request' });
 
-    const missing = missingEnv();
-    if (missing.length) {
-      console.error('[generate-ai-designs] missing env', { missing });
-      return json(500, { error: 'generate_failed', detailCode: 'missing_env' });
-    }
-
     const body = JSON.parse(event.body || '{}');
     if (body?.action === 'debug') {
       return json(200, { ok: true, message: 'generate-ai-designs function reachable', envPresent: {
@@ -111,8 +106,19 @@ export const handler = async (event, context) => {
     if (!prompt || !width || !height) return json(400, { error: action === 'enhance' ? 'enhance_failed' : 'generate_failed', detailCode: 'bad_request' });
 
     if (action === 'enhance') {
+      const missing = missingEnv(ENHANCE_REQUIRED_ENV);
+      if (missing.length) {
+        console.error('[generate-ai-designs] enhance missing env', { missing });
+        return json(500, { error: 'enhance_failed', detailCode: 'missing_env' });
+      }
       const enhancedPrompt = await enhancePrompt(prompt, width, height);
       return json(200, { enhancedPrompt });
+    }
+
+    const missing = missingEnv(REQUIRED_ENV);
+    if (missing.length) {
+      console.error('[generate-ai-designs] generate missing env', { missing });
+      return json(500, { error: 'generate_failed', detailCode: 'missing_env' });
     }
 
     const enhancedPrompt = await enhancePrompt(prompt, width, height);
