@@ -1,2 +1,7 @@
-// Wrapper to ensure Netlify picks up the function with a .js entrypoint.
-module.exports = require('./generate-ai-designs.cjs');
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const cjsModule = require('./generate-ai-designs.cjs');
+
+export const handler = async (event, context) => {
+  return cjsModule.handler(event, context);
+};
