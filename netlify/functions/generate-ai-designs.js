@@ -90,8 +90,7 @@ async function listGoogleModels(key) {
 async function pickEnhanceModel(key) {
   const models = await listGoogleModels(key);
   const eligible = models.filter((m) => Array.isArray(m?.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'));
-  const flash = eligible.find((m) => String(m?.name || '').toLowerCase().includes('flash'));
-  const picked = flash || eligible[0];
+  const picked = eligible[0];
   if (!picked?.name) throw new Error('no_generate_content_model_available');
   return String(picked.name).replace(/^models\//, '');
 }
@@ -121,7 +120,7 @@ export const handler = async (event, context) => {
   try {
     if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
     if (event.httpMethod === 'GET') {
-      if (event?.queryStringParameters?.action === 'models') {
+      if (event?.queryStringParameters?.models === '1') {
         const key = process.env.GOOGLE_GENAI_API_KEY;
         if (!key) return json(500, { error: 'enhance_failed', detailCode: 'missing_env' });
         try {
