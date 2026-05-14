@@ -88,6 +88,14 @@ async function enhancePrompt(prompt, width, height) {
   return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || prompt;
 }
 
+function buildLocalEnhancedPrompt(prompt, width, height) {
+  return [
+    `Professional commercial banner design for ${width}x${height}.`,
+    'High readability headline hierarchy, bold typography, clear CTA, high contrast color separation, clean spacing, print-safe composition, edge-to-edge background, and balanced visual weight.',
+    `Concept: ${prompt}`,
+  ].join(' ');
+}
+
 async function generateImage(prompt, width, height) {
   const key = process.env.GOOGLE_GENAI_API_KEY;
   if (!key) throw new Error('missing_google_key');
@@ -170,15 +178,11 @@ export const handler = async (event, context) => {
           endpointUsed: err?.endpointUsed || null,
           requestPayloadShape: err?.requestPayloadShape || null,
         });
-        return json(500, {
-          error: 'enhance_failed',
-          detailCode: 'google_api_error',
-          providerMessage: err?.providerMessage || 'Gemini request failed',
-          modelUsed: err?.modelUsed || 'gemini-2.5-flash',
-          endpointUsed: err?.endpointUsed || 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=[REDACTED_KEY]',
-          googleStatus: err?.providerStatus || null,
-          googleRawText: err?.googleRawText || '',
-          requestPayloadShape: err?.requestPayloadShape || null,
+        // Fail-open fallback so admin workflow keeps moving while API access
+        // restrictions are being resolved in Google Cloud.
+        return json(200, {
+          enhancedPrompt: buildLocalEnhancedPrompt(prompt, width, height),
+          enhancementFallback: true,
         });
       }
     }
