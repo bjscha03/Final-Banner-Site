@@ -47,7 +47,13 @@ async function enhancePrompt(prompt, width, height) {
     }),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(`enhance_failed_${res.status}`);
+  if (!res.ok) {
+    const safeMessage = data?.error?.message || data?.error?.status || `HTTP_${res.status}`;
+    const err = new Error(`enhance_failed_${res.status}`);
+    err.providerStatus = res.status;
+    err.providerMessage = String(safeMessage).slice(0, 240);
+    throw err;
+  }
   return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || prompt;
 }
 
@@ -89,7 +95,12 @@ export const handler = async (event, context) => {
     }
     if (event.httpMethod !== 'POST') return json(400, { error: 'generate_failed', detailCode: 'bad_request' });
 
-    const body = JSON.parse(event.body || '{}');
+    let body = {};
+    try {
+      body = JSON.parse(event.body || '{}');
+    } catch {
+      return json(400, { error: 'enhance_failed', detailCode: 'parse_error' });
+    }
     if (body?.action === 'debug') {
       return json(200, { ok: true, message: 'generate-ai-designs function reachable', envPresent: {
         GOOGLE_GENAI_API_KEY: !!process.env.GOOGLE_GENAI_API_KEY,
@@ -99,20 +110,38 @@ export const handler = async (event, context) => {
       } });
     }
 
-    const action = body.fastMode ? 'enhance' : 'generate';
+    const action = body.action === 'enhance' || body.fastMode ? 'enhance' : 'generate';
     const prompt = String(body.prompt || '').trim();
     const width = Number(body.width || body?.size?.wIn || 96);
     const height = Number(body.height || body?.size?.hIn || 48);
+    if (action === 'enhance' && !prompt) return json(400, { error: 'enhance_failed', detailCode: 'missing_prompt' });
     if (!prompt || !width || !height) return json(400, { error: action === 'enhance' ? 'enhance_failed' : 'generate_failed', detailCode: 'bad_request' });
 
     if (action === 'enhance') {
+      console.log('[generate-ai-designs] enhance diagnostics', {
+        action: 'enhance',
+        hasPrompt: !!prompt,
+        model: 'gemini-2.5-flash',
+      });
       const missing = missingEnv(ENHANCE_REQUIRED_ENV);
       if (missing.length) {
         console.error('[generate-ai-designs] enhance missing env', { missing });
         return json(500, { error: 'enhance_failed', detailCode: 'missing_env' });
       }
-      const enhancedPrompt = await enhancePrompt(prompt, width, height);
-      return json(200, { enhancedPrompt });
+      try {
+        const enhancedPrompt = await enhancePrompt(prompt, width, height);
+        return json(200, { enhancedPrompt });
+      } catch (err) {
+        console.error('[generate-ai-designs] Gemini enhance failed', {
+          status: err?.providerStatus || null,
+          providerMessage: err?.providerMessage || err?.message || null,
+        });
+        return json(500, {
+          error: 'enhance_failed',
+          detailCode: 'google_api_error',
+          providerMessage: err?.providerMessage || 'Gemini request failed',
+        });
+      }
     }
 
     const missing = missingEnv(REQUIRED_ENV);
