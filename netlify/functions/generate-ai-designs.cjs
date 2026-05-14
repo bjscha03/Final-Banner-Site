@@ -98,11 +98,7 @@ async function generateImage({ prompt, width, height }) {
 }
 
 exports.handler = async function(event, context) {
-  console.log("[generate-ai-designs] handler invoked", {
-    method: event?.httpMethod,
-    path: event?.path,
-    hasBody: !!event?.body
-  });
+  console.log("[generate-ai-designs] invoked", { method: event?.httpMethod });
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
@@ -110,6 +106,18 @@ exports.handler = async function(event, context) {
   };
   try {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: corsHeaders, body: '' };
+  if (event.httpMethod === 'GET') {
+    return jsonResponse(200, {
+      ok: true,
+      function: 'generate-ai-designs',
+      envPresent: {
+        GOOGLE_GENAI_API_KEY: !!process.env.GOOGLE_GENAI_API_KEY,
+        CLOUDINARY_CLOUD_NAME: !!process.env.CLOUDINARY_CLOUD_NAME,
+        CLOUDINARY_API_KEY: !!process.env.CLOUDINARY_API_KEY,
+        CLOUDINARY_API_SECRET: !!process.env.CLOUDINARY_API_SECRET,
+      },
+    });
+  }
   if (event.httpMethod !== 'POST') return jsonResponse(400, { error: 'generate_failed', detailCode: 'bad_request' });
 
   const missing = missingEnv();
