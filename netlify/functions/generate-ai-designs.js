@@ -37,8 +37,7 @@ const missingEnv = (keys) => keys.filter((k) => !process.env[k]);
 async function enhancePrompt(prompt, width, height) {
   const key = process.env.GOOGLE_GENAI_API_KEY;
   if (!key) throw new Error('enhance_missing_key');
-  const model = await pickEnhanceModel(key);
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
   const res = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -75,26 +74,6 @@ async function enhancePrompt(prompt, width, height) {
   return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || prompt;
 }
 
-async function listGoogleModels(key) {
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const err = new Error(`models_list_failed_${res.status}`);
-    err.providerStatus = res.status;
-    err.providerMessage = data?.error?.message || `HTTP_${res.status}`;
-    throw err;
-  }
-  return Array.isArray(data?.models) ? data.models : [];
-}
-
-async function pickEnhanceModel(key) {
-  const models = await listGoogleModels(key);
-  const eligible = models.filter((m) => Array.isArray(m?.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'));
-  const picked = eligible[0];
-  if (!picked?.name) throw new Error('no_generate_content_model_available');
-  return String(picked.name).replace(/^models\//, '');
-}
-
 async function generateImage(prompt, width, height) {
   const key = process.env.GOOGLE_GENAI_API_KEY;
   if (!key) throw new Error('missing_google_key');
@@ -120,22 +99,6 @@ export const handler = async (event, context) => {
   try {
     if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
     if (event.httpMethod === 'GET') {
-      if (event?.queryStringParameters?.models === '1') {
-        const key = process.env.GOOGLE_GENAI_API_KEY;
-        if (!key) return json(500, { error: 'enhance_failed', detailCode: 'missing_env' });
-        try {
-          const models = await listGoogleModels(key);
-          return json(200, {
-            ok: true,
-            models: models.map((m) => ({
-              name: m?.name || null,
-              supportedGenerationMethods: m?.supportedGenerationMethods || [],
-            })),
-          });
-        } catch (err) {
-          return json(500, { error: 'enhance_failed', detailCode: 'google_api_error', providerMessage: err?.providerMessage || err?.message || 'model list failed' });
-        }
-      }
       return json(200, {
         ok: true,
         function: 'generate-ai-designs',
