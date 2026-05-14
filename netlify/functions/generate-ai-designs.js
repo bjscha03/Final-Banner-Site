@@ -37,21 +37,31 @@ const missingEnv = (keys) => keys.filter((k) => !process.env[k]);
 async function enhancePrompt(prompt, width, height) {
   const key = process.env.GOOGLE_GENAI_API_KEY;
   if (!key) throw new Error('enhance_missing_key');
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
-  const res = await fetch(endpoint, {
+  const modelUsed = 'gemini-2.5-flash';
+  const endpointUsed = `https://generativelanguage.googleapis.com/v1beta/models/${modelUsed}:generateContent?key=${key}`;
+  const requestPayload = {
+    contents: [
+      {
+        parts: [
+          {
+            text: `Enhance this into a professional commercial banner prompt: ${prompt}`,
+          },
+        ],
+      },
+    ],
+  };
+  const requestPayloadShape = {
+    contentsCount: requestPayload.contents.length,
+    partsCount: requestPayload.contents[0]?.parts?.length || 0,
+    textPrefix: 'Enhance this into a professional commercial banner prompt:',
+    hasPrompt: Boolean(prompt),
+    width,
+    height,
+  };
+  const res = await fetch(endpointUsed, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [
-        {
-          parts: [
-            {
-              text: `Enhance this into a professional commercial banner prompt: ${prompt}`,
-            },
-          ],
-        },
-      ],
-    }),
+    body: JSON.stringify(requestPayload),
   });
   const rawText = await res.text();
   let data = {};
@@ -69,6 +79,10 @@ async function enhancePrompt(prompt, width, height) {
     const err = new Error(`enhance_failed_${res.status}`);
     err.providerStatus = res.status;
     err.providerMessage = String(safeMessage).slice(0, 240);
+    err.modelUsed = modelUsed;
+    err.endpointUsed = endpointUsed.replace(key, '[REDACTED_KEY]');
+    err.googleRawText = rawText?.slice(0, 1000) || '';
+    err.requestPayloadShape = requestPayloadShape;
     throw err;
   }
   return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || prompt;
@@ -152,11 +166,19 @@ export const handler = async (event, context) => {
         console.error('[generate-ai-designs] Gemini enhance failed', {
           status: err?.providerStatus || null,
           providerMessage: err?.providerMessage || err?.message || null,
+          modelUsed: err?.modelUsed || 'gemini-2.5-flash',
+          endpointUsed: err?.endpointUsed || null,
+          requestPayloadShape: err?.requestPayloadShape || null,
         });
         return json(500, {
           error: 'enhance_failed',
           detailCode: 'google_api_error',
           providerMessage: err?.providerMessage || 'Gemini request failed',
+          modelUsed: err?.modelUsed || 'gemini-2.5-flash',
+          endpointUsed: err?.endpointUsed || 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=[REDACTED_KEY]',
+          googleStatus: err?.providerStatus || null,
+          googleRawText: err?.googleRawText || '',
+          requestPayloadShape: err?.requestPayloadShape || null,
         });
       }
     }
