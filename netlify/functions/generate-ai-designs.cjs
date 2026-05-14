@@ -1,4 +1,5 @@
 const cloudinary = require('cloudinary').v2;
+const generateDesign = require('./generate-design.cjs');
 console.log("[generate-ai-designs] function file loaded");
 
 cloudinary.config({
@@ -8,7 +9,6 @@ cloudinary.config({
 });
 
 const REQUIRED_ENV = [
-  'GOOGLE_GENAI_API_KEY',
   'CLOUDINARY_CLOUD_NAME',
   'CLOUDINARY_API_KEY',
   'CLOUDINARY_API_SECRET',
@@ -47,6 +47,10 @@ function jsonResponse(statusCode, payload, extraHeaders = {}) {
 
 async function enhancePrompt({ prompt, width, height }) {
   const key = process.env.GOOGLE_GENAI_API_KEY;
+  if (!key) {
+    console.error('[generate-ai-designs] GOOGLE_GENAI_API_KEY missing; using original prompt as enhancement fallback');
+    return prompt;
+  }
   const model = 'gemini-2.5-flash';
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
   const res = await fetch(endpoint, {
@@ -148,7 +152,23 @@ exports.handler = async function(event, context) {
     }
 
     const enhancedPrompt = await enhancePrompt({ prompt, width, height });
-    const imageBase64 = await generateImage({ prompt: enhancedPrompt, width, height });
+    // Use the production-proven Vertex pipeline for image generation.
+    const generateDesignResp = await generateDesign.handler({
+      httpMethod: 'POST',
+      body: JSON.stringify({
+        productType: body.productType || 'banner',
+        width,
+        height,
+        material: body.material || '13oz',
+        prompt: enhancedPrompt,
+      }),
+    });
+    const parsedGenerateDesign = JSON.parse(generateDesignResp?.body || '{}');
+    const imageBase64 = parsedGenerateDesign?.imageBase64 || null;
+    if (!imageBase64) {
+      console.error('[generate-ai-designs] generate-design returned no imageBase64', { statusCode: generateDesignResp?.statusCode, body: generateDesignResp?.body?.slice?.(0, 400) });
+      return buildError('google_api_error', action, 500);
+    }
 
     let uploaded;
     try {
