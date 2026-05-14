@@ -37,17 +37,34 @@ const missingEnv = (keys) => keys.filter((k) => !process.env[k]);
 async function enhancePrompt(prompt, width, height) {
   const key = process.env.GOOGLE_GENAI_API_KEY;
   if (!key) throw new Error('enhance_missing_key');
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
   const res = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: `Expand this into a commercial print banner prompt with strong readability and hierarchy. Keep exact aspect awareness for ${width}x${height}. Return prompt text only:\n\n${prompt}` }] }],
-      generationConfig: { temperature: 0.5, maxOutputTokens: 500 },
+      contents: [
+        {
+          parts: [
+            {
+              text: `Enhance this into a professional commercial banner prompt: ${prompt}`,
+            },
+          ],
+        },
+      ],
     }),
   });
-  const data = await res.json().catch(() => ({}));
+  const rawText = await res.text();
+  let data = {};
+  try {
+    data = rawText ? JSON.parse(rawText) : {};
+  } catch {
+    data = {};
+  }
   if (!res.ok) {
+    console.error('[generate-ai-designs] Gemini enhance request failed', {
+      status: res.status,
+      responseText: rawText?.slice(0, 1000) || '',
+    });
     const safeMessage = data?.error?.message || data?.error?.status || `HTTP_${res.status}`;
     const err = new Error(`enhance_failed_${res.status}`);
     err.providerStatus = res.status;
