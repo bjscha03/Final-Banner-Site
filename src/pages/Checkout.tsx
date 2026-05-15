@@ -38,7 +38,6 @@ const Checkout: React.FC = () => {
   const [discountCodeInput, setDiscountCodeInput] = useState('');
   const [isValidatingDiscount, setIsValidatingDiscount] = useState(false);
   const [discountError, setDiscountError] = useState('');
-  const [guestDiscountEmail, setGuestDiscountEmail] = useState('');
   // Feature flag to temporarily disable Stripe (Card / Apple Pay / Google Pay)
   // in checkout. When false, the Stripe tab is hidden and PayPal is the only
   // available payment method. Stripe code/components are preserved so this can
@@ -207,23 +206,6 @@ const Checkout: React.FC = () => {
       return;
     }
 
-    // Determine email to use for validation
-    const emailForValidation = user?.email || guestDiscountEmail.trim();
-    
-    // For guests, require email input
-    if (!user && !guestDiscountEmail.trim()) {
-      setDiscountError('Please enter your email to use a discount code');
-      return;
-    }
-
-    // Basic email format validation for guests
-    if (!user && guestDiscountEmail.trim()) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(guestDiscountEmail.trim())) {
-        setDiscountError('Please enter a valid email address');
-        return;
-      }
-    }
 
     setIsValidatingDiscount(true);
     setDiscountError('');
@@ -234,7 +216,6 @@ const Checkout: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           code: discountCodeInput.trim(),
-          email: emailForValidation,
           userId: user?.id || null
         }),
       });
@@ -962,7 +943,7 @@ const Checkout: React.FC = () => {
                         />
                         <Button
                           onClick={handleApplyDiscount}
-                          disabled={isValidatingDiscount || !discountCodeInput.trim() || (!user && !guestDiscountEmail.trim())}
+                          disabled={isValidatingDiscount || !discountCodeInput.trim()}
                           className="bg-[#18448D] hover:bg-[#18448D]/90 h-12 px-6 font-semibold transition-all hover:scale-105"
                         >
                           {isValidatingDiscount ? 'Validating...' : 'Apply'}
