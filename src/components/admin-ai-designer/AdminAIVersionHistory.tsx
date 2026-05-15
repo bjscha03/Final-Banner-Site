@@ -1,0 +1,2 @@
+import React from 'react';
+export const AdminAIVersionHistory=({versions,onRevert}:any)=><div className='mt-4 border-t border-zinc-700 pt-3'><p className='text-xs text-zinc-400 mb-2'>Version History</p><div className='flex gap-2 overflow-x-auto'>{versions.map((v:any)=><button key={v.id} onClick={()=>onRevert(v)} className='w-16 h-16 border border-zinc-600 shrink-0'><img src={v.imageUrl} className='w-full h-full object-cover'/></button>)}</div></div>;
