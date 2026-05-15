@@ -53,40 +53,7 @@ exports.handler = async (event, context) => {
     if (normalizedCode === 'NEW20') {
       console.log('[validate-discount-code] NEW20 code detected - checking first-order eligibility');
 
-      // Require email for NEW20 validation
-      if (!normalizedEmail) {
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify({
-            valid: false,
-            error: 'Please enter your email to use this code'
-          })
-        };
-      }
-
-      // Check if this email has any previous PAID orders
-      const existingOrders = await sql`
-        SELECT id, status, created_at
-        FROM orders
-        WHERE email = ${normalizedEmail}
-          AND status = 'paid'
-        LIMIT 1
-      `;
-
-      if (existingOrders.length > 0) {
-        console.log('[validate-discount-code] NEW20 rejected - email has prior paid orders:', normalizedEmail);
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify({
-            valid: false,
-            error: 'NEW20 is valid for first-time customers only. You have a previous order with this email.'
-          })
-        };
-      }
-
-      // Also check by user_id if provided
+      // Check first-order eligibility by account only when signed in.
       if (userId) {
         const existingUserOrders = await sql`
           SELECT id, status, created_at
@@ -110,7 +77,7 @@ exports.handler = async (event, context) => {
       }
 
       // NEW20 is valid for this first-time customer
-      console.log('[validate-discount-code] NEW20 approved for first-time customer:', normalizedEmail);
+      console.log('[validate-discount-code] NEW20 approved');
       return {
         statusCode: 200,
         headers,
@@ -122,6 +89,27 @@ exports.handler = async (event, context) => {
             discountPercentage: 20,
             discountAmountCents: null,
             expiresAt: '2099-12-31T23:59:59Z'  // Never expires
+          }
+        })
+      };
+    }
+
+
+    // SPECIAL HANDLING: CUSTOM60 guest-safe promotional code.
+    // This code intentionally does not depend on email/account presence.
+    if (normalizedCode === 'CUSTOM60') {
+      console.log('[validate-discount-code] CUSTOM60 approved');
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          valid: true,
+          discount: {
+            id: 'CUSTOM60_PROMO',
+            code: 'CUSTOM60',
+            discountPercentage: 60,
+            discountAmountCents: null,
+            expiresAt: '2099-12-31T23:59:59Z'
           }
         })
       };
@@ -236,30 +224,7 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // Check if the code is restricted to a specific email address
-    if (discount.email) {
-      if (!normalizedEmail) {
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify({
-            valid: false,
-            error: 'Please enter your email to use this code',
-          })
-        };
-      }
-      if (normalizedEmail !== discount.email) {
-        console.log('[validate-discount-code] Email mismatch for restricted code');
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify({
-            valid: false,
-            error: 'This code is not valid for your account',
-          })
-        };
-      }
-    }
+
 
     // Code is valid!
     console.log('[validate-discount-code] Valid');
