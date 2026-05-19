@@ -11,6 +11,7 @@ import EmailDeliveryStatus from './EmailDeliveryStatus';
 import { getItemDisplayName, getProductLabel, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
 import { formatShippingAddress, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
 import { getDisplayOrderTotalCents } from '@/lib/order-totals';
+import { estimateOrderProfit } from '@/lib/admin-profit-estimate';
 import {
   Dialog,
   DialogContent,
@@ -1098,6 +1099,26 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
               </div>
             </div>
           </div>
+
+          {isAdminUser && (() => {
+            const profit = estimateOrderProfit(order);
+            return (
+              <div className="mt-6 bg-gradient-to-br from-emerald-50 to-emerald-100 border-2 border-emerald-200 rounded-xl p-6 shadow-sm">
+                <h3 className="text-lg font-bold text-emerald-800 mb-4">Profit Estimate</h3>
+                {profit.needsReview ? (
+                  <div className="text-sm font-semibold text-amber-700">Needs review</div>
+                ) : (
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between"><span>Retail Subtotal</span><span className="font-semibold">{usd(profit.retailSubtotalCents / 100)}</span></div>
+                    <div className="flex justify-between"><span>Production Cost</span><span className="font-semibold">{usd(profit.productionCostCents / 100)}</span></div>
+                    <div className="flex justify-between"><span>Shipping/Handling Cost</span><span className="font-semibold">{usd(profit.shippingCostCents / 100)}</span></div>
+                    <div className="flex justify-between border-t pt-2"><span className="font-semibold">Estimated Net Profit</span><span className="font-bold">{usd(profit.netProfitCents / 100)}</span></div>
+                    <div className="flex justify-between"><span>Profit Margin %</span><span className="font-semibold">{profit.marginPct.toFixed(1)}%</span></div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       </DialogContent>
     </Dialog>
