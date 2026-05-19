@@ -51,6 +51,7 @@ export type NormalizedOrderItemDisplay = {
   grommetsDisplay?: string;
   polePocketsDisplay?: string;
   ropeDisplay?: string;
+  hemmingDisplay?: string;
   uploadedDesignsCount?: number;
   stepStakesQty?: number;
   stepStakesLine?: string;
@@ -111,6 +112,15 @@ export function getDisplayGrommets(value?: string | null): string {
     'right-side': 'Right Side Only',
   };
   return map[key] || toTitleCase(key.replace(/-/g, ' '));
+}
+
+export function formatOptionValue(value?: string | null | boolean): string {
+  if (typeof value === 'boolean') return value ? 'Included' : 'None';
+  const raw = String(value || '').trim();
+  if (!raw) return 'None';
+  const lower = raw.toLowerCase();
+  if (lower === 'none' || lower === 'false' || lower === 'null' || lower === 'undefined') return 'None';
+  return raw;
 }
 
 /**
@@ -293,13 +303,14 @@ export function getEmailItemOptions(item: {
   const parts: (string | null)[] = [
     `Size: ${getDisplaySize(item)}`,
     `Material: ${getDisplayMaterial(item) || '13oz Vinyl'}`,
-    getDisplayGrommets(item.grommets) ? `Grommets: ${getDisplayGrommets(item.grommets)}` : null,
-    ropePlacementLabel ? `Rope: ${ropePlacementLabel}` : null,
-    polePocketPlacementLabel
+    `Grommets: ${formatOptionValue(getDisplayGrommets(item.grommets))}`,
+    `Rope: ${formatOptionValue(ropePlacementLabel)}`,
+    `Pole Pockets: ${formatOptionValue(polePocketPlacementLabel
       ? `Pole Pockets: ${polePocketPlacementLabel}${item.pole_pocket_size ? ` (${item.pole_pocket_size} inch)` : ''}`
       : (item.pole_pockets && item.pole_pockets !== 'none' && item.pole_pockets !== 'false')
         ? 'Pole Pockets: Yes'
-        : null,
+        : '')}`.replace(/^Pole Pockets:\s*/, ''),
+    'Hemming: Always included',
     item.design_service_enabled ? '⚡ Design Service Order' : null,
   ];
   return parts.filter(Boolean).join(' • ');
@@ -326,7 +337,7 @@ export function normalizeOrderItemDisplay(item: NormalizableOrderItem): Normaliz
   // order items that pre-date the rope_placement field.
   const ropeDisplay = ropeFeet > 0
     ? (ropePlacementLabel || `${ropeFeet.toFixed(1)} ft`)
-    : '';
+    : 'None';
   const polePocketPositionRaw = String(item.pole_pocket_position || item.pole_pockets || '').trim();
   const hasPolePocket = polePocketPositionRaw && polePocketPositionRaw !== 'none' && polePocketPositionRaw !== 'false';
   const polePocketPlacementLabel = hasPolePocket
@@ -334,7 +345,8 @@ export function normalizeOrderItemDisplay(item: NormalizableOrderItem): Normaliz
     : '';
   const polePocketsDisplay = hasPolePocket
     ? `${polePocketPlacementLabel}${item.pole_pocket_size ? ` (${item.pole_pocket_size} inch)` : ''}`
-    : '';
+    : 'None';
+  const grommetsDisplay = formatOptionValue(getDisplayGrommets(item.grommets));
   const stepStakesQty = Number(item.yard_sign_step_stakes_qty || 0);
   const uploadedDesignsCount = Number(item.yard_sign_design_count || 0);
 
@@ -386,11 +398,10 @@ export function normalizeOrderItemDisplay(item: NormalizableOrderItem): Normaliz
             roundedCornersDisplay: `${getCarMagnetRoundedCornersLabel(item.rounded_corners)} (Included Free)`,
           }
       : {
-          ...(getDisplayGrommets(item.grommets) ? { grommetsDisplay: getDisplayGrommets(item.grommets) } : {}),
-          ...(polePocketsDisplay
-            ? { polePocketsDisplay }
-            : {}),
-          ...(ropeDisplay ? { ropeDisplay } : {}),
+          grommetsDisplay,
+          polePocketsDisplay: formatOptionValue(polePocketsDisplay),
+          ropeDisplay: formatOptionValue(ropeDisplay),
+          hemmingDisplay: 'Always included',
         }),
   };
 }
