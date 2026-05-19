@@ -261,7 +261,7 @@ const PaymentSuccess: React.FC = () => {
                           {normalized.stepStakesQty ? <p className="text-sm text-gray-600">Step Stakes: {normalized.stepStakesQty}</p> : null}
                           <p className="text-sm text-gray-600">Grommets: {normalized.grommetsDisplay}</p>
                           <p className="text-sm text-gray-600">Pole Pockets: {normalized.polePocketsDisplay}</p>
-                          <p className="text-sm text-gray-600">Rope Hemming: {normalized.ropeDisplay}</p>
+                          <p className="text-sm text-gray-600">Rope: {normalized.ropeDisplay}</p>
 
                           {/* Cost Breakdown */}
                           <div className="mt-3 p-3 bg-gray-50 rounded-lg">

@@ -186,8 +186,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                             ...(normalized.stepStakesQty ? [{ label: 'Step Stakes', value: String(normalized.stepStakesQty) }] : []),
                             { label: 'Grommets', value: normalized.grommetsDisplay },
                             { label: 'Pole Pockets', value: normalized.polePocketsDisplay },
-                            { label: 'Rope Hemming', value: normalized.ropeDisplay },
-                            { label: 'Hemming', value: normalized.hemmingDisplay || 'Included' },
+                            { label: 'Rope', value: normalized.ropeDisplay },
+                            { label: 'Hemming', value: normalized.hemmingDisplay || 'Always included' },
                             ...(normalized.roundedCornersDisplay ? [{ label: 'Rounded Corners', value: normalized.roundedCornersDisplay }] : []),
                           ]}
                           renderLargePreview={() => (
@@ -259,7 +259,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                         {normalized.stepStakesQty ? <p><span className="font-medium text-gray-700">Step Stakes:</span> {normalized.stepStakesQty}</p> : null}
                         <p><span className="font-medium text-gray-700">Grommets:</span> {normalized.grommetsDisplay}</p>
                         <p><span className="font-medium text-gray-700">Pole Pockets:</span> {normalized.polePocketsDisplay}</p>
-                        <p><span className="font-medium text-gray-700">Rope Hemming:</span> {normalized.ropeDisplay}</p>
+                        <p><span className="font-medium text-gray-700">Rope:</span> {normalized.ropeDisplay}</p>
                         {normalized.roundedCornersDisplay ? <p><span className="font-medium text-gray-700">Rounded Corners:</span> {normalized.roundedCornersDisplay}</p> : null}
                       </div>
 

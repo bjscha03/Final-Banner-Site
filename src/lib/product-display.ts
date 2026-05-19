@@ -304,13 +304,13 @@ export function getEmailItemOptions(item: {
     `Size: ${getDisplaySize(item)}`,
     `Material: ${getDisplayMaterial(item) || '13oz Vinyl'}`,
     `Grommets: ${formatOptionValue(getDisplayGrommets(item.grommets))}`,
-    `Rope Hemming: ${formatOptionValue(ropePlacementLabel)}`,
+    `Rope: ${formatOptionValue(ropePlacementLabel)}`,
     `Pole Pockets: ${formatOptionValue(polePocketPlacementLabel
       ? `Pole Pockets: ${polePocketPlacementLabel}${item.pole_pocket_size ? ` (${item.pole_pocket_size} inch)` : ''}`
       : (item.pole_pockets && item.pole_pockets !== 'none' && item.pole_pockets !== 'false')
         ? 'Pole Pockets: Yes'
         : '')}`.replace(/^Pole Pockets:\s*/, ''),
-    'Hemming: Included',
+    'Hemming: Always included',
     item.design_service_enabled ? '⚡ Design Service Order' : null,
   ];
   return parts.filter(Boolean).join(' • ');
@@ -401,7 +401,7 @@ export function normalizeOrderItemDisplay(item: NormalizableOrderItem): Normaliz
           grommetsDisplay,
           polePocketsDisplay: formatOptionValue(polePocketsDisplay),
           ropeDisplay: formatOptionValue(ropeDisplay),
-          hemmingDisplay: 'Included',
+          hemmingDisplay: 'Always included',
         }),
   };
 }

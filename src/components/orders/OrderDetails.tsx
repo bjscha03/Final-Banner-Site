@@ -963,7 +963,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                       {normalized.stepStakesQty ? <p className="break-words">Step Stakes: {normalized.stepStakesQty}</p> : null}
                       <p className="break-words">Grommets: {normalized.grommetsDisplay}</p>
                       <p className="break-words">Pole Pockets: {normalized.polePocketsDisplay}</p>
-                      <p className="break-words">Rope Hemming: {normalized.ropeDisplay}</p>
+                      <p className="break-words">Rope: {normalized.ropeDisplay}</p>
                       {normalized.roundedCornersDisplay ? <p className="break-words">Rounded Corners: {normalized.roundedCornersDisplay}</p> : null}
                     </div>
 

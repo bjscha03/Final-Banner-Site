@@ -630,8 +630,8 @@ const Checkout: React.FC = () => {
                       ...(normalized.stepStakesQty ? [{ label: 'Step Stakes', value: String(normalized.stepStakesQty) }] : []),
                       { label: 'Grommets', value: normalized.grommetsDisplay },
                       { label: 'Pole Pockets', value: normalized.polePocketsDisplay },
-                      { label: 'Rope Hemming', value: normalized.ropeDisplay },
-                      { label: 'Hemming', value: normalized.hemmingDisplay || 'Included' },
+                      { label: 'Rope', value: normalized.ropeDisplay },
+                      { label: 'Hemming', value: normalized.hemmingDisplay || 'Always included' },
                       ...(normalized.roundedCornersDisplay ? [{ label: 'Rounded Corners', value: normalized.roundedCornersDisplay }] : []),
                     ];
 

@@ -164,8 +164,8 @@ function getEmailItemOptions(item) {
     normalized.qtyDisplay ? `Qty: ${normalized.qtyDisplay}` : null,
     `Grommets: ${formatOptionValue(normalized.grommetsDisplay)}`,
     `Pole Pockets: ${formatOptionValue(normalized.polePocketsDisplay)}`,
-    `Rope Hemming: ${formatOptionValue(normalized.ropeDisplay)}`,
-    'Hemming: Included',
+    `Rope: ${formatOptionValue(normalized.ropeDisplay)}`,
+    'Hemming: Always included',
     item.design_service_enabled ? '⚡ Design Service Order' : null,
   ];
   return parts.filter(Boolean).join(' • ');
@@ -229,7 +229,7 @@ function normalizeOrderItemDisplay(item) {
           grommetsDisplay,
           ropeDisplay: formatOptionValue(ropeDisplay),
           polePocketsDisplay: formatOptionValue(polePocketsDisplay),
-          hemmingDisplay: 'Included',
+          hemmingDisplay: 'Always included',
         }),
   };
 }
@@ -261,7 +261,7 @@ function truncatePayPalDescription(text, max = PAYPAL_DESCRIPTION_MAX) {
  * for inclusion in the PayPal order/receipt.
  *
  * Example: 'Banner - 96" × 24", 13oz Vinyl, Qty 1, Grommets: Every 2–3 Feet,
- *           Pole Pockets: None, Rope: None, Hemming: Included'
+ *           Pole Pockets: None, Rope: None, Hemming: Always included'
  */
 function buildBannerPayPalLine(item) {
   const size = getDisplaySize(item);
@@ -283,7 +283,7 @@ function buildBannerPayPalLine(item) {
     : 'None';
 
   const sizePart = size ? `${size}, ` : '';
-  return `Banner - ${sizePart}${material}, Qty ${qty}, Grommets: ${grommetsLabel}, Pole Pockets: ${polePocketsLabel}, Rope: ${ropeLabel}, Hemming: Included`;
+  return `Banner - ${sizePart}${material}, Qty ${qty}, Grommets: ${grommetsLabel}, Pole Pockets: ${polePocketsLabel}, Rope: ${ropeLabel}, Hemming: Always included`;
 }
 
 /**
