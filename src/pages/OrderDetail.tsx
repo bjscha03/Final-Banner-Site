@@ -330,15 +330,9 @@ const OrderDetail: React.FC = () => {
                         {normalized.stepStakesQty && (
                           <p><span className="font-medium">Step Stakes:</span> {normalized.stepStakesQty}</p>
                         )}
-                        {normalized.grommetsDisplay && (
-                          <p><span className="font-medium">Grommets:</span> {normalized.grommetsDisplay}</p>
-                        )}
-                        {normalized.polePocketsDisplay && (
-                          <p><span className="font-medium">Pole Pockets:</span> {normalized.polePocketsDisplay}</p>
-                        )}
-                        {normalized.ropeDisplay && (
-                          <p><span className="font-medium">Rope:</span> {normalized.ropeDisplay}</p>
-                        )}
+                        <p><span className="font-medium">Grommets:</span> {normalized.grommetsDisplay}</p>
+                        <p><span className="font-medium">Pole Pockets:</span> {normalized.polePocketsDisplay}</p>
+                        <p><span className="font-medium">Rope Hemming:</span> {normalized.ropeDisplay}</p>
                         {normalized.roundedCornersDisplay && (
                           <p><span className="font-medium">Rounded Corners:</span> {normalized.roundedCornersDisplay}</p>
                         )}

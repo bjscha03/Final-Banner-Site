@@ -63,6 +63,16 @@ function getDisplayGrommets(value) {
   return map[key] || toTitleCase(key.replace(/-/g, ' '));
 }
 
+
+function formatOptionValue(value) {
+  if (typeof value === 'boolean') return value ? 'Included' : 'None';
+  const raw = String(value || '').trim();
+  if (!raw) return 'None';
+  const lower = raw.toLowerCase();
+  if (lower === 'none' || lower === 'false' || lower === 'null' || lower === 'undefined') return 'None';
+  return raw;
+}
+
 function getDisplayPlacement(value) {
   const raw = String(value || '').trim().toLowerCase();
   if (!raw || raw === 'none' || raw === 'false') return '';
@@ -152,9 +162,10 @@ function getEmailItemOptions(item) {
     `Material: ${normalized.materialDisplay}`,
     `Print: ${normalized.printDisplay}`,
     normalized.qtyDisplay ? `Qty: ${normalized.qtyDisplay}` : null,
-    normalized.grommetsDisplay ? `Grommets: ${normalized.grommetsDisplay}` : null,
-    normalized.ropeDisplay ? `Rope: ${normalized.ropeDisplay}` : null,
-    normalized.polePocketsDisplay ? `Pole Pockets: ${normalized.polePocketsDisplay}` : null,
+    `Grommets: ${formatOptionValue(normalized.grommetsDisplay)}`,
+    `Pole Pockets: ${formatOptionValue(normalized.polePocketsDisplay)}`,
+    `Rope Hemming: ${formatOptionValue(normalized.ropeDisplay)}`,
+    'Hemming: Included',
     item.design_service_enabled ? '⚡ Design Service Order' : null,
   ];
   return parts.filter(Boolean).join(' • ');
@@ -176,7 +187,7 @@ function normalizeOrderItemDisplay(item) {
   const ropePlacementLabel = getDisplayPlacement(item.rope_placement);
   const ropeDisplay = ropeFeet > 0
     ? (ropePlacementLabel || `${ropeFeet.toFixed(1)} ft`)
-    : '';
+    : 'None';
   const polePocketPositionRaw = String(item.pole_pocket_position || item.pole_pockets || '').trim();
   const hasPolePocket = polePocketPositionRaw && polePocketPositionRaw !== 'none' && polePocketPositionRaw !== 'false';
   const polePocketPlacementLabel = hasPolePocket
@@ -184,10 +195,10 @@ function normalizeOrderItemDisplay(item) {
     : '';
   const polePocketsDisplay = hasPolePocket
     ? `${polePocketPlacementLabel}${item.pole_pocket_size ? ` (${item.pole_pocket_size} inch)` : ''}`
-    : '';
+    : 'None';
   const stepStakesQty = Number(item.yard_sign_step_stakes_qty || 0);
   const uploadedDesignsCount = Number(item.yard_sign_design_count || 0);
-  const grommetsDisplay = getDisplayGrommets(item.grommets);
+  const grommetsDisplay = formatOptionValue(getDisplayGrommets(item.grommets));
 
   return {
     productType: isYardSign ? 'yard-sign' : (isCarMagnet ? 'car-magnet' : 'banner'),
@@ -215,9 +226,10 @@ function normalizeOrderItemDisplay(item) {
             roundedCornersDisplay: getCarMagnetRoundedCornersLabel(item.rounded_corners),
           }
       : {
-          ...(grommetsDisplay ? { grommetsDisplay } : {}),
-          ...(ropeDisplay ? { ropeDisplay } : {}),
-          ...(polePocketsDisplay ? { polePocketsDisplay } : {}),
+          grommetsDisplay,
+          ropeDisplay: formatOptionValue(ropeDisplay),
+          polePocketsDisplay: formatOptionValue(polePocketsDisplay),
+          hemmingDisplay: 'Included',
         }),
   };
 }
@@ -336,4 +348,5 @@ module.exports = {
   getPayPalDescription,
   getDisplayGrommets,
   getDisplayPlacement,
+  formatOptionValue,
 };

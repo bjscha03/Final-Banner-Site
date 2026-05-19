@@ -194,9 +194,9 @@ const OrderConfirmation: React.FC = () => {
                           <p>Qty: {normalized.qtyDisplay}</p>
                           {normalized.uploadedDesignsCount && <p>Uploaded Designs: {normalized.uploadedDesignsCount}</p>}
                           {normalized.stepStakesQty && <p>Step Stakes: {normalized.stepStakesQty}</p>}
-                          {normalized.grommetsDisplay && <p>Grommets: {normalized.grommetsDisplay}</p>}
-                          {normalized.polePocketsDisplay && <p>Pole Pockets: {normalized.polePocketsDisplay}</p>}
-                          {normalized.ropeDisplay && <p>Rope: {normalized.ropeDisplay}</p>}
+                          <p>Grommets: {normalized.grommetsDisplay}</p>
+                          <p>Pole Pockets: {normalized.polePocketsDisplay}</p>
+                          <p>Rope Hemming: {normalized.ropeDisplay}</p>
                           {normalized.roundedCornersDisplay && <p>Rounded Corners: {normalized.roundedCornersDisplay}</p>}
                         </div>
 

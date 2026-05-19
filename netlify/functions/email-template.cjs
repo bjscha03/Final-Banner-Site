@@ -129,9 +129,9 @@ function renderItems(items = []) {
                     <p style="margin:0 0 4px;color:#475569;font-size:13px;">Qty: ${quantity}</p>
                     ${item.uploadedDesignsCount ? `<p style="margin:0 0 2px;color:#64748b;font-size:12px;">Uploaded Designs: ${Number(item.uploadedDesignsCount)}</p>` : ''}
                     ${item.stepStakesQty ? `<p style="margin:0 0 2px;color:#64748b;font-size:12px;">Step Stakes: ${Number(item.stepStakesQty)}</p>` : ''}
-                    ${item.grommetsDisplay ? `<p style="margin:0 0 2px;color:#64748b;font-size:12px;">Grommets: ${escapeHtml(item.grommetsDisplay)}</p>` : ''}
-                    ${item.polePocketsDisplay ? `<p style="margin:0 0 2px;color:#64748b;font-size:12px;">Pole Pockets: ${escapeHtml(item.polePocketsDisplay)}</p>` : ''}
-                    ${item.ropeDisplay ? `<p style="margin:0 0 2px;color:#64748b;font-size:12px;">Rope: ${escapeHtml(item.ropeDisplay)}</p>` : ''}
+                    <p style="margin:0 0 2px;color:#64748b;font-size:12px;">Grommets: ${escapeHtml(item.grommetsDisplay || 'None')}</p>
+                    <p style="margin:0 0 2px;color:#64748b;font-size:12px;">Pole Pockets: ${escapeHtml(item.polePocketsDisplay || 'None')}</p>
+                    <p style="margin:0 0 2px;color:#64748b;font-size:12px;">Rope Hemming: ${escapeHtml(item.ropeDisplay || 'None')}</p><p style="margin:0 0 2px;color:#64748b;font-size:12px;">Hemming: Included</p>
                     ${item.roundedCornersDisplay ? `<p style="margin:0 0 2px;color:#64748b;font-size:12px;">Rounded Corners: ${escapeHtml(item.roundedCornersDisplay)}</p>` : ''}
                     ${lineTotal > 0 ? `<p style="margin:0 0 2px;color:${BRAND_NAVY};font-size:13px;font-weight:600;">Unit Price: $${unitPrice.toFixed(2)}</p>` : ''}
                     ${lineTotal > 0 ? `<p style="margin:0;color:${BRAND_ORANGE};font-size:14px;font-weight:700;">Line Total: $${lineTotal.toFixed(2)}</p>` : ''}
