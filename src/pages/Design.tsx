@@ -64,6 +64,7 @@ import {
   type BuilderStepKey,
 } from '@/lib/builderSteps';
 import { logUx } from '@/lib/uxAnalytics';
+import { formatOptionValue, getDisplayPlacement } from '@/lib/product-display';
 import { useAuth, isAdmin } from '@/lib/auth';
 
 const PRESET_SIZES = [
@@ -2590,13 +2591,10 @@ const Design: React.FC = () => {
                   secondaryLine={`for ${quantity} ${quantity === 1 ? 'banner' : 'banners'} • ${widthDisplay} × ${heightDisplay} • ${materialLabel}`}
                   showTopSummary={false}
                   detailRows={[
-                    { label: 'Grommets', value: grommetsLabel },
-                    ...(polePockets !== 'none'
-                      ? [{ label: `Pole Pockets (${polePockets})`, value: usd(bannerPricing.polePocketCostCents / 100) }]
-                      : []),
-                    ...(addRope
-                      ? [{ label: 'Rope', value: usd(bannerPricing.ropeCostCents / 100) }]
-                      : []),
+                    { label: 'Grommets', value: formatOptionValue(grommetsLabel) },
+                    { label: 'Pole Pockets', value: formatOptionValue(getDisplayPlacement(polePockets)) },
+                    { label: 'Rope Hemming', value: formatOptionValue(addRope ? getDisplayPlacement(ropePlacement) : '') },
+                    { label: 'Hemming', value: 'Always Included' },
                   ]}
                   baseSubtotalCents={bannerPricing.baseBannerPriceCents}
                   baseSubtotalLabel="Base banner"
