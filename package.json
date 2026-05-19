@@ -16,6 +16,7 @@
     "db:studio": "netlify dev:exec drizzle-kit studio"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.864.0",
     "@google/genai": "^1.20.0",
     "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "^3.10.0",
