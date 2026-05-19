@@ -95,22 +95,15 @@ exports.handler = async (event, context) => {
     }
 
 
-    // SPECIAL HANDLING: CUSTOM60 guest-safe promotional code.
-    // This code intentionally does not depend on email/account presence.
+    // CUSTOM60 has been retired and should never validate.
     if (normalizedCode === 'CUSTOM60') {
-      console.log('[validate-discount-code] CUSTOM60 approved');
+      console.log('[validate-discount-code] CUSTOM60 rejected (retired code)');
       return {
-        statusCode: 200,
+        statusCode: 400,
         headers,
         body: JSON.stringify({
-          valid: true,
-          discount: {
-            id: 'CUSTOM60_PROMO',
-            code: 'CUSTOM60',
-            discountPercentage: 60,
-            discountAmountCents: null,
-            expiresAt: '2099-12-31T23:59:59Z'
-          }
+          valid: false,
+          error: 'Invalid discount code'
         })
       };
     }
