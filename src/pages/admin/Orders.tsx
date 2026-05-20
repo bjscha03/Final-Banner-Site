@@ -33,6 +33,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar as CalendarIcon, Star, ShoppingCart, GraduationCap } from 'lucide-react';
 import OrderDetails from '@/components/orders/OrderDetails';
 import { getDisplayOrderTotalCents } from '@/lib/order-totals';
+import { estimateOrderProfit } from '@/lib/admin-profit-estimate';
 import { fetchEvents } from '@/lib/events';
 import {
   Select,
@@ -1411,6 +1412,26 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
             <div className="text-sm text-gray-900">{getItemsSummary(order)}</div>
           </div>
           <div className={`text-lg font-bold ${ORDER_ACCENT_TEXT_CLASS}`}>{usd(getDisplayOrderTotalCents(order as any) / 100)}</div>
+          {(() => {
+            const profit = estimateOrderProfit(order);
+            return (
+              <div className="rounded-md border border-slate-200 bg-slate-50 p-2 text-xs"> 
+                {profit.needsReview ? (
+                  <div className="inline-flex rounded bg-amber-100 px-2 py-1 font-semibold text-amber-800">Needs review</div>
+                ) : (
+                  <>
+                    <div className="text-slate-700">Revenue: <span className="font-semibold">{usd(profit.originalSubtotalCents / 100)}</span></div>
+                    {profit.discountsAppliedCents > 0 && <div className="text-slate-700">Discounts: <span className="font-semibold text-red-700">-{usd(profit.discountsAppliedCents / 100)}</span></div>}
+                    <div className="text-slate-700">Adjusted Subtotal: <span className="font-semibold">{usd(profit.adjustedRetailSubtotalCents / 100)}</span></div>
+                    <div className="text-gray-600">Production Cost: <span className="font-semibold">{usd(profit.productionCostCents / 100)}</span></div>
+                    <div className="text-gray-600">Shipping Cost: <span className="font-semibold">{usd(profit.shippingCostCents / 100)}</span></div>
+                    <div className="text-slate-700">Net Profit: <span className={`font-semibold ${profit.netProfitCents >= 0 ? 'text-green-700' : 'text-red-700'}`}>{usd(profit.netProfitCents / 100)}</span></div>
+                    <div className="text-slate-700">Margin: <span className={`font-semibold ${profit.marginPct >= 0 ? 'text-green-700' : 'text-red-700'}`}>{profit.marginPct.toFixed(1)}%</span></div>
+                  </>
+                )}
+              </div>
+            );
+          })()}
           <div className="flex flex-wrap gap-1.5">
             <Badge className={`${getStatusColor(order.status)} capitalize`}>
               {getStatusLabel(order.status)}
@@ -1856,6 +1877,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
             <div>
               <div className="text-xs text-gray-500">Total</div>
               <div className="text-lg font-bold text-[#18448D]">{usd(getDisplayOrderTotalCents(order as any) / 100)}</div>
+            {(() => { const profit = estimateOrderProfit(order); return profit.needsReview ? (<div className="inline-flex rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">Needs review</div>) : (<div className="text-xs text-slate-700">Rev {usd(profit.originalSubtotalCents/100)}{profit.discountsAppliedCents>0 ? ` · Disc -${usd(profit.discountsAppliedCents/100)}` : ''} · Adj {usd(profit.adjustedRetailSubtotalCents/100)} · Cost {usd(profit.productionCostCents/100)} · Ship {usd(profit.shippingCostCents/100)} · <span className={`${profit.netProfitCents>=0?'text-green-700':'text-red-700'} font-semibold`}>Profit {usd(profit.netProfitCents/100)}</span> · <span className={`${profit.marginPct>=0?'text-green-700':'text-red-700'} font-semibold`}>Margin {profit.marginPct.toFixed(1)}%</span></div>); })()}
             </div>
             {!isGraduation && order.tracking_number && (
               <div className="min-w-0">
