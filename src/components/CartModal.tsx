@@ -184,10 +184,12 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                             { label: 'Qty', value: normalized.qtyDisplay },
                             ...(normalized.uploadedDesignsCount ? [{ label: 'Uploaded Designs', value: String(normalized.uploadedDesignsCount) }] : []),
                             ...(normalized.stepStakesQty ? [{ label: 'Step Stakes', value: String(normalized.stepStakesQty) }] : []),
-                            { label: 'Grommets', value: normalized.grommetsDisplay },
-                            { label: 'Pole Pockets', value: normalized.polePocketsDisplay },
-                            { label: 'Rope', value: normalized.ropeDisplay },
-                            { label: 'Hemming', value: normalized.hemmingDisplay || 'Always included' },
+                            ...(normalized.productType === 'banner' ? [
+                              { label: 'Grommets', value: normalized.grommetsDisplay },
+                              { label: 'Pole Pockets', value: normalized.polePocketsDisplay },
+                              { label: 'Rope', value: normalized.ropeDisplay },
+                              { label: 'Hemming', value: normalized.hemmingDisplay || 'Always included' },
+                            ] : []),
                             ...(normalized.roundedCornersDisplay ? [{ label: 'Rounded Corners', value: normalized.roundedCornersDisplay }] : []),
                           ]}
                           renderLargePreview={() => (
@@ -257,9 +259,13 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                         <p><span className="font-medium text-gray-700">Qty:</span> {normalized.qtyDisplay}</p>
                         {normalized.uploadedDesignsCount ? <p><span className="font-medium text-gray-700">Uploaded Designs:</span> {normalized.uploadedDesignsCount}</p> : null}
                         {normalized.stepStakesQty ? <p><span className="font-medium text-gray-700">Step Stakes:</span> {normalized.stepStakesQty}</p> : null}
-                        <p><span className="font-medium text-gray-700">Grommets:</span> {normalized.grommetsDisplay}</p>
-                        <p><span className="font-medium text-gray-700">Pole Pockets:</span> {normalized.polePocketsDisplay}</p>
-                        <p><span className="font-medium text-gray-700">Rope:</span> {normalized.ropeDisplay}</p>
+                        {normalized.productType === 'banner' ? (
+                          <>
+                            <p><span className="font-medium text-gray-700">Grommets:</span> {normalized.grommetsDisplay}</p>
+                            <p><span className="font-medium text-gray-700">Pole Pockets:</span> {normalized.polePocketsDisplay}</p>
+                            <p><span className="font-medium text-gray-700">Rope:</span> {normalized.ropeDisplay}</p>
+                          </>
+                        ) : null}
                         {normalized.roundedCornersDisplay ? <p><span className="font-medium text-gray-700">Rounded Corners:</span> {normalized.roundedCornersDisplay}</p> : null}
                       </div>
 

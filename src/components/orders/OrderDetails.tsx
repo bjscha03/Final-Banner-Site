@@ -933,9 +933,13 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                       <p className="break-words">Qty: {normalized.qtyDisplay}</p>
                       {normalized.uploadedDesignsCount ? <p className="break-words">Uploaded Designs: {normalized.uploadedDesignsCount}</p> : null}
                       {normalized.stepStakesQty ? <p className="break-words">Step Stakes: {normalized.stepStakesQty}</p> : null}
-                      <p className="break-words">Grommets: {normalized.grommetsDisplay}</p>
-                      <p className="break-words">Pole Pockets: {normalized.polePocketsDisplay}</p>
-                      <p className="break-words">Rope: {normalized.ropeDisplay}</p>
+                      {normalized.productType === 'banner' ? (
+                        <>
+                          <p className="break-words">Grommets: {normalized.grommetsDisplay}</p>
+                          <p className="break-words">Pole Pockets: {normalized.polePocketsDisplay}</p>
+                          <p className="break-words">Rope: {normalized.ropeDisplay}</p>
+                        </>
+                      ) : null}
                       {normalized.roundedCornersDisplay ? <p className="break-words">Rounded Corners: {normalized.roundedCornersDisplay}</p> : null}
                     </div>
 

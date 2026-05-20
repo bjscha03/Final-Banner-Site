@@ -628,10 +628,12 @@ const Checkout: React.FC = () => {
                       { label: 'Print', value: normalized.printDisplay },
                       ...(normalized.uploadedDesignsCount ? [{ label: 'Uploaded Designs', value: String(normalized.uploadedDesignsCount) }] : []),
                       ...(normalized.stepStakesQty ? [{ label: 'Step Stakes', value: String(normalized.stepStakesQty) }] : []),
-                      { label: 'Grommets', value: normalized.grommetsDisplay },
-                      { label: 'Pole Pockets', value: normalized.polePocketsDisplay },
-                      { label: 'Rope', value: normalized.ropeDisplay },
-                      { label: 'Hemming', value: normalized.hemmingDisplay || 'Always included' },
+                      ...(normalized.productType === 'banner' ? [
+                        { label: 'Grommets', value: normalized.grommetsDisplay },
+                        { label: 'Pole Pockets', value: normalized.polePocketsDisplay },
+                        { label: 'Rope', value: normalized.ropeDisplay },
+                        { label: 'Hemming', value: normalized.hemmingDisplay || 'Always included' },
+                      ] : []),
                       ...(normalized.roundedCornersDisplay ? [{ label: 'Rounded Corners', value: normalized.roundedCornersDisplay }] : []),
                     ];
 

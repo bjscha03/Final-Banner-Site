@@ -194,9 +194,13 @@ const OrderConfirmation: React.FC = () => {
                           <p>Qty: {normalized.qtyDisplay}</p>
                           {normalized.uploadedDesignsCount && <p>Uploaded Designs: {normalized.uploadedDesignsCount}</p>}
                           {normalized.stepStakesQty && <p>Step Stakes: {normalized.stepStakesQty}</p>}
-                          <p>Grommets: {normalized.grommetsDisplay}</p>
-                          <p>Pole Pockets: {normalized.polePocketsDisplay}</p>
-                          <p>Rope: {normalized.ropeDisplay}</p>
+                          {normalized.productType === 'banner' ? (
+                            <>
+                              <p>Grommets: {normalized.grommetsDisplay}</p>
+                              <p>Pole Pockets: {normalized.polePocketsDisplay}</p>
+                              <p>Rope: {normalized.ropeDisplay}</p>
+                            </>
+                          ) : null}
                           {normalized.roundedCornersDisplay && <p>Rounded Corners: {normalized.roundedCornersDisplay}</p>}
                         </div>
 
