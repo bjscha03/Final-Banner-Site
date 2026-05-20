@@ -103,6 +103,24 @@ const estimateLineItemCost = (item: OrderItem): LineEstimate => {
   return { reviewRequired: true, productionCostCents: 0, reason: `Unsupported product type: ${type}` };
 };
 
+const getRetailSubtotalBeforeTaxCents = (order: Order): number => {
+  const itemSubtotal = (order.items || []).reduce((sum, item) => {
+    const lineTotal = Number(item?.line_total_cents);
+    return sum + (Number.isFinite(lineTotal) ? lineTotal : 0);
+  }, 0);
+
+  const discount = Number.isFinite(Number(order.applied_discount_cents)) ? Number(order.applied_discount_cents) : 0;
+  const sameDay = Number.isFinite(Number(order.same_day_fee_cents)) ? Number(order.same_day_fee_cents) : 0;
+  const saturday = Number.isFinite(Number(order.saturday_fee_cents)) ? Number(order.saturday_fee_cents) : 0;
+
+  if (itemSubtotal > 0) {
+    return Math.max(0, itemSubtotal - discount + sameDay + saturday);
+  }
+
+  const storedSubtotal = Number.isFinite(Number(order.subtotal_cents)) ? Number(order.subtotal_cents) : 0;
+  return Math.max(0, storedSubtotal);
+};
+
 export const estimateOrderProfit = (order: Order) => {
   const lineEstimates = (order.items || []).map((item, idx) => {
     const estimate = estimateLineItemCost(item);
@@ -123,7 +141,7 @@ export const estimateOrderProfit = (order: Order) => {
 
   const needsReview = lineEstimates.some((x) => x.reviewRequired);
   const productionCostCents = lineEstimates.reduce((sum, x) => sum + x.productionCostCents, 0);
-  const retailSubtotalCents = order.subtotal_cents || 0;
+  const retailSubtotalCents = getRetailSubtotalBeforeTaxCents(order);
   const shippingCostCents = ADMIN_PROFIT_SHIPPING_COST_CENTS;
   const netProfitCents = retailSubtotalCents - productionCostCents - shippingCostCents;
   const marginPct = retailSubtotalCents > 0 ? (netProfitCents / retailSubtotalCents) * 100 : 0;
