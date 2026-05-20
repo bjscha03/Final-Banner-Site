@@ -103,7 +103,7 @@ const estimateLineItemCost = (item: OrderItem): LineEstimate => {
   return { reviewRequired: true, productionCostCents: 0, reason: `Unsupported product type: ${type}` };
 };
 
-const getRetailSubtotalBeforeTaxCents = (order: Order): number => {
+const getRevenueBreakdownCents = (order: Order) => {
   const itemSubtotal = (order.items || []).reduce((sum, item) => {
     const lineTotal = Number(item?.line_total_cents);
     return sum + (Number.isFinite(lineTotal) ? lineTotal : 0);
@@ -114,11 +114,21 @@ const getRetailSubtotalBeforeTaxCents = (order: Order): number => {
   const saturday = Number.isFinite(Number(order.saturday_fee_cents)) ? Number(order.saturday_fee_cents) : 0;
 
   if (itemSubtotal > 0) {
-    return Math.max(0, itemSubtotal - discount + sameDay + saturday);
+    const originalSubtotalCents = Math.max(0, itemSubtotal + sameDay + saturday);
+    const adjustedRetailSubtotalCents = Math.max(0, itemSubtotal - discount + sameDay + saturday);
+    return {
+      originalSubtotalCents,
+      discountsAppliedCents: Math.max(0, discount),
+      adjustedRetailSubtotalCents,
+    };
   }
 
   const storedSubtotal = Number.isFinite(Number(order.subtotal_cents)) ? Number(order.subtotal_cents) : 0;
-  return Math.max(0, storedSubtotal);
+  return {
+    originalSubtotalCents: Math.max(0, storedSubtotal + discount),
+    discountsAppliedCents: Math.max(0, discount),
+    adjustedRetailSubtotalCents: Math.max(0, storedSubtotal),
+  };
 };
 
 export const estimateOrderProfit = (order: Order) => {
@@ -141,13 +151,17 @@ export const estimateOrderProfit = (order: Order) => {
 
   const needsReview = lineEstimates.some((x) => x.reviewRequired);
   const productionCostCents = lineEstimates.reduce((sum, x) => sum + x.productionCostCents, 0);
-  const retailSubtotalCents = getRetailSubtotalBeforeTaxCents(order);
+  const revenue = getRevenueBreakdownCents(order);
+  const retailSubtotalCents = revenue.adjustedRetailSubtotalCents;
   const shippingCostCents = ADMIN_PROFIT_SHIPPING_COST_CENTS;
   const netProfitCents = retailSubtotalCents - productionCostCents - shippingCostCents;
   const marginPct = retailSubtotalCents > 0 ? (netProfitCents / retailSubtotalCents) * 100 : 0;
 
   return {
     needsReview,
+    originalSubtotalCents: revenue.originalSubtotalCents,
+    discountsAppliedCents: revenue.discountsAppliedCents,
+    adjustedRetailSubtotalCents: revenue.adjustedRetailSubtotalCents,
     retailSubtotalCents,
     productionCostCents,
     shippingCostCents,
