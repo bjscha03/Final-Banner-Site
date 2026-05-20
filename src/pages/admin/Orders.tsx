@@ -34,6 +34,7 @@ import { Calendar as CalendarIcon, Star, ShoppingCart, GraduationCap } from 'luc
 import OrderDetails from '@/components/orders/OrderDetails';
 import { getDisplayOrderTotalCents } from '@/lib/order-totals';
 import { estimateOrderProfit } from '@/lib/admin-profit-estimate';
+import { getFinalizedThumbnailUrl } from '@/lib/order-thumbnail';
 import { fetchEvents } from '@/lib/events';
 import {
   Select,
@@ -44,23 +45,6 @@ import {
 } from '@/components/ui/select';
 
 const PAGE_SIZE = 20;
-const isCloudinaryUploadUrl = (url: string) => {
-  try {
-    const parsed = new URL(url);
-    return parsed.hostname === 'res.cloudinary.com' && parsed.pathname.includes('/upload/');
-  } catch {
-    return false;
-  }
-};
-
-const isHttpUrl = (url: string) => {
-  try {
-    const parsed = new URL(url);
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
-  } catch {
-    return false;
-  }
-};
 
 // Designer-assisted (graduation) detection: orders that include a
 // `design_deposit` line item created by the graduation intake flow. The
