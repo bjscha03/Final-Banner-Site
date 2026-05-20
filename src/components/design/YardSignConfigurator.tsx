@@ -504,9 +504,19 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
         <p className="text-xs text-gray-500 mb-2">
           Upload up to {YARD_SIGN_MAX_DESIGNS} designs. Each will be printed at 24&quot; × 18&quot;. Assign a quantity to each design.
         </p>
-        <p className="text-xs text-gray-500 font-medium mb-3">
-          Minimum order is {YARD_SIGN_MIN_QUANTITY} signs. Total must be in increments of {YARD_SIGN_INCREMENT}.
-        </p>
+        <div className="mt-4 mb-4 rounded-xl border border-amber-200/80 bg-amber-50/60 px-3.5 py-3 sm:px-4 sm:py-3.5">
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-700" aria-hidden="true" />
+            <div className="border-l-2 border-amber-400/90 pl-3">
+              <p className="text-base sm:text-lg font-extrabold text-amber-900 leading-tight tracking-tight">
+                Minimum order: {YARD_SIGN_MIN_QUANTITY} signs
+              </p>
+              <p className="mt-1 text-sm sm:text-[0.95rem] font-medium text-amber-800/95 leading-snug">
+                Quantities must be ordered in increments of {YARD_SIGN_INCREMENT}.
+              </p>
+            </div>
+          </div>
+        </div>
 
         {/* Design rows */}
         {designs.length > 0 && (
