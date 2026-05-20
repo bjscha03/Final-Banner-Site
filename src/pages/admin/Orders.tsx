@@ -1275,24 +1275,10 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
     return `Item ${index + 1}`;
   };
 
-  // Generate thumbnail URL from order item image sources
-  // PRIORITY: Use stored thumbnail_url first (has correct design composition)
-  const getThumbnailUrl = (item: any, maxWidth: number = 80) => {
-    if (!item.thumbnail_url) return null;
-    const thumbUrl = item.thumbnail_url;
-    if (isCloudinaryUploadUrl(thumbUrl)) {
-      return thumbUrl.replace('/upload/', `/upload/w_${maxWidth},c_limit,f_auto,q_auto/`);
-    }
-    if (isHttpUrl(thumbUrl) && !isCloudinaryUploadUrl(thumbUrl)) {
-      return `https://res.cloudinary.com/dtrxl120u/image/fetch/w_${maxWidth},c_limit,f_auto,q_auto/${thumbUrl}`;
-    }
-    return thumbUrl;
-  };
-
   // Get first item thumbnail for order list display
   const getFirstItemThumbnail = () => {
     for (const item of order.items) {
-      const thumbUrl = getThumbnailUrl(item);
+      const thumbUrl = getFinalizedThumbnailUrl(item, 80);
       if (thumbUrl) return thumbUrl;
     }
     return null;
@@ -1776,24 +1762,10 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
       );
   };
 
-  // Generate thumbnail URL from order item image sources
-  // PRIORITY: Use stored thumbnail_url first (has correct design composition)
-  const getThumbnailUrl = (item: any, maxWidth: number = 80) => {
-    if (!item.thumbnail_url) return null;
-    const thumbUrl = item.thumbnail_url;
-    if (isCloudinaryUploadUrl(thumbUrl)) {
-      return thumbUrl.replace('/upload/', `/upload/w_${maxWidth},c_limit,f_auto,q_auto/`);
-    }
-    if (isHttpUrl(thumbUrl) && !isCloudinaryUploadUrl(thumbUrl)) {
-      return `https://res.cloudinary.com/dtrxl120u/image/fetch/w_${maxWidth},c_limit,f_auto,q_auto/${thumbUrl}`;
-    }
-    return thumbUrl;
-  };
-
   // Get first item thumbnail for order list display
   const getFirstItemThumbnail = () => {
     for (const item of order.items) {
-      const thumbUrl = getThumbnailUrl(item);
+      const thumbUrl = getFinalizedThumbnailUrl(item, 80);
       if (thumbUrl) return thumbUrl;
     }
     return null;

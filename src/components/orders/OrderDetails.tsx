@@ -7,6 +7,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth, isAdmin } from '@/lib/auth';
 import { ShoppingCart, Package, Calendar, CreditCard, Mail, User, Download, FileText, Sparkles, MapPin, Loader2, Palette, Phone, Upload, MessageSquare, GraduationCap } from 'lucide-react';
 import TrackingBadge from './TrackingBadge';
+import { getFinalizedThumbnailUrl } from '@/lib/order-thumbnail';
 import EmailDeliveryStatus from './EmailDeliveryStatus';
 import { getItemDisplayName, getProductLabel, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
 import { formatShippingAddress, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
@@ -19,25 +20,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-const isCloudinaryUploadUrl = (url: string) => {
-  try {
-    const parsed = new URL(url);
-    return parsed.hostname === 'res.cloudinary.com' && parsed.pathname.includes('/upload/');
-  } catch {
-    return false;
-  }
-};
-
-const isHttpUrl = (url: string) => {
-  try {
-    const parsed = new URL(url);
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
-  } catch {
-    return false;
-  }
-};
-
-
 interface OrderDetailsProps {
   order: Order;
   trigger?: React.ReactNode;
@@ -105,18 +87,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
     return null;
   };
 
-  // Generate thumbnail URL from order item image sources
-  const getThumbnailUrl = (item: any, maxWidth: number = 200) => {
-    if (!item.thumbnail_url) return null;
-    const thumbUrl = item.thumbnail_url;
-    if (isCloudinaryUploadUrl(thumbUrl)) {
-      return thumbUrl.replace("/upload/", `/upload/w_${maxWidth},c_limit,f_auto,q_auto/`);
-    }
-    if (isHttpUrl(thumbUrl) && !isCloudinaryUploadUrl(thumbUrl)) {
-      return `https://res.cloudinary.com/dtrxl120u/image/fetch/w_${maxWidth},c_limit,f_auto,q_auto/${thumbUrl}`;
-    }
-    return thumbUrl;
-  };
+
 
   const orderDate = new Date(order.created_at).toLocaleDateString('en-US', {
     year: 'numeric',
@@ -929,10 +900,10 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                 <div key={index} className="border-2 border-slate-200 rounded-xl p-4 sm:p-5 bg-white shadow-sm hover:shadow-md transition-shadow overflow-x-clip">
                   <div className="flex flex-col gap-4 min-w-0">
                     <div className="flex items-start gap-3 min-w-0">
-                      {getThumbnailUrl(item) && (
+                      {getFinalizedThumbnailUrl(item) && (
                         <div className="flex-shrink-0">
                           <img
-                            src={getThumbnailUrl(item, 150)}
+                            src={getFinalizedThumbnailUrl(item, 150)}
                             alt={`${getProductLabel(item.product_type)} ${index + 1} preview`}
                             className="w-28 h-20 object-contain bg-gray-50 rounded-lg border border-slate-200 shadow-sm"
                             onError={(e) => {
