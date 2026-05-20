@@ -6,24 +6,7 @@ import { useScrollToTop } from '@/components/ScrollToTop';
 import { getItemDisplayName, isYardSignItem, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
 import { formatShippingAddress, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
 import { getDisplayOrderTotalCents } from '@/lib/order-totals';
-
-const isCloudinaryUploadUrl = (url: string) => {
-  try {
-    const parsed = new URL(url);
-    return parsed.hostname === 'res.cloudinary.com' && parsed.pathname.includes('/upload/');
-  } catch {
-    return false;
-  }
-};
-
-const isHttpUrl = (url: string) => {
-  try {
-    const parsed = new URL(url);
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
-  } catch {
-    return false;
-  }
-};
+import { getFinalizedThumbnailUrl } from '@/lib/order-thumbnail';
 
 interface OrderItem {
   width_in: number;
@@ -143,17 +126,6 @@ const OrderDetail: React.FC = () => {
       minute: '2-digit'
     });
   };
-  const getThumbnailUrl = (item: OrderItem, maxWidth = 180) => {
-    if (!item.thumbnail_url) return null;
-    if (isCloudinaryUploadUrl(item.thumbnail_url)) {
-      return item.thumbnail_url.replace('/upload/', `/upload/w_${maxWidth},c_limit,f_auto,q_auto/`);
-    }
-    if (isHttpUrl(item.thumbnail_url) && !isCloudinaryUploadUrl(item.thumbnail_url)) {
-      return `https://res.cloudinary.com/dtrxl120u/image/fetch/w_${maxWidth},c_limit,f_auto,q_auto/${item.thumbnail_url}`;
-    }
-    return item.thumbnail_url;
-  };
-
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'paid':
@@ -308,9 +280,9 @@ const OrderDetail: React.FC = () => {
                 <div key={index} className="border border-gray-200 rounded-lg p-4">
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="flex gap-3">
-                      {getThumbnailUrl(item) && (
+                      {getFinalizedThumbnailUrl(item) && (
                         <img
-                          src={getThumbnailUrl(item, 180) || undefined}
+                          src={getFinalizedThumbnailUrl(item, 180) || undefined}
                           alt={`${normalizeOrderItemDisplay(item as NormalizableOrderItem).productLabel} Preview`}
                           className="w-28 h-20 object-contain bg-gray-50 rounded-md border border-gray-200 flex-shrink-0"
                         />

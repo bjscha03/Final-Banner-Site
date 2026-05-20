@@ -34,6 +34,7 @@ import { Calendar as CalendarIcon, Star, ShoppingCart, GraduationCap } from 'luc
 import OrderDetails from '@/components/orders/OrderDetails';
 import { getDisplayOrderTotalCents } from '@/lib/order-totals';
 import { estimateOrderProfit } from '@/lib/admin-profit-estimate';
+import { getFinalizedThumbnailUrl } from '@/lib/order-thumbnail';
 import { fetchEvents } from '@/lib/events';
 import {
   Select,
@@ -44,23 +45,6 @@ import {
 } from '@/components/ui/select';
 
 const PAGE_SIZE = 20;
-const isCloudinaryUploadUrl = (url: string) => {
-  try {
-    const parsed = new URL(url);
-    return parsed.hostname === 'res.cloudinary.com' && parsed.pathname.includes('/upload/');
-  } catch {
-    return false;
-  }
-};
-
-const isHttpUrl = (url: string) => {
-  try {
-    const parsed = new URL(url);
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
-  } catch {
-    return false;
-  }
-};
 
 // Designer-assisted (graduation) detection: orders that include a
 // `design_deposit` line item created by the graduation intake flow. The
@@ -1275,24 +1259,10 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
     return `Item ${index + 1}`;
   };
 
-  // Generate thumbnail URL from order item image sources
-  // PRIORITY: Use stored thumbnail_url first (has correct design composition)
-  const getThumbnailUrl = (item: any, maxWidth: number = 80) => {
-    if (!item.thumbnail_url) return null;
-    const thumbUrl = item.thumbnail_url;
-    if (isCloudinaryUploadUrl(thumbUrl)) {
-      return thumbUrl.replace('/upload/', `/upload/w_${maxWidth},c_limit,f_auto,q_auto/`);
-    }
-    if (isHttpUrl(thumbUrl) && !isCloudinaryUploadUrl(thumbUrl)) {
-      return `https://res.cloudinary.com/dtrxl120u/image/fetch/w_${maxWidth},c_limit,f_auto,q_auto/${thumbUrl}`;
-    }
-    return thumbUrl;
-  };
-
   // Get first item thumbnail for order list display
   const getFirstItemThumbnail = () => {
     for (const item of order.items) {
-      const thumbUrl = getThumbnailUrl(item);
+      const thumbUrl = getFinalizedThumbnailUrl(item, 80);
       if (thumbUrl) return thumbUrl;
     }
     return null;
@@ -1776,24 +1746,10 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
       );
   };
 
-  // Generate thumbnail URL from order item image sources
-  // PRIORITY: Use stored thumbnail_url first (has correct design composition)
-  const getThumbnailUrl = (item: any, maxWidth: number = 80) => {
-    if (!item.thumbnail_url) return null;
-    const thumbUrl = item.thumbnail_url;
-    if (isCloudinaryUploadUrl(thumbUrl)) {
-      return thumbUrl.replace('/upload/', `/upload/w_${maxWidth},c_limit,f_auto,q_auto/`);
-    }
-    if (isHttpUrl(thumbUrl) && !isCloudinaryUploadUrl(thumbUrl)) {
-      return `https://res.cloudinary.com/dtrxl120u/image/fetch/w_${maxWidth},c_limit,f_auto,q_auto/${thumbUrl}`;
-    }
-    return thumbUrl;
-  };
-
   // Get first item thumbnail for order list display
   const getFirstItemThumbnail = () => {
     for (const item of order.items) {
-      const thumbUrl = getThumbnailUrl(item);
+      const thumbUrl = getFinalizedThumbnailUrl(item, 80);
       if (thumbUrl) return thumbUrl;
     }
     return null;
