@@ -508,10 +508,10 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
           <div className="flex items-start gap-2.5">
             <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-700" aria-hidden="true" />
             <div className="border-l-2 border-amber-400/90 pl-3">
-              <p className="text-sm sm:text-base font-bold text-amber-900 leading-snug">
+              <p className="text-base sm:text-lg font-extrabold text-amber-900 leading-tight tracking-tight">
                 Minimum order: {YARD_SIGN_MIN_QUANTITY} signs
               </p>
-              <p className="mt-1 text-sm sm:text-[0.95rem] font-semibold text-amber-800 leading-snug">
+              <p className="mt-1 text-sm sm:text-[0.95rem] font-medium text-amber-800/95 leading-snug">
                 Quantities must be ordered in increments of {YARD_SIGN_INCREMENT}.
               </p>
             </div>
