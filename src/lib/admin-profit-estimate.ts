@@ -154,8 +154,9 @@ export const estimateOrderProfit = (order: Order) => {
   const revenue = getRevenueBreakdownCents(order);
   const retailSubtotalCents = revenue.adjustedRetailSubtotalCents;
   const shippingCostCents = ADMIN_PROFIT_SHIPPING_COST_CENTS;
-  const netProfitCents = retailSubtotalCents - productionCostCents - shippingCostCents;
-  const marginPct = retailSubtotalCents > 0 ? (netProfitCents / retailSubtotalCents) * 100 : 0;
+  const totalCostCents = productionCostCents + shippingCostCents;
+  const estimatedNetProfitCents = retailSubtotalCents - totalCostCents;
+  const marginPct = retailSubtotalCents > 0 ? (estimatedNetProfitCents / retailSubtotalCents) * 100 : 0;
 
   return {
     needsReview,
@@ -165,7 +166,10 @@ export const estimateOrderProfit = (order: Order) => {
     retailSubtotalCents,
     productionCostCents,
     shippingCostCents,
-    netProfitCents,
+    totalCostCents,
+    estimatedNetProfitCents,
+    // Backwards-compatible alias used across existing admin UI surfaces.
+    netProfitCents: estimatedNetProfitCents,
     marginPct,
   };
 };
