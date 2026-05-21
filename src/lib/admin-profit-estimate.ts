@@ -35,7 +35,7 @@ const parsePolePocketEdges = (polePocketPosition?: string): string[] => {
     .toLowerCase()
     .split(/[|,+]/g)
     .map((x) => x.trim())
-    .filter(Boolean);
+    .filter((edge) => ['top', 'bottom', 'left', 'right'].includes(edge));
 };
 
 const estimateBannerCost = (item: OrderItem): LineEstimate => {
@@ -52,15 +52,17 @@ const estimateBannerCost = (item: OrderItem): LineEstimate => {
   const qty = item.quantity || 0;
   let totalCost = squareFeetPerBanner * materialRate * qty;
 
-  const edges = parsePolePocketEdges(item.pole_pocket_position || item.pole_pockets);
+  const edges = parsePolePocketEdges(item.pole_pocket_position);
   if (edges.length > 0) {
     let linearFeet = 0;
     for (const edge of edges) {
       if (edge.includes('top') || edge.includes('bottom')) linearFeet += item.width_in / 12;
       if (edge.includes('left') || edge.includes('right')) linearFeet += item.height_in / 12;
     }
-    totalCost += linearFeet * 1.0 * qty;
-    totalCost += 10; // setup fee once per line when selected
+    if (linearFeet > 0) {
+      totalCost += linearFeet * 1.0 * qty;
+      totalCost += 10; // setup fee once per line when selected
+    }
   }
 
   if (Number.isFinite(item.rope_feet) && (item.rope_feet || 0) > 0) {
@@ -154,8 +156,9 @@ export const estimateOrderProfit = (order: Order) => {
   const revenue = getRevenueBreakdownCents(order);
   const retailSubtotalCents = revenue.adjustedRetailSubtotalCents;
   const shippingCostCents = ADMIN_PROFIT_SHIPPING_COST_CENTS;
-  const netProfitCents = retailSubtotalCents - productionCostCents - shippingCostCents;
-  const marginPct = retailSubtotalCents > 0 ? (netProfitCents / retailSubtotalCents) * 100 : 0;
+  const totalCostCents = productionCostCents + shippingCostCents;
+  const estimatedNetProfitCents = retailSubtotalCents - totalCostCents;
+  const marginPct = retailSubtotalCents > 0 ? (estimatedNetProfitCents / retailSubtotalCents) * 100 : 0;
 
   return {
     needsReview,
@@ -165,7 +168,10 @@ export const estimateOrderProfit = (order: Order) => {
     retailSubtotalCents,
     productionCostCents,
     shippingCostCents,
-    netProfitCents,
+    totalCostCents,
+    estimatedNetProfitCents,
+    // Backwards-compatible alias used across existing admin UI surfaces.
+    netProfitCents: estimatedNetProfitCents,
     marginPct,
   };
 };
