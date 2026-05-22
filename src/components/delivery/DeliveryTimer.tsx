@@ -166,7 +166,7 @@ export const DeliveryTimer: React.FC<DeliveryTimerProps> = ({
             {standardLine(estimate, remainingMs)}
           </p>
           <p className={`mt-1 leading-tight text-slate-500 ${isCompact ? 'text-[10px]' : 'text-xs'}`}>
-            Holiday shipping schedules may vary. HIT service orders accepted until 1:00 PM.
+            Holiday shipping schedules may vary. HIT service orders accepted until 1:00 PM ET.
           </p>
           <p className={`mt-2 font-mono font-bold ${isCompact ? 'text-base' : 'text-lg'} text-blue-700`}>
             {formatCountdown(remainingMs)}
