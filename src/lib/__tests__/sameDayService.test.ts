@@ -40,7 +40,7 @@ function etDate(year: number, month: number, day: number, hour: number, minute: 
   throw new Error(`Could not construct ET date ${year}-${month}-${day} ${hour}:${minute}`);
 }
 
-describe('Same-Day Hit Service: ET window logic (with new HIT window 22:01–1:00 PM + weekend lock)', () => {
+describe('Same-Day Hit Service: ET window logic (weekday window through 1:00 PM ET)', () => {
   // Use Thursday 2026-04-30 (a non-locked weekday) for the pre-1:00 PM checks.
   it('Thu 12:59 PM ET → window open', () => {
     expect(isSameDayWindowOpen(etDate(2026, 4, 30, 12, 59))).toBe(true);
@@ -54,22 +54,22 @@ describe('Same-Day Hit Service: ET window logic (with new HIT window 22:01–1:0
     expect(isSameDayWindowOpen(etDate(2026, 4, 30, 13, 1))).toBe(false);
   });
 
-  it('Thu 21:59 PM ET → window closed (HIT not yet open)', () => {
+  it('Thu 21:59 PM ET → window closed (past daily cutoff)', () => {
     expect(isSameDayWindowOpen(etDate(2026, 4, 30, 21, 59))).toBe(false);
   });
 
-  it('Thu 22:00 PM ET → weekend lock begins → window closed', () => {
+  it('Thu 22:00 PM ET → window closed (past daily cutoff)', () => {
     expect(isSameDayWindowOpen(etDate(2026, 4, 30, 22, 0))).toBe(false);
   });
 
-  it('Thu 22:01 PM ET → weekend lock active → window closed', () => {
-    // Thursday >= 22:00 enters the weekend lock; HIT therefore unavailable.
+  it('Thu 22:01 PM ET → window closed (past daily cutoff)', () => {
+    // Late evening remains closed because this add-on only runs through 1:00 PM ET.
     expect(isSameDayWindowOpen(etDate(2026, 4, 30, 22, 1))).toBe(false);
   });
 
-  it('Wed 22:01 PM ET (mid-week) → window OPEN (re-opens for late-night HIT)', () => {
+  it('Wed 22:01 PM ET (mid-week) → window closed (no late-night re-open for add-on)', () => {
     // 2026-04-29 is a Wednesday (no weekend lock).
-    expect(isSameDayWindowOpen(etDate(2026, 4, 29, 22, 1))).toBe(true);
+    expect(isSameDayWindowOpen(etDate(2026, 4, 29, 22, 1))).toBe(false);
   });
 
   it('Mon 12:00 AM ET → window open again', () => {
@@ -77,9 +77,10 @@ describe('Same-Day Hit Service: ET window logic (with new HIT window 22:01–1:0
     expect(isSameDayWindowOpen(etDate(2026, 5, 4, 0, 0))).toBe(true);
   });
 
-  it('Friday any time → window closed (weekend lock)', () => {
-    expect(isSameDayWindowOpen(etDate(2026, 5, 1, 9, 0))).toBe(false);
-    expect(isSameDayWindowOpen(etDate(2026, 5, 1, 12, 59))).toBe(false);
+  it('Friday before cutoff → window open; after cutoff → closed', () => {
+    expect(isSameDayWindowOpen(etDate(2026, 5, 1, 9, 0))).toBe(true);
+    expect(isSameDayWindowOpen(etDate(2026, 5, 1, 12, 59))).toBe(true);
+    expect(isSameDayWindowOpen(etDate(2026, 5, 1, 13, 0))).toBe(false);
   });
 
   it('handles DST: standard-time winter morning is open (Thursday Jan 15)', () => {
@@ -94,9 +95,9 @@ describe('Same-Day Hit Service: ET window logic (with new HIT window 22:01–1:0
 });
 
 describe('Same-Day Hit Service: Saturday delivery eligibility', () => {
-  it('Friday is weekend-locked → never Saturday-eligible', () => {
-    // 2026-05-01 is a Friday → weekend lock → no HIT, no Saturday delivery.
-    expect(qualifiesForSaturdayDelivery(etDate(2026, 5, 1, 9, 0))).toBe(false);
+  it('Friday before cutoff → Saturday delivery is eligible', () => {
+    // 2026-05-01 is a Friday and within the same-day window.
+    expect(qualifiesForSaturdayDelivery(etDate(2026, 5, 1, 9, 0))).toBe(true);
   });
 
   it('open window on Thursday → not Saturday-eligible', () => {
