@@ -40,18 +40,18 @@ function etDate(year: number, month: number, day: number, hour: number, minute: 
   throw new Error(`Could not construct ET date ${year}-${month}-${day} ${hour}:${minute}`);
 }
 
-describe('Same-Day Hit Service: ET window logic (with new HIT window 22:01–12:00 + weekend lock)', () => {
-  // Use Thursday 2026-04-30 (a non-locked weekday) for the pre-noon checks.
-  it('Thu 11:59 AM ET → window open', () => {
-    expect(isSameDayWindowOpen(etDate(2026, 4, 30, 11, 59))).toBe(true);
+describe('Same-Day Hit Service: ET window logic (with new HIT window 22:01–1:00 PM + weekend lock)', () => {
+  // Use Thursday 2026-04-30 (a non-locked weekday) for the pre-1:00 PM checks.
+  it('Thu 12:59 PM ET → window open', () => {
+    expect(isSameDayWindowOpen(etDate(2026, 4, 30, 12, 59))).toBe(true);
   });
 
-  it('Thu 12:00 PM ET → window closed', () => {
-    expect(isSameDayWindowOpen(etDate(2026, 4, 30, 12, 0))).toBe(false);
+  it('Thu 1:00 PM ET → window closed', () => {
+    expect(isSameDayWindowOpen(etDate(2026, 4, 30, 13, 0))).toBe(false);
   });
 
-  it('Thu 12:01 PM ET → window closed', () => {
-    expect(isSameDayWindowOpen(etDate(2026, 4, 30, 12, 1))).toBe(false);
+  it('Thu 1:01 PM ET → window closed', () => {
+    expect(isSameDayWindowOpen(etDate(2026, 4, 30, 13, 1))).toBe(false);
   });
 
   it('Thu 21:59 PM ET → window closed (HIT not yet open)', () => {
@@ -79,7 +79,7 @@ describe('Same-Day Hit Service: ET window logic (with new HIT window 22:01–12:
 
   it('Friday any time → window closed (weekend lock)', () => {
     expect(isSameDayWindowOpen(etDate(2026, 5, 1, 9, 0))).toBe(false);
-    expect(isSameDayWindowOpen(etDate(2026, 5, 1, 11, 59))).toBe(false);
+    expect(isSameDayWindowOpen(etDate(2026, 5, 1, 12, 59))).toBe(false);
   });
 
   it('handles DST: standard-time winter morning is open (Thursday Jan 15)', () => {
@@ -168,9 +168,9 @@ describe('Same-Day Hit Service: fee computation', () => {
 });
 
 describe('Same-Day Hit Service: evaluateSameDayEligibility', () => {
-  it('reports window_closed after noon ET', () => {
+  it('reports window_closed after 1:00 PM ET', () => {
     const result = evaluateSameDayEligibility({
-      now: etDate(2026, 4, 30, 12, 0),
+      now: etDate(2026, 4, 30, 13, 0),
       items: [{ product_type: 'banner', quantity: 1, line_total_cents: 5000 }],
     });
     expect(result.windowOpen).toBe(false);

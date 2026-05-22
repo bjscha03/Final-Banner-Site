@@ -47,11 +47,11 @@ describe('delivery/engine — HIT window', () => {
   it('open at 00:00 ET', () => {
     expect(isHitWindowOpen(et(2026, 4, 28, 0, 0))).toBe(true);
   });
-  it('open at 11:59 ET', () => {
-    expect(isHitWindowOpen(et(2026, 4, 28, 11, 59))).toBe(true);
+  it('open at 12:59 ET', () => {
+    expect(isHitWindowOpen(et(2026, 4, 28, 12, 59))).toBe(true);
   });
-  it('CLOSED at 12:00 ET', () => {
-    expect(isHitWindowOpen(et(2026, 4, 28, 12, 0))).toBe(false);
+  it('CLOSED at 1:00 PM ET', () => {
+    expect(isHitWindowOpen(et(2026, 4, 28, 13, 0))).toBe(false);
   });
   it('CLOSED at 22:00 ET', () => {
     expect(isHitWindowOpen(et(2026, 4, 28, 22, 0))).toBe(false);
@@ -123,7 +123,7 @@ describe('delivery/engine — delivery date (next-day air)', () => {
 });
 
 describe('delivery/engine — HIT ship date', () => {
-  it('Tue 09:00 ET (pre-noon, biz day) → ship same day Tue', () => {
+  it('Tue 09:00 ET (pre-1:00 PM, biz day) → ship same day Tue', () => {
     const ship = getHitShipDate(et(2026, 4, 28, 9, 0));
     expect(ship.ymd).toBe('2026-04-28');
   });
@@ -150,7 +150,7 @@ describe('delivery/engine — getDeliveryEstimate', () => {
     expect(est.state).toBe('hit_available');
     expect(est.shipDate.ymd).toBe('2026-04-28');
     expect(est.deliveryDate.ymd).toBe('2026-04-29');
-    expect(est.cutoffKind).toBe('hit_close_12');
+    expect(est.cutoffKind).toBe('hit_close_13');
   });
 
   it('Mon 13:00 standard → state=standard (HIT window closed midday)', () => {
@@ -179,8 +179,8 @@ describe('delivery/engine — getDeliveryEstimate', () => {
     expect(sel.deliveryDate.ymd).toBe('2026-04-29');
   });
 
-  it('Tue 12:00 ET → HIT just closed; standard timer to 22:00', () => {
-    const est = getDeliveryEstimate({ nowET: et(2026, 4, 28, 12, 0) });
+  it('Tue 1:00 PM ET → HIT just closed; standard timer to 22:00', () => {
+    const est = getDeliveryEstimate({ nowET: et(2026, 4, 28, 13, 0) });
     expect(est.hitWindowOpen).toBe(false);
     expect(est.state).toBe('standard');
     expect(est.cutoffKind).toBe('standard_22');

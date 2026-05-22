@@ -74,9 +74,9 @@ export function getEasternTimeParts(now: Date = new Date()): EasternTimeParts {
 
 /**
  * The Same-Day window is OPEN only when the new dynamic delivery engine
- * reports HIT as available (window 22:01 → 12:00 ET, AND not weekend-locked).
+ * reports HIT as available (window 22:01 → 1:00 PM ET, AND not weekend-locked).
  *
- * NOTE: This used to be a simple "before noon" check. The new operational
+ * NOTE: This used to be a simple "before 1:00 PM" check. The new operational
  * policy adds a weekend lock (Thu >= 22:00 ET / Fri / Sat / Sun) and an
  * evening re-open at 22:01 ET. The legacy `cfg.cutoffHour/cutoffMinute`
  * fields are kept on the config for backward compatibility but are no

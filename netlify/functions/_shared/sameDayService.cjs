@@ -5,7 +5,7 @@
 
 const sameDayConfig = {
   enabled: true,
-  cutoffHour: 12,
+  cutoffHour: 13,
   cutoffMinute: 0,
   resetHour: 0,
   upchargeRate: 0.60,
@@ -62,13 +62,13 @@ function getEasternTimeParts(now) {
 function isSameDayWindowOpen(now, cfg) {
   cfg = cfg || sameDayConfig;
   if (!cfg.enabled) return false;
-  // New policy: HIT window is 22:01 ET (prev day) → 12:00 ET (exclusive),
+  // New policy: HIT window is 22:01 ET (prev day) → 1:00 PM ET (exclusive),
   // AND weekend lock (Thu>=22:00 / Fri / Sat / Sun, plus blackouts) makes
   // HIT unavailable. Mirror of src/lib/delivery/engine.ts.
   const p = getEasternTimeParts(now);
-  // Window-open check: hour < 12 OR (hour > 22) OR (hour == 22 && minute >= 1).
+  // Window-open check: hour < 13 OR (hour > 22) OR (hour == 22 && minute >= 1).
   let windowOpen = false;
-  if (p.hour < 12) windowOpen = true;
+  if (p.hour < 13) windowOpen = true;
   else if (p.hour > 22) windowOpen = true;
   else if (p.hour === 22 && p.minute >= 1) windowOpen = true;
   if (!windowOpen) return false;
