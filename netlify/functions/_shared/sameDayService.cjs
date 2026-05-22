@@ -5,7 +5,7 @@
 
 const sameDayConfig = {
   enabled: true,
-  cutoffHour: 12,
+  cutoffHour: 13,
   cutoffMinute: 0,
   resetHour: 0,
   upchargeRate: 0.60,
@@ -62,21 +62,15 @@ function getEasternTimeParts(now) {
 function isSameDayWindowOpen(now, cfg) {
   cfg = cfg || sameDayConfig;
   if (!cfg.enabled) return false;
-  // New policy: HIT window is 22:01 ET (prev day) → 12:00 ET (exclusive),
-  // AND weekend lock (Thu>=22:00 / Fri / Sat / Sun, plus blackouts) makes
-  // HIT unavailable. Mirror of src/lib/delivery/engine.ts.
   const p = getEasternTimeParts(now);
-  // Window-open check: hour < 12 OR (hour > 22) OR (hour == 22 && minute >= 1).
-  let windowOpen = false;
-  if (p.hour < 12) windowOpen = true;
-  else if (p.hour > 22) windowOpen = true;
-  else if (p.hour === 22 && p.minute >= 1) windowOpen = true;
-  if (!windowOpen) return false;
-  // Weekend lock check (mirror of isWeekendLock in src/lib/delivery/engine.ts).
+
+  // Keep add-on availability on qualifying weekdays (including Friday)
+  // until the configured ET cutoff.
   const dow = p.dayOfWeek;
-  if (dow === 5 || dow === 6 || dow === 0) return false; // Fri / Sat / Sun
-  if (dow === 4 && p.hour >= 22) return false;           // Thu >= 22:00 ET
-  return true;
+  if (dow === 0 || dow === 6) return false; // Sun/Sat
+  if (p.hour < cfg.cutoffHour) return true;
+  if (p.hour === cfg.cutoffHour && p.minute < cfg.cutoffMinute) return true;
+  return false;
 }
 
 function qualifiesForSaturdayDelivery(now, cfg) {

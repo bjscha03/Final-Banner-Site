@@ -58,7 +58,7 @@ const SameDayHitServiceCard: React.FC<SameDayHitServiceCardProps> = ({
   const evalResult = useSameDayService(items as any);
   const isCompact = variant === 'compact';
 
-  // When the ET clock crosses noon (or eligibility is otherwise lost),
+  // When the ET clock crosses 1:00 PM (or eligibility is otherwise lost),
   // clear flags and notify the user exactly once per transition.
   const lastWindowOpenRef = useRef<boolean>(evalResult.windowOpen);
   useEffect(() => {
@@ -158,7 +158,7 @@ const SameDayHitServiceCard: React.FC<SameDayHitServiceCardProps> = ({
               </span>
             </label>
 
-            <p className="text-[11px] text-slate-500 mt-2">Available before 12:00 PM ET.</p>
+            <p className="text-[11px] text-slate-500 mt-2">Available before 1:00 PM ET.</p>
           </div>
         </div>
       </div>
@@ -218,7 +218,7 @@ const SameDayHitServiceCard: React.FC<SameDayHitServiceCardProps> = ({
           </div>
 
           <p className="text-xs text-slate-500 mt-3">
-            Available on eligible orders before 12:00 PM ET.
+            Available on eligible orders before 1:00 PM ET.
           </p>
         </div>
       </div>

@@ -14,7 +14,6 @@ import {
   SameDayConfig,
   SameDayProductKey,
 } from './sameDayConfig';
-import { etPartsOf, isHitAvailable } from './delivery';
 
 export interface EasternTimeParts {
   /** ET hour 0..23 */
@@ -74,17 +73,21 @@ export function getEasternTimeParts(now: Date = new Date()): EasternTimeParts {
 
 /**
  * The Same-Day window is OPEN only when the new dynamic delivery engine
- * reports HIT as available (window 22:01 → 12:00 ET, AND not weekend-locked).
+ * keeps the add-on available on qualifying weekdays until 1:00 PM ET.
  *
- * NOTE: This used to be a simple "before noon" check. The new operational
- * policy adds a weekend lock (Thu >= 22:00 ET / Fri / Sat / Sun) and an
- * evening re-open at 22:01 ET. The legacy `cfg.cutoffHour/cutoffMinute`
- * fields are kept on the config for backward compatibility but are no
- * longer the source of truth for window state.
+ * NOTE: This used to be a simple "before 1:00 PM" check. The shipping timer has additional weekend-lock behavior, but add-on eligibility intentionally follows the configured ET cutoff window for weekday production slots.
  */
 export function isSameDayWindowOpen(now: Date = new Date(), cfg: SameDayConfig = sameDayConfig): boolean {
   if (!cfg.enabled) return false;
-  return isHitAvailable(etPartsOf(now));
+  const { hour, minute, dayOfWeek } = getEasternTimeParts(now);
+
+  // Same-Day add-on availability is intentionally broader than the shipping
+  // timer's weekend-lock state. Keep this offer available on qualifying
+  // weekdays (including Friday) until 1:00 PM ET.
+  if (dayOfWeek === 0 || dayOfWeek === 6) return false; // Sun/Sat
+  if (hour < cfg.cutoffHour) return true;
+  if (hour === cfg.cutoffHour && minute < cfg.cutoffMinute) return true;
+  return false;
 }
 
 /**

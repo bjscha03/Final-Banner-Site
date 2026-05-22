@@ -81,7 +81,7 @@ export const DeliveryTimer: React.FC<DeliveryTimerProps> = ({
     );
   }
 
-  // HIT actively selected — confirmation + countdown to today's noon ET cutoff.
+  // HIT actively selected — confirmation + countdown to today's 1:00 PM ET cutoff.
   if (estimate.state === 'hit_selected') {
     return (
       <div
@@ -114,7 +114,7 @@ export const DeliveryTimer: React.FC<DeliveryTimerProps> = ({
   }
 
   // HIT available (not yet selected) — show the upsell line + countdown
-  // to today's noon ET cutoff. Compute a HIT-selected estimate so the
+  // to today's 1:00 PM ET cutoff. Compute a HIT-selected estimate so the
   // copy reflects the FASTER delivery date the customer would receive.
   if (estimate.state === 'hit_available') {
     const fasterEstimate = getDeliveryEstimate({ isHitSelected: true });
@@ -164,6 +164,9 @@ export const DeliveryTimer: React.FC<DeliveryTimerProps> = ({
           </h3>
           <p className={`mt-1 ${isCompact ? 'text-xs' : 'text-sm'}`}>
             {standardLine(estimate, remainingMs)}
+          </p>
+          <p className={`mt-1 leading-tight text-slate-500 ${isCompact ? 'text-[10px]' : 'text-xs'}`}>
+            Holiday shipping schedules may vary. HIT service orders accepted until 1:00 PM ET.
           </p>
           <p className={`mt-2 font-mono font-bold ${isCompact ? 'text-base' : 'text-lg'} text-blue-700`}>
             {formatCountdown(remainingMs)}

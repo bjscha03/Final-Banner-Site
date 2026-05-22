@@ -7,7 +7,7 @@ import {
 
 /**
  * useSameDayService — re-evaluates Same-Day Hit Service eligibility on a
- * 30s tick (so the UI flips state automatically across noon ET).
+ * 30s tick (so the UI flips state automatically across 1:00 PM ET).
  *
  * Pass the cart items so we can also surface the eligible subtotal for fee
  * preview in the upsell card.

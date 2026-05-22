@@ -9,10 +9,10 @@
  *     Thu >= 22:00 ET, Fri/Sat/Sun (any time) → ship = next Monday (weekend lock)
  *
  *   HIT (Same-Day Hit Service):
- *     Window: 22:01 ET (prev day) → 12:00 ET (exclusive at 12:00).
+ *     Window: 22:01 ET (prev day) → 1:00 PM ET (exclusive at 1:00 PM).
  *     Disabled during weekend lock.
  *     When selected:
- *       - 00:00–12:00 ET on a business day → ship same day, deliver next biz day.
+ *       - 00:00–1:00 PM ET on a business day → ship same day, deliver next biz day.
  *       - 22:01–23:59 ET (prev day was business day) → ship next biz day,
  *         deliver next biz day after that. (Real carrier limits — production
  *         finishes overnight but pickup is on the next business day.)
@@ -88,17 +88,17 @@ export function isWeekendLock(parts: ETParts, blackoutDates: string[] = BLACKOUT
 }
 
 /**
- * The HIT window is open from 22:01 ET (yesterday) through 12:00 ET (today),
- * exclusive at 12:00.
+ * The HIT window is open from 22:01 ET (yesterday) through 1:00 PM ET (today),
+ * exclusive at 1:00 PM.
  *
- *   - hour < 12                                                → open
+ *   - hour < 13                                                → open
  *   - hour == 22 && minute >= 1                                → open
  *   - hour > 22                                                → open
- *   - 12:00 ≤ hour ≤ 22:00 (excluding the 22:01 boundary)      → closed
+ *   - 13:00 ≤ hour ≤ 22:00 (excluding the 22:01 boundary)      → closed
  */
 export function isHitWindowOpen(parts: ETParts): boolean {
   const { hour, minute } = parts;
-  // Pre-noon block: open until 12:00 (exclusive).
+  // Pre-1:00 PM block: open until 1:00 PM ET (exclusive).
   if (cmpClock({ hour, minute }, HIT_CLOSE) < 0) return true;
   // Late-evening block: open from 22:01 (inclusive) through 23:59.
   if (cmpClock({ hour, minute }, HIT_OPEN) >= 0) return true;
@@ -154,7 +154,7 @@ export function getStandardShipDate(now: ETParts, blackoutDates: string[] = BLAC
 /**
  * Compute the ship date when HIT is selected. Real carrier limits:
  *
- *   - 00:00–12:00 ET on a business day  → ship today (same biz day).
+ *   - 00:00–1:00 PM ET on a business day  → ship today (same biz day).
  *   - 22:01–23:59 ET on a business day  → ship next biz day (production
  *     finishes overnight; carrier pickup is the following business day).
  *   - Anything else (window-closed)     → fall back to standard ship date.
@@ -167,7 +167,7 @@ export function getHitShipDate(now: ETParts, blackoutDates: string[] = BLACKOUT_
     return getStandardShipDate(now, blackoutDates);
   }
 
-  // Pre-noon block on a business day → ship today.
+  // Pre-1:00 PM block on a business day → ship today.
   if (cmpClock(now, HIT_CLOSE) < 0) {
     if (isBusinessDay(now, blackoutDates)) {
       return ensureBusinessDay(now, blackoutDates);
@@ -222,7 +222,7 @@ export interface DeliveryEstimate {
   /** UTC instant the next state-changing cutoff happens. */
   cutoffTime: Date;
   /** Which cutoff `cutoffTime` represents. */
-  cutoffKind: 'standard_22' | 'hit_close_12' | 'weekend_unlock_mon';
+  cutoffKind: 'standard_22' | 'hit_close_13' | 'weekend_unlock_mon';
 }
 
 /**
@@ -241,20 +241,20 @@ function computeNextCutoff(now: ETParts, state: DeliveryState, blackoutDates: st
     return { at: atETClock(p, 0, 0), kind: 'weekend_unlock_mon' };
   }
 
-  // HIT-related: count down to today's 12:00 ET if we're in the pre-noon
+  // HIT-related: count down to today's 1:00 PM ET if we're in the pre-1:00 PM
   // block; otherwise to the standard 22:00 ET cutoff.
   if (cmpClock(now, HIT_CLOSE) < 0) {
-    return { at: atETClock(now, HIT_CLOSE.hour, HIT_CLOSE.minute), kind: 'hit_close_12' };
+    return { at: atETClock(now, HIT_CLOSE.hour, HIT_CLOSE.minute), kind: 'hit_close_13' };
   }
 
-  // Past noon, before 22:00 → standard countdown to today's 22:00.
+  // Past 1:00 PM, before 22:00 → standard countdown to today's 22:00.
   if (cmpClock(now, STANDARD_CUTOFF) < 0) {
     return { at: atETClock(now, STANDARD_CUTOFF.hour, STANDARD_CUTOFF.minute), kind: 'standard_22' };
   }
 
-  // 22:00–23:59 → HIT window just opened; count down to tomorrow's 12:00 ET.
+  // 22:00–23:59 → HIT window just opened; count down to tomorrow's 1:00 PM ET.
   const tomorrow = addDaysET(now, 1);
-  return { at: atETClock(tomorrow, HIT_CLOSE.hour, HIT_CLOSE.minute), kind: 'hit_close_12' };
+  return { at: atETClock(tomorrow, HIT_CLOSE.hour, HIT_CLOSE.minute), kind: 'hit_close_13' };
 }
 
 /**

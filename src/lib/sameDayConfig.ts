@@ -34,7 +34,7 @@ export interface SameDayConfig {
 
 export const sameDayConfig: SameDayConfig = {
   enabled: true,
-  cutoffHour: 12,
+  cutoffHour: 13,
   cutoffMinute: 0,
   resetHour: 0,
   upchargeRate: 0.60,
