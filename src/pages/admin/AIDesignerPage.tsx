@@ -27,6 +27,7 @@ const AIDesignerPage: React.FC = () => {
   const [message, setMessage] = useState<string>('');
   const [debugOutput, setDebugOutput] = useState<string>('');
   const [errorOutput, setErrorOutput] = useState<string>('');
+  const [generationFallbackNote, setGenerationFallbackNote] = useState<string>('');
 
   const pricing = useMemo(() => calculateBannerPricing({
     widthIn: size.w * 12, heightIn: size.h * 12, quantity, material, addRope: finishing === 'rope', polePockets: finishing === 'pole_pockets' ? 'top-bottom' : 'none',
@@ -66,10 +67,16 @@ const AIDesignerPage: React.FC = () => {
       <textarea value={enhancedPrompt} onChange={(e)=>setEnhancedPrompt(e.target.value)} rows={5} className="w-full bg-black/60 border border-white/20 rounded p-3" placeholder="Enhanced prompt"/>
       <div><p className="text-yellow-400 font-bold text-sm">3. UPLOAD REFERENCE IMAGE (OPTIONAL)</p><input type="file" accept="image/*" onChange={async(e)=>{const f=e.target.files?.[0]; if(f) setReferenceImage(await readFile(f));}} className="mt-2 block w-full text-sm"/></div>
       <button disabled={busy!==null||!(enhancedPrompt||prompt).trim()} onClick={async()=>{
-        setBusy('generate');setMessage('Generating one image...');setErrorOutput('');
+        setBusy('generate');setMessage('Generating one image...');setErrorOutput('');setGenerationFallbackNote('');
         try {
           const { body } = await callFn('generate');
-          if (body?.imageUrl) { setImageUrl(body.imageUrl); setMessage('Generate design success (1 image).'); }
+          if (body?.imageUrl) {
+            setImageUrl(body.imageUrl);
+            setMessage('Generate design success (1 image).');
+            if (body?.generationFallback === true) {
+              setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.');
+            }
+          }
           else { setErrorOutput(body?.safeErrorMessage || body?.error || 'Generate failed.'); setMessage('Generate failed.'); }
         } catch (e:any) { setErrorOutput(e?.message || 'Generate failed.'); setMessage('Generate failed.'); }
         setBusy(null);}} className="w-full bg-yellow-700 text-black font-bold py-3">{busy==='generate'?'Generating...':'⚡ GENERATE DESIGN'}</button>
@@ -91,6 +98,7 @@ const AIDesignerPage: React.FC = () => {
         setBusy(null);}} className="w-full border border-cyan-600 text-cyan-300 py-2 rounded">Admin Debug Check</button>
       {message && <p className="text-sm text-gray-300">{message}</p>}
       {errorOutput && <p className="text-sm text-red-400">{errorOutput}</p>}
+      {generationFallbackNote && <p className="text-sm text-amber-300">{generationFallbackNote}</p>}
       {debugOutput && <pre className="text-xs text-cyan-200 bg-black/40 p-2 rounded overflow-auto">{debugOutput}</pre>}
     </aside>
     <main className="border border-white/10 bg-[#11151d] p-6"><div className="text-center text-yellow-500 tracking-[0.5em] text-xs">PROFESSIONAL RENDERING ENGINE</div><div className="text-center text-4xl md:text-6xl font-black text-white/15">{size.h} FT X {size.w} FT</div>

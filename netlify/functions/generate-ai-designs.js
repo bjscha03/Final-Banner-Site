@@ -17,6 +17,14 @@ const json = (statusCode, payload) => ({ statusCode, headers: CORS, body: JSON.s
 const fallbackEnhance = (p, size) => `Design a premium ${size?.w || 8}ft x ${size?.h || 4}ft banner. Keep high contrast readable typography, clean hierarchy, and full-bleed composition. Prompt: ${p}`;
 const SUPPORTED_IMAGEN_RATIOS = ['1:1', '9:16', '16:9', '4:3', '3:4'];
 
+const FALLBACK_IMAGE_URL = 'https://res.cloudinary.com/dtrxl120u/image/upload/f_auto,q_auto,w_1600,h_800,c_fill/v1769209469/White-Label_Banners_-2_from_4over_nedg8n.png';
+
+function isImagenPaidAccessError(payload, status) {
+  const msg = String(payload?.error?.message || payload?.message || '').toLowerCase();
+  return status === 403 || status === 402 || msg.includes('billing') || msg.includes('paid') || msg.includes('not enabled') || msg.includes('permission') || msg.includes('access') || msg.includes('quota');
+}
+
+
 async function fetchModels(apiKey) {
   const r = await fetch(`${GEMINI_BASE}/models?key=${encodeURIComponent(apiKey)}`);
   const body = await r.json().catch(() => ({}));
@@ -147,7 +155,28 @@ export async function handler(event) {
         body: JSON.stringify({ instances: [{ prompt: sourcePrompt }], parameters: { sampleCount: 1, aspectRatio: imagenAspectRatio } }),
       });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) return json(200, { ok: false, action, imageUrl: null, safeErrorMessage: d?.error?.message || 'Image generation failed. Please try again.' });
+      if (!r.ok) {
+        if (isImagenPaidAccessError(d, r.status)) {
+          return json(200, {
+            ok: true,
+            action,
+            imageUrl: FALLBACK_IMAGE_URL,
+            image: {
+              url: FALLBACK_IMAGE_URL,
+              original_url: FALLBACK_IMAGE_URL,
+              width: targetW * 100,
+              height: targetH * 100,
+            },
+            generationFallback: true,
+            fallbackReason: 'imagen_paid_access_required',
+            count: 1,
+            requestedBannerRatio: `${targetW}:${targetH}`,
+            generatedImagenRatio: imagenAspectRatio,
+            safeErrorMessage: 'Temporary fallback image used because Imagen paid access is required.',
+          });
+        }
+        return json(200, { ok: false, action, imageUrl: null, safeErrorMessage: d?.error?.message || 'Image generation failed. Please try again.' });
+      }
 
       const b64 = d?.predictions?.[0]?.bytesBase64Encoded;
       if (!b64) return json(200, { ok: false, action, imageUrl: null, safeErrorMessage: 'No image returned from model.' });
@@ -166,6 +195,14 @@ export async function handler(event) {
         ok: true,
         action,
         imageUrl: canonicalImageUrl,
+        image: {
+          url: canonicalImageUrl,
+          original_url: upload.secure_url || canonicalImageUrl,
+          width: upload.width || targetW * 100,
+          height: upload.height || targetH * 100,
+        },
+        generationFallback: false,
+        fallbackReason: null,
         count: 1,
         requestedBannerRatio: `${targetW}:${targetH}`,
         generatedImagenRatio: imagenAspectRatio,
