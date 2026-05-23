@@ -26,14 +26,29 @@ function resolveModels(models) {
 export async function handler(event) {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: CORS, body: '' };
 
-  const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || '';
+  const googleApiKey =
+    process.env.GOOGLE_GENAI_API_KEY ||
+    process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_AI_API_KEY ||
+    '';
+
+  const matchedEnvName = process.env.GOOGLE_GENAI_API_KEY
+    ? 'GOOGLE_GENAI_API_KEY'
+    : process.env.GEMINI_API_KEY
+      ? 'GEMINI_API_KEY'
+      : process.env.GOOGLE_AI_API_KEY
+        ? 'GOOGLE_AI_API_KEY'
+        : null;
+
+  console.log('[generate-ai-designs] matched env var:', matchedEnvName || 'none');
 
   if (event.httpMethod === 'GET') {
     return json(200, {
       ok: true,
       action: 'health',
       functionReachable: true,
-      env: { hasGoogleApiKey: Boolean(apiKey) },
+      env: { hasGoogleApiKey: Boolean(googleApiKey) },
+      matchedEnvName,
       timestamp: new Date().toISOString(),
     });
   }
@@ -49,18 +64,19 @@ export async function handler(event) {
 
   const action = body.action || 'enhance';
 
-  if (!apiKey) {
+  if (!googleApiKey) {
     return json(200, {
       ok: false,
       action,
       functionReachable: true,
-      env: { hasGoogleApiKey: false },
+      env: { hasGoogleApiKey: Boolean(googleApiKey) },
+      matchedEnvName,
       error: 'AI environment not configured',
     });
   }
 
   try {
-    const models = await fetchModels(apiKey);
+    const models = await fetchModels(googleApiKey);
     const { textModel, imageModel } = resolveModels(models);
 
     if (action === 'debug') {
@@ -68,7 +84,8 @@ export async function handler(event) {
         ok: true,
         action,
         functionReachable: true,
-        env: { hasGoogleApiKey: true },
+        env: { hasGoogleApiKey: Boolean(googleApiKey) },
+        matchedEnvName,
         modelsEndpointReachable: models.length > 0,
         selectedTextModel: textModel,
         selectedImageModel: imageModel,
@@ -80,7 +97,7 @@ export async function handler(event) {
       const originalPrompt = String(body.prompt || '').trim();
       if (!originalPrompt) return json(400, { ok: false, action, error: 'Prompt required' });
 
-      const r = await fetch(`${GEMINI_BASE}/models/${textModel}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+      const r = await fetch(`${GEMINI_BASE}/models/${textModel}:generateContent?key=${encodeURIComponent(googleApiKey)}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -105,7 +122,7 @@ export async function handler(event) {
       const sourcePrompt = String(body.enhancedPrompt || body.prompt || '').trim();
       if (!sourcePrompt) return json(400, { ok: false, action, error: 'Prompt required' });
 
-      const r = await fetch(`${GEMINI_BASE}/models/${imageModel}:predict?key=${encodeURIComponent(apiKey)}`, {
+      const r = await fetch(`${GEMINI_BASE}/models/${imageModel}:predict?key=${encodeURIComponent(googleApiKey)}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
