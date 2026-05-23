@@ -75,7 +75,16 @@ const AIDesignerPage: React.FC = () => {
 
   const toOverlayOption = () => {
     if (finishingType !== 'grommets') return 'none';
-    const m:any = { none:'none', every_2_3_feet:'all', every_1_2_feet:'all', four_corners:'corners', top_corners:'topCorners', bottom_corners:'bottomCorners', left_side:'leftOnly', right_side:'rightOnly' };
+    const m:any = {
+      none:'none',
+      every_2_3_feet:'all',
+      every_1_2_feet:'allDense',
+      four_corners:'corners',
+      top_corners:'topCorners',
+      bottom_corners:'bottomCorners',
+      left_side:'leftOnly',
+      right_side:'rightOnly'
+    };
     return m[grommetOption] || 'all';
   };
 
@@ -116,22 +125,26 @@ const AIDesignerPage: React.FC = () => {
   };
 
   const readFile = (f: File) => new Promise<string>((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(String(r.result || '')); r.onerror = reject; r.readAsDataURL(f); });
-  const marks = (n:number) => Array.from({length:Math.floor(n)+1},(_,i)=>i);
+  const marks = (n:number) => { const step = n > 8 ? 2 : 1; return Array.from({length:Math.floor(n/step)+1},(_,i)=>i*step); };
 
   return <Layout><section className="min-h-screen bg-[#0b0d12] text-white p-4 lg:p-6"><div className="max-w-[1500px] mx-auto grid grid-cols-1 xl:grid-cols-[360px_1fr_340px] gap-4">
     <aside className="border border-white/10 bg-[#12151d] p-5 space-y-3">
       <h1 className="text-4xl font-black">AI DESIGNER</h1>
       <textarea value={prompt} onChange={(e)=>setPrompt(e.target.value)} rows={4} className="w-full bg-black/60 border border-yellow-500 rounded p-3" />
-      <button disabled={busy!==null||!prompt.trim()} onClick={async () => { setBusy('enhance'); setErrorOutput(''); try { const { body } = await callFn('enhance'); if (body?.enhancedPrompt) setEnhancedPrompt(body.enhancedPrompt); else setErrorOutput(body?.safeErrorMessage || body?.error || 'Enhance failed.'); } finally { setBusy(null); } }} className="w-full border border-yellow-600 text-yellow-300 py-2 rounded inline-flex items-center justify-center gap-2">{busy==='enhance'?<><Spinner/>Enhancing Prompt...</>:'✨ ENHANCE PROMPT WITH AI'}</button>
+      <button disabled={busy!==null||!prompt.trim()} onClick={async () => { setBusy('enhance'); setErrorOutput(''); try { const { body } = await callFn('enhance'); if (body?.enhancedPrompt) setEnhancedPrompt(body.enhancedPrompt); else setErrorOutput(body?.safeErrorMessage || body?.error || 'Enhance failed.'); } finally { setBusy(null); } }} className="w-full border border-yellow-600 text-yellow-300 py-2 rounded inline-flex items-center justify-center gap-2 disabled:opacity-50">{busy==='enhance'?<><Spinner/>Enhancing Prompt...</>:'✨ ENHANCE PROMPT WITH AI'}</button>
       <textarea value={enhancedPrompt} onChange={(e)=>setEnhancedPrompt(e.target.value)} rows={5} className="w-full bg-black/60 border border-white/20 rounded p-3" />
       <input type="file" accept="image/*" onChange={async(e)=>{const f=e.target.files?.[0]; if(f) setReferenceImage(await readFile(f));}} className="block w-full text-sm"/>
-      <button disabled={busy!==null||!(enhancedPrompt||prompt).trim()} onClick={async () => { setBusy('generate'); setErrorOutput(''); setGenerationFallbackNote(''); try { const { body } = await callFn('generate'); if (body?.imageUrl || body?.image?.url) { pushHistory(); setImageUrl(body?.image?.url || body.imageUrl); if (body?.generationFallback) setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.'); } else setErrorOutput(body?.safeErrorMessage || body?.error || 'Generate failed.'); } finally { setBusy(null); } }} className="w-full bg-yellow-700 text-black font-bold py-3 inline-flex items-center justify-center gap-2">{busy==='generate'?<><Spinner/>Generating Design...</>:'⚡ GENERATE DESIGN'}</button>
-      <input value={editInstruction} onChange={(e)=>setEditInstruction(e.target.value)} className="w-full bg-black/60 border border-white/20 rounded p-2" placeholder="Edit instruction"/>
-      <button disabled={busy!==null||!editInstruction.trim()} onClick={async () => { setBusy('enhanceEdit'); try { const { body } = await callFn('enhance'); if (body?.enhancedPrompt) setEditInstruction(body.enhancedPrompt); } finally { setBusy(null); } }} className="w-full border border-white/20 py-2 rounded">Enhance Edit Prompt with AI</button>
-      <button disabled={busy!==null||!imageUrl||!editInstruction.trim()} onClick={async () => { setBusy('edit'); setErrorOutput(''); try { const { body } = await callFn('edit'); if (body?.imageUrl || body?.image?.url) { pushHistory(); setImageUrl(body?.image?.url || body.imageUrl); if (body?.generationFallback) setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.'); } else setErrorOutput(body?.safeErrorMessage || body?.error || 'Edit failed.'); } finally { setBusy(null); } }} className="w-full border border-white/20 py-2 rounded inline-flex items-center justify-center gap-2">{busy==='edit'?<><Spinner/>Applying AI edits...</>:'Edit with AI'}</button>
-      <button disabled={busy!==null||history.length===0} onClick={revertOne} className="w-full border border-white/20 py-2 rounded">{busy==='revert'?'Restoring...':'Revert'}</button>
-      <button disabled={busy!==null} onClick={async () => { setBusy('debug'); try { const { body } = await callFn('debug'); setDebugOutput(JSON.stringify(body, null, 2)); } finally { setBusy(null); } }} className="w-full border border-cyan-600 text-cyan-300 py-2 rounded">Admin Debug Check</button>
-      {errorOutput && <p className="text-sm text-red-400">{errorOutput}</p>}{generationFallbackNote && <p className="text-sm text-amber-300">{generationFallbackNote}</p>}{debugOutput && <pre className="text-xs text-cyan-200 bg-black/40 p-2 rounded overflow-auto">{debugOutput}</pre>}
+      <button disabled={busy!==null||!(enhancedPrompt||prompt).trim()} onClick={async () => { setBusy('generate'); setErrorOutput(''); setGenerationFallbackNote(''); try { const { body } = await callFn('generate'); if (body?.imageUrl || body?.image?.url) { pushHistory(); setImageUrl(body?.image?.url || body.imageUrl); if (body?.generationFallback) setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.'); } else setErrorOutput(body?.safeErrorMessage || body?.error || 'Generate failed.'); } finally { setBusy(null); } }} className="w-full bg-yellow-700 text-black font-bold py-3 inline-flex items-center justify-center gap-2 disabled:opacity-50">{busy==='generate'?<><Spinner/>Generating Design...</>:'⚡ GENERATE DESIGN'}</button>
+      {imageUrl && <>
+        <input value={editInstruction} onChange={(e)=>setEditInstruction(e.target.value)} className="w-full bg-black/60 border border-white/20 rounded p-2" placeholder="Edit instruction"/>
+        <button disabled={busy!==null||!editInstruction.trim()} onClick={async () => { setBusy('enhanceEdit'); try { const { body } = await callFn('enhance'); if (body?.enhancedPrompt) setEditInstruction(body.enhancedPrompt); } finally { setBusy(null); } }} className="w-full border border-white/20 py-2 rounded disabled:opacity-50">Enhance Edit Prompt with AI</button>
+        <button disabled={busy!==null||!editInstruction.trim()} onClick={async () => { setBusy('edit'); setErrorOutput(''); try { const { body } = await callFn('edit'); if (body?.imageUrl || body?.image?.url) { pushHistory(); setImageUrl(body?.image?.url || body.imageUrl); if (body?.generationFallback) setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.'); } else setErrorOutput(body?.safeErrorMessage || body?.error || 'Edit failed.'); } finally { setBusy(null); } }} className="w-full border border-white/20 py-2 rounded inline-flex items-center justify-center gap-2 disabled:opacity-50">{busy==='edit'?<><Spinner/>Applying AI edits...</>:'Edit with AI'}</button>
+        <button disabled={busy!==null||history.length===0} onClick={revertOne} className="w-full border border-white/20 py-2 rounded disabled:opacity-50">{busy==='revert'?'Restoring...':'Revert'}</button>
+      </>}
+      <button disabled={busy!==null} onClick={async () => { setBusy('debug'); try { const { body } = await callFn('debug'); setDebugOutput(JSON.stringify(body, null, 2)); } finally { setBusy(null); } }} className="w-full border border-cyan-600 text-cyan-300 py-2 rounded disabled:opacity-50">Admin Debug Check</button>
+      {errorOutput && <p className="text-sm text-red-400">{errorOutput}</p>}
+      {generationFallbackNote && <p className="text-sm text-amber-300">{generationFallbackNote}</p>}
+      {debugOutput && <pre className="text-xs text-cyan-200 bg-black/40 p-2 rounded overflow-auto">{debugOutput}</pre>}
     </aside>
 
     <main className="border border-white/10 bg-[#11151d] p-6">
@@ -139,9 +152,9 @@ const AIDesignerPage: React.FC = () => {
         <div ref={wrapRef} className="relative w-full bg-black border border-white/30 overflow-visible" style={{ aspectRatio: `${widthIn}/${heightIn}` }} onMouseDown={()=>setSelected(true)}>
           {imageUrl ? (
             <div className="absolute inset-0 overflow-hidden">
-              <img src={imageUrl} alt="Generated banner" style={{ transform: `translate(${imageX}px, ${imageY}px) scale(${imageScale})`, transformOrigin: 'center', width: '100%', height: '100%', objectFit: fitMode==='fit'?'contain':'cover' }} className="w-full h-full" draggable={false} onMouseDown={(e)=>{e.stopPropagation(); dragRef.current={sx:e.clientX,sy:e.clientY,ox:imageX,oy:imageY,mode:'move',sxScale:imageScale,syScale:imageScale};}}/>
-              {selected && <div className="absolute inset-1 border-2 border-orange-400 pointer-events-none"/>}
-              {selected && <button className="absolute right-1 bottom-1 h-4 w-4 bg-orange-400 rounded-sm" onMouseDown={(e)=>{e.stopPropagation(); dragRef.current={sx:e.clientX,sy:e.clientY,ox:imageX,oy:imageY,mode:'scale',sxScale:imageScale,syScale:imageScale};}}/>}
+              <img src={imageUrl} alt="Generated banner" style={{ transform: `translate(${imageX}px, ${imageY}px) scale(${imageScale})`, transformOrigin: 'center', width: '100%', height: '100%', objectFit: fitMode==='fit'?'contain':'cover' }} className="w-full h-full cursor-move" draggable={false} onMouseDown={(e)=>{e.stopPropagation(); dragRef.current={sx:e.clientX,sy:e.clientY,ox:imageX,oy:imageY,mode:'move',sxScale:imageScale,syScale:imageScale};}}/>
+              {selected && <div className="absolute inset-1 border border-blue-400/90 pointer-events-none"/>}
+              {selected && <>{['tl','tr','bl','br'].map((h)=> <button key={h} className={`absolute h-3 w-3 bg-white border border-blue-500 rounded-sm ${h==='tl'?'left-0 top-0 -translate-x-1/2 -translate-y-1/2':h==='tr'?'right-0 top-0 translate-x-1/2 -translate-y-1/2':h==='bl'?'left-0 bottom-0 -translate-x-1/2 translate-y-1/2':'right-0 bottom-0 translate-x-1/2 translate-y-1/2'} cursor-nwse-resize`} onMouseDown={(e)=>{e.stopPropagation(); dragRef.current={sx:e.clientX,sy:e.clientY,ox:imageX,oy:imageY,mode:'scale',sxScale:imageScale,syScale:imageScale};}}/> )}</>}
             </div>
           ) : <div className="absolute inset-0 grid place-items-center text-white/90 font-semibold">Generate or upload an image</div>}
 
@@ -164,11 +177,9 @@ const AIDesignerPage: React.FC = () => {
       <label className="block mt-3">Size Mode<select value={sizeMode} onChange={(e)=>setSizeMode(e.target.value as any)} className="mt-1 w-full bg-black border border-white/20 p-2"><option value="popular">Popular Sizes</option><option value="custom">Custom Size</option></select></label>
       {sizeMode==='popular' ? <select value={size.label} onChange={(e)=>setSize(POPULAR_SIZES.find(s=>s.label===e.target.value) || POPULAR_SIZES[0])} className="mt-2 w-full bg-black border border-white/20 p-2">{POPULAR_SIZES.map(s=><option key={s.label}>{s.label}</option>)}</select> : <div className="mt-2 space-y-2"><button onClick={()=>setUseFeet(v=>!v)} className="w-full border border-white/20 p-2 rounded">Units: {useFeet?'Feet':'Inches'}</button><input type="number" value={wInput} onChange={e=>setWInput(Number(e.target.value)||1)} className="w-full bg-black border border-white/20 p-2"/><input type="number" value={hInput} onChange={e=>setHInput(Number(e.target.value)||1)} className="w-full bg-black border border-white/20 p-2"/></div>}
       <p className="mt-2 text-xs text-gray-300">{areaSqFt.toFixed(2)} sq ft • {widthIn} in x {heightIn} in</p>
-      <div className="mt-3"><p className="font-bold">Active Finishing: <span className="text-yellow-300">{finishingType}</span></p></div>
       <div className="mt-2"><p className="font-bold">Grommets</p><select value={grommetOption} onChange={(e)=>onGrommetChange(e.target.value)} className="w-full mt-1 bg-black border border-white/20 p-2">{GROMMET_OPTIONS.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select></div>
       <div className="mt-2"><p className="font-bold">Rope</p><select value={ropePlacement} onChange={(e)=>onRopeChange(e.target.value)} className="w-full mt-1 bg-black border border-white/20 p-2">{PLACEMENTS.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select></div>
       <div className="mt-2"><p className="font-bold">Pole Pockets</p><select value={polePocketPlacement} onChange={(e)=>onPoleChange(e.target.value)} className="w-full mt-1 bg-black border border-white/20 p-2">{PLACEMENTS.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select></div>
-      <button onClick={setFinishingNone} className="mt-2 w-full border border-white/20 p-2 rounded">Set Finishing: None</button>
       <p className="mt-2 text-xs text-gray-300">Hemming is always included. All banners are finished with a folded, heat-welded hem for added strength.</p>
       <label className="block mt-2">Quantity<input type="number" min={1} value={quantity} onChange={(e)=>setQuantity(Math.max(1,Number(e.target.value)||1))} className="mt-1 w-full bg-black border border-white/20 p-2"/></label>
       <div className="mt-4 text-sm"><p>Subtotal: {usd(pricing.subtotalCents/100)}</p><p>Tax: {usd((pricing.subtotalCents*TAX_RATE)/100)}</p><p>Total: {usd((pricing.subtotalCents*(1+TAX_RATE))/100)}</p></div>
