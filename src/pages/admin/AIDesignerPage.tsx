@@ -25,6 +25,8 @@ const AIDesignerPage: React.FC = () => {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState<'enhance' | 'generate' | 'debug' | null>(null);
   const [message, setMessage] = useState<string>('');
+  const [debugOutput, setDebugOutput] = useState<string>('');
+  const [errorOutput, setErrorOutput] = useState<string>('');
 
   const pricing = useMemo(() => calculateBannerPricing({
     widthIn: size.w * 12, heightIn: size.h * 12, quantity, material, addRope: finishing === 'rope', polePockets: finishing === 'pole_pockets' ? 'top-bottom' : 'none',
@@ -34,19 +36,62 @@ const AIDesignerPage: React.FC = () => {
 
   const readFile = (f: File) => new Promise<string>((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(String(r.result || '')); r.onerror = reject; r.readAsDataURL(f); });
   const callFn = async (action: string) => {
-    const res = await fetch('/.netlify/functions/generate-ai-designs', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action, prompt, enhancedPrompt, size, material, finishing, quantity, referenceImage }) });
-    return res.json();
+    const payload = { action, prompt, enhancedPrompt, size, material, finishing, quantity, referenceImage };
+    console.log('[ai-designer] clicked', action);
+    console.log('[ai-designer] request payload', payload);
+    const res = await fetch('/.netlify/functions/generate-ai-designs', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
+    const body = await res.json().catch(() => ({ ok: false, safeErrorMessage: 'Invalid JSON response from function' }));
+    console.log('[ai-designer] response status', res.status);
+    console.log('[ai-designer] response body', body);
+    return { status: res.status, body };
   };
 
   return <Layout><section className="min-h-screen bg-[#0b0d12] text-white p-4 lg:p-6"><div className="max-w-[1500px] mx-auto grid grid-cols-1 xl:grid-cols-[360px_1fr_340px] gap-4">
     <aside className="border border-white/10 bg-[#12151d] p-5 space-y-4"><h1 className="text-4xl font-black tracking-wide">AI DESIGNER</h1><p className="text-gray-400">Generate and configure your perfect banner.</p>
       <div><p className="text-yellow-400 font-bold text-sm">2. DESCRIBE YOUR DESIGN</p><textarea value={prompt} onChange={(e)=>setPrompt(e.target.value)} rows={4} className="mt-2 w-full bg-black/60 border border-yellow-500 rounded p-3" placeholder="e.g. A vibrant summer sale background..."/></div>
-      <button disabled={busy!==null||!prompt.trim()} onClick={async()=>{setBusy('enhance');setMessage('');const d=await callFn('enhance');setEnhancedPrompt(d.enhancedPrompt||'');setMessage(d.message||'');setBusy(null);}} className="w-full border border-yellow-600 text-yellow-300 py-2 rounded">{busy==='enhance'?'Enhancing...':'✨ ENHANCE PROMPT WITH AI'}</button>
+      <button disabled={busy!==null||!prompt.trim()} onClick={async()=>{
+        setBusy('enhance');setMessage('Enhancing prompt...');setErrorOutput('');
+        try {
+          const { body } = await callFn('enhance');
+          if (body?.enhancedPrompt) {
+            setEnhancedPrompt(body.enhancedPrompt);
+            setMessage('Enhance prompt success.');
+            if (body?.safeErrorMessage) setErrorOutput(`Fallback used: ${body.safeErrorMessage}`);
+          } else {
+            setErrorOutput(body?.safeErrorMessage || body?.error || 'Enhance failed.');
+            setMessage('Enhance failed.');
+          }
+        } catch (e:any) { setErrorOutput(e?.message || 'Enhance failed.'); setMessage('Enhance failed.'); }
+        setBusy(null);}} className="w-full border border-yellow-600 text-yellow-300 py-2 rounded">{busy==='enhance'?'Enhancing...':'✨ ENHANCE PROMPT WITH AI'}</button>
       <textarea value={enhancedPrompt} onChange={(e)=>setEnhancedPrompt(e.target.value)} rows={5} className="w-full bg-black/60 border border-white/20 rounded p-3" placeholder="Enhanced prompt"/>
       <div><p className="text-yellow-400 font-bold text-sm">3. UPLOAD REFERENCE IMAGE (OPTIONAL)</p><input type="file" accept="image/*" onChange={async(e)=>{const f=e.target.files?.[0]; if(f) setReferenceImage(await readFile(f));}} className="mt-2 block w-full text-sm"/></div>
-      <button disabled={busy!==null||!(enhancedPrompt||prompt).trim()} onClick={async()=>{setBusy('generate');setMessage('');const d=await callFn('generate');if(d.imageUrl) setImageUrl(d.imageUrl);setMessage(d.message||d.error||'');setBusy(null);}} className="w-full bg-yellow-700 text-black font-bold py-3">{busy==='generate'?'Generating...':'⚡ GENERATE DESIGN'}</button>
-      <button disabled={busy!==null} onClick={async()=>{setBusy('debug'); const d=await callFn('debug'); setMessage(d.message || JSON.stringify(d.checks)); setBusy(null);}} className="w-full border border-cyan-600 text-cyan-300 py-2 rounded">Admin Debug Check</button>
+      <button disabled={busy!==null||!(enhancedPrompt||prompt).trim()} onClick={async()=>{
+        setBusy('generate');setMessage('Generating one image...');setErrorOutput('');
+        try {
+          const { body } = await callFn('generate');
+          if (body?.imageUrl) { setImageUrl(body.imageUrl); setMessage('Generate design success (1 image).'); }
+          else { setErrorOutput(body?.safeErrorMessage || body?.error || 'Generate failed.'); setMessage('Generate failed.'); }
+        } catch (e:any) { setErrorOutput(e?.message || 'Generate failed.'); setMessage('Generate failed.'); }
+        setBusy(null);}} className="w-full bg-yellow-700 text-black font-bold py-3">{busy==='generate'?'Generating...':'⚡ GENERATE DESIGN'}</button>
+      <button disabled={busy!==null} onClick={async()=>{
+        setBusy('debug'); setMessage('Running debug check...'); setErrorOutput('');
+        try {
+          const { body } = await callFn('debug');
+          setDebugOutput(JSON.stringify({
+            functionReachable: body?.functionReachable ?? false,
+            env: body?.env || {},
+            modelsEndpointReachable: body?.modelsEndpointReachable ?? false,
+            selectedTextModel: body?.selectedTextModel || null,
+            selectedImageModel: body?.selectedImageModel || null,
+            safeErrorMessage: body?.safeErrorMessage || null,
+          }, null, 2));
+          setMessage(body?.ok ? 'Debug check completed.' : 'Debug check returned issue.');
+          if (!body?.ok && (body?.safeErrorMessage || body?.error)) setErrorOutput(body?.safeErrorMessage || body?.error);
+        } catch (e:any) { setErrorOutput(e?.message || 'Debug failed.'); setMessage('Debug failed.'); }
+        setBusy(null);}} className="w-full border border-cyan-600 text-cyan-300 py-2 rounded">Admin Debug Check</button>
       {message && <p className="text-sm text-gray-300">{message}</p>}
+      {errorOutput && <p className="text-sm text-red-400">{errorOutput}</p>}
+      {debugOutput && <pre className="text-xs text-cyan-200 bg-black/40 p-2 rounded overflow-auto">{debugOutput}</pre>}
     </aside>
     <main className="border border-white/10 bg-[#11151d] p-6"><div className="text-center text-yellow-500 tracking-[0.5em] text-xs">PROFESSIONAL RENDERING ENGINE</div><div className="text-center text-4xl md:text-6xl font-black text-white/15">{size.h} FT X {size.w} FT</div>
       <div className="mt-6 mx-auto max-w-4xl"><div className="relative w-full bg-black border border-white/20 overflow-hidden" style={{aspectRatio:`${size.w}/${size.h}`}}>{imageUrl ? <img src={imageUrl} alt="Generated banner" className="absolute inset-0 w-full h-full object-cover"/> : <div className="absolute inset-0 grid place-items-center text-gray-500">GENERATE OR UPLOAD AN IMAGE</div>}</div>

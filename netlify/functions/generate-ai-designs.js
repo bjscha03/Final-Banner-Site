@@ -1,73 +1,147 @@
-const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Methods': 'POST,OPTIONS' };
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+};
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 
+const json = (statusCode, payload) => ({ statusCode, headers: CORS, body: JSON.stringify(payload) });
 const fallbackEnhance = (p, size) => `Design a premium ${size?.w || 8}ft x ${size?.h || 4}ft banner. Keep high contrast readable typography, clean hierarchy, and full-bleed composition. Prompt: ${p}`;
-const safe = (v) => (typeof v === 'string' ? v : '');
 
-async function models(key) {
-  const r = await fetch(`${GEMINI_BASE}/models?key=${encodeURIComponent(key)}`);
-  if (!r.ok) throw new Error('models endpoint failed');
-  return (await r.json()).models || [];
+async function fetchModels(apiKey) {
+  const r = await fetch(`${GEMINI_BASE}/models?key=${encodeURIComponent(apiKey)}`);
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body?.error?.message || 'models endpoint failed');
+  return body.models || [];
+}
+
+function resolveModels(models) {
+  const textModel = models.find((m) => (m.supportedGenerationMethods || []).includes('generateContent'))?.name?.replace('models/', '') || 'gemini-1.5-flash';
+  const imageModel = models.find((m) => m.name?.includes('imagen-4.0-generate-001'))?.name?.replace('models/', '')
+    || models.find((m) => m.name?.includes('imagen'))?.name?.replace('models/', '')
+    || 'imagen-3.0-generate-002';
+  return { textModel, imageModel };
 }
 
 export async function handler(event) {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: CORS, body: '' };
-  if (event.httpMethod !== 'POST') return { statusCode: 405, headers: CORS, body: JSON.stringify({ error: 'Method not allowed' }) };
 
-  const body = JSON.parse(event.body || '{}');
-  const key = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || '';
+
+  if (event.httpMethod === 'GET') {
+    return json(200, {
+      ok: true,
+      action: 'health',
+      functionReachable: true,
+      env: { hasGoogleApiKey: Boolean(apiKey) },
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'Method not allowed' });
+
+  let body = {};
+  try {
+    body = JSON.parse(event.body || '{}');
+  } catch {
+    return json(400, { ok: false, error: 'Invalid JSON body' });
+  }
+
   const action = body.action || 'enhance';
-  if (!key) return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: 'AI environment not configured' }) };
+
+  if (!apiKey) {
+    return json(200, {
+      ok: false,
+      action,
+      functionReachable: true,
+      env: { hasGoogleApiKey: false },
+      error: 'AI environment not configured',
+    });
+  }
 
   try {
-    const availableModels = await models(key);
-    const textModel = availableModels.find((m) => (m.supportedGenerationMethods || []).includes('generateContent'))?.name?.replace('models/', '') || 'gemini-1.5-flash';
-    const imageModel = availableModels.find((m) => m.name?.includes('imagen-4.0-generate-001'))?.name?.replace('models/', '') || 'imagen-3.0-generate-002';
+    const models = await fetchModels(apiKey);
+    const { textModel, imageModel } = resolveModels(models);
 
     if (action === 'debug') {
-      return { statusCode: 200, headers: CORS, body: JSON.stringify({
-        message: 'Debug checks complete',
-        checks: {
-          functionReachable: true,
-          envConfigured: Boolean(key),
-          modelsReachable: availableModels.length > 0,
-          textModel,
-          textSupportsGenerateContent: availableModels.some((m) => m.name?.endsWith(textModel) && (m.supportedGenerationMethods || []).includes('generateContent')),
-          imageModel,
-          imageModelFound: availableModels.some((m) => m.name?.endsWith(imageModel)),
-        }
-      }) };
+      return json(200, {
+        ok: true,
+        action,
+        functionReachable: true,
+        env: { hasGoogleApiKey: true },
+        modelsEndpointReachable: models.length > 0,
+        selectedTextModel: textModel,
+        selectedImageModel: imageModel,
+        safeErrorMessage: null,
+      });
     }
 
     if (action === 'enhance') {
-      const userPrompt = safe(body.prompt).trim();
-      if (!userPrompt) return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'Prompt required' }) };
-      const r = await fetch(`${GEMINI_BASE}/models/${textModel}:generateContent?key=${encodeURIComponent(key)}`, {
-        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: `Rewrite for an AI image model to create exactly one print-ready banner design.
-${userPrompt}` }] }] })
+      const originalPrompt = String(body.prompt || '').trim();
+      if (!originalPrompt) return json(400, { ok: false, action, error: 'Prompt required' });
+
+      const r = await fetch(`${GEMINI_BASE}/models/${textModel}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: `Rewrite this into a stronger image-generation prompt for a single large-format banner design:\n${originalPrompt}` }] }],
+        }),
       });
-      if (!r.ok) return { statusCode: 200, headers: CORS, body: JSON.stringify({ enhancedPrompt: fallbackEnhance(userPrompt, body.size), message: 'Gemini temporarily unavailable, fallback prompt applied.' }) };
-      const d = await r.json();
-      const enhancedPrompt = d?.candidates?.[0]?.content?.parts?.map((p) => p.text).join('\n').trim() || fallbackEnhance(userPrompt, body.size);
-      return { statusCode: 200, headers: CORS, body: JSON.stringify({ enhancedPrompt, message: 'Prompt enhanced.' }) };
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        return json(200, {
+          ok: true,
+          action,
+          enhancedPrompt: fallbackEnhance(originalPrompt, body.size),
+          safeErrorMessage: d?.error?.message || 'Gemini unavailable. Fallback prompt applied.',
+        });
+      }
+
+      const enhancedPrompt = d?.candidates?.[0]?.content?.parts?.map((p) => p.text).join('\n').trim() || fallbackEnhance(originalPrompt, body.size);
+      return json(200, { ok: true, action, enhancedPrompt, safeErrorMessage: null });
     }
 
     if (action === 'generate') {
-      const prompt = safe(body.enhancedPrompt || body.prompt).trim();
-      if (!prompt) return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'Prompt required' }) };
-      const r = await fetch(`${GEMINI_BASE}/models/${imageModel}:predict?key=${encodeURIComponent(key)}`, {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ instances: [{ prompt }], parameters: { sampleCount: 1, aspectRatio: `${body.size?.w || 8}:${body.size?.h || 4}` } })
+      const sourcePrompt = String(body.enhancedPrompt || body.prompt || '').trim();
+      if (!sourcePrompt) return json(400, { ok: false, action, error: 'Prompt required' });
+
+      const r = await fetch(`${GEMINI_BASE}/models/${imageModel}:predict?key=${encodeURIComponent(apiKey)}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          instances: [{ prompt: sourcePrompt }],
+          parameters: {
+            sampleCount: 1,
+            aspectRatio: `${body?.size?.w || 8}:${body?.size?.h || 4}`,
+          },
+        }),
       });
-      if (!r.ok) return { statusCode: 200, headers: CORS, body: JSON.stringify({ error: 'Image generation failed. Try another prompt.', message: 'Imagen request failed cleanly.' }) };
-      const d = await r.json();
+      const d = await r.json().catch(() => ({}));
+
+      if (!r.ok) {
+        return json(200, {
+          ok: false,
+          action,
+          imageUrl: null,
+          safeErrorMessage: d?.error?.message || 'Image generation failed. Please try again.',
+        });
+      }
+
       const b64 = d?.predictions?.[0]?.bytesBase64Encoded;
-      if (!b64) return { statusCode: 200, headers: CORS, body: JSON.stringify({ error: 'No image returned from model.' }) };
-      return { statusCode: 200, headers: CORS, body: JSON.stringify({ imageUrl: `data:image/png;base64,${b64}`, message: 'Design generated.' }) };
+      if (!b64) {
+        return json(200, { ok: false, action, imageUrl: null, safeErrorMessage: 'No image returned from model.' });
+      }
+
+      return json(200, { ok: true, action, imageUrl: `data:image/png;base64,${b64}`, count: 1, safeErrorMessage: null });
     }
 
-    return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'Unknown action' }) };
-  } catch (e) {
-    return { statusCode: 200, headers: CORS, body: JSON.stringify({ error: 'AI service unavailable. Please retry.', message: 'Request handled without crash.' }) };
+    return json(400, { ok: false, action, error: 'Unknown action' });
+  } catch (error) {
+    return json(200, {
+      ok: false,
+      action,
+      functionReachable: true,
+      safeErrorMessage: error instanceof Error ? error.message : 'AI service unavailable',
+    });
   }
 }
