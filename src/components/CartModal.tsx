@@ -9,11 +9,45 @@ import { getItemDisplayName, normalizeOrderItemDisplay, type NormalizableOrderIt
 import { getProductCopy, getDominantProductType } from '@/lib/product-copy';
 import CartItemBreakdown from './cart/CartItemBreakdown';
 import DeliveryTimer from './delivery/DeliveryTimer';
+import type { Grommets } from '@/store/quote';
 
 interface CartModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+const AI_GROMMET_LABELS: Record<string, string> = {
+  none: 'None',
+  every_2_3_feet: 'Every 2–3 Feet',
+  every_1_2_feet: 'Every 1–2 Feet',
+  four_corners: '4 Corners Only',
+  top_corners: 'Top Corners Only',
+  bottom_corners: 'Bottom Corners Only',
+  left_side: 'Left Side Only',
+  right_side: 'Right Side Only',
+};
+
+const toQuoteGrommetMode = (item: any): Grommets => {
+  const option = String(item?.grommetOption || '').toLowerCase();
+  switch (option) {
+    case 'every_2_3_feet': return 'every-2-3ft';
+    case 'every_1_2_feet': return 'every-1-2ft';
+    case 'four_corners': return '4-corners';
+    case 'top_corners': return 'top-corners';
+    case 'bottom_corners': return 'bottom-corners';
+    case 'left_side': return 'left-corners';
+    case 'right_side': return 'right-corners';
+    case 'none': return 'none';
+    default: return (item?.grommets as Grommets) || 'none';
+  }
+};
+
+const getCartGrommetLabel = (item: any, fallback: string): string => {
+  if (typeof item?.grommetOptionLabel === 'string' && item.grommetOptionLabel.trim()) return item.grommetOptionLabel;
+  const option = String(item?.grommetOption || '').toLowerCase();
+  if (AI_GROMMET_LABELS[option]) return AI_GROMMET_LABELS[option];
+  return fallback;
+};
 
 const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
@@ -168,6 +202,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                 {items.map((item) => {
                   const eachCents = computeEach(item);
                   const normalized = normalizeOrderItemDisplay(item as NormalizableOrderItem);
+                  const grommetLabel = getCartGrommetLabel(item, normalized.grommetsDisplay);
+                  const grommetMode = toQuoteGrommetMode(item);
 
                   return (
                     <div key={item.id} className="bg-white rounded-xl p-4 shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
@@ -185,7 +221,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                             ...(normalized.uploadedDesignsCount ? [{ label: 'Uploaded Designs', value: String(normalized.uploadedDesignsCount) }] : []),
                             ...(normalized.stepStakesQty ? [{ label: 'Step Stakes', value: String(normalized.stepStakesQty) }] : []),
                             ...(normalized.productType === 'banner' ? [
-                              { label: 'Grommets', value: normalized.grommetsDisplay },
+                              { label: 'Grommets', value: grommetLabel },
                               { label: 'Pole Pockets', value: normalized.polePocketsDisplay },
                               { label: 'Rope', value: normalized.ropeDisplay },
                               { label: 'Hemming', value: normalized.hemmingDisplay || 'Always included' },
@@ -196,7 +232,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                             <BannerPreview
                               widthIn={item.width_in}
                               heightIn={item.height_in}
-                              grommets={item.grommets}
+                              grommets={grommetMode}
                               imageUrl={item.thumbnail_url || item.file_url || item.web_preview_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl}
                               material={item.material}
                               textElements={item.text_elements}
@@ -217,7 +253,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                               key={`thumbnail-${item.id}-${item.text_elements?.length || 0}-${item.image_scale || 1}`}
                               widthIn={item.width_in}
                               heightIn={item.height_in}
-                              grommets={item.grommets}
+                              grommets={grommetMode}
                               imageUrl={item.thumbnail_url || item.file_url || item.web_preview_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl}
                               material={item.material}
                               textElements={item.text_elements}
@@ -261,7 +297,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                         {normalized.stepStakesQty ? <p><span className="font-medium text-gray-700">Step Stakes:</span> {normalized.stepStakesQty}</p> : null}
                         {normalized.productType === 'banner' ? (
                           <>
-                            <p><span className="font-medium text-gray-700">Grommets:</span> {normalized.grommetsDisplay}</p>
+                            <p><span className="font-medium text-gray-700">Grommets:</span> {grommetLabel}</p>
                             <p><span className="font-medium text-gray-700">Pole Pockets:</span> {normalized.polePocketsDisplay}</p>
                             <p><span className="font-medium text-gray-700">Rope:</span> {normalized.ropeDisplay}</p>
                           </>
