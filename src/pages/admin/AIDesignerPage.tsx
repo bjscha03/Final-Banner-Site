@@ -247,6 +247,16 @@ const AIDesignerPage: React.FC = () => {
     return { baseW, baseH };
   };
 
+  const getTransformedBox = () => {
+    const { baseW, baseH } = getImageBox();
+    return {
+      left: 50 - (baseW * imageTransform.scale) / 2 + (imageTransform.x / 6),
+      top: 50 - (baseH * imageTransform.scale) / 2 + (imageTransform.y / 6),
+      width: baseW * imageTransform.scale,
+      height: baseH * imageTransform.scale,
+    };
+  };
+
   const marks = (n: number, pxLen: number) => {
     const max = Math.floor(n);
     const pxPerUnit = pxLen / Math.max(1, n);
@@ -343,11 +353,17 @@ const AIDesignerPage: React.FC = () => {
                   style={{ objectFit: imageTransform.mode==='fit'?'contain':'cover' }}
                   onLoad={(e)=>{ const img=e.currentTarget; if(img.naturalWidth&&img.naturalHeight) setImageNaturalRatio(img.naturalWidth/img.naturalHeight); }}
                   onPointerDown={(e)=>{ e.stopPropagation(); setSelected(true); dragState.current={type:'move',startX:e.clientX,startY:e.clientY,origin:imageTransform}; }} />
-                {selected && <div className="absolute inset-0 border border-blue-400 pointer-events-none" />}
-                {selected && ['tl','tr','bl','br'].map((h)=> <button key={h} className={`absolute bg-white border border-blue-500 shadow ${h==='tl'?'cursor-nwse-resize':h==='tr'?'cursor-nesw-resize':h==='bl'?'cursor-nesw-resize':'cursor-nwse-resize'}`} style={{ width:'9px', height:'9px', borderRadius:'4px', left: h.includes('l') ? '0%' : '100%', top: h.startsWith('t') ? '0%' : '100%', transform:'translate(-50%, -50%)' }} onPointerDown={(e)=>{ e.stopPropagation(); dragState.current={type:'scale',handle:h as any,startX:e.clientX,startY:e.clientY,origin:imageTransform}; }} />)}
               </div>;
             })()}
           </div> : <div className="absolute inset-0 grid place-items-center text-white/90 font-semibold">Generate or upload an image</div>}
+
+          {selected && imageUrl && (() => { const b=getTransformedBox(); return <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute border border-blue-400" style={{ left:`${b.left}%`, top:`${b.top}%`, width:`${b.width}%`, height:`${b.height}%` }} />
+            {(['tl','tr','bl','br'] as const).map((h)=>{
+              const pos:any = h==='tl'?{left:b.left,top:b.top,c:'cursor-nwse-resize'}:h==='tr'?{left:b.left+b.width,top:b.top,c:'cursor-nesw-resize'}:h==='bl'?{left:b.left,top:b.top+b.height,c:'cursor-nesw-resize'}:{left:b.left+b.width,top:b.top+b.height,c:'cursor-nwse-resize'};
+              return <button key={h} className={`absolute bg-white border border-blue-500 shadow pointer-events-auto ${pos.c}`} style={{ width:'8px', height:'8px', borderRadius:'4px', left:`${pos.left}%`, top:`${pos.top}%`, transform:'translate(-50%, -50%)' }} onPointerDown={(e)=>{ e.stopPropagation(); dragState.current={type:'scale',handle:h,startX:e.clientX,startY:e.clientY,origin:imageTransform}; }} />;
+            })}
+          </div>; })()}
 
             <div className="absolute inset-0 pointer-events-none">
               {grommetPositions.map((p, i) => {
