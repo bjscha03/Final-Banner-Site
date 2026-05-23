@@ -17,6 +17,8 @@ const json = (statusCode, payload) => ({ statusCode, headers: CORS, body: JSON.s
 const fallbackEnhance = (p, size) => `Design a premium ${size?.w || 8}ft x ${size?.h || 4}ft banner. Keep high contrast readable typography, clean hierarchy, and full-bleed composition. Create flat, full-bleed print-ready banner artwork only. Do not generate a banner mockup, fence, wall, room, pole, hanging banner, folded material, grommets, shadows, or real-world scene. Prompt: ${p}`;
 const SUPPORTED_IMAGEN_RATIOS = ['1:1', '9:16', '16:9', '4:3', '3:4'];
 
+const GENERATION_GUARDRAIL = 'Create flat, full-bleed print-ready banner artwork only. Do not generate a banner mockup, fence, wall, room, pole, hanging banner, folded material, grommets, shadows, or real-world scene.';
+
 const FALLBACK_IMAGE_URL = 'https://res.cloudinary.com/dtrxl120u/image/upload/f_auto,q_auto,w_1600,h_800,c_fill/v1769209469/White-Label_Banners_-2_from_4over_nedg8n.png';
 
 function isImagenPaidAccessError(payload, status) {
@@ -139,7 +141,7 @@ export async function handler(event) {
     }
 
     if (action === 'generate') {
-      const sourcePrompt = `${guard}\n${String(body.enhancedPrompt || body.prompt || '').trim()}`;
+      const sourcePrompt = `${GENERATION_GUARDRAIL}\n${String(body.enhancedPrompt || body.prompt || '').trim()}`;
       if (!sourcePrompt) return json(400, { ok: false, action, error: 'Prompt required' });
 
       const targetW = Number(body?.size?.w) || 8;

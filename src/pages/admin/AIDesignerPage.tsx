@@ -13,7 +13,7 @@ const POPULAR_SIZES = [{ label: "4' x 2'", w: 4, h: 2 }, { label: "6' x 2'", w: 
 const GROMMET_OPTIONS = ['none', 'every_2_3_ft', 'every_1_2_ft', 'four_corners', 'top_corners', 'bottom_corners', 'left_only', 'right_only'];
 const POLE_OPTIONS = ['none', 'top', 'bottom', 'top-bottom'];
 const ROPE_OPTIONS = ['none', 'top', 'bottom', 'top-bottom'];
-const loadingMsgs = ['Generating your banner design...', 'Optimizing layout and typography...', 'Preparing print-ready artwork...'];
+const loadingMsgs = ['Generating your banner design...', 'Building a print-ready layout...', 'Optimizing artwork for your selected size...'];
 
 const Spinner = () => <span className="inline-block h-4 w-4 border-2 border-current border-r-transparent rounded-full animate-spin" />;
 
@@ -88,7 +88,15 @@ const AIDesignerPage: React.FC = () => {
 
   const applyVersion = async (u: string) => { setBusy('revert'); setImageUrl(u); setTimeout(()=>setBusy(null),200); };
 
-  const ruler = (ft:number, axis:'x'|'y') => Array.from({length: Math.floor(ft)+1}, (_,i)=>i).map(i=><span key={`${axis}-${i}`} className="absolute text-[10px] text-gray-400" style={axis==='x'?{left:`${(i/ft)*100}%`,bottom:'-18px',transform:'translateX(-50%)'}:{top:`${(i/ft)*100}%`,left:'-26px',transform:'translateY(-50%)'}}>{i} ft</span>);
+  const ruler = (ft:number, axis:'x'|'y') => {
+    const marks = Array.from({ length: Math.floor(ft) + 1 }, (_, i) => i);
+    return marks.map((i) => (
+      <div key={`${axis}-${i}`} className="absolute" style={axis === 'x' ? { left: `${(i / ft) * 100}%`, bottom: '-28px', transform: 'translateX(-50%)' } : { top: `${(i / ft) * 100}%`, left: '-36px', transform: 'translateY(-50%)' }}>
+        <div className={axis === 'x' ? 'w-px h-3 bg-white/80 mx-auto' : 'h-px w-3 bg-white/80 ml-auto'} />
+        <span className="text-[10px] text-white/90">{i} ft</span>
+      </div>
+    ));
+  };
 
   return <Layout><section className="min-h-screen bg-[#0b0d12] text-white p-4 lg:p-6"><div className="max-w-[1500px] mx-auto grid grid-cols-1 xl:grid-cols-[360px_1fr_340px] gap-4">
     <aside className="border border-white/10 bg-[#12151d] p-5 space-y-4"><h1 className="text-4xl font-black tracking-wide">AI DESIGNER</h1>
@@ -96,8 +104,8 @@ const AIDesignerPage: React.FC = () => {
       <button disabled={busy!==null||!prompt.trim()} onClick={async()=>{setBusy('enhance');setMessage('');setErrorOutput('');try{const {body}=await callFn('enhance');if(body?.enhancedPrompt){setEnhancedPrompt(body.enhancedPrompt);setMessage('Enhance prompt success.');}else setErrorOutput(body?.safeErrorMessage||body?.error||'Enhance failed.')}catch(e:any){setErrorOutput(e?.message||'Enhance failed.')}setBusy(null);}} className={`w-full border border-yellow-600 text-yellow-300 py-2 rounded inline-flex items-center justify-center gap-2 ${busy==='enhance'?'animate-pulse shadow-[0_0_20px_rgba(212,175,55,0.35)]':''}`}>{busy==='enhance'?<><Spinner/>Enhancing Prompt...</>:'✨ ENHANCE PROMPT WITH AI'}</button>
       <textarea value={enhancedPrompt} disabled={busy==='enhance'} onChange={(e)=>setEnhancedPrompt(e.target.value)} rows={5} className="w-full bg-black/60 border border-white/20 rounded p-3 disabled:opacity-60"/>
       <div><input type="file" accept="image/*" onChange={async(e)=>{const f=e.target.files?.[0]; if(f) setReferenceImage(await readFile(f));}} className="mt-2 block w-full text-sm"/></div>
-      <button disabled={busy!==null||!(enhancedPrompt||prompt).trim()} onClick={async()=>{setBusy('generate');setMessage('');setErrorOutput('');setGenerationFallbackNote('');try{const {body}=await callFn('generate');if(body?.imageUrl){if(imageUrl) setHistory((h)=>[imageUrl,...h].slice(0,8));setImageUrl(body.imageUrl);setMessage('Generate design success (1 image).');if(body?.generationFallback===true)setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.');}else setErrorOutput(body?.safeErrorMessage||body?.error||'Generate failed.')}catch(e:any){setErrorOutput(e?.message||'Generate failed.')}setBusy(null);}} className="w-full bg-yellow-700 text-black font-bold py-3 inline-flex items-center justify-center gap-2">{busy==='generate'?<><Spinner/>Generating Design...</>:'⚡ GENERATE DESIGN'}</button>
-      <button disabled={busy!==null||!imageUrl||!editInstruction.trim()} onClick={async()=>{setBusy('edit');setErrorOutput('');try{const {body}=await callFn('edit');if(body?.imageUrl){if(imageUrl) setHistory((h)=>[imageUrl,...h].slice(0,8));setImageUrl(body.imageUrl);if(body?.generationFallback)setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.');}else setErrorOutput(body?.safeErrorMessage||body?.error||'Edit failed.')}catch(e:any){setErrorOutput(e?.message||'Edit failed.')}setBusy(null);}} className="w-full border border-white/20 py-2 rounded inline-flex items-center justify-center gap-2">{busy==='edit'?<><Spinner/>Applying AI edits...</>:'Edit with AI'}</button>
+      <button disabled={busy!==null||!(enhancedPrompt||prompt).trim()} onClick={async()=>{setBusy('generate');setMessage('');setErrorOutput('');setGenerationFallbackNote('');try{const {body}=await callFn('generate');if(body?.imageUrl){if(imageUrl) setHistory((h)=>[imageUrl,...h].slice(0,8));setImageUrl(body?.image?.url || body.imageUrl);setMessage('Generate design success (1 image).');if(body?.generationFallback===true)setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.');}else setErrorOutput(body?.safeErrorMessage||body?.error||'Generate failed.')}catch(e:any){setErrorOutput(e?.message||'Generate failed.')}setBusy(null);}} className="w-full bg-yellow-700 text-black font-bold py-3 inline-flex items-center justify-center gap-2">{busy==='generate'?<><Spinner/>Generating Design...</>:'⚡ GENERATE DESIGN'}</button>
+      <button disabled={busy!==null||!imageUrl||!editInstruction.trim()} onClick={async()=>{setBusy('edit');setErrorOutput('');try{const {body}=await callFn('edit');if(body?.imageUrl){if(imageUrl) setHistory((h)=>[imageUrl,...h].slice(0,8));setImageUrl(body?.image?.url || body.imageUrl);if(body?.generationFallback)setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.');}else setErrorOutput(body?.safeErrorMessage||body?.error||'Edit failed.')}catch(e:any){setErrorOutput(e?.message||'Edit failed.')}setBusy(null);}} className="w-full border border-white/20 py-2 rounded inline-flex items-center justify-center gap-2">{busy==='edit'?<><Spinner/>Applying AI edits...</>:'Edit with AI'}</button>
       <input value={editInstruction} onChange={(e)=>setEditInstruction(e.target.value)} className="w-full bg-black/60 border border-white/20 rounded p-2" placeholder="Edit instruction"/>
       <button disabled={busy!==null||!editInstruction.trim()} onClick={async () => {setBusy('enhanceEdit');try{const {body}=await callFn('enhance');if(body?.enhancedPrompt)setEditInstruction(body.enhancedPrompt);}finally{setBusy(null);}}} className="w-full border border-white/20 py-2 rounded inline-flex items-center justify-center gap-2">{busy==='enhanceEdit'?<><Spinner/>Enhancing Prompt...</>:'Enhance Edit Prompt with AI'}</button>
       <button disabled={busy!==null||history.length===0} onClick={()=>history[0]&&applyVersion(history[0])} className="w-full border border-white/20 py-2 rounded">{busy==='revert'?'Restoring...':'Revert'}</button>
@@ -106,10 +114,15 @@ const AIDesignerPage: React.FC = () => {
     </aside>
     <main className="border border-white/10 bg-[#11151d] p-6"><div className="text-center text-yellow-500 tracking-[0.5em] text-xs">PROFESSIONAL RENDERING ENGINE</div>
       <div className="mt-6 mx-auto max-w-4xl pl-10 pb-10"><div className="relative w-full bg-black border border-white/20 overflow-hidden" style={{aspectRatio:`${widthIn}/${heightIn}`}}>
-        {imageUrl ? <img src={imageUrl} alt="Generated banner" className={`absolute inset-0 w-full h-full ${fitMode==='fit'?'object-contain':'object-cover'} ${busy==='edit'?'opacity-50':''}`}/> : <div className="absolute inset-0 grid place-items-center text-gray-500">GENERATE OR UPLOAD AN IMAGE</div>}
-        {busy==='generate' && <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-pulse grid place-items-center"><p className="text-sm text-gray-200">{loadingMsgs[loadingMsgIndex]}</p></div>}
+        {imageUrl ? <img src={imageUrl} alt="Generated banner" className={`absolute inset-0 w-full h-full ${fitMode==='fit'?'object-contain':'object-cover'} ${busy==='edit'?'opacity-50':''}`}/> : <div className="absolute inset-0 grid place-items-center text-white/90"><div className="text-center"><div className="text-3xl mb-2">🖼️</div><div className="font-semibold">Generate or upload an image</div></div></div>}
+        {busy==='generate' && <div className="absolute inset-0 bg-black/60 backdrop-blur-[1px] grid place-items-center"><div className="text-center"><div className="mx-auto mb-3 h-8 w-8 border-4 border-yellow-400 border-r-transparent rounded-full animate-spin"/><p className="text-white font-semibold">{loadingMsgs[loadingMsgIndex]}</p><p className="text-yellow-300 text-xs mt-1">AI rendering in progress</p></div></div>}
         {grommetOption !== 'none' && <svg className="absolute inset-0 w-full h-full" viewBox={`0 0 ${widthIn} ${heightIn}`} preserveAspectRatio="none"><GrommetOverlay widthIn={widthIn} heightIn={heightIn} option="all" idSuffix="admin-ai-designer" /></svg>}
-        <div className="absolute inset-0 pointer-events-none">{ruler(widthFt,'x')}{ruler(heightFt,'y')}</div>
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute left-0 right-0 bottom-0 border-t border-white/50" />
+          <div className="absolute top-0 bottom-0 left-0 border-l border-white/50" />
+          {ruler(widthFt,'x')}
+          {ruler(heightFt,'y')}
+        </div>
       </div>
       <div className="mt-3 flex gap-2"><button onClick={()=>setFitMode('fit')} className="px-3 py-1 border border-white/20 rounded">Fit</button><button onClick={()=>setFitMode('fill')} className="px-3 py-1 border border-white/20 rounded">Fill</button><button onClick={()=>{setFitMode('fill');setKeepProportions(true);}} className="px-3 py-1 border border-white/20 rounded">Reset</button><button onClick={()=>setKeepProportions(v=>!v)} className="px-3 py-1 border border-white/20 rounded">Keep Proportions: {keepProportions?'On':'Off'}</button></div>
       <div className="mt-3 flex gap-2 overflow-x-auto">{history.map((u,i)=><button key={`${u}-${i}`} onClick={()=>applyVersion(u)} className="w-14 h-14 border border-white/20 overflow-hidden"><img src={u} className="w-full h-full object-cover"/></button>)}</div>
