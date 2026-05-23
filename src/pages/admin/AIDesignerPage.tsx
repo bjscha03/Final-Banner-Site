@@ -103,6 +103,7 @@ const AIDesignerPage: React.FC = () => {
   const [generationFallbackNote, setGenerationFallbackNote] = useState('');
   const [debugOutput, setDebugOutput] = useState('');
   const [cartMessage, setCartMessage] = useState('');
+  const [promoCode, setPromoCode] = useState('');
 
   const [history, setHistory] = useState<Snap[]>([]);
 
@@ -357,21 +358,28 @@ const AIDesignerPage: React.FC = () => {
 
       <label className="block mt-2">Quantity<input type="number" min={1} value={quantity} onChange={(e)=>setQuantity(Math.max(1, Number(e.target.value)||1))} className="mt-1 w-full bg-black border border-white/20 p-2"/></label>
 
-      <div className="mt-4 text-sm space-y-1">
-        <p>Size: {widthFt.toFixed(0)} ft x {heightFt.toFixed(0)} ft</p>
-        <p>Area: {areaSqFt.toFixed(2)} sq ft</p>
-        <p>Material: {MATERIALS.find(m=>m.value===material)?.label}</p>
-        <p>Quantity: {quantity}</p>
-        <p>Hemming: Included</p>
-        <p>Grommets: {finishingType==='grommets' ? grommetLabel : 'None'}</p>
-        <p>Rope: {finishingType==='rope' ? ropeLabel : 'None'}</p>
-        <p>Pole Pockets: {finishingType==='pole_pockets' ? poleLabel : 'None'}</p>
-        <p>Base price: {usd(pricing.unitBasePriceCents / 100)}</p>
-        <p>Material rate: {usd((pricing.materialPricePerSqFtCents||0)/100)}/sqft</p>
-        <p>Subtotal: {usd(pricing.subtotalCents / 100)}</p>
-        <p>Tax: {usd((pricing.subtotalCents * TAX_RATE) / 100)}</p>
-        <p className="font-bold">Total: {usd((pricing.subtotalCents * (1 + TAX_RATE)) / 100)}</p>
+      <div className="mt-4 text-center">
+        <p className="text-5xl font-black text-white">{usd((pricing.subtotalCents * (1 + TAX_RATE)) / 100)}</p>
       </div>
+
+      <div className="mt-4 rounded-xl border border-white/15 bg-white/5 p-4 text-sm space-y-2">
+        <div className="flex justify-between"><span className="text-gray-300">Grommets</span><span>{finishingType==='grommets' ? grommetLabel : 'None'}</span></div>
+        <div className="flex justify-between"><span className="text-gray-300">Pole Pockets</span><span>{finishingType==='pole_pockets' ? poleLabel : 'None'}</span></div>
+        <div className="flex justify-between"><span className="text-gray-300">Rope Hemming</span><span>{finishingType==='rope' ? ropeLabel : 'None'}</span></div>
+        <div className="flex justify-between"><span className="text-gray-300">Hemming</span><span>Always Included</span></div>
+        <hr className="border-white/15 my-2" />
+        <div className="flex justify-between"><span className="text-gray-300">Base banner</span><span>{usd(pricing.unitBasePriceCents / 100)}</span></div>
+        <div className="flex justify-between"><span className="text-gray-300">Shipping</span><span className="text-emerald-400 font-semibold">FREE</span></div>
+        <div className="flex justify-between"><span className="text-gray-300">Tax (6%)</span><span>{usd((pricing.subtotalCents * TAX_RATE) / 100)}</span></div>
+        <div className="flex justify-between font-semibold"><span>Adjusted subtotal</span><span>{usd(pricing.subtotalCents / 100)}</span></div>
+        <div className="flex justify-between font-bold text-lg"><span>Total with tax</span><span className="text-[#D4AF37]">{usd((pricing.subtotalCents * (1 + TAX_RATE)) / 100)}</span></div>
+      </div>
+
+      <div className="mt-4 flex gap-2">
+        <input value={promoCode} onChange={(e)=>setPromoCode(e.target.value)} placeholder="Promo Code" className="flex-1 bg-black border border-white/20 p-2 rounded" />
+        <button type="button" className="px-4 rounded bg-white/10 border border-white/20">Apply</button>
+      </div>
+      <p className="mt-3 text-xs text-center text-gray-400">FREE Next-Day Air Included • Tax calculated at checkout</p>
 
       <button onClick={addToCartFromAI} disabled={!imageUrl} className="mt-3 w-full bg-[#D4AF37] hover:bg-[#e5c76a] text-black font-bold py-3 disabled:opacity-40 disabled:cursor-not-allowed">ADD TO CART</button>
       {cartMessage && <p className={`mt-2 text-sm ${cartMessage === 'Added to cart.' ? 'text-emerald-400' : 'text-red-400'}`}>{cartMessage}</p>}
