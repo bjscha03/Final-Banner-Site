@@ -74,18 +74,17 @@ const AIDesignerPage: React.FC = () => {
   if (!loading && !admin) return <Navigate to="/admin/setup" replace />;
 
   const toOverlayOption = () => {
-    if (finishingType !== 'grommets') return 'none';
+    if (grommetOption === 'none') return 'none';
     const m:any = {
-      none:'none',
-      every_2_3_feet:'all',
-      every_1_2_feet:'allDense',
-      four_corners:'corners',
-      top_corners:'topCorners',
-      bottom_corners:'bottomCorners',
-      left_side:'leftOnly',
-      right_side:'rightOnly'
+      every_2_3_feet: 'all',
+      every_1_2_feet: 'allDense',
+      four_corners: 'corners',
+      top_corners: 'topCorners',
+      bottom_corners: 'bottomCorners',
+      left_side: 'leftOnly',
+      right_side: 'rightOnly',
     };
-    return m[grommetOption] || 'all';
+    return m[grommetOption] || 'none';
   };
 
   const snapNow = (): Snap | null => imageUrl ? ({ imageUrl, prompt, enhancedPrompt, imageX, imageY, imageScale, fitMode, keepProportions, finishingType, grommetOption, ropePlacement, polePocketPlacement }) : null;
@@ -125,7 +124,12 @@ const AIDesignerPage: React.FC = () => {
   };
 
   const readFile = (f: File) => new Promise<string>((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(String(r.result || '')); r.onerror = reject; r.readAsDataURL(f); });
-  const marks = (n:number) => { const step = n > 8 ? 2 : 1; return Array.from({length:Math.floor(n/step)+1},(_,i)=>i*step); };
+  const marks = (n:number) => {
+    const whole = Math.max(1, Math.floor(n));
+    const ticks = Array.from({ length: whole + 1 }, (_, i) => i);
+    const useStep2 = whole > 6;
+    return ticks.filter((v) => v === 0 || v === whole || !useStep2 || v % 2 === 0);
+  };
 
   return <Layout><section className="min-h-screen bg-[#0b0d12] text-white p-4 lg:p-6"><div className="max-w-[1500px] mx-auto grid grid-cols-1 xl:grid-cols-[360px_1fr_340px] gap-4">
     <aside className="border border-white/10 bg-[#12151d] p-5 space-y-3">
@@ -160,12 +164,12 @@ const AIDesignerPage: React.FC = () => {
 
           {busy==='generate' && <div className="absolute inset-0 bg-black/60 grid place-items-center"><div className="text-center"><div className="mx-auto mb-3 h-8 w-8 border-4 border-yellow-400 border-r-transparent rounded-full animate-spin"/><p className="text-white font-semibold">Generating your banner design...</p></div></div>}
 
-          <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox={`0 0 ${widthIn} ${heightIn}`} preserveAspectRatio="none">{finishingType==='grommets' && <GrommetOverlay widthIn={widthIn} heightIn={heightIn} option={toOverlayOption()} idSuffix={grommetOption} />}</svg>
+          <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox={`0 0 ${widthIn} ${heightIn}`} preserveAspectRatio="none">{grommetOption !== 'none' && <GrommetOverlay widthIn={widthIn} heightIn={heightIn} option={toOverlayOption()} idSuffix={`${grommetOption}-${widthIn}-${heightIn}`} />}</svg>
 
           <div className="absolute left-0 right-0 bottom-0 border-t border-white/50" />
           <div className="absolute top-0 bottom-0 left-0 border-l border-white/50" />
-          {marks(widthFt).map(i=><div key={`x-${i}`} className="absolute" style={{left:`${(i/widthFt)*100}%`,bottom:'-28px',transform:'translateX(-50%)'}}><div className="w-px h-3 bg-white"/><span className="text-[10px] text-white">{i} ft</span></div>)}
-          {marks(heightFt).map(i=><div key={`y-${i}`} className="absolute" style={{top:`${(i/heightFt)*100}%`,left:'-38px',transform:'translateY(-50%)'}}><div className="h-px w-3 bg-white ml-auto"/><span className="text-[10px] text-white">{i} ft</span></div>)}
+          {marks(widthFt).map(i=><div key={`x-${i}`} className="absolute" style={{left:`${(i/widthFt)*100}%`,top:'100%',marginTop:'6px',transform:'translateX(-50%)'}}><div className="w-px h-3 bg-white/80 mx-auto"/><span className="text-[10px] text-white/90 whitespace-nowrap block text-center">{i} ft</span></div>)}
+          {marks(heightFt).map(i=><div key={`y-${i}`} className="absolute" style={{top:`${(i/heightFt)*100}%`,right:'100%',marginRight:'8px',transform:'translateY(-50%)'}}><div className="h-px w-3 bg-white/80 ml-auto"/><span className="text-[10px] text-white/90 whitespace-nowrap block text-right">{i} ft</span></div>)}
         </div>
         <div className="mt-4 flex gap-2"><button onClick={applyFit} className="px-3 py-1 border border-white/20 rounded">Fit</button><button onClick={applyFill} className="px-3 py-1 border border-white/20 rounded">Fill</button><button onClick={applyReset} className="px-3 py-1 border border-white/20 rounded">Reset</button><button onClick={()=>setKeepProportions(v=>!v)} className="px-3 py-1 border border-white/20 rounded">Keep Proportions: {keepProportions?'On':'Off'}</button></div>
         <div className="mt-3 flex gap-2 overflow-x-auto">{history.map((h,i)=><button key={i} onClick={()=>restoreSnap(h)} className="w-14 h-14 border border-white/20 overflow-hidden"><img src={h.imageUrl} className="w-full h-full object-cover"/></button>)}</div>
