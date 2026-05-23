@@ -9,6 +9,7 @@ import { getItemDisplayName, normalizeOrderItemDisplay, type NormalizableOrderIt
 import { getProductCopy, getDominantProductType } from '@/lib/product-copy';
 import CartItemBreakdown from './cart/CartItemBreakdown';
 import DeliveryTimer from './delivery/DeliveryTimer';
+import { getGrommetLabelForDisplay, getGrommetModeForPreview } from '@/lib/cartGrommet';
 
 interface CartModalProps {
   isOpen: boolean;
@@ -168,6 +169,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                 {items.map((item) => {
                   const eachCents = computeEach(item);
                   const normalized = normalizeOrderItemDisplay(item as NormalizableOrderItem);
+                  const grommetLabel = getGrommetLabelForDisplay(item, normalized.grommetsDisplay);
+                  const grommetMode = getGrommetModeForPreview(item);
 
                   return (
                     <div key={item.id} className="bg-white rounded-xl p-4 shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
@@ -185,7 +188,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                             ...(normalized.uploadedDesignsCount ? [{ label: 'Uploaded Designs', value: String(normalized.uploadedDesignsCount) }] : []),
                             ...(normalized.stepStakesQty ? [{ label: 'Step Stakes', value: String(normalized.stepStakesQty) }] : []),
                             ...(normalized.productType === 'banner' ? [
-                              { label: 'Grommets', value: normalized.grommetsDisplay },
+                              { label: 'Grommets', value: grommetLabel },
                               { label: 'Pole Pockets', value: normalized.polePocketsDisplay },
                               { label: 'Rope', value: normalized.ropeDisplay },
                               { label: 'Hemming', value: normalized.hemmingDisplay || 'Always included' },
@@ -196,7 +199,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                             <BannerPreview
                               widthIn={item.width_in}
                               heightIn={item.height_in}
-                              grommets={item.grommets}
+                              grommets={grommetMode}
                               imageUrl={item.thumbnail_url || item.file_url || item.web_preview_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl}
                               material={item.material}
                               textElements={item.text_elements}
@@ -217,7 +220,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                               key={`thumbnail-${item.id}-${item.text_elements?.length || 0}-${item.image_scale || 1}`}
                               widthIn={item.width_in}
                               heightIn={item.height_in}
-                              grommets={item.grommets}
+                              grommets={grommetMode}
                               imageUrl={item.thumbnail_url || item.file_url || item.web_preview_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl}
                               material={item.material}
                               textElements={item.text_elements}
@@ -261,7 +264,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                         {normalized.stepStakesQty ? <p><span className="font-medium text-gray-700">Step Stakes:</span> {normalized.stepStakesQty}</p> : null}
                         {normalized.productType === 'banner' ? (
                           <>
-                            <p><span className="font-medium text-gray-700">Grommets:</span> {normalized.grommetsDisplay}</p>
+                            <p><span className="font-medium text-gray-700">Grommets:</span> {grommetLabel}</p>
                             <p><span className="font-medium text-gray-700">Pole Pockets:</span> {normalized.polePocketsDisplay}</p>
                             <p><span className="font-medium text-gray-700">Rope:</span> {normalized.ropeDisplay}</p>
                           </>

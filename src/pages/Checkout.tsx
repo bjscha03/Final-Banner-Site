@@ -25,6 +25,7 @@ import { trackBeginCheckout, trackViewCart, trackFBInitiateCheckout } from '@/li
 import { trackPromoEvent } from '@/lib/posthog';
 import { getItemDisplayName, isYardSignItem, getProductCategory, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
 import { getProductCopy, getDominantProductType } from '@/lib/product-copy';
+import { getGrommetLabelForDisplay, getGrommetModeForPreview } from '@/lib/cartGrommet';
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
@@ -610,6 +611,8 @@ const Checkout: React.FC = () => {
 
                     const eachCents = computeEach(item);
                     const normalized = normalizeOrderItemDisplay(item as NormalizableOrderItem);
+                    const grommetLabel = getGrommetLabelForDisplay(item, normalized.grommetsDisplay);
+                    const grommetMode = getGrommetModeForPreview(item);
                     const isYardSign = isYardSignItem(item);
                     const yardSignPreviewUrl = item.thumbnail_url || item.file_url || item.web_preview_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl;
                     const bannerPreviewUrl = item.thumbnail_url || item.file_url || item.web_preview_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl;
@@ -629,7 +632,7 @@ const Checkout: React.FC = () => {
                       ...(normalized.uploadedDesignsCount ? [{ label: 'Uploaded Designs', value: String(normalized.uploadedDesignsCount) }] : []),
                       ...(normalized.stepStakesQty ? [{ label: 'Step Stakes', value: String(normalized.stepStakesQty) }] : []),
                       ...(normalized.productType === 'banner' ? [
-                        { label: 'Grommets', value: normalized.grommetsDisplay },
+                        { label: 'Grommets', value: grommetLabel },
                         { label: 'Pole Pockets', value: normalized.polePocketsDisplay },
                         { label: 'Rope', value: normalized.ropeDisplay },
                         { label: 'Hemming', value: normalized.hemmingDisplay || 'Always included' },
@@ -654,7 +657,7 @@ const Checkout: React.FC = () => {
                                 <BannerPreview
                                   widthIn={item.width_in}
                                   heightIn={item.height_in}
-                                  grommets={item.grommets}
+                                  grommets={grommetMode}
                                   imageUrl={yardSignPreviewUrl}
                                   material={item.material}
                                   textElements={item.text_elements}
@@ -673,7 +676,7 @@ const Checkout: React.FC = () => {
                               <BannerPreview
                                 widthIn={item.width_in}
                                 heightIn={item.height_in}
-                                grommets={item.grommets}
+                                grommets={grommetMode}
                                 imageUrl={yardSignPreviewUrl}
                                 material={item.material}
                                 textElements={item.text_elements}
@@ -702,7 +705,7 @@ const Checkout: React.FC = () => {
                                 <BannerPreview
                                   widthIn={item.width_in}
                                   heightIn={item.height_in}
-                                  grommets={item.grommets}
+                                  grommets={grommetMode}
                                   imageUrl={bannerPreviewUrl}
                                   material={item.material}
                                   textElements={item.text_elements}
@@ -721,7 +724,7 @@ const Checkout: React.FC = () => {
                               <BannerPreview
                                 widthIn={item.width_in}
                                 heightIn={item.height_in}
-                                grommets={item.grommets}
+                                grommets={grommetMode}
                                 imageUrl={bannerPreviewUrl}
                                 material={item.material}
                                 textElements={item.text_elements}
