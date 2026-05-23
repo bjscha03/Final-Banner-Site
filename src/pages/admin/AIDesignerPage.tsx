@@ -109,7 +109,7 @@ const AIDesignerPage: React.FC = () => {
 
   const [imageTransform, setImageTransform] = useState({ x: 0, y: 0, scale: 1, mode: 'fill' as 'fit'|'fill'|'custom' });
   const [imageNaturalRatio, setImageNaturalRatio] = useState(16/9);
-  const [keepProportions] = useState(true);
+  const [keepProportions, setKeepProportions] = useState(true);
   const [selected, setSelected] = useState(false);
 
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -146,7 +146,8 @@ const AIDesignerPage: React.FC = () => {
       const signs = signByHandle[d.handle || 'br'];
       const dominant = Math.abs(dx) > Math.abs(dy) ? dx : dy;
       const signedDelta = signs.sx * dominant;
-      const nextScale = Math.max(0.2, Math.min(6, d.origin.scale + signedDelta / 260));
+      const directionalDelta = keepProportions ? signedDelta : (signs.sx * dx + signs.sy * dy) / 2;
+      const nextScale = Math.max(0.2, Math.min(6, d.origin.scale + directionalDelta / 260));
       const ratio = nextScale / Math.max(0.0001, d.origin.scale);
 
       // Move center so opposite corner remains anchored.
@@ -369,7 +370,7 @@ const AIDesignerPage: React.FC = () => {
           <button onClick={fit} className="px-3 py-1 border border-white/20 rounded">Fit</button>
           <button onClick={fill} className="px-3 py-1 border border-white/20 rounded">Fill</button>
           <button onClick={reset} className="px-3 py-1 border border-white/20 rounded">Reset</button>
-          <button disabled className="px-3 py-1 border border-white/20 rounded opacity-80">Keep Proportions: On</button>
+          <button onClick={()=>setKeepProportions(v=>!v)} className="px-3 py-1 border border-white/20 rounded">Keep Proportions: {keepProportions?'On':'Off'}</button>
           <button onClick={clearImage} className="px-3 py-1 border border-red-400/40 text-red-200 rounded">Clear Image</button>
         </div>
 
