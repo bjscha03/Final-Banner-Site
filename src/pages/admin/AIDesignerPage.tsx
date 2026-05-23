@@ -7,6 +7,7 @@ import { calculateBannerPricing } from '@/lib/bannerPricingEngine';
 import { TAX_RATE, usd } from '@/lib/pricing';
 import { useCartStore } from '@/store/cart';
 import type { MaterialKey } from '@/store/quote';
+import GrommetOverlay from '@/components/preview/GrommetOverlay';
 
 const SIZES = [{ label: '4 FT X 8 FT BANNER', w: 8, h: 4 }, { label: '3 FT X 6 FT BANNER', w: 6, h: 3 }];
 const FINISHING = ['none', 'grommets', 'rope', 'pole_pockets'] as const;
@@ -28,6 +29,7 @@ const AIDesignerPage: React.FC = () => {
   const [debugOutput, setDebugOutput] = useState<string>('');
   const [errorOutput, setErrorOutput] = useState<string>('');
   const [generationFallbackNote, setGenerationFallbackNote] = useState<string>('');
+  const [cartMessage, setCartMessage] = useState<string>('');
 
   const pricing = useMemo(() => calculateBannerPricing({
     widthIn: size.w * 12, heightIn: size.h * 12, quantity, material, addRope: finishing === 'rope', polePockets: finishing === 'pole_pockets' ? 'top-bottom' : 'none',
@@ -45,6 +47,56 @@ const AIDesignerPage: React.FC = () => {
     console.log('[ai-designer] response status', res.status);
     console.log('[ai-designer] response body', body);
     return { status: res.status, body };
+  };
+
+
+  const addToCartFromAI = async () => {
+    setCartMessage('');
+    if (!imageUrl) {
+      setCartMessage('Add to cart failed: no generated image.');
+      return;
+    }
+    try {
+      const subtotal = pricing.subtotalCents / 100;
+      const tax = (pricing.subtotalCents * TAX_RATE) / 100;
+      const total = subtotal + tax;
+      const itemId = addFromQuote({
+        widthIn: size.w * 12,
+        heightIn: size.h * 12,
+        quantity,
+        material,
+        grommets: finishing === 'grommets' ? 'all' : 'none',
+        polePockets: finishing === 'pole_pockets' ? 'top-bottom' : 'none',
+        rope: finishing === 'rope',
+        file: { url: imageUrl, name: 'ai-banner.png', isPdf: false },
+        imageScale: 1,
+        imagePosition: { x: 0, y: 0 },
+        fitMode: 'fill',
+        textElements: [],
+        overlayImage: null,
+      } as any, {
+        source: 'admin-ai-designer',
+        aiPricing: {
+          widthFt: size.w,
+          heightFt: size.h,
+          material,
+          finishing,
+          quantity,
+          basePrice: pricing.unitBasePriceCents / 100,
+          subtotal,
+          tax,
+          total,
+        },
+      });
+      if (itemId) {
+        setCartMessage('Added to cart.');
+      } else {
+        setCartMessage('Add to cart failed.');
+      }
+    } catch (error: any) {
+      console.error('[ai-designer] add to cart failed', error);
+      setCartMessage(`Add to cart failed: ${error?.message || 'Unknown error'}`);
+    }
   };
 
   return <Layout><section className="min-h-screen bg-[#0b0d12] text-white p-4 lg:p-6"><div className="max-w-[1500px] mx-auto grid grid-cols-1 xl:grid-cols-[360px_1fr_340px] gap-4">
@@ -102,15 +154,19 @@ const AIDesignerPage: React.FC = () => {
       {debugOutput && <pre className="text-xs text-cyan-200 bg-black/40 p-2 rounded overflow-auto">{debugOutput}</pre>}
     </aside>
     <main className="border border-white/10 bg-[#11151d] p-6"><div className="text-center text-yellow-500 tracking-[0.5em] text-xs">PROFESSIONAL RENDERING ENGINE</div><div className="text-center text-4xl md:text-6xl font-black text-white/15">{size.h} FT X {size.w} FT</div>
-      <div className="mt-6 mx-auto max-w-4xl"><div className="relative w-full bg-black border border-white/20 overflow-hidden" style={{aspectRatio:`${size.w}/${size.h}`}}>{imageUrl ? <img src={imageUrl} alt="Generated banner" className="absolute inset-0 w-full h-full object-cover"/> : <div className="absolute inset-0 grid place-items-center text-gray-500">GENERATE OR UPLOAD AN IMAGE</div>}</div>
-      <div className="flex justify-between text-xs text-gray-300 mt-1"><span>{size.h} FT</span><span>{size.w} FT</span></div></div></main>
+      <div className="mt-6 mx-auto max-w-4xl pl-10 pb-8"><div className="relative w-full bg-black border border-white/20 overflow-hidden" style={{aspectRatio:`${size.w}/${size.h}`}}>{imageUrl ? <img src={imageUrl} alt="Generated banner" className="absolute inset-0 w-full h-full object-cover"/> : <div className="absolute inset-0 grid place-items-center text-gray-500">GENERATE OR UPLOAD AN IMAGE</div>}
+        {finishing === 'grommets' && <svg className="absolute inset-0 w-full h-full" viewBox={`0 0 ${size.w * 12} ${size.h * 12}`} preserveAspectRatio="none"><GrommetOverlay widthIn={size.w * 12} heightIn={size.h * 12} option="all" idSuffix="admin-ai-designer" /></svg>}
+        <div className="absolute -bottom-7 left-0 right-0 flex items-center justify-center text-xs text-gray-300"><span className="border-t border-white/40 w-full absolute top-1/2"/><span className="relative bg-[#11151d] px-2">{size.w} FT</span></div>
+        <div className="absolute -left-8 top-0 bottom-0 flex items-center justify-center text-xs text-gray-300"><span className="border-l border-white/40 h-full absolute left-1/2"/><span className="relative bg-[#11151d] px-1 -rotate-90">{size.h} FT</span></div>
+      </div></div></main>
     <aside className="border border-white/10 bg-[#12151d] p-5"><h2 className="text-3xl font-black">BANNER OPTIONS</h2>
       <label className="block mt-4 text-sm">1. SIZE<select className="mt-2 w-full bg-black border border-white/20 p-2" value={size.label} onChange={(e)=>setSize(SIZES.find(s=>s.label===e.target.value) || SIZES[0])}>{SIZES.map(s=><option key={s.label}>{s.label}</option>)}</select></label>
       <div className="mt-4"><p className="font-bold">2. SELECT MATERIAL</p><div className="space-y-2 mt-2">{BANNER_MATERIALS.filter(m=>['13oz','15oz','18oz'].includes(m.mapped)).map(m=><button key={m.mapped} onClick={()=>setMaterial(m.mapped)} className={`w-full border p-2 text-left ${material===m.mapped?'border-yellow-500':'border-white/20'}`}>{m.label} <span className="float-right">${(m.mapped==='13oz'?4:m.mapped==='15oz'?4.5:5.5).toFixed(2)}/sqft</span></button>)}</div></div>
       <div className="mt-4"><p className="font-bold">3. SELECT FINISHING TYPE</p><div className="grid grid-cols-2 gap-2 mt-2">{FINISHING.map(f=><button key={f} onClick={()=>setFinishing(f)} className={`border p-2 ${finishing===f?'border-yellow-500':'border-white/20'}`}>{f}</button>)}</div></div>
       <label className="block mt-4">Quantity<input type="number" min={1} className="mt-2 w-full bg-black border border-white/20 p-2" value={quantity} onChange={(e)=>setQuantity(Math.max(1,Number(e.target.value)||1))}/></label>
       <div className="mt-5 border-t border-white/10 pt-4 text-sm space-y-1"><p>Base price: {usd(pricing.unitBasePriceCents/100)}</p><p>Material rate: {usd((pricing.materialPricePerSqFtCents||0)/100)}/sqft</p><p>Area: {pricing.areaSqFt.toFixed(2)} sq ft</p><p>Subtotal: {usd(pricing.subtotalCents/100)}</p><p>Tax: {usd((pricing.subtotalCents*TAX_RATE)/100)}</p><p className="font-bold">Total: {usd((pricing.subtotalCents*(1+TAX_RATE))/100)}</p></div>
-      <button onClick={()=>addFromQuote({ widthIn:size.w*12, heightIn:size.h*12, quantity, material, grommets: finishing==='grommets' ? 'all' : 'none', polePockets: finishing==='pole_pockets' ? 'top-bottom' : 'none', rope: finishing==='rope', file:{url:imageUrl||'',name:'ai-banner.png',isPdf:false}, imageScale:1, imagePosition:{x:0,y:0}, fitMode:'fill', textElements:[], overlayImage:null } as any)} disabled={!imageUrl} className="mt-4 w-full bg-yellow-700 text-black font-bold py-3 disabled:opacity-60">ADD TO CART</button>
+      <button onClick={addToCartFromAI} disabled={!imageUrl} className="mt-4 w-full bg-yellow-700 text-black font-bold py-3 disabled:opacity-60">ADD TO CART</button>
+      {cartMessage && <p className={`mt-2 text-sm ${cartMessage === 'Added to cart.' ? 'text-emerald-400' : 'text-red-400'}`}>{cartMessage}</p>}
     </aside>
   </div></section></Layout>;
 };
