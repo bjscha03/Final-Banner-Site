@@ -109,11 +109,11 @@ const AIDesignerPage: React.FC = () => {
 
   const [imageTransform, setImageTransform] = useState({ x: 0, y: 0, scale: 1, mode: 'fill' as 'fit'|'fill'|'custom' });
   const [imageNaturalRatio, setImageNaturalRatio] = useState(16/9);
-  const [keepProportions, setKeepProportions] = useState(true);
+  const [keepProportions] = useState(true);
   const [selected, setSelected] = useState(false);
 
   const canvasRef = useRef<HTMLDivElement | null>(null);
-  const dragState = useRef<{ type: 'move' | 'scale'; startX: number; startY: number; origin: typeof imageTransform } | null>(null);
+  const dragState = useRef<{ type: 'move' | 'scale'; handle?: 'tl'|'tr'|'bl'|'br'; startX: number; startY: number; origin: typeof imageTransform } | null>(null);
 
   const widthFt = sizeMode === 'popular' ? size.w : (useFeet ? wInput : wInput / 12);
   const heightFt = sizeMode === 'popular' ? size.h : (useFeet ? hInput : hInput / 12);
@@ -126,23 +126,54 @@ const AIDesignerPage: React.FC = () => {
   const grommetPositions = useMemo(() => getGrommetPositions({ grommetOption, widthFt, heightFt }), [grommetOption, widthFt, heightFt, imageTransform.mode]);
 
   useEffect(() => {
-    const onMove = (e: MouseEvent) => {
+    const onMove = (e: PointerEvent) => {
       if (!dragState.current) return;
       const d = dragState.current;
       const dx = e.clientX - d.startX;
       const dy = e.clientY - d.startY;
       if (d.type === 'move') {
         setImageTransform((t) => ({ ...t, x: d.origin.x + dx, y: d.origin.y + dy, mode: 'custom' }));
-      } else {
-        const next = Math.max(0.2, Math.min(6, d.origin.scale + (dx + dy) / 320));
-        setImageTransform((t) => ({ ...t, scale: next, mode: 'custom' }));
+        return;
       }
+
+      // Proportional corner scaling with opposite-corner anchor stability.
+      const signByHandle: Record<string, { sx: number; sy: number }> = {
+        tl: { sx: -1, sy: -1 },
+        tr: { sx: 1, sy: -1 },
+        bl: { sx: -1, sy: 1 },
+        br: { sx: 1, sy: 1 },
+      };
+      const signs = signByHandle[d.handle || 'br'];
+      const dominant = Math.abs(dx) > Math.abs(dy) ? dx : dy;
+      const signedDelta = signs.sx * dominant;
+      const nextScale = Math.max(0.2, Math.min(6, d.origin.scale + signedDelta / 260));
+      const ratio = nextScale / Math.max(0.0001, d.origin.scale);
+
+      // Move center so opposite corner remains anchored.
+      const box = getImageBox();
+      const wPx = (box.baseW / 100) * (canvasRef.current?.clientWidth || 1) * d.origin.scale;
+      const hPx = (box.baseH / 100) * (canvasRef.current?.clientHeight || 1) * d.origin.scale;
+      const offsetX = (wPx * (ratio - 1)) / 2;
+      const offsetY = (hPx * (ratio - 1)) / 2;
+      const cxDir = signs.sx;
+      const cyDir = signs.sy;
+
+      setImageTransform((t) => ({
+        ...t,
+        scale: nextScale,
+        x: d.origin.x + cxDir * offsetX,
+        y: d.origin.y + cyDir * offsetY,
+        mode: 'custom',
+      }));
     };
     const onUp = () => { dragState.current = null; };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
-  }, [keepProportions]);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+  }, [widthIn, heightIn, imageNaturalRatio]);
 
   if (!loading && !admin) return <Navigate to="/admin/setup" replace />;
 
@@ -310,9 +341,9 @@ const AIDesignerPage: React.FC = () => {
                 <img src={imageUrl} alt="Generated banner" className="w-full h-full cursor-move select-none" draggable={false}
                   style={{ objectFit: imageTransform.mode==='fit'?'contain':'cover' }}
                   onLoad={(e)=>{ const img=e.currentTarget; if(img.naturalWidth&&img.naturalHeight) setImageNaturalRatio(img.naturalWidth/img.naturalHeight); }}
-                  onMouseDown={(e)=>{ e.stopPropagation(); setSelected(true); dragState.current={type:'move',startX:e.clientX,startY:e.clientY,origin:imageTransform}; }} />
+                  onPointerDown={(e)=>{ e.stopPropagation(); setSelected(true); dragState.current={type:'move',startX:e.clientX,startY:e.clientY,origin:imageTransform}; }} />
                 {selected && <div className="absolute inset-0 border border-blue-400 pointer-events-none" />}
-                {selected && ['tl','tr','bl','br'].map((h)=> <button key={h} className={`absolute bg-white border border-blue-500 shadow ${h==='tl'?'cursor-nwse-resize':h==='tr'?'cursor-nesw-resize':h==='bl'?'cursor-nesw-resize':'cursor-nwse-resize'}`} style={{ width:'10px', height:'10px', borderRadius:'4px', left: h.includes('l') ? '0%' : '100%', top: h.startsWith('t') ? '0%' : '100%', transform:'translate(-50%, -50%)' }} onMouseDown={(e)=>{ e.stopPropagation(); dragState.current={type:'scale',startX:e.clientX,startY:e.clientY,origin:imageTransform}; }} />)}
+                {selected && ['tl','tr','bl','br'].map((h)=> <button key={h} className={`absolute bg-white border border-blue-500 shadow ${h==='tl'?'cursor-nwse-resize':h==='tr'?'cursor-nesw-resize':h==='bl'?'cursor-nesw-resize':'cursor-nwse-resize'}`} style={{ width:'9px', height:'9px', borderRadius:'4px', left: h.includes('l') ? '0%' : '100%', top: h.startsWith('t') ? '0%' : '100%', transform:'translate(-50%, -50%)' }} onPointerDown={(e)=>{ e.stopPropagation(); dragState.current={type:'scale',handle:h as any,startX:e.clientX,startY:e.clientY,origin:imageTransform}; }} />)}
               </div>;
             })()}
           </div> : <div className="absolute inset-0 grid place-items-center text-white/90 font-semibold">Generate or upload an image</div>}
@@ -338,7 +369,7 @@ const AIDesignerPage: React.FC = () => {
           <button onClick={fit} className="px-3 py-1 border border-white/20 rounded">Fit</button>
           <button onClick={fill} className="px-3 py-1 border border-white/20 rounded">Fill</button>
           <button onClick={reset} className="px-3 py-1 border border-white/20 rounded">Reset</button>
-          <button onClick={()=>setKeepProportions((v)=>!v)} className="px-3 py-1 border border-white/20 rounded">Keep Proportions: {keepProportions?'On':'Off'}</button>
+          <button disabled className="px-3 py-1 border border-white/20 rounded opacity-80">Keep Proportions: On</button>
           <button onClick={clearImage} className="px-3 py-1 border border-red-400/40 text-red-200 rounded">Clear Image</button>
         </div>
 
