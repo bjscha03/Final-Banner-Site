@@ -212,11 +212,7 @@ const AIDesignerPage: React.FC = () => {
       if (imgRatio > bannerRatio) { baseW = 100; baseH = (bannerRatio / imgRatio) * 100; }
       else { baseH = 100; baseW = (imgRatio / bannerRatio) * 100; }
     }
-    const w = baseW * imageTransform.scale;
-    const h = baseH * imageTransform.scale;
-    const left = (100 - baseW) / 2 + (imageTransform.x / 6);
-    const top = (100 - baseH) / 2 + (imageTransform.y / 6);
-    return { left, top, w, h };
+    return { baseW, baseH };
   };
 
   const marks = (n: number, pxLen: number) => {
@@ -299,18 +295,27 @@ const AIDesignerPage: React.FC = () => {
 
           <div ref={canvasRef} className="relative w-full bg-black border border-white/30" style={{ aspectRatio: `${widthIn}/${heightIn}` }} onMouseDown={(e)=>{ if (e.target === e.currentTarget) setSelected(false); }}>
             {imageUrl ? <div className="absolute inset-0 overflow-hidden">
-              <img src={imageUrl} alt="Generated banner" className="w-full h-full cursor-move select-none" draggable={false}
-                style={{ transform: `translate(${imageTransform.x}px, ${imageTransform.y}px) scale(${imageTransform.scale})`, transformOrigin: 'center', objectFit: imageTransform.mode==='fit'?'contain':'cover' }}
-                onLoad={(e)=>{ const img=e.currentTarget; if(img.naturalWidth&&img.naturalHeight) setImageNaturalRatio(img.naturalWidth/img.naturalHeight); }}
-                onMouseDown={(e)=>{ e.stopPropagation(); setSelected(true); dragState.current={type:'move',startX:e.clientX,startY:e.clientY,origin:imageTransform}; }} />
-              {selected && (()=>{ const b=getImageBox(); return <>
-                <div className="absolute border border-blue-400 pointer-events-none" style={{ left:`${b.left}%`, top:`${b.top}%`, width:`${b.w}%`, height:`${b.h}%` }} />
-                {['tl','tr','bl','br'].map((h)=>{
-                  const pos:any = h==='tl'?{left:b.left,top:b.top,c:'cursor-nwse-resize'}:h==='tr'?{left:b.left+b.w,top:b.top,c:'cursor-nesw-resize'}:h==='bl'?{left:b.left,top:b.top+b.h,c:'cursor-nesw-resize'}:{left:b.left+b.w,top:b.top+b.h,c:'cursor-nwse-resize'};
-                  return <button key={h} className={`absolute h-2.5 w-2.5 rounded-sm bg-white border border-blue-500 shadow ${pos.c}`} style={{left:`${pos.left}%`,top:`${pos.top}%`,transform:'translate(-50%,-50%)'}} onMouseDown={(e)=>{ e.stopPropagation(); dragState.current={type:'scale',startX:e.clientX,startY:e.clientY,origin:imageTransform}; }} />;
-                })}
-              </>;})()}
-            </div> : <div className="absolute inset-0 grid place-items-center text-white/90 font-semibold">Generate or upload an image</div>}
+            {(() => {
+              const b = getImageBox();
+              const wrapperStyle = {
+                position: 'absolute' as const,
+                left: '50%',
+                top: '50%',
+                width: `${b.baseW}%`,
+                height: `${b.baseH}%`,
+                transform: `translate(-50%, -50%) translate(${imageTransform.x}px, ${imageTransform.y}px) scale(${imageTransform.scale})`,
+                transformOrigin: 'center',
+              };
+              return <div style={wrapperStyle}>
+                <img src={imageUrl} alt="Generated banner" className="w-full h-full cursor-move select-none" draggable={false}
+                  style={{ objectFit: imageTransform.mode==='fit'?'contain':'cover' }}
+                  onLoad={(e)=>{ const img=e.currentTarget; if(img.naturalWidth&&img.naturalHeight) setImageNaturalRatio(img.naturalWidth/img.naturalHeight); }}
+                  onMouseDown={(e)=>{ e.stopPropagation(); setSelected(true); dragState.current={type:'move',startX:e.clientX,startY:e.clientY,origin:imageTransform}; }} />
+                {selected && <div className="absolute inset-0 border border-blue-400 pointer-events-none" />}
+                {selected && ['tl','tr','bl','br'].map((h)=> <button key={h} className={`absolute bg-white border border-blue-500 shadow ${h==='tl'?'cursor-nwse-resize':h==='tr'?'cursor-nesw-resize':h==='bl'?'cursor-nesw-resize':'cursor-nwse-resize'}`} style={{ width:'10px', height:'10px', borderRadius:'4px', left: h.includes('l') ? '0%' : '100%', top: h.startsWith('t') ? '0%' : '100%', transform:'translate(-50%, -50%)' }} onMouseDown={(e)=>{ e.stopPropagation(); dragState.current={type:'scale',startX:e.clientX,startY:e.clientY,origin:imageTransform}; }} />)}
+              </div>;
+            })()}
+          </div> : <div className="absolute inset-0 grid place-items-center text-white/90 font-semibold">Generate or upload an image</div>}
 
             <div className="absolute inset-0 pointer-events-none">
               {grommetPositions.map((p, i) => {
