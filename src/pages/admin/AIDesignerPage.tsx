@@ -27,7 +27,6 @@ type Snap = {
   prompt: string;
   enhancedPrompt: string;
   transform: { x: number; y: number; scale: number; mode: 'fit' | 'fill' | 'custom' };
-  keepProportions: boolean;
   finishingType: Finishing;
   grommetOption: string;
   ropePlacement: string;
@@ -109,11 +108,10 @@ const AIDesignerPage: React.FC = () => {
 
   const [imageTransform, setImageTransform] = useState({ x: 0, y: 0, scale: 1, mode: 'fill' as 'fit'|'fill'|'custom' });
   const [imageNaturalRatio, setImageNaturalRatio] = useState(16/9);
-  const [keepProportions, setKeepProportions] = useState(true);
-  const [selected, setSelected] = useState(false);
+    const [selected, setSelected] = useState(false);
 
   const canvasRef = useRef<HTMLDivElement | null>(null);
-  const dragState = useRef<{ type: 'move' | 'scale'; handle?: 'tl'|'tr'|'bl'|'br'; startX: number; startY: number; origin: typeof imageTransform } | null>(null);
+  const dragState = useRef<{ type: 'move'; startX: number; startY: number; origin: typeof imageTransform } | null>(null);
 
   const widthFt = sizeMode === 'popular' ? size.w : (useFeet ? wInput : wInput / 12);
   const heightFt = sizeMode === 'popular' ? size.h : (useFeet ? hInput : hInput / 12);
@@ -133,39 +131,7 @@ const AIDesignerPage: React.FC = () => {
       const dy = e.clientY - d.startY;
       if (d.type === 'move') {
         setImageTransform((t) => ({ ...t, x: d.origin.x + dx, y: d.origin.y + dy, mode: 'custom' }));
-        return;
       }
-
-      // Proportional corner scaling with opposite-corner anchor stability.
-      const signByHandle: Record<string, { sx: number; sy: number }> = {
-        tl: { sx: -1, sy: -1 },
-        tr: { sx: 1, sy: -1 },
-        bl: { sx: -1, sy: 1 },
-        br: { sx: 1, sy: 1 },
-      };
-      const signs = signByHandle[d.handle || 'br'];
-      const dominant = Math.abs(dx) > Math.abs(dy) ? dx : dy;
-      const signedDelta = signs.sx * dominant;
-      const directionalDelta = keepProportions ? signedDelta : (signs.sx * dx + signs.sy * dy) / 2;
-      const nextScale = Math.max(0.2, Math.min(6, d.origin.scale + directionalDelta / 260));
-      const ratio = nextScale / Math.max(0.0001, d.origin.scale);
-
-      // Move center so opposite corner remains anchored.
-      const box = getImageBox();
-      const wPx = (box.baseW / 100) * (canvasRef.current?.clientWidth || 1) * d.origin.scale;
-      const hPx = (box.baseH / 100) * (canvasRef.current?.clientHeight || 1) * d.origin.scale;
-      const offsetX = (wPx * (ratio - 1)) / 2;
-      const offsetY = (hPx * (ratio - 1)) / 2;
-      const cxDir = signs.sx;
-      const cyDir = signs.sy;
-
-      setImageTransform((t) => ({
-        ...t,
-        scale: nextScale,
-        x: d.origin.x + cxDir * offsetX,
-        y: d.origin.y + cyDir * offsetY,
-        mode: 'custom',
-      }));
     };
     const onUp = () => { dragState.current = null; };
     window.addEventListener('pointermove', onMove);
@@ -180,7 +146,7 @@ const AIDesignerPage: React.FC = () => {
 
   const saveSnapshot = () => {
     if (!imageUrl) return;
-    const snap: Snap = { imageUrl, prompt, enhancedPrompt, transform: imageTransform, keepProportions, finishingType, grommetOption, ropePlacement, polePocketPlacement };
+    const snap: Snap = { imageUrl, prompt, enhancedPrompt, transform: imageTransform, finishingType, grommetOption, ropePlacement, polePocketPlacement };
     setHistory((h) => [snap, ...h].slice(0, 20));
   };
 
@@ -189,7 +155,6 @@ const AIDesignerPage: React.FC = () => {
     setPrompt(s.prompt);
     setEnhancedPrompt(s.enhancedPrompt);
     setImageTransform(s.transform);
-    setKeepProportions(s.keepProportions);
     setFinishingType(s.finishingType);
     setGrommetOption(s.grommetOption);
     setRopePlacement(s.ropePlacement);
@@ -247,15 +212,6 @@ const AIDesignerPage: React.FC = () => {
     return { baseW, baseH };
   };
 
-  const getTransformedBox = () => {
-    const { baseW, baseH } = getImageBox();
-    return {
-      left: 50 - (baseW * imageTransform.scale) / 2 + (imageTransform.x / 6),
-      top: 50 - (baseH * imageTransform.scale) / 2 + (imageTransform.y / 6),
-      width: baseW * imageTransform.scale,
-      height: baseH * imageTransform.scale,
-    };
-  };
 
   const marks = (n: number, pxLen: number) => {
     const max = Math.floor(n);
@@ -357,15 +313,7 @@ const AIDesignerPage: React.FC = () => {
             })()}
           </div> : <div className="absolute inset-0 grid place-items-center text-white/90 font-semibold">Generate or upload an image</div>}
 
-          {selected && imageUrl && (() => { const b=getTransformedBox(); return <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute border border-blue-400" style={{ left:`${b.left}%`, top:`${b.top}%`, width:`${b.width}%`, height:`${b.height}%` }} />
-            {(['tl','tr','bl','br'] as const).map((h)=>{
-              const pos:any = h==='tl'?{left:b.left,top:b.top,c:'cursor-nwse-resize'}:h==='tr'?{left:b.left+b.width,top:b.top,c:'cursor-nesw-resize'}:h==='bl'?{left:b.left,top:b.top+b.height,c:'cursor-nesw-resize'}:{left:b.left+b.width,top:b.top+b.height,c:'cursor-nwse-resize'};
-              return <button key={h} className={`absolute bg-white border border-blue-500 shadow pointer-events-auto ${pos.c}`} style={{ width:'8px', height:'8px', borderRadius:'4px', left:`${pos.left}%`, top:`${pos.top}%`, transform:'translate(-50%, -50%)' }} onPointerDown={(e)=>{ e.stopPropagation(); dragState.current={type:'scale',handle:h,startX:e.clientX,startY:e.clientY,origin:imageTransform}; }} />;
-            })}
-          </div>; })()}
-
-            <div className="absolute inset-0 pointer-events-none">
+                      <div className="absolute inset-0 pointer-events-none">
               {grommetPositions.map((p, i) => {
                 const inset = 12;
                 const x = `calc(${p.xPercent}% + ${p.xPercent < 50 ? inset : -inset}px)`;
@@ -386,9 +334,10 @@ const AIDesignerPage: React.FC = () => {
           <button onClick={fit} className="px-3 py-1 border border-white/20 rounded">Fit</button>
           <button onClick={fill} className="px-3 py-1 border border-white/20 rounded">Fill</button>
           <button onClick={reset} className="px-3 py-1 border border-white/20 rounded">Reset</button>
-          <button onClick={()=>setKeepProportions(v=>!v)} className="px-3 py-1 border border-white/20 rounded">Keep Proportions: {keepProportions?'On':'Off'}</button>
+          <button onClick={()=>setImageTransform(t=>({...t, scale:Math.min(2, Number((t.scale+0.1).toFixed(2))), mode:'custom'}))} className="px-3 py-1 border border-white/20 rounded">Zoom In</button><button onClick={()=>setImageTransform(t=>({...t, scale:Math.max(0.5, Number((t.scale-0.1).toFixed(2))), mode:'custom'}))} className="px-3 py-1 border border-white/20 rounded">Zoom Out</button>
           <button onClick={clearImage} className="px-3 py-1 border border-red-400/40 text-red-200 rounded">Clear Image</button>
         </div>
+        <input type="range" min={0.5} max={2} step={0.01} value={imageTransform.scale} onChange={(e)=>setImageTransform(t=>({...t, scale:Number(e.target.value), mode:'custom'}))} className="mt-3 w-full" />
 
         <div className="mt-3 flex gap-2 overflow-x-auto">{history.map((h,i)=><button key={i} onClick={()=>restoreSnapshot(h)} className="w-14 h-14 border border-white/20 overflow-hidden"><img src={h.imageUrl} className="w-full h-full object-cover"/></button>)}</div>
       </div>
@@ -424,7 +373,7 @@ const AIDesignerPage: React.FC = () => {
         <p className="font-bold">Total: {usd((pricing.subtotalCents * (1 + TAX_RATE)) / 100)}</p>
       </div>
 
-      <button onClick={addToCartFromAI} disabled={!imageUrl} className="mt-3 w-full bg-yellow-700 text-black font-bold py-3 disabled:opacity-60">ADD TO CART</button>
+      <button onClick={addToCartFromAI} disabled={!imageUrl} className="mt-3 w-full bg-[#D4AF37] hover:bg-[#e5c76a] text-black font-bold py-3 disabled:opacity-40 disabled:cursor-not-allowed">ADD TO CART</button>
       {cartMessage && <p className={`mt-2 text-sm ${cartMessage === 'Added to cart.' ? 'text-emerald-400' : 'text-red-400'}`}>{cartMessage}</p>}
     </aside>
   </div></section></Layout>;
