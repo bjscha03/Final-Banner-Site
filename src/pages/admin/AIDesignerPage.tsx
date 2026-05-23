@@ -26,7 +26,7 @@ type Snap = {
   imageUrl: string;
   prompt: string;
   enhancedPrompt: string;
-  transform: { x: number; y: number; scaleX: number; scaleY: number; mode: 'fit' | 'fill' | 'custom' };
+  transform: { x: number; y: number; scale: number; mode: 'fit' | 'fill' | 'custom' };
   keepProportions: boolean;
   finishingType: Finishing;
   grommetOption: string;
@@ -107,7 +107,8 @@ const AIDesignerPage: React.FC = () => {
 
   const [history, setHistory] = useState<Snap[]>([]);
 
-  const [imageTransform, setImageTransform] = useState({ x: 0, y: 0, scaleX: 1, scaleY: 1, mode: 'fill' as 'fit'|'fill'|'custom' });
+  const [imageTransform, setImageTransform] = useState({ x: 0, y: 0, scale: 1, mode: 'fill' as 'fit'|'fill'|'custom' });
+  const [imageNaturalRatio, setImageNaturalRatio] = useState(16/9);
   const [keepProportions, setKeepProportions] = useState(true);
   const [selected, setSelected] = useState(false);
 
@@ -133,9 +134,8 @@ const AIDesignerPage: React.FC = () => {
       if (d.type === 'move') {
         setImageTransform((t) => ({ ...t, x: d.origin.x + dx, y: d.origin.y + dy, mode: 'custom' }));
       } else {
-        const sx = Math.max(0.2, d.origin.scaleX + dx / 220);
-        const sy = keepProportions ? sx : Math.max(0.2, d.origin.scaleY + dy / 220);
-        setImageTransform((t) => ({ ...t, scaleX: sx, scaleY: sy, mode: 'custom' }));
+        const next = Math.max(0.2, Math.min(6, d.origin.scale + (dx + dy) / 320));
+        setImageTransform((t) => ({ ...t, scale: next, mode: 'custom' }));
       }
     };
     const onUp = () => { dragState.current = null; };
@@ -205,19 +205,17 @@ const AIDesignerPage: React.FC = () => {
 
 
   const getImageBox = () => {
-    const canvasW = 100;
-    const canvasH = 100;
     const bannerRatio = widthIn / heightIn;
-    const imgRatio = 16 / 9;
+    const imgRatio = imageNaturalRatio || (16 / 9);
     let baseW = 100, baseH = 100;
     if (imageTransform.mode === 'fit') {
       if (imgRatio > bannerRatio) { baseW = 100; baseH = (bannerRatio / imgRatio) * 100; }
       else { baseH = 100; baseW = (imgRatio / bannerRatio) * 100; }
     }
-    const w = baseW * imageTransform.scaleX;
-    const h = baseH * imageTransform.scaleY;
-    const left = (canvasW - baseW) / 2 + (imageTransform.x / 6);
-    const top = (canvasH - baseH) / 2 + (imageTransform.y / 6);
+    const w = baseW * imageTransform.scale;
+    const h = baseH * imageTransform.scale;
+    const left = (100 - baseW) / 2 + (imageTransform.x / 6);
+    const top = (100 - baseH) / 2 + (imageTransform.y / 6);
     return { left, top, w, h };
   };
 
@@ -232,12 +230,12 @@ const AIDesignerPage: React.FC = () => {
   const clearImage = () => {
     setImageUrl(null);
     setSelected(false);
-    setImageTransform({ x: 0, y: 0, scaleX: 1, scaleY: 1, mode: 'fill' });
+    setImageTransform({ x: 0, y: 0, scale: 1, mode: 'fill' });
   };
 
-  const fit = () => setImageTransform({ x: 0, y: 0, scaleX: 1, scaleY: 1, mode: 'fit' });
-  const fill = () => setImageTransform({ x: 0, y: 0, scaleX: 1, scaleY: 1, mode: 'fill' });
-  const reset = () => setImageTransform({ x: 0, y: 0, scaleX: 1, scaleY: 1, mode: 'fill' });
+  const fit = () => setImageTransform({ x: 0, y: 0, scale: 1, mode: 'fit' });
+  const fill = () => setImageTransform({ x: 0, y: 0, scale: 1, mode: 'fill' });
+  const reset = () => { setImageTransform({ x: 0, y: 0, scale: 1, mode: 'fill' }); setSelected(false); };
 
   const addToCartFromAI = async () => {
     try {
@@ -246,7 +244,7 @@ const AIDesignerPage: React.FC = () => {
       const subtotal = pricing.subtotalCents / 100;
       const tax = (pricing.subtotalCents * TAX_RATE) / 100;
       const total = subtotal + tax;
-      const id = addFromQuote({ widthIn, heightIn, quantity, material, grommets: grommetOption === 'none' ? 'none' : 'all', polePockets: polePocketPlacement, rope: ropePlacement !== 'none', ropePlacement, file: { url: imageUrl, name: 'ai-banner.png', isPdf: false }, imageScale: imageTransform.scaleX, imageScaleY: imageTransform.scaleY, imagePosition: { x: imageTransform.x, y: imageTransform.y }, fitMode: imageTransform.mode, textElements: [], overlayImage: null } as any, {
+      const id = addFromQuote({ widthIn, heightIn, quantity, material, grommets: grommetOption === 'none' ? 'none' : 'all', polePockets: polePocketPlacement, rope: ropePlacement !== 'none', ropePlacement, file: { url: imageUrl, name: 'ai-banner.png', isPdf: false }, imageScale: imageTransform.scale, imagePosition: { x: imageTransform.x, y: imageTransform.y }, fitMode: imageTransform.mode, textElements: [], overlayImage: null } as any, {
         productType: 'banner',
         source: 'admin-ai-designer',
         widthFt,
@@ -302,25 +300,26 @@ const AIDesignerPage: React.FC = () => {
           <div ref={canvasRef} className="relative w-full bg-black border border-white/30" style={{ aspectRatio: `${widthIn}/${heightIn}` }} onMouseDown={(e)=>{ if (e.target === e.currentTarget) setSelected(false); }}>
             {imageUrl ? <div className="absolute inset-0 overflow-hidden">
               <img src={imageUrl} alt="Generated banner" className="w-full h-full cursor-move select-none" draggable={false}
-                style={{ transform: `translate(${imageTransform.x}px, ${imageTransform.y}px) scale(${imageTransform.scaleX}, ${imageTransform.scaleY})`, transformOrigin: 'center', objectFit: imageTransform.mode==='fit'?'contain':'cover' }}
+                style={{ transform: `translate(${imageTransform.x}px, ${imageTransform.y}px) scale(${imageTransform.scale})`, transformOrigin: 'center', objectFit: imageTransform.mode==='fit'?'contain':'cover' }}
+                onLoad={(e)=>{ const img=e.currentTarget; if(img.naturalWidth&&img.naturalHeight) setImageNaturalRatio(img.naturalWidth/img.naturalHeight); }}
                 onMouseDown={(e)=>{ e.stopPropagation(); setSelected(true); dragState.current={type:'move',startX:e.clientX,startY:e.clientY,origin:imageTransform}; }} />
               {selected && (()=>{ const b=getImageBox(); return <>
                 <div className="absolute border border-blue-400 pointer-events-none" style={{ left:`${b.left}%`, top:`${b.top}%`, width:`${b.w}%`, height:`${b.h}%` }} />
                 {['tl','tr','bl','br'].map((h)=>{
                   const pos:any = h==='tl'?{left:b.left,top:b.top,c:'cursor-nwse-resize'}:h==='tr'?{left:b.left+b.w,top:b.top,c:'cursor-nesw-resize'}:h==='bl'?{left:b.left,top:b.top+b.h,c:'cursor-nesw-resize'}:{left:b.left+b.w,top:b.top+b.h,c:'cursor-nwse-resize'};
-                  return <button key={h} className={`absolute h-3 w-3 rounded-sm bg-white border border-blue-500 ${pos.c}`} style={{left:`${pos.left}%`,top:`${pos.top}%`,transform:'translate(-50%,-50%)'}} onMouseDown={(e)=>{ e.stopPropagation(); dragState.current={type:'scale',startX:e.clientX,startY:e.clientY,origin:imageTransform}; }} />;
+                  return <button key={h} className={`absolute h-2.5 w-2.5 rounded-sm bg-white border border-blue-500 shadow ${pos.c}`} style={{left:`${pos.left}%`,top:`${pos.top}%`,transform:'translate(-50%,-50%)'}} onMouseDown={(e)=>{ e.stopPropagation(); dragState.current={type:'scale',startX:e.clientX,startY:e.clientY,origin:imageTransform}; }} />;
                 })}
               </>;})()}
             </div> : <div className="absolute inset-0 grid place-items-center text-white/90 font-semibold">Generate or upload an image</div>}
 
-            <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
+            <div className="absolute inset-0 pointer-events-none">
               {grommetPositions.map((p, i) => {
-                const inset = 1.4;
-                const x = Math.min(100-inset, Math.max(inset, p.xPercent));
-                const y = Math.min(100-inset, Math.max(inset, p.yPercent));
-                return <g key={i}><circle cx={x+0.2} cy={y+0.2} r="1.0" fill="#000" opacity="0.22"/><circle cx={x} cy={y} r="0.95" fill="#e5e7eb" stroke="#475569" strokeWidth="0.35"/></g>;
+                const inset = 12;
+                const x = `calc(${p.xPercent}% + ${p.xPercent < 50 ? inset : -inset}px)`;
+                const y = `calc(${p.yPercent}% + ${p.yPercent < 50 ? inset : -inset}px)`;
+                return <div key={i} className="absolute h-3 w-3 rounded-full bg-slate-100 border border-slate-700 shadow" style={{ left: x, top: y, transform:'translate(-50%,-50%)' }}><div className="absolute inset-[3px] rounded-full bg-slate-700"/></div>;
               })}
-            </svg>
+            </div>
 
             {busy==='generate' && <div className="absolute inset-0 bg-black/60 grid place-items-center"><div className="text-center"><div className="mx-auto mb-3 h-8 w-8 border-4 border-yellow-400 border-r-transparent rounded-full animate-spin"/><p className="text-white font-semibold">Generating your banner design...</p></div></div>}
           </div>
