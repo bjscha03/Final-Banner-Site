@@ -81,7 +81,6 @@ const AIDesignerPage: React.FC = () => {
 
   const [sizeMode, setSizeMode] = useState<'popular'|'custom'>('popular');
   const [size, setSize] = useState(POPULAR_SIZES[4]);
-  const [useFeet, setUseFeet] = useState(true);
   const [wInput, setWInput] = useState(8);
   const [hInput, setHInput] = useState(4);
   const [material, setMaterial] = useState<MaterialKey>('13oz');
@@ -103,6 +102,7 @@ const AIDesignerPage: React.FC = () => {
   const [generationFallbackNote, setGenerationFallbackNote] = useState('');
   const [debugOutput, setDebugOutput] = useState('');
   const [cartMessage, setCartMessage] = useState('');
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [promoCode, setPromoCode] = useState('');
 
   const [history, setHistory] = useState<Snap[]>([]);
@@ -114,8 +114,8 @@ const AIDesignerPage: React.FC = () => {
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const dragState = useRef<{ type: 'move'; startX: number; startY: number; origin: typeof imageTransform } | null>(null);
 
-  const widthFt = sizeMode === 'popular' ? size.w : (useFeet ? wInput : wInput / 12);
-  const heightFt = sizeMode === 'popular' ? size.h : (useFeet ? hInput : hInput / 12);
+  const widthFt = sizeMode === 'popular' ? size.w : Math.max(1, Math.round(wInput));
+  const heightFt = sizeMode === 'popular' ? size.h : Math.max(1, Math.round(hInput));
   const widthIn = Math.max(12, Math.round(widthFt * 12));
   const heightIn = Math.max(12, Math.round(heightFt * 12));
   const areaSqFt = (widthIn * heightIn) / 144;
@@ -232,10 +232,38 @@ const AIDesignerPage: React.FC = () => {
   const fill = () => setImageTransform({ x: 0, y: 0, scale: 1, mode: 'fill' });
   const reset = () => { setImageTransform({ x: 0, y: 0, scale: 1, mode: 'fill' }); setSelected(false); };
 
+
+  const resetDesigner = () => {
+    setPrompt('');
+    setEnhancedPrompt('');
+    setEditInstruction('');
+    setReferenceImage(null);
+    setImageUrl(null);
+    setSelected(false);
+    setHistory([]);
+    setImageTransform({ x: 0, y: 0, scale: 1, mode: 'fill' });
+    setFinishingType('none');
+    setGrommetOption('none');
+    setRopePlacement('none');
+    setPolePocketPlacement('none');
+    setSizeMode('popular');
+    setSize(POPULAR_SIZES[4]);
+    setWInput(8);
+    setHInput(4);
+    setMaterial('13oz');
+    setQuantity(1);
+    setErrorOutput('');
+    setGenerationFallbackNote('');
+    setDebugOutput('');
+    setBusy(null);
+  };
+
   const addToCartFromAI = async () => {
     try {
+      if (isAddingToCart) return;
+      setIsAddingToCart(true);
       setCartMessage('');
-      if (!imageUrl) return setCartMessage('Add to cart failed: no generated image.');
+      if (!imageUrl) { setCartMessage('Add to cart failed: no generated image.'); setIsAddingToCart(false); return; }
       const subtotal = pricing.subtotalCents / 100;
       const tax = (pricing.subtotalCents * TAX_RATE) / 100;
       const total = subtotal + tax;
@@ -252,9 +280,20 @@ const AIDesignerPage: React.FC = () => {
         pricingBreakdown: { subtotal, tax, total, materialRate: pricing.materialPricePerSqFtCents / 100 },
         canvasStateJson: JSON.stringify({ imageTransform, finishingType, grommetOption, ropePlacement, polePocketPlacement }),
       });
-      setCartMessage(id ? 'Added to cart.' : 'Add to cart failed.');
+      if (id) {
+        setCartMessage('Added to cart.');
+        setTimeout(() => {
+          resetDesigner();
+          setCartMessage('');
+          setIsAddingToCart(false);
+        }, 1000);
+      } else {
+        setCartMessage('Add to cart failed.');
+        setIsAddingToCart(false);
+      }
     } catch (e: any) {
       setCartMessage(`Add to cart failed: ${e?.message || 'Unknown error'}`);
+      setIsAddingToCart(false);
     }
   };
 
@@ -347,7 +386,7 @@ const AIDesignerPage: React.FC = () => {
     <aside className="border border-white/10 bg-[#12151d] p-5">
       <h2 className="text-3xl font-black">BANNER OPTIONS</h2>
       <label className="block mt-3">Size Mode<select value={sizeMode} onChange={(e)=>setSizeMode(e.target.value as any)} className="mt-1 w-full bg-black border border-white/20 p-2"><option value="popular">Popular Sizes</option><option value="custom">Custom Size</option></select></label>
-      {sizeMode==='popular' ? <select value={size.label} onChange={(e)=>setSize(POPULAR_SIZES.find(s=>s.label===e.target.value) || POPULAR_SIZES[0])} className="mt-2 w-full bg-black border border-white/20 p-2">{POPULAR_SIZES.map(s=><option key={s.label}>{s.label}</option>)}</select> : <div className="mt-2 space-y-2"><button onClick={()=>setUseFeet((v)=>!v)} className="w-full border border-white/20 p-2 rounded">Units: {useFeet?'Feet':'Inches'}</button><input type="number" value={wInput} onChange={e=>setWInput(Number(e.target.value)||1)} className="w-full bg-black border border-white/20 p-2"/><input type="number" value={hInput} onChange={e=>setHInput(Number(e.target.value)||1)} className="w-full bg-black border border-white/20 p-2"/></div>}
+      {sizeMode==='popular' ? <select value={size.label} onChange={(e)=>setSize(POPULAR_SIZES.find(s=>s.label===e.target.value) || POPULAR_SIZES[0])} className="mt-2 w-full bg-black border border-white/20 p-2">{POPULAR_SIZES.map(s=><option key={s.label}>{s.label}</option>)}</select> : <div className="mt-2 space-y-2"><label className="block text-sm">Width (ft)<input type="number" step={1} value={wInput} onChange={e=>setWInput(Math.max(1, Math.round(Number(e.target.value)||1)))} className="mt-1 w-full bg-black border border-white/20 p-2"/></label><label className="block text-sm">Height (ft)<input type="number" step={1} value={hInput} onChange={e=>setHInput(Math.max(1, Math.round(Number(e.target.value)||1)))} className="mt-1 w-full bg-black border border-white/20 p-2"/></label></div>}
       <p className="mt-2 text-xs text-gray-300">{areaSqFt.toFixed(2)} sq ft • {widthIn} in x {heightIn} in</p>
 
       <label className="block mt-2">Material<select value={material} onChange={(e)=>setMaterial(e.target.value as MaterialKey)} className="mt-1 w-full bg-black border border-white/20 p-2">{MATERIALS.map(m=><option key={m.value} value={m.value}>{m.label}</option>)}</select></label>
@@ -381,7 +420,7 @@ const AIDesignerPage: React.FC = () => {
       </div>
       <p className="mt-3 text-xs text-center text-gray-400">FREE Next-Day Air Included • Tax calculated at checkout</p>
 
-      <button onClick={addToCartFromAI} disabled={!imageUrl} className="mt-3 w-full bg-[#D4AF37] hover:bg-[#e5c76a] text-black font-bold py-3 disabled:opacity-40 disabled:cursor-not-allowed">ADD TO CART</button>
+      <button onClick={addToCartFromAI} disabled={!imageUrl || isAddingToCart} className="mt-3 w-full bg-[#D4AF37] hover:bg-[#e5c76a] text-black font-bold py-3 disabled:opacity-40 disabled:cursor-not-allowed">{isAddingToCart ? 'Adding...' : cartMessage === 'Added to cart.' ? 'Added' : 'ADD TO CART'}</button>
       {cartMessage && <p className={`mt-2 text-sm ${cartMessage === 'Added to cart.' ? 'text-emerald-400' : 'text-red-400'}`}>{cartMessage}</p>}
     </aside>
   </div></section></Layout>;
