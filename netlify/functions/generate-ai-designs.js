@@ -14,7 +14,7 @@ cloudinary.config({
 });
 
 const json = (statusCode, payload) => ({ statusCode, headers: CORS, body: JSON.stringify(payload) });
-const fallbackEnhance = (p, size) => `Design a premium ${size?.w || 8}ft x ${size?.h || 4}ft banner. Keep high contrast readable typography, clean hierarchy, and full-bleed composition. Prompt: ${p}`;
+const fallbackEnhance = (p, size) => `Design a premium ${size?.w || 8}ft x ${size?.h || 4}ft banner. Keep high contrast readable typography, clean hierarchy, and full-bleed composition. Create flat, full-bleed print-ready banner artwork only. Do not generate a banner mockup, fence, wall, room, pole, hanging banner, folded material, grommets, shadows, or real-world scene. Prompt: ${p}`;
 const SUPPORTED_IMAGEN_RATIOS = ['1:1', '9:16', '16:9', '4:3', '3:4'];
 
 const FALLBACK_IMAGE_URL = 'https://res.cloudinary.com/dtrxl120u/image/upload/f_auto,q_auto,w_1600,h_800,c_fill/v1769209469/White-Label_Banners_-2_from_4over_nedg8n.png';
@@ -139,7 +139,7 @@ export async function handler(event) {
     }
 
     if (action === 'generate') {
-      const sourcePrompt = String(body.enhancedPrompt || body.prompt || '').trim();
+      const sourcePrompt = `${guard}\n${String(body.enhancedPrompt || body.prompt || '').trim()}`;
       if (!sourcePrompt) return json(400, { ok: false, action, error: 'Prompt required' });
 
       const targetW = Number(body?.size?.w) || 8;
@@ -207,6 +207,29 @@ export async function handler(event) {
         requestedBannerRatio: `${targetW}:${targetH}`,
         generatedImagenRatio: imagenAspectRatio,
         safeErrorMessage: null,
+      });
+    }
+
+
+    if (action === 'edit') {
+      const currentImageUrl = String(body.imageUrl || '').trim();
+      const editInstruction = String(body.editInstruction || '').trim();
+      if (!currentImageUrl) return json(400, { ok: false, action, error: 'Image is required' });
+      if (!editInstruction) return json(400, { ok: false, action, error: 'Edit instruction required' });
+      return json(200, {
+        ok: true,
+        action,
+        imageUrl: FALLBACK_IMAGE_URL,
+        image: {
+          url: FALLBACK_IMAGE_URL,
+          original_url: currentImageUrl,
+          width: (Number(body?.size?.w) || 8) * 100,
+          height: (Number(body?.size?.h) || 4) * 100,
+        },
+        generationFallback: true,
+        fallbackReason: 'imagen_paid_access_required',
+        count: 1,
+        safeErrorMessage: 'Temporary fallback image used because Imagen paid access is required.',
       });
     }
 
