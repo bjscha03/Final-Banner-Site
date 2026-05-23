@@ -1,0 +1,2 @@
+import React from 'react';
+export const AdminAIActions=(p:any)=><div className='grid grid-cols-1 gap-2'><button disabled={p.isEnhancing} onClick={p.enhance} className='bg-[#d9a625] text-black py-2 font-semibold disabled:opacity-50'>Enhance Prompt with AI</button><button onClick={p.revertPrompt} className='border border-zinc-600 py-2'>Revert to Original</button><button disabled={p.isGenerating} onClick={p.generate} className='bg-white text-black py-2 font-semibold disabled:opacity-50'>Generate Design</button></div>;
