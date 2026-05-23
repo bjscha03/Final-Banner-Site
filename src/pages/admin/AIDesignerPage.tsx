@@ -203,6 +203,24 @@ const AIDesignerPage: React.FC = () => {
     return { body };
   };
 
+
+  const getImageBox = () => {
+    const canvasW = 100;
+    const canvasH = 100;
+    const bannerRatio = widthIn / heightIn;
+    const imgRatio = 16 / 9;
+    let baseW = 100, baseH = 100;
+    if (imageTransform.mode === 'fit') {
+      if (imgRatio > bannerRatio) { baseW = 100; baseH = (bannerRatio / imgRatio) * 100; }
+      else { baseH = 100; baseW = (imgRatio / bannerRatio) * 100; }
+    }
+    const w = baseW * imageTransform.scaleX;
+    const h = baseH * imageTransform.scaleY;
+    const left = (canvasW - baseW) / 2 + (imageTransform.x / 6);
+    const top = (canvasH - baseH) / 2 + (imageTransform.y / 6);
+    return { left, top, w, h };
+  };
+
   const marks = (n: number, pxLen: number) => {
     const max = Math.floor(n);
     const pxPerUnit = pxLen / Math.max(1, n);
@@ -274,29 +292,45 @@ const AIDesignerPage: React.FC = () => {
     </aside>
 
     <main className="border border-white/10 bg-[#11151d] p-6">
-      <div className="mt-2 mx-auto max-w-4xl pl-12 pb-14" onMouseDown={(e)=>{ if (e.target === e.currentTarget) setSelected(false); }}>
-        <div ref={canvasRef} className="relative w-full bg-black border border-white/30 overflow-visible" style={{ aspectRatio: `${widthIn}/${heightIn}` }}>
-          {imageUrl ? <div className="absolute inset-0 overflow-hidden">
-            <img src={imageUrl} alt="Generated banner" className="w-full h-full cursor-move select-none" draggable={false}
-              style={{ transform: `translate(${imageTransform.x}px, ${imageTransform.y}px) scale(${imageTransform.scaleX}, ${imageTransform.scaleY})`, transformOrigin: 'center', objectFit: imageTransform.mode==='fit'?'contain':'cover' }}
-              onMouseDown={(e)=>{ e.stopPropagation(); setSelected(true); dragState.current={type:'move',startX:e.clientX,startY:e.clientY,origin:imageTransform}; }} />
-            {selected && <div className="absolute inset-1 border border-blue-400 pointer-events-none"/>}
-            {selected && ['tl','tr','bl','br'].map((h)=> <button key={h} className={`absolute h-3 w-3 rounded-sm bg-white border border-blue-500 ${h==='tl'?'left-0 top-0 -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize':h==='tr'?'right-0 top-0 translate-x-1/2 -translate-y-1/2 cursor-nesw-resize':h==='bl'?'left-0 bottom-0 -translate-x-1/2 translate-y-1/2 cursor-nesw-resize':'right-0 bottom-0 translate-x-1/2 translate-y-1/2 cursor-nwse-resize'}`} onMouseDown={(e)=>{ e.stopPropagation(); dragState.current={type:'scale',startX:e.clientX,startY:e.clientY,origin:imageTransform}; }} />)}
-          </div> : <div className="absolute inset-0 grid place-items-center text-white/90 font-semibold">Generate or upload an image</div>}
+      <div className="mt-2 mx-auto max-w-4xl">
+        <div className="relative pl-14 pb-16 pr-4 pt-4">
+          <div className="absolute left-0 top-4 bottom-16 w-12 pointer-events-none">
+            <div className="absolute inset-0 border-r border-white/40" />
+            {marks(heightFt, 320).map((i)=> <div key={`y-${i}`} className="absolute" style={{ top:`${(i/Math.max(1,heightFt))*100}%`, right:'4px', transform:'translateY(-50%)' }}><div className="h-px w-2 bg-white/80 ml-auto"/><span className="text-[10px] text-white/90 whitespace-nowrap block text-right">{i} ft</span></div>)}
+          </div>
 
-          <svg className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none" viewBox="0 0 100 100">
-            {grommetPositions.map((p, i) => <circle key={i} cx={p.xPercent} cy={p.yPercent} r="0.7" fill="#dbeafe" stroke="#64748b" strokeWidth="0.35" />)}
-          </svg>
+          <div ref={canvasRef} className="relative w-full bg-black border border-white/30" style={{ aspectRatio: `${widthIn}/${heightIn}` }} onMouseDown={(e)=>{ if (e.target === e.currentTarget) setSelected(false); }}>
+            {imageUrl ? <div className="absolute inset-0 overflow-hidden">
+              <img src={imageUrl} alt="Generated banner" className="w-full h-full cursor-move select-none" draggable={false}
+                style={{ transform: `translate(${imageTransform.x}px, ${imageTransform.y}px) scale(${imageTransform.scaleX}, ${imageTransform.scaleY})`, transformOrigin: 'center', objectFit: imageTransform.mode==='fit'?'contain':'cover' }}
+                onMouseDown={(e)=>{ e.stopPropagation(); setSelected(true); dragState.current={type:'move',startX:e.clientX,startY:e.clientY,origin:imageTransform}; }} />
+              {selected && (()=>{ const b=getImageBox(); return <>
+                <div className="absolute border border-blue-400 pointer-events-none" style={{ left:`${b.left}%`, top:`${b.top}%`, width:`${b.w}%`, height:`${b.h}%` }} />
+                {['tl','tr','bl','br'].map((h)=>{
+                  const pos:any = h==='tl'?{left:b.left,top:b.top,c:'cursor-nwse-resize'}:h==='tr'?{left:b.left+b.w,top:b.top,c:'cursor-nesw-resize'}:h==='bl'?{left:b.left,top:b.top+b.h,c:'cursor-nesw-resize'}:{left:b.left+b.w,top:b.top+b.h,c:'cursor-nwse-resize'};
+                  return <button key={h} className={`absolute h-3 w-3 rounded-sm bg-white border border-blue-500 ${pos.c}`} style={{left:`${pos.left}%`,top:`${pos.top}%`,transform:'translate(-50%,-50%)'}} onMouseDown={(e)=>{ e.stopPropagation(); dragState.current={type:'scale',startX:e.clientX,startY:e.clientY,origin:imageTransform}; }} />;
+                })}
+              </>;})()}
+            </div> : <div className="absolute inset-0 grid place-items-center text-white/90 font-semibold">Generate or upload an image</div>}
 
-          {busy==='generate' && <div className="absolute inset-0 bg-black/60 grid place-items-center"><div className="text-center"><div className="mx-auto mb-3 h-8 w-8 border-4 border-yellow-400 border-r-transparent rounded-full animate-spin"/><p className="text-white font-semibold">Generating your banner design...</p></div></div>}
+            <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
+              {grommetPositions.map((p, i) => {
+                const inset = 1.4;
+                const x = Math.min(100-inset, Math.max(inset, p.xPercent));
+                const y = Math.min(100-inset, Math.max(inset, p.yPercent));
+                return <g key={i}><circle cx={x+0.2} cy={y+0.2} r="1.0" fill="#000" opacity="0.22"/><circle cx={x} cy={y} r="0.95" fill="#e5e7eb" stroke="#475569" strokeWidth="0.35"/></g>;
+              })}
+            </svg>
 
-          <div className="absolute left-0 right-0 bottom-0 border-t border-white/50" />
-          <div className="absolute top-0 bottom-0 left-0 border-l border-white/50" />
-          {marks(widthFt, 720).map((i)=> <div key={`x-${i}`} className="absolute" style={{ left:`${(i/Math.max(1,widthFt))*100}%`, top:'100%', marginTop:'6px', transform:'translateX(-50%)' }}><div className="w-px h-3 bg-white/80 mx-auto"/><span className="text-[10px] text-white/90 whitespace-nowrap">{i} ft</span></div>)}
-          {marks(heightFt, 320).map((i)=> <div key={`y-${i}`} className="absolute" style={{ top:`${(i/Math.max(1,heightFt))*100}%`, right:'100%', marginRight:'8px', transform:'translateY(-50%)' }}><div className="h-px w-3 bg-white/80 ml-auto"/><span className="text-[10px] text-white/90 whitespace-nowrap">{i} ft</span></div>)}
+            {busy==='generate' && <div className="absolute inset-0 bg-black/60 grid place-items-center"><div className="text-center"><div className="mx-auto mb-3 h-8 w-8 border-4 border-yellow-400 border-r-transparent rounded-full animate-spin"/><p className="text-white font-semibold">Generating your banner design...</p></div></div>}
+          </div>
+
+          <div className="absolute left-14 right-4 bottom-10 h-6 pointer-events-none border-t border-white/40">
+            {marks(widthFt, 720).map((i)=> <div key={`x-${i}`} className="absolute" style={{ left:`${(i/Math.max(1,widthFt))*100}%`, top:'0', transform:'translateX(-50%)' }}><div className="w-px h-2 bg-white/80 mx-auto"/><span className="text-[10px] text-white/90 whitespace-nowrap block text-center mt-1">{i} ft</span></div>)}
+          </div>
         </div>
 
-        <div className="mt-4 flex gap-2">
+        <div className="mt-2 flex gap-2">
           <button onClick={fit} className="px-3 py-1 border border-white/20 rounded">Fit</button>
           <button onClick={fill} className="px-3 py-1 border border-white/20 rounded">Fill</button>
           <button onClick={reset} className="px-3 py-1 border border-white/20 rounded">Reset</button>
