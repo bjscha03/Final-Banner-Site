@@ -202,7 +202,7 @@ const AIDesignerPage: React.FC = () => {
     if (action === 'generate') {
       console.log('[AI Designer] selectedImageProvider', selectedImageProvider);
       console.log('[AI Designer] generate payload imageProvider', payload.imageProvider);
-      console.log('[AI Designer] Generate payload', payload);
+      console.log('[AI Designer] FINAL GENERATE PAYLOAD', JSON.stringify(payload, null, 2));
     }
     const res = await fetch('/.netlify/functions/generate-ai-designs', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
     let jsonParsed = true;
@@ -360,6 +360,8 @@ const AIDesignerPage: React.FC = () => {
       <textarea value={enhancedPrompt} onChange={(e)=>setEnhancedPrompt(e.target.value)} rows={5} className="w-full bg-black/60 border border-white/20 rounded p-3" placeholder="Enhanced prompt will appear here after AI enhancement..." />
       <input type="file" accept="image/*" onChange={async(e)=>{const f=e.target.files?.[0]; if(f) setReferenceImage(await readFile(f));}} className="block w-full text-sm"/>
       <label className="block text-xs text-white/70">Image Provider<select value={selectedImageProvider} onChange={(e)=>setSelectedImageProvider(e.target.value as 'openai'|'imagen')} className="mt-1 w-full bg-black border border-white/20 p-2 text-sm"><option value="openai">OpenAI (Default)</option><option value="imagen">Imagen</option></select></label>
+      <p className="text-[11px] text-cyan-300/90">Selected provider state: {selectedImageProvider}</p>
+      <p className="text-[11px] text-cyan-300/90">Generate will send: {selectedImageProvider}</p>
       <button disabled={busy!==null||!(enhancedPrompt||prompt).trim()} onClick={async()=>{setBusy('generate');setErrorOutput('');setSuccessOutput('');setBorderWarning('');setGenerationFallbackNote('');try{const {body,jsonParsed}=await callFn('generate'); if(!jsonParsed){setErrorOutput('Invalid JSON response from function');return;} if(body?.image?.url||body?.imageUrl){ setErrorOutput(''); saveSnapshot(); setImageUrl(body?.image?.url||body?.imageUrl); setImageTransform({ x: 0, y: 0, scale: 1, mode: 'fill' }); if(body?.generationFallback){ setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.'); setDebugOutput(JSON.stringify({ generationFallback: true, fallbackReason: body?.fallbackReason ?? null, imagenStatus: body?.imagenStatus ?? null, imagenProviderMessage: body?.imagenProviderMessage ?? null, selectedImageModel: body?.selectedImageModel ?? null, imagenRawResponseFirst500: body?.imagenRawResponseFirst500 ?? null }, null, 2)); } else { setSuccessOutput('Generated one print-ready banner composition.'); if (body?.debug) setDebugOutput(JSON.stringify(body.debug, null, 2)); }} else setErrorOutput(body?.safeErrorMessage||body?.error||'Generate failed.');}finally{setBusy(null);}}} className="w-full bg-yellow-700 text-black font-bold py-3 inline-flex items-center justify-center gap-2 disabled:opacity-50">{busy==='generate'?<><Spinner/>Generating Design...</>:'⚡ GENERATE DESIGN'}</button>
       {imageUrl && <>
         <input value={editInstruction} onChange={(e)=>setEditInstruction(e.target.value)} className="w-full bg-black/60 border border-white/20 rounded p-2" placeholder="Edit instruction"/>
