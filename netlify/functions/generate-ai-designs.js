@@ -34,6 +34,7 @@ The design must use the entire banner width and height as the active composition
 Do NOT generate white borders, margins, poster framing, centered artwork blocks, mockups, fences, walls, poles, hanging banners, product shots, environmental scenes, multiple concepts, split layouts, collages, design sheets, framed rectangles, drop-shadow poster effects, or unused whitespace.`;
 
 const FALLBACK_IMAGE_URL = 'https://res.cloudinary.com/dtrxl120u/image/upload/f_auto,q_auto,w_1600,h_800,c_fill/v1769209469/White-Label_Banners_-2_from_4over_nedg8n.png';
+const OPENAI_BASE = 'https://api.openai.com/v1';
 
 function isImagenPaidAccessError(payload, status) {
   const msg = String(payload?.error?.message || payload?.message || '').toLowerCase();
@@ -46,6 +47,32 @@ async function fetchModels(apiKey) {
   const body = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(body?.error?.message || 'models endpoint failed');
   return body.models || [];
+}
+async function callOpenAIImageGenerate({ apiKey, prompt, size = '1536x1024', model = 'gpt-image-2', referenceImage, editBaseImage }) {
+  const input = [];
+  if (referenceImage) input.push({ type: 'input_image', image_data: String(referenceImage).replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '') });
+  if (editBaseImage) input.push({ type: 'input_image', image_url: editBaseImage });
+  input.push({ type: 'input_text', text: prompt });
+
+  const r = await fetch(`${OPENAI_BASE}/responses`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model,
+      input,
+      tools: [{ type: 'image_generation', size }],
+    }),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d?.error?.message || `OpenAI image generation failed (${r.status})`);
+  const out = d?.output || [];
+  for (const item of out) {
+    const content = item?.content || [];
+    for (const c of content) {
+      if (c?.type === 'output_image' && c?.image_base64) return { b64: c.image_base64, modelUsed: model, providerStatus: r.status };
+    }
+  }
+  throw new Error('OpenAI returned no image output.');
 }
 
 function resolveModels(models) {
@@ -213,6 +240,7 @@ export async function handler(event) {
       : process.env.GOOGLE_AI_API_KEY
         ? 'GOOGLE_AI_API_KEY'
         : null;
+  const openaiApiKey = process.env.OPENAI_API_KEY || '';
 
   console.log('[generate-ai-designs] matched env var:', matchedEnvName || 'none');
 
@@ -252,6 +280,7 @@ export async function handler(event) {
         modelsEndpointReachable: models.length > 0,
         selectedTextModel: textModel,
         selectedImageModel: imageModel,
+        openaiConfigured: Boolean(openaiApiKey),
         safeErrorMessage: null,
       });
     }
@@ -277,6 +306,7 @@ export async function handler(event) {
     }
 
     if (action === 'generate') {
+      const imageProvider = String(body.imageProvider || 'openai').toLowerCase() === 'imagen' ? 'imagen' : 'openai';
       const rawUserPrompt = sanitizeSinglePrompt(body.prompt || '');
       const allowedTextList = extractAllowedTextList(rawUserPrompt);
       const referenceProfile = await analyzeReferenceImage({ apiKey: googleApiKey, textModel, referenceImage: body.referenceImage });
@@ -299,12 +329,42 @@ export async function handler(event) {
         return json(200, { ok: false, action, imageUrl: null, safeErrorMessage: 'Unsupported mapped Imagen ratio.' });
       }
 
-      const r = await fetch(`${GEMINI_BASE}/models/${imageModel}:predict?key=${encodeURIComponent(googleApiKey)}`, {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ instances: [{ prompt: sourcePrompt }], parameters: { sampleCount: 1, aspectRatio: imagenAspectRatio } }),
-      });
-      const d = await r.json().catch(() => ({}));
-      if (!r.ok) {
+      let b64 = '';
+      let provider = imageProvider;
+      let modelUsed = imageModel;
+      let providerStatus = 200;
+      let fallbackReason = null;
+      if (imageProvider === 'openai' && openaiApiKey) {
+        try {
+          const openaiModelCandidates = ['gpt-image-2', 'gpt-image-1.5', 'gpt-image-1'];
+          let lastErr = null;
+          for (const m of openaiModelCandidates) {
+            try {
+              const result = await callOpenAIImageGenerate({ apiKey: openaiApiKey, prompt: sourcePrompt, size: '1536x1024', model: m, referenceImage: body.referenceImage });
+              b64 = result.b64;
+              modelUsed = result.modelUsed;
+              providerStatus = result.providerStatus;
+              break;
+            } catch (e) { lastErr = e; }
+          }
+          if (!b64) throw lastErr || new Error('No OpenAI model produced an image.');
+        } catch (e) {
+          provider = 'imagen';
+          fallbackReason = 'openai_failed_fallback_to_imagen';
+        }
+      } else {
+        provider = 'imagen';
+      }
+
+      if (provider === 'imagen') {
+        const r = await fetch(`${GEMINI_BASE}/models/${imageModel}:predict?key=${encodeURIComponent(googleApiKey)}`, {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ instances: [{ prompt: sourcePrompt }], parameters: { sampleCount: 1, aspectRatio: imagenAspectRatio } }),
+        });
+        const d = await r.json().catch(() => ({}));
+        providerStatus = r.status;
+        modelUsed = imageModel;
+        if (!r.ok) {
         if (isImagenPaidAccessError(d, r.status)) {
           const imagenProviderMessage = String(d?.error?.message || d?.message || 'Unknown provider error');
           const imagenRawResponseFirst500 = JSON.stringify(d || {}).slice(0, 500);
@@ -333,8 +393,8 @@ export async function handler(event) {
         }
         return json(200, { ok: false, action, imageUrl: null, safeErrorMessage: d?.error?.message || 'Image generation failed. Please try again.' });
       }
-
-      const b64 = d?.predictions?.[0]?.bytesBase64Encoded;
+        b64 = d?.predictions?.[0]?.bytesBase64Encoded;
+      }
       if (!b64) return json(200, { ok: false, action, imageUrl: null, safeErrorMessage: 'No image returned from model.' });
 
       if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
@@ -386,11 +446,13 @@ export async function handler(event) {
           height: upload.height || targetH * 100,
         },
         generationFallback: false,
-        fallbackReason: null,
+        fallbackReason,
+        provider,
+        imageProvider: provider,
         count: 1,
         requestedBannerRatio: `${targetW}:${targetH}`,
         generatedImagenRatio: imagenAspectRatio,
-        debug: { rawUserPrompt, referenceType: referenceProfile.referenceType, logoDetected: referenceProfile.logoLikely, logoCompositeMode, logoCompositedDirectly, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), whitespaceScore, edgeCoverageScore, centeredPosterLikelihood, finalProductionPrompt: sourcePrompt },
+        debug: { rawUserPrompt, imageProvider: provider, modelUsed, providerStatus, referenceType: referenceProfile.referenceType, logoDetected: referenceProfile.logoLikely, logoCompositeMode, logoCompositedDirectly, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), whitespaceScore, edgeCoverageScore, centeredPosterLikelihood, finalProductionPrompt: sourcePrompt, fallbackReason },
         safeErrorMessage: null,
       });
     }
@@ -422,13 +484,31 @@ Preserve the existing banner canvas ratio and convert the design to full-bleed e
 Refine the existing banner concept while preserving core theme and layout intent.
 Current image URL: ${currentImageUrl}
 Edit instruction: ${directedEditInstruction}`;
-      const r = await fetch(`${GEMINI_BASE}/models/${imageModel}:predict?key=${encodeURIComponent(googleApiKey)}`, {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ instances: [{ prompt: editPrompt }], parameters: { sampleCount: 1, aspectRatio: imagenAspectRatio } }),
-      });
-      const d = await r.json().catch(() => ({}));
-      if (!r.ok) return json(200, { ok: false, action, safeErrorMessage: d?.error?.message || 'Edit generation failed.' });
-      const b64 = d?.predictions?.[0]?.bytesBase64Encoded;
+      const imageProvider = String(body.imageProvider || 'openai').toLowerCase() === 'imagen' ? 'imagen' : 'openai';
+      let b64 = '';
+      let provider = imageProvider;
+      let modelUsed = imageModel;
+      let providerStatus = 200;
+      if (imageProvider === 'openai' && openaiApiKey) {
+        const openaiModelCandidates = ['gpt-image-2', 'gpt-image-1.5', 'gpt-image-1'];
+        for (const m of openaiModelCandidates) {
+          try {
+            const result = await callOpenAIImageGenerate({ apiKey: openaiApiKey, prompt: editPrompt, size: '1536x1024', model: m, referenceImage: body.referenceImage, editBaseImage: currentImageUrl });
+            b64 = result.b64; modelUsed = result.modelUsed; providerStatus = result.providerStatus; break;
+          } catch {}
+        }
+      }
+      if (!b64) {
+        provider = 'imagen';
+        const r = await fetch(`${GEMINI_BASE}/models/${imageModel}:predict?key=${encodeURIComponent(googleApiKey)}`, {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ instances: [{ prompt: editPrompt }], parameters: { sampleCount: 1, aspectRatio: imagenAspectRatio } }),
+        });
+        const d = await r.json().catch(() => ({}));
+        providerStatus = r.status;
+        if (!r.ok) return json(200, { ok: false, action, safeErrorMessage: d?.error?.message || 'Edit generation failed.' });
+        b64 = d?.predictions?.[0]?.bytesBase64Encoded;
+      }
       if (!b64) return json(200, { ok: false, action, safeErrorMessage: 'No edited image returned from model.' });
       const upload = await cloudinary.uploader.upload(`data:image/png;base64,${b64}`, { folder: 'ai-generated-banners', resource_type: 'image' });
       let canonicalImageUrl = cloudinaryRatioTransformUrlAggressive(upload.public_id, targetW, targetH);
@@ -460,7 +540,7 @@ Edit instruction: ${directedEditInstruction}`;
           logoCompositeMode = 'reserved_logo_safe_area';
         }
       }
-      return json(200, { ok: true, action, imageUrl: canonicalImageUrl, image: { url: canonicalImageUrl, original_url: upload.secure_url || canonicalImageUrl, width: upload.width || targetW * 100, height: upload.height || targetH * 100 }, editFallback: false, debug: { rawUserPrompt, referenceType: referenceProfile.referenceType, logoDetected: referenceProfile.logoLikely, logoCompositeMode, logoCompositedDirectly, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), whitespaceScore, edgeCoverageScore, centeredPosterLikelihood, finalProductionPrompt: editPrompt }, safeErrorMessage: null });
+      return json(200, { ok: true, action, imageUrl: canonicalImageUrl, image: { url: canonicalImageUrl, original_url: upload.secure_url || canonicalImageUrl, width: upload.width || targetW * 100, height: upload.height || targetH * 100 }, editFallback: false, provider, imageProvider: provider, debug: { rawUserPrompt, imageProvider: provider, modelUsed, providerStatus, referenceType: referenceProfile.referenceType, logoDetected: referenceProfile.logoLikely, logoCompositeMode, logoCompositedDirectly, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), whitespaceScore, edgeCoverageScore, centeredPosterLikelihood, finalProductionPrompt: editPrompt }, safeErrorMessage: null });
     }
 
     return json(400, { ok: false, action, error: 'Unknown action' });
