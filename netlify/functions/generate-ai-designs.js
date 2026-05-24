@@ -366,10 +366,16 @@ async function handlerCore(event) {
   }
 
   try {
-    const models = await fetchModels(googleApiKey);
-    const { textModel, imageModel } = resolveModels(models);
+    let textModel = 'gemini-1.5-flash';
+    let imageModel = 'imagen-4.0-generate-001';
 
     if (action === 'debug') {
+      const models = await fetchModels(googleApiKey).catch(() => []);
+      if (models.length > 0) {
+        const resolved = resolveModels(models);
+        textModel = resolved.textModel;
+        imageModel = resolved.imageModel;
+      }
       return safeJsonResponse(200, {
         ok: true, action, functionReachable: true,
         env: { hasGoogleApiKey: Boolean(googleApiKey) }, matchedEnvName,
@@ -418,60 +424,20 @@ async function handlerCore(event) {
         ...extra,
       });
 
-      let receivedImageProvider;
-      let requestedProvider;
-      let rawUserPrompt;
-      let allowedTextList;
-      let referenceProfile;
-      let sourcePrompt;
-      let targetW;
-      let targetH;
-      let modelUsed = 'gpt-image-1';
-      let providerStatus = 200;
-      let b64 = '';
-
-      try {
-        receivedImageProvider = body.imageProvider;
-        requestedProvider = receivedImageProvider === 'imagen' ? 'imagen' : 'openai';
-        rawUserPrompt = sanitizeSinglePrompt(body.prompt || body.enhancedPrompt || '');
-        allowedTextList = extractAllowedTextList(rawUserPrompt);
-        targetW = Number(body?.size?.w ?? body?.width) || 8;
-        targetH = Number(body?.size?.h ?? body?.height) || 4;
-        if (!rawUserPrompt) return safeJsonResponse(400, { ok: false, action, error: 'prompt_required', stage: 'parse_generate_payload', safeErrorMessage: 'Prompt required.' });
-      } catch (error) {
-        return generateError('parse_generate_payload', error);
+      const receivedImageProvider = body.imageProvider;
+      const requestedProvider = receivedImageProvider === 'imagen' ? 'imagen' : 'openai';
+      const targetW = Number(body?.size?.w ?? body?.width) || 8;
+      const targetH = Number(body?.size?.h ?? body?.height) || 4;
+      const promptBase = sanitizeSinglePrompt(body.enhancedPrompt || body.prompt || '');
+      if (!promptBase) {
+        return safeJsonResponse(400, { ok: false, action: 'generate', error: 'prompt_required', stage: 'parse_generate_payload', safeErrorMessage: 'Prompt required.' });
       }
 
-      try {
-        referenceProfile = await analyzeReferenceImage({ apiKey: googleApiKey, textModel, referenceImage: body.referenceImage });
-        const artDirectedPrompt = await buildArtDirectedPrompt({
-          apiKey: googleApiKey,
-          textModel,
-          userPrompt: sanitizeSinglePrompt(body.enhancedPrompt || body.prompt),
-          referenceProfile,
-          mode: 'generate',
-          allowedTextList,
-        });
-        sourcePrompt = `${GENERATION_GUARDRAIL}
+      const sourcePrompt = `${GENERATION_GUARDRAIL}
 ${FULL_BLEED_PREPEND}
 ${MOCKUP_BAN_PREPEND}
 ${HARDWARE_BAN_PREPEND}
-${artDirectedPrompt}`;
-        if (!sourcePrompt) return safeJsonResponse(400, { ok: false, action, error: 'art_direction_failed', stage: 'art_direction', safeErrorMessage: 'Unable to build production prompt.' });
-      } catch (error) {
-        return generateError('art_direction', error);
-      }
-
-      if (String(body?.generateStage || '') === 'stage1') {
-        return safeJsonResponse(200, {
-          ok: true,
-          action: 'generate',
-          stage: 'stage1_art_direction_only',
-          receivedImageProvider: receivedImageProvider || null,
-          requestedProvider,
-          finalProductionPrompt: sourcePrompt,
-        });
-      }
+${promptBase}`;
 
       if (!openaiApiKey) {
         return safeJsonResponse(200, {
@@ -485,6 +451,9 @@ ${artDirectedPrompt}`;
         });
       }
 
+      let b64 = '';
+      let modelUsed = 'gpt-image-1';
+      let providerStatus = 200;
       try {
         const openaiModelCandidates = ['gpt-image-1', 'gpt-image-2', 'gpt-image-1.5'];
         let lastErr = null;
@@ -512,20 +481,21 @@ ${artDirectedPrompt}`;
         });
       }
 
+      if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+        return safeJsonResponse(200, {
+          ok: false,
+          action: 'generate',
+          error: 'cloudinary_not_configured',
+          stage: 'cloudinary_upload',
+          safeErrorMessage: 'Cloudinary not configured for upload.',
+          receivedImageProvider: receivedImageProvider || null,
+          requestedProvider,
+          modelUsed,
+        });
+      }
+
       let upload;
       try {
-        if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
-          return safeJsonResponse(200, {
-            ok: false,
-            action: 'generate',
-            error: 'cloudinary_not_configured',
-            stage: 'cloudinary_upload',
-            safeErrorMessage: 'Cloudinary not configured for upload.',
-            receivedImageProvider: receivedImageProvider || null,
-            requestedProvider,
-            modelUsed,
-          });
-        }
         upload = await cloudinary.uploader.upload(`data:image/png;base64,${b64}`, { folder: 'ai-generated-banners', resource_type: 'image' });
       } catch (error) {
         return generateError('cloudinary_upload', error, {
@@ -538,7 +508,7 @@ ${artDirectedPrompt}`;
       return safeJsonResponse(200, {
         ok: true,
         action: 'generate',
-        stage: 'stage3_openai_cloudinary_success',
+        stage: 'openai_cloudinary_success',
         receivedImageProvider: receivedImageProvider || null,
         requestedProvider,
         actualProviderUsed: 'openai',
