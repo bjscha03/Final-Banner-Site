@@ -103,6 +103,7 @@ const AIDesignerPage: React.FC = () => {
   const [debugOutput, setDebugOutput] = useState('');
   const [successOutput, setSuccessOutput] = useState('');
   const [borderWarning, setBorderWarning] = useState('');
+  const [generateStatus, setGenerateStatus] = useState('');
   const [cartMessage, setCartMessage] = useState('');
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [promoCode, setPromoCode] = useState('');
@@ -293,6 +294,7 @@ const AIDesignerPage: React.FC = () => {
     setErrorOutput('');
     setSuccessOutput('');
     setBorderWarning('');
+    setGenerateStatus('');
     setGenerationFallbackNote('');
     setDebugOutput('');
     setBusy(null);
@@ -359,7 +361,7 @@ const AIDesignerPage: React.FC = () => {
       <p className="text-[11px] text-cyan-300/90">Selected provider state: {selectedImageProvider}</p>
       <p className="text-[11px] text-cyan-300/90">Generate will send: {selectedImageProvider}</p>
       {busy==='generate' && <p className="text-[11px] text-cyan-300/90">Generating via: {selectedImageProvider}</p>}
-      <button disabled={busy!==null||!(enhancedPrompt||prompt).trim()} onClick={async()=>{setBusy('generate');setErrorOutput('');setSuccessOutput('');setBorderWarning('');setGenerationFallbackNote('');try{const {body,jsonParsed}=await callFn('generate',{ action:'generate', imageProvider:selectedImageProvider }); if(!jsonParsed){setErrorOutput('Invalid JSON response from function');return;} if(body?.image?.url||body?.imageUrl){ setErrorOutput(''); saveSnapshot(); setImageUrl(body?.image?.url||body?.imageUrl); setImageTransform({ x: 0, y: 0, scale: 1, mode: 'fill' }); if(body?.generationFallback){ setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.'); setDebugOutput(JSON.stringify({ generationFallback: true, fallbackReason: body?.fallbackReason ?? null, imagenStatus: body?.imagenStatus ?? null, imagenProviderMessage: body?.imagenProviderMessage ?? null, selectedImageModel: body?.selectedImageModel ?? null, imagenRawResponseFirst500: body?.imagenRawResponseFirst500 ?? null }, null, 2)); } else { setSuccessOutput('Generated one print-ready banner composition.'); if (body?.debug) setDebugOutput(JSON.stringify(body.debug, null, 2)); }} else setErrorOutput(body?.safeErrorMessage||body?.error||'Generate failed.');}finally{setBusy(null);}}} className="w-full bg-yellow-700 text-black font-bold py-3 inline-flex items-center justify-center gap-2 disabled:opacity-50">{busy==='generate'?<><Spinner/>Generating Design...</>:'⚡ GENERATE DESIGN'}</button>
+      <button disabled={busy!==null||!(enhancedPrompt||prompt).trim()} onClick={async()=>{setBusy('generate');setDebugOutput('');setErrorOutput('');setSuccessOutput('');setBorderWarning('');setGenerationFallbackNote('');setGenerateStatus('Generate clicked');try{setGenerateStatus('Sending generate request');setDebugOutput(JSON.stringify({ action:'generate_attempt_started', imageProvider:selectedImageProvider, prompt }, null, 2));const {body,jsonParsed}=await callFn('generate',{ action:'generate', imageProvider:selectedImageProvider });setGenerateStatus('Generate response received');setDebugOutput(JSON.stringify(body ?? { ok:false, error:'empty_response' }, null, 2)); if(!jsonParsed){setErrorOutput('Invalid JSON response from function');return;} if(body?.image?.url||body?.imageUrl){ setErrorOutput(''); saveSnapshot(); setImageUrl(body?.image?.url||body?.imageUrl); setImageTransform({ x: 0, y: 0, scale: 1, mode: 'fill' }); if(body?.generationFallback){ setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.'); } else { setSuccessOutput('Generated one print-ready banner composition.'); }} else setErrorOutput(body?.safeErrorMessage||body?.error||'Generate failed.');}catch(err:any){setGenerateStatus('Generate failed before request');setDebugOutput(JSON.stringify({ action:'generate_fetch_failed', message: err?.message || 'Unknown error' }, null, 2));setErrorOutput(err?.message||'Generate request failed.');}finally{setBusy(null);}}} className="w-full bg-yellow-700 text-black font-bold py-3 inline-flex items-center justify-center gap-2 disabled:opacity-50">{busy==='generate'?<><Spinner/>Generating Design...</>:'⚡ GENERATE DESIGN'}</button>
       {imageUrl && <>
         <input value={editInstruction} onChange={(e)=>setEditInstruction(e.target.value)} className="w-full bg-black/60 border border-white/20 rounded p-2" placeholder="Edit instruction"/>
         <button disabled={busy!==null||!editInstruction.trim()} onClick={async()=>{setBusy('enhanceEdit');try{const {body,jsonParsed}=await callFn('enhanceEdit'); if(!jsonParsed){setErrorOutput('Invalid JSON response from function');return;} if(body?.enhancedEditPrompt){ setEditInstruction(body.enhancedEditPrompt); setErrorOutput(''); }}finally{setBusy(null);}}} className="w-full border border-white/20 py-2 rounded disabled:opacity-50">Enhance Edit Prompt with AI</button>
@@ -368,6 +370,7 @@ const AIDesignerPage: React.FC = () => {
       </>}
       <button disabled={busy!==null} onClick={async()=>{setBusy('debug');try{const {body,jsonParsed}=await callFn('debug'); if(!jsonParsed){setErrorOutput('Invalid JSON response from function');return;} setErrorOutput(''); setDebugOutput(JSON.stringify(body,null,2));}finally{setBusy(null);}}} className="w-full border border-cyan-600 text-cyan-300 py-2 rounded disabled:opacity-50">Admin Debug Check</button>
       {errorOutput && <p className="text-sm text-red-400">{errorOutput}</p>}
+      {generateStatus && <p className="text-xs text-cyan-300">{generateStatus}</p>}
       {successOutput && <p className="text-sm text-emerald-300">{successOutput}</p>}
       {borderWarning && <p className="text-sm text-amber-300">{borderWarning}</p>}
       {generationFallbackNote && <p className="text-sm text-amber-300">{generationFallbackNote}</p>}
