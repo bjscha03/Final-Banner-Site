@@ -75,7 +75,6 @@ async function callOpenAIImageGenerate({ apiKey, prompt, size = '1536x1024', mod
       prompt,
       size,
       n: 1,
-      response_format: 'b64_json',
     }),
   });
   const d = await r.json().catch(() => ({}));
@@ -91,6 +90,12 @@ async function callOpenAIImageGenerate({ apiKey, prompt, size = '1536x1024', mod
   const out = d?.data || [];
   for (const item of out) {
     if (item?.b64_json) return { b64: item.b64_json, modelUsed: model, providerStatus: r.status };
+    if (item?.url) {
+      const img = await fetch(item.url);
+      const ab = await img.arrayBuffer();
+      const b64 = Buffer.from(ab).toString('base64');
+      if (b64) return { b64, modelUsed: model, providerStatus: r.status };
+    }
   }
   const err = new Error('OpenAI returned no image output.');
   err.openaiStatus = r.status;
