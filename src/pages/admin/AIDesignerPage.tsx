@@ -202,6 +202,7 @@ const AIDesignerPage: React.FC = () => {
     if (action === 'generate') {
       console.log('[AI Designer] selectedImageProvider', selectedImageProvider);
       console.log('[AI Designer] generate payload imageProvider', payload.imageProvider);
+      console.log('[AI Designer] Generate payload', payload);
     }
     const res = await fetch('/.netlify/functions/generate-ai-designs', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
     let jsonParsed = true;

@@ -355,7 +355,7 @@ async function handlerCore(event) {
 
   let body = {};
   try { body = JSON.parse(event.body || '{}'); } catch { return safeJsonResponse(400, { ok: false, error: 'Invalid JSON body', detailCode: 'invalid_json_body', safeErrorMessage: 'Invalid JSON request body.', stage: 'request' }); }
-  const action = body.action || 'enhance';
+  const action = typeof body?.action === 'string' ? body.action : null;
 
   if (!googleApiKey) {
     return safeJsonResponse(200, {
@@ -740,7 +740,7 @@ Edit instruction: ${directedEditInstruction}`;
       return safeJsonResponse(200, { ok: false, action: 'edit', error: 'edit_failed', detailCode: 'edit_exception', safeErrorMessage: error instanceof Error ? error.message : 'Edit failed.', stage: 'edit' });
     }
 
-    return safeJsonResponse(400, { ok: false, action, error: 'Unknown action', detailCode: 'unknown_action', safeErrorMessage: 'Unknown action.', stage: 'routing' });
+    return safeJsonResponse(400, { ok: false, action: null, error: 'unknown_action', receivedAction: action || null, detailCode: 'unknown_action', safeErrorMessage: 'Unknown action.', stage: 'routing' });
   } catch (error) {
     return safeJsonResponse(200, { ok: false, action, functionReachable: true, error: 'function_exception', detailCode: 'top_level_exception', safeErrorMessage: error instanceof Error ? error.message : 'AI service unavailable', stage: 'handler' });
   }
