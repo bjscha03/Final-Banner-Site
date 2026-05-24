@@ -408,27 +408,14 @@ async function handlerCore(event) {
     }
 
     if (action === 'generate') try {
-      return safeJsonResponse(200, {
-        ok: true,
-        action: 'generate',
-        stage: 'minimal_generate_test',
-        receivedImageProvider: body.imageProvider,
-        requestedProvider: body.imageProvider || 'openai',
-        image: {
-          url: 'https://res.cloudinary.com/dtrxl120u/image/upload/f_auto,q_auto/v1/ai-generated-banners/ymncjkfwykdkjrqn0pq4',
-          original_url: null,
-          width: 1600,
-          height: 800,
-        },
-      });
-
-      const generateError = (stage, err) => safeJsonResponse(200, {
+      const generateError = (stage, err, extra = {}) => safeJsonResponse(200, {
         ok: false,
         action: 'generate',
         error: 'generate_failed',
         stage,
         safeErrorMessage: err instanceof Error ? err.message : String(err || 'Generate failed.'),
         stackFirstLine: String(err?.stack || '').split('\n')[0] || null,
+        ...extra,
       });
 
       let receivedImageProvider;
@@ -439,17 +426,18 @@ async function handlerCore(event) {
       let sourcePrompt;
       let targetW;
       let targetH;
-      let imagenAspectRatio;
+      let modelUsed = 'gpt-image-1';
+      let providerStatus = 200;
+      let b64 = '';
+
       try {
         receivedImageProvider = body.imageProvider;
         requestedProvider = receivedImageProvider === 'imagen' ? 'imagen' : 'openai';
-        console.log('[generate-ai-designs] receivedImageProvider:', receivedImageProvider);
-        console.log('[generate-ai-designs] requestedProvider:', requestedProvider);
-        console.log('[generate-ai-designs] attempting provider:', requestedProvider);
-        rawUserPrompt = sanitizeSinglePrompt(body.prompt || '');
+        rawUserPrompt = sanitizeSinglePrompt(body.prompt || body.enhancedPrompt || '');
         allowedTextList = extractAllowedTextList(rawUserPrompt);
         targetW = Number(body?.size?.w ?? body?.width) || 8;
         targetH = Number(body?.size?.h ?? body?.height) || 4;
+        if (!rawUserPrompt) return safeJsonResponse(400, { ok: false, action, error: 'prompt_required', stage: 'parse_generate_payload', safeErrorMessage: 'Prompt required.' });
       } catch (error) {
         return generateError('parse_generate_payload', error);
       }
@@ -469,209 +457,104 @@ ${FULL_BLEED_PREPEND}
 ${MOCKUP_BAN_PREPEND}
 ${HARDWARE_BAN_PREPEND}
 ${artDirectedPrompt}`;
-        if (!sourcePrompt) return safeJsonResponse(400, { ok: false, action, error: 'Prompt required', detailCode: 'prompt_required', safeErrorMessage: 'Prompt required.', stage: 'art_direction' });
+        if (!sourcePrompt) return safeJsonResponse(400, { ok: false, action, error: 'art_direction_failed', stage: 'art_direction', safeErrorMessage: 'Unable to build production prompt.' });
       } catch (error) {
         return generateError('art_direction', error);
       }
 
+      if (String(body?.generateStage || '') === 'stage1') {
+        return safeJsonResponse(200, {
+          ok: true,
+          action: 'generate',
+          stage: 'stage1_art_direction_only',
+          receivedImageProvider: receivedImageProvider || null,
+          requestedProvider,
+          finalProductionPrompt: sourcePrompt,
+        });
+      }
+
+      if (!openaiApiKey) {
+        return safeJsonResponse(200, {
+          ok: false,
+          action: 'generate',
+          error: 'openai_missing_api_key',
+          stage: 'openai_generate',
+          safeErrorMessage: 'OPENAI_API_KEY is not configured.',
+          receivedImageProvider: receivedImageProvider || null,
+          requestedProvider,
+        });
+      }
+
       try {
-        imagenAspectRatio = pickImagenRatio(targetW, targetH);
-        if (!SUPPORTED_IMAGEN_RATIOS.includes(imagenAspectRatio)) {
-          return safeJsonResponse(200, { ok: false, action, imageUrl: null, error: 'unsupported_ratio', detailCode: 'unsupported_imagen_ratio', safeErrorMessage: 'Unsupported mapped Imagen ratio.', stage: 'parse_generate_payload' });
+        const openaiModelCandidates = ['gpt-image-1', 'gpt-image-2', 'gpt-image-1.5'];
+        let lastErr = null;
+        for (const m of openaiModelCandidates) {
+          try {
+            const result = await callOpenAIImageGenerate({ apiKey: openaiApiKey, prompt: sourcePrompt, size: '1536x1024', model: m });
+            b64 = result.b64;
+            modelUsed = result.modelUsed;
+            providerStatus = result.providerStatus;
+            break;
+          } catch (e) {
+            lastErr = e;
+          }
         }
+        if (!b64) throw lastErr || new Error('No OpenAI model produced an image.');
       } catch (error) {
-        return generateError('parse_generate_payload', error);
-      }
-
-      let b64 = '';
-      let provider = requestedProvider;
-      let modelUsed = imageModel;
-      let providerStatus = 200;
-      let fallbackReason = null;
-      let openaiFailure = null;
-
-      if (requestedProvider === 'openai' && openaiApiKey) {
-        try {
-          const openaiModelCandidates = ['gpt-image-1', 'gpt-image-2', 'gpt-image-1.5'];
-          let lastErr = null;
-          for (const m of openaiModelCandidates) {
-            try {
-              const result = await callOpenAIImageGenerate({ apiKey: openaiApiKey, prompt: sourcePrompt, size: '1536x1024', model: m, referenceImage: body.referenceImage });
-              b64 = result.b64;
-              modelUsed = result.modelUsed;
-              providerStatus = result.providerStatus;
-              break;
-            } catch (e) { lastErr = e; }
-          }
-          if (!b64) throw lastErr || new Error('No OpenAI model produced an image.');
-        } catch (e) {
-          openaiFailure = {
-            openaiStatus: e?.openaiStatus || 500,
-            openaiErrorCode: e?.openaiErrorCode || 'openai_generation_failed',
-            openaiErrorMessage: e?.openaiErrorMessage || e?.message || 'OpenAI generation failed.',
-            openaiModelAttempted: e?.openaiModelAttempted || null,
-            openaiRawResponseFirst500: e?.openaiRawResponseFirst500 || null,
-          };
-          console.log('[generate-ai-designs] OpenAI failed:', openaiFailure.openaiStatus, openaiFailure.openaiErrorMessage);
-          provider = 'imagen';
-          fallbackReason = 'openai_failed_fallback_to_imagen';
-        }
-      } else {
-        provider = 'imagen';
-        if (requestedProvider === 'openai' && !openaiApiKey) {
-          fallbackReason = 'openai_missing_api_key_fallback_to_imagen';
-        }
-      }
-
-      if (provider === 'imagen') {
-        try {
-          const r = await fetch(`${GEMINI_BASE}/models/${imageModel}:predict?key=${encodeURIComponent(googleApiKey)}`, {
-            method: 'POST', headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ instances: [{ prompt: sourcePrompt }], parameters: { sampleCount: 1, aspectRatio: imagenAspectRatio } }),
-          });
-          const d = await r.json().catch(() => ({}));
-          providerStatus = r.status;
-          modelUsed = imageModel;
-          if (!r.ok) {
-            if (isImagenPaidAccessError(d, r.status)) {
-              const imagenProviderMessage = String(d?.error?.message || d?.message || 'Unknown provider error');
-              const imagenRawResponseFirst500 = JSON.stringify(d || {}).slice(0, 500);
-              const fallbackReason = 'imagen_paid_access_required';
-              return safeJsonResponse(200, {
-                ok: true,
-                action,
-                imageUrl: FALLBACK_IMAGE_URL,
-                image: { url: FALLBACK_IMAGE_URL, original_url: FALLBACK_IMAGE_URL, width: targetW * 100, height: targetH * 100 },
-                generationFallback: true,
-                fallbackReason,
-                imagenStatus: r.status,
-                imagenProviderMessage,
-                selectedImageModel: imageModel,
-                imagenRawResponseFirst500,
-                count: 1,
-                requestedBannerRatio: `${targetW}:${targetH}`,
-                generatedImagenRatio: imagenAspectRatio,
-                safeErrorMessage: 'Temporary fallback image used because Imagen paid access is required.',
-              });
-            }
-            return safeJsonResponse(200, { ok: false, action, imageUrl: null, error: 'generation_failed', detailCode: 'provider_generation_failed', safeErrorMessage: d?.error?.message || 'Image generation failed. Please try again.', stage: 'imagen_fallback' });
-          }
-          b64 = d?.predictions?.[0]?.bytesBase64Encoded;
-        } catch (error) {
-          return generateError('imagen_fallback', error);
-        }
-      }
-      if (!b64) return safeJsonResponse(200, { ok: false, action, error: 'no_image_output', detailCode: 'provider_empty_image', safeErrorMessage: 'No image returned from model.', stage: provider === 'openai' ? 'openai_generate' : 'imagen_fallback' });
-
-      let safetyPassTriggered = false;
-      let imageTypeScores = { mockupLikelihood: 0.2, repeatedBannerLikelihood: 0.2, posterFrameLikelihood: 0.2, fullBleedScore: 0.8, safetyPassTriggered: false };
-      let hardwareScores = { embeddedGrommetLikelihood: 0.1, hardwareArtifactLikelihood: 0.1 };
-      try {
-        imageTypeScores = await scoreGeneratedImageType({ apiKey: googleApiKey, textModel, b64 });
-        hardwareScores = await scoreHardwareArtifacts({ apiKey: googleApiKey, textModel, b64 });
-      } catch (error) {
-        console.log('[generate-ai-designs] scoring failed:', error?.message || error);
-      }
-      if (imageTypeScores.safetyPassTriggered) {
-        safetyPassTriggered = true;
-        const safetyPrompt = `${sourcePrompt}
-CRITICAL corrective pass: remove any mockup/hanging/framed/repeated banner behavior. Output one single flat full-bleed artwork only.`;
-        try {
-          if (provider === 'openai' && openaiApiKey) {
-            const retry = await callOpenAIImageGenerate({ apiKey: openaiApiKey, prompt: safetyPrompt, size: '1536x1024', model: modelUsed, referenceImage: body.referenceImage });
-            b64 = retry.b64;
-          } else {
-            const rr = await fetch(`${GEMINI_BASE}/models/${imageModel}:predict?key=${encodeURIComponent(googleApiKey)}`, {
-              method: 'POST', headers: { 'content-type': 'application/json' },
-              body: JSON.stringify({ instances: [{ prompt: safetyPrompt }], parameters: { sampleCount: 1, aspectRatio: imagenAspectRatio } }),
-            });
-            const rd = await rr.json().catch(() => ({}));
-            if (rr.ok && rd?.predictions?.[0]?.bytesBase64Encoded) b64 = rd.predictions[0].bytesBase64Encoded;
-          }
-          imageTypeScores = await scoreGeneratedImageType({ apiKey: googleApiKey, textModel, b64 });
-        } catch (error) {
-          console.log('[generate-ai-designs] safety pass failed:', error?.message || error);
-        }
-      }
-      if (hardwareScores.embeddedGrommetLikelihood > 0.35 || hardwareScores.hardwareArtifactLikelihood > 0.35) {
-        safetyPassTriggered = true;
-        try {
-          const correctivePrompt = `${sourcePrompt}
-Remove all embedded grommets, eyelets, holes, ropes, and mounting hardware from the artwork. Keep the design flat and print-ready.`;
-          if (provider === 'openai' && openaiApiKey) {
-            const retry = await callOpenAIImageGenerate({ apiKey: openaiApiKey, prompt: correctivePrompt, size: '1536x1024', model: modelUsed, referenceImage: body.referenceImage });
-            b64 = retry.b64;
-          }
-          hardwareScores = await scoreHardwareArtifacts({ apiKey: googleApiKey, textModel, b64 });
-        } catch (error) {
-          console.log('[generate-ai-designs] hardware corrective pass failed:', error?.message || error);
-        }
-      }
-
-      if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
-        return safeJsonResponse(200, { ok: false, action, imageUrl: null, error: 'cloudinary_not_configured', detailCode: 'cloudinary_missing_env', safeErrorMessage: 'Cloudinary not configured for ratio correction.', stage: 'cloudinary_upload' });
+        return generateError('openai_generate', error, {
+          openaiStatus: error?.openaiStatus || 500,
+          openaiErrorCode: error?.openaiErrorCode || 'openai_generation_failed',
+          openaiErrorMessage: error?.openaiErrorMessage || error?.message || 'OpenAI generation failed.',
+          openaiModelAttempted: error?.openaiModelAttempted || null,
+          openaiRawResponseFirst500: error?.openaiRawResponseFirst500 || null,
+          receivedImageProvider: receivedImageProvider || null,
+          requestedProvider,
+        });
       }
 
       let upload;
       try {
+        if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+          return safeJsonResponse(200, {
+            ok: false,
+            action: 'generate',
+            error: 'cloudinary_not_configured',
+            stage: 'cloudinary_upload',
+            safeErrorMessage: 'Cloudinary not configured for upload.',
+            receivedImageProvider: receivedImageProvider || null,
+            requestedProvider,
+            modelUsed,
+          });
+        }
         upload = await cloudinary.uploader.upload(`data:image/png;base64,${b64}`, { folder: 'ai-generated-banners', resource_type: 'image' });
       } catch (error) {
-        return generateError('cloudinary_upload', error);
+        return generateError('cloudinary_upload', error, {
+          receivedImageProvider: receivedImageProvider || null,
+          requestedProvider,
+          modelUsed,
+        });
       }
 
-      try {
-        let canonicalImageUrl = cloudinaryRatioTransformUrlAggressive(upload.public_id, targetW, targetH);
-        let logoCompositeMode = 'none';
-        let logoCompositedDirectly = false;
-        let whitespaceScore = Math.max(0, 1 - imageTypeScores.fullBleedScore);
-        let edgeCoverageScore = imageTypeScores.fullBleedScore;
-        let centeredPosterLikelihood = imageTypeScores.posterFrameLikelihood;
-        let marginCropApplied = true;
-        if (referenceProfile.referenceType === 'logo' && body.referenceImage) {
-          try {
-            const logoUpload = await cloudinary.uploader.upload(String(body.referenceImage), { folder: 'ai-generated-banners/logos', resource_type: 'image' });
-            canonicalImageUrl = cloudinary.url(upload.public_id, {
-              resource_type: 'image', type: 'upload', secure: true,
-              transformation: [
-                { aspect_ratio: `${targetW}:${targetH}`, crop: 'fill', gravity: 'auto', zoom: 1.2 },
-                { overlay: logoUpload.public_id, width: Math.round((targetW * 1200) * 0.18), crop: 'scale' },
-                { flags: 'layer_apply', gravity: 'south_east', x: 50, y: 40 },
-                { fetch_format: 'auto', quality: 'auto' },
-              ],
-            });
-            logoCompositeMode = 'direct_overlay';
-            logoCompositedDirectly = true;
-            whitespaceScore = 0.08;
-            edgeCoverageScore = 0.94;
-            centeredPosterLikelihood = 0.05;
-          } catch {
-            logoCompositeMode = 'reserved_logo_safe_area';
-          }
-        }
-        return safeJsonResponse(200, {
-          ok: true,
-          action,
-          imageUrl: canonicalImageUrl,
-          image: {
-            url: canonicalImageUrl,
-            original_url: upload.secure_url || canonicalImageUrl,
-            width: upload.width || targetW * 100,
-            height: upload.height || targetH * 100,
-          },
-          generationFallback: false,
-          fallbackReason,
-          actualProviderUsed: provider,
-          provider,
-          imageProvider: provider,
-          count: 1,
-          requestedBannerRatio: `${targetW}:${targetH}`,
-          generatedImagenRatio: imagenAspectRatio,
-          debug: { rawUserPrompt, hasOpenAiKey: Boolean(openaiApiKey), matchedOpenAiEnvName, receivedImageProvider: receivedImageProvider || null, requestedProvider, actualProviderUsed: provider, imageProvider: provider, modelUsed, providerStatus, referenceType: referenceProfile.referenceType, logoDetected: referenceProfile.logoLikely, logoCompositeMode, logoCompositedDirectly, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), whitespaceScore, edgeCoverageScore, centeredPosterLikelihood, mockupLikelihood: imageTypeScores.mockupLikelihood, repeatedBannerLikelihood: imageTypeScores.repeatedBannerLikelihood, posterFrameLikelihood: imageTypeScores.posterFrameLikelihood, fullBleedScore: imageTypeScores.fullBleedScore, embeddedGrommetLikelihood: hardwareScores.embeddedGrommetLikelihood, hardwareArtifactLikelihood: hardwareScores.hardwareArtifactLikelihood, marginCropApplied, regenerationSafetyPassTriggered: safetyPassTriggered, canonicalApprovedImageUrl: canonicalImageUrl, finalProductionPrompt: sourcePrompt, fallbackReason, fallbackMessage: fallbackReason === 'openai_failed_fallback_to_imagen' ? 'OpenAI failed, using Imagen fallback.' : null, ...(openaiFailure || {}) },
-          safeErrorMessage: null,
-        });
-      } catch (error) {
-        return generateError('response_build', error);
-      }
+      return safeJsonResponse(200, {
+        ok: true,
+        action: 'generate',
+        stage: 'stage3_openai_cloudinary_success',
+        receivedImageProvider: receivedImageProvider || null,
+        requestedProvider,
+        actualProviderUsed: 'openai',
+        imageProvider: 'openai',
+        modelUsed,
+        providerStatus,
+        fallbackReason: null,
+        finalProductionPrompt: sourcePrompt,
+        imageUrl: upload.secure_url,
+        image: {
+          url: upload.secure_url,
+          original_url: upload.secure_url,
+          width: upload.width || targetW * 100,
+          height: upload.height || targetH * 100,
+        },
+      });
     } catch (error) {
       return safeJsonResponse(200, { ok: false, action: 'generate', error: 'generate_failed', detailCode: 'generate_exception', safeErrorMessage: error instanceof Error ? error.message : 'Generate failed.', stage: 'generate', stackFirstLine: String(error?.stack || '').split('\n')[0] || null });
     }
