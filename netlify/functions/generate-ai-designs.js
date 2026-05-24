@@ -319,7 +319,7 @@ function classifyEditInstruction(editInstruction) {
   return 'full_regeneration';
 }
 
-export async function handler(event) {
+async function handlerCore(event) {
   if (event.httpMethod === 'OPTIONS') return safeJsonResponse(200, { ok: true });
 
   const googleApiKey =
@@ -743,5 +743,25 @@ Edit instruction: ${directedEditInstruction}`;
     return safeJsonResponse(400, { ok: false, action, error: 'Unknown action', detailCode: 'unknown_action', safeErrorMessage: 'Unknown action.', stage: 'routing' });
   } catch (error) {
     return safeJsonResponse(200, { ok: false, action, functionReachable: true, error: 'function_exception', detailCode: 'top_level_exception', safeErrorMessage: error instanceof Error ? error.message : 'AI service unavailable', stage: 'handler' });
+  }
+}
+
+export async function handler(event) {
+  try {
+    return await handlerCore(event);
+  } catch (err) {
+    return {
+      statusCode: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      },
+      body: JSON.stringify({
+        ok: false,
+        error: 'function_crash',
+        safeErrorMessage: err?.message || 'Unknown function crash',
+        stackFirstLine: String(err?.stack || '').split('\n')[0],
+      }),
+    };
   }
 }
