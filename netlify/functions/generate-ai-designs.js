@@ -408,7 +408,11 @@ async function handlerCore(event) {
     }
 
     if (action === 'generate') try {
-      const imageProvider = 'imagen';
+      const receivedImageProvider = body.imageProvider;
+      const requestedProvider = receivedImageProvider === 'imagen' ? 'imagen' : 'openai';
+      console.log('[generate-ai-designs] receivedImageProvider:', receivedImageProvider);
+      console.log('[generate-ai-designs] requestedProvider:', requestedProvider);
+      console.log('[generate-ai-designs] attempting provider:', requestedProvider);
       const rawUserPrompt = sanitizeSinglePrompt(body.prompt || '');
       const allowedTextList = extractAllowedTextList(rawUserPrompt);
       const referenceProfile = await analyzeReferenceImage({ apiKey: googleApiKey, textModel, referenceImage: body.referenceImage });
@@ -432,13 +436,12 @@ async function handlerCore(event) {
       }
 
       let b64 = '';
-      let provider = imageProvider;
-      const requestedProvider = imageProvider;
+      let provider = requestedProvider;
       let modelUsed = imageModel;
       let providerStatus = 200;
       let fallbackReason = null;
       let openaiFailure = null;
-      if (false && imageProvider === 'openai' && openaiApiKey) {
+      if (requestedProvider === 'openai' && openaiApiKey) {
         try {
           const openaiModelCandidates = ['gpt-image-1', 'gpt-image-2', 'gpt-image-1.5'];
           let lastErr = null;
@@ -460,11 +463,15 @@ async function handlerCore(event) {
             openaiModelAttempted: e?.openaiModelAttempted || null,
             openaiRawResponseFirst500: e?.openaiRawResponseFirst500 || null,
           };
+          console.log('[generate-ai-designs] OpenAI failed:', openaiFailure.openaiStatus, openaiFailure.openaiErrorMessage);
           provider = 'imagen';
           fallbackReason = 'openai_failed_fallback_to_imagen';
         }
       } else {
         provider = 'imagen';
+        if (requestedProvider === 'openai' && !openaiApiKey) {
+          fallbackReason = 'openai_missing_api_key_fallback_to_imagen';
+        }
       }
 
       if (provider === 'imagen') {
@@ -592,13 +599,13 @@ async function handlerCore(event) {
         },
         generationFallback: false,
         fallbackReason,
+        actualProviderUsed: provider,
         provider,
         imageProvider: provider,
         count: 1,
         requestedBannerRatio: `${targetW}:${targetH}`,
         generatedImagenRatio: imagenAspectRatio,
-        debug: { rawUserPrompt, imageProvider: provider, modelUsed, providerStatus, referenceType: referenceProfile.referenceType, logoDetected: referenceProfile.logoLikely, logoCompositeMode, logoCompositedDirectly, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), whitespaceScore, edgeCoverageScore, centeredPosterLikelihood, mockupLikelihood: imageTypeScores.mockupLikelihood, repeatedBannerLikelihood: imageTypeScores.repeatedBannerLikelihood, posterFrameLikelihood: imageTypeScores.posterFrameLikelihood, fullBleedScore: imageTypeScores.fullBleedScore, embeddedGrommetLikelihood: hardwareScores.embeddedGrommetLikelihood, hardwareArtifactLikelihood: hardwareScores.hardwareArtifactLikelihood, marginCropApplied, regenerationSafetyPassTriggered: safetyPassTriggered, canonicalApprovedImageUrl: canonicalImageUrl, finalProductionPrompt: sourcePrompt, fallbackReason },
-        debug: { rawUserPrompt, hasOpenAiKey: Boolean(openaiApiKey), matchedOpenAiEnvName, requestedProvider, actualProviderUsed: provider, imageProvider: provider, modelUsed, providerStatus, referenceType: referenceProfile.referenceType, logoDetected: referenceProfile.logoLikely, logoCompositeMode, logoCompositedDirectly, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), whitespaceScore, edgeCoverageScore, centeredPosterLikelihood, mockupLikelihood: imageTypeScores.mockupLikelihood, repeatedBannerLikelihood: imageTypeScores.repeatedBannerLikelihood, posterFrameLikelihood: imageTypeScores.posterFrameLikelihood, fullBleedScore: imageTypeScores.fullBleedScore, embeddedGrommetLikelihood: hardwareScores.embeddedGrommetLikelihood, hardwareArtifactLikelihood: hardwareScores.hardwareArtifactLikelihood, marginCropApplied, regenerationSafetyPassTriggered: safetyPassTriggered, canonicalApprovedImageUrl: canonicalImageUrl, finalProductionPrompt: sourcePrompt, fallbackReason, fallbackMessage: fallbackReason === 'openai_failed_fallback_to_imagen' ? 'OpenAI failed, using Imagen fallback.' : null, ...(openaiFailure || {}) },
+        debug: { rawUserPrompt, hasOpenAiKey: Boolean(openaiApiKey), matchedOpenAiEnvName, receivedImageProvider: receivedImageProvider || null, requestedProvider, actualProviderUsed: provider, imageProvider: provider, modelUsed, providerStatus, referenceType: referenceProfile.referenceType, logoDetected: referenceProfile.logoLikely, logoCompositeMode, logoCompositedDirectly, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), whitespaceScore, edgeCoverageScore, centeredPosterLikelihood, mockupLikelihood: imageTypeScores.mockupLikelihood, repeatedBannerLikelihood: imageTypeScores.repeatedBannerLikelihood, posterFrameLikelihood: imageTypeScores.posterFrameLikelihood, fullBleedScore: imageTypeScores.fullBleedScore, embeddedGrommetLikelihood: hardwareScores.embeddedGrommetLikelihood, hardwareArtifactLikelihood: hardwareScores.hardwareArtifactLikelihood, marginCropApplied, regenerationSafetyPassTriggered: safetyPassTriggered, canonicalApprovedImageUrl: canonicalImageUrl, finalProductionPrompt: sourcePrompt, fallbackReason, fallbackMessage: fallbackReason === 'openai_failed_fallback_to_imagen' ? 'OpenAI failed, using Imagen fallback.' : null, ...(openaiFailure || {}) },
         safeErrorMessage: null,
       });
     } catch (error) {
