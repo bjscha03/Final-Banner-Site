@@ -77,6 +77,29 @@ function sanitizeSinglePrompt(input) {
   const text = String(input || '').replace(/```[\s\S]*?```/g, ' ').replace(/\b(option\s*\d+|here are|recommendations?)\b/gi, ' ').replace(/[#*`>-]/g, ' ').trim();
   return text.split(/\n+/).map((s) => s.trim()).filter(Boolean).slice(0, 3).join(' ').replace(/\s+/g, ' ');
 }
+function extractAllowedTextList(input) {
+  const normalized = String(input || '').replace(/[^\w\s'&-]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!normalized) return [];
+  const quoted = [...normalized.matchAll(/"([^"]{2,80})"/g)].map((m) => m[1].trim());
+  const words = normalized.split(' ').filter(Boolean);
+  const upper = normalized.toUpperCase();
+  const list = [...quoted];
+  if (/\bbirthday\b/i.test(normalized)) list.push('HAPPY BIRTHDAY');
+  if (/\bgrand opening\b/i.test(normalized)) list.push('GRAND OPENING');
+  if (/\bmemorial day bbq\b/i.test(normalized)) list.push('MEMORIAL DAY BBQ');
+  if (words.length <= 6 && words.some((w) => /[a-z]/i.test(w))) list.push(upper);
+  return Array.from(new Set(list.map((s) => s.trim()).filter(Boolean))).slice(0, 6);
+}
+function sanitizeForbiddenBranding(text) {
+  return String(text || '')
+    .replace(/\bHERO:\b/gi, '')
+    .replace(/\bSAMPLE TEXT\b/gi, '')
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '')
+    .replace(/\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g, '')
+    .replace(/\b(?:www\.)?[a-z0-9-]+\.(com|net|org|io|co)\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 function dataUrlToInlinePart(dataUrl) {
   const m = String(dataUrl || '').match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/);
   if (!m) return null;
@@ -92,6 +115,59 @@ async function summarizeReferenceImage({ apiKey, textModel, referenceImage }) {
   const d = await r.json().catch(() => ({}));
   if (!r.ok) return '';
   return sanitizeSinglePrompt(d?.candidates?.[0]?.content?.parts?.map((p) => p.text).join(' ') || '');
+}
+async function analyzeReferenceImage({ apiKey, textModel, referenceImage }) {
+  const part = dataUrlToInlinePart(referenceImage);
+  if (!part) return { referenceType: 'none', referenceSummary: '', logoLikely: false, logoUsageInstruction: '', extractedColors: [] };
+  const r = await fetch(`${GEMINI_BASE}/models/${textModel}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{
+        role: 'user',
+        parts: [{ text: 'Classify reference image type (logo|style_reference|product|existing_banner|inspiration). Return strict JSON with keys: referenceType, referenceSummary, logoLikely, logoUsageInstruction, extractedColors (array up to 5). No markdown.' }, part],
+      }],
+    }),
+  });
+  const d = await r.json().catch(() => ({}));
+  const raw = d?.candidates?.[0]?.content?.parts?.map((p) => p.text).join(' ') || '';
+  try {
+    const parsed = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] || '{}');
+    return {
+      referenceType: parsed.referenceType || 'inspiration',
+      referenceSummary: sanitizeSinglePrompt(parsed.referenceSummary || ''),
+      logoLikely: Boolean(parsed.logoLikely),
+      logoUsageInstruction: sanitizeSinglePrompt(parsed.logoUsageInstruction || ''),
+      extractedColors: Array.isArray(parsed.extractedColors) ? parsed.extractedColors.slice(0, 5).map((c) => String(c)) : [],
+    };
+  } catch {
+    return { referenceType: 'inspiration', referenceSummary: sanitizeSinglePrompt(raw), logoLikely: /logo/i.test(raw), logoUsageInstruction: '', extractedColors: [] };
+  }
+}
+async function buildArtDirectedPrompt({ apiKey, textModel, userPrompt, referenceProfile, mode, editInstruction, allowedTextList }) {
+  const direction = `You are a senior commercial large-format print designer and art director. Return ONE final optimized production prompt only.
+No options, no markdown, no commentary, no bullets.
+Use only user-provided text or strongly implied text.
+Forbidden text inventions: HERO:, SAMPLE TEXT, fake company names, fake websites, fake phone numbers, fake dates.
+Must be one flat full-bleed banner composition, edge-to-edge, no mockups/scenes/multiple panels/collage.`;
+  const task = mode === 'edit'
+    ? `Refine existing banner while preserving structure and user messaging. Edit instruction: ${editInstruction || ''}`
+    : 'Create one new premium banner composition.';
+  const payload = `${direction}
+User prompt: ${userPrompt}
+Allowed text list: ${allowedTextList.join(' | ') || 'none'}
+Reference type: ${referenceProfile.referenceType}
+Reference summary: ${referenceProfile.referenceSummary || 'none'}
+Reference colors: ${(referenceProfile.extractedColors || []).join(', ') || 'none'}
+Logo likely: ${referenceProfile.logoLikely ? 'yes' : 'no'}
+Logo usage instruction: ${referenceProfile.logoUsageInstruction || 'none'}
+Task: ${task}`;
+  const r = await fetch(`${GEMINI_BASE}/models/${textModel}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: payload }] }] }),
+  });
+  const d = await r.json().catch(() => ({}));
+  const out = sanitizeForbiddenBranding(sanitizeSinglePrompt(d?.candidates?.[0]?.content?.parts?.map((p) => p.text).join(' ') || ''));
+  return out;
 }
 
 export async function handler(event) {
@@ -156,18 +232,9 @@ export async function handler(event) {
     if (action === 'enhance') {
       const originalPrompt = String(body.prompt || '').trim();
       if (!originalPrompt) return json(400, { ok: false, action, error: 'Prompt required' });
-      const referenceSummary = await summarizeReferenceImage({ apiKey: googleApiKey, textModel, referenceImage: body.referenceImage });
-      const r = await fetch(`${GEMINI_BASE}/models/${textModel}:generateContent?key=${encodeURIComponent(googleApiKey)}`, {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: `Return exactly one plain-text production prompt for a single flat print-ready banner design. No bullets, no options, no markdown, no analysis, no headings. Include composition, palette, typography direction, mood, and readability. Keep concise.
-User request: ${originalPrompt}
-Reference cues: ${referenceSummary || 'none'}` }] }] }),
-      });
-      const d = await r.json().catch(() => ({}));
-      if (!r.ok) {
-        return json(200, { ok: true, action, enhancedPrompt: fallbackEnhance(originalPrompt, body.size), safeErrorMessage: d?.error?.message || 'Gemini unavailable. Fallback prompt applied.' });
-      }
-      const enhancedPrompt = sanitizeSinglePrompt(d?.candidates?.[0]?.content?.parts?.map((p) => p.text).join(' ') || '') || fallbackEnhance(originalPrompt, body.size);
+      const referenceProfile = await analyzeReferenceImage({ apiKey: googleApiKey, textModel, referenceImage: body.referenceImage });
+      const allowedTextList = extractAllowedTextList(originalPrompt);
+      const enhancedPrompt = await buildArtDirectedPrompt({ apiKey: googleApiKey, textModel, userPrompt: originalPrompt, referenceProfile, mode: 'generate', allowedTextList }) || fallbackEnhance(originalPrompt, body.size);
       return json(200, { ok: true, action, enhancedPrompt, safeErrorMessage: null });
     }
     if (action === 'enhanceEdit') {
@@ -183,8 +250,18 @@ Reference cues: ${referenceSummary || 'none'}` }] }] }),
     }
 
     if (action === 'generate') {
-      const referenceSummary = await summarizeReferenceImage({ apiKey: googleApiKey, textModel, referenceImage: body.referenceImage });
-      const sourcePrompt = `${GENERATION_GUARDRAIL}\n${sanitizeSinglePrompt(body.enhancedPrompt || body.prompt)}${referenceSummary ? `\nReference direction: ${referenceSummary}` : ''}`;
+      const rawUserPrompt = sanitizeSinglePrompt(body.prompt || '');
+      const allowedTextList = extractAllowedTextList(rawUserPrompt);
+      const referenceProfile = await analyzeReferenceImage({ apiKey: googleApiKey, textModel, referenceImage: body.referenceImage });
+      const artDirectedPrompt = await buildArtDirectedPrompt({
+        apiKey: googleApiKey,
+        textModel,
+        userPrompt: sanitizeSinglePrompt(body.enhancedPrompt || body.prompt),
+        referenceProfile,
+        mode: 'generate',
+        allowedTextList,
+      });
+      const sourcePrompt = `${GENERATION_GUARDRAIL}\n${artDirectedPrompt}`;
       if (!sourcePrompt) return json(400, { ok: false, action, error: 'Prompt required' });
 
       const targetW = Number(body?.size?.w) || 8;
@@ -258,6 +335,7 @@ Reference cues: ${referenceSummary || 'none'}` }] }] }),
         count: 1,
         requestedBannerRatio: `${targetW}:${targetH}`,
         generatedImagenRatio: imagenAspectRatio,
+        debug: { rawUserPrompt, referenceType: referenceProfile.referenceType, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), finalProductionPrompt: sourcePrompt, logoLikely: referenceProfile.logoLikely },
         safeErrorMessage: null,
       });
     }
@@ -271,13 +349,23 @@ Reference cues: ${referenceSummary || 'none'}` }] }] }),
       const targetW = Number(body?.size?.w) || 8;
       const targetH = Number(body?.size?.h) || 4;
       const imagenAspectRatio = pickImagenRatio(targetW, targetH);
-      const referenceSummary = await summarizeReferenceImage({ apiKey: googleApiKey, textModel, referenceImage: body.referenceImage });
+      const rawUserPrompt = sanitizeSinglePrompt(body.prompt || '');
+      const allowedTextList = extractAllowedTextList(rawUserPrompt);
+      const referenceProfile = await analyzeReferenceImage({ apiKey: googleApiKey, textModel, referenceImage: body.referenceImage });
+      const directedEditInstruction = await buildArtDirectedPrompt({
+        apiKey: googleApiKey,
+        textModel,
+        userPrompt: rawUserPrompt || editInstruction,
+        referenceProfile,
+        mode: 'edit',
+        editInstruction: sanitizeSinglePrompt(editInstruction),
+        allowedTextList,
+      });
       const editPrompt = `${GENERATION_GUARDRAIL}
 Preserve the existing banner canvas ratio and convert the design to full-bleed edge-to-edge artwork. Remove any borders, poster margins, white padding, frames, or drop shadows.
 Refine the existing banner concept while preserving core theme and layout intent.
 Current image URL: ${currentImageUrl}
-Edit instruction: ${sanitizeSinglePrompt(editInstruction)}
-${referenceSummary ? `Reference direction: ${referenceSummary}` : ''}`;
+Edit instruction: ${directedEditInstruction}`;
       const r = await fetch(`${GEMINI_BASE}/models/${imageModel}:predict?key=${encodeURIComponent(googleApiKey)}`, {
         method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ instances: [{ prompt: editPrompt }], parameters: { sampleCount: 1, aspectRatio: imagenAspectRatio } }),
@@ -288,7 +376,7 @@ ${referenceSummary ? `Reference direction: ${referenceSummary}` : ''}`;
       if (!b64) return json(200, { ok: false, action, safeErrorMessage: 'No edited image returned from model.' });
       const upload = await cloudinary.uploader.upload(`data:image/png;base64,${b64}`, { folder: 'ai-generated-banners', resource_type: 'image' });
       const canonicalImageUrl = cloudinaryRatioTransformUrl(upload.public_id, targetW, targetH);
-      return json(200, { ok: true, action, imageUrl: canonicalImageUrl, image: { url: canonicalImageUrl, original_url: upload.secure_url || canonicalImageUrl, width: upload.width || targetW * 100, height: upload.height || targetH * 100 }, editFallback: false, safeErrorMessage: null });
+      return json(200, { ok: true, action, imageUrl: canonicalImageUrl, image: { url: canonicalImageUrl, original_url: upload.secure_url || canonicalImageUrl, width: upload.width || targetW * 100, height: upload.height || targetH * 100 }, editFallback: false, debug: { rawUserPrompt, referenceType: referenceProfile.referenceType, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), finalProductionPrompt: editPrompt, logoLikely: referenceProfile.logoLikely }, safeErrorMessage: null });
     }
 
     return json(400, { ok: false, action, error: 'Unknown action' });
