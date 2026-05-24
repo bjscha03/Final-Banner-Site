@@ -223,6 +223,16 @@ Task: ${task}`;
   const out = sanitizeForbiddenBranding(sanitizeSinglePrompt(d?.candidates?.[0]?.content?.parts?.map((p) => p.text).join(' ') || ''));
   return out;
 }
+function classifyEditInstruction(editInstruction) {
+  const t = String(editInstruction || '').toLowerCase();
+  if (/(change|replace|update).*(to|with)|\b202\d\b|\bphone\b|\bnumber\b|\bname\b/.test(t)) return 'text_replace';
+  if (/(color|palette|saturat|hue|tone)/.test(t)) return 'color_adjust';
+  if (/(font|typography|style|premium|modern|clean)/.test(t)) return 'style_refine';
+  if (/(layout|position|move|align|spacing|composition)/.test(t)) return 'composition_adjust';
+  if (/(background|add|tower|texture|element)/.test(t)) return 'background_addition';
+  if (/(logo|brand mark|branding)/.test(t)) return 'logo_change';
+  return 'full_regeneration';
+}
 
 export async function handler(event) {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: CORS, body: '' };
@@ -452,7 +462,7 @@ export async function handler(event) {
         count: 1,
         requestedBannerRatio: `${targetW}:${targetH}`,
         generatedImagenRatio: imagenAspectRatio,
-        debug: { rawUserPrompt, imageProvider: provider, modelUsed, providerStatus, referenceType: referenceProfile.referenceType, logoDetected: referenceProfile.logoLikely, logoCompositeMode, logoCompositedDirectly, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), whitespaceScore, edgeCoverageScore, centeredPosterLikelihood, finalProductionPrompt: sourcePrompt, fallbackReason },
+        debug: { rawUserPrompt, imageProvider: provider, modelUsed, providerStatus, referenceType: referenceProfile.referenceType, logoDetected: referenceProfile.logoLikely, logoCompositeMode, logoCompositedDirectly, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), whitespaceScore, edgeCoverageScore, centeredPosterLikelihood, canonicalApprovedImageUrl: canonicalImageUrl, finalProductionPrompt: sourcePrompt, fallbackReason },
         safeErrorMessage: null,
       });
     }
@@ -469,6 +479,9 @@ export async function handler(event) {
       const rawUserPrompt = sanitizeSinglePrompt(body.prompt || '');
       const allowedTextList = extractAllowedTextList(rawUserPrompt);
       const referenceProfile = await analyzeReferenceImage({ apiKey: googleApiKey, textModel, referenceImage: body.referenceImage });
+      const editClassification = classifyEditInstruction(editInstruction);
+      const preservationMode = editClassification === 'text_replace' ? 'surgical_text_edit' : 'preserve_layout_refinement';
+      const compositionDriftRisk = editClassification === 'text_replace' ? 'low' : editClassification === 'full_regeneration' ? 'high' : 'medium';
       const directedEditInstruction = await buildArtDirectedPrompt({
         apiKey: googleApiKey,
         textModel,
@@ -480,9 +493,13 @@ export async function handler(event) {
       });
       const editPrompt = `${GENERATION_GUARDRAIL}
 ${FULL_BLEED_PREPEND}
+Preserve the existing banner composition, character placement, typography style, color palette, visual hierarchy, and overall layout. Only apply the requested change. Do not redesign the banner. Do not create a new composition. Keep the same overall design identity.
+Maintain the same composition and layout positioning. Keep all major elements in their current positions unless specifically instructed otherwise.
 Preserve the existing banner canvas ratio and convert the design to full-bleed edge-to-edge artwork. Remove any borders, poster margins, white padding, frames, or drop shadows.
 Refine the existing banner concept while preserving core theme and layout intent.
 Current image URL: ${currentImageUrl}
+Edit classification: ${editClassification}
+Preservation mode: ${preservationMode}
 Edit instruction: ${directedEditInstruction}`;
       const imageProvider = String(body.imageProvider || 'openai').toLowerCase() === 'imagen' ? 'imagen' : 'openai';
       let b64 = '';
@@ -510,6 +527,8 @@ Edit instruction: ${directedEditInstruction}`;
         b64 = d?.predictions?.[0]?.bytesBase64Encoded;
       }
       if (!b64) return json(200, { ok: false, action, safeErrorMessage: 'No edited image returned from model.' });
+      const trueImageEditUsed = provider === 'openai';
+      const fullRegenerationOccurred = !trueImageEditUsed;
       const upload = await cloudinary.uploader.upload(`data:image/png;base64,${b64}`, { folder: 'ai-generated-banners', resource_type: 'image' });
       let canonicalImageUrl = cloudinaryRatioTransformUrlAggressive(upload.public_id, targetW, targetH);
       let logoCompositeMode = 'none';
@@ -540,7 +559,7 @@ Edit instruction: ${directedEditInstruction}`;
           logoCompositeMode = 'reserved_logo_safe_area';
         }
       }
-      return json(200, { ok: true, action, imageUrl: canonicalImageUrl, image: { url: canonicalImageUrl, original_url: upload.secure_url || canonicalImageUrl, width: upload.width || targetW * 100, height: upload.height || targetH * 100 }, editFallback: false, provider, imageProvider: provider, debug: { rawUserPrompt, imageProvider: provider, modelUsed, providerStatus, referenceType: referenceProfile.referenceType, logoDetected: referenceProfile.logoLikely, logoCompositeMode, logoCompositedDirectly, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), whitespaceScore, edgeCoverageScore, centeredPosterLikelihood, finalProductionPrompt: editPrompt }, safeErrorMessage: null });
+      return json(200, { ok: true, action, imageUrl: canonicalImageUrl, image: { url: canonicalImageUrl, original_url: upload.secure_url || canonicalImageUrl, width: upload.width || targetW * 100, height: upload.height || targetH * 100 }, editFallback: false, provider, imageProvider: provider, debug: { rawUserPrompt, imageProvider: provider, modelUsed, providerStatus, editClassification, preservationMode, compositionDriftRisk, trueImageEditUsed, fullRegenerationOccurred, referenceType: referenceProfile.referenceType, logoDetected: referenceProfile.logoLikely, logoCompositeMode, logoCompositedDirectly, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), whitespaceScore, edgeCoverageScore, centeredPosterLikelihood, canonicalApprovedImageUrl: canonicalImageUrl, finalProductionPrompt: editPrompt }, safeErrorMessage: null });
     }
 
     return json(400, { ok: false, action, error: 'Unknown action' });

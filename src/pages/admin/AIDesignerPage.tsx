@@ -320,6 +320,7 @@ const AIDesignerPage: React.FC = () => {
         hemmingIncluded: true,
         designTransform: imageTransform,
         pricingBreakdown: { subtotal, tax, total, materialRate: pricing.materialPricePerSqFtCents / 100 },
+        approvedPreviewImageUrl: imageUrl,
         canvasStateJson: JSON.stringify({ imageTransform, finishingType, grommetOption, ropePlacement, polePocketPlacement }),
       });
       if (id) {
