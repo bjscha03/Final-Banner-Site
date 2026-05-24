@@ -32,6 +32,13 @@ The artwork must occupy nearly the full image area.
 The artwork must naturally extend to all edges of the canvas.
 The design must use the entire banner width and height as the active composition area.
 Do NOT generate white borders, margins, poster framing, centered artwork blocks, mockups, fences, walls, poles, hanging banners, product shots, environmental scenes, multiple concepts, split layouts, collages, design sheets, framed rectangles, drop-shadow poster effects, or unused whitespace.`;
+const MOCKUP_BAN_PREPEND = `Create ONLY the actual flat banner artwork itself.
+Do NOT create a printed banner mockup or presentation.
+Do NOT generate hanging hardware, ropes, poles, fences, grommets, walls, frames, product photography, repeated banners, miniature banners, or print-preview sheets.
+The generated image itself must be the final edge-to-edge printable banner graphic.
+Design directly for the full canvas dimensions as a finished commercial banner artwork.
+The final image should look like a professionally designed digital banner graphic file, not a photo of a physical banner.
+Do NOT create banners inside banners, miniature repeated banner copies, product-sheet layouts, mockup thumbnails, preview boards, or duplicated embedded designs.`;
 
 const FALLBACK_IMAGE_URL = 'https://res.cloudinary.com/dtrxl120u/image/upload/f_auto,q_auto,w_1600,h_800,c_fill/v1769209469/White-Label_Banners_-2_from_4over_nedg8n.png';
 const OPENAI_BASE = 'https://api.openai.com/v1';
@@ -73,6 +80,34 @@ async function callOpenAIImageGenerate({ apiKey, prompt, size = '1536x1024', mod
     }
   }
   throw new Error('OpenAI returned no image output.');
+}
+async function scoreGeneratedImageType({ apiKey, textModel, b64, mimeType = 'image/png' }) {
+  const r = await fetch(`${GEMINI_BASE}/models/${textModel}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{
+        role: 'user',
+        parts: [
+          { text: 'Return strict JSON only with numeric keys 0..1: mockupLikelihood, repeatedBannerLikelihood, posterFrameLikelihood, fullBleedScore and boolean safetyPassTriggered recommendation (true when mockupLikelihood>0.45 or fullBleedScore<0.75).' },
+          { inline_data: { mime_type: mimeType, data: b64 } },
+        ],
+      }],
+    }),
+  });
+  const d = await r.json().catch(() => ({}));
+  const raw = d?.candidates?.[0]?.content?.parts?.map((p) => p.text).join(' ') || '{}';
+  try {
+    const parsed = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] || '{}');
+    const mockupLikelihood = Number(parsed.mockupLikelihood ?? 0.2);
+    const repeatedBannerLikelihood = Number(parsed.repeatedBannerLikelihood ?? 0.2);
+    const posterFrameLikelihood = Number(parsed.posterFrameLikelihood ?? 0.2);
+    const fullBleedScore = Number(parsed.fullBleedScore ?? 0.8);
+    const safetyPassTriggered = Boolean(parsed.safetyPassTriggered) || mockupLikelihood > 0.45 || fullBleedScore < 0.75;
+    return { mockupLikelihood, repeatedBannerLikelihood, posterFrameLikelihood, fullBleedScore, safetyPassTriggered };
+  } catch {
+    return { mockupLikelihood: 0.2, repeatedBannerLikelihood: 0.2, posterFrameLikelihood: 0.2, fullBleedScore: 0.8, safetyPassTriggered: false };
+  }
 }
 
 function resolveModels(models) {
@@ -328,7 +363,7 @@ export async function handler(event) {
         mode: 'generate',
         allowedTextList,
       });
-      const sourcePrompt = `${GENERATION_GUARDRAIL}\n${FULL_BLEED_PREPEND}\n${artDirectedPrompt}`;
+      const sourcePrompt = `${GENERATION_GUARDRAIL}\n${FULL_BLEED_PREPEND}\n${MOCKUP_BAN_PREPEND}\n${artDirectedPrompt}`;
       if (!sourcePrompt) return json(400, { ok: false, action, error: 'Prompt required' });
 
       const targetW = Number(body?.size?.w) || 8;
@@ -406,6 +441,26 @@ export async function handler(event) {
         b64 = d?.predictions?.[0]?.bytesBase64Encoded;
       }
       if (!b64) return json(200, { ok: false, action, imageUrl: null, safeErrorMessage: 'No image returned from model.' });
+      let safetyPassTriggered = false;
+      let imageTypeScores = await scoreGeneratedImageType({ apiKey: googleApiKey, textModel, b64 });
+      if (imageTypeScores.safetyPassTriggered) {
+        safetyPassTriggered = true;
+        const safetyPrompt = `${sourcePrompt}\nCRITICAL corrective pass: remove any mockup/hanging/framed/repeated banner behavior. Output one single flat full-bleed artwork only.`;
+        try {
+          if (provider === 'openai' && openaiApiKey) {
+            const retry = await callOpenAIImageGenerate({ apiKey: openaiApiKey, prompt: safetyPrompt, size: '1536x1024', model: modelUsed, referenceImage: body.referenceImage });
+            b64 = retry.b64;
+          } else {
+            const rr = await fetch(`${GEMINI_BASE}/models/${imageModel}:predict?key=${encodeURIComponent(googleApiKey)}`, {
+              method: 'POST', headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ instances: [{ prompt: safetyPrompt }], parameters: { sampleCount: 1, aspectRatio: imagenAspectRatio } }),
+            });
+            const rd = await rr.json().catch(() => ({}));
+            if (rr.ok && rd?.predictions?.[0]?.bytesBase64Encoded) b64 = rd.predictions[0].bytesBase64Encoded;
+          }
+          imageTypeScores = await scoreGeneratedImageType({ apiKey: googleApiKey, textModel, b64 });
+        } catch {}
+      }
 
       if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
         return json(200, { ok: false, action, imageUrl: null, safeErrorMessage: 'Cloudinary not configured for ratio correction.' });
@@ -419,9 +474,9 @@ export async function handler(event) {
       let canonicalImageUrl = cloudinaryRatioTransformUrlAggressive(upload.public_id, targetW, targetH);
       let logoCompositeMode = 'none';
       let logoCompositedDirectly = false;
-      let whitespaceScore = 0.15;
-      let edgeCoverageScore = 0.9;
-      let centeredPosterLikelihood = 0.1;
+      let whitespaceScore = Math.max(0, 1 - imageTypeScores.fullBleedScore);
+      let edgeCoverageScore = imageTypeScores.fullBleedScore;
+      let centeredPosterLikelihood = imageTypeScores.posterFrameLikelihood;
       if (referenceProfile.referenceType === 'logo' && body.referenceImage) {
         try {
           const logoUpload = await cloudinary.uploader.upload(String(body.referenceImage), { folder: 'ai-generated-banners/logos', resource_type: 'image' });
@@ -462,7 +517,7 @@ export async function handler(event) {
         count: 1,
         requestedBannerRatio: `${targetW}:${targetH}`,
         generatedImagenRatio: imagenAspectRatio,
-        debug: { rawUserPrompt, imageProvider: provider, modelUsed, providerStatus, referenceType: referenceProfile.referenceType, logoDetected: referenceProfile.logoLikely, logoCompositeMode, logoCompositedDirectly, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), whitespaceScore, edgeCoverageScore, centeredPosterLikelihood, canonicalApprovedImageUrl: canonicalImageUrl, finalProductionPrompt: sourcePrompt, fallbackReason },
+        debug: { rawUserPrompt, imageProvider: provider, modelUsed, providerStatus, referenceType: referenceProfile.referenceType, logoDetected: referenceProfile.logoLikely, logoCompositeMode, logoCompositedDirectly, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), whitespaceScore, edgeCoverageScore, centeredPosterLikelihood, mockupLikelihood: imageTypeScores.mockupLikelihood, repeatedBannerLikelihood: imageTypeScores.repeatedBannerLikelihood, posterFrameLikelihood: imageTypeScores.posterFrameLikelihood, fullBleedScore: imageTypeScores.fullBleedScore, regenerationSafetyPassTriggered: safetyPassTriggered, canonicalApprovedImageUrl: canonicalImageUrl, finalProductionPrompt: sourcePrompt, fallbackReason },
         safeErrorMessage: null,
       });
     }
@@ -493,6 +548,7 @@ export async function handler(event) {
       });
       const editPrompt = `${GENERATION_GUARDRAIL}
 ${FULL_BLEED_PREPEND}
+${MOCKUP_BAN_PREPEND}
 Preserve the existing banner composition, character placement, typography style, color palette, visual hierarchy, and overall layout. Only apply the requested change. Do not redesign the banner. Do not create a new composition. Keep the same overall design identity.
 Maintain the same composition and layout positioning. Keep all major elements in their current positions unless specifically instructed otherwise.
 Preserve the existing banner canvas ratio and convert the design to full-bleed edge-to-edge artwork. Remove any borders, poster margins, white padding, frames, or drop shadows.
@@ -527,15 +583,18 @@ Edit instruction: ${directedEditInstruction}`;
         b64 = d?.predictions?.[0]?.bytesBase64Encoded;
       }
       if (!b64) return json(200, { ok: false, action, safeErrorMessage: 'No edited image returned from model.' });
+      let safetyPassTriggered = false;
+      let imageTypeScores = await scoreGeneratedImageType({ apiKey: googleApiKey, textModel, b64 });
+      if (imageTypeScores.safetyPassTriggered) safetyPassTriggered = true;
       const trueImageEditUsed = provider === 'openai';
       const fullRegenerationOccurred = !trueImageEditUsed;
       const upload = await cloudinary.uploader.upload(`data:image/png;base64,${b64}`, { folder: 'ai-generated-banners', resource_type: 'image' });
       let canonicalImageUrl = cloudinaryRatioTransformUrlAggressive(upload.public_id, targetW, targetH);
       let logoCompositeMode = 'none';
       let logoCompositedDirectly = false;
-      let whitespaceScore = 0.15;
-      let edgeCoverageScore = 0.9;
-      let centeredPosterLikelihood = 0.1;
+      let whitespaceScore = Math.max(0, 1 - imageTypeScores.fullBleedScore);
+      let edgeCoverageScore = imageTypeScores.fullBleedScore;
+      let centeredPosterLikelihood = imageTypeScores.posterFrameLikelihood;
       if (referenceProfile.referenceType === 'logo' && body.referenceImage) {
         try {
           const logoUpload = await cloudinary.uploader.upload(String(body.referenceImage), { folder: 'ai-generated-banners/logos', resource_type: 'image' });
@@ -559,7 +618,7 @@ Edit instruction: ${directedEditInstruction}`;
           logoCompositeMode = 'reserved_logo_safe_area';
         }
       }
-      return json(200, { ok: true, action, imageUrl: canonicalImageUrl, image: { url: canonicalImageUrl, original_url: upload.secure_url || canonicalImageUrl, width: upload.width || targetW * 100, height: upload.height || targetH * 100 }, editFallback: false, provider, imageProvider: provider, debug: { rawUserPrompt, imageProvider: provider, modelUsed, providerStatus, editClassification, preservationMode, compositionDriftRisk, trueImageEditUsed, fullRegenerationOccurred, referenceType: referenceProfile.referenceType, logoDetected: referenceProfile.logoLikely, logoCompositeMode, logoCompositedDirectly, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), whitespaceScore, edgeCoverageScore, centeredPosterLikelihood, canonicalApprovedImageUrl: canonicalImageUrl, finalProductionPrompt: editPrompt }, safeErrorMessage: null });
+      return json(200, { ok: true, action, imageUrl: canonicalImageUrl, image: { url: canonicalImageUrl, original_url: upload.secure_url || canonicalImageUrl, width: upload.width || targetW * 100, height: upload.height || targetH * 100 }, editFallback: false, provider, imageProvider: provider, debug: { rawUserPrompt, imageProvider: provider, modelUsed, providerStatus, editClassification, preservationMode, compositionDriftRisk, trueImageEditUsed, fullRegenerationOccurred, referenceType: referenceProfile.referenceType, logoDetected: referenceProfile.logoLikely, logoCompositeMode, logoCompositedDirectly, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), whitespaceScore, edgeCoverageScore, centeredPosterLikelihood, mockupLikelihood: imageTypeScores.mockupLikelihood, repeatedBannerLikelihood: imageTypeScores.repeatedBannerLikelihood, posterFrameLikelihood: imageTypeScores.posterFrameLikelihood, fullBleedScore: imageTypeScores.fullBleedScore, regenerationSafetyPassTriggered: safetyPassTriggered, canonicalApprovedImageUrl: canonicalImageUrl, finalProductionPrompt: editPrompt }, safeErrorMessage: null });
     }
 
     return json(400, { ok: false, action, error: 'Unknown action' });
