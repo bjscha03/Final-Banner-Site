@@ -14,6 +14,13 @@ cloudinary.config({
 });
 
 const json = (statusCode, payload) => ({ statusCode, headers: CORS, body: JSON.stringify(payload) });
+const safeJsonResponse = (statusCode, payload = {}) => {
+  try {
+    return { statusCode, headers: CORS, body: JSON.stringify(payload ?? {}) };
+  } catch {
+    return { statusCode, headers: CORS, body: JSON.stringify({ ok: false, error: 'response_serialization_failed', safeErrorMessage: 'Response serialization failed.', detailCode: 'serialization_failed', stage: 'response' }) };
+  }
+};
 const fallbackEnhance = (p, size) => `Create a premium ${size?.w || 8}ft x ${size?.h || 4}ft full-bleed banner design with bold readable typography, clean hierarchy, high contrast, and print-ready spacing. Flat artwork only, exactly one composition, no mockup or real-world scene. Theme: ${p}`;
 const SUPPORTED_IMAGEN_RATIOS = ['1:1', '9:16', '16:9', '4:3', '3:4'];
 
@@ -270,7 +277,7 @@ function classifyEditInstruction(editInstruction) {
 }
 
 export async function handler(event) {
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: CORS, body: '' };
+  if (event.httpMethod === 'OPTIONS') return safeJsonResponse(200, { ok: true });
 
   const googleApiKey =
     process.env.GOOGLE_GENAI_API_KEY ||
@@ -290,7 +297,7 @@ export async function handler(event) {
   console.log('[generate-ai-designs] matched env var:', matchedEnvName || 'none');
 
   if (event.httpMethod === 'GET') {
-    return json(200, {
+    return safeJsonResponse(200, {
       ok: true,
       action: 'health',
       functionReachable: true,
@@ -300,14 +307,14 @@ export async function handler(event) {
     });
   }
 
-  if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'Method not allowed' });
+  if (event.httpMethod !== 'POST') return safeJsonResponse(405, { ok: false, error: 'Method not allowed', detailCode: 'method_not_allowed', safeErrorMessage: 'Method not allowed.', stage: 'request' });
 
   let body = {};
-  try { body = JSON.parse(event.body || '{}'); } catch { return json(400, { ok: false, error: 'Invalid JSON body' }); }
+  try { body = JSON.parse(event.body || '{}'); } catch { return safeJsonResponse(400, { ok: false, error: 'Invalid JSON body', detailCode: 'invalid_json_body', safeErrorMessage: 'Invalid JSON request body.', stage: 'request' }); }
   const action = body.action || 'enhance';
 
   if (!googleApiKey) {
-    return json(200, {
+    return safeJsonResponse(200, {
       ok: false, action, functionReachable: true,
       env: { hasGoogleApiKey: Boolean(googleApiKey) }, matchedEnvName,
       error: 'AI environment not configured',
@@ -319,7 +326,7 @@ export async function handler(event) {
     const { textModel, imageModel } = resolveModels(models);
 
     if (action === 'debug') {
-      return json(200, {
+      return safeJsonResponse(200, {
         ok: true, action, functionReachable: true,
         env: { hasGoogleApiKey: Boolean(googleApiKey) }, matchedEnvName,
         modelsEndpointReachable: models.length > 0,
@@ -330,27 +337,31 @@ export async function handler(event) {
       });
     }
 
-    if (action === 'enhance') {
+    if (action === 'enhance') try {
       const originalPrompt = String(body.prompt || '').trim();
-      if (!originalPrompt) return json(400, { ok: false, action, error: 'Prompt required' });
+      if (!originalPrompt) return safeJsonResponse(400, { ok: false, action, error: 'Prompt required', detailCode: 'prompt_required', safeErrorMessage: 'Prompt required.', stage: 'enhance' });
       const referenceProfile = await analyzeReferenceImage({ apiKey: googleApiKey, textModel, referenceImage: body.referenceImage });
       const allowedTextList = extractAllowedTextList(originalPrompt);
       const enhancedPrompt = await buildArtDirectedPrompt({ apiKey: googleApiKey, textModel, userPrompt: originalPrompt, referenceProfile, mode: 'generate', allowedTextList }) || fallbackEnhance(originalPrompt, body.size);
-      return json(200, { ok: true, action, enhancedPrompt, safeErrorMessage: null });
+      return safeJsonResponse(200, { ok: true, action, enhancedPrompt, safeErrorMessage: null });
+    } catch (error) {
+      return safeJsonResponse(200, { ok: false, action: 'enhance', error: 'enhance_failed', detailCode: 'enhance_exception', safeErrorMessage: error instanceof Error ? error.message : 'Enhance failed.', stage: 'enhance' });
     }
-    if (action === 'enhanceEdit') {
+    if (action === 'enhanceEdit') try {
       const editInstruction = String(body.editInstruction || '').trim();
-      if (!editInstruction) return json(400, { ok: false, action, error: 'Edit instruction required' });
+      if (!editInstruction) return safeJsonResponse(400, { ok: false, action, error: 'Edit instruction required', detailCode: 'edit_instruction_required', safeErrorMessage: 'Edit instruction required.', stage: 'enhanceEdit' });
       const r = await fetch(`${GEMINI_BASE}/models/${textModel}:generateContent?key=${encodeURIComponent(googleApiKey)}`, {
         method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: `Rewrite as one direct banner edit instruction only. No options, no explanation. Preserve existing composition and keep artwork flat, full-bleed, print-ready: ${editInstruction}` }] }] }),
       });
       const d = await r.json().catch(() => ({}));
       const enhancedEditPrompt = sanitizeSinglePrompt(d?.candidates?.[0]?.content?.parts?.map((p) => p.text).join(' ') || editInstruction);
-      return json(200, { ok: true, action, enhancedEditPrompt });
+      return safeJsonResponse(200, { ok: true, action, enhancedEditPrompt });
+    } catch (error) {
+      return safeJsonResponse(200, { ok: false, action: 'enhanceEdit', error: 'enhance_edit_failed', detailCode: 'enhance_edit_exception', safeErrorMessage: error instanceof Error ? error.message : 'Enhance edit failed.', stage: 'enhanceEdit' });
     }
 
-    if (action === 'generate') {
+    if (action === 'generate') try {
       const imageProvider = String(body.imageProvider || 'openai').toLowerCase() === 'imagen' ? 'imagen' : 'openai';
       const rawUserPrompt = sanitizeSinglePrompt(body.prompt || '');
       const allowedTextList = extractAllowedTextList(rawUserPrompt);
@@ -364,14 +375,14 @@ export async function handler(event) {
         allowedTextList,
       });
       const sourcePrompt = `${GENERATION_GUARDRAIL}\n${FULL_BLEED_PREPEND}\n${MOCKUP_BAN_PREPEND}\n${artDirectedPrompt}`;
-      if (!sourcePrompt) return json(400, { ok: false, action, error: 'Prompt required' });
+      if (!sourcePrompt) return safeJsonResponse(400, { ok: false, action, error: 'Prompt required', detailCode: 'prompt_required', safeErrorMessage: 'Prompt required.', stage: 'generate' });
 
       const targetW = Number(body?.size?.w) || 8;
       const targetH = Number(body?.size?.h) || 4;
       const imagenAspectRatio = pickImagenRatio(targetW, targetH);
 
       if (!SUPPORTED_IMAGEN_RATIOS.includes(imagenAspectRatio)) {
-        return json(200, { ok: false, action, imageUrl: null, safeErrorMessage: 'Unsupported mapped Imagen ratio.' });
+        return safeJsonResponse(200, { ok: false, action, imageUrl: null, error: 'unsupported_ratio', detailCode: 'unsupported_imagen_ratio', safeErrorMessage: 'Unsupported mapped Imagen ratio.', stage: 'generate' });
       }
 
       let b64 = '';
@@ -414,7 +425,7 @@ export async function handler(event) {
           const imagenProviderMessage = String(d?.error?.message || d?.message || 'Unknown provider error');
           const imagenRawResponseFirst500 = JSON.stringify(d || {}).slice(0, 500);
           const fallbackReason = 'imagen_paid_access_required';
-          return json(200, {
+          return safeJsonResponse(200, {
             ok: true,
             action,
             imageUrl: FALLBACK_IMAGE_URL,
@@ -436,13 +447,14 @@ export async function handler(event) {
             safeErrorMessage: 'Temporary fallback image used because Imagen paid access is required.',
           });
         }
-        return json(200, { ok: false, action, imageUrl: null, safeErrorMessage: d?.error?.message || 'Image generation failed. Please try again.' });
+        return safeJsonResponse(200, { ok: false, action, imageUrl: null, error: 'generation_failed', detailCode: 'provider_generation_failed', safeErrorMessage: d?.error?.message || 'Image generation failed. Please try again.', stage: 'generate' });
       }
         b64 = d?.predictions?.[0]?.bytesBase64Encoded;
       }
       if (!b64) return json(200, { ok: false, action, imageUrl: null, safeErrorMessage: 'No image returned from model.' });
       let safetyPassTriggered = false;
-      let imageTypeScores = await scoreGeneratedImageType({ apiKey: googleApiKey, textModel, b64 });
+      let imageTypeScores = { mockupLikelihood: 0.2, repeatedBannerLikelihood: 0.2, posterFrameLikelihood: 0.2, fullBleedScore: 0.8, safetyPassTriggered: false };
+      try { imageTypeScores = await scoreGeneratedImageType({ apiKey: googleApiKey, textModel, b64 }); } catch {}
       if (imageTypeScores.safetyPassTriggered) {
         safetyPassTriggered = true;
         const safetyPrompt = `${sourcePrompt}\nCRITICAL corrective pass: remove any mockup/hanging/framed/repeated banner behavior. Output one single flat full-bleed artwork only.`;
@@ -458,12 +470,12 @@ export async function handler(event) {
             const rd = await rr.json().catch(() => ({}));
             if (rr.ok && rd?.predictions?.[0]?.bytesBase64Encoded) b64 = rd.predictions[0].bytesBase64Encoded;
           }
-          imageTypeScores = await scoreGeneratedImageType({ apiKey: googleApiKey, textModel, b64 });
+          try { imageTypeScores = await scoreGeneratedImageType({ apiKey: googleApiKey, textModel, b64 }); } catch {}
         } catch {}
       }
 
       if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
-        return json(200, { ok: false, action, imageUrl: null, safeErrorMessage: 'Cloudinary not configured for ratio correction.' });
+        return safeJsonResponse(200, { ok: false, action, imageUrl: null, error: 'cloudinary_not_configured', detailCode: 'cloudinary_missing_env', safeErrorMessage: 'Cloudinary not configured for ratio correction.', stage: 'generate' });
       }
 
       const upload = await cloudinary.uploader.upload(`data:image/png;base64,${b64}`, {
@@ -500,7 +512,7 @@ export async function handler(event) {
           logoCompositeMode = 'reserved_logo_safe_area';
         }
       }
-      return json(200, {
+      return safeJsonResponse(200, {
         ok: true,
         action,
         imageUrl: canonicalImageUrl,
@@ -520,14 +532,16 @@ export async function handler(event) {
         debug: { rawUserPrompt, imageProvider: provider, modelUsed, providerStatus, referenceType: referenceProfile.referenceType, logoDetected: referenceProfile.logoLikely, logoCompositeMode, logoCompositedDirectly, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), whitespaceScore, edgeCoverageScore, centeredPosterLikelihood, mockupLikelihood: imageTypeScores.mockupLikelihood, repeatedBannerLikelihood: imageTypeScores.repeatedBannerLikelihood, posterFrameLikelihood: imageTypeScores.posterFrameLikelihood, fullBleedScore: imageTypeScores.fullBleedScore, regenerationSafetyPassTriggered: safetyPassTriggered, canonicalApprovedImageUrl: canonicalImageUrl, finalProductionPrompt: sourcePrompt, fallbackReason },
         safeErrorMessage: null,
       });
+    } catch (error) {
+      return safeJsonResponse(200, { ok: false, action: 'generate', error: 'generate_failed', detailCode: 'generate_exception', safeErrorMessage: error instanceof Error ? error.message : 'Generate failed.', stage: 'generate' });
     }
 
 
-    if (action === 'edit') {
+    if (action === 'edit') try {
       const currentImageUrl = String(body.imageUrl || '').trim();
       const editInstruction = String(body.editInstruction || '').trim();
-      if (!currentImageUrl) return json(400, { ok: false, action, error: 'Image is required' });
-      if (!editInstruction) return json(400, { ok: false, action, error: 'Edit instruction required' });
+      if (!currentImageUrl) return safeJsonResponse(400, { ok: false, action, error: 'Image is required', detailCode: 'image_required', safeErrorMessage: 'Image is required.', stage: 'edit' });
+      if (!editInstruction) return safeJsonResponse(400, { ok: false, action, error: 'Edit instruction required', detailCode: 'edit_instruction_required', safeErrorMessage: 'Edit instruction required.', stage: 'edit' });
       const targetW = Number(body?.size?.w) || 8;
       const targetH = Number(body?.size?.h) || 4;
       const imagenAspectRatio = pickImagenRatio(targetW, targetH);
@@ -579,12 +593,13 @@ Edit instruction: ${directedEditInstruction}`;
         });
         const d = await r.json().catch(() => ({}));
         providerStatus = r.status;
-        if (!r.ok) return json(200, { ok: false, action, safeErrorMessage: d?.error?.message || 'Edit generation failed.' });
+        if (!r.ok) return safeJsonResponse(200, { ok: false, action, error: 'edit_generation_failed', detailCode: 'provider_edit_failed', safeErrorMessage: d?.error?.message || 'Edit generation failed.', stage: 'edit' });
         b64 = d?.predictions?.[0]?.bytesBase64Encoded;
       }
-      if (!b64) return json(200, { ok: false, action, safeErrorMessage: 'No edited image returned from model.' });
+      if (!b64) return safeJsonResponse(200, { ok: false, action, error: 'no_edited_image', detailCode: 'provider_empty_edit_image', safeErrorMessage: 'No edited image returned from model.', stage: 'edit' });
       let safetyPassTriggered = false;
-      let imageTypeScores = await scoreGeneratedImageType({ apiKey: googleApiKey, textModel, b64 });
+      let imageTypeScores = { mockupLikelihood: 0.2, repeatedBannerLikelihood: 0.2, posterFrameLikelihood: 0.2, fullBleedScore: 0.8, safetyPassTriggered: false };
+      try { imageTypeScores = await scoreGeneratedImageType({ apiKey: googleApiKey, textModel, b64 }); } catch {}
       if (imageTypeScores.safetyPassTriggered) safetyPassTriggered = true;
       const trueImageEditUsed = provider === 'openai';
       const fullRegenerationOccurred = !trueImageEditUsed;
@@ -618,11 +633,13 @@ Edit instruction: ${directedEditInstruction}`;
           logoCompositeMode = 'reserved_logo_safe_area';
         }
       }
-      return json(200, { ok: true, action, imageUrl: canonicalImageUrl, image: { url: canonicalImageUrl, original_url: upload.secure_url || canonicalImageUrl, width: upload.width || targetW * 100, height: upload.height || targetH * 100 }, editFallback: false, provider, imageProvider: provider, debug: { rawUserPrompt, imageProvider: provider, modelUsed, providerStatus, editClassification, preservationMode, compositionDriftRisk, trueImageEditUsed, fullRegenerationOccurred, referenceType: referenceProfile.referenceType, logoDetected: referenceProfile.logoLikely, logoCompositeMode, logoCompositedDirectly, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), whitespaceScore, edgeCoverageScore, centeredPosterLikelihood, mockupLikelihood: imageTypeScores.mockupLikelihood, repeatedBannerLikelihood: imageTypeScores.repeatedBannerLikelihood, posterFrameLikelihood: imageTypeScores.posterFrameLikelihood, fullBleedScore: imageTypeScores.fullBleedScore, regenerationSafetyPassTriggered: safetyPassTriggered, canonicalApprovedImageUrl: canonicalImageUrl, finalProductionPrompt: editPrompt }, safeErrorMessage: null });
+      return safeJsonResponse(200, { ok: true, action, imageUrl: canonicalImageUrl, image: { url: canonicalImageUrl, original_url: upload.secure_url || canonicalImageUrl, width: upload.width || targetW * 100, height: upload.height || targetH * 100 }, editFallback: false, provider, imageProvider: provider, debug: { rawUserPrompt, imageProvider: provider, modelUsed, providerStatus, editClassification, preservationMode, compositionDriftRisk, trueImageEditUsed, fullRegenerationOccurred, referenceType: referenceProfile.referenceType, logoDetected: referenceProfile.logoLikely, logoCompositeMode, logoCompositedDirectly, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), whitespaceScore, edgeCoverageScore, centeredPosterLikelihood, mockupLikelihood: imageTypeScores.mockupLikelihood, repeatedBannerLikelihood: imageTypeScores.repeatedBannerLikelihood, posterFrameLikelihood: imageTypeScores.posterFrameLikelihood, fullBleedScore: imageTypeScores.fullBleedScore, regenerationSafetyPassTriggered: safetyPassTriggered, canonicalApprovedImageUrl: canonicalImageUrl, finalProductionPrompt: editPrompt }, safeErrorMessage: null });
+    } catch (error) {
+      return safeJsonResponse(200, { ok: false, action: 'edit', error: 'edit_failed', detailCode: 'edit_exception', safeErrorMessage: error instanceof Error ? error.message : 'Edit failed.', stage: 'edit' });
     }
 
-    return json(400, { ok: false, action, error: 'Unknown action' });
+    return safeJsonResponse(400, { ok: false, action, error: 'Unknown action', detailCode: 'unknown_action', safeErrorMessage: 'Unknown action.', stage: 'routing' });
   } catch (error) {
-    return json(200, { ok: false, action, functionReachable: true, safeErrorMessage: error instanceof Error ? error.message : 'AI service unavailable' });
+    return safeJsonResponse(200, { ok: false, action, functionReachable: true, error: 'function_exception', detailCode: 'top_level_exception', safeErrorMessage: error instanceof Error ? error.message : 'AI service unavailable', stage: 'handler' });
   }
 }
