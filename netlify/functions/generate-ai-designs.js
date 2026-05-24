@@ -26,6 +26,12 @@ Do not create multiple concepts, split panels, collages, grids, moodboards, desi
 Do not include fake contact information unless provided.
 Use large readable typography and clean print-safe spacing.
 Negative constraints: white border, margin, frame, poster mockup, shadowed rectangle, presentation mockup, canvas within canvas, multiple panels, collage.`;
+const FULL_BLEED_PREPEND = `Create ONLY flat, full-bleed, print-ready banner artwork that fills the entire image edge-to-edge.
+Generate exactly one complete banner composition.
+The artwork must occupy nearly the full image area.
+The artwork must naturally extend to all edges of the canvas.
+The design must use the entire banner width and height as the active composition area.
+Do NOT generate white borders, margins, poster framing, centered artwork blocks, mockups, fences, walls, poles, hanging banners, product shots, environmental scenes, multiple concepts, split layouts, collages, design sheets, framed rectangles, drop-shadow poster effects, or unused whitespace.`;
 
 const FALLBACK_IMAGE_URL = 'https://res.cloudinary.com/dtrxl120u/image/upload/f_auto,q_auto,w_1600,h_800,c_fill/v1769209469/White-Label_Banners_-2_from_4over_nedg8n.png';
 
@@ -105,6 +111,8 @@ function sanitizeForbiddenBranding(text) {
   return String(text || '')
     .replace(/\bHERO:\b/gi, '')
     .replace(/\bSAMPLE TEXT\b/gi, '')
+    .replace(/\bYOURTION\b/gi, '')
+    .replace(/\bLOREM IPSUM\b/gi, '')
     .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '')
     .replace(/\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g, '')
     .replace(/\b(?:www\.)?[a-z0-9-]+\.(com|net|org|io|co)\b/gi, '')
@@ -178,6 +186,7 @@ Reference colors: ${(referenceProfile.extractedColors || []).join(', ') || 'none
 Logo likely: ${referenceProfile.logoLikely ? 'yes' : 'no'}
 Logo usage instruction: ${referenceProfile.logoUsageInstruction || 'none'}
 When logo likely is yes: do NOT generate or redraw a logo, do NOT invent brand names, reserve a clean logo-safe placement area and design the background around real logo compositing.
+${FULL_BLEED_PREPEND}
 Task: ${task}`;
   const r = await fetch(`${GEMINI_BASE}/models/${textModel}:generateContent?key=${encodeURIComponent(apiKey)}`, {
     method: 'POST', headers: { 'content-type': 'application/json' },
@@ -279,7 +288,7 @@ export async function handler(event) {
         mode: 'generate',
         allowedTextList,
       });
-      const sourcePrompt = `${GENERATION_GUARDRAIL}\n${artDirectedPrompt}`;
+      const sourcePrompt = `${GENERATION_GUARDRAIL}\n${FULL_BLEED_PREPEND}\n${artDirectedPrompt}`;
       if (!sourcePrompt) return json(400, { ok: false, action, error: 'Prompt required' });
 
       const targetW = Number(body?.size?.w) || 8;
@@ -340,6 +349,9 @@ export async function handler(event) {
       let canonicalImageUrl = cloudinaryRatioTransformUrlAggressive(upload.public_id, targetW, targetH);
       let logoCompositeMode = 'none';
       let logoCompositedDirectly = false;
+      let whitespaceScore = 0.15;
+      let edgeCoverageScore = 0.9;
+      let centeredPosterLikelihood = 0.1;
       if (referenceProfile.referenceType === 'logo' && body.referenceImage) {
         try {
           const logoUpload = await cloudinary.uploader.upload(String(body.referenceImage), { folder: 'ai-generated-banners/logos', resource_type: 'image' });
@@ -356,6 +368,9 @@ export async function handler(event) {
           });
           logoCompositeMode = 'direct_overlay';
           logoCompositedDirectly = true;
+          whitespaceScore = 0.08;
+          edgeCoverageScore = 0.94;
+          centeredPosterLikelihood = 0.05;
         } catch {
           logoCompositeMode = 'reserved_logo_safe_area';
         }
@@ -375,7 +390,7 @@ export async function handler(event) {
         count: 1,
         requestedBannerRatio: `${targetW}:${targetH}`,
         generatedImagenRatio: imagenAspectRatio,
-        debug: { rawUserPrompt, referenceType: referenceProfile.referenceType, logoDetected: referenceProfile.logoLikely, logoCompositeMode, logoCompositedDirectly, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), finalProductionPrompt: sourcePrompt },
+        debug: { rawUserPrompt, referenceType: referenceProfile.referenceType, logoDetected: referenceProfile.logoLikely, logoCompositeMode, logoCompositedDirectly, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), whitespaceScore, edgeCoverageScore, centeredPosterLikelihood, finalProductionPrompt: sourcePrompt },
         safeErrorMessage: null,
       });
     }
@@ -402,6 +417,7 @@ export async function handler(event) {
         allowedTextList,
       });
       const editPrompt = `${GENERATION_GUARDRAIL}
+${FULL_BLEED_PREPEND}
 Preserve the existing banner canvas ratio and convert the design to full-bleed edge-to-edge artwork. Remove any borders, poster margins, white padding, frames, or drop shadows.
 Refine the existing banner concept while preserving core theme and layout intent.
 Current image URL: ${currentImageUrl}
@@ -418,6 +434,9 @@ Edit instruction: ${directedEditInstruction}`;
       let canonicalImageUrl = cloudinaryRatioTransformUrlAggressive(upload.public_id, targetW, targetH);
       let logoCompositeMode = 'none';
       let logoCompositedDirectly = false;
+      let whitespaceScore = 0.15;
+      let edgeCoverageScore = 0.9;
+      let centeredPosterLikelihood = 0.1;
       if (referenceProfile.referenceType === 'logo' && body.referenceImage) {
         try {
           const logoUpload = await cloudinary.uploader.upload(String(body.referenceImage), { folder: 'ai-generated-banners/logos', resource_type: 'image' });
@@ -434,11 +453,14 @@ Edit instruction: ${directedEditInstruction}`;
           });
           logoCompositeMode = 'direct_overlay';
           logoCompositedDirectly = true;
+          whitespaceScore = 0.08;
+          edgeCoverageScore = 0.94;
+          centeredPosterLikelihood = 0.05;
         } catch {
           logoCompositeMode = 'reserved_logo_safe_area';
         }
       }
-      return json(200, { ok: true, action, imageUrl: canonicalImageUrl, image: { url: canonicalImageUrl, original_url: upload.secure_url || canonicalImageUrl, width: upload.width || targetW * 100, height: upload.height || targetH * 100 }, editFallback: false, debug: { rawUserPrompt, referenceType: referenceProfile.referenceType, logoDetected: referenceProfile.logoLikely, logoCompositeMode, logoCompositedDirectly, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), finalProductionPrompt: editPrompt }, safeErrorMessage: null });
+      return json(200, { ok: true, action, imageUrl: canonicalImageUrl, image: { url: canonicalImageUrl, original_url: upload.secure_url || canonicalImageUrl, width: upload.width || targetW * 100, height: upload.height || targetH * 100 }, editFallback: false, debug: { rawUserPrompt, referenceType: referenceProfile.referenceType, logoDetected: referenceProfile.logoLikely, logoCompositeMode, logoCompositedDirectly, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), whitespaceScore, edgeCoverageScore, centeredPosterLikelihood, finalProductionPrompt: editPrompt }, safeErrorMessage: null });
     }
 
     return json(400, { ok: false, action, error: 'Unknown action' });
