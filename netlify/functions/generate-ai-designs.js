@@ -408,6 +408,20 @@ async function handlerCore(event) {
     }
 
     if (action === 'generate') try {
+      return safeJsonResponse(200, {
+        ok: true,
+        action: 'generate',
+        stage: 'minimal_generate_test',
+        receivedImageProvider: body.imageProvider,
+        requestedProvider: body.imageProvider || 'openai',
+        image: {
+          url: 'https://res.cloudinary.com/dtrxl120u/image/upload/f_auto,q_auto/v1/ai-generated-banners/ymncjkfwykdkjrqn0pq4',
+          original_url: null,
+          width: 1600,
+          height: 800,
+        },
+      });
+
       const generateError = (stage, err) => safeJsonResponse(200, {
         ok: false,
         action: 'generate',
