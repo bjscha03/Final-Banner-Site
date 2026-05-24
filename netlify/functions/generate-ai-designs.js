@@ -65,7 +65,7 @@ async function fetchModels(apiKey) {
   if (!r.ok) throw new Error(body?.error?.message || 'models endpoint failed');
   return body.models || [];
 }
-async function callOpenAIImageGenerate({ apiKey, prompt, size = '1536x1024', model = 'gpt-image-2', referenceImage, editBaseImage }) {
+async function callOpenAIImageGenerate({ apiKey, prompt, size = '1536x1024', model = 'gpt-image-1', referenceImage, editBaseImage }) {
   const input = [];
   if (referenceImage) input.push({ type: 'input_image', image_data: String(referenceImage).replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '') });
   if (editBaseImage) input.push({ type: 'input_image', image_url: editBaseImage });
@@ -81,7 +81,15 @@ async function callOpenAIImageGenerate({ apiKey, prompt, size = '1536x1024', mod
     }),
   });
   const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d?.error?.message || `OpenAI image generation failed (${r.status})`);
+  if (!r.ok) {
+    const err = new Error(d?.error?.message || `OpenAI image generation failed (${r.status})`);
+    err.openaiStatus = r.status;
+    err.openaiErrorCode = d?.error?.code || 'openai_error';
+    err.openaiErrorMessage = d?.error?.message || `OpenAI image generation failed (${r.status})`;
+    err.openaiRawResponseFirst500 = JSON.stringify(d || {}).slice(0, 500);
+    err.openaiModelAttempted = model;
+    throw err;
+  }
   const out = d?.output || [];
   for (const item of out) {
     const content = item?.content || [];
@@ -89,7 +97,13 @@ async function callOpenAIImageGenerate({ apiKey, prompt, size = '1536x1024', mod
       if (c?.type === 'output_image' && c?.image_base64) return { b64: c.image_base64, modelUsed: model, providerStatus: r.status };
     }
   }
-  throw new Error('OpenAI returned no image output.');
+  const err = new Error('OpenAI returned no image output.');
+  err.openaiStatus = r.status;
+  err.openaiErrorCode = 'openai_no_image_output';
+  err.openaiErrorMessage = 'OpenAI returned no image output.';
+  err.openaiRawResponseFirst500 = JSON.stringify(d || {}).slice(0, 500);
+  err.openaiModelAttempted = model;
+  throw err;
 }
 async function scoreGeneratedImageType({ apiKey, textModel, b64, mimeType = 'image/png' }) {
   const r = await fetch(`${GEMINI_BASE}/models/${textModel}:generateContent?key=${encodeURIComponent(apiKey)}`, {
@@ -322,6 +336,7 @@ export async function handler(event) {
         ? 'GOOGLE_AI_API_KEY'
         : null;
   const openaiApiKey = process.env.OPENAI_API_KEY || '';
+  const matchedOpenAiEnvName = process.env.OPENAI_API_KEY ? 'OPENAI_API_KEY' : null;
 
   console.log('[generate-ai-designs] matched env var:', matchedEnvName || 'none');
 
@@ -362,6 +377,8 @@ export async function handler(event) {
         selectedTextModel: textModel,
         selectedImageModel: imageModel,
         openaiConfigured: Boolean(openaiApiKey),
+        hasOpenAiKey: Boolean(openaiApiKey),
+        matchedOpenAiEnvName,
         safeErrorMessage: null,
       });
     }
@@ -416,12 +433,14 @@ export async function handler(event) {
 
       let b64 = '';
       let provider = imageProvider;
+      const requestedProvider = imageProvider;
       let modelUsed = imageModel;
       let providerStatus = 200;
       let fallbackReason = null;
+      let openaiFailure = null;
       if (imageProvider === 'openai' && openaiApiKey) {
         try {
-          const openaiModelCandidates = ['gpt-image-2', 'gpt-image-1.5', 'gpt-image-1'];
+          const openaiModelCandidates = ['gpt-image-1', 'gpt-image-2', 'gpt-image-1.5'];
           let lastErr = null;
           for (const m of openaiModelCandidates) {
             try {
@@ -434,6 +453,13 @@ export async function handler(event) {
           }
           if (!b64) throw lastErr || new Error('No OpenAI model produced an image.');
         } catch (e) {
+          openaiFailure = {
+            openaiStatus: e?.openaiStatus || 500,
+            openaiErrorCode: e?.openaiErrorCode || 'openai_generation_failed',
+            openaiErrorMessage: e?.openaiErrorMessage || e?.message || 'OpenAI generation failed.',
+            openaiModelAttempted: e?.openaiModelAttempted || null,
+            openaiRawResponseFirst500: e?.openaiRawResponseFirst500 || null,
+          };
           provider = 'imagen';
           fallbackReason = 'openai_failed_fallback_to_imagen';
         }
@@ -572,6 +598,7 @@ export async function handler(event) {
         requestedBannerRatio: `${targetW}:${targetH}`,
         generatedImagenRatio: imagenAspectRatio,
         debug: { rawUserPrompt, imageProvider: provider, modelUsed, providerStatus, referenceType: referenceProfile.referenceType, logoDetected: referenceProfile.logoLikely, logoCompositeMode, logoCompositedDirectly, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), whitespaceScore, edgeCoverageScore, centeredPosterLikelihood, mockupLikelihood: imageTypeScores.mockupLikelihood, repeatedBannerLikelihood: imageTypeScores.repeatedBannerLikelihood, posterFrameLikelihood: imageTypeScores.posterFrameLikelihood, fullBleedScore: imageTypeScores.fullBleedScore, embeddedGrommetLikelihood: hardwareScores.embeddedGrommetLikelihood, hardwareArtifactLikelihood: hardwareScores.hardwareArtifactLikelihood, marginCropApplied, regenerationSafetyPassTriggered: safetyPassTriggered, canonicalApprovedImageUrl: canonicalImageUrl, finalProductionPrompt: sourcePrompt, fallbackReason },
+        debug: { rawUserPrompt, hasOpenAiKey: Boolean(openaiApiKey), matchedOpenAiEnvName, requestedProvider, actualProviderUsed: provider, imageProvider: provider, modelUsed, providerStatus, referenceType: referenceProfile.referenceType, logoDetected: referenceProfile.logoLikely, logoCompositeMode, logoCompositedDirectly, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), whitespaceScore, edgeCoverageScore, centeredPosterLikelihood, mockupLikelihood: imageTypeScores.mockupLikelihood, repeatedBannerLikelihood: imageTypeScores.repeatedBannerLikelihood, posterFrameLikelihood: imageTypeScores.posterFrameLikelihood, fullBleedScore: imageTypeScores.fullBleedScore, embeddedGrommetLikelihood: hardwareScores.embeddedGrommetLikelihood, hardwareArtifactLikelihood: hardwareScores.hardwareArtifactLikelihood, marginCropApplied, regenerationSafetyPassTriggered: safetyPassTriggered, canonicalApprovedImageUrl: canonicalImageUrl, finalProductionPrompt: sourcePrompt, fallbackReason, fallbackMessage: fallbackReason === 'openai_failed_fallback_to_imagen' ? 'OpenAI failed, using Imagen fallback.' : null, ...(openaiFailure || {}) },
         safeErrorMessage: null,
       });
     } catch (error) {
@@ -643,19 +670,23 @@ Edit instruction: ${directedEditInstruction}`;
       const imageProvider = String(body.imageProvider || 'openai').toLowerCase() === 'imagen' ? 'imagen' : 'openai';
       let b64 = '';
       let provider = imageProvider;
+      const requestedProvider = imageProvider;
       let modelUsed = imageModel;
       let providerStatus = 200;
+      let fallbackReason = null;
+      let openaiFailure = null;
       if (imageProvider === 'openai' && openaiApiKey) {
-        const openaiModelCandidates = ['gpt-image-2', 'gpt-image-1.5', 'gpt-image-1'];
+        const openaiModelCandidates = ['gpt-image-1', 'gpt-image-2', 'gpt-image-1.5'];
         for (const m of openaiModelCandidates) {
           try {
             const result = await callOpenAIImageGenerate({ apiKey: openaiApiKey, prompt: editPrompt, size: '1536x1024', model: m, referenceImage: body.referenceImage, editBaseImage: currentImageUrl });
             b64 = result.b64; modelUsed = result.modelUsed; providerStatus = result.providerStatus; break;
-          } catch {}
+          } catch (e) { openaiFailure = { openaiStatus: e?.openaiStatus || 500, openaiErrorCode: e?.openaiErrorCode || 'openai_edit_failed', openaiErrorMessage: e?.openaiErrorMessage || e?.message || 'OpenAI edit failed.', openaiModelAttempted: e?.openaiModelAttempted || null, openaiRawResponseFirst500: e?.openaiRawResponseFirst500 || null }; }
         }
       }
       if (!b64) {
         provider = 'imagen';
+        if (requestedProvider === 'openai') fallbackReason = 'openai_failed_fallback_to_imagen';
         const r = await fetch(`${GEMINI_BASE}/models/${imageModel}:predict?key=${encodeURIComponent(googleApiKey)}`, {
           method: 'POST', headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ instances: [{ prompt: editPrompt }], parameters: { sampleCount: 1, aspectRatio: imagenAspectRatio } }),
@@ -704,7 +735,7 @@ Edit instruction: ${directedEditInstruction}`;
           logoCompositeMode = 'reserved_logo_safe_area';
         }
       }
-      return safeJsonResponse(200, { ok: true, action, imageUrl: canonicalImageUrl, image: { url: canonicalImageUrl, original_url: upload.secure_url || canonicalImageUrl, width: upload.width || targetW * 100, height: upload.height || targetH * 100 }, editFallback: false, provider, imageProvider: provider, debug: { rawUserPrompt, imageProvider: provider, modelUsed, providerStatus, editClassification, preservationMode, compositionDriftRisk, trueImageEditUsed, fullRegenerationOccurred, referenceType: referenceProfile.referenceType, logoDetected: referenceProfile.logoLikely, logoCompositeMode, logoCompositedDirectly, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), whitespaceScore, edgeCoverageScore, centeredPosterLikelihood, mockupLikelihood: imageTypeScores.mockupLikelihood, repeatedBannerLikelihood: imageTypeScores.repeatedBannerLikelihood, posterFrameLikelihood: imageTypeScores.posterFrameLikelihood, fullBleedScore: imageTypeScores.fullBleedScore, embeddedGrommetLikelihood: hardwareScores.embeddedGrommetLikelihood, hardwareArtifactLikelihood: hardwareScores.hardwareArtifactLikelihood, marginCropApplied, blockedEditReason: null, regenerationSafetyPassTriggered: safetyPassTriggered, canonicalApprovedImageUrl: canonicalImageUrl, finalProductionPrompt: editPrompt }, safeErrorMessage: null });
+      return safeJsonResponse(200, { ok: true, action, imageUrl: canonicalImageUrl, image: { url: canonicalImageUrl, original_url: upload.secure_url || canonicalImageUrl, width: upload.width || targetW * 100, height: upload.height || targetH * 100 }, editFallback: false, provider, imageProvider: provider, debug: { rawUserPrompt, hasOpenAiKey: Boolean(openaiApiKey), matchedOpenAiEnvName, requestedProvider, actualProviderUsed: provider, modelUsed, providerStatus, fallbackReason, fallbackMessage: fallbackReason === 'openai_failed_fallback_to_imagen' ? 'OpenAI failed, using Imagen fallback.' : null, ...(openaiFailure || {}), editClassification, preservationMode, compositionDriftRisk, trueImageEditUsed, fullRegenerationOccurred, referenceType: referenceProfile.referenceType, logoDetected: referenceProfile.logoLikely, logoCompositeMode, logoCompositedDirectly, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), whitespaceScore, edgeCoverageScore, centeredPosterLikelihood, mockupLikelihood: imageTypeScores.mockupLikelihood, repeatedBannerLikelihood: imageTypeScores.repeatedBannerLikelihood, posterFrameLikelihood: imageTypeScores.posterFrameLikelihood, fullBleedScore: imageTypeScores.fullBleedScore, embeddedGrommetLikelihood: hardwareScores.embeddedGrommetLikelihood, hardwareArtifactLikelihood: hardwareScores.hardwareArtifactLikelihood, marginCropApplied, blockedEditReason: null, regenerationSafetyPassTriggered: safetyPassTriggered, canonicalApprovedImageUrl: canonicalImageUrl, finalProductionPrompt: editPrompt }, safeErrorMessage: null });
     } catch (error) {
       return safeJsonResponse(200, { ok: false, action: 'edit', error: 'edit_failed', detailCode: 'edit_exception', safeErrorMessage: error instanceof Error ? error.message : 'Edit failed.', stage: 'edit' });
     }
