@@ -160,6 +160,8 @@ export async function handler(event) {
       if (!r.ok) {
         if (isImagenPaidAccessError(d, r.status)) {
           const imagenProviderMessage = String(d?.error?.message || d?.message || 'Unknown provider error');
+          const imagenRawResponseFirst500 = JSON.stringify(d || {}).slice(0, 500);
+          const fallbackReason = 'imagen_paid_access_required';
           return json(200, {
             ok: true,
             action,
@@ -171,10 +173,11 @@ export async function handler(event) {
               height: targetH * 100,
             },
             generationFallback: true,
+            fallbackReason,
             imagenStatus: r.status,
             imagenProviderMessage,
             selectedImageModel: imageModel,
-            fallbackReason: 'imagen_paid_access_required',
+            imagenRawResponseFirst500,
             count: 1,
             requestedBannerRatio: `${targetW}:${targetH}`,
             generatedImagenRatio: imagenAspectRatio,
