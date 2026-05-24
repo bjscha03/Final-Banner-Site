@@ -65,19 +65,16 @@ async function fetchModels(apiKey) {
   if (!r.ok) throw new Error(body?.error?.message || 'models endpoint failed');
   return body.models || [];
 }
-async function callOpenAIImageGenerate({ apiKey, prompt, size = '1536x1024', model = 'gpt-image-1', referenceImage, editBaseImage }) {
-  const input = [];
-  if (referenceImage) input.push({ type: 'input_image', image_data: String(referenceImage).replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '') });
-  if (editBaseImage) input.push({ type: 'input_image', image_url: editBaseImage });
-  input.push({ type: 'input_text', text: prompt });
-
-  const r = await fetch(`${OPENAI_BASE}/responses`, {
+async function callOpenAIImageGenerate({ apiKey, prompt, size = '1536x1024', model = 'gpt-image-1' }) {
+  const r = await fetch(`${OPENAI_BASE}/images/generations`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
       model,
-      input,
-      tools: [{ type: 'image_generation', size }],
+      prompt,
+      size,
+      n: 1,
+      response_format: 'b64_json',
     }),
   });
   const d = await r.json().catch(() => ({}));
@@ -90,12 +87,9 @@ async function callOpenAIImageGenerate({ apiKey, prompt, size = '1536x1024', mod
     err.openaiModelAttempted = model;
     throw err;
   }
-  const out = d?.output || [];
+  const out = d?.data || [];
   for (const item of out) {
-    const content = item?.content || [];
-    for (const c of content) {
-      if (c?.type === 'output_image' && c?.image_base64) return { b64: c.image_base64, modelUsed: model, providerStatus: r.status };
-    }
+    if (item?.b64_json) return { b64: item.b64_json, modelUsed: model, providerStatus: r.status };
   }
   const err = new Error('OpenAI returned no image output.');
   err.openaiStatus = r.status;
