@@ -159,6 +159,7 @@ export async function handler(event) {
       const d = await r.json().catch(() => ({}));
       if (!r.ok) {
         if (isImagenPaidAccessError(d, r.status)) {
+          const imagenProviderMessage = String(d?.error?.message || d?.message || 'Unknown provider error');
           return json(200, {
             ok: true,
             action,
@@ -170,6 +171,9 @@ export async function handler(event) {
               height: targetH * 100,
             },
             generationFallback: true,
+            imagenStatus: r.status,
+            imagenProviderMessage,
+            selectedImageModel: imageModel,
             fallbackReason: 'imagen_paid_access_required',
             count: 1,
             requestedBannerRatio: `${targetW}:${targetH}`,
