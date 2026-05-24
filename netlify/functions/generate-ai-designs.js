@@ -408,7 +408,7 @@ export async function handler(event) {
     }
 
     if (action === 'generate') try {
-      const imageProvider = String(body.imageProvider || 'openai').toLowerCase() === 'imagen' ? 'imagen' : 'openai';
+      const imageProvider = 'imagen';
       const rawUserPrompt = sanitizeSinglePrompt(body.prompt || '');
       const allowedTextList = extractAllowedTextList(rawUserPrompt);
       const referenceProfile = await analyzeReferenceImage({ apiKey: googleApiKey, textModel, referenceImage: body.referenceImage });
@@ -438,7 +438,7 @@ export async function handler(event) {
       let providerStatus = 200;
       let fallbackReason = null;
       let openaiFailure = null;
-      if (imageProvider === 'openai' && openaiApiKey) {
+      if (false && imageProvider === 'openai' && openaiApiKey) {
         try {
           const openaiModelCandidates = ['gpt-image-1', 'gpt-image-2', 'gpt-image-1.5'];
           let lastErr = null;
@@ -667,7 +667,7 @@ Current image URL: ${currentImageUrl}
 Edit classification: ${editClassification}
 Preservation mode: ${preservationMode}
 Edit instruction: ${directedEditInstruction}`;
-      const imageProvider = String(body.imageProvider || 'openai').toLowerCase() === 'imagen' ? 'imagen' : 'openai';
+      const imageProvider = 'imagen';
       let b64 = '';
       let provider = imageProvider;
       const requestedProvider = imageProvider;
@@ -675,7 +675,7 @@ Edit instruction: ${directedEditInstruction}`;
       let providerStatus = 200;
       let fallbackReason = null;
       let openaiFailure = null;
-      if (imageProvider === 'openai' && openaiApiKey) {
+      if (false && imageProvider === 'openai' && openaiApiKey) {
         const openaiModelCandidates = ['gpt-image-1', 'gpt-image-2', 'gpt-image-1.5'];
         for (const m of openaiModelCandidates) {
           try {
