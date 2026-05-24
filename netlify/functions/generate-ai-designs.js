@@ -1,6 +1,7 @@
 import { v2 as cloudinary } from 'cloudinary';
 
 const CORS = {
+  'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type',
   'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
@@ -500,7 +501,7 @@ export async function handler(event) {
       }
         b64 = d?.predictions?.[0]?.bytesBase64Encoded;
       }
-      if (!b64) return json(200, { ok: false, action, imageUrl: null, safeErrorMessage: 'No image returned from model.' });
+      if (!b64) return safeJsonResponse(200, { ok: false, action, error: 'no_image_output', detailCode: 'provider_empty_image', safeErrorMessage: 'No image returned from model.', stage: 'generate' });
       let safetyPassTriggered = false;
       let imageTypeScores = { mockupLikelihood: 0.2, repeatedBannerLikelihood: 0.2, posterFrameLikelihood: 0.2, fullBleedScore: 0.8, safetyPassTriggered: false };
       try { imageTypeScores = await scoreGeneratedImageType({ apiKey: googleApiKey, textModel, b64 }); } catch {}
