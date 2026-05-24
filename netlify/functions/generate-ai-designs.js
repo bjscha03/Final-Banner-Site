@@ -46,6 +46,9 @@ The generated image itself must be the final edge-to-edge printable banner graph
 Design directly for the full canvas dimensions as a finished commercial banner artwork.
 The final image should look like a professionally designed digital banner graphic file, not a photo of a physical banner.
 Do NOT create banners inside banners, miniature repeated banner copies, product-sheet layouts, mockup thumbnails, preview boards, or duplicated embedded designs.`;
+const HARDWARE_BAN_PREPEND = `The artwork must not contain grommets, eyelets, holes, ropes, pole pockets, hems, hooks, screws, or mounting hardware. Finishing details are preview overlays only and must never be part of the generated design.`;
+const SAFE_EDIT_KEYWORDS = /(remove border|full bleed|remove embedded grommets|remove grommets|remove eyelets|improve contrast|contrast|minor color|color adjustment|remove background clutter|background clutter)/i;
+const BLOCKED_TEXT_EDIT_KEYWORDS = /(change|replace|update).*(name|text|to|with)|\bphone\b|\bnumber\b|\b\d{4}\b/i;
 
 const FALLBACK_IMAGE_URL = 'https://res.cloudinary.com/dtrxl120u/image/upload/f_auto,q_auto,w_1600,h_800,c_fill/v1769209469/White-Label_Banners_-2_from_4over_nedg8n.png';
 const OPENAI_BASE = 'https://api.openai.com/v1';
@@ -114,6 +117,32 @@ async function scoreGeneratedImageType({ apiKey, textModel, b64, mimeType = 'ima
     return { mockupLikelihood, repeatedBannerLikelihood, posterFrameLikelihood, fullBleedScore, safetyPassTriggered };
   } catch {
     return { mockupLikelihood: 0.2, repeatedBannerLikelihood: 0.2, posterFrameLikelihood: 0.2, fullBleedScore: 0.8, safetyPassTriggered: false };
+  }
+}
+async function scoreHardwareArtifacts({ apiKey, textModel, b64, mimeType = 'image/png' }) {
+  try {
+    const r = await fetch(`${GEMINI_BASE}/models/${textModel}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          role: 'user',
+          parts: [
+            { text: 'Return strict JSON only with numeric keys 0..1: embeddedGrommetLikelihood, hardwareArtifactLikelihood.' },
+            { inline_data: { mime_type: mimeType, data: b64 } },
+          ],
+        }],
+      }),
+    });
+    const d = await r.json().catch(() => ({}));
+    const raw = d?.candidates?.[0]?.content?.parts?.map((p) => p.text).join(' ') || '{}';
+    const parsed = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] || '{}');
+    return {
+      embeddedGrommetLikelihood: Number(parsed.embeddedGrommetLikelihood ?? 0.1),
+      hardwareArtifactLikelihood: Number(parsed.hardwareArtifactLikelihood ?? 0.1),
+    };
+  } catch {
+    return { embeddedGrommetLikelihood: 0.1, hardwareArtifactLikelihood: 0.1 };
   }
 }
 
@@ -374,7 +403,7 @@ export async function handler(event) {
         mode: 'generate',
         allowedTextList,
       });
-      const sourcePrompt = `${GENERATION_GUARDRAIL}\n${FULL_BLEED_PREPEND}\n${MOCKUP_BAN_PREPEND}\n${artDirectedPrompt}`;
+      const sourcePrompt = `${GENERATION_GUARDRAIL}\n${FULL_BLEED_PREPEND}\n${MOCKUP_BAN_PREPEND}\n${HARDWARE_BAN_PREPEND}\n${artDirectedPrompt}`;
       if (!sourcePrompt) return safeJsonResponse(400, { ok: false, action, error: 'Prompt required', detailCode: 'prompt_required', safeErrorMessage: 'Prompt required.', stage: 'generate' });
 
       const targetW = Number(body?.size?.w) || 8;
@@ -455,6 +484,7 @@ export async function handler(event) {
       let safetyPassTriggered = false;
       let imageTypeScores = { mockupLikelihood: 0.2, repeatedBannerLikelihood: 0.2, posterFrameLikelihood: 0.2, fullBleedScore: 0.8, safetyPassTriggered: false };
       try { imageTypeScores = await scoreGeneratedImageType({ apiKey: googleApiKey, textModel, b64 }); } catch {}
+      let hardwareScores = await scoreHardwareArtifacts({ apiKey: googleApiKey, textModel, b64 });
       if (imageTypeScores.safetyPassTriggered) {
         safetyPassTriggered = true;
         const safetyPrompt = `${sourcePrompt}\nCRITICAL corrective pass: remove any mockup/hanging/framed/repeated banner behavior. Output one single flat full-bleed artwork only.`;
@@ -473,6 +503,17 @@ export async function handler(event) {
           try { imageTypeScores = await scoreGeneratedImageType({ apiKey: googleApiKey, textModel, b64 }); } catch {}
         } catch {}
       }
+      if (hardwareScores.embeddedGrommetLikelihood > 0.35 || hardwareScores.hardwareArtifactLikelihood > 0.35) {
+        safetyPassTriggered = true;
+        try {
+          const correctivePrompt = `${sourcePrompt}\nRemove all embedded grommets, eyelets, holes, ropes, and mounting hardware from the artwork. Keep the design flat and print-ready.`;
+          if (provider === 'openai' && openaiApiKey) {
+            const retry = await callOpenAIImageGenerate({ apiKey: openaiApiKey, prompt: correctivePrompt, size: '1536x1024', model: modelUsed, referenceImage: body.referenceImage });
+            b64 = retry.b64;
+          }
+          hardwareScores = await scoreHardwareArtifacts({ apiKey: googleApiKey, textModel, b64 });
+        } catch {}
+      }
 
       if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
         return safeJsonResponse(200, { ok: false, action, imageUrl: null, error: 'cloudinary_not_configured', detailCode: 'cloudinary_missing_env', safeErrorMessage: 'Cloudinary not configured for ratio correction.', stage: 'generate' });
@@ -489,6 +530,7 @@ export async function handler(event) {
       let whitespaceScore = Math.max(0, 1 - imageTypeScores.fullBleedScore);
       let edgeCoverageScore = imageTypeScores.fullBleedScore;
       let centeredPosterLikelihood = imageTypeScores.posterFrameLikelihood;
+      let marginCropApplied = true;
       if (referenceProfile.referenceType === 'logo' && body.referenceImage) {
         try {
           const logoUpload = await cloudinary.uploader.upload(String(body.referenceImage), { folder: 'ai-generated-banners/logos', resource_type: 'image' });
@@ -529,7 +571,7 @@ export async function handler(event) {
         count: 1,
         requestedBannerRatio: `${targetW}:${targetH}`,
         generatedImagenRatio: imagenAspectRatio,
-        debug: { rawUserPrompt, imageProvider: provider, modelUsed, providerStatus, referenceType: referenceProfile.referenceType, logoDetected: referenceProfile.logoLikely, logoCompositeMode, logoCompositedDirectly, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), whitespaceScore, edgeCoverageScore, centeredPosterLikelihood, mockupLikelihood: imageTypeScores.mockupLikelihood, repeatedBannerLikelihood: imageTypeScores.repeatedBannerLikelihood, posterFrameLikelihood: imageTypeScores.posterFrameLikelihood, fullBleedScore: imageTypeScores.fullBleedScore, regenerationSafetyPassTriggered: safetyPassTriggered, canonicalApprovedImageUrl: canonicalImageUrl, finalProductionPrompt: sourcePrompt, fallbackReason },
+        debug: { rawUserPrompt, imageProvider: provider, modelUsed, providerStatus, referenceType: referenceProfile.referenceType, logoDetected: referenceProfile.logoLikely, logoCompositeMode, logoCompositedDirectly, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), whitespaceScore, edgeCoverageScore, centeredPosterLikelihood, mockupLikelihood: imageTypeScores.mockupLikelihood, repeatedBannerLikelihood: imageTypeScores.repeatedBannerLikelihood, posterFrameLikelihood: imageTypeScores.posterFrameLikelihood, fullBleedScore: imageTypeScores.fullBleedScore, embeddedGrommetLikelihood: hardwareScores.embeddedGrommetLikelihood, hardwareArtifactLikelihood: hardwareScores.hardwareArtifactLikelihood, marginCropApplied, regenerationSafetyPassTriggered: safetyPassTriggered, canonicalApprovedImageUrl: canonicalImageUrl, finalProductionPrompt: sourcePrompt, fallbackReason },
         safeErrorMessage: null,
       });
     } catch (error) {
@@ -549,6 +591,32 @@ export async function handler(event) {
       const allowedTextList = extractAllowedTextList(rawUserPrompt);
       const referenceProfile = await analyzeReferenceImage({ apiKey: googleApiKey, textModel, referenceImage: body.referenceImage });
       const editClassification = classifyEditInstruction(editInstruction);
+      const blockedTextEdit = BLOCKED_TEXT_EDIT_KEYWORDS.test(editInstruction);
+      const safeEditAllowed = SAFE_EDIT_KEYWORDS.test(editInstruction);
+      if (blockedTextEdit && !safeEditAllowed) {
+        return safeJsonResponse(200, {
+          ok: false,
+          action,
+          error: 'blocked_edit',
+          detailCode: 'text_replacement_blocked',
+          blockedEditReason: 'Text replacement requires a true layered/text-aware edit path. Current AI edit would regenerate the design, so it was blocked to preserve quality.',
+          safeErrorMessage: 'Text replacement requires a true layered/text-aware edit path. Current AI edit would regenerate the design, so it was blocked to preserve quality.',
+          stage: 'edit',
+          debug: { editClassification, blockedEditReason: 'text_replacement_blocked' },
+        });
+      }
+      if (!safeEditAllowed && !blockedTextEdit) {
+        return safeJsonResponse(200, {
+          ok: false,
+          action,
+          error: 'blocked_edit',
+          detailCode: 'unsafe_edit_classification',
+          blockedEditReason: 'Edit blocked to prevent destructive regeneration. Only safe refinement edits are currently enabled.',
+          safeErrorMessage: 'Edit blocked to prevent destructive regeneration. Only safe refinement edits are currently enabled.',
+          stage: 'edit',
+          debug: { editClassification, blockedEditReason: 'unsafe_edit_classification' },
+        });
+      }
       const preservationMode = editClassification === 'text_replace' ? 'surgical_text_edit' : 'preserve_layout_refinement';
       const compositionDriftRisk = editClassification === 'text_replace' ? 'low' : editClassification === 'full_regeneration' ? 'high' : 'medium';
       const directedEditInstruction = await buildArtDirectedPrompt({
@@ -563,6 +631,7 @@ export async function handler(event) {
       const editPrompt = `${GENERATION_GUARDRAIL}
 ${FULL_BLEED_PREPEND}
 ${MOCKUP_BAN_PREPEND}
+${HARDWARE_BAN_PREPEND}
 Preserve the existing banner composition, character placement, typography style, color palette, visual hierarchy, and overall layout. Only apply the requested change. Do not redesign the banner. Do not create a new composition. Keep the same overall design identity.
 Maintain the same composition and layout positioning. Keep all major elements in their current positions unless specifically instructed otherwise.
 Preserve the existing banner canvas ratio and convert the design to full-bleed edge-to-edge artwork. Remove any borders, poster margins, white padding, frames, or drop shadows.
@@ -600,6 +669,7 @@ Edit instruction: ${directedEditInstruction}`;
       let safetyPassTriggered = false;
       let imageTypeScores = { mockupLikelihood: 0.2, repeatedBannerLikelihood: 0.2, posterFrameLikelihood: 0.2, fullBleedScore: 0.8, safetyPassTriggered: false };
       try { imageTypeScores = await scoreGeneratedImageType({ apiKey: googleApiKey, textModel, b64 }); } catch {}
+      let hardwareScores = await scoreHardwareArtifacts({ apiKey: googleApiKey, textModel, b64 });
       if (imageTypeScores.safetyPassTriggered) safetyPassTriggered = true;
       const trueImageEditUsed = provider === 'openai';
       const fullRegenerationOccurred = !trueImageEditUsed;
@@ -610,6 +680,7 @@ Edit instruction: ${directedEditInstruction}`;
       let whitespaceScore = Math.max(0, 1 - imageTypeScores.fullBleedScore);
       let edgeCoverageScore = imageTypeScores.fullBleedScore;
       let centeredPosterLikelihood = imageTypeScores.posterFrameLikelihood;
+      let marginCropApplied = true;
       if (referenceProfile.referenceType === 'logo' && body.referenceImage) {
         try {
           const logoUpload = await cloudinary.uploader.upload(String(body.referenceImage), { folder: 'ai-generated-banners/logos', resource_type: 'image' });
@@ -633,7 +704,7 @@ Edit instruction: ${directedEditInstruction}`;
           logoCompositeMode = 'reserved_logo_safe_area';
         }
       }
-      return safeJsonResponse(200, { ok: true, action, imageUrl: canonicalImageUrl, image: { url: canonicalImageUrl, original_url: upload.secure_url || canonicalImageUrl, width: upload.width || targetW * 100, height: upload.height || targetH * 100 }, editFallback: false, provider, imageProvider: provider, debug: { rawUserPrompt, imageProvider: provider, modelUsed, providerStatus, editClassification, preservationMode, compositionDriftRisk, trueImageEditUsed, fullRegenerationOccurred, referenceType: referenceProfile.referenceType, logoDetected: referenceProfile.logoLikely, logoCompositeMode, logoCompositedDirectly, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), whitespaceScore, edgeCoverageScore, centeredPosterLikelihood, mockupLikelihood: imageTypeScores.mockupLikelihood, repeatedBannerLikelihood: imageTypeScores.repeatedBannerLikelihood, posterFrameLikelihood: imageTypeScores.posterFrameLikelihood, fullBleedScore: imageTypeScores.fullBleedScore, regenerationSafetyPassTriggered: safetyPassTriggered, canonicalApprovedImageUrl: canonicalImageUrl, finalProductionPrompt: editPrompt }, safeErrorMessage: null });
+      return safeJsonResponse(200, { ok: true, action, imageUrl: canonicalImageUrl, image: { url: canonicalImageUrl, original_url: upload.secure_url || canonicalImageUrl, width: upload.width || targetW * 100, height: upload.height || targetH * 100 }, editFallback: false, provider, imageProvider: provider, debug: { rawUserPrompt, imageProvider: provider, modelUsed, providerStatus, editClassification, preservationMode, compositionDriftRisk, trueImageEditUsed, fullRegenerationOccurred, referenceType: referenceProfile.referenceType, logoDetected: referenceProfile.logoLikely, logoCompositeMode, logoCompositedDirectly, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), whitespaceScore, edgeCoverageScore, centeredPosterLikelihood, mockupLikelihood: imageTypeScores.mockupLikelihood, repeatedBannerLikelihood: imageTypeScores.repeatedBannerLikelihood, posterFrameLikelihood: imageTypeScores.posterFrameLikelihood, fullBleedScore: imageTypeScores.fullBleedScore, embeddedGrommetLikelihood: hardwareScores.embeddedGrommetLikelihood, hardwareArtifactLikelihood: hardwareScores.hardwareArtifactLikelihood, marginCropApplied, blockedEditReason: null, regenerationSafetyPassTriggered: safetyPassTriggered, canonicalApprovedImageUrl: canonicalImageUrl, finalProductionPrompt: editPrompt }, safeErrorMessage: null });
     } catch (error) {
       return safeJsonResponse(200, { ok: false, action: 'edit', error: 'edit_failed', detailCode: 'edit_exception', safeErrorMessage: error instanceof Error ? error.message : 'Edit failed.', stage: 'edit' });
     }
