@@ -73,6 +73,17 @@ function cloudinaryRatioTransformUrl(publicId, targetW, targetH) {
     ],
   });
 }
+function cloudinaryRatioTransformUrlAggressive(publicId, targetW, targetH) {
+  return cloudinary.url(publicId, {
+    resource_type: 'image',
+    type: 'upload',
+    secure: true,
+    transformation: [
+      { aspect_ratio: `${targetW}:${targetH}`, crop: 'fill', gravity: 'auto', zoom: 1.2 },
+      { fetch_format: 'auto', quality: 'auto' },
+    ],
+  });
+}
 function sanitizeSinglePrompt(input) {
   const text = String(input || '').replace(/```[\s\S]*?```/g, ' ').replace(/\b(option\s*\d+|here are|recommendations?)\b/gi, ' ').replace(/[#*`>-]/g, ' ').trim();
   return text.split(/\n+/).map((s) => s.trim()).filter(Boolean).slice(0, 3).join(' ').replace(/\s+/g, ' ');
@@ -119,6 +130,9 @@ async function summarizeReferenceImage({ apiKey, textModel, referenceImage }) {
 async function analyzeReferenceImage({ apiKey, textModel, referenceImage }) {
   const part = dataUrlToInlinePart(referenceImage);
   if (!part) return { referenceType: 'none', referenceSummary: '', logoLikely: false, logoUsageInstruction: '', extractedColors: [] };
+  const mime = part.inline_data?.mime_type || '';
+  const isSvgLogo = /image\/svg\+xml/i.test(mime);
+  const isLikelyLogoAsset = isSvgLogo || /image\/png/i.test(mime);
   const r = await fetch(`${GEMINI_BASE}/models/${textModel}:generateContent?key=${encodeURIComponent(apiKey)}`, {
     method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -132,15 +146,18 @@ async function analyzeReferenceImage({ apiKey, textModel, referenceImage }) {
   const raw = d?.candidates?.[0]?.content?.parts?.map((p) => p.text).join(' ') || '';
   try {
     const parsed = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] || '{}');
+    const modelType = String(parsed.referenceType || 'inspiration');
+    const logoLikely = Boolean(parsed.logoLikely) || isLikelyLogoAsset || /\blogo\b/i.test(modelType);
+    const referenceType = logoLikely ? 'logo' : modelType;
     return {
-      referenceType: parsed.referenceType || 'inspiration',
+      referenceType,
       referenceSummary: sanitizeSinglePrompt(parsed.referenceSummary || ''),
-      logoLikely: Boolean(parsed.logoLikely),
+      logoLikely,
       logoUsageInstruction: sanitizeSinglePrompt(parsed.logoUsageInstruction || ''),
       extractedColors: Array.isArray(parsed.extractedColors) ? parsed.extractedColors.slice(0, 5).map((c) => String(c)) : [],
     };
   } catch {
-    return { referenceType: 'inspiration', referenceSummary: sanitizeSinglePrompt(raw), logoLikely: /logo/i.test(raw), logoUsageInstruction: '', extractedColors: [] };
+    return { referenceType: isLikelyLogoAsset ? 'logo' : 'inspiration', referenceSummary: sanitizeSinglePrompt(raw), logoLikely: isLikelyLogoAsset || /logo/i.test(raw), logoUsageInstruction: '', extractedColors: [] };
   }
 }
 async function buildArtDirectedPrompt({ apiKey, textModel, userPrompt, referenceProfile, mode, editInstruction, allowedTextList }) {
@@ -160,6 +177,7 @@ Reference summary: ${referenceProfile.referenceSummary || 'none'}
 Reference colors: ${(referenceProfile.extractedColors || []).join(', ') || 'none'}
 Logo likely: ${referenceProfile.logoLikely ? 'yes' : 'no'}
 Logo usage instruction: ${referenceProfile.logoUsageInstruction || 'none'}
+When logo likely is yes: do NOT generate or redraw a logo, do NOT invent brand names, reserve a clean logo-safe placement area and design the background around real logo compositing.
 Task: ${task}`;
   const r = await fetch(`${GEMINI_BASE}/models/${textModel}:generateContent?key=${encodeURIComponent(apiKey)}`, {
     method: 'POST', headers: { 'content-type': 'application/json' },
@@ -319,7 +337,29 @@ export async function handler(event) {
         resource_type: 'image',
       });
 
-      const canonicalImageUrl = cloudinaryRatioTransformUrl(upload.public_id, targetW, targetH);
+      let canonicalImageUrl = cloudinaryRatioTransformUrlAggressive(upload.public_id, targetW, targetH);
+      let logoCompositeMode = 'none';
+      let logoCompositedDirectly = false;
+      if (referenceProfile.referenceType === 'logo' && body.referenceImage) {
+        try {
+          const logoUpload = await cloudinary.uploader.upload(String(body.referenceImage), { folder: 'ai-generated-banners/logos', resource_type: 'image' });
+          canonicalImageUrl = cloudinary.url(upload.public_id, {
+            resource_type: 'image',
+            type: 'upload',
+            secure: true,
+            transformation: [
+              { aspect_ratio: `${targetW}:${targetH}`, crop: 'fill', gravity: 'auto', zoom: 1.2 },
+              { overlay: logoUpload.public_id, width: Math.round((targetW * 1200) * 0.18), crop: 'scale' },
+              { flags: 'layer_apply', gravity: 'south_east', x: 50, y: 40 },
+              { fetch_format: 'auto', quality: 'auto' },
+            ],
+          });
+          logoCompositeMode = 'direct_overlay';
+          logoCompositedDirectly = true;
+        } catch {
+          logoCompositeMode = 'reserved_logo_safe_area';
+        }
+      }
       return json(200, {
         ok: true,
         action,
@@ -335,7 +375,7 @@ export async function handler(event) {
         count: 1,
         requestedBannerRatio: `${targetW}:${targetH}`,
         generatedImagenRatio: imagenAspectRatio,
-        debug: { rawUserPrompt, referenceType: referenceProfile.referenceType, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), finalProductionPrompt: sourcePrompt, logoLikely: referenceProfile.logoLikely },
+        debug: { rawUserPrompt, referenceType: referenceProfile.referenceType, logoDetected: referenceProfile.logoLikely, logoCompositeMode, logoCompositedDirectly, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), finalProductionPrompt: sourcePrompt },
         safeErrorMessage: null,
       });
     }
@@ -375,8 +415,30 @@ Edit instruction: ${directedEditInstruction}`;
       const b64 = d?.predictions?.[0]?.bytesBase64Encoded;
       if (!b64) return json(200, { ok: false, action, safeErrorMessage: 'No edited image returned from model.' });
       const upload = await cloudinary.uploader.upload(`data:image/png;base64,${b64}`, { folder: 'ai-generated-banners', resource_type: 'image' });
-      const canonicalImageUrl = cloudinaryRatioTransformUrl(upload.public_id, targetW, targetH);
-      return json(200, { ok: true, action, imageUrl: canonicalImageUrl, image: { url: canonicalImageUrl, original_url: upload.secure_url || canonicalImageUrl, width: upload.width || targetW * 100, height: upload.height || targetH * 100 }, editFallback: false, debug: { rawUserPrompt, referenceType: referenceProfile.referenceType, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), finalProductionPrompt: editPrompt, logoLikely: referenceProfile.logoLikely }, safeErrorMessage: null });
+      let canonicalImageUrl = cloudinaryRatioTransformUrlAggressive(upload.public_id, targetW, targetH);
+      let logoCompositeMode = 'none';
+      let logoCompositedDirectly = false;
+      if (referenceProfile.referenceType === 'logo' && body.referenceImage) {
+        try {
+          const logoUpload = await cloudinary.uploader.upload(String(body.referenceImage), { folder: 'ai-generated-banners/logos', resource_type: 'image' });
+          canonicalImageUrl = cloudinary.url(upload.public_id, {
+            resource_type: 'image',
+            type: 'upload',
+            secure: true,
+            transformation: [
+              { aspect_ratio: `${targetW}:${targetH}`, crop: 'fill', gravity: 'auto', zoom: 1.2 },
+              { overlay: logoUpload.public_id, width: Math.round((targetW * 1200) * 0.18), crop: 'scale' },
+              { flags: 'layer_apply', gravity: 'south_east', x: 50, y: 40 },
+              { fetch_format: 'auto', quality: 'auto' },
+            ],
+          });
+          logoCompositeMode = 'direct_overlay';
+          logoCompositedDirectly = true;
+        } catch {
+          logoCompositeMode = 'reserved_logo_safe_area';
+        }
+      }
+      return json(200, { ok: true, action, imageUrl: canonicalImageUrl, image: { url: canonicalImageUrl, original_url: upload.secure_url || canonicalImageUrl, width: upload.width || targetW * 100, height: upload.height || targetH * 100 }, editFallback: false, debug: { rawUserPrompt, referenceType: referenceProfile.referenceType, logoDetected: referenceProfile.logoLikely, logoCompositeMode, logoCompositedDirectly, referenceSummary: referenceProfile.referenceSummary, extractedColors: referenceProfile.extractedColors, allowedTextList, usedReferenceImage: Boolean(body.referenceImage), finalProductionPrompt: editPrompt }, safeErrorMessage: null });
     }
 
     return json(400, { ok: false, action, error: 'Unknown action' });
