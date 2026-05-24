@@ -102,6 +102,7 @@ const AIDesignerPage: React.FC = () => {
   const [generationFallbackNote, setGenerationFallbackNote] = useState('');
   const [debugOutput, setDebugOutput] = useState('');
   const [successOutput, setSuccessOutput] = useState('');
+  const [borderWarning, setBorderWarning] = useState('');
   const [cartMessage, setCartMessage] = useState('');
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [promoCode, setPromoCode] = useState('');
@@ -214,6 +215,39 @@ const AIDesignerPage: React.FC = () => {
     return { baseW, baseH };
   };
 
+  const detectLikelyBorderPadding = (img: HTMLImageElement) => {
+    try {
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      if (!w || !h) return false;
+      const c = document.createElement('canvas');
+      c.width = Math.min(512, w);
+      c.height = Math.min(512, h);
+      const ctx = c.getContext('2d');
+      if (!ctx) return false;
+      ctx.drawImage(img, 0, 0, c.width, c.height);
+      const data = ctx.getImageData(0, 0, c.width, c.height).data;
+      const isNearWhite = (r: number, g: number, b: number) => r > 242 && g > 242 && b > 242;
+      const sampleEdge = (x: number, y: number) => {
+        const i = (y * c.width + x) * 4;
+        return isNearWhite(data[i], data[i + 1], data[i + 2]) ? 1 : 0;
+      };
+      let white = 0;
+      let total = 0;
+      for (let x = 0; x < c.width; x++) {
+        white += sampleEdge(x, 0) + sampleEdge(x, c.height - 1);
+        total += 2;
+      }
+      for (let y = 0; y < c.height; y++) {
+        white += sampleEdge(0, y) + sampleEdge(c.width - 1, y);
+        total += 2;
+      }
+      return total > 0 && (white / total) > 0.72;
+    } catch {
+      return false;
+    }
+  };
+
 
   const marks = (n: number, pxLen: number) => {
     const max = Math.floor(n);
@@ -255,6 +289,7 @@ const AIDesignerPage: React.FC = () => {
     setQuantity(1);
     setErrorOutput('');
     setSuccessOutput('');
+    setBorderWarning('');
     setGenerationFallbackNote('');
     setDebugOutput('');
     setBusy(null);
@@ -316,16 +351,17 @@ const AIDesignerPage: React.FC = () => {
       <button disabled={busy!==null||!prompt.trim()} onClick={async()=>{setBusy('enhance');setErrorOutput('');try{const {body}=await callFn('enhance'); if(body?.enhancedPrompt) setEnhancedPrompt(body.enhancedPrompt); else setErrorOutput(body?.safeErrorMessage||body?.error||'Enhance failed.');}finally{setBusy(null);}}} className="w-full border border-yellow-600 text-yellow-300 py-2 rounded inline-flex items-center justify-center gap-2 disabled:opacity-50">{busy==='enhance'?<><Spinner/>Enhancing Prompt...</>:'✨ ENHANCE PROMPT WITH AI'}</button>
       <textarea value={enhancedPrompt} onChange={(e)=>setEnhancedPrompt(e.target.value)} rows={5} className="w-full bg-black/60 border border-white/20 rounded p-3" placeholder="Enhanced prompt will appear here after AI enhancement..." />
       <input type="file" accept="image/*" onChange={async(e)=>{const f=e.target.files?.[0]; if(f) setReferenceImage(await readFile(f));}} className="block w-full text-sm"/>
-      <button disabled={busy!==null||!(enhancedPrompt||prompt).trim()} onClick={async()=>{setBusy('generate');setErrorOutput('');setSuccessOutput('');setGenerationFallbackNote('');try{const {body}=await callFn('generate'); if(body?.image?.url||body?.imageUrl){saveSnapshot(); setImageUrl(body?.image?.url||body?.imageUrl); setImageTransform({ x: 0, y: 0, scale: 1, mode: 'fill' }); if(body?.generationFallback){ setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.'); setDebugOutput(JSON.stringify({ generationFallback: true, fallbackReason: body?.fallbackReason ?? null, imagenStatus: body?.imagenStatus ?? null, imagenProviderMessage: body?.imagenProviderMessage ?? null, selectedImageModel: body?.selectedImageModel ?? null, imagenRawResponseFirst500: body?.imagenRawResponseFirst500 ?? null }, null, 2)); } else setSuccessOutput('Generated one print-ready banner composition.');} else setErrorOutput(body?.safeErrorMessage||body?.error||'Generate failed.');}finally{setBusy(null);}}} className="w-full bg-yellow-700 text-black font-bold py-3 inline-flex items-center justify-center gap-2 disabled:opacity-50">{busy==='generate'?<><Spinner/>Generating Design...</>:'⚡ GENERATE DESIGN'}</button>
+      <button disabled={busy!==null||!(enhancedPrompt||prompt).trim()} onClick={async()=>{setBusy('generate');setErrorOutput('');setSuccessOutput('');setBorderWarning('');setGenerationFallbackNote('');try{const {body}=await callFn('generate'); if(body?.image?.url||body?.imageUrl){saveSnapshot(); setImageUrl(body?.image?.url||body?.imageUrl); setImageTransform({ x: 0, y: 0, scale: 1, mode: 'fill' }); if(body?.generationFallback){ setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.'); setDebugOutput(JSON.stringify({ generationFallback: true, fallbackReason: body?.fallbackReason ?? null, imagenStatus: body?.imagenStatus ?? null, imagenProviderMessage: body?.imagenProviderMessage ?? null, selectedImageModel: body?.selectedImageModel ?? null, imagenRawResponseFirst500: body?.imagenRawResponseFirst500 ?? null }, null, 2)); } else setSuccessOutput('Generated one print-ready banner composition.');} else setErrorOutput(body?.safeErrorMessage||body?.error||'Generate failed.');}finally{setBusy(null);}}} className="w-full bg-yellow-700 text-black font-bold py-3 inline-flex items-center justify-center gap-2 disabled:opacity-50">{busy==='generate'?<><Spinner/>Generating Design...</>:'⚡ GENERATE DESIGN'}</button>
       {imageUrl && <>
         <input value={editInstruction} onChange={(e)=>setEditInstruction(e.target.value)} className="w-full bg-black/60 border border-white/20 rounded p-2" placeholder="Edit instruction"/>
         <button disabled={busy!==null||!editInstruction.trim()} onClick={async()=>{setBusy('enhanceEdit');try{const {body}=await callFn('enhanceEdit'); if(body?.enhancedEditPrompt) setEditInstruction(body.enhancedEditPrompt);}finally{setBusy(null);}}} className="w-full border border-white/20 py-2 rounded disabled:opacity-50">Enhance Edit Prompt with AI</button>
-        <button disabled={busy!==null||!editInstruction.trim()} onClick={async()=>{setBusy('edit');setErrorOutput('');setSuccessOutput('');try{const {body}=await callFn('edit'); if(body?.image?.url||body?.imageUrl){saveSnapshot(); setImageUrl(body?.image?.url||body?.imageUrl); setSuccessOutput('Edit applied to current banner design.'); if(body?.generationFallback) setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.');} else setErrorOutput(body?.safeErrorMessage||body?.error||'Edit failed.');}finally{setBusy(null);}}} className="w-full border border-white/20 py-2 rounded inline-flex items-center justify-center gap-2 disabled:opacity-50">{busy==='edit'?<><Spinner/>Applying AI edits...</>:'Edit with AI'}</button>
+        <button disabled={busy!==null||!editInstruction.trim()} onClick={async()=>{setBusy('edit');setErrorOutput('');setSuccessOutput('');setBorderWarning('');try{const {body}=await callFn('edit'); if(body?.image?.url||body?.imageUrl){saveSnapshot(); setImageUrl(body?.image?.url||body?.imageUrl); setImageTransform({ x: 0, y: 0, scale: 1, mode: 'fill' }); setSuccessOutput('Edit applied to current banner design.'); if(body?.generationFallback) setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.');} else setErrorOutput(body?.safeErrorMessage||body?.error||'Edit failed.');}finally{setBusy(null);}}} className="w-full border border-white/20 py-2 rounded inline-flex items-center justify-center gap-2 disabled:opacity-50">{busy==='edit'?<><Spinner/>Applying AI edits...</>:'Edit with AI'}</button>
         <button disabled={busy!==null||history.length===0} onClick={revertOne} className="w-full border border-white/20 py-2 rounded disabled:opacity-50">Revert</button>
       </>}
       <button disabled={busy!==null} onClick={async()=>{setBusy('debug');try{const {body}=await callFn('debug'); setDebugOutput(JSON.stringify(body,null,2));}finally{setBusy(null);}}} className="w-full border border-cyan-600 text-cyan-300 py-2 rounded disabled:opacity-50">Admin Debug Check</button>
       {errorOutput && <p className="text-sm text-red-400">{errorOutput}</p>}
       {successOutput && <p className="text-sm text-emerald-300">{successOutput}</p>}
+      {borderWarning && <p className="text-sm text-amber-300">{borderWarning}</p>}
       {generationFallbackNote && <p className="text-sm text-amber-300">{generationFallbackNote}</p>}
       {debugOutput && <pre className="text-xs text-cyan-200 bg-black/40 p-2 rounded overflow-auto">{debugOutput}</pre>}
     </aside>
@@ -354,7 +390,7 @@ const AIDesignerPage: React.FC = () => {
               return <div style={wrapperStyle}>
                 <img src={imageUrl} alt="Generated banner" className="w-full h-full cursor-move select-none" draggable={false}
                   style={{ objectFit: imageTransform.mode==='fit'?'contain':'cover' }}
-                  onLoad={(e)=>{ const img=e.currentTarget; if(img.naturalWidth&&img.naturalHeight) setImageNaturalRatio(img.naturalWidth/img.naturalHeight); }}
+                  onLoad={(e)=>{ const img=e.currentTarget; if(img.naturalWidth&&img.naturalHeight) setImageNaturalRatio(img.naturalWidth/img.naturalHeight); if (detectLikelyBorderPadding(img)) setBorderWarning('Generated image may include unwanted border/padding. Try Edit with AI: remove border and make full bleed.'); else setBorderWarning(''); }}
                   onPointerDown={(e)=>{ e.stopPropagation(); setSelected(true); dragState.current={type:'move',startX:e.clientX,startY:e.clientY,origin:imageTransform}; }} />
               </div>;
             })()}

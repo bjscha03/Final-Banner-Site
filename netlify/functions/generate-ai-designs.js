@@ -17,16 +17,15 @@ const json = (statusCode, payload) => ({ statusCode, headers: CORS, body: JSON.s
 const fallbackEnhance = (p, size) => `Create a premium ${size?.w || 8}ft x ${size?.h || 4}ft full-bleed banner design with bold readable typography, clean hierarchy, high contrast, and print-ready spacing. Flat artwork only, exactly one composition, no mockup or real-world scene. Theme: ${p}`;
 const SUPPORTED_IMAGEN_RATIOS = ['1:1', '9:16', '16:9', '4:3', '3:4'];
 
-const GENERATION_GUARDRAIL = `Create flat, full-bleed, print-ready banner artwork only.
+const GENERATION_GUARDRAIL = `Create ONLY flat, full-bleed print-ready banner artwork that fills the entire image edge-to-edge.
+No white border, no margin, no mat, no frame, no drop shadow around the artwork, no poster mockup, no design placed inside a smaller rectangle, no product mockup, no environment, no fence, no wall, no hanging banner.
+The final image must be the actual banner artwork itself, edge-to-edge.
 Generate exactly one complete banner design composition.
-The artwork must fill the entire canvas edge to edge.
-Do not generate a mockup.
-Do not generate a banner hanging on a fence, wall, building, pole, table, room, street, stadium, or real-world environment.
 Do not include grommets, ropes, pole pockets, hems, folded vinyl, fabric wrinkles, shadows outside artwork, realistic hanging hardware, or display scenery.
-Do not create multiple concepts, split panels, collages, grids, moodboards, or design sheets.
-Do not create multiple design options on the same image.
+Do not create multiple concepts, split panels, collages, grids, moodboards, design sheets, or multiple design options on the same image.
 Do not include fake contact information unless provided.
-Use large readable typography and clean print-safe spacing.`;
+Use large readable typography and clean print-safe spacing.
+Negative constraints: white border, margin, frame, poster mockup, shadowed rectangle, presentation mockup, canvas within canvas, multiple panels, collage.`;
 
 const FALLBACK_IMAGE_URL = 'https://res.cloudinary.com/dtrxl120u/image/upload/f_auto,q_auto,w_1600,h_800,c_fill/v1769209469/White-Label_Banners_-2_from_4over_nedg8n.png';
 
@@ -274,6 +273,7 @@ Reference cues: ${referenceSummary || 'none'}` }] }] }),
       const imagenAspectRatio = pickImagenRatio(targetW, targetH);
       const referenceSummary = await summarizeReferenceImage({ apiKey: googleApiKey, textModel, referenceImage: body.referenceImage });
       const editPrompt = `${GENERATION_GUARDRAIL}
+Preserve the existing banner canvas ratio and convert the design to full-bleed edge-to-edge artwork. Remove any borders, poster margins, white padding, frames, or drop shadows.
 Refine the existing banner concept while preserving core theme and layout intent.
 Current image URL: ${currentImageUrl}
 Edit instruction: ${sanitizeSinglePrompt(editInstruction)}
