@@ -6,6 +6,7 @@ import { calculateBannerPricing } from '@/lib/bannerPricingEngine';
 import { TAX_RATE, usd } from '@/lib/pricing';
 import { useCartStore } from '@/store/cart';
 import type { MaterialKey } from '@/store/quote';
+import { ArrowLeft, Sparkles, Upload, Wand2, ShoppingCart, Mic, Minus, Plus, BadgeCheck, EyeOff, Eye } from 'lucide-react';
 
 const POPULAR_SIZES = [{ label: "4' x 2'", w: 4, h: 2 }, { label: "6' x 2'", w: 6, h: 2 }, { label: "6' x 3'", w: 6, h: 3 }, { label: "8' x 3'", w: 8, h: 3 }, { label: "8' x 4'", w: 8, h: 4 }, { label: "10' x 4'", w: 10, h: 4 }];
 const MATERIALS: { value: MaterialKey; label: string }[] = [{ value: '13oz', label: '13oz Vinyl' }, { value: '15oz', label: '15oz Vinyl' }, { value: '18oz', label: '18oz Vinyl' }];
@@ -101,6 +102,7 @@ const AIDesignerPage: React.FC = () => {
   const [errorOutput, setErrorOutput] = useState('');
   const [generationFallbackNote, setGenerationFallbackNote] = useState('');
   const [debugOutput, setDebugOutput] = useState('');
+  const [showDebug, setShowDebug] = useState(false);
   const [cartMessage, setCartMessage] = useState('');
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [promoCode, setPromoCode] = useState('');
@@ -307,27 +309,63 @@ const AIDesignerPage: React.FC = () => {
   const ropeLabel = PLACEMENTS.find((o) => o.value === ropePlacement)?.label || 'None';
   const poleLabel = PLACEMENTS.find((o) => o.value === polePocketPlacement)?.label || 'None';
 
-  return <Layout><section className="min-h-screen bg-[#0b0d12] text-white p-4 lg:p-6"><div className="max-w-[1500px] mx-auto grid grid-cols-1 xl:grid-cols-[360px_1fr_340px] gap-4">
-    <aside className="border border-white/10 bg-[#12151d] p-5 space-y-3">
-      <h1 className="text-4xl font-black">AI DESIGNER</h1>
-      <textarea value={prompt} onChange={(e)=>setPrompt(e.target.value)} rows={4} className="w-full bg-black/60 border border-yellow-500 rounded p-3" placeholder="Describe the banner design you want to generate..." />
-      <button disabled={busy!==null||!prompt.trim()} onClick={async()=>{setBusy('enhance');setErrorOutput('');try{const {body}=await callFn('enhance'); if(body?.enhancedPrompt) setEnhancedPrompt(body.enhancedPrompt); else setErrorOutput(body?.safeErrorMessage||body?.error||'Enhance failed.');}finally{setBusy(null);}}} className="w-full border border-yellow-600 text-yellow-300 py-2 rounded inline-flex items-center justify-center gap-2 disabled:opacity-50">{busy==='enhance'?<><Spinner/>Enhancing Prompt...</>:'✨ ENHANCE PROMPT WITH AI'}</button>
-      <textarea value={enhancedPrompt} onChange={(e)=>setEnhancedPrompt(e.target.value)} rows={5} className="w-full bg-black/60 border border-white/20 rounded p-3" placeholder="Enhanced prompt will appear here after AI enhancement..." />
-      <input type="file" accept="image/*" onChange={async(e)=>{const f=e.target.files?.[0]; if(f) setReferenceImage(await readFile(f));}} className="block w-full text-sm"/>
-      <button disabled={busy!==null||!(enhancedPrompt||prompt).trim()} onClick={async()=>{setBusy('generate');setErrorOutput('');setGenerationFallbackNote('');try{const {body}=await callFn('generate'); if(body?.image?.url||body?.imageUrl){saveSnapshot(); setImageUrl(body?.image?.url||body?.imageUrl); if(body?.generationFallback) setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.');} else setErrorOutput(body?.safeErrorMessage||body?.error||'Generate failed.');}finally{setBusy(null);}}} className="w-full bg-yellow-700 text-black font-bold py-3 inline-flex items-center justify-center gap-2 disabled:opacity-50">{busy==='generate'?<><Spinner/>Generating Design...</>:'⚡ GENERATE DESIGN'}</button>
+  return <Layout><section className="min-h-screen bg-[#f3f4f6] text-slate-900">
+    <header className="border-b border-slate-200/80 bg-white/95 backdrop-blur-sm shadow-sm">
+      <div className="max-w-[1680px] mx-auto px-4 lg:px-6 h-20 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <img src="/images/logo-icon.svg" alt="BOF" className="h-10 w-10 rounded-lg ring-1 ring-slate-200 p-1 bg-[#ffd200]" />
+          <img src="/images/banners-on-the-fly-logo.svg" alt="Banners On The Fly" className="h-7 w-auto" />
+        </div>
+        <div className="flex items-center gap-3">
+          <button className="h-11 w-11 rounded-xl border border-slate-200 bg-white grid place-items-center text-slate-700 hover:bg-slate-50 transition-colors relative">
+            <ShoppingCart className="w-5 h-5" />
+            <span className="absolute -top-1 -right-1 rounded-full bg-[#ffd200] text-[11px] font-bold px-1.5">{Math.max(0, quantity)}</span>
+          </button>
+          <button className="inline-flex items-center gap-2 h-11 px-5 rounded-xl border border-slate-200 bg-white font-semibold hover:bg-slate-50 transition-colors">
+            <ArrowLeft className="w-4 h-4" /> Back to Shop
+          </button>
+        </div>
+      </div>
+    </header>
+    <div className="max-w-[1680px] mx-auto p-4 lg:p-6 grid grid-cols-1 xl:grid-cols-[360px_1fr_360px] gap-5">
+    <aside className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-5">
+      <p className="text-slate-500 text-lg">Generate and configure your perfect banner.</p>
+      <div className="border-t border-slate-100 pt-5">
+      <h1 className="text-sm font-black tracking-wide uppercase flex items-center gap-2"><span className="h-7 w-7 rounded-full bg-[#ffd200] grid place-items-center text-xs">1</span>Describe your design</h1>
+      <p className="text-sm text-slate-500 mt-2">Be descriptive. Mention colors, styles, and text.</p>
+      <div className="relative mt-3">
+        <textarea value={prompt} onChange={(e)=>setPrompt(e.target.value)} rows={5} className="w-full rounded-xl border border-slate-200 bg-white p-4 pr-11 text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#ffd200]/60" placeholder="e.g. A vibrant summer sale banner with palm trees, bright sun rays, and a central text area." />
+        <Mic className="absolute bottom-3 right-3 w-4 h-4 text-slate-400" />
+      </div>
+      <button disabled={busy!==null||!prompt.trim()} onClick={async()=>{setBusy('enhance');setErrorOutput('');try{const {body}=await callFn('enhance'); if(body?.enhancedPrompt) setEnhancedPrompt(body.enhancedPrompt); else setErrorOutput(body?.safeErrorMessage||body?.error||'Enhance failed.');}finally{setBusy(null);}}} className="mt-3 w-full border border-slate-200 bg-white text-slate-700 py-2.5 rounded-xl inline-flex items-center justify-center gap-2 disabled:opacity-50 hover:bg-slate-50"><Sparkles className="w-4 h-4 text-[#d4a700]" />{busy==='enhance'?<><Spinner/>Enhancing Prompt...</>:'Enhance Prompt with AI'}</button>
+      <textarea value={enhancedPrompt} onChange={(e)=>setEnhancedPrompt(e.target.value)} rows={4} className="mt-3 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm" placeholder="Enhanced prompt will appear here..." />
+      </div>
+      <div className="border-t border-slate-100 pt-5">
+        <h2 className="text-sm font-black tracking-wide uppercase flex items-center gap-2"><span className="h-7 w-7 rounded-full bg-[#ffd200] grid place-items-center text-xs">2</span>Upload reference image</h2>
+        <label className="mt-3 block rounded-xl border-2 border-dashed border-slate-300 p-8 text-center cursor-pointer hover:border-[#ffd200] bg-slate-50/60">
+          <Upload className="w-7 h-7 mx-auto text-slate-500 mb-2" />
+          <span className="text-sm font-semibold text-slate-700">Upload Reference Image</span>
+          <p className="text-xs text-slate-500 mt-1">PNG, JPG, WEBP • Optional</p>
+          <input type="file" accept="image/*" onChange={async(e)=>{const f=e.target.files?.[0]; if(f) setReferenceImage(await readFile(f));}} className="hidden"/>
+        </label>
+      </div>
+      <button disabled={busy!==null||!(enhancedPrompt||prompt).trim()} onClick={async()=>{setBusy('generate');setErrorOutput('');setGenerationFallbackNote('');try{const {body}=await callFn('generate'); if(body?.image?.url||body?.imageUrl){saveSnapshot(); setImageUrl(body?.image?.url||body?.imageUrl); if(body?.generationFallback) setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.');} else setErrorOutput(body?.safeErrorMessage||body?.error||'Generate failed.');}finally{setBusy(null);}}} className="w-full bg-[#ffd200] hover:bg-[#ffdb38] text-slate-900 font-bold py-3.5 rounded-xl inline-flex items-center justify-center gap-2 disabled:opacity-50 shadow-sm hover:shadow-md transition-all">{busy==='generate'?<><Spinner/>Generating Design...</>:<><Sparkles className="w-4 h-4" />Generate Design</>}</button>
       {imageUrl && <>
-        <input value={editInstruction} onChange={(e)=>setEditInstruction(e.target.value)} className="w-full bg-black/60 border border-white/20 rounded p-2" placeholder="Edit instruction"/>
-        <button disabled={busy!==null||!editInstruction.trim()} onClick={async()=>{setBusy('enhanceEdit');try{const {body}=await callFn('enhance'); if(body?.enhancedPrompt) setEditInstruction(body.enhancedPrompt);}finally{setBusy(null);}}} className="w-full border border-white/20 py-2 rounded disabled:opacity-50">Enhance Edit Prompt with AI</button>
-        <button disabled={busy!==null||!editInstruction.trim()} onClick={async()=>{setBusy('edit');setErrorOutput('');try{const {body}=await callFn('edit'); if(body?.image?.url||body?.imageUrl){saveSnapshot(); setImageUrl(body?.image?.url||body?.imageUrl); if(body?.generationFallback) setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.');} else setErrorOutput(body?.safeErrorMessage||body?.error||'Edit failed.');}finally{setBusy(null);}}} className="w-full border border-white/20 py-2 rounded inline-flex items-center justify-center gap-2 disabled:opacity-50">{busy==='edit'?<><Spinner/>Applying AI edits...</>:'Edit with AI'}</button>
-        <button disabled={busy!==null||history.length===0} onClick={revertOne} className="w-full border border-white/20 py-2 rounded disabled:opacity-50">Revert</button>
+        <input value={editInstruction} onChange={(e)=>setEditInstruction(e.target.value)} className="w-full rounded-xl border border-slate-200 p-3" placeholder="Edit instruction"/>
+        <button disabled={busy!==null||!editInstruction.trim()} onClick={async()=>{setBusy('enhanceEdit');try{const {body}=await callFn('enhance'); if(body?.enhancedPrompt) setEditInstruction(body.enhancedPrompt);}finally{setBusy(null);}}} className="w-full border border-slate-200 py-2.5 rounded-xl disabled:opacity-50 bg-white">Enhance Edit Prompt</button>
+        <button disabled={busy!==null||!editInstruction.trim()} onClick={async()=>{setBusy('edit');setErrorOutput('');try{const {body}=await callFn('edit'); if(body?.image?.url||body?.imageUrl){saveSnapshot(); setImageUrl(body?.image?.url||body?.imageUrl); if(body?.generationFallback) setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.');} else setErrorOutput(body?.safeErrorMessage||body?.error||'Edit failed.');}finally{setBusy(null);}}} className="w-full border border-slate-200 py-2.5 rounded-xl inline-flex items-center justify-center gap-2 disabled:opacity-50 bg-white">{busy==='edit'?<><Spinner/>Applying AI edits...</>:<><Wand2 className="w-4 h-4" />Edit with AI</>}</button>
+        <button disabled={busy!==null||history.length===0} onClick={revertOne} className="w-full border border-slate-200 py-2.5 rounded-xl disabled:opacity-50 bg-white">Revert</button>
       </>}
-      <button disabled={busy!==null} onClick={async()=>{setBusy('debug');try{const {body}=await callFn('debug'); setDebugOutput(JSON.stringify(body,null,2));}finally{setBusy(null);}}} className="w-full border border-cyan-600 text-cyan-300 py-2 rounded disabled:opacity-50">Admin Debug Check</button>
+      <div className="border-t border-slate-100 pt-4">
+      <button onClick={()=>setShowDebug(v=>!v)} className="w-full py-2 rounded-lg text-xs border border-slate-200 inline-flex items-center justify-center gap-2 text-slate-500">{showDebug ? <EyeOff className="w-3 h-3"/> : <Eye className="w-3 h-3"/>}Admin debug tools</button>
+      {showDebug && <button disabled={busy!==null} onClick={async()=>{setBusy('debug');try{const {body}=await callFn('debug'); setDebugOutput(JSON.stringify(body,null,2));}finally{setBusy(null);}}} className="mt-2 w-full border border-cyan-200 bg-cyan-50 text-cyan-800 py-2 rounded-lg disabled:opacity-50">Run Debug Check</button>}
+      </div>
       {errorOutput && <p className="text-sm text-red-400">{errorOutput}</p>}
       {generationFallbackNote && <p className="text-sm text-amber-300">{generationFallbackNote}</p>}
       {debugOutput && <pre className="text-xs text-cyan-200 bg-black/40 p-2 rounded overflow-auto">{debugOutput}</pre>}
     </aside>
 
-    <main className="border border-white/10 bg-[#11151d] p-6">
+    <main className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="mt-2 mx-auto max-w-4xl">
         <div className="relative pl-14 pb-16 pr-4 pt-4">
           <div className="absolute left-0 top-4 bottom-16 w-12 pointer-events-none">
@@ -335,7 +373,7 @@ const AIDesignerPage: React.FC = () => {
             {marks(heightFt, 320).map((i)=> <div key={`y-${i}`} className="absolute" style={{ top:`${(i/Math.max(1,heightFt))*100}%`, right:'4px', transform:'translateY(-50%)' }}><div className="h-px w-2 bg-white/80 ml-auto"/><span className="text-[10px] text-white/90 whitespace-nowrap block text-right">{i} ft</span></div>)}
           </div>
 
-          <div ref={canvasRef} className="relative w-full bg-black border border-white/30" style={{ aspectRatio: `${widthIn}/${heightIn}` }} onMouseDown={(e)=>{ if (e.target === e.currentTarget) setSelected(false); }}>
+          <div ref={canvasRef} className="relative w-full bg-white border border-slate-300 shadow-sm" style={{ aspectRatio: `${widthIn}/${heightIn}` }} onMouseDown={(e)=>{ if (e.target === e.currentTarget) setSelected(false); }}>
             {imageUrl ? <div className="absolute inset-0 overflow-hidden">
             {(() => {
               const b = getImageBox();
@@ -374,8 +412,8 @@ const AIDesignerPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="mt-2 flex gap-2">
-          <button onClick={fit} className="px-3 py-1 border border-white/20 rounded">Fit</button>
+          <div className="mt-2 flex gap-2 flex-wrap">
+          <button onClick={fit} className="px-3 py-1.5 border border-slate-200 bg-white rounded-full shadow-sm">Fit</button>
           <button onClick={fill} className="px-3 py-1 border border-white/20 rounded">Fill</button>
           <button onClick={reset} className="px-3 py-1 border border-white/20 rounded">Reset</button>
           <button onClick={()=>setImageTransform(t=>({...t, scale:Math.min(2, Number((t.scale+0.1).toFixed(2))), mode:'custom'}))} className="px-3 py-1 border border-white/20 rounded">Zoom In</button><button onClick={()=>setImageTransform(t=>({...t, scale:Math.max(0.5, Number((t.scale-0.1).toFixed(2))), mode:'custom'}))} className="px-3 py-1 border border-white/20 rounded">Zoom Out</button>
@@ -387,8 +425,8 @@ const AIDesignerPage: React.FC = () => {
       </div>
     </main>
 
-    <aside className="border border-white/10 bg-[#12151d] p-5">
-      <h2 className="text-3xl font-black">BANNER OPTIONS</h2>
+    <aside className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <h2 className="text-3xl font-black tracking-tight">BANNER OPTIONS</h2>
       <label className="block mt-3">Size Mode<select value={sizeMode} onChange={(e)=>setSizeMode(e.target.value as any)} className="mt-1 w-full bg-black border border-white/20 p-2"><option value="popular">Popular Sizes</option><option value="custom">Custom Size</option></select></label>
       {sizeMode==='popular' ? <select value={size.label} onChange={(e)=>setSize(POPULAR_SIZES.find(s=>s.label===e.target.value) || POPULAR_SIZES[0])} className="mt-2 w-full bg-black border border-white/20 p-2">{POPULAR_SIZES.map(s=><option key={s.label}>{s.label}</option>)}</select> : <div className="mt-2 space-y-2"><label className="block text-sm">Width (ft)<input type="number" step={1} value={wInput} onChange={e=>setWInput(Math.max(1, Math.round(Number(e.target.value)||1)))} className="mt-1 w-full bg-black border border-white/20 p-2"/></label><label className="block text-sm">Height (ft)<input type="number" step={1} value={hInput} onChange={e=>setHInput(Math.max(1, Math.round(Number(e.target.value)||1)))} className="mt-1 w-full bg-black border border-white/20 p-2"/></label></div>}
       <p className="mt-2 text-xs text-gray-300">{areaSqFt.toFixed(2)} sq ft • {widthIn} in x {heightIn} in</p>
@@ -399,7 +437,13 @@ const AIDesignerPage: React.FC = () => {
       <label className="block mt-2">Pole Pockets<select value={polePocketPlacement} onChange={(e)=>onPoleChange(e.target.value)} className="mt-1 w-full bg-black border border-white/20 p-2">{PLACEMENTS.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select></label>
       <p className="mt-2 text-xs text-gray-300">Hemming is always included. All banners are finished with a folded, heat-welded hem for added strength.</p>
 
-      <label className="block mt-2">Quantity<input type="number" min={1} value={quantity} onChange={(e)=>setQuantity(Math.max(1, Number(e.target.value)||1))} className="mt-1 w-full bg-black border border-white/20 p-2"/></label>
+      <label className="block mt-2">Quantity
+        <div className="mt-1 grid grid-cols-3 border border-slate-200 rounded-xl overflow-hidden">
+          <button type="button" onClick={()=>setQuantity(q=>Math.max(1,q-1))} className="h-11 grid place-items-center hover:bg-slate-50"><Minus className="w-4 h-4"/></button>
+          <input type="number" min={1} value={quantity} onChange={(e)=>setQuantity(Math.max(1, Number(e.target.value)||1))} className="h-11 text-center border-x border-slate-200"/>
+          <button type="button" onClick={()=>setQuantity(q=>q+1)} className="h-11 grid place-items-center hover:bg-slate-50"><Plus className="w-4 h-4"/></button>
+        </div>
+      </label>
 
       <div className="mt-4 text-center">
         <p className="text-5xl font-black text-white">{usd((pricing.subtotalCents * (1 + TAX_RATE)) / 100)}</p>
@@ -422,12 +466,12 @@ const AIDesignerPage: React.FC = () => {
         <input value={promoCode} onChange={(e)=>setPromoCode(e.target.value)} placeholder="Promo Code" className="flex-1 bg-black border border-white/20 p-2 rounded" />
         <button type="button" className="px-4 rounded bg-white/10 border border-white/20">Apply</button>
       </div>
-      <p className="mt-3 text-xs text-center text-gray-400">FREE Next-Day Air Included • Tax calculated at checkout</p>
+      <p className="mt-3 text-xs text-center text-gray-500 inline-flex items-center gap-1"><BadgeCheck className="w-3 h-3 text-emerald-600"/>FREE Next-Day Air Included • Tax calculated at checkout</p>
 
       <button onClick={addToCartFromAI} disabled={!imageUrl || isAddingToCart} className="mt-3 w-full bg-[#D4AF37] hover:bg-[#e5c76a] text-black font-bold py-3 disabled:opacity-40 disabled:cursor-not-allowed">{isAddingToCart ? 'Adding...' : cartMessage === 'Added to cart.' ? 'Added' : 'ADD TO CART'}</button>
       {cartMessage && <p className={`mt-2 text-sm ${cartMessage === 'Added to cart.' ? 'text-emerald-400' : 'text-red-400'}`}>{cartMessage}</p>}
     </aside>
-  </div></section></Layout>;
+  </div></div></section></Layout>;
 };
 
 export default AIDesignerPage;
