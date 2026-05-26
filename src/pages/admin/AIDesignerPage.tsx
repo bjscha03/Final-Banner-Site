@@ -6,7 +6,7 @@ import { calculateBannerPricing } from '@/lib/bannerPricingEngine';
 import { TAX_RATE, usd } from '@/lib/pricing';
 import { useCartStore } from '@/store/cart';
 import type { MaterialKey } from '@/store/quote';
-import { ArrowLeft, Sparkles, Upload, Wand2, ShoppingCart, Mic, Minus, Plus, BadgeCheck, EyeOff, Eye } from 'lucide-react';
+import { Sparkles, Upload, Wand2, Mic, Minus, Plus, BadgeCheck, EyeOff, Eye } from 'lucide-react';
 
 const POPULAR_SIZES = [{ label: "4' x 2'", w: 4, h: 2 }, { label: "6' x 2'", w: 6, h: 2 }, { label: "6' x 3'", w: 6, h: 3 }, { label: "8' x 3'", w: 8, h: 3 }, { label: "8' x 4'", w: 8, h: 4 }, { label: "10' x 4'", w: 10, h: 4 }];
 const MATERIALS: { value: MaterialKey; label: string }[] = [{ value: '13oz', label: '13oz Vinyl' }, { value: '15oz', label: '15oz Vinyl' }, { value: '18oz', label: '18oz Vinyl' }];
@@ -312,23 +312,6 @@ const AIDesignerPage: React.FC = () => {
   return (
     <Layout>
       <section className="min-h-screen bg-[#f3f4f6] text-slate-900">
-    <header className="border-b border-slate-200/80 bg-white/95 backdrop-blur-sm shadow-sm">
-      <div className="max-w-[1680px] mx-auto px-4 lg:px-6 h-20 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <img src="/images/logo-icon.svg" alt="BOF" className="h-10 w-10 rounded-lg ring-1 ring-slate-200 p-1 bg-[#ffd200]" />
-          <img src="/images/banners-on-the-fly-logo.svg" alt="Banners On The Fly" className="h-7 w-auto" />
-        </div>
-        <div className="flex items-center gap-3">
-          <button className="h-11 w-11 rounded-xl border border-slate-200 bg-white grid place-items-center text-slate-700 hover:bg-slate-50 transition-colors relative">
-            <ShoppingCart className="w-5 h-5" />
-            <span className="absolute -top-1 -right-1 rounded-full bg-[#ffd200] text-[11px] font-bold px-1.5">{Math.max(0, quantity)}</span>
-          </button>
-          <button className="inline-flex items-center gap-2 h-11 px-5 rounded-xl border border-slate-200 bg-white font-semibold hover:bg-slate-50 transition-colors">
-            <ArrowLeft className="w-4 h-4" /> Back to Shop
-          </button>
-        </div>
-      </div>
-    </header>
         <div className="max-w-[1680px] mx-auto p-4 lg:p-6 grid grid-cols-1 xl:grid-cols-[360px_1fr_360px] gap-5">
     <aside className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-5">
       <p className="text-slate-500 text-lg">Generate and configure your perfect banner.</p>
