@@ -383,9 +383,12 @@ const AIDesignerPage: React.FC = () => {
         <p>provider: {lastAiMeta?.provider || 'n/a'}</p>
         <p>referenceImageIncluded: {String(lastAiMeta?.referenceImageIncluded ?? Boolean(referenceImage))}</p>
         <p>referenceMode: {lastAiMeta?.referenceMode || 'none'}</p>
+        <p>referenceAnalysis: {lastAiMeta?.referenceAnalysis || 'n/a'}</p>
         <p>editImageIncluded: {String(lastAiMeta?.editImageIncluded ?? false)}</p>
         <p>canonicalApprovedImageUrl: {lastAiMeta?.canonicalApprovedImageUrl || 'n/a'}</p>
         <p>cropFillApplied: {String(lastAiMeta?.cropFillApplied ?? false)}</p>
+        <p>logoCompositeApplied: {String(lastAiMeta?.logoCompositeApplied ?? false)}</p>
+        <p>fakeLogoTextDetected: {String(lastAiMeta?.fakeLogoTextDetected ?? false)}</p>
         <p>imageFilledCanvas: {String(lastAiMeta?.imageFilledCanvas ?? false)}</p>
       </div>
     </aside>
