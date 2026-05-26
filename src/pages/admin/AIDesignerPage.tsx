@@ -471,7 +471,10 @@ const AIDesignerPage: React.FC = () => {
       <button onClick={addToCartFromAI} disabled={!imageUrl || isAddingToCart} className="mt-3 w-full bg-[#D4AF37] hover:bg-[#e5c76a] text-black font-bold py-3 disabled:opacity-40 disabled:cursor-not-allowed">{isAddingToCart ? 'Adding...' : cartMessage === 'Added to cart.' ? 'Added' : 'ADD TO CART'}</button>
       {cartMessage && <p className={`mt-2 text-sm ${cartMessage === 'Added to cart.' ? 'text-emerald-400' : 'text-red-400'}`}>{cartMessage}</p>}
     </aside>
-  </div></div></section></Layout>;
+      </div>
+    </div>
+  </section>
+</Layout>;
 };
 
 export default AIDesignerPage;
