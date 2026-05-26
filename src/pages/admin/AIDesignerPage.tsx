@@ -309,7 +309,9 @@ const AIDesignerPage: React.FC = () => {
   const ropeLabel = PLACEMENTS.find((o) => o.value === ropePlacement)?.label || 'None';
   const poleLabel = PLACEMENTS.find((o) => o.value === polePocketPlacement)?.label || 'None';
 
-  return <Layout><section className="min-h-screen bg-[#f3f4f6] text-slate-900">
+  return (
+    <Layout>
+      <section className="min-h-screen bg-[#f3f4f6] text-slate-900">
     <header className="border-b border-slate-200/80 bg-white/95 backdrop-blur-sm shadow-sm">
       <div className="max-w-[1680px] mx-auto px-4 lg:px-6 h-20 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -327,7 +329,7 @@ const AIDesignerPage: React.FC = () => {
         </div>
       </div>
     </header>
-    <div className="max-w-[1680px] mx-auto p-4 lg:p-6 grid grid-cols-1 xl:grid-cols-[360px_1fr_360px] gap-5">
+        <div className="max-w-[1680px] mx-auto p-4 lg:p-6 grid grid-cols-1 xl:grid-cols-[360px_1fr_360px] gap-5">
     <aside className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-5">
       <p className="text-slate-500 text-lg">Generate and configure your perfect banner.</p>
       <div className="border-t border-slate-100 pt-5">
@@ -471,10 +473,10 @@ const AIDesignerPage: React.FC = () => {
       <button onClick={addToCartFromAI} disabled={!imageUrl || isAddingToCart} className="mt-3 w-full bg-[#D4AF37] hover:bg-[#e5c76a] text-black font-bold py-3 disabled:opacity-40 disabled:cursor-not-allowed">{isAddingToCart ? 'Adding...' : cartMessage === 'Added to cart.' ? 'Added' : 'ADD TO CART'}</button>
       {cartMessage && <p className={`mt-2 text-sm ${cartMessage === 'Added to cart.' ? 'text-emerald-400' : 'text-red-400'}`}>{cartMessage}</p>}
     </aside>
-      </div>
-    </div>
-  </section>
-</Layout>;
+        </div>
+      </section>
+    </Layout>
+  );
 };
 
 export default AIDesignerPage;
