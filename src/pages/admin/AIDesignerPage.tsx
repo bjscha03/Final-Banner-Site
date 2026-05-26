@@ -91,7 +91,12 @@ const AIDesignerPage: React.FC = () => {
   const [enhancedPrompt, setEnhancedPrompt] = useState('');
   const [editInstruction, setEditInstruction] = useState('');
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
+  const [referenceImageName, setReferenceImageName] = useState<string>('');
+  const [referenceImagePreview, setReferenceImagePreview] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState('');
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const [micStatus, setMicStatus] = useState('');
 
   const [finishingType, setFinishingType] = useState<Finishing>('none');
   const [grommetOption, setGrommetOption] = useState<string>('none');
@@ -197,10 +202,30 @@ const AIDesignerPage: React.FC = () => {
   };
 
   const callFn = async (action: string) => {
-    const payload = { action, prompt, enhancedPrompt, editInstruction, imageUrl, size: { w: Number(widthFt.toFixed(2)), h: Number(heightFt.toFixed(2)) }, material, quantity, referenceImage };
+    const payload = { action, prompt, enhancedPrompt, editInstruction, imageUrl, size: { w: Number(widthFt.toFixed(2)), h: Number(heightFt.toFixed(2)) }, material, quantity, referenceImage, referenceImageName };
     const res = await fetch('/.netlify/functions/generate-ai-designs', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
     const body = await res.json().catch(() => ({ ok: false, safeErrorMessage: 'Invalid JSON response from function' }));
     return { body };
+  };
+  const startVoiceInput = () => {
+    const Recognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!Recognition) { setMicStatus('Speech recognition not supported in this browser.'); return; }
+    const recognition = new Recognition();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.onstart = () => { setIsListening(true); setMicStatus('Listening...'); };
+    recognition.onresult = (event: any) => {
+      const text = String(event?.results?.[0]?.[0]?.transcript || '').trim();
+      if (text) setPrompt((p) => `${p}${p ? ' ' : ''}${text}`.trim());
+      setMicStatus(text ? 'Voice text added.' : 'No speech detected.');
+    };
+    recognition.onerror = (event: any) => {
+      if (event?.error === 'not-allowed') setMicStatus('Microphone permission denied.');
+      else setMicStatus(`Microphone error: ${event?.error || 'Unknown error'}`);
+    };
+    recognition.onend = () => setIsListening(false);
+    recognition.start();
   };
 
 
@@ -320,8 +345,9 @@ const AIDesignerPage: React.FC = () => {
       <p className="text-sm text-slate-500 mt-2">Be descriptive. Mention colors, styles, and text.</p>
       <div className="relative mt-3">
         <textarea value={prompt} onChange={(e)=>setPrompt(e.target.value)} rows={5} className="w-full rounded-xl border border-slate-200 bg-white p-4 pr-11 text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#ffd200]/60" placeholder="e.g. A vibrant summer sale banner with palm trees, bright sun rays, and a central text area." />
-        <Mic className="absolute bottom-3 right-3 w-4 h-4 text-slate-400" />
+        <button type="button" onClick={startVoiceInput} className={`absolute bottom-2 right-2 p-1.5 rounded-full border ${isListening ? 'bg-[#fff4bf] border-[#ffd200] text-[#a87a00]' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`} aria-label="Use voice input"><Mic className="w-4 h-4" /></button>
       </div>
+      {micStatus && <p className="mt-1 text-xs text-slate-500">{micStatus}</p>}
       <button disabled={busy!==null||!prompt.trim()} onClick={async()=>{setBusy('enhance');setErrorOutput('');try{const {body}=await callFn('enhance'); if(body?.enhancedPrompt) setEnhancedPrompt(body.enhancedPrompt); else setErrorOutput(body?.safeErrorMessage||body?.error||'Enhance failed.');}finally{setBusy(null);}}} className="mt-3 w-full border border-slate-200 bg-white text-slate-700 py-2.5 rounded-xl inline-flex items-center justify-center gap-2 hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed"><Sparkles className="w-4 h-4 text-[#d4a700]" />{busy==='enhance'?<><Spinner/>Enhancing Prompt...</>:'Enhance Prompt with AI'}</button>
       <textarea value={enhancedPrompt} onChange={(e)=>setEnhancedPrompt(e.target.value)} rows={4} className="mt-3 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm" placeholder="Enhanced prompt will appear here..." />
       </div>
@@ -331,10 +357,12 @@ const AIDesignerPage: React.FC = () => {
           <Upload className="w-7 h-7 mx-auto text-slate-500 mb-2" />
           <span className="text-sm font-semibold text-slate-700">Upload Reference Image</span>
           <p className="text-xs text-slate-500 mt-1">PNG, JPG, WEBP • Optional</p>
-          <input type="file" accept="image/*" onChange={async(e)=>{const f=e.target.files?.[0]; if(f) setReferenceImage(await readFile(f));}} className="hidden"/>
+          <input type="file" accept="image/png,image/jpeg,image/jpg,image/webp" onChange={async(e)=>{setUploadError(''); const f=e.target.files?.[0]; if(!f) return; try { const data = await readFile(f); setReferenceImage(data); setReferenceImageName(f.name); setReferenceImagePreview(data); } catch { setUploadError('Reference upload failed. Please try another image.'); setReferenceImage(null); setReferenceImageName(''); setReferenceImagePreview(null);} }} className="hidden"/>
         </label>
+        {referenceImageName && <div className="mt-2 rounded-lg border border-slate-200 bg-white p-2"><p className="text-xs text-slate-600 truncate">{referenceImageName}</p>{referenceImagePreview && <img src={referenceImagePreview} alt="Reference preview" className="mt-2 h-16 w-16 rounded object-cover border border-slate-200" />}<button type="button" onClick={()=>{setReferenceImage(null);setReferenceImageName('');setReferenceImagePreview(null);}} className="mt-2 text-xs text-slate-600 underline">Remove reference</button></div>}
+        {uploadError && <p className="mt-2 text-xs text-red-600">{uploadError}</p>}
       </div>
-      <button disabled={busy!==null||!(enhancedPrompt||prompt).trim()} onClick={async()=>{setBusy('generate');setErrorOutput('');setGenerationFallbackNote('');try{const {body}=await callFn('generate'); if(body?.image?.url||body?.imageUrl){saveSnapshot(); setImageUrl(body?.image?.url||body?.imageUrl); if(body?.generationFallback) setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.');} else setErrorOutput(body?.safeErrorMessage||body?.error||'Generate failed.');}finally{setBusy(null);}}} className="w-full bg-[#ffd200] hover:bg-[#ffdb38] text-slate-900 font-bold py-3.5 rounded-xl inline-flex items-center justify-center gap-2 shadow-sm hover:shadow-md transition-all disabled:bg-[#fde68a] disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none">{busy==='generate'?<><Spinner/>Generating Design...</>:<><Sparkles className="w-4 h-4" />Generate Design</>}</button>
+      <button disabled={busy!==null||!(enhancedPrompt||prompt).trim()} onClick={async()=>{setBusy('generate');setErrorOutput('');setGenerationFallbackNote('');try{const {body}=await callFn('generate'); if(body?.image?.url||body?.imageUrl){saveSnapshot(); setImageUrl(body?.image?.url||body?.imageUrl); setImageTransform({ x: 0, y: 0, scale: 1, mode: 'fill' }); setSelected(false); if(body?.generationFallback) setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.');} else setErrorOutput(body?.safeErrorMessage||body?.error||'Generate failed.');}finally{setBusy(null);}}} className="w-full bg-[#ffd200] hover:bg-[#ffdb38] text-slate-900 font-bold py-3.5 rounded-xl inline-flex items-center justify-center gap-2 shadow-sm hover:shadow-md transition-all disabled:bg-[#fde68a] disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none">{busy==='generate'?<><Spinner/>Generating Design...</>:<><Sparkles className="w-4 h-4" />Generate Design</>}</button>
       {imageUrl && <>
         <input value={editInstruction} onChange={(e)=>setEditInstruction(e.target.value)} className="w-full rounded-xl border border-slate-200 p-3" placeholder="Edit instruction"/>
         <button disabled={busy!==null||!editInstruction.trim()} onClick={async()=>{setBusy('enhanceEdit');try{const {body}=await callFn('enhance'); if(body?.enhancedPrompt) setEditInstruction(body.enhancedPrompt);}finally{setBusy(null);}}} className="w-full border border-slate-200 py-2.5 rounded-xl disabled:opacity-60 disabled:cursor-not-allowed bg-white">Enhance Edit Prompt</button>
@@ -348,6 +376,11 @@ const AIDesignerPage: React.FC = () => {
       {errorOutput && <p className="text-sm text-red-400">{errorOutput}</p>}
       {generationFallbackNote && <p className="text-sm text-amber-300">{generationFallbackNote}</p>}
       {debugOutput && <pre className="text-xs text-slate-700 bg-slate-100 border border-slate-200 p-2 rounded overflow-auto">{debugOutput}</pre>}
+      <div className="text-[11px] text-slate-500 space-y-0.5">
+        <p>selectedAspectRatio: {widthFt}:{heightFt}</p>
+        <p>referenceImageIncluded: {referenceImage ? 'true' : 'false'}</p>
+        <p>referenceImageName: {referenceImageName || 'none'}</p>
+      </div>
     </aside>
 
     <main className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

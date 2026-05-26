@@ -14,10 +14,19 @@ cloudinary.config({
 });
 
 const json = (statusCode, payload) => ({ statusCode, headers: CORS, body: JSON.stringify(payload) });
-const fallbackEnhance = (p, size) => `Design a premium ${size?.w || 8}ft x ${size?.h || 4}ft banner. Keep high contrast readable typography, clean hierarchy, and full-bleed composition. Create flat, full-bleed print-ready banner artwork only. Do not generate a banner mockup, fence, wall, room, pole, hanging banner, folded material, grommets, shadows, or real-world scene. Prompt: ${p}`;
+const fallbackEnhance = (p, size) => `Final production prompt: Create one flat print-ready banner artwork at exactly ${size?.w || 8}ft x ${size?.h || 4}ft (${((size?.w || 8)/(size?.h || 4)).toFixed(3)}:1). Keep all requested wording exactly as provided. Full-bleed edge-to-edge single composition only. No mockups, no multiple options, no panels, no poster-in-frame layout, no white or black bars, no hardware, no grommets, no ropes, no poles, no room/wall/fence scene. User request: ${String(p || '').trim()}`;
 const SUPPORTED_IMAGEN_RATIOS = ['1:1', '9:16', '16:9', '4:3', '3:4'];
 
-const GENERATION_GUARDRAIL = 'Create flat, full-bleed print-ready banner artwork only. Do not generate a banner mockup, fence, wall, room, pole, hanging banner, folded material, grommets, shadows, or real-world scene.';
+const GENERATION_GUARDRAIL = 'Create only the final flat print-ready artwork file for a custom banner. The image itself must be the printable design, not a photo or mockup of a banner. Fill the entire selected canvas edge-to-edge. Do not create multiple banner options, panels, examples, mockups, frames, margins, white bars, black bars, poster layouts, or designs inside a smaller rectangle. Do not include grommets, ropes, pole pockets, holes, hardware, shadows outside the artwork, walls, fences, poles, rooms, or hanging displays.';
+const BANNED_PROMPT_WORDS = ['mockup', 'banner mockup', 'hanging banner', 'product shot', 'display scene', 'presentation', 'example designs', 'design options', 'variations'];
+
+function sanitizePromptText(input) {
+  let clean = String(input || '').trim();
+  for (const bad of BANNED_PROMPT_WORDS) {
+    clean = clean.replace(new RegExp(bad, 'ig'), '');
+  }
+  return clean.replace(/\s{2,}/g, ' ').trim();
+}
 
 const FALLBACK_IMAGE_URL = 'https://res.cloudinary.com/dtrxl120u/image/upload/f_auto,q_auto,w_1600,h_800,c_fill/v1769209469/White-Label_Banners_-2_from_4over_nedg8n.png';
 
@@ -128,20 +137,24 @@ export async function handler(event) {
     if (action === 'enhance') {
       const originalPrompt = String(body.prompt || '').trim();
       if (!originalPrompt) return json(400, { ok: false, action, error: 'Prompt required' });
+      const aspectRatio = `${Number(body?.size?.w) || 8}:${Number(body?.size?.h) || 4}`;
+      const enhanceInstruction = `Rewrite the following user request into ONE plain-text production prompt for generating a single print-ready flat banner artwork.\nRules:\n- Return only one prompt, plain text only.\n- No markdown, bullets, labels, explanations, or multiple options.\n- Include the exact requested user wording/text.\n- Include selected size/aspect ratio ${aspectRatio}.\n- Require full-bleed edge-to-edge single composition.\n- Ban mockups, poster layouts, multiple panels/options, white bars/black bars, and hardware.\nUser request: ${sanitizePromptText(originalPrompt)}`;
       const r = await fetch(`${GEMINI_BASE}/models/${textModel}:generateContent?key=${encodeURIComponent(googleApiKey)}`, {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: `Rewrite this into a stronger image-generation prompt for a single large-format banner design:\n${originalPrompt}` }] }] }),
+        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: enhanceInstruction }] }] }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) {
         return json(200, { ok: true, action, enhancedPrompt: fallbackEnhance(originalPrompt, body.size), safeErrorMessage: d?.error?.message || 'Gemini unavailable. Fallback prompt applied.' });
       }
-      const enhancedPrompt = d?.candidates?.[0]?.content?.parts?.map((p) => p.text).join('\n').trim() || fallbackEnhance(originalPrompt, body.size);
-      return json(200, { ok: true, action, enhancedPrompt, safeErrorMessage: null });
+      const rawEnhanced = d?.candidates?.[0]?.content?.parts?.map((p) => p.text).join(' ').trim();
+      const enhancedPrompt = sanitizePromptText(rawEnhanced || fallbackEnhance(originalPrompt, body.size));
+      return json(200, { ok: true, action, enhancedPrompt, enhancedPromptFinal: enhancedPrompt, selectedAspectRatio: aspectRatio, safeErrorMessage: null });
     }
 
     if (action === 'generate') {
-      const sourcePrompt = `${GENERATION_GUARDRAIL}\n${String(body.enhancedPrompt || body.prompt || '').trim()}`;
+      const cleanedSource = sanitizePromptText(String(body.enhancedPrompt || body.prompt || '').trim());
+      const sourcePrompt = `${GENERATION_GUARDRAIL}\n${cleanedSource}`;
       if (!sourcePrompt) return json(400, { ok: false, action, error: 'Prompt required' });
 
       const targetW = Number(body?.size?.w) || 8;
@@ -152,9 +165,10 @@ export async function handler(event) {
         return json(200, { ok: false, action, imageUrl: null, safeErrorMessage: 'Unsupported mapped Imagen ratio.' });
       }
 
+      const referenceImageIncluded = Boolean(body.referenceImage);
       const r = await fetch(`${GEMINI_BASE}/models/${imageModel}:predict?key=${encodeURIComponent(googleApiKey)}`, {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ instances: [{ prompt: sourcePrompt }], parameters: { sampleCount: 1, aspectRatio: imagenAspectRatio } }),
+        body: JSON.stringify({ instances: [{ prompt: `${sourcePrompt}${referenceImageIncluded ? '\nReference image has been provided by customer; align color/style/composition to that reference while preserving print-ready flat artwork rules.' : ''}` }], parameters: { sampleCount: 1, aspectRatio: imagenAspectRatio } }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) {
@@ -175,6 +189,12 @@ export async function handler(event) {
             requestedBannerRatio: `${targetW}:${targetH}`,
             generatedImagenRatio: imagenAspectRatio,
             safeErrorMessage: 'Temporary fallback image used because Imagen paid access is required.',
+            finalProductionPrompt: sourcePrompt,
+            referenceImageIncluded,
+            referenceImageName: body.referenceImageName || null,
+            provider: imageModel,
+            canonicalApprovedImageUrl: FALLBACK_IMAGE_URL,
+            cropFillApplied: true,
           });
         }
         return json(200, { ok: false, action, imageUrl: null, safeErrorMessage: d?.error?.message || 'Image generation failed. Please try again.' });
@@ -209,6 +229,13 @@ export async function handler(event) {
         requestedBannerRatio: `${targetW}:${targetH}`,
         generatedImagenRatio: imagenAspectRatio,
         safeErrorMessage: null,
+        finalProductionPrompt: sourcePrompt,
+        selectedAspectRatio: `${targetW}:${targetH}`,
+        referenceImageIncluded,
+        referenceImageName: body.referenceImageName || null,
+        provider: imageModel,
+        canonicalApprovedImageUrl: canonicalImageUrl,
+        cropFillApplied: true,
       });
     }
 
