@@ -107,6 +107,7 @@ const AIDesignerPage: React.FC = () => {
   const [errorOutput, setErrorOutput] = useState('');
   const [generationFallbackNote, setGenerationFallbackNote] = useState('');
   const [debugOutput, setDebugOutput] = useState('');
+  const [lastAiMeta, setLastAiMeta] = useState<any>(null);
   const [showDebug, setShowDebug] = useState(false);
   const [cartMessage, setCartMessage] = useState('');
   const [isAddingToCart, setIsAddingToCart] = useState(false);
@@ -348,7 +349,7 @@ const AIDesignerPage: React.FC = () => {
         <button type="button" onClick={startVoiceInput} className={`absolute bottom-2 right-2 p-1.5 rounded-full border ${isListening ? 'bg-[#fff4bf] border-[#ffd200] text-[#a87a00]' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`} aria-label="Use voice input"><Mic className="w-4 h-4" /></button>
       </div>
       {micStatus && <p className="mt-1 text-xs text-slate-500">{micStatus}</p>}
-      <button disabled={busy!==null||!prompt.trim()} onClick={async()=>{setBusy('enhance');setErrorOutput('');try{const {body}=await callFn('enhance'); if(body?.enhancedPrompt) setEnhancedPrompt(body.enhancedPrompt); else setErrorOutput(body?.safeErrorMessage||body?.error||'Enhance failed.');}finally{setBusy(null);}}} className="mt-3 w-full border border-slate-200 bg-white text-slate-700 py-2.5 rounded-xl inline-flex items-center justify-center gap-2 hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed"><Sparkles className="w-4 h-4 text-[#d4a700]" />{busy==='enhance'?<><Spinner/>Enhancing Prompt...</>:'Enhance Prompt with AI'}</button>
+      <button disabled={busy!==null||!prompt.trim()} onClick={async()=>{setBusy('enhance');setErrorOutput('');try{const {body}=await callFn('enhance'); setLastAiMeta(body); if(body?.enhancedPrompt) setEnhancedPrompt(body.enhancedPrompt); else setErrorOutput(body?.safeErrorMessage||body?.error||'Enhance failed.');}finally{setBusy(null);}}} className="mt-3 w-full border border-slate-200 bg-white text-slate-700 py-2.5 rounded-xl inline-flex items-center justify-center gap-2 hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed"><Sparkles className="w-4 h-4 text-[#d4a700]" />{busy==='enhance'?<><Spinner/>Enhancing Prompt...</>:'Enhance Prompt with AI'}</button>
       <textarea value={enhancedPrompt} onChange={(e)=>setEnhancedPrompt(e.target.value)} rows={4} className="mt-3 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm" placeholder="Enhanced prompt will appear here..." />
       </div>
       <div className="border-t border-slate-100 pt-5">
@@ -362,11 +363,11 @@ const AIDesignerPage: React.FC = () => {
         {referenceImageName && <div className="mt-2 rounded-lg border border-slate-200 bg-white p-2"><p className="text-xs text-slate-600 truncate">{referenceImageName}</p>{referenceImagePreview && <img src={referenceImagePreview} alt="Reference preview" className="mt-2 h-16 w-16 rounded object-cover border border-slate-200" />}<button type="button" onClick={()=>{setReferenceImage(null);setReferenceImageName('');setReferenceImagePreview(null);}} className="mt-2 text-xs text-slate-600 underline">Remove reference</button></div>}
         {uploadError && <p className="mt-2 text-xs text-red-600">{uploadError}</p>}
       </div>
-      <button disabled={busy!==null||!(enhancedPrompt||prompt).trim()} onClick={async()=>{setBusy('generate');setErrorOutput('');setGenerationFallbackNote('');try{const {body}=await callFn('generate'); if(body?.image?.url||body?.imageUrl){saveSnapshot(); setImageUrl(body?.image?.url||body?.imageUrl); setImageTransform({ x: 0, y: 0, scale: 1, mode: 'fill' }); setSelected(false); if(body?.generationFallback) setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.');} else setErrorOutput(body?.safeErrorMessage||body?.error||'Generate failed.');}finally{setBusy(null);}}} className="w-full bg-[#ffd200] hover:bg-[#ffdb38] text-slate-900 font-bold py-3.5 rounded-xl inline-flex items-center justify-center gap-2 shadow-sm hover:shadow-md transition-all disabled:bg-[#fde68a] disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none">{busy==='generate'?<><Spinner/>Generating Design...</>:<><Sparkles className="w-4 h-4" />Generate Design</>}</button>
+      <button disabled={busy!==null||!(enhancedPrompt||prompt).trim()} onClick={async()=>{setBusy('generate');setErrorOutput('');setGenerationFallbackNote('');try{const {body}=await callFn('generate'); setLastAiMeta(body); if(body?.image?.url||body?.imageUrl){saveSnapshot(); setImageUrl(body?.image?.url||body?.imageUrl); setImageTransform({ x: 0, y: 0, scale: 1, mode: 'fill' }); setSelected(false); if(body?.generationFallback) setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.');} else setErrorOutput(body?.safeErrorMessage||body?.error||'Generate failed.');}finally{setBusy(null);}}} className="w-full bg-[#ffd200] hover:bg-[#ffdb38] text-slate-900 font-bold py-3.5 rounded-xl inline-flex items-center justify-center gap-2 shadow-sm hover:shadow-md transition-all disabled:bg-[#fde68a] disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none">{busy==='generate'?<><Spinner/>Generating Design...</>:<><Sparkles className="w-4 h-4" />Generate Design</>}</button>
       {imageUrl && <>
         <input value={editInstruction} onChange={(e)=>setEditInstruction(e.target.value)} className="w-full rounded-xl border border-slate-200 p-3" placeholder="Edit instruction"/>
         <button disabled={busy!==null||!editInstruction.trim()} onClick={async()=>{setBusy('enhanceEdit');try{const {body}=await callFn('enhance'); if(body?.enhancedPrompt) setEditInstruction(body.enhancedPrompt);}finally{setBusy(null);}}} className="w-full border border-slate-200 py-2.5 rounded-xl disabled:opacity-60 disabled:cursor-not-allowed bg-white">Enhance Edit Prompt</button>
-        <button disabled={busy!==null||!editInstruction.trim()} onClick={async()=>{setBusy('edit');setErrorOutput('');try{const {body}=await callFn('edit'); if(body?.image?.url||body?.imageUrl){saveSnapshot(); setImageUrl(body?.image?.url||body?.imageUrl); if(body?.generationFallback) setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.');} else setErrorOutput(body?.safeErrorMessage||body?.error||'Edit failed.');}finally{setBusy(null);}}} className="w-full border border-slate-200 py-2.5 rounded-xl inline-flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed bg-white">{busy==='edit'?<><Spinner/>Applying AI edits...</>:<><Wand2 className="w-4 h-4" />Edit with AI</>}</button>
+        <button disabled={busy!==null||!editInstruction.trim()} onClick={async()=>{setBusy('edit');setErrorOutput('');try{const {body}=await callFn('edit'); setLastAiMeta(body); if(body?.image?.url||body?.imageUrl){saveSnapshot(); setImageUrl(body?.image?.url||body?.imageUrl); setImageTransform({ x: 0, y: 0, scale: 1, mode: 'fill' }); if(body?.generationFallback) setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.');} else setErrorOutput(body?.safeErrorMessage||body?.error||'Edit failed.');}finally{setBusy(null);}}} className="w-full border border-slate-200 py-2.5 rounded-xl inline-flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed bg-white">{busy==='edit'?<><Spinner/>Applying AI edits...</>:<><Wand2 className="w-4 h-4" />Edit with AI</>}</button>
         <button disabled={busy!==null||history.length===0} onClick={revertOne} className="w-full border border-slate-200 py-2.5 rounded-xl disabled:opacity-50 bg-white">Revert</button>
       </>}
       <div className="border-t border-slate-100 pt-4">
@@ -377,9 +378,15 @@ const AIDesignerPage: React.FC = () => {
       {generationFallbackNote && <p className="text-sm text-amber-300">{generationFallbackNote}</p>}
       {debugOutput && <pre className="text-xs text-slate-700 bg-slate-100 border border-slate-200 p-2 rounded overflow-auto">{debugOutput}</pre>}
       <div className="text-[11px] text-slate-500 space-y-0.5">
-        <p>selectedAspectRatio: {widthFt}:{heightFt}</p>
-        <p>referenceImageIncluded: {referenceImage ? 'true' : 'false'}</p>
-        <p>referenceImageName: {referenceImageName || 'none'}</p>
+        <p>finalProductionPrompt: {lastAiMeta?.finalProductionPrompt || 'n/a'}</p>
+        <p>selectedAspectRatio: {lastAiMeta?.selectedAspectRatio || `${widthFt}:${heightFt}`}</p>
+        <p>provider: {lastAiMeta?.provider || 'n/a'}</p>
+        <p>referenceImageIncluded: {String(lastAiMeta?.referenceImageIncluded ?? Boolean(referenceImage))}</p>
+        <p>referenceMode: {lastAiMeta?.referenceMode || 'none'}</p>
+        <p>editImageIncluded: {String(lastAiMeta?.editImageIncluded ?? false)}</p>
+        <p>canonicalApprovedImageUrl: {lastAiMeta?.canonicalApprovedImageUrl || 'n/a'}</p>
+        <p>cropFillApplied: {String(lastAiMeta?.cropFillApplied ?? false)}</p>
+        <p>imageFilledCanvas: {String(lastAiMeta?.imageFilledCanvas ?? false)}</p>
       </div>
     </aside>
 

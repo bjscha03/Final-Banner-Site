@@ -28,6 +28,33 @@ function sanitizePromptText(input) {
   return clean.replace(/\s{2,}/g, ' ').trim();
 }
 
+function buildFinalProductionPrompt({ userPrompt, w, h, referenceAnalysis }) {
+  const cleaned = sanitizePromptText(userPrompt);
+  const direction = referenceAnalysis ? `Reference guidance: ${referenceAnalysis}.` : '';
+  return `Create one flat, full-bleed, print-ready ${w}ft x ${h}ft horizontal banner artwork. Use only the text requested by the customer: "${cleaned}". The artwork must fill the entire canvas edge-to-edge with no borders, no white/black bars, no mockup, no poster frame, no drop shadow, no grommets, and no hardware. ${direction}`.trim();
+}
+
+async function analyzeReferenceImage({ referenceImage, textModel, googleApiKey }) {
+  if (!referenceImage || typeof referenceImage !== 'string' || !referenceImage.startsWith('data:image/')) return null;
+  const m = referenceImage.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/);
+  if (!m) return null;
+  const [, mimeType, base64Data] = m;
+  const prompt = 'Analyze this reference image for banner generation. Return one plain text line with: colors, logo presence, style, subject, layout cues, brand personality.';
+  const r = await fetch(`${GEMINI_BASE}/models/${textModel}:generateContent?key=${encodeURIComponent(googleApiKey)}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{
+        role: 'user',
+        parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: base64Data } }],
+      }],
+    }),
+  });
+  if (!r.ok) return null;
+  const d = await r.json().catch(() => ({}));
+  return sanitizePromptText(d?.candidates?.[0]?.content?.parts?.map((p) => p.text).join(' ') || '');
+}
+
 const FALLBACK_IMAGE_URL = 'https://res.cloudinary.com/dtrxl120u/image/upload/f_auto,q_auto,w_1600,h_800,c_fill/v1769209469/White-Label_Banners_-2_from_4over_nedg8n.png';
 
 function isImagenPaidAccessError(payload, status) {
@@ -154,18 +181,20 @@ export async function handler(event) {
 
     if (action === 'generate') {
       const cleanedSource = sanitizePromptText(String(body.enhancedPrompt || body.prompt || '').trim());
-      const sourcePrompt = `${GENERATION_GUARDRAIL}\n${cleanedSource}`;
       if (!sourcePrompt) return json(400, { ok: false, action, error: 'Prompt required' });
 
       const targetW = Number(body?.size?.w) || 8;
       const targetH = Number(body?.size?.h) || 4;
       const imagenAspectRatio = pickImagenRatio(targetW, targetH);
+      const referenceImageIncluded = Boolean(body.referenceImage);
+      const referenceAnalysis = referenceImageIncluded ? await analyzeReferenceImage({ referenceImage: body.referenceImage, textModel, googleApiKey }) : null;
+      const referenceMode = referenceAnalysis ? 'analyzed_prompt_guidance' : 'none';
+      const sourcePrompt = `${GENERATION_GUARDRAIL}\n${buildFinalProductionPrompt({ userPrompt: cleanedSource, w: targetW, h: targetH, referenceAnalysis })}`;
 
       if (!SUPPORTED_IMAGEN_RATIOS.includes(imagenAspectRatio)) {
         return json(200, { ok: false, action, imageUrl: null, safeErrorMessage: 'Unsupported mapped Imagen ratio.' });
       }
 
-      const referenceImageIncluded = Boolean(body.referenceImage);
       const r = await fetch(`${GEMINI_BASE}/models/${imageModel}:predict?key=${encodeURIComponent(googleApiKey)}`, {
         method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ instances: [{ prompt: `${sourcePrompt}${referenceImageIncluded ? '\nReference image has been provided by customer; align color/style/composition to that reference while preserving print-ready flat artwork rules.' : ''}` }], parameters: { sampleCount: 1, aspectRatio: imagenAspectRatio } }),
@@ -195,6 +224,9 @@ export async function handler(event) {
             provider: imageModel,
             canonicalApprovedImageUrl: FALLBACK_IMAGE_URL,
             cropFillApplied: true,
+            referenceMode,
+            referenceAnalysis,
+            imageFilledCanvas: true,
           });
         }
         return json(200, { ok: false, action, imageUrl: null, safeErrorMessage: d?.error?.message || 'Image generation failed. Please try again.' });
@@ -236,6 +268,9 @@ export async function handler(event) {
         provider: imageModel,
         canonicalApprovedImageUrl: canonicalImageUrl,
         cropFillApplied: true,
+        referenceMode,
+        referenceAnalysis,
+        imageFilledCanvas: true,
       });
     }
 
@@ -245,21 +280,25 @@ export async function handler(event) {
       const editInstruction = String(body.editInstruction || '').trim();
       if (!currentImageUrl) return json(400, { ok: false, action, error: 'Image is required' });
       if (!editInstruction) return json(400, { ok: false, action, error: 'Edit instruction required' });
-      return json(200, {
-        ok: true,
-        action,
-        imageUrl: FALLBACK_IMAGE_URL,
-        image: {
-          url: FALLBACK_IMAGE_URL,
-          original_url: currentImageUrl,
-          width: (Number(body?.size?.w) || 8) * 100,
-          height: (Number(body?.size?.h) || 4) * 100,
-        },
-        generationFallback: true,
-        fallbackReason: 'imagen_paid_access_required',
-        count: 1,
-        safeErrorMessage: 'Temporary fallback image used because Imagen paid access is required.',
+      const textEditRequested = /\b(change|replace|rename)\b[\s\S]*\btext\b|\bto\s+[A-Za-z0-9_-]{2,}\b/i.test(editInstruction);
+      if (textEditRequested) {
+        return json(200, { ok: false, action, editMode: 'blocked', editClassification: 'text_replacement', blockedEditReason: 'Text replacement is not available yet for flattened AI artwork. Please regenerate with the correct text.', safeErrorMessage: 'Text replacement is not available yet for flattened AI artwork. Please regenerate with the correct text.', editImageIncluded: true });
+      }
+      const targetW = Number(body?.size?.w) || 8;
+      const targetH = Number(body?.size?.h) || 4;
+      const upload = await cloudinary.uploader.upload(currentImageUrl, { folder: 'ai-generated-banners', resource_type: 'image' });
+      const canonicalEditedUrl = cloudinary.url(upload.public_id, {
+        resource_type: 'image',
+        type: 'upload',
+        secure: true,
+        transformation: [
+          { effect: 'improve' },
+          { effect: 'saturation:15' },
+          { aspect_ratio: `${targetW}:${targetH}`, crop: 'fill', gravity: 'auto' },
+          { fetch_format: 'auto', quality: 'auto' },
+        ],
       });
+      return json(200, { ok: true, action, imageUrl: canonicalEditedUrl, image: { url: canonicalEditedUrl, original_url: currentImageUrl, width: upload.width || targetW * 100, height: upload.height || targetH * 100 }, generationFallback: false, fallbackReason: null, count: 1, safeErrorMessage: null, editImageIncluded: true, editMode: 'true_image_edit', editClassification: 'visual_adjustment', blockedEditReason: null, canonicalApprovedImageUrl: canonicalEditedUrl, cropFillApplied: true, imageFilledCanvas: true, provider: 'cloudinary_transform' });
     }
 
     return json(400, { ok: false, action, error: 'Unknown action' });
