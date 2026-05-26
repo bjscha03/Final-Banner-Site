@@ -339,7 +339,7 @@ const AIDesignerPage: React.FC = () => {
         <textarea value={prompt} onChange={(e)=>setPrompt(e.target.value)} rows={5} className="w-full rounded-xl border border-slate-200 bg-white p-4 pr-11 text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#ffd200]/60" placeholder="e.g. A vibrant summer sale banner with palm trees, bright sun rays, and a central text area." />
         <Mic className="absolute bottom-3 right-3 w-4 h-4 text-slate-400" />
       </div>
-      <button disabled={busy!==null||!prompt.trim()} onClick={async()=>{setBusy('enhance');setErrorOutput('');try{const {body}=await callFn('enhance'); if(body?.enhancedPrompt) setEnhancedPrompt(body.enhancedPrompt); else setErrorOutput(body?.safeErrorMessage||body?.error||'Enhance failed.');}finally{setBusy(null);}}} className="mt-3 w-full border border-slate-200 bg-white text-slate-700 py-2.5 rounded-xl inline-flex items-center justify-center gap-2 disabled:opacity-50 hover:bg-slate-50"><Sparkles className="w-4 h-4 text-[#d4a700]" />{busy==='enhance'?<><Spinner/>Enhancing Prompt...</>:'Enhance Prompt with AI'}</button>
+      <button disabled={busy!==null||!prompt.trim()} onClick={async()=>{setBusy('enhance');setErrorOutput('');try{const {body}=await callFn('enhance'); if(body?.enhancedPrompt) setEnhancedPrompt(body.enhancedPrompt); else setErrorOutput(body?.safeErrorMessage||body?.error||'Enhance failed.');}finally{setBusy(null);}}} className="mt-3 w-full border border-slate-200 bg-white text-slate-700 py-2.5 rounded-xl inline-flex items-center justify-center gap-2 hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed"><Sparkles className="w-4 h-4 text-[#d4a700]" />{busy==='enhance'?<><Spinner/>Enhancing Prompt...</>:'Enhance Prompt with AI'}</button>
       <textarea value={enhancedPrompt} onChange={(e)=>setEnhancedPrompt(e.target.value)} rows={4} className="mt-3 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm" placeholder="Enhanced prompt will appear here..." />
       </div>
       <div className="border-t border-slate-100 pt-5">
@@ -351,28 +351,28 @@ const AIDesignerPage: React.FC = () => {
           <input type="file" accept="image/*" onChange={async(e)=>{const f=e.target.files?.[0]; if(f) setReferenceImage(await readFile(f));}} className="hidden"/>
         </label>
       </div>
-      <button disabled={busy!==null||!(enhancedPrompt||prompt).trim()} onClick={async()=>{setBusy('generate');setErrorOutput('');setGenerationFallbackNote('');try{const {body}=await callFn('generate'); if(body?.image?.url||body?.imageUrl){saveSnapshot(); setImageUrl(body?.image?.url||body?.imageUrl); if(body?.generationFallback) setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.');} else setErrorOutput(body?.safeErrorMessage||body?.error||'Generate failed.');}finally{setBusy(null);}}} className="w-full bg-[#ffd200] hover:bg-[#ffdb38] text-slate-900 font-bold py-3.5 rounded-xl inline-flex items-center justify-center gap-2 disabled:opacity-50 shadow-sm hover:shadow-md transition-all">{busy==='generate'?<><Spinner/>Generating Design...</>:<><Sparkles className="w-4 h-4" />Generate Design</>}</button>
+      <button disabled={busy!==null||!(enhancedPrompt||prompt).trim()} onClick={async()=>{setBusy('generate');setErrorOutput('');setGenerationFallbackNote('');try{const {body}=await callFn('generate'); if(body?.image?.url||body?.imageUrl){saveSnapshot(); setImageUrl(body?.image?.url||body?.imageUrl); if(body?.generationFallback) setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.');} else setErrorOutput(body?.safeErrorMessage||body?.error||'Generate failed.');}finally{setBusy(null);}}} className="w-full bg-[#ffd200] hover:bg-[#ffdb38] text-slate-900 font-bold py-3.5 rounded-xl inline-flex items-center justify-center gap-2 shadow-sm hover:shadow-md transition-all disabled:bg-[#fde68a] disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none">{busy==='generate'?<><Spinner/>Generating Design...</>:<><Sparkles className="w-4 h-4" />Generate Design</>}</button>
       {imageUrl && <>
         <input value={editInstruction} onChange={(e)=>setEditInstruction(e.target.value)} className="w-full rounded-xl border border-slate-200 p-3" placeholder="Edit instruction"/>
-        <button disabled={busy!==null||!editInstruction.trim()} onClick={async()=>{setBusy('enhanceEdit');try{const {body}=await callFn('enhance'); if(body?.enhancedPrompt) setEditInstruction(body.enhancedPrompt);}finally{setBusy(null);}}} className="w-full border border-slate-200 py-2.5 rounded-xl disabled:opacity-50 bg-white">Enhance Edit Prompt</button>
-        <button disabled={busy!==null||!editInstruction.trim()} onClick={async()=>{setBusy('edit');setErrorOutput('');try{const {body}=await callFn('edit'); if(body?.image?.url||body?.imageUrl){saveSnapshot(); setImageUrl(body?.image?.url||body?.imageUrl); if(body?.generationFallback) setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.');} else setErrorOutput(body?.safeErrorMessage||body?.error||'Edit failed.');}finally{setBusy(null);}}} className="w-full border border-slate-200 py-2.5 rounded-xl inline-flex items-center justify-center gap-2 disabled:opacity-50 bg-white">{busy==='edit'?<><Spinner/>Applying AI edits...</>:<><Wand2 className="w-4 h-4" />Edit with AI</>}</button>
+        <button disabled={busy!==null||!editInstruction.trim()} onClick={async()=>{setBusy('enhanceEdit');try{const {body}=await callFn('enhance'); if(body?.enhancedPrompt) setEditInstruction(body.enhancedPrompt);}finally{setBusy(null);}}} className="w-full border border-slate-200 py-2.5 rounded-xl disabled:opacity-60 disabled:cursor-not-allowed bg-white">Enhance Edit Prompt</button>
+        <button disabled={busy!==null||!editInstruction.trim()} onClick={async()=>{setBusy('edit');setErrorOutput('');try{const {body}=await callFn('edit'); if(body?.image?.url||body?.imageUrl){saveSnapshot(); setImageUrl(body?.image?.url||body?.imageUrl); if(body?.generationFallback) setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.');} else setErrorOutput(body?.safeErrorMessage||body?.error||'Edit failed.');}finally{setBusy(null);}}} className="w-full border border-slate-200 py-2.5 rounded-xl inline-flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed bg-white">{busy==='edit'?<><Spinner/>Applying AI edits...</>:<><Wand2 className="w-4 h-4" />Edit with AI</>}</button>
         <button disabled={busy!==null||history.length===0} onClick={revertOne} className="w-full border border-slate-200 py-2.5 rounded-xl disabled:opacity-50 bg-white">Revert</button>
       </>}
       <div className="border-t border-slate-100 pt-4">
-      <button onClick={()=>setShowDebug(v=>!v)} className="w-full py-2 rounded-lg text-xs border border-slate-200 inline-flex items-center justify-center gap-2 text-slate-500">{showDebug ? <EyeOff className="w-3 h-3"/> : <Eye className="w-3 h-3"/>}Admin debug tools</button>
-      {showDebug && <button disabled={busy!==null} onClick={async()=>{setBusy('debug');try{const {body}=await callFn('debug'); setDebugOutput(JSON.stringify(body,null,2));}finally{setBusy(null);}}} className="mt-2 w-full border border-cyan-200 bg-cyan-50 text-cyan-800 py-2 rounded-lg disabled:opacity-50">Run Debug Check</button>}
+      <button onClick={()=>setShowDebug(v=>!v)} className="w-full py-2 rounded-lg text-xs border border-slate-200 bg-slate-50 inline-flex items-center justify-center gap-2 text-slate-600 hover:bg-slate-100">{showDebug ? <EyeOff className="w-3 h-3"/> : <Eye className="w-3 h-3"/>}Admin debug tools</button>
+      {showDebug && <button disabled={busy!==null} onClick={async()=>{setBusy('debug');try{const {body}=await callFn('debug'); setDebugOutput(JSON.stringify(body,null,2));}finally{setBusy(null);}}} className="mt-2 w-full border border-cyan-200 bg-cyan-50 text-cyan-800 py-2 rounded-lg disabled:opacity-60 disabled:cursor-not-allowed">Run Debug Check</button>}
       </div>
       {errorOutput && <p className="text-sm text-red-400">{errorOutput}</p>}
       {generationFallbackNote && <p className="text-sm text-amber-300">{generationFallbackNote}</p>}
-      {debugOutput && <pre className="text-xs text-cyan-200 bg-black/40 p-2 rounded overflow-auto">{debugOutput}</pre>}
+      {debugOutput && <pre className="text-xs text-slate-700 bg-slate-100 border border-slate-200 p-2 rounded overflow-auto">{debugOutput}</pre>}
     </aside>
 
-    <main className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="mt-2 mx-auto max-w-4xl">
+    <main className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="mx-auto max-w-4xl">
         <div className="relative pl-14 pb-16 pr-4 pt-4">
           <div className="absolute left-0 top-4 bottom-16 w-12 pointer-events-none">
-            <div className="absolute inset-0 border-r border-white/40" />
-            {marks(heightFt, 320).map((i)=> <div key={`y-${i}`} className="absolute" style={{ top:`${(i/Math.max(1,heightFt))*100}%`, right:'4px', transform:'translateY(-50%)' }}><div className="h-px w-2 bg-white/80 ml-auto"/><span className="text-[10px] text-white/90 whitespace-nowrap block text-right">{i} ft</span></div>)}
+            <div className="absolute inset-0 border-r border-slate-300" />
+            {marks(heightFt, 320).map((i)=> <div key={`y-${i}`} className="absolute" style={{ top:`${(i/Math.max(1,heightFt))*100}%`, right:'4px', transform:'translateY(-50%)' }}><div className="h-px w-2 bg-slate-400 ml-auto"/><span className="text-[10px] text-slate-500 whitespace-nowrap block text-right">{i} ft</span></div>)}
           </div>
 
           <div ref={canvasRef} className="relative w-full bg-white border border-slate-300 shadow-sm" style={{ aspectRatio: `${widthIn}/${heightIn}` }} onMouseDown={(e)=>{ if (e.target === e.currentTarget) setSelected(false); }}>
@@ -395,7 +395,7 @@ const AIDesignerPage: React.FC = () => {
                   onPointerDown={(e)=>{ e.stopPropagation(); setSelected(true); dragState.current={type:'move',startX:e.clientX,startY:e.clientY,origin:imageTransform}; }} />
               </div>;
             })()}
-          </div> : <div className="absolute inset-0 grid place-items-center text-white/90 font-semibold">Generate or upload an image</div>}
+          </div> : <div className="absolute inset-0 grid place-items-center text-slate-500 font-semibold">Generate or upload an image</div>}
 
                       <div className="absolute inset-0 pointer-events-none">
               {grommetPositions.map((p, i) => {
@@ -406,38 +406,38 @@ const AIDesignerPage: React.FC = () => {
               })}
             </div>
 
-            {busy==='generate' && <div className="absolute inset-0 bg-black/60 grid place-items-center"><div className="text-center"><div className="mx-auto mb-3 h-8 w-8 border-4 border-yellow-400 border-r-transparent rounded-full animate-spin"/><p className="text-white font-semibold">Generating your banner design...</p></div></div>}
+            {busy==='generate' && <div className="absolute inset-0 bg-white/70 grid place-items-center"><div className="text-center"><div className="mx-auto mb-3 h-8 w-8 border-4 border-yellow-500 border-r-transparent rounded-full animate-spin"/><p className="text-slate-700 font-semibold">Generating your banner design...</p></div></div>}
           </div>
 
-          <div className="absolute left-14 right-4 bottom-10 h-6 pointer-events-none border-t border-white/40">
-            {marks(widthFt, 720).map((i)=> <div key={`x-${i}`} className="absolute" style={{ left:`${(i/Math.max(1,widthFt))*100}%`, top:'0', transform:'translateX(-50%)' }}><div className="w-px h-2 bg-white/80 mx-auto"/><span className="text-[10px] text-white/90 whitespace-nowrap block text-center mt-1">{i} ft</span></div>)}
+          <div className="absolute left-14 right-4 bottom-10 h-6 pointer-events-none border-t border-slate-300">
+            {marks(widthFt, 720).map((i)=> <div key={`x-${i}`} className="absolute" style={{ left:`${(i/Math.max(1,widthFt))*100}%`, top:'0', transform:'translateX(-50%)' }}><div className="w-px h-2 bg-slate-400 mx-auto"/><span className="text-[10px] text-slate-500 whitespace-nowrap block text-center mt-1">{i} ft</span></div>)}
           </div>
         </div>
 
           <div className="mt-2 flex gap-2 flex-wrap">
           <button onClick={fit} className="px-3 py-1.5 border border-slate-200 bg-white rounded-full shadow-sm">Fit</button>
-          <button onClick={fill} className="px-3 py-1 border border-white/20 rounded">Fill</button>
-          <button onClick={reset} className="px-3 py-1 border border-white/20 rounded">Reset</button>
-          <button onClick={()=>setImageTransform(t=>({...t, scale:Math.min(2, Number((t.scale+0.1).toFixed(2))), mode:'custom'}))} className="px-3 py-1 border border-white/20 rounded">Zoom In</button><button onClick={()=>setImageTransform(t=>({...t, scale:Math.max(0.5, Number((t.scale-0.1).toFixed(2))), mode:'custom'}))} className="px-3 py-1 border border-white/20 rounded">Zoom Out</button>
-          <button onClick={clearImage} className="px-3 py-1 border border-red-400/40 text-red-200 rounded">Clear Image</button>
+          <button onClick={fill} className="px-3 py-1.5 border border-slate-200 bg-white rounded-full shadow-sm">Fill</button>
+          <button onClick={reset} className="px-3 py-1.5 border border-slate-200 bg-white rounded-full shadow-sm">Reset</button>
+          <button onClick={()=>setImageTransform(t=>({...t, scale:Math.min(2, Number((t.scale+0.1).toFixed(2))), mode:'custom'}))} className="px-3 py-1.5 border border-slate-200 bg-white rounded-full shadow-sm">Zoom In</button><button onClick={()=>setImageTransform(t=>({...t, scale:Math.max(0.5, Number((t.scale-0.1).toFixed(2))), mode:'custom'}))} className="px-3 py-1.5 border border-slate-200 bg-white rounded-full shadow-sm">Zoom Out</button>
+          <button onClick={clearImage} className="px-3 py-1.5 border border-red-200 text-red-600 bg-white rounded-full shadow-sm">Clear Image</button>
         </div>
         <input type="range" min={0.5} max={2} step={0.01} value={imageTransform.scale} onChange={(e)=>setImageTransform(t=>({...t, scale:Number(e.target.value), mode:'custom'}))} className="mt-3 w-full" />
 
-        <div className="mt-3 flex gap-2 overflow-x-auto">{history.map((h,i)=><button key={i} onClick={()=>restoreSnapshot(h)} className="w-14 h-14 border border-white/20 overflow-hidden"><img src={h.imageUrl} className="w-full h-full object-cover"/></button>)}</div>
+        <div className="mt-3 flex gap-2 overflow-x-auto">{history.map((h,i)=><button key={i} onClick={()=>restoreSnapshot(h)} className="w-14 h-14 border border-slate-200 rounded overflow-hidden"><img src={h.imageUrl} className="w-full h-full object-cover"/></button>)}</div>
       </div>
     </main>
 
     <aside className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <h2 className="text-3xl font-black tracking-tight">BANNER OPTIONS</h2>
-      <label className="block mt-3">Size Mode<select value={sizeMode} onChange={(e)=>setSizeMode(e.target.value as any)} className="mt-1 w-full bg-black border border-white/20 p-2"><option value="popular">Popular Sizes</option><option value="custom">Custom Size</option></select></label>
-      {sizeMode==='popular' ? <select value={size.label} onChange={(e)=>setSize(POPULAR_SIZES.find(s=>s.label===e.target.value) || POPULAR_SIZES[0])} className="mt-2 w-full bg-black border border-white/20 p-2">{POPULAR_SIZES.map(s=><option key={s.label}>{s.label}</option>)}</select> : <div className="mt-2 space-y-2"><label className="block text-sm">Width (ft)<input type="number" step={1} value={wInput} onChange={e=>setWInput(Math.max(1, Math.round(Number(e.target.value)||1)))} className="mt-1 w-full bg-black border border-white/20 p-2"/></label><label className="block text-sm">Height (ft)<input type="number" step={1} value={hInput} onChange={e=>setHInput(Math.max(1, Math.round(Number(e.target.value)||1)))} className="mt-1 w-full bg-black border border-white/20 p-2"/></label></div>}
-      <p className="mt-2 text-xs text-gray-300">{areaSqFt.toFixed(2)} sq ft • {widthIn} in x {heightIn} in</p>
+      <label className="block mt-3 text-sm font-semibold text-slate-700">Size Mode<select value={sizeMode} onChange={(e)=>setSizeMode(e.target.value as any)} className="mt-1 w-full bg-white text-slate-700 border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-[#ffd200]/60 focus:border-[#ffd200]"><option value="popular">Popular Sizes</option><option value="custom">Custom Size</option></select></label>
+      {sizeMode==='popular' ? <select value={size.label} onChange={(e)=>setSize(POPULAR_SIZES.find(s=>s.label===e.target.value) || POPULAR_SIZES[0])} className="mt-2 w-full bg-white text-slate-700 border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-[#ffd200]/60 focus:border-[#ffd200]">{POPULAR_SIZES.map(s=><option key={s.label}>{s.label}</option>)}</select> : <div className="mt-2 space-y-2"><label className="block text-sm text-slate-700">Width (ft)<input type="number" step={1} value={wInput} onChange={e=>setWInput(Math.max(1, Math.round(Number(e.target.value)||1)))} className="mt-1 w-full bg-white text-slate-700 border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-[#ffd200]/60 focus:border-[#ffd200]"/></label><label className="block text-sm text-slate-700">Height (ft)<input type="number" step={1} value={hInput} onChange={e=>setHInput(Math.max(1, Math.round(Number(e.target.value)||1)))} className="mt-1 w-full bg-white text-slate-700 border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-[#ffd200]/60 focus:border-[#ffd200]"/></label></div>}
+      <p className="mt-2 text-xs text-slate-500">{areaSqFt.toFixed(2)} sq ft • {widthIn} in x {heightIn} in</p>
 
-      <label className="block mt-2">Material<select value={material} onChange={(e)=>setMaterial(e.target.value as MaterialKey)} className="mt-1 w-full bg-black border border-white/20 p-2">{MATERIALS.map(m=><option key={m.value} value={m.value}>{m.label}</option>)}</select></label>
-      <label className="block mt-2">Grommets<select value={grommetOption} onChange={(e)=>onGrommetChange(e.target.value)} className="mt-1 w-full bg-black border border-white/20 p-2">{GROMMET_OPTIONS.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select></label>
-      <label className="block mt-2">Rope<select value={ropePlacement} onChange={(e)=>onRopeChange(e.target.value)} className="mt-1 w-full bg-black border border-white/20 p-2">{PLACEMENTS.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select></label>
-      <label className="block mt-2">Pole Pockets<select value={polePocketPlacement} onChange={(e)=>onPoleChange(e.target.value)} className="mt-1 w-full bg-black border border-white/20 p-2">{PLACEMENTS.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select></label>
-      <p className="mt-2 text-xs text-gray-300">Hemming is always included. All banners are finished with a folded, heat-welded hem for added strength.</p>
+      <label className="block mt-2 text-sm font-semibold text-slate-700">Material<select value={material} onChange={(e)=>setMaterial(e.target.value as MaterialKey)} className="mt-1 w-full bg-white text-slate-700 border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-[#ffd200]/60 focus:border-[#ffd200]">{MATERIALS.map(m=><option key={m.value} value={m.value}>{m.label}</option>)}</select></label>
+      <label className="block mt-2 text-sm font-semibold text-slate-700">Grommets<select value={grommetOption} onChange={(e)=>onGrommetChange(e.target.value)} className="mt-1 w-full bg-white text-slate-700 border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-[#ffd200]/60 focus:border-[#ffd200]">{GROMMET_OPTIONS.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select></label>
+      <label className="block mt-2 text-sm font-semibold text-slate-700">Rope<select value={ropePlacement} onChange={(e)=>onRopeChange(e.target.value)} className="mt-1 w-full bg-white text-slate-700 border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-[#ffd200]/60 focus:border-[#ffd200]">{PLACEMENTS.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select></label>
+      <label className="block mt-2 text-sm font-semibold text-slate-700">Pole Pockets<select value={polePocketPlacement} onChange={(e)=>onPoleChange(e.target.value)} className="mt-1 w-full bg-white text-slate-700 border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-[#ffd200]/60 focus:border-[#ffd200]">{PLACEMENTS.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select></label>
+      <p className="mt-2 text-xs text-slate-500">Hemming is always included. All banners are finished with a folded, heat-welded hem for added strength.</p>
 
       <label className="block mt-2">Quantity
         <div className="mt-1 grid grid-cols-3 border border-slate-200 rounded-xl overflow-hidden">
@@ -447,30 +447,30 @@ const AIDesignerPage: React.FC = () => {
         </div>
       </label>
 
-      <div className="mt-4 text-center">
-        <p className="text-5xl font-black text-white">{usd((pricing.subtotalCents * (1 + TAX_RATE)) / 100)}</p>
+      <div className="mt-3 text-center">
+        <p className="text-4xl font-black text-slate-900">{usd((pricing.subtotalCents * (1 + TAX_RATE)) / 100)}</p>
       </div>
 
-      <div className="mt-4 rounded-xl border border-white/15 bg-white/5 p-4 text-sm space-y-2">
-        <div className="flex justify-between"><span className="text-gray-300">Grommets</span><span>{finishingType==='grommets' ? grommetLabel : 'None'}</span></div>
-        <div className="flex justify-between"><span className="text-gray-300">Pole Pockets</span><span>{finishingType==='pole_pockets' ? poleLabel : 'None'}</span></div>
-        <div className="flex justify-between"><span className="text-gray-300">Rope Hemming</span><span>{finishingType==='rope' ? ropeLabel : 'None'}</span></div>
-        <div className="flex justify-between"><span className="text-gray-300">Hemming</span><span>Always Included</span></div>
-        <hr className="border-white/15 my-2" />
-        <div className="flex justify-between"><span className="text-gray-300">Base banner</span><span>{usd(pricing.unitBasePriceCents / 100)}</span></div>
-        <div className="flex justify-between"><span className="text-gray-300">Shipping</span><span className="text-emerald-400 font-semibold">FREE</span></div>
-        <div className="flex justify-between"><span className="text-gray-300">Tax (6%)</span><span>{usd((pricing.subtotalCents * TAX_RATE) / 100)}</span></div>
+      <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm space-y-2">
+        <div className="flex justify-between"><span className="text-slate-500">Grommets</span><span className="text-slate-700">{finishingType==='grommets' ? grommetLabel : 'None'}</span></div>
+        <div className="flex justify-between"><span className="text-slate-500">Pole Pockets</span><span className="text-slate-700">{finishingType==='pole_pockets' ? poleLabel : 'None'}</span></div>
+        <div className="flex justify-between"><span className="text-slate-500">Rope Hemming</span><span className="text-slate-700">{finishingType==='rope' ? ropeLabel : 'None'}</span></div>
+        <div className="flex justify-between"><span className="text-slate-500">Hemming</span><span className="text-slate-700">Always Included</span></div>
+        <hr className="border-slate-200 my-2" />
+        <div className="flex justify-between"><span className="text-slate-500">Base banner</span><span className="text-slate-700">{usd(pricing.unitBasePriceCents / 100)}</span></div>
+        <div className="flex justify-between"><span className="text-slate-500">Shipping</span><span className="text-emerald-600 font-semibold">FREE</span></div>
+        <div className="flex justify-between"><span className="text-slate-500">Tax (6%)</span><span className="text-slate-700">{usd((pricing.subtotalCents * TAX_RATE) / 100)}</span></div>
         <div className="flex justify-between font-semibold"><span>Adjusted subtotal</span><span>{usd(pricing.subtotalCents / 100)}</span></div>
         <div className="flex justify-between font-bold text-lg"><span>Total with tax</span><span className="text-[#D4AF37]">{usd((pricing.subtotalCents * (1 + TAX_RATE)) / 100)}</span></div>
       </div>
 
-      <div className="mt-4 flex gap-2">
-        <input value={promoCode} onChange={(e)=>setPromoCode(e.target.value)} placeholder="Promo Code" className="flex-1 bg-black border border-white/20 p-2 rounded" />
-        <button type="button" className="px-4 rounded bg-white/10 border border-white/20">Apply</button>
+      <div className="mt-3 flex gap-2">
+        <input value={promoCode} onChange={(e)=>setPromoCode(e.target.value)} placeholder="Promo Code" className="flex-1 bg-white text-slate-700 border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-[#ffd200]/60 focus:border-[#ffd200]" />
+        <button type="button" className="px-4 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50">Apply</button>
       </div>
       <p className="mt-3 text-xs text-center text-gray-500 inline-flex items-center gap-1"><BadgeCheck className="w-3 h-3 text-emerald-600"/>FREE Next-Day Air Included • Tax calculated at checkout</p>
 
-      <button onClick={addToCartFromAI} disabled={!imageUrl || isAddingToCart} className="mt-3 w-full bg-[#D4AF37] hover:bg-[#e5c76a] text-black font-bold py-3 disabled:opacity-40 disabled:cursor-not-allowed">{isAddingToCart ? 'Adding...' : cartMessage === 'Added to cart.' ? 'Added' : 'ADD TO CART'}</button>
+      <button onClick={addToCartFromAI} disabled={!imageUrl || isAddingToCart} className="mt-3 w-full bg-[#ffd200] hover:bg-[#ffdb38] text-slate-900 font-bold py-3 rounded-xl transition-colors disabled:bg-[#fde68a] disabled:text-slate-500 disabled:cursor-not-allowed">{isAddingToCart ? 'Adding...' : cartMessage === 'Added to cart.' ? 'Added' : 'ADD TO CART'}</button>
       {cartMessage && <p className={`mt-2 text-sm ${cartMessage === 'Added to cart.' ? 'text-emerald-400' : 'text-red-400'}`}>{cartMessage}</p>}
     </aside>
         </div>
