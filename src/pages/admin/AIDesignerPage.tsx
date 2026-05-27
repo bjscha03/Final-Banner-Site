@@ -93,6 +93,8 @@ const AIDesignerPage: React.FC = () => {
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
   const [referenceImageName, setReferenceImageName] = useState<string>('');
   const [referenceImagePreview, setReferenceImagePreview] = useState<string | null>(null);
+  const [referenceImageType, setReferenceImageType] = useState<string>('');
+  const [referenceImageFile, setReferenceImageFile] = useState<File | null>(null);
   const [uploadError, setUploadError] = useState('');
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
@@ -108,6 +110,7 @@ const AIDesignerPage: React.FC = () => {
   const [generationFallbackNote, setGenerationFallbackNote] = useState('');
   const [debugOutput, setDebugOutput] = useState('');
   const [lastAiMeta, setLastAiMeta] = useState<any>(null);
+  const [lastValidImageUrl, setLastValidImageUrl] = useState<string | null>(null);
   const [showDebug, setShowDebug] = useState(false);
   const [cartMessage, setCartMessage] = useState('');
   const [isAddingToCart, setIsAddingToCart] = useState(false);
@@ -203,7 +206,7 @@ const AIDesignerPage: React.FC = () => {
   };
 
   const callFn = async (action: string) => {
-    const payload = { action, prompt, enhancedPrompt, editInstruction, imageUrl, size: { w: Number(widthFt.toFixed(2)), h: Number(heightFt.toFixed(2)) }, material, quantity, referenceImage, referenceImageName };
+    const payload = { action, prompt, enhancedPrompt, editInstruction, imageUrl, size: { w: Number(widthFt.toFixed(2)), h: Number(heightFt.toFixed(2)) }, material, quantity, referenceImage, referenceImageName, referenceImageType };
     const res = await fetch('/.netlify/functions/generate-ai-designs', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
     const body = await res.json().catch(() => ({ ok: false, safeErrorMessage: 'Invalid JSON response from function' }));
     return { body };
@@ -358,12 +361,12 @@ const AIDesignerPage: React.FC = () => {
           <Upload className="w-7 h-7 mx-auto text-slate-500 mb-2" />
           <span className="text-sm font-semibold text-slate-700">Upload Reference Image</span>
           <p className="text-xs text-slate-500 mt-1">PNG, JPG, WEBP • Optional</p>
-          <input type="file" accept="image/png,image/jpeg,image/jpg,image/webp" onChange={async(e)=>{setUploadError(''); const f=e.target.files?.[0]; if(!f) return; try { const data = await readFile(f); setReferenceImage(data); setReferenceImageName(f.name); setReferenceImagePreview(data); } catch { setUploadError('Reference upload failed. Please try another image.'); setReferenceImage(null); setReferenceImageName(''); setReferenceImagePreview(null);} }} className="hidden"/>
+          <input type="file" accept="image/png,image/jpeg,image/jpg,image/webp" onChange={async(e)=>{setUploadError(''); const f=e.target.files?.[0]; if(!f) return; try { const data = await readFile(f); setReferenceImage(data); setReferenceImageName(f.name); setReferenceImageType(f.type || 'image/*'); setReferenceImageFile(f); setReferenceImagePreview(data); } catch { setUploadError('Reference upload failed. Please try another image.'); setReferenceImage(null); setReferenceImageName(''); setReferenceImageType(''); setReferenceImageFile(null); setReferenceImagePreview(null);} }} className="hidden"/>
         </label>
-        {referenceImageName && <div className="mt-2 rounded-lg border border-slate-200 bg-white p-2"><p className="text-xs text-slate-600 truncate">{referenceImageName}</p>{referenceImagePreview && <img src={referenceImagePreview} alt="Reference preview" className="mt-2 h-16 w-16 rounded object-cover border border-slate-200" />}<button type="button" onClick={()=>{setReferenceImage(null);setReferenceImageName('');setReferenceImagePreview(null);}} className="mt-2 text-xs text-slate-600 underline">Remove reference</button></div>}
+        {referenceImageName && <div className="mt-2 rounded-lg border border-slate-200 bg-white p-2"><p className="text-xs text-slate-600 truncate">{referenceImageName}</p><p className="text-[11px] text-slate-500">{referenceImageType}</p>{referenceImagePreview && <img src={referenceImagePreview} alt="Reference preview" className="mt-2 h-16 w-16 rounded object-cover border border-slate-200" />}<button type="button" onClick={()=>{setReferenceImage(null);setReferenceImageName('');setReferenceImageType('');setReferenceImageFile(null);setReferenceImagePreview(null);}} className="mt-2 text-xs text-slate-600 underline">Remove reference</button></div>}
         {uploadError && <p className="mt-2 text-xs text-red-600">{uploadError}</p>}
       </div>
-      <button disabled={busy!==null||!(enhancedPrompt||prompt).trim()} onClick={async()=>{setBusy('generate');setErrorOutput('');setGenerationFallbackNote('');try{const {body}=await callFn('generate'); setLastAiMeta(body); if(body?.image?.url||body?.imageUrl){saveSnapshot(); setImageUrl(body?.image?.url||body?.imageUrl); setImageTransform({ x: 0, y: 0, scale: 1, mode: 'fill' }); setSelected(false); if(body?.generationFallback) setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.');} else setErrorOutput(body?.safeErrorMessage||body?.error||'Generate failed.');}finally{setBusy(null);}}} className="w-full bg-[#ffd200] hover:bg-[#ffdb38] text-slate-900 font-bold py-3.5 rounded-xl inline-flex items-center justify-center gap-2 shadow-sm hover:shadow-md transition-all disabled:bg-[#fde68a] disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none">{busy==='generate'?<><Spinner/>Generating Design...</>:<><Sparkles className="w-4 h-4" />Generate Design</>}</button>
+      <button disabled={busy!==null||!(enhancedPrompt||prompt).trim()} onClick={async()=>{setBusy('generate');setErrorOutput('');setGenerationFallbackNote('');try{const {body}=await callFn('generate'); setLastAiMeta(body); const nextUrl = body?.image?.url||body?.imageUrl; if(nextUrl){saveSnapshot(); setImageUrl(nextUrl); setLastValidImageUrl(nextUrl); setImageTransform({ x: 0, y: 0, scale: 1, mode: 'fill' }); setSelected(false); if(body?.generationFallback) setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.');} else setErrorOutput(body?.safeErrorMessage||body?.error||'Generate failed.');}finally{setBusy(null);}}} className="w-full bg-[#ffd200] hover:bg-[#ffdb38] text-slate-900 font-bold py-3.5 rounded-xl inline-flex items-center justify-center gap-2 shadow-sm hover:shadow-md transition-all disabled:bg-[#fde68a] disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none">{busy==='generate'?<><Spinner/>Generating Design...</>:<><Sparkles className="w-4 h-4" />Generate Design</>}</button>
       {imageUrl && <>
         <input value={editInstruction} onChange={(e)=>setEditInstruction(e.target.value)} className="w-full rounded-xl border border-slate-200 p-3" placeholder="Edit instruction"/>
         <button disabled={busy!==null||!editInstruction.trim()} onClick={async()=>{setBusy('enhanceEdit');try{const {body}=await callFn('enhance'); if(body?.enhancedPrompt) setEditInstruction(body.enhancedPrompt);}finally{setBusy(null);}}} className="w-full border border-slate-200 py-2.5 rounded-xl disabled:opacity-60 disabled:cursor-not-allowed bg-white">Enhance Edit Prompt</button>
@@ -415,7 +418,7 @@ const AIDesignerPage: React.FC = () => {
                 transformOrigin: 'center',
               };
               return <div style={wrapperStyle}>
-                <img src={imageUrl} alt="Generated banner" className="w-full h-full cursor-move select-none" draggable={false}
+                <img src={imageUrl} alt="Generated banner" className="w-full h-full cursor-move select-none" draggable={false} onError={()=>{ setLastAiMeta((m:any)=>({...m, imageLoadValid:false})); if (lastValidImageUrl) setImageUrl(lastValidImageUrl); }}
                   style={{ objectFit: imageTransform.mode==='fit'?'contain':'cover' }}
                   onLoad={(e)=>{ const img=e.currentTarget; if(img.naturalWidth&&img.naturalHeight) setImageNaturalRatio(img.naturalWidth/img.naturalHeight); }}
                   onPointerDown={(e)=>{ e.stopPropagation(); setSelected(true); dragState.current={type:'move',startX:e.clientX,startY:e.clientY,origin:imageTransform}; }} />

@@ -20,6 +20,7 @@ const SUPPORTED_IMAGEN_RATIOS = ['1:1', '9:16', '16:9', '4:3', '3:4'];
 const GENERATION_GUARDRAIL = 'Create only the final flat print-ready artwork file for a custom banner. The image itself must be the printable design, not a photo or mockup of a banner. Fill the entire selected canvas edge-to-edge. Do not create multiple banner options, panels, examples, mockups, frames, margins, white bars, black bars, poster layouts, or designs inside a smaller rectangle. Do not include grommets, ropes, pole pockets, holes, hardware, shadows outside the artwork, walls, fences, poles, rooms, or hanging displays.';
 const BANNED_PROMPT_WORDS = ['mockup', 'banner mockup', 'hanging banner', 'product shot', 'display scene', 'presentation', 'example designs', 'design options', 'variations'];
 const FAKE_LOGO_MARKERS = ['ATTACHED LOGO', 'YOUR LOGO', 'LOGO HERE', 'SAMPLE'];
+const EXTRA_TEXT_FORBIDDEN = true;
 
 function sanitizePromptText(input) {
   let clean = String(input || '').trim();
@@ -30,9 +31,29 @@ function sanitizePromptText(input) {
 }
 
 function buildFinalProductionPrompt({ userPrompt, w, h, referenceAnalysis }) {
-  const cleaned = sanitizePromptText(userPrompt);
-  const direction = referenceAnalysis ? `Reference guidance: ${referenceAnalysis}.` : '';
-  return `Create one flat, full-bleed, print-ready ${w}ft x ${h}ft horizontal premium commercial banner artwork with professional typography, high-end print design quality, and clean visual hierarchy. Use only the text requested by the customer: "${cleaned}". The artwork must fill the entire canvas edge-to-edge with no borders, no white/black bars, no mockup, no poster frame, no drop shadow, no grommets, and no hardware. Avoid cheap template styling, clipart overload, and placeholder logo/text. ${direction}`.trim();
+  const { extractedBannerText, designDirection, allowedTextList } = extractBannerTextAndDirection(userPrompt);
+  const direction = [designDirection, referenceAnalysis ? `Reference guidance: ${referenceAnalysis}.` : ''].filter(Boolean).join(' ');
+  return {
+    extractedBannerText,
+    designDirection: direction || 'Premium commercial banner style.',
+    allowedTextList,
+    prompt: `Create one flat, full-bleed, print-ready ${w}ft x ${h}ft horizontal premium commercial banner artwork. Use ONLY this visible banner text: ${allowedTextList.length ? allowedTextList.map((t) => `"${t}"`).join(', ') : '" "'}. Design direction: ${direction || 'Premium commercial banner style with professional typography and clean hierarchy.'} Fill the entire canvas edge-to-edge. No borders, no bars, no mockups, no frames, no hardware, no extra text. Do not add any other visible words, slogans, subtitles, or filler text.`,
+  };
+}
+
+function extractBannerTextAndDirection(raw) {
+  const prompt = sanitizePromptText(raw);
+  const quoted = [...prompt.matchAll(/"([^"]{2,80})"/g)].map((m) => m[1].trim());
+  const classMatch = prompt.match(/\bclass of \d{4}\b/i)?.[0];
+  const forMatch = prompt.match(/\bfor\s+([A-Z][a-zA-Z]+)\b/)?.[1];
+  const allowed = [...new Set([...(quoted || []), ...(classMatch ? [classMatch] : []), ...(forMatch ? [forMatch] : [])])].filter(Boolean);
+  const direction = prompt
+    .replace(/"([^"]{2,80})"/g, ' ')
+    .replace(/\bclass of \d{4}\b/ig, ' ')
+    .replace(/\bfor\s+[A-Z][a-zA-Z]+\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return { extractedBannerText: allowed.join(' | '), designDirection: direction, allowedTextList: allowed };
 }
 
 async function analyzeReferenceImage({ referenceImage, textModel, googleApiKey }) {
@@ -206,7 +227,8 @@ export async function handler(event) {
       const referenceAnalysis = referenceImageIncluded ? await analyzeReferenceImage({ referenceImage: body.referenceImage, textModel, googleApiKey }) : null;
       const referenceMode = referenceImageIncluded ? (referenceAnalysis ? 'analyzed_prompt_guidance' : 'direct_image_input') : 'none';
       const logoLikeReference = detectLikelyLogoReference(referenceAnalysis || '', body.referenceImageName || '');
-      const finalProductionPrompt = `${GENERATION_GUARDRAIL}\n${buildFinalProductionPrompt({ userPrompt: cleanedSource, w: targetW, h: targetH, referenceAnalysis })}`;
+      const extracted = buildFinalProductionPrompt({ userPrompt: cleanedSource, w: targetW, h: targetH, referenceAnalysis });
+      const finalProductionPrompt = `${GENERATION_GUARDRAIL}\n${extracted.prompt}`;
 
       if (!SUPPORTED_IMAGEN_RATIOS.includes(imagenAspectRatio)) {
         return json(200, { ok: false, action, imageUrl: null, safeErrorMessage: 'Unsupported mapped Imagen ratio.' });
@@ -269,19 +291,23 @@ export async function handler(event) {
       const ocr = await cloudinary.url(upload.public_id, { resource_type: 'image', type: 'upload', secure: true, ocr: 'adv_ocr' });
       const checkText = `${ocr}`;
       fakeLogoTextDetected = FAKE_LOGO_MARKERS.some((m) => checkText.toUpperCase().includes(m));
+      let logoPlacement = null;
+      let logoAssetPublicId = null;
+      let composedImageValid = true;
+      let composedImageUrl = canonicalImageUrl;
       if (logoLikeReference && body.referenceImage) {
-        const logoUpload = await cloudinary.uploader.upload(body.referenceImage, { folder: 'ai-generated-banners', resource_type: 'image' });
-        canonicalImageUrl = cloudinary.url(upload.public_id, {
-          resource_type: 'image',
-          type: 'upload',
-          secure: true,
-          transformation: [
-            { aspect_ratio: `${targetW}:${targetH}`, crop: 'fill', gravity: 'auto' },
-            { overlay: logoUpload.public_id, width: 260, crop: 'fit', gravity: 'north_west', x: 40, y: 40 },
-            { fetch_format: 'auto', quality: 'auto' },
-          ],
-        });
-        logoCompositeApplied = true;
+        try {
+          const logoUpload = await cloudinary.uploader.upload(body.referenceImage, { folder: 'ai-generated-banners', resource_type: 'image' });
+          logoAssetPublicId = logoUpload.public_id;
+          const placements = ['north_west', 'north_east', 'center'];
+          logoPlacement = placements[Math.floor(Math.random() * placements.length)];
+          composedImageUrl = cloudinary.url(upload.public_id, { resource_type: 'image', type: 'upload', secure: true, transformation: [{ aspect_ratio: `${targetW}:${targetH}`, crop: 'fill', gravity: 'auto' }, { overlay: logoUpload.public_id, width: 260, crop: 'fit', gravity: logoPlacement, x: 40, y: 40 }, { fetch_format: 'auto', quality: 'auto' }] });
+          canonicalImageUrl = composedImageUrl;
+          logoCompositeApplied = true;
+        } catch {
+          composedImageValid = false;
+          canonicalImageUrl = cloudinaryRatioTransformUrl(upload.public_id, targetW, targetH);
+        }
       }
       return json(200, {
         ok: true,
@@ -311,6 +337,17 @@ export async function handler(event) {
         imageFilledCanvas: true,
         logoCompositeApplied,
         fakeLogoTextDetected,
+        rawUserPrompt: sourcePrompt,
+        extractedBannerText: extracted.extractedBannerText,
+        designDirection: extracted.designDirection,
+        allowedTextList: extracted.allowedTextList,
+        extraTextForbidden: EXTRA_TEXT_FORBIDDEN,
+        referenceImageType: String(body.referenceImageType || '').trim() || null,
+        logoPlacement,
+        logoAssetPublicId,
+        composedImageUrl,
+        composedImageValid,
+        imageLoadValid: true,
       });
     }
 
