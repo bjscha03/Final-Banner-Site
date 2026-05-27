@@ -143,15 +143,15 @@ export async function handler(event) {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: CORS, body: '' };
 
   const googleApiKey =
-    process.env.GOOGLE_GENAI_API_KEY ||
     process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_GENAI_API_KEY ||
     process.env.GOOGLE_AI_API_KEY ||
     '';
 
-  const matchedEnvName = process.env.GOOGLE_GENAI_API_KEY
-    ? 'GOOGLE_GENAI_API_KEY'
-    : process.env.GEMINI_API_KEY
-      ? 'GEMINI_API_KEY'
+  const matchedEnvName = process.env.GEMINI_API_KEY
+    ? 'GEMINI_API_KEY'
+    : process.env.GOOGLE_GENAI_API_KEY
+      ? 'GOOGLE_GENAI_API_KEY'
       : process.env.GOOGLE_AI_API_KEY
         ? 'GOOGLE_AI_API_KEY'
         : null;
@@ -217,167 +217,63 @@ export async function handler(event) {
     }
 
     if (action === 'generate') {
-      const sourcePrompt = String(body.prompt || body.enhancedPrompt || '').trim();
-      if (!sourcePrompt) {
-        return json(200, {
-          ok: false,
-          action: 'generate',
-          error: 'missing_prompt',
-          referenceImageIncluded: false,
-          referenceMode: 'none',
-          referenceAnalysis: null,
-        });
-      }
-      const cleanedSource = sanitizePromptText(sourcePrompt);
-
+      const rawUserPrompt = String(body.prompt || body.enhancedPrompt || '').trim();
+      if (!rawUserPrompt) return json(200, { ok: false, action: 'generate', error: 'missing_prompt' });
       const targetW = Number(body?.size?.w) || 8;
       const targetH = Number(body?.size?.h) || 4;
-      const imagenAspectRatio = pickImagenRatio(targetW, targetH);
+      const aspect = pickImagenRatio(targetW, targetH);
+      const cleaned = sanitizePromptText(rawUserPrompt);
+      const extracted = extractBannerTextAndDirection(cleaned);
       const referenceImageIncluded = Boolean(body.referenceImage);
       const referenceAnalysis = referenceImageIncluded ? await analyzeReferenceImage({ referenceImage: body.referenceImage, textModel, googleApiKey }) : null;
-      const logoLikeReference = detectLikelyLogoReference(referenceAnalysis || '', body.referenceImageName || '');
-      const ENABLE_LOGO_COMPOSITING = false;
-      const referenceMode = referenceImageIncluded
-        ? ((logoLikeReference && ENABLE_LOGO_COMPOSITING) ? 'direct_logo_composite' : 'analyzed_prompt_guidance')
-        : 'none';
-      const extracted = extractBannerTextAndDirection(cleanedSource);
-      let promptDirection = extracted.designDirection;
-      if (/graduation|class of|grad\b/i.test(cleanedSource)) {
-        promptDirection = `${promptDirection ? `${promptDirection}. ` : ''}Use the uploaded logo/colors as brand inspiration. Create a premium flat graduation celebration banner, not a team sideline banner, not a sports strip template. Sophisticated academic-celebration style with confetti and graduation-cap accents, no hardware or mockup elements.`;
-      }
+      const referenceMode = referenceImageIncluded ? 'analyzed_prompt_guidance' : 'none';
       const finalProductionPrompt = buildProductionBannerPrompt({
-        rawUserPrompt: cleanedSource,
+        rawUserPrompt: cleaned,
         selectedWidthFt: targetW,
         selectedHeightFt: targetH,
         referenceAnalysis,
         extractedBannerText: extracted.allowedTextList,
-        designDirection: promptDirection,
+        designDirection: extracted.designDirection,
       });
-      const fakeTextDetected = detectFakeText(finalProductionPrompt);
 
-      if (!SUPPORTED_IMAGEN_RATIOS.includes(imagenAspectRatio)) {
-        return json(200, { ok: false, action, imageUrl: null, safeErrorMessage: 'Unsupported mapped Imagen ratio.' });
-      }
-
-      const r = await fetch(`${GEMINI_BASE}/models/${imageModel}:predict?key=${encodeURIComponent(googleApiKey)}`, {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ instances: [{ prompt: `${finalProductionPrompt}${referenceImageIncluded ? '\nReference image has been provided by customer; align style/color/composition to it. Do not write placeholder text like ATTACHED LOGO, YOUR LOGO, LOGO HERE, or SAMPLE.' : ''}` }], parameters: { sampleCount: 1, aspectRatio: imagenAspectRatio } }),
+      const r = await fetch(`${GEMINI_BASE}/models/imagen-3.0-generate-002:predict?key=${encodeURIComponent(googleApiKey)}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ instances: [{ prompt: finalProductionPrompt }], parameters: { sampleCount: 1, aspectRatio: aspect } }),
       });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) {
-        if (isImagenPaidAccessError(d, r.status)) {
-          return json(200, {
-            ok: true,
-            action,
-            imageUrl: FALLBACK_IMAGE_URL,
-            image: {
-              url: FALLBACK_IMAGE_URL,
-              original_url: FALLBACK_IMAGE_URL,
-              width: targetW * 100,
-              height: targetH * 100,
-            },
-            generationFallback: true,
-            fallbackReason: 'imagen_paid_access_required',
-            count: 1,
-            requestedBannerRatio: `${targetW}:${targetH}`,
-            generatedImagenRatio: imagenAspectRatio,
-            safeErrorMessage: 'Temporary fallback image used because Imagen paid access is required.',
-            finalProductionPrompt,
-            referenceImageIncluded,
-            referenceImageName: body.referenceImageName || null,
-            provider: imageModel,
-            canonicalApprovedImageUrl: FALLBACK_IMAGE_URL,
-            cropFillApplied: true,
-            referenceMode,
-            referenceAnalysis,
-            imageFilledCanvas: true,
-            logoCompositeApplied: false,
-            fakeLogoTextDetected: false,
-          });
-        }
-        return json(200, { ok: false, action, imageUrl: null, safeErrorMessage: d?.error?.message || 'Image generation failed. Please try again.' });
-      }
+      if (!r.ok) return json(200, { ok: false, action, safeErrorMessage: d?.error?.message || 'Image generation failed. Please try again.' });
 
       const b64 = d?.predictions?.[0]?.bytesBase64Encoded;
-      if (!b64) return json(200, { ok: false, action, imageUrl: null, safeErrorMessage: 'No image returned from model.' });
+      if (!b64) return json(200, { ok: false, action, safeErrorMessage: 'No image returned from model.' });
 
-      if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
-        return json(200, { ok: false, action, imageUrl: null, safeErrorMessage: 'Cloudinary not configured for ratio correction.' });
-      }
-
-      const upload = await cloudinary.uploader.upload(`data:image/png;base64,${b64}`, {
-        folder: 'ai-generated-banners',
-        resource_type: 'image',
-      });
-
-      let canonicalImageUrl = cloudinaryRatioTransformUrl(upload.public_id, targetW, targetH);
-      let logoCompositeApplied = false;
-      let fakeLogoTextDetected = false;
-      let logoCompositeError = null;
-      const ocr = await cloudinary.url(upload.public_id, { resource_type: 'image', type: 'upload', secure: true, ocr: 'adv_ocr' });
-      const checkText = `${ocr}`;
-      fakeLogoTextDetected = FAKE_LOGO_MARKERS.some((m) => checkText.toUpperCase().includes(m));
-      let logoPlacement = null;
-      let logoAssetPublicId = null;
-      let composedImageValid = true;
-      let composedImageUrl = canonicalImageUrl;
-      if (ENABLE_LOGO_COMPOSITING && logoLikeReference && body.referenceImage) {
-        try {
-          const logoUpload = await cloudinary.uploader.upload(body.referenceImage, { folder: 'ai-generated-banners', resource_type: 'image' });
-          logoAssetPublicId = logoUpload.public_id;
-          const placements = ['north_west', 'north_east', 'center'];
-          logoPlacement = placements[Math.floor(Math.random() * placements.length)];
-          composedImageUrl = cloudinary.url(upload.public_id, { resource_type: 'image', type: 'upload', secure: true, transformation: [{ aspect_ratio: `${targetW}:${targetH}`, crop: 'fill', gravity: 'auto' }, { overlay: logoUpload.public_id, width: 260, crop: 'fit', gravity: logoPlacement, x: 40, y: 40 }, { fetch_format: 'auto', quality: 'auto' }] });
-          canonicalImageUrl = composedImageUrl;
-          logoCompositeApplied = true;
-        } catch (e) {
-          composedImageValid = false;
-          logoCompositeError = String(e?.message || e || 'logo_composite_failed');
-          canonicalImageUrl = cloudinaryRatioTransformUrl(upload.public_id, targetW, targetH);
-          logoCompositeApplied = false;
-        }
+      let url = `data:image/png;base64,${b64}`;
+      let original = url;
+      let width = targetW * 100;
+      let height = targetH * 100;
+      if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
+        const upload = await cloudinary.uploader.upload(url, { folder: 'ai-generated-banners', resource_type: 'image' });
+        url = cloudinaryRatioTransformUrl(upload.public_id, targetW, targetH);
+        original = upload.secure_url || url;
+        width = upload.width || width;
+        height = upload.height || height;
       }
       return json(200, {
         ok: true,
-        action,
-        imageUrl: canonicalImageUrl,
-        image: {
-          url: canonicalImageUrl,
-          original_url: upload.secure_url || canonicalImageUrl,
-          width: upload.width || targetW * 100,
-          height: upload.height || targetH * 100,
-        },
-        generationFallback: false,
-        fallbackReason: null,
-        count: 1,
-        requestedBannerRatio: `${targetW}:${targetH}`,
-        generatedImagenRatio: imagenAspectRatio,
-        safeErrorMessage: null,
+        action: 'generate',
+        provider: 'gemini-studio-flow',
+        imageUrl: url,
+        image: { url, original_url: original, width, height },
         finalProductionPrompt,
         selectedAspectRatio: `${targetW}:${targetH}`,
         referenceImageIncluded,
         referenceImageName: body.referenceImageName || null,
-        provider: imageModel,
-        canonicalApprovedImageUrl: canonicalImageUrl,
-        cropFillApplied: true,
+        referenceImageType: String(body.referenceImageType || '').trim() || null,
         referenceMode,
         referenceAnalysis,
+        cropFillApplied: true,
         imageFilledCanvas: true,
-        logoCompositeApplied,
-        fakeLogoTextDetected,
-        rawUserPrompt: sourcePrompt,
-        extractedBannerText: extracted.extractedBannerText,
-        designDirection: extracted.designDirection,
-        allowedTextList: extracted.allowedTextList,
-        extraTextForbidden: EXTRA_TEXT_FORBIDDEN,
-        fakeTextDetected,
-        referenceImageType: String(body.referenceImageType || '').trim() || null,
-        logoPlacement,
-        logoAssetPublicId,
-        composedImageUrl,
-        composedImageValid,
-        logoCompositeError,
-        imageLoadValid: true,
+        canonicalApprovedImageUrl: url,
       });
     }
 
