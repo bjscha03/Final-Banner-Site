@@ -236,15 +236,22 @@ export async function handler(event) {
       const referenceImageIncluded = Boolean(body.referenceImage);
       const referenceAnalysis = referenceImageIncluded ? await analyzeReferenceImage({ referenceImage: body.referenceImage, textModel, googleApiKey }) : null;
       const logoLikeReference = detectLikelyLogoReference(referenceAnalysis || '', body.referenceImageName || '');
-      const referenceMode = referenceImageIncluded ? (logoLikeReference ? 'direct_logo_composite' : 'analyzed_prompt_guidance') : 'none';
+      const ENABLE_LOGO_COMPOSITING = false;
+      const referenceMode = referenceImageIncluded
+        ? ((logoLikeReference && ENABLE_LOGO_COMPOSITING) ? 'direct_logo_composite' : 'analyzed_prompt_guidance')
+        : 'none';
       const extracted = extractBannerTextAndDirection(cleanedSource);
+      let promptDirection = extracted.designDirection;
+      if (/graduation|class of|grad\b/i.test(cleanedSource)) {
+        promptDirection = `${promptDirection ? `${promptDirection}. ` : ''}Use the uploaded logo/colors as brand inspiration. Create a premium flat graduation celebration banner, not a team sideline banner, not a sports strip template. Sophisticated academic-celebration style with confetti and graduation-cap accents, no hardware or mockup elements.`;
+      }
       const finalProductionPrompt = buildProductionBannerPrompt({
         rawUserPrompt: cleanedSource,
         selectedWidthFt: targetW,
         selectedHeightFt: targetH,
         referenceAnalysis,
         extractedBannerText: extracted.allowedTextList,
-        designDirection: extracted.designDirection,
+        designDirection: promptDirection,
       });
       const fakeTextDetected = detectFakeText(finalProductionPrompt);
 
@@ -314,7 +321,6 @@ export async function handler(event) {
       let logoAssetPublicId = null;
       let composedImageValid = true;
       let composedImageUrl = canonicalImageUrl;
-      const ENABLE_LOGO_COMPOSITING = false;
       if (ENABLE_LOGO_COMPOSITING && logoLikeReference && body.referenceImage) {
         try {
           const logoUpload = await cloudinary.uploader.upload(body.referenceImage, { folder: 'ai-generated-banners', resource_type: 'image' });

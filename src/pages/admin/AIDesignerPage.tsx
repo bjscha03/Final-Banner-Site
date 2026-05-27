@@ -111,6 +111,7 @@ const AIDesignerPage: React.FC = () => {
   const [debugOutput, setDebugOutput] = useState('');
   const [lastAiMeta, setLastAiMeta] = useState<any>(null);
   const [lastValidImageUrl, setLastValidImageUrl] = useState<string | null>(null);
+  const previewRenderMode: 'cover' | 'contain' = 'cover';
   const [showDebug, setShowDebug] = useState(false);
   const [cartMessage, setCartMessage] = useState('');
   const [isAddingToCart, setIsAddingToCart] = useState(false);
@@ -393,6 +394,11 @@ const AIDesignerPage: React.FC = () => {
         <p>logoCompositeApplied: {String(lastAiMeta?.logoCompositeApplied ?? false)}</p>
         <p>fakeLogoTextDetected: {String(lastAiMeta?.fakeLogoTextDetected ?? false)}</p>
         <p>imageFilledCanvas: {String(lastAiMeta?.imageFilledCanvas ?? false)}</p>
+        <p>previewRenderMode: {previewRenderMode}</p>
+        <p>previewImageNaturalRatio: {imageNaturalRatio.toFixed(4)}</p>
+        <p>selectedCanvasRatio: {(widthIn / heightIn).toFixed(4)}</p>
+        <p>previewObjectFit: cover</p>
+        <p>previewCroppedToFill: true</p>
       </div>
     </aside>
 
@@ -418,8 +424,8 @@ const AIDesignerPage: React.FC = () => {
                 transformOrigin: 'center',
               };
               return <div style={wrapperStyle}>
-                <img src={imageUrl} alt="Generated banner" className="w-full h-full cursor-move select-none" draggable={false} onError={()=>{ setLastAiMeta((m:any)=>({...m, imageLoadValid:false})); if (lastValidImageUrl) setImageUrl(lastValidImageUrl); }}
-                  style={{ objectFit: imageTransform.mode==='fit'?'contain':'cover' }}
+                <img src={imageUrl} alt="Generated banner" className="absolute inset-0 w-full h-full cursor-move select-none" draggable={false} onError={()=>{ setLastAiMeta((m:any)=>({...m, imageLoadValid:false})); if (lastValidImageUrl) setImageUrl(lastValidImageUrl); }}
+                  style={{ objectFit: 'cover', objectPosition: 'center' }}
                   onLoad={(e)=>{ const img=e.currentTarget; if(img.naturalWidth&&img.naturalHeight) setImageNaturalRatio(img.naturalWidth/img.naturalHeight); }}
                   onPointerDown={(e)=>{ e.stopPropagation(); setSelected(true); dragState.current={type:'move',startX:e.clientX,startY:e.clientY,origin:imageTransform}; }} />
               </div>;
