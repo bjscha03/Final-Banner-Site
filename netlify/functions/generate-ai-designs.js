@@ -186,8 +186,18 @@ export async function handler(event) {
     }
 
     if (action === 'generate') {
-      const cleanedSource = sanitizePromptText(String(body.enhancedPrompt || body.prompt || '').trim());
-      if (!sourcePrompt) return json(400, { ok: false, action, error: 'Prompt required' });
+      const sourcePrompt = String(body.prompt || body.enhancedPrompt || '').trim();
+      if (!sourcePrompt) {
+        return json(200, {
+          ok: false,
+          action: 'generate',
+          error: 'missing_prompt',
+          referenceImageIncluded: false,
+          referenceMode: 'none',
+          referenceAnalysis: null,
+        });
+      }
+      const cleanedSource = sanitizePromptText(sourcePrompt);
 
       const targetW = Number(body?.size?.w) || 8;
       const targetH = Number(body?.size?.h) || 4;
@@ -196,7 +206,7 @@ export async function handler(event) {
       const referenceAnalysis = referenceImageIncluded ? await analyzeReferenceImage({ referenceImage: body.referenceImage, textModel, googleApiKey }) : null;
       const referenceMode = referenceImageIncluded ? (referenceAnalysis ? 'analyzed_prompt_guidance' : 'direct_image_input') : 'none';
       const logoLikeReference = detectLikelyLogoReference(referenceAnalysis || '', body.referenceImageName || '');
-      const sourcePrompt = `${GENERATION_GUARDRAIL}\n${buildFinalProductionPrompt({ userPrompt: cleanedSource, w: targetW, h: targetH, referenceAnalysis })}`;
+      const finalProductionPrompt = `${GENERATION_GUARDRAIL}\n${buildFinalProductionPrompt({ userPrompt: cleanedSource, w: targetW, h: targetH, referenceAnalysis })}`;
 
       if (!SUPPORTED_IMAGEN_RATIOS.includes(imagenAspectRatio)) {
         return json(200, { ok: false, action, imageUrl: null, safeErrorMessage: 'Unsupported mapped Imagen ratio.' });
@@ -204,7 +214,7 @@ export async function handler(event) {
 
       const r = await fetch(`${GEMINI_BASE}/models/${imageModel}:predict?key=${encodeURIComponent(googleApiKey)}`, {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ instances: [{ prompt: `${sourcePrompt}${referenceImageIncluded ? '\nReference image has been provided by customer; align style/color/composition to it. Do not write placeholder text like ATTACHED LOGO, YOUR LOGO, LOGO HERE, or SAMPLE.' : ''}` }], parameters: { sampleCount: 1, aspectRatio: imagenAspectRatio } }),
+        body: JSON.stringify({ instances: [{ prompt: `${finalProductionPrompt}${referenceImageIncluded ? '\nReference image has been provided by customer; align style/color/composition to it. Do not write placeholder text like ATTACHED LOGO, YOUR LOGO, LOGO HERE, or SAMPLE.' : ''}` }], parameters: { sampleCount: 1, aspectRatio: imagenAspectRatio } }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) {
@@ -225,7 +235,7 @@ export async function handler(event) {
             requestedBannerRatio: `${targetW}:${targetH}`,
             generatedImagenRatio: imagenAspectRatio,
             safeErrorMessage: 'Temporary fallback image used because Imagen paid access is required.',
-            finalProductionPrompt: sourcePrompt,
+            finalProductionPrompt,
             referenceImageIncluded,
             referenceImageName: body.referenceImageName || null,
             provider: imageModel,
@@ -289,7 +299,7 @@ export async function handler(event) {
         requestedBannerRatio: `${targetW}:${targetH}`,
         generatedImagenRatio: imagenAspectRatio,
         safeErrorMessage: null,
-        finalProductionPrompt: sourcePrompt,
+        finalProductionPrompt,
         selectedAspectRatio: `${targetW}:${targetH}`,
         referenceImageIncluded,
         referenceImageName: body.referenceImageName || null,
