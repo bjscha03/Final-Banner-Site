@@ -32,6 +32,7 @@ type Snap = {
   grommetOption: string;
   ropePlacement: string;
   polePocketPlacement: string;
+  textLayers?: any[];
 };
 
 function getGrommetPositions({ grommetOption, widthFt, heightFt }: { grommetOption: string; widthFt: number; heightFt: number }) {
@@ -118,6 +119,7 @@ const AIDesignerPage: React.FC = () => {
   const [promoCode, setPromoCode] = useState('');
 
   const [history, setHistory] = useState<Snap[]>([]);
+  const [textLayers, setTextLayers] = useState<any[]>([]);
 
   const [imageTransform, setImageTransform] = useState({ x: 0, y: 0, scale: 1, mode: 'fill' as 'fit'|'fill'|'custom' });
   const [imageNaturalRatio, setImageNaturalRatio] = useState(16/9);
@@ -159,7 +161,7 @@ const AIDesignerPage: React.FC = () => {
 
   const saveSnapshot = () => {
     if (!imageUrl) return;
-    const snap: Snap = { imageUrl, prompt, enhancedPrompt, transform: imageTransform, finishingType, grommetOption, ropePlacement, polePocketPlacement };
+    const snap: Snap = { imageUrl, prompt, enhancedPrompt, transform: imageTransform, finishingType, grommetOption, ropePlacement, polePocketPlacement, textLayers };
     setHistory((h) => [snap, ...h].slice(0, 20));
   };
 
@@ -172,6 +174,7 @@ const AIDesignerPage: React.FC = () => {
     setGrommetOption(s.grommetOption);
     setRopePlacement(s.ropePlacement);
     setPolePocketPlacement(s.polePocketPlacement);
+    setTextLayers(s.textLayers || []);
   };
 
   const revertOne = () => {
@@ -299,7 +302,7 @@ const AIDesignerPage: React.FC = () => {
       const subtotal = pricing.subtotalCents / 100;
       const tax = (pricing.subtotalCents * TAX_RATE) / 100;
       const total = subtotal + tax;
-      const id = addFromQuote({ widthIn, heightIn, quantity, material, grommets: grommetOption === 'none' ? 'none' : 'all', polePockets: polePocketPlacement, rope: ropePlacement !== 'none', ropePlacement, file: { url: imageUrl, name: 'ai-banner.png', isPdf: false }, imageScale: imageTransform.scale, imagePosition: { x: imageTransform.x, y: imageTransform.y }, fitMode: imageTransform.mode, textElements: [], overlayImage: null } as any, {
+      const id = addFromQuote({ widthIn, heightIn, quantity, material, grommets: grommetOption === 'none' ? 'none' : 'all', polePockets: polePocketPlacement, rope: ropePlacement !== 'none', ropePlacement, file: { url: imageUrl, name: 'ai-banner.png', isPdf: false }, imageScale: imageTransform.scale, imagePosition: { x: imageTransform.x, y: imageTransform.y }, fitMode: imageTransform.mode, textElements: textLayers as any, overlayImage: referenceImage ? { url: referenceImage, position: { x: 82, y: 16 }, width: 16, height: 16 } : null } as any, {
         productType: 'banner',
         source: 'admin-ai-designer',
         widthFt,
@@ -367,7 +370,7 @@ const AIDesignerPage: React.FC = () => {
         {referenceImageName && <div className="mt-2 rounded-lg border border-slate-200 bg-white p-2"><p className="text-xs text-slate-600 truncate">{referenceImageName}</p><p className="text-[11px] text-slate-500">{referenceImageType}</p>{referenceImagePreview && <img src={referenceImagePreview} alt="Reference preview" className="mt-2 h-16 w-16 rounded object-cover border border-slate-200" />}<button type="button" onClick={()=>{setReferenceImage(null);setReferenceImageName('');setReferenceImageType('');setReferenceImageFile(null);setReferenceImagePreview(null);}} className="mt-2 text-xs text-slate-600 underline">Remove reference</button></div>}
         {uploadError && <p className="mt-2 text-xs text-red-600">{uploadError}</p>}
       </div>
-      <button disabled={busy!==null||!(enhancedPrompt||prompt).trim()} onClick={async()=>{setBusy('generate');setErrorOutput('');setGenerationFallbackNote('');try{const {body}=await callFn('generate'); setLastAiMeta(body); const nextUrl = body?.image?.url||body?.imageUrl; if(nextUrl){saveSnapshot(); setImageUrl(nextUrl); setLastValidImageUrl(nextUrl); setImageTransform({ x: 0, y: 0, scale: 1, mode: 'fill' }); setSelected(false); if(body?.generationFallback) setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.');} else setErrorOutput(body?.safeErrorMessage||body?.error||'Generate failed.');}finally{setBusy(null);}}} className="w-full bg-[#ffd200] hover:bg-[#ffdb38] text-slate-900 font-bold py-3.5 rounded-xl inline-flex items-center justify-center gap-2 shadow-sm hover:shadow-md transition-all disabled:bg-[#fde68a] disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none">{busy==='generate'?<><Spinner/>Generating Design...</>:<><Sparkles className="w-4 h-4" />Generate Design</>}</button>
+      <button disabled={busy!==null||!(enhancedPrompt||prompt).trim()} onClick={async()=>{setBusy('generate');setErrorOutput('');setGenerationFallbackNote('');try{const {body}=await callFn('generate'); setLastAiMeta(body); const nextUrl = body?.image?.url||body?.imageUrl; if(nextUrl){saveSnapshot(); setImageUrl(nextUrl); setTextLayers(body?.suggestedTextLayers || []); setLastValidImageUrl(nextUrl); setImageTransform({ x: 0, y: 0, scale: 1, mode: 'fill' }); setSelected(false); if(body?.generationFallback) setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.');} else setErrorOutput(body?.safeErrorMessage||body?.error||'Generate failed.');}finally{setBusy(null);}}} className="w-full bg-[#ffd200] hover:bg-[#ffdb38] text-slate-900 font-bold py-3.5 rounded-xl inline-flex items-center justify-center gap-2 shadow-sm hover:shadow-md transition-all disabled:bg-[#fde68a] disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none">{busy==='generate'?<><Spinner/>Generating Design...</>:<><Sparkles className="w-4 h-4" />Generate Design</>}</button>
       {imageUrl && <>
         <input value={editInstruction} onChange={(e)=>setEditInstruction(e.target.value)} className="w-full rounded-xl border border-slate-200 p-3" placeholder="Edit instruction"/>
         <button disabled={busy!==null||!editInstruction.trim()} onClick={async()=>{setBusy('enhanceEdit');try{const {body}=await callFn('enhance'); if(body?.enhancedPrompt) setEditInstruction(body.enhancedPrompt);}finally{setBusy(null);}}} className="w-full border border-slate-200 py-2.5 rounded-xl disabled:opacity-60 disabled:cursor-not-allowed bg-white">Enhance Edit Prompt</button>
@@ -428,6 +431,9 @@ const AIDesignerPage: React.FC = () => {
                   style={{ objectFit: 'cover', objectPosition: 'center' }}
                   onLoad={(e)=>{ const img=e.currentTarget; if(img.naturalWidth&&img.naturalHeight) setImageNaturalRatio(img.naturalWidth/img.naturalHeight); }}
                   onPointerDown={(e)=>{ e.stopPropagation(); setSelected(true); dragState.current={type:'move',startX:e.clientX,startY:e.clientY,origin:imageTransform}; }} />
+                {textLayers.map((t:any)=>(
+                  <div key={t.id} className="absolute pointer-events-none select-none font-bold" style={{left:`${t.x}%`,top:`${t.y}%`,transform:'translate(-50%,-50%)',color:t.color,fontSize:t.fontSize,textAlign:t.align as any,textShadow:`-${t.strokeWidth}px 0 ${t.strokeColor},0 ${t.strokeWidth}px ${t.strokeColor},${t.strokeWidth}px 0 ${t.strokeColor},0 -${t.strokeWidth}px ${t.strokeColor}`}}>{t.text}</div>
+                ))}
               </div>;
             })()}
           </div> : <div className="absolute inset-0 grid place-items-center text-slate-500 font-semibold">Generate or upload an image</div>}

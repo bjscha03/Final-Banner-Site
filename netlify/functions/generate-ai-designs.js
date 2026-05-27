@@ -32,16 +32,12 @@ function sanitizePromptText(input) {
 }
 
 function buildProductionBannerPrompt({ rawUserPrompt, selectedWidthFt, selectedHeightFt, referenceAnalysis, extractedBannerText, designDirection }) {
-  const textPart = extractedBannerText.length
-    ? extractedBannerText.map((t) => `"${t}"`).join(' and ')
-    : '" "';
   const direction = [designDirection, referenceAnalysis ? `using uploaded reference style/colors: ${referenceAnalysis}` : '']
     .filter(Boolean)
     .join('. ');
-  return `Create one flat, full-bleed, print-ready ${selectedWidthFt}ft x ${selectedHeightFt}ft horizontal premium banner artwork.
-Visible text allowed: ${textPart}.
-Do not add any other words, slogans, filler text, lorem ipsum, placeholder text, fake contact info, or fake logos.
-Design direction: ${direction || 'premium commercial banner with clean hierarchy and professional typography'}.
+  return `Create one flat, full-bleed, print-ready ${selectedWidthFt}ft x ${selectedHeightFt}ft horizontal premium banner BACKGROUND artwork only.
+Do not render any text, letters, words, numbers, logo marks, signage, or typography in the image.
+Design direction: ${direction || 'premium commercial banner background with clean hierarchy and professional atmosphere'}.
 Fill the entire canvas edge-to-edge. No borders, bars, margins, mockups, frames, shadows, hardware, grommets, or poster layout.`;
 }
 
@@ -59,6 +55,16 @@ function extractBannerTextAndDirection(raw) {
     .replace(/\s+/g, ' ')
     .trim();
   return { extractedBannerText: allowed.join(' | '), designDirection: direction, allowedTextList: allowed };
+}
+
+function inferBannerType(prompt='') {
+  const p = prompt.toLowerCase();
+  if (p.includes('graduation') || p.includes('class of')) return 'graduation';
+  if (p.includes('birthday')) return 'birthday';
+  if (p.includes('church')) return 'church';
+  if (p.includes('sport')) return 'sports';
+  if (p.includes('event')) return 'event';
+  return 'business';
 }
 
 function detectFakeText(content = '') {
@@ -253,6 +259,7 @@ export async function handler(event) {
         stage = 'build_prompt';
         const cleaned = sanitizePromptText(rawUserPrompt);
         const extracted = extractBannerTextAndDirection(cleaned);
+        const bannerType = inferBannerType(cleaned);
         const referenceImageIncluded = Boolean(body.referenceImage);
         const referenceAnalysis = referenceImageIncluded ? await analyzeReferenceImage({ referenceImage: body.referenceImage, textModel, googleApiKey }) : null;
         const referenceMode = referenceImageIncluded ? 'analyzed_prompt_guidance' : 'none';
@@ -327,6 +334,20 @@ export async function handler(event) {
           selectedImagenAspectRatio,
           selectedBannerRatio,
           finalProductionPrompt,
+          bannerType,
+          suggestedTextLayers: extracted.allowedTextList.map((text, i) => ({
+            id: `ai-text-${i + 1}`,
+            text,
+            x: 50,
+            y: i === 0 ? 18 : 78,
+            fontSize: i === 0 ? 72 : 48,
+            color: '#FFFFFF',
+            fontFamily: 'Arial',
+            fontWeight: '700',
+            align: 'center',
+            strokeColor: '#000000',
+            strokeWidth: 2,
+          })),
           providerStatus: 200,
           cropFillApplied: true,
           canonicalApprovedImageUrl: url,
