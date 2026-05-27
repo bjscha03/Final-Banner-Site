@@ -111,7 +111,7 @@ function resolveModels(models) {
   const textModel = models.find((m) => (m.supportedGenerationMethods || []).includes('generateContent'))?.name?.replace('models/', '') || 'gemini-1.5-flash';
   const imageModel = models.find((m) => m.name?.includes('imagen-4.0-generate-001'))?.name?.replace('models/', '')
     || models.find((m) => m.name?.includes('imagen'))?.name?.replace('models/', '')
-    || 'imagen-3.0-generate-002';
+    || null;
   return { textModel, imageModel };
 }
 
@@ -216,66 +216,141 @@ export async function handler(event) {
       return json(200, { ok: true, action, enhancedPrompt, enhancedPromptFinal: enhancedPrompt, selectedAspectRatio: aspectRatio, safeErrorMessage: null });
     }
 
+
     if (action === 'generate') {
-      const rawUserPrompt = String(body.prompt || body.enhancedPrompt || '').trim();
-      if (!rawUserPrompt) return json(200, { ok: false, action: 'generate', error: 'missing_prompt' });
-      const targetW = Number(body?.size?.w) || 8;
-      const targetH = Number(body?.size?.h) || 4;
-      const aspect = pickImagenRatio(targetW, targetH);
-      const cleaned = sanitizePromptText(rawUserPrompt);
-      const extracted = extractBannerTextAndDirection(cleaned);
-      const referenceImageIncluded = Boolean(body.referenceImage);
-      const referenceAnalysis = referenceImageIncluded ? await analyzeReferenceImage({ referenceImage: body.referenceImage, textModel, googleApiKey }) : null;
-      const referenceMode = referenceImageIncluded ? 'analyzed_prompt_guidance' : 'none';
-      const finalProductionPrompt = buildProductionBannerPrompt({
-        rawUserPrompt: cleaned,
-        selectedWidthFt: targetW,
-        selectedHeightFt: targetH,
-        referenceAnalysis,
-        extractedBannerText: extracted.allowedTextList,
-        designDirection: extracted.designDirection,
-      });
+      let stage = 'parse_generate_payload';
+      try {
+        const rawUserPrompt = String(body.prompt || body.enhancedPrompt || '').trim();
+        if (!rawUserPrompt) return json(200, { ok: false, action: 'generate', error: 'missing_prompt' });
 
-      const r = await fetch(`${GEMINI_BASE}/models/imagen-3.0-generate-002:predict?key=${encodeURIComponent(googleApiKey)}`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ instances: [{ prompt: finalProductionPrompt }], parameters: { sampleCount: 1, aspectRatio: aspect } }),
-      });
-      const d = await r.json().catch(() => ({}));
-      if (!r.ok) return json(200, { ok: false, action, safeErrorMessage: d?.error?.message || 'Image generation failed. Please try again.' });
+        stage = 'resolve_google_key';
+        if (!googleApiKey) return json(200, { ok: false, action: 'generate', error: 'generate_failed', stage, safeErrorMessage: 'AI environment not configured', providerStatus: null, providerMessageFirst500: '' });
 
-      const b64 = d?.predictions?.[0]?.bytesBase64Encoded;
-      if (!b64) return json(200, { ok: false, action, safeErrorMessage: 'No image returned from model.' });
+        stage = 'list_models';
+        const predictImagen = models.filter((m) => (m.supportedGenerationMethods || []).includes('predict') && m.name?.includes('imagen'));
+        const preferred = ['imagen-4.0-generate-001', 'imagen-4.0-ultra-generate-001', 'imagen-4.0-fast-generate-001'];
+        const picked = preferred.map((n) => predictImagen.find((m) => m.name?.includes(n))).find(Boolean) || predictImagen[0] || null;
+        const selectedImageModel = picked?.name?.replace('models/', '') || null;
+        const supportedGenerationMethods = picked?.supportedGenerationMethods || [];
+        const availableImageModels = predictImagen.map((m) => m.name?.replace('models/', ''));
 
-      let url = `data:image/png;base64,${b64}`;
-      let original = url;
-      let width = targetW * 100;
-      let height = targetH * 100;
-      if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
-        const upload = await cloudinary.uploader.upload(url, { folder: 'ai-generated-banners', resource_type: 'image' });
-        url = cloudinaryRatioTransformUrl(upload.public_id, targetW, targetH);
-        original = upload.secure_url || url;
-        width = upload.width || width;
-        height = upload.height || height;
+        stage = 'select_image_model';
+        if (!selectedImageModel) {
+          return json(200, {
+            ok: false,
+            action: 'generate',
+            error: 'no_image_model_available',
+            safeErrorMessage: 'No supported Imagen model is available for this API key/project.',
+            availableImageModels,
+          });
+        }
+
+        const targetW = Number(body?.size?.w) || 8;
+        const targetH = Number(body?.size?.h) || 4;
+        const selectedImagenAspectRatio = pickImagenRatio(targetW, targetH);
+        const selectedBannerRatio = `${targetW}:${targetH}`;
+
+        stage = 'build_prompt';
+        const cleaned = sanitizePromptText(rawUserPrompt);
+        const extracted = extractBannerTextAndDirection(cleaned);
+        const referenceImageIncluded = Boolean(body.referenceImage);
+        const referenceAnalysis = referenceImageIncluded ? await analyzeReferenceImage({ referenceImage: body.referenceImage, textModel, googleApiKey }) : null;
+        const referenceMode = referenceImageIncluded ? 'analyzed_prompt_guidance' : 'none';
+        const finalProductionPrompt = buildProductionBannerPrompt({
+          rawUserPrompt: cleaned,
+          selectedWidthFt: targetW,
+          selectedHeightFt: targetH,
+          referenceAnalysis,
+          extractedBannerText: extracted.allowedTextList,
+          designDirection: extracted.designDirection,
+        });
+
+        stage = 'imagen_predict';
+        const controller = new AbortController();
+        const t = setTimeout(() => controller.abort(), 22000);
+        const r = await fetch(`${GEMINI_BASE}/models/${selectedImageModel}:predict`, {
+          method: 'POST',
+          headers: { 'x-goog-api-key': googleApiKey, 'content-type': 'application/json' },
+          body: JSON.stringify({ instances: [{ prompt: finalProductionPrompt }], parameters: { sampleCount: 1, aspectRatio: selectedImagenAspectRatio } }),
+          signal: controller.signal,
+        }).finally(() => clearTimeout(t));
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          return json(200, {
+            ok: false,
+            action: 'generate',
+            error: 'generate_failed',
+            stage,
+            safeErrorMessage: d?.error?.message || 'Image generation failed.',
+            providerStatus: r.status,
+            providerMessageFirst500: JSON.stringify(d).slice(0, 500),
+          });
+        }
+
+        stage = 'parse_imagen_response';
+        const b64 = d?.predictions?.[0]?.bytesBase64Encoded;
+        if (!b64) {
+          return json(200, {
+            ok: false,
+            action: 'generate',
+            error: 'generate_failed',
+            stage,
+            safeErrorMessage: 'No image returned from model.',
+            providerStatus: r.status,
+            providerMessageFirst500: JSON.stringify(d).slice(0, 500),
+          });
+        }
+
+        let url = `data:image/png;base64,${b64}`;
+        let original = url;
+        let width = targetW * 100;
+        let height = targetH * 100;
+
+        if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
+          stage = 'cloudinary_upload';
+          const upload = await cloudinary.uploader.upload(url, { folder: 'ai-generated-banners', resource_type: 'image' });
+          url = cloudinaryRatioTransformUrl(upload.public_id, targetW, targetH);
+          original = upload.secure_url || url;
+          width = upload.width || width;
+          height = upload.height || height;
+        }
+
+        stage = 'build_response';
+        return json(200, {
+          ok: true,
+          action: 'generate',
+          provider: 'gemini-studio-flow',
+          matchedGoogleEnvName: matchedEnvName,
+          hasGoogleApiKey: Boolean(googleApiKey),
+          selectedImageModel,
+          supportedGenerationMethods,
+          selectedImagenAspectRatio,
+          selectedBannerRatio,
+          finalProductionPrompt,
+          providerStatus: 200,
+          cropFillApplied: true,
+          canonicalApprovedImageUrl: url,
+          referenceImageIncluded,
+          referenceMode,
+          referenceAnalysis,
+          logoCompositeApplied: false,
+          imageUrl: url,
+          image: { url, original_url: original, width, height },
+        });
+      } catch (e) {
+        const timeout = String(e?.name || '').toLowerCase() === 'aborterror';
+        return json(200, {
+          ok: false,
+          action: 'generate',
+          error: timeout ? 'provider_timeout' : 'generate_failed',
+          stage,
+          safeErrorMessage: timeout ? 'Imagen generation timed out before the serverless limit.' : (e?.message || String(e) || 'Generate failed'),
+          providerStatus: null,
+          providerMessageFirst500: (e?.message || String(e) || '').slice(0, 500),
+        });
       }
-      return json(200, {
-        ok: true,
-        action: 'generate',
-        provider: 'gemini-studio-flow',
-        imageUrl: url,
-        image: { url, original_url: original, width, height },
-        finalProductionPrompt,
-        selectedAspectRatio: `${targetW}:${targetH}`,
-        referenceImageIncluded,
-        referenceImageName: body.referenceImageName || null,
-        referenceImageType: String(body.referenceImageType || '').trim() || null,
-        referenceMode,
-        referenceAnalysis,
-        cropFillApplied: true,
-        imageFilledCanvas: true,
-        canonicalApprovedImageUrl: url,
-      });
     }
+
 
 
     if (action === 'edit') {
