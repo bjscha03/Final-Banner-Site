@@ -67,6 +67,31 @@ function inferBannerType(prompt='') {
   return 'business';
 }
 
+function buildLayoutPreset(bannerType, texts = []) {
+  const base = {
+    graduation: [{ x: 50, y: 18, fontSize: 78 }, { x: 50, y: 80, fontSize: 48 }],
+    birthday: [{ x: 50, y: 22, fontSize: 72 }, { x: 50, y: 78, fontSize: 44 }],
+    sports: [{ x: 50, y: 16, fontSize: 80 }, { x: 50, y: 82, fontSize: 42 }],
+    seasonal: [{ x: 50, y: 22, fontSize: 70 }, { x: 50, y: 78, fontSize: 42 }],
+    business: [{ x: 50, y: 20, fontSize: 66 }, { x: 50, y: 78, fontSize: 38 }],
+    church: [{ x: 50, y: 20, fontSize: 66 }, { x: 50, y: 78, fontSize: 38 }],
+    event: [{ x: 50, y: 20, fontSize: 66 }, { x: 50, y: 78, fontSize: 38 }],
+  }[bannerType] || [{ x: 50, y: 20, fontSize: 66 }, { x: 50, y: 78, fontSize: 38 }];
+  return texts.map((text, i) => ({
+    id: `ai-text-${i + 1}`,
+    text,
+    x: base[Math.min(i, base.length - 1)].x,
+    y: base[Math.min(i, base.length - 1)].y,
+    fontSize: base[Math.min(i, base.length - 1)].fontSize,
+    color: '#FFFFFF',
+    fontFamily: 'Arial',
+    fontWeight: '700',
+    align: 'center',
+    strokeColor: '#000000',
+    strokeWidth: 2,
+  }));
+}
+
 function detectFakeText(content = '') {
   const s = String(content || '').toLowerCase();
   return HARD_BANNED_TEXT.some((t) => s.includes(t));
@@ -335,19 +360,7 @@ export async function handler(event) {
           selectedBannerRatio,
           finalProductionPrompt,
           bannerType,
-          suggestedTextLayers: extracted.allowedTextList.map((text, i) => ({
-            id: `ai-text-${i + 1}`,
-            text,
-            x: 50,
-            y: i === 0 ? 18 : 78,
-            fontSize: i === 0 ? 72 : 48,
-            color: '#FFFFFF',
-            fontFamily: 'Arial',
-            fontWeight: '700',
-            align: 'center',
-            strokeColor: '#000000',
-            strokeWidth: 2,
-          })),
+          suggestedTextLayers: buildLayoutPreset(bannerType, extracted.allowedTextList),
           providerStatus: 200,
           cropFillApplied: true,
           canonicalApprovedImageUrl: url,

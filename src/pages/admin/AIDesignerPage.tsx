@@ -120,6 +120,7 @@ const AIDesignerPage: React.FC = () => {
 
   const [history, setHistory] = useState<Snap[]>([]);
   const [textLayers, setTextLayers] = useState<any[]>([]);
+  const [logoLayer, setLogoLayer] = useState<{url:string;x:number;y:number;w:number} | null>(null);
 
   const [imageTransform, setImageTransform] = useState({ x: 0, y: 0, scale: 1, mode: 'fill' as 'fit'|'fill'|'custom' });
   const [imageNaturalRatio, setImageNaturalRatio] = useState(16/9);
@@ -367,10 +368,10 @@ const AIDesignerPage: React.FC = () => {
           <p className="text-xs text-slate-500 mt-1">PNG, JPG, WEBP • Optional</p>
           <input type="file" accept="image/png,image/jpeg,image/jpg,image/webp" onChange={async(e)=>{setUploadError(''); const f=e.target.files?.[0]; if(!f) return; try { const data = await readFile(f); setReferenceImage(data); setReferenceImageName(f.name); setReferenceImageType(f.type || 'image/*'); setReferenceImageFile(f); setReferenceImagePreview(data); } catch { setUploadError('Reference upload failed. Please try another image.'); setReferenceImage(null); setReferenceImageName(''); setReferenceImageType(''); setReferenceImageFile(null); setReferenceImagePreview(null);} }} className="hidden"/>
         </label>
-        {referenceImageName && <div className="mt-2 rounded-lg border border-slate-200 bg-white p-2"><p className="text-xs text-slate-600 truncate">{referenceImageName}</p><p className="text-[11px] text-slate-500">{referenceImageType}</p>{referenceImagePreview && <img src={referenceImagePreview} alt="Reference preview" className="mt-2 h-16 w-16 rounded object-cover border border-slate-200" />}<button type="button" onClick={()=>{setReferenceImage(null);setReferenceImageName('');setReferenceImageType('');setReferenceImageFile(null);setReferenceImagePreview(null);}} className="mt-2 text-xs text-slate-600 underline">Remove reference</button></div>}
+        {referenceImageName && <div className="mt-2 rounded-lg border border-slate-200 bg-white p-2"><p className="text-xs text-slate-600 truncate">{referenceImageName}</p><p className="text-[11px] text-slate-500">{referenceImageType}</p>{referenceImagePreview && <img src={referenceImagePreview} alt="Reference preview" className="mt-2 h-16 w-16 rounded object-cover border border-slate-200" />}<button type="button" onClick={()=>{setReferenceImage(null);setReferenceImageName('');setReferenceImageType('');setReferenceImageFile(null);setReferenceImagePreview(null);setLogoLayer(null);}} className="mt-2 text-xs text-slate-600 underline">Remove reference</button></div>}
         {uploadError && <p className="mt-2 text-xs text-red-600">{uploadError}</p>}
       </div>
-      <button disabled={busy!==null||!(enhancedPrompt||prompt).trim()} onClick={async()=>{setBusy('generate');setErrorOutput('');setGenerationFallbackNote('');try{const {body}=await callFn('generate'); setLastAiMeta(body); const nextUrl = body?.image?.url||body?.imageUrl; if(nextUrl){saveSnapshot(); setImageUrl(nextUrl); setTextLayers(body?.suggestedTextLayers || []); setLastValidImageUrl(nextUrl); setImageTransform({ x: 0, y: 0, scale: 1, mode: 'fill' }); setSelected(false); if(body?.generationFallback) setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.');} else setErrorOutput(body?.safeErrorMessage||body?.error||'Generate failed.');}finally{setBusy(null);}}} className="w-full bg-[#ffd200] hover:bg-[#ffdb38] text-slate-900 font-bold py-3.5 rounded-xl inline-flex items-center justify-center gap-2 shadow-sm hover:shadow-md transition-all disabled:bg-[#fde68a] disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none">{busy==='generate'?<><Spinner/>Generating Design...</>:<><Sparkles className="w-4 h-4" />Generate Design</>}</button>
+      <button disabled={busy!==null||!(enhancedPrompt||prompt).trim()} onClick={async()=>{setBusy('generate');setErrorOutput('');setGenerationFallbackNote('');try{const {body}=await callFn('generate'); setLastAiMeta(body); const nextUrl = body?.image?.url||body?.imageUrl; if(nextUrl){saveSnapshot(); setImageUrl(nextUrl); setTextLayers(body?.suggestedTextLayers || []); if (referenceImagePreview) setLogoLayer({ url: referenceImagePreview, x: 85, y: 16, w: 14 }); setLastValidImageUrl(nextUrl); setImageTransform({ x: 0, y: 0, scale: 1, mode: 'fill' }); setSelected(false); if(body?.generationFallback) setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.');} else setErrorOutput(body?.safeErrorMessage||body?.error||'Generate failed.');}finally{setBusy(null);}}} className="w-full bg-[#ffd200] hover:bg-[#ffdb38] text-slate-900 font-bold py-3.5 rounded-xl inline-flex items-center justify-center gap-2 shadow-sm hover:shadow-md transition-all disabled:bg-[#fde68a] disabled:text-slate-500 disabled:cursor-not-allowed disabled:shadow-none">{busy==='generate'?<><Spinner/>Generating Design...</>:<><Sparkles className="w-4 h-4" />Generate Design</>}</button>
       {imageUrl && <>
         <input value={editInstruction} onChange={(e)=>setEditInstruction(e.target.value)} className="w-full rounded-xl border border-slate-200 p-3" placeholder="Edit instruction"/>
         <button disabled={busy!==null||!editInstruction.trim()} onClick={async()=>{setBusy('enhanceEdit');try{const {body}=await callFn('enhance'); if(body?.enhancedPrompt) setEditInstruction(body.enhancedPrompt);}finally{setBusy(null);}}} className="w-full border border-slate-200 py-2.5 rounded-xl disabled:opacity-60 disabled:cursor-not-allowed bg-white">Enhance Edit Prompt</button>
@@ -434,6 +435,7 @@ const AIDesignerPage: React.FC = () => {
                 {textLayers.map((t:any)=>(
                   <div key={t.id} className="absolute pointer-events-none select-none font-bold" style={{left:`${t.x}%`,top:`${t.y}%`,transform:'translate(-50%,-50%)',color:t.color,fontSize:t.fontSize,textAlign:t.align as any,textShadow:`-${t.strokeWidth}px 0 ${t.strokeColor},0 ${t.strokeWidth}px ${t.strokeColor},${t.strokeWidth}px 0 ${t.strokeColor},0 -${t.strokeWidth}px ${t.strokeColor}`}}>{t.text}</div>
                 ))}
+                {logoLayer && <img src={logoLayer.url} alt="Logo layer" className="absolute pointer-events-none" style={{left:`${logoLayer.x}%`,top:`${logoLayer.y}%`,width:`${logoLayer.w}%`,transform:'translate(-50%,-50%)'}} />}
               </div>;
             })()}
           </div> : <div className="absolute inset-0 grid place-items-center text-slate-500 font-semibold">Generate or upload an image</div>}
@@ -463,6 +465,11 @@ const AIDesignerPage: React.FC = () => {
           <button onClick={clearImage} className="px-3 py-1.5 border border-red-200 text-red-600 bg-white rounded-full shadow-sm">Clear Image</button>
         </div>
         <input type="range" min={0.5} max={2} step={0.01} value={imageTransform.scale} onChange={(e)=>setImageTransform(t=>({...t, scale:Number(e.target.value), mode:'custom'}))} className="mt-3 w-full" />
+        {textLayers.length > 0 && <div className="mt-3 space-y-2">{textLayers.map((t:any,i)=>(
+          <div key={t.id} className="grid grid-cols-3 gap-2">
+            <input value={t.text} onChange={(e)=>setTextLayers((arr)=>arr.map((x,j)=>j===i?{...x,text:e.target.value}:x))} className="col-span-3 border border-slate-200 rounded px-2 py-1 text-sm" />
+          </div>
+        ))}</div>}
 
         <div className="mt-3 flex gap-2 overflow-x-auto">{history.map((h,i)=><button key={i} onClick={()=>restoreSnapshot(h)} className="w-14 h-14 border border-slate-200 rounded overflow-hidden"><img src={h.imageUrl} className="w-full h-full object-cover"/></button>)}</div>
       </div>
