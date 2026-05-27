@@ -21,6 +21,7 @@ const GENERATION_GUARDRAIL = 'Create only the final flat print-ready artwork fil
 const BANNED_PROMPT_WORDS = ['mockup', 'banner mockup', 'hanging banner', 'product shot', 'display scene', 'presentation', 'example designs', 'design options', 'variations'];
 const FAKE_LOGO_MARKERS = ['ATTACHED LOGO', 'YOUR LOGO', 'LOGO HERE', 'SAMPLE'];
 const EXTRA_TEXT_FORBIDDEN = true;
+const HARD_BANNED_TEXT = ['lorem ipsum', 'attached logo', 'your logo', 'logo here', 'sample', 'fake latin'];
 
 function sanitizePromptText(input) {
   let clean = String(input || '').trim();
@@ -30,22 +31,26 @@ function sanitizePromptText(input) {
   return clean.replace(/\s{2,}/g, ' ').trim();
 }
 
-function buildFinalProductionPrompt({ userPrompt, w, h, referenceAnalysis }) {
-  const { extractedBannerText, designDirection, allowedTextList } = extractBannerTextAndDirection(userPrompt);
-  const direction = [designDirection, referenceAnalysis ? `Reference guidance: ${referenceAnalysis}.` : ''].filter(Boolean).join(' ');
-  return {
-    extractedBannerText,
-    designDirection: direction || 'Premium commercial banner style.',
-    allowedTextList,
-    prompt: `Create one flat, full-bleed, print-ready ${w}ft x ${h}ft horizontal premium commercial banner artwork. Use ONLY this visible banner text: ${allowedTextList.length ? allowedTextList.map((t) => `"${t}"`).join(', ') : '" "'}. Design direction: ${direction || 'Premium commercial banner style with professional typography and clean hierarchy.'} Fill the entire canvas edge-to-edge. No borders, no bars, no mockups, no frames, no hardware, no extra text. Do not add any other visible words, slogans, subtitles, or filler text.`,
-  };
+function buildProductionBannerPrompt({ rawUserPrompt, selectedWidthFt, selectedHeightFt, referenceAnalysis, extractedBannerText, designDirection }) {
+  const textPart = extractedBannerText.length
+    ? extractedBannerText.map((t) => `"${t}"`).join(' and ')
+    : '" "';
+  const direction = [designDirection, referenceAnalysis ? `using uploaded reference style/colors: ${referenceAnalysis}` : '']
+    .filter(Boolean)
+    .join('. ');
+  return `Create one flat, full-bleed, print-ready ${selectedWidthFt}ft x ${selectedHeightFt}ft horizontal premium banner artwork.
+Visible text allowed: ${textPart}.
+Do not add any other words, slogans, filler text, lorem ipsum, placeholder text, fake contact info, or fake logos.
+Design direction: ${direction || 'premium commercial banner with clean hierarchy and professional typography'}.
+Fill the entire canvas edge-to-edge. No borders, bars, margins, mockups, frames, shadows, hardware, grommets, or poster layout.`;
 }
 
 function extractBannerTextAndDirection(raw) {
   const prompt = sanitizePromptText(raw);
   const quoted = [...prompt.matchAll(/"([^"]{2,80})"/g)].map((m) => m[1].trim());
   const classMatch = prompt.match(/\bclass of \d{4}\b/i)?.[0];
-  const forMatch = prompt.match(/\bfor\s+([A-Z][a-zA-Z]+)\b/)?.[1];
+  const forMatchAll = [...prompt.matchAll(/\bfor\s+([A-Z][a-zA-Z]+)\b/g)].map((m) => m[1]);
+  const forMatch = forMatchAll.length ? forMatchAll[forMatchAll.length - 1] : null;
   const allowed = [...new Set([...(quoted || []), ...(classMatch ? [classMatch] : []), ...(forMatch ? [forMatch] : [])])].filter(Boolean);
   const direction = prompt
     .replace(/"([^"]{2,80})"/g, ' ')
@@ -54,6 +59,11 @@ function extractBannerTextAndDirection(raw) {
     .replace(/\s+/g, ' ')
     .trim();
   return { extractedBannerText: allowed.join(' | '), designDirection: direction, allowedTextList: allowed };
+}
+
+function detectFakeText(content = '') {
+  const s = String(content || '').toLowerCase();
+  return HARD_BANNED_TEXT.some((t) => s.includes(t));
 }
 
 async function analyzeReferenceImage({ referenceImage, textModel, googleApiKey }) {
@@ -225,10 +235,18 @@ export async function handler(event) {
       const imagenAspectRatio = pickImagenRatio(targetW, targetH);
       const referenceImageIncluded = Boolean(body.referenceImage);
       const referenceAnalysis = referenceImageIncluded ? await analyzeReferenceImage({ referenceImage: body.referenceImage, textModel, googleApiKey }) : null;
-      const referenceMode = referenceImageIncluded ? (referenceAnalysis ? 'analyzed_prompt_guidance' : 'direct_image_input') : 'none';
       const logoLikeReference = detectLikelyLogoReference(referenceAnalysis || '', body.referenceImageName || '');
-      const extracted = buildFinalProductionPrompt({ userPrompt: cleanedSource, w: targetW, h: targetH, referenceAnalysis });
-      const finalProductionPrompt = `${GENERATION_GUARDRAIL}\n${extracted.prompt}`;
+      const referenceMode = referenceImageIncluded ? (logoLikeReference ? 'direct_logo_composite' : 'analyzed_prompt_guidance') : 'none';
+      const extracted = extractBannerTextAndDirection(cleanedSource);
+      const finalProductionPrompt = buildProductionBannerPrompt({
+        rawUserPrompt: cleanedSource,
+        selectedWidthFt: targetW,
+        selectedHeightFt: targetH,
+        referenceAnalysis,
+        extractedBannerText: extracted.allowedTextList,
+        designDirection: extracted.designDirection,
+      });
+      const fakeTextDetected = detectFakeText(finalProductionPrompt);
 
       if (!SUPPORTED_IMAGEN_RATIOS.includes(imagenAspectRatio)) {
         return json(200, { ok: false, action, imageUrl: null, safeErrorMessage: 'Unsupported mapped Imagen ratio.' });
@@ -288,6 +306,7 @@ export async function handler(event) {
       let canonicalImageUrl = cloudinaryRatioTransformUrl(upload.public_id, targetW, targetH);
       let logoCompositeApplied = false;
       let fakeLogoTextDetected = false;
+      let logoCompositeError = null;
       const ocr = await cloudinary.url(upload.public_id, { resource_type: 'image', type: 'upload', secure: true, ocr: 'adv_ocr' });
       const checkText = `${ocr}`;
       fakeLogoTextDetected = FAKE_LOGO_MARKERS.some((m) => checkText.toUpperCase().includes(m));
@@ -295,7 +314,8 @@ export async function handler(event) {
       let logoAssetPublicId = null;
       let composedImageValid = true;
       let composedImageUrl = canonicalImageUrl;
-      if (logoLikeReference && body.referenceImage) {
+      const ENABLE_LOGO_COMPOSITING = false;
+      if (ENABLE_LOGO_COMPOSITING && logoLikeReference && body.referenceImage) {
         try {
           const logoUpload = await cloudinary.uploader.upload(body.referenceImage, { folder: 'ai-generated-banners', resource_type: 'image' });
           logoAssetPublicId = logoUpload.public_id;
@@ -304,9 +324,11 @@ export async function handler(event) {
           composedImageUrl = cloudinary.url(upload.public_id, { resource_type: 'image', type: 'upload', secure: true, transformation: [{ aspect_ratio: `${targetW}:${targetH}`, crop: 'fill', gravity: 'auto' }, { overlay: logoUpload.public_id, width: 260, crop: 'fit', gravity: logoPlacement, x: 40, y: 40 }, { fetch_format: 'auto', quality: 'auto' }] });
           canonicalImageUrl = composedImageUrl;
           logoCompositeApplied = true;
-        } catch {
+        } catch (e) {
           composedImageValid = false;
+          logoCompositeError = String(e?.message || e || 'logo_composite_failed');
           canonicalImageUrl = cloudinaryRatioTransformUrl(upload.public_id, targetW, targetH);
+          logoCompositeApplied = false;
         }
       }
       return json(200, {
@@ -342,11 +364,13 @@ export async function handler(event) {
         designDirection: extracted.designDirection,
         allowedTextList: extracted.allowedTextList,
         extraTextForbidden: EXTRA_TEXT_FORBIDDEN,
+        fakeTextDetected,
         referenceImageType: String(body.referenceImageType || '').trim() || null,
         logoPlacement,
         logoAssetPublicId,
         composedImageUrl,
         composedImageValid,
+        logoCompositeError,
         imageLoadValid: true,
       });
     }
