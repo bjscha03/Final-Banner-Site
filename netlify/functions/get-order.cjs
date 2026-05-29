@@ -199,6 +199,7 @@ exports.handler = async (event, context) => {
       'saturday_delivery',
       'same_day_fee_cents',
       'saturday_fee_cents',
+      'shipping_cents',
       'payment_method',
       'paypal_order_id',
       'created_at',
@@ -226,6 +227,8 @@ exports.handler = async (event, context) => {
     // When sqlExpr is given, the column existence check uses columnName but
     // the SQL emitted is the expression (with the alias preserved).
     const itemFields = [
+      ['id'],
+      ['id', 'item_id'],
       ['width_in'],
       ['height_in'],
       ['quantity'],

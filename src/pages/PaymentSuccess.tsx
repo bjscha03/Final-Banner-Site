@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
@@ -58,6 +58,8 @@ const PaymentSuccess: React.FC = () => {
     applied_discount_type?: string;
     same_day_fee_cents?: number;
     saturday_fee_cents?: number;
+    shipping_cents?: number;
+    status?: string;
   } | null>(null);
   
   // Get data from navigation state or defaults
@@ -74,6 +76,7 @@ const PaymentSuccess: React.FC = () => {
         applied_discount_cents: loadedOrder.applied_discount_cents,
         same_day_fee_cents: loadedOrder.same_day_fee_cents,
         saturday_fee_cents: loadedOrder.saturday_fee_cents,
+        shipping_cents: loadedOrder.shipping_cents,
       }
     : (state?.serverPricing || null); // Prefer canonical DB pricing
   const stateShippingAddress = normalizeShippingAddress(state?.shippingAddress || {});
@@ -101,62 +104,133 @@ const PaymentSuccess: React.FC = () => {
     loadOrder();
   }, [orderId]);
 
+  const canonicalOrderItems = useMemo(() => loadedOrder?.items || [], [loadedOrder?.items]);
+  const canonicalOrderStatus = String(loadedOrder?.status || '').toLowerCase();
+  const canonicalOrderIsPaid = ['paid', 'completed', 'complete', 'succeeded'].includes(canonicalOrderStatus);
+  const canonicalOrderTotalCents = loadedOrder ? getDisplayOrderTotalCents(loadedOrder as any) : 0;
+  const canonicalOrderTaxCents = Number(loadedOrder?.tax_cents || 0);
+  const canonicalOrderShippingCents = Number((loadedOrder as any)?.shipping_cents || 0);
+
   // Calculate pricing breakdown using the same logic as cart store
 
-  // Track purchase event for analytics
+  // Track purchase event for analytics from canonical server-loaded order data.
   useEffect(() => {
-    if (orderId && items.length > 0) {
-      // Idempotency guard: never fire purchase events twice for the same order
-      const trackedKey = `purchase_tracked_${orderId}`;
-      try {
-        if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(trackedKey)) {
-          return;
-        }
-      } catch (_e) {
-        // sessionStorage unavailable — fall back to component lifecycle dedupe
-      }
-
-      const analyticsItems = items.map((item) => ({
-        item_id: item.id,
-        item_name: `${item.width_in}x${item.height_in} ${item.material} Banner`,
-        item_category: 'Banner',
-        item_variant: item.material,
-        price: item.line_total_cents,
-        quantity: item.quantity,
-      }));
-      
-      const pricing = calculatePricingBreakdown();
-      
-      trackPurchase({
-        transaction_id: orderId,
-        value: pricing.total,
-        tax: pricing.tax,
-        shipping: 0, // Free shipping
-        items: analyticsItems,
-      });
-      
-      // Track Facebook Pixel Purchase
-      trackFBPurchase({
-        value: pricing.total,
-        transaction_id: orderId,
-      });
-
-      // Track Google Ads purchase conversion (no-op if env vars not configured)
-      trackGoogleAdsPurchaseConversion({
-        transaction_id: orderId,
-        value: pricing.total,
-        currency: 'USD',
-      });
-
-      try {
-        if (typeof sessionStorage !== 'undefined') {
-          sessionStorage.setItem(trackedKey, '1');
-        }
-      } catch (_e) {
-        // ignore
-      }
+    if (!orderId) {
+      console.log('[PaymentSuccess] Waiting for order data: missing orderId');
+      return;
     }
-  }, [orderId]); // Track once when orderId is available
+
+    if (!loadedOrder) {
+      console.log('[PaymentSuccess] Waiting for order data before purchase tracking', { orderId });
+      return;
+    }
+
+    if (!canonicalOrderIsPaid) {
+      console.log('[PaymentSuccess] Purchase tracking skipped because order not paid', {
+        orderId,
+        status: loadedOrder.status,
+      });
+      return;
+    }
+
+    if (!canonicalOrderItems.length) {
+      console.log('[PaymentSuccess] Waiting for order items before purchase tracking', { orderId });
+      return;
+    }
+
+    if (!Number.isFinite(canonicalOrderTotalCents) || canonicalOrderTotalCents <= 0) {
+      console.log('[PaymentSuccess] Waiting for final server pricing before purchase tracking', {
+        orderId,
+        total_cents: loadedOrder.total_cents,
+      });
+      return;
+    }
+
+    const trackedKey = `purchase_tracked_${orderId}`;
+    try {
+      const alreadyTracked =
+        (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(trackedKey))
+        || (typeof localStorage !== 'undefined' && localStorage.getItem(trackedKey));
+      if (alreadyTracked) {
+        console.log('[PaymentSuccess] Purchase tracking skipped because duplicate', { orderId });
+        return;
+      }
+    } catch (_e) {
+      // Storage unavailable — GA4 transaction_id still provides provider-side dedupe.
+    }
+
+    const analyticsItems = canonicalOrderItems.map((item, index) => {
+      const quantity = Number(item.quantity || 1) || 1;
+      const lineTotalCents = Number(item.line_total_cents || 0);
+      const unitPriceCents = quantity > 0 ? Math.round(lineTotalCents / quantity) : lineTotalCents;
+      const width = item.width_in || 'Custom';
+      const height = item.height_in || 'Size';
+      const material = item.material || item.product_type || 'Banner';
+      const itemId = String(
+        item.id
+        || (item as any).item_id
+        || (item as any).file_key
+        || `${orderId}-item-${index + 1}`
+      );
+
+      return {
+        item_id: itemId,
+        item_name: getItemDisplayName(item) || `${width}x${height} ${material} Banner`,
+        item_category: item.product_type || 'Banner',
+        item_variant: item.material || item.product_type || 'banner',
+        price: unitPriceCents,
+        quantity,
+      };
+    });
+
+    trackPurchase({
+      transaction_id: orderId,
+      value: canonicalOrderTotalCents,
+      tax: canonicalOrderTaxCents,
+      shipping: canonicalOrderShippingCents,
+      items: analyticsItems,
+    });
+
+    // Track Facebook Pixel Purchase
+    trackFBPurchase({
+      value: canonicalOrderTotalCents,
+      transaction_id: orderId,
+    });
+
+    // Track Google Ads purchase conversion (no-op if env vars not configured)
+    trackGoogleAdsPurchaseConversion({
+      transaction_id: orderId,
+      value: canonicalOrderTotalCents,
+      currency: 'USD',
+    });
+
+    try {
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem(trackedKey, '1');
+      }
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(trackedKey, '1');
+      }
+    } catch (_e) {
+      // ignore storage failures after dispatch
+    }
+
+    console.log('[PaymentSuccess] Purchase tracking fired', {
+      orderId,
+      value_cents: canonicalOrderTotalCents,
+      tax_cents: canonicalOrderTaxCents,
+      shipping_cents: canonicalOrderShippingCents,
+      item_count: analyticsItems.length,
+    });
+  }, [
+    orderId,
+    loadedOrder,
+    canonicalOrderItems,
+    canonicalOrderIsPaid,
+    canonicalOrderTotalCents,
+    canonicalOrderTaxCents,
+    canonicalOrderShippingCents,
+  ]);
   const calculatePricingBreakdown = () => {
     if (items.length === 0) {
       return { subtotal: 0, tax: 0, total: 0, discountCents: 0, discountLabel: "", shippingCents: 0, sameDayFeeCents: 0, saturdayFeeCents: 0 };
