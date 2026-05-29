@@ -251,7 +251,7 @@ const PaymentSuccess: React.FC = () => {
         total: getDisplayOrderTotalCents(serverPricing as any),
         discountCents: serverPricing.applied_discount_cents || 0,
         discountLabel,
-        shippingCents: (serverPricing as any).shipping_cents || 0,
+        shippingCents: 0,
         sameDayFeeCents: (serverPricing as any).same_day_fee_cents || 0,
         saturdayFeeCents: (serverPricing as any).saturday_fee_cents || 0,
       };
