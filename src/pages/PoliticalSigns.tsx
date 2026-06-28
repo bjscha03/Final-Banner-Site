@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { Clock, Truck, ShieldCheck, CheckCircle, ArrowRight } from 'lucide-react';
 import Layout from '@/components/Layout';
+import IndependenceDayNotice from '@/components/IndependenceDayNotice';
 
 type ProductType = 'banner' | 'yard_sign' | 'car_magnet';
 
@@ -112,6 +113,12 @@ const PoliticalSigns: React.FC = () => {
           </div>
         </div>
       </section>
+
+      <div className="bg-white px-4 pt-8 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-6xl">
+          <IndependenceDayNotice />
+        </div>
+      </div>
 
       <section id="choose-product" className="bg-white py-14 sm:py-16">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
