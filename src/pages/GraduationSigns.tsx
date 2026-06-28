@@ -15,6 +15,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import Layout from '@/components/Layout';
+import IndependenceDayNotice from '@/components/IndependenceDayNotice';
 import { useToast } from '@/components/ui/use-toast';
 import { useCartStore } from '@/store/cart';
 import type { MaterialKey } from '@/store/quote';
@@ -542,6 +543,12 @@ const GraduationSigns: React.FC = () => {
           </div>
         </div>
       </section>
+
+      <div className="bg-white px-4 pt-8 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-6xl">
+          <IndependenceDayNotice />
+        </div>
+      </div>
 
       {/* Dynamic flow section */}
       <section id="choose-product-section" className="bg-white py-14 sm:py-20">
