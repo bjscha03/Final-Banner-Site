@@ -6,7 +6,6 @@
 import React from 'react';
 import { useParams, Link, Navigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
-import IndependenceDayNotice from '@/components/IndependenceDayNotice';
 import SEO, {
   getBreadcrumbSchema,
   getProductSchema,
@@ -69,10 +68,6 @@ const CategoryPage: React.FC = () => {
           title={category.h1}
           subtitle={category.description}
         />
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-          <IndependenceDayNotice />
-        </div>
 
         {/* Main Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
