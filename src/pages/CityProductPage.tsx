@@ -10,7 +10,6 @@
 import React from 'react';
 import { useParams, Navigate, Link } from 'react-router-dom';
 import Layout from '@/components/Layout';
-import IndependenceDayNotice from '@/components/IndependenceDayNotice';
 import SEO, {
   getBreadcrumbSchema,
   getProductSchema,
@@ -112,10 +111,6 @@ const CityProductPage: React.FC<CityProductPageProps> = ({ productSlug }) => {
 
       <div className="bg-white">
         <PageHeader title={content.h1} subtitle={content.heroSubtitle} />
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-          <IndependenceDayNotice />
-        </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
           <Breadcrumbs items={content.breadcrumbs} />

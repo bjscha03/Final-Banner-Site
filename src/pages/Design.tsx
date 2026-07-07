@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams, useLocation, Link } from 'react-router-do
 import { Helmet } from 'react-helmet-async';
 import { Clock, Star, CheckCircle, Truck, X, Loader2, ArrowRight, Brush, Minus, Plus, Lock, Mail, Droplets, Sun, Wind, Palette, Tag, Move, ZoomIn, ZoomOut, Ruler, Layers, Sparkles } from 'lucide-react';
 import Layout from '@/components/Layout';
-import IndependenceDayNotice from '@/components/IndependenceDayNotice';
 import { useQuoteStore, type MaterialKey } from '@/store/quote';
 import { useCartStore, type CartItem } from '@/store/cart';
 import { useUIStore } from '@/store/ui';
@@ -2051,12 +2050,6 @@ const Design: React.FC = () => {
           </div>
         </div>
       </section>
-
-      <div className="bg-gray-50 px-4 pt-6">
-        <div className="mx-auto max-w-4xl lg:max-w-7xl">
-          <IndependenceDayNotice />
-        </div>
-      </div>
 
       <section ref={orderRef} id="order-builder" className="py-12 px-4 bg-gray-50">
         <div className="max-w-4xl lg:max-w-7xl mx-auto">

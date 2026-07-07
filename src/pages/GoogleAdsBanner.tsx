@@ -12,7 +12,6 @@ import { resolvePromo } from '@/lib/promoEngine';
 import { DESIGN_GROMMET_OPTIONS } from '@/lib/grommets';
 import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
 import CartModal from '@/components/CartModal';
-import IndependenceDayNotice from '@/components/IndependenceDayNotice';
 
 import { getQuantityDiscountRate } from '@/lib/quantity-discount';
 import { generateFinalRenderFromHTML } from '@/utils/generateFinalRenderFromHTML';
@@ -1852,11 +1851,6 @@ const GoogleAdsBanner: React.FC = () => {
           </div>
         </section>
 
-        <div className="bg-gray-50 px-4 pt-6">
-          <div className="mx-auto max-w-4xl lg:max-w-7xl">
-            <IndependenceDayNotice />
-          </div>
-        </div>
 
         <section ref={orderRef} id="order-builder" className="mt-8 py-12 px-4 bg-gray-50">
           <div className="max-w-4xl lg:max-w-7xl mx-auto">
@@ -2504,7 +2498,6 @@ const GoogleAdsBanner: React.FC = () => {
         </section>
 
         <TrustStrip />
-
 
         {/* Testimonials */}
         <section className="py-12 px-4 bg-white">
