@@ -77,7 +77,7 @@ const EmailDeliveryStatus: React.FC<EmailDeliveryStatusProps> = ({ order, onUpda
       kind: 'shipped',
       label: 'Shipping notification',
       status: order.shipping_notification_status,
-      endpoint: '/.netlify/functions/send-shipping-notification',
+      endpoint: '/.netlify/functions/resend-tracking-email',
       retryBody: { orderId: order.id },
     },
   ];
