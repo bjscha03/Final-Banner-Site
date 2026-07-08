@@ -325,8 +325,8 @@ const AdminOrders: React.FC = () => {
       );
 
       toast({
-        title: "Tracking Added",
-        description: `Tracking information added for order #${orderId.slice(-8)}`,
+        title: "Tracking Saved",
+        description: `Tracking number saved for order #${orderId.slice(-8)}. No email was sent.`,
       });
     } catch (error) {
       console.error('Error adding tracking:', error);
@@ -358,8 +358,8 @@ const AdminOrders: React.FC = () => {
       );
 
       toast({
-        title: "Tracking Updated",
-        description: `Tracking information updated for order #${orderId.slice(-8)}`,
+        title: "Tracking Saved",
+        description: `Tracking number saved for order #${orderId.slice(-8)}. No email was sent.`,
       });
     } catch (error) {
       console.error('Error updating tracking:', error);
@@ -659,7 +659,7 @@ const AdminOrders: React.FC = () => {
 
   const handleSendShippingNotification = async (orderId: string) => {
     try {
-      const response = await fetch('/.netlify/functions/send-shipping-notification', {
+      const response = await fetch('/.netlify/functions/resend-tracking-email', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -680,21 +680,22 @@ const AdminOrders: React.FC = () => {
             ? {
                 ...order,
                 shipping_notification_sent: true,
-                shipping_notification_sent_at: new Date().toISOString()
+                shipping_notification_sent_at: new Date().toISOString(),
+                shipping_notification_status: 'sent'
               }
             : order
         )
       );
 
       toast({
-        title: "Shipping Notification Sent",
+        title: "Tracking email sent successfully",
         description: `Customer has been notified about order #${orderId.slice(-8)}`,
       });
     } catch (error) {
       console.error('Send shipping notification failed:', error);
       toast({
-        title: "Failed to Send Notification",
-        description: error.message || "Could not send shipping notification. Please try again.",
+        title: "Unable to send email",
+        description: "Unable to send email. Please try again.",
         variant: "destructive",
       });
     }
@@ -1493,30 +1494,41 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
           <div className="space-y-2">
             <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Tracking</div>
             {order.tracking_number ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge className="bg-green-100 text-green-800">
-                  <Truck className="h-3 w-3 mr-1" />
-                  {(order.tracking_carrier || DEFAULT_TRACKING_CARRIER).toUpperCase()}
-                </Badge>
-                <a
-                  href={fedexUrl(order.tracking_number)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-blue-600 hover:text-blue-800 font-mono underline break-words"
-                >
-                  {order.tracking_number}
-                </a>
-                {!isEditingTracking && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={handleEditTracking}
-                    className="h-7 px-2 text-xs"
+              <div className="space-y-2 rounded-md border border-green-100 bg-green-50 p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className="bg-green-100 text-green-800">
+                    <Truck className="h-3 w-3 mr-1" />
+                    {(order.tracking_carrier || DEFAULT_TRACKING_CARRIER).toUpperCase()}
+                  </Badge>
+                  {!isEditingTracking && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={handleEditTracking}
+                      className="h-7 px-2 text-xs"
+                    >
+                      <Edit3 className="h-3 w-3 mr-1" />
+                      Edit
+                    </Button>
+                  )}
+                </div>
+                <div className="text-xs text-gray-700">
+                  <span className="font-semibold">Tracking Number:</span>{' '}
+                  <a
+                    href={fedexUrl(order.tracking_number)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-mono text-blue-600 underline hover:text-blue-800 break-words"
                   >
-                    <Edit3 className="h-3 w-3 mr-1" />
-                    Edit
-                  </Button>
-                )}
+                    {order.tracking_number}
+                  </a>
+                </div>
+                <div className="text-xs text-gray-700">
+                  <span className="font-semibold">Last Email Sent:</span>{' '}
+                  {order.shipping_notification_sent_at
+                    ? new Date(order.shipping_notification_sent_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
+                    : 'Not sent yet'}
+                </div>
               </div>
             ) : (
               <Button
@@ -1548,7 +1560,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                   className="h-8 px-3 text-xs"
                 >
                   <Save className="h-3 w-3 mr-1" />
-                  Save
+                  Save Tracking
                 </Button>
                 <Button
                   size="sm"
@@ -1648,7 +1660,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                 </Button>
               )}
 
-              {!isGraduation && order.tracking_number && !order.shipping_notification_sent && (
+              {!isGraduation && order.tracking_number && (
                 <Button
                   size="sm"
                   variant="outline"
@@ -1664,7 +1676,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                   ) : (
                     <>
                       <Mail className="h-3 w-3 mr-1" />
-                      Send Email
+                      {order.shipping_notification_sent ? 'Resend Tracking Email' : 'Send Tracking Email'}
                     </>
                   )}
                 </Button>
