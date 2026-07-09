@@ -1,4 +1,5 @@
 import type { Order, OrderItem } from './orders/types';
+import { normalizeSizeKey, resolveFixedProductCost } from './admin-product-costs';
 
 export const ADMIN_PROFIT_SHIPPING_COST_CENTS = 1000;
 
@@ -9,24 +10,24 @@ const bannerMaterialCostPerSqFt: Record<string, number> = {
   mesh: 2.44,
 };
 
-const magnetUnitCosts: Record<string, number> = {
-  '18x12': 11.95,
-  '24x12': 14.95,
-  '24x18': 20.95,
-  '42x12': 29.95,
-  '72x24': 89.7,
-};
-
 type LineEstimate = {
   reviewRequired: boolean;
   productionCostCents: number;
   reason?: string;
+  diagnostics?: Record<string, unknown>;
 };
 
-const normalizeDimKey = (wIn?: number, hIn?: number): string | null => {
-  if (!Number.isFinite(wIn) || !Number.isFinite(hIn)) return null;
-  const dims = [Math.round(wIn || 0), Math.round(hIn || 0)].sort((a, b) => a - b);
-  return `${dims[0]}x${dims[1]}`;
+const getRawProductName = (item: OrderItem): string | null => {
+  const extendedItem = item as OrderItem & { product_name?: string; productName?: string; name?: string; title?: string; sku?: string };
+  return extendedItem.product_name || extendedItem.productName || extendedItem.name || extendedItem.title || extendedItem.sku || null;
+};
+
+const getRawSize = (item: OrderItem): string | null => {
+  const extendedItem = item as OrderItem & { size?: string; dimensions?: string; selected_size?: string; selectedSize?: string; variant_title?: string };
+  const rawSize = extendedItem.size || extendedItem.dimensions || extendedItem.selected_size || extendedItem.selectedSize || extendedItem.variant_title;
+  if (rawSize) return rawSize;
+  if (Number.isFinite(item.width_in) && Number.isFinite(item.height_in)) return `${item.width_in}x${item.height_in}`;
+  return null;
 };
 
 const parsePolePocketEdges = (polePocketPosition?: string): string[] => {
@@ -72,14 +73,28 @@ const estimateBannerCost = (item: OrderItem): LineEstimate => {
   return { reviewRequired: false, productionCostCents: Math.round(totalCost * 100) };
 };
 
-const estimateMagnetCost = (item: OrderItem): LineEstimate => {
-  const key = normalizeDimKey(item.width_in, item.height_in);
-  if (!key || !Number.isFinite(item.quantity)) {
-    return { reviewRequired: true, productionCostCents: 0, reason: 'Missing magnet dimensions/quantity' };
+const estimateFixedProductCost = (item: OrderItem): LineEstimate => {
+  const result = resolveFixedProductCost({
+    productType: item.product_type,
+    productName: getRawProductName(item),
+    rawSize: getRawSize(item),
+    quantity: item.quantity,
+  });
+
+  if (!result.ok) {
+    return {
+      reviewRequired: true,
+      productionCostCents: 0,
+      reason: result.diagnostics.reason,
+      diagnostics: result.diagnostics as unknown as Record<string, unknown>,
+    };
   }
-  const unit = magnetUnitCosts[key];
-  if (!unit) return { reviewRequired: true, productionCostCents: 0, reason: `Unknown magnet size: ${key}` };
-  return { reviewRequired: false, productionCostCents: Math.round(unit * item.quantity * 100) };
+
+  return {
+    reviewRequired: false,
+    productionCostCents: result.totalCostCents,
+    diagnostics: result.diagnostics as unknown as Record<string, unknown>,
+  };
 };
 
 const estimateYardSignCost = (item: OrderItem): LineEstimate => {
@@ -98,11 +113,26 @@ const estimateYardSignCost = (item: OrderItem): LineEstimate => {
 };
 
 const estimateLineItemCost = (item: OrderItem): LineEstimate => {
-  const type = (item.product_type || 'banner').toLowerCase();
-  if (type.includes('magnet')) return estimateMagnetCost(item);
+  const productName = getRawProductName(item);
+  const type = (item.product_type || '').toLowerCase();
+  const productIdentity = `${type} ${productName || ''}`.toLowerCase();
+  if (productIdentity.includes('magnet')) return estimateFixedProductCost(item);
+  if (productIdentity.includes('poster')) return estimateFixedProductCost(item);
   if (type.includes('yard_sign') || type.includes('yardsign') || type.includes('yard-sign')) return estimateYardSignCost(item);
-  if (type === 'banner' || type.includes('banner')) return estimateBannerCost(item);
-  return { reviewRequired: true, productionCostCents: 0, reason: `Unsupported product type: ${type}` };
+  if (!type || type === 'banner' || type.includes('banner')) return estimateBannerCost(item);
+  return {
+    reviewRequired: true,
+    productionCostCents: 0,
+    reason: `Unsupported product type: ${type}`,
+    diagnostics: {
+      productType: item.product_type || null,
+      rawProductName: productName,
+      rawSize: getRawSize(item),
+      normalizedSize: normalizeSizeKey(getRawSize(item)),
+      quantity: Number.isFinite(Number(item.quantity)) ? Number(item.quantity) : null,
+      reason: `Unsupported product type: ${type}`,
+    },
+  };
 };
 
 const getRevenueBreakdownCents = (order: Order) => {
@@ -144,8 +174,12 @@ export const estimateOrderProfit = (order: Order) => {
         material: item.material,
         widthIn: item.width_in,
         heightIn: item.height_in,
+        rawProductName: getRawProductName(item),
+        rawSize: getRawSize(item),
+        normalizedSize: normalizeSizeKey(getRawSize(item)),
         quantity: item.quantity,
         reason: estimate.reason,
+        diagnostics: estimate.diagnostics,
       });
     }
     return estimate;
