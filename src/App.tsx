@@ -62,9 +62,6 @@ const Blog = lazy(() => import("./pages/Blog"));
 const BlogPostPage = lazy(() => import("./pages/BlogPostPage"));
 const BlogTagPage = lazy(() => import("./pages/BlogTagPage"));
 
-// Event Discovery page - lazy load
-const EventDiscovery = lazy(() => import("./pages/EventDiscovery"));
-
 // Category/SEO pages - lazy load
 const CategoryPage = lazy(() => import("./pages/CategoryPage"));
 
@@ -83,9 +80,6 @@ const GraduationSignsThankYou = lazy(() => import("./pages/GraduationSignsThankY
 const AdminOrders = lazy(() => import("./pages/admin/Orders"));
 const AdminAbandonedCarts = lazy(() => import("./pages/admin/AbandonedCarts"));
 const AdminCustomQuotes = lazy(() => import("./pages/admin/CustomQuotes"));
-const AdminEvents = lazy(() => import("./pages/admin/Events"));
-const AdminGraduationIntakes = lazy(() => import("./pages/admin/GraduationIntakes"));
-const AdminGraduationIntake = lazy(() => import("./pages/admin/GraduationIntake"));
 const AdminSetup = lazy(() => import("./pages/AdminSetup"));
 const AIDesignerPage = lazy(() => import("./pages/admin/AIDesignerPage"));
 const ProofApproval = lazy(() => import("./pages/ProofApproval"));
@@ -211,17 +205,11 @@ const App = () => (
             <Route path="/blog/:slug" element={<BlogPostPage />} />
             <Route path="/blog/tags/:tag" element={<BlogTagPage />} />
             
-            {/* Event Discovery */}
-            <Route path="/events" element={<EventDiscovery />} />
-            
             {/* Admin routes */}
             <Route path="/admin" element={<Navigate to="/admin/orders" replace />} />
             <Route path="/admin/orders" element={<AdminOrders />} />
             <Route path="/admin/abandoned-carts" element={<AdminAbandonedCarts />} />
             <Route path="/admin/custom-quotes" element={<AdminCustomQuotes />} />
-            <Route path="/admin/events" element={<AdminEvents />} />
-            <Route path="/admin/graduation-intakes" element={<AdminGraduationIntakes />} />
-            <Route path="/admin/graduation/:intakeId" element={<AdminGraduationIntake />} />
             {/* Admin login / setup page — password gate that grants admin access */}
             <Route path="/admin/setup" element={<AdminSetup />} />
             <Route path="/admin/ai-designer" element={<AIDesignerPage />} />

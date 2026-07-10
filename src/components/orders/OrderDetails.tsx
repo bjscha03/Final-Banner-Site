@@ -4,8 +4,7 @@ import { usd } from "@/lib/pricing";
 import { Button } from '@/components/ui/button';
 import { useCartStore } from '@/store/cart';
 import { useToast } from '@/components/ui/use-toast';
-import { useAuth, isAdmin } from '@/lib/auth';
-import { ShoppingCart, Package, Calendar, CreditCard, Mail, User, Download, FileText, Sparkles, MapPin, Loader2, Palette, Phone, Upload, MessageSquare, GraduationCap } from 'lucide-react';
+import { ShoppingCart, Package, Calendar, CreditCard, Mail, User, Download, FileText, Sparkles, MapPin, Loader2, Palette, Phone, Upload, MessageSquare } from 'lucide-react';
 import TrackingBadge from './TrackingBadge';
 import { getFinalizedThumbnailUrl } from '@/lib/order-thumbnail';
 import EmailDeliveryStatus from './EmailDeliveryStatus';
@@ -29,30 +28,7 @@ interface OrderDetailsProps {
 const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFinalPdf }) => {
   const { addFromQuote } = useCartStore();
   const { toast } = useToast();
-  const { user } = useAuth();
   const [pdfGenerating, setPdfGenerating] = useState<Record<number, boolean>>({});
-  const isAdminUser = user && isAdmin(user);
-
-  // Detect designer-assisted (graduation) deposit orders so the View modal
-  // can surface the full intake instead of looking like an empty order.
-  // The intakeId is encoded in the design_deposit cart item's design_request_text
-  // JSON blob (see src/store/cart.ts addDesignDeposit).
-  const graduationIntakeId: string | null = (() => {
-    const items = (order.items || []) as Array<{ product_type?: string; design_request_text?: string | null }>;
-    for (const item of items) {
-      if (item.product_type !== 'design_deposit') continue;
-      const raw = item.design_request_text;
-      if (!raw || typeof raw !== 'string') continue;
-      try {
-        const meta = JSON.parse(raw);
-        const id = typeof meta?.intakeId === 'string' ? meta.intakeId : null;
-        if (id && /^[0-9a-f-]{36}$/i.test(id)) return id;
-      } catch { /* ignore */ }
-    }
-    return null;
-  })();
-  const isGraduationOrder = (order.items || []).some((it: any) => it.product_type === 'design_deposit');
-
   // Helper function to get the best download URL for an item (AI or uploaded)
   const getBestDownloadUrl = (item: any) => {
     // For AI-generated items, prioritize print_ready_url for high-quality downloads
@@ -539,27 +515,6 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
         </DialogHeader>
 
         <div className="space-y-6">
-          {isGraduationOrder && isAdminUser && (
-            <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div className="flex items-start gap-3 min-w-0">
-                <GraduationCap className="h-5 w-5 text-[#FF6A00] mt-0.5 flex-shrink-0" />
-                <div className="min-w-0">
-                  <div className="font-bold text-[#0B1F3A]">Graduation Designer-Assisted Request</div>
-                  <div className="text-sm text-orange-900">
-                    This is a $19 design deposit, not a shippable order. Open the
-                    full design request to view the customer intake form,
-                    uploaded files, and to upload & send a proof.
-                  </div>
-                </div>
-              </div>
-              <a
-                href={graduationIntakeId ? `/admin/graduation/${graduationIntakeId}` : '/admin/graduation-intakes'}
-                className="inline-flex items-center justify-center gap-1 rounded-md bg-[#FF6A00] text-white text-sm font-semibold px-4 py-2 hover:bg-[#e85e00] flex-shrink-0"
-              >
-                Open Full Graduation Design Request →
-              </a>
-            </div>
-          )}
           {/* Order Info - Redesigned */}
           <div className="bg-gradient-to-r from-blue-50 to-slate-50 border border-slate-200 rounded-xl p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 shadow-sm">
             <div className="flex items-start gap-2 min-w-0">
