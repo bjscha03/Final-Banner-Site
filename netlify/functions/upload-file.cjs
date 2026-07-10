@@ -2,7 +2,7 @@ const Busboy = require('busboy');
 const { v2: cloudinary } = require('cloudinary');
 
 const MAX_BYTES = 200 * 1024 * 1024;
-const ALLOWED = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif'];
+const ALLOWED = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif', 'image/svg+xml', 'application/postscript', 'application/illustrator', 'application/vnd.adobe.illustrator'];
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -74,7 +74,7 @@ exports.handler = async (event) => {
     if (mimeType && !ALLOWED.includes(mimeType.toLowerCase())) {
       // Check if it's an image by extension as fallback
       const ext = filename.split('.').pop()?.toLowerCase();
-      const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif', 'pdf'];
+      const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif', 'pdf', 'ai', 'eps', 'svg'];
       if (!imageExts.includes(ext || '')) {
         console.log('Unsupported media type:', mimeType);
         return { statusCode: 415, body: 'Unsupported media type: ' + mimeType };

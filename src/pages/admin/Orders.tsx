@@ -133,6 +133,7 @@ const AdminOrders: React.FC = () => {
     totalEvents: 0,
     abandonedCarts: 0,
     graduationIntakes: 0,
+    customQuotes: 0,
   });
 
   const [globalOverviewLoading, setGlobalOverviewLoading] = useState({
@@ -140,6 +141,7 @@ const AdminOrders: React.FC = () => {
     events: false,
     abandonedCarts: false,
     graduationIntakes: false,
+    customQuotes: false,
   });
   useEffect(() => {
 
@@ -183,6 +185,7 @@ const AdminOrders: React.FC = () => {
       events: false,
       abandonedCarts: false,
       graduationIntakes: false,
+      customQuotes: false,
     });
 
     const [
@@ -190,6 +193,7 @@ const AdminOrders: React.FC = () => {
       eventsResult,
       abandonedCartsResult,
       graduationIntakesResult,
+      customQuotesResult,
     ] = await Promise.allSettled([
       loadAllOrdersForOverview(),
       fetchEvents(),
@@ -208,6 +212,13 @@ const AdminOrders: React.FC = () => {
             return data;
           })
         : Promise.resolve({ intakes: [] }),
+      adminEmail
+        ? fetch(`/.netlify/functions/admin-custom-quotes?status=New&email=${encodeURIComponent(adminEmail)}`).then(async (response) => {
+            const data = await response.json();
+            if (!response.ok || !data?.ok) throw new Error(data?.error || 'Failed to fetch custom quotes');
+            return data;
+          })
+        : Promise.resolve({ quotes: [] }),
     ]);
 
     const allOrders = ordersResult.status === 'fulfilled' ? ordersResult.value : [];
@@ -223,6 +234,9 @@ const AdminOrders: React.FC = () => {
     if (graduationIntakesResult.status === 'rejected') {
       console.error('Error loading global graduation intakes total:', graduationIntakesResult.reason);
     }
+    if (customQuotesResult.status === 'rejected') {
+      console.error('Error loading global custom quotes total:', customQuotesResult.reason);
+    }
 
     const eventsCount = eventsResult.status === 'fulfilled' ? eventsResult.value.length : 0;
     const abandonedCartsCount = abandonedCartsResult.status === 'fulfilled'
@@ -230,6 +244,9 @@ const AdminOrders: React.FC = () => {
       : 0;
     const graduationIntakesCount = graduationIntakesResult.status === 'fulfilled'
       ? (graduationIntakesResult.value?.intakes?.length ?? 0)
+      : 0;
+    const customQuotesCount = customQuotesResult.status === 'fulfilled'
+      ? (customQuotesResult.value?.quotes?.length ?? 0)
       : 0;
 
     setGlobalOverview({
@@ -241,6 +258,7 @@ const AdminOrders: React.FC = () => {
       totalEvents: eventsCount,
       abandonedCarts: abandonedCartsCount,
       graduationIntakes: graduationIntakesCount,
+      customQuotes: customQuotesCount,
     });
 
     setGlobalOverviewLoading({
@@ -248,6 +266,7 @@ const AdminOrders: React.FC = () => {
       events: true,
       abandonedCarts: true,
       graduationIntakes: true,
+      customQuotes: true,
     });
   };
 
@@ -909,6 +928,15 @@ const AdminOrders: React.FC = () => {
                   <Package className="h-4 w-4" />
                   Orders
                 </TabsTrigger>
+                <TabsTrigger value="custom-quotes" className="flex items-center gap-2 min-w-0" asChild>
+                  <a href="/admin/custom-quotes">
+                    <FileText className="h-4 w-4" />
+                    Custom Quotes
+                    {globalOverview.customQuotes > 0 && (
+                      <Badge className="ml-1 bg-[#FF6A00] text-white">{globalOverview.customQuotes}</Badge>
+                    )}
+                  </a>
+                </TabsTrigger>
                 <TabsTrigger value="events" className="flex items-center gap-2 min-w-0" asChild>
                   <a href="/admin/events">
                     <Star className="h-4 w-4" />
@@ -989,6 +1017,11 @@ const AdminOrders: React.FC = () => {
                   label: 'Graduation Intakes',
                   value: globalOverview.graduationIntakes.toLocaleString(),
                   ready: globalOverviewLoading.graduationIntakes,
+                },
+                {
+                  label: 'New Quotes',
+                  value: globalOverview.customQuotes.toLocaleString(),
+                  ready: globalOverviewLoading.customQuotes,
                 },
               ].map((metric) => (
                 <div key={metric.label} className="rounded-xl border border-white/20 bg-white/10 p-3 backdrop-blur-sm">

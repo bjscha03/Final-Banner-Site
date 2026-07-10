@@ -109,6 +109,14 @@
   status = 200
   force = true
 
+
+# Custom quote API redirect
+[[redirects]]
+  from = "/api/custom-quote-submit"
+  to = "/.netlify/functions/custom-quote-submit"
+  status = 200
+  force = true
+
 # AI Design redirect
 [[redirects]]
   from = "/ai-design"
