@@ -35,14 +35,13 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar as CalendarIcon, Star, ShoppingCart, GraduationCap } from 'lucide-react';
+import { Star, ShoppingCart } from 'lucide-react';
 import OrderDetails from '@/components/orders/OrderDetails';
 import { getDisplayOrderTotalCents } from '@/lib/order-totals';
 import { estimateOrderProfit } from '@/lib/admin-profit-estimate';
 import { getFinalizedThumbnailUrl } from '@/lib/order-thumbnail';
 import GrommetOverlay from '@/components/preview/GrommetOverlay';
 import { getGrommetLabel } from '@/lib/grommets';
-import { fetchEvents } from '@/lib/events';
 
 const PAGE_SIZE = 20;
 
@@ -161,31 +160,6 @@ const ProductPreviewFrame: React.FC<{ item: any; thumbUrl: string | null; large?
   );
 };
 
-// Designer-assisted (graduation) detection: orders that include a
-// `design_deposit` line item created by the graduation intake flow. The
-// intake id is encoded in `design_request_text` as JSON `{ intakeId, ... }`.
-const getGraduationIntakeId = (order: Order): string | null => {
-  const items = (order.items || []) as Array<{ product_type?: string; design_request_text?: string | null }>;
-  for (const item of items) {
-    if (item.product_type !== 'design_deposit') continue;
-    const raw = item.design_request_text;
-    if (!raw || typeof raw !== 'string') continue;
-    try {
-      const meta = JSON.parse(raw);
-      const intakeId = typeof meta?.intakeId === 'string' ? meta.intakeId : null;
-      if (intakeId && /^[0-9a-f-]{36}$/i.test(intakeId)) return intakeId;
-    } catch {
-      // ignore non-JSON values
-    }
-  }
-  return null;
-};
-
-const isGraduationOrder = (order: Order): boolean => {
-  const items = (order.items || []) as Array<{ product_type?: string }>;
-  return items.some((item) => item.product_type === 'design_deposit');
-};
-
 // Compact payment-method descriptor for admin order rows. Stripe orders
 // can also have a wallet type (apple_pay / google_pay / link) which we
 // surface so admins can see at a glance what the customer paid with.
@@ -236,7 +210,6 @@ const AdminOrders: React.FC = () => {
   const [showAccessDenied, setShowAccessDenied] = useState(false);
   const { toast } = useToast();
   const [pdfLoadingStates, setPdfLoadingStates] = useState<Record<string, boolean>>({});
-  const [activeAdminTab, setActiveAdminTab] = useState<'orders' | 'events' | 'abandoned-carts'>('orders');
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [globalOverview, setGlobalOverview] = useState({
@@ -245,17 +218,13 @@ const AdminOrders: React.FC = () => {
     shippedOrders: 0,
     pendingOrders: 0,
     totalRevenueCents: 0,
-    totalEvents: 0,
     abandonedCarts: 0,
-    graduationIntakes: 0,
     customQuotes: 0,
   });
 
   const [globalOverviewLoading, setGlobalOverviewLoading] = useState({
     orders: false,
-    events: false,
     abandonedCarts: false,
-    graduationIntakes: false,
     customQuotes: false,
   });
   useEffect(() => {
@@ -297,36 +266,20 @@ const AdminOrders: React.FC = () => {
   const loadGlobalOverview = async (adminEmail?: string) => {
     setGlobalOverviewLoading({
       orders: false,
-      events: false,
       abandonedCarts: false,
-      graduationIntakes: false,
       customQuotes: false,
     });
 
     const [
       ordersResult,
-      eventsResult,
       abandonedCartsResult,
-      graduationIntakesResult,
       customQuotesResult,
     ] = await Promise.allSettled([
       loadAllOrdersForOverview(),
-      fetchEvents(),
       fetch('/.netlify/functions/get-abandoned-carts').then(async (response) => {
         if (!response.ok) throw new Error('Failed to fetch abandoned carts');
         return response.json();
       }),
-      adminEmail
-        ? fetch('/.netlify/functions/admin-graduation-list', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: adminEmail }),
-          }).then(async (response) => {
-            const data = await response.json();
-            if (!response.ok || !data?.ok) throw new Error(data?.error || 'Failed to fetch graduation intakes');
-            return data;
-          })
-        : Promise.resolve({ intakes: [] }),
       adminEmail
         ? fetch(`/.netlify/functions/admin-custom-quotes?status=New&email=${encodeURIComponent(adminEmail)}`).then(async (response) => {
             const data = await response.json();
@@ -340,25 +293,15 @@ const AdminOrders: React.FC = () => {
     if (ordersResult.status === 'rejected') {
       console.error('Error loading global order totals:', ordersResult.reason);
     }
-    if (eventsResult.status === 'rejected') {
-      console.error('Error loading global events total:', eventsResult.reason);
-    }
     if (abandonedCartsResult.status === 'rejected') {
       console.error('Error loading global abandoned carts total:', abandonedCartsResult.reason);
-    }
-    if (graduationIntakesResult.status === 'rejected') {
-      console.error('Error loading global graduation intakes total:', graduationIntakesResult.reason);
     }
     if (customQuotesResult.status === 'rejected') {
       console.error('Error loading global custom quotes total:', customQuotesResult.reason);
     }
 
-    const eventsCount = eventsResult.status === 'fulfilled' ? eventsResult.value.length : 0;
     const abandonedCartsCount = abandonedCartsResult.status === 'fulfilled'
       ? (abandonedCartsResult.value?.carts?.length ?? 0)
-      : 0;
-    const graduationIntakesCount = graduationIntakesResult.status === 'fulfilled'
-      ? (graduationIntakesResult.value?.intakes?.length ?? 0)
       : 0;
     const customQuotesCount = customQuotesResult.status === 'fulfilled'
       ? (customQuotesResult.value?.quotes?.length ?? 0)
@@ -370,17 +313,13 @@ const AdminOrders: React.FC = () => {
       shippedOrders: allOrders.filter((o) => o.tracking_number).length,
       pendingOrders: allOrders.filter((o) => !o.tracking_number && o.status !== 'in_production').length,
       totalRevenueCents: allOrders.reduce((sum, o) => sum + o.total_cents, 0),
-      totalEvents: eventsCount,
       abandonedCarts: abandonedCartsCount,
-      graduationIntakes: graduationIntakesCount,
       customQuotes: customQuotesCount,
     });
 
     setGlobalOverviewLoading({
       orders: true,
-      events: true,
       abandonedCarts: true,
-      graduationIntakes: true,
       customQuotes: true,
     });
   };
@@ -1059,22 +998,10 @@ const AdminOrders: React.FC = () => {
                     )}
                   </a>
                 </TabsTrigger>
-                <TabsTrigger value="events" className="flex items-center gap-2 min-w-0" asChild>
-                  <a href="/admin/events">
-                    <Star className="h-4 w-4" />
-                    Events
-                  </a>
-                </TabsTrigger>
                 <TabsTrigger value="abandoned-carts" className="flex items-center gap-2 min-w-0" asChild>
                   <a href="/admin/abandoned-carts">
                     <ShoppingCart className="h-4 w-4" />
                     Abandoned Carts
-                  </a>
-                </TabsTrigger>
-                <TabsTrigger value="graduation-intakes" className="flex items-center gap-2 min-w-0" asChild>
-                  <a href="/admin/graduation-intakes">
-                    <GraduationCap className="h-4 w-4" />
-                    Graduation Intakes
                   </a>
                 </TabsTrigger>
                 {/* Admin-gated AI Designer entry. Keep admin-only until customer rollout. */}
@@ -1098,7 +1025,7 @@ const AdminOrders: React.FC = () => {
                 Global totals across admin sections
               </span>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3">
               {[
                 {
                   label: 'Total Orders',
@@ -1126,19 +1053,9 @@ const AdminOrders: React.FC = () => {
                   ready: globalOverviewLoading.orders,
                 },
                 {
-                  label: 'Total Events',
-                  value: globalOverview.totalEvents.toLocaleString(),
-                  ready: globalOverviewLoading.events,
-                },
-                {
                   label: 'Abandoned Carts',
                   value: globalOverview.abandonedCarts.toLocaleString(),
                   ready: globalOverviewLoading.abandonedCarts,
-                },
-                {
-                  label: 'Graduation Intakes',
-                  value: globalOverview.graduationIntakes.toLocaleString(),
-                  ready: globalOverviewLoading.graduationIntakes,
                 },
                 {
                   label: 'New Quotes',
@@ -1366,11 +1283,6 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   const [showCostBreakdown, setShowCostBreakdown] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const orderItems = getSafeOrderItems(order);
-  const isGraduation = isGraduationOrder(order);
-  const graduationIntakeId = isGraduation ? getGraduationIntakeId(order) : null;
-  const graduationLink = graduationIntakeId
-    ? `/admin/graduation/${graduationIntakeId}`
-    : '/admin/graduation-intakes';
   // Helper function to get the best download URL for an item (AI or uploaded)
   const getBestDownloadUrl = (item) => {
     // For AI-generated items, prioritize print_ready_url for high-quality downloads
@@ -1620,12 +1532,6 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                 Saturday Delivery
               </Badge>
             )}
-            {isGraduation && (
-              <Badge className="bg-orange-100 text-orange-800 text-xs">
-                <GraduationCap className="h-3 w-3 mr-1" />
-                Graduation Designer Request
-              </Badge>
-            )}
             {(() => {
               // Surface a compact failure badge in the row when any of the
               // transactional emails for this order failed delivery (error
@@ -1647,37 +1553,10 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
               ) : null;
             })()}
           </div>
-          {isGraduation && (
-            <a
-              href={graduationLink}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-[#FF6A00] hover:underline"
-            >
-              <GraduationCap className="h-3.5 w-3.5" />
-              Open Design Request
-            </a>
-          )}
         </div>
 
         {/* RIGHT SECTION */}
         <div className="min-w-0 space-y-3">
-          {isGraduation ? (
-            <div className="rounded-md border border-orange-200 bg-orange-50 p-3 text-xs text-orange-900 space-y-1">
-              <div className="font-semibold flex items-center gap-1">
-                <GraduationCap className="h-3.5 w-3.5" />
-                Designer-assisted deposit
-              </div>
-              <div>
-                Tracking, shipping, and print files unlock after the customer
-                approves the proof and pays the final product balance.
-              </div>
-              <a
-                href={graduationLink}
-                className="inline-flex items-center gap-1 font-semibold text-[#FF6A00] hover:underline mt-1"
-              >
-                Manage Design Request →
-              </a>
-            </div>
-          ) : (
           <>
           <div className="space-y-2">
             <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Tracking</div>
@@ -1800,7 +1679,6 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
             )}
           </div>
           </>
-          )}
 
           <div className="space-y-2">
             <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Actions</div>
@@ -1816,7 +1694,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                 }
               />
 
-              {!isGraduation && order.status === 'paid' && !order.production_email_sent && (
+              {order.status === 'paid' && !order.production_email_sent && (
                 <Button
                   size="sm"
                   variant="outline"
@@ -1838,8 +1716,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                 </Button>
               )}
 
-              {!isGraduation && (
-                <Button
+              <Button
                   size="sm"
                   variant="outline"
                   onClick={handleSendNotification}
@@ -1858,7 +1735,6 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                     </>
                   )}
                 </Button>
-              )}
             </div>
 
             {order.status === 'in_production' && order.production_email_sent_at && (
@@ -1936,11 +1812,6 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
   const [isSendingNotification, setIsSendingNotification] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const orderItems = getSafeOrderItems(order);
-  const isGraduation = isGraduationOrder(order);
-  const graduationIntakeId = isGraduation ? getGraduationIntakeId(order) : null;
-  const graduationLink = graduationIntakeId
-    ? `/admin/graduation/${graduationIntakeId}`
-    : '/admin/graduation-intakes';
   const displayedTrackingRows = normalizeTrackingEntries(order);
 
   const handleMarkInProduction = async () => {
@@ -2029,20 +1900,6 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
                   Saturday
                 </Badge>
               )}
-              {isGraduation && (
-                <>
-                  <Badge className="bg-orange-100 text-orange-800 text-xs">
-                    <GraduationCap className="h-3 w-3 mr-1" />
-                    Graduation Designer
-                  </Badge>
-                  <a
-                    href={graduationLink}
-                    className="text-xs font-semibold text-[#FF6A00] hover:underline whitespace-nowrap"
-                  >
-                    Open Design Request →
-                  </a>
-                </>
-              )}
             </div>
           </div>
 
@@ -2057,7 +1914,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
               <div className="text-lg font-bold text-[#18448D]">{usd(getDisplayOrderTotalCents(order as any) / 100)}</div>
             {(() => { const profit = estimateOrderProfit(order); return profit.needsReview ? (<div className="inline-flex rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">Needs review</div>) : (<div className="text-xs text-slate-700">Rev {usd(profit.originalSubtotalCents/100)}{profit.discountsAppliedCents>0 ? ` · Disc -${usd(profit.discountsAppliedCents/100)}` : ''}{profit.adjustedRetailSubtotalCents !== profit.originalSubtotalCents ? ` · Adj ${usd(profit.adjustedRetailSubtotalCents/100)}` : ''} · Prod {usd(profit.productionCostCents/100)} · Ship {usd(profit.shippingCostCents/100)} · Total Cost {usd(profit.totalCostCents/100)} · <span className={`${profit.netProfitCents>=0?'text-green-700':'text-red-700'} font-semibold`}>Profit {usd(profit.netProfitCents/100)}</span> · <span className={`${profit.marginPct >= 50 ? 'text-green-700' : profit.marginPct >= 35 ? 'text-amber-700' : 'text-red-700'} font-semibold`}>Margin {profit.marginPct.toFixed(1)}%</span></div>); })()}
             </div>
-            {!isGraduation && displayedTrackingRows.length > 0 && (
+            {displayedTrackingRows.length > 0 && (
               <div className="min-w-0">
                 <div className="text-xs text-gray-500 mb-1">Tracking</div>
                 <div className="space-y-1">
@@ -2075,7 +1932,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
         </div>
       </div>
 
-      {!isGraduation && (getFilesWithDownload().length > 0 || orderItems.some(item => item.final_print_pdf_url)) && (
+      {(getFilesWithDownload().length > 0 || orderItems.some(item => item.final_print_pdf_url)) && (
         <div className="mt-3">
           <div className="text-xs text-gray-500 mb-2">Print Files</div>
           <div className="grid grid-cols-1 gap-2">
@@ -2121,7 +1978,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
       )}
 
       <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
-        {!isGraduation && order.status === 'paid' && !order.production_email_sent && (
+        {order.status === 'paid' && !order.production_email_sent && (
           <Button
             size="sm"
             variant="outline"
@@ -2151,8 +2008,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
         )}
 
 
-        {!isGraduation && (
-          <Button
+        <Button
             size="sm"
             variant="outline"
             onClick={handleSendNotification}
@@ -2161,7 +2017,6 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
           >
             {isSendingNotification ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Sending...</> : <><Mail className="h-3 w-3 mr-1" />Resend Tracking Email</>}
           </Button>
-        )}
 
         <OrderDetails
           order={order}

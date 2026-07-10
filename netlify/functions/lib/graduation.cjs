@@ -106,7 +106,7 @@ async function ensureSchema(sql) {
 // Historically, the graduation endpoints only consulted the
 // ADMIN_TEST_PAY_ALLOWLIST env var, which broke real logged-in admins whose
 // email wasn't in that list and produced "Admin access required" on
-// /admin/graduation-intakes. We now check the database first and fall back
+// admin access. We now check the database first and fall back
 // to the env allowlist only as a legacy safety net.
 
 function isAdminEmail(email) {
@@ -624,7 +624,7 @@ async function sendDesignDepositEmails(intake, orderId) {
         ? `<p style="font-size:13px;color:#6b7280;"><strong>Order ID:</strong> <span style="font-family:monospace;">${esc(orderId)}</span></p>`
         : ''),
     footer:
-      `<div style="text-align:center;margin:24px 0;"><a href="${esc(env.siteUrl)}/admin/graduation/${esc(intake.id)}" style="background:#FF6A00;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block;">Open in Admin</a></div>`,
+      `<p style="font-size:13px;color:#6b7280;">Intake ID: <span style="font-family:monospace;">${esc(intake.id)}</span></p>`,
   });
 
   const adminHtml = emailLayout({
@@ -693,8 +693,7 @@ async function sendRevisionRequestedToAdmin(intake, revision, proof) {
       ? `<p style="margin-top:12px;"><strong>Attachment:</strong> <a href="${esc(revision.attachment_url)}" style="color:#FF6A00;" target="_blank" rel="noopener">${esc(revision.attachment_name || 'Download')}</a></p>`
       : '') +
     sectionTitle('Reference') +
-    `<p style="font-family:monospace;font-size:13px;color:#374151;">Intake ID: ${esc(intake.id)}<br>Proof Version: ${esc(proof?.version_number || '—')}</p>` +
-    `<div style="text-align:center;margin:24px 0;"><a href="${esc(env.siteUrl)}/admin/graduation/${esc(intake.id)}" style="background:#FF6A00;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block;">Open in Admin</a></div>`;
+    `<p style="font-family:monospace;font-size:13px;color:#374151;">Intake ID: ${esc(intake.id)}<br>Proof Version: ${esc(proof?.version_number || '—')}</p>`;
   await resend.emails.send({
     from: 'Banners on the Fly <' + env.from + '>',
     to: env.admin,
@@ -719,8 +718,7 @@ async function sendApprovedAndPaidEmails(intake, proof, finalAmountCents) {
     `<p>Version ${esc(proof?.version_number || '—')} &mdash; <a href="${esc(proof?.proof_file_url || intake.approved_proof_url || '')}" style="color:#FF6A00;" target="_blank" rel="noopener">View proof</a></p>` +
     sectionTitle('Payment') +
     `<p>Final amount paid: <strong>${esc(fmtMoneyCents(finalAmountCents))}</strong></p>` +
-    `<p style="font-family:monospace;font-size:13px;color:#374151;">Intake ID: ${esc(intake.id)}</p>` +
-    `<div style="text-align:center;margin:24px 0;"><a href="${esc(env.siteUrl)}/admin/graduation/${esc(intake.id)}" style="background:#FF6A00;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block;">Open in Admin</a></div>`;
+    `<p style="font-family:monospace;font-size:13px;color:#374151;">Intake ID: ${esc(intake.id)}</p>`;
   await resend.emails.send({
     from: 'Banners on the Fly <' + env.from + '>',
     to: env.admin,

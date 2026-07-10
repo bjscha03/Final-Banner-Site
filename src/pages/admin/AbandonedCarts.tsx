@@ -18,7 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Package, Star } from 'lucide-react';
+import { Package } from 'lucide-react';
 
 interface AbandonedCart {
   id: string;
@@ -284,12 +284,6 @@ const AbandonedCarts: React.FC = () => {
                   <a href="/admin/orders">
                     <Package className="h-4 w-4" />
                     Orders
-                  </a>
-                </TabsTrigger>
-                <TabsTrigger value="events" className="flex items-center gap-2" asChild>
-                  <a href="/admin/events">
-                    <Star className="h-4 w-4" />
-                    Events
                   </a>
                 </TabsTrigger>
                 <TabsTrigger value="abandoned-carts" className="flex items-center gap-2">
