@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { estimateOrderProfit } from '../admin-profit-estimate';
+import { estimateOrderProfit, estimateSupplierShippingCostCents } from '../admin-profit-estimate';
 import { normalizeSizeKey, resolveFixedProductCost } from '../admin-product-costs';
 import type { Order, OrderItem } from '../orders/types';
 
@@ -25,6 +25,68 @@ const magnetItem = (size: string, quantity: number, extra: Partial<OrderItem> = 
   size,
   ...extra,
 } as Partial<OrderItem>);
+
+describe('admin profitability supplier shipping', () => {
+  it('charges one supplier shipping fee for a banner-only order with one line item, regardless of quantity', () => {
+    const profit = estimateOrderProfit(baseOrder([{
+      product_type: 'banner',
+      width_in: 24,
+      height_in: 36,
+      quantity: 2,
+      material: '13oz',
+      line_total_cents: 6000,
+    }]));
+
+    expect(profit.needsReview).toBe(false);
+    expect(profit.shippingCostCents).toBe(1000);
+    expect(profit.totalCostCents).toBe(profit.productionCostCents + 1000);
+    expect(profit.netProfitCents).toBe(profit.adjustedRetailSubtotalCents - profit.totalCostCents);
+    expect(profit.marginPct).toBeCloseTo((profit.netProfitCents / profit.adjustedRetailSubtotalCents) * 100, 3);
+  });
+
+  it('counts distinct order item rows, not quantity, for supplier shipping', () => {
+    const singleRowOrder = baseOrder([{
+      product_type: 'banner',
+      width_in: 24,
+      height_in: 36,
+      quantity: 2,
+      material: '13oz',
+      line_total_cents: 6000,
+    }]);
+    const differentSizeRowsOrder = baseOrder([
+      { product_type: 'banner', width_in: 24, height_in: 36, quantity: 2, material: '13oz', line_total_cents: 6000 },
+      { product_type: 'banner', width_in: 48, height_in: 96, quantity: 2, material: '13oz', line_total_cents: 12000 },
+    ]);
+
+    expect(estimateSupplierShippingCostCents(singleRowOrder)).toBe(1000);
+    expect(estimateSupplierShippingCostCents(differentSizeRowsOrder)).toBe(2000);
+  });
+
+  it('charges per line item for mixed banner and magnet orders', () => {
+    const profit = estimateOrderProfit(baseOrder([
+      { product_type: 'banner', width_in: 24, height_in: 24, quantity: 2, material: '13oz', line_total_cents: 5000 },
+      magnetItem('18 x 12', 1, { line_total_cents: 2900 }),
+    ]));
+
+    expect(profit.needsReview).toBe(false);
+    expect(profit.shippingCostCents).toBe(2000);
+    expect(profit.totalCostCents).toBe(profit.productionCostCents + 2000);
+  });
+
+  it('charges per line item for banner, magnet, and poster rows even when poster needs review', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const profit = estimateOrderProfit(baseOrder([
+      { product_type: 'banner', width_in: 24, height_in: 24, quantity: 2, material: '13oz', line_total_cents: 5000 },
+      magnetItem('18 x 12', 1, { line_total_cents: 2900 }),
+      { product_type: 'poster', width_in: 18, height_in: 24, quantity: 10, material: '13oz', line_total_cents: 25000, size: '18x24' } as Partial<OrderItem>,
+    ]));
+
+    expect(profit.needsReview).toBe(true);
+    expect(profit.shippingCostCents).toBe(3000);
+    expect(profit.totalCostCents).toBe(profit.productionCostCents + 3000);
+    warn.mockRestore();
+  });
+});
 
 describe('admin profitability fixed product costs', () => {
   it.each([

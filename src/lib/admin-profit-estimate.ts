@@ -1,7 +1,13 @@
 import type { Order, OrderItem } from './orders/types';
 import { normalizeSizeKey, resolveFixedProductCost } from './admin-product-costs';
 
-export const ADMIN_PROFIT_SHIPPING_COST_CENTS = 1000;
+export const ADMIN_PROFIT_SHIPPING_COST_PER_LINE_ITEM_CENTS = 1000;
+
+export const estimateSupplierShippingCostCents = (order: Pick<Order, 'items'>): number => {
+  // Supplier shipping is billed once per distinct order row/line item, not per unit quantity.
+  // Examples: quantity 2 of one banner size/design = 1 line item; two separate banner rows = 2 line items.
+  return (order.items || []).length * ADMIN_PROFIT_SHIPPING_COST_PER_LINE_ITEM_CENTS;
+};
 
 const bannerMaterialCostPerSqFt: Record<string, number> = {
   '13oz': 1.25,
@@ -189,7 +195,7 @@ export const estimateOrderProfit = (order: Order) => {
   const productionCostCents = lineEstimates.reduce((sum, x) => sum + x.productionCostCents, 0);
   const revenue = getRevenueBreakdownCents(order);
   const retailSubtotalCents = revenue.adjustedRetailSubtotalCents;
-  const shippingCostCents = ADMIN_PROFIT_SHIPPING_COST_CENTS;
+  const shippingCostCents = estimateSupplierShippingCostCents(order);
   const totalCostCents = productionCostCents + shippingCostCents;
   const estimatedNetProfitCents = retailSubtotalCents - totalCostCents;
   const marginPct = retailSubtotalCents > 0 ? (estimatedNetProfitCents / retailSubtotalCents) * 100 : 0;
