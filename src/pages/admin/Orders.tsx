@@ -104,6 +104,10 @@ const getPrintFileLabel = (item: any, index: number, fallbackPrefix = 'PDF'): st
   return label === 'PRODUCT' ? `${fallbackPrefix} ${index + 1}` : `${label} Print File`;
 };
 
+const copyText = async (text: string) => {
+  await navigator.clipboard?.writeText(text);
+};
+
 // Designer-assisted (graduation) detection: orders that include a
 // `design_deposit` line item created by the graduation intake flow. The
 // intake id is encoded in `design_request_text` as JSON `{ intakeId, ... }`.
@@ -1376,7 +1380,6 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   const removeTrackingRow = (index: number) => setTrackingRows(rows => rows.filter((_, rowIndex) => rowIndex !== index));
   const [isSendingNotification, setIsSendingNotification] = useState(false);
   const [isMarkingProduction, setIsMarkingProduction] = useState(false);
-  const [isSendingNotification, setIsSendingNotification] = useState(false);
 
   const handleAddTracking = () => {
     try {
@@ -1422,16 +1425,6 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
       setIsMarkingProduction(false);
     }
   };
-  const handleSendNotification = async () => {
-    setIsSendingNotification(true);
-    try {
-      await onSendShippingNotification(order.id);
-    } finally {
-      setIsSendingNotification(false);
-    }
-  };
-  const copyText = async (text: string) => { await navigator.clipboard?.writeText(text); };
-
   const getFilesWithDownload = () => {
     const filesWithDownload = order.items
       .map((item, index) => ({ item, index }))
@@ -1454,9 +1447,6 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
     .map((item, index) => ({ item, index }))
     .filter(({ item }) => item.final_print_pdf_url);
   const activePreview = previewIndex === null ? null : previewItems[previewIndex];
-  const copyText = async (text: string) => {
-    await navigator.clipboard?.writeText(text);
-  };
   const ORDER_ACCENT_TEXT_CLASS = 'text-[#18448D]';
 
   return (
@@ -1817,6 +1807,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
             )}
           </div>
         </div>
+      </div>
       {activePreview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true">
           <div className="max-h-[92vh] w-full max-w-3xl overflow-auto rounded-2xl bg-white p-4 shadow-2xl">
@@ -1898,7 +1889,6 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
       setIsSendingNotification(false);
     }
   };
-  const copyText = async (text: string) => { await navigator.clipboard?.writeText(text); };
   const getFilesWithDownload = () => {
     return order.items
       .map((item, index) => ({ item, index }))
