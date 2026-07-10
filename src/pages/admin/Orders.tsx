@@ -40,6 +40,8 @@ import OrderDetails from '@/components/orders/OrderDetails';
 import { getDisplayOrderTotalCents } from '@/lib/order-totals';
 import { estimateOrderProfit } from '@/lib/admin-profit-estimate';
 import { getFinalizedThumbnailUrl } from '@/lib/order-thumbnail';
+import GrommetOverlay from '@/components/preview/GrommetOverlay';
+import { getGrommetLabel } from '@/lib/grommets';
 import { fetchEvents } from '@/lib/events';
 
 const PAGE_SIZE = 20;
@@ -100,12 +102,63 @@ const getPaypalStatusLabel = (order: Order): string | null => {
 };
 
 const getPrintFileLabel = (item: any, index: number, fallbackPrefix = 'PDF'): string => {
-  const label = getProductTypeLabel(item).replace(/\b\w/g, (char) => char.toUpperCase());
-  return label === 'PRODUCT' ? `${fallbackPrefix} ${index + 1}` : `${label} Print File`;
+  const label = getProductTitleLabel(item);
+  return label === 'Product' ? `${fallbackPrefix} ${index + 1}` : `${label} Print File`;
 };
 
 const copyText = async (text: string) => {
   await navigator.clipboard?.writeText(text);
+};
+
+const toTitleCase = (value: string): string => value.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
+
+const getProductTitleLabel = (item: any): string => {
+  const label = getProductTypeLabel(item);
+  return label === 'PRODUCT' ? 'Product' : toTitleCase(label);
+};
+
+const getSafeOrderItems = (order: Pick<Order, 'items'>): any[] => Array.isArray(order.items) ? order.items : [];
+
+const getPreviewDimensions = (item: any): { width: number; height: number } => {
+  const width = Number(item?.width_in) || 24;
+  const height = Number(item?.height_in) || 18;
+  return { width: Math.max(width, 1), height: Math.max(height, 1) };
+};
+
+const getOptionRows = (item: any): Array<{ label: string; value: string }> => {
+  const rows: Array<{ label: string; value: string }> = [];
+  const grommets = getGrommetLabel(item?.grommets);
+  if (grommets && grommets !== 'None') rows.push({ label: 'Grommets', value: grommets });
+  if (item?.pole_pockets && item.pole_pockets !== 'none') rows.push({ label: 'Pole Pockets', value: String(item.pole_pocket_position || item.pole_pockets) });
+  if (Number(item?.rope_feet) > 0) rows.push({ label: 'Rope', value: `${item.rope_feet} ft` });
+  if (item?.rounded_corners && item.rounded_corners !== 'none') rows.push({ label: 'Rounded Corners', value: String(item.rounded_corners) });
+  const sided = item?.sides || item?.printed_sides || item?.side_count || item?.print_sides;
+  if (sided) rows.push({ label: 'Sides', value: String(sided).replace(/_/g, ' ') });
+  return rows;
+};
+
+const ProductPreviewFrame: React.FC<{ item: any; thumbUrl: string | null; large?: boolean; idSuffix: string }> = ({ item, thumbUrl, large = false, idSuffix }) => {
+  const { width, height } = getPreviewDimensions(item);
+  const grommets = item?.grommets || 'none';
+  return (
+    <div className={`w-full ${large ? 'max-h-[66vh]' : ''} flex items-center justify-center p-2`}>
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className={`block max-w-full ${large ? 'h-[min(66vh,620px)]' : 'h-full'} drop-shadow-sm`}
+        style={{ aspectRatio: `${width} / ${height}` }}
+        role="img"
+        aria-label={`${getProductTitleLabel(item)} finished preview`}
+      >
+        <rect x="0" y="0" width={width} height={height} rx={item?.rounded_corners && item.rounded_corners !== 'none' ? Math.min(width, height) * 0.05 : 0} fill="#ffffff" stroke="#cbd5e1" strokeWidth={Math.max(0.04, Math.min(width, height) * 0.006)} />
+        {thumbUrl ? (
+          <image href={thumbUrl} x="0" y="0" width={width} height={height} preserveAspectRatio="xMidYMid meet" />
+        ) : (
+          <text x={width / 2} y={height / 2} textAnchor="middle" dominantBaseline="middle" fontSize={Math.max(1.5, Math.min(width, height) * 0.08)} fill="#94a3b8">No preview</text>
+        )}
+        <GrommetOverlay widthIn={width} heightIn={height} option={grommets} idSuffix={idSuffix} />
+      </svg>
+    </div>
+  );
 };
 
 // Designer-assisted (graduation) detection: orders that include a
@@ -920,14 +973,15 @@ const AdminOrders: React.FC = () => {
   };
 
   const getItemsSummary = (order: Order): string => {
-    const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0);
-    const uniqueItems = order.items.length;
+    const safeItems = getSafeOrderItems(order);
+    const itemCount = safeItems.reduce((sum, item) => sum + item.quantity, 0);
+    const uniqueItems = safeItems.length;
     
     // Check if any items are yard signs
-    const hasYardSigns = order.items.some(item => (item as any).product_type === 'yard_sign');
+    const hasYardSigns = safeItems.some(item => (item as any).product_type === 'yard_sign');
     
     if (uniqueItems === 1) {
-      const item = order.items[0];
+      const item = safeItems[0];
       if ((item as any).product_type === 'yard_sign') {
         return `${itemCount} × Yard Sign 24"×18"`;
       }
@@ -1310,6 +1364,8 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   const [isAddingTracking, setIsAddingTracking] = useState(false);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [showCostBreakdown, setShowCostBreakdown] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const orderItems = getSafeOrderItems(order);
   const isGraduation = isGraduationOrder(order);
   const graduationIntakeId = isGraduation ? getGraduationIntakeId(order) : null;
   const graduationLink = graduationIntakeId
@@ -1363,7 +1419,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
     return `Item ${index + 1}`;
   };
 
-  const previewItems = useMemo(() => (order.items || []).map((item: any, index) => ({ item, index, thumbUrl: getFinalizedThumbnailUrl(item, 160) })), [order.items]);
+  const previewItems = useMemo(() => orderItems.map((item: any, index) => ({ item, index, thumbUrl: getFinalizedThumbnailUrl(item, 720) })), [orderItems]);
 
   const [isEditingTracking, setIsEditingTracking] = useState(false);
   const existingTrackingRows = normalizeTrackingEntries(order);
@@ -1426,7 +1482,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
     }
   };
   const getFilesWithDownload = () => {
-    const filesWithDownload = order.items
+    const filesWithDownload = orderItems
       .map((item, index) => ({ item, index }))
       .filter(({ item }) => 
         item.file_key || 
@@ -1443,7 +1499,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   };
 
   const filesWithDownload = getFilesWithDownload();
-  const finalPrintFiles = order.items
+  const finalPrintFiles = orderItems
     .map((item, index) => ({ item, index }))
     .filter(({ item }) => item.final_print_pdf_url);
   const activePreview = previewIndex === null ? null : previewItems[previewIndex];
@@ -1458,10 +1514,10 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
             {previewItems.map(({ item, index, thumbUrl }) => (
               <div key={index} className="flex min-w-0 items-center gap-3 rounded-lg border border-gray-100 bg-gray-50 p-2">
                 <button type="button" onClick={() => setPreviewIndex(index)} className="h-[72px] w-[72px] flex-shrink-0 overflow-hidden rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#18448D]" aria-label={`Open ${getProductTypeLabel(item)} preview`}>
-                  {thumbUrl ? <img src={thumbUrl} alt={`${getProductTypeLabel(item)} preview`} className="h-full w-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /> : <span className="flex h-full items-center justify-center text-xs text-gray-400">No image</span>}
+                  <ProductPreviewFrame item={item} thumbUrl={thumbUrl} idSuffix={`row-${order.id}-${index}`} />
                 </button>
                 <div className="min-w-0">
-                  <Badge className={`${getProductBadgeClass(getProductTypeLabel(item))} border text-[10px] font-bold`}>{getProductTypeLabel(item)}</Badge>
+                  <Badge className={`${getProductBadgeClass(getProductTypeLabel(item))} border text-[10px] font-bold`}>{getProductTitleLabel(item)}</Badge>
                   <div className="mt-1 text-sm font-semibold text-gray-900 break-words">{getItemSizeLabel(item)}</div>
                   <div className="text-xs text-gray-600">Qty {item.quantity || 0}</div>
                 </div>
@@ -1484,14 +1540,14 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
             <div className="pt-2">
               <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Order Details</div>
               <div className="text-sm text-gray-900 break-words">{getOrderItemsSummary(order)}</div>
-              <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-gray-600"><span>Total units: <b>{getTotalUnits(order)}</b></span><span>Line items: <b>{order.items.length}</b></span><span>Print files: <b>{getPrintFileCount(order)}</b></span></div>
+              <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-gray-600"><span>Total units: <b>{getTotalUnits(order)}</b></span><span>Line items: <b>{orderItems.length}</b></span><span>Print files: <b>{getPrintFileCount({ ...order, items: orderItems } as Order)}</b></span></div>
             </div>
           </div>
         </div>
 
         {/* MIDDLE SECTION */}
         <div className="min-w-0 space-y-3">
-          <div className={`text-lg font-bold ${ORDER_ACCENT_TEXT_CLASS}`}>{usd(getDisplayOrderTotalCents(order as any) / 100)}</div>
+          <div><div className="text-xs font-medium uppercase tracking-wide text-gray-500">Order Total</div><div className={`text-lg font-bold ${ORDER_ACCENT_TEXT_CLASS}`}>{usd(getDisplayOrderTotalCents(order as any) / 100)}</div></div>
           {(() => {
             const profit = estimateOrderProfit(order);
             return (
@@ -1508,15 +1564,18 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                     <div className="text-gray-600">Total Cost: <span className="font-semibold">{usd(profit.totalCostCents / 100)}</span></div>
                     <div className="pt-1 text-sm text-slate-800">Net Profit: <span className={`text-base font-bold ${profit.netProfitCents >= 0 ? 'text-green-700' : 'text-red-700'}`}>{usd(profit.netProfitCents / 100)}</span></div>
                     <div className="text-slate-700">Margin: <span className={`font-semibold ${profit.marginPct >= 50 ? 'text-green-700' : profit.marginPct >= 35 ? 'text-amber-700' : 'text-red-700'}`}>{profit.marginPct.toFixed(1)}%</span></div>
-                    <button type="button" onClick={() => setShowCostBreakdown((value) => !value)} className="mt-2 inline-flex items-center text-xs font-semibold text-[#18448D] hover:underline">
-                      {showCostBreakdown ? <ChevronUp className="mr-1 h-3 w-3" /> : <ChevronDown className="mr-1 h-3 w-3" />} View Cost Breakdown
+                    <button type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); setShowCostBreakdown((value) => !value); }} className="mt-2 inline-flex items-center text-xs font-semibold text-[#18448D] hover:underline">
+                      {showCostBreakdown ? <ChevronUp className="mr-1 h-3 w-3" /> : <ChevronDown className="mr-1 h-3 w-3" />} {showCostBreakdown ? 'Hide Cost Breakdown' : 'View Cost Breakdown'}
                     </button>
                     {showCostBreakdown && (
-                      <div className="mt-2 space-y-1 rounded border border-slate-200 bg-white p-2">
-                        {profit.lines.map((line, idx) => (
-                          <div key={idx} className="text-gray-700"><span className="font-semibold">{getProductTypeLabel(order.items[idx])}</span>: Qty {line.quantity} × {usd(line.unitCostCents / 100)} = {usd(line.lineCostCents / 100)}</div>
-                        ))}
-                        <div className="border-t border-slate-100 pt-1 text-gray-700"><span className="font-semibold">Supplier Shipping</span>: {order.items.length} line items × $10 = {usd(profit.shippingCostCents / 100)}</div>
+                      <div className="mt-2 space-y-2 rounded border border-slate-200 bg-white p-2">
+                        {Array.isArray((profit as any).lines) && (profit as any).lines.length > 0 ? (profit as any).lines.map((line: any, idx: number) => (
+                          <div key={idx} className="text-gray-700">
+                            <div className="font-semibold">{getProductTitleLabel(orderItems[idx])}</div>
+                            <div>Qty {line.quantity}{Number.isFinite(Number(line.unitCostCents)) ? ` × ${usd(Number(line.unitCostCents) / 100)}` : ''}{Number.isFinite(Number(line.lineCostCents)) ? ` = ${usd(Number(line.lineCostCents) / 100)}` : ''}</div>
+                          </div>
+                        )) : <div className="text-gray-600">Detailed line-item cost data is unavailable for this order.</div>}
+                        <div className="border-t border-slate-100 pt-1 text-gray-700"><span className="font-semibold">Supplier Shipping</span>: {orderItems.length} line items × $10 = {usd(profit.shippingCostCents / 100)}</div>
                       </div>
                     )}
                   </>
@@ -1536,7 +1595,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                 </Badge>
               ) : null;
             })()}
-            {order.items.some(item => item.design_service_enabled) && (
+            {orderItems.some(item => item.design_service_enabled) && (
               <Badge className="bg-purple-100 text-purple-800 text-xs">
                 <Palette className="h-3 w-3 mr-1" />
                 Design Service
@@ -1633,11 +1692,11 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                   )}
                 </div>
                 <div className="text-xs text-gray-700">
-                  <div className="flex items-center justify-between gap-2"><span className="font-semibold">Tracking Numbers:</span>{displayedTrackingRows.length > 1 && <Button type="button" size="sm" variant="ghost" onClick={() => copyText(displayedTrackingRows.map((row) => row.trackingNumber).join('\n'))} className="h-7 px-2 text-xs"><Copy className="mr-1 h-3 w-3" />Copy All</Button>}</div>
+                  <div className="flex items-center justify-between gap-2"><span className="font-semibold">Tracking Numbers:</span>{displayedTrackingRows.length > 1 && <Button type="button" size="sm" variant="ghost" onClick={async () => { await copyText(displayedTrackingRows.map((row) => row.trackingNumber).join('\n')); setCopiedKey('all'); setTimeout(() => setCopiedKey(null), 2000); }} className="h-7 px-2 text-xs"><Copy className="mr-1 h-3 w-3" />{copiedKey === 'all' ? 'Copied' : 'Copy All'}</Button>}</div>
                   <div className="mt-1 space-y-1">{displayedTrackingRows.map((row, index) => (
                     <div key={`${row.trackingNumber}-${index}`} className="flex flex-wrap items-center gap-2"><span className="font-semibold">{row.label || `Package ${index + 1}`}:</span>{' '}
                       <a href={fedexUrl(row.trackingNumber)} target="_blank" rel="noopener noreferrer" className="font-mono text-blue-600 underline hover:text-blue-800 break-all">{row.trackingNumber}</a>
-                      <Button type="button" size="sm" variant="ghost" onClick={() => copyText(row.trackingNumber)} className="h-7 px-2 text-xs"><Copy className="mr-1 h-3 w-3" />Copy</Button>
+                      <Button type="button" size="sm" variant="ghost" onClick={async () => { await copyText(row.trackingNumber); setCopiedKey(`row-${index}`); setTimeout(() => setCopiedKey(null), 2000); }} className="h-7 px-2 text-xs"><Copy className="mr-1 h-3 w-3" />{copiedKey === `row-${index}` ? 'Copied' : 'Copy'}</Button>
                     </div>
                   ))}</div>
                 </div>
@@ -1813,14 +1872,14 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
           <div className="max-h-[92vh] w-full max-w-3xl overflow-auto rounded-2xl bg-white p-4 shadow-2xl">
             <div className="mb-3 flex items-start justify-between gap-3">
               <div>
-                <Badge className={`${getProductBadgeClass(getProductTypeLabel(activePreview.item))} border text-xs font-bold`}>{getProductTypeLabel(activePreview.item)}</Badge>
-                <h3 className="mt-2 text-lg font-bold text-gray-900">{getProductTypeLabel(activePreview.item)} Preview</h3>
-                <p className="text-sm text-gray-600">{getItemSizeLabel(activePreview.item)} · Qty {activePreview.item.quantity || 0} · {getItemMaterialLabel(activePreview.item)}</p>
+                <Badge className={`${getProductBadgeClass(getProductTypeLabel(activePreview.item))} border text-xs font-bold`}>{getProductTitleLabel(activePreview.item)}</Badge>
+                <h3 className="mt-2 text-lg font-bold text-gray-900">{getProductTitleLabel(activePreview.item)} Preview</h3>
+                <div className="mt-1 space-y-1 text-sm text-gray-600"><div>{getItemSizeLabel(activePreview.item)}</div><div>Qty {activePreview.item.quantity || 0}</div><div>{getItemMaterialLabel(activePreview.item)}</div>{getOptionRows(activePreview.item).map((row) => <div key={row.label}><span className="font-semibold">{row.label}:</span> {row.value}</div>)}</div>
               </div>
               <Button type="button" variant="ghost" size="sm" onClick={() => setPreviewIndex(null)}><X className="h-4 w-4" /></Button>
             </div>
             <div className="flex min-h-[280px] items-center justify-center rounded-xl bg-gray-100 p-3">
-              {activePreview.thumbUrl ? <img src={activePreview.thumbUrl} alt="Large artwork preview" className="max-h-[60vh] max-w-full object-contain" /> : <div className="text-sm text-gray-500">No preview available</div>}
+              <ProductPreviewFrame item={activePreview.item} thumbUrl={activePreview.thumbUrl} large idSuffix={`lightbox-${order.id}-${activePreview.index}`} />
             </div>
             {previewItems.length > 1 && (
               <div className="mt-4 flex items-center justify-between gap-3">
@@ -1866,6 +1925,8 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
 }) => {
   const [isMarkingProduction, setIsMarkingProduction] = useState(false);
   const [isSendingNotification, setIsSendingNotification] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const orderItems = getSafeOrderItems(order);
   const isGraduation = isGraduationOrder(order);
   const graduationIntakeId = isGraduation ? getGraduationIntakeId(order) : null;
   const graduationLink = graduationIntakeId
@@ -1890,7 +1951,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
     }
   };
   const getFilesWithDownload = () => {
-    return order.items
+    return orderItems
       .map((item, index) => ({ item, index }))
       .filter(({ item }) => 
         item.file_key || 
@@ -1904,7 +1965,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
       );
   };
 
-  const previewItems = useMemo(() => (order.items || []).map((item: any, index) => ({ item, index, thumbUrl: getFinalizedThumbnailUrl(item, 160) })), [order.items]);
+  const previewItems = useMemo(() => orderItems.map((item: any, index) => ({ item, index, thumbUrl: getFinalizedThumbnailUrl(item, 720) })), [orderItems]);
 
   return (
     <div className="border-b border-gray-200 p-4 hover:bg-gray-50 overflow-x-clip">
@@ -1916,7 +1977,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
                 {thumbUrl ? <img src={thumbUrl} alt={`${getProductTypeLabel(item)} preview`} className="h-full w-full object-contain" /> : <span className="flex h-full items-center justify-center text-xs text-gray-400">No img</span>}
               </div>
               <div className="min-w-0">
-                <Badge className={`${getProductBadgeClass(getProductTypeLabel(item))} border text-[10px] font-bold`}>{getProductTypeLabel(item)}</Badge>
+                <Badge className={`${getProductBadgeClass(getProductTypeLabel(item))} border text-[10px] font-bold`}>{getProductTitleLabel(item)}</Badge>
                 <div className="mt-1 text-sm font-semibold text-gray-900 break-words">{getItemSizeLabel(item)}</div>
                 <div className="text-xs text-gray-600">Qty {item.quantity || 0}</div>
               </div>
@@ -1943,7 +2004,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
                   </Badge>
                 ) : null;
               })()}
-              {order.items.some(item => item.design_service_enabled) && (
+              {orderItems.some(item => item.design_service_enabled) && (
                 <Badge className="bg-purple-100 text-purple-800 text-xs">
                   <Palette className="h-3 w-3 mr-1" />
                   Design
@@ -1980,7 +2041,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
             <div>
               <div className="text-xs text-gray-500">Items</div>
               <div className="text-sm text-gray-800 break-words">{getOrderItemsSummary(order)}</div>
-              <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-gray-600"><span>Total units: <b>{getTotalUnits(order)}</b></span><span>Line items: <b>{order.items.length}</b></span><span>Print files: <b>{getPrintFileCount(order)}</b></span></div>
+              <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-gray-600"><span>Total units: <b>{getTotalUnits(order)}</b></span><span>Line items: <b>{orderItems.length}</b></span><span>Print files: <b>{getPrintFileCount({ ...order, items: orderItems } as Order)}</b></span></div>
             </div>
             <div>
               <div className="text-xs text-gray-500">Total</div>
@@ -1995,7 +2056,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
                     <div key={`${row.trackingNumber}-${index}`} className="flex flex-wrap items-center gap-2">
                       <Badge className="bg-green-100 text-green-800"><Truck className="h-3 w-3 mr-1" />FEDEX</Badge>
                       <span className="text-xs font-semibold text-gray-700">{row.label || `Package ${index + 1}`}</span>
-                      <a href={fedexUrl(row.trackingNumber)} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline break-all">{row.trackingNumber}</a><Button type="button" size="sm" variant="ghost" onClick={() => copyText(row.trackingNumber)} className="h-7 px-2 text-xs"><Copy className="mr-1 h-3 w-3" />Copy</Button>
+                      <a href={fedexUrl(row.trackingNumber)} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline break-all">{row.trackingNumber}</a><Button type="button" size="sm" variant="ghost" onClick={async () => { await copyText(row.trackingNumber); setCopiedKey(`row-${index}`); setTimeout(() => setCopiedKey(null), 2000); }} className="h-7 px-2 text-xs"><Copy className="mr-1 h-3 w-3" />{copiedKey === `row-${index}` ? 'Copied' : 'Copy'}</Button>
                     </div>
                   ))}
                 </div>
@@ -2005,11 +2066,11 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
         </div>
       </div>
 
-      {!isGraduation && (getFilesWithDownload().length > 0 || order.items.some(item => item.final_print_pdf_url)) && (
+      {!isGraduation && (getFilesWithDownload().length > 0 || orderItems.some(item => item.final_print_pdf_url)) && (
         <div className="mt-3">
           <div className="text-xs text-gray-500 mb-2">Print Files</div>
           <div className="grid grid-cols-1 gap-2">
-            {order.items
+            {orderItems
               .map((item, index) => ({ item, index }))
               .filter(({ item }) => item.final_print_pdf_url)
               .map(({ item, index }) => (
@@ -2021,7 +2082,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
                   className="inline-flex items-center justify-center text-xs text-purple-700 hover:text-purple-900 font-medium bg-purple-50 border border-purple-200 px-3 py-2 rounded"
                 >
                   <Download className="h-3 w-3 mr-1" />
-                  Final Print File {order.items.length > 1 ? `#${index + 1}` : ''}
+                  {getPrintFileLabel(item, index, 'Final')}
                 </a>
               ))}
             {getFilesWithDownload().map(({ item, index }) => (
