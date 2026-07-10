@@ -24,6 +24,7 @@ const AdminCustomQuotes: React.FC = () => {
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('all');
   const [selected, setSelected] = useState<Quote | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const newCount = counts.New || 0;
 
   useEffect(() => { if (!authLoading && (!user || !isAdmin(user))) navigate('/admin/setup', { replace:true }); }, [user, authLoading, navigate]);
@@ -32,18 +33,19 @@ const AdminCustomQuotes: React.FC = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ status, q: query });
+      setLoadError(null);
+      const params = new URLSearchParams({ status, q: query, email: user?.email || '' });
       const response = await fetch(`/.netlify/functions/admin-custom-quotes?${params}`);
       const data = await response.json();
       if (!response.ok || !data.ok) throw new Error(data.error || 'Failed to load custom quotes');
       setQuotes(data.quotes || []);
       setCounts(Object.fromEntries((data.counts || []).map((c: any) => [c.status, c.count])));
-    } catch (err) { toast({ title:'Unable to load custom quotes', description: err instanceof Error ? err.message : 'Please try again.', variant:'destructive' }); }
+    } catch (err) { const message = err instanceof Error ? err.message : 'Please try again.'; setLoadError(message); toast({ title:'Unable to load custom quotes', description: message, variant:'destructive' }); }
     finally { setLoading(false); }
   };
 
   const save = async (quote: Quote, patch: Partial<Quote>) => {
-    const response = await fetch('/.netlify/functions/admin-custom-quotes', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: quote.id, status: patch.status, internalNotes: patch.internal_notes }) });
+    const response = await fetch('/.netlify/functions/admin-custom-quotes', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: quote.id, status: patch.status, internalNotes: patch.internal_notes, email: user?.email || '' }) });
     const data = await response.json();
     if (!response.ok || !data.ok) throw new Error(data.error || 'Save failed');
     setQuotes(prev => prev.map(q => q.id === quote.id ? data.quote : q));
@@ -53,7 +55,7 @@ const AdminCustomQuotes: React.FC = () => {
   const visible = useMemo(() => quotes, [quotes]);
   if (authLoading || loading) return <Layout><div className="flex min-h-[60vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-[#18448D]" /></div></Layout>;
 
-  return <Layout><section className="bg-slate-50 px-4 py-8"><div className="mx-auto max-w-7xl"><div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center"><div><div className="flex items-center gap-3"><Shield className="h-7 w-7 text-[#18448D]" /><h1 className="text-3xl font-black text-slate-900">Custom Quotes</h1>{newCount > 0 && <Badge className="bg-[#FF6A00] text-white">{newCount} New</Badge>}</div><p className="mt-1 text-slate-600">Review custom banner, yard sign, and magnet quote requests.</p></div><Button variant="outline" onClick={()=>navigate('/admin/orders')}>Back to Orders</Button></div><div className="mb-5 grid gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 md:grid-cols-[1fr_220px_auto]"><div className="relative"><Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" /><Input className="pl-9" placeholder="Search quote number, customer, email, company" value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>{ if(e.key==='Enter') load(); }} /></div><Select value={status} onValueChange={setStatus}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All statuses</SelectItem>{STATUSES.map(s=><SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select><Button onClick={load}>Search</Button></div><div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]"><div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">{visible.map(q=><button key={q.id} onClick={()=>setSelected(q)} className={`block w-full border-b border-slate-100 p-4 text-left hover:bg-blue-50 ${selected?.id===q.id?'bg-blue-50':''}`}><div className="flex items-start justify-between gap-3"><div><p className="font-black text-slate-900">{q.quote_number}</p><p className="text-sm text-slate-600">{q.full_name} • {PRODUCT_LABELS[q.product_type] || q.product_type}</p><p className="text-xs text-slate-500">{new Date(q.created_at).toLocaleString()}</p></div><Badge variant={q.status === 'New' ? 'default' : 'secondary'}>{q.status}</Badge></div></button>)}{visible.length===0 && <p className="p-8 text-center text-slate-500">No custom quote requests found.</p>}</div><QuoteDetail quote={selected} save={save} /></div></div></section></Layout>;
+  return <Layout><section className="bg-slate-50 px-4 py-8"><div className="mx-auto max-w-7xl"><div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center"><div><div className="flex items-center gap-3"><Shield className="h-7 w-7 text-[#18448D]" /><h1 className="text-3xl font-black text-slate-900">Custom Quotes</h1>{newCount > 0 && <Badge className="bg-[#FF6A00] text-white">{newCount} New</Badge>}</div><p className="mt-1 text-slate-600">Review custom banner, yard sign, and magnet quote requests.</p></div><Button variant="outline" onClick={()=>navigate('/admin/orders')}>Back to Orders</Button></div><div className="mb-5 grid gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 md:grid-cols-[1fr_220px_auto]"><div className="relative"><Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" /><Input className="pl-9" placeholder="Search quote number, customer, email, company" value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>{ if(e.key==='Enter') load(); }} /></div><Select value={status} onValueChange={setStatus}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All statuses</SelectItem>{STATUSES.map(s=><SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select><Button onClick={load}>Search</Button></div>{loadError && <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 font-semibold text-red-700">Unable to load custom quote requests. {loadError}</div>}<div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]"><div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">{visible.map(q=><button key={q.id} onClick={()=>setSelected(q)} className={`block w-full border-b border-slate-100 p-4 text-left hover:bg-blue-50 ${selected?.id===q.id?'bg-blue-50':''}`}><div className="flex items-start justify-between gap-3"><div><p className="font-black text-slate-900">{q.quote_number}</p><p className="text-sm text-slate-600">{q.full_name} • {PRODUCT_LABELS[q.product_type] || q.product_type}</p><p className="text-xs text-slate-500">{new Date(q.created_at).toLocaleString()}</p></div><Badge variant={q.status === 'New' ? 'default' : 'secondary'}>{q.status}</Badge></div></button>)}{visible.length===0 && <p className="p-8 text-center text-slate-500">No custom quote requests found.</p>}</div><QuoteDetail quote={selected} save={save} /></div></div></section></Layout>;
 };
 
 const QuoteDetail = ({ quote, save }: { quote: Quote | null; save: (q: Quote, patch: Partial<Quote>)=>Promise<void> }) => {
