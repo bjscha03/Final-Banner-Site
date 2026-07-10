@@ -339,10 +339,10 @@ const AdminOrders: React.FC = () => {
             ? {
                 ...order,
                 tracking_carrier: 'fedex' as const, // Default carrier since not stored in DB
-                tracking_number: trackingNumber,
+                tracking_number: savedTrackingNumbers[0]?.trackingNumber || null,
                 tracking_numbers: savedTrackingNumbers,
                 trackingNumbers: savedTrackingNumbers,
-                status: 'shipped' // Update status to shipped when tracking is added
+                status: savedTrackingNumbers.length > 0 ? 'shipped' : order.status // Update status to shipped only when tracking is added
               }
             : order
         )
@@ -375,7 +375,7 @@ const AdminOrders: React.FC = () => {
             ? {
                 ...order,
                 tracking_carrier: 'fedex' as const, // Default carrier since not stored in DB
-                tracking_number: trackingNumber,
+                tracking_number: savedTrackingNumbers[0]?.trackingNumber || null,
                 tracking_numbers: savedTrackingNumbers,
                 trackingNumbers: savedTrackingNumbers,
                 // Don't change status when updating existing tracking
@@ -1322,14 +1322,14 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   };
   const updateTrackingRow = (index: number, patch: Partial<TrackingEntry>) => setTrackingRows(rows => rows.map((row, rowIndex) => rowIndex === index ? { ...row, ...patch } : row));
   const addTrackingRow = () => setTrackingRows(rows => [...rows, { carrier: DEFAULT_TRACKING_CARRIER, trackingNumber: '', label: `Package ${rows.length + 1}` }]);
-  const removeTrackingRow = (index: number) => setTrackingRows(rows => rows.length === 1 ? rows : rows.filter((_, rowIndex) => rowIndex !== index));
+  const removeTrackingRow = (index: number) => setTrackingRows(rows => rows.filter((_, rowIndex) => rowIndex !== index));
   const [isSendingNotification, setIsSendingNotification] = useState(false);
   const [isMarkingProduction, setIsMarkingProduction] = useState(false);
 
   const handleAddTracking = () => {
     try {
       const rows = validateRows(trackingRows);
-      onAddTracking(order.id, 'fedex', rows[0].trackingNumber, rows);
+      onAddTracking(order.id, 'fedex', rows[0]?.trackingNumber || '', rows);
       setTrackingRows([{ carrier: DEFAULT_TRACKING_CARRIER, trackingNumber: '', label: 'Package 1' }]);
       setIsAddingTracking(false);
     } catch (error) { alert(error instanceof Error ? error.message : 'Invalid tracking rows'); }
@@ -1343,7 +1343,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   const handleSaveTracking = () => {
     try {
       const rows = validateRows(trackingRows);
-      onUpdateTracking(order.id, 'fedex', rows[0].trackingNumber, rows);
+      onUpdateTracking(order.id, 'fedex', rows[0]?.trackingNumber || '', rows);
       setIsEditingTracking(false);
     } catch (error) { alert(error instanceof Error ? error.message : 'Invalid tracking rows'); }
   };
@@ -1593,6 +1593,11 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
             )}
             {(isEditingTracking || isAddingTracking) && (
               <div className="space-y-2 rounded-md border border-blue-100 bg-blue-50 p-2">
+                {trackingRows.length === 0 && (
+                  <div className="rounded-md border border-dashed border-blue-200 bg-white p-3 text-xs text-gray-600">
+                    No tracking numbers added.
+                  </div>
+                )}
                 {trackingRows.map((row, index) => (
                   <div key={index} className="grid grid-cols-1 gap-2 sm:grid-cols-[110px_1fr_1fr_auto]">
                     <Select value={row.carrier} onValueChange={(value) => updateTrackingRow(index, { carrier: value as TrackingCarrier })}>
@@ -1601,11 +1606,11 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                     </Select>
                     <Input type="text" placeholder="Tracking number" value={row.trackingNumber} onChange={(e) => updateTrackingRow(index, { trackingNumber: e.target.value })} className="h-8 text-xs" />
                     <Input type="text" placeholder={`Package ${index + 1} label (optional)`} value={row.label || ''} onChange={(e) => updateTrackingRow(index, { label: e.target.value })} className="h-8 text-xs" />
-                    <Button size="sm" variant="ghost" onClick={() => removeTrackingRow(index)} disabled={trackingRows.length === 1} className="h-8 px-2 text-xs"><X className="h-3 w-3" /></Button>
+                    <Button size="sm" variant="ghost" onClick={() => removeTrackingRow(index)} className="h-8 px-2 text-xs"><X className="h-3 w-3" /></Button>
                   </div>
                 ))}
                 <div className="flex flex-wrap gap-2">
-                  <Button size="sm" variant="outline" onClick={addTrackingRow} className="h-8 px-3 text-xs"><Plus className="h-3 w-3 mr-1" />Add Another Tracking Number</Button>
+                  <Button size="sm" variant="outline" onClick={addTrackingRow} className="h-8 px-3 text-xs"><Plus className="h-3 w-3 mr-1" />{trackingRows.length === 0 ? 'Add Tracking' : 'Add Another Tracking Number'}</Button>
                   <Button size="sm" onClick={isEditingTracking ? handleSaveTracking : handleAddTracking} className="h-8 px-3 text-xs"><Save className="h-3 w-3 mr-1" />Save Tracking</Button>
                   <Button size="sm" variant="ghost" onClick={isEditingTracking ? handleCancelEdit : () => setIsAddingTracking(false)} className="h-8 px-3 text-xs"><X className="h-3 w-3 mr-1" />Cancel</Button>
                 </div>
@@ -1698,7 +1703,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                 </Button>
               )}
 
-              {!isGraduation && order.tracking_number && (
+              {!isGraduation && displayedTrackingRows.length > 0 && (
                 <Button
                   size="sm"
                   variant="outline"

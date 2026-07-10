@@ -202,7 +202,7 @@ exports.handler = async (event, context) => {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ ok: false, error: 'Order must have tracking number before sending notification' })
+        body: JSON.stringify({ ok: false, error: 'Add at least one tracking number before sending the tracking email.' })
       };
     }
 

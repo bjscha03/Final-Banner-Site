@@ -67,14 +67,16 @@ exports.handler = async (event, context) => {
       return { statusCode: 400, headers, body: JSON.stringify({ ok: false, error: validationError.message }) };
     }
 
-    const primaryTrackingNumber = normalized[0].trackingNumber;
+    const primaryTrackingNumber = normalized[0]?.trackingNumber || null;
     const trackingJson = JSON.stringify(normalized);
-    // Keep legacy tracking_number populated with the first package for backward compatibility.
-    const result = isUpdate
+    // Keep legacy tracking_number populated with the first package for backward compatibility,
+    // or clear it when the admin intentionally saves an empty tracking list.
+    const result = !isUpdate && normalized.length > 0
       ? await sql`
           UPDATE orders
           SET tracking_number = ${primaryTrackingNumber},
               tracking_numbers = ${trackingJson}::jsonb,
+              status = 'shipped',
               updated_at = NOW()
           WHERE id = ${id}
           RETURNING *
@@ -83,7 +85,6 @@ exports.handler = async (event, context) => {
           UPDATE orders
           SET tracking_number = ${primaryTrackingNumber},
               tracking_numbers = ${trackingJson}::jsonb,
-              status = 'shipped',
               updated_at = NOW()
           WHERE id = ${id}
           RETURNING *

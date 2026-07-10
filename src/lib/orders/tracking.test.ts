@@ -15,14 +15,17 @@ describe('tracking helpers', () => {
   it('rejects blank rows', () => {
     expect(() => validateTrackingEntries([{ carrier: 'fedex', trackingNumber: '' } as any])).toThrow(/Blank|blank|cannot/);
   });
-  it('rejects an empty tracking array so legacy values are not erased', () => {
-    expect(() => validateTrackingEntries([])).toThrow(/At least one/);
+  it('allows an intentionally empty tracking array', () => {
+    expect(validateTrackingEntries([])).toEqual([]);
   });
   it('rejects duplicate tracking numbers', () => {
     expect(() => validateTrackingEntries([{ carrier: 'fedex', trackingNumber: '123' }, { carrier: 'fedex', trackingNumber: ' 123 ' }] as any)).toThrow(/Duplicate|duplicated/);
   });
-  it('loads old orders with a single tracking-number field', () => {
+  it('loads old orders with a single tracking-number field when tracking_numbers is missing', () => {
     expect(normalizeTrackingEntries({ tracking_number: 'legacy' })).toEqual([{ carrier: 'fedex', trackingNumber: 'legacy', label: 'Package 1' }]);
+  });
+  it('does not use legacy fallback when tracking_numbers is explicitly empty', () => {
+    expect(normalizeTrackingEntries({ tracking_number: 'legacy', tracking_numbers: [] })).toEqual([]);
   });
   it('generates correct FedEx tracking links', () => {
     expect(fedexUrl('123 456')).toBe('https://www.fedex.com/fedextrack/?trknbr=123%20456');

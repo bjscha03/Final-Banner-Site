@@ -16,9 +16,14 @@ export const getTrackingUrl = (entry: Pick<TrackingEntry, 'carrier' | 'trackingN
 export const fedexUrl = (trackingNumber: string): string => getTrackingUrl({ carrier: 'fedex', trackingNumber });
 
 export const normalizeTrackingEntries = (orderOrEntries: any): TrackingEntry[] => {
-  const raw = Array.isArray(orderOrEntries) ? orderOrEntries : orderOrEntries?.tracking_numbers || orderOrEntries?.trackingNumbers;
+  const raw = Array.isArray(orderOrEntries)
+    ? orderOrEntries
+    : Object.prototype.hasOwnProperty.call(orderOrEntries || {}, 'tracking_numbers')
+      ? orderOrEntries?.tracking_numbers
+      : orderOrEntries?.trackingNumbers;
+  const hasExplicitTrackingArray = Array.isArray(raw);
   const legacy = !Array.isArray(orderOrEntries) ? orderOrEntries?.tracking_number : null;
-  const source = Array.isArray(raw) && raw.length ? raw : (legacy ? [{ carrier: orderOrEntries?.tracking_carrier || DEFAULT_TRACKING_CARRIER, trackingNumber: legacy }] : []);
+  const source = hasExplicitTrackingArray ? raw : (legacy ? [{ carrier: orderOrEntries?.tracking_carrier || DEFAULT_TRACKING_CARRIER, trackingNumber: legacy }] : []);
   const seen = new Set<string>();
   return source
     .map((entry: any, index: number) => ({
@@ -37,7 +42,6 @@ export const normalizeTrackingEntries = (orderOrEntries: any): TrackingEntry[] =
 
 export const validateTrackingEntries = (entries: TrackingEntry[]): TrackingEntry[] => {
   const normalized = normalizeTrackingEntries(entries);
-  if (entries.length === 0) throw new Error('At least one tracking number is required.');
   if (normalized.length !== entries.length) throw new Error('Tracking rows cannot be blank or duplicated.');
   return normalized;
 };
