@@ -1396,9 +1396,9 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(260px,0.95fr)_minmax(300px,1.1fr)] xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.9fr)_minmax(360px,1.15fr)] lg:items-start">
         {/* LEFT SECTION */}
-        <div className="flex min-w-0 flex-1 gap-3">
+        <div className="flex min-w-0 gap-3">
           {getFirstItemThumbnail() ? (
             <img 
               src={getFirstItemThumbnail()} 
@@ -1426,15 +1426,15 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
             <div className="text-xs text-gray-600 break-all" title={order.email || (order.user_id ? `${order.user_id.slice(0, 8)}...` : "No email")}>
               {order.email || (order.user_id ? `${order.user_id.slice(0, 8)}...` : 'No email')}
             </div>
+            <div className="pt-2">
+              <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Order Details</div>
+              <div className="text-sm text-gray-900 break-words">{getItemsSummary(order)}</div>
+            </div>
           </div>
         </div>
 
         {/* MIDDLE SECTION */}
-        <div className="w-full space-y-2 xl:max-w-[260px]">
-          <div>
-            <div className="text-xs text-gray-500">Order Details</div>
-            <div className="text-sm text-gray-900">{getItemsSummary(order)}</div>
-          </div>
+        <div className="min-w-0 space-y-3">
           <div className={`text-lg font-bold ${ORDER_ACCENT_TEXT_CLASS}`}>{usd(getDisplayOrderTotalCents(order as any) / 100)}</div>
           {(() => {
             const profit = estimateOrderProfit(order);
@@ -1524,7 +1524,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
         </div>
 
         {/* RIGHT SECTION */}
-        <div className="w-full space-y-3 xl:max-w-[420px]">
+        <div className="min-w-0 space-y-3">
           {isGraduation ? (
             <div className="rounded-md border border-orange-200 bg-orange-50 p-3 text-xs text-orange-900 space-y-1">
               <div className="font-semibold flex items-center gap-1">
