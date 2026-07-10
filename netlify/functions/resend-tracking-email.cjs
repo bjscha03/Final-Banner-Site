@@ -9,6 +9,7 @@ const {
   renderEmailLayout,
   escapeHtml,
 } = require('./email-template.cjs');
+const { normalizeTrackingEntries, getTrackingUrl } = require('./tracking-helpers.cjs');
 
 // Neon database connection
 function getDbUrl() {
@@ -65,22 +66,26 @@ async function sendEmail(type, payload) {
 
     // For now, we'll use a simple HTML template since importing React components in Netlify functions is complex
     // In production, you'd want to use the actual OrderShipped React component
-    const createShippingEmailHtml = (order, trackingNumber, trackingUrl) => {
+    const createShippingEmailHtml = (order, trackingNumber, trackingUrl, trackingNumbers) => {
       const names = normalizeName(order.customerName || '');
+      const entries = normalizeTrackingEntries(trackingNumbers && trackingNumbers.length ? trackingNumbers : [{ trackingNumber, carrier: 'fedex' }]);
+      const multiple = entries.length > 1;
+      const trackingHtml = entries.map((entry, index) => `
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:0 0 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">
+            <tr><td style="padding:14px;">
+              <p style="margin:0 0 6px;color:#0f172a;font-size:14px;font-weight:700;">${escapeHtml(entry.label || `Package ${index + 1}`)}</p>
+              <p style="margin:0 0 6px;color:#334155;font-size:13px;">FedEx Tracking: <span style="font-family:monospace;font-weight:700;color:#0f172a;">${escapeHtml(entry.trackingNumber)}</span></p>
+              <a href="${escapeHtml(getTrackingUrl(entry))}" style="display:inline-block;background:#ff6b35;color:#ffffff;text-decoration:none;padding:10px 14px;border-radius:8px;font-weight:600;font-size:13px;">Track Package</a>
+            </td></tr>
+          </table>`).join('');
       return renderEmailLayout({
         title: 'Your Order Has Shipped',
         subtitle: 'Your order has shipped.',
         orderNumber: order.orderNumber,
         bodyHtml: `
           <p style="margin:0 0 12px;font-size:15px;color:#334155;">Hi ${escapeHtml(names.firstName)},</p>
-          <p style="margin:0 0 14px;font-size:14px;color:#334155;">Your order has shipped.</p>
-          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:0 0 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">
-            <tr><td style="padding:14px;">
-              <p style="margin:0 0 6px;color:#334155;font-size:13px;">Carrier: FedEx</p>
-              <p style="margin:0 0 10px;color:#0f172a;font-size:14px;font-weight:700;font-family:monospace;">Tracking #: ${escapeHtml(trackingNumber || '')}</p>
-              ${trackingUrl ? `<a href="${escapeHtml(trackingUrl)}" style="display:inline-block;background:#ff6b35;color:#ffffff;text-decoration:none;padding:10px 14px;border-radius:8px;font-weight:600;font-size:13px;">Track Your Package</a>` : ''}
-            </td></tr>
-          </table>
+          <p style="margin:0 0 14px;font-size:14px;color:#334155;">${multiple ? 'Your order was sent in multiple packages.' : 'Your order has shipped.'}</p>
+          ${trackingHtml}
           ${renderItems(order.items || [])}
           ${renderTotals({ subtotal: order.subtotal, tax: order.tax, total: order.total, discountCents: order.discountCents, discountLabel: order.discountLabel })}
           ${renderAddress(order)}
@@ -89,13 +94,13 @@ async function sendEmail(type, payload) {
     };
 
     if (type === 'order.shipped') {
-      const { order, trackingNumber, trackingUrl } = payload;
+      const { order, trackingNumber, trackingUrl, trackingNumbers } = payload;
       
       const emailData = {
         from: emailFrom,
         to: order.email,
         subject: `Your Order #${order.orderNumber} Has Shipped!`,
-        html: createShippingEmailHtml(order, trackingNumber, trackingUrl),
+        html: createShippingEmailHtml(order, trackingNumber, trackingUrl, trackingNumbers),
         reply_to: emailReplyTo,
         tags: [
           { name: 'type', value: 'order_shipped' },
@@ -190,8 +195,10 @@ exports.handler = async (event, context) => {
 
     const order = orderResult[0];
 
+    const trackingNumbers = normalizeTrackingEntries(order);
+
     // Check if order has tracking number
-    if (!order.tracking_number) {
+    if (trackingNumbers.length === 0) {
       return {
         statusCode: 400,
         headers,
@@ -293,13 +300,14 @@ exports.handler = async (event, context) => {
     };
 
     // Create tracking URL (FedEx)
-    const trackingUrl = `https://www.fedex.com/fedextrack/?trknbr=${order.tracking_number}`;
+    const trackingUrl = getTrackingUrl(trackingNumbers[0]);
 
     // Send shipping notification email
     const emailResult = await sendEmail('order.shipped', {
       order: emailOrder,
-      trackingNumber: order.tracking_number,
-      trackingUrl: trackingUrl
+      trackingNumber: trackingNumbers[0].trackingNumber,
+      trackingUrl: trackingUrl,
+      trackingNumbers
     });
 
     // Log email attempt
@@ -310,7 +318,7 @@ exports.handler = async (event, context) => {
       status: emailResult.ok ? 'sent' : 'error',
       providerMsgId: emailResult.ok ? emailResult.id : undefined,
       errorMessage: emailResult.ok ? undefined : emailResult.error,
-      trackingNumber: order.tracking_number,
+      trackingNumber: trackingNumbers.map(t => t.trackingNumber).join(', '),
       adminUser
     });
 
@@ -381,7 +389,7 @@ exports.handler = async (event, context) => {
         message: 'Tracking email sent successfully',
         emailId: emailResult.id,
         sentAt: new Date().toISOString(),
-        trackingNumber: order.tracking_number
+        trackingNumber: trackingNumbers.map(t => t.trackingNumber).join(', ')
       })
     };
 

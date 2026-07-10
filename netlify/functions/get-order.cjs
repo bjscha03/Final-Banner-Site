@@ -1,4 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
+const { normalizeTrackingEntries } = require('./tracking-helpers.cjs');
 const { normalizeShippingAddress } = require('./shipping-address-helpers.cjs');
 
 // Module-scoped cache: auto-migrations only need to run once per cold start.
@@ -184,6 +185,7 @@ exports.handler = async (event, context) => {
       'total_cents',
       'status',
       'tracking_number',
+      'tracking_numbers',
       'shipping_name',
       'shipping_street',
       'shipping_street2',
@@ -311,6 +313,8 @@ exports.handler = async (event, context) => {
     const shippingAddress = normalizeShippingAddress(order);
     const orderWithItems = {
       ...order,
+      tracking_numbers: normalizeTrackingEntries(order),
+      trackingNumbers: normalizeTrackingEntries(order),
       same_day_hit_service: inferredSameDaySelected,
       same_day_fee_cents: inferredSameDayFee,
       shippingAddress,

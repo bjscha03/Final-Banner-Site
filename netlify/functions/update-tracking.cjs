@@ -1,4 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
+const { validateTrackingEntries } = require('./tracking-helpers.cjs');
 
 // Neon database connection
 // Lazily resolve DB URL so the function doesn't crash when missing
@@ -45,7 +46,7 @@ exports.handler = async (event, context) => {
 
     const sql = neon(dbUrl);
 
-    const { id, carrier, number, isUpdate = false } = JSON.parse(event.body || '{}');
+    const { id, carrier, number, trackingNumbers, isUpdate = false } = JSON.parse(event.body || '{}');
 
     if (!id || typeof id !== 'string') {
       return {
@@ -55,28 +56,33 @@ exports.handler = async (event, context) => {
       };
     }
 
-    if (!number || typeof number !== 'string') {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ ok: false, error: 'Tracking number is required' })
-      };
+
+
+    await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS tracking_numbers JSONB`;
+
+    let normalized;
+    try {
+      normalized = validateTrackingEntries(Array.isArray(trackingNumbers) ? trackingNumbers : [{ carrier: carrier || 'fedex', trackingNumber: number }]);
+    } catch (validationError) {
+      return { statusCode: 400, headers, body: JSON.stringify({ ok: false, error: validationError.message }) };
     }
 
-    // Update the order with tracking information
-    // Note: tracking_carrier column doesn't exist in database schema, so we only update tracking_number
-    // Only set status to 'shipped' when adding tracking for the first time (not when updating)
+    const primaryTrackingNumber = normalized[0].trackingNumber;
+    const trackingJson = JSON.stringify(normalized);
+    // Keep legacy tracking_number populated with the first package for backward compatibility.
     const result = isUpdate
       ? await sql`
           UPDATE orders
-          SET tracking_number = ${number},
+          SET tracking_number = ${primaryTrackingNumber},
+              tracking_numbers = ${trackingJson}::jsonb,
               updated_at = NOW()
           WHERE id = ${id}
           RETURNING *
         `
       : await sql`
           UPDATE orders
-          SET tracking_number = ${number},
+          SET tracking_number = ${primaryTrackingNumber},
+              tracking_numbers = ${trackingJson}::jsonb,
               status = 'shipped',
               updated_at = NOW()
           WHERE id = ${id}
@@ -91,25 +97,25 @@ exports.handler = async (event, context) => {
       };
     }
 
-    console.log(`Tracking updated for order ${id}: ${number} - ${new Date().toISOString()}`);
+    console.log(`Tracking updated for order ${id}: ${normalized.map(t => t.trackingNumber).join(', ')} - ${new Date().toISOString()}`);
 
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ 
-        ok: true, 
+      body: JSON.stringify({
+        ok: true,
         order: result[0]
       })
     };
 
   } catch (error) {
     console.error('Update tracking failed:', error);
-    
+
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ 
-        ok: false, 
+      body: JSON.stringify({
+        ok: false,
         error: 'Internal server error',
         details: error.message
       })

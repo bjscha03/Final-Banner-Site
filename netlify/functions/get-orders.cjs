@@ -1,4 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
+const { normalizeTrackingEntries } = require('./tracking-helpers.cjs');
 const { normalizeShippingAddress } = require('./shipping-address-helpers.cjs');
 
 // Neon database connection
@@ -147,6 +148,7 @@ exports.handler = async (event, context) => {
       `customer_name TEXT`,
       `customer_first_name TEXT`,
       `tracking_number VARCHAR(255)`,
+      `tracking_numbers JSONB`,
       `shipping_name TEXT`,
       `shipping_street TEXT`,
       `shipping_street2 TEXT`,
@@ -376,6 +378,8 @@ exports.handler = async (event, context) => {
       status: order.status,
       currency: 'USD',
       tracking_number: order.tracking_number,
+      tracking_numbers: normalizeTrackingEntries(order),
+      trackingNumbers: normalizeTrackingEntries(order),
       tracking_carrier: order.tracking_number ? 'fedex' : null, // Default to fedex when tracking exists
       shipping_name: order.shipping_name,
       shipping_street: order.shipping_street,

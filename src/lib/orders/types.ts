@@ -1,6 +1,8 @@
 export type MaterialKey = '13oz' | '15oz' | '18oz' | 'mesh' | 'corrugated' | 'magnetic' | 'aluminum_040' | 'aluminum_063';
 export type OrderStatus = 'paid' | 'pending' | 'failed' | 'refunded' | 'shipped';
 export type TrackingCarrier = 'fedex';
+export type { TrackingEntry } from './tracking';
+export { fedexUrl, getTrackingUrl, normalizeTrackingEntries, DEFAULT_TRACKING_CARRIER } from './tracking';
 
 export interface DesignServiceAsset {
   name: string;
@@ -76,6 +78,8 @@ export interface Order {
   created_at: string;
   items: OrderItem[];
   tracking_number?: string | null;
+  tracking_numbers?: import('./tracking').TrackingEntry[] | null;
+  trackingNumbers?: import('./tracking').TrackingEntry[] | null;
   tracking_carrier?: TrackingCarrier | null;
   shipping_notification_sent?: boolean;
   shipping_notification_sent_at?: string | null;
@@ -161,8 +165,8 @@ export interface OrdersAdapter {
   create(order: CreateOrderData): Promise<Order>;
   listByUser(userId: string, page?: number): Promise<Order[]>;
   listAll(page?: number): Promise<Order[]>;
-  appendTracking(id: string, carrier: TrackingCarrier, number: string): Promise<void>;
-  updateTracking(id: string, carrier: TrackingCarrier, number: string): Promise<void>;
+  appendTracking(id: string, carrier: TrackingCarrier, number: string, trackingNumbers?: import('./tracking').TrackingEntry[]): Promise<void>;
+  updateTracking(id: string, carrier: TrackingCarrier, number: string, trackingNumbers?: import('./tracking').TrackingEntry[]): Promise<void>;
   get(id: string): Promise<Order | null>;
 }
 

@@ -84,14 +84,14 @@ export const netlifyFunctionOrdersAdapter: OrdersAdapter = {
     return data;
   },
 
-  appendTracking: async (id: string, carrier: TrackingCarrier, number: string): Promise<void> => {
+  appendTracking: async (id: string, carrier: TrackingCarrier, number: string, trackingNumbers?: any[]): Promise<void> => {
     try {
       const response = await fetch(getNetlifyFunctionUrl('update-tracking'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ id, carrier, number, isUpdate: false })
+        body: JSON.stringify({ id, carrier, number, trackingNumbers, isUpdate: false })
       });
 
       if (!response.ok) {
@@ -103,14 +103,14 @@ export const netlifyFunctionOrdersAdapter: OrdersAdapter = {
     }
   },
 
-  updateTracking: async (id: string, carrier: TrackingCarrier, number: string): Promise<void> => {
+  updateTracking: async (id: string, carrier: TrackingCarrier, number: string, trackingNumbers?: any[]): Promise<void> => {
     try {
       const response = await fetch(getNetlifyFunctionUrl('update-tracking'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ id, carrier, number, isUpdate: true })
+        body: JSON.stringify({ id, carrier, number, trackingNumbers, isUpdate: true })
       });
 
       if (!response.ok) {

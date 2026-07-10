@@ -68,6 +68,11 @@ exports.handler = async (event, context) => {
     await sql`CREATE INDEX IF NOT EXISTS idx_orders_confirmation_email_status ON orders(confirmation_email_status)`;
     results.push('order email tracking fields added');
 
+    // 2b. Add multiple-package tracking storage. Safe to run repeatedly.
+    console.log('Adding order tracking_numbers field...');
+    await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS tracking_numbers JSONB`;
+    results.push('order tracking_numbers field added');
+
     // 3. Create email_events table
     console.log('Creating email_events table...');
     await sql`
