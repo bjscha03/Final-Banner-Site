@@ -55,6 +55,7 @@ const Contact = lazy(() => import("./pages/Contact"));
 const Terms = lazy(() => import("./pages/Terms"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const Shipping = lazy(() => import("./pages/Shipping"));
+const CustomQuote = lazy(() => import("./pages/CustomQuote"));
 
 // Blog pages - lazy load
 const Blog = lazy(() => import("./pages/Blog"));
@@ -81,6 +82,7 @@ const GraduationSignsThankYou = lazy(() => import("./pages/GraduationSignsThankY
 // Admin pages - lazy load (heavy, rarely accessed)
 const AdminOrders = lazy(() => import("./pages/admin/Orders"));
 const AdminAbandonedCarts = lazy(() => import("./pages/admin/AbandonedCarts"));
+const AdminCustomQuotes = lazy(() => import("./pages/admin/CustomQuotes"));
 const AdminEvents = lazy(() => import("./pages/admin/Events"));
 const AdminGraduationIntakes = lazy(() => import("./pages/admin/GraduationIntakes"));
 const AdminGraduationIntake = lazy(() => import("./pages/admin/GraduationIntake"));
@@ -202,6 +204,7 @@ const App = () => (
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/shipping" element={<Shipping />} />
+            <Route path="/custom-quote" element={<CustomQuote />} />
             
             {/* Blog */}
             <Route path="/blog" element={<Blog />} />
@@ -215,6 +218,7 @@ const App = () => (
             <Route path="/admin" element={<Navigate to="/admin/orders" replace />} />
             <Route path="/admin/orders" element={<AdminOrders />} />
             <Route path="/admin/abandoned-carts" element={<AdminAbandonedCarts />} />
+            <Route path="/admin/custom-quotes" element={<AdminCustomQuotes />} />
             <Route path="/admin/events" element={<AdminEvents />} />
             <Route path="/admin/graduation-intakes" element={<AdminGraduationIntakes />} />
             <Route path="/admin/graduation/:intakeId" element={<AdminGraduationIntake />} />

@@ -41,6 +41,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
     { name: 'Home', href: '/' },
     { name: 'Blog', href: '/blog' },
     { name: 'Design Tool', href: '/design' },
+    { name: 'Request a Custom Quote', href: '/custom-quote' },
     { name: 'About', href: '/about' },
     { name: 'FAQ', href: '/faq' },
     { name: 'Contact', href: '/contact' }
@@ -113,14 +114,24 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
                             My Orders
                           </ScrollToTopLink>
                           {isAdmin(user) && (
-                            <ScrollToTopLink
-                              to="/admin/orders"
-                              className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-700 hover:text-[#18448D] hover:bg-slate-50"
-                              onClick={() => setIsMenuOpen(false)}
-                            >
-                              <Shield className="h-4 w-4" />
-                              Admin: Orders
-                            </ScrollToTopLink>
+                            <>
+                              <ScrollToTopLink
+                                to="/admin/orders"
+                                className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-700 hover:text-[#18448D] hover:bg-slate-50"
+                                onClick={() => setIsMenuOpen(false)}
+                              >
+                                <Shield className="h-4 w-4" />
+                                Admin: Orders
+                              </ScrollToTopLink>
+                              <ScrollToTopLink
+                                to="/admin/custom-quotes"
+                                className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-700 hover:text-[#18448D] hover:bg-slate-50"
+                                onClick={() => setIsMenuOpen(false)}
+                              >
+                                <Shield className="h-4 w-4" />
+                                Admin: Custom Quotes
+                              </ScrollToTopLink>
+                            </>
                           )}
                           <button
                             onClick={() => {
@@ -202,6 +213,12 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
                             <ScrollToTopLink to="/admin/orders" className="flex items-center">
                               <Shield className="h-4 w-4 mr-2" />
                               Admin: Orders
+                            </ScrollToTopLink>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <ScrollToTopLink to="/admin/custom-quotes" className="flex items-center">
+                              <Shield className="h-4 w-4 mr-2" />
+                              Admin: Custom Quotes
                             </ScrollToTopLink>
                           </DropdownMenuItem>
                         </>

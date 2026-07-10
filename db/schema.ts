@@ -1,4 +1,4 @@
-import { integer, pgTable, varchar, text, uuid, timestamp, jsonb } from 'drizzle-orm/pg-core';
+import { integer, pgTable, varchar, text, uuid, timestamp, jsonb, numeric, date } from 'drizzle-orm/pg-core';
 
 export const orders = pgTable('orders', {
     id: uuid().primaryKey().defaultRandom(),
@@ -26,4 +26,30 @@ export const orderItems = pgTable('order_items', {
     line_total_cents: integer().notNull(),
     file_key: varchar({ length: 255 }), // Customer uploaded file reference
     created_at: timestamp().defaultNow()
+});
+
+export const customQuoteRequests = pgTable('custom_quote_requests', {
+    id: uuid().primaryKey().defaultRandom(),
+    quote_number: varchar({ length: 20 }).unique().notNull(),
+    status: varchar({ length: 20 }).notNull().default('New'),
+    full_name: varchar({ length: 160 }).notNull(),
+    company_name: varchar({ length: 160 }),
+    email: varchar({ length: 255 }).notNull(),
+    phone: varchar({ length: 40 }).notNull(),
+    product_type: varchar({ length: 40 }).notNull(),
+    width: numeric({ precision: 10, scale: 2 }).notNull(),
+    height: numeric({ precision: 10, scale: 2 }).notNull(),
+    unit: varchar({ length: 20 }).notNull(),
+    quantity: integer().notNull(),
+    material_specs: text(),
+    finishing_options: text(),
+    needed_by_date: date(),
+    shipping_zip: varchar({ length: 20 }).notNull(),
+    project_description: text().notNull(),
+    additional_notes: text(),
+    product_options: jsonb().notNull().default({}),
+    artwork_files: jsonb().notNull().default([]),
+    internal_notes: text(),
+    created_at: timestamp().defaultNow(),
+    updated_at: timestamp().defaultNow()
 });
