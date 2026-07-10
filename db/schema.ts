@@ -49,6 +49,7 @@ export const customQuoteRequests = pgTable('custom_quote_requests', {
     additional_notes: text(),
     product_options: jsonb().notNull().default({}),
     artwork_files: jsonb().notNull().default([]),
+    email_warnings: jsonb().notNull().default([]),
     internal_notes: text(),
     created_at: timestamp().defaultNow(),
     updated_at: timestamp().defaultNow()

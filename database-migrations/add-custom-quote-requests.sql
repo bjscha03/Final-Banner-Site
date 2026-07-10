@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS custom_quote_requests (
   additional_notes TEXT,
   product_options JSONB NOT NULL DEFAULT '{}'::jsonb,
   artwork_files JSONB NOT NULL DEFAULT '[]'::jsonb,
+  email_warnings JSONB NOT NULL DEFAULT '[]'::jsonb,
   internal_notes TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

@@ -47,19 +47,6 @@ const CustomQuote: React.FC = () => {
     setFiles(next);
   };
 
-  const uploadFiles = async () => {
-    const uploaded = [] as Array<{ originalName: string; secureUrl: string; publicId: string; fileKey: string }>;
-    for (const file of files) {
-      const body = new FormData();
-      body.append('file', file);
-      const response = await fetch('/.netlify/functions/upload-file', { method: 'POST', body });
-      if (!response.ok) throw new Error(`Upload failed for ${file.name}: ${await response.text()}`);
-      const data = await response.json();
-      uploaded.push({ originalName: file.name, secureUrl: data.secureUrl, publicId: data.publicId, fileKey: data.fileKey });
-    }
-    return uploaded;
-  };
-
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return;
@@ -67,15 +54,21 @@ const CustomQuote: React.FC = () => {
     if (error) { toast({ title: 'Please check the form', description: error, variant: 'destructive' }); return; }
     setSubmitting(true);
     try {
-      const artworkFiles = await uploadFiles();
       const productOptions = form.productType === 'banner'
         ? { banner_material: form.bannerMaterial, grommets: form.grommets, pole_pockets: form.polePockets, rope: form.rope, sides: form.bannerSides }
         : form.productType === 'yard_sign'
           ? { sides: form.yardSignSides, stake_quantity: form.stakeQuantity, custom_size: form.customSize, special_quantity: form.specialQuantity }
           : { size: form.magnetSize, corners: form.magnetCorners };
-      const response = await fetch('/.netlify/functions/custom-quote-submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, productOptions, artworkFiles }) });
-      const data = await response.json();
-      if (!response.ok || !data.ok) throw new Error(data.error || 'Unable to submit quote request');
+      const formData = new FormData();
+      Object.entries(form).forEach(([key, value]) => {
+        if (typeof value === 'boolean') return;
+        formData.append(key, String(value ?? ''));
+      });
+      formData.set('productOptions', JSON.stringify(productOptions));
+      files.forEach((file) => formData.append('files', file));
+      const response = await fetch('/.netlify/functions/custom-quote-submit', { method: 'POST', body: formData });
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.ok) throw new Error(data?.error || `Quote submission failed with status ${response.status}`);
       setQuoteNumber(data.quoteNumber);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
