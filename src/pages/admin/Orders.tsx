@@ -1571,11 +1571,20 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                       <div className="mt-2 space-y-2 rounded border border-slate-200 bg-white p-2">
                         {Array.isArray((profit as any).lines) && (profit as any).lines.length > 0 ? (profit as any).lines.map((line: any, idx: number) => (
                           <div key={idx} className="text-gray-700">
-                            <div className="font-semibold">{getProductTitleLabel(orderItems[idx])}</div>
-                            <div>Qty {line.quantity}{Number.isFinite(Number(line.unitCostCents)) ? ` × ${usd(Number(line.unitCostCents) / 100)}` : ''}{Number.isFinite(Number(line.lineCostCents)) ? ` = ${usd(Number(line.lineCostCents) / 100)}` : ''}</div>
+                            <div className="font-semibold">{[line.productLabel || getProductTitleLabel(orderItems[idx]), line.sizeLabel, line.material].filter(Boolean).join(' — ')}</div>
+                            {line.reviewRequired ? (
+                              <div className="text-gray-600">Detailed line-item cost data is unavailable for this item.</div>
+                            ) : (
+                              <>
+                                <div>Qty {line.quantity}{Number.isFinite(Number(line.unitCostCents)) ? ` × ${usd(Number(line.unitCostCents) / 100)}` : ''} = {usd(Number(line.lineCostCents || line.productionCostCents || 0) / 100)}</div>
+                                {Array.isArray(line.addOnCosts) && line.addOnCosts.map((addOn: any) => <div key={addOn.label} className="pl-3 text-gray-600">{addOn.label}: {usd(Number(addOn.costCents || 0) / 100)}</div>)}
+                              </>
+                            )}
                           </div>
                         )) : <div className="text-gray-600">Detailed line-item cost data is unavailable for this order.</div>}
-                        <div className="border-t border-slate-100 pt-1 text-gray-700"><span className="font-semibold">Supplier Shipping</span>: {orderItems.length} line items × $10 = {usd(profit.shippingCostCents / 100)}</div>
+                        <div className="border-t border-slate-100 pt-2 text-gray-700"><div className="font-semibold">Production Cost Total: {usd(profit.productionCostCents / 100)}</div></div>
+                        <div className="border-t border-slate-100 pt-2 text-gray-700"><div className="font-semibold">Supplier Shipping</div>{orderItems.length} line items × {usd(10)} = {usd(profit.shippingCostCents / 100)}</div>
+                        <div className="border-t border-slate-100 pt-2 font-semibold text-gray-800">Total Cost: {usd(profit.totalCostCents / 100)}</div>
                       </div>
                     )}
                   </>
