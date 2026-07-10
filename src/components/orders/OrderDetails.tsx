@@ -4,6 +4,7 @@ import { usd } from "@/lib/pricing";
 import { Button } from '@/components/ui/button';
 import { useCartStore } from '@/store/cart';
 import { useToast } from '@/components/ui/use-toast';
+import { useAuth, isAdmin } from '@/lib/auth';
 import { ShoppingCart, Package, Calendar, CreditCard, Mail, User, Download, FileText, Sparkles, MapPin, Loader2, Palette, Phone, Upload, MessageSquare } from 'lucide-react';
 import TrackingBadge from './TrackingBadge';
 import { getFinalizedThumbnailUrl } from '@/lib/order-thumbnail';
@@ -28,6 +29,8 @@ interface OrderDetailsProps {
 const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFinalPdf }) => {
   const { addFromQuote } = useCartStore();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const isAdminUser = user && isAdmin(user);
   const [pdfGenerating, setPdfGenerating] = useState<Record<number, boolean>>({});
   // Helper function to get the best download URL for an item (AI or uploaded)
   const getBestDownloadUrl = (item: any) => {
