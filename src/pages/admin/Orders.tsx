@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, isAdmin } from '../../lib/auth';
 import { getOrdersAdapter } from '../../lib/orders/adapter';
-import { Order, TrackingCarrier, fedexUrl } from '../../lib/orders/types';
+import { Order, TrackingCarrier } from '../../lib/orders/types';
+import type { TrackingEntry } from '../../lib/orders/tracking';
+import { fedexUrl, normalizeTrackingEntries, DEFAULT_TRACKING_CARRIER } from '../../lib/orders/tracking';
 import { usd, formatDimensions } from '@/lib/pricing';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
@@ -323,10 +325,11 @@ const AdminOrders: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleAddTracking = async (orderId: string, carrier: TrackingCarrier, trackingNumber: string) => {
+  const handleAddTracking = async (orderId: string, carrier: TrackingCarrier, trackingNumber: string, trackingNumbers?: TrackingEntry[]) => {
     try {
       const ordersAdapter = await getOrdersAdapter();
-      await ordersAdapter.appendTracking(orderId, carrier, trackingNumber);
+      const savedTrackingNumbers = trackingNumbers || [{ carrier, trackingNumber, label: 'Package 1' }];
+      await ordersAdapter.appendTracking(orderId, carrier, trackingNumber, savedTrackingNumbers);
 
       // Update local state with tracking info and status change
       // Note: tracking_carrier is not stored in database, so we default to 'fedex'
@@ -336,8 +339,10 @@ const AdminOrders: React.FC = () => {
             ? {
                 ...order,
                 tracking_carrier: 'fedex' as const, // Default carrier since not stored in DB
-                tracking_number: trackingNumber,
-                status: 'shipped' // Update status to shipped when tracking is added
+                tracking_number: savedTrackingNumbers[0]?.trackingNumber || null,
+                tracking_numbers: savedTrackingNumbers,
+                trackingNumbers: savedTrackingNumbers,
+                status: savedTrackingNumbers.length > 0 ? 'shipped' : order.status // Update status to shipped only when tracking is added
               }
             : order
         )
@@ -357,10 +362,11 @@ const AdminOrders: React.FC = () => {
     }
   };
 
-  const handleUpdateTracking = async (orderId: string, carrier: TrackingCarrier, trackingNumber: string) => {
+  const handleUpdateTracking = async (orderId: string, carrier: TrackingCarrier, trackingNumber: string, trackingNumbers?: TrackingEntry[]) => {
     try {
       const ordersAdapter = await getOrdersAdapter();
-      await ordersAdapter.updateTracking(orderId, carrier, trackingNumber);
+      const savedTrackingNumbers = trackingNumbers || [{ carrier, trackingNumber, label: 'Package 1' }];
+      await ordersAdapter.updateTracking(orderId, carrier, trackingNumber, savedTrackingNumbers);
 
       // Update local state with new tracking info (don't change status)
       setOrders(prevOrders =>
@@ -369,7 +375,9 @@ const AdminOrders: React.FC = () => {
             ? {
                 ...order,
                 tracking_carrier: 'fedex' as const, // Default carrier since not stored in DB
-                tracking_number: trackingNumber,
+                tracking_number: savedTrackingNumbers[0]?.trackingNumber || null,
+                tracking_numbers: savedTrackingNumbers,
+                trackingNumbers: savedTrackingNumbers,
                 // Don't change status when updating existing tracking
               }
             : order
@@ -1211,8 +1219,8 @@ const AdminOrders: React.FC = () => {
 // Admin Order Row Component
 interface AdminOrderRowProps {
   order: Order;
-  onAddTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string) => void;
-  onUpdateTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string) => void;
+  onAddTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string, trackingNumbers?: TrackingEntry[]) => void;
+  onUpdateTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string, trackingNumbers?: TrackingEntry[]) => void;
   onFileDownload: (fileKey: string, orderId: string, itemIndex: number) => void;
   onPdfDownload: (item: any, itemIndex: number, orderId: string) => void;
   onSendShippingNotification: (orderId: string) => void;
@@ -1238,7 +1246,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   getItemsSummary,
   pdfLoadingStates
 }) => {
-  const [trackingNumber, setTrackingNumber] = useState('');
+  const [trackingRows, setTrackingRows] = useState<TrackingEntry[]>([{ carrier: DEFAULT_TRACKING_CARRIER, trackingNumber: '', label: 'Package 1' }]);
   const [isAddingTracking, setIsAddingTracking] = useState(false);
   const isGraduation = isGraduationOrder(order);
   const graduationIntakeId = isGraduation ? getGraduationIntakeId(order) : null;
@@ -1303,32 +1311,45 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   };
 
   const [isEditingTracking, setIsEditingTracking] = useState(false);
-  const [editTrackingNumber, setEditTrackingNumber] = useState('');
+  const existingTrackingRows = normalizeTrackingEntries(order);
+  const displayedTrackingRows = existingTrackingRows.length ? existingTrackingRows : [];
+  const validateRows = (rows: TrackingEntry[]) => {
+    const trimmed = rows.map((row, index) => ({ carrier: DEFAULT_TRACKING_CARRIER, trackingNumber: row.trackingNumber.trim(), label: row.label?.trim() || `Package ${index + 1}` }));
+    if (trimmed.some(row => !row.trackingNumber)) throw new Error('Blank tracking rows are not allowed.');
+    const keys = trimmed.map(row => row.trackingNumber.toLowerCase());
+    if (new Set(keys).size !== keys.length) throw new Error('Duplicate tracking numbers are not allowed.');
+    return trimmed;
+  };
+  const updateTrackingRow = (index: number, patch: Partial<TrackingEntry>) => setTrackingRows(rows => rows.map((row, rowIndex) => rowIndex === index ? { ...row, ...patch } : row));
+  const addTrackingRow = () => setTrackingRows(rows => [...rows, { carrier: DEFAULT_TRACKING_CARRIER, trackingNumber: '', label: `Package ${rows.length + 1}` }]);
+  const removeTrackingRow = (index: number) => setTrackingRows(rows => rows.filter((_, rowIndex) => rowIndex !== index));
   const [isSendingNotification, setIsSendingNotification] = useState(false);
   const [isMarkingProduction, setIsMarkingProduction] = useState(false);
 
   const handleAddTracking = () => {
-    if (trackingNumber.trim()) {
-      onAddTracking(order.id, 'fedex', trackingNumber.trim());
-      setTrackingNumber('');
+    try {
+      const rows = validateRows(trackingRows);
+      onAddTracking(order.id, 'fedex', rows[0]?.trackingNumber || '', rows);
+      setTrackingRows([{ carrier: DEFAULT_TRACKING_CARRIER, trackingNumber: '', label: 'Package 1' }]);
       setIsAddingTracking(false);
-    }
+    } catch (error) { alert(error instanceof Error ? error.message : 'Invalid tracking rows'); }
   };
 
   const handleEditTracking = () => {
-    setEditTrackingNumber(order.tracking_number || '');
+    setTrackingRows(existingTrackingRows.length ? existingTrackingRows : [{ carrier: DEFAULT_TRACKING_CARRIER, trackingNumber: '', label: 'Package 1' }]);
     setIsEditingTracking(true);
   };
 
   const handleSaveTracking = () => {
-    if (editTrackingNumber.trim()) {
-      onUpdateTracking(order.id, 'fedex', editTrackingNumber.trim());
+    try {
+      const rows = validateRows(trackingRows);
+      onUpdateTracking(order.id, 'fedex', rows[0]?.trackingNumber || '', rows);
       setIsEditingTracking(false);
-    }
+    } catch (error) { alert(error instanceof Error ? error.message : 'Invalid tracking rows'); }
   };
 
   const handleCancelEdit = () => {
-    setEditTrackingNumber('');
+    setTrackingRows([{ carrier: DEFAULT_TRACKING_CARRIER, trackingNumber: '', label: 'Package 1' }]);
     setIsEditingTracking(false);
   };
 
@@ -1371,14 +1392,13 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   const finalPrintFiles = order.items
     .map((item, index) => ({ item, index }))
     .filter(({ item }) => item.final_print_pdf_url);
-  const DEFAULT_TRACKING_CARRIER: TrackingCarrier = 'fedex';
   const ORDER_ACCENT_TEXT_CLASS = 'text-[#18448D]';
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(260px,0.95fr)_minmax(300px,1.1fr)] xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.9fr)_minmax(360px,1.15fr)] lg:items-start">
         {/* LEFT SECTION */}
-        <div className="flex min-w-0 flex-1 gap-3">
+        <div className="flex min-w-0 gap-3">
           {getFirstItemThumbnail() ? (
             <img 
               src={getFirstItemThumbnail()} 
@@ -1406,15 +1426,15 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
             <div className="text-xs text-gray-600 break-all" title={order.email || (order.user_id ? `${order.user_id.slice(0, 8)}...` : "No email")}>
               {order.email || (order.user_id ? `${order.user_id.slice(0, 8)}...` : 'No email')}
             </div>
+            <div className="pt-2">
+              <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Order Details</div>
+              <div className="text-sm text-gray-900 break-words">{getItemsSummary(order)}</div>
+            </div>
           </div>
         </div>
 
         {/* MIDDLE SECTION */}
-        <div className="w-full space-y-2 xl:max-w-[260px]">
-          <div>
-            <div className="text-xs text-gray-500">Order Details</div>
-            <div className="text-sm text-gray-900">{getItemsSummary(order)}</div>
-          </div>
+        <div className="min-w-0 space-y-3">
           <div className={`text-lg font-bold ${ORDER_ACCENT_TEXT_CLASS}`}>{usd(getDisplayOrderTotalCents(order as any) / 100)}</div>
           {(() => {
             const profit = estimateOrderProfit(order);
@@ -1504,7 +1524,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
         </div>
 
         {/* RIGHT SECTION */}
-        <div className="w-full space-y-3 xl:max-w-[420px]">
+        <div className="min-w-0 space-y-3">
           {isGraduation ? (
             <div className="rounded-md border border-orange-200 bg-orange-50 p-3 text-xs text-orange-900 space-y-1">
               <div className="font-semibold flex items-center gap-1">
@@ -1526,12 +1546,12 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
           <>
           <div className="space-y-2">
             <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Tracking</div>
-            {order.tracking_number ? (
+            {displayedTrackingRows.length ? (
               <div className="space-y-2 rounded-md border border-green-100 bg-green-50 p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge className="bg-green-100 text-green-800">
                     <Truck className="h-3 w-3 mr-1" />
-                    {(order.tracking_carrier || DEFAULT_TRACKING_CARRIER).toUpperCase()}
+                    FEDEX
                   </Badge>
                   {!isEditingTracking && (
                     <Button
@@ -1546,15 +1566,12 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                   )}
                 </div>
                 <div className="text-xs text-gray-700">
-                  <span className="font-semibold">Tracking Number:</span>{' '}
-                  <a
-                    href={fedexUrl(order.tracking_number)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-mono text-blue-600 underline hover:text-blue-800 break-words"
-                  >
-                    {order.tracking_number}
-                  </a>
+                  <span className="font-semibold">Tracking Numbers:</span>
+                  <div className="mt-1 space-y-1">{displayedTrackingRows.map((row, index) => (
+                    <div key={`${row.trackingNumber}-${index}`}><span className="font-semibold">{row.label || `Package ${index + 1}`}:</span>{' '}
+                      <a href={fedexUrl(row.trackingNumber)} target="_blank" rel="noopener noreferrer" className="font-mono text-blue-600 underline hover:text-blue-800 break-words">{row.trackingNumber}</a>
+                    </div>
+                  ))}</div>
                 </div>
                 <div className="text-xs text-gray-700">
                   <span className="font-semibold">Last Email Sent:</span>{' '}
@@ -1575,35 +1592,28 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
               </Button>
             )}
             {(isEditingTracking || isAddingTracking) && (
-              <div className="flex flex-wrap items-center gap-2">
-                <Input
-                  type="text"
-                  placeholder="Tracking number"
-                  value={isEditingTracking ? editTrackingNumber : trackingNumber}
-                  onChange={(e) =>
-                    isEditingTracking
-                      ? setEditTrackingNumber(e.target.value)
-                      : setTrackingNumber(e.target.value)
-                  }
-                  className="h-8 w-44 text-xs"
-                />
-                <Button
-                  size="sm"
-                  onClick={isEditingTracking ? handleSaveTracking : handleAddTracking}
-                  className="h-8 px-3 text-xs"
-                >
-                  <Save className="h-3 w-3 mr-1" />
-                  Save Tracking
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={isEditingTracking ? handleCancelEdit : () => setIsAddingTracking(false)}
-                  className="h-8 px-3 text-xs"
-                >
-                  <X className="h-3 w-3 mr-1" />
-                  Cancel
-                </Button>
+              <div className="space-y-2 rounded-md border border-blue-100 bg-blue-50 p-2">
+                {trackingRows.length === 0 && (
+                  <div className="rounded-md border border-dashed border-blue-200 bg-white p-3 text-xs text-gray-600">
+                    No tracking numbers added.
+                  </div>
+                )}
+                {trackingRows.map((row, index) => (
+                  <div key={index} className="grid grid-cols-1 gap-2 sm:grid-cols-[110px_1fr_1fr_auto]">
+                    <Select value={row.carrier} onValueChange={(value) => updateTrackingRow(index, { carrier: value as TrackingCarrier })}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent><SelectItem value="fedex">FedEx</SelectItem></SelectContent>
+                    </Select>
+                    <Input type="text" placeholder="Tracking number" value={row.trackingNumber} onChange={(e) => updateTrackingRow(index, { trackingNumber: e.target.value })} className="h-8 text-xs" />
+                    <Input type="text" placeholder={`Package ${index + 1} label (optional)`} value={row.label || ''} onChange={(e) => updateTrackingRow(index, { label: e.target.value })} className="h-8 text-xs" />
+                    <Button size="sm" variant="ghost" onClick={() => removeTrackingRow(index)} className="h-8 px-2 text-xs"><X className="h-3 w-3" /></Button>
+                  </div>
+                ))}
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" onClick={addTrackingRow} className="h-8 px-3 text-xs"><Plus className="h-3 w-3 mr-1" />{trackingRows.length === 0 ? 'Add Tracking' : 'Add Another Tracking Number'}</Button>
+                  <Button size="sm" onClick={isEditingTracking ? handleSaveTracking : handleAddTracking} className="h-8 px-3 text-xs"><Save className="h-3 w-3 mr-1" />Save Tracking</Button>
+                  <Button size="sm" variant="ghost" onClick={isEditingTracking ? handleCancelEdit : () => setIsAddingTracking(false)} className="h-8 px-3 text-xs"><X className="h-3 w-3 mr-1" />Cancel</Button>
+                </div>
               </div>
             )}
           </div>
@@ -1693,7 +1703,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                 </Button>
               )}
 
-              {!isGraduation && order.tracking_number && (
+              {!isGraduation && displayedTrackingRows.length > 0 && (
                 <Button
                   size="sm"
                   variant="outline"
@@ -1739,8 +1749,8 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
 // Mobile Card Component for Orders
 interface AdminOrderCardProps {
   order: Order;
-  onAddTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string) => void;
-  onUpdateTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string) => void;
+  onAddTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string, trackingNumbers?: TrackingEntry[]) => void;
+  onUpdateTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string, trackingNumbers?: TrackingEntry[]) => void;
   onFileDownload: (fileKey: string, orderId: string, itemIndex: number) => void;
   onPdfDownload: (item: any, itemIndex: number, orderId: string) => void;
   onSendShippingNotification: (orderId: string) => void;
@@ -1768,6 +1778,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
   const graduationLink = graduationIntakeId
     ? `/admin/graduation/${graduationIntakeId}`
     : '/admin/graduation-intakes';
+  const displayedTrackingRows = normalizeTrackingEntries(order);
 
   const handleMarkInProduction = async () => {
     setIsMarkingProduction(true);
@@ -1881,22 +1892,17 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
               <div className="text-lg font-bold text-[#18448D]">{usd(getDisplayOrderTotalCents(order as any) / 100)}</div>
             {(() => { const profit = estimateOrderProfit(order); return profit.needsReview ? (<div className="inline-flex rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">Needs review</div>) : (<div className="text-xs text-slate-700">Rev {usd(profit.originalSubtotalCents/100)}{profit.discountsAppliedCents>0 ? ` · Disc -${usd(profit.discountsAppliedCents/100)}` : ''} · Adj {usd(profit.adjustedRetailSubtotalCents/100)} · Prod {usd(profit.productionCostCents/100)} · Ship {usd(profit.shippingCostCents/100)} · Total Cost {usd(profit.totalCostCents/100)} · <span className={`${profit.netProfitCents>=0?'text-green-700':'text-red-700'} font-semibold`}>Profit {usd(profit.netProfitCents/100)}</span> · <span className={`${profit.marginPct>=0?'text-green-700':'text-red-700'} font-semibold`}>Margin {profit.marginPct.toFixed(1)}%</span></div>); })()}
             </div>
-            {!isGraduation && order.tracking_number && (
+            {!isGraduation && displayedTrackingRows.length > 0 && (
               <div className="min-w-0">
                 <div className="text-xs text-gray-500 mb-1">Tracking</div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge className="bg-green-100 text-green-800">
-                    <Truck className="h-3 w-3 mr-1" />
-                    {(order.tracking_carrier || 'carrier tbd').toUpperCase()}
-                  </Badge>
-                  <a
-                    href={fedexUrl(order.tracking_number)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-blue-600 hover:underline break-all"
-                  >
-                    {order.tracking_number}
-                  </a>
+                <div className="space-y-1">
+                  {displayedTrackingRows.map((row, index) => (
+                    <div key={`${row.trackingNumber}-${index}`} className="flex flex-wrap items-center gap-2">
+                      <Badge className="bg-green-100 text-green-800"><Truck className="h-3 w-3 mr-1" />FEDEX</Badge>
+                      <span className="text-xs font-semibold text-gray-700">{row.label || `Package ${index + 1}`}</span>
+                      <a href={fedexUrl(row.trackingNumber)} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline break-all">{row.trackingNumber}</a>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

@@ -76,6 +76,8 @@ export interface Order {
   created_at: string;
   items: OrderItem[];
   tracking_number?: string | null;
+  tracking_numbers?: import('./tracking').TrackingEntry[] | null;
+  trackingNumbers?: import('./tracking').TrackingEntry[] | null;
   tracking_carrier?: TrackingCarrier | null;
   shipping_notification_sent?: boolean;
   shipping_notification_sent_at?: string | null;
@@ -161,8 +163,8 @@ export interface OrdersAdapter {
   create(order: CreateOrderData): Promise<Order>;
   listByUser(userId: string, page?: number): Promise<Order[]>;
   listAll(page?: number): Promise<Order[]>;
-  appendTracking(id: string, carrier: TrackingCarrier, number: string): Promise<void>;
-  updateTracking(id: string, carrier: TrackingCarrier, number: string): Promise<void>;
+  appendTracking(id: string, carrier: TrackingCarrier, number: string, trackingNumbers?: import('./tracking').TrackingEntry[]): Promise<void>;
+  updateTracking(id: string, carrier: TrackingCarrier, number: string, trackingNumbers?: import('./tracking').TrackingEntry[]): Promise<void>;
   get(id: string): Promise<Order | null>;
 }
 
@@ -180,7 +182,6 @@ export interface AuthAdapter {
   signOut(): Promise<void>;
 }
 
-export const fedexUrl = (n: string) => `https://www.fedex.com/fedextrack/?trknbr=${encodeURIComponent(n)}`;
 
 // Utility types for cart integration
 export interface CartItem {

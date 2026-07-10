@@ -1,3 +1,4 @@
+import { normalizeTrackingEntries, fedexUrl } from '@/lib/orders/tracking';
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Package, Calendar, Mail, CreditCard, Truck, CheckCircle, Clock, AlertCircle, Palette, MessageSquare, Phone, Upload, MapPin } from 'lucide-react';
@@ -51,6 +52,8 @@ interface Order {
   total_cents: number;
   status: string;
   tracking_number?: string;
+  tracking_numbers?: any[];
+  trackingNumbers?: any[];
   tracking_carrier?: string;
   created_at: string;
   items: OrderItem[];
@@ -243,11 +246,12 @@ const OrderDetail: React.FC = () => {
                 <span className="text-gray-600">Total:</span>
                 <span className="font-medium">{formatCurrency(getDisplayOrderTotalCents(order as any))}</span>
               </div>
-              {order.tracking_number && (
-                <div className="min-w-0 rounded-md border border-gray-200 bg-gray-50 p-3 flex flex-wrap items-start gap-x-2 gap-y-1">
-                  <Truck className="h-4 w-4 text-gray-400" />
-                  <span className="text-gray-600">Tracking:</span>
-                  <span className="font-medium break-all" title={order.tracking_number}>{order.tracking_number}</span>
+              {normalizeTrackingEntries(order).length > 0 && (
+                <div className="min-w-0 rounded-md border border-gray-200 bg-gray-50 p-3">
+                  <div className="mb-1 flex items-center gap-2"><Truck className="h-4 w-4 text-gray-400" /><span className="text-gray-600">Tracking:</span></div>
+                  <div className="space-y-1">{normalizeTrackingEntries(order).map((row, index) => (
+                    <div key={`${row.trackingNumber}-${index}`} className="text-sm"><span className="font-medium">{row.label || `Package ${index + 1}`}:</span>{' '}<a href={fedexUrl(row.trackingNumber)} target="_blank" rel="noopener noreferrer" className="font-medium text-blue-600 underline break-all">{row.trackingNumber}</a></div>
+                  ))}</div>
                 </div>
               )}
             </div>
