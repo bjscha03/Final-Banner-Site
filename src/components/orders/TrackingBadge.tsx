@@ -1,6 +1,7 @@
 import React from 'react';
 import { Truck, ExternalLink } from 'lucide-react';
-import { TrackingCarrier, fedexUrl } from '../../lib/orders/types';
+import { TrackingCarrier } from '../../lib/orders/types';
+import { fedexUrl } from '../../lib/orders/tracking';
 import { Button } from '@/components/ui/button';
 
 interface TrackingBadgeProps {

@@ -56,5 +56,3 @@ export interface AuthAdapter {
   signIn(email: string, password: string): Promise<User>;
   signOut(): Promise<void>;
 }
-
-export const fedexUrl = (n: string) => `https://www.fedex.com/fedextrack/?trknbr=${encodeURIComponent(n)}`;

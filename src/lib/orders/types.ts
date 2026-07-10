@@ -1,8 +1,6 @@
 export type MaterialKey = '13oz' | '15oz' | '18oz' | 'mesh' | 'corrugated' | 'magnetic' | 'aluminum_040' | 'aluminum_063';
 export type OrderStatus = 'paid' | 'pending' | 'failed' | 'refunded' | 'shipped';
 export type TrackingCarrier = 'fedex';
-export type { TrackingEntry } from './tracking';
-export { fedexUrl, getTrackingUrl, normalizeTrackingEntries, DEFAULT_TRACKING_CARRIER } from './tracking';
 
 export interface DesignServiceAsset {
   name: string;
@@ -184,7 +182,6 @@ export interface AuthAdapter {
   signOut(): Promise<void>;
 }
 
-export const fedexUrl = (n: string) => `https://www.fedex.com/fedextrack/?trknbr=${encodeURIComponent(n)}`;
 
 // Utility types for cart integration
 export interface CartItem {

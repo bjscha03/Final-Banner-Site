@@ -1,4 +1,4 @@
-import { normalizeTrackingEntries, fedexUrl } from '@/lib/orders/types';
+import { normalizeTrackingEntries, fedexUrl } from '@/lib/orders/tracking';
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Package, Calendar, Mail, CreditCard, Truck, CheckCircle, Clock, AlertCircle, Palette, MessageSquare, Phone, Upload, MapPin } from 'lucide-react';
