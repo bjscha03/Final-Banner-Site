@@ -16,12 +16,21 @@ const bannerMaterialCostPerSqFt: Record<string, number> = {
   mesh: 2.44,
 };
 
-type LineEstimate = {
+export type ProfitLineEstimate = {
   reviewRequired: boolean;
   productionCostCents: number;
   reason?: string;
   diagnostics?: Record<string, unknown>;
+  productLabel?: string;
+  sizeLabel?: string | null;
+  material?: string | null;
+  quantity?: number;
+  unitCostCents?: number | null;
+  lineCostCents: number;
+  addOnCosts?: Array<{ label: string; costCents: number }>;
 };
+
+type LineEstimate = ProfitLineEstimate;
 
 const getRawProductName = (item: OrderItem): string | null => {
   const extendedItem = item as OrderItem & { product_name?: string; productName?: string; name?: string; title?: string; sku?: string };
@@ -36,6 +45,31 @@ const getRawSize = (item: OrderItem): string | null => {
   return null;
 };
 
+
+const formatSizeLabel = (item: OrderItem): string | null => {
+  if (Number.isFinite(item.width_in) && Number.isFinite(item.height_in)) return `${item.width_in}" × ${item.height_in}"`;
+  return getRawSize(item);
+};
+
+const getProductLabel = (item: OrderItem): string => {
+  const productName = getRawProductName(item);
+  const type = (item.product_type || '').toLowerCase();
+  const identity = `${type} ${productName || ''}`.toLowerCase();
+  if (identity.includes('mesh')) return 'Mesh Banner';
+  if (identity.includes('magnet')) return 'Car Magnet';
+  if (type.includes('yard_sign') || type.includes('yardsign') || type.includes('yard-sign')) return 'Yard Sign';
+  if (identity.includes('poster')) return 'Poster';
+  if (!type || type.includes('banner')) return 'Banner';
+  return productName || item.product_type || 'Product';
+};
+
+const baseLineDetails = (item: OrderItem) => ({
+  productLabel: getProductLabel(item),
+  sizeLabel: formatSizeLabel(item),
+  material: item.material || null,
+  quantity: Number.isFinite(Number(item.quantity)) ? Number(item.quantity) : 0,
+});
+
 const parsePolePocketEdges = (polePocketPosition?: string): string[] => {
   if (!polePocketPosition) return [];
   return polePocketPosition
@@ -47,17 +81,19 @@ const parsePolePocketEdges = (polePocketPosition?: string): string[] => {
 
 const estimateBannerCost = (item: OrderItem): LineEstimate => {
   if (!item.material || !Number.isFinite(item.width_in) || !Number.isFinite(item.height_in) || !Number.isFinite(item.quantity)) {
-    return { reviewRequired: true, productionCostCents: 0, reason: 'Missing banner fields' };
+    return { ...baseLineDetails(item), reviewRequired: true, productionCostCents: 0, lineCostCents: 0, reason: 'Missing banner fields' };
   }
 
   const materialRate = bannerMaterialCostPerSqFt[item.material];
   if (!materialRate) {
-    return { reviewRequired: true, productionCostCents: 0, reason: `Unknown banner material: ${item.material}` };
+    return { ...baseLineDetails(item), reviewRequired: true, productionCostCents: 0, lineCostCents: 0, reason: `Unknown banner material: ${item.material}` };
   }
 
   const squareFeetPerBanner = (item.width_in / 12) * (item.height_in / 12);
   const qty = item.quantity || 0;
   let totalCost = squareFeetPerBanner * materialRate * qty;
+  const baseUnitCostCents = Math.round(squareFeetPerBanner * materialRate * 100);
+  const addOnCosts: Array<{ label: string; costCents: number }> = [];
 
   const edges = parsePolePocketEdges(item.pole_pocket_position);
   if (edges.length > 0) {
@@ -67,16 +103,19 @@ const estimateBannerCost = (item: OrderItem): LineEstimate => {
       if (edge.includes('left') || edge.includes('right')) linearFeet += item.height_in / 12;
     }
     if (linearFeet > 0) {
-      totalCost += linearFeet * 1.0 * qty;
-      totalCost += 10; // setup fee once per line when selected
+      const polePocketCost = linearFeet * 1.0 * qty + 10;
+      totalCost += polePocketCost;
+      addOnCosts.push({ label: 'Pole Pockets', costCents: Math.round(polePocketCost * 100) }); // setup fee once per line when selected
     }
   }
 
   if (Number.isFinite(item.rope_feet) && (item.rope_feet || 0) > 0) {
-    totalCost += (item.rope_feet || 0) * 1.0;
+    const ropeCost = (item.rope_feet || 0) * 1.0;
+    totalCost += ropeCost;
+    addOnCosts.push({ label: 'Rope', costCents: Math.round(ropeCost * 100) });
   }
 
-  return { reviewRequired: false, productionCostCents: Math.round(totalCost * 100) };
+  return { ...baseLineDetails(item), reviewRequired: false, productionCostCents: Math.round(totalCost * 100), lineCostCents: Math.round(totalCost * 100), unitCostCents: addOnCosts.length ? null : baseUnitCostCents, addOnCosts };
 };
 
 const estimateFixedProductCost = (item: OrderItem): LineEstimate => {
@@ -89,24 +128,29 @@ const estimateFixedProductCost = (item: OrderItem): LineEstimate => {
 
   if (!result.ok) {
     return {
+      ...baseLineDetails(item),
       reviewRequired: true,
       productionCostCents: 0,
+      lineCostCents: 0,
       reason: result.diagnostics.reason,
       diagnostics: result.diagnostics as unknown as Record<string, unknown>,
     };
   }
 
   return {
+    ...baseLineDetails(item),
     reviewRequired: false,
     productionCostCents: result.totalCostCents,
+    lineCostCents: result.totalCostCents,
+    unitCostCents: result.unitCostCents,
     diagnostics: result.diagnostics as unknown as Record<string, unknown>,
   };
 };
 
 const estimateYardSignCost = (item: OrderItem): LineEstimate => {
-  if (!Number.isFinite(item.quantity)) return { reviewRequired: true, productionCostCents: 0, reason: 'Missing yard sign quantity' };
+  if (!Number.isFinite(item.quantity)) return { ...baseLineDetails(item), reviewRequired: true, productionCostCents: 0, lineCostCents: 0, reason: 'Missing yard sign quantity' };
   const qty = item.quantity || 0;
-  if (qty % 10 !== 0) return { reviewRequired: true, productionCostCents: 0, reason: `Yard sign qty not divisible by 10: ${qty}` };
+  if (qty % 10 !== 0) return { ...baseLineDetails(item), reviewRequired: true, productionCostCents: 0, lineCostCents: 0, reason: `Yard sign qty not divisible by 10: ${qty}` };
 
   const doubleSided = [item.grommets, item.pole_pockets, item.pole_pocket_position]
     .filter(Boolean)
@@ -115,7 +159,7 @@ const estimateYardSignCost = (item: OrderItem): LineEstimate => {
     .includes('double');
 
   const unit = doubleSided ? 5.5 : 4.4;
-  return { reviewRequired: false, productionCostCents: Math.round(unit * qty * 100) };
+  return { ...baseLineDetails(item), reviewRequired: false, productionCostCents: Math.round(unit * qty * 100), lineCostCents: Math.round(unit * qty * 100), unitCostCents: Math.round(unit * 100) };
 };
 
 const estimateLineItemCost = (item: OrderItem): LineEstimate => {
@@ -127,8 +171,10 @@ const estimateLineItemCost = (item: OrderItem): LineEstimate => {
   if (type.includes('yard_sign') || type.includes('yardsign') || type.includes('yard-sign')) return estimateYardSignCost(item);
   if (!type || type === 'banner' || type.includes('banner')) return estimateBannerCost(item);
   return {
+    ...baseLineDetails(item),
     reviewRequired: true,
     productionCostCents: 0,
+    lineCostCents: 0,
     reason: `Unsupported product type: ${type}`,
     diagnostics: {
       productType: item.product_type || null,
@@ -213,5 +259,6 @@ export const estimateOrderProfit = (order: Order) => {
     // Backwards-compatible alias used across existing admin UI surfaces.
     netProfitCents: estimatedNetProfitCents,
     marginPct,
+    lines: lineEstimates,
   };
 };
