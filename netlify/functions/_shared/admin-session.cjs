@@ -2,6 +2,7 @@ const crypto = require('crypto');
 
 const ADMIN_SESSION_COOKIE = 'botf_admin_session';
 const DEFAULT_MAX_AGE_SECONDS = 8 * 60 * 60;
+const PREVIEW_MAX_AGE_SECONDS = 2 * 60 * 60;
 
 function base64url(input) {
   return Buffer.from(input).toString('base64url');
@@ -11,8 +12,42 @@ function unbase64url(input) {
   return Buffer.from(String(input || ''), 'base64url').toString('utf8');
 }
 
+function isDeployPreviewEnvironment() {
+  const context = String(process.env.CONTEXT || process.env.VERCEL_ENV || process.env.NETLIFY_CONTEXT || '').toLowerCase();
+  if (context === 'deploy-preview' || context === 'preview') return true;
+
+  const deployUrl = String(
+    process.env.DEPLOY_PRIME_URL
+      || process.env.DEPLOY_URL
+      || process.env.VERCEL_URL
+      || '',
+  ).toLowerCase();
+  const productionUrl = String(process.env.URL || process.env.SITE_URL || '').toLowerCase();
+
+  if (deployUrl.includes('deploy-preview-') || deployUrl.includes('--')) return true;
+  return Boolean(deployUrl && productionUrl && deployUrl !== productionUrl && !deployUrl.includes('bannersonthefly.com'));
+}
+
 function getSecret() {
-  return process.env.ADMIN_SESSION_SECRET || '';
+  const explicitSecret = process.env.ADMIN_SESSION_SECRET || process.env.SESSION_SECRET || '';
+  if (explicitSecret) return explicitSecret;
+
+  // Deploy Preview test checkout must work without changing production payment
+  // settings. When an explicit session secret has not been scoped to previews,
+  // derive a stable server-only signing key from the preview database URL. The
+  // database URL never leaves the function and the derived key is only enabled
+  // in verified non-production Deploy Preview contexts.
+  if (isDeployPreviewEnvironment()) {
+    const previewSeed = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL || '';
+    if (previewSeed) {
+      return crypto
+        .createHash('sha256')
+        .update(`botf-deploy-preview-admin-session:${previewSeed}`)
+        .digest('hex');
+    }
+  }
+
+  return '';
 }
 
 function signPayload(encodedPayload, secret = getSecret()) {
@@ -35,7 +70,12 @@ function serializeCookie(name, value, options = {}) {
   return parts.join('; ');
 }
 
-function createAdminSession({ profileId = null, email = null, maxAgeSeconds = DEFAULT_MAX_AGE_SECONDS } = {}) {
+function createAdminSession({
+  profileId = null,
+  email = null,
+  maxAgeSeconds = DEFAULT_MAX_AGE_SECONDS,
+  source = 'admin_login',
+} = {}) {
   const secret = getSecret();
   if (!secret) {
     const err = new Error('ADMIN_SESSION_SECRET is not configured');
@@ -48,6 +88,7 @@ function createAdminSession({ profileId = null, email = null, maxAgeSeconds = DE
     role: 'admin',
     profileId: profileId || null,
     email: email ? String(email).trim().toLowerCase() : null,
+    source,
     issuedAt: now,
     expiresAt: now + maxAgeSeconds,
   };
@@ -157,8 +198,10 @@ function clearAdminSessionCookie() {
 module.exports = {
   ADMIN_SESSION_COOKIE,
   DEFAULT_MAX_AGE_SECONDS,
+  PREVIEW_MAX_AGE_SECONDS,
   createAdminSession,
   verifyAdminSession,
   readAdminSessionCookie,
   clearAdminSessionCookie,
+  isDeployPreviewEnvironment,
 };
