@@ -253,6 +253,17 @@ exports.handler = async (event, context) => {
       };
     }
 
+    console.warn('[save-cart-snapshot] No verified user_id or usable session_id; skipping snapshot');
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        success: false,
+        skipped: true,
+        message: 'Cart snapshot was not saved.',
+      })
+    };
+
   } catch (error) {
     console.error('[save-cart-snapshot] Error:', error);
     return {

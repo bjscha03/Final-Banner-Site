@@ -86,7 +86,302 @@ const trackCheckoutPaymentClick = (method: 'card' | 'paypal') => {
   });
 };
 
-const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onError, disabled = false, cardFirstLayout = false }) => {
+const CHECKOUT_BUILD_MARKER = 'admin-preview-bypass-v3';
+
+type CheckoutAuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
+type CheckoutProfileStatus = 'loading' | 'resolved' | 'error';
+
+const getDeployedCommit = () => (
+  import.meta.env.VITE_COMMIT_REF
+  || import.meta.env.COMMIT_REF
+  || import.meta.env.VITE_NETLIFY_COMMIT_REF
+  || import.meta.env.VITE_COMMIT_SHA
+  || 'unknown'
+);
+
+const toOrderItemPayload = (item: any) => ({
+  width_in: item.width_in,
+  height_in: item.height_in,
+  quantity: item.quantity,
+  material: item.material,
+  grommets: item.grommets,
+  pole_pockets: item.pole_pockets,
+  pole_pocket_position: item.pole_pocket_position,
+  rounded_corners: item.rounded_corners,
+  pole_pocket_size: item.pole_pocket_size,
+  pole_pocket_cost_cents: item.pole_pocket_cost_cents,
+  rope_feet: item.rope_feet,
+  rope_placement: item.rope_placement,
+  rope_cost_cents: item.rope_cost_cents,
+  area_sqft: item.area_sqft,
+  unit_price_cents: item.unit_price_cents,
+  line_total_cents: item.line_total_cents,
+  file_key: item.file_key,
+  file_url: item.file_url,
+  text_elements: item.text_elements,
+  overlay_image: item.overlay_image,
+  overlay_images: item.overlay_images,
+  canvas_background_color: item.canvas_background_color,
+  image_scale: item.image_scale,
+  thumbnail_url: item.thumbnail_url,
+  image_position: item.image_position,
+  final_render_url: item.final_render_url,
+  final_render_file_key: item.final_render_file_key,
+  final_render_width_px: item.final_render_width_px,
+  final_render_height_px: item.final_render_height_px,
+  final_render_dpi: item.final_render_dpi,
+  canvas_state_json: item.canvas_state_json,
+  design_service_enabled: item.design_service_enabled,
+  design_request_text: item.design_request_text,
+  design_draft_preference: item.design_draft_preference,
+  design_draft_contact: item.design_draft_contact,
+  design_uploaded_assets: item.design_uploaded_assets,
+  product_type: item.product_type || 'banner',
+  yard_sign_sidedness: item.yard_sign_sidedness,
+  yard_sign_step_stakes_enabled: item.yard_sign_step_stakes_enabled,
+  yard_sign_step_stakes_qty: item.yard_sign_step_stakes_qty,
+  yard_sign_design_count: item.yard_sign_design_count,
+  yard_sign_designs: item.yard_sign_designs,
+  yard_sign_signs_subtotal_cents: item.yard_sign_signs_subtotal_cents,
+  yard_sign_stakes_subtotal_cents: item.yard_sign_stakes_subtotal_cents,
+});
+
+const CheckoutRuntimeDiagnostics = ({
+  authStatus,
+  profileStatus,
+  isAdmin,
+  useAdminPreviewCheckout,
+}: {
+  authStatus: CheckoutAuthStatus;
+  profileStatus: CheckoutProfileStatus;
+  isAdmin: boolean | null;
+  useAdminPreviewCheckout: boolean;
+}) => {
+  if (!isDeployPreview()) return null;
+
+  const rows = [
+    ['Hostname', typeof window !== 'undefined' ? window.location.hostname : 'unknown'],
+    ['Deploy Preview detected', String(isDeployPreview())],
+    ['Auth resolved', String(authStatus !== 'loading')],
+    ['Profile resolved', String(profileStatus === 'resolved')],
+    ['Authenticated user present', String(authStatus === 'authenticated')],
+    ['Admin status', String(isAdmin === true)],
+    ['Test checkout selected', String(useAdminPreviewCheckout)],
+    ['Deployed commit SHA', getDeployedCommit()],
+    ['Checkout component/version', CHECKOUT_BUILD_MARKER],
+  ];
+
+  return (
+    <div className="rounded-lg border border-blue-300 bg-blue-50 p-3 text-xs text-blue-950" data-testid="checkout-runtime-diagnostics">
+      <div className="mb-2 font-semibold">Checkout runtime diagnostics</div>
+      <dl className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+        {rows.map(([label, value]) => (
+          <div key={label} className="flex justify-between gap-3 rounded bg-white/60 px-2 py-1">
+            <dt className="font-medium">{label}</dt>
+            <dd className="text-right font-mono">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+};
+
+const AdminPreviewTestCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onError, disabled = false }) => {
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const { items, discountCode } = useCartStore();
+  const [isCreatingOrder, setIsCreatingOrder] = useState(false);
+
+  const handleTestPayment = async () => {
+    try {
+      setIsCreatingOrder(true);
+      console.info('CHECKOUT_BUILD_MARKER', { version: CHECKOUT_BUILD_MARKER, commit: getDeployedCommit() });
+
+      const response = await fetch('/.netlify/functions/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: user?.id || null,
+          email: user?.email || `guest-${Date.now()}@bannersonthefly.com`,
+          subtotal_cents: total,
+          tax_cents: Math.round(total * 0.06),
+          total_cents: total,
+          currency: 'usd',
+          items: items.map(toOrderItemPayload),
+          discountCode: discountCode ? {
+            code: discountCode.code,
+            discountPercentage: discountCode.discountPercentage,
+            discountAmountCents: discountCode.discountAmountCents,
+          } : null,
+          checkout_mode: 'admin_deploy_preview_test',
+          payment_method: 'admin_deploy_preview_test',
+          payment_status: 'paid',
+          is_test_order: true,
+          test_order_reason: `Deploy Preview admin checkout by authenticated admin (${CHECKOUT_BUILD_MARKER})`,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(await readErrorMessage(response, 'Test order could not be created.'));
+      }
+
+      const result = await response.json();
+      toast({ title: 'Test order created', description: 'No payment was processed.' });
+      onSuccess(result.orderId || result.id || result.order?.id, result.order);
+    } catch (error) {
+      console.error('[AdminPreviewTestCheckout] create-order failed:', error);
+      onError(error);
+    } finally {
+      setIsCreatingOrder(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4" data-checkout-mode="admin_deploy_preview_test">
+      <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+        <p className="text-sm text-green-800">
+          <strong>Deploy Preview Admin Test:</strong> Place this order without creating or capturing a PayPal payment. No payment was processed.
+        </p>
+      </div>
+      <Button
+        onClick={handleTestPayment}
+        disabled={disabled || isCreatingOrder}
+        className="w-full bg-green-600 py-3 text-lg font-semibold text-white hover:bg-green-700"
+        size="lg"
+      >
+        {isCreatingOrder ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Creating Test Order...
+          </>
+        ) : (
+          `Place Test Order — No Payment ($${(total / 100).toFixed(2)})`
+        )}
+      </Button>
+    </div>
+  );
+};
+
+const PayPalCheckout: React.FC<PayPalCheckoutProps> = (props) => {
+  const { user, loading } = useAuth() as any;
+  const [profileStatus, setProfileStatus] = useState<CheckoutProfileStatus>('loading');
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const isPreview = isDeployPreview();
+  const authStatus: CheckoutAuthStatus = loading ? 'loading' : user ? 'authenticated' : 'unauthenticated';
+
+  useEffect(() => {
+    console.info('CHECKOUT_BUILD_MARKER', { version: CHECKOUT_BUILD_MARKER, commit: getDeployedCommit() });
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const resolveProfile = async () => {
+      if (authStatus === 'loading') {
+        setProfileStatus('loading');
+        setIsAdmin(null);
+        return;
+      }
+
+      if (authStatus === 'unauthenticated') {
+        setIsAdmin(false);
+        setProfileStatus('resolved');
+        return;
+      }
+
+      setProfileStatus('loading');
+      setIsAdmin(null);
+      try {
+        const response = await fetch('/.netlify/functions/check-admin-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: user?.email }),
+        });
+        const result = response.ok ? await response.json() : { isAdmin: false };
+        if (!cancelled) {
+          setIsAdmin(result.isAdmin === true);
+          setProfileStatus('resolved');
+        }
+      } catch (error) {
+        console.error('[CheckoutPaymentSection] admin status lookup failed:', error);
+        if (!cancelled) {
+          setIsAdmin(false);
+          setProfileStatus('error');
+        }
+      }
+    };
+
+    resolveProfile();
+    return () => { cancelled = true; };
+  }, [authStatus, user?.email]);
+
+  const checkoutAccessResolved = authStatus !== 'loading' && profileStatus !== 'loading';
+  const useAdminPreviewCheckout = isPreview && authStatus === 'authenticated' && isAdmin === true;
+
+  useEffect(() => {
+    console.info('Checkout environment diagnostics', {
+      hostname: typeof window !== 'undefined' ? window.location.hostname : 'unknown',
+      isDeployPreview: isPreview,
+      authStatus,
+      profileStatus,
+      authenticatedUserPresent: Boolean(user),
+      isAdmin: isAdmin === true,
+      useAdminTestCheckout: useAdminPreviewCheckout,
+      deployedCommit: getDeployedCommit(),
+      checkoutMarker: CHECKOUT_BUILD_MARKER,
+    });
+  }, [isPreview, authStatus, profileStatus, user, isAdmin, useAdminPreviewCheckout]);
+
+  if (!checkoutAccessResolved) {
+    return (
+      <div className="space-y-4">
+        <CheckoutRuntimeDiagnostics
+          authStatus={authStatus}
+          profileStatus={profileStatus}
+          isAdmin={isAdmin}
+          useAdminPreviewCheckout={useAdminPreviewCheckout}
+        />
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+          <span>Checking admin test checkout access…</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (isPreview && profileStatus === 'error') {
+    return (
+      <div className="space-y-4">
+        <CheckoutRuntimeDiagnostics
+          authStatus={authStatus}
+          profileStatus={profileStatus}
+          isAdmin={isAdmin}
+          useAdminPreviewCheckout={useAdminPreviewCheckout}
+        />
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          We could not verify checkout access for this Deploy Preview. Please refresh and sign in again before placing a test order.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <CheckoutRuntimeDiagnostics
+        authStatus={authStatus}
+        profileStatus={profileStatus}
+        isAdmin={isAdmin}
+        useAdminPreviewCheckout={useAdminPreviewCheckout}
+      />
+      {useAdminPreviewCheckout ? (
+        <AdminPreviewTestCheckout {...props} />
+      ) : (
+        <NormalPayPalCheckout {...props} checkoutMode="standard_paypal" />
+      )}
+    </div>
+  );
+};
+
+const NormalPayPalCheckout: React.FC<PayPalCheckoutProps & { checkoutMode: 'standard_paypal' }> = ({ total, onSuccess, onError, disabled = false, cardFirstLayout = false, checkoutMode }) => {
   const { toast } = useToast();
   const { user } = useAuth();
   const { items, discountCode, sameDayHitService, saturdayDelivery } = useCartStore();
