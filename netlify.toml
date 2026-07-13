@@ -211,6 +211,12 @@
 [context.deploy-preview]
   command = "npm run build"
 
+# Netlify build context is not consistently exposed inside Functions at runtime.
+# Set an explicit preview marker that both checkout-status and create-order read.
+[context.deploy-preview.environment]
+  VERCEL_ENV = "preview"
+  NETLIFY_CONTEXT = "deploy-preview"
+
 [[context.deploy-preview.headers]]
   for = "/*"
   [context.deploy-preview.headers.values]
@@ -224,6 +230,10 @@
 
 [context.branch-deploy]
   command = "npm run build"
+
+[context.branch-deploy.environment]
+  VERCEL_ENV = "preview"
+  NETLIFY_CONTEXT = "branch-deploy"
 
 [[context.branch-deploy.headers]]
   for = "/*"
