@@ -209,10 +209,11 @@
 
 # Preview/branch deploy crawler protection
 [context.deploy-preview]
-  command = "npm run build"
+  # Inject runtime preview markers into the shared server module before Netlify
+  # bundles Functions. Netlify's CONTEXT/DEPLOY_* variables are build metadata
+  # and are not guaranteed to exist in the legacy Lambda runtime.
+  command = "node scripts/inject-deploy-preview-runtime.cjs && npm run build"
 
-# Netlify build context is not consistently exposed inside Functions at runtime.
-# Set an explicit preview marker that both checkout-status and create-order read.
 [context.deploy-preview.environment]
   VERCEL_ENV = "preview"
   NETLIFY_CONTEXT = "deploy-preview"
@@ -229,7 +230,7 @@
   force = true
 
 [context.branch-deploy]
-  command = "npm run build"
+  command = "node scripts/inject-deploy-preview-runtime.cjs && npm run build"
 
 [context.branch-deploy.environment]
   VERCEL_ENV = "preview"
