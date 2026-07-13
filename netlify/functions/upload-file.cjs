@@ -2,7 +2,8 @@ const Busboy = require('busboy');
 const { v2: cloudinary } = require('cloudinary');
 
 const MAX_BYTES = 200 * 1024 * 1024;
-const ALLOWED = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif', 'image/svg+xml', 'application/postscript', 'application/illustrator', 'application/vnd.adobe.illustrator'];
+const ALLOWED = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+const ALLOWED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png'];
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -70,16 +71,13 @@ exports.handler = async (event) => {
       return { statusCode: 413, body: 'File too large. Max ' + MAX_BYTES + ' bytes' };
     }
     
-    // More permissive type checking - allow if type is missing or matches allowed list
-    if (mimeType && !ALLOWED.includes(mimeType.toLowerCase())) {
-      // Check if it's an image by extension as fallback
-      const ext = filename.split('.').pop()?.toLowerCase();
-      const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif', 'pdf', 'ai', 'eps', 'svg'];
-      if (!imageExts.includes(ext || '')) {
-        console.log('Unsupported media type:', mimeType);
-        return { statusCode: 415, body: 'Unsupported media type: ' + mimeType };
-      }
-      console.log('Type not in allowed list but extension is valid:', ext);
+    const ext = filename.split('.').pop()?.toLowerCase();
+    if (!ALLOWED_EXTENSIONS.includes(ext || '') || (mimeType && !ALLOWED.includes(mimeType.toLowerCase()))) {
+      console.log('Unsupported media type:', { mimeType, ext, filename });
+      return {
+        statusCode: 415,
+        body: 'Unsupported media type. Allowed uploads are PNG, JPG/JPEG, and PDF only.',
+      };
     }
 
     const folder = process.env.CLOUDINARY_FOLDER || 'uploads';
@@ -88,10 +86,11 @@ exports.handler = async (event) => {
     const uploadStartTime = Date.now();
 
     const result = await new Promise((resolve, reject) => {
+      const resourceType = mimeType && mimeType.toLowerCase() === 'application/pdf' ? 'raw' : 'image';
       const stream = cloudinary.uploader.upload_stream(
         { 
           folder: folder, 
-          resource_type: 'auto', 
+          resource_type: resourceType, 
           filename_override: sanitize(filename), 
           use_filename: true, 
           unique_filename: true,
@@ -108,9 +107,14 @@ exports.handler = async (event) => {
             console.log('Cloudinary upload successful:', {
               public_id: res.public_id,
               secure_url: res.secure_url,
+              width: res.width || null,
+              height: res.height || null,
+              bytes: res.bytes || data.length,
+              format: res.format || ext,
+              resource_type: res.resource_type,
               uploadTime: Date.now() - uploadStartTime + 'ms'
             });
-            resolve({ secure_url: res.secure_url, public_id: res.public_id });
+            resolve({ secure_url: res.secure_url, public_id: res.public_id, width: res.width || null, height: res.height || null, bytes: res.bytes || data.length, format: res.format || ext, resource_type: res.resource_type });
           }
         }
       );
@@ -121,7 +125,7 @@ exports.handler = async (event) => {
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ secureUrl: result.secure_url, publicId: result.public_id, fileKey: result.public_id }),
+      body: JSON.stringify({ secureUrl: result.secure_url, publicId: result.public_id, fileKey: result.public_id, width: result.width, height: result.height, bytes: result.bytes, format: result.format, resourceType: result.resource_type, originalPreserved: true }),
     };
   } catch (e) {
     console.error('Upload function error:', {

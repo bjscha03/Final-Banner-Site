@@ -401,6 +401,108 @@ async function buildOverlayCompositeLayer(overlay, bannerWidthIn, bannerHeightIn
   return null;
 }
 
+
+async function renderDesignStateToPngBuffer(designState, targetDpi, bleedIn) {
+  const bannerWidthIn = Number(designState.widthIn || 0);
+  const bannerHeightIn = Number(designState.heightIn || 0);
+  if (!bannerWidthIn || !bannerHeightIn) throw new Error('Design state missing widthIn/heightIn');
+
+  const bleedPx = Math.round((bleedIn || 0) * targetDpi);
+  const bannerPxW = Math.round(bannerWidthIn * targetDpi);
+  const bannerPxH = Math.round(bannerHeightIn * targetDpi);
+  const finalPxW = bannerPxW + bleedPx * 2;
+  const finalPxH = bannerPxH + bleedPx * 2;
+  const bg = parseHexColorGlobal(designState.bgColor || designState.backgroundColor || '#fafafa');
+
+  const sourceKey = designState.originalImageFileKey;
+  const sourceUrl = designState.originalImageUrl;
+  if (!sourceKey && !sourceUrl) throw new Error('Design state missing original image source');
+
+  const isPdf = !!designState.isPdf || String(sourceUrl || sourceKey || '').toLowerCase().endsWith('.pdf');
+  let originalBuffer;
+  if (sourceKey && !isPdf) {
+    originalBuffer = await fetchImage(sourceKey, true);
+  } else if (sourceUrl) {
+    originalBuffer = await fetchImage(stripCloudinaryTransforms(sourceUrl), false);
+  } else {
+    originalBuffer = await fetchImage(sourceKey, true);
+  }
+
+  let source = sharp(originalBuffer, { density: isPdf ? Math.max(targetDpi, 300) : undefined }).rotate();
+  const meta = await source.metadata();
+  const srcW = meta.width || 1;
+  const srcH = meta.height || 1;
+
+  const fitMode = designState.fitMode || 'fit';
+  const fitScale = fitMode === 'fill'
+    ? Math.max(bannerPxW / srcW, bannerPxH / srcH)
+    : Math.min(bannerPxW / srcW, bannerPxH / srcH);
+  const scaleX = Number(designState.scaleX ?? designState.imgScale ?? 1);
+  const scaleY = Number(designState.scaleY ?? designState.imgScaleY ?? designState.imgScale ?? 1);
+  const drawW = Math.max(1, Math.round(srcW * fitScale * scaleX));
+  const drawH = Math.max(1, Math.round(srcH * fitScale * scaleY));
+  const pos = designState.imgPos || designState.position || { x: 0, y: 0 };
+  const tx = (Number(pos.x || 0) / 100) * bannerPxW;
+  const ty = (Number(pos.y || 0) / 100) * bannerPxH;
+  const centerX = bleedPx + bannerPxW / 2 + tx;
+  const centerY = bleedPx + bannerPxH / 2 + ty;
+  const rotation = Number(designState.rotationDeg ?? designState.rotation ?? 0);
+  const opacity = Math.max(0, Math.min(1, Number(designState.opacity ?? 1)));
+
+  let transformed = await source
+    .resize(drawW, drawH, { fit: 'fill', kernel: 'lanczos3' })
+    .png({ compressionLevel: 6 })
+    .toBuffer();
+
+  let left = Math.round(centerX - drawW / 2);
+  let top = Math.round(centerY - drawH / 2);
+  if (rotation) {
+    transformed = await sharp(transformed)
+      .rotate(rotation, { background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .png({ compressionLevel: 6 })
+      .toBuffer();
+    const rotatedMeta = await sharp(transformed).metadata();
+    left = Math.round(centerX - (rotatedMeta.width || drawW) / 2);
+    top = Math.round(centerY - (rotatedMeta.height || drawH) / 2);
+  }
+  // Opacity is preserved for future multi-object states; single-artwork legacy states default to full opacity.
+
+
+  const base = sharp({
+    create: {
+      width: finalPxW,
+      height: finalPxH,
+      channels: 4,
+      background: { ...bg, alpha: 1 },
+    },
+  });
+
+  const composites = [];
+  const transformedMeta = await sharp(transformed).metadata();
+  let cropLeft = Math.max(0, -left);
+  let cropTop = Math.max(0, -top);
+  let visibleW = Math.min((transformedMeta.width || 1) - cropLeft, finalPxW - Math.max(0, left));
+  let visibleH = Math.min((transformedMeta.height || 1) - cropTop, finalPxH - Math.max(0, top));
+  if (visibleW > 0 && visibleH > 0) {
+    let input = transformed;
+    if (cropLeft || cropTop || visibleW !== transformedMeta.width || visibleH !== transformedMeta.height) {
+      input = await sharp(transformed).extract({ left: Math.floor(cropLeft), top: Math.floor(cropTop), width: Math.floor(visibleW), height: Math.floor(visibleH) }).png().toBuffer();
+    }
+    composites.push({ input, left: Math.max(0, left), top: Math.max(0, top) });
+  }
+
+  return await base
+    .composite(composites)
+    .withMetadata({ density: targetDpi })
+    .png({ compressionLevel: 6 })
+    .toBuffer();
+}
+
+function parseHexColorGlobal(hex) {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || '');
+  return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : { r: 250, g: 250, b: 250 };
+}
+
 /**
  * Convert raster image to PDF with optional text layers
  */
@@ -1255,6 +1357,46 @@ exports.handler = async (event) => {
           console.error('[VECTOR_PDF] Stack:', vectorErr.stack);
           console.warn('[VECTOR_PDF] Falling through to legacy fallback paths');
           // Fall through to existing paths for safety
+        }
+      }
+    }
+
+    // =========================================================================
+    // PRIORITY 0 (PDF): TRUE PRINT PDF FROM SAVED DESIGN STATE
+    // Rebuilds the approved designer layout from the original uploaded asset
+    // and saved transforms. This path intentionally runs before final_render,
+    // thumbnail, and preview fallbacks so production PDFs never come from a
+    // browser screenshot when canvas_state_json is available.
+    // =========================================================================
+    if ((req.format || 'pdf') === 'pdf' && req.canvasStateJson) {
+      let designState;
+      try {
+        designState = typeof req.canvasStateJson === 'string' ? JSON.parse(req.canvasStateJson) : req.canvasStateJson;
+      } catch (parseErr) {
+        console.warn('[PRINT_PDF_STATE] Failed to parse canvasStateJson:', parseErr.message);
+      }
+      if (designState && (designState.source === 'google-ads-banner' || designState.source === 'design-page' || designState.source === 'yard-sign')) {
+        try {
+          console.log('[PRINT_PDF_STATE] Rebuilding PDF from original artwork + saved designer state:', designState.source);
+          const designPng = await renderDesignStateToPngBuffer(designState, targetDpi, bleedIn);
+          const statePdf = await rasterToPdfBuffer(designPng, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn);
+          return await respondWithPdf(statePdf, req.orderId, req.itemId, {
+            dpi: targetDpi,
+            bleed: bleedIn,
+            source: 'design_state_original_artwork',
+            usedOriginalArtwork: true,
+            layoutSource: designState.source,
+          });
+        } catch (statePdfErr) {
+          console.error('[PRINT_PDF_STATE] Design-state PDF generation failed:', statePdfErr.message);
+          if (req.strictDesignStatePdf !== false) {
+            return {
+              statusCode: 422,
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ error: 'Could not generate print PDF from saved design state', details: statePdfErr.message }),
+            };
+          }
+          console.warn('[PRINT_PDF_STATE] strictDesignStatePdf=false; falling through to legacy fallbacks');
         }
       }
     }

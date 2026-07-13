@@ -918,38 +918,8 @@ const Design: React.FC = () => {
     setPromoCode('');
   };
 
-  // Compress images client-side to stay under Netlify's 6 MB function limit
-  const compressImage = useCallback(async (file: File): Promise<File> => {
-    if (file.type === 'application/pdf' || file.size <= 4.5 * 1024 * 1024) return file;
-    return new Promise((resolve) => {
-      const img = new Image();
-      const objectUrl = URL.createObjectURL(file);
-      const cleanup = () => URL.revokeObjectURL(objectUrl);
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const maxDim = 4000;
-        let { width, height } = img;
-        if (width > maxDim || height > maxDim) {
-          const ratio = Math.min(maxDim / width, maxDim / height);
-          width = Math.round(width * ratio);
-          height = Math.round(height * ratio);
-        }
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) { cleanup(); resolve(file); return; }
-        ctx.drawImage(img, 0, 0, width, height);
-        canvas.toBlob((blob) => {
-          cleanup();
-          if (!blob || blob.size >= file.size) { resolve(file); return; }
-          const compressed = new File([blob], file.name.replace(/.png$/i, '.jpg'), { type: 'image/jpeg' });
-          resolve(compressed);
-        }, 'image/jpeg', 0.85);
-      };
-      img.onerror = () => { cleanup(); resolve(file); };
-      img.src = objectUrl;
-    });
-  }, []);
+  // Preserve uploads exactly as received; never resize, compress, or re-encode customer artwork.
+  const preserveOriginalUpload = useCallback(async (file: File): Promise<File> => file, []);
 
   const handleFileUpload = useCallback(async (file: File) => {
     setUploadError('');
@@ -972,13 +942,13 @@ const Design: React.FC = () => {
     console.info('[upload] start', { name: file.name, size: file.size, type: file.type });
     logUx('upload_start', { name: file.name, size: file.size, type: file.type });
     try {
-      const uploadFile = await compressImage(file);
+      const uploadFile = await preserveOriginalUpload(file);
       const formData = new FormData();
       formData.append('file', uploadFile);
       const res = await fetch('/.netlify/functions/upload-file', { method: 'POST', body: formData, signal: controller.signal });
       if (!res.ok) throw new Error(`Upload failed (${res.status})`);
       const data = await res.json();
-      setUploadedFile({ name: file.name, url: data.secureUrl, fileKey: data.fileKey || data.publicId, size: file.size, isPdf: file.type === 'application/pdf', thumbnailUrl: file.type === 'application/pdf' ? getPdfThumbnailUrl(data.secureUrl) : getImagePreviewUrl(data.secureUrl) });
+      setUploadedFile({ name: file.name, url: data.secureUrl, fileKey: data.fileKey || data.publicId, size: file.size, isPdf: file.type === 'application/pdf', thumbnailUrl: file.type === 'application/pdf' ? getPdfThumbnailUrl(data.secureUrl) : getImagePreviewUrl(data.secureUrl), originalWidth: data.width, originalHeight: data.height, originalFormat: data.format, originalBytes: data.bytes } as any);
       console.info('[upload] success', { name: file.name, fileKey: data.fileKey || data.publicId });
       logUx('upload_success', { name: file.name, fileKey: data.fileKey || data.publicId });
     } catch (err) {
@@ -996,7 +966,7 @@ const Design: React.FC = () => {
       window.clearTimeout(timeoutId);
       setIsUploading(false);
     }
-  }, [compressImage]);
+  }, [preserveOriginalUpload]);
 
   // Handle a successful "Create with AI" generation: convert the returned
   // base64 PNG into a File and run it through the SAME upload pipeline used

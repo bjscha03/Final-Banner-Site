@@ -20,6 +20,13 @@ interface PayPalConfig {
   environment: 'sandbox' | 'live' | null;
 }
 
+const isDeployPreview = () => {
+  if (typeof window === 'undefined') return false;
+  const viteEnv = String(import.meta.env.VERCEL_ENV || import.meta.env.CONTEXT || '').toLowerCase();
+  const host = window.location.hostname.toLowerCase();
+  return viteEnv === 'preview' || viteEnv === 'deploy-preview' || (host.endsWith('.vercel.app') && !host.startsWith('bannersonthefly')) || host.includes('--');
+};
+
 const getFirstNonEmpty = (...values: unknown[]): string | null => {
   for (const value of values) {
     if (typeof value === 'string' && value.trim()) {
@@ -78,6 +85,8 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [isCapturingPayment, setIsCapturingPayment] = useState(false);
   const [isAdminUser, setIsAdminUser] = useState(false);
+  const deployPreview = isDeployPreview();
+  const allowAdminTestCheckout = deployPreview && isAdminUser;
 
   // Load PayPal configuration on mount
   useEffect(() => {
@@ -263,6 +272,10 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
             yard_sign_stakes_subtotal_cents: item.yard_sign_stakes_subtotal_cents,
           })),
           discountCode: discountCode ? { code: discountCode.code, discountPercentage: discountCode.discountPercentage, discountAmountCents: discountCode.discountAmountCents } : null,
+          payment_method: 'admin_deploy_preview_test',
+          payment_status: 'paid',
+          is_test_order: true,
+          test_order_reason: 'Deploy Preview admin checkout',
         }),
       });
 
@@ -306,7 +319,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
           </p>
         </div>
 
-        {isAdminUser && (
+        {allowAdminTestCheckout && (
           <Button
             onClick={handleTestPayment}
             disabled={isCreatingOrder}
@@ -319,7 +332,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
                 Processing Test Payment...
               </>
             ) : (
-              `Admin Test Pay $${(total / 100).toFixed(2)}`
+              `Create Deploy Preview Test Order $${(total / 100).toFixed(2)}`
             )}
           </Button>
         )}
@@ -716,11 +729,11 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
       </PayPalScriptProvider>
 
       {/* Admin Test Pay Button */}
-      {isAdminUser && (
+      {allowAdminTestCheckout && (
         <div className="border-t pt-4">
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-3">
             <p className="text-gray-700 text-sm">
-              <strong>Admin Access:</strong> You can use the test payment button below to create orders without processing real payments.
+              <strong>Deploy Preview Admin Test:</strong> This creates a TEST ORDER without contacting PayPal or charging a payment method.
             </p>
           </div>
 
@@ -737,7 +750,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
                 Processing Test Payment...
               </>
             ) : (
-              `Admin Test Pay $${(total / 100).toFixed(2)}`
+              `Create Deploy Preview Test Order $${(total / 100).toFixed(2)}`
             )}
           </Button>
         </div>
