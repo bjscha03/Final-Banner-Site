@@ -91,6 +91,17 @@ const CHECKOUT_BUILD_MARKER = 'admin-preview-bypass-v3';
 type CheckoutAuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 type CheckoutProfileStatus = 'loading' | 'resolved' | 'error';
 
+type AdminDiagnostics = {
+  profileRowFound: boolean;
+  profileIdMatchesAuthenticatedUser: boolean;
+  profileEmailMatchesAuthenticatedEmail: boolean;
+  profileIsAdminValue: boolean | null;
+  adminAllowlistMatch: boolean;
+  adminSource: 'profile' | 'allowlist' | 'none' | string;
+  databaseReachable?: boolean;
+  databaseEnvironment?: string;
+};
+
 const getDeployedCommit = () => (
   import.meta.env.VITE_COMMIT_REF
   || import.meta.env.COMMIT_REF
@@ -151,11 +162,13 @@ const CheckoutRuntimeDiagnostics = ({
   profileStatus,
   isAdmin,
   useAdminPreviewCheckout,
+  adminDiagnostics,
 }: {
   authStatus: CheckoutAuthStatus;
   profileStatus: CheckoutProfileStatus;
   isAdmin: boolean | null;
   useAdminPreviewCheckout: boolean;
+  adminDiagnostics: AdminDiagnostics | null;
 }) => {
   if (!isDeployPreview()) return null;
 
@@ -169,6 +182,14 @@ const CheckoutRuntimeDiagnostics = ({
     ['Test checkout selected', String(useAdminPreviewCheckout)],
     ['Deployed commit SHA', getDeployedCommit()],
     ['Checkout component/version', CHECKOUT_BUILD_MARKER],
+    ['Profile row found', String(adminDiagnostics?.profileRowFound ?? false)],
+    ['Profile ID matches authenticated user', String(adminDiagnostics?.profileIdMatchesAuthenticatedUser ?? false)],
+    ['Profile email matches authenticated email', String(adminDiagnostics?.profileEmailMatchesAuthenticatedEmail ?? false)],
+    ['Profile is_admin value', String(adminDiagnostics?.profileIsAdminValue ?? null)],
+    ['Admin allowlist match', String(adminDiagnostics?.adminAllowlistMatch ?? false)],
+    ['Admin source', adminDiagnostics?.adminSource || 'none'],
+    ['Profile source reachable', String(adminDiagnostics?.databaseReachable ?? false)],
+    ['Database environment', adminDiagnostics?.databaseEnvironment || 'unknown'],
   ];
 
   return (
@@ -266,6 +287,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = (props) => {
   const { user, loading } = useAuth() as any;
   const [profileStatus, setProfileStatus] = useState<CheckoutProfileStatus>('loading');
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [adminDiagnostics, setAdminDiagnostics] = useState<AdminDiagnostics | null>(null);
   const isPreview = isDeployPreview();
   const authStatus: CheckoutAuthStatus = loading ? 'loading' : user ? 'authenticated' : 'unauthenticated';
 
@@ -279,32 +301,37 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = (props) => {
       if (authStatus === 'loading') {
         setProfileStatus('loading');
         setIsAdmin(null);
+        setAdminDiagnostics(null);
         return;
       }
 
       if (authStatus === 'unauthenticated') {
         setIsAdmin(false);
+        setAdminDiagnostics(null);
         setProfileStatus('resolved');
         return;
       }
 
       setProfileStatus('loading');
       setIsAdmin(null);
+      setAdminDiagnostics(null);
       try {
         const response = await fetch('/.netlify/functions/check-admin-status', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: user?.email }),
+          body: JSON.stringify({ userId: user?.id, email: user?.email }),
         });
         const result = response.ok ? await response.json() : { isAdmin: false };
         if (!cancelled) {
           setIsAdmin(result.isAdmin === true);
+          setAdminDiagnostics(result.diagnostics || null);
           setProfileStatus('resolved');
         }
       } catch (error) {
         console.error('[CheckoutPaymentSection] admin status lookup failed:', error);
         if (!cancelled) {
           setIsAdmin(false);
+          setAdminDiagnostics(null);
           setProfileStatus('error');
         }
       }
@@ -312,7 +339,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = (props) => {
 
     resolveProfile();
     return () => { cancelled = true; };
-  }, [authStatus, user?.email]);
+  }, [authStatus, user?.id, user?.email]);
 
   const checkoutAccessResolved = authStatus !== 'loading' && profileStatus !== 'loading';
   const useAdminPreviewCheckout = isPreview && authStatus === 'authenticated' && isAdmin === true;
@@ -328,8 +355,9 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = (props) => {
       useAdminTestCheckout: useAdminPreviewCheckout,
       deployedCommit: getDeployedCommit(),
       checkoutMarker: CHECKOUT_BUILD_MARKER,
+      adminDiagnostics,
     });
-  }, [isPreview, authStatus, profileStatus, user, isAdmin, useAdminPreviewCheckout]);
+  }, [isPreview, authStatus, profileStatus, user, isAdmin, useAdminPreviewCheckout, adminDiagnostics]);
 
   if (!checkoutAccessResolved) {
     return (
@@ -339,6 +367,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = (props) => {
           profileStatus={profileStatus}
           isAdmin={isAdmin}
           useAdminPreviewCheckout={useAdminPreviewCheckout}
+          adminDiagnostics={adminDiagnostics}
         />
         <div className="flex items-center justify-center py-8">
           <Loader2 className="mr-2 h-6 w-6 animate-spin" />
@@ -356,6 +385,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = (props) => {
           profileStatus={profileStatus}
           isAdmin={isAdmin}
           useAdminPreviewCheckout={useAdminPreviewCheckout}
+          adminDiagnostics={adminDiagnostics}
         />
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
           We could not verify checkout access for this Deploy Preview. Please refresh and sign in again before placing a test order.
@@ -371,6 +401,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = (props) => {
         profileStatus={profileStatus}
         isAdmin={isAdmin}
         useAdminPreviewCheckout={useAdminPreviewCheckout}
+        adminDiagnostics={adminDiagnostics}
       />
       {useAdminPreviewCheckout ? (
         <AdminPreviewTestCheckout {...props} />

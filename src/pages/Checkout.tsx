@@ -159,7 +159,7 @@ const Checkout: React.FC = () => {
           const response = await fetch('/.netlify/functions/check-admin-status', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: user.email }),
+            body: JSON.stringify({ userId: user.id, email: user.email }),
           });
           if (response.ok) {
             const result = await response.json();
