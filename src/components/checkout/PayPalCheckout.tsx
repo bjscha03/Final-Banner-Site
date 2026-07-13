@@ -94,12 +94,24 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [isCapturingPayment, setIsCapturingPayment] = useState(false);
-  const [isAdminUser, setIsAdminUser] = useState(false);
+  const [isAdminUser, setIsAdminUser] = useState<boolean | null>(null);
   const deployPreview = isDeployPreview();
-  const allowAdminTestCheckout = deployPreview && isAdminUser;
+  const adminStatusResolved = isAdminUser !== null;
+  const allowAdminTestCheckout = deployPreview && isAdminUser === true;
 
-  // Load PayPal configuration on mount
+  // Load PayPal configuration only after preview admin status is resolved.
+  // Authorized admins in Deploy Preview bypass PayPal entirely, so do not initialize live PayPal for them.
   useEffect(() => {
+    if (deployPreview && isAdminUser === null) {
+      setIsLoadingConfig(false);
+      return;
+    }
+    if (allowAdminTestCheckout) {
+      console.log('[PayPalCheckout] Skipping PayPal config for authorized Deploy Preview admin test checkout');
+      setPaypalConfig({ enabled: false, clientId: null, environment: null });
+      setIsLoadingConfig(false);
+      return;
+    }
     console.log('[PayPalCheckout] Loading PayPal configuration...');
     const isDev = import.meta.env.DEV || window.location.hostname === 'localhost';
 
@@ -149,7 +161,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
     };
 
     loadPayPalConfig();
-  }, []);
+  }, [deployPreview, isAdminUser, allowAdminTestCheckout]);
 
   // Check if user is admin (for test pay button)
   useEffect(() => {
@@ -175,6 +187,8 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
           console.error('Error checking admin status:', error);
           setIsAdminUser(false);
         }
+      } else {
+        setIsAdminUser(false);
       }
     };
 
@@ -279,12 +293,25 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
     }
   };
 
+  useEffect(() => {
+    console.log('Checkout environment diagnostics', {
+      hostname: typeof window !== 'undefined' ? window.location.hostname : 'unknown',
+      isDeployPreview: deployPreview,
+      isAdmin: isAdminUser === true,
+      adminStatusResolved,
+      userId: Boolean(user?.id),
+      userEmail: Boolean(user?.email),
+      useAdminTestCheckout: allowAdminTestCheckout,
+      deployedCommit: import.meta.env.VITE_COMMIT_REF || import.meta.env.COMMIT_REF || import.meta.env.VITE_NETLIFY_COMMIT_REF || 'unknown',
+    });
+  }, [deployPreview, isAdminUser, adminStatusResolved, user?.id, user?.email, allowAdminTestCheckout]);
+
   // Loading state
-  if (isLoadingConfig) {
+  if (isLoadingConfig || (deployPreview && !adminStatusResolved)) {
     return (
       <div className="flex items-center justify-center py-8">
         <Loader2 className="h-6 w-6 animate-spin mr-2" />
-        <span>Loading secure checkout…</span>
+        <span>{deployPreview && !adminStatusResolved ? 'Checking admin test checkout access…' : 'Loading secure checkout…'}</span>
       </div>
     );
   }
@@ -355,6 +382,9 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
 
   // PayPal order creation handler
   const handleCreateOrder = async () => {
+    if (allowAdminTestCheckout) {
+      throw new Error('PayPal must not execute during an authorized admin Deploy Preview checkout.');
+    }
     try {
       setIsCreatingOrder(true);
 
@@ -473,6 +503,9 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
 
   // PayPal order approval handler
   const handleApprove = async (data: any) => {
+    if (allowAdminTestCheckout) {
+      throw new Error('PayPal capture must not execute during an authorized admin Deploy Preview checkout.');
+    }
     try {
       setIsCapturingPayment(true);
       
@@ -502,7 +535,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
       
       if (!captureResponse.ok && !isDev) {
         console.error('Payment capture error:', captureResult || captureResponse.status);
-        alert(`Payment failed: ${captureResult?.error || 'Unknown error'}\nStatus: ${captureResponse.status}`);
+        alert(`Payment failed: ${captureResult?.message || captureResult?.error || 'Payment could not be completed.'}\nStatus: ${captureResponse.status}`);
         return;
       }
 

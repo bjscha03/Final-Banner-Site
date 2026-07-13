@@ -121,8 +121,24 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Upsert to abandoned_carts table
-    if (userId) {
+    // Upsert to abandoned_carts table. Only attach user_id when it exists
+    // in profiles; stale localStorage/test placeholder IDs must not break cart
+    // analytics or checkout.
+    let verifiedUserId = userId || null;
+    if (verifiedUserId) {
+      try {
+        const profileRows = await sql`SELECT id FROM profiles WHERE id = ${verifiedUserId} LIMIT 1`;
+        if (!profileRows || profileRows.length === 0) {
+          console.warn('[save-cart-snapshot] userId not found in profiles; saving as guest snapshot');
+          verifiedUserId = null;
+        }
+      } catch (profileErr) {
+        console.warn('[save-cart-snapshot] profile verification failed; saving as guest snapshot:', profileErr.message);
+        verifiedUserId = null;
+      }
+    }
+
+    if (verifiedUserId) {
       // For logged-in users
       const result = await sql`
         INSERT INTO abandoned_carts (
@@ -139,7 +155,7 @@ exports.handler = async (event, context) => {
           created_at,
           updated_at
         ) VALUES (
-          ${userId},
+          ${verifiedUserId},
           ${email || null},
           ${phone || null},
           ${JSON.stringify(cartItems)}::jsonb,
