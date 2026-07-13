@@ -33,17 +33,33 @@ function isDeployPreviewEnvironment() {
   return !!deployUrl && deployUrl !== prodUrl && !deployUrl.includes('bannersonthefly.com');
 }
 
-async function isAdminEmail(email) {
+async function verifyAdminTestIdentity(userId, email) {
   const normalized = String(email || '').trim().toLowerCase();
-  if (!normalized) return false;
+  const result = { isAuthenticated: false, isAdmin: false, source: 'none' };
+  if (!normalized || !isRealUserId(userId)) return result;
   try {
-    const rows = await sql`SELECT is_admin FROM profiles WHERE lower(email) = ${normalized} LIMIT 1`;
-    if (rows && rows[0] && rows[0].is_admin === true) return true;
+    const rows = await sql`
+      SELECT id, email, is_admin
+      FROM profiles
+      WHERE id = ${userId} AND lower(email) = ${normalized}
+      LIMIT 1
+    `;
+    if (!rows || !rows[0]) return result;
+    result.isAuthenticated = true;
+    if (rows[0].is_admin === true) {
+      result.isAdmin = true;
+      result.source = 'profiles.is_admin';
+      return result;
+    }
   } catch (err) {
-    console.warn('[create-order] admin profile lookup failed:', err.message);
+    console.warn('[create-order] admin identity lookup failed:', err.message);
   }
   const allowlist = String(process.env.ADMIN_TEST_PAY_ALLOWLIST || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
-  return allowlist.includes(normalized);
+  if (allowlist.includes(normalized)) {
+    result.isAdmin = true;
+    result.source = 'ADMIN_TEST_PAY_ALLOWLIST';
+  }
+  return result;
 }
 
 // Helper to detect bad URLs (blob:, data:, or huge strings)
@@ -874,15 +890,32 @@ exports.handler = async (event, context) => {
     // can persist the order BEFORE money is captured. Only 'pending' and
     // 'paid' are accepted here — anything else falls back to 'paid' for
     // backward compatibility with existing PayPal callers.
-    const isTestOrder = orderData.is_test_order === true || orderData.payment_method === 'admin_deploy_preview_test';
+    const isTestOrder = orderData.checkout_mode === 'admin_deploy_preview_test' || orderData.is_test_order === true || orderData.payment_method === 'admin_deploy_preview_test';
     if (isTestOrder) {
-      const [adminOk, previewOk] = await Promise.all([isAdminEmail(userEmail), Promise.resolve(isDeployPreviewEnvironment())]);
-      if (!adminOk || !previewOk) {
-        console.warn('[create-order] Rejected test order bypass request', { adminOk, previewOk, email: userEmail });
+      const previewOk = isDeployPreviewEnvironment();
+      const identity = await verifyAdminTestIdentity(finalUserId, userEmail);
+      console.log('[create-order] admin test checkout authorization', {
+        requested: true,
+        netlifyContext: process.env.CONTEXT || null,
+        previewOk,
+        isAuthenticated: identity.isAuthenticated,
+        isAdmin: identity.isAdmin,
+        adminSource: identity.source,
+      });
+      if (!previewOk || !identity.isAuthenticated || !identity.isAdmin) {
         return {
           statusCode: 403,
           headers,
-          body: JSON.stringify({ ok: false, error: 'TEST_ORDER_NOT_ALLOWED' }),
+          body: JSON.stringify({
+            ok: false,
+            error: 'ADMIN_TEST_ORDER_NOT_AUTHORIZED',
+            message: 'Test checkout is only available to authenticated admins in Netlify Deploy Previews.',
+            details: {
+              isDeployPreview: previewOk,
+              isAuthenticated: identity.isAuthenticated,
+              isAdmin: identity.isAdmin,
+            },
+          }),
         };
       }
     }

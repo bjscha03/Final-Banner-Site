@@ -68,6 +68,16 @@ const extractShippingFromCapture = (captureResult: any) => {
   };
 };
 
+const readErrorMessage = async (response: Response, fallback: string) => {
+  const raw = await response.text().catch(() => '');
+  try {
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed.message || parsed.error || parsed.details || fallback;
+  } catch {
+    return raw || fallback;
+  }
+};
+
 const trackCheckoutPaymentClick = (method: 'card' | 'paypal') => {
   if (typeof window === 'undefined' || !window.gtag) return;
   window.gtag('event', 'payment_button_click', {
@@ -176,40 +186,14 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
     try {
       setIsCreatingOrder(true);
 
-      // Log user state for debugging
-      console.log('🔍 PayPal Create Order - User:', {
+      console.log('[AdminTestCheckout] creating no-payment test order', {
         hasUser: !!user,
         userId: user?.id,
-        userEmail: user?.email
+        userEmail: user?.email,
+        deployPreview,
       });
 
-      // Log user state for debugging
-      console.log('🔍 PayPal Create Order - User:', {
-        hasUser: !!user,
-        userId: user?.id,
-        userEmail: user?.email
-      });
-
-      // Log user state for debugging
-      console.log('🔍 PayPal Create Order - User:', {
-        hasUser: !!user,
-        userId: user?.id,
-        userEmail: user?.email
-      });
-
-      // Log user state for debugging
-      console.log('🔍 PayPal Create Order - User:', {
-        hasUser: !!user,
-        userId: user?.id,
-        userEmail: user?.email
-      });
-
-      toast({
-        title: "Test Payment Processed",
-        description: "This is an admin test payment. Order will be created with test payment provider.",
-      });
-
-      // Call existing create-order endpoint with test payment
+      // Call create-order directly. Do not create/capture a PayPal order.
       const response = await fetch('/.netlify/functions/create-order', {
         method: 'POST',
         headers: {
@@ -272,18 +256,20 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
             yard_sign_stakes_subtotal_cents: item.yard_sign_stakes_subtotal_cents,
           })),
           discountCode: discountCode ? { code: discountCode.code, discountPercentage: discountCode.discountPercentage, discountAmountCents: discountCode.discountAmountCents } : null,
+          checkout_mode: 'admin_deploy_preview_test',
           payment_method: 'admin_deploy_preview_test',
           payment_status: 'paid',
           is_test_order: true,
-          test_order_reason: 'Deploy Preview admin checkout',
+          test_order_reason: `Deploy Preview admin checkout by ${user?.email || 'unknown admin'}`,
         }),
       });
 
       if (response.ok) {
         const result = await response.json();
-        onSuccess(result.id, result.order);
+        toast({ title: 'Test order created', description: 'No payment was processed.' });
+        onSuccess(result.orderId || result.id || result.order?.id, result.order);
       } else {
-        throw new Error('Test payment failed');
+        throw new Error(await readErrorMessage(response, 'Test order could not be created.'));
       }
     } catch (error) {
       console.error('Test payment error:', error);
@@ -313,7 +299,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
           <p className="text-amber-800 text-sm">
             <strong>PayPal Unavailable:</strong> PayPal payments are currently disabled or not configured.
-            {isAdminUser && ' Use the admin test payment button below.'}
+            {allowAdminTestCheckout && ' Use the no-payment test order button below.'}
             <br />
             <small>If this persists, please refresh or contact support.</small>
           </p>
@@ -329,13 +315,40 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
             {isCreatingOrder ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Processing Test Payment...
+                Creating Test Order...
               </>
             ) : (
-              `Create Deploy Preview Test Order $${(total / 100).toFixed(2)}`
+              `Place Test Order — No Payment ($${(total / 100).toFixed(2)})`
             )}
           </Button>
         )}
+      </div>
+    );
+  }
+
+  if (allowAdminTestCheckout) {
+    return (
+      <div className="space-y-4">
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <p className="text-green-800 text-sm">
+            <strong>Deploy Preview Admin Test:</strong> Place this order without creating or capturing a PayPal payment. The server will verify your admin session and preview environment before creating the order.
+          </p>
+        </div>
+        <Button
+          onClick={handleTestPayment}
+          disabled={disabled || isCreatingOrder || isCapturingPayment}
+          className="w-full bg-green-600 hover:bg-green-700 text-white py-3 text-lg font-semibold"
+          size="lg"
+        >
+          {isCreatingOrder ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              Creating Test Order...
+            </>
+          ) : (
+            `Place Test Order — No Payment ($${(total / 100).toFixed(2)})`
+          )}
+        </Button>
       </div>
     );
   }
@@ -747,10 +760,10 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
             {isCreatingOrder ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Processing Test Payment...
+                Creating Test Order...
               </>
             ) : (
-              `Create Deploy Preview Test Order $${(total / 100).toFixed(2)}`
+              `Place Test Order — No Payment ($${(total / 100).toFixed(2)})`
             )}
           </Button>
         </div>
