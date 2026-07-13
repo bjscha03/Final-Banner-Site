@@ -48,6 +48,7 @@ import GrommetOverlay from '@/components/preview/GrommetOverlay';
 import PreviewRulerFrame from '@/components/preview/PreviewRulerFrame';
 import ArtworkPreviewEditor from '@/components/design/ArtworkPreviewEditor';
 import { base64ToFile } from '@/utils/base64ToFile';
+import { renderPdfToDataUrl } from '@/utils/pdf/renderPdfToDataUrl';
 import { computeSameDayFeesCents } from '@/lib/sameDayService';
 import ConfigCard from '@/components/design/layout/ConfigCard';
 import TrustStrip from '@/components/design/layout/TrustStrip';
@@ -948,7 +949,30 @@ const Design: React.FC = () => {
       const res = await fetch('/.netlify/functions/upload-file', { method: 'POST', body: formData, signal: controller.signal });
       if (!res.ok) throw new Error(`Upload failed (${res.status})`);
       const data = await res.json();
-      setUploadedFile({ name: file.name, url: data.secureUrl, fileKey: data.fileKey || data.publicId, size: file.size, isPdf: file.type === 'application/pdf', thumbnailUrl: file.type === 'application/pdf' ? getPdfThumbnailUrl(data.secureUrl) : getImagePreviewUrl(data.secureUrl), originalWidth: data.width, originalHeight: data.height, originalFormat: data.format, originalBytes: data.bytes } as any);
+      let designerPreviewUrl = file.type === 'application/pdf' ? getPdfThumbnailUrl(data.secureUrl) : getImagePreviewUrl(data.secureUrl);
+      if (file.type === 'application/pdf') {
+        try {
+          designerPreviewUrl = await renderPdfToDataUrl(file, {
+            targetCssWidth: previewContainerRef.current?.offsetWidth || 1600,
+            targetCssHeight: previewContainerRef.current?.offsetHeight || 1200,
+            deviceScale: window.devicePixelRatio || 1,
+            qualityMultiplier: 2,
+            minLongEdge: 3200,
+            maxPixels: 28_000_000,
+          });
+          console.info('[PDF_PREVIEW] using high-resolution local designer preview', {
+            originalUrl: data.secureUrl,
+            fileKey: data.fileKey || data.publicId,
+          });
+        } catch (previewErr) {
+          console.error('[PDF_PREVIEW] failed to render local designer preview; falling back to storage URL', {
+            error: (previewErr as Error)?.message,
+            originalUrl: data.secureUrl,
+            fileType: file.type,
+          });
+        }
+      }
+      setUploadedFile({ name: file.name, url: data.secureUrl, fileKey: data.fileKey || data.publicId, size: file.size, isPdf: file.type === 'application/pdf', thumbnailUrl: designerPreviewUrl, originalWidth: data.width, originalHeight: data.height, originalFormat: data.format, originalBytes: data.bytes } as any);
       console.info('[upload] success', { name: file.name, fileKey: data.fileKey || data.publicId });
       logUx('upload_success', { name: file.name, fileKey: data.fileKey || data.publicId });
     } catch (err) {
