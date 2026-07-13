@@ -1,4 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
+const { verifyAdminSession } = require('./_shared/admin-session.cjs');
 const VALID_STATUSES = ['New', 'Reviewing', 'Quoted', 'Approved', 'Declined', 'Closed'];
 
 function isEmailInAdminAllowlist(email) {
@@ -9,8 +10,7 @@ function isEmailInAdminAllowlist(email) {
 }
 
 function isAuthorized(event, email) {
-  const cookie = event.headers?.cookie || event.headers?.Cookie || '';
-  return cookie.includes('admin=1') || isEmailInAdminAllowlist(email);
+  return verifyAdminSession(event).valid || isEmailInAdminAllowlist(email);
 }
 
 function getDbUrl() {

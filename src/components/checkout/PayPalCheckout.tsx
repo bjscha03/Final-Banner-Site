@@ -92,12 +92,12 @@ type CheckoutAuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 type CheckoutProfileStatus = 'loading' | 'resolved' | 'error';
 
 type AdminDiagnostics = {
+  adminSessionPresent?: boolean;
+  adminSessionValid?: boolean;
+  adminSessionExpired?: boolean;
   profileRowFound: boolean;
-  profileIdMatchesAuthenticatedUser: boolean;
-  profileEmailMatchesAuthenticatedEmail: boolean;
   profileIsAdminValue: boolean | null;
-  adminAllowlistMatch: boolean;
-  adminSource: 'profile' | 'allowlist' | 'none' | string;
+  adminSource: 'signed_admin_session' | 'none' | string;
   databaseReachable?: boolean;
   databaseEnvironment?: string;
 };
@@ -182,11 +182,11 @@ const CheckoutRuntimeDiagnostics = ({
     ['Test checkout selected', String(useAdminPreviewCheckout)],
     ['Deployed commit SHA', getDeployedCommit()],
     ['Checkout component/version', CHECKOUT_BUILD_MARKER],
+    ['Admin session present', String(adminDiagnostics?.adminSessionPresent ?? false)],
+    ['Admin session valid', String(adminDiagnostics?.adminSessionValid ?? false)],
+    ['Admin session expired', String(adminDiagnostics?.adminSessionExpired ?? false)],
     ['Profile row found', String(adminDiagnostics?.profileRowFound ?? false)],
-    ['Profile ID matches authenticated user', String(adminDiagnostics?.profileIdMatchesAuthenticatedUser ?? false)],
-    ['Profile email matches authenticated email', String(adminDiagnostics?.profileEmailMatchesAuthenticatedEmail ?? false)],
     ['Profile is_admin value', String(adminDiagnostics?.profileIsAdminValue ?? null)],
-    ['Admin allowlist match', String(adminDiagnostics?.adminAllowlistMatch ?? false)],
     ['Admin source', adminDiagnostics?.adminSource || 'none'],
     ['Profile source reachable', String(adminDiagnostics?.databaseReachable ?? false)],
     ['Database environment', adminDiagnostics?.databaseEnvironment || 'unknown'],
@@ -288,6 +288,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = (props) => {
   const [profileStatus, setProfileStatus] = useState<CheckoutProfileStatus>('loading');
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [adminDiagnostics, setAdminDiagnostics] = useState<AdminDiagnostics | null>(null);
+  const [adminSessionAuthenticated, setAdminSessionAuthenticated] = useState(false);
   const isPreview = isDeployPreview();
   const authStatus: CheckoutAuthStatus = loading ? 'loading' : user ? 'authenticated' : 'unauthenticated';
 
@@ -302,12 +303,14 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = (props) => {
         setProfileStatus('loading');
         setIsAdmin(null);
         setAdminDiagnostics(null);
+        setAdminSessionAuthenticated(false);
         return;
       }
 
-      if (authStatus === 'unauthenticated') {
+      if (authStatus === 'unauthenticated' && !isPreview) {
         setIsAdmin(false);
         setAdminDiagnostics(null);
+        setAdminSessionAuthenticated(false);
         setProfileStatus('resolved');
         return;
       }
@@ -315,15 +318,17 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = (props) => {
       setProfileStatus('loading');
       setIsAdmin(null);
       setAdminDiagnostics(null);
+      setAdminSessionAuthenticated(false);
       try {
         const response = await fetch('/.netlify/functions/check-admin-status', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: user?.id, email: user?.email }),
+          body: JSON.stringify({}),
         });
         const result = response.ok ? await response.json() : { isAdmin: false };
         if (!cancelled) {
           setIsAdmin(result.isAdmin === true);
+          setAdminSessionAuthenticated(result.authenticated === true);
           setAdminDiagnostics(result.diagnostics || null);
           setProfileStatus('resolved');
         }
@@ -331,6 +336,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = (props) => {
         console.error('[CheckoutPaymentSection] admin status lookup failed:', error);
         if (!cancelled) {
           setIsAdmin(false);
+          setAdminSessionAuthenticated(false);
           setAdminDiagnostics(null);
           setProfileStatus('error');
         }
@@ -339,10 +345,10 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = (props) => {
 
     resolveProfile();
     return () => { cancelled = true; };
-  }, [authStatus, user?.id, user?.email]);
+  }, [authStatus, isPreview, user?.id, user?.email]);
 
   const checkoutAccessResolved = authStatus !== 'loading' && profileStatus !== 'loading';
-  const useAdminPreviewCheckout = isPreview && authStatus === 'authenticated' && isAdmin === true;
+  const useAdminPreviewCheckout = isPreview && adminSessionAuthenticated && isAdmin === true;
 
   useEffect(() => {
     console.info('Checkout environment diagnostics', {
@@ -350,14 +356,14 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = (props) => {
       isDeployPreview: isPreview,
       authStatus,
       profileStatus,
-      authenticatedUserPresent: Boolean(user),
+      authenticatedUserPresent: Boolean(user) || adminSessionAuthenticated,
       isAdmin: isAdmin === true,
       useAdminTestCheckout: useAdminPreviewCheckout,
       deployedCommit: getDeployedCommit(),
       checkoutMarker: CHECKOUT_BUILD_MARKER,
       adminDiagnostics,
     });
-  }, [isPreview, authStatus, profileStatus, user, isAdmin, useAdminPreviewCheckout, adminDiagnostics]);
+  }, [isPreview, authStatus, profileStatus, user, isAdmin, useAdminPreviewCheckout, adminDiagnostics, adminSessionAuthenticated]);
 
   if (!checkoutAccessResolved) {
     return (

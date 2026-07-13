@@ -1,5 +1,6 @@
 const { neon } = require('@neondatabase/serverless');
 const { randomUUID } = require('crypto');
+const { verifyAdminSession } = require('./_shared/admin-session.cjs');
 const { normalizeShippingAddress } = require('./shipping-address-helpers.cjs');
 const {
   reconcileSameDayFlags,
@@ -891,33 +892,43 @@ exports.handler = async (event, context) => {
     // 'paid' are accepted here — anything else falls back to 'paid' for
     // backward compatibility with existing PayPal callers.
     const isTestOrder = orderData.checkout_mode === 'admin_deploy_preview_test' || orderData.is_test_order === true || orderData.payment_method === 'admin_deploy_preview_test';
+    let verifiedAdminSession = null;
     if (isTestOrder) {
       const previewOk = isDeployPreviewEnvironment();
-      const identity = await verifyAdminTestIdentity(finalUserId, userEmail);
+      const session = verifyAdminSession(event);
+      verifiedAdminSession = session.valid ? session.claims : null;
       console.log('[create-order] admin test checkout authorization', {
         requested: true,
         netlifyContext: process.env.CONTEXT || null,
         previewOk,
-        isAuthenticated: identity.isAuthenticated,
-        isAdmin: identity.isAdmin,
-        adminSource: identity.source,
+        adminSessionPresent: session.present,
+        adminSessionValid: session.valid,
+        adminSessionExpired: session.expired,
       });
-      if (!previewOk || !identity.isAuthenticated || !identity.isAdmin) {
+      if (!previewOk || !session.valid) {
         return {
           statusCode: 403,
           headers,
           body: JSON.stringify({
             ok: false,
             error: 'ADMIN_TEST_ORDER_NOT_AUTHORIZED',
-            message: 'Test checkout is only available to authenticated admins in Netlify Deploy Previews.',
+            message: 'A valid admin session is required for Deploy Preview test checkout.',
             details: {
               isDeployPreview: previewOk,
-              isAuthenticated: identity.isAuthenticated,
-              isAdmin: identity.isAdmin,
+              adminSessionPresent: session.present,
+              adminSessionValid: session.valid,
+              adminSessionExpired: session.expired,
             },
           }),
         };
       }
+
+      finalUserId = isRealUserId(verifiedAdminSession?.profileId) ? verifiedAdminSession.profileId : null;
+      userEmail = verifiedAdminSession?.email || userEmail;
+      orderData.payment_method = 'admin_deploy_preview_test';
+      orderData.payment_status = 'paid';
+      orderData.is_test_order = true;
+      orderData.test_order_reason = orderData.test_order_reason || 'Deploy Preview admin test checkout via signed admin session';
     }
     const requestedStatus = (orderData.payment_status === 'pending') ? 'pending' : 'paid';
     if (requestedStatus === 'pending') {

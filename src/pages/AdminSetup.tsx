@@ -7,78 +7,102 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Shield, Cookie, CheckCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
+const readErrorMessage = async (response: Response, fallback: string) => {
+  const raw = await response.text().catch(() => '');
+  try {
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed.message || parsed.error || fallback;
+  } catch {
+    return raw || fallback;
+  }
+};
+
 const AdminSetup: React.FC = () => {
   const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [backendMessage, setBackendMessage] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Check if already admin
-  React.useEffect(() => {
-    const hasAdminCookie = typeof document !== 'undefined' && document.cookie.includes('admin=1');
-    setIsAdmin(hasAdminCookie);
+  const refreshAdminStatus = React.useCallback(async () => {
+    setIsChecking(true);
+    try {
+      const response = await fetch('/.netlify/functions/check-admin-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const result = response.ok ? await response.json() : { isAdmin: false };
+      setIsAdmin(result.isAdmin === true);
+      setBackendMessage(result.message || null);
+    } catch (error) {
+      console.error('Admin status refresh failed:', error);
+      setIsAdmin(false);
+    } finally {
+      setIsChecking(false);
+    }
   }, []);
 
-  const handleSetAdmin = () => {
-    if (password === 'admin123' || password === 'admin') {
-      // Set admin cookie for 24 hours
-      const expires = new Date();
-      expires.setTime(expires.getTime() + (24 * 60 * 60 * 1000));
-      document.cookie = `admin=1; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
+  React.useEffect(() => {
+    refreshAdminStatus();
+  }, [refreshAdminStatus]);
 
-      // Create admin user in localStorage with valid UUID
-      const adminUser = {
-        id: '00000000-0000-0000-0000-000000000001',
-        email: 'admin@dev.local',
-        is_admin: true,
-      };
-      try {
-        localStorage.setItem('banners_current_user', JSON.stringify(adminUser));
-      } catch (e) {
-        console.warn('Unable to persist admin user to localStorage', e);
+  const handleSetAdmin = async () => {
+    setIsSubmitting(true);
+    setBackendMessage(null);
+    try {
+      const response = await fetch('/.netlify/functions/admin-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password, email }),
+      });
+
+      if (!response.ok) {
+        throw new Error(await readErrorMessage(response, 'Admin login failed.'));
+      }
+
+      const result = await response.json();
+      if (result.isAdmin !== true) {
+        throw new Error(result.message || 'Admin login failed.');
       }
 
       setIsAdmin(true);
       toast({
         title: 'Admin Access Granted',
-        description: 'You now have admin access. Redirecting to admin dashboard...',
+        description: 'Your server-verified admin session is active. Redirecting to admin dashboard...',
       });
 
-      // Navigate to the admin orders dashboard after a brief delay so the
-      // auth state can refresh from the freshly-set cookie/localStorage.
       setTimeout(() => {
         window.location.href = '/admin/orders';
       }, 800);
-    } else {
-      toast({
-        title: 'Invalid Password',
-        description: 'Please enter the correct admin password.',
-        variant: 'destructive',
-      });
+    } catch (error: any) {
+      const message = error?.message || 'Admin login failed.';
+      setBackendMessage(message);
+      toast({ title: 'Admin Login Failed', description: message, variant: 'destructive' });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleRemoveAdmin = () => {
-    document.cookie = 'admin=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
+  const handleRemoveAdmin = async () => {
     try {
-      localStorage.removeItem('banners_current_user');
-    } catch {
-      // ignore
+      await fetch('/.netlify/functions/admin-logout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+    } catch (error) {
+      console.warn('Admin logout request failed:', error);
     }
     setIsAdmin(false);
-    toast({
-      title: 'Admin Access Removed',
-      description: 'Admin access has been revoked.',
-    });
+    toast({ title: 'Admin Access Removed', description: 'Your server-verified admin session has been cleared.' });
   };
 
-  const handleGoToAdmin = () => {
-    navigate('/admin/orders');
-  };
-
-  const handleGoToMyOrders = () => {
-    navigate('/my-orders');
-  };
+  const handleGoToAdmin = () => navigate('/admin/orders');
+  const handleGoToMyOrders = () => navigate('/my-orders');
 
   return (
     <Layout>
@@ -87,57 +111,45 @@ const AdminSetup: React.FC = () => {
           <div className="text-center mb-8">
             <Shield className="h-16 w-16 text-blue-600 mx-auto mb-4" />
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Login</h1>
-            <p className="text-gray-600">Enter the admin password to access the dashboard</p>
+            <p className="text-gray-600">Sign in with server-verified admin credentials.</p>
           </div>
 
           <div className="space-y-6">
-            {/* Current Status */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Cookie className="h-5 w-5" />
-                  Current Status
-                </CardTitle>
-                <CardDescription>Your current admin access status</CardDescription>
+                <CardTitle className="flex items-center gap-2"><Cookie className="h-5 w-5" />Current Status</CardTitle>
+                <CardDescription>Your current server-backed admin session status</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-3">
                   {isAdmin ? (
-                    <>
-                      <CheckCircle className="h-5 w-5 text-green-600" />
-                      <span className="text-green-600 font-semibold">Admin Access Active</span>
-                    </>
+                    <><CheckCircle className="h-5 w-5 text-green-600" /><span className="text-green-600 font-semibold">Admin Session Active</span></>
                   ) : (
-                    <>
-                      <div className="h-5 w-5 rounded-full bg-gray-300"></div>
-                      <span className="text-gray-600">No Admin Access</span>
-                    </>
+                    <><div className="h-5 w-5 rounded-full bg-gray-300" /><span className="text-gray-600">No Admin Session</span></>
                   )}
                 </div>
+                {isChecking && <p className="mt-2 text-sm text-gray-500">Checking admin session…</p>}
+                {backendMessage && <p className="mt-2 text-sm text-amber-700">{backendMessage}</p>}
               </CardContent>
             </Card>
 
-            {/* Admin Access Control */}
             {!isAdmin ? (
               <Card>
                 <CardHeader>
                   <CardTitle>Enable Admin Access</CardTitle>
-                  <CardDescription>Enter the admin password to enable admin features</CardDescription>
+                  <CardDescription>Credentials are verified by a Netlify Function and stored in an HttpOnly signed cookie.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div>
-                    <Input
-                      type="password"
-                      placeholder="Enter admin password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleSetAdmin();
-                      }}
-                    />
-                  </div>
-                  <Button onClick={handleSetAdmin} className="w-full">
-                    Enable Admin Access
+                  <Input type="email" placeholder="Admin email (optional if password-only admin is configured)" value={email} onChange={(e) => setEmail(e.target.value)} />
+                  <Input
+                    type="password"
+                    placeholder="Enter admin password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleSetAdmin(); }}
+                  />
+                  <Button onClick={handleSetAdmin} disabled={isSubmitting || !password} className="w-full">
+                    {isSubmitting ? 'Verifying…' : 'Enable Admin Access'}
                   </Button>
                 </CardContent>
               </Card>
@@ -145,20 +157,14 @@ const AdminSetup: React.FC = () => {
               <Card>
                 <CardHeader>
                   <CardTitle>Admin Controls</CardTitle>
-                  <CardDescription>You have admin access. Choose what you'd like to do.</CardDescription>
+                  <CardDescription>You have server-verified admin access.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <Button onClick={handleGoToAdmin} className="w-full">
-                      Go to Admin Orders
-                    </Button>
-                    <Button onClick={handleGoToMyOrders} variant="outline" className="w-full">
-                      Go to My Orders
-                    </Button>
+                    <Button onClick={handleGoToAdmin} className="w-full">Go to Admin Orders</Button>
+                    <Button onClick={handleGoToMyOrders} variant="outline" className="w-full">Go to My Orders</Button>
                   </div>
-                  <Button onClick={handleRemoveAdmin} variant="destructive" className="w-full">
-                    Remove Admin Access
-                  </Button>
+                  <Button onClick={handleRemoveAdmin} variant="destructive" className="w-full">Remove Admin Access</Button>
                 </CardContent>
               </Card>
             )}

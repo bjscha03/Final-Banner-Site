@@ -49,40 +49,20 @@ class SecureAuthAdapter implements AuthAdapter {
       }
 
       // Debug logging for production troubleshooting
-      const hasAdminCookie = typeof document !== 'undefined' && document.cookie.includes('admin=1');
       console.log('🔍 getCurrentUser Debug:', {
         hasStoredUser: !!user,
-        hasAdminCookie,
         hostname: typeof window !== 'undefined' ? window.location.hostname : 'unknown',
         storedUser: user ? { hasId: !!user.id, hasEmail: !!user.email, is_admin: user.is_admin } : null
       });
 
 
-      // 🔧 MIGRATION: Update old demo user IDs to valid UUIDs
-      if (user && (user.id === 'admin_dev_user' || user.id === 'demo-user-123')) {
-        console.log('🔄 Migrating old user ID to valid UUID:', user.id);
-        const newId = user.id === 'admin_dev_user' 
-          ? '00000000-0000-0000-0000-000000000001'
-          : '00000000-0000-0000-0000-000000000002';
-        user.id = newId;
-        safeStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
-        console.log('✅ Migrated user ID to:' , newId);
-      }
-      // If no user but admin cookie is present, create a temporary admin user
-      if (!user && hasAdminCookie) {
-        console.log('🆕 Creating temporary admin user from cookie');
-        user = {
-          id: '00000000-0000-0000-0000-000000000001', // ✅ Valid UUID for admin dev user
-          email: 'admin@dev.local',
-          is_admin: true,
-        };
-        safeStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
-      }
-
-      // Update admin status based on cookie
-      if (user && hasAdminCookie) {
-        console.log('🔧 Updating user admin status from cookie');
-        user.is_admin = true;
+      // Remove legacy browser-only admin identities. Admin authorization now
+      // comes from the server-verified HttpOnly botf_admin_session cookie, not
+      // from JavaScript-readable cookies or localStorage flags.
+      if (user && (user.id === 'admin_dev_user' || user.id === '00000000-0000-0000-0000-000000000001' || user.email === 'admin@dev.local')) {
+        console.warn('Clearing legacy fake admin identity from localStorage');
+        safeStorage.removeItem(this.CURRENT_USER_KEY);
+        user = null;
       }
 
       console.log('✅ getCurrentUser result:', user ? { hasId: !!user.id, hasEmail: !!user.email, is_admin: user.is_admin } : null);
@@ -100,14 +80,14 @@ class SecureAuthAdapter implements AuthAdapter {
             const resp = await fetch(getNetlifyFunctionUrl('check-admin-status'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ userId: user.id, email: user.email }),
+              body: JSON.stringify({}),
             });
             if (resp.ok) {
               const data = await resp.json();
               if (data && data.isAdmin === true) {
                 user.is_admin = true;
                 safeStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
-                console.log('🔧 Upgraded user is_admin=true via ADMIN_TEST_PAY_ALLOWLIST');
+                console.log('🔧 Updated local admin display state from server-verified admin session');
                 if (typeof sessionStorage !== 'undefined') {
                   sessionStorage.setItem(cacheKey, 'admin');
                 }
@@ -144,11 +124,6 @@ class SecureAuthAdapter implements AuthAdapter {
       }
 
       const user: User = result.user;
-
-      // Check for admin cookie to override admin status if needed
-      if (typeof document !== 'undefined' && document.cookie.includes('admin=1')) {
-        user.is_admin = true;
-      }
 
       console.log('✅ Secure sign-in successful', { hasEmail: !!user.email });
       safeStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
