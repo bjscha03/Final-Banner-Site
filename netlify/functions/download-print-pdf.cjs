@@ -1,9 +1,9 @@
 /**
  * Admin print PDF download endpoint.
  *
- * The authoritative order item is loaded from the database. Legacy /design
- * canvas state is upgraded to print-scene v2 before rendering so uploaded PDFs
- * are embedded as vector pages instead of being converted to blurry images.
+ * Loads the authoritative order item, upgrades legacy /design state to a
+ * versioned print scene, and returns PDF bytes directly. Uploaded PDFs are
+ * embedded from their original production asset by render-order-pdf.
  */
 const { neon } = require('@neondatabase/serverless');
 const { v2: cloudinary } = require('cloudinary');
@@ -29,7 +29,11 @@ const CORS_HEADERS = {
 function parseJson(value) {
   if (!value) return null;
   if (typeof value === 'object') return value;
-  try { return JSON.parse(value); } catch { return null; }
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
 }
 
 function hashScene(scene) {
@@ -37,8 +41,8 @@ function hashScene(scene) {
 }
 
 function finiteNumber(value, fallback) {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : fallback;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
 }
 
 function legacyDesignStateToPrintScene(state, fallback = {}) {
@@ -54,7 +58,9 @@ function legacyDesignStateToPrintScene(state, fallback = {}) {
   const originalWidth = finiteNumber(state.originalWidth, 0);
   const originalHeight = finiteNumber(state.originalHeight, 0);
   const bannerAspect = widthIn / heightIn;
-  const sourceAspect = originalWidth > 0 && originalHeight > 0 ? originalWidth / originalHeight : bannerAspect;
+  const sourceAspect = originalWidth > 0 && originalHeight > 0
+    ? originalWidth / originalHeight
+    : bannerAspect;
 
   let containedWidthIn;
   let containedHeightIn;
@@ -68,7 +74,9 @@ function legacyDesignStateToPrintScene(state, fallback = {}) {
 
   const scaleX = Math.max(0.0001, finiteNumber(state.imgScale, 1));
   const scaleY = Math.max(0.0001, finiteNumber(state.imgScaleY, scaleX));
-  const position = state.imgPos && typeof state.imgPos === 'object' ? state.imgPos : { x: 0, y: 0 };
+  const position = state.imgPos && typeof state.imgPos === 'object'
+    ? state.imgPos
+    : { x: 0, y: 0 };
   const posXIn = (finiteNumber(position.x, 0) / 100) * widthIn;
   const posYIn = (finiteNumber(position.y, 0) / 100) * heightIn;
   const offsetXIn = (widthIn - containedWidthIn) / 2;
@@ -120,6 +128,72 @@ function normalizeCanvasState(canvasStateJson, fallback) {
   if (!parsed) return null;
   if (parsed.sceneVersion === 2) return parsed;
   return legacyDesignStateToPrintScene(parsed, fallback) || parsed;
+}
+
+async function ensurePrintPdfCacheColumns() {
+  if (!sql) return false;
+  try {
+    await sql`
+      ALTER TABLE order_items
+      ADD COLUMN IF NOT EXISTS generated_print_pdf_url TEXT,
+      ADD COLUMN IF NOT EXISTS generated_print_pdf_uploaded_at TIMESTAMP WITH TIME ZONE,
+      ADD COLUMN IF NOT EXISTS generated_print_pdf_renderer_version TEXT,
+      ADD COLUMN IF NOT EXISTS generated_print_pdf_scene_hash TEXT,
+      ADD COLUMN IF NOT EXISTS generated_print_pdf_metadata JSONB
+    `;
+    return true;
+  } catch (error) {
+    console.warn('[ADMIN_PRINT_PDF] cache-column migration unavailable; continuing without cache:', error && error.message);
+    return false;
+  }
+}
+
+async function loadOrderItem(itemId) {
+  if (!sql || !itemId) return null;
+
+  const cacheColumnsReady = await ensurePrintPdfCacheColumns();
+  if (cacheColumnsReady) {
+    try {
+      const rows = await sql`
+        SELECT id, width_in, height_in, file_key, file_url, print_ready_url, web_preview_url,
+               text_elements, overlay_image, overlay_images, canvas_background_color,
+               image_scale, image_position, thumbnail_url,
+               final_render_url, final_render_file_key, final_render_width_px,
+               final_render_height_px, final_render_dpi, canvas_state_json,
+               generated_print_pdf_url, generated_print_pdf_renderer_version,
+               generated_print_pdf_scene_hash
+        FROM order_items
+        WHERE id = ${itemId}
+        LIMIT 1
+      `;
+      return rows && rows[0] ? rows[0] : null;
+    } catch (error) {
+      const missingColumn = error && (
+        error.code === '42703'
+        || String(error.message || '').includes('generated_print_pdf_')
+      );
+      if (!missingColumn) throw error;
+      console.warn('[ADMIN_PRINT_PDF] cache columns still unavailable after migration; using no-cache query');
+    }
+  }
+
+  const rows = await sql`
+    SELECT id, width_in, height_in, file_key, file_url, print_ready_url, web_preview_url,
+           text_elements, overlay_image, overlay_images, canvas_background_color,
+           image_scale, image_position, thumbnail_url,
+           final_render_url, final_render_file_key, final_render_width_px,
+           final_render_height_px, final_render_dpi, canvas_state_json
+    FROM order_items
+    WHERE id = ${itemId}
+    LIMIT 1
+  `;
+  if (!rows || !rows[0]) return null;
+  return {
+    ...rows[0],
+    generated_print_pdf_url: null,
+    generated_print_pdf_renderer_version: null,
+    generated_print_pdf_scene_hash: null,
+  };
 }
 
 function parseCloudinaryUrl(url) {
@@ -187,48 +261,54 @@ async function renderFreshPdf(req) {
   });
 
   if (!response || response.statusCode >= 400) {
-    throw new Error(`render-order-pdf returned ${response?.statusCode || 'no status'}: ${String(response?.body || '').slice(0, 500)}`);
+    throw new Error(`render-order-pdf returned ${response ? response.statusCode : 'no status'}: ${String(response && response.body ? response.body : '').slice(0, 500)}`);
   }
+
   const result = JSON.parse(response.body || '{}');
   if (result.error) throw new Error(result.message || result.error);
   if (result.pdfBase64) return Buffer.from(result.pdfBase64, 'base64');
+
   const url = result.pdfUrl || result.downloadUrl;
   const buffer = await fetchPdfBuffer(url);
-  if (!buffer?.length) throw new Error('Production PDF renderer returned no downloadable PDF bytes.');
+  if (!buffer || !buffer.length) {
+    throw new Error('Production PDF renderer returned no downloadable PDF bytes.');
+  }
   return buffer;
 }
 
 exports.handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS_HEADERS, body: '' };
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 204, headers: CORS_HEADERS, body: '' };
+  }
   if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Method Not Allowed' }) };
+    return {
+      statusCode: 405,
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ error: 'Method Not Allowed' }),
+    };
   }
 
   let req;
-  try { req = JSON.parse(event.body || '{}'); }
-  catch { return { statusCode: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Invalid JSON body' }) }; }
+  try {
+    req = JSON.parse(event.body || '{}');
+  } catch {
+    return {
+      statusCode: 400,
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ error: 'Invalid JSON body' }),
+    };
+  }
 
   if (!req.orderId) {
-    return { statusCode: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'orderId is required' }) };
+    return {
+      statusCode: 400,
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ error: 'orderId is required' }),
+    };
   }
 
   try {
-    let item = null;
-    if (sql && req.itemId) {
-      const rows = await sql`
-        SELECT id, width_in, height_in, file_key, file_url, print_ready_url, web_preview_url,
-               text_elements, overlay_image, overlay_images, canvas_background_color,
-               image_scale, image_position, thumbnail_url,
-               final_render_url, final_render_file_key, final_render_width_px,
-               final_render_height_px, final_render_dpi, canvas_state_json,
-               generated_print_pdf_url, generated_print_pdf_renderer_version,
-               generated_print_pdf_scene_hash
-        FROM order_items
-        WHERE id = ${req.itemId}
-        LIMIT 1
-      `;
-      item = rows?.[0] || null;
-    }
+    const item = await loadOrderItem(req.itemId);
 
     if (item) {
       req = {
@@ -239,7 +319,7 @@ exports.handler = async (event) => {
         fileKey: item.file_key || req.fileKey || null,
         imageUrl: item.file_url || item.web_preview_url || req.imageUrl || null,
         canvasBackgroundColor: item.canvas_background_color || req.canvasBackgroundColor || '#fafafa',
-        imageScale: item.image_scale ?? req.imageScale ?? 1,
+        imageScale: item.image_scale == null ? (req.imageScale == null ? 1 : req.imageScale) : item.image_scale,
         imagePosition: item.image_position || req.imagePosition || { x: 0, y: 0 },
         thumbnailUrl: item.thumbnail_url || req.thumbnailUrl || null,
         finalRenderUrl: item.final_render_url || req.finalRenderUrl || null,
@@ -260,19 +340,28 @@ exports.handler = async (event) => {
       });
       if (normalizedScene) req.canvasStateJson = JSON.stringify(normalizedScene);
 
-      const expectedHash = normalizedScene?.sceneVersion === 2 ? hashScene(normalizedScene) : null;
+      const expectedHash = normalizedScene && normalizedScene.sceneVersion === 2
+        ? hashScene(normalizedScene)
+        : null;
       const cacheMatches = Boolean(
         item.generated_print_pdf_url
         && expectedHash
         && item.generated_print_pdf_renderer_version === RENDERER_VERSION
         && item.generated_print_pdf_scene_hash === expectedHash
       );
+
       if (cacheMatches) {
         const cachedBuffer = await fetchPdfBuffer(item.generated_print_pdf_url);
-        if (cachedBuffer?.length) {
+        if (cachedBuffer && cachedBuffer.length) {
           return {
             statusCode: 200,
-            headers: { ...CORS_HEADERS, 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="order-${req.orderId}-print.pdf"`, 'Cache-Control': 'no-store' },
+            headers: {
+              ...CORS_HEADERS,
+              'Content-Type': 'application/pdf',
+              'Content-Disposition': `attachment; filename="order-${req.orderId}-print.pdf"`,
+              'Cache-Control': 'no-store',
+              'X-Print-PDF-Source': 'cached-vector',
+            },
             isBase64Encoded: true,
             body: cachedBuffer.toString('base64'),
           };
@@ -292,7 +381,13 @@ exports.handler = async (event) => {
     const pdfBuffer = await renderFreshPdf(req);
     return {
       statusCode: 200,
-      headers: { ...CORS_HEADERS, 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="order-${req.orderId}-print.pdf"`, 'Cache-Control': 'no-store' },
+      headers: {
+        ...CORS_HEADERS,
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="order-${req.orderId}-print.pdf"`,
+        'Cache-Control': 'no-store',
+        'X-Print-PDF-Source': 'regenerated-vector',
+      },
       isBase64Encoded: true,
       body: pdfBuffer.toString('base64'),
     };
@@ -301,9 +396,16 @@ exports.handler = async (event) => {
     return {
       statusCode: 500,
       headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ success: false, error: error?.message || 'Failed to produce print PDF' }),
+      body: JSON.stringify({
+        success: false,
+        error: error && error.message ? error.message : 'Failed to produce print PDF',
+      }),
     };
   }
 };
 
-exports._test = { legacyDesignStateToPrintScene, normalizeCanvasState, hashScene };
+exports._test = {
+  legacyDesignStateToPrintScene,
+  normalizeCanvasState,
+  hashScene,
+};
