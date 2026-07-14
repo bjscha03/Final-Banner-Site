@@ -266,231 +266,106 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
 
     try {
       setPdfGenerating(prev => ({ ...prev, [index]: true }));
-      
       toast({
-        title: "Generating Print-Ready File",
-        description: "Creating high-quality JPEG with proper dimensions and bleed...",
+        title: "Generating Production PDF",
+        description: "Creating the canonical print-ready PDF from the saved production scene...",
       });
 
-      // Determine the best image source
-      // CRITICAL: overlay_image.fileKey contains the ORIGINAL uploaded file (no grommets)
-      // file_key is the THUMBNAIL (has grommets baked in) - use overlay_image.fileKey first!
-      const overlayImageFileKey = item.overlay_image?.fileKey;
-      const overlayImagesFileKey = item.overlay_images?.[0]?.fileKey;
-      
-      console.log('[PDF Download] Item image sources:', {
-        overlay_image_fileKey: overlayImageFileKey,
-        overlay_images_0_fileKey: overlayImagesFileKey,
-        print_ready_url: item.print_ready_url,
-        file_key: item.file_key,
-        file_url: item.file_url,
-        web_preview_url: item.web_preview_url
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 150000);
+      const response = await fetch('/.netlify/functions/download-print-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: order.id,
+          itemIndex: index,
+          itemId: item.id || item.order_item_id || null,
+          productType: (item as any).product_type || 'banner',
+          roundedCorners: (item as any).rounded_corners || null,
+          bannerWidthIn: item.width_in,
+          bannerHeightIn: item.height_in,
+          canvasStateJson: item.canvas_state_json || null,
+          finalRenderUrl: item.final_render_url || null,
+          finalRenderFileKey: item.final_render_file_key || null,
+          finalRenderWidthPx: item.final_render_width_px || null,
+          finalRenderHeightPx: item.final_render_height_px || null,
+          finalRenderDpi: item.final_render_dpi || null,
+          fileKey: item.file_key || null,
+          imageUrl: item.file_url || item.web_preview_url || null,
+          imageSource: item.print_ready_url ? 'print_ready' : (item.web_preview_url ? 'web_preview' : 'uploaded'),
+          includeBleed: false,
+          bleedIn: 0,
+          targetDpi: 300,
+          transform: item.transform || null,
+          previewCanvasPx: item.preview_canvas_px || null,
+          textElements: item.text_elements || [],
+          overlayImage: item.overlay_image || null,
+          overlayImages: item.overlay_images || null,
+          canvasBackgroundColor: item.canvas_background_color || '#FFFFFF',
+          imageScale: item.image_scale ?? 1,
+          imagePosition: item.image_position || { x: 0, y: 0 },
+          thumbnailUrl: item.thumbnail_url || null,
+          format: 'pdf',
+          forceRegenerate: false,
+        }),
+        signal: controller.signal,
       });
-      
-      // CRITICAL FIX: Prioritize overlay_image.fileKey (original upload) over file_key (thumbnail with grommets)
-      const imageSource = item.print_ready_url || overlayImageFileKey || overlayImagesFileKey || item.file_url || item.web_preview_url;
-      
-      if (!imageSource) {
-        throw new Error('No image source available for this order item. Please contact support.');
-      }
-      
-      const isCloudinaryKey = !imageSource?.startsWith('http');
-      
-      console.log('[PDF Download] Selected image source:', imageSource, 'isCloudinaryKey:', isCloudinaryKey);
+      clearTimeout(timeoutId);
 
-      // CRITICAL: If using overlay_image.fileKey as main image, DON'T also pass overlayImage
-      // Otherwise we get double-rendering (main image + overlay = same image twice!)
-      const isUsingOverlayAsMain = imageSource === overlayImageFileKey || imageSource === overlayImagesFileKey;
-      
-      
-      console.log('[PDF Download] ======= OVERLAY-AS-MAIN DEBUG =======');
-      console.log('[PDF Download] imageSource:', imageSource);
-      console.log('[PDF Download] overlayImageFileKey:', overlayImageFileKey);
-      console.log('[PDF Download] isUsingOverlayAsMain:', isUsingOverlayAsMain);
-      console.log('[PDF Download] Will set fileKey to:', isUsingOverlayAsMain ? 'NULL (blank canvas)' : imageSource);
-      console.log('[PDF Download] Will pass overlayImage:', item.overlay_image ? 'YES with scale=' + item.overlay_image.scale : 'NO');
-      console.log('[PDF Download] =====================================');
-      // CRITICAL: When using overlay as main, the stored transform was for overlay positioning,
-      // NOT for full-banner scaling. We must reset these so the PDF renders correctly.
-      const requestBody = {
-        orderId: order.id,
-        productType: (item as any).product_type || 'banner',
-        roundedCorners: (item as any).rounded_corners || null,
-        bannerWidthIn: item.width_in,
-        bannerHeightIn: item.height_in,
-        // PRIORITY 0: Design state for true server-side re-render from original assets
-        canvasStateJson: item.canvas_state_json || null,
-        // PRIORITY 1: Use final_render if available (pixel-perfect snapshot of customer design)
-        finalRenderUrl: item.final_render_url || null,
-        finalRenderFileKey: item.final_render_file_key || null,
-        finalRenderWidthPx: item.final_render_width_px || null,
-        finalRenderHeightPx: item.final_render_height_px || null,
-        finalRenderDpi: item.final_render_dpi || null,
-        // FALLBACK: Reconstruction data for older orders without final_render
-        fileKey: isUsingOverlayAsMain ? null : (isCloudinaryKey ? imageSource : null),
-        imageUrl: isUsingOverlayAsMain ? null : (isCloudinaryKey ? null : imageSource),
-        imageSource: item.print_ready_url ? 'print_ready' : (item.web_preview_url ? 'web_preview' : 'uploaded'),
-        includeBleed: false,
-        bleedIn: 0,
-        targetDpi: 300, // Print-ready 300 DPI
-        // CRITICAL: When overlay is main image, DON'T use stored transform (it's for overlay positioning, not full-banner)
-        transform: isUsingOverlayAsMain ? null : (item.transform || null),
-        previewCanvasPx: isUsingOverlayAsMain ? null : (item.preview_canvas_px || null),
-        textElements: isUsingOverlayAsMain ? [] : (item.text_elements || []), // Text elements not relevant for overlay-as-main
-        // Always pass overlayImage - when used as main, fileKey/imageUrl are null so PDF creates blank canvas
-        overlayImage: item.overlay_image || null, // Always pass overlay image for correct positioning
-        overlayImages: item.overlay_images || null,
-        canvasBackgroundColor: item.canvas_background_color || '#FFFFFF', // Canvas background color
-        imageScale: item.image_scale ?? 1,
-        imagePosition: item.image_position || { x: 0, y: 0 },
-        thumbnailUrl: item.thumbnail_url || null,
-        format: 'jpeg'  // Return JPEG directly instead of PDF
-      };
-
-      // DEBUG: Log what source will be used for export
-      console.log('[JPEG_EXPORT_DEBUG] ======= ADMIN DOWNLOAD REQUEST =======');
-      console.log('[JPEG_EXPORT_DEBUG] Order ID:', order.id);
-      console.log('[JPEG_EXPORT_DEBUG] Banner size:', item.width_in, '×', item.height_in, 'inches');
-      console.log('[JPEG_EXPORT_DEBUG] finalRenderUrl:', item.final_render_url ? item.final_render_url.substring(0, 80) + '...' : 'NONE');
-      console.log('[JPEG_EXPORT_DEBUG] finalRenderFileKey:', item.final_render_file_key || 'NONE');
-      console.log('[JPEG_EXPORT_DEBUG] finalRenderWidthPx:', item.final_render_width_px || 'NONE');
-      console.log('[JPEG_EXPORT_DEBUG] finalRenderHeightPx:', item.final_render_height_px || 'NONE');
-      console.log('[JPEG_EXPORT_DEBUG] thumbnailUrl:', item.thumbnail_url ? item.thumbnail_url.substring(0, 80) + '...' : 'NONE');
-      console.log('[JPEG_EXPORT_DEBUG] Using final_render:', !!(item.final_render_url || item.final_render_file_key));
-      console.log('[JPEG_EXPORT_DEBUG] ====================================');
-      console.log('[PDF Download] Sending request:', requestBody);
-
-      // Retry logic for transient 504 timeouts (matches Orders.tsx)
-      let response: Response | null = null;
-      const maxRetries = 2;
-      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      if (!response.ok) {
+        let errorMessage = `HTTP ${response.status}`;
         try {
-          if (attempt > 0) {
-            toast({
-              title: "Retrying Print File Generation",
-              description: `Attempt ${attempt + 1} of ${maxRetries + 1}...`,
-            });
-          }
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 150000); // 150s client timeout
-          response = await fetch('/.netlify/functions/render-order-pdf', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestBody),
-            signal: controller.signal,
-          });
-          clearTimeout(timeoutId);
-          // If we get a 504, retry
-          if (response.status === 504 && attempt < maxRetries) {
-            console.warn(`PDF generation got 504 on attempt ${attempt + 1}, retrying...`);
-            continue;
-          }
-          break;
-        } catch (fetchError: any) {
-          if (fetchError.name === 'AbortError') {
-            if (attempt < maxRetries) {
-              console.warn(`PDF generation timed out on attempt ${attempt + 1}, retrying...`);
-              continue;
-            }
-            throw new Error('Print file generation timed out. Please try again.');
-          }
-          throw fetchError;
-        }
-      }
-
-      if (!response || !response.ok) {
-        let errorMessage = `HTTP ${response?.status || 'unknown'}`;
-        try {
-          if (response) {
-            const contentType = response.headers.get('Content-Type');
-            if (contentType?.includes('application/json')) {
-              const errorData = await response.json();
-              errorMessage = errorData.message || errorData.error || errorMessage;
-            } else {
-              const errorText = await response.text();
-              errorMessage = errorText || errorMessage;
-            }
+          const contentType = response.headers.get('Content-Type') || '';
+          if (contentType.includes('application/json')) {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorData.error || errorMessage;
+          } else {
+            errorMessage = (await response.text()) || errorMessage;
           }
         } catch (parseError) {
-          console.error('[PDF Download] Error parsing error response:', parseError);
+          console.error('[Production PDF Download] Error parsing error response:', parseError);
         }
-        console.error('[PDF Download] HTTP Error:', response?.status, errorMessage);
         throw new Error(errorMessage);
       }
 
-      // Response is JSON with Cloudinary download URL (JPEG format)
-      const result = await response.json();
-      if (result.error) {
-        // Handle specific print pipeline errors with descriptive messages
-        if (result.error === 'low_resolution') {
-          throw new Error(`⚠️ Low Resolution: ${result.message}`);
-        }
-        if (result.error === 'no_print_source') {
-          throw new Error(`⚠️ No Print Source: ${result.message}`);
-        }
-        throw new Error(result.error || 'Print file generation failed');
-      }
-
-      const dpi = result.dpi || 300;
-      const bleed = result.bleed || 0;
-
-      if (result.downloadUrl) {
-        // High-res JPEG hosted on Cloudinary - fetch as blob to force download
-        let imgResponse = await fetch(result.downloadUrl);
-        if (!imgResponse.ok && result.rawUrl) {
-          console.warn('Transformed URL failed, falling back to raw URL');
-          imgResponse = await fetch(result.rawUrl);
-        }
-        if (!imgResponse.ok) throw new Error('Failed to download image: ' + imgResponse.status);
-        const productSlug = isYardSignItem(item) ? 'yard-sign' : 'banner';
-        const blob = await imgResponse.blob();
-        if (blob.size === 0) throw new Error('Downloaded file is empty');
+      const contentType = response.headers.get('Content-Type') || '';
+      if (contentType.includes('application/json')) {
+        const result = await response.json();
+        const downloadUrl = result.downloadUrl || result.pdfUrl;
+        if (!downloadUrl) throw new Error(result.error || 'Production PDF endpoint did not return a download URL.');
+        const pdfResponse = await fetch(downloadUrl);
+        if (!pdfResponse.ok) throw new Error(`Failed to download production PDF: ${pdfResponse.status}`);
+        const blob = await pdfResponse.blob();
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `order-${order.id.slice(-8)}-${productSlug}-${index + 1}-print-ready.jpg`;
+        link.download = `order-${order.id.slice(-8)}-item-${index + 1}-production.pdf`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
-      } else if (result.pdfBase64) {
-        // Vector PDF (from banner-editor objects) or legacy base64 PDF
-        const isVectorPdf = result.format === 'pdf' && result.source === 'vector_from_editor_objects';
-        const mimeType = isVectorPdf ? 'application/pdf' : 'image/jpeg';
-        const extension = isVectorPdf ? 'pdf' : 'jpg';
-        const productSlug = isYardSignItem(item) ? 'yard-sign' : 'banner';
-        const binaryString = atob(result.pdfBase64);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        const blob = new Blob([bytes], { type: mimeType });
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `order-${order.id.slice(-8)}-${productSlug}-${index + 1}-print-ready.${extension}`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-        if (isVectorPdf) {
-          console.log('[PDF] Downloaded vector PDF:', result.dimensions, 'objects:', result.objectCount);
-        }
       } else {
-        throw new Error("No print file data in response");
+        const blob = await response.blob();
+        if (blob.size === 0) throw new Error('Downloaded production PDF is empty');
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `order-${order.id.slice(-8)}-item-${index + 1}-production.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
       }
 
       toast({
-        title: "Print File Downloaded",
-        description: (result.format === 'pdf' && result.source === 'vector_from_editor_objects')
-          ? `Print-ready vector PDF (${result.dimensions?.widthIn}″×${result.dimensions?.heightIn}″) ready for production.`
-          : `Print-ready JPEG (${dpi} DPI with ${bleed}" bleed) ready for production.`,
+        title: "Production PDF Downloaded",
+        description: "The same canonical production PDF used by Admin Orders has been downloaded.",
       });
     } catch (error) {
-      console.error('[PDF Download] Error:', error);
+      console.error('[Production PDF Download] Error:', error);
       toast({
-        title: "File Generation Failed",
-        description: error instanceof Error ? error.message : "Failed to generate print file",
+        title: "Production PDF Failed",
+        description: error instanceof Error ? error.message : "Failed to generate production PDF",
         variant: "destructive",
       });
     } finally {
@@ -773,12 +648,12 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                     </div>
                   )}
 
-                  {/* Final Print File (JPEG) Section */}
+                  {/* Uploaded Final Print File Section */}
                   <div className="bg-white/80 backdrop-blur rounded-xl border border-purple-200 shadow-sm overflow-hidden">
                     <div className="px-4 py-3 bg-gradient-to-r from-purple-100 to-violet-100 border-b border-purple-200">
                       <div className="flex items-center gap-2">
                         <FileText className="h-4 w-4 text-purple-600" />
-                        <p className="text-sm font-bold text-purple-800">Final Print File (JPEG)</p>
+                        <p className="text-sm font-bold text-purple-800">Uploaded Final Print File</p>
                       </div>
                     </div>
                     <div className="p-4">
@@ -788,7 +663,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                             <FileText className="h-6 w-6 text-white" />
                           </div>
                           <div className="flex-1">
-                            <p className="text-base font-bold text-green-800">✅ JPEG Ready for Print</p>
+                            <p className="text-base font-bold text-green-800">✅ Uploaded File Ready for Print</p>
                             <p className="text-sm text-green-600">
                               Uploaded {item.final_print_pdf_uploaded_at
                                 ? new Date(item.final_print_pdf_uploaded_at).toLocaleString()
@@ -802,7 +677,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                             className="w-full sm:w-auto justify-center px-5 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-bold rounded-xl hover:from-green-700 hover:to-emerald-700 flex items-center gap-2 shadow-md transition-all duration-200"
                           >
                             <Download className="h-4 w-4" />
-                            Download JPEG
+                            Download Uploaded File
                           </a>
                         </div>
                       ) : (
@@ -812,16 +687,16 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                               <span className="text-xl">⏳</span>
                             </div>
                             <div className="flex-1">
-                              <p className="text-base font-bold text-amber-800">Awaiting Final JPEG</p>
+                              <p className="text-base font-bold text-amber-800">Awaiting Uploaded Final File</p>
                               <p className="text-sm text-amber-700 mt-1">
-                                Upload the final print-ready JPEG once the design is complete and approved by the customer.
+                                Upload the final print-ready file once the design is complete and approved by the customer.
                               </p>
                             </div>
                           </div>
                           {onUploadFinalPdf && (
                             <label className="mt-4 inline-flex w-full sm:w-auto justify-center items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-violet-600 text-white text-sm font-bold rounded-xl hover:from-purple-700 hover:to-violet-700 cursor-pointer transition-all duration-200 shadow-md">
                               <Upload className="h-4 w-4" />
-                              Upload Final JPEG
+                              Upload Final File
                               <input
                                 type="file"
                                 accept=".jpg,.jpeg,image/jpeg"
@@ -917,29 +792,16 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                     </div>
 
                     <div className="space-y-2">
-                      {isAdminUser && !item.design_service_enabled && (item.file_key || item.print_ready_url || item.web_preview_url) && (
+                      {isAdminUser && !item.design_service_enabled && (item.file_key || item.print_ready_url || item.web_preview_url || item.canvas_state_json || item.final_render_url) && (
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => {
-                            const downloadInfo = getBestDownloadUrl(item);
-                            if (downloadInfo) {
-                              if (downloadInfo.isAI) {
-                                const link = document.createElement('a');
-                                link.href = downloadInfo.url;
-                                link.download = `banner-${order.id}-item-${index + 1}-${downloadInfo.type}.${downloadInfo.type === 'print_ready' ? 'tiff' : 'jpg'}`;
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
-                              } else {
-                                handleFileDownload(downloadInfo.url, index);
-                              }
-                            }
-                          }}
+                          onClick={() => handlePdfDownload(item, index)}
+                          disabled={!!pdfGenerating[index]}
                           className="w-full justify-center"
                         >
-                          <Download className="h-3 w-3 mr-1" />
-                          Print File
+                          {pdfGenerating[index] ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Download className="h-3 w-3 mr-1" />}
+                          Download Production PDF
                         </Button>
                       )}
 

@@ -5,6 +5,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/lib/auth';
 import { useCartStore } from '@/store/cart';
 import { Loader2 } from 'lucide-react';
+import { shouldUseDeployPreviewTestCheckout } from './checkoutEnvironment';
 
 interface PayPalCheckoutProps {
   total: number;
@@ -77,10 +78,16 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [isCapturingPayment, setIsCapturingPayment] = useState(false);
-  const [isAdminUser, setIsAdminUser] = useState(false);
+  const isDeployPreview = shouldUseDeployPreviewTestCheckout();
 
   // Load PayPal configuration on mount
   useEffect(() => {
+    if (isDeployPreview) {
+      setPaypalConfig(null);
+      setIsLoadingConfig(false);
+      return;
+    }
+
     console.log('[PayPalCheckout] Loading PayPal configuration...');
     const isDev = import.meta.env.DEV || window.location.hostname === 'localhost';
 
@@ -130,37 +137,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
     };
 
     loadPayPalConfig();
-  }, []);
-
-  // Check if user is admin (for test pay button)
-  useEffect(() => {
-    const checkAdminStatus = async () => {
-      if (user?.email) {
-        try {
-          // Check admin status via server endpoint (which reads ADMIN_TEST_PAY_ALLOWLIST)
-          const response = await fetch('/.netlify/functions/check-admin-status', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ email: user.email }),
-          });
-
-          if (response.ok) {
-            const result = await response.json();
-            setIsAdminUser(result.isAdmin);
-          } else {
-            setIsAdminUser(false);
-          }
-        } catch (error) {
-          console.error('Error checking admin status:', error);
-          setIsAdminUser(false);
-        }
-      }
-    };
-
-    checkAdminStatus();
-  }, [user]);
+  }, [isDeployPreview]);
 
   // Admin test payment handler
   const handleTestPayment = async () => {
@@ -238,6 +215,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
             canvas_background_color: item.canvas_background_color,
             image_scale: item.image_scale,
             thumbnail_url: item.thumbnail_url,
+            web_preview_url: item.web_preview_url,
             image_position: item.image_position,
             final_render_url: item.final_render_url,
             final_render_file_key: item.final_render_file_key,
@@ -263,6 +241,8 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
             yard_sign_stakes_subtotal_cents: item.yard_sign_stakes_subtotal_cents,
           })),
           discountCode: discountCode ? { code: discountCode.code, discountPercentage: discountCode.discountPercentage, discountAmountCents: discountCode.discountAmountCents } : null,
+          checkout_mode: 'admin_deploy_preview_test',
+          payment_method: 'admin_deploy_preview_test',
         }),
       });
 
@@ -270,7 +250,8 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
         const result = await response.json();
         onSuccess(result.id, result.order);
       } else {
-        throw new Error('Test payment failed');
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.message || error.error || 'Test payment failed');
       }
     } catch (error) {
       console.error('Test payment error:', error);
@@ -279,6 +260,35 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
       setIsCreatingOrder(false);
     }
   };
+
+  if (isDeployPreview) {
+    return (
+      <div className="space-y-4">
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+          <p className="text-gray-700 text-sm">
+            <strong>Deploy Preview Test Checkout:</strong> Create this order without processing a real payment.
+          </p>
+        </div>
+
+        <Button
+          onClick={handleTestPayment}
+          disabled={disabled || isCreatingOrder || isCapturingPayment}
+          variant="outline"
+          className="w-full border-green-300 text-green-700 hover:bg-green-50"
+          size="lg"
+        >
+          {isCreatingOrder ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              Processing Test Payment...
+            </>
+          ) : (
+            'Place Test Order — No Payment'
+          )}
+        </Button>
+      </div>
+    );
+  }
 
   // Loading state
   if (isLoadingConfig) {
@@ -300,13 +310,13 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
           <p className="text-amber-800 text-sm">
             <strong>PayPal Unavailable:</strong> PayPal payments are currently disabled or not configured.
-            {isAdminUser && ' Use the admin test payment button below.'}
+            {isDeployPreview && ' Use the deploy-preview test payment button below.'}
             <br />
             <small>If this persists, please refresh or contact support.</small>
           </p>
         </div>
 
-        {isAdminUser && (
+        {isDeployPreview && (
           <Button
             onClick={handleTestPayment}
             disabled={isCreatingOrder}
@@ -319,7 +329,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
                 Processing Test Payment...
               </>
             ) : (
-              `Admin Test Pay $${(total / 100).toFixed(2)}`
+              'Place Test Order — No Payment'
             )}
           </Button>
         )}
@@ -376,6 +386,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
             canvas_background_color: item.canvas_background_color,
             image_scale: item.image_scale,
             thumbnail_url: item.thumbnail_url,
+            web_preview_url: item.web_preview_url,
             image_position: item.image_position,
             final_render_url: item.final_render_url,
             final_render_file_key: item.final_render_file_key,
@@ -557,6 +568,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
               canvas_background_color: item.canvas_background_color,
               image_scale: item.image_scale,
               thumbnail_url: item.thumbnail_url,
+              web_preview_url: item.web_preview_url,
               image_position: item.image_position,
               final_render_url: item.final_render_url,
               final_render_file_key: item.final_render_file_key,
@@ -715,12 +727,12 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
         </div>
       </PayPalScriptProvider>
 
-      {/* Admin Test Pay Button */}
-      {isAdminUser && (
+      {/* Deploy Preview Test Checkout */}
+      {isDeployPreview && (
         <div className="border-t pt-4">
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-3">
             <p className="text-gray-700 text-sm">
-              <strong>Admin Access:</strong> You can use the test payment button below to create orders without processing real payments.
+              <strong>Deploy Preview Admin Access:</strong> Create this order without processing a real payment.
             </p>
           </div>
 
@@ -737,7 +749,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
                 Processing Test Payment...
               </>
             ) : (
-              `Admin Test Pay $${(total / 100).toFixed(2)}`
+              'Place Test Order — No Payment'
             )}
           </Button>
         </div>

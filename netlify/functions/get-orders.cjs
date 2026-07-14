@@ -183,6 +183,8 @@ exports.handler = async (event, context) => {
       `paypal_capture_id TEXT`,
       `stripe_charge_id TEXT`,
       `stripe_payment_intent_id TEXT`,
+      `is_test_order BOOLEAN DEFAULT FALSE`,
+      `test_order_reason TEXT`,
     ];
     if (!_migrationsRan) {
       for (const col of orderColumns) {
