@@ -51,6 +51,16 @@ export interface QuoteState {
     type: string;
     size: number;
     url?: string;
+    previewUrl?: string;
+    productionUrl?: string;
+    productionPublicId?: string;
+    resourceType?: 'image' | 'raw' | string;
+    mimeType?: string;
+    originalFormat?: string;
+    originalBytes?: number;
+    originalWidth?: number | null;
+    originalHeight?: number | null;
+    pdfPageNumber?: number;
     isPdf?: boolean;
     fileKey?: string;
     isAI?: boolean;
