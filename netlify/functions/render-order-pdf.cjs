@@ -7,6 +7,7 @@ const sharp = require('sharp');
 const PDFDocument = require('pdfkit');
 const cloudinary = require('cloudinary').v2;
 const { neon } = require('@neondatabase/serverless');
+const { RENDERER_VERSION, renderPrintSceneToPdfBuffer, sceneHash } = require('./_shared/print-scene-renderer.cjs');
 
 // Limit sharp thread pool to reduce peak memory usage in constrained environments
 sharp.concurrency(1);
@@ -1034,6 +1035,73 @@ exports.handler = async (event) => {
     }
 
     const req = JSON.parse(event.body);
+
+
+    // PRIORITY 0: Version 2 print scene renders from original production assets.
+    // Never use browser previews, final_render JPEGs, blob: URLs, or data: URLs here.
+    if (req.format === 'pdf' && req.canvasStateJson) {
+      let parsedScene = null;
+      try {
+        parsedScene = typeof req.canvasStateJson === 'string' ? JSON.parse(req.canvasStateJson) : req.canvasStateJson;
+      } catch (parseErr) {
+        console.warn('[PRINT_SCENE_V2] Failed to parse canvasStateJson:', parseErr.message);
+      }
+      if (parsedScene && parsedScene.sceneVersion === 2) {
+        const hash = sceneHash(parsedScene);
+        if (req.itemId && !req.forceRegenerate) {
+          try {
+            await sql`
+              ALTER TABLE order_items
+              ADD COLUMN IF NOT EXISTS generated_print_pdf_url TEXT,
+              ADD COLUMN IF NOT EXISTS generated_print_pdf_uploaded_at TIMESTAMP WITH TIME ZONE,
+              ADD COLUMN IF NOT EXISTS generated_print_pdf_renderer_version TEXT,
+              ADD COLUMN IF NOT EXISTS generated_print_pdf_scene_hash TEXT,
+              ADD COLUMN IF NOT EXISTS generated_print_pdf_metadata JSONB
+            `;
+            const rows = await sql`
+              SELECT generated_print_pdf_url, generated_print_pdf_renderer_version, generated_print_pdf_scene_hash
+              FROM order_items
+              WHERE id = ${req.itemId}
+              LIMIT 1
+            `;
+            const cached = rows && rows[0];
+            if (cached?.generated_print_pdf_url && cached.generated_print_pdf_renderer_version === RENDERER_VERSION && cached.generated_print_pdf_scene_hash === hash) {
+              return {
+                statusCode: 200,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pdfUrl: cached.generated_print_pdf_url, downloadUrl: cached.generated_print_pdf_url, format: 'pdf', source: 'print_scene_v2_cached', cached: true, rendererVersion: RENDERER_VERSION, sceneHash: hash }),
+              };
+            }
+          } catch (cacheErr) {
+            console.warn('[PRINT_SCENE_V2] cache lookup skipped:', cacheErr.message);
+          }
+        }
+
+        const rendered = await renderPrintSceneToPdfBuffer(parsedScene);
+        const fileName = `print-scene-v2-${req.itemId || Date.now()}-${hash.slice(0, 12)}.pdf`;
+        const pdfUrl = await uploadPdfToCloudinary(rendered.buffer, fileName, { resource_type: 'raw' });
+        if (req.itemId) {
+          try {
+            await sql`
+              UPDATE order_items
+              SET generated_print_pdf_url = ${pdfUrl},
+                  generated_print_pdf_uploaded_at = NOW(),
+                  generated_print_pdf_renderer_version = ${RENDERER_VERSION},
+                  generated_print_pdf_scene_hash = ${hash},
+                  generated_print_pdf_metadata = ${JSON.stringify(rendered.metadata)}::jsonb
+              WHERE id = ${req.itemId}
+            `;
+          } catch (updateErr) {
+            console.warn('[PRINT_SCENE_V2] failed to persist cache metadata:', updateErr.message);
+          }
+        }
+        return {
+          statusCode: 200,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pdfUrl, downloadUrl: pdfUrl, format: 'pdf', source: 'print_scene_v2', cached: false, rendererVersion: RENDERER_VERSION, sceneHash: hash, metadata: rendered.metadata }),
+        };
+      }
+    }
 
     // =========================================================================
     // ADMIN PDF CACHE: If the caller (admin) provided an itemId and we have

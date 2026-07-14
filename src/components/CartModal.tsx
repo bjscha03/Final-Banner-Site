@@ -10,6 +10,7 @@ import { getProductCopy, getDominantProductType } from '@/lib/product-copy';
 import CartItemBreakdown from './cart/CartItemBreakdown';
 import DeliveryTimer from './delivery/DeliveryTimer';
 import { getGrommetLabelForDisplay, getGrommetModeForPreview } from '@/lib/cartGrommet';
+import { getExpandedPreviewSelection, getSmallPreviewUrl } from '@/lib/previewSelection';
 
 interface CartModalProps {
   isOpen: boolean;
@@ -171,6 +172,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                   const normalized = normalizeOrderItemDisplay(item as NormalizableOrderItem);
                   const grommetLabel = getGrommetLabelForDisplay(item, normalized.grommetsDisplay);
                   const grommetMode = getGrommetModeForPreview(item);
+                  const smallPreviewUrl = getSmallPreviewUrl(item);
+                  const expandedPreview = getExpandedPreviewSelection(item);
 
                   return (
                     <div key={item.id} className="bg-white rounded-xl p-4 shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
@@ -196,23 +199,35 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                             ...(normalized.roundedCornersDisplay ? [{ label: 'Rounded Corners', value: normalized.roundedCornersDisplay }] : []),
                           ]}
                           renderLargePreview={() => (
-                            <BannerPreview
-                              widthIn={item.width_in}
-                              heightIn={item.height_in}
-                              grommets={grommetMode}
-                              imageUrl={item.thumbnail_url || item.file_url || item.web_preview_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl}
-                              material={item.material}
-                              textElements={item.text_elements}
-                              overlayImage={item.overlay_image}
-                              imageScale={item.image_scale}
-                              imagePosition={item.image_position}
-                              fitMode={item.fit_mode || "fill"}
-                              className="flex-shrink-0"
-                              designServiceEnabled={item.design_service_enabled}
-                              source={item.source}
-                              isFinalizedSnapshot={!!item.thumbnail_url}
-                              maxSize={820}
-                            />
+                            <div className="space-y-2">
+                              {expandedPreview.isPreparingHighResolution && (
+                                <p className="text-center text-xs font-medium text-amber-700">
+                                  Preparing high-resolution preview…
+                                </p>
+                              )}
+                              {expandedPreview.isLowResolutionFallback && (
+                                <p className="text-center text-xs text-amber-700">
+                                  Low-resolution fallback shown until the high-resolution proof finishes.
+                                </p>
+                              )}
+                              <BannerPreview
+                                widthIn={item.width_in}
+                                heightIn={item.height_in}
+                                grommets={grommetMode}
+                                imageUrl={expandedPreview.url}
+                                material={item.material}
+                                textElements={item.text_elements}
+                                overlayImage={item.overlay_image}
+                                imageScale={item.image_scale}
+                                imagePosition={item.image_position}
+                                fitMode={item.fit_mode || "fill"}
+                                className="flex-shrink-0"
+                                designServiceEnabled={item.design_service_enabled}
+                                source={item.source}
+                                isFinalizedSnapshot={expandedPreview.source === 'web_preview' || expandedPreview.source === 'final_render'}
+                                maxSize={820}
+                              />
+                            </div>
                           )}
                         >
                           {enableHeavyPreviews ? (
@@ -221,7 +236,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                               widthIn={item.width_in}
                               heightIn={item.height_in}
                               grommets={grommetMode}
-                              imageUrl={item.thumbnail_url || item.file_url || item.web_preview_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl}
+                              imageUrl={smallPreviewUrl}
                               material={item.material}
                               textElements={item.text_elements}
                               overlayImage={item.overlay_image}

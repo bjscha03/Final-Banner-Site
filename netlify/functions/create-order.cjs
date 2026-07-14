@@ -1,6 +1,7 @@
 const { neon } = require('@neondatabase/serverless');
 const { randomUUID } = require('crypto');
 const { normalizeShippingAddress } = require('./shipping-address-helpers.cjs');
+const { verifyAdminSession } = require('./_shared/admin-session.cjs');
 const {
   reconcileSameDayFlags,
   getEasternTimeParts,
@@ -62,6 +63,39 @@ function cleanItemForDb(item) {
   }
   
   return cleaned;
+}
+
+function validatePrintSceneV2(canvasStateJson) {
+  if (!canvasStateJson) return null;
+  let scene;
+  try {
+    scene = typeof canvasStateJson === 'string' ? JSON.parse(canvasStateJson) : canvasStateJson;
+  } catch (err) {
+    throw new Error('Invalid canvas_state_json: ' + err.message);
+  }
+  if (!scene || scene.sceneVersion !== 2) return null;
+  const objects = Array.isArray(scene.objects) ? scene.objects : [];
+  for (const obj of objects) {
+    if (!obj || obj.visible === false || obj.type !== 'image') continue;
+    const source = obj.source || {};
+    const url = source.originalUrl;
+    if (!url || typeof url !== 'string') {
+      throw new Error(`Version 2 print scene image ${obj.id || '(unknown)'} is missing a permanent production source URL.`);
+    }
+    if (url.startsWith('data:') || url.startsWith('blob:')) {
+      throw new Error(`Version 2 print scene image ${obj.id || '(unknown)'} contains a temporary production source URL.`);
+    }
+    if (!source.publicId) {
+      throw new Error(`Version 2 print scene image ${obj.id || '(unknown)'} is missing a production public ID.`);
+    }
+  }
+  return scene;
+}
+
+function isDeployPreviewEnvironment() {
+  return process.env.CONTEXT === 'deploy-preview'
+    || /^https:\/\/deploy-preview-\d+--.+\.netlify\.app$/i.test(process.env.DEPLOY_PRIME_URL || '')
+    || /^https:\/\/deploy-preview-\d+--.+\.netlify\.app$/i.test(process.env.URL || '');
 }
 
 function normalizeCustomerName(name) {
@@ -318,6 +352,33 @@ exports.handler = async (event, context) => {
     }
 
     orderData = JSON.parse(event.body);
+    const isAdminDeployPreviewTest = orderData.checkout_mode === 'admin_deploy_preview_test';
+    if (isAdminDeployPreviewTest) {
+      const adminSession = verifyAdminSession(event);
+      if (!isDeployPreviewEnvironment() || !adminSession.valid) {
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({
+            error: 'ADMIN_TEST_ORDER_NOT_AUTHORIZED',
+            message: 'A valid admin session is required for Deploy Preview test checkout.',
+            details: {
+              isDeployPreview: isDeployPreviewEnvironment(),
+              adminSessionValid: adminSession.valid,
+            },
+          }),
+        };
+      }
+      orderData.payment_method = 'admin_deploy_preview_test';
+      orderData.payment_status = 'paid';
+      orderData.is_test_order = true;
+      orderData.test_order_reason = 'Admin no-payment checkout from Netlify Deploy Preview';
+      orderData.paypal_order_id = null;
+      orderData.paypal_capture_id = null;
+      orderData.stripe_payment_intent_id = null;
+      orderData.user_id = null;
+      orderData.email = orderData.email || 'admin-preview-test@bannersonthefly.local';
+    }
     
     // AUTO-MIGRATE: Ensure text_elements and overlay_image columns exist before processing order
     try {
@@ -329,6 +390,21 @@ exports.handler = async (event, context) => {
     } catch (migrationError) {
       console.warn('⚠️ Database migration warning:', migrationError.message);
       // Continue anyway - column might already exist
+    }
+    try {
+      await sql`
+        ALTER TABLE orders
+        ADD COLUMN IF NOT EXISTS is_test_order BOOLEAN NOT NULL DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS test_order_reason TEXT
+      `;
+      await sql`
+        CREATE INDEX IF NOT EXISTS idx_orders_is_test_order
+          ON orders(is_test_order)
+          WHERE is_test_order = TRUE
+      `;
+      console.log('✅ Database migration: test order columns verified/created');
+    } catch (migrationError) {
+      console.warn('⚠️ Test order columns migration warning:', migrationError.message);
     }
     
     // Add shipping address columns to orders table
@@ -861,8 +937,8 @@ exports.handler = async (event, context) => {
     }
 
     const orderResult = await sql`
-      INSERT INTO orders (id, user_id, email, customer_name, customer_first_name, subtotal_cents, tax_cents, total_cents, status, paypal_order_id, paypal_capture_id, stripe_payment_intent_id, payment_method, shipping_name, shipping_street, shipping_street2, shipping_city, shipping_state, shipping_zip, shipping_country, applied_discount_cents, applied_discount_label, applied_discount_type, same_day_hit_service, saturday_delivery, same_day_fee_cents, saturday_fee_cents, order_timestamp_et, same_day_qualified)
-      VALUES (${orderId}, ${finalUserId}, ${userEmail}, ${orderData.customer_name || null}, ${orderData.customer_first_name || null}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, ${requestedStatus}, ${orderData.paypal_order_id || null}, ${orderData.paypal_capture_id || null}, ${orderData.stripe_payment_intent_id || null}, ${orderData.payment_method || (orderData.stripe_payment_intent_id ? 'stripe' : (orderData.paypal_order_id ? 'paypal' : null))}, ${orderData.shipping_name || null}, ${orderData.shipping_street || null}, ${orderData.shipping_street2 || null}, ${orderData.shipping_city || null}, ${orderData.shipping_state || null}, ${orderData.shipping_zip || null}, ${orderData.shipping_country || 'US'}, ${orderData.applied_discount_cents || 0}, ${orderData.applied_discount_label || ''}, ${orderData.applied_discount_type || 'none'}, ${orderSameDayHitService}, ${orderSaturdayDelivery}, ${orderSameDayFeeCents}, ${orderSaturdayFeeCents}, ${orderTimestampEt.display}, ${orderSameDayQualified})
+      INSERT INTO orders (id, user_id, email, customer_name, customer_first_name, subtotal_cents, tax_cents, total_cents, status, paypal_order_id, paypal_capture_id, stripe_payment_intent_id, payment_method, shipping_name, shipping_street, shipping_street2, shipping_city, shipping_state, shipping_zip, shipping_country, applied_discount_cents, applied_discount_label, applied_discount_type, same_day_hit_service, saturday_delivery, same_day_fee_cents, saturday_fee_cents, order_timestamp_et, same_day_qualified, is_test_order, test_order_reason)
+      VALUES (${orderId}, ${finalUserId}, ${userEmail}, ${orderData.customer_name || null}, ${orderData.customer_first_name || null}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, ${requestedStatus}, ${orderData.paypal_order_id || null}, ${orderData.paypal_capture_id || null}, ${orderData.stripe_payment_intent_id || null}, ${orderData.payment_method || (orderData.stripe_payment_intent_id ? 'stripe' : (orderData.paypal_order_id ? 'paypal' : null))}, ${orderData.shipping_name || null}, ${orderData.shipping_street || null}, ${orderData.shipping_street2 || null}, ${orderData.shipping_city || null}, ${orderData.shipping_state || null}, ${orderData.shipping_zip || null}, ${orderData.shipping_country || 'US'}, ${orderData.applied_discount_cents || 0}, ${orderData.applied_discount_label || ''}, ${orderData.applied_discount_type || 'none'}, ${orderSameDayHitService}, ${orderSaturdayDelivery}, ${orderSameDayFeeCents}, ${orderSaturdayFeeCents}, ${orderTimestampEt.display}, ${orderSameDayQualified}, ${orderData.is_test_order === true}, ${orderData.test_order_reason || null})
       RETURNING *
     `;
 
@@ -888,6 +964,7 @@ exports.handler = async (event, context) => {
     // Insert order items with better error handling - only use columns that exist in database
     if (orderData.items && Array.isArray(orderData.items)) {
       for (const rawItem of orderData.items) {
+        validatePrintSceneV2(rawItem && rawItem.canvas_state_json);
         const item = cleanItemForDb(rawItem);
         console.log("[Create Order] Cleaned item file_key:", item.file_key, "file_url:", item.file_url ? item.file_url.substring(0, 80) : null);
         console.log('[CREATE_ORDER_DEBUG] === PERSISTING ORDER ITEM ===');
@@ -1298,7 +1375,10 @@ exports.handler = async (event, context) => {
         applied_discount_cents: orderData.applied_discount_cents || 0,
         applied_discount_label: orderData.applied_discount_label || "",
         applied_discount_type: orderData.applied_discount_type || "none",
-        status: 'paid',
+        status: requestedStatus,
+        payment_method: orderData.payment_method || null,
+        is_test_order: orderData.is_test_order === true,
+        test_order_reason: orderData.test_order_reason || null,
         currency: orderData.currency || 'USD',
         tracking_number: null,
         tracking_carrier: null,

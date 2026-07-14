@@ -8,6 +8,7 @@ import { Shield, Cookie, CheckCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
 const AdminSetup: React.FC = () => {
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
@@ -15,29 +16,21 @@ const AdminSetup: React.FC = () => {
 
   // Check if already admin
   React.useEffect(() => {
-    const hasAdminCookie = typeof document !== 'undefined' && document.cookie.includes('admin=1');
-    setIsAdmin(hasAdminCookie);
+    void fetch('/.netlify/functions/check-admin-status', { method: 'POST' })
+      .then((response) => response.ok ? response.json() : null)
+      .then((result) => setIsAdmin(Boolean(result?.isAdmin)))
+      .catch(() => setIsAdmin(false));
   }, []);
 
-  const handleSetAdmin = () => {
-    if (password === 'admin123' || password === 'admin') {
-      // Set admin cookie for 24 hours
-      const expires = new Date();
-      expires.setTime(expires.getTime() + (24 * 60 * 60 * 1000));
-      document.cookie = `admin=1; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
-
-      // Create admin user in localStorage with valid UUID
-      const adminUser = {
-        id: '00000000-0000-0000-0000-000000000001',
-        email: 'admin@dev.local',
-        is_admin: true,
-      };
-      try {
-        localStorage.setItem('banners_current_user', JSON.stringify(adminUser));
-      } catch (e) {
-        console.warn('Unable to persist admin user to localStorage', e);
-      }
-
+  const handleSetAdmin = async () => {
+    try {
+      const response = await fetch('/.netlify/functions/admin-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.isAdmin) throw new Error(result.message || result.error || 'Invalid admin credentials');
       setIsAdmin(true);
       toast({
         title: 'Admin Access Granted',
@@ -49,22 +42,17 @@ const AdminSetup: React.FC = () => {
       setTimeout(() => {
         window.location.href = '/admin/orders';
       }, 800);
-    } else {
+    } catch (error) {
       toast({
-        title: 'Invalid Password',
-        description: 'Please enter the correct admin password.',
+        title: 'Invalid Admin Login',
+        description: error instanceof Error ? error.message : 'Please enter the correct admin credentials.',
         variant: 'destructive',
       });
     }
   };
 
   const handleRemoveAdmin = () => {
-    document.cookie = 'admin=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
-    try {
-      localStorage.removeItem('banners_current_user');
-    } catch {
-      // ignore
-    }
+    document.cookie = 'botf_admin_session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
     setIsAdmin(false);
     toast({
       title: 'Admin Access Removed',
@@ -126,6 +114,13 @@ const AdminSetup: React.FC = () => {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
+                    <Input
+                      type="email"
+                      placeholder="Admin email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="mb-3"
+                    />
                     <Input
                       type="password"
                       placeholder="Enter admin password"
