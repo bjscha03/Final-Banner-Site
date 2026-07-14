@@ -1,13 +1,16 @@
 /**
  * Admin print PDF download endpoint.
  *
- * Native sceneVersion 2 orders render from original production assets.
- * Legacy orders prefer their already-approved permanent snapshot instead of
- * guessing how older transform formats map into the current renderer.
+ * Native sceneVersion 2 orders use the vector production renderer.
+ * Simple legacy orders are rebuilt from the original production asset with
+ * contain-fit, preserving full resolution and preventing crop. Legacy orders
+ * with added text/overlays use the saved approved snapshot because it is the
+ * only authoritative record of the composed design.
  */
 const { neon } = require('@neondatabase/serverless');
 const { v2: cloudinary } = require('cloudinary');
 const crypto = require('crypto');
+const { PDFDocument, rgb } = require('pdf-lib');
 const { RENDERER_VERSION } = require('./_shared/print-scene-renderer.cjs');
 
 cloudinary.config({
@@ -29,20 +32,11 @@ const CORS_HEADERS = {
 function parseJson(value) {
   if (!value) return null;
   if (typeof value === 'object') return value;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return null;
-  }
+  try { return JSON.parse(value); } catch { return null; }
 }
 
 function hashScene(scene) {
   return crypto.createHash('sha256').update(JSON.stringify(scene)).digest('hex');
-}
-
-function finiteNumber(value, fallback) {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : fallback;
 }
 
 function isTemporaryUrl(value) {
@@ -58,15 +52,16 @@ function isRawPdfUrl(value) {
   );
 }
 
+function isUsableAssetUrl(value) {
+  return typeof value === 'string' && value.trim().length > 0 && !isTemporaryUrl(value);
+}
+
 function isUsableSnapshotUrl(value) {
-  return typeof value === 'string'
-    && value.trim().length > 0
-    && !isTemporaryUrl(value)
-    && !isRawPdfUrl(value);
+  return isUsableAssetUrl(value) && !isRawPdfUrl(value);
 }
 
 function getLegacyApprovedSnapshot(item = {}, req = {}) {
-  const candidates = [
+  return [
     item.final_render_url,
     item.web_preview_url,
     item.thumbnail_url,
@@ -75,93 +70,193 @@ function getLegacyApprovedSnapshot(item = {}, req = {}) {
     req.webPreviewUrl,
     req.thumbnailUrl,
     req.printReadyUrl,
-  ];
-  return candidates.find(isUsableSnapshotUrl) || null;
+  ].find(isUsableSnapshotUrl) || null;
 }
 
-function legacyDesignStateToPrintScene(state, fallback = {}) {
-  if (!state || state.sceneVersion === 2) return state;
-  if (state.source !== 'design-page' || finiteNumber(state.version, 0) < 2) return null;
+function hasEntries(value) {
+  if (Array.isArray(value)) return value.length > 0;
+  return Boolean(value && typeof value === 'object' && Object.keys(value).length > 0);
+}
 
-  const widthIn = finiteNumber(state.widthIn, finiteNumber(fallback.widthIn, 0));
-  const heightIn = finiteNumber(state.heightIn, finiteNumber(fallback.heightIn, 0));
-  const originalUrl = state.productionUrl || state.originalImageUrl || fallback.fileUrl || null;
-  const publicId = state.productionPublicId || state.originalImageFileKey || fallback.fileKey || null;
-  if (!widthIn || !heightIn || !originalUrl || !publicId) return null;
+function hasLegacyComposedLayers(item = {}, req = {}, parsedState = null) {
+  return hasEntries(item.text_elements)
+    || hasEntries(item.overlay_image)
+    || hasEntries(item.overlay_images)
+    || hasEntries(req.textElements)
+    || hasEntries(req.overlayImage)
+    || hasEntries(req.overlayImages)
+    || hasEntries(parsedState?.textElements)
+    || hasEntries(parsedState?.overlayImage)
+    || hasEntries(parsedState?.overlayImages)
+    || (parsedState?.source === 'banner-editor' && hasEntries(parsedState?.objects));
+}
 
-  const originalWidth = finiteNumber(state.originalWidth, 0);
-  const originalHeight = finiteNumber(state.originalHeight, 0);
-  const bannerAspect = widthIn / heightIn;
-  const sourceAspect = originalWidth > 0 && originalHeight > 0
-    ? originalWidth / originalHeight
-    : bannerAspect;
+function extensionFromUrl(url) {
+  try {
+    const pathname = new URL(url).pathname;
+    const match = pathname.match(/\.([a-z0-9]+)$/i);
+    return match ? match[1].toLowerCase() : null;
+  } catch {
+    const clean = String(url || '').split(/[?#]/)[0];
+    const match = clean.match(/\.([a-z0-9]+)$/i);
+    return match ? match[1].toLowerCase() : null;
+  }
+}
 
-  let containedWidthIn;
-  let containedHeightIn;
-  if (sourceAspect > bannerAspect) {
-    containedWidthIn = widthIn;
-    containedHeightIn = widthIn / sourceAspect;
-  } else {
-    containedHeightIn = heightIn;
-    containedWidthIn = heightIn * sourceAspect;
+function getLegacyOriginalAsset(item = {}, req = {}, parsedState = null) {
+  const url = parsedState?.productionUrl
+    || parsedState?.originalImageUrl
+    || item.file_url
+    || req.imageUrl
+    || null;
+  const publicId = parsedState?.productionPublicId
+    || parsedState?.originalImageFileKey
+    || item.file_key
+    || req.fileKey
+    || null;
+  const format = String(
+    parsedState?.originalFormat
+    || extensionFromUrl(url)
+    || '',
+  ).replace(/^\./, '').toLowerCase() || null;
+  const mimeType = parsedState?.mimeType || (format === 'pdf' ? 'application/pdf' : null);
+  const isPdf = Boolean(parsedState?.isPdf)
+    || mimeType === 'application/pdf'
+    || format === 'pdf'
+    || isRawPdfUrl(url);
+  const resourceType = parsedState?.resourceType || (isPdf ? 'raw' : 'image');
+
+  let resolvedUrl = isUsableAssetUrl(url) ? url : null;
+  if (!resolvedUrl && publicId) {
+    resolvedUrl = cloudinary.url(publicId, {
+      secure: true,
+      resource_type: resourceType,
+      ...(format ? { format } : {}),
+    });
+  }
+  if (!resolvedUrl) return null;
+
+  return { url: resolvedUrl, publicId, format, mimeType, resourceType, isPdf };
+}
+
+function parseCloudinaryUrl(url, source = {}) {
+  let publicId = source.publicId || null;
+  let resourceType = source.resourceType || null;
+  let format = source.format || null;
+  let deliveryType = 'upload';
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+    if (!(host === 'cloudinary.com' || host.endsWith('.cloudinary.com'))) return null;
+    const segments = parsed.pathname.split('/').filter(Boolean);
+    if (segments.length >= 4) {
+      resourceType = resourceType || segments[1] || 'image';
+      deliveryType = segments[2] || 'upload';
+      const assetSegments = segments.slice(3).filter((segment) => !/^v\d+$/.test(segment));
+      const publicIdWithExtension = assetSegments.join('/');
+      const dot = publicIdWithExtension.lastIndexOf('.');
+      if (!publicId) publicId = dot > -1 ? publicIdWithExtension.slice(0, dot) : publicIdWithExtension;
+      if (!format && dot > -1) format = publicIdWithExtension.slice(dot + 1).toLowerCase();
+    }
+  } catch {
+    return null;
+  }
+  if (publicId && format && publicId.toLowerCase().endsWith(`.${format}`)) {
+    publicId = publicId.slice(0, -(format.length + 1));
+  }
+  return publicId ? { publicId, resourceType: resourceType || 'image', format, deliveryType } : null;
+}
+
+async function fetchAssetBuffer(url, source = {}) {
+  let directStatus = 0;
+  try {
+    const response = await fetch(url);
+    directStatus = response.status;
+    if (response.ok) return Buffer.from(await response.arrayBuffer());
+  } catch {
+    // Continue to signed Cloudinary fallback.
   }
 
-  const scaleX = Math.max(0.0001, finiteNumber(state.imgScale, 1));
-  const scaleY = Math.max(0.0001, finiteNumber(state.imgScaleY, scaleX));
-  const position = state.imgPos && typeof state.imgPos === 'object'
-    ? state.imgPos
-    : { x: 0, y: 0 };
-  const posXIn = (finiteNumber(position.x, 0) / 100) * widthIn;
-  const posYIn = (finiteNumber(position.y, 0) / 100) * heightIn;
-  const offsetXIn = (widthIn - containedWidthIn) / 2;
-  const offsetYIn = (heightIn - containedHeightIn) / 2;
+  const parsed = parseCloudinaryUrl(url, source);
+  if (!parsed || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+    throw new Error(`Could not fetch production asset (${directStatus || 'network error'})`);
+  }
 
-  const placedWidthIn = containedWidthIn * scaleX;
-  const placedHeightIn = containedHeightIn * scaleY;
-  const xIn = (widthIn / 2) + posXIn + scaleX * (offsetXIn - widthIn / 2);
-  const yIn = (heightIn / 2) + posYIn + scaleY * (offsetYIn - heightIn / 2);
-
-  const isPdf = Boolean(state.isPdf)
-    || String(state.mimeType || '').toLowerCase() === 'application/pdf'
-    || String(state.originalFormat || '').toLowerCase() === 'pdf'
-    || /\.pdf(?:$|\?)/i.test(originalUrl);
-
-  return {
-    sceneVersion: 2,
-    widthIn,
-    heightIn,
-    backgroundColor: state.bgColor || fallback.backgroundColor || '#fafafa',
-    objects: [{
-      id: 'customer-artwork',
-      type: 'image',
-      xIn,
-      yIn,
-      widthIn: placedWidthIn,
-      heightIn: placedHeightIn,
-      rotation: 0,
-      opacity: 1,
-      visible: true,
-      zIndex: 0,
-      source: {
-        originalUrl,
-        publicId,
-        resourceType: state.resourceType || (isPdf ? 'raw' : 'image'),
-        mimeType: state.mimeType || (isPdf ? 'application/pdf' : 'image/jpeg'),
-        format: state.originalFormat || (isPdf ? 'pdf' : 'jpg'),
-        originalWidth: originalWidth || null,
-        originalHeight: originalHeight || null,
-        pdfPageNumber: finiteNumber(state.pdfPageNumber, 1),
-        isVector: isPdf,
-      },
-    }],
-  };
+  const signedUrl = cloudinary.utils.private_download_url(
+    parsed.publicId,
+    parsed.format || (source.isPdf ? 'pdf' : 'jpg'),
+    {
+      resource_type: parsed.resourceType || (source.isPdf ? 'raw' : 'image'),
+      type: parsed.deliveryType || 'upload',
+      attachment: false,
+      expires_at: Math.floor(Date.now() / 1000) + 600,
+    },
+  );
+  const response = await fetch(signedUrl);
+  if (!response.ok) throw new Error(`Signed production asset fetch returned ${response.status}`);
+  return Buffer.from(await response.arrayBuffer());
 }
 
-function normalizeCanvasState(canvasStateJson, fallback) {
-  const parsed = parseJson(canvasStateJson);
-  if (!parsed) return null;
-  if (parsed.sceneVersion === 2) return parsed;
-  return legacyDesignStateToPrintScene(parsed, fallback) || parsed;
+function colorFromHex(value) {
+  const clean = String(value || '#ffffff').replace('#', '');
+  const full = clean.length === 3 ? clean.split('').map((c) => c + c).join('') : clean.padEnd(6, 'f').slice(0, 6);
+  return rgb(
+    parseInt(full.slice(0, 2), 16) / 255,
+    parseInt(full.slice(2, 4), 16) / 255,
+    parseInt(full.slice(4, 6), 16) / 255,
+  );
+}
+
+function looksLikePng(buffer) {
+  return buffer?.length >= 8
+    && buffer[0] === 0x89 && buffer[1] === 0x50
+    && buffer[2] === 0x4e && buffer[3] === 0x47;
+}
+
+function looksLikePdf(buffer) {
+  return buffer?.length >= 4 && buffer.subarray(0, 4).toString('ascii') === '%PDF';
+}
+
+async function createLegacyOriginalContainPdf(asset, widthIn, heightIn, backgroundColor) {
+  const widthPt = Number(widthIn) * 72;
+  const heightPt = Number(heightIn) * 72;
+  if (!widthPt || !heightPt) throw new Error('Invalid legacy order dimensions');
+
+  const buffer = await fetchAssetBuffer(asset.url, asset);
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage([widthPt, heightPt]);
+  page.drawRectangle({ x: 0, y: 0, width: widthPt, height: heightPt, color: colorFromHex(backgroundColor) });
+
+  let embedded;
+  let sourceWidth;
+  let sourceHeight;
+  if (asset.isPdf || looksLikePdf(buffer)) {
+    [embedded] = await pdfDoc.embedPdf(buffer, [0]);
+    sourceWidth = embedded.width;
+    sourceHeight = embedded.height;
+  } else if (looksLikePng(buffer) || asset.format === 'png') {
+    embedded = await pdfDoc.embedPng(buffer);
+    sourceWidth = embedded.width;
+    sourceHeight = embedded.height;
+  } else {
+    embedded = await pdfDoc.embedJpg(buffer);
+    sourceWidth = embedded.width;
+    sourceHeight = embedded.height;
+  }
+
+  const scale = Math.min(widthPt / sourceWidth, heightPt / sourceHeight);
+  const drawWidth = sourceWidth * scale;
+  const drawHeight = sourceHeight * scale;
+  const x = (widthPt - drawWidth) / 2;
+  const y = (heightPt - drawHeight) / 2;
+
+  if (asset.isPdf || looksLikePdf(buffer)) {
+    page.drawPage(embedded, { x, y, width: drawWidth, height: drawHeight });
+  } else {
+    page.drawImage(embedded, { x, y, width: drawWidth, height: drawHeight });
+  }
+
+  return Buffer.from(await pdfDoc.save({ useObjectStreams: true }));
 }
 
 async function ensurePrintPdfCacheColumns() {
@@ -177,106 +272,53 @@ async function ensurePrintPdfCacheColumns() {
     `;
     return true;
   } catch (error) {
-    console.warn('[ADMIN_PRINT_PDF] cache-column migration unavailable; continuing without cache:', error && error.message);
+    console.warn('[ADMIN_PRINT_PDF] cache-column migration unavailable:', error?.message);
     return false;
   }
 }
 
 async function loadOrderItem(itemId) {
   if (!sql || !itemId) return null;
-
-  const cacheColumnsReady = await ensurePrintPdfCacheColumns();
-  const baseColumns = `
-    id, width_in, height_in, file_key, file_url, print_ready_url, web_preview_url,
-    text_elements, overlay_image, overlay_images, canvas_background_color,
-    image_scale, image_position, thumbnail_url,
-    final_render_url, final_render_file_key, final_render_width_px,
-    final_render_height_px, final_render_dpi, canvas_state_json
-  `;
-
-  if (cacheColumnsReady) {
+  const cacheReady = await ensurePrintPdfCacheColumns();
+  if (cacheReady) {
     try {
-      const rows = await sql(`
-        SELECT ${baseColumns},
+      const rows = await sql`
+        SELECT id, width_in, height_in, file_key, file_url, print_ready_url, web_preview_url,
+               text_elements, overlay_image, overlay_images, canvas_background_color,
+               image_scale, image_position, thumbnail_url,
+               final_render_url, final_render_file_key, final_render_width_px,
+               final_render_height_px, final_render_dpi, canvas_state_json,
                generated_print_pdf_url, generated_print_pdf_renderer_version,
                generated_print_pdf_scene_hash
         FROM order_items
-        WHERE id = $1
+        WHERE id = ${itemId}
         LIMIT 1
-      `, [itemId]);
-      return rows && rows[0] ? rows[0] : null;
+      `;
+      return rows?.[0] || null;
     } catch (error) {
-      const missingColumn = error && (
-        error.code === '42703'
-        || String(error.message || '').includes('generated_print_pdf_')
-      );
-      if (!missingColumn) throw error;
-      console.warn('[ADMIN_PRINT_PDF] cache columns still unavailable after migration; using no-cache query');
+      if (!(error?.code === '42703' || String(error?.message || '').includes('generated_print_pdf_'))) throw error;
     }
   }
-
-  const rows = await sql(`
-    SELECT ${baseColumns}
+  const rows = await sql`
+    SELECT id, width_in, height_in, file_key, file_url, print_ready_url, web_preview_url,
+           text_elements, overlay_image, overlay_images, canvas_background_color,
+           image_scale, image_position, thumbnail_url,
+           final_render_url, final_render_file_key, final_render_width_px,
+           final_render_height_px, final_render_dpi, canvas_state_json
     FROM order_items
-    WHERE id = $1
+    WHERE id = ${itemId}
     LIMIT 1
-  `, [itemId]);
-  if (!rows || !rows[0]) return null;
-  return {
+  `;
+  return rows?.[0] ? {
     ...rows[0],
     generated_print_pdf_url: null,
     generated_print_pdf_renderer_version: null,
     generated_print_pdf_scene_hash: null,
-  };
-}
-
-function parseCloudinaryUrl(url) {
-  try {
-    const parsed = new URL(url);
-    const host = parsed.hostname.toLowerCase();
-    if (!(host === 'cloudinary.com' || host.endsWith('.cloudinary.com'))) return null;
-    const segments = parsed.pathname.split('/').filter(Boolean);
-    if (segments.length < 4) return null;
-    const resourceType = segments[1] || 'raw';
-    const deliveryType = segments[2] || 'upload';
-    const rest = segments.slice(3).filter((segment) => !/^v\d+$/.test(segment));
-    const publicIdWithExtension = rest.join('/');
-    const dot = publicIdWithExtension.lastIndexOf('.');
-    return {
-      resourceType,
-      deliveryType,
-      publicId: dot > -1 ? publicIdWithExtension.slice(0, dot) : publicIdWithExtension,
-      format: dot > -1 ? publicIdWithExtension.slice(dot + 1) : 'pdf',
-    };
-  } catch {
-    return null;
-  }
+  } : null;
 }
 
 async function fetchPdfBuffer(url) {
-  if (!url) return null;
-  try {
-    const response = await fetch(url);
-    if (response.ok) return Buffer.from(await response.arrayBuffer());
-  } catch {
-    // Continue to signed fallback.
-  }
-
-  const parsed = parseCloudinaryUrl(url);
-  if (!parsed || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) return null;
-  try {
-    const signedUrl = cloudinary.utils.private_download_url(parsed.publicId, parsed.format || 'pdf', {
-      resource_type: parsed.resourceType || 'raw',
-      type: parsed.deliveryType || 'upload',
-      attachment: true,
-      expires_at: Math.floor(Date.now() / 1000) + 600,
-    });
-    const response = await fetch(signedUrl);
-    if (!response.ok) return null;
-    return Buffer.from(await response.arrayBuffer());
-  } catch {
-    return null;
-  }
+  try { return await fetchAssetBuffer(url); } catch { return null; }
 }
 
 async function renderFreshPdf(req) {
@@ -293,27 +335,23 @@ async function renderFreshPdf(req) {
     }),
     isBase64Encoded: false,
   });
-
   if (!response || response.statusCode >= 400) {
-    throw new Error(`render-order-pdf returned ${response ? response.statusCode : 'no status'}: ${String(response && response.body ? response.body : '').slice(0, 500)}`);
+    throw new Error(`render-order-pdf returned ${response?.statusCode || 'no status'}: ${String(response?.body || '').slice(0, 500)}`);
   }
-
   const result = JSON.parse(response.body || '{}');
   if (result.error) throw new Error(result.message || result.error);
   if (result.pdfBase64) return Buffer.from(result.pdfBase64, 'base64');
-
-  const url = result.pdfUrl || result.downloadUrl;
-  const buffer = await fetchPdfBuffer(url);
-  if (!buffer || !buffer.length) {
-    throw new Error('Production PDF renderer returned no downloadable PDF bytes.');
-  }
+  const buffer = await fetchPdfBuffer(result.pdfUrl || result.downloadUrl);
+  if (!buffer?.length) throw new Error('Production PDF renderer returned no downloadable bytes');
   return buffer;
 }
 
 function prepareItemRequest(req, item) {
   const parsedState = parseJson(item.canvas_state_json || req.canvasStateJson);
-  const isNativeSceneV2 = parsedState && parsedState.sceneVersion === 2;
+  const isNativeSceneV2 = parsedState?.sceneVersion === 2;
   const approvedSnapshot = !isNativeSceneV2 ? getLegacyApprovedSnapshot(item, req) : null;
+  const originalAsset = !isNativeSceneV2 ? getLegacyOriginalAsset(item, req, parsedState) : null;
+  const hasComposedLayers = !isNativeSceneV2 && hasLegacyComposedLayers(item, req, parsedState);
 
   const next = {
     ...req,
@@ -333,18 +371,26 @@ function prepareItemRequest(req, item) {
     finalRenderDpi: item.final_render_dpi || req.finalRenderDpi || null,
     textElements: item.text_elements || req.textElements || [],
     overlayImage: item.overlay_image || req.overlayImage || null,
+    overlayImages: item.overlay_images || req.overlayImages || [],
   };
 
   if (isNativeSceneV2) {
     next.canvasStateJson = JSON.stringify(parsedState);
-    return { req: next, normalizedScene: parsedState, source: 'native-scene-v2' };
+    return { req: next, normalizedScene: parsedState, source: 'native-scene-v2', originalAsset: null };
+  }
+
+  if (originalAsset && !hasComposedLayers) {
+    next.canvasStateJson = null;
+    next.finalRenderUrl = null;
+    next.finalRenderFileKey = null;
+    next.thumbnailUrl = null;
+    next.textElements = [];
+    next.overlayImage = null;
+    next.overlayImages = [];
+    return { req: next, normalizedScene: null, source: 'legacy-original-contain', originalAsset };
   }
 
   if (approvedSnapshot) {
-    // Old orders used multiple incompatible transform coordinate systems.
-    // Their saved proof is the authoritative approved composition. Feed that
-    // proof through the final-render path at contain-fit and disable ambiguous
-    // reconstruction fields so nothing can be cropped or shifted.
     next.canvasStateJson = null;
     next.finalRenderUrl = approvedSnapshot;
     next.finalRenderFileKey = null;
@@ -353,131 +399,100 @@ function prepareItemRequest(req, item) {
     next.imagePosition = { x: 0, y: 0 };
     next.textElements = [];
     next.overlayImage = null;
-    return { req: next, normalizedScene: null, source: 'legacy-approved-snapshot' };
+    next.overlayImages = [];
+    return { req: next, normalizedScene: null, source: 'legacy-approved-snapshot', originalAsset: null };
   }
 
-  const normalizedScene = normalizeCanvasState(parsedState, {
-    widthIn: item.width_in,
-    heightIn: item.height_in,
-    fileUrl: item.file_url,
-    fileKey: item.file_key,
-    backgroundColor: item.canvas_background_color,
-  });
-  if (normalizedScene) next.canvasStateJson = JSON.stringify(normalizedScene);
-  return { req: next, normalizedScene, source: 'legacy-reconstruction' };
+  // Last-resort compatibility path: do not convert ambiguous legacy transforms
+  // into scene v2. Let the existing renderer use the raw stored request fields.
+  next.canvasStateJson = parsedState ? JSON.stringify(parsedState) : null;
+  return { req: next, normalizedScene: null, source: 'legacy-reconstruction', originalAsset: null };
+}
+
+function pdfResponse(req, buffer, source) {
+  return {
+    statusCode: 200,
+    headers: {
+      ...CORS_HEADERS,
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="order-${req.orderId}-print.pdf"`,
+      'Cache-Control': 'no-store',
+      'X-Print-PDF-Source': source,
+    },
+    isBase64Encoded: true,
+    body: buffer.toString('base64'),
+  };
 }
 
 exports.handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 204, headers: CORS_HEADERS, body: '' };
-  }
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS_HEADERS, body: '' };
   if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
-      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'Method Not Allowed' }),
-    };
+    return { statusCode: 405, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Method Not Allowed' }) };
   }
 
   let req;
-  try {
-    req = JSON.parse(event.body || '{}');
-  } catch {
-    return {
-      statusCode: 400,
-      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'Invalid JSON body' }),
-    };
+  try { req = JSON.parse(event.body || '{}'); } catch {
+    return { statusCode: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Invalid JSON body' }) };
   }
-
   if (!req.orderId) {
-    return {
-      statusCode: 400,
-      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'orderId is required' }),
-    };
+    return { statusCode: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'orderId is required' }) };
   }
 
   try {
     const item = await loadOrderItem(req.itemId);
     let normalizedScene = null;
     let selectedSource = 'request-fallback';
+    let originalAsset = null;
 
     if (item) {
       const prepared = prepareItemRequest(req, item);
       req = prepared.req;
       normalizedScene = prepared.normalizedScene;
       selectedSource = prepared.source;
+      originalAsset = prepared.originalAsset;
 
-      const expectedHash = normalizedScene && normalizedScene.sceneVersion === 2
-        ? hashScene(normalizedScene)
-        : null;
+      const expectedHash = normalizedScene?.sceneVersion === 2 ? hashScene(normalizedScene) : null;
       const cacheMatches = Boolean(
         item.generated_print_pdf_url
         && expectedHash
         && item.generated_print_pdf_renderer_version === RENDERER_VERSION
         && item.generated_print_pdf_scene_hash === expectedHash
       );
-
       if (cacheMatches) {
-        const cachedBuffer = await fetchPdfBuffer(item.generated_print_pdf_url);
-        if (cachedBuffer && cachedBuffer.length) {
-          return {
-            statusCode: 200,
-            headers: {
-              ...CORS_HEADERS,
-              'Content-Type': 'application/pdf',
-              'Content-Disposition': `attachment; filename="order-${req.orderId}-print.pdf"`,
-              'Cache-Control': 'no-store',
-              'X-Print-PDF-Source': 'cached-vector',
-            },
-            isBase64Encoded: true,
-            body: cachedBuffer.toString('base64'),
-          };
-        }
+        const cached = await fetchPdfBuffer(item.generated_print_pdf_url);
+        if (cached?.length) return pdfResponse(req, cached, 'cached-vector');
       }
-    } else {
-      normalizedScene = normalizeCanvasState(req.canvasStateJson, {
-        widthIn: req.bannerWidthIn,
-        heightIn: req.bannerHeightIn,
-        fileUrl: req.imageUrl,
-        fileKey: req.fileKey,
-        backgroundColor: req.canvasBackgroundColor,
-      });
-      if (normalizedScene) req.canvasStateJson = JSON.stringify(normalizedScene);
     }
 
-    const pdfBuffer = await renderFreshPdf(req);
-    return {
-      statusCode: 200,
-      headers: {
-        ...CORS_HEADERS,
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="order-${req.orderId}-print.pdf"`,
-        'Cache-Control': 'no-store',
-        'X-Print-PDF-Source': selectedSource,
-      },
-      isBase64Encoded: true,
-      body: pdfBuffer.toString('base64'),
-    };
+    if (selectedSource === 'legacy-original-contain' && originalAsset) {
+      const buffer = await createLegacyOriginalContainPdf(
+        originalAsset,
+        req.bannerWidthIn,
+        req.bannerHeightIn,
+        req.canvasBackgroundColor,
+      );
+      return pdfResponse(req, buffer, selectedSource);
+    }
+
+    const buffer = await renderFreshPdf(req);
+    return pdfResponse(req, buffer, selectedSource);
   } catch (error) {
     console.error('[ADMIN_PRINT_PDF] generation failed:', error);
     return {
       statusCode: 500,
       headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        success: false,
-        error: error && error.message ? error.message : 'Failed to produce print PDF',
-      }),
+      body: JSON.stringify({ success: false, error: error?.message || 'Failed to produce print PDF' }),
     };
   }
 };
 
 exports._test = {
-  legacyDesignStateToPrintScene,
-  normalizeCanvasState,
   hashScene,
   isUsableSnapshotUrl,
   getLegacyApprovedSnapshot,
+  getLegacyOriginalAsset,
+  hasLegacyComposedLayers,
   prepareItemRequest,
+  looksLikePng,
+  looksLikePdf,
 };
