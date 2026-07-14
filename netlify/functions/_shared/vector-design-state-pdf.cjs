@@ -8,7 +8,8 @@ cloudinary.config({
   secure: true,
 });
 
-const FETCH_TIMEOUT_MS = 30000;
+const FETCH_TIMEOUT_MS = 30_000;
+const SIGNED_URL_EXPIRY_SECONDS = 10 * 60;
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -24,7 +25,19 @@ function parseHexColor(value) {
   );
 }
 
-function isPdfDesignState(designState) {
+function parseDesignState(value) {
+  if (!value) return null;
+  if (typeof value === 'object') return value;
+  if (typeof value !== 'string') return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+function isPdfDesignState(value) {
+  const designState = parseDesignState(value);
   if (!designState || typeof designState !== 'object') return false;
   if (designState.isPdf === true) return true;
   const source = String(
@@ -38,46 +51,96 @@ function isPdfDesignState(designState) {
 
 function stripCloudinaryTransforms(url) {
   if (!url || !String(url).includes('res.cloudinary.com')) return url;
-  const value = String(url);
-  // Preserve the resource type (raw/image), remove transformation segments
-  // between /upload/ and the version component when one is present.
-  return value.replace(/\/upload\/(?:[^/]+\/)+(?=v\d+\/)/, '/upload/');
+  return String(url).replace(/\/upload\/(?:[^/]+\/)+(?=v\d+\/)/, '/upload/');
 }
 
-async function fetchBuffer(url) {
+function parseCloudinaryUrl(url) {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+    if (host !== 'cloudinary.com' && !host.endsWith('.cloudinary.com')) return null;
+    const segments = parsed.pathname.split('/').filter(Boolean);
+    if (segments.length < 4) return null;
+    const resourceType = segments[1] || 'raw';
+    const deliveryType = segments[2] || 'upload';
+    const rest = segments.slice(3).filter((segment) => !/^v\d+$/.test(segment));
+    const idWithExtension = rest.join('/');
+    if (!idWithExtension) return null;
+    const dot = idWithExtension.lastIndexOf('.');
+    return {
+      resourceType,
+      deliveryType,
+      publicId: dot > -1 ? idWithExtension.slice(0, dot) : idWithExtension,
+      format: dot > -1 ? idWithExtension.slice(dot + 1).toLowerCase() : 'pdf',
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function fetchPdfBuffer(url) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
     const response = await fetch(url, { signal: controller.signal });
-    if (!response.ok) {
-      throw new Error(`Original PDF fetch failed (${response.status})`);
-    }
+    if (!response.ok) throw new Error(`Original PDF fetch failed (${response.status})`);
     const buffer = Buffer.from(await response.arrayBuffer());
     const signatureWindow = buffer.subarray(0, Math.min(buffer.length, 1024)).toString('latin1');
-    if (!signatureWindow.includes('%PDF-')) {
-      throw new Error('Original artwork response was not a PDF');
-    }
+    if (!signatureWindow.includes('%PDF-')) throw new Error('Original artwork response was not a PDF');
     return buffer;
   } finally {
     clearTimeout(timeout);
   }
 }
 
-async function fetchOriginalPdfBuffer(designState) {
-  const candidates = [];
+function signedCloudinaryCandidate(url) {
+  const parsed = parseCloudinaryUrl(url);
+  if (!parsed || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) return null;
+  try {
+    return cloudinary.utils.private_download_url(parsed.publicId, parsed.format || 'pdf', {
+      resource_type: parsed.resourceType || 'raw',
+      type: parsed.deliveryType || 'upload',
+      expires_at: Math.floor(Date.now() / 1000) + SIGNED_URL_EXPIRY_SECONDS,
+    });
+  } catch {
+    return null;
+  }
+}
+
+async function fetchOriginalPdfBuffer(value) {
+  const designState = parseDesignState(value);
+  if (!designState) throw new Error('Saved design state is missing');
+
   const sourceUrl = designState.originalImageUrl;
   const sourceKey = designState.originalImageFileKey;
+  const candidates = [];
 
   if (sourceUrl && /^https?:\/\//i.test(sourceUrl)) {
-    candidates.push(stripCloudinaryTransforms(sourceUrl));
+    const originalUrl = stripCloudinaryTransforms(sourceUrl);
+    candidates.push(originalUrl);
+    const signed = signedCloudinaryCandidate(originalUrl);
+    if (signed) candidates.push(signed);
   }
 
   if (sourceKey) {
     const key = String(sourceKey);
-    const keyWithExtension = /\.pdf$/i.test(key) ? key : `${key}.pdf`;
-    candidates.push(cloudinary.url(key, { resource_type: 'raw', type: 'upload', secure: true }));
-    if (keyWithExtension !== key) {
-      candidates.push(cloudinary.url(keyWithExtension, { resource_type: 'raw', type: 'upload', secure: true }));
+    const rawUrl = cloudinary.url(key, { resource_type: 'raw', type: 'upload', secure: true });
+    candidates.push(rawUrl);
+    if (!/\.pdf$/i.test(key)) {
+      candidates.push(cloudinary.url(`${key}.pdf`, { resource_type: 'raw', type: 'upload', secure: true }));
+    }
+
+    if (process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
+      const baseId = key.replace(/\.pdf$/i, '');
+      try {
+        candidates.push(cloudinary.utils.private_download_url(baseId, 'pdf', {
+          resource_type: 'raw',
+          type: 'upload',
+          expires_at: Math.floor(Date.now() / 1000) + SIGNED_URL_EXPIRY_SECONDS,
+        }));
+      } catch {
+        // direct URL candidates remain available
+      }
     }
   }
 
@@ -89,11 +152,11 @@ async function fetchOriginalPdfBuffer(designState) {
   let lastError = null;
   for (const candidate of uniqueCandidates) {
     try {
-      return await fetchBuffer(candidate);
+      return await fetchPdfBuffer(candidate);
     } catch (error) {
       lastError = error;
       console.warn('[VECTOR_DESIGN_PDF] original PDF candidate failed', {
-        hasUrl: !!candidate,
+        candidateType: candidate.includes('api_key=') ? 'signed' : 'direct',
         error: error && error.message,
       });
     }
@@ -104,25 +167,22 @@ async function fetchOriginalPdfBuffer(designState) {
 
 /**
  * Compose the original uploaded PDF page into a new banner-sized PDF without
- * rasterizing it. The embedded page remains a PDF Form XObject, so vector text,
- * lines, and shapes stay resolution-independent at any zoom or print size.
+ * rasterizing it. The embedded page remains a PDF Form XObject, so text, lines,
+ * and shapes remain resolution-independent at any zoom or print size.
  */
 async function renderVectorDesignStatePdf({
-  designState,
+  designState: rawDesignState,
   bannerWidthIn,
   bannerHeightIn,
   bleedIn = 0,
 }) {
-  if (!isPdfDesignState(designState)) {
-    throw new Error('Saved design state is not a PDF artwork design');
-  }
+  const designState = parseDesignState(rawDesignState);
+  if (!isPdfDesignState(designState)) throw new Error('Saved design state is not PDF artwork');
 
   const widthIn = Number(bannerWidthIn || designState.widthIn || 0);
   const heightIn = Number(bannerHeightIn || designState.heightIn || 0);
   const safeBleedIn = Math.max(0, Number(bleedIn || 0));
-  if (!widthIn || !heightIn) {
-    throw new Error('Banner width and height are required for vector PDF composition');
-  }
+  if (!widthIn || !heightIn) throw new Error('Banner width and height are required for vector PDF composition');
 
   const originalPdfBytes = await fetchOriginalPdfBuffer(designState);
   const outputPdf = await PDFDocument.create();
@@ -163,20 +223,14 @@ async function renderVectorDesignStatePdf({
   const position = designState.imgPos || designState.position || { x: 0, y: 0 };
   const translateXPt = (Number(position.x || 0) / 100) * bannerWidthPt;
   const translateYTopPt = (Number(position.y || 0) / 100) * bannerHeightPt;
-
   const centerXPt = bleedPt + bannerWidthPt / 2 + translateXPt;
   const centerYFromTopPt = bleedPt + bannerHeightPt / 2 + translateYTopPt;
   const centerYPdfPt = pageHeightPt - centerYFromTopPt;
 
-  // Browser/CSS and Sharp use positive values for clockwise rotation. PDF uses
-  // a bottom-left coordinate system with positive values counter-clockwise.
   const browserRotation = Number(designState.rotationDeg ?? designState.rotation ?? 0);
   const pdfRotation = -browserRotation;
   const theta = (pdfRotation * Math.PI) / 180;
 
-  // pdf-lib rotates around the supplied lower-left draw origin. Solve for that
-  // origin so the transformed artwork remains centered on the saved canvas
-  // center, including non-uniform scaling.
   const drawX = centerXPt
     - Math.cos(theta) * drawWidthPt / 2
     + Math.sin(theta) * drawHeightPt / 2;
@@ -207,7 +261,7 @@ async function renderVectorDesignStatePdf({
   return {
     buffer: Buffer.from(bytes),
     metadata: {
-      renderer: 'vector-design-state-v1',
+      renderer: 'vector-design-state-v2',
       sourcePreservedAsVector: true,
       sourcePageWidthPt: sourceWidthPt,
       sourcePageHeightPt: sourceHeightPt,
@@ -226,6 +280,7 @@ async function renderVectorDesignStatePdf({
 }
 
 module.exports = {
+  parseDesignState,
   isPdfDesignState,
   fetchOriginalPdfBuffer,
   renderVectorDesignStatePdf,
