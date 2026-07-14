@@ -494,12 +494,13 @@ export const useCartStore = create<CartState>()(
               return explicitFileUrl;
             }
             // Fallback: Check file and overlayImage
-            const fileUrl = (quote.file as any)?.originalUrl || quote.file?.url || (quote as any).overlayImage?.url;
+            const fileUrl = (quote.file as any)?.productionUrl || (quote.file as any)?.originalUrl || quote.file?.url || (quote as any).overlayImage?.url;
             const fileKey = quote.file?.fileKey || (quote as any).overlayImage?.fileKey;
             const proofUrl = aiMetadata?.assets?.proofUrl;
             
             debugLog('[CART STORE] 🔍 File data:', {
               fileUrl: fileUrl ? fileUrl.substring(0, 80) : 'NULL',
+              productionUrl: (quote.file as any)?.productionUrl ? (quote.file as any).productionUrl.substring(0, 80) : 'NULL',
               originalUrl: (quote.file as any)?.originalUrl ? (quote.file as any).originalUrl.substring(0, 80) : 'NULL',
               blobUrl: quote.file?.url?.startsWith('blob:') ? 'YES' : 'NO',
               fileKey: fileKey || 'NULL',
@@ -521,7 +522,7 @@ export const useCartStore = create<CartState>()(
           })(),
           thumbnail_url: (() => {
             // Store thumbnail for DISPLAY in cart (has grommets/text rendered)
-            const thumbnailUrl = (quote as any).thumbnailUrl || (quote.file as any)?.thumbnailUrl;
+            const thumbnailUrl = (quote as any).thumbnailUrl || (quote.file as any)?.previewUrl || (quote.file as any)?.thumbnailUrl;
             debugLog('[CART STORE] 🖼️ Thumbnail URL for display:', thumbnailUrl ? thumbnailUrl.substring(0, 80) + '...' : 'NULL');
             debugLog('[CART STORE] 🖼️ Thumbnail URL details:', {
               isBlob: thumbnailUrl?.startsWith('blob:'),
