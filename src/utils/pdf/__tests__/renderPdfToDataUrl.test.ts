@@ -18,6 +18,7 @@ const {
     mockPage: {
       getViewport: vi.fn(),
       render: vi.fn(),
+      cleanup: vi.fn(),
     },
     mockRenderTask: {
       promise: Promise.resolve(),
@@ -41,6 +42,8 @@ vi.mock('pdfjs-dist/build/pdf.worker.min.mjs?url', () => ({
 
 const createMockCanvas = () => {
   const context = {
+    fillStyle: '',
+    fillRect: vi.fn(),
     imageSmoothingEnabled: false,
     imageSmoothingQuality: 'low',
   };
@@ -48,7 +51,7 @@ const createMockCanvas = () => {
     width: 0,
     height: 0,
     getContext: vi.fn().mockReturnValue(context),
-    toBlob: vi.fn((callback: BlobCallback) => callback(new Blob(['real png'], { type: 'image/png' }))),
+    toBlob: vi.fn((callback: BlobCallback) => callback(new Blob(['real jpeg'], { type: 'image/jpeg' }))),
     context,
   };
 };
@@ -84,14 +87,19 @@ describe('renderPdfToDataUrl', () => {
     await expect(renderPdfToDataUrl(file)).rejects.toThrow('PDF file is empty');
   });
 
-  it('renders the actual selected PDF page to a PNG data URL', async () => {
+  it('renders the selected PDF page to a compact JPEG preview URL', async () => {
     const file = new File(['%PDF-1.7 page bytes'], 'test.pdf', { type: 'application/pdf' });
     const arrayBufferSpy = vi.spyOn(file, 'arrayBuffer');
 
     const createObjectUrl = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:https://preview.local/pdf-page');
     const revokeObjectUrl = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
 
-    const result = await renderPdfToDataUrl(file, { pageNumber: 2, scale: 1, deviceScale: 2, maxPixels: 1_000_000 });
+    const result = await renderPdfToDataUrl(file, {
+      pageNumber: 2,
+      scale: 1,
+      deviceScale: 2,
+      maxPixels: 1_000_000,
+    });
 
     expect(result.previewUrl).toBe('blob:https://preview.local/pdf-page');
     expect(result.width).toBe(800);
@@ -99,7 +107,8 @@ describe('renderPdfToDataUrl', () => {
     expect(result.blobSize).toBeGreaterThan(0);
     expect(result.pageNumber).toBe(2);
     result.cleanup();
-    expect(createObjectUrl).toHaveBeenCalledWith(expect.objectContaining({ type: 'image/png' }));
+
+    expect(createObjectUrl).toHaveBeenCalledWith(expect.objectContaining({ type: 'image/jpeg' }));
     expect(revokeObjectUrl).toHaveBeenCalledWith('blob:https://preview.local/pdf-page');
     expect(arrayBufferSpy).toHaveBeenCalledTimes(1);
     expect(mockPdfjsLib.getDocument).toHaveBeenCalledWith(expect.objectContaining({
@@ -111,7 +120,8 @@ describe('renderPdfToDataUrl', () => {
       canvasContext: mockCanvas.context,
       viewport: expect.objectContaining({ width: 800, height: 400 }),
     }));
-    expect(mockCanvas.toBlob).toHaveBeenCalledWith(expect.any(Function), 'image/png', 1);
+    expect(mockCanvas.context.fillRect).toHaveBeenCalledWith(0, 0, 800, 400);
+    expect(mockCanvas.toBlob).toHaveBeenCalledWith(expect.any(Function), 'image/jpeg', 0.9);
     expect(mockCanvas.width).toBe(0);
     expect(mockCanvas.height).toBe(0);
     expect(mockPdf.destroy).toHaveBeenCalled();
