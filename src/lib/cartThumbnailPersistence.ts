@@ -56,6 +56,11 @@ const persistTemporaryThumbnails = async (): Promise<void> => {
   }));
 };
 
+const hasTemporaryThumbnail = (): boolean => useCartStore
+  .getState()
+  .items
+  .some((item) => isTemporaryCartThumbnail(item.thumbnail_url));
+
 /**
  * Ensures cart thumbnails survive route changes, browser differences, and
  * server-cart reloads. The design page creates an immediate data-image proof;
@@ -92,13 +97,15 @@ export const installCartThumbnailPersistence = (): void => {
   };
 
   const guardedLoadFromServer = async (): Promise<void> => {
-    const hasTemporaryThumbnail = useCartStore
-      .getState()
-      .items
-      .some((item) => isTemporaryCartThumbnail(item.thumbnail_url));
-
-    if (hasTemporaryThumbnail || activeSync) {
+    if (hasTemporaryThumbnail() || activeSync) {
       await guardedSyncToServer();
+    }
+
+    // If persistence still failed, preserve the usable local proof and do not
+    // replace it with a server cart whose thumbnail was intentionally stripped.
+    if (hasTemporaryThumbnail()) {
+      console.warn('[cart-thumbnail] server cart load deferred until thumbnail persistence succeeds');
+      return;
     }
 
     await originalLoadFromServer();
