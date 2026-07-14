@@ -1,32 +1,16 @@
 /**
- * Admin Print PDF Download Endpoint
+ * Canonical production print-PDF endpoint.
  *
- * Acts as a server-side proxy for admin print-ready PDF downloads.
- *
- * PDF artwork with saved designer state is handled first and is composed from
- * the original uploaded PDF page as a PDF Form XObject. That preserves vector
- * text/lines at every zoom level and deliberately bypasses any previously
- * cached rasterized print PDF.
+ * PDF artwork is always composed from the original uploaded PDF page and saved
+ * designer transforms. It is never served from a PNG/JPEG preview or an older
+ * rasterized PDF cache. Raster artwork continues through the legacy renderer.
  */
-
 const { neon } = require('@neondatabase/serverless');
-const { v2: cloudinary } = require('cloudinary');
 const {
+  parseDesignState,
   isPdfDesignState,
   renderVectorDesignStatePdf,
 } = require('./_shared/vector-design-state-pdf.cjs');
-
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-  secure: true,
-});
-
-const databaseUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
-const sql = databaseUrl ? neon(databaseUrl) : null;
-
-const SIGNED_URL_EXPIRY_SECONDS = 600;
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -34,351 +18,300 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-function parseCanvasState(value) {
-  if (!value) return null;
-  if (typeof value === 'object') return value;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return null;
-  }
+const databaseUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL || process.env.VITE_DATABASE_URL || '';
+const sql = databaseUrl ? neon(databaseUrl) : null;
+
+function json(statusCode, body) {
+  return {
+    statusCode,
+    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+    body: JSON.stringify(body),
+  };
 }
 
-function makePdfResponse(pdfBuffer, orderId, method, extraHeaders = {}) {
-  const safeOrderId = String(orderId).replace(/[^A-Za-z0-9_-]/g, '');
-  const filename = `order-${safeOrderId.slice(-8) || safeOrderId}-print.pdf`;
+function pdfResponse(buffer, orderId, source, extraHeaders = {}) {
+  const safeOrderId = String(orderId || 'order').replace(/[^A-Za-z0-9_-]/g, '');
+  const vectorSuffix = source === 'vector-original-pdf' ? '-VECTOR' : '';
+  const filename = `order-${safeOrderId.slice(-8) || safeOrderId}-print${vectorSuffix}.pdf`;
   return {
     statusCode: 200,
     headers: {
       ...CORS_HEADERS,
       'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename="${filename}"`,
-      'Cache-Control': 'no-store',
-      'X-Print-PDF-Source': method,
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+      'X-Print-PDF-Source': source,
       ...extraHeaders,
     },
-    body: pdfBuffer.toString('base64'),
+    body: buffer.toString('base64'),
     isBase64Encoded: true,
   };
 }
 
-/**
- * Parse a Cloudinary delivery URL into its component parts so we can ask the
- * SDK to sign a download URL for it.
- */
-function parseCloudinaryUrl(url) {
-  try {
-    const parsed = new URL(url);
-    const host = parsed.hostname.toLowerCase();
-    const isCloudinaryHost = host === 'cloudinary.com' || host.endsWith('.cloudinary.com');
-    if (!isCloudinaryHost) return null;
-    const segments = parsed.pathname.split('/').filter(Boolean);
-    if (segments.length < 4) return null;
-    const cloudName = segments[0];
-    const resourceType = segments[1] || 'raw';
-    const deliveryType = segments[2] || 'upload';
-    const rest = segments.slice(3).filter((seg) => !/^v\d+$/.test(seg));
-    const publicIdWithExt = rest.join('/');
-    if (!publicIdWithExt) return null;
+function asNumber(value, fallback = 0) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
 
-    let format = null;
-    let publicId = publicIdWithExt;
-    const dotIdx = publicIdWithExt.lastIndexOf('.');
-    if (dotIdx > -1) {
-      format = publicIdWithExt.slice(dotIdx + 1).toLowerCase();
-      publicId = publicIdWithExt.slice(0, dotIdx);
-    }
-    return { cloudName, resourceType, deliveryType, publicId, format };
-  } catch {
+function looksLikePdf(...values) {
+  return values.some((value) => {
+    if (value === true) return true;
+    if (!value) return false;
+    const normalized = String(value).trim().toLowerCase().split('?')[0].split('#')[0];
+    return normalized === 'pdf'
+      || normalized === 'application/pdf'
+      || normalized.endsWith('.pdf');
+  });
+}
+
+function mergeDesignState(request, row) {
+  const parsed = parseDesignState(request.canvasStateJson || row?.canvas_state_json) || {};
+  const overlay = row?.overlay_image && typeof row.overlay_image === 'object' ? row.overlay_image : null;
+  const originalImageUrl = parsed.originalImageUrl
+    || row?.file_url
+    || overlay?.originalUrl
+    || overlay?.url
+    || request.imageUrl
+    || null;
+  const originalImageFileKey = parsed.originalImageFileKey
+    || row?.file_key
+    || overlay?.fileKey
+    || request.fileKey
+    || null;
+  const pdf = isPdfDesignState(parsed)
+    || looksLikePdf(parsed.isPdf, parsed.originalFormat, originalImageUrl, originalImageFileKey, request.imageUrl, request.fileKey);
+
+  const imagePosition = parsed.imgPos
+    || parsed.position
+    || row?.image_position
+    || request.imagePosition
+    || { x: 0, y: 0 };
+  const imageScale = parsed.imgScale
+    ?? parsed.scaleX
+    ?? row?.image_scale
+    ?? request.imageScale
+    ?? 1;
+  const imageScaleY = parsed.imgScaleY
+    ?? parsed.scaleY
+    ?? row?.image_scale_y
+    ?? request.imageScaleY
+    ?? imageScale;
+
+  return {
+    ...parsed,
+    source: parsed.source || 'order-item-production-rebuild',
+    version: parsed.version || 1,
+    originalImageUrl,
+    originalImageFileKey,
+    isPdf: pdf,
+    widthIn: asNumber(request.bannerWidthIn || row?.width_in || parsed.widthIn, 0),
+    heightIn: asNumber(request.bannerHeightIn || row?.height_in || parsed.heightIn, 0),
+    imgPos: {
+      x: asNumber(imagePosition?.x, 0),
+      y: asNumber(imagePosition?.y, 0),
+    },
+    imgScale: asNumber(imageScale, 1),
+    imgScaleY: asNumber(imageScaleY, asNumber(imageScale, 1)),
+    fitMode: parsed.fitMode || request.fitMode || 'fit',
+    bgColor: parsed.bgColor || parsed.backgroundColor || row?.canvas_background_color || request.canvasBackgroundColor || '#fafafa',
+  };
+}
+
+async function loadOrderItem(request, log) {
+  if (!sql) {
+    log('database unavailable; using request payload only');
     return null;
   }
-}
 
-async function fetchAsBuffer(url) {
   try {
-    const res = await fetch(url);
-    if (!res.ok) return { ok: false, status: res.status };
-    const buf = Buffer.from(await res.arrayBuffer());
-    return { ok: true, status: res.status, buffer: buf };
-  } catch (err) {
-    return { ok: false, status: 0, error: err && err.message };
-  }
-}
-
-async function downloadCloudinaryPdf(cachedUrl, log) {
-  const direct = await fetchAsBuffer(cachedUrl);
-  log('cached fetch status (public direct):', direct.status);
-  if (direct.ok) {
-    return { ok: true, buffer: direct.buffer, method: 'public-direct', status: direct.status };
-  }
-
-  const parsed = parseCloudinaryUrl(cachedUrl);
-  if (parsed && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
-    try {
-      const signedUrl = cloudinary.utils.private_download_url(
-        parsed.publicId,
-        parsed.format || 'pdf',
-        {
-          resource_type: parsed.resourceType || 'raw',
-          type: parsed.deliveryType || 'upload',
-          attachment: true,
-          expires_at: Math.floor(Date.now() / 1000) + SIGNED_URL_EXPIRY_SECONDS,
-        },
-      );
-      log('signed download URL generated for', parsed.resourceType + '/' + parsed.deliveryType);
-      const signed = await fetchAsBuffer(signedUrl);
-      log('cached fetch status (signed):', signed.status);
-      if (signed.ok) {
-        return { ok: true, buffer: signed.buffer, method: 'signed', status: signed.status };
-      }
-      return { ok: false, status: signed.status };
-    } catch (err) {
-      log('signed URL generation failed:', err && err.message);
+    if (request.itemId) {
+      const rows = await sql`
+        SELECT id, order_id, width_in, height_in, file_key, file_url,
+               canvas_state_json, image_scale, image_position,
+               canvas_background_color, overlay_image,
+               generated_print_pdf_url, final_print_pdf_url, product_type
+          FROM order_items
+         WHERE id = ${request.itemId}
+         LIMIT 1
+      `;
+      return rows?.[0] || null;
     }
-  } else if (!parsed) {
-    log('cached URL is not a parseable Cloudinary URL; skipping signed fallback');
+
+    if (request.orderId && Number.isInteger(Number(request.itemIndex))) {
+      const rows = await sql`
+        SELECT id, order_id, width_in, height_in, file_key, file_url,
+               canvas_state_json, image_scale, image_position,
+               canvas_background_color, overlay_image,
+               generated_print_pdf_url, final_print_pdf_url, product_type
+          FROM order_items
+         WHERE order_id = ${request.orderId}
+         ORDER BY id ASC
+      `;
+      return rows?.[Number(request.itemIndex)] || null;
+    }
+  } catch (error) {
+    log('order-item hydration failed; using request payload', error?.message || String(error));
   }
 
-  return { ok: false, status: direct.status };
+  return null;
 }
 
-/**
- * Invoke the existing render-order-pdf function in-process, falling back to an
- * HTTP self-call if the module export is unavailable. Returns a Buffer.
- */
-async function regeneratePdf(requestBody, log) {
-  const regenBody = {
+async function clearRasterCache(itemId, log) {
+  if (!sql || !itemId) return;
+  try {
+    await sql`
+      UPDATE order_items
+         SET generated_print_pdf_url = NULL,
+             generated_print_pdf_uploaded_at = NULL
+       WHERE id = ${itemId}
+    `;
+    log('cleared old generated raster-PDF cache for vector artwork');
+  } catch (error) {
+    log('could not clear old generated PDF cache (non-fatal)', error?.message || String(error));
+  }
+}
+
+async function fetchPdfUrl(url) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Generated PDF download failed (${response.status})`);
+  const buffer = Buffer.from(await response.arrayBuffer());
+  const signature = buffer.subarray(0, Math.min(buffer.length, 1024)).toString('latin1');
+  if (!signature.includes('%PDF-')) throw new Error('Generated print response was not a PDF');
+  return buffer;
+}
+
+async function renderLegacyPdf(requestBody, log) {
+  const renderModule = require('./render-order-pdf.cjs');
+  if (!renderModule || typeof renderModule.handler !== 'function') {
+    throw new Error('Legacy print renderer is unavailable');
+  }
+
+  const renderRequest = {
     ...(requestBody || {}),
+    format: 'pdf',
     forceRegenerate: true,
     cachedPdfUrl: null,
     generatedPrintPdfUrl: null,
   };
 
-  try {
-    const renderModule = require('./render-order-pdf.cjs');
-    if (renderModule && typeof renderModule.handler === 'function') {
-      log('regenerating PDF via in-process render-order-pdf handler (forceRegenerate=true)');
-      const fakeEvent = {
-        httpMethod: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(regenBody),
-        isBase64Encoded: false,
-      };
-      const res = await renderModule.handler(fakeEvent, {});
-      if (!res || res.statusCode >= 400) {
-        const body = res && res.body ? String(res.body).slice(0, 500) : 'no body';
-        throw new Error(`render-order-pdf returned ${res && res.statusCode}: ${body}`);
-      }
-      const json = JSON.parse(res.body || '{}');
-      if (json.error) throw new Error(typeof json.error === 'string' ? json.error : 'Regeneration failed');
-      log('regen response keys=', Object.keys(json).join(','),
-        'pdfBase64.len=', json.pdfBase64 ? json.pdfBase64.length : 0,
-        'pdfUrl=', json.pdfUrl ? 'present' : 'none');
-      if (json.pdfBase64) {
-        const buf = Buffer.from(json.pdfBase64, 'base64');
-        if (!buf || buf.length === 0) {
-          throw new Error('PDF generation completed but returned an empty buffer');
-        }
-        return { buffer: buf, pdfUrl: json.pdfUrl || null };
-      }
-      if (json.pdfUrl) {
-        const fetched = await downloadCloudinaryPdf(json.pdfUrl, log);
-        if (fetched.ok && fetched.buffer && fetched.buffer.length > 0) {
-          return { buffer: fetched.buffer, pdfUrl: json.pdfUrl };
-        }
-      }
-      throw new Error('PDF generation completed but returned no buffer or downloadUrl');
-    }
-  } catch (err) {
-    log('in-process regeneration failed, falling back to HTTP:', err && err.message);
+  log('invoking legacy render-order-pdf for raster artwork');
+  const result = await renderModule.handler({
+    httpMethod: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(renderRequest),
+    isBase64Encoded: false,
+  }, {});
+
+  if (!result || result.statusCode >= 400) {
+    const detail = result?.body ? String(result.body).slice(0, 800) : 'empty response';
+    throw new Error(`render-order-pdf returned ${result?.statusCode || 'no status'}: ${detail}`);
   }
 
-  const baseUrl = process.env.URL || process.env.DEPLOY_URL || process.env.DEPLOY_PRIME_URL || '';
-  if (!baseUrl || !/^https?:\/\//i.test(baseUrl)) {
-    throw new Error('Regeneration failed and no usable base URL configured for HTTP fallback');
+  let payload;
+  try {
+    payload = JSON.parse(result.body || '{}');
+  } catch {
+    throw new Error('render-order-pdf returned invalid JSON');
   }
-  const fnUrl = `${baseUrl.replace(/\/$/, '')}/.netlify/functions/render-order-pdf`;
-  log('regenerating PDF via HTTP:', fnUrl);
-  const res = await fetch(fnUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(regenBody),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`render-order-pdf HTTP ${res.status}: ${text.slice(0, 500)}`);
+
+  if (payload.error) throw new Error(String(payload.error));
+  if (payload.pdfBase64) {
+    const buffer = Buffer.from(payload.pdfBase64, 'base64');
+    if (!buffer.length) throw new Error('Generated print PDF was empty');
+    return buffer;
   }
-  const json = await res.json();
-  if (json.error) throw new Error(typeof json.error === 'string' ? json.error : 'Regeneration failed');
-  log('regen HTTP response keys=', Object.keys(json).join(','),
-    'pdfBase64.len=', json.pdfBase64 ? json.pdfBase64.length : 0,
-    'pdfUrl=', json.pdfUrl ? 'present' : 'none');
-  if (json.pdfBase64) {
-    const buf = Buffer.from(json.pdfBase64, 'base64');
-    if (!buf || buf.length === 0) {
-      throw new Error('PDF generation completed but returned an empty buffer');
-    }
-    return { buffer: buf, pdfUrl: json.pdfUrl || null };
+  if (payload.pdfUrl || payload.downloadUrl) {
+    return fetchPdfUrl(payload.pdfUrl || payload.downloadUrl);
   }
-  if (json.pdfUrl) {
-    const fetched = await downloadCloudinaryPdf(json.pdfUrl, log);
-    if (fetched.ok && fetched.buffer && fetched.buffer.length > 0) {
-      return { buffer: fetched.buffer, pdfUrl: json.pdfUrl };
-    }
-  }
-  throw new Error('PDF generation completed but returned no buffer or downloadUrl');
+
+  throw new Error('Print renderer returned no PDF data');
 }
 
 exports.handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 204, headers: CORS_HEADERS, body: '' };
-  }
-  if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
-      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'Method Not Allowed' }),
-    };
-  }
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS_HEADERS, body: '' };
+  if (event.httpMethod !== 'POST') return json(405, { error: 'METHOD_NOT_ALLOWED', message: 'Method not allowed.' });
 
-  let req;
+  let request;
   try {
-    req = JSON.parse(event.body || '{}');
+    request = JSON.parse(event.body || '{}');
   } catch {
-    return {
-      statusCode: 400,
-      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'Invalid JSON body' }),
-    };
+    return json(400, { error: 'INVALID_JSON', message: 'Invalid request body.' });
   }
 
-  const { orderId, itemId, itemIndex } = req || {};
-  if (!orderId) {
-    return {
-      statusCode: 400,
-      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'orderId is required' }),
-    };
-  }
+  const orderId = request.orderId;
+  if (!orderId) return json(400, { error: 'ORDER_ID_REQUIRED', message: 'orderId is required.' });
 
-  const log = (...args) => console.log('[ADMIN_PRINT_PDF]', `order=${orderId}`, ...args);
-  const designState = parseCanvasState(req.canvasStateJson);
-  log('request received', {
-    itemId: itemId || null,
-    itemIndex: typeof itemIndex === 'number' ? itemIndex : null,
-    bannerSize: req.bannerWidthIn && req.bannerHeightIn
-      ? `${req.bannerWidthIn}x${req.bannerHeightIn}in`
-      : 'unknown',
-    hasCanvasStateJson: !!req.canvasStateJson,
-    isOriginalPdfDesign: isPdfDesignState(designState),
-    hasFinalRender: !!(req.finalRenderUrl || req.finalRenderFileKey),
+  const log = (...args) => console.log('[PRODUCTION_PRINT_PDF]', `order=${orderId}`, ...args);
+  const row = await loadOrderItem(request, log);
+  const designState = mergeDesignState(request, row);
+  const pdfArtwork = isPdfDesignState(designState)
+    || looksLikePdf(designState.originalImageUrl, designState.originalImageFileKey);
+
+  log('resolved print source', {
+    itemId: request.itemId || row?.id || null,
+    hasStoredCanvasState: !!row?.canvas_state_json,
+    hasRequestCanvasState: !!request.canvasStateJson,
+    originalPdf: pdfArtwork,
+    widthIn: designState.widthIn,
+    heightIn: designState.heightIn,
+    source: designState.source,
   });
 
-  // Highest priority: preserve an uploaded PDF as vector. Do not reuse an old
-  // raster cache, thumbnail, canvas screenshot, or Cloudinary page PNG.
-  if (isPdfDesignState(designState)) {
+  if (pdfArtwork) {
+    if (!designState.widthIn || !designState.heightIn) {
+      return json(422, {
+        error: 'VECTOR_PRINT_DIMENSIONS_MISSING',
+        message: 'The saved banner dimensions are missing, so a production PDF cannot be composed safely.',
+      });
+    }
+    if (!designState.originalImageUrl && !designState.originalImageFileKey) {
+      return json(422, {
+        error: 'VECTOR_PRINT_SOURCE_MISSING',
+        message: 'The original uploaded PDF reference is missing. The system will not substitute a blurry preview.',
+      });
+    }
+
     try {
-      log('composing vector print PDF from original uploaded PDF page');
-      const vectorResult = await renderVectorDesignStatePdf({
+      await clearRasterCache(request.itemId || row?.id, log);
+      const rendered = await renderVectorDesignStatePdf({
         designState,
-        bannerWidthIn: req.bannerWidthIn,
-        bannerHeightIn: req.bannerHeightIn,
-        bleedIn: req.includeBleed === false ? 0 : Number(req.bleedIn || 0),
+        bannerWidthIn: designState.widthIn,
+        bannerHeightIn: designState.heightIn,
+        bleedIn: request.includeBleed === false ? 0 : asNumber(request.bleedIn, 0),
       });
-      log('✅ vector PDF composed from original artwork', vectorResult.metadata);
-      return makePdfResponse(vectorResult.buffer, orderId, 'vector-original-pdf', {
+      log('vector PDF complete', rendered.metadata);
+      return pdfResponse(rendered.buffer, orderId, 'vector-original-pdf', {
         'X-Original-Artwork-Vector': 'true',
-        'X-Vector-Renderer': vectorResult.metadata.renderer,
+        'X-Vector-Renderer': rendered.metadata.renderer,
+        'X-Vector-Source-Width-Pt': String(rendered.metadata.sourcePageWidthPt),
+        'X-Vector-Source-Height-Pt': String(rendered.metadata.sourcePageHeightPt),
       });
-    } catch (err) {
-      console.error('[ADMIN_PRINT_PDF] vector PDF composition failed:', err && err.stack);
-      return {
-        statusCode: 422,
-        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-        body: JSON.stringify({
-          success: false,
-          error: 'Could not compose the print PDF from the original uploaded PDF.',
-          details: err && err.message,
-        }),
-      };
+    } catch (error) {
+      console.error('[PRODUCTION_PRINT_PDF] vector composition failed:', error?.stack || error);
+      return json(422, {
+        error: 'VECTOR_PRINT_PDF_FAILED',
+        message: 'The original PDF could not be composed into the production file without rasterization.',
+        details: error?.message || String(error),
+      });
     }
   }
 
-  // Raster artwork and legacy orders may reuse a valid cached PDF.
-  let cachedUrl = req.cachedPdfUrl || req.generatedPrintPdfUrl || null;
-  if (sql && itemId) {
-    try {
-      const rows = await sql`
-        SELECT generated_print_pdf_url
-        FROM order_items
-        WHERE id = ${itemId}
-        LIMIT 1
-      `;
-      const dbUrl = rows && rows[0] && rows[0].generated_print_pdf_url;
-      if (dbUrl) cachedUrl = dbUrl;
-    } catch (err) {
-      log('DB lookup failed (non-fatal):', err && err.message);
-    }
+  try {
+    const buffer = await renderLegacyPdf({
+      ...request,
+      itemId: request.itemId || row?.id || null,
+      bannerWidthIn: request.bannerWidthIn || row?.width_in,
+      bannerHeightIn: request.bannerHeightIn || row?.height_in,
+      canvasStateJson: request.canvasStateJson || row?.canvas_state_json || null,
+      fileKey: request.fileKey || row?.file_key || null,
+      imageUrl: request.imageUrl || row?.file_url || null,
+    }, log);
+    return pdfResponse(buffer, orderId, 'regenerated-raster-artwork');
+  } catch (error) {
+    console.error('[PRODUCTION_PRINT_PDF] raster generation failed:', error?.stack || error);
+    return json(500, {
+      error: 'PRINT_PDF_GENERATION_FAILED',
+      message: error?.message || 'Failed to generate print PDF.',
+    });
   }
-
-  const cachedParsed = cachedUrl ? parseCloudinaryUrl(cachedUrl) : null;
-  log('cached PDF url:', cachedUrl ? 'present' : 'NONE',
-    cachedParsed ? `(${cachedParsed.resourceType}/${cachedParsed.deliveryType})` : '');
-
-  let pdfBuffer = null;
-  let method = 'regenerated';
-
-  if (cachedUrl) {
-    const result = await downloadCloudinaryPdf(cachedUrl, log);
-    if (result.ok) {
-      pdfBuffer = result.buffer;
-      method = result.method;
-      log('✅ delivered cached PDF via', method, 'bytes=', pdfBuffer.length);
-    } else {
-      log(`Cached PDF unauthorized; regenerating PDF (status=${result.status})`);
-      if (sql && itemId) {
-        try {
-          await sql`
-            UPDATE order_items
-            SET generated_print_pdf_url = NULL,
-                generated_print_pdf_uploaded_at = NULL
-            WHERE id = ${itemId}
-          `;
-          log('cleared stale generated_print_pdf_url for item', itemId);
-        } catch (clearErr) {
-          log('failed to clear stale URL (non-fatal):', clearErr && clearErr.message);
-        }
-      }
-    }
-  } else {
-    log('no cached PDF URL — regenerating');
-  }
-
-  if (!pdfBuffer) {
-    try {
-      const regen = await regeneratePdf(req, log);
-      pdfBuffer = regen.buffer;
-      method = 'regenerated';
-      log('✅ regenerated PDF, fresh url:', regen.pdfUrl || '(inline only)', 'bytes=', pdfBuffer.length);
-    } catch (err) {
-      console.error('[ADMIN_PRINT_PDF] regeneration failed:', err && err.stack);
-      return {
-        statusCode: 500,
-        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ success: false, error: (err && err.message) || 'Failed to produce print PDF' }),
-      };
-    }
-  }
-
-  if (!pdfBuffer || pdfBuffer.length === 0) {
-    log('❌ pdfBuffer missing or empty after generation');
-    return {
-      statusCode: 500,
-      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ success: false, error: 'Print PDF was empty' }),
-    };
-  }
-
-  log('final delivery: contentType=application/pdf method=' + method + ' bytes=' + pdfBuffer.length);
-  return makePdfResponse(pdfBuffer, orderId, method);
 };
