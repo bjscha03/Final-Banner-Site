@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 import { isPreviewEnvironment, isProductionHost } from './lib/environment';
-import { installCartThumbnailPersistence } from './lib/cartThumbnailPersistence';
 
 const PREVIEW_SESSION_KEY = 'preview_access_granted';
 
@@ -106,8 +105,6 @@ function shouldRequirePreviewGate(): boolean {
   const hasAccess = sessionStorage.getItem(PREVIEW_SESSION_KEY) === 'true';
   return !hasAccess;
 }
-
-installCartThumbnailPersistence();
 
 const RootComponent = shouldRequirePreviewGate() ? PreviewAccessGate : App;
 
