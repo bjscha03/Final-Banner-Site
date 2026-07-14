@@ -38,6 +38,8 @@ export interface PositionedThumbnailInput {
   backgroundColor?: string;
   /** Maximum output dimension on the longer side (px). Defaults to 1200. */
   maxOutputPx?: number;
+  /** Maximum total output pixels. Defaults to no cap. */
+  maxOutputPixels?: number;
 }
 
 export interface PositionedThumbnailResult {
@@ -49,6 +51,25 @@ export interface PositionedThumbnailResult {
   widthPx: number;
   /** Output height in pixels. */
   heightPx: number;
+}
+
+export function calculatePositionedOutputSize(widthIn: number, heightIn: number, maxOutputPx: number, maxOutputPixels?: number) {
+  const aspect = widthIn / heightIn;
+  let outW: number;
+  let outH: number;
+  if (aspect >= 1) {
+    outW = maxOutputPx;
+    outH = Math.round(maxOutputPx / aspect);
+  } else {
+    outH = maxOutputPx;
+    outW = Math.round(maxOutputPx * aspect);
+  }
+  if (maxOutputPixels && outW * outH > maxOutputPixels) {
+    const capScale = Math.sqrt(maxOutputPixels / (outW * outH));
+    outW = Math.max(1, Math.floor(outW * capScale));
+    outH = Math.max(1, Math.floor(outH * capScale));
+  }
+  return { widthPx: outW, heightPx: outH };
 }
 
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -78,6 +99,7 @@ export async function renderPositionedThumbnailDataUrl(
     imgScaleY,
     backgroundColor = '#fafafa',
     maxOutputPx = 1200,
+    maxOutputPixels,
   } = input;
   const scaleX = imgScale;
   const scaleY = imgScaleY ?? imgScale;
@@ -86,16 +108,7 @@ export async function renderPositionedThumbnailDataUrl(
   if (!widthIn || !heightIn) throw new Error('generatePositionedThumbnail: widthIn/heightIn required');
 
   // Output canvas dimensions match banner aspect ratio.
-  const aspect = widthIn / heightIn;
-  let outW: number;
-  let outH: number;
-  if (aspect >= 1) {
-    outW = maxOutputPx;
-    outH = Math.round(maxOutputPx / aspect);
-  } else {
-    outH = maxOutputPx;
-    outW = Math.round(maxOutputPx * aspect);
-  }
+  const { widthPx: outW, heightPx: outH } = calculatePositionedOutputSize(widthIn, heightIn, maxOutputPx, maxOutputPixels);
 
   const canvas = document.createElement('canvas');
   canvas.width = outW;
@@ -175,4 +188,17 @@ export async function generatePositionedThumbnail(
     console.warn('[generatePositionedThumbnail] failed:', err);
     return null;
   }
+}
+
+export async function generatePositionedWebPreview(
+  input: Omit<PositionedThumbnailInput, 'maxOutputPx' | 'maxOutputPixels'> & {
+    maxOutputPx?: number;
+    maxOutputPixels?: number;
+  }
+): Promise<PositionedThumbnailResult | null> {
+  return generatePositionedThumbnail({
+    ...input,
+    maxOutputPx: input.maxOutputPx ?? 6000,
+    maxOutputPixels: input.maxOutputPixels ?? 24_000_000,
+  });
 }

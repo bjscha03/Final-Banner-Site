@@ -189,6 +189,9 @@ const getPaymentMethodInfo = (order: Order): PaymentMethodInfo | null => {
     }
     return { label: 'Stripe / Card', className: 'bg-[#635BFF]/10 text-[#3a32d6] border border-[#635BFF]/30' };
   }
+  if (method === 'admin_deploy_preview_test') {
+    return { label: 'Admin Test', className: 'bg-red-100 text-red-800 border border-red-200' };
+  }
   if (!method) return null;
   return { label: method.charAt(0).toUpperCase() + method.slice(1), className: 'bg-gray-100 text-gray-700' };
 };
@@ -312,7 +315,7 @@ const AdminOrders: React.FC = () => {
       inProductionOrders: allOrders.filter((o) => o.status === 'in_production').length,
       shippedOrders: allOrders.filter((o) => o.tracking_number).length,
       pendingOrders: allOrders.filter((o) => !o.tracking_number && o.status !== 'in_production').length,
-      totalRevenueCents: allOrders.reduce((sum, o) => sum + o.total_cents, 0),
+      totalRevenueCents: allOrders.filter((o) => !o.is_test_order).reduce((sum, o) => sum + o.total_cents, 0),
       abandonedCarts: abandonedCartsCount,
       customQuotes: customQuotesCount,
     });
@@ -1130,7 +1133,7 @@ const AdminOrders: React.FC = () => {
                 <div className="ml-4">
                   <p className="text-sm text-gray-600">Revenue</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {usd(orders.reduce((sum, o) => sum + o.total_cents, 0) / 100)}
+                    {usd(orders.filter((o) => !o.is_test_order).reduce((sum, o) => sum + o.total_cents, 0) / 100)}
                   </p>
                 </div>
               </div>
@@ -1440,6 +1443,11 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
             <div className={`font-mono text-sm font-semibold ${ORDER_ACCENT_TEXT_CLASS}`}>
               #{order.id ? order.id.slice(-8).toUpperCase() : 'UNKNOWN'}
             </div>
+            {order.is_test_order && (
+              <Badge className="bg-red-100 text-red-800 border border-red-200 text-[10px] font-bold">
+                TEST ORDER
+              </Badge>
+            )}
             <div className="text-xs text-gray-500">
               {new Date(order.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
             </div>
@@ -1868,6 +1876,11 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <div className="font-mono text-sm font-semibold text-[#18448D] break-all">#{order.id.slice(-8).toUpperCase()}</div>
+              {order.is_test_order && (
+                <Badge className="mt-1 bg-red-100 text-red-800 border border-red-200 text-[10px] font-bold">
+                  TEST ORDER
+                </Badge>
+              )}
               <div className="text-xs text-gray-500">{new Date(order.created_at).toLocaleDateString()}</div>
               <div className="text-sm font-medium text-gray-900 break-words">{order.customer_name || order.shipping_name || 'Not provided'}</div>
               <div className="text-xs text-gray-600 break-all">{order.email || 'No email'}</div>
