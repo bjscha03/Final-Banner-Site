@@ -5,12 +5,24 @@ export type ExpandedPreviewSelection = {
   isPreparingHighResolution: boolean;
 };
 
+const isRawPdfUrl = (value?: string | null) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  return Boolean(normalized) && (
+    /\.pdf(?:$|[?#])/.test(normalized)
+    || normalized.includes('/raw/upload/')
+    || normalized.startsWith('application/pdf')
+  );
+};
+
 const isUsablePreviewUrl = (value?: string | null) => (
   typeof value === 'string'
   && value.trim().length > 0
   && !value.startsWith('blob:')
-  && !value.startsWith('data:')
-  && !value.toLowerCase().endsWith('.pdf')
+  && !isRawPdfUrl(value)
+);
+
+const isUsableTemporaryDataUrl = (value?: string | null) => (
+  typeof value === 'string' && value.startsWith('data:image/')
 );
 
 export const getExpandedPreviewSelection = (item: {
@@ -24,8 +36,8 @@ export const getExpandedPreviewSelection = (item: {
   if (isUsablePreviewUrl(item.final_render_url)) {
     return { url: item.final_render_url!, source: 'final_render', isLowResolutionFallback: false, isPreparingHighResolution: false };
   }
-  if (item.thumbnail_url) {
-    return { url: item.thumbnail_url, source: 'thumbnail_fallback', isLowResolutionFallback: true, isPreparingHighResolution: true };
+  if (isUsablePreviewUrl(item.thumbnail_url) || isUsableTemporaryDataUrl(item.thumbnail_url)) {
+    return { url: item.thumbnail_url!, source: 'thumbnail_fallback', isLowResolutionFallback: true, isPreparingHighResolution: true };
   }
   return { url: null, source: 'none', isLowResolutionFallback: false, isPreparingHighResolution: true };
 };
@@ -34,6 +46,20 @@ export const getSmallPreviewUrl = (item: {
   thumbnail_url?: string | null;
   file_url?: string | null;
   web_preview_url?: string | null;
+  final_render_url?: string | null;
   print_ready_url?: string | null;
   aiDesign?: { assets?: { proofUrl?: string | null } } | null;
-}) => item.thumbnail_url || item.file_url || item.web_preview_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl || null;
+}) => {
+  const candidates = [
+    item.thumbnail_url,
+    item.web_preview_url,
+    item.final_render_url,
+    item.file_url,
+    item.print_ready_url,
+    item.aiDesign?.assets?.proofUrl,
+  ];
+  const permanent = candidates.find(isUsablePreviewUrl);
+  if (permanent) return permanent;
+  if (isUsableTemporaryDataUrl(item.thumbnail_url)) return item.thumbnail_url!;
+  return null;
+};

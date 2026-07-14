@@ -1,6 +1,7 @@
 /**
- * Utility for uploading canvas images to Cloudinary
- * Used when images are added to the canvas editor to ensure they persist across sessions
+ * Utility for uploading canvas images to Cloudinary.
+ * Used when images are added to the canvas editor to ensure they persist
+ * across page navigation and browser sessions.
  */
 
 export interface UploadResult {
@@ -11,11 +12,29 @@ export interface UploadResult {
   height?: number;
 }
 
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+  timeoutMs = 30_000,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } catch (error) {
+    if ((error as { name?: string })?.name === 'AbortError') {
+      throw new Error(`Upload request timed out after ${Math.round(timeoutMs / 1000)} seconds`);
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
 /**
- * Upload an image blob/file to Cloudinary via the upload-file Netlify function
- * @param imageSource - Can be a File, Blob, or blob URL string
- * @param fileName - Optional filename for the upload
- * @returns Upload result with Cloudinary URL and fileKey
+ * Upload an image blob/file to Cloudinary via the upload-file Netlify function.
+ * @param imageSource Can be a File, Blob, data URL, blob URL, or HTTP URL.
+ * @param fileName Optional filename for the upload.
  */
 export async function uploadCanvasImageToCloudinary(
   imageSource: File | Blob | string,
@@ -29,31 +48,37 @@ export async function uploadCanvasImageToCloudinary(
 
   let fileToUpload: File | Blob;
 
-  // If imageSource is a string URL (blob, data, or http), handle accordingly
   if (typeof imageSource === 'string') {
-    if (imageSource.startsWith('data:')) {
-      // Convert data URL to blob
-      console.log('📥 Converting data URL to blob...');
-      const response = await fetch(imageSource);
+    if (imageSource.startsWith('data:') || imageSource.startsWith('blob:')) {
+      const response = await fetchWithTimeout(imageSource, {}, 12_000);
+      if (!response.ok) throw new Error(`Could not read temporary preview (${response.status})`);
       const blob = await response.blob();
+      if (!blob.size) throw new Error('Temporary preview was empty');
       fileToUpload = blob;
-      console.log('✅ Data URL converted to blob:', { size: blob.size, type: blob.type });
-    } else if (imageSource.startsWith('blob:')) {
-      console.log('📥 Fetching blob from URL:', imageSource.substring(0, 50) + '...');
-      const response = await fetch(imageSource);
+    } else if (/^https?:/i.test(imageSource)) {
+      let isCloudinaryUrl = false;
+      try {
+        const host = new URL(imageSource).hostname.toLowerCase();
+        isCloudinaryUrl = host === 'cloudinary.com' || host.endsWith('.cloudinary.com');
+      } catch {
+        isCloudinaryUrl = false;
+      }
+
+      if (isCloudinaryUrl) {
+        const match = imageSource.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?(?:[?#].*)?$/);
+        const fileKey = match ? match[1] : '';
+        return {
+          secureUrl: imageSource,
+          fileKey,
+          publicId: fileKey,
+        };
+      }
+
+      const response = await fetchWithTimeout(imageSource, { mode: 'cors' }, 15_000);
+      if (!response.ok) throw new Error(`Could not download preview (${response.status})`);
       const blob = await response.blob();
+      if (!blob.size) throw new Error('Downloaded preview was empty');
       fileToUpload = blob;
-    } else if (imageSource.startsWith('http')) {
-      // If it's already a Cloudinary URL, no need to re-upload
-      console.log('⚠️ Image is already a Cloudinary URL, skipping upload');
-      // Extract fileKey from URL
-      const match = imageSource.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
-      const fileKey = match ? match[1] : '';
-      return {
-        secureUrl: imageSource,
-        fileKey,
-        publicId: fileKey,
-      };
     } else {
       throw new Error('Invalid image source: must be a blob URL, HTTP URL, File, or Blob');
     }
@@ -61,27 +86,22 @@ export async function uploadCanvasImageToCloudinary(
     fileToUpload = imageSource;
   }
 
-  // Create FormData for upload
   const formData = new FormData();
-  
-  // If we have a File, use its name; otherwise use provided fileName or generate one
-  const uploadFileName = fileToUpload instanceof File 
-    ? fileToUpload.name 
+  const uploadFileName = fileToUpload instanceof File
+    ? fileToUpload.name
     : (fileName || `canvas-image-${Date.now()}.png`);
-  
   formData.append('file', fileToUpload, uploadFileName);
 
-  console.log('📤 Uploading to Cloudinary via upload-file function...', {
+  console.log('📤 Uploading canvas image:', {
     fileName: uploadFileName,
     size: fileToUpload.size,
     type: fileToUpload.type
   });
 
-  // Upload to Cloudinary via Netlify function
-  const response = await fetch('/.netlify/functions/upload-file', {
+  const response = await fetchWithTimeout('/.netlify/functions/upload-file', {
     method: 'POST',
     body: formData,
-  });
+  }, 35_000);
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -90,23 +110,25 @@ export async function uploadCanvasImageToCloudinary(
   }
 
   const result = await response.json();
-  console.log('✅ Upload successful:', result);
+  const secureUrl = result.secureUrl || result.url;
+  const fileKey = result.fileKey || result.publicId;
+  if (!secureUrl || !fileKey) {
+    throw new Error('Preview upload completed without a permanent URL');
+  }
 
   return {
-    secureUrl: result.secureUrl,
-    fileKey: result.fileKey || result.publicId,
-    publicId: result.publicId || result.fileKey,
+    secureUrl,
+    fileKey,
+    publicId: result.publicId || fileKey,
     width: result.width,
     height: result.height,
   };
 }
 
-/**
- * Convert a blob URL to a File object
- * Useful for uploading blob URLs that need to be persisted
- */
+/** Convert a blob URL to a File object. */
 export async function blobUrlToFile(blobUrl: string, fileName: string): Promise<File> {
-  const response = await fetch(blobUrl);
+  const response = await fetchWithTimeout(blobUrl, {}, 12_000);
+  if (!response.ok) throw new Error(`Could not read blob URL (${response.status})`);
   const blob = await response.blob();
   return new File([blob], fileName, { type: blob.type });
 }

@@ -10,6 +10,19 @@ describe('previewSelection', () => {
     })).toBe('https://cdn.example.com/thumb.png');
   });
 
+  it('never sends a raw PDF URL to an img element when a web preview exists', () => {
+    expect(getSmallPreviewUrl({
+      file_url: 'https://res.cloudinary.com/demo/raw/upload/v1/uploads/artwork.pdf',
+      web_preview_url: 'https://cdn.example.com/web-preview.png',
+    })).toBe('https://cdn.example.com/web-preview.png');
+  });
+
+  it('returns no image when the only candidate is a raw PDF', () => {
+    expect(getSmallPreviewUrl({
+      file_url: 'https://res.cloudinary.com/demo/raw/upload/v1/uploads/artwork.pdf',
+    })).toBeNull();
+  });
+
   it('uses web_preview_url before final_render_url or thumbnail_url for expanded previews', () => {
     const selected = getExpandedPreviewSelection({
       thumbnail_url: 'https://cdn.example.com/thumb.png',

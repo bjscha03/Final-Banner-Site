@@ -8,37 +8,27 @@
  * plus translate(imgPos)/scale(imgScale) used by the live builder preview, on
  * a neutral background. The resulting data URL is uploaded to Cloudinary so
  * cart/checkout/admin can all reference the same baked-in approved image.
- *
- * The math here mirrors the live preview in:
- *   - src/pages/Design.tsx (previewContainerRef + transform: translate(...) scale(...))
- *   - src/pages/GoogleAdsBanner.tsx (same)
- *
- * Image position is stored in PERCENT of the live container (containerCssWidth/
- * containerCssHeight). We re-derive draw rect at any output size from those
- * percents so the thumbnail looks identical regardless of the user's window
- * size at Add-to-Cart time.
  */
 import { uploadCanvasImageToCloudinary } from './uploadCanvasImage';
 
 export interface PositionedThumbnailInput {
-  /** Image source URL (Cloudinary; or PDF first-page jpg URL for PDFs). */
+  /** Image source URL (Cloudinary; or PDF first-page browser preview URL). */
   imageUrl: string;
   /** Banner width in inches (used for aspect ratio). */
   widthIn: number;
   /** Banner height in inches (used for aspect ratio). */
   heightIn: number;
-  /** Image position as percentage of the live preview container, e.g. { x: -12.5, y: 7.2 }. */
+  /** Image position as percentage of the live preview container. */
   imgPosPercent: { x: number; y: number };
   /** Image scale (1 = native object-contain fit inside the container). */
   imgScale: number;
-  /** Optional vertical scale for non-uniform (freeform) transforms. Defaults
-   *  to `imgScale` so existing callers stay backward-compatible. */
+  /** Optional vertical scale for non-uniform transforms. */
   imgScaleY?: number;
-  /** Background color for areas not covered by the image (neutral). */
+  /** Background color for areas not covered by the image. */
   backgroundColor?: string;
   /** Maximum output dimension on the longer side (px). Defaults to 1200. */
   maxOutputPx?: number;
-  /** Maximum total output pixels. Defaults to no cap. */
+  /** Maximum total output pixels. */
   maxOutputPixels?: number;
 }
 
@@ -52,6 +42,14 @@ export interface PositionedThumbnailResult {
   /** Output height in pixels. */
   heightPx: number;
 }
+
+const isConstrainedBrowser = () => {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+  const nav = navigator as Navigator & { deviceMemory?: number };
+  return window.matchMedia?.('(max-width: 768px)').matches
+    || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+    || (typeof nav.deviceMemory === 'number' && nav.deviceMemory <= 4);
+};
 
 export function calculatePositionedOutputSize(widthIn: number, heightIn: number, maxOutputPx: number, maxOutputPixels?: number) {
   const aspect = widthIn / heightIn;
@@ -75,17 +73,48 @@ export function calculatePositionedOutputSize(widthIn: number, heightIn: number,
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
-    img.onerror = (err) => reject(err);
+    let settled = false;
+    const finish = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutId);
+      fn();
+    };
+    const timeoutId = window.setTimeout(() => {
+      finish(() => reject(new Error('Thumbnail source image timed out while loading')));
+    }, isConstrainedBrowser() ? 10_000 : 15_000);
+
+    if (/^https?:/i.test(src)) img.crossOrigin = 'anonymous';
+    img.decoding = 'async';
+    img.onload = () => finish(() => resolve(img));
+    img.onerror = () => finish(() => reject(new Error('Thumbnail source image failed to load')));
     img.src = src;
+
+    if (img.complete && img.naturalWidth > 0) {
+      finish(() => resolve(img));
+    }
   });
+}
+
+async function stabilizeImageSource(src: string) {
+  if (!src.startsWith('blob:') && !src.startsWith('data:')) {
+    return { url: src, cleanup: () => undefined };
+  }
+
+  const response = await fetch(src);
+  if (!response.ok) throw new Error(`Temporary preview could not be read (${response.status})`);
+  const blob = await response.blob();
+  if (!blob.size) throw new Error('Temporary preview was empty');
+  const stableUrl = URL.createObjectURL(blob);
+  return {
+    url: stableUrl,
+    cleanup: () => URL.revokeObjectURL(stableUrl),
+  };
 }
 
 /**
  * Render the positioned thumbnail to a data URL (PNG).
- * Pure-canvas, no Cloudinary call. Useful for tests and when an upload is
- * not desired.
+ * Pure-canvas, no Cloudinary call.
  */
 export async function renderPositionedThumbnailDataUrl(
   input: PositionedThumbnailInput
@@ -107,8 +136,19 @@ export async function renderPositionedThumbnailDataUrl(
   if (!imageUrl) throw new Error('generatePositionedThumbnail: imageUrl is required');
   if (!widthIn || !heightIn) throw new Error('generatePositionedThumbnail: widthIn/heightIn required');
 
-  // Output canvas dimensions match banner aspect ratio.
-  const { widthPx: outW, heightPx: outH } = calculatePositionedOutputSize(widthIn, heightIn, maxOutputPx, maxOutputPixels);
+  const constrained = isConstrainedBrowser();
+  const safeMaxOutputPx = constrained ? Math.min(maxOutputPx, 2400) : maxOutputPx;
+  const requestedPixelCap = maxOutputPixels ?? (constrained ? 1_500_000 : undefined);
+  const safePixelCap = constrained && requestedPixelCap
+    ? Math.min(requestedPixelCap, 4_000_000)
+    : requestedPixelCap;
+
+  const { widthPx: outW, heightPx: outH } = calculatePositionedOutputSize(
+    widthIn,
+    heightIn,
+    safeMaxOutputPx,
+    safePixelCap,
+  );
 
   const canvas = document.createElement('canvas');
   canvas.width = outW;
@@ -116,41 +156,24 @@ export async function renderPositionedThumbnailDataUrl(
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('generatePositionedThumbnail: could not get 2D context');
 
-  // Neutral background.
   ctx.fillStyle = backgroundColor;
   ctx.fillRect(0, 0, outW, outH);
 
-  let img: HTMLImageElement;
-  try {
-    img = await loadImage(imageUrl);
-  } catch (err) {
-    // If image fails to load (e.g., CORS), return the background-only canvas.
-    console.warn('[generatePositionedThumbnail] image load failed, returning background only:', err);
-    return { dataUrl: canvas.toDataURL('image/png'), widthPx: outW, heightPx: outH };
-  }
-
+  const img = await loadImage(imageUrl);
   const naturalW = img.naturalWidth || 1;
   const naturalH = img.naturalHeight || 1;
 
-  // Replicate the preview's "object-contain" sizing inside the container,
-  // then apply the user's translate/scale (transform-origin: center center).
-  // Step 1: object-contain rect at scale=1, no translation.
   const fitScale = Math.min(outW / naturalW, outH / naturalH);
   const baseDrawW = naturalW * fitScale;
   const baseDrawH = naturalH * fitScale;
 
-  // Step 2: apply user scale around the container's center (per-axis to
-  // mirror ArtworkPreviewEditor's transform: translate() scale(scaleX, scaleY)).
   const finalDrawW = baseDrawW * scaleX;
   const finalDrawH = baseDrawH * scaleY;
 
-  // Step 3: apply user translate (percent of container -> pixels of output).
   const tx = (imgPosPercent.x / 100) * outW;
   const ty = (imgPosPercent.y / 100) * outH;
-
   const cx = outW / 2 + tx;
   const cy = outH / 2 + ty;
-
   const drawX = cx - finalDrawW / 2;
   const drawY = cy - finalDrawH / 2;
 
@@ -158,22 +181,28 @@ export async function renderPositionedThumbnailDataUrl(
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(img, drawX, drawY, finalDrawW, finalDrawH);
 
-  return { dataUrl: canvas.toDataURL('image/png'), widthPx: outW, heightPx: outH };
+  const dataUrl = canvas.toDataURL('image/png', 0.92);
+  canvas.width = 0;
+  canvas.height = 0;
+  if (!dataUrl || dataUrl === 'data:,') throw new Error('Thumbnail canvas produced an empty image');
+  return { dataUrl, widthPx: outW, heightPx: outH };
 }
 
 /**
- * Render the positioned thumbnail and upload to Cloudinary. Returns the
- * permanent Cloudinary URL to store as the cart item's `thumbnail_url`.
- *
- * If anything fails (image CORS, upload error, etc.), this returns null and
- * the caller can fall back to whatever it stored previously. We never throw —
- * thumbnail generation must never block "Add to Cart".
+ * Render the positioned thumbnail and upload to Cloudinary.
+ * Temporary blob/data sources are copied immediately so route changes cannot
+ * revoke them before a slower phone finishes the upload.
  */
 export async function generatePositionedThumbnail(
   input: PositionedThumbnailInput
 ): Promise<PositionedThumbnailResult | null> {
+  let stableSource: { url: string; cleanup: () => void } | null = null;
   try {
-    const { dataUrl, widthPx, heightPx } = await renderPositionedThumbnailDataUrl(input);
+    stableSource = await stabilizeImageSource(input.imageUrl);
+    const { dataUrl, widthPx, heightPx } = await renderPositionedThumbnailDataUrl({
+      ...input,
+      imageUrl: stableSource.url,
+    });
     const upload = await uploadCanvasImageToCloudinary(
       dataUrl,
       `approved-thumbnail-${Date.now()}.png`
@@ -187,6 +216,8 @@ export async function generatePositionedThumbnail(
   } catch (err) {
     console.warn('[generatePositionedThumbnail] failed:', err);
     return null;
+  } finally {
+    stableSource?.cleanup();
   }
 }
 
@@ -196,9 +227,10 @@ export async function generatePositionedWebPreview(
     maxOutputPixels?: number;
   }
 ): Promise<PositionedThumbnailResult | null> {
+  const constrained = isConstrainedBrowser();
   return generatePositionedThumbnail({
     ...input,
-    maxOutputPx: input.maxOutputPx ?? 6000,
-    maxOutputPixels: input.maxOutputPixels ?? 24_000_000,
+    maxOutputPx: input.maxOutputPx ?? (constrained ? 2400 : 6000),
+    maxOutputPixels: input.maxOutputPixels ?? (constrained ? 4_000_000 : 24_000_000),
   });
 }
