@@ -166,23 +166,7 @@ async function isAdminUser(sql, email) {
   return false;
 }
 
-/**
- * Parses the `Cookie` header of a Netlify function `event` and returns true if
- * an `admin=1` cookie is present. This mirrors the front-end admin signal used
- * by `src/lib/auth.ts` (the same cookie that `/admin/orders` honors via
- * `getCurrentUser`). Treating the cookie as a valid admin signal keeps the
- * graduation admin endpoints in lockstep with the rest of the admin UI: any
- * session that can see /admin/orders can also see graduation intakes.
- */
-function hasAdminCookie(event) {
-  if (!event || !event.headers) return false;
-  const raw = event.headers.cookie || event.headers.Cookie || '';
-  if (typeof raw !== 'string' || !raw.length) return false;
-  return raw
-    .split(';')
-    .map((c) => c.trim())
-    .some((c) => c === 'admin=1' || c.startsWith('admin=1;'));
-}
+const { verifyAdminSession } = require('../_shared/admin-session.cjs');
 
 /**
  * Single source of truth for graduation admin authorization. Combines the
@@ -194,8 +178,8 @@ function hasAdminCookie(event) {
  * `isAdminUser` directly so we don't drift from /admin/orders auth behavior.
  */
 async function checkAdminAccess(event, sql, email) {
-  if (hasAdminCookie(event)) {
-    console.log('[graduation-admin-auth] allowed via admin=1 cookie');
+  if (verifyAdminSession(event).valid) {
+    console.log('[graduation-admin-auth] allowed via signed admin session');
     return true;
   }
   return isAdminUser(sql, email);

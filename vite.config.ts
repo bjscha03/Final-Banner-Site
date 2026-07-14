@@ -12,6 +12,11 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  define: {
+    'import.meta.env.VITE_COMMIT_REF': JSON.stringify(
+      process.env.COMMIT_REF || process.env.HEAD || process.env.CACHED_COMMIT_REF || ''
+    ),
+  },
   server: {
     host: "::",
     port: 8080,

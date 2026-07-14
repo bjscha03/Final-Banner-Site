@@ -49,68 +49,49 @@ class SecureAuthAdapter implements AuthAdapter {
       }
 
       // Debug logging for production troubleshooting
-      const hasAdminCookie = typeof document !== 'undefined' && document.cookie.includes('admin=1');
       console.log('🔍 getCurrentUser Debug:', {
         hasStoredUser: !!user,
-        hasAdminCookie,
         hostname: typeof window !== 'undefined' ? window.location.hostname : 'unknown',
-        storedUser: user ? { id: user.id, email: user.email, is_admin: user.is_admin } : null
+        storedUser: user ? { hasId: !!user.id, hasEmail: !!user.email, is_admin: user.is_admin } : null
       });
 
 
-      // 🔧 MIGRATION: Update old demo user IDs to valid UUIDs
-      if (user && (user.id === 'admin_dev_user' || user.id === 'demo-user-123')) {
-        console.log('🔄 Migrating old user ID to valid UUID:', user.id);
-        const newId = user.id === 'admin_dev_user' 
-          ? '00000000-0000-0000-0000-000000000001'
-          : '00000000-0000-0000-0000-000000000002';
-        user.id = newId;
-        safeStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
-        console.log('✅ Migrated user ID to:' , newId);
-      }
-      // If no user but admin cookie is present, create a temporary admin user
-      if (!user && hasAdminCookie) {
-        console.log('🆕 Creating temporary admin user from cookie');
-        user = {
-          id: '00000000-0000-0000-0000-000000000001', // ✅ Valid UUID for admin dev user
-          email: 'admin@dev.local',
-          is_admin: true,
-        };
-        safeStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
+      // Remove legacy browser-only admin identities. Admin authorization now
+      // comes from the server-verified HttpOnly botf_admin_session cookie, not
+      // from JavaScript-readable cookies or localStorage flags.
+      if (user && (user.id === 'admin_dev_user' || user.id === '00000000-0000-0000-0000-000000000001' || user.email === 'admin@dev.local')) {
+        console.warn('Clearing legacy fake admin identity from localStorage');
+        safeStorage.removeItem(this.CURRENT_USER_KEY);
+        user = null;
       }
 
-      // Update admin status based on cookie
-      if (user && hasAdminCookie) {
-        console.log('🔧 Updating user admin status from cookie');
-        user.is_admin = true;
-      }
+      console.log('✅ getCurrentUser result:', user ? { hasId: !!user.id, hasEmail: !!user.email, is_admin: user.is_admin } : null);
 
-      console.log('✅ getCurrentUser result:', user ? { id: user.id, email: user.email, is_admin: user.is_admin } : null);
-
-      // Upgrade admin status from server-side allowlist (ADMIN_TEST_PAY_ALLOWLIST)
+      // Upgrade admin status from server-side profile/admin allowlist checks
       // so already-signed-in admins don't have to log out / log back in to gain access.
-      // Best-effort, non-blocking on errors. Cached per-session per-email so we don't
-      // hit the function on every getCurrentUser() call.
+      // Best-effort, non-blocking on errors. Positive admin checks are cached
+      // per session, but non-admin responses are not cached so Deploy Preview
+      // environment/profile fixes are picked up immediately.
       if (user && user.email && user.is_admin !== true) {
         const cacheKey = `admin_status_checked_${user.email.toLowerCase()}`;
-        const alreadyChecked = typeof sessionStorage !== 'undefined' && sessionStorage.getItem(cacheKey) === '1';
-        if (!alreadyChecked) {
+        const alreadyCheckedAdmin = typeof sessionStorage !== 'undefined' && sessionStorage.getItem(cacheKey) === 'admin';
+        if (!alreadyCheckedAdmin) {
           try {
             const resp = await fetch(getNetlifyFunctionUrl('check-admin-status'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email: user.email }),
+              body: JSON.stringify({}),
             });
             if (resp.ok) {
               const data = await resp.json();
               if (data && data.isAdmin === true) {
                 user.is_admin = true;
                 safeStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
-                console.log('🔧 Upgraded user is_admin=true via ADMIN_TEST_PAY_ALLOWLIST');
+                console.log('🔧 Updated local admin display state from server-verified admin session');
+                if (typeof sessionStorage !== 'undefined') {
+                  sessionStorage.setItem(cacheKey, 'admin');
+                }
               }
-            }
-            if (typeof sessionStorage !== 'undefined') {
-              sessionStorage.setItem(cacheKey, '1');
             }
           } catch (allowlistError) {
             console.warn('check-admin-status lookup failed (non-fatal):', allowlistError);
@@ -126,7 +107,7 @@ class SecureAuthAdapter implements AuthAdapter {
   }
 
   async signIn(email: string, password: string): Promise<User> {
-    console.log('🔍 SIGN IN: Starting secure sign in for', email);
+    console.log('🔍 SIGN IN: Starting secure sign in', { hasEmail: !!email });
 
     try {
       // Call the secure sign-in function
@@ -144,12 +125,7 @@ class SecureAuthAdapter implements AuthAdapter {
 
       const user: User = result.user;
 
-      // Check for admin cookie to override admin status if needed
-      if (typeof document !== 'undefined' && document.cookie.includes('admin=1')) {
-        user.is_admin = true;
-      }
-
-      console.log('✅ Secure sign-in successful for:', user.email);
+      console.log('✅ Secure sign-in successful', { hasEmail: !!user.email });
       safeStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
       
       // Dispatch custom event to notify useAuth hook
@@ -166,7 +142,7 @@ class SecureAuthAdapter implements AuthAdapter {
   }
 
   async signUp(email: string, password: string, fullName?: string, username?: string): Promise<User> {
-    console.log('🔍 SIGN UP: Starting secure sign up for', email);
+    console.log('🔍 SIGN UP: Starting secure sign up', { hasEmail: !!email });
 
     try {
       // Call the secure sign-up function
@@ -187,7 +163,7 @@ class SecureAuthAdapter implements AuthAdapter {
         throw new Error(result.error || 'Sign-up failed');
       }
 
-      console.log('✅ Secure sign-up successful for:', email);
+      console.log('✅ Secure sign-up successful', { hasEmail: !!email });
       
       // Return a temporary user object (user will need to verify email before signing in)
       const user: User = {

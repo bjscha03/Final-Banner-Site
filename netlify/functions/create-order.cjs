@@ -1,5 +1,6 @@
 const { neon } = require('@neondatabase/serverless');
 const { randomUUID } = require('crypto');
+const { verifyAdminSession } = require('./_shared/admin-session.cjs');
 const { normalizeShippingAddress } = require('./shipping-address-helpers.cjs');
 const {
   reconcileSameDayFlags,
@@ -22,6 +23,44 @@ function isRealUserId(value) {
   if (v.replace(/-/g, '').replace(/0/g, '') === '') return false; // all-zero UUID
   if (v === '00000000-0000-0000-0000-000000000001') return false; // observed placeholder
   return true;
+}
+
+
+function isDeployPreviewEnvironment() {
+  const context = String(process.env.CONTEXT || process.env.VERCEL_ENV || '').toLowerCase();
+  if (context === 'deploy-preview' || context === 'preview') return true;
+  const deployUrl = String(process.env.DEPLOY_PRIME_URL || process.env.VERCEL_URL || '').toLowerCase();
+  const prodUrl = String(process.env.URL || process.env.SITE_URL || '').toLowerCase();
+  return !!deployUrl && deployUrl !== prodUrl && !deployUrl.includes('bannersonthefly.com');
+}
+
+async function verifyAdminTestIdentity(userId, email) {
+  const normalized = String(email || '').trim().toLowerCase();
+  const result = { isAuthenticated: false, isAdmin: false, source: 'none' };
+  if (!normalized || !isRealUserId(userId)) return result;
+  try {
+    const rows = await sql`
+      SELECT id, email, is_admin
+      FROM profiles
+      WHERE id = ${userId} AND lower(email) = ${normalized}
+      LIMIT 1
+    `;
+    if (!rows || !rows[0]) return result;
+    result.isAuthenticated = true;
+    if (rows[0].is_admin === true) {
+      result.isAdmin = true;
+      result.source = 'profiles.is_admin';
+      return result;
+    }
+  } catch (err) {
+    console.warn('[create-order] admin identity lookup failed:', err.message);
+  }
+  const allowlist = String(process.env.ADMIN_TEST_PAY_ALLOWLIST || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+  if (allowlist.includes(normalized)) {
+    result.isAdmin = true;
+    result.source = 'ADMIN_TEST_PAY_ALLOWLIST';
+  }
+  return result;
 }
 
 // Helper to detect bad URLs (blob:, data:, or huge strings)
@@ -390,7 +429,9 @@ exports.handler = async (event, context) => {
       await sql`
         ALTER TABLE orders
         ADD COLUMN IF NOT EXISTS stripe_payment_intent_id TEXT,
-        ADD COLUMN IF NOT EXISTS payment_method TEXT
+        ADD COLUMN IF NOT EXISTS payment_method TEXT,
+        ADD COLUMN IF NOT EXISTS is_test_order BOOLEAN DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS test_order_reason TEXT
       `;
       // Unique index for PaymentIntent dedupe (matches add-stripe-columns.sql).
       try {
@@ -850,6 +891,45 @@ exports.handler = async (event, context) => {
     // can persist the order BEFORE money is captured. Only 'pending' and
     // 'paid' are accepted here — anything else falls back to 'paid' for
     // backward compatibility with existing PayPal callers.
+    const isTestOrder = orderData.checkout_mode === 'admin_deploy_preview_test' || orderData.is_test_order === true || orderData.payment_method === 'admin_deploy_preview_test';
+    let verifiedAdminSession = null;
+    if (isTestOrder) {
+      const previewOk = isDeployPreviewEnvironment();
+      const session = verifyAdminSession(event);
+      verifiedAdminSession = session.valid ? session.claims : null;
+      console.log('[create-order] admin test checkout authorization', {
+        requested: true,
+        netlifyContext: process.env.CONTEXT || null,
+        previewOk,
+        adminSessionPresent: session.present,
+        adminSessionValid: session.valid,
+        adminSessionExpired: session.expired,
+      });
+      if (!previewOk || !session.valid) {
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({
+            ok: false,
+            error: 'ADMIN_TEST_ORDER_NOT_AUTHORIZED',
+            message: 'A valid admin session is required for Deploy Preview test checkout.',
+            details: {
+              isDeployPreview: previewOk,
+              adminSessionPresent: session.present,
+              adminSessionValid: session.valid,
+              adminSessionExpired: session.expired,
+            },
+          }),
+        };
+      }
+
+      finalUserId = isRealUserId(verifiedAdminSession?.profileId) ? verifiedAdminSession.profileId : null;
+      userEmail = verifiedAdminSession?.email || userEmail;
+      orderData.payment_method = 'admin_deploy_preview_test';
+      orderData.payment_status = 'paid';
+      orderData.is_test_order = true;
+      orderData.test_order_reason = orderData.test_order_reason || 'Deploy Preview admin test checkout via signed admin session';
+    }
     const requestedStatus = (orderData.payment_status === 'pending') ? 'pending' : 'paid';
     if (requestedStatus === 'pending') {
       console.log('[create-order] Creating PENDING order (pre-payment hold):', {
@@ -861,8 +941,8 @@ exports.handler = async (event, context) => {
     }
 
     const orderResult = await sql`
-      INSERT INTO orders (id, user_id, email, customer_name, customer_first_name, subtotal_cents, tax_cents, total_cents, status, paypal_order_id, paypal_capture_id, stripe_payment_intent_id, payment_method, shipping_name, shipping_street, shipping_street2, shipping_city, shipping_state, shipping_zip, shipping_country, applied_discount_cents, applied_discount_label, applied_discount_type, same_day_hit_service, saturday_delivery, same_day_fee_cents, saturday_fee_cents, order_timestamp_et, same_day_qualified)
-      VALUES (${orderId}, ${finalUserId}, ${userEmail}, ${orderData.customer_name || null}, ${orderData.customer_first_name || null}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, ${requestedStatus}, ${orderData.paypal_order_id || null}, ${orderData.paypal_capture_id || null}, ${orderData.stripe_payment_intent_id || null}, ${orderData.payment_method || (orderData.stripe_payment_intent_id ? 'stripe' : (orderData.paypal_order_id ? 'paypal' : null))}, ${orderData.shipping_name || null}, ${orderData.shipping_street || null}, ${orderData.shipping_street2 || null}, ${orderData.shipping_city || null}, ${orderData.shipping_state || null}, ${orderData.shipping_zip || null}, ${orderData.shipping_country || 'US'}, ${orderData.applied_discount_cents || 0}, ${orderData.applied_discount_label || ''}, ${orderData.applied_discount_type || 'none'}, ${orderSameDayHitService}, ${orderSaturdayDelivery}, ${orderSameDayFeeCents}, ${orderSaturdayFeeCents}, ${orderTimestampEt.display}, ${orderSameDayQualified})
+      INSERT INTO orders (id, user_id, email, customer_name, customer_first_name, subtotal_cents, tax_cents, total_cents, status, paypal_order_id, paypal_capture_id, stripe_payment_intent_id, payment_method, is_test_order, test_order_reason, shipping_name, shipping_street, shipping_street2, shipping_city, shipping_state, shipping_zip, shipping_country, applied_discount_cents, applied_discount_label, applied_discount_type, same_day_hit_service, saturday_delivery, same_day_fee_cents, saturday_fee_cents, order_timestamp_et, same_day_qualified)
+      VALUES (${orderId}, ${finalUserId}, ${userEmail}, ${orderData.customer_name || null}, ${orderData.customer_first_name || null}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, ${requestedStatus}, ${orderData.paypal_order_id || null}, ${orderData.paypal_capture_id || null}, ${orderData.stripe_payment_intent_id || null}, ${orderData.payment_method || (orderData.stripe_payment_intent_id ? 'stripe' : (orderData.paypal_order_id ? 'paypal' : null))}, ${isTestOrder}, ${isTestOrder ? (orderData.test_order_reason || 'Admin/developer test order') : null}, ${orderData.shipping_name || null}, ${orderData.shipping_street || null}, ${orderData.shipping_street2 || null}, ${orderData.shipping_city || null}, ${orderData.shipping_state || null}, ${orderData.shipping_zip || null}, ${orderData.shipping_country || 'US'}, ${orderData.applied_discount_cents || 0}, ${orderData.applied_discount_label || ''}, ${orderData.applied_discount_type || 'none'}, ${orderSameDayHitService}, ${orderSaturdayDelivery}, ${orderSameDayFeeCents}, ${orderSaturdayFeeCents}, ${orderTimestampEt.display}, ${orderSameDayQualified})
       RETURNING *
     `;
 
@@ -1299,6 +1379,8 @@ exports.handler = async (event, context) => {
         applied_discount_label: orderData.applied_discount_label || "",
         applied_discount_type: orderData.applied_discount_type || "none",
         status: 'paid',
+        is_test_order: isTestOrder,
+        test_order_reason: isTestOrder ? (orderData.test_order_reason || 'Admin/developer test order') : null,
         currency: orderData.currency || 'USD',
         tracking_number: null,
         tracking_carrier: null,

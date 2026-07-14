@@ -59,7 +59,21 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const { orderID } = JSON.parse(event.body || '{}');
+    const payload = JSON.parse(event.body || '{}');
+    if (payload.checkout_mode === 'admin_deploy_preview_test') {
+      console.error('Blocked PayPal capture execution during admin Deploy Preview test checkout');
+      return {
+        statusCode: 409,
+        headers,
+        body: JSON.stringify({
+          ok: false,
+          error: 'PAYPAL_BLOCKED_FOR_ADMIN_TEST_CHECKOUT',
+          message: 'Blocked PayPal execution during admin Deploy Preview test checkout.',
+        })
+      };
+    }
+
+    const { orderID } = payload;
     if (!orderID) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Missing orderID' }) };
     }

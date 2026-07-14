@@ -55,6 +55,7 @@ import CreateWithAIModal, { type CreateWithAIResult } from '@/components/design/
 import EditWithAIModal from '@/components/design/EditWithAIModal';
 import { ENABLE_AI } from '@/lib/featureFlags';
 import { base64ToFile } from '@/utils/base64ToFile';
+import { renderPdfToDataUrl } from '@/utils/pdf/renderPdfToDataUrl';
 import { computeSameDayFeesCents } from '@/lib/sameDayService';
 import ConfigCard from '@/components/design/layout/ConfigCard';
 import TrustStrip from '@/components/design/layout/TrustStrip';
@@ -796,41 +797,8 @@ const GoogleAdsBanner: React.FC = () => {
     setPromoCode('');
   };
 
-  // Compress images client-side to stay under Netlify's 6 MB function limit
-  const compressImage = useCallback(async (file: File): Promise<File> => {
-    // Skip PDFs and files already under 4.5 MB
-    if (file.type === 'application/pdf' || file.size <= 4.5 * 1024 * 1024) return file;
-    return new Promise((resolve) => {
-      const img = new Image();
-      const objectUrl = URL.createObjectURL(file);
-      const cleanup = () => URL.revokeObjectURL(objectUrl);
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        // Cap at 4000px on longest side to keep file size reasonable
-        const maxDim = 4000;
-        let { width, height } = img;
-        if (width > maxDim || height > maxDim) {
-          const ratio = Math.min(maxDim / width, maxDim / height);
-          width = Math.round(width * ratio);
-          height = Math.round(height * ratio);
-        }
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) { cleanup(); resolve(file); return; }
-        ctx.drawImage(img, 0, 0, width, height);
-        canvas.toBlob((blob) => {
-          cleanup();
-          if (!blob || blob.size >= file.size) { resolve(file); return; }
-          const compressed = new File([blob], file.name.replace(/.png$/i, '.jpg'), { type: 'image/jpeg' });
-          console.log('Compressed:', file.size, '->', compressed.size);
-          resolve(compressed);
-        }, 'image/jpeg', 0.85);
-      };
-      img.onerror = () => { cleanup(); resolve(file); };
-      img.src = objectUrl;
-    });
-  }, []);
+  // Preserve uploads exactly as received; never resize, compress, or re-encode customer artwork.
+  const preserveOriginalUpload = useCallback(async (file: File): Promise<File> => file, []);
 
   const handleFileUpload = useCallback(async (file: File) => {
     setUploadError('');
@@ -853,13 +821,36 @@ const GoogleAdsBanner: React.FC = () => {
     console.info('[upload] start', { name: file.name, size: file.size, type: file.type });
     logUx('upload_start', { name: file.name, size: file.size, type: file.type });
     try {
-      const uploadFile = await compressImage(file);
+      const uploadFile = await preserveOriginalUpload(file);
       const formData = new FormData();
       formData.append('file', uploadFile);
       const res = await fetch('/.netlify/functions/upload-file', { method: 'POST', body: formData, signal: controller.signal });
       if (!res.ok) throw new Error(`Upload failed (${res.status})`);
       const data = await res.json();
-      setUploadedFile({ name: file.name, url: data.secureUrl, fileKey: data.fileKey || data.publicId, size: file.size, isPdf: file.type === 'application/pdf', thumbnailUrl: file.type === 'application/pdf' ? getPdfThumbnailUrl(data.secureUrl) : getImagePreviewUrl(data.secureUrl) });
+      let designerPreviewUrl = file.type === 'application/pdf' ? getPdfThumbnailUrl(data.secureUrl) : getImagePreviewUrl(data.secureUrl);
+      if (file.type === 'application/pdf') {
+        try {
+          designerPreviewUrl = await renderPdfToDataUrl(file, {
+            targetCssWidth: previewContainerRef.current?.offsetWidth || 1600,
+            targetCssHeight: previewContainerRef.current?.offsetHeight || 1200,
+            deviceScale: window.devicePixelRatio || 1,
+            qualityMultiplier: 2,
+            minLongEdge: 3200,
+            maxPixels: 28_000_000,
+          });
+          console.info('[PDF_PREVIEW] using high-resolution local designer preview', {
+            originalUrl: data.secureUrl,
+            fileKey: data.fileKey || data.publicId,
+          });
+        } catch (previewErr) {
+          console.error('[PDF_PREVIEW] failed to render local designer preview; falling back to storage URL', {
+            error: (previewErr as Error)?.message,
+            originalUrl: data.secureUrl,
+            fileType: file.type,
+          });
+        }
+      }
+      setUploadedFile({ name: file.name, url: data.secureUrl, fileKey: data.fileKey || data.publicId, size: file.size, isPdf: file.type === 'application/pdf', thumbnailUrl: designerPreviewUrl, originalWidth: data.width, originalHeight: data.height, originalFormat: data.format, originalBytes: data.bytes } as any);
       setImgPos({ x: 0, y: 0 });
       setImgScale(1);
       setImgScaleY(1);
@@ -880,7 +871,7 @@ const GoogleAdsBanner: React.FC = () => {
       window.clearTimeout(timeoutId);
       setIsUploading(false);
     }
-  }, [compressImage]);
+  }, [preserveOriginalUpload]);
 
   // Handle a successful "Create with AI" generation: convert the returned
   // base64 PNG into a File and run it through the SAME upload pipeline used

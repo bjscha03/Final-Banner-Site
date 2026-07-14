@@ -1,98 +1,89 @@
-// renderPdfToDataUrl.ts - Simple PDF placeholder generator
-// Creates a visual placeholder for PDF files instead of trying to parse them
+import { GlobalWorkerOptions } from 'pdfjs-dist';
+
+GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+
+let pdfjsLib: typeof import('pdfjs-dist') | null = null;
 
 export type PdfRenderOptions = {
-  scale?: number;                 // UI preview scale (1 = 100%)
-  deviceScale?: number;           // window.devicePixelRatio, default 1
-  signal?: AbortSignal;           // allow cancellation when user replaces file
+  scale?: number;
+  deviceScale?: number;
+  signal?: AbortSignal;
+  targetCssWidth?: number;
+  targetCssHeight?: number;
+  qualityMultiplier?: number;
+  maxPixels?: number;
+  minLongEdge?: number;
+};
+
+const waitForAbort = (signal?: AbortSignal) => {
+  if (signal?.aborted) throw new DOMException('PDF preview rendering was cancelled', 'AbortError');
 };
 
 export async function renderPdfToDataUrl(file: File, opts: PdfRenderOptions = {}): Promise<string> {
+  if (file.type !== 'application/pdf') {
+    throw new Error(`Invalid file type: ${file.type}. Expected application/pdf.`);
+  }
+  if (file.size === 0) throw new Error('PDF file is empty');
+  waitForAbort(opts.signal);
+
+  if (!pdfjsLib) pdfjsLib = await import('pdfjs-dist');
+
+  const arrayBuffer = await file.arrayBuffer();
+  waitForAbort(opts.signal);
+
+  const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer, useSystemFonts: true });
+  const pdf = await loadingTask.promise;
   try {
-    console.log('PDF rendering started:', {
+    if (pdf.numPages < 1) throw new Error('PDF has no pages to preview');
+    const page = await pdf.getPage(1);
+    waitForAbort(opts.signal);
+
+    const baseViewport = page.getViewport({ scale: 1 });
+    const deviceScale = Math.max(1, opts.deviceScale ?? (typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1));
+    const qualityMultiplier = opts.qualityMultiplier ?? 2;
+    const minLongEdge = opts.minLongEdge ?? 2400;
+    const maxPixels = opts.maxPixels ?? 24_000_000;
+    const cssW = Math.max(opts.targetCssWidth || 0, baseViewport.width);
+    const cssH = Math.max(opts.targetCssHeight || 0, baseViewport.height);
+    const desiredLongEdge = Math.max(cssW, cssH, minLongEdge) * deviceScale * qualityMultiplier;
+    let renderScale = desiredLongEdge / Math.max(baseViewport.width, baseViewport.height);
+    let viewport = page.getViewport({ scale: renderScale });
+    const pixels = viewport.width * viewport.height;
+    if (pixels > maxPixels) {
+      renderScale *= Math.sqrt(maxPixels / pixels);
+      viewport = page.getViewport({ scale: renderScale });
+    }
+
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d', { alpha: false });
+    if (!context) throw new Error('Could not create PDF preview canvas');
+    canvas.width = Math.max(1, Math.floor(viewport.width));
+    canvas.height = Math.max(1, Math.floor(viewport.height));
+    canvas.style.width = `${Math.floor(viewport.width / deviceScale)}px`;
+    canvas.style.height = `${Math.floor(viewport.height / deviceScale)}px`;
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = 'high';
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    console.info('[PDF_PREVIEW] rendering page 1', {
       fileName: file.name,
       fileSize: file.size,
-      fileType: file.type
+      pdfViewport: `${Math.round(baseViewport.width)}x${Math.round(baseViewport.height)}`,
+      canvasPixels: `${canvas.width}x${canvas.height}`,
+      renderScale: Number(renderScale.toFixed(3)),
+      deviceScale,
+      qualityMultiplier,
+      maxPixels,
     });
 
-    if (file.type !== 'application/pdf') {
-      throw new Error(`Invalid file type: ${file.type}. Expected application/pdf.`);
-    }
-
-    if (file.size === 0) {
-      throw new Error('PDF file is empty');
-    }
-
-    console.log('Creating PDF placeholder preview...');
-    
-    // Create canvas for PDF placeholder
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d')!;
-    
-    const scale = opts.scale ?? 1;
-    const deviceScale = opts.deviceScale ?? 1;
-    
-    // Set canvas size (banner proportions)
-    canvas.width = 800 * scale * deviceScale;
-    canvas.height = 400 * scale * deviceScale;
-    
-    // Scale context for high DPI
-    context.scale(deviceScale, deviceScale);
-    
-    // Fill with white background
-    context.fillStyle = '#ffffff';
-    context.fillRect(0, 0, canvas.width / deviceScale, canvas.height / deviceScale);
-    
-    // Add subtle border
-    context.strokeStyle = '#e5e7eb';
-    context.lineWidth = 2;
-    context.strokeRect(1, 1, (canvas.width / deviceScale) - 2, (canvas.height / deviceScale) - 2);
-    
-    // Add PDF icon background
-    const iconSize = 80 * scale;
-    const iconX = (canvas.width / deviceScale) / 2 - iconSize / 2;
-    const iconY = (canvas.height / deviceScale) / 2 - iconSize / 2 - 30 * scale;
-    
-    context.fillStyle = '#fee2e2';
-    context.fillRect(iconX, iconY, iconSize, iconSize);
-    
-    // Add PDF icon
-    context.fillStyle = '#dc2626';
-    context.font = `${40 * scale}px Arial, sans-serif`;
-    context.textAlign = 'center';
-    context.fillText('PDF', (canvas.width / deviceScale) / 2, iconY + iconSize / 2 + 15 * scale);
-    
-    // Add file name
-    context.fillStyle = '#374151';
-    context.font = `${14 * scale}px Arial, sans-serif`;
-    context.textAlign = 'center';
-    
-    // Truncate long file names
-    let displayName = file.name;
-    if (displayName.length > 30) {
-      displayName = displayName.substring(0, 27) + '...';
-    }
-    
-    context.fillText(displayName, (canvas.width / deviceScale) / 2, iconY + iconSize + 30 * scale);
-    
-    // Add file size
-    const fileSizeKB = Math.round(file.size / 1024);
-    const fileSizeText = fileSizeKB > 1024 ? 
-      `${(fileSizeKB / 1024).toFixed(1)} MB` : 
-      `${fileSizeKB} KB`;
-    
-    context.fillStyle = '#6b7280';
-    context.font = `${12 * scale}px Arial, sans-serif`;
-    context.fillText(`PDF • ${fileSizeText}`, (canvas.width / deviceScale) / 2, iconY + iconSize + 50 * scale);
-    
-    const dataUrl = canvas.toDataURL('image/png', 0.95);
-    
-    console.log('✅ PDF placeholder generated successfully');
-    
+    await page.render({ canvasContext: context, viewport }).promise;
+    waitForAbort(opts.signal);
+    const dataUrl = canvas.toDataURL('image/png');
+    canvas.width = 1;
+    canvas.height = 1;
     return dataUrl;
-
-  } catch (error) {
-    console.error('PDF placeholder error:', error);
-    throw error;
+  } finally {
+    await pdf.destroy();
   }
 }

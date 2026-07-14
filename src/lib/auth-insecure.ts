@@ -24,29 +24,13 @@ class LocalAuthAdapter implements AuthAdapter {
       const stored = safeStorage.getItem(this.CURRENT_USER_KEY);
       let user = stored ? JSON.parse(stored) : null;
 
-      // Debug logging for production troubleshooting
-      const hasAdminCookie = typeof document !== 'undefined' && document.cookie.includes('admin=1');
+      // Debug logging for development troubleshooting. Do not trust browser
+      // cookies/localStorage as admin authorization.
+      console.log('🔍 getCurrentUser Debug:', {
         hasStoredUser: !!user,
-        hasAdminCookie,
         hostname: typeof window !== 'undefined' ? window.location.hostname : 'unknown',
-        cookies: typeof document !== 'undefined' ? document.cookie : 'unavailable',
-        storedUser: user ? { id: user.id, email: user.email, is_admin: user.is_admin } : null
+        storedUser: user ? { hasId: !!user.id, hasEmail: !!user.email, is_admin: user.is_admin } : null
       });
-
-      // If no user but admin cookie is present, create a temporary admin user
-      if (!user && hasAdminCookie) {
-        user = {
-          id: 'admin_dev_user',
-          email: 'admin@dev.local',
-          is_admin: true,
-        };
-        safeStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
-      }
-
-      // Update admin status based on cookie
-      if (user && hasAdminCookie) {
-        user.is_admin = true;
-      }
 
       return user;
     } catch (error) {
@@ -104,10 +88,6 @@ class LocalAuthAdapter implements AuthAdapter {
       throw new Error('Sign-in failed: Unable to create user profile. Please try again.');
     }
 
-    // Check for admin cookie
-    if (typeof document !== 'undefined' && document.cookie.includes('admin=1')) {
-      user.is_admin = true;
-    }
 
     // Store user in localStorage
     safeStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));

@@ -256,6 +256,20 @@ exports.handler = async (event, context) => {
       };
     }
 
+    if (payload.checkout_mode === 'admin_deploy_preview_test') {
+      console.error('Blocked PayPal create-order execution during admin Deploy Preview test checkout', { cid });
+      return {
+        statusCode: 409,
+        headers,
+        body: JSON.stringify({
+          ok: false,
+          error: 'PAYPAL_BLOCKED_FOR_ADMIN_TEST_CHECKOUT',
+          message: 'Blocked PayPal execution during admin Deploy Preview test checkout.',
+          cid,
+        }),
+      };
+    }
+
     const { items, shippingAddress, email, discountCode, totalCents: clientTotalCents, sameDayHitService: reqSameDay, saturdayDelivery: reqSaturday } = payload;
 
     // Validate required fields

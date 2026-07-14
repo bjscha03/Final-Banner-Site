@@ -312,7 +312,7 @@ const AdminOrders: React.FC = () => {
       inProductionOrders: allOrders.filter((o) => o.status === 'in_production').length,
       shippedOrders: allOrders.filter((o) => o.tracking_number).length,
       pendingOrders: allOrders.filter((o) => !o.tracking_number && o.status !== 'in_production').length,
-      totalRevenueCents: allOrders.reduce((sum, o) => sum + o.total_cents, 0),
+      totalRevenueCents: allOrders.filter((o) => !o.is_test_order).reduce((sum, o) => sum + o.total_cents, 0),
       abandonedCarts: abandonedCartsCount,
       customQuotes: customQuotesCount,
     });
@@ -1130,7 +1130,7 @@ const AdminOrders: React.FC = () => {
                 <div className="ml-4">
                   <p className="text-sm text-gray-600">Revenue</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {usd(orders.reduce((sum, o) => sum + o.total_cents, 0) / 100)}
+                    {usd(orders.filter((o) => !o.is_test_order).reduce((sum, o) => sum + o.total_cents, 0) / 100)}
                   </p>
                 </div>
               </div>
@@ -1516,6 +1516,11 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                 </Badge>
               ) : null;
             })()}
+            {order.is_test_order && (
+              <Badge className="bg-red-100 text-red-800 text-xs border border-red-300">
+                TEST ORDER
+              </Badge>
+            )}
             {orderItems.some(item => item.design_service_enabled) && (
               <Badge className="bg-purple-100 text-purple-800 text-xs">
                 <Palette className="h-3 w-3 mr-1" />
@@ -1670,6 +1675,17 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                     )}
                   </Button>
                 ))}
+                {orderItems.map((item: any, index: number) => item.canvas_state_json ? (
+                  <a
+                    key={`canvas-json-${index}`}
+                    href={`data:application/json;charset=utf-8,${encodeURIComponent(item.canvas_state_json)}`}
+                    download={`order-${order.id.slice(-8)}-item-${index + 1}-canvas-state.json`}
+                    className="inline-flex h-8 items-center rounded-md border border-slate-200 bg-slate-50 px-2.5 text-xs text-slate-700 hover:bg-slate-100"
+                  >
+                    <FileText className="h-3 w-3 mr-1" />
+                    Canvas JSON {index + 1}
+                  </a>
+                ) : null)}
               </div>
             ) : (
               <div className="text-xs text-gray-500 flex items-center">
@@ -1884,7 +1900,12 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
                   </Badge>
                 ) : null;
               })()}
-              {orderItems.some(item => item.design_service_enabled) && (
+              {order.is_test_order && (
+              <Badge className="bg-red-100 text-red-800 text-xs border border-red-300">
+                TEST ORDER
+              </Badge>
+            )}
+            {orderItems.some(item => item.design_service_enabled) && (
                 <Badge className="bg-purple-100 text-purple-800 text-xs">
                   <Palette className="h-3 w-3 mr-1" />
                   Design

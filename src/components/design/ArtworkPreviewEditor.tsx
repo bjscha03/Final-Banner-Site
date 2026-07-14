@@ -137,17 +137,49 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
   // letterboxing leaves the handles out in space).
   const [naturalSize, setNaturalSize] = useState<{ w: number; h: number } | null>(null);
   const [isImageLoading, setIsImageLoading] = useState<boolean>(true);
+  const [imageLoadError, setImageLoadError] = useState<string | null>(null);
+  const imageLoadTimeoutRef = useRef<number | null>(null);
+  const clearImageLoadTimeout = useCallback(() => {
+    if (imageLoadTimeoutRef.current !== null) {
+      window.clearTimeout(imageLoadTimeoutRef.current);
+      imageLoadTimeoutRef.current = null;
+    }
+  }, []);
+  const [retryNonce, setRetryNonce] = useState(0);
   useEffect(() => {
     setNaturalSize(null);
     setIsImageLoading(true);
-  }, [src]);
+    setImageLoadError(null);
+    clearImageLoadTimeout();
+    imageLoadTimeoutRef.current = window.setTimeout(() => {
+      setIsImageLoading(false);
+      setImageLoadError('Artwork preview timed out while loading.');
+      console.error('[ArtworkPreviewEditor] image load timeout', { src, alt });
+    }, 20000);
+    return clearImageLoadTimeout;
+  }, [src, retryNonce, alt, clearImageLoadTimeout]);
   const onImgLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
+    clearImageLoadTimeout();
     const t = e.currentTarget;
     if (t.naturalWidth && t.naturalHeight) {
       setNaturalSize({ w: t.naturalWidth, h: t.naturalHeight });
     }
+    setImageLoadError(null);
     setIsImageLoading(false);
-  }, []);
+  }, [clearImageLoadTimeout]);
+  const onImgError = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
+    clearImageLoadTimeout();
+    setIsImageLoading(false);
+    setImageLoadError('We could not load your artwork preview. Your original file is still preserved.');
+    console.error('[ArtworkPreviewEditor] image load error', {
+      src,
+      alt,
+      currentSrc: e.currentTarget.currentSrc,
+      crossOrigin: imageCrossOrigin,
+      naturalWidth: e.currentTarget.naturalWidth,
+      naturalHeight: e.currentTarget.naturalHeight,
+    });
+  }, [src, alt, imageCrossOrigin, clearImageLoadTimeout]);
 
   // Track canvas (outer surface) size so we can compute the contained
   // image rect on every layout change, including viewport resizes and
@@ -767,10 +799,27 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
                 }
           }
         >
+          {imageLoadError && (
+            <div className="absolute inset-0 z-40 flex items-center justify-center bg-white/90 p-4 text-center">
+              <div className="max-w-sm rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 shadow-sm">
+                <p className="font-semibold">We could not load your artwork preview.</p>
+                <p className="mt-1">Your original file is still preserved. Please retry or upload the file again.</p>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setImageLoadError(null); setIsImageLoading(true); setRetryNonce((n) => n + 1); }}
+                  className="mt-3 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-700"
+                >
+                  Retry preview
+                </button>
+              </div>
+            </div>
+          )}
           <img
+            key={`${src}-${retryNonce}`}
             src={src}
             alt={alt}
             onLoad={onImgLoad}
+            onError={onImgError}
             draggable={false}
             crossOrigin={imageCrossOrigin}
             className={
@@ -784,7 +833,7 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
             }}
           />
           {/* Selection bounding box + handles (only when selected) */}
-          {!isImageLoading && selected && (
+          {!isImageLoading && !imageLoadError && selected && (
             <>
               <div
                 className="absolute inset-0 pointer-events-none"
@@ -859,7 +908,7 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
             hidden on EVERY screen size and the toolbar renders BELOW the
             canvas via portal so the controls never cover the printable
             artwork — on desktop or mobile. */}
-        {!isImageLoading && selected && !mobileToolbarContainer && (
+        {!isImageLoading && !imageLoadError && selected && !mobileToolbarContainer && (
           <div
             className="absolute left-1/2 z-30 pointer-events-none"
             style={{
@@ -874,7 +923,7 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
       {/* Toolbar rendered below the canvas via portal so it doesn't sit
           on top of the printable artwork. Used for both desktop and
           mobile when the host page provides a mount point. */}
-      {!isImageLoading && selected && mobileToolbarContainer
+      {!isImageLoading && !imageLoadError && selected && mobileToolbarContainer
         ? createPortal(
             <div className="flex justify-center w-full">
               {renderToolbarPill('mobile')}

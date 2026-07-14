@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 import { isPreviewEnvironment, isProductionHost } from './lib/environment';
+import { installDirectArtworkUploadBridge } from './utils/installDirectArtworkUploadBridge';
 
 const PREVIEW_SESSION_KEY = 'preview_access_granted';
 
@@ -105,6 +106,11 @@ function shouldRequirePreviewGate(): boolean {
   const hasAccess = sessionStorage.getItem(PREVIEW_SESSION_KEY) === 'true';
   return !hasAccess;
 }
+
+// Install before any React component mounts so every existing artwork uploader
+// uses the direct signed transport instead of sending large files through a
+// buffered Netlify Function.
+installDirectArtworkUploadBridge();
 
 const RootComponent = shouldRequirePreviewGate() ? PreviewAccessGate : App;
 
