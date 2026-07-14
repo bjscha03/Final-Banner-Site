@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { RotateCcw, Maximize2, Minimize2, Link2, Unlink2 } from 'lucide-react';
+import { getPreviewCrossOrigin, resolveArtworkPreviewImageSrc } from './artworkPreviewSource';
 
 /**
  * PR3 — Modern Canva-style artwork editor used inside the live preview canvas.
@@ -33,6 +34,10 @@ export type ArtworkTransform = {
 
 export interface ArtworkPreviewEditorProps {
   src: string;
+  previewUrl?: string | null;
+  productionUrl?: string | null;
+  resourceType?: 'image' | 'raw' | string | null;
+  mimeType?: string | null;
   alt?: string;
   /** Padding-bottom percent string (e.g. "50%") used for canvas aspect ratio. */
   paddingPct: string;
@@ -71,6 +76,7 @@ export interface ArtworkPreviewEditorProps {
    *  when the host page generates a canvas thumbnail from the rendered
    *  image (e.g. yard sign preview save). */
   imageCrossOrigin?: '' | 'anonymous' | 'use-credentials';
+  onRetryPreview?: () => void | Promise<void>;
 }
 
 type Corner = 'tl' | 'tr' | 'bl' | 'br';
@@ -80,7 +86,6 @@ const CLAMP_MAX = 5;
 
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 
-
 const snapToDevicePixel = (n: number, dpr: number) => {
   if (!Number.isFinite(n)) return 0;
   const safeDpr = dpr > 0 ? dpr : 1;
@@ -89,6 +94,10 @@ const snapToDevicePixel = (n: number, dpr: number) => {
 
 const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
   src,
+  previewUrl,
+  productionUrl,
+  resourceType,
+  mimeType,
   alt = 'Artwork preview',
   paddingPct,
   value,
@@ -104,7 +113,11 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
   canvasStyle,
   mobileToolbarContainer,
   imageCrossOrigin,
+  onRetryPreview,
 }) => {
+  const imageSrc = resolveArtworkPreviewImageSrc({ src, previewUrl, resourceType, mimeType });
+  const rawPdfRejected = !imageSrc;
+  const resolvedImageCrossOrigin = getPreviewCrossOrigin(imageSrc, imageCrossOrigin);
   const internalRef = useRef<HTMLDivElement | null>(null);
   const setContainerRef = useCallback(
     (node: HTMLDivElement | null) => {
@@ -117,7 +130,7 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
   const [selected, setSelected] = useState<boolean>(autoSelect);
   useEffect(() => {
     if (autoSelect) setSelected(true);
-  }, [autoSelect, src]);
+  }, [autoSelect, imageSrc]);
 
   // Refs that mirror props/state so non-React listeners (resize observer,
   // window pointer events, rAF callbacks) always read the latest values
@@ -137,17 +150,57 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
   // letterboxing leaves the handles out in space).
   const [naturalSize, setNaturalSize] = useState<{ w: number; h: number } | null>(null);
   const [isImageLoading, setIsImageLoading] = useState<boolean>(true);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [retryNonce, setRetryNonce] = useState(0);
+  const previewTimeoutRef = useRef<number | null>(null);
+  const activePreviewSrcRef = useRef<string>('');
+  const clearPreviewTimeout = useCallback(() => {
+    if (previewTimeoutRef.current != null) {
+      window.clearTimeout(previewTimeoutRef.current);
+      previewTimeoutRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => () => clearPreviewTimeout(), [clearPreviewTimeout]);
+
   useEffect(() => {
+    clearPreviewTimeout();
+    activePreviewSrcRef.current = imageSrc;
     setNaturalSize(null);
-    setIsImageLoading(true);
-  }, [src]);
+    setPreviewError(rawPdfRejected ? 'This PDF needs a browser preview before it can be displayed.' : null);
+    setIsImageLoading(Boolean(imageSrc) && !rawPdfRejected);
+    if (!imageSrc || rawPdfRejected) return;
+
+    const expectedSrc = imageSrc;
+    previewTimeoutRef.current = window.setTimeout(() => {
+      if (activePreviewSrcRef.current !== expectedSrc) return;
+      previewTimeoutRef.current = null;
+      setIsImageLoading(false);
+      setPreviewError('We could not load your artwork preview. Your original file is still preserved.');
+      console.warn('[artwork_preview]', { event: 'preview_image_failed', reason: 'timeout', hasProductionUrl: Boolean(productionUrl), resourceType, mimeType });
+    }, 15000);
+
+    return () => clearPreviewTimeout();
+  }, [imageSrc, rawPdfRejected, productionUrl, resourceType, mimeType, retryNonce, clearPreviewTimeout]);
   const onImgLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
+    if (activePreviewSrcRef.current !== imageSrc) return;
+    clearPreviewTimeout();
     const t = e.currentTarget;
     if (t.naturalWidth && t.naturalHeight) {
       setNaturalSize({ w: t.naturalWidth, h: t.naturalHeight });
     }
+    setPreviewError(null);
     setIsImageLoading(false);
-  }, []);
+    console.info('[artwork_preview]', { event: 'preview_image_loaded', resourceType, mimeType });
+  }, [resourceType, mimeType, imageSrc, clearPreviewTimeout]);
+  const onImgError = useCallback(() => {
+    if (activePreviewSrcRef.current !== imageSrc) return;
+    clearPreviewTimeout();
+    setNaturalSize(null);
+    setIsImageLoading(false);
+    setPreviewError('We could not load your artwork preview. Your original file is still preserved.');
+    console.warn('[artwork_preview]', { event: 'preview_image_failed', hasProductionUrl: Boolean(productionUrl), resourceType, mimeType });
+  }, [productionUrl, resourceType, mimeType, imageSrc, clearPreviewTimeout]);
 
   // Track canvas (outer surface) size so we can compute the contained
   // image rect on every layout change, including viewport resizes and
@@ -583,10 +636,10 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
     }
     s = clamp(s, 1, CLAMP_MAX);
     if (import.meta.env.DEV) {
-      console.log('[ArtworkPreviewEditor:action]', { action: 'fill', scale: s, src });
+      console.log('[ArtworkPreviewEditor:action]', { action: 'fill', scale: s, src: imageSrc });
     }
     onChange({ x: 0, y: 0, scaleX: s, scaleY: s });
-  }, [onChange, naturalSize]);
+  }, [onChange, naturalSize, imageSrc]);
 
   const toggleConstrain = useCallback(() => {
     const next = !constrain;
@@ -672,7 +725,7 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
     const tag = '[ArtworkPreviewEditor:render-debug]';
     console.log(tag, {
       selected,
-      src,
+      src: imageSrc,
       naturalWidth: naturalSize?.w ?? null,
       naturalHeight: naturalSize?.h ?? null,
       renderedWidth: artworkFrame.width,
@@ -686,7 +739,7 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
       devicePixelRatio: dpr,
       containRect: containedRect ? { w: containedRect.w, h: containedRect.h } : null,
     });
-  }, [selected, src, naturalSize, artworkFrame, value.scaleX, value.scaleY, value.x, value.y, dpr, containedRect]);
+  }, [selected, imageSrc, naturalSize, artworkFrame, value.scaleX, value.scaleY, value.x, value.y, dpr, containedRect]);
 
   const handlePositions: Record<Corner, React.CSSProperties> = {
     tl: { top: 0, left: 0, transform: 'translate(-50%, -50%)', cursor: 'nwse-resize' },
@@ -767,12 +820,26 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
                 }
           }
         >
+          {previewError && (
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-white/95 p-4 text-center text-sm text-red-700">
+              <span>{previewError}</span>
+              <button
+                type="button"
+                className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
+                onClick={(e) => { e.stopPropagation(); clearPreviewTimeout(); setRetryNonce((n) => n + 1); void onRetryPreview?.(); }}
+              >
+                Retry preview
+              </button>
+            </div>
+          )}
+          {imageSrc && !previewError && (
           <img
-            src={src}
+            src={imageSrc}
             alt={alt}
             onLoad={onImgLoad}
+            onError={onImgError}
             draggable={false}
-            crossOrigin={imageCrossOrigin}
+            crossOrigin={resolvedImageCrossOrigin}
             className={
               'absolute inset-0 w-full h-full pointer-events-none ' +
               (containedRect ? '' : 'object-contain')
@@ -783,8 +850,9 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
               backfaceVisibility: 'hidden',
             }}
           />
+          )}
           {/* Selection bounding box + handles (only when selected) */}
-          {!isImageLoading && selected && (
+          {!isImageLoading && naturalSize && !previewError && selected && (
             <>
               <div
                 className="absolute inset-0 pointer-events-none"
