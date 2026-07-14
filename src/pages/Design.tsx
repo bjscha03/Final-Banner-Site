@@ -18,6 +18,7 @@ import { resolvePromo, getKnownPromo } from '@/lib/promoEngine';
 import { useToast } from '@/components/ui/use-toast';
 import { generateFinalRenderFromHTML } from '@/utils/generateFinalRenderFromHTML';
 import { generatePositionedThumbnail, renderPositionedThumbnailDataUrl } from '@/utils/generatePositionedThumbnail';
+import { renderPdfToDataUrl } from '@/utils/pdf/renderPdfToDataUrl';
 import type { ProductTypeSlug } from '@/lib/products';
 import ProductTypeSwitcher from '@/components/design/ProductTypeSwitcher';
 import YardSignConfigurator from '@/components/design/YardSignConfigurator';
@@ -66,6 +67,25 @@ import {
 import { logUx } from '@/lib/uxAnalytics';
 import { formatOptionValue, getDisplayPlacement } from '@/lib/product-display';
 import { useAuth, isAdmin } from '@/lib/auth';
+
+type UploadedArtworkFile = {
+  name: string;
+  url: string;
+  fileKey: string;
+  size: number;
+  isPdf: boolean;
+  thumbnailUrl?: string;
+  previewUrl?: string;
+  productionUrl?: string;
+  productionPublicId?: string;
+  resourceType?: 'image' | 'raw' | string;
+  mimeType?: string;
+  originalFormat?: string;
+  originalBytes?: number;
+  originalWidth?: number | null;
+  originalHeight?: number | null;
+  pdfPageNumber?: number;
+};
 
 const PRESET_SIZES = [
   { w: 48, h: 24 },
@@ -264,7 +284,7 @@ const Design: React.FC = () => {
   // leak design state between banner / car magnet (yard sign manages
   // its own multi-design array via `yardSignDesigns`).
   type DesignSnapshot = {
-    uploadedFile: { name: string; url: string; fileKey: string; size: number; isPdf: boolean; thumbnailUrl?: string } | null;
+    uploadedFile: UploadedArtworkFile | null;
     imgPos: { x: number; y: number };
     imgScale: number;
     // PR3: per-axis scale + constrain-proportions toggle. scaleY defaults
@@ -484,7 +504,7 @@ const Design: React.FC = () => {
   const [finishingType, setFinishingType] = useState<FinishingType>('none');
   const [ropePlacement, setRopePlacement] = useState<RopePlacement>('top');
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState<{name: string; url: string; fileKey: string; size: number; isPdf: boolean; thumbnailUrl?: string} | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<UploadedArtworkFile | null>(null);
   const [uploadError, setUploadError] = useState('');
   const [activePreset, setActivePreset] = useState<number | null>(0);
   const [quantity, setQuantity] = useState(initialProductType === 'yard_sign' ? 10 : 1);
@@ -963,32 +983,115 @@ const Design: React.FC = () => {
       setUploadError('File too large. Please upload a file under 50MB.');
       return;
     }
-    // 60s safety timeout so the UI never gets stuck on "Uploading..." if the
-    // network or Cloudinary stalls. Always reset loading state in finally.
+
+    const correlationId = `artwork-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const isPdf = file.type === 'application/pdf' || ext === 'pdf';
+    const mimeType = isPdf ? 'application/pdf' : (file.type || (ext === 'png' ? 'image/png' : 'image/jpeg'));
+    const resourceType = isPdf ? 'raw' : 'image';
+    const logArtworkStage = (stage: string, extra: Record<string, unknown> = {}) => {
+      console.info('[artwork_upload]', { correlationId, stage, name: file.name, mimeType, resourceType, ...extra });
+    };
+    const readImageDimensions = (url: string) => new Promise<{ width: number; height: number } | null>((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+      img.onerror = () => resolve(null);
+      img.src = url;
+    });
+    const preloadImage = (url: string) => new Promise<boolean>((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve(true);
+      img.onerror = () => resolve(false);
+      img.src = url;
+    });
+
     const UPLOAD_TIMEOUT_MS = 60_000;
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
     setIsUploading(true);
-    console.info('[upload] start', { name: file.name, size: file.size, type: file.type });
+    logArtworkStage('file_selected', { size: file.size });
     logUx('upload_start', { name: file.name, size: file.size, type: file.type });
+
     try {
-      const uploadFile = await compressImage(file);
+      logArtworkStage('local_preview_started');
+      let previewUrl = '';
+      let dimensions: { width: number; height: number } | null = null;
+      if (isPdf) {
+        previewUrl = await renderPdfToDataUrl(file, {
+          scale: 2,
+          deviceScale: typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1,
+          minWidth: 1200,
+          minHeight: 1200,
+        });
+      } else {
+        previewUrl = URL.createObjectURL(file);
+        dimensions = await readImageDimensions(previewUrl);
+      }
+
+      const initialArtwork: UploadedArtworkFile = {
+        name: file.name,
+        url: previewUrl,
+        fileKey: '',
+        size: file.size,
+        isPdf,
+        thumbnailUrl: previewUrl,
+        previewUrl,
+        resourceType,
+        mimeType,
+        originalFormat: ext || (isPdf ? 'pdf' : mimeType.split('/')[1]),
+        originalBytes: file.size,
+        originalWidth: dimensions?.width ?? null,
+        originalHeight: dimensions?.height ?? null,
+        pdfPageNumber: isPdf ? 1 : undefined,
+      };
+      setUploadedFile(initialArtwork);
+      logArtworkStage('local_preview_ready', { previewUrlType: previewUrl.startsWith('data:') ? 'data' : previewUrl.startsWith('blob:') ? 'blob' : 'url' });
+
       const formData = new FormData();
-      formData.append('file', uploadFile);
+      formData.append('file', file);
+      logArtworkStage('original_upload_started');
       const res = await fetch('/.netlify/functions/upload-file', { method: 'POST', body: formData, signal: controller.signal });
       if (!res.ok) throw new Error(`Upload failed (${res.status})`);
       const data = await res.json();
-      setUploadedFile({ name: file.name, url: data.secureUrl, fileKey: data.fileKey || data.publicId, size: file.size, isPdf: file.type === 'application/pdf', thumbnailUrl: file.type === 'application/pdf' ? getPdfThumbnailUrl(data.secureUrl) : getImagePreviewUrl(data.secureUrl) });
-      console.info('[upload] success', { name: file.name, fileKey: data.fileKey || data.publicId });
-      logUx('upload_success', { name: file.name, fileKey: data.fileKey || data.publicId });
+      const productionUrl = data.secureUrl || data.url;
+      const productionPublicId = data.fileKey || data.publicId;
+      if (!productionUrl || !productionPublicId) {
+        throw new Error('Upload succeeded but did not return a permanent production asset.');
+      }
+
+      let browserPreviewUrl = previewUrl;
+      if (!isPdf && productionUrl) {
+        const productionPreviewLoaded = await preloadImage(productionUrl);
+        if (productionPreviewLoaded) browserPreviewUrl = productionUrl;
+      }
+
+      setUploadedFile({
+        ...initialArtwork,
+        url: productionUrl,
+        fileKey: productionPublicId,
+        thumbnailUrl: browserPreviewUrl,
+        previewUrl: browserPreviewUrl,
+        productionUrl,
+        productionPublicId,
+        resourceType: data.resource_type || data.resourceType || resourceType,
+        mimeType: data.mimeType || data.mimetype || mimeType,
+        originalFormat: data.format || initialArtwork.originalFormat,
+        originalBytes: data.bytes || file.size,
+        originalWidth: data.width ?? dimensions?.width ?? null,
+        originalHeight: data.height ?? dimensions?.height ?? null,
+        pdfPageNumber: isPdf ? 1 : undefined,
+      });
+      logArtworkStage('original_upload_succeeded', { publicIdPresent: Boolean(productionPublicId), productionResourceType: data.resource_type || data.resourceType || resourceType });
+      logArtworkStage('editor_state_saved');
+      console.info('[upload] success', { name: file.name, fileKey: productionPublicId });
+      logUx('upload_success', { name: file.name, fileKey: productionPublicId });
     } catch (err) {
       const isAbort = (err as { name?: string } | null)?.name === 'AbortError';
       if (isAbort) {
-        console.warn('[upload] timeout', { name: file.name, timeoutMs: UPLOAD_TIMEOUT_MS });
+        console.warn('[upload] timeout', { name: file.name, timeoutMs: UPLOAD_TIMEOUT_MS, correlationId });
         logUx('upload_timeout', { name: file.name, timeoutMs: UPLOAD_TIMEOUT_MS });
         setUploadError('Upload timed out. Please check your connection and try again.');
       } else {
-        console.error('[upload] failed', err);
+        console.error('[upload] failed', { correlationId, error: err });
         logUx('upload_error', { name: file.name, message: (err as Error)?.message });
         setUploadError('Upload failed. Please try again or choose a different file.');
       }
@@ -996,7 +1099,7 @@ const Design: React.FC = () => {
       window.clearTimeout(timeoutId);
       setIsUploading(false);
     }
-  }, [compressImage]);
+  }, []);
 
   // Handle a successful "Create with AI" generation: convert the returned
   // base64 PNG into a File and run it through the SAME upload pipeline used
@@ -1247,14 +1350,32 @@ const Design: React.FC = () => {
         });
         return;
       }
+      if (!(uploadedFile.productionUrl || uploadedFile.fileKey) || !(uploadedFile.productionPublicId || uploadedFile.fileKey)) {
+        toast({
+          title: 'Upload still processing',
+          description: 'Please wait for the original artwork upload to finish before checkout.',
+          variant: 'destructive',
+        });
+        return;
+      }
 
       const container = previewContainerRef.current;
       const canvasStateJson = JSON.stringify({
         source: 'design-page',
         version: 2,
-        originalImageUrl: uploadedFile.url,
-        originalImageFileKey: uploadedFile.fileKey,
+        originalImageUrl: uploadedFile.productionUrl || uploadedFile.url,
+        originalImageFileKey: uploadedFile.productionPublicId || uploadedFile.fileKey,
         isPdf: uploadedFile.isPdf,
+        previewUrl: uploadedFile.previewUrl || uploadedFile.thumbnailUrl || null,
+        productionUrl: uploadedFile.productionUrl || uploadedFile.url,
+        productionPublicId: uploadedFile.productionPublicId || uploadedFile.fileKey,
+        resourceType: uploadedFile.resourceType,
+        mimeType: uploadedFile.mimeType,
+        originalFormat: uploadedFile.originalFormat,
+        originalBytes: uploadedFile.originalBytes,
+        originalWidth: uploadedFile.originalWidth,
+        originalHeight: uploadedFile.originalHeight,
+        pdfPageNumber: uploadedFile.pdfPageNumber,
         widthIn,
         heightIn,
         imgPos: checkoutData.pos,
@@ -1273,7 +1394,7 @@ const Design: React.FC = () => {
       // network) so the cart drawer / cart modal show the correct cropped
       // preview right away. The full Cloudinary upload happens in the
       // background and patches the cart item once complete.
-      const baseImageUrl = uploadedFile.thumbnailUrl || uploadedFile.url;
+      const baseImageUrl = uploadedFile.previewUrl || uploadedFile.thumbnailUrl || uploadedFile.url;
       let approvedThumbnailUrl = baseImageUrl;
       try {
         const rendered = await renderPositionedThumbnailDataUrl({
@@ -1303,7 +1424,17 @@ const Design: React.FC = () => {
         imageScaleY: checkoutData.scaleY ?? checkoutData.scale,
         fitMode: 'fill',
         thumbnailUrl: approvedThumbnailUrl,
-        file: { name: uploadedFile.name, url: uploadedFile.url, fileKey: uploadedFile.fileKey, size: uploadedFile.size, isPdf: uploadedFile.isPdf, thumbnailUrl: uploadedFile.thumbnailUrl, type: uploadedFile.isPdf ? 'application/pdf' : 'image/*' } as any,
+        file: { name: uploadedFile.name, url: uploadedFile.url, fileKey: uploadedFile.fileKey, size: uploadedFile.size, isPdf: uploadedFile.isPdf, thumbnailUrl: uploadedFile.previewUrl || uploadedFile.thumbnailUrl,
+              previewUrl: uploadedFile.previewUrl,
+              productionUrl: uploadedFile.productionUrl || uploadedFile.url,
+              productionPublicId: uploadedFile.productionPublicId || uploadedFile.fileKey,
+              resourceType: uploadedFile.resourceType,
+              mimeType: uploadedFile.mimeType,
+              originalFormat: uploadedFile.originalFormat,
+              originalBytes: uploadedFile.originalBytes,
+              originalWidth: uploadedFile.originalWidth,
+              originalHeight: uploadedFile.originalHeight,
+              pdfPageNumber: uploadedFile.pdfPageNumber, type: uploadedFile.isPdf ? 'application/pdf' : 'image/*' } as any,
         finalRenderUrl: null,
         finalRenderFileKey: null,
         finalRenderWidthPx: null,
@@ -1340,6 +1471,14 @@ const Design: React.FC = () => {
 
     // Banner flow
     if (!uploadedFile || !checkoutData) return;
+    if (!(uploadedFile.productionUrl || uploadedFile.fileKey) || !(uploadedFile.productionPublicId || uploadedFile.fileKey)) {
+      toast({
+        title: 'Upload still processing',
+        description: 'Please wait for the original artwork upload to finish before checkout.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     let finalGrommets = grommets;
     let finalRope = addRope;
@@ -1367,7 +1506,7 @@ const Design: React.FC = () => {
 
     let finalRenderResult: { url: string; fileKey: string; widthPx: number; heightPx: number; dpi: number } | null = null;
     try {
-      const imgSrc = uploadedFile.thumbnailUrl || uploadedFile.url;
+      const imgSrc = uploadedFile.previewUrl || uploadedFile.thumbnailUrl || uploadedFile.url;
       const container = previewContainerRef.current;
       const containerWidth = container?.offsetWidth || 1;
       const containerHeight = container?.offsetHeight || 1;
@@ -1397,9 +1536,19 @@ const Design: React.FC = () => {
     const canvasStateJson = JSON.stringify({
       source: 'design-page',
       version: 2,
-      originalImageUrl: uploadedFile.url,
-      originalImageFileKey: uploadedFile.fileKey,
+      originalImageUrl: uploadedFile.productionUrl || uploadedFile.url,
+      originalImageFileKey: uploadedFile.productionPublicId || uploadedFile.fileKey,
       isPdf: uploadedFile.isPdf,
+      previewUrl: uploadedFile.previewUrl || uploadedFile.thumbnailUrl || null,
+      productionUrl: uploadedFile.productionUrl || uploadedFile.url,
+      productionPublicId: uploadedFile.productionPublicId || uploadedFile.fileKey,
+      resourceType: uploadedFile.resourceType,
+      mimeType: uploadedFile.mimeType,
+      originalFormat: uploadedFile.originalFormat,
+      originalBytes: uploadedFile.originalBytes,
+      originalWidth: uploadedFile.originalWidth,
+      originalHeight: uploadedFile.originalHeight,
+      pdfPageNumber: uploadedFile.pdfPageNumber,
       widthIn,
       heightIn,
       imgPos: checkoutData.pos,
@@ -1420,7 +1569,7 @@ const Design: React.FC = () => {
     // cart/checkout/admin all show exactly what the user approved.
     // Render synchronously to a dataUrl (canvas only, no network) for instant
     // cart display; upload to Cloudinary in the background.
-    const baseImageUrl = uploadedFile.thumbnailUrl || uploadedFile.url;
+    const baseImageUrl = uploadedFile.previewUrl || uploadedFile.thumbnailUrl || uploadedFile.url;
     let approvedThumbnailUrl = baseImageUrl;
     try {
       const rendered = await renderPositionedThumbnailDataUrl({
@@ -1454,7 +1603,17 @@ const Design: React.FC = () => {
       imageScaleY: checkoutData.scaleY ?? checkoutData.scale,
       fitMode: 'fill',
       thumbnailUrl: approvedThumbnailUrl,
-      file: { name: uploadedFile.name, url: uploadedFile.url, fileKey: uploadedFile.fileKey, size: uploadedFile.size, isPdf: uploadedFile.isPdf, thumbnailUrl: uploadedFile.thumbnailUrl, type: uploadedFile.isPdf ? 'application/pdf' : 'image/*' } as any,
+      file: { name: uploadedFile.name, url: uploadedFile.url, fileKey: uploadedFile.fileKey, size: uploadedFile.size, isPdf: uploadedFile.isPdf, thumbnailUrl: uploadedFile.previewUrl || uploadedFile.thumbnailUrl,
+              previewUrl: uploadedFile.previewUrl,
+              productionUrl: uploadedFile.productionUrl || uploadedFile.url,
+              productionPublicId: uploadedFile.productionPublicId || uploadedFile.fileKey,
+              resourceType: uploadedFile.resourceType,
+              mimeType: uploadedFile.mimeType,
+              originalFormat: uploadedFile.originalFormat,
+              originalBytes: uploadedFile.originalBytes,
+              originalWidth: uploadedFile.originalWidth,
+              originalHeight: uploadedFile.originalHeight,
+              pdfPageNumber: uploadedFile.pdfPageNumber, type: uploadedFile.isPdf ? 'application/pdf' : 'image/*' } as any,
       finalRenderUrl: finalRenderResult?.url || null,
       finalRenderFileKey: finalRenderResult?.fileKey || null,
       finalRenderWidthPx: finalRenderResult?.widthPx || null,
@@ -2480,7 +2639,11 @@ const Design: React.FC = () => {
                         {/* PR3: Modern Canva-style artwork editor (drag,
                             resize handles, fit/fill/reset/constrain). */}
                         <ArtworkPreviewEditor
-                          src={uploadedFile.thumbnailUrl || uploadedFile.url}
+                          src={uploadedFile.previewUrl || uploadedFile.thumbnailUrl || uploadedFile.url}
+                            previewUrl={uploadedFile.previewUrl || uploadedFile.thumbnailUrl || null}
+                            productionUrl={uploadedFile.productionUrl || uploadedFile.url}
+                            resourceType={uploadedFile.resourceType}
+                            mimeType={uploadedFile.mimeType}
                           alt="Uploaded artwork preview"
                           paddingPct={previewPaddingPct}
                           containerRef={previewContainerRef}
@@ -2799,7 +2962,11 @@ const Design: React.FC = () => {
                   style={previewWrapperStyle}
                 >
                   <ArtworkPreviewEditor
-                    src={uploadedFile.thumbnailUrl || uploadedFile.url}
+                    src={uploadedFile.previewUrl || uploadedFile.thumbnailUrl || uploadedFile.url}
+                            previewUrl={uploadedFile.previewUrl || uploadedFile.thumbnailUrl || null}
+                            productionUrl={uploadedFile.productionUrl || uploadedFile.url}
+                            resourceType={uploadedFile.resourceType}
+                            mimeType={uploadedFile.mimeType}
                     alt="Banner preview"
                     paddingPct={previewPaddingPct}
                     containerRef={previewContainerRef}
@@ -2873,7 +3040,7 @@ const Design: React.FC = () => {
           grommets: grommets as any,
           polePockets,
           addRope,
-          thumbnailUrl: uploadedFile?.thumbnailUrl || uploadedFile?.url,
+          thumbnailUrl: uploadedFile?.previewUrl || uploadedFile?.thumbnailUrl || uploadedFile?.url,
           file: uploadedFile ? { name: uploadedFile.name, url: uploadedFile.url } : undefined,
           imagePosition: pendingCheckoutData?.pos,
           imageScale: pendingCheckoutData?.scale,
