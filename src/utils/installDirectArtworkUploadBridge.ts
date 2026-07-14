@@ -1,5 +1,4 @@
 type UploadSignature = {
-  cloudName: string;
   apiKey: string;
   timestamp: number;
   signature: string;
@@ -7,7 +6,6 @@ type UploadSignature = {
   publicId: string;
   resourceType: 'image' | 'raw';
   uploadUrl: string;
-  maxBytes: number;
 };
 
 type CloudinaryUploadResponse = {
@@ -21,7 +19,7 @@ type CloudinaryUploadResponse = {
   error?: { message?: string };
 };
 
-const MAX_DIRECT_UPLOAD_ATTEMPTS = 3;
+const MAX_ATTEMPTS = 3;
 const DIRECT_UPLOAD_TIMEOUT_MS = 180_000;
 const NETLIFY_FALLBACK_MAX_BYTES = 4 * 1024 * 1024;
 
@@ -37,41 +35,26 @@ class ArtworkUploadError extends Error {
   }
 }
 
-const sleep = (milliseconds: number, signal?: AbortSignal | null) => new Promise<void>((resolve, reject) => {
-  if (signal?.aborted) {
-    reject(new DOMException('Upload aborted', 'AbortError'));
-    return;
-  }
-  const timer = window.setTimeout(resolve, milliseconds);
-  signal?.addEventListener('abort', () => {
-    window.clearTimeout(timer);
-    reject(new DOMException('Upload aborted', 'AbortError'));
-  }, { once: true });
+const sleep = (milliseconds: number) => new Promise<void>((resolve) => {
+  window.setTimeout(resolve, milliseconds);
 });
 
-async function waitForConnection(signal?: AbortSignal | null): Promise<void> {
+async function waitForConnection(): Promise<void> {
   if (typeof navigator === 'undefined' || navigator.onLine !== false) return;
-
   await new Promise<void>((resolve, reject) => {
     const timeout = window.setTimeout(() => {
       cleanup();
       reject(new ArtworkUploadError('The internet connection is offline.', { retryable: true }));
-    }, 15_000);
+    }, 20_000);
     const onOnline = () => {
       cleanup();
       resolve();
     };
-    const onAbort = () => {
-      cleanup();
-      reject(new DOMException('Upload aborted', 'AbortError'));
-    };
     const cleanup = () => {
       window.clearTimeout(timeout);
       window.removeEventListener('online', onOnline);
-      signal?.removeEventListener('abort', onAbort);
     };
     window.addEventListener('online', onOnline, { once: true });
-    signal?.addEventListener('abort', onAbort, { once: true });
   });
 }
 
@@ -90,79 +73,67 @@ function getUploadFile(formData: FormData): File | null {
 function isUploadFileRequest(input: RequestInfo | URL, init?: RequestInit): boolean {
   const method = String(init?.method || (input instanceof Request ? input.method : 'GET')).toUpperCase();
   if (method !== 'POST') return false;
-
   const rawUrl = input instanceof Request ? input.url : String(input);
-  let pathname = rawUrl;
   try {
-    pathname = new URL(rawUrl, window.location.origin).pathname;
+    return new URL(rawUrl, window.location.origin).pathname === '/.netlify/functions/upload-file';
   } catch {
-    // Keep the raw value for relative URLs that URL() could not parse.
+    return rawUrl === '/.netlify/functions/upload-file';
   }
-  return pathname === '/.netlify/functions/upload-file';
 }
 
 async function requestUploadSignature(
   nativeFetch: typeof window.fetch,
   file: File,
-  signal?: AbortSignal | null,
 ): Promise<UploadSignature> {
-  const response = await nativeFetch('/.netlify/functions/create-upload-signature', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'same-origin',
-    cache: 'no-store',
-    signal: signal || undefined,
-    body: JSON.stringify({
-      filename: file.name,
-      mimeType: file.type,
-      size: file.size,
-    }),
-  });
+  let lastError: unknown = null;
 
-  const raw = await response.text().catch(() => '');
-  let result: any = {};
-  try {
-    result = raw ? JSON.parse(raw) : {};
-  } catch {
-    result = {};
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+    try {
+      await waitForConnection();
+      const response = await nativeFetch('/.netlify/functions/create-upload-signature', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        cache: 'no-store',
+        body: JSON.stringify({
+          filename: file.name,
+          mimeType: file.type,
+          size: file.size,
+        }),
+      });
+
+      const raw = await response.text().catch(() => '');
+      let result: any = {};
+      try { result = raw ? JSON.parse(raw) : {}; } catch { result = {}; }
+
+      if (!response.ok) {
+        throw new ArtworkUploadError(
+          result.message || result.error || `Unable to prepare artwork upload (${response.status}).`,
+          {
+            status: response.status,
+            retryable: response.status >= 500 || response.status === 408 || response.status === 429,
+          },
+        );
+      }
+      return result as UploadSignature;
+    } catch (error) {
+      lastError = error;
+      const retryable = error instanceof ArtworkUploadError
+        ? error.retryable
+        : (error as { name?: string })?.name !== 'AbortError';
+      if (!retryable || attempt >= MAX_ATTEMPTS) break;
+      await sleep(750 * (2 ** (attempt - 1)));
+    }
   }
 
-  if (!response.ok) {
-    throw new ArtworkUploadError(
-      result.message || result.error || `Unable to prepare artwork upload (${response.status}).`,
-      { status: response.status, retryable: response.status >= 500 || response.status === 408 || response.status === 429 },
-    );
-  }
-
-  return result as UploadSignature;
+  throw lastError instanceof Error
+    ? lastError
+    : new ArtworkUploadError('Unable to prepare artwork upload.');
 }
 
-function uploadDirectlyToCloudinary(
-  file: File,
-  signed: UploadSignature,
-  signal?: AbortSignal | null,
-): Promise<CloudinaryUploadResponse> {
+function uploadOnce(file: File, signed: UploadSignature): Promise<CloudinaryUploadResponse> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    let settled = false;
-
-    const finishReject = (error: Error) => {
-      if (settled) return;
-      settled = true;
-      signal?.removeEventListener('abort', onAbort);
-      reject(error);
-    };
-    const finishResolve = (value: CloudinaryUploadResponse) => {
-      if (settled) return;
-      settled = true;
-      signal?.removeEventListener('abort', onAbort);
-      resolve(value);
-    };
-    const onAbort = () => {
-      xhr.abort();
-      finishReject(new DOMException('Upload aborted', 'AbortError'));
-    };
-
     xhr.open('POST', signed.uploadUrl, true);
     xhr.timeout = DIRECT_UPLOAD_TIMEOUT_MS;
     xhr.responseType = 'json';
@@ -179,35 +150,38 @@ function uploadDirectlyToCloudinary(
       }));
     };
 
-    xhr.onerror = () => finishReject(new ArtworkUploadError(
+    xhr.onerror = () => reject(new ArtworkUploadError(
       'The network changed while uploading the artwork.',
       { retryable: true },
     ));
-    xhr.ontimeout = () => finishReject(new ArtworkUploadError(
+    xhr.ontimeout = () => reject(new ArtworkUploadError(
       'Artwork upload timed out.',
       { retryable: true },
     ));
-    xhr.onabort = () => finishReject(new DOMException('Upload aborted', 'AbortError'));
+    xhr.onabort = () => reject(new ArtworkUploadError(
+      'Artwork upload was interrupted.',
+      { retryable: true },
+    ));
     xhr.onload = () => {
-      const result: CloudinaryUploadResponse = xhr.response && typeof xhr.response === 'object'
-        ? xhr.response
-        : (() => {
-            try { return JSON.parse(xhr.responseText || '{}'); }
-            catch { return {}; }
-          })();
+      let result: CloudinaryUploadResponse = {};
+      if (xhr.response && typeof xhr.response === 'object') {
+        result = xhr.response;
+      } else {
+        try { result = JSON.parse(xhr.responseText || '{}'); } catch { result = {}; }
+      }
 
       if (xhr.status < 200 || xhr.status >= 300 || !result.secure_url || !result.public_id) {
-        const message = result.error?.message || `Cloudinary upload failed (${xhr.status || 'network error'}).`;
-        finishReject(new ArtworkUploadError(message, {
-          status: xhr.status || undefined,
-          retryable: xhr.status === 0 || xhr.status === 408 || xhr.status === 429 || xhr.status >= 500,
-        }));
+        reject(new ArtworkUploadError(
+          result.error?.message || `Cloudinary upload failed (${xhr.status || 'network error'}).`,
+          {
+            status: xhr.status || undefined,
+            retryable: xhr.status === 0 || xhr.status === 408 || xhr.status === 429 || xhr.status >= 500,
+          },
+        ));
         return;
       }
-      finishResolve(result);
+      resolve(result);
     };
-
-    signal?.addEventListener('abort', onAbort, { once: true });
 
     const formData = new FormData();
     formData.append('file', file, file.name);
@@ -223,17 +197,15 @@ function uploadDirectlyToCloudinary(
 async function performDirectUpload(
   nativeFetch: typeof window.fetch,
   file: File,
-  signal?: AbortSignal | null,
 ): Promise<Response> {
-  await waitForConnection(signal);
-  const signed = await requestUploadSignature(nativeFetch, file, signal);
-
+  const signed = await requestUploadSignature(nativeFetch, file);
   let lastError: unknown = null;
-  for (let attempt = 1; attempt <= MAX_DIRECT_UPLOAD_ATTEMPTS; attempt += 1) {
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     try {
-      await waitForConnection(signal);
-      const result = await uploadDirectlyToCloudinary(file, signed, signal);
-      const normalized = {
+      await waitForConnection();
+      const result = await uploadOnce(file, signed);
+      return new Response(JSON.stringify({
         secureUrl: result.secure_url,
         publicId: result.public_id,
         fileKey: result.public_id,
@@ -244,20 +216,15 @@ async function performDirectUpload(
         resourceType: result.resource_type || signed.resourceType,
         originalPreserved: true,
         uploadTransport: 'direct_signed_cloudinary',
-      };
-      return new Response(JSON.stringify(normalized), {
+      }), {
         status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-store',
-        },
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
       });
     } catch (error) {
       lastError = error;
-      if ((error as { name?: string })?.name === 'AbortError') throw error;
       const retryable = error instanceof ArtworkUploadError ? error.retryable : true;
-      if (!retryable || attempt >= MAX_DIRECT_UPLOAD_ATTEMPTS) break;
-      await sleep(900 * (2 ** (attempt - 1)), signal);
+      if (!retryable || attempt >= MAX_ATTEMPTS) break;
+      await sleep(900 * (2 ** (attempt - 1)));
     }
   }
 
@@ -273,10 +240,10 @@ declare global {
 }
 
 /**
- * Compatibility bridge for existing upload flows. It intercepts only POSTs to
- * /.netlify/functions/upload-file, obtains a short-lived server signature, and
- * sends the original File directly to Cloudinary. This avoids Netlify's
- * buffered-function request-size ceiling and preserves the exact selected bytes.
+ * Intercepts only the legacy upload-file POST and sends the original selected
+ * File directly to Cloudinary with a server-issued signature. Caller-level
+ * 60-second AbortControllers are intentionally not forwarded: a legitimate
+ * 50MB upload receives the bridge's own 180-second timeout and retry policy.
  */
 export function installDirectArtworkUploadBridge(): void {
   if (typeof window === 'undefined' || window.__BOTF_DIRECT_ARTWORK_UPLOAD_INSTALLED__) return;
@@ -293,7 +260,7 @@ export function installDirectArtworkUploadBridge(): void {
     if (!file) return nativeFetch(input, init);
 
     try {
-      return await performDirectUpload(nativeFetch, file, init.signal);
+      return await performDirectUpload(nativeFetch, file);
     } catch (directError) {
       console.error('[DIRECT_ARTWORK_UPLOAD] direct upload failed', {
         name: file.name,
@@ -302,9 +269,7 @@ export function installDirectArtworkUploadBridge(): void {
         error: directError instanceof Error ? directError.message : String(directError),
       });
 
-      // Preserve the old endpoint as a small-file compatibility fallback only.
-      // Large uploads must never be pushed through a buffered Netlify Function.
-      if (file.size <= NETLIFY_FALLBACK_MAX_BYTES && (directError as { name?: string })?.name !== 'AbortError') {
+      if (file.size <= NETLIFY_FALLBACK_MAX_BYTES) {
         return nativeFetch(input, init);
       }
       throw directError;
