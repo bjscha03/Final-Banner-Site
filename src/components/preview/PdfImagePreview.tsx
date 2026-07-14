@@ -16,6 +16,7 @@ export default function PdfImagePreview({ file, fileUrl, fileName, className, on
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
   const [downloadUrl, setDownloadUrl] = React.useState<string | null>(null);
   const abortRef = React.useRef<AbortController | null>(null);
+  const previewCleanupRef = React.useRef<(() => void) | null>(null);
 
   React.useEffect(() => {
     abortRef.current?.abort();
@@ -46,14 +47,18 @@ export default function PdfImagePreview({ file, fileUrl, fileName, className, on
         setDownloadUrl(downloadBlobUrl);
 
         // Render PDF at fixed scale (1.0) - let CSS handle UI scaling for smooth performance
-        const url = await renderPdfToDataUrl(pdfFile, {
+        const preview = await renderPdfToDataUrl(pdfFile, {
           scale: 1.0, // Always render at 100% - CSS will handle preview scaling
           deviceScale: typeof window !== 'undefined' ? window.devicePixelRatio : 1,
           signal: ac.signal,
         });
         if (!ac.signal.aborted) {
-          setSrc(url);
+          previewCleanupRef.current?.();
+          previewCleanupRef.current = preview.cleanup;
+          setSrc(preview.previewUrl);
           setIsLoading(false);
+        } else {
+          preview.cleanup();
         }
       } catch (e) {
         if (!ac.signal.aborted) { // Only show errors if not aborted
@@ -81,6 +86,8 @@ export default function PdfImagePreview({ file, fileUrl, fileName, className, on
       if (downloadUrl) {
         URL.revokeObjectURL(downloadUrl);
       }
+      previewCleanupRef.current?.();
+      previewCleanupRef.current = null;
     };
   }, [downloadUrl]);
 

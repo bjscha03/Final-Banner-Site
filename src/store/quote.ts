@@ -51,6 +51,16 @@ export interface QuoteState {
     type: string;
     size: number;
     url?: string;
+    previewUrl?: string;
+    productionUrl?: string;
+    productionPublicId?: string;
+    resourceType?: 'image' | 'raw' | string;
+    mimeType?: string;
+    originalFormat?: string;
+    originalBytes?: number;
+    originalWidth?: number | null;
+    originalHeight?: number | null;
+    pdfPageNumber?: number;
     isPdf?: boolean;
     fileKey?: string;
     isAI?: boolean;
@@ -85,6 +95,7 @@ export interface QuoteState {
   imageScaleY?: number;                // PR3: Per-axis Y scale for freeform resize. Defaults to imageScale (uniform).
   imagePosition?: { x: number; y: number }; // Background image position (for uploaded images)
   fitMode?: 'fill' | 'fit' | 'stretch';  // Image fit mode for uploaded images
+  webPreviewUrl?: string | null;
   set: (partial: Partial<QuoteState>) => void;
   loadFromCartItem: (item: any, editingItemId?: string) => void;
   addTextElement: (element: Omit<TextElement, 'id'>) => void;
