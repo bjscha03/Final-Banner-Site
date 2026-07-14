@@ -2,7 +2,7 @@ const Busboy = require('busboy');
 const { v2: cloudinary } = require('cloudinary');
 
 const MAX_BYTES = 200 * 1024 * 1024;
-const ALLOWED = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif', 'image/svg+xml', 'application/postscript', 'application/illustrator', 'application/vnd.adobe.illustrator'];
+const ALLOWED = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -70,12 +70,10 @@ exports.handler = async (event) => {
       return { statusCode: 413, body: 'File too large. Max ' + MAX_BYTES + ' bytes' };
     }
     
-    // More permissive type checking - allow if type is missing or matches allowed list
     if (mimeType && !ALLOWED.includes(mimeType.toLowerCase())) {
-      // Check if it's an image by extension as fallback
       const ext = filename.split('.').pop()?.toLowerCase();
-      const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif', 'pdf', 'ai', 'eps', 'svg'];
-      if (!imageExts.includes(ext || '')) {
+      const allowedExts = ['jpg', 'jpeg', 'png', 'pdf'];
+      if (!allowedExts.includes(ext || '')) {
         console.log('Unsupported media type:', mimeType);
         return { statusCode: 415, body: 'Unsupported media type: ' + mimeType };
       }
@@ -91,7 +89,7 @@ exports.handler = async (event) => {
       const stream = cloudinary.uploader.upload_stream(
         { 
           folder: folder, 
-          resource_type: 'auto', 
+          resource_type: mimeType === 'application/pdf' || filename.toLowerCase().endsWith('.pdf') ? 'raw' : 'image',
           filename_override: sanitize(filename), 
           use_filename: true, 
           unique_filename: true,
@@ -110,7 +108,15 @@ exports.handler = async (event) => {
               secure_url: res.secure_url,
               uploadTime: Date.now() - uploadStartTime + 'ms'
             });
-            resolve({ secure_url: res.secure_url, public_id: res.public_id });
+            resolve({
+              secure_url: res.secure_url,
+              public_id: res.public_id,
+              bytes: res.bytes || data.length,
+              width: res.width || null,
+              height: res.height || null,
+              format: res.format || filename.split('.').pop()?.toLowerCase(),
+              resource_type: res.resource_type,
+            });
           }
         }
       );
@@ -121,7 +127,18 @@ exports.handler = async (event) => {
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ secureUrl: result.secure_url, publicId: result.public_id, fileKey: result.public_id }),
+      body: JSON.stringify({
+        secureUrl: result.secure_url,
+        publicId: result.public_id,
+        fileKey: result.public_id,
+        bytes: result.bytes,
+        width: result.width,
+        height: result.height,
+        format: result.format,
+        resource_type: result.resource_type,
+        mimeType,
+        originalPreserved: true,
+      }),
     };
   } catch (e) {
     console.error('Upload function error:', {
