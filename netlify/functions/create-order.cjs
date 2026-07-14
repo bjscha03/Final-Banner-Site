@@ -64,6 +64,33 @@ function cleanItemForDb(item) {
   return cleaned;
 }
 
+function validatePrintSceneV2(canvasStateJson) {
+  if (!canvasStateJson) return null;
+  let scene;
+  try {
+    scene = typeof canvasStateJson === 'string' ? JSON.parse(canvasStateJson) : canvasStateJson;
+  } catch (err) {
+    throw new Error('Invalid canvas_state_json: ' + err.message);
+  }
+  if (!scene || scene.sceneVersion !== 2) return null;
+  const objects = Array.isArray(scene.objects) ? scene.objects : [];
+  for (const obj of objects) {
+    if (!obj || obj.visible === false || obj.type !== 'image') continue;
+    const source = obj.source || {};
+    const url = source.originalUrl;
+    if (!url || typeof url !== 'string') {
+      throw new Error(`Version 2 print scene image ${obj.id || '(unknown)'} is missing a permanent production source URL.`);
+    }
+    if (url.startsWith('data:') || url.startsWith('blob:')) {
+      throw new Error(`Version 2 print scene image ${obj.id || '(unknown)'} contains a temporary production source URL.`);
+    }
+    if (!source.publicId) {
+      throw new Error(`Version 2 print scene image ${obj.id || '(unknown)'} is missing a production public ID.`);
+    }
+  }
+  return scene;
+}
+
 function normalizeCustomerName(name) {
   const fullName = String(name || '').trim().replace(/\s+/g, ' ');
   const firstName = fullName ? fullName.split(' ')[0] : null;
@@ -888,6 +915,7 @@ exports.handler = async (event, context) => {
     // Insert order items with better error handling - only use columns that exist in database
     if (orderData.items && Array.isArray(orderData.items)) {
       for (const rawItem of orderData.items) {
+        validatePrintSceneV2(rawItem && rawItem.canvas_state_json);
         const item = cleanItemForDb(rawItem);
         console.log("[Create Order] Cleaned item file_key:", item.file_key, "file_url:", item.file_url ? item.file_url.substring(0, 80) : null);
         console.log('[CREATE_ORDER_DEBUG] === PERSISTING ORDER ITEM ===');
