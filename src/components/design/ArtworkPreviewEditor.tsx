@@ -40,6 +40,7 @@ type NormalizedPosition = { xPct: number; yPct: number };
 
 const MIN_SCALE = 0.2;
 const MAX_SCALE = 5;
+const PREVIEW_LOAD_TIMEOUT_MS = 12_000;
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 // Both the inline editor and the confirmation modal can exist at the same time.
@@ -84,6 +85,7 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
   const resolvedCrossOrigin = getPreviewCrossOrigin(imageSrc, imageCrossOrigin);
 
   const internalRef = useRef<HTMLDivElement | null>(null);
+  const imageRef = useRef<HTMLImageElement | null>(null);
   const canvasSizeRef = useRef<Size | null>(null);
   const valueRef = useRef(value);
   valueRef.current = value;
@@ -101,10 +103,19 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
   );
   const [retryNonce, setRetryNonce] = useState(0);
 
+  const settleLoadedImage = useCallback((image: HTMLImageElement | null): boolean => {
+    if (!image || !image.complete || !image.naturalWidth || !image.naturalHeight) return false;
+    setNaturalSize({ w: image.naturalWidth, h: image.naturalHeight });
+    setLoading(false);
+    setPreviewError(null);
+    return true;
+  }, []);
+
   const setContainerNode = useCallback((node: HTMLDivElement | null) => {
+    const previousNode = internalRef.current;
     internalRef.current = node;
     if (node && containerRef) containerRef.current = node;
-    if (!node && containerRef && containerRef.current === internalRef.current) containerRef.current = null;
+    if (!node && containerRef && containerRef.current === previousNode) containerRef.current = null;
   }, [containerRef]);
 
   // Restore the forwarded ref to the visible editor after the modal closes.
@@ -123,9 +134,39 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
 
   useEffect(() => {
     setNaturalSize(null);
-    setLoading(Boolean(imageSrc));
-    setPreviewError(imageSrc ? null : 'This PDF needs a browser preview before it can be displayed.');
-  }, [imageSrc, retryNonce]);
+
+    if (!imageSrc) {
+      setLoading(false);
+      setPreviewError('This PDF needs a browser preview before it can be displayed.');
+      return;
+    }
+
+    setLoading(true);
+    setPreviewError(null);
+    let cancelled = false;
+
+    const settleIfReady = () => {
+      if (!cancelled) settleLoadedImage(imageRef.current);
+    };
+
+    // iOS browsers can serve a cached/blob image before React observes the load
+    // event. Check the element after mount and again shortly afterward.
+    const frameId = window.requestAnimationFrame(settleIfReady);
+    const quickCheckId = window.setTimeout(settleIfReady, 150);
+    const timeoutId = window.setTimeout(() => {
+      if (cancelled || settleLoadedImage(imageRef.current)) return;
+      setLoading(false);
+      setNaturalSize(null);
+      setPreviewError('Artwork preview took too long to load. Tap Retry preview to try again.');
+    }, PREVIEW_LOAD_TIMEOUT_MS);
+
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(frameId);
+      window.clearTimeout(quickCheckId);
+      window.clearTimeout(timeoutId);
+    };
+  }, [imageSrc, retryNonce, settleLoadedImage]);
 
   const commitTransform = useCallback((next: ArtworkTransform, updateNormalized = true) => {
     const size = canvasSizeRef.current;
@@ -443,17 +484,18 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
             </div>
           ) : imageSrc ? (
             <img
+              ref={imageRef}
               key={`${imageSrc}-${retryNonce}`}
               src={imageSrc}
               alt={alt}
               draggable={false}
               crossOrigin={resolvedCrossOrigin}
+              loading="eager"
+              decoding="async"
+              fetchPriority="high"
               className={`absolute inset-0 h-full w-full pointer-events-none ${containedRect ? '' : 'object-contain'}`}
               onLoad={(event) => {
-                const image = event.currentTarget;
-                if (image.naturalWidth && image.naturalHeight) setNaturalSize({ w: image.naturalWidth, h: image.naturalHeight });
-                setLoading(false);
-                setPreviewError(null);
+                settleLoadedImage(event.currentTarget);
               }}
               onError={() => {
                 setLoading(false);
