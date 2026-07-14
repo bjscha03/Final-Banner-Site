@@ -1398,17 +1398,63 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
         try {
           const editorState = useEditorStore.getState();
           const editorObjects = editorState.objects.filter(obj => obj.visible !== false);
+          const invalidProductionObjects = editorObjects.filter((obj: any) => obj.type === 'image' && (!obj.productionUrl || String(obj.productionUrl).startsWith('blob:') || String(obj.productionUrl).startsWith('data:')));
+          if (invalidProductionObjects.length > 0) {
+            throw new Error(`Artwork upload is still processing for ${invalidProductionObjects.length} object(s). Please wait and try again.`);
+          }
           canvasStateJson = JSON.stringify({
             source: 'banner-editor',
-            version: 1,
+            sceneVersion: 2,
+            rendererVersion: 'production-pdf-v2',
             widthIn,
             heightIn,
             backgroundColor: editorState.canvasBackgroundColor,
-            objects: editorObjects,
+            objects: editorObjects.map((obj: any, index: number) => ({
+              id: obj.id,
+              type: obj.type,
+              xIn: obj.x,
+              yIn: obj.y,
+              widthIn: obj.width,
+              heightIn: obj.height,
+              rotation: obj.rotation || 0,
+              opacity: obj.opacity == null ? 1 : obj.opacity,
+              zIndex: obj.zIndex ?? index,
+              visible: obj.visible !== false,
+              fitMode: obj.fitMode || 'contain',
+              source: obj.type === 'image' ? {
+                previewUrl: obj.previewUrl || obj.url,
+                originalUrl: obj.productionUrl,
+                publicId: obj.productionPublicId || obj.cloudinaryPublicId,
+                resourceType: obj.resourceType || (obj.isPDF ? 'raw' : 'image'),
+                mimeType: obj.mimeType,
+                format: obj.originalFormat,
+                bytes: obj.originalBytes,
+                originalWidth: obj.originalWidth,
+                originalHeight: obj.originalHeight,
+                pdfPageNumber: obj.pdfPageNumber || (obj.isPDF ? 1 : undefined),
+                isVector: obj.isPDF === true,
+              } : undefined,
+              text: obj.type === 'text' ? {
+                content: obj.content,
+                fontFamily: obj.fontFamily,
+                fontSize: obj.fontSize,
+                color: obj.color,
+                fontWeight: obj.fontWeight,
+                fontStyle: obj.fontStyle,
+                textAlign: obj.textAlign,
+              } : undefined,
+              shape: obj.type === 'shape' ? {
+                shapeType: obj.shapeType,
+                fill: obj.fill,
+                stroke: obj.stroke,
+                strokeWidth: obj.strokeWidth,
+              } : undefined,
+            })),
           });
           console.log("[FINAL_RENDER] canvas_state_json captured (banner-editor format):", canvasStateJson.length, "chars,", editorObjects.length, "objects");
         } catch (jsonErr) {
           console.warn("[FINAL_RENDER] canvas_state_json capture failed:", jsonErr);
+          throw jsonErr;
         }
 
         finalRenderResult = await generateFinalRender(stage, widthIn, heightIn);

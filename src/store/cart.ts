@@ -223,6 +223,7 @@ export interface CartState {
   loadItemIntoQuote: (itemId: string) => CartItem | null;
   updateCartItem: (itemId: string, quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => void;
   updateItemThumbnail: (itemId: string, thumbnailUrl: string) => void;
+  updateItemWebPreview: (itemId: string, webPreviewUrl: string) => void;
   removeItem: (id: string) => void;
   clearCart: () => void;
   clearCartLocal: () => void;  // Clear cart in memory only, without syncing to server
@@ -494,12 +495,13 @@ export const useCartStore = create<CartState>()(
               return explicitFileUrl;
             }
             // Fallback: Check file and overlayImage
-            const fileUrl = (quote.file as any)?.originalUrl || quote.file?.url || (quote as any).overlayImage?.url;
+            const fileUrl = (quote.file as any)?.productionUrl || (quote.file as any)?.originalUrl || quote.file?.url || (quote as any).overlayImage?.url;
             const fileKey = quote.file?.fileKey || (quote as any).overlayImage?.fileKey;
             const proofUrl = aiMetadata?.assets?.proofUrl;
             
             debugLog('[CART STORE] 🔍 File data:', {
               fileUrl: fileUrl ? fileUrl.substring(0, 80) : 'NULL',
+              productionUrl: (quote.file as any)?.productionUrl ? (quote.file as any).productionUrl.substring(0, 80) : 'NULL',
               originalUrl: (quote.file as any)?.originalUrl ? (quote.file as any).originalUrl.substring(0, 80) : 'NULL',
               blobUrl: quote.file?.url?.startsWith('blob:') ? 'YES' : 'NO',
               fileKey: fileKey || 'NULL',
@@ -521,7 +523,7 @@ export const useCartStore = create<CartState>()(
           })(),
           thumbnail_url: (() => {
             // Store thumbnail for DISPLAY in cart (has grommets/text rendered)
-            const thumbnailUrl = (quote as any).thumbnailUrl || (quote.file as any)?.thumbnailUrl;
+            const thumbnailUrl = (quote as any).thumbnailUrl || (quote.file as any)?.previewUrl || (quote.file as any)?.thumbnailUrl;
             debugLog('[CART STORE] 🖼️ Thumbnail URL for display:', thumbnailUrl ? thumbnailUrl.substring(0, 80) + '...' : 'NULL');
             debugLog('[CART STORE] 🖼️ Thumbnail URL details:', {
               isBlob: thumbnailUrl?.startsWith('blob:'),
@@ -531,7 +533,11 @@ export const useCartStore = create<CartState>()(
             });
             return thumbnailUrl || null;
           })(),
-          web_preview_url: (aiMetadata?.assets?.proofUrl?.startsWith('blob:') ? null : aiMetadata?.assets?.proofUrl) || null,
+          web_preview_url: (() => {
+            const explicitWebPreview = (quote as any).webPreviewUrl;
+            if (explicitWebPreview && !explicitWebPreview.startsWith('blob:') && !explicitWebPreview.startsWith('data:')) return explicitWebPreview;
+            return (aiMetadata?.assets?.proofUrl?.startsWith('blob:') ? null : aiMetadata?.assets?.proofUrl) || null;
+          })(),
           print_ready_url: (aiMetadata?.assets?.finalUrl?.startsWith('blob:') ? null : aiMetadata?.assets?.finalUrl) || null,
           is_pdf: quote.file?.isPdf || false,
           text_elements: quote.textElements && quote.textElements.length > 0 ? quote.textElements : undefined,
@@ -936,7 +942,7 @@ export const useCartStore = create<CartState>()(
           // CRITICAL FIX: Never use thumbnailUrl for file_url - thumbnailUrl has grommets baked in
           file_url: ((quote.file as any)?.originalUrl || ((quote.file?.url?.startsWith('blob:')) ? null : quote.file?.url)) || aiMetadata?.assets?.proofUrl || existingItem.file_url,
           thumbnail_url: (quote as any).thumbnailUrl || existingItem.thumbnail_url, // CRITICAL: Update thumbnail for cart display
-          web_preview_url: aiMetadata?.assets?.proofUrl || existingItem.web_preview_url,
+          web_preview_url: (quote as any).webPreviewUrl || aiMetadata?.assets?.proofUrl || existingItem.web_preview_url,
           print_ready_url: aiMetadata?.assets?.finalUrl || existingItem.print_ready_url,
           is_pdf: quote.file?.isPdf || false,
           text_elements: quote.textElements && quote.textElements.length > 0 ? quote.textElements : undefined,
@@ -1007,10 +1013,10 @@ export const useCartStore = create<CartState>()(
       }, 0);
       },
 
-      // Lightweight thumbnail patch used after a background positioned-thumbnail
-      // upload completes. Avoids re-running pricing/etc., simply swaps the
-      // display thumbnail and resyncs to the server.
-      updateItemThumbnail: (itemId: string, thumbnailUrl: string) => {
+  // Lightweight thumbnail patch used after a background positioned-thumbnail
+  // upload completes. Avoids re-running pricing/etc., simply swaps the
+  // display thumbnail and resyncs to the server.
+  updateItemThumbnail: (itemId: string, thumbnailUrl: string) => {
         if (!itemId || !thumbnailUrl) return;
         let didUpdate = false;
         set((state) => {
@@ -1018,6 +1024,22 @@ export const useCartStore = create<CartState>()(
             if (item.id !== itemId) return item;
             didUpdate = true;
             return { ...item, thumbnail_url: thumbnailUrl };
+          });
+          return { items };
+        });
+        if (!didUpdate) return;
+        setTimeout(() => {
+          get().syncToServer();
+        }, 0);
+      },
+      updateItemWebPreview: (itemId: string, webPreviewUrl: string) => {
+        if (!itemId || !webPreviewUrl || webPreviewUrl.startsWith('blob:') || webPreviewUrl.startsWith('data:')) return;
+        let didUpdate = false;
+        set((state) => {
+          const items = state.items.map(item => {
+            if (item.id !== itemId) return item;
+            didUpdate = true;
+            return { ...item, web_preview_url: webPreviewUrl };
           });
           return { items };
         });
