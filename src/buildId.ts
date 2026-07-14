@@ -1,1 +1,1 @@
-export const FORCE_REBUILD = '1776040500';
+export const FORCE_REBUILD = '20260714-cross-browser-artwork-stability';
