@@ -16,6 +16,15 @@ interface UploadedImage {
   isPDF?: boolean;
   fileKey?: string; // Cloudinary public_id
   cloudinaryUrl?: string; // Permanent Cloudinary URL
+  productionUrl?: string;
+  productionPublicId?: string;
+  resourceType?: 'image' | 'raw';
+  mimeType?: string;
+  originalFormat?: string;
+  originalBytes?: number;
+  originalWidth?: number;
+  originalHeight?: number;
+  pdfPageNumber?: number;
 }
 
 interface UploadError {
@@ -27,7 +36,7 @@ interface UploadError {
 
 
 // Supported file types
-const SUPPORTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
+const SUPPORTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg'];
 const SUPPORTED_TYPES = [...SUPPORTED_IMAGE_TYPES, 'application/pdf'];
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 const HEIC_EXTENSIONS = ['.heic', '.heif'];
@@ -46,9 +55,9 @@ const validateFile = (file: File): { valid: boolean; error?: string } => {
   }
   if (!SUPPORTED_TYPES.includes(file.type)) {
     const ext = file.name.split('.').pop()?.toLowerCase();
-    const validExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'pdf'];
+    const validExts = ['png', 'jpg', 'jpeg', 'pdf'];
     if (!ext || !validExts.includes(ext)) {
-      return { valid: false, error: 'Unsupported file type. Please use PNG, JPG, GIF, WEBP, or PDF.' };
+      return { valid: false, error: 'Unsupported file type. Please use PNG, JPG, JPEG, or PDF.' };
     }
   }
   return { valid: true };
@@ -108,199 +117,109 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
     return () => window.removeEventListener('clearUploadedImages', handleClearImages);
   }, []);
 
+  const uploadOriginalFile = async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await fetch('/.netlify/functions/upload-file', { method: 'POST', body: formData });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Upload failed (${response.status}): ${errorText}`);
+    }
+    return response.json();
+  };
+
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     console.log('[AssetsPanel] handleFileSelect called');
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
     setUploading(true);
+    setUploadError(null);
 
     for (const file of Array.from(files)) {
-      // Validate file size (50MB max)
-      if (file.size > 50 * 1024 * 1024) {
-        alert(`File ${file.name} is too large. Please upload a file under 50MB.`);
+      const validation = validateFile(file);
+      if (!validation.valid) {
+        setUploadError({ message: validation.error || 'Unsupported file.', fileName: file.name, canRetry: false });
         continue;
       }
 
-      // Validate file type
-      const isImage = file.type.startsWith('image/');
-      const isPDF = file.type === 'application/pdf';
-      
-      if (!isImage && !isPDF) {
-        alert(`File ${file.name} must be an image or PDF.`);
-        continue;
-      }
+      const isPDF = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      const localUrl = URL.createObjectURL(file);
 
-      // Create local URL for preview
-      const url = URL.createObjectURL(file);
-      
-      if (isPDF) {
-        // Convert PDF to image for preview and canvas rendering
-        try {
-          console.log('[AssetsPanel] Converting PDF to image:', file.name);
-          const pdfPreview = await convertPDFToImage(url, 2);
-          
+      try {
+        // CRITICAL: Upload untouched original first. The returned URL/public ID
+        // is the production source; browser previews are separate and may be rasterized.
+        const upload = await uploadOriginalFile(file);
+
+        if (isPDF) {
+          const pdfPreview = await convertPDFToImage(localUrl, 2);
           const newImage: UploadedImage = {
             id: `pdf-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            url: pdfPreview.imageUrl, // Use the converted image URL instead of PDF blob
+            url: pdfPreview.imageUrl,
             name: file.name,
             width: pdfPreview.width,
             height: pdfPreview.height,
-            isPDF: true, // Keep this flag for reference
+            isPDF: true,
+            fileKey: upload.publicId || upload.fileKey,
+            cloudinaryUrl: upload.secureUrl,
+            productionUrl: upload.secureUrl,
+            productionPublicId: upload.publicId || upload.fileKey,
+            resourceType: upload.resource_type || 'raw',
+            mimeType: upload.mimeType || file.type || 'application/pdf',
+            originalFormat: upload.format || 'pdf',
+            originalBytes: upload.bytes || file.size,
+            pdfPageNumber: 1,
           };
-          
-          console.log('[AssetsPanel] PDF converted successfully:', pdfPreview.width, 'x', pdfPreview.height);
           setUploadedImages((prev) => [...prev, newImage]);
-          
-          // AUTO-ADD: Automatically add PDF to canvas after conversion
-          console.log("[AssetsPanel] Auto-adding PDF to canvas");
-          setTimeout(async () => {
-            try {
-              setIsAddingImage(true);
-              await handleAddToCanvas(newImage);
-              toast({
-                title: "PDF added to banner",
-                duration: 2000,
-              });
-              console.log("[AssetsPanel] PDF added and remains in list");
-            } catch (error) {
-              console.error("[AssetsPanel] ERROR in PDF auto-add:", error);
-            } finally {
-              setIsAddingImage(false);
-            }
-          }, 100);
-        } catch (error) {
-          console.error('[AssetsPanel] Error converting PDF:', error);
-          alert(`Failed to load PDF: ${file.name}. Please try again.`);
-        }
-      } else {
-        // HYBRID APPROACH: Use blob URL immediately, upload to Cloudinary in background
-        console.log('[AssetsPanel] Creating blob URL for image:', file.name);
-        console.log('[AssetsPanel] Blob URL created:', url);
-        
-        const img = new Image();
-        
-        img.onerror = (error) => {
-          console.error('[AssetsPanel] Image load error:', error);
-          console.error('[AssetsPanel] Failed to load blob URL:', url);
-        };
-        
-        img.onload = async () => {
-          console.log('[AssetsPanel] Image onload fired for:', file.name);
-          console.log('[AssetsPanel] Image dimensions:', img.width, 'x', img.height);
-          
-          const imageId = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-          
-          // Add image immediately with blob URL for instant preview
-          const tempImage: UploadedImage = {
-            id: imageId,
-            url,
-            name: file.name,
-            width: img.width,
-            height: img.height,
-          };
-          
-          console.log('[AssetsPanel] Adding image to state:', tempImage);
-          setUploadedImages((prev) => {
-            console.log('[AssetsPanel] Previous uploadedImages:', prev);
-            const newImages = [...prev, tempImage];
-            console.log('[AssetsPanel] New uploadedImages:', newImages);
-            return newImages;
+          setIsAddingImage(true);
+          await handleAddToCanvas(newImage);
+          setIsAddingImage(false);
+          toast({ title: 'PDF added to banner', duration: 2000 });
+        } else {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          const dimensions = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+            img.onload = () => resolve({ width: img.width, height: img.height });
+            img.onerror = () => reject(new Error('Failed to read image dimensions'));
+            img.src = localUrl;
           });
-          console.log('[AssetsPanel] Image added with blob URL:', file.name);
 
-          // AUTO-ADD IMMEDIATELY: Add to canvas with blob URL for instant feedback (ALL DEVICES)
-          console.log('[AssetsPanel] 🚀 AUTO-ADD - Adding to canvas immediately with blob URL');
-          {
-            
-            try {
-              setIsAddingImage(true);
-              await handleAddToCanvas(tempImage);
-              if (onClose) onClose();  // Close panel AFTER adding to canvas
-              toast({
-                title: "✓ Image added",
-                duration: 1500,
-              });
-            } catch (error) {
-              console.error('[AssetsPanel] ERROR in immediate auto-add:', error);
-            } finally {
-              setIsAddingImage(false);
-            }
-          }
-          
-          // Cloudinary upload happens in background (old mobile detection removed)
-          
-          // Upload to Cloudinary FIRST (critical for mobile to avoid blob URL CORS issues)
-          try {
-            console.log('[AssetsPanel] Uploading to Cloudinary in background:', file.name);
-            const formData = new FormData();
-            formData.append('file', file);
-
-            const response = await fetch('/.netlify/functions/upload-file', {
-              method: 'POST',
-              body: formData,
-            });
-
-            if (response.ok) {
-              const result = await response.json();
-              console.log('[AssetsPanel] Cloudinary upload success:', result);
-              
-              // Update the image with Cloudinary URL
-              const cloudinaryImage = { ...tempImage, url: result.secureUrl, fileKey: result.publicId || result.fileKey, cloudinaryUrl: result.secureUrl };
-              
-              setUploadedImages((prev) => 
-                prev.map((img) => 
-                  img.id === imageId 
-                    ? cloudinaryImage
-                    : img
-                )
-              );
-              console.log('[AssetsPanel] Image updated with Cloudinary URL and fileKey');
-            } else {
-              console.error('[AssetsPanel] Cloudinary upload failed:', response.status, response.statusText);
-              
-              // On mobile, still try to add with blob URL as fallback
-              if (isMobileDevice) {
-                console.log('[AssetsPanel] 📱 MOBILE - Cloudinary failed, using blob URL as fallback');
-                setTimeout(async () => {
-                  try {
-                    await handleAddToCanvas(tempImage);
-                    setUploadedImages((prev) => prev.filter((img) => img.id !== imageId));
-                  } catch (error) {
-                    console.error('[AssetsPanel] 📱 ❌ ERROR in fallback auto-add:', error);
-                  }
-                }, 100);
-              }
-            }
-          } catch (error) {
-            console.error('[AssetsPanel] Error uploading to Cloudinary:', error);
-            
-            // On mobile, still try to add with blob URL as fallback
-            if (isMobileDevice) {
-              console.log('[AssetsPanel] 📱 MOBILE - Cloudinary error, using blob URL as fallback');
-              setTimeout(async () => {
-                try {
-                  await handleAddToCanvas(tempImage);
-                  setUploadedImages((prev) => prev.filter((img) => img.id !== imageId));
-                } catch (error) {
-                  console.error('[AssetsPanel] 📱 ❌ ERROR in fallback auto-add:', error);
-                }
-              }, 100);
-            }
-          }
-        };
-        
-        console.log('[AssetsPanel] Setting img.src to trigger onload:', url);
-        img.src = url;
+          const newImage: UploadedImage = {
+            id: `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            url: upload.secureUrl,
+            name: file.name,
+            width: dimensions.width,
+            height: dimensions.height,
+            fileKey: upload.publicId || upload.fileKey,
+            cloudinaryUrl: upload.secureUrl,
+            productionUrl: upload.secureUrl,
+            productionPublicId: upload.publicId || upload.fileKey,
+            resourceType: upload.resource_type || 'image',
+            mimeType: upload.mimeType || file.type,
+            originalFormat: upload.format || file.name.split('.').pop()?.toLowerCase(),
+            originalBytes: upload.bytes || file.size,
+            originalWidth: upload.width || dimensions.width,
+            originalHeight: upload.height || dimensions.height,
+          };
+          setUploadedImages((prev) => [...prev, newImage]);
+          setIsAddingImage(true);
+          await handleAddToCanvas(newImage);
+          setIsAddingImage(false);
+          if (onClose) onClose();
+          toast({ title: '✓ Image added', duration: 1500 });
+        }
+      } catch (error: any) {
+        console.error('[AssetsPanel] Upload/add failed:', error);
+        setUploadError({ message: error?.message || 'Failed to upload artwork.', fileName: file.name, canRetry: true, retryFile: file });
+        toast({ title: 'Upload failed', description: error?.message || 'Please try again.', variant: 'destructive' });
+      } finally {
+        URL.revokeObjectURL(localUrl);
+        setIsAddingImage(false);
       }
     }
 
     setUploading(false);
-    
-    // Reset input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -407,8 +326,18 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
       locked: false,
       visible: true,
       isPDF: finalImage.isPDF || false,
-      // CRITICAL: Include cloudinaryPublicId (fileKey) so image can be saved/restored from cart
-      cloudinaryPublicId: finalImage.fileKey || finalImage.cloudinaryUrl,
+      cloudinaryPublicId: finalImage.fileKey || finalImage.productionPublicId || finalImage.cloudinaryUrl,
+      productionUrl: finalImage.productionUrl || finalImage.cloudinaryUrl || finalImage.url,
+      productionPublicId: finalImage.productionPublicId || finalImage.fileKey,
+      resourceType: finalImage.resourceType || (finalImage.isPDF ? 'raw' : 'image'),
+      mimeType: finalImage.mimeType,
+      originalFormat: finalImage.originalFormat,
+      originalBytes: finalImage.originalBytes,
+      originalWidth: finalImage.originalWidth || finalImage.width,
+      originalHeight: finalImage.originalHeight || finalImage.height,
+      effectivePPI: finalImage.originalWidth && width ? Math.min(finalImage.originalWidth / width, (finalImage.originalHeight || finalImage.height) / height) : 0,
+      pdfPageNumber: finalImage.pdfPageNumber || (finalImage.isPDF ? 1 : undefined),
+      fitMode: 'contain',
       name: finalImage.name,
     };
     

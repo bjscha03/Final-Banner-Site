@@ -24,10 +24,18 @@ export interface ImageObject extends BaseCanvasObject {
   type: 'image';
   cloudinaryPublicId?: string;
   url: string;
+  productionUrl?: string;
+  productionPublicId?: string;
+  resourceType?: 'image' | 'raw';
+  mimeType?: string;
+  originalFormat?: string;
+  originalBytes?: number;
   originalWidth: number;
   originalHeight: number;
   effectivePPI: number;
   isPDF?: boolean;
+  pdfPageNumber?: number;
+  fitMode?: 'contain' | 'cover' | 'fill';
 }
 
 export interface TextObject extends BaseCanvasObject {
