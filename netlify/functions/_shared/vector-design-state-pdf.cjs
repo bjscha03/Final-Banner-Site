@@ -209,8 +209,8 @@ async function renderVectorDesignStatePdf({
     metadata: {
       renderer: 'vector-design-state-v1',
       sourcePreservedAsVector: true,
-      sourcePageWidthPt,
-      sourcePageHeightPt,
+      sourcePageWidthPt: sourceWidthPt,
+      sourcePageHeightPt: sourceHeightPt,
       pageWidthPt,
       pageHeightPt,
       drawX,
