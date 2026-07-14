@@ -3,28 +3,18 @@
  *
  * Acts as a server-side proxy for admin print-ready PDF downloads.
  *
- * Why this exists:
- * The cached `generated_print_pdf_url` is hosted on Cloudinary as a raw asset.
- * When the Cloudinary account / delivery settings restrict raw delivery, the
- * browser receives a 401 on a direct fetch ("Failed to fetch cached PDF: 401").
- * This endpoint never exposes the raw Cloudinary URL to the browser. Instead it:
- *   1. Looks up the cached PDF URL from `order_items.generated_print_pdf_url`.
- *   2. Tries to download it server-side (direct, then signed via Cloudinary SDK).
- *   3. If the cached PDF cannot be fetched (401/403/404), it regenerates the PDF
- *      by invoking the existing `render-order-pdf` function.
- *   4. Streams the resulting bytes back to the admin client as
- *      `Content-Type: application/pdf` with an `attachment` disposition.
- *
- * Request: POST JSON. The body is forwarded verbatim to `render-order-pdf` if
- * regeneration is required, so the frontend can pass the same payload it would
- * normally build for that function (orderId, itemId, canvasStateJson, …).
- *
- * Required fields: { orderId }
- * Recommended:     { itemId } so we can look up the cached URL from the DB.
+ * PDF artwork with saved designer state is handled first and is composed from
+ * the original uploaded PDF page as a PDF Form XObject. That preserves vector
+ * text/lines at every zoom level and deliberately bypasses any previously
+ * cached rasterized print PDF.
  */
 
 const { neon } = require('@neondatabase/serverless');
 const { v2: cloudinary } = require('cloudinary');
+const {
+  isPdfDesignState,
+  renderVectorDesignStatePdf,
+} = require('./_shared/vector-design-state-pdf.cjs');
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -33,7 +23,8 @@ cloudinary.config({
   secure: true,
 });
 
-const sql = process.env.DATABASE_URL ? neon(process.env.DATABASE_URL) : null;
+const databaseUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
+const sql = databaseUrl ? neon(databaseUrl) : null;
 
 const SIGNED_URL_EXPIRY_SECONDS = 600;
 
@@ -43,24 +34,45 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+function parseCanvasState(value) {
+  if (!value) return null;
+  if (typeof value === 'object') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+function makePdfResponse(pdfBuffer, orderId, method, extraHeaders = {}) {
+  const safeOrderId = String(orderId).replace(/[^A-Za-z0-9_-]/g, '');
+  const filename = `order-${safeOrderId.slice(-8) || safeOrderId}-print.pdf`;
+  return {
+    statusCode: 200,
+    headers: {
+      ...CORS_HEADERS,
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Cache-Control': 'no-store',
+      'X-Print-PDF-Source': method,
+      ...extraHeaders,
+    },
+    body: pdfBuffer.toString('base64'),
+    isBase64Encoded: true,
+  };
+}
+
 /**
  * Parse a Cloudinary delivery URL into its component parts so we can ask the
  * SDK to sign a download URL for it.
- *
- * Example URL:
- *   https://res.cloudinary.com/<cloud>/raw/upload/v1700000000/order-pdfs/order-123-print-ready-1700000000.pdf
  */
 function parseCloudinaryUrl(url) {
   try {
     const parsed = new URL(url);
-    // Accept only hostnames that are exactly cloudinary.com or a subdomain of it
-    // (e.g. res.cloudinary.com). Using endsWith on a leading-dot pattern avoids
-    // the "incomplete URL substring sanitization" pitfall (e.g. evil.com/cloudinary.com/...).
     const host = parsed.hostname.toLowerCase();
     const isCloudinaryHost = host === 'cloudinary.com' || host.endsWith('.cloudinary.com');
     if (!isCloudinaryHost) return null;
     const segments = parsed.pathname.split('/').filter(Boolean);
-    // segments: [<cloud_name>, <resource_type>, <delivery_type>, ...rest]
     if (segments.length < 4) return null;
     const cloudName = segments[0];
     const resourceType = segments[1] || 'raw';
@@ -74,8 +86,6 @@ function parseCloudinaryUrl(url) {
     const dotIdx = publicIdWithExt.lastIndexOf('.');
     if (dotIdx > -1) {
       format = publicIdWithExt.slice(dotIdx + 1).toLowerCase();
-      // For raw resources Cloudinary keeps the extension as part of the public_id,
-      // but `private_download_url` expects the base id + format separately.
       publicId = publicIdWithExt.slice(0, dotIdx);
     }
     return { cloudName, resourceType, deliveryType, publicId, format };
@@ -84,9 +94,6 @@ function parseCloudinaryUrl(url) {
   }
 }
 
-/**
- * Server-side fetch helper that returns the response body as a Buffer when OK.
- */
 async function fetchAsBuffer(url) {
   try {
     const res = await fetch(url);
@@ -98,20 +105,13 @@ async function fetchAsBuffer(url) {
   }
 }
 
-/**
- * Try every reasonable strategy to download a Cloudinary-hosted PDF given its
- * stored secure URL. Returns { ok, buffer, method, status }.
- */
 async function downloadCloudinaryPdf(cachedUrl, log) {
-  // 1) Public direct fetch (works when the asset is public/upload).
   const direct = await fetchAsBuffer(cachedUrl);
   log('cached fetch status (public direct):', direct.status);
   if (direct.ok) {
     return { ok: true, buffer: direct.buffer, method: 'public-direct', status: direct.status };
   }
 
-  // 2) Generate a signed download URL via Cloudinary SDK and fetch that. This
-  //    bypasses delivery restrictions because it carries an api_key + signature.
   const parsed = parseCloudinaryUrl(cachedUrl);
   if (parsed && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
     try {
@@ -123,7 +123,7 @@ async function downloadCloudinaryPdf(cachedUrl, log) {
           type: parsed.deliveryType || 'upload',
           attachment: true,
           expires_at: Math.floor(Date.now() / 1000) + SIGNED_URL_EXPIRY_SECONDS,
-        }
+        },
       );
       log('signed download URL generated for', parsed.resourceType + '/' + parsed.deliveryType);
       const signed = await fetchAsBuffer(signedUrl);
@@ -145,23 +145,15 @@ async function downloadCloudinaryPdf(cachedUrl, log) {
 /**
  * Invoke the existing render-order-pdf function in-process, falling back to an
  * HTTP self-call if the module export is unavailable. Returns a Buffer.
- *
- * IMPORTANT: We force regeneration here. Without `forceRegenerate: true`,
- * `render-order-pdf` would short-circuit on its own cache lookup and hand
- * back the SAME `generated_print_pdf_url` we already failed to download —
- * leading to "Regenerated PDF response had no usable data".
  */
 async function regeneratePdf(requestBody, log) {
   const regenBody = {
     ...(requestBody || {}),
     forceRegenerate: true,
-    // Strip any cached-URL hints so render-order-pdf cannot reuse the broken URL.
     cachedPdfUrl: null,
     generatedPrintPdfUrl: null,
   };
 
-  // Prefer in-process invocation to avoid an extra HTTP round-trip and to
-  // sidestep any Netlify routing that may not be configured locally.
   try {
     const renderModule = require('./render-order-pdf.cjs');
     if (renderModule && typeof renderModule.handler === 'function') {
@@ -189,7 +181,6 @@ async function regeneratePdf(requestBody, log) {
         }
         return { buffer: buf, pdfUrl: json.pdfUrl || null };
       }
-      // No inline base64? Try to fetch the URL it returned.
       if (json.pdfUrl) {
         const fetched = await downloadCloudinaryPdf(json.pdfUrl, log);
         if (fetched.ok && fetched.buffer && fetched.buffer.length > 0) {
@@ -202,7 +193,6 @@ async function regeneratePdf(requestBody, log) {
     log('in-process regeneration failed, falling back to HTTP:', err && err.message);
   }
 
-  // HTTP fallback (e.g. local dev where require resolution may differ).
   const baseUrl = process.env.URL || process.env.DEPLOY_URL || process.env.DEPLOY_PRIME_URL || '';
   if (!baseUrl || !/^https?:\/\//i.test(baseUrl)) {
     throw new Error('Regeneration failed and no usable base URL configured for HTTP fallback');
@@ -272,6 +262,7 @@ exports.handler = async (event) => {
   }
 
   const log = (...args) => console.log('[ADMIN_PRINT_PDF]', `order=${orderId}`, ...args);
+  const designState = parseCanvasState(req.canvasStateJson);
   log('request received', {
     itemId: itemId || null,
     itemIndex: typeof itemIndex === 'number' ? itemIndex : null,
@@ -279,10 +270,41 @@ exports.handler = async (event) => {
       ? `${req.bannerWidthIn}x${req.bannerHeightIn}in`
       : 'unknown',
     hasCanvasStateJson: !!req.canvasStateJson,
+    isOriginalPdfDesign: isPdfDesignState(designState),
     hasFinalRender: !!(req.finalRenderUrl || req.finalRenderFileKey),
   });
 
-  // 1) Resolve the cached PDF URL — DB is authoritative when an itemId is given.
+  // Highest priority: preserve an uploaded PDF as vector. Do not reuse an old
+  // raster cache, thumbnail, canvas screenshot, or Cloudinary page PNG.
+  if (isPdfDesignState(designState)) {
+    try {
+      log('composing vector print PDF from original uploaded PDF page');
+      const vectorResult = await renderVectorDesignStatePdf({
+        designState,
+        bannerWidthIn: req.bannerWidthIn,
+        bannerHeightIn: req.bannerHeightIn,
+        bleedIn: req.includeBleed === false ? 0 : Number(req.bleedIn || 0),
+      });
+      log('✅ vector PDF composed from original artwork', vectorResult.metadata);
+      return makePdfResponse(vectorResult.buffer, orderId, 'vector-original-pdf', {
+        'X-Original-Artwork-Vector': 'true',
+        'X-Vector-Renderer': vectorResult.metadata.renderer,
+      });
+    } catch (err) {
+      console.error('[ADMIN_PRINT_PDF] vector PDF composition failed:', err && err.stack);
+      return {
+        statusCode: 422,
+        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+        body: JSON.stringify({
+          success: false,
+          error: 'Could not compose the print PDF from the original uploaded PDF.',
+          details: err && err.message,
+        }),
+      };
+    }
+  }
+
+  // Raster artwork and legacy orders may reuse a valid cached PDF.
   let cachedUrl = req.cachedPdfUrl || req.generatedPrintPdfUrl || null;
   if (sql && itemId) {
     try {
@@ -314,7 +336,6 @@ exports.handler = async (event) => {
       log('✅ delivered cached PDF via', method, 'bytes=', pdfBuffer.length);
     } else {
       log(`Cached PDF unauthorized; regenerating PDF (status=${result.status})`);
-      // Best-effort: clear the stale URL so subsequent calls don't loop on it.
       if (sql && itemId) {
         try {
           await sql`
@@ -358,21 +379,6 @@ exports.handler = async (event) => {
     };
   }
 
-  const safeOrderId = String(orderId).replace(/[^A-Za-z0-9_-]/g, '');
-  const filename = `order-${safeOrderId.slice(-8) || safeOrderId}-print.pdf`;
-  log('final delivery: contentType=application/pdf method=' + method +
-    ' bytes=' + pdfBuffer.length + ' filename=' + filename);
-
-  return {
-    statusCode: 200,
-    headers: {
-      ...CORS_HEADERS,
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="${filename}"`,
-      'Cache-Control': 'no-store',
-      'X-Print-PDF-Source': method,
-    },
-    body: pdfBuffer.toString('base64'),
-    isBase64Encoded: true,
-  };
+  log('final delivery: contentType=application/pdf method=' + method + ' bytes=' + pdfBuffer.length);
+  return makePdfResponse(pdfBuffer, orderId, method);
 };
