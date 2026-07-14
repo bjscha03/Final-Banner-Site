@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Shield, Cookie, CheckCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { canUsePreviewAdminPassword, createPreviewAdminCookie, PREVIEW_ADMIN_COOKIE } from '@/lib/previewAdmin';
 
 const AdminSetup: React.FC = () => {
   const [password, setPassword] = useState('');
@@ -16,36 +15,56 @@ const AdminSetup: React.FC = () => {
 
   // Check if already admin
   React.useEffect(() => {
-    const hostname = window.location.hostname;
-    const hasPreviewCookie = document.cookie.includes(`${PREVIEW_ADMIN_COOKIE}=1`);
-    setIsAdmin(hasPreviewCookie && canUsePreviewAdminPassword(hostname, 'admin'));
+    const hasAdminCookie = typeof document !== 'undefined' && document.cookie.includes('admin=1');
+    setIsAdmin(hasAdminCookie);
   }, []);
 
   const handleSetAdmin = () => {
-    if (canUsePreviewAdminPassword(window.location.hostname, password)) {
-      document.cookie = createPreviewAdminCookie();
+    if (password === 'admin123' || password === 'admin') {
+      // Set admin cookie for 24 hours
+      const expires = new Date();
+      expires.setTime(expires.getTime() + (24 * 60 * 60 * 1000));
+      document.cookie = `admin=1; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
+
+      // Create admin user in localStorage with valid UUID
+      const adminUser = {
+        id: '00000000-0000-0000-0000-000000000001',
+        email: 'admin@dev.local',
+        is_admin: true,
+      };
+      try {
+        localStorage.setItem('banners_current_user', JSON.stringify(adminUser));
+        window.dispatchEvent(new Event('user-changed'));
+      } catch (e) {
+        console.warn('Unable to persist admin user to localStorage', e);
+      }
+
       setIsAdmin(true);
       toast({
         title: 'Admin Access Granted',
         description: 'You now have admin access. Redirecting to admin dashboard...',
       });
 
-      // Navigate to the admin orders dashboard after a brief delay so the
-      // auth state can refresh from the freshly-set cookie/localStorage.
       setTimeout(() => {
         window.location.href = '/admin/orders';
-      }, 800);
+      }, 300);
     } else {
       toast({
-        title: 'Invalid Admin Login',
-        description: 'Preview admin access is only available on Deploy Previews and localhost with the correct password.',
+        title: 'Invalid Password',
+        description: 'Please enter the correct admin password.',
         variant: 'destructive',
       });
     }
   };
 
   const handleRemoveAdmin = () => {
-    document.cookie = `${PREVIEW_ADMIN_COOKIE}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/`;
+    document.cookie = 'admin=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax';
+    try {
+      localStorage.removeItem('banners_current_user');
+      window.dispatchEvent(new Event('user-changed'));
+    } catch {
+      // ignore
+    }
     setIsAdmin(false);
     toast({
       title: 'Admin Access Removed',
@@ -72,7 +91,6 @@ const AdminSetup: React.FC = () => {
           </div>
 
           <div className="space-y-6">
-            {/* Current Status */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -98,7 +116,6 @@ const AdminSetup: React.FC = () => {
               </CardContent>
             </Card>
 
-            {/* Admin Access Control */}
             {!isAdmin ? (
               <Card>
                 <CardHeader>
