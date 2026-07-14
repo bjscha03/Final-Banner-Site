@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Shield, Cookie, CheckCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { canUsePreviewAdminPassword, createPreviewAdminCookie, PREVIEW_ADMIN_COOKIE } from '@/lib/previewAdmin';
 
 const AdminSetup: React.FC = () => {
   const [password, setPassword] = useState('');
@@ -15,29 +16,14 @@ const AdminSetup: React.FC = () => {
 
   // Check if already admin
   React.useEffect(() => {
-    const hasAdminCookie = typeof document !== 'undefined' && document.cookie.includes('admin=1');
-    setIsAdmin(hasAdminCookie);
+    const hostname = window.location.hostname;
+    const hasPreviewCookie = document.cookie.includes(`${PREVIEW_ADMIN_COOKIE}=1`);
+    setIsAdmin(hasPreviewCookie && canUsePreviewAdminPassword(hostname, 'admin'));
   }, []);
 
   const handleSetAdmin = () => {
-    if (password === 'admin123' || password === 'admin') {
-      // Set admin cookie for 24 hours
-      const expires = new Date();
-      expires.setTime(expires.getTime() + (24 * 60 * 60 * 1000));
-      document.cookie = `admin=1; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
-
-      // Create admin user in localStorage with valid UUID
-      const adminUser = {
-        id: '00000000-0000-0000-0000-000000000001',
-        email: 'admin@dev.local',
-        is_admin: true,
-      };
-      try {
-        localStorage.setItem('banners_current_user', JSON.stringify(adminUser));
-      } catch (e) {
-        console.warn('Unable to persist admin user to localStorage', e);
-      }
-
+    if (canUsePreviewAdminPassword(window.location.hostname, password)) {
+      document.cookie = createPreviewAdminCookie();
       setIsAdmin(true);
       toast({
         title: 'Admin Access Granted',
@@ -51,20 +37,15 @@ const AdminSetup: React.FC = () => {
       }, 800);
     } else {
       toast({
-        title: 'Invalid Password',
-        description: 'Please enter the correct admin password.',
+        title: 'Invalid Admin Login',
+        description: 'Preview admin access is only available on Deploy Previews and localhost with the correct password.',
         variant: 'destructive',
       });
     }
   };
 
   const handleRemoveAdmin = () => {
-    document.cookie = 'admin=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
-    try {
-      localStorage.removeItem('banners_current_user');
-    } catch {
-      // ignore
-    }
+    document.cookie = `${PREVIEW_ADMIN_COOKIE}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/`;
     setIsAdmin(false);
     toast({
       title: 'Admin Access Removed',
