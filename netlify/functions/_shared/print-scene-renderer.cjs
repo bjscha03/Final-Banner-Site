@@ -1,8 +1,15 @@
 const crypto = require('crypto');
-const sharp = require('sharp');
+const { v2: cloudinary } = require('cloudinary');
 const { PDFDocument, rgb, degrees, StandardFonts } = require('pdf-lib');
 
-const RENDERER_VERSION = 'production-pdf-v2';
+const RENDERER_VERSION = 'production-pdf-v3-signed-source';
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+  secure: true,
+});
 
 function parseScene(scene) {
   return typeof scene === 'string' ? JSON.parse(scene) : scene;
@@ -15,14 +22,84 @@ function sceneHash(scene) {
 function assertProductionUrl(obj) {
   const url = obj?.source?.originalUrl;
   if (!url) throw new Error(`Missing production source for object ${obj?.id || '(unknown)'}`);
-  if (url.startsWith('data:') || url.startsWith('blob:')) throw new Error(`Invalid production source URL for object ${obj?.id || '(unknown)'}: ${url.slice(0, 5)}`);
+  if (url.startsWith('data:') || url.startsWith('blob:')) {
+    throw new Error(`Invalid production source URL for object ${obj?.id || '(unknown)'}: ${url.slice(0, 5)}`);
+  }
   return url;
 }
 
-async function fetchBuffer(url) {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`Failed to fetch production asset ${url}: ${response.status} ${response.statusText}`);
-  return Buffer.from(await response.arrayBuffer());
+function parseCloudinarySource(url, source = {}) {
+  let publicId = source.publicId || null;
+  let resourceType = source.resourceType || null;
+  let format = source.format || null;
+  let deliveryType = 'upload';
+
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+    if (!(host === 'cloudinary.com' || host.endsWith('.cloudinary.com'))) return null;
+
+    const segments = parsed.pathname.split('/').filter(Boolean);
+    if (segments.length >= 4) {
+      resourceType = resourceType || segments[1] || 'raw';
+      deliveryType = segments[2] || 'upload';
+      const assetSegments = segments.slice(3).filter((segment) => !/^v\d+$/.test(segment));
+      const publicIdWithExtension = assetSegments.join('/');
+      const dot = publicIdWithExtension.lastIndexOf('.');
+      if (!publicId) publicId = dot > -1 ? publicIdWithExtension.slice(0, dot) : publicIdWithExtension;
+      if (!format && dot > -1) format = publicIdWithExtension.slice(dot + 1).toLowerCase();
+    }
+  } catch {
+    return null;
+  }
+
+  format = String(format || (source.mimeType === 'application/pdf' ? 'pdf' : '')).replace(/^\./, '').toLowerCase() || null;
+  resourceType = resourceType || (format === 'pdf' ? 'raw' : 'image');
+  if (publicId && format && publicId.toLowerCase().endsWith(`.${format}`)) {
+    publicId = publicId.slice(0, -(format.length + 1));
+  }
+
+  return publicId ? { publicId, resourceType, format, deliveryType } : null;
+}
+
+async function fetchBuffer(url, source = {}) {
+  let directStatus = 0;
+  try {
+    const response = await fetch(url);
+    directStatus = response.status;
+    if (response.ok) return Buffer.from(await response.arrayBuffer());
+  } catch {
+    // Continue to signed Cloudinary fallback.
+  }
+
+  const cloudinarySource = parseCloudinarySource(url, source);
+  if (
+    cloudinarySource
+    && process.env.CLOUDINARY_API_KEY
+    && process.env.CLOUDINARY_API_SECRET
+  ) {
+    try {
+      const signedUrl = cloudinary.utils.private_download_url(
+        cloudinarySource.publicId,
+        cloudinarySource.format || 'pdf',
+        {
+          resource_type: cloudinarySource.resourceType || 'raw',
+          type: cloudinarySource.deliveryType || 'upload',
+          attachment: false,
+          expires_at: Math.floor(Date.now() / 1000) + 600,
+        },
+      );
+      const signedResponse = await fetch(signedUrl);
+      if (signedResponse.ok) return Buffer.from(await signedResponse.arrayBuffer());
+      throw new Error(`signed fetch returned ${signedResponse.status} ${signedResponse.statusText}`);
+    } catch (error) {
+      throw new Error(
+        `Failed to fetch protected production asset ${cloudinarySource.publicId}: ${error?.message || 'signed download failed'}`,
+      );
+    }
+  }
+
+  throw new Error(`Failed to fetch production asset ${url}: ${directStatus || 'network error'}`);
 }
 
 function hexToRgb(hex) {
@@ -74,7 +151,10 @@ async function renderPrintSceneToPdfBuffer(sceneInput) {
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const metadata = { rendererVersion: RENDERER_VERSION, sceneHash: sceneHash(scene), resolution: [] };
 
-  const objects = [...(scene.objects || [])].filter(o => o.visible !== false).sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+  const objects = [...(scene.objects || [])]
+    .filter(o => o.visible !== false)
+    .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+
   for (const obj of objects) {
     const x = Number(obj.xIn || 0) * 72;
     const w = Number(obj.widthIn || 0) * 72;
@@ -87,13 +167,22 @@ async function renderPrintSceneToPdfBuffer(sceneInput) {
 
     if (obj.type === 'image') {
       const url = assertProductionUrl(obj);
-      const buffer = await fetchBuffer(url);
       const source = obj.source || {};
+      const buffer = await fetchBuffer(url, source);
       const isPdf = source.mimeType === 'application/pdf' || source.format === 'pdf' || source.isVector;
       metadata.resolution.push({ objectId: obj.id, ...effectiveResolution(obj) });
+
       if (isPdf) {
-        const [embeddedPage] = await pdfDoc.embedPdf(buffer, [(Number(source.pdfPageNumber || 1) - 1)]);
-        page.drawPage(embeddedPage, { x: drawOrigin.x, y: drawOrigin.y, width: w, height: h, rotate, opacity });
+        const pageIndex = Math.max(0, Number(source.pdfPageNumber || 1) - 1);
+        const [embeddedPage] = await pdfDoc.embedPdf(buffer, [pageIndex]);
+        page.drawPage(embeddedPage, {
+          x: drawOrigin.x,
+          y: drawOrigin.y,
+          width: w,
+          height: h,
+          rotate,
+          opacity,
+        });
       } else {
         const fmt = String(source.format || source.mimeType || '').toLowerCase();
         const image = fmt.includes('png') ? await pdfDoc.embedPng(buffer) : await pdfDoc.embedJpg(buffer);
@@ -110,11 +199,30 @@ async function renderPrintSceneToPdfBuffer(sceneInput) {
         opacity,
       });
     } else if (obj.type === 'shape') {
-      page.drawRectangle({ x: drawOrigin.x, y: drawOrigin.y, width: w, height: h, color: hexToRgb(obj.shape?.fill || '#000000'), borderColor: hexToRgb(obj.shape?.stroke || obj.shape?.fill || '#000000'), borderWidth: Number(obj.shape?.strokeWidth || 0), rotate, opacity });
+      page.drawRectangle({
+        x: drawOrigin.x,
+        y: drawOrigin.y,
+        width: w,
+        height: h,
+        color: hexToRgb(obj.shape?.fill || '#000000'),
+        borderColor: hexToRgb(obj.shape?.stroke || obj.shape?.fill || '#000000'),
+        borderWidth: Number(obj.shape?.strokeWidth || 0),
+        rotate,
+        opacity,
+      });
     }
   }
+
   const bytes = await pdfDoc.save({ useObjectStreams: true });
   return { buffer: Buffer.from(bytes), metadata };
 }
 
-module.exports = { RENDERER_VERSION, renderPrintSceneToPdfBuffer, sceneHash, effectiveResolution, rotatedLowerLeftForCenter };
+module.exports = {
+  RENDERER_VERSION,
+  renderPrintSceneToPdfBuffer,
+  sceneHash,
+  effectiveResolution,
+  rotatedLowerLeftForCenter,
+  parseCloudinarySource,
+  fetchBuffer,
+};
