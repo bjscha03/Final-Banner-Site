@@ -27,15 +27,28 @@ export type PdfRenderOptions = {
   minHeight?: number;
   /** Maximum backing-canvas pixels to avoid exhausting browser memory. */
   maxPixels?: number;
+  /** Hard timeout for parsing/rendering the PDF page. */
+  timeoutMs?: number;
   signal?: AbortSignal;
 };
 
 const DEFAULT_MAX_PIXELS = 16_000_000;
+const CONSTRAINED_DEVICE_MAX_PIXELS = 4_000_000;
+const CONSTRAINED_DEVICE_TIMEOUT_MS = 20_000;
+const DEFAULT_TIMEOUT_MS = 45_000;
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 const isPdfFile = (file: File) =>
   file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+
+const isConstrainedBrowser = () => {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+  const nav = navigator as Navigator & { deviceMemory?: number };
+  return window.matchMedia?.('(max-width: 768px)').matches
+    || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+    || (typeof nav.deviceMemory === 'number' && nav.deviceMemory <= 4);
+};
 
 const throwIfAborted = (signal?: AbortSignal) => {
   if (signal?.aborted) throw new Error('PDF rendering aborted');
@@ -54,7 +67,11 @@ const computeViewportScale = (
   baseHeight: number,
   options: PdfRenderOptions,
 ) => {
-  const baseScale = Math.max(0.1, options.scale ?? 1) * Math.max(1, options.deviceScale ?? 1);
+  const constrained = isConstrainedBrowser();
+  const requestedDeviceScale = Math.max(1, options.deviceScale ?? 1);
+  const deviceScaleCap = constrained ? 1.25 : 2;
+  const safeDeviceScale = Math.min(requestedDeviceScale, deviceScaleCap);
+  const baseScale = Math.max(0.1, options.scale ?? 1) * safeDeviceScale;
   const scaleCandidates = [baseScale];
   if (options.targetWidth && options.targetWidth > 0) scaleCandidates.push(options.targetWidth / baseWidth);
   if (options.targetHeight && options.targetHeight > 0) scaleCandidates.push(options.targetHeight / baseHeight);
@@ -62,7 +79,10 @@ const computeViewportScale = (
   if (options.minHeight && options.minHeight > 0) scaleCandidates.push(options.minHeight / baseHeight);
 
   let scale = Math.max(...scaleCandidates.filter(Number.isFinite));
-  const maxPixels = options.maxPixels ?? DEFAULT_MAX_PIXELS;
+  const requestedMaxPixels = options.maxPixels ?? DEFAULT_MAX_PIXELS;
+  const maxPixels = constrained
+    ? Math.min(requestedMaxPixels, CONSTRAINED_DEVICE_MAX_PIXELS)
+    : requestedMaxPixels;
   const pixels = baseWidth * scale * baseHeight * scale;
   if (pixels > maxPixels) {
     scale *= Math.sqrt(maxPixels / pixels);
@@ -70,18 +90,45 @@ const computeViewportScale = (
   return Math.max(0.1, scale);
 };
 
+const dataUrlToBlob = (dataUrl: string) => {
+  const [header, body] = dataUrl.split(',');
+  const mime = /data:([^;]+)/.exec(header)?.[1] || 'image/png';
+  const binary = atob(body || '');
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
+};
+
 const canvasToPngBlob = (canvas: HTMLCanvasElement) => new Promise<Blob>((resolve, reject) => {
+  let settled = false;
+  const finish = (fn: () => void) => {
+    if (settled) return;
+    settled = true;
+    window.clearTimeout(timeoutId);
+    fn();
+  };
+
+  const timeoutId = window.setTimeout(() => {
+    try {
+      const fallback = dataUrlToBlob(canvas.toDataURL('image/png', 0.92));
+      if (!fallback.size) throw new Error('empty PNG fallback');
+      finish(() => resolve(fallback));
+    } catch {
+      finish(() => reject(new Error('PDF preview image encoding timed out')));
+    }
+  }, isConstrainedBrowser() ? 8_000 : 15_000);
+
   canvas.toBlob((blob) => {
     if (!blob || blob.size <= 0) {
-      reject(new Error('PDF preview canvas produced an empty PNG blob'));
+      finish(() => reject(new Error('PDF preview canvas produced an empty PNG blob')));
       return;
     }
     if (blob.type !== 'image/png') {
-      reject(new Error(`PDF preview canvas produced ${blob.type || 'an unknown type'} instead of image/png`));
+      finish(() => reject(new Error(`PDF preview canvas produced ${blob.type || 'an unknown type'} instead of image/png`)));
       return;
     }
-    resolve(blob);
-  }, 'image/png', 1);
+    finish(() => resolve(blob));
+  }, 'image/png', 0.92);
 });
 
 export async function renderPdfToDataUrl(file: File, opts: PdfRenderOptions = {}): Promise<PdfPreviewResult> {
@@ -94,26 +141,37 @@ export async function renderPdfToDataUrl(file: File, opts: PdfRenderOptions = {}
 
   throwIfAborted(opts.signal);
 
+  let loadingTask: ReturnType<typeof pdfjsLib.getDocument> | null = null;
   let pdfDocument: pdfjsLib.PDFDocumentProxy | null = null;
+  let page: pdfjsLib.PDFPageProxy | null = null;
   let renderTask: pdfjsLib.RenderTask | null = null;
   let canvas: HTMLCanvasElement | null = null;
   let abortHandler: (() => void) | null = null;
+  let renderTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  let timedOut = false;
 
   try {
     const bytes = await file.arrayBuffer();
     throwIfAborted(opts.signal);
 
-    const loadingTask = pdfjsLib.getDocument({
+    loadingTask = pdfjsLib.getDocument({
       data: new Uint8Array(bytes),
       useWorkerFetch: false,
       isEvalSupported: false,
     });
 
-    abortHandler = () => {
+    const cancelWork = () => {
       renderTask?.cancel();
-      void loadingTask.destroy();
+      void loadingTask?.destroy();
     };
+    abortHandler = cancelWork;
     opts.signal?.addEventListener('abort', abortHandler, { once: true });
+
+    const timeoutMs = opts.timeoutMs ?? (isConstrainedBrowser() ? CONSTRAINED_DEVICE_TIMEOUT_MS : DEFAULT_TIMEOUT_MS);
+    renderTimeoutId = setTimeout(() => {
+      timedOut = true;
+      cancelWork();
+    }, timeoutMs);
 
     pdfDocument = await loadingTask.promise;
     throwIfAborted(opts.signal);
@@ -127,7 +185,7 @@ export async function renderPdfToDataUrl(file: File, opts: PdfRenderOptions = {}
       throw new Error(`PDF page ${pageNumber} is outside the document range 1-${pdfDocument.numPages}`);
     }
 
-    const page = await pdfDocument.getPage(pageNumber);
+    page = await pdfDocument.getPage(pageNumber);
     throwIfAborted(opts.signal);
 
     const baseViewport = page.getViewport({ scale: 1 });
@@ -168,6 +226,9 @@ export async function renderPdfToDataUrl(file: File, opts: PdfRenderOptions = {}
       cleanup: () => URL.revokeObjectURL(previewUrl),
     };
   } catch (error) {
+    if (timedOut) {
+      throw new Error('PDF preview timed out on this device. Please try the upload again.');
+    }
     const passwordMessage = getPasswordMessage(error);
     if (passwordMessage) throw new Error(passwordMessage);
     if ((error as { name?: string })?.name === 'RenderingCancelledException') {
@@ -175,9 +236,11 @@ export async function renderPdfToDataUrl(file: File, opts: PdfRenderOptions = {}
     }
     throw error;
   } finally {
+    if (renderTimeoutId) clearTimeout(renderTimeoutId);
     if (abortHandler) opts.signal?.removeEventListener('abort', abortHandler);
     renderTask = null;
-    await pdfDocument?.destroy();
+    try { page?.cleanup(); } catch { /* no-op */ }
+    try { await pdfDocument?.destroy(); } catch { /* no-op */ }
     if (canvas) {
       canvas.width = 0;
       canvas.height = 0;
