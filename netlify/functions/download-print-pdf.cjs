@@ -1,9 +1,9 @@
 /**
  * Admin print PDF download endpoint.
  *
- * Loads the authoritative order item, upgrades legacy /design state to a
- * versioned print scene, and returns PDF bytes directly. Uploaded PDFs are
- * embedded from their original production asset by render-order-pdf.
+ * Native sceneVersion 2 orders render from original production assets.
+ * Legacy orders prefer their already-approved permanent snapshot instead of
+ * guessing how older transform formats map into the current renderer.
  */
 const { neon } = require('@neondatabase/serverless');
 const { v2: cloudinary } = require('cloudinary');
@@ -43,6 +43,40 @@ function hashScene(scene) {
 function finiteNumber(value, fallback) {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
+}
+
+function isTemporaryUrl(value) {
+  return typeof value === 'string' && (value.startsWith('blob:') || value.startsWith('data:'));
+}
+
+function isRawPdfUrl(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  return Boolean(normalized) && (
+    /\.pdf(?:$|[?#])/.test(normalized)
+    || normalized.includes('/raw/upload/')
+    || normalized.startsWith('application/pdf')
+  );
+}
+
+function isUsableSnapshotUrl(value) {
+  return typeof value === 'string'
+    && value.trim().length > 0
+    && !isTemporaryUrl(value)
+    && !isRawPdfUrl(value);
+}
+
+function getLegacyApprovedSnapshot(item = {}, req = {}) {
+  const candidates = [
+    item.final_render_url,
+    item.web_preview_url,
+    item.thumbnail_url,
+    item.print_ready_url,
+    req.finalRenderUrl,
+    req.webPreviewUrl,
+    req.thumbnailUrl,
+    req.printReadyUrl,
+  ];
+  return candidates.find(isUsableSnapshotUrl) || null;
 }
 
 function legacyDesignStateToPrintScene(state, fallback = {}) {
@@ -152,20 +186,24 @@ async function loadOrderItem(itemId) {
   if (!sql || !itemId) return null;
 
   const cacheColumnsReady = await ensurePrintPdfCacheColumns();
+  const baseColumns = `
+    id, width_in, height_in, file_key, file_url, print_ready_url, web_preview_url,
+    text_elements, overlay_image, overlay_images, canvas_background_color,
+    image_scale, image_position, thumbnail_url,
+    final_render_url, final_render_file_key, final_render_width_px,
+    final_render_height_px, final_render_dpi, canvas_state_json
+  `;
+
   if (cacheColumnsReady) {
     try {
-      const rows = await sql`
-        SELECT id, width_in, height_in, file_key, file_url, print_ready_url, web_preview_url,
-               text_elements, overlay_image, overlay_images, canvas_background_color,
-               image_scale, image_position, thumbnail_url,
-               final_render_url, final_render_file_key, final_render_width_px,
-               final_render_height_px, final_render_dpi, canvas_state_json,
+      const rows = await sql(`
+        SELECT ${baseColumns},
                generated_print_pdf_url, generated_print_pdf_renderer_version,
                generated_print_pdf_scene_hash
         FROM order_items
-        WHERE id = ${itemId}
+        WHERE id = $1
         LIMIT 1
-      `;
+      `, [itemId]);
       return rows && rows[0] ? rows[0] : null;
     } catch (error) {
       const missingColumn = error && (
@@ -177,16 +215,12 @@ async function loadOrderItem(itemId) {
     }
   }
 
-  const rows = await sql`
-    SELECT id, width_in, height_in, file_key, file_url, print_ready_url, web_preview_url,
-           text_elements, overlay_image, overlay_images, canvas_background_color,
-           image_scale, image_position, thumbnail_url,
-           final_render_url, final_render_file_key, final_render_width_px,
-           final_render_height_px, final_render_dpi, canvas_state_json
+  const rows = await sql(`
+    SELECT ${baseColumns}
     FROM order_items
-    WHERE id = ${itemId}
+    WHERE id = $1
     LIMIT 1
-  `;
+  `, [itemId]);
   if (!rows || !rows[0]) return null;
   return {
     ...rows[0],
@@ -276,6 +310,63 @@ async function renderFreshPdf(req) {
   return buffer;
 }
 
+function prepareItemRequest(req, item) {
+  const parsedState = parseJson(item.canvas_state_json || req.canvasStateJson);
+  const isNativeSceneV2 = parsedState && parsedState.sceneVersion === 2;
+  const approvedSnapshot = !isNativeSceneV2 ? getLegacyApprovedSnapshot(item, req) : null;
+
+  const next = {
+    ...req,
+    itemId: item.id,
+    bannerWidthIn: item.width_in,
+    bannerHeightIn: item.height_in,
+    fileKey: item.file_key || req.fileKey || null,
+    imageUrl: item.file_url || item.web_preview_url || req.imageUrl || null,
+    canvasBackgroundColor: item.canvas_background_color || req.canvasBackgroundColor || '#fafafa',
+    imageScale: item.image_scale == null ? (req.imageScale == null ? 1 : req.imageScale) : item.image_scale,
+    imagePosition: item.image_position || req.imagePosition || { x: 0, y: 0 },
+    thumbnailUrl: item.thumbnail_url || req.thumbnailUrl || null,
+    finalRenderUrl: item.final_render_url || req.finalRenderUrl || null,
+    finalRenderFileKey: item.final_render_file_key || req.finalRenderFileKey || null,
+    finalRenderWidthPx: item.final_render_width_px || req.finalRenderWidthPx || null,
+    finalRenderHeightPx: item.final_render_height_px || req.finalRenderHeightPx || null,
+    finalRenderDpi: item.final_render_dpi || req.finalRenderDpi || null,
+    textElements: item.text_elements || req.textElements || [],
+    overlayImage: item.overlay_image || req.overlayImage || null,
+  };
+
+  if (isNativeSceneV2) {
+    next.canvasStateJson = JSON.stringify(parsedState);
+    return { req: next, normalizedScene: parsedState, source: 'native-scene-v2' };
+  }
+
+  if (approvedSnapshot) {
+    // Old orders used multiple incompatible transform coordinate systems.
+    // Their saved proof is the authoritative approved composition. Feed that
+    // proof through the final-render path at contain-fit and disable ambiguous
+    // reconstruction fields so nothing can be cropped or shifted.
+    next.canvasStateJson = null;
+    next.finalRenderUrl = approvedSnapshot;
+    next.finalRenderFileKey = null;
+    next.thumbnailUrl = approvedSnapshot;
+    next.imageScale = 1;
+    next.imagePosition = { x: 0, y: 0 };
+    next.textElements = [];
+    next.overlayImage = null;
+    return { req: next, normalizedScene: null, source: 'legacy-approved-snapshot' };
+  }
+
+  const normalizedScene = normalizeCanvasState(parsedState, {
+    widthIn: item.width_in,
+    heightIn: item.height_in,
+    fileUrl: item.file_url,
+    fileKey: item.file_key,
+    backgroundColor: item.canvas_background_color,
+  });
+  if (normalizedScene) next.canvasStateJson = JSON.stringify(normalizedScene);
+  return { req: next, normalizedScene, source: 'legacy-reconstruction' };
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers: CORS_HEADERS, body: '' };
@@ -309,36 +400,14 @@ exports.handler = async (event) => {
 
   try {
     const item = await loadOrderItem(req.itemId);
+    let normalizedScene = null;
+    let selectedSource = 'request-fallback';
 
     if (item) {
-      req = {
-        ...req,
-        itemId: item.id,
-        bannerWidthIn: item.width_in,
-        bannerHeightIn: item.height_in,
-        fileKey: item.file_key || req.fileKey || null,
-        imageUrl: item.file_url || item.web_preview_url || req.imageUrl || null,
-        canvasBackgroundColor: item.canvas_background_color || req.canvasBackgroundColor || '#fafafa',
-        imageScale: item.image_scale == null ? (req.imageScale == null ? 1 : req.imageScale) : item.image_scale,
-        imagePosition: item.image_position || req.imagePosition || { x: 0, y: 0 },
-        thumbnailUrl: item.thumbnail_url || req.thumbnailUrl || null,
-        finalRenderUrl: item.final_render_url || req.finalRenderUrl || null,
-        finalRenderFileKey: item.final_render_file_key || req.finalRenderFileKey || null,
-        finalRenderWidthPx: item.final_render_width_px || req.finalRenderWidthPx || null,
-        finalRenderHeightPx: item.final_render_height_px || req.finalRenderHeightPx || null,
-        finalRenderDpi: item.final_render_dpi || req.finalRenderDpi || null,
-        textElements: item.text_elements || req.textElements || [],
-        overlayImage: item.overlay_image || req.overlayImage || null,
-      };
-
-      const normalizedScene = normalizeCanvasState(item.canvas_state_json || req.canvasStateJson, {
-        widthIn: item.width_in,
-        heightIn: item.height_in,
-        fileUrl: item.file_url,
-        fileKey: item.file_key,
-        backgroundColor: item.canvas_background_color,
-      });
-      if (normalizedScene) req.canvasStateJson = JSON.stringify(normalizedScene);
+      const prepared = prepareItemRequest(req, item);
+      req = prepared.req;
+      normalizedScene = prepared.normalizedScene;
+      selectedSource = prepared.source;
 
       const expectedHash = normalizedScene && normalizedScene.sceneVersion === 2
         ? hashScene(normalizedScene)
@@ -368,7 +437,7 @@ exports.handler = async (event) => {
         }
       }
     } else {
-      const normalizedScene = normalizeCanvasState(req.canvasStateJson, {
+      normalizedScene = normalizeCanvasState(req.canvasStateJson, {
         widthIn: req.bannerWidthIn,
         heightIn: req.bannerHeightIn,
         fileUrl: req.imageUrl,
@@ -386,7 +455,7 @@ exports.handler = async (event) => {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="order-${req.orderId}-print.pdf"`,
         'Cache-Control': 'no-store',
-        'X-Print-PDF-Source': 'regenerated-vector',
+        'X-Print-PDF-Source': selectedSource,
       },
       isBase64Encoded: true,
       body: pdfBuffer.toString('base64'),
@@ -408,4 +477,7 @@ exports._test = {
   legacyDesignStateToPrintScene,
   normalizeCanvasState,
   hashScene,
+  isUsableSnapshotUrl,
+  getLegacyApprovedSnapshot,
+  prepareItemRequest,
 };
