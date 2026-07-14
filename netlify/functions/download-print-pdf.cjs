@@ -25,6 +25,7 @@
 
 const { neon } = require('@neondatabase/serverless');
 const { v2: cloudinary } = require('cloudinary');
+const crypto = require('crypto');
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -34,6 +35,47 @@ cloudinary.config({
 });
 
 const sql = process.env.DATABASE_URL ? neon(process.env.DATABASE_URL) : null;
+
+
+function sceneHash(scene) {
+  return crypto.createHash('sha256').update(JSON.stringify(scene)).digest('hex');
+}
+
+function hydrateRequestFromOrderItem(req, item) {
+  if (!item) return req;
+  return {
+    ...req,
+    itemId: req.itemId || item.id,
+    bannerWidthIn: req.bannerWidthIn || item.width_in,
+    bannerHeightIn: req.bannerHeightIn || item.height_in,
+    canvasStateJson: item.canvas_state_json || req.canvasStateJson || null,
+    finalRenderUrl: item.final_render_url || req.finalRenderUrl || null,
+    finalRenderFileKey: item.final_render_file_key || req.finalRenderFileKey || null,
+    finalRenderWidthPx: item.final_render_width_px || req.finalRenderWidthPx || null,
+    finalRenderHeightPx: item.final_render_height_px || req.finalRenderHeightPx || null,
+    finalRenderDpi: item.final_render_dpi || req.finalRenderDpi || null,
+    fileKey: item.file_key || req.fileKey || null,
+    imageUrl: item.file_url || item.web_preview_url || req.imageUrl || null,
+    printReadyUrl: item.print_ready_url || req.printReadyUrl || null,
+    textElements: item.text_elements || req.textElements || [],
+    overlayImage: item.overlay_image || req.overlayImage || null,
+    overlayImages: item.overlay_images || req.overlayImages || null,
+    canvasBackgroundColor: item.canvas_background_color || req.canvasBackgroundColor || '#FFFFFF',
+    imageScale: item.image_scale ?? req.imageScale ?? 1,
+    imagePosition: item.image_position || req.imagePosition || { x: 0, y: 0 },
+    thumbnailUrl: item.thumbnail_url || req.thumbnailUrl || null,
+    format: 'pdf',
+  };
+}
+
+function parseSceneSafe(canvasStateJson) {
+  if (!canvasStateJson) return null;
+  try {
+    return typeof canvasStateJson === 'string' ? JSON.parse(canvasStateJson) : canvasStateJson;
+  } catch {
+    return null;
+  }
+}
 
 const SIGNED_URL_EXPIRY_SECONDS = 600;
 
@@ -282,18 +324,46 @@ exports.handler = async (event) => {
     hasFinalRender: !!(req.finalRenderUrl || req.finalRenderFileKey),
   });
 
-  // 1) Resolve the cached PDF URL — DB is authoritative when an itemId is given.
+  // 1) Hydrate the authoritative order item from the DB when itemId is given.
+  // The browser may send convenience fields, but regeneration should use the
+  // persisted order item scene and artwork fields whenever available.
   let cachedUrl = req.cachedPdfUrl || req.generatedPrintPdfUrl || null;
+  let authoritativeItem = null;
   if (sql && itemId) {
     try {
       const rows = await sql`
-        SELECT generated_print_pdf_url
+        SELECT id, width_in, height_in, file_key, file_url, print_ready_url, web_preview_url,
+               text_elements, overlay_image, overlay_images, canvas_background_color,
+               image_scale, image_position, thumbnail_url,
+               final_render_url, final_render_file_key, final_render_width_px,
+               final_render_height_px, final_render_dpi, canvas_state_json,
+               generated_print_pdf_url, generated_print_pdf_renderer_version,
+               generated_print_pdf_scene_hash, generated_print_pdf_metadata
         FROM order_items
         WHERE id = ${itemId}
         LIMIT 1
       `;
-      const dbUrl = rows && rows[0] && rows[0].generated_print_pdf_url;
-      if (dbUrl) cachedUrl = dbUrl;
+      authoritativeItem = rows && rows[0] ? rows[0] : null;
+      if (authoritativeItem) {
+        req = hydrateRequestFromOrderItem(req, authoritativeItem);
+        const scene = parseSceneSafe(req.canvasStateJson);
+        const expectedHash = scene && scene.sceneVersion === 2 ? sceneHash(scene) : null;
+        const rendererVersion = 'production-pdf-v2';
+        const cacheMatches = authoritativeItem.generated_print_pdf_url
+          && authoritativeItem.generated_print_pdf_renderer_version === rendererVersion
+          && authoritativeItem.generated_print_pdf_scene_hash === expectedHash;
+        if (cacheMatches) {
+          cachedUrl = authoritativeItem.generated_print_pdf_url;
+        } else if (authoritativeItem.generated_print_pdf_url) {
+          log('cached PDF metadata mismatch; forcing regeneration', {
+            dbRenderer: authoritativeItem.generated_print_pdf_renderer_version || null,
+            expectedRenderer: rendererVersion,
+            dbHashPresent: Boolean(authoritativeItem.generated_print_pdf_scene_hash),
+            expectedHashPresent: Boolean(expectedHash),
+          });
+          cachedUrl = null;
+        }
+      }
     } catch (err) {
       log('DB lookup failed (non-fatal):', err && err.message);
     }
