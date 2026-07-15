@@ -1,4 +1,4 @@
-const { randomUUID } = require('crypto');
+const { validatePayPalCapture } = require('./_shared/paypalConversionHelpers.cjs');
 
 function firstNonEmpty(...values) {
   for (const value of values) {
@@ -123,7 +123,7 @@ exports.handler = async (event, context) => {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${accessToken}`,
-        'PayPal-Request-Id': `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+        'PayPal-Request-Id': `capture-${orderID}`
       }
     });
 
@@ -137,6 +137,21 @@ exports.handler = async (event, context) => {
     }
 
     const captureData = await captureResponse.json();
+    const captureValidation = validatePayPalCapture(captureData);
+    if (!captureValidation.ok) {
+      console.error('PayPal capture validation failed:', captureValidation);
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({
+          error: 'Payment capture was not completed',
+          code: captureValidation.code,
+          paypalOrderStatus: captureValidation.orderStatus,
+          paypalCaptureStatus: captureValidation.captureStatus,
+          capturedCurrency: captureValidation.currency,
+        })
+      };
+    }
     
     // Extract shipping address from capture response, then fallback to pre-capture order payload
     const shippingAddress = extractShippingAddress(captureData) || extractShippingAddress(orderData);
@@ -148,8 +163,11 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({
         success: true,
         orderID: orderID,
-        captureID: captureData.purchase_units?.[0]?.payments?.captures?.[0]?.id,
-        status: captureData.status,
+        captureID: captureValidation.captureId,
+        status: captureValidation.orderStatus,
+        captureStatus: captureValidation.captureStatus,
+        capturedAmountCents: captureValidation.amountCents,
+        capturedCurrency: captureValidation.currency,
         environment: env,
         paypalData: captureData,
         shippingAddress: shippingAddress

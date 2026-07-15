@@ -25,10 +25,15 @@ beforeEach(() => {
 });
 
 describe('purchase tracking', () => {
-  it('tracks GA4/Meta while leaving Google Ads purchase upload to the server authority', async () => {
+  it('tracks GA4, Meta, and a direct Google Ads purchase conversion', async () => {
     const result = await attemptPurchaseTracking(baseOrder());
-    expect(result.attempts.find(a => a.provider === 'google_ads')?.attempted).toBe(false);
-    expect(window.gtag).not.toHaveBeenCalledWith('event', 'conversion', expect.any(Object));
+    expect(result.attempts.find(a => a.provider === 'google_ads')?.attempted).toBe(true);
+    expect(window.gtag).toHaveBeenCalledWith('event', 'conversion', expect.objectContaining({
+      send_to: 'AW-123456789/purchaseLabel',
+      value: 123.45,
+      currency: 'USD',
+      transaction_id: 'BOTF-1001',
+    }));
   });
 
   it('queues events when gtag loads late', async () => {
@@ -41,14 +46,14 @@ describe('purchase tracking', () => {
     (window as any).fbq = vi.fn(() => { throw new Error('meta down'); });
     const result = await attemptPurchaseTracking(baseOrder());
     expect(result.attempts.find(a => a.provider === 'meta')?.ok).toBe(false);
-    expect(result.attempts.find(a => a.provider === 'google_ads')?.attempted).toBe(false);
+    expect(result.attempts.find(a => a.provider === 'google_ads')?.attempted).toBe(true);
   });
 
   it('still attempts Google Ads when GA4 throws', async () => {
     window.gtag = vi.fn((cmd, name) => { if (name === 'purchase') throw new Error('ga4 down'); });
     const result = await attemptPurchaseTracking(baseOrder());
     expect(result.attempts.find(a => a.provider === 'ga4')?.ok).toBe(false);
-    expect(result.attempts.find(a => a.provider === 'google_ads')?.attempted).toBe(false);
+    expect(result.attempts.find(a => a.provider === 'google_ads')?.attempted).toBe(true);
   });
 
   it('rejects missing order ID and never creates shared undefined key', async () => {
@@ -57,10 +62,11 @@ describe('purchase tracking', () => {
     expect(buildPurchaseTrackingKey(undefined)).toBeNull();
   });
 
-  it('marks browser dedupe after GA4/Meta audit because Google Ads is server-authoritative', async () => {
+  it('does not write dedupe key when Google Ads configuration is missing', async () => {
+    (import.meta as any).env.VITE_GOOGLE_ADS_CONVERSION_ID = '';
     const result = await attemptPurchaseTracking(baseOrder());
-    expect(result.attempts.find(a => a.provider === 'google_ads')?.error).toBe('server_authoritative_conversion_enabled');
-    expect(localStorage.getItem('purchase_tracked_order-1')).toBe('1');
+    expect(result.attempts.find(a => a.provider === 'google_ads')?.status).toBe('configuration_missing');
+    expect(localStorage.getItem('purchase_tracked_order-1')).toBeNull();
   });
 
   it('deduplicates duplicate page renders and refreshes', async () => {
@@ -72,7 +78,8 @@ describe('purchase tracking', () => {
   it('allows two different orders in the same browser', async () => {
     await attemptPurchaseTracking(baseOrder({ orderId: 'order-1', orderNumber: 'BOTF-1' }));
     await attemptPurchaseTracking(baseOrder({ orderId: 'order-2', orderNumber: 'BOTF-2' }));
-    expect(window.gtag).toHaveBeenCalledTimes(2);
+    expect(window.gtag).toHaveBeenCalledWith('event', 'conversion', expect.objectContaining({ transaction_id: 'BOTF-1' }));
+    expect(window.gtag).toHaveBeenCalledWith('event', 'conversion', expect.objectContaining({ transaction_id: 'BOTF-2' }));
   });
 
   it('covers alternate payment route by tracking any paid server-loaded order', async () => {

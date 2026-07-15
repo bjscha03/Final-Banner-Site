@@ -7,7 +7,6 @@
 // without sending duplicate emails.
 
 const { neon } = require('@neondatabase/serverless');
-const { enqueuePaidStripeConversion } = require('./googleAdsConversions.cjs');
 
 const sql = neon(process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL);
 
@@ -99,14 +98,7 @@ async function finalizeStripeOrder({ paymentIntentId, orderId, chargeId, walletT
   // Idempotency: if the order is already paid, no-op.
   if (row.status === 'paid') {
     console.log(`${tag} order ${row.id} is already paid, no-op (alreadyPaid)`);
-    const queueResult = await enqueuePaidStripeConversion(sql, {
-      orderId: row.id,
-      paymentIntentId,
-      stripeEventId: paymentEventId,
-      paidAt,
-    });
-    if (!queueResult.ok) console.error(`${tag} conversion queue enqueue failed for already-paid order ${row.id}:`, queueResult);
-    return { ok: true, orderId: row.id, alreadyPaid: true, conversionQueued: !!queueResult.ok, conversionQueueError: queueResult.ok ? null : queueResult.error };
+    return { ok: true, orderId: row.id, alreadyPaid: true };
   }
 
   // Optional shipping/billing fields. We only update columns the caller
@@ -199,15 +191,6 @@ async function finalizeStripeOrder({ paymentIntentId, orderId, chargeId, walletT
     nowPaid = !!(after && after[0] && after[0].status === 'paid');
   } catch (_e) { /* ignore — assume paid */ nowPaid = true; }
 
-  const queueResult = await enqueuePaidStripeConversion(sql, {
-    orderId: row.id,
-    paymentIntentId,
-    stripeEventId: paymentEventId,
-    paidAt,
-  });
-  if (!queueResult.ok) {
-    console.error(`${tag} conversion queue enqueue failed for paid order ${row.id}:`, queueResult);
-  }
 
   // Trigger emails. Best-effort: a delivery failure should not unwind
   // the paid status (we'd rather have a paid order with no email than
@@ -220,8 +203,6 @@ async function finalizeStripeOrder({ paymentIntentId, orderId, chargeId, walletT
     alreadyPaid: row.status === 'paid' && !nowPaid,
     emailSent: emailResult.ok,
     emailError: emailResult.ok ? null : emailResult.error,
-    conversionQueued: !!queueResult.ok,
-    conversionQueueError: queueResult.ok ? null : queueResult.error,
   };
 }
 

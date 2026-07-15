@@ -61,6 +61,8 @@ const PaymentSuccess: React.FC = () => {
     shipping_cents?: number;
     status?: string;
     order_number?: string | null;
+    paypal_order_id?: string | null;
+    paypal_capture_id?: string | null;
   } | null>(null);
   
   // Get data from navigation state or defaults
@@ -90,19 +92,27 @@ const PaymentSuccess: React.FC = () => {
 
   useEffect(() => {
     if (!orderId) return;
+    let cancelled = false;
     const loadOrder = async () => {
-      try {
-        const response = await fetch(`/.netlify/functions/get-order?id=${orderId}`);
-        if (!response.ok) return;
-        const data = await response.json();
-        if (data?.ok && data?.order) {
-          setLoadedOrder(data.order);
+      const maxAttempts = 6;
+      for (let attempt = 1; attempt <= maxAttempts && !cancelled; attempt += 1) {
+        try {
+          const response = await fetch(`/.netlify/functions/get-order?id=${orderId}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data?.ok && data?.order) {
+              if (!cancelled) setLoadedOrder(data.order);
+              return;
+            }
+          }
+        } catch (error) {
+          if (attempt === maxAttempts) console.warn('Unable to load order for payment success address block', error);
         }
-      } catch (error) {
-        console.warn('Unable to load order for payment success address block', error);
+        await new Promise((resolve) => window.setTimeout(resolve, Math.min(500 * attempt, 2500)));
       }
     };
     loadOrder();
+    return () => { cancelled = true; };
   }, [orderId]);
 
   const canonicalOrderItems = useMemo(() => loadedOrder?.items || [], [loadedOrder?.items]);
@@ -193,6 +203,8 @@ const PaymentSuccess: React.FC = () => {
       shippingCents: canonicalOrderShippingCents,
       items: analyticsItems,
       pageUrl: window.location.href,
+      paypalOrderId: loadedOrder.paypal_order_id,
+      paypalCaptureId: loadedOrder.paypal_capture_id,
     }).then((result) => {
       if ((import.meta as any).env.DEV) {
         console.log('[PaymentSuccess] Purchase tracking result', result);

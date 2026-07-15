@@ -539,6 +539,30 @@ exports.handler = async (event, context) => {
       console.warn('⚠️ Stripe columns migration warning:', migrationError.message);
     }
 
+    // AUTO-MIGRATE: PayPal identifiers must be unique so duplicate PayPal
+    // callbacks, refreshes, or webhook retries return the same website order
+    // instead of creating duplicate paid orders/conversions.
+    try {
+      await sql`
+        ALTER TABLE orders
+        ADD COLUMN IF NOT EXISTS paypal_order_id TEXT,
+        ADD COLUMN IF NOT EXISTS paypal_capture_id TEXT
+      `;
+      await sql`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_paypal_order_id
+          ON orders(paypal_order_id)
+          WHERE paypal_order_id IS NOT NULL
+      `;
+      await sql`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_paypal_capture_id
+          ON orders(paypal_capture_id)
+          WHERE paypal_capture_id IS NOT NULL
+      `;
+      console.log('✅ Database migration: PayPal order/capture unique indexes verified/created');
+    } catch (migrationError) {
+      console.warn('⚠️ PayPal identifier migration warning:', migrationError.message);
+    }
+
     // AUTO-MIGRATE: Stripe charge id + wallet type columns. Mirrors
     // database-migrations/add-stripe-charge-id.sql so finalize/webhook
     // can persist the underlying charge id (for Stripe-dashboard ↔
@@ -954,6 +978,50 @@ exports.handler = async (event, context) => {
     const orderSameDayQualified = sameDayResult.eval.windowOpen && sameDayResult.eval.hasEligibleItem;
     const orderTimestampEt = getEasternTimeParts(sameDayNow);
     const attribution = normalizeAttribution(orderData.attribution || orderData);
+
+    if (orderData.paypal_order_id || orderData.paypal_capture_id) {
+      try {
+        const existing = await sql`
+          SELECT id FROM orders
+          WHERE (${orderData.paypal_order_id || null} IS NOT NULL AND paypal_order_id = ${orderData.paypal_order_id || null})
+             OR (${orderData.paypal_capture_id || null} IS NOT NULL AND paypal_capture_id = ${orderData.paypal_capture_id || null})
+          LIMIT 1
+        `;
+        if (existing && existing.length > 0) {
+          console.log('create-order: order already exists for PayPal identifiers, returning existing', existing[0].id);
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({ ok: true, orderId: existing[0].id, deduped: true }),
+          };
+        }
+      } catch (dupCheckErr) {
+        console.warn('create-order: PayPal dedupe check failed (continuing):', dupCheckErr.message);
+      }
+
+      const capturedCurrency = String(orderData.paypal_captured_currency || '').toUpperCase();
+      const capturedAmountCents = Number(orderData.paypal_captured_amount_cents);
+      if (capturedCurrency && capturedCurrency !== 'USD') {
+        return {
+          statusCode: 409,
+          headers,
+          body: JSON.stringify({ ok: false, error: 'PAYPAL_CAPTURE_CURRENCY_MISMATCH' }),
+        };
+      }
+      if (Number.isFinite(capturedAmountCents) && capturedAmountCents > 0 && capturedAmountCents !== Number(orderData.total_cents || 0)) {
+        console.warn('create-order: PayPal capture amount does not match server-calculated order total', {
+          paypal_order_id: orderData.paypal_order_id,
+          paypal_capture_id: orderData.paypal_capture_id,
+          capturedAmountCents,
+          serverTotalCents: orderData.total_cents,
+        });
+        return {
+          statusCode: 409,
+          headers,
+          body: JSON.stringify({ ok: false, error: 'PAYPAL_CAPTURE_AMOUNT_MISMATCH' }),
+        };
+      }
+    }
 
     // Idempotency: if a Stripe PaymentIntent already created an order
     // (e.g. webhook ran before the browser callback, or duplicate submit),
