@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth';
 import { useCartStore } from '@/store/cart';
 import { Loader2 } from 'lucide-react';
 import { shouldUseDeployPreviewTestCheckout } from './checkoutEnvironment';
+import { getStoredAttribution } from '@/lib/attribution';
 
 interface PayPalCheckoutProps {
   total: number;
@@ -426,6 +427,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
           // strip these flags before charging PayPal.
           sameDayHitService: !!sameDayHitService,
           saturdayDelivery: !!saturdayDelivery,
+          attribution: getStoredAttribution(),
         }),
       });
 
@@ -599,6 +601,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
           // and persists same_day_* columns onto the order).
           sameDayHitService: !!sameDayHitService,
           saturdayDelivery: !!saturdayDelivery,
+          attribution: getStoredAttribution(),
         }),
       });
 

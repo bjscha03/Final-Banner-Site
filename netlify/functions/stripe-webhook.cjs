@@ -131,6 +131,8 @@ exports.handler = async (event) => {
           shipping: shippingFromIntent(pi),
           billing,
           source: 'webhook',
+          paymentEventId: stripeEvent.id,
+          paidAt: pi.created ? new Date(pi.created * 1000) : new Date(),
         });
 
         if (!result.ok) {

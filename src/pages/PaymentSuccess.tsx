@@ -4,7 +4,7 @@ import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Home, ArrowRight } from 'lucide-react';
 import { usd } from '@/lib/pricing';
-import { trackPurchase, trackFBPurchase, trackGoogleAdsPurchaseConversion } from '@/lib/analytics';
+import { attemptPurchaseTracking } from '@/lib/purchaseTracking';
 import { getItemDisplayName, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
 import { formatShippingAddress, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
 import { getDisplayOrderTotalCents } from '@/lib/order-totals';
@@ -60,6 +60,7 @@ const PaymentSuccess: React.FC = () => {
     saturday_fee_cents?: number;
     shipping_cents?: number;
     status?: string;
+    order_number?: string | null;
   } | null>(null);
   
   // Get data from navigation state or defaults
@@ -183,39 +184,22 @@ const PaymentSuccess: React.FC = () => {
       };
     });
 
-    trackPurchase({
-      transaction_id: orderId,
-      value: canonicalOrderTotalCents,
-      tax: canonicalOrderTaxCents,
-      shipping: canonicalOrderShippingCents,
+    void attemptPurchaseTracking({
+      orderId,
+      orderNumber: loadedOrder.order_number,
+      status: loadedOrder.status,
+      totalCents: canonicalOrderTotalCents,
+      taxCents: canonicalOrderTaxCents,
+      shippingCents: canonicalOrderShippingCents,
       items: analyticsItems,
-    });
-
-    // Track Facebook Pixel Purchase
-    trackFBPurchase({
-      value: canonicalOrderTotalCents,
-      transaction_id: orderId,
-    });
-
-    // Track Google Ads purchase conversion (no-op if env vars not configured)
-    trackGoogleAdsPurchaseConversion({
-      transaction_id: orderId,
-      value: canonicalOrderTotalCents,
-      currency: 'USD',
-    });
-
-    try {
-      if (typeof sessionStorage !== 'undefined') {
-        sessionStorage.setItem(trackedKey, '1');
+      pageUrl: window.location.href,
+    }).then((result) => {
+      if ((import.meta as any).env.DEV) {
+        console.log('[PaymentSuccess] Purchase tracking result', result);
       }
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(trackedKey, '1');
-      }
-    } catch (_e) {
-      // ignore storage failures after dispatch
-    }
+    });
 
-    console.log('[PaymentSuccess] Purchase tracking fired', {
+    console.log('[PaymentSuccess] Purchase tracking attempted', {
       orderId,
       value_cents: canonicalOrderTotalCents,
       tax_cents: canonicalOrderTaxCents,

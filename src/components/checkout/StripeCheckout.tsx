@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/lib/auth';
 import { useCartStore } from '@/store/cart';
+import { getStoredAttribution } from '@/lib/attribution';
 
 interface StripeCheckoutProps {
   total: number; // cents (informational; server prices the PaymentIntent)
@@ -429,6 +430,7 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({
         user_id: user?.id || null,
         sameDayHitService: !!sameDayHitService,
         saturdayDelivery: !!saturdayDelivery,
+        attribution: getStoredAttribution(),
       }),
     })
       .then(async (res) => {

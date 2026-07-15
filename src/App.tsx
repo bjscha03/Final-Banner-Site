@@ -13,6 +13,7 @@ import { useCartStore } from "@/store/cart";
 import { toast } from "@/components/ui/use-toast";
 import { initPostHog } from "@/lib/posthog";
 import { isPreviewEnvironment } from "@/lib/environment";
+import { captureAttributionFromLocation } from "@/lib/attribution";
 // DISABLED: Popup promo flow replaced with static NEW20 code in PromoBanner
 // import { PromoPopup } from "@/components/PromoPopup";
 // import { usePromoPopup } from "@/hooks/usePromoPopup";
@@ -149,6 +150,14 @@ const PreviewNoindexGuard = () => {
   );
 };
 
+const AttributionCapture = () => {
+  const location = useLocation();
+  useEffect(() => {
+    captureAttributionFromLocation();
+  }, [location.search]);
+  return null;
+};
+
 const App = () => (
   <HelmetProvider>
   <PreviewNoindexGuard />
@@ -159,6 +168,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
         <CartSyncWrapper>
+          <AttributionCapture />
           <Suspense fallback={<PageLoader />}>
           <Routes>
             {/* Critical path - homepage */}

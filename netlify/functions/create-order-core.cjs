@@ -25,6 +25,30 @@ function isRealUserId(value) {
 }
 
 // Helper to detect bad URLs (blob:, data:, or huge strings)
+
+function cleanText(value, max = 1000) {
+  if (value === null || value === undefined) return null;
+  const s = String(value).trim();
+  return s ? s.slice(0, max) : null;
+}
+
+function normalizeAttribution(input) {
+  const a = input && typeof input === 'object' ? input : {};
+  return {
+    google_click_id: cleanText(a.google_click_id || a.gclid, 255),
+    gbraid: cleanText(a.gbraid, 255),
+    wbraid: cleanText(a.wbraid, 255),
+    landing_page: cleanText(a.landing_page, 1000),
+    referrer: cleanText(a.referrer, 1000),
+    utm_source: cleanText(a.utm_source, 255),
+    utm_medium: cleanText(a.utm_medium, 255),
+    utm_campaign: cleanText(a.utm_campaign, 255),
+    utm_term: cleanText(a.utm_term, 255),
+    utm_content: cleanText(a.utm_content, 255),
+    consent_status: cleanText(a.consent_status, 255) || 'unknown',
+  };
+}
+
 function isBadUrl(url) {
   if (!url || typeof url !== 'string') return false;
   return url.startsWith('blob:') || url.startsWith('data:') || url.length > 10000;
@@ -464,6 +488,28 @@ exports.handler = async (event, context) => {
       console.log('✅ Database migration: same-day hit service columns verified/created');
     } catch (migrationError) {
       console.warn('⚠️ Same-day hit service migration warning:', migrationError.message);
+    }
+
+
+    // AUTO-MIGRATE: Attribution columns used by server-side conversion fallback.
+    try {
+      await sql`
+        ALTER TABLE orders
+        ADD COLUMN IF NOT EXISTS google_click_id TEXT,
+        ADD COLUMN IF NOT EXISTS gbraid TEXT,
+        ADD COLUMN IF NOT EXISTS wbraid TEXT,
+        ADD COLUMN IF NOT EXISTS landing_page TEXT,
+        ADD COLUMN IF NOT EXISTS referrer TEXT,
+        ADD COLUMN IF NOT EXISTS utm_source TEXT,
+        ADD COLUMN IF NOT EXISTS utm_medium TEXT,
+        ADD COLUMN IF NOT EXISTS utm_campaign TEXT,
+        ADD COLUMN IF NOT EXISTS utm_term TEXT,
+        ADD COLUMN IF NOT EXISTS utm_content TEXT,
+        ADD COLUMN IF NOT EXISTS consent_status TEXT
+      `;
+      console.log('✅ Database migration: attribution columns verified/created');
+    } catch (migrationError) {
+      console.warn('⚠️ Attribution columns migration warning:', migrationError.message);
     }
 
     // AUTO-MIGRATE: Stripe payment columns. The dedicated migration file
@@ -907,6 +953,7 @@ exports.handler = async (event, context) => {
     const orderSaturdayFeeCents = sameDayResult.fees.saturdayFeeCents;
     const orderSameDayQualified = sameDayResult.eval.windowOpen && sameDayResult.eval.hasEligibleItem;
     const orderTimestampEt = getEasternTimeParts(sameDayNow);
+    const attribution = normalizeAttribution(orderData.attribution || orderData);
 
     // Idempotency: if a Stripe PaymentIntent already created an order
     // (e.g. webhook ran before the browser callback, or duplicate submit),
@@ -947,8 +994,8 @@ exports.handler = async (event, context) => {
     }
 
     const orderResult = await sql`
-      INSERT INTO orders (id, user_id, email, customer_name, customer_first_name, subtotal_cents, tax_cents, total_cents, status, paypal_order_id, paypal_capture_id, stripe_payment_intent_id, payment_method, shipping_name, shipping_street, shipping_street2, shipping_city, shipping_state, shipping_zip, shipping_country, applied_discount_cents, applied_discount_label, applied_discount_type, same_day_hit_service, saturday_delivery, same_day_fee_cents, saturday_fee_cents, order_timestamp_et, same_day_qualified, is_test_order, test_order_reason)
-      VALUES (${orderId}, ${finalUserId}, ${userEmail}, ${orderData.customer_name || null}, ${orderData.customer_first_name || null}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, ${requestedStatus}, ${orderData.paypal_order_id || null}, ${orderData.paypal_capture_id || null}, ${orderData.stripe_payment_intent_id || null}, ${orderData.payment_method || (orderData.stripe_payment_intent_id ? 'stripe' : (orderData.paypal_order_id ? 'paypal' : null))}, ${orderData.shipping_name || null}, ${orderData.shipping_street || null}, ${orderData.shipping_street2 || null}, ${orderData.shipping_city || null}, ${orderData.shipping_state || null}, ${orderData.shipping_zip || null}, ${orderData.shipping_country || 'US'}, ${orderData.applied_discount_cents || 0}, ${orderData.applied_discount_label || ''}, ${orderData.applied_discount_type || 'none'}, ${orderSameDayHitService}, ${orderSaturdayDelivery}, ${orderSameDayFeeCents}, ${orderSaturdayFeeCents}, ${orderTimestampEt.display}, ${orderSameDayQualified}, ${orderData.is_test_order === true}, ${orderData.test_order_reason || null})
+      INSERT INTO orders (id, user_id, email, customer_name, customer_first_name, subtotal_cents, tax_cents, total_cents, status, paypal_order_id, paypal_capture_id, stripe_payment_intent_id, payment_method, shipping_name, shipping_street, shipping_street2, shipping_city, shipping_state, shipping_zip, shipping_country, applied_discount_cents, applied_discount_label, applied_discount_type, same_day_hit_service, saturday_delivery, same_day_fee_cents, saturday_fee_cents, order_timestamp_et, same_day_qualified, is_test_order, test_order_reason, google_click_id, gbraid, wbraid, landing_page, referrer, utm_source, utm_medium, utm_campaign, utm_term, utm_content, consent_status)
+      VALUES (${orderId}, ${finalUserId}, ${userEmail}, ${orderData.customer_name || null}, ${orderData.customer_first_name || null}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, ${requestedStatus}, ${orderData.paypal_order_id || null}, ${orderData.paypal_capture_id || null}, ${orderData.stripe_payment_intent_id || null}, ${orderData.payment_method || (orderData.stripe_payment_intent_id ? 'stripe' : (orderData.paypal_order_id ? 'paypal' : null))}, ${orderData.shipping_name || null}, ${orderData.shipping_street || null}, ${orderData.shipping_street2 || null}, ${orderData.shipping_city || null}, ${orderData.shipping_state || null}, ${orderData.shipping_zip || null}, ${orderData.shipping_country || 'US'}, ${orderData.applied_discount_cents || 0}, ${orderData.applied_discount_label || ''}, ${orderData.applied_discount_type || 'none'}, ${orderSameDayHitService}, ${orderSaturdayDelivery}, ${orderSameDayFeeCents}, ${orderSaturdayFeeCents}, ${orderTimestampEt.display}, ${orderSameDayQualified}, ${orderData.is_test_order === true}, ${orderData.test_order_reason || null}, ${attribution.google_click_id}, ${attribution.gbraid}, ${attribution.wbraid}, ${attribution.landing_page}, ${attribution.referrer}, ${attribution.utm_source}, ${attribution.utm_medium}, ${attribution.utm_campaign}, ${attribution.utm_term}, ${attribution.utm_content}, ${attribution.consent_status})
       RETURNING *
     `;
 
