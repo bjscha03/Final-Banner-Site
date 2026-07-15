@@ -12,6 +12,11 @@ const baseOrder = (overrides: any = {}) => ({
   ...overrides,
 });
 
+const clearGoogleAdsConfig = () => {
+  (import.meta as any).env.VITE_GOOGLE_ADS_CONVERSION_ID = '';
+  (import.meta as any).env.VITE_GOOGLE_ADS_PURCHASE_LABEL = '';
+};
+
 beforeEach(() => {
   vi.unstubAllGlobals();
   localStorage.clear();
@@ -22,18 +27,89 @@ beforeEach(() => {
   vi.stubGlobal('window', window);
   window.dataLayer = [];
   window.gtag = vi.fn();
+  (window as any).fbq = vi.fn();
 });
 
 describe('purchase tracking', () => {
-  it('tracks GA4, Meta, and a direct Google Ads purchase conversion', async () => {
+  it('fires GA4 once when Google Ads env variables are missing', async () => {
+    clearGoogleAdsConfig();
+
+    await attemptPurchaseTracking(baseOrder());
+    await attemptPurchaseTracking(baseOrder());
+
+    expect(window.gtag).toHaveBeenCalledTimes(1);
+    expect(window.gtag).toHaveBeenCalledWith('event', 'purchase', expect.objectContaining({ transaction_id: 'BOTF-1001' }));
+    expect(localStorage.getItem('purchase_tracked_order-1')).toBe('1');
+  });
+
+  it('fires Meta once when Google Ads env variables are missing', async () => {
+    clearGoogleAdsConfig();
+
+    await attemptPurchaseTracking(baseOrder());
+    await attemptPurchaseTracking(baseOrder());
+
+    expect((window as any).fbq).toHaveBeenCalledTimes(1);
+    expect((window as any).fbq).toHaveBeenCalledWith('track', 'Purchase', expect.objectContaining({
+      value: 123.45,
+      currency: 'USD',
+      content_type: 'product',
+    }), expect.objectContaining({ eventID: 'BOTF-1001' }));
+  });
+
+  it('does not resend GA4 or Meta on refresh or re-render when Google Ads configuration is missing', async () => {
+    clearGoogleAdsConfig();
+
+    const first = await attemptPurchaseTracking(baseOrder());
+    const second = await attemptPurchaseTracking(baseOrder());
+
+    expect(first.attempts.find((a) => a.provider === 'google_ads')?.status).toBe('configuration_missing');
+    expect(second.duplicate).toBe(true);
+    expect(window.gtag).toHaveBeenCalledTimes(1);
+    expect((window as any).fbq).toHaveBeenCalledTimes(1);
+  });
+
+  it('tracks two separate orders when Google Ads configuration is missing', async () => {
+    clearGoogleAdsConfig();
+
+    await attemptPurchaseTracking(baseOrder({ orderId: 'order-1', orderNumber: 'BOTF-1' }));
+    await attemptPurchaseTracking(baseOrder({ orderId: 'order-2', orderNumber: 'BOTF-2' }));
+
+    expect(window.gtag).toHaveBeenCalledWith('event', 'purchase', expect.objectContaining({ transaction_id: 'BOTF-1' }));
+    expect(window.gtag).toHaveBeenCalledWith('event', 'purchase', expect.objectContaining({ transaction_id: 'BOTF-2' }));
+    expect((window as any).fbq).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not call direct Google Ads conversion without configuration', async () => {
+    clearGoogleAdsConfig();
+
     const result = await attemptPurchaseTracking(baseOrder());
-    expect(result.attempts.find(a => a.provider === 'google_ads')?.attempted).toBe(true);
+
+    expect(result.attempts.find((a) => a.provider === 'google_ads')).toMatchObject({
+      attempted: false,
+      ok: false,
+      status: 'configuration_missing',
+    });
+    expect(window.gtag).not.toHaveBeenCalledWith('event', 'conversion', expect.anything());
+  });
+
+  it('sends an existing configured direct Google Ads conversion once', async () => {
+    await attemptPurchaseTracking(baseOrder());
+    await attemptPurchaseTracking(baseOrder());
+
     expect(window.gtag).toHaveBeenCalledWith('event', 'conversion', expect.objectContaining({
       send_to: 'AW-123456789/purchaseLabel',
       value: 123.45,
       currency: 'USD',
       transaction_id: 'BOTF-1001',
     }));
+    expect(window.gtag).toHaveBeenCalledTimes(2); // one GA4 purchase and one direct conversion
+  });
+
+  it('does not track failed or canceled payments', async () => {
+    expect((await attemptPurchaseTracking(baseOrder({ status: 'failed' }))).reason).toBe('order_not_paid');
+    expect((await attemptPurchaseTracking(baseOrder({ status: 'canceled' }))).reason).toBe('order_not_paid');
+    expect(window.gtag).not.toHaveBeenCalled();
+    expect((window as any).fbq).not.toHaveBeenCalled();
   });
 
   it('queues events when gtag loads late', async () => {
@@ -62,38 +138,19 @@ describe('purchase tracking', () => {
     expect(buildPurchaseTrackingKey(undefined)).toBeNull();
   });
 
-  it('does not write dedupe key when Google Ads configuration is missing', async () => {
-    (import.meta as any).env.VITE_GOOGLE_ADS_CONVERSION_ID = '';
-    const result = await attemptPurchaseTracking(baseOrder());
-    expect(result.attempts.find(a => a.provider === 'google_ads')?.status).toBe('configuration_missing');
-    expect(localStorage.getItem('purchase_tracked_order-1')).toBeNull();
-  });
-
-  it('deduplicates duplicate page renders and refreshes', async () => {
+  it('can retry direct Google Ads later without resending GA4 or Meta', async () => {
+    clearGoogleAdsConfig();
     await attemptPurchaseTracking(baseOrder());
-    const second = await attemptPurchaseTracking(baseOrder());
-    expect(second.duplicate).toBe(true);
-  });
+    (import.meta as any).env.VITE_GOOGLE_ADS_CONVERSION_ID = 'AW-123456789';
+    (import.meta as any).env.VITE_GOOGLE_ADS_PURCHASE_LABEL = 'purchaseLabel';
 
-  it('allows two different orders in the same browser', async () => {
-    await attemptPurchaseTracking(baseOrder({ orderId: 'order-1', orderNumber: 'BOTF-1' }));
-    await attemptPurchaseTracking(baseOrder({ orderId: 'order-2', orderNumber: 'BOTF-2' }));
-    expect(window.gtag).toHaveBeenCalledWith('event', 'conversion', expect.objectContaining({ transaction_id: 'BOTF-1' }));
-    expect(window.gtag).toHaveBeenCalledWith('event', 'conversion', expect.objectContaining({ transaction_id: 'BOTF-2' }));
-  });
+    const retry = await attemptPurchaseTracking(baseOrder());
 
-  it('covers alternate payment route by tracking any paid server-loaded order', async () => {
-    const result = await attemptPurchaseTracking(baseOrder({ orderId: 'paypal-order', status: 'completed' }));
-    expect(result.tracked).toBe(true);
-  });
-
-  it('does not count customers who never return to a browser success page', async () => {
-    // There is intentionally no browser invocation in this scenario; reconciliation relies on server audit/webhook logs.
-    expect(window.gtag).not.toHaveBeenCalled();
-  });
-
-  it('does not count failed or canceled payments', async () => {
-    expect((await attemptPurchaseTracking(baseOrder({ status: 'failed' }))).reason).toBe('order_not_paid');
-    expect((await attemptPurchaseTracking(baseOrder({ status: 'canceled' }))).reason).toBe('order_not_paid');
+    expect(retry.duplicate).toBe(true);
+    expect(retry.attempts.find((a) => a.provider === 'ga4')).toMatchObject({ attempted: false, status: 'blocked' });
+    expect(retry.attempts.find((a) => a.provider === 'meta')).toMatchObject({ attempted: false, status: 'blocked' });
+    expect(retry.attempts.find((a) => a.provider === 'google_ads')?.attempted).toBe(true);
+    expect(window.gtag).toHaveBeenCalledTimes(2); // original GA4 purchase plus later direct conversion
+    expect((window as any).fbq).toHaveBeenCalledTimes(1);
   });
 });
