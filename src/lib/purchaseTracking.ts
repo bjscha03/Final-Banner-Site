@@ -19,6 +19,8 @@ export type PurchaseTrackingResult = { tracked: boolean; duplicate: boolean; key
 const PAID_STATUSES = new Set(['paid', 'completed', 'complete', 'succeeded']);
 const inFlight = new Set<string>();
 
+const buildProviderTrackingKey = (key: string, provider: ProviderAttempt['provider']) => `${key}_${provider}`;
+
 const devLog = (...args: any[]) => {
   if ((import.meta as any)?.env?.DEV) console.debug('[purchase-tracking]', ...args);
 };
@@ -39,7 +41,7 @@ export const isPaidPurchaseOrder = (order: PurchaseTrackingOrder) => {
   return PAID_STATUSES.has(status);
 };
 
-const getStored = (key: string) => {
+const hasStoredKey = (key: string) => {
   try {
     return Boolean(
       (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(key))
@@ -50,7 +52,7 @@ const getStored = (key: string) => {
   }
 };
 
-const setStored = (key: string) => {
+const setStoredKey = (key: string) => {
   try {
     if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(key, '1');
     if (typeof localStorage !== 'undefined') localStorage.setItem(key, '1');
@@ -98,22 +100,47 @@ export const attemptPurchaseTracking = async (order: PurchaseTrackingOrder): Pro
   if (!isPaidPurchaseOrder(order)) return { tracked: false, duplicate: false, attempts: [], reason: 'order_not_paid' };
   if (!Number.isFinite(order.totalCents) || order.totalCents <= 0) return { tracked: false, duplicate: false, attempts: [], reason: 'invalid_total' };
   if (!order.items.length) return { tracked: false, duplicate: false, attempts: [], reason: 'missing_items' };
-  if (getStored(key) || inFlight.has(key)) return { tracked: false, duplicate: true, key, attempts: [] };
+
+  const ga4Key = buildProviderTrackingKey(key, 'ga4');
+  const metaKey = buildProviderTrackingKey(key, 'meta');
+  const googleAdsKey = buildProviderTrackingKey(key, 'google_ads');
+  const googleAdsMissingConfigKey = `${googleAdsKey}_configuration_missing`;
+  const conversionId = (import.meta as any)?.env?.VITE_GOOGLE_ADS_CONVERSION_ID;
+  const purchaseLabel = (import.meta as any)?.env?.VITE_GOOGLE_ADS_PURCHASE_LABEL;
+  const hasGoogleAdsConfig = Boolean(conversionId && purchaseLabel);
+  const alreadyTracked = hasStoredKey(key);
+
+  if (inFlight.has(key)) return { tracked: false, duplicate: true, key, attempts: [] };
+  if (alreadyTracked && (!hasGoogleAdsConfig || hasStoredKey(googleAdsKey) || !hasStoredKey(googleAdsMissingConfigKey))) {
+    return { tracked: false, duplicate: true, key, attempts: [] };
+  }
 
   inFlight.add(key);
   const attempts: ProviderAttempt[] = [];
   try {
-    attempts.push(attempt('ga4', () => trackPurchase({
-      transaction_id: transactionId,
-      value: order.totalCents,
-      tax: order.taxCents || 0,
-      shipping: order.shippingCents || 0,
-      items: order.items,
-    })));
-    attempts.push(attempt('meta', () => trackFBPurchase({ value: order.totalCents, transaction_id: transactionId })));
-    const conversionId = (import.meta as any)?.env?.VITE_GOOGLE_ADS_CONVERSION_ID;
-    const purchaseLabel = (import.meta as any)?.env?.VITE_GOOGLE_ADS_PURCHASE_LABEL;
-    if (!conversionId || !purchaseLabel) {
+    if (!alreadyTracked && !hasStoredKey(ga4Key)) {
+      const ga4Attempt = attempt('ga4', () => trackPurchase({
+        transaction_id: transactionId,
+        value: order.totalCents,
+        tax: order.taxCents || 0,
+        shipping: order.shippingCents || 0,
+        items: order.items,
+      }));
+      attempts.push(ga4Attempt);
+      if (ga4Attempt.ok) setStoredKey(ga4Key);
+    } else {
+      attempts.push({ provider: 'ga4', attempted: false, ok: true, status: 'blocked' });
+    }
+
+    if (!alreadyTracked && !hasStoredKey(metaKey)) {
+      const metaAttempt = attempt('meta', () => trackFBPurchase({ value: order.totalCents, transaction_id: transactionId }));
+      attempts.push(metaAttempt);
+      if (metaAttempt.ok) setStoredKey(metaKey);
+    } else {
+      attempts.push({ provider: 'meta', attempted: false, ok: true, status: 'blocked' });
+    }
+
+    if (!hasGoogleAdsConfig) {
       attempts.push({
         provider: 'google_ads',
         attempted: false,
@@ -121,21 +148,30 @@ export const attemptPurchaseTracking = async (order: PurchaseTrackingOrder): Pro
         status: 'configuration_missing',
         error: 'missing_google_ads_conversion_configuration',
       });
+      setStoredKey(googleAdsMissingConfigKey);
+    } else if (hasStoredKey(googleAdsKey)) {
+      attempts.push({ provider: 'google_ads', attempted: false, ok: true, status: 'blocked' });
     } else {
       const hadGtag = typeof window !== 'undefined' && typeof (window as any).gtag === 'function';
-      attempts.push(attempt('google_ads', () => trackGoogleAdsPurchaseConversion({
+      const googleAdsAttempt = attempt('google_ads', () => trackGoogleAdsPurchaseConversion({
         transaction_id: transactionId,
         value: order.totalCents,
         currency: 'USD',
-      })));
-      const googleAdsAttempt = attempts[attempts.length - 1];
-      if (googleAdsAttempt.ok) googleAdsAttempt.status = hadGtag ? 'attempted' : 'queued';
+      }));
+      if (googleAdsAttempt.ok) {
+        googleAdsAttempt.status = hadGtag ? 'attempted' : 'queued';
+        setStoredKey(googleAdsKey);
+      }
+      attempts.push(googleAdsAttempt);
     }
+
+    const ga4Attempt = attempts.find((a) => a.provider === 'ga4');
+    const metaAttempt = attempts.find((a) => a.provider === 'meta');
+    if (ga4Attempt?.ok || metaAttempt?.ok) setStoredKey(key);
+
     await recordPurchaseAudit(order, attempts);
-    const googleAdsAttempt = attempts.find((a) => a.provider === 'google_ads');
-    if (googleAdsAttempt?.attempted && googleAdsAttempt.ok) setStored(key);
     devLog('attempted', { key, attempts });
-    return { tracked: Boolean(attempts.find((a) => a.provider === 'google_ads')?.ok), duplicate: false, key, attempts };
+    return { tracked: attempts.some((a) => a.attempted && a.ok), duplicate: alreadyTracked, key, attempts };
   } finally {
     inFlight.delete(key);
   }
