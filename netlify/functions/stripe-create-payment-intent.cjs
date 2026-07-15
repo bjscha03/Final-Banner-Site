@@ -178,6 +178,7 @@ exports.handler = async (event) => {
     user_id: userId,
     sameDayHitService: reqSameDay,
     saturdayDelivery: reqSaturday,
+    attribution,
   } = payload;
 
   if (!items || !Array.isArray(items) || items.length === 0) {
@@ -283,6 +284,7 @@ exports.handler = async (event) => {
       saturdayDelivery: !!reqSaturday,
       items,
       discountCode: discountCode || null,
+      attribution: attribution || null,
     }, cid);
 
     if (!pendingResult.ok) {

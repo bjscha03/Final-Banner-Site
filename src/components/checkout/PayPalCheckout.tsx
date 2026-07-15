@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth';
 import { useCartStore } from '@/store/cart';
 import { Loader2 } from 'lucide-react';
 import { shouldUseDeployPreviewTestCheckout } from './checkoutEnvironment';
+import { getStoredAttribution } from '@/lib/attribution';
 
 interface PayPalCheckoutProps {
   total: number;
@@ -426,6 +427,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
           // strip these flags before charging PayPal.
           sameDayHitService: !!sameDayHitService,
           saturdayDelivery: !!saturdayDelivery,
+          attribution: getStoredAttribution(),
         }),
       });
 
@@ -491,6 +493,12 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
         return;
       }
 
+      if (!isDev && (captureResult?.status !== 'COMPLETED' || captureResult?.captureStatus !== 'COMPLETED' || !captureResult?.captureID)) {
+        console.error('PayPal capture did not complete:', captureResult);
+        alert('PayPal did not return a completed payment capture. Your card was not recorded as paid by this site. Please contact support if PayPal shows a charge.');
+        return;
+      }
+
       const shippingDetails = extractShippingFromCapture(captureResult);
       const customerName = getFirstNonEmpty(
         shippingDetails?.name,
@@ -513,7 +521,9 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
           total_cents: total,
           currency: 'usd',
           paypal_order_id: data.orderID,
-          paypal_capture_id: captureResult.paypalData?.id,
+          paypal_capture_id: captureResult.captureID || captureResult.paypalData?.purchase_units?.[0]?.payments?.captures?.[0]?.id || null,
+          paypal_captured_amount_cents: captureResult.capturedAmountCents || null,
+          paypal_captured_currency: captureResult.capturedCurrency || null,
           shipping_name: shippingDetails?.name || null,
           customer_name: customerName || null,
           customer_first_name: customerName
@@ -599,6 +609,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
           // and persists same_day_* columns onto the order).
           sameDayHitService: !!sameDayHitService,
           saturdayDelivery: !!saturdayDelivery,
+          attribution: getStoredAttribution(),
         }),
       });
 

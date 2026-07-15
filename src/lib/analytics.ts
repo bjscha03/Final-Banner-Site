@@ -20,10 +20,13 @@ declare global {
 /**
  * Helper to safely call gtag
  */
-const gtag = (...args: any[]) => {
-  if (typeof window !== 'undefined' && window.gtag) {
-    window.gtag(...args as any);
+export const gtag = (...args: any[]) => {
+  if (typeof window === 'undefined') return;
+  window.dataLayer = window.dataLayer || [];
+  if (!window.gtag) {
+    window.gtag = function gtag(){ window.dataLayer!.push(arguments); } as any;
   }
+  window.gtag(...args as any);
 };
 
 // ============================================================================

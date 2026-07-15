@@ -1,4 +1,5 @@
 const { randomUUID } = require('crypto');
+const { neon } = require('@neondatabase/serverless');
 const { getPayPalDescription } = require('./product-display-helpers.cjs');
 const {
   reconcileSameDayFlags,
@@ -452,6 +453,35 @@ exports.handler = async (event, context) => {
       paypalOrderId: paypalOrder.id,
       status: paypalOrder.status
     });
+
+    const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
+    if (dbUrl) {
+      try {
+        const sql = neon(dbUrl);
+        await sql`
+          CREATE TABLE IF NOT EXISTS paypal_checkout_sessions (
+            paypal_order_id TEXT PRIMARY KEY,
+            order_payload JSONB NOT NULL,
+            expected_total_cents INTEGER NOT NULL,
+            currency TEXT NOT NULL DEFAULT 'USD',
+            status TEXT NOT NULL DEFAULT 'created',
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            updated_at TIMESTAMPTZ DEFAULT NOW()
+          )
+        `;
+        await sql`
+          INSERT INTO paypal_checkout_sessions (paypal_order_id, order_payload, expected_total_cents, currency, status, updated_at)
+          VALUES (${paypalOrder.id}, ${JSON.stringify({ ...payload, totalCents: finalTotalCents, sameDayHitService: sameDayResult.sameDay, saturdayDelivery: sameDayResult.saturday })}::jsonb, ${finalTotalCents}, 'USD', 'created', NOW())
+          ON CONFLICT (paypal_order_id) DO UPDATE SET
+            order_payload = EXCLUDED.order_payload,
+            expected_total_cents = EXCLUDED.expected_total_cents,
+            currency = EXCLUDED.currency,
+            updated_at = NOW()
+        `;
+      } catch (sessionErr) {
+        console.warn('PayPal create order - failed to persist checkout session:', sessionErr.message);
+      }
+    }
 
     return {
       statusCode: 200,

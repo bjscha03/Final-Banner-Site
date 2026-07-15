@@ -4,7 +4,7 @@ import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Home, ArrowRight } from 'lucide-react';
 import { usd } from '@/lib/pricing';
-import { trackPurchase, trackFBPurchase, trackGoogleAdsPurchaseConversion } from '@/lib/analytics';
+import { attemptPurchaseTracking } from '@/lib/purchaseTracking';
 import { getItemDisplayName, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
 import { formatShippingAddress, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
 import { getDisplayOrderTotalCents } from '@/lib/order-totals';
@@ -60,6 +60,9 @@ const PaymentSuccess: React.FC = () => {
     saturday_fee_cents?: number;
     shipping_cents?: number;
     status?: string;
+    order_number?: string | null;
+    paypal_order_id?: string | null;
+    paypal_capture_id?: string | null;
   } | null>(null);
   
   // Get data from navigation state or defaults
@@ -89,19 +92,27 @@ const PaymentSuccess: React.FC = () => {
 
   useEffect(() => {
     if (!orderId) return;
+    let cancelled = false;
     const loadOrder = async () => {
-      try {
-        const response = await fetch(`/.netlify/functions/get-order?id=${orderId}`);
-        if (!response.ok) return;
-        const data = await response.json();
-        if (data?.ok && data?.order) {
-          setLoadedOrder(data.order);
+      const maxAttempts = 6;
+      for (let attempt = 1; attempt <= maxAttempts && !cancelled; attempt += 1) {
+        try {
+          const response = await fetch(`/.netlify/functions/get-order?id=${orderId}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data?.ok && data?.order) {
+              if (!cancelled) setLoadedOrder(data.order);
+              return;
+            }
+          }
+        } catch (error) {
+          if (attempt === maxAttempts) console.warn('Unable to load order for payment success address block', error);
         }
-      } catch (error) {
-        console.warn('Unable to load order for payment success address block', error);
+        await new Promise((resolve) => window.setTimeout(resolve, Math.min(500 * attempt, 2500)));
       }
     };
     loadOrder();
+    return () => { cancelled = true; };
   }, [orderId]);
 
   const canonicalOrderItems = useMemo(() => loadedOrder?.items || [], [loadedOrder?.items]);
@@ -183,39 +194,24 @@ const PaymentSuccess: React.FC = () => {
       };
     });
 
-    trackPurchase({
-      transaction_id: orderId,
-      value: canonicalOrderTotalCents,
-      tax: canonicalOrderTaxCents,
-      shipping: canonicalOrderShippingCents,
+    void attemptPurchaseTracking({
+      orderId,
+      orderNumber: loadedOrder.order_number,
+      status: loadedOrder.status,
+      totalCents: canonicalOrderTotalCents,
+      taxCents: canonicalOrderTaxCents,
+      shippingCents: canonicalOrderShippingCents,
       items: analyticsItems,
-    });
-
-    // Track Facebook Pixel Purchase
-    trackFBPurchase({
-      value: canonicalOrderTotalCents,
-      transaction_id: orderId,
-    });
-
-    // Track Google Ads purchase conversion (no-op if env vars not configured)
-    trackGoogleAdsPurchaseConversion({
-      transaction_id: orderId,
-      value: canonicalOrderTotalCents,
-      currency: 'USD',
-    });
-
-    try {
-      if (typeof sessionStorage !== 'undefined') {
-        sessionStorage.setItem(trackedKey, '1');
+      pageUrl: window.location.href,
+      paypalOrderId: loadedOrder.paypal_order_id,
+      paypalCaptureId: loadedOrder.paypal_capture_id,
+    }).then((result) => {
+      if ((import.meta as any).env.DEV) {
+        console.log('[PaymentSuccess] Purchase tracking result', result);
       }
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(trackedKey, '1');
-      }
-    } catch (_e) {
-      // ignore storage failures after dispatch
-    }
+    });
 
-    console.log('[PaymentSuccess] Purchase tracking fired', {
+    console.log('[PaymentSuccess] Purchase tracking attempted', {
       orderId,
       value_cents: canonicalOrderTotalCents,
       tax_cents: canonicalOrderTaxCents,

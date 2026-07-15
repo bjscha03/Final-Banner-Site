@@ -204,6 +204,7 @@ exports.handler = async (event, context) => {
       'shipping_cents',
       'payment_method',
       'paypal_order_id',
+      'paypal_capture_id',
       'created_at',
       'updated_at',
     ].map(safeOrderCol).join(', ');

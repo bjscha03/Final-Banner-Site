@@ -49,7 +49,7 @@ async function sendOrderEmails(orderId, source) {
  * @param {string} args.source           - 'browser' | 'webhook' (used in logs)
  * @returns {Promise<{ ok: boolean, orderId?: string, alreadyPaid?: boolean, error?: string }>}
  */
-async function finalizeStripeOrder({ paymentIntentId, orderId, chargeId, walletType, receiptEmail, shipping, billing, source }) {
+async function finalizeStripeOrder({ paymentIntentId, orderId, chargeId, walletType, receiptEmail, shipping, billing, source, paymentEventId, paidAt }) {
   const tag = `[finalizeStripeOrder:${source || 'unknown'}]`;
   if (!paymentIntentId) {
     return { ok: false, error: 'MISSING_PAYMENT_INTENT_ID' };
@@ -61,7 +61,7 @@ async function finalizeStripeOrder({ paymentIntentId, orderId, chargeId, walletT
   try {
     if (orderId) {
       const found = await sql`
-        SELECT id, status, stripe_payment_intent_id, total_cents, email
+        SELECT id, order_number, status, stripe_payment_intent_id, total_cents, email
         FROM orders
         WHERE id = ${orderId}
         LIMIT 1
@@ -70,7 +70,7 @@ async function finalizeStripeOrder({ paymentIntentId, orderId, chargeId, walletT
     }
     if (!row) {
       const found = await sql`
-        SELECT id, status, stripe_payment_intent_id, total_cents, email
+        SELECT id, order_number, status, stripe_payment_intent_id, total_cents, email
         FROM orders
         WHERE stripe_payment_intent_id = ${paymentIntentId}
         LIMIT 1
@@ -190,6 +190,7 @@ async function finalizeStripeOrder({ paymentIntentId, orderId, chargeId, walletT
     const after = await sql`SELECT status FROM orders WHERE id = ${row.id} LIMIT 1`;
     nowPaid = !!(after && after[0] && after[0].status === 'paid');
   } catch (_e) { /* ignore — assume paid */ nowPaid = true; }
+
 
   // Trigger emails. Best-effort: a delivery failure should not unwind
   // the paid status (we'd rather have a paid order with no email than
