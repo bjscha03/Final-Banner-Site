@@ -101,9 +101,13 @@ const AIDesignerPage: React.FC = () => {
   const [errorOutput, setErrorOutput] = useState('');
   const [generationFallbackNote, setGenerationFallbackNote] = useState('');
   const [debugOutput, setDebugOutput] = useState('');
+  const [successOutput, setSuccessOutput] = useState('');
+  const [borderWarning, setBorderWarning] = useState('');
+  const [generateStatus, setGenerateStatus] = useState('');
   const [cartMessage, setCartMessage] = useState('');
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [promoCode, setPromoCode] = useState('');
+  const [selectedImageProvider, setSelectedImageProvider] = useState<'openai'|'imagen'>('openai');
 
   const [history, setHistory] = useState<Snap[]>([]);
 
@@ -194,11 +198,13 @@ const AIDesignerPage: React.FC = () => {
     setRopePlacement('none');
   };
 
-  const callFn = async (action: string) => {
-    const payload = { action, prompt, enhancedPrompt, editInstruction, imageUrl, size: { w: Number(widthFt.toFixed(2)), h: Number(heightFt.toFixed(2)) }, material, quantity, referenceImage };
+  const callFn = async (action: string, extraPayload: Record<string, any> = {}) => {
+    const payload = { action, prompt, enhancedPrompt, editInstruction, imageUrl, imageProvider: selectedImageProvider, size: { w: Number(widthFt.toFixed(2)), h: Number(heightFt.toFixed(2)) }, material, quantity, referenceImage, ...extraPayload };
+    if (action === 'generate') console.log('[AI Designer] FINAL GENERATE PAYLOAD', JSON.stringify(payload, null, 2));
     const res = await fetch('/.netlify/functions/generate-ai-designs', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
-    const body = await res.json().catch(() => ({ ok: false, safeErrorMessage: 'Invalid JSON response from function' }));
-    return { body };
+    let jsonParsed = true;
+    const body = await res.json().catch(() => { jsonParsed = false; return { ok: false, safeErrorMessage: 'Invalid JSON response from function' }; });
+    return { body, jsonParsed };
   };
 
 
@@ -211,6 +217,39 @@ const AIDesignerPage: React.FC = () => {
       else { baseH = 100; baseW = (imgRatio / bannerRatio) * 100; }
     }
     return { baseW, baseH };
+  };
+
+  const detectLikelyBorderPadding = (img: HTMLImageElement) => {
+    try {
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      if (!w || !h) return false;
+      const c = document.createElement('canvas');
+      c.width = Math.min(512, w);
+      c.height = Math.min(512, h);
+      const ctx = c.getContext('2d');
+      if (!ctx) return false;
+      ctx.drawImage(img, 0, 0, c.width, c.height);
+      const data = ctx.getImageData(0, 0, c.width, c.height).data;
+      const isNearWhite = (r: number, g: number, b: number) => r > 242 && g > 242 && b > 242;
+      const sampleEdge = (x: number, y: number) => {
+        const i = (y * c.width + x) * 4;
+        return isNearWhite(data[i], data[i + 1], data[i + 2]) ? 1 : 0;
+      };
+      let white = 0;
+      let total = 0;
+      for (let x = 0; x < c.width; x++) {
+        white += sampleEdge(x, 0) + sampleEdge(x, c.height - 1);
+        total += 2;
+      }
+      for (let y = 0; y < c.height; y++) {
+        white += sampleEdge(0, y) + sampleEdge(c.width - 1, y);
+        total += 2;
+      }
+      return total > 0 && (white / total) > 0.72;
+    } catch {
+      return false;
+    }
   };
 
 
@@ -253,6 +292,9 @@ const AIDesignerPage: React.FC = () => {
     setMaterial('13oz');
     setQuantity(1);
     setErrorOutput('');
+    setSuccessOutput('');
+    setBorderWarning('');
+    setGenerateStatus('');
     setGenerationFallbackNote('');
     setDebugOutput('');
     setBusy(null);
@@ -282,6 +324,7 @@ const AIDesignerPage: React.FC = () => {
         hemmingIncluded: true,
         designTransform: imageTransform,
         pricingBreakdown: { subtotal, tax, total, materialRate: pricing.materialPricePerSqFtCents / 100 },
+        approvedPreviewImageUrl: imageUrl,
         canvasStateJson: JSON.stringify({ imageTransform, finishingType, grommetOption, ropePlacement, polePocketPlacement }),
       });
       if (id) {
@@ -311,18 +354,25 @@ const AIDesignerPage: React.FC = () => {
     <aside className="border border-white/10 bg-[#12151d] p-5 space-y-3">
       <h1 className="text-4xl font-black">AI DESIGNER</h1>
       <textarea value={prompt} onChange={(e)=>setPrompt(e.target.value)} rows={4} className="w-full bg-black/60 border border-yellow-500 rounded p-3" placeholder="Describe the banner design you want to generate..." />
-      <button disabled={busy!==null||!prompt.trim()} onClick={async()=>{setBusy('enhance');setErrorOutput('');try{const {body}=await callFn('enhance'); if(body?.enhancedPrompt) setEnhancedPrompt(body.enhancedPrompt); else setErrorOutput(body?.safeErrorMessage||body?.error||'Enhance failed.');}finally{setBusy(null);}}} className="w-full border border-yellow-600 text-yellow-300 py-2 rounded inline-flex items-center justify-center gap-2 disabled:opacity-50">{busy==='enhance'?<><Spinner/>Enhancing Prompt...</>:'✨ ENHANCE PROMPT WITH AI'}</button>
+      <button disabled={busy!==null||!prompt.trim()} onClick={async()=>{setBusy('enhance');setErrorOutput('');try{const {body,jsonParsed}=await callFn('enhance'); if(!jsonParsed){setErrorOutput('Invalid JSON response from function');return;} if(body?.enhancedPrompt){ setEnhancedPrompt(body.enhancedPrompt); setErrorOutput(''); } else setErrorOutput(body?.safeErrorMessage||body?.error||'Enhance failed.');}finally{setBusy(null);}}} className="w-full border border-yellow-600 text-yellow-300 py-2 rounded inline-flex items-center justify-center gap-2 disabled:opacity-50">{busy==='enhance'?<><Spinner/>Enhancing Prompt...</>:'✨ ENHANCE PROMPT WITH AI'}</button>
       <textarea value={enhancedPrompt} onChange={(e)=>setEnhancedPrompt(e.target.value)} rows={5} className="w-full bg-black/60 border border-white/20 rounded p-3" placeholder="Enhanced prompt will appear here after AI enhancement..." />
       <input type="file" accept="image/*" onChange={async(e)=>{const f=e.target.files?.[0]; if(f) setReferenceImage(await readFile(f));}} className="block w-full text-sm"/>
-      <button disabled={busy!==null||!(enhancedPrompt||prompt).trim()} onClick={async()=>{setBusy('generate');setErrorOutput('');setGenerationFallbackNote('');try{const {body}=await callFn('generate'); if(body?.image?.url||body?.imageUrl){saveSnapshot(); setImageUrl(body?.image?.url||body?.imageUrl); if(body?.generationFallback) setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.');} else setErrorOutput(body?.safeErrorMessage||body?.error||'Generate failed.');}finally{setBusy(null);}}} className="w-full bg-yellow-700 text-black font-bold py-3 inline-flex items-center justify-center gap-2 disabled:opacity-50">{busy==='generate'?<><Spinner/>Generating Design...</>:'⚡ GENERATE DESIGN'}</button>
+      <label className="block text-xs text-white/70">Image Provider<select value={selectedImageProvider} onChange={(e)=>setSelectedImageProvider(e.target.value as 'openai'|'imagen')} className="mt-1 w-full bg-black border border-white/20 p-2 text-sm"><option value="openai">OpenAI (Default)</option><option value="imagen">Imagen</option></select></label>
+      <p className="text-[11px] text-cyan-300/90">Selected provider state: {selectedImageProvider}</p>
+      <p className="text-[11px] text-cyan-300/90">Generate will send: {selectedImageProvider}</p>
+      {busy==='generate' && <p className="text-[11px] text-cyan-300/90">Generating via: {selectedImageProvider}</p>}
+      <button disabled={busy!==null||!(enhancedPrompt||prompt).trim()} onClick={async()=>{setBusy('generate');setDebugOutput('');setErrorOutput('');setSuccessOutput('');setBorderWarning('');setGenerationFallbackNote('');setGenerateStatus('Generate clicked');try{setGenerateStatus('Sending generate request');setDebugOutput(JSON.stringify({ action:'generate_attempt_started', imageProvider:selectedImageProvider, prompt }, null, 2));const {body,jsonParsed}=await callFn('generate',{ action:'generate', imageProvider:selectedImageProvider });setGenerateStatus('Generate response received');setDebugOutput(JSON.stringify(body ?? { ok:false, error:'empty_response' }, null, 2)); if(!jsonParsed){setErrorOutput('Invalid JSON response from function');return;} if(body?.image?.url||body?.imageUrl){ setErrorOutput(''); saveSnapshot(); setImageUrl(body?.image?.url||body?.imageUrl); setImageTransform({ x: 0, y: 0, scale: 1, mode: 'fill' }); if(body?.generationFallback){ setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.'); } else { setSuccessOutput('Generated one print-ready banner composition.'); }} else setErrorOutput(body?.safeErrorMessage||body?.error||'Generate failed.');}catch(err:any){setGenerateStatus('Generate failed before request');setDebugOutput(JSON.stringify({ action:'generate_fetch_failed', message: err?.message || 'Unknown error' }, null, 2));setErrorOutput(err?.message||'Generate request failed.');}finally{setBusy(null);}}} className="w-full bg-yellow-700 text-black font-bold py-3 inline-flex items-center justify-center gap-2 disabled:opacity-50">{busy==='generate'?<><Spinner/>Generating Design...</>:'⚡ GENERATE DESIGN'}</button>
       {imageUrl && <>
         <input value={editInstruction} onChange={(e)=>setEditInstruction(e.target.value)} className="w-full bg-black/60 border border-white/20 rounded p-2" placeholder="Edit instruction"/>
-        <button disabled={busy!==null||!editInstruction.trim()} onClick={async()=>{setBusy('enhanceEdit');try{const {body}=await callFn('enhance'); if(body?.enhancedPrompt) setEditInstruction(body.enhancedPrompt);}finally{setBusy(null);}}} className="w-full border border-white/20 py-2 rounded disabled:opacity-50">Enhance Edit Prompt with AI</button>
-        <button disabled={busy!==null||!editInstruction.trim()} onClick={async()=>{setBusy('edit');setErrorOutput('');try{const {body}=await callFn('edit'); if(body?.image?.url||body?.imageUrl){saveSnapshot(); setImageUrl(body?.image?.url||body?.imageUrl); if(body?.generationFallback) setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.');} else setErrorOutput(body?.safeErrorMessage||body?.error||'Edit failed.');}finally{setBusy(null);}}} className="w-full border border-white/20 py-2 rounded inline-flex items-center justify-center gap-2 disabled:opacity-50">{busy==='edit'?<><Spinner/>Applying AI edits...</>:'Edit with AI'}</button>
+        <button disabled={busy!==null||!editInstruction.trim()} onClick={async()=>{setBusy('enhanceEdit');try{const {body,jsonParsed}=await callFn('enhanceEdit'); if(!jsonParsed){setErrorOutput('Invalid JSON response from function');return;} if(body?.enhancedEditPrompt){ setEditInstruction(body.enhancedEditPrompt); setErrorOutput(''); }}finally{setBusy(null);}}} className="w-full border border-white/20 py-2 rounded disabled:opacity-50">Enhance Edit Prompt with AI</button>
+        <button disabled={busy!==null||!editInstruction.trim()} onClick={async()=>{setBusy('edit');setErrorOutput('');setSuccessOutput('');setBorderWarning('');try{const {body,jsonParsed}=await callFn('edit'); if(!jsonParsed){setErrorOutput('Invalid JSON response from function');return;} if(body?.image?.url||body?.imageUrl){ setErrorOutput(''); saveSnapshot(); setImageUrl(body?.image?.url||body?.imageUrl); setImageTransform({ x: 0, y: 0, scale: 1, mode: 'fill' }); setSuccessOutput('Edit applied to current banner design.'); if (body?.debug) setDebugOutput(JSON.stringify(body.debug, null, 2)); if(body?.generationFallback) setGenerationFallbackNote('Temporary fallback image shown. Imagen API paid access is required for real AI image generation.');} else setErrorOutput(body?.safeErrorMessage||body?.error||'Edit failed.');}finally{setBusy(null);}}} className="w-full border border-white/20 py-2 rounded inline-flex items-center justify-center gap-2 disabled:opacity-50">{busy==='edit'?<><Spinner/>Applying AI edits...</>:'Edit with AI'}</button>
         <button disabled={busy!==null||history.length===0} onClick={revertOne} className="w-full border border-white/20 py-2 rounded disabled:opacity-50">Revert</button>
       </>}
-      <button disabled={busy!==null} onClick={async()=>{setBusy('debug');try{const {body}=await callFn('debug'); setDebugOutput(JSON.stringify(body,null,2));}finally{setBusy(null);}}} className="w-full border border-cyan-600 text-cyan-300 py-2 rounded disabled:opacity-50">Admin Debug Check</button>
+      <button disabled={busy!==null} onClick={async()=>{setBusy('debug');try{const {body,jsonParsed}=await callFn('debug'); if(!jsonParsed){setErrorOutput('Invalid JSON response from function');return;} setErrorOutput(''); setDebugOutput(JSON.stringify(body,null,2));}finally{setBusy(null);}}} className="w-full border border-cyan-600 text-cyan-300 py-2 rounded disabled:opacity-50">Admin Debug Check</button>
       {errorOutput && <p className="text-sm text-red-400">{errorOutput}</p>}
+      {generateStatus && <p className="text-xs text-cyan-300">{generateStatus}</p>}
+      {successOutput && <p className="text-sm text-emerald-300">{successOutput}</p>}
+      {borderWarning && <p className="text-sm text-amber-300">{borderWarning}</p>}
       {generationFallbackNote && <p className="text-sm text-amber-300">{generationFallbackNote}</p>}
       {debugOutput && <pre className="text-xs text-cyan-200 bg-black/40 p-2 rounded overflow-auto">{debugOutput}</pre>}
     </aside>
@@ -351,7 +401,7 @@ const AIDesignerPage: React.FC = () => {
               return <div style={wrapperStyle}>
                 <img src={imageUrl} alt="Generated banner" className="w-full h-full cursor-move select-none" draggable={false}
                   style={{ objectFit: imageTransform.mode==='fit'?'contain':'cover' }}
-                  onLoad={(e)=>{ const img=e.currentTarget; if(img.naturalWidth&&img.naturalHeight) setImageNaturalRatio(img.naturalWidth/img.naturalHeight); }}
+                  onLoad={(e)=>{ const img=e.currentTarget; if(img.naturalWidth&&img.naturalHeight) setImageNaturalRatio(img.naturalWidth/img.naturalHeight); if (detectLikelyBorderPadding(img)) setBorderWarning('Generated image may include unwanted border/padding. Try Edit with AI: remove border and make full bleed.'); else setBorderWarning(''); }}
                   onPointerDown={(e)=>{ e.stopPropagation(); setSelected(true); dragState.current={type:'move',startX:e.clientX,startY:e.clientY,origin:imageTransform}; }} />
               </div>;
             })()}
