@@ -32,21 +32,107 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
   const { user } = useAuth();
   const isAdminUser = user && isAdmin(user);
   const [pdfGenerating, setPdfGenerating] = useState<Record<number, boolean>>({});
-  // Helper function to get the original customer upload for an item.
-  const getBestDownloadUrl = (item: any) => {
-    const overlayImageFileKey = item.overlay_image?.fileKey;
-    const overlayImagesFileKey = item.overlay_images?.find((img: any) => img?.fileKey)?.fileKey;
+  const normalizeOverlayImages = (value: unknown): any[] => {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== 'string' || !value.trim()) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
 
-    if (overlayImageFileKey) return { url: overlayImageFileKey, type: 'overlay_image', isAI: false, fileName: item.overlay_image?.name || item.file_name };
-    if (overlayImagesFileKey) {
-      const img = item.overlay_images.find((entry: any) => entry?.fileKey === overlayImagesFileKey);
-      return { url: overlayImagesFileKey, type: 'overlay_images', isAI: false, fileName: img?.name || item.file_name };
-    }
-    if (item.file_key) return { url: item.file_key, type: 'file_key', isAI: false, fileName: item.file_name };
-    if (item.file_url && !item.file_url.startsWith('blob:') && !item.file_url.startsWith('data:')) return { url: item.file_url, type: 'file_url', isAI: false, fileName: item.file_name };
-
+const normalizeOverlayImage = (value: unknown): Record<string, any> | null => {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, any>;
+  }
+  if (typeof value !== 'string' || !value.trim()) return null;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed as Record<string, any>
+      : null;
+  } catch {
     return null;
-  };
+  }
+};
+
+// Return the original customer upload only. Production PDFs use their own action.
+const getBestDownloadUrl = (item: any) => {
+  const overlayImage = normalizeOverlayImage(item?.overlay_image);
+  const overlayImages = normalizeOverlayImages(item?.overlay_images);
+  const overlayImageFileKey = overlayImage?.fileKey;
+  const overlayImagesEntry = overlayImages.find((img: any) => img?.fileKey);
+
+  if (overlayImageFileKey) {
+    return {
+      url: overlayImageFileKey,
+      type: 'overlay_image',
+      isAI: false,
+      fileName: overlayImage?.name || item?.file_name,
+    };
+  }
+  if (overlayImagesEntry?.fileKey) {
+    return {
+      url: overlayImagesEntry.fileKey,
+      type: 'overlay_images',
+      isAI: false,
+      fileName: overlayImagesEntry.name || item?.file_name,
+    };
+  }
+  if (item?.file_key) {
+    return { url: item.file_key, type: 'file_key', isAI: false, fileName: item.file_name };
+  }
+  if (
+    typeof item?.file_url === 'string' &&
+    !item.file_url.startsWith('blob:') &&
+    !item.file_url.startsWith('data:')
+  ) {
+    return { url: item.file_url, type: 'file_url', isAI: false, fileName: item.file_name };
+  }
+  return null;
+};
+
+const orderDate = new Date(order.created_at).toLocaleDateString('en-US', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+const shippingAddress = normalizeShippingAddress({
+  ...(order.shippingAddress || {}),
+  shipping_name: order.shipping_name,
+  shipping_street: order.shipping_street,
+  shipping_street2: order.shipping_street2,
+  shipping_city: order.shipping_city,
+  shipping_state: order.shipping_state,
+  shipping_zip: order.shipping_zip,
+  shipping_country: order.shipping_country,
+  customer_name: order.customer_name,
+});
+const customerName = order.customer_name || shippingAddress.name || 'Not provided';
+const customerEmail = order.email || 'Not provided';
+const hasAddress = hasShippingAddress(shippingAddress);
+const shippingAddressLines = formatShippingAddress(shippingAddress);
+
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'paid':
+      return 'bg-green-100 text-green-800';
+    case 'shipped':
+      return 'bg-blue-100 text-blue-800';
+    case 'pending':
+      return 'bg-amber-100 text-amber-800';
+    case 'failed':
+      return 'bg-red-100 text-red-800';
+    case 'refunded':
+      return 'bg-gray-100 text-gray-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+};
 
   const handleFileDownload = async (fileKey: string, itemIndex: number, originalFileName?: string) => {
     try {

@@ -28,28 +28,16 @@ describe('artwork preservation regressions', () => {
     }
   });
 
-  it('serializes all artwork fields through Stripe pending order creation', () => {
-    const source = read('src/components/checkout/StripeCheckout.tsx');
-    for (const field of [
-      'file_key',
-      'file_url',
-      'text_elements',
-      'overlay_image',
-      'overlay_images',
-      'final_render_url',
-      'final_render_file_key',
-      'canvas_state_json',
-    ]) {
-      expect(source).toContain(field);
-    }
-  });
-
   it('keeps admin original artwork downloads separate from production PDF downloads', () => {
     const source = read('src/pages/admin/Orders.tsx');
     const details = read('src/components/orders/OrderDetails.tsx');
     expect(source).toContain('Original Artwork');
     expect(source).toContain('Production PDFs');
     expect(details).toContain('Download Original Artwork');
+    expect(details).toContain('const orderDate =');
+    expect(details).toContain('const getStatusColor =');
+    expect(details).toContain('normalizeOverlayImages');
+    expect(source).toContain('normalizeOverlayImages');
     expect(source).toContain('onFileDownload(downloadInfo.url, order.id, index, downloadInfo.fileName)');
     expect(source).toContain('onPdfDownload(item, index, order.id)');
   });

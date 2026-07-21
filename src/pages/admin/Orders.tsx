@@ -1286,24 +1286,68 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   const [showCostBreakdown, setShowCostBreakdown] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const orderItems = getSafeOrderItems(order);
-  // Helper function to get the best download URL for an item (AI or uploaded)
-  const getBestDownloadUrl = (item) => {
-    const overlayImageFileKey = item.overlay_image?.fileKey;
-    const overlayImagesFileKey = item.overlay_images?.find((img: any) => img?.fileKey)?.fileKey;
+  const normalizeOverlayImages = (value: unknown): any[] => {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== 'string' || !value.trim()) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
 
-    // Original artwork downloads must stay separate from production files.
-    // Prefer the customer's raw upload keys/URLs and keep AI print assets out of this helper.
-    if (overlayImageFileKey) return { url: overlayImageFileKey, type: 'overlay_image', isAI: false, fileName: item.overlay_image?.name || item.file_name };
-    if (overlayImagesFileKey) {
-      const img = item.overlay_images.find((entry: any) => entry?.fileKey === overlayImagesFileKey);
-      return { url: overlayImagesFileKey, type: 'overlay_images', isAI: false, fileName: img?.name || item.file_name };
-    }
-    if (item.file_key) return { url: item.file_key, type: 'file_key', isAI: false, fileName: item.file_name };
-    if (item.file_url && !item.file_url.startsWith('blob:') && !item.file_url.startsWith('data:')) return { url: item.file_url, type: 'file_url', isAI: false, fileName: item.file_name };
+const normalizeOverlayImage = (value: unknown): Record<string, any> | null => {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, any>;
+  }
+  if (typeof value !== 'string' || !value.trim()) return null;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed as Record<string, any>
+      : null;
+  } catch {
     return null;
-  };
+  }
+};
 
-  // Helper function to get download label based on item type
+// Original artwork downloads must stay separate from production files.
+const getBestDownloadUrl = (item: any) => {
+  const overlayImage = normalizeOverlayImage(item?.overlay_image);
+  const overlayImages = normalizeOverlayImages(item?.overlay_images);
+  const overlayImageFileKey = overlayImage?.fileKey;
+  const overlayImagesEntry = overlayImages.find((img: any) => img?.fileKey);
+
+  if (overlayImageFileKey) {
+    return {
+      url: overlayImageFileKey,
+      type: 'overlay_image',
+      isAI: false,
+      fileName: overlayImage?.name || item?.file_name,
+    };
+  }
+  if (overlayImagesEntry?.fileKey) {
+    return {
+      url: overlayImagesEntry.fileKey,
+      type: 'overlay_images',
+      isAI: false,
+      fileName: overlayImagesEntry.name || item?.file_name,
+    };
+  }
+  if (item?.file_key) {
+    return { url: item.file_key, type: 'file_key', isAI: false, fileName: item.file_name };
+  }
+  if (
+    typeof item?.file_url === 'string' &&
+    !item.file_url.startsWith('blob:') &&
+    !item.file_url.startsWith('data:')
+  ) {
+    return { url: item.file_url, type: 'file_url', isAI: false, fileName: item.file_name };
+  }
+  return null;
+};
+
   const getDownloadLabel = (item, index) => {
     const downloadInfo = getBestDownloadUrl(item);
     if (!downloadInfo) return `Item ${index + 1}`;
