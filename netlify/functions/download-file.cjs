@@ -37,7 +37,7 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const { key, order, fileKey, download } = event.queryStringParameters || {};
+    const { key, order, fileKey, download, filename } = event.queryStringParameters || {};
 
     // Handle thumbnail requests (fileKey parameter) without order verification
     const requestedKey = fileKey || key;
@@ -168,13 +168,15 @@ exports.handler = async (event, context) => {
         // For PDFs, use the raw resource type
         downloadUrl = cloudinary.url(requestedKey, {
           resource_type: 'raw',
-          flags: 'attachment'
+          flags: 'attachment',
+          attachment: filename || undefined
         });
       } else {
         // For images, use standard image resource type with attachment flag
         downloadUrl = cloudinary.url(requestedKey, {
           resource_type: 'image',
-          flags: 'attachment'
+          flags: 'attachment',
+          attachment: filename || undefined
         });
       }
       

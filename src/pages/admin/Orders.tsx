@@ -453,7 +453,7 @@ const AdminOrders: React.FC = () => {
     }
   };
 
-  const handleFileDownload = async (fileKey: string, orderId: string, itemIndex: number) => {
+  const handleFileDownload = async (fileKey: string, orderId: string, itemIndex: number, originalFileName?: string) => {
     try {
       toast({
         title: "Download Started",
@@ -461,7 +461,7 @@ const AdminOrders: React.FC = () => {
       });
 
       // Use Netlify function for secure file downloads
-      const downloadUrl = `/.netlify/functions/download-file?key=${encodeURIComponent(fileKey)}&order=${orderId}`;
+      const downloadUrl = `/.netlify/functions/download-file?key=${encodeURIComponent(fileKey)}&order=${orderId}&download=true${originalFileName ? `&filename=${encodeURIComponent(originalFileName)}` : ''}`;
 
       // Fetch the file content
       const response = await fetch(downloadUrl);
@@ -480,8 +480,8 @@ const AdminOrders: React.FC = () => {
       else if (contentType.includes('tiff')) extension = 'tiff';
 
       // Build a proper filename with extension
-      const baseName = fileKey?.split('/').pop()?.split('.')[0] || `banner-${orderId.slice(-8)}-item-${itemIndex + 1}`;
-      const fileName = `${baseName}.${extension}`;
+      const originalName = originalFileName && originalFileName.trim();
+      const fileName = originalName || `${fileKey?.split('/').pop()?.split('.')[0] || `banner-${orderId.slice(-8)}-item-${itemIndex + 1}`}.${extension}`;
 
       // Create blob and download
       const blob = await response.blob();
@@ -1255,7 +1255,7 @@ interface AdminOrderRowProps {
   order: Order;
   onAddTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string, trackingNumbers?: TrackingEntry[]) => void;
   onUpdateTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string, trackingNumbers?: TrackingEntry[]) => void;
-  onFileDownload: (fileKey: string, orderId: string, itemIndex: number) => void;
+  onFileDownload: (fileKey: string, orderId: string, itemIndex: number, originalFileName?: string) => void;
   onPdfDownload: (item: any, itemIndex: number, orderId: string) => void;
   onSendShippingNotification: (orderId: string) => void;
   onMarkInProduction: (orderId: string) => void;
@@ -1288,35 +1288,18 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   const orderItems = getSafeOrderItems(order);
   // Helper function to get the best download URL for an item (AI or uploaded)
   const getBestDownloadUrl = (item) => {
-    // For AI-generated items, prioritize print_ready_url for high-quality downloads
-    if (item.print_ready_url) {
-      return { url: item.print_ready_url, type: 'print_ready', isAI: true };
-    }
-    
-    // Fallback to web_preview_url if available
-    if (item.web_preview_url) {
-      return { url: item.web_preview_url, type: 'web_preview', isAI: true };
-    }
-    
-    // CRITICAL: overlay_image.fileKey contains the ORIGINAL uploaded file (no grommets)
-    // file_key is the THUMBNAIL (has grommets baked in) - use overlay_image.fileKey first!
     const overlayImageFileKey = item.overlay_image?.fileKey;
-    const overlayImagesFileKey = item.overlay_images?.[0]?.fileKey;
-    
-    // Prioritize clean original image over thumbnail with grommets
-    if (overlayImageFileKey) {
-      return { url: overlayImageFileKey, type: 'overlay_image', isAI: false };
-    }
-    
+    const overlayImagesFileKey = item.overlay_images?.find((img: any) => img?.fileKey)?.fileKey;
+
+    // Original artwork downloads must stay separate from production files.
+    // Prefer the customer's raw upload keys/URLs and keep AI print assets out of this helper.
+    if (overlayImageFileKey) return { url: overlayImageFileKey, type: 'overlay_image', isAI: false, fileName: item.overlay_image?.name || item.file_name };
     if (overlayImagesFileKey) {
-      return { url: overlayImagesFileKey, type: 'overlay_images', isAI: false };
+      const img = item.overlay_images.find((entry: any) => entry?.fileKey === overlayImagesFileKey);
+      return { url: overlayImagesFileKey, type: 'overlay_images', isAI: false, fileName: img?.name || item.file_name };
     }
-    
-    // Last resort: file_key (may have grommets baked in for older orders)
-    if (item.file_key) {
-      return { url: item.file_key, type: 'file_key', isAI: false };
-    }
-    
+    if (item.file_key) return { url: item.file_key, type: 'file_key', isAI: false, fileName: item.file_name };
+    if (item.file_url && !item.file_url.startsWith('blob:') && !item.file_url.startsWith('data:')) return { url: item.file_url, type: 'file_url', isAI: false, fileName: item.file_name };
     return null;
   };
 
@@ -1325,13 +1308,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
     const downloadInfo = getBestDownloadUrl(item);
     if (!downloadInfo) return `Item ${index + 1}`;
     
-    if (downloadInfo.isAI) {
-      return downloadInfo.type === 'print_ready' 
-        ? `🎨 Print File ${index + 1}` 
-        : `🎨 Preview ${index + 1}`;
-    }
-    
-    return `Item ${index + 1}`;
+    return downloadInfo.fileName || `Original Artwork ${index + 1}`;
   };
 
   const previewItems = useMemo(() => orderItems.map((item: any, index) => ({ item, index, thumbUrl: getFinalizedThumbnailUrl(item, 720) })), [orderItems]);
@@ -1396,24 +1373,14 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
       setIsMarkingProduction(false);
     }
   };
-  const getFilesWithDownload = () => {
-    const filesWithDownload = orderItems
-      .map((item, index) => ({ item, index }))
-      .filter(({ item }) => 
-        item.file_key || 
-        item.print_ready_url || 
-        item.web_preview_url ||
-        item.final_render_url ||
-        item.final_render_file_key ||
-        item.thumbnail_url ||
-        (item.text_elements && item.text_elements.length > 0) ||
-        item.overlay_image
-      );
-
-    return filesWithDownload;
-  };
+  const getFilesWithDownload = () => orderItems
+    .map((item, index) => ({ item, index }))
+    .filter(({ item }) => !!getBestDownloadUrl(item));
 
   const filesWithDownload = getFilesWithDownload();
+  const productionPdfItems = orderItems
+    .map((item, index) => ({ item, index }))
+    .filter(({ item }) => item.final_render_url || item.final_render_file_key || item.canvas_state_json || item.thumbnail_url || item.print_ready_url || item.web_preview_url);
   const finalPrintFiles = orderItems
     .map((item, index) => ({ item, index }))
     .filter(({ item }) => item.final_print_pdf_url);
@@ -1641,8 +1608,33 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
           </div>
 
           <div className="space-y-2">
-            <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Print Files</div>
-            {(filesWithDownload.length > 0 || finalPrintFiles.length > 0) ? (
+            <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Original Artwork</div>
+            {filesWithDownload.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {filesWithDownload.map(({ item, index }) => {
+                  const downloadInfo = getBestDownloadUrl(item);
+                  return downloadInfo ? (
+                    <Button
+                      key={`original-${index}`}
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onFileDownload(downloadInfo.url, order.id, index, downloadInfo.fileName)}
+                      className="h-8 px-2.5 text-xs"
+                    >
+                      <Download className="h-3 w-3 mr-1" />
+                      {getDownloadLabel(item, index)}
+                    </Button>
+                  ) : null;
+                })}
+              </div>
+            ) : (
+              <div className="text-xs text-gray-500">No original artwork upload</div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Production PDFs</div>
+            {(productionPdfItems.length > 0 || finalPrintFiles.length > 0) ? (
               <div className="flex flex-wrap gap-2">
                 {finalPrintFiles.map(({ item, index }) => (
                   <a
@@ -1656,7 +1648,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                     {getPrintFileLabel(item, index, 'Final')}
                   </a>
                 ))}
-                {filesWithDownload.map(({ item, index }) => (
+                {productionPdfItems.map(({ item, index }) => (
                   <Button
                     key={`pdf-${index}`}
                     size="sm"
@@ -1794,7 +1786,7 @@ interface AdminOrderCardProps {
   order: Order;
   onAddTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string, trackingNumbers?: TrackingEntry[]) => void;
   onUpdateTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string, trackingNumbers?: TrackingEntry[]) => void;
-  onFileDownload: (fileKey: string, orderId: string, itemIndex: number) => void;
+  onFileDownload: (fileKey: string, orderId: string, itemIndex: number, originalFileName?: string) => void;
   onPdfDownload: (item: any, itemIndex: number, orderId: string) => void;
   onSendShippingNotification: (orderId: string) => void;
   onMarkInProduction: (orderId: string) => void;
