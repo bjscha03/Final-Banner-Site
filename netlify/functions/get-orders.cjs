@@ -1,6 +1,7 @@
 const { neon } = require('@neondatabase/serverless');
 const { normalizeTrackingEntries } = require('./tracking-helpers.cjs');
 const { normalizeShippingAddress } = require('./shipping-address-helpers.cjs');
+const { applyLegacyAssetRepairs, persistLegacyAssetRepairs } = require('./_shared/legacy-order-asset-repairs.cjs');
 
 // Neon database connection
 // Lazily initialize Neon with whichever DB URL is available
@@ -356,10 +357,15 @@ exports.handler = async (event, context) => {
     console.log(`[get-orders] Found ${orders.length} orders`);
 
     // Format the response
+    await Promise.all(orders.map(async (order) => {
+      const items = (order.items || []).filter(item => item && item.id !== null);
+      await persistLegacyAssetRepairs(sql, order, items);
+    }));
+
     const formattedOrders = orders.map(order => {
       // Keep canonical server-stored totals (already include same-day/saturday fees).
       // Only sanitize item array from LEFT JOIN null row artifacts.
-      const _items = (order.items || []).filter(item => item && item.id !== null);
+      const _items = applyLegacyAssetRepairs(order, (order.items || []).filter(item => item && item.id !== null));
       const subtotal = Number(order.subtotal_cents) || 0;
       const tax = Number(order.tax_cents) || 0;
       const total = Number(order.total_cents) || 0;
