@@ -508,12 +508,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
       );
 
       // Now create the database order
-      const orderResponse = await fetch('/.netlify/functions/create-order', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const orderPayload = {
           user_id: user?.id || null,
           email: user?.email || captureResult.paypalData?.payer?.email_address || `guest-${Date.now()}@bannersonthefly.com`,
           subtotal_cents: total,
@@ -610,11 +605,21 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
           sameDayHitService: !!sameDayHitService,
           saturdayDelivery: !!saturdayDelivery,
           attribution: getStoredAttribution(),
-        }),
-      });
+        };
+
+      let orderResponse: Response | null = null;
+      for (let attempt = 1; attempt <= 3; attempt += 1) {
+        orderResponse = await fetch('/.netlify/functions/create-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(orderPayload),
+        });
+        if (orderResponse.ok || orderResponse.status === 409) break;
+        await new Promise(resolve => setTimeout(resolve, attempt * 750));
+      }
 
       let orderResult: any = {};
-      if (orderResponse.ok) {
+      if (orderResponse?.ok) {
         orderResult = await orderResponse.json();
       } else if (isDev) {
         console.log('Development mode: Using mock order result');
@@ -624,10 +629,14 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
         };
       }
       
-      if (!orderResponse.ok && !isDev) {
+      if (!orderResponse?.ok && !isDev) {
+        try {
+          orderResult = await orderResponse?.json();
+        } catch {
+          orderResult = { error: `HTTP ${orderResponse?.status || 'unknown'}` };
+        }
         console.error('Order creation error:', orderResult);
-        // Payment succeeded but order creation failed - still show success but log error
-        console.error('PayPal payment succeeded but database order creation failed');
+        throw new Error(`Payment captured, but the order could not be saved: ${orderResult?.message || orderResult?.error || 'unknown error'}`);
       }
 
       toast({
@@ -640,7 +649,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
       onSuccess(orderId, orderResult?.order);
     } catch (e: any) {
       console.error('Payment exception:', e);
-      alert('Network error capturing payment. Please try again.');
+      alert(e?.message || 'Network error capturing payment. Please try again.');
       onError(e);
     } finally {
       setIsCapturingPayment(false);

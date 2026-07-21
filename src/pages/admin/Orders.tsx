@@ -1312,6 +1312,11 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
       return { url: overlayImagesFileKey, type: 'overlay_images', isAI: false };
     }
     
+    // Permanent original upload URL is the user's untouched artwork; prefer it before legacy file_key.
+    if (item.file_url) {
+      return { url: item.file_url, type: 'file_url', isAI: false };
+    }
+
     // Last resort: file_key (may have grommets baked in for older orders)
     if (item.file_key) {
       return { url: item.file_key, type: 'file_key', isAI: false };
