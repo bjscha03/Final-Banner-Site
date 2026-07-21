@@ -63,6 +63,10 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
       return { url: item.file_url, type: 'file_url', isAI: false };
     }
 
+    if (item.final_render_file_key) {
+      return { url: item.final_render_file_key, type: 'final_render_file_key', isAI: false };
+    }
+
     // Last resort: file_key (may have grommets baked in for older orders)
     if (item.file_key) {
       return { url: item.file_key, type: 'file_key', isAI: false };
@@ -815,7 +819,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                         ) : null;
                       })()}
 
-                      {isAdminUser && !item.design_service_enabled && (item.file_key || item.print_ready_url || item.web_preview_url || item.canvas_state_json || item.final_render_url || item.final_render_file_key || item.overlay_image) && (
+                      {isAdminUser && !item.design_service_enabled && (item.file_key || item.print_ready_url || item.web_preview_url || item.thumbnail_url || item.canvas_state_json || item.final_render_url || item.final_render_file_key || item.overlay_image) && (
                         <Button
                           variant="outline"
                           size="sm"

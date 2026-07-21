@@ -21,14 +21,33 @@ export function isHttpUrl(url: string): boolean {
 /**
  * Shared thumbnail resolver used by cart/checkout/email/admin order surfaces.
  * Uses the finalized/stored `thumbnail_url` as the first choice, then falls
- * back to permanent preview/original URLs so admin thumbnails do not disappear
+ * back to finalized renders, permanent preview/original URLs, and Cloudinary
+ * public IDs so admin thumbnails do not disappear
  * when the async thumbnail upload was skipped or failed.
  */
 export function getFinalizedThumbnailUrl(
-  item: { thumbnail_url?: string | null; web_preview_url?: string | null; file_url?: string | null; print_ready_url?: string | null } | null | undefined,
+  item: {
+    thumbnail_url?: string | null;
+    web_preview_url?: string | null;
+    file_url?: string | null;
+    print_ready_url?: string | null;
+    final_render_url?: string | null;
+    final_render_file_key?: string | null;
+    file_key?: string | null;
+  } | null | undefined,
   maxWidth = 240,
 ): string | null {
-  const sourceUrl = item?.thumbnail_url || item?.web_preview_url || item?.file_url || item?.print_ready_url;
+  const sourceUrl = item?.thumbnail_url
+    || item?.final_render_url
+    || item?.web_preview_url
+    || item?.file_url
+    || item?.print_ready_url;
+
+  if (!sourceUrl && (item?.final_render_file_key || item?.file_key)) {
+    const publicId = item.final_render_file_key || item.file_key;
+    return `https://res.cloudinary.com/${ADMIN_THUMBNAIL_CLOUDINARY_CLOUD}/image/upload/w_${maxWidth},c_limit,f_auto,q_auto/${publicId}`;
+  }
+
   if (!sourceUrl) return null;
   const thumbnailUrl = String(sourceUrl);
 
