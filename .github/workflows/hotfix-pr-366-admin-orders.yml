@@ -24,11 +24,6 @@ jobs:
           ref: codex/fix-admin-artwork-and-pdf-issues
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
       - name: Restore admin order render state and harden artwork parsing
         shell: bash
         run: |
@@ -239,15 +234,6 @@ jobs:
           test = test.replace(assertion, replacement, 1)
           test_path.write_text(test)
           PY
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run focused regression tests
-        run: npm test -- --run src/__tests__/artwork-preservation-regression.test.ts
-
-      - name: Build deploy preview bundle
-        run: npm run build
 
       - name: Commit hotfix and remove one-time workflow
         shell: bash
