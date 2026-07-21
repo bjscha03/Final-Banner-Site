@@ -1498,13 +1498,11 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
       // If there ARE text/overlay elements, the thumbnail has them baked in -
       // we DON'T want to load the thumbnail as a background when editing!
       // The thumbnail is only for cart/checkout display, NOT for editor reload.
-      file: (textElementsFromEditor.length > 0 || (currentOverlayImages && currentOverlayImages.length > 0))
-        ? undefined  // Don't save file - elements are stored separately
-        : (thumbnailFileKey ? {
-            fileKey: thumbnailFileKey,
-            url: thumbnailUrl,
-            name: `banner-${Date.now()}.png`
-          } : freshQuoteForCart.file),
+      file: freshQuoteForCart.file || (thumbnailFileKey && textElementsFromEditor.length === 0 && !(currentOverlayImages && currentOverlayImages.length > 0) ? {
+        fileKey: thumbnailFileKey,
+        url: thumbnailUrl,
+        name: `banner-${Date.now()}.png`
+      } : undefined),
       // FINAL_RENDER: Guaranteed to exist (mandatory generation above)
       finalRenderUrl: finalRenderResult.url,
       finalRenderFileKey: finalRenderResult.fileKey,
@@ -1520,7 +1518,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
     const dummyObj = {
       // CRITICAL: Pass original file (if exists) for background, thumbnailUrl for cart preview
       // If there are text elements OR overlay images, DON'T pass file (thumbnail has text baked in)
-      file: (freshQuoteForCart.textElements && freshQuoteForCart.textElements.length > 0) || currentOverlayImages ? undefined : freshQuoteForCart.file,
+      file: freshQuoteForCart.file,
       thumbnailUrl: thumbnailUrl,
     };
     

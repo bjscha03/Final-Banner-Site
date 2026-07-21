@@ -453,7 +453,7 @@ const AdminOrders: React.FC = () => {
     }
   };
 
-  const handleFileDownload = async (fileKey: string, orderId: string, itemIndex: number) => {
+  const handleFileDownload = async (fileKey: string, orderId: string, itemIndex: number, originalFileName?: string) => {
     try {
       toast({
         title: "Download Started",
@@ -461,7 +461,7 @@ const AdminOrders: React.FC = () => {
       });
 
       // Use Netlify function for secure file downloads
-      const downloadUrl = `/.netlify/functions/download-file?key=${encodeURIComponent(fileKey)}&order=${orderId}`;
+      const downloadUrl = `/.netlify/functions/download-file?key=${encodeURIComponent(fileKey)}&order=${orderId}&download=true${originalFileName ? `&filename=${encodeURIComponent(originalFileName)}` : ''}`;
 
       // Fetch the file content
       const response = await fetch(downloadUrl);
@@ -480,8 +480,8 @@ const AdminOrders: React.FC = () => {
       else if (contentType.includes('tiff')) extension = 'tiff';
 
       // Build a proper filename with extension
-      const baseName = fileKey?.split('/').pop()?.split('.')[0] || `banner-${orderId.slice(-8)}-item-${itemIndex + 1}`;
-      const fileName = `${baseName}.${extension}`;
+      const originalName = originalFileName && originalFileName.trim();
+      const fileName = originalName || `${fileKey?.split('/').pop()?.split('.')[0] || `banner-${orderId.slice(-8)}-item-${itemIndex + 1}`}.${extension}`;
 
       // Create blob and download
       const blob = await response.blob();
@@ -1255,7 +1255,7 @@ interface AdminOrderRowProps {
   order: Order;
   onAddTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string, trackingNumbers?: TrackingEntry[]) => void;
   onUpdateTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string, trackingNumbers?: TrackingEntry[]) => void;
-  onFileDownload: (fileKey: string, orderId: string, itemIndex: number) => void;
+  onFileDownload: (fileKey: string, orderId: string, itemIndex: number, originalFileName?: string) => void;
   onPdfDownload: (item: any, itemIndex: number, orderId: string) => void;
   onSendShippingNotification: (orderId: string) => void;
   onMarkInProduction: (orderId: string) => void;
@@ -1286,52 +1286,73 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   const [showCostBreakdown, setShowCostBreakdown] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const orderItems = getSafeOrderItems(order);
-  // Helper function to get the best download URL for an item (AI or uploaded)
-  const getBestDownloadUrl = (item) => {
-    // For AI-generated items, prioritize print_ready_url for high-quality downloads
-    if (item.print_ready_url) {
-      return { url: item.print_ready_url, type: 'print_ready', isAI: true };
-    }
-    
-    // Fallback to web_preview_url if available
-    if (item.web_preview_url) {
-      return { url: item.web_preview_url, type: 'web_preview', isAI: true };
-    }
-    
-    // CRITICAL: overlay_image.fileKey contains the ORIGINAL uploaded file (no grommets)
-    // file_key is the THUMBNAIL (has grommets baked in) - use overlay_image.fileKey first!
-    const overlayImageFileKey = item.overlay_image?.fileKey;
-    const overlayImagesFileKey = item.overlay_images?.[0]?.fileKey;
-    
-    // Prioritize clean original image over thumbnail with grommets
-    if (overlayImageFileKey) {
-      return { url: overlayImageFileKey, type: 'overlay_image', isAI: false };
-    }
-    
-    if (overlayImagesFileKey) {
-      return { url: overlayImagesFileKey, type: 'overlay_images', isAI: false };
-    }
-    
-    // Last resort: file_key (may have grommets baked in for older orders)
-    if (item.file_key) {
-      return { url: item.file_key, type: 'file_key', isAI: false };
-    }
-    
-    return null;
-  };
+  const normalizeOverlayImages = (value: unknown): any[] => {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== 'string' || !value.trim()) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
 
-  // Helper function to get download label based on item type
+const normalizeOverlayImage = (value: unknown): Record<string, any> | null => {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, any>;
+  }
+  if (typeof value !== 'string' || !value.trim()) return null;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed as Record<string, any>
+      : null;
+  } catch {
+    return null;
+  }
+};
+
+// Original artwork downloads must stay separate from production files.
+const getBestDownloadUrl = (item: any) => {
+  const overlayImage = normalizeOverlayImage(item?.overlay_image);
+  const overlayImages = normalizeOverlayImages(item?.overlay_images);
+  const overlayImageFileKey = overlayImage?.fileKey;
+  const overlayImagesEntry = overlayImages.find((img: any) => img?.fileKey);
+
+  if (overlayImageFileKey) {
+    return {
+      url: overlayImageFileKey,
+      type: 'overlay_image',
+      isAI: false,
+      fileName: overlayImage?.name || item?.file_name,
+    };
+  }
+  if (overlayImagesEntry?.fileKey) {
+    return {
+      url: overlayImagesEntry.fileKey,
+      type: 'overlay_images',
+      isAI: false,
+      fileName: overlayImagesEntry.name || item?.file_name,
+    };
+  }
+  if (item?.file_key) {
+    return { url: item.file_key, type: 'file_key', isAI: false, fileName: item.file_name };
+  }
+  if (
+    typeof item?.file_url === 'string' &&
+    !item.file_url.startsWith('blob:') &&
+    !item.file_url.startsWith('data:')
+  ) {
+    return { url: item.file_url, type: 'file_url', isAI: false, fileName: item.file_name };
+  }
+  return null;
+};
+
   const getDownloadLabel = (item, index) => {
     const downloadInfo = getBestDownloadUrl(item);
     if (!downloadInfo) return `Item ${index + 1}`;
     
-    if (downloadInfo.isAI) {
-      return downloadInfo.type === 'print_ready' 
-        ? `🎨 Print File ${index + 1}` 
-        : `🎨 Preview ${index + 1}`;
-    }
-    
-    return `Item ${index + 1}`;
+    return downloadInfo.fileName || `Original Artwork ${index + 1}`;
   };
 
   const previewItems = useMemo(() => orderItems.map((item: any, index) => ({ item, index, thumbUrl: getFinalizedThumbnailUrl(item, 720) })), [orderItems]);
@@ -1396,24 +1417,14 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
       setIsMarkingProduction(false);
     }
   };
-  const getFilesWithDownload = () => {
-    const filesWithDownload = orderItems
-      .map((item, index) => ({ item, index }))
-      .filter(({ item }) => 
-        item.file_key || 
-        item.print_ready_url || 
-        item.web_preview_url ||
-        item.final_render_url ||
-        item.final_render_file_key ||
-        item.thumbnail_url ||
-        (item.text_elements && item.text_elements.length > 0) ||
-        item.overlay_image
-      );
-
-    return filesWithDownload;
-  };
+  const getFilesWithDownload = () => orderItems
+    .map((item, index) => ({ item, index }))
+    .filter(({ item }) => !!getBestDownloadUrl(item));
 
   const filesWithDownload = getFilesWithDownload();
+  const productionPdfItems = orderItems
+    .map((item, index) => ({ item, index }))
+    .filter(({ item }) => item.final_render_url || item.final_render_file_key || item.canvas_state_json || item.thumbnail_url || item.print_ready_url || item.web_preview_url);
   const finalPrintFiles = orderItems
     .map((item, index) => ({ item, index }))
     .filter(({ item }) => item.final_print_pdf_url);
@@ -1641,8 +1652,33 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
           </div>
 
           <div className="space-y-2">
-            <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Print Files</div>
-            {(filesWithDownload.length > 0 || finalPrintFiles.length > 0) ? (
+            <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Original Artwork</div>
+            {filesWithDownload.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {filesWithDownload.map(({ item, index }) => {
+                  const downloadInfo = getBestDownloadUrl(item);
+                  return downloadInfo ? (
+                    <Button
+                      key={`original-${index}`}
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onFileDownload(downloadInfo.url, order.id, index, downloadInfo.fileName)}
+                      className="h-8 px-2.5 text-xs"
+                    >
+                      <Download className="h-3 w-3 mr-1" />
+                      {getDownloadLabel(item, index)}
+                    </Button>
+                  ) : null;
+                })}
+              </div>
+            ) : (
+              <div className="text-xs text-gray-500">No original artwork upload</div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Production PDFs</div>
+            {(productionPdfItems.length > 0 || finalPrintFiles.length > 0) ? (
               <div className="flex flex-wrap gap-2">
                 {finalPrintFiles.map(({ item, index }) => (
                   <a
@@ -1656,7 +1692,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                     {getPrintFileLabel(item, index, 'Final')}
                   </a>
                 ))}
-                {filesWithDownload.map(({ item, index }) => (
+                {productionPdfItems.map(({ item, index }) => (
                   <Button
                     key={`pdf-${index}`}
                     size="sm"
@@ -1794,7 +1830,7 @@ interface AdminOrderCardProps {
   order: Order;
   onAddTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string, trackingNumbers?: TrackingEntry[]) => void;
   onUpdateTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string, trackingNumbers?: TrackingEntry[]) => void;
-  onFileDownload: (fileKey: string, orderId: string, itemIndex: number) => void;
+  onFileDownload: (fileKey: string, orderId: string, itemIndex: number, originalFileName?: string) => void;
   onPdfDownload: (item: any, itemIndex: number, orderId: string) => void;
   onSendShippingNotification: (orderId: string) => void;
   onMarkInProduction: (orderId: string) => void;

@@ -174,7 +174,19 @@ exports.handler = async (event) => {
         ALTER TABLE order_items
         ADD COLUMN IF NOT EXISTS product_type TEXT DEFAULT 'banner',
         ADD COLUMN IF NOT EXISTS rounded_corners TEXT,
-        ADD COLUMN IF NOT EXISTS rope_placement TEXT
+        ADD COLUMN IF NOT EXISTS rope_placement TEXT,
+        ADD COLUMN IF NOT EXISTS file_name VARCHAR(255),
+        ADD COLUMN IF NOT EXISTS is_pdf BOOLEAN DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS overlay_images JSONB DEFAULT NULL,
+        ADD COLUMN IF NOT EXISTS canvas_background_color VARCHAR(20) DEFAULT '#FFFFFF',
+        ADD COLUMN IF NOT EXISTS image_scale NUMERIC DEFAULT 1,
+        ADD COLUMN IF NOT EXISTS image_position JSONB DEFAULT NULL,
+        ADD COLUMN IF NOT EXISTS final_render_url TEXT,
+        ADD COLUMN IF NOT EXISTS final_render_file_key TEXT,
+        ADD COLUMN IF NOT EXISTS final_render_width_px INTEGER,
+        ADD COLUMN IF NOT EXISTS final_render_height_px INTEGER,
+        ADD COLUMN IF NOT EXISTS final_render_dpi INTEGER,
+        ADD COLUMN IF NOT EXISTS canvas_state_json TEXT
       `;
     } catch (migrationError) {
       console.warn('[paypal-capture-order] order_items migration warning:', migrationError.message);
@@ -331,9 +343,9 @@ exports.handler = async (event) => {
           INSERT INTO order_items (
             id, order_id, product_type, width_in, height_in, quantity, material,
             grommets, rounded_corners, rope_feet, rope_placement, pole_pockets, pole_pocket_position, pole_pocket_size, pole_pocket_cost_cents,
-            line_total_cents, file_key, file_url, print_ready_url, web_preview_url,
-            text_elements, overlay_image, thumbnail_url,
-            final_render_url, final_render_file_key, final_render_width_px, final_render_height_px, final_render_dpi,
+            line_total_cents, file_key, file_name, file_url, is_pdf, print_ready_url, web_preview_url,
+            text_elements, overlay_image, overlay_images, canvas_background_color, image_scale, image_position, thumbnail_url,
+            final_render_url, final_render_file_key, final_render_width_px, final_render_height_px, final_render_dpi, canvas_state_json,
             design_service_enabled, design_request_text, design_draft_preference, design_draft_contact, design_uploaded_assets
           ) VALUES (
             ${randomUUID()},
@@ -353,17 +365,24 @@ exports.handler = async (event) => {
             ${item.pole_pocket_cost_cents || 0},
             ${item.line_total_cents || 0},
             ${item.file_key || null},
+            ${item.file_name || null},
             ${item.file_url || null},
+            ${item.is_pdf || false},
             ${item.print_ready_url || null},
             ${item.web_preview_url || null},
             ${item.text_elements ? JSON.stringify(item.text_elements) : '[]'},
             ${item.overlay_image ? JSON.stringify(item.overlay_image) : null},
+            ${item.overlay_images ? JSON.stringify(item.overlay_images) : null},
+            ${item.canvas_background_color || '#FFFFFF'},
+            ${item.image_scale || 1},
+            ${item.image_position ? JSON.stringify(item.image_position) : JSON.stringify({ x: 0, y: 0 })},
             ${item.thumbnail_url || null},
             ${item.final_render_url || null},
             ${item.final_render_file_key || null},
             ${item.final_render_width_px || null},
             ${item.final_render_height_px || null},
             ${item.final_render_dpi || null},
+            ${item.canvas_state_json || null},
             ${item.design_service_enabled || false},
             ${item.design_request_text || null},
             ${item.design_draft_preference || null},
