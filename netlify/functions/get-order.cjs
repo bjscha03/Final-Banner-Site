@@ -1,6 +1,7 @@
 const { neon } = require('@neondatabase/serverless');
 const { normalizeTrackingEntries } = require('./tracking-helpers.cjs');
 const { normalizeShippingAddress } = require('./shipping-address-helpers.cjs');
+const { applyLegacyAssetRepairs, persistLegacyAssetRepairs } = require('./_shared/legacy-order-asset-repairs.cjs');
 
 // Module-scoped cache: auto-migrations only need to run once per cold start.
 // Running ~50 ALTER TABLE statements on every request was risking the
@@ -296,6 +297,9 @@ exports.handler = async (event, context) => {
     );
 
 
+    await persistLegacyAssetRepairs(sql, order, itemsResult);
+    const repairedItems = applyLegacyAssetRepairs(order, itemsResult);
+
     // Legacy repair: infer missing Same-Day fee for historical paid PayPal orders
     // when order-level fee columns were not persisted/populated.
     const subtotal = Number(order.subtotal_cents) || 0;
@@ -319,7 +323,7 @@ exports.handler = async (event, context) => {
       same_day_hit_service: inferredSameDaySelected,
       same_day_fee_cents: inferredSameDayFee,
       shippingAddress,
-      items: itemsResult
+      items: repairedItems
     };
 
     return {
