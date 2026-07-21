@@ -6,6 +6,11 @@ on:
       - codex/fix-admin-artwork-and-pdf-issues
     paths:
       - .github/workflows/hotfix-pr-366-admin-orders.yml
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/hotfix-pr-366-admin-orders.yml
 
 permissions:
   contents: write
