@@ -58,6 +58,11 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
       return { url: overlayImagesFileKey, type: 'overlay_images', isAI: false };
     }
     
+    // Permanent original upload URL is the user's untouched artwork; prefer it before legacy file_key.
+    if (item.file_url) {
+      return { url: item.file_url, type: 'file_url', isAI: false };
+    }
+
     // Last resort: file_key (may have grommets baked in for older orders)
     if (item.file_key) {
       return { url: item.file_key, type: 'file_key', isAI: false };
@@ -115,8 +120,11 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
         description: "Preparing file download...",
       });
 
-      // Use Netlify function for secure file downloads
-      const downloadUrl = `/.netlify/functions/download-file?key=${encodeURIComponent(fileKey)}&order=${order.id}`;
+      // Use Netlify function for Cloudinary keys; fetch permanent HTTPS originals directly.
+      const isHttpOriginal = /^https?:\/\//i.test(fileKey);
+      const downloadUrl = isHttpOriginal
+        ? fileKey
+        : `/.netlify/functions/download-file?key=${encodeURIComponent(fileKey)}&order=${order.id}`;
 
       // Fetch the file content
       const response = await fetch(downloadUrl);
@@ -290,7 +298,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
           finalRenderWidthPx: item.final_render_width_px || null,
           finalRenderHeightPx: item.final_render_height_px || null,
           finalRenderDpi: item.final_render_dpi || null,
-          fileKey: item.file_key || null,
+          fileKey: item.overlay_image?.fileKey || item.overlay_images?.[0]?.fileKey || item.file_key || null,
           imageUrl: item.file_url || item.web_preview_url || null,
           imageSource: item.print_ready_url ? 'print_ready' : (item.web_preview_url ? 'web_preview' : 'uploaded'),
           includeBleed: false,
@@ -792,7 +800,22 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                     </div>
 
                     <div className="space-y-2">
-                      {isAdminUser && !item.design_service_enabled && (item.file_key || item.print_ready_url || item.web_preview_url || item.canvas_state_json || item.final_render_url) && (
+                      {isAdminUser && (() => {
+                        const downloadInfo = getBestDownloadUrl(item);
+                        return downloadInfo ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleFileDownload(downloadInfo.url, index)}
+                            className="w-full justify-center"
+                          >
+                            <Download className="h-3 w-3 mr-1" />
+                            Download Original Upload
+                          </Button>
+                        ) : null;
+                      })()}
+
+                      {isAdminUser && !item.design_service_enabled && (item.file_key || item.print_ready_url || item.web_preview_url || item.canvas_state_json || item.final_render_url || item.final_render_file_key || item.overlay_image) && (
                         <Button
                           variant="outline"
                           size="sm"

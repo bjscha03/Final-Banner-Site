@@ -20,15 +20,17 @@ export function isHttpUrl(url: string): boolean {
 
 /**
  * Shared thumbnail resolver used by cart/checkout/email/admin order surfaces.
- * Uses the finalized/stored `thumbnail_url` as the single source of truth and
- * only applies delivery transforms for size/quality.
+ * Uses the finalized/stored `thumbnail_url` as the first choice, then falls
+ * back to permanent preview/original URLs so admin thumbnails do not disappear
+ * when the async thumbnail upload was skipped or failed.
  */
 export function getFinalizedThumbnailUrl(
-  item: { thumbnail_url?: string | null } | null | undefined,
+  item: { thumbnail_url?: string | null; web_preview_url?: string | null; file_url?: string | null; print_ready_url?: string | null } | null | undefined,
   maxWidth = 240,
 ): string | null {
-  if (!item?.thumbnail_url) return null;
-  const thumbnailUrl = String(item.thumbnail_url);
+  const sourceUrl = item?.thumbnail_url || item?.web_preview_url || item?.file_url || item?.print_ready_url;
+  if (!sourceUrl) return null;
+  const thumbnailUrl = String(sourceUrl);
 
   if (isCloudinaryUploadUrl(thumbnailUrl)) {
     return thumbnailUrl.replace('/upload/', `/upload/w_${maxWidth},c_limit,f_auto,q_auto/`);
