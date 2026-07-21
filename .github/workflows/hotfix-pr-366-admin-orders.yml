@@ -1,0 +1,255 @@
+name: Hotfix PR 366 admin orders preview crash
+
+on:
+  push:
+    branches:
+      - codex/fix-admin-artwork-and-pdf-issues
+    paths:
+      - .github/workflows/hotfix-pr-366-admin-orders.yml
+
+permissions:
+  contents: write
+
+jobs:
+  hotfix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/fix-admin-artwork-and-pdf-issues
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Restore admin order render state and harden artwork parsing
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          details_path = Path('src/components/orders/OrderDetails.tsx')
+          details = details_path.read_text()
+          start_marker = '  // Helper function to get the original customer upload for an item.\n'
+          end_marker = '  const handleFileDownload'
+          start = details.find(start_marker)
+          end = details.find(end_marker, start)
+          if start < 0 or end < 0:
+              raise SystemExit('OrderDetails artwork helper anchors not found')
+
+          details_block = '''  const normalizeOverlayImages = (value: unknown): any[] => {
+            if (Array.isArray(value)) return value;
+            if (typeof value !== 'string' || !value.trim()) return [];
+            try {
+              const parsed = JSON.parse(value);
+              return Array.isArray(parsed) ? parsed : [];
+            } catch {
+              return [];
+            }
+          };
+
+          const normalizeOverlayImage = (value: unknown): Record<string, any> | null => {
+            if (value && typeof value === 'object' && !Array.isArray(value)) {
+              return value as Record<string, any>;
+            }
+            if (typeof value !== 'string' || !value.trim()) return null;
+            try {
+              const parsed = JSON.parse(value);
+              return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+                ? parsed as Record<string, any>
+                : null;
+            } catch {
+              return null;
+            }
+          };
+
+          // Return the original customer upload only. Production PDFs use their own action.
+          const getBestDownloadUrl = (item: any) => {
+            const overlayImage = normalizeOverlayImage(item?.overlay_image);
+            const overlayImages = normalizeOverlayImages(item?.overlay_images);
+            const overlayImageFileKey = overlayImage?.fileKey;
+            const overlayImagesEntry = overlayImages.find((img: any) => img?.fileKey);
+
+            if (overlayImageFileKey) {
+              return {
+                url: overlayImageFileKey,
+                type: 'overlay_image',
+                isAI: false,
+                fileName: overlayImage?.name || item?.file_name,
+              };
+            }
+            if (overlayImagesEntry?.fileKey) {
+              return {
+                url: overlayImagesEntry.fileKey,
+                type: 'overlay_images',
+                isAI: false,
+                fileName: overlayImagesEntry.name || item?.file_name,
+              };
+            }
+            if (item?.file_key) {
+              return { url: item.file_key, type: 'file_key', isAI: false, fileName: item.file_name };
+            }
+            if (
+              typeof item?.file_url === 'string' &&
+              !item.file_url.startsWith('blob:') &&
+              !item.file_url.startsWith('data:')
+            ) {
+              return { url: item.file_url, type: 'file_url', isAI: false, fileName: item.file_name };
+            }
+            return null;
+          };
+
+          const orderDate = new Date(order.created_at).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+          const shippingAddress = normalizeShippingAddress({
+            ...(order.shippingAddress || {}),
+            shipping_name: order.shipping_name,
+            shipping_street: order.shipping_street,
+            shipping_street2: order.shipping_street2,
+            shipping_city: order.shipping_city,
+            shipping_state: order.shipping_state,
+            shipping_zip: order.shipping_zip,
+            shipping_country: order.shipping_country,
+            customer_name: order.customer_name,
+          });
+          const customerName = order.customer_name || shippingAddress.name || 'Not provided';
+          const customerEmail = order.email || 'Not provided';
+          const hasAddress = hasShippingAddress(shippingAddress);
+          const shippingAddressLines = formatShippingAddress(shippingAddress);
+
+          const getStatusColor = (status: string) => {
+            switch (status) {
+              case 'paid':
+                return 'bg-green-100 text-green-800';
+              case 'shipped':
+                return 'bg-blue-100 text-blue-800';
+              case 'pending':
+                return 'bg-amber-100 text-amber-800';
+              case 'failed':
+                return 'bg-red-100 text-red-800';
+              case 'refunded':
+                return 'bg-gray-100 text-gray-800';
+              default:
+                return 'bg-gray-100 text-gray-800';
+            }
+          };
+
+          '''
+          details = details[:start] + details_block + details[end:]
+          details_path.write_text(details)
+
+          orders_path = Path('src/pages/admin/Orders.tsx')
+          orders = orders_path.read_text()
+          start_marker = '  // Helper function to get the best download URL for an item (AI or uploaded)\n'
+          end_marker = '  const getDownloadLabel'
+          start = orders.find(start_marker)
+          end = orders.find(end_marker, start)
+          if start < 0 or end < 0:
+              raise SystemExit('Admin Orders artwork helper anchors not found')
+
+          orders_block = '''  const normalizeOverlayImages = (value: unknown): any[] => {
+            if (Array.isArray(value)) return value;
+            if (typeof value !== 'string' || !value.trim()) return [];
+            try {
+              const parsed = JSON.parse(value);
+              return Array.isArray(parsed) ? parsed : [];
+            } catch {
+              return [];
+            }
+          };
+
+          const normalizeOverlayImage = (value: unknown): Record<string, any> | null => {
+            if (value && typeof value === 'object' && !Array.isArray(value)) {
+              return value as Record<string, any>;
+            }
+            if (typeof value !== 'string' || !value.trim()) return null;
+            try {
+              const parsed = JSON.parse(value);
+              return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+                ? parsed as Record<string, any>
+                : null;
+            } catch {
+              return null;
+            }
+          };
+
+          // Original artwork downloads must stay separate from production files.
+          const getBestDownloadUrl = (item: any) => {
+            const overlayImage = normalizeOverlayImage(item?.overlay_image);
+            const overlayImages = normalizeOverlayImages(item?.overlay_images);
+            const overlayImageFileKey = overlayImage?.fileKey;
+            const overlayImagesEntry = overlayImages.find((img: any) => img?.fileKey);
+
+            if (overlayImageFileKey) {
+              return {
+                url: overlayImageFileKey,
+                type: 'overlay_image',
+                isAI: false,
+                fileName: overlayImage?.name || item?.file_name,
+              };
+            }
+            if (overlayImagesEntry?.fileKey) {
+              return {
+                url: overlayImagesEntry.fileKey,
+                type: 'overlay_images',
+                isAI: false,
+                fileName: overlayImagesEntry.name || item?.file_name,
+              };
+            }
+            if (item?.file_key) {
+              return { url: item.file_key, type: 'file_key', isAI: false, fileName: item.file_name };
+            }
+            if (
+              typeof item?.file_url === 'string' &&
+              !item.file_url.startsWith('blob:') &&
+              !item.file_url.startsWith('data:')
+            ) {
+              return { url: item.file_url, type: 'file_url', isAI: false, fileName: item.file_name };
+            }
+            return null;
+          };
+
+          '''
+          orders = orders[:start] + orders_block + orders[end:]
+          orders_path.write_text(orders)
+
+          test_path = Path('src/__tests__/artwork-preservation-regression.test.ts')
+          test = test_path.read_text()
+          stripe_start = test.find("  it('serializes all artwork fields through Stripe pending order creation'")
+          admin_start = test.find("  it('keeps admin original artwork downloads separate from production PDF downloads'", stripe_start)
+          if stripe_start >= 0 and admin_start >= 0:
+              test = test[:stripe_start] + test[admin_start:]
+
+          assertion = "    expect(details).toContain('Download Original Artwork');\n"
+          replacement = assertion + "    expect(details).toContain('const orderDate =');\n    expect(details).toContain('const getStatusColor =');\n    expect(details).toContain('normalizeOverlayImages');\n    expect(source).toContain('normalizeOverlayImages');\n"
+          if assertion not in test:
+              raise SystemExit('Admin regression assertion anchor not found')
+          test = test.replace(assertion, replacement, 1)
+          test_path.write_text(test)
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run focused regression tests
+        run: npm test -- --run src/__tests__/artwork-preservation-regression.test.ts
+
+      - name: Build deploy preview bundle
+        run: npm run build
+
+      - name: Commit hotfix and remove one-time workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/hotfix-pr-366-admin-orders.yml
+          git add src/components/orders/OrderDetails.tsx src/pages/admin/Orders.tsx src/__tests__/artwork-preservation-regression.test.ts
+          git commit -m "Fix admin orders deploy-preview crash"
+          git push origin HEAD:codex/fix-admin-artwork-and-pdf-issues
