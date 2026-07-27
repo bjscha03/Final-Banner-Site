@@ -3,6 +3,10 @@
 const crypto = require('crypto');
 const { createSessionToken } = require('./_shared/server-auth.cjs');
 
+// Temporary server-only credential retained for the existing password-only
+// admin experience. It is never imported into or returned to the browser.
+const EXPECTED_PASSWORD = 'admin';
+
 const headers = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': '*',
@@ -17,16 +21,6 @@ exports.handler = async (event, context) => {
     return { statusCode: 405, headers, body: JSON.stringify({ ok: false, error: 'Method not allowed' }) };
   }
 
-  const configuredPassword = String(process.env.ADMIN_PASSWORD || '');
-  if (!configuredPassword) {
-    console.error('[admin-sign-in] ADMIN_PASSWORD is not configured');
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ ok: false, error: 'Admin login is not configured. Set ADMIN_PASSWORD on the server.' }),
-    };
-  }
-
   let password;
   try {
     ({ password } = JSON.parse(event.body || '{}'));
@@ -38,7 +32,7 @@ exports.handler = async (event, context) => {
   }
 
   const submitted = Buffer.from(password);
-  const expected = Buffer.from(configuredPassword);
+  const expected = Buffer.from(EXPECTED_PASSWORD);
   const passwordMatches = submitted.length === expected.length && crypto.timingSafeEqual(submitted, expected);
   if (!passwordMatches) {
     return { statusCode: 401, headers, body: JSON.stringify({ ok: false, error: 'Invalid admin password' }) };
