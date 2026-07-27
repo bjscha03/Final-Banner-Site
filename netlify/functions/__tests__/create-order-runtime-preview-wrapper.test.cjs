@@ -3,7 +3,7 @@
 const assert = require('assert');
 
 process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://user:password@example.invalid/test';
-const { _test } = require('../create-order.cjs');
+const { _test } = require('../_shared/legacy/create-order.cjs');
 
 assert.strictEqual(
   _test.requestHostname({ headers: { host: 'deploy-preview-358--bannersonthefly.netlify.app:443' } }),

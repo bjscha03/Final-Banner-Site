@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { handler } = require('../check-admin-status.cjs');
+const { handler } = require('../_shared/legacy/check-admin-status.cjs');
 
 (async () => {
   process.env.CONTEXT = 'deploy-preview';

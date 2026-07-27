@@ -5,7 +5,7 @@ const CORS = {
   'Access-Control-Allow-Headers': 'Content-Type',
   'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
 };
-const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+const GEMINI_BASE = process.env.GOOGLE_GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta';
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -66,7 +66,7 @@ function cloudinaryRatioTransformUrl(publicId, targetW, targetH) {
   });
 }
 
-export async function handler(event) {
+async function handler(event) {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: CORS, body: '' };
 
   const googleApiKey =
@@ -239,4 +239,16 @@ export async function handler(event) {
   } catch (error) {
     return json(200, { ok: false, action, functionReachable: true, safeErrorMessage: error instanceof Error ? error.message : 'AI service unavailable' });
   }
+}
+
+export default async function (request) {
+  const result = await handler({
+    httpMethod: request.method,
+    body: request.method === 'GET' || request.method === 'HEAD' ? null : await request.text(),
+  });
+
+  return new Response(result.body ?? '', {
+    status: result.statusCode ?? 200,
+    headers: result.headers,
+  });
 }
