@@ -1,8 +1,9 @@
 const { neon } = require('@neondatabase/serverless');
+const { requireAdmin } = require('./_shared/server-auth.cjs');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
   'Content-Type': 'application/json'
 };
@@ -11,6 +12,8 @@ exports.handler = async (event, context) => {
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers, body: '' };
   }
+  const auth = requireAdmin(event);
+  if (!auth.ok) return { ...auth.response, headers: { ...headers, ...auth.response.headers } };
 
   if (event.httpMethod !== 'GET') {
     return {

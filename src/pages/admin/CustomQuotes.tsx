@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
+import { adminFetch } from '@/lib/serverAuth';
 
 type Quote = { id:string; quote_number:string; status:string; full_name:string; company_name?:string; email:string; phone:string; product_type:string; width:string; height:string; unit:string; quantity:number; material_specs?:string; finishing_options?:string; needed_by_date?:string; shipping_zip:string; project_description:string; additional_notes?:string; product_options:Record<string, unknown>; artwork_files:Array<{originalName?:string; secureUrl:string; publicId?:string}>; internal_notes?:string; created_at:string; };
 const STATUSES = ['New', 'Reviewing', 'Quoted', 'Approved', 'Declined', 'Closed'];
@@ -35,7 +36,7 @@ const AdminCustomQuotes: React.FC = () => {
     try {
       setLoadError(null);
       const params = new URLSearchParams({ status, q: query, email: user?.email || '' });
-      const response = await fetch(`/.netlify/functions/admin-custom-quotes?${params}`);
+      const response = await adminFetch(`/.netlify/functions/admin-custom-quotes?${params}`);
       const data = await response.json();
       if (!response.ok || !data.ok) throw new Error(data.error || 'Failed to load custom quotes');
       setQuotes(data.quotes || []);
@@ -45,7 +46,7 @@ const AdminCustomQuotes: React.FC = () => {
   };
 
   const save = async (quote: Quote, patch: Partial<Quote>) => {
-    const response = await fetch('/.netlify/functions/admin-custom-quotes', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: quote.id, status: patch.status, internalNotes: patch.internal_notes, email: user?.email || '' }) });
+    const response = await adminFetch('/.netlify/functions/admin-custom-quotes', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: quote.id, status: patch.status, internalNotes: patch.internal_notes }) });
     const data = await response.json();
     if (!response.ok || !data.ok) throw new Error(data.error || 'Save failed');
     setQuotes(prev => prev.map(q => q.id === quote.id ? data.quote : q));

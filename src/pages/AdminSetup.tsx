@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Shield, CheckCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth, isAdmin as userIsAdmin } from '@/lib/auth';
-import { setServerSessionToken } from '@/lib/serverAuth';
+import { setServerSessionToken, takeAdminSessionMessage } from '@/lib/serverAuth';
 
 const AdminSetup: React.FC = () => {
   const [password, setPassword] = useState('');
@@ -20,6 +20,11 @@ const AdminSetup: React.FC = () => {
   React.useEffect(() => {
     setIsAdmin(userIsAdmin(user));
   }, [user]);
+
+  React.useEffect(() => {
+    const message = takeAdminSessionMessage();
+    if (message) toast({ title: message, variant: 'destructive' });
+  }, [toast]);
 
   const handleSetAdmin = async () => {
     try {

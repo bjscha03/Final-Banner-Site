@@ -8,6 +8,7 @@ import { Shield, Mail, Loader2, RefreshCw, ShoppingCart, Trash2 } from 'lucide-r
 import { useToast } from '@/components/ui/use-toast';
 import { usd } from '@/lib/pricing';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { adminFetch } from '@/lib/serverAuth';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -90,7 +91,7 @@ const AbandonedCarts: React.FC = () => {
   const loadCarts = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/.netlify/functions/get-abandoned-carts');
+      const response = await adminFetch('/.netlify/functions/get-abandoned-carts');
       
       if (!response.ok) {
         throw new Error('Failed to fetch abandoned carts');
@@ -115,7 +116,7 @@ const AbandonedCarts: React.FC = () => {
     try {
       setSendingEmail(prev => ({ ...prev, [cartId]: true }));
 
-      const response = await fetch('/.netlify/functions/send-abandoned-cart-email', {
+      const response = await adminFetch('/.netlify/functions/send-abandoned-cart-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cartId, sequenceNumber })
@@ -170,7 +171,7 @@ const AbandonedCarts: React.FC = () => {
       setDeletingCart(prev => ({ ...prev, [cartId]: true }));
       closeDeleteDialog();
 
-      const response = await fetch('/.netlify/functions/delete-abandoned-cart', {
+      const response = await adminFetch('/.netlify/functions/delete-abandoned-cart', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cartId })

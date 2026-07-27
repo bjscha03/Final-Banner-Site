@@ -13,7 +13,7 @@ import { getItemDisplayName, getProductLabel, normalizeOrderItemDisplay, type No
 import { formatShippingAddress, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
 import { getDisplayOrderTotalCents } from '@/lib/order-totals';
 import { estimateOrderProfit } from '@/lib/admin-profit-estimate';
-import { authorizedHeaders } from '@/lib/serverAuth';
+import { adminFetch } from '@/lib/serverAuth';
 import { getOriginalArtworkSelection } from '@/lib/artworkFiles';
 import {
   Dialog,
@@ -92,7 +92,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
       const downloadUrl = `/.netlify/functions/download-file?key=${encodeURIComponent(fileKey)}&order=${order.id}`;
 
       // Fetch the file content
-      const response = await fetch(downloadUrl, { headers: authorizedHeaders() });
+      const response = await adminFetch(downloadUrl);
 
       if (!response.ok) {
         throw new Error(`Download failed: ${response.statusText}`);
@@ -246,9 +246,9 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 150000);
-      const response = await fetch('/.netlify/functions/download-print-pdf', {
+      const response = await adminFetch('/.netlify/functions/download-print-pdf', {
         method: 'POST',
-        headers: authorizedHeaders({ 'Content-Type': 'application/json' }),
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           orderId: order.id,
           itemIndex: index,
