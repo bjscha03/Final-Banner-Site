@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { useEditorStore } from './editor';
 import type { RopePlacement } from '@/lib/bannerPricingEngine';
+import type { ArtworkManifest, PlacementPreviewManifest } from '@/types/artwork';
 
 export type MaterialKey = '13oz' | '15oz' | '18oz' | 'mesh' | 'corrugated' | 'magnetic' | 'aluminum_040' | 'aluminum_063';
 export type Grommets =
@@ -96,6 +97,8 @@ export interface QuoteState {
   imagePosition?: { x: number; y: number }; // Background image position (for uploaded images)
   fitMode?: 'fill' | 'fit' | 'stretch';  // Image fit mode for uploaded images
   webPreviewUrl?: string | null;
+  artworkManifest?: ArtworkManifest;
+  placementPreview?: PlacementPreviewManifest;
   set: (partial: Partial<QuoteState>) => void;
   loadFromCartItem: (item: any, editingItemId?: string) => void;
   addTextElement: (element: Omit<TextElement, 'id'>) => void;

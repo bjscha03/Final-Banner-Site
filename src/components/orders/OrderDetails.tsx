@@ -13,6 +13,8 @@ import { getItemDisplayName, getProductLabel, normalizeOrderItemDisplay, type No
 import { formatShippingAddress, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
 import { getDisplayOrderTotalCents } from '@/lib/order-totals';
 import { estimateOrderProfit } from '@/lib/admin-profit-estimate';
+import { authorizedHeaders } from '@/lib/serverAuth';
+import { getOriginalArtworkSelection } from '@/lib/artworkFiles';
 import {
   Dialog,
   DialogContent,
@@ -34,41 +36,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
   const [pdfGenerating, setPdfGenerating] = useState<Record<number, boolean>>({});
   // Helper function to get the best download URL for an item (AI or uploaded)
   const getBestDownloadUrl = (item: any) => {
-    // For AI-generated items, prioritize print_ready_url for high-quality downloads
-    if (item.print_ready_url) {
-      return { url: item.print_ready_url, type: 'print_ready', isAI: true };
-    }
-    
-    // Fallback to web_preview_url if available
-    if (item.web_preview_url) {
-      return { url: item.web_preview_url, type: 'web_preview', isAI: true };
-    }
-    
-    // CRITICAL: overlay_image.fileKey contains the ORIGINAL uploaded file (no grommets)
-    // file_key is the THUMBNAIL (has grommets baked in) - use overlay_image.fileKey first!
-    const overlayImageFileKey = item.overlay_image?.fileKey;
-    const overlayImagesFileKey = item.overlay_images?.[0]?.fileKey;
-    
-    // Prioritize clean original image over thumbnail with grommets
-    if (overlayImageFileKey) {
-      return { url: overlayImageFileKey, type: 'overlay_image', isAI: false };
-    }
-    
-    if (overlayImagesFileKey) {
-      return { url: overlayImagesFileKey, type: 'overlay_images', isAI: false };
-    }
-    
-    // Permanent original upload URL is the user's untouched artwork; prefer it before legacy file_key.
-    if (item.file_url) {
-      return { url: item.file_url, type: 'file_url', isAI: false };
-    }
-
-    // Last resort: file_key (may have grommets baked in for older orders)
-    if (item.file_key) {
-      return { url: item.file_key, type: 'file_key', isAI: false };
-    }
-    
-    return null;
+    return getOriginalArtworkSelection(item);
   };
 
 
@@ -121,13 +89,10 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
       });
 
       // Use Netlify function for Cloudinary keys; fetch permanent HTTPS originals directly.
-      const isHttpOriginal = /^https?:\/\//i.test(fileKey);
-      const downloadUrl = isHttpOriginal
-        ? fileKey
-        : `/.netlify/functions/download-file?key=${encodeURIComponent(fileKey)}&order=${order.id}`;
+      const downloadUrl = `/.netlify/functions/download-file?key=${encodeURIComponent(fileKey)}&order=${order.id}`;
 
       // Fetch the file content
-      const response = await fetch(downloadUrl);
+      const response = await fetch(downloadUrl, { headers: authorizedHeaders() });
 
       if (!response.ok) {
         throw new Error(`Download failed: ${response.statusText}`);
@@ -267,7 +232,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
       description: `${item.quantity} ${getProductLabel((item as any).product_type)}${item.quantity > 1 ? 's' : ''} added to your cart.`,
     });
   };
-  const handlePdfDownload = async (item: any, index: number) => {
+  const handlePdfDownload = async (item: any, index: number, forceRegenerate = false) => {
     if (pdfGenerating[index]) {
       return;
     }
@@ -283,7 +248,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
       const timeoutId = setTimeout(() => controller.abort(), 150000);
       const response = await fetch('/.netlify/functions/download-print-pdf', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authorizedHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           orderId: order.id,
           itemIndex: index,
@@ -314,7 +279,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
           imagePosition: item.image_position || { x: 0, y: 0 },
           thumbnailUrl: item.thumbnail_url || null,
           format: 'pdf',
-          forceRegenerate: false,
+          forceRegenerate,
         }),
         signal: controller.signal,
       });
@@ -661,7 +626,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                     <div className="px-4 py-3 bg-gradient-to-r from-purple-100 to-violet-100 border-b border-purple-200">
                       <div className="flex items-center gap-2">
                         <FileText className="h-4 w-4 text-purple-600" />
-                        <p className="text-sm font-bold text-purple-800">Uploaded Final Print File</p>
+                        <p className="text-sm font-bold text-purple-800">Final Approved Production File</p>
                       </div>
                     </div>
                     <div className="p-4">
@@ -678,15 +643,14 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                                 : ''}
                             </p>
                           </div>
-                          <a
-                            href={item.final_print_pdf_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <button
+                            type="button"
+                            onClick={() => handleFileDownload(item.final_print_pdf_url, itemIndex)}
                             className="w-full sm:w-auto justify-center px-5 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-bold rounded-xl hover:from-green-700 hover:to-emerald-700 flex items-center gap-2 shadow-md transition-all duration-200"
                           >
                             <Download className="h-4 w-4" />
-                            Download Uploaded File
-                          </a>
+                            Download Final File
+                          </button>
                         </div>
                       ) : (
                         <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-xl p-4">
@@ -704,10 +668,10 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                           {onUploadFinalPdf && (
                             <label className="mt-4 inline-flex w-full sm:w-auto justify-center items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-violet-600 text-white text-sm font-bold rounded-xl hover:from-purple-700 hover:to-violet-700 cursor-pointer transition-all duration-200 shadow-md">
                               <Upload className="h-4 w-4" />
-                              Upload Final File
+                              Upload Final PDF
                               <input
                                 type="file"
-                                accept=".jpg,.jpeg,image/jpeg"
+                                accept=".pdf,application/pdf"
                                 className="hidden"
                                 onChange={(e) => {
                                   const file = e.target.files?.[0];
@@ -799,6 +763,44 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                       </div>
                     </div>
 
+                    {isAdminUser && <div className="space-y-3">
+                      <section className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                        <p className="font-semibold text-blue-900">Original Customer Artwork</p>
+                        {getBestDownloadUrl(item) ? <>
+                          <dl className="mt-2 grid grid-cols-2 gap-1 text-xs text-blue-900">
+                            <dt>Filename</dt><dd className="break-all">{item.artwork_manifest?.originalFilename || item.original_filename || item.file_name || 'Legacy filename unavailable'}</dd>
+                            <dt>MIME type</dt><dd>{item.artwork_manifest?.mimeType || 'Unknown'}</dd>
+                            <dt>Size</dt><dd>{item.artwork_manifest?.bytes ? `${(item.artwork_manifest.bytes / 1024 / 1024).toFixed(2)} MB` : 'Unknown'}</dd>
+                            <dt>Upload status</dt><dd>{item.artwork_manifest?.uploadStatus || 'legacy'}</dd>
+                          </dl>
+                        </> : <p className="mt-2 text-sm font-medium text-red-700">Original artwork missing.</p>}
+                      </section>
+
+                      <section className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <p className="font-semibold text-slate-900">Customer Placement Preview</p>
+                        <dl className="mt-2 grid grid-cols-2 gap-1 text-xs">
+                          <dt>Banner</dt><dd>{item.width_in} × {item.height_in} in</dd>
+                          <dt>Fit mode</dt><dd>{item.fit_mode || 'fit'}</dd>
+                          <dt>X / Y</dt><dd>{item.image_position?.x ?? 0}% / {item.image_position?.y ?? 0}%</dd>
+                          <dt>Scale</dt><dd>{Number(item.image_scale ?? 1).toFixed(2)}×</dd>
+                          <dt>Background</dt><dd>{item.canvas_background_color || '#FFFFFF'}</dd>
+                          <dt>Preview upload</dt><dd>{item.placement_preview?.uploadStatus || (item.web_preview_url ? 'uploaded' : 'legacy/unavailable')}</dd>
+                        </dl>
+                        {item.placement_preview?.error && <p className="mt-2 text-xs text-red-700">{item.placement_preview.error}</p>}
+                      </section>
+
+                      <section className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                        <p className="font-semibold text-emerald-900">Generated Production PDF</p>
+                        <p className="mt-1 text-xs text-emerald-800">Status: {item.generated_print_pdf_url ? 'generated' : item.production_pdf_status || 'pending'}</p>
+                        {(item.generated_print_pdf_metadata?.resolution || []).some((entry: any) => entry.status === 'fail') && <p className="mt-1 text-xs font-semibold text-red-700">Low-resolution warning: one or more raster assets are below 150 effective PPI.</p>}
+                        {item.production_pdf_error && <p className="mt-1 text-xs text-red-700">{item.production_pdf_error}</p>}
+                        <div className="mt-2 grid grid-cols-2 gap-2">
+                          <Button variant="outline" size="sm" onClick={() => handlePdfDownload(item, index, false)} disabled={!!pdfGenerating[index]}>{item.generated_print_pdf_url ? 'Download' : 'Generate'}</Button>
+                          <Button variant="outline" size="sm" onClick={() => handlePdfDownload(item, index, true)} disabled={!!pdfGenerating[index]}>Regenerate</Button>
+                        </div>
+                      </section>
+                    </div>}
+
                     <div className="space-y-2">
                       {isAdminUser && (() => {
                         const downloadInfo = getBestDownloadUrl(item);
@@ -810,30 +812,11 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                             className="w-full justify-center"
                           >
                             <Download className="h-3 w-3 mr-1" />
-                            Download Original Upload
+                            Download Original Artwork
                           </Button>
                         ) : null;
                       })()}
 
-                      {isAdminUser && !item.design_service_enabled && (item.file_key || item.print_ready_url || item.web_preview_url || item.canvas_state_json || item.final_render_url || item.final_render_file_key || item.overlay_image) && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handlePdfDownload(item, index)}
-                          disabled={!!pdfGenerating[index]}
-                          className="w-full justify-center"
-                        >
-                          {pdfGenerating[index] ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Download className="h-3 w-3 mr-1" />}
-                          Download Production PDF
-                        </Button>
-                      )}
-
-                      {isAdminUser && !item.file_key && !item.print_ready_url && !item.web_preview_url && (
-                        <div className="text-xs text-gray-500 text-center py-1">
-                          <FileText className="h-3 w-3 inline mr-1" />
-                          No file uploaded
-                        </div>
-                      )}
 
                       {!isAdminUser && (
                         <Button

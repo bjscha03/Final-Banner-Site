@@ -1,4 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
+const { requireAdmin } = require('./_shared/server-auth.cjs');
 const { getItemDisplayName, getEmailItemOptions, normalizeOrderItemDisplay } = require('./product-display-helpers.cjs');
 const {
   normalizeName,
@@ -134,7 +135,7 @@ async function sendEmail(type, payload) {
 const headers = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 };
 
@@ -143,6 +144,8 @@ exports.handler = async (event, context) => {
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' };
   }
+  const auth = requireAdmin(event);
+  if (!auth.ok) return auth.response;
 
   if (event.httpMethod !== 'POST') {
     return {

@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Package, Plus, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { CreditPurchasesList } from '@/components/orders/CreditPurchasesList';
+import { authorizedHeaders } from '@/lib/serverAuth';
 
 const MyOrders: React.FC = () => {
   const navigate = useNavigate();
@@ -139,7 +140,7 @@ const MyOrders: React.FC = () => {
 
             // Try to fetch via Netlify function directly if available
             try {
-              const response = await fetch(`/.netlify/functions/get-orders?user_id=${user.id}`);
+              const response = await fetch(`/.netlify/functions/get-orders?user_id=${user.id}`, { headers: authorizedHeaders() });
               if (response.ok) {
                 userOrders = await response.json();
                 console.log('Fallback method succeeded:', userOrders.length, 'orders');
@@ -164,7 +165,7 @@ const MyOrders: React.FC = () => {
       if (userOrders.length === 0) {
         console.log('No orders found for user, checking all orders...');
         try {
-          const allOrdersResponse = await fetch('/.netlify/functions/get-orders');
+          const allOrdersResponse = await fetch('/.netlify/functions/get-orders', { headers: authorizedHeaders() });
           if (allOrdersResponse.ok) {
             const allOrders = await allOrdersResponse.json();
             console.log('All orders in database:', allOrders.length, 'total orders');

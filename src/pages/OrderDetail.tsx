@@ -8,6 +8,7 @@ import { getItemDisplayName, isYardSignItem, normalizeOrderItemDisplay, type Nor
 import { formatShippingAddress, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
 import { getDisplayOrderTotalCents } from '@/lib/order-totals';
 import { getFinalizedThumbnailUrl } from '@/lib/order-thumbnail';
+import { authorizedHeaders } from '@/lib/serverAuth';
 
 interface OrderItem {
   width_in: number;
@@ -98,7 +99,7 @@ const OrderDetail: React.FC = () => {
   const fetchOrder = async (orderId: string) => {
     try {
       setLoading(true);
-      const response = await fetch(`/.netlify/functions/get-order?id=${orderId}`);
+      const response = await fetch(`/.netlify/functions/get-order?id=${orderId}`, { headers: authorizedHeaders() });
       const data = await response.json();
       
       if (data.ok && data.order) {

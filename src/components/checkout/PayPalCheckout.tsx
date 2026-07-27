@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -80,6 +80,8 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [isCapturingPayment, setIsCapturingPayment] = useState(false);
   const isDeployPreview = shouldUseDeployPreviewTestCheckout();
+  const internalOrderIdRef = useRef<string | null>(null);
+  const checkoutIdempotencyKeyRef = useRef<string>(crypto.randomUUID());
 
   // Load PayPal configuration on mount
   useEffect(() => {
@@ -209,15 +211,21 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
             unit_price_cents: item.unit_price_cents,
             line_total_cents: item.line_total_cents,
             file_key: item.file_key,
+            file_name: item.file_name,
             file_url: item.file_url,
+            is_pdf: item.is_pdf,
+            artwork_manifest: item.artwork_manifest,
+            placement_preview: item.placement_preview,
             text_elements: item.text_elements,
             overlay_image: item.overlay_image,
             overlay_images: item.overlay_images,
             canvas_background_color: item.canvas_background_color,
             image_scale: item.image_scale,
+            image_scale_y: item.image_scale_y,
             thumbnail_url: item.thumbnail_url,
             web_preview_url: item.web_preview_url,
             image_position: item.image_position,
+            fit_mode: item.fit_mode,
             final_render_url: item.final_render_url,
             final_render_file_key: item.final_render_file_key,
             final_render_width_px: item.final_render_width_px,
@@ -352,6 +360,35 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
 
       // Development fallback - if functions aren't available, return a mock order ID
       const isDev = import.meta.env.DEV || window.location.hostname === 'localhost';
+
+      // Persist the complete application order and artwork manifest before any
+      // payment can be approved or captured. The idempotency key makes PayPal
+      // button retries return the same pending order.
+      if (!internalOrderIdRef.current) {
+        const pendingResponse = await fetch('/.netlify/functions/create-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: user?.id || null,
+            email: user?.email || `guest-${Date.now()}@bannersonthefly.com`,
+            subtotal_cents: total,
+            tax_cents: 0,
+            total_cents: total,
+            currency: 'usd',
+            payment_method: 'paypal',
+            payment_status: 'pending',
+            checkout_idempotency_key: checkoutIdempotencyKeyRef.current,
+            items,
+            discountCode,
+            sameDayHitService: !!sameDayHitService,
+            saturdayDelivery: !!saturdayDelivery,
+            attribution: getStoredAttribution(),
+          }),
+        });
+        const pending = await pendingResponse.json().catch(() => ({}));
+        if (!pendingResponse.ok || !pending.orderId) throw new Error(pending.message || pending.error || 'Could not safely persist the order before payment');
+        internalOrderIdRef.current = pending.orderId;
+      }
       
       const response = await fetch('/.netlify/functions/paypal-create-order', {
         method: 'POST',
@@ -428,6 +465,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
           sameDayHitService: !!sameDayHitService,
           saturdayDelivery: !!saturdayDelivery,
           attribution: getStoredAttribution(),
+          internalOrderId: internalOrderIdRef.current,
         }),
       });
 
@@ -469,7 +507,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
       const captureResponse = await fetch('/.netlify/functions/paypal-capture-minimal', {
         method:'POST',
         headers:{ 'Content-Type':'application/json' },
-        body: JSON.stringify({ orderID: data.orderID }),
+        body: JSON.stringify({ orderID: data.orderID, internalOrderId: internalOrderIdRef.current }),
       });
       
       let captureResult: any = {};
@@ -507,7 +545,9 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
         user?.email
       );
 
-      // Now create the database order
+      // The database order was created before PayPal and atomically marked paid
+      // by paypal-capture-minimal. Keep this payload only for receipt data and
+      // legacy deploy-preview behavior; never create a second paid order.
       const orderPayload = {
           user_id: user?.id || null,
           email: user?.email || captureResult.paypalData?.payer?.email_address || `guest-${Date.now()}@bannersonthefly.com`,
@@ -566,15 +606,21 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
               unit_price_cents: item.unit_price_cents,
               line_total_cents: item.line_total_cents,
               file_key: item.file_key,
+              file_name: item.file_name,
               file_url: item.file_url,
+              is_pdf: item.is_pdf,
+              artwork_manifest: item.artwork_manifest,
+              placement_preview: item.placement_preview,
               text_elements: item.text_elements,
               overlay_image: item.overlay_image,
               overlay_images: item.overlay_images,
               canvas_background_color: item.canvas_background_color,
               image_scale: item.image_scale,
+              image_scale_y: item.image_scale_y,
               thumbnail_url: item.thumbnail_url,
               web_preview_url: item.web_preview_url,
               image_position: item.image_position,
+              fit_mode: item.fit_mode,
               final_render_url: item.final_render_url,
               final_render_file_key: item.final_render_file_key,
               final_render_width_px: item.final_render_width_px,
@@ -607,37 +653,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
           attribution: getStoredAttribution(),
         };
 
-      let orderResponse: Response | null = null;
-      for (let attempt = 1; attempt <= 3; attempt += 1) {
-        orderResponse = await fetch('/.netlify/functions/create-order', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(orderPayload),
-        });
-        if (orderResponse.ok || orderResponse.status === 409) break;
-        await new Promise(resolve => setTimeout(resolve, attempt * 750));
-      }
-
-      let orderResult: any = {};
-      if (orderResponse?.ok) {
-        orderResult = await orderResponse.json();
-      } else if (isDev) {
-        console.log('Development mode: Using mock order result');
-        orderResult = {
-          ok: true,
-          orderId: `DEV_DB_ORDER_${Date.now()}`
-        };
-      }
-      
-      if (!orderResponse?.ok && !isDev) {
-        try {
-          orderResult = await orderResponse?.json();
-        } catch {
-          orderResult = { error: `HTTP ${orderResponse?.status || 'unknown'}` };
-        }
-        console.error('Order creation error:', orderResult);
-        throw new Error(`Payment captured, but the order could not be saved: ${orderResult?.message || orderResult?.error || 'unknown error'}`);
-      }
+      const orderResult: any = { ok: true, orderId: internalOrderIdRef.current, order: orderPayload };
 
       toast({
         title: "Payment Successful!",

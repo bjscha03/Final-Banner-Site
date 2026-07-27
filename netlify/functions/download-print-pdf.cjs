@@ -10,6 +10,7 @@ const { neon } = require('@neondatabase/serverless');
 const { v2: cloudinary } = require('cloudinary');
 const sharp = require('sharp');
 const { PDFDocument, rgb } = require('pdf-lib');
+const { requireAdmin } = require('./_shared/server-auth.cjs');
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -404,6 +405,8 @@ exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers: CORS_HEADERS, body: '' };
   }
+  const auth = requireAdmin(event);
+  if (!auth.ok) return auth.response;
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,

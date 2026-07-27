@@ -7,6 +7,7 @@
 const Busboy = require('busboy');
 const { v2: cloudinary } = require('cloudinary');
 const { neon } = require('@neondatabase/serverless');
+const { requireAdmin } = require('./_shared/server-auth.cjs');
 
 const MAX_BYTES = 50 * 1024 * 1024; // 50MB max for PDFs
 
@@ -57,13 +58,15 @@ exports.handler = async (event) => {
   // CORS headers
   const headers = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
   };
 
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' };
   }
+  const auth = requireAdmin(event);
+  if (!auth.ok) return auth.response;
 
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method Not Allowed' }) };
@@ -85,7 +88,7 @@ exports.handler = async (event) => {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'No file provided' }) };
     }
 
-    const { orderId, itemIndex } = parseResult.fields;
+    const { orderId, itemIndex, itemId } = parseResult.fields;
 
     if (!orderId) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Missing orderId' }) };
@@ -93,11 +96,9 @@ exports.handler = async (event) => {
 
     const { filename, mimeType, data } = parseResult.file;
 
-    // CHANGED: Accept both PDF and JPEG files (vendors now accept JPEG)
     const isPdf = mimeType === 'application/pdf' || filename.toLowerCase().endsWith('.pdf');
-    const isJpeg = mimeType === 'image/jpeg' || filename.toLowerCase().endsWith('.jpg') || filename.toLowerCase().endsWith('.jpeg');
-    if (!isPdf && !isJpeg) {
-      return { statusCode: 400, headers, body: JSON.stringify({ error: 'Only PDF or JPEG files are allowed' }) };
+    if (!isPdf) {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: 'Only PDF files are allowed' }) };
     }
 
     console.log('[Upload Final PDF] Uploading to Cloudinary:', { filename, size: data.length });
@@ -107,7 +108,7 @@ exports.handler = async (event) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
           folder: 'final-print-pdfs',
-          resource_type: 'auto'  // CHANGED: 'auto' handles both PDF and JPEG,
+          resource_type: 'raw',
           public_id: `order-${orderId}-final-${Date.now()}`,
         },
         (error, result) => {
@@ -140,7 +141,10 @@ exports.handler = async (event) => {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid item index' }) };
     }
 
-    const orderItemId = orderItemRows[itemIdx].id;
+    const orderItemId = itemId || orderItemRows[itemIdx].id;
+    if (!orderItemRows.some((row) => row.id === orderItemId)) {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: 'Order item does not belong to order' }) };
+    }
 
     // Update the specific order_item with the final PDF info
     await sql`
@@ -173,4 +177,3 @@ exports.handler = async (event) => {
     };
   }
 };
-

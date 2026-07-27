@@ -257,7 +257,8 @@ exports.handler = async (event, context) => {
       };
     }
 
-    const { items, shippingAddress, email, discountCode, totalCents: clientTotalCents, sameDayHitService: reqSameDay, saturdayDelivery: reqSaturday } = payload;
+    const { items, shippingAddress, email, discountCode, totalCents: clientTotalCents, sameDayHitService: reqSameDay, saturdayDelivery: reqSaturday, internalOrderId } = payload;
+    if (!internalOrderId) return { statusCode: 400, headers, body: JSON.stringify({ ok: false, error: 'INTERNAL_ORDER_REQUIRED', cid }) };
 
     // Validate required fields
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -403,7 +404,9 @@ exports.handler = async (event, context) => {
           currency_code: 'USD',
           value: totalAmount
         },
-        description: payPalDescription
+        description: payPalDescription,
+        custom_id: internalOrderId,
+        invoice_id: `BOTF-${internalOrderId}`,
       }],
       application_context: {
         brand_name: 'Banners On The Fly',
@@ -469,6 +472,12 @@ exports.handler = async (event, context) => {
             updated_at TIMESTAMPTZ DEFAULT NOW()
           )
         `;
+        const linked = await sql`
+          UPDATE orders SET paypal_order_id = ${paypalOrder.id}, payment_method = 'paypal', updated_at = NOW()
+          WHERE id = ${internalOrderId} AND status = 'pending'
+          RETURNING id
+        `;
+        if (!linked.length) throw new Error('Pending internal order could not be linked to PayPal');
         await sql`
           INSERT INTO paypal_checkout_sessions (paypal_order_id, order_payload, expected_total_cents, currency, status, updated_at)
           VALUES (${paypalOrder.id}, ${JSON.stringify({ ...payload, totalCents: finalTotalCents, sameDayHitService: sameDayResult.sameDay, saturdayDelivery: sameDayResult.saturday })}::jsonb, ${finalTotalCents}, 'USD', 'created', NOW())
@@ -489,6 +498,7 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({
         ok: true,
         paypalOrderId: paypalOrder.id,
+        internalOrderId,
         cid
       }),
     };

@@ -1,5 +1,6 @@
 const { neon } = require('@neondatabase/serverless');
 const { randomUUID } = require('crypto');
+const { normalizeArtworkManifest } = require('./_shared/artwork-manifest.cjs');
 const { normalizeShippingAddress } = require('./shipping-address-helpers.cjs');
 const {
   reconcileSameDayFlags,
@@ -83,6 +84,15 @@ function cleanItemForDb(item) {
       if (isBadUrl(ci.thumbnailUrl)) ci.thumbnailUrl = null;
       return ci;
     });
+  }
+  if (cleaned.canvas_state_json) {
+    try {
+      const scene = typeof cleaned.canvas_state_json === 'string' ? JSON.parse(cleaned.canvas_state_json) : cleaned.canvas_state_json;
+      if (isBadUrl(scene.previewUrl)) delete scene.previewUrl;
+      cleaned.canvas_state_json = JSON.stringify(scene);
+    } catch {
+      // validatePrintSceneV2 provides the caller-facing parse error.
+    }
   }
   
   return cleaned;
@@ -554,6 +564,12 @@ exports.handler = async (event, context) => {
           WHERE paypal_order_id IS NOT NULL
       `;
       await sql`
+        ALTER TABLE orders
+        ADD COLUMN IF NOT EXISTS checkout_idempotency_key TEXT,
+        ADD COLUMN IF NOT EXISTS payment_reconciliation_status TEXT DEFAULT 'not_required'
+      `;
+      await sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_checkout_idempotency_key ON orders(checkout_idempotency_key) WHERE checkout_idempotency_key IS NOT NULL`;
+      await sql`
         CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_paypal_capture_id
           ON orders(paypal_capture_id)
           WHERE paypal_capture_id IS NOT NULL
@@ -665,6 +681,19 @@ exports.handler = async (event, context) => {
       console.log('✅ Database migration: final_render + canvas_state_json columns verified/created');
     } catch (migrationError) {
       console.warn('⚠️ final_render/canvas_state migration warning:', migrationError.message);
+    }
+
+    try {
+      await sql`
+        ALTER TABLE order_items
+        ADD COLUMN IF NOT EXISTS artwork_manifest JSONB,
+        ADD COLUMN IF NOT EXISTS placement_preview JSONB,
+        ADD COLUMN IF NOT EXISTS production_pdf_status TEXT DEFAULT 'pending',
+        ADD COLUMN IF NOT EXISTS production_pdf_error TEXT,
+        ADD COLUMN IF NOT EXISTS original_filename TEXT
+      `;
+    } catch (migrationError) {
+      console.warn('Artwork manifest migration warning:', migrationError.message);
     }
 
     // AUTO-MIGRATE: Ensure image_scale, image_position, thumbnail_url columns exist
@@ -979,6 +1008,13 @@ exports.handler = async (event, context) => {
     const orderTimestampEt = getEasternTimeParts(sameDayNow);
     const attribution = normalizeAttribution(orderData.attribution || orderData);
 
+    if (orderData.checkout_idempotency_key) {
+      const existingPending = await sql`SELECT * FROM orders WHERE checkout_idempotency_key = ${orderData.checkout_idempotency_key} LIMIT 1`;
+      if (existingPending.length) {
+        return { statusCode: 200, headers, body: JSON.stringify({ ok: true, orderId: existingPending[0].id, order: existingPending[0], deduped: true }) };
+      }
+    }
+
     if (orderData.paypal_order_id || orderData.paypal_capture_id) {
       try {
         const existing = await sql`
@@ -1062,8 +1098,8 @@ exports.handler = async (event, context) => {
     }
 
     const orderResult = await sql`
-      INSERT INTO orders (id, user_id, email, customer_name, customer_first_name, subtotal_cents, tax_cents, total_cents, status, paypal_order_id, paypal_capture_id, stripe_payment_intent_id, payment_method, shipping_name, shipping_street, shipping_street2, shipping_city, shipping_state, shipping_zip, shipping_country, applied_discount_cents, applied_discount_label, applied_discount_type, same_day_hit_service, saturday_delivery, same_day_fee_cents, saturday_fee_cents, order_timestamp_et, same_day_qualified, is_test_order, test_order_reason, google_click_id, gbraid, wbraid, landing_page, referrer, utm_source, utm_medium, utm_campaign, utm_term, utm_content, consent_status)
-      VALUES (${orderId}, ${finalUserId}, ${userEmail}, ${orderData.customer_name || null}, ${orderData.customer_first_name || null}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, ${requestedStatus}, ${orderData.paypal_order_id || null}, ${orderData.paypal_capture_id || null}, ${orderData.stripe_payment_intent_id || null}, ${orderData.payment_method || (orderData.stripe_payment_intent_id ? 'stripe' : (orderData.paypal_order_id ? 'paypal' : null))}, ${orderData.shipping_name || null}, ${orderData.shipping_street || null}, ${orderData.shipping_street2 || null}, ${orderData.shipping_city || null}, ${orderData.shipping_state || null}, ${orderData.shipping_zip || null}, ${orderData.shipping_country || 'US'}, ${orderData.applied_discount_cents || 0}, ${orderData.applied_discount_label || ''}, ${orderData.applied_discount_type || 'none'}, ${orderSameDayHitService}, ${orderSaturdayDelivery}, ${orderSameDayFeeCents}, ${orderSaturdayFeeCents}, ${orderTimestampEt.display}, ${orderSameDayQualified}, ${orderData.is_test_order === true}, ${orderData.test_order_reason || null}, ${attribution.google_click_id}, ${attribution.gbraid}, ${attribution.wbraid}, ${attribution.landing_page}, ${attribution.referrer}, ${attribution.utm_source}, ${attribution.utm_medium}, ${attribution.utm_campaign}, ${attribution.utm_term}, ${attribution.utm_content}, ${attribution.consent_status})
+      INSERT INTO orders (id, user_id, email, customer_name, customer_first_name, subtotal_cents, tax_cents, total_cents, status, paypal_order_id, paypal_capture_id, stripe_payment_intent_id, payment_method, checkout_idempotency_key, payment_reconciliation_status, shipping_name, shipping_street, shipping_street2, shipping_city, shipping_state, shipping_zip, shipping_country, applied_discount_cents, applied_discount_label, applied_discount_type, same_day_hit_service, saturday_delivery, same_day_fee_cents, saturday_fee_cents, order_timestamp_et, same_day_qualified, is_test_order, test_order_reason, google_click_id, gbraid, wbraid, landing_page, referrer, utm_source, utm_medium, utm_campaign, utm_term, utm_content, consent_status)
+      VALUES (${orderId}, ${finalUserId}, ${userEmail}, ${orderData.customer_name || null}, ${orderData.customer_first_name || null}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, ${requestedStatus}, ${orderData.paypal_order_id || null}, ${orderData.paypal_capture_id || null}, ${orderData.stripe_payment_intent_id || null}, ${orderData.payment_method || (orderData.stripe_payment_intent_id ? 'stripe' : (orderData.paypal_order_id ? 'paypal' : null))}, ${orderData.checkout_idempotency_key || null}, ${requestedStatus === 'pending' ? 'awaiting_capture' : 'not_required'}, ${orderData.shipping_name || null}, ${orderData.shipping_street || null}, ${orderData.shipping_street2 || null}, ${orderData.shipping_city || null}, ${orderData.shipping_state || null}, ${orderData.shipping_zip || null}, ${orderData.shipping_country || 'US'}, ${orderData.applied_discount_cents || 0}, ${orderData.applied_discount_label || ''}, ${orderData.applied_discount_type || 'none'}, ${orderSameDayHitService}, ${orderSaturdayDelivery}, ${orderSameDayFeeCents}, ${orderSaturdayFeeCents}, ${orderTimestampEt.display}, ${orderSameDayQualified}, ${orderData.is_test_order === true}, ${orderData.test_order_reason || null}, ${attribution.google_click_id}, ${attribution.gbraid}, ${attribution.wbraid}, ${attribution.landing_page}, ${attribution.referrer}, ${attribution.utm_source}, ${attribution.utm_medium}, ${attribution.utm_campaign}, ${attribution.utm_term}, ${attribution.utm_content}, ${attribution.consent_status})
       RETURNING *
     `;
 
@@ -1091,6 +1127,7 @@ exports.handler = async (event, context) => {
       for (const rawItem of orderData.items) {
         validatePrintSceneV2(rawItem && rawItem.canvas_state_json);
         const item = cleanItemForDb(rawItem);
+        item.artwork_manifest = normalizeArtworkManifest(item);
         console.log("[Create Order] Cleaned item file_key:", item.file_key, "file_url:", item.file_url ? item.file_url.substring(0, 80) : null);
         console.log('[CREATE_ORDER_DEBUG] === PERSISTING ORDER ITEM ===');
         console.log('[CREATE_ORDER_DEBUG] order_id:', orderId);
@@ -1115,7 +1152,7 @@ exports.handler = async (event, context) => {
               INSERT INTO order_items (
                 id, order_id, product_type, width_in, height_in, quantity, material,
                 grommets, rounded_corners, rope_feet, rope_placement, pole_pockets, pole_pocket_position, pole_pocket_size, pole_pocket_cost_cents,
-                line_total_cents, file_key, file_url, print_ready_url, web_preview_url, text_elements, overlay_image, overlay_images, canvas_background_color, image_scale, image_position, thumbnail_url, final_render_url, final_render_file_key, final_render_width_px, final_render_height_px, final_render_dpi, canvas_state_json,
+                line_total_cents, file_key, file_name, file_url, artwork_manifest, placement_preview, original_filename, print_ready_url, web_preview_url, text_elements, overlay_image, overlay_images, canvas_background_color, image_scale, image_position, thumbnail_url, final_render_url, final_render_file_key, final_render_width_px, final_render_height_px, final_render_dpi, canvas_state_json,
                 design_service_enabled, design_request_text, design_draft_preference, design_draft_contact, design_uploaded_assets,
                 yard_sign_sidedness, yard_sign_step_stakes_enabled, yard_sign_step_stakes_qty, yard_sign_design_count, yard_sign_designs, yard_sign_signs_subtotal_cents, yard_sign_stakes_subtotal_cents
               )
@@ -1137,7 +1174,11 @@ exports.handler = async (event, context) => {
                 ${item.pole_pocket_cost_cents || 0},
                 ${item.line_total_cents || 0},
                 ${item.file_key || null},
+                ${item.file_name || item.artwork_manifest?.originalFilename || null},
                 ${item.file_url || null},
+                ${item.artwork_manifest ? JSON.stringify(item.artwork_manifest) : null}::jsonb,
+                ${item.placement_preview ? JSON.stringify(item.placement_preview) : null}::jsonb,
+                ${item.artwork_manifest?.originalFilename || item.file_name || null},
                 ${item.print_ready_url || null},
                 ${item.web_preview_url || null},
                 ${item.text_elements ? JSON.stringify(item.text_elements) : '[]'},
@@ -1169,36 +1210,10 @@ exports.handler = async (event, context) => {
             `;
             console.log('[CREATE_ORDER_DEBUG] ✅ Order item saved with final_render fields');
           } catch (textElementsError) {
-            // If text_elements column doesn't exist, try without it
-            if (textElementsError.message && textElementsError.message.includes('column "text_elements" does not exist')) {
-              console.warn('⚠️  text_elements column does not exist! Inserting without it. Please run: database-add-text-elements.sql');
-              await sql`
-                INSERT INTO order_items (
-                  id, order_id, width_in, height_in, quantity, material,
-                  grommets, rope_feet, pole_pockets, pole_pocket_position, pole_pocket_size, pole_pocket_cost_cents,
-                  line_total_cents, file_key
-                )
-                VALUES (
-                  ${randomUUID()},
-                  ${orderId},
-                  ${item.width_in || 0},
-                  ${item.height_in || 0},
-                  ${item.quantity || 1},
-                  ${item.material || '13oz'},
-                  ${item.grommets || 'none'},
-                  ${item.rope_feet || 0},
-                  ${polePocketsValue},
-                  ${item.pole_pocket_position || null},
-                  ${item.pole_pocket_size || null},
-                  ${item.pole_pocket_cost_cents || 0},
-                  ${item.line_total_cents || 0},
-                  ${item.file_key || null}
-                )
-              `;
-              console.log('Order item inserted successfully WITHOUT text_elements (column missing)');
-            } else {
-              throw textElementsError;
-            }
+            // Never degrade to a partial artwork insert. A partial order item is
+            // worse than a retryable pending order because production cannot
+            // determine which file is authoritative.
+            throw textElementsError;
           }
         } catch (itemError) {
           console.error('Error inserting order item:', itemError);
