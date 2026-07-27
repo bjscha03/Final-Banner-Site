@@ -1,0 +1,111 @@
+const { neon } = require('@neondatabase/serverless');
+const { requireAdmin } = require('./_shared/server-auth.cjs');
+
+const headers = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Content-Type': 'application/json'
+};
+
+exports.handler = async (event, context) => {
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 204, headers, body: '' };
+  }
+  const auth = requireAdmin(event);
+  if (!auth.ok) return { ...auth.response, headers: { ...headers, ...auth.response.headers } };
+
+  if (event.httpMethod !== 'GET') {
+    return {
+      statusCode: 405,
+      headers,
+      body: JSON.stringify({ error: 'Method not allowed' })
+    };
+  }
+
+  try {
+    const databaseUrl = process.env.DATABASE_URL || process.env.NETLIFY_DATABASE_URL || process.env.VITE_DATABASE_URL;
+    
+    if (!databaseUrl) {
+      console.error('[get-abandoned-carts] No database URL found');
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ error: 'Database configuration error' })
+      };
+    }
+
+    const sql = neon(databaseUrl);
+
+    // Get all carts (including recovered for analytics)
+    // NOTE: We extract only thumbnail URLs from cart_contents to avoid massive response sizes
+    // cart_contents can contain full banner designs with base64 images (6MB+ response!)
+    const carts = await sql`
+      SELECT 
+        id,
+        email,
+        phone,
+        jsonb_array_length(cart_contents) as item_count,
+        total_value,
+        recovery_status,
+        recovery_emails_sent,
+        discount_code,
+        last_activity_at,
+        abandoned_at,
+        recovered_at,
+        recovered_order_id,
+        created_at,
+        -- Extract thumbnail URL from first cart item (priority: web_preview_url > print_ready_url > overlay_image.fileKey > file_key)
+        COALESCE(
+          cart_contents->0->>'web_preview_url',
+          cart_contents->0->>'print_ready_url',
+          cart_contents->0->'overlay_image'->>'fileKey',
+          cart_contents->0->>'file_key'
+        ) as first_item_thumbnail
+      FROM abandoned_carts
+      WHERE recovery_status IN ('active', 'abandoned', 'recovered')
+      ORDER BY 
+        CASE 
+          WHEN recovery_status = 'recovered' THEN 2
+          ELSE 1
+        END,
+        abandoned_at DESC NULLS LAST, 
+        last_activity_at DESC
+      LIMIT 200
+    `;
+
+    // Calculate recovery analytics
+    const recoveredCarts = carts.filter(c => c.recovery_status === 'recovered');
+    const totalRecovered = recoveredCarts.reduce((sum, c) => sum + parseFloat(c.total_value || 0), 0);
+    const recoveredWithEmails = recoveredCarts.filter(c => c.recovery_emails_sent > 0);
+    const totalRecoveredFromEmails = recoveredWithEmails.reduce((sum, c) => sum + parseFloat(c.total_value || 0), 0);
+
+    console.log(`[get-abandoned-carts] Found ${carts.length} carts (${recoveredCarts.length} recovered, $${totalRecovered.toFixed(2)} total recovered)`);
+
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ 
+        carts,
+        analytics: {
+          totalRecovered: totalRecovered,
+          totalRecoveredFromEmails: totalRecoveredFromEmails,
+          recoveredCount: recoveredCarts.length,
+          recoveredFromEmailsCount: recoveredWithEmails.length
+        }
+      })
+    };
+
+  } catch (error) {
+    console.error('[get-abandoned-carts] Error:', error);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ 
+        error: 'Failed to fetch abandoned carts',
+        message: error.message 
+      })
+    };
+  }
+};
+

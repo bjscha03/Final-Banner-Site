@@ -1,0 +1,2499 @@
+/**
+ * Netlify Function: render-order-pdf
+ * Generates press-ready PDF from banner design
+ */
+
+const sharp = require('sharp');
+const PDFDocument = require('pdfkit');
+const cloudinary = require('cloudinary').v2;
+const { neon } = require('@neondatabase/serverless');
+const { RENDERER_VERSION, renderPrintSceneToPdfBuffer, sceneHash } = require('../print-scene-renderer.cjs');
+
+// Limit sharp thread pool to reduce peak memory usage in constrained environments
+sharp.concurrency(1);
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+const sql = neon(process.env.NETLIFY_DATABASE_URL);
+
+/**
+ * Choose target DPI based on banner size
+ */
+function chooseTargetDpi(wIn, hIn) {
+  // Smart DPI: aim for 150 but cap total pixels for Netlify 6MB response limit
+  const MAX_PX = 50000000;
+  const ideal = 300;
+  if ((wIn * ideal) * (hIn * ideal) <= MAX_PX) return ideal;
+  const scaled = Math.floor(Math.sqrt(MAX_PX / (wIn * hIn)));
+  return Math.max(scaled, 100);
+}
+/**
+ * Clamp a value between min and max
+ */
+function clamp(val, min, max) {
+  return Math.max(min, Math.min(max, val));
+}
+
+/**
+ * Strip Cloudinary width/resize transforms from URL to get original resolution
+ */
+function stripCloudinaryTransforms(url) {
+  if (!url || !url.includes('res.cloudinary.com')) return url;
+  return url.replace(/\/upload\/[^/]+\//, '/upload/');
+}
+
+
+/**
+ * Draw crop marks on PDF for print cutting guides
+ * Crop marks are placed at the corners of the banner area (inside the bleed)
+ */
+function drawCropMarks(doc, bannerWidthIn, bannerHeightIn, bleedIn) {
+  const bleedPt = bleedIn * 72;
+  const bannerWidthPt = bannerWidthIn * 72;
+  const bannerHeightPt = bannerHeightIn * 72;
+  
+  const markLength = 18; // Length of crop mark in points (0.25 inch)
+  const markOffset = 9;  // Distance from corner in points
+  
+  // Set crop mark style
+  doc.strokeColor('#000000');
+  doc.lineWidth(0.5);
+  
+  console.log('[PDF] Drawing crop marks at bleed boundary');
+  
+  // Top-left corner
+  doc.moveTo(bleedPt - markOffset, bleedPt)
+     .lineTo(bleedPt - markOffset - markLength, bleedPt)
+     .stroke();
+  doc.moveTo(bleedPt, bleedPt - markOffset)
+     .lineTo(bleedPt, bleedPt - markOffset - markLength)
+     .stroke();
+  
+  // Top-right corner
+  doc.moveTo(bleedPt + bannerWidthPt + markOffset, bleedPt)
+     .lineTo(bleedPt + bannerWidthPt + markOffset + markLength, bleedPt)
+     .stroke();
+  doc.moveTo(bleedPt + bannerWidthPt, bleedPt - markOffset)
+     .lineTo(bleedPt + bannerWidthPt, bleedPt - markOffset - markLength)
+     .stroke();
+  
+  // Bottom-left corner
+  doc.moveTo(bleedPt - markOffset, bleedPt + bannerHeightPt)
+     .lineTo(bleedPt - markOffset - markLength, bleedPt + bannerHeightPt)
+     .stroke();
+  doc.moveTo(bleedPt, bleedPt + bannerHeightPt + markOffset)
+     .lineTo(bleedPt, bleedPt + bannerHeightPt + markOffset + markLength)
+     .stroke();
+  
+  // Bottom-right corner
+  doc.moveTo(bleedPt + bannerWidthPt + markOffset, bleedPt + bannerHeightPt)
+     .lineTo(bleedPt + bannerWidthPt + markOffset + markLength, bleedPt + bannerHeightPt)
+     .stroke();
+  doc.moveTo(bleedPt + bannerWidthPt, bleedPt + bannerHeightPt + markOffset)
+     .lineTo(bleedPt + bannerWidthPt, bleedPt + bannerHeightPt + markOffset + markLength)
+     .stroke();
+  
+  console.log('[PDF] Crop marks drawn successfully');
+}
+
+/**
+ * Convert a Cloudinary PDF URL to an image URL using their PDF-to-image transformation
+ * PDFs in Cloudinary need pg_1 transformation to extract first page as image
+ */
+function convertPdfUrlToImage(pdfUrl) {
+  // Check if this is a Cloudinary URL with a PDF
+  if (!pdfUrl.includes('cloudinary.com') || !pdfUrl.toLowerCase().endsWith('.pdf')) {
+    return pdfUrl; // Not a Cloudinary PDF, return as-is
+  }
+  
+  console.log('[PDF] Converting Cloudinary PDF URL to image:', pdfUrl);
+  
+  // Cloudinary PDF URLs look like:
+  // https://res.cloudinary.com/CLOUD_NAME/image/upload/v123/folder/file.pdf
+  // We need to add pg_1 transformation to get page 1 as image:
+  // https://res.cloudinary.com/CLOUD_NAME/image/upload/pg_1/v123/folder/file.png
+  
+  // Find the /upload/ part and insert transformation after it
+  const uploadIndex = pdfUrl.indexOf('/upload/');
+  if (uploadIndex === -1) {
+    console.log('[PDF] Could not find /upload/ in URL, returning as-is');
+    return pdfUrl;
+  }
+  
+  // Insert pg_1 transformation after /upload/
+  const beforeUpload = pdfUrl.substring(0, uploadIndex + 8); // includes '/upload/'
+  const afterUpload = pdfUrl.substring(uploadIndex + 8);
+  
+  // Change .pdf extension to .png
+  const imageUrl = beforeUpload + 'pg_1/' + afterUpload.replace(/\.pdf$/i, '.png');
+  
+  console.log('[PDF] Converted PDF URL to image URL:', imageUrl);
+  return imageUrl;
+}
+
+/**
+ * Fetch image from URL and return as Buffer
+ */
+async function fetchImage(urlOrKey, isFileKey = false) {
+  const startTime = Date.now();
+  const FETCH_TIMEOUT_MS = 25000; // 25 second timeout — fail fast, leave budget for fallbacks
+  
+  if (isFileKey) {
+    console.log('[PDF] Fetching from Cloudinary with key:', urlOrKey);
+    
+    // Check if this might be a PDF key
+    const isPdfKey = urlOrKey.toLowerCase().endsWith('.pdf');
+    
+    const cloudinaryUrl = cloudinary.url(urlOrKey, {
+      resource_type: 'image',
+      secure: true,
+      ...(isPdfKey ? { page: 1, format: 'png' } : {})
+    });
+    console.log('[PDF] Generated Cloudinary URL:', cloudinaryUrl);
+    
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    
+    try {
+      const response = await fetch(cloudinaryUrl, { signal: controller.signal });
+      clearTimeout(timeout);
+      
+      console.log('[PDF] Fetch completed in ' + (Date.now() - startTime) + 'ms, status: ' + response.status);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch image: ' + response.status + ' ' + response.statusText);
+      }
+      
+      const arrayBuffer = await response.arrayBuffer();
+      console.log('[PDF] Image downloaded: ' + arrayBuffer.byteLength + ' bytes');
+      return Buffer.from(arrayBuffer);
+    } catch (error) {
+      clearTimeout(timeout);
+      if (error.name === 'AbortError') {
+        throw new Error('Image fetch timed out after ' + (FETCH_TIMEOUT_MS / 1000) + ' seconds');
+      }
+      throw error;
+    }
+  } else {
+    console.log('[PDF] Fetching image from URL:', urlOrKey);
+    
+    // Check if this is a PDF URL and convert it to an image URL
+    let fetchUrl = urlOrKey;
+    if (urlOrKey.toLowerCase().endsWith('.pdf')) {
+      fetchUrl = convertPdfUrlToImage(urlOrKey);
+    }
+    
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    
+    try {
+      const response = await fetch(fetchUrl, { signal: controller.signal });
+      clearTimeout(timeout);
+      
+      console.log('[PDF] Fetch completed in ' + (Date.now() - startTime) + 'ms, status: ' + response.status);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch image: ' + response.status + ' ' + response.statusText);
+      }
+      
+      const arrayBuffer = await response.arrayBuffer();
+      console.log('[PDF] Image downloaded: ' + arrayBuffer.byteLength + ' bytes');
+      return Buffer.from(arrayBuffer);
+    } catch (error) {
+      clearTimeout(timeout);
+      if (error.name === 'AbortError') {
+        throw new Error('Image fetch timed out after ' + (FETCH_TIMEOUT_MS / 1000) + ' seconds');
+      }
+      console.error('[PDF] Error fetching image from URL:', error);
+      throw error;
+    }
+  }
+}
+
+/**
+ * Fetch a Cloudinary image pre-resized to target dimensions.
+ * Offloads the resize to Cloudinary's CDN so we download fewer bytes
+ * and skip the expensive Sharp resize step.
+ */
+async function fetchImageResized(fileKey, targetW, targetH) {
+  const startTime = Date.now();
+  const FETCH_TIMEOUT_MS = 25000;
+
+  console.log('[PDF] Fetching pre-resized from Cloudinary:', fileKey, 'at', targetW, '×', targetH);
+
+  const cloudinaryUrl = cloudinary.url(fileKey, {
+    resource_type: 'image',
+    secure: true,
+    width: targetW,
+    height: targetH,
+    crop: 'fill',
+    quality: 'auto:best',
+    fetch_format: 'auto',
+  });
+  console.log('[PDF] Pre-resized Cloudinary URL:', cloudinaryUrl);
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(cloudinaryUrl, { signal: controller.signal });
+    clearTimeout(timeout);
+
+    console.log('[PDF] Pre-resized fetch completed in ' + (Date.now() - startTime) + 'ms, status: ' + response.status);
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch pre-resized image: ' + response.status + ' ' + response.statusText);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    console.log('[PDF] Pre-resized image downloaded: ' + arrayBuffer.byteLength + ' bytes');
+    return Buffer.from(arrayBuffer);
+  } catch (error) {
+    clearTimeout(timeout);
+    if (error.name === 'AbortError') {
+      throw new Error('Pre-resized image fetch timed out after ' + (FETCH_TIMEOUT_MS / 1000) + ' seconds');
+    }
+    throw error;
+  }
+}
+
+/**
+ * Get image dimensions from Cloudinary without downloading the full image.
+ * Uses the Admin API to retrieve resource metadata.
+ */
+async function getCloudinaryImageDimensions(fileKey) {
+  const startTime = Date.now();
+  console.log('[PDF] Getting image dimensions from Cloudinary for:', fileKey);
+
+  try {
+    const resource = await cloudinary.api.resource(fileKey, { resource_type: 'image' });
+    console.log('[PDF] Cloudinary metadata retrieved in ' + (Date.now() - startTime) + 'ms: ' +
+      resource.width + '×' + resource.height);
+    return { width: resource.width, height: resource.height };
+  } catch (error) {
+    console.error('[PDF] Failed to get Cloudinary metadata:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Upload a buffer to Cloudinary with a timeout to prevent hanging uploads.
+ */
+async function uploadToCloudinary(buffer, options = {}) {
+  const UPLOAD_TIMEOUT_MS = 30000; // 30 second upload timeout
+  const startTime = Date.now();
+
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error('Cloudinary upload timed out after ' + (UPLOAD_TIMEOUT_MS / 1000) + ' seconds'));
+    }, UPLOAD_TIMEOUT_MS);
+
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        resource_type: 'image',
+        folder: 'order-prints',
+        format: 'jpg',
+        ...options,
+      },
+      (err, result) => {
+        clearTimeout(timeout);
+        if (err) {
+          reject(err);
+        } else {
+          console.log('[PDF] Cloudinary upload completed in ' + (Date.now() - startTime) + 'ms');
+          resolve(result.secure_url);
+        }
+      }
+    );
+    stream.end(buffer);
+  });
+}
+
+
+
+
+
+
+
+
+
+/**
+ * Upscale image if needed to meet target resolution
+ */
+async function maybeUpscaleToFit(imgBuffer, needW, needH) {
+  const meta = await sharp(imgBuffer).metadata();
+  const sw = meta.width || 1;
+  const sh = meta.height || 1;
+
+  console.log(`[PDF] Source image: ${sw}×${sh}px, need: ${needW}×${needH}px`);
+
+  if (sw >= needW && sh >= needH) {
+    console.log('[PDF] Image resolution sufficient, no upscaling needed');
+    return imgBuffer;
+  }
+
+  const scale = clamp(Math.max(needW / sw, needH / sh), 1, 4);
+  const newW = Math.round(sw * scale);
+  const newH = Math.round(sh * scale);
+
+  console.log(`[PDF] Upscaling ${scale.toFixed(2)}× to ${newW}×${newH}px`);
+
+  return await sharp(imgBuffer)
+    .resize(newW, newH, {
+      kernel: 'cubic',
+      fit: 'fill',
+    })
+    .toBuffer();
+}
+
+/**
+ * Process an overlay image and return a composite layer entry for Sharp.
+ * Shared by both the JPEG reconstruction fallback and the text/overlay-only fallback.
+ */
+async function buildOverlayCompositeLayer(overlay, bannerWidthIn, bannerHeightIn, targetPxW, targetPxH, targetDpi, bleedIn) {
+  if (!overlay || (!overlay.url && !overlay.fileKey)) return null;
+
+  const overlayBuffer = overlay.fileKey
+    ? await fetchImage(overlay.fileKey, true)
+    : await fetchImage(overlay.url, false);
+  const overlayMeta = await sharp(overlayBuffer).rotate().metadata();
+  const overlaySourceW = overlayMeta.width || 1;
+  const overlaySourceH = overlayMeta.height || 1;
+  const overlayAspectRatio = overlay.aspectRatio || (overlaySourceW / overlaySourceH);
+  const defaultWidthInches = 4;
+  const overlayWidthIn = defaultWidthInches * (overlay.scale || 1);
+  const overlayHeightIn = overlayWidthIn / overlayAspectRatio;
+  let overlayWidthPx = Math.round(overlayWidthIn * targetDpi);
+  let overlayHeightPx = Math.round(overlayHeightIn * targetDpi);
+  const maxWPx = bannerWidthIn * targetDpi * 1.5;
+  const maxHPx = bannerHeightIn * targetDpi * 1.5;
+  if (overlayWidthPx > maxWPx || overlayHeightPx > maxHPx) {
+    const sf = Math.min(maxWPx / overlayWidthPx, maxHPx / overlayHeightPx);
+    overlayWidthPx = Math.round(overlayWidthPx * sf);
+    overlayHeightPx = Math.round(overlayHeightPx * sf);
+  }
+  const bannerAreaWidthPx = bannerWidthIn * targetDpi;
+  const bannerAreaHeightPx = bannerHeightIn * targetDpi;
+  const bleedPx = bleedIn * targetDpi;
+  const posX = (overlay.position && typeof overlay.position.x === 'number') ? overlay.position.x : 0;
+  const posY = (overlay.position && typeof overlay.position.y === 'number') ? overlay.position.y : 0;
+  const overlayLeft = Math.round(bleedPx + (posX / 100) * bannerAreaWidthPx);
+  const overlayTop = Math.round(bleedPx + (posY / 100) * bannerAreaHeightPx);
+  let overlayResized = await sharp(overlayBuffer).rotate()
+    .resize(overlayWidthPx, overlayHeightPx, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .toBuffer();
+  let finalLeft = overlayLeft, finalTop = overlayTop;
+  let cropLeft = 0, cropTop = 0, cropW = overlayWidthPx, cropH = overlayHeightPx;
+  if (finalLeft < 0) { cropLeft = -finalLeft; cropW -= cropLeft; finalLeft = 0; }
+  if (finalTop < 0) { cropTop = -finalTop; cropH -= cropTop; finalTop = 0; }
+  if (finalLeft + cropW > targetPxW) cropW = targetPxW - finalLeft;
+  if (finalTop + cropH > targetPxH) cropH = targetPxH - finalTop;
+  if (cropW > 0 && cropH > 0) {
+    if (cropLeft || cropTop || cropW !== overlayWidthPx || cropH !== overlayHeightPx) {
+      overlayResized = await sharp(overlayResized).extract({ left: cropLeft, top: cropTop, width: cropW, height: cropH }).toBuffer();
+    }
+    return { input: overlayResized, top: finalTop, left: finalLeft };
+  }
+  return null;
+}
+
+/**
+ * Convert raster image to PDF with optional text layers
+ */
+async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textElements = [], bannerWidthIn, bannerHeightIn, previewCanvasPx, bleedIn = 0.125) {
+  return new Promise((resolve, reject) => {
+    try {
+      const chunks = [];
+      const pageWidthPt = pageWidthIn * 72;
+      const pageHeightPt = pageHeightIn * 72;
+
+      const doc = new PDFDocument({
+        size: [pageWidthPt, pageHeightPt],
+        margins: { top: 0, bottom: 0, left: 0, right: 0 },
+        compress: true, // Enable compression to reduce file size
+      });
+
+      doc.on('data', (chunk) => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', (err) => {
+        console.error('[PDF] PDFDocument error:', err);
+        reject(err);
+      });
+
+      // Add the base image
+      // Add the base image - CRITICAL: Use stretch-to-fill, NOT contain/fit mode
+      // This matches the customer preview which uses preserveAspectRatio="xMidYMid slice"
+      doc.image(imgBuffer, 0, 0, {
+        width: pageWidthPt,
+        height: pageHeightPt,
+      });
+
+      // Render text layers on top of the image
+      if (textElements && textElements.length > 0) {
+        console.log(`[PDF] Rendering ${textElements.length} text layers`);
+        console.log(`[PDF] Banner dimensions: ${bannerWidthIn}" × ${bannerHeightIn}"`);
+        console.log(`[PDF] PDF page dimensions: ${pageWidthPt}pt × ${pageHeightPt}pt`);
+        console.log(`[PDF] Preview canvas: ${previewCanvasPx?.width || 'unknown'}px × ${previewCanvasPx?.height || 'unknown'}px`);
+        
+        textElements.forEach((textEl, index) => {
+          try {
+            console.log(`[PDF] Processing text element ${index + 1}/${textElements.length}: "${textEl.content}"`);
+            console.log(`[PDF] Text element data:`, JSON.stringify({ xPercent: textEl.xPercent, yPercent: textEl.yPercent, fontSize: textEl.fontSize, color: textEl.color, textAlign: textEl.textAlign }));
+            
+            // CRITICAL CHECK: Ensure xPercent and yPercent exist
+            if (textEl.xPercent === undefined || textEl.yPercent === undefined) {
+              console.error(`[PDF] CRITICAL: Text element missing position data!`, textEl);
+              return; // Skip this element
+            }
+            
+            // CRITICAL COORDINATE CONVERSION FIX
+            // Text percentages are stored relative to the SVG viewBox container
+            // The SVG viewBox includes: rulers (1.2" each side) + bleed (0.25" each side)
+            // Total offset on each side: 1.2 + 0.25 = 1.45 inches
+            // 
+            // SVG structure:
+            // - totalWidth = bannerWidth + (1.2 * 2) + (0.25 * 2) = bannerWidth + 2.9"
+            // - totalHeight = bannerHeight + (1.2 * 2) + (0.25 * 2) = bannerHeight + 2.9"
+            // - Banner area starts at offset (1.45", 1.45") in the SVG
+            //
+            // To convert text positions:
+            // 1. Text xPercent/yPercent are relative to the ENTIRE SVG viewBox (0-100%)
+            // 2. We need to extract the position WITHIN the banner area
+            // 3. Then convert to PDF points
+            
+            // CRITICAL COORDINATE CONVERSION FIX V2
+            // Text percentages are stored as: xPercent = (obj.x / bannerWidth) * 100
+            // This gives the TOP-LEFT position of the text relative to the banner area
+            // The PDF page includes bleed, so we must offset by bleedIn
+            const textXInBanner = (textEl.xPercent / 100) * bannerWidthIn;
+            const textYInBanner = (textEl.yPercent / 100) * bannerHeightIn;
+            
+            // Convert to PDF points (72 points per inch) and ADD bleed offset
+            // The PDF page is (bannerWidth + 2*bleed) x (bannerHeight + 2*bleed)
+            // Banner content starts at bleedIn from the edge
+            const bleedPt = bleedIn * 72;
+            let xPt = bleedPt + (textXInBanner * 72);
+            let yPt = bleedPt + (textYInBanner * 72);
+            
+            // DETAILED COORDINATE DEBUGGING
+            console.log(`[PDF] ========== COORDINATE TRANSFORMATION DEBUG V2 ==========`);
+            console.log(`[PDF] Input percentages: xPercent=${textEl.xPercent}%, yPercent=${textEl.yPercent}%`);
+            console.log(`[PDF] Banner size: ${bannerWidthIn}" × ${bannerHeightIn}"`);
+            console.log(`[PDF] Direct conversion (no offset): Position in banner: (${textXInBanner}", ${textYInBanner}")`);
+            console.log(`[PDF] Final PDF points: (${xPt}pt, ${yPt}pt)`);
+            console.log(`[PDF] Page size: ${pageWidthPt}pt × ${pageHeightPt}pt`);
+            console.log(`[PDF] ============================================================`);
+            console.log(`[PDF] Text positioning for "${textEl.content.substring(0, 30)}...":
+              Stored: ${textEl.xPercent.toFixed(2)}%, ${textEl.yPercent.toFixed(2)}% (relative to SVG viewBox)
+              Position in banner: ${textXInBanner.toFixed(2)}", ${textYInBanner.toFixed(2)}"
+              PDF points: ${xPt.toFixed(2)}pt, ${yPt.toFixed(2)}pt
+              Page size: ${pageWidthPt.toFixed(2)}pt × ${pageHeightPt.toFixed(2)}pt
+            `);
+            
+
+
+            // Set font properties
+            const fontFamily = textEl.fontFamily || 'Helvetica';
+            
+            // CRITICAL: fontSize is stored in INCHES (matching Konva canvas units)
+            // Canvas renders: fontSize={obj.fontSize * PIXELS_PER_INCH * scale}
+            // PDF should convert inches to points: 1 inch = 72 points
+            const fontSize = (textEl.fontSize || 1) * 72;
+            
+            console.log(`[PDF] Text fontSize: ${textEl.fontSize}" = ${fontSize}pt`);
+            
+            const fontWeight = textEl.fontWeight === 'bold' ? 'bold' : 'normal';
+            
+            // Map font family to PDFKit built-in fonts
+            let pdfFont = 'Helvetica';
+            if (fontFamily.toLowerCase().includes('times')) {
+              pdfFont = fontWeight === 'bold' ? 'Times-Bold' : 'Times-Roman';
+            } else if (fontFamily.toLowerCase().includes('courier')) {
+              pdfFont = fontWeight === 'bold' ? 'Courier-Bold' : 'Courier';
+            } else {
+              pdfFont = fontWeight === 'bold' ? 'Helvetica-Bold' : 'Helvetica';
+            }
+            
+            // Set font and color
+            doc.font(pdfFont);
+            doc.fontSize(fontSize);
+            doc.fillColor(textEl.color || '#000000');
+            
+            // SAFETY CHECK: Ensure coordinates are valid
+            if (isNaN(xPt) || isNaN(yPt)) {
+              console.error(`[PDF] Invalid coordinates for text "${textEl.content}": xPt=${xPt}, yPt=${yPt}`);
+              console.error(`[PDF] Debug values: xPercent=${textEl.xPercent}, yPercent=${textEl.yPercent}, bannerWidth=${bannerWidthIn}, bannerHeight=${bannerHeightIn}`);
+              return; // Skip this text element
+            }
+            
+            // SAFETY CHECK: Ensure coordinates are within page bounds
+            if (xPt < 0 || xPt > pageWidthPt || yPt < 0 || yPt > pageHeightPt) {
+              console.warn(`[PDF] Text "${textEl.content}" is outside page bounds: (${xPt.toFixed(2)}, ${yPt.toFixed(2)})`);
+              console.warn(`[PDF] Page bounds: (0, 0) to (${pageWidthPt}, ${pageHeightPt})`);
+              // Clamp to page bounds
+              const clampedX = Math.max(0, Math.min(xPt, pageWidthPt - 100));
+              const clampedY = Math.max(0, Math.min(yPt, pageHeightPt - 100));
+              console.warn(`[PDF] Clamping to: (${clampedX.toFixed(2)}, ${clampedY.toFixed(2)})`);
+              // Actually use the clamped values
+              xPt = clampedX;
+              yPt = clampedY;
+            }
+            
+            // Calculate text alignment
+            const textAlign = textEl.textAlign || 'left';
+            
+            // CRITICAL FIX V3: Text positioning to match preview EXACTLY
+            // 
+            // Preview behavior (DraggableText.tsx):
+            // - CSS: position: absolute; left: X%; top: Y%; text-align: center;
+            // - X%, Y% = top-left corner of the text element's bounding box
+            // - text-align centers the text WITHIN that bounding box
+            // - The text element has natural width based on content
+            //
+            // PDF behavior (PDFKit):
+            // - doc.text(content, x, y, {align, width}) renders text in a box
+            // - For center align: text is centered within the specified width
+            // - y coordinate is the BASELINE, not the top edge
+            //
+            // Solution:
+            // 1. Calculate the natural width of the text
+            // 2. For center-aligned text, adjust x so text appears at same visual position
+            // 3. Adjust y for baseline offset
+            
+            // Calculate natural text width
+            doc.font(pdfFont);
+            doc.fontSize(fontSize);
+            const textWidth = doc.widthOfString(textEl.content);
+            
+            console.log(`[PDF] Text "${textEl.content.substring(0, 30)}" natural width: ${textWidth.toFixed(2)}pt`);
+            
+            let textX = xPt;
+            let renderWidth = textWidth + 20; // Add some padding
+            
+            // PDFKit doc.text() positions y at the TOP of the text, not baseline
+            // So no adjustment needed - just use yPt directly
+            
+            if (textAlign === 'center') {
+              // For centered text in preview:
+              // - xPercent is the left edge of the text element
+              // - Text is centered within its natural width
+              // - So the visual center is at: xPercent + (naturalWidth / 2)
+              //
+              // In PDF, to center text at the same visual position:
+              // - We need the text box to be centered at the same point
+              // - Use the text's natural width and center it around the visual center point
+              
+              // Don't change textX - it's already the left edge where text should start
+              // Just use the natural width for rendering
+              renderWidth = textWidth + 40; // Extra padding for center-aligned text
+            } else if (textAlign === 'right') {
+              // For right-aligned text, xPercent is still the left edge of the element
+              // Text extends leftward from the right edge of the element
+              // Keep the same logic
+              renderWidth = textWidth + 20;
+            } else {
+              // Left-aligned: straightforward
+              renderWidth = textWidth + 20;
+            }
+            
+            // CRITICAL: Remove width constraint to prevent forced wrapping
+            // In Konva, text renders at natural width with no wrapping
+            // Setting width in PDFKit forces text into a box which can cause unexpected wrapping
+            const textOptions = {
+              lineBreak: false,
+            };
+            
+            console.log(`[PDF] Rendering text at (${textX.toFixed(2)}, ${yPt.toFixed(2)}) with width ${renderWidth.toFixed(2)}pt, align: ${textAlign}, fontSize: ${fontSize.toFixed(2)}pt`);
+            
+            // Render the text
+            doc.text(textEl.content, textX, yPt, textOptions);
+
+            
+            console.log(`[PDF] ✓ Successfully rendered text "${textEl.content.substring(0, 30)}..."`);
+            
+            console.log(`[PDF] Rendered text layer ${index + 1}: "${textEl.content.substring(0, 30)}..." at (${xPt.toFixed(1)}, ${yPt.toFixed(1)}) - fontSize: ${textEl.fontSize}" → ${fontSize.toFixed(1)}pt`);
+          } catch (textError) {
+            console.error(`[PDF] Error rendering text layer ${index + 1}:`, textError);
+            // Continue rendering other text layers even if one fails
+          }
+        });
+      }
+
+      // Draw crop marks for print cutting guides (only when bleed is included)
+      if (bleedIn > 0) {
+        drawCropMarks(doc, bannerWidthIn, bannerHeightIn, bleedIn);
+      }
+
+      doc.end();
+    } catch (err) {
+      console.error('[PDF] Synchronous error in rasterToPdfBuffer:', err);
+      reject(err);
+    }
+  });
+}
+
+/**
+ * Update order in database
+ */
+async function updateOrder(orderId, fields) {
+  const keys = Object.keys(fields);
+  const values = Object.values(fields);
+  const setClause = keys.map((key, idx) => `${key} = $${idx + 2}`).join(', ');
+  
+  const query = `
+    UPDATE orders
+    SET ${setClause}, updated_at = NOW()
+    WHERE id = $1
+    RETURNING *
+  `;
+  
+  const result = await sql(query, [orderId, ...values]);
+  return result[0];
+}
+
+/**
+ * Upload PDF buffer to Cloudinary and return the secure URL
+ */
+async function uploadPdfToCloudinary(pdfBuffer, orderId) {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        resource_type: 'raw',
+        folder: 'order-pdfs',
+        public_id: 'order-' + orderId + '-print-ready-' + Date.now(),
+        format: 'pdf',
+        type: 'upload',
+      },
+      (error, result) => {
+        if (error) {
+          console.error('[PDF] Cloudinary upload error:', error);
+          reject(error);
+        } else {
+          console.log('[PDF] Cloudinary upload success:', result.secure_url);
+          resolve(result.secure_url);
+        }
+      }
+    );
+    uploadStream.end(pdfBuffer);
+  });
+}
+
+/**
+ * Persist a generated print-ready PDF URL to a specific order_item.
+ * Safe no-op if itemId is missing or the DB write fails.
+ */
+async function saveGeneratedPdfUrl(itemId, pdfUrl) {
+  if (!itemId || !pdfUrl) return;
+  try {
+    // Ensure column exists (idempotent, cheap with IF NOT EXISTS)
+    await sql`
+      ALTER TABLE order_items
+      ADD COLUMN IF NOT EXISTS generated_print_pdf_url TEXT,
+      ADD COLUMN IF NOT EXISTS generated_print_pdf_uploaded_at TIMESTAMP WITH TIME ZONE
+    `;
+    await sql`
+      UPDATE order_items
+      SET generated_print_pdf_url = ${pdfUrl},
+          generated_print_pdf_uploaded_at = NOW()
+      WHERE id = ${itemId}
+    `;
+    console.log('[ADMIN_PDF] Saved generated_print_pdf_url to order_items.id=' + itemId + ': ' + pdfUrl);
+  } catch (err) {
+    console.warn('[ADMIN_PDF] Failed to persist generated_print_pdf_url for item ' + itemId + ': ' + err.message);
+  }
+}
+
+/**
+ * Build a JSON response that includes both inline base64 PDF (for legacy
+ * callers) and an uploaded Cloudinary URL (preferred). Also persists the URL
+ * back to the order_item row when `itemId` is supplied so subsequent admin
+ * downloads can reuse it without re-rendering.
+ */
+async function respondWithPdf(pdfBuffer, orderId, itemId, extra = {}) {
+  let pdfUrl = null;
+  try {
+    pdfUrl = await uploadPdfToCloudinary(pdfBuffer, orderId);
+  } catch (uploadErr) {
+    console.warn('[ADMIN_PDF] PDF upload failed (returning inline only): ' + uploadErr.message);
+  }
+  if (pdfUrl) {
+    await saveGeneratedPdfUrl(itemId, pdfUrl);
+  }
+  const pdfBase64 = pdfBuffer.toString('base64');
+  console.log('[ADMIN_PDF] Returning PDF for order ' + orderId + ' item ' + (itemId || 'unknown') + ' (url=' + (pdfUrl || 'inline-only') + ', bytes=' + pdfBuffer.length + ')');
+  return {
+    statusCode: 200,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      pdfBase64,
+      pdfUrl,
+      downloadUrl: pdfUrl,
+      format: 'pdf',
+      ...extra,
+    }),
+  };
+}
+
+// =============================================================================
+// VECTOR PDF GENERATION HELPERS
+// Renders design objects directly into PDF using PDFKit primitives so that
+// text remains vector text, shapes remain vector paths, and only user-uploaded
+// images are embedded as raster. No canvas-to-JPEG step is used.
+// =============================================================================
+
+/**
+ * Map an editor font-family string to the closest PDFKit built-in font name.
+ * PDFKit built-ins: Helvetica(-Bold|-Oblique|-BoldOblique),
+ *                   Times-Roman(-Bold|-Italic|-BoldItalic),
+ *                   Courier(-Bold|-Oblique|-BoldOblique).
+ */
+function mapFontToPdfKit(fontFamily, fontWeight, fontStyle) {
+  const isBold = fontWeight === 'bold' || fontWeight === '700' || Number(fontWeight) >= 700;
+  const isItalic = fontStyle === 'italic';
+  const family = (fontFamily || 'Arial').toLowerCase().replace(/['"]/g, '').trim();
+
+  // Serif families
+  const serifFamilies = [
+    'times', 'georgia', 'garamond', 'palatino', 'bookman',
+    'merriweather', 'playfair', 'lora', 'crimson',
+  ];
+  if (serifFamilies.some(f => family.includes(f))) {
+    if (isBold && isItalic) return 'Times-BoldItalic';
+    if (isBold) return 'Times-Bold';
+    if (isItalic) return 'Times-Italic';
+    return 'Times-Roman';
+  }
+
+  // Monospace families
+  const monoFamilies = [
+    'courier', 'monaco', 'consolas', 'mono', 'code pro',
+    'ibm plex mono', 'jetbrains', 'fira code', 'roboto mono',
+    'source code', 'lucida console',
+  ];
+  if (monoFamilies.some(f => family.includes(f))) {
+    if (isBold && isItalic) return 'Courier-BoldOblique';
+    if (isBold) return 'Courier-Bold';
+    if (isItalic) return 'Courier-Oblique';
+    return 'Courier';
+  }
+
+  // Everything else → Helvetica (closest to most sans-serif web fonts)
+  if (isBold && isItalic) return 'Helvetica-BoldOblique';
+  if (isBold) return 'Helvetica-Bold';
+  if (isItalic) return 'Helvetica-Oblique';
+  return 'Helvetica';
+}
+
+/**
+ * Draw a ShapeObject using PDFKit vector primitives.
+ * xPt/yPt/wPt/hPt are already converted from inches to PDF points.
+ */
+function drawShapeInPdf(doc, obj, xPt, yPt, wPt, hPt) {
+  const fill = obj.fill || 'transparent';
+  const stroke = obj.stroke || null;
+  // strokeWidth in the editor is in inches; convert to points
+  const strokeWidthPt = (obj.strokeWidth || 0) * 72;
+
+  const hasFill = fill && fill !== 'transparent' && fill !== 'none';
+  const hasStroke = stroke && stroke !== 'transparent' && stroke !== 'none' && strokeWidthPt > 0;
+
+  switch (obj.shapeType) {
+    case 'rect': {
+      const cornerRadiusPt = (obj.cornerRadius || 0) * 72;
+      if (cornerRadiusPt > 0) {
+        doc.roundedRect(xPt, yPt, wPt, hPt, Math.min(cornerRadiusPt, wPt / 2, hPt / 2));
+      } else {
+        doc.rect(xPt, yPt, wPt, hPt);
+      }
+      break;
+    }
+    case 'circle': {
+      // PDFKit ellipse(cx, cy, rx, ry)
+      doc.ellipse(xPt + wPt / 2, yPt + hPt / 2, wPt / 2, hPt / 2);
+      break;
+    }
+    case 'triangle': {
+      // Isosceles triangle: tip at top-center, base at bottom
+      doc.moveTo(xPt + wPt / 2, yPt)
+         .lineTo(xPt + wPt, yPt + hPt)
+         .lineTo(xPt, yPt + hPt)
+         .closePath();
+      break;
+    }
+    case 'line': {
+      if (hasStroke) {
+        doc.moveTo(xPt, yPt + hPt / 2)
+           .lineTo(xPt + wPt, yPt + hPt / 2)
+           .strokeColor(stroke)
+           .lineWidth(strokeWidthPt)
+           .stroke();
+      }
+      return; // line does not use fill/stroke pattern below
+    }
+    case 'arrow': {
+      if (hasStroke) {
+        const headLen = Math.min(wPt * 0.15, 18);
+        const headW = headLen * 0.7;
+        const midY = yPt + hPt / 2;
+        // Shaft
+        doc.moveTo(xPt, midY)
+           .lineTo(xPt + wPt - headLen, midY)
+           .strokeColor(stroke)
+           .lineWidth(strokeWidthPt)
+           .stroke();
+        // Arrowhead (filled triangle)
+        doc.moveTo(xPt + wPt, midY)
+           .lineTo(xPt + wPt - headLen, midY - headW / 2)
+           .lineTo(xPt + wPt - headLen, midY + headW / 2)
+           .closePath()
+           .fillColor(stroke)
+           .fill();
+      }
+      return;
+    }
+    default:
+      return;
+  }
+
+  if (hasFill && hasStroke) {
+    doc.fillColor(fill).strokeColor(stroke).lineWidth(strokeWidthPt).fillAndStroke();
+  } else if (hasFill) {
+    doc.fillColor(fill).fill();
+  } else if (hasStroke) {
+    doc.strokeColor(stroke).lineWidth(strokeWidthPt).stroke();
+  }
+}
+
+/**
+ * Generate a true vector PDF from the editor's design object list.
+ *
+ * - Text objects  → PDFKit vector text (no rasterization)
+ * - Shape objects → PDFKit vector paths (no rasterization)
+ * - Image objects → embedded raster at their exact physical size
+ *
+ * Coordinates in the editor store are in INCHES. They are converted to PDF
+ * points (72 pt/in) with the bleed offset added on each side.
+ *
+ * VALIDATION: The returned PDF page size is always exactly
+ *   (bannerWidthIn + 2·bleedIn) × (bannerHeightIn + 2·bleedIn) inches.
+ */
+async function createVectorPdfFromEditorObjects(editorObjects, backgroundColor, bannerWidthIn, bannerHeightIn, bleedIn) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const bleedSafe = bleedIn || 0;
+      const pageWidthPt  = (bannerWidthIn  + 2 * bleedSafe) * 72;
+      const pageHeightPt = (bannerHeightIn + 2 * bleedSafe) * 72;
+      const bleedPt      = bleedSafe * 72;
+
+      // === VALIDATION ===
+      const expectedWidthPt  = bannerWidthIn  * 72 + bleedPt * 2;
+      const expectedHeightPt = bannerHeightIn * 72 + bleedPt * 2;
+      if (Math.abs(pageWidthPt - expectedWidthPt) > 0.01 || Math.abs(pageHeightPt - expectedHeightPt) > 0.01) {
+        console.error('[VECTOR_PDF] DIMENSION MISMATCH – expected ' + expectedWidthPt.toFixed(2) + '×' + expectedHeightPt.toFixed(2) + ' pt, got ' + pageWidthPt.toFixed(2) + '×' + pageHeightPt.toFixed(2) + ' pt');
+      }
+      console.log('[VECTOR_PDF] Page: ' + pageWidthPt.toFixed(2) + ' × ' + pageHeightPt.toFixed(2) + ' pt  (' + (bannerWidthIn + 2 * bleedSafe).toFixed(4) + ' × ' + (bannerHeightIn + 2 * bleedSafe).toFixed(4) + ' in)');
+      console.log('[VECTOR_PDF] Objects to render: ' + (editorObjects ? editorObjects.length : 0));
+
+      const doc = new PDFDocument({
+        size: [pageWidthPt, pageHeightPt],
+        margins: { top: 0, bottom: 0, left: 0, right: 0 },
+        compress: false,
+        autoFirstPage: false,
+        info: { Creator: 'BannerSite Vector PDF Engine' },
+      });
+
+      const chunks = [];
+      doc.on('data', chunk => chunks.push(chunk));
+      doc.on('end', () => {
+        const buf = Buffer.concat(chunks);
+        console.log('[VECTOR_PDF] ✅ Vector PDF complete: ' + buf.length + ' bytes');
+        console.log('[VECTOR_PDF] ✅ VALIDATION: No rasterized full-canvas image used');
+        console.log('[VECTOR_PDF] ✅ VALIDATION: PDF dimensions = ' + (pageWidthPt / 72).toFixed(4) + ' × ' + (pageHeightPt / 72).toFixed(4) + ' in (expected ' + (bannerWidthIn + 2 * bleedSafe) + ' × ' + (bannerHeightIn + 2 * bleedSafe) + ' in)');
+        resolve(buf);
+      });
+      doc.on('error', reject);
+
+      doc.addPage();
+
+      // Background fill
+      const bgColor = backgroundColor || '#FFFFFF';
+      doc.rect(0, 0, pageWidthPt, pageHeightPt).fillColor(bgColor).fill();
+
+      // Sort visible objects by zIndex
+      const sorted = (editorObjects || [])
+        .filter(obj => obj.visible !== false)
+        .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+
+      for (const obj of sorted) {
+        // Convert inches → PDF points, offset by bleed
+        const xPt = bleedPt + (obj.x || 0) * 72;
+        const yPt = bleedPt + (obj.y || 0) * 72;
+        const wPt = Math.max((obj.width  || 1) * 72, 1);
+        const hPt = Math.max((obj.height || 1) * 72, 1);
+        const rotation = obj.rotation || 0;
+
+        try {
+          if (obj.type === 'image') {
+            // ==========================================================
+            // IMAGE: embed raster at correct physical size.
+            // Only user-uploaded images are raster — NOT the whole canvas.
+            // ==========================================================
+            let imgBuffer = null;
+            const fileKey = obj.cloudinaryPublicId;
+            const imgUrl = obj.url;
+
+            if (fileKey) {
+              try { imgBuffer = await fetchImage(fileKey, true); }
+              catch (e) { console.warn('[VECTOR_PDF] fetchImage(fileKey) failed for obj ' + obj.id + ':', e.message); }
+            }
+            if (!imgBuffer && imgUrl && !imgUrl.startsWith('blob:') && !imgUrl.startsWith('data:')) {
+              try { imgBuffer = await fetchImage(imgUrl, false); }
+              catch (e) { console.warn('[VECTOR_PDF] fetchImage(url) failed for obj ' + obj.id + ':', e.message); }
+            }
+
+            if (imgBuffer) {
+              doc.save();
+              if (rotation) doc.rotate(rotation, { origin: [xPt + wPt / 2, yPt + hPt / 2] });
+              doc.opacity(obj.opacity !== undefined ? obj.opacity : 1);
+              doc.image(imgBuffer, xPt, yPt, { width: wPt, height: hPt });
+              doc.restore();
+              console.log('[VECTOR_PDF] Embedded image: ' + obj.id + ' at (' + xPt.toFixed(1) + ',' + yPt.toFixed(1) + ') size ' + wPt.toFixed(1) + '×' + hPt.toFixed(1) + ' pt');
+            } else {
+              console.warn('[VECTOR_PDF] Could not fetch image for object ' + obj.id + ' — skipping');
+            }
+
+          } else if (obj.type === 'text') {
+            // ==========================================================
+            // TEXT: rendered as true vector text — never rasterized.
+            // ==========================================================
+            const fontSizePt = Math.max((obj.fontSize || 0.5) * 72, 1);
+            const pdfFont = mapFontToPdfKit(obj.fontFamily, obj.fontWeight, obj.fontStyle);
+            const color = obj.color || '#000000';
+
+            doc.save();
+            if (rotation) doc.rotate(rotation, { origin: [xPt + wPt / 2, yPt + hPt / 2] });
+            doc.opacity(obj.opacity !== undefined ? obj.opacity : 1);
+            doc.font(pdfFont)
+               .fontSize(fontSizePt)
+               .fillColor(color);
+
+            const textOptions = {
+              lineBreak: false,
+              underline: obj.textDecoration === 'underline',
+            };
+            doc.text(obj.content || '', xPt, yPt, textOptions);
+            doc.restore();
+            console.log('[VECTOR_PDF] Rendered text: "' + (obj.content || '').substring(0, 30) + '" font=' + pdfFont + ' size=' + fontSizePt.toFixed(1) + 'pt at (' + xPt.toFixed(1) + ',' + yPt.toFixed(1) + ')');
+
+          } else if (obj.type === 'shape') {
+            // ==========================================================
+            // SHAPE: rendered as vector path — never rasterized.
+            // ==========================================================
+            doc.save();
+            if (rotation) doc.rotate(rotation, { origin: [xPt + wPt / 2, yPt + hPt / 2] });
+            doc.opacity(obj.opacity !== undefined ? obj.opacity : 1);
+            drawShapeInPdf(doc, obj, xPt, yPt, wPt, hPt);
+            doc.restore();
+            console.log('[VECTOR_PDF] Rendered shape: ' + obj.shapeType + ' at (' + xPt.toFixed(1) + ',' + yPt.toFixed(1) + ') size ' + wPt.toFixed(1) + '×' + hPt.toFixed(1) + ' pt');
+          }
+        } catch (objErr) {
+          console.error('[VECTOR_PDF] Error rendering object ' + obj.id + ' (' + obj.type + '):', objErr.message);
+          // Continue rendering other objects
+        }
+      }
+
+      // Crop marks at bleed boundary
+      if (bleedSafe > 0) {
+        drawCropMarks(doc, bannerWidthIn, bannerHeightIn, bleedSafe);
+      }
+
+      doc.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+exports.handler = async (event) => {
+  console.log('[PDF] === Starting PDF render request ===');
+  console.log('[PDF] Event method:', event.httpMethod);
+  console.log('[PDF] Event body type:', typeof event.body);
+  console.log('[PDF] Event body:', event.body);
+  
+  try {
+    if (!event.body) {
+      console.error('[PDF] ERROR: No request body provided');
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: 'Missing request body' }),
+      };
+    }
+
+    const req = JSON.parse(event.body);
+
+
+    // PRIORITY 0: Version 2 print scene renders from original production assets.
+    // Never use browser previews, final_render JPEGs, blob: URLs, or data: URLs here.
+    if (req.format === 'pdf' && req.canvasStateJson) {
+      let parsedScene = null;
+      try {
+        parsedScene = typeof req.canvasStateJson === 'string' ? JSON.parse(req.canvasStateJson) : req.canvasStateJson;
+      } catch (parseErr) {
+        console.warn('[PRINT_SCENE_V2] Failed to parse canvasStateJson:', parseErr.message);
+      }
+      if (parsedScene && parsedScene.sceneVersion === 2) {
+        const hash = sceneHash(parsedScene);
+        if (req.itemId && !req.forceRegenerate) {
+          try {
+            await sql`
+              ALTER TABLE order_items
+              ADD COLUMN IF NOT EXISTS generated_print_pdf_url TEXT,
+              ADD COLUMN IF NOT EXISTS generated_print_pdf_uploaded_at TIMESTAMP WITH TIME ZONE,
+              ADD COLUMN IF NOT EXISTS generated_print_pdf_renderer_version TEXT,
+              ADD COLUMN IF NOT EXISTS generated_print_pdf_scene_hash TEXT,
+              ADD COLUMN IF NOT EXISTS generated_print_pdf_metadata JSONB
+            `;
+            const rows = await sql`
+              SELECT generated_print_pdf_url, generated_print_pdf_renderer_version, generated_print_pdf_scene_hash
+              FROM order_items
+              WHERE id = ${req.itemId}
+              LIMIT 1
+            `;
+            const cached = rows && rows[0];
+            if (cached?.generated_print_pdf_url && cached.generated_print_pdf_renderer_version === RENDERER_VERSION && cached.generated_print_pdf_scene_hash === hash) {
+              return {
+                statusCode: 200,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pdfUrl: cached.generated_print_pdf_url, downloadUrl: cached.generated_print_pdf_url, format: 'pdf', source: 'print_scene_v2_cached', cached: true, rendererVersion: RENDERER_VERSION, sceneHash: hash }),
+              };
+            }
+          } catch (cacheErr) {
+            console.warn('[PRINT_SCENE_V2] cache lookup skipped:', cacheErr.message);
+          }
+        }
+
+        const rendered = await renderPrintSceneToPdfBuffer(parsedScene);
+        const fileName = `print-scene-v2-${req.itemId || Date.now()}-${hash.slice(0, 12)}.pdf`;
+        const pdfUrl = await uploadPdfToCloudinary(rendered.buffer, fileName, { resource_type: 'raw' });
+        if (req.itemId) {
+          try {
+            await sql`
+              UPDATE order_items
+              SET generated_print_pdf_url = ${pdfUrl},
+                  generated_print_pdf_uploaded_at = NOW(),
+                  generated_print_pdf_renderer_version = ${RENDERER_VERSION},
+                  generated_print_pdf_scene_hash = ${hash},
+                  generated_print_pdf_metadata = ${JSON.stringify(rendered.metadata)}::jsonb
+              WHERE id = ${req.itemId}
+            `;
+          } catch (updateErr) {
+            console.warn('[PRINT_SCENE_V2] failed to persist cache metadata:', updateErr.message);
+          }
+        }
+        return {
+          statusCode: 200,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pdfUrl, downloadUrl: pdfUrl, format: 'pdf', source: 'print_scene_v2', cached: false, rendererVersion: RENDERER_VERSION, sceneHash: hash, metadata: rendered.metadata }),
+        };
+      }
+    }
+
+    // =========================================================================
+    // ADMIN PDF CACHE: If the caller (admin) provided an itemId and we have
+    // already generated a print-ready PDF for that order_item, return the
+    // saved Cloudinary URL immediately rather than regenerating.
+    // =========================================================================
+    if (req.itemId && req.format === 'pdf' && !req.forceRegenerate) {
+      try {
+        await sql`
+          ALTER TABLE order_items
+          ADD COLUMN IF NOT EXISTS generated_print_pdf_url TEXT,
+          ADD COLUMN IF NOT EXISTS generated_print_pdf_uploaded_at TIMESTAMP WITH TIME ZONE
+        `;
+        const rows = await sql`
+          SELECT generated_print_pdf_url
+          FROM order_items
+          WHERE id = ${req.itemId}
+          LIMIT 1
+        `;
+        const cachedUrl = rows && rows[0] && rows[0].generated_print_pdf_url;
+        console.log('[ADMIN_PDF] === Admin PDF download requested ===');
+        console.log('[ADMIN_PDF] Order ID: ' + (req.orderId || 'unknown'));
+        console.log('[ADMIN_PDF] Item ID:  ' + req.itemId);
+        console.log('[ADMIN_PDF] Cached PDF on item: ' + (cachedUrl ? 'YES' : 'NO'));
+        if (cachedUrl) {
+          console.log('[ADMIN_PDF] ✅ Returning cached print-ready PDF URL: ' + cachedUrl);
+          return {
+            statusCode: 200,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              pdfUrl: cachedUrl,
+              downloadUrl: cachedUrl,
+              format: 'pdf',
+              source: 'cached',
+              cached: true,
+            }),
+          };
+        }
+        console.log('[ADMIN_PDF] No cached PDF — generating on demand from saved design data');
+      } catch (cacheErr) {
+        console.warn('[ADMIN_PDF] Cache lookup failed (continuing with generation): ' + cacheErr.message);
+      }
+    } else if (req.itemId && req.format === 'pdf' && req.forceRegenerate) {
+      console.log('[ADMIN_PDF] forceRegenerate=true — skipping cached PDF lookup for item ' + req.itemId);
+    }
+
+    // DEBUG: Log all received values for image positioning
+    console.log('[PDF] ======= RECEIVED REQUEST =======');
+    console.log('[PDF] imageScale:', req.imageScale, 'type:', typeof req.imageScale);
+    console.log('[PDF] imagePosition:', JSON.stringify(req.imagePosition), 'type:', typeof req.imagePosition);
+    console.log('[PDF] Full request keys:', Object.keys(req).join(', '));
+    console.log('[PDF] ================================');
+    console.log('[PDF] Parsed request:', JSON.stringify(req, null, 2));
+    console.log('[PDF] Request keys:', Object.keys(req));
+    console.log('[PDF] CRITICAL - textElements received:', req.textElements);
+    console.log('[PDF] CRITICAL - textElements count:', req.textElements ? req.textElements.length : 0);
+    console.log('[PDF] CRITICAL - overlayImage received:', req.overlayImage);
+    console.log('[PDF] CRITICAL - overlayImage exists:', !!req.overlayImage);
+    console.log('[PDF] CRITICAL - overlayImage received:', req.overlayImage);
+    console.log('[PDF] CRITICAL - overlayImage exists:', !!req.overlayImage);
+
+    // Accept fileKey, imageUrl, text-only designs, final_render data, canvas state, OR thumbnail
+    // For text-only designs, we create a white/colored canvas as background
+    const hasBackgroundImage = req.fileKey || req.imageUrl;
+    const hasTextOrOverlay = (req.textElements && req.textElements.length > 0) || req.overlayImage;
+    const hasFinalRender = req.finalRenderUrl || req.finalRenderFileKey;
+    const hasThumbnail = req.thumbnailUrl && !req.thumbnailUrl.startsWith('blob:');
+    const hasDesignState = !!req.canvasStateJson;
+    
+    if (!req.orderId || !req.bannerWidthIn || !req.bannerHeightIn || (!hasBackgroundImage && !hasTextOrOverlay && !hasFinalRender && !hasThumbnail && !hasDesignState)) {
+      console.error('[PDF] Missing required fields:', {
+        orderId: !!req.orderId,
+        bannerWidthIn: !!req.bannerWidthIn,
+        bannerHeightIn: !!req.bannerHeightIn,
+        fileKey: !!req.fileKey,
+        imageUrl: !!req.imageUrl,
+        hasTextOrOverlay: hasTextOrOverlay,
+        hasFinalRender: hasFinalRender,
+        hasThumbnail: hasThumbnail,
+        hasDesignState: hasDesignState
+      });
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: 'Missing required fields - need image, text, or overlay' }),
+      };
+    }
+    
+    console.log('[PDF] Design type:', hasBackgroundImage ? 'with background image' : (hasFinalRender ? 'final_render available' : 'text/overlay only'));
+    console.log('[JPEG_EXPORT_DEBUG] ======================================');
+    console.log('[JPEG_EXPORT_DEBUG] ======= EXPORT SOURCE AUDIT =========');
+    console.log('[JPEG_EXPORT_DEBUG] ======================================');
+    console.log('[JPEG_EXPORT_DEBUG] Ordered dimensions:', req.bannerWidthIn, '×', req.bannerHeightIn, 'inches');
+    console.log('[JPEG_EXPORT_DEBUG] Format requested:', req.format || 'pdf');
+    console.log('[JPEG_EXPORT_DEBUG] --- Source candidates ---');
+    console.log('[JPEG_EXPORT_DEBUG] finalRenderUrl:', req.finalRenderUrl ? req.finalRenderUrl.substring(0, 100) : 'NONE');
+    console.log('[JPEG_EXPORT_DEBUG] finalRenderFileKey:', req.finalRenderFileKey || 'NONE');
+    console.log('[JPEG_EXPORT_DEBUG] finalRenderWidthPx:', req.finalRenderWidthPx || 'NONE');
+    console.log('[JPEG_EXPORT_DEBUG] finalRenderHeightPx:', req.finalRenderHeightPx || 'NONE');
+    console.log('[JPEG_EXPORT_DEBUG] finalRenderDpi:', req.finalRenderDpi || 'NONE');
+    console.log('[JPEG_EXPORT_DEBUG] thumbnailUrl:', req.thumbnailUrl ? req.thumbnailUrl.substring(0, 100) : 'NONE');
+    console.log('[JPEG_EXPORT_DEBUG] uploaded imageUrl:', req.imageUrl ? req.imageUrl.substring(0, 100) : 'NONE');
+    console.log('[JPEG_EXPORT_DEBUG] fileKey:', req.fileKey || 'NONE');
+    console.log('[JPEG_EXPORT_DEBUG] Has final_render:', !!hasFinalRender);
+    console.log('[JPEG_EXPORT_DEBUG] Has background image:', !!hasBackgroundImage);
+    console.log('[JPEG_EXPORT_DEBUG] Has text/overlay:', !!hasTextOrOverlay);
+    console.log('[JPEG_EXPORT_DEBUG] canvasStateJson:', req.canvasStateJson ? 'YES (' + (typeof req.canvasStateJson === 'string' ? req.canvasStateJson.length : JSON.stringify(req.canvasStateJson).length) + ' chars)' : 'NONE');
+    console.log('[JPEG_EXPORT_DEBUG] ======================================');
+
+    // includeBleed: if false, generate PDF at exact banner dimensions (no bleed margins)
+    const includeBleed = req.includeBleed !== false; // Default to true for backward compatibility
+    const bleedIn = includeBleed ? (req.bleedIn ?? 0.125) : 0;
+    let targetDpi = req.targetDpi ?? chooseTargetDpi(req.bannerWidthIn, req.bannerHeightIn);
+
+    const finalWidthIn = req.bannerWidthIn + (bleedIn * 2);
+    const finalHeightIn = req.bannerHeightIn + (bleedIn * 2);
+
+    // CRITICAL: Enforce pixel safety cap even when targetDpi is provided by the request.
+    // Without this, large banners (e.g. 4'×10' at 150 DPI = 129 MP) cause OOM in the
+    // 2 GB Netlify function.  The cap mirrors chooseTargetDpi()'s 50 MP limit.
+    const MAX_SAFE_PX = 50_000_000;
+    if (finalWidthIn * targetDpi * finalHeightIn * targetDpi > MAX_SAFE_PX) {
+      const safeDpi = Math.floor(Math.sqrt(MAX_SAFE_PX / (finalWidthIn * finalHeightIn)));
+      console.log(`[PDF] ⚠️ Pixel cap: ${targetDpi} DPI would produce ${Math.round(finalWidthIn * targetDpi * finalHeightIn * targetDpi / 1e6)}MP – clamping to ${safeDpi} DPI (${MAX_SAFE_PX / 1e6}MP limit)`);
+      targetDpi = Math.max(safeDpi, 72);
+    }
+
+    const targetPxW = Math.round(finalWidthIn * targetDpi);
+    const targetPxH = Math.round(finalHeightIn * targetDpi);
+
+    console.log(`[PDF] Banner: ${req.bannerWidthIn}×${req.bannerHeightIn} in, DPI: ${targetDpi}, Bleed: ${bleedIn} in (includeBleed: ${includeBleed})`);
+    console.log(`[PDF] Final dimensions: ${finalWidthIn}×${finalHeightIn} in = ${targetPxW}×${targetPxH}px`);
+
+    // Parse background color for padding (used by contain/pad resizes)
+    const bgColorForPad = req.canvasBackgroundColor || '#FFFFFF';
+    const parseHexColor = (hex) => {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+      } : { r: 255, g: 255, b: 255 };
+    };
+    const padBackground = parseHexColor(bgColorForPad);
+
+    // =========================================================================
+    // TOP PRIORITY: TRUE VECTOR PDF FROM BANNER EDITOR DESIGN OBJECTS
+    //
+    // When the order was created via the Banner Editor (BannerEditorLayout),
+    // canvas_state_json contains the raw editor object list with source:
+    // 'banner-editor'. We reconstruct the PDF directly from these objects:
+    //   - Text  → PDFKit vector text (never rasterized)
+    //   - Shape → PDFKit vector paths (never rasterized)
+    //   - Image → embedded raster at exact physical size (no full-canvas JPEG)
+    //
+    // PDF dimensions match the order size exactly (1 in = 72 pt, no scaling).
+    // This path takes precedence over all raster/JPEG fallback paths.
+    // =========================================================================
+    if (req.canvasStateJson) {
+      let editorState = null;
+      try {
+        editorState = typeof req.canvasStateJson === 'string'
+          ? JSON.parse(req.canvasStateJson)
+          : req.canvasStateJson;
+      } catch (parseErr) {
+        console.warn('[VECTOR_PDF] Failed to parse canvasStateJson:', parseErr.message);
+      }
+
+      if (editorState && editorState.source === 'banner-editor') {
+        console.log('[VECTOR_PDF] ===== TOP PRIORITY: VECTOR PDF FROM BANNER EDITOR =====');
+        console.log('[VECTOR_PDF] Editor state v' + editorState.version + ', objects: ' + (editorState.objects ? editorState.objects.length : 0));
+        console.log('[VECTOR_PDF] Order size: ' + req.bannerWidthIn + ' × ' + req.bannerHeightIn + ' in');
+        console.log('[VECTOR_PDF] PDF page: ' + ((req.bannerWidthIn + 2 * bleedIn) * 72) + ' × ' + ((req.bannerHeightIn + 2 * bleedIn) * 72) + ' pt');
+
+        try {
+          const pdfBuffer = await createVectorPdfFromEditorObjects(
+            editorState.objects || [],
+            editorState.backgroundColor || req.canvasBackgroundColor || '#FFFFFF',
+            req.bannerWidthIn,
+            req.bannerHeightIn,
+            bleedIn
+          );
+
+          // VALIDATION: Confirm dimensions
+          const actualWidthIn  = req.bannerWidthIn  + 2 * bleedIn;
+          const actualHeightIn = req.bannerHeightIn + 2 * bleedIn;
+          console.log('[VECTOR_PDF] ✅ VALIDATION PASSED: PDF = ' + (actualWidthIn * 72).toFixed(2) + ' × ' + (actualHeightIn * 72).toFixed(2) + ' pt (' + actualWidthIn + ' × ' + actualHeightIn + ' in)');
+          console.log('[VECTOR_PDF] ✅ VALIDATION PASSED: No rasterized full-canvas image was used');
+
+          const pdfBase64 = pdfBuffer.toString('base64');
+          const extra = {
+            source: 'vector_from_editor_objects',
+            dpi: 72, // PDFs are resolution-independent (points, not pixels)
+            bleed: bleedIn,
+            dimensions: {
+              widthIn:  req.bannerWidthIn,
+              heightIn: req.bannerHeightIn,
+              widthPt:  req.bannerWidthIn  * 72,
+              heightPt: req.bannerHeightIn * 72,
+            },
+            objectCount: (editorState.objects || []).length,
+          };
+          // Prefer uploading + persisting the URL; fall back to inline-only on failure.
+          try {
+            return await respondWithPdf(pdfBuffer, req.orderId, req.itemId, extra);
+          } catch (respondErr) {
+            console.warn('[ADMIN_PDF] respondWithPdf failed, returning inline base64: ' + respondErr.message);
+            return {
+              statusCode: 200,
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                pdfBase64,
+                format: 'pdf',
+                ...extra,
+              }),
+            };
+          }
+        } catch (vectorErr) {
+          console.error('[VECTOR_PDF] ❌ Vector PDF generation failed:', vectorErr.message);
+          console.error('[VECTOR_PDF] Stack:', vectorErr.stack);
+          console.warn('[VECTOR_PDF] Falling through to legacy fallback paths');
+          // Fall through to existing paths for safety
+        }
+      }
+    }
+
+    // =========================================================================
+    // PRIORITY 0 (JPEG only): TRUE PRINT-RENDER FROM SAVED DESIGN STATE
+    // Re-renders the banner from the ORIGINAL uploaded image at full resolution,
+    // using the exact saved transforms. This avoids upscaling a browser-captured
+    // JPEG snapshot and produces a true print-ready file.
+    // =========================================================================
+    if (req.format === 'jpeg' && req.canvasStateJson) {
+      let designState;
+      try {
+        designState = typeof req.canvasStateJson === 'string'
+          ? JSON.parse(req.canvasStateJson)
+          : req.canvasStateJson;
+      } catch (parseErr) {
+        console.warn('[PRINT_RENDER] Failed to parse canvasStateJson:', parseErr.message);
+        designState = null;
+      }
+
+      if (designState && (designState.source === 'google-ads-banner' || (designState.source === 'design-page' && designState.version >= 2))) {
+        console.log('[PRINT_RENDER] ✅ Using TRUE PRINT-RENDER pipeline (design state v' + designState.version + ')');
+        console.log('[PRINT_RENDER] Original image key:', designState.originalImageFileKey);
+        console.log('[PRINT_RENDER] Original image URL:', designState.originalImageUrl ? designState.originalImageUrl.substring(0, 100) : 'none');
+        console.log('[PRINT_RENDER] Banner: ' + designState.widthIn + '×' + designState.heightIn + ' inches');
+        console.log('[PRINT_RENDER] Target print: ' + targetPxW + '×' + targetPxH + ' px @ ' + targetDpi + ' DPI');
+
+        try {
+          // Step 1: Get original image dimensions — prefer Cloudinary API (no download)
+          // then fall back to full download + Sharp metadata.
+          let origW, origH;
+          let originalBuffer = null; // only populated when we can't use Cloudinary pre-resize
+          const hasCloudinaryKey = !!designState.originalImageFileKey;
+
+          if (hasCloudinaryKey) {
+            const dims = await getCloudinaryImageDimensions(designState.originalImageFileKey);
+            if (dims) {
+              origW = dims.width;
+              origH = dims.height;
+              console.log('[PRINT_RENDER] Got dimensions from Cloudinary API: ' + origW + '×' + origH);
+            }
+          }
+
+          // Fallback: download full image for metadata (non-Cloudinary URLs or API failure)
+          if (!origW || !origH) {
+            if (hasCloudinaryKey) {
+              originalBuffer = await fetchImage(designState.originalImageFileKey, true);
+            } else if (designState.originalImageUrl) {
+              const rawUrl = stripCloudinaryTransforms(designState.originalImageUrl);
+              originalBuffer = await fetchImage(rawUrl, false);
+            }
+
+            if (!originalBuffer) {
+              console.error('[PRINT_RENDER] Failed to fetch original image');
+              // Fall through to final_render path below
+            } else {
+              const origMeta = await sharp(originalBuffer).metadata();
+              origW = origMeta.width || 1;
+              origH = origMeta.height || 1;
+              console.log('[PRINT_RENDER] Got dimensions from downloaded image: ' + origW + '×' + origH);
+            }
+          }
+
+          if (!origW || !origH) {
+            console.error('[PRINT_RENDER] No original image dimensions available');
+            // Fall through to final_render path below
+          } else {
+            console.log('[PRINT_RENDER] Original image dimensions: ' + origW + '×' + origH + ' px');
+
+            // Step 2: Resolution check - detect if original is too low-res for print
+            const imgAspect = origW / origH;
+            const bannerAspect = targetPxW / targetPxH;
+
+            let containedW, containedH;
+            if (imgAspect > bannerAspect) {
+              containedW = targetPxW;
+              containedH = Math.round(targetPxW / imgAspect);
+            } else {
+              containedH = targetPxH;
+              containedW = Math.round(targetPxH * imgAspect);
+            }
+
+            const imgScale = designState.imgScale || 1;
+            // PR3: optional per-axis Y scale for freeform resize (defaults to imgScale).
+            const imgScaleY = designState.imgScaleY != null ? designState.imgScaleY : imgScale;
+            const requiredW = Math.round(containedW * imgScale);
+            const requiredH = Math.round(containedH * imgScaleY);
+
+            const qualityRatioW = origW / requiredW;
+            const qualityRatioH = origH / requiredH;
+            const qualityRatio = Math.min(qualityRatioW, qualityRatioH);
+
+            console.log('[PRINT_RENDER] Required coverage: ' + requiredW + '×' + requiredH + ' px');
+            console.log('[PRINT_RENDER] Quality ratio: ' + qualityRatio.toFixed(3) + ' (source/required)');
+
+            const MIN_QUALITY_RATIO = 0.33;
+            if (qualityRatio < MIN_QUALITY_RATIO) {
+              const effectivePrintDpi = Math.round(targetDpi * qualityRatio);
+              console.warn('[PRINT_RENDER] ⚠️ LOW RESOLUTION WARNING - proceeding anyway');
+              console.warn('[PRINT_RENDER] Original: ' + origW + '×' + origH + ' px');
+              console.warn('[PRINT_RENDER] Required for print: ' + requiredW + '×' + requiredH + ' px');
+              console.warn('[PRINT_RENDER] Effective print DPI: ~' + effectivePrintDpi);
+              console.warn('[PRINT_RENDER] Quality ratio: ' + qualityRatio.toFixed(3) + ' (minimum: ' + MIN_QUALITY_RATIO + ')');
+            }
+
+            // Step 3: Create render surface at exact print pixel dimensions
+            console.log('[PRINT_RENDER] Rendering at ' + targetPxW + '×' + targetPxH + ' from original ' + origW + '×' + origH);
+
+            const offsetX = Math.round((targetPxW - containedW) / 2);
+            const offsetY = Math.round((targetPxH - containedH) / 2);
+
+            const imgPos = designState.imgPos || { x: 0, y: 0 };
+            const posXPx = Math.round((imgPos.x / 100) * targetPxW);
+            const posYPx = Math.round((imgPos.y / 100) * targetPxH);
+
+            const centerX = targetPxW / 2;
+            const centerY = targetPxH / 2;
+
+            const drawX = Math.round(centerX + posXPx + imgScale * (offsetX - centerX));
+            const drawY = Math.round(centerY + posYPx + imgScaleY * (offsetY - centerY));
+            const drawW = Math.round(containedW * imgScale);
+            const drawH = Math.round(containedH * imgScaleY);
+
+            console.log("[PRINT_RENDER] === DETAILED DEBUG ===");
+            console.log("[PRINT_RENDER] designState.imgScale:", designState.imgScale);
+            console.log("[PRINT_RENDER] designState.imgScaleY:", designState.imgScaleY);
+            console.log("[PRINT_RENDER] designState.imgPos:", JSON.stringify(designState.imgPos));
+            console.log("[PRINT_RENDER] imgAspect:", imgAspect.toFixed(4));
+            console.log("[PRINT_RENDER] bannerAspect:", bannerAspect.toFixed(4));
+            console.log("[PRINT_RENDER] containedW:", containedW, "containedH:", containedH);
+            console.log("[PRINT_RENDER] offsetX:", offsetX, "offsetY:", offsetY);
+            console.log("[PRINT_RENDER] posXPx:", posXPx, "posYPx:", posYPx);
+            console.log("[PRINT_RENDER] drawX:", drawX, "drawY:", drawY, "drawW:", drawW, "drawH:", drawH);
+            console.log("[PRINT_RENDER] === END DEBUG ===");
+            console.log('[PRINT_RENDER] Draw rect: (' + drawX + ', ' + drawY + ') ' + drawW + '×' + drawH);
+
+            // OPTIMISATION: Use Cloudinary server-side resize when we have a file key.
+            // This avoids downloading the full-res original (which can be 10-50 MB)
+            // and eliminates the expensive Sharp resize step entirely.
+            let resizedOriginal;
+            if (hasCloudinaryKey && !originalBuffer) {
+              // Download image already resized to drawW×drawH from Cloudinary CDN
+              resizedOriginal = await fetchImageResized(designState.originalImageFileKey, drawW, drawH);
+            } else if (originalBuffer) {
+              // Fallback: resize locally (non-Cloudinary source or API unavailable)
+              resizedOriginal = await sharp(originalBuffer)
+                .resize(drawW, drawH, { fit: 'fill' })
+                .toBuffer();
+              originalBuffer = null; // free memory
+            } else {
+              throw new Error('No image source available for resize');
+            }
+
+            // Create background canvas and composite in a single pipeline
+            const bgRgb = parseHexColor(designState.bgColor || '#fafafa');
+
+            // Clip the image to canvas bounds
+            let compositeInput = resizedOriginal;
+            let compLeft = drawX;
+            let compTop = drawY;
+
+            if (drawX < 0 || drawY < 0 || drawX + drawW > targetPxW || drawY + drawH > targetPxH) {
+              const cropLeft = Math.max(0, -drawX);
+              const cropTop = Math.max(0, -drawY);
+              const cropWidth = Math.min(drawW - cropLeft, targetPxW - Math.max(0, drawX));
+              const cropHeight = Math.min(drawH - cropTop, targetPxH - Math.max(0, drawY));
+
+              if (cropWidth > 0 && cropHeight > 0) {
+                compositeInput = await sharp(resizedOriginal)
+                  .extract({
+                    left: cropLeft,
+                    top: cropTop,
+                    width: Math.max(1, Math.floor(cropWidth)),
+                    height: Math.max(1, Math.floor(cropHeight)),
+                  })
+                  .toBuffer();
+                compLeft = Math.max(0, drawX);
+                compTop = Math.max(0, drawY);
+              }
+            }
+            resizedOriginal = null; // free memory
+
+            // Create background + composite + encode in one pass
+            const printJpeg = await sharp({
+              create: {
+                width: targetPxW,
+                height: targetPxH,
+                channels: 3,
+                background: bgRgb,
+              },
+            })
+              .jpeg({ quality: 95 })
+              .toBuffer()
+              .then(bg => sharp(bg)
+                .composite([{ input: compositeInput, top: compTop, left: compLeft }])
+                .withMetadata({ density: targetDpi })
+                .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
+                .toBuffer()
+              );
+            compositeInput = null; // free memory
+
+            console.log('[PRINT_RENDER] Print JPEG generated: ' + printJpeg.length + ' bytes');
+
+            // Upload to Cloudinary (with timeout)
+            const cloudUrl = await uploadToCloudinary(printJpeg, {
+              public_id: 'print-rerender-' + (req.orderId || 'unknown') + '-' + Date.now(),
+            });
+
+            console.log('[PRINT_RENDER] ✅ Uploaded true print-render JPEG:', cloudUrl);
+            return {
+              statusCode: 200,
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                downloadUrl: cloudUrl,
+                rawUrl: cloudUrl,
+                dpi: targetDpi,
+                bleed: bleedIn,
+                format: 'jpeg',
+                source: 'design_state_rerender',
+                printWidth: targetPxW,
+                printHeight: targetPxH,
+                qualityRatio: qualityRatio,
+              }),
+            };
+          }
+        } catch (reRenderErr) {
+          console.error('[PRINT_RENDER] ❌ Design state re-render failed:', reRenderErr.message);
+          console.warn('[PRINT_RENDER] Falling through to final_render path');
+          // Fall through to final_render path below
+        }
+      }
+    }
+
+    // =========================================================================
+    // JPEG FORMAT: EXPORT PIPELINE WITH FULL FALLBACK CHAIN
+    //
+    // Priority order:
+    //   1. Design state re-render (handled by PRIORITY 0 above)
+    //   2. Final render (pre-captured high-res client snapshot)
+    //   3. Thumbnail (canvas snapshot from older orders)
+    //   4. Reconstruction from fileKey/imageUrl (original upload + transforms)
+    //   5. Text/overlay-only (blank canvas with overlays)
+    //
+    // Every order must produce a print file — never fail if any image data exists.
+    // =========================================================================
+    if (req.format === 'jpeg') {
+      // SOURCE 2: Final render — pixel-perfect snapshot captured from the browser
+      // canvas/stage at checkout time. Already contains the exact approved design
+      // (correct scaling, positioning, whitespace, text placement). We just need
+      // to resize to the exact target print dimensions and embed DPI metadata.
+      if (req.finalRenderUrl || req.finalRenderFileKey) {
+        console.log('[JPEG] Using final_render path (pixel-perfect canvas snapshot)');
+        console.log('[JPEG] finalRenderFileKey:', req.finalRenderFileKey || 'none');
+        console.log('[JPEG] finalRenderUrl:', req.finalRenderUrl ? req.finalRenderUrl.substring(0, 100) : 'none');
+
+        let finalRenderBuffer;
+        try {
+          // OPTIMISATION: When we have a Cloudinary fileKey, use server-side resize
+          // to download a pre-resized version. This avoids downloading the full-res
+          // snapshot (which could be many MB) and eliminates the Sharp resize step.
+          if (req.finalRenderFileKey) {
+            try {
+              finalRenderBuffer = await fetchImageResized(req.finalRenderFileKey, targetPxW, targetPxH);
+            } catch (resizeErr) {
+              console.warn('[JPEG] Pre-resized fetch failed, trying full-res:', resizeErr.message);
+              finalRenderBuffer = await fetchImage(req.finalRenderFileKey, true);
+            }
+          } else if (req.finalRenderUrl) {
+            const rawUrl = stripCloudinaryTransforms(req.finalRenderUrl);
+            finalRenderBuffer = await fetchImage(rawUrl, false);
+          }
+        } catch (fetchErr) {
+          console.error('[JPEG] Failed to fetch final_render via primary path:', fetchErr.message);
+          // If fileKey failed but we also have a URL, try the URL as fallback
+          if (req.finalRenderFileKey && req.finalRenderUrl) {
+            try {
+              console.log('[JPEG] Trying finalRenderUrl as fallback...');
+              const rawUrl = stripCloudinaryTransforms(req.finalRenderUrl);
+              finalRenderBuffer = await fetchImage(rawUrl, false);
+            } catch (fallbackErr) {
+              console.error('[JPEG] Fallback URL also failed:', fallbackErr.message);
+              finalRenderBuffer = null;
+            }
+          } else {
+            finalRenderBuffer = null;
+          }
+        }
+
+        if (finalRenderBuffer) {
+          try {
+            const frMeta = await sharp(finalRenderBuffer).metadata();
+            const srcW = frMeta.width || 1;
+            const srcH = frMeta.height || 1;
+            console.log('[JPEG] Final render source:', srcW, '×', srcH, 'px');
+            console.log('[JPEG] Target print size:', targetPxW, '×', targetPxH, 'px @', targetDpi, 'DPI');
+
+            // Validate aspect ratio match (tolerance for rounding differences
+            // between client MAX_MEGAPIXELS cap and server MAX_SAFE_PX cap)
+            const srcAspect = srcW / srcH;
+            const tgtAspect = targetPxW / targetPxH;
+            const aspectDiff = Math.abs(srcAspect - tgtAspect) / tgtAspect;
+
+            if (aspectDiff > 0.02) {
+              console.warn('[JPEG] ⚠️ Minor aspect ratio mismatch: source=' + srcAspect.toFixed(4) +
+                ' target=' + tgtAspect.toFixed(4) + ' diff=' + (aspectDiff * 100).toFixed(1) + '%');
+            }
+
+            // If pre-resized from Cloudinary, dimensions may already match target.
+            // Only resize if needed, saving a full Sharp decode+encode cycle.
+            let jpegBuffer;
+            if (srcW === targetPxW && srcH === targetPxH) {
+              console.log('[JPEG] Dimensions already match target — skipping resize');
+              jpegBuffer = await sharp(finalRenderBuffer)
+                .withMetadata({ density: targetDpi })
+                .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
+                .toBuffer();
+            } else {
+              jpegBuffer = await sharp(finalRenderBuffer)
+                .resize(targetPxW, targetPxH, { fit: 'cover', position: 'center' })
+                .withMetadata({ density: targetDpi })
+                .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
+                .toBuffer();
+            }
+            finalRenderBuffer = null; // free memory
+
+            console.log('[JPEG] Output JPEG generated:', jpegBuffer.length, 'bytes');
+
+            // Upload to Cloudinary (with timeout)
+            const cloudUrl = await uploadToCloudinary(jpegBuffer, {
+              public_id: 'print-' + (req.orderId || 'unknown') + '-' + Date.now(),
+            });
+
+            console.log('[JPEG] ✅ Uploaded print-ready JPEG:', cloudUrl);
+            return {
+              statusCode: 200,
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                downloadUrl: cloudUrl,
+                rawUrl: cloudUrl,
+                dpi: targetDpi,
+                bleed: bleedIn,
+                format: 'jpeg',
+                source: 'final_render_processed',
+                printWidth: targetPxW,
+                printHeight: targetPxH,
+              }),
+            };
+          } catch (processErr) {
+            console.error('[JPEG] ❌ Failed to process final_render:', processErr.message);
+            return {
+              statusCode: 200,
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                error: 'processing_failed',
+                message: 'Print file generation failed during image processing: ' + processErr.message,
+              }),
+            };
+          }
+        }
+
+        // Final render data exists in DB but could not be fetched
+        console.error('[JPEG] ❌ final_render data exists but could not be fetched');
+        return {
+          statusCode: 200,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            error: 'fetch_failed',
+            message: 'The saved print render could not be downloaded from storage. ' +
+              'The file may have been removed or the URL may have expired. ' +
+              'Please ask the customer to re-place the order.',
+          }),
+        };
+      }
+
+      // =====================================================================
+      // JPEG FALLBACK: Use thumbnail for old orders without final_render
+      // The thumbnail IS a snapshot of the canvas - exactly what the user saw.
+      // =====================================================================
+      console.warn('[JPEG] Using THUMBNAIL FALLBACK for old order');
+      
+      if (req.thumbnailUrl && !req.thumbnailUrl.startsWith('blob:')) {
+        const thumbUrl = stripCloudinaryTransforms(req.thumbnailUrl);
+        console.log('[JPEG] Fetching thumbnail:', thumbUrl.substring(0, 80));
+        
+        try {
+          const thumbBuffer = await fetchImage(thumbUrl, false);
+          if (thumbBuffer) {
+            const thumbMeta = await sharp(thumbBuffer).metadata();
+            console.log('[JPEG] Thumbnail size:', thumbMeta.width, 'x', thumbMeta.height);
+            
+            const jpegBuffer = await sharp(thumbBuffer)
+              .resize(targetPxW, targetPxH, { fit: 'cover', position: 'center' })
+              .withMetadata({ density: targetDpi })
+              .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
+              .toBuffer();
+            
+            const cloudUrl = await uploadToCloudinary(jpegBuffer, {
+              public_id: 'print-' + (req.orderId || 'x') + '-' + Date.now(),
+            });
+            
+            console.log('[JPEG] Thumbnail fallback uploaded:', cloudUrl);
+            return {
+              statusCode: 200,
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ downloadUrl: cloudUrl, rawUrl: cloudUrl, dpi: targetDpi, format: 'jpeg', source: 'thumbnail_fallback' }),
+            };
+          }
+        } catch (thumbErr) {
+          console.error('[JPEG] Thumbnail fallback failed:', thumbErr.message);
+        }
+      }
+      
+      // =====================================================================
+      // JPEG FALLBACK: Reconstruct from fileKey/imageUrl (original upload)
+      // This handles orders that have the original uploaded image but lack
+      // design state, final render, and thumbnail data.
+      // =====================================================================
+      if (req.fileKey || req.imageUrl) {
+        console.log('[JPEG] Using RECONSTRUCTION FALLBACK from fileKey/imageUrl');
+        console.log('[JPEG] fileKey:', req.fileKey || 'none');
+        console.log('[JPEG] imageUrl:', req.imageUrl ? req.imageUrl.substring(0, 100) : 'none');
+
+        try {
+          let sourceBuffer;
+          if (req.fileKey) {
+            sourceBuffer = await fetchImage(req.fileKey, true);
+          } else {
+            sourceBuffer = await fetchImage(req.imageUrl, false);
+          }
+
+          if (sourceBuffer) {
+            // Apply rotation if present
+            let workingBuffer = sourceBuffer;
+            if (req.transform?.rotationDeg && req.transform.rotationDeg !== 0) {
+              console.log('[JPEG] Rotating image', req.transform.rotationDeg, '°');
+              workingBuffer = await sharp(sourceBuffer).rotate(req.transform.rotationDeg).toBuffer();
+            }
+
+            const srcMeta = await sharp(workingBuffer).metadata();
+            const srcW = srcMeta.width || 1;
+            const srcH = srcMeta.height || 1;
+            console.log('[JPEG] Source image:', srcW, '×', srcH, 'px');
+
+            // Apply imageScale and imagePosition transforms (mirrors PDF reconstruction logic)
+            const imageScale = req.imageScale ?? 1;
+            const imagePosition = req.imagePosition || { x: 0, y: 0 };
+            console.log('[JPEG] imageScale:', imageScale, 'imagePosition:', JSON.stringify(imagePosition));
+
+            const containerW = Math.round(targetPxW * imageScale);
+            const containerH = Math.round(targetPxH * imageScale);
+
+            const imgAspect = srcW / srcH;
+            const containerAspect = containerW / containerH;
+
+            let scaledImageW, scaledImageH;
+            if (imgAspect > containerAspect) {
+              scaledImageH = containerH;
+              scaledImageW = Math.round(containerH * imgAspect);
+            } else {
+              scaledImageW = containerW;
+              scaledImageH = Math.round(containerW / imgAspect);
+            }
+
+            const containerOffsetX = (targetPxW - containerW) / 2;
+            const containerOffsetY = (targetPxH - containerH) / 2;
+            const imageInContainerOffsetX = (containerW - scaledImageW) / 2;
+            const imageInContainerOffsetY = (containerH - scaledImageH) / 2;
+
+            const positionOffsetX = imagePosition.x * 0.01 * targetDpi;
+            const positionOffsetY = imagePosition.y * 0.01 * targetDpi;
+
+            const translateX = Math.round(containerOffsetX + imageInContainerOffsetX + positionOffsetX);
+            const translateY = Math.round(containerOffsetY + imageInContainerOffsetY + positionOffsetY);
+
+            console.log('[JPEG] Scaled image:', scaledImageW, '×', scaledImageH, 'at (', translateX, ',', translateY, ')');
+
+            // Upscale source if needed then resize
+            const upscaledBuffer = await maybeUpscaleToFit(workingBuffer, scaledImageW, scaledImageH);
+            const resizedBuffer = await sharp(upscaledBuffer)
+              .resize(scaledImageW, scaledImageH, { kernel: 'cubic', fit: 'cover' })
+              .toBuffer();
+
+            // Create background canvas
+            const canvasBgRgb = parseHexColor(req.canvasBackgroundColor || '#FFFFFF');
+            const backgroundCanvas = await sharp({
+              create: { width: targetPxW, height: targetPxH, channels: 3, background: canvasBgRgb },
+            }).jpeg({ quality: 95 }).toBuffer();
+
+            // Clip image to canvas bounds
+            const resizedMeta = await sharp(resizedBuffer).metadata();
+            const resizedW = resizedMeta.width || scaledImageW;
+            const resizedH = resizedMeta.height || scaledImageH;
+            let compositeInput = resizedBuffer;
+            let compLeft = translateX;
+            let compTop = translateY;
+
+            if (translateX < 0 || translateY < 0 || translateX + resizedW > targetPxW || translateY + resizedH > targetPxH) {
+              const cropLeft = Math.max(0, -translateX);
+              const cropTop = Math.max(0, -translateY);
+              const cropWidth = Math.min(resizedW - cropLeft, targetPxW - Math.max(0, translateX));
+              const cropHeight = Math.min(resizedH - cropTop, targetPxH - Math.max(0, translateY));
+              if (cropWidth > 0 && cropHeight > 0) {
+                compositeInput = await sharp(resizedBuffer).extract({
+                  left: cropLeft, top: cropTop,
+                  width: Math.max(1, Math.floor(cropWidth)),
+                  height: Math.max(1, Math.floor(cropHeight)),
+                }).toBuffer();
+                compLeft = Math.max(0, translateX);
+                compTop = Math.max(0, translateY);
+              }
+            }
+
+            // Build composite layers
+            const compositeLayers = [{ input: compositeInput, top: compTop, left: compLeft }];
+
+            // Add overlay image if present
+            if (req.overlayImage && (req.overlayImage.url || req.overlayImage.fileKey)) {
+              try {
+                const overlayLayer = await buildOverlayCompositeLayer(req.overlayImage, req.bannerWidthIn, req.bannerHeightIn, targetPxW, targetPxH, targetDpi, bleedIn);
+                if (overlayLayer) compositeLayers.push(overlayLayer);
+                console.log('[JPEG] Overlay added to reconstruction');
+              } catch (overlayErr) {
+                console.error('[JPEG] Overlay processing failed in reconstruction:', overlayErr.message);
+              }
+            }
+
+            // Composite and generate JPEG
+            const jpegBuffer = await sharp(backgroundCanvas)
+              .composite(compositeLayers)
+              .withMetadata({ density: targetDpi })
+              .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
+              .toBuffer();
+
+            console.log('[JPEG] Reconstruction JPEG generated:', jpegBuffer.length, 'bytes');
+
+            // Upload to Cloudinary (with timeout)
+            const cloudUrl = await uploadToCloudinary(jpegBuffer, {
+              public_id: 'print-recon-' + (req.orderId || 'unknown') + '-' + Date.now(),
+            });
+
+            console.log('[JPEG] ✅ Reconstruction JPEG uploaded:', cloudUrl);
+            return {
+              statusCode: 200,
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                downloadUrl: cloudUrl,
+                rawUrl: cloudUrl,
+                dpi: targetDpi,
+                bleed: bleedIn,
+                format: 'jpeg',
+                source: 'reconstruction_fallback',
+                printWidth: targetPxW,
+                printHeight: targetPxH,
+              }),
+            };
+          }
+        } catch (reconErr) {
+          console.error('[JPEG] Reconstruction fallback failed:', reconErr.message);
+        }
+      }
+
+      // Text-only / overlay-only designs: generate from blank canvas
+      if (hasTextOrOverlay && !req.fileKey && !req.imageUrl) {
+        console.log('[JPEG] Using TEXT/OVERLAY-ONLY fallback (no background image)');
+        try {
+          const canvasBgRgb = parseHexColor(req.canvasBackgroundColor || '#FFFFFF');
+          const backgroundCanvas = await sharp({
+            create: { width: targetPxW, height: targetPxH, channels: 3, background: canvasBgRgb },
+          }).jpeg({ quality: 95 }).toBuffer();
+
+          const compositeLayers = [];
+
+          // Add overlay image(s) onto blank canvas
+          if (req.overlayImage && (req.overlayImage.url || req.overlayImage.fileKey)) {
+            try {
+              const overlayLayer = await buildOverlayCompositeLayer(req.overlayImage, req.bannerWidthIn, req.bannerHeightIn, targetPxW, targetPxH, targetDpi, bleedIn);
+              if (overlayLayer) compositeLayers.push(overlayLayer);
+              console.log('[JPEG] Overlay added to text/overlay-only canvas');
+            } catch (overlayErr) {
+              console.error('[JPEG] Overlay processing failed:', overlayErr.message);
+            }
+          }
+
+          // Generate JPEG (even with no composite layers, we produce the background canvas)
+          const jpegBuffer = compositeLayers.length > 0
+            ? await sharp(backgroundCanvas).composite(compositeLayers).withMetadata({ density: targetDpi }).jpeg({ quality: 92, chromaSubsampling: '4:4:4' }).toBuffer()
+            : await sharp(backgroundCanvas).withMetadata({ density: targetDpi }).jpeg({ quality: 92, chromaSubsampling: '4:4:4' }).toBuffer();
+
+          const cloudUrl = await uploadToCloudinary(jpegBuffer, {
+            public_id: 'print-textonly-' + (req.orderId || 'unknown') + '-' + Date.now(),
+          });
+
+          console.log('[JPEG] ✅ Text/overlay-only JPEG uploaded:', cloudUrl);
+          return {
+            statusCode: 200,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              downloadUrl: cloudUrl,
+              rawUrl: cloudUrl,
+              dpi: targetDpi,
+              bleed: bleedIn,
+              format: 'jpeg',
+              source: 'text_overlay_only',
+              printWidth: targetPxW,
+              printHeight: targetPxH,
+            }),
+          };
+        } catch (textOnlyErr) {
+          console.error('[JPEG] Text/overlay-only fallback failed:', textOnlyErr.message);
+        }
+      }
+
+      console.error('[JPEG] All fallback paths exhausted - no valid print source');
+      return {
+        statusCode: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: 'no_print_source', message: 'Cannot generate print file - no design state, final render, thumbnail, or original image available for this order.' }),
+      };
+    }
+
+    // =========================================================================
+    // PDF FORMAT: Below this line, only PDF format is handled.
+    // PDF retains fallback paths for backward compatibility with older orders.
+    // =========================================================================
+
+    // PRIORITY 1 (PDF): Use final_render if available
+    if (req.finalRenderUrl || req.finalRenderFileKey) {
+      console.log('[PDF] ✅ Using FINAL_RENDER path (pixel-perfect canvas snapshot)');
+      console.log('[PDF] finalRenderFileKey:', req.finalRenderFileKey || 'none');
+      console.log('[PDF] finalRenderUrl:', req.finalRenderUrl ? req.finalRenderUrl.substring(0, 100) : 'none');
+      console.log('[PDF] finalRenderDpi:', req.finalRenderDpi || 'unknown');
+      console.log('[PDF] finalRenderSize:', req.finalRenderWidthPx, '×', req.finalRenderHeightPx, 'px');
+
+      try {
+        let finalRenderBuffer;
+        if (req.finalRenderFileKey) {
+          finalRenderBuffer = await fetchImage(req.finalRenderFileKey, true);
+        } else {
+          const rawUrl = stripCloudinaryTransforms(req.finalRenderUrl);
+          finalRenderBuffer = await fetchImage(rawUrl, false);
+        }
+
+        // Verify the fetched image dimensions
+        const frMeta = await sharp(finalRenderBuffer).metadata();
+        console.log('[PDF] Final render actual dimensions:', frMeta.width, '×', frMeta.height, 'px');
+
+        // PDF format: resize and wrap in PDF
+        const pdfImgBuffer = await sharp(finalRenderBuffer)
+          .resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground })
+          .jpeg({ quality: 65, chromaSubsampling: '4:2:0' })
+          .toBuffer();
+        let finalPdfBuffer = await rasterToPdfBuffer(pdfImgBuffer, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn);
+        console.log(`[PDF] PDF generated from final_render: ${finalPdfBuffer.length} bytes`);
+        if (finalPdfBuffer.toString('base64').length > 5 * 1024 * 1024) {
+          console.warn('[PDF] Base64 too large, re-encoding at quality 40');
+          const smallerImg = await sharp(finalRenderBuffer)
+            .resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground })
+            .jpeg({ quality: 40, chromaSubsampling: '4:2:0' })
+            .toBuffer();
+          finalPdfBuffer = await rasterToPdfBuffer(smallerImg, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn);
+        }
+        return await respondWithPdf(finalPdfBuffer, req.orderId, req.itemId, { dpi: targetDpi, bleed: bleedIn, source: 'final_render' });
+      } catch (frError) {
+        console.error('[PDF] ❌ Final render path failed:', frError.message);
+        console.warn('[PDF] Falling back to thumbnail/reconstruction path for PDF');
+      }
+    } else {
+      console.log('[PDF] ⚠️ No final_render data available');
+      console.warn('[PDF] Using fallback path (thumbnail/reconstruction) for PDF');
+    }
+
+    // PRIORITY 2 (PDF only): Use thumbnail if available
+    let sourceBuffer;
+    if (req.thumbnailUrl && !req.thumbnailUrl.startsWith('blob:')) {
+      const printThumbUrl = stripCloudinaryTransforms(req.thumbnailUrl);
+      console.log('[PDF] Using THUMBNAIL for print (original res):', printThumbUrl);
+
+      sourceBuffer = await fetchImage(printThumbUrl, false);
+
+      if (!sourceBuffer) {
+        console.error('[PDF] Failed to fetch thumbnail image');
+        // Fall through to fileKey/imageUrl reconstruction path
+      } else {
+        // PDF OUTPUT: Use thumbnail for PDF
+        console.log('[PDF] Using thumbnail for PDF export');
+        let thumbPdfBuffer = await sharp(sourceBuffer)
+        .resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground })
+        .jpeg({ quality: 65, chromaSubsampling: "4:2:0" })
+        .toBuffer()
+        .then(imgBuf => rasterToPdfBuffer(imgBuf, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn));
+
+      console.log(`[PDF] PDF generated from thumbnail: ${thumbPdfBuffer.length} bytes`);
+      // Safety: if base64 > 5MB, re-encode at lower quality
+      if (thumbPdfBuffer.toString('base64').length > 5 * 1024 * 1024) {
+        console.warn('[PDF] Base64 too large, re-encoding at quality 40');
+        const smallerImg = await sharp(sourceBuffer).resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground }).jpeg({ quality: 40, chromaSubsampling: "4:2:0" }).toBuffer();
+        thumbPdfBuffer = await rasterToPdfBuffer(smallerImg, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn);
+      }
+      return await respondWithPdf(thumbPdfBuffer, req.orderId, req.itemId, { dpi: targetDpi, bleed: bleedIn, source: 'thumbnail' });
+      }
+    }
+    
+    if (req.fileKey) {
+      console.log('[PDF] Using fileKey:', req.fileKey);
+      sourceBuffer = await fetchImage(req.fileKey, true);
+    } else if (req.imageUrl) {
+      console.log('[PDF] Using imageUrl:', req.imageUrl);
+      sourceBuffer = await fetchImage(req.imageUrl, false);
+    } else {
+      // Text-only design: create a white (or colored) background canvas
+      const bgColor = req.canvasBackgroundColor || '#FFFFFF';
+      console.log('[PDF] Creating blank canvas with background color:', bgColor);
+      
+      // Parse hex color to RGB
+      const hexToRgb = (hex) => {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16)
+        } : { r: 255, g: 255, b: 255 };
+      };
+      const rgb = hexToRgb(bgColor);
+      
+      sourceBuffer = await sharp({
+        create: {
+          width: targetPxW,
+          height: targetPxH,
+          channels: 3,
+          background: rgb,
+        },
+      }).jpeg({ quality: 90 }).toBuffer();
+      
+      console.log('[PDF] Created blank canvas:', targetPxW, 'x', targetPxH);
+    }
+    
+    // Flag to track if this is a text-only design (no background image)
+    const isTextOnlyDesign = !req.fileKey && !req.imageUrl;
+    
+    let rotatedBuffer = sourceBuffer;
+    if (req.transform?.rotationDeg && req.transform.rotationDeg !== 0) {
+      console.log(`[PDF] Rotating image ${req.transform.rotationDeg}°`);
+      rotatedBuffer = await sharp(sourceBuffer)
+        .rotate(req.transform.rotationDeg)
+        .toBuffer();
+    }
+
+    const rotatedMeta = await sharp(rotatedBuffer).metadata();
+    const srcW = rotatedMeta.width || 1;
+    const srcH = rotatedMeta.height || 1;
+
+    const previewW = Math.max(1, req.previewCanvasPx?.width || targetPxW);
+    const previewH = Math.max(1, req.previewCanvasPx?.height || targetPxH);
+    const pxScale = targetPxW / previewW;
+
+    console.log(`[PDF] Preview canvas: ${previewW}×${previewH}px, scale factor: ${pxScale.toFixed(2)}`);
+    
+    // Use imageScale and imagePosition from customer banner designer
+    const imageScale = req.imageScale ?? 1;
+    const imagePosition = req.imagePosition || { x: 0, y: 0 };
+    
+    console.log(`[PDF] Customer design: imageScale=${imageScale}, imagePosition=${JSON.stringify(imagePosition)}`);
+
+    // CRITICAL FIX: Match PreviewCanvas.tsx - use container-based scaling
+    // imageScale=1 fills canvas, imageScale=0.5 = 50% of canvas
+    const containerW = Math.round(targetPxW * imageScale);
+    const containerH = Math.round(targetPxH * imageScale);
+    
+    // Use cover behavior within the container
+    const imgAspect = srcW / srcH;
+    const containerAspect = containerW / containerH;
+    
+    let scaledImageW, scaledImageH;
+    
+    if (imgAspect > containerAspect) {
+      scaledImageH = containerH;
+      scaledImageW = Math.round(containerH * imgAspect);
+    } else {
+      scaledImageW = containerW;
+      scaledImageH = Math.round(containerW / imgAspect);
+    }
+    
+    // Center container in canvas, then center image in container
+    const containerOffsetX = (targetPxW - containerW) / 2;
+    const containerOffsetY = (targetPxH - containerH) / 2;
+    const imageInContainerOffsetX = (containerW - scaledImageW) / 2;
+    const imageInContainerOffsetY = (containerH - scaledImageH) / 2;
+    
+    // imagePosition is in units that get multiplied by 0.01 to get inches
+    // Convert from inches to pixels by multiplying by DPI
+    const positionOffsetX = imagePosition.x * 0.01 * targetDpi;
+    const positionOffsetY = imagePosition.y * 0.01 * targetDpi;
+    
+    const translateX = Math.round(containerOffsetX + imageInContainerOffsetX + positionOffsetX);
+    const translateY = Math.round(containerOffsetY + imageInContainerOffsetY + positionOffsetY);
+    
+    console.log('[PDF] ======= POSITIONING CALCULATION =======');    console.log('[PDF] targetPxW:', targetPxW, 'targetPxH:', targetPxH);    console.log('[PDF] targetDpi:', targetDpi);    console.log('[PDF] imageScale (applied):', imageScale);    console.log('[PDF] imagePosition (applied):', JSON.stringify(imagePosition));    console.log('[PDF] containerOffsetX:', containerOffsetX, 'containerOffsetY:', containerOffsetY);    console.log('[PDF] positionOffsetX:', positionOffsetX, 'positionOffsetY:', positionOffsetY);    console.log('[PDF] ========================================');
+    console.log(`[PDF] Container: ${containerW}x${containerH}px, Image: ${scaledImageW}x${scaledImageH}px at (${translateX}, ${translateY})`);
+    const upscaledBuffer = await maybeUpscaleToFit(rotatedBuffer, scaledImageW, scaledImageH);
+    // Free intermediate buffers to reduce peak memory (keep sourceBuffer for text-only designs)
+    if (!isTextOnlyDesign) sourceBuffer = null;
+    rotatedBuffer = null;
+
+    const resizedBuffer = await sharp(upscaledBuffer)
+      .resize(scaledImageW, scaledImageH, {
+        kernel: 'cubic', // Faster than lanczos3
+        // Use 'cover' (not 'contain') because scaledImageW/H are already computed
+        // from the source image's aspect ratio (cover logic above). The image will
+        // be composited onto a background canvas, so padding is handled there.
+        fit: 'cover',
+      })
+      .toBuffer();
+
+    // For text-only designs, use the already-created colored canvas; otherwise create canvas with background color
+    // Parse background color for non-text-only designs
+    const bgColor = req.canvasBackgroundColor || '#FFFFFF';
+    const hexToRgbCanvas = (hex) => {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+      } : { r: 255, g: 255, b: 255 };
+    };
+    const canvasBgRgb = hexToRgbCanvas(bgColor);
+    console.log('[PDF] Canvas background color:', bgColor, '-> RGB:', canvasBgRgb);
+    
+    const backgroundCanvas = isTextOnlyDesign ? sourceBuffer : await sharp({
+      create: {
+        width: targetPxW,
+        height: targetPxH,
+        channels: 3,
+        background: canvasBgRgb,
+      },
+    })
+      .jpeg({ quality: 90 })
+      .toBuffer();
+
+    // Get actual dimensions of resized image
+    const resizedMeta = await sharp(resizedBuffer).metadata();
+    const resizedW = resizedMeta.width || scaledImageW;
+    const resizedH = resizedMeta.height || scaledImageH;
+    
+    console.log(`[PDF] Canvas: ${targetPxW}×${targetPxH}px, Image: ${resizedW}×${resizedH}px, Position: (${translateX}, ${translateY})`);
+    
+    // Ensure the image fits within canvas bounds
+    // If image extends beyond canvas, we need to extract/crop it
+    let compositeInput = resizedBuffer;
+    let compositeTop = translateY;
+    let compositeLeft = translateX;
+    
+    // Check if we need to crop the image to fit within canvas
+    const needsCrop = (
+      translateX < 0 || 
+      translateY < 0 || 
+      translateX + resizedW > targetPxW || 
+      translateY + resizedH > targetPxH
+    );
+    
+    if (needsCrop) {
+      console.log('[PDF] Image extends beyond canvas, cropping to fit');
+      
+      // Calculate crop region
+      const cropLeft = Math.max(0, -translateX);
+      const cropTop = Math.max(0, -translateY);
+      const cropWidth = Math.min(resizedW - cropLeft, targetPxW - Math.max(0, translateX));
+      const cropHeight = Math.min(resizedH - cropTop, targetPxH - Math.max(0, translateY));
+      
+      console.log(`[PDF] Crop region: ${cropWidth}×${cropHeight}px from (${cropLeft}, ${cropTop})`);
+      
+      compositeInput = await sharp(resizedBuffer)
+        .extract({
+          left: cropLeft,
+          top: cropTop,
+          width: Math.max(1, Math.floor(cropWidth)),
+          height: Math.max(1, Math.floor(cropHeight))
+        })
+        .toBuffer();
+      
+      compositeTop = Math.max(0, translateY);
+      compositeLeft = Math.max(0, translateX);
+    }
+
+    // Build composite layers array - background first, then overlay if exists
+    // For text-only designs, we already have the correct canvas, no need to composite the "image"
+    const compositeLayers = isTextOnlyDesign ? [] : [
+      {
+        input: compositeInput,
+        top: compositeTop,
+        left: compositeLeft,
+      },
+    ];
+
+    // Add overlay image if provided
+    console.log('[PDF] ========== OVERLAY IMAGE DEBUG ==========');
+    console.log('[PDF] req.overlayImage exists:', !!req.overlayImage);
+    console.log('[PDF] req.overlayImage full object:', JSON.stringify(req.overlayImage, null, 2));
+    
+    if (req.overlayImage) {
+      console.log('[PDF] Overlay image data received:');
+      console.log('[PDF]   - name:', req.overlayImage.name);
+      console.log('[PDF]   - url:', req.overlayImage.url);
+      console.log('[PDF]   - fileKey:', req.overlayImage.fileKey);
+      console.log('[PDF]   - position:', req.overlayImage.position);
+      console.log('[PDF]   - scale:', req.overlayImage.scale);
+      console.log('[PDF]   - aspectRatio:', req.overlayImage.aspectRatio);
+      
+      // Check if we have either url or fileKey
+      if (!req.overlayImage.url && !req.overlayImage.fileKey) {
+        console.error('[PDF] ERROR: Overlay image has neither url nor fileKey!');
+      } else {
+        console.log('[PDF] ✅ Overlay image has valid source, proceeding with rendering...');
+      }
+    } else {
+      console.log('[PDF] ℹ️ No overlay image in request');
+    }
+    console.log('[PDF] ==========================================');
+    
+    // Skip overlay rendering if overlay URL matches main image URL (Canva imports)
+    // For Canva imports, the main image IS the full design - no need to render overlay on top
+    const overlayMatchesMainImage = req.overlayImage && req.imageUrl &&
+      (req.overlayImage.url === req.imageUrl ||
+       (req.overlayImage.url && req.imageUrl && req.overlayImage.url.includes('cloudinary') && req.imageUrl.includes('cloudinary') &&
+        req.overlayImage.url.split('/')[req.overlayImage.url.split('/').length - 1] === req.imageUrl.split('/')[req.imageUrl.split('/').length - 1]));
+
+    if (overlayMatchesMainImage) {
+      console.log('[PDF] ⏭️ Skipping overlay - URL matches main image (Canva import)');
+      console.log('[PDF]   Main image URL:', req.imageUrl);
+      console.log('[PDF]   Overlay URL:', req.overlayImage.url);
+    } else if (req.overlayImage && (req.overlayImage.url || req.overlayImage.fileKey)) {
+      console.log('[PDF] Processing overlay image:', req.overlayImage.name);
+      console.log('[PDF] Overlay position:', req.overlayImage.position);
+      console.log('[PDF] Overlay scale:', req.overlayImage.scale);
+      console.log('[PDF] Overlay URL:', req.overlayImage.url);
+      console.log('[PDF] Overlay fileKey:', req.overlayImage.fileKey);
+      console.log('[PDF] Overlay URL:', req.overlayImage.url);
+      console.log('[PDF] Overlay fileKey:', req.overlayImage.fileKey);
+      
+      try {
+        // Fetch overlay image from Cloudinary
+        const overlayBuffer = req.overlayImage.fileKey
+          ? await fetchImage(req.overlayImage.fileKey, true)
+          : await fetchImage(req.overlayImage.url, false);
+        
+        console.log('[PDF] Overlay image fetched successfully');
+        
+        // Get overlay image metadata AFTER applying EXIF rotation
+        const overlayMeta = await sharp(overlayBuffer).rotate().metadata();
+        const overlaySourceW = overlayMeta.width || 1;
+        const overlaySourceH = overlayMeta.height || 1;
+        
+        console.log('[PDF] Overlay source dimensions:', overlaySourceW, 'x', overlaySourceH);
+        
+        // Calculate overlay dimensions and position
+        // overlayImage.scale is relative to banner dimensions (e.g., 0.3 = 30% of banner width)
+        // overlayImage.position is percentage-based (0-100) relative to banner area
+        
+        // Get aspect ratio from overlay metadata or stored value
+        const overlayAspectRatio = req.overlayImage.aspectRatio || (overlaySourceW / overlaySourceH);
+        console.log('[PDF] Overlay aspect ratio:', overlayAspectRatio);
+        
+        // Calculate overlay dimensions matching BannerEditorLayout.tsx logic:
+        // - defaultWidthInches = 4
+        // - widthInches = defaultWidthInches * scale (e.g., 4 * 6 = 24 inches)
+        // - heightInches = widthInches / aspectRatio
+        const defaultWidthInches = 4;
+        const overlayWidthIn = defaultWidthInches * req.overlayImage.scale;
+        const overlayHeightIn = overlayWidthIn / overlayAspectRatio;
+        
+        console.log('[PDF] Overlay size in inches:', overlayWidthIn, 'x', overlayHeightIn);
+        
+        // Convert to pixels at target DPI
+        let overlayWidthPx = Math.round(overlayWidthIn * targetDpi);
+        let overlayHeightPx = Math.round(overlayHeightIn * targetDpi);
+        
+        // Safety limit: cap overlay to banner size to prevent memory issues
+        const maxWidthPx = req.bannerWidthIn * targetDpi * 1.5;
+        const maxHeightPx = req.bannerHeightIn * targetDpi * 1.5;
+        if (overlayWidthPx > maxWidthPx || overlayHeightPx > maxHeightPx) {
+          const scaleFactor = Math.min(maxWidthPx / overlayWidthPx, maxHeightPx / overlayHeightPx);
+          overlayWidthPx = Math.round(overlayWidthPx * scaleFactor);
+          overlayHeightPx = Math.round(overlayHeightPx * scaleFactor);
+          console.log('[PDF] Overlay capped to prevent memory issues:', overlayWidthPx, 'x', overlayHeightPx);
+        }
+        
+        console.log('[PDF] Overlay target dimensions:', overlayWidthPx, 'x', overlayHeightPx, 'px');
+        
+        // Position is percentage-based (0-100) and represents the TOP-LEFT corner of the overlay
+        // (This matches BannerEditorLayout.tsx which saves: xPercent = (obj.x / widthIn) * 100)
+        const bannerAreaWidthPx = req.bannerWidthIn * targetDpi;
+        const bannerAreaHeightPx = req.bannerHeightIn * targetDpi;
+        const bleedPx = bleedIn * targetDpi;
+        
+        // Calculate top-left position of overlay within banner area
+        const overlayTopLeftX = (req.overlayImage.position.x / 100) * bannerAreaWidthPx;
+        const overlayTopLeftY = (req.overlayImage.position.y / 100) * bannerAreaHeightPx;
+        
+        // Add bleed offset to get final position on canvas
+        const overlayLeft = Math.round(bleedPx + overlayTopLeftX);
+        const overlayTop = Math.round(bleedPx + overlayTopLeftY);
+        
+        console.log('[PDF] Overlay position on canvas:', overlayLeft, ',', overlayTop);
+        
+        // Resize overlay to target dimensions while maintaining aspect ratio
+        // CRITICAL: .rotate() with no args auto-rotates based on EXIF orientation
+        let overlayResized = await sharp(overlayBuffer)
+          .rotate() // Auto-rotate based on EXIF orientation data
+          .resize(overlayWidthPx, overlayHeightPx, {
+            fit: 'contain', // Maintain aspect ratio
+            background: { r: 0, g: 0, b: 0, alpha: 0 } // Transparent background
+          })
+          .toBuffer();
+        
+        console.log('[PDF] Overlay resized successfully');
+        
+        // CRITICAL: Clip overlay to canvas bounds
+        let finalLeft = overlayLeft, finalTop = overlayTop;
+        let cropLeft = 0, cropTop = 0, cropWidth = overlayWidthPx, cropHeight = overlayHeightPx;
+        if (finalLeft < 0) { cropLeft = -finalLeft; cropWidth -= cropLeft; finalLeft = 0; }
+        if (finalTop < 0) { cropTop = -finalTop; cropHeight -= cropTop; finalTop = 0; }
+        if (finalLeft + cropWidth > targetPxW) cropWidth = targetPxW - finalLeft;
+        if (finalTop + cropHeight > targetPxH) cropHeight = targetPxH - finalTop;
+        if (cropWidth > 0 && cropHeight > 0) {
+          if (cropLeft || cropTop || cropWidth !== overlayWidthPx || cropHeight !== overlayHeightPx) {
+            console.log('[PDF] Cropping overlay to', cropLeft, cropTop, cropWidth, cropHeight);
+            overlayResized = await sharp(overlayResized).extract({left:cropLeft,top:cropTop,width:cropWidth,height:cropHeight}).toBuffer();
+          }
+          compositeLayers.push({input: overlayResized, top: finalTop, left: finalLeft});
+        } else console.log('[PDF] Overlay outside canvas');
+        
+        console.log('[PDF] ✅ Overlay added to composite layers');
+        console.log('[PDF] Total composite layers:', compositeLayers.length);
+        console.log('[PDF] Overlay layer details:', {
+          top: overlayTop,
+          left: overlayLeft,
+          width: overlayWidthPx,
+          height: overlayHeightPx
+        });
+      } catch (overlayError) {
+        console.error('[PDF] Error processing overlay image:', overlayError);
+        console.error('[PDF] Continuing without overlay...');
+        // Continue without overlay - don't fail the entire PDF generation
+      }
+    }
+
+    // Process multiple overlay images (overlayImages array)
+    if (req.overlayImages && Array.isArray(req.overlayImages) && req.overlayImages.length > 0) {
+      console.log('[PDF] Processing multiple overlay images:', req.overlayImages.length);
+      
+      for (let i = 0; i < req.overlayImages.length; i++) {
+        const overlay = req.overlayImages[i];
+        console.log('[PDF] Processing overlay image', i + 1, ':', overlay.name);
+        
+        if (!overlay.url && !overlay.fileKey) {
+          console.warn('[PDF] Skipping overlay', i + 1, '- no url or fileKey');
+          continue;
+        }
+        
+        try {
+          // Fetch overlay image from Cloudinary
+          const overlayBuffer = overlay.fileKey
+            ? await fetchImage(overlay.fileKey, true)
+            : await fetchImage(overlay.url, false);
+          
+          // Get overlay image metadata AFTER applying EXIF rotation
+          const overlayMeta = await sharp(overlayBuffer).rotate().metadata();
+          const overlaySourceW = overlayMeta.width || 1;
+          const overlaySourceH = overlayMeta.height || 1;
+          
+          // Calculate overlay dimensions matching BannerEditorLayout.tsx logic:
+          // - defaultWidthInches = 4
+          // - widthInches = defaultWidthInches * scale (e.g., 4 * 6 = 24 inches)
+          // - heightInches = widthInches / aspectRatio
+          const overlayAspectRatio = overlay.aspectRatio || (overlaySourceW / overlaySourceH);
+          const defaultWidthInches = 4;
+          const overlayWidthIn = defaultWidthInches * overlay.scale;
+          const overlayHeightIn = overlayWidthIn / overlayAspectRatio;
+          
+          // Convert to pixels at target DPI
+          let overlayWidthPx = Math.round(overlayWidthIn * targetDpi);
+          let overlayHeightPx = Math.round(overlayHeightIn * targetDpi);
+          
+          // Safety limit: cap overlay to banner size to prevent memory issues
+          const maxWidthPx = req.bannerWidthIn * targetDpi * 1.5;
+          const maxHeightPx = req.bannerHeightIn * targetDpi * 1.5;
+          if (overlayWidthPx > maxWidthPx || overlayHeightPx > maxHeightPx) {
+            const scaleFactor = Math.min(maxWidthPx / overlayWidthPx, maxHeightPx / overlayHeightPx);
+            overlayWidthPx = Math.round(overlayWidthPx * scaleFactor);
+            overlayHeightPx = Math.round(overlayHeightPx * scaleFactor);
+            console.log('[PDF] Overlay', i + 1, 'capped:', overlayWidthPx, 'x', overlayHeightPx);
+          }
+          
+          // Position is percentage-based (0-100) and represents the TOP-LEFT corner
+          // (Matches BannerEditorLayout.tsx: xPercent = (obj.x / widthIn) * 100)
+          const bannerAreaWidthPx = req.bannerWidthIn * targetDpi;
+          const bannerAreaHeightPx = req.bannerHeightIn * targetDpi;
+          const bleedPx = bleedIn * targetDpi;
+          
+          const overlayTopLeftX = (overlay.position.x / 100) * bannerAreaWidthPx;
+          const overlayTopLeftY = (overlay.position.y / 100) * bannerAreaHeightPx;
+          
+          const overlayLeft = Math.round(bleedPx + overlayTopLeftX);
+          const overlayTop = Math.round(bleedPx + overlayTopLeftY);
+          
+          // Resize overlay to target dimensions
+          // CRITICAL: .rotate() with no args auto-rotates based on EXIF orientation
+          let overlayResized = await sharp(overlayBuffer)
+            .rotate() // Auto-rotate based on EXIF orientation data
+            .resize(overlayWidthPx, overlayHeightPx, {
+              fit: 'contain',
+              background: { r: 0, g: 0, b: 0, alpha: 0 }
+            })
+            .toBuffer();
+          
+          // CRITICAL: Clip overlay to canvas bounds
+          let finalLeft = overlayLeft, finalTop = overlayTop;
+          let cropLeft = 0, cropTop = 0, cropWidth = overlayWidthPx, cropHeight = overlayHeightPx;
+          if (finalLeft < 0) { cropLeft = -finalLeft; cropWidth -= cropLeft; finalLeft = 0; }
+          if (finalTop < 0) { cropTop = -finalTop; cropHeight -= cropTop; finalTop = 0; }
+          if (finalLeft + cropWidth > targetPxW) cropWidth = targetPxW - finalLeft;
+          if (finalTop + cropHeight > targetPxH) cropHeight = targetPxH - finalTop;
+          if (cropWidth > 0 && cropHeight > 0) {
+            if (cropLeft || cropTop || cropWidth !== overlayWidthPx || cropHeight !== overlayHeightPx) {
+              console.log('[PDF] Cropping overlay to', cropLeft, cropTop, cropWidth, cropHeight);
+              overlayResized = await sharp(overlayResized).extract({left:cropLeft,top:cropTop,width:cropWidth,height:cropHeight}).toBuffer();
+            }
+            compositeLayers.push({input: overlayResized, top: finalTop, left: finalLeft});
+          } else console.log('[PDF] Overlay outside canvas');
+          
+          console.log('[PDF] ✅ Overlay', i + 1, 'added at', overlayLeft, ',', overlayTop);
+        } catch (overlayError) {
+          console.error('[PDF] Error processing overlay image', i + 1, ':', overlayError);
+          // Continue with other overlays
+        }
+      }
+    }
+
+    // NOTE: JPEG format is FULLY handled above (design_state_rerender or final_render_processed).
+    // JPEG requests never reach this point — only PDF format continues below.
+
+    const merged = await sharp(backgroundCanvas)
+      .composite(compositeLayers)
+      .jpeg({ quality: 65, chromaSubsampling: '4:2:0', progressive: true }) // JPEG compression to reduce PDF size below 6MB limit
+      .toBuffer();
+
+    console.log('[PDF] Image composited onto canvas (with overlay if provided)');
+    const pdfBuffer = await rasterToPdfBuffer(merged, finalWidthIn, finalHeightIn, req.textElements, req.bannerWidthIn, req.bannerHeightIn, req.previewCanvasPx, bleedIn);
+    console.log(`[PDF] PDF generated: ${pdfBuffer.length} bytes`);
+
+    let finalPdfBuffer = pdfBuffer;
+    console.log('[PDF] Base64 length:', finalPdfBuffer.toString('base64').length, 'chars (binary:', finalPdfBuffer.length, 'bytes)');
+    // Safety: if base64 > 5MB, re-encode at lower quality
+    if (finalPdfBuffer.toString('base64').length > 5 * 1024 * 1024) {
+      console.warn('[PDF] Base64 too large, re-encoding at quality 40');
+      const smallerImg = await sharp(backgroundCanvas).composite(compositeLayers).jpeg({ quality: 40, chromaSubsampling: "4:2:0" }).toBuffer();
+      finalPdfBuffer = await rasterToPdfBuffer(smallerImg, finalWidthIn, finalHeightIn, req.textElements, req.bannerWidthIn, req.bannerHeightIn, req.previewCanvasPx, bleedIn);
+    }
+    console.log('[PDF] === PDF render complete ===');
+
+    return await respondWithPdf(finalPdfBuffer, req.orderId, req.itemId, { dpi: targetDpi, bleed: bleedIn, source: 'reconstruction' });
+  } catch (error) {
+    console.error('[PDF] Error:', error);
+    return {
+      statusCode: 500,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        error: 'PDF generation failed',
+        message: error.message || String(error),
+      }),
+    };
+  }
+};
+

@@ -2,7 +2,7 @@ const { describe, expect, it } = require('vitest');
 
 describe('password-only admin sign-in', () => {
   it('requires a password without accepting an email from the client', async () => {
-    const { handler } = require('../admin-sign-in.cjs');
+    const { handler } = require('../_shared/legacy/admin-sign-in.cjs');
     const response = await handler({ httpMethod: 'POST', headers: {}, body: '{}' }, {});
     expect(response.statusCode).toBe(400);
     expect(JSON.parse(response.body).error).toBe('Password is required');
@@ -11,7 +11,7 @@ describe('password-only admin sign-in', () => {
   it('issues a signed admin session only for the server-side admin password', async () => {
     const previousSecret = process.env.AUTH_SESSION_SECRET;
     process.env.AUTH_SESSION_SECRET = 'test-session-secret';
-    const { handler } = require('../admin-sign-in.cjs');
+    const { handler } = require('../_shared/legacy/admin-sign-in.cjs');
     const rejected = await handler({ httpMethod: 'POST', headers: {}, body: JSON.stringify({ password: 'wrong' }) }, {});
     expect(rejected.statusCode).toBe(401);
     const accepted = await handler({ httpMethod: 'POST', headers: {}, body: JSON.stringify({ password: 'admin' }) }, {});
