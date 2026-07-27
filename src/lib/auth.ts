@@ -31,8 +31,9 @@ class SecureAuthAdapter implements AuthAdapter {
           const parsedId = typeof parsed?.id === 'string' ? parsed.id.trim() : '';
           const parsedEmail = typeof parsed?.email === 'string' ? parsed.email.trim() : '';
 
-          if (!parsedId || !parsedEmail) {
-            console.warn('Malformed stored user missing id/email; clearing banners_current_user');
+          const parsedIsAdmin = parsed?.is_admin === true;
+          if (!parsedId || (!parsedEmail && !parsedIsAdmin)) {
+            console.warn('Malformed stored user missing required identity fields; clearing banners_current_user');
             safeStorage.removeItem(this.CURRENT_USER_KEY);
           } else {
             user = {
@@ -40,7 +41,7 @@ class SecureAuthAdapter implements AuthAdapter {
               email: parsedEmail.toLowerCase(),
               full_name: typeof parsed?.full_name === 'string' ? parsed.full_name : undefined,
               username: typeof parsed?.username === 'string' ? parsed.username : undefined,
-              is_admin: parsed?.is_admin === true,
+              is_admin: parsedIsAdmin,
             };
           }
         } catch (parseError) {

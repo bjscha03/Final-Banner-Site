@@ -1,6 +1,6 @@
 'use strict';
 
-const signIn = require('./sign-in.cjs');
+const crypto = require('crypto');
 const { createSessionToken } = require('./_shared/server-auth.cjs');
 
 const headers = {
@@ -17,13 +17,13 @@ exports.handler = async (event, context) => {
     return { statusCode: 405, headers, body: JSON.stringify({ ok: false, error: 'Method not allowed' }) };
   }
 
-  const configuredEmail = String(process.env.ADMIN_EMAIL || '').trim().toLowerCase();
-  if (!configuredEmail) {
-    console.error('[admin-sign-in] ADMIN_EMAIL is not configured');
+  const configuredPassword = String(process.env.ADMIN_PASSWORD || '');
+  if (!configuredPassword) {
+    console.error('[admin-sign-in] ADMIN_PASSWORD is not configured');
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ ok: false, error: 'Admin login is not configured. Set ADMIN_EMAIL on the server.' }),
+      body: JSON.stringify({ ok: false, error: 'Admin login is not configured. Set ADMIN_PASSWORD on the server.' }),
     };
   }
 
@@ -37,18 +37,16 @@ exports.handler = async (event, context) => {
     return { statusCode: 400, headers, body: JSON.stringify({ ok: false, error: 'Password is required' }) };
   }
 
-  const response = await signIn.handler({
-    ...event,
-    body: JSON.stringify({ email: configuredEmail, password }),
-  }, context);
-  if (response.statusCode < 200 || response.statusCode >= 300) return { ...response, headers: { ...headers, ...(response.headers || {}) } };
-
-  const payload = JSON.parse(response.body || '{}');
-  if (!payload.ok || !payload.user || String(payload.user.email || '').toLowerCase() !== configuredEmail) {
+  const submitted = Buffer.from(password);
+  const expected = Buffer.from(configuredPassword);
+  const passwordMatches = submitted.length === expected.length && crypto.timingSafeEqual(submitted, expected);
+  if (!passwordMatches) {
     return { statusCode: 401, headers, body: JSON.stringify({ ok: false, error: 'Invalid admin password' }) };
   }
 
-  const adminUser = { ...payload.user, is_admin: true };
+  // This server-issued identity is only a UI/session subject. Every protected
+  // endpoint still verifies the signed HMAC token and its admin claim.
+  const adminUser = { id: 'server-admin', email: '', is_admin: true };
   return {
     statusCode: 200,
     headers,
