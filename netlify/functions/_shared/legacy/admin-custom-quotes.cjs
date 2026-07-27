@@ -1,5 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
-const { requireAdmin } = require('./_shared/server-auth.cjs');
+const { requireAdmin } = require('../server-auth.cjs');
 const VALID_STATUSES = ['New', 'Reviewing', 'Quoted', 'Approved', 'Declined', 'Closed'];
 
 function getDbUrl() {
