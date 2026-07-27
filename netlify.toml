@@ -8,9 +8,12 @@
 
 [functions]
   directory = "netlify/functions"
-  node_bundler = "nft"
+  # Bundle function imports (including dependencies required by the shared CJS
+  # handlers) into each function artifact. Keeping Neon external caused the
+  # deployed wrappers to require a package that was not present in /var/task.
+  node_bundler = "esbuild"
   included_files = ["src/lib/**", "src/emails/**"]
-  external_node_modules = ["@neondatabase/serverless", "resend", "@react-email/components", "@react-email/render", "aws-sdk", "uuid", "cloudinary", "sharp", "pdfkit", "openai", "google-auth-library", "stripe"]
+  external_node_modules = ["resend", "@react-email/components", "@react-email/render", "aws-sdk", "uuid", "cloudinary", "sharp", "pdfkit", "openai", "google-auth-library", "stripe"]
 
 # Function-specific configuration
 [functions."upload-file"]
