@@ -1,17 +1,6 @@
 const { neon } = require('@neondatabase/serverless');
+const { requireAdmin } = require('../server-auth.cjs');
 const VALID_STATUSES = ['New', 'Reviewing', 'Quoted', 'Approved', 'Declined', 'Closed'];
-
-function isEmailInAdminAllowlist(email) {
-  if (!email) return false;
-  const raw = process.env.ADMIN_TEST_PAY_ALLOWLIST;
-  if (!raw) return false;
-  return raw.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean).includes(String(email).toLowerCase());
-}
-
-function isAuthorized(event, email) {
-  const cookie = event.headers?.cookie || event.headers?.Cookie || '';
-  return cookie.includes('admin=1') || isEmailInAdminAllowlist(email);
-}
 
 function getDbUrl() {
   return process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL || process.env.NEON_DATABASE_URL;
@@ -67,7 +56,7 @@ function toApiQuote(row) {
     created_at: row.created_at,
   };
 }
-function headers(){return {'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Content-Type','Access-Control-Allow-Methods':'GET,POST,OPTIONS','Content-Type':'application/json'};}
+function headers(){return {'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Content-Type, Authorization','Access-Control-Allow-Methods':'GET,POST,OPTIONS','Content-Type':'application/json'};}
 function send(statusCode, body){return {statusCode, headers:headers(), body:JSON.stringify(body)};}
 
 async function ensureDatabaseObjects(sql) {
@@ -102,6 +91,8 @@ async function ensureDatabaseObjects(sql) {
 }
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: headers(), body: '' };
+  const auth = requireAdmin(event);
+  if (!auth.ok) return { ...auth.response, headers: { ...headers(), ...auth.response.headers } };
   const dbUrl = getDbUrl();
   if (!dbUrl) return send(500, { ok:false, error:'Database not configured' });
   const sql = neon(dbUrl);
@@ -111,8 +102,6 @@ exports.handler = async (event) => {
     await ensureDatabaseObjects(sql);
     if (event.httpMethod === 'GET') {
       const params = new URLSearchParams(event.rawQuery || '');
-      const adminEmail = params.get('email') || '';
-      if (!isAuthorized(event, adminEmail)) return send(403, { ok:false, error:'Admin authorization required' });
       const id = params.get('id');
       if (id) {
         const detailRows = await sql`SELECT * FROM custom_quote_requests WHERE id = ${id} OR quote_number = ${id} LIMIT 1`;
@@ -128,7 +117,6 @@ exports.handler = async (event) => {
     }
     if (event.httpMethod === 'POST') {
       const body = JSON.parse(event.body || '{}');
-      if (!isAuthorized(event, body.email || '')) return send(403, { ok:false, error:'Admin authorization required' });
       if (!body.id) return send(400, { ok:false, error:'id is required' });
       if (body.status && !VALID_STATUSES.includes(body.status)) return send(400, { ok:false, error:'Invalid status' });
       const rows = await sql`UPDATE custom_quote_requests SET status = COALESCE(${body.status || null}, status), internal_notes = COALESCE(${body.internalNotes ?? null}, internal_notes), updated_at = NOW() WHERE id = ${body.id} RETURNING *`;

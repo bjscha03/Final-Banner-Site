@@ -39,7 +39,7 @@ import { Star, ShoppingCart } from 'lucide-react';
 import OrderDetails from '@/components/orders/OrderDetails';
 import { getDisplayOrderTotalCents } from '@/lib/order-totals';
 import { estimateOrderProfit } from '@/lib/admin-profit-estimate';
-import { authorizedHeaders } from '@/lib/serverAuth';
+import { adminFetch } from '@/lib/serverAuth';
 import { getOriginalArtworkSelection } from '@/lib/artworkFiles';
 import { getFinalizedThumbnailUrl } from '@/lib/order-thumbnail';
 import GrommetOverlay from '@/components/preview/GrommetOverlay';
@@ -281,12 +281,12 @@ const AdminOrders: React.FC = () => {
       customQuotesResult,
     ] = await Promise.allSettled([
       loadAllOrdersForOverview(),
-      fetch('/.netlify/functions/get-abandoned-carts').then(async (response) => {
+      adminFetch('/.netlify/functions/get-abandoned-carts').then(async (response) => {
         if (!response.ok) throw new Error('Failed to fetch abandoned carts');
         return response.json();
       }),
       adminEmail
-        ? fetch(`/.netlify/functions/admin-custom-quotes?status=New&email=${encodeURIComponent(adminEmail)}`).then(async (response) => {
+        ? adminFetch(`/.netlify/functions/admin-custom-quotes?status=New&email=${encodeURIComponent(adminEmail)}`).then(async (response) => {
             const data = await response.json();
             if (!response.ok || !data?.ok) throw new Error(data?.error || 'Failed to fetch custom quotes');
             return data;
@@ -466,7 +466,7 @@ const AdminOrders: React.FC = () => {
       const downloadUrl = `/.netlify/functions/download-file?key=${encodeURIComponent(fileKey)}&order=${orderId}`;
 
       // Fetch the file content
-      const response = await fetch(downloadUrl, { headers: authorizedHeaders() });
+      const response = await adminFetch(downloadUrl);
 
       if (!response.ok) {
         throw new Error(`Download failed: ${response.statusText}`);
@@ -615,9 +615,9 @@ const AdminOrders: React.FC = () => {
           }
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 150000); // 150s client timeout
-          response = await fetch('/.netlify/functions/download-print-pdf', {
+          response = await adminFetch('/.netlify/functions/download-print-pdf', {
             method: 'POST',
-            headers: authorizedHeaders({ 'Content-Type': 'application/json' }),
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestBody),
             signal: controller.signal,
           });
@@ -743,11 +743,9 @@ const AdminOrders: React.FC = () => {
 
   const handleSendShippingNotification = async (orderId: string) => {
     try {
-      const response = await fetch('/.netlify/functions/resend-tracking-email', {
+      const response = await adminFetch('/.netlify/functions/resend-tracking-email', {
         method: 'POST',
-        headers: authorizedHeaders({
-          'Content-Type': 'application/json',
-        }),
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderId }),
       });
 
@@ -787,11 +785,9 @@ const AdminOrders: React.FC = () => {
 
   const handleMarkInProduction = async (orderId: string) => {
     try {
-      const response = await fetch('/.netlify/functions/mark-in-production', {
+      const response = await adminFetch('/.netlify/functions/mark-in-production', {
         method: 'POST',
-        headers: authorizedHeaders({
-          'Content-Type': 'application/json',
-        }),
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderId }),
       });
 
@@ -852,9 +848,8 @@ const AdminOrders: React.FC = () => {
       const targetItemId = orders.find((candidate) => candidate.id === orderId)?.items?.[itemIndex]?.id;
       if (targetItemId) formData.append('itemId', targetItemId);
 
-      const response = await fetch('/.netlify/functions/upload-final-print-pdf', {
+      const response = await adminFetch('/.netlify/functions/upload-final-print-pdf', {
         method: 'POST',
-        headers: authorizedHeaders(),
         body: formData,
       });
 
