@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 
-const { _test } = require('../download-print-pdf.cjs');
+const { _test } = require('../_shared/legacy/download-print-pdf.cjs');
 
 assert.equal(
   _test.isUsableApprovedSnapshotUrl('https://cdn.example.com/proof.jpg'),
