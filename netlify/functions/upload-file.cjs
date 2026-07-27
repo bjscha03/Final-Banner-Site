@@ -1,7 +1,8 @@
 const Busboy = require('busboy');
 const { v2: cloudinary } = require('cloudinary');
+const crypto = require('crypto');
 
-const MAX_BYTES = 200 * 1024 * 1024;
+const MAX_BYTES = 50 * 1024 * 1024;
 const ALLOWED = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
 
 cloudinary.config({
@@ -116,6 +117,8 @@ exports.handler = async (event) => {
               public_id: res.public_id,
               secure_url: res.secure_url,
               resource_type: res.resource_type,
+              asset_id: res.asset_id || null,
+              version: res.version || null,
               uploadTime: Date.now() - uploadStartTime + 'ms'
             });
             resolve({
@@ -126,6 +129,8 @@ exports.handler = async (event) => {
               height: res.height || null,
               format: res.format || filename.split('.').pop()?.toLowerCase(),
               resource_type: res.resource_type,
+              asset_id: res.asset_id || null,
+              version: res.version || null,
             });
           }
         }
@@ -134,6 +139,24 @@ exports.handler = async (event) => {
     });
 
     const previewUrl = isPdf ? buildPdfPreviewUrl(result.secure_url) : result.secure_url;
+    const uploadedAt = new Date().toISOString();
+    const sha256 = crypto.createHash('sha256').update(data).digest('hex');
+    const artworkManifest = {
+      originalUrl: result.secure_url,
+      publicId: result.public_id,
+      assetId: result.asset_id,
+      version: result.version,
+      resourceType: result.resource_type,
+      format: result.format,
+      mimeType,
+      originalFilename: filename,
+      bytes: result.bytes,
+      width: result.width,
+      height: result.height,
+      sha256,
+      uploadStatus: 'uploaded',
+      uploadedAt,
+    };
 
     console.log('Upload function completed successfully', {
       previewUrlPresent: Boolean(previewUrl),
@@ -156,6 +179,11 @@ exports.handler = async (event) => {
         resource_type: result.resource_type,
         mimeType,
         originalPreserved: true,
+        assetId: result.asset_id,
+        version: result.version,
+        sha256,
+        uploadedAt,
+        artworkManifest,
       }),
     };
   } catch (e) {

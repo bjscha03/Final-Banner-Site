@@ -3,6 +3,7 @@ import { AlertTriangle, Loader2, RefreshCw, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import type { Order } from '@/lib/orders/types';
+import { authorizedHeaders } from '@/lib/serverAuth';
 
 // Statuses that indicate the customer did NOT receive the email.
 // 'error'      -> Resend rejected the request (e.g. suppressed recipient)
@@ -90,7 +91,7 @@ const EmailDeliveryStatus: React.FC<EmailDeliveryStatusProps> = ({ order, onUpda
     try {
       const response = await fetch(row.endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authorizedHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(row.retryBody ?? { orderId: order.id }),
       });
       // Read once as text so we can fall back gracefully when the server

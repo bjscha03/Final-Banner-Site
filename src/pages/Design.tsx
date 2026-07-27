@@ -67,6 +67,7 @@ import {
 import { logUx } from '@/lib/uxAnalytics';
 import { formatOptionValue, getDisplayPlacement } from '@/lib/product-display';
 import { useAuth, isAdmin } from '@/lib/auth';
+import type { ArtworkManifest } from '@/types/artwork';
 
 type UploadedArtworkFile = {
   name: string;
@@ -85,6 +86,7 @@ type UploadedArtworkFile = {
   originalWidth?: number | null;
   originalHeight?: number | null;
   pdfPageNumber?: number;
+  artworkManifest?: ArtworkManifest;
 };
 
 const PRESET_SIZES = [
@@ -1156,6 +1158,7 @@ const Design: React.FC = () => {
         originalWidth: data.width ?? dimensions?.width ?? null,
         originalHeight: data.height ?? dimensions?.height ?? null,
         pdfPageNumber: isPdf ? 1 : undefined,
+        artworkManifest: data.artworkManifest,
       });
       logArtworkStage('original_upload_succeeded', { publicIdPresent: Boolean(productionPublicId), productionResourceType: data.resource_type || data.resourceType || resourceType });
       logArtworkStage('editor_state_saved');
@@ -1347,6 +1350,12 @@ const Design: React.FC = () => {
         });
         if (positioned?.url) {
           cartStore.updateItemWebPreview(itemId, positioned.url);
+          cartStore.updatePlacementPreviewStatus(itemId, {
+            url: positioned.url,
+            publicId: positioned.fileKey,
+            uploadStatus: 'uploaded',
+            uploadedAt: new Date().toISOString(),
+          });
           console.info('[DESIGN_CHECKOUT] web_preview_uploaded', {
             itemId,
             widthPx: positioned.widthPx,
@@ -1356,6 +1365,10 @@ const Design: React.FC = () => {
         }
       } catch (err) {
         console.warn('[DESIGN] Background web preview upload failed (non-blocking):', err);
+        cartStore.updatePlacementPreviewStatus(itemId, {
+          uploadStatus: 'failed',
+          error: err instanceof Error ? err.message : 'Placement preview upload failed',
+        });
       } finally {
         highResPdfPreview?.cleanup();
       }
@@ -1671,9 +1684,102 @@ const Design: React.FC = () => {
 
     // DESIGN STATE: Save for server-side print re-rendering
     const container = previewContainerRef.current;
+    const sourceWidth = uploadedFile.originalWidth || 1;
+    const sourceHeight = uploadedFile.originalHeight || 1;
+    const containScaleIn = Math.min(widthIn / sourceWidth, heightIn / sourceHeight);
+    const placedWidthIn = sourceWidth * containScaleIn * checkoutData.scale;
+    const placedHeightIn = sourceHeight * containScaleIn * (checkoutData.scaleY ?? checkoutData.scale);
+    const placedXIn = (widthIn - placedWidthIn) / 2 + (checkoutData.pos.x / 100) * widthIn;
+    const placedYIn = (heightIn - placedHeightIn) / 2 + (checkoutData.pos.y / 100) * heightIn;
+    const originalUrl = uploadedFile.productionUrl || uploadedFile.url;
+    const originalPublicId = uploadedFile.productionPublicId || uploadedFile.fileKey;
+    const productionObjects: any[] = [{
+      id: 'customer-artwork',
+      type: 'image',
+      zIndex: 0,
+      visible: true,
+      xIn: placedXIn,
+      yIn: placedYIn,
+      widthIn: placedWidthIn,
+      heightIn: placedHeightIn,
+      rotation: 0,
+      opacity: 1,
+      clip: { xIn: 0, yIn: 0, widthIn, heightIn },
+      source: {
+        originalUrl,
+        publicId: originalPublicId,
+        resourceType: uploadedFile.resourceType || 'image',
+        format: uploadedFile.originalFormat,
+        mimeType: uploadedFile.mimeType,
+        originalWidth: uploadedFile.originalWidth,
+        originalHeight: uploadedFile.originalHeight,
+        pdfPageNumber: uploadedFile.pdfPageNumber || 1,
+        isVector: uploadedFile.isPdf,
+      },
+    }];
+    const productionQuote = useQuoteStore.getState();
+    (productionQuote.textElements || []).forEach((text, index) => productionObjects.push({
+      id: text.id || `text-${index}`,
+      type: 'text',
+      zIndex: 10 + index,
+      visible: true,
+      xIn: (text.xPercent / 100) * widthIn,
+      yIn: (text.yPercent / 100) * heightIn,
+      widthIn: widthIn,
+      heightIn: Math.max(Number(text.fontSize || 24) / 72, 0.1),
+      rotation: 0,
+      opacity: 1,
+      text: {
+        content: text.content,
+        fontSize: Math.max(Number(text.fontSize || 24) / 72, 0.1),
+        fontFamily: text.fontFamily,
+        color: text.color,
+        fontWeight: text.fontWeight,
+        textAlign: text.textAlign,
+      },
+    }));
+    const productionOverlays = productionQuote.overlayImages?.length
+      ? productionQuote.overlayImages
+      : (productionQuote.overlayImage ? [productionQuote.overlayImage] : []);
+    productionOverlays.forEach((overlay, index) => {
+      const overlayWidthIn = widthIn * (overlay.scale || 0.3);
+      const overlayHeightIn = overlayWidthIn / (overlay.aspectRatio || 1);
+      productionObjects.push({
+        id: `overlay-${index}`,
+        type: 'image',
+        zIndex: 100 + index,
+        visible: true,
+        xIn: (overlay.position.x / 100) * widthIn - overlayWidthIn / 2,
+        yIn: (overlay.position.y / 100) * heightIn - overlayHeightIn / 2,
+        widthIn: overlayWidthIn,
+        heightIn: overlayHeightIn,
+        rotation: 0,
+        opacity: 1,
+        clip: { xIn: 0, yIn: 0, widthIn, heightIn },
+        source: { originalUrl: overlay.url, publicId: overlay.fileKey, resourceType: 'image' },
+      });
+    });
+
     const canvasStateJson = JSON.stringify({
       source: 'design-page',
-      version: 2,
+      sceneVersion: 2,
+      widthIn,
+      heightIn,
+      backgroundColor: '#fafafa',
+      objects: productionObjects,
+      artworkManifest: uploadedFile.artworkManifest,
+      placement: {
+        fitMode: 'fit',
+        xIn: placedXIn,
+        yIn: placedYIn,
+        widthIn: placedWidthIn,
+        heightIn: placedHeightIn,
+        rotation: 0,
+        clip: { xIn: 0, yIn: 0, widthIn, heightIn },
+        pdfPageNumber: uploadedFile.pdfPageNumber || 1,
+      },
+      // Legacy fields remain readable by existing order tooling.
+      version: 3,
       originalImageUrl: uploadedFile.productionUrl || uploadedFile.url,
       originalImageFileKey: uploadedFile.productionPublicId || uploadedFile.fileKey,
       isPdf: uploadedFile.isPdf,
@@ -1752,6 +1858,8 @@ const Design: React.FC = () => {
               originalWidth: uploadedFile.originalWidth,
               originalHeight: uploadedFile.originalHeight,
               pdfPageNumber: uploadedFile.pdfPageNumber, type: uploadedFile.isPdf ? 'application/pdf' : 'image/*' } as any,
+      artworkManifest: uploadedFile.artworkManifest,
+      placementPreview: { uploadStatus: 'pending' },
       finalRenderUrl: finalRenderResult?.url || null,
       finalRenderFileKey: finalRenderResult?.fileKey || null,
       finalRenderWidthPx: finalRenderResult?.widthPx || null,

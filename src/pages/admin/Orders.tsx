@@ -39,6 +39,8 @@ import { Star, ShoppingCart } from 'lucide-react';
 import OrderDetails from '@/components/orders/OrderDetails';
 import { getDisplayOrderTotalCents } from '@/lib/order-totals';
 import { estimateOrderProfit } from '@/lib/admin-profit-estimate';
+import { authorizedHeaders } from '@/lib/serverAuth';
+import { getOriginalArtworkSelection } from '@/lib/artworkFiles';
 import { getFinalizedThumbnailUrl } from '@/lib/order-thumbnail';
 import GrommetOverlay from '@/components/preview/GrommetOverlay';
 import { getGrommetLabel } from '@/lib/grommets';
@@ -464,7 +466,7 @@ const AdminOrders: React.FC = () => {
       const downloadUrl = `/.netlify/functions/download-file?key=${encodeURIComponent(fileKey)}&order=${orderId}`;
 
       // Fetch the file content
-      const response = await fetch(downloadUrl);
+      const response = await fetch(downloadUrl, { headers: authorizedHeaders() });
 
       if (!response.ok) {
         throw new Error(`Download failed: ${response.statusText}`);
@@ -615,7 +617,7 @@ const AdminOrders: React.FC = () => {
           const timeoutId = setTimeout(() => controller.abort(), 150000); // 150s client timeout
           response = await fetch('/.netlify/functions/download-print-pdf', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: authorizedHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(requestBody),
             signal: controller.signal,
           });
@@ -743,9 +745,9 @@ const AdminOrders: React.FC = () => {
     try {
       const response = await fetch('/.netlify/functions/resend-tracking-email', {
         method: 'POST',
-        headers: {
+        headers: authorizedHeaders({
           'Content-Type': 'application/json',
-        },
+        }),
         body: JSON.stringify({ orderId }),
       });
 
@@ -787,9 +789,9 @@ const AdminOrders: React.FC = () => {
     try {
       const response = await fetch('/.netlify/functions/mark-in-production', {
         method: 'POST',
-        headers: {
+        headers: authorizedHeaders({
           'Content-Type': 'application/json',
-        },
+        }),
         body: JSON.stringify({ orderId }),
       });
 
@@ -847,9 +849,12 @@ const AdminOrders: React.FC = () => {
       formData.append('file', file);
       formData.append('orderId', orderId);
       formData.append('itemIndex', itemIndex.toString());
+      const targetItemId = orders.find((candidate) => candidate.id === orderId)?.items?.[itemIndex]?.id;
+      if (targetItemId) formData.append('itemId', targetItemId);
 
       const response = await fetch('/.netlify/functions/upload-final-print-pdf', {
         method: 'POST',
+        headers: authorizedHeaders(),
         body: formData,
       });
 
@@ -1288,41 +1293,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   const orderItems = getSafeOrderItems(order);
   // Helper function to get the best download URL for an item (AI or uploaded)
   const getBestDownloadUrl = (item) => {
-    // For AI-generated items, prioritize print_ready_url for high-quality downloads
-    if (item.print_ready_url) {
-      return { url: item.print_ready_url, type: 'print_ready', isAI: true };
-    }
-    
-    // Fallback to web_preview_url if available
-    if (item.web_preview_url) {
-      return { url: item.web_preview_url, type: 'web_preview', isAI: true };
-    }
-    
-    // CRITICAL: overlay_image.fileKey contains the ORIGINAL uploaded file (no grommets)
-    // file_key is the THUMBNAIL (has grommets baked in) - use overlay_image.fileKey first!
-    const overlayImageFileKey = item.overlay_image?.fileKey;
-    const overlayImagesFileKey = item.overlay_images?.[0]?.fileKey;
-    
-    // Prioritize clean original image over thumbnail with grommets
-    if (overlayImageFileKey) {
-      return { url: overlayImageFileKey, type: 'overlay_image', isAI: false };
-    }
-    
-    if (overlayImagesFileKey) {
-      return { url: overlayImagesFileKey, type: 'overlay_images', isAI: false };
-    }
-    
-    // Permanent original upload URL is the user's untouched artwork; prefer it before legacy file_key.
-    if (item.file_url) {
-      return { url: item.file_url, type: 'file_url', isAI: false };
-    }
-
-    // Last resort: file_key (may have grommets baked in for older orders)
-    if (item.file_key) {
-      return { url: item.file_key, type: 'file_key', isAI: false };
-    }
-    
-    return null;
+    return getOriginalArtworkSelection(item);
   };
 
   // Helper function to get download label based on item type

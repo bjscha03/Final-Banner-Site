@@ -1,6 +1,7 @@
 const { neon } = require('@neondatabase/serverless');
 const { normalizeTrackingEntries } = require('./tracking-helpers.cjs');
 const { normalizeShippingAddress } = require('./shipping-address-helpers.cjs');
+const { getSession, unauthorized } = require('./_shared/server-auth.cjs');
 
 // Module-scoped cache: auto-migrations only need to run once per cold start.
 // Running ~50 ALTER TABLE statements on every request was risking the
@@ -10,7 +11,7 @@ let _migrationsRan = false;
 exports.handler = async (event, context) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
     'Content-Type': 'application/json'
   };
@@ -18,6 +19,8 @@ exports.handler = async (event, context) => {
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' };
   }
+  const session = getSession(event);
+  if (!session) return unauthorized();
 
   if (event.httpMethod !== 'GET') {
     return {
@@ -63,6 +66,12 @@ exports.handler = async (event, context) => {
       `overlay_images JSONB`,
       `canvas_background_color VARCHAR(20) DEFAULT '#FFFFFF'`,
       `file_url TEXT`,
+      `file_name VARCHAR(255)`,
+      `artwork_manifest JSONB`,
+      `placement_preview JSONB`,
+      `original_filename TEXT`,
+      `production_pdf_status TEXT DEFAULT 'pending'`,
+      `production_pdf_error TEXT`,
       `print_ready_url TEXT`,
       `web_preview_url TEXT`,
       `text_elements JSONB DEFAULT '[]'::jsonb`,
@@ -87,6 +96,7 @@ exports.handler = async (event, context) => {
       `final_print_pdf_uploaded_at TIMESTAMP WITH TIME ZONE`,
       `generated_print_pdf_url TEXT`,
       `generated_print_pdf_uploaded_at TIMESTAMP WITH TIME ZONE`,
+      `generated_print_pdf_metadata JSONB`,
       `product_type TEXT DEFAULT 'banner'`,
       `yard_sign_sidedness TEXT`,
       `yard_sign_step_stakes_enabled BOOLEAN DEFAULT false`,
@@ -224,6 +234,9 @@ exports.handler = async (event, context) => {
     }
 
     const order = orderResult[0];
+    if (!session.admin && session.sub !== order.user_id) {
+      return unauthorized('Order ownership could not be verified');
+    }
 
     // Get order items - same bulletproof approach.
     // Pairs: [columnName, optionalAlias, optionalSqlExpr]
@@ -246,7 +259,13 @@ exports.handler = async (event, context) => {
       ['pole_pocket_cost_cents'],
       ['line_total_cents'],
       ['file_key'],
+      ['file_name'],
       ['file_url'],
+      ['artwork_manifest'],
+      ['placement_preview'],
+      ['original_filename'],
+      ['production_pdf_status'],
+      ['production_pdf_error'],
       ['print_ready_url'],
       ['web_preview_url'],
       ['text_elements'],
@@ -272,6 +291,7 @@ exports.handler = async (event, context) => {
       ['final_print_pdf_uploaded_at'],
       ['generated_print_pdf_url'],
       ['generated_print_pdf_uploaded_at'],
+      ['generated_print_pdf_metadata'],
       ['product_type', 'product_type', `COALESCE(product_type, 'banner')`],
       ['yard_sign_sidedness'],
       ['yard_sign_step_stakes_enabled'],

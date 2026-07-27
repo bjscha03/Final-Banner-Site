@@ -8,6 +8,7 @@ import { cartSync } from '@/lib/cartSync';
 import { trackAddToCart, trackFBAddToCart } from '@/lib/analytics';
 import { getProductConfig } from '@/lib/products';
 import type { ProductTypeSlug } from '@/lib/products';
+import type { ArtworkManifest, PlacementPreviewManifest } from '@/types/artwork';
 import { calculateBannerPricing } from '@/lib/bannerPricingEngine';
 import {
   computeSameDayFeesCents,
@@ -116,6 +117,8 @@ export interface CartItem {
   final_render_height_px?: number;     // Height in pixels
   final_render_dpi?: number;           // DPI used for capture (typically 300, may be clamped for large banners)
   canvas_state_json?: string;          // Exact stage/canvas JSON at submission for re-rendering
+  artwork_manifest?: ArtworkManifest;
+  placement_preview?: PlacementPreviewManifest;
 
   // Yard Sign metadata (only for product_type === 'yard_sign')
   yard_sign_sidedness?: 'single' | 'double';     // Print sidedness
@@ -224,6 +227,7 @@ export interface CartState {
   updateCartItem: (itemId: string, quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => void;
   updateItemThumbnail: (itemId: string, thumbnailUrl: string) => void;
   updateItemWebPreview: (itemId: string, webPreviewUrl: string) => void;
+  updatePlacementPreviewStatus: (itemId: string, preview: PlacementPreviewManifest) => void;
   removeItem: (id: string) => void;
   clearCart: () => void;
   clearCartLocal: () => void;  // Clear cart in memory only, without syncing to server
@@ -564,6 +568,8 @@ export const useCartStore = create<CartState>()(
           final_render_height_px: (quote as any).finalRenderHeightPx || undefined,
           final_render_dpi: (quote as any).finalRenderDpi || undefined,
           canvas_state_json: (quote as any).canvasStateJson || undefined,
+          artwork_manifest: (quote as any).artworkManifest || undefined,
+          placement_preview: (quote as any).placementPreview || undefined,
           // Yard Sign metadata (populated when product_type is 'yard_sign')
           ...((quote as any).product_type === 'yard_sign' && (quote as any).yard_sign_metadata ? {
             yard_sign_sidedness: (quote as any).yard_sign_metadata.sidedness,
@@ -1048,6 +1054,10 @@ export const useCartStore = create<CartState>()(
           get().syncToServer();
         }, 0);
       },
+      updatePlacementPreviewStatus: (itemId: string, preview: PlacementPreviewManifest) => {
+        set((state) => ({ items: state.items.map((item) => item.id === itemId ? { ...item, placement_preview: preview } : item) }));
+        void get().syncToServer();
+      },
       
       clearCart: () => {
         set({ items: [], discountCode: null, sameDayHitService: false, saturdayDelivery: false });
@@ -1356,7 +1366,21 @@ export const useCartStore = create<CartState>()(
           // CRITICAL FIX: Persist items to localStorage as a cache
           // This prevents items from being lost during page navigation (e.g., Canva flow)
           // Server is still the source of truth - loadFromServer() will update/merge
-          items: state.items,
+          items: state.items.map((item) => ({
+            ...item,
+            thumbnail_url: item.thumbnail_url?.startsWith('data:') || item.thumbnail_url?.startsWith('blob:')
+              ? undefined
+              : item.thumbnail_url,
+            canvas_state_json: item.canvas_state_json
+              ? (() => {
+                  try {
+                    const scene = JSON.parse(item.canvas_state_json);
+                    if (scene.previewUrl?.startsWith('blob:') || scene.previewUrl?.startsWith('data:')) delete scene.previewUrl;
+                    return JSON.stringify(scene);
+                  } catch { return item.canvas_state_json; }
+                })()
+              : undefined,
+          })),
           // Same-Day Hit Service and Saturday Delivery flags are intentionally
           // NOT persisted. The option must default to OFF on every refresh,
           // returning session, page load, tab switch, etc. — only the

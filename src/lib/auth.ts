@@ -1,6 +1,7 @@
 import { User, AuthAdapter } from './orders/types';
 import { useState, useEffect } from 'react';
 import { generateUUID, safeStorage } from './utils';
+import { setServerSessionToken } from './serverAuth';
 
 // Get the correct base URL for Netlify functions
 const getNetlifyFunctionUrl = (functionName: string): string => {
@@ -49,7 +50,7 @@ class SecureAuthAdapter implements AuthAdapter {
       }
 
       // Debug logging for production troubleshooting
-      const hasAdminCookie = typeof document !== 'undefined' && document.cookie.includes('admin=1');
+      const hasAdminCookie = false; // Legacy unsigned admin cookies are intentionally ignored.
       console.log('🔍 getCurrentUser Debug:', {
         hasStoredUser: !!user,
         hasAdminCookie,
@@ -68,55 +69,8 @@ class SecureAuthAdapter implements AuthAdapter {
         safeStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
         console.log('✅ Migrated user ID to:' , newId);
       }
-      // If no user but admin cookie is present, create a temporary admin user
-      if (!user && hasAdminCookie) {
-        console.log('🆕 Creating temporary admin user from cookie');
-        user = {
-          id: '00000000-0000-0000-0000-000000000001', // ✅ Valid UUID for admin dev user
-          email: 'admin@dev.local',
-          is_admin: true,
-        };
-        safeStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
-      }
-
-      // Update admin status based on cookie
-      if (user && hasAdminCookie) {
-        console.log('🔧 Updating user admin status from cookie');
-        user.is_admin = true;
-      }
 
       console.log('✅ getCurrentUser result:', user ? { id: user.id, email: user.email, is_admin: user.is_admin } : null);
-
-      // Upgrade admin status from server-side allowlist (ADMIN_TEST_PAY_ALLOWLIST)
-      // so already-signed-in admins don't have to log out / log back in to gain access.
-      // Best-effort, non-blocking on errors. Cached per-session per-email so we don't
-      // hit the function on every getCurrentUser() call.
-      if (user && user.email && user.is_admin !== true) {
-        const cacheKey = `admin_status_checked_${user.email.toLowerCase()}`;
-        const alreadyChecked = typeof sessionStorage !== 'undefined' && sessionStorage.getItem(cacheKey) === '1';
-        if (!alreadyChecked) {
-          try {
-            const resp = await fetch(getNetlifyFunctionUrl('check-admin-status'), {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email: user.email }),
-            });
-            if (resp.ok) {
-              const data = await resp.json();
-              if (data && data.isAdmin === true) {
-                user.is_admin = true;
-                safeStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
-                console.log('🔧 Upgraded user is_admin=true via ADMIN_TEST_PAY_ALLOWLIST');
-              }
-            }
-            if (typeof sessionStorage !== 'undefined') {
-              sessionStorage.setItem(cacheKey, '1');
-            }
-          } catch (allowlistError) {
-            console.warn('check-admin-status lookup failed (non-fatal):', allowlistError);
-          }
-        }
-      }
 
       return user;
     } catch (error) {
@@ -143,11 +97,8 @@ class SecureAuthAdapter implements AuthAdapter {
       }
 
       const user: User = result.user;
+      setServerSessionToken(result.sessionToken || null);
 
-      // Check for admin cookie to override admin status if needed
-      if (typeof document !== 'undefined' && document.cookie.includes('admin=1')) {
-        user.is_admin = true;
-      }
 
       console.log('✅ Secure sign-in successful for:', user.email);
       safeStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));

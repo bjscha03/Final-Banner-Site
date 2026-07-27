@@ -4,41 +4,28 @@ import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Shield, Cookie, CheckCircle } from 'lucide-react';
+import { Shield, CheckCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { useAuth, isAdmin as userIsAdmin } from '@/lib/auth';
+import { setServerSessionToken } from '@/lib/serverAuth';
 
 const AdminSetup: React.FC = () => {
   const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, signIn, signOut } = useAuth();
 
   // Check if already admin
   React.useEffect(() => {
-    const hasAdminCookie = typeof document !== 'undefined' && document.cookie.includes('admin=1');
-    setIsAdmin(hasAdminCookie);
-  }, []);
+    setIsAdmin(userIsAdmin(user));
+  }, [user]);
 
-  const handleSetAdmin = () => {
-    if (password === 'admin123' || password === 'admin') {
-      // Set admin cookie for 24 hours
-      const expires = new Date();
-      expires.setTime(expires.getTime() + (24 * 60 * 60 * 1000));
-      document.cookie = `admin=1; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
-
-      // Create admin user in localStorage with valid UUID
-      const adminUser = {
-        id: '00000000-0000-0000-0000-000000000001',
-        email: 'admin@dev.local',
-        is_admin: true,
-      };
-      try {
-        localStorage.setItem('banners_current_user', JSON.stringify(adminUser));
-        window.dispatchEvent(new Event('user-changed'));
-      } catch (e) {
-        console.warn('Unable to persist admin user to localStorage', e);
-      }
-
+  const handleSetAdmin = async () => {
+    try {
+      const authenticated = await signIn(email, password);
+      if (!userIsAdmin(authenticated)) throw new Error('This account is not authorized for administration.');
       setIsAdmin(true);
       toast({
         title: 'Admin Access Granted',
@@ -48,23 +35,18 @@ const AdminSetup: React.FC = () => {
       setTimeout(() => {
         window.location.href = '/admin/orders';
       }, 300);
-    } else {
+    } catch (error) {
       toast({
-        title: 'Invalid Password',
-        description: 'Please enter the correct admin password.',
+        title: 'Admin sign-in failed',
+        description: error instanceof Error ? error.message : 'Verified administrator credentials are required.',
         variant: 'destructive',
       });
     }
   };
 
-  const handleRemoveAdmin = () => {
-    document.cookie = 'admin=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax';
-    try {
-      localStorage.removeItem('banners_current_user');
-      window.dispatchEvent(new Event('user-changed'));
-    } catch {
-      // ignore
-    }
+  const handleRemoveAdmin = async () => {
+    setServerSessionToken(null);
+    await signOut();
     setIsAdmin(false);
     toast({
       title: 'Admin Access Removed',
@@ -94,7 +76,7 @@ const AdminSetup: React.FC = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Cookie className="h-5 w-5" />
+                  <Shield className="h-5 w-5" />
                   Current Status
                 </CardTitle>
                 <CardDescription>Your current admin access status</CardDescription>
@@ -123,6 +105,9 @@ const AdminSetup: React.FC = () => {
                   <CardDescription>Enter the admin password to enable admin features</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <div>
+                    <Input type="email" placeholder="Administrator email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                  </div>
                   <div>
                     <Input
                       type="password"

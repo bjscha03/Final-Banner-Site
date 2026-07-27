@@ -1,6 +1,7 @@
 const { neon } = require('@neondatabase/serverless');
 const { normalizeTrackingEntries } = require('./tracking-helpers.cjs');
 const { normalizeShippingAddress } = require('./shipping-address-helpers.cjs');
+const { getSession, unauthorized } = require('./_shared/server-auth.cjs');
 
 // Neon database connection
 // Lazily initialize Neon with whichever DB URL is available
@@ -19,7 +20,7 @@ exports.handler = async (event, context) => {
   // Set CORS headers
   const headers = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
   };
 
@@ -31,6 +32,8 @@ exports.handler = async (event, context) => {
       body: '',
     };
   }
+  const session = getSession(event);
+  if (!session) return unauthorized();
 
   if (event.httpMethod !== 'GET') {
     return {
@@ -99,7 +102,13 @@ exports.handler = async (event, context) => {
       `overlay_images JSONB`,
       `canvas_background_color VARCHAR(20) DEFAULT '#FFFFFF'`,
       `file_key VARCHAR(255)`,
+      `file_name VARCHAR(255)`,
       `file_url TEXT`,
+      `artwork_manifest JSONB`,
+      `placement_preview JSONB`,
+      `original_filename TEXT`,
+      `production_pdf_status TEXT DEFAULT 'pending'`,
+      `production_pdf_error TEXT`,
       `print_ready_url TEXT`,
       `web_preview_url TEXT`,
       `text_elements JSONB DEFAULT '[]'::jsonb`,
@@ -124,6 +133,7 @@ exports.handler = async (event, context) => {
       `final_print_pdf_uploaded_at TIMESTAMP WITH TIME ZONE`,
       `generated_print_pdf_url TEXT`,
       `generated_print_pdf_uploaded_at TIMESTAMP WITH TIME ZONE`,
+      `generated_print_pdf_metadata JSONB`,
       `product_type TEXT DEFAULT 'banner'`,
       // Yard sign columns (added by create-order.cjs but referenced unconditionally
       // by get-orders SELECT; ensure they exist here too).
@@ -243,7 +253,13 @@ exports.handler = async (event, context) => {
       ['unit_price_cents',                `CASE WHEN oi.quantity > 0 THEN (oi.line_total_cents / oi.quantity) ELSE 0 END`,        ['quantity', 'line_total_cents']],
       ['line_total_cents',                `oi.line_total_cents`],
       ['file_key',                        `oi.file_key`],
+      ['file_name',                       `oi.file_name`],
       ['file_url',                        `oi.file_url`],
+      ['artwork_manifest',                `oi.artwork_manifest`],
+      ['placement_preview',               `oi.placement_preview`],
+      ['original_filename',               `oi.original_filename`],
+      ['production_pdf_status',           `COALESCE(oi.production_pdf_status, 'pending')`],
+      ['production_pdf_error',            `oi.production_pdf_error`],
       ['print_ready_url',                 `oi.print_ready_url`],
       ['web_preview_url',                 `oi.web_preview_url`],
       ['text_elements',                   `COALESCE(oi.text_elements, '[]'::jsonb)`],
@@ -269,6 +285,7 @@ exports.handler = async (event, context) => {
       ['final_print_pdf_uploaded_at',     `oi.final_print_pdf_uploaded_at`],
       ['generated_print_pdf_url',         `oi.generated_print_pdf_url`],
       ['generated_print_pdf_uploaded_at', `oi.generated_print_pdf_uploaded_at`],
+      ['generated_print_pdf_metadata',     `oi.generated_print_pdf_metadata`],
       ['product_type',                    `COALESCE(oi.product_type, 'banner')`],
       ['yard_sign_sidedness',             `oi.yard_sign_sidedness`],
       ['yard_sign_step_stakes_enabled',   `COALESCE(oi.yard_sign_step_stakes_enabled, false)`],
@@ -311,6 +328,7 @@ exports.handler = async (event, context) => {
     let orders;
 
     if (user_id) {
+      if (!session.admin && session.sub !== user_id) return unauthorized('Order ownership could not be verified');
       console.log('[get-orders] Fetching orders for user:', user_id);
       orders = await sql(
         `SELECT o.*,
@@ -326,6 +344,7 @@ exports.handler = async (event, context) => {
         [user_id, limit, offset]
       );
     } else {
+      if (!session.admin) return unauthorized('Verified administrator session required');
       console.log('[get-orders] Fetching all orders (admin)');
       orders = await sql(
         `SELECT o.*,

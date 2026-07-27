@@ -1,4 +1,5 @@
 const { validatePayPalCapture } = require('./_shared/paypalConversionHelpers.cjs');
+const { neon } = require('@neondatabase/serverless');
 
 function firstNonEmpty(...values) {
   for (const value of values) {
@@ -59,7 +60,7 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const { orderID } = JSON.parse(event.body || '{}');
+    const { orderID, internalOrderId } = JSON.parse(event.body || '{}');
     if (!orderID) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Missing orderID' }) };
     }
@@ -155,6 +156,58 @@ exports.handler = async (event, context) => {
     
     // Extract shipping address from capture response, then fallback to pre-capture order payload
     const shippingAddress = extractShippingAddress(captureData) || extractShippingAddress(orderData);
+    const payerEmail = firstNonEmpty(captureData?.payer?.email_address, orderData?.payer?.email_address);
+    const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
+    if (!dbUrl || !internalOrderId) {
+      return { statusCode: 500, headers, body: JSON.stringify({ error: 'Captured payment requires internal order reconciliation', reconciliationRequired: true }) };
+    }
+    const sql = neon(dbUrl);
+    const paidRows = await sql`
+      UPDATE orders SET
+        status = 'paid',
+        paypal_order_id = ${orderID},
+        paypal_capture_id = ${captureValidation.captureId},
+        payment_method = 'paypal',
+        payment_reconciliation_status = 'complete',
+        email = CASE WHEN email LIKE 'guest-%@bannersonthefly.com' AND ${payerEmail || null} IS NOT NULL THEN ${payerEmail || null} ELSE email END,
+        customer_name = COALESCE(customer_name, ${shippingAddress?.name || null}),
+        shipping_name = COALESCE(${shippingAddress?.name || null}, shipping_name),
+        shipping_street = COALESCE(${shippingAddress?.street || null}, shipping_street),
+        shipping_street2 = COALESCE(${shippingAddress?.street2 || null}, shipping_street2),
+        shipping_city = COALESCE(${shippingAddress?.city || null}, shipping_city),
+        shipping_state = COALESCE(${shippingAddress?.state || null}, shipping_state),
+        shipping_zip = COALESCE(${shippingAddress?.zip || null}, shipping_zip),
+        shipping_country = COALESCE(${shippingAddress?.country || null}, shipping_country),
+        updated_at = NOW()
+      WHERE id = ${internalOrderId}
+        AND paypal_order_id = ${orderID}
+        AND total_cents = ${captureValidation.amountCents}
+        AND status IN ('pending', 'paid')
+      RETURNING id, status
+    `;
+    if (!paidRows.length) {
+      await sql`UPDATE orders SET payment_reconciliation_status = 'required', updated_at = NOW() WHERE id = ${internalOrderId}`;
+      return { statusCode: 409, headers, body: JSON.stringify({ error: 'Payment captured but internal order update requires reconciliation', reconciliationRequired: true }) };
+    }
+    // Payment is durable before production work begins. Generate canonical PDFs
+    // from each saved scene; failures are recorded for admin retry and never
+    // roll back a completed PayPal capture.
+    try {
+      const siteUrl = process.env.URL || process.env.DEPLOY_PRIME_URL;
+      const internalSecret = process.env.INTERNAL_JOB_SECRET || process.env.AUTH_SESSION_SECRET;
+      if (siteUrl && internalSecret) {
+        const queued = await fetch(`${siteUrl}/.netlify/functions/generate-paid-order-pdfs-background`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Internal-Job-Secret': internalSecret },
+          body: JSON.stringify({ orderId: internalOrderId }),
+        });
+        if (!queued.ok) throw new Error(`Background PDF queue returned ${queued.status}`);
+      } else {
+        console.warn('[paypal_capture] PDF generation was not queued because URL/internal secret is missing');
+      }
+    } catch (productionError) {
+      console.error('[paypal_capture] production_pipeline_queue_failed', { internalOrderId, error: productionError?.message });
+    }
     
     // Return success response
     return {
@@ -171,6 +224,7 @@ exports.handler = async (event, context) => {
         environment: env,
         paypalData: captureData,
         shippingAddress: shippingAddress
+        ,internalOrderId
       })
     };
 

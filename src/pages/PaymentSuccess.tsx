@@ -8,6 +8,7 @@ import { attemptPurchaseTracking } from '@/lib/purchaseTracking';
 import { getItemDisplayName, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
 import { formatShippingAddress, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
 import { getDisplayOrderTotalCents } from '@/lib/order-totals';
+import { authorizedHeaders } from '@/lib/serverAuth';
 
 const PaymentSuccess: React.FC = () => {
   const navigate = useNavigate();
@@ -97,7 +98,7 @@ const PaymentSuccess: React.FC = () => {
       const maxAttempts = 6;
       for (let attempt = 1; attempt <= maxAttempts && !cancelled; attempt += 1) {
         try {
-          const response = await fetch(`/.netlify/functions/get-order?id=${orderId}`);
+          const response = await fetch(`/.netlify/functions/get-order?id=${orderId}`, { headers: authorizedHeaders() });
           if (response.ok) {
             const data = await response.json();
             if (data?.ok && data?.order) {

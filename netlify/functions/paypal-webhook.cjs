@@ -105,8 +105,28 @@ exports.handler = async (event) => {
       return { statusCode: 200, headers, body: JSON.stringify({ ok: false, error: 'PAYPAL_WEBHOOK_CAPTURE_INVALID' }) };
     }
 
-    const existing = await sql`SELECT id FROM orders WHERE paypal_order_id = ${paypalOrderId} OR paypal_capture_id = ${paypalCaptureId} LIMIT 1`;
+    const existing = await sql`SELECT id, status, total_cents FROM orders WHERE paypal_order_id = ${paypalOrderId} OR paypal_capture_id = ${paypalCaptureId} LIMIT 1`;
     if (existing.length) {
+      if (existing[0].status !== 'paid') {
+        if (Number(existing[0].total_cents) !== amountCents) {
+          const message = 'Captured amount does not match pending internal order';
+          if (eventId) await sql`UPDATE paypal_webhook_events SET processing_status = 'error', error_message = ${message}, updated_at = NOW() WHERE paypal_event_id = ${eventId}`;
+          return { statusCode: 200, headers, body: JSON.stringify({ ok: false, error: 'PAYPAL_CAPTURE_AMOUNT_MISMATCH' }) };
+        }
+        await sql`
+          UPDATE orders SET status = 'paid', paypal_capture_id = ${paypalCaptureId},
+            payment_reconciliation_status = 'complete', updated_at = NOW()
+          WHERE id = ${existing[0].id}
+        `;
+        const siteUrl = process.env.URL || process.env.DEPLOY_PRIME_URL;
+        const jobSecret = process.env.INTERNAL_JOB_SECRET || process.env.AUTH_SESSION_SECRET;
+        if (siteUrl && jobSecret) {
+          await fetch(`${siteUrl}/.netlify/functions/generate-paid-order-pdfs-background`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Internal-Job-Secret': jobSecret },
+            body: JSON.stringify({ orderId: existing[0].id }),
+          });
+        }
+      }
       if (eventId) await sql`UPDATE paypal_webhook_events SET processing_status = 'deduped', created_order_id = ${existing[0].id}, updated_at = NOW() WHERE paypal_event_id = ${eventId}`;
       return { statusCode: 200, headers, body: JSON.stringify({ ok: true, deduped: true, orderId: existing[0].id }) };
     }

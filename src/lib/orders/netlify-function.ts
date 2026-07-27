@@ -1,4 +1,5 @@
 import { Order, OrdersAdapter, CreateOrderData, TrackingCarrier } from './types';
+import { authorizedHeaders } from '@/lib/serverAuth';
 
 // Get the correct base URL for Netlify functions
 const getNetlifyFunctionUrl = (functionName: string): string => {
@@ -54,7 +55,7 @@ export const netlifyFunctionOrdersAdapter: OrdersAdapter = {
 
   listByUser: async (userId: string, page = 1): Promise<Order[]> => {
     console.log('Fetching orders for user:', userId);
-    const response = await fetch(getNetlifyFunctionUrl(`get-orders?user_id=${userId}&page=${page}`));
+    const response = await fetch(getNetlifyFunctionUrl(`get-orders?user_id=${userId}&page=${page}`), { headers: authorizedHeaders() });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -68,7 +69,7 @@ export const netlifyFunctionOrdersAdapter: OrdersAdapter = {
   },
 
   listAll: async (page = 1): Promise<Order[]> => {
-    const response = await fetch(getNetlifyFunctionUrl(`get-orders?page=${page}`));
+    const response = await fetch(getNetlifyFunctionUrl(`get-orders?page=${page}`), { headers: authorizedHeaders() });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -88,9 +89,9 @@ export const netlifyFunctionOrdersAdapter: OrdersAdapter = {
     try {
       const response = await fetch(getNetlifyFunctionUrl('update-tracking'), {
         method: 'POST',
-        headers: {
+        headers: authorizedHeaders({
           'Content-Type': 'application/json',
-        },
+        }),
         body: JSON.stringify({ id, carrier, number, trackingNumbers, isUpdate: false })
       });
 
@@ -107,9 +108,9 @@ export const netlifyFunctionOrdersAdapter: OrdersAdapter = {
     try {
       const response = await fetch(getNetlifyFunctionUrl('update-tracking'), {
         method: 'POST',
-        headers: {
+        headers: authorizedHeaders({
           'Content-Type': 'application/json',
-        },
+        }),
         body: JSON.stringify({ id, carrier, number, trackingNumbers, isUpdate: true })
       });
 
@@ -124,7 +125,7 @@ export const netlifyFunctionOrdersAdapter: OrdersAdapter = {
 
   get: async (id: string): Promise<Order | null> => {
     try {
-      const response = await fetch(getNetlifyFunctionUrl(`get-order?id=${id}`));
+      const response = await fetch(getNetlifyFunctionUrl(`get-order?id=${id}`), { headers: authorizedHeaders() });
 
       if (!response.ok) {
         if (response.status === 404) {

@@ -1,4 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
+const { createSessionToken } = require('./_shared/server-auth.cjs');
 
 const headers = {
   'Content-Type': 'application/json',
@@ -124,7 +125,8 @@ exports.handler = async (event) => {
         headers,
         body: JSON.stringify({ 
           ok: true, 
-          user: userData 
+          user: userData,
+          sessionToken: createSessionToken(userData),
         })
       };
     }
@@ -180,7 +182,8 @@ exports.handler = async (event) => {
       headers,
       body: JSON.stringify({ 
         ok: true, 
-        user: userData 
+        user: userData,
+        sessionToken: createSessionToken(userData),
       })
     };
 

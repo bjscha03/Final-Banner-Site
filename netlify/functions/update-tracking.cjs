@@ -1,5 +1,6 @@
 const { neon } = require('@neondatabase/serverless');
 const { validateTrackingEntries } = require('./tracking-helpers.cjs');
+const { requireAdmin } = require('./_shared/server-auth.cjs');
 
 // Neon database connection
 // Lazily resolve DB URL so the function doesn't crash when missing
@@ -11,7 +12,7 @@ function getDbUrl() {
 const headers = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 };
 
@@ -20,6 +21,8 @@ exports.handler = async (event, context) => {
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' };
   }
+  const auth = requireAdmin(event);
+  if (!auth.ok) return auth.response;
 
   if (event.httpMethod !== 'POST') {
     return {
