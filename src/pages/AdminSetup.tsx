@@ -11,11 +11,10 @@ import { setServerSessionToken } from '@/lib/serverAuth';
 
 const AdminSetup: React.FC = () => {
   const [password, setPassword] = useState('');
-  const [email, setEmail] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, signIn, signOut } = useAuth();
+  const { user, signOut } = useAuth();
 
   // Check if already admin
   React.useEffect(() => {
@@ -24,8 +23,18 @@ const AdminSetup: React.FC = () => {
 
   const handleSetAdmin = async () => {
     try {
-      const authenticated = await signIn(email, password);
-      if (!userIsAdmin(authenticated)) throw new Error('This account is not authorized for administration.');
+      const response = await fetch('/.netlify/functions/admin-sign-in', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.ok || !userIsAdmin(result.user) || !result.sessionToken) {
+        throw new Error(result.error || 'Verified administrator credentials are required.');
+      }
+      setServerSessionToken(result.sessionToken);
+      localStorage.setItem('banners_current_user', JSON.stringify(result.user));
+      window.dispatchEvent(new Event('user-changed'));
       setIsAdmin(true);
       toast({
         title: 'Admin Access Granted',
@@ -105,9 +114,6 @@ const AdminSetup: React.FC = () => {
                   <CardDescription>Enter the admin password to enable admin features</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div>
-                    <Input type="email" placeholder="Administrator email" value={email} onChange={(e) => setEmail(e.target.value)} />
-                  </div>
                   <div>
                     <Input
                       type="password"
