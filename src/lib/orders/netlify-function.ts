@@ -1,5 +1,5 @@
 import { Order, OrdersAdapter, CreateOrderData, TrackingCarrier } from './types';
-import { authorizedHeaders } from '@/lib/serverAuth';
+import { adminFetch } from '@/lib/serverAuth';
 
 // Get the correct base URL for Netlify functions
 const getNetlifyFunctionUrl = (functionName: string): string => {
@@ -55,7 +55,7 @@ export const netlifyFunctionOrdersAdapter: OrdersAdapter = {
 
   listByUser: async (userId: string, page = 1): Promise<Order[]> => {
     console.log('Fetching orders for user:', userId);
-    const response = await fetch(getNetlifyFunctionUrl(`get-orders?user_id=${userId}&page=${page}`), { headers: authorizedHeaders() });
+    const response = await adminFetch(getNetlifyFunctionUrl(`get-orders?user_id=${userId}&page=${page}`));
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -69,7 +69,7 @@ export const netlifyFunctionOrdersAdapter: OrdersAdapter = {
   },
 
   listAll: async (page = 1): Promise<Order[]> => {
-    const response = await fetch(getNetlifyFunctionUrl(`get-orders?page=${page}`), { headers: authorizedHeaders() });
+    const response = await adminFetch(getNetlifyFunctionUrl(`get-orders?page=${page}`));
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -87,11 +87,11 @@ export const netlifyFunctionOrdersAdapter: OrdersAdapter = {
 
   appendTracking: async (id: string, carrier: TrackingCarrier, number: string, trackingNumbers?: any[]): Promise<void> => {
     try {
-      const response = await fetch(getNetlifyFunctionUrl('update-tracking'), {
+      const response = await adminFetch(getNetlifyFunctionUrl('update-tracking'), {
         method: 'POST',
-        headers: authorizedHeaders({
+        headers: {
           'Content-Type': 'application/json',
-        }),
+        },
         body: JSON.stringify({ id, carrier, number, trackingNumbers, isUpdate: false })
       });
 
@@ -106,11 +106,11 @@ export const netlifyFunctionOrdersAdapter: OrdersAdapter = {
 
   updateTracking: async (id: string, carrier: TrackingCarrier, number: string, trackingNumbers?: any[]): Promise<void> => {
     try {
-      const response = await fetch(getNetlifyFunctionUrl('update-tracking'), {
+      const response = await adminFetch(getNetlifyFunctionUrl('update-tracking'), {
         method: 'POST',
-        headers: authorizedHeaders({
+        headers: {
           'Content-Type': 'application/json',
-        }),
+        },
         body: JSON.stringify({ id, carrier, number, trackingNumbers, isUpdate: true })
       });
 
@@ -125,7 +125,7 @@ export const netlifyFunctionOrdersAdapter: OrdersAdapter = {
 
   get: async (id: string): Promise<Order | null> => {
     try {
-      const response = await fetch(getNetlifyFunctionUrl(`get-order?id=${id}`), { headers: authorizedHeaders() });
+      const response = await adminFetch(getNetlifyFunctionUrl(`get-order?id=${id}`));
 
       if (!response.ok) {
         if (response.status === 404) {
