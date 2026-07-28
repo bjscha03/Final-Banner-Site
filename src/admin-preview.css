@@ -1,0 +1,18 @@
+/*
+ * Admin expanded artwork preview only.
+ *
+ * The compact order-row thumbnails retain their subtle border. Inside the
+ * full-screen preview dialog, use a dark production-review outline so the exact
+ * printable edge is obvious against the light modal background.
+ */
+div[role='dialog'][aria-modal='true']
+  svg[aria-label$='finished preview']
+  > rect:first-of-type {
+  stroke: #111827;
+  stroke-width: 0.12;
+}
+
+div[role='dialog'][aria-modal='true']
+  svg[aria-label$='finished preview'] {
+  filter: drop-shadow(0 0 1px rgba(15, 23, 42, 0.9));
+}
