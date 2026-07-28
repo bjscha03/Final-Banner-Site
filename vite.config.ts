@@ -30,11 +30,23 @@ export default defineConfig(({ mode }) => ({
     }),
   ].filter(Boolean),
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-      // Add util polyfill
-      util: 'util/',
-    },
+    alias: [
+      // Keep the existing Checkout import stable while routing it through the
+      // contact/shipping gate. The wrapper imports the original component by a
+      // relative path, so there is no alias loop.
+      {
+        find: /^@\/components\/checkout\/PayPalCheckout$/,
+        replacement: path.resolve(__dirname, "./src/components/checkout/PayPalCheckoutContact.tsx"),
+      },
+      {
+        find: "@",
+        replacement: path.resolve(__dirname, "./src"),
+      },
+      {
+        find: "util",
+        replacement: "util/",
+      },
+    ],
   },
   build: {
     // Target modern browsers for smaller bundle

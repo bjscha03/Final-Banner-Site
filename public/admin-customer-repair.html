@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Repair Order Customer Info | Banners On The Fly</title>
+  <style>
+    :root { color-scheme: light; font-family: Inter, Arial, sans-serif; }
+    body { margin: 0; background: #f5f7fb; color: #0f172a; }
+    main { max-width: 760px; margin: 32px auto; padding: 0 16px 40px; }
+    .card { background: white; border: 1px solid #dbe3ef; border-radius: 16px; padding: 24px; box-shadow: 0 12px 32px rgba(15, 23, 42, .08); }
+    h1 { margin: 0 0 8px; color: #18448d; font-size: 26px; }
+    p { color: #475569; line-height: 1.5; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .full { grid-column: 1 / -1; }
+    label { display: grid; gap: 6px; font-size: 13px; font-weight: 700; color: #334155; }
+    input { min-height: 42px; border: 1px solid #cbd5e1; border-radius: 9px; padding: 0 11px; font: inherit; }
+    input:focus { outline: 2px solid #93c5fd; border-color: #2563eb; }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+    button { border: 0; border-radius: 9px; padding: 11px 16px; font-weight: 800; cursor: pointer; }
+    button.primary { background: #18448d; color: white; }
+    button.orange { background: #ff6b35; color: white; }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    .status { display: none; margin-top: 16px; padding: 12px; border-radius: 10px; white-space: pre-wrap; }
+    .status.ok { display: block; background: #ecfdf5; border: 1px solid #86efac; color: #166534; }
+    .status.error { display: block; background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; }
+    @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } .full { grid-column: auto; } }
+  </style>
+</head>
+<body>
+<main>
+  <div class="card">
+    <h1>Repair Order Customer Information</h1>
+    <p>Use this while logged into Admin. Saving resets the customer/admin confirmation statuses so both emails can be resent to the corrected address.</p>
+
+    <form id="repair-form">
+      <div class="grid">
+        <label class="full">Order ID or last 8 characters
+          <input id="orderId" required placeholder="F8A0D993" />
+        </label>
+        <label class="full">Customer full name
+          <input id="customerName" required autocomplete="name" />
+        </label>
+        <label class="full">Customer email
+          <input id="email" type="email" required autocomplete="email" />
+        </label>
+        <label class="full">Street address
+          <input id="shippingStreet" required autocomplete="shipping address-line1" />
+        </label>
+        <label class="full">Address line 2 (optional)
+          <input id="shippingStreet2" autocomplete="shipping address-line2" />
+        </label>
+        <label>City
+          <input id="shippingCity" required autocomplete="shipping address-level2" />
+        </label>
+        <label>State
+          <input id="shippingState" required maxlength="2" autocomplete="shipping address-level1" />
+        </label>
+        <label>ZIP code
+          <input id="shippingZip" required autocomplete="shipping postal-code" />
+        </label>
+        <label>Country code
+          <input id="shippingCountry" value="US" required maxlength="2" />
+        </label>
+      </div>
+
+      <div class="actions">
+        <button id="save" class="primary" type="submit">Save Customer Information</button>
+        <button id="resend" class="orange" type="button" disabled>Resend Customer + Admin Emails</button>
+      </div>
+      <div id="status" class="status" role="status" aria-live="polite"></div>
+    </form>
+  </div>
+</main>
+<script>
+  const token = localStorage.getItem('banners_server_session') || sessionStorage.getItem('banners_server_session');
+  const form = document.getElementById('repair-form');
+  const statusEl = document.getElementById('status');
+  const saveButton = document.getElementById('save');
+  const resendButton = document.getElementById('resend');
+  const params = new URLSearchParams(location.search);
+  document.getElementById('orderId').value = params.get('order') || '';
+
+  const showStatus = (message, ok) => {
+    statusEl.textContent = message;
+    statusEl.className = `status ${ok ? 'ok' : 'error'}`;
+  };
+
+  const headers = () => ({
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  });
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!token) {
+      showStatus('Admin session not found. Open /admin/setup, log in, then return to this page.', false);
+      return;
+    }
+
+    saveButton.disabled = true;
+    resendButton.disabled = true;
+    showStatus('Saving corrected customer information…', true);
+
+    const payload = {
+      orderId: document.getElementById('orderId').value,
+      customerName: document.getElementById('customerName').value,
+      email: document.getElementById('email').value,
+      shippingName: document.getElementById('customerName').value,
+      shippingStreet: document.getElementById('shippingStreet').value,
+      shippingStreet2: document.getElementById('shippingStreet2').value,
+      shippingCity: document.getElementById('shippingCity').value,
+      shippingState: document.getElementById('shippingState').value,
+      shippingZip: document.getElementById('shippingZip').value,
+      shippingCountry: document.getElementById('shippingCountry').value || 'US',
+    };
+
+    try {
+      const response = await fetch('/.netlify/functions/admin-update-order-customer', {
+        method: 'POST',
+        headers: headers(),
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.ok) throw new Error(result.error || `Save failed (HTTP ${response.status})`);
+      showStatus(`Saved. Order ${result.order.id} now uses ${result.order.email}.`, true);
+      resendButton.disabled = false;
+    } catch (error) {
+      showStatus(error.message || 'Could not update the order.', false);
+    } finally {
+      saveButton.disabled = false;
+    }
+  });
+
+  resendButton.addEventListener('click', async () => {
+    resendButton.disabled = true;
+    showStatus('Resending customer confirmation and internal new-order email…', true);
+    try {
+      const response = await fetch('/.netlify/functions/admin-resend-confirmation', {
+        method: 'POST',
+        headers: headers(),
+        body: JSON.stringify({ orderId: document.getElementById('orderId').value }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.ok || !result.customerEmailSent || !result.adminEmailSent) {
+        const details = Array.isArray(result.errors) ? result.errors.join('; ') : result.error;
+        throw new Error(details || `Resend failed (HTTP ${response.status})`);
+      }
+      showStatus('Success: customer confirmation and admin new-order email were both accepted by Resend.', true);
+    } catch (error) {
+      showStatus(error.message || 'Could not resend the emails.', false);
+      resendButton.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>
