@@ -1,0 +1,48 @@
+name: Order, Email, and Tracking Regressions
+
+on:
+  pull_request:
+    paths:
+      - 'src/components/orders/**'
+      - 'src/pages/OrderDetail.tsx'
+      - 'netlify/functions/get-order.mjs'
+      - 'netlify/functions/get-orders.mjs'
+      - 'netlify/functions/update-tracking.mjs'
+      - 'netlify/functions/send-shipping-notification.mjs'
+      - 'netlify/functions/resend-tracking-email.mjs'
+      - 'netlify/functions/_shared/**'
+      - 'netlify/functions/__tests__/**'
+      - '.github/workflows/order-email-tracking-regressions.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  regression-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install exact dependencies
+        run: npm ci
+
+      - name: Run transactional email and public-order tests
+        run: |
+          node --test \
+            netlify/functions/__tests__/mark-in-production-email.test.cjs \
+            netlify/functions/__tests__/tracking-email-handler.test.cjs \
+            netlify/functions/__tests__/get-order-public.test.cjs
+
+      - name: Type-check application
+        run: npx tsc --noEmit --pretty false
+
+      - name: Build production bundle
+        run: npm run build
