@@ -1,0 +1,39 @@
+name: Apply order and tracking hotfix
+
+on:
+  push:
+    branches:
+      - hotfix/order-email-links-and-tracking-controls
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: ${{ !contains(github.event.head_commit.message, '[order-tracking-hotfix-applied]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: hotfix/order-email-links-and-tracking-controls
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Apply source patches
+        run: node scripts/apply-order-and-tracking-ui-hotfix.mjs
+      - name: Commit patched source
+        run: |
+          if git diff --quiet; then
+            echo "No source changes required."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add netlify/functions/_shared/legacy/get-order.cjs \
+                  netlify/functions/_shared/legacy/notify-order.cjs \
+                  src/pages/OrderDetail.tsx \
+                  src/components/orders/EmailDeliveryStatus.tsx \
+                  src/pages/admin/Orders.tsx
+          git commit -m "Apply order links and tracking controls [order-tracking-hotfix-applied]"
+          git push origin HEAD:hotfix/order-email-links-and-tracking-controls
