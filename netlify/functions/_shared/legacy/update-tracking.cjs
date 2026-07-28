@@ -6,6 +6,32 @@ function getDbUrl() {
   return process.env.NETLIFY_DATABASE_URL || process.env.VITE_DATABASE_URL || process.env.DATABASE_URL;
 }
 
+function getNextTrackingStatus(existing, nextTrackingEntries) {
+  const currentStatus = String(existing?.status || 'pending');
+  const shippingWasSent = Boolean(
+    existing?.shipping_notification_sent
+    || existing?.shipping_notification_status === 'sent',
+  );
+
+  // Tracking data can be saved before the shipment is sent. A successful
+  // tracking email is the operation that moves an order to Shipped.
+  if (currentStatus === 'shipped' && !shippingWasSent) {
+    return existing?.production_email_sent || existing?.production_email_status === 'sent'
+      ? 'in_production'
+      : 'paid';
+  }
+
+  // Deleting the final tracking number from a shipped order restores the prior
+  // operational state instead of leaving an order marked Shipped with no label.
+  if (currentStatus === 'shipped' && nextTrackingEntries.length === 0) {
+    return existing?.production_email_sent || existing?.production_email_status === 'sent'
+      ? 'in_production'
+      : 'paid';
+  }
+
+  return currentStatus;
+}
+
 const headers = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': '*',
@@ -75,25 +101,7 @@ exports.handler = async (event) => {
     const trackingChanged = previousJson !== nextJson;
     const primaryTrackingNumber = normalized[0]?.trackingNumber || null;
     const trackingJson = JSON.stringify(normalized);
-    const shippingWasSent = Boolean(
-      existing.shipping_notification_sent
-      || existing.shipping_notification_status === 'sent',
-    );
-
-    // Saving a tracking number is only data entry. The order becomes Shipped
-    // when the tracking email is successfully sent. Repair rows that were
-    // incorrectly switched to Shipped by the old save-only behavior.
-    let nextStatus = existing.status;
-    if (existing.status === 'shipped' && !shippingWasSent) {
-      nextStatus = existing.production_email_sent || existing.production_email_status === 'sent'
-        ? 'in_production'
-        : 'paid';
-    }
-    if (normalized.length === 0 && existing.status === 'shipped') {
-      nextStatus = existing.production_email_sent || existing.production_email_status === 'sent'
-        ? 'in_production'
-        : 'paid';
-    }
+    const nextStatus = getNextTrackingStatus(existing, normalized);
 
     const result = await sql`
       UPDATE orders
@@ -114,7 +122,7 @@ exports.handler = async (event) => {
       trackingChanged,
       previousStatus: existing.status,
       nextStatus,
-      shippingWasSent,
+      shippingWasSent: Boolean(existing.shipping_notification_sent || existing.shipping_notification_status === 'sent'),
     });
 
     return {
@@ -136,3 +144,5 @@ exports.handler = async (event) => {
     };
   }
 };
+
+exports._test = { getNextTrackingStatus };
