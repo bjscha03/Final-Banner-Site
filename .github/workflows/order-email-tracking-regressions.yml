@@ -46,3 +46,63 @@ jobs:
 
       - name: Build production bundle
         run: npm run build
+
+  deploy-preview-smoke:
+    needs: regression-checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Wait for matching Netlify Deploy Preview
+        env:
+          PREVIEW_URL: https://deploy-preview-${{ github.event.pull_request.number }}--bannersonthefly.netlify.app
+        run: |
+          set -euo pipefail
+          ready=0
+          for attempt in $(seq 1 90); do
+            code=$(curl -sS -L -o /tmp/preview-home.html -w '%{http_code}' "$PREVIEW_URL/" || true)
+            if [ "$code" = "200" ]; then
+              ready=1
+              break
+            fi
+            echo "Deploy Preview not ready yet (HTTP ${code:-none}); attempt $attempt/90"
+            sleep 5
+          done
+          if [ "$ready" != "1" ]; then
+            echo "Netlify Deploy Preview did not become ready in time"
+            exit 1
+          fi
+          grep -qi '<!doctype html' /tmp/preview-home.html
+
+      - name: Verify deployed customer order fallback reaches Neon safely
+        env:
+          PREVIEW_URL: https://deploy-preview-${{ github.event.pull_request.number }}--bannersonthefly.netlify.app
+        run: |
+          set -euo pipefail
+          # A valid-format UUID that cannot match a real generated order. A 404
+          # proves the unauthenticated email-link fallback initialized, imported
+          # Neon, queried the database, and returned its limited public contract.
+          code=$(curl -sS -o /tmp/public-order.json -w '%{http_code}' \
+            "$PREVIEW_URL/.netlify/functions/get-order?id=00000000-0000-4000-8000-000000000000")
+          test "$code" = "404"
+          grep -q 'Order not found' /tmp/public-order.json
+
+      - name: Verify deployed admin functions initialize before authorization
+        env:
+          PREVIEW_URL: https://deploy-preview-${{ github.event.pull_request.number }}--bannersonthefly.netlify.app
+        run: |
+          set -euo pipefail
+
+          code=$(curl -sS -o /tmp/get-orders.json -w '%{http_code}' \
+            "$PREVIEW_URL/.netlify/functions/get-orders?page=1")
+          test "$code" = "401"
+          grep -q 'UNAUTHORIZED' /tmp/get-orders.json
+
+          for endpoint in update-tracking send-shipping-notification resend-tracking-email; do
+            code=$(curl -sS -o "/tmp/${endpoint}.json" -w '%{http_code}' \
+              -X POST \
+              -H 'Content-Type: application/json' \
+              --data '{}' \
+              "$PREVIEW_URL/.netlify/functions/${endpoint}")
+            test "$code" = "401"
+            grep -q 'UNAUTHORIZED' "/tmp/${endpoint}.json"
+          done
