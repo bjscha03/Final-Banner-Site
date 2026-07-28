@@ -1714,7 +1714,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                   ) : (
                     <>
                       <Mail className="h-3 w-3 mr-1" />
-                      {isSendingNotification ? 'Sending…' : order.shipping_notification_sent ? 'Resend Tracking Email' : 'Resend Tracking Email'}
+                      {isSendingNotification ? 'Sending…' : order.shipping_notification_sent ? 'Resend Tracking Email' : 'Send Tracking Email'}
                     </>
                   )}
                 </Button>
@@ -2003,7 +2003,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
             disabled={isSendingNotification || displayedTrackingRows.length === 0}
             className="w-full text-xs"
           >
-            {isSendingNotification ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Sending...</> : <><Mail className="h-3 w-3 mr-1" />Resend Tracking Email</>}
+            {isSendingNotification ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Sending...</> : <><Mail className="h-3 w-3 mr-1" />{order.shipping_notification_sent ? 'Resend Tracking Email' : 'Send Tracking Email'}</>}
           </Button>
 
         <OrderDetails
