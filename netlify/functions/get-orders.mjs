@@ -42,7 +42,8 @@ const handler = async (event, context) => {
               paypal_order_id,
               paypal_capture_id,
               stripe_charge_id,
-              stripe_payment_intent_id
+              stripe_payment_intent_id,
+              to_jsonb(orders)->>'payment_reconciliation_status' AS payment_reconciliation_status
          FROM orders
         WHERE id::text IN (${placeholders})`,
       ids,
@@ -53,7 +54,11 @@ const handler = async (event, context) => {
       const payment = paymentById.get(String(order.id));
       if (!payment) return order;
 
-      const hasCompletedCapture = Boolean(payment.paypal_capture_id || payment.stripe_charge_id);
+      const hasCompletedCapture = Boolean(
+        payment.paypal_capture_id
+        || payment.stripe_charge_id
+        || payment.payment_reconciliation_status === 'complete',
+      );
       const effectiveStatus = order.status === 'pending' && hasCompletedCapture
         ? 'paid'
         : order.status;
@@ -66,6 +71,7 @@ const handler = async (event, context) => {
         paypal_capture_id: payment.paypal_capture_id || order.paypal_capture_id || null,
         stripe_charge_id: payment.stripe_charge_id || order.stripe_charge_id || null,
         stripe_payment_intent_id: payment.stripe_payment_intent_id || order.stripe_payment_intent_id || null,
+        payment_reconciliation_status: payment.payment_reconciliation_status || order.payment_reconciliation_status || null,
       };
     }));
   } catch (error) {
