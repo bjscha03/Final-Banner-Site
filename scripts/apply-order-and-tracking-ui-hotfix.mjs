@@ -9,6 +9,7 @@ function write(path, value) {
 }
 
 function replaceOnce(source, search, replacement, label) {
+  if (source.includes(replacement)) return source;
   const first = source.indexOf(search);
   if (first < 0) throw new Error(`Patch target not found: ${label}`);
   if (source.indexOf(search, first + search.length) >= 0) {
@@ -17,11 +18,15 @@ function replaceOnce(source, search, replacement, label) {
   return source.slice(0, first) + replacement + source.slice(first + search.length);
 }
 
-function replaceAllChecked(source, search, replacement, expected, label) {
-  const pieces = source.split(search);
-  const count = pieces.length - 1;
-  if (count !== expected) throw new Error(`Expected ${expected} matches for ${label}, found ${count}`);
-  return pieces.join(replacement);
+function replaceRegex(source, regex, replacement, expected, label, alreadyMarker = null) {
+  if (alreadyMarker && source.includes(alreadyMarker)) return source;
+  const flags = regex.flags.includes('g') ? regex.flags : `${regex.flags}g`;
+  const matcher = new RegExp(regex.source, flags);
+  const matches = [...source.matchAll(matcher)];
+  if (matches.length !== expected) {
+    throw new Error(`Expected ${expected} matches for ${label}, found ${matches.length}`);
+  }
+  return source.replace(matcher, replacement);
 }
 
 // ---------------------------------------------------------------------------
@@ -63,7 +68,7 @@ function replaceAllChecked(source, search, replacement, expected, label) {
   source = replaceOnce(
     source,
     "    // Build origin URL for order details link\n    const origin = event.headers['x-forwarded-host']\n      ? `https://${event.headers['x-forwarded-host']}`\n      : process.env.PUBLIC_SITE_URL || 'https://www.bannersonthefly.com';\n\n    const invoiceUrl = `${origin}/orders/${resolvedOrderId}`;",
-    "    // Customer emails get a signed direct-order link. Admin emails go to\n    // Admin Orders instead of the customer-only route. Prefer the canonical\n    // production origin so email links never point at a deploy preview or the\n    // legacy www origin with a separate browser-storage session.\n    const origin = String(process.env.PUBLIC_SITE_URL || process.env.URL || 'https://bannersonthefly.com').replace(/\\/$/, '');\n    const orderAccessToken = createOrderAccessToken(resolvedOrderId, order.email);\n    const customerInvoiceUrl = orderAccessToken\n      ? `${origin}/orders/${resolvedOrderId}?token=${encodeURIComponent(orderAccessToken)}`\n      : `${origin}/orders/${resolvedOrderId}`;\n    const adminInvoiceUrl = `${origin}/admin/orders?order=${encodeURIComponent(resolvedOrderId)}`;",
+    "    // Customer emails get a signed direct-order link. Admin emails go to\n    // Admin Orders instead of the customer-only route. Always use the canonical\n    // production origin so email links do not depend on browser-local sessions.\n    const origin = String(process.env.PUBLIC_SITE_URL || 'https://bannersonthefly.com').replace(/\\/$/, '');\n    const orderAccessToken = createOrderAccessToken(resolvedOrderId, order.email);\n    const customerInvoiceUrl = orderAccessToken\n      ? `${origin}/orders/${resolvedOrderId}?token=${encodeURIComponent(orderAccessToken)}`\n      : `${origin}/orders/${resolvedOrderId}`;\n    const adminInvoiceUrl = `${origin}/admin/orders?order=${encodeURIComponent(resolvedOrderId)}`;",
     'notify-order customer/admin link split',
   );
   source = replaceOnce(
@@ -171,17 +176,16 @@ function replaceAllChecked(source, search, replacement, expected, label) {
     "  useEffect(() => {\n    if (requestedOrderId) setSearchQuery(requestedOrderId.slice(-8));\n  }, [requestedOrderId]);\n\n  useEffect(() => {\n    // Filter orders based on search query",
     'Orders requested order filter effect',
   );
-  source = replaceAllChecked(
+  source = replaceOnce(
     source,
-    "                status: savedTrackingNumbers.length > 0 ? 'shipped' : order.status // Update status to shipped only when tracking is added",
-    "                status: savedTrackingNumbers.length > 0 ? 'shipped' : order.status,\n                shipping_notification_sent: false,\n                shipping_notification_sent_at: null,\n                shipping_notification_status: 'pending'",
-    1,
-    'reset tracking email state after initial tracking save',
+    "                trackingNumbers: savedTrackingNumbers,\n                status: savedTrackingNumbers.length > 0 ? 'shipped' : order.status // Update status to shipped only when tracking is added",
+    "                trackingNumbers: savedTrackingNumbers,\n                status: order.status === 'shipped' && !order.shipping_notification_sent\n                  ? (order.production_email_sent ? 'in_production' : 'paid')\n                  : order.status,\n                shipping_notification_sent: false,\n                shipping_notification_sent_at: null,\n                shipping_notification_status: 'pending'",
+    'keep status unchanged after initial tracking save',
   );
   source = replaceOnce(
     source,
     "                trackingNumbers: savedTrackingNumbers,\n                // Don't change status when updating existing tracking",
-    "                trackingNumbers: savedTrackingNumbers,\n                shipping_notification_sent: false,\n                shipping_notification_sent_at: null,\n                shipping_notification_status: 'pending',\n                // Don't change status when updating existing tracking",
+    "                trackingNumbers: savedTrackingNumbers,\n                status: order.status === 'shipped' && !order.shipping_notification_sent\n                  ? (order.production_email_sent ? 'in_production' : 'paid')\n                  : order.status,\n                shipping_notification_sent: false,\n                shipping_notification_sent_at: null,\n                shipping_notification_status: 'pending',\n                // Don't change status when updating existing tracking",
     'reset tracking email state after edit',
   );
   source = replaceOnce(
@@ -189,6 +193,12 @@ function replaceAllChecked(source, search, replacement, expected, label) {
     "  const handleFileDownload = async (fileKey: string, orderId: string, itemIndex: number) => {",
     "  const handleDeleteTracking = async (orderId: string) => {\n    if (!window.confirm('Delete all tracking numbers for this order? The tracking email status will also be reset.')) return;\n    try {\n      const ordersAdapter = await getOrdersAdapter();\n      await ordersAdapter.updateTracking(orderId, 'fedex', '', []);\n      setOrders((current) => current.map((order) => {\n        if (order.id !== orderId) return order;\n        const nextStatus = order.status === 'shipped'\n          ? (order.production_email_sent ? 'in_production' : 'paid')\n          : order.status;\n        return {\n          ...order,\n          tracking_number: null,\n          tracking_numbers: [],\n          trackingNumbers: [],\n          tracking_carrier: null,\n          status: nextStatus as Order['status'],\n          shipping_notification_sent: false,\n          shipping_notification_sent_at: null,\n          shipping_notification_status: 'pending',\n        };\n      }));\n      toast({ title: 'Tracking Deleted', description: `Tracking was removed from order #${orderId.slice(-8).toUpperCase()}.` });\n    } catch (error) {\n      console.error('Delete tracking failed:', error);\n      toast({\n        title: 'Unable to Delete Tracking',\n        description: error instanceof Error ? error.message : 'Tracking could not be deleted.',\n        variant: 'destructive',\n      });\n    }\n  };\n\n  const handleFileDownload = async (fileKey: string, orderId: string, itemIndex: number) => {",
     'Orders delete tracking handler',
+  );
+  source = replaceOnce(
+    source,
+    "                shipping_notification_status: 'sent'\n              }",
+    "                shipping_notification_status: 'sent',\n                status: 'shipped' as const\n              }",
+    'mark local order shipped only after successful tracking email',
   );
   source = replaceOnce(
     source,
@@ -208,20 +218,25 @@ function replaceAllChecked(source, search, replacement, expected, label) {
     "                status: 'in_production' as const,\n                production_email_sent: result.emailSent === true,\n                production_email_sent_at: result.emailSent ? new Date().toISOString() : null,\n                production_email_status: result.emailSent ? 'sent' : 'error'",
     'complete in-production local email status',
   );
-  source = replaceAllChecked(
+
+  source = replaceRegex(
     source,
-    "                       onUpdateTracking={handleUpdateTracking}\n                       onFileDownload={handleFileDownload}",
-    "                       onUpdateTracking={handleUpdateTracking}\n                       onDeleteTracking={handleDeleteTracking}\n                       onFileDownload={handleFileDownload}",
+    /(\s+onUpdateTracking=\{handleUpdateTracking\}\n)(\s+onFileDownload=\{handleFileDownload\})/g,
+    '$1$2'.replace('$2', '                       onDeleteTracking={handleDeleteTracking}\n$2'),
     2,
     'pass delete tracking into admin cards',
+    'onDeleteTracking={handleDeleteTracking}',
   );
-  source = replaceAllChecked(
+
+  source = replaceRegex(
     source,
-    "  onUpdateTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string, trackingNumbers?: TrackingEntry[]) => void;\n  onFileDownload:",
-    "  onUpdateTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string, trackingNumbers?: TrackingEntry[]) => void;\n  onDeleteTracking: (orderId: string) => void;\n  onFileDownload:",
+    /(  onUpdateTracking: \(orderId: string, carrier: TrackingCarrier, trackingNumber: string, trackingNumbers\?: TrackingEntry\[\]\) => void;\n)(  onFileDownload:)/g,
+    '$1  onDeleteTracking: (orderId: string) => void;\n$2',
     2,
     'Admin card delete tracking prop type',
+    'onDeleteTracking: (orderId: string) => void;',
   );
+
   source = replaceOnce(
     source,
     "  onUpdateTracking,\n  onFileDownload,",
@@ -254,8 +269,8 @@ function replaceAllChecked(source, search, replacement, expected, label) {
   );
   source = replaceOnce(
     source,
-    "                  <div className=\"space-y-1\">\n                  {displayedTrackingRows.map((row, index) => (\n                    <div key={`${row.trackingNumber}-${index}`} className=\"flex flex-wrap items-center gap-2\">\n                      <Badge className=\"bg-green-100 text-green-800\"><Truck className=\"h-3 w-3 mr-1\" />FEDEX</Badge>\n                      <span className=\"text-xs font-semibold text-gray-700\">{row.label || `Package ${index + 1}`}</span>\n                      <a href={fedexUrl(row.trackingNumber)} target=\"_blank\" rel=\"noopener noreferrer\" className=\"text-xs text-blue-600 hover:underline break-all\">{row.trackingNumber}</a><Button type=\"button\" size=\"sm\" variant=\"ghost\" onClick={async () => { await copyText(row.trackingNumber); setCopiedKey(`row-${index}`); setTimeout(() => setCopiedKey(null), 2000); }} className=\"h-7 px-2 text-xs\"><Copy className=\"mr-1 h-3 w-3\" />{copiedKey === `row-${index}` ? 'Copied' : 'Copy'}</Button>\n                    </div>\n                  ))}\n                </div>",
-    "                  <div className=\"space-y-1\">\n                  {displayedTrackingRows.map((row, index) => (\n                    <div key={`${row.trackingNumber}-${index}`} className=\"flex flex-wrap items-center gap-2\">\n                      <Badge className=\"bg-green-100 text-green-800\"><Truck className=\"h-3 w-3 mr-1\" />FEDEX</Badge>\n                      <span className=\"text-xs font-semibold text-gray-700\">{row.label || `Package ${index + 1}`}</span>\n                      <a href={fedexUrl(row.trackingNumber)} target=\"_blank\" rel=\"noopener noreferrer\" className=\"text-xs text-blue-600 hover:underline break-all\">{row.trackingNumber}</a><Button type=\"button\" size=\"sm\" variant=\"ghost\" onClick={async () => { await copyText(row.trackingNumber); setCopiedKey(`row-${index}`); setTimeout(() => setCopiedKey(null), 2000); }} className=\"h-7 px-2 text-xs\"><Copy className=\"mr-1 h-3 w-3\" />{copiedKey === `row-${index}` ? 'Copied' : 'Copy'}</Button>\n                    </div>\n                  ))}\n                </div>\n                <Button type=\"button\" size=\"sm\" variant=\"outline\" onClick={() => onDeleteTracking(order.id)} className=\"mt-2 w-full border-red-200 text-xs text-red-700 hover:bg-red-50\">\n                  <Trash2 className=\"mr-1 h-3 w-3\" />Delete Tracking\n                </Button>",
+    "\n\n        <Button\n            size=\"sm\"\n            variant=\"outline\"\n            onClick={handleSendNotification}\n            disabled={isSendingNotification || displayedTrackingRows.length === 0}\n            className=\"w-full text-xs\"",
+    "\n\n        {displayedTrackingRows.length > 0 && (\n          <Button type=\"button\" size=\"sm\" variant=\"outline\" onClick={() => onDeleteTracking(order.id)} className=\"w-full border-red-200 text-xs text-red-700 hover:bg-red-50\">\n            <Trash2 className=\"mr-1 h-3 w-3\" />Delete Tracking\n          </Button>\n        )}\n\n        <Button\n            size=\"sm\"\n            variant=\"outline\"\n            onClick={handleSendNotification}\n            disabled={isSendingNotification || displayedTrackingRows.length === 0}\n            className=\"w-full text-xs\"",
     'mobile tracking delete control',
   );
   write(path, source);
