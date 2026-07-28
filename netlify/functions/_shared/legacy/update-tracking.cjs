@@ -32,7 +32,7 @@ exports.handler = async (event) => {
     }
 
     const sql = neon(dbUrl);
-    const { id, carrier, number, trackingNumbers, isUpdate = false } = JSON.parse(event.body || '{}');
+    const { id, carrier, number, trackingNumbers } = JSON.parse(event.body || '{}');
     if (!id || typeof id !== 'string') {
       return { statusCode: 400, headers, body: JSON.stringify({ ok: false, error: 'Order ID is required' }) };
     }
@@ -75,14 +75,24 @@ exports.handler = async (event) => {
     const trackingChanged = previousJson !== nextJson;
     const primaryTrackingNumber = normalized[0]?.trackingNumber || null;
     const trackingJson = JSON.stringify(normalized);
+    const shippingWasSent = Boolean(
+      existing.shipping_notification_sent
+      || existing.shipping_notification_status === 'sent',
+    );
 
+    // Saving a tracking number is only data entry. The order becomes Shipped
+    // when the tracking email is successfully sent. Repair rows that were
+    // incorrectly switched to Shipped by the old save-only behavior.
     let nextStatus = existing.status;
+    if (existing.status === 'shipped' && !shippingWasSent) {
+      nextStatus = existing.production_email_sent || existing.production_email_status === 'sent'
+        ? 'in_production'
+        : 'paid';
+    }
     if (normalized.length === 0 && existing.status === 'shipped') {
       nextStatus = existing.production_email_sent || existing.production_email_status === 'sent'
         ? 'in_production'
         : 'paid';
-    } else if (!isUpdate && normalized.length > 0) {
-      nextStatus = 'shipped';
     }
 
     const result = await sql`
@@ -104,6 +114,7 @@ exports.handler = async (event) => {
       trackingChanged,
       previousStatus: existing.status,
       nextStatus,
+      shippingWasSent,
     });
 
     return {
