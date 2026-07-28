@@ -70,8 +70,6 @@ async function reconcilePendingPayPalOrders(sql, orders, paymentById) {
     return;
   }
 
-  // Admin pages are limited to twenty orders. Reconcile the small pending set
-  // sequentially to avoid bursting the PayPal API and to keep logs readable.
   for (const { order, payment } of candidates) {
     try {
       const response = await fetch(`${paypal.baseUrl}/v2/checkout/orders/${encodeURIComponent(payment.paypal_order_id)}`, {
@@ -137,18 +135,6 @@ async function reconcilePendingPayPalOrders(sql, orders, paymentById) {
   }
 }
 
-/**
- * The legacy get-orders formatter intentionally returns a curated object, but
- * the payment identifiers were omitted during the Netlify-function migration.
- * That made captured PayPal orders still look "pending" to Admin, which hid the
- * existing Mark In Production action.
- *
- * Keep the proven legacy order query untouched, then enrich only the returned
- * rows with authoritative payment evidence. Pending PayPal rows are checked
- * against PayPal once; a completed capture is persisted before Admin receives
- * the response. If enrichment fails, return the original response rather than
- * breaking Admin Orders.
- */
 const handler = async (event, context) => {
   const response = await legacyModule.handler(event, context);
   const statusCode = Number(response?.statusCode || 500);
@@ -181,7 +167,17 @@ const handler = async (event, context) => {
               paypal_capture_id,
               stripe_charge_id,
               stripe_payment_intent_id,
-              to_jsonb(orders)->>'payment_reconciliation_status' AS payment_reconciliation_status
+              to_jsonb(orders)->>'payment_reconciliation_status' AS payment_reconciliation_status,
+              to_jsonb(orders)->>'confirmation_email_status' AS confirmation_email_status,
+              to_jsonb(orders)->>'confirmation_emailed_at' AS confirmation_emailed_at,
+              to_jsonb(orders)->>'admin_notification_status' AS admin_notification_status,
+              to_jsonb(orders)->>'admin_notification_sent_at' AS admin_notification_sent_at,
+              to_jsonb(orders)->>'production_email_status' AS production_email_status,
+              to_jsonb(orders)->>'production_email_sent' AS production_email_sent,
+              to_jsonb(orders)->>'production_email_sent_at' AS production_email_sent_at,
+              to_jsonb(orders)->>'shipping_notification_status' AS shipping_notification_status,
+              to_jsonb(orders)->>'shipping_notification_sent' AS shipping_notification_sent,
+              to_jsonb(orders)->>'shipping_notification_sent_at' AS shipping_notification_sent_at
          FROM orders
         WHERE id::text IN (${placeholders})`,
       ids,
@@ -212,10 +208,20 @@ const handler = async (event, context) => {
         stripe_charge_id: payment.stripe_charge_id || order.stripe_charge_id || null,
         stripe_payment_intent_id: payment.stripe_payment_intent_id || order.stripe_payment_intent_id || null,
         payment_reconciliation_status: payment.payment_reconciliation_status || order.payment_reconciliation_status || null,
+        confirmation_email_status: payment.confirmation_email_status || order.confirmation_email_status || null,
+        confirmation_emailed_at: payment.confirmation_emailed_at || order.confirmation_emailed_at || null,
+        admin_notification_status: payment.admin_notification_status || order.admin_notification_status || null,
+        admin_notification_sent_at: payment.admin_notification_sent_at || order.admin_notification_sent_at || null,
+        production_email_status: payment.production_email_status || order.production_email_status || null,
+        production_email_sent: payment.production_email_sent === 'true' || order.production_email_sent === true,
+        production_email_sent_at: payment.production_email_sent_at || order.production_email_sent_at || null,
+        shipping_notification_status: payment.shipping_notification_status || order.shipping_notification_status || null,
+        shipping_notification_sent: payment.shipping_notification_sent === 'true' || order.shipping_notification_sent === true,
+        shipping_notification_sent_at: payment.shipping_notification_sent_at || order.shipping_notification_sent_at || null,
       };
     }));
   } catch (error) {
-    console.error('[get-orders] payment metadata enrichment failed; returning base order response', {
+    console.error('[get-orders] metadata enrichment failed; returning base order response', {
       error: error instanceof Error ? error.message : String(error),
     });
   }
