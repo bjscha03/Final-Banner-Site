@@ -48,6 +48,34 @@ const amountToCents = (value) => {
   return Number.isFinite(amount) ? Math.round(amount * 100) : null;
 };
 
+const hasSavedTracking = (order) => Boolean(
+  String(order?.tracking_number || '').trim()
+  || (Array.isArray(order?.tracking_numbers) && order.tracking_numbers.length > 0)
+  || (Array.isArray(order?.trackingNumbers) && order.trackingNumbers.length > 0),
+);
+
+const getEffectiveWorkflowStatus = (order, hasCompletedCapture) => {
+  const baseStatus = order?.status === 'pending' && hasCompletedCapture
+    ? 'paid'
+    : order?.status;
+  const shippingEmailSent = Boolean(
+    order?.shipping_notification_sent
+    || order?.shipping_notification_status === 'sent',
+  );
+
+  // Saving a tracking number is not the same as shipping the order. The order
+  // remains In Production (or Paid when production has not started) until the
+  // tracking email succeeds. This also repairs the old Admin display for rows
+  // incorrectly moved to Shipped by the former save-only behavior.
+  if (baseStatus === 'shipped' && hasSavedTracking(order) && !shippingEmailSent) {
+    return order?.production_email_sent || order?.production_email_status === 'sent'
+      ? 'in_production'
+      : (hasCompletedCapture ? 'paid' : baseStatus);
+  }
+
+  return baseStatus;
+};
+
 async function reconcilePendingPayPalOrders(sql, orders, paymentById) {
   const candidates = orders
     .map((order) => ({ order, payment: paymentById.get(String(order?.id)) }))
@@ -199,9 +227,7 @@ const handler = async (event, context) => {
         || payment.stripe_charge_id
         || payment.payment_reconciliation_status === 'complete',
       );
-      const effectiveStatus = order.status === 'pending' && hasCompletedCapture
-        ? 'paid'
-        : order.status;
+      const effectiveStatus = getEffectiveWorkflowStatus(order, hasCompletedCapture);
 
       return {
         ...order,
@@ -223,5 +249,5 @@ const handler = async (event, context) => {
   return response;
 };
 
-export const _test = { getCompletedCapture, amountToCents };
+export const _test = { getCompletedCapture, amountToCents, getEffectiveWorkflowStatus };
 export default withLambda(handler);
