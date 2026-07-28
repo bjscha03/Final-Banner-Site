@@ -111,6 +111,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   const aspectRatio = safeWidth / safeHeight;
   const maxSize = Math.max(80, maxSizeProp ?? 200);
   const previewWidth = aspectRatio >= 1 ? maxSize : maxSize * aspectRatio;
+  const framePaddingBottom = `${(safeHeight / safeWidth) * 100}%`;
 
   const optimizedUrl = useMemo(
     () => buildCommercePreviewUrl(imageUrl, maxSize),
@@ -187,147 +188,161 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
 
   return (
     <div className={`flex min-w-0 items-center justify-center ${className}`}>
+      {/*
+        Do not use CSS aspect-ratio for this frame. Mobile Safari can collapse
+        an aspect-ratio element to zero height when every child is absolutely
+        positioned inside an overflow-hidden flex/modal container. The
+        padding-bottom technique reserves real layout height before the image
+        loads and works consistently in the upsell, cart, and checkout.
+      */}
       <div
-        className="relative max-w-full overflow-hidden rounded-lg border-2 border-gray-200 bg-white shadow-lg"
+        className="min-w-0 max-w-full"
         style={{
           width: `${previewWidth}px`,
           maxWidth: '100%',
-          aspectRatio: `${safeWidth} / ${safeHeight}`,
         }}
-        aria-label="Banner preview"
       >
-        {designServiceEnabled ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-slate-50 px-2 text-center">
-            <div
-              className="absolute inset-0 opacity-5"
-              style={{
-                backgroundImage: `repeating-linear-gradient(45deg, ${BRAND_BLUE} 0, ${BRAND_BLUE} 1px, transparent 0, transparent 50%)`,
-                backgroundSize: '10px 10px',
-              }}
-            />
-            <div className="relative z-10">
-              <p className="text-sm font-bold sm:text-base" style={{ color: BRAND_BLUE }}>
-                Your Custom Design
-              </p>
-              <p className="mt-1 text-xs text-slate-500">
-                {safeWidth}&quot; × {safeHeight}&quot;
-              </p>
+        <div
+          className="relative w-full overflow-hidden rounded-lg border-2 border-gray-200 bg-white shadow-lg"
+          style={{
+            paddingBottom: framePaddingBottom,
+            minHeight: '1px',
+          }}
+          aria-label="Banner preview"
+        >
+          {designServiceEnabled ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-slate-50 px-2 text-center">
+              <div
+                className="absolute inset-0 opacity-5"
+                style={{
+                  backgroundImage: `repeating-linear-gradient(45deg, ${BRAND_BLUE} 0, ${BRAND_BLUE} 1px, transparent 0, transparent 50%)`,
+                  backgroundSize: '10px 10px',
+                }}
+              />
+              <div className="relative z-10">
+                <p className="text-sm font-bold sm:text-base" style={{ color: BRAND_BLUE }}>
+                  Your Custom Design
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {safeWidth}&quot; × {safeHeight}&quot;
+                </p>
+              </div>
             </div>
-          </div>
-        ) : activeUrl && !imageError ? (
-          <div
-            className="absolute inset-0 h-full w-full"
-            style={{
-              transform: isApprovedSnapshot
-                ? undefined
-                : `translate(${x}%, ${y}%) scale(${scaleX}, ${scaleY})`,
-              transformOrigin: 'center center',
-            }}
-          >
-            <img
-              key={activeUrl}
-              src={activeUrl}
-              alt="Banner preview"
-              className="absolute inset-0 block h-full w-full"
+          ) : activeUrl && !imageError ? (
+            <div
+              className="absolute inset-0 h-full w-full"
               style={{
-                width: '100%',
-                height: '100%',
-                display: 'block',
-                objectFit: imageObjectFit,
+                transform: isApprovedSnapshot
+                  ? undefined
+                  : `translate(${x}%, ${y}%) scale(${scaleX}, ${scaleY})`,
+                transformOrigin: 'center center',
               }}
-              draggable={false}
+            >
+              <img
+                key={activeUrl}
+                src={activeUrl}
+                alt="Banner preview"
+                className="absolute inset-0 block h-full w-full"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  display: 'block',
+                  objectFit: imageObjectFit,
+                }}
+                draggable={false}
+                loading="eager"
+                decoding="async"
+                onLoad={() => setImageError(false)}
+                onError={handleImageError}
+              />
+            </div>
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-50 text-gray-400">
+              {isLoading ? (
+                <Loader2 className="h-6 w-6 animate-spin" aria-label="Loading preview" />
+              ) : (
+                <div className="text-center">
+                  <ImageIcon className="mx-auto h-6 w-6" />
+                  <span className="mt-1 block text-[10px]">Preview unavailable</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {overlay?.url && (
+            <img
+              src={overlay.url}
+              alt=""
+              aria-hidden="true"
+              className="pointer-events-none absolute z-[5] block object-contain"
+              style={{
+                left: overlay.left,
+                top: overlay.top,
+                width: overlay.width,
+                height: overlay.height,
+                display: 'block',
+              }}
               loading="eager"
               decoding="async"
-              onLoad={() => setImageError(false)}
-              onError={handleImageError}
             />
-          </div>
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-50 text-gray-400">
-            {isLoading ? (
-              <Loader2 className="h-6 w-6 animate-spin" aria-label="Loading preview" />
-            ) : (
-              <div className="text-center">
-                <ImageIcon className="mx-auto h-6 w-6" />
-                <span className="mt-1 block text-[10px]">Preview unavailable</span>
-              </div>
-            )}
-          </div>
-        )}
+          )}
 
-        {overlay?.url && (
-          <img
-            src={overlay.url}
-            alt=""
+          <svg
+            className="pointer-events-none absolute inset-0 z-10 h-full w-full"
+            viewBox={`0 0 ${safeWidth} ${safeHeight}`}
+            preserveAspectRatio="none"
             aria-hidden="true"
-            className="pointer-events-none absolute z-[5] block object-contain"
-            style={{
-              left: overlay.left,
-              top: overlay.top,
-              width: overlay.width,
-              height: overlay.height,
-              display: 'block',
-            }}
-            loading="eager"
-            decoding="async"
-          />
-        )}
+          >
+            {textElements.map((textElement, index) => {
+              const fontSize = Math.max(
+                safeHeight * 0.02,
+                Number(textElement.fontSize || 24) * (safeHeight / 400),
+              );
+              const textAnchor = textElement.textAlign === 'center'
+                ? 'middle'
+                : textElement.textAlign === 'right'
+                  ? 'end'
+                  : 'start';
 
-        <svg
-          className="pointer-events-none absolute inset-0 z-10 h-full w-full"
-          viewBox={`0 0 ${safeWidth} ${safeHeight}`}
-          preserveAspectRatio="none"
-          aria-hidden="true"
-        >
-          {textElements.map((textElement, index) => {
-            const fontSize = Math.max(
-              safeHeight * 0.02,
-              Number(textElement.fontSize || 24) * (safeHeight / 400),
-            );
-            const textAnchor = textElement.textAlign === 'center'
-              ? 'middle'
-              : textElement.textAlign === 'right'
-                ? 'end'
-                : 'start';
+              return (
+                <text
+                  key={textElement.id || `preview-text-${index}`}
+                  x={(safeWidth * Number(textElement.xPercent || 0)) / 100}
+                  y={(safeHeight * Number(textElement.yPercent || 0)) / 100}
+                  fontSize={fontSize}
+                  fontFamily={textElement.fontFamily || 'system-ui, sans-serif'}
+                  fill={textElement.color || '#111827'}
+                  textAnchor={textAnchor}
+                  dominantBaseline="middle"
+                  fontWeight={textElement.fontWeight || 'normal'}
+                >
+                  {textElement.content}
+                </text>
+              );
+            })}
 
-            return (
-              <text
-                key={textElement.id || `preview-text-${index}`}
-                x={(safeWidth * Number(textElement.xPercent || 0)) / 100}
-                y={(safeHeight * Number(textElement.yPercent || 0)) / 100}
-                fontSize={fontSize}
-                fontFamily={textElement.fontFamily || 'system-ui, sans-serif'}
-                fill={textElement.color || '#111827'}
-                textAnchor={textAnchor}
-                dominantBaseline="middle"
-                fontWeight={textElement.fontWeight || 'normal'}
-              >
-                {textElement.content}
-              </text>
-            );
-          })}
-
-          {grommetPoints.map((point, index) => (
-            <g key={`preview-grommet-${index}`}>
-              <circle
-                cx={point.x}
-                cy={point.y}
-                r={grommetRadius * 1.25}
-                fill="#4b5563"
-                stroke="#111827"
-                strokeWidth={Math.max(grommetRadius * 0.08, 0.02)}
-              />
-              <circle
-                cx={point.x}
-                cy={point.y}
-                r={grommetRadius * 0.68}
-                fill="#f8fafc"
-                stroke="#cbd5e1"
-                strokeWidth={Math.max(grommetRadius * 0.04, 0.01)}
-              />
-            </g>
-          ))}
-        </svg>
+            {grommetPoints.map((point, index) => (
+              <g key={`preview-grommet-${index}`}>
+                <circle
+                  cx={point.x}
+                  cy={point.y}
+                  r={grommetRadius * 1.25}
+                  fill="#4b5563"
+                  stroke="#111827"
+                  strokeWidth={Math.max(grommetRadius * 0.08, 0.02)}
+                />
+                <circle
+                  cx={point.x}
+                  cy={point.y}
+                  r={grommetRadius * 0.68}
+                  fill="#f8fafc"
+                  stroke="#cbd5e1"
+                  strokeWidth={Math.max(grommetRadius * 0.04, 0.01)}
+                />
+              </g>
+            ))}
+          </svg>
+        </div>
       </div>
     </div>
   );
