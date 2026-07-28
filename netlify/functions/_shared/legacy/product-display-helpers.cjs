@@ -1,6 +1,6 @@
 /**
  * Product Display Helpers for Netlify Functions (CommonJS)
- * 
+ *
  * Shared helpers for generating product-specific display names in emails,
  * notifications, and admin views from the backend.
  */
@@ -62,7 +62,6 @@ function getDisplayGrommets(value) {
   };
   return map[key] || toTitleCase(key.replace(/-/g, ' '));
 }
-
 
 function formatOptionValue(value) {
   if (typeof value === 'boolean') return value ? 'Included' : 'None';
@@ -225,12 +224,12 @@ function normalizeOrderItemDisplay(item) {
         ? {
             roundedCornersDisplay: getCarMagnetRoundedCornersLabel(item.rounded_corners),
           }
-      : {
-          grommetsDisplay,
-          ropeDisplay: formatOptionValue(ropeDisplay),
-          polePocketsDisplay: formatOptionValue(polePocketsDisplay),
-          hemmingDisplay: 'Always included',
-        }),
+        : {
+            grommetsDisplay,
+            ropeDisplay: formatOptionValue(ropeDisplay),
+            polePocketsDisplay: formatOptionValue(polePocketsDisplay),
+            hemmingDisplay: 'Always included',
+          }),
   };
 }
 
@@ -239,19 +238,17 @@ const PAYPAL_DESCRIPTION_MAX = 127;
 
 /**
  * Truncate a description to fit within PayPal's character limit.
- * Prefers cutting at the last comma to avoid mid-token truncation,
- * then appends an ellipsis. If the string already fits, returns it unchanged.
+ * Prefers cutting at the last comma or item separator to avoid mid-token
+ * truncation, then appends an ellipsis.
  */
 function truncatePayPalDescription(text, max = PAYPAL_DESCRIPTION_MAX) {
   const s = String(text || '');
   if (s.length <= max) return s;
-  // Reserve 1 char for the ellipsis ("…").
   const budget = max - 1;
   const slice = s.slice(0, budget);
-  const lastComma = slice.lastIndexOf(',');
-  // Only cut at a comma if it leaves a reasonable amount of content.
-  if (lastComma > Math.floor(budget * 0.5)) {
-    return `${slice.slice(0, lastComma)}…`;
+  const lastSeparator = Math.max(slice.lastIndexOf(' | '), slice.lastIndexOf(','));
+  if (lastSeparator > Math.floor(budget * 0.5)) {
+    return `${slice.slice(0, lastSeparator)}…`;
   }
   return `${slice}…`;
 }
@@ -259,9 +256,6 @@ function truncatePayPalDescription(text, max = PAYPAL_DESCRIPTION_MAX) {
 /**
  * Build a human-readable, single-line description of a banner line item
  * for inclusion in the PayPal order/receipt.
- *
- * Example: 'Banner - 96" × 24", 13oz Vinyl, Qty 1, Grommets: Every 2–3 Feet,
- *           Pole Pockets: None, Rope: None, Hemming: Always included'
  */
 function buildBannerPayPalLine(item) {
   const size = getDisplaySize(item);
@@ -286,57 +280,63 @@ function buildBannerPayPalLine(item) {
   return `Banner - ${sizePart}${material}, Qty ${qty}, Grommets: ${grommetsLabel}, Pole Pockets: ${polePocketsLabel}, Rope: ${ropeLabel}, Hemming: Always included`;
 }
 
+function buildYardSignPayPalLine(item, compact = false) {
+  const size = getDisplaySize(item) || YARD_SIGN_SIZE;
+  const sides = item.yard_sign_sidedness === 'double' ? 'Double-Sided' : 'Single-Sided';
+  const qty = Number(item.quantity || 1) || 1;
+  const stakes = Number(item.yard_sign_step_stakes_qty || 0);
+  const stakesPart = stakes > 0 ? `${compact ? ', Stakes ' : ', Step Stakes: '}${stakes}` : '';
+  return compact
+    ? `Yard Sign ${size}, ${sides}, Qty ${qty}${stakesPart}`
+    : `Yard Sign - ${size}, Corrugated Plastic, ${sides}, Qty ${qty}${stakesPart}`;
+}
+
+function buildCarMagnetPayPalLine(item, compact = false) {
+  const size = getDisplaySize(item);
+  const qty = Number(item.quantity || 1) || 1;
+  const corners = getCarMagnetRoundedCornersLabel(item.rounded_corners);
+  const sizePart = size ? `${size}, ` : '';
+  return compact
+    ? `Car Magnets ${sizePart}Qty ${qty}`
+    : `Car Magnets - ${sizePart}Premium Magnetic Material, Qty ${qty}, Rounded Corners: ${corners}`;
+}
+
+function buildCompactPayPalLine(item) {
+  const type = String(item?.product_type || 'banner');
+  if (type === 'yard_sign') return buildYardSignPayPalLine(item, true);
+  if (type === 'car_magnet') return buildCarMagnetPayPalLine(item, true);
+  const size = getDisplaySize(item);
+  const material = getDisplayMaterial(item) || '13oz Vinyl';
+  const qty = Number(item.quantity || 1) || 1;
+  return `Banner ${size || 'Custom Size'}, ${material}, Qty ${qty}`;
+}
+
 /**
  * Get the PayPal order description.
  *
- * For single-item banner orders we return a detailed, human-readable
- * configuration string (size, material, qty, finishing) so the PayPal
- * receipt clearly reflects what the customer ordered. For multi-item or
- * non-banner carts we fall back to a short generic title.
- *
- * The returned string is always within PayPal's 127-character limit.
+ * Every order now keeps product dimensions and quantity in the PayPal-visible
+ * description. Multi-item carts previously degraded to a generic title, which
+ * removed the production details from the PayPal order record.
  */
 function getPayPalDescription(items) {
   if (!items || items.length === 0) {
     return 'Custom Order - Banners On The Fly';
   }
 
-  // Single-item: include full product configuration.
   if (items.length === 1) {
     const item = items[0];
     const type = String(item.product_type || 'banner');
-    if (type !== 'yard_sign' && type !== 'car_magnet') {
-      return truncatePayPalDescription(buildBannerPayPalLine(item));
-    }
     if (type === 'yard_sign') {
-      const size = getDisplaySize(item) || YARD_SIGN_SIZE;
-      const sides = item.yard_sign_sidedness === 'double' ? 'Double-Sided' : 'Single-Sided';
-      const qty = Number(item.quantity || 1) || 1;
-      const stakes = Number(item.yard_sign_step_stakes_qty || 0);
-      const stakesPart = stakes > 0 ? `, Step Stakes: ${stakes}` : '';
-      return truncatePayPalDescription(
-        `Yard Sign - ${size}, Corrugated Plastic, ${sides}, Qty ${qty}${stakesPart}`
-      );
+      return truncatePayPalDescription(buildYardSignPayPalLine(item));
     }
     if (type === 'car_magnet') {
-      const size = getDisplaySize(item);
-      const qty = Number(item.quantity || 1) || 1;
-      const corners = getCarMagnetRoundedCornersLabel(item.rounded_corners);
-      const sizePart = size ? `${size}, ` : '';
-      return truncatePayPalDescription(
-        `Car Magnets - ${sizePart}Premium Magnetic Material, Qty ${qty}, Rounded Corners: ${corners}`
-      );
+      return truncatePayPalDescription(buildCarMagnetPayPalLine(item));
     }
+    return truncatePayPalDescription(buildBannerPayPalLine(item));
   }
 
-  // Multi-item carts: keep a short generic title (preserves prior behavior).
-  const hasYardSigns = items.some(i => i.product_type === 'yard_sign');
-  const hasCarMagnets = items.some(i => i.product_type === 'car_magnet');
-  const hasBanners = items.some(i => !['yard_sign', 'car_magnet'].includes(String(i.product_type || 'banner')));
-  if ((hasYardSigns && hasBanners) || (hasCarMagnets && hasBanners) || (hasCarMagnets && hasYardSigns)) return 'Custom Order - Banners On The Fly';
-  if (hasYardSigns) return 'Custom Yard Sign Order - Banners On The Fly';
-  if (hasCarMagnets) return 'Car Magnets Order - Banners On The Fly';
-  return 'Custom Banner Order - Banners On The Fly';
+  const detailedSummary = items.map(buildCompactPayPalLine).filter(Boolean).join(' | ');
+  return truncatePayPalDescription(detailedSummary || 'Custom Order - Banners On The Fly');
 }
 
 module.exports = {
@@ -350,4 +350,3 @@ module.exports = {
   getDisplayPlacement,
   formatOptionValue,
 };
-
