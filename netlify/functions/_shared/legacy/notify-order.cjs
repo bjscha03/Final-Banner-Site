@@ -1,4 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
+const { createOrderAccessToken } = require('../order-email-access.cjs');
 const { getItemDisplayName, isYardSignItem, getEmailItemOptions, normalizeOrderItemDisplay } = require('./product-display-helpers.cjs');
 const {
   normalizeName,
@@ -758,12 +759,15 @@ exports.handler = async (event) => {
       SELECT * FROM order_items WHERE order_id = ${resolvedOrderId}
     `;
 
-    // Build origin URL for order details link
-    const origin = event.headers['x-forwarded-host']
-      ? `https://${event.headers['x-forwarded-host']}`
-      : process.env.PUBLIC_SITE_URL || 'https://www.bannersonthefly.com';
-
-    const invoiceUrl = `${origin}/orders/${resolvedOrderId}`;
+    // Customer emails get a signed direct-order link. Admin emails go to
+    // Admin Orders instead of the customer-only route. Always use the canonical
+    // production origin so email links do not depend on browser-local sessions.
+    const origin = String(process.env.PUBLIC_SITE_URL || 'https://bannersonthefly.com').replace(/\/$/, '');
+    const orderAccessToken = createOrderAccessToken(resolvedOrderId, order.email);
+    const customerInvoiceUrl = orderAccessToken
+      ? `${origin}/orders/${resolvedOrderId}?token=${encodeURIComponent(orderAccessToken)}`
+      : `${origin}/orders/${resolvedOrderId}`;
+    const adminInvoiceUrl = `${origin}/admin/orders?order=${encodeURIComponent(resolvedOrderId)}`;
 
     // Convert database order to email format
     // Use customer_name first, then shipping_name as fallback (shipping_name often has the actual name)
@@ -901,7 +905,7 @@ exports.handler = async (event) => {
           country: order.shipping_country || 'US',
         }
       },
-      invoiceUrl
+      invoiceUrl: customerInvoiceUrl
     };
 
     // Send confirmation email
@@ -943,7 +947,7 @@ exports.handler = async (event) => {
             email: order.email, // Add customer email to admin notification
             created_at: order.created_at
           },
-          invoiceUrl: emailPayload.invoiceUrl
+          invoiceUrl: adminInvoiceUrl
         };
 
         adminEmailResult = await sendEmail('order.admin_notification', adminEmailPayload);

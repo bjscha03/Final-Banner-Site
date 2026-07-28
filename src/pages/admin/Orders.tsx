@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth, isAdmin } from '../../lib/auth';
 import { getOrdersAdapter } from '../../lib/orders/adapter';
 import { Order, TrackingCarrier } from '../../lib/orders/types';
@@ -31,7 +31,8 @@ import {
   ChevronRight,
   Copy,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Trash2
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -207,6 +208,8 @@ const isHiddenStripeAttempt = (order: Order): boolean => {
 
 const AdminOrders: React.FC = () => {
   const navigate = useNavigate();
+  const [routeSearchParams] = useSearchParams();
+  const requestedOrderId = routeSearchParams.get('order') || '';
   const { user, loading: authLoading } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -330,6 +333,10 @@ const AdminOrders: React.FC = () => {
   };
 
   useEffect(() => {
+    if (requestedOrderId) setSearchQuery(requestedOrderId.slice(-8));
+  }, [requestedOrderId]);
+
+  useEffect(() => {
     // Filter orders based on search query
     if (searchQuery.trim() === '') {
       setFilteredOrders(orders);
@@ -399,7 +406,12 @@ const AdminOrders: React.FC = () => {
                 tracking_number: savedTrackingNumbers[0]?.trackingNumber || null,
                 tracking_numbers: savedTrackingNumbers,
                 trackingNumbers: savedTrackingNumbers,
-                status: savedTrackingNumbers.length > 0 ? 'shipped' : order.status // Update status to shipped only when tracking is added
+                status: order.status === 'shipped' && !order.shipping_notification_sent
+                  ? (order.production_email_sent ? 'in_production' : 'paid')
+                  : order.status,
+                shipping_notification_sent: false,
+                shipping_notification_sent_at: null,
+                shipping_notification_status: 'pending'
               }
             : order
         )
@@ -435,6 +447,12 @@ const AdminOrders: React.FC = () => {
                 tracking_number: savedTrackingNumbers[0]?.trackingNumber || null,
                 tracking_numbers: savedTrackingNumbers,
                 trackingNumbers: savedTrackingNumbers,
+                status: order.status === 'shipped' && !order.shipping_notification_sent
+                  ? (order.production_email_sent ? 'in_production' : 'paid')
+                  : order.status,
+                shipping_notification_sent: false,
+                shipping_notification_sent_at: null,
+                shipping_notification_status: 'pending',
                 // Don't change status when updating existing tracking
               }
             : order
@@ -451,6 +469,39 @@ const AdminOrders: React.FC = () => {
         title: "Error",
         description: "Failed to update tracking information. Please try again.",
         variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteTracking = async (orderId: string) => {
+    if (!window.confirm('Delete all tracking numbers for this order? The tracking email status will also be reset.')) return;
+    try {
+      const ordersAdapter = await getOrdersAdapter();
+      await ordersAdapter.updateTracking(orderId, 'fedex', '', []);
+      setOrders((current) => current.map((order) => {
+        if (order.id !== orderId) return order;
+        const nextStatus = order.status === 'shipped'
+          ? (order.production_email_sent ? 'in_production' : 'paid')
+          : order.status;
+        return {
+          ...order,
+          tracking_number: null,
+          tracking_numbers: [],
+          trackingNumbers: [],
+          tracking_carrier: null,
+          status: nextStatus as Order['status'],
+          shipping_notification_sent: false,
+          shipping_notification_sent_at: null,
+          shipping_notification_status: 'pending',
+        };
+      }));
+      toast({ title: 'Tracking Deleted', description: `Tracking was removed from order #${orderId.slice(-8).toUpperCase()}.` });
+    } catch (error) {
+      console.error('Delete tracking failed:', error);
+      toast({
+        title: 'Unable to Delete Tracking',
+        description: error instanceof Error ? error.message : 'Tracking could not be deleted.',
+        variant: 'destructive',
       });
     }
   };
@@ -765,21 +816,22 @@ const AdminOrders: React.FC = () => {
                 ...order,
                 shipping_notification_sent: true,
                 shipping_notification_sent_at: new Date().toISOString(),
-                shipping_notification_status: 'sent'
+                shipping_notification_status: 'sent',
+                status: 'shipped' as const
               }
             : order
         )
       );
 
       toast({
-        title: "Tracking email sent successfully",
+        title: result.wasResend ? 'Tracking email resent successfully' : 'Tracking email sent successfully',
         description: `Customer has been notified about order #${orderId.slice(-8)}`,
       });
     } catch (error) {
       console.error('Send shipping notification failed:', error);
       toast({
         title: "Unable to send email",
-        description: "Unable to send email. Please try again.",
+        description: error instanceof Error ? error.message : 'Unable to send email. Please try again.',
         variant: "destructive",
       });
     }
@@ -808,8 +860,9 @@ const AdminOrders: React.FC = () => {
             ? {
                 ...order,
                 status: 'in_production' as const,
-                production_email_sent: result.emailSent ?? true,
-                production_email_sent_at: new Date().toISOString()
+                production_email_sent: result.emailSent === true,
+                production_email_sent_at: result.emailSent ? new Date().toISOString() : null,
+                production_email_status: result.emailSent ? 'sent' : 'error'
               }
             : order
         )
@@ -1185,6 +1238,7 @@ const AdminOrders: React.FC = () => {
                       order={order}
                       onAddTracking={handleAddTracking}
                       onUpdateTracking={handleUpdateTracking}
+                       onDeleteTracking={handleDeleteTracking}
                       onFileDownload={handleFileDownload}
                       onPdfDownload={handlePdfDownload}
                       onSendShippingNotification={handleSendShippingNotification}
@@ -1206,6 +1260,7 @@ const AdminOrders: React.FC = () => {
                       order={order}
                       onAddTracking={handleAddTracking}
                       onUpdateTracking={handleUpdateTracking}
+                       onDeleteTracking={handleDeleteTracking}
                       onFileDownload={handleFileDownload}
                       onPdfDownload={handlePdfDownload}
                       onSendShippingNotification={handleSendShippingNotification}
@@ -1259,6 +1314,7 @@ interface AdminOrderRowProps {
   order: Order;
   onAddTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string, trackingNumbers?: TrackingEntry[]) => void;
   onUpdateTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string, trackingNumbers?: TrackingEntry[]) => void;
+  onDeleteTracking: (orderId: string) => void;
   onFileDownload: (fileKey: string, orderId: string, itemIndex: number) => void;
   onPdfDownload: (item: any, itemIndex: number, orderId: string) => void;
   onSendShippingNotification: (orderId: string) => void;
@@ -1274,6 +1330,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   order,
   onAddTracking,
   onUpdateTracking,
+  onDeleteTracking,
   onFileDownload,
   onPdfDownload,
   onSendShippingNotification,
@@ -1551,15 +1608,14 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                     FEDEX
                   </Badge>
                   {!isEditingTracking && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={handleEditTracking}
-                      className="h-7 px-2 text-xs"
-                    >
-                      <Edit3 className="h-3 w-3 mr-1" />
-                      Edit
-                    </Button>
+                    <>
+                      <Button size="sm" variant="ghost" onClick={handleEditTracking} className="h-7 px-2 text-xs">
+                        <Edit3 className="h-3 w-3 mr-1" />Edit
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => onDeleteTracking(order.id)} className="h-7 px-2 text-xs text-red-700 hover:bg-red-50 hover:text-red-800">
+                        <Trash2 className="h-3 w-3 mr-1" />Delete
+                      </Button>
+                    </>
                   )}
                 </div>
                 <div className="text-xs text-gray-700">
@@ -1714,7 +1770,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                   ) : (
                     <>
                       <Mail className="h-3 w-3 mr-1" />
-                      {isSendingNotification ? 'Sending…' : order.shipping_notification_sent ? 'Resend Tracking Email' : 'Resend Tracking Email'}
+                      {isSendingNotification ? 'Sending…' : order.shipping_notification_sent ? 'Resend Tracking Email' : 'Send Tracking Email'}
                     </>
                   )}
                 </Button>
@@ -1769,6 +1825,7 @@ interface AdminOrderCardProps {
   order: Order;
   onAddTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string, trackingNumbers?: TrackingEntry[]) => void;
   onUpdateTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string, trackingNumbers?: TrackingEntry[]) => void;
+  onDeleteTracking: (orderId: string) => void;
   onFileDownload: (fileKey: string, orderId: string, itemIndex: number) => void;
   onPdfDownload: (item: any, itemIndex: number, orderId: string) => void;
   onSendShippingNotification: (orderId: string) => void;
@@ -1783,6 +1840,7 @@ interface AdminOrderCardProps {
 const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
   order,
   onPdfDownload,
+  onDeleteTracking,
   onSendShippingNotification,
   onMarkInProduction,
   onUploadFinalPdf,
@@ -1996,6 +2054,12 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
         )}
 
 
+        {displayedTrackingRows.length > 0 && (
+          <Button type="button" size="sm" variant="outline" onClick={() => onDeleteTracking(order.id)} className="w-full border-red-200 text-xs text-red-700 hover:bg-red-50">
+            <Trash2 className="mr-1 h-3 w-3" />Delete Tracking
+          </Button>
+        )}
+
         <Button
             size="sm"
             variant="outline"
@@ -2003,7 +2067,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
             disabled={isSendingNotification || displayedTrackingRows.length === 0}
             className="w-full text-xs"
           >
-            {isSendingNotification ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Sending...</> : <><Mail className="h-3 w-3 mr-1" />Resend Tracking Email</>}
+            {isSendingNotification ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Sending...</> : <><Mail className="h-3 w-3 mr-1" />{order.shipping_notification_sent ? 'Resend Tracking Email' : 'Send Tracking Email'}</>}
           </Button>
 
         <OrderDetails

@@ -1,6 +1,6 @@
 import { normalizeTrackingEntries, fedexUrl } from '@/lib/orders/tracking';
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Package, Calendar, Mail, CreditCard, Truck, CheckCircle, Clock, AlertCircle, Palette, MessageSquare, Phone, Upload, MapPin } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { useScrollToTop } from '@/components/ScrollToTop';
@@ -84,33 +84,73 @@ interface Order {
 const OrderDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const accessToken = searchParams.get('token') || '';
   const { scrollToTop } = useScrollToTop();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [needsEmailVerification, setNeedsEmailVerification] = useState(false);
+  const [verificationEmail, setVerificationEmail] = useState('');
+  const [verifyingEmail, setVerifyingEmail] = useState(false);
 
   useEffect(() => {
     scrollToTop();
     if (id) {
-      fetchOrder(id);
+      fetchOrder(id, accessToken);
     }
-  }, [id]);
+  }, [id, accessToken]);
 
-  const fetchOrder = async (orderId: string) => {
+  const fetchOrder = async (orderId: string, token = '') => {
     try {
       setLoading(true);
-      const response = await fetch(`/.netlify/functions/get-order?id=${orderId}`, { headers: authorizedHeaders() });
-      const data = await response.json();
-      
-      if (data.ok && data.order) {
-        setOrder(data.order);
-      } else {
-        setError(data.error || 'Order not found');
+      setError(null);
+      const params = new URLSearchParams({ id: orderId });
+      if (token) params.set('token', token);
+      const response = await fetch(`/.netlify/functions/get-order?${params.toString()}`, { headers: authorizedHeaders() });
+      const data = await response.json().catch(() => ({}));
+
+      if (response.status === 401 || response.status === 403) {
+        setOrder(null);
+        setNeedsEmailVerification(true);
+        return;
       }
+      if (!response.ok || !data.ok || !data.order) {
+        setOrder(null);
+        setError(data.error || `Unable to load order (HTTP ${response.status})`);
+        return;
+      }
+
+      setNeedsEmailVerification(false);
+      setOrder(data.order);
     } catch (err) {
-      setError('Failed to load order details');
+      setOrder(null);
+      setError(err instanceof Error ? err.message : 'Failed to load order details');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleVerifyEmail = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!id || !verificationEmail.trim()) return;
+    setVerifyingEmail(true);
+    setError(null);
+    try {
+      const response = await fetch('/.netlify/functions/order-email-access', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: id, email: verificationEmail }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.ok || !result.token) {
+        throw new Error(result.error || 'Order details could not be verified');
+      }
+      navigate(`/orders/${encodeURIComponent(result.orderId || id)}?token=${encodeURIComponent(result.token)}`, { replace: true });
+    } catch (verificationError) {
+      setError(verificationError instanceof Error ? verificationError.message : 'Order details could not be verified');
+    } finally {
+      setVerifyingEmail(false);
     }
   };
 
@@ -183,6 +223,40 @@ const OrderDetail: React.FC = () => {
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
               <p className="mt-4 text-gray-600">Loading order details...</p>
+            </div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (needsEmailVerification) {
+    return (
+      <Layout>
+        <div className="min-h-screen bg-gray-50 py-12">
+          <div className="mx-auto max-w-lg px-4 sm:px-6">
+            <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+              <Mail className="mx-auto h-12 w-12 text-[#18448D]" />
+              <h1 className="mt-4 text-center text-2xl font-bold text-gray-900">Verify Your Order</h1>
+              <p className="mt-2 text-center text-sm text-gray-600">Enter the email address used at checkout to securely view this order.</p>
+              <form className="mt-6 space-y-4" onSubmit={handleVerifyEmail}>
+                <label className="block text-sm font-semibold text-gray-700">
+                  Checkout email
+                  <input
+                    type="email"
+                    required
+                    autoComplete="email"
+                    value={verificationEmail}
+                    onChange={(event) => setVerificationEmail(event.target.value)}
+                    className="mt-1 h-11 w-full rounded-lg border border-gray-300 px-3 text-base focus:border-[#18448D] focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    placeholder="you@example.com"
+                  />
+                </label>
+                {error && <p className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+                <button type="submit" disabled={verifyingEmail} className="w-full rounded-lg bg-[#18448D] px-4 py-3 font-semibold text-white hover:bg-[#12366f] disabled:opacity-60">
+                  {verifyingEmail ? 'Verifying…' : 'View Order'}
+                </button>
+              </form>
             </div>
           </div>
         </div>
