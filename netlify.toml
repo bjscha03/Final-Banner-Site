@@ -8,12 +8,13 @@
 
 [functions]
   directory = "netlify/functions"
-  # Bundle function imports (including dependencies required by the shared CJS
-  # handlers) into each function artifact. Keeping Neon external caused the
-  # deployed wrappers to require a package that was not present in /var/task.
+  # The ESM entrypoints load shared CommonJS handlers that require Neon at
+  # runtime. Keep esbuild for the wrappers, and have Netlify copy Neon into
+  # each consuming function artifact instead of relying on esbuild to inline
+  # the transitive CJS require.
   node_bundler = "esbuild"
   included_files = ["src/lib/**", "src/emails/**"]
-  external_node_modules = ["resend", "@react-email/components", "@react-email/render", "aws-sdk", "uuid", "cloudinary", "sharp", "pdfkit", "openai", "google-auth-library", "stripe"]
+  external_node_modules = ["@neondatabase/serverless", "resend", "@react-email/components", "@react-email/render", "aws-sdk", "uuid", "cloudinary", "sharp", "pdfkit", "openai", "google-auth-library", "stripe"]
 
 # Function-specific configuration
 [functions."upload-file"]
