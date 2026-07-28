@@ -2,6 +2,7 @@ import { FormEvent, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
+import './admin-preview.css';
 import { isPreviewEnvironment, isProductionHost } from './lib/environment';
 
 const PREVIEW_SESSION_KEY = 'preview_access_granted';

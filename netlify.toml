@@ -31,6 +31,10 @@
   timeout = 120
   memory = 2048
 
+[functions."download-print-pdf"]
+  timeout = 120
+  memory = 2048
+
 [functions."ai-generate-banner"]
   timeout = 120
   memory = 1024
