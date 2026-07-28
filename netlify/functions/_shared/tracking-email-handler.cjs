@@ -123,6 +123,20 @@ function buildTrackingHtml(order, trackingNumbers) {
   });
 }
 
+function createTrackingEmailData({ order, trackingNumbers, from, replyTo }) {
+  return {
+    from,
+    to: order.email,
+    replyTo,
+    subject: `Your Order #${order.orderNumber} Has Shipped!`,
+    html: buildTrackingHtml(order, trackingNumbers),
+    tags: [
+      { name: 'type', value: 'order_shipped' },
+      { name: 'order_id', value: String(order.id) },
+    ],
+  };
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
   const auth = requireAdmin(event);
@@ -225,17 +239,12 @@ exports.handler = async (event) => {
 
     let providerId = null;
     try {
-      const result = await sendWithRetry(resend, {
+      const result = await sendWithRetry(resend, createTrackingEmailData({
+        order: emailOrder,
+        trackingNumbers,
         from: emailFrom,
-        to: customerEmail,
         replyTo,
-        subject: `Your Order #${emailOrder.orderNumber} Has Shipped!`,
-        html: buildTrackingHtml(emailOrder, trackingNumbers),
-        tags: [
-          { name: 'type', value: 'order_shipped' },
-          { name: 'order_id', value: String(order.id) },
-        ],
-      });
+      }));
       providerId = result.data.id;
     } catch (error) {
       const errorMessage = providerErrorMessage(error);
@@ -299,4 +308,10 @@ exports.handler = async (event) => {
   }
 };
 
-exports._test = { providerErrorMessage, isRetryableProviderError, buildTrackingHtml, sendWithRetry };
+exports._test = {
+  providerErrorMessage,
+  isRetryableProviderError,
+  buildTrackingHtml,
+  createTrackingEmailData,
+  sendWithRetry,
+};
