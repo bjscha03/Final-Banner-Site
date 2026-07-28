@@ -145,6 +145,16 @@ const EmailDeliveryStatus: React.FC<EmailDeliveryStatusProps> = ({ order, onUpda
     onUpdated?.(patch);
   };
 
+  const refreshAdminListIfNeeded = () => {
+    // OrderDetails is opened from a parent order card that historically did not
+    // receive the retry status patch. Reloading only when no callback is wired
+    // guarantees the red row badge is cleared from fresh server data instead of
+    // lingering after a successful retry.
+    if (!onUpdated && typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')) {
+      window.setTimeout(() => window.location.reload(), 500);
+    }
+  };
+
   const handleResendBothOrderEmails = async () => {
     setRetryingKind('order_emails');
     try {
@@ -181,6 +191,7 @@ const EmailDeliveryStatus: React.FC<EmailDeliveryStatusProps> = ({ order, onUpda
         title: 'Both order emails sent',
         description: 'The customer confirmation and internal new-order notification were re-sent successfully.',
       });
+      refreshAdminListIfNeeded();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       toast({
@@ -203,18 +214,28 @@ const EmailDeliveryStatus: React.FC<EmailDeliveryStatusProps> = ({ order, onUpda
       });
       const result = await readJsonResponse(response);
       if (!response.ok || result.ok === false) {
-        throw new Error(result.error || `Retry failed (HTTP ${response.status})`);
+        throw new Error(result.emailError || result.details || result.error || `Retry failed (HTTP ${response.status})`);
       }
 
+      const now = new Date().toISOString();
       const patch: Partial<Order> = {};
-      if (row.kind === 'in_production') patch.production_email_status = 'sent';
-      if (row.kind === 'shipped') patch.shipping_notification_status = 'sent';
+      if (row.kind === 'in_production') {
+        patch.production_email_status = 'sent';
+        patch.production_email_sent = true;
+        patch.production_email_sent_at = now;
+      }
+      if (row.kind === 'shipped') {
+        patch.shipping_notification_status = 'sent';
+        patch.shipping_notification_sent = true;
+        patch.shipping_notification_sent_at = now;
+      }
       applyPatch(patch);
 
       toast({
         title: 'Email resent',
         description: `${row.label} email was re-sent to the customer.`,
       });
+      refreshAdminListIfNeeded();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       toast({
