@@ -46,10 +46,14 @@ function isRetryableProviderError(error) {
 async function sendWithRetry(resend, payload, maxAttempts = 3) {
   let lastError;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    const result = await resend.emails.send(payload);
-    if (!result?.error && result?.data?.id) return result;
+    try {
+      const result = await resend.emails.send(payload);
+      if (!result?.error && result?.data?.id) return result;
+      lastError = result?.error || new Error('Resend did not return a message ID');
+    } catch (error) {
+      lastError = error;
+    }
 
-    lastError = result?.error || new Error('Resend did not return a message ID');
     if (!isRetryableProviderError(lastError) || attempt === maxAttempts) break;
     await new Promise((resolve) => setTimeout(resolve, attempt === 1 ? 750 : 2000));
   }
@@ -166,8 +170,6 @@ exports.handler = async (event) => {
       return { statusCode: 400, headers, body: JSON.stringify({ ok: false, error: 'Add at least one tracking number before sending the tracking email.' }) };
     }
 
-    // The email deliberately entered at checkout is authoritative. A profile
-    // address is only a legacy fallback for older account-based orders.
     const customerEmail = String(order.email || order.profile_email || '').trim().toLowerCase();
     if (!customerEmail) {
       return { statusCode: 400, headers, body: JSON.stringify({ ok: false, error: 'Customer email not found' }) };
@@ -297,4 +299,4 @@ exports.handler = async (event) => {
   }
 };
 
-exports._test = { providerErrorMessage, isRetryableProviderError, buildTrackingHtml };
+exports._test = { providerErrorMessage, isRetryableProviderError, buildTrackingHtml, sendWithRetry };
