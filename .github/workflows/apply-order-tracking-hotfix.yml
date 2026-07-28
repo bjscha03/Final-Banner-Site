@@ -1,63 +1,74 @@
-name: Apply order and tracking hotfix
+name: Apply and verify order tracking hotfix
 
 on:
   push:
     branches:
       - hotfix/order-email-links-and-tracking-controls
-  pull_request:
-    branches:
-      - main
 
 permissions:
   contents: write
 
+concurrency:
+  group: order-tracking-hotfix
+  cancel-in-progress: true
+
 jobs:
-  apply:
-    if: ${{ github.event_name == 'pull_request' || !contains(github.event.head_commit.message, '[order-tracking-hotfix-applied]') }}
+  apply-and-verify:
+    if: ${{ !contains(github.event.head_commit.message, '[order-tracking-hotfix-applied]') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: hotfix/order-email-links-and-tracking-controls
           fetch-depth: 0
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Normalize patch targets
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          import re
+          cache: npm
 
-          path = Path('scripts/apply-order-and-tracking-ui-hotfix.mjs')
-          text = path.read_text()
-          text, count_a = re.subn(
-              r'"\s+onUpdateTracking=\{handleUpdateTracking\}\\n\s+onFileDownload=\{handleFileDownload\}"',
-              '"onUpdateTracking={handleUpdateTracking}\\n                       onFileDownload={handleFileDownload}"',
-              text,
-          )
-          text, count_b = re.subn(
-              r'"\s+onUpdateTracking=\{handleUpdateTracking\}\\n\s+onDeleteTracking=\{handleDeleteTracking\}\\n\s+onFileDownload=\{handleFileDownload\}"',
-              '"onUpdateTracking={handleUpdateTracking}\\n                       onDeleteTracking={handleDeleteTracking}\\n                       onFileDownload={handleFileDownload}"',
-              text,
-          )
-          print({'normalized_search_targets': count_a, 'normalized_replacement_targets': count_b})
-          path.write_text(text)
-          PY
       - name: Apply source patches
-        run: node scripts/apply-order-and-tracking-ui-hotfix.mjs
-      - name: Commit patched source
+        run: |
+          node scripts/apply-order-and-tracking-ui-hotfix.mjs
+          node scripts/fix-order-status-stats.mjs
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run focused backend regression tests
+        run: |
+          node --test \
+            netlify/functions/__tests__/mark-in-production-email.test.cjs \
+            netlify/functions/__tests__/order-email-access.test.cjs \
+            netlify/functions/__tests__/tracking-email.test.cjs \
+            netlify/functions/__tests__/tracking-workflow-status.test.cjs \
+            netlify/functions/__tests__/get-orders-workflow-status.test.mjs
+
+      - name: Verify release invariants
+        run: node scripts/verify-order-tracking-hotfix.mjs
+
+      - name: Type-check
+        run: npx tsc --noEmit --pretty false
+
+      - name: Production build
+        run: npm run build
+
+      - name: Commit verified source patches
         run: |
           if git diff --quiet; then
-            echo "No source changes required."
+            echo "No generated source changes required."
             exit 0
           fi
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add netlify/functions/_shared/legacy/get-order.cjs \
-                  netlify/functions/_shared/legacy/notify-order.cjs \
-                  src/pages/OrderDetail.tsx \
-                  src/components/orders/EmailDeliveryStatus.tsx \
-                  src/pages/admin/Orders.tsx
-          git commit -m "Apply order links and tracking controls [order-tracking-hotfix-applied]"
+          git add \
+            netlify/functions/_shared/legacy/get-order.cjs \
+            netlify/functions/_shared/legacy/notify-order.cjs \
+            src/pages/OrderDetail.tsx \
+            src/components/orders/EmailDeliveryStatus.tsx \
+            src/pages/admin/Orders.tsx
+          git commit -m "Apply verified order links and tracking controls [order-tracking-hotfix-applied]"
+          git fetch origin hotfix/order-email-links-and-tracking-controls
+          git rebase origin/hotfix/order-email-links-and-tracking-controls
           git push origin HEAD:hotfix/order-email-links-and-tracking-controls
