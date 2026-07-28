@@ -23,20 +23,25 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Correct patch target indentation
+      - name: Normalize patch targets
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
+
           path = Path('scripts/apply-order-and-tracking-ui-hotfix.mjs')
           text = path.read_text()
-          text = text.replace(
-              '"                       onUpdateTracking={handleUpdateTracking}\\n                       onFileDownload={handleFileDownload}"',
+          text, count_a = re.subn(
+              r'"\s+onUpdateTracking=\{handleUpdateTracking\}\\n\s+onFileDownload=\{handleFileDownload\}"',
               '"onUpdateTracking={handleUpdateTracking}\\n                       onFileDownload={handleFileDownload}"',
+              text,
           )
-          text = text.replace(
-              '"                       onUpdateTracking={handleUpdateTracking}\\n                       onDeleteTracking={handleDeleteTracking}\\n                       onFileDownload={handleFileDownload}"',
+          text, count_b = re.subn(
+              r'"\s+onUpdateTracking=\{handleUpdateTracking\}\\n\s+onDeleteTracking=\{handleDeleteTracking\}\\n\s+onFileDownload=\{handleFileDownload\}"',
               '"onUpdateTracking={handleUpdateTracking}\\n                       onDeleteTracking={handleDeleteTracking}\\n                       onFileDownload={handleFileDownload}"',
+              text,
           )
+          print({'normalized_search_targets': count_a, 'normalized_replacement_targets': count_b})
           path.write_text(text)
           PY
       - name: Apply source patches
