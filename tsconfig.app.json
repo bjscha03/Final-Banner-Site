@@ -23,6 +23,7 @@
 
     "baseUrl": ".",
     "paths": {
+      "@/components/checkout/PayPalCheckout": ["./src/components/checkout/PayPalCheckoutContact.tsx"],
       "@/*": ["./src/*"]
     }
   },
