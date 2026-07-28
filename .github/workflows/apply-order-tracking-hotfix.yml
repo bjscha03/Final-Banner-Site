@@ -23,6 +23,22 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: Correct patch target indentation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/apply-order-and-tracking-ui-hotfix.mjs')
+          text = path.read_text()
+          text = text.replace(
+              '"                       onUpdateTracking={handleUpdateTracking}\\n                       onFileDownload={handleFileDownload}"',
+              '"onUpdateTracking={handleUpdateTracking}\\n                       onFileDownload={handleFileDownload}"',
+          )
+          text = text.replace(
+              '"                       onUpdateTracking={handleUpdateTracking}\\n                       onDeleteTracking={handleDeleteTracking}\\n                       onFileDownload={handleFileDownload}"',
+              '"onUpdateTracking={handleUpdateTracking}\\n                       onDeleteTracking={handleDeleteTracking}\\n                       onFileDownload={handleFileDownload}"',
+          )
+          path.write_text(text)
+          PY
       - name: Apply source patches
         run: node scripts/apply-order-and-tracking-ui-hotfix.mjs
       - name: Commit patched source
