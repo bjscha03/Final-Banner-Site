@@ -17,6 +17,64 @@ function getDbUrl() {
 }
 const TAX_RATE = 0.06;
 
+function normalizeEmailError(error) {
+  if (!error) return 'Email send failed';
+  if (typeof error === 'string') return error;
+  if (typeof error.message === 'string' && error.message.trim()) return error.message.trim();
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
+
+function getEmailErrorStatus(error) {
+  const value = Number(error?.statusCode ?? error?.status ?? error?.code);
+  return Number.isFinite(value) ? value : null;
+}
+
+function isRetryableEmailError(error) {
+  const status = getEmailErrorStatus(error);
+  const message = normalizeEmailError(error).toLowerCase();
+  return status === 429
+    || (status !== null && status >= 500 && status < 600)
+    || message.includes('too many requests')
+    || message.includes('rate limit')
+    || message.includes('temporarily unavailable');
+}
+
+async function sendEmailWithRetry(resend, emailData, maxAttempts = 3) {
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const result = await resend.emails.send(emailData);
+      if (result?.error) {
+        const apiError = new Error(normalizeEmailError(result.error));
+        apiError.statusCode = getEmailErrorStatus(result.error);
+        apiError.details = result.error;
+        throw apiError;
+      }
+      if (!result?.data?.id) {
+        throw new Error('Resend accepted no message ID');
+      }
+      return result;
+    } catch (error) {
+      lastError = error;
+      if (!isRetryableEmailError(error) || attempt === maxAttempts) throw error;
+      const delayMs = attempt === 1 ? 1000 : 3000;
+      console.warn('[mark-in-production] transient email failure; retrying', {
+        attempt,
+        delayMs,
+        error: normalizeEmailError(error),
+      });
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  throw lastError || new Error('Email send failed');
+}
+
 // Email logging function
 async function logEmailAttempt({ type, to, orderId, status, providerMsgId, errorMessage }) {
   try {
@@ -33,6 +91,36 @@ async function logEmailAttempt({ type, to, orderId, status, providerMsgId, error
   }
 }
 
+function buildProductionEmailData(order, customerEmail, emailFrom, emailReplyTo) {
+  const names = normalizeName(order.customerName || '');
+  const html = renderEmailLayout({
+    title: 'Your Order is Now in Production',
+    subtitle: 'Good news — your order is now in production.',
+    orderNumber: order.orderNumber,
+    bodyHtml: `
+      <p style="margin:0 0 12px;font-size:15px;color:#334155;">Hi ${escapeHtml(names.firstName)},</p>
+      <p style="margin:0 0 12px;font-size:14px;color:#334155;">Our team is currently working on your order. Once it is complete, we will send your tracking details right away.</p>
+      ${renderItems(order.items || [])}
+      ${renderTotals({ subtotal: order.subtotal, tax: order.tax, total: order.total, discountCents: order.discountCents, discountLabel: order.discountLabel })}
+      ${renderAddress(order)}
+    `,
+  });
+
+  return {
+    from: emailFrom,
+    to: customerEmail,
+    subject: `Your Order #${order.orderNumber} is Now in Production 🎯`,
+    html,
+    // Resend's Node SDK uses camelCase `replyTo`. The prior snake_case key was
+    // not part of SendEmailOptions and caused this notification to be rejected.
+    replyTo: emailReplyTo,
+    tags: [
+      { name: 'type', value: 'order_in_production' },
+      { name: 'order_id', value: String(order.id) },
+    ],
+  };
+}
+
 // Send email using Resend
 async function sendProductionEmail(order, customerEmail) {
   try {
@@ -43,46 +131,23 @@ async function sendProductionEmail(order, customerEmail) {
     }
 
     const resend = new Resend(process.env.RESEND_API_KEY);
-
-    const emailFromRaw = process.env.EMAIL_FROM || 'orders@bannersonthefly.com';
+    const emailFromRaw = process.env.EMAIL_FROM || process.env.FROM_EMAIL || 'orders@bannersonthefly.com';
     const emailFrom = emailFromRaw.includes('<') ? emailFromRaw : `Banners on the Fly <${emailFromRaw}>`;
     const emailReplyTo = process.env.EMAIL_REPLY_TO || 'support@bannersonthefly.com';
+    const emailData = buildProductionEmailData(order, customerEmail, emailFrom, emailReplyTo);
 
-    const names = normalizeName(order.customerName || '');
-    const html = renderEmailLayout({
-      title: 'Your Order is Now in Production',
-      subtitle: 'Good news — your order is now in production.',
-      orderNumber: order.orderNumber,
-      bodyHtml: `
-        <p style="margin:0 0 12px;font-size:15px;color:#334155;">Hi ${escapeHtml(names.firstName)},</p>
-        <p style="margin:0 0 12px;font-size:14px;color:#334155;">Our team is currently working on your order. Once it is complete, we will send your tracking details right away.</p>
-        ${renderItems(order.items || [])}
-        ${renderTotals({ subtotal: order.subtotal, tax: order.tax, total: order.total, discountCents: order.discountCents, discountLabel: order.discountLabel })}
-        ${renderAddress(order)}
-      `,
-    });
-
-    const emailData = {
-      from: emailFrom,
-      to: customerEmail,
-      subject: 'Your Order is Now in Production 🎯',
-      html: html,
-      reply_to: emailReplyTo,
-      tags: [
-        { name: 'type', value: 'order_in_production' },
-        { name: 'order_id', value: order.id }
-      ]
-    };
-
-    const result = await resend.emails.send(emailData);
-    if (result.error) {
-      throw result.error;
-    }
-    return { ok: true, id: result.data?.id };
-
+    const result = await sendEmailWithRetry(resend, emailData);
+    return { ok: true, id: result.data.id };
   } catch (error) {
-    console.error('Email send failed:', error);
-    return { ok: false, error: error.message };
+    const message = normalizeEmailError(error);
+    console.error('[mark-in-production] email send failed', {
+      to: customerEmail,
+      orderId: order?.id,
+      error: message,
+      status: getEmailErrorStatus(error),
+      details: error?.details || null,
+    });
+    return { ok: false, error: message };
   }
 }
 
@@ -167,8 +232,6 @@ exports.handler = async (event) => {
 
     // Prevent duplicate sends unless this is an explicit admin retry of a
     // failed delivery (suppression cleared, bounce reason resolved, etc.).
-    // The retryEmail flag is sent by the admin "Retry email" button shown
-    // when production_email_status ∈ {error, bounced, complained}.
     const isFailedStatus = ['error', 'bounced', 'complained'].includes(order.production_email_status);
     const allowRetry = retryEmail === true && isFailedStatus;
     if (!allowRetry && (order.production_email_sent || order.status === 'in_production')) {
@@ -179,8 +242,9 @@ exports.handler = async (event) => {
       };
     }
 
-    // Get customer email (from user profile or order)
-    const customerEmail = order.user_email || order.email;
+    // The email captured on the order is the authoritative checkout contact.
+    // Profile email is only a fallback for older registered-customer orders.
+    const customerEmail = order.email || order.user_email;
     if (!customerEmail) {
       return {
         statusCode: 400,
@@ -207,6 +271,7 @@ exports.handler = async (event) => {
       id: order.id,
       orderNumber: order.id.slice(-8).toUpperCase(),
       customerName: resolvedCustomerName,
+      email: customerEmail,
       items: itemsResult.map(item => ({
         ...normalizeOrderItemDisplay(item),
         name: getItemDisplayName(item),
@@ -258,8 +323,7 @@ exports.handler = async (event) => {
       console.error(`Failed to send production email for order ${orderId}:`, emailResult.error);
     }
 
-    // Update order status to in_production regardless of email outcome
-    // Try with production_email columns first; fall back to status-only if columns don't exist yet
+    // Update order status to in_production regardless of email outcome.
     let dbUpdated = false;
     try {
       await sql`
@@ -273,8 +337,6 @@ exports.handler = async (event) => {
       `;
       dbUpdated = true;
     } catch (updateError) {
-      // If the production_email_status column does not exist yet, retry
-      // without it so the rest of the update still applies.
       console.warn('Full update with status failed, retrying without production_email_status:', updateError.message);
       try {
         await sql`
@@ -287,7 +349,6 @@ exports.handler = async (event) => {
         `;
         dbUpdated = true;
       } catch (legacyError) {
-        // If the production_email columns also don't exist, fall back to status-only.
         console.warn('Status+sent update failed, trying status-only update:', legacyError.message);
         try {
           await sql`
@@ -305,23 +366,25 @@ exports.handler = async (event) => {
 
     console.log(`Order ${orderId} marked as in production. Email ${emailResult.ok ? 'sent' : 'failed'} to ${customerEmail}. DB updated: ${dbUpdated}`);
 
-    // Return success if email was sent, even if DB update failed
-    // The admin UI will update local state and show the correct status
+    // Initial status changes remain successful even if the email provider fails.
+    // An explicit retry is an email-only operation, so surface a provider failure
+    // as a failed HTTP response instead of falsely showing "Email resent".
+    const retryFailed = retryEmail === true && !emailResult.ok;
     return {
-      statusCode: 200,
+      statusCode: retryFailed ? 502 : 200,
       headers,
       body: JSON.stringify({
-        ok: true,
+        ok: retryFailed ? false : true,
         message: emailResult.ok
           ? 'Order marked as in production and customer notified'
           : 'Order marked as in production (email delivery failed)',
         emailSent: emailResult.ok,
-        dbUpdated: dbUpdated,
+        dbUpdated,
         emailError: emailResult.ok ? undefined : emailResult.error,
+        error: retryFailed ? emailResult.error : undefined,
         emailId: emailResult.id
       })
     };
-
   } catch (error) {
     console.error('Mark in production failed:', error);
 
@@ -331,9 +394,14 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         ok: false,
         error: 'Internal server error',
-        details: error.message
+        details: normalizeEmailError(error)
       })
     };
   }
 };
 
+exports._test = {
+  buildProductionEmailData,
+  normalizeEmailError,
+  isRetryableEmailError,
+};
