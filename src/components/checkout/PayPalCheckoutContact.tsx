@@ -90,9 +90,9 @@ const PayPalCheckoutContact: React.FC<PayPalCheckoutProps> = (props) => {
     setCustomerInfo((current) => ({
       ...current,
       email: current.email || user?.email || '',
-      fullName: current.fullName || user?.user_metadata?.full_name || user?.full_name || '',
+      fullName: current.fullName || user?.full_name || '',
     }));
-  }, [user?.email, user?.user_metadata?.full_name, user?.full_name]);
+  }, [user?.email, user?.full_name]);
 
   const complete = useMemo(() => isComplete(customerInfo), [customerInfo]);
 
