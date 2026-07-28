@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Shield, CheckCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth, isAdmin as userIsAdmin } from '@/lib/auth';
-import { setServerSessionToken } from '@/lib/serverAuth';
+import { getServerSessionToken, setServerSessionToken } from '@/lib/serverAuth';
 
 const AdminSetup: React.FC = () => {
   const [password, setPassword] = useState('');
@@ -16,9 +16,11 @@ const AdminSetup: React.FC = () => {
   const { toast } = useToast();
   const { user, signOut } = useAuth();
 
-  // Check if already admin
+  // A stored admin identity is not sufficient by itself. Require the signed
+  // server session too, otherwise a new preview tab can render the dashboard
+  // while every protected request is rejected with 401.
   React.useEffect(() => {
-    setIsAdmin(userIsAdmin(user));
+    setIsAdmin(userIsAdmin(user) && Boolean(getServerSessionToken()));
   }, [user]);
 
   const handleSetAdmin = async () => {
