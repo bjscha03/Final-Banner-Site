@@ -272,10 +272,11 @@ const StablePreviewImage: React.FC<StablePreviewImageProps> = ({
     <>
       {layers.map((layer) => {
         const active = layer.url === activeUrl;
+        const paintLayer = active || layer.url === targetUrl;
         return (
           <img
             {...imgProps}
-            key={layer.url}
+            key={`${layer.url}:${paintLayer ? 'paint' : 'buffer'}`}
             src={layer.url}
             alt={active ? alt : ''}
             aria-hidden={active ? imgProps['aria-hidden'] : true}
@@ -295,7 +296,7 @@ const StablePreviewImage: React.FC<StablePreviewImageProps> = ({
             decoding={decoding}
             fetchPriority={fetchPriority}
             draggable={imgProps.draggable ?? false}
-            data-preview-image-state={active ? 'ready' : 'buffering'}
+            data-preview-image-state={active ? 'ready' : paintLayer ? 'target' : 'buffering'}
             onLoad={() => promoteLayer(layer)}
             onError={() => rejectLayer(layer.url)}
           />
