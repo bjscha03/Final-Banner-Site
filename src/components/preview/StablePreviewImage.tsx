@@ -70,7 +70,10 @@ const StablePreviewImage: React.FC<StablePreviewImageProps> = ({
   const requestIdRef = useRef(0);
   const failedUrlsRef = useRef(new Set<string>());
   const cleanupFrameRef = useRef<number | null>(null);
-  const announcedUrlRef = useRef<string | null>(initialReady?.url || null);
+  // Start unannounced even when the layer was seeded synchronously from cache.
+  // The parent still needs its onReady callback so it can clear aria-busy and
+  // reveal text/grommet/overlay composition in cart and enlarged previews.
+  const announcedUrlRef = useRef<string | null>(null);
   const activeUrlRef = useRef<string | null>(initialReady?.url || null);
   const targetUrlRef = useRef<string | null>(initialReady?.url || null);
   const onReadyRef = useRef(onReady);
@@ -96,6 +99,17 @@ const StablePreviewImage: React.FC<StablePreviewImageProps> = ({
     announcedUrlRef.current = result.url;
     onReadyRef.current?.(result);
   };
+
+  // A cached/decoded layer can be painted on the first render without another
+  // network or DOM load event. Explicitly announce that state after mount;
+  // otherwise the parent remains permanently busy even though the image is
+  // already visible.
+  useEffect(() => {
+    if (initialReady) announceReady(initialReady);
+    // initialReady is intentionally fixed to the component's first candidate
+    // set. Later decoded sources announce from the promotion path below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialReady?.url]);
 
   useEffect(() => () => {
     if (cleanupFrameRef.current !== null) {
@@ -136,6 +150,8 @@ const StablePreviewImage: React.FC<StablePreviewImageProps> = ({
     if (activeIndex === 0) {
       updateTarget(currentActive);
       setStatus('ready');
+      const cached = currentActive ? getDecodedPreviewImage(currentActive) : null;
+      if (cached) announceReady(cached);
       return () => { cancelled = true; };
     }
 
