@@ -2,6 +2,8 @@ import { neon } from '@neondatabase/serverless';
 import { withLambda } from '@netlify/aws-lambda-compat';
 import legacyModule from './_shared/legacy/get-orders.cjs';
 
+const PAID_ADMIN_STATUSES = new Set(['paid', 'in_production', 'shipped', 'refunded']);
+
 const getPayPalConfig = () => {
   const environment = String(process.env.PAYPAL_ENV || 'sandbox').toLowerCase();
   const suffix = environment.toUpperCase();
@@ -46,6 +48,22 @@ const getCompletedCapture = (paypalOrder) => {
 const amountToCents = (value) => {
   const amount = Number(value);
   return Number.isFinite(amount) ? Math.round(amount * 100) : null;
+};
+
+const hasCompletedPaymentEvidence = (order = {}) => Boolean(
+  order.paypal_capture_id
+  || order.stripe_charge_id
+  || order.payment_reconciliation_status === 'complete',
+);
+
+const isAdminVisiblePaidOrder = (order = {}) => {
+  const paymentMethod = String(order.payment_method || '').trim().toLowerCase();
+  if (order.is_test_order === true || paymentMethod === 'admin_deploy_preview_test') {
+    return false;
+  }
+
+  const status = String(order.status || '').trim().toLowerCase();
+  return PAID_ADMIN_STATUSES.has(status) || hasCompletedPaymentEvidence(order);
 };
 
 async function reconcilePendingPayPalOrders(sql, orders, paymentById) {
@@ -167,6 +185,8 @@ const handler = async (event, context) => {
               paypal_capture_id,
               stripe_charge_id,
               stripe_payment_intent_id,
+              is_test_order,
+              test_order_reason,
               to_jsonb(orders)->>'payment_reconciliation_status' AS payment_reconciliation_status,
               to_jsonb(orders)->>'confirmation_email_status' AS confirmation_email_status,
               to_jsonb(orders)->>'confirmation_emailed_at' AS confirmation_emailed_at,
@@ -186,7 +206,7 @@ const handler = async (event, context) => {
 
     await reconcilePendingPayPalOrders(sql, orders, paymentById);
 
-    response.body = JSON.stringify(orders.map((order) => {
+    const enrichedOrders = orders.map((order) => {
       const payment = paymentById.get(String(order.id));
       if (!payment) return order;
 
@@ -207,6 +227,8 @@ const handler = async (event, context) => {
         paypal_capture_id: payment.paypal_capture_id || order.paypal_capture_id || null,
         stripe_charge_id: payment.stripe_charge_id || order.stripe_charge_id || null,
         stripe_payment_intent_id: payment.stripe_payment_intent_id || order.stripe_payment_intent_id || null,
+        is_test_order: payment.is_test_order === true || payment.is_test_order === 'true' || order.is_test_order === true,
+        test_order_reason: payment.test_order_reason || order.test_order_reason || null,
         payment_reconciliation_status: payment.payment_reconciliation_status || order.payment_reconciliation_status || null,
         confirmation_email_status: payment.confirmation_email_status || order.confirmation_email_status || null,
         confirmation_emailed_at: payment.confirmation_emailed_at || order.confirmation_emailed_at || null,
@@ -219,7 +241,14 @@ const handler = async (event, context) => {
         shipping_notification_sent: payment.shipping_notification_sent === 'true' || order.shipping_notification_sent === true,
         shipping_notification_sent_at: payment.shipping_notification_sent_at || order.shipping_notification_sent_at || null,
       };
-    }));
+    });
+
+    const isAdminListRequest = !String(event?.queryStringParameters?.user_id || '').trim();
+    response.body = JSON.stringify(
+      isAdminListRequest
+        ? enrichedOrders.filter(isAdminVisiblePaidOrder)
+        : enrichedOrders,
+    );
   } catch (error) {
     console.error('[get-orders] metadata enrichment failed; returning base order response', {
       error: error instanceof Error ? error.message : String(error),
@@ -229,5 +258,11 @@ const handler = async (event, context) => {
   return response;
 };
 
-export const _test = { getCompletedCapture, amountToCents };
+export const _test = {
+  getCompletedCapture,
+  amountToCents,
+  hasCompletedPaymentEvidence,
+  isAdminVisiblePaidOrder,
+  PAID_ADMIN_STATUSES,
+};
 export default withLambda(handler);
