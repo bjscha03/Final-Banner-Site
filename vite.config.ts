@@ -19,25 +19,27 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     nodePolyfills({
-      // Enable polyfills for specific globals and modules
       globals: {
         Buffer: true,
         global: true,
         process: true,
       },
-      // Enable polyfills for specific modules
       protocolImports: true,
     }),
   ].filter(Boolean),
   resolve: {
     alias: [
       // One preview pipeline is used by Design, Google Ads landing pages,
-      // cart, checkout, upsells, and enlarged lightboxes. These exact aliases
-      // deliberately sit before the general @ alias so legacy imports cannot
-      // bypass decoded-image buffering or the cross-browser sizing fixes.
+      // cart, checkout, upsells, yard-sign rows, and enlarged lightboxes.
+      // These exact aliases deliberately sit before the general @ alias so
+      // legacy imports cannot bypass decoded-image buffering.
       {
         find: /^@\/components\/design\/ArtworkPreviewEditor$/,
         replacement: path.resolve(__dirname, "./src/components/design/StableArtworkPreviewEditor.tsx"),
+      },
+      {
+        find: /^@\/components\/design\/YardSignConfigurator$/,
+        replacement: path.resolve(__dirname, "./src/components/design/StableYardSignConfigurator.tsx"),
       },
       {
         find: /^@\/components\/cart\/BannerPreview$/,
@@ -70,23 +72,16 @@ export default defineConfig(({ mode }) => ({
     ],
   },
   build: {
-    // Target modern browsers for smaller bundle
     target: 'es2020',
-    // Increase chunk warning limit since we have manual chunks
     chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
-        // Force new file names on each build to bust cache
         entryFileNames: `assets/[name]-[hash].js`,
         chunkFileNames: `assets/[name]-[hash].js`,
         assetFileNames: `assets/[name]-[hash].[ext]`,
-        // Manual chunks for better code splitting
         manualChunks: {
-          // React core - needed immediately
           'react-core': ['react', 'react-dom'],
-          // React Router - needed for navigation
           'react-router': ['react-router-dom'],
-          // UI library chunks
           'radix-ui': [
             '@radix-ui/react-dialog',
             '@radix-ui/react-dropdown-menu',
@@ -107,17 +102,11 @@ export default defineConfig(({ mode }) => ({
             '@radix-ui/react-toggle',
             '@radix-ui/react-toggle-group',
           ],
-          // Canvas/Editor - lazy load for design pages only
           'canvas-editor': ['konva', 'react-konva', 'use-image'],
-          // PDF handling - lazy load
           'pdf-libs': ['pdfjs-dist', 'pdfkit'],
-          // Charts - only needed for admin
           'charts': ['recharts'],
-          // Form handling
           'forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
-          // Utilities
           'utils': ['date-fns', 'clsx', 'tailwind-merge', 'class-variance-authority'],
-          // State management
           'state': ['zustand', '@tanstack/react-query'],
         },
       },
