@@ -160,6 +160,21 @@ async function configurePage(page, testCase) {
   await page.send('Page.enable');
   await page.send('Emulation.setFocusEmulationEnabled', { enabled: true });
   await page.send('Emulation.clearDeviceMetricsOverride');
+
+  // setDeviceMetricsOverride controls emulated device metrics, but Chrome's
+  // headless container can otherwise retain the desktop content width. Resize
+  // the actual browser contents in DIP first so window.innerWidth and CSS media
+  // queries exercise the requested 390px/844px mobile layout rather than only
+  // shrinking the visual viewport.
+  const windowInfo = await page.send('Browser.getWindowForTarget', {
+    targetId: page.target.id,
+  });
+  await page.send('Browser.setContentsSize', {
+    windowId: windowInfo.windowId,
+    width: testCase.width,
+    height: testCase.height,
+  });
+
   await page.send('Emulation.setUserAgentOverride', {
     userAgent: testCase.mobile ? MOBILE_USER_AGENT : DESKTOP_USER_AGENT,
     acceptLanguage: 'en-US,en;q=0.9',
@@ -218,6 +233,12 @@ async function runHarnessCase(testCase, harness) {
       viewport: {
         innerWidth: window.innerWidth,
         innerHeight: window.innerHeight,
+        outerWidth: window.outerWidth,
+        outerHeight: window.outerHeight,
+        clientWidth: document.documentElement.clientWidth,
+        clientHeight: document.documentElement.clientHeight,
+        screenWidth: window.screen.width,
+        screenHeight: window.screen.height,
         visualWidth: window.visualViewport?.width || null,
         visualHeight: window.visualViewport?.height || null,
         visualScale: window.visualViewport?.scale || null,
@@ -229,18 +250,16 @@ async function runHarnessCase(testCase, harness) {
       }
     })`);
 
-    // Trust the page's final recorded result as well as the polling variable.
-    // On a cold first Vite transform the harness can finish between the last
-    // poll and the final details read.
     const finalResult = details?.result || result;
     const viewportWidthMatches = Math.abs(Number(details?.viewport?.innerWidth) - testCase.width) <= 2;
+    const clientWidthMatches = Math.abs(Number(details?.viewport?.clientWidth) - testCase.width) <= 2;
     const visualWidthMatches = details?.viewport?.visualWidth == null
       || Math.abs(Number(details.viewport.visualWidth) - testCase.width) <= 2;
     const pixelRatioMatches = Math.abs(Number(details?.viewport?.devicePixelRatio) - testCase.deviceScaleFactor) < 0.01;
     const pointerMatches = testCase.touch
       ? details?.viewport?.coarsePointer === true && Number(details?.viewport?.touchPoints) > 0
       : true;
-    const emulationPassed = viewportWidthMatches && visualWidthMatches && pixelRatioMatches && pointerMatches;
+    const emulationPassed = viewportWidthMatches && clientWidthMatches && visualWidthMatches && pixelRatioMatches && pointerMatches;
 
     details.viewportExpectation = {
       expectedWidth: testCase.width,
@@ -248,6 +267,7 @@ async function runHarnessCase(testCase, harness) {
       expectedDevicePixelRatio: testCase.deviceScaleFactor,
       expectedTouch: testCase.touch,
       viewportWidthMatches,
+      clientWidthMatches,
       visualWidthMatches,
       pixelRatioMatches,
       pointerMatches,
