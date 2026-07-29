@@ -11,6 +11,8 @@ on:
       - 'src/components/CartModal.tsx'
       - 'src/lib/previewImageCache.ts'
       - 'src/lib/previewSelection.ts'
+      - 'src/lib/previewSourceRegistry.ts'
+      - 'src/lib/order-thumbnail.ts'
       - 'src/lib/commercePreviewUrl.ts'
       - 'src/pages/Checkout.tsx'
       - 'src/pages/Design.tsx'
@@ -56,6 +58,13 @@ jobs:
             netlify/functions/__tests__/tracking-email-handler.test.cjs \
             netlify/functions/__tests__/get-order-public.test.cjs
 
+      - name: Run preview source-selection unit tests
+        run: |
+          npx vitest run \
+            src/lib/previewSelection.test.ts \
+            src/lib/__tests__/previewSelection.test.ts \
+            --reporter=verbose
+
       - name: Type-check application
         run: npx tsc --noEmit --pretty false
 
@@ -87,6 +96,18 @@ jobs:
             exit 1
           fi
           grep -qi '<!doctype html' /tmp/preview-home.html
+
+      - name: Verify preview-related routes serve the application shell
+        env:
+          PREVIEW_URL: https://deploy-preview-${{ github.event.pull_request.number }}--bannersonthefly.netlify.app
+        run: |
+          set -euo pipefail
+          for route in /design /google-ads-banner /checkout; do
+            safe_name=$(printf '%s' "$route" | tr '/' '_' | sed 's/^_//')
+            code=$(curl -sS -L -o "/tmp/${safe_name}.html" -w '%{http_code}' "$PREVIEW_URL$route")
+            test "$code" = "200"
+            grep -qi '<!doctype html' "/tmp/${safe_name}.html"
+          done
 
       - name: Verify deployed customer order fallback reaches Neon safely
         env:
