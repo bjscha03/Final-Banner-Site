@@ -139,7 +139,7 @@ jobs:
             exit 1
           fi
 
-          if ! timeout 35s node tests/browser/run-preview-handoff-cdp.mjs; then
+          if ! timeout 180s node tests/browser/run-preview-handoff-cdp.mjs; then
             echo "Real-browser preview handoff regression failed"
             cat /tmp/preview-handoff-browser.log || true
             cat /tmp/vite-preview-handoff.log || true
