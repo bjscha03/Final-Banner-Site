@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import type { Order } from '@/lib/orders/types';
 import { authorizedHeaders } from '@/lib/serverAuth';
+import AdminTrackingManager from './AdminTrackingManager';
 
 const SUCCESS_STATUSES = new Set(['sent', 'delivered', 'opened', 'clicked']);
 const FAILURE_STATUSES = new Set(['error', 'bounced', 'complained']);
@@ -83,13 +84,7 @@ async function readJsonResponse(response: Response): Promise<Record<string, any>
 }
 
 /**
- * Admin-only order email status and recovery panel.
- *
- * The original implementation only rendered for explicit Resend failures.
- * Orders whose notification function never started had null/pending statuses,
- * which hid the warning entirely. This panel treats missing initial-order email
- * statuses as actionable and provides one recovery action that re-sends both
- * the customer confirmation and the internal new-order notification.
+ * Admin-only order email status, recovery panel, and tracking manager.
  */
 const EmailDeliveryStatus: React.FC<EmailDeliveryStatusProps> = ({ order, onUpdated }) => {
   const { toast } = useToast();
@@ -138,11 +133,17 @@ const EmailDeliveryStatus: React.FC<EmailDeliveryStatusProps> = ({ order, onUpda
     },
   ].filter((row) => isFailure(row.status));
 
-  if (initialOrderEmailsComplete && supplementalRows.length === 0) return null;
+  const showEmailPanel = !initialOrderEmailsComplete || supplementalRows.length > 0;
 
   const applyPatch = (patch: Partial<Order>) => {
     setStatusPatch((current) => ({ ...current, ...patch }));
     onUpdated?.(patch);
+  };
+
+  const refreshAdminListIfNeeded = () => {
+    if (!onUpdated && typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')) {
+      window.setTimeout(() => window.location.reload(), 500);
+    }
   };
 
   const handleResendBothOrderEmails = async () => {
@@ -181,6 +182,7 @@ const EmailDeliveryStatus: React.FC<EmailDeliveryStatusProps> = ({ order, onUpda
         title: 'Both order emails sent',
         description: 'The customer confirmation and internal new-order notification were re-sent successfully.',
       });
+      refreshAdminListIfNeeded();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       toast({
@@ -203,18 +205,28 @@ const EmailDeliveryStatus: React.FC<EmailDeliveryStatusProps> = ({ order, onUpda
       });
       const result = await readJsonResponse(response);
       if (!response.ok || result.ok === false) {
-        throw new Error(result.error || `Retry failed (HTTP ${response.status})`);
+        throw new Error(result.emailError || result.details || result.error || `Retry failed (HTTP ${response.status})`);
       }
 
+      const now = new Date().toISOString();
       const patch: Partial<Order> = {};
-      if (row.kind === 'in_production') patch.production_email_status = 'sent';
-      if (row.kind === 'shipped') patch.shipping_notification_status = 'sent';
+      if (row.kind === 'in_production') {
+        patch.production_email_status = 'sent';
+        patch.production_email_sent = true;
+        patch.production_email_sent_at = now;
+      }
+      if (row.kind === 'shipped') {
+        patch.shipping_notification_status = 'sent';
+        patch.shipping_notification_sent = true;
+        patch.shipping_notification_sent_at = now;
+      }
       applyPatch(patch);
 
       toast({
         title: 'Email resent',
         description: `${row.label} email was re-sent to the customer.`,
       });
+      refreshAdminListIfNeeded();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       toast({
@@ -233,111 +245,117 @@ const EmailDeliveryStatus: React.FC<EmailDeliveryStatusProps> = ({ order, onUpda
   const iconClasses = showDangerState ? 'text-red-600' : 'text-amber-600';
 
   return (
-    <div
-      role="alert"
-      className={`rounded-lg border p-4 ${panelClasses}`}
-      data-testid="email-delivery-status-panel"
-    >
-      <div className="flex items-start gap-3">
-        {showDangerState ? (
-          <AlertTriangle className={`mt-0.5 h-5 w-5 flex-shrink-0 ${iconClasses}`} aria-hidden="true" />
-        ) : (
-          <Clock className={`mt-0.5 h-5 w-5 flex-shrink-0 ${iconClasses}`} aria-hidden="true" />
-        )}
+    <div className="space-y-4">
+      <AdminTrackingManager order={effectiveOrder as Order} onUpdated={applyPatch} />
 
-        <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-semibold">
-            {showDangerState ? 'Order emails were not confirmed' : 'Order emails are still processing'}
-          </h3>
-          <p className="mt-1 text-xs">
-            {showDangerState
-              ? 'The customer confirmation and/or the internal new-order notification did not complete. Re-send both emails now.'
-              : 'This order is new and both email deliveries have not been confirmed yet.'}
-          </p>
+      {showEmailPanel && (
+        <div
+          role="alert"
+          className={`rounded-lg border p-4 ${panelClasses}`}
+          data-testid="email-delivery-status-panel"
+        >
+          <div className="flex items-start gap-3">
+            {showDangerState ? (
+              <AlertTriangle className={`mt-0.5 h-5 w-5 flex-shrink-0 ${iconClasses}`} aria-hidden="true" />
+            ) : (
+              <Clock className={`mt-0.5 h-5 w-5 flex-shrink-0 ${iconClasses}`} aria-hidden="true" />
+            )}
 
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <div className="rounded-md border border-current/15 bg-white/70 px-3 py-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-xs font-medium">Customer confirmation</span>
-                <StatusPill status={customerStatus} />
-              </div>
-              {order.email && <div className="mt-1 break-all text-[11px] opacity-80">to {order.email}</div>}
-            </div>
-            <div className="rounded-md border border-current/15 bg-white/70 px-3 py-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-xs font-medium">Internal new-order alert</span>
-                <StatusPill status={adminStatus} />
-              </div>
-              <div className="mt-1 text-[11px] opacity-80">to the configured admin email</div>
-            </div>
-          </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-sm font-semibold">
+                {showDangerState ? 'Order emails were not confirmed' : 'Order emails are still processing'}
+              </h3>
+              <p className="mt-1 text-xs">
+                {showDangerState
+                  ? 'The customer confirmation and/or the internal new-order notification did not complete. Re-send both emails now.'
+                  : 'This order is new and both email deliveries have not been confirmed yet.'}
+              </p>
 
-          {!initialOrderEmailsComplete && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="mt-3 h-8 border-current/40 bg-white text-xs hover:bg-white/80"
-              onClick={handleResendBothOrderEmails}
-              disabled={retryingKind === 'order_emails'}
-            >
-              {retryingKind === 'order_emails' ? (
-                <>
-                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                  Resending both…
-                </>
-              ) : (
-                <>
-                  <Mail className="mr-1 h-3 w-3" />
-                  Resend customer + admin emails
-                </>
-              )}
-            </Button>
-          )}
-
-          {supplementalRows.length > 0 && (
-            <ul className="mt-3 space-y-2">
-              {supplementalRows.map((row) => (
-                <li
-                  key={row.kind}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-red-200 bg-white/70 px-3 py-2"
-                >
-                  <div className="text-xs">
-                    <span className="font-medium">{row.label}</span>
-                    <span className="ml-2 opacity-80">({getStatusLabel(row.status)})</span>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <div className="rounded-md border border-current/15 bg-white/70 px-3 py-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs font-medium">Customer confirmation</span>
+                    <StatusPill status={customerStatus} />
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 border-red-400 text-xs text-red-700 hover:bg-red-100"
-                    onClick={() => handleSupplementalRetry(row)}
-                    disabled={retryingKind === row.kind}
-                  >
-                    {retryingKind === row.kind ? (
-                      <>
-                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                        Retrying…
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="mr-1 h-3 w-3" />
-                        Retry
-                      </>
-                    )}
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
+                  {order.email && <div className="mt-1 break-all text-[11px] opacity-80">to {order.email}</div>}
+                </div>
+                <div className="rounded-md border border-current/15 bg-white/70 px-3 py-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs font-medium">Internal new-order alert</span>
+                    <StatusPill status={adminStatus} />
+                  </div>
+                  <div className="mt-1 text-[11px] opacity-80">to the configured admin email</div>
+                </div>
+              </div>
 
-          <div className="mt-3 flex items-start gap-2 text-[11px] opacity-80">
-            <Phone className="mt-0.5 h-3 w-3 flex-shrink-0" aria-hidden="true" />
-            <span>
-              Fallback contact: reach out manually{order.customer_phone ? ` at ${order.customer_phone}` : ''}
-              {order.email ? ` or via ${order.email}` : ''}.
-            </span>
+              {!initialOrderEmailsComplete && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-3 h-8 border-current/40 bg-white text-xs hover:bg-white/80"
+                  onClick={handleResendBothOrderEmails}
+                  disabled={retryingKind === 'order_emails'}
+                >
+                  {retryingKind === 'order_emails' ? (
+                    <>
+                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                      Resending both…
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="mr-1 h-3 w-3" />
+                      Resend customer + admin emails
+                    </>
+                  )}
+                </Button>
+              )}
+
+              {supplementalRows.length > 0 && (
+                <ul className="mt-3 space-y-2">
+                  {supplementalRows.map((row) => (
+                    <li
+                      key={row.kind}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-red-200 bg-white/70 px-3 py-2"
+                    >
+                      <div className="text-xs">
+                        <span className="font-medium">{row.label}</span>
+                        <span className="ml-2 opacity-80">({getStatusLabel(row.status)})</span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 border-red-400 text-xs text-red-700 hover:bg-red-100"
+                        onClick={() => handleSupplementalRetry(row)}
+                        disabled={retryingKind === row.kind}
+                      >
+                        {retryingKind === row.kind ? (
+                          <>
+                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                            Retrying…
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="mr-1 h-3 w-3" />
+                            Retry
+                          </>
+                        )}
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <div className="mt-3 flex items-start gap-2 text-[11px] opacity-80">
+                <Phone className="mt-0.5 h-3 w-3 flex-shrink-0" aria-hidden="true" />
+                <span>
+                  Fallback contact: reach out manually{order.customer_phone ? ` at ${order.customer_phone}` : ''}
+                  {order.email ? ` or via ${order.email}` : ''}.
+                </span>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
