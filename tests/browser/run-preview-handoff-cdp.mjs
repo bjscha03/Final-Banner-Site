@@ -147,7 +147,7 @@ async function runCase(testCase) {
       href: window.location.href,
       result: document.body?.dataset?.previewHandoffResult || 'loading'
     })`);
-    if (pageState?.href?.includes(${JSON.stringify(marker)})) {
+    if (pageState?.href?.includes(marker)) {
       result = pageState.result;
       if (result === 'pass' || result === 'fail') break;
     }
