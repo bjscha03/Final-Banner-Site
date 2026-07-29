@@ -318,8 +318,8 @@ const AdminOrders: React.FC = () => {
     setGlobalOverview({
       totalOrders: allOrders.length,
       inProductionOrders: allOrders.filter((o) => o.status === 'in_production').length,
-      shippedOrders: allOrders.filter((o) => o.tracking_number).length,
-      pendingOrders: allOrders.filter((o) => !o.tracking_number && o.status !== 'in_production').length,
+      shippedOrders: allOrders.filter((o) => o.status === 'shipped').length,
+      pendingOrders: allOrders.filter((o) => o.status === 'pending').length,
       totalRevenueCents: allOrders.filter((o) => !o.is_test_order).reduce((sum, o) => sum + o.total_cents, 0),
       abandonedCarts: abandonedCartsCount,
       customQuotes: customQuotesCount,
@@ -1162,7 +1162,7 @@ const AdminOrders: React.FC = () => {
                 <div className="ml-4">
                   <p className="text-sm text-gray-600">Shipped</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {orders.filter(o => o.tracking_number).length}
+                    {orders.filter(o => o.status === 'shipped').length}
                   </p>
                 </div>
               </div>
@@ -1176,7 +1176,7 @@ const AdminOrders: React.FC = () => {
                 <div className="ml-4">
                   <p className="text-sm text-gray-600">Pending</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {orders.filter(o => !o.tracking_number && o.status !== 'in_production').length}
+                    {orders.filter(o => o.status === 'pending').length}
                   </p>
                 </div>
               </div>
