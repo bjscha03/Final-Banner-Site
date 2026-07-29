@@ -53,12 +53,14 @@ test('a decoded target is visible immediately and clears the parent loading stat
 
 test('active design canvases never swap a healthy local preview merely because upload completed', () => {
   const sessionEditor = read('src/components/design/SessionStableArtworkPreviewEditor.tsx');
+  const policy = read('src/lib/sessionArtworkPreviewSource.ts');
 
-  assert.match(sessionEditor, /currentIsTransient/);
-  assert.match(sessionEditor, /incomingIsTransient/);
-  assert.match(sessionEditor, /Never switch a healthy local/);
-  assert.match(sessionEditor, /if \(!currentIsTransient && displaySourceRef\.current === current\)/);
+  assert.match(sessionEditor, /decideSessionArtworkPreviewSource/);
   assert.match(sessionEditor, /pendingPermanentSourceRef/);
+  assert.match(sessionEditor, /productionUrl=\{effectiveSource\}/);
+  assert.match(policy, /if \(isTransientPreviewImageUrl\(current\)\)/);
+  assert.match(policy, /displaySource: current/);
+  assert.match(policy, /switchAfterDecode: false/);
   assert.equal(sessionEditor.includes('setInterval('), false);
 });
 
