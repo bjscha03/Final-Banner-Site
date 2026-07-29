@@ -8,18 +8,47 @@ const clean = (value, max = 500) => {
   return normalized ? normalized.slice(0, max) : null;
 };
 
+const normalizeEmail = (value) => {
+  const email = clean(value, 320)?.toLowerCase() || null;
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
+  if (/^guest-[^@]+@bannersonthefly\.com$/i.test(email)) return null;
+  return email;
+};
+
+const extractPayPalCustomerEmail = (...sources) => {
+  for (const source of sources) {
+    if (!source || typeof source !== 'object') continue;
+
+    const candidates = [
+      source.payer?.email_address,
+      source.payment_source?.paypal?.email_address,
+      source.payment_source?.card?.attributes?.customer?.email_address,
+      source.payment_source?.card?.email_address,
+      source.payment_source?.apple_pay?.email_address,
+      source.payment_source?.google_pay?.email_address,
+      source.shipping?.email_address,
+      ...(Array.isArray(source.purchase_units)
+        ? source.purchase_units.map((unit) => unit?.shipping?.email_address)
+        : []),
+    ];
+
+    for (const candidate of candidates) {
+      const normalized = normalizeEmail(candidate);
+      if (normalized) return normalized;
+    }
+  }
+  return null;
+};
+
 const normalizeCustomerInfo = (input) => {
   const raw = input && typeof input === 'object' ? input : {};
-  const email = clean(raw.email, 320)?.toLowerCase() || null;
-  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    throw new Error('Invalid checkout customer email');
-  }
-
   const fullName = clean(raw.fullName || raw.name, 200);
   return {
     fullName,
     firstName: fullName ? fullName.split(/\s+/)[0] : null,
-    email,
+    // Kept for backward compatibility with checkout sessions created before the
+    // single-email-entry fix. New card checkouts supply the email through PayPal.
+    email: normalizeEmail(raw.email),
     address1: clean(raw.address1 || raw.street || raw.line1, 300),
     address2: clean(raw.address2 || raw.street2 || raw.line2, 300),
     city: clean(raw.city, 160),
@@ -37,25 +66,27 @@ const handler = async (event, context) => {
   }
 
   try {
-    const body = JSON.parse(event.body || '{}');
-    const internalOrderId = clean(body.internalOrderId, 100);
-    const customer = normalizeCustomerInfo(body.customerInfo);
-    const complete = Boolean(
+    const requestBody = JSON.parse(event.body || '{}');
+    const responseBody = JSON.parse(response.body || '{}');
+    const internalOrderId = clean(requestBody.internalOrderId, 100);
+    const customer = normalizeCustomerInfo(requestBody.customerInfo);
+    const paypalEmail = extractPayPalCustomerEmail(responseBody.paypalData, responseBody);
+    const resolvedEmail = customer.email || paypalEmail;
+    const completeShippingInfo = Boolean(
       internalOrderId
       && customer.fullName
-      && customer.email
       && customer.address1
       && customer.city
       && customer.state
       && customer.postalCode,
     );
 
-    if (!complete) {
-      console.warn('[paypal-capture-minimal] completed capture without complete submitted customer info', {
+    if (!completeShippingInfo) {
+      console.warn('[paypal-capture-minimal] completed capture without complete submitted shipping info', {
         internalOrderId,
         hasName: Boolean(customer.fullName),
-        hasEmail: Boolean(customer.email),
         hasAddress: Boolean(customer.address1 && customer.city && customer.state && customer.postalCode),
+        hasPayPalEmail: Boolean(paypalEmail),
       });
       return response;
     }
@@ -66,7 +97,7 @@ const handler = async (event, context) => {
 
     const updated = await sql`
       UPDATE orders
-      SET email = ${customer.email},
+      SET email = CASE WHEN ${resolvedEmail} IS NOT NULL THEN ${resolvedEmail} ELSE email END,
           customer_name = ${customer.fullName},
           customer_first_name = ${customer.firstName},
           shipping_name = ${customer.fullName},
@@ -78,7 +109,7 @@ const handler = async (event, context) => {
           shipping_country = ${customer.country},
           updated_at = NOW()
       WHERE id = ${internalOrderId}
-      RETURNING id
+      RETURNING id, email
     `;
 
     if (!updated.length) {
@@ -86,8 +117,19 @@ const handler = async (event, context) => {
       return response;
     }
 
-    const parsed = JSON.parse(response.body || '{}');
-    response.body = JSON.stringify({ ...parsed, customerInfoPersisted: true });
+    const persistedEmail = normalizeEmail(updated[0].email);
+    if (!persistedEmail) {
+      console.error('[paypal-capture-minimal] payment captured without a usable customer email', {
+        internalOrderId,
+        paypalEmailFound: Boolean(paypalEmail),
+      });
+    }
+
+    response.body = JSON.stringify({
+      ...responseBody,
+      customerInfoPersisted: true,
+      customerEmailPersisted: Boolean(persistedEmail),
+    });
   } catch (error) {
     // Payment capture is already durable. Never turn a completed charge into a
     // customer-facing payment failure because metadata persistence had trouble.
@@ -99,4 +141,5 @@ const handler = async (event, context) => {
   return response;
 };
 
+export const _test = { normalizeEmail, extractPayPalCustomerEmail, normalizeCustomerInfo };
 export default withLambda(handler);
