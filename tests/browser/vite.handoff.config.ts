@@ -28,6 +28,14 @@ export default defineConfig({
         replacement: path.resolve(__dirname, '../../src/components/design/SessionStableArtworkPreviewEditor.tsx'),
       },
       {
+        find: /^@\/components\/cart\/BannerPreview$/,
+        replacement: path.resolve(__dirname, '../../src/components/cart/StableBannerPreview.tsx'),
+      },
+      {
+        find: /^@\/components\/preview\/ThumbnailPreviewWrapper$/,
+        replacement: path.resolve(__dirname, '../../src/components/preview/StableThumbnailPreviewWrapper.tsx'),
+      },
+      {
         find: '@',
         replacement: path.resolve(__dirname, '../../src'),
       },
