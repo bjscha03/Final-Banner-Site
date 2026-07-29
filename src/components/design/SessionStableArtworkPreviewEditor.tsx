@@ -3,10 +3,8 @@ import StableArtworkPreviewEditor, {
   type ArtworkPreviewEditorProps,
   type ArtworkTransform,
 } from './StableArtworkPreviewEditor';
-import {
-  isTransientPreviewImageUrl,
-  preloadPreviewImage,
-} from '@/lib/previewImageCache';
+import { preloadPreviewImage } from '@/lib/previewImageCache';
+import { decideSessionArtworkPreviewSource } from '@/lib/sessionArtworkPreviewSource';
 import {
   getPreviewCrossOrigin,
   resolveArtworkPreviewImageSrc,
@@ -45,47 +43,37 @@ const SessionStableArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = (
 
   useEffect(() => {
     const generation = ++sourceGenerationRef.current;
-    const current = displaySourceRef.current;
+    const decision = decideSessionArtworkPreviewSource(
+      displaySourceRef.current,
+      incomingSource,
+    );
 
-    // A brief empty prop during parent state reconciliation must never blank a
-    // preview that is already visible. Clearing the upload unmounts this editor.
-    if (!incomingSource) return;
-    if (!current) {
-      commitDisplaySource(incomingSource);
-      return;
-    }
-    if (incomingSource === current) return;
+    pendingPermanentSourceRef.current = decision.pendingPermanentSource;
 
-    const currentIsTransient = isTransientPreviewImageUrl(current);
-    const incomingIsTransient = isTransientPreviewImageUrl(incomingSource);
-
-    // A new blob/data URL represents a new user-selected file or AI result and
-    // must replace the previous artwork immediately.
-    if (incomingIsTransient) {
-      pendingPermanentSourceRef.current = null;
-      commitDisplaySource(incomingSource);
-      return;
+    if (decision.displaySource && decision.displaySource !== displaySourceRef.current) {
+      commitDisplaySource(decision.displaySource);
     }
 
-    const crossOrigin = getPreviewCrossOrigin(incomingSource, props.imageCrossOrigin);
-    pendingPermanentSourceRef.current = incomingSource;
+    if (!decision.preloadIncoming || !decision.pendingPermanentSource) return;
 
-    // Decode the permanent source in the background. For a local-to-permanent
-    // upload handoff, deliberately keep the local preview visible. It is the
-    // exact bytes the user selected and is not revoked while this editor lives.
-    void preloadPreviewImage(incomingSource, {
+    const pendingSource = decision.pendingPermanentSource;
+    const crossOrigin = getPreviewCrossOrigin(pendingSource, props.imageCrossOrigin);
+
+    void preloadPreviewImage(pendingSource, {
       timeoutMs: 20_000,
       crossOrigin,
       fetchPriority: 'high',
     }).then(() => {
       if (generation !== sourceGenerationRef.current) return;
 
-      // Permanent-to-permanent means the artwork itself changed without a local
-      // file stage (for example, restoring a different saved design). Switch
-      // only after the replacement is decoded. Never switch a healthy local
-      // preview merely because its upload finished.
-      if (!currentIsTransient && displaySourceRef.current === current) {
-        commitDisplaySource(incomingSource);
+      // Only a real permanent-to-permanent artwork replacement switches after
+      // decode. A local-to-permanent upload handoff intentionally stays on the
+      // already-visible browser-local image for the rest of this editor session.
+      if (
+        decision.switchAfterDecode
+        && displaySourceRef.current === decision.displaySource
+      ) {
+        commitDisplaySource(pendingSource);
         pendingPermanentSourceRef.current = null;
       }
     }).catch(() => {
