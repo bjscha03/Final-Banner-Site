@@ -181,6 +181,7 @@ const EmailDeliveryStatus: React.FC<EmailDeliveryStatusProps> = ({ order, onUpda
         title: 'Both order emails sent',
         description: 'The customer confirmation and internal new-order notification were re-sent successfully.',
       });
+      window.setTimeout(() => window.location.reload(), 350);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       toast({
@@ -206,15 +207,25 @@ const EmailDeliveryStatus: React.FC<EmailDeliveryStatusProps> = ({ order, onUpda
         throw new Error(result.error || `Retry failed (HTTP ${response.status})`);
       }
 
+      const now = new Date().toISOString();
       const patch: Partial<Order> = {};
-      if (row.kind === 'in_production') patch.production_email_status = 'sent';
-      if (row.kind === 'shipped') patch.shipping_notification_status = 'sent';
+      if (row.kind === 'in_production') {
+        patch.production_email_status = 'sent';
+        patch.production_email_sent = true;
+        patch.production_email_sent_at = now;
+      }
+      if (row.kind === 'shipped') {
+        patch.shipping_notification_status = 'sent';
+        patch.shipping_notification_sent = true;
+        patch.shipping_notification_sent_at = now;
+      }
       applyPatch(patch);
 
       toast({
         title: 'Email resent',
         description: `${row.label} email was re-sent to the customer.`,
       });
+      window.setTimeout(() => window.location.reload(), 350);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       toast({

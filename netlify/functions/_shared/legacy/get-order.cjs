@@ -2,6 +2,7 @@ const { neon } = require('@neondatabase/serverless');
 const { normalizeTrackingEntries } = require('./tracking-helpers.cjs');
 const { normalizeShippingAddress } = require('./shipping-address-helpers.cjs');
 const { getSession, unauthorized } = require('../server-auth.cjs');
+const { verifyOrderAccessToken } = require('../order-email-access.cjs');
 
 // Module-scoped cache: auto-migrations only need to run once per cold start.
 // Running ~50 ALTER TABLE statements on every request was risking the
@@ -20,7 +21,6 @@ exports.handler = async (event, context) => {
     return { statusCode: 200, headers, body: '' };
   }
   const session = getSession(event);
-  if (!session) return unauthorized();
 
   if (event.httpMethod !== 'GET') {
     return {
@@ -234,7 +234,12 @@ exports.handler = async (event, context) => {
     }
 
     const order = orderResult[0];
-    if (!session.admin && session.sub !== order.user_id) {
+    const emailAccessToken = event.queryStringParameters?.token || '';
+    const hasEmailAccess = verifyOrderAccessToken(emailAccessToken, order.id, order.email);
+    if (!session && !hasEmailAccess) {
+      return unauthorized('Sign in or verify the order email to view this order');
+    }
+    if (session && !session.admin && session.sub !== order.user_id && !hasEmailAccess) {
       return unauthorized('Order ownership could not be verified');
     }
 
