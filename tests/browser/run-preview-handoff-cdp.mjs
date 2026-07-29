@@ -60,84 +60,104 @@ async function waitForChrome() {
   throw lastError || new Error('Chrome DevTools endpoint did not become ready.');
 }
 
-async function getPageTarget() {
-  const response = await fetch(`${chromeOrigin}/json/list`);
-  if (!response.ok) throw new Error(`Unable to list Chrome targets: HTTP ${response.status}`);
-  const targets = await response.json();
-  const target = targets.find((candidate) => candidate.type === 'page' && candidate.webSocketDebuggerUrl);
-  if (!target) throw new Error('Chrome did not expose a page target.');
+async function createPageTarget() {
+  const response = await fetch(`${chromeOrigin}/json/new?${encodeURIComponent('about:blank')}`, {
+    method: 'PUT',
+  });
+  if (!response.ok) throw new Error(`Unable to create isolated Chrome target: HTTP ${response.status}`);
+  const target = await response.json();
+  if (!target?.webSocketDebuggerUrl) throw new Error('Chrome did not return a page WebSocket URL.');
   return target;
 }
 
-await waitForChrome();
-const target = await getPageTarget();
-const socket = new WebSocket(target.webSocketDebuggerUrl);
-const pending = new Map();
-let nextId = 1;
-
-const opened = new Promise((resolve, reject) => {
-  socket.once('open', resolve);
-  socket.once('error', reject);
-});
-
-socket.on('message', (data) => {
-  let message;
-  try {
-    message = JSON.parse(String(data));
-  } catch {
-    return;
-  }
-
-  if (message.id && pending.has(message.id)) {
-    const { resolve, reject } = pending.get(message.id);
-    pending.delete(message.id);
-    if (message.error) reject(new Error(message.error.message || JSON.stringify(message.error)));
-    else resolve(message.result);
-    return;
-  }
-
-  if (message.method === 'Runtime.exceptionThrown') {
-    const description = message.params?.exceptionDetails?.exception?.description
-      || message.params?.exceptionDetails?.text
-      || 'Unknown browser exception';
-    console.error('[preview browser exception]', description);
-  }
-});
-
-await opened;
-
-function send(method, params = {}) {
-  const id = nextId++;
-  return new Promise((resolve, reject) => {
-    pending.set(id, { resolve, reject });
-    socket.send(JSON.stringify({ id, method, params }), (error) => {
-      if (!error) return;
-      pending.delete(id);
-      reject(error);
+class CdpPage {
+  constructor(target, label) {
+    this.target = target;
+    this.label = label;
+    this.socket = new WebSocket(target.webSocketDebuggerUrl);
+    this.pending = new Map();
+    this.nextId = 1;
+    this.opened = new Promise((resolve, reject) => {
+      this.socket.once('open', resolve);
+      this.socket.once('error', reject);
     });
-  });
-}
-
-async function evaluate(expression) {
-  const response = await send('Runtime.evaluate', {
-    expression,
-    returnByValue: true,
-    awaitPromise: true,
-  });
-  if (response?.exceptionDetails) {
-    throw new Error(response.exceptionDetails.exception?.description || response.exceptionDetails.text || 'Browser evaluation failed.');
+    this.socket.on('message', (data) => this.onMessage(data));
   }
-  return response?.result?.value;
+
+  onMessage(data) {
+    let message;
+    try {
+      message = JSON.parse(String(data));
+    } catch {
+      return;
+    }
+
+    if (message.id && this.pending.has(message.id)) {
+      const { resolve, reject } = this.pending.get(message.id);
+      this.pending.delete(message.id);
+      if (message.error) reject(new Error(message.error.message || JSON.stringify(message.error)));
+      else resolve(message.result);
+      return;
+    }
+
+    if (message.method === 'Runtime.exceptionThrown') {
+      const description = message.params?.exceptionDetails?.exception?.description
+        || message.params?.exceptionDetails?.text
+        || 'Unknown browser exception';
+      console.error(`[preview browser exception:${this.label}]`, description);
+    }
+  }
+
+  async send(method, params = {}) {
+    await this.opened;
+    const id = this.nextId++;
+    return new Promise((resolve, reject) => {
+      this.pending.set(id, { resolve, reject });
+      this.socket.send(JSON.stringify({ id, method, params }), (error) => {
+        if (!error) return;
+        this.pending.delete(id);
+        reject(error);
+      });
+    });
+  }
+
+  async evaluate(expression) {
+    const response = await this.send('Runtime.evaluate', {
+      expression,
+      returnByValue: true,
+      awaitPromise: true,
+    });
+    if (response?.exceptionDetails) {
+      throw new Error(response.exceptionDetails.exception?.description || response.exceptionDetails.text || 'Browser evaluation failed.');
+    }
+    return response?.result?.value;
+  }
+
+  async close() {
+    try {
+      await this.send('Page.close');
+    } catch {
+      try {
+        await fetch(`${chromeOrigin}/json/close/${this.target.id}`);
+      } catch {
+        // Workflow cleanup terminates Chrome if the target already vanished.
+      }
+    }
+    this.socket.close();
+  }
 }
 
-async function applyViewport(testCase) {
-  await send('Emulation.setUserAgentOverride', {
+async function configurePage(page, testCase) {
+  await page.send('Runtime.enable');
+  await page.send('Page.enable');
+  await page.send('Emulation.setFocusEmulationEnabled', { enabled: true });
+  await page.send('Emulation.clearDeviceMetricsOverride');
+  await page.send('Emulation.setUserAgentOverride', {
     userAgent: testCase.mobile ? MOBILE_USER_AGENT : DESKTOP_USER_AGENT,
     acceptLanguage: 'en-US,en;q=0.9',
     platform: testCase.mobile ? 'Android' : 'Linux x86_64',
   });
-
-  await send('Emulation.setDeviceMetricsOverride', {
+  await page.send('Emulation.setDeviceMetricsOverride', {
     width: testCase.width,
     height: testCase.height,
     deviceScaleFactor: testCase.deviceScaleFactor,
@@ -148,109 +168,100 @@ async function applyViewport(testCase) {
     positionY: 0,
     dontSetVisibleSize: false,
     screenOrientation: testCase.orientation,
-    viewport: {
-      x: 0,
-      y: 0,
-      width: testCase.width,
-      height: testCase.height,
-      scale: 1,
-    },
   });
-
-  await send('Emulation.setTouchEmulationEnabled', {
+  await page.send('Emulation.setTouchEmulationEnabled', {
     enabled: testCase.touch,
     maxTouchPoints: testCase.touch ? 5 : 1,
   });
 }
 
 async function runHarnessCase(testCase, harness) {
-  await applyViewport(testCase);
+  const label = `${harness.name}:${testCase.name}`;
+  const target = await createPageTarget();
+  const page = new CdpPage(target, label);
 
-  const marker = `${harness.name}-${testCase.name}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const url = new URL(harness.url);
-  url.searchParams.set('case', marker);
-  await send('Page.navigate', { url: url.toString() });
-
-  const deadline = Date.now() + timeoutMs;
-  let result = 'running';
-  while (Date.now() < deadline) {
-    const pageState = await evaluate(`({
-      href: window.location.href,
-      result: document.body?.dataset?.previewHandoffResult || 'loading'
-    })`);
-    if (pageState?.href?.includes(marker)) {
-      result = pageState.result;
-      if (result === 'pass' || result === 'fail') break;
-    }
-    await delay(100);
-  }
-
-  const details = await evaluate(`({
-    ...(window.__PREVIEW_HANDOFF_RESULT__ || {
-      result: document.body?.dataset?.previewHandoffResult || 'missing',
-      html: document.documentElement?.outerHTML || ''
-    }),
-    viewport: {
-      innerWidth: window.innerWidth,
-      innerHeight: window.innerHeight,
-      visualWidth: window.visualViewport?.width || null,
-      visualHeight: window.visualViewport?.height || null,
-      devicePixelRatio: window.devicePixelRatio,
-      coarsePointer: window.matchMedia('(pointer: coarse)').matches,
-      touchPoints: navigator.maxTouchPoints,
-      userAgent: navigator.userAgent
-    }
-  })`);
-
-  const viewportWidthMatches = Math.abs(Number(details?.viewport?.innerWidth) - testCase.width) <= 2;
-  const visualWidthMatches = details?.viewport?.visualWidth == null
-    || Math.abs(Number(details.viewport.visualWidth) - testCase.width) <= 2;
-  const pixelRatioMatches = Math.abs(Number(details?.viewport?.devicePixelRatio) - testCase.deviceScaleFactor) < 0.01;
-  const pointerMatches = testCase.touch
-    ? details?.viewport?.coarsePointer === true && Number(details?.viewport?.touchPoints) > 0
-    : true;
-  const emulationPassed = viewportWidthMatches && visualWidthMatches && pixelRatioMatches && pointerMatches;
-
-  details.viewportExpectation = {
-    expectedWidth: testCase.width,
-    expectedHeight: testCase.height,
-    expectedDevicePixelRatio: testCase.deviceScaleFactor,
-    expectedTouch: testCase.touch,
-    viewportWidthMatches,
-    visualWidthMatches,
-    pixelRatioMatches,
-    pointerMatches,
-    emulationPassed,
-  };
-
-  console.log(`[preview browser result:${harness.name}:${testCase.name}]`, JSON.stringify(details, null, 2));
-
-  if (result !== 'pass' || !emulationPassed) {
-    throw new Error(`${harness.name} preview test did not pass for a true ${testCase.name} viewport (result: ${result}, emulationPassed: ${emulationPassed}).`);
-  }
-
-  return details;
-}
-
-try {
-  await send('Runtime.enable');
-  await send('Page.enable');
-  await send('Emulation.setFocusEmulationEnabled', { enabled: true });
-
-  const results = {};
-  for (const testCase of cases) {
-    results[testCase.name] = {};
-    for (const harness of harnesses) {
-      results[testCase.name][harness.name] = await runHarnessCase(testCase, harness);
-    }
-  }
-
-  console.log('[all preview browser cases passed]', JSON.stringify(results, null, 2));
-} finally {
   try {
-    await send('Page.close');
-  } catch {
-    // The workflow cleanup terminates Chrome even if the target already closed.
+    await configurePage(page, testCase);
+
+    const marker = `${label}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const url = new URL(harness.url);
+    url.searchParams.set('case', marker);
+    await page.send('Page.navigate', { url: url.toString() });
+
+    const deadline = Date.now() + timeoutMs;
+    let result = 'running';
+    while (Date.now() < deadline) {
+      const pageState = await page.evaluate(`({
+        href: window.location.href,
+        result: document.body?.dataset?.previewHandoffResult || 'loading'
+      })`);
+      if (pageState?.href?.includes(marker)) {
+        result = pageState.result;
+        if (result === 'pass' || result === 'fail') break;
+      }
+      await delay(100);
+    }
+
+    const details = await page.evaluate(`({
+      ...(window.__PREVIEW_HANDOFF_RESULT__ || {
+        result: document.body?.dataset?.previewHandoffResult || 'missing',
+        html: document.documentElement?.outerHTML || ''
+      }),
+      viewport: {
+        innerWidth: window.innerWidth,
+        innerHeight: window.innerHeight,
+        visualWidth: window.visualViewport?.width || null,
+        visualHeight: window.visualViewport?.height || null,
+        visualScale: window.visualViewport?.scale || null,
+        devicePixelRatio: window.devicePixelRatio,
+        coarsePointer: window.matchMedia('(pointer: coarse)').matches,
+        touchPoints: navigator.maxTouchPoints,
+        userAgent: navigator.userAgent,
+        viewportMeta: document.querySelector('meta[name="viewport"]')?.content || null
+      }
+    })`);
+
+    const viewportWidthMatches = Math.abs(Number(details?.viewport?.innerWidth) - testCase.width) <= 2;
+    const visualWidthMatches = details?.viewport?.visualWidth == null
+      || Math.abs(Number(details.viewport.visualWidth) - testCase.width) <= 2;
+    const pixelRatioMatches = Math.abs(Number(details?.viewport?.devicePixelRatio) - testCase.deviceScaleFactor) < 0.01;
+    const pointerMatches = testCase.touch
+      ? details?.viewport?.coarsePointer === true && Number(details?.viewport?.touchPoints) > 0
+      : true;
+    const emulationPassed = viewportWidthMatches && visualWidthMatches && pixelRatioMatches && pointerMatches;
+
+    details.viewportExpectation = {
+      expectedWidth: testCase.width,
+      expectedHeight: testCase.height,
+      expectedDevicePixelRatio: testCase.deviceScaleFactor,
+      expectedTouch: testCase.touch,
+      viewportWidthMatches,
+      visualWidthMatches,
+      pixelRatioMatches,
+      pointerMatches,
+      emulationPassed,
+    };
+
+    console.log(`[preview browser result:${label}]`, JSON.stringify(details, null, 2));
+
+    if (result !== 'pass' || !emulationPassed) {
+      throw new Error(`${harness.name} preview test did not pass for an isolated true ${testCase.name} viewport (result: ${result}, emulationPassed: ${emulationPassed}).`);
+    }
+
+    return details;
+  } finally {
+    await page.close();
   }
-  socket.close();
 }
+
+await waitForChrome();
+
+const results = {};
+for (const testCase of cases) {
+  results[testCase.name] = {};
+  for (const harness of harnesses) {
+    results[testCase.name][harness.name] = await runHarnessCase(testCase, harness);
+  }
+}
+
+console.log('[all isolated preview browser cases passed]', JSON.stringify(results, null, 2));
