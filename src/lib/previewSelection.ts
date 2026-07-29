@@ -1,4 +1,3 @@
-import { buildCommercePreviewUrl } from './commercePreviewUrl';
 import { dedupePreviewImageSources } from './previewImageCache';
 import { registerPreviewSourceCandidates } from './previewSourceRegistry';
 
@@ -43,7 +42,15 @@ const isPermanentPreviewUrl = (value?: string | null) => {
 export const buildCloudinaryPdfPreviewUrl = (value?: string | null): string | null => {
   const url = normalizeUrl(value);
   if (!url || !/\.pdf(?:$|[?#])/i.test(url) || !url.includes('/image/upload/')) return null;
-  return buildCommercePreviewUrl(url, 800);
+
+  // Keep the established 1600px first-page proof contract. Small cards can
+  // derive a lower-memory variant from this URL later, while enlarged previews
+  // retain enough source resolution for accurate inspection.
+  const transformed = url.replace(
+    '/upload/',
+    '/upload/pg_1,f_jpg,q_auto:good,w_1600,c_limit/',
+  );
+  return transformed.replace(/\.pdf(?=($|[?#]))/i, '.jpg');
 };
 
 type PreviewableItem = {
