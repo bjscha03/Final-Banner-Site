@@ -3,7 +3,7 @@ import WebSocket from 'ws';
 const chromeOrigin = process.env.CHROME_DEBUG_ORIGIN || 'http://127.0.0.1:9222';
 const activeHarnessUrl = process.env.PREVIEW_HANDOFF_URL || 'http://127.0.0.1:4175/tests/browser/preview-handoff.html';
 const commerceHarnessUrl = process.env.COMMERCE_PREVIEW_HANDOFF_URL || 'http://127.0.0.1:4175/tests/browser/commerce-preview-handoff.html';
-const timeoutMs = Number(process.env.PREVIEW_HANDOFF_TIMEOUT_MS || 20_000);
+const timeoutMs = Number(process.env.PREVIEW_HANDOFF_TIMEOUT_MS || 60_000);
 
 const DESKTOP_USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36';
 const MOBILE_USER_AGENT = 'Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36';
@@ -221,6 +221,10 @@ async function runHarnessCase(testCase, harness) {
       }
     })`);
 
+    // Trust the page's final recorded result as well as the polling variable.
+    // On a cold first Vite transform the harness can finish between the last
+    // poll and the final details read.
+    const finalResult = details?.result || result;
     const viewportWidthMatches = Math.abs(Number(details?.viewport?.innerWidth) - testCase.width) <= 2;
     const visualWidthMatches = details?.viewport?.visualWidth == null
       || Math.abs(Number(details.viewport.visualWidth) - testCase.width) <= 2;
@@ -244,8 +248,8 @@ async function runHarnessCase(testCase, harness) {
 
     console.log(`[preview browser result:${label}]`, JSON.stringify(details, null, 2));
 
-    if (result !== 'pass' || !emulationPassed) {
-      throw new Error(`${harness.name} preview test did not pass for an isolated true ${testCase.name} viewport (result: ${result}, emulationPassed: ${emulationPassed}).`);
+    if (finalResult !== 'pass' || !emulationPassed) {
+      throw new Error(`${harness.name} preview test did not pass for an isolated true ${testCase.name} viewport (result: ${finalResult}, emulationPassed: ${emulationPassed}).`);
     }
 
     return details;
