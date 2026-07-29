@@ -29,8 +29,12 @@ function isPaintedImage(image) {
   );
 }
 
+function getArtworkImages(root) {
+  return Array.from(root.querySelectorAll('img[alt="Preview handoff browser test"]'));
+}
+
 function getPaintedImages(root) {
-  return Array.from(root.querySelectorAll('img[data-preview-image-state]')).filter(isPaintedImage);
+  return getArtworkImages(root).filter(isPaintedImage);
 }
 
 function finish(result, details) {
@@ -38,6 +42,7 @@ function finish(result, details) {
   document.body.dataset.blankSamples = String(details.blankSamples ?? -1);
   document.body.dataset.busySamples = String(details.busySamples ?? -1);
   document.body.dataset.sourceChanges = String(details.sourceChanges ?? -1);
+  document.body.dataset.imageCountChanges = String(details.imageCountChanges ?? -1);
   document.body.dataset.initialSource = details.initialSource || '';
   document.body.dataset.finalSource = details.finalSource || '';
   const output = document.getElementById('preview-handoff-output');
@@ -65,21 +70,28 @@ function PreviewHandoffHarness() {
     waitTimer = window.setInterval(() => {
       const painted = getPaintedImages(root);
       const canvas = root.querySelector('[aria-busy]');
-      if (painted.length === 0 || canvas?.getAttribute('aria-busy') === 'true') {
+      if (painted.length !== 1 || canvas?.getAttribute('aria-busy') === 'true') {
         if (Date.now() - startedAt > 7_000) {
           window.clearInterval(waitTimer);
-          finish('fail', { reason: 'initial-local-preview-never-painted' });
+          finish('fail', {
+            reason: 'initial-local-preview-never-painted',
+            artworkImageCount: getArtworkImages(root).length,
+            paintedImageCount: painted.length,
+          });
         }
         return;
       }
 
       window.clearInterval(waitTimer);
-      const initialSource = painted[painted.length - 1].src;
+      const initialSource = painted[0].src;
       let lastSource = initialSource;
+      let lastImageCount = getArtworkImages(root).length;
       let blankSamples = 0;
       let busySamples = 0;
       let sourceChanges = 0;
+      let imageCountChanges = 0;
       let totalSamples = 0;
+      const blankSnapshots = [];
 
       // Reproduce the real upload sequence: a blob image is already painted,
       // then the parent receives the permanent Cloudinary-style URL.
@@ -88,12 +100,38 @@ function PreviewHandoffHarness() {
 
       sampleTimer = window.setInterval(() => {
         totalSamples += 1;
-        const visibleImages = getPaintedImages(root);
+        const artworkImages = getArtworkImages(root);
+        const visibleImages = artworkImages.filter(isPaintedImage);
         const currentCanvas = root.querySelector('[aria-busy]');
-        if (visibleImages.length === 0) blankSamples += 1;
+        const currentImageCount = artworkImages.length;
+
+        if (currentImageCount !== lastImageCount) {
+          imageCountChanges += 1;
+          lastImageCount = currentImageCount;
+        }
+
+        if (visibleImages.length === 0) {
+          blankSamples += 1;
+          if (blankSnapshots.length < 4) {
+            blankSnapshots.push({
+              sample: totalSamples,
+              canvasBusy: currentCanvas?.getAttribute('aria-busy') || null,
+              images: artworkImages.map((image) => ({
+                src: image.src,
+                complete: image.complete,
+                naturalWidth: image.naturalWidth,
+                naturalHeight: image.naturalHeight,
+                display: window.getComputedStyle(image).display,
+                visibility: window.getComputedStyle(image).visibility,
+                opacity: window.getComputedStyle(image).opacity,
+                rect: image.getBoundingClientRect().toJSON(),
+              })),
+            });
+          }
+        }
         if (currentCanvas?.getAttribute('aria-busy') === 'true') busySamples += 1;
 
-        const currentSource = visibleImages[visibleImages.length - 1]?.src || '';
+        const currentSource = visibleImages[0]?.src || '';
         if (currentSource && currentSource !== lastSource) {
           sourceChanges += 1;
           lastSource = currentSource;
@@ -103,14 +141,15 @@ function PreviewHandoffHarness() {
       finishTimer = window.setTimeout(() => {
         window.clearInterval(sampleTimer);
         const finalImages = getPaintedImages(root);
-        const finalSource = finalImages[finalImages.length - 1]?.src || '';
+        const finalSource = finalImages[0]?.src || '';
         const passed = Boolean(
           initialSource.startsWith('blob:')
           && finalSource.startsWith('blob:')
-          && finalImages.length > 0
+          && finalImages.length === 1
           && blankSamples === 0
           && busySamples === 0
           && sourceChanges === 0
+          && imageCountChanges === 0
         );
 
         finish(passed ? 'pass' : 'fail', {
@@ -119,7 +158,9 @@ function PreviewHandoffHarness() {
           blankSamples,
           busySamples,
           sourceChanges,
+          imageCountChanges,
           totalSamples,
+          blankSnapshots,
         });
       }, 2_000);
     }, 25);
