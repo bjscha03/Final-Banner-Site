@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import StableArtworkPreviewEditor, {
+import OriginalArtworkPreviewEditor, {
   type ArtworkPreviewEditorProps,
   type ArtworkTransform,
-} from './StableArtworkPreviewEditor';
+} from './ArtworkPreviewEditor';
 import { preloadPreviewImage } from '@/lib/previewImageCache';
 import { decideSessionArtworkPreviewSource } from '@/lib/sessionArtworkPreviewSource';
 import {
@@ -13,12 +13,11 @@ import {
 export type { ArtworkPreviewEditorProps, ArtworkTransform };
 
 /**
- * Keeps the browser-local artwork preview on the active editing canvas for the
- * full editing session. Upload completion may replace `previewUrl` with a
- * permanent Cloudinary URL; swapping at that exact moment caused the canvas to
- * flash and sometimes go blank on mobile Safari. The permanent URL is still
- * preloaded and retained as a retry fallback, but it never replaces a healthy
- * blob/data preview merely because the background upload completed.
+ * Active design canvases intentionally use one persistent DOM image, not the
+ * multi-layer commerce thumbnail renderer. A browser-local blob/data preview is
+ * kept for the full editing session while the permanent upload is decoded in
+ * the background. This prevents upload completion from remounting the image,
+ * repainting the canvas, flashing white, or leaving the artwork blank.
  */
 const SessionStableArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = (props) => {
   const incomingSource = useMemo(
@@ -66,9 +65,8 @@ const SessionStableArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = (
     }).then(() => {
       if (generation !== sourceGenerationRef.current) return;
 
-      // Only a real permanent-to-permanent artwork replacement switches after
-      // decode. A local-to-permanent upload handoff intentionally stays on the
-      // already-visible browser-local image for the rest of this editor session.
+      // Only a genuine permanent-to-permanent artwork replacement switches after
+      // decode. Upload completion never replaces a healthy local editing image.
       if (
         decision.switchAfterDecode
         && displaySourceRef.current === decision.displaySource
@@ -77,8 +75,7 @@ const SessionStableArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = (
         pendingPermanentSourceRef.current = null;
       }
     }).catch(() => {
-      // The visible source remains untouched. Retry can still invoke the page's
-      // PDF regeneration path or attempt the permanent fallback later.
+      // Keep the already-painted image. Retry may use the permanent fallback.
     });
   }, [incomingSource, props.imageCrossOrigin, commitDisplaySource]);
 
@@ -94,13 +91,13 @@ const SessionStableArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = (
   const effectiveSource = displaySource || incomingSource || props.src;
 
   return (
-    <StableArtworkPreviewEditor
+    <OriginalArtworkPreviewEditor
       {...props}
       src={effectiveSource}
       previewUrl={effectiveSource || null}
-      // StableArtworkPreviewEditor uses productionUrl only as its internal
-      // artwork identity key. Keep that identity on the visible source so the
-      // upload finishing cannot restart resize/selection effects underneath it.
+      // The original editor uses productionUrl as its artwork identity key.
+      // Pinning it to the painted source prevents upload completion from
+      // restarting image/layout effects underneath the visible canvas.
       productionUrl={effectiveSource}
       onRetryPreview={handleRetryPreview}
     />
