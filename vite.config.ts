@@ -35,7 +35,7 @@ export default defineConfig(({ mode }) => ({
       // legacy imports cannot bypass decoded-image buffering.
       {
         find: /^@\/components\/design\/ArtworkPreviewEditor$/,
-        replacement: path.resolve(__dirname, "./src/components/design/StableArtworkPreviewEditor.tsx"),
+        replacement: path.resolve(__dirname, "./src/components/design/SessionStableArtworkPreviewEditor.tsx"),
       },
       {
         find: /^@\/components\/design\/YardSignConfigurator$/,
