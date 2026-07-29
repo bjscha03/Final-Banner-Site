@@ -13,6 +13,7 @@ on:
       - 'src/lib/previewSelection.ts'
       - 'src/lib/previewSourceRegistry.ts'
       - 'src/lib/order-thumbnail.ts'
+      - 'src/lib/order-thumbnail.test.ts'
       - 'src/lib/commercePreviewUrl.ts'
       - 'src/pages/Checkout.tsx'
       - 'src/pages/Design.tsx'
@@ -61,8 +62,10 @@ jobs:
       - name: Run preview source-selection unit tests
         run: |
           npx vitest run \
+            src/lib/commercePreviewUrl.test.ts \
             src/lib/previewSelection.test.ts \
             src/lib/__tests__/previewSelection.test.ts \
+            src/lib/order-thumbnail.test.ts \
             --reporter=verbose
 
       - name: Type-check application
