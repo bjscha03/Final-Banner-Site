@@ -1,0 +1,202 @@
+export type PreviewImageResult = {
+  url: string;
+  naturalWidth: number;
+  naturalHeight: number;
+};
+
+type PreviewImageCacheEntry = {
+  status: 'loading' | 'ready' | 'error';
+  promise?: Promise<PreviewImageResult>;
+  result?: PreviewImageResult;
+  error?: Error;
+  touchedAt: number;
+};
+
+export type PreviewImageLoadOptions = {
+  timeoutMs?: number;
+  crossOrigin?: '' | 'anonymous' | 'use-credentials';
+  fetchPriority?: 'high' | 'low' | 'auto';
+};
+
+const MAX_CACHE_ENTRIES = 160;
+const DEFAULT_TIMEOUT_MS = 20_000;
+const previewImageCache = new Map<string, PreviewImageCacheEntry>();
+
+export const normalizePreviewImageUrl = (value?: string | null): string => String(value || '').trim();
+
+export const isTransientPreviewImageUrl = (value?: string | null): boolean => {
+  const url = normalizePreviewImageUrl(value).toLowerCase();
+  return url.startsWith('blob:') || url.startsWith('data:image/');
+};
+
+export const isRemotePreviewImageUrl = (value?: string | null): boolean => {
+  const url = normalizePreviewImageUrl(value).toLowerCase();
+  return url.startsWith('https://') || url.startsWith('http://');
+};
+
+export function dedupePreviewImageSources(
+  values: Array<string | null | undefined>,
+): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const value of values) {
+    const url = normalizePreviewImageUrl(value);
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    result.push(url);
+  }
+  return result;
+}
+
+function trimCache(): void {
+  if (previewImageCache.size <= MAX_CACHE_ENTRIES) return;
+  const removable = [...previewImageCache.entries()]
+    .filter(([, entry]) => entry.status !== 'loading')
+    .sort((a, b) => a[1].touchedAt - b[1].touchedAt);
+
+  while (previewImageCache.size > MAX_CACHE_ENTRIES && removable.length > 0) {
+    const [url] = removable.shift()!;
+    previewImageCache.delete(url);
+  }
+}
+
+export function getDecodedPreviewImage(value?: string | null): PreviewImageResult | null {
+  const url = normalizePreviewImageUrl(value);
+  if (!url) return null;
+  const entry = previewImageCache.get(url);
+  if (!entry || entry.status !== 'ready' || !entry.result) return null;
+  entry.touchedAt = Date.now();
+  return entry.result;
+}
+
+export function forgetPreviewImage(value?: string | null): void {
+  const url = normalizePreviewImageUrl(value);
+  if (url) previewImageCache.delete(url);
+}
+
+export function preloadPreviewImage(
+  value?: string | null,
+  options: PreviewImageLoadOptions = {},
+): Promise<PreviewImageResult> {
+  const url = normalizePreviewImageUrl(value);
+  if (!url) return Promise.reject(new Error('Preview image URL is empty.'));
+
+  const cached = previewImageCache.get(url);
+  if (cached?.status === 'ready' && cached.result) {
+    cached.touchedAt = Date.now();
+    return Promise.resolve(cached.result);
+  }
+  if (cached?.status === 'loading' && cached.promise) {
+    cached.touchedAt = Date.now();
+    return cached.promise;
+  }
+
+  if (typeof window === 'undefined' || typeof Image === 'undefined') {
+    return Promise.resolve({ url, naturalWidth: 0, naturalHeight: 0 });
+  }
+
+  const timeoutMs = Math.max(1_000, options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  const entry: PreviewImageCacheEntry = {
+    status: 'loading',
+    touchedAt: Date.now(),
+  };
+
+  const promise = new Promise<PreviewImageResult>((resolve, reject) => {
+    const image = new Image();
+    let settled = false;
+
+    const cleanup = () => {
+      image.onload = null;
+      image.onerror = null;
+      window.clearTimeout(timeoutId);
+    };
+
+    const fail = (error: Error) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      entry.status = 'error';
+      entry.error = error;
+      entry.promise = undefined;
+      entry.touchedAt = Date.now();
+      reject(error);
+    };
+
+    const finish = async () => {
+      if (settled) return;
+      if (!image.naturalWidth || !image.naturalHeight) {
+        fail(new Error('Preview image loaded without usable dimensions.'));
+        return;
+      }
+
+      try {
+        if (typeof image.decode === 'function') {
+          await image.decode();
+        }
+      } catch {
+        // Safari can reject decode() for an image that has already completed.
+        // A valid natural size after onload is still safe to paint.
+      }
+
+      if (settled) return;
+      settled = true;
+      cleanup();
+      const result = {
+        url,
+        naturalWidth: image.naturalWidth,
+        naturalHeight: image.naturalHeight,
+      };
+      entry.status = 'ready';
+      entry.result = result;
+      entry.promise = undefined;
+      entry.error = undefined;
+      entry.touchedAt = Date.now();
+      trimCache();
+      resolve(result);
+    };
+
+    const timeoutId = window.setTimeout(() => {
+      fail(new Error(`Preview image timed out after ${timeoutMs}ms.`));
+    }, timeoutMs);
+
+    image.decoding = 'async';
+    const fetchPriorityImage = image as HTMLImageElement & { fetchPriority?: string };
+    fetchPriorityImage.fetchPriority = options.fetchPriority ?? 'high';
+    if (options.crossOrigin && isRemotePreviewImageUrl(url)) {
+      image.crossOrigin = options.crossOrigin;
+    }
+    image.onload = () => { void finish(); };
+    image.onerror = () => fail(new Error('Preview image failed to load.'));
+    image.src = url;
+
+    // Cached data/blob images can complete before an onload callback is observed
+    // on iOS. Check immediately and on the next frame as a second safe path.
+    if (image.complete && image.naturalWidth > 0) void finish();
+    window.requestAnimationFrame(() => {
+      if (!settled && image.complete && image.naturalWidth > 0) void finish();
+    });
+  });
+
+  entry.promise = promise;
+  previewImageCache.set(url, entry);
+  trimCache();
+  return promise;
+}
+
+export async function preloadFirstAvailablePreviewImage(
+  values: Array<string | null | undefined>,
+  options: PreviewImageLoadOptions = {},
+): Promise<PreviewImageResult> {
+  const candidates = dedupePreviewImageSources(values);
+  let lastError: Error | null = null;
+
+  for (const candidate of candidates) {
+    try {
+      return await preloadPreviewImage(candidate, options);
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+    }
+  }
+
+  throw lastError || new Error('No usable preview image source was available.');
+}
