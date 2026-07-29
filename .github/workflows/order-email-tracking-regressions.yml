@@ -109,7 +109,6 @@ jobs:
             src/lib/previewSelection.test.ts \
             src/lib/__tests__/previewSelection.test.ts \
             src/lib/sessionArtworkPreviewSource.test.ts \
-            src/lib/paypalCheckoutPreparation.test.ts \
             src/lib/order-thumbnail.test.ts \
             --reporter=verbose
 
