@@ -41,6 +41,16 @@ test('preview images are decoded, double-buffered, and loaded concurrently', () 
   assert.equal(stableImage.includes('for (const candidate of usableCandidates)'), false);
 });
 
+test('a decoded target is visible immediately and clears the parent loading state', () => {
+  const stableImage = read('src/components/preview/StablePreviewImage.tsx');
+
+  assert.match(stableImage, /announceReady\(best\)/);
+  assert.match(stableImage, /const target = !active && layer\.url === targetUrl/);
+  assert.match(stableImage, /target \? \{/);
+  assert.match(stableImage, /opacity: 1/);
+  assert.match(stableImage, /visibility: 'visible'/);
+});
+
 test('selected thumbnail URLs carry automatic artwork fallbacks', () => {
   const selection = read('src/lib/previewSelection.ts');
   const registry = read('src/lib/previewSourceRegistry.ts');
