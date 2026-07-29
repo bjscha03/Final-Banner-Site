@@ -103,20 +103,30 @@ jobs:
             exit 1
           fi
 
-          "$browser" \
+          set +e
+          timeout 40s "$browser" \
             --headless=new \
             --no-sandbox \
             --disable-gpu \
             --disable-dev-shm-usage \
+            --disable-background-networking \
+            --disable-component-update \
+            --disable-default-apps \
+            --disable-sync \
+            --metrics-recording-only \
+            --no-first-run \
             --virtual-time-budget=12000 \
             --dump-dom \
             http://127.0.0.1:4175/tests/browser/preview-handoff.html \
-            > /tmp/preview-handoff-dom.html
+            > /tmp/preview-handoff-dom.html 2> /tmp/preview-handoff-browser.log
+          browser_status=$?
+          set -e
 
           if ! grep -q 'data-preview-handoff-result="pass"' /tmp/preview-handoff-dom.html; then
-            echo "Real-browser preview handoff regression failed"
-            cat /tmp/preview-handoff-dom.html
-            cat /tmp/vite-preview-handoff.log
+            echo "Real-browser preview handoff regression failed (browser status: $browser_status)"
+            cat /tmp/preview-handoff-dom.html || true
+            cat /tmp/preview-handoff-browser.log || true
+            cat /tmp/vite-preview-handoff.log || true
             exit 1
           fi
 
