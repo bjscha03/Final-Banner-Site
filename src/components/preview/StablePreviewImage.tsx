@@ -3,6 +3,7 @@ import {
   dedupePreviewImageSources,
   forgetPreviewImage,
   getDecodedPreviewImage,
+  normalizePreviewImageUrl,
   preloadPreviewImage,
   type PreviewImageLoadOptions,
   type PreviewImageResult,
@@ -20,11 +21,12 @@ export interface StablePreviewImageProps
 }
 
 type Layer = PreviewImageResult;
+const EMPTY_SOURCES: Array<string | null | undefined> = [];
 
 const StablePreviewImage: React.FC<StablePreviewImageProps> = ({
   src,
-  sources = [],
-  fallbackSources = [],
+  sources = EMPTY_SOURCES,
+  fallbackSources = EMPTY_SOURCES,
   retainPreviousWhileLoading = true,
   loadTimeoutMs = 20_000,
   onReady,
@@ -38,11 +40,17 @@ const StablePreviewImage: React.FC<StablePreviewImageProps> = ({
   fetchPriority = 'high',
   ...imgProps
 }) => {
+  const sourceSignature = [src, ...sources, ...fallbackSources]
+    .map(normalizePreviewImageUrl)
+    .filter(Boolean)
+    .join('\n');
   const candidates = useMemo(
     () => dedupePreviewImageSources([src, ...sources, ...fallbackSources]),
-    [src, sources, fallbackSources],
+    // Value-based signature keeps this list stable even when callers pass a
+    // freshly-created array literal on every React render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sourceSignature],
   );
-  const signature = candidates.join('\n');
 
   const initialReady = useMemo(
     () => candidates.map((candidate) => getDecodedPreviewImage(candidate)).find(Boolean) || null,
@@ -63,6 +71,10 @@ const StablePreviewImage: React.FC<StablePreviewImageProps> = ({
   const failedUrlsRef = useRef(new Set<string>());
   const cleanupFrameRef = useRef<number | null>(null);
   const announcedUrlRef = useRef<string | null>(initialReady?.url || null);
+  const onReadyRef = useRef(onReady);
+  const onExhaustedRef = useRef(onExhausted);
+  onReadyRef.current = onReady;
+  onExhaustedRef.current = onExhausted;
 
   useEffect(() => () => {
     if (cleanupFrameRef.current !== null) {
@@ -72,7 +84,7 @@ const StablePreviewImage: React.FC<StablePreviewImageProps> = ({
 
   useEffect(() => {
     failedUrlsRef.current.clear();
-  }, [signature]);
+  }, [sourceSignature]);
 
   useEffect(() => {
     const requestId = ++requestIdRef.current;
@@ -86,11 +98,14 @@ const StablePreviewImage: React.FC<StablePreviewImageProps> = ({
         setLayers([]);
         setActiveUrl(null);
       }
-      if (candidates.length) onExhausted?.(null);
+      if (candidates.length) onExhaustedRef.current?.(null);
       return () => { cancelled = true; };
     }
 
-    if (activeUrl && usableCandidates.includes(activeUrl)) {
+    // Stay put only when the active image is already the highest-priority
+    // candidate. If a better source becomes available, decode it in the hidden
+    // buffer while the existing image remains visible.
+    if (activeUrl && usableCandidates[0] === activeUrl) {
       setTargetUrl(activeUrl);
       setStatus('ready');
       return () => { cancelled = true; };
@@ -114,7 +129,7 @@ const StablePreviewImage: React.FC<StablePreviewImageProps> = ({
       for (const candidate of usableCandidates) {
         try {
           const result = await preloadPreviewImage(candidate, options);
-          if (cancelled || requestIdRef.current !== requestId || requestId !== requestIdRef.current) return;
+          if (cancelled || requestIdRef.current !== requestId) return;
           setLayers((current) => current.some((layer) => layer.url === result.url)
             ? current
             : [...current, result]);
@@ -136,11 +151,11 @@ const StablePreviewImage: React.FC<StablePreviewImageProps> = ({
         setLayers([]);
         setActiveUrl(null);
       }
-      onExhausted?.(lastError);
+      onExhaustedRef.current?.(lastError);
     })();
 
     return () => { cancelled = true; };
-  }, [signature, retryNonce, retainPreviousWhileLoading, loadTimeoutMs, crossOrigin, fetchPriority, activeUrl, candidates, onExhausted]);
+  }, [sourceSignature, retryNonce, retainPreviousWhileLoading, loadTimeoutMs, crossOrigin, fetchPriority, activeUrl, candidates]);
 
   const promoteLayer = (layer: Layer) => {
     if (layer.url !== targetUrl) return;
@@ -149,7 +164,7 @@ const StablePreviewImage: React.FC<StablePreviewImageProps> = ({
 
     if (announcedUrlRef.current !== layer.url) {
       announcedUrlRef.current = layer.url;
-      onReady?.(layer);
+      onReadyRef.current?.(layer);
     }
 
     if (cleanupFrameRef.current !== null) {
