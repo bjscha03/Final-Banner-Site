@@ -91,6 +91,12 @@ const StablePreviewImage: React.FC<StablePreviewImageProps> = ({
     setActiveUrl(url);
   };
 
+  const announceReady = (result: PreviewImageResult) => {
+    if (announcedUrlRef.current === result.url) return;
+    announcedUrlRef.current = result.url;
+    onReadyRef.current?.(result);
+  };
+
   useEffect(() => () => {
     if (cleanupFrameRef.current !== null) {
       window.cancelAnimationFrame(cleanupFrameRef.current);
@@ -118,8 +124,6 @@ const StablePreviewImage: React.FC<StablePreviewImageProps> = ({
       return () => { cancelled = true; };
     }
 
-    // A source can change again before the prior hidden buffer paints. Do not
-    // let an obsolete target block the first decoded image for the new source.
     if (targetUrlRef.current
       && targetUrlRef.current !== activeUrlRef.current
       && !usableCandidates.includes(targetUrlRef.current)) {
@@ -129,7 +133,6 @@ const StablePreviewImage: React.FC<StablePreviewImageProps> = ({
     const currentActive = retainPreviousWhileLoading ? activeUrlRef.current : null;
     const activeIndex = currentActive ? usableCandidates.indexOf(currentActive) : -1;
 
-    // The best source is already painted. No fallback work is necessary.
     if (activeIndex === 0) {
       updateTarget(currentActive);
       setStatus('ready');
@@ -143,10 +146,6 @@ const StablePreviewImage: React.FC<StablePreviewImageProps> = ({
       announcedUrlRef.current = null;
     }
 
-    // If a lower-priority image is visible, only load candidates that can
-    // improve it. With no visible image, load every candidate concurrently so
-    // a ready data/blob thumbnail can paint immediately while a preferred CDN
-    // image continues loading in the background.
     const candidatesToLoad = activeIndex > 0
       ? usableCandidates.slice(0, activeIndex).map((url, index) => ({ url, index }))
       : usableCandidates.map((url, index) => ({ url, index }));
@@ -181,15 +180,16 @@ const StablePreviewImage: React.FC<StablePreviewImageProps> = ({
       const visibleIndex = visibleUrl ? usableCandidates.indexOf(visibleUrl) : -1;
 
       if (!visibleUrl) {
-        // Keep the first decoded target until its DOM image has painted. A
-        // higher-priority result that finishes milliseconds later will upgrade
-        // it on the next effect without delaying the first visible frame.
         if (!targetUrlRef.current) updateTarget(best.url);
+        setStatus('ready');
+        announceReady(best);
         return;
       }
 
       if (visibleIndex < 0 || bestIndex < visibleIndex) {
         updateTarget(best.url);
+        setStatus('ready');
+        announceReady(best);
       }
     };
 
@@ -197,14 +197,13 @@ const StablePreviewImage: React.FC<StablePreviewImageProps> = ({
       remaining -= 1;
       if (remaining > 0 || cancelled || requestIdRef.current !== requestId) return;
 
-      const hasVisibleLayer = Boolean(activeUrlRef.current);
+      const hasVisibleLayer = Boolean(activeUrlRef.current || targetUrlRef.current);
       if (successfulLoads === 0 && !hasVisibleLayer) {
         updateTarget(null);
         setStatus('error');
         if (!retainPreviousWhileLoading) setLayers([]);
         onExhaustedRef.current?.(lastError);
-      } else if (hasVisibleLayer && !targetUrlRef.current) {
-        updateTarget(activeUrlRef.current);
+      } else if (hasVisibleLayer) {
         setStatus('ready');
       }
     };
@@ -232,11 +231,7 @@ const StablePreviewImage: React.FC<StablePreviewImageProps> = ({
     if (layer.url !== targetUrlRef.current) return;
     updateActive(layer.url);
     setStatus('ready');
-
-    if (announcedUrlRef.current !== layer.url) {
-      announcedUrlRef.current = layer.url;
-      onReadyRef.current?.(layer);
-    }
+    announceReady(layer);
 
     if (cleanupFrameRef.current !== null) {
       window.cancelAnimationFrame(cleanupFrameRef.current);
@@ -272,23 +267,34 @@ const StablePreviewImage: React.FC<StablePreviewImageProps> = ({
     <>
       {layers.map((layer) => {
         const active = layer.url === activeUrl;
-        const paintLayer = active || layer.url === targetUrl;
+        const target = !active && layer.url === targetUrl;
+        const visible = active || target;
         return (
           <img
             {...imgProps}
-            key={`${layer.url}:${paintLayer ? 'paint' : 'buffer'}`}
+            key={`${layer.url}:${visible ? 'visible' : 'buffer'}`}
             src={layer.url}
-            alt={active ? alt : ''}
-            aria-hidden={active ? imgProps['aria-hidden'] : true}
+            alt={active || (!activeUrl && target) ? alt : ''}
+            aria-hidden={active || (!activeUrl && target) ? imgProps['aria-hidden'] : true}
             className={className}
             style={{
               ...style,
-              ...(active ? null : {
+              ...(active ? {
+                zIndex: 1,
+              } : target ? {
+                position: 'absolute',
+                inset: 0,
+                opacity: 1,
+                visibility: 'visible',
+                pointerEvents: 'none',
+                zIndex: 2,
+              } : {
                 position: 'absolute',
                 inset: 0,
                 opacity: 0,
                 visibility: 'hidden',
                 pointerEvents: 'none',
+                zIndex: 0,
               }),
             }}
             crossOrigin={crossOrigin}
@@ -296,7 +302,7 @@ const StablePreviewImage: React.FC<StablePreviewImageProps> = ({
             decoding={decoding}
             fetchPriority={fetchPriority}
             draggable={imgProps.draggable ?? false}
-            data-preview-image-state={active ? 'ready' : paintLayer ? 'target' : 'buffering'}
+            data-preview-image-state={active ? 'ready' : target ? 'target' : 'buffering'}
             onLoad={() => promoteLayer(layer)}
             onError={() => rejectLayer(layer.url)}
           />
