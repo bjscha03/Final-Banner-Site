@@ -134,15 +134,23 @@ class CdpPage {
   }
 
   async close() {
+    // Page.close can destroy the WebSocket before Chrome sends its command
+    // response, leaving the promise unresolved. Close through the debugging
+    // HTTP endpoint instead and bound cleanup so one successful case can never
+    // stall the rest of the browser matrix.
     try {
-      await this.send('Page.close');
+      await Promise.race([
+        fetch(`${chromeOrigin}/json/close/${this.target.id}`),
+        delay(2_000),
+      ]);
     } catch {
-      try {
-        await fetch(`${chromeOrigin}/json/close/${this.target.id}`);
-      } catch {
-        // Workflow cleanup terminates Chrome if the target already vanished.
-      }
+      // Workflow cleanup terminates Chrome if the target already vanished.
     }
+
+    for (const { reject } of this.pending.values()) {
+      reject(new Error(`Chrome target ${this.label} closed during cleanup.`));
+    }
+    this.pending.clear();
     this.socket.close();
   }
 }
