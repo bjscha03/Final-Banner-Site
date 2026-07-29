@@ -12,6 +12,8 @@ on:
       - 'src/lib/previewImageCache.ts'
       - 'src/lib/previewSelection.ts'
       - 'src/lib/previewSourceRegistry.ts'
+      - 'src/lib/sessionArtworkPreviewSource.ts'
+      - 'src/lib/sessionArtworkPreviewSource.test.ts'
       - 'src/lib/order-thumbnail.ts'
       - 'src/lib/order-thumbnail.test.ts'
       - 'src/lib/commercePreviewUrl.ts'
@@ -65,6 +67,7 @@ jobs:
             src/lib/commercePreviewUrl.test.ts \
             src/lib/previewSelection.test.ts \
             src/lib/__tests__/previewSelection.test.ts \
+            src/lib/sessionArtworkPreviewSource.test.ts \
             src/lib/order-thumbnail.test.ts \
             --reporter=verbose
 
