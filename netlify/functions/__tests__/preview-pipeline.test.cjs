@@ -9,7 +9,7 @@ const read = (relativePath) => fs.readFileSync(path.join(repoRoot, relativePath)
 test('all major commerce and builder preview imports route through stable renderers', () => {
   const viteConfig = read('vite.config.ts');
 
-  assert.match(viteConfig, /StableArtworkPreviewEditor\.tsx/);
+  assert.match(viteConfig, /SessionStableArtworkPreviewEditor\.tsx/);
   assert.match(viteConfig, /StableYardSignConfigurator\.tsx/);
   assert.match(viteConfig, /StableBannerPreview\.tsx/);
   assert.match(viteConfig, /StableThumbnailPreviewWrapper\.tsx/);
@@ -51,6 +51,17 @@ test('a decoded target is visible immediately and clears the parent loading stat
   assert.match(stableImage, /visibility: 'visible'/);
 });
 
+test('active design canvases never swap a healthy local preview merely because upload completed', () => {
+  const sessionEditor = read('src/components/design/SessionStableArtworkPreviewEditor.tsx');
+
+  assert.match(sessionEditor, /currentIsTransient/);
+  assert.match(sessionEditor, /incomingIsTransient/);
+  assert.match(sessionEditor, /Never switch a healthy local/);
+  assert.match(sessionEditor, /if \(!currentIsTransient && displaySourceRef\.current === current\)/);
+  assert.match(sessionEditor, /pendingPermanentSourceRef/);
+  assert.equal(sessionEditor.includes('setInterval('), false);
+});
+
 test('selected thumbnail URLs carry automatic artwork fallbacks', () => {
   const selection = read('src/lib/previewSelection.ts');
   const registry = read('src/lib/previewSourceRegistry.ts');
@@ -70,14 +81,15 @@ test('enlarged previews no longer depend on zero-scale JavaScript measurement', 
   assert.match(lightbox, /maxHeight: 'calc\(100dvh - 16px\)'/);
 });
 
-test('Design and Google Ads use the shared artwork editor import covered by the stable alias', () => {
+test('Design and Google Ads use the shared session-stable artwork editor alias', () => {
   const design = read('src/pages/Design.tsx');
   const googleAds = read('src/pages/GoogleAdsBanner.tsx');
   const editor = read('src/components/design/StableArtworkPreviewEditor.tsx');
+  const sessionEditor = read('src/components/design/SessionStableArtworkPreviewEditor.tsx');
 
   assert.match(design, /@\/components\/design\/ArtworkPreviewEditor/);
   assert.match(googleAds, /@\/components\/design\/ArtworkPreviewEditor/);
   assert.match(editor, /StablePreviewImage/);
-  assert.match(editor, /retainDuringHandoff/);
   assert.match(editor, /touchAction: 'none'/);
+  assert.match(sessionEditor, /StableArtworkPreviewEditor/);
 });
