@@ -64,6 +64,17 @@ test('active design canvases never swap a healthy local preview merely because u
   assert.equal(sessionEditor.includes('setInterval('), false);
 });
 
+test('active design canvas uses one persistent DOM image instead of commerce image layers', () => {
+  const originalEditor = read('src/components/design/ArtworkPreviewEditor.tsx');
+  const sessionEditor = read('src/components/design/SessionStableArtworkPreviewEditor.tsx');
+
+  assert.match(sessionEditor, /OriginalArtworkPreviewEditor/);
+  assert.equal(sessionEditor.includes("from './StableArtworkPreviewEditor'"), false);
+  assert.equal(originalEditor.includes('StablePreviewImage'), false);
+  assert.match(originalEditor, /<img/);
+  assert.match(originalEditor, /key=\{`\$\{imageSrc\}-\$\{retryNonce\}`\}/);
+});
+
 test('selected thumbnail URLs carry automatic artwork fallbacks', () => {
   const selection = read('src/lib/previewSelection.ts');
   const registry = read('src/lib/previewSourceRegistry.ts');
@@ -86,12 +97,11 @@ test('enlarged previews no longer depend on zero-scale JavaScript measurement', 
 test('Design and Google Ads use the shared session-stable artwork editor alias', () => {
   const design = read('src/pages/Design.tsx');
   const googleAds = read('src/pages/GoogleAdsBanner.tsx');
-  const editor = read('src/components/design/StableArtworkPreviewEditor.tsx');
+  const originalEditor = read('src/components/design/ArtworkPreviewEditor.tsx');
   const sessionEditor = read('src/components/design/SessionStableArtworkPreviewEditor.tsx');
 
   assert.match(design, /@\/components\/design\/ArtworkPreviewEditor/);
   assert.match(googleAds, /@\/components\/design\/ArtworkPreviewEditor/);
-  assert.match(editor, /StablePreviewImage/);
-  assert.match(editor, /touchAction: 'none'/);
-  assert.match(sessionEditor, /StableArtworkPreviewEditor/);
+  assert.match(originalEditor, /touchAction: 'none'/);
+  assert.match(sessionEditor, /OriginalArtworkPreviewEditor/);
 });
