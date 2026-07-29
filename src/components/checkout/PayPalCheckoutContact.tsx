@@ -13,7 +13,6 @@ type PayPalCheckoutProps = {
 
 type CustomerInfo = {
   fullName: string;
-  email: string;
   address1: string;
   address2: string;
   city: string;
@@ -26,7 +25,6 @@ const STORAGE_KEY = 'bof-checkout-customer-info';
 
 const emptyCustomerInfo: CustomerInfo = {
   fullName: '',
-  email: '',
   address1: '',
   address2: '',
   city: '',
@@ -37,7 +35,6 @@ const emptyCustomerInfo: CustomerInfo = {
 
 const trimCustomerInfo = (value: CustomerInfo): CustomerInfo => ({
   fullName: value.fullName.trim(),
-  email: value.email.trim().toLowerCase(),
   address1: value.address1.trim(),
   address2: value.address2.trim(),
   city: value.city.trim(),
@@ -46,13 +43,10 @@ const trimCustomerInfo = (value: CustomerInfo): CustomerInfo => ({
   country: (value.country || 'US').trim().toUpperCase(),
 });
 
-const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
-
 const isComplete = (value: CustomerInfo) => {
   const info = trimCustomerInfo(value);
   return Boolean(
     info.fullName
-    && isValidEmail(info.email)
     && info.address1
     && info.city
     && info.state
@@ -66,7 +60,16 @@ const getInitialInfo = (): CustomerInfo => {
   try {
     const stored = window.sessionStorage.getItem(STORAGE_KEY);
     if (!stored) return emptyCustomerInfo;
-    return { ...emptyCustomerInfo, ...JSON.parse(stored) };
+    const parsed = JSON.parse(stored) || {};
+    return {
+      fullName: String(parsed.fullName || ''),
+      address1: String(parsed.address1 || ''),
+      address2: String(parsed.address2 || ''),
+      city: String(parsed.city || ''),
+      state: String(parsed.state || ''),
+      postalCode: String(parsed.postalCode || ''),
+      country: String(parsed.country || 'US'),
+    };
   } catch {
     return emptyCustomerInfo;
   }
@@ -89,10 +92,9 @@ const PayPalCheckoutContact: React.FC<PayPalCheckoutProps> = (props) => {
   useEffect(() => {
     setCustomerInfo((current) => ({
       ...current,
-      email: current.email || user?.email || '',
       fullName: current.fullName || user?.full_name || '',
     }));
-  }, [user?.email, user?.full_name]);
+  }, [user?.full_name]);
 
   const complete = useMemo(() => isComplete(customerInfo), [customerInfo]);
 
@@ -141,7 +143,8 @@ const PayPalCheckoutContact: React.FC<PayPalCheckoutProps> = (props) => {
       };
 
       if (relevantEndpoint.endsWith('/create-order')) {
-        body.email = info.email;
+        // Do not replace the payment email here. PayPal/card checkout owns the
+        // one customer email entry and the capture endpoint persists it.
         body.customer_name = info.fullName;
         body.customer_first_name = info.fullName.split(/\s+/)[0] || null;
         body.shipping_name = info.fullName;
@@ -155,7 +158,6 @@ const PayPalCheckoutContact: React.FC<PayPalCheckoutProps> = (props) => {
       }
 
       if (relevantEndpoint.endsWith('/paypal-create-order')) {
-        body.email = info.email;
         body.shippingAddress = {
           name: info.fullName,
           address_line_1: info.address1,
@@ -194,18 +196,14 @@ const PayPalCheckoutContact: React.FC<PayPalCheckoutProps> = (props) => {
     <div className="space-y-4">
       <section className="rounded-xl border border-[#18448D]/20 bg-blue-50/60 p-4" aria-labelledby="checkout-contact-heading">
         <div className="mb-3">
-          <h3 id="checkout-contact-heading" className="text-base font-bold text-[#18448D]">Contact & shipping information</h3>
-          <p className="mt-1 text-xs text-gray-600">Required for your order confirmation and free next-day-air shipment.</p>
+          <h3 id="checkout-contact-heading" className="text-base font-bold text-[#18448D]">Shipping information</h3>
+          <p className="mt-1 text-xs text-gray-600">Enter your shipping details once. Your payment email is collected securely in the card or PayPal step below.</p>
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="space-y-1 sm:col-span-2">
             <span className="text-xs font-semibold text-gray-700">Full name</span>
             <Input value={customerInfo.fullName} onChange={(event) => update('fullName', event.target.value)} autoComplete="name" placeholder="Full name" />
-          </label>
-          <label className="space-y-1 sm:col-span-2">
-            <span className="text-xs font-semibold text-gray-700">Email for confirmation</span>
-            <Input type="email" value={customerInfo.email} onChange={(event) => update('email', event.target.value)} autoComplete="email" placeholder="you@example.com" />
           </label>
           <label className="space-y-1 sm:col-span-2">
             <span className="text-xs font-semibold text-gray-700">Street address</span>
@@ -234,7 +232,7 @@ const PayPalCheckoutContact: React.FC<PayPalCheckoutProps> = (props) => {
         </div>
 
         {!complete && (
-          <p className="mt-3 text-xs font-medium text-red-700">Complete the required contact and shipping fields to enable payment.</p>
+          <p className="mt-3 text-xs font-medium text-red-700">Complete the required shipping fields to enable payment.</p>
         )}
       </section>
 
