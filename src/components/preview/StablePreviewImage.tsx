@@ -118,6 +118,14 @@ const StablePreviewImage: React.FC<StablePreviewImageProps> = ({
       return () => { cancelled = true; };
     }
 
+    // A source can change again before the prior hidden buffer paints. Do not
+    // let an obsolete target block the first decoded image for the new source.
+    if (targetUrlRef.current
+      && targetUrlRef.current !== activeUrlRef.current
+      && !usableCandidates.includes(targetUrlRef.current)) {
+      updateTarget(activeUrlRef.current);
+    }
+
     const currentActive = retainPreviousWhileLoading ? activeUrlRef.current : null;
     const activeIndex = currentActive ? usableCandidates.indexOf(currentActive) : -1;
 
