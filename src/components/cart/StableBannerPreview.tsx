@@ -6,6 +6,8 @@ import {
   buildCommercePreviewUrl,
   isRawPdfPreviewSource,
 } from '@/lib/commercePreviewUrl';
+import { dedupePreviewImageSources } from '@/lib/previewImageCache';
+import { getRegisteredPreviewSourceCandidates } from '@/lib/previewSourceRegistry';
 import StablePreviewImage from '@/components/preview/StablePreviewImage';
 
 const BRAND_BLUE = '#18448D';
@@ -110,17 +112,15 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
   const framePaddingBottom = `${(safeHeight / safeWidth) * 100}%`;
   const largePreview = maxSize > 400;
 
-  const optimizedUrl = useMemo(
-    () => buildCommercePreviewUrl(imageUrl, maxSize),
-    [imageUrl, maxSize],
-  );
-  const imageSources = useMemo(
-    () => [
-      optimizedUrl,
-      imageUrl && !isRawPdfPreviewSource(imageUrl) ? imageUrl : null,
-    ],
-    [optimizedUrl, imageUrl],
-  );
+  const imageSources = useMemo(() => {
+    const registered = getRegisteredPreviewSourceCandidates(imageUrl);
+    const originals = registered.length > 0 ? registered : [imageUrl];
+    return dedupePreviewImageSources(originals.flatMap((candidate) => [
+      buildCommercePreviewUrl(candidate, maxSize),
+      candidate && !isRawPdfPreviewSource(candidate) ? candidate : null,
+    ]));
+  }, [imageUrl, maxSize]);
+
   const [baseReady, setBaseReady] = useState(false);
   const [baseFailed, setBaseFailed] = useState(false);
 
