@@ -1,5 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const {
   createTrackingEmailData,
@@ -77,4 +79,24 @@ test('tracking email classifies only temporary provider failures as retryable', 
   assert.equal(isRetryableProviderError({ statusCode: 429, message: 'Rate limit exceeded' }), true);
   assert.equal(isRetryableProviderError({ statusCode: 503, message: 'Temporarily unavailable' }), true);
   assert.equal(isRetryableProviderError({ statusCode: 422, message: 'Invalid recipient' }), false);
+});
+
+test('admin desktop and mobile actions show Send before the first tracking email', () => {
+  const ordersSource = fs.readFileSync(
+    path.resolve(__dirname, '../../../src/pages/admin/Orders.tsx'),
+    'utf8',
+  );
+
+  assert.doesNotMatch(
+    ordersSource,
+    /shipping_notification_sent \? 'Resend Tracking Email' : 'Resend Tracking Email'/,
+  );
+  assert.match(
+    ordersSource,
+    /shipping_notification_sent \? 'Resend Tracking Email' : 'Send Tracking Email'/,
+  );
+  assert.match(
+    ordersSource,
+    /<Mail className="h-3 w-3 mr-1" \/>\{order\.shipping_notification_sent \? 'Resend Tracking Email' : 'Send Tracking Email'\}/,
+  );
 });
