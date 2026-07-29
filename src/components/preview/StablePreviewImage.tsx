@@ -46,16 +46,15 @@ const StablePreviewImage: React.FC<StablePreviewImageProps> = ({
     .join('\n');
   const candidates = useMemo(
     () => dedupePreviewImageSources([src, ...sources, ...fallbackSources]),
-    // Value-based signature keeps this list stable even when callers pass a
-    // freshly-created array literal on every React render.
+    // Value-based signature keeps the list stable when callers create a new
+    // array literal during every React render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [sourceSignature],
   );
 
   const initialReady = useMemo(
     () => candidates.map((candidate) => getDecodedPreviewImage(candidate)).find(Boolean) || null,
-    // Only seed state on the initial render. Later candidate changes are handled
-    // by the decoded double-buffer below.
+    // Later candidate changes are handled by the decoded double-buffer.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
@@ -67,14 +66,30 @@ const StablePreviewImage: React.FC<StablePreviewImageProps> = ({
     initialReady ? 'ready' : candidates.length ? 'loading' : 'idle',
   );
   const [retryNonce, setRetryNonce] = useState(0);
+
   const requestIdRef = useRef(0);
   const failedUrlsRef = useRef(new Set<string>());
   const cleanupFrameRef = useRef<number | null>(null);
   const announcedUrlRef = useRef<string | null>(initialReady?.url || null);
+  const activeUrlRef = useRef<string | null>(initialReady?.url || null);
+  const targetUrlRef = useRef<string | null>(initialReady?.url || null);
   const onReadyRef = useRef(onReady);
   const onExhaustedRef = useRef(onExhausted);
+
+  activeUrlRef.current = activeUrl;
+  targetUrlRef.current = targetUrl;
   onReadyRef.current = onReady;
   onExhaustedRef.current = onExhausted;
+
+  const updateTarget = (url: string | null) => {
+    targetUrlRef.current = url;
+    setTargetUrl(url);
+  };
+
+  const updateActive = (url: string | null) => {
+    activeUrlRef.current = url;
+    setActiveUrl(url);
+  };
 
   useEffect(() => () => {
     if (cleanupFrameRef.current !== null) {
@@ -92,74 +107,122 @@ const StablePreviewImage: React.FC<StablePreviewImageProps> = ({
     const usableCandidates = candidates.filter((candidate) => !failedUrlsRef.current.has(candidate));
 
     if (usableCandidates.length === 0) {
-      setTargetUrl(null);
-      setStatus(candidates.length ? 'error' : 'idle');
+      updateTarget(null);
       if (!retainPreviousWhileLoading) {
         setLayers([]);
-        setActiveUrl(null);
+        updateActive(null);
       }
-      if (candidates.length) onExhaustedRef.current?.(null);
+      const hasVisibleLayer = Boolean(activeUrlRef.current);
+      setStatus(hasVisibleLayer ? 'ready' : candidates.length ? 'error' : 'idle');
+      if (candidates.length && !hasVisibleLayer) onExhaustedRef.current?.(null);
       return () => { cancelled = true; };
     }
 
-    // Stay put only when the active image is already the highest-priority
-    // candidate. If a better source becomes available, decode it in the hidden
-    // buffer while the existing image remains visible.
-    if (activeUrl && usableCandidates[0] === activeUrl) {
-      setTargetUrl(activeUrl);
+    const currentActive = retainPreviousWhileLoading ? activeUrlRef.current : null;
+    const activeIndex = currentActive ? usableCandidates.indexOf(currentActive) : -1;
+
+    // The best source is already painted. No fallback work is necessary.
+    if (activeIndex === 0) {
+      updateTarget(currentActive);
       setStatus('ready');
       return () => { cancelled = true; };
     }
 
     if (!retainPreviousWhileLoading) {
       setLayers([]);
-      setActiveUrl(null);
+      updateActive(null);
+      updateTarget(null);
       announcedUrlRef.current = null;
     }
-    setStatus('loading');
 
+    // If a lower-priority image is visible, only load candidates that can
+    // improve it. With no visible image, load every candidate concurrently so
+    // a ready data/blob thumbnail can paint immediately while a preferred CDN
+    // image continues loading in the background.
+    const candidatesToLoad = activeIndex > 0
+      ? usableCandidates.slice(0, activeIndex).map((url, index) => ({ url, index }))
+      : usableCandidates.map((url, index) => ({ url, index }));
+
+    if (candidatesToLoad.length === 0) {
+      setStatus(activeUrlRef.current ? 'ready' : 'idle');
+      return () => { cancelled = true; };
+    }
+
+    setStatus('loading');
     const options: PreviewImageLoadOptions = {
       timeoutMs: loadTimeoutMs,
       crossOrigin: crossOrigin || undefined,
       fetchPriority,
     };
+    const readyByIndex = new Map<number, PreviewImageResult>();
+    let remaining = candidatesToLoad.length;
+    let successfulLoads = 0;
+    let lastError: Error | null = null;
 
-    void (async () => {
-      let lastError: Error | null = null;
-      for (const candidate of usableCandidates) {
-        try {
-          const result = await preloadPreviewImage(candidate, options);
+    const considerPromotion = () => {
+      const bestIndex = [...readyByIndex.keys()].sort((a, b) => a - b)[0];
+      if (bestIndex === undefined) return;
+      const best = readyByIndex.get(bestIndex);
+      if (!best) return;
+
+      setLayers((current) => current.some((layer) => layer.url === best.url)
+        ? current
+        : [...current, best]);
+
+      const visibleUrl = activeUrlRef.current;
+      const visibleIndex = visibleUrl ? usableCandidates.indexOf(visibleUrl) : -1;
+
+      if (!visibleUrl) {
+        // Keep the first decoded target until its DOM image has painted. A
+        // higher-priority result that finishes milliseconds later will upgrade
+        // it on the next effect without delaying the first visible frame.
+        if (!targetUrlRef.current) updateTarget(best.url);
+        return;
+      }
+
+      if (visibleIndex < 0 || bestIndex < visibleIndex) {
+        updateTarget(best.url);
+      }
+    };
+
+    const finishOne = () => {
+      remaining -= 1;
+      if (remaining > 0 || cancelled || requestIdRef.current !== requestId) return;
+
+      const hasVisibleLayer = Boolean(activeUrlRef.current);
+      if (successfulLoads === 0 && !hasVisibleLayer) {
+        updateTarget(null);
+        setStatus('error');
+        if (!retainPreviousWhileLoading) setLayers([]);
+        onExhaustedRef.current?.(lastError);
+      } else if (hasVisibleLayer && !targetUrlRef.current) {
+        updateTarget(activeUrlRef.current);
+        setStatus('ready');
+      }
+    };
+
+    candidatesToLoad.forEach(({ url, index }) => {
+      void preloadPreviewImage(url, options)
+        .then((result) => {
           if (cancelled || requestIdRef.current !== requestId) return;
-          setLayers((current) => current.some((layer) => layer.url === result.url)
-            ? current
-            : [...current, result]);
-          setTargetUrl(result.url);
-          // The preloader has decoded the bytes, but the actual DOM image is
-          // promoted only after its own load event. Until then the prior layer
-          // remains visible, eliminating blank frames during source handoff.
-          return;
-        } catch (error) {
+          successfulLoads += 1;
+          readyByIndex.set(index, result);
+          considerPromotion();
+        })
+        .catch((error) => {
+          if (cancelled || requestIdRef.current !== requestId) return;
           lastError = error instanceof Error ? error : new Error(String(error));
-          failedUrlsRef.current.add(candidate);
-        }
-      }
-
-      if (cancelled || requestIdRef.current !== requestId) return;
-      setTargetUrl(null);
-      setStatus('error');
-      if (!retainPreviousWhileLoading) {
-        setLayers([]);
-        setActiveUrl(null);
-      }
-      onExhaustedRef.current?.(lastError);
-    })();
+          failedUrlsRef.current.add(url);
+        })
+        .finally(finishOne);
+    });
 
     return () => { cancelled = true; };
   }, [sourceSignature, retryNonce, retainPreviousWhileLoading, loadTimeoutMs, crossOrigin, fetchPriority, activeUrl, candidates]);
 
   const promoteLayer = (layer: Layer) => {
-    if (layer.url !== targetUrl) return;
-    setActiveUrl(layer.url);
+    if (layer.url !== targetUrlRef.current) return;
+    updateActive(layer.url);
     setStatus('ready');
 
     if (announcedUrlRef.current !== layer.url) {
@@ -171,7 +234,8 @@ const StablePreviewImage: React.FC<StablePreviewImageProps> = ({
       window.cancelAnimationFrame(cleanupFrameRef.current);
     }
     cleanupFrameRef.current = window.requestAnimationFrame(() => {
-      setLayers((current) => current.filter((candidate) => candidate.url === layer.url));
+      const keep = new Set([activeUrlRef.current, targetUrlRef.current].filter(Boolean));
+      setLayers((current) => current.filter((candidate) => keep.has(candidate.url)));
       cleanupFrameRef.current = null;
     });
   };
@@ -180,13 +244,20 @@ const StablePreviewImage: React.FC<StablePreviewImageProps> = ({
     forgetPreviewImage(url);
     failedUrlsRef.current.add(url);
     setLayers((current) => current.filter((layer) => layer.url !== url));
-    if (activeUrl === url) setActiveUrl(null);
-    if (targetUrl === url) setTargetUrl(null);
+    if (activeUrlRef.current === url) updateActive(null);
+    if (targetUrlRef.current === url) updateTarget(null);
     setRetryNonce((value) => value + 1);
   };
 
   if (layers.length === 0) {
-    return <span aria-hidden="true" data-preview-image-state={status} className={className} style={style} />;
+    return (
+      <span
+        aria-hidden="true"
+        data-preview-image-state={status}
+        className={`block ${className || ''}`}
+        style={style}
+      />
+    );
   }
 
   return (
