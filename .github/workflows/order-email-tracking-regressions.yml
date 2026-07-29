@@ -1,11 +1,20 @@
-name: Order, Email, and Tracking Regressions
+name: Order, Email, Tracking, and Preview Regressions
 
 on:
   pull_request:
     paths:
       - 'src/components/checkout/**'
       - 'src/components/orders/**'
+      - 'src/components/preview/**'
+      - 'src/components/design/**'
+      - 'src/components/cart/**'
+      - 'src/components/CartModal.tsx'
+      - 'src/lib/previewImageCache.ts'
+      - 'src/lib/previewSelection.ts'
+      - 'src/lib/commercePreviewUrl.ts'
       - 'src/pages/Checkout.tsx'
+      - 'src/pages/Design.tsx'
+      - 'src/pages/GoogleAdsBanner.tsx'
       - 'src/pages/OrderDetail.tsx'
       - 'vite.config.ts'
       - 'netlify/functions/get-order.mjs'
@@ -37,10 +46,11 @@ jobs:
       - name: Install exact dependencies
         run: npm ci
 
-      - name: Run checkout, order, email, and tracking tests
+      - name: Run checkout, preview, order, email, and tracking tests
         run: |
           node --test \
             netlify/functions/__tests__/checkout-paypal-only.test.cjs \
+            netlify/functions/__tests__/preview-pipeline.test.cjs \
             netlify/functions/__tests__/admin-order-visibility.test.cjs \
             netlify/functions/__tests__/mark-in-production-email.test.cjs \
             netlify/functions/__tests__/tracking-email-handler.test.cjs \
