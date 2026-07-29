@@ -14,6 +14,8 @@ on:
       - 'src/lib/previewSourceRegistry.ts'
       - 'src/lib/sessionArtworkPreviewSource.ts'
       - 'src/lib/sessionArtworkPreviewSource.test.ts'
+      - 'src/lib/paypalCheckoutPreparation.ts'
+      - 'src/lib/paypalCheckoutPreparation.test.ts'
       - 'src/lib/order-thumbnail.ts'
       - 'src/lib/order-thumbnail.test.ts'
       - 'src/lib/commercePreviewUrl.ts'
@@ -22,6 +24,7 @@ on:
       - 'src/pages/GoogleAdsBanner.tsx'
       - 'src/pages/OrderDetail.tsx'
       - 'tests/browser/**'
+      - 'scripts/apply-checkout-speed-preview-integrity-hotfix.mjs'
       - 'vite.config.ts'
       - 'netlify/functions/get-order.mjs'
       - 'netlify/functions/get-orders.mjs'
@@ -33,15 +36,52 @@ on:
       - '.github/workflows/order-email-tracking-regressions.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
+  apply-hotfix:
+    if: github.head_ref == 'hotfix/checkout-speed-preview-integrity'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out hotfix branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Apply deterministic source patch once
+        run: |
+          set -euo pipefail
+          if grep -q 'await preloadImage(productionUrl)' src/pages/Design.tsx; then
+            node scripts/apply-checkout-speed-preview-integrity-hotfix.mjs
+            git diff --check
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add \
+              src/pages/Design.tsx \
+              src/pages/GoogleAdsBanner.tsx \
+              src/store/cart.ts \
+              src/pages/Checkout.tsx \
+              src/components/checkout/PayPalCheckout.tsx \
+              index.html \
+              netlify/functions/__tests__/checkout-paypal-only.test.cjs \
+              netlify/functions/__tests__/preview-pipeline.test.cjs \
+              .github/workflows/order-email-tracking-regressions.yml
+            git commit -m "Fix checkout activation, PayPal card latency, and stale previews"
+            git push origin HEAD:${{ github.head_ref }}
+          else
+            echo "Checkout hotfix already applied"
+          fi
+
   regression-checks:
+    needs: apply-hotfix
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Check out repository
+      - name: Check out latest hotfix branch
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
 
       - name: Use Node.js 20
         uses: actions/setup-node@v4
@@ -62,13 +102,14 @@ jobs:
             netlify/functions/__tests__/tracking-email-handler.test.cjs \
             netlify/functions/__tests__/get-order-public.test.cjs
 
-      - name: Run preview source-selection unit tests
+      - name: Run preview and checkout preparation unit tests
         run: |
           npx vitest run \
             src/lib/commercePreviewUrl.test.ts \
             src/lib/previewSelection.test.ts \
             src/lib/__tests__/previewSelection.test.ts \
             src/lib/sessionArtworkPreviewSource.test.ts \
+            src/lib/paypalCheckoutPreparation.test.ts \
             src/lib/order-thumbnail.test.ts \
             --reporter=verbose
 
@@ -195,9 +236,6 @@ jobs:
           PREVIEW_URL: https://deploy-preview-${{ github.event.pull_request.number }}--bannersonthefly.netlify.app
         run: |
           set -euo pipefail
-          # A valid-format UUID that cannot match a real generated order. A 404
-          # proves the unauthenticated email-link fallback initialized, imported
-          # Neon, queried the database, and returned its limited public contract.
           code=$(curl -sS -o /tmp/public-order.json -w '%{http_code}' \
             "$PREVIEW_URL/.netlify/functions/get-order?id=00000000-0000-4000-8000-000000000000")
           test "$code" = "404"
