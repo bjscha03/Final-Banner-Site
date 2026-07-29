@@ -191,7 +191,7 @@ async function runHarnessCase(testCase, harness) {
   try {
     await configurePage(page, testCase);
 
-    const marker = `${label}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const marker = `${harness.name}-${testCase.name}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const url = new URL(harness.url);
     url.searchParams.set('case', marker);
     await page.send('Page.navigate', { url: url.toString() });
@@ -200,10 +200,10 @@ async function runHarnessCase(testCase, harness) {
     let result = 'running';
     while (Date.now() < deadline) {
       const pageState = await page.evaluate(`({
-        href: window.location.href,
+        marker: new URL(window.location.href).searchParams.get('case'),
         result: document.body?.dataset?.previewHandoffResult || 'loading'
       })`);
-      if (pageState?.href?.includes(marker)) {
+      if (pageState?.marker === marker) {
         result = pageState.result;
         if (result === 'pass' || result === 'fail') break;
       }
