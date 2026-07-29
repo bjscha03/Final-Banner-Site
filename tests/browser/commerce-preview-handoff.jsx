@@ -203,7 +203,16 @@ function CommercePreviewHarness() {
               const previewRect = rectDetails(frame);
               const closeButton = dialog.querySelector('button[aria-label="Close preview"]:not(.absolute.inset-0)');
               const closeRect = rectDetails(closeButton);
-              const viewport = { width: window.innerWidth, height: window.innerHeight };
+              // documentElement.clientWidth/clientHeight are the CSS layout
+              // viewport used by media queries and vw/vh sizing. Chrome mobile
+              // emulation can report a wider legacy window.innerWidth even while
+              // the actual CSS viewport is correctly 390px.
+              const viewport = {
+                width: document.documentElement.clientWidth || window.visualViewport?.width || window.innerWidth,
+                height: document.documentElement.clientHeight || window.visualViewport?.height || window.innerHeight,
+                reportedInnerWidth: window.innerWidth,
+                reportedInnerHeight: window.innerHeight,
+              };
               const geometryPassed = Boolean(
                 panelRect
                 && previewRect
