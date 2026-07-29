@@ -21,6 +21,7 @@ on:
       - 'src/pages/Design.tsx'
       - 'src/pages/GoogleAdsBanner.tsx'
       - 'src/pages/OrderDetail.tsx'
+      - 'tests/browser/**'
       - 'vite.config.ts'
       - 'netlify/functions/get-order.mjs'
       - 'netlify/functions/get-orders.mjs'
@@ -70,6 +71,54 @@ jobs:
             src/lib/sessionArtworkPreviewSource.test.ts \
             src/lib/order-thumbnail.test.ts \
             --reporter=verbose
+
+      - name: Run real-browser artwork handoff regression
+        run: |
+          set -euo pipefail
+          browser=$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)
+          if [ -z "$browser" ]; then
+            echo "No supported headless Chrome/Chromium executable was found"
+            exit 1
+          fi
+
+          npm run dev -- --host 127.0.0.1 --port 4175 > /tmp/vite-preview-handoff.log 2>&1 &
+          vite_pid=$!
+          cleanup() {
+            kill "$vite_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          ready=0
+          for attempt in $(seq 1 60); do
+            code=$(curl -sS -o /tmp/preview-handoff-shell.html -w '%{http_code}' \
+              http://127.0.0.1:4175/tests/browser/preview-handoff.html || true)
+            if [ "$code" = "200" ]; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" != "1" ]; then
+            cat /tmp/vite-preview-handoff.log
+            exit 1
+          fi
+
+          "$browser" \
+            --headless=new \
+            --no-sandbox \
+            --disable-gpu \
+            --disable-dev-shm-usage \
+            --virtual-time-budget=12000 \
+            --dump-dom \
+            http://127.0.0.1:4175/tests/browser/preview-handoff.html \
+            > /tmp/preview-handoff-dom.html
+
+          if ! grep -q 'data-preview-handoff-result="pass"' /tmp/preview-handoff-dom.html; then
+            echo "Real-browser preview handoff regression failed"
+            cat /tmp/preview-handoff-dom.html
+            cat /tmp/vite-preview-handoff.log
+            exit 1
+          fi
 
       - name: Type-check application
         run: npx tsc --noEmit --pretty false
