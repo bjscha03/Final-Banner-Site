@@ -1,0 +1,43 @@
+name: Checkout single contact entry regression
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src/components/checkout/PayPalCheckoutContact.tsx'
+      - 'netlify/functions/paypal-capture-minimal.mjs'
+      - 'netlify/functions/_shared/legacy/paypal-capture-minimal.cjs'
+      - 'netlify/functions/__tests__/checkout-single-contact-entry.test.mjs'
+      - '.github/workflows/checkout-single-contact-regression.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checkout-single-contact-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  regression-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install exact dependencies
+        run: npm ci
+
+      - name: Verify one email entry and PayPal email persistence
+        run: node --test netlify/functions/__tests__/checkout-single-contact-entry.test.mjs
+
+      - name: Type-check application
+        run: npx tsc --noEmit --pretty false
+
+      - name: Build production bundle
+        run: npm run build
