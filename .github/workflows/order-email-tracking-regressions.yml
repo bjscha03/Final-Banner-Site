@@ -54,6 +54,10 @@ jobs:
           set -euo pipefail
           if grep -q 'await preloadImage(productionUrl)' src/pages/Design.tsx; then
             node scripts/apply-checkout-speed-preview-integrity-hotfix.mjs
+            # The linked GitHub App can push application code but is not granted
+            # workflow-file scope. Keep this temporary workflow change local; the
+            # final test list is committed through the connector after the patch.
+            git checkout -- .github/workflows/order-email-tracking-regressions.yml
             git diff --check
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -65,8 +69,7 @@ jobs:
               src/components/checkout/PayPalCheckout.tsx \
               index.html \
               netlify/functions/__tests__/checkout-paypal-only.test.cjs \
-              netlify/functions/__tests__/preview-pipeline.test.cjs \
-              .github/workflows/order-email-tracking-regressions.yml
+              netlify/functions/__tests__/preview-pipeline.test.cjs
             git commit -m "Fix checkout activation, PayPal card latency, and stale previews"
             git push origin HEAD:${{ github.head_ref }}
           else
@@ -109,6 +112,7 @@ jobs:
             src/lib/previewSelection.test.ts \
             src/lib/__tests__/previewSelection.test.ts \
             src/lib/sessionArtworkPreviewSource.test.ts \
+            src/lib/paypalCheckoutPreparation.test.ts \
             src/lib/order-thumbnail.test.ts \
             --reporter=verbose
 
