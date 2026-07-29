@@ -5,6 +5,9 @@ const activeHarnessUrl = process.env.PREVIEW_HANDOFF_URL || 'http://127.0.0.1:41
 const commerceHarnessUrl = process.env.COMMERCE_PREVIEW_HANDOFF_URL || 'http://127.0.0.1:4175/tests/browser/commerce-preview-handoff.html';
 const timeoutMs = Number(process.env.PREVIEW_HANDOFF_TIMEOUT_MS || 20_000);
 
+const DESKTOP_USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36';
+const MOBILE_USER_AGENT = 'Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36';
+
 const harnesses = [
   { name: 'active-canvas', url: activeHarnessUrl },
   { name: 'commerce-thumbnail-lightbox', url: commerceHarnessUrl },
@@ -18,6 +21,7 @@ const cases = [
     deviceScaleFactor: 1,
     mobile: false,
     touch: false,
+    orientation: { type: 'landscapePrimary', angle: 0 },
   },
   {
     name: 'mobile-portrait',
@@ -26,6 +30,7 @@ const cases = [
     deviceScaleFactor: 3,
     mobile: true,
     touch: true,
+    orientation: { type: 'portraitPrimary', angle: 0 },
   },
   {
     name: 'mobile-landscape',
@@ -34,6 +39,7 @@ const cases = [
     deviceScaleFactor: 3,
     mobile: true,
     touch: true,
+    orientation: { type: 'landscapePrimary', angle: 90 },
   },
 ];
 
@@ -125,6 +131,12 @@ async function evaluate(expression) {
 }
 
 async function applyViewport(testCase) {
+  await send('Emulation.setUserAgentOverride', {
+    userAgent: testCase.mobile ? MOBILE_USER_AGENT : DESKTOP_USER_AGENT,
+    acceptLanguage: 'en-US,en;q=0.9',
+    platform: testCase.mobile ? 'Android' : 'Linux x86_64',
+  });
+
   await send('Emulation.setDeviceMetricsOverride', {
     width: testCase.width,
     height: testCase.height,
@@ -135,7 +147,16 @@ async function applyViewport(testCase) {
     positionX: 0,
     positionY: 0,
     dontSetVisibleSize: false,
+    screenOrientation: testCase.orientation,
+    viewport: {
+      x: 0,
+      y: 0,
+      width: testCase.width,
+      height: testCase.height,
+      scale: 1,
+    },
   });
+
   await send('Emulation.setTouchEmulationEnabled', {
     enabled: testCase.touch,
     maxTouchPoints: testCase.touch ? 5 : 1,
@@ -172,16 +193,40 @@ async function runHarnessCase(testCase, harness) {
     viewport: {
       innerWidth: window.innerWidth,
       innerHeight: window.innerHeight,
+      visualWidth: window.visualViewport?.width || null,
+      visualHeight: window.visualViewport?.height || null,
       devicePixelRatio: window.devicePixelRatio,
       coarsePointer: window.matchMedia('(pointer: coarse)').matches,
-      touchPoints: navigator.maxTouchPoints
+      touchPoints: navigator.maxTouchPoints,
+      userAgent: navigator.userAgent
     }
   })`);
 
+  const viewportWidthMatches = Math.abs(Number(details?.viewport?.innerWidth) - testCase.width) <= 2;
+  const visualWidthMatches = details?.viewport?.visualWidth == null
+    || Math.abs(Number(details.viewport.visualWidth) - testCase.width) <= 2;
+  const pixelRatioMatches = Math.abs(Number(details?.viewport?.devicePixelRatio) - testCase.deviceScaleFactor) < 0.01;
+  const pointerMatches = testCase.touch
+    ? details?.viewport?.coarsePointer === true && Number(details?.viewport?.touchPoints) > 0
+    : true;
+  const emulationPassed = viewportWidthMatches && visualWidthMatches && pixelRatioMatches && pointerMatches;
+
+  details.viewportExpectation = {
+    expectedWidth: testCase.width,
+    expectedHeight: testCase.height,
+    expectedDevicePixelRatio: testCase.deviceScaleFactor,
+    expectedTouch: testCase.touch,
+    viewportWidthMatches,
+    visualWidthMatches,
+    pixelRatioMatches,
+    pointerMatches,
+    emulationPassed,
+  };
+
   console.log(`[preview browser result:${harness.name}:${testCase.name}]`, JSON.stringify(details, null, 2));
 
-  if (result !== 'pass') {
-    throw new Error(`${harness.name} preview test did not pass for ${testCase.name} (result: ${result}).`);
+  if (result !== 'pass' || !emulationPassed) {
+    throw new Error(`${harness.name} preview test did not pass for a true ${testCase.name} viewport (result: ${result}, emulationPassed: ${emulationPassed}).`);
   }
 
   return details;
