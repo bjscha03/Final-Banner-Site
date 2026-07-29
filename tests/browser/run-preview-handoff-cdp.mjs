@@ -134,10 +134,6 @@ class CdpPage {
   }
 
   async close() {
-    // Page.close can destroy the WebSocket before Chrome sends its command
-    // response, leaving the promise unresolved. Close through the debugging
-    // HTTP endpoint instead and bound cleanup so one successful case can never
-    // stall the rest of the browser matrix.
     try {
       await Promise.race([
         fetch(`${chromeOrigin}/json/close/${this.target.id}`),
@@ -161,11 +157,6 @@ async function configurePage(page, testCase) {
   await page.send('Emulation.setFocusEmulationEnabled', { enabled: true });
   await page.send('Emulation.clearDeviceMetricsOverride');
 
-  // setDeviceMetricsOverride controls emulated device metrics, but Chrome's
-  // headless container can otherwise retain the desktop content width. Resize
-  // the actual browser contents in DIP first so window.innerWidth and CSS media
-  // queries exercise the requested 390px/844px mobile layout rather than only
-  // shrinking the visual viewport.
   const windowInfo = await page.send('Browser.getWindowForTarget', {
     targetId: page.target.id,
   });
@@ -245,13 +236,17 @@ async function runHarnessCase(testCase, harness) {
         devicePixelRatio: window.devicePixelRatio,
         coarsePointer: window.matchMedia('(pointer: coarse)').matches,
         touchPoints: navigator.maxTouchPoints,
+        mediaMax639: window.matchMedia('(max-width: 639px)').matches,
+        mediaMin640: window.matchMedia('(min-width: 640px)').matches,
+        mediaMax1023: window.matchMedia('(max-width: 1023px)').matches,
+        mediaMin1024: window.matchMedia('(min-width: 1024px)').matches,
         userAgent: navigator.userAgent,
         viewportMeta: document.querySelector('meta[name="viewport"]')?.content || null
       }
     })`);
 
     const finalResult = details?.result || result;
-    const viewportWidthMatches = Math.abs(Number(details?.viewport?.innerWidth) - testCase.width) <= 2;
+    const reportedInnerWidthMatches = Math.abs(Number(details?.viewport?.innerWidth) - testCase.width) <= 2;
     const clientWidthMatches = Math.abs(Number(details?.viewport?.clientWidth) - testCase.width) <= 2;
     const visualWidthMatches = details?.viewport?.visualWidth == null
       || Math.abs(Number(details.viewport.visualWidth) - testCase.width) <= 2;
@@ -259,25 +254,41 @@ async function runHarnessCase(testCase, harness) {
     const pointerMatches = testCase.touch
       ? details?.viewport?.coarsePointer === true && Number(details?.viewport?.touchPoints) > 0
       : true;
-    const emulationPassed = viewportWidthMatches && clientWidthMatches && visualWidthMatches && pixelRatioMatches && pointerMatches;
+    const responsiveBreakpointMatches = testCase.width < 640
+      ? details?.viewport?.mediaMax639 === true && details?.viewport?.mediaMin640 === false
+      : testCase.width < 1024
+        ? details?.viewport?.mediaMin640 === true
+          && details?.viewport?.mediaMax1023 === true
+          && details?.viewport?.mediaMin1024 === false
+        : details?.viewport?.mediaMin1024 === true && details?.viewport?.mediaMax1023 === false;
+    // documentElement.clientWidth and matchMedia are the CSS layout viewport
+    // actually used by responsive styles. Chromium mobile emulation can expose
+    // a wider legacy window.innerWidth while those real layout values are
+    // correctly 390px; keep innerWidth as a diagnostic rather than a false gate.
+    const emulationPassed = clientWidthMatches
+      && visualWidthMatches
+      && pixelRatioMatches
+      && pointerMatches
+      && responsiveBreakpointMatches;
 
     details.viewportExpectation = {
       expectedWidth: testCase.width,
       expectedHeight: testCase.height,
       expectedDevicePixelRatio: testCase.deviceScaleFactor,
       expectedTouch: testCase.touch,
-      viewportWidthMatches,
+      reportedInnerWidthMatches,
       clientWidthMatches,
       visualWidthMatches,
       pixelRatioMatches,
       pointerMatches,
+      responsiveBreakpointMatches,
       emulationPassed,
     };
 
     console.log(`[preview browser result:${label}]`, JSON.stringify(details, null, 2));
 
     if (finalResult !== 'pass' || !emulationPassed) {
-      throw new Error(`${harness.name} preview test did not pass for an isolated true ${testCase.name} viewport (result: ${finalResult}, emulationPassed: ${emulationPassed}).`);
+      throw new Error(`${harness.name} preview test did not pass for an isolated true ${testCase.name} CSS viewport (result: ${finalResult}, emulationPassed: ${emulationPassed}).`);
     }
 
     return details;
