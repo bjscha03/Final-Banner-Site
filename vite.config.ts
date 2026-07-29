@@ -31,6 +31,34 @@ export default defineConfig(({ mode }) => ({
   ].filter(Boolean),
   resolve: {
     alias: [
+      // One preview pipeline is used by Design, Google Ads landing pages,
+      // cart, checkout, upsells, and enlarged lightboxes. These exact aliases
+      // deliberately sit before the general @ alias so legacy imports cannot
+      // bypass decoded-image buffering or the cross-browser sizing fixes.
+      {
+        find: /^@\/components\/design\/ArtworkPreviewEditor$/,
+        replacement: path.resolve(__dirname, "./src/components/design/StableArtworkPreviewEditor.tsx"),
+      },
+      {
+        find: /^@\/components\/cart\/BannerPreview$/,
+        replacement: path.resolve(__dirname, "./src/components/cart/StableBannerPreview.tsx"),
+      },
+      {
+        find: /^\.\/cart\/BannerPreview$/,
+        replacement: path.resolve(__dirname, "./src/components/cart/StableBannerPreview.tsx"),
+      },
+      {
+        find: /^\.\/BannerPreview$/,
+        replacement: path.resolve(__dirname, "./src/components/cart/StableBannerPreview.tsx"),
+      },
+      {
+        find: /^@\/components\/preview\/ThumbnailPreviewWrapper$/,
+        replacement: path.resolve(__dirname, "./src/components/preview/StableThumbnailPreviewWrapper.tsx"),
+      },
+      {
+        find: /^\.\/preview\/ThumbnailPreviewWrapper$/,
+        replacement: path.resolve(__dirname, "./src/components/preview/StableThumbnailPreviewWrapper.tsx"),
+      },
       {
         find: "@",
         replacement: path.resolve(__dirname, "./src"),
