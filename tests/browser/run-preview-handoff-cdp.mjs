@@ -1,8 +1,14 @@
 import WebSocket from 'ws';
 
 const chromeOrigin = process.env.CHROME_DEBUG_ORIGIN || 'http://127.0.0.1:9222';
-const harnessUrl = process.env.PREVIEW_HANDOFF_URL || 'http://127.0.0.1:4175/tests/browser/preview-handoff.html';
+const activeHarnessUrl = process.env.PREVIEW_HANDOFF_URL || 'http://127.0.0.1:4175/tests/browser/preview-handoff.html';
+const commerceHarnessUrl = process.env.COMMERCE_PREVIEW_HANDOFF_URL || 'http://127.0.0.1:4175/tests/browser/commerce-preview-handoff.html';
 const timeoutMs = Number(process.env.PREVIEW_HANDOFF_TIMEOUT_MS || 20_000);
+
+const harnesses = [
+  { name: 'active-canvas', url: activeHarnessUrl },
+  { name: 'commerce-thumbnail-lightbox', url: commerceHarnessUrl },
+];
 
 const cases = [
   {
@@ -88,7 +94,7 @@ socket.on('message', (data) => {
     const description = message.params?.exceptionDetails?.exception?.description
       || message.params?.exceptionDetails?.text
       || 'Unknown browser exception';
-    console.error('[preview-handoff browser exception]', description);
+    console.error('[preview browser exception]', description);
   }
 });
 
@@ -118,7 +124,7 @@ async function evaluate(expression) {
   return response?.result?.value;
 }
 
-async function runCase(testCase) {
+async function applyViewport(testCase) {
   await send('Emulation.setDeviceMetricsOverride', {
     width: testCase.width,
     height: testCase.height,
@@ -134,9 +140,13 @@ async function runCase(testCase) {
     enabled: testCase.touch,
     maxTouchPoints: testCase.touch ? 5 : 1,
   });
+}
 
-  const marker = `${testCase.name}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const url = new URL(harnessUrl);
+async function runHarnessCase(testCase, harness) {
+  await applyViewport(testCase);
+
+  const marker = `${harness.name}-${testCase.name}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const url = new URL(harness.url);
   url.searchParams.set('case', marker);
   await send('Page.navigate', { url: url.toString() });
 
@@ -168,10 +178,10 @@ async function runCase(testCase) {
     }
   })`);
 
-  console.log(`[preview-handoff browser result:${testCase.name}]`, JSON.stringify(details, null, 2));
+  console.log(`[preview browser result:${harness.name}:${testCase.name}]`, JSON.stringify(details, null, 2));
 
   if (result !== 'pass') {
-    throw new Error(`Preview handoff browser test did not pass for ${testCase.name} (result: ${result}).`);
+    throw new Error(`${harness.name} preview test did not pass for ${testCase.name} (result: ${result}).`);
   }
 
   return details;
@@ -184,10 +194,13 @@ try {
 
   const results = {};
   for (const testCase of cases) {
-    results[testCase.name] = await runCase(testCase);
+    results[testCase.name] = {};
+    for (const harness of harnesses) {
+      results[testCase.name][harness.name] = await runHarnessCase(testCase, harness);
+    }
   }
 
-  console.log('[preview-handoff all browser cases passed]', JSON.stringify(results, null, 2));
+  console.log('[all preview browser cases passed]', JSON.stringify(results, null, 2));
 } finally {
   try {
     await send('Page.close');
