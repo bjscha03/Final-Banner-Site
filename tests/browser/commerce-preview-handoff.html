@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Commerce preview browser regression</title>
+  </head>
+  <body data-preview-handoff-result="running">
+    <main style="width:min(720px,calc(100vw - 24px));margin:16px auto;font-family:system-ui,sans-serif">
+      <div id="commerce-preview-root"></div>
+      <pre id="preview-handoff-output" style="white-space:pre-wrap;font-size:12px"></pre>
+    </main>
+    <script type="module" src="/tests/browser/commerce-preview-handoff.jsx"></script>
+  </body>
+</html>
