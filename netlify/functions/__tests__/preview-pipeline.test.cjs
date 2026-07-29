@@ -10,9 +10,11 @@ test('all major commerce and builder preview imports route through stable render
   const viteConfig = read('vite.config.ts');
 
   assert.match(viteConfig, /StableArtworkPreviewEditor\.tsx/);
+  assert.match(viteConfig, /StableYardSignConfigurator\.tsx/);
   assert.match(viteConfig, /StableBannerPreview\.tsx/);
   assert.match(viteConfig, /StableThumbnailPreviewWrapper\.tsx/);
   assert.match(viteConfig, /@\\\/components\\\/design\\\/ArtworkPreviewEditor/);
+  assert.match(viteConfig, /@\\\/components\\\/design\\\/YardSignConfigurator/);
   assert.match(viteConfig, /@\\\/components\\\/cart\\\/BannerPreview/);
 });
 
@@ -25,7 +27,7 @@ test('cart thumbnails render immediately without an idle skeleton swap', () => {
   assert.match(cartModal, /<BannerPreview/);
 });
 
-test('preview images are decoded and double-buffered before source promotion', () => {
+test('preview images are decoded, double-buffered, and loaded concurrently', () => {
   const cache = read('src/lib/previewImageCache.ts');
   const stableImage = read('src/components/preview/StablePreviewImage.tsx');
 
@@ -33,8 +35,20 @@ test('preview images are decoded and double-buffered before source promotion', (
   assert.match(cache, /previewImageCache/);
   assert.match(stableImage, /retainPreviousWhileLoading/);
   assert.match(stableImage, /layers\.map/);
-  assert.match(stableImage, /targetUrl/);
+  assert.match(stableImage, /targetUrlRef/);
   assert.match(stableImage, /buffering/);
+  assert.match(stableImage, /candidatesToLoad\.forEach/);
+  assert.equal(stableImage.includes('for (const candidate of usableCandidates)'), false);
+});
+
+test('selected thumbnail URLs carry automatic artwork fallbacks', () => {
+  const selection = read('src/lib/previewSelection.ts');
+  const registry = read('src/lib/previewSourceRegistry.ts');
+  const banner = read('src/components/cart/StableBannerPreview.tsx');
+
+  assert.match(selection, /registerPreviewSourceCandidates/);
+  assert.match(registry, /getRegisteredPreviewSourceCandidates/);
+  assert.match(banner, /getRegisteredPreviewSourceCandidates/);
 });
 
 test('enlarged previews no longer depend on zero-scale JavaScript measurement', () => {
