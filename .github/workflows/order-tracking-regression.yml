@@ -1,0 +1,66 @@
+name: Order and tracking regression checks
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src/pages/admin/Orders.tsx'
+      - 'src/pages/OrderDetail.tsx'
+      - 'src/components/orders/EmailDeliveryStatus.tsx'
+      - 'netlify/functions/get-orders.mjs'
+      - 'netlify/functions/order-email-access.mjs'
+      - 'netlify/functions/resend-tracking-email.mjs'
+      - 'netlify/functions/send-shipping-notification.mjs'
+      - 'netlify/functions/update-tracking.mjs'
+      - 'netlify/functions/_shared/order-email-access.cjs'
+      - 'netlify/functions/_shared/legacy/get-order.cjs'
+      - 'netlify/functions/_shared/legacy/notify-order.cjs'
+      - 'netlify/functions/_shared/legacy/resend-tracking-email.cjs'
+      - 'netlify/functions/_shared/legacy/send-shipping-notification.cjs'
+      - 'netlify/functions/_shared/legacy/update-tracking.cjs'
+      - 'netlify/functions/__tests__/order-email-access.test.cjs'
+      - 'netlify/functions/__tests__/tracking-email.test.cjs'
+      - 'netlify/functions/__tests__/tracking-workflow-status.test.cjs'
+      - 'netlify/functions/__tests__/get-orders-workflow-status.test.mjs'
+      - 'scripts/verify-order-tracking-hotfix.mjs'
+      - '.github/workflows/order-tracking-regression.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: order-tracking-regression-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run focused backend regression tests
+        run: |
+          node --test \
+            netlify/functions/__tests__/mark-in-production-email.test.cjs \
+            netlify/functions/__tests__/order-email-access.test.cjs \
+            netlify/functions/__tests__/tracking-email.test.cjs \
+            netlify/functions/__tests__/tracking-workflow-status.test.cjs \
+            netlify/functions/__tests__/get-orders-workflow-status.test.mjs
+
+      - name: Verify release invariants
+        run: node scripts/verify-order-tracking-hotfix.mjs
+
+      - name: Type-check
+        run: npx tsc --noEmit --pretty false
+
+      - name: Production build
+        run: npm run build
