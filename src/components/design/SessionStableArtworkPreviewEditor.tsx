@@ -110,6 +110,10 @@ const SessionStableArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = (
       {...props}
       src={effectiveSource}
       previewUrl={effectiveSource || null}
+      // StableArtworkPreviewEditor uses productionUrl only as its internal
+      // artwork identity key. Keep that identity on the visible source so the
+      // upload finishing cannot restart resize/selection effects underneath it.
+      productionUrl={effectiveSource}
       onRetryPreview={handleRetryPreview}
     />
   );
