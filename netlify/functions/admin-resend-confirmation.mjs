@@ -49,13 +49,11 @@ const handler = async (event) => {
     };
   }
 
-  // Force both the customer confirmation and the internal new-order alert.
-  // This repairs orders created while the Resend dependency was missing from
-  // deployed function bundles, even if one status was previously marked sent.
+  // Force only the customer confirmation; never duplicate the new-order alert.
   return notifyOrderModule.handler({
     ...event,
     headers: event.headers || {},
-    body: JSON.stringify({ orderId, forceResendBoth: true }),
+    body: JSON.stringify({ orderId, forceResendCustomer: true }),
   });
 };
 
