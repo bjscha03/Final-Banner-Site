@@ -26,9 +26,10 @@ interface OrderDetailsProps {
   order: Order;
   trigger?: React.ReactNode;
   onUploadFinalPdf?: (orderId: string, itemIndex: number, file: File) => void;
+  adminCustomerEditor?: React.ReactNode;
 }
 
-const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFinalPdf }) => {
+const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFinalPdf, adminCustomerEditor }) => {
   const { addFromQuote } = useCartStore();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -364,6 +365,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
             <span className="break-all">Order #{order.id.slice(-8).toUpperCase()}</span>
           </DialogTitle>
         </DialogHeader>
+        {isAdminUser && adminCustomerEditor && <div className="flex items-center gap-2">{adminCustomerEditor}{order.customer_info_admin_updated_at && <span className="rounded-full bg-indigo-100 px-2 py-1 text-xs font-semibold text-indigo-800">Customer info updated by Admin</span>}</div>}
 
         <div className="space-y-6">
           {/* Order Info - Redesigned */}

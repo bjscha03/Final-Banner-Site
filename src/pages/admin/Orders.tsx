@@ -44,6 +44,7 @@ import { getOriginalArtworkSelection } from '@/lib/artworkFiles';
 import { getFinalizedThumbnailUrl } from '@/lib/order-thumbnail';
 import GrommetOverlay from '@/components/preview/GrommetOverlay';
 import { getGrommetLabel } from '@/lib/grommets';
+import EditCustomerInfoDialog from '@/components/orders/EditCustomerInfoDialog';
 
 const PAGE_SIZE = 20;
 
@@ -381,6 +382,7 @@ const AdminOrders: React.FC = () => {
     // Scroll to top of orders section
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+  const handleCustomerInfoUpdated = (updated: Order) => setOrders(current => current.map(order => order.id === updated.id ? { ...order, ...updated } : order));
 
   const handleAddTracking = async (orderId: string, carrier: TrackingCarrier, trackingNumber: string, trackingNumbers?: TrackingEntry[]) => {
     try {
@@ -1194,6 +1196,7 @@ const AdminOrders: React.FC = () => {
                       getStatusLabel={getStatusLabel}
                       pdfLoadingStates={pdfLoadingStates}
                       getItemsSummary={getItemsSummary}
+                      onCustomerInfoUpdated={handleCustomerInfoUpdated}
                     />
                   ))}
                 </div>
@@ -1215,6 +1218,7 @@ const AdminOrders: React.FC = () => {
                       getStatusLabel={getStatusLabel}
                       pdfLoadingStates={pdfLoadingStates}
                       getItemsSummary={getItemsSummary}
+                      onCustomerInfoUpdated={handleCustomerInfoUpdated}
                     />
                   ))}
                 </div>
@@ -1268,6 +1272,7 @@ interface AdminOrderRowProps {
   getStatusLabel: (status: string) => string;
   getItemsSummary: (order: Order) => string;
   pdfLoadingStates: Record<string, boolean>;
+  onCustomerInfoUpdated: (order: Order) => void;
 }
 
 const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
@@ -1282,7 +1287,8 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   getStatusColor,
   getStatusLabel,
   getItemsSummary,
-  pdfLoadingStates
+  pdfLoadingStates,
+  onCustomerInfoUpdated
 }) => {
   const [trackingRows, setTrackingRows] = useState<TrackingEntry[]>([{ carrier: DEFAULT_TRACKING_CARRIER, trackingNumber: '', label: 'Package 1' }]);
   const [isAddingTracking, setIsAddingTracking] = useState(false);
@@ -1515,6 +1521,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                 Saturday Delivery
               </Badge>
             )}
+            {order.customer_info_admin_updated_at && <Badge className="bg-indigo-100 text-indigo-800 text-xs">Customer info updated by Admin</Badge>}
             {(() => {
               // Surface a compact failure badge in the row when any of the
               // transactional emails for this order failed delivery (error
@@ -1669,6 +1676,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
               <OrderDetails
                 order={order}
                 onUploadFinalPdf={onUploadFinalPdf}
+                adminCustomerEditor={<EditCustomerInfoDialog order={order} onUpdated={onCustomerInfoUpdated} />}
                 trigger={
                   <Button size="sm" className="h-8 text-xs">
                     <Eye className="h-3 w-3 mr-1" />
@@ -1676,6 +1684,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                   </Button>
                 }
               />
+              <EditCustomerInfoDialog order={order} onUpdated={onCustomerInfoUpdated} />
 
               {order.status === 'paid' && !order.production_email_sent && (
                 <Button
@@ -1778,6 +1787,7 @@ interface AdminOrderCardProps {
   getStatusLabel: (status: string) => string;
   getItemsSummary: (order: Order) => string;
   pdfLoadingStates: Record<string, boolean>;
+  onCustomerInfoUpdated: (order: Order) => void;
 }
 
 const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
@@ -1789,7 +1799,8 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
   getStatusColor,
   getStatusLabel,
   getItemsSummary,
-  pdfLoadingStates
+  pdfLoadingStates,
+  onCustomerInfoUpdated
 }) => {
   const [isMarkingProduction, setIsMarkingProduction] = useState(false);
   const [isSendingNotification, setIsSendingNotification] = useState(false);
@@ -2009,6 +2020,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
         <OrderDetails
           order={order}
           onUploadFinalPdf={onUploadFinalPdf}
+          adminCustomerEditor={<EditCustomerInfoDialog order={order} onUpdated={onCustomerInfoUpdated} />}
           trigger={
             <Button
               size="sm"
@@ -2020,6 +2032,8 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
             </Button>
           }
         />
+        <EditCustomerInfoDialog order={order} onUpdated={onCustomerInfoUpdated} compact />
+        {order.customer_info_admin_updated_at && <Badge className="w-full justify-center bg-indigo-100 text-indigo-800">Customer info updated by Admin</Badge>}
       </div>
     </div>
   );

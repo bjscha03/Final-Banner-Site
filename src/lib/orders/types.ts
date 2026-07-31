@@ -128,6 +128,7 @@ export interface Order {
   stripe_charge_id?: string | null;
   stripe_wallet_type?: string | null;
   customer_phone?: string | null;
+  customer_info_admin_updated_at?: string | null;
   is_test_order?: boolean;
   test_order_reason?: string | null;
 }

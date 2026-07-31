@@ -683,7 +683,7 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { orderId, forceResendBoth = false } = JSON.parse(event.body || '{}');
+    const { orderId, forceResendBoth = false, forceResendCustomer = false } = JSON.parse(event.body || '{}');
     console.log('[notify-order] handler start', { orderId, forceResendBoth });
     
     if (!orderId || typeof orderId !== 'string') {
@@ -744,7 +744,7 @@ exports.handler = async (event) => {
     });
 
     // Idempotency Check: If already sent, return success without sending
-    if (!forceResendBoth && (order.confirmation_email_status === 'sent' || order.confirmation_emailed_at)) {
+    if (!forceResendBoth && !forceResendCustomer && (order.confirmation_email_status === 'sent' || order.confirmation_emailed_at)) {
       console.log(`Order ${orderId} confirmation email already sent, returning idempotent response`);
       return {
         statusCode: 200,
@@ -932,7 +932,7 @@ exports.handler = async (event) => {
       console.log(`Order confirmation email sent successfully for order ${orderId}, email ID: ${emailResult.id}`);
 
       // Send admin notification email to info@bannersonthefly.com
-      try {
+      if (!forceResendCustomer) try {
         // Add delay to prevent rate limiting (Resend allows 2 requests per second)
         await new Promise(resolve => setTimeout(resolve, 1000));
 
@@ -1054,4 +1054,3 @@ exports.handler = async (event) => {
     };
   }
 };
-
