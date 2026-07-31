@@ -1,243 +1,64 @@
-const { validatePayPalCapture } = require('../paypalConversionHelpers.cjs');
 const { neon } = require('@neondatabase/serverless');
-
-function firstNonEmpty(...values) {
-  for (const value of values) {
-    if (typeof value === 'string' && value.trim()) {
-      return value.trim();
-    }
-  }
-  return null;
+const { captureFromOrder, matchesInternalOrder, orderIdentity, recordAttempt } = require('./paypal-payment-safety.cjs');
+const headers = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST,OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type', 'Content-Type': 'application/json' };
+const reply = (statusCode, body) => ({ statusCode, headers, body: JSON.stringify(body) });
+function config() { const env = process.env.PAYPAL_ENV || 'sandbox'; const clientId = process.env[`PAYPAL_CLIENT_ID_${env.toUpperCase()}`]; const secret = process.env[`PAYPAL_SECRET_${env.toUpperCase()}`]; if (!clientId || !secret) throw new Error('PAYPAL_NOT_CONFIGURED'); return { env, clientId, secret, baseUrl: env === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com' }; }
+async function accessToken(c) { const r = await fetch(`${c.baseUrl}/v1/oauth2/token`, { method: 'POST', headers: { Authorization: `Basic ${Buffer.from(`${c.clientId}:${c.secret}`).toString('base64')}`, 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'grant_type=client_credentials' }); if (!r.ok) throw new Error('PAYPAL_AUTH_FAILED'); return (await r.json()).access_token; }
+async function alertReconciliation(order, details) {
+  const url = process.env.URL || process.env.DEPLOY_PRIME_URL;
+  const secret = process.env.INTERNAL_JOB_SECRET || process.env.AUTH_SESSION_SECRET;
+  if (!url || !secret) return;
+  await fetch(`${url}/.netlify/functions/payment-reconciliation-alert`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Internal-Job-Secret': secret }, body: JSON.stringify({ priority: 'P0', internalOrderId: order.id, customer: order.email, amountCents: order.total_cents, ...details }) }).catch((error) => console.error('[paypal-capture] reconciliation alert failed', error));
 }
-
-function extractShippingAddress(paypalData) {
-  if (!paypalData) return null;
-
-  const shipping = paypalData.purchase_units?.[0]?.shipping || null;
-  const payer = paypalData.payer || null;
-  const address = shipping?.address || payer?.address || {};
-
-  const name = firstNonEmpty(
-    shipping?.name?.full_name,
-    `${payer?.name?.given_name || ''} ${payer?.name?.surname || ''}`
-  );
-
-  const street = firstNonEmpty(address.address_line_1, address.line1, address.street);
-  const street2 = firstNonEmpty(address.address_line_2, address.line2, address.street2);
-  const city = firstNonEmpty(address.admin_area_2, address.city);
-  const state = firstNonEmpty(address.admin_area_1, address.state, address.region);
-  const zip = firstNonEmpty(address.postal_code, address.zip);
-  const country = firstNonEmpty(address.country_code, address.country);
-
-  const hasAnyAddressData = Boolean(name || street || street2 || city || state || zip || country);
-  if (!hasAnyAddressData) return null;
-
-  return {
-    name: name || null,
-    street: street || null,
-    street2: street2 || null,
-    city: city || null,
-    state: state || null,
-    zip: zip || null,
-    country: country || 'US'
-  };
-}
-
-exports.handler = async (event, context) => {
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Content-Type': 'application/json'
-  };
-
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 200, headers, body: '' };
-  }
-
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
-  }
-
+exports.handler = async (event) => {
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
+  if (event.httpMethod !== 'POST') return reply(405, { ok: false, error: 'METHOD_NOT_ALLOWED' });
+  if (process.env.FEATURE_PAYPAL !== '1') return reply(503, { ok: false, error: 'PAYPAL_DISABLED', message: 'PayPal payments are temporarily unavailable.' });
+  let input; try { input = JSON.parse(event.body || '{}'); } catch { return reply(400, { ok: false, error: 'INVALID_JSON' }); }
+  const orderID = String(input.orderID || '').trim(); const internalOrderId = String(input.internalOrderId || '').trim();
+  if (!orderID || !internalOrderId) return reply(400, { ok: false, error: 'ORDER_IDENTIFIERS_REQUIRED' });
+  const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
+  if (!dbUrl) return reply(500, { ok: false, error: 'DATABASE_NOT_CONFIGURED' });
   try {
-    const { orderID, internalOrderId } = JSON.parse(event.body || '{}');
-    if (!orderID) {
-      return { statusCode: 400, headers, body: JSON.stringify({ error: 'Missing orderID' }) };
-    }
-
-    // Get environment and credentials
-    const env = process.env.PAYPAL_ENV || 'sandbox';
-    const clientId = process.env[`PAYPAL_CLIENT_ID_${env.toUpperCase()}`];
-    const secret = process.env[`PAYPAL_SECRET_${env.toUpperCase()}`];
-    
-    if (!clientId || !secret) {
-      console.error(`PayPal credentials missing for environment: ${env}`);
-      return { statusCode: 500, headers, body: JSON.stringify({ 
-        error: 'PayPal credentials missing',
-        environment: env
-      }) };
-    }
-
-    const baseUrl = env === 'live' 
-      ? 'https://api-m.paypal.com'
-      : 'https://api-m.sandbox.paypal.com';
-
-    // Get PayPal access token
-    const tokenResponse = await fetch(`${baseUrl}/v1/oauth2/token`, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Accept-Language': 'en_US',
-        'Authorization': `Basic ${Buffer.from(`${clientId}:${secret}`).toString('base64')}`,
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: 'grant_type=client_credentials'
-    });
-
-    if (!tokenResponse.ok) {
-      const errorText = await tokenResponse.text();
-      console.error('PayPal token error:', errorText);
-      return { statusCode: 500, headers, body: JSON.stringify({ error: 'PayPal authentication failed' }) };
-    }
-
-    const tokenData = await tokenResponse.json();
-    const accessToken = tokenData.access_token;
-
-    // Read order details before capture as fallback for shipping/name fields
-    let orderData = null;
-    const orderResponse = await fetch(`${baseUrl}/v2/checkout/orders/${orderID}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`
-      }
-    });
-    if (orderResponse.ok) {
-      orderData = await orderResponse.json();
-    } else {
-      console.warn(`Unable to fetch PayPal order ${orderID} before capture for shipping fallback`);
-    }
-
-    // Capture the payment
-    const captureResponse = await fetch(`${baseUrl}/v2/checkout/orders/${orderID}/capture`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`,
-        'PayPal-Request-Id': `capture-${orderID}`
-      }
-    });
-
-    if (!captureResponse.ok) {
-      const errorText = await captureResponse.text();
-      console.error('PayPal capture error:', errorText);
-      return { statusCode: 400, headers, body: JSON.stringify({ 
-        error: 'Payment capture failed',
-        details: errorText
-      }) };
-    }
-
-    const captureData = await captureResponse.json();
-    const captureValidation = validatePayPalCapture(captureData);
-    if (!captureValidation.ok) {
-      console.error('PayPal capture validation failed:', captureValidation);
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({
-          error: 'Payment capture was not completed',
-          code: captureValidation.code,
-          paypalOrderStatus: captureValidation.orderStatus,
-          paypalCaptureStatus: captureValidation.captureStatus,
-          capturedCurrency: captureValidation.currency,
-        })
-      };
-    }
-    
-    // Extract shipping address from capture response, then fallback to pre-capture order payload
-    const shippingAddress = extractShippingAddress(captureData) || extractShippingAddress(orderData);
-    const payerEmail = firstNonEmpty(captureData?.payer?.email_address, orderData?.payer?.email_address);
-    const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
-    if (!dbUrl || !internalOrderId) {
-      return { statusCode: 500, headers, body: JSON.stringify({ error: 'Captured payment requires internal order reconciliation', reconciliationRequired: true }) };
-    }
     const sql = neon(dbUrl);
-    const paidRows = await sql`
-      UPDATE orders SET
-        status = 'paid',
-        paypal_order_id = ${orderID},
-        paypal_capture_id = ${captureValidation.captureId},
-        payment_method = 'paypal',
-        payment_reconciliation_status = 'complete',
-        email = CASE WHEN email LIKE 'guest-%@bannersonthefly.com' AND ${payerEmail || null} IS NOT NULL THEN ${payerEmail || null} ELSE email END,
-        customer_name = COALESCE(customer_name, ${shippingAddress?.name || null}),
-        shipping_name = COALESCE(${shippingAddress?.name || null}, shipping_name),
-        shipping_street = COALESCE(${shippingAddress?.street || null}, shipping_street),
-        shipping_street2 = COALESCE(${shippingAddress?.street2 || null}, shipping_street2),
-        shipping_city = COALESCE(${shippingAddress?.city || null}, shipping_city),
-        shipping_state = COALESCE(${shippingAddress?.state || null}, shipping_state),
-        shipping_zip = COALESCE(${shippingAddress?.zip || null}, shipping_zip),
-        shipping_country = COALESCE(${shippingAddress?.country || null}, shipping_country),
-        updated_at = NOW()
-      WHERE id = ${internalOrderId}
-        AND paypal_order_id = ${orderID}
-        AND total_cents = ${captureValidation.amountCents}
-        AND status IN ('pending', 'paid')
-      RETURNING id, status
-    `;
-    if (!paidRows.length) {
-      await sql`UPDATE orders SET payment_reconciliation_status = 'required', updated_at = NOW() WHERE id = ${internalOrderId}`;
-      return { statusCode: 409, headers, body: JSON.stringify({ error: 'Payment captured but internal order update requires reconciliation', reconciliationRequired: true }) };
+    const rows = await sql`SELECT id, status, total_cents, currency, email, paypal_order_id, paypal_capture_id, checkout_idempotency_key FROM orders WHERE id = ${internalOrderId} LIMIT 1`;
+    if (!rows.length) return reply(404, { ok: false, error: 'INTERNAL_ORDER_NOT_FOUND' });
+    const order = rows[0];
+    // This check deliberately precedes OAuth and every PayPal call, especially POST /capture.
+    if (order.paypal_order_id !== orderID) {
+      await recordAttempt(sql, { internalOrderId, checkoutKey: order.checkout_idempotency_key, paypalOrderId: orderID, source: 'capture', processingStatus: 'rejected_before_capture', duplicateSuspected: true, errorCode: 'PAYPAL_ORDER_LINK_MISMATCH' });
+      return reply(409, { ok: false, error: 'PAYPAL_ORDER_LINK_MISMATCH' });
     }
-    // Payment is durable before production work begins. Generate canonical PDFs
-    // from each saved scene; failures are recorded for admin retry and never
-    // roll back a completed PayPal capture.
+    if (!['pending', 'paid'].includes(order.status)) return reply(409, { ok: false, error: 'INTERNAL_ORDER_NOT_PAYABLE' });
+    if (order.status === 'paid') {
+      if (order.paypal_order_id === orderID && order.paypal_capture_id) return reply(200, { success: true, alreadyPaid: true, paymentCaptured: true, status: 'COMPLETED', captureStatus: 'COMPLETED', captureID: order.paypal_capture_id, paypalOrderID: orderID, internalOrderId });
+      return reply(409, { ok: false, error: 'DIFFERENT_CAPTURE_ALREADY_COMPLETED', duplicateSuspected: true });
+    }
+    const c = config(); const token = await accessToken(c);
+    const detailResponse = await fetch(`${c.baseUrl}/v2/checkout/orders/${encodeURIComponent(orderID)}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!detailResponse.ok) return reply(409, { ok: false, error: 'PAYPAL_ORDER_UNAVAILABLE' });
+    const details = await detailResponse.json(); const identity = orderIdentity(details);
+    if (!matchesInternalOrder(details, order)) return reply(409, { ok: false, error: identity.currency !== 'USD' || identity.amountCents !== Number(order.total_cents) ? 'PAYPAL_AMOUNT_MISMATCH' : 'PAYPAL_ORDER_IDENTITY_MISMATCH' });
+    const existingCapture = captureFromOrder(details);
+    let captureData = details;
+    if (!existingCapture) {
+      const captureResponse = await fetch(`${c.baseUrl}/v2/checkout/orders/${encodeURIComponent(orderID)}/capture`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'PayPal-Request-Id': `capture-${orderID}` } });
+      captureData = await captureResponse.json().catch(() => ({}));
+      if (!captureResponse.ok) return reply(400, { ok: false, error: 'PAYPAL_CAPTURE_FAILED' });
+    }
+    const completed = captureFromOrder(captureData) || existingCapture;
+    if (!completed || completed.status !== 'COMPLETED') return reply(409, { ok: false, error: 'PAYPAL_CAPTURE_NOT_COMPLETED' });
+    const captureAmount = orderIdentity({ purchase_units: [{ amount: completed.amount }] }).amountCents;
+    if (completed.amount?.currency_code !== 'USD' || captureAmount !== Number(order.total_cents)) return reply(409, { ok: false, error: 'PAYPAL_CAPTURE_AMOUNT_MISMATCH', paymentCaptured: completed.status === 'COMPLETED' });
     try {
-      const siteUrl = process.env.URL || process.env.DEPLOY_PRIME_URL;
-      const internalSecret = process.env.INTERNAL_JOB_SECRET || process.env.AUTH_SESSION_SECRET;
-      if (siteUrl && internalSecret) {
-        const queued = await fetch(`${siteUrl}/.netlify/functions/generate-paid-order-pdfs-background`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Internal-Job-Secret': internalSecret },
-          body: JSON.stringify({ orderId: internalOrderId }),
-        });
-        if (!queued.ok) throw new Error(`Background PDF queue returned ${queued.status}`);
-      } else {
-        console.warn('[paypal_capture] PDF generation was not queued because URL/internal secret is missing');
-      }
-    } catch (productionError) {
-      console.error('[paypal_capture] production_pipeline_queue_failed', { internalOrderId, error: productionError?.message });
+      await recordAttempt(sql, { internalOrderId, checkoutKey: order.checkout_idempotency_key, paypalOrderId: orderID, captureId: completed.id, requestId: `capture-${orderID}`, source: 'capture', orderStatus: captureData.status, captureStatus: completed.status, amountCents: captureAmount, currency: completed.amount.currency_code, payerEmail: captureData.payer?.email_address, payerId: captureData.payer?.payer_id, invoiceId: identity.invoiceId, customId: identity.customId, processingStatus: 'captured', raw: captureData });
+      const paid = await sql`UPDATE orders SET status = 'paid', paypal_capture_id = ${completed.id}, payment_method = 'paypal', payment_reconciliation_status = 'complete', updated_at = NOW() WHERE id = ${internalOrderId} AND status = 'pending' AND paypal_order_id = ${orderID} AND total_cents = ${captureAmount} AND paypal_capture_id IS NULL RETURNING id`;
+      if (!paid.length) throw new Error('ORDER_FINALIZATION_COMPARE_AND_SET_FAILED');
+    } catch (error) {
+      console.error('[paypal-capture] completed capture requires reconciliation', { internalOrderId, orderID, captureID: completed.id, error: error.message });
+      await alertReconciliation(order, { paypalOrderID: orderID, captureID: completed.id, error: error.message });
+      return reply(202, { ok: true, paymentCaptured: true, reconciliationRequired: true, captureID: completed.id, paypalOrderID: orderID, internalOrderId });
     }
-    
-    // Return success response
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({
-        success: true,
-        orderID: orderID,
-        captureID: captureValidation.captureId,
-        status: captureValidation.orderStatus,
-        captureStatus: captureValidation.captureStatus,
-        capturedAmountCents: captureValidation.amountCents,
-        capturedCurrency: captureValidation.currency,
-        environment: env,
-        paypalData: captureData,
-        shippingAddress: shippingAddress
-        ,internalOrderId
-      })
-    };
-
-  } catch (error) {
-    console.error('PayPal capture function error:', error);
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({
-        error: 'Internal server error',
-        message: error.message
-      })
-    };
-  }
+    return reply(200, { success: true, paymentCaptured: true, reconciliationRequired: false, status: 'COMPLETED', captureStatus: 'COMPLETED', captureID: completed.id, paypalOrderID: orderID, orderID, internalOrderId, capturedAmountCents: captureAmount, capturedCurrency: 'USD', paypalData: captureData });
+  } catch (error) { console.error('[paypal-capture]', error); return reply(500, { ok: false, error: 'PAYPAL_CAPTURE_INTERNAL_ERROR' }); }
 };
-

@@ -1,529 +1,81 @@
-const { randomUUID } = require('crypto');
 const { neon } = require('@neondatabase/serverless');
 const { getPayPalDescription } = require('./product-display-helpers.cjs');
-const {
-  reconcileSameDayFlags,
-} = require('../sameDayService.cjs');
+const { ACTIVE_ORDER_STATUSES, captureFromOrder, matchesInternalOrder, orderIdentity, recordAttempt } = require('./paypal-payment-safety.cjs');
 
-// Feature flag support for pricing logic (copied from create-order.js)
-const getFeatureFlags = () => {
-  return {
-    freeShipping: process.env.FEATURE_FREE_SHIPPING === '1',
-    minOrderFloor: process.env.FEATURE_MIN_ORDER_FLOOR === '1',
-    minOrderCents: parseInt(process.env.MIN_ORDER_CENTS || '2000', 10),
-    shippingMethodLabel: process.env.SHIPPING_METHOD_LABEL || 'Free Next-Day Air'
-  };
-};
+const headers = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Content-Type': 'application/json' };
+const reply = (statusCode, body) => ({ statusCode, headers, body: JSON.stringify(body) });
 
-// Quantity discount tiers - "Buy More, Save More"
-// Must match src/lib/quantity-discount.ts exactly
-const QUANTITY_DISCOUNT_TIERS = [
-  { minQuantity: 1, discountRate: 0.00 },
-  { minQuantity: 2, discountRate: 0.05 },
-  { minQuantity: 3, discountRate: 0.07 },
-  { minQuantity: 4, discountRate: 0.10 },
-  { minQuantity: 5, discountRate: 0.13 },
-];
-
-const getQuantityDiscountRate = (quantity) => {
-  // Find the highest tier that the quantity qualifies for
-  let discountRate = 0;
-  for (const tier of QUANTITY_DISCOUNT_TIERS) {
-    if (quantity >= tier.minQuantity) {
-      discountRate = tier.discountRate;
-    }
-  }
-  return discountRate;
-};
-
-const calculateQuantityDiscount = (subtotalCents, quantity) => {
-  const discountRate = getQuantityDiscountRate(quantity);
-  const discountCents = Math.round(subtotalCents * discountRate);
-  return { discountRate, discountCents };
-};
-
-/**
- * "Best Discount Wins" - server-side discount resolver
- * Only one discount is applied: whichever is higher (quantity or promo)
- *
- * IMPORTANT: Quantity discounts apply ONLY to banner items. Callers should
- * pass `quantitySubtotalCents` as the banner-only subtotal so the quantity
- * discount tier is calculated against banners only. Promo discounts continue
- * to apply to the full `subtotalCents`. If `quantitySubtotalCents` is not
- * provided it falls back to `subtotalCents` for backward compatibility.
- */
-const resolveBestDiscount = (subtotalCents, quantity, promoDiscount = null, quantitySubtotalCents = null) => {
-  const quantityBaseCents = quantitySubtotalCents == null ? subtotalCents : quantitySubtotalCents;
-
-  // Calculate quantity discount (banner-only base)
-  const quantityDiscountRate = getQuantityDiscountRate(quantity);
-  const quantityDiscountAmountCents = Math.round(quantityBaseCents * quantityDiscountRate);
-
-  // Calculate promo discount
-  let promoDiscountAmountCents = 0;
-  let promoDiscountRate = 0;
-  if (promoDiscount) {
-    if (promoDiscount.discountPercentage) {
-      promoDiscountRate = promoDiscount.discountPercentage / 100;
-      promoDiscountAmountCents = Math.round(subtotalCents * promoDiscountRate);
-    } else if (promoDiscount.discountAmountCents) {
-      promoDiscountAmountCents = Math.min(promoDiscount.discountAmountCents, subtotalCents);
-      promoDiscountRate = subtotalCents > 0 ? promoDiscountAmountCents / subtotalCents : 0;
-    }
-  }
-
-  // Pick the better one (higher amount wins)
-  if (quantityDiscountAmountCents >= promoDiscountAmountCents && quantityDiscountAmountCents > 0) {
-    return {
-      appliedDiscountType: 'quantity',
-      appliedDiscountAmountCents: quantityDiscountAmountCents,
-      appliedDiscountRate: quantityDiscountRate,
-      quantityDiscountCents: quantityDiscountAmountCents,
-      promoDiscountCents: 0, // Not applied
-    };
-  } else if (promoDiscountAmountCents > 0) {
-    return {
-      appliedDiscountType: 'promo',
-      appliedDiscountAmountCents: promoDiscountAmountCents,
-      appliedDiscountRate: promoDiscountRate,
-      quantityDiscountCents: 0, // Not applied
-      promoDiscountCents: promoDiscountAmountCents,
-    };
-  }
-
-  return {
-    appliedDiscountType: 'none',
-    appliedDiscountAmountCents: 0,
-    appliedDiscountRate: 0,
-    quantityDiscountCents: 0,
-    promoDiscountCents: 0,
-  };
-};
-
-const computeTotals = (items, taxRate, opts, promoDiscount = null) => {
-  const raw = items.reduce((sum, i) => sum + i.line_total_cents, 0);
-  const adjusted = Math.max(raw, opts.minFloorCents || 0);
-  const minAdj = Math.max(0, adjusted - raw);
-
-  // IMPORTANT: Only BANNER items count toward quantity discount tiers.
-  // Yard signs and car magnets use flat pricing with NO quantity discounts.
-  const isBanner = (i) => {
-    const t = i.product_type || 'banner';
-    return t !== 'yard_sign' && t !== 'car_magnet';
-  };
-  const bannerItems = items.filter(isBanner);
-  const bannerQuantity = bannerItems.reduce((sum, i) => sum + (i.quantity || 1), 0);
-  const bannerSubtotalCents = bannerItems.reduce((sum, i) => sum + (i.line_total_cents || 0), 0);
-  const totalQuantity = items.reduce((sum, i) => sum + (i.quantity || 1), 0);
-
-  // "Best Discount Wins" - only ONE discount applied. Quantity tier is
-  // calculated against banner subtotal only; promo against full subtotal.
-  const bestDiscount = resolveBestDiscount(adjusted, bannerQuantity, promoDiscount, bannerSubtotalCents);
-  const subtotalAfterDiscount = adjusted - bestDiscount.appliedDiscountAmountCents;
-
-  const shipping_cents = opts.freeShipping ? 0 : 0; // Always free for US
-  const tax_cents = Math.round(subtotalAfterDiscount * taxRate);
-  const total_cents = subtotalAfterDiscount + tax_cents + shipping_cents;
-
-  return {
-    raw_subtotal_cents: raw,
-    adjusted_subtotal_cents: adjusted,
-    min_order_adjustment_cents: minAdj,
-    total_quantity: totalQuantity,
-    applied_discount_type: bestDiscount.appliedDiscountType,
-    applied_discount_cents: bestDiscount.appliedDiscountAmountCents,
-    applied_discount_rate: bestDiscount.appliedDiscountRate,
-    quantity_discount_rate: getQuantityDiscountRate(bannerQuantity),
-    quantity_discount_cents: bestDiscount.quantityDiscountCents,
-    promo_discount_cents: bestDiscount.promoDiscountCents,
-    subtotal_after_discount_cents: subtotalAfterDiscount,
-    shipping_cents,
-    tax_cents,
-    total_cents,
-  };
-};
-
-
-
-
-
-// PayPal API helpers
-const getPayPalCredentials = () => {
+function credentials() {
   const env = process.env.PAYPAL_ENV || 'sandbox';
   const clientId = process.env[`PAYPAL_CLIENT_ID_${env.toUpperCase()}`];
   const secret = process.env[`PAYPAL_SECRET_${env.toUpperCase()}`];
+  if (!clientId || !secret) throw new Error('PAYPAL_NOT_CONFIGURED');
+  return { clientId, secret, baseUrl: env === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com' };
+}
+async function token(config) {
+  const response = await fetch(`${config.baseUrl}/v1/oauth2/token`, { method: 'POST', headers: { Authorization: `Basic ${Buffer.from(`${config.clientId}:${config.secret}`).toString('base64')}`, 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'grant_type=client_credentials' });
+  if (!response.ok) throw new Error('PAYPAL_AUTH_FAILED');
+  return (await response.json()).access_token;
+}
+async function retrieve(baseUrl, accessToken, id) {
+  const response = await fetch(`${baseUrl}/v2/checkout/orders/${encodeURIComponent(id)}`, { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (response.status === 404 || response.status === 410) return null;
+  if (!response.ok) throw new Error(`PAYPAL_RETRIEVE_FAILED_${response.status}`);
+  return response.json();
+}
 
-  console.log('PayPal credentials check:', {
-    env,
-    clientIdExists: !!clientId,
-    secretExists: !!secret,
-    clientIdLength: clientId?.length,
-    secretLength: secret?.length
-  });
+exports.handler = async (event) => {
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
+  if (event.httpMethod !== 'POST') return reply(405, { ok: false, error: 'METHOD_NOT_ALLOWED' });
+  // Fail closed before credentials, database, or PayPal are touched.
+  if (process.env.FEATURE_PAYPAL !== '1') return reply(503, { ok: false, error: 'PAYPAL_DISABLED', message: 'PayPal payments are temporarily unavailable.' });
 
-  if (!clientId || !secret) {
-    throw new Error(`PayPal credentials not configured for environment: ${env}`);
-  }
-  
-  return {
-    clientId,
-    secret,
-    baseUrl: env === 'live'
-      ? 'https://api-m.paypal.com'
-      : 'https://api-m.sandbox.paypal.com'
-  };
-};
-
-const getPayPalAccessToken = async () => {
-  const { clientId, secret, baseUrl } = getPayPalCredentials();
-  const auth = Buffer.from(`${clientId}:${secret}`).toString('base64');
-  
-  const response = await fetch(`${baseUrl}/v1/oauth2/token`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Basic ${auth}`,
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    body: 'grant_type=client_credentials'
-  });
-  
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`PayPal auth failed: ${response.status} ${error}`);
-  }
-  
-  const data = await response.json();
-  return data.access_token;
-};
-
-const headers = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Content-Type': 'application/json',
-};
-
-exports.handler = async (event, context) => {
-  const cid = randomUUID();
-  
-  // Handle preflight requests
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 200, headers, body: '' };
-  }
-
-  // Only allow POST requests
-  if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
-      headers,
-      body: JSON.stringify({ ok: false, error: 'METHOD_NOT_ALLOWED', cid }),
-    };
-  }
+  let payload;
+  try { payload = JSON.parse(event.body || '{}'); } catch { return reply(400, { ok: false, error: 'INVALID_JSON' }); }
+  const internalOrderId = String(payload.internalOrderId || '').trim();
+  if (!internalOrderId) return reply(400, { ok: false, error: 'INTERNAL_ORDER_REQUIRED' });
+  const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
+  if (!dbUrl) return reply(500, { ok: false, error: 'DATABASE_NOT_CONFIGURED' });
 
   try {
-    // Comprehensive environment check
-    console.log('=== PayPal Create Order Debug Info ===', { cid });
-    console.log('Environment variables check:', {
-      FEATURE_PAYPAL: process.env.FEATURE_PAYPAL,
-      PAYPAL_ENV: process.env.PAYPAL_ENV,
-      hasClientId: !!process.env.PAYPAL_CLIENT_ID_SANDBOX,
-      hasSecret: !!process.env.PAYPAL_SECRET_SANDBOX,
-      hasDatabase: !!process.env.NETLIFY_DATABASE_URL,
-      nodeVersion: process.version,
-      timestamp: new Date().toISOString()
-    });
+    const sql = neon(dbUrl);
+    const rows = await sql`SELECT id, status, total_cents, currency, paypal_order_id, paypal_capture_id, checkout_idempotency_key FROM orders WHERE id = ${internalOrderId} LIMIT 1`;
+    if (!rows.length) return reply(404, { ok: false, error: 'INTERNAL_ORDER_NOT_FOUND' });
+    const order = rows[0];
+    if (!['pending', 'paid'].includes(order.status)) return reply(409, { ok: false, error: 'INTERNAL_ORDER_NOT_PAYABLE' });
+    if (!Number.isInteger(Number(order.total_cents)) || Number(order.total_cents) <= 0 || String(order.currency || 'usd').toUpperCase() !== 'USD') return reply(409, { ok: false, error: 'AUTHORITATIVE_TOTAL_INVALID' });
+    if (payload.totalCents != null && Number(payload.totalCents) !== Number(order.total_cents)) return reply(409, { ok: false, error: 'PAYPAL_AMOUNT_MISMATCH' });
 
-    // Check if PayPal is enabled (temporarily disabled for debugging)
-    // if (process.env.FEATURE_PAYPAL !== '1') {
-    //   console.error('PayPal is disabled:', { FEATURE_PAYPAL: process.env.FEATURE_PAYPAL, cid });
-    //   return {
-    //     statusCode: 400,
-    //     headers,
-    //     body: JSON.stringify({ ok: false, error: 'PAYPAL_DISABLED', cid }),
-    //   };
-    // }
-    console.log('PayPal feature flag check bypassed for debugging');
-
-    // Parse and validate request body
-    let payload;
-    try {
-      payload = JSON.parse(event.body || '{}');
-    } catch (parseError) {
-      console.error('PayPal create order - Invalid JSON:', parseError, 'cid:', cid);
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ ok: false, error: 'INVALID_JSON', cid }),
-      };
-    }
-
-    const { items, shippingAddress, email, discountCode, totalCents: clientTotalCents, sameDayHitService: reqSameDay, saturdayDelivery: reqSaturday, internalOrderId } = payload;
-    if (!internalOrderId) return { statusCode: 400, headers, body: JSON.stringify({ ok: false, error: 'INTERNAL_ORDER_REQUIRED', cid }) };
-
-    // Validate required fields
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      console.error('PayPal create order - Missing or empty items:', 'cid:', cid);
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ ok: false, error: 'MISSING_ITEMS', cid }),
-      };
-    }
-
-    if (!email) {
-      console.error('PayPal create order - Missing email:', 'cid:', cid);
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ ok: false, error: 'MISSING_EMAIL', cid }),
-      };
-    }
-
-    // Server-side total calculation using existing logic
-    const flags = getFeatureFlags();
-    const taxRate = 0.06; // 6% tax rate
-    const pricingOptions = {
-      freeShipping: flags.freeShipping,
-      minFloorCents: flags.minOrderFloor ? flags.minOrderCents : 0,
-      shippingMethodLabel: flags.shippingMethodLabel
-    };
-
-    // Pass discount code to computeTotals for server-side price calculation
-    // This ensures frontend discount matches backend PayPal order amount
-    const totals = computeTotals(items, taxRate, pricingOptions, discountCode);
-
-    // ------------------------------------------------------------------
-    // Same-Day Hit Service — server-side enforcement.
-    //
-    // The client sends `sameDayHitService` and `saturdayDelivery` flags
-    // as opt-ins only. We re-evaluate against the canonical ET clock
-    // and product eligibility. If the client requested same-day and the
-    // window has closed (or no eligible items), we REJECT the order so
-    // the client can drop the fees and let the user proceed without it.
-    // ------------------------------------------------------------------
-    const sameDayResult = reconcileSameDayFlags({
-      now: new Date(),
-      items,
-      requestedSameDay: !!reqSameDay,
-      requestedSaturday: !!reqSaturday,
-    });
-
-    if (reqSameDay && !sameDayResult.sameDay) {
-      console.warn('PayPal create order - same-day rejected', {
-        cid,
-        reason: sameDayResult.rejectionReason,
-        ETnow: sameDayResult.eval && sameDayResult.eval.ETnow && sameDayResult.eval.ETnow.display,
-      });
-      return {
-        statusCode: 409,
-        headers,
-        body: JSON.stringify({
-          ok: false,
-          error: 'SAME_DAY_NOT_AVAILABLE',
-          message: 'Same-Day Hit Service is no longer available for today’s production window.',
-          reason: sameDayResult.rejectionReason,
-          cid,
-        }),
-      };
-    }
-
-    const sameDayFeeCents = sameDayResult.fees.sameDayFeeCents;
-    const saturdayFeeCents = sameDayResult.fees.saturdayFeeCents;
-    const serverTotalWithSameDayCents = totals.total_cents + sameDayFeeCents + saturdayFeeCents;
-
-    // Use the client-supplied totalCents as the authoritative PayPal amount when
-    // it matches the server calculation within 1 cent (floating-point tolerance).
-    // This prevents a 1-cent rounding drift between the displayed checkout total
-    // and the PayPal charge amount.
-    //
-    // Security: we only accept the client value when it is within 1 cent of the
-    // server-computed total AND is within a sane range of that total. The maximum
-    // exploitable under-charge is therefore 1 cent, which is acceptable.
-    let finalTotalCents = serverTotalWithSameDayCents;
-    if (typeof clientTotalCents === 'number' && Number.isFinite(clientTotalCents) && clientTotalCents > 0) {
-      const diff = Math.abs(clientTotalCents - serverTotalWithSameDayCents);
-      if (diff <= 1 && clientTotalCents >= serverTotalWithSameDayCents - 1) {
-        // Use client value - it matches displayed checkout total exactly
-        finalTotalCents = clientTotalCents;
-      } else {
-        // Significant discrepancy: log and fall back to server calculation
-        console.warn('PayPal create order - client/server total mismatch exceeds 1 cent:', {
-          cid,
-          clientTotalCents,
-          serverTotalCents: serverTotalWithSameDayCents,
-          serverBaseTotalCents: totals.total_cents,
-          sameDayFeeCents,
-          saturdayFeeCents,
-          diff,
-        });
+    const config = credentials();
+    const accessToken = await token(config);
+    if (order.paypal_order_id) {
+      const existing = await retrieve(config.baseUrl, accessToken, order.paypal_order_id);
+      if (existing && !matchesInternalOrder(existing, order)) return reply(409, { ok: false, error: 'PAYPAL_ORDER_IDENTITY_MISMATCH' });
+      const completed = captureFromOrder(existing);
+      if (completed || (order.status === 'paid' && order.paypal_capture_id)) {
+        return reply(200, { ok: true, alreadyPaid: true, paymentCaptured: true, paypalOrderId: order.paypal_order_id, captureID: completed?.id || order.paypal_capture_id, internalOrderId });
       }
-    }
-    const totalAmount = (finalTotalCents / 100).toFixed(2);
-
-    console.log('PayPal create order - Calculated totals:', {
-      cid,
-      raw_subtotal_cents: totals.raw_subtotal_cents,
-      adjusted_subtotal_cents: totals.adjusted_subtotal_cents,
-      promo_discount_cents: totals.promo_discount_cents,
-      total_cents: totals.total_cents,
-      client_total_cents: clientTotalCents,
-      final_total_cents: finalTotalCents,
-      totalAmount,
-      discountCode: discountCode ? discountCode.code : null
-    });
-
-    // Create PayPal order
-    const accessToken = await getPayPalAccessToken();
-    const { baseUrl } = getPayPalCredentials();
-
-    let payPalDescription = getPayPalDescription(items);
-    if (sameDayResult.sameDay) {
-      const noteParts = [];
-      noteParts.push(`+ Same-Day Hit Service ($${(sameDayFeeCents / 100).toFixed(2)})`);
-      if (sameDayResult.saturday) {
-        noteParts.push(`Saturday Delivery ($${(saturdayFeeCents / 100).toFixed(2)})`);
-      }
-      const combined = `${payPalDescription} | ${noteParts.join(' + ')}`;
-      // PayPal description limit is 127 chars. Prefer to drop the suffix
-      // entirely rather than truncate mid-token (which could produce broken
-      // surrogate pairs or misleading partial words).
-      if (combined.length <= 127) {
-        payPalDescription = combined;
-      } else if (payPalDescription.length <= 127) {
-        // Keep the original description intact if it already fits.
-        payPalDescription = payPalDescription.slice(0, 127);
-      } else {
-        payPalDescription = payPalDescription.slice(0, 127);
-      }
+      if (existing && ACTIVE_ORDER_STATUSES.has(existing.status)) return reply(200, { ok: true, reused: true, paypalOrderId: existing.id, internalOrderId });
+      // Replacement is allowed only for a PayPal-confirmed terminal/unavailable order.
+      if (existing && !['VOIDED', 'EXPIRED'].includes(existing.status)) return reply(409, { ok: false, error: 'PAYPAL_ORDER_NOT_REPLACEABLE' });
     }
 
-    const orderRequest = {
-      intent: 'CAPTURE',
-      purchase_units: [{
-        amount: {
-          currency_code: 'USD',
-          value: totalAmount
-        },
-        description: payPalDescription,
-        custom_id: internalOrderId,
-        invoice_id: `BOTF-${internalOrderId}`,
-      }],
-      application_context: {
-        brand_name: 'Banners On The Fly',
-        user_action: 'PAY_NOW',
-        shipping_preference: 'GET_FROM_FILE'
-      }
-    };
+    const requestId = `create-${internalOrderId}`;
+    const body = { intent: 'CAPTURE', purchase_units: [{ amount: { currency_code: 'USD', value: (Number(order.total_cents) / 100).toFixed(2) }, description: getPayPalDescription(Array.isArray(payload.items) ? payload.items : []).slice(0, 127), custom_id: internalOrderId, invoice_id: `BOTF-${internalOrderId}` }], application_context: { brand_name: 'Banners On The Fly', user_action: 'PAY_NOW', shipping_preference: 'GET_FROM_FILE' } };
+    const response = await fetch(`${config.baseUrl}/v2/checkout/orders`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', Accept: 'application/json', 'PayPal-Request-Id': requestId }, body: JSON.stringify(body) });
+    const paypalOrder = await response.json().catch(() => ({}));
+    const identity = orderIdentity(paypalOrder);
+    await recordAttempt(sql, { internalOrderId, checkoutKey: order.checkout_idempotency_key, paypalOrderId: paypalOrder.id, requestId, source: 'create', orderStatus: paypalOrder.status, amountCents: identity.amountCents, currency: identity.currency, invoiceId: identity.invoiceId, customId: identity.customId, processingStatus: response.ok ? 'created' : 'error', errorCode: response.ok ? null : 'PAYPAL_CREATE_FAILED', raw: paypalOrder });
+    if (!response.ok || !paypalOrder.id) return reply(502, { ok: false, error: 'PAYPAL_CREATE_FAILED' });
 
-    // Add shipping if provided
-    if (shippingAddress) {
-      orderRequest.purchase_units[0].shipping = {
-        name: { full_name: shippingAddress.name || 'Customer' },
-        address: shippingAddress
-      };
-    }
-
-    console.log('PayPal create - Making order request...', { cid, baseUrl, orderAmount: orderRequest.purchase_units[0].amount.value });
-    const paypalResponse = await fetch(`${baseUrl}/v2/checkout/orders`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify(orderRequest)
-    });
-    console.log('PayPal create - Order response status:', { cid, status: paypalResponse.status });
-
-    if (!paypalResponse.ok) {
-      const errorText = await paypalResponse.text();
-      console.error('PayPal create order failed:', {
-        cid,
-        status: paypalResponse.status,
-        error: errorText
-      });
-      return {
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({ ok: false, error: 'PAYPAL_CREATE_FAILED', cid }),
-      };
-    }
-
-    const paypalOrder = await paypalResponse.json();
-    
-    console.log('PayPal order created successfully:', {
-      cid,
-      paypalOrderId: paypalOrder.id,
-      status: paypalOrder.status
-    });
-
-    const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
-    if (dbUrl) {
-      try {
-        const sql = neon(dbUrl);
-        await sql`
-          CREATE TABLE IF NOT EXISTS paypal_checkout_sessions (
-            paypal_order_id TEXT PRIMARY KEY,
-            order_payload JSONB NOT NULL,
-            expected_total_cents INTEGER NOT NULL,
-            currency TEXT NOT NULL DEFAULT 'USD',
-            status TEXT NOT NULL DEFAULT 'created',
-            created_at TIMESTAMPTZ DEFAULT NOW(),
-            updated_at TIMESTAMPTZ DEFAULT NOW()
-          )
-        `;
-        const linked = await sql`
-          UPDATE orders SET paypal_order_id = ${paypalOrder.id}, payment_method = 'paypal', updated_at = NOW()
-          WHERE id = ${internalOrderId} AND status = 'pending'
-          RETURNING id
-        `;
-        if (!linked.length) throw new Error('Pending internal order could not be linked to PayPal');
-        await sql`
-          INSERT INTO paypal_checkout_sessions (paypal_order_id, order_payload, expected_total_cents, currency, status, updated_at)
-          VALUES (${paypalOrder.id}, ${JSON.stringify({ ...payload, totalCents: finalTotalCents, sameDayHitService: sameDayResult.sameDay, saturdayDelivery: sameDayResult.saturday })}::jsonb, ${finalTotalCents}, 'USD', 'created', NOW())
-          ON CONFLICT (paypal_order_id) DO UPDATE SET
-            order_payload = EXCLUDED.order_payload,
-            expected_total_cents = EXCLUDED.expected_total_cents,
-            currency = EXCLUDED.currency,
-            updated_at = NOW()
-        `;
-      } catch (sessionErr) {
-        console.warn('PayPal create order - failed to persist checkout session:', sessionErr.message);
-      }
-    }
-
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({
-        ok: true,
-        paypalOrderId: paypalOrder.id,
-        internalOrderId,
-        cid
-      }),
-    };
-
+    const linked = await sql`UPDATE orders SET paypal_order_id = ${paypalOrder.id}, payment_method = 'paypal', payment_reconciliation_status = 'awaiting_capture', updated_at = NOW() WHERE id = ${internalOrderId} AND status = 'pending' AND (paypal_order_id IS NULL OR paypal_order_id = ${order.paypal_order_id || null}) RETURNING paypal_order_id`;
+    if (linked.length) return reply(200, { ok: true, paypalOrderId: linked[0].paypal_order_id, internalOrderId });
+    const winner = await sql`SELECT paypal_order_id, paypal_capture_id, status FROM orders WHERE id = ${internalOrderId} LIMIT 1`;
+    if (winner[0]?.paypal_order_id) return reply(200, { ok: true, reused: true, paypalOrderId: winner[0].paypal_order_id, internalOrderId });
+    return reply(409, { ok: false, error: 'PAYPAL_ORDER_LINK_CONFLICT' });
   } catch (error) {
-    console.error('PayPal create order error:', error, 'cid:', cid);
-    console.error('Error stack:', error.stack);
-    console.error('Error message:', error.message);
-
-    // Return more detailed error information for debugging
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({
-        ok: false,
-        error: 'INTERNAL_ERROR',
-        debug: {
-          message: error.message,
-          type: error.constructor.name,
-          cid,
-          timestamp: new Date().toISOString()
-        },
-        cid
-      }),
-    };
+    console.error('[paypal-create-order]', error);
+    return reply(500, { ok: false, error: 'PAYPAL_CREATE_INTERNAL_ERROR' });
   }
 };
-
+exports._test = { retrieve };

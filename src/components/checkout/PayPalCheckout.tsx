@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -71,6 +71,10 @@ const trackCheckoutPaymentClick = (method: 'card' | 'paypal') => {
   });
 };
 
+// Shared across both funding widgets and component remounts. This is only a
+// latency/UX guard; the server remains the payment authority.
+const paypalPreparationFlights = new Map<string, Promise<string>>();
+
 const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onError, disabled = false, cardFirstLayout = false }) => {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -81,7 +85,44 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
   const [isCapturingPayment, setIsCapturingPayment] = useState(false);
   const isDeployPreview = shouldUseDeployPreviewTestCheckout();
   const internalOrderIdRef = useRef<string | null>(null);
-  const checkoutIdempotencyKeyRef = useRef<string>(crypto.randomUUID());
+  const approvalFlightRef = useRef<Promise<void> | null>(null);
+  const paymentReceivedRef = useRef(false);
+  const [paymentReceived, setPaymentReceived] = useState(false);
+  const checkoutSignature = useMemo(() => JSON.stringify({
+    total,
+    items: items.map(({ line_total_cents, quantity, width_in, height_in, material, product_type }) =>
+      ({ line_total_cents, quantity, width_in, height_in, material, product_type })),
+    discount: discountCode?.code || null,
+    sameDayHitService: !!sameDayHitService,
+    saturdayDelivery: !!saturdayDelivery,
+  }), [total, items, discountCode?.code, sameDayHitService, saturdayDelivery]);
+  const storageKey = `paypal-checkout:${checkoutSignature}`;
+  const checkoutIdempotencyKeyRef = useRef<string>('');
+
+  if (!checkoutIdempotencyKeyRef.current) {
+    const saved = typeof window !== 'undefined' ? window.localStorage.getItem(storageKey) : null;
+    try {
+      const state = saved ? JSON.parse(saved) : null;
+      checkoutIdempotencyKeyRef.current = state?.checkoutKey || crypto.randomUUID();
+      internalOrderIdRef.current = state?.internalOrderId || null;
+    } catch {
+      checkoutIdempotencyKeyRef.current = crypto.randomUUID();
+    }
+  }
+
+  const persistCheckoutLock = (processing = false, received = false) => {
+    window.localStorage.setItem(storageKey, JSON.stringify({ checkoutKey: checkoutIdempotencyKeyRef.current, internalOrderId: internalOrderIdRef.current, processing, received }));
+  };
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(storageKey) || 'null');
+      if (saved?.received || saved?.processing) {
+        paymentReceivedRef.current = true;
+        setPaymentReceived(true);
+      }
+    } catch { /* a corrupt UX cache cannot affect server-side correctness */ }
+  }, [storageKey]);
 
   // Load PayPal configuration on mount
   useEffect(() => {
@@ -347,7 +388,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
   }
 
   // PayPal order creation handler
-  const handleCreateOrder = async () => {
+  const preparePayPalOrder = async () => {
     try {
       setIsCreatingOrder(true);
 
@@ -388,6 +429,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
         const pending = await pendingResponse.json().catch(() => ({}));
         if (!pendingResponse.ok || !pending.orderId) throw new Error(pending.message || pending.error || 'Could not safely persist the order before payment');
         internalOrderIdRef.current = pending.orderId;
+        persistCheckoutLock();
       }
       
       const response = await fetch('/.netlify/functions/paypal-create-order', {
@@ -474,7 +516,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
           console.log('Development mode: Using mock PayPal order ID');
           return `DEV_ORDER_${Date.now()}`;
         }
-        const error = await response.json();
+        const error = await response.json().catch(() => ({}));
         throw new Error(error.error || 'Failed to create PayPal order');
       }
 
@@ -496,10 +538,23 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
     }
   };
 
+  const handleCreateOrder = () => {
+    const flightKey = `${checkoutSignature}:${internalOrderIdRef.current || checkoutIdempotencyKeyRef.current}`;
+    const existing = paypalPreparationFlights.get(flightKey);
+    if (existing) return existing;
+    const flight = preparePayPalOrder().catch((error) => {
+      paypalPreparationFlights.delete(flightKey);
+      throw error;
+    });
+    paypalPreparationFlights.set(flightKey, flight);
+    return flight;
+  };
+
   // PayPal order approval handler
-  const handleApprove = async (data: any) => {
+  const approveOnce = async (data: any) => {
     try {
       setIsCapturingPayment(true);
+      persistCheckoutLock(true, false);
       
       const isDev = import.meta.env.DEV || window.location.hostname === 'localhost';
 
@@ -512,9 +567,9 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
       
       let captureResult: any = {};
       
-      if (captureResponse.ok) {
-        captureResult = await captureResponse.json().catch(()=> ({}));
-      } else if (isDev) {
+      // Parse every response, including non-2xx reconciliation responses.
+      captureResult = await captureResponse.json().catch(()=> ({}));
+      if (!captureResponse.ok && isDev) {
         console.log('Development mode: Using mock capture result');
         captureResult = {
           ok: true,
@@ -523,6 +578,17 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
             payer: { email_address: user?.email || 'dev@test.com' }
           }
         };
+      }
+
+      if (captureResult?.paymentCaptured && captureResult?.reconciliationRequired) {
+        paymentReceivedRef.current = true;
+        setPaymentReceived(true);
+        persistCheckoutLock(true, true);
+        toast({
+          title: 'Payment received',
+          description: 'Your payment was received. Your order is being verified. Do not submit another payment.',
+        });
+        return;
       }
       
       if (!captureResponse.ok && !isDev) {
@@ -655,6 +721,10 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
 
       const orderResult: any = { ok: true, orderId: internalOrderIdRef.current, order: orderPayload };
 
+      paymentReceivedRef.current = true;
+      setPaymentReceived(true);
+      persistCheckoutLock(true, true);
+
       toast({
         title: "Payment Successful!",
         description: `Payment of $${(total / 100).toFixed(2)} has been processed.${isDev ? ' (Development Mode)' : ''}`,
@@ -665,11 +735,22 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
       onSuccess(orderId, orderResult?.order);
     } catch (e: any) {
       console.error('Payment exception:', e);
-      alert(e?.message || 'Network error capturing payment. Please try again.');
+      alert(e?.message || 'We could not verify the payment status. Do not submit another payment; contact support.');
       onError(e);
     } finally {
       setIsCapturingPayment(false);
     }
+  };
+
+  const handleApprove = (data: any) => {
+    if (approvalFlightRef.current) return approvalFlightRef.current;
+    const flight = approveOnce(data).finally(() => {
+      // A completed/reconciliation payment remains locked. Only pre-capture
+      // failures may start a later approval callback.
+      if (!paymentReceivedRef.current) approvalFlightRef.current = null;
+    });
+    approvalFlightRef.current = flight;
+    return flight;
   };
 
   const initialOptions = {
@@ -684,13 +765,14 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
   return (
     <div className="space-y-4">
       {/* Loading states */}
-      {(isCreatingOrder || isCapturingPayment) && (
+      {(isCreatingOrder || isCapturingPayment || paymentReceived) && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex items-center">
             <Loader2 className="h-4 w-4 animate-spin mr-2" />
             <span className="text-blue-800 text-sm">
               {isCreatingOrder && "Preparing your order..."}
-              {isCapturingPayment && "Processing payment..."}
+              {isCapturingPayment && !paymentReceived && "Processing payment..."}
+              {paymentReceived && "Your payment was received. Your order is being verified. Do not submit another payment."}
             </span>
           </div>
         </div>
@@ -706,7 +788,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
                 key={`card-${total}`}
                 fundingSource={"card" as any}
                 style={{ layout: "vertical", color: "black", shape: "rect", label: "checkout", height: 45 }}
-                disabled={disabled || isCreatingOrder || isCapturingPayment}
+                disabled={disabled || isCreatingOrder || isCapturingPayment || paymentReceived}
                 onClick={() => trackCheckoutPaymentClick('card')}
                 createOrder={async () => handleCreateOrder()}
                 onApprove={handleApprove}
@@ -721,7 +803,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
                 key={`paypal-${total}`}
                 fundingSource={"paypal" as any}
                 style={{ layout: "vertical", color: "gold", shape: "rect", label: "paypal", height: 42 }}
-                disabled={disabled || isCreatingOrder || isCapturingPayment}
+                disabled={disabled || isCreatingOrder || isCapturingPayment || paymentReceived}
                 onClick={() => trackCheckoutPaymentClick('paypal')}
                 createOrder={async () => handleCreateOrder()}
                 onApprove={handleApprove}
@@ -737,7 +819,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
                 shape: "rect",
                 label: "paypal",
               }}
-              disabled={disabled || isCreatingOrder || isCapturingPayment}
+              disabled={disabled || isCreatingOrder || isCapturingPayment || paymentReceived}
               createOrder={async (data, actions) => {
                 const paypalOrderId = await handleCreateOrder();
                 return paypalOrderId;

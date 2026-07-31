@@ -81,6 +81,7 @@ const GraduationSignsThankYou = lazy(() => import("./pages/GraduationSignsThankY
 const AdminOrders = lazy(() => import("./pages/admin/Orders"));
 const AdminAbandonedCarts = lazy(() => import("./pages/admin/AbandonedCarts"));
 const AdminCustomQuotes = lazy(() => import("./pages/admin/CustomQuotes"));
+const PayPalReconciliation = lazy(() => import("./pages/admin/PayPalReconciliation"));
 const AdminSetup = lazy(() => import("./pages/AdminSetup"));
 const AIDesignerPage = lazy(() => import("./pages/admin/AIDesignerPage"));
 const ProofApproval = lazy(() => import("./pages/ProofApproval"));
@@ -220,6 +221,7 @@ const App = () => (
             <Route path="/admin/orders" element={<AdminOrders />} />
             <Route path="/admin/abandoned-carts" element={<AdminAbandonedCarts />} />
             <Route path="/admin/custom-quotes" element={<AdminCustomQuotes />} />
+            <Route path="/admin/paypal-reconciliation" element={<PayPalReconciliation />} />
             {/* Admin login / setup page — password gate that grants admin access */}
             <Route path="/admin/setup" element={<AdminSetup />} />
             <Route path="/admin/ai-designer" element={<AIDesignerPage />} />
