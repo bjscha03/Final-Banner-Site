@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
-import { Clock3, Loader2 } from 'lucide-react';
+import { Clock3, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/lib/auth';
@@ -20,6 +20,8 @@ interface PayPalConfig {
   enabled: boolean;
   clientId: string | null;
   environment: 'sandbox' | 'live' | null;
+  components?: string;
+  fastlane?: boolean;
 }
 
 type StoredCheckout = {
@@ -30,8 +32,9 @@ type StoredCheckout = {
   updatedAt: number;
 };
 
+const VERIFICATION_POLL_INTERVAL_MS = 2000;
+const VERIFICATION_MAX_ATTEMPTS = 35;
 const VERIFICATION_TTL_MS = 30 * 60 * 1000;
-const preparationFlights = new Map<string, Promise<string>>();
 
 const randomId = (): string => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -49,13 +52,6 @@ const hash = (value: string): string => {
   return (result >>> 0).toString(36);
 };
 
-const firstNonEmpty = (...values: unknown[]): string | null => {
-  for (const value of values) {
-    if (typeof value === 'string' && value.trim()) return value.trim();
-  }
-  return null;
-};
-
 const readJson = async (response: Response): Promise<any> => {
   try {
     return await response.json();
@@ -64,10 +60,19 @@ const readJson = async (response: Response): Promise<any> => {
   }
 };
 
-const extractShipping = (captureResult: any) => {
-  const direct = captureResult?.shippingAddress || null;
-  const paypalShipping = captureResult?.paypalData?.purchase_units?.[0]?.shipping || null;
-  const payer = captureResult?.paypalData?.payer || null;
+const firstNonEmpty = (...values: unknown[]): string | null => {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return null;
+};
+
+const sleep = (milliseconds: number) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+
+const extractShipping = (payload: any) => {
+  const direct = payload?.shippingAddress || null;
+  const paypalShipping = payload?.paypalData?.purchase_units?.[0]?.shipping || null;
+  const payer = payload?.paypalData?.payer || null;
   const address = direct || paypalShipping?.address || payer?.address || {};
   const name = firstNonEmpty(
     direct?.name,
@@ -93,11 +98,23 @@ const isCompletedCapture = (payload: any): boolean => Boolean(
   && payload?.doNotRetry !== true,
 );
 
-const requiresVerificationLock = (payload: any, status: number): boolean => Boolean(
+const requiresVerification = (payload: any, status: number): boolean => Boolean(
   status === 202
-  || payload?.doNotRetry
-  || payload?.paymentStatusUnknown
-  || payload?.reconciliationRequired,
+  || payload?.doNotRetry === true
+  || payload?.paymentStatusUnknown === true
+  || payload?.reconciliationRequired === true,
+);
+
+const isDefinitiveFailure = (payload: any, status: number): boolean => Boolean(
+  payload?.paymentCaptured !== true
+  && payload?.reconciliationRequired !== true
+  && payload?.paymentStatusUnknown !== true
+  && (
+    status === 422
+    || payload?.retryAllowed === true
+    || payload?.providerCode === 'INSTRUMENT_DECLINED'
+    || payload?.error === 'INSTRUMENT_DECLINED'
+  ),
 );
 
 const trackPaymentClick = (method: 'card' | 'paypal') => {
@@ -124,13 +141,19 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
   const [isPreparing, setIsPreparing] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [isPolling, setIsPolling] = useState(false);
   const [verificationMessage, setVerificationMessage] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   const internalOrderIdRef = useRef<string | null>(null);
-  const checkoutKeyRef = useRef<string>('');
+  const checkoutKeyRef = useRef<string>(randomId());
+  const createFlightRef = useRef<Promise<string> | null>(null);
   const approvalFlightRef = useRef<Promise<void> | null>(null);
   const verificationLockedRef = useRef(false);
+  const pollingRef = useRef(false);
+  const lastDeclineAtRef = useRef(0);
+  const approvedOrderDataRef = useRef<any>(null);
+  const shippingChangeDataRef = useRef<any>(null);
 
   const checkoutSignature = useMemo(() => JSON.stringify({
     total,
@@ -152,28 +175,11 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
   }), [total, discountCode?.code, sameDayHitService, saturdayDelivery, items]);
 
   const storageKey = useMemo(
-    () => `bof-paypal-checkout-v4:${hash(checkoutSignature)}`,
+    () => `bof-paypal-checkout-v5:${hash(checkoutSignature)}`,
     [checkoutSignature],
   );
 
-  if (!checkoutKeyRef.current && typeof window !== 'undefined') {
-    try {
-      const saved = JSON.parse(window.sessionStorage.getItem(storageKey) || 'null') as StoredCheckout | null;
-      checkoutKeyRef.current = saved?.checkoutKey || randomId();
-      internalOrderIdRef.current = saved?.internalOrderId || null;
-      if (
-        saved?.state === 'verification'
-        && saved.internalOrderId
-        && Date.now() - Number(saved.updatedAt || 0) < VERIFICATION_TTL_MS
-      ) {
-        verificationLockedRef.current = true;
-      }
-    } catch {
-      checkoutKeyRef.current = randomId();
-    }
-  }
-
-  const persistState = (state: StoredCheckout['state'], message?: string) => {
+  const persistState = useCallback((state: StoredCheckout['state'], message?: string) => {
     if (typeof window === 'undefined') return;
     const value: StoredCheckout = {
       checkoutKey: checkoutKeyRef.current || randomId(),
@@ -183,37 +189,139 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
       updatedAt: Date.now(),
     };
     window.sessionStorage.setItem(storageKey, JSON.stringify(value));
-  };
+  }, [storageKey]);
 
-  const clearState = () => {
+  const clearState = useCallback(() => {
     if (typeof window !== 'undefined') window.sessionStorage.removeItem(storageKey);
-  };
+  }, [storageKey]);
 
-  const lockForVerification = (message?: string) => {
+  const resetForRetry = useCallback((message?: string) => {
+    verificationLockedRef.current = false;
+    pollingRef.current = false;
+    createFlightRef.current = null;
+    approvalFlightRef.current = null;
+    setIsPolling(false);
+    setVerificationMessage(null);
+    setCheckoutError(message || null);
+    persistState('idle');
+  }, [persistState]);
+
+  const finishSuccess = useCallback((payload: any, fallbackOrderId?: string | null) => {
+    const internalOrderId = payload?.internalOrderId || fallbackOrderId || internalOrderIdRef.current || payload?.orderID;
+    if (!internalOrderId) throw new Error('Completed payment is missing its internal order ID.');
+
+    verificationLockedRef.current = false;
+    pollingRef.current = false;
+    setIsPolling(false);
+    setVerificationMessage(null);
+    setCheckoutError(null);
+    clearState();
+
+    const shippingAddress = extractShipping(payload);
+    toast({
+      title: 'Payment Successful!',
+      description: `Your payment of $${(total / 100).toFixed(2)} was completed.`,
+    });
+    onSuccess(internalOrderId, {
+      ...payload,
+      shippingAddress,
+      subtotal_cents: payload?.subtotal_cents ?? total,
+      tax_cents: payload?.tax_cents ?? 0,
+      total_cents: payload?.total_cents ?? total,
+    });
+  }, [clearState, onSuccess, toast, total]);
+
+  const pollPaymentStatus = useCallback(async () => {
+    const internalOrderId = internalOrderIdRef.current;
+    if (!internalOrderId || pollingRef.current) return;
+
+    pollingRef.current = true;
+    setIsPolling(true);
+
+    try {
+      for (let attempt = 0; attempt < VERIFICATION_MAX_ATTEMPTS && verificationLockedRef.current; attempt += 1) {
+        let response: Response | null = null;
+        let payload: any = {};
+        try {
+          response = await fetch('/.netlify/functions/paypal-payment-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              internalOrderId,
+              approvedOrderData: approvedOrderDataRef.current,
+              shippingChangeData: shippingChangeDataRef.current,
+            }),
+          });
+          payload = await readJson(response);
+        } catch (error) {
+          console.error('[PayPalCheckout] payment status poll failed', error);
+        }
+
+        if (response && isCompletedCapture(payload)) {
+          finishSuccess(payload, internalOrderId);
+          return;
+        }
+
+        if (response && isDefinitiveFailure(payload, response.status)) {
+          const message = payload?.message || 'Your card was declined. Use a different card or payment method and try again.';
+          lastDeclineAtRef.current = Date.now();
+          resetForRetry(message);
+          toast({
+            title: 'Payment method declined',
+            description: message,
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        if (response?.status === 200 && payload?.retryAllowed === true && payload?.paymentCaptured !== true) {
+          resetForRetry(payload?.message || 'No payment was completed. You may try again.');
+          return;
+        }
+
+        if (attempt < VERIFICATION_MAX_ATTEMPTS - 1) {
+          await sleep(VERIFICATION_POLL_INTERVAL_MS);
+        }
+      }
+
+      if (verificationLockedRef.current) {
+        const message = 'We are still checking PayPal. Do not submit another payment. This page will keep your order safe while you check again.';
+        setVerificationMessage(message);
+        persistState('verification', message);
+      }
+    } finally {
+      pollingRef.current = false;
+      setIsPolling(false);
+    }
+  }, [finishSuccess, persistState, resetForRetry, toast]);
+
+  const startVerification = useCallback((message?: string) => {
     const text = message || 'We are confirming your payment. Do not submit another payment.';
     verificationLockedRef.current = true;
-    setVerificationMessage(text);
     setCheckoutError(null);
+    setVerificationMessage(text);
     persistState('verification', text);
-  };
+    void pollPaymentStatus();
+  }, [persistState, pollPaymentStatus]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
       const saved = JSON.parse(window.sessionStorage.getItem(storageKey) || 'null') as StoredCheckout | null;
+      if (saved?.checkoutKey) checkoutKeyRef.current = saved.checkoutKey;
+      if (saved?.internalOrderId) internalOrderIdRef.current = saved.internalOrderId;
+
       if (
         saved?.state === 'verification'
         && saved.internalOrderId
         && Date.now() - Number(saved.updatedAt || 0) < VERIFICATION_TTL_MS
       ) {
-        internalOrderIdRef.current = saved.internalOrderId;
-        checkoutKeyRef.current = saved.checkoutKey || checkoutKeyRef.current || randomId();
-        lockForVerification(saved.message);
+        startVerification(saved.message);
       }
     } catch {
       window.sessionStorage.removeItem(storageKey);
     }
-  }, [storageKey]);
+  }, [startVerification, storageKey]);
 
   useEffect(() => {
     if (isDeployPreview) {
@@ -232,10 +340,13 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
         if (!response.ok || !payload?.enabled || !payload?.clientId) {
           throw new Error(payload?.error || 'Secure checkout is temporarily unavailable.');
         }
+        if (payload.fastlane === true || (payload.components && payload.components !== 'buttons')) {
+          throw new Error('Unsupported PayPal checkout configuration.');
+        }
         setPayPalConfig(payload);
       } catch (error) {
         console.error('[PayPalCheckout] config load failed', error);
-        setPayPalConfig({ enabled: false, clientId: null, environment: null });
+        setPayPalConfig({ enabled: false, clientId: null, environment: null, components: 'buttons', fastlane: false });
       } finally {
         window.clearTimeout(timeout);
         setIsLoadingConfig(false);
@@ -340,8 +451,8 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
       });
       const payload = await readJson(response);
 
-      if (requiresVerificationLock(payload, response.status)) {
-        lockForVerification(payload?.message);
+      if (payload?.paymentCaptured === true || requiresVerification(payload, response.status)) {
+        startVerification(payload?.message);
         throw new Error('PAYMENT_VERIFICATION_LOCKED');
       }
       if (!response.ok || !payload?.paypalOrderId) {
@@ -354,15 +465,11 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
   };
 
   const handleCreateOrder = (): Promise<string> => {
-    const flightKey = `${checkoutSignature}:${internalOrderIdRef.current || checkoutKeyRef.current}`;
-    const existing = preparationFlights.get(flightKey);
-    if (existing) return existing;
-
-    const flight = preparePayPalOrder().catch((error) => {
-      preparationFlights.delete(flightKey);
-      throw error;
+    if (createFlightRef.current) return createFlightRef.current;
+    const flight = preparePayPalOrder().finally(() => {
+      createFlightRef.current = null;
     });
-    preparationFlights.set(flightKey, flight);
+    createFlightRef.current = flight;
     return flight;
   };
 
@@ -372,68 +479,58 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     persistState('processing');
 
     try {
+      let approvedOrderData = null;
+      try {
+        if (typeof actions?.order?.get === 'function') {
+          approvedOrderData = await actions.order.get();
+          approvedOrderDataRef.current = approvedOrderData;
+        }
+      } catch (error) {
+        console.warn('[PayPalCheckout] approved order details were unavailable', error);
+      }
+
       const response = await fetch('/.netlify/functions/paypal-capture-minimal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           orderID: data.orderID,
           internalOrderId: internalOrderIdRef.current,
+          approvedOrderData,
+          shippingChangeData: shippingChangeDataRef.current,
         }),
       });
       const payload = await readJson(response);
 
       if (isCompletedCapture(payload)) {
-        const internalOrderId = internalOrderIdRef.current || payload.internalOrderId || data.orderID;
-        const shippingAddress = extractShipping(payload);
-        clearState();
+        finishSuccess(payload, internalOrderIdRef.current);
+        return;
+      }
+
+      if (isDefinitiveFailure(payload, response.status)) {
+        const message = payload?.message || 'Your card was declined. Use a different card or payment method and try again.';
+        lastDeclineAtRef.current = Date.now();
+        resetForRetry(message);
         toast({
-          title: 'Payment Successful!',
-          description: `Your payment of $${(total / 100).toFixed(2)} was completed.`,
-        });
-        onSuccess(internalOrderId, {
-          ...payload,
-          shippingAddress,
-          subtotal_cents: payload.subtotal_cents ?? total,
-          tax_cents: payload.tax_cents ?? 0,
-          total_cents: payload.total_cents ?? total,
+          title: 'Payment method declined',
+          description: message,
+          variant: 'destructive',
         });
         return;
       }
 
-      const providerCode = payload?.providerCode || payload?.error;
-      if (payload?.restartPayment || providerCode === 'INSTRUMENT_DECLINED') {
-        persistState('idle');
-        toast({
-          title: 'Payment method declined',
-          description: payload?.message || 'Choose another card or payment method and try again.',
-          variant: 'destructive',
-        });
-        if (typeof actions?.restart === 'function') {
-          await actions.restart();
-          return;
-        }
-        throw new Error(payload?.message || 'Payment method declined.');
-      }
-
-      if (requiresVerificationLock(payload, response.status)) {
-        lockForVerification(payload?.message);
-        toast({
-          title: 'Confirming payment',
-          description: payload?.message || 'We are confirming your payment. Do not submit another payment.',
-        });
+      if (requiresVerification(payload, response.status)) {
+        startVerification(payload?.message);
         return;
       }
 
       const message = payload?.message || payload?.providerCode || payload?.error || 'Payment could not be completed.';
-      persistState('idle');
-      setCheckoutError(message);
+      resetForRetry(message);
       onError(new Error(message));
     } catch (error) {
       if (verificationLockedRef.current) return;
       const message = error instanceof Error ? error.message : 'Payment could not be completed.';
       if (message === 'PAYMENT_VERIFICATION_LOCKED') return;
-      persistState('idle');
-      setCheckoutError(message);
+      resetForRetry(message);
       onError(error);
     } finally {
       setIsCapturing(false);
@@ -451,12 +548,15 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
 
   const handleProviderError = (error: any) => {
     if (verificationLockedRef.current) return;
+    // PayPal can emit a generic SDK error immediately after a definitive card
+    // decline. Keep the clear decline message and never reopen the hosted flow.
+    if (Date.now() - lastDeclineAtRef.current < 5000) return;
+
     console.error('[PayPalCheckout] provider error', error);
     setIsPreparing(false);
     setIsCapturing(false);
-    persistState('idle');
     const message = 'PayPal could not complete the payment. Please choose a payment method and try again.';
-    setCheckoutError(message);
+    resetForRetry(message);
     onError(error instanceof Error ? error : new Error(message));
   };
 
@@ -497,6 +597,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     intent: 'capture',
     commit: true,
     vault: false,
+    components: 'buttons',
     disableFunding: 'paylater,credit',
   };
 
@@ -517,10 +618,14 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
       createOrder={handleCreateOrder}
       onApprove={handleApprove}
       onError={handleProviderError}
+      onShippingChange={(data: any, actions: any) => {
+        shippingChangeDataRef.current = data?.shipping_address || data?.shippingAddress || data || null;
+        if (typeof actions?.resolve === 'function') return actions.resolve();
+        return Promise.resolve();
+      }}
       onCancel={() => {
         if (verificationLockedRef.current) return;
-        persistState('idle');
-        setCheckoutError(null);
+        resetForRetry(null);
         toast({ title: 'Payment Cancelled', description: 'No payment was completed.' });
       }}
     />
@@ -531,8 +636,24 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
       {verificationMessage ? (
         <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
           <div className="flex items-start gap-2">
-            <Clock3 className="mt-0.5 h-4 w-4 flex-none text-blue-700" />
-            <span className="text-sm text-blue-900">{verificationMessage}</span>
+            {isPolling
+              ? <Loader2 className="mt-0.5 h-4 w-4 flex-none animate-spin text-blue-700" />
+              : <Clock3 className="mt-0.5 h-4 w-4 flex-none text-blue-700" />}
+            <div className="min-w-0 flex-1">
+              <p className="text-sm text-blue-900">{verificationMessage}</p>
+              {!isPolling ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-3 border-blue-300 bg-white text-blue-800 hover:bg-blue-50"
+                  onClick={() => void pollPaymentStatus()}
+                >
+                  <RefreshCw className="mr-2 h-3.5 w-3.5" />
+                  Check payment status
+                </Button>
+              ) : null}
+            </div>
           </div>
         </div>
       ) : null}
