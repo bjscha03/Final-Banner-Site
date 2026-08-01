@@ -32,27 +32,54 @@ jobs:
               "${site}/checkout?deploy_check=${cache_buster}" \
               --output "${html_file}"; then
 
-              mapfile -t asset_paths < <(
+              mapfile -t current_assets < <(
                 grep -oE 'src="[^"]+\.js[^"]*"' "${html_file}" \
                   | sed -E 's/^src="//; s/"$//' \
-                  | sort -u
+                  | sort -u \
+                  || true
               )
 
-              for asset_path in "${asset_paths[@]:-}"; do
-                if [[ -z "${asset_path}" ]]; then
-                  continue
-                fi
-                if [[ "${asset_path}" == http* ]]; then
-                  asset_url="${asset_path}"
-                else
-                  asset_url="${site}${asset_path}"
-                fi
-                separator='?'
-                [[ "${asset_url}" == *'?'* ]] && separator='&'
-                curl --fail --silent --show-error --location \
-                  -H 'Cache-Control: no-cache, no-store, must-revalidate' \
-                  "${asset_url}${separator}deploy_check=${cache_buster}" \
-                  >> "${bundle_file}" || true
+              declare -A seen_assets=()
+              for depth in 1 2 3; do
+                next_assets=()
+
+                for asset_path in "${current_assets[@]:-}"; do
+                  [[ -z "${asset_path}" ]] && continue
+                  asset_path="${asset_path%%\?*}"
+
+                  if [[ "${asset_path}" == http* ]]; then
+                    asset_url="${asset_path}"
+                  elif [[ "${asset_path}" == /* ]]; then
+                    asset_url="${site}${asset_path}"
+                  else
+                    asset_url="${site}/assets/${asset_path#./}"
+                  fi
+
+                  if [[ -n "${seen_assets[${asset_url}]:-}" ]]; then
+                    continue
+                  fi
+                  seen_assets["${asset_url}"]=1
+
+                  js_file="$(mktemp)"
+                  if curl --fail --silent --show-error --location \
+                    -H 'Cache-Control: no-cache, no-store, must-revalidate' \
+                    "${asset_url}?deploy_check=${cache_buster}" \
+                    --output "${js_file}"; then
+                    cat "${js_file}" >> "${bundle_file}"
+
+                    while IFS= read -r child_asset; do
+                      [[ -n "${child_asset}" ]] && next_assets+=("${child_asset}")
+                    done < <(
+                      grep -oE '[A-Za-z0-9_.-]+-[A-Za-z0-9_.-]+\.js' "${js_file}" \
+                        | sort -u \
+                        || true
+                    )
+                  fi
+                  rm -f "${js_file}"
+                done
+
+                current_assets=("${next_assets[@]:-}")
+                [[ ${#current_assets[@]} -eq 0 ]] && break
               done
 
               if grep -Fq "${marker_one}" "${bundle_file}" \
