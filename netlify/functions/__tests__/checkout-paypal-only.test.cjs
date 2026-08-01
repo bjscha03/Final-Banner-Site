@@ -16,12 +16,15 @@ test('checkout uses the contact-safe PayPal wrapper and keeps the accidental shi
 
   assert.equal(fs.existsSync(removedWrapper), false);
   assert.match(viteConfig, /PayPalCheckoutContactSafe\.tsx/);
-  assert.match(safeWrapper, /Email for confirmation/);
+  assert.match(safeWrapper, /Email for order confirmation and tracking/);
   assert.match(safeWrapper, /payload\.email = customerEmail/);
   assert.match(safeWrapper, /disabled=\{Boolean\(props\.disabled\)\}/);
   assert.equal(safeWrapper.includes('props.disabled || !contactValid'), false);
   assert.match(safeWrapper, /CHECKOUT_CONTACT_REQUIRED/);
   assert.match(safeWrapper, /if \(!contactValid\)/);
+  assert.match(safeWrapper, /Enter email for order updates before paying/);
+  assert.equal(safeWrapper.includes('Full name'), false);
+  assert.equal(safeWrapper.includes('Order contact'), false);
   assert.equal(safeWrapper.includes('shipping address'), false);
 });
 
