@@ -1,33 +1,12 @@
 import '@neondatabase/serverless';
-import { neon } from '@neondatabase/serverless';
 import { withLambda } from '@netlify/aws-lambda-compat';
 import captureModule from './_shared/legacy/paypal-capture-forward.cjs';
+import customerInfoModule from './_shared/legacy/paypal-customer-info.cjs';
 
 const clean = (value, max = 500) => {
   if (value === null || value === undefined) return null;
   const normalized = String(value).trim();
   return normalized ? normalized.slice(0, max) : null;
-};
-
-const normalizeCustomerInfo = (input) => {
-  const raw = input && typeof input === 'object' ? input : {};
-  const email = clean(raw.email, 320)?.toLowerCase() || null;
-  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    throw new Error('Invalid checkout customer email');
-  }
-
-  const fullName = clean(raw.fullName || raw.name, 200);
-  return {
-    fullName,
-    firstName: fullName ? fullName.split(/\s+/)[0] : null,
-    email,
-    address1: clean(raw.address1 || raw.street || raw.line1, 300),
-    address2: clean(raw.address2 || raw.street2 || raw.line2, 300),
-    city: clean(raw.city, 160),
-    state: clean(raw.state, 80)?.toUpperCase() || null,
-    postalCode: clean(raw.postalCode || raw.zip, 40),
-    country: clean(raw.country, 8)?.toUpperCase() || 'US',
-  };
 };
 
 const getSiteUrl = (event) => {
@@ -69,14 +48,48 @@ const queuePaidOrderFollowups = async (event, orderId) => {
 };
 
 const handler = async (event, context) => {
+  let requestBody = {};
+  try { requestBody = JSON.parse(event.body || '{}'); } catch { /* authoritative handler returns INVALID_JSON */ }
+
   const response = await captureModule.handler(event, context);
   const statusCode = Number(response?.statusCode || 500);
-  if (statusCode < 200 || statusCode >= 300) return response;
 
   let responseBody = {};
-  try {
-    responseBody = JSON.parse(response.body || '{}');
-  } catch {
+  try { responseBody = JSON.parse(response?.body || '{}'); } catch { return response; }
+
+  const internalOrderId = clean(requestBody.internalOrderId, 100)
+    || clean(responseBody.internalOrderId, 100);
+  const paypalOrderId = clean(requestBody.orderID, 200)
+    || clean(responseBody.orderID, 200)
+    || clean(responseBody.paypalOrderID, 200);
+
+  const definitiveDecline = Boolean(
+    statusCode === 422
+    && responseBody.paymentCaptured !== true
+    && responseBody.reconciliationRequired !== true
+    && responseBody.paymentStatusUnknown !== true,
+  );
+
+  if (definitiveDecline && internalOrderId && paypalOrderId) {
+    try {
+      await customerInfoModule.retireDefinitivelyDeclinedPayPalOrder({
+        internalOrderId,
+        orderID: paypalOrderId,
+      });
+    } catch (error) {
+      console.error('[paypal-capture-minimal] could not retire declined PayPal order', {
+        internalOrderId,
+        paypalOrderId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    response.body = JSON.stringify({
+      ...responseBody,
+      restartPayment: false,
+      retryAllowed: true,
+      message: responseBody.message || 'Your card was declined. Use a different card or payment method and try again.',
+    });
     return response;
   }
 
@@ -88,54 +101,27 @@ const handler = async (event, context) => {
     && responseBody.reconciliationRequired !== true
     && responseBody.paymentStatusUnknown !== true,
   );
-  if (!definitivePaidState) return response;
 
-  let requestBody = {};
-  try { requestBody = JSON.parse(event.body || '{}'); } catch { /* no-op */ }
+  if (!definitivePaidState || !internalOrderId || !paypalOrderId) return response;
 
-  const internalOrderId = clean(requestBody.internalOrderId, 100)
-    || clean(responseBody.internalOrderId, 100);
-  if (!internalOrderId) return response;
-
-  let customerInfoPersisted = Boolean(responseBody.customerInfoPersisted);
+  let refreshedCustomer = null;
   try {
-    const customer = normalizeCustomerInfo(requestBody.customerInfo);
-    const complete = Boolean(
-      customer.fullName
-      && customer.email
-      && customer.address1
-      && customer.city
-      && customer.state
-      && customer.postalCode,
-    );
-
-    if (complete) {
-      const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
-      if (!dbUrl) throw new Error('Database URL not configured');
-      const sql = neon(dbUrl);
-      const updated = await sql`
-        UPDATE orders
-           SET email = ${customer.email},
-               customer_name = ${customer.fullName},
-               customer_first_name = ${customer.firstName},
-               shipping_name = ${customer.fullName},
-               shipping_street = ${customer.address1},
-               shipping_street2 = ${customer.address2},
-               shipping_city = ${customer.city},
-               shipping_state = ${customer.state},
-               shipping_zip = ${customer.postalCode},
-               shipping_country = ${customer.country},
-               updated_at = NOW()
-         WHERE id = ${internalOrderId}
-        RETURNING id
-      `;
-      customerInfoPersisted = updated.length > 0;
-    }
-  } catch (error) {
-    // Payment is already durable. Contact-data trouble must never turn a
-    // completed capture into a customer-facing failure or another charge.
-    console.error('[paypal-capture-minimal] post-capture customer update failed', {
+    // The hosted PayPal card/wallet UI owns customer entry. Use the SDK-approved
+    // representation plus a fresh server-side PayPal GET so Admin and Resend do
+    // not depend on the abbreviated capture response.
+    refreshedCustomer = await customerInfoModule.refreshOrderCustomerInfo({
       internalOrderId,
+      orderID: paypalOrderId,
+      submitted: requestBody.customerInfo,
+      approvedOrderData: requestBody.approvedOrderData,
+      shippingChangeData: requestBody.shippingChangeData,
+    });
+  } catch (error) {
+    // Payment is already durable. Customer-data trouble is logged and retried
+    // by the webhook/status paths; it must never create a second charge prompt.
+    console.error('[paypal-capture-minimal] customer information refresh failed', {
+      internalOrderId,
+      paypalOrderId,
       error: error instanceof Error ? error.message : String(error),
     });
   }
@@ -143,11 +129,30 @@ const handler = async (event, context) => {
   const followupsQueued = await queuePaidOrderFollowups(event, internalOrderId);
   response.body = JSON.stringify({
     ...responseBody,
-    customerInfoPersisted,
+    customerInfoPersisted: Boolean(refreshedCustomer)
+      || Boolean(responseBody.customerEmail || responseBody.customerName),
+    customerEmail: refreshedCustomer?.email || responseBody.customerEmail || null,
+    customerName: refreshedCustomer?.customer_name || responseBody.customerName || null,
+    customerPhone: refreshedCustomer?.customer_phone || responseBody.customerPhone || null,
+    shippingAddress: refreshedCustomer
+      ? {
+          name: refreshedCustomer.shipping_name || refreshedCustomer.customer_name || null,
+          street: refreshedCustomer.shipping_street || null,
+          street2: refreshedCustomer.shipping_street2 || null,
+          city: refreshedCustomer.shipping_city || null,
+          state: refreshedCustomer.shipping_state || null,
+          zip: refreshedCustomer.shipping_zip || null,
+          country: refreshedCustomer.shipping_country || 'US',
+        }
+      : responseBody.shippingAddress || null,
     followupsQueued,
   });
   return response;
 };
 
-export const _test = { normalizeCustomerInfo, getSiteUrl, queuePaidOrderFollowups };
+export const _test = {
+  getSiteUrl,
+  queuePaidOrderFollowups,
+};
+
 export default withLambda(handler);
