@@ -2,6 +2,7 @@ import '@neondatabase/serverless';
 import { neon } from '@neondatabase/serverless';
 import { withLambda } from '@netlify/aws-lambda-compat';
 import captureModule from './_shared/legacy/paypal-capture-forward.cjs';
+import customerInfoModule from './_shared/legacy/paypal-customer-info.cjs';
 
 const headers = {
   'Content-Type': 'application/json',
@@ -30,6 +31,7 @@ const queuePaidOrderFollowups = async (event, orderId) => {
   const secret = process.env.INTERNAL_JOB_SECRET || process.env.AUTH_SESSION_SECRET;
   const requestHeaders = { 'Content-Type': 'application/json' };
   if (secret) requestHeaders['X-Internal-Job-Secret'] = secret;
+
   try {
     const response = await fetch(`${siteUrl}/.netlify/functions/process-paid-order-followups-background`, {
       method: 'POST',
@@ -62,6 +64,7 @@ const paidPayload = (order) => ({
   captureStatus: 'COMPLETED',
   customerEmail: order.email || null,
   customerName: order.customer_name || order.shipping_name || null,
+  customerPhone: order.customer_phone || null,
   shippingAddress: {
     name: order.shipping_name || order.customer_name || null,
     street: order.shipping_street || null,
@@ -78,6 +81,21 @@ const paidPayload = (order) => ({
   adminNotificationStatus: order.admin_notification_status || null,
 });
 
+const loadOrder = async (sql, internalOrderId) => {
+  const rows = await sql`
+    SELECT id, status, subtotal_cents, tax_cents, total_cents, email,
+           customer_name, customer_phone, shipping_name, shipping_street,
+           shipping_street2, shipping_city, shipping_state, shipping_zip,
+           shipping_country, paypal_order_id, paypal_capture_id,
+           payment_reconciliation_status, confirmation_email_status,
+           admin_notification_status
+      FROM orders
+     WHERE id = ${internalOrderId}
+     LIMIT 1
+  `;
+  return rows[0] || null;
+};
+
 const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
   if (event.httpMethod !== 'POST') return reply(405, { ok: false, error: 'METHOD_NOT_ALLOWED' });
@@ -92,20 +110,26 @@ const handler = async (event) => {
   const sql = neon(dbUrl);
 
   try {
-    const rows = await sql`
-      SELECT id, status, subtotal_cents, tax_cents, total_cents, email,
-             customer_name, shipping_name, shipping_street, shipping_street2,
-             shipping_city, shipping_state, shipping_zip, shipping_country,
-             paypal_order_id, paypal_capture_id, payment_reconciliation_status,
-             confirmation_email_status, admin_notification_status
-        FROM orders
-       WHERE id = ${internalOrderId}
-       LIMIT 1
-    `;
-    if (!rows.length) return reply(404, { ok: false, error: 'ORDER_NOT_FOUND' });
-    const order = rows[0];
+    let order = await loadOrder(sql, internalOrderId);
+    if (!order) return reply(404, { ok: false, error: 'ORDER_NOT_FOUND' });
 
     if (order.status === 'paid' && order.paypal_capture_id) {
+      if (order.paypal_order_id) {
+        try {
+          await customerInfoModule.refreshOrderCustomerInfo({
+            internalOrderId,
+            orderID: order.paypal_order_id,
+            approvedOrderData: input.approvedOrderData,
+            shippingChangeData: input.shippingChangeData,
+          });
+          order = await loadOrder(sql, internalOrderId) || order;
+        } catch (error) {
+          console.error('[paypal-payment-status] customer refresh failed for paid order', {
+            internalOrderId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
       void queuePaidOrderFollowups(event, order.id);
       return reply(200, paidPayload(order));
     }
@@ -117,15 +141,15 @@ const handler = async (event) => {
         paymentCaptured: false,
         reconciliationRequired: false,
         paymentStatusUnknown: false,
+        retryAllowed: true,
         internalOrderId,
         status: order.status,
       });
     }
 
-    // Re-read the exact PayPal order without initiating a new payment attempt.
-    // If PayPal already completed the capture, the shared handler atomically
-    // finalizes the existing internal order. If PayPal definitively declined,
-    // the response unlocks checkout instead of leaving a confirmation notice.
+    // Re-read the exact PayPal order without initiating another capture. A
+    // completed provider capture is finalized; an expired/failed attempt
+    // unlocks checkout; only a truly unresolved provider state remains locked.
     const captureResponse = await captureModule.handler({
       httpMethod: 'POST',
       headers: event.headers || {},
@@ -135,19 +159,52 @@ const handler = async (event) => {
         reconcileOnly: true,
       }),
     });
+
     let capturePayload = {};
     try { capturePayload = JSON.parse(captureResponse?.body || '{}'); } catch { /* no-op */ }
 
+    const statusCode = Number(captureResponse?.statusCode || 500);
     if (
-      Number(captureResponse?.statusCode) === 200
+      statusCode === 200
       && capturePayload?.paymentCaptured === true
       && capturePayload?.captureStatus === 'COMPLETED'
     ) {
+      try {
+        await customerInfoModule.refreshOrderCustomerInfo({
+          internalOrderId,
+          orderID: order.paypal_order_id,
+          approvedOrderData: input.approvedOrderData,
+          shippingChangeData: input.shippingChangeData,
+        });
+      } catch (error) {
+        console.error('[paypal-payment-status] customer refresh failed after reconciliation', {
+          internalOrderId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+      order = await loadOrder(sql, internalOrderId) || order;
       void queuePaidOrderFollowups(event, internalOrderId);
+      return reply(200, paidPayload(order));
+    }
+
+    if (statusCode === 422 && capturePayload?.paymentCaptured !== true) {
+      try {
+        await customerInfoModule.retireDefinitivelyDeclinedPayPalOrder({
+          internalOrderId,
+          orderID: order.paypal_order_id,
+        });
+      } catch { /* retry remains available even if cleanup logs elsewhere */ }
+      return reply(422, {
+        ...capturePayload,
+        restartPayment: false,
+        retryAllowed: true,
+        reconciliationRequired: false,
+        paymentStatusUnknown: false,
+      });
     }
 
     return {
-      statusCode: Number(captureResponse?.statusCode || 500),
+      statusCode,
       headers,
       body: JSON.stringify(capturePayload),
     };
