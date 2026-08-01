@@ -1,9 +1,9 @@
-// The backend handler remains authoritative for pricing, identity, and PayPal
-// order linkage. This modern entrypoint adds buyer-visible line items without
-// changing the charged amount.
+// The backend handler remains authoritative for pricing, identity, customer
+// details, shipping, and PayPal order linkage. This modern entrypoint adds
+// buyer-visible line items without changing the charged amount.
 import '@neondatabase/serverless';
 import { withLambda } from '@netlify/aws-lambda-compat';
-import legacyModule from './_shared/legacy/paypal-create-order-forward.cjs';
+import legacyModule from './_shared/legacy/paypal-create-order-final.cjs';
 import displayHelpers from './_shared/legacy/product-display-helpers.cjs';
 
 const PAYPAL_CREATE_ORDER_RE = /\/v2\/checkout\/orders(?:\?|$)/i;
@@ -58,9 +58,6 @@ const buildPayPalItems = (cartItems, totalCents) => {
     }];
   }
 
-  // Allocate the already-authoritative final PayPal total across the visible
-  // configuration lines. This preserves the exact charge amount without
-  // reimplementing pricing in this packaging layer.
   const allocations = allocateCents(
     totalCents,
     sourceItems.map((item) => Number(item.line_total_cents || 0)),
@@ -129,8 +126,6 @@ const handler = async (event, context) => {
       body: JSON.stringify(enhanced),
     });
 
-    // Checkout availability wins over display enrichment. If PayPal rejects an
-    // edge-case item payload, retry once with the original proven request.
     if (!enhancedResponse.ok && [400, 422].includes(enhancedResponse.status)) {
       let diagnostic = '';
       try { diagnostic = (await enhancedResponse.clone().text()).slice(0, 500); } catch { /* no-op */ }
