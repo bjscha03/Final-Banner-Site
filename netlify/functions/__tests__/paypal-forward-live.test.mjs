@@ -47,15 +47,16 @@ test('checkout uses only PayPal-hosted forms and does not add merchant contact f
   const source = read('../../../src/components/checkout/PayPalCheckoutReliable.tsx');
   const config = read('../_shared/legacy/paypal-config.cjs');
 
-  assert.match(source, /components:\s*'buttons'/);
-  assert.match(source, /renderButton\('card'\)/);
-  assert.match(source, /renderButton\('paypal'\)/);
+  assert.match(source, /components:\s*'buttons,card-fields'/);
+  assert.match(source, /PayPalCardFieldsProvider/);
+  assert.match(source, /PayPalCardFieldsForm/);
+  assert.match(source, /renderPayPalButton\(\)/);
   assert.doesNotMatch(source, /<input/);
   assert.doesNotMatch(source, /guestName|Order contact|Shipping address form|Contact information form/);
-  assert.doesNotMatch(source, /PayPalCardFields|PayPalHostedFields|clientToken/);
-  assert.match(config, /components:\s*'buttons'/);
-  assert.match(config, /fastlane:\s*false/);
-  assert.doesNotMatch(config, /generate-token|client_token/);
+  assert.doesNotMatch(source, /PayPalHostedFields|fundingSource="card"/);
+  assert.match(config, /components:\s*'buttons,card-fields'/);
+  assert.match(config, /generate-token|client_token/);
+  assert.doesNotMatch(`${source}\n${config}`, /fastlane/i);
 });
 
 test('completed capture finalizes the existing internal order only after identity and amount checks', () => {
