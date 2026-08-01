@@ -1,5 +1,5 @@
 import { withLambda } from '@netlify/aws-lambda-compat';
-import legacyModule from './_shared/legacy/paypal-webhook.cjs';
+import webhookModule from './_shared/legacy/paypal-webhook-forward.cjs';
 
 const getSiteUrl = (event) => {
   const configured = process.env.URL || process.env.DEPLOY_PRIME_URL || process.env.PUBLIC_SITE_URL;
@@ -8,28 +8,30 @@ const getSiteUrl = (event) => {
   return host ? `https://${host}` : null;
 };
 
-const triggerOrderNotifications = async (event, orderId) => {
+const queuePaidOrderFollowups = async (event, orderId) => {
   const siteUrl = getSiteUrl(event);
   if (!siteUrl || !orderId) return false;
 
+  const internalSecret = process.env.INTERNAL_JOB_SECRET || process.env.AUTH_SESSION_SECRET;
+  const requestHeaders = { 'Content-Type': 'application/json' };
+  if (internalSecret) requestHeaders['X-Internal-Job-Secret'] = internalSecret;
+
   try {
-    const response = await fetch(`${siteUrl}/.netlify/functions/notify-order`, {
+    const response = await fetch(`${siteUrl}/.netlify/functions/process-paid-order-followups-background`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: requestHeaders,
       body: JSON.stringify({ orderId }),
     });
-    const details = await response.json().catch(() => ({}));
-    if (!response.ok || details?.ok === false) {
-      console.error('[paypal-webhook] notification trigger failed', {
+    if (!response.ok) {
+      console.error('[paypal-webhook] follow-up queue rejected', {
         orderId,
         status: response.status,
-        error: details?.error || null,
       });
       return false;
     }
     return true;
   } catch (error) {
-    console.error('[paypal-webhook] notification request failed', {
+    console.error('[paypal-webhook] follow-up queue failed', {
       orderId,
       error: error instanceof Error ? error.message : String(error),
     });
@@ -38,24 +40,23 @@ const triggerOrderNotifications = async (event, orderId) => {
 };
 
 const handler = async (event, context) => {
-  const response = await legacyModule.handler(event, context);
-  const statusCode = Number(response?.statusCode || 500);
-  if (statusCode < 200 || statusCode >= 300) return response;
+  const response = await webhookModule.handler(event, context);
+  if (Number(response?.statusCode || 500) !== 200) return response;
 
   let payload = {};
-  try {
-    payload = JSON.parse(response.body || '{}');
-  } catch {
-    return response;
-  }
+  try { payload = JSON.parse(response.body || '{}'); } catch { return response; }
 
-  const orderId = typeof payload.orderId === 'string' ? payload.orderId : null;
-  if (!orderId) return response;
+  const definitivePaidState = Boolean(
+    payload?.orderId
+    && payload?.paymentCaptured === true
+    && payload?.captureID,
+  );
+  if (!definitivePaidState) return response;
 
-  const notificationsTriggered = await triggerOrderNotifications(event, orderId);
-  response.body = JSON.stringify({ ...payload, notificationsTriggered });
+  const followupsQueued = await queuePaidOrderFollowups(event, payload.orderId);
+  response.body = JSON.stringify({ ...payload, followupsQueued });
   return response;
 };
 
-export const _test = { getSiteUrl };
+export const _test = { getSiteUrl, queuePaidOrderFollowups };
 export default withLambda(handler);
