@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import fs from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import captureModule from '../_shared/legacy/paypal-capture-minimal.cjs';
 
 const {
@@ -174,8 +174,8 @@ describe('PayPal capture production behavior', () => {
     });
   });
 
-  it('keeps stale-link rejection and paid finalization before production queueing', () => {
-    const source = fs.readFileSync(
+  it('keeps stale-link rejection and paid finalization before production queueing', async () => {
+    const source = await readFile(
       new URL('../_shared/legacy/paypal-capture-minimal.cjs', import.meta.url),
       'utf8',
     );
@@ -183,7 +183,7 @@ describe('PayPal capture production behavior', () => {
     const staleCheck = source.indexOf("if (order.paypal_order_id !== orderID)");
     const oauth = source.indexOf('getPayPalAccessToken(paypalConfig)');
     const paidUpdate = source.indexOf("UPDATE orders SET\n        status = 'paid'");
-    const productionQueue = source.indexOf('queueProductionPdfs(internalOrderId)');
+    const productionQueue = source.indexOf('await queueProductionPdfs(internalOrderId)', paidUpdate);
 
     expect(staleCheck).toBeGreaterThan(-1);
     expect(oauth).toBeGreaterThan(staleCheck);
