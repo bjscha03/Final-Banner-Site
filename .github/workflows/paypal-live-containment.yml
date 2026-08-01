@@ -1,0 +1,43 @@
+name: PayPal Live Containment
+
+on:
+  pull_request:
+    paths:
+      - 'src/main.tsx'
+      - 'src/lib/paypalCaptureResponseGuard.ts'
+      - 'src/lib/paypalCaptureResponseGuard.test.ts'
+      - 'netlify/functions/paypal-capture-minimal.mjs'
+      - 'netlify/functions/paypal-webhook.mjs'
+      - 'netlify/functions/_shared/legacy/paypal-*.cjs'
+      - 'netlify/functions/__tests__/paypal-*.test.mjs'
+      - '.github/workflows/paypal-live-containment.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  containment-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Run PayPal containment tests
+        run: |
+          npx vitest run src/lib/paypalCaptureResponseGuard.test.ts --reporter=verbose
+          npx vitest run \
+            netlify/functions/__tests__/paypal-payment-safety.test.mjs \
+            netlify/functions/__tests__/paypal-capture-production-behavior.test.mjs \
+            --reporter=verbose
+      - name: Check function syntax
+        run: |
+          node --check netlify/functions/paypal-capture-minimal.mjs
+          node --check netlify/functions/paypal-webhook.mjs
+      - name: Type-check
+        run: npx tsc --noEmit --pretty false
+      - name: Build
+        run: npm run build
