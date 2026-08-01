@@ -1,5 +1,6 @@
 import { withLambda } from '@netlify/aws-lambda-compat';
 import webhookModule from './_shared/legacy/paypal-webhook-forward.cjs';
+import customerInfoModule from './_shared/legacy/paypal-customer-info.cjs';
 
 const getSiteUrl = (event) => {
   const configured = process.env.URL || process.env.DEPLOY_PRIME_URL || process.env.PUBLIC_SITE_URL;
@@ -49,12 +50,32 @@ const handler = async (event, context) => {
   const definitivePaidState = Boolean(
     payload?.orderId
     && payload?.paymentCaptured === true
-    && payload?.captureID,
+    && payload?.captureID
+    && (payload?.orderID || payload?.paypalOrderID),
   );
   if (!definitivePaidState) return response;
 
+  const paypalOrderId = payload.orderID || payload.paypalOrderID;
+  let refreshedCustomer = null;
+  try {
+    refreshedCustomer = await customerInfoModule.refreshOrderCustomerInfo({
+      internalOrderId: payload.orderId,
+      orderID: paypalOrderId,
+    });
+  } catch (error) {
+    console.error('[paypal-webhook] customer information refresh failed', {
+      orderId: payload.orderId,
+      paypalOrderId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
   const followupsQueued = await queuePaidOrderFollowups(event, payload.orderId);
-  response.body = JSON.stringify({ ...payload, followupsQueued });
+  response.body = JSON.stringify({
+    ...payload,
+    customerInfoPersisted: Boolean(refreshedCustomer),
+    followupsQueued,
+  });
   return response;
 };
 
