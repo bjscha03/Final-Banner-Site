@@ -29,13 +29,6 @@ export default defineConfig(({ mode }) => ({
   ].filter(Boolean),
   resolve: {
     alias: [
-      // Collect a real guest name/email before PayPal is enabled. The wrapper
-      // also injects that contact into pending-order/create/capture requests so
-      // confirmations can never be sent to a generated guest-* placeholder.
-      {
-        find: /^@\/components\/checkout\/PayPalCheckout$/,
-        replacement: path.resolve(__dirname, "./src/components/checkout/PayPalCheckoutContactSafe.tsx"),
-      },
       // One preview pipeline is used by Design, Google Ads landing pages,
       // cart, checkout, upsells, yard-sign rows, and enlarged lightboxes.
       // These exact aliases deliberately sit before the general @ alias so
