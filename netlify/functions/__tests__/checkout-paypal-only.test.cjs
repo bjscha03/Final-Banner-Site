@@ -6,15 +6,20 @@ const path = require('node:path');
 const repoRoot = path.resolve(__dirname, '../../..');
 const read = (relativePath) => fs.readFileSync(path.join(repoRoot, relativePath), 'utf8');
 
-test('checkout no longer routes PayPal through the accidental contact form wrapper', () => {
+test('checkout uses the contact-safe PayPal wrapper and keeps the accidental shipping wrapper removed', () => {
   const viteConfig = read('vite.config.ts');
+  const safeWrapper = read('src/components/checkout/PayPalCheckoutContactSafe.tsx');
   const removedWrapper = path.join(
     repoRoot,
     'src/components/checkout/PayPalCheckoutContact.tsx',
   );
 
-  assert.equal(viteConfig.includes('PayPalCheckoutContact'), false);
   assert.equal(fs.existsSync(removedWrapper), false);
+  assert.match(viteConfig, /PayPalCheckoutContactSafe\.tsx/);
+  assert.match(safeWrapper, /Email for confirmation/);
+  assert.match(safeWrapper, /payload\.email = customerEmail/);
+  assert.match(safeWrapper, /disabled=\{Boolean\(props\.disabled \|\| !contactValid\)\}/);
+  assert.equal(safeWrapper.includes('shipping address'), false);
 });
 
 test('legacy card component cannot load or call a non-PayPal payment SDK', () => {
