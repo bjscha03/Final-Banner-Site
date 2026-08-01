@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import fs from 'node:fs';
+import { readFileSync } from 'node:fs';
 import captureModule from '../_shared/legacy/paypal-capture-minimal.cjs';
 
 const {
@@ -175,7 +175,7 @@ describe('PayPal capture production behavior', () => {
   });
 
   it('keeps stale-link rejection and paid finalization before production queueing', () => {
-    const source = fs.readFileSync(
+    const source = readFileSync(
       new URL('../_shared/legacy/paypal-capture-minimal.cjs', import.meta.url),
       'utf8',
     );
