@@ -10,10 +10,10 @@ const clean = (value, max = 500) => {
 };
 
 const getSiteUrl = (event) => {
-  const configured = process.env.URL || process.env.DEPLOY_PRIME_URL || process.env.PUBLIC_SITE_URL;
-  if (configured) return String(configured).replace(/\/$/, '');
   const host = event?.headers?.['x-forwarded-host'] || event?.headers?.host;
-  return host ? `https://${host}` : null;
+  if (host) return `https://${host}`;
+  const configured = process.env.DEPLOY_PRIME_URL || process.env.URL || process.env.PUBLIC_SITE_URL;
+  return configured ? String(configured).replace(/\/$/, '') : null;
 };
 
 const queuePaidOrderFollowups = async (event, orderId) => {
