@@ -6,26 +6,46 @@ const path = require('node:path');
 const repoRoot = path.resolve(__dirname, '../../..');
 const read = (relativePath) => fs.readFileSync(path.join(repoRoot, relativePath), 'utf8');
 
-test('checkout uses the contact-safe PayPal wrapper and keeps the accidental shipping wrapper removed', () => {
+test('checkout routes directly to PayPal and has no duplicate site contact form', () => {
   const viteConfig = read('vite.config.ts');
-  const safeWrapper = read('src/components/checkout/PayPalCheckoutContactSafe.tsx');
-  const removedWrapper = path.join(
+  const checkout = read('src/pages/Checkout.tsx');
+  const paypalCheckout = read('src/components/checkout/PayPalCheckout.tsx');
+  const contactWrapper = path.join(
+    repoRoot,
+    'src/components/checkout/PayPalCheckoutContactSafe.tsx',
+  );
+  const removedShippingWrapper = path.join(
     repoRoot,
     'src/components/checkout/PayPalCheckoutContact.tsx',
   );
 
-  assert.equal(fs.existsSync(removedWrapper), false);
-  assert.match(viteConfig, /PayPalCheckoutContactSafe\.tsx/);
-  assert.match(safeWrapper, /Email for order confirmation and tracking/);
-  assert.match(safeWrapper, /payload\.email = customerEmail/);
-  assert.match(safeWrapper, /disabled=\{Boolean\(props\.disabled\)\}/);
-  assert.equal(safeWrapper.includes('props.disabled || !contactValid'), false);
-  assert.match(safeWrapper, /CHECKOUT_CONTACT_REQUIRED/);
-  assert.match(safeWrapper, /if \(!contactValid\)/);
-  assert.match(safeWrapper, /Enter email for order updates before paying/);
-  assert.equal(safeWrapper.includes('Full name'), false);
-  assert.equal(safeWrapper.includes('Order contact'), false);
-  assert.equal(safeWrapper.includes('shipping address'), false);
+  assert.equal(fs.existsSync(contactWrapper), false);
+  assert.equal(fs.existsSync(removedShippingWrapper), false);
+  assert.equal(viteConfig.includes('PayPalCheckoutContactSafe'), false);
+  assert.equal(viteConfig.includes('PayPalCheckoutContact'), false);
+  assert.match(checkout, /@\/components\/checkout\/PayPalCheckout/);
+  assert.match(paypalCheckout, /fundingSource=\{"card" as any\}/);
+  assert.match(paypalCheckout, /fundingSource=\{"paypal" as any\}/);
+  assert.equal(paypalCheckout.includes('Email for order confirmation and tracking'), false);
+  assert.equal(paypalCheckout.includes('Email for confirmation'), false);
+});
+
+test('PayPal order creation requests the standard guest checkout experience', () => {
+  const createOrder = read('netlify/functions/_shared/legacy/paypal-create-order.cjs');
+
+  assert.match(createOrder, /landing_page:\s*'GUEST_CHECKOUT'/);
+  assert.match(createOrder, /shipping_preference:\s*'GET_FROM_FILE'/);
+  assert.match(createOrder, /user_action:\s*'PAY_NOW'/);
+});
+
+test('capture replaces a generated guest email with PayPal payer data before notifications', () => {
+  const capture = read('netlify/functions/_shared/legacy/paypal-capture-minimal.cjs');
+  const captureWrapper = read('netlify/functions/paypal-capture-minimal.mjs');
+
+  assert.match(capture, /extractCustomerEmail\(paypalData\)/);
+  assert.match(capture, /email ILIKE 'guest-%@bannersonthefly\.com'/);
+  assert.match(capture, /THEN \$\{payerEmail \|\| null\}/);
+  assert.match(captureWrapper, /triggerOrderNotifications\(event, internalOrderId\)/);
 });
 
 test('legacy card component cannot load or call a non-PayPal payment SDK', () => {
