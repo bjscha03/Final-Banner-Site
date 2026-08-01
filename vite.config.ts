@@ -29,6 +29,12 @@ export default defineConfig(({ mode }) => ({
   ].filter(Boolean),
   resolve: {
     alias: [
+      // Keep the public checkout import stable while routing every live payment
+      // through the fail-closed, single-flight implementation.
+      {
+        find: /^@\/components\/checkout\/PayPalCheckout$/,
+        replacement: path.resolve(__dirname, "./src/components/checkout/PayPalCheckoutReliable.tsx"),
+      },
       // One preview pipeline is used by Design, Google Ads landing pages,
       // cart, checkout, upsells, yard-sign rows, and enlarged lightboxes.
       // These exact aliases deliberately sit before the general @ alias so
