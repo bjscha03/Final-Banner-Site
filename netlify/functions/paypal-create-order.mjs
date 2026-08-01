@@ -1,9 +1,9 @@
-// The backend handler remains authoritative for pricing, identity, customer
-// details, shipping, and PayPal order linkage. This modern entrypoint adds
-// buyer-visible line items without changing the charged amount.
+// The backend handler remains authoritative for pricing, identity, and PayPal
+// order linkage. This modern entrypoint adds buyer-visible line items without
+// changing the charged amount.
 import '@neondatabase/serverless';
 import { withLambda } from '@netlify/aws-lambda-compat';
-import legacyModule from './_shared/legacy/paypal-create-order-final.cjs';
+import legacyModule from './_shared/legacy/paypal-create-order-forward.cjs';
 import displayHelpers from './_shared/legacy/product-display-helpers.cjs';
 
 const PAYPAL_CREATE_ORDER_RE = /\/v2\/checkout\/orders(?:\?|$)/i;
