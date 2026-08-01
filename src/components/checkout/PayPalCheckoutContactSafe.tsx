@@ -10,7 +10,6 @@ interface PayPalCheckoutProps {
   cardFirstLayout?: boolean;
 }
 
-const CONTACT_NAME_KEY = 'bof-checkout-contact-name';
 const CONTACT_EMAIL_KEY = 'bof-checkout-contact-email';
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CONTACT_REQUIRED_CODE = 'CHECKOUT_CONTACT_REQUIRED';
@@ -31,63 +30,48 @@ const getRequestUrl = (input: RequestInfo | URL): string => {
 };
 
 /**
- * Checkout reliability wrapper.
+ * Keeps checkout simple while guaranteeing a usable customer email.
  *
- * PayPal's hosted guest-card form can email a receipt without returning that
- * email address to the merchant API. We therefore collect the order-contact
- * name/email before PayPal can create an order, persist them on the pending
- * internal order, and include them again with capture. The PayPal buttons stay
- * visually active; an incomplete contact form is rejected before any order or
- * payment request can be created.
+ * PayPal collects the customer's name and shipping details inside its secure
+ * card/wallet flow. The site asks only for the email needed for the store's
+ * confirmation and tracking messages because guest-card payments do not always
+ * return that email to the merchant API.
  */
 const PayPalCheckoutContactSafe: React.FC<PayPalCheckoutProps> = (props) => {
   const { user } = useAuth();
-  const accountName = String(
-    user?.user_metadata?.full_name
-      || user?.user_metadata?.name
-      || '',
-  ).trim();
-
-  const [guestName, setGuestName] = useState(() => readSessionValue(CONTACT_NAME_KEY));
   const [guestEmail, setGuestEmail] = useState(() => readSessionValue(CONTACT_EMAIL_KEY));
   const [attempted, setAttempted] = useState(false);
-  const nameInputRef = useRef<HTMLInputElement>(null);
   const emailInputRef = useRef<HTMLInputElement>(null);
   const contactBlockedRef = useRef(false);
-
-  const customerName = useMemo(() => {
-    if (accountName) return accountName;
-    if (user?.email) return user.email.split('@')[0] || 'Customer';
-    return guestName.trim();
-  }, [accountName, guestName, user?.email]);
 
   const customerEmail = useMemo(
     () => String(user?.email || guestEmail).trim().toLowerCase(),
     [guestEmail, user?.email],
   );
 
-  const contactValid = Boolean(customerName && EMAIL_PATTERN.test(customerEmail));
+  const contactValid = EMAIL_PATTERN.test(customerEmail);
   const isGuest = !user?.email;
 
-  const focusMissingContact = () => {
-    if (!customerName) {
-      nameInputRef.current?.focus();
-      return;
-    }
-    if (!EMAIL_PATTERN.test(customerEmail)) {
-      emailInputRef.current?.focus();
-    }
+  const focusEmail = () => {
+    emailInputRef.current?.focus();
+  };
+
+  const requireEmail = () => {
+    contactBlockedRef.current = true;
+    setAttempted(true);
+    window.setTimeout(focusEmail, 0);
   };
 
   useEffect(() => {
     if (!isGuest || typeof window === 'undefined') return;
     try {
-      window.sessionStorage.setItem(CONTACT_NAME_KEY, guestName.trim());
       window.sessionStorage.setItem(CONTACT_EMAIL_KEY, guestEmail.trim());
+      // Remove the obsolete duplicate-name field value left by the prior build.
+      window.sessionStorage.removeItem('bof-checkout-contact-name');
     } catch {
       // A blocked storage API must not prevent checkout; React state remains authoritative.
     }
-  }, [guestEmail, guestName, isGuest]);
+  }, [guestEmail, isGuest]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -104,9 +88,7 @@ const PayPalCheckoutContactSafe: React.FC<PayPalCheckoutProps> = (props) => {
       }
 
       if (!contactValid) {
-        contactBlockedRef.current = true;
-        setAttempted(true);
-        window.setTimeout(focusMissingContact, 0);
+        requireEmail();
         const error = new Error(CONTACT_REQUIRED_CODE) as Error & { code?: string };
         error.code = CONTACT_REQUIRED_CODE;
         throw error;
@@ -119,8 +101,6 @@ const PayPalCheckoutContactSafe: React.FC<PayPalCheckoutProps> = (props) => {
 
         if (url.includes('/.netlify/functions/create-order')) {
           payload.email = customerEmail;
-          payload.customer_name = customerName;
-          payload.customer_first_name = customerName.split(/\s+/)[0] || customerName;
         }
 
         if (url.includes('/.netlify/functions/paypal-create-order')) {
@@ -131,7 +111,6 @@ const PayPalCheckoutContactSafe: React.FC<PayPalCheckoutProps> = (props) => {
           payload.customerInfo = {
             ...(payload.customerInfo || {}),
             email: customerEmail,
-            fullName: customerName,
           };
         }
 
@@ -151,15 +130,12 @@ const PayPalCheckoutContactSafe: React.FC<PayPalCheckoutProps> = (props) => {
     return () => {
       if (window.fetch === patchedFetch) window.fetch = originalFetch;
     };
-  }, [contactValid, customerEmail, customerName]);
+  }, [contactValid, customerEmail]);
 
   const handleSuccess = (orderId: string, orderData?: any) => {
     props.onSuccess(orderId, {
       ...(orderData || {}),
       email: customerEmail,
-      customer_name: customerName,
-      customer_first_name: customerName.split(/\s+/)[0] || customerName,
-      shipping_name: orderData?.shipping_name || customerName,
     });
   };
 
@@ -171,8 +147,7 @@ const PayPalCheckoutContactSafe: React.FC<PayPalCheckoutProps> = (props) => {
       || message.includes(CONTACT_REQUIRED_CODE)
     ) {
       contactBlockedRef.current = false;
-      setAttempted(true);
-      window.setTimeout(focusMissingContact, 0);
+      requireEmail();
       return;
     }
 
@@ -180,80 +155,63 @@ const PayPalCheckoutContactSafe: React.FC<PayPalCheckoutProps> = (props) => {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {isGuest ? (
-        <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-3.5">
-          <p className="text-sm font-semibold text-[#18448D]">Order contact</p>
-          <p className="mt-1 text-xs text-slate-600">
-            Your receipt, order confirmation, and tracking updates will be sent here.
-          </p>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <label className="block text-xs font-medium text-slate-700">
-              Full name
-              <input
-                ref={nameInputRef}
-                type="text"
-                autoComplete="name"
-                value={guestName}
-                onChange={(event) => {
-                  contactBlockedRef.current = false;
-                  setGuestName(event.target.value);
-                }}
-                onBlur={() => setAttempted(true)}
-                aria-invalid={attempted && !customerName}
-                className={`mt-1 h-10 w-full rounded-md border bg-white px-3 text-sm text-slate-900 outline-none focus:ring-2 ${
-                  attempted && !customerName
-                    ? 'border-red-400 focus:border-red-500 focus:ring-red-100'
-                    : 'border-slate-300 focus:border-[#18448D] focus:ring-blue-100'
-                }`}
-                placeholder="Full name"
-              />
-            </label>
-            <label className="block text-xs font-medium text-slate-700">
-              Email for confirmation
-              <input
-                ref={emailInputRef}
-                type="email"
-                inputMode="email"
-                autoComplete="email"
-                value={guestEmail}
-                onChange={(event) => {
-                  contactBlockedRef.current = false;
-                  setGuestEmail(event.target.value);
-                }}
-                onBlur={() => setAttempted(true)}
-                aria-invalid={attempted && !EMAIL_PATTERN.test(customerEmail)}
-                className={`mt-1 h-10 w-full rounded-md border bg-white px-3 text-sm text-slate-900 outline-none focus:ring-2 ${
-                  attempted && !EMAIL_PATTERN.test(customerEmail)
-                    ? 'border-red-400 focus:border-red-500 focus:ring-red-100'
-                    : 'border-slate-300 focus:border-[#18448D] focus:ring-blue-100'
-                }`}
-                placeholder="you@example.com"
-              />
-            </label>
-          </div>
-          {!contactValid ? (
-            <p className={`mt-2 text-xs font-medium ${attempted ? 'text-red-600' : 'text-slate-600'}`}>
-              Enter your full name and a valid email before payment can continue.
+        <div className="space-y-1.5">
+          <label className="block text-xs font-medium text-slate-700">
+            Email for order confirmation and tracking
+            <input
+              ref={emailInputRef}
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              value={guestEmail}
+              onChange={(event) => {
+                contactBlockedRef.current = false;
+                setGuestEmail(event.target.value);
+              }}
+              onBlur={() => setAttempted(true)}
+              aria-invalid={attempted && !contactValid}
+              className={`mt-1 h-10 w-full rounded-md border bg-white px-3 text-sm text-slate-900 outline-none focus:ring-2 ${
+                attempted && !contactValid
+                  ? 'border-red-400 focus:border-red-500 focus:ring-red-100'
+                  : 'border-slate-300 focus:border-[#18448D] focus:ring-blue-100'
+              }`}
+              placeholder="you@example.com"
+            />
+          </label>
+          {attempted && !contactValid ? (
+            <p className="text-xs font-medium text-red-600">
+              Enter a valid email so we can send your order confirmation.
             </p>
           ) : (
-            <p className="mt-2 text-xs font-medium text-emerald-700">
-              Confirmation will be sent to {customerEmail}.
+            <p className="text-[11px] text-slate-500">
+              PayPal securely collects your name and shipping details after you continue.
             </p>
           )}
         </div>
       ) : (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-          Order confirmation will be sent to <strong>{customerEmail}</strong>.
-        </div>
+        <p className="text-xs text-emerald-800">
+          Order updates will be sent to <strong>{customerEmail}</strong>.
+        </p>
       )}
 
-      <OriginalPayPalCheckout
-        {...props}
-        disabled={Boolean(props.disabled)}
-        onSuccess={handleSuccess}
-        onError={handlePaymentError}
-      />
+      <div className="relative">
+        <OriginalPayPalCheckout
+          {...props}
+          disabled={Boolean(props.disabled)}
+          onSuccess={handleSuccess}
+          onError={handlePaymentError}
+        />
+        {isGuest && !contactValid ? (
+          <button
+            type="button"
+            aria-label="Enter email for order updates before paying"
+            className="absolute inset-0 z-20 cursor-pointer bg-transparent"
+            onClick={requireEmail}
+          />
+        ) : null}
+      </div>
     </div>
   );
 };
