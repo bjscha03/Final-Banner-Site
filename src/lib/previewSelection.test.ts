@@ -14,7 +14,7 @@ describe('previewSelection', () => {
     })).toBe('https://cdn.example.com/approved-thumbnail.jpg');
   });
 
-  it('does not let a temporary data URL hide a permanent web preview', () => {
+  it('does not let a temporary data URL hide a permanent legacy web preview', () => {
     expect(getSmallPreviewUrl({
       thumbnail_url: 'data:image/jpeg;base64,temporary',
       web_preview_url: 'https://cdn.example.com/web-preview.jpg',
@@ -41,7 +41,7 @@ describe('previewSelection', () => {
     );
   });
 
-  it('uses the permanent web preview for the enlarged view', () => {
+  it('uses the permanent legacy web preview for an enlarged pre-manifest item', () => {
     expect(getExpandedPreviewSelection({
       thumbnail_url: 'data:image/jpeg;base64,temporary',
       web_preview_url: 'https://cdn.example.com/web-preview.jpg',
@@ -51,6 +51,51 @@ describe('previewSelection', () => {
       isLowResolutionFallback: false,
       isPreparingHighResolution: false,
     });
+  });
+
+  it('uses only an uploaded placement preview when a placement manifest exists', () => {
+    expect(getExpandedPreviewSelection({
+      product_type: 'banner',
+      thumbnail_url: 'https://cdn.example.com/current-thumbnail.jpg',
+      web_preview_url: 'https://cdn.example.com/stale-preview.jpg',
+      placement_preview: { uploadStatus: 'pending' },
+    }).url).toBe('https://cdn.example.com/current-thumbnail.jpg');
+
+    expect(getExpandedPreviewSelection({
+      product_type: 'banner',
+      thumbnail_url: 'https://cdn.example.com/current-thumbnail.jpg',
+      web_preview_url: 'https://cdn.example.com/stale-preview.jpg',
+      placement_preview: {
+        uploadStatus: 'uploaded',
+        url: 'https://cdn.example.com/current-placement.jpg',
+      },
+    }).url).toBe('https://cdn.example.com/current-placement.jpg');
+  });
+
+  it('never lets a stale item-level web preview replace the yard sign artwork', () => {
+    const selection = getExpandedPreviewSelection({
+      product_type: 'yard_sign',
+      thumbnail_url: 'https://cdn.example.com/current-yard-sign-thumbnail.jpg',
+      web_preview_url: 'https://cdn.example.com/previous-banner-preview.jpg',
+      yard_sign_designs: [{
+        previewThumbnailUrl: 'https://cdn.example.com/current-yard-sign-proof.jpg',
+        fileUrl: 'https://cdn.example.com/current-yard-sign-original.jpg',
+      }],
+    });
+
+    expect(selection.url).toBe('https://cdn.example.com/current-yard-sign-thumbnail.jpg');
+    expect(selection.url).not.toContain('previous-banner');
+  });
+
+  it('uses a permanent yard sign design proof when its immediate thumbnail is temporary', () => {
+    expect(getExpandedPreviewSelection({
+      product_type: 'yard_sign',
+      thumbnail_url: 'data:image/png;base64,temporary-yard-sign',
+      web_preview_url: 'https://cdn.example.com/stale-preview.jpg',
+      yard_sign_designs: [{
+        previewThumbnailUrl: 'https://cdn.example.com/current-yard-sign-proof.jpg',
+      }],
+    }).url).toBe('https://cdn.example.com/current-yard-sign-proof.jpg');
   });
 
   it('marks a temporary thumbnail as a low-resolution processing fallback', () => {
