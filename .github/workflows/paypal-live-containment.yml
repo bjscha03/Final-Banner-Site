@@ -47,7 +47,7 @@ jobs:
       - name: Check function syntax
         run: |
           node --check netlify/functions/_shared/legacy/paypal-config.cjs
-          node --check netlify/functions/_shared/legacy/paypal-create-order-final.cjs
+          node --check netlify/functions/_shared/legacy/paypal-create-order-forward.cjs
           node --check netlify/functions/_shared/legacy/paypal-capture-final.cjs
           node --check netlify/functions/_shared/legacy/paypal-capture-forward.cjs
           node --check netlify/functions/_shared/legacy/paypal-customer-info.cjs
