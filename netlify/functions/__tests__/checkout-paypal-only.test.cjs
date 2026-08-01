@@ -30,12 +30,13 @@ test('checkout routes directly to PayPal and has no duplicate site contact form'
   assert.equal(paypalCheckout.includes('Email for confirmation'), false);
 });
 
-test('PayPal order creation requests the standard guest checkout experience', () => {
+test('PayPal order creation uses only supported application context values', () => {
   const createOrder = read('netlify/functions/_shared/legacy/paypal-create-order.cjs');
 
-  assert.match(createOrder, /landing_page:\s*'GUEST_CHECKOUT'/);
+  assert.equal(createOrder.includes("landing_page: 'GUEST_CHECKOUT'"), false);
   assert.match(createOrder, /shipping_preference:\s*'GET_FROM_FILE'/);
   assert.match(createOrder, /user_action:\s*'PAY_NOW'/);
+  assert.match(createOrder, /PayPal rejected order creation/);
 });
 
 test('capture replaces a generated guest email with PayPal payer data before notifications', () => {

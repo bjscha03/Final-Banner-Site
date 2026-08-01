@@ -74,7 +74,6 @@ exports.handler = async (event) => {
       }],
       application_context: {
         brand_name: 'Banners On The Fly',
-        landing_page: 'GUEST_CHECKOUT',
         user_action: 'PAY_NOW',
         shipping_preference: 'GET_FROM_FILE',
       },
@@ -83,7 +82,20 @@ exports.handler = async (event) => {
     const paypalOrder = await response.json().catch(() => ({}));
     const identity = orderIdentity(paypalOrder);
     await recordAttempt(sql, { internalOrderId, checkoutKey: order.checkout_idempotency_key, paypalOrderId: paypalOrder.id, requestId, source: 'create', orderStatus: paypalOrder.status, amountCents: identity.amountCents, currency: identity.currency, invoiceId: identity.invoiceId, customId: identity.customId, processingStatus: response.ok ? 'created' : 'error', errorCode: response.ok ? null : 'PAYPAL_CREATE_FAILED', raw: paypalOrder });
-    if (!response.ok || !paypalOrder.id) return reply(502, { ok: false, error: 'PAYPAL_CREATE_FAILED' });
+    if (!response.ok || !paypalOrder.id) {
+      console.error('[paypal-create-order] PayPal rejected order creation', {
+        status: response.status,
+        name: paypalOrder?.name || null,
+        message: paypalOrder?.message || null,
+        details: paypalOrder?.details || null,
+        debugId: paypalOrder?.debug_id || null,
+      });
+      return reply(502, {
+        ok: false,
+        error: 'PAYPAL_CREATE_FAILED',
+        providerCode: paypalOrder?.details?.[0]?.issue || paypalOrder?.name || null,
+      });
+    }
 
     const linked = await sql`UPDATE orders SET paypal_order_id = ${paypalOrder.id}, payment_method = 'paypal', payment_reconciliation_status = 'awaiting_capture', updated_at = NOW() WHERE id = ${internalOrderId} AND status = 'pending' AND (paypal_order_id IS NULL OR paypal_order_id = ${order.paypal_order_id || null}) RETURNING paypal_order_id`;
     if (linked.length) return reply(200, { ok: true, paypalOrderId: linked[0].paypal_order_id, internalOrderId });
