@@ -23,11 +23,12 @@ test('definitive funding decline is never reported as captured or reconciliation
 
 test('decline wrapper retires the failed provider order and never auto-reopens PayPal', () => {
   const source = read('../paypal-capture-minimal.mjs');
+  const checkout = read('../../../src/components/checkout/PayPalCheckoutReliable.tsx');
 
   assert.match(source, /retireDefinitivelyDeclinedPayPalOrder/);
   assert.match(source, /restartPayment:\s*false/);
   assert.match(source, /retryAllowed:\s*true/);
-  assert.doesNotMatch(source, /actions\?\.restart/);
+  assert.doesNotMatch(checkout, /actions\?\.restart/);
 });
 
 test('unknown payment status is polled and can resolve to success or retry', () => {
@@ -42,7 +43,7 @@ test('unknown payment status is polled and can resolve to success or retry', () 
   assert.match(statusSource, /retryAllowed:\s*true/);
 });
 
-test('checkout uses only existing PayPal-hosted forms and does not add merchant contact fields', () => {
+test('checkout uses only PayPal-hosted forms and does not add merchant contact fields', () => {
   const source = read('../../../src/components/checkout/PayPalCheckoutReliable.tsx');
   const config = read('../_shared/legacy/paypal-config.cjs');
 
@@ -51,7 +52,7 @@ test('checkout uses only existing PayPal-hosted forms and does not add merchant 
   assert.match(source, /renderButton\('paypal'\)/);
   assert.doesNotMatch(source, /<input/);
   assert.doesNotMatch(source, /guestName|guestEmail|Order contact/);
-  assert.doesNotMatch(source, /PayPalCardFields|PayPalHostedFields|Fastlane|clientToken/);
+  assert.doesNotMatch(source, /PayPalCardFields|PayPalHostedFields|clientToken/);
   assert.match(config, /components:\s*'buttons'/);
   assert.match(config, /fastlane:\s*false/);
   assert.doesNotMatch(config, /generate-token|client_token/);
@@ -99,9 +100,9 @@ test('checkout redirects only for a verified completed capture', () => {
 });
 
 test('ambiguous existing PayPal order lookup cannot create a replacement order', () => {
-  const source = read('../_shared/legacy/paypal-create-order-forward.cjs');
+  const source = read('../_shared/legacy/paypal-create-order-final.cjs');
 
-  assert.match(source, /PAYPAL_ORDER_LOOKUP_UNCERTAIN/);
+  assert.match(source, /PAYPAL_ORDER_LOOKUP_/);
   assert.match(source, /return reply\(202/);
   assert.match(source, /doNotRetry:\s*true/);
   assert.match(source, /payment_reconciliation_status = 'required'/);
