@@ -29,24 +29,29 @@ test('checkout routes directly to the reliable PayPal flow with no duplicate sit
   assert.match(paypalCheckout, /renderButton\('paypal'\)/);
   assert.equal(paypalCheckout.includes('Email for order confirmation and tracking'), false);
   assert.equal(paypalCheckout.includes('Email for confirmation'), false);
+  assert.equal(paypalCheckout.includes('<input'), false);
 });
 
 test('PayPal order creation uses only supported application context values', () => {
-  const createOrder = read('netlify/functions/_shared/legacy/paypal-create-order-forward.cjs');
+  const createOrder = read('netlify/functions/_shared/legacy/paypal-create-order-final.cjs');
 
   assert.equal(createOrder.includes("landing_page: 'GUEST_CHECKOUT'"), false);
-  assert.match(createOrder, /shipping_preference:\s*'GET_FROM_FILE'/);
+  assert.match(createOrder, /shipping_preference:\s*shipping \? 'SET_PROVIDED_ADDRESS' : 'GET_FROM_FILE'/);
   assert.match(createOrder, /user_action:\s*'PAY_NOW'/);
   assert.match(createOrder, /PayPal rejected order creation/);
 });
 
-test('capture replaces a generated guest email before queuing independent follow-ups', () => {
-  const capture = read('netlify/functions/_shared/legacy/paypal-capture-forward.cjs');
+test('capture persists PayPal-hosted customer details before queuing follow-ups', () => {
+  const capture = read('netlify/functions/_shared/legacy/paypal-capture-final.cjs');
+  const customerInfo = read('netlify/functions/_shared/legacy/paypal-customer-info.cjs');
   const captureWrapper = read('netlify/functions/paypal-capture-minimal.mjs');
 
   assert.match(capture, /extractCustomerEmail\(paypalData\)/);
-  assert.match(capture, /email ILIKE 'guest-%@bannersonthefly\.com'/);
-  assert.match(capture, /THEN \$\{payerEmail \|\| null\}/);
+  assert.match(capture, /extractShippingAddress\(paypalData\)/);
+  assert.match(customerInfo, /refreshOrderCustomerInfo/);
+  assert.match(customerInfo, /payer\?\.email_address/);
+  assert.match(customerInfo, /shipping\?\.address/);
+  assert.match(captureWrapper, /refreshOrderCustomerInfo/);
   assert.match(captureWrapper, /queuePaidOrderFollowups\(event, internalOrderId\)/);
   assert.match(captureWrapper, /followupsQueued/);
 });
