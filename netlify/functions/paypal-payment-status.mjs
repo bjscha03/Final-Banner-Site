@@ -19,10 +19,10 @@ const reply = (statusCode, body) => ({
 });
 
 const getSiteUrl = (event) => {
-  const configured = process.env.URL || process.env.DEPLOY_PRIME_URL || process.env.PUBLIC_SITE_URL;
-  if (configured) return String(configured).replace(/\/$/, '');
   const host = event?.headers?.['x-forwarded-host'] || event?.headers?.host;
-  return host ? `https://${host}` : null;
+  if (host) return `https://${host}`;
+  const configured = process.env.DEPLOY_PRIME_URL || process.env.URL || process.env.PUBLIC_SITE_URL;
+  return configured ? String(configured).replace(/\/$/, '') : null;
 };
 
 const queuePaidOrderFollowups = async (event, orderId) => {
@@ -147,9 +147,6 @@ const handler = async (event) => {
       });
     }
 
-    // Re-read the exact PayPal order without initiating another capture. A
-    // completed provider capture is finalized; an expired/failed attempt
-    // unlocks checkout; only a truly unresolved provider state remains locked.
     const captureResponse = await captureModule.handler({
       httpMethod: 'POST',
       headers: event.headers || {},
