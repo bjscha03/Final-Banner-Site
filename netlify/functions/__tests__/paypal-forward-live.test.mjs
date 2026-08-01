@@ -100,9 +100,9 @@ test('checkout redirects only for a verified completed capture', () => {
 });
 
 test('ambiguous existing PayPal order lookup cannot create a replacement order', () => {
-  const source = read('../_shared/legacy/paypal-create-order-final.cjs');
+  const source = read('../_shared/legacy/paypal-create-order-forward.cjs');
 
-  assert.match(source, /PAYPAL_ORDER_LOOKUP_/);
+  assert.match(source, /PAYPAL_ORDER_LOOKUP_UNCERTAIN/);
   assert.match(source, /return reply\(202/);
   assert.match(source, /doNotRetry:\s*true/);
   assert.match(source, /payment_reconciliation_status = 'required'/);
