@@ -1,1 +1,0 @@
-Prevents stale payment-received state from appearing when checkout remounts at responsive breakpoints.
