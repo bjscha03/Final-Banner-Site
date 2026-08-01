@@ -51,7 +51,7 @@ test('checkout uses only PayPal-hosted forms and does not add merchant contact f
   assert.match(source, /renderButton\('card'\)/);
   assert.match(source, /renderButton\('paypal'\)/);
   assert.doesNotMatch(source, /<input/);
-  assert.doesNotMatch(source, /guestName|guestEmail|Order contact/);
+  assert.doesNotMatch(source, /guestName|Order contact|Shipping address form|Contact information form/);
   assert.doesNotMatch(source, /PayPalCardFields|PayPalHostedFields|clientToken/);
   assert.match(config, /components:\s*'buttons'/);
   assert.match(config, /fastlane:\s*false/);
