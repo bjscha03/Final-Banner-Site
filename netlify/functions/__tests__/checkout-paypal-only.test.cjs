@@ -25,13 +25,23 @@ test('checkout routes directly to the reliable PayPal flow with no duplicate sit
   assert.equal(viteConfig.includes('PayPalCheckoutContact'), false);
   assert.match(viteConfig, /PayPalCheckoutReliable\.tsx/);
   assert.match(checkout, /@\/components\/checkout\/PayPalCheckout/);
-  assert.match(paypalCheckout, /renderButton\('card'\)/);
-  assert.match(paypalCheckout, /renderButton\('paypal'\)/);
+  assert.match(paypalCheckout, /PayPalCardFieldsProvider/);
+  assert.match(paypalCheckout, /PayPalCardFieldsForm/);
+  assert.match(paypalCheckout, /aria-expanded=\{cardFieldsExpanded\}/);
+  assert.match(paypalCheckout, /renderPayPalButton\(\)/);
   assert.equal(paypalCheckout.includes('Email for order confirmation and tracking'), false);
   assert.equal(paypalCheckout.includes('Email for confirmation'), false);
   assert.equal(paypalCheckout.includes('<input'), false);
-  assert.equal(paypalCheckout.includes('PayPalCardFields'), false);
-  assert.equal(paypalCheckout.includes('Fastlane'), false);
+  assert.equal(paypalCheckout.includes('fundingSource="card"'), false);
+  assert.equal(/fastlane/i.test(paypalCheckout), false);
+});
+
+test('PayPal SDK config enables embedded card fields without identity acceleration', () => {
+  const config = read('netlify/functions/_shared/legacy/paypal-config.cjs');
+  assert.match(config, /components: 'buttons,card-fields'/);
+  assert.match(config, /\/v1\/identity\/generate-token/);
+  assert.match(config, /clientToken/);
+  assert.equal(/fastlane/i.test(config), false);
 });
 
 test('PayPal order creation uses the proven hosted-checkout request', () => {
