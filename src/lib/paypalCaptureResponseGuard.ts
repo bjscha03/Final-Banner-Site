@@ -1,18 +1,34 @@
 const CAPTURE_ENDPOINT = '/.netlify/functions/paypal-capture-minimal';
 
-const shouldForceDoNotRetryLock = (payload: any): boolean => Boolean(
-  payload?.doNotRetry
-  || payload?.paymentStatusUnknown
-  || payload?.reconciliationRequired
-  || payload?.paymentCaptured,
+const isDefinitiveCompletedCapture = (payload: any): boolean => Boolean(
+  payload?.paymentCaptured === true
+  && payload?.reconciliationRequired !== true
+  && payload?.paymentStatusUnknown !== true
+  && payload?.doNotRetry !== true
+  && payload?.captureStatus === 'COMPLETED'
+  && payload?.captureID
+  && (payload?.status === 'COMPLETED' || payload?.success === true),
 );
+
+const shouldForceDoNotRetryLock = (payload: any): boolean => {
+  // A normal, fully verified capture must continue through the checkout's
+  // success handler and redirect. Lock only uncertain/reconciliation states.
+  if (isDefinitiveCompletedCapture(payload)) return false;
+
+  return Boolean(
+    payload?.doNotRetry
+    || payload?.paymentStatusUnknown
+    || payload?.reconciliationRequired
+    || payload?.paymentCaptured,
+  );
+};
 
 /**
  * Temporary containment guard for the current PayPal checkout component.
- * Any server response that says the payment may have been captured or is being
- * reconciled is normalized into the component's existing lock contract. This
- * prevents any device, remount, timeout, or browser from presenting a retryable
- * payment error after an uncertain/verified capture.
+ * Responses that say payment may have been captured or is being reconciled are
+ * normalized into the component's lock contract. A definitive COMPLETED
+ * capture is deliberately left untouched so the customer reaches the success
+ * page instead of hanging forever in the verification state.
  */
 export function installPayPalCaptureResponseGuard(): void {
   if (typeof window === 'undefined' || typeof window.fetch !== 'function') return;
@@ -54,4 +70,4 @@ export function installPayPalCaptureResponseGuard(): void {
   };
 }
 
-export const _test = { shouldForceDoNotRetryLock };
+export const _test = { shouldForceDoNotRetryLock, isDefinitiveCompletedCapture };
