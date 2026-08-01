@@ -5,6 +5,7 @@ import './index.css';
 import './admin-preview.css';
 import { isPreviewEnvironment, isProductionHost } from './lib/environment';
 import { installPayPalCheckoutStorageGuard } from './lib/paypalCheckoutStorageGuard';
+import { installPayPalCaptureResponseGuard } from './lib/paypalCaptureResponseGuard';
 
 const PREVIEW_SESSION_KEY = 'preview_access_granted';
 
@@ -111,6 +112,9 @@ function shouldRequirePreviewGate(): boolean {
 // Install before React mounts so legacy/stale checkout locks cannot be read by
 // PayPalCheckout during responsive remounts or browser-width changes.
 installPayPalCheckoutStorageGuard();
+// Normalize every uncertain PayPal capture response into a do-not-retry lock
+// before the checkout component can interpret it as a normal payment failure.
+installPayPalCaptureResponseGuard();
 
 const RootComponent = shouldRequirePreviewGate() ? PreviewAccessGate : App;
 
