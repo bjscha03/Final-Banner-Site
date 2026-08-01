@@ -4,6 +4,7 @@ import App from './App.tsx';
 import './index.css';
 import './admin-preview.css';
 import { isPreviewEnvironment, isProductionHost } from './lib/environment';
+import { installPayPalCheckoutStorageGuard } from './lib/paypalCheckoutStorageGuard';
 
 const PREVIEW_SESSION_KEY = 'preview_access_granted';
 
@@ -106,6 +107,10 @@ function shouldRequirePreviewGate(): boolean {
   const hasAccess = sessionStorage.getItem(PREVIEW_SESSION_KEY) === 'true';
   return !hasAccess;
 }
+
+// Install before React mounts so legacy/stale checkout locks cannot be read by
+// PayPalCheckout during responsive remounts or browser-width changes.
+installPayPalCheckoutStorageGuard();
 
 const RootComponent = shouldRequirePreviewGate() ? PreviewAccessGate : App;
 
