@@ -183,7 +183,7 @@ describe('PayPal capture production behavior', () => {
     const staleCheck = source.indexOf("if (order.paypal_order_id !== orderID)");
     const oauth = source.indexOf('getPayPalAccessToken(paypalConfig)');
     const paidUpdate = source.indexOf("UPDATE orders SET\n        status = 'paid'");
-    const productionQueue = source.indexOf('queueProductionPdfs(internalOrderId)');
+    const productionQueue = source.indexOf('await queueProductionPdfs(internalOrderId)', paidUpdate);
 
     expect(staleCheck).toBeGreaterThan(-1);
     expect(oauth).toBeGreaterThan(staleCheck);
