@@ -1,7 +1,7 @@
 import '@neondatabase/serverless';
 import { neon } from '@neondatabase/serverless';
 import { withLambda } from '@netlify/aws-lambda-compat';
-import legacyModule from './_shared/legacy/paypal-capture-minimal.cjs';
+import captureModule from './_shared/legacy/paypal-capture-forward.cjs';
 
 const clean = (value, max = 500) => {
   if (value === null || value === undefined) return null;
@@ -37,28 +37,30 @@ const getSiteUrl = (event) => {
   return host ? `https://${host}` : null;
 };
 
-const triggerOrderNotifications = async (event, orderId) => {
+const queuePaidOrderFollowups = async (event, orderId) => {
   const siteUrl = getSiteUrl(event);
   if (!siteUrl || !orderId) return false;
 
+  const internalSecret = process.env.INTERNAL_JOB_SECRET || process.env.AUTH_SESSION_SECRET;
+  const requestHeaders = { 'Content-Type': 'application/json' };
+  if (internalSecret) requestHeaders['X-Internal-Job-Secret'] = internalSecret;
+
   try {
-    const response = await fetch(`${siteUrl}/.netlify/functions/notify-order`, {
+    const response = await fetch(`${siteUrl}/.netlify/functions/process-paid-order-followups-background`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: requestHeaders,
       body: JSON.stringify({ orderId }),
     });
-    const details = await response.json().catch(() => ({}));
-    if (!response.ok || details?.ok === false) {
-      console.error('[paypal-capture-minimal] post-capture notification trigger failed', {
+    if (!response.ok) {
+      console.error('[paypal-capture-minimal] follow-up queue rejected', {
         orderId,
         status: response.status,
-        error: details?.error || null,
       });
       return false;
     }
     return true;
   } catch (error) {
-    console.error('[paypal-capture-minimal] post-capture notification request failed', {
+    console.error('[paypal-capture-minimal] follow-up queue failed', {
       orderId,
       error: error instanceof Error ? error.message : String(error),
     });
@@ -67,11 +69,9 @@ const triggerOrderNotifications = async (event, orderId) => {
 };
 
 const handler = async (event, context) => {
-  const response = await legacyModule.handler(event, context);
-
-  if (Number(response?.statusCode || 500) < 200 || Number(response?.statusCode || 500) >= 300) {
-    return response;
-  }
+  const response = await captureModule.handler(event, context);
+  const statusCode = Number(response?.statusCode || 500);
+  if (statusCode < 200 || statusCode >= 300) return response;
 
   let responseBody = {};
   try {
@@ -80,28 +80,26 @@ const handler = async (event, context) => {
     return response;
   }
 
-  const body = (() => {
-    try {
-      return JSON.parse(event.body || '{}');
-    } catch {
-      return {};
-    }
-  })();
-
-  const internalOrderId = clean(body.internalOrderId, 100) || clean(responseBody.internalOrderId, 100);
-  const verifiedPaidState = Boolean(
-    responseBody.paymentCaptured
-    || responseBody.alreadyPaid
-    || responseBody.captureStatus === 'COMPLETED'
-    || responseBody.status === 'COMPLETED',
+  const definitivePaidState = Boolean(
+    statusCode === 200
+    && responseBody.paymentCaptured === true
+    && responseBody.captureStatus === 'COMPLETED'
+    && responseBody.captureID
+    && responseBody.reconciliationRequired !== true
+    && responseBody.paymentStatusUnknown !== true,
   );
+  if (!definitivePaidState) return response;
 
-  if (!verifiedPaidState || !internalOrderId) return response;
+  let requestBody = {};
+  try { requestBody = JSON.parse(event.body || '{}'); } catch { /* no-op */ }
+
+  const internalOrderId = clean(requestBody.internalOrderId, 100)
+    || clean(responseBody.internalOrderId, 100);
+  if (!internalOrderId) return response;
 
   let customerInfoPersisted = Boolean(responseBody.customerInfoPersisted);
-
   try {
-    const customer = normalizeCustomerInfo(body.customerInfo);
+    const customer = normalizeCustomerInfo(requestBody.customerInfo);
     const complete = Boolean(
       customer.fullName
       && customer.email
@@ -115,53 +113,41 @@ const handler = async (event, context) => {
       const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
       if (!dbUrl) throw new Error('Database URL not configured');
       const sql = neon(dbUrl);
-
       const updated = await sql`
         UPDATE orders
-        SET email = ${customer.email},
-            customer_name = ${customer.fullName},
-            customer_first_name = ${customer.firstName},
-            shipping_name = ${customer.fullName},
-            shipping_street = ${customer.address1},
-            shipping_street2 = ${customer.address2},
-            shipping_city = ${customer.city},
-            shipping_state = ${customer.state},
-            shipping_zip = ${customer.postalCode},
-            shipping_country = ${customer.country},
-            updated_at = NOW()
-        WHERE id = ${internalOrderId}
+           SET email = ${customer.email},
+               customer_name = ${customer.fullName},
+               customer_first_name = ${customer.firstName},
+               shipping_name = ${customer.fullName},
+               shipping_street = ${customer.address1},
+               shipping_street2 = ${customer.address2},
+               shipping_city = ${customer.city},
+               shipping_state = ${customer.state},
+               shipping_zip = ${customer.postalCode},
+               shipping_country = ${customer.country},
+               updated_at = NOW()
+         WHERE id = ${internalOrderId}
         RETURNING id
       `;
-
       customerInfoPersisted = updated.length > 0;
-      if (!updated.length) {
-        console.error('[paypal-capture-minimal] payment captured but customer info update found no order', { internalOrderId });
-      }
-    } else {
-      console.warn('[paypal-capture-minimal] completed capture without complete submitted customer info', {
-        internalOrderId,
-        hasName: Boolean(customer.fullName),
-        hasEmail: Boolean(customer.email),
-        hasAddress: Boolean(customer.address1 && customer.city && customer.state && customer.postalCode),
-      });
     }
   } catch (error) {
-    // Payment capture is already durable. Never turn a completed charge into a
-    // customer-facing payment failure because metadata persistence had trouble.
-    console.error('[paypal-capture-minimal] post-capture customer info persistence failed', {
+    // Payment is already durable. Contact-data trouble must never turn a
+    // completed capture into a customer-facing failure or another charge.
+    console.error('[paypal-capture-minimal] post-capture customer update failed', {
+      internalOrderId,
       error: error instanceof Error ? error.message : String(error),
     });
   }
 
-  const notificationsTriggered = await triggerOrderNotifications(event, internalOrderId);
+  const followupsQueued = await queuePaidOrderFollowups(event, internalOrderId);
   response.body = JSON.stringify({
     ...responseBody,
     customerInfoPersisted,
-    notificationsTriggered,
+    followupsQueued,
   });
-
   return response;
 };
 
-export const _test = { normalizeCustomerInfo, getSiteUrl };
+export const _test = { normalizeCustomerInfo, getSiteUrl, queuePaidOrderFollowups };
 export default withLambda(handler);
