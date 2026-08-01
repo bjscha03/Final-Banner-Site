@@ -1,0 +1,176 @@
+name: Verify Final PayPal Live
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/verify-final-paypal-live.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  production-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Wait for the merged checkout bundle on production
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          site='https://bannersonthefly.com'
+          marker_one='bof-paypal-checkout-v5:'
+          marker_two='Check payment status'
+          marker_three='Payment method declined'
+
+          for attempt in $(seq 1 72); do
+            cache_buster="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${attempt}"
+            work_dir="$(mktemp -d)"
+            html_file="${work_dir}/checkout.html"
+            bundle_file="${work_dir}/all-js.txt"
+
+            if curl --fail --silent --show-error --location \
+              -H 'Cache-Control: no-cache, no-store, must-revalidate' \
+              "${site}/checkout?deploy_check=${cache_buster}" \
+              --output "${html_file}"; then
+
+              mapfile -t direct_assets < <(
+                grep -oE 'src="[^"]+\.js[^"]*"' "${html_file}" \
+                  | sed -E 's/^src="//; s/"$//' \
+                  | sort -u
+              )
+
+              for asset_path in "${direct_assets[@]:-}"; do
+                [[ -z "${asset_path}" ]] && continue
+                if [[ "${asset_path}" == http* ]]; then
+                  asset_url="${asset_path}"
+                else
+                  asset_url="${site}${asset_path}"
+                fi
+                separator='?'
+                [[ "${asset_url}" == *'?'* ]] && separator='&'
+                curl --fail --silent --show-error --location \
+                  -H 'Cache-Control: no-cache, no-store, must-revalidate' \
+                  "${asset_url}${separator}deploy_check=${cache_buster}" \
+                  >> "${bundle_file}" || true
+              done
+
+              # Vite can reference route chunks from the entry bundle. Fetch
+              # those same-origin chunks too so the checkout implementation is
+              # verified even when code splitting is enabled.
+              mapfile -t referenced_assets < <(
+                grep -oE 'assets/[A-Za-z0-9._-]+\.js' "${bundle_file}" \
+                  | sort -u
+              )
+              for asset_path in "${referenced_assets[@]:-}"; do
+                [[ -z "${asset_path}" ]] && continue
+                curl --fail --silent --show-error --location \
+                  -H 'Cache-Control: no-cache, no-store, must-revalidate' \
+                  "${site}/${asset_path}?deploy_check=${cache_buster}" \
+                  >> "${bundle_file}" || true
+              done
+
+              if grep -Fq "${marker_one}" "${bundle_file}" \
+                && grep -Fq "${marker_two}" "${bundle_file}" \
+                && grep -Fq "${marker_three}" "${bundle_file}"; then
+                if grep -Fq 'Order contact' "${bundle_file}" \
+                  || grep -Fq 'Email for confirmation' "${bundle_file}" \
+                  || grep -Fq 'PayPalCardFields' "${bundle_file}"; then
+                  echo 'Production bundle contains a prohibited extra checkout form or Card Fields integration.' >&2
+                  rm -rf "${work_dir}"
+                  exit 1
+                fi
+                echo 'Production is serving the repaired PayPal checkout bundle with no extra customer form.'
+                rm -rf "${work_dir}"
+                exit 0
+              fi
+            fi
+
+            rm -rf "${work_dir}"
+            echo "Production has not published the merged PayPal repair yet (attempt ${attempt}/72)."
+            sleep 10
+          done
+
+          echo 'Production did not publish the merged PayPal repair within the verification window.' >&2
+          exit 1
+
+      - name: Verify live PayPal is buttons-only and Fastlane is disabled
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          config_file="$(mktemp)"
+          status="$({ curl --silent --show-error --location \
+            --output "${config_file}" \
+            --write-out '%{http_code}' \
+            -H 'Cache-Control: no-cache, no-store, must-revalidate' \
+            "https://bannersonthefly.com/.netlify/functions/paypal-config?deploy_check=${GITHUB_RUN_ID}"; } || true)"
+
+          if [[ "${status}" != '200' ]]; then
+            echo "Live PayPal config returned HTTP ${status}." >&2
+            exit 1
+          fi
+
+          CONFIG_FILE="${config_file}" node <<'NODE'
+          const fs = require('node:fs');
+          const payload = JSON.parse(fs.readFileSync(process.env.CONFIG_FILE, 'utf8'));
+          if (payload.enabled !== true) throw new Error('Live PayPal configuration is not enabled.');
+          if (!payload.clientId || typeof payload.clientId !== 'string') throw new Error('Live PayPal client ID is missing.');
+          if (payload.environment !== 'live') throw new Error(`Expected live PayPal environment, received ${payload.environment}.`);
+          if (payload.components !== 'buttons') throw new Error(`Expected buttons-only integration, received ${payload.components}.`);
+          if (payload.fastlane !== false) throw new Error('Fastlane is not explicitly disabled.');
+          if ('clientToken' in payload && payload.clientToken) throw new Error('Production unexpectedly exposes a Card Fields/Fastlane client token.');
+          console.log('Live PayPal is enabled in live mode using buttons only; Fastlane/client-token integration is disabled.');
+          NODE
+
+      - name: Verify payment-status recovery function is deployed
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          response_file="$(mktemp)"
+          status="$({ curl --silent --show-error --location \
+            --output "${response_file}" \
+            --write-out '%{http_code}' \
+            -X POST \
+            -H 'Content-Type: application/json' \
+            --data '{}' \
+            'https://bannersonthefly.com/.netlify/functions/paypal-payment-status'; } || true)"
+
+          if [[ "${status}" != '400' ]]; then
+            echo "Expected paypal-payment-status to return HTTP 400 for a missing order ID, received ${status}." >&2
+            cat "${response_file}" >&2 || true
+            exit 1
+          fi
+
+          RESPONSE_FILE="${response_file}" node <<'NODE'
+          const fs = require('node:fs');
+          const payload = JSON.parse(fs.readFileSync(process.env.RESPONSE_FILE, 'utf8'));
+          if (payload.error !== 'INTERNAL_ORDER_REQUIRED') {
+            throw new Error(`Unexpected payment-status response: ${JSON.stringify(payload)}`);
+          }
+          console.log('The authoritative PayPal payment-status recovery function is deployed.');
+          NODE
+
+      - name: Verify paid-order Resend and PDF follow-up function is deployed
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          status="$({ curl --silent --show-error --location \
+            --output /dev/null \
+            --write-out '%{http_code}' \
+            -X POST \
+            -H 'Content-Type: application/json' \
+            -H 'X-Internal-Job-Secret: intentionally-invalid-production-smoke-value' \
+            --data '{"orderId":"production-smoke-no-op"}' \
+            'https://bannersonthefly.com/.netlify/functions/process-paid-order-followups-background'; } || true)"
+
+          # Netlify background functions acknowledge invocation with 202 before
+          # the handler rejects the deliberately invalid internal secret.
+          if [[ "${status}" != '202' ]]; then
+            echo "Expected the paid-order background function to return HTTP 202, received ${status}." >&2
+            exit 1
+          fi
+
+          echo 'The paid-order Resend/PDF background follow-up function is deployed.'
