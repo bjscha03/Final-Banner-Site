@@ -1,8 +1,8 @@
 /**
  * PayPal Configuration Endpoint
- * 
- * Returns only the public PayPal client ID for frontend use.
- * Never exposes secrets or sensitive configuration.
+ *
+ * Returns only the public client ID used by the standard PayPal Buttons SDK.
+ * Fastlane and Card Fields client-token generation are intentionally disabled.
  */
 
 const headers = {
@@ -10,79 +10,61 @@ const headers = {
   'Access-Control-Allow-Headers': 'Content-Type',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
   'Content-Type': 'application/json',
+  'Cache-Control': 'no-store, max-age=0',
 };
 
-exports.handler = async (event, context) => {
-  // Handle preflight requests
-  if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers,
-      body: '',
-    };
-  }
+const reply = (statusCode, body) => ({
+  statusCode,
+  headers,
+  body: JSON.stringify(body),
+});
 
-  // Only allow GET requests
-  if (event.httpMethod !== 'GET') {
-    return {
-      statusCode: 405,
-      headers,
-      body: JSON.stringify({ error: 'Method not allowed' }),
-    };
-  }
+exports.handler = async (event) => {
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
+  if (event.httpMethod !== 'GET') return reply(405, { error: 'Method not allowed' });
 
   try {
-    // Check if PayPal is enabled
-    const isEnabled = process.env.FEATURE_PAYPAL === '1';
-    
-    if (!isEnabled) {
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({
-          enabled: false,
-          clientId: null,
-          environment: null
-        }),
-      };
+    if (process.env.FEATURE_PAYPAL !== '1') {
+      return reply(200, {
+        enabled: false,
+        clientId: null,
+        environment: null,
+        components: 'buttons',
+        fastlane: false,
+      });
     }
 
-    // Get environment and client ID
-    const environment = process.env.PAYPAL_ENV || 'sandbox';
+    const environment = String(process.env.PAYPAL_ENV || 'sandbox').toLowerCase();
     const clientId = process.env[`PAYPAL_CLIENT_ID_${environment.toUpperCase()}`];
 
     if (!clientId) {
-      console.error(`PayPal client ID not found for environment: ${environment}`);
-      return {
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({
-          error: 'PayPal configuration error',
-          enabled: false
-        }),
-      };
+      console.error('[paypal-config] PayPal client ID is missing', { environment });
+      return reply(500, {
+        enabled: false,
+        clientId: null,
+        environment,
+        components: 'buttons',
+        fastlane: false,
+        error: 'PayPal configuration error',
+      });
     }
 
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({
-        enabled: true,
-        clientId,
-        environment
-      }),
-    };
-
+    return reply(200, {
+      enabled: true,
+      clientId,
+      environment,
+      components: 'buttons',
+      fastlane: false,
+    });
   } catch (error) {
-    console.error('PayPal config error:', error);
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({
-        error: 'Internal server error',
-        enabled: false
-      }),
-    };
+    console.error('[paypal-config] unexpected error', error);
+    return reply(500, {
+      enabled: false,
+      clientId: null,
+      environment: null,
+      components: 'buttons',
+      fastlane: false,
+      error: 'Internal server error',
+    });
   }
 };
-

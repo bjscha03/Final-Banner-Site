@@ -1,11 +1,28 @@
 import { withLambda } from '@netlify/aws-lambda-compat';
 import webhookModule from './_shared/legacy/paypal-webhook-forward.cjs';
+import customerInfoModule from './_shared/legacy/paypal-customer-info.cjs';
+import paypalConversionHelpers from './_shared/paypalConversionHelpers.cjs';
+
+const { getPayPalWebhookOrderId } = paypalConversionHelpers;
 
 const getSiteUrl = (event) => {
-  const configured = process.env.URL || process.env.DEPLOY_PRIME_URL || process.env.PUBLIC_SITE_URL;
-  if (configured) return String(configured).replace(/\/$/, '');
   const host = event?.headers?.['x-forwarded-host'] || event?.headers?.host;
-  return host ? `https://${host}` : null;
+  if (host) return `https://${host}`;
+  const configured = process.env.DEPLOY_PRIME_URL || process.env.URL || process.env.PUBLIC_SITE_URL;
+  return configured ? String(configured).replace(/\/$/, '') : null;
+};
+
+const getProviderOrderId = (event, payload) => {
+  if (payload?.orderID || payload?.paypalOrderID) {
+    return payload.orderID || payload.paypalOrderID;
+  }
+
+  try {
+    const webhook = JSON.parse(event.body || '{}');
+    return getPayPalWebhookOrderId(webhook?.resource || {}) || null;
+  } catch {
+    return null;
+  }
 };
 
 const queuePaidOrderFollowups = async (event, orderId) => {
@@ -46,17 +63,39 @@ const handler = async (event, context) => {
   let payload = {};
   try { payload = JSON.parse(response.body || '{}'); } catch { return response; }
 
+  const paypalOrderId = getProviderOrderId(event, payload);
   const definitivePaidState = Boolean(
     payload?.orderId
     && payload?.paymentCaptured === true
-    && payload?.captureID,
+    && payload?.captureID
+    && paypalOrderId,
   );
   if (!definitivePaidState) return response;
 
+  let refreshedCustomer = null;
+  try {
+    refreshedCustomer = await customerInfoModule.refreshOrderCustomerInfo({
+      internalOrderId: payload.orderId,
+      orderID: paypalOrderId,
+    });
+  } catch (error) {
+    console.error('[paypal-webhook] customer information refresh failed', {
+      orderId: payload.orderId,
+      paypalOrderId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
   const followupsQueued = await queuePaidOrderFollowups(event, payload.orderId);
-  response.body = JSON.stringify({ ...payload, followupsQueued });
+  response.body = JSON.stringify({
+    ...payload,
+    orderID: paypalOrderId,
+    paypalOrderID: paypalOrderId,
+    customerInfoPersisted: Boolean(refreshedCustomer),
+    followupsQueued,
+  });
   return response;
 };
 
-export const _test = { getSiteUrl, queuePaidOrderFollowups };
+export const _test = { getSiteUrl, getProviderOrderId, queuePaidOrderFollowups };
 export default withLambda(handler);
