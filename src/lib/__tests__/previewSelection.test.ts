@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { getExpandedPreviewSelection, getSmallPreviewUrl } from '../previewSelection';
+import {
+  buildCloudinaryPdfPreviewUrl,
+  getExpandedPreviewSelection,
+  getSmallPreviewUrl,
+} from '../previewSelection';
 
 describe('previewSelection', () => {
   it('keeps small cart cards on thumbnail priority', () => {
@@ -17,7 +21,7 @@ describe('previewSelection', () => {
     })).toBe('https://cdn.example.com/web-preview.png');
   });
 
-  it('returns no image when the only candidate is a raw PDF', () => {
+  it('returns no image when the only candidate is a legacy raw PDF', () => {
     expect(getSmallPreviewUrl({
       file_url: 'https://res.cloudinary.com/demo/raw/upload/v1/uploads/artwork.pdf',
     })).toBeNull();
@@ -44,5 +48,23 @@ describe('previewSelection', () => {
     expect(selected.source).toBe('thumbnail_fallback');
     expect(selected.isLowResolutionFallback).toBe(true);
     expect(selected.isPreparingHighResolution).toBe(true);
+  });
+
+  it('derives a permanent first-page JPG from a Cloudinary image-type PDF', () => {
+    const source = 'https://res.cloudinary.com/demo/image/upload/v123/uploads/customer-art.pdf';
+    expect(buildCloudinaryPdfPreviewUrl(source)).toBe(
+      'https://res.cloudinary.com/demo/image/upload/pg_1,f_jpg,q_auto:good,w_1600,c_limit/v123/uploads/customer-art.jpg',
+    );
+  });
+
+  it('uses the permanent Cloudinary PDF page when no generated thumbnail exists', () => {
+    const source = 'https://res.cloudinary.com/demo/image/upload/v123/uploads/customer-art.pdf';
+    expect(getSmallPreviewUrl({ file_url: source })).toBe(
+      'https://res.cloudinary.com/demo/image/upload/pg_1,f_jpg,q_auto:good,w_1600,c_limit/v123/uploads/customer-art.jpg',
+    );
+
+    const expanded = getExpandedPreviewSelection({ file_url: source });
+    expect(expanded.url).toContain('/pg_1,f_jpg,q_auto:good,w_1600,c_limit/');
+    expect(expanded.isPreparingHighResolution).toBe(false);
   });
 });
