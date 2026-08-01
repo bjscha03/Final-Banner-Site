@@ -61,7 +61,24 @@ exports.handler = async (event) => {
     }
 
     const requestId = `create-${internalOrderId}`;
-    const body = { intent: 'CAPTURE', purchase_units: [{ amount: { currency_code: 'USD', value: (Number(order.total_cents) / 100).toFixed(2) }, description: getPayPalDescription(Array.isArray(payload.items) ? payload.items : []).slice(0, 127), custom_id: internalOrderId, invoice_id: `BOTF-${internalOrderId}` }], application_context: { brand_name: 'Banners On The Fly', user_action: 'PAY_NOW', shipping_preference: 'GET_FROM_FILE' } };
+    const body = {
+      intent: 'CAPTURE',
+      purchase_units: [{
+        amount: {
+          currency_code: 'USD',
+          value: (Number(order.total_cents) / 100).toFixed(2),
+        },
+        description: getPayPalDescription(Array.isArray(payload.items) ? payload.items : []).slice(0, 127),
+        custom_id: internalOrderId,
+        invoice_id: `BOTF-${internalOrderId}`,
+      }],
+      application_context: {
+        brand_name: 'Banners On The Fly',
+        landing_page: 'GUEST_CHECKOUT',
+        user_action: 'PAY_NOW',
+        shipping_preference: 'GET_FROM_FILE',
+      },
+    };
     const response = await fetch(`${config.baseUrl}/v2/checkout/orders`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', Accept: 'application/json', 'PayPal-Request-Id': requestId }, body: JSON.stringify(body) });
     const paypalOrder = await response.json().catch(() => ({}));
     const identity = orderIdentity(paypalOrder);
