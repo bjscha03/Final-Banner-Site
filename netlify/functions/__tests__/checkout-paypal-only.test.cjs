@@ -30,15 +30,20 @@ test('checkout routes directly to the reliable PayPal flow with no duplicate sit
   assert.equal(paypalCheckout.includes('Email for order confirmation and tracking'), false);
   assert.equal(paypalCheckout.includes('Email for confirmation'), false);
   assert.equal(paypalCheckout.includes('<input'), false);
+  assert.equal(paypalCheckout.includes('PayPalCardFields'), false);
+  assert.equal(paypalCheckout.includes('Fastlane'), false);
 });
 
-test('PayPal order creation uses only supported application context values', () => {
-  const createOrder = read('netlify/functions/_shared/legacy/paypal-create-order-final.cjs');
+test('PayPal order creation uses the proven hosted-checkout request', () => {
+  const createOrder = read('netlify/functions/_shared/legacy/paypal-create-order-forward.cjs');
+  const entrypoint = read('netlify/functions/paypal-create-order.mjs');
 
   assert.equal(createOrder.includes("landing_page: 'GUEST_CHECKOUT'"), false);
-  assert.match(createOrder, /shipping_preference:\s*shipping \? 'SET_PROVIDED_ADDRESS' : 'GET_FROM_FILE'/);
+  assert.match(createOrder, /shipping_preference:\s*'GET_FROM_FILE'/);
   assert.match(createOrder, /user_action:\s*'PAY_NOW'/);
   assert.match(createOrder, /PayPal rejected order creation/);
+  assert.match(entrypoint, /paypal-create-order-forward\.cjs/);
+  assert.equal(entrypoint.includes('paypal-create-order-final.cjs'), false);
 });
 
 test('capture persists PayPal-hosted customer details before queuing follow-ups', () => {
