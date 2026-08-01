@@ -6,10 +6,10 @@ const path = require('node:path');
 const repoRoot = path.resolve(__dirname, '../../..');
 const read = (relativePath) => fs.readFileSync(path.join(repoRoot, relativePath), 'utf8');
 
-test('checkout routes directly to PayPal and has no duplicate site contact form', () => {
+test('checkout routes directly to the reliable PayPal flow with no duplicate site contact form', () => {
   const viteConfig = read('vite.config.ts');
   const checkout = read('src/pages/Checkout.tsx');
-  const paypalCheckout = read('src/components/checkout/PayPalCheckout.tsx');
+  const paypalCheckout = read('src/components/checkout/PayPalCheckoutReliable.tsx');
   const contactWrapper = path.join(
     repoRoot,
     'src/components/checkout/PayPalCheckoutContactSafe.tsx',
@@ -23,15 +23,16 @@ test('checkout routes directly to PayPal and has no duplicate site contact form'
   assert.equal(fs.existsSync(removedShippingWrapper), false);
   assert.equal(viteConfig.includes('PayPalCheckoutContactSafe'), false);
   assert.equal(viteConfig.includes('PayPalCheckoutContact'), false);
+  assert.match(viteConfig, /PayPalCheckoutReliable\.tsx/);
   assert.match(checkout, /@\/components\/checkout\/PayPalCheckout/);
-  assert.match(paypalCheckout, /fundingSource=\{"card" as any\}/);
-  assert.match(paypalCheckout, /fundingSource=\{"paypal" as any\}/);
+  assert.match(paypalCheckout, /renderButton\('card'\)/);
+  assert.match(paypalCheckout, /renderButton\('paypal'\)/);
   assert.equal(paypalCheckout.includes('Email for order confirmation and tracking'), false);
   assert.equal(paypalCheckout.includes('Email for confirmation'), false);
 });
 
 test('PayPal order creation uses only supported application context values', () => {
-  const createOrder = read('netlify/functions/_shared/legacy/paypal-create-order.cjs');
+  const createOrder = read('netlify/functions/_shared/legacy/paypal-create-order-forward.cjs');
 
   assert.equal(createOrder.includes("landing_page: 'GUEST_CHECKOUT'"), false);
   assert.match(createOrder, /shipping_preference:\s*'GET_FROM_FILE'/);
@@ -39,14 +40,15 @@ test('PayPal order creation uses only supported application context values', () 
   assert.match(createOrder, /PayPal rejected order creation/);
 });
 
-test('capture replaces a generated guest email with PayPal payer data before notifications', () => {
-  const capture = read('netlify/functions/_shared/legacy/paypal-capture-minimal.cjs');
+test('capture replaces a generated guest email before queuing independent follow-ups', () => {
+  const capture = read('netlify/functions/_shared/legacy/paypal-capture-forward.cjs');
   const captureWrapper = read('netlify/functions/paypal-capture-minimal.mjs');
 
   assert.match(capture, /extractCustomerEmail\(paypalData\)/);
   assert.match(capture, /email ILIKE 'guest-%@bannersonthefly\.com'/);
   assert.match(capture, /THEN \$\{payerEmail \|\| null\}/);
-  assert.match(captureWrapper, /triggerOrderNotifications\(event, internalOrderId\)/);
+  assert.match(captureWrapper, /queuePaidOrderFollowups\(event, internalOrderId\)/);
+  assert.match(captureWrapper, /followupsQueued/);
 });
 
 test('legacy card component cannot load or call a non-PayPal payment SDK', () => {
