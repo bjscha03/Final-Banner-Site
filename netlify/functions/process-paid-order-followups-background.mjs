@@ -4,6 +4,7 @@ import { neon } from '@neondatabase/serverless';
 import { withLambda } from '@netlify/aws-lambda-compat';
 import notifyOrderModule from './_shared/legacy/notify-order.cjs';
 import pdfModule from './_shared/legacy/generate-paid-order-pdfs-background.cjs';
+import customerInfoModule from './_shared/legacy/paypal-customer-info.cjs';
 
 const json = (statusCode, body) => ({
   statusCode,
@@ -13,9 +14,19 @@ const json = (statusCode, body) => ({
 
 const isSent = (status, sentAt) => status === 'sent' || Boolean(sentAt);
 
+const isUsableCustomerEmail = (value) => {
+  const email = String(value || '').trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+    && !/^(guest|preview)-[^@]+@bannersonthefly\.com$/.test(email)
+    && email !== 'guest@example.com';
+};
+
 const loadOrder = async (sql, orderId) => {
   const rows = await sql`
-    SELECT id, status,
+    SELECT id, status, email, customer_name, customer_phone,
+           shipping_name, shipping_street, shipping_street2,
+           shipping_city, shipping_state, shipping_zip, shipping_country,
+           paypal_order_id, paypal_capture_id,
            confirmation_email_status, confirmation_emailed_at,
            admin_notification_status, admin_notification_sent_at
       FROM orders
@@ -71,6 +82,28 @@ const handler = async (event) => {
 
   const failures = [];
 
+  // PayPal's hosted card/wallet form is the source for guest contact and
+  // address details. Refresh the exact completed PayPal order before Resend or
+  // Admin consumes the order, so neither receives a generated guest identity.
+  if (order.paypal_order_id) {
+    try {
+      await customerInfoModule.refreshOrderCustomerInfo({
+        internalOrderId: orderId,
+        orderID: order.paypal_order_id,
+      });
+      order = await loadOrder(sql, orderId) || order;
+    } catch (error) {
+      failures.push(`Customer information refresh failed: ${error?.message || error}`);
+    }
+  }
+
+  if (!isUsableCustomerEmail(order.email)) {
+    failures.push('A usable customer email has not been returned by PayPal yet.');
+  }
+  if (!order.customer_name && !order.shipping_name) {
+    failures.push('Customer name has not been returned by PayPal yet.');
+  }
+
   // Production PDF generation remains independent from email delivery. The
   // renderer records per-item failures for the scheduled retry job.
   try {
@@ -93,10 +126,10 @@ const handler = async (event) => {
   const customerSentBefore = isSent(order.confirmation_email_status, order.confirmation_emailed_at);
   const adminSentBefore = isSent(order.admin_notification_status, order.admin_notification_sent_at);
 
-  if (!customerSentBefore || !adminSentBefore) {
+  if (isUsableCustomerEmail(order.email) && (!customerSentBefore || !adminSentBefore)) {
     try {
-      // Normal first attempt uses the exact existing notify-order flow and its
-      // existing Resend customer/Admin templates without changing their HTML.
+      // This calls the exact existing customer and Admin Resend templates. No
+      // replacement HTML or new template implementation is introduced here.
       await runExistingResendTemplates(event, orderId, false);
     } catch (error) {
       failures.push(`Order notification failed: ${error?.message || error}`);
@@ -107,12 +140,10 @@ const handler = async (event) => {
   const customerSentAfter = isSent(order.confirmation_email_status, order.confirmation_emailed_at);
   const adminSentAfter = isSent(order.admin_notification_status, order.admin_notification_sent_at);
 
-  if (customerSentAfter && !adminSentAfter) {
+  if (isUsableCustomerEmail(order.email) && customerSentAfter && !adminSentAfter) {
     try {
-      // Recovery-only fallback. The legacy sender couples the two existing
-      // templates, so force both only when the customer succeeded but the Admin
-      // delivery was the sole missing action. This guarantees Admin visibility
-      // without introducing a second template implementation.
+      // Recovery-only fallback for the existing coupled sender. It preserves
+      // the exact templates while guaranteeing the Admin alert is retried.
       await runExistingResendTemplates(event, orderId, true);
     } catch (error) {
       failures.push(`Admin notification recovery failed: ${error?.message || error}`);
