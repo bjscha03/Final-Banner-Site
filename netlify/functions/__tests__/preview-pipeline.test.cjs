@@ -25,12 +25,17 @@ test('cart and checkout thumbnails render immediately without an idle skeleton s
   assert.equal(cartModal.includes('enableHeavyPreviews'), false);
   assert.equal(cartModal.includes('requestIdleCallback'), false);
   assert.equal(cartModal.includes('animate-pulse'), false);
-  assert.match(cartModal, /getSmallPreviewUrl/);
+  assert.match(cartModal, /getSmallPreviewSelection/);
   assert.match(cartModal, /getExpandedPreviewSelection/);
   assert.match(cartModal, /<BannerPreview/);
-  assert.match(checkout, /getSmallPreviewUrl/);
+  assert.match(checkout, /getSmallPreviewSelection/);
   assert.match(checkout, /getExpandedPreviewSelection/);
   assert.match(checkout, /<BannerPreview/);
+  assert.match(cartModal, /smallPreview\.isExactComposition/);
+  assert.match(checkout, /smallPreview\.isExactComposition/);
+  assert.match(checkout, /expandedPreview\.isExactComposition/);
+  assert.equal(cartModal.includes('isFinalizedSnapshot={Boolean(item.thumbnail_url)}'), false);
+  assert.equal(checkout.includes('isFinalizedSnapshot={!!item.thumbnail_url}'), false);
 });
 
 test('preview images are decoded, double-buffered, and loaded concurrently', () => {
@@ -137,6 +142,8 @@ test('real-browser commerce matrix loads production CSS and validates all core s
   assert.match(harness, /handoff-landscape/);
   assert.match(harness, /portrait/);
   assert.match(harness, /square/);
+  assert.match(harness, /wide-positioned-data-priority/);
+  assert.match(harness, /wide-positioned-exact/);
   assert.match(harness, /extreme-wide/);
   assert.match(harness, /fallback-chain/);
   assert.match(harness, /yard-sign-identity/);
