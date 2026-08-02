@@ -3,7 +3,7 @@ import { X, ShoppingCart, CreditCard, Check, ChevronDown, Eye, Loader2 } from 'l
 import { createPortal } from 'react-dom';
 import { QuoteState, Grommets, PolePocketSize } from '@/store/quote';
 import { formatDimensions, usd, ropeCost, polePocketCost } from '@/lib/pricing';
-import BannerPreview from './BannerPreview';
+import BannerPreview from './StableBannerPreview';
 import ThumbnailPreviewWrapper from '@/components/preview/ThumbnailPreviewWrapper';
 import { getProductCopy } from '@/lib/product-copy';
 
@@ -50,7 +50,8 @@ export interface UpsellModalProps {
   isOpen: boolean;
   onClose: () => void;
   quote: QuoteState;
-  thumbnailUrl?: string; // Canvas thumbnail for preview
+  thumbnailUrl?: string; // Exact positioned canvas thumbnail for preview
+  thumbnailIsExactComposition?: boolean;
   onContinue: (selectedOptions: UpsellOption[], dontAskAgain: boolean) => void;
   actionType: 'cart' | 'checkout' | 'update';
   designServiceEnabled?: boolean; // For design service orders to show placeholder thumbnail
@@ -63,6 +64,7 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
   onClose,
   quote,
   thumbnailUrl,
+  thumbnailIsExactComposition = false,
   onContinue,
   actionType,
   designServiceEnabled = false,
@@ -70,6 +72,7 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
   productType,
 }) => {
   const copy = getProductCopy(productType);
+  const effectiveThumbnailUrl = thumbnailUrl || quote.thumbnailUrl || quote.file?.url;
   const [selectedOptions, setSelectedOptions] = useState<UpsellOption[]>([]);
   const [dontAskAgain, setDontAskAgain] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -333,7 +336,10 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
           </div>
 
           {/* Product Info with Live Preview */}
-          <div className="bg-gray-50 rounded-xl p-4">
+          <div
+            className="bg-gray-50 rounded-xl p-4"
+            data-upsell-preview-source={thumbnailIsExactComposition ? 'exact-composition' : 'fallback'}
+          >
             <div className="flex items-center gap-4">
               {/* Live Banner Preview */}
               {(() => {
@@ -358,7 +364,7 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
                     widthIn={quote.widthIn}
                     heightIn={quote.heightIn}
                     grommets={effectiveGrommets}
-                    imageUrl={thumbnailUrl || quote.file?.url}
+                    imageUrl={effectiveThumbnailUrl}
                     material={quote.material}
                     textElements={quote.textElements}
                     overlayImage={quote.overlayImage}
@@ -367,6 +373,7 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
                     imageScaleY={quote.imageScaleY}
                     imagePosition={quote.imagePosition}
                     fitMode={quote.fitMode || "fill"}
+                    isFinalizedSnapshot={thumbnailIsExactComposition}
                     designServiceEnabled={designServiceEnabled}
                     maxSize={820}
                   />
@@ -376,7 +383,7 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
                   widthIn={quote.widthIn}
                   heightIn={quote.heightIn}
                   grommets={effectiveGrommets}
-                  imageUrl={thumbnailUrl || quote.file?.url}
+                  imageUrl={effectiveThumbnailUrl}
                   material={quote.material}
                   textElements={quote.textElements}
                   overlayImage={quote.overlayImage}
@@ -385,6 +392,7 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
                   imageScaleY={quote.imageScaleY}
                   imagePosition={quote.imagePosition}
                   fitMode={quote.fitMode || "fill"}
+                  isFinalizedSnapshot={thumbnailIsExactComposition}
                   designServiceEnabled={designServiceEnabled}
                 />
               </ThumbnailPreviewWrapper>

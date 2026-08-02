@@ -74,6 +74,14 @@ function visibleSource(scope) {
     || '';
 }
 
+function decodedSource(source) {
+  try {
+    return decodeURIComponent(source);
+  } catch {
+    return source;
+  }
+}
+
 function rect(node) {
   if (!node) return null;
   const value = node.getBoundingClientRect();
@@ -135,7 +143,7 @@ function Harness() {
 
         const smallSource = visibleSource(modal);
         const smallRect = rect(smallFrame);
-        if (!smallSource.includes('UPSELL-APPROVED-COMPOSITION')) {
+        if (!decodedSource(smallSource).includes('UPSELL-APPROVED-COMPOSITION')) {
           throw new Error(`Upsell used the wrong source: ${smallSource}`);
         }
         if (smallSource.includes('raw-original-must-not-win')) {
@@ -194,7 +202,7 @@ function Harness() {
           height: document.documentElement.clientHeight,
         };
 
-        if (!expandedSource.includes('UPSELL-APPROVED-COMPOSITION')) {
+        if (!decodedSource(expandedSource).includes('UPSELL-APPROVED-COMPOSITION')) {
           throw new Error(`Upsell expanded view drifted to another source: ${expandedSource}`);
         }
         if (expandedFrame.dataset.previewTransformMode !== 'exact-snapshot') {

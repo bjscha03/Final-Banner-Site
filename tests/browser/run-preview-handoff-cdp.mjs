@@ -3,6 +3,7 @@ import WebSocket from 'ws';
 const chromeOrigin = process.env.CHROME_DEBUG_ORIGIN || 'http://127.0.0.1:9222';
 const activeHarnessUrl = process.env.PREVIEW_HANDOFF_URL || 'http://127.0.0.1:4175/tests/browser/preview-handoff.html';
 const commerceHarnessUrl = process.env.COMMERCE_PREVIEW_HANDOFF_URL || 'http://127.0.0.1:4175/tests/browser/commerce-preview-handoff.html';
+const upsellHarnessUrl = process.env.UPSELL_PREVIEW_HANDOFF_URL || 'http://127.0.0.1:4175/tests/browser/upsell-preview-handoff.html';
 const timeoutMs = Number(process.env.PREVIEW_HANDOFF_TIMEOUT_MS || 60_000);
 
 const DESKTOP_USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36';
@@ -13,6 +14,7 @@ const orderSurfaceHarnessUrl = process.env.ORDER_SURFACE_PREVIEW_URL || 'http://
 const harnesses = [
   { name: 'active-canvas', url: activeHarnessUrl },
   { name: 'commerce-thumbnail-lightbox', url: commerceHarnessUrl },
+  { name: 'upsell-exact-composition', url: upsellHarnessUrl },
   { name: 'order-confirmation-my-orders-admin', url: orderSurfaceHarnessUrl },
 ];
 

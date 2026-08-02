@@ -196,19 +196,21 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
   }, [overlayImage, safeWidth, safeHeight, maxSize]);
 
   /**
-   * Exact snapshots already contain the customer's approved placement. A
-   * generic original is only a recovery source. Applying legacy position/scale
-   * to that recovery source can move the entire image outside the clipped
-   * commerce frame, which is how the 120×48 item produced a white rectangle.
-   * Centering the original with `contain` guarantees the correct artwork is
-   * visible while the exact positioned proof is regenerated in the background.
+   * Exact snapshots already contain the approved placement and must never be
+   * transformed twice. When the renderer falls back to the original artwork,
+   * reconstruct the designer's fit/fill/drag/resize transform on the full-frame
+   * layer. The saved position is container-relative percent, so translating the
+   * full-frame layer by that percentage matches ArtworkPreviewEditor.
    */
-  const imageObjectFit: React.CSSProperties['objectFit'] = visibleSourceIsExact && fitMode === 'stretch'
+  const imageObjectFit: React.CSSProperties['objectFit'] = fitMode === 'stretch'
     ? 'fill'
     : 'contain';
+  const previewTransform = visibleSourceIsExact
+    ? undefined
+    : `translate(${requestedX}%, ${requestedY}%) scale(${requestedScaleX}, ${requestedScaleY})`;
   const previewTransformMode = visibleSourceIsExact
     ? 'exact-snapshot'
-    : 'centered-original-fallback';
+    : 'reconstructed-original';
 
   const showComposition = baseReady || designServiceEnabled;
   const showLoadingState = Boolean(imageUrl && !baseReady && !baseFailed);
@@ -263,7 +265,13 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
               </div>
             </div>
           ) : imageUrl && !baseFailed ? (
-            <div className="absolute inset-0 h-full w-full">
+            <div
+              className="absolute inset-0 h-full w-full"
+              style={{
+                transform: previewTransform,
+                transformOrigin: 'center center',
+              }}
+            >
               <StablePreviewImage
                 sources={imageSources}
                 alt="Banner preview"

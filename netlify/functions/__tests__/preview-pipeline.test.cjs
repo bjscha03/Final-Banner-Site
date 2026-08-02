@@ -150,6 +150,29 @@ test('real-browser commerce matrix loads production CSS and validates all core s
   assert.match(harness, /hasExpectedRatio/);
 });
 
+test('Upsell receives a baked designer composition before it opens', () => {
+  const design = read('src/pages/Design.tsx');
+  const upsell = read('src/components/cart/UpsellModal.tsx');
+  const banner = read('src/components/cart/StableBannerPreview.tsx');
+  const runner = read('tests/browser/run-preview-handoff-cdp.mjs');
+  const harness = read('tests/browser/upsell-preview-handoff.jsx');
+
+  assert.match(design, /prepareExactCompositionPreview/);
+  assert.match(design, /openUpsellWithExactComposition/);
+  assert.match(design, /pendingUpsellThumbnailUrl/);
+  assert.equal(design.includes('thumbnailIsExactComposition={Boolean(pendingUpsellThumbnailUrl)}'), true);
+  assert.match(design, /preparedDataUrl: approvedThumbnailUrl.startsWith/);
+  assert.equal(design.includes('thumbnailUrl={uploadedFile?.thumbnailUrl || uploadedFile?.url}'), false);
+  assert.equal(upsell.includes("from './StableBannerPreview'"), true);
+  assert.match(upsell, /thumbnailIsExactComposition/);
+  assert.match(upsell, /isFinalizedSnapshot={thumbnailIsExactComposition}/);
+  assert.match(upsell, /effectiveThumbnailUrl/);
+  assert.match(banner, /reconstructed-original/);
+  assert.match(banner, /transform: previewTransform/);
+  assert.match(runner, /upsell-exact-composition/);
+  assert.match(harness, /UPSELL-APPROVED-COMPOSITION/);
+});
+
 test('Design and Google Ads use the shared session-stable artwork editor alias', () => {
   const design = read('src/pages/Design.tsx');
   const googleAds = read('src/pages/GoogleAdsBanner.tsx');
