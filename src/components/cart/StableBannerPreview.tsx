@@ -150,9 +150,7 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
 
   // Determine composition from the URL that actually decoded and painted, not
   // merely from the first requested URL. If an exact positioned derivative
-  // fails and the renderer falls back to the original artwork, the original
-  // must receive the saved position/scale. Conversely, a baked snapshot must
-  // never receive the transform a second time.
+  // fails, StablePreviewImage can reject it and fall through to the original.
   const visibleSourceUrl = renderedSourceUrl || imageUrl || null;
   const visibleSourceIsExact = Boolean(
     visibleSourceUrl?.startsWith('data:image/')
@@ -163,13 +161,13 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
     ),
   );
 
-  const scaleX = Number.isFinite(imageScale) && imageScale > 0 ? imageScale : 1;
-  const requestedScaleY = imageScaleY ?? scaleX;
-  const scaleY = Number.isFinite(requestedScaleY) && requestedScaleY > 0
-    ? requestedScaleY
-    : scaleX;
-  const x = Number.isFinite(imagePosition?.x) ? imagePosition.x : 0;
-  const y = Number.isFinite(imagePosition?.y) ? imagePosition.y : 0;
+  const requestedScaleX = Number.isFinite(imageScale) && imageScale > 0 ? imageScale : 1;
+  const requestedScaleYCandidate = imageScaleY ?? requestedScaleX;
+  const requestedScaleY = Number.isFinite(requestedScaleYCandidate) && requestedScaleYCandidate > 0
+    ? requestedScaleYCandidate
+    : requestedScaleX;
+  const requestedX = Number.isFinite(imagePosition?.x) ? imagePosition.x : 0;
+  const requestedY = Number.isFinite(imagePosition?.y) ? imagePosition.y : 0;
 
   const overlay = useMemo(() => {
     if (!overlayImage?.url || !overlayImage.position) return null;
@@ -197,13 +195,20 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
     };
   }, [overlayImage, safeWidth, safeHeight, maxSize]);
 
-  // Baked snapshots already match the product frame. `contain` preserves that
-  // identity without stretching or cropping if a legacy derivative has a few
-  // extra pixels. Originals retain their saved transform; explicit stretch is
-  // the only path that uses fill.
-  const imageObjectFit: React.CSSProperties['objectFit'] = fitMode === 'stretch'
+  /**
+   * Exact snapshots already contain the customer's approved placement. A
+   * generic original is only a recovery source. Applying legacy position/scale
+   * to that recovery source can move the entire image outside the clipped
+   * commerce frame, which is how the 120×48 item produced a white rectangle.
+   * Centering the original with `contain` guarantees the correct artwork is
+   * visible while the exact positioned proof is regenerated in the background.
+   */
+  const imageObjectFit: React.CSSProperties['objectFit'] = visibleSourceIsExact && fitMode === 'stretch'
     ? 'fill'
     : 'contain';
+  const previewTransformMode = visibleSourceIsExact
+    ? 'exact-snapshot'
+    : 'centered-original-fallback';
 
   const showComposition = baseReady || designServiceEnabled;
   const showLoadingState = Boolean(imageUrl && !baseReady && !baseFailed);
@@ -233,6 +238,11 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
           data-preview-failed={baseFailed ? 'true' : 'false'}
           data-preview-exact={visibleSourceIsExact ? 'true' : 'false'}
           data-preview-rendered-source={visibleSourceUrl || undefined}
+          data-preview-transform-mode={previewTransformMode}
+          data-preview-requested-x={requestedX}
+          data-preview-requested-y={requestedY}
+          data-preview-requested-scale-x={requestedScaleX}
+          data-preview-requested-scale-y={requestedScaleY}
         >
           {designServiceEnabled ? (
             <div className="absolute inset-0 flex items-center justify-center bg-slate-50 px-2 text-center">
@@ -253,15 +263,7 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
               </div>
             </div>
           ) : imageUrl && !baseFailed ? (
-            <div
-              className="absolute inset-0 h-full w-full"
-              style={{
-                transform: visibleSourceIsExact
-                  ? undefined
-                  : `translate(${x}%, ${y}%) scale(${scaleX}, ${scaleY})`,
-                transformOrigin: 'center center',
-              }}
-            >
+            <div className="absolute inset-0 h-full w-full">
               <StablePreviewImage
                 sources={imageSources}
                 alt="Banner preview"
