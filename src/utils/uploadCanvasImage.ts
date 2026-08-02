@@ -4,6 +4,8 @@
  * across page navigation and browser sessions.
  */
 
+import { uploadArtworkFile } from '@/utils/uploadArtworkFile';
+
 export interface UploadResult {
   secureUrl: string;
   fileKey: string;
@@ -31,97 +33,93 @@ async function fetchWithTimeout(
   }
 }
 
+function isCloudinaryUrl(value: string): boolean {
+  try {
+    const host = new URL(value).hostname.toLowerCase();
+    return host === 'res.cloudinary.com' || host.endsWith('.cloudinary.com');
+  } catch {
+    return false;
+  }
+}
+
+function getCloudinaryPublicId(value: string): string {
+  const match = value.match(/\/upload\/(?:[^/]+\/)*(?:v\d+\/)?(.+?)(?:\.[^.\/]+)?(?:[?#].*)?$/);
+  return match ? match[1] : '';
+}
+
 /**
- * Upload an image blob/file to Cloudinary via the upload-file Netlify function.
+ * Upload an image blob/file to Cloudinary using the same signed direct-upload
+ * transport as original customer artwork. Large canvas snapshots no longer
+ * traverse Netlify's binary request body.
+ *
  * @param imageSource Can be a File, Blob, data URL, blob URL, or HTTP URL.
  * @param fileName Optional filename for the upload.
  */
 export async function uploadCanvasImageToCloudinary(
   imageSource: File | Blob | string,
-  fileName?: string
+  fileName?: string,
 ): Promise<UploadResult> {
   console.log('📤 uploadCanvasImageToCloudinary called:', {
     type: typeof imageSource,
     fileName,
-    isBlobUrl: typeof imageSource === 'string' && imageSource.startsWith('blob:')
+    isBlobUrl: typeof imageSource === 'string' && imageSource.startsWith('blob:'),
   });
 
-  let fileToUpload: File | Blob;
+  let fileToUpload: File;
 
   if (typeof imageSource === 'string') {
-    if (imageSource.startsWith('data:') || imageSource.startsWith('blob:')) {
-      const response = await fetchWithTimeout(imageSource, {}, 12_000);
-      if (!response.ok) throw new Error(`Could not read temporary preview (${response.status})`);
-      const blob = await response.blob();
-      if (!blob.size) throw new Error('Temporary preview was empty');
-      fileToUpload = blob;
-    } else if (/^https?:/i.test(imageSource)) {
-      let isCloudinaryUrl = false;
-      try {
-        const host = new URL(imageSource).hostname.toLowerCase();
-        isCloudinaryUrl = host === 'cloudinary.com' || host.endsWith('.cloudinary.com');
-      } catch {
-        isCloudinaryUrl = false;
-      }
-
-      if (isCloudinaryUrl) {
-        const match = imageSource.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?(?:[?#].*)?$/);
-        const fileKey = match ? match[1] : '';
-        return {
-          secureUrl: imageSource,
-          fileKey,
-          publicId: fileKey,
-        };
-      }
-
-      const response = await fetchWithTimeout(imageSource, { mode: 'cors' }, 15_000);
-      if (!response.ok) throw new Error(`Could not download preview (${response.status})`);
-      const blob = await response.blob();
-      if (!blob.size) throw new Error('Downloaded preview was empty');
-      fileToUpload = blob;
-    } else {
-      throw new Error('Invalid image source: must be a blob URL, HTTP URL, File, or Blob');
+    if (/^https?:/i.test(imageSource) && isCloudinaryUrl(imageSource)) {
+      const fileKey = getCloudinaryPublicId(imageSource);
+      return {
+        secureUrl: imageSource,
+        fileKey,
+        publicId: fileKey,
+      };
     }
-  } else {
+
+    if (
+      imageSource.startsWith('data:')
+      || imageSource.startsWith('blob:')
+      || /^https?:/i.test(imageSource)
+    ) {
+      const response = await fetchWithTimeout(
+        imageSource,
+        /^https?:/i.test(imageSource) ? { mode: 'cors' } : {},
+        /^https?:/i.test(imageSource) ? 20_000 : 12_000,
+      );
+      if (!response.ok) throw new Error(`Could not read preview (${response.status})`);
+      const blob = await response.blob();
+      if (!blob.size) throw new Error('Preview image was empty');
+      const uploadFileName = fileName || `canvas-image-${Date.now()}.${blob.type.includes('jpeg') ? 'jpg' : 'png'}`;
+      fileToUpload = new File([blob], uploadFileName, { type: blob.type || 'image/png' });
+    } else {
+      throw new Error('Invalid image source: must be a data URL, blob URL, HTTP URL, File, or Blob');
+    }
+  } else if (imageSource instanceof File) {
     fileToUpload = imageSource;
+  } else {
+    const uploadFileName = fileName || `canvas-image-${Date.now()}.${imageSource.type.includes('jpeg') ? 'jpg' : 'png'}`;
+    fileToUpload = new File([imageSource], uploadFileName, {
+      type: imageSource.type || 'image/png',
+    });
   }
 
-  const formData = new FormData();
-  const uploadFileName = fileToUpload instanceof File
-    ? fileToUpload.name
-    : (fileName || `canvas-image-${Date.now()}.png`);
-  formData.append('file', fileToUpload, uploadFileName);
-
-  console.log('📤 Uploading canvas image:', {
-    fileName: uploadFileName,
+  console.log('📤 Uploading canvas image directly:', {
+    fileName: fileToUpload.name,
     size: fileToUpload.size,
-    type: fileToUpload.type
+    type: fileToUpload.type,
   });
 
-  const response = await fetchWithTimeout('/.netlify/functions/upload-file', {
-    method: 'POST',
-    body: formData,
-  }, 35_000);
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('❌ Upload failed:', errorText);
-    throw new Error(`Upload failed: ${response.status} - ${errorText}`);
-  }
-
-  const result = await response.json();
-  const secureUrl = result.secureUrl || result.url;
-  const fileKey = result.fileKey || result.publicId;
-  if (!secureUrl || !fileKey) {
-    throw new Error('Preview upload completed without a permanent URL');
-  }
+  const result = await uploadArtworkFile(fileToUpload, {
+    correlationId: `canvas-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  });
 
   return {
-    secureUrl,
-    fileKey,
-    publicId: result.publicId || fileKey,
-    width: result.width,
-    height: result.height,
+    secureUrl: result.secureUrl,
+    fileKey: result.fileKey,
+    publicId: result.publicId,
+    width: result.width || undefined,
+    height: result.height || undefined,
   };
 }
 

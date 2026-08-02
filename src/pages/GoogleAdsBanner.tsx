@@ -57,6 +57,7 @@ import CreateWithAIModal, { type CreateWithAIResult } from '@/components/design/
 import EditWithAIModal from '@/components/design/EditWithAIModal';
 import { ENABLE_AI } from '@/lib/featureFlags';
 import { base64ToFile } from '@/utils/base64ToFile';
+import { uploadArtworkFile, validateArtworkFile } from '@/utils/uploadArtworkFile';
 import { computeSameDayFeesCents } from '@/lib/sameDayService';
 import ConfigCard from '@/components/design/layout/ConfigCard';
 import TrustStrip from '@/components/design/layout/TrustStrip';
@@ -74,6 +75,7 @@ import {
 } from '@/lib/builderSteps';
 import { logUx } from '@/lib/uxAnalytics';
 import { formatOptionValue, getDisplayPlacement } from '@/lib/product-display';
+import type { ArtworkManifest } from '@/types/artwork';
 
 type UploadedArtworkFile = {
   name: string;
@@ -92,6 +94,7 @@ type UploadedArtworkFile = {
   originalWidth?: number | null;
   originalHeight?: number | null;
   pdfPageNumber?: number;
+  artworkManifest?: ArtworkManifest;
 };
 
 
@@ -162,6 +165,34 @@ function getImagePreviewUrl(imageUrl: string): string {
   if (/\/upload\/[a-z]_[^/]+\//.test(imageUrl)) return imageUrl;
   return imageUrl.replace('/upload/', '/upload/f_auto,q_auto:good,w_1600,c_limit/');
 }
+function hasPermanentArtwork(file: UploadedArtworkFile | null | undefined): file is UploadedArtworkFile {
+  return Boolean(
+    file
+    && (file.productionUrl || (/^https?:\/\//i.test(file.url || '') ? file.url : null))
+    && (file.productionPublicId || file.fileKey),
+  );
+}
+
+function preloadPermanentArtwork(url: string, timeoutMs = 20_000): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (!url) { resolve(false); return; }
+    const image = new Image();
+    let settled = false;
+    const finish = (value: boolean) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutId);
+      image.onload = null;
+      image.onerror = null;
+      resolve(value);
+    };
+    const timeoutId = window.setTimeout(() => finish(false), timeoutMs);
+    image.onload = () => finish(Boolean(image.naturalWidth && image.naturalHeight));
+    image.onerror = () => finish(false);
+    image.src = url;
+  });
+}
+
 const GoogleAdsBanner: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -248,10 +279,22 @@ const GoogleAdsBanner: React.FC = () => {
   const [ropePlacement, setRopePlacement] = useState<RopePlacement>('top');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<UploadedArtworkFile | null>(null);
+  const uploadedFileRef = useRef<UploadedArtworkFile | null>(null);
+  const activeUploadFileRef = useRef<File | null>(null);
+  const activeUploadPromiseRef = useRef<Promise<UploadedArtworkFile | null> | null>(null);
+  const activeUploadAbortControllerRef = useRef<AbortController | null>(null);
+  const uploadGenerationRef = useRef(0);
+  const activeImagePreviewCleanupRef = useRef<(() => void) | null>(null);
   const activePdfPreviewCleanupRef = useRef<(() => void) | null>(null);
   const activePdfPreviewFileRef = useRef<File | null>(null);
+  useEffect(() => {
+    uploadedFileRef.current = uploadedFile;
+  }, [uploadedFile]);
   useEffect(() => () => {
+    activeUploadAbortControllerRef.current?.abort();
+    activeImagePreviewCleanupRef.current?.();
     activePdfPreviewCleanupRef.current?.();
+    activeImagePreviewCleanupRef.current = null;
     activePdfPreviewCleanupRef.current = null;
   }, []);
   const [uploadError, setUploadError] = useState('');
@@ -824,42 +867,6 @@ const GoogleAdsBanner: React.FC = () => {
     setPromoCode('');
   };
 
-  // Compress images client-side to stay under Netlify's 6 MB function limit
-  const compressImage = useCallback(async (file: File): Promise<File> => {
-    // Skip PDFs and files already under 4.5 MB
-    if (file.type === 'application/pdf' || file.size <= 4.5 * 1024 * 1024) return file;
-    return new Promise((resolve) => {
-      const img = new Image();
-      const objectUrl = URL.createObjectURL(file);
-      const cleanup = () => URL.revokeObjectURL(objectUrl);
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        // Cap at 4000px on longest side to keep file size reasonable
-        const maxDim = 4000;
-        let { width, height } = img;
-        if (width > maxDim || height > maxDim) {
-          const ratio = Math.min(maxDim / width, maxDim / height);
-          width = Math.round(width * ratio);
-          height = Math.round(height * ratio);
-        }
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) { cleanup(); resolve(file); return; }
-        ctx.drawImage(img, 0, 0, width, height);
-        canvas.toBlob((blob) => {
-          cleanup();
-          if (!blob || blob.size >= file.size) { resolve(file); return; }
-          const compressed = new File([blob], file.name.replace(/.png$/i, '.jpg'), { type: 'image/jpeg' });
-          console.log('Compressed:', file.size, '->', compressed.size);
-          resolve(compressed);
-        }, 'image/jpeg', 0.85);
-      };
-      img.onerror = () => { cleanup(); resolve(file); };
-      img.src = objectUrl;
-    });
-  }, []);
-
 
   const validatePdfPreviewImage = useCallback((preview: PdfPreviewResult, correlationId: string) => new Promise<{ width: number; height: number }>((resolve, reject) => {
     const validationImage = new Image();
@@ -926,63 +933,167 @@ const GoogleAdsBanner: React.FC = () => {
     }
   }, [generateValidatedPdfPreview]);
 
-  const handleFileUpload = useCallback(async (file: File) => {
+  const persistArtworkUpload = useCallback(async (
+    file: File,
+    initialArtwork: UploadedArtworkFile,
+    generation: number,
+    correlationId: string,
+  ): Promise<UploadedArtworkFile | null> => {
+    const controller = new AbortController();
+    activeUploadAbortControllerRef.current?.abort();
+    activeUploadAbortControllerRef.current = controller;
+    setIsUploading(true);
     setUploadError('');
-    const accepted = ['application/pdf','image/jpeg','image/png'];
-    const ext = file.name.split('.').pop()?.toLowerCase() || '';
-    if (!accepted.includes(file.type) && !['pdf','png','jpg','jpeg'].includes(ext)) {
-      setUploadError('Please upload a PDF, PNG, JPG, or JPEG file.');
+
+    const promise = (async () => {
+      const result = await uploadArtworkFile(file, {
+        correlationId,
+        signal: controller.signal,
+        onAttempt: (attempt, maximum) => {
+          console.info('[artwork_upload]', {
+            correlationId,
+            stage: 'direct_upload_attempt',
+            attempt,
+            maximum,
+            size: file.size,
+          });
+        },
+      });
+      if (generation !== uploadGenerationRef.current) return null;
+
+      let browserPreviewUrl = initialArtwork.previewUrl || initialArtwork.thumbnailUrl || initialArtwork.url;
+      const permanentPreviewUrl = result.previewUrl || result.secureUrl;
+      const permanentPreviewLoaded = await preloadPermanentArtwork(permanentPreviewUrl);
+      if (permanentPreviewLoaded) browserPreviewUrl = permanentPreviewUrl;
+
+      const completedArtwork: UploadedArtworkFile = {
+        ...initialArtwork,
+        url: result.secureUrl,
+        fileKey: result.fileKey,
+        thumbnailUrl: browserPreviewUrl,
+        previewUrl: browserPreviewUrl,
+        productionUrl: result.productionUrl,
+        productionPublicId: result.productionPublicId,
+        resourceType: result.resourceType,
+        mimeType: result.mimeType,
+        originalFormat: result.format || initialArtwork.originalFormat,
+        originalBytes: result.bytes || file.size,
+        originalWidth: result.width ?? initialArtwork.originalWidth ?? null,
+        originalHeight: result.height ?? initialArtwork.originalHeight ?? null,
+        pdfPageNumber: initialArtwork.isPdf ? 1 : undefined,
+        artworkManifest: result.artworkManifest,
+      };
+
+      uploadedFileRef.current = completedArtwork;
+      setUploadedFile(completedArtwork);
+      setUploadError('');
+      console.info('[artwork_upload]', {
+        correlationId,
+        stage: 'original_upload_succeeded',
+        transport: result.transport,
+        publicIdPresent: Boolean(result.fileKey),
+      });
+      logUx('upload_success', {
+        name: file.name,
+        fileKey: result.fileKey,
+        transport: result.transport,
+      });
+
+      if (permanentPreviewLoaded) {
+        window.setTimeout(() => {
+          activeImagePreviewCleanupRef.current?.();
+          activePdfPreviewCleanupRef.current?.();
+          activeImagePreviewCleanupRef.current = null;
+          activePdfPreviewCleanupRef.current = null;
+        }, 0);
+      }
+      return completedArtwork;
+    })();
+
+    activeUploadPromiseRef.current = promise;
+    try {
+      return await promise;
+    } catch (error) {
+      if (generation !== uploadGenerationRef.current) return null;
+      const cancelled = controller.signal.aborted;
+      if (!cancelled) {
+        console.error('[artwork_upload]', { correlationId, stage: 'original_upload_failed', error });
+        logUx('upload_error', {
+          name: file.name,
+          message: error instanceof Error ? error.message : String(error),
+        });
+        setUploadError(
+          'We could not finish the original artwork upload. Your file is still selected — tap Buy Now to retry automatically or choose another file.',
+        );
+      }
+      return null;
+    } finally {
+      if (activeUploadPromiseRef.current === promise) activeUploadPromiseRef.current = null;
+      if (activeUploadAbortControllerRef.current === controller) activeUploadAbortControllerRef.current = null;
+      if (generation === uploadGenerationRef.current) setIsUploading(false);
+    }
+  }, []);
+
+  const handleFileUpload = useCallback(async (file: File) => {
+    const validationError = validateArtworkFile(file);
+    if (validationError) {
+      setUploadError(validationError);
       return;
     }
-    if (file.size > 50 * 1024 * 1024) {
-      setUploadError('File too large. Please upload a file under 50MB.');
-      return;
-    }
+
+    const generation = uploadGenerationRef.current + 1;
+    uploadGenerationRef.current = generation;
+    activeUploadAbortControllerRef.current?.abort();
+    activeUploadFileRef.current = file;
+    setUploadError('');
+
+    activeImagePreviewCleanupRef.current?.();
+    activePdfPreviewCleanupRef.current?.();
+    activeImagePreviewCleanupRef.current = null;
+    activePdfPreviewCleanupRef.current = null;
 
     const correlationId = `artwork-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const isPdf = file.type === 'application/pdf' || ext === 'pdf';
-    const mimeType = isPdf ? 'application/pdf' : (file.type || (ext === 'png' ? 'image/png' : 'image/jpeg'));
-    const resourceType = isPdf ? 'raw' : 'image';
-    const logArtworkStage = (stage: string, extra: Record<string, unknown> = {}) => {
-      console.info('[artwork_upload]', { correlationId, stage, name: file.name, mimeType, resourceType, ...extra });
-    };
-    const readImageDimensions = (url: string) => new Promise<{ width: number; height: number } | null>((resolve) => {
-      const img = new Image();
-      img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
-      img.onerror = () => resolve(null);
-      img.src = url;
-    });
-    const preloadImage = (url: string) => new Promise<boolean>((resolve) => {
-      const img = new Image();
-      img.onload = () => resolve(true);
-      img.onerror = () => resolve(false);
-      img.src = url;
-    });
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    const extension = file.name.split('.').pop()?.toLowerCase() || (isPdf ? 'pdf' : 'jpg');
+    const mimeType = isPdf
+      ? 'application/pdf'
+      : (file.type || (extension === 'png' ? 'image/png' : 'image/jpeg'));
 
-    const UPLOAD_TIMEOUT_MS = 60_000;
-    const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
     setIsUploading(true);
-    logArtworkStage('file_selected', { size: file.size });
     logUx('upload_start', { name: file.name, size: file.size, type: file.type });
 
     try {
-      logArtworkStage('local_preview_started');
       let previewUrl = '';
       let dimensions: { width: number; height: number } | null = null;
-      let pendingPdfPreviewCleanup: (() => void) | null = null;
       if (isPdf) {
         activePdfPreviewFileRef.current = file;
         const pdfPreview = await generateValidatedPdfPreview(file, correlationId);
         previewUrl = pdfPreview.preview.previewUrl;
-        pendingPdfPreviewCleanup = pdfPreview.preview.cleanup;
+        activePdfPreviewCleanupRef.current = pdfPreview.preview.cleanup;
         dimensions = pdfPreview.dimensions;
       } else {
         activePdfPreviewFileRef.current = null;
         previewUrl = URL.createObjectURL(file);
-        dimensions = await readImageDimensions(previewUrl);
+        activeImagePreviewCleanupRef.current = () => URL.revokeObjectURL(previewUrl);
+        dimensions = await new Promise((resolve) => {
+          const image = new Image();
+          let settled = false;
+          const finish = (value: { width: number; height: number } | null) => {
+            if (settled) return;
+            settled = true;
+            window.clearTimeout(timeoutId);
+            image.onload = null;
+            image.onerror = null;
+            resolve(value);
+          };
+          const timeoutId = window.setTimeout(() => finish(null), 12_000);
+          image.onload = () => finish({ width: image.naturalWidth, height: image.naturalHeight });
+          image.onerror = () => finish(null);
+          image.src = previewUrl;
+        });
       }
 
+      if (generation !== uploadGenerationRef.current) return;
       const initialArtwork: UploadedArtworkFile = {
         name: file.name,
         url: previewUrl,
@@ -991,75 +1102,74 @@ const GoogleAdsBanner: React.FC = () => {
         isPdf,
         thumbnailUrl: previewUrl,
         previewUrl,
-        resourceType,
+        resourceType: 'image',
         mimeType,
-        originalFormat: ext || (isPdf ? 'pdf' : mimeType.split('/')[1]),
+        originalFormat: extension,
         originalBytes: file.size,
         originalWidth: dimensions?.width ?? null,
         originalHeight: dimensions?.height ?? null,
         pdfPageNumber: isPdf ? 1 : undefined,
       };
-      if (isPdf && pendingPdfPreviewCleanup) {
-        activePdfPreviewCleanupRef.current?.();
-        activePdfPreviewCleanupRef.current = pendingPdfPreviewCleanup;
-      }
+      uploadedFileRef.current = initialArtwork;
       setUploadedFile(initialArtwork);
-      logArtworkStage('local_preview_ready', { previewUrlType: previewUrl.startsWith('data:') ? 'data' : previewUrl.startsWith('blob:') ? 'blob' : 'url' });
-
-      const formData = new FormData();
-      formData.append('file', file);
-      logArtworkStage('original_upload_started');
-      const res = await fetch('/.netlify/functions/upload-file', { method: 'POST', body: formData, signal: controller.signal });
-      if (!res.ok) throw new Error(`Upload failed (${res.status})`);
-      const data = await res.json();
-      const productionUrl = data.secureUrl || data.url;
-      const productionPublicId = data.fileKey || data.publicId;
-      if (!productionUrl || !productionPublicId) {
-        throw new Error('Upload succeeded but did not return a permanent production asset.');
-      }
-
-      let browserPreviewUrl = previewUrl;
-      if (!isPdf && productionUrl) {
-        const productionPreviewLoaded = await preloadImage(productionUrl);
-        if (productionPreviewLoaded) browserPreviewUrl = productionUrl;
-      }
-
-      setUploadedFile({
-        ...initialArtwork,
-        url: productionUrl,
-        fileKey: productionPublicId,
-        thumbnailUrl: browserPreviewUrl,
-        previewUrl: browserPreviewUrl,
-        productionUrl,
-        productionPublicId,
-        resourceType: data.resource_type || data.resourceType || resourceType,
-        mimeType: data.mimeType || data.mimetype || mimeType,
-        originalFormat: data.format || initialArtwork.originalFormat,
-        originalBytes: data.bytes || file.size,
-        originalWidth: data.width ?? dimensions?.width ?? null,
-        originalHeight: data.height ?? dimensions?.height ?? null,
-        pdfPageNumber: isPdf ? 1 : undefined,
+      console.info('[artwork_upload]', {
+        correlationId,
+        stage: 'local_preview_ready',
+        previewUrlType: previewUrl.startsWith('data:') ? 'data' : previewUrl.startsWith('blob:') ? 'blob' : 'url',
       });
-      logArtworkStage('original_upload_succeeded', { publicIdPresent: Boolean(productionPublicId), productionResourceType: data.resource_type || data.resourceType || resourceType });
-      logArtworkStage('editor_state_saved');
-      console.info('[upload] success', { name: file.name, fileKey: productionPublicId });
-      logUx('upload_success', { name: file.name, fileKey: productionPublicId });
-    } catch (err) {
-      const isAbort = (err as { name?: string } | null)?.name === 'AbortError';
-      if (isAbort) {
-        console.warn('[upload] timeout', { name: file.name, timeoutMs: UPLOAD_TIMEOUT_MS, correlationId });
-        logUx('upload_timeout', { name: file.name, timeoutMs: UPLOAD_TIMEOUT_MS });
-        setUploadError('Upload timed out. Please check your connection and try again.');
-      } else {
-        console.error('[upload] failed', { correlationId, error: err });
-        logUx('upload_error', { name: file.name, message: (err as Error)?.message });
-        setUploadError('Upload failed. Please try again or choose a different file.');
-      }
-    } finally {
-      window.clearTimeout(timeoutId);
+
+      await persistArtworkUpload(file, initialArtwork, generation, correlationId);
+    } catch (error) {
+      if (generation !== uploadGenerationRef.current) return;
+      console.error('[artwork_upload]', { correlationId, stage: 'local_preview_failed', error });
+      setUploadError('We could not open that artwork file. Please choose a PDF, PNG, JPG, or JPEG file.');
       setIsUploading(false);
     }
-  }, [generateValidatedPdfPreview]);
+  }, [generateValidatedPdfPreview, persistArtworkUpload]);
+
+  const retryActiveArtworkUpload = useCallback(async (): Promise<UploadedArtworkFile | null> => {
+    const file = activeUploadFileRef.current;
+    const current = uploadedFileRef.current;
+    if (!file || !current) return null;
+    if (hasPermanentArtwork(current)) return current;
+    return persistArtworkUpload(
+      file,
+      current,
+      uploadGenerationRef.current,
+      `artwork-retry-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    );
+  }, [persistArtworkUpload]);
+
+  const ensurePermanentArtworkUploaded = useCallback(async (): Promise<UploadedArtworkFile | null> => {
+    let current = uploadedFileRef.current;
+    if (hasPermanentArtwork(current)) return current;
+
+    if (activeUploadPromiseRef.current) {
+      toast({
+        title: 'Finishing artwork upload',
+        description: 'Your file is selected. We are completing the secure upload now.',
+      });
+      await activeUploadPromiseRef.current.catch(() => null);
+      current = uploadedFileRef.current;
+      if (hasPermanentArtwork(current)) return current;
+    }
+
+    if (activeUploadFileRef.current && current) {
+      toast({
+        title: 'Retrying artwork upload',
+        description: 'You do not need to select the file again. We are retrying it now.',
+      });
+      current = await retryActiveArtworkUpload();
+      if (hasPermanentArtwork(current)) return current;
+    }
+
+    toast({
+      title: 'Artwork upload failed',
+      description: 'The file is still selected. Check your connection and tap Buy Now again, or choose another file.',
+      variant: 'destructive',
+    });
+    return null;
+  }, [retryActiveArtworkUpload, toast]);
 
   // Handle a successful "Create with AI" generation: convert the returned
   // base64 PNG into a File and run it through the SAME upload pipeline used
@@ -1093,11 +1203,21 @@ const GoogleAdsBanner: React.FC = () => {
   // Reset the preview/builder state after a successful "Add to Cart" so the
   // user can immediately start building another product.
   const resetPreview = useCallback(() => {
+    uploadGenerationRef.current += 1;
+    activeUploadAbortControllerRef.current?.abort();
+    activeUploadAbortControllerRef.current = null;
+    activeUploadPromiseRef.current = null;
+    activeUploadFileRef.current = null;
+    activeImagePreviewCleanupRef.current?.();
+    activePdfPreviewCleanupRef.current?.();
+    activeImagePreviewCleanupRef.current = null;
+    activePdfPreviewCleanupRef.current = null;
+    uploadedFileRef.current = null;
     setUploadedFile(null);
     setImgPos({ x: 0, y: 0 });
     setImgScale(1);
     setImgScaleY(1);
-    setUploadError(null);
+    setUploadError('');
     setAiPrompt(null);
     setAiEditPrompt(null);
     setHasJustAddedToCart(false);
@@ -1244,6 +1364,7 @@ const GoogleAdsBanner: React.FC = () => {
     actionType: 'checkout' | 'cart' = 'checkout',
   ) => {
     const checkoutData = directData || pendingCheckoutData;
+    let checkoutArtwork = uploadedFileRef.current;
     
     // For yard signs, we use the multi-design flow
     if (isYardSign && yardSignPricing) {
@@ -1341,33 +1462,27 @@ const GoogleAdsBanner: React.FC = () => {
     }
 
     if (isCarMagnet && carMagnetPricing) {
-      if (!uploadedFile || !checkoutData) return;
-      if (!(uploadedFile.productionUrl || uploadedFile.fileKey) || !(uploadedFile.productionPublicId || uploadedFile.fileKey)) {
-        toast({
-          title: 'Upload still processing',
-          description: 'Please wait for the original artwork upload to finish before checkout.',
-          variant: 'destructive',
-        });
-        return;
-      }
+      if (!checkoutArtwork || !checkoutData) return;
+      checkoutArtwork = await ensurePermanentArtworkUploaded();
+      if (!checkoutArtwork) return;
 
       const container = previewContainerRef.current;
       const canvasStateJson = JSON.stringify({
         source: 'google-ads-banner',
         version: 2,
-        originalImageUrl: uploadedFile.productionUrl || uploadedFile.url,
-        originalImageFileKey: uploadedFile.productionPublicId || uploadedFile.fileKey,
-        isPdf: uploadedFile.isPdf,
-        previewUrl: uploadedFile.previewUrl || uploadedFile.thumbnailUrl || null,
-        productionUrl: uploadedFile.productionUrl || uploadedFile.url,
-        productionPublicId: uploadedFile.productionPublicId || uploadedFile.fileKey,
-        resourceType: uploadedFile.resourceType,
-        mimeType: uploadedFile.mimeType,
-        originalFormat: uploadedFile.originalFormat,
-        originalBytes: uploadedFile.originalBytes,
-        originalWidth: uploadedFile.originalWidth,
-        originalHeight: uploadedFile.originalHeight,
-        pdfPageNumber: uploadedFile.pdfPageNumber,
+        originalImageUrl: checkoutArtwork.productionUrl || checkoutArtwork.url,
+        originalImageFileKey: checkoutArtwork.productionPublicId || checkoutArtwork.fileKey,
+        isPdf: checkoutArtwork.isPdf,
+        previewUrl: checkoutArtwork.previewUrl || checkoutArtwork.thumbnailUrl || null,
+        productionUrl: checkoutArtwork.productionUrl || checkoutArtwork.url,
+        productionPublicId: checkoutArtwork.productionPublicId || checkoutArtwork.fileKey,
+        resourceType: checkoutArtwork.resourceType,
+        mimeType: checkoutArtwork.mimeType,
+        originalFormat: checkoutArtwork.originalFormat,
+        originalBytes: checkoutArtwork.originalBytes,
+        originalWidth: checkoutArtwork.originalWidth,
+        originalHeight: checkoutArtwork.originalHeight,
+        pdfPageNumber: checkoutArtwork.pdfPageNumber,
         widthIn,
         heightIn,
         imgPos: checkoutData.pos,
@@ -1386,7 +1501,7 @@ const GoogleAdsBanner: React.FC = () => {
       // no network) so the cart shows the correct cropped preview right
       // away. The full Cloudinary upload happens in the background and
       // patches the cart item once complete.
-      const baseImageUrl = uploadedFile.previewUrl || uploadedFile.thumbnailUrl || uploadedFile.url;
+      const baseImageUrl = checkoutArtwork.previewUrl || checkoutArtwork.thumbnailUrl || checkoutArtwork.url;
       let approvedThumbnailUrl = baseImageUrl;
       try {
         const rendered = await renderPositionedThumbnailDataUrl({
@@ -1416,17 +1531,17 @@ const GoogleAdsBanner: React.FC = () => {
         imageScaleY: checkoutData.scaleY ?? checkoutData.scale,
         fitMode: 'fill',
         thumbnailUrl: approvedThumbnailUrl,
-        file: { name: uploadedFile.name, url: uploadedFile.url, fileKey: uploadedFile.fileKey, size: uploadedFile.size, isPdf: uploadedFile.isPdf, thumbnailUrl: uploadedFile.previewUrl || uploadedFile.thumbnailUrl,
-              previewUrl: uploadedFile.previewUrl,
-              productionUrl: uploadedFile.productionUrl || uploadedFile.url,
-              productionPublicId: uploadedFile.productionPublicId || uploadedFile.fileKey,
-              resourceType: uploadedFile.resourceType,
-              mimeType: uploadedFile.mimeType,
-              originalFormat: uploadedFile.originalFormat,
-              originalBytes: uploadedFile.originalBytes,
-              originalWidth: uploadedFile.originalWidth,
-              originalHeight: uploadedFile.originalHeight,
-              pdfPageNumber: uploadedFile.pdfPageNumber, type: uploadedFile.isPdf ? 'application/pdf' : 'image/*' } as any,
+        file: { name: checkoutArtwork.name, url: checkoutArtwork.url, fileKey: checkoutArtwork.fileKey, size: checkoutArtwork.size, isPdf: checkoutArtwork.isPdf, thumbnailUrl: checkoutArtwork.previewUrl || checkoutArtwork.thumbnailUrl,
+              previewUrl: checkoutArtwork.previewUrl,
+              productionUrl: checkoutArtwork.productionUrl || checkoutArtwork.url,
+              productionPublicId: checkoutArtwork.productionPublicId || checkoutArtwork.fileKey,
+              resourceType: checkoutArtwork.resourceType,
+              mimeType: checkoutArtwork.mimeType,
+              originalFormat: checkoutArtwork.originalFormat,
+              originalBytes: checkoutArtwork.originalBytes,
+              originalWidth: checkoutArtwork.originalWidth,
+              originalHeight: checkoutArtwork.originalHeight,
+              pdfPageNumber: checkoutArtwork.pdfPageNumber, type: checkoutArtwork.isPdf ? 'application/pdf' : 'image/*' } as any,
         finalRenderUrl: null,
         finalRenderFileKey: null,
         finalRenderWidthPx: null,
@@ -1462,7 +1577,7 @@ const GoogleAdsBanner: React.FC = () => {
         imgPosPercent: checkoutData.pos,
         imgScale: checkoutData.scale,
         imgScaleY: checkoutData.scaleY ?? checkoutData.scale,
-        pdfFile: uploadedFile.isPdf ? activePdfPreviewFileRef.current : null,
+        pdfFile: checkoutArtwork.isPdf ? activePdfPreviewFileRef.current : null,
       });
 
       finishAddToCart(actionType, '/google-ads-banner?product=car-magnets');
@@ -1470,7 +1585,7 @@ const GoogleAdsBanner: React.FC = () => {
     }
 
     // Banner flow
-    if (!uploadedFile || !checkoutData) return;
+    if (!checkoutArtwork || !checkoutData) return;
     
     let finalGrommets = grommets;
     let finalRope = addRope;
@@ -1503,19 +1618,19 @@ const GoogleAdsBanner: React.FC = () => {
     const canvasStateJson = JSON.stringify({
       source: 'google-ads-banner',
       version: 2,
-      originalImageUrl: uploadedFile.productionUrl || uploadedFile.url,
-      originalImageFileKey: uploadedFile.productionPublicId || uploadedFile.fileKey,
-      isPdf: uploadedFile.isPdf,
-      previewUrl: uploadedFile.previewUrl || uploadedFile.thumbnailUrl || null,
-      productionUrl: uploadedFile.productionUrl || uploadedFile.url,
-      productionPublicId: uploadedFile.productionPublicId || uploadedFile.fileKey,
-      resourceType: uploadedFile.resourceType,
-      mimeType: uploadedFile.mimeType,
-      originalFormat: uploadedFile.originalFormat,
-      originalBytes: uploadedFile.originalBytes,
-      originalWidth: uploadedFile.originalWidth,
-      originalHeight: uploadedFile.originalHeight,
-      pdfPageNumber: uploadedFile.pdfPageNumber,
+      originalImageUrl: checkoutArtwork.productionUrl || checkoutArtwork.url,
+      originalImageFileKey: checkoutArtwork.productionPublicId || checkoutArtwork.fileKey,
+      isPdf: checkoutArtwork.isPdf,
+      previewUrl: checkoutArtwork.previewUrl || checkoutArtwork.thumbnailUrl || null,
+      productionUrl: checkoutArtwork.productionUrl || checkoutArtwork.url,
+      productionPublicId: checkoutArtwork.productionPublicId || checkoutArtwork.fileKey,
+      resourceType: checkoutArtwork.resourceType,
+      mimeType: checkoutArtwork.mimeType,
+      originalFormat: checkoutArtwork.originalFormat,
+      originalBytes: checkoutArtwork.originalBytes,
+      originalWidth: checkoutArtwork.originalWidth,
+      originalHeight: checkoutArtwork.originalHeight,
+      pdfPageNumber: checkoutArtwork.pdfPageNumber,
       widthIn,
       heightIn,
       imgPos: checkoutData.pos,
@@ -1534,7 +1649,7 @@ const GoogleAdsBanner: React.FC = () => {
     // checkout/admin all show what the user approved. Render synchronously
     // to a dataUrl (canvas only, no network) for instant cart display;
     // upload to Cloudinary in the background.
-    const baseImageUrl = uploadedFile.previewUrl || uploadedFile.thumbnailUrl || uploadedFile.url;
+    const baseImageUrl = checkoutArtwork.previewUrl || checkoutArtwork.thumbnailUrl || checkoutArtwork.url;
     let approvedThumbnailUrl = baseImageUrl;
     try {
       const rendered = await renderPositionedThumbnailDataUrl({
@@ -1568,17 +1683,17 @@ const GoogleAdsBanner: React.FC = () => {
       imageScaleY: checkoutData.scaleY ?? checkoutData.scale,
       fitMode: 'fill',
       thumbnailUrl: approvedThumbnailUrl,
-      file: { name: uploadedFile.name, url: uploadedFile.url, fileKey: uploadedFile.fileKey, size: uploadedFile.size, isPdf: uploadedFile.isPdf, thumbnailUrl: uploadedFile.previewUrl || uploadedFile.thumbnailUrl,
-              previewUrl: uploadedFile.previewUrl,
-              productionUrl: uploadedFile.productionUrl || uploadedFile.url,
-              productionPublicId: uploadedFile.productionPublicId || uploadedFile.fileKey,
-              resourceType: uploadedFile.resourceType,
-              mimeType: uploadedFile.mimeType,
-              originalFormat: uploadedFile.originalFormat,
-              originalBytes: uploadedFile.originalBytes,
-              originalWidth: uploadedFile.originalWidth,
-              originalHeight: uploadedFile.originalHeight,
-              pdfPageNumber: uploadedFile.pdfPageNumber, type: uploadedFile.isPdf ? 'application/pdf' : 'image/*' } as any,
+      file: { name: checkoutArtwork.name, url: checkoutArtwork.url, fileKey: checkoutArtwork.fileKey, size: checkoutArtwork.size, isPdf: checkoutArtwork.isPdf, thumbnailUrl: checkoutArtwork.previewUrl || checkoutArtwork.thumbnailUrl,
+              previewUrl: checkoutArtwork.previewUrl,
+              productionUrl: checkoutArtwork.productionUrl || checkoutArtwork.url,
+              productionPublicId: checkoutArtwork.productionPublicId || checkoutArtwork.fileKey,
+              resourceType: checkoutArtwork.resourceType,
+              mimeType: checkoutArtwork.mimeType,
+              originalFormat: checkoutArtwork.originalFormat,
+              originalBytes: checkoutArtwork.originalBytes,
+              originalWidth: checkoutArtwork.originalWidth,
+              originalHeight: checkoutArtwork.originalHeight,
+              pdfPageNumber: checkoutArtwork.pdfPageNumber, type: checkoutArtwork.isPdf ? 'application/pdf' : 'image/*' } as any,
       finalRenderUrl: finalRenderResult?.url || null,
       finalRenderFileKey: finalRenderResult?.fileKey || null,
       finalRenderWidthPx: finalRenderResult?.widthPx || null,
@@ -1614,12 +1729,12 @@ const GoogleAdsBanner: React.FC = () => {
       imgPosPercent: checkoutData.pos,
       imgScale: checkoutData.scale,
       imgScaleY: checkoutData.scaleY ?? checkoutData.scale,
-      pdfFile: uploadedFile.isPdf ? activePdfPreviewFileRef.current : null,
+      pdfFile: checkoutArtwork.isPdf ? activePdfPreviewFileRef.current : null,
     });
 
     console.log('[FINAL_RENDER_HTML] ✅ Cart item created (background thumbnail upload scheduled)');
     finishAddToCart(actionType, '/google-ads-banner?product=banner');
-  }, [uploadedFile, pendingCheckoutData, grommets, addRope, polePockets, widthIn, heightIn, quantity, material, quoteStore, cartStore, navigate, imgPos, imgScale, isYardSign, isCarMagnet, carMagnetPricing, carMagnetRoundedCorners, yardSignMaterial, yardSignPricing, productType, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, yardSignSidedness, yardSignAddStepStakes, yardSignStepStakeQty, finishAddToCart, scheduleThumbnailUpload, scheduleWebPreviewUpload]);
+  }, [ensurePermanentArtworkUploaded, pendingCheckoutData, grommets, addRope, polePockets, widthIn, heightIn, quantity, material, quoteStore, cartStore, navigate, imgPos, imgScale, isYardSign, isCarMagnet, carMagnetPricing, carMagnetRoundedCorners, yardSignMaterial, yardSignPricing, productType, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, yardSignSidedness, yardSignAddStepStakes, yardSignStepStakeQty, finishAddToCart, scheduleThumbnailUpload, scheduleWebPreviewUpload]);
 
   // Proceed directly to checkout
   const handleCheckout = useCallback(() => {
