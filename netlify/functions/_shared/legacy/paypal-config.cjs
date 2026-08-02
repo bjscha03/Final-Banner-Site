@@ -27,8 +27,18 @@ const firstConfigured = (...names) => {
   return null;
 };
 
+const normalizeEnvironment = (value) => {
+  const normalized = String(value || 'sandbox')
+    .trim()
+    .replace(/^['"]+|['"]+$/g, '')
+    .toLowerCase();
+
+  if (['live', 'production', 'prod'].includes(normalized)) return 'live';
+  return 'sandbox';
+};
+
 const resolveCredentials = (environment) => {
-  const suffix = environment.toUpperCase();
+  const suffix = environment === 'live' ? 'LIVE' : 'SANDBOX';
   return {
     clientId: firstConfigured(
       `PAYPAL_CLIENT_ID_${suffix}`,
@@ -78,7 +88,7 @@ exports.handler = async (event) => {
   if (event.httpMethod !== 'GET') return reply(405, { error: 'Method not allowed' });
 
   try {
-    if (process.env.FEATURE_PAYPAL !== '1') {
+    if (String(process.env.FEATURE_PAYPAL || '').trim() !== '1') {
       return reply(200, {
         enabled: false,
         clientId: null,
@@ -87,7 +97,7 @@ exports.handler = async (event) => {
       });
     }
 
-    const environment = String(process.env.PAYPAL_ENV || 'sandbox').toLowerCase();
+    const environment = normalizeEnvironment(process.env.PAYPAL_ENV);
     const { clientId, clientSecret } = resolveCredentials(environment);
 
     if (!clientId || !clientSecret) {
@@ -95,6 +105,8 @@ exports.handler = async (event) => {
         environment,
         clientIdPresent: Boolean(clientId),
         clientSecretPresent: Boolean(clientSecret),
+        expectedClientIdVariable: environment === 'live' ? 'PAYPAL_CLIENT_ID_LIVE' : 'PAYPAL_CLIENT_ID_SANDBOX',
+        expectedSecretVariable: environment === 'live' ? 'PAYPAL_SECRET_LIVE' : 'PAYPAL_SECRET_SANDBOX',
       });
       return reply(500, {
         enabled: false,
@@ -120,11 +132,11 @@ exports.handler = async (event) => {
     return reply(500, {
       enabled: false,
       clientId: null,
-      environment: null,
+      environment: normalizeEnvironment(process.env.PAYPAL_ENV),
       components: 'buttons,card-fields',
       error: 'Internal server error',
     });
   }
 };
 
-exports._test = { firstConfigured, resolveCredentials };
+exports._test = { firstConfigured, normalizeEnvironment, resolveCredentials };
