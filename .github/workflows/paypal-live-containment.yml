@@ -15,6 +15,7 @@ on:
       - 'netlify/functions/paypal-webhook.mjs'
       - 'netlify/functions/process-paid-order-followups-background.mjs'
       - 'netlify/functions/retry-paid-order-followups.mjs'
+      - 'netlify/functions/_shared/paypal-runtime-config.cjs'
       - 'netlify/functions/_shared/legacy/paypal-*.cjs'
       - 'netlify/functions/_shared/legacy/generate-paid-order-pdfs-background.cjs'
       - 'netlify/functions/__tests__/paypal-*.test.mjs'
@@ -46,6 +47,7 @@ jobs:
             --reporter=verbose
       - name: Check function syntax
         run: |
+          node --check netlify/functions/_shared/paypal-runtime-config.cjs
           node --check netlify/functions/_shared/legacy/paypal-config.cjs
           node --check netlify/functions/_shared/legacy/paypal-create-order-forward.cjs
           node --check netlify/functions/_shared/legacy/paypal-capture-final.cjs

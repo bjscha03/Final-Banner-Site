@@ -5,6 +5,7 @@ import { withLambda } from '@netlify/aws-lambda-compat';
 import notifyOrderModule from './_shared/legacy/notify-order.cjs';
 import pdfModule from './_shared/legacy/generate-paid-order-pdfs-background.cjs';
 import customerInfoModule from './_shared/legacy/paypal-customer-info.cjs';
+import runtimeConfig from './_shared/paypal-runtime-config.cjs';
 
 const json = (statusCode, body) => ({
   statusCode,
@@ -56,6 +57,8 @@ const runExistingResendTemplates = async (event, orderId, forceResendBoth = fals
 };
 
 const handler = async (event) => {
+  runtimeConfig.preparePayPalRuntime();
+
   if (event.httpMethod && event.httpMethod !== 'POST') {
     return json(405, { ok: false, error: 'METHOD_NOT_ALLOWED' });
   }
@@ -82,9 +85,6 @@ const handler = async (event) => {
 
   const failures = [];
 
-  // PayPal's hosted card/wallet form is the source for guest contact and
-  // address details. Refresh the exact completed PayPal order before Resend or
-  // Admin consumes the order, so neither receives a generated guest identity.
   if (order.paypal_order_id) {
     try {
       await customerInfoModule.refreshOrderCustomerInfo({
@@ -104,8 +104,6 @@ const handler = async (event) => {
     failures.push('Customer name has not been returned by PayPal yet.');
   }
 
-  // Production PDF generation remains independent from email delivery. The
-  // renderer records per-item failures for the scheduled retry job.
   try {
     const pdfResponse = await pdfModule.handler({
       __internal: true,
@@ -128,8 +126,6 @@ const handler = async (event) => {
 
   if (isUsableCustomerEmail(order.email) && (!customerSentBefore || !adminSentBefore)) {
     try {
-      // This calls the exact existing customer and Admin Resend templates. No
-      // replacement HTML or new template implementation is introduced here.
       await runExistingResendTemplates(event, orderId, false);
     } catch (error) {
       failures.push(`Order notification failed: ${error?.message || error}`);
@@ -142,8 +138,6 @@ const handler = async (event) => {
 
   if (isUsableCustomerEmail(order.email) && customerSentAfter && !adminSentAfter) {
     try {
-      // Recovery-only fallback for the existing coupled sender. It preserves
-      // the exact templates while guaranteeing the Admin alert is retried.
       await runExistingResendTemplates(event, orderId, true);
     } catch (error) {
       failures.push(`Admin notification recovery failed: ${error?.message || error}`);

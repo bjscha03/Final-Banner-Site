@@ -6,7 +6,7 @@ const path = require('node:path');
 const repoRoot = path.resolve(__dirname, '../../..');
 const read = (relativePath) => fs.readFileSync(path.join(repoRoot, relativePath), 'utf8');
 
-test('checkout routes directly to the reliable PayPal flow with no duplicate site contact form', () => {
+test('checkout routes directly to hosted PayPal with no duplicate site contact form', () => {
   const viteConfig = read('vite.config.ts');
   const checkout = read('src/pages/Checkout.tsx');
   const paypalCheckout = read('src/components/checkout/PayPalCheckoutReliable.tsx');
@@ -25,10 +25,9 @@ test('checkout routes directly to the reliable PayPal flow with no duplicate sit
   assert.equal(viteConfig.includes('PayPalCheckoutContact'), false);
   assert.match(viteConfig, /PayPalCheckoutReliable\.tsx/);
   assert.match(checkout, /@\/components\/checkout\/PayPalCheckout/);
-  assert.match(paypalCheckout, /PayPalCardFieldsProvider/);
-  assert.match(paypalCheckout, /PayPalCardFieldsForm/);
-  assert.match(paypalCheckout, /aria-expanded=\{cardFieldsExpanded\}/);
-  assert.match(paypalCheckout, /renderPayPalButton\(\)/);
+  assert.match(paypalCheckout, /renderButton\('card'\)/);
+  assert.match(paypalCheckout, /renderButton\('paypal'\)/);
+  assert.match(paypalCheckout, /fundingSource=\{fundingSource as any\}/);
   assert.equal(paypalCheckout.includes('Email for order confirmation and tracking'), false);
   assert.equal(paypalCheckout.includes('Email for confirmation'), false);
   assert.match(paypalCheckout, /First Name \*/);
@@ -41,12 +40,27 @@ test('checkout routes directly to the reliable PayPal flow with no duplicate sit
   assert.equal(/fastlane/i.test(paypalCheckout), false);
 });
 
-test('PayPal SDK config enables embedded card fields without identity acceleration', () => {
+test('PayPal SDK config uses hosted buttons only and no Fastlane token generation', () => {
   const config = read('netlify/functions/_shared/legacy/paypal-config.cjs');
-  assert.match(config, /components: 'buttons,card-fields'/);
-  assert.match(config, /\/v1\/identity\/generate-token/);
-  assert.match(config, /clientToken/);
-  assert.equal(/fastlane/i.test(config), false);
+  assert.match(config, /components:\s*'buttons'/);
+  assert.match(config, /fastlane:\s*false/);
+  assert.equal(config.includes('buttons,card-fields'), false);
+  assert.equal(config.includes('/v1/identity/generate-token'), false);
+  assert.equal(config.includes('clientToken'), false);
+});
+
+test('PayPal runtime normalizes live aliases before provider calls', () => {
+  const runtime = read('netlify/functions/_shared/paypal-runtime-config.cjs');
+  const createOrder = read('netlify/functions/paypal-create-order.mjs');
+  const capture = read('netlify/functions/paypal-capture-minimal.mjs');
+  const webhook = read('netlify/functions/paypal-webhook.mjs');
+
+  assert.match(runtime, /\['live', 'production', 'prod'\]/);
+  assert.match(runtime, /PAYPAL_CLIENT_ID_\$\{suffix\}/);
+  assert.match(runtime, /PAYPAL_SECRET_\$\{suffix\}/);
+  assert.match(createOrder, /preparePayPalRuntime\(\)/);
+  assert.match(capture, /preparePayPalRuntime\(\)/);
+  assert.match(webhook, /preparePayPalRuntime\(\)/);
 });
 
 test('PayPal order creation uses the proven hosted-checkout request', () => {

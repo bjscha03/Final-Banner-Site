@@ -1,11 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  PayPalButtons,
-  PayPalCardFieldsForm,
-  PayPalCardFieldsProvider,
-  PayPalScriptProvider,
-  usePayPalCardFields,
-} from '@paypal/react-paypal-js';
+import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
 import { Clock3, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,7 +22,7 @@ interface PayPalConfig {
   clientId: string | null;
   environment: 'sandbox' | 'live' | null;
   components?: string;
-  clientToken?: string;
+  fastlane?: boolean;
 }
 
 const InlineCardSubmit: React.FC<{ disabled: boolean; beforeSubmit: () => boolean }> = ({ disabled, beforeSubmit }) => {
@@ -265,7 +259,6 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     setIsPolling(false);
     setVerificationMessage(null);
     setCheckoutError(message || null);
-    setCardFieldsExpanded(false);
     persistState('idle');
   }, [persistState]);
 
@@ -401,13 +394,13 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
         if (!response.ok || !payload?.enabled || !payload?.clientId) {
           throw new Error(payload?.error || 'Secure checkout is temporarily unavailable.');
         }
-        if (payload.components !== 'buttons,card-fields' || !payload.clientToken) {
+        if (payload.fastlane === true || (payload.components && payload.components !== 'buttons')) {
           throw new Error('Unsupported PayPal checkout configuration.');
         }
         setPayPalConfig(payload);
       } catch (error) {
         console.error('[PayPalCheckout] config load failed', error);
-        setPayPalConfig({ enabled: false, clientId: null, environment: null, components: 'buttons,card-fields' });
+        setPayPalConfig({ enabled: false, clientId: null, environment: null, components: 'buttons', fastlane: false });
       } finally {
         window.clearTimeout(timeout);
         setIsLoadingConfig(false);
@@ -617,8 +610,6 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
 
   const handleProviderError = (error: any) => {
     if (verificationLockedRef.current) return;
-    // PayPal can emit a generic SDK error immediately after a definitive card
-    // decline. Keep the clear decline message and never reopen the hosted flow.
     if (Date.now() - lastDeclineAtRef.current < 5000) return;
 
     console.error('[PayPalCheckout] provider error', error);
@@ -666,18 +657,19 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     intent: 'capture',
     commit: true,
     vault: false,
-    components: 'buttons,card-fields',
-    dataClientToken: paypalConfig.clientToken,
+    components: 'buttons',
     disableFunding: 'paylater,credit',
   };
 
   const buttonsDisabled = disabled || isPreparing || isCapturing || Boolean(verificationMessage);
 
-  const renderPayPalButton = () => (
+  const renderButton = (fundingSource?: 'card' | 'paypal') => (
     <PayPalButtons
-      key={`paypal-${total}`}
-      fundingSource="paypal"
-      style={{ layout: 'vertical', color: 'gold', shape: 'rect', label: 'paypal', height: 42 }}
+      key={`${fundingSource || 'default'}-${total}`}
+      fundingSource={fundingSource as any}
+      style={fundingSource === 'card'
+        ? { layout: 'vertical', color: 'black', shape: 'rect', label: 'checkout', height: 45 }
+        : { layout: 'vertical', color: fundingSource === 'paypal' ? 'gold' : 'blue', shape: 'rect', label: 'paypal', height: 42 }}
       disabled={buttonsDisabled}
       onClick={(_data, actions) => {
         setCheckoutError(null);
@@ -690,6 +682,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
         }
         submittedCustomerRef.current = getSubmittedCustomer();
         return actions.resolve();
+        if (fundingSource) trackPaymentClick(fundingSource);
       }}
       createOrder={handleCreateOrder}
       onApprove={handleApprove}
@@ -826,20 +819,15 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
           <p className="mb-3 text-xs text-gray-600">Pay securely by card or PayPal. No PayPal account required.</p>
           {cardFirstLayout ? (
             <div className="space-y-2.5">
-              {renderInlineCardFields()}
+              {renderButton('card')}
               <div className="flex items-center gap-2">
                 <span className="h-px flex-1 bg-[#E7D9C7]" />
                 <span className="text-[11px] text-[#8B7355]">or</span>
                 <span className="h-px flex-1 bg-[#E7D9C7]" />
               </div>
-              {renderPayPalButton()}
+              {renderButton('paypal')}
             </div>
-          ) : (
-            <div className="space-y-2.5">
-              {renderPayPalButton()}
-              {renderInlineCardFields()}
-            </div>
-          )}
+          ) : renderButton()}
         </PayPalScriptProvider>
       ) : null}
     </div>

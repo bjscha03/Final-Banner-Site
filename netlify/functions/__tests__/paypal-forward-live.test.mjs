@@ -77,6 +77,7 @@ test('hosted PayPal payer and shipping details are persisted before notification
   const customerInfo = read('../_shared/legacy/paypal-customer-info.cjs');
   const captureWrapper = read('../paypal-capture-minimal.mjs');
   const webhookWrapper = read('../paypal-webhook.mjs');
+  const followups = read('../process-paid-order-followups-background.mjs');
 
   assert.match(customerInfo, /purchase_units/);
   assert.match(customerInfo, /payer\?\.email_address/);
@@ -88,6 +89,8 @@ test('hosted PayPal payer and shipping details are persisted before notification
   assert.match(captureWrapper, /approvedOrderData/);
   assert.match(captureWrapper, /refreshOrderCustomerInfo/);
   assert.match(webhookWrapper, /refreshOrderCustomerInfo/);
+  assert.match(followups, /isUsableCustomerEmail/);
+  assert.match(followups, /refreshOrderCustomerInfo/);
 });
 
 test('checkout redirects only for a verified completed capture', () => {

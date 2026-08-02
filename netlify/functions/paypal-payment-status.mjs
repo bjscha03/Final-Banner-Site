@@ -3,6 +3,7 @@ import { neon } from '@neondatabase/serverless';
 import { withLambda } from '@netlify/aws-lambda-compat';
 import captureModule from './_shared/legacy/paypal-capture-forward.cjs';
 import customerInfoModule from './_shared/legacy/paypal-customer-info.cjs';
+import runtimeConfig from './_shared/paypal-runtime-config.cjs';
 
 const headers = {
   'Content-Type': 'application/json',
@@ -97,6 +98,8 @@ const loadOrder = async (sql, internalOrderId) => {
 };
 
 const handler = async (event) => {
+  runtimeConfig.preparePayPalRuntime();
+
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
   if (event.httpMethod !== 'POST') return reply(405, { ok: false, error: 'METHOD_NOT_ALLOWED' });
 
