@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'scripts/apply-direct-artwork-upload-recovery.mjs'
+      - 'scripts/fix-direct-upload-patch-guard.mjs'
       - 'src/utils/uploadArtworkFile.ts'
       - 'src/utils/uploadArtworkFile.test.ts'
       - 'src/utils/uploadCanvasImage.ts'
@@ -41,7 +42,9 @@ jobs:
         run: npm ci
 
       - name: Apply the upload and Buy Now source repair
-        run: node scripts/apply-direct-artwork-upload-recovery.mjs
+        run: |
+          node scripts/fix-direct-upload-patch-guard.mjs
+          node scripts/apply-direct-artwork-upload-recovery.mjs
 
       - name: Run focused upload and thumbnail tests
         run: |
@@ -67,8 +70,10 @@ jobs:
           npm run build
           git diff --check
 
-      - name: Remove the one-time source patch script
-        run: rm -f scripts/apply-direct-artwork-upload-recovery.mjs
+      - name: Remove the one-time source patch scripts
+        run: |
+          rm -f scripts/apply-direct-artwork-upload-recovery.mjs
+          rm -f scripts/fix-direct-upload-patch-guard.mjs
 
       - name: Commit the validated application source
         run: |
