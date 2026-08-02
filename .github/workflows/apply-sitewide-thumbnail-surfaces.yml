@@ -7,6 +7,7 @@ on:
     paths:
       - 'scripts/patch-customer-order-previews.mjs'
       - 'scripts/patch-admin-email-previews.mjs'
+      - 'scripts/patch-yard-sign-preview-identity.mjs'
       - '.github/workflows/apply-sitewide-thumbnail-surfaces.yml'
 
 permissions:
@@ -37,6 +38,7 @@ jobs:
         run: |
           node scripts/patch-customer-order-previews.mjs
           node scripts/patch-admin-email-previews.mjs
+          node scripts/patch-yard-sign-preview-identity.mjs
 
       - name: Run sitewide preview regression tests
         run: |
@@ -64,6 +66,7 @@ jobs:
         run: |
           rm -f scripts/patch-customer-order-previews.mjs
           rm -f scripts/patch-admin-email-previews.mjs
+          rm -f scripts/patch-yard-sign-preview-identity.mjs
           rm -f .github/workflows/apply-sitewide-thumbnail-surfaces.yml
 
       - name: Commit validated source repair
