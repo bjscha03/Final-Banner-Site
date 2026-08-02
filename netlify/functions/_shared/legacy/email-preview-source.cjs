@@ -1,5 +1,10 @@
 'use strict';
 
+const {
+  normalizeCartItemPlacement,
+  normalizeReadyPlacementPreview,
+} = require('../preview-artifact.cjs');
+
 const CLOUDINARY_CLOUD_NAME = 'dtrxl120u';
 
 function normalize(value) {
@@ -107,6 +112,32 @@ function unique(values) {
 }
 
 function getPermanentEmailPreviewCandidates(item = {}) {
+  try {
+    item = normalizeCartItemPlacement(item);
+  } catch (error) {
+    console.error('[email-preview-source] canonical placement does not match its order item', {
+      code: error.code || 'INVALID_PLACEMENT_PREVIEW',
+      message: error.message,
+    });
+    return [];
+  }
+  const placement = item.placement_preview;
+  if (placement) {
+    try {
+      const readyPlacement = normalizeReadyPlacementPreview(placement, 'placement_preview');
+      const exactPlacementUrl = readyPlacement.previewUrl;
+    // Canonical artifacts fail closed: substituting the original would change
+    // the crop in customer and Admin emails while pretending it was approved.
+      return [exactPlacementUrl];
+    } catch (error) {
+      console.error('[email-preview-source] invalid canonical placement artifact', {
+        code: error.code || 'INVALID_PLACEMENT_PREVIEW',
+        message: error.message,
+      });
+      return [];
+    }
+  }
+
   const yardSignDesigns = Array.isArray(item.yard_sign_designs) ? item.yard_sign_designs : [];
   const yardSignSources = [];
   const yardSignDesign = yardSignDesigns[0];
@@ -115,8 +146,23 @@ function getPermanentEmailPreviewCandidates(item = {}) {
       file_name: yardSignDesign.fileName || yardSignDesign.fileUrl,
       is_pdf: yardSignDesign.isPdf,
     });
+    if (yardSignDesign.placementPreview) {
+      try {
+        const readyYardPlacement = normalizeReadyPlacementPreview(
+          yardSignDesign.placementPreview,
+          'yard_sign_designs[0].placementPreview',
+        );
+        yardSignSources.push(readyYardPlacement.previewUrl);
+      } catch (error) {
+        console.error('[email-preview-source] invalid Yard Sign placement artifact', {
+          code: error.code || 'INVALID_PLACEMENT_PREVIEW',
+          message: error.message,
+        });
+        return [];
+      }
+    }
     yardSignSources.push(
-      yardSignDesign.previewThumbnailUrl,
+      yardSignDesign.placementPreview ? null : yardSignDesign.previewThumbnailUrl,
       yardSignDesign.thumbnailUrl,
       buildPdfPreviewUrl(yardSignDesign.fileUrl),
       buildPdfPreviewUrl(reconstructedYardSign),
@@ -156,7 +202,6 @@ function getPermanentEmailPreviewCandidates(item = {}) {
 
   const candidates = unique([
     ...yardSignSources,
-    item.placement_preview?.url,
     item.final_render_url,
     item.web_preview_url,
     item.thumbnail_url,

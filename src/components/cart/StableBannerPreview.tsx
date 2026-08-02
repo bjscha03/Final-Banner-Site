@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Image as ImageIcon } from 'lucide-react';
 import { Grommets, TextElement } from '@/store/quote';
 import { grommetRadius as calcGrommetRadius } from '@/lib/preview/grommets';
@@ -113,34 +113,32 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
   const maxSize = Math.max(80, maxSizeProp ?? 200);
   const previewWidth = aspectRatio >= 1 ? maxSize : maxSize * aspectRatio;
   const largePreview = maxSize > 400;
+  const isImmediateSnapshot = Boolean(imageUrl?.startsWith('data:image/'));
+  const isApprovedSnapshot = Boolean(
+    isImmediateSnapshot
+    || isFinalizedSnapshot
+    || isRegisteredExactComposition(imageUrl),
+  );
 
   const imageSources = useMemo(() => {
+    // Canonical placement artifacts have already been bounded, decoded,
+    // pixel-audited, and uploaded. Use that immutable URL directly at every
+    // downstream size so compact and expanded views cannot drift to different
+    // transformed CDN candidates.
+    if (isApprovedSnapshot) return dedupePreviewImageSources([imageUrl]);
     const registered = getRegisteredPreviewSourceCandidates(imageUrl);
     const originals = registered.length > 0 ? registered : [imageUrl];
     return dedupePreviewImageSources(originals.flatMap((candidate) => [
       buildCommercePreviewUrl(candidate, maxSize),
       candidate && !isRawPdfPreviewSource(candidate) ? candidate : null,
     ]));
-  }, [imageUrl, maxSize]);
+  }, [imageUrl, isApprovedSnapshot, maxSize]);
   const sourceSignature = imageSources.join('\n');
 
-  const [baseReady, setBaseReady] = useState(false);
-  const [baseFailed, setBaseFailed] = useState(false);
-
-  useEffect(() => {
-    if (!imageUrl || !sourceSignature) {
-      setBaseReady(false);
-      setBaseFailed(false);
-      return;
-    }
-
-    // Do not reset baseReady here. StablePreviewImage can synchronously seed a
-    // decoded layer from the shared cache when an enlarged preview mounts. A
-    // parent reset after that child announces readiness would leave a painted
-    // image permanently marked busy. Keeping the previous ready layer visible
-    // is also what prevents flashes during source handoff.
-    setBaseFailed(false);
-  }, [imageUrl, sourceSignature]);
+  const [readySourceSignature, setReadySourceSignature] = useState<string | null>(null);
+  const [failedSourceSignature, setFailedSourceSignature] = useState<string | null>(null);
+  const baseReady = Boolean(sourceSignature && readySourceSignature === sourceSignature);
+  const baseFailed = Boolean(sourceSignature && failedSourceSignature === sourceSignature);
 
   const grommetPoints = useMemo(
     () => calculateGrommetPoints(safeWidth, safeHeight, grommets),
@@ -148,12 +146,6 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
   );
   const grommetRadius = calcGrommetRadius(safeWidth, safeHeight);
 
-  const isImmediateSnapshot = Boolean(imageUrl?.startsWith('data:image/'));
-  const isApprovedSnapshot = Boolean(
-    isImmediateSnapshot
-    || isFinalizedSnapshot
-    || isRegisteredExactComposition(imageUrl),
-  );
   const scaleX = Number.isFinite(imageScale) && imageScale > 0 ? imageScale : 1;
   const requestedScaleY = imageScaleY ?? scaleX;
   const scaleY = Number.isFinite(requestedScaleY) && requestedScaleY > 0
@@ -257,15 +249,15 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
                 alt="Banner preview"
                 className="absolute inset-0 block h-full w-full"
                 style={{ objectFit: imageObjectFit }}
-                retainPreviousWhileLoading
+                retainPreviousWhileLoading={!isApprovedSnapshot}
                 loadTimeoutMs={25_000}
                 onReady={() => {
-                  setBaseReady(true);
-                  setBaseFailed(false);
+                  setReadySourceSignature(sourceSignature);
+                  setFailedSourceSignature(null);
                 }}
                 onExhausted={() => {
-                  setBaseReady(false);
-                  setBaseFailed(true);
+                  setReadySourceSignature(null);
+                  setFailedSourceSignature(sourceSignature);
                 }}
               />
             </div>

@@ -1,5 +1,7 @@
 import { dedupePreviewImageSources } from './previewImageCache';
 import { registerPreviewSourceCandidates } from './previewSourceRegistry';
+import { isReadyPlacementPreview } from './previewLifecycle';
+import type { PlacementPreviewManifest } from '@/types/artwork';
 
 const CLOUDINARY_CLOUD_NAME = 'dtrxl120u';
 
@@ -15,6 +17,7 @@ export type PreviewSource =
 export type ExpandedPreviewSelection = {
   url: string | null;
   source: PreviewSource;
+  isExactComposition: boolean;
   isLowResolutionFallback: boolean;
   isPreparingHighResolution: boolean;
 };
@@ -28,7 +31,24 @@ type ArtworkManifestLike = {
 };
 
 type PlacementPreviewLike = {
+  version?: number | null;
+  sourceUrl?: string | null;
+  productType?: string | null;
+  widthIn?: number | null;
+  heightIn?: number | null;
+  fitMode?: string | null;
+  positionPct?: { x: number; y: number } | null;
+  scaleX?: number | null;
+  scaleY?: number | null;
+  compositionRevision?: number | null;
   url?: string | null;
+  publicId?: string | null;
+  previewUrl?: string | null;
+  previewPublicId?: string | null;
+  previewWidthPx?: number | null;
+  previewHeightPx?: number | null;
+  sourceIdentity?: string | null;
+  compositionSignature?: string | null;
   uploadStatus?: string | null;
 };
 
@@ -38,10 +58,13 @@ type YardSignDesignLike = {
   fileUrl?: string | null;
   fileKey?: string | null;
   isPdf?: boolean | null;
+  placementPreview?: PlacementPreviewLike | null;
 };
 
 export type PreviewableItem = {
   product_type?: string | null;
+  width_in?: number | null;
+  height_in?: number | null;
   web_preview_url?: string | null;
   final_render_url?: string | null;
   thumbnail_url?: string | null;
@@ -221,11 +244,10 @@ function getYardSignCandidates(item: PreviewableItem): Candidate[] {
   });
   const pdfPreview = buildCloudinaryPdfPreviewUrl(design.fileUrl)
     || buildCloudinaryPdfPreviewUrl(reconstructed);
-
   return [
-    { url: design.previewThumbnailUrl, source: 'yard_sign_preview', exactComposition: true, lowResolution: false },
-    { url: design.thumbnailUrl, source: 'yard_sign_preview', exactComposition: true, lowResolution: false },
-    { url: pdfPreview, source: 'yard_sign_preview', exactComposition: true, lowResolution: false },
+    { url: design.previewThumbnailUrl, source: 'yard_sign_preview', exactComposition: false, lowResolution: false },
+    { url: design.thumbnailUrl, source: 'yard_sign_preview', exactComposition: false, lowResolution: false },
+    { url: pdfPreview, source: 'yard_sign_preview', exactComposition: false, lowResolution: false },
     { url: design.fileUrl, source: 'yard_sign_preview', exactComposition: false, lowResolution: false },
     { url: reconstructed, source: 'yard_sign_preview', exactComposition: false, lowResolution: false },
   ];
@@ -256,12 +278,62 @@ function buildCandidates(item: PreviewableItem): Candidate[] {
       ])
     : [];
 
+  // A v3 ready artifact is immutable and already contains the full placement.
+  // Its fallback chain deliberately excludes the original artwork: showing a
+  // materially different crop is worse than showing Preview unavailable.
+  if (isReadyPlacementPreview(item.placement_preview as PlacementPreviewManifest | null | undefined)
+    && (!item.product_type || item.placement_preview?.productType === item.product_type)
+    && (!(Number(item.width_in) > 0) || item.placement_preview?.widthIn === Number(item.width_in))
+    && (!(Number(item.height_in) > 0) || item.placement_preview?.heightIn === Number(item.height_in))) {
+    const exactUrl = normalizeUrl(item.placement_preview?.previewUrl)
+      || normalizeUrl(item.placement_preview?.url);
+    return [{
+      url: exactUrl,
+      source: 'placement_preview',
+      exactComposition: true,
+      lowResolution: false,
+    }];
+  }
+
+  // The presence of a non-ready canonical manifest means an exact artifact
+  // was expected but never became authoritative. Do not silently substitute
+  // an original or a legacy thumbnail under that failed exact composition.
+  if (item.placement_preview) return [];
+
+  const firstYardDesign = Array.isArray(item.yard_sign_designs)
+    ? item.yard_sign_designs[0]
+    : null;
+  if (firstYardDesign?.placementPreview) {
+    const yardPlacement = firstYardDesign.placementPreview as PlacementPreviewManifest;
+    const parentProductMatches = !item.product_type
+      || yardPlacement.productType === item.product_type;
+    const parentWidthMatches = !(Number(item.width_in) > 0)
+      || yardPlacement.widthIn === Number(item.width_in);
+    const parentHeightMatches = !(Number(item.height_in) > 0)
+      || yardPlacement.heightIn === Number(item.height_in);
+    if (!isReadyPlacementPreview(yardPlacement)
+      || !parentProductMatches
+      || !parentWidthMatches
+      || !parentHeightMatches) {
+      return [];
+    }
+    return [{
+      url: normalizeUrl(yardPlacement.previewUrl) || normalizeUrl(yardPlacement.url),
+      source: 'yard_sign_preview',
+      exactComposition: true,
+      lowResolution: false,
+    }];
+  }
+
+  const thumbnailIsOriginal = [original, pdfPreview, reconstructed]
+    .filter(Boolean)
+    .some((url) => normalizeUrl(url) === normalizeUrl(item.thumbnail_url));
+
   const exactComposition: Candidate[] = [
     ...yardSign,
-    { url: item.placement_preview?.url, source: 'placement_preview', exactComposition: true, lowResolution: false },
     { url: item.final_render_url, source: 'final_render', exactComposition: true, lowResolution: false },
     { url: item.web_preview_url, source: 'web_preview', exactComposition: true, lowResolution: false },
-    { url: item.thumbnail_url, source: 'thumbnail_fallback', exactComposition: true, lowResolution: false },
+    { url: thumbnailIsOriginal ? null : item.thumbnail_url, source: 'thumbnail_fallback', exactComposition: true, lowResolution: false },
     { url: item.aiDesign?.assets?.proofUrl, source: 'web_preview', exactComposition: true, lowResolution: false },
     { url: item.aiDesign?.assets?.finalUrl, source: 'final_render', exactComposition: true, lowResolution: false },
     ...designRequestSources.map((url): Candidate => ({
@@ -279,6 +351,7 @@ function buildCandidates(item: PreviewableItem): Candidate[] {
   ];
 
   const originals: Candidate[] = [
+    { url: thumbnailIsOriginal ? item.thumbnail_url : null, source: 'original_fallback', exactComposition: false, lowResolution: false },
     { url: pdfPreview, source: 'original_fallback', exactComposition: false, lowResolution: false },
     { url: original, source: 'original_fallback', exactComposition: false, lowResolution: false },
     { url: item.print_ready_url, source: 'original_fallback', exactComposition: false, lowResolution: false },
@@ -290,20 +363,23 @@ function buildCandidates(item: PreviewableItem): Candidate[] {
     })),
   ];
 
-  // Permanent exact-composition sources always win. Temporary data images are
-  // retained only as an immediate in-session bridge while permanent uploads
-  // finish; blob URLs never outrank a permanent representation.
-  const permanent = [...exactComposition, ...originals].filter((candidate) => (
+  const permanentExact = exactComposition.filter((candidate) => (
     isPermanentPreviewUrl(candidate.url)
   ));
-  const temporaryData = [...exactComposition, ...originals].filter((candidate) => (
+  const temporaryExact = exactComposition.filter((candidate) => (
+    isTemporaryDataUrl(candidate.url)
+  )).map((candidate) => ({ ...candidate, lowResolution: true }));
+  const permanentOriginal = originals.filter((candidate) => (
+    isPermanentPreviewUrl(candidate.url)
+  ));
+  const temporaryOriginalData = originals.filter((candidate) => (
     isTemporaryDataUrl(candidate.url)
   )).map((candidate) => ({ ...candidate, lowResolution: true }));
   const temporaryBlob = [...exactComposition, ...originals].filter((candidate) => (
     isTemporaryBlobUrl(candidate.url)
   )).map((candidate) => ({ ...candidate, lowResolution: true }));
 
-  return [...permanent, ...temporaryData, ...temporaryBlob];
+  return [...permanentExact, ...temporaryExact, ...permanentOriginal, ...temporaryOriginalData, ...temporaryBlob];
 }
 
 function safeCandidateUrls(candidates: Candidate[]): string[] {
@@ -318,7 +394,10 @@ export const getPreviewSourceCandidates = (item: PreviewableItem): string[] => (
 
 function registerSelection(selectedUrl: string, candidates: Candidate[]) {
   const urls = safeCandidateUrls(candidates);
-  registerPreviewSourceCandidates(selectedUrl, urls);
+  const selected = candidates.find((candidate) => normalizeUrl(candidate.url) === selectedUrl);
+  registerPreviewSourceCandidates(selectedUrl, urls, {
+    exactComposition: selected?.exactComposition === true,
+  });
 }
 
 /**
@@ -336,6 +415,7 @@ export const getExpandedPreviewSelection = (item: PreviewableItem): ExpandedPrev
     return {
       url: null,
       source: 'none',
+      isExactComposition: false,
       isLowResolutionFallback: false,
       isPreparingHighResolution: false,
     };
@@ -350,6 +430,7 @@ export const getExpandedPreviewSelection = (item: PreviewableItem): ExpandedPrev
   return {
     url,
     source: selected.source,
+    isExactComposition: selected.exactComposition,
     isLowResolutionFallback: selected.lowResolution,
     isPreparingHighResolution: hasHigherResolutionPending,
   };
@@ -370,3 +451,7 @@ export const getSmallPreviewUrl = (item: PreviewableItem): string | null => {
   registerSelection(url, candidates);
   return url;
 };
+
+export const getSmallPreviewSelection = (item: PreviewableItem): ExpandedPreviewSelection => (
+  getExpandedPreviewSelection(item)
+);

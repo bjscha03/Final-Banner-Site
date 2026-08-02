@@ -2,6 +2,11 @@
 const fetch = require('node-fetch'); // Ensure node-fetch is used
 const { neon } = require('@neondatabase/serverless');
 const { randomUUID } = require('crypto');
+const { normalizeArtworkManifest } = require('../artwork-manifest.cjs');
+const {
+  PreviewArtifactValidationError,
+  normalizeCartItemPlacement,
+} = require('../preview-artifact.cjs');
 const {
   reconcileSameDayFlags,
   getEasternTimeParts,
@@ -163,6 +168,27 @@ exports.handler = async (event) => {
       return send(400, { error: 'MISSING_CART_ITEMS' });
     }
 
+    // Validate exact placement artifacts before capturing money. A claimed
+    // canonical preview with a stale signature or transient URL must fail
+    // closed; it must never be downgraded to the original artwork.
+    let persistableCartItems;
+    try {
+      persistableCartItems = cartItems.map((item) => {
+        const normalized = normalizeCartItemPlacement(cleanItemForDb(item));
+        normalized.artwork_manifest = normalizeArtworkManifest(normalized);
+        return normalized;
+      });
+    } catch (error) {
+      if (error instanceof PreviewArtifactValidationError) {
+        return send(409, {
+          error: error.code,
+          message: error.message,
+          details: error.details,
+        });
+      }
+      throw error;
+    }
+
     const { clientId, secret, baseUrl: base } = getPayPalCredentials();
 
     // Database connection
@@ -174,7 +200,23 @@ exports.handler = async (event) => {
         ALTER TABLE order_items
         ADD COLUMN IF NOT EXISTS product_type TEXT DEFAULT 'banner',
         ADD COLUMN IF NOT EXISTS rounded_corners TEXT,
-        ADD COLUMN IF NOT EXISTS rope_placement TEXT
+        ADD COLUMN IF NOT EXISTS rope_placement TEXT,
+        ADD COLUMN IF NOT EXISTS file_name TEXT,
+        ADD COLUMN IF NOT EXISTS artwork_manifest JSONB,
+        ADD COLUMN IF NOT EXISTS placement_preview JSONB,
+        ADD COLUMN IF NOT EXISTS original_filename TEXT,
+        ADD COLUMN IF NOT EXISTS overlay_images JSONB,
+        ADD COLUMN IF NOT EXISTS canvas_background_color TEXT DEFAULT '#FFFFFF',
+        ADD COLUMN IF NOT EXISTS image_scale NUMERIC DEFAULT 1,
+        ADD COLUMN IF NOT EXISTS image_position JSONB DEFAULT '{"x": 0, "y": 0}'::jsonb,
+        ADD COLUMN IF NOT EXISTS canvas_state_json TEXT,
+        ADD COLUMN IF NOT EXISTS yard_sign_sidedness TEXT,
+        ADD COLUMN IF NOT EXISTS yard_sign_step_stakes_enabled BOOLEAN DEFAULT false,
+        ADD COLUMN IF NOT EXISTS yard_sign_step_stakes_qty INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS yard_sign_design_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS yard_sign_designs JSONB,
+        ADD COLUMN IF NOT EXISTS yard_sign_signs_subtotal_cents INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS yard_sign_stakes_subtotal_cents INTEGER DEFAULT 0
       `;
     } catch (migrationError) {
       console.warn('[paypal-capture-order] order_items migration warning:', migrationError.message);
@@ -232,7 +274,7 @@ exports.handler = async (event) => {
     const finalEmail = userEmail || payerEmail;
 
     // Server-side calculation to verify amount
-    const subtotalCents = (cartItems || []).reduce((sum, i) => sum + i.line_total_cents, 0);
+    const subtotalCents = persistableCartItems.reduce((sum, i) => sum + i.line_total_cents, 0);
     const taxCents = Math.round(subtotalCents * 0.06); // 6% tax rate
 
     // Same-Day Hit Service: server-side reconciliation. Re-compute fees from
@@ -240,7 +282,7 @@ exports.handler = async (event) => {
     const sameDayNow = new Date();
     const sameDayResult = reconcileSameDayFlags({
       now: sameDayNow,
-      items: cartItems || [],
+      items: persistableCartItems,
       requestedSameDay: !!reqSameDay,
       requestedSaturday: !!reqSaturday,
     });
@@ -284,15 +326,15 @@ exports.handler = async (event) => {
         )
       `;
 
-      console.log("[PayPal Capture] Inserting", cartItems.length, "items into order_items table");
-      console.log("[PayPal Capture] First item overlay_image:", cartItems[0]?.overlay_image ? "EXISTS" : "NULL");
-      console.log("[PayPal Capture] First item text_elements:", cartItems[0]?.text_elements ? "EXISTS" : "NULL");
+      console.log("[PayPal Capture] Inserting", persistableCartItems.length, "items into order_items table");
+      console.log("[PayPal Capture] First item overlay_image:", persistableCartItems[0]?.overlay_image ? "EXISTS" : "NULL");
+      console.log("[PayPal Capture] First item text_elements:", persistableCartItems[0]?.text_elements ? "EXISTS" : "NULL");
 
       // ==========================================================================
       // CRITICAL LOGGING: Track print source data for admin PDF generation
       // If final_render is missing, admin will see "No Print Source" error
       // ==========================================================================
-      cartItems.forEach((item, idx) => {
+      persistableCartItems.forEach((item, idx) => {
         console.log('[ORDER_CREATE] ========== Item ' + idx + ' Print Source Check ==========');
         console.log('[ORDER_CREATE] orderId:', orderId);
         console.log('[ORDER_CREATE] sourceFlow:', item.source || 'unknown');
@@ -318,8 +360,7 @@ exports.handler = async (event) => {
         }
       });
 
-      for (const rawItem of cartItems) {
-        const item = cleanItemForDb(rawItem);
+      for (const item of persistableCartItems) {
         console.log("[PayPal Capture] Cleaned item file_key:", item.file_key, "file_url:", item.file_url ? item.file_url.substring(0, 80) : null);
         // Convert pole_pockets to boolean for database
         const polePocketsValue = item.pole_pockets &&
@@ -331,10 +372,11 @@ exports.handler = async (event) => {
           INSERT INTO order_items (
             id, order_id, product_type, width_in, height_in, quantity, material,
             grommets, rounded_corners, rope_feet, rope_placement, pole_pockets, pole_pocket_position, pole_pocket_size, pole_pocket_cost_cents,
-            line_total_cents, file_key, file_url, print_ready_url, web_preview_url,
-            text_elements, overlay_image, thumbnail_url,
-            final_render_url, final_render_file_key, final_render_width_px, final_render_height_px, final_render_dpi,
-            design_service_enabled, design_request_text, design_draft_preference, design_draft_contact, design_uploaded_assets
+            line_total_cents, file_key, file_name, file_url, artwork_manifest, placement_preview, original_filename, print_ready_url, web_preview_url,
+            text_elements, overlay_image, overlay_images, canvas_background_color, image_scale, image_position, thumbnail_url,
+            final_render_url, final_render_file_key, final_render_width_px, final_render_height_px, final_render_dpi, canvas_state_json,
+            design_service_enabled, design_request_text, design_draft_preference, design_draft_contact, design_uploaded_assets,
+            yard_sign_sidedness, yard_sign_step_stakes_enabled, yard_sign_step_stakes_qty, yard_sign_design_count, yard_sign_designs, yard_sign_signs_subtotal_cents, yard_sign_stakes_subtotal_cents
           ) VALUES (
             ${randomUUID()},
             ${orderId},
@@ -353,22 +395,38 @@ exports.handler = async (event) => {
             ${item.pole_pocket_cost_cents || 0},
             ${item.line_total_cents || 0},
             ${item.file_key || null},
+            ${item.file_name || item.artwork_manifest?.originalFilename || null},
             ${item.file_url || null},
+            ${item.artwork_manifest ? JSON.stringify(item.artwork_manifest) : null}::jsonb,
+            ${item.placement_preview ? JSON.stringify(item.placement_preview) : null}::jsonb,
+            ${item.artwork_manifest?.originalFilename || item.file_name || null},
             ${item.print_ready_url || null},
             ${item.web_preview_url || null},
             ${item.text_elements ? JSON.stringify(item.text_elements) : '[]'},
             ${item.overlay_image ? JSON.stringify(item.overlay_image) : null},
+            ${item.overlay_images ? JSON.stringify(item.overlay_images) : null},
+            ${item.canvas_background_color || '#FFFFFF'},
+            ${item.image_scale ?? 1},
+            ${item.image_position ? JSON.stringify(item.image_position) : '{"x": 0, "y": 0}'},
             ${item.thumbnail_url || null},
             ${item.final_render_url || null},
             ${item.final_render_file_key || null},
             ${item.final_render_width_px || null},
             ${item.final_render_height_px || null},
             ${item.final_render_dpi || null},
+            ${item.canvas_state_json || null},
             ${item.design_service_enabled || false},
             ${item.design_request_text || null},
             ${item.design_draft_preference || null},
             ${item.design_draft_contact || null},
-            ${item.design_uploaded_assets ? JSON.stringify(item.design_uploaded_assets) : '[]'}
+            ${item.design_uploaded_assets ? JSON.stringify(item.design_uploaded_assets) : '[]'},
+            ${item.yard_sign_sidedness ?? null},
+            ${item.yard_sign_step_stakes_enabled ?? false},
+            ${item.yard_sign_step_stakes_qty ?? 0},
+            ${item.yard_sign_design_count ?? 0},
+            ${item.yard_sign_designs ? JSON.stringify(item.yard_sign_designs) : null},
+            ${item.yard_sign_signs_subtotal_cents ?? 0},
+            ${item.yard_sign_stakes_subtotal_cents ?? 0}
           )
         `;
       }
@@ -381,7 +439,7 @@ exports.handler = async (event) => {
     sendOrderNotificationEmail(orderId);
 
     // Process AI artwork if any items have AI design metadata
-    processAIArtworkForOrder(orderId, cartItems);
+    processAIArtworkForOrder(orderId, persistableCartItems);
     return send(200, {
       ok: true,
       orderId: orderId,
@@ -392,4 +450,3 @@ exports.handler = async (event) => {
     return send(500, { error:'FUNCTION_CRASH', message:e.message || String(e) });
   }
 };
-

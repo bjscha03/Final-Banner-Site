@@ -1,4 +1,8 @@
 const { neon } = require('@neondatabase/serverless');
+const {
+  PreviewArtifactValidationError,
+  normalizeCartItemPlacement,
+} = require('../preview-artifact.cjs');
 
 exports.handler = async (event, context) => {
   const headers = {
@@ -96,7 +100,7 @@ exports.handler = async (event, context) => {
         console.log('[cart-save] Removing canvas_snapshot');
         delete cleaned.canvas_snapshot;
       }
-      return cleaned;
+      return normalizeCartItemPlacement(cleaned);
     });
     
     console.log('[cart-save] Cleaned cart data for', cleanedCartData.length, 'items');
@@ -182,10 +186,13 @@ exports.handler = async (event, context) => {
   } catch (error) {
     console.error('[cart-save] Error:', error);
     return { 
-      statusCode: 500, 
+      statusCode: error instanceof PreviewArtifactValidationError ? 409 : 500,
       headers, 
-      body: JSON.stringify({ error: error.message }) 
+      body: JSON.stringify({
+        error: error.code || 'CART_SAVE_FAILED',
+        message: error.message,
+        details: error.details,
+      })
     };
   }
 };
-
