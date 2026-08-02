@@ -42,29 +42,67 @@ jobs:
             "https://bannersonthefly.com/checkout?diagnostic=${GITHUB_RUN_ID}"; } || true)"
           echo "checkout HTTP status: ${checkout_status}"
 
-          mapfile -t asset_paths < <(
+          mapfile -t initial_assets < <(
             grep -oE 'src="[^"]+\.js[^"]*"' "${html_file}" \
               | sed -E 's/^src="//; s/"$//' \
+              | sed -E 's/[?].*$//' \
               | sort -u \
               || true
           )
-          printf 'checkout assets: %s\n' "${asset_paths[*]:-none}"
+          printf 'initial checkout assets: %s\n' "${initial_assets[*]:-none}"
 
-          for asset_path in "${asset_paths[@]:-}"; do
-            [[ -z "${asset_path}" ]] && continue
-            if [[ "${asset_path}" == http* ]]; then
-              asset_url="${asset_path}"
-            else
-              asset_url="https://bannersonthefly.com${asset_path}"
-            fi
-            separator='?'
-            [[ "${asset_url}" == *'?'* ]] && separator='&'
-            curl --silent --show-error --location \
-              -H 'Cache-Control: no-cache, no-store, must-revalidate' \
-              "${asset_url}${separator}diagnostic=${GITHUB_RUN_ID}" \
-              >> "${bundle_file}" || true
+          declare -A seen=()
+          queue=("${initial_assets[@]:-}")
+          all_assets=()
+
+          for depth in 1 2 3 4; do
+            next_queue=()
+            for asset_path in "${queue[@]:-}"; do
+              [[ -z "${asset_path}" ]] && continue
+
+              if [[ "${asset_path}" == http* ]]; then
+                asset_url="${asset_path}"
+                normalized_path="${asset_path}"
+              else
+                [[ "${asset_path}" != /* ]] && asset_path="/${asset_path}"
+                asset_url="https://bannersonthefly.com${asset_path}"
+                normalized_path="${asset_path}"
+              fi
+
+              [[ -n "${seen[${normalized_path}]:-}" ]] && continue
+              seen["${normalized_path}"]=1
+              all_assets+=("${normalized_path}")
+
+              asset_file="$(mktemp)"
+              separator='?'
+              [[ "${asset_url}" == *'?'* ]] && separator='&'
+              curl --silent --show-error --location \
+                -H 'Cache-Control: no-cache, no-store, must-revalidate' \
+                "${asset_url}${separator}diagnostic=${GITHUB_RUN_ID}-${depth}" \
+                --output "${asset_file}" || true
+              cat "${asset_file}" >> "${bundle_file}"
+
+              while IFS= read -r ref; do
+                [[ -z "${ref}" ]] && continue
+                case "${ref}" in
+                  ./*) candidate="/assets/${ref#./}" ;;
+                  /assets/*) candidate="${ref}" ;;
+                  assets/*) candidate="/${ref}" ;;
+                  *) continue ;;
+                esac
+                [[ -z "${seen[${candidate}]:-}" ]] && next_queue+=("${candidate}")
+              done < <(
+                grep -oE '(\./|/assets/|assets/)[A-Za-z0-9._-]+\.js' "${asset_file}" \
+                  | sort -u \
+                  || true
+              )
+              rm -f "${asset_file}"
+            done
+            queue=("${next_queue[@]:-}")
+            [[ ${#queue[@]} -eq 0 ]] && break
           done
 
+          printf 'scanned checkout assets: %s\n' "${all_assets[*]:-none}"
           grep -Fq 'bof-paypal-checkout-v5:' "${bundle_file}" && echo 'checkout-v5 marker: present' || echo 'checkout-v5 marker: missing'
           grep -Fq 'Check payment status' "${bundle_file}" && echo 'payment-status marker: present' || echo 'payment-status marker: missing'
           grep -Fq 'Pay securely by card or PayPal. No PayPal account required.' "${bundle_file}" && echo 'hosted-buttons marker: present' || echo 'hosted-buttons marker: missing'
