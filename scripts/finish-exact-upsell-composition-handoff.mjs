@@ -29,6 +29,17 @@ async function update(path, transform) {
 await update('src/components/cart/UpsellModal.tsx', (source) => {
   let next = source;
 
+  // Upsell previously used a relative import of the legacy preview component.
+  // Vite's alias cannot be relied on for this relative specifier after importer
+  // normalization, so route Upsell explicitly through the decoded, fallback-
+  // aware renderer used by cart and checkout.
+  next = replaceOne(
+    next,
+    "import BannerPreview from './BannerPreview';",
+    "import BannerPreview from './StableBannerPreview';",
+    'Upsell stable renderer import',
+  );
+
   next = replaceOne(
     next,
     '  thumbnailUrl?: string; // Canvas thumbnail for preview',
@@ -169,6 +180,7 @@ await update('netlify/functions/__tests__/preview-pipeline.test.cjs', (source) =
   assert.match(design, /thumbnailIsExactComposition=\{Boolean\(pendingUpsellThumbnailUrl\)\}/);
   assert.match(design, /preparedDataUrl: approvedThumbnailUrl\.startsWith/);
   assert.equal(design.includes('thumbnailUrl={uploadedFile?.thumbnailUrl || uploadedFile?.url}'), false);
+  assert.match(upsell, /from '\.\/StableBannerPreview'/);
   assert.match(upsell, /thumbnailIsExactComposition/);
   assert.match(upsell, /isFinalizedSnapshot=\{thumbnailIsExactComposition\}/);
   assert.match(upsell, /effectiveThumbnailUrl/);
