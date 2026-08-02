@@ -1,0 +1,131 @@
+name: Apply Exact Designer-to-Upsell Composition Handoff
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'scripts/apply-exact-upsell-composition-handoff.mjs'
+      - '.github/workflows/apply-exact-upsell-composition-handoff.yml'
+      - 'tests/browser/upsell-preview-handoff.html'
+      - 'tests/browser/upsell-preview-handoff.jsx'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-test-and-commit:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out exact repair branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install exact dependencies
+        run: npm ci
+
+      - name: Apply exact designer composition handoff
+        run: node scripts/apply-exact-upsell-composition-handoff.mjs
+
+      - name: Run preview, checkout, order, and source-selection tests
+        run: |
+          node --test \
+            netlify/functions/__tests__/preview-pipeline.test.cjs \
+            netlify/functions/__tests__/checkout-paypal-only.test.cjs \
+            netlify/functions/__tests__/sitewide-preview-surfaces.test.cjs \
+            netlify/functions/__tests__/admin-order-visibility.test.cjs
+
+          npx vitest run \
+            src/lib/previewSelection.test.ts \
+            src/lib/__tests__/previewSelection.test.ts \
+            src/lib/order-thumbnail.test.ts \
+            src/lib/sitewidePreviewSurfaces.test.ts \
+            src/utils/generatePositionedThumbnail.test.ts \
+            --reporter=verbose
+
+      - name: Run real-browser designer cart Upsell checkout and order preview matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          browser=$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)
+          if [[ -z "$browser" ]]; then
+            echo 'No supported Chrome/Chromium executable found.'
+            exit 1
+          fi
+
+          npx vite --config tests/browser/vite.handoff.config.ts > /tmp/exact-upsell-vite.log 2>&1 &
+          vite_pid=$!
+          "$browser" \
+            --headless=new \
+            --no-sandbox \
+            --disable-gpu \
+            --disable-dev-shm-usage \
+            --disable-background-networking \
+            --disable-background-timer-throttling \
+            --remote-debugging-port=9222 \
+            --remote-allow-origins='*' \
+            --user-data-dir=/tmp/chrome-exact-upsell \
+            about:blank \
+            > /tmp/exact-upsell-browser.log 2>&1 &
+          chrome_pid=$!
+
+          cleanup() {
+            kill "$chrome_pid" 2>/dev/null || true
+            kill "$vite_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          for attempt in $(seq 1 60); do
+            code=$(curl -sS -o /tmp/exact-upsell-shell.html -w '%{http_code}' \
+              http://127.0.0.1:4175/tests/browser/upsell-preview-handoff.html || true)
+            [[ "$code" == '200' ]] && break
+            sleep 1
+          done
+          test "${code:-}" = '200'
+
+          for attempt in $(seq 1 100); do
+            code=$(curl -sS -o /tmp/exact-upsell-chrome.json -w '%{http_code}' \
+              http://127.0.0.1:9222/json/version || true)
+            [[ "$code" == '200' ]] && break
+            sleep 0.1
+          done
+          test "${code:-}" = '200'
+
+          timeout 240s node tests/browser/run-preview-handoff-cdp.mjs
+
+      - name: Type-check and build production bundle
+        run: |
+          npx tsc --noEmit --pretty false
+          npm run build
+          git diff --check
+
+      - name: Remove one-time source patch script
+        run: rm -f scripts/apply-exact-upsell-composition-handoff.mjs
+
+      - name: Commit validated application repair
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            src/pages/Design.tsx \
+            src/components/cart/UpsellModal.tsx \
+            src/components/cart/StableBannerPreview.tsx \
+            tests/browser/run-preview-handoff-cdp.mjs \
+            tests/browser/upsell-preview-handoff.html \
+            tests/browser/upsell-preview-handoff.jsx \
+            netlify/functions/__tests__/preview-pipeline.test.cjs
+          git add -u scripts/apply-exact-upsell-composition-handoff.mjs
+          git commit -m 'P0: carry exact designer composition into Upsell and checkout'
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
