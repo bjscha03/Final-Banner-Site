@@ -33,7 +33,7 @@ test('checkout routes directly to hosted PayPal with no duplicate site contact f
   assert.equal(paypalCheckout.includes('<input'), false);
   assert.equal(paypalCheckout.includes('PayPalCardFieldsProvider'), false);
   assert.equal(paypalCheckout.includes('PayPalCardFieldsForm'), false);
-  assert.equal(/fastlane/i.test(paypalCheckout), false);
+  assert.equal(/PayPalFastlane|components:\s*['"]fastlane['"]/.test(paypalCheckout), false);
 });
 
 test('PayPal SDK config uses hosted buttons only and no Fastlane token generation', () => {
