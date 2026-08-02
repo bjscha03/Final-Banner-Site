@@ -11,6 +11,11 @@ const {
   hasShippingAddress,
   formatShippingAddress,
 } = require('./shipping-address-helpers.cjs');
+const {
+  getPermanentEmailPreviewSource,
+  isCloudinaryUploadUrl,
+  isHttpUrl,
+} = require('./email-preview-source.cjs');
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -30,27 +35,10 @@ function normalizeName(fullName) {
   };
 }
 
-function isCloudinaryUploadUrl(url) {
-  try {
-    const parsed = new URL(url);
-    return parsed.hostname === 'res.cloudinary.com' && parsed.pathname.includes('/upload/');
-  } catch {
-    return false;
-  }
-}
-
-function isHttpUrl(url) {
-  try {
-    const parsed = new URL(url);
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
-  } catch {
-    return false;
-  }
-}
-
 function getFinalizedThumbnailUrl(item, maxWidth = 240) {
-  if (!item || !item.thumbnail_url) return null;
-  const url = String(item.thumbnail_url);
+  if (!item) return null;
+  const url = getPermanentEmailPreviewSource(item);
+  if (!url) return null;
 
   let directUrl = null;
   if (isCloudinaryUploadUrl(url)) {

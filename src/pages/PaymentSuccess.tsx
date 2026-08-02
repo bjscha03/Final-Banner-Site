@@ -9,6 +9,7 @@ import { getItemDisplayName, normalizeOrderItemDisplay, type NormalizableOrderIt
 import { formatShippingAddress, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
 import { getDisplayOrderTotalCents } from '@/lib/order-totals';
 import { authorizedHeaders } from '@/lib/serverAuth';
+import OrderItemPreview from '@/components/preview/OrderItemPreview';
 
 const PaymentSuccess: React.FC = () => {
   const navigate = useNavigate();
@@ -316,13 +317,13 @@ const PaymentSuccess: React.FC = () => {
                     return (
                     <div key={index} className="border border-gray-200 rounded-lg p-4 mb-4">
                       <div className="flex justify-between items-start gap-4">
-                        {normalized.thumbnailUrl ? (
-                          <img
-                            src={normalized.thumbnailUrl}
-                            alt={`${normalized.productLabel} preview`}
-                            className="h-20 w-28 rounded-md border border-gray-200 object-cover flex-shrink-0"
-                          />
-                        ) : null}
+                        <OrderItemPreview
+                          item={item as any}
+                          compactMaxSize={112}
+                          expandedMaxSize={820}
+                          ariaLabel={`Open expanded ${normalized.productLabel} preview from payment confirmation`}
+                          className="flex-shrink-0"
+                        />
                         <div className="flex-1">
                           <p className="font-medium">{getItemDisplayName(item)} <span className="ml-1 inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-800">{normalized.productLabel}</span></p>
                           <p className="text-sm text-gray-600 mt-1">

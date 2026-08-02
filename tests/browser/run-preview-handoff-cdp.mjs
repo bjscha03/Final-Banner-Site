@@ -8,9 +8,12 @@ const timeoutMs = Number(process.env.PREVIEW_HANDOFF_TIMEOUT_MS || 60_000);
 const DESKTOP_USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36';
 const MOBILE_USER_AGENT = 'Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36';
 
+const orderSurfaceHarnessUrl = process.env.ORDER_SURFACE_PREVIEW_URL || 'http://127.0.0.1:4175/tests/browser/order-surface-preview.html';
+
 const harnesses = [
   { name: 'active-canvas', url: activeHarnessUrl },
   { name: 'commerce-thumbnail-lightbox', url: commerceHarnessUrl },
+  { name: 'order-confirmation-my-orders-admin', url: orderSurfaceHarnessUrl },
 ];
 
 const cases = [

@@ -41,8 +41,9 @@ import { getDisplayOrderTotalCents } from '@/lib/order-totals';
 import { estimateOrderProfit } from '@/lib/admin-profit-estimate';
 import { adminFetch } from '@/lib/serverAuth';
 import { getOriginalArtworkSelection } from '@/lib/artworkFiles';
-import { getFinalizedThumbnailUrl } from '@/lib/order-thumbnail';
+import { getFinalizedThumbnailCandidates, getFinalizedThumbnailUrl } from '@/lib/order-thumbnail';
 import GrommetOverlay from '@/components/preview/GrommetOverlay';
+import StablePreviewImage from '@/components/preview/StablePreviewImage';
 import { getGrommetLabel } from '@/lib/grommets';
 import EditCustomerInfoDialog from '@/components/orders/EditCustomerInfoDialog';
 
@@ -142,21 +143,65 @@ const getOptionRows = (item: any): Array<{ label: string; value: string }> => {
 const ProductPreviewFrame: React.FC<{ item: any; thumbUrl: string | null; large?: boolean; idSuffix: string }> = ({ item, thumbUrl, large = false, idSuffix }) => {
   const { width, height } = getPreviewDimensions(item);
   const grommets = item?.grommets || 'none';
+  const candidates = useMemo(() => [
+    thumbUrl,
+    ...getFinalizedThumbnailCandidates(item, large ? 1200 : 320),
+  ].filter((value): value is string => Boolean(value)), [item, thumbUrl, large]);
+  const candidateSignature = candidates.join('\n');
+  const [ready, setReady] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (candidates.length === 0) setReady(false);
+    setFailed(false);
+  }, [candidateSignature, candidates.length]);
+
+  const loading = candidates.length > 0 && !ready && !failed;
+
   return (
-    <div className={`w-full ${large ? 'max-h-[66vh]' : ''} flex items-center justify-center p-2`}>
+    <div
+      className={`relative w-full overflow-hidden rounded-lg border border-gray-200 bg-white ${large ? 'max-h-[66vh]' : 'h-full'}`}
+      style={{ aspectRatio: `${width} / ${height}` }}
+      role="img"
+      aria-label={`${getProductTitleLabel(item)} finished preview`}
+      aria-busy={loading}
+      data-admin-product-preview="true"
+      data-preview-ready={ready ? 'true' : 'false'}
+      data-preview-failed={failed ? 'true' : 'false'}
+    >
+      {candidates.length > 0 && !failed ? (
+        <StablePreviewImage
+          sources={candidates}
+          alt={`${getProductTitleLabel(item)} finished preview`}
+          className="absolute inset-0 block h-full w-full object-contain"
+          retainPreviousWhileLoading
+          loadTimeoutMs={25_000}
+          onReady={() => {
+            setReady(true);
+            setFailed(false);
+          }}
+          onExhausted={() => {
+            setReady(false);
+            setFailed(true);
+          }}
+        />
+      ) : (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-50 px-2 text-center text-xs font-medium text-gray-500">
+          Preview unavailable
+        </div>
+      )}
+
+      {loading ? (
+        <div className="pointer-events-none absolute inset-0 z-[2] flex items-center justify-center bg-white/90 text-[10px] font-semibold text-gray-600">
+          Loading preview…
+        </div>
+      ) : null}
+
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        className={`block max-w-full ${large ? 'h-[min(66vh,620px)]' : 'h-full'} drop-shadow-sm`}
-        style={{ aspectRatio: `${width} / ${height}` }}
-        role="img"
-        aria-label={`${getProductTitleLabel(item)} finished preview`}
+        className="pointer-events-none absolute inset-0 z-[3] h-full w-full"
+        aria-hidden="true"
       >
-        <rect x="0" y="0" width={width} height={height} rx={item?.rounded_corners && item.rounded_corners !== 'none' ? Math.min(width, height) * 0.05 : 0} fill="#ffffff" stroke="#cbd5e1" strokeWidth={Math.max(0.04, Math.min(width, height) * 0.006)} />
-        {thumbUrl ? (
-          <image href={thumbUrl} x="0" y="0" width={width} height={height} preserveAspectRatio="xMidYMid meet" />
-        ) : (
-          <text x={width / 2} y={height / 2} textAnchor="middle" dominantBaseline="middle" fontSize={Math.max(1.5, Math.min(width, height) * 0.08)} fill="#94a3b8">No preview</text>
-        )}
         <GrommetOverlay widthIn={width} heightIn={height} option={grommets} idSuffix={idSuffix} />
       </svg>
     </div>

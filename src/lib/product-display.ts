@@ -7,6 +7,7 @@
  */
 
 import { getCarMagnetRoundedCornersLabel } from './car-magnet-pricing';
+import { getExpandedPreviewSelection, getSmallPreviewUrl } from './previewSelection';
 
 const YARD_SIGN_SIZE = '24" × 18"';
 
@@ -33,6 +34,24 @@ export type NormalizableOrderItem = {
   yard_sign_design_count?: number | null;
   yard_sign_step_stakes_qty?: number | null;
   rounded_corners?: string | null;
+  web_preview_url?: string | null;
+  file_url?: string | null;
+  file_key?: string | null;
+  file_name?: string | null;
+  is_pdf?: boolean | null;
+  artwork_manifest?: Record<string, any> | null;
+  placement_preview?: { url?: string | null; uploadStatus?: string | null } | null;
+  yard_sign_designs?: Array<{
+    previewThumbnailUrl?: string | null;
+    thumbnailUrl?: string | null;
+    fileUrl?: string | null;
+    fileKey?: string | null;
+    isPdf?: boolean | null;
+  }> | null;
+  design_uploaded_assets?: Array<{ url?: string | null; fileKey?: string | null }> | null;
+  design_request_text?: string | null;
+  canvas_state_json?: string | null;
+  aiDesign?: { assets?: { proofUrl?: string | null; finalUrl?: string | null } } | null;
 };
 
 export type NormalizedOrderItemDisplay = {
@@ -349,6 +368,8 @@ export function normalizeOrderItemDisplay(item: NormalizableOrderItem): Normaliz
   const grommetsDisplay = formatOptionValue(getDisplayGrommets(item.grommets));
   const stepStakesQty = Number(item.yard_sign_step_stakes_qty || 0);
   const uploadedDesignsCount = Number(item.yard_sign_design_count || 0);
+  const thumbnailUrl = getSmallPreviewUrl(item) || '';
+  const finalizedPreviewUrl = getExpandedPreviewSelection(item).url || thumbnailUrl;
 
   if (isDesignDeposit) {
     return {
@@ -379,8 +400,8 @@ export function normalizeOrderItemDisplay(item: NormalizableOrderItem): Normaliz
     qtyDisplay: String(Math.max(qty, 0)),
     unitPriceCents,
     lineTotalCents,
-    thumbnailUrl: String(item.thumbnail_url || ''),
-    finalizedPreviewUrl: String(item.final_render_url || item.thumbnail_url || ''),
+    thumbnailUrl,
+    finalizedPreviewUrl,
     printFileUrl: String(item.final_print_pdf_url || item.print_ready_url || ''),
     ...(isYardSign
       ? {
