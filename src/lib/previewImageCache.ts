@@ -2,6 +2,12 @@ export type PreviewImageResult = {
   url: string;
   naturalWidth: number;
   naturalHeight: number;
+  /**
+   * Fraction of sampled pixels that differ meaningfully from the preview
+   * background. Calculated only for browser-local data/blob snapshots, where
+   * canvas inspection is safe. `null` means the source was not inspected.
+   */
+  visualInkFraction: number | null;
 };
 
 type PreviewImageCacheEntry = {
@@ -20,6 +26,8 @@ export type PreviewImageLoadOptions = {
 
 const MAX_CACHE_ENTRIES = 160;
 const DEFAULT_TIMEOUT_MS = 20_000;
+const TRANSIENT_SAMPLE_SIZE = 64;
+const PREVIEW_BACKGROUND_RGB = [250, 250, 250] as const;
 const previewImageCache = new Map<string, PreviewImageCacheEntry>();
 
 export const normalizePreviewImageUrl = (value?: string | null): string => String(value || '').trim();
@@ -33,6 +41,20 @@ export const isRemotePreviewImageUrl = (value?: string | null): boolean => {
   const url = normalizePreviewImageUrl(value).toLowerCase();
   return url.startsWith('https://') || url.startsWith('http://');
 };
+
+/**
+ * A generated in-session snapshot with effectively no painted pixels is not a
+ * valid proof. When another source exists, StablePreviewImage rejects this
+ * candidate and falls through to the permanent artwork instead of showing the
+ * white frame reported on wide banners.
+ */
+export const isVisuallyBlankPreviewResult = (
+  result?: PreviewImageResult | null,
+): boolean => Boolean(
+  result
+  && result.visualInkFraction != null
+  && result.visualInkFraction < 0.0005,
+);
 
 export function dedupePreviewImageSources(
   values: Array<string | null | undefined>,
@@ -57,6 +79,65 @@ function trimCache(): void {
   while (previewImageCache.size > MAX_CACHE_ENTRIES && removable.length > 0) {
     const [url] = removable.shift()!;
     previewImageCache.delete(url);
+  }
+}
+
+function inspectTransientImage(
+  image: HTMLImageElement,
+  url: string,
+): number | null {
+  if (!isTransientPreviewImageUrl(url)) return null;
+
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = TRANSIENT_SAMPLE_SIZE;
+    canvas.height = TRANSIENT_SAMPLE_SIZE;
+    const context = canvas.getContext('2d', {
+      alpha: false,
+      willReadFrequently: true,
+    });
+    if (!context) return null;
+
+    context.fillStyle = '#fafafa';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    const naturalWidth = image.naturalWidth || 1;
+    const naturalHeight = image.naturalHeight || 1;
+    const scale = Math.min(
+      canvas.width / naturalWidth,
+      canvas.height / naturalHeight,
+    );
+    const drawWidth = Math.max(1, naturalWidth * scale);
+    const drawHeight = Math.max(1, naturalHeight * scale);
+    const drawX = (canvas.width - drawWidth) / 2;
+    const drawY = (canvas.height - drawHeight) / 2;
+    context.drawImage(image, drawX, drawY, drawWidth, drawHeight);
+
+    const pixels = context.getImageData(
+      0,
+      0,
+      canvas.width,
+      canvas.height,
+    ).data;
+    let painted = 0;
+    const total = canvas.width * canvas.height;
+
+    for (let offset = 0; offset < pixels.length; offset += 4) {
+      const distance = Math.max(
+        Math.abs(pixels[offset] - PREVIEW_BACKGROUND_RGB[0]),
+        Math.abs(pixels[offset + 1] - PREVIEW_BACKGROUND_RGB[1]),
+        Math.abs(pixels[offset + 2] - PREVIEW_BACKGROUND_RGB[2]),
+      );
+      if (distance > 12) painted += 1;
+    }
+
+    canvas.width = 0;
+    canvas.height = 0;
+    return painted / total;
+  } catch {
+    // Visual inspection is a supplemental safety check. Never reject an image
+    // merely because a browser denied canvas inspection.
+    return null;
   }
 }
 
@@ -92,7 +173,12 @@ export function preloadPreviewImage(
   }
 
   if (typeof window === 'undefined' || typeof Image === 'undefined') {
-    return Promise.resolve({ url, naturalWidth: 0, naturalHeight: 0 });
+    return Promise.resolve({
+      url,
+      naturalWidth: 0,
+      naturalHeight: 0,
+      visualInkFraction: null,
+    });
   }
 
   const timeoutMs = Math.max(1_000, options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
@@ -141,10 +227,11 @@ export function preloadPreviewImage(
       if (settled) return;
       settled = true;
       cleanup();
-      const result = {
+      const result: PreviewImageResult = {
         url,
         naturalWidth: image.naturalWidth,
         naturalHeight: image.naturalHeight,
+        visualInkFraction: inspectTransientImage(image, url),
       };
       entry.status = 'ready';
       entry.result = result;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   getExpandedPreviewSelection,
+  getSmallPreviewSelection,
   getSmallPreviewUrl,
 } from '../previewSelection';
 
@@ -14,8 +15,34 @@ describe('previewSelection identity contract', () => {
       file_url: 'https://cdn.example.com/original.png',
     };
 
-    expect(getSmallPreviewUrl(item)).toBe('https://cdn.example.com/placement.png');
-    expect(getExpandedPreviewSelection(item).url).toBe('https://cdn.example.com/placement.png');
+    expect(getSmallPreviewSelection(item)).toMatchObject({
+      url: 'https://cdn.example.com/placement.png',
+      isExactComposition: true,
+    });
+    expect(getExpandedPreviewSelection(item)).toMatchObject({
+      url: 'https://cdn.example.com/placement.png',
+      isExactComposition: true,
+    });
+  });
+
+  it('keeps the 120 by 48 positioned data snapshot ahead of a generic original', () => {
+    const positioned = 'data:image/jpeg;base64,wide-banner-positioned';
+    const item = {
+      width_in: 120,
+      height_in: 48,
+      thumbnail_url: positioned,
+      file_url: 'https://cdn.example.com/original-with-white-artboard.png',
+      image_position: { x: 14, y: -5 },
+      image_scale: 1.6,
+    };
+
+    expect(getSmallPreviewSelection(item)).toMatchObject({
+      url: positioned,
+      source: 'thumbnail_fallback',
+      isExactComposition: true,
+      isLowResolutionFallback: true,
+    });
+    expect(getExpandedPreviewSelection(item).url).toBe(positioned);
   });
 
   it('never sends a raw PDF URL to an img element when a permanent image proof exists', () => {
@@ -31,15 +58,17 @@ describe('previewSelection identity contract', () => {
     })).toBeNull();
   });
 
-  it('recovers an image item from file_key after navigation or refresh', () => {
+  it('recovers an image item from file_key after navigation or refresh as an original fallback', () => {
     const item = {
       file_key: 'uploads/customer_image_123',
       file_name: 'customer-image.jpeg',
     };
 
-    expect(getSmallPreviewUrl(item)).toBe(
-      'https://res.cloudinary.com/dtrxl120u/image/upload/uploads/customer_image_123.jpeg',
-    );
+    expect(getSmallPreviewSelection(item)).toMatchObject({
+      url: 'https://res.cloudinary.com/dtrxl120u/image/upload/uploads/customer_image_123.jpeg',
+      source: 'original_fallback',
+      isExactComposition: false,
+    });
     expect(getExpandedPreviewSelection(item).url).toBe(
       'https://res.cloudinary.com/dtrxl120u/image/upload/uploads/customer_image_123.jpeg',
     );
@@ -61,11 +90,14 @@ describe('previewSelection identity contract', () => {
       thumbnail_url: 'https://cdn.example.com/item-level.jpg',
     };
 
-    expect(getSmallPreviewUrl(item)).toBe('https://cdn.example.com/yard-one-positioned.jpg');
+    expect(getSmallPreviewSelection(item)).toMatchObject({
+      url: 'https://cdn.example.com/yard-one-positioned.jpg',
+      isExactComposition: true,
+    });
     expect(getExpandedPreviewSelection(item).url).toBe('https://cdn.example.com/yard-one-positioned.jpg');
   });
 
-  it('labels a temporary data URL as a low-resolution in-session fallback', () => {
+  it('labels a temporary data URL as an exact low-resolution in-session fallback', () => {
     const selected = getExpandedPreviewSelection({
       thumbnail_url: 'data:image/png;base64,small',
     });
@@ -73,5 +105,6 @@ describe('previewSelection identity contract', () => {
     expect(selected.url).toBe('data:image/png;base64,small');
     expect(selected.source).toBe('thumbnail_fallback');
     expect(selected.isLowResolutionFallback).toBe(true);
+    expect(selected.isExactComposition).toBe(true);
   });
 });

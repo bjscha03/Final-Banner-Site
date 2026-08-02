@@ -24,27 +24,39 @@ function inferExactComposition(url: string): boolean {
  * registry lets the shared renderer recover through placement preview, final
  * render, positioned thumbnail, PDF derivative, and original image without
  * changing every legacy caller at once.
+ *
+ * Exact-composition metadata is stored for every candidate, not only the first
+ * URL. That matters when a browser rejects one derivative and the renderer
+ * promotes a fallback: a generic original must receive the saved transform,
+ * while a baked positioned snapshot must never be transformed a second time.
  */
 export function registerPreviewSourceCandidates(
   primary: string | null | undefined,
   values: Array<string | null | undefined>,
-  options: { exactComposition?: boolean } = {},
+  options: {
+    exactComposition?: boolean;
+    exactCompositionUrls?: Array<string | null | undefined>;
+  } = {},
 ): string[] {
   const normalizedPrimary = normalizePreviewImageUrl(primary);
   const candidates = dedupePreviewImageSources([normalizedPrimary, ...values]);
   if (!normalizedPrimary || candidates.length === 0) return candidates;
 
-  const exactComposition = options.exactComposition
-    ?? inferExactComposition(normalizedPrimary);
+  const explicitlyExact = new Set(
+    dedupePreviewImageSources(options.exactCompositionUrls || []),
+  );
 
   for (const candidate of candidates) {
     // Reinsert so recently used entries move to the end of Map iteration order.
     fallbackRegistry.delete(candidate);
     fallbackRegistry.set(candidate, candidates);
-    if (candidate === normalizedPrimary) {
-      exactCompositionRegistry.set(candidate, exactComposition);
-    }
+
+    const exact = candidate === normalizedPrimary && options.exactComposition !== undefined
+      ? options.exactComposition
+      : explicitlyExact.has(candidate) || inferExactComposition(candidate);
+    exactCompositionRegistry.set(candidate, exact);
   }
+
   trimRegistry();
   return candidates;
 }

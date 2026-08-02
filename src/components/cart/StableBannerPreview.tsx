@@ -126,19 +126,19 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
 
   const [baseReady, setBaseReady] = useState(false);
   const [baseFailed, setBaseFailed] = useState(false);
+  const [renderedSourceUrl, setRenderedSourceUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!imageUrl || !sourceSignature) {
       setBaseReady(false);
       setBaseFailed(false);
+      setRenderedSourceUrl(null);
       return;
     }
 
-    // Do not reset baseReady here. StablePreviewImage can synchronously seed a
-    // decoded layer from the shared cache when an enlarged preview mounts. A
-    // parent reset after that child announces readiness would leave a painted
-    // image permanently marked busy. Keeping the previous ready layer visible
-    // is also what prevents flashes during source handoff.
+    // Do not reset baseReady or the rendered source here. StablePreviewImage
+    // deliberately retains its last decoded layer while a better source loads,
+    // which prevents a white flash during data/blob -> permanent handoff.
     setBaseFailed(false);
   }, [imageUrl, sourceSignature]);
 
@@ -148,19 +148,26 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
   );
   const grommetRadius = calcGrommetRadius(safeWidth, safeHeight);
 
-  const isImmediateSnapshot = Boolean(imageUrl?.startsWith('data:image/'));
-  const isApprovedSnapshot = Boolean(
-    isImmediateSnapshot
-    || isFinalizedSnapshot
-    || isRegisteredExactComposition(imageUrl),
+  // Determine composition from the URL that actually decoded and painted, not
+  // merely from the first requested URL. If an exact positioned derivative
+  // fails, StablePreviewImage can reject it and fall through to the original.
+  const visibleSourceUrl = renderedSourceUrl || imageUrl || null;
+  const visibleSourceIsExact = Boolean(
+    visibleSourceUrl?.startsWith('data:image/')
+    || isRegisteredExactComposition(visibleSourceUrl)
+    || (
+      isFinalizedSnapshot
+      && (!renderedSourceUrl || renderedSourceUrl === imageUrl)
+    ),
   );
-  const scaleX = Number.isFinite(imageScale) && imageScale > 0 ? imageScale : 1;
-  const requestedScaleY = imageScaleY ?? scaleX;
-  const scaleY = Number.isFinite(requestedScaleY) && requestedScaleY > 0
-    ? requestedScaleY
-    : scaleX;
-  const x = Number.isFinite(imagePosition?.x) ? imagePosition.x : 0;
-  const y = Number.isFinite(imagePosition?.y) ? imagePosition.y : 0;
+
+  const requestedScaleX = Number.isFinite(imageScale) && imageScale > 0 ? imageScale : 1;
+  const requestedScaleYCandidate = imageScaleY ?? requestedScaleX;
+  const requestedScaleY = Number.isFinite(requestedScaleYCandidate) && requestedScaleYCandidate > 0
+    ? requestedScaleYCandidate
+    : requestedScaleX;
+  const requestedX = Number.isFinite(imagePosition?.x) ? imagePosition.x : 0;
+  const requestedY = Number.isFinite(imagePosition?.y) ? imagePosition.y : 0;
 
   const overlay = useMemo(() => {
     if (!overlayImage?.url || !overlayImage.position) return null;
@@ -188,13 +195,22 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
     };
   }, [overlayImage, safeWidth, safeHeight, maxSize]);
 
-  // Baked snapshots already match the product frame. `contain` preserves that
-  // identity without stretching or cropping if a legacy derivative has a few
-  // extra pixels. Originals retain their saved transform; explicit stretch is
-  // the only path that uses fill.
+  /**
+   * Exact snapshots already contain the approved placement and must never be
+   * transformed twice. When the renderer falls back to the original artwork,
+   * reconstruct the designer's fit/fill/drag/resize transform on the full-frame
+   * layer. The saved position is container-relative percent, so translating the
+   * full-frame layer by that percentage matches ArtworkPreviewEditor.
+   */
   const imageObjectFit: React.CSSProperties['objectFit'] = fitMode === 'stretch'
     ? 'fill'
     : 'contain';
+  const previewTransform = visibleSourceIsExact
+    ? undefined
+    : `translate(${requestedX}%, ${requestedY}%) scale(${requestedScaleX}, ${requestedScaleY})`;
+  const previewTransformMode = visibleSourceIsExact
+    ? 'exact-snapshot'
+    : 'reconstructed-original';
 
   const showComposition = baseReady || designServiceEnabled;
   const showLoadingState = Boolean(imageUrl && !baseReady && !baseFailed);
@@ -222,7 +238,13 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
           data-commerce-preview="true"
           data-preview-ready={baseReady ? 'true' : 'false'}
           data-preview-failed={baseFailed ? 'true' : 'false'}
-          data-preview-exact={isApprovedSnapshot ? 'true' : 'false'}
+          data-preview-exact={visibleSourceIsExact ? 'true' : 'false'}
+          data-preview-rendered-source={visibleSourceUrl || undefined}
+          data-preview-transform-mode={previewTransformMode}
+          data-preview-requested-x={requestedX}
+          data-preview-requested-y={requestedY}
+          data-preview-requested-scale-x={requestedScaleX}
+          data-preview-requested-scale-y={requestedScaleY}
         >
           {designServiceEnabled ? (
             <div className="absolute inset-0 flex items-center justify-center bg-slate-50 px-2 text-center">
@@ -246,9 +268,7 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
             <div
               className="absolute inset-0 h-full w-full"
               style={{
-                transform: isApprovedSnapshot
-                  ? undefined
-                  : `translate(${x}%, ${y}%) scale(${scaleX}, ${scaleY})`,
+                transform: previewTransform,
                 transformOrigin: 'center center',
               }}
             >
@@ -259,11 +279,13 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
                 style={{ objectFit: imageObjectFit }}
                 retainPreviousWhileLoading
                 loadTimeoutMs={25_000}
-                onReady={() => {
+                onReady={(result) => {
+                  setRenderedSourceUrl(result.url);
                   setBaseReady(true);
                   setBaseFailed(false);
                 }}
                 onExhausted={() => {
+                  setRenderedSourceUrl(null);
                   setBaseReady(false);
                   setBaseFailed(true);
                 }}

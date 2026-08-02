@@ -18,6 +18,8 @@ import { resolvePromo, getKnownPromo } from '@/lib/promoEngine';
 import { useToast } from '@/components/ui/use-toast';
 import { generateFinalRenderFromHTML } from '@/utils/generateFinalRenderFromHTML';
 import { generatePositionedThumbnail, generatePositionedWebPreview, renderPositionedThumbnailDataUrl } from '@/utils/generatePositionedThumbnail';
+import { uploadCanvasImageToCloudinary } from '@/utils/uploadCanvasImage';
+import { isVisuallyBlankPreviewResult, preloadPreviewImage } from '@/lib/previewImageCache';
 import { renderPdfToDataUrl, type PdfPreviewResult } from '@/utils/pdf/renderPdfToDataUrl';
 import type { ProductTypeSlug } from '@/lib/products';
 import ProductTypeSwitcher from '@/components/design/ProductTypeSwitcher';
@@ -237,6 +239,33 @@ function hasPermanentArtwork(file: UploadedArtworkFile | null | undefined): file
     && (file.productionUrl || (/^https?:\/\//i.test(file.url || '') ? file.url : null))
     && (file.productionPublicId || file.fileKey),
   );
+}
+
+type PreparedCompositionPreview = {
+  signature: string;
+  dataUrl: string;
+  widthPx: number;
+  heightPx: number;
+};
+
+function buildCompositionSignature(
+  imageUrl: string,
+  widthIn: number,
+  heightIn: number,
+  transform: { pos: { x: number; y: number }; scale: number; scaleY?: number },
+): string {
+  const numberKey = (value: number | undefined) => Number.isFinite(value)
+    ? Number(value).toFixed(6)
+    : '0.000000';
+  return [
+    imageUrl,
+    numberKey(widthIn),
+    numberKey(heightIn),
+    numberKey(transform.pos.x),
+    numberKey(transform.pos.y),
+    numberKey(transform.scale),
+    numberKey(transform.scaleY ?? transform.scale),
+  ].join('|');
 }
 
 function preloadPermanentArtwork(url: string, timeoutMs = 20_000): Promise<boolean> {
@@ -634,6 +663,8 @@ const Design: React.FC = () => {
   const [isProcessingUpsell, setIsProcessingUpsell] = useState(false);
   const [pendingCheckoutData, setPendingCheckoutData] = useState<{pos: {x: number; y: number}; scale: number; scaleY?: number} | null>(null);
   const [pendingActionType, setPendingActionType] = useState<'checkout' | 'cart'>('checkout');
+  const [pendingUpsellThumbnailUrl, setPendingUpsellThumbnailUrl] = useState<string | null>(null);
+  const pendingApprovedThumbnailRef = useRef<PreparedCompositionPreview | null>(null);
 
   // "Create with AI" modal state. Only available for banner & car_magnet on
   // this page — yard signs use YardSignConfigurator which has its own button.
@@ -739,6 +770,8 @@ const Design: React.FC = () => {
     setImgPos({ x: 0, y: 0 });
     setImgScale(1);
     setImgScaleY(1);
+    setPendingUpsellThumbnailUrl(null);
+    pendingApprovedThumbnailRef.current = null;
   }, [widthIn, heightIn]);
 
   // Keep the inches-mode raw input strings in sync with widthIn/heightIn
@@ -1345,6 +1378,8 @@ const Design: React.FC = () => {
     setUploadError('');
     setAiPrompt(null);
     setAiEditPrompt(null);
+    setPendingUpsellThumbnailUrl(null);
+    pendingApprovedThumbnailRef.current = null;
     setHasJustAddedToCart(false);
     setHasReviewedYardSignStakes(false);
     setHasReviewedYardSignPrintSide(false);
@@ -1415,14 +1450,24 @@ const Design: React.FC = () => {
       imgPosPercent: { x: number; y: number };
       imgScale: number;
       imgScaleY?: number;
+      preparedDataUrl?: string;
     },
   ) => {
     if (!itemId) return;
     void (async () => {
       try {
+        if (input.preparedDataUrl) {
+          const uploaded = await uploadCanvasImageToCloudinary(
+            input.preparedDataUrl,
+            `approved-composition-${Date.now()}.jpg`,
+          );
+          cartStore.updateItemThumbnail(itemId, uploaded.secureUrl);
+          return;
+        }
+
         const positioned = await generatePositionedThumbnail({
           ...input,
-          backgroundColor: '#fafafa',
+          backgroundColor: '#ffffff',
         });
         if (positioned?.url) {
           cartStore.updateItemThumbnail(itemId, positioned.url);
@@ -1494,6 +1539,77 @@ const Design: React.FC = () => {
       }
     })();
   }, [cartStore]);
+
+  const prepareExactCompositionPreview = useCallback(async (
+    checkoutData: { pos: { x: number; y: number }; scale: number; scaleY?: number },
+  ): Promise<PreparedCompositionPreview> => {
+    const artwork = uploadedFileRef.current;
+    if (!artwork) throw new Error('Artwork is not available');
+
+    const imageUrl = artwork.previewUrl || artwork.thumbnailUrl || artwork.url;
+    if (!imageUrl) throw new Error('Artwork preview source is not available');
+
+    const signature = buildCompositionSignature(imageUrl, widthIn, heightIn, checkoutData);
+    const cached = pendingApprovedThumbnailRef.current;
+    if (cached?.signature === signature) {
+      setPendingUpsellThumbnailUrl(cached.dataUrl);
+      return cached;
+    }
+
+    const rendered = await renderPositionedThumbnailDataUrl({
+      imageUrl,
+      widthIn,
+      heightIn,
+      imgPosPercent: checkoutData.pos,
+      imgScale: checkoutData.scale,
+      imgScaleY: checkoutData.scaleY ?? checkoutData.scale,
+      backgroundColor: '#ffffff',
+      maxOutputPx: 1400,
+      maxOutputPixels: 1_500_000,
+    });
+
+    const decoded = await preloadPreviewImage(rendered.dataUrl, {
+      timeoutMs: 12_000,
+      fetchPriority: 'high',
+    });
+    if (isVisuallyBlankPreviewResult(decoded)) {
+      throw new Error('The positioned preview rendered without visible artwork');
+    }
+
+    const prepared: PreparedCompositionPreview = {
+      signature,
+      dataUrl: rendered.dataUrl,
+      widthPx: rendered.widthPx,
+      heightPx: rendered.heightPx,
+    };
+    pendingApprovedThumbnailRef.current = prepared;
+    setPendingUpsellThumbnailUrl(prepared.dataUrl);
+    return prepared;
+  }, [widthIn, heightIn]);
+
+  const openUpsellWithExactComposition = useCallback(async (
+    actionType: 'checkout' | 'cart',
+    checkoutData: { pos: { x: number; y: number }; scale: number; scaleY?: number },
+  ) => {
+    if (isProcessingUpsell) return;
+
+    setPendingCheckoutData(checkoutData);
+    setPendingActionType(actionType);
+    setIsProcessingUpsell(true);
+    try {
+      await prepareExactCompositionPreview(checkoutData);
+      setShowUpsellModal(true);
+    } catch (error) {
+      console.error('[DESIGN_UPSELL] exact composition preparation failed', error);
+      toast({
+        title: 'Could not prepare your exact preview',
+        description: 'Your artwork is still selected. Tap the button again to retry before continuing.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsProcessingUpsell(false);
+    }
+  }, [isProcessingUpsell, prepareExactCompositionPreview, toast]);
 
   // CRITICAL: Generate final_render before adding to cart - orders without it cannot be printed
   const performCheckout = useCallback(async (
@@ -1923,19 +2039,47 @@ const Design: React.FC = () => {
     // Render synchronously to a dataUrl (canvas only, no network) for instant
     // cart display; upload to Cloudinary in the background.
     const baseImageUrl = checkoutArtwork.previewUrl || checkoutArtwork.thumbnailUrl || checkoutArtwork.url;
-    let approvedThumbnailUrl = baseImageUrl;
-    try {
-      const rendered = await renderPositionedThumbnailDataUrl({
-        imageUrl: baseImageUrl,
-        widthIn,
-        heightIn,
-        imgPosPercent: checkoutData.pos,
-        imgScale: checkoutData.scale,
-        backgroundColor: '#fafafa',
-      });
-      approvedThumbnailUrl = rendered.dataUrl;
-    } catch (err) {
-      console.warn('[DESIGN_CHECKOUT] dataUrl thumbnail render failed (non-blocking):', err);
+    const compositionSignature = buildCompositionSignature(
+      baseImageUrl,
+      widthIn,
+      heightIn,
+      checkoutData,
+    );
+    const preparedComposition = pendingApprovedThumbnailRef.current;
+    let approvedThumbnailUrl = preparedComposition?.signature === compositionSignature
+      ? preparedComposition.dataUrl
+      : baseImageUrl;
+
+    if (approvedThumbnailUrl === baseImageUrl) {
+      try {
+        const rendered = await renderPositionedThumbnailDataUrl({
+          imageUrl: baseImageUrl,
+          widthIn,
+          heightIn,
+          imgPosPercent: checkoutData.pos,
+          imgScale: checkoutData.scale,
+          imgScaleY: checkoutData.scaleY ?? checkoutData.scale,
+          backgroundColor: '#ffffff',
+          maxOutputPx: 1400,
+          maxOutputPixels: 1_500_000,
+        });
+        const decoded = await preloadPreviewImage(rendered.dataUrl, {
+          timeoutMs: 12_000,
+          fetchPriority: 'high',
+        });
+        if (isVisuallyBlankPreviewResult(decoded)) {
+          throw new Error('The approved checkout composition contained no visible artwork');
+        }
+        approvedThumbnailUrl = rendered.dataUrl;
+        pendingApprovedThumbnailRef.current = {
+          signature: compositionSignature,
+          dataUrl: rendered.dataUrl,
+          widthPx: rendered.widthPx,
+          heightPx: rendered.heightPx,
+        };
+      } catch (err) {
+        console.warn('[DESIGN_CHECKOUT] exact thumbnail render failed; original fallback retained:', err);
+      }
     }
 
     const updatedTotals = calcTotals({
@@ -1998,6 +2142,9 @@ const Design: React.FC = () => {
       imgPosPercent: checkoutData.pos,
       imgScale: checkoutData.scale,
       imgScaleY: checkoutData.scaleY ?? checkoutData.scale,
+      preparedDataUrl: approvedThumbnailUrl.startsWith('data:image/')
+        ? approvedThumbnailUrl
+        : undefined,
     });
     scheduleWebPreviewUpload(bannerAddedId, {
       imageUrl: baseImageUrl,
@@ -2015,6 +2162,7 @@ const Design: React.FC = () => {
 
   // Proceed directly to checkout using current inline preview position
   const handleCheckout = useCallback(() => {
+    if (isProcessingUpsell) return;
     // Yard signs: multi-design flow (no single uploadedFile needed)
     if (isYardSign) {
       if (yardSignDesigns.length === 0 || yardSignTotalQty === 0) return;
@@ -2056,12 +2204,16 @@ const Design: React.FC = () => {
     if (finishingType !== 'none') {
       performCheckout([], { pos: posPercent, scale: imgScale, scaleY: imgScaleY });
     } else {
-      setPendingActionType('checkout');
-      setShowUpsellModal(true);
+      void openUpsellWithExactComposition('checkout', {
+        pos: posPercent,
+        scale: imgScale,
+        scaleY: imgScaleY,
+      });
     }
-  }, [uploadedFile, imgPos, imgScale, imgScaleY, finishingType, performCheckout, isYardSign, isCarMagnet, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, toast]);
+  }, [uploadedFile, imgPos, imgScale, imgScaleY, finishingType, performCheckout, isYardSign, isCarMagnet, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, toast, isProcessingUpsell, openUpsellWithExactComposition]);
 
   const handleAddToCart = useCallback(() => {
+    if (isProcessingUpsell) return;
     if (isYardSign) {
       if (yardSignDesigns.length === 0 || yardSignTotalQty === 0) return;
       if (!yardSignQuantityValid.valid) return;
@@ -2103,10 +2255,13 @@ const Design: React.FC = () => {
       performCheckout([], { pos: posPercent, scale: imgScale, scaleY: imgScaleY }, 'cart');
     } else {
       logUx('upsell_opened', { source: 'add_to_cart' });
-      setPendingActionType('cart');
-      setShowUpsellModal(true);
+      void openUpsellWithExactComposition('cart', {
+        pos: posPercent,
+        scale: imgScale,
+        scaleY: imgScaleY,
+      });
     }
-  }, [uploadedFile, imgPos, imgScale, imgScaleY, finishingType, performCheckout, isYardSign, isCarMagnet, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, toast]);
+  }, [uploadedFile, imgPos, imgScale, imgScaleY, finishingType, performCheckout, isYardSign, isCarMagnet, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, toast, isProcessingUpsell, openUpsellWithExactComposition]);
 
   // Trigger upsell modal after confirming position from preview modal
   const handleConfirmPosition = useCallback((pos: { x: number; y: number }, scale: number, scaleY?: number) => {
@@ -2129,10 +2284,13 @@ const Design: React.FC = () => {
     if (finishingType !== 'none') {
       performCheckout([], { pos: posPercent, scale, scaleY: scaleY ?? scale });
     } else {
-      setPendingActionType('checkout');
-      setShowUpsellModal(true);
+      void openUpsellWithExactComposition('checkout', {
+        pos: posPercent,
+        scale,
+        scaleY: scaleY ?? scale,
+      });
     }
-  }, [uploadedFile, finishingType, performCheckout, isCarMagnet]);
+  }, [uploadedFile, finishingType, performCheckout, isCarMagnet, openUpsellWithExactComposition]);
 
   // Handle upsell modal continue
   const handleUpsellContinue = useCallback((selectedOptions: UpsellOption[], dontAskAgain: boolean) => {
@@ -3406,13 +3564,14 @@ const Design: React.FC = () => {
           grommets: grommets as any,
           polePockets,
           addRope,
-          thumbnailUrl: uploadedFile?.previewUrl || uploadedFile?.thumbnailUrl || uploadedFile?.url,
+          thumbnailUrl: pendingUpsellThumbnailUrl || uploadedFile?.previewUrl || uploadedFile?.thumbnailUrl || uploadedFile?.url,
           file: uploadedFile ? { name: uploadedFile.name, url: uploadedFile.url } : undefined,
           imagePosition: pendingCheckoutData?.pos,
           imageScale: pendingCheckoutData?.scale,
           imageScaleY: pendingCheckoutData?.scaleY ?? pendingCheckoutData?.scale,
         } as any}
-        thumbnailUrl={uploadedFile?.thumbnailUrl || uploadedFile?.url}
+        thumbnailUrl={pendingUpsellThumbnailUrl || undefined}
+        thumbnailIsExactComposition={Boolean(pendingUpsellThumbnailUrl)}
         actionType={pendingActionType === 'checkout' ? 'checkout' : 'cart'}
         isProcessing={isProcessingUpsell}
       />

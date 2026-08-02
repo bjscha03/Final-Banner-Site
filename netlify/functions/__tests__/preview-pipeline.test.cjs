@@ -25,12 +25,17 @@ test('cart and checkout thumbnails render immediately without an idle skeleton s
   assert.equal(cartModal.includes('enableHeavyPreviews'), false);
   assert.equal(cartModal.includes('requestIdleCallback'), false);
   assert.equal(cartModal.includes('animate-pulse'), false);
-  assert.match(cartModal, /getSmallPreviewUrl/);
+  assert.match(cartModal, /getSmallPreviewSelection/);
   assert.match(cartModal, /getExpandedPreviewSelection/);
   assert.match(cartModal, /<BannerPreview/);
-  assert.match(checkout, /getSmallPreviewUrl/);
+  assert.match(checkout, /getSmallPreviewSelection/);
   assert.match(checkout, /getExpandedPreviewSelection/);
   assert.match(checkout, /<BannerPreview/);
+  assert.match(cartModal, /smallPreview\.isExactComposition/);
+  assert.match(checkout, /smallPreview\.isExactComposition/);
+  assert.match(checkout, /expandedPreview\.isExactComposition/);
+  assert.equal(cartModal.includes('isFinalizedSnapshot={Boolean(item.thumbnail_url)}'), false);
+  assert.equal(checkout.includes('isFinalizedSnapshot={!!item.thumbnail_url}'), false);
 });
 
 test('preview images are decoded, double-buffered, and loaded concurrently', () => {
@@ -137,10 +142,35 @@ test('real-browser commerce matrix loads production CSS and validates all core s
   assert.match(harness, /handoff-landscape/);
   assert.match(harness, /portrait/);
   assert.match(harness, /square/);
+  assert.match(harness, /wide-positioned-data-priority/);
+  assert.match(harness, /wide-positioned-exact/);
   assert.match(harness, /extreme-wide/);
   assert.match(harness, /fallback-chain/);
   assert.match(harness, /yard-sign-identity/);
   assert.match(harness, /hasExpectedRatio/);
+});
+
+test('Upsell receives a baked designer composition before it opens', () => {
+  const design = read('src/pages/Design.tsx');
+  const upsell = read('src/components/cart/UpsellModal.tsx');
+  const banner = read('src/components/cart/StableBannerPreview.tsx');
+  const runner = read('tests/browser/run-preview-handoff-cdp.mjs');
+  const harness = read('tests/browser/upsell-preview-handoff.jsx');
+
+  assert.match(design, /prepareExactCompositionPreview/);
+  assert.match(design, /openUpsellWithExactComposition/);
+  assert.match(design, /pendingUpsellThumbnailUrl/);
+  assert.equal(design.includes('thumbnailIsExactComposition={Boolean(pendingUpsellThumbnailUrl)}'), true);
+  assert.match(design, /preparedDataUrl: approvedThumbnailUrl.startsWith/);
+  assert.equal(design.includes('thumbnailUrl={uploadedFile?.thumbnailUrl || uploadedFile?.url}'), false);
+  assert.equal(upsell.includes("from './StableBannerPreview'"), true);
+  assert.match(upsell, /thumbnailIsExactComposition/);
+  assert.match(upsell, /isFinalizedSnapshot={thumbnailIsExactComposition}/);
+  assert.match(upsell, /effectiveThumbnailUrl/);
+  assert.match(banner, /reconstructed-original/);
+  assert.match(banner, /transform: previewTransform/);
+  assert.match(runner, /upsell-exact-composition/);
+  assert.match(harness, /UPSELL-APPROVED-COMPOSITION/);
 });
 
 test('Design and Google Ads use the shared session-stable artwork editor alias', () => {
@@ -153,4 +183,61 @@ test('Design and Google Ads use the shared session-stable artwork editor alias',
   assert.match(googleAds, /@\/components\/design\/ArtworkPreviewEditor/);
   assert.match(originalEditor, /touchAction: 'none'/);
   assert.match(sessionEditor, /OriginalArtworkPreviewEditor/);
+});
+
+test('diagnose the exact 120x48 customer artwork source shown in the failed preview', async () => {
+  const sharp = require('sharp');
+  const url = 'https://res.cloudinary.com/dtrxl120u/image/upload/v1778430298/8072d966-0283-4b44-b972-4964edf3351a_n2fxia.png';
+  const response = await fetch(url);
+  assert.equal(response.status, 200);
+  const input = Buffer.from(await response.arrayBuffer());
+  assert.ok(input.length > 0);
+
+  const metadata = await sharp(input, { failOn: 'none' }).metadata();
+  const { data, info } = await sharp(input, { failOn: 'none' })
+    .resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
+    .removeAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  let minX = info.width;
+  let minY = info.height;
+  let maxX = -1;
+  let maxY = -1;
+  let nonWhitePixels = 0;
+  for (let y = 0; y < info.height; y += 1) {
+    for (let x = 0; x < info.width; x += 1) {
+      const offset = (y * info.width + x) * info.channels;
+      const r = data[offset];
+      const g = data[offset + 1];
+      const b = data[offset + 2];
+      if (Math.max(255 - r, 255 - g, 255 - b) <= 10) continue;
+      nonWhitePixels += 1;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+  }
+
+  const bbox = maxX >= minX && maxY >= minY
+    ? {
+        x: minX,
+        y: minY,
+        width: maxX - minX + 1,
+        height: maxY - minY + 1,
+        widthFraction: (maxX - minX + 1) / info.width,
+        heightFraction: (maxY - minY + 1) / info.height,
+      }
+    : null;
+  console.log('[ACTUAL_WIDE_ARTWORK_DIAGNOSTIC]', JSON.stringify({
+    url,
+    bytes: input.length,
+    metadata,
+    analysisWidth: info.width,
+    analysisHeight: info.height,
+    nonWhiteFraction: nonWhitePixels / (info.width * info.height),
+    bbox,
+  }));
+  assert.ok(nonWhitePixels > 0);
 });
