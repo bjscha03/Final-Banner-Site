@@ -5,7 +5,7 @@ import BannerPreview from '@/components/cart/BannerPreview';
 import ThumbnailPreviewWrapper from '@/components/preview/ThumbnailPreviewWrapper';
 import {
   getExpandedPreviewSelection,
-  getSmallPreviewUrl,
+  getSmallPreviewSelection,
 } from '@/lib/previewSelection';
 
 const localSvg = `
@@ -18,6 +18,10 @@ const localSvg = `
 
 const localBlobUrl = URL.createObjectURL(new Blob([localSvg], { type: 'image/svg+xml' }));
 const localImage = (marker) => `${window.location.origin}/images/header-logo.png?commerce-preview=${marker}`;
+const positionedDataImage = (marker) => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="600" viewBox="0 0 1500 600"><rect width="1500" height="600" fill="#18448D"/><rect x="35" y="35" width="1430" height="530" rx="20" fill="#ff6b35"/><text x="750" y="340" text-anchor="middle" font-family="Arial,sans-serif" font-size="92" font-weight="700" fill="white">${marker}</text></svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+};
 
 function isPaintedImage(image) {
   if (!(image instanceof HTMLImageElement)) return false;
@@ -92,10 +96,12 @@ function finish(result, details) {
 }
 
 function PreviewCard({ testCase, sourceOverride }) {
-  const smallUrl = getSmallPreviewUrl(testCase.item);
+  const small = getSmallPreviewSelection(testCase.item);
   const expanded = getExpandedPreviewSelection(testCase.item);
-  const imageUrl = sourceOverride || smallUrl;
+  const imageUrl = sourceOverride || small.url;
   const largeUrl = sourceOverride || expanded.url;
+  const smallExact = sourceOverride ? true : small.isExactComposition;
+  const largeExact = sourceOverride ? true : expanded.isExactComposition;
 
   return (
     <div
@@ -118,7 +124,7 @@ function PreviewCard({ testCase, sourceOverride }) {
               imageUrl={largeUrl}
               imagePosition={testCase.imagePosition || { x: 0, y: 0 }}
               imageScale={testCase.imageScale || 1}
-              isFinalizedSnapshot={testCase.exact !== false}
+              isFinalizedSnapshot={largeExact}
               maxSize={820}
             />
           </div>
@@ -131,7 +137,7 @@ function PreviewCard({ testCase, sourceOverride }) {
           imageUrl={imageUrl}
           imagePosition={testCase.imagePosition || { x: 0, y: 0 }}
           imageScale={testCase.imageScale || 1}
-          isFinalizedSnapshot={testCase.exact !== false}
+          isFinalizedSnapshot={smallExact}
           maxSize={200}
         />
       </ThumbnailPreviewWrapper>
@@ -166,6 +172,19 @@ function CommercePreviewHarness() {
       heightIn: 24,
       expectedMarker: 'square',
       item: { final_render_url: localImage('square') },
+    },
+    {
+      id: 'wide-positioned-data-priority',
+      title: '120 × 48 Banner',
+      widthIn: 120,
+      heightIn: 48,
+      expectedMarker: 'wide-positioned-exact',
+      item: {
+        thumbnail_url: positionedDataImage('wide-positioned-exact'),
+        file_url: localImage('wrong-generic-original'),
+        image_position: { x: 18, y: -6 },
+        image_scale: 1.7,
+      },
     },
     {
       id: 'extreme-wide',
