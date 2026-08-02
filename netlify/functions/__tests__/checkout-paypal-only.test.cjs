@@ -31,7 +31,12 @@ test('checkout routes directly to the reliable PayPal flow with no duplicate sit
   assert.match(paypalCheckout, /renderPayPalButton\(\)/);
   assert.equal(paypalCheckout.includes('Email for order confirmation and tracking'), false);
   assert.equal(paypalCheckout.includes('Email for confirmation'), false);
-  assert.equal(paypalCheckout.includes('<input'), false);
+  assert.match(paypalCheckout, /First Name \*/);
+  assert.match(paypalCheckout, /Last Name \*/);
+  assert.match(paypalCheckout, /Shipping same as billing/);
+  assert.match(paypalCheckout, /Shipping Address \*/);
+  assert.match(paypalCheckout, /VERIFICATION_POLL_INTERVAL_MS = 2000/);
+  assert.match(paypalCheckout, /VERIFICATION_MAX_ATTEMPTS = 15/);
   assert.equal(paypalCheckout.includes('fundingSource="card"'), false);
   assert.equal(/fastlane/i.test(paypalCheckout), false);
 });

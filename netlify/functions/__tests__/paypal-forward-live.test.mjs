@@ -43,7 +43,7 @@ test('unknown payment status is polled and can resolve to success or retry', () 
   assert.match(statusSource, /retryAllowed:\s*true/);
 });
 
-test('checkout uses only PayPal-hosted forms and does not add merchant contact fields', () => {
+test('checkout collects authoritative customer details beside PayPal-hosted card fields', () => {
   const source = read('../../../src/components/checkout/PayPalCheckoutReliable.tsx');
   const config = read('../_shared/legacy/paypal-config.cjs');
 
@@ -51,8 +51,9 @@ test('checkout uses only PayPal-hosted forms and does not add merchant contact f
   assert.match(source, /PayPalCardFieldsProvider/);
   assert.match(source, /PayPalCardFieldsForm/);
   assert.match(source, /renderPayPalButton\(\)/);
-  assert.doesNotMatch(source, /<input/);
-  assert.doesNotMatch(source, /guestName|Order contact|Shipping address form|Contact information form/);
+  assert.match(source, /First Name \*/);
+  assert.match(source, /Shipping same as billing/);
+  assert.doesNotMatch(source, /guestName|Order contact/);
   assert.doesNotMatch(source, /PayPalHostedFields|fundingSource="card"/);
   assert.match(config, /components:\s*'buttons,card-fields'/);
   assert.match(config, /generate-token|client_token/);

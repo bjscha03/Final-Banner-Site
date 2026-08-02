@@ -8,6 +8,7 @@ import {
 } from '@paypal/react-paypal-js';
 import { Clock3, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/lib/auth';
 import { getStoredAttribution } from '@/lib/attribution';
@@ -30,7 +31,7 @@ interface PayPalConfig {
   clientToken?: string;
 }
 
-const InlineCardSubmit: React.FC<{ disabled: boolean }> = ({ disabled }) => {
+const InlineCardSubmit: React.FC<{ disabled: boolean; beforeSubmit: () => boolean }> = ({ disabled, beforeSubmit }) => {
   const { cardFieldsForm } = usePayPalCardFields();
   return (
     <Button
@@ -38,7 +39,9 @@ const InlineCardSubmit: React.FC<{ disabled: boolean }> = ({ disabled }) => {
       className="mt-3 w-full"
       size="lg"
       disabled={disabled || !cardFieldsForm}
-      onClick={() => void cardFieldsForm?.submit()}
+      onClick={() => {
+        if (beforeSubmit()) void cardFieldsForm?.submit();
+      }}
     >
       Pay Now
     </Button>
@@ -54,7 +57,7 @@ type StoredCheckout = {
 };
 
 const VERIFICATION_POLL_INTERVAL_MS = 2000;
-const VERIFICATION_MAX_ATTEMPTS = 35;
+const VERIFICATION_MAX_ATTEMPTS = 15;
 const VERIFICATION_TTL_MS = 30 * 60 * 1000;
 
 const randomId = (): string => {
@@ -166,6 +169,12 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
   const [verificationMessage, setVerificationMessage] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [cardFieldsExpanded, setCardFieldsExpanded] = useState(false);
+  const [customer, setCustomer] = useState({
+    firstName: '', lastName: '', email: user?.email || '', phone: '', country: 'US',
+    street: '', street2: '', city: '', state: '', zip: '', shippingSame: true,
+    shippingName: '', shippingStreet: '', shippingStreet2: '', shippingCity: '',
+    shippingState: '', shippingZip: '', shippingCountry: 'US',
+  });
 
   const internalOrderIdRef = useRef<string | null>(null);
   const checkoutKeyRef = useRef<string>(randomId());
@@ -176,6 +185,37 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
   const lastDeclineAtRef = useRef(0);
   const approvedOrderDataRef = useRef<any>(null);
   const shippingChangeDataRef = useRef<any>(null);
+  const submittedCustomerRef = useRef<any>(null);
+
+  const updateCustomer = (field: string, value: string | boolean) => {
+    setCustomer((current) => ({ ...current, [field]: value }));
+  };
+
+  const validateCustomer = useCallback(() => {
+    const required = ['firstName', 'lastName', 'email', 'phone', 'country', 'street', 'city', 'state', 'zip'] as const;
+    if (required.some((field) => !customer[field].trim())) return 'Complete every required customer and billing field.';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email.trim())) return 'Enter a valid email address.';
+    if (!customer.shippingSame) {
+      const requiredShipping = ['shippingName', 'shippingStreet', 'shippingCity', 'shippingState', 'shippingZip', 'shippingCountry'] as const;
+      if (requiredShipping.some((field) => !customer[field].trim())) return 'Complete every required shipping field.';
+    }
+    return null;
+  }, [customer]);
+
+  const getSubmittedCustomer = useCallback(() => {
+    const fullName = `${customer.firstName.trim()} ${customer.lastName.trim()}`;
+    const billing = { name: fullName, street: customer.street.trim(), street2: customer.street2.trim(), city: customer.city.trim(), state: customer.state.trim(), zip: customer.zip.trim(), country: customer.country.trim() };
+    const shipping = customer.shippingSame ? billing : {
+      name: customer.shippingName.trim(), street: customer.shippingStreet.trim(), street2: customer.shippingStreet2.trim(),
+      city: customer.shippingCity.trim(), state: customer.shippingState.trim(), zip: customer.shippingZip.trim(), country: customer.shippingCountry.trim(),
+    };
+    return {
+      firstName: customer.firstName.trim(), lastName: customer.lastName.trim(), fullName,
+      email: customer.email.trim().toLowerCase(), phone: customer.phone.trim(),
+      address1: billing.street, address2: billing.street2, city: billing.city, state: billing.state,
+      postalCode: billing.zip, country: billing.country, billingAddress: billing, shippingAddress: shipping,
+    };
+  }, [customer]);
 
   const checkoutSignature = useMemo(() => JSON.stringify({
     total,
@@ -308,9 +348,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
       }
 
       if (verificationLockedRef.current) {
-        const message = 'We are still checking PayPal. Do not submit another payment. This page will keep your order safe while you check again.';
-        setVerificationMessage(message);
-        persistState('verification', message);
+        resetForRetry('PayPal did not complete a capture within 30 seconds. No payment was confirmed; you may try again.');
       }
     } finally {
       pollingRef.current = false;
@@ -428,13 +466,19 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
 
     try {
       if (!internalOrderIdRef.current) {
-        const guestEmail = user?.email || `guest-${checkoutKeyRef.current.slice(0, 18)}@bannersonthefly.com`;
+        const submitted = submittedCustomerRef.current;
+        const guestEmail = submitted?.email || user?.email;
+        if (!guestEmail) throw new Error('Customer email is required before payment.');
         const pendingResponse = await fetch('/.netlify/functions/create-order', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             user_id: user?.id || null,
             email: guestEmail,
+            customer_name: submitted?.fullName,
+            customer_phone: submitted?.phone,
+            shippingAddress: submitted?.shippingAddress,
+            billingAddress: submitted?.billingAddress,
             subtotal_cents: total,
             tax_cents: 0,
             total_cents: total,
@@ -464,7 +508,8 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
           internalOrderId: internalOrderIdRef.current,
           totalCents: total,
           items,
-          email: user?.email || null,
+          email: submittedCustomerRef.current?.email || user?.email || null,
+          customer: submittedCustomerRef.current,
           user_id: user?.id || null,
           discountCode,
           sameDayHitService: Boolean(sameDayHitService),
@@ -520,6 +565,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
           internalOrderId: internalOrderIdRef.current,
           approvedOrderData,
           shippingChangeData: shippingChangeDataRef.current,
+          customerInfo: submittedCustomerRef.current,
         }),
       });
       const payload = await readJson(response);
@@ -633,9 +679,17 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
       fundingSource="paypal"
       style={{ layout: 'vertical', color: 'gold', shape: 'rect', label: 'paypal', height: 42 }}
       disabled={buttonsDisabled}
-      onClick={() => {
+      onClick={(_data, actions) => {
         setCheckoutError(null);
         trackPaymentClick('paypal');
+        const error = validateCustomer();
+        if (error) {
+          setCardFieldsExpanded(true);
+          setCheckoutError(`${error} Enter it below before continuing with PayPal.`);
+          return actions.reject();
+        }
+        submittedCustomerRef.current = getSubmittedCustomer();
+        return actions.resolve();
       }}
       createOrder={handleCreateOrder}
       onApprove={handleApprove}
@@ -673,6 +727,31 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
       </Button>
       {cardFieldsExpanded ? (
         <div id="paypal-inline-card-fields" className="rounded-lg border border-gray-200 p-4">
+          <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {([
+              ['firstName', 'First Name *'], ['lastName', 'Last Name *'], ['email', 'Email *'], ['phone', 'Phone *'],
+              ['country', 'Country *'], ['street', 'Street Address *'], ['street2', 'Apartment / Suite'], ['city', 'City *'],
+              ['state', 'State *'], ['zip', 'ZIP *'],
+            ] as const).map(([field, label]) => (
+              <label key={field} className={`text-sm font-medium ${field === 'street' || field === 'street2' ? 'sm:col-span-2' : ''}`}>
+                {label}
+                <Input className="mt-1" type={field === 'email' ? 'email' : field === 'phone' ? 'tel' : 'text'} value={customer[field]} onChange={(event) => updateCustomer(field, event.target.value)} />
+              </label>
+            ))}
+            <label className="flex items-center gap-2 text-sm sm:col-span-2">
+              <input type="checkbox" checked={customer.shippingSame} onChange={(event) => updateCustomer('shippingSame', event.target.checked)} />
+              Shipping same as billing
+            </label>
+            {!customer.shippingSame ? ([
+              ['shippingName', 'Shipping Name *'], ['shippingStreet', 'Shipping Address *'], ['shippingStreet2', 'Shipping Apartment / Suite'],
+              ['shippingCity', 'Shipping City *'], ['shippingState', 'Shipping State *'], ['shippingZip', 'Shipping ZIP *'],
+              ['shippingCountry', 'Shipping Country *'],
+            ] as const).map(([field, label]) => (
+              <label key={field} className="text-sm font-medium">
+                {label}<Input className="mt-1" value={customer[field]} onChange={(event) => updateCustomer(field, event.target.value)} />
+              </label>
+            )) : null}
+          </div>
           <PayPalCardFieldsProvider
             createOrder={handleCreateOrder}
             onApprove={(data) => handleApprove(data, null)}
@@ -682,7 +761,16 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
             }}
           >
             <PayPalCardFieldsForm />
-            <InlineCardSubmit disabled={buttonsDisabled} />
+            <InlineCardSubmit disabled={buttonsDisabled} beforeSubmit={() => {
+              const error = validateCustomer();
+              if (error) {
+                setCheckoutError(error);
+                return false;
+              }
+              submittedCustomerRef.current = getSubmittedCustomer();
+              setCheckoutError(null);
+              return true;
+            }} />
           </PayPalCardFieldsProvider>
         </div>
       ) : null}
