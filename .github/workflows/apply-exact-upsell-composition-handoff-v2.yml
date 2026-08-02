@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'scripts/finish-exact-upsell-composition-handoff.mjs'
+      - 'scripts/fix-upsell-harness-marker.mjs'
       - '.github/workflows/apply-exact-upsell-composition-handoff-v2.yml'
 
 permissions:
@@ -51,6 +52,7 @@ jobs:
           echo "Initial source patch exit status: ${first_status} (Design handoff present)."
 
           node scripts/finish-exact-upsell-composition-handoff.mjs
+          node scripts/fix-upsell-harness-marker.mjs
 
       - name: Run preview checkout order and source-selection tests
         run: |
@@ -124,6 +126,9 @@ jobs:
           npm run build
           git diff --check
 
+      - name: Remove one-time marker patch script
+        run: rm -f scripts/fix-upsell-harness-marker.mjs
+
       - name: Commit validated application repair
         run: |
           set -euo pipefail
@@ -134,6 +139,8 @@ jobs:
             src/components/cart/UpsellModal.tsx \
             src/components/cart/StableBannerPreview.tsx \
             tests/browser/run-preview-handoff-cdp.mjs \
+            tests/browser/upsell-preview-handoff.jsx \
             netlify/functions/__tests__/preview-pipeline.test.cjs
+          git add -u scripts/fix-upsell-harness-marker.mjs
           git commit -m 'P0: carry exact designer composition into Upsell and checkout'
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
