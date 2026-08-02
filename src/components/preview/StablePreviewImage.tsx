@@ -3,6 +3,7 @@ import {
   dedupePreviewImageSources,
   forgetPreviewImage,
   getDecodedPreviewImage,
+  isVisuallyBlankPreviewResult,
   normalizePreviewImageUrl,
   preloadPreviewImage,
   type PreviewImageLoadOptions,
@@ -52,12 +53,17 @@ const StablePreviewImage: React.FC<StablePreviewImageProps> = ({
     [sourceSignature],
   );
 
-  const initialReady = useMemo(
-    () => candidates.map((candidate) => getDecodedPreviewImage(candidate)).find(Boolean) || null,
+  const initialReady = useMemo(() => {
+    const decoded = candidates
+      .map((candidate) => getDecodedPreviewImage(candidate))
+      .filter((candidate): candidate is PreviewImageResult => Boolean(candidate));
+    const visible = decoded.find((candidate) => !isVisuallyBlankPreviewResult(candidate));
+    // A single all-white source can be legitimate artwork. Reject an empty
+    // generated snapshot only when another candidate can recover the item.
+    return visible || (candidates.length === 1 ? decoded[0] : null) || null;
     // Later candidate changes are handled by the decoded double-buffer.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
+  }, []);
 
   const [layers, setLayers] = useState<Layer[]>(() => initialReady ? [initialReady] : []);
   const [activeUrl, setActiveUrl] = useState<string | null>(() => initialReady?.url || null);
@@ -151,7 +157,17 @@ const StablePreviewImage: React.FC<StablePreviewImageProps> = ({
       updateTarget(currentActive);
       setStatus('ready');
       const cached = currentActive ? getDecodedPreviewImage(currentActive) : null;
-      if (cached) announceReady(cached);
+      if (cached && !(isVisuallyBlankPreviewResult(cached) && usableCandidates.length > 1)) {
+        announceReady(cached);
+        return () => { cancelled = true; };
+      }
+      if (currentActive) {
+        failedUrlsRef.current.add(currentActive);
+        setLayers((current) => current.filter((layer) => layer.url !== currentActive));
+        updateActive(null);
+        updateTarget(null);
+        setRetryNonce((value) => value + 1);
+      }
       return () => { cancelled = true; };
     }
 
@@ -228,6 +244,15 @@ const StablePreviewImage: React.FC<StablePreviewImageProps> = ({
       void preloadPreviewImage(url, options)
         .then((result) => {
           if (cancelled || requestIdRef.current !== requestId) return;
+          if (isVisuallyBlankPreviewResult(result) && usableCandidates.length > 1) {
+            failedUrlsRef.current.add(url);
+            lastError = new Error('Generated preview contained no visible artwork.');
+            console.warn('[StablePreviewImage] rejected empty generated snapshot; using fallback', {
+              inkFraction: result.visualInkFraction,
+              candidateIndex: index,
+            });
+            return;
+          }
           successfulLoads += 1;
           readyByIndex.set(index, result);
           considerPromotion();
@@ -319,6 +344,7 @@ const StablePreviewImage: React.FC<StablePreviewImageProps> = ({
             fetchPriority={fetchPriority}
             draggable={imgProps.draggable ?? false}
             data-preview-image-state={active ? 'ready' : target ? 'target' : 'buffering'}
+            data-preview-ink-fraction={layer.visualInkFraction ?? undefined}
             onLoad={() => promoteLayer(layer)}
             onError={() => rejectLayer(layer.url)}
           />
