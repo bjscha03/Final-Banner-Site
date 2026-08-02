@@ -11,115 +11,93 @@ permissions:
 jobs:
   production-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 8
     steps:
-      - name: Inspect the current production PayPal release
-        shell: bash
-        run: |
-          set -u
-
-          config_file="$(mktemp)"
-          config_status="$({ curl --silent --show-error --location \
-            --output "${config_file}" \
-            --write-out '%{http_code}' \
-            -H 'Cache-Control: no-cache, no-store, must-revalidate' \
-            "https://bannersonthefly.com/.netlify/functions/paypal-config?diagnostic=${GITHUB_RUN_ID}"; } || true)"
-
-          echo "Current paypal-config HTTP status: ${config_status}"
-          if [[ "${config_status}" == '200' ]]; then
-            CONFIG_FILE="${config_file}" node -e "const fs=require('node:fs');const p=JSON.parse(fs.readFileSync(process.env.CONFIG_FILE,'utf8'));console.log(JSON.stringify({enabled:p.enabled,environment:p.environment,components:p.components,fastlane:p.fastlane,clientIdPresent:typeof p.clientId==='string'&&p.clientId.length>0,clientTokenPresent:Object.prototype.hasOwnProperty.call(p,'clientToken')}));"
-          fi
-
-          html_file="$(mktemp)"
-          bundle_file="$(mktemp)"
-          curl --silent --show-error --location \
-            -H 'Cache-Control: no-cache, no-store, must-revalidate' \
-            "https://bannersonthefly.com/checkout?diagnostic=${GITHUB_RUN_ID}" \
-            --output "${html_file}" || true
-
-          mapfile -t asset_paths < <(
-            grep -oE 'src="[^"]+\.js[^"]*"' "${html_file}" \
-              | sed -E 's/^src="//; s/"$//' \
-              | sort -u \
-              || true
-          )
-          printf 'Current checkout assets: %s\n' "${asset_paths[*]:-none}"
-
-          for asset_path in "${asset_paths[@]:-}"; do
-            [[ -z "${asset_path}" ]] && continue
-            if [[ "${asset_path}" == http* ]]; then
-              asset_url="${asset_path}"
-            else
-              asset_url="https://bannersonthefly.com${asset_path}"
-            fi
-            curl --silent --show-error --location \
-              -H 'Cache-Control: no-cache, no-store, must-revalidate' \
-              "${asset_url}?diagnostic=${GITHUB_RUN_ID}" \
-              >> "${bundle_file}" || true
-          done
-
-          grep -Fq 'bof-paypal-checkout-v5:' "${bundle_file}" && echo 'marker checkout-v5: present' || echo 'marker checkout-v5: missing'
-          grep -Fq 'Check payment status' "${bundle_file}" && echo 'marker payment-status: present' || echo 'marker payment-status: missing'
-          grep -Fq 'Pay securely by card or PayPal. No PayPal account required.' "${bundle_file}" && echo 'marker hosted-buttons: present' || echo 'marker hosted-buttons: missing'
-
-      - name: Wait for the merged production checkout bundle
+      - name: Verify the final hosted PayPal checkout bundle is live
         shell: bash
         run: |
           set -euo pipefail
 
           site='https://bannersonthefly.com'
-          marker_one='bof-paypal-checkout-v5:'
-          marker_two='Check payment status'
-          marker_three='Pay securely by card or PayPal. No PayPal account required.'
+          html_file="$(mktemp)"
+          bundle_file="$(mktemp)"
 
-          for attempt in $(seq 1 72); do
-            cache_buster="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${attempt}"
-            html_file="$(mktemp)"
-            bundle_file="$(mktemp)"
+          checkout_status="$({ curl --silent --show-error --location \
+            --output "${html_file}" \
+            --write-out '%{http_code}' \
+            -H 'Cache-Control: no-cache, no-store, must-revalidate' \
+            "${site}/checkout?deploy_check=${GITHUB_RUN_ID}"; } || true)"
 
-            if curl --fail --silent --show-error --location \
-              -H 'Cache-Control: no-cache, no-store, must-revalidate' \
-              "${site}/checkout?deploy_check=${cache_buster}" \
-              --output "${html_file}"; then
+          if [[ "${checkout_status}" != '200' ]]; then
+            echo "Checkout returned HTTP ${checkout_status}." >&2
+            exit 1
+          fi
 
-              mapfile -t asset_paths < <(
-                grep -oE 'src="[^"]+\.js[^"]*"' "${html_file}" \
-                  | sed -E 's/^src="//; s/"$//' \
+          mapfile -t initial_assets < <(
+            grep -oE 'src="[^"]+\.js[^"]*"' "${html_file}" \
+              | sed -E 's/^src="//; s/"$//' \
+              | sed -E 's/[?].*$//' \
+              | sort -u \
+              || true
+          )
+
+          declare -A seen=()
+          queue=("${initial_assets[@]:-}")
+
+          for depth in 1 2 3 4; do
+            next_queue=()
+            for asset_path in "${queue[@]:-}"; do
+              [[ -z "${asset_path}" ]] && continue
+
+              if [[ "${asset_path}" == http* ]]; then
+                asset_url="${asset_path}"
+                normalized_path="${asset_path}"
+              else
+                [[ "${asset_path}" != /* ]] && asset_path="/${asset_path}"
+                asset_url="${site}${asset_path}"
+                normalized_path="${asset_path}"
+              fi
+
+              [[ -n "${seen[${normalized_path}]:-}" ]] && continue
+              seen["${normalized_path}"]=1
+
+              asset_file="$(mktemp)"
+              separator='?'
+              [[ "${asset_url}" == *'?'* ]] && separator='&'
+              curl --fail --silent --show-error --location \
+                -H 'Cache-Control: no-cache, no-store, must-revalidate' \
+                "${asset_url}${separator}deploy_check=${GITHUB_RUN_ID}-${depth}" \
+                --output "${asset_file}"
+              cat "${asset_file}" >> "${bundle_file}"
+
+              while IFS= read -r ref; do
+                [[ -z "${ref}" ]] && continue
+                case "${ref}" in
+                  ./*) candidate="/assets/${ref#./}" ;;
+                  /assets/*) candidate="${ref}" ;;
+                  assets/*) candidate="/${ref}" ;;
+                  *) continue ;;
+                esac
+                [[ -z "${seen[${candidate}]:-}" ]] && next_queue+=("${candidate}")
+              done < <(
+                grep -oE '(\./|/assets/|assets/)[A-Za-z0-9._-]+\.js' "${asset_file}" \
                   | sort -u \
                   || true
               )
-
-              for asset_path in "${asset_paths[@]:-}"; do
-                [[ -z "${asset_path}" ]] && continue
-                if [[ "${asset_path}" == http* ]]; then
-                  asset_url="${asset_path}"
-                else
-                  asset_url="${site}${asset_path}"
-                fi
-                separator='?'
-                [[ "${asset_url}" == *'?'* ]] && separator='&'
-                curl --fail --silent --show-error --location \
-                  -H 'Cache-Control: no-cache, no-store, must-revalidate' \
-                  "${asset_url}${separator}deploy_check=${cache_buster}" \
-                  >> "${bundle_file}" || true
-              done
-
-              if grep -Fq "${marker_one}" "${bundle_file}" \
-                && grep -Fq "${marker_two}" "${bundle_file}" \
-                && grep -Fq "${marker_three}" "${bundle_file}"; then
-                echo 'Production is serving the final hosted PayPal checkout bundle.'
-                rm -f "${html_file}" "${bundle_file}"
-                exit 0
-              fi
-            fi
-
-            rm -f "${html_file}" "${bundle_file}"
-            echo "Production has not published the final bundle yet (attempt ${attempt}/72)."
-            sleep 10
+              rm -f "${asset_file}"
+            done
+            queue=("${next_queue[@]:-}")
+            [[ ${#queue[@]} -eq 0 ]] && break
           done
 
-          echo 'Production did not publish the final PayPal checkout bundle within the verification window.' >&2
-          exit 1
+          grep -Fq 'bof-paypal-checkout-v5:' "${bundle_file}" \
+            || { echo 'Final checkout state marker is missing.' >&2; exit 1; }
+          grep -Fq 'Check payment status' "${bundle_file}" \
+            || { echo 'Bounded payment-status recovery marker is missing.' >&2; exit 1; }
+          grep -Fq 'Pay securely by card or PayPal. No PayPal account required.' "${bundle_file}" \
+            || { echo 'Hosted PayPal buttons marker is missing.' >&2; exit 1; }
+
+          echo 'Production is serving the final hosted PayPal checkout bundle.'
 
       - name: Verify live PayPal configuration uses hosted buttons only
         shell: bash
