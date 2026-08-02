@@ -1,6 +1,5 @@
-// @vitest-environment jsdom
-
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { File as NodeFile } from 'node:buffer';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   buildCloudinaryPdfPreviewUrl,
   MAX_ARTWORK_BYTES,
@@ -47,6 +46,14 @@ class SuccessfulUploadXhr {
     this.onabort?.();
   }
 }
+
+beforeEach(() => {
+  vi.stubGlobal('File', NodeFile);
+  vi.stubGlobal('window', {
+    setTimeout: globalThis.setTimeout.bind(globalThis),
+    clearTimeout: globalThis.clearTimeout.bind(globalThis),
+  });
+});
 
 afterEach(() => {
   vi.unstubAllGlobals();
