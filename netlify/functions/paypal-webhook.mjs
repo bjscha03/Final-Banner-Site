@@ -2,6 +2,7 @@ import { withLambda } from '@netlify/aws-lambda-compat';
 import webhookModule from './_shared/legacy/paypal-webhook-forward.cjs';
 import customerInfoModule from './_shared/legacy/paypal-customer-info.cjs';
 import paypalConversionHelpers from './_shared/paypalConversionHelpers.cjs';
+import runtimeConfig from './_shared/paypal-runtime-config.cjs';
 
 const { getPayPalWebhookOrderId } = paypalConversionHelpers;
 
@@ -57,6 +58,8 @@ const queuePaidOrderFollowups = async (event, orderId) => {
 };
 
 const handler = async (event, context) => {
+  runtimeConfig.preparePayPalRuntime();
+
   const response = await webhookModule.handler(event, context);
   if (Number(response?.statusCode || 500) !== 200) return response;
 
