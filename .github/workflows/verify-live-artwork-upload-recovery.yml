@@ -1,0 +1,253 @@
+name: Verify Live Artwork Upload and Buy Now Recovery
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/verify-live-artwork-upload-recovery.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  production-artwork-upload-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Wait for production to serve the recovered upload and Buy Now bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          site='https://bannersonthefly.com'
+          success='false'
+
+          for attempt in $(seq 1 36); do
+            echo "Production upload-recovery bundle attempt ${attempt}/36"
+            html_file="$(mktemp)"
+            bundle_file="$(mktemp)"
+
+            status="$({ curl --silent --show-error --location \
+              --output "${html_file}" \
+              --write-out '%{http_code}' \
+              -H 'Cache-Control: no-cache, no-store, must-revalidate' \
+              "${site}/design?product=banners&upload_recovery_check=${GITHUB_RUN_ID}-${attempt}"; } || true)"
+
+            if [[ "${status}" == '200' ]]; then
+              mapfile -t initial_assets < <(
+                grep -oE 'src="[^"]+\.js[^"]*"' "${html_file}" \
+                  | sed -E 's/^src="//; s/"$//' \
+                  | sed -E 's/[?].*$//' \
+                  | sort -u \
+                  || true
+              )
+
+              declare -A seen=()
+              queue=("${initial_assets[@]:-}")
+
+              for depth in 1 2 3 4 5 6; do
+                next_queue=()
+                for asset_path in "${queue[@]:-}"; do
+                  [[ -z "${asset_path}" ]] && continue
+
+                  if [[ "${asset_path}" == http* ]]; then
+                    asset_url="${asset_path}"
+                    normalized_path="${asset_path}"
+                  else
+                    [[ "${asset_path}" != /* ]] && asset_path="/${asset_path}"
+                    asset_url="${site}${asset_path}"
+                    normalized_path="${asset_path}"
+                  fi
+
+                  [[ -n "${seen[${normalized_path}]:-}" ]] && continue
+                  seen["${normalized_path}"]=1
+
+                  asset_file="$(mktemp)"
+                  separator='?'
+                  [[ "${asset_url}" == *'?'* ]] && separator='&'
+                  if curl --fail --silent --show-error --location \
+                    -H 'Cache-Control: no-cache, no-store, must-revalidate' \
+                    "${asset_url}${separator}upload_recovery_check=${GITHUB_RUN_ID}-${attempt}-${depth}" \
+                    --output "${asset_file}"; then
+                    cat "${asset_file}" >> "${bundle_file}"
+
+                    while IFS= read -r ref; do
+                      [[ -z "${ref}" ]] && continue
+                      case "${ref}" in
+                        ./*) candidate="/assets/${ref#./}" ;;
+                        /assets/*) candidate="${ref}" ;;
+                        assets/*) candidate="/${ref}" ;;
+                        *) continue ;;
+                      esac
+                      [[ -z "${seen[${candidate}]:-}" ]] && next_queue+=("${candidate}")
+                    done < <(
+                      grep -oE '(\./|/assets/|assets/)[A-Za-z0-9._-]+\.js' "${asset_file}" \
+                        | sort -u \
+                        || true
+                    )
+                  fi
+                  rm -f "${asset_file}"
+                done
+                queue=("${next_queue[@]:-}")
+                [[ ${#queue[@]} -eq 0 ]] && break
+              done
+
+              required_markers=(
+                'cloudinary-upload-signature'
+                'direct_upload_attempt'
+                'cloudinary-direct'
+                'Finishing artwork upload'
+                'Retrying artwork upload'
+                'You do not need to select the file again'
+                'tap Buy Now to retry automatically'
+                'We could not finish the original artwork upload'
+              )
+
+              missing='false'
+              for marker in "${required_markers[@]}"; do
+                if ! grep -Fq "${marker}" "${bundle_file}"; then
+                  echo "Production bundle is still missing marker: ${marker}"
+                  missing='true'
+                fi
+              done
+
+              if grep -Fq 'Upload still processing' "${bundle_file}"; then
+                echo 'Production bundle still contains the obsolete Upload still processing dead end.'
+                missing='true'
+              fi
+
+              if [[ "${missing}" == 'false' ]]; then
+                success='true'
+                rm -f "${html_file}" "${bundle_file}"
+                break
+              fi
+            else
+              echo "Design route returned HTTP ${status}."
+            fi
+
+            rm -f "${html_file}" "${bundle_file}"
+            sleep 20
+          done
+
+          if [[ "${success}" != 'true' ]]; then
+            echo 'Production never served the repaired upload and Buy Now bundle.' >&2
+            exit 1
+          fi
+
+          echo 'Production serves the repaired direct-upload and Buy Now recovery bundle.'
+
+      - name: Verify the live signed-upload endpoint contract and validation
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          endpoint='https://bannersonthefly.com/.netlify/functions/cloudinary-upload-signature'
+
+          png_status=$(curl --silent --show-error --location \
+            --output /tmp/png-ticket.json \
+            --write-out '%{http_code}' \
+            -X POST \
+            -H 'Content-Type: application/json' \
+            --data '{"fileName":"bof-live-upload-smoke.png","mimeType":"image/png","size":68}' \
+            "${endpoint}")
+          test "${png_status}" = '200'
+
+          TICKET_FILE=/tmp/png-ticket.json node <<'NODE'
+          const fs = require('node:fs');
+          const payload = JSON.parse(fs.readFileSync(process.env.TICKET_FILE, 'utf8'));
+          for (const key of ['apiKey', 'cloudName', 'folder', 'signature', 'timestamp', 'uploadUrl']) {
+            if (payload[key] === undefined || payload[key] === null || payload[key] === '') {
+              throw new Error(`Missing signed-upload field: ${key}`);
+            }
+          }
+          if (payload.resourceType !== 'image') throw new Error(`Unexpected resource type: ${payload.resourceType}`);
+          if (!String(payload.uploadUrl).startsWith('https://api.cloudinary.com/')) {
+            throw new Error(`Unexpected upload URL: ${payload.uploadUrl}`);
+          }
+          const serialized = JSON.stringify(payload).toLowerCase();
+          for (const forbidden of ['apisecret', 'api_secret', 'cloudinary_api_secret']) {
+            if (serialized.includes(forbidden)) throw new Error(`Sensitive field exposed: ${forbidden}`);
+          }
+          console.log('Live endpoint returned a complete short-lived ticket without exposing the Cloudinary secret.');
+          NODE
+
+          pdf_status=$(curl --silent --show-error --location \
+            --output /tmp/pdf-ticket.json \
+            --write-out '%{http_code}' \
+            -X POST \
+            -H 'Content-Type: application/json' \
+            --data '{"fileName":"bof-live-upload-smoke.pdf","mimeType":"application/pdf","size":512}' \
+            "${endpoint}")
+          test "${pdf_status}" = '200'
+
+          oversize_status=$(curl --silent --show-error --location \
+            --output /tmp/oversize.json \
+            --write-out '%{http_code}' \
+            -X POST \
+            -H 'Content-Type: application/json' \
+            --data '{"fileName":"too-large.png","mimeType":"image/png","size":52428801}' \
+            "${endpoint}")
+          test "${oversize_status}" = '413'
+
+          unsupported_status=$(curl --silent --show-error --location \
+            --output /tmp/unsupported.json \
+            --write-out '%{http_code}' \
+            -X POST \
+            -H 'Content-Type: application/json' \
+            --data '{"fileName":"malware.exe","mimeType":"application/octet-stream","size":100}' \
+            "${endpoint}")
+          test "${unsupported_status}" = '415'
+
+          echo 'Live upload metadata validation accepts PNG/PDF and rejects oversize/unsupported files correctly.'
+
+      - name: Perform and verify a real browser-to-Cloudinary upload using the live ticket
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          printf '%s' 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl+Hn0AAAAASUVORK5CYII=' \
+            | base64 --decode > /tmp/bof-live-upload-smoke.png
+          test -s /tmp/bof-live-upload-smoke.png
+
+          api_key=$(node -p "require('/tmp/png-ticket.json').apiKey")
+          timestamp=$(node -p "require('/tmp/png-ticket.json').timestamp")
+          signature=$(node -p "require('/tmp/png-ticket.json').signature")
+          folder=$(node -p "require('/tmp/png-ticket.json').folder")
+          upload_url=$(node -p "require('/tmp/png-ticket.json').uploadUrl")
+
+          upload_status=$(curl --silent --show-error --location \
+            --output /tmp/cloudinary-upload.json \
+            --write-out '%{http_code}' \
+            -X POST \
+            -F "file=@/tmp/bof-live-upload-smoke.png;type=image/png;filename=bof-live-upload-smoke-${GITHUB_RUN_ID}.png" \
+            -F "api_key=${api_key}" \
+            -F "timestamp=${timestamp}" \
+            -F "signature=${signature}" \
+            -F "folder=${folder}" \
+            -F 'use_filename=true' \
+            -F 'unique_filename=true' \
+            -F 'overwrite=false' \
+            "${upload_url}")
+          test "${upload_status}" = '200'
+
+          UPLOAD_FILE=/tmp/cloudinary-upload.json node <<'NODE'
+          const fs = require('node:fs');
+          const payload = JSON.parse(fs.readFileSync(process.env.UPLOAD_FILE, 'utf8'));
+          if (!payload.secure_url || !payload.public_id) throw new Error('Cloudinary response is missing the permanent asset identity.');
+          if (payload.resource_type !== 'image') throw new Error(`Unexpected uploaded resource type: ${payload.resource_type}`);
+          if (!(Number(payload.bytes) > 0)) throw new Error(`Uploaded asset is empty: ${payload.bytes}`);
+          if (!String(payload.public_id).startsWith('uploads/')) throw new Error(`Unexpected public ID: ${payload.public_id}`);
+          console.log(`Permanent smoke asset created: ${payload.public_id}`);
+          NODE
+
+          secure_url=$(node -p "require('/tmp/cloudinary-upload.json').secure_url")
+          asset_status=$(curl --silent --show-error --location \
+            --dump-header /tmp/asset-headers.txt \
+            --output /tmp/downloaded-smoke-image \
+            --write-out '%{http_code}' \
+            "${secure_url}")
+          test "${asset_status}" = '200'
+          grep -qi '^content-type: image/' /tmp/asset-headers.txt
+          test -s /tmp/downloaded-smoke-image
+
+          echo 'A real original image uploaded directly to Cloudinary and returned a permanent, downloadable image URL.'
