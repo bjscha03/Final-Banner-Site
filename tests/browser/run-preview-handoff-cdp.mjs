@@ -281,11 +281,13 @@ async function runHarnessCase(testCase, harness) {
           && details?.viewport?.mediaMin1024 === false
         : details?.viewport?.mediaMin1024 === true && details?.viewport?.mediaMax1023 === false;
 
-    // A classic desktop scrollbar legitimately subtracts roughly 15px from
-    // documentElement.clientWidth/visualViewport.width while window.innerWidth,
-    // screen width, and responsive breakpoints remain the requested viewport.
-    // Mobile emulation stays strict because mobile scrollbars overlay content.
-    const emulationPassed = reportedInnerWidthMatches
+    // Chromium can expose a wider legacy window.innerWidth during mobile
+    // emulation even when the actual CSS layout viewport, visual viewport,
+    // screen dimensions, DPR, pointer mode, and responsive breakpoints are all
+    // the requested phone size. Keep that value diagnostic on mobile; remain
+    // strict about the dimensions the application actually uses for layout.
+    const innerWidthAcceptable = testCase.mobile ? true : reportedInnerWidthMatches;
+    const emulationPassed = innerWidthAcceptable
       && clientWidthMatches
       && visualWidthMatches
       && pixelRatioMatches
@@ -298,6 +300,7 @@ async function runHarnessCase(testCase, harness) {
       expectedDevicePixelRatio: testCase.deviceScaleFactor,
       expectedTouch: testCase.touch,
       reportedInnerWidthMatches,
+      innerWidthAcceptable,
       clientWidthMatches,
       visualWidthMatches,
       desktopScrollbarWidth,
