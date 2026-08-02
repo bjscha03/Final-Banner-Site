@@ -161,3 +161,60 @@ test('Design and Google Ads use the shared session-stable artwork editor alias',
   assert.match(originalEditor, /touchAction: 'none'/);
   assert.match(sessionEditor, /OriginalArtworkPreviewEditor/);
 });
+
+test('diagnose the exact 120x48 customer artwork source shown in the failed preview', async () => {
+  const sharp = require('sharp');
+  const url = 'https://res.cloudinary.com/dtrxl120u/image/upload/v1778430298/8072d966-0283-4b44-b972-4964edf3351a_n2fxia.png';
+  const response = await fetch(url);
+  assert.equal(response.status, 200);
+  const input = Buffer.from(await response.arrayBuffer());
+  assert.ok(input.length > 0);
+
+  const metadata = await sharp(input, { failOn: 'none' }).metadata();
+  const { data, info } = await sharp(input, { failOn: 'none' })
+    .resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
+    .removeAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  let minX = info.width;
+  let minY = info.height;
+  let maxX = -1;
+  let maxY = -1;
+  let nonWhitePixels = 0;
+  for (let y = 0; y < info.height; y += 1) {
+    for (let x = 0; x < info.width; x += 1) {
+      const offset = (y * info.width + x) * info.channels;
+      const r = data[offset];
+      const g = data[offset + 1];
+      const b = data[offset + 2];
+      if (Math.max(255 - r, 255 - g, 255 - b) <= 10) continue;
+      nonWhitePixels += 1;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+  }
+
+  const bbox = maxX >= minX && maxY >= minY
+    ? {
+        x: minX,
+        y: minY,
+        width: maxX - minX + 1,
+        height: maxY - minY + 1,
+        widthFraction: (maxX - minX + 1) / info.width,
+        heightFraction: (maxY - minY + 1) / info.height,
+      }
+    : null;
+  console.log('[ACTUAL_WIDE_ARTWORK_DIAGNOSTIC]', JSON.stringify({
+    url,
+    bytes: input.length,
+    metadata,
+    analysisWidth: info.width,
+    analysisHeight: info.height,
+    nonWhiteFraction: nonWhitePixels / (info.width * info.height),
+    bbox,
+  }));
+  assert.ok(nonWhitePixels > 0);
+});
