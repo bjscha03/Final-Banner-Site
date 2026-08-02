@@ -37,6 +37,8 @@ import {
 } from '@/lib/yard-sign-pricing';
 import { usd } from '@/lib/pricing';
 import { uploadCanvasImageToCloudinary } from '@/utils/uploadCanvasImage';
+import { isPdfArtwork, uploadArtworkFile, validateArtworkFile } from '@/utils/uploadArtworkFile';
+import StablePreviewImage from '@/components/preview/StablePreviewImage';
 import FileUploader from '@/components/ui/FileUploader';
 import CreateWithAIModal, { type CreateWithAIResult } from '@/components/design/CreateWithAIModal';
 import { ENABLE_AI } from '@/lib/featureFlags';
@@ -89,6 +91,16 @@ function getPreviewModalSrc(design: YardSignDesign): string {
  */
 function getRowThumbnailSrc(design: YardSignDesign): string {
   return design.previewThumbnailUrl || design.thumbnailUrl;
+}
+
+function getRowThumbnailSources(design: YardSignDesign): string[] {
+  const values = [
+    design.previewThumbnailUrl,
+    design.thumbnailUrl,
+    design.isPdf ? getPdfThumbnailUrl(design.fileUrl) : null,
+    design.fileUrl,
+  ];
+  return [...new Set(values.filter((value): value is string => Boolean(value)))];
 }
 
 interface YardSignConfiguratorProps {
@@ -355,61 +367,25 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
   // pointer/touch interactions, including pinch-to-scale, drag, and
   // corner-handle resize.)
 
-  // Compress images client-side to stay under Netlify's 6 MB function limit
-  const compressImage = useCallback(async (file: File): Promise<File> => {
-    if (file.type === 'application/pdf' || file.size <= 4.5 * 1024 * 1024) return file;
-    return new Promise((resolve) => {
-      const img = new window.Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const maxDim = 4000;
-        let { width, height } = img;
-        if (width > maxDim || height > maxDim) {
-          const ratio = Math.min(maxDim / width, maxDim / height);
-          width = Math.round(width * ratio);
-          height = Math.round(height * ratio);
-        }
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) { resolve(file); return; }
-        ctx.drawImage(img, 0, 0, width, height);
-        canvas.toBlob((blob) => {
-          if (!blob || blob.size >= file.size) { resolve(file); return; }
-          resolve(new File([blob], file.name.replace(/.png$/i, '.jpg'), { type: 'image/jpeg' }));
-        }, 'image/jpeg', 0.85);
-      };
-      img.onerror = () => resolve(file);
-      img.src = URL.createObjectURL(file);
-    });
-  }, []);
-
   const handleFileUpload = useCallback(async (file: File) => {
     setUploadError('');
     if (!canAddMoreDesigns) {
       setUploadError(`Maximum ${YARD_SIGN_MAX_DESIGNS} designs per order.`);
       return;
     }
-    const accepted = ['application/pdf', 'image/jpeg', 'image/png'];
-    const ext = file.name.split('.').pop()?.toLowerCase() || '';
-    if (!accepted.includes(file.type) && !['pdf', 'png', 'jpg', 'jpeg'].includes(ext)) {
-      setUploadError('Please upload a PDF, PNG, JPG, or JPEG file.');
+    const validationError = validateArtworkFile(file);
+    if (validationError) {
+      setUploadError(validationError);
       return;
     }
-    if (file.size > 50 * 1024 * 1024) {
-      setUploadError('File too large. Please upload a file under 50MB.');
-      return;
-    }
+
     setIsUploading(true);
     try {
-      const uploadFile = await compressImage(file);
-      const formData = new FormData();
-      formData.append('file', uploadFile);
-      const res = await fetch('/.netlify/functions/upload-file', { method: 'POST', body: formData });
-      if (!res.ok) throw new Error('Upload failed');
-      const data = await res.json();
-      const isPdf = file.type === 'application/pdf';
-      const thumbnailUrl = isPdf ? getPdfThumbnailUrl(data.secureUrl) : data.secureUrl;
+      const result = await uploadArtworkFile(file, {
+        correlationId: `yard-sign-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      });
+      const isPdf = isPdfArtwork(file);
+      const thumbnailUrl = isPdf ? result.previewUrl : result.secureUrl;
       const presetFirstDesignQuantity = Math.max(
         YARD_SIGN_MIN_QUANTITY,
         Math.min(YARD_SIGN_MAX_QUANTITY, initialDesignQuantity || YARD_SIGN_MIN_QUANTITY),
@@ -417,8 +393,8 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
       const newDesign: YardSignDesign = {
         id: `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
         fileName: file.name,
-        fileUrl: data.secureUrl,
-        fileKey: data.fileKey || data.publicId,
+        fileUrl: result.secureUrl,
+        fileKey: result.fileKey,
         thumbnailUrl,
         isPdf,
         quantity: designs.length === 0 ? presetFirstDesignQuantity : 1,
@@ -426,18 +402,22 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
         imgPos: { x: 0, y: 0 },
       };
       onDesignsChange([...designs, newDesign]);
-      // Auto-open preview modal immediately after upload
       setPreviewDesignId(newDesign.id);
       logUx('preview_opened', { source: 'yard_sign_after_upload', designId: newDesign.id });
       setPreviewImgPos({ x: 0, y: 0 });
       setPreviewImgScale(1);
-    } catch {
-      setUploadError('Upload failed. Please try again.');
-      logUx('upload_error', { source: 'yard_sign' });
+      setUploadError('');
+    } catch (error) {
+      console.error('[YardSign] original upload failed', error);
+      setUploadError('Upload failed after automatic retries. Your file was not added; please check your connection and try again.');
+      logUx('upload_error', {
+        source: 'yard_sign',
+        message: error instanceof Error ? error.message : String(error),
+      });
     } finally {
       setIsUploading(false);
     }
-  }, [canAddMoreDesigns, compressImage, designs, onDesignsChange, initialDesignQuantity]);
+  }, [canAddMoreDesigns, designs, onDesignsChange, initialDesignQuantity]);
 
   const removeDesign = useCallback((id: string) => {
     onDesignsChange(designs.filter(d => d.id !== id));
@@ -529,11 +509,12 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
                   className="w-14 aspect-[24/18] min-w-[3.5rem] max-w-[3.5rem] rounded-lg overflow-hidden bg-gray-50 flex-shrink-0 border border-gray-200 relative group cursor-pointer"
                   aria-label={`Preview ${design.fileName}`}
                 >
-                  <img
-                    src={getRowThumbnailSrc(design)}
+                  <StablePreviewImage
+                    sources={getRowThumbnailSources(design)}
                     alt={`${design.fileName} thumbnail`}
-                    className="w-full h-full object-contain"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    className="absolute inset-0 block h-full w-full object-contain"
+                    retainPreviousWhileLoading
+                    loadTimeoutMs={25_000}
                   />
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
                     <Eye className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
