@@ -13,6 +13,11 @@ function trimRegistry(): void {
   }
 }
 
+function inferExactComposition(url: string): boolean {
+  return /(?:approved[-_/ ]?(?:thumbnail|web[-_ ]?preview)|final[-_/ ]?render|placement[-_/ ]?preview|proof|yard[-_/ ]?sign[-_/ ]?preview)/i.test(url)
+    || url.startsWith('data:image/');
+}
+
 /**
  * Associate every valid representation of an artwork item with the same ordered
  * fallback chain. Commerce surfaces usually receive only one URL prop; this
@@ -29,12 +34,15 @@ export function registerPreviewSourceCandidates(
   const candidates = dedupePreviewImageSources([normalizedPrimary, ...values]);
   if (!normalizedPrimary || candidates.length === 0) return candidates;
 
+  const exactComposition = options.exactComposition
+    ?? inferExactComposition(normalizedPrimary);
+
   for (const candidate of candidates) {
     // Reinsert so recently used entries move to the end of Map iteration order.
     fallbackRegistry.delete(candidate);
     fallbackRegistry.set(candidate, candidates);
     if (candidate === normalizedPrimary) {
-      exactCompositionRegistry.set(candidate, Boolean(options.exactComposition));
+      exactCompositionRegistry.set(candidate, exactComposition);
     }
   }
   trimRegistry();
