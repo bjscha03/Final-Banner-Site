@@ -129,9 +129,19 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
   const [baseFailed, setBaseFailed] = useState(false);
 
   useEffect(() => {
-    setBaseReady(false);
+    if (!imageUrl || !sourceSignature) {
+      setBaseReady(false);
+      setBaseFailed(false);
+      return;
+    }
+
+    // Do not reset baseReady here. StablePreviewImage can synchronously seed a
+    // decoded layer from the shared cache when an enlarged preview mounts. A
+    // parent reset after that child announces readiness would leave a painted
+    // image permanently marked busy. Keeping the previous ready layer visible
+    // is also what prevents flashes during source handoff.
     setBaseFailed(false);
-  }, [sourceSignature]);
+  }, [imageUrl, sourceSignature]);
 
   const grommetPoints = useMemo(
     () => calculateGrommetPoints(safeWidth, safeHeight, grommets),
