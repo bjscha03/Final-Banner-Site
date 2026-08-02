@@ -1,0 +1,85 @@
+name: Apply Canonical Preview Lifecycle Stabilization
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'scripts/apply-preview-lifecycle-stabilization.mjs'
+      - 'src/lib/previewLifecycle.ts'
+      - 'src/lib/previewArtifactCoordinator.ts'
+      - 'src/lib/previewLifecycle.test.ts'
+      - '.github/workflows/apply-preview-lifecycle-stabilization.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-test-and-commit:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Check out exact repair branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install exact dependencies
+        run: npm ci
+
+      - name: Apply canonical source refactor
+        run: node scripts/apply-preview-lifecycle-stabilization.mjs
+
+      - name: Run preview lifecycle and existing revenue-flow tests
+        run: |
+          node --test \
+            netlify/functions/__tests__/preview-pipeline.test.cjs \
+            netlify/functions/__tests__/checkout-paypal-only.test.cjs \
+            netlify/functions/__tests__/sitewide-preview-surfaces.test.cjs \
+            netlify/functions/__tests__/admin-order-visibility.test.cjs \
+            netlify/functions/__tests__/get-order-public.test.cjs
+
+          npx vitest run \
+            src/lib/previewLifecycle.test.ts \
+            src/lib/previewSelection.test.ts \
+            src/lib/__tests__/previewSelection.test.ts \
+            src/lib/order-thumbnail.test.ts \
+            src/lib/sitewidePreviewSurfaces.test.ts \
+            src/utils/generatePositionedThumbnail.test.ts \
+            --reporter=verbose
+
+      - name: Run actual preview browser harnesses
+        run: |
+          npx vite --config tests/browser/vite.handoff.config.ts > /tmp/preview-lifecycle-vite.log 2>&1 &
+          echo $! > /tmp/preview-lifecycle-vite.pid
+          for attempt in $(seq 1 60); do
+            status=$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' http://127.0.0.1:4175/tests/browser/upsell-preview-handoff.html || true)
+            [[ "${status}" == '200' ]] && break
+            sleep 1
+          done
+          node tests/browser/run-preview-handoff-cdp.mjs
+
+      - name: Type-check and build production bundle
+        run: |
+          npx tsc --noEmit --pretty false
+          npm run build
+          git diff --check
+
+      - name: Commit validated application source
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            src/components/design/ArtworkPreviewEditor.tsx \
+            src/pages/Design.tsx
+          git commit -m 'Replace preview races with canonical permanent composition lifecycle'
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
