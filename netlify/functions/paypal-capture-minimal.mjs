@@ -2,6 +2,7 @@ import '@neondatabase/serverless';
 import { withLambda } from '@netlify/aws-lambda-compat';
 import captureModule from './_shared/legacy/paypal-capture-forward.cjs';
 import customerInfoModule from './_shared/legacy/paypal-customer-info.cjs';
+import runtimeConfig from './_shared/paypal-runtime-config.cjs';
 
 const clean = (value, max = 500) => {
   if (value === null || value === undefined) return null;
@@ -48,6 +49,8 @@ const queuePaidOrderFollowups = async (event, orderId) => {
 };
 
 const handler = async (event, context) => {
+  runtimeConfig.preparePayPalRuntime();
+
   let requestBody = {};
   try { requestBody = JSON.parse(event.body || '{}'); } catch { /* authoritative handler returns INVALID_JSON */ }
 
@@ -106,9 +109,6 @@ const handler = async (event, context) => {
 
   let refreshedCustomer = null;
   try {
-    // The hosted PayPal card/wallet UI owns customer entry. Use the SDK-approved
-    // representation plus a fresh server-side PayPal GET so Admin and Resend do
-    // not depend on the abbreviated capture response.
     refreshedCustomer = await customerInfoModule.refreshOrderCustomerInfo({
       internalOrderId,
       orderID: paypalOrderId,
@@ -117,8 +117,6 @@ const handler = async (event, context) => {
       shippingChangeData: requestBody.shippingChangeData,
     });
   } catch (error) {
-    // Payment is already durable. Customer-data trouble is logged and retried
-    // by the webhook/status paths; it must never create a second charge prompt.
     console.error('[paypal-capture-minimal] customer information refresh failed', {
       internalOrderId,
       paypalOrderId,
