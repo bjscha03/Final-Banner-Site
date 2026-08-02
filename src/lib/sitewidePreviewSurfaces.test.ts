@@ -30,7 +30,7 @@ describe('sitewide order preview surfaces', () => {
 
     expect(display.thumbnailUrl).toBe(firstDesign);
     expect(display.finalizedPreviewUrl).toBe(firstDesign);
-    expect(candidates[0]).toContain(encodeURIComponent(firstDesign));
+    expect(candidates[0]).toContain(firstDesign);
     expect(candidates).toContain(firstDesign);
     expect(candidates.every((candidate) => !candidate.includes('yard-second-positioned'))).toBe(true);
   });
@@ -73,7 +73,7 @@ describe('sitewide order preview surfaces', () => {
 
     expect(display.thumbnailUrl).toBe(placement);
     expect(display.finalizedPreviewUrl).toBe(placement);
-    expect(candidates[0]).toContain(encodeURIComponent(placement));
+    expect(candidates[0]).toContain(placement);
     expect(candidates).toContain(placement);
     expect(candidates.findIndex((candidate) => candidate.includes('magnet-positioned')))
       .toBeLessThan(candidates.findIndex((candidate) => candidate.includes('magnet-original')));
