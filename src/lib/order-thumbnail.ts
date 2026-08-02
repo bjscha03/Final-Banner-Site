@@ -62,8 +62,8 @@ export function getFinalizedThumbnailCandidates(
 
     if (isHttpUrl(source)) {
       return [
-        source,
         `https://res.cloudinary.com/${ADMIN_THUMBNAIL_CLOUDINARY_CLOUD}/image/fetch/w_${Math.max(240, maxWidth)},c_limit,f_auto,q_auto/${source}`,
+        source,
       ];
     }
 
