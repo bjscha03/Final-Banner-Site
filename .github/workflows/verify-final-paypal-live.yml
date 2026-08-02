@@ -13,6 +13,65 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - name: Inspect the current production PayPal release
+        shell: bash
+        run: |
+          set -u
+
+          config_file="$(mktemp)"
+          config_status="$({ curl --silent --show-error --location \
+            --output "${config_file}" \
+            --write-out '%{http_code}' \
+            -H 'Cache-Control: no-cache, no-store, must-revalidate' \
+            "https://bannersonthefly.com/.netlify/functions/paypal-config?diagnostic=${GITHUB_RUN_ID}"; } || true)"
+
+          echo "Current paypal-config HTTP status: ${config_status}"
+          if [[ "${config_status}" == '200' ]]; then
+            CONFIG_FILE="${config_file}" node <<'NODE'
+            const fs = require('node:fs');
+            const payload = JSON.parse(fs.readFileSync(process.env.CONFIG_FILE, 'utf8'));
+            console.log(JSON.stringify({
+              enabled: payload.enabled,
+              environment: payload.environment,
+              components: payload.components,
+              fastlane: payload.fastlane,
+              clientIdPresent: typeof payload.clientId === 'string' && payload.clientId.length > 0,
+              clientTokenPresent: Object.prototype.hasOwnProperty.call(payload, 'clientToken'),
+            }));
+            NODE
+          fi
+
+          html_file="$(mktemp)"
+          bundle_file="$(mktemp)"
+          curl --silent --show-error --location \
+            -H 'Cache-Control: no-cache, no-store, must-revalidate' \
+            "https://bannersonthefly.com/checkout?diagnostic=${GITHUB_RUN_ID}" \
+            --output "${html_file}" || true
+
+          mapfile -t asset_paths < <(
+            grep -oE 'src="[^"]+\.js[^"]*"' "${html_file}" \
+              | sed -E 's/^src="//; s/"$//' \
+              | sort -u
+          )
+          printf 'Current checkout assets: %s\n' "${asset_paths[*]:-none}"
+
+          for asset_path in "${asset_paths[@]:-}"; do
+            [[ -z "${asset_path}" ]] && continue
+            if [[ "${asset_path}" == http* ]]; then
+              asset_url="${asset_path}"
+            else
+              asset_url="https://bannersonthefly.com${asset_path}"
+            fi
+            curl --silent --show-error --location \
+              -H 'Cache-Control: no-cache, no-store, must-revalidate' \
+              "${asset_url}?diagnostic=${GITHUB_RUN_ID}" \
+              >> "${bundle_file}" || true
+          done
+
+          grep -Fq 'bof-paypal-checkout-v5:' "${bundle_file}" && echo 'marker checkout-v5: present' || echo 'marker checkout-v5: missing'
+          grep -Fq 'Check payment status' "${bundle_file}" && echo 'marker payment-status: present' || echo 'marker payment-status: missing'
+          grep -Fq 'Pay securely by card or PayPal. No PayPal account required.' "${bundle_file}" && echo 'marker hosted-buttons: present' || echo 'marker hosted-buttons: missing'
+
       - name: Wait for the merged production checkout bundle
         shell: bash
         run: |
