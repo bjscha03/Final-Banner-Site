@@ -51,6 +51,21 @@ function finish(result, details) {
   window.__PREVIEW_HANDOFF_RESULT__ = { result, ...details };
 }
 
+function waitForDeferredStart() {
+  if (new URLSearchParams(window.location.search).get('deferStart') !== '1') {
+    return Promise.resolve();
+  }
+
+  document.body.dataset.previewHandoffReady = 'true';
+  return new Promise((resolve) => {
+    window.__START_PREVIEW_HANDOFF__ = () => {
+      delete window.__START_PREVIEW_HANDOFF__;
+      document.body.dataset.previewHandoffReady = 'started';
+      resolve();
+    };
+  });
+}
+
 function PreviewHandoffHarness() {
   const [source, setSource] = useState(localBlobUrl);
   const [productionUrl, setProductionUrl] = useState(undefined);
@@ -66,9 +81,10 @@ function PreviewHandoffHarness() {
     let waitTimer;
     let sampleTimer;
     let finishTimer;
+    let disposed = false;
     const startedAt = Date.now();
 
-    waitTimer = window.setInterval(() => {
+    waitTimer = window.setInterval(async () => {
       const painted = getPaintedImages(root);
       const canvas = root.querySelector('[aria-busy]');
       if (painted.length !== 1 || canvas?.getAttribute('aria-busy') === 'true') {
@@ -84,6 +100,8 @@ function PreviewHandoffHarness() {
       }
 
       window.clearInterval(waitTimer);
+      await waitForDeferredStart();
+      if (disposed) return;
       const initialSource = painted[0].src;
       let lastSource = initialSource;
       let lastImageCount = getArtworkImages(root).length;
@@ -167,6 +185,8 @@ function PreviewHandoffHarness() {
     }, 25);
 
     return () => {
+      disposed = true;
+      delete window.__START_PREVIEW_HANDOFF__;
       window.clearInterval(waitTimer);
       window.clearInterval(sampleTimer);
       window.clearTimeout(finishTimer);

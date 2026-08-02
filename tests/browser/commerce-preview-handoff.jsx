@@ -134,6 +134,21 @@ function finish(result, details) {
   window.__PREVIEW_HANDOFF_RESULT__ = { result, ...details };
 }
 
+function waitForDeferredStart() {
+  if (new URLSearchParams(window.location.search).get('deferStart') !== '1') {
+    return Promise.resolve();
+  }
+
+  document.body.dataset.previewHandoffReady = 'true';
+  return new Promise((resolve) => {
+    window.__START_PREVIEW_HANDOFF__ = () => {
+      delete window.__START_PREVIEW_HANDOFF__;
+      document.body.dataset.previewHandoffReady = 'started';
+      resolve();
+    };
+  });
+}
+
 function PreviewCard({ testCase, sourceOverride }) {
   const smallUrl = getSmallPreviewUrl(testCase.item);
   const expanded = getExpandedPreviewSelection(testCase.item);
@@ -274,6 +289,9 @@ function CommercePreviewHarness() {
             && frame?.getAttribute('aria-busy') !== 'true'
             && frame?.dataset.previewReady === 'true';
         }), 12_000, 'one or more commerce thumbnails never painted');
+
+        await waitForDeferredStart();
+        if (cancelled) return;
 
         // Exercise the real local-to-permanent handoff while sampling every
         // animation frame. A decoded image must remain visible throughout.
@@ -438,7 +456,10 @@ function CommercePreviewHarness() {
     };
 
     void run();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      delete window.__START_PREVIEW_HANDOFF__;
+    };
   }, [cases]);
 
   return (

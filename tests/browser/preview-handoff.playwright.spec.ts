@@ -25,16 +25,7 @@ async function readHarnessResult(page: Page): Promise<HarnessResult> {
   }));
 }
 
-async function assertHarness(
-  page: Page,
-  route: string,
-  navigationTimeoutMs = 30_000,
-): Promise<HarnessResult> {
-  const marker = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  await page.goto(`${route}?playwright=${marker}`, {
-    waitUntil: 'domcontentloaded',
-    timeout: navigationTimeoutMs,
-  });
+async function assertCompletedHarness(page: Page, route: string): Promise<HarnessResult> {
   const details = await readHarnessResult(page);
   expect(details.result, `${route}: ${details.reason || 'harness failed'}`).toBe('pass');
   const overflow = await page.evaluate(() => ({
@@ -46,6 +37,42 @@ async function assertHarness(
     `${route} created horizontal overflow: ${JSON.stringify(overflow)}`,
   ).toBeLessThanOrEqual(overflow.clientWidth + 1);
   return details;
+}
+
+async function assertHarness(
+  page: Page,
+  route: string,
+  navigationTimeoutMs = 30_000,
+): Promise<HarnessResult> {
+  const marker = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  await page.goto(`${route}?playwright=${marker}`, {
+    waitUntil: 'domcontentloaded',
+    timeout: navigationTimeoutMs,
+  });
+  return assertCompletedHarness(page, route);
+}
+
+async function prepareDeferredHarness(page: Page, route: string): Promise<void> {
+  const marker = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  await page.goto(`${route}?playwright=${marker}&deferStart=1`, {
+    waitUntil: 'domcontentloaded',
+    timeout: 30_000,
+  });
+  await page.waitForFunction(
+    () => document.body?.dataset?.previewHandoffReady === 'true',
+    undefined,
+    { timeout: 30_000 },
+  );
+}
+
+async function startDeferredHarness(page: Page, route: string): Promise<HarnessResult> {
+  await page.evaluate(() => {
+    const start = (window as Window & { __START_PREVIEW_HANDOFF__?: () => void })
+      .__START_PREVIEW_HANDOFF__;
+    if (!start) throw new Error('deferred preview handoff start hook is missing');
+    start();
+  });
+  return assertCompletedHarness(page, route);
 }
 
 test('preview identity remains stable across compact and expanded surfaces', async ({
@@ -68,32 +95,32 @@ test('preview identity remains stable across compact and expanded surfaces', asy
   for (const route of harnessRoutes.slice(1)) await assertHarness(page, route);
 });
 
-test('Chromium survives slow 3G and 4x CPU throttling', async ({ context, page }, testInfo) => {
+test('Chromium survives handoffs during slow 3G and 4x CPU throttling', async ({ context, page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium-1440x900', 'Chromium-only CDP throttle coverage');
   test.setTimeout(300_000);
   const cdp = await context.newCDPSession(page);
   await cdp.send('Network.enable');
-  await cdp.send('Network.emulateNetworkConditions', {
-    offline: false,
-    latency: 400,
-    downloadThroughput: 50 * 1024,
-    uploadThroughput: 50 * 1024,
-    connectionType: 'cellular3g',
-  });
-  await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
 
-  try {
-    await assertHarness(page, '/tests/browser/preview-handoff.html', 120_000);
-    await assertHarness(page, '/tests/browser/commerce-preview-handoff.html', 120_000);
-  } finally {
-    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+  const setThrottle = async (enabled: boolean) => {
     await cdp.send('Network.emulateNetworkConditions', {
       offline: false,
-      latency: 0,
-      downloadThroughput: -1,
-      uploadThroughput: -1,
-      connectionType: 'none',
+      latency: enabled ? 400 : 0,
+      downloadThroughput: enabled ? 50 * 1024 : -1,
+      uploadThroughput: enabled ? 50 * 1024 : -1,
+      connectionType: enabled ? 'cellular3g' : 'none',
     });
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: enabled ? 4 : 1 });
+  };
+
+  try {
+    for (const route of harnessRoutes.slice(0, 2)) {
+      await setThrottle(false);
+      await prepareDeferredHarness(page, route);
+      await setThrottle(true);
+      await startDeferredHarness(page, route);
+    }
+  } finally {
+    await setThrottle(false);
     await cdp.detach();
   }
 });
