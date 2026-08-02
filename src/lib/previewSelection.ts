@@ -12,12 +12,15 @@ export type PreviewSource =
   | 'original_fallback'
   | 'none';
 
-export type ExpandedPreviewSelection = {
+export type PreviewSelection = {
   url: string | null;
   source: PreviewSource;
   isLowResolutionFallback: boolean;
   isPreparingHighResolution: boolean;
+  isExactComposition: boolean;
 };
+
+export type ExpandedPreviewSelection = PreviewSelection;
 
 type ArtworkManifestLike = {
   originalUrl?: string | null;
@@ -231,6 +234,19 @@ function getYardSignCandidates(item: PreviewableItem): Candidate[] {
   ];
 }
 
+function isExactThumbnailSource(item: PreviewableItem): boolean {
+  const thumbnail = normalizeUrl(item.thumbnail_url);
+  if (!thumbnail) return false;
+  if (isTemporaryDataUrl(thumbnail)) return true;
+  if (isTemporaryBlobUrl(thumbnail)) return false;
+
+  const manifestOriginal = normalizeUrl(item.artwork_manifest?.originalUrl);
+  const fileOriginal = normalizeUrl(item.file_url);
+  if (thumbnail === manifestOriginal || thumbnail === fileOriginal) return false;
+
+  return true;
+}
+
 function buildCandidates(item: PreviewableItem): Candidate[] {
   const manifest = item.artwork_manifest || null;
   const reconstructed = buildCloudinaryUrlFromFileKey(
@@ -261,7 +277,12 @@ function buildCandidates(item: PreviewableItem): Candidate[] {
     { url: item.placement_preview?.url, source: 'placement_preview', exactComposition: true, lowResolution: false },
     { url: item.final_render_url, source: 'final_render', exactComposition: true, lowResolution: false },
     { url: item.web_preview_url, source: 'web_preview', exactComposition: true, lowResolution: false },
-    { url: item.thumbnail_url, source: 'thumbnail_fallback', exactComposition: true, lowResolution: false },
+    {
+      url: item.thumbnail_url,
+      source: 'thumbnail_fallback',
+      exactComposition: isExactThumbnailSource(item),
+      lowResolution: false,
+    },
     { url: item.aiDesign?.assets?.proofUrl, source: 'web_preview', exactComposition: true, lowResolution: false },
     { url: item.aiDesign?.assets?.finalUrl, source: 'final_render', exactComposition: true, lowResolution: false },
     ...designRequestSources.map((url): Candidate => ({
@@ -290,20 +311,38 @@ function buildCandidates(item: PreviewableItem): Candidate[] {
     })),
   ];
 
-  // Permanent exact-composition sources always win. Temporary data images are
-  // retained only as an immediate in-session bridge while permanent uploads
-  // finish; blob URLs never outrank a permanent representation.
-  const permanent = [...exactComposition, ...originals].filter((candidate) => (
-    isPermanentPreviewUrl(candidate.url)
+  const all = [...exactComposition, ...originals];
+  const permanentExact = all.filter((candidate) => (
+    candidate.exactComposition && isPermanentPreviewUrl(candidate.url)
   ));
-  const temporaryData = [...exactComposition, ...originals].filter((candidate) => (
-    isTemporaryDataUrl(candidate.url)
+  const temporaryExactData = all.filter((candidate) => (
+    candidate.exactComposition && isTemporaryDataUrl(candidate.url)
   )).map((candidate) => ({ ...candidate, lowResolution: true }));
-  const temporaryBlob = [...exactComposition, ...originals].filter((candidate) => (
-    isTemporaryBlobUrl(candidate.url)
+  const temporaryExactBlob = all.filter((candidate) => (
+    candidate.exactComposition && isTemporaryBlobUrl(candidate.url)
+  )).map((candidate) => ({ ...candidate, lowResolution: true }));
+  const permanentOriginal = all.filter((candidate) => (
+    !candidate.exactComposition && isPermanentPreviewUrl(candidate.url)
+  ));
+  const temporaryOriginalData = all.filter((candidate) => (
+    !candidate.exactComposition && isTemporaryDataUrl(candidate.url)
+  )).map((candidate) => ({ ...candidate, lowResolution: true }));
+  const temporaryOriginalBlob = all.filter((candidate) => (
+    !candidate.exactComposition && isTemporaryBlobUrl(candidate.url)
   )).map((candidate) => ({ ...candidate, lowResolution: true }));
 
-  return [...permanent, ...temporaryData, ...temporaryBlob];
+  // Composition fidelity is the first invariant. A temporary baked snapshot
+  // must beat a generic permanent original; otherwise checkout can show a
+  // mostly-white, uncropped source instead of the exact canvas the customer
+  // approved. Permanent exact proofs still outrank all temporary sources.
+  return [
+    ...permanentExact,
+    ...temporaryExactData,
+    ...temporaryExactBlob,
+    ...permanentOriginal,
+    ...temporaryOriginalData,
+    ...temporaryOriginalBlob,
+  ];
 }
 
 function safeCandidateUrls(candidates: Candidate[]): string[] {
@@ -316,19 +355,18 @@ export const getPreviewSourceCandidates = (item: PreviewableItem): string[] => (
   safeCandidateUrls(buildCandidates(item))
 );
 
-function registerSelection(selectedUrl: string, candidates: Candidate[]) {
+function registerSelection(selectedUrl: string, candidates: Candidate[], selected: Candidate) {
   const urls = safeCandidateUrls(candidates);
-  registerPreviewSourceCandidates(selectedUrl, urls);
+  registerPreviewSourceCandidates(selectedUrl, urls, {
+    exactComposition: selected.exactComposition,
+    exactCompositionUrls: candidates
+      .filter((candidate) => candidate.exactComposition)
+      .map((candidate) => normalizeUrl(candidate.url))
+      .filter(Boolean),
+  });
 }
 
-/**
- * Select the enlarged source from the same deterministic artwork identity used
- * by the small thumbnail. High-resolution exact snapshots outrank generic
- * originals, while every usable representation remains registered as a decode
- * fallback. This prevents a Yard Sign or banner lightbox from showing a
- * different file than the card the customer clicked.
- */
-export const getExpandedPreviewSelection = (item: PreviewableItem): ExpandedPreviewSelection => {
+function selectPreview(item: PreviewableItem): PreviewSelection {
   const candidates = buildCandidates(item);
   const selected = candidates[0];
 
@@ -338,35 +376,52 @@ export const getExpandedPreviewSelection = (item: PreviewableItem): ExpandedPrev
       source: 'none',
       isLowResolutionFallback: false,
       isPreparingHighResolution: false,
+      isExactComposition: false,
     };
   }
 
   const url = normalizeUrl(selected.url);
-  registerSelection(url, candidates);
-  const hasHigherResolutionPending = selected.lowResolution && candidates.some((candidate) => (
-    !candidate.lowResolution && isPermanentPreviewUrl(candidate.url)
-  ));
+  registerSelection(url, candidates, selected);
+  const isPreparingHighResolution = selected.lowResolution
+    && selected.exactComposition
+    && candidates.some((candidate) => (
+      candidate.exactComposition
+      && !candidate.lowResolution
+      && isPermanentPreviewUrl(candidate.url)
+    ));
 
   return {
     url,
     source: selected.source,
     isLowResolutionFallback: selected.lowResolution,
-    isPreparingHighResolution: hasHigherResolutionPending,
+    isPreparingHighResolution,
+    isExactComposition: selected.exactComposition,
   };
-};
+}
 
 /**
- * Select the compact commerce thumbnail. It uses the same ordered candidate
- * chain as the lightbox, so the expanded view cannot drift to unrelated
- * artwork. The renderer derives a compact CDN version without changing the
- * original/print asset.
+ * Select the enlarged source from the same deterministic artwork identity used
+ * by the small thumbnail. High-resolution exact snapshots outrank generic
+ * originals, while every usable representation remains registered as a decode
+ * fallback. This prevents a Yard Sign or banner lightbox from showing a
+ * different file than the card the customer clicked.
  */
-export const getSmallPreviewUrl = (item: PreviewableItem): string | null => {
-  const candidates = buildCandidates(item);
-  const selected = candidates[0];
-  if (!selected?.url) return null;
+export const getExpandedPreviewSelection = (item: PreviewableItem): ExpandedPreviewSelection => (
+  selectPreview(item)
+);
 
-  const url = normalizeUrl(selected.url);
-  registerSelection(url, candidates);
-  return url;
-};
+/**
+ * Return the full compact-preview selection, including whether the source is a
+ * baked composition. Callers use this to avoid applying position and scale a
+ * second time when a temporary or permanent positioned thumbnail is selected.
+ */
+export const getSmallPreviewSelection = (item: PreviewableItem): PreviewSelection => (
+  selectPreview(item)
+);
+
+/**
+ * Backward-compatible compact URL helper.
+ */
+export const getSmallPreviewUrl = (item: PreviewableItem): string | null => (
+  getSmallPreviewSelection(item).url
+);
