@@ -27,18 +27,7 @@ jobs:
 
           echo "Current paypal-config HTTP status: ${config_status}"
           if [[ "${config_status}" == '200' ]]; then
-            CONFIG_FILE="${config_file}" node <<'NODE'
-            const fs = require('node:fs');
-            const payload = JSON.parse(fs.readFileSync(process.env.CONFIG_FILE, 'utf8'));
-            console.log(JSON.stringify({
-              enabled: payload.enabled,
-              environment: payload.environment,
-              components: payload.components,
-              fastlane: payload.fastlane,
-              clientIdPresent: typeof payload.clientId === 'string' && payload.clientId.length > 0,
-              clientTokenPresent: Object.prototype.hasOwnProperty.call(payload, 'clientToken'),
-            }));
-            NODE
+            CONFIG_FILE="${config_file}" node -e "const fs=require('node:fs');const p=JSON.parse(fs.readFileSync(process.env.CONFIG_FILE,'utf8'));console.log(JSON.stringify({enabled:p.enabled,environment:p.environment,components:p.components,fastlane:p.fastlane,clientIdPresent:typeof p.clientId==='string'&&p.clientId.length>0,clientTokenPresent:Object.prototype.hasOwnProperty.call(p,'clientToken')}));"
           fi
 
           html_file="$(mktemp)"
@@ -51,7 +40,8 @@ jobs:
           mapfile -t asset_paths < <(
             grep -oE 'src="[^"]+\.js[^"]*"' "${html_file}" \
               | sed -E 's/^src="//; s/"$//' \
-              | sort -u
+              | sort -u \
+              || true
           )
           printf 'Current checkout assets: %s\n' "${asset_paths[*]:-none}"
 
@@ -95,7 +85,8 @@ jobs:
               mapfile -t asset_paths < <(
                 grep -oE 'src="[^"]+\.js[^"]*"' "${html_file}" \
                   | sed -E 's/^src="//; s/"$//' \
-                  | sort -u
+                  | sort -u \
+                  || true
               )
 
               for asset_path in "${asset_paths[@]:-}"; do
@@ -147,17 +138,7 @@ jobs:
             exit 1
           fi
 
-          CONFIG_FILE="${config_file}" node <<'NODE'
-          const fs = require('node:fs');
-          const payload = JSON.parse(fs.readFileSync(process.env.CONFIG_FILE, 'utf8'));
-          if (payload.enabled !== true) throw new Error('Live PayPal configuration is not enabled.');
-          if (!payload.clientId || typeof payload.clientId !== 'string') throw new Error('Live PayPal client ID is missing.');
-          if (payload.environment !== 'live') throw new Error(`Expected live PayPal environment, received ${payload.environment}.`);
-          if (payload.components !== 'buttons') throw new Error(`Expected PayPal buttons only, received ${payload.components}.`);
-          if (payload.fastlane !== false) throw new Error('Fastlane is not explicitly disabled.');
-          if (Object.prototype.hasOwnProperty.call(payload, 'clientToken')) throw new Error('Card Fields client token is still exposed.');
-          console.log('Live PayPal config is enabled, live, hosted-buttons-only, and Fastlane-free.');
-          NODE
+          CONFIG_FILE="${config_file}" node -e "const fs=require('node:fs');const p=JSON.parse(fs.readFileSync(process.env.CONFIG_FILE,'utf8'));if(p.enabled!==true)throw new Error('Live PayPal configuration is not enabled.');if(!p.clientId||typeof p.clientId!=='string')throw new Error('Live PayPal client ID is missing.');if(p.environment!=='live')throw new Error('Expected live PayPal environment, received '+p.environment+'.');if(p.components!=='buttons')throw new Error('Expected PayPal buttons only, received '+p.components+'.');if(p.fastlane!==false)throw new Error('Fastlane is not explicitly disabled.');if(Object.prototype.hasOwnProperty.call(p,'clientToken'))throw new Error('Card Fields client token is still exposed.');console.log('Live PayPal config is enabled, live, hosted-buttons-only, and Fastlane-free.');"
 
       - name: Verify final background and reconciliation functions are deployed
         shell: bash
