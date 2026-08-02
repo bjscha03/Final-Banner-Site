@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'scripts/apply-preview-lifecycle-stabilization.mjs'
+      - 'scripts/fix-preview-lifecycle-followup.mjs'
       - 'src/lib/previewLifecycle.ts'
       - 'src/lib/previewArtifactCoordinator.ts'
       - 'src/lib/previewLifecycle.test.ts'
@@ -35,8 +36,20 @@ jobs:
       - name: Install exact dependencies
         run: npm ci
 
-      - name: Apply canonical source refactor
-        run: node scripts/apply-preview-lifecycle-stabilization.mjs
+      - name: Apply complete canonical source refactor
+        run: |
+          set -euo pipefail
+          if grep -q 'createPermanentPlacementPreview' src/pages/Design.tsx; then
+            echo '[preview-lifecycle] primary refactor already present'
+          else
+            node scripts/apply-preview-lifecycle-stabilization.mjs
+          fi
+
+          if grep -q 'PREVIEW_LIFECYCLE_FOLLOWUP_V1' src/pages/Design.tsx; then
+            echo '[preview-lifecycle-followup] follow-up repair already present'
+          else
+            node scripts/fix-preview-lifecycle-followup.mjs
+          fi
 
       - name: Run preview lifecycle and existing revenue-flow tests
         run: |
@@ -80,6 +93,13 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add \
             src/components/design/ArtworkPreviewEditor.tsx \
-            src/pages/Design.tsx
+            src/pages/Design.tsx \
+            netlify/functions/__tests__/preview-pipeline.test.cjs
+
+          if git diff --cached --quiet; then
+            echo 'Validated source is already committed.'
+            exit 0
+          fi
+
           git commit -m 'Replace preview races with canonical permanent composition lifecycle'
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
