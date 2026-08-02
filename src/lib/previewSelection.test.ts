@@ -4,6 +4,7 @@ import {
   buildCloudinaryUrlFromFileKey,
   getExpandedPreviewSelection,
   getPreviewSourceCandidates,
+  getSmallPreviewSelection,
   getSmallPreviewUrl,
 } from './previewSelection';
 
@@ -20,23 +21,69 @@ describe('previewSelection', () => {
       url: 'https://cdn.example.com/approved-thumbnail.jpg',
       source: 'placement_preview',
       isLowResolutionFallback: false,
+      isExactComposition: true,
     });
   });
 
-  it('does not let a temporary data URL hide a permanent web preview', () => {
+  it('does not let a temporary data URL hide a permanent exact web preview', () => {
     const item = {
       thumbnail_url: 'data:image/jpeg;base64,temporary',
       web_preview_url: 'https://cdn.example.com/web-preview.jpg',
     };
 
-    expect(getSmallPreviewUrl(item)).toBe('https://cdn.example.com/web-preview.jpg');
+    expect(getSmallPreviewSelection(item)).toMatchObject({
+      url: 'https://cdn.example.com/web-preview.jpg',
+      source: 'web_preview',
+      isExactComposition: true,
+    });
     expect(getExpandedPreviewSelection(item).url).toBe('https://cdn.example.com/web-preview.jpg');
   });
 
-  it('uses a temporary data thumbnail only when no permanent source exists', () => {
-    expect(getSmallPreviewUrl({
+  it('keeps an immediate positioned snapshot ahead of a generic permanent original', () => {
+    const positioned = 'data:image/jpeg;base64,exact-120x48-positioned-snapshot';
+    const original = 'https://cdn.example.com/original-artboard-with-large-white-margin.png';
+    const item = {
+      thumbnail_url: positioned,
+      file_url: original,
+      width_in: 120,
+      height_in: 48,
+    };
+
+    expect(getSmallPreviewSelection(item)).toMatchObject({
+      url: positioned,
+      source: 'thumbnail_fallback',
+      isLowResolutionFallback: true,
+      isExactComposition: true,
+    });
+    expect(getExpandedPreviewSelection(item)).toMatchObject({
+      url: positioned,
+      isExactComposition: true,
+    });
+    expect(getPreviewSourceCandidates(item).slice(0, 2)).toEqual([
+      positioned,
+      original,
+    ]);
+  });
+
+  it('does not call an original URL exact merely because it is also stored as thumbnail_url', () => {
+    const original = 'https://cdn.example.com/customer-original.png';
+    expect(getSmallPreviewSelection({
+      thumbnail_url: original,
+      file_url: original,
+    })).toMatchObject({
+      url: original,
+      isExactComposition: false,
+    });
+  });
+
+  it('uses a temporary data thumbnail when it is the only source', () => {
+    expect(getSmallPreviewSelection({
       thumbnail_url: 'data:image/jpeg;base64,temporary',
-    })).toBe('data:image/jpeg;base64,temporary');
+    })).toMatchObject({
+      url: 'data:image/jpeg;base64,temporary',
+      isExactComposition: true,
+      isLowResolutionFallback: true,
+    });
   });
 
   it('keeps blob URLs behind permanent sources and reconstructs missing Cloudinary URLs', () => {
@@ -81,6 +128,7 @@ describe('previewSelection', () => {
     expect(getExpandedPreviewSelection(item)).toMatchObject({
       url: 'https://cdn.example.com/yard-sign-positioned.jpg',
       source: 'yard_sign_preview',
+      isExactComposition: true,
     });
   });
 
@@ -94,9 +142,11 @@ describe('previewSelection', () => {
       },
     };
 
-    expect(getSmallPreviewUrl(item)).toBe(
-      'https://res.cloudinary.com/demo/image/upload/v1/uploads/artwork.png',
-    );
+    expect(getSmallPreviewSelection(item)).toMatchObject({
+      url: 'https://res.cloudinary.com/demo/image/upload/v1/uploads/artwork.png',
+      source: 'original_fallback',
+      isExactComposition: false,
+    });
   });
 
   it('registers every usable representation as a renderer fallback', () => {
