@@ -3136,6 +3136,7 @@ const GoogleAdsBanner: React.FC = () => {
         } as any}
         thumbnailUrl={pendingPlacementPreview?.previewUrl}
         thumbnailIsExactComposition={isReadyPlacementPreview(pendingPlacementPreview)}
+        thumbnailCompositionSignature={pendingPlacementPreview?.compositionSignature}
         actionType={pendingActionType === 'checkout' ? 'checkout' : 'cart'}
         isProcessing={isProcessingUpsell}
         productType={productType}

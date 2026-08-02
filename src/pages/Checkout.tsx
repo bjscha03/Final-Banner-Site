@@ -617,6 +617,8 @@ const Checkout: React.FC = () => {
                     const isYardSign = isYardSignItem(item);
                     const smallPreview = getSmallPreviewSelection(item);
                     const expandedPreview = getExpandedPreviewSelection(item);
+                    const compositionSignature = item.placement_preview?.compositionSignature
+                      || item.composition_signature;
                     const yardSignPreviewUrl = smallPreview.url;
                     const bannerPreviewUrl = smallPreview.url;
                     if (isYardSign && !yardSignPreviewUrl) {
@@ -683,6 +685,7 @@ const Checkout: React.FC = () => {
                                     designServiceEnabled={item.design_service_enabled}
                                     source={item.source}
                                     isFinalizedSnapshot={expandedPreview.isExactComposition}
+                                    compositionSignature={compositionSignature}
                                     maxSize={820}
                                   />
                                 </div>
@@ -703,6 +706,7 @@ const Checkout: React.FC = () => {
                                 designServiceEnabled={item.design_service_enabled}
                                 source={item.source}
                                 isFinalizedSnapshot={smallPreview.isExactComposition}
+                                compositionSignature={compositionSignature}
                               />
                             </ThumbnailPreviewWrapper>
                           </div>
@@ -743,6 +747,7 @@ const Checkout: React.FC = () => {
                                     designServiceEnabled={item.design_service_enabled}
                                     source={item.source}
                                     isFinalizedSnapshot={expandedPreview.isExactComposition}
+                                    compositionSignature={compositionSignature}
                                     maxSize={820}
                                   />
                                 </div>
@@ -763,6 +768,7 @@ const Checkout: React.FC = () => {
                                 designServiceEnabled={item.design_service_enabled}
                                 source={item.source}
                                 isFinalizedSnapshot={smallPreview.isExactComposition}
+                                compositionSignature={compositionSignature}
                               />
                             </ThumbnailPreviewWrapper>
                           </div>

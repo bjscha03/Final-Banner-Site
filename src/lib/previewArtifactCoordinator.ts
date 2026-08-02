@@ -11,6 +11,7 @@ import {
   renderPositionedThumbnailBlob,
 } from '@/utils/generatePositionedThumbnail';
 import { uploadCanvasImageToCloudinary } from '@/utils/uploadCanvasImage';
+import { rememberDecodedPreviewImage } from '@/lib/previewImageCache';
 
 const inFlightBySignature = new Map<string, Promise<ReadyPlacementPreviewManifest>>();
 const completedBySignature = new Map<string, ReadyPlacementPreviewManifest>();
@@ -157,6 +158,11 @@ async function createArtifact(spec: ArtworkCompositionSpec): Promise<ReadyPlacem
     rendered.widthPx,
     rendered.heightPx,
   );
+  rememberDecodedPreviewImage({
+    url: uploaded.secureUrl,
+    naturalWidth: verification.naturalWidth,
+    naturalHeight: verification.naturalHeight,
+  });
   const createdAt = new Date().toISOString();
   console.info('[placement_preview_ready]', {
     compositionSignature,

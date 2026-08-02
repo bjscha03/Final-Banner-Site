@@ -39,6 +39,7 @@ export interface BannerPreviewProps {
   source?: string;
   isFinalizedSnapshot?: boolean;
   maxSize?: number;
+  compositionSignature?: string | null;
 }
 
 type Point = { x: number; y: number };
@@ -107,6 +108,7 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
   designServiceEnabled = false,
   isFinalizedSnapshot = false,
   maxSize: maxSizeProp,
+  compositionSignature,
 }) => {
   const safeWidth = Number.isFinite(widthIn) && widthIn > 0 ? widthIn : 1;
   const safeHeight = Number.isFinite(heightIn) && heightIn > 0 ? heightIn : 1;
@@ -255,11 +257,12 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
               }}
             >
               <StablePreviewImage
+                key={compositionSignature || 'legacy-preview-lineage'}
                 sources={imageSources}
                 alt="Banner preview"
                 className="absolute inset-0 block h-full w-full"
                 style={{ objectFit: imageObjectFit }}
-                retainPreviousWhileLoading={!isExclusiveExactArtifact}
+                retainPreviousWhileLoading
                 loadTimeoutMs={25_000}
                 onReady={() => {
                   setReadySourceSignature(sourceSignature);

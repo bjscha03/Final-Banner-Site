@@ -162,6 +162,7 @@ function PreviewCard({ testCase, sourceOverride }) {
               imagePosition={testCase.imagePosition || { x: 0, y: 0 }}
               imageScale={testCase.imageScale || 1}
               isFinalizedSnapshot={testCase.exact !== false}
+              compositionSignature={testCase.item.placement_preview?.compositionSignature || testCase.id}
               maxSize={820}
             />
           </div>
@@ -175,6 +176,7 @@ function PreviewCard({ testCase, sourceOverride }) {
           imagePosition={testCase.imagePosition || { x: 0, y: 0 }}
           imageScale={testCase.imageScale || 1}
           isFinalizedSnapshot={testCase.exact !== false}
+          compositionSignature={testCase.item.placement_preview?.compositionSignature || testCase.id}
           maxSize={200}
         />
       </ThumbnailPreviewWrapper>

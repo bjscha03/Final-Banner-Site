@@ -24,6 +24,7 @@ import {
   buildCompositionSignature,
   type ArtworkCompositionSpec,
 } from '../previewLifecycle';
+import { getDecodedPreviewImage } from '../previewImageCache';
 
 const spec = (revision = 1): ArtworkCompositionSpec => ({
   version: PREVIEW_ARTIFACT_VERSION,
@@ -106,6 +107,11 @@ describe('preview artifact coordinator', () => {
     const [one, two] = await Promise.all([first, second]);
     expect(two).toBe(one);
     expect(one.compositionSignature).toBe(buildCompositionSignature(spec()));
+    expect(getDecodedPreviewImage(one.previewUrl)).toMatchObject({
+      url: one.previewUrl,
+      naturalWidth: 1400,
+      naturalHeight: 560,
+    });
     expect(mocks.render).toHaveBeenCalledTimes(1);
     expect(mocks.upload).toHaveBeenCalledTimes(1);
   });

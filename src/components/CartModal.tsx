@@ -136,6 +136,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                   const grommetMode = getGrommetModeForPreview(item);
                   const smallPreview = getSmallPreviewSelection(item);
                   const expandedPreview = getExpandedPreviewSelection(item);
+                  const compositionSignature = item.placement_preview?.compositionSignature
+                    || item.composition_signature;
 
                   return (
                     <div key={item.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-lg transition-shadow hover:shadow-xl">
@@ -183,6 +185,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                                 designServiceEnabled={item.design_service_enabled}
                                 source={item.source}
                                 isFinalizedSnapshot={expandedPreview.isExactComposition}
+                                compositionSignature={compositionSignature}
                                 maxSize={820}
                               />
                             </div>
@@ -204,6 +207,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                             designServiceEnabled={item.design_service_enabled}
                             source={item.source}
                             isFinalizedSnapshot={smallPreview.isExactComposition}
+                            compositionSignature={compositionSignature}
                           />
                         </ThumbnailPreviewWrapper>
                       </div>
