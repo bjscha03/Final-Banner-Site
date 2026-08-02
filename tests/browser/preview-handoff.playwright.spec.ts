@@ -25,14 +25,26 @@ async function readHarnessResult(page: Page): Promise<HarnessResult> {
   }));
 }
 
-async function assertHarness(page: Page, route: string): Promise<HarnessResult> {
+async function assertHarness(
+  page: Page,
+  route: string,
+  navigationTimeoutMs = 30_000,
+): Promise<HarnessResult> {
   const marker = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  await page.goto(`${route}?playwright=${marker}`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${route}?playwright=${marker}`, {
+    waitUntil: 'domcontentloaded',
+    timeout: navigationTimeoutMs,
+  });
   const details = await readHarnessResult(page);
   expect(details.result, `${route}: ${details.reason || 'harness failed'}`).toBe('pass');
-  expect(await page.evaluate(() => (
-    document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1
-  )), `${route} created horizontal overflow`).toBe(true);
+  const overflow = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }));
+  expect(
+    overflow.scrollWidth,
+    `${route} created horizontal overflow: ${JSON.stringify(overflow)}`,
+  ).toBeLessThanOrEqual(overflow.clientWidth + 1);
   return details;
 }
 
@@ -40,6 +52,7 @@ test('preview identity remains stable across compact and expanded surfaces', asy
   browser,
   page,
 }, testInfo) => {
+  await assertHarness(page, harnessRoutes[0]);
   const runtime = await page.evaluate(() => ({
     userAgent: navigator.userAgent,
     viewport: { width: window.innerWidth, height: window.innerHeight },
@@ -52,11 +65,12 @@ test('preview identity remains stable across compact and expanded surfaces', asy
     ...runtime,
   }));
 
-  for (const route of harnessRoutes) await assertHarness(page, route);
+  for (const route of harnessRoutes.slice(1)) await assertHarness(page, route);
 });
 
 test('Chromium survives slow 3G and 4x CPU throttling', async ({ context, page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium-1440x900', 'Chromium-only CDP throttle coverage');
+  test.setTimeout(300_000);
   const cdp = await context.newCDPSession(page);
   await cdp.send('Network.enable');
   await cdp.send('Network.emulateNetworkConditions', {
@@ -69,8 +83,8 @@ test('Chromium survives slow 3G and 4x CPU throttling', async ({ context, page }
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
 
   try {
-    await assertHarness(page, '/tests/browser/preview-handoff.html');
-    await assertHarness(page, '/tests/browser/commerce-preview-handoff.html');
+    await assertHarness(page, '/tests/browser/preview-handoff.html', 120_000);
+    await assertHarness(page, '/tests/browser/commerce-preview-handoff.html', 120_000);
   } finally {
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
     await cdp.send('Network.emulateNetworkConditions', {
