@@ -43,20 +43,37 @@ test('unknown payment status is polled and can resolve to success or retry', () 
   assert.match(statusSource, /retryAllowed:\s*true/);
 });
 
-test('checkout uses only PayPal-hosted forms and does not add merchant contact fields', () => {
+test('checkout uses the existing PayPal-hosted card and wallet forms only', () => {
   const source = read('../../../src/components/checkout/PayPalCheckoutReliable.tsx');
   const config = read('../_shared/legacy/paypal-config.cjs');
 
-  assert.match(source, /components:\s*'buttons,card-fields'/);
-  assert.match(source, /PayPalCardFieldsProvider/);
-  assert.match(source, /PayPalCardFieldsForm/);
-  assert.match(source, /renderPayPalButton\(\)/);
+  assert.match(source, /components:\s*'buttons'/);
+  assert.match(source, /renderButton\('card'\)/);
+  assert.match(source, /renderButton\('paypal'\)/);
+  assert.match(source, /fundingSource=\{fundingSource as any\}/);
   assert.doesNotMatch(source, /<input/);
   assert.doesNotMatch(source, /guestName|Order contact|Shipping address form|Contact information form/);
-  assert.doesNotMatch(source, /PayPalHostedFields|fundingSource="card"/);
-  assert.match(config, /components:\s*'buttons,card-fields'/);
-  assert.match(config, /generate-token|client_token/);
-  assert.doesNotMatch(`${source}\n${config}`, /fastlane/i);
+  assert.doesNotMatch(source, /PayPalCardFields|PayPalHostedFields|clientToken/);
+  assert.match(config, /components:\s*'buttons'/);
+  assert.match(config, /fastlane:\s*false/);
+  assert.doesNotMatch(config, /generate-token|client_token|buttons,card-fields/);
+});
+
+test('runtime normalizes quoted or production PayPal environments for every provider path', () => {
+  const runtime = read('../_shared/paypal-runtime-config.cjs');
+  const createOrder = read('../paypal-create-order.mjs');
+  const capture = read('../paypal-capture-minimal.mjs');
+  const status = read('../paypal-payment-status.mjs');
+  const webhook = read('../paypal-webhook.mjs');
+  const followups = read('../process-paid-order-followups-background.mjs');
+
+  assert.match(runtime, /normalizeEnvironment/);
+  assert.match(runtime, /'production'/);
+  assert.match(runtime, /PAYPAL_CLIENT_ID_\$\{suffix\}/);
+  assert.match(runtime, /PAYPAL_SECRET_\$\{suffix\}/);
+  for (const source of [createOrder, capture, status, webhook, followups]) {
+    assert.match(source, /preparePayPalRuntime\(\)/);
+  }
 });
 
 test('completed capture finalizes the existing internal order only after identity and amount checks', () => {
@@ -76,6 +93,7 @@ test('hosted PayPal payer and shipping details are persisted before notification
   const customerInfo = read('../_shared/legacy/paypal-customer-info.cjs');
   const captureWrapper = read('../paypal-capture-minimal.mjs');
   const webhookWrapper = read('../paypal-webhook.mjs');
+  const followups = read('../process-paid-order-followups-background.mjs');
 
   assert.match(customerInfo, /purchase_units/);
   assert.match(customerInfo, /payer\?\.email_address/);
@@ -87,6 +105,8 @@ test('hosted PayPal payer and shipping details are persisted before notification
   assert.match(captureWrapper, /approvedOrderData/);
   assert.match(captureWrapper, /refreshOrderCustomerInfo/);
   assert.match(webhookWrapper, /refreshOrderCustomerInfo/);
+  assert.match(followups, /isUsableCustomerEmail/);
+  assert.match(followups, /refreshOrderCustomerInfo/);
 });
 
 test('checkout redirects only for a verified completed capture', () => {
