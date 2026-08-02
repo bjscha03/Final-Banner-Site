@@ -87,6 +87,7 @@ type Candidate = {
   source: PreviewSource;
   exactComposition: boolean;
   lowResolution: boolean;
+  immutableExactArtifact?: boolean;
 };
 
 const normalizeUrl = (value?: string | null) => String(value || '').trim();
@@ -292,6 +293,7 @@ function buildCandidates(item: PreviewableItem): Candidate[] {
       source: 'placement_preview',
       exactComposition: true,
       lowResolution: false,
+      immutableExactArtifact: true,
     }];
   }
 
@@ -322,6 +324,7 @@ function buildCandidates(item: PreviewableItem): Candidate[] {
       source: 'yard_sign_preview',
       exactComposition: true,
       lowResolution: false,
+      immutableExactArtifact: true,
     }];
   }
 
@@ -397,6 +400,7 @@ function registerSelection(selectedUrl: string, candidates: Candidate[]) {
   const selected = candidates.find((candidate) => normalizeUrl(candidate.url) === selectedUrl);
   registerPreviewSourceCandidates(selectedUrl, urls, {
     exactComposition: selected?.exactComposition === true,
+    immutableExactArtifact: selected?.immutableExactArtifact === true,
   });
 }
 

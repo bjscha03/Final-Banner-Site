@@ -3,6 +3,7 @@ import { dedupePreviewImageSources, normalizePreviewImageUrl } from './previewIm
 const MAX_REGISTRY_ENTRIES = 320;
 const fallbackRegistry = new Map<string, string[]>();
 const exactCompositionRegistry = new Map<string, boolean>();
+const immutableExactArtifactRegistry = new Map<string, boolean>();
 
 function trimRegistry(): void {
   while (fallbackRegistry.size > MAX_REGISTRY_ENTRIES) {
@@ -10,6 +11,7 @@ function trimRegistry(): void {
     if (!firstKey) break;
     fallbackRegistry.delete(firstKey);
     exactCompositionRegistry.delete(firstKey);
+    immutableExactArtifactRegistry.delete(firstKey);
   }
 }
 
@@ -28,7 +30,10 @@ function inferExactComposition(url: string): boolean {
 export function registerPreviewSourceCandidates(
   primary: string | null | undefined,
   values: Array<string | null | undefined>,
-  options: { exactComposition?: boolean } = {},
+  options: {
+    exactComposition?: boolean;
+    immutableExactArtifact?: boolean;
+  } = {},
 ): string[] {
   const normalizedPrimary = normalizePreviewImageUrl(primary);
   const candidates = dedupePreviewImageSources([normalizedPrimary, ...values]);
@@ -43,6 +48,11 @@ export function registerPreviewSourceCandidates(
     fallbackRegistry.set(candidate, candidates);
     if (candidate === normalizedPrimary) {
       exactCompositionRegistry.set(candidate, exactComposition);
+      immutableExactArtifactRegistry.set(
+        candidate,
+        immutableExactArtifactRegistry.get(candidate) === true
+          || options.immutableExactArtifact === true,
+      );
     }
   }
   trimRegistry();
@@ -66,7 +76,16 @@ export function isRegisteredExactComposition(
   return exactCompositionRegistry.get(normalizedPrimary) === true;
 }
 
+export function isRegisteredImmutableExactArtifact(
+  primary: string | null | undefined,
+): boolean {
+  const normalizedPrimary = normalizePreviewImageUrl(primary);
+  if (!normalizedPrimary) return false;
+  return immutableExactArtifactRegistry.get(normalizedPrimary) === true;
+}
+
 export function clearPreviewSourceRegistry(): void {
   fallbackRegistry.clear();
   exactCompositionRegistry.clear();
+  immutableExactArtifactRegistry.clear();
 }

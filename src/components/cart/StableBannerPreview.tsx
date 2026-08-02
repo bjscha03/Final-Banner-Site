@@ -10,6 +10,7 @@ import { dedupePreviewImageSources } from '@/lib/previewImageCache';
 import {
   getRegisteredPreviewSourceCandidates,
   isRegisteredExactComposition,
+  isRegisteredImmutableExactArtifact,
 } from '@/lib/previewSourceRegistry';
 import StablePreviewImage from '@/components/preview/StablePreviewImage';
 
@@ -114,10 +115,20 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
   const previewWidth = aspectRatio >= 1 ? maxSize : maxSize * aspectRatio;
   const largePreview = maxSize > 400;
   const isImmediateSnapshot = Boolean(imageUrl?.startsWith('data:image/'));
+  const registeredSources = useMemo(
+    () => getRegisteredPreviewSourceCandidates(imageUrl),
+    [imageUrl],
+  );
+  const isRegisteredExact = isRegisteredExactComposition(imageUrl);
   const isApprovedSnapshot = Boolean(
     isImmediateSnapshot
     || isFinalizedSnapshot
-    || isRegisteredExactComposition(imageUrl),
+    || isRegisteredExact,
+  );
+  const isExclusiveExactArtifact = Boolean(
+    isImmediateSnapshot
+    || isRegisteredImmutableExactArtifact(imageUrl)
+    || (isFinalizedSnapshot && !isRegisteredExact),
   );
 
   const imageSources = useMemo(() => {
@@ -125,14 +136,13 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
     // pixel-audited, and uploaded. Use that immutable URL directly at every
     // downstream size so compact and expanded views cannot drift to different
     // transformed CDN candidates.
-    if (isApprovedSnapshot) return dedupePreviewImageSources([imageUrl]);
-    const registered = getRegisteredPreviewSourceCandidates(imageUrl);
-    const originals = registered.length > 0 ? registered : [imageUrl];
+    if (isExclusiveExactArtifact) return dedupePreviewImageSources([imageUrl]);
+    const originals = registeredSources.length > 0 ? registeredSources : [imageUrl];
     return dedupePreviewImageSources(originals.flatMap((candidate) => [
       buildCommercePreviewUrl(candidate, maxSize),
       candidate && !isRawPdfPreviewSource(candidate) ? candidate : null,
     ]));
-  }, [imageUrl, isApprovedSnapshot, maxSize]);
+  }, [imageUrl, isExclusiveExactArtifact, maxSize, registeredSources]);
   const sourceSignature = imageSources.join('\n');
 
   const [readySourceSignature, setReadySourceSignature] = useState<string | null>(null);
@@ -249,7 +259,7 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
                 alt="Banner preview"
                 className="absolute inset-0 block h-full w-full"
                 style={{ objectFit: imageObjectFit }}
-                retainPreviousWhileLoading={!isApprovedSnapshot}
+                retainPreviousWhileLoading={!isExclusiveExactArtifact}
                 loadTimeoutMs={25_000}
                 onReady={() => {
                   setReadySourceSignature(sourceSignature);

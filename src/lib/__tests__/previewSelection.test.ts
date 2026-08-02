@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import {
   getExpandedPreviewSelection,
   getPreviewSourceCandidates,
@@ -9,6 +9,12 @@ import {
   buildCompositionSignature,
   type ArtworkCompositionSpec,
 } from '../previewLifecycle';
+import {
+  clearPreviewSourceRegistry,
+  getRegisteredPreviewSourceCandidates,
+  isRegisteredExactComposition,
+  isRegisteredImmutableExactArtifact,
+} from '../previewSourceRegistry';
 
 function readyPlacement(
   url = 'https://cdn.example.com/placement.png',
@@ -52,6 +58,8 @@ function readyPlacement(
 }
 
 describe('previewSelection identity contract', () => {
+  beforeEach(() => clearPreviewSourceRegistry());
+
   it('uses only the same immutable exact artifact for compact and expanded views', () => {
     const item = {
       placement_preview: readyPlacement(),
@@ -68,6 +76,25 @@ describe('previewSelection identity contract', () => {
       isExactComposition: true,
     });
     expect(getPreviewSourceCandidates(item)).toEqual(['https://cdn.example.com/placement.png']);
+    expect(isRegisteredImmutableExactArtifact('https://cdn.example.com/placement.png')).toBe(true);
+  });
+
+  it('keeps a legacy same-item fallback chain without marking it as an immutable v3 artifact', () => {
+    const primary = 'https://cdn.example.com/legacy-web-preview.png';
+    const fallback = 'https://cdn.example.com/legacy-thumbnail.png';
+    expect(getSmallPreviewUrl({
+      web_preview_url: primary,
+      thumbnail_url: fallback,
+      file_url: 'https://cdn.example.com/legacy-original.png',
+    })).toBe(primary);
+
+    expect(isRegisteredExactComposition(primary)).toBe(true);
+    expect(isRegisteredImmutableExactArtifact(primary)).toBe(false);
+    expect(getRegisteredPreviewSourceCandidates(primary)).toEqual([
+      primary,
+      fallback,
+      'https://cdn.example.com/legacy-original.png',
+    ]);
   });
 
   it('fails closed when a canonical manifest exists but is incomplete', () => {
