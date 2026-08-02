@@ -109,18 +109,19 @@ function unique(values) {
 function getPermanentEmailPreviewCandidates(item = {}) {
   const yardSignDesigns = Array.isArray(item.yard_sign_designs) ? item.yard_sign_designs : [];
   const yardSignSources = [];
-  for (const design of yardSignDesigns) {
-    const reconstructed = buildCloudinaryUrlFromFileKey(design.fileKey, {
-      file_name: design.fileName || design.fileUrl,
-      is_pdf: design.isPdf,
+  const yardSignDesign = yardSignDesigns[0];
+  if (yardSignDesign) {
+    const reconstructedYardSign = buildCloudinaryUrlFromFileKey(yardSignDesign.fileKey, {
+      file_name: yardSignDesign.fileName || yardSignDesign.fileUrl,
+      is_pdf: yardSignDesign.isPdf,
     });
     yardSignSources.push(
-      design.previewThumbnailUrl,
-      design.thumbnailUrl,
-      buildPdfPreviewUrl(design.fileUrl),
-      buildPdfPreviewUrl(reconstructed),
-      design.fileUrl,
-      reconstructed,
+      yardSignDesign.previewThumbnailUrl,
+      yardSignDesign.thumbnailUrl,
+      buildPdfPreviewUrl(yardSignDesign.fileUrl),
+      buildPdfPreviewUrl(reconstructedYardSign),
+      yardSignDesign.fileUrl,
+      reconstructedYardSign,
     );
   }
 

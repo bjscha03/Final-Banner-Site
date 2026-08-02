@@ -209,26 +209,26 @@ function getCanvasSources(item: PreviewableItem): string[] {
 
 function getYardSignCandidates(item: PreviewableItem): Candidate[] {
   const designs = Array.isArray(item.yard_sign_designs) ? item.yard_sign_designs : [];
-  const candidates: Candidate[] = [];
+  const design = designs[0];
+  if (!design) return [];
 
-  for (const design of designs) {
-    const reconstructed = buildCloudinaryUrlFromFileKey(design.fileKey, {
-      fileName: design.fileUrl,
-      isPdf: design.isPdf,
-    });
-    const pdfPreview = buildCloudinaryPdfPreviewUrl(design.fileUrl)
-      || buildCloudinaryPdfPreviewUrl(reconstructed);
+  // An item-level Yard Sign thumbnail represents the first uploaded design.
+  // Never fall through to design two when design one's first derivative fails;
+  // that would make the expanded view show different customer artwork.
+  const reconstructed = buildCloudinaryUrlFromFileKey(design.fileKey, {
+    fileName: design.fileUrl,
+    isPdf: design.isPdf,
+  });
+  const pdfPreview = buildCloudinaryPdfPreviewUrl(design.fileUrl)
+    || buildCloudinaryPdfPreviewUrl(reconstructed);
 
-    candidates.push(
-      { url: design.previewThumbnailUrl, source: 'yard_sign_preview', exactComposition: true, lowResolution: false },
-      { url: design.thumbnailUrl, source: 'yard_sign_preview', exactComposition: true, lowResolution: false },
-      { url: pdfPreview, source: 'yard_sign_preview', exactComposition: true, lowResolution: false },
-      { url: design.fileUrl, source: 'yard_sign_preview', exactComposition: false, lowResolution: false },
-      { url: reconstructed, source: 'yard_sign_preview', exactComposition: false, lowResolution: false },
-    );
-  }
-
-  return candidates;
+  return [
+    { url: design.previewThumbnailUrl, source: 'yard_sign_preview', exactComposition: true, lowResolution: false },
+    { url: design.thumbnailUrl, source: 'yard_sign_preview', exactComposition: true, lowResolution: false },
+    { url: pdfPreview, source: 'yard_sign_preview', exactComposition: true, lowResolution: false },
+    { url: design.fileUrl, source: 'yard_sign_preview', exactComposition: false, lowResolution: false },
+    { url: reconstructed, source: 'yard_sign_preview', exactComposition: false, lowResolution: false },
+  ];
 }
 
 function buildCandidates(item: PreviewableItem): Candidate[] {

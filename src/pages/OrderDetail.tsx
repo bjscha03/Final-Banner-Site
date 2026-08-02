@@ -7,7 +7,7 @@ import { useScrollToTop } from '@/components/ScrollToTop';
 import { getItemDisplayName, isYardSignItem, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
 import { formatShippingAddress, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
 import { getDisplayOrderTotalCents } from '@/lib/order-totals';
-import { getFinalizedThumbnailUrl } from '@/lib/order-thumbnail';
+import OrderItemPreview from '@/components/preview/OrderItemPreview';
 import { authorizedHeaders } from '@/lib/serverAuth';
 
 interface OrderItem {
@@ -285,13 +285,13 @@ const OrderDetail: React.FC = () => {
                 <div key={index} className="border border-gray-200 rounded-lg p-4">
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="flex gap-3">
-                      {getFinalizedThumbnailUrl(item) && (
-                        <img
-                          src={getFinalizedThumbnailUrl(item, 180) || undefined}
-                          alt={`${normalizeOrderItemDisplay(item as NormalizableOrderItem).productLabel} Preview`}
-                          className="w-28 h-20 object-contain bg-gray-50 rounded-md border border-gray-200 flex-shrink-0"
-                        />
-                      )}
+                      <OrderItemPreview
+                        item={item as any}
+                        compactMaxSize={112}
+                        expandedMaxSize={820}
+                        ariaLabel={`Open expanded ${normalized.productLabel} preview from order details`}
+                        className="flex-shrink-0"
+                      />
                       <div className="flex-1">
                       <h3 className="font-medium text-gray-900 mb-2">
                         {getItemDisplayName(item)}

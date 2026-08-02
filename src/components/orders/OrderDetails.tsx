@@ -7,7 +7,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth, isAdmin } from '@/lib/auth';
 import { ShoppingCart, Package, Calendar, CreditCard, Mail, User, Download, FileText, Sparkles, MapPin, Loader2, Palette, Phone, Upload, MessageSquare } from 'lucide-react';
 import TrackingBadge from './TrackingBadge';
-import { getFinalizedThumbnailUrl } from '@/lib/order-thumbnail';
+import OrderItemPreview from '@/components/preview/OrderItemPreview';
 import EmailDeliveryStatus from './EmailDeliveryStatus';
 import { getItemDisplayName, getProductLabel, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
 import { formatShippingAddress, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
@@ -707,18 +707,13 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                 <div key={index} className="border-2 border-slate-200 rounded-xl p-4 sm:p-5 bg-white shadow-sm hover:shadow-md transition-shadow overflow-x-clip">
                   <div className="flex flex-col gap-4 min-w-0">
                     <div className="flex items-start gap-3 min-w-0">
-                      {getFinalizedThumbnailUrl(item) && (
-                        <div className="flex-shrink-0">
-                          <img
-                            src={getFinalizedThumbnailUrl(item, 150)}
-                            alt={`${getProductLabel(item.product_type)} ${index + 1} preview`}
-                            className="w-28 h-20 object-contain bg-gray-50 rounded-lg border border-slate-200 shadow-sm"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none';
-                            }}
-                          />
-                        </div>
-                      )}
+                      <OrderItemPreview
+                        item={item as any}
+                        compactMaxSize={112}
+                        expandedMaxSize={820}
+                        ariaLabel={`Open expanded ${getProductLabel(item.product_type)} ${index + 1} preview`}
+                        className="flex-shrink-0"
+                      />
                       <div className="min-w-0 flex-1">
                         <h4 className="text-base sm:text-lg font-bold text-slate-900 break-words">
                           {getItemDisplayName(item)}
