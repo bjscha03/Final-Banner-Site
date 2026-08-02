@@ -246,10 +246,29 @@ async function runHarnessCase(testCase, harness) {
     })`);
 
     const finalResult = details?.result || result;
-    const reportedInnerWidthMatches = Math.abs(Number(details?.viewport?.innerWidth) - testCase.width) <= 2;
-    const clientWidthMatches = Math.abs(Number(details?.viewport?.clientWidth) - testCase.width) <= 2;
-    const visualWidthMatches = details?.viewport?.visualWidth == null
-      || Math.abs(Number(details.viewport.visualWidth) - testCase.width) <= 2;
+    const innerWidth = Number(details?.viewport?.innerWidth);
+    const clientWidth = Number(details?.viewport?.clientWidth);
+    const visualWidth = details?.viewport?.visualWidth == null
+      ? null
+      : Number(details.viewport.visualWidth);
+    const reportedInnerWidthMatches = Math.abs(innerWidth - testCase.width) <= 2;
+    const desktopScrollbarWidth = !testCase.mobile && reportedInnerWidthMatches
+      ? Math.max(0, innerWidth - clientWidth)
+      : 0;
+    const visualScrollbarWidth = !testCase.mobile && reportedInnerWidthMatches && visualWidth != null
+      ? Math.max(0, innerWidth - visualWidth)
+      : 0;
+    const hasNormalDesktopScrollbar = !testCase.mobile
+      && desktopScrollbarWidth >= 0
+      && desktopScrollbarWidth <= 24;
+    const hasNormalDesktopVisualScrollbar = !testCase.mobile
+      && visualScrollbarWidth >= 0
+      && visualScrollbarWidth <= 24;
+    const clientWidthMatches = Math.abs(clientWidth - testCase.width) <= 2
+      || hasNormalDesktopScrollbar;
+    const visualWidthMatches = visualWidth == null
+      || Math.abs(visualWidth - testCase.width) <= 2
+      || hasNormalDesktopVisualScrollbar;
     const pixelRatioMatches = Math.abs(Number(details?.viewport?.devicePixelRatio) - testCase.deviceScaleFactor) < 0.01;
     const pointerMatches = testCase.touch
       ? details?.viewport?.coarsePointer === true && Number(details?.viewport?.touchPoints) > 0
@@ -261,11 +280,15 @@ async function runHarnessCase(testCase, harness) {
           && details?.viewport?.mediaMax1023 === true
           && details?.viewport?.mediaMin1024 === false
         : details?.viewport?.mediaMin1024 === true && details?.viewport?.mediaMax1023 === false;
-    // documentElement.clientWidth and matchMedia are the CSS layout viewport
-    // actually used by responsive styles. Chromium mobile emulation can expose
-    // a wider legacy window.innerWidth while those real layout values are
-    // correctly 390px; keep innerWidth as a diagnostic rather than a false gate.
-    const emulationPassed = clientWidthMatches
+
+    // Chromium can expose a wider legacy window.innerWidth during mobile
+    // emulation even when the actual CSS layout viewport, visual viewport,
+    // screen dimensions, DPR, pointer mode, and responsive breakpoints are all
+    // the requested phone size. Keep that value diagnostic on mobile; remain
+    // strict about the dimensions the application actually uses for layout.
+    const innerWidthAcceptable = testCase.mobile ? true : reportedInnerWidthMatches;
+    const emulationPassed = innerWidthAcceptable
+      && clientWidthMatches
       && visualWidthMatches
       && pixelRatioMatches
       && pointerMatches
@@ -277,8 +300,12 @@ async function runHarnessCase(testCase, harness) {
       expectedDevicePixelRatio: testCase.deviceScaleFactor,
       expectedTouch: testCase.touch,
       reportedInnerWidthMatches,
+      innerWidthAcceptable,
       clientWidthMatches,
       visualWidthMatches,
+      desktopScrollbarWidth,
+      visualScrollbarWidth,
+      hasNormalDesktopScrollbar,
       pixelRatioMatches,
       pointerMatches,
       responsiveBreakpointMatches,

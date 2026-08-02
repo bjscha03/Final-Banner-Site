@@ -7,7 +7,10 @@ import {
   isRawPdfPreviewSource,
 } from '@/lib/commercePreviewUrl';
 import { dedupePreviewImageSources } from '@/lib/previewImageCache';
-import { getRegisteredPreviewSourceCandidates } from '@/lib/previewSourceRegistry';
+import {
+  getRegisteredPreviewSourceCandidates,
+  isRegisteredExactComposition,
+} from '@/lib/previewSourceRegistry';
 import StablePreviewImage from '@/components/preview/StablePreviewImage';
 
 const BRAND_BLUE = '#18448D';
@@ -109,7 +112,6 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
   const aspectRatio = safeWidth / safeHeight;
   const maxSize = Math.max(80, maxSizeProp ?? 200);
   const previewWidth = aspectRatio >= 1 ? maxSize : maxSize * aspectRatio;
-  const framePaddingBottom = `${(safeHeight / safeWidth) * 100}%`;
   const largePreview = maxSize > 400;
 
   const imageSources = useMemo(() => {
@@ -120,18 +122,25 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
       candidate && !isRawPdfPreviewSource(candidate) ? candidate : null,
     ]));
   }, [imageUrl, maxSize]);
+  const sourceSignature = imageSources.join('\n');
 
   const [baseReady, setBaseReady] = useState(false);
   const [baseFailed, setBaseFailed] = useState(false);
 
   useEffect(() => {
-    if (!imageUrl) {
+    if (!imageUrl || !sourceSignature) {
       setBaseReady(false);
       setBaseFailed(false);
       return;
     }
+
+    // Do not reset baseReady here. StablePreviewImage can synchronously seed a
+    // decoded layer from the shared cache when an enlarged preview mounts. A
+    // parent reset after that child announces readiness would leave a painted
+    // image permanently marked busy. Keeping the previous ready layer visible
+    // is also what prevents flashes during source handoff.
     setBaseFailed(false);
-  }, [imageUrl]);
+  }, [imageUrl, sourceSignature]);
 
   const grommetPoints = useMemo(
     () => calculateGrommetPoints(safeWidth, safeHeight, grommets),
@@ -140,7 +149,11 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
   const grommetRadius = calcGrommetRadius(safeWidth, safeHeight);
 
   const isImmediateSnapshot = Boolean(imageUrl?.startsWith('data:image/'));
-  const isApprovedSnapshot = isImmediateSnapshot || isFinalizedSnapshot;
+  const isApprovedSnapshot = Boolean(
+    isImmediateSnapshot
+    || isFinalizedSnapshot
+    || isRegisteredExactComposition(imageUrl),
+  );
   const scaleX = Number.isFinite(imageScale) && imageScale > 0 ? imageScale : 1;
   const requestedScaleY = imageScaleY ?? scaleX;
   const scaleY = Number.isFinite(requestedScaleY) && requestedScaleY > 0
@@ -175,13 +188,16 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
     };
   }, [overlayImage, safeWidth, safeHeight, maxSize]);
 
-  const imageObjectFit: React.CSSProperties['objectFit'] = isApprovedSnapshot
+  // Baked snapshots already match the product frame. `contain` preserves that
+  // identity without stretching or cropping if a legacy derivative has a few
+  // extra pixels. Originals retain their saved transform; explicit stretch is
+  // the only path that uses fill.
+  const imageObjectFit: React.CSSProperties['objectFit'] = fitMode === 'stretch'
     ? 'fill'
-    : fitMode === 'stretch'
-      ? 'fill'
-      : 'contain';
+    : 'contain';
 
-  const showComposition = baseReady || !imageUrl || designServiceEnabled;
+  const showComposition = baseReady || designServiceEnabled;
+  const showLoadingState = Boolean(imageUrl && !baseReady && !baseFailed);
 
   return (
     <div className={`flex min-w-0 items-center justify-center ${className}`}>
@@ -190,19 +206,23 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
         style={{
           width: `${previewWidth}px`,
           maxWidth: largePreview
-            ? `min(100%, calc(68dvh * ${aspectRatio}))`
+            ? `min(100%, calc((100dvh - 160px) * ${aspectRatio}))`
             : '100%',
         }}
       >
         <div
-          className="relative w-full overflow-hidden rounded-lg border-2 border-gray-200 bg-white shadow-lg"
+          className="relative block w-full overflow-hidden rounded-lg border-2 border-gray-200 bg-white shadow-lg"
           style={{
-            paddingBottom: framePaddingBottom,
+            aspectRatio: `${safeWidth} / ${safeHeight}`,
             minHeight: '1px',
             contain: 'layout paint',
           }}
           aria-label="Banner preview"
-          aria-busy={Boolean(imageUrl && !baseReady && !baseFailed)}
+          aria-busy={showLoadingState}
+          data-commerce-preview="true"
+          data-preview-ready={baseReady ? 'true' : 'false'}
+          data-preview-failed={baseFailed ? 'true' : 'false'}
+          data-preview-exact={isApprovedSnapshot ? 'true' : 'false'}
         >
           {designServiceEnabled ? (
             <div className="absolute inset-0 flex items-center justify-center bg-slate-50 px-2 text-center">
@@ -238,6 +258,7 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
                 className="absolute inset-0 block h-full w-full"
                 style={{ objectFit: imageObjectFit }}
                 retainPreviousWhileLoading
+                loadTimeoutMs={25_000}
                 onReady={() => {
                   setBaseReady(true);
                   setBaseFailed(false);
@@ -249,15 +270,26 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
               />
             </div>
           ) : (
-            <div className="absolute inset-0 flex items-center justify-center bg-gray-50 text-gray-400">
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-50 text-gray-500">
               <div className="text-center">
                 <ImageIcon className="mx-auto h-6 w-6" />
-                <span className="mt-1 block text-[10px]">
+                <span className="mt-1 block text-[10px] font-medium">
                   {isLoading ? 'Preparing preview' : 'Preview unavailable'}
                 </span>
               </div>
             </div>
           )}
+
+          {showLoadingState ? (
+            <div
+              className="pointer-events-none absolute inset-0 z-[4] flex items-center justify-center bg-white/88 text-center"
+              data-preview-loading-overlay="true"
+            >
+              <span className="rounded-full bg-white px-3 py-1 text-[10px] font-semibold text-slate-600 shadow-sm">
+                Loading preview…
+              </span>
+            </div>
+          ) : null}
 
           {showComposition && overlay?.sources?.length ? (
             <StablePreviewImage

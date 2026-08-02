@@ -1,7 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import '@/index.css';
 import BannerPreview from '@/components/cart/BannerPreview';
 import ThumbnailPreviewWrapper from '@/components/preview/ThumbnailPreviewWrapper';
+import {
+  getExpandedPreviewSelection,
+  getSmallPreviewUrl,
+} from '@/lib/previewSelection';
 
 const localSvg = `
   <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600" viewBox="0 0 1200 600">
@@ -12,7 +17,7 @@ const localSvg = `
 `;
 
 const localBlobUrl = URL.createObjectURL(new Blob([localSvg], { type: 'image/svg+xml' }));
-const permanentUrl = `${window.location.origin}/images/header-logo.png?commerce-preview-handoff=1`;
+const localImage = (marker) => `${window.location.origin}/images/header-logo.png?commerce-preview=${marker}`;
 
 function isPaintedImage(image) {
   if (!(image instanceof HTMLImageElement)) return false;
@@ -40,8 +45,10 @@ function getPreviewFrame(scope) {
 }
 
 function pickVisibleSource(images) {
-  const permanent = images.find((image) => image.src.includes('header-logo.png'));
-  return (permanent || images[images.length - 1])?.src || '';
+  return images.find((image) => image.dataset.previewImageState === 'ready')?.src
+    || images.find((image) => image.dataset.previewImageState === 'target')?.src
+    || images[images.length - 1]?.src
+    || '';
 }
 
 function rectDetails(node) {
@@ -57,6 +64,26 @@ function rectDetails(node) {
   };
 }
 
+function hasExpectedRatio(rect, widthIn, heightIn) {
+  if (!rect || rect.width <= 0 || rect.height <= 0 || widthIn <= 0 || heightIn <= 0) return false;
+  const expected = widthIn / heightIn;
+  const actual = rect.width / rect.height;
+  const tolerance = Math.max(0.02, expected * 0.015);
+  return Math.abs(actual - expected) <= tolerance;
+}
+
+const delay = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
+
+async function waitUntil(predicate, timeoutMs, reason) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const value = predicate();
+    if (value) return value;
+    await delay(25);
+  }
+  throw new Error(reason);
+}
+
 function finish(result, details) {
   document.body.dataset.previewHandoffResult = result;
   const output = document.getElementById('preview-handoff-output');
@@ -64,264 +91,317 @@ function finish(result, details) {
   window.__PREVIEW_HANDOFF_RESULT__ = { result, ...details };
 }
 
-function CommercePreviewHarness() {
-  const [source, setSource] = useState(localBlobUrl);
-
-  useEffect(() => {
-    const thumbnailRoot = document.querySelector('[data-commerce-thumbnail]');
-    if (!thumbnailRoot) {
-      finish('fail', { reason: 'missing-thumbnail-root' });
-      return undefined;
-    }
-
-    let initialWait;
-    let handoffSampler;
-    let handoffFinish;
-    let lightboxWait;
-    let lightboxSampler;
-    let lightboxFinish;
-    const startedAt = Date.now();
-
-    initialWait = window.setInterval(() => {
-      const painted = getPaintedImages(thumbnailRoot);
-      const frame = getPreviewFrame(thumbnailRoot);
-      if (painted.length === 0 || frame?.getAttribute('aria-busy') === 'true') {
-        if (Date.now() - startedAt > 7_000) {
-          window.clearInterval(initialWait);
-          finish('fail', {
-            reason: 'initial-thumbnail-never-painted',
-            paintedCount: painted.length,
-            busy: frame?.getAttribute('aria-busy') || null,
-          });
-        }
-        return;
-      }
-
-      window.clearInterval(initialWait);
-      const initialSource = pickVisibleSource(painted);
-      let lastSource = initialSource;
-      let blankSamples = 0;
-      let busyWithoutImageSamples = 0;
-      let sourceChanges = 0;
-      let totalSamples = 0;
-      const blankSnapshots = [];
-
-      setSource(permanentUrl);
-
-      handoffSampler = window.setInterval(() => {
-        totalSamples += 1;
-        const visible = getPaintedImages(thumbnailRoot);
-        const currentFrame = getPreviewFrame(thumbnailRoot);
-        if (visible.length === 0) {
-          blankSamples += 1;
-          if (blankSnapshots.length < 4) {
-            blankSnapshots.push({
-              sample: totalSamples,
-              busy: currentFrame?.getAttribute('aria-busy') || null,
-              html: thumbnailRoot.innerHTML,
-            });
-          }
-        }
-        if (visible.length === 0 && currentFrame?.getAttribute('aria-busy') === 'true') {
-          busyWithoutImageSamples += 1;
-        }
-
-        const currentSource = pickVisibleSource(visible);
-        if (currentSource && currentSource !== lastSource) {
-          sourceChanges += 1;
-          lastSource = currentSource;
-        }
-      }, 16);
-
-      handoffFinish = window.setTimeout(() => {
-        window.clearInterval(handoffSampler);
-        const finalThumbnailImages = getPaintedImages(thumbnailRoot);
-        const finalThumbnailSource = pickVisibleSource(finalThumbnailImages);
-        const thumbnailPassed = Boolean(
-          initialSource.startsWith('blob:')
-          && finalThumbnailImages.length > 0
-          && finalThumbnailSource.includes('header-logo.png')
-          && blankSamples === 0
-          && busyWithoutImageSamples === 0
-          && sourceChanges <= 1
-        );
-
-        if (!thumbnailPassed) {
-          finish('fail', {
-            stage: 'thumbnail-handoff',
-            initialSource,
-            finalThumbnailSource,
-            blankSamples,
-            busyWithoutImageSamples,
-            sourceChanges,
-            totalSamples,
-            blankSnapshots,
-          });
-          return;
-        }
-
-        const openButton = thumbnailRoot.querySelector('button[aria-label="Open enlarged commerce preview"]');
-        if (!(openButton instanceof HTMLButtonElement)) {
-          finish('fail', { stage: 'lightbox-open', reason: 'missing-open-button' });
-          return;
-        }
-
-        openButton.click();
-        const lightboxStartedAt = Date.now();
-        let lightboxBlankSamples = 0;
-        let lightboxBusyWithoutImageSamples = 0;
-        let lightboxTotalSamples = 0;
-        let dialogSeen = false;
-
-        lightboxSampler = window.setInterval(() => {
-          const dialog = document.querySelector('[role="dialog"]');
-          const largeRoot = document.querySelector('[data-commerce-large]');
-          if (!dialog || !largeRoot) return;
-          dialogSeen = true;
-          lightboxTotalSamples += 1;
-          const visible = getPaintedImages(largeRoot);
-          const frame = getPreviewFrame(largeRoot);
-          if (visible.length === 0) lightboxBlankSamples += 1;
-          if (visible.length === 0 && frame?.getAttribute('aria-busy') === 'true') {
-            lightboxBusyWithoutImageSamples += 1;
-          }
-        }, 16);
-
-        lightboxWait = window.setInterval(() => {
-          const dialog = document.querySelector('[role="dialog"]');
-          const largeRoot = document.querySelector('[data-commerce-large]');
-          const visible = getPaintedImages(largeRoot);
-          const frame = getPreviewFrame(largeRoot);
-          if (dialog && largeRoot && visible.length > 0 && frame?.getAttribute('aria-busy') !== 'true') {
-            window.clearInterval(lightboxWait);
-            lightboxFinish = window.setTimeout(() => {
-              window.clearInterval(lightboxSampler);
-              const panel = dialog.querySelector(':scope > div.relative');
-              const finalLargeImages = getPaintedImages(largeRoot);
-              const finalLargeSource = pickVisibleSource(finalLargeImages);
-              const panelRect = rectDetails(panel);
-              const previewRect = rectDetails(frame);
-              const closeButton = dialog.querySelector('button[aria-label="Close preview"]:not(.absolute.inset-0)');
-              const closeRect = rectDetails(closeButton);
-              // documentElement.clientWidth/clientHeight are the CSS layout
-              // viewport used by media queries and vw/vh sizing. Chrome mobile
-              // emulation can report a wider legacy window.innerWidth even while
-              // the actual CSS viewport is correctly 390px.
-              const viewport = {
-                width: document.documentElement.clientWidth || window.visualViewport?.width || window.innerWidth,
-                height: document.documentElement.clientHeight || window.visualViewport?.height || window.innerHeight,
-                reportedInnerWidth: window.innerWidth,
-                reportedInnerHeight: window.innerHeight,
-              };
-              const geometryPassed = Boolean(
-                panelRect
-                && previewRect
-                && closeRect
-                && panelRect.width > 0
-                && panelRect.height > 0
-                && panelRect.width <= viewport.width + 1
-                && panelRect.height <= viewport.height + 1
-                && previewRect.width > 0
-                && previewRect.height > 0
-                && previewRect.right <= viewport.width + 1
-                && closeRect.x >= -1
-                && closeRect.y >= -1
-                && closeRect.right <= viewport.width + 1
-              );
-              const lightboxPassed = Boolean(
-                dialogSeen
-                && finalLargeImages.length > 0
-                && finalLargeSource.includes('header-logo.png')
-                && lightboxBlankSamples === 0
-                && lightboxBusyWithoutImageSamples === 0
-                && geometryPassed
-              );
-
-              finish(lightboxPassed ? 'pass' : 'fail', {
-                stage: lightboxPassed ? 'complete' : 'lightbox',
-                thumbnail: {
-                  initialSource,
-                  finalSource: finalThumbnailSource,
-                  blankSamples,
-                  busyWithoutImageSamples,
-                  sourceChanges,
-                  totalSamples,
-                },
-                lightbox: {
-                  finalSource: finalLargeSource,
-                  blankSamples: lightboxBlankSamples,
-                  busyWithoutImageSamples: lightboxBusyWithoutImageSamples,
-                  totalSamples: lightboxTotalSamples,
-                  dialogSeen,
-                  geometryPassed,
-                  panelRect,
-                  previewRect,
-                  closeRect,
-                  viewport,
-                },
-              });
-            }, 650);
-            return;
-          }
-
-          if (Date.now() - lightboxStartedAt > 7_000) {
-            window.clearInterval(lightboxWait);
-            window.clearInterval(lightboxSampler);
-            finish('fail', {
-              stage: 'lightbox-timeout',
-              dialogSeen,
-              paintedCount: visible.length,
-              busy: frame?.getAttribute('aria-busy') || null,
-              lightboxBlankSamples,
-            });
-          }
-        }, 25);
-      }, 2_000);
-    }, 25);
-
-    return () => {
-      window.clearInterval(initialWait);
-      window.clearInterval(handoffSampler);
-      window.clearTimeout(handoffFinish);
-      window.clearInterval(lightboxWait);
-      window.clearInterval(lightboxSampler);
-      window.clearTimeout(lightboxFinish);
-    };
-  }, []);
+function PreviewCard({ testCase, sourceOverride }) {
+  const smallUrl = getSmallPreviewUrl(testCase.item);
+  const expanded = getExpandedPreviewSelection(testCase.item);
+  const imageUrl = sourceOverride || smallUrl;
+  const largeUrl = sourceOverride || expanded.url;
 
   return (
-    <div data-commerce-thumbnail style={{ display: 'flex', justifyContent: 'center', padding: 12 }}>
+    <div
+      data-commerce-thumbnail
+      data-preview-id={testCase.id}
+      data-expected-marker={testCase.expectedMarker}
+      style={{ minWidth: 0, padding: 8 }}
+    >
       <ThumbnailPreviewWrapper
-        ariaLabel="Open enlarged commerce preview"
-        title="48 × 24 Banner"
-        widthIn={48}
-        heightIn={24}
-        details={[
-          { label: 'Size', value: '48 × 24 in' },
-          { label: 'Material', value: '13oz Vinyl' },
-        ]}
+        ariaLabel={`Open enlarged commerce preview ${testCase.id}`}
+        title={testCase.title}
+        widthIn={testCase.widthIn}
+        heightIn={testCase.heightIn}
         renderLargePreview={() => (
-          <div data-commerce-large>
+          <div data-commerce-large data-preview-id={testCase.id}>
             <BannerPreview
-              widthIn={48}
-              heightIn={24}
-              grommets="4-corners"
-              imageUrl={source}
-              isFinalizedSnapshot
+              widthIn={testCase.widthIn}
+              heightIn={testCase.heightIn}
+              grommets={testCase.grommets || '4-corners'}
+              imageUrl={largeUrl}
+              imagePosition={testCase.imagePosition || { x: 0, y: 0 }}
+              imageScale={testCase.imageScale || 1}
+              isFinalizedSnapshot={testCase.exact !== false}
               maxSize={820}
             />
           </div>
         )}
       >
         <BannerPreview
-          widthIn={48}
-          heightIn={24}
-          grommets="4-corners"
-          imageUrl={source}
-          isFinalizedSnapshot
+          widthIn={testCase.widthIn}
+          heightIn={testCase.heightIn}
+          grommets={testCase.grommets || '4-corners'}
+          imageUrl={imageUrl}
+          imagePosition={testCase.imagePosition || { x: 0, y: 0 }}
+          imageScale={testCase.imageScale || 1}
+          isFinalizedSnapshot={testCase.exact !== false}
           maxSize={200}
         />
       </ThumbnailPreviewWrapper>
+    </div>
+  );
+}
+
+function CommercePreviewHarness() {
+  const [handoffSource, setHandoffSource] = useState(localBlobUrl);
+
+  const cases = useMemo(() => [
+    {
+      id: 'handoff-landscape',
+      title: '48 × 24 Banner',
+      widthIn: 48,
+      heightIn: 24,
+      expectedMarker: 'handoff-permanent',
+      item: { placement_preview: { url: localImage('handoff-permanent') } },
+    },
+    {
+      id: 'portrait',
+      title: '24 × 72 Portrait Banner',
+      widthIn: 24,
+      heightIn: 72,
+      expectedMarker: 'portrait',
+      item: { placement_preview: { url: localImage('portrait') } },
+    },
+    {
+      id: 'square',
+      title: '24 × 24 Square Sign',
+      widthIn: 24,
+      heightIn: 24,
+      expectedMarker: 'square',
+      item: { final_render_url: localImage('square') },
+    },
+    {
+      id: 'extreme-wide',
+      title: '120 × 12 Wide Banner',
+      widthIn: 120,
+      heightIn: 12,
+      expectedMarker: 'extreme-wide',
+      item: { web_preview_url: localImage('extreme-wide') },
+    },
+    {
+      id: 'fallback-chain',
+      title: 'Fallback Preview',
+      widthIn: 48,
+      heightIn: 24,
+      expectedMarker: 'fallback-good',
+      item: {
+        placement_preview: { url: `${window.location.origin}/images/does-not-exist.png?bad-primary=1` },
+        web_preview_url: localImage('fallback-good'),
+        file_url: localImage('fallback-original'),
+      },
+    },
+    {
+      id: 'yard-sign-identity',
+      title: '24 × 18 Yard Sign',
+      widthIn: 24,
+      heightIn: 18,
+      expectedMarker: 'yard-sign-first',
+      item: {
+        product_type: 'yard_sign',
+        yard_sign_designs: [
+          {
+            previewThumbnailUrl: localImage('yard-sign-first'),
+            fileUrl: localImage('yard-sign-original'),
+          },
+          {
+            previewThumbnailUrl: localImage('yard-sign-second'),
+            fileUrl: localImage('yard-sign-second-original'),
+          },
+        ],
+        thumbnail_url: localImage('wrong-item-thumbnail'),
+      },
+    },
+  ], []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      const results = [];
+      try {
+        const roots = await waitUntil(() => {
+          const values = Array.from(document.querySelectorAll('[data-commerce-thumbnail]'));
+          return values.length === cases.length ? values : null;
+        }, 7_000, 'commerce preview cards never mounted');
+
+        await waitUntil(() => roots.every((root) => {
+          const frame = getPreviewFrame(root);
+          return getPaintedImages(root).length > 0
+            && frame?.getAttribute('aria-busy') !== 'true'
+            && frame?.dataset.previewReady === 'true';
+        }), 12_000, 'one or more commerce thumbnails never painted');
+
+        // Exercise the real local-to-permanent handoff while sampling every
+        // animation frame. A decoded image must remain visible throughout.
+        const handoffRoot = roots.find((root) => root.dataset.previewId === 'handoff-landscape');
+        let blankSamples = 0;
+        let sourceChanges = 0;
+        let lastSource = pickVisibleSource(getPaintedImages(handoffRoot));
+        const sampler = window.setInterval(() => {
+          const visible = getPaintedImages(handoffRoot);
+          if (visible.length === 0) blankSamples += 1;
+          const source = pickVisibleSource(visible);
+          if (source && source !== lastSource) {
+            sourceChanges += 1;
+            lastSource = source;
+          }
+        }, 16);
+        setHandoffSource(localImage('handoff-permanent'));
+        await delay(1_200);
+        window.clearInterval(sampler);
+
+        if (blankSamples !== 0 || !lastSource.includes('handoff-permanent')) {
+          throw new Error(`thumbnail handoff failed: blank=${blankSamples}, source=${lastSource}`);
+        }
+
+        for (const root of roots) {
+          if (cancelled) return;
+          const id = root.dataset.previewId;
+          const expectedMarker = root.dataset.expectedMarker;
+          const testCase = cases.find((candidate) => candidate.id === id);
+          if (!testCase) throw new Error(`missing test configuration for ${id}`);
+
+          const frame = getPreviewFrame(root);
+          const smallImages = getPaintedImages(root);
+          const smallSource = pickVisibleSource(smallImages);
+          const frameRect = rectDetails(frame);
+          const viewportWidth = document.documentElement.clientWidth;
+
+          if (!smallSource.includes(expectedMarker)) {
+            throw new Error(`${id} thumbnail selected the wrong artwork: ${smallSource}`);
+          }
+          if (!frameRect || frameRect.width <= 0 || frameRect.height <= 0 || frameRect.right > viewportWidth + 1) {
+            throw new Error(`${id} thumbnail geometry overflowed the viewport`);
+          }
+          if (!hasExpectedRatio(frameRect, testCase.widthIn, testCase.heightIn)) {
+            throw new Error(`${id} thumbnail ratio was ${frameRect.width / frameRect.height}; expected ${testCase.widthIn / testCase.heightIn}`);
+          }
+
+          const openButton = root.querySelector(`button[aria-label="Open enlarged commerce preview ${id}"]`);
+          if (!(openButton instanceof HTMLButtonElement)) {
+            throw new Error(`${id} has no enlarged-preview button`);
+          }
+          openButton.click();
+
+          const dialog = await waitUntil(
+            () => document.querySelector('[data-expanded-product-preview="true"]'),
+            5_000,
+            `${id} lightbox never opened`,
+          );
+          const largeRoot = await waitUntil(
+            () => document.querySelector(`[data-commerce-large][data-preview-id="${id}"]`),
+            5_000,
+            `${id} enlarged preview never mounted`,
+          );
+          await waitUntil(() => {
+            const largeFrame = getPreviewFrame(largeRoot);
+            return getPaintedImages(largeRoot).length > 0
+              && largeFrame?.getAttribute('aria-busy') !== 'true'
+              && largeFrame?.dataset.previewReady === 'true';
+          }, 10_000, `${id} enlarged preview never painted`);
+
+          const largeFrame = getPreviewFrame(largeRoot);
+          const largeSource = pickVisibleSource(getPaintedImages(largeRoot));
+          const panel = dialog.querySelector(':scope > div.relative');
+          const panelRect = rectDetails(panel);
+          const largeRect = rectDetails(largeFrame);
+          const closeButton = dialog.querySelector('button[aria-label="Close preview"]:not(.absolute.inset-0)');
+          const closeRect = rectDetails(closeButton);
+          const viewport = {
+            width: document.documentElement.clientWidth,
+            height: document.documentElement.clientHeight,
+          };
+
+          if (!largeSource.includes(expectedMarker)) {
+            throw new Error(`${id} expanded preview drifted to another artwork: ${largeSource}`);
+          }
+          if (!hasExpectedRatio(largeRect, testCase.widthIn, testCase.heightIn)) {
+            throw new Error(`${id} expanded ratio was ${largeRect.width / largeRect.height}; expected ${testCase.widthIn / testCase.heightIn}`);
+          }
+
+          const geometryPassed = Boolean(
+            panelRect
+            && largeRect
+            && closeRect
+            && panelRect.width > 0
+            && panelRect.height > 0
+            && panelRect.x >= -1
+            && panelRect.y >= -1
+            && panelRect.right <= viewport.width + 1
+            && panelRect.bottom <= viewport.height + 1
+            && largeRect.width > 0
+            && largeRect.height > 0
+            && largeRect.x >= -1
+            && largeRect.right <= viewport.width + 1
+            && closeRect.x >= -1
+            && closeRect.y >= -1
+            && closeRect.right <= viewport.width + 1
+            && closeRect.bottom <= viewport.height + 1,
+          );
+          if (!geometryPassed) throw new Error(`${id} lightbox geometry failed`);
+
+          results.push({
+            id,
+            smallSource,
+            largeSource,
+            frameRect,
+            largeRect,
+            panelRect,
+            viewport,
+            expectedRatio: testCase.widthIn / testCase.heightIn,
+          });
+
+          closeButton.click();
+          await waitUntil(
+            () => !document.querySelector('[data-expanded-product-preview="true"]'),
+            3_000,
+            `${id} lightbox did not close`,
+          );
+          // Let the lightbox effect restore body/html overflow before the CDP
+          // runner records the final viewport. This catches a real scroll-lock
+          // leak without treating a normal desktop scrollbar as bad emulation.
+          await delay(75);
+        }
+
+        if (!cancelled) {
+          finish('pass', {
+            stage: 'complete',
+            blankSamples,
+            sourceChanges,
+            cases: results,
+          });
+        }
+      } catch (error) {
+        if (!cancelled) {
+          finish('fail', {
+            stage: 'commerce-preview-matrix',
+            reason: error instanceof Error ? error.message : String(error),
+            cases: results,
+          });
+        }
+      }
+    };
+
+    void run();
+    return () => { cancelled = true; };
+  }, [cases]);
+
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
+        gap: 12,
+        width: '100%',
+        maxWidth: 1100,
+        margin: '0 auto',
+        padding: 12,
+      }}
+    >
+      {cases.map((testCase) => (
+        <PreviewCard
+          key={testCase.id}
+          testCase={testCase}
+          sourceOverride={testCase.id === 'handoff-landscape' ? handoffSource : undefined}
+        />
+      ))}
     </div>
   );
 }

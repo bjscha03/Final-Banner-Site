@@ -68,16 +68,24 @@ const StableProductPreviewLightbox: React.FC<ProductPreviewLightboxProps> = ({
   const safeHeight = Number(heightIn) > 0 ? Number(heightIn) : null;
   const ratio = safeWidth && safeHeight ? safeWidth / safeHeight : null;
   const previewWidth = ratio && ratio < 1
-    ? `min(100%, calc(68dvh * ${ratio}))`
+    ? `min(100%, calc((100dvh - 140px) * ${ratio}))`
     : '100%';
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-6"
+      className="fixed inset-0 z-[9999] flex items-center justify-center"
+      style={{
+        paddingTop: 'max(8px, env(safe-area-inset-top))',
+        paddingRight: 'max(8px, env(safe-area-inset-right))',
+        paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
+        paddingLeft: 'max(8px, env(safe-area-inset-left))',
+        touchAction: 'pan-y',
+      }}
       role="dialog"
       aria-modal="true"
       aria-labelledby={title ? titleId : undefined}
       aria-label={title ? undefined : 'Product preview'}
+      data-expanded-product-preview="true"
     >
       <button
         type="button"
@@ -89,8 +97,9 @@ const StableProductPreviewLightbox: React.FC<ProductPreviewLightboxProps> = ({
       <div
         className="relative w-full max-w-[900px] overflow-y-auto overflow-x-hidden rounded-2xl bg-white shadow-2xl"
         style={{
-          maxHeight: 'calc(100dvh - 16px)',
+          maxHeight: 'calc(100dvh - max(16px, env(safe-area-inset-top)) - max(16px, env(safe-area-inset-bottom)))',
           overscrollBehavior: 'contain',
+          WebkitOverflowScrolling: 'touch',
         }}
         onClick={(event) => event.stopPropagation()}
       >
@@ -114,13 +123,14 @@ const StableProductPreviewLightbox: React.FC<ProductPreviewLightboxProps> = ({
             </h2>
           )}
 
-          <div className="flex w-full justify-center">
+          <div className="flex w-full justify-center overflow-hidden">
             <div
               className="min-w-0"
               style={{
                 width: previewWidth,
                 maxWidth: '100%',
               }}
+              data-expanded-preview-canvas="true"
             >
               {children}
             </div>

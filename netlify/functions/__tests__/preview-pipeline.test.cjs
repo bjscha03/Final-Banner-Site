@@ -18,13 +18,19 @@ test('all major commerce and builder preview imports route through stable render
   assert.match(viteConfig, /@\\\/components\\\/cart\\\/BannerPreview/);
 });
 
-test('cart thumbnails render immediately without an idle skeleton swap', () => {
+test('cart and checkout thumbnails render immediately without an idle skeleton swap', () => {
   const cartModal = read('src/components/CartModal.tsx');
+  const checkout = read('src/pages/Checkout.tsx');
 
   assert.equal(cartModal.includes('enableHeavyPreviews'), false);
   assert.equal(cartModal.includes('requestIdleCallback'), false);
   assert.equal(cartModal.includes('animate-pulse'), false);
+  assert.match(cartModal, /getSmallPreviewUrl/);
+  assert.match(cartModal, /getExpandedPreviewSelection/);
   assert.match(cartModal, /<BannerPreview/);
+  assert.match(checkout, /getSmallPreviewUrl/);
+  assert.match(checkout, /getExpandedPreviewSelection/);
+  assert.match(checkout, /<BannerPreview/);
 });
 
 test('preview images are decoded, double-buffered, and loaded concurrently', () => {
@@ -43,12 +49,16 @@ test('preview images are decoded, double-buffered, and loaded concurrently', () 
 
 test('a decoded target is visible immediately and clears the parent loading state', () => {
   const stableImage = read('src/components/preview/StablePreviewImage.tsx');
+  const banner = read('src/components/cart/StableBannerPreview.tsx');
 
   assert.match(stableImage, /announceReady\(best\)/);
   assert.match(stableImage, /const target = !active && layer\.url === targetUrl/);
   assert.match(stableImage, /target \? \{/);
   assert.match(stableImage, /opacity: 1/);
   assert.match(stableImage, /visibility: 'visible'/);
+  assert.match(banner, /data-preview-loading-overlay="true"/);
+  assert.match(banner, /Loading preview…/);
+  assert.match(banner, /data-preview-ready/);
 });
 
 test('active design canvases never swap a healthy local preview merely because upload completed', () => {
@@ -75,23 +85,62 @@ test('active design canvas uses one persistent DOM image instead of commerce ima
   assert.match(originalEditor, /key=\{`\$\{imageSrc\}-\$\{retryNonce\}`\}/);
 });
 
-test('selected thumbnail URLs carry automatic artwork fallbacks', () => {
+test('selected URLs carry automatic persistent artwork fallbacks and exact-composition metadata', () => {
   const selection = read('src/lib/previewSelection.ts');
   const registry = read('src/lib/previewSourceRegistry.ts');
   const banner = read('src/components/cart/StableBannerPreview.tsx');
 
+  assert.match(selection, /placement_preview/);
+  assert.match(selection, /artwork_manifest/);
+  assert.match(selection, /yard_sign_designs/);
+  assert.match(selection, /buildCloudinaryUrlFromFileKey/);
   assert.match(selection, /registerPreviewSourceCandidates/);
   assert.match(registry, /getRegisteredPreviewSourceCandidates/);
+  assert.match(registry, /isRegisteredExactComposition/);
   assert.match(banner, /getRegisteredPreviewSourceCandidates/);
+  assert.match(banner, /isRegisteredExactComposition/);
 });
 
-test('enlarged previews no longer depend on zero-scale JavaScript measurement', () => {
+test('commerce previews never stretch or crop baked artwork snapshots', () => {
+  const banner = read('src/components/cart/StableBannerPreview.tsx');
+
+  assert.match(banner, /fitMode === 'stretch'/);
+  assert.match(banner, /: 'contain'/);
+  assert.match(banner, /data-preview-exact/);
+  assert.doesNotMatch(banner, /isApprovedSnapshot\s*\?\s*'fill'/);
+});
+
+test('commerce preview frames use the product ratio instead of containing-block padding math', () => {
+  const banner = read('src/components/cart/StableBannerPreview.tsx');
+
+  assert.match(banner, /aspectRatio:\s*`\$\{safeWidth\} \/ \$\{safeHeight\}`/);
+  assert.equal(banner.includes('paddingBottom: framePaddingBottom'), false);
+  assert.equal(banner.includes('const framePaddingBottom'), false);
+});
+
+test('enlarged previews use safe-area-aware dynamic viewport sizing without zero-scale measurement', () => {
   const lightbox = read('src/components/preview/StableProductPreviewLightbox.tsx');
 
   assert.equal(lightbox.includes('ResizeObserver'), false);
   assert.equal(lightbox.includes('scale(0'), false);
-  assert.match(lightbox, /68dvh/);
-  assert.match(lightbox, /maxHeight: 'calc\(100dvh - 16px\)'/);
+  assert.match(lightbox, /100dvh/);
+  assert.match(lightbox, /safe-area-inset-top/);
+  assert.match(lightbox, /safe-area-inset-bottom/);
+  assert.match(lightbox, /data-expanded-product-preview/);
+  assert.match(lightbox, /overflow-x-hidden/);
+});
+
+test('real-browser commerce matrix loads production CSS and validates all core shapes', () => {
+  const harness = read('tests/browser/commerce-preview-handoff.jsx');
+
+  assert.match(harness, /@\/index\.css/);
+  assert.match(harness, /handoff-landscape/);
+  assert.match(harness, /portrait/);
+  assert.match(harness, /square/);
+  assert.match(harness, /extreme-wide/);
+  assert.match(harness, /fallback-chain/);
+  assert.match(harness, /yard-sign-identity/);
+  assert.match(harness, /hasExpectedRatio/);
 });
 
 test('Design and Google Ads use the shared session-stable artwork editor alias', () => {
