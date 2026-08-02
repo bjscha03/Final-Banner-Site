@@ -1,7 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
+import {
+  PayPalButtons,
+  PayPalCardFieldsForm,
+  PayPalCardFieldsProvider,
+  PayPalScriptProvider,
+  usePayPalCardFields,
+} from '@paypal/react-paypal-js';
 import { Clock3, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/lib/auth';
 import { getStoredAttribution } from '@/lib/attribution';
@@ -21,8 +28,83 @@ interface PayPalConfig {
   clientId: string | null;
   environment: 'sandbox' | 'live' | null;
   components?: string;
-  fastlane?: boolean;
+  clientToken?: string;
 }
+
+type CustomerFormState = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  country: string;
+  street: string;
+  street2: string;
+  city: string;
+  state: string;
+  zip: string;
+  shippingSame: boolean;
+  shippingName: string;
+  shippingStreet: string;
+  shippingStreet2: string;
+  shippingCity: string;
+  shippingState: string;
+  shippingZip: string;
+  shippingCountry: string;
+};
+
+type SubmittedCustomer = {
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  address1: string;
+  address2: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  shippingSameAsBilling: boolean;
+  billingAddress: {
+    name: string;
+    street: string;
+    street2: string;
+    city: string;
+    state: string;
+    zip: string;
+    country: string;
+  };
+  shippingAddress: {
+    name: string;
+    street: string;
+    street2: string;
+    city: string;
+    state: string;
+    zip: string;
+    country: string;
+  };
+};
+
+const InlineCardSubmit: React.FC<{
+  disabled: boolean;
+  beforeSubmit: () => boolean;
+}> = ({ disabled, beforeSubmit }) => {
+  const { cardFieldsForm } = usePayPalCardFields();
+
+  return (
+    <Button
+      type="button"
+      className="mt-3 w-full"
+      size="lg"
+      disabled={disabled || !cardFieldsForm}
+      onClick={() => {
+        if (beforeSubmit()) void cardFieldsForm?.submit();
+      }}
+    >
+      Pay Now
+    </Button>
+  );
+};
 
 type StoredCheckout = {
   checkoutKey: string;
@@ -33,7 +115,7 @@ type StoredCheckout = {
 };
 
 const VERIFICATION_POLL_INTERVAL_MS = 2000;
-const VERIFICATION_MAX_ATTEMPTS = 35;
+const VERIFICATION_MAX_ATTEMPTS = 15;
 const VERIFICATION_TTL_MS = 30 * 60 * 1000;
 
 const randomId = (): string => {
@@ -144,6 +226,27 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
   const [isPolling, setIsPolling] = useState(false);
   const [verificationMessage, setVerificationMessage] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [cardFieldsExpanded, setCardFieldsExpanded] = useState(false);
+  const [customer, setCustomer] = useState<CustomerFormState>({
+    firstName: '',
+    lastName: '',
+    email: user?.email || '',
+    phone: '',
+    country: 'US',
+    street: '',
+    street2: '',
+    city: '',
+    state: '',
+    zip: '',
+    shippingSame: true,
+    shippingName: '',
+    shippingStreet: '',
+    shippingStreet2: '',
+    shippingCity: '',
+    shippingState: '',
+    shippingZip: '',
+    shippingCountry: 'US',
+  });
 
   const internalOrderIdRef = useRef<string | null>(null);
   const checkoutKeyRef = useRef<string>(randomId());
@@ -154,6 +257,85 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
   const lastDeclineAtRef = useRef(0);
   const approvedOrderDataRef = useRef<any>(null);
   const shippingChangeDataRef = useRef<any>(null);
+  const submittedCustomerRef = useRef<SubmittedCustomer | null>(null);
+
+  useEffect(() => {
+    if (!customer.email && user?.email) {
+      setCustomer((current) => ({ ...current, email: user.email || '' }));
+    }
+  }, [customer.email, user?.email]);
+
+  const updateCustomer = <K extends keyof CustomerFormState>(
+    field: K,
+    value: CustomerFormState[K],
+  ) => {
+    setCustomer((current) => ({ ...current, [field]: value }));
+  };
+
+  const validateCustomer = useCallback(() => {
+    const required: Array<keyof Pick<
+      CustomerFormState,
+      'firstName' | 'lastName' | 'email' | 'phone' | 'country' | 'street' | 'city' | 'state' | 'zip'
+    >> = ['firstName', 'lastName', 'email', 'phone', 'country', 'street', 'city', 'state', 'zip'];
+
+    if (required.some((field) => !String(customer[field]).trim())) {
+      return 'Complete every required customer and billing field.';
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email.trim())) {
+      return 'Enter a valid email address.';
+    }
+    if (!customer.shippingSame) {
+      const requiredShipping: Array<keyof Pick<
+        CustomerFormState,
+        'shippingName' | 'shippingStreet' | 'shippingCity' | 'shippingState' | 'shippingZip' | 'shippingCountry'
+      >> = ['shippingName', 'shippingStreet', 'shippingCity', 'shippingState', 'shippingZip', 'shippingCountry'];
+      if (requiredShipping.some((field) => !String(customer[field]).trim())) {
+        return 'Complete every required shipping field.';
+      }
+    }
+    return null;
+  }, [customer]);
+
+  const getSubmittedCustomer = useCallback((): SubmittedCustomer => {
+    const fullName = `${customer.firstName.trim()} ${customer.lastName.trim()}`.trim();
+    const billingAddress = {
+      name: fullName,
+      street: customer.street.trim(),
+      street2: customer.street2.trim(),
+      city: customer.city.trim(),
+      state: customer.state.trim().toUpperCase(),
+      zip: customer.zip.trim(),
+      country: customer.country.trim().toUpperCase(),
+    };
+    const shippingAddress = customer.shippingSame
+      ? { ...billingAddress }
+      : {
+          name: customer.shippingName.trim(),
+          street: customer.shippingStreet.trim(),
+          street2: customer.shippingStreet2.trim(),
+          city: customer.shippingCity.trim(),
+          state: customer.shippingState.trim().toUpperCase(),
+          zip: customer.shippingZip.trim(),
+          country: customer.shippingCountry.trim().toUpperCase(),
+        };
+
+    return {
+      firstName: customer.firstName.trim(),
+      lastName: customer.lastName.trim(),
+      fullName,
+      email: customer.email.trim().toLowerCase(),
+      phone: customer.phone.trim(),
+      address1: billingAddress.street,
+      address2: billingAddress.street2,
+      city: billingAddress.city,
+      state: billingAddress.state,
+      postalCode: billingAddress.zip,
+      country: billingAddress.country,
+      shippingSameAsBilling: customer.shippingSame,
+      billingAddress,
+      shippingAddress,
+    };
+  }, [customer]);
 
   const checkoutSignature = useMemo(() => JSON.stringify({
     total,
@@ -207,7 +389,10 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
   }, [persistState]);
 
   const finishSuccess = useCallback((payload: any, fallbackOrderId?: string | null) => {
-    const internalOrderId = payload?.internalOrderId || fallbackOrderId || internalOrderIdRef.current || payload?.orderID;
+    const internalOrderId = payload?.internalOrderId
+      || fallbackOrderId
+      || internalOrderIdRef.current
+      || payload?.orderID;
     if (!internalOrderId) throw new Error('Completed payment is missing its internal order ID.');
 
     verificationLockedRef.current = false;
@@ -217,13 +402,18 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     setCheckoutError(null);
     clearState();
 
-    const shippingAddress = extractShipping(payload);
+    const shippingAddress = extractShipping(payload)
+      || submittedCustomerRef.current?.shippingAddress
+      || null;
     toast({
       title: 'Payment Successful!',
       description: `Your payment of $${(total / 100).toFixed(2)} was completed.`,
     });
     onSuccess(internalOrderId, {
       ...payload,
+      customerEmail: payload?.customerEmail || submittedCustomerRef.current?.email || null,
+      customerName: payload?.customerName || submittedCustomerRef.current?.fullName || null,
+      customerPhone: payload?.customerPhone || submittedCustomerRef.current?.phone || null,
       shippingAddress,
       subtotal_cents: payload?.subtotal_cents ?? total,
       tax_cents: payload?.tax_cents ?? 0,
@@ -239,7 +429,11 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     setIsPolling(true);
 
     try {
-      for (let attempt = 0; attempt < VERIFICATION_MAX_ATTEMPTS && verificationLockedRef.current; attempt += 1) {
+      for (
+        let attempt = 0;
+        attempt < VERIFICATION_MAX_ATTEMPTS && verificationLockedRef.current;
+        attempt += 1
+      ) {
         let response: Response | null = null;
         let payload: any = {};
         try {
@@ -250,6 +444,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
               internalOrderId,
               approvedOrderData: approvedOrderDataRef.current,
               shippingChangeData: shippingChangeDataRef.current,
+              customerInfo: submittedCustomerRef.current,
             }),
           });
           payload = await readJson(response);
@@ -263,7 +458,8 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
         }
 
         if (response && isDefinitiveFailure(payload, response.status)) {
-          const message = payload?.message || 'Your card was declined. Use a different card or payment method and try again.';
+          const message = payload?.message
+            || 'Your card was declined. Use a different card or payment method and try again.';
           lastDeclineAtRef.current = Date.now();
           resetForRetry(message);
           toast({
@@ -274,7 +470,11 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
           return;
         }
 
-        if (response?.status === 200 && payload?.retryAllowed === true && payload?.paymentCaptured !== true) {
+        if (
+          response?.status === 200
+          && payload?.retryAllowed === true
+          && payload?.paymentCaptured !== true
+        ) {
           resetForRetry(payload?.message || 'No payment was completed. You may try again.');
           return;
         }
@@ -285,15 +485,15 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
       }
 
       if (verificationLockedRef.current) {
-        const message = 'We are still checking PayPal. Do not submit another payment. This page will keep your order safe while you check again.';
-        setVerificationMessage(message);
-        persistState('verification', message);
+        resetForRetry(
+          'PayPal did not complete a capture within 30 seconds. No payment was confirmed; you may try again.',
+        );
       }
     } finally {
       pollingRef.current = false;
       setIsPolling(false);
     }
-  }, [finishSuccess, persistState, resetForRetry, toast]);
+  }, [finishSuccess, resetForRetry, toast]);
 
   const startVerification = useCallback((message?: string) => {
     const text = message || 'We are confirming your payment. Do not submit another payment.';
@@ -307,7 +507,9 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
-      const saved = JSON.parse(window.sessionStorage.getItem(storageKey) || 'null') as StoredCheckout | null;
+      const saved = JSON.parse(
+        window.sessionStorage.getItem(storageKey) || 'null',
+      ) as StoredCheckout | null;
       if (saved?.checkoutKey) checkoutKeyRef.current = saved.checkoutKey;
       if (saved?.internalOrderId) internalOrderIdRef.current = saved.internalOrderId;
 
@@ -335,18 +537,25 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
 
     const load = async () => {
       try {
-        const response = await fetch('/.netlify/functions/paypal-config', { signal: controller.signal });
+        const response = await fetch('/.netlify/functions/paypal-config', {
+          signal: controller.signal,
+        });
         const payload = await readJson(response);
         if (!response.ok || !payload?.enabled || !payload?.clientId) {
           throw new Error(payload?.error || 'Secure checkout is temporarily unavailable.');
         }
-        if (payload.fastlane === true || (payload.components && payload.components !== 'buttons')) {
+        if (payload.components !== 'buttons,card-fields' || !payload.clientToken) {
           throw new Error('Unsupported PayPal checkout configuration.');
         }
         setPayPalConfig(payload);
       } catch (error) {
         console.error('[PayPalCheckout] config load failed', error);
-        setPayPalConfig({ enabled: false, clientId: null, environment: null, components: 'buttons', fastlane: false });
+        setPayPalConfig({
+          enabled: false,
+          clientId: null,
+          environment: null,
+          components: 'buttons,card-fields',
+        });
       } finally {
         window.clearTimeout(timeout);
         setIsLoadingConfig(false);
@@ -404,14 +613,30 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     setCheckoutError(null);
 
     try {
+      const submitted = submittedCustomerRef.current;
+      if (!submitted) throw new Error('Complete the required customer information before payment.');
+
       if (!internalOrderIdRef.current) {
-        const guestEmail = user?.email || `guest-${checkoutKeyRef.current.slice(0, 18)}@bannersonthefly.com`;
         const pendingResponse = await fetch('/.netlify/functions/create-order', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             user_id: user?.id || null,
-            email: guestEmail,
+            email: submitted.email,
+            customer_name: submitted.fullName,
+            customer_first_name: submitted.firstName,
+            customer_phone: submitted.phone,
+            shipping_name: submitted.shippingAddress.name,
+            shipping_street: submitted.shippingAddress.street,
+            shipping_street2: submitted.shippingAddress.street2,
+            shipping_city: submitted.shippingAddress.city,
+            shipping_state: submitted.shippingAddress.state,
+            shipping_zip: submitted.shippingAddress.zip,
+            shipping_country: submitted.shippingAddress.country,
+            shippingAddress: submitted.shippingAddress,
+            billingAddress: submitted.billingAddress,
+            customer: submitted,
+            customerInfo: submitted,
             subtotal_cents: total,
             tax_cents: 0,
             total_cents: total,
@@ -428,7 +653,9 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
         });
         const pending = await readJson(pendingResponse);
         if (!pendingResponse.ok || !pending?.orderId) {
-          throw new Error(pending?.message || pending?.error || 'Could not save the order before payment.');
+          throw new Error(
+            pending?.message || pending?.error || 'Could not save the order before payment.',
+          );
         }
         internalOrderIdRef.current = pending.orderId;
         persistState('idle');
@@ -441,7 +668,11 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
           internalOrderId: internalOrderIdRef.current,
           totalCents: total,
           items,
-          email: user?.email || null,
+          email: submitted.email,
+          customer: submitted,
+          customerInfo: submitted,
+          billingAddress: submitted.billingAddress,
+          shippingAddress: submitted.shippingAddress,
           user_id: user?.id || null,
           discountCode,
           sameDayHitService: Boolean(sameDayHitService),
@@ -456,7 +687,12 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
         throw new Error('PAYMENT_VERIFICATION_LOCKED');
       }
       if (!response.ok || !payload?.paypalOrderId) {
-        throw new Error(payload?.message || payload?.providerCode || payload?.error || 'Could not start PayPal checkout.');
+        throw new Error(
+          payload?.message
+          || payload?.providerCode
+          || payload?.error
+          || 'Could not start PayPal checkout.',
+        );
       }
       return payload.paypalOrderId;
     } finally {
@@ -497,6 +733,10 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
           internalOrderId: internalOrderIdRef.current,
           approvedOrderData,
           shippingChangeData: shippingChangeDataRef.current,
+          customer: submittedCustomerRef.current,
+          customerInfo: submittedCustomerRef.current,
+          billingAddress: submittedCustomerRef.current?.billingAddress,
+          shippingAddress: submittedCustomerRef.current?.shippingAddress,
         }),
       });
       const payload = await readJson(response);
@@ -507,7 +747,8 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
       }
 
       if (isDefinitiveFailure(payload, response.status)) {
-        const message = payload?.message || 'Your card was declined. Use a different card or payment method and try again.';
+        const message = payload?.message
+          || 'Your card was declined. Use a different card or payment method and try again.';
         lastDeclineAtRef.current = Date.now();
         resetForRetry(message);
         toast({
@@ -523,7 +764,10 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
         return;
       }
 
-      const message = payload?.message || payload?.providerCode || payload?.error || 'Payment could not be completed.';
+      const message = payload?.message
+        || payload?.providerCode
+        || payload?.error
+        || 'Payment could not be completed.';
       resetForRetry(message);
       onError(new Error(message));
     } catch (error) {
@@ -564,8 +808,16 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">
           <strong>Deploy Preview Test Checkout:</strong> Create an order without processing a real payment.
         </div>
-        <Button onClick={handleTestPayment} disabled={disabled || isPreparing} variant="outline" className="w-full" size="lg">
-          {isPreparing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing Test Order...</> : 'Place Test Order — No Payment'}
+        <Button
+          onClick={handleTestPayment}
+          disabled={disabled || isPreparing}
+          variant="outline"
+          className="w-full"
+          size="lg"
+        >
+          {isPreparing
+            ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing Test Order...</>
+            : 'Place Test Order — No Payment'}
         </Button>
         {checkoutError ? <p className="text-sm text-red-700">{checkoutError}</p> : null}
       </div>
@@ -581,7 +833,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     );
   }
 
-  if (!paypalConfig?.enabled || !paypalConfig.clientId) {
+  if (!paypalConfig?.enabled || !paypalConfig.clientId || !paypalConfig.clientToken) {
     return (
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
         Secure checkout is temporarily unavailable. Please refresh the page or contact support.
@@ -595,29 +847,47 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     intent: 'capture',
     commit: true,
     vault: false,
-    components: 'buttons',
+    components: 'buttons,card-fields',
+    dataClientToken: paypalConfig.clientToken,
     disableFunding: 'paylater,credit',
   };
 
-  const buttonsDisabled = disabled || isPreparing || isCapturing || Boolean(verificationMessage);
+  const buttonsDisabled = disabled
+    || isPreparing
+    || isCapturing
+    || Boolean(verificationMessage);
 
-  const renderButton = (fundingSource?: 'card' | 'paypal') => (
+  const prepareCustomerForPayment = (): boolean => {
+    const error = validateCustomer();
+    if (error) {
+      setCardFieldsExpanded(true);
+      setCheckoutError(error);
+      return false;
+    }
+    submittedCustomerRef.current = getSubmittedCustomer();
+    setCheckoutError(null);
+    return true;
+  };
+
+  const renderPayPalButton = () => (
     <PayPalButtons
-      key={`${fundingSource || 'default'}-${total}`}
-      fundingSource={fundingSource as any}
-      style={fundingSource === 'card'
-        ? { layout: 'vertical', color: 'black', shape: 'rect', label: 'checkout', height: 45 }
-        : { layout: 'vertical', color: fundingSource === 'paypal' ? 'gold' : 'blue', shape: 'rect', label: 'paypal', height: 42 }}
+      key={`paypal-${total}`}
+      fundingSource="paypal"
+      style={{ layout: 'vertical', color: 'gold', shape: 'rect', label: 'paypal', height: 42 }}
       disabled={buttonsDisabled}
-      onClick={() => {
-        setCheckoutError(null);
-        if (fundingSource) trackPaymentClick(fundingSource);
+      onClick={(_data, actions) => {
+        trackPaymentClick('paypal');
+        if (!prepareCustomerForPayment()) return actions.reject();
+        return actions.resolve();
       }}
       createOrder={handleCreateOrder}
       onApprove={handleApprove}
       onError={handleProviderError}
       onShippingChange={(data: any, actions: any) => {
-        shippingChangeDataRef.current = data?.shipping_address || data?.shippingAddress || data || null;
+        shippingChangeDataRef.current = data?.shipping_address
+          || data?.shippingAddress
+          || data
+          || null;
         if (typeof actions?.resolve === 'function') return actions.resolve();
         return Promise.resolve();
       }}
@@ -627,6 +897,124 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
         toast({ title: 'Payment Cancelled', description: 'No payment was completed.' });
       }}
     />
+  );
+
+  const customerFields: Array<{
+    field: keyof CustomerFormState;
+    label: string;
+    type?: React.HTMLInputTypeAttribute;
+    autoComplete?: string;
+    wide?: boolean;
+  }> = [
+    { field: 'firstName', label: 'First Name *', autoComplete: 'given-name' },
+    { field: 'lastName', label: 'Last Name *', autoComplete: 'family-name' },
+    { field: 'email', label: 'Email *', type: 'email', autoComplete: 'email' },
+    { field: 'phone', label: 'Phone *', type: 'tel', autoComplete: 'tel' },
+    { field: 'country', label: 'Country *', autoComplete: 'country' },
+    { field: 'street', label: 'Street Address *', autoComplete: 'address-line1', wide: true },
+    { field: 'street2', label: 'Apartment / Suite', autoComplete: 'address-line2', wide: true },
+    { field: 'city', label: 'City *', autoComplete: 'address-level2' },
+    { field: 'state', label: 'State *', autoComplete: 'address-level1' },
+    { field: 'zip', label: 'ZIP *', autoComplete: 'postal-code' },
+  ];
+
+  const shippingFields: Array<{
+    field: keyof CustomerFormState;
+    label: string;
+    autoComplete?: string;
+    wide?: boolean;
+  }> = [
+    { field: 'shippingName', label: 'Shipping Name *', autoComplete: 'shipping name' },
+    { field: 'shippingStreet', label: 'Shipping Address *', autoComplete: 'shipping address-line1', wide: true },
+    { field: 'shippingStreet2', label: 'Shipping Apartment / Suite', autoComplete: 'shipping address-line2', wide: true },
+    { field: 'shippingCity', label: 'Shipping City *', autoComplete: 'shipping address-level2' },
+    { field: 'shippingState', label: 'Shipping State *', autoComplete: 'shipping address-level1' },
+    { field: 'shippingZip', label: 'Shipping ZIP *', autoComplete: 'shipping postal-code' },
+    { field: 'shippingCountry', label: 'Shipping Country *', autoComplete: 'shipping country' },
+  ];
+
+  const renderInlineCardFields = () => (
+    <div className="space-y-2.5">
+      <Button
+        type="button"
+        variant="outline"
+        size="lg"
+        className="w-full border-gray-900 bg-gray-900 text-white hover:bg-gray-800 hover:text-white"
+        aria-expanded={cardFieldsExpanded}
+        aria-controls="paypal-inline-card-fields"
+        disabled={buttonsDisabled}
+        onClick={() => {
+          setCheckoutError(null);
+          setCardFieldsExpanded((expanded) => !expanded);
+          trackPaymentClick('card');
+        }}
+      >
+        Pay with Debit or Credit Card
+      </Button>
+
+      {cardFieldsExpanded ? (
+        <div id="paypal-inline-card-fields" className="rounded-lg border border-gray-200 p-4">
+          <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {customerFields.map(({ field, label, type = 'text', autoComplete, wide }) => (
+              <label
+                key={field}
+                className={`text-sm font-medium ${wide ? 'sm:col-span-2' : ''}`}
+              >
+                {label}
+                <Input
+                  className="mt-1"
+                  type={type}
+                  autoComplete={autoComplete}
+                  value={String(customer[field])}
+                  onChange={(event) => updateCustomer(field, event.target.value as never)}
+                />
+              </label>
+            ))}
+
+            <label className="flex items-center gap-2 text-sm sm:col-span-2">
+              <input
+                type="checkbox"
+                checked={customer.shippingSame}
+                onChange={(event) => updateCustomer('shippingSame', event.target.checked)}
+              />
+              Shipping same as billing
+            </label>
+
+            {!customer.shippingSame
+              ? shippingFields.map(({ field, label, autoComplete, wide }) => (
+                  <label
+                    key={field}
+                    className={`text-sm font-medium ${wide ? 'sm:col-span-2' : ''}`}
+                  >
+                    {label}
+                    <Input
+                      className="mt-1"
+                      autoComplete={autoComplete}
+                      value={String(customer[field])}
+                      onChange={(event) => updateCustomer(field, event.target.value as never)}
+                    />
+                  </label>
+                ))
+              : null}
+          </div>
+
+          <PayPalCardFieldsProvider
+            createOrder={handleCreateOrder}
+            onApprove={(data) => handleApprove(data, null)}
+            onError={handleProviderError}
+            onCancel={() => {
+              if (!verificationLockedRef.current) resetForRetry(null);
+            }}
+          >
+            <PayPalCardFieldsForm />
+            <InlineCardSubmit
+              disabled={buttonsDisabled}
+              beforeSubmit={prepareCustomerForPayment}
+            />
+          </PayPalCardFieldsProvider>
+        </div>
+      ) : null}
+    </div>
   );
 
   return (
@@ -675,18 +1063,25 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
 
       {!verificationMessage ? (
         <PayPalScriptProvider options={initialOptions}>
-          <p className="mb-3 text-xs text-gray-600">Pay securely by card or PayPal. No PayPal account required.</p>
+          <p className="mb-3 text-xs text-gray-600">
+            Pay securely by card or PayPal. No PayPal account required.
+          </p>
           {cardFirstLayout ? (
             <div className="space-y-2.5">
-              {renderButton('card')}
+              {renderInlineCardFields()}
               <div className="flex items-center gap-2">
                 <span className="h-px flex-1 bg-[#E7D9C7]" />
                 <span className="text-[11px] text-[#8B7355]">or</span>
                 <span className="h-px flex-1 bg-[#E7D9C7]" />
               </div>
-              {renderButton('paypal')}
+              {renderPayPalButton()}
             </div>
-          ) : renderButton()}
+          ) : (
+            <div className="space-y-2.5">
+              {renderPayPalButton()}
+              {renderInlineCardFields()}
+            </div>
+          )}
         </PayPalScriptProvider>
       ) : null}
     </div>

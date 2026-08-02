@@ -43,37 +43,21 @@ test('unknown payment status is polled and can resolve to success or retry', () 
   assert.match(statusSource, /retryAllowed:\s*true/);
 });
 
-test('checkout uses the existing PayPal-hosted card and wallet forms only', () => {
+test('checkout collects authoritative customer details beside PayPal-hosted card fields', () => {
   const source = read('../../../src/components/checkout/PayPalCheckoutReliable.tsx');
   const config = read('../_shared/legacy/paypal-config.cjs');
 
-  assert.match(source, /components:\s*'buttons'/);
-  assert.match(source, /renderButton\('card'\)/);
-  assert.match(source, /renderButton\('paypal'\)/);
-  assert.match(source, /fundingSource=\{fundingSource as any\}/);
-  assert.doesNotMatch(source, /<input/);
-  assert.doesNotMatch(source, /guestName|Order contact|Shipping address form|Contact information form/);
-  assert.doesNotMatch(source, /PayPalCardFields|PayPalHostedFields|clientToken/);
-  assert.match(config, /components:\s*'buttons'/);
-  assert.match(config, /fastlane:\s*false/);
-  assert.doesNotMatch(config, /generate-token|client_token|buttons,card-fields/);
-});
-
-test('runtime normalizes quoted or production PayPal environments for every provider path', () => {
-  const runtime = read('../_shared/paypal-runtime-config.cjs');
-  const createOrder = read('../paypal-create-order.mjs');
-  const capture = read('../paypal-capture-minimal.mjs');
-  const status = read('../paypal-payment-status.mjs');
-  const webhook = read('../paypal-webhook.mjs');
-  const followups = read('../process-paid-order-followups-background.mjs');
-
-  assert.match(runtime, /normalizeEnvironment/);
-  assert.match(runtime, /'production'/);
-  assert.match(runtime, /PAYPAL_CLIENT_ID_\$\{suffix\}/);
-  assert.match(runtime, /PAYPAL_SECRET_\$\{suffix\}/);
-  for (const source of [createOrder, capture, status, webhook, followups]) {
-    assert.match(source, /preparePayPalRuntime\(\)/);
-  }
+  assert.match(source, /components:\s*'buttons,card-fields'/);
+  assert.match(source, /PayPalCardFieldsProvider/);
+  assert.match(source, /PayPalCardFieldsForm/);
+  assert.match(source, /renderPayPalButton\(\)/);
+  assert.match(source, /First Name \*/);
+  assert.match(source, /Shipping same as billing/);
+  assert.doesNotMatch(source, /guestName|Order contact/);
+  assert.doesNotMatch(source, /PayPalHostedFields|fundingSource="card"/);
+  assert.match(config, /components:\s*'buttons,card-fields'/);
+  assert.match(config, /generate-token|client_token/);
+  assert.doesNotMatch(`${source}\n${config}`, /fastlane/i);
 });
 
 test('completed capture finalizes the existing internal order only after identity and amount checks', () => {

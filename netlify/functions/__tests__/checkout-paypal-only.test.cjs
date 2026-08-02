@@ -6,18 +6,12 @@ const path = require('node:path');
 const repoRoot = path.resolve(__dirname, '../../..');
 const read = (relativePath) => fs.readFileSync(path.join(repoRoot, relativePath), 'utf8');
 
-test('checkout routes directly to hosted PayPal with no duplicate site contact form', () => {
+test('checkout uses the reliable inline PayPal implementation with authoritative customer details', () => {
   const viteConfig = read('vite.config.ts');
   const checkout = read('src/pages/Checkout.tsx');
   const paypalCheckout = read('src/components/checkout/PayPalCheckoutReliable.tsx');
-  const contactWrapper = path.join(
-    repoRoot,
-    'src/components/checkout/PayPalCheckoutContactSafe.tsx',
-  );
-  const removedShippingWrapper = path.join(
-    repoRoot,
-    'src/components/checkout/PayPalCheckoutContact.tsx',
-  );
+  const contactWrapper = path.join(repoRoot, 'src/components/checkout/PayPalCheckoutContactSafe.tsx');
+  const removedShippingWrapper = path.join(repoRoot, 'src/components/checkout/PayPalCheckoutContact.tsx');
 
   assert.equal(fs.existsSync(contactWrapper), false);
   assert.equal(fs.existsSync(removedShippingWrapper), false);
@@ -25,24 +19,42 @@ test('checkout routes directly to hosted PayPal with no duplicate site contact f
   assert.equal(viteConfig.includes('PayPalCheckoutContact'), false);
   assert.match(viteConfig, /PayPalCheckoutReliable\.tsx/);
   assert.match(checkout, /@\/components\/checkout\/PayPalCheckout/);
-  assert.match(paypalCheckout, /renderButton\('card'\)/);
-  assert.match(paypalCheckout, /renderButton\('paypal'\)/);
-  assert.match(paypalCheckout, /fundingSource=\{fundingSource as any\}/);
-  assert.equal(paypalCheckout.includes('Email for order confirmation and tracking'), false);
-  assert.equal(paypalCheckout.includes('Email for confirmation'), false);
-  assert.equal(paypalCheckout.includes('<input'), false);
-  assert.equal(paypalCheckout.includes('PayPalCardFieldsProvider'), false);
-  assert.equal(paypalCheckout.includes('PayPalCardFieldsForm'), false);
-  assert.equal(/PayPalFastlane|components:\s*['"]fastlane['"]/.test(paypalCheckout), false);
+
+  for (const label of [
+    'First Name *',
+    'Last Name *',
+    'Email *',
+    'Phone *',
+    'Country *',
+    'Street Address *',
+    'Apartment / Suite',
+    'City *',
+    'State *',
+    'ZIP *',
+    'Shipping same as billing',
+    'Shipping Address *',
+    'Pay Now',
+  ]) {
+    assert.match(paypalCheckout, new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  }
+
+  assert.match(paypalCheckout, /PayPalCardFieldsProvider/);
+  assert.match(paypalCheckout, /PayPalCardFieldsForm/);
+  assert.match(paypalCheckout, /renderPayPalButton\(\)/);
+  assert.match(paypalCheckout, /components:\s*'buttons,card-fields'/);
+  assert.match(paypalCheckout, /VERIFICATION_POLL_INTERVAL_MS = 2000/);
+  assert.match(paypalCheckout, /VERIFICATION_MAX_ATTEMPTS = 15/);
+  assert.equal(paypalCheckout.includes('fundingSource="card"'), false);
+  assert.equal(/fastlane/i.test(paypalCheckout), false);
 });
 
-test('PayPal SDK config uses hosted buttons only and no Fastlane token generation', () => {
+test('PayPal SDK config supports inline Card Fields and contains no Fastlane integration', () => {
   const config = read('netlify/functions/_shared/legacy/paypal-config.cjs');
-  assert.match(config, /components:\s*'buttons'/);
-  assert.match(config, /fastlane:\s*false/);
-  assert.equal(config.includes('buttons,card-fields'), false);
-  assert.equal(config.includes('/v1/identity/generate-token'), false);
-  assert.equal(config.includes('clientToken'), false);
+
+  assert.match(config, /components:\s*'buttons,card-fields'/);
+  assert.match(config, /\/v1\/identity\/generate-token/);
+  assert.match(config, /client_token/);
+  assert.equal(/fastlane/i.test(config), false);
 });
 
 test('PayPal runtime normalizes live aliases before provider calls', () => {
@@ -71,7 +83,7 @@ test('PayPal order creation uses the proven hosted-checkout request', () => {
   assert.equal(entrypoint.includes('paypal-create-order-final.cjs'), false);
 });
 
-test('capture persists PayPal-hosted customer details before queuing follow-ups', () => {
+test('capture persists authoritative customer details before queuing follow-ups', () => {
   const capture = read('netlify/functions/_shared/legacy/paypal-capture-final.cjs');
   const customerInfo = read('netlify/functions/_shared/legacy/paypal-customer-info.cjs');
   const captureWrapper = read('netlify/functions/paypal-capture-minimal.mjs');

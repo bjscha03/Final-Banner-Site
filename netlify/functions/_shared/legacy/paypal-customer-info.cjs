@@ -141,9 +141,11 @@ function mergeCustomerInfo(...sources) {
 }
 
 function getConfig() {
-  const environment = String(process.env.PAYPAL_ENV || 'sandbox').toLowerCase();
-  const clientId = process.env[`PAYPAL_CLIENT_ID_${environment.toUpperCase()}`];
-  const secret = process.env[`PAYPAL_SECRET_${environment.toUpperCase()}`];
+  const environment = String(process.env.PAYPAL_ENV || 'sandbox').toLowerCase() === 'live' ? 'live' : 'sandbox';
+  const suffix = environment.toUpperCase();
+  const pick = (...names) => names.map((name) => process.env[name]).find((value) => String(value || '').trim())?.trim();
+  const clientId = pick(`PAYPAL_CLIENT_ID_${suffix}`, `PAYPAL_${suffix}_CLIENT_ID`, 'PAYPAL_CLIENT_ID', 'VITE_PAYPAL_CLIENT_ID');
+  const secret = pick(`PAYPAL_SECRET_${suffix}`, `PAYPAL_CLIENT_SECRET_${suffix}`, `PAYPAL_${suffix}_SECRET`, `PAYPAL_${suffix}_CLIENT_SECRET`, 'PAYPAL_SECRET', 'PAYPAL_CLIENT_SECRET');
   if (!clientId || !secret) throw new Error('PAYPAL_NOT_CONFIGURED');
   return {
     environment,

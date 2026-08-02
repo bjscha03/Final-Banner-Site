@@ -8,7 +8,7 @@ import { OrderItem } from '../lib/orders/types';
 import Layout from '@/components/Layout';
 import { usd, formatDimensions, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
 import { validateMinimumOrder, canProceedToCheckout } from '@/lib/validation/minimumOrder';
-import PayPalCheckout from '@/components/checkout/PayPalCheckout';
+import PayPalCheckout from '@/components/checkout/PayPalCheckoutReliable';
 import StripeCheckout from '@/components/checkout/StripeCheckout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
