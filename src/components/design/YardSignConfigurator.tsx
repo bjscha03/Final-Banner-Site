@@ -36,16 +36,28 @@ import {
   validateYardSignQuantity,
 } from '@/lib/yard-sign-pricing';
 import { usd } from '@/lib/pricing';
-import { uploadCanvasImageToCloudinary } from '@/utils/uploadCanvasImage';
 import { isPdfArtwork, uploadArtworkFile, validateArtworkFile } from '@/utils/uploadArtworkFile';
 import StablePreviewImage from '@/components/preview/StablePreviewImage';
 import FileUploader from '@/components/ui/FileUploader';
 import CreateWithAIModal, { type CreateWithAIResult } from '@/components/design/CreateWithAIModal';
 import { ENABLE_AI } from '@/lib/featureFlags';
 import { base64ToFile } from '@/utils/base64ToFile';
-import ArtworkPreviewEditor, { type ArtworkTransform } from '@/components/design/ArtworkPreviewEditor';
+import ArtworkPreviewEditor, {
+  type ArtworkPreviewEditorHandle,
+  type ArtworkTransform,
+} from '@/components/design/ArtworkPreviewEditor';
 import ConfigCard from '@/components/design/layout/ConfigCard';
 import { logUx } from '@/lib/uxAnalytics';
+import { createStableCartItemId } from '@/lib/cartItemIdentity';
+import {
+  PREVIEW_ARTIFACT_VERSION,
+  PreviewLifecycleError,
+  buildCompositionSignature,
+  explainPreviewLifecycleError,
+  isReadyPlacementPreview,
+  type ArtworkCompositionSpec,
+} from '@/lib/previewLifecycle';
+import { createPermanentPlacementPreview } from '@/lib/previewArtifactCoordinator';
 
 // Helper to generate PDF thumbnail URL from Cloudinary
 function getPdfThumbnailUrl(pdfUrl: string): string {
@@ -94,6 +106,9 @@ function getRowThumbnailSrc(design: YardSignDesign): string {
 }
 
 function getRowThumbnailSources(design: YardSignDesign): string[] {
+  if (isReadyPlacementPreview(design.placementPreview)) {
+    return [design.placementPreview.previewUrl];
+  }
   const values = [
     design.previewThumbnailUrl,
     design.thumbnailUrl,
@@ -194,6 +209,7 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
 
   const openPreview = useCallback((designId: string) => {
     const design = designs.find(d => d.id === designId);
+    setPreviewSaveError(null);
     setPreviewDesignId(designId);
     // Restore saved state if available, otherwise default
     setPreviewImgPos(design?.imgPos || { x: 0, y: 0 });
@@ -227,137 +243,87 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
   }, [previewOpenTrigger, designs, openPreview]);
 
   const previewCanvasRef = useRef<HTMLDivElement>(null);
-
-  /** Quality for JPEG preview thumbnails */
-  const PREVIEW_THUMBNAIL_QUALITY = 0.85;
-  /** Minimum data URL length to consider a thumbnail valid (not blank) */
-  const MIN_VALID_THUMBNAIL_LENGTH = 1000;
+  const previewEditorRef = useRef<ArtworkPreviewEditorHandle>(null);
+  const [previewSaveError, setPreviewSaveError] = useState<string | null>(null);
 
   // Save preview state and generate thumbnail, then close
-  const savePreviewAndClose = useCallback(async () => {
-    if (!previewDesignId) { setPreviewDesignId(null); return; }
+  const savePreviewAndClose = useCallback(async (): Promise<boolean> => {
+    if (!previewDesignId) return false;
 
     const currentDesign = designs.find(d => d.id === previewDesignId);
-    if (!currentDesign) { setPreviewDesignId(null); return; }
+    if (!currentDesign) return false;
 
     setIsSavingPreview(true);
-
-    // Generate a thumbnail from the preview canvas. The on-screen
-    // ArtworkPreviewEditor renders the image inside a "contained rect"
-    // (object-contain box) that is then translated by (x, y) and scaled
-    // around its own center by (scaleX, scaleY). Mirror that exact
-    // transform here so the thumbnail matches what the user just saw.
-    const container = previewCanvasRef.current;
-    if (container) {
-      try {
-        const rect = container.getBoundingClientRect();
-        const canvas = document.createElement('canvas');
-        const pixelScale = 2; // 2x for retina quality
-        canvas.width = rect.width * pixelScale;
-        canvas.height = rect.height * pixelScale;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.scale(pixelScale, pixelScale);
-          // Draw background
-          ctx.fillStyle = '#fafafa';
-          ctx.fillRect(0, 0, rect.width, rect.height);
-
-          // Find the image element inside the preview
-          const imgEl = container.querySelector('img') as HTMLImageElement;
-          if (imgEl && imgEl.complete && imgEl.naturalWidth > 0) {
-            // Compute the contained rect (object-fit: contain) — the
-            // SAME source of truth ArtworkPreviewEditor uses for its
-            // transform wrapper.
-            const imgAr = imgEl.naturalWidth / imgEl.naturalHeight;
-            const containerAr = rect.width / rect.height;
-            let drawW: number, drawH: number;
-            if (imgAr > containerAr) {
-              drawW = rect.width;
-              drawH = rect.width / imgAr;
-            } else {
-              drawH = rect.height;
-              drawW = rect.height * imgAr;
-            }
-            const drawX = (rect.width - drawW) / 2;
-            const drawY = (rect.height - drawH) / 2;
-            const rectCenterX = drawX + drawW / 2;
-            const rectCenterY = drawY + drawH / 2;
-
-            ctx.save();
-            ctx.beginPath();
-            ctx.rect(0, 0, rect.width, rect.height);
-            ctx.clip();
-            // CSS equivalent applied by ArtworkPreviewEditor:
-            //   translate(x, y) then scale(scaleX, scaleY) about the
-            //   contained rect's center.
-            ctx.translate(previewImgPos.x, previewImgPos.y);
-            ctx.translate(rectCenterX, rectCenterY);
-            ctx.scale(previewImgScale, previewImgScaleY);
-            ctx.translate(-rectCenterX, -rectCenterY);
-            ctx.drawImage(imgEl, drawX, drawY, drawW, drawH);
-            ctx.restore();
-          }
-
-          const dataUrl = canvas.toDataURL('image/jpeg', PREVIEW_THUMBNAIL_QUALITY);
-          // Verify thumbnail isn't blank (a blank JPEG data URL is very short)
-          if (dataUrl && dataUrl.length > MIN_VALID_THUMBNAIL_LENGTH) {
-            // OPTION A: Upload the finalized snapshot to Cloudinary for persistence
-            // This is the CANONICAL FINALIZED ASSET — used everywhere:
-            // thumbnail, cart, checkout, admin, email, print file source.
-            try {
-              const uploadResult = await uploadCanvasImageToCloudinary(
-                dataUrl,
-                `yard-sign-preview-${currentDesign.id}-${Date.now()}.jpg`
-              );
-              console.log('[YardSign] ✅ Finalized preview uploaded to Cloudinary:', uploadResult.secureUrl);
-              onDesignsChange(designs.map(d => d.id === previewDesignId ? {
-                ...d,
-                imgScale: previewImgScale,
-                imgScaleY: previewImgScaleY,
-                imgPos: { ...previewImgPos },
-                imgConstrain: previewConstrain,
-                previewThumbnailUrl: uploadResult.secureUrl,
-              } : d));
-              setIsSavingPreview(false);
-              setPreviewDesignId(null);
-              return;
-            } catch (uploadErr) {
-              console.warn('[YardSign] Failed to upload preview to Cloudinary, using data URL fallback:', uploadErr);
-              // Fallback: use data URL (will work locally but may not persist through server sync)
-              onDesignsChange(designs.map(d => d.id === previewDesignId ? {
-                ...d,
-                imgScale: previewImgScale,
-                imgScaleY: previewImgScaleY,
-                imgPos: { ...previewImgPos },
-                imgConstrain: previewConstrain,
-                previewThumbnailUrl: dataUrl,
-              } : d));
-              setIsSavingPreview(false);
-              setPreviewDesignId(null);
-              return;
-            }
-          }
+    setPreviewSaveError(null);
+    try {
+      for (let attempt = 1; attempt <= 3; attempt += 1) {
+        const editor = previewEditorRef.current;
+        if (!editor) {
+          throw new PreviewLifecycleError(
+            'PREVIEW_GEOMETRY_NOT_READY',
+            'The Yard Sign editor canvas is not mounted.',
+          );
         }
-      } catch (err) {
-        console.warn('[YardSign] Failed to generate preview thumbnail:', err);
-      }
-    }
+        const snapshot = editor.getCompositionSnapshot();
+        const spec: ArtworkCompositionSpec = {
+          version: PREVIEW_ARTIFACT_VERSION,
+          sourceUrl: getPreviewModalSrc(currentDesign),
+          sourceIdentity: `${currentDesign.fileKey}@page-1`,
+          productType: 'yard_sign',
+          widthIn: YARD_SIGN_WIDTH_IN,
+          heightIn: YARD_SIGN_HEIGHT_IN,
+          fitMode: 'fit',
+          transform: snapshot.transform,
+          revision: snapshot.revision,
+        };
+        const artifact = await createPermanentPlacementPreview(spec);
+        const latestSnapshot = previewEditorRef.current?.getCompositionSnapshot();
+        if (!latestSnapshot) {
+          throw new PreviewLifecycleError('COMPOSITION_CHANGED', 'The Yard Sign editor closed during preview preparation.');
+        }
+        const latestSpec = { ...spec, transform: latestSnapshot.transform, revision: latestSnapshot.revision };
+        if (artifact.compositionSignature !== buildCompositionSignature(latestSpec)) {
+          console.info('[yard_sign_preview_stale_discarded]', {
+            attempt,
+            completedSignature: artifact.compositionSignature,
+            latestSignature: buildCompositionSignature(latestSpec),
+          });
+          continue;
+        }
 
-    // Fallback: save state; for PDFs use Cloudinary thumbnail as preview reference
-    const fallbackThumbnail = currentDesign?.isPdf
-      ? getPdfThumbnailUrl(currentDesign.fileUrl)
-      : undefined;
-    onDesignsChange(designs.map(d => d.id === previewDesignId ? {
-      ...d,
-      imgScale: previewImgScale,
-      imgScaleY: previewImgScaleY,
-      imgPos: { ...previewImgPos },
-      imgConstrain: previewConstrain,
-      ...(fallbackThumbnail ? { previewThumbnailUrl: fallbackThumbnail } : {}),
-    } : d));
-    setIsSavingPreview(false);
-    setPreviewDesignId(null);
-  }, [previewDesignId, previewImgPos, previewImgScale, previewImgScaleY, previewConstrain, designs, onDesignsChange]);
+        onDesignsChange(designs.map((design) => design.id === previewDesignId ? {
+          ...design,
+          imgScale: artifact.scaleX,
+          imgScaleY: artifact.scaleY,
+          imgPos: {
+            x: (artifact.positionPct.x / 100) * latestSnapshot.canvasWidthPx,
+            y: (artifact.positionPct.y / 100) * latestSnapshot.canvasHeightPx,
+          },
+          imgConstrain: previewConstrain,
+          previewThumbnailUrl: artifact.previewUrl,
+          placementPreview: artifact,
+        } : design));
+        setPreviewDesignId(null);
+        return true;
+      }
+      throw new PreviewLifecycleError(
+        'COMPOSITION_CHANGED',
+        'The Yard Sign composition changed during all bounded attempts.',
+      );
+    } catch (error) {
+      const explained = explainPreviewLifecycleError(error);
+      console.error('[yard_sign_preview_failed]', {
+        code: explained.code,
+        reason: explained.technicalReason,
+        details: error instanceof PreviewLifecycleError ? error.details : undefined,
+        designId: previewDesignId,
+      });
+      setPreviewSaveError(`${explained.code}: ${explained.description} Technical reason: ${explained.technicalReason}`);
+      return false;
+    } finally {
+      setIsSavingPreview(false);
+    }
+  }, [previewDesignId, previewConstrain, designs, onDesignsChange]);
 
   const closePreview = useCallback(() => {
     setPreviewDesignId(null);
@@ -391,7 +357,7 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
         Math.min(YARD_SIGN_MAX_QUANTITY, initialDesignQuantity || YARD_SIGN_MIN_QUANTITY),
       );
       const newDesign: YardSignDesign = {
-        id: `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
+        id: createStableCartItemId('yard-design'),
         fileName: file.name,
         fileUrl: result.secureUrl,
         fileKey: result.fileKey,
@@ -763,6 +729,8 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
                 {/* Width wrapper — constrains max-width so padding-bottom produces correct height (cross-browser safe, fixes Safari aspect-ratio bug) */}
                 <div className="mx-auto" style={{ width: '100%', maxWidth: `${Math.round(400 * (24 / 18))}px` }}>
                   <ArtworkPreviewEditor
+                    ref={previewEditorRef}
+                    compositionKey={`yard-sign|${previewDesign.id}|${YARD_SIGN_WIDTH_IN}x${YARD_SIGN_HEIGHT_IN}`}
                     src={getPreviewModalSrc(previewDesign)}
                     alt="Yard Sign preview"
                     paddingPct={`${(18 / 24) * 100}%`}
@@ -803,13 +771,18 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
                 Size: 24&quot; × 18&quot; · Corrugated Plastic · {previewDesign.fileName}
               </p>
               <p className="text-xs text-gray-500 text-center mt-2 font-medium">Your design will be printed based on this preview</p>
+              {previewSaveError ? (
+                <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700" role="alert">
+                  {previewSaveError}
+                </p>
+              ) : null}
             </div>
             <div className="flex gap-3 p-4 border-t">
               <button onClick={closePreview} disabled={isSavingPreview} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 disabled:opacity-50">Cancel</button>
               <button onClick={async () => {
                 const id = previewDesignId;
-                await savePreviewAndClose();
-                if (id) {
+                const saved = await savePreviewAndClose();
+                if (saved && id) {
                   logUx('preview_done', { source: 'yard_sign_preview', designId: id });
                   onPreviewDone?.(id);
                 }

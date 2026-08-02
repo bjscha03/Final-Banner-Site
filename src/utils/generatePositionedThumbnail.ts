@@ -1,33 +1,22 @@
 /**
- * generatePositionedThumbnail
+ * Bounded exact-composition renderer.
  *
- * Single source of truth for the cart/checkout/admin thumbnail.
- *
- * Composites the customer's uploaded artwork onto an opaque canvas matching the
- * product aspect ratio and applies the same position/scale values used by the
- * live preview. The result is uploaded to Cloudinary so every later screen can
- * use a permanent URL instead of a browser-only blob or data URL.
+ * Physical product inches are used only to calculate aspect ratio. The canvas
+ * is capped by both long edge and total pixels so a 120" product never causes
+ * a 120-inch bitmap allocation on mobile Safari.
  */
 import { uploadCanvasImageToCloudinary } from './uploadCanvasImage';
+import { PreviewLifecycleError } from '@/lib/previewLifecycle';
 
 export interface PositionedThumbnailInput {
-  /** Image source URL (Cloudinary, a browser preview URL, or a data URL). */
   imageUrl: string;
-  /** Product width in inches, used only for aspect ratio. */
   widthIn: number;
-  /** Product height in inches, used only for aspect ratio. */
   heightIn: number;
-  /** Image position as a percentage of the live preview container. */
   imgPosPercent: { x: number; y: number };
-  /** Horizontal image scale. */
   imgScale: number;
-  /** Optional vertical scale for non-uniform transforms. */
   imgScaleY?: number;
-  /** Background color for uncovered areas. */
   backgroundColor?: string;
-  /** Maximum output dimension on the longer side. Defaults to 1200px. */
   maxOutputPx?: number;
-  /** Maximum total output pixels. */
   maxOutputPixels?: number;
 }
 
@@ -38,13 +27,23 @@ export interface PositionedThumbnailResult {
   heightPx: number;
 }
 
-const THUMBNAIL_MIME_TYPE = 'image/jpeg';
-const THUMBNAIL_QUALITY = 0.88;
-const DEFAULT_OUTPUT_PX = 1200;
-const MOBILE_OUTPUT_PX = 960;
+export interface PositionedPreviewBlob {
+  blob: Blob;
+  widthPx: number;
+  heightPx: number;
+  visiblePixelFraction: number;
+}
+
+const PREVIEW_MIME_TYPE = 'image/jpeg';
+const PREVIEW_QUALITY = 0.88;
+const DEFAULT_OUTPUT_PX = 1400;
+const DEFAULT_PIXEL_CAP = 1_500_000;
+const MOBILE_OUTPUT_PX = 1080;
 const MOBILE_PIXEL_CAP = 1_000_000;
 const RETRY_OUTPUT_PX = 720;
 const RETRY_PIXEL_CAP = 600_000;
+const AUDIT_EDGE_PX = 96;
+const MIN_VISIBLE_PIXEL_FRACTION = 0.0005;
 
 const isConstrainedBrowser = () => {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
@@ -52,7 +51,7 @@ const isConstrainedBrowser = () => {
   return Boolean(
     window.matchMedia?.('(max-width: 768px)').matches
     || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
-    || (typeof nav.deviceMemory === 'number' && nav.deviceMemory <= 4),
+    || (typeof nav.deviceMemory === 'number' && nav.deviceMemory <= 4)
   );
 };
 
@@ -62,98 +61,163 @@ export function calculatePositionedOutputSize(
   maxOutputPx: number,
   maxOutputPixels?: number,
 ) {
-  const aspect = widthIn / heightIn;
-  let outW: number;
-  let outH: number;
-
-  if (aspect >= 1) {
-    outW = maxOutputPx;
-    outH = Math.round(maxOutputPx / aspect);
-  } else {
-    outH = maxOutputPx;
-    outW = Math.round(maxOutputPx * aspect);
+  if (![widthIn, heightIn, maxOutputPx].every(Number.isFinite)
+    || widthIn <= 0 || heightIn <= 0 || maxOutputPx <= 0) {
+    throw new PreviewLifecycleError(
+      'INVALID_PRODUCT_DIMENSIONS',
+      'Preview output dimensions must be finite positive numbers.',
+      { widthIn, heightIn, maxOutputPx, maxOutputPixels },
+    );
   }
+
+  const aspect = widthIn / heightIn;
+  let outW = aspect >= 1 ? Math.round(maxOutputPx) : Math.round(maxOutputPx * aspect);
+  let outH = aspect >= 1 ? Math.round(maxOutputPx / aspect) : Math.round(maxOutputPx);
 
   if (maxOutputPixels && outW * outH > maxOutputPixels) {
     const capScale = Math.sqrt(maxOutputPixels / (outW * outH));
     outW = Math.max(1, Math.floor(outW * capScale));
     outH = Math.max(1, Math.floor(outH * capScale));
   }
-
-  return { widthPx: outW, heightPx: outH };
+  return { widthPx: Math.max(1, outW), heightPx: Math.max(1, outH) };
 }
 
-function loadImage(src: string): Promise<HTMLImageElement> {
+function loadImage(src: string, timeoutMs: number): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
-    const img = new Image();
+    const image = new Image();
     let settled = false;
-
     const finish = (callback: () => void) => {
       if (settled) return;
       settled = true;
       window.clearTimeout(timeoutId);
+      image.onload = null;
+      image.onerror = null;
       callback();
     };
+    const acceptLoadedImage = async () => {
+      if (!image.naturalWidth || !image.naturalHeight) {
+        finish(() => reject(new PreviewLifecycleError(
+          'SOURCE_IMAGE_DECODE_FAILED',
+          'The preview source loaded without usable dimensions.',
+        )));
+        return;
+      }
+      try {
+        await image.decode?.();
+      } catch {
+        // WebKit can reject decode after a successful onload. Valid natural
+        // dimensions are the authoritative fallback in that case.
+      }
+      finish(() => resolve(image));
+    };
+    const timeoutId = window.setTimeout(() => finish(() => reject(new PreviewLifecycleError(
+      'SOURCE_IMAGE_DECODE_FAILED',
+      `The preview source timed out after ${timeoutMs}ms.`,
+    ))), timeoutMs);
 
-    const timeoutId = window.setTimeout(
-      () => finish(() => reject(new Error('Thumbnail source image timed out while loading'))),
-      isConstrainedBrowser() ? 12_000 : 18_000,
-    );
-
-    if (/^https?:/i.test(src)) img.crossOrigin = 'anonymous';
-    img.decoding = 'async';
-    img.onload = () => finish(() => resolve(img));
-    img.onerror = () => finish(() => reject(new Error('Thumbnail source image failed to load')));
-    img.src = src;
-
-    // Cached images can complete before the load handler runs on iOS Safari.
-    if (img.complete && img.naturalWidth > 0) finish(() => resolve(img));
+    if (/^https?:/i.test(src)) image.crossOrigin = 'anonymous';
+    image.decoding = 'async';
+    image.onload = () => { void acceptLoadedImage(); };
+    image.onerror = () => finish(() => reject(new PreviewLifecycleError(
+      'SOURCE_IMAGE_DECODE_FAILED',
+      'The preview source failed to load.',
+    )));
+    image.src = src;
+    if (image.complete && image.naturalWidth > 0) void acceptLoadedImage();
+    window.requestAnimationFrame(() => {
+      if (!settled && image.complete && image.naturalWidth > 0) void acceptLoadedImage();
+    });
   });
 }
 
-async function stabilizeImageSource(src: string) {
-  if (!src.startsWith('blob:') && !src.startsWith('data:')) {
-    return { url: src, cleanup: () => undefined };
+function parseBackgroundRgb(color: string): [number, number, number] {
+  const normalized = color.trim().toLowerCase();
+  const short = normalized.match(/^#([0-9a-f])([0-9a-f])([0-9a-f])$/i);
+  if (short) return short.slice(1).map((part) => parseInt(`${part}${part}`, 16)) as [number, number, number];
+  const full = normalized.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+  if (full) return full.slice(1).map((part) => parseInt(part, 16)) as [number, number, number];
+  return [255, 255, 255];
+}
+
+export function measureVisibleArtworkFraction(
+  canvas: HTMLCanvasElement,
+  backgroundColor = '#ffffff',
+): number {
+  let audit: HTMLCanvasElement;
+  try {
+    audit = document.createElement('canvas');
+    const aspect = canvas.width / Math.max(1, canvas.height);
+    audit.width = aspect >= 1 ? AUDIT_EDGE_PX : Math.max(1, Math.round(AUDIT_EDGE_PX * aspect));
+    audit.height = aspect >= 1 ? Math.max(1, Math.round(AUDIT_EDGE_PX / aspect)) : AUDIT_EDGE_PX;
+  } catch (error) {
+    throw new PreviewLifecycleError('CANVAS_ALLOCATION_FAILED', 'The verification canvas could not be allocated.', { error: String(error) });
+  }
+  const context = audit.getContext('2d', { alpha: false, willReadFrequently: true });
+  if (!context) {
+    throw new PreviewLifecycleError('CANVAS_CONTEXT_UNAVAILABLE', 'The verification canvas has no 2D context.');
+  }
+  context.drawImage(canvas, 0, 0, audit.width, audit.height);
+  let pixels: Uint8ClampedArray;
+  try {
+    pixels = context.getImageData(0, 0, audit.width, audit.height).data;
+  } catch (error) {
+    throw new PreviewLifecycleError(
+      'CANVAS_EXPORT_FAILED',
+      'The rendered preview could not be inspected (the source may block canvas access).',
+      { error: String(error) },
+    );
+  } finally {
+    audit.width = 0;
+    audit.height = 0;
   }
 
-  const response = await fetch(src);
-  if (!response.ok) throw new Error(`Temporary preview could not be read (${response.status})`);
-  const blob = await response.blob();
-  if (!blob.size) throw new Error('Temporary preview was empty');
+  const [backgroundR, backgroundG, backgroundB] = parseBackgroundRgb(backgroundColor);
+  let visible = 0;
+  const total = pixels.length / 4;
+  for (let offset = 0; offset < pixels.length; offset += 4) {
+    const delta = Math.abs(pixels[offset] - backgroundR)
+      + Math.abs(pixels[offset + 1] - backgroundG)
+      + Math.abs(pixels[offset + 2] - backgroundB);
+    if (delta >= 24) visible += 1;
+  }
+  return total > 0 ? visible / total : 0;
+}
 
-  const stableUrl = URL.createObjectURL(blob);
-  return {
-    url: stableUrl,
-    cleanup: () => URL.revokeObjectURL(stableUrl),
-  };
+function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    try {
+      canvas.toBlob((blob) => {
+        if (!blob?.size) {
+          reject(new PreviewLifecycleError(
+            'CANVAS_EXPORT_FAILED',
+            'Canvas toBlob returned an empty result.',
+          ));
+          return;
+        }
+        resolve(blob);
+      }, PREVIEW_MIME_TYPE, PREVIEW_QUALITY);
+    } catch (error) {
+      reject(new PreviewLifecycleError(
+        'CANVAS_EXPORT_FAILED',
+        error instanceof Error ? error.message : String(error),
+      ));
+    }
+  });
 }
 
 function getSafeOutputLimits(input: PositionedThumbnailInput) {
   const constrained = isConstrainedBrowser();
-  const requestedMax = input.maxOutputPx ?? DEFAULT_OUTPUT_PX;
-  const safeMaxOutputPx = constrained
-    ? Math.min(requestedMax, MOBILE_OUTPUT_PX)
-    : requestedMax;
-
-  const requestedPixelCap = input.maxOutputPixels;
-  const safePixelCap = constrained
-    ? Math.min(requestedPixelCap ?? MOBILE_PIXEL_CAP, MOBILE_PIXEL_CAP)
-    : requestedPixelCap;
-
-  return { safeMaxOutputPx, safePixelCap };
+  const requestedLongEdge = input.maxOutputPx ?? DEFAULT_OUTPUT_PX;
+  const requestedPixels = input.maxOutputPixels ?? DEFAULT_PIXEL_CAP;
+  return {
+    maxOutputPx: constrained ? Math.min(requestedLongEdge, MOBILE_OUTPUT_PX) : requestedLongEdge,
+    maxOutputPixels: constrained ? Math.min(requestedPixels, MOBILE_PIXEL_CAP) : requestedPixels,
+  };
 }
 
-/**
- * Render the positioned thumbnail to a compact JPEG data URL.
- *
- * The preview canvas is always opaque, so PNG provided no visual benefit while
- * producing multi-megabyte strings that could exceed mobile Safari storage and
- * memory limits. JPEG keeps the immediate cart preview fast; the original
- * artwork remains untouched for production.
- */
-export async function renderPositionedThumbnailDataUrl(
+export async function renderPositionedThumbnailBlob(
   input: PositionedThumbnailInput,
-): Promise<{ dataUrl: string; widthPx: number; heightPx: number }> {
+): Promise<PositionedPreviewBlob> {
   const {
     imageUrl,
     widthIn,
@@ -161,111 +225,142 @@ export async function renderPositionedThumbnailDataUrl(
     imgPosPercent,
     imgScale,
     imgScaleY,
-    backgroundColor = '#fafafa',
+    backgroundColor = '#ffffff',
   } = input;
-
-  if (!imageUrl) throw new Error('generatePositionedThumbnail: imageUrl is required');
-  if (!Number.isFinite(widthIn) || !Number.isFinite(heightIn) || widthIn <= 0 || heightIn <= 0) {
-    throw new Error('generatePositionedThumbnail: valid widthIn/heightIn are required');
+  if (!imageUrl) {
+    throw new PreviewLifecycleError('PERMANENT_PREVIEW_UNAVAILABLE', 'The preview source URL is empty.');
+  }
+  if (!/^https?:\/\//i.test(imageUrl) && !imageUrl.startsWith('blob:') && !imageUrl.startsWith('data:image/')) {
+    throw new PreviewLifecycleError('PERMANENT_PREVIEW_UNAVAILABLE', 'The preview source URL is unsupported.');
+  }
+  const posX = Number(imgPosPercent?.x);
+  const posY = Number(imgPosPercent?.y);
+  const scaleX = Number(imgScale);
+  const scaleY = Number(imgScaleY ?? imgScale);
+  if (![posX, posY, scaleX, scaleY].every(Number.isFinite) || scaleX <= 0 || scaleY <= 0) {
+    throw new PreviewLifecycleError(
+      'INVALID_ARTWORK_TRANSFORM',
+      'The preview transform contains invalid values.',
+      { imgPosPercent, imgScale, imgScaleY },
+    );
   }
 
-  const { safeMaxOutputPx, safePixelCap } = getSafeOutputLimits(input);
-  const { widthPx: outW, heightPx: outH } = calculatePositionedOutputSize(
+  const limits = getSafeOutputLimits(input);
+  const { widthPx, heightPx } = calculatePositionedOutputSize(
     widthIn,
     heightIn,
-    safeMaxOutputPx,
-    safePixelCap,
+    limits.maxOutputPx,
+    limits.maxOutputPixels,
   );
-
-  const canvas = document.createElement('canvas');
-  canvas.width = outW;
-  canvas.height = outH;
+  let canvas: HTMLCanvasElement;
+  try {
+    canvas = document.createElement('canvas');
+    canvas.width = widthPx;
+    canvas.height = heightPx;
+    if (canvas.width !== widthPx || canvas.height !== heightPx) throw new Error('Canvas dimensions were not retained.');
+  } catch (error) {
+    throw new PreviewLifecycleError(
+      'CANVAS_ALLOCATION_FAILED',
+      'The bounded preview canvas could not be allocated.',
+      { widthPx, heightPx, error: String(error) },
+    );
+  }
 
   try {
-    const ctx = canvas.getContext('2d', { alpha: false });
-    if (!ctx) throw new Error('generatePositionedThumbnail: could not get 2D context');
+    const context = canvas.getContext('2d', { alpha: false });
+    if (!context) throw new PreviewLifecycleError('CANVAS_CONTEXT_UNAVAILABLE', 'The preview canvas has no 2D context.');
+    context.fillStyle = backgroundColor;
+    context.fillRect(0, 0, widthPx, heightPx);
 
-    ctx.fillStyle = backgroundColor;
-    ctx.fillRect(0, 0, outW, outH);
+    const image = await loadImage(imageUrl, isConstrainedBrowser() ? 20_000 : 25_000);
+    const naturalWidth = image.naturalWidth;
+    const naturalHeight = image.naturalHeight;
+    const containScale = Math.min(widthPx / naturalWidth, heightPx / naturalHeight);
+    const drawWidth = naturalWidth * containScale * scaleX;
+    const drawHeight = naturalHeight * containScale * scaleY;
+    const translationX = (posX / 100) * widthPx;
+    const translationY = (posY / 100) * heightPx;
+    const drawX = widthPx / 2 + translationX - drawWidth / 2;
+    const drawY = heightPx / 2 + translationY - drawHeight / 2;
 
-    const img = await loadImage(imageUrl);
-    const naturalW = img.naturalWidth || 1;
-    const naturalH = img.naturalHeight || 1;
-    const fitScale = Math.min(outW / naturalW, outH / naturalH);
-    const scaleX = Number.isFinite(imgScale) && imgScale > 0 ? imgScale : 1;
-    const scaleYCandidate = imgScaleY ?? scaleX;
-    const scaleY = Number.isFinite(scaleYCandidate) && scaleYCandidate > 0 ? scaleYCandidate : scaleX;
-    const finalDrawW = naturalW * fitScale * scaleX;
-    const finalDrawH = naturalH * fitScale * scaleY;
-    const tx = ((Number.isFinite(imgPosPercent?.x) ? imgPosPercent.x : 0) / 100) * outW;
-    const ty = ((Number.isFinite(imgPosPercent?.y) ? imgPosPercent.y : 0) / 100) * outH;
-    const drawX = outW / 2 + tx - finalDrawW / 2;
-    const drawY = outH / 2 + ty - finalDrawH / 2;
+    context.save();
+    context.beginPath();
+    context.rect(0, 0, widthPx, heightPx);
+    context.clip();
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = 'high';
+    context.drawImage(image, drawX, drawY, drawWidth, drawHeight);
+    context.restore();
 
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(img, drawX, drawY, finalDrawW, finalDrawH);
-
-    const dataUrl = canvas.toDataURL(THUMBNAIL_MIME_TYPE, THUMBNAIL_QUALITY);
-    if (!dataUrl || dataUrl === 'data:,') throw new Error('Thumbnail canvas produced an empty image');
-
-    return { dataUrl, widthPx: outW, heightPx: outH };
+    const visiblePixelFraction = measureVisibleArtworkFraction(canvas, backgroundColor);
+    if (visiblePixelFraction < MIN_VISIBLE_PIXEL_FRACTION) {
+      throw new PreviewLifecycleError(
+        'PREVIEW_RENDERED_BLANK',
+        'The rendered composition contains no measurable artwork pixels.',
+        { visiblePixelFraction, widthPx, heightPx },
+      );
+    }
+    const blob = await canvasToBlob(canvas);
+    return { blob, widthPx, heightPx, visiblePixelFraction };
   } finally {
-    // Release the backing store immediately; this matters on lower-memory phones.
     canvas.width = 0;
     canvas.height = 0;
   }
 }
 
-async function renderAndUpload(
-  input: PositionedThumbnailInput,
-  filePrefix: string,
-): Promise<PositionedThumbnailResult> {
-  const { dataUrl, widthPx, heightPx } = await renderPositionedThumbnailDataUrl(input);
-  const upload = await uploadCanvasImageToCloudinary(
-    dataUrl,
-    `${filePrefix}-${Date.now()}.jpg`,
-  );
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => typeof reader.result === 'string'
+      ? resolve(reader.result)
+      : reject(new PreviewLifecycleError('CANVAS_EXPORT_FAILED', 'The preview blob could not be encoded.'));
+    reader.onerror = () => reject(new PreviewLifecycleError('CANVAS_EXPORT_FAILED', 'The preview blob could not be read.'));
+    reader.readAsDataURL(blob);
+  });
+}
 
+/** Legacy compatibility helper. New checkout code must use the Blob path. */
+export async function renderPositionedThumbnailDataUrl(input: PositionedThumbnailInput) {
+  const rendered = await renderPositionedThumbnailBlob(input);
   return {
-    url: upload.secureUrl,
-    fileKey: upload.fileKey,
-    widthPx,
-    heightPx,
+    dataUrl: await blobToDataUrl(rendered.blob),
+    widthPx: rendered.widthPx,
+    heightPx: rendered.heightPx,
   };
 }
 
-/**
- * Render and upload the compact positioned thumbnail.
- *
- * A smaller second attempt is made when the first upload fails. This primarily
- * protects customers on slow cellular connections and memory-constrained iOS
- * browsers without blocking checkout or changing the print-ready artwork.
- */
+async function renderAndUpload(input: PositionedThumbnailInput, filePrefix: string) {
+  const rendered = await renderPositionedThumbnailBlob(input);
+  const uploaded = await uploadCanvasImageToCloudinary(
+    rendered.blob,
+    `${filePrefix}-${Date.now()}.jpg`,
+  );
+  return {
+    url: uploaded.secureUrl,
+    fileKey: uploaded.fileKey,
+    widthPx: rendered.widthPx,
+    heightPx: rendered.heightPx,
+  };
+}
+
+/** Legacy API retained for non-checkout callers. It never returns a temporary URL. */
 export async function generatePositionedThumbnail(
   input: PositionedThumbnailInput,
 ): Promise<PositionedThumbnailResult | null> {
-  let stableSource: { url: string; cleanup: () => void } | null = null;
-
   try {
-    stableSource = await stabilizeImageSource(input.imageUrl);
-    const stableInput = { ...input, imageUrl: stableSource.url };
-
     try {
-      return await renderAndUpload(stableInput, 'approved-thumbnail');
+      return await renderAndUpload(input, 'approved-thumbnail');
     } catch (firstError) {
-      console.warn('[generatePositionedThumbnail] first attempt failed; retrying smaller:', firstError);
+      console.warn('[generatePositionedThumbnail] bounded retry', { firstError });
       return await renderAndUpload({
-        ...stableInput,
+        ...input,
         maxOutputPx: Math.min(input.maxOutputPx ?? RETRY_OUTPUT_PX, RETRY_OUTPUT_PX),
         maxOutputPixels: Math.min(input.maxOutputPixels ?? RETRY_PIXEL_CAP, RETRY_PIXEL_CAP),
       }, 'approved-thumbnail-mobile-retry');
     }
   } catch (error) {
-    console.warn('[generatePositionedThumbnail] failed:', error);
+    console.warn('[generatePositionedThumbnail] failed', { error });
     return null;
-  } finally {
-    stableSource?.cleanup();
   }
 }
 
@@ -275,10 +370,9 @@ export async function generatePositionedWebPreview(
     maxOutputPixels?: number;
   },
 ): Promise<PositionedThumbnailResult | null> {
-  const constrained = isConstrainedBrowser();
   return generatePositionedThumbnail({
     ...input,
-    maxOutputPx: input.maxOutputPx ?? (constrained ? 1600 : 3200),
-    maxOutputPixels: input.maxOutputPixels ?? (constrained ? 2_500_000 : 10_000_000),
+    maxOutputPx: input.maxOutputPx ?? DEFAULT_OUTPUT_PX,
+    maxOutputPixels: input.maxOutputPixels ?? DEFAULT_PIXEL_CAP,
   });
 }
