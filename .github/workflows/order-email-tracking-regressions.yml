@@ -223,3 +223,37 @@ jobs:
             test "$code" = "401"
             grep -q 'UNAUTHORIZED' "/tmp/${endpoint}.json"
           done
+
+  cross-browser-preview-matrix:
+    needs: regression-checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install exact dependencies
+        run: npm ci
+
+      - name: Install Playwright engines and branded browsers
+        run: |
+          npx playwright install --with-deps chromium firefox webkit
+          npx playwright install chrome msedge
+
+      - name: Run browser, device, network, and lifecycle matrix
+        run: npm run test:browser:matrix
+
+      - name: Upload failure traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: preview-browser-matrix-failure
+          path: test-results
+          if-no-files-found: ignore
+          retention-days: 7

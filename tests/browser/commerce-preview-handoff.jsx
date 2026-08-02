@@ -280,7 +280,15 @@ function CommercePreviewHarness() {
         const handoffRoot = roots.find((root) => root.dataset.previewId === 'handoff-landscape');
         const warmedHandoff = new Image();
         warmedHandoff.src = localImage('handoff-permanent');
-        await warmedHandoff.decode();
+        try {
+          await warmedHandoff.decode();
+        } catch {
+          await waitUntil(
+            () => warmedHandoff.complete && warmedHandoff.naturalWidth > 0,
+            5_000,
+            'permanent handoff source did not decode or load',
+          );
+        }
         let blankSamples = 0;
         let sourceChanges = 0;
         let lastSource = pickVisibleSource(getPaintedImages(handoffRoot));
