@@ -126,19 +126,19 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
 
   const [baseReady, setBaseReady] = useState(false);
   const [baseFailed, setBaseFailed] = useState(false);
+  const [renderedSourceUrl, setRenderedSourceUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!imageUrl || !sourceSignature) {
       setBaseReady(false);
       setBaseFailed(false);
+      setRenderedSourceUrl(null);
       return;
     }
 
-    // Do not reset baseReady here. StablePreviewImage can synchronously seed a
-    // decoded layer from the shared cache when an enlarged preview mounts. A
-    // parent reset after that child announces readiness would leave a painted
-    // image permanently marked busy. Keeping the previous ready layer visible
-    // is also what prevents flashes during source handoff.
+    // Do not reset baseReady or the rendered source here. StablePreviewImage
+    // deliberately retains its last decoded layer while a better source loads,
+    // which prevents a white flash during data/blob -> permanent handoff.
     setBaseFailed(false);
   }, [imageUrl, sourceSignature]);
 
@@ -148,12 +148,21 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
   );
   const grommetRadius = calcGrommetRadius(safeWidth, safeHeight);
 
-  const isImmediateSnapshot = Boolean(imageUrl?.startsWith('data:image/'));
-  const isApprovedSnapshot = Boolean(
-    isImmediateSnapshot
-    || isFinalizedSnapshot
-    || isRegisteredExactComposition(imageUrl),
+  // Determine composition from the URL that actually decoded and painted, not
+  // merely from the first requested URL. If an exact positioned derivative
+  // fails and the renderer falls back to the original artwork, the original
+  // must receive the saved position/scale. Conversely, a baked snapshot must
+  // never receive the transform a second time.
+  const visibleSourceUrl = renderedSourceUrl || imageUrl || null;
+  const visibleSourceIsExact = Boolean(
+    visibleSourceUrl?.startsWith('data:image/')
+    || isRegisteredExactComposition(visibleSourceUrl)
+    || (
+      isFinalizedSnapshot
+      && (!renderedSourceUrl || renderedSourceUrl === imageUrl)
+    ),
   );
+
   const scaleX = Number.isFinite(imageScale) && imageScale > 0 ? imageScale : 1;
   const requestedScaleY = imageScaleY ?? scaleX;
   const scaleY = Number.isFinite(requestedScaleY) && requestedScaleY > 0
@@ -222,7 +231,8 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
           data-commerce-preview="true"
           data-preview-ready={baseReady ? 'true' : 'false'}
           data-preview-failed={baseFailed ? 'true' : 'false'}
-          data-preview-exact={isApprovedSnapshot ? 'true' : 'false'}
+          data-preview-exact={visibleSourceIsExact ? 'true' : 'false'}
+          data-preview-rendered-source={visibleSourceUrl || undefined}
         >
           {designServiceEnabled ? (
             <div className="absolute inset-0 flex items-center justify-center bg-slate-50 px-2 text-center">
@@ -246,7 +256,7 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
             <div
               className="absolute inset-0 h-full w-full"
               style={{
-                transform: isApprovedSnapshot
+                transform: visibleSourceIsExact
                   ? undefined
                   : `translate(${x}%, ${y}%) scale(${scaleX}, ${scaleY})`,
                 transformOrigin: 'center center',
@@ -259,11 +269,13 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
                 style={{ objectFit: imageObjectFit }}
                 retainPreviousWhileLoading
                 loadTimeoutMs={25_000}
-                onReady={() => {
+                onReady={(result) => {
+                  setRenderedSourceUrl(result.url);
                   setBaseReady(true);
                   setBaseFailed(false);
                 }}
                 onExhausted={() => {
+                  setRenderedSourceUrl(null);
                   setBaseReady(false);
                   setBaseFailed(true);
                 }}
