@@ -18,10 +18,26 @@ export interface ArtworkManifest {
   uploadedAt: string;
 }
 
+/**
+ * Immutable browser proof of the exact customer-approved composition.
+ * Version 2 manifests contain enough identity and geometry to prove that a
+ * cart/checkout thumbnail belongs to this source file, size, crop, and scale.
+ */
 export interface PlacementPreviewManifest {
   url?: string | null;
   publicId?: string | null;
   uploadStatus: ArtworkUploadStatus;
   uploadedAt?: string | null;
   error?: string | null;
+  version?: number | null;
+  signature?: string | null;
+  sourceIdentity?: string | null;
+  widthIn?: number | null;
+  heightIn?: number | null;
+  widthPx?: number | null;
+  heightPx?: number | null;
+  fitMode?: 'fill' | 'fit' | 'stretch' | null;
+  positionPct?: { x: number; y: number } | null;
+  scaleX?: number | null;
+  scaleY?: number | null;
 }
