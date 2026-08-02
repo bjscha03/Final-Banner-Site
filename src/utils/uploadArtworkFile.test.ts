@@ -1,4 +1,3 @@
-import { File as NodeFile } from 'node:buffer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   buildCloudinaryPdfPreviewUrl,
@@ -6,6 +5,21 @@ import {
   uploadArtworkFile,
   validateArtworkFile,
 } from './uploadArtworkFile';
+
+class TestFile extends Blob {
+  readonly name: string;
+  readonly lastModified: number;
+
+  constructor(
+    fileBits: BlobPart[],
+    fileName: string,
+    options: FilePropertyBag = {},
+  ) {
+    super(fileBits, options);
+    this.name = fileName;
+    this.lastModified = options.lastModified ?? Date.now();
+  }
+}
 
 class SuccessfulUploadXhr {
   static sentFormData: FormData | null = null;
@@ -48,7 +62,7 @@ class SuccessfulUploadXhr {
 }
 
 beforeEach(() => {
-  vi.stubGlobal('File', NodeFile);
+  vi.stubGlobal('File', TestFile);
   vi.stubGlobal('window', {
     setTimeout: globalThis.setTimeout.bind(globalThis),
     clearTimeout: globalThis.clearTimeout.bind(globalThis),
@@ -122,7 +136,11 @@ describe('uploadArtworkFile', () => {
 
     const formData = SuccessfulUploadXhr.sentFormData;
     expect(formData).toBeInstanceOf(FormData);
-    expect(formData?.get('file')).toBe(file);
+    const submittedFile = formData?.get('file') as File | null;
+    expect(submittedFile).toBeTruthy();
+    expect(submittedFile?.name).toBe('customer-art.png');
+    expect(submittedFile?.size).toBe(file.size);
+    expect(submittedFile?.type).toBe('image/png');
     expect(formData?.get('api_key')).toBe('public-key');
     expect(formData?.get('timestamp')).toBe('123456');
     expect(formData?.get('signature')).toBe('signature-value');
