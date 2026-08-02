@@ -1,0 +1,91 @@
+name: Verify Thumbnail Previews Across Browser Engines
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/verify-thumbnail-browser-engines.yml'
+      - '.github/scripts/verify-thumbnail-browser-engines.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  browser-engine-preview-matrix:
+    name: ${{ matrix.browser }} preview matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        browser:
+          - chromium
+          - firefox
+          - webkit
+
+    steps:
+      - name: Check out exact merged production source
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install exact application dependencies
+        run: npm ci
+
+      - name: Install Playwright and ${{ matrix.browser }}
+        run: |
+          set -euo pipefail
+          npm install --no-save --package-lock=false playwright@1.54.1
+          npx playwright install --with-deps ${{ matrix.browser }}
+
+      - name: Start the exact merged preview harness
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx vite --config tests/browser/vite.handoff.config.ts > /tmp/vite-preview-engine.log 2>&1 &
+          echo $! > /tmp/vite-preview-engine.pid
+
+          ready='false'
+          for attempt in $(seq 1 90); do
+            status=$(curl --silent --show-error \
+              --output /tmp/preview-engine-shell.html \
+              --write-out '%{http_code}' \
+              http://127.0.0.1:4175/tests/browser/commerce-preview-handoff.html || true)
+            if [[ "${status}" == '200' ]]; then
+              ready='true'
+              break
+            fi
+            sleep 1
+          done
+
+          if [[ "${ready}" != 'true' ]]; then
+            cat /tmp/vite-preview-engine.log
+            exit 1
+          fi
+
+      - name: Run desktop phone-portrait and phone-landscape preview cases
+        env:
+          PLAYWRIGHT_BROWSER: ${{ matrix.browser }}
+          PREVIEW_HARNESS_BASE_URL: http://127.0.0.1:4175
+        run: node .github/scripts/verify-thumbnail-browser-engines.mjs
+
+      - name: Upload verification evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: preview-engine-${{ matrix.browser }}-failure
+          if-no-files-found: ignore
+          path: |
+            test-results/preview-browser-engines/**
+            /tmp/vite-preview-engine.log
+
+      - name: Stop preview server
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f /tmp/vite-preview-engine.pid ]]; then
+            kill "$(cat /tmp/vite-preview-engine.pid)" 2>/dev/null || true
+          fi
