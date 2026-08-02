@@ -110,6 +110,14 @@ test('commerce previews never stretch or crop baked artwork snapshots', () => {
   assert.doesNotMatch(banner, /isApprovedSnapshot\s*\?\s*'fill'/);
 });
 
+test('commerce preview frames use the product ratio instead of containing-block padding math', () => {
+  const banner = read('src/components/cart/StableBannerPreview.tsx');
+
+  assert.match(banner, /aspectRatio:\s*`\$\{safeWidth\} \/ \$\{safeHeight\}`/);
+  assert.equal(banner.includes('paddingBottom: framePaddingBottom'), false);
+  assert.equal(banner.includes('const framePaddingBottom'), false);
+});
+
 test('enlarged previews use safe-area-aware dynamic viewport sizing without zero-scale measurement', () => {
   const lightbox = read('src/components/preview/StableProductPreviewLightbox.tsx');
 
@@ -120,6 +128,19 @@ test('enlarged previews use safe-area-aware dynamic viewport sizing without zero
   assert.match(lightbox, /safe-area-inset-bottom/);
   assert.match(lightbox, /data-expanded-product-preview/);
   assert.match(lightbox, /overflow-x-hidden/);
+});
+
+test('real-browser commerce matrix loads production CSS and validates all core shapes', () => {
+  const harness = read('tests/browser/commerce-preview-handoff.jsx');
+
+  assert.match(harness, /@\/index\.css/);
+  assert.match(harness, /handoff-landscape/);
+  assert.match(harness, /portrait/);
+  assert.match(harness, /square/);
+  assert.match(harness, /extreme-wide/);
+  assert.match(harness, /fallback-chain/);
+  assert.match(harness, /yard-sign-identity/);
+  assert.match(harness, /hasExpectedRatio/);
 });
 
 test('Design and Google Ads use the shared session-stable artwork editor alias', () => {
