@@ -1,0 +1,175 @@
+name: Verify Thumbnail and Expanded Previews Are Live
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/verify-thumbnail-previews-live.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  production-preview-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Wait for production to serve the deterministic preview bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          site='https://bannersonthefly.com'
+          success='false'
+
+          for attempt in $(seq 1 30); do
+            echo "Production preview-bundle verification attempt ${attempt}/30"
+            html_file="$(mktemp)"
+            bundle_file="$(mktemp)"
+
+            status="$({ curl --silent --show-error --location \
+              --output "${html_file}" \
+              --write-out '%{http_code}' \
+              -H 'Cache-Control: no-cache, no-store, must-revalidate' \
+              "${site}/checkout?thumbnail_deploy_check=${GITHUB_RUN_ID}-${attempt}"; } || true)"
+
+            if [[ "${status}" == '200' ]]; then
+              mapfile -t initial_assets < <(
+                grep -oE 'src="[^"]+\.js[^"]*"' "${html_file}" \
+                  | sed -E 's/^src="//; s/"$//' \
+                  | sed -E 's/[?].*$//' \
+                  | sort -u \
+                  || true
+              )
+
+              declare -A seen=()
+              queue=("${initial_assets[@]:-}")
+
+              for depth in 1 2 3 4 5; do
+                next_queue=()
+                for asset_path in "${queue[@]:-}"; do
+                  [[ -z "${asset_path}" ]] && continue
+
+                  if [[ "${asset_path}" == http* ]]; then
+                    asset_url="${asset_path}"
+                    normalized_path="${asset_path}"
+                  else
+                    [[ "${asset_path}" != /* ]] && asset_path="/${asset_path}"
+                    asset_url="${site}${asset_path}"
+                    normalized_path="${asset_path}"
+                  fi
+
+                  [[ -n "${seen[${normalized_path}]:-}" ]] && continue
+                  seen["${normalized_path}"]=1
+
+                  asset_file="$(mktemp)"
+                  separator='?'
+                  [[ "${asset_url}" == *'?'* ]] && separator='&'
+                  if curl --fail --silent --show-error --location \
+                    -H 'Cache-Control: no-cache, no-store, must-revalidate' \
+                    "${asset_url}${separator}thumbnail_deploy_check=${GITHUB_RUN_ID}-${attempt}-${depth}" \
+                    --output "${asset_file}"; then
+                    cat "${asset_file}" >> "${bundle_file}"
+
+                    while IFS= read -r ref; do
+                      [[ -z "${ref}" ]] && continue
+                      case "${ref}" in
+                        ./*) candidate="/assets/${ref#./}" ;;
+                        /assets/*) candidate="${ref}" ;;
+                        assets/*) candidate="/${ref}" ;;
+                        *) continue ;;
+                      esac
+                      [[ -z "${seen[${candidate}]:-}" ]] && next_queue+=("${candidate}")
+                    done < <(
+                      grep -oE '(\./|/assets/|assets/)[A-Za-z0-9._-]+\.js' "${asset_file}" \
+                        | sort -u \
+                        || true
+                    )
+                  fi
+                  rm -f "${asset_file}"
+                done
+                queue=("${next_queue[@]:-}")
+                [[ ${#queue[@]} -eq 0 ]] && break
+              done
+
+              required_markers=(
+                'data-commerce-preview'
+                'data-preview-loading-overlay'
+                'data-preview-exact'
+                'data-expanded-product-preview'
+                'Loading preview'
+                'Preview unavailable'
+                'yard_sign_preview'
+                'placement_preview'
+                'original_fallback'
+                'safe-area-inset-top'
+                'safe-area-inset-bottom'
+              )
+
+              missing='false'
+              for marker in "${required_markers[@]}"; do
+                if ! grep -Fq "${marker}" "${bundle_file}"; then
+                  echo "Production bundle is still missing marker: ${marker}"
+                  missing='true'
+                fi
+              done
+
+              if [[ "${missing}" == 'false' ]]; then
+                success='true'
+                rm -f "${html_file}" "${bundle_file}"
+                break
+              fi
+            else
+              echo "Checkout returned HTTP ${status}."
+            fi
+
+            rm -f "${html_file}" "${bundle_file}"
+            sleep 20
+          done
+
+          if [[ "${success}" != 'true' ]]; then
+            echo 'Production never served the deterministic thumbnail/lightbox bundle.' >&2
+            exit 1
+          fi
+
+          echo 'Production is serving the deterministic thumbnail and expanded-preview bundle.'
+
+      - name: Verify customer-facing routes load the deployed application
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          site='https://bannersonthefly.com'
+          for route in / /design /checkout /google-ads-banner; do
+            safe_name=$(printf '%s' "$route" | tr '/' '_' | sed 's/^_//')
+            [[ -z "${safe_name}" ]] && safe_name='home'
+            status=$(curl --silent --show-error --location \
+              --output "/tmp/${safe_name}.html" \
+              --write-out '%{http_code}' \
+              -H 'Cache-Control: no-cache, no-store, must-revalidate' \
+              "${site}${route}?thumbnail_route_check=${GITHUB_RUN_ID}")
+            test "${status}" = '200'
+            grep -qi '<!doctype html' "/tmp/${safe_name}.html"
+          done
+
+          echo 'Home, Design, Checkout, and Google Ads banner routes are live.'
+
+      - name: Verify the production preview CDN can deliver optimized artwork derivatives
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          derivative='https://res.cloudinary.com/dtrxl120u/image/upload/f_auto,q_auto:good,w_800,c_limit/v1767723458/upscaled-2x-Screenshot_2025-10-07_at_2.29.47_PM_wegqxg_ubaxdz.png'
+          headers_file="$(mktemp)"
+          image_file="$(mktemp)"
+
+          status=$(curl --silent --show-error --location \
+            --dump-header "${headers_file}" \
+            --output "${image_file}" \
+            --write-out '%{http_code}' \
+            "${derivative}?thumbnail_cdn_check=${GITHUB_RUN_ID}")
+
+          test "${status}" = '200'
+          grep -qi '^content-type: image/' "${headers_file}"
+          test -s "${image_file}"
+
+          echo 'Cloudinary is delivering optimized browser preview derivatives.'
