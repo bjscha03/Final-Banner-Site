@@ -5,6 +5,7 @@ import '@neondatabase/serverless';
 import { withLambda } from '@netlify/aws-lambda-compat';
 import legacyModule from './_shared/legacy/paypal-create-order-forward.cjs';
 import displayHelpers from './_shared/legacy/product-display-helpers.cjs';
+import runtimeConfig from './_shared/paypal-runtime-config.cjs';
 
 const PAYPAL_CREATE_ORDER_RE = /\/v2\/checkout\/orders(?:\?|$)/i;
 const MAX_PAYPAL_ITEMS = 100;
@@ -101,6 +102,8 @@ const enhancePayPalOrderRequest = (outboundBody, originalEventBody) => {
 };
 
 const handler = async (event, context) => {
+  runtimeConfig.preparePayPalRuntime();
+
   const originalFetch = globalThis.fetch;
   if (typeof originalFetch !== 'function') return legacyModule.handler(event, context);
 
