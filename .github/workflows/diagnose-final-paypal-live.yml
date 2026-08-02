@@ -1,0 +1,86 @@
+name: Diagnose Final PayPal Live Deploy
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/diagnose-final-paypal-live.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose-production:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Report current production checkout and PayPal config
+        shell: bash
+        run: |
+          set -u
+
+          config_file="$(mktemp)"
+          config_status="$({ curl --silent --show-error --location \
+            --output "${config_file}" \
+            --write-out '%{http_code}' \
+            -H 'Cache-Control: no-cache, no-store, must-revalidate' \
+            "https://bannersonthefly.com/.netlify/functions/paypal-config?diagnostic=${GITHUB_RUN_ID}"; } || true)"
+
+          echo "paypal-config HTTP status: ${config_status}"
+          if [[ "${config_status}" == '200' ]]; then
+            CONFIG_FILE="${config_file}" node -e "const fs=require('node:fs');const p=JSON.parse(fs.readFileSync(process.env.CONFIG_FILE,'utf8'));console.log('paypal-config summary: '+JSON.stringify({enabled:p.enabled,environment:p.environment,components:p.components,fastlane:p.fastlane,clientIdPresent:typeof p.clientId==='string'&&p.clientId.length>0,clientTokenPresent:Object.prototype.hasOwnProperty.call(p,'clientToken')}));"
+          else
+            echo 'paypal-config body:'
+            cat "${config_file}" || true
+          fi
+
+          html_file="$(mktemp)"
+          bundle_file="$(mktemp)"
+          checkout_status="$({ curl --silent --show-error --location \
+            --output "${html_file}" \
+            --write-out '%{http_code}' \
+            -H 'Cache-Control: no-cache, no-store, must-revalidate' \
+            "https://bannersonthefly.com/checkout?diagnostic=${GITHUB_RUN_ID}"; } || true)"
+          echo "checkout HTTP status: ${checkout_status}"
+
+          mapfile -t asset_paths < <(
+            grep -oE 'src="[^"]+\.js[^"]*"' "${html_file}" \
+              | sed -E 's/^src="//; s/"$//' \
+              | sort -u \
+              || true
+          )
+          printf 'checkout assets: %s\n' "${asset_paths[*]:-none}"
+
+          for asset_path in "${asset_paths[@]:-}"; do
+            [[ -z "${asset_path}" ]] && continue
+            if [[ "${asset_path}" == http* ]]; then
+              asset_url="${asset_path}"
+            else
+              asset_url="https://bannersonthefly.com${asset_path}"
+            fi
+            separator='?'
+            [[ "${asset_url}" == *'?'* ]] && separator='&'
+            curl --silent --show-error --location \
+              -H 'Cache-Control: no-cache, no-store, must-revalidate' \
+              "${asset_url}${separator}diagnostic=${GITHUB_RUN_ID}" \
+              >> "${bundle_file}" || true
+          done
+
+          grep -Fq 'bof-paypal-checkout-v5:' "${bundle_file}" && echo 'checkout-v5 marker: present' || echo 'checkout-v5 marker: missing'
+          grep -Fq 'Check payment status' "${bundle_file}" && echo 'payment-status marker: present' || echo 'payment-status marker: missing'
+          grep -Fq 'Pay securely by card or PayPal. No PayPal account required.' "${bundle_file}" && echo 'hosted-buttons marker: present' || echo 'hosted-buttons marker: missing'
+
+          status_endpoint="$({ curl --silent --show-error --location \
+            --output /dev/null \
+            --write-out '%{http_code}' \
+            -X POST -H 'Content-Type: application/json' --data '{}' \
+            'https://bannersonthefly.com/.netlify/functions/paypal-payment-status'; } || true)"
+          echo "payment-status empty-request HTTP status: ${status_endpoint}"
+
+          background_endpoint="$({ curl --silent --show-error --location \
+            --output /dev/null \
+            --write-out '%{http_code}' \
+            -X POST -H 'Content-Type: application/json' \
+            -H 'X-Internal-Job-Secret: intentionally-invalid-production-diagnostic' \
+            --data '{"orderId":"production-diagnostic-no-op"}' \
+            'https://bannersonthefly.com/.netlify/functions/process-paid-order-followups-background'; } || true)"
+          echo "background function HTTP status: ${background_endpoint}"
