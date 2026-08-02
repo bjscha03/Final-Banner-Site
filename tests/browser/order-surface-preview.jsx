@@ -2,10 +2,49 @@ import React, { useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import '@/index.css';
 import OrderItemPreview from '@/components/preview/OrderItemPreview';
+import {
+  PREVIEW_ARTIFACT_VERSION,
+  buildCompositionSignature,
+} from '@/lib/previewLifecycle';
 
 const goodSource = `${window.location.origin}/images/header-logo.png?order-surface-good=1`;
 const fallbackOriginal = `${window.location.origin}/images/header-logo.png?order-surface-original=1`;
 const badSource = `${window.location.origin}/images/does-not-exist-order-preview.png?bad=1`;
+const composition = {
+  version: PREVIEW_ARTIFACT_VERSION,
+  sourceIdentity: 'order-surface-source@1@1',
+  sourceUrl: fallbackOriginal,
+  productType: 'banner',
+  widthIn: 48,
+  heightIn: 24,
+  fitMode: 'fit',
+  transform: { xPct: 9, yPct: -3, scaleX: 1.4, scaleY: 1.2 },
+  revision: 2,
+};
+const placementPreview = {
+  version: PREVIEW_ARTIFACT_VERSION,
+  sourceIdentity: composition.sourceIdentity,
+  sourceUrl: composition.sourceUrl,
+  productType: composition.productType,
+  widthIn: composition.widthIn,
+  heightIn: composition.heightIn,
+  fitMode: composition.fitMode,
+  positionPct: { x: composition.transform.xPct, y: composition.transform.yPct },
+  scaleX: composition.transform.scaleX,
+  scaleY: composition.transform.scaleY,
+  compositionRevision: composition.revision,
+  compositionSignature: buildCompositionSignature(composition),
+  url: goodSource,
+  publicId: 'order-surface-exact',
+  previewUrl: goodSource,
+  previewPublicId: 'order-surface-exact',
+  previewWidthPx: 1200,
+  previewHeightPx: 600,
+  uploadStatus: 'uploaded',
+  createdAt: '2026-08-02T00:00:00.000Z',
+  uploadedAt: '2026-08-02T00:00:00.000Z',
+  error: null,
+};
 
 const item = {
   product_type: 'banner',
@@ -15,8 +54,8 @@ const item = {
   material: '13oz',
   grommets: 'every-2-3ft',
   line_total_cents: 3600,
-  placement_preview: { url: badSource },
-  web_preview_url: goodSource,
+  placement_preview: placementPreview,
+  web_preview_url: badSource,
   file_url: fallbackOriginal,
 };
 

@@ -7,6 +7,10 @@ import {
   getExpandedPreviewSelection,
   getSmallPreviewUrl,
 } from '@/lib/previewSelection';
+import {
+  PREVIEW_ARTIFACT_VERSION,
+  buildCompositionSignature,
+} from '@/lib/previewLifecycle';
 
 const localSvg = `
   <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600" viewBox="0 0 1200 600">
@@ -18,6 +22,45 @@ const localSvg = `
 
 const localBlobUrl = URL.createObjectURL(new Blob([localSvg], { type: 'image/svg+xml' }));
 const localImage = (marker) => `${window.location.origin}/images/header-logo.png?commerce-preview=${marker}`;
+
+function readyPlacement(marker, widthIn, heightIn, productType = 'banner') {
+  const previewUrl = localImage(marker);
+  const spec = {
+    version: PREVIEW_ARTIFACT_VERSION,
+    sourceIdentity: `browser-harness-${marker}@1@1`,
+    sourceUrl: localImage(`original-${marker}`),
+    productType,
+    widthIn,
+    heightIn,
+    fitMode: 'fit',
+    transform: { xPct: 0, yPct: 0, scaleX: 1, scaleY: 1 },
+    revision: 1,
+  };
+  return {
+    version: PREVIEW_ARTIFACT_VERSION,
+    sourceIdentity: spec.sourceIdentity,
+    sourceUrl: spec.sourceUrl,
+    productType,
+    widthIn,
+    heightIn,
+    fitMode: spec.fitMode,
+    positionPct: { x: 0, y: 0 },
+    scaleX: 1,
+    scaleY: 1,
+    compositionRevision: 1,
+    compositionSignature: buildCompositionSignature(spec),
+    url: previewUrl,
+    publicId: `browser-harness-${marker}`,
+    previewUrl,
+    previewPublicId: `browser-harness-${marker}`,
+    previewWidthPx: 1200,
+    previewHeightPx: Math.max(1, Math.round(1200 * heightIn / widthIn)),
+    uploadStatus: 'uploaded',
+    createdAt: '2026-08-02T00:00:00.000Z',
+    uploadedAt: '2026-08-02T00:00:00.000Z',
+    error: null,
+  };
+}
 
 function isPaintedImage(image) {
   if (!(image instanceof HTMLImageElement)) return false;
@@ -149,7 +192,7 @@ function CommercePreviewHarness() {
       widthIn: 48,
       heightIn: 24,
       expectedMarker: 'handoff-permanent',
-      item: { placement_preview: { url: localImage('handoff-permanent') } },
+      item: { placement_preview: readyPlacement('handoff-permanent', 48, 24) },
     },
     {
       id: 'portrait',
@@ -157,7 +200,7 @@ function CommercePreviewHarness() {
       widthIn: 24,
       heightIn: 72,
       expectedMarker: 'portrait',
-      item: { placement_preview: { url: localImage('portrait') } },
+      item: { placement_preview: readyPlacement('portrait', 24, 72) },
     },
     {
       id: 'square',
@@ -181,9 +224,10 @@ function CommercePreviewHarness() {
       widthIn: 48,
       heightIn: 24,
       expectedMarker: 'fallback-good',
+      exact: false,
       item: {
-        placement_preview: { url: `${window.location.origin}/images/does-not-exist.png?bad-primary=1` },
-        web_preview_url: localImage('fallback-good'),
+        web_preview_url: `${window.location.origin}/images/does-not-exist.png?bad-primary=1`,
+        thumbnail_url: localImage('fallback-good'),
         file_url: localImage('fallback-original'),
       },
     },
@@ -195,6 +239,7 @@ function CommercePreviewHarness() {
       expectedMarker: 'yard-sign-first',
       item: {
         product_type: 'yard_sign',
+        placement_preview: readyPlacement('yard-sign-first', 24, 18, 'yard_sign'),
         yard_sign_designs: [
           {
             previewThumbnailUrl: localImage('yard-sign-first'),
@@ -231,6 +276,9 @@ function CommercePreviewHarness() {
         // Exercise the real local-to-permanent handoff while sampling every
         // animation frame. A decoded image must remain visible throughout.
         const handoffRoot = roots.find((root) => root.dataset.previewId === 'handoff-landscape');
+        const warmedHandoff = new Image();
+        warmedHandoff.src = localImage('handoff-permanent');
+        await warmedHandoff.decode();
         let blankSamples = 0;
         let sourceChanges = 0;
         let lastSource = pickVisibleSource(getPaintedImages(handoffRoot));
