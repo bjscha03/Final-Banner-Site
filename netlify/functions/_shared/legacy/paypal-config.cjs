@@ -19,6 +19,34 @@ const reply = (statusCode, body) => ({
   body: JSON.stringify(body),
 });
 
+const firstConfigured = (...names) => {
+  for (const name of names) {
+    const value = process.env[name];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return null;
+};
+
+const resolveCredentials = (environment) => {
+  const suffix = environment.toUpperCase();
+  return {
+    clientId: firstConfigured(
+      `PAYPAL_CLIENT_ID_${suffix}`,
+      `PAYPAL_${suffix}_CLIENT_ID`,
+      'PAYPAL_CLIENT_ID',
+      'VITE_PAYPAL_CLIENT_ID',
+    ),
+    clientSecret: firstConfigured(
+      `PAYPAL_SECRET_${suffix}`,
+      `PAYPAL_CLIENT_SECRET_${suffix}`,
+      `PAYPAL_${suffix}_SECRET`,
+      `PAYPAL_${suffix}_CLIENT_SECRET`,
+      'PAYPAL_SECRET',
+      'PAYPAL_CLIENT_SECRET',
+    ),
+  };
+};
+
 const getAccessToken = async (environment, clientId, clientSecret) => {
   const baseUrl = environment === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
   const response = await fetch(`${baseUrl}/v1/oauth2/token`, {
@@ -29,7 +57,7 @@ const getAccessToken = async (environment, clientId, clientSecret) => {
     },
     body: 'grant_type=client_credentials',
   });
-  const payload = await response.json();
+  const payload = await response.json().catch(() => ({}));
   if (!response.ok || !payload.access_token) throw new Error('PAYPAL_AUTH_FAILED');
   return { baseUrl, accessToken: payload.access_token };
 };
@@ -40,7 +68,7 @@ const getCardFieldsToken = async (environment, clientId, clientSecret) => {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
   });
-  const payload = await response.json();
+  const payload = await response.json().catch(() => ({}));
   if (!response.ok || !payload.client_token) throw new Error('PAYPAL_CARD_TOKEN_FAILED');
   return payload.client_token;
 };
@@ -60,11 +88,14 @@ exports.handler = async (event) => {
     }
 
     const environment = String(process.env.PAYPAL_ENV || 'sandbox').toLowerCase();
-    const clientId = process.env[`PAYPAL_CLIENT_ID_${environment.toUpperCase()}`];
-    const clientSecret = process.env[`PAYPAL_CLIENT_SECRET_${environment.toUpperCase()}`];
+    const { clientId, clientSecret } = resolveCredentials(environment);
 
     if (!clientId || !clientSecret) {
-      console.error('[paypal-config] PayPal client ID is missing', { environment });
+      console.error('[paypal-config] PayPal credentials are missing', {
+        environment,
+        clientIdPresent: Boolean(clientId),
+        clientSecretPresent: Boolean(clientSecret),
+      });
       return reply(500, {
         enabled: false,
         clientId: null,
@@ -83,7 +114,9 @@ exports.handler = async (event) => {
       clientToken,
     });
   } catch (error) {
-    console.error('[paypal-config] unexpected error', error);
+    console.error('[paypal-config] unexpected error', {
+      message: error instanceof Error ? error.message : String(error),
+    });
     return reply(500, {
       enabled: false,
       clientId: null,
@@ -93,3 +126,5 @@ exports.handler = async (event) => {
     });
   }
 };
+
+exports._test = { firstConfigured, resolveCredentials };
