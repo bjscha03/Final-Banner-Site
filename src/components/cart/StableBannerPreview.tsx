@@ -112,7 +112,6 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
   const aspectRatio = safeWidth / safeHeight;
   const maxSize = Math.max(80, maxSizeProp ?? 200);
   const previewWidth = aspectRatio >= 1 ? maxSize : maxSize * aspectRatio;
-  const framePaddingBottom = `${(safeHeight / safeWidth) * 100}%`;
   const largePreview = maxSize > 400;
 
   const imageSources = useMemo(() => {
@@ -207,14 +206,14 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
         style={{
           width: `${previewWidth}px`,
           maxWidth: largePreview
-            ? `min(100%, calc(68dvh * ${aspectRatio}))`
+            ? `min(100%, calc((100dvh - 160px) * ${aspectRatio}))`
             : '100%',
         }}
       >
         <div
-          className="relative w-full overflow-hidden rounded-lg border-2 border-gray-200 bg-white shadow-lg"
+          className="relative block w-full overflow-hidden rounded-lg border-2 border-gray-200 bg-white shadow-lg"
           style={{
-            paddingBottom: framePaddingBottom,
+            aspectRatio: `${safeWidth} / ${safeHeight}`,
             minHeight: '1px',
             contain: 'layout paint',
           }}
