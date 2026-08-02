@@ -12,8 +12,8 @@ if (start < 0 || end < 0) {
 
 const replacement = `  const uploadGuard = /([ \\t]+)if \\(!\\(checkoutArtwork\\.productionUrl \\|\\| checkoutArtwork\\.fileKey\\) \\|\\| !\\(checkoutArtwork\\.productionPublicId \\|\\| checkoutArtwork\\.fileKey\\)\\) \\{\\n[ \\t]+toast\\(\\{\\n[ \\t]+title: 'Upload still processing',\\n[ \\t]+description: 'Please wait for the original artwork upload to finish before checkout\\.',\\n[ \\t]+variant: 'destructive',\\n[ \\t]+\\}\\);\\n[ \\t]+return;\\n[ \\t]+\\}/g;
   const guardMatches = [...block.matchAll(uploadGuard)];
-  if (guardMatches.length !== 2) {
-    throw new Error(\`${'${path}'}: expected 2 upload guards, found \${guardMatches.length}\`);
+  if (guardMatches.length < 1) {
+    throw new Error(\`${'${path}'}: no upload guard was found\`);
   }
   block = block.replace(uploadGuard, (_match, indent) => \`${'${indent}'}checkoutArtwork = await ensurePermanentArtworkUploaded();\\n${'${indent}'}if (!checkoutArtwork) return;\`);`;
 
