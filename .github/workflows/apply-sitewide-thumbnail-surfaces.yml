@@ -39,6 +39,10 @@ jobs:
           node scripts/patch-customer-order-previews.mjs
           node scripts/patch-admin-email-previews.mjs
           node scripts/patch-yard-sign-preview-identity.mjs
+          # The repository GitHub App can push source code but cannot update an
+          # existing workflow file. The new tests still run explicitly below;
+          # restore the permanent workflow before creating the source commit.
+          git checkout -- .github/workflows/order-email-tracking-regressions.yml
 
       - name: Run sitewide preview regression tests
         run: |
@@ -62,12 +66,11 @@ jobs:
           npm run build
           git diff --check
 
-      - name: Remove one-time patch machinery
+      - name: Remove source patch scripts
         run: |
           rm -f scripts/patch-customer-order-previews.mjs
           rm -f scripts/patch-admin-email-previews.mjs
           rm -f scripts/patch-yard-sign-preview-identity.mjs
-          rm -f .github/workflows/apply-sitewide-thumbnail-surfaces.yml
 
       - name: Commit validated source repair
         run: |
