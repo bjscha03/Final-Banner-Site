@@ -49,24 +49,34 @@ if (!updated.includes("decodedSource(expandedSource).includes('UPSELL-APPROVED-C
 await fs.writeFile(path, updated, 'utf8');
 console.log('[upsell-harness] data URL marker assertions now decode before matching');
 
-// The preceding handoff generator writes this source-code assertion inside a
-// JavaScript template literal. Its single backslashes are consumed while that
-// template is evaluated, turning the intended literal-parentheses regex into a
-// different regex that cannot match the valid JSX. Replace it with an exact
-// string assertion so CI verifies the real prop without regex escaping hazards.
+// The handoff generator writes source-code assertions inside a JavaScript
+// template literal. Backslashes in regex literals are consumed while that
+// template is evaluated, so use exact string assertions for JSX/import checks.
 const previewTestPath = 'netlify/functions/__tests__/preview-pipeline.test.cjs';
-const previewTestSource = await fs.readFile(previewTestPath, 'utf8');
-const brokenAssertion = "  assert.match(design, /thumbnailIsExactComposition={Boolean(pendingUpsellThumbnailUrl)}/);";
-const fixedAssertion = "  assert.equal(design.includes('thumbnailIsExactComposition={Boolean(pendingUpsellThumbnailUrl)}'), true);";
+let previewTestSource = await fs.readFile(previewTestPath, 'utf8');
 
-if (!previewTestSource.includes(brokenAssertion)) {
-  throw new Error('Generated Upsell exact-composition assertion was not found.');
+const replacements = [
+  [
+    "  assert.match(design, /thumbnailIsExactComposition={Boolean(pendingUpsellThumbnailUrl)}/);",
+    "  assert.equal(design.includes('thumbnailIsExactComposition={Boolean(pendingUpsellThumbnailUrl)}'), true);",
+    'generated exact-composition prop assertion',
+  ],
+  [
+    "  assert.match(upsell, /from './StableBannerPreview'/);",
+    "  assert.equal(upsell.includes(\"from './StableBannerPreview'\"), true);",
+    'generated stable-renderer import assertion',
+  ],
+];
+
+for (const [brokenAssertion, fixedAssertion, label] of replacements) {
+  if (!previewTestSource.includes(brokenAssertion)) {
+    throw new Error(`${label} was not found.`);
+  }
+  previewTestSource = previewTestSource.replace(brokenAssertion, fixedAssertion);
+  if (!previewTestSource.includes(fixedAssertion)) {
+    throw new Error(`${label} was not repaired.`);
+  }
 }
 
-const updatedPreviewTest = previewTestSource.replace(brokenAssertion, fixedAssertion);
-if (!updatedPreviewTest.includes(fixedAssertion)) {
-  throw new Error('Generated Upsell exact-composition assertion was not repaired.');
-}
-
-await fs.writeFile(previewTestPath, updatedPreviewTest, 'utf8');
-console.log('[upsell-harness] exact-composition source assertion now uses a literal string check');
+await fs.writeFile(previewTestPath, previewTestSource, 'utf8');
+console.log('[upsell-harness] generated JSX/import assertions now use literal string checks');
