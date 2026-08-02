@@ -1,9 +1,9 @@
 name: Apply Sitewide Thumbnail Surface Hardening
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/finalize-sitewide-thumbnail-surfaces
+      - main
     paths:
       - 'scripts/patch-customer-order-previews.mjs'
       - 'scripts/patch-admin-email-previews.mjs'
@@ -14,13 +14,14 @@ permissions:
 
 jobs:
   apply-and-validate:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
       - name: Check out repair branch
         uses: actions/checkout@v4
         with:
-          ref: agent/finalize-sitewide-thumbnail-surfaces
+          ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
 
       - name: Use Node.js 20
@@ -72,4 +73,4 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
           git commit -m 'Finalize thumbnails across confirmation orders Admin and Resend'
-          git push origin HEAD:agent/finalize-sitewide-thumbnail-surfaces
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
