@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import '@/index.css';
 import BannerPreview from '@/components/cart/BannerPreview';
 import ThumbnailPreviewWrapper from '@/components/preview/ThumbnailPreviewWrapper';
 import {
@@ -61,6 +62,14 @@ function rectDetails(node) {
     right: rect.right,
     bottom: rect.bottom,
   };
+}
+
+function hasExpectedRatio(rect, widthIn, heightIn) {
+  if (!rect || rect.width <= 0 || rect.height <= 0 || widthIn <= 0 || heightIn <= 0) return false;
+  const expected = widthIn / heightIn;
+  const actual = rect.width / rect.height;
+  const tolerance = Math.max(0.02, expected * 0.015);
+  return Math.abs(actual - expected) <= tolerance;
 }
 
 const delay = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -246,6 +255,9 @@ function CommercePreviewHarness() {
           if (cancelled) return;
           const id = root.dataset.previewId;
           const expectedMarker = root.dataset.expectedMarker;
+          const testCase = cases.find((candidate) => candidate.id === id);
+          if (!testCase) throw new Error(`missing test configuration for ${id}`);
+
           const frame = getPreviewFrame(root);
           const smallImages = getPaintedImages(root);
           const smallSource = pickVisibleSource(smallImages);
@@ -257,6 +269,9 @@ function CommercePreviewHarness() {
           }
           if (!frameRect || frameRect.width <= 0 || frameRect.height <= 0 || frameRect.right > viewportWidth + 1) {
             throw new Error(`${id} thumbnail geometry overflowed the viewport`);
+          }
+          if (!hasExpectedRatio(frameRect, testCase.widthIn, testCase.heightIn)) {
+            throw new Error(`${id} thumbnail ratio was ${frameRect.width / frameRect.height}; expected ${testCase.widthIn / testCase.heightIn}`);
           }
 
           const openButton = root.querySelector(`button[aria-label="Open enlarged commerce preview ${id}"]`);
@@ -297,20 +312,28 @@ function CommercePreviewHarness() {
           if (!largeSource.includes(expectedMarker)) {
             throw new Error(`${id} expanded preview drifted to another artwork: ${largeSource}`);
           }
+          if (!hasExpectedRatio(largeRect, testCase.widthIn, testCase.heightIn)) {
+            throw new Error(`${id} expanded ratio was ${largeRect.width / largeRect.height}; expected ${testCase.widthIn / testCase.heightIn}`);
+          }
+
           const geometryPassed = Boolean(
             panelRect
             && largeRect
             && closeRect
             && panelRect.width > 0
             && panelRect.height > 0
-            && panelRect.width <= viewport.width + 1
-            && panelRect.height <= viewport.height + 1
+            && panelRect.x >= -1
+            && panelRect.y >= -1
+            && panelRect.right <= viewport.width + 1
+            && panelRect.bottom <= viewport.height + 1
             && largeRect.width > 0
             && largeRect.height > 0
+            && largeRect.x >= -1
             && largeRect.right <= viewport.width + 1
             && closeRect.x >= -1
             && closeRect.y >= -1
-            && closeRect.right <= viewport.width + 1,
+            && closeRect.right <= viewport.width + 1
+            && closeRect.bottom <= viewport.height + 1,
           );
           if (!geometryPassed) throw new Error(`${id} lightbox geometry failed`);
 
@@ -322,6 +345,7 @@ function CommercePreviewHarness() {
             largeRect,
             panelRect,
             viewport,
+            expectedRatio: testCase.widthIn / testCase.heightIn,
           });
 
           closeButton.click();
@@ -330,6 +354,10 @@ function CommercePreviewHarness() {
             3_000,
             `${id} lightbox did not close`,
           );
+          // Let the lightbox effect restore body/html overflow before the CDP
+          // runner records the final viewport. This catches a real scroll-lock
+          // leak without treating a normal desktop scrollbar as bad emulation.
+          await delay(75);
         }
 
         if (!cancelled) {
