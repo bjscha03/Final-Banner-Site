@@ -1,7 +1,12 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link2, Maximize2, Minimize2, RotateCcw, Unlink2 } from 'lucide-react';
 import { getPreviewCrossOrigin, resolveArtworkPreviewImageSrc } from './artworkPreviewSource';
+import {
+  PreviewLifecycleError,
+  normalizedTransformFromPixels,
+  type NormalizedArtworkTransform,
+} from '@/lib/previewLifecycle';
 
 export type ArtworkTransform = {
   x: number;
@@ -32,11 +37,27 @@ export interface ArtworkPreviewEditorProps {
   mobileToolbarContainer?: HTMLElement | null;
   imageCrossOrigin?: '' | 'anonymous' | 'use-credentials';
   onRetryPreview?: () => void | Promise<void>;
+  /** Source + product configuration key used to isolate normalized geometry. */
+  compositionKey?: string;
+}
+
+export type ArtworkCompositionSnapshot = {
+  compositionKey: string;
+  canvasWidthPx: number;
+  canvasHeightPx: number;
+  naturalWidthPx: number;
+  naturalHeightPx: number;
+  transform: NormalizedArtworkTransform;
+  revision: number;
+};
+
+export interface ArtworkPreviewEditorHandle {
+  getCompositionSnapshot: () => ArtworkCompositionSnapshot;
 }
 
 type Corner = 'tl' | 'tr' | 'bl' | 'br';
 type Size = { w: number; h: number };
-type NormalizedPosition = { xPct: number; yPct: number };
+type NormalizedPosition = { xPct: number; yPct: number; revision: number };
 
 const MIN_SCALE = 0.2;
 const MAX_SCALE = 5;
@@ -57,7 +78,7 @@ function isTopmostCanvas(node: HTMLElement): boolean {
   return Boolean(top && node.contains(top));
 }
 
-const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
+const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPreviewEditorProps>(({
   src,
   previewUrl,
   productionUrl,
@@ -79,9 +100,10 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
   mobileToolbarContainer,
   imageCrossOrigin,
   onRetryPreview,
-}) => {
+  compositionKey,
+}, forwardedRef) => {
   const imageSrc = resolveArtworkPreviewImageSrc({ src, previewUrl, resourceType, mimeType });
-  const artworkKey = productionUrl || imageSrc || src;
+  const artworkKey = compositionKey || productionUrl || imageSrc || src;
   const resolvedCrossOrigin = getPreviewCrossOrigin(imageSrc, imageCrossOrigin);
 
   const internalRef = useRef<HTMLDivElement | null>(null);
@@ -89,6 +111,7 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
   const canvasSizeRef = useRef<Size | null>(null);
   const valueRef = useRef(value);
   valueRef.current = value;
+  const localValueRef = useRef(value);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
   const constrainRef = useRef(constrain);
@@ -171,14 +194,57 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
   const commitTransform = useCallback((next: ArtworkTransform, updateNormalized = true) => {
     const size = canvasSizeRef.current;
     if (updateNormalized && size?.w && size?.h) {
+      const previous = normalizedPositionByArtwork.get(artworkKey);
       normalizedPositionByArtwork.set(artworkKey, {
         xPct: next.x / size.w,
         yPct: next.y / size.h,
+        revision: (previous?.revision ?? 0) + 1,
       });
     }
+    localValueRef.current = next;
     valueRef.current = next;
     onChangeRef.current(next);
   }, [artworkKey]);
+
+  useImperativeHandle(forwardedRef, () => ({
+    getCompositionSnapshot: () => {
+      const node = internalRef.current;
+      const image = imageRef.current;
+      const rect = node?.getBoundingClientRect();
+      if (!node || !rect || rect.width <= 0 || rect.height <= 0) {
+        throw new PreviewLifecycleError(
+          'PREVIEW_GEOMETRY_NOT_READY',
+          'The actual artwork editor canvas has no usable dimensions.',
+          { compositionKey: artworkKey, width: rect?.width, height: rect?.height },
+        );
+      }
+      if (loading || previewError || !image?.complete || !image.naturalWidth || !image.naturalHeight) {
+        throw new PreviewLifecycleError(
+          'SOURCE_IMAGE_DECODE_FAILED',
+          previewError || 'The artwork editor image is not decoded yet.',
+          { compositionKey: artworkKey, loading },
+        );
+      }
+      const transform = normalizedTransformFromPixels(localValueRef.current, {
+        width: rect.width,
+        height: rect.height,
+      });
+      const canonical = normalizedPositionByArtwork.get(artworkKey);
+      return {
+        compositionKey: artworkKey,
+        canvasWidthPx: rect.width,
+        canvasHeightPx: rect.height,
+        naturalWidthPx: image.naturalWidth,
+        naturalHeightPx: image.naturalHeight,
+        transform: canonical ? {
+          ...transform,
+          xPct: Number((canonical.xPct * 100).toFixed(6)),
+          yPct: Number((canonical.yPct * 100).toFixed(6)),
+        } : transform,
+        revision: canonical?.revision ?? 0,
+      };
+    },
+  }), [artworkKey, loading, previewError]);
 
   useEffect(() => {
     const node = internalRef.current;
@@ -198,6 +264,7 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
         normalized = {
           xPct: base.w ? valueRef.current.x / base.w : 0,
           yPct: base.h ? valueRef.current.y / base.h : 0,
+          revision: 0,
         };
         normalizedPositionByArtwork.set(artworkKey, normalized);
       }
@@ -239,11 +306,25 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
       ? { left: 0, top: 0, width: canvasSize.w, height: canvasSize.h }
       : null;
 
+  // `value.x/y` is retained for compatibility with the parent builder state,
+  // but pixels are local to a mounted canvas. Render each inline/modal editor
+  // from the shared normalized position so two differently-sized canvases
+  // always show the same approved composition.
+  const normalizedPosition = normalizedPositionByArtwork.get(artworkKey);
+  const localValue: ArtworkTransform = normalizedPosition && canvasSize
+    ? {
+        ...value,
+        x: normalizedPosition.xPct * canvasSize.w,
+        y: normalizedPosition.yPct * canvasSize.h,
+      }
+    : value;
+  localValueRef.current = localValue;
+
   const artworkFrame = baseRect ? {
-    left: baseRect.left + (baseRect.width - baseRect.width * value.scaleX) / 2 + value.x,
-    top: baseRect.top + (baseRect.height - baseRect.height * value.scaleY) / 2 + value.y,
-    width: Math.max(1, baseRect.width * value.scaleX),
-    height: Math.max(1, baseRect.height * value.scaleY),
+    left: baseRect.left + (baseRect.width - baseRect.width * localValue.scaleX) / 2 + localValue.x,
+    top: baseRect.top + (baseRect.height - baseRect.height * localValue.scaleY) / 2 + localValue.y,
+    width: Math.max(1, baseRect.width * localValue.scaleX),
+    height: Math.max(1, baseRect.height * localValue.scaleY),
   } : null;
 
   const dragRef = useRef({ active: false, pointerId: -1, startX: 0, startY: 0, original: value });
@@ -290,14 +371,14 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
       const rect = node.getBoundingClientRect();
       pinchRef.current = {
         startDistance: Math.max(1, Math.hypot(b.x - a.x, b.y - a.y)),
-        startScaleX: valueRef.current.scaleX,
-        startScaleY: valueRef.current.scaleY,
+        startScaleX: localValueRef.current.scaleX,
+        startScaleY: localValueRef.current.scaleY,
         startCenterX: (a.x + b.x) / 2,
         startCenterY: (a.y + b.y) / 2,
         canvasCenterX: rect.left + rect.width / 2,
         canvasCenterY: rect.top + rect.height / 2,
-        originalX: valueRef.current.x,
-        originalY: valueRef.current.y,
+        originalX: localValueRef.current.x,
+        originalY: localValueRef.current.y,
       };
       dragRef.current.active = false;
       return;
@@ -308,7 +389,7 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
-      original: valueRef.current,
+      original: localValueRef.current,
     };
   }, []);
 
@@ -323,10 +404,10 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
       corner,
       startX: event.clientX,
       startY: event.clientY,
-      startScaleX: valueRef.current.scaleX,
-      startScaleY: valueRef.current.scaleY,
-      originalX: valueRef.current.x,
-      originalY: valueRef.current.y,
+      startScaleX: localValueRef.current.scaleX,
+      startScaleY: localValueRef.current.scaleY,
+      originalX: localValueRef.current.x,
+      originalY: localValueRef.current.y,
       baseW,
       baseH,
     };
@@ -428,8 +509,8 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
   const toggleConstrain = useCallback(() => {
     const next = !constrain;
     onConstrainChange(next);
-    if (next && valueRef.current.scaleX !== valueRef.current.scaleY) {
-      commitTransform({ ...valueRef.current, scaleY: valueRef.current.scaleX });
+    if (next && localValueRef.current.scaleX !== localValueRef.current.scaleY) {
+      commitTransform({ ...localValueRef.current, scaleY: localValueRef.current.scaleX });
     }
   }, [constrain, onConstrainChange, commitTransform]);
 
@@ -527,6 +608,8 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
         : null}
     </div>
   );
-};
+});
+
+ArtworkPreviewEditor.displayName = 'ArtworkPreviewEditor';
 
 export default ArtworkPreviewEditor;

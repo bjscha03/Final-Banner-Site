@@ -25,10 +25,10 @@ test('cart and checkout thumbnails render immediately without an idle skeleton s
   assert.equal(cartModal.includes('enableHeavyPreviews'), false);
   assert.equal(cartModal.includes('requestIdleCallback'), false);
   assert.equal(cartModal.includes('animate-pulse'), false);
-  assert.match(cartModal, /getSmallPreviewUrl/);
+  assert.match(cartModal, /getSmallPreviewSelection/);
   assert.match(cartModal, /getExpandedPreviewSelection/);
   assert.match(cartModal, /<BannerPreview/);
-  assert.match(checkout, /getSmallPreviewUrl/);
+  assert.match(checkout, /getSmallPreviewSelection/);
   assert.match(checkout, /getExpandedPreviewSelection/);
   assert.match(checkout, /<BannerPreview/);
 });
@@ -83,6 +83,42 @@ test('active design canvas uses one persistent DOM image instead of commerce ima
   assert.equal(originalEditor.includes('StablePreviewImage'), false);
   assert.match(originalEditor, /<img/);
   assert.match(originalEditor, /key=\{`\$\{imageSrc\}-\$\{retryNonce\}`\}/);
+});
+
+test('inline and modal editors project one normalized composition into local canvas pixels', () => {
+  const editor = read('src/components/design/ArtworkPreviewEditor.tsx');
+
+  assert.match(editor, /normalizedPosition\.xPct \* canvasSize\.w/);
+  assert.match(editor, /normalizedPosition\.yPct \* canvasSize\.h/);
+  assert.match(editor, /normalizedTransformFromPixels\(localValueRef\.current/);
+  assert.match(editor, /original: localValueRef\.current/);
+});
+
+test('cart reload never reconstructs an original thumbnail after canonical validation fails', () => {
+  const cartLoad = read('netlify/functions/_shared/legacy/cart-load.cjs');
+
+  assert.match(cartLoad, /!placementValidationFailed && !exactPlacementUrl/);
+  assert.match(cartLoad, /uploadStatus: 'failed'/);
+});
+
+test('legacy direct PayPal capture validates first and preserves the full production payload', () => {
+  const capture = read('netlify/functions/_shared/legacy/paypal-capture-order.cjs');
+  const validation = capture.indexOf('persistableCartItems = cartItems.map');
+  const providerCredentials = capture.indexOf('getPayPalCredentials()');
+
+  assert.ok(validation > -1 && providerCredentials > validation);
+  for (const field of [
+    'artwork_manifest',
+    'placement_preview',
+    'canvas_state_json',
+    'overlay_images',
+    'yard_sign_designs',
+    'yard_sign_sidedness',
+    'yard_sign_step_stakes_qty',
+  ]) {
+    assert.match(capture, new RegExp(`\\b${field}\\b`));
+  }
+  assert.match(capture, /processAIArtworkForOrder\(orderId, persistableCartItems\)/);
 });
 
 test('selected URLs carry automatic persistent artwork fallbacks and exact-composition metadata', () => {

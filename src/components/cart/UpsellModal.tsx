@@ -51,6 +51,8 @@ export interface UpsellModalProps {
   onClose: () => void;
   quote: QuoteState;
   thumbnailUrl?: string; // Canvas thumbnail for preview
+  thumbnailIsExactComposition?: boolean;
+  thumbnailCompositionSignature?: string;
   onContinue: (selectedOptions: UpsellOption[], dontAskAgain: boolean) => void;
   actionType: 'cart' | 'checkout' | 'update';
   designServiceEnabled?: boolean; // For design service orders to show placeholder thumbnail
@@ -63,6 +65,8 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
   onClose,
   quote,
   thumbnailUrl,
+  thumbnailIsExactComposition = false,
+  thumbnailCompositionSignature,
   onContinue,
   actionType,
   designServiceEnabled = false,
@@ -368,6 +372,8 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
                     imagePosition={quote.imagePosition}
                     fitMode={quote.fitMode || "fill"}
                     designServiceEnabled={designServiceEnabled}
+                    isFinalizedSnapshot={thumbnailIsExactComposition}
+                    compositionSignature={thumbnailCompositionSignature}
                     maxSize={820}
                   />
                 }
@@ -386,6 +392,8 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
                   imagePosition={quote.imagePosition}
                   fitMode={quote.fitMode || "fill"}
                   designServiceEnabled={designServiceEnabled}
+                  isFinalizedSnapshot={thumbnailIsExactComposition}
+                  compositionSignature={thumbnailCompositionSignature}
                 />
               </ThumbnailPreviewWrapper>
                 );

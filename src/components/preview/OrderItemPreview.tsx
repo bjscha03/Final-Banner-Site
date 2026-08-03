@@ -9,7 +9,7 @@ import {
 } from '@/lib/product-display';
 import {
   getExpandedPreviewSelection,
-  getSmallPreviewUrl,
+  getSmallPreviewSelection,
   type PreviewableItem,
 } from '@/lib/previewSelection';
 import { hasExactCompositionPreview } from '@/lib/previewComposition';
@@ -25,6 +25,7 @@ export type OrderPreviewItem = NormalizableOrderItem & PreviewableItem & {
   fit_mode?: 'fill' | 'fit' | 'stretch' | null;
   design_service_enabled?: boolean | null;
   source?: string | null;
+  composition_signature?: string | null;
 };
 
 export interface OrderItemPreviewProps {
@@ -49,11 +50,13 @@ const OrderItemPreview: React.FC<OrderItemPreviewProps> = ({
   showResolutionStatus = true,
 }) => {
   const normalized = normalizeOrderItemDisplay(item);
-  const smallPreviewUrl = getSmallPreviewUrl(item);
+  const smallPreview = getSmallPreviewSelection(item);
   const expandedPreview = getExpandedPreviewSelection(item);
   const widthIn = Number(item.width_in) > 0 ? Number(item.width_in) : 24;
   const heightIn = Number(item.height_in) > 0 ? Number(item.height_in) : 18;
   const exactComposition = hasExactCompositionPreview(item);
+  const compositionSignature = item.placement_preview?.compositionSignature
+    || item.composition_signature;
   const grommets = getGrommetModeForPreview(item);
   const imagePosition = {
     x: Number(item.image_position?.x || 0),
@@ -104,6 +107,7 @@ const OrderItemPreview: React.FC<OrderItemPreviewProps> = ({
       designServiceEnabled={Boolean(item.design_service_enabled)}
       source={item.source || undefined}
       isFinalizedSnapshot={finalized}
+      compositionSignature={compositionSignature}
       maxSize={maxSize}
     />
   );
@@ -131,12 +135,12 @@ const OrderItemPreview: React.FC<OrderItemPreviewProps> = ({
             {renderPreview(
               expandedPreview.url,
               expandedMaxSize,
-              exactComposition || expandedPreview.source !== 'original_fallback',
+              expandedPreview.isExactComposition,
             )}
           </div>
         )}
       >
-        {renderPreview(smallPreviewUrl, compactMaxSize, exactComposition)}
+        {renderPreview(smallPreview.url, compactMaxSize, smallPreview.isExactComposition || exactComposition)}
       </ThumbnailPreviewWrapper>
     </div>
   );

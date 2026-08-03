@@ -10,7 +10,7 @@ import { getProductCopy, getDominantProductType } from '@/lib/product-copy';
 import CartItemBreakdown from './cart/CartItemBreakdown';
 import DeliveryTimer from './delivery/DeliveryTimer';
 import { getGrommetLabelForDisplay, getGrommetModeForPreview } from '@/lib/cartGrommet';
-import { getExpandedPreviewSelection, getSmallPreviewUrl } from '@/lib/previewSelection';
+import { getExpandedPreviewSelection, getSmallPreviewSelection } from '@/lib/previewSelection';
 
 interface CartModalProps {
   isOpen: boolean;
@@ -134,8 +134,10 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                   const normalized = normalizeOrderItemDisplay(item as NormalizableOrderItem);
                   const grommetLabel = getGrommetLabelForDisplay(item, normalized.grommetsDisplay);
                   const grommetMode = getGrommetModeForPreview(item);
-                  const smallPreviewUrl = getSmallPreviewUrl(item);
+                  const smallPreview = getSmallPreviewSelection(item);
                   const expandedPreview = getExpandedPreviewSelection(item);
+                  const compositionSignature = item.placement_preview?.compositionSignature
+                    || item.composition_signature;
 
                   return (
                     <div key={item.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-lg transition-shadow hover:shadow-xl">
@@ -182,7 +184,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                                 className="flex-shrink-0"
                                 designServiceEnabled={item.design_service_enabled}
                                 source={item.source}
-                                isFinalizedSnapshot={expandedPreview.source === 'web_preview' || expandedPreview.source === 'final_render'}
+                                isFinalizedSnapshot={expandedPreview.isExactComposition}
+                                compositionSignature={compositionSignature}
                                 maxSize={820}
                               />
                             </div>
@@ -192,7 +195,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                             widthIn={item.width_in}
                             heightIn={item.height_in}
                             grommets={grommetMode}
-                            imageUrl={smallPreviewUrl}
+                            imageUrl={smallPreview.url}
                             material={item.material}
                             textElements={item.text_elements}
                             overlayImage={item.overlay_image}
@@ -203,7 +206,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                             className="flex-shrink-0"
                             designServiceEnabled={item.design_service_enabled}
                             source={item.source}
-                            isFinalizedSnapshot={Boolean(item.thumbnail_url)}
+                            isFinalizedSnapshot={smallPreview.isExactComposition}
+                            compositionSignature={compositionSignature}
                           />
                         </ThumbnailPreviewWrapper>
                       </div>

@@ -41,8 +41,21 @@ interface CartEventData {
 const SESSION_COOKIE_NAME = 'cart_session_id';
 const SESSION_LIFETIME_DAYS = 90;
 
+type QueuedCartSave = {
+  items: CartItem[];
+  userId?: string;
+  sessionId?: string;
+  waiters: Array<(success: boolean) => void>;
+};
+
+type CartSaveQueue = {
+  running: boolean;
+  pending: QueuedCartSave | null;
+};
+
 class CartSyncService {
   private requestIdCounter = 0;
+  private saveQueues = new Map<string, CartSaveQueue>();
 
   /**
    * Generate a unique request ID for tracking
@@ -310,6 +323,57 @@ class CartSyncService {
    * Also saves snapshot to abandoned_carts table for recovery tracking
    */
   async saveCart(items: CartItem[], userId?: string, sessionId?: string): Promise<boolean> {
+    const ownerKey = userId
+      ? `user:${userId}`
+      : sessionId
+        ? `session:${sessionId}`
+        : null;
+    if (!ownerKey) return this.saveCartNow(items, userId, sessionId);
+
+    return new Promise<boolean>((resolve) => {
+      let queue = this.saveQueues.get(ownerKey);
+      if (!queue) {
+        queue = { running: false, pending: null };
+        this.saveQueues.set(ownerKey, queue);
+      }
+
+      if (queue.pending) {
+        // A save is already waiting behind the active request. Replace its
+        // payload with the newest full-cart snapshot and let every coalesced
+        // caller observe the result of that authoritative save.
+        queue.pending.items = items;
+        queue.pending.userId = userId;
+        queue.pending.sessionId = sessionId;
+        queue.pending.waiters.push(resolve);
+      } else {
+        queue.pending = { items, userId, sessionId, waiters: [resolve] };
+      }
+
+      void this.drainSaveQueue(ownerKey, queue);
+    });
+  }
+
+  private async drainSaveQueue(ownerKey: string, queue: CartSaveQueue): Promise<void> {
+    if (queue.running) return;
+    queue.running = true;
+    try {
+      while (queue.pending) {
+        const next = queue.pending;
+        queue.pending = null;
+        const success = await this.saveCartNow(next.items, next.userId, next.sessionId);
+        next.waiters.forEach((resolve) => resolve(success));
+      }
+    } finally {
+      queue.running = false;
+      if (queue.pending) {
+        void this.drainSaveQueue(ownerKey, queue);
+      } else if (this.saveQueues.get(ownerKey) === queue) {
+        this.saveQueues.delete(ownerKey);
+      }
+    }
+  }
+
+  private async saveCartNow(items: CartItem[], userId?: string, sessionId?: string): Promise<boolean> {
     const requestId = this.generateRequestId();
 
     if (!userId && !sessionId) {

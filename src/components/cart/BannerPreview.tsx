@@ -34,6 +34,7 @@ interface BannerPreviewProps {
   isFinalizedSnapshot?: boolean;
   /** Maximum width/height of the preview frame in pixels. */
   maxSize?: number;
+  compositionSignature?: string | null;
 }
 
 interface Point {

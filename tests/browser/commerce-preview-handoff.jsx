@@ -7,6 +7,10 @@ import {
   getExpandedPreviewSelection,
   getSmallPreviewUrl,
 } from '@/lib/previewSelection';
+import {
+  PREVIEW_ARTIFACT_VERSION,
+  buildCompositionSignature,
+} from '@/lib/previewLifecycle';
 
 const localSvg = `
   <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600" viewBox="0 0 1200 600">
@@ -18,6 +22,45 @@ const localSvg = `
 
 const localBlobUrl = URL.createObjectURL(new Blob([localSvg], { type: 'image/svg+xml' }));
 const localImage = (marker) => `${window.location.origin}/images/header-logo.png?commerce-preview=${marker}`;
+
+function readyPlacement(marker, widthIn, heightIn, productType = 'banner') {
+  const previewUrl = localImage(marker);
+  const spec = {
+    version: PREVIEW_ARTIFACT_VERSION,
+    sourceIdentity: `browser-harness-${marker}@1@1`,
+    sourceUrl: localImage(`original-${marker}`),
+    productType,
+    widthIn,
+    heightIn,
+    fitMode: 'fit',
+    transform: { xPct: 0, yPct: 0, scaleX: 1, scaleY: 1 },
+    revision: 1,
+  };
+  return {
+    version: PREVIEW_ARTIFACT_VERSION,
+    sourceIdentity: spec.sourceIdentity,
+    sourceUrl: spec.sourceUrl,
+    productType,
+    widthIn,
+    heightIn,
+    fitMode: spec.fitMode,
+    positionPct: { x: 0, y: 0 },
+    scaleX: 1,
+    scaleY: 1,
+    compositionRevision: 1,
+    compositionSignature: buildCompositionSignature(spec),
+    url: previewUrl,
+    publicId: `browser-harness-${marker}`,
+    previewUrl,
+    previewPublicId: `browser-harness-${marker}`,
+    previewWidthPx: 1200,
+    previewHeightPx: Math.max(1, Math.round(1200 * heightIn / widthIn)),
+    uploadStatus: 'uploaded',
+    createdAt: '2026-08-02T00:00:00.000Z',
+    uploadedAt: '2026-08-02T00:00:00.000Z',
+    error: null,
+  };
+}
 
 function isPaintedImage(image) {
   if (!(image instanceof HTMLImageElement)) return false;
@@ -91,6 +134,21 @@ function finish(result, details) {
   window.__PREVIEW_HANDOFF_RESULT__ = { result, ...details };
 }
 
+function waitForDeferredStart() {
+  if (new URLSearchParams(window.location.search).get('deferStart') !== '1') {
+    return Promise.resolve();
+  }
+
+  document.body.dataset.previewHandoffReady = 'true';
+  return new Promise((resolve) => {
+    window.__START_PREVIEW_HANDOFF__ = () => {
+      delete window.__START_PREVIEW_HANDOFF__;
+      document.body.dataset.previewHandoffReady = 'started';
+      resolve();
+    };
+  });
+}
+
 function PreviewCard({ testCase, sourceOverride }) {
   const smallUrl = getSmallPreviewUrl(testCase.item);
   const expanded = getExpandedPreviewSelection(testCase.item);
@@ -119,6 +177,7 @@ function PreviewCard({ testCase, sourceOverride }) {
               imagePosition={testCase.imagePosition || { x: 0, y: 0 }}
               imageScale={testCase.imageScale || 1}
               isFinalizedSnapshot={testCase.exact !== false}
+              compositionSignature={testCase.item.placement_preview?.compositionSignature || testCase.id}
               maxSize={820}
             />
           </div>
@@ -132,6 +191,7 @@ function PreviewCard({ testCase, sourceOverride }) {
           imagePosition={testCase.imagePosition || { x: 0, y: 0 }}
           imageScale={testCase.imageScale || 1}
           isFinalizedSnapshot={testCase.exact !== false}
+          compositionSignature={testCase.item.placement_preview?.compositionSignature || testCase.id}
           maxSize={200}
         />
       </ThumbnailPreviewWrapper>
@@ -149,7 +209,7 @@ function CommercePreviewHarness() {
       widthIn: 48,
       heightIn: 24,
       expectedMarker: 'handoff-permanent',
-      item: { placement_preview: { url: localImage('handoff-permanent') } },
+      item: { placement_preview: readyPlacement('handoff-permanent', 48, 24) },
     },
     {
       id: 'portrait',
@@ -157,7 +217,7 @@ function CommercePreviewHarness() {
       widthIn: 24,
       heightIn: 72,
       expectedMarker: 'portrait',
-      item: { placement_preview: { url: localImage('portrait') } },
+      item: { placement_preview: readyPlacement('portrait', 24, 72) },
     },
     {
       id: 'square',
@@ -181,9 +241,10 @@ function CommercePreviewHarness() {
       widthIn: 48,
       heightIn: 24,
       expectedMarker: 'fallback-good',
+      exact: false,
       item: {
-        placement_preview: { url: `${window.location.origin}/images/does-not-exist.png?bad-primary=1` },
-        web_preview_url: localImage('fallback-good'),
+        web_preview_url: `${window.location.origin}/images/does-not-exist.png?bad-primary=1`,
+        thumbnail_url: localImage('fallback-good'),
         file_url: localImage('fallback-original'),
       },
     },
@@ -195,6 +256,7 @@ function CommercePreviewHarness() {
       expectedMarker: 'yard-sign-first',
       item: {
         product_type: 'yard_sign',
+        placement_preview: readyPlacement('yard-sign-first', 24, 18, 'yard_sign'),
         yard_sign_designs: [
           {
             previewThumbnailUrl: localImage('yard-sign-first'),
@@ -228,9 +290,23 @@ function CommercePreviewHarness() {
             && frame?.dataset.previewReady === 'true';
         }), 12_000, 'one or more commerce thumbnails never painted');
 
+        await waitForDeferredStart();
+        if (cancelled) return;
+
         // Exercise the real local-to-permanent handoff while sampling every
         // animation frame. A decoded image must remain visible throughout.
         const handoffRoot = roots.find((root) => root.dataset.previewId === 'handoff-landscape');
+        const warmedHandoff = new Image();
+        warmedHandoff.src = localImage('handoff-permanent');
+        try {
+          await warmedHandoff.decode();
+        } catch {
+          await waitUntil(
+            () => warmedHandoff.complete && warmedHandoff.naturalWidth > 0,
+            5_000,
+            'permanent handoff source did not decode or load',
+          );
+        }
         let blankSamples = 0;
         let sourceChanges = 0;
         let lastSource = pickVisibleSource(getPaintedImages(handoffRoot));
@@ -380,7 +456,10 @@ function CommercePreviewHarness() {
     };
 
     void run();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      delete window.__START_PREVIEW_HANDOFF__;
+    };
   }, [cases]);
 
   return (

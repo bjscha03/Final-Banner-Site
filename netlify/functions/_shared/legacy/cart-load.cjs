@@ -1,4 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
+const { normalizeCartItemPlacement } = require('../preview-artifact.cjs');
 
 exports.handler = async (event, context) => {
   const headers = {
@@ -43,6 +44,7 @@ exports.handler = async (event, context) => {
         SELECT cart_data, updated_at, user_id
         FROM user_carts
         WHERE user_id = ${userId} AND status = 'active'
+        ORDER BY updated_at DESC, last_accessed_at DESC
         LIMIT 1
       `;
       console.log('[cart-load] Query result:', { found: result.length > 0, itemCount: result.length > 0 ? result[0].cart_data.length : 0 });
@@ -51,6 +53,7 @@ exports.handler = async (event, context) => {
         SELECT cart_data, updated_at
         FROM user_carts
         WHERE session_id = ${sessionId} AND status = 'active'
+        ORDER BY updated_at DESC, last_accessed_at DESC
         LIMIT 1
       `;
     }
@@ -102,7 +105,37 @@ exports.handler = async (event, context) => {
         thumbnail_url: item.thumbnail_url ? item.thumbnail_url.substring(0, 80) : 'NULL'
       });
       
-      const enhanced = { ...item };
+      let enhanced;
+      let placementValidationFailed = false;
+      try {
+        enhanced = normalizeCartItemPlacement(item);
+      } catch (error) {
+        placementValidationFailed = true;
+        console.error('[cart-load] Rejecting invalid exact placement artifact:', {
+          itemId: item.id,
+          code: error.code || 'INVALID_PLACEMENT_PREVIEW',
+          message: error.message,
+        });
+        enhanced = {
+          ...item,
+          thumbnail_url: null,
+          web_preview_url: null,
+          placement_preview: {
+            ...(item.placement_preview || {}),
+            uploadStatus: 'failed',
+            error: error.code || 'INVALID_PLACEMENT_PREVIEW',
+          },
+        };
+      }
+      const exactPlacementUrl = !placementValidationFailed && enhanced.placement_preview
+        ? enhanced.placement_preview.previewUrl
+        : null;
+      if (exactPlacementUrl && isValidCloudinaryUrl(exactPlacementUrl)) {
+        enhanced.thumbnail_url = exactPlacementUrl;
+        enhanced.web_preview_url = exactPlacementUrl;
+        enhanced.composition_signature = enhanced.placement_preview.compositionSignature || item.composition_signature;
+        enhanced.composition_revision = enhanced.placement_preview.compositionRevision ?? item.composition_revision;
+      }
       
       // Try to get file_key from stored value or extract from URLs
       let fileKey = item.file_key;
@@ -136,7 +169,7 @@ exports.handler = async (event, context) => {
         }
         
         // ALWAYS reconstruct thumbnail_url if not a valid Cloudinary URL
-        if (!isValidCloudinaryUrl(enhanced.thumbnail_url)) {
+        if (!placementValidationFailed && !exactPlacementUrl && !isValidCloudinaryUrl(enhanced.thumbnail_url)) {
           if (item.is_pdf) {
             enhanced.thumbnail_url = `${CLOUDINARY_BASE}/pg_1,f_jpg,w_400,h_400,c_fit,q_auto/${fileKey}`;
           } else {
@@ -196,4 +229,3 @@ exports.handler = async (event, context) => {
     };
   }
 };
-

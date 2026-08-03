@@ -15,7 +15,6 @@ import CartModal from '@/components/CartModal';
 
 import { getQuantityDiscountRate } from '@/lib/quantity-discount';
 import { generateFinalRenderFromHTML } from '@/utils/generateFinalRenderFromHTML';
-import { generatePositionedThumbnail, generatePositionedWebPreview, renderPositionedThumbnailDataUrl } from '@/utils/generatePositionedThumbnail';
 import { renderPdfToDataUrl, type PdfPreviewResult } from '@/utils/pdf/renderPdfToDataUrl';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth, isAdmin } from '@/lib/auth';
@@ -31,7 +30,7 @@ import DeliveryTimer from '@/components/delivery/DeliveryTimer';
 import FileUploader from '@/components/ui/FileUploader';
 import GrommetOverlay from '@/components/preview/GrommetOverlay';
 import PreviewRulerFrame from '@/components/preview/PreviewRulerFrame';
-import ArtworkPreviewEditor from '@/components/design/ArtworkPreviewEditor';
+import ArtworkPreviewEditor, { type ArtworkPreviewEditorHandle } from '@/components/design/ArtworkPreviewEditor';
 import {
   calcYardSignPricing,
   getYardSignSizes,
@@ -76,8 +75,20 @@ import {
 import { logUx } from '@/lib/uxAnalytics';
 import { formatOptionValue, getDisplayPlacement } from '@/lib/product-display';
 import type { ArtworkManifest } from '@/types/artwork';
+import {
+  PREVIEW_ARTIFACT_VERSION,
+  PreviewLifecycleError,
+  buildCompositionSignature,
+  explainPreviewLifecycleError,
+  isReadyPlacementPreview,
+  toCheckoutTransform,
+  type ArtworkCompositionSpec,
+  type ReadyPlacementPreviewManifest,
+} from '@/lib/previewLifecycle';
+import { createPermanentPlacementPreview } from '@/lib/previewArtifactCoordinator';
 
 type UploadedArtworkFile = {
+  editorIdentity?: string;
   name: string;
   url: string;
   fileKey: string;
@@ -191,6 +202,48 @@ function preloadPermanentArtwork(url: string, timeoutMs = 20_000): Promise<boole
     image.onerror = () => finish(false);
     image.src = url;
   });
+}
+
+function buildCartArtworkForEditor(item: CartItem): UploadedArtworkFile | null {
+  const manifest = item.artwork_manifest;
+  const originalUrl = manifest?.originalUrl
+    || item.placement_preview?.sourceUrl
+    || item.file_url
+    || '';
+  if (!originalUrl) return null;
+  const isPdf = Boolean(item.is_pdf || manifest?.mimeType === 'application/pdf');
+  const publicId = manifest?.publicId
+    || item.file_key
+    || String(item.placement_preview?.sourceIdentity || '').split('@')[0]
+    || '';
+  const browserPreviewUrl = isPdf
+    ? getPdfThumbnailUrl(originalUrl)
+    : getImagePreviewUrl(originalUrl);
+  return {
+    editorIdentity: [
+      'cart-source',
+      publicId || item.id,
+      manifest?.version ?? '',
+      item.placement_preview?.compositionRevision ?? item.composition_revision ?? '',
+    ].join('@'),
+    name: item.file_name || manifest?.originalFilename || 'artwork',
+    url: originalUrl,
+    fileKey: publicId,
+    size: Number(manifest?.bytes || 0),
+    isPdf,
+    thumbnailUrl: browserPreviewUrl,
+    previewUrl: browserPreviewUrl,
+    productionUrl: originalUrl,
+    productionPublicId: publicId,
+    resourceType: manifest?.resourceType || 'image',
+    mimeType: manifest?.mimeType || (isPdf ? 'application/pdf' : undefined),
+    originalFormat: manifest?.format,
+    originalBytes: manifest?.bytes,
+    originalWidth: manifest?.width ?? null,
+    originalHeight: manifest?.height ?? null,
+    pdfPageNumber: isPdf ? 1 : undefined,
+    artworkManifest: manifest || undefined,
+  };
 }
 
 const GoogleAdsBanner: React.FC = () => {
@@ -337,6 +390,8 @@ const GoogleAdsBanner: React.FC = () => {
   const [resizeStartDist, setResizeStartDist] = useState(0);
   const [resizeCenter, setResizeCenter] = useState({ x: 0, y: 0 });
   const previewContainerRef = useRef<HTMLDivElement>(null);
+  const inlineEditorRef = useRef<ArtworkPreviewEditorHandle>(null);
+  const modalEditorRef = useRef<ArtworkPreviewEditorHandle>(null);
   // Mount points for the Fit/Fill/Reset/Locked toolbar that
   // ArtworkPreviewEditor renders BELOW the preview canvas via portal on
   // every screen size so the controls never cover the printable artwork.
@@ -351,6 +406,12 @@ const GoogleAdsBanner: React.FC = () => {
   const [isProcessingUpsell, setIsProcessingUpsell] = useState(false);
   const [pendingCheckoutData, setPendingCheckoutData] = useState<{pos: {x: number; y: number}; scale: number; scaleY?: number} | null>(null);
   const [pendingActionType, setPendingActionType] = useState<'checkout' | 'cart'>('checkout');
+  const [pendingPlacementPreview, setPendingPlacementPreview] = useState<ReadyPlacementPreviewManifest | null>(null);
+  const preparedPlacementRef = useRef<{
+    spec: ArtworkCompositionSpec;
+    artifact: ReadyPlacementPreviewManifest;
+  } | null>(null);
+  const actionPreparationRef = useRef<Promise<void> | null>(null);
 
   // "Create with AI" modal state. Available for banner & car_magnet on this
   // page — yard signs use YardSignConfigurator which has its own button.
@@ -378,6 +439,8 @@ const GoogleAdsBanner: React.FC = () => {
       ? selectedCarMagnetSize.heightIn
       : (heightFt * 12 + heightInR);
   const sqft = (widthIn * heightIn) / 144;
+  const latestPreviewConfigRef = useRef({ widthIn, heightIn, productType });
+  latestPreviewConfigRef.current = { widthIn, heightIn, productType };
 
   // Mobile guided-flow auto-confirm watchers. See Design.tsx for full
   // rationale — the snapshot ref ensures defaults don't auto-confirm
@@ -453,10 +516,29 @@ const GoogleAdsBanner: React.FC = () => {
 
   // Reset image position/scale when dimensions change to prevent clipping
   useEffect(() => {
+    const pendingRestore = cartRestoreTransformRef.current;
+    if (pendingRestore) {
+      if (
+        pendingRestore.productType === productType
+        && pendingRestore.widthIn === widthIn
+        && pendingRestore.heightIn === heightIn
+      ) {
+        setImgPos(pendingRestore.pos);
+        setImgScale(pendingRestore.scaleX);
+        setImgScaleY(pendingRestore.scaleY);
+        setConstrainProps(pendingRestore.constrain);
+        cartRestoreTransformRef.current = null;
+      }
+      preparedPlacementRef.current = null;
+      setPendingPlacementPreview(null);
+      return;
+    }
     setImgPos({ x: 0, y: 0 });
     setImgScale(1);
     setImgScaleY(1);
-  }, [widthIn, heightIn]);
+    preparedPlacementRef.current = null;
+    setPendingPlacementPreview(null);
+  }, [heightIn, productType, widthIn]);
 
   // Keep the inches-mode raw input strings in sync with widthIn/heightIn when
   // those change from outside the inches inputs (presets, feet-mode editing,
@@ -648,10 +730,19 @@ const GoogleAdsBanner: React.FC = () => {
   // Restore cart item state when editing from cart (editItem query param)
   const editItemId = searchParams.get('editItem');
   const [editItemRestored, setEditItemRestored] = useState(false);
+  const editCartItems = useCartStore((state) => state.items);
+  const cartRestoreTransformRef = useRef<{
+    productType: ProductTypeSlug;
+    widthIn: number;
+    heightIn: number;
+    pos: { x: number; y: number };
+    scaleX: number;
+    scaleY: number;
+    constrain: boolean;
+  } | null>(null);
   useEffect(() => {
     if (!editItemId || editItemRestored) return;
-    const cartItems = useCartStore.getState().getMigratedItems();
-    const item = cartItems.find((i: CartItem) => i.id === editItemId);
+    const item = editCartItems.find((i: CartItem) => i.id === editItemId);
     if (!item) return;
     setEditItemRestored(true);
     // Editing an existing cart item: every section is implicitly already
@@ -663,6 +754,7 @@ const GoogleAdsBanner: React.FC = () => {
 
     if (item.product_type === 'yard_sign' && item.yard_sign_designs) {
       // Restore yard sign designs with saved preview state
+      setProductType('yard_sign');
       const restoredDesigns: YardSignDesign[] = item.yard_sign_designs.map((d) => ({
         id: d.id,
         fileName: d.fileName,
@@ -672,8 +764,11 @@ const GoogleAdsBanner: React.FC = () => {
         isPdf: d.isPdf,
         quantity: d.quantity,
         imgScale: d.imgScale,
+        imgScaleY: d.imgScaleY,
         imgPos: d.imgPos,
+        imgConstrain: d.imgConstrain,
         previewThumbnailUrl: d.previewThumbnailUrl,
+        placementPreview: d.placementPreview,
       }));
       setYardSignDesigns(restoredDesigns);
       setYardSignSidedness(item.yard_sign_sidedness || 'single');
@@ -685,47 +780,53 @@ const GoogleAdsBanner: React.FC = () => {
       }
     } else if (item.product_type === 'car_magnet') {
       setProductType('car_magnet');
-      if (item.file_url) {
-        // IMPORTANT: derive the live-preview thumbnail from the raw
-        // artwork URL (item.file_url) — NOT from item.thumbnail_url. The
-        // stored thumbnail_url is a positioned screenshot of the prior
-        // preview canvas; using it here renders a "preview-of-the-preview"
-        // (the entire preview UI appears to recurse inside the canvas).
-        const isPdf = item.is_pdf || false;
-        setUploadedFile({
-          name: item.file_name || 'artwork',
-          url: item.file_url,
-          fileKey: item.file_key || '',
-          size: 0,
-          isPdf,
-          thumbnailUrl: isPdf ? getPdfThumbnailUrl(item.file_url) : getImagePreviewUrl(item.file_url),
-        });
+      const restoredArtwork = buildCartArtworkForEditor(item);
+      if (restoredArtwork) {
+        uploadedFileRef.current = restoredArtwork;
+        setUploadedFile(restoredArtwork);
       }
       const matchedSize = CAR_MAGNET_SIZES.find((size) => size.widthIn === item.width_in && size.heightIn === item.height_in);
       setCarMagnetSizeLabel((matchedSize || CAR_MAGNET_SIZES[0]).label);
       setCarMagnetRoundedCorners(((item as any).rounded_corners || 'none') as CarMagnetRoundedCorner);
-      setImgPos(item.image_position || { x: 0, y: 0 });
-      setImgScale(item.image_scale || 1);
-      setImgScaleY(item.image_scale_y ?? item.image_scale ?? 1);
-      setConstrainProps(item.image_scale_y == null || item.image_scale_y === item.image_scale);
+      cartRestoreTransformRef.current = {
+        productType: 'car_magnet',
+        widthIn: matchedSize?.widthIn || CAR_MAGNET_SIZES[0].widthIn,
+        heightIn: matchedSize?.heightIn || CAR_MAGNET_SIZES[0].heightIn,
+        pos: item.image_position || { x: 0, y: 0 },
+        scaleX: item.image_scale || 1,
+        scaleY: item.image_scale_y ?? item.image_scale ?? 1,
+        constrain: item.image_scale_y == null || item.image_scale_y === item.image_scale,
+      };
       setQuantity(item.quantity || 1);
       setShowPreview(true);
     } else {
       // Restore banner state
-      if (item.file_url) {
-        setUploadedFile({
-          name: item.file_name || 'artwork',
-          url: item.file_url,
-          fileKey: item.file_key || '',
-          size: 0,
-          isPdf: item.is_pdf || false,
-          thumbnailUrl: item.thumbnail_url || item.file_url,
-        });
+      setProductType('banner');
+      const restoredArtwork = buildCartArtworkForEditor(item);
+      if (restoredArtwork) {
+        uploadedFileRef.current = restoredArtwork;
+        setUploadedFile(restoredArtwork);
       }
-      setImgPos(item.image_position || { x: 0, y: 0 });
-      setImgScale(item.image_scale || 1);
-      setImgScaleY(item.image_scale_y ?? item.image_scale ?? 1);
-      setConstrainProps(item.image_scale_y == null || item.image_scale_y === item.image_scale);
+      const restoredWidth = Number(item.width_in) > 0 ? Number(item.width_in) : 48;
+      const restoredHeight = Number(item.height_in) > 0 ? Number(item.height_in) : 24;
+      setWidthFtStr(String(Math.floor(restoredWidth / 12)));
+      setWidthInRStr(String(restoredWidth % 12));
+      setHeightFtStr(String(Math.floor(restoredHeight / 12)));
+      setHeightInRStr(String(restoredHeight % 12));
+      setWidthCustomInStr(String(restoredWidth));
+      setHeightCustomInStr(String(restoredHeight));
+      const presetIndex = PRESET_SIZES.findIndex(({ w, h }) => w === restoredWidth && h === restoredHeight);
+      setActivePreset(presetIndex >= 0 ? presetIndex : null);
+      if (item.material) setMaterial(item.material as MaterialKey);
+      cartRestoreTransformRef.current = {
+        productType: 'banner',
+        widthIn: restoredWidth,
+        heightIn: restoredHeight,
+        pos: item.image_position || { x: 0, y: 0 },
+        scaleX: item.image_scale || 1,
+        scaleY: item.image_scale_y ?? item.image_scale ?? 1,
+        constrain: item.image_scale_y == null || item.image_scale_y === item.image_scale,
+      };
       if (item.grommets) setGrommets(item.grommets);
       if (item.pole_pockets) setPolePockets(item.pole_pockets);
       setAddRope(!!item.rope_feet);
@@ -746,9 +847,7 @@ const GoogleAdsBanner: React.FC = () => {
       setShowPreview(true);
     }
 
-    // Remove the cart item since user is re-editing it
-    useCartStore.getState().removeItem(editItemId);
-  }, [editItemId, editItemRestored]);
+  }, [editCartItems, editItemId, editItemRestored]);
 
   const scrollToOrder = useCallback(() => {
     setHasEnteredBuilder(true);
@@ -1023,7 +1122,7 @@ const GoogleAdsBanner: React.FC = () => {
           message: error instanceof Error ? error.message : String(error),
         });
         setUploadError(
-          'We could not finish the original artwork upload. Your file is still selected — tap Buy Now to retry automatically or choose another file.',
+          'ORIGINAL_UPLOAD_INCOMPLETE: The secure original upload failed. Your selected file and configuration were preserved.',
         );
       }
       return null;
@@ -1040,6 +1139,11 @@ const GoogleAdsBanner: React.FC = () => {
       setUploadError(validationError);
       return;
     }
+
+    // A prepared preview is tied to one exact source identity. Never allow a
+    // newly selected file to inherit the previous file's verified artifact.
+    preparedPlacementRef.current = null;
+    setPendingPlacementPreview(null);
 
     const generation = uploadGenerationRef.current + 1;
     uploadGenerationRef.current = generation;
@@ -1095,6 +1199,7 @@ const GoogleAdsBanner: React.FC = () => {
 
       if (generation !== uploadGenerationRef.current) return;
       const initialArtwork: UploadedArtworkFile = {
+        editorIdentity: correlationId,
         name: file.name,
         url: previewUrl,
         fileKey: '',
@@ -1164,8 +1269,8 @@ const GoogleAdsBanner: React.FC = () => {
     }
 
     toast({
-      title: 'Artwork upload failed',
-      description: 'The file is still selected. Check your connection and tap Buy Now again, or choose another file.',
+      title: 'ORIGINAL_UPLOAD_INCOMPLETE',
+      description: 'The secure original upload could not be completed. Your selected file and configuration were preserved; no cart item was created.',
       variant: 'destructive',
     });
     return null;
@@ -1213,6 +1318,8 @@ const GoogleAdsBanner: React.FC = () => {
     activeImagePreviewCleanupRef.current = null;
     activePdfPreviewCleanupRef.current = null;
     uploadedFileRef.current = null;
+    preparedPlacementRef.current = null;
+    setPendingPlacementPreview(null);
     setUploadedFile(null);
     setImgPos({ x: 0, y: 0 });
     setImgScale(1);
@@ -1275,87 +1382,78 @@ const GoogleAdsBanner: React.FC = () => {
     }
   }, [navigate, toast, resetAfterSuccessfulAdd]);
 
-  // Background helper: upload positioned thumbnail to Cloudinary and patch
-  // the cart item once it completes. Failures are silently swallowed —
-  // the cart item already has the original artwork URL + position/scale.
-  const scheduleThumbnailUpload = useCallback((
-    itemId: string | undefined,
-    input: {
-      imageUrl: string;
-      widthIn: number;
-      heightIn: number;
-      imgPosPercent: { x: number; y: number };
-      imgScale: number;
-      imgScaleY?: number;
-    },
-  ) => {
-    if (!itemId) return;
-    void (async () => {
-      try {
-        const positioned = await generatePositionedThumbnail({
-          ...input,
-          backgroundColor: '#fafafa',
-        });
-        if (positioned?.url) {
-          cartStore.updateItemThumbnail(itemId, positioned.url);
-        }
-      } catch (err) {
-        console.warn('[GAB] Background thumbnail upload failed (non-blocking):', err);
+  const prepareCurrentPlacementPreview = useCallback(async (
+    editorSource: 'inline' | 'modal',
+  ): Promise<{ spec: ArtworkCompositionSpec; artifact: ReadyPlacementPreviewManifest }> => {
+    let artwork = await ensurePermanentArtworkUploaded();
+    if (!artwork) {
+      throw new PreviewLifecycleError('ORIGINAL_UPLOAD_INCOMPLETE', 'The direct original-artwork upload did not complete.');
+    }
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      const editor = editorSource === 'modal'
+        ? (modalEditorRef.current || inlineEditorRef.current)
+        : (inlineEditorRef.current || modalEditorRef.current);
+      if (!editor) {
+        throw new PreviewLifecycleError('PREVIEW_GEOMETRY_NOT_READY', 'The visible artwork editor is not mounted.', { editorSource });
       }
-    })();
-  }, [cartStore]);
-
-  const scheduleWebPreviewUpload = useCallback((
-    itemId: string | undefined,
-    input: {
-      imageUrl: string;
-      widthIn: number;
-      heightIn: number;
-      imgPosPercent: { x: number; y: number };
-      imgScale: number;
-      imgScaleY?: number;
-      pdfFile?: File | null;
-    },
-  ) => {
-    if (!itemId) return;
-    void (async () => {
-      let highResPdfPreview: PdfPreviewResult | null = null;
-      try {
-        let imageUrl = input.imageUrl;
-        if (input.pdfFile) {
-          highResPdfPreview = await renderPdfToDataUrl(input.pdfFile, {
-            targetWidth: 6000,
-            targetHeight: 6000,
-            maxPixels: 24_000_000,
-            deviceScale: 1,
-          });
-          imageUrl = highResPdfPreview.previewUrl;
-        }
-        const positioned = await generatePositionedWebPreview({
-          imageUrl,
-          widthIn: input.widthIn,
-          heightIn: input.heightIn,
-          imgPosPercent: input.imgPosPercent,
-          imgScale: input.imgScale,
-          imgScaleY: input.imgScaleY,
-          backgroundColor: '#fafafa',
-        });
-        if (positioned?.url) {
-          cartStore.updateItemWebPreview(itemId, positioned.url);
-          console.info('[GAB] web_preview_uploaded', {
-            itemId,
-            widthPx: positioned.widthPx,
-            heightPx: positioned.heightPx,
-            source: input.pdfFile ? 'pdfjs-high-res' : 'browser-image',
-          });
-        }
-      } catch (err) {
-        console.warn('[GAB] Background web preview upload failed (non-blocking):', err);
-      } finally {
-        highResPdfPreview?.cleanup();
+      const snapshot = editor.getCompositionSnapshot();
+      const config = latestPreviewConfigRef.current;
+      artwork = uploadedFileRef.current || artwork;
+      const manifest = artwork.artworkManifest;
+      const originalUrl = manifest?.originalUrl || artwork.productionUrl || artwork.url;
+      const sourceUrl = artwork.isPdf
+        ? (artwork.previewUrl && /^https?:\/\//i.test(artwork.previewUrl) ? artwork.previewUrl : getPdfThumbnailUrl(originalUrl))
+        : originalUrl;
+      const spec: ArtworkCompositionSpec = {
+        version: PREVIEW_ARTIFACT_VERSION,
+        sourceUrl,
+        sourceIdentity: [manifest?.publicId || artwork.productionPublicId || artwork.fileKey, manifest?.version ?? '', artwork.pdfPageNumber || 1].join('@'),
+        productType: config.productType,
+        widthIn: config.widthIn,
+        heightIn: config.heightIn,
+        fitMode: 'fit',
+        transform: snapshot.transform,
+        revision: snapshot.revision,
+      };
+      const artifact = await createPermanentPlacementPreview(spec);
+      const latestEditor = editorSource === 'modal'
+        ? (modalEditorRef.current || inlineEditorRef.current)
+        : (inlineEditorRef.current || modalEditorRef.current);
+      const latestArtwork = uploadedFileRef.current;
+      const latestConfig = latestPreviewConfigRef.current;
+      if (!latestEditor || !latestArtwork) {
+        throw new PreviewLifecycleError('COMPOSITION_CHANGED', 'The artwork editor closed during preview preparation.');
       }
-    })();
-  }, [cartStore]);
+      const latestSnapshot = latestEditor.getCompositionSnapshot();
+      const latestManifest = latestArtwork.artworkManifest;
+      const latestOriginalUrl = latestManifest?.originalUrl || latestArtwork.productionUrl || latestArtwork.url;
+      const latestSpec: ArtworkCompositionSpec = {
+        version: PREVIEW_ARTIFACT_VERSION,
+        sourceUrl: latestArtwork.isPdf
+          ? (latestArtwork.previewUrl && /^https?:\/\//i.test(latestArtwork.previewUrl) ? latestArtwork.previewUrl : getPdfThumbnailUrl(latestOriginalUrl))
+          : latestOriginalUrl,
+        sourceIdentity: [latestManifest?.publicId || latestArtwork.productionPublicId || latestArtwork.fileKey, latestManifest?.version ?? '', latestArtwork.pdfPageNumber || 1].join('@'),
+        productType: latestConfig.productType,
+        widthIn: latestConfig.widthIn,
+        heightIn: latestConfig.heightIn,
+        fitMode: 'fit',
+        transform: latestSnapshot.transform,
+        revision: latestSnapshot.revision,
+      };
+      if (artifact.compositionSignature === buildCompositionSignature(latestSpec)) {
+        preparedPlacementRef.current = { spec: latestSpec, artifact };
+        setPendingPlacementPreview(artifact);
+        setPendingCheckoutData(toCheckoutTransform(latestSpec));
+        return { spec: latestSpec, artifact };
+      }
+      console.info('[gab_placement_preview_stale_discarded]', {
+        attempt,
+        completedSignature: artifact.compositionSignature,
+        latestSignature: buildCompositionSignature(latestSpec),
+      });
+    }
+    throw new PreviewLifecycleError('COMPOSITION_CHANGED', 'The composition changed during all bounded preparation attempts.');
+  }, [ensurePermanentArtworkUploaded]);
 
   // Actually perform checkout after upsell decision
   const performCheckout = useCallback(async (
@@ -1365,14 +1463,25 @@ const GoogleAdsBanner: React.FC = () => {
   ) => {
     const checkoutData = directData || pendingCheckoutData;
     let checkoutArtwork = uploadedFileRef.current;
+    const preparedPlacement = preparedPlacementRef.current;
     
     // For yard signs, we use the multi-design flow
     if (isYardSign && yardSignPricing) {
       if (yardSignDesigns.length === 0 || yardSignTotalQty === 0) return;
       if (!yardSignQuantityValid.valid) return;
+      const missingExactDesign = yardSignDesigns.find((design) => !isReadyPlacementPreview(design.placementPreview));
+      if (missingExactDesign) {
+        toast({
+          title: 'YARD_SIGN_PREVIEW_NOT_READY',
+          description: `Review and save the exact preview for ${missingExactDesign.fileName} before continuing. No cart item was created.`,
+          variant: 'destructive',
+        });
+        return;
+      }
 
       // Use first design as the primary file for cart/order display
       const primaryDesign = yardSignDesigns[0];
+      const primaryPlacement = primaryDesign.placementPreview!;
 
       // Build yard sign metadata for order
       const yardSignMetadata = {
@@ -1393,8 +1502,12 @@ const GoogleAdsBanner: React.FC = () => {
           isPdf: d.isPdf,
           quantity: d.quantity,
           imgScale: d.imgScale,
+          imgScaleY: d.imgScaleY,
           imgPos: d.imgPos,
+          imgConstrain: d.imgConstrain,
           previewThumbnailUrl: d.previewThumbnailUrl,
+          placementPreview: d.placementPreview,
+          compositionSignature: d.placementPreview?.compositionSignature,
         })),
       };
 
@@ -1412,6 +1525,7 @@ const GoogleAdsBanner: React.FC = () => {
         containerCssHeight: null,
         bgColor: '#fafafa',
         productType: 'yard_sign',
+        canonicalComposition: primaryPlacement,
         yardSignMetadata,
       });
 
@@ -1426,15 +1540,17 @@ const GoogleAdsBanner: React.FC = () => {
         addRope: false,
         imagePosition: primaryDesign.imgPos || { x: 0, y: 0 },
         imageScale: primaryDesign.imgScale || 1,
-        fitMode: 'fill',
-        thumbnailUrl: primaryDesign.previewThumbnailUrl || primaryDesign.thumbnailUrl,
+        fitMode: 'fit',
+        thumbnailUrl: primaryPlacement.previewUrl || primaryPlacement.url,
+        webPreviewUrl: primaryPlacement.previewUrl || primaryPlacement.url,
+        placementPreview: primaryPlacement,
         file: {
           name: primaryDesign.fileName,
           url: primaryDesign.fileUrl,
           fileKey: primaryDesign.fileKey,
           size: 0,
           isPdf: primaryDesign.isPdf,
-          thumbnailUrl: primaryDesign.previewThumbnailUrl || primaryDesign.thumbnailUrl,
+          thumbnailUrl: primaryPlacement.previewUrl || primaryPlacement.url,
           type: primaryDesign.isPdf ? 'application/pdf' : 'image/*',
         } as any,
         finalRenderUrl: null,
@@ -1454,10 +1570,20 @@ const GoogleAdsBanner: React.FC = () => {
       const quoteState = useQuoteStore.getState();
       (quoteState as any).product_type = 'yard_sign';
       (quoteState as any).yard_sign_metadata = yardSignMetadata;
-      cartStore.addFromQuote(quoteState, undefined, pricing);
+      if (editItemId) cartStore.updateCartItem(editItemId, quoteState, undefined, pricing);
+      else cartStore.addFromQuote(quoteState, undefined, pricing);
 
       console.log('[YARD_SIGN] ✅ Cart item created with yard sign metadata');
       finishAddToCart(actionType, '/google-ads-banner?product=yard-signs');
+      return;
+    }
+
+    if (!preparedPlacement || !isReadyPlacementPreview(preparedPlacement.artifact)) {
+      toast({
+        title: 'PERMANENT_PREVIEW_UNAVAILABLE',
+        description: 'The exact permanent composition was not ready, so no cart item was created.',
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -1493,29 +1619,13 @@ const GoogleAdsBanner: React.FC = () => {
         bgColor: '#fafafa',
         productType: 'car_magnet',
         roundedCorners: carMagnetRoundedCorners,
+        canonicalComposition: preparedPlacement.spec,
+        placementPreview: preparedPlacement.artifact,
         ...(aiPrompt ? { aiPrompt } : {}),
         ...(aiEditPrompt ? { aiEditPrompt } : {}),
       });
 
-      // Render an immediate dataUrl thumbnail synchronously (canvas only,
-      // no network) so the cart shows the correct cropped preview right
-      // away. The full Cloudinary upload happens in the background and
-      // patches the cart item once complete.
-      const baseImageUrl = checkoutArtwork.previewUrl || checkoutArtwork.thumbnailUrl || checkoutArtwork.url;
-      let approvedThumbnailUrl = baseImageUrl;
-      try {
-        const rendered = await renderPositionedThumbnailDataUrl({
-          imageUrl: baseImageUrl,
-          widthIn,
-          heightIn,
-          imgPosPercent: checkoutData.pos,
-          imgScale: checkoutData.scale,
-          backgroundColor: '#fafafa',
-        });
-        approvedThumbnailUrl = rendered.dataUrl;
-      } catch (err) {
-        console.warn('[GAB_CHECKOUT] dataUrl thumbnail render failed (non-blocking):', err);
-      }
+      const approvedThumbnailUrl = preparedPlacement.artifact.previewUrl;
 
       quoteStore.set({
         widthIn,
@@ -1529,8 +1639,11 @@ const GoogleAdsBanner: React.FC = () => {
         imagePosition: checkoutData.pos,
         imageScale: checkoutData.scale,
         imageScaleY: checkoutData.scaleY ?? checkoutData.scale,
-        fitMode: 'fill',
+        fitMode: 'fit',
         thumbnailUrl: approvedThumbnailUrl,
+        webPreviewUrl: approvedThumbnailUrl,
+        artworkManifest: checkoutArtwork.artworkManifest,
+        placementPreview: preparedPlacement.artifact,
         file: { name: checkoutArtwork.name, url: checkoutArtwork.url, fileKey: checkoutArtwork.fileKey, size: checkoutArtwork.size, isPdf: checkoutArtwork.isPdf, thumbnailUrl: checkoutArtwork.previewUrl || checkoutArtwork.thumbnailUrl,
               previewUrl: checkoutArtwork.previewUrl,
               productionUrl: checkoutArtwork.productionUrl || checkoutArtwork.url,
@@ -1553,32 +1666,16 @@ const GoogleAdsBanner: React.FC = () => {
       const magnetQuoteState = useQuoteStore.getState();
       (magnetQuoteState as any).product_type = 'car_magnet';
       (magnetQuoteState as any).rounded_corners = carMagnetRoundedCorners;
-      const magnetAddedId = cartStore.addFromQuote(magnetQuoteState, undefined, {
+      const magnetPricing = {
         unit_price_cents: carMagnetPricing.unitPriceCents,
         rope_cost_cents: 0,
         pole_pocket_cost_cents: 0,
         // Store RAW (pre-discount) line total so the cart's resolver can
         // apply the quantity-discount tier uniformly across all magnet/banner items.
         line_total_cents: carMagnetPricing.baseSubtotalCents,
-      });
-
-      scheduleThumbnailUpload(magnetAddedId, {
-        imageUrl: baseImageUrl,
-        widthIn,
-        heightIn,
-        imgPosPercent: checkoutData.pos,
-        imgScale: checkoutData.scale,
-        imgScaleY: checkoutData.scaleY ?? checkoutData.scale,
-      });
-      scheduleWebPreviewUpload(magnetAddedId, {
-        imageUrl: baseImageUrl,
-        widthIn,
-        heightIn,
-        imgPosPercent: checkoutData.pos,
-        imgScale: checkoutData.scale,
-        imgScaleY: checkoutData.scaleY ?? checkoutData.scale,
-        pdfFile: checkoutArtwork.isPdf ? activePdfPreviewFileRef.current : null,
-      });
+      };
+      if (editItemId) cartStore.updateCartItem(editItemId, magnetQuoteState, undefined, magnetPricing);
+      else cartStore.addFromQuote(magnetQuoteState, undefined, magnetPricing);
 
       finishAddToCart(actionType, '/google-ads-banner?product=car-magnets');
       return;
@@ -1611,7 +1708,7 @@ const GoogleAdsBanner: React.FC = () => {
     const container = previewContainerRef.current;
     
     // SKIP client-side final render - server uses design state for better quality render
-    let finalRenderResult: { url: string; fileKey: string; widthPx: number; heightPx: number; dpi: number } | null = null;
+    const finalRenderResult: { url: string; fileKey: string; widthPx: number; heightPx: number; dpi: number } | null = null;
     console.log('[FINAL_RENDER_HTML] Skipped - using server-side design state rendering');
 
     // DESIGN STATE: Save the exact approved design state for server-side re-rendering.
@@ -1640,30 +1737,14 @@ const GoogleAdsBanner: React.FC = () => {
       containerCssHeight: container?.offsetHeight || null,
       bgColor: '#fafafa',
       productType: 'banner',
+      canonicalComposition: preparedPlacement.spec,
+      placementPreview: preparedPlacement.artifact,
       ...(aiPrompt ? { aiPrompt } : {}),
       ...(aiEditPrompt ? { aiEditPrompt } : {}),
     });
     console.log('[DESIGN_STATE] Saved design state:', canvasStateJson.length, 'chars');
 
-    // Generate the approved thumbnail (single source of truth) so cart/
-    // checkout/admin all show what the user approved. Render synchronously
-    // to a dataUrl (canvas only, no network) for instant cart display;
-    // upload to Cloudinary in the background.
-    const baseImageUrl = checkoutArtwork.previewUrl || checkoutArtwork.thumbnailUrl || checkoutArtwork.url;
-    let approvedThumbnailUrl = baseImageUrl;
-    try {
-      const rendered = await renderPositionedThumbnailDataUrl({
-        imageUrl: baseImageUrl,
-        widthIn,
-        heightIn,
-        imgPosPercent: checkoutData.pos,
-        imgScale: checkoutData.scale,
-        backgroundColor: '#fafafa',
-      });
-      approvedThumbnailUrl = rendered.dataUrl;
-    } catch (err) {
-      console.warn('[GAB_CHECKOUT] dataUrl thumbnail render failed (non-blocking):', err);
-    }
+    const approvedThumbnailUrl = preparedPlacement.artifact.previewUrl;
 
     // Banner pricing — per sqft (existing logic)
     const updatedTotals = calcTotals({ 
@@ -1681,8 +1762,9 @@ const GoogleAdsBanner: React.FC = () => {
       imagePosition: checkoutData.pos,
       imageScale: checkoutData.scale,
       imageScaleY: checkoutData.scaleY ?? checkoutData.scale,
-      fitMode: 'fill',
+      fitMode: 'fit',
       thumbnailUrl: approvedThumbnailUrl,
+      webPreviewUrl: approvedThumbnailUrl,
       file: { name: checkoutArtwork.name, url: checkoutArtwork.url, fileKey: checkoutArtwork.fileKey, size: checkoutArtwork.size, isPdf: checkoutArtwork.isPdf, thumbnailUrl: checkoutArtwork.previewUrl || checkoutArtwork.thumbnailUrl,
               previewUrl: checkoutArtwork.previewUrl,
               productionUrl: checkoutArtwork.productionUrl || checkoutArtwork.url,
@@ -1694,6 +1776,8 @@ const GoogleAdsBanner: React.FC = () => {
               originalWidth: checkoutArtwork.originalWidth,
               originalHeight: checkoutArtwork.originalHeight,
               pdfPageNumber: checkoutArtwork.pdfPageNumber, type: checkoutArtwork.isPdf ? 'application/pdf' : 'image/*' } as any,
+      artworkManifest: checkoutArtwork.artworkManifest,
+      placementPreview: preparedPlacement.artifact,
       finalRenderUrl: finalRenderResult?.url || null,
       finalRenderFileKey: finalRenderResult?.fileKey || null,
       finalRenderWidthPx: finalRenderResult?.widthPx || null,
@@ -1711,164 +1795,131 @@ const GoogleAdsBanner: React.FC = () => {
     // Without this, a stale product_type from a prior yard-sign add leaks into the banner item.
     const bannerQuoteState = useQuoteStore.getState();
     (bannerQuoteState as any).product_type = 'banner';
-    const bannerAddedId = cartStore.addFromQuote(bannerQuoteState, undefined, pricing);
+    if (editItemId) cartStore.updateCartItem(editItemId, bannerQuoteState, undefined, pricing);
+    else cartStore.addFromQuote(bannerQuoteState, undefined, pricing);
 
-    // Kick off the background Cloudinary upload of the positioned thumbnail.
-    scheduleThumbnailUpload(bannerAddedId, {
-      imageUrl: baseImageUrl,
-      widthIn,
-      heightIn,
-      imgPosPercent: checkoutData.pos,
-      imgScale: checkoutData.scale,
-      imgScaleY: checkoutData.scaleY ?? checkoutData.scale,
-    });
-    scheduleWebPreviewUpload(bannerAddedId, {
-      imageUrl: baseImageUrl,
-      widthIn,
-      heightIn,
-      imgPosPercent: checkoutData.pos,
-      imgScale: checkoutData.scale,
-      imgScaleY: checkoutData.scaleY ?? checkoutData.scale,
-      pdfFile: checkoutArtwork.isPdf ? activePdfPreviewFileRef.current : null,
-    });
-
-    console.log('[FINAL_RENDER_HTML] ✅ Cart item created (background thumbnail upload scheduled)');
+    console.log('[FINAL_RENDER_HTML] ✅ Cart item created with verified permanent placement preview');
     finishAddToCart(actionType, '/google-ads-banner?product=banner');
-  }, [ensurePermanentArtworkUploaded, pendingCheckoutData, grommets, addRope, polePockets, widthIn, heightIn, quantity, material, quoteStore, cartStore, navigate, imgPos, imgScale, isYardSign, isCarMagnet, carMagnetPricing, carMagnetRoundedCorners, yardSignMaterial, yardSignPricing, productType, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, yardSignSidedness, yardSignAddStepStakes, yardSignStepStakeQty, finishAddToCart, scheduleThumbnailUpload, scheduleWebPreviewUpload]);
+  }, [ensurePermanentArtworkUploaded, pendingCheckoutData, grommets, addRope, polePockets, widthIn, heightIn, quantity, material, quoteStore, cartStore, isYardSign, isCarMagnet, carMagnetPricing, carMagnetRoundedCorners, yardSignMaterial, yardSignPricing, productType, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, yardSignSidedness, yardSignAddStepStakes, yardSignStepStakeQty, finishAddToCart, toast, editItemId, aiPrompt, aiEditPrompt, ropePlacement]);
 
-  // Proceed directly to checkout
+  const prepareAndRoutePlacement = useCallback((
+    actionType: 'checkout' | 'cart',
+    editorSource: 'inline' | 'modal',
+  ): Promise<void> => {
+    if (actionPreparationRef.current) return actionPreparationRef.current;
+    const promise = (async () => {
+      setIsProcessingUpsell(true);
+      try {
+        const prepared = await prepareCurrentPlacementPreview(editorSource);
+        if (
+          prepared.spec.productType !== productType
+          || prepared.spec.widthIn !== widthIn
+          || prepared.spec.heightIn !== heightIn
+        ) {
+          throw new PreviewLifecycleError(
+            'COMPOSITION_CHANGED',
+            'The product configuration changed while the action was being prepared; the stale action was discarded.',
+            {
+              actionProductType: productType,
+              actionWidthIn: widthIn,
+              actionHeightIn: heightIn,
+              preparedProductType: prepared.spec.productType,
+              preparedWidthIn: prepared.spec.widthIn,
+              preparedHeightIn: prepared.spec.heightIn,
+            },
+          );
+        }
+        const transform = toCheckoutTransform(prepared.spec);
+        setPendingActionType(actionType);
+        if (isCarMagnet || finishingType !== 'none') {
+          await performCheckout([], transform, actionType);
+          if (editorSource === 'modal') setShowPreview(false);
+        } else {
+          if (editorSource === 'modal') setShowPreview(false);
+          logUx('upsell_opened', {
+            source: actionType,
+            compositionSignature: prepared.artifact.compositionSignature,
+          });
+          setShowUpsellModal(true);
+        }
+      } catch (error) {
+        const explained = explainPreviewLifecycleError(error);
+        console.error('[gab_placement_preview_failed]', {
+          code: explained.code,
+          reason: explained.technicalReason,
+          details: error instanceof PreviewLifecycleError ? error.details : undefined,
+          actionType,
+          editorSource,
+        });
+        toast({
+          title: explained.code,
+          description: `${explained.description} Technical reason: ${explained.technicalReason}`,
+          variant: 'destructive',
+        });
+      } finally {
+        setIsProcessingUpsell(false);
+        if (actionPreparationRef.current === promise) actionPreparationRef.current = null;
+      }
+    })();
+    actionPreparationRef.current = promise;
+    return promise;
+  }, [finishingType, heightIn, isCarMagnet, performCheckout, prepareCurrentPlacementPreview, productType, toast, widthIn]);
+
+  // Proceed directly to checkout only after the actual editor canvas is finalized.
   const handleCheckout = useCallback(() => {
     // Yard signs: use multi-design flow (no single uploadedFile needed)
     if (isYardSign) {
       if (yardSignDesigns.length === 0 || yardSignTotalQty === 0) return;
       if (!yardSignQuantityValid.valid) return;
-      performCheckout([], { pos: { x: 0, y: 0 }, scale: 1 });
+      void performCheckout([], { pos: { x: 0, y: 0 }, scale: 1 }).catch((error) => {
+        const explained = explainPreviewLifecycleError(error);
+        toast({ title: explained.code, description: `${explained.description} Technical reason: ${explained.technicalReason}`, variant: 'destructive' });
+      });
       return;
     }
-    if (isCarMagnet) {
-      if (!uploadedFile) return;
-      const container = previewContainerRef.current;
-      const containerWidth = container?.offsetWidth || 1;
-      const containerHeight = container?.offsetHeight || 1;
-      const posPercent = {
-        x: (imgPos.x / containerWidth) * 100,
-        y: (imgPos.y / containerHeight) * 100,
-      };
-      performCheckout([], { pos: posPercent, scale: imgScale, scaleY: imgScaleY });
-      return;
-    }
-
-    // Banner flow: requires uploadedFile
     if (!uploadedFile) return;
-    // Convert pixel position to percentage for responsive thumbnail display
-    const container = previewContainerRef.current;
-    const containerWidth = container?.offsetWidth || 1;
-    const containerHeight = container?.offsetHeight || 1;
-    const posPercent = {
-      x: (imgPos.x / containerWidth) * 100,
-      y: (imgPos.y / containerHeight) * 100
-    };
-    setPendingCheckoutData({ pos: posPercent, scale: imgScale, scaleY: imgScaleY });
-
-    // Skip upsell when the user has already chosen a finishing option
-    // (Grommets, Pole Pockets, or Rope). Otherwise prompt with the upsell.
-    if (finishingType !== 'none') {
-      performCheckout([], { pos: posPercent, scale: imgScale, scaleY: imgScaleY });
-    } else {
-      setPendingActionType('checkout');
-      setShowUpsellModal(true);
-    }
-  }, [uploadedFile, imgPos, imgScale, imgScaleY, finishingType, performCheckout, isYardSign, isCarMagnet, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid]);
+    void prepareAndRoutePlacement('checkout', 'inline');
+  }, [uploadedFile, performCheckout, isYardSign, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, prepareAndRoutePlacement, toast]);
 
   const handleAddToCart = useCallback(() => {
     if (isYardSign) {
       if (yardSignDesigns.length === 0 || yardSignTotalQty === 0) return;
       if (!yardSignQuantityValid.valid) return;
-      performCheckout([], { pos: { x: 0, y: 0 }, scale: 1 }, 'cart');
-      return;
-    }
-
-    if (isCarMagnet) {
-      if (!uploadedFile) return;
-      const container = previewContainerRef.current;
-      const containerWidth = container?.offsetWidth || 1;
-      const containerHeight = container?.offsetHeight || 1;
-      const posPercent = {
-        x: (imgPos.x / containerWidth) * 100,
-        y: (imgPos.y / containerHeight) * 100,
-      };
-      performCheckout([], { pos: posPercent, scale: imgScale, scaleY: imgScaleY }, 'cart');
+      void performCheckout([], { pos: { x: 0, y: 0 }, scale: 1 }, 'cart').catch((error) => {
+        const explained = explainPreviewLifecycleError(error);
+        toast({ title: explained.code, description: `${explained.description} Technical reason: ${explained.technicalReason}`, variant: 'destructive' });
+      });
       return;
     }
 
     if (!uploadedFile) return;
-    const container = previewContainerRef.current;
-    const containerWidth = container?.offsetWidth || 1;
-    const containerHeight = container?.offsetHeight || 1;
-    const posPercent = {
-      x: (imgPos.x / containerWidth) * 100,
-      y: (imgPos.y / containerHeight) * 100,
-    };
-    setPendingCheckoutData({ pos: posPercent, scale: imgScale, scaleY: imgScaleY });
-    // Skip upsell when the user has already chosen a finishing option
-    // (Grommets, Pole Pockets, or Rope). Otherwise prompt with the upsell.
-    if (finishingType !== 'none') {
-      logUx('add_to_cart_completed', { source: 'sticky', hasFinishing: true });
-      performCheckout([], { pos: posPercent, scale: imgScale, scaleY: imgScaleY }, 'cart');
-    } else {
-      logUx('upsell_opened', { source: 'add_to_cart' });
-      setPendingActionType('cart');
-      setShowUpsellModal(true);
-    }
-  }, [uploadedFile, imgPos, imgScale, imgScaleY, finishingType, performCheckout, isYardSign, isCarMagnet, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid]);
+    void prepareAndRoutePlacement('cart', 'inline');
+  }, [uploadedFile, performCheckout, isYardSign, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, prepareAndRoutePlacement, toast]);
 
 
 // Trigger upsell modal after confirming position
-  const handleConfirmPosition = useCallback((pos: { x: number; y: number }, scale: number, scaleY?: number) => {
+  const handleConfirmPosition = useCallback((_pos: { x: number; y: number }, _scale: number, _scaleY?: number) => {
     if (!uploadedFile) return;
-    // Convert pixel position to percentage for responsive thumbnail display
-    const container = previewContainerRef.current;
-    const containerWidth = container?.offsetWidth || 1;
-    const containerHeight = container?.offsetHeight || 1;
-    const posPercent = {
-      x: (pos.x / containerWidth) * 100,
-      y: (pos.y / containerHeight) * 100
-    };
-    const sY = scaleY ?? scale;
-    setPendingCheckoutData({ pos: posPercent, scale, scaleY: sY });
-    setShowPreview(false);
-    
-    // Yard signs skip upsell
-    if (isYardSign) {
-      performCheckout([], { pos: posPercent, scale, scaleY: sY });
-      return;
-    }
-    if (isCarMagnet) {
-      performCheckout([], { pos: posPercent, scale, scaleY: sY });
-      return;
-    }
-
-    // Skip upsell when the user has already chosen a finishing option
-    // (Grommets, Pole Pockets, or Rope). Otherwise prompt with the upsell.
-    if (finishingType !== 'none') {
-      // Go directly to checkout with current options, passing data directly
-      performCheckout([], { pos: posPercent, scale, scaleY: sY });
-    } else {
-      setPendingActionType('checkout');
-      setShowUpsellModal(true);
-    }
-  }, [uploadedFile, finishingType, performCheckout, isYardSign, isCarMagnet]);
+    void prepareAndRoutePlacement('checkout', 'modal');
+  }, [uploadedFile, prepareAndRoutePlacement]);
 
   // Handle upsell modal continue
-  const handleUpsellContinue = useCallback((selectedOptions: UpsellOption[], dontAskAgain: boolean) => {
+  const handleUpsellContinue = useCallback(async (selectedOptions: UpsellOption[], dontAskAgain: boolean) => {
     setIsProcessingUpsell(true);
     setShowUpsellModal(false);
     if (dontAskAgain) {
       sessionStorage.setItem('upsell-dont-show-again', 'true');
     }
-    performCheckout(selectedOptions, undefined, pendingActionType);
-    setIsProcessingUpsell(false);
-  }, [pendingActionType, performCheckout]);
+    try {
+      await performCheckout(selectedOptions, undefined, pendingActionType);
+    } catch (error) {
+      const explained = explainPreviewLifecycleError(error);
+      setShowUpsellModal(true);
+      toast({ title: explained.code, description: `${explained.description} Technical reason: ${explained.technicalReason}`, variant: 'destructive' });
+    } finally {
+      setIsProcessingUpsell(false);
+    }
+  }, [pendingActionType, performCheckout, toast]);
   // Preview drag handlers
   const onPreviewMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -2043,6 +2094,15 @@ const GoogleAdsBanner: React.FC = () => {
     loading: boolean;
     helper: string | null;
   } = (() => {
+    if (isProcessingUpsell) {
+      return {
+        label: 'Preparing exact preview…',
+        onClick: undefined,
+        disabled: true,
+        loading: true,
+        helper: 'Verifying the permanent customer-approved composition.',
+      };
+    }
     if (hasJustAddedToCart) {
       const post = getPostAddToCartCta(cartItemCount);
       return { label: post.label, onClick: openCartDrawer, disabled: false, loading: false, helper: post.helper };
@@ -2686,6 +2746,8 @@ const GoogleAdsBanner: React.FC = () => {
                           {/* PR3: Modern Canva-style artwork editor (drag,
                               resize handles, fit/fill/reset/constrain). */}
                           <ArtworkPreviewEditor
+                            ref={inlineEditorRef}
+                            compositionKey={`${uploadedFile.editorIdentity || uploadedFile.productionPublicId || uploadedFile.fileKey || uploadedFile.name}|${productType}|${widthIn}x${heightIn}`}
                             src={uploadedFile.previewUrl || uploadedFile.thumbnailUrl || uploadedFile.url}
                             previewUrl={uploadedFile.previewUrl || uploadedFile.thumbnailUrl || null}
                             productionUrl={uploadedFile.productionUrl || uploadedFile.url}
@@ -2879,21 +2941,21 @@ const GoogleAdsBanner: React.FC = () => {
                   }
                 />
 
-                <button onClick={handleCheckout} disabled={!uploadedFile || isUploading} className={`group w-full font-bold text-lg py-5 rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${uploadedFile && !isUploading ? 'bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white cursor-pointer shadow-orange-500/30' : 'bg-orange-300 text-white/80 cursor-not-allowed'}`}>
+                <button onClick={handleCheckout} disabled={!uploadedFile || isUploading || isProcessingUpsell} className={`group w-full font-bold text-lg py-5 rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${uploadedFile && !isUploading && !isProcessingUpsell ? 'bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white cursor-pointer shadow-orange-500/30' : 'bg-orange-300 text-white/80 cursor-not-allowed'}`}>
                   <Lock className="h-4 w-4" aria-hidden="true" />
-                  Checkout securely
+                  {isProcessingUpsell ? 'Preparing exact preview…' : 'Checkout securely'}
                   <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
                 </button>
                 <button
                   onClick={handleAddToCart}
-                  disabled={!uploadedFile || isUploading}
+                  disabled={!uploadedFile || isUploading || isProcessingUpsell}
                   className={`w-full font-semibold text-base py-4 rounded-xl border-2 transition-all duration-200 ${
-                    uploadedFile && !isUploading
+                    uploadedFile && !isUploading && !isProcessingUpsell
                       ? 'border-slate-300 text-slate-800 hover:bg-slate-50'
                       : 'border-slate-200 text-slate-400 cursor-not-allowed'
                   }`}
                 >
-                  Add to Cart
+                  {isProcessingUpsell ? 'Preparing exact preview…' : 'Add to Cart'}
                 </button>
                 {/* Friday shipping badge */}
                 <div className="flex items-center justify-center gap-2 mt-3 py-2 px-3 bg-blue-50 border border-blue-200 rounded-lg">
@@ -3057,6 +3119,8 @@ const GoogleAdsBanner: React.FC = () => {
                   style={previewWrapperStyle}
                 >
                   <ArtworkPreviewEditor
+                    ref={modalEditorRef}
+                    compositionKey={`${uploadedFile.editorIdentity || uploadedFile.productionPublicId || uploadedFile.fileKey || uploadedFile.name}|${productType}|${widthIn}x${heightIn}`}
                     src={uploadedFile.previewUrl || uploadedFile.thumbnailUrl || uploadedFile.url}
                             previewUrl={uploadedFile.previewUrl || uploadedFile.thumbnailUrl || null}
                             productionUrl={uploadedFile.productionUrl || uploadedFile.url}
@@ -3137,13 +3201,15 @@ const GoogleAdsBanner: React.FC = () => {
           grommets: grommets as any,
           polePockets,
           addRope,
-          thumbnailUrl: uploadedFile?.previewUrl || uploadedFile?.thumbnailUrl || uploadedFile?.url,
+          thumbnailUrl: pendingPlacementPreview?.previewUrl,
           file: uploadedFile ? { name: uploadedFile.name, url: uploadedFile.url } : undefined,
           imagePosition: pendingCheckoutData?.pos,
           imageScale: pendingCheckoutData?.scale,
           imageScaleY: pendingCheckoutData?.scaleY ?? pendingCheckoutData?.scale,
         } as any}
-        thumbnailUrl={uploadedFile?.thumbnailUrl || uploadedFile?.url}
+        thumbnailUrl={pendingPlacementPreview?.previewUrl}
+        thumbnailIsExactComposition={isReadyPlacementPreview(pendingPlacementPreview)}
+        thumbnailCompositionSignature={pendingPlacementPreview?.compositionSignature}
         actionType={pendingActionType === 'checkout' ? 'checkout' : 'cart'}
         isProcessing={isProcessingUpsell}
         productType={productType}

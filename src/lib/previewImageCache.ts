@@ -69,6 +69,20 @@ export function getDecodedPreviewImage(value?: string | null): PreviewImageResul
   return entry.result;
 }
 
+export function rememberDecodedPreviewImage(result: PreviewImageResult): void {
+  const url = normalizePreviewImageUrl(result.url);
+  if (!url || !Number.isFinite(result.naturalWidth) || result.naturalWidth <= 0
+    || !Number.isFinite(result.naturalHeight) || result.naturalHeight <= 0) {
+    return;
+  }
+  previewImageCache.set(url, {
+    status: 'ready',
+    result: { ...result, url },
+    touchedAt: Date.now(),
+  });
+  trimCache();
+}
+
 export function forgetPreviewImage(value?: string | null): void {
   const url = normalizePreviewImageUrl(value);
   if (url) previewImageCache.delete(url);

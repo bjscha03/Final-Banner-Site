@@ -1,6 +1,10 @@
 const { neon } = require('@neondatabase/serverless');
 const { randomUUID } = require('crypto');
 const { normalizeArtworkManifest } = require('../artwork-manifest.cjs');
+const {
+  PreviewArtifactValidationError,
+  normalizeCartItemPlacement,
+} = require('../preview-artifact.cjs');
 const { normalizeShippingAddress } = require('./shipping-address-helpers.cjs');
 const {
   reconcileSameDayFlags,
@@ -422,6 +426,26 @@ exports.handler = async (event, context) => {
           }),
         };
       }
+    }
+
+    try {
+      if (Array.isArray(orderData.items)) {
+        orderData.items = orderData.items.map(normalizeCartItemPlacement);
+      }
+    } catch (error) {
+      if (error instanceof PreviewArtifactValidationError) {
+        return {
+          statusCode: 409,
+          headers,
+          body: JSON.stringify({
+            ok: false,
+            error: error.code,
+            message: error.message,
+            details: error.details,
+          }),
+        };
+      }
+      throw error;
     }
     
     // AUTO-MIGRATE: Ensure text_elements and overlay_image columns exist before processing order
@@ -1126,7 +1150,7 @@ exports.handler = async (event, context) => {
     if (orderData.items && Array.isArray(orderData.items)) {
       for (const rawItem of orderData.items) {
         validatePrintSceneV2(rawItem && rawItem.canvas_state_json);
-        const item = cleanItemForDb(rawItem);
+        const item = normalizeCartItemPlacement(cleanItemForDb(rawItem));
         item.artwork_manifest = normalizeArtworkManifest(item);
         console.log("[Create Order] Cleaned item file_key:", item.file_key, "file_url:", item.file_url ? item.file_url.substring(0, 80) : null);
         console.log('[CREATE_ORDER_DEBUG] === PERSISTING ORDER ITEM ===');

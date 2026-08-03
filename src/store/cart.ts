@@ -9,6 +9,8 @@ import { trackAddToCart, trackFBAddToCart } from '@/lib/analytics';
 import { getProductConfig } from '@/lib/products';
 import type { ProductTypeSlug } from '@/lib/products';
 import type { ArtworkManifest, PlacementPreviewManifest } from '@/types/artwork';
+import { createStableCartItemId } from '@/lib/cartItemIdentity';
+import { isReadyPlacementPreview, PreviewLifecycleError } from '@/lib/previewLifecycle';
 import { calculateBannerPricing } from '@/lib/bannerPricingEngine';
 import {
   computeSameDayFeesCents,
@@ -119,6 +121,8 @@ export interface CartItem {
   canvas_state_json?: string;          // Exact stage/canvas JSON at submission for re-rendering
   artwork_manifest?: ArtworkManifest;
   placement_preview?: PlacementPreviewManifest;
+  composition_signature?: string;
+  composition_revision?: number;
 
   // Yard Sign metadata (only for product_type === 'yard_sign')
   yard_sign_sidedness?: 'single' | 'double';     // Print sidedness
@@ -134,8 +138,12 @@ export interface CartItem {
     isPdf: boolean;
     quantity: number;
     imgScale?: number;                             // Preview state: zoom level
+    imgScaleY?: number;
     imgPos?: { x: number; y: number };             // Preview state: position offset
+    imgConstrain?: boolean;
     previewThumbnailUrl?: string;                   // Rendered preview thumbnail (single source of truth)
+    placementPreview?: PlacementPreviewManifest;
+    compositionSignature?: string;
   }>;
   yard_sign_signs_subtotal_cents?: number;        // Sign subtotal before stakes
   yard_sign_stakes_subtotal_cents?: number;       // Stakes subtotal
@@ -225,9 +233,6 @@ export interface CartState {
   }) => string;
   loadItemIntoQuote: (itemId: string) => CartItem | null;
   updateCartItem: (itemId: string, quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => void;
-  updateItemThumbnail: (itemId: string, thumbnailUrl: string) => void;
-  updateItemWebPreview: (itemId: string, webPreviewUrl: string) => void;
-  updatePlacementPreviewStatus: (itemId: string, preview: PlacementPreviewManifest) => void;
   removeItem: (id: string) => void;
   clearCart: () => void;
   clearCartLocal: () => void;  // Clear cart in memory only, without syncing to server
@@ -392,6 +397,33 @@ export const useCartStore = create<CartState>()(
       addFromQuote: (quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing): string => {
         debugLog('🚨 addFromQuote CALLED - Current items in cart:', get().items.length);
         debugLog('🚨 addFromQuote CALLED - Current items in cart:', get().items.length);
+        const requestedPlacement = (quote as any).placementPreview as PlacementPreviewManifest | undefined;
+        const requestedProductType = (quote as any).product_type || 'banner';
+        if (requestedPlacement && !isReadyPlacementPreview(requestedPlacement)) {
+          throw new PreviewLifecycleError(
+            'PERMANENT_PREVIEW_UNAVAILABLE',
+            'Refusing to create a cart line with a non-ready exact preview.',
+          );
+        }
+        if (requestedPlacement && (
+          requestedPlacement.productType !== requestedProductType
+          || requestedPlacement.widthIn !== quote.widthIn
+          || requestedPlacement.heightIn !== quote.heightIn
+        )) {
+          throw new PreviewLifecycleError(
+            'COMPOSITION_CHANGED',
+            'The exact preview identity does not match the cart line being created.',
+            {
+              requestedProductType,
+              requestedWidthIn: quote.widthIn,
+              requestedHeightIn: quote.heightIn,
+              previewProductType: requestedPlacement.productType,
+              previewWidthIn: requestedPlacement.widthIn,
+              previewHeightIn: requestedPlacement.heightIn,
+            },
+          );
+        }
+        const exactPreviewUrl = requestedPlacement?.previewUrl;
         // Capture design-page authoritative pricing when provided
         const usingAuthoritative = !!pricing;
 
@@ -466,8 +498,8 @@ export const useCartStore = create<CartState>()(
         debugLog('📦 [CART STORE] This fileKey should be the CANVAS THUMBNAIL key (includes text/images)');
 
         const newItem: CartItem = {
-          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          product_type: (quote as any).product_type || 'banner',
+          id: createStableCartItemId('cart'),
+          product_type: requestedProductType,
           width_in: quote.widthIn,
           height_in: quote.heightIn,
           quantity: quote.quantity,
@@ -527,7 +559,7 @@ export const useCartStore = create<CartState>()(
           })(),
           thumbnail_url: (() => {
             // Store thumbnail for DISPLAY in cart (has grommets/text rendered)
-            const thumbnailUrl = (quote as any).thumbnailUrl || (quote.file as any)?.previewUrl || (quote.file as any)?.thumbnailUrl;
+            const thumbnailUrl = exactPreviewUrl || (quote as any).thumbnailUrl || (quote.file as any)?.previewUrl || (quote.file as any)?.thumbnailUrl;
             debugLog('[CART STORE] 🖼️ Thumbnail URL for display:', thumbnailUrl ? thumbnailUrl.substring(0, 80) + '...' : 'NULL');
             debugLog('[CART STORE] 🖼️ Thumbnail URL details:', {
               isBlob: thumbnailUrl?.startsWith('blob:'),
@@ -538,7 +570,7 @@ export const useCartStore = create<CartState>()(
             return thumbnailUrl || null;
           })(),
           web_preview_url: (() => {
-            const explicitWebPreview = (quote as any).webPreviewUrl;
+            const explicitWebPreview = exactPreviewUrl || (quote as any).webPreviewUrl;
             if (explicitWebPreview && !explicitWebPreview.startsWith('blob:') && !explicitWebPreview.startsWith('data:')) return explicitWebPreview;
             return (aiMetadata?.assets?.proofUrl?.startsWith('blob:') ? null : aiMetadata?.assets?.proofUrl) || null;
           })(),
@@ -569,7 +601,9 @@ export const useCartStore = create<CartState>()(
           final_render_dpi: (quote as any).finalRenderDpi || undefined,
           canvas_state_json: (quote as any).canvasStateJson || undefined,
           artwork_manifest: (quote as any).artworkManifest || undefined,
-          placement_preview: (quote as any).placementPreview || undefined,
+          placement_preview: requestedPlacement,
+          composition_signature: requestedPlacement?.compositionSignature,
+          composition_revision: requestedPlacement?.compositionRevision,
           // Yard Sign metadata (populated when product_type is 'yard_sign')
           ...((quote as any).product_type === 'yard_sign' && (quote as any).yard_sign_metadata ? {
             yard_sign_sidedness: (quote as any).yard_sign_metadata.sidedness,
@@ -652,7 +686,7 @@ export const useCartStore = create<CartState>()(
 
       addDesignDeposit: ({ intakeId, customerName, customerEmail, graduateName, schoolName, graduationYear, productType, estimatedProductSubtotalCents, estimatedTaxCents, estimatedProductTotalCents }) => {
         const DEPOSIT_PRICE_CENTS = 1900;
-        const itemId = `design-deposit-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const itemId = createStableCartItemId('design-deposit');
         const newItem: CartItem = {
           id: itemId,
           product_type: 'design_deposit',
@@ -721,7 +755,7 @@ export const useCartStore = create<CartState>()(
       }) => {
         // Replace any existing graduation_final_payment item for the same
         // intake to avoid duplicates if the customer revisits the proof page.
-        const itemId = `grad-final-${intakeId}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const itemId = createStableCartItemId(`grad-final-${intakeId}`);
         const newItem: CartItem = {
           id: itemId,
           product_type: 'graduation_final_payment',
@@ -918,10 +952,47 @@ export const useCartStore = create<CartState>()(
 
         // Use the file key from the uploaded file
         const fileKey = quote.file?.fileKey;
+        const nextPlacement = (quote as any).placementPreview as PlacementPreviewManifest | undefined;
+        const nextProductType = (quote as any).product_type || existingItem.product_type || 'banner';
+        if (nextPlacement && !isReadyPlacementPreview(nextPlacement)) {
+          console.error('❌ CART: Refusing to replace an item with a non-ready exact preview', {
+            itemId,
+            compositionSignature: nextPlacement.compositionSignature,
+            uploadStatus: nextPlacement.uploadStatus,
+          });
+          throw new PreviewLifecycleError(
+            'PERMANENT_PREVIEW_UNAVAILABLE',
+            'Refusing to replace a cart item with a non-ready exact preview.',
+          );
+        }
+        if (nextPlacement && (
+          nextPlacement.productType !== nextProductType
+          || nextPlacement.widthIn !== quote.widthIn
+          || nextPlacement.heightIn !== quote.heightIn
+        )) {
+          throw new PreviewLifecycleError(
+            'COMPOSITION_CHANGED',
+            'The replacement preview identity does not match the cart line update.',
+            {
+              nextProductType,
+              nextWidthIn: quote.widthIn,
+              nextHeightIn: quote.heightIn,
+              previewProductType: nextPlacement.productType,
+              previewWidthIn: nextPlacement.widthIn,
+              previewHeightIn: nextPlacement.heightIn,
+            },
+          );
+        }
+        const exactPreviewUrl = nextPlacement?.previewUrl;
+        const replacingExistingCanonicalPreview = Boolean(existingItem.placement_preview);
+        const yardMetadata = nextProductType === 'yard_sign'
+          ? (quote as any).yard_sign_metadata
+          : null;
 
         // Update the item with new data
         const updatedItem: CartItem = {
           ...existingItem,
+          product_type: nextProductType,
           width_in: quote.widthIn,
           height_in: quote.heightIn,
           quantity: quote.quantity,
@@ -946,9 +1017,18 @@ export const useCartStore = create<CartState>()(
           // Use thumbnailUrl if provided, otherwise fall back to file.url or existing
           // CRITICAL: For PDFs, use originalUrl (Cloudinary URL before blob conversion)
           // CRITICAL FIX: Never use thumbnailUrl for file_url - thumbnailUrl has grommets baked in
-          file_url: ((quote.file as any)?.originalUrl || ((quote.file?.url?.startsWith('blob:')) ? null : quote.file?.url)) || aiMetadata?.assets?.proofUrl || existingItem.file_url,
-          thumbnail_url: (quote as any).thumbnailUrl || existingItem.thumbnail_url, // CRITICAL: Update thumbnail for cart display
-          web_preview_url: (quote as any).webPreviewUrl || aiMetadata?.assets?.proofUrl || existingItem.web_preview_url,
+          file_url: ((quote.file as any)?.productionUrl
+            || (quote.file as any)?.originalUrl
+            || ((quote.file?.url?.startsWith('blob:') || quote.file?.url?.startsWith('data:')) ? null : quote.file?.url))
+            || aiMetadata?.assets?.proofUrl
+            || existingItem.file_url,
+          thumbnail_url: exactPreviewUrl
+            || (replacingExistingCanonicalPreview ? undefined : (quote as any).thumbnailUrl)
+            || (replacingExistingCanonicalPreview ? undefined : existingItem.thumbnail_url),
+          web_preview_url: exactPreviewUrl
+            || (replacingExistingCanonicalPreview ? undefined : (quote as any).webPreviewUrl)
+            || (replacingExistingCanonicalPreview ? undefined : aiMetadata?.assets?.proofUrl)
+            || (replacingExistingCanonicalPreview ? undefined : existingItem.web_preview_url),
           print_ready_url: aiMetadata?.assets?.finalUrl || existingItem.print_ready_url,
           is_pdf: quote.file?.isPdf || false,
           text_elements: quote.textElements && quote.textElements.length > 0 ? quote.textElements : undefined,
@@ -970,6 +1050,20 @@ export const useCartStore = create<CartState>()(
           final_render_height_px: (quote as any).finalRenderHeightPx || existingItem.final_render_height_px,
           final_render_dpi: (quote as any).finalRenderDpi || existingItem.final_render_dpi,
           canvas_state_json: (quote as any).canvasStateJson || existingItem.canvas_state_json,
+          artwork_manifest: (quote as any).artworkManifest || existingItem.artwork_manifest,
+          // A canonical artifact may only survive an edit when that exact edit
+          // supplied it again. Reusing the previous placement after a source,
+          // transform, or dimension change can put stale artwork into checkout.
+          placement_preview: nextPlacement,
+          composition_signature: nextPlacement?.compositionSignature,
+          composition_revision: nextPlacement?.compositionRevision,
+          yard_sign_sidedness: yardMetadata?.sidedness,
+          yard_sign_step_stakes_enabled: yardMetadata?.addStepStakes,
+          yard_sign_step_stakes_qty: yardMetadata?.stepStakeQty,
+          yard_sign_design_count: yardMetadata?.designCount,
+          yard_sign_designs: yardMetadata?.designs,
+          yard_sign_signs_subtotal_cents: yardMetadata?.signSubtotalCents,
+          yard_sign_stakes_subtotal_cents: yardMetadata?.stakeSubtotalCents,
           // Design Service fields
           design_service_enabled: (quote as any).design_service_enabled || existingItem.design_service_enabled,
           design_request_text: (quote as any).design_request_text || existingItem.design_request_text,
@@ -1019,46 +1113,6 @@ export const useCartStore = create<CartState>()(
       }, 0);
       },
 
-  // Lightweight thumbnail patch used after a background positioned-thumbnail
-  // upload completes. Avoids re-running pricing/etc., simply swaps the
-  // display thumbnail and resyncs to the server.
-  updateItemThumbnail: (itemId: string, thumbnailUrl: string) => {
-        if (!itemId || !thumbnailUrl) return;
-        let didUpdate = false;
-        set((state) => {
-          const items = state.items.map(item => {
-            if (item.id !== itemId) return item;
-            didUpdate = true;
-            return { ...item, thumbnail_url: thumbnailUrl };
-          });
-          return { items };
-        });
-        if (!didUpdate) return;
-        setTimeout(() => {
-          get().syncToServer();
-        }, 0);
-      },
-      updateItemWebPreview: (itemId: string, webPreviewUrl: string) => {
-        if (!itemId || !webPreviewUrl || webPreviewUrl.startsWith('blob:') || webPreviewUrl.startsWith('data:')) return;
-        let didUpdate = false;
-        set((state) => {
-          const items = state.items.map(item => {
-            if (item.id !== itemId) return item;
-            didUpdate = true;
-            return { ...item, web_preview_url: webPreviewUrl };
-          });
-          return { items };
-        });
-        if (!didUpdate) return;
-        setTimeout(() => {
-          get().syncToServer();
-        }, 0);
-      },
-      updatePlacementPreviewStatus: (itemId: string, preview: PlacementPreviewManifest) => {
-        set((state) => ({ items: state.items.map((item) => item.id === itemId ? { ...item, placement_preview: preview } : item) }));
-        void get().syncToServer();
-      },
-      
       clearCart: () => {
         set({ items: [], discountCode: null, sameDayHitService: false, saturdayDelivery: false });
       // CRITICAL FIX: Sync to Neon database AFTER state update completes
@@ -1111,6 +1165,16 @@ export const useCartStore = create<CartState>()(
         // CRITICAL: Strip out blob/data URLs before syncing - they're too large for the database
         const items = rawItems.map(item => {
           const cleaned = { ...item };
+          if (isReadyPlacementPreview(cleaned.placement_preview)) {
+            const exactUrl = cleaned.placement_preview.previewUrl;
+            cleaned.thumbnail_url = exactUrl;
+            cleaned.web_preview_url = exactUrl;
+            cleaned.composition_signature = cleaned.placement_preview.compositionSignature;
+            cleaned.composition_revision = cleaned.placement_preview.compositionRevision;
+          } else if (cleaned.placement_preview) {
+            const previewUrl = cleaned.placement_preview.previewUrl || cleaned.placement_preview.url;
+            if (isBadUrl(previewUrl)) cleaned.placement_preview = undefined;
+          }
           // DEBUG: Log thumbnail_url before cleaning
           debugLog('[syncToServer] Item thumbnail_url BEFORE cleaning:', {
             id: item.id,
@@ -1371,6 +1435,25 @@ export const useCartStore = create<CartState>()(
             thumbnail_url: item.thumbnail_url?.startsWith('data:') || item.thumbnail_url?.startsWith('blob:')
               ? undefined
               : item.thumbnail_url,
+            placement_preview: item.placement_preview && (
+              item.placement_preview.previewUrl?.startsWith('data:')
+              || item.placement_preview.previewUrl?.startsWith('blob:')
+              || item.placement_preview.url?.startsWith('data:')
+              || item.placement_preview.url?.startsWith('blob:')
+            ) ? undefined : item.placement_preview,
+            yard_sign_designs: item.yard_sign_designs?.map((design) => ({
+              ...design,
+              previewThumbnailUrl: design.previewThumbnailUrl?.startsWith('data:')
+                || design.previewThumbnailUrl?.startsWith('blob:')
+                ? undefined
+                : design.previewThumbnailUrl,
+              placementPreview: design.placementPreview && (
+                design.placementPreview.previewUrl?.startsWith('data:')
+                || design.placementPreview.previewUrl?.startsWith('blob:')
+                || design.placementPreview.url?.startsWith('data:')
+                || design.placementPreview.url?.startsWith('blob:')
+              ) ? undefined : design.placementPreview,
+            })),
             canvas_state_json: item.canvas_state_json
               ? (() => {
                   try {

@@ -1,6 +1,7 @@
 const { neon } = require('@neondatabase/serverless');
 const { normalizeTrackingEntries } = require('./tracking-helpers.cjs');
 const { normalizeShippingAddress } = require('./shipping-address-helpers.cjs');
+const { normalizeCartItemPlacement } = require('../preview-artifact.cjs');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const PUBLIC_STATUSES = new Set(['paid', 'in_production', 'shipped', 'refunded']);
@@ -46,7 +47,25 @@ function publicOrderShape(order, items) {
     same_day_fee_cents: Number(order.same_day_fee_cents || 0),
     saturday_fee_cents: Number(order.saturday_fee_cents || 0),
     created_at: order.created_at,
-    items: items.map((item) => ({
+    items: items.map((rawItem) => {
+      let item;
+      try {
+        item = normalizeCartItemPlacement(rawItem);
+      } catch (error) {
+        console.error('[get-order-public] suppressing invalid canonical preview', {
+          itemId: rawItem.id,
+          code: error.code || 'INVALID_PLACEMENT_PREVIEW',
+          message: error.message,
+        });
+        item = {
+          ...rawItem,
+          thumbnail_url: null,
+          final_render_url: null,
+          web_preview_url: null,
+          placement_preview: null,
+        };
+      }
+      return ({
       width_in: Number(item.width_in || 0),
       height_in: Number(item.height_in || 0),
       quantity: Number(item.quantity || 0),
@@ -64,12 +83,14 @@ function publicOrderShape(order, items) {
       thumbnail_url: item.thumbnail_url || null,
       final_render_url: item.final_render_url || null,
       web_preview_url: item.web_preview_url || null,
+      placement_preview: item.placement_preview || null,
       yard_sign_sidedness: item.yard_sign_sidedness || null,
       yard_sign_step_stakes_qty: Number(item.yard_sign_step_stakes_qty || 0),
       yard_sign_design_count: Number(item.yard_sign_design_count || 0),
       yard_sign_stakes_subtotal_cents: Number(item.yard_sign_stakes_subtotal_cents || 0),
       design_service_enabled: Boolean(item.design_service_enabled),
-    })),
+      });
+    }),
   };
 }
 

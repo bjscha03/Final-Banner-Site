@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import OriginalArtworkPreviewEditor, {
+  type ArtworkPreviewEditorHandle,
   type ArtworkPreviewEditorProps,
   type ArtworkTransform,
 } from './ArtworkPreviewEditor';
@@ -10,7 +11,7 @@ import {
   resolveArtworkPreviewImageSrc,
 } from './artworkPreviewSource';
 
-export type { ArtworkPreviewEditorProps, ArtworkTransform };
+export type { ArtworkPreviewEditorHandle, ArtworkPreviewEditorProps, ArtworkTransform };
 
 /**
  * Active design canvases intentionally use one persistent DOM image, not the
@@ -19,7 +20,7 @@ export type { ArtworkPreviewEditorProps, ArtworkTransform };
  * the background. This prevents upload completion from remounting the image,
  * repainting the canvas, flashing white, or leaving the artwork blank.
  */
-const SessionStableArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = (props) => {
+const SessionStableArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPreviewEditorProps>((props, forwardedRef) => {
   const incomingSource = useMemo(
     () => resolveArtworkPreviewImageSrc({
       src: props.src,
@@ -92,6 +93,7 @@ const SessionStableArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = (
 
   return (
     <OriginalArtworkPreviewEditor
+      ref={forwardedRef}
       {...props}
       src={effectiveSource}
       previewUrl={effectiveSource || null}
@@ -102,6 +104,8 @@ const SessionStableArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = (
       onRetryPreview={handleRetryPreview}
     />
   );
-};
+});
+
+SessionStableArtworkPreviewEditor.displayName = 'SessionStableArtworkPreviewEditor';
 
 export default SessionStableArtworkPreviewEditor;

@@ -26,7 +26,7 @@ import { trackPromoEvent } from '@/lib/posthog';
 import { getItemDisplayName, isYardSignItem, getProductCategory, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
 import { getProductCopy, getDominantProductType } from '@/lib/product-copy';
 import { getGrommetLabelForDisplay, getGrommetModeForPreview } from '@/lib/cartGrommet';
-import { getExpandedPreviewSelection, getSmallPreviewUrl } from '@/lib/previewSelection';
+import { getExpandedPreviewSelection, getSmallPreviewSelection } from '@/lib/previewSelection';
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
@@ -615,10 +615,12 @@ const Checkout: React.FC = () => {
                     const grommetLabel = getGrommetLabelForDisplay(item, normalized.grommetsDisplay);
                     const grommetMode = getGrommetModeForPreview(item);
                     const isYardSign = isYardSignItem(item);
-                    const smallPreviewUrl = getSmallPreviewUrl(item);
+                    const smallPreview = getSmallPreviewSelection(item);
                     const expandedPreview = getExpandedPreviewSelection(item);
-                    const yardSignPreviewUrl = smallPreviewUrl;
-                    const bannerPreviewUrl = smallPreviewUrl;
+                    const compositionSignature = item.placement_preview?.compositionSignature
+                      || item.composition_signature;
+                    const yardSignPreviewUrl = smallPreview.url;
+                    const bannerPreviewUrl = smallPreview.url;
                     if (isYardSign && !yardSignPreviewUrl) {
                       console.warn('⚠️  CHECKOUT: No image URL found for item:', item.id, {
                         thumbnail_url: item.thumbnail_url,
@@ -682,7 +684,8 @@ const Checkout: React.FC = () => {
                                     className="flex-shrink-0"
                                     designServiceEnabled={item.design_service_enabled}
                                     source={item.source}
-                                    isFinalizedSnapshot={expandedPreview.source === 'web_preview' || expandedPreview.source === 'final_render'}
+                                    isFinalizedSnapshot={expandedPreview.isExactComposition}
+                                    compositionSignature={compositionSignature}
                                     maxSize={820}
                                   />
                                 </div>
@@ -702,7 +705,8 @@ const Checkout: React.FC = () => {
                                 className="flex-shrink-0"
                                 designServiceEnabled={item.design_service_enabled}
                                 source={item.source}
-                                isFinalizedSnapshot={!!item.thumbnail_url}
+                                isFinalizedSnapshot={smallPreview.isExactComposition}
+                                compositionSignature={compositionSignature}
                               />
                             </ThumbnailPreviewWrapper>
                           </div>
@@ -742,7 +746,8 @@ const Checkout: React.FC = () => {
                                     className="flex-shrink-0"
                                     designServiceEnabled={item.design_service_enabled}
                                     source={item.source}
-                                    isFinalizedSnapshot={expandedPreview.source === 'web_preview' || expandedPreview.source === 'final_render'}
+                                    isFinalizedSnapshot={expandedPreview.isExactComposition}
+                                    compositionSignature={compositionSignature}
                                     maxSize={820}
                                   />
                                 </div>
@@ -762,7 +767,8 @@ const Checkout: React.FC = () => {
                                 className="flex-shrink-0"
                                 designServiceEnabled={item.design_service_enabled}
                                 source={item.source}
-                                isFinalizedSnapshot={!!item.thumbnail_url}
+                                isFinalizedSnapshot={smallPreview.isExactComposition}
+                                compositionSignature={compositionSignature}
                               />
                             </ThumbnailPreviewWrapper>
                           </div>

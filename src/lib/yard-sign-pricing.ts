@@ -12,6 +12,7 @@
  */
 
 import { getProductConfig, type PredefinedSize, type MaterialMultiplier } from './products';
+import type { PlacementPreviewManifest } from '@/types/artwork';
 
 const YARD_SIGN_SLUG = 'yard_sign';
 
@@ -43,6 +44,7 @@ export interface YardSignDesign {
   imgConstrain?: boolean;
   // Thumbnail rendered from the preview state (matches exactly what user saw)
   previewThumbnailUrl?: string;
+  placementPreview?: PlacementPreviewManifest;
 }
 
 // ----- Pricing result -----
