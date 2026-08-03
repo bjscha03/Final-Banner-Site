@@ -1,5 +1,6 @@
 const { neon } = require('@neondatabase/serverless');
 const { getPayPalDescription } = require('./product-display-helpers.cjs');
+const { buildDetailedPayPalOrderRequest } = require('./paypal-order-details.cjs');
 const {
   ACTIVE_ORDER_STATUSES,
   captureFromOrder,
@@ -229,16 +230,34 @@ exports.handler = async (event) => {
       },
     };
 
-    const response = await fetch(`${config.baseUrl}/v2/checkout/orders`, {
+    const requestHeaders = {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'PayPal-Request-Id': requestId,
+    };
+    const detailedBody = buildDetailedPayPalOrderRequest(body, payload.items);
+    let response = await fetch(`${config.baseUrl}/v2/checkout/orders`, {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        'PayPal-Request-Id': requestId,
-      },
-      body: JSON.stringify(body),
+      headers: requestHeaders,
+      body: JSON.stringify(detailedBody || body),
     });
+
+    // Preserve checkout availability for a provider-side edge case while
+    // keeping the authoritative amount and identity fields unchanged.
+    if (detailedBody && !response.ok && [400, 422].includes(response.status)) {
+      let diagnostic = '';
+      try { diagnostic = (await response.clone().text()).slice(0, 500); } catch { /* no-op */ }
+      console.error('[paypal-create-order] PayPal rejected detailed line items; retrying summary-only request', {
+        status: response.status,
+        diagnostic,
+      });
+      response = await fetch(`${config.baseUrl}/v2/checkout/orders`, {
+        method: 'POST',
+        headers: requestHeaders,
+        body: JSON.stringify(body),
+      });
+    }
 
     const paypalOrder = await response.json().catch(() => ({}));
     const identity = orderIdentity(paypalOrder);
