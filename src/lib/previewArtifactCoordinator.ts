@@ -7,7 +7,6 @@ import {
   validateCompositionSpec,
 } from '@/lib/previewLifecycle';
 import {
-  measureVisibleArtworkFraction,
   renderPositionedThumbnailBlob,
 } from '@/utils/generatePositionedThumbnail';
 import { uploadCanvasImageToCloudinary } from '@/utils/uploadCanvasImage';
@@ -44,8 +43,8 @@ function loadPermanentImage(url: string, timeoutMs = 25_000): Promise<HTMLImageE
       try {
         await image.decode?.();
       } catch {
-        // Safari may reject decode after a valid load. Natural dimensions and
-        // the pixel audit below remain authoritative.
+        // Safari may reject decode after a valid load. Natural dimensions are
+        // the authoritative fallback in that case.
       }
       finish(() => resolve(image));
     };
@@ -77,33 +76,27 @@ async function verifyPermanentArtifact(
     if (delayMs) await wait(delayMs);
     try {
       const image = await loadPermanentImage(url);
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.max(1, Math.min(640, expectedWidthPx));
-      canvas.height = Math.max(1, Math.round(canvas.width * expectedHeightPx / expectedWidthPx));
-      const context = canvas.getContext('2d', { alpha: false });
-      if (!context) {
-        throw new PreviewLifecycleError(
-          'CANVAS_CONTEXT_UNAVAILABLE',
-          'The permanent-preview verification canvas has no 2D context.',
-        );
-      }
-      context.fillStyle = '#ffffff';
-      context.fillRect(0, 0, canvas.width, canvas.height);
-      context.drawImage(image, 0, 0, canvas.width, canvas.height);
-      const visiblePixelFraction = measureVisibleArtworkFraction(canvas, '#ffffff');
-      canvas.width = 0;
-      canvas.height = 0;
-      if (visiblePixelFraction < 0.0005) {
+      const expectedAspect = expectedWidthPx / expectedHeightPx;
+      const actualAspect = image.naturalWidth / image.naturalHeight;
+      const aspectRatioError = Math.abs((actualAspect / expectedAspect) - 1);
+      if (!Number.isFinite(aspectRatioError) || aspectRatioError > 0.02) {
         throw new PreviewLifecycleError(
           'PREVIEW_UPLOAD_UNREADABLE',
-          'The permanent preview decoded but its pixel audit was blank.',
-          { url, visiblePixelFraction },
+          'The permanent preview decoded with dimensions that do not match the rendered composition.',
+          {
+            url,
+            expectedWidthPx,
+            expectedHeightPx,
+            naturalWidth: image.naturalWidth,
+            naturalHeight: image.naturalHeight,
+            aspectRatioError,
+          },
         );
       }
       return {
         naturalWidth: image.naturalWidth,
         naturalHeight: image.naturalHeight,
-        visiblePixelFraction,
+        visiblePixelFraction: -1,
       };
     } catch (error) {
       lastError = error;

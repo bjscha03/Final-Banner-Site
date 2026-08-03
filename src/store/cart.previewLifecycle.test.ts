@@ -160,6 +160,43 @@ describe('atomic cart edit preview lifecycle', () => {
     expect(useCartStore.getState().items).toEqual([{ ...existingItem }]);
   });
 
+  it('never reuses an old canonical artifact when an edit supplies no replacement', () => {
+    const oldPlacement = readyPlacement();
+    useCartStore.setState({
+      items: [{
+        ...existingItem,
+        width_in: oldPlacement.widthIn,
+        height_in: oldPlacement.heightIn,
+        placement_preview: oldPlacement,
+        composition_signature: oldPlacement.compositionSignature,
+        composition_revision: oldPlacement.compositionRevision,
+        thumbnail_url: oldPlacement.previewUrl,
+        web_preview_url: oldPlacement.previewUrl,
+      }],
+    });
+    const quote = {
+      ...editedQuote(),
+      placementPreview: undefined,
+      thumbnailUrl: oldPlacement.previewUrl,
+      webPreviewUrl: oldPlacement.previewUrl,
+      imagePosition: { x: 25, y: 10 },
+    };
+
+    useCartStore.getState().updateCartItem(
+      existingItem.id,
+      quote,
+      undefined,
+      { unit_price_cents: 4000, rope_cost_cents: 0, pole_pocket_cost_cents: 0, line_total_cents: 8000 },
+    );
+
+    const updated = useCartStore.getState().items[0];
+    expect(updated.placement_preview).toBeUndefined();
+    expect(updated.composition_signature).toBeUndefined();
+    expect(updated.composition_revision).toBeUndefined();
+    expect(updated.thumbnail_url).toBeUndefined();
+    expect(updated.web_preview_url).toBeUndefined();
+  });
+
   it('refuses to create a new line that claims a non-ready exact artifact', () => {
     useCartStore.setState({ items: [] });
     const invalid = { ...readyPlacement(), uploadStatus: 'failed' as const };

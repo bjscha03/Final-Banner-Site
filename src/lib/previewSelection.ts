@@ -208,19 +208,35 @@ function getDesignRequestSources(item: PreviewableItem): string[] {
   ]);
 }
 
-function getCanvasSources(item: PreviewableItem): string[] {
-  const parsed = parseJsonObject(item.canvas_state_json);
-  if (!parsed) return [];
+type CanvasSources = {
+  exact: string[];
+  originals: string[];
+};
 
-  const values: Array<string | null | undefined> = [
-    parsed.previewUrl,
-    parsed.webPreviewUrl,
+function getCanvasSources(item: PreviewableItem): CanvasSources {
+  const parsed = parseJsonObject(item.canvas_state_json);
+  if (!parsed) return { exact: [], originals: [] };
+
+  // Only fields that explicitly describe a rendered output may participate in
+  // the exact-composition chain. `previewUrl` and image-object URLs are source
+  // artwork in the designer's persisted scene; treating them as baked output
+  // is what allowed the uncropped original to replace the approved placement
+  // at checkout.
+  const exactValues: Array<string | null | undefined> = [
     parsed.finalRenderUrl,
+    parsed.webPreviewUrl,
+    parsed.approvedProofUrl,
+    parsed.thumbnailUrl,
+  ];
+  const originalValues: Array<string | null | undefined> = [
+    parsed.originalImageUrl,
+    parsed.productionUrl,
+    parsed.previewUrl,
   ];
   const objects = Array.isArray(parsed.objects) ? parsed.objects : [];
   for (const object of objects) {
     if (!object || typeof object !== 'object' || object.type !== 'image') continue;
-    values.push(
+    originalValues.push(
       object.source?.previewUrl,
       object.source?.originalUrl,
       object.previewUrl,
@@ -228,7 +244,10 @@ function getCanvasSources(item: PreviewableItem): string[] {
       object.src,
     );
   }
-  return dedupePreviewImageSources(values);
+  return {
+    exact: dedupePreviewImageSources(exactValues),
+    originals: dedupePreviewImageSources(originalValues),
+  };
 }
 
 function getYardSignCandidates(item: PreviewableItem): Candidate[] {
@@ -345,7 +364,7 @@ function buildCandidates(item: PreviewableItem): Candidate[] {
       exactComposition: true,
       lowResolution: false,
     })),
-    ...canvasSources.map((url): Candidate => ({
+    ...canvasSources.exact.map((url): Candidate => ({
       url,
       source: 'web_preview',
       exactComposition: true,
@@ -359,6 +378,12 @@ function buildCandidates(item: PreviewableItem): Candidate[] {
     { url: original, source: 'original_fallback', exactComposition: false, lowResolution: false },
     { url: item.print_ready_url, source: 'original_fallback', exactComposition: false, lowResolution: false },
     ...designAssets.map((url): Candidate => ({
+      url,
+      source: 'original_fallback',
+      exactComposition: false,
+      lowResolution: false,
+    })),
+    ...canvasSources.originals.map((url): Candidate => ({
       url,
       source: 'original_fallback',
       exactComposition: false,

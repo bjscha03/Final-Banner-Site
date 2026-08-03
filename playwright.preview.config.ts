@@ -1,10 +1,17 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const baseURL = 'http://127.0.0.1:4175';
+const chromiumExecutablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+const localChromiumLaunch = chromiumExecutablePath
+  ? { launchOptions: { executablePath: chromiumExecutablePath } }
+  : {};
 
 export default defineConfig({
   testDir: './tests/browser',
-  testMatch: 'preview-handoff.playwright.spec.ts',
+  testMatch: [
+    'preview-handoff.playwright.spec.ts',
+    'checkout-thumbnail-real-route.playwright.spec.ts',
+  ],
   fullyParallel: true,
   workers: process.env.CI ? 4 : 2,
   retries: 0,
@@ -30,6 +37,7 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         browserName: 'chromium',
+        ...localChromiumLaunch,
         viewport: { width: 1440, height: 900 },
       },
     },
@@ -81,11 +89,11 @@ export default defineConfig({
     },
     {
       name: 'chromium-pixel8-portrait',
-      use: { ...devices['Pixel 8'], browserName: 'chromium' },
+      use: { ...devices['Pixel 8'], browserName: 'chromium', ...localChromiumLaunch },
     },
     {
       name: 'chromium-pixel8-landscape',
-      use: { ...devices['Pixel 8 landscape'], browserName: 'chromium' },
+      use: { ...devices['Pixel 8 landscape'], browserName: 'chromium', ...localChromiumLaunch },
     },
     {
       name: 'webkit-ipad11-portrait',
@@ -97,11 +105,11 @@ export default defineConfig({
     },
     {
       name: 'chromium-galaxy-tab-s9-portrait',
-      use: { ...devices['Galaxy Tab S9'], browserName: 'chromium' },
+      use: { ...devices['Galaxy Tab S9'], browserName: 'chromium', ...localChromiumLaunch },
     },
     {
       name: 'chromium-galaxy-tab-s9-landscape',
-      use: { ...devices['Galaxy Tab S9 landscape'], browserName: 'chromium' },
+      use: { ...devices['Galaxy Tab S9 landscape'], browserName: 'chromium', ...localChromiumLaunch },
     },
   ],
 });

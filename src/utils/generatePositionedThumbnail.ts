@@ -43,7 +43,6 @@ const MOBILE_PIXEL_CAP = 1_000_000;
 const RETRY_OUTPUT_PX = 720;
 const RETRY_PIXEL_CAP = 600_000;
 const AUDIT_EDGE_PX = 96;
-const MIN_VISIBLE_PIXEL_FRACTION = 0.0005;
 
 const isConstrainedBrowser = () => {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
@@ -292,13 +291,19 @@ export async function renderPositionedThumbnailBlob(
     context.drawImage(image, drawX, drawY, drawWidth, drawHeight);
     context.restore();
 
-    const visiblePixelFraction = measureVisibleArtworkFraction(canvas, backgroundColor);
-    if (visiblePixelFraction < MIN_VISIBLE_PIXEL_FRACTION) {
-      throw new PreviewLifecycleError(
-        'PREVIEW_RENDERED_BLANK',
-        'The rendered composition contains no measurable artwork pixels.',
-        { visiblePixelFraction, widthPx, heightPx },
-      );
+    // This deliberately remains telemetry only. Downsampling a legitimate
+    // sparse design to a 96px audit canvas can erase every artwork pixel; a
+    // lossy sample must never veto the full-resolution canvas that was just
+    // rendered successfully.
+    let visiblePixelFraction = -1;
+    try {
+      visiblePixelFraction = measureVisibleArtworkFraction(canvas, backgroundColor);
+    } catch (error) {
+      console.warn('[placement_preview_pixel_sample_unavailable]', {
+        widthPx,
+        heightPx,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
     const blob = await canvasToBlob(canvas);
     return { blob, widthPx, heightPx, visiblePixelFraction };

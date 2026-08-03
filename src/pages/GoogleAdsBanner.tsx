@@ -204,6 +204,48 @@ function preloadPermanentArtwork(url: string, timeoutMs = 20_000): Promise<boole
   });
 }
 
+function buildCartArtworkForEditor(item: CartItem): UploadedArtworkFile | null {
+  const manifest = item.artwork_manifest;
+  const originalUrl = manifest?.originalUrl
+    || item.placement_preview?.sourceUrl
+    || item.file_url
+    || '';
+  if (!originalUrl) return null;
+  const isPdf = Boolean(item.is_pdf || manifest?.mimeType === 'application/pdf');
+  const publicId = manifest?.publicId
+    || item.file_key
+    || String(item.placement_preview?.sourceIdentity || '').split('@')[0]
+    || '';
+  const browserPreviewUrl = isPdf
+    ? getPdfThumbnailUrl(originalUrl)
+    : getImagePreviewUrl(originalUrl);
+  return {
+    editorIdentity: [
+      'cart-source',
+      publicId || item.id,
+      manifest?.version ?? '',
+      item.placement_preview?.compositionRevision ?? item.composition_revision ?? '',
+    ].join('@'),
+    name: item.file_name || manifest?.originalFilename || 'artwork',
+    url: originalUrl,
+    fileKey: publicId,
+    size: Number(manifest?.bytes || 0),
+    isPdf,
+    thumbnailUrl: browserPreviewUrl,
+    previewUrl: browserPreviewUrl,
+    productionUrl: originalUrl,
+    productionPublicId: publicId,
+    resourceType: manifest?.resourceType || 'image',
+    mimeType: manifest?.mimeType || (isPdf ? 'application/pdf' : undefined),
+    originalFormat: manifest?.format,
+    originalBytes: manifest?.bytes,
+    originalWidth: manifest?.width ?? null,
+    originalHeight: manifest?.height ?? null,
+    pdfPageNumber: isPdf ? 1 : undefined,
+    artworkManifest: manifest || undefined,
+  };
+}
+
 const GoogleAdsBanner: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -474,12 +516,29 @@ const GoogleAdsBanner: React.FC = () => {
 
   // Reset image position/scale when dimensions change to prevent clipping
   useEffect(() => {
+    const pendingRestore = cartRestoreTransformRef.current;
+    if (pendingRestore) {
+      if (
+        pendingRestore.productType === productType
+        && pendingRestore.widthIn === widthIn
+        && pendingRestore.heightIn === heightIn
+      ) {
+        setImgPos(pendingRestore.pos);
+        setImgScale(pendingRestore.scaleX);
+        setImgScaleY(pendingRestore.scaleY);
+        setConstrainProps(pendingRestore.constrain);
+        cartRestoreTransformRef.current = null;
+      }
+      preparedPlacementRef.current = null;
+      setPendingPlacementPreview(null);
+      return;
+    }
     setImgPos({ x: 0, y: 0 });
     setImgScale(1);
     setImgScaleY(1);
     preparedPlacementRef.current = null;
     setPendingPlacementPreview(null);
-  }, [widthIn, heightIn]);
+  }, [heightIn, productType, widthIn]);
 
   // Keep the inches-mode raw input strings in sync with widthIn/heightIn when
   // those change from outside the inches inputs (presets, feet-mode editing,
@@ -671,10 +730,19 @@ const GoogleAdsBanner: React.FC = () => {
   // Restore cart item state when editing from cart (editItem query param)
   const editItemId = searchParams.get('editItem');
   const [editItemRestored, setEditItemRestored] = useState(false);
+  const editCartItems = useCartStore((state) => state.items);
+  const cartRestoreTransformRef = useRef<{
+    productType: ProductTypeSlug;
+    widthIn: number;
+    heightIn: number;
+    pos: { x: number; y: number };
+    scaleX: number;
+    scaleY: number;
+    constrain: boolean;
+  } | null>(null);
   useEffect(() => {
     if (!editItemId || editItemRestored) return;
-    const cartItems = useCartStore.getState().getMigratedItems();
-    const item = cartItems.find((i: CartItem) => i.id === editItemId);
+    const item = editCartItems.find((i: CartItem) => i.id === editItemId);
     if (!item) return;
     setEditItemRestored(true);
     // Editing an existing cart item: every section is implicitly already
@@ -686,6 +754,7 @@ const GoogleAdsBanner: React.FC = () => {
 
     if (item.product_type === 'yard_sign' && item.yard_sign_designs) {
       // Restore yard sign designs with saved preview state
+      setProductType('yard_sign');
       const restoredDesigns: YardSignDesign[] = item.yard_sign_designs.map((d) => ({
         id: d.id,
         fileName: d.fileName,
@@ -711,49 +780,53 @@ const GoogleAdsBanner: React.FC = () => {
       }
     } else if (item.product_type === 'car_magnet') {
       setProductType('car_magnet');
-      if (item.file_url) {
-        // IMPORTANT: derive the live-preview thumbnail from the raw
-        // artwork URL (item.file_url) — NOT from item.thumbnail_url. The
-        // stored thumbnail_url is a positioned screenshot of the prior
-        // preview canvas; using it here renders a "preview-of-the-preview"
-        // (the entire preview UI appears to recurse inside the canvas).
-        const isPdf = item.is_pdf || false;
-        setUploadedFile({
-          editorIdentity: `cart-${item.id}`,
-          name: item.file_name || 'artwork',
-          url: item.file_url,
-          fileKey: item.file_key || '',
-          size: 0,
-          isPdf,
-          thumbnailUrl: isPdf ? getPdfThumbnailUrl(item.file_url) : getImagePreviewUrl(item.file_url),
-        });
+      const restoredArtwork = buildCartArtworkForEditor(item);
+      if (restoredArtwork) {
+        uploadedFileRef.current = restoredArtwork;
+        setUploadedFile(restoredArtwork);
       }
       const matchedSize = CAR_MAGNET_SIZES.find((size) => size.widthIn === item.width_in && size.heightIn === item.height_in);
       setCarMagnetSizeLabel((matchedSize || CAR_MAGNET_SIZES[0]).label);
       setCarMagnetRoundedCorners(((item as any).rounded_corners || 'none') as CarMagnetRoundedCorner);
-      setImgPos(item.image_position || { x: 0, y: 0 });
-      setImgScale(item.image_scale || 1);
-      setImgScaleY(item.image_scale_y ?? item.image_scale ?? 1);
-      setConstrainProps(item.image_scale_y == null || item.image_scale_y === item.image_scale);
+      cartRestoreTransformRef.current = {
+        productType: 'car_magnet',
+        widthIn: matchedSize?.widthIn || CAR_MAGNET_SIZES[0].widthIn,
+        heightIn: matchedSize?.heightIn || CAR_MAGNET_SIZES[0].heightIn,
+        pos: item.image_position || { x: 0, y: 0 },
+        scaleX: item.image_scale || 1,
+        scaleY: item.image_scale_y ?? item.image_scale ?? 1,
+        constrain: item.image_scale_y == null || item.image_scale_y === item.image_scale,
+      };
       setQuantity(item.quantity || 1);
       setShowPreview(true);
     } else {
       // Restore banner state
-      if (item.file_url) {
-        setUploadedFile({
-          editorIdentity: `cart-${item.id}`,
-          name: item.file_name || 'artwork',
-          url: item.file_url,
-          fileKey: item.file_key || '',
-          size: 0,
-          isPdf: item.is_pdf || false,
-          thumbnailUrl: item.thumbnail_url || item.file_url,
-        });
+      setProductType('banner');
+      const restoredArtwork = buildCartArtworkForEditor(item);
+      if (restoredArtwork) {
+        uploadedFileRef.current = restoredArtwork;
+        setUploadedFile(restoredArtwork);
       }
-      setImgPos(item.image_position || { x: 0, y: 0 });
-      setImgScale(item.image_scale || 1);
-      setImgScaleY(item.image_scale_y ?? item.image_scale ?? 1);
-      setConstrainProps(item.image_scale_y == null || item.image_scale_y === item.image_scale);
+      const restoredWidth = Number(item.width_in) > 0 ? Number(item.width_in) : 48;
+      const restoredHeight = Number(item.height_in) > 0 ? Number(item.height_in) : 24;
+      setWidthFtStr(String(Math.floor(restoredWidth / 12)));
+      setWidthInRStr(String(restoredWidth % 12));
+      setHeightFtStr(String(Math.floor(restoredHeight / 12)));
+      setHeightInRStr(String(restoredHeight % 12));
+      setWidthCustomInStr(String(restoredWidth));
+      setHeightCustomInStr(String(restoredHeight));
+      const presetIndex = PRESET_SIZES.findIndex(({ w, h }) => w === restoredWidth && h === restoredHeight);
+      setActivePreset(presetIndex >= 0 ? presetIndex : null);
+      if (item.material) setMaterial(item.material as MaterialKey);
+      cartRestoreTransformRef.current = {
+        productType: 'banner',
+        widthIn: restoredWidth,
+        heightIn: restoredHeight,
+        pos: item.image_position || { x: 0, y: 0 },
+        scaleX: item.image_scale || 1,
+        scaleY: item.image_scale_y ?? item.image_scale ?? 1,
+        constrain: item.image_scale_y == null || item.image_scale_y === item.image_scale,
+      };
       if (item.grommets) setGrommets(item.grommets);
       if (item.pole_pockets) setPolePockets(item.pole_pockets);
       setAddRope(!!item.rope_feet);
@@ -774,7 +847,7 @@ const GoogleAdsBanner: React.FC = () => {
       setShowPreview(true);
     }
 
-  }, [editItemId, editItemRestored]);
+  }, [editCartItems, editItemId, editItemRestored]);
 
   const scrollToOrder = useCallback(() => {
     setHasEnteredBuilder(true);

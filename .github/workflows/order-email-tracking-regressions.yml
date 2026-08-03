@@ -10,6 +10,8 @@ on:
       - 'src/components/cart/**'
       - 'src/components/CartModal.tsx'
       - 'src/lib/previewImageCache.ts'
+      - 'src/lib/previewArtifactCoordinator.ts'
+      - 'src/lib/cartSync.ts'
       - 'src/lib/previewSelection.ts'
       - 'src/lib/previewSourceRegistry.ts'
       - 'src/lib/sessionArtworkPreviewSource.ts'
@@ -20,8 +22,11 @@ on:
       - 'src/pages/Checkout.tsx'
       - 'src/pages/Design.tsx'
       - 'src/pages/GoogleAdsBanner.tsx'
+      - 'src/store/cart.ts'
+      - 'src/utils/generatePositionedThumbnail.ts'
       - 'src/pages/OrderDetail.tsx'
       - 'tests/browser/**'
+      - 'playwright.preview.config.ts'
       - 'vite.config.ts'
       - 'netlify/functions/get-order.mjs'
       - 'netlify/functions/get-orders.mjs'
@@ -56,6 +61,7 @@ jobs:
         run: |
           node --test \
             netlify/functions/__tests__/checkout-paypal-only.test.cjs \
+            netlify/functions/__tests__/cart-persistence-ordering.test.cjs \
             netlify/functions/__tests__/preview-pipeline.test.cjs \
             netlify/functions/__tests__/admin-order-visibility.test.cjs \
             netlify/functions/__tests__/mark-in-production-email.test.cjs \
@@ -68,8 +74,12 @@ jobs:
             src/lib/commercePreviewUrl.test.ts \
             src/lib/previewSelection.test.ts \
             src/lib/__tests__/previewSelection.test.ts \
+            src/lib/__tests__/previewArtifactCoordinator.test.ts \
+            src/lib/__tests__/cartSync.saveQueue.test.ts \
             src/lib/sessionArtworkPreviewSource.test.ts \
             src/lib/order-thumbnail.test.ts \
+            src/store/cart.previewLifecycle.test.ts \
+            src/components/checkout/PayPalCheckoutReliable.identity.test.ts \
             --reporter=verbose
 
       - name: Run real-browser artwork handoff regression

@@ -71,6 +71,33 @@ describe('previewSelection', () => {
     })).toBe('https://cdn.example.com/web-preview.jpg');
   });
 
+  it('never labels raw canvas source artwork as an exact composition', () => {
+    const original = 'https://cdn.example.com/customer-original.png';
+    const approvedComposition = 'data:image/jpeg;base64,approved-crop';
+    const item = {
+      thumbnail_url: approvedComposition,
+      file_url: original,
+      canvas_state_json: JSON.stringify({
+        previewUrl: original,
+        originalImageUrl: original,
+        objects: [{
+          type: 'image',
+          src: original,
+          source: { originalUrl: original, previewUrl: original },
+        }],
+      }),
+    };
+
+    expect(getSmallPreviewUrl(item)).toBe(approvedComposition);
+    expect(getExpandedPreviewSelection(item)).toMatchObject({
+      url: approvedComposition,
+      source: 'thumbnail_fallback',
+      isExactComposition: true,
+      isLowResolutionFallback: true,
+    });
+    expect(getPreviewSourceCandidates(item)).toEqual([approvedComposition, original]);
+  });
+
   it('keeps blob URLs behind legacy permanent sources', () => {
     expect(getSmallPreviewUrl({
       thumbnail_url: 'blob:https://bannersonthefly.com/temporary',

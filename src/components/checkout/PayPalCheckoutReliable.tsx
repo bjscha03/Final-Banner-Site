@@ -134,6 +134,63 @@ const hash = (value: string): string => {
   return (result >>> 0).toString(36);
 };
 
+export const buildCheckoutIdentitySignature = ({
+  total,
+  discountCode,
+  sameDayHitService,
+  saturdayDelivery,
+  items,
+}: {
+  total: number;
+  discountCode?: { code?: string | null } | null;
+  sameDayHitService?: boolean;
+  saturdayDelivery?: boolean;
+  items: any[];
+}) => JSON.stringify({
+  total,
+  discount: discountCode?.code || null,
+  sameDayHitService: Boolean(sameDayHitService),
+  saturdayDelivery: Boolean(saturdayDelivery),
+  items: items.map((item) => ({
+    id: item.id,
+    product_type: item.product_type || 'banner',
+    width_in: item.width_in,
+    height_in: item.height_in,
+    quantity: item.quantity,
+    line_total_cents: item.line_total_cents,
+    material: item.material,
+    file_key: item.file_key || null,
+    thumbnail_url: item.thumbnail_url || null,
+    web_preview_url: item.web_preview_url || null,
+    final_render_file_key: item.final_render_file_key || null,
+    artwork: item.artwork_manifest ? {
+      publicId: item.artwork_manifest.publicId || null,
+      version: item.artwork_manifest.version ?? null,
+      originalUrl: item.artwork_manifest.originalUrl || null,
+    } : null,
+    placement: item.placement_preview ? {
+      sourceIdentity: item.placement_preview.sourceIdentity || null,
+      compositionSignature: item.placement_preview.compositionSignature || null,
+      compositionRevision: item.placement_preview.compositionRevision ?? null,
+      previewUrl: item.placement_preview.previewUrl || item.placement_preview.url || null,
+      previewPublicId: item.placement_preview.previewPublicId || item.placement_preview.publicId || null,
+    } : null,
+    yard_sign_design_count: item.yard_sign_design_count || null,
+    yard_sign_designs: Array.isArray(item.yard_sign_designs)
+      ? item.yard_sign_designs.map((design: any) => ({
+          id: design.id,
+          fileKey: design.fileKey || null,
+          compositionSignature: design.placementPreview?.compositionSignature || null,
+          compositionRevision: design.placementPreview?.compositionRevision ?? null,
+          previewUrl: design.placementPreview?.previewUrl
+            || design.placementPreview?.url
+            || design.previewThumbnailUrl
+            || null,
+        }))
+      : null,
+  })),
+});
+
 const readJson = async (response: Response): Promise<any> => {
   try {
     return await response.json();
@@ -258,6 +315,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
   const approvedOrderDataRef = useRef<any>(null);
   const shippingChangeDataRef = useRef<any>(null);
   const submittedCustomerRef = useRef<SubmittedCustomer | null>(null);
+  const checkoutSignatureRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!customer.email && user?.email) {
@@ -337,29 +395,45 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     };
   }, [customer]);
 
-  const checkoutSignature = useMemo(() => JSON.stringify({
+  const checkoutSignature = useMemo(() => buildCheckoutIdentitySignature({
     total,
-    discount: discountCode?.code || null,
-    sameDayHitService: Boolean(sameDayHitService),
-    saturdayDelivery: Boolean(saturdayDelivery),
-    items: items.map((item) => ({
-      id: item.id,
-      product_type: item.product_type || 'banner',
-      width_in: item.width_in,
-      height_in: item.height_in,
-      quantity: item.quantity,
-      line_total_cents: item.line_total_cents,
-      material: item.material,
-      file_key: item.file_key || null,
-      final_render_file_key: item.final_render_file_key || null,
-      yard_sign_design_count: item.yard_sign_design_count || null,
-    })),
-  }), [total, discountCode?.code, sameDayHitService, saturdayDelivery, items]);
+    discountCode,
+    sameDayHitService,
+    saturdayDelivery,
+    items,
+  }), [total, discountCode, sameDayHitService, saturdayDelivery, items]);
 
   const storageKey = useMemo(
     () => `bof-paypal-checkout-v5:${hash(checkoutSignature)}`,
     [checkoutSignature],
   );
+
+  useEffect(() => {
+    if (checkoutSignatureRef.current === null) {
+      checkoutSignatureRef.current = checkoutSignature;
+      return;
+    }
+    if (checkoutSignatureRef.current === checkoutSignature) return;
+
+    // A pending internal/PayPal order is valid for exactly one cart artwork
+    // identity. A replacement placement artifact must start a fresh flight;
+    // otherwise checkout can submit the newly displayed item against an order
+    // prepared with the previous thumbnail/artwork bytes.
+    checkoutSignatureRef.current = checkoutSignature;
+    internalOrderIdRef.current = null;
+    checkoutKeyRef.current = randomId();
+    createFlightRef.current = null;
+    approvalFlightRef.current = null;
+    verificationLockedRef.current = false;
+    pollingRef.current = false;
+    approvedOrderDataRef.current = null;
+    shippingChangeDataRef.current = null;
+    setIsPreparing(false);
+    setIsCapturing(false);
+    setIsPolling(false);
+    setVerificationMessage(null);
+    setCheckoutError(null);
+  }, [checkoutSignature]);
 
   const persistState = useCallback((state: StoredCheckout['state'], message?: string) => {
     if (typeof window === 'undefined') return;
@@ -608,6 +682,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
   };
 
   const preparePayPalOrder = async (): Promise<string> => {
+    const startedCheckoutSignature = checkoutSignature;
     if (verificationLockedRef.current) throw new Error('PAYMENT_VERIFICATION_LOCKED');
     setIsPreparing(true);
     setCheckoutError(null);
@@ -652,6 +727,9 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
           }),
         });
         const pending = await readJson(pendingResponse);
+        if (checkoutSignatureRef.current !== startedCheckoutSignature) {
+          throw new Error('CHECKOUT_IDENTITY_CHANGED');
+        }
         if (!pendingResponse.ok || !pending?.orderId) {
           throw new Error(
             pending?.message || pending?.error || 'Could not save the order before payment.',
@@ -681,6 +759,9 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
         }),
       });
       const payload = await readJson(response);
+      if (checkoutSignatureRef.current !== startedCheckoutSignature) {
+        throw new Error('CHECKOUT_IDENTITY_CHANGED');
+      }
 
       if (payload?.paymentCaptured === true || requiresVerification(payload, response.status)) {
         startVerification(payload?.message);
@@ -871,7 +952,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
 
   const renderPayPalButton = () => (
     <PayPalButtons
-      key={`paypal-${total}`}
+      key={`paypal-${hash(checkoutSignature)}`}
       fundingSource="paypal"
       style={{ layout: 'vertical', color: 'gold', shape: 'rect', label: 'paypal', height: 42 }}
       disabled={buttonsDisabled}

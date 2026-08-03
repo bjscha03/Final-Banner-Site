@@ -44,6 +44,7 @@ exports.handler = async (event, context) => {
         SELECT cart_data, updated_at, user_id
         FROM user_carts
         WHERE user_id = ${userId} AND status = 'active'
+        ORDER BY updated_at DESC, last_accessed_at DESC
         LIMIT 1
       `;
       console.log('[cart-load] Query result:', { found: result.length > 0, itemCount: result.length > 0 ? result[0].cart_data.length : 0 });
@@ -52,6 +53,7 @@ exports.handler = async (event, context) => {
         SELECT cart_data, updated_at
         FROM user_carts
         WHERE session_id = ${sessionId} AND status = 'active'
+        ORDER BY updated_at DESC, last_accessed_at DESC
         LIMIT 1
       `;
     }

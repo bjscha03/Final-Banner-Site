@@ -984,6 +984,7 @@ export const useCartStore = create<CartState>()(
           );
         }
         const exactPreviewUrl = nextPlacement?.previewUrl;
+        const replacingExistingCanonicalPreview = Boolean(existingItem.placement_preview);
         const yardMetadata = nextProductType === 'yard_sign'
           ? (quote as any).yard_sign_metadata
           : null;
@@ -1021,8 +1022,13 @@ export const useCartStore = create<CartState>()(
             || ((quote.file?.url?.startsWith('blob:') || quote.file?.url?.startsWith('data:')) ? null : quote.file?.url))
             || aiMetadata?.assets?.proofUrl
             || existingItem.file_url,
-          thumbnail_url: exactPreviewUrl || (quote as any).thumbnailUrl || existingItem.thumbnail_url,
-          web_preview_url: exactPreviewUrl || (quote as any).webPreviewUrl || aiMetadata?.assets?.proofUrl || existingItem.web_preview_url,
+          thumbnail_url: exactPreviewUrl
+            || (replacingExistingCanonicalPreview ? undefined : (quote as any).thumbnailUrl)
+            || (replacingExistingCanonicalPreview ? undefined : existingItem.thumbnail_url),
+          web_preview_url: exactPreviewUrl
+            || (replacingExistingCanonicalPreview ? undefined : (quote as any).webPreviewUrl)
+            || (replacingExistingCanonicalPreview ? undefined : aiMetadata?.assets?.proofUrl)
+            || (replacingExistingCanonicalPreview ? undefined : existingItem.web_preview_url),
           print_ready_url: aiMetadata?.assets?.finalUrl || existingItem.print_ready_url,
           is_pdf: quote.file?.isPdf || false,
           text_elements: quote.textElements && quote.textElements.length > 0 ? quote.textElements : undefined,
@@ -1045,9 +1051,12 @@ export const useCartStore = create<CartState>()(
           final_render_dpi: (quote as any).finalRenderDpi || existingItem.final_render_dpi,
           canvas_state_json: (quote as any).canvasStateJson || existingItem.canvas_state_json,
           artwork_manifest: (quote as any).artworkManifest || existingItem.artwork_manifest,
-          placement_preview: nextPlacement || existingItem.placement_preview,
-          composition_signature: nextPlacement?.compositionSignature || existingItem.composition_signature,
-          composition_revision: nextPlacement?.compositionRevision ?? existingItem.composition_revision,
+          // A canonical artifact may only survive an edit when that exact edit
+          // supplied it again. Reusing the previous placement after a source,
+          // transform, or dimension change can put stale artwork into checkout.
+          placement_preview: nextPlacement,
+          composition_signature: nextPlacement?.compositionSignature,
+          composition_revision: nextPlacement?.compositionRevision,
           yard_sign_sidedness: yardMetadata?.sidedness,
           yard_sign_step_stakes_enabled: yardMetadata?.addStepStakes,
           yard_sign_step_stakes_qty: yardMetadata?.stepStakeQty,

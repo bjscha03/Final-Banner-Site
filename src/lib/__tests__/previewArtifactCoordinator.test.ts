@@ -141,4 +141,34 @@ describe('preview artifact coordinator', () => {
     expect(newer.previewUrl).not.toBe(older.previewUrl);
     expect(mocks.render).toHaveBeenCalledTimes(2);
   });
+
+  it('accepts a decoded sparse composition without using a lossy blank-pixel veto', async () => {
+    mocks.render.mockResolvedValue({
+      blob: new Blob(['sparse-exact-preview'], { type: 'image/jpeg' }),
+      widthPx: 1400,
+      heightPx: 560,
+      visiblePixelFraction: 0,
+    });
+    mocks.measure.mockReturnValue(0);
+
+    const artifact = await createPermanentPlacementPreview(spec(22));
+
+    expect(artifact.uploadStatus).toBe('uploaded');
+    expect(artifact.previewWidthPx).toBe(1400);
+    expect(artifact.previewHeightPx).toBe(560);
+    expect(mocks.upload).toHaveBeenCalledTimes(1);
+    expect(mocks.measure).not.toHaveBeenCalled();
+  });
+
+  it('rejects an uploaded derivative whose aspect ratio changed materially', async () => {
+    class WrongAspectImage extends FakeImage {
+      naturalWidth = 1400;
+      naturalHeight = 700;
+    }
+    vi.stubGlobal('Image', WrongAspectImage);
+
+    await expect(createPermanentPlacementPreview(spec(23))).rejects.toMatchObject({
+      code: 'PREVIEW_UPLOAD_UNREADABLE',
+    });
+  });
 });
