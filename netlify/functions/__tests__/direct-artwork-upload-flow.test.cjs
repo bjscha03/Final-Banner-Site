@@ -24,9 +24,11 @@ test('Yard Sign originals and finalized snapshots use the same direct transport'
   const canvasUpload = read('src/utils/uploadCanvasImage.ts');
 
   assert.match(yardSign, /uploadArtworkFile/);
+  assert.match(yardSign, /buildCloudinaryPdfPreviewUrl/);
   assert.match(yardSign, /StablePreviewImage/);
   assert.equal(yardSign.includes("fetch('/.netlify/functions/upload-file'"), false);
   assert.equal(yardSign.includes('compressImage'), false);
+  assert.equal(yardSign.includes("'/upload/pg_1,f_jpg,w_1200,q_90/'"), false);
   assert.match(canvasUpload, /uploadArtworkFile/);
   assert.equal(canvasUpload.includes("fetchWithTimeout('/.netlify/functions/upload-file'"), false);
 });

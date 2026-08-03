@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import '@/index.css';
 import ArtworkPreviewEditor from '@/components/design/ArtworkPreviewEditor';
+import { resolveArtworkPreviewImageSrc } from '@/components/design/artworkPreviewSource';
+import { buildCloudinaryPdfPreviewUrl } from '@/utils/uploadArtworkFile';
 
 const localSvg = `
   <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600" viewBox="0 0 1200 600">
@@ -75,6 +77,19 @@ function PreviewHandoffHarness() {
     const root = document.getElementById('preview-handoff-root');
     if (!root) {
       finish('fail', { reason: 'missing-root' });
+      return undefined;
+    }
+
+    const yardSignPdfUrl = 'https://res.cloudinary.com/test/image/upload/v1/yard-signs/customer-design.pdf';
+    const yardSignPreviewUrl = buildCloudinaryPdfPreviewUrl(yardSignPdfUrl);
+    const resolvedYardSignPreview = resolveArtworkPreviewImageSrc({ src: yardSignPreviewUrl });
+    if (!yardSignPreviewUrl.endsWith('.jpg') || resolvedYardSignPreview !== yardSignPreviewUrl) {
+      finish('fail', {
+        reason: 'yard-sign-pdf-preview-is-not-browser-safe',
+        yardSignPdfUrl,
+        yardSignPreviewUrl,
+        resolvedYardSignPreview,
+      });
       return undefined;
     }
 

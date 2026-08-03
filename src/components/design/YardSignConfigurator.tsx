@@ -36,7 +36,12 @@ import {
   validateYardSignQuantity,
 } from '@/lib/yard-sign-pricing';
 import { usd } from '@/lib/pricing';
-import { isPdfArtwork, uploadArtworkFile, validateArtworkFile } from '@/utils/uploadArtworkFile';
+import {
+  buildCloudinaryPdfPreviewUrl,
+  isPdfArtwork,
+  uploadArtworkFile,
+  validateArtworkFile,
+} from '@/utils/uploadArtworkFile';
 import StablePreviewImage from '@/components/preview/StablePreviewImage';
 import FileUploader from '@/components/ui/FileUploader';
 import CreateWithAIModal, { type CreateWithAIResult } from '@/components/design/CreateWithAIModal';
@@ -72,13 +77,7 @@ function getPdfThumbnailUrl(pdfUrl: string): string {
 
 // Higher-quality PDF preview URL for the editor modal (larger than thumbnail)
 function getPdfPreviewUrl(pdfUrl: string): string {
-  try {
-    const url = new URL(pdfUrl);
-    if (!url.hostname.endsWith('.cloudinary.com') || !pdfUrl.toLowerCase().endsWith('.pdf')) return pdfUrl;
-    return pdfUrl.replace('/upload/', '/upload/pg_1,f_jpg,w_1200,q_90/');
-  } catch {
-    return pdfUrl;
-  }
+  return buildCloudinaryPdfPreviewUrl(pdfUrl);
 }
 
 /**
