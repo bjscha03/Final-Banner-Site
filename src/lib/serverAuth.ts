@@ -95,6 +95,14 @@ export function authorizedHeaders(headers: Record<string, string> = {}): Record<
   } : headers;
 }
 
+export function authenticatedJsonBody(payload: Record<string, unknown>): string {
+  const token = getServerSessionToken();
+  return JSON.stringify({
+    ...(token ? { adminSessionToken: token } : {}),
+    ...payload,
+  });
+}
+
 /**
  * Fetch helper for authenticated admin endpoints.
  *

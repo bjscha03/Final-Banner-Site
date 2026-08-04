@@ -261,7 +261,7 @@ const GoogleAdsBanner: React.FC = () => {
   // Admin detection for yard signs visibility
   const { user } = useAuth();
   const aiAccess = useAIAdminAccess(Boolean(user));
-  const showCreateWithAI = canUseAIAdminPreview(user, aiAccess.authenticationFailed);
+  const showCreateWithAI = canUseAIAdminPreview(user);
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;

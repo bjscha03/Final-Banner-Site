@@ -322,7 +322,7 @@ function buildCartArtworkForEditor(item: CartItem): UploadedArtworkFile | null {
 const Design: React.FC = () => {
   const { user } = useAuth();
   const aiAccess = useAIAdminAccess(Boolean(user));
-  const showCreateWithAI = canUseAIAdminPreview(user, aiAccess.authenticationFailed);
+  const showCreateWithAI = canUseAIAdminPreview(user);
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;

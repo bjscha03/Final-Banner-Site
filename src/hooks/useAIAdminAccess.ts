@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ENABLE_AI } from '@/lib/featureFlags';
-import { authorizedHeaders } from '@/lib/serverAuth';
+import { authenticatedJsonBody, authorizedHeaders } from '@/lib/serverAuth';
 
 export type AIAdminStatus = {
   loading: boolean;
@@ -15,9 +15,10 @@ export type AIAdminStatus = {
   modelAvailable: boolean;
   ready: boolean;
   blocker: string | null;
+  refresh: () => void;
 };
 
-const CLOSED: AIAdminStatus = {
+const CLOSED: Omit<AIAdminStatus, 'refresh'> = {
   loading: false,
   authorized: false,
   authenticationFailed: false,
@@ -36,6 +37,8 @@ export function useAIAdminAccess(active = true) {
   const [status, setStatus] = useState<AIAdminStatus>(() => (
     ENABLE_AI && active ? { ...CLOSED, loading: true, enabled: true, blocker: null } : CLOSED
   ));
+  const [refreshKey, setRefreshKey] = useState(0);
+  const refresh = useCallback(() => setRefreshKey((value) => value + 1), []);
 
   useEffect(() => {
     if (!ENABLE_AI || !active) {
@@ -45,8 +48,9 @@ export function useAIAdminAccess(active = true) {
     const controller = new AbortController();
     setStatus((current) => ({ ...current, loading: true }));
     fetch('/.netlify/functions/ai-designer-status', {
-      method: 'GET',
-      headers: authorizedHeaders({ Accept: 'application/json' }),
+      method: 'POST',
+      headers: authorizedHeaders({ Accept: 'application/json', 'Content-Type': 'application/json' }),
+      body: authenticatedJsonBody({}),
       signal: controller.signal,
       credentials: 'same-origin',
     })
@@ -86,7 +90,7 @@ export function useAIAdminAccess(active = true) {
         });
       });
     return () => controller.abort();
-  }, [active]);
+  }, [active, refreshKey]);
 
-  return status;
+  return { ...status, refresh };
 }

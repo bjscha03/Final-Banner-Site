@@ -17,7 +17,7 @@ import {
   WandSparkles,
   XCircle,
 } from 'lucide-react';
-import { authorizedHeaders } from '@/lib/serverAuth';
+import { authenticatedJsonBody, authorizedHeaders, setServerSessionToken } from '@/lib/serverAuth';
 import { useAIAdminAccess } from '@/hooks/useAIAdminAccess';
 import { trackAIEvent } from '@/lib/aiAnalytics';
 import type {
@@ -149,11 +149,41 @@ export default function AIWorkspace(props: Props) {
   const [stage, setStage] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [fullPreview, setFullPreview] = useState(false);
+  const [adminPassword, setAdminPassword] = useState('');
+  const [reconnecting, setReconnecting] = useState(false);
+  const [reconnectError, setReconnectError] = useState('');
   const controllerRef = useRef<AbortController | null>(null);
 
   const selected = concepts.find((concept) => concept.id === selectedId) || concepts[0] || null;
   const ratio = (Number(brief.widthIn) || 1) / (Number(brief.heightIn) || 1);
   const requirementsMet = brief.widthIn > 0 && brief.heightIn > 0 && Boolean(brief.material) && Boolean(brief.description.trim());
+
+  const reconnectAdmin = async () => {
+    if (!adminPassword || reconnecting) return;
+    setReconnecting(true);
+    setReconnectError('');
+    try {
+      const response = await fetch('/.netlify/functions/admin-sign-in', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: adminPassword }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || !body?.sessionToken || body?.user?.is_admin !== true) {
+        throw new Error(body?.error || 'The admin session could not be reconnected.');
+      }
+      setServerSessionToken(body.sessionToken);
+      localStorage.setItem('banners_current_user', JSON.stringify(body.user));
+      window.dispatchEvent(new Event('user-changed'));
+      setAdminPassword('');
+      access.refresh();
+    } catch (reason) {
+      setReconnectError(reason instanceof Error ? reason.message : 'The admin session could not be reconnected.');
+    } finally {
+      setReconnecting(false);
+    }
+  };
 
   useEffect(() => {
     trackAIEvent('ai_designer_opened', { product_type: props.productType });
@@ -249,7 +279,7 @@ export default function AIWorkspace(props: Props) {
           'Content-Type': 'application/json',
           'X-Idempotency-Key': idempotencyKey,
         }),
-        body: JSON.stringify({ brief, idempotencyKey }),
+        body: authenticatedJsonBody({ brief, idempotencyKey }),
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok || !body?.brief?.structured) throw new Error(body?.message || 'The production brief could not be interpreted safely.');
@@ -289,7 +319,7 @@ export default function AIWorkspace(props: Props) {
           'Content-Type': 'application/json',
           'X-Idempotency-Key': idempotencyKey,
         }),
-        body: JSON.stringify({ brief, conceptCount, referenceImage, logoImage, idempotencyKey }),
+        body: authenticatedJsonBody({ brief, conceptCount, referenceImage, logoImage, idempotencyKey }),
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body?.message || 'The AI designer could not generate artwork safely.');
@@ -342,7 +372,7 @@ export default function AIWorkspace(props: Props) {
           'Content-Type': 'application/json',
           'X-Idempotency-Key': idempotencyKey,
         }),
-        body: JSON.stringify({
+        body: authenticatedJsonBody({
           brief: briefForEdit,
           conceptId: selected.id,
           generationId: selected.generationId,
@@ -466,7 +496,7 @@ export default function AIWorkspace(props: Props) {
             {props.onClose && <button type="button" onClick={props.onClose} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"><ArrowLeft className="h-4 w-4" /> Back</button>}
           </div>
         </div>
-        {blockerCopy && !access.loading && <div role="alert" className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /> {blockerCopy}</div>}
+        {blockerCopy && !access.loading && <div role="alert" className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><div className="flex items-start gap-2"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /> {blockerCopy}</div>{access.authenticationFailed && <div className="mt-3 flex flex-col gap-2 sm:flex-row"><input aria-label="Admin password" type="password" autoComplete="current-password" value={adminPassword} onChange={(event) => setAdminPassword(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void reconnectAdmin(); }} placeholder="Enter admin password" className="min-h-11 flex-1 rounded-lg border border-amber-300 bg-white px-3 text-base text-slate-900" /><button type="button" onClick={() => void reconnectAdmin()} disabled={!adminPassword || reconnecting} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#0b1f3a] px-4 font-bold text-white disabled:opacity-50">{reconnecting && <Loader2 className="h-4 w-4 animate-spin" />} Reconnect admin</button></div>}{reconnectError && <div className="mt-2 text-sm font-semibold text-red-700">{reconnectError}</div>}</div>}
       </div>
 
       <div className="grid min-h-0 grid-cols-1 xl:grid-cols-[minmax(330px,0.86fr)_minmax(480px,1.45fr)]">

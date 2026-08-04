@@ -19,7 +19,7 @@ test('signed admin keeps the AI route and designer entry when readiness is unava
     await new Promise((resolve) => setTimeout(resolve, 300));
     const requestHeaders = await route.request().allHeaders();
     expect(requestHeaders['x-banners-admin-session']).toBe('browser-test-signed-session');
-    expect(requestHeaders.cookie).toContain('banners_admin_session=browser-test-signed-session');
+    expect(route.request().postDataJSON()).toMatchObject({ adminSessionToken: 'browser-test-signed-session' });
     await route.fulfill({
       status: 503,
       contentType: 'application/json',

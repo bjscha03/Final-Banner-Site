@@ -7,11 +7,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Shield, CheckCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth, isAdmin as userIsAdmin } from '@/lib/auth';
-import { getServerSessionToken, setServerSessionToken } from '@/lib/serverAuth';
+import { authenticatedJsonBody, authorizedHeaders, getServerSessionToken, setServerSessionToken } from '@/lib/serverAuth';
 
 const AdminSetup: React.FC = () => {
   const [password, setPassword] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
+  const [checkingAdmin, setCheckingAdmin] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, signOut } = useAuth();
@@ -20,7 +21,27 @@ const AdminSetup: React.FC = () => {
   // server session too, otherwise a new preview tab can render the dashboard
   // while every protected request is rejected with 401.
   React.useEffect(() => {
-    setIsAdmin(userIsAdmin(user) && Boolean(getServerSessionToken()));
+    const controller = new AbortController();
+    const hasLocalSession = userIsAdmin(user) && Boolean(getServerSessionToken());
+    if (!hasLocalSession) {
+      setIsAdmin(false);
+      setCheckingAdmin(false);
+      return () => controller.abort();
+    }
+    setCheckingAdmin(true);
+    fetch('/.netlify/functions/ai-designer-status', {
+      method: 'POST',
+      credentials: 'same-origin',
+      signal: controller.signal,
+      headers: authorizedHeaders({ Accept: 'application/json', 'Content-Type': 'application/json' }),
+      body: authenticatedJsonBody({}),
+    }).then(async (response) => {
+      const body = await response.json().catch(() => ({}));
+      setIsAdmin(response.ok && body?.authorized === true);
+    }).catch((error) => {
+      if (error?.name !== 'AbortError') setIsAdmin(false);
+    }).finally(() => setCheckingAdmin(false));
+    return () => controller.abort();
   }, [user]);
 
   const handleSetAdmin = async () => {
@@ -99,6 +120,8 @@ const AdminSetup: React.FC = () => {
                       <CheckCircle className="h-5 w-5 text-green-600" />
                       <span className="text-green-600 font-semibold">Admin Access Active</span>
                     </>
+                  ) : checkingAdmin ? (
+                    <span className="text-gray-600">Verifying admin session…</span>
                   ) : (
                     <>
                       <div className="h-5 w-5 rounded-full bg-gray-300"></div>
@@ -109,7 +132,7 @@ const AdminSetup: React.FC = () => {
               </CardContent>
             </Card>
 
-            {!isAdmin ? (
+            {!isAdmin && !checkingAdmin ? (
               <Card>
                 <CardHeader>
                   <CardTitle>Enable Admin Access</CardTitle>
@@ -132,7 +155,7 @@ const AdminSetup: React.FC = () => {
                   </Button>
                 </CardContent>
               </Card>
-            ) : (
+            ) : isAdmin ? (
               <Card>
                 <CardHeader>
                   <CardTitle>Admin Controls</CardTitle>
@@ -152,7 +175,7 @@ const AdminSetup: React.FC = () => {
                   </Button>
                 </CardContent>
               </Card>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

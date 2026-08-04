@@ -44,11 +44,10 @@ export default function AIDesignerPage() {
   const pricing = useMemo(() => calculateBannerPricing({ widthIn, heightIn, quantity, material, addRope: false }), [widthIn, heightIn, quantity, material]);
   const materialLabel = MATERIALS.find((item) => item.value === material)?.label || material;
 
-  // Do not redirect while the readiness request is merely loading or failed
-  // for a non-auth reason. Only the local admin identity/signed session gate,
-  // or an explicit server 401, may revoke route access.
-  if (!loading && !canUseAIAdminPreview(user, access.authenticationFailed)) {
-    return <Navigate to={access.authenticationFailed ? '/admin/setup?session=expired' : '/admin/setup'} replace />;
+  // Keep a locally signed admin in the workspace when the server rejects a
+  // stale token so the in-place reconnect control can repair the session.
+  if (!loading && !canUseAIAdminPreview(user)) {
+    return <Navigate to="/admin/setup" replace />;
   }
 
   const useInConfigurator = (result: CreateWithAIResult) => {

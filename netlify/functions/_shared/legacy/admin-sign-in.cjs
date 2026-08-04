@@ -1,7 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
-const { createSessionToken } = require('../server-auth.cjs');
+const { createSessionToken, sessionCookie } = require('../server-auth.cjs');
 
 const headers = {
   'Content-Type': 'application/json',
@@ -63,5 +63,9 @@ exports.handler = async (event) => {
   }
 
   const adminUser = { id: 'server-admin', email: '', is_admin: true };
-  return response(200, { ok: true, user: adminUser, sessionToken: createSessionToken(adminUser) });
+  const sessionToken = createSessionToken(adminUser);
+  const secure = String(event?.headers?.['x-forwarded-proto'] || 'https').split(',')[0].trim() === 'https';
+  return response(200, { ok: true, user: adminUser, sessionToken }, {
+    'Set-Cookie': sessionCookie(sessionToken, secure),
+  });
 };

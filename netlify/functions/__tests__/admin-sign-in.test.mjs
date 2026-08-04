@@ -27,6 +27,8 @@ describe('password-only admin sign-in', () => {
     expect(accepted.statusCode).toBe(200);
     expect(payload.user).toMatchObject({ id: 'server-admin', is_admin: true });
     expect(payload.sessionToken).toBeTruthy();
+    expect(accepted.headers['Set-Cookie']).toContain(`banners_admin_session=${encodeURIComponent(payload.sessionToken)}`);
+    expect(accepted.headers['Set-Cookie']).toContain('SameSite=Strict');
     if (previousSecret === undefined) delete process.env.AUTH_SESSION_SECRET;
     else process.env.AUTH_SESSION_SECRET = previousSecret;
     if (previousPassword === undefined) delete process.env.ADMIN_PASSWORD;

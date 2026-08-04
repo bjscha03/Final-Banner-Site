@@ -173,6 +173,26 @@ describe('AI designer authorization and fail-closed controls', () => {
     expect(JSON.parse(response.body)).toMatchObject({ authorized: true });
   });
 
+  it('accepts a same-origin JSON session fallback when preview headers are unavailable', async () => {
+    const token = createSessionToken({ id: 'test-admin', email: 'admin@example.test', is_admin: true });
+    const wrapped = withDesignerRuntime(statusHandler);
+    const response = await wrapped(
+      new Request('https://preview.example.test/.netlify/functions/ai-designer-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Origin: 'https://preview.example.test',
+          'X-Forwarded-Host': 'preview.example.test',
+          'X-Forwarded-Proto': 'https',
+        },
+        body: JSON.stringify({ adminSessionToken: token }),
+      }),
+      { requestId: 'request-body-auth', deploy: { context: 'deploy-preview', id: 'deploy-test' } },
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ authorized: true, enabled: true });
+  });
+
   it('rejects unauthenticated generation and editing before provider work', async () => {
     const event = { httpMethod: 'POST', headers: { origin: 'https://preview.example.test', host: 'preview.example.test' }, body: '{}' };
     expect((await generateHandler(event)).statusCode).toBe(401);
@@ -365,22 +385,26 @@ describe('admin-only UI integration and permanent artwork handoff', () => {
     const design = fs.readFileSync(path.resolve(__dirname, '../../../src/pages/Design.tsx'), 'utf8');
     const alternate = fs.readFileSync(path.resolve(__dirname, '../../../src/pages/GoogleAdsBanner.tsx'), 'utf8');
     const adminPage = fs.readFileSync(path.resolve(__dirname, '../../../src/pages/admin/AIDesignerPage.tsx'), 'utf8');
+    const workspace = fs.readFileSync(path.resolve(__dirname, '../../../src/components/design/ai/AIWorkspace.tsx'), 'utf8');
     const accessHook = fs.readFileSync(path.resolve(__dirname, '../../../src/hooks/useAIAdminAccess.ts'), 'utf8');
     const clientAuth = fs.readFileSync(path.resolve(__dirname, '../../../src/lib/serverAuth.ts'), 'utf8');
     const handoff = fs.readFileSync(path.resolve(__dirname, '../../../src/lib/aiDesignHandoff.ts'), 'utf8');
     for (const source of [design, alternate]) {
-      expect(source).toContain('const showCreateWithAI = canUseAIAdminPreview(user, aiAccess.authenticationFailed)');
+      expect(source).toContain('const showCreateWithAI = canUseAIAdminPreview(user)');
       expect(source).not.toContain('const showCreateWithAI = aiAccess.ready');
       expect(source).toContain('await handleFileUpload(file)');
       expect(source).toContain('session={aiDesignSession}');
       expect(source).not.toMatch(/localStorage\.setItem\([^\n]*(imageBase64|backgroundBase64)/);
     }
-    expect(adminPage).toContain('canUseAIAdminPreview(user, access.authenticationFailed)');
+    expect(adminPage).toContain('canUseAIAdminPreview(user)');
     expect(adminPage).not.toContain('user && !access.authorized');
     expect(adminPage).toContain('createAIHandoff(result');
+    expect(workspace).toContain('Reconnect admin');
+    expect(workspace).toContain('body: authenticatedJsonBody(');
     expect(accessHook).toContain('const authenticationFailed = response.status === 401');
     expect(clientAuth).toContain("const SESSION_HEADER = 'X-Banners-Admin-Session'");
     expect(clientAuth).toContain('writeSessionCookie(sessionToken)');
+    expect(clientAuth).toContain('authenticatedJsonBody');
     expect(handoff).not.toMatch(/localStorage|sessionStorage/);
   });
 });
