@@ -21,7 +21,7 @@ export function formatCountdown(ms: number): string {
  * promise only the estimated ship date and keep carrier transit separate.
  */
 export function standardLine(estimate: DeliveryEstimate, remainingMs: number): string {
-  return `Order within ${formatCountdown(remainingMs)} for an estimated ship date of ${formatWeekdayLong(estimate.shipDate)}. Free next-day air begins after production.`;
+  return `Order within ${formatCountdown(remainingMs)} for an estimated ship date of ${formatWeekdayLong(estimate.shipDate)}. Free next-day air anywhere in the United States begins after production.`;
 }
 
 /**
@@ -34,10 +34,10 @@ export function hitOfferLine(estimate: DeliveryEstimate, remainingMs: number): s
 
 /** Confirmation line shown once HIT has been selected. */
 export function hitSelectedLine(estimate: DeliveryEstimate): string {
-  return `Same-Day Hit Service active — estimated to ship ${formatWeekdayLong(estimate.shipDate)}. Free next-day air follows production.`;
+  return `Same-Day Hit Service active — estimated to ship ${formatWeekdayLong(estimate.shipDate)}. Free next-day air anywhere in the United States follows production.`;
 }
 
 /** Weekend-lock line. */
 export function weekendLockLine(estimate: DeliveryEstimate): string {
-  return `Orders placed now are estimated to ship ${formatWeekdayLong(estimate.shipDate)}. Carrier transit begins after production.`;
+  return `Orders placed now are estimated to ship ${formatWeekdayLong(estimate.shipDate)}. Free next-day air anywhere in the United States follows production.`;
 }
