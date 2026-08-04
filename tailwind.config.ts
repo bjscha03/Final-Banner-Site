@@ -96,15 +96,12 @@ export default {
           '50%': { transform: 'scale(1.05)' },
         },
         'pulse-ring': {
-          '0%': { transform: 'scale(1)',
-        'pulse-subtle': 'pulse-subtle 3s ease-in-out infinite',
-         opacity: '1' },
+          '0%': { transform: 'scale(1)', opacity: '1' },
+          '100%': { transform: 'scale(1.5)', opacity: '0' },
+        },
         'pulse-subtle': {
           '0%, 100%': { opacity: '1' },
           '50%': { opacity: '0.85' },
-        },
-        
-          '100%': { transform: 'scale(1.5)', opacity: '0' },
         },
       },
       animation: {
@@ -114,6 +111,7 @@ export default {
         'slide-in': 'slide-in 0.3s ease-out',
         'bounce-subtle': 'bounce-subtle 0.6s ease-in-out',
         'pulse-ring': 'pulse-ring 1s cubic-bezier(0, 0, 0.2, 1) infinite',
+        'pulse-subtle': 'pulse-subtle 3s ease-in-out infinite',
       },
       typography: {
         DEFAULT: {

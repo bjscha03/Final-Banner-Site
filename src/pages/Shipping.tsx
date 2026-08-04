@@ -1,411 +1,126 @@
-import React, { useEffect } from 'react';
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { AlertTriangle, Clock, Mail, PackageCheck, Truck } from 'lucide-react';
 import Layout from '@/components/Layout';
-import { Truck, Clock, MapPin, Package, DollarSign, AlertTriangle } from 'lucide-react';
-import { getFeatureFlags } from '@/lib/pricing';
+import SEO from '@/components/SEO';
+import { SITE_URL } from '@/lib/seo/productLandingData';
+import { SITE_POLICIES } from '@/lib/sitePolicies';
 
-const Shipping: React.FC = () => {
-  // Get feature flags to determine conditional content
-  const flags = getFeatureFlags();
-  const hasMinOrderFloor = flags.minOrderFloor && flags.minOrderCents >= 2000;
+const shippingFaqs = [
+  {
+    question: 'How long does production take?',
+    answer: SITE_POLICIES.production.detail,
+  },
+  {
+    question: 'How does free next-day air work?',
+    answer: SITE_POLICIES.shipping.detail,
+  },
+  {
+    question: 'Is the delivery date guaranteed?',
+    answer:
+      'No. Delivery dates are estimates. Carrier delays, destination restrictions, weekends, holidays, quantity, file issues, and custom work can change the schedule.',
+  },
+  {
+    question: 'What should I do if an order arrives damaged?',
+    answer: SITE_POLICIES.returns.detail,
+  },
+] as const;
 
-  // Update page metadata
-  useEffect(() => {
-    document.title = 'Shipping Information | Banners On The Fly';
-
-    // Update meta description
-    const metaDescription = document.querySelector('meta[name="description"]');
-    if (metaDescription) {
-      metaDescription.setAttribute('content', '24-hour production with free next-day air shipping on orders $20+. Orders under $20 ship ground for $5. See production times, coverage, packaging, and tracking.');
-    }
-
-    // Cleanup function to restore original title when component unmounts
-    return () => {
-      document.title = 'Banners On The Fly - Professional Banners • Free Next-Day Air • 24-Hour Production';
-    };
-  }, []);
-
-  return (
-    <Layout>
-      <div className="min-h-screen bg-slate-50 pt-8 pb-16">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Header */}
-          <div className="text-center mb-12">
-            <div className="flex justify-center mb-4">
-              <Truck className="h-8 w-8 text-orange-500" />
-            </div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">
-              Shipping Information
-            </h1>
-            <p className="text-xl text-gray-700 max-w-2xl mx-auto">
-              24-hour production and fast delivery for your custom banners
-            </p>
-          </div>
-
-          {/* Top Badge */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center px-4 py-2 bg-white text-slate-900 text-sm font-medium rounded-full shadow-sm">
-              <Clock className="h-4 w-4 mr-2" />
-              {flags.siteBadge || 'FREE Next-Day Air • 24-Hour Production'}
-            </div>
-          </div>
-
-          {/* Hero Callout Section */}
-          <div className="bg-green-50 border-l-4 border-green-400 p-6 mb-8 rounded-r-lg">
-            <div className="flex items-start">
-              <Package className="h-6 w-6 text-green-400 mr-3 mt-0.5 flex-shrink-0" />
-              <div>
-                <h2 className="text-lg font-bold text-green-800 mb-2">
-                  🎉 FREE Next-Day Air Shipping on ALL Orders!
-                </h2>
-                <p className="text-green-700 leading-relaxed">
-                  Every order ships completely FREE via next-day air with our 24-hour production guarantee. No minimum order required, no hidden fees, no exceptions!
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Shipping Sections */}
-          <div className="space-y-8">
-            {/* Production & Shipping Times */}
-            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
-              <div className="flex items-center mb-4">
-                <Clock className="h-6 w-6 text-blue-500 mr-3" />
-                <h2 className="text-2xl font-bold text-gray-900">Production & Shipping Times</h2>
-              </div>
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-3">Standard Production</h3>
-                  <ul className="space-y-2 text-gray-700">
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-blue-400 rounded-full mr-3 mt-2"></span>
-                      Orders placed by midnight ship next business day
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-blue-400 rounded-full mr-3 mt-2"></span>
-                      24-hour production guarantee for most orders
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-blue-400 rounded-full mr-3 mt-2"></span>
-                      Custom jobs may require additional time
-                    </li>
-                  </ul>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-3">Delivery Times</h3>
-                  <ul className="space-y-2 text-gray-700">
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-blue-400 rounded-full mr-3 mt-2"></span>
-                      {flags.shippingMethodLabel || 'Free Next-Day Air'}: 1 business day
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-blue-400 rounded-full mr-3 mt-2"></span>
-                      Saturday delivery available in select areas
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-blue-400 rounded-full mr-3 mt-2"></span>
-                      Delivery dates are estimates, not guarantees
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </section>
-
-            {/* Free Shipping */}
-            <section className="bg-white rounded-xl shadow-sm p-8 border-2 border-green-200">
-              <div className="flex items-center mb-4">
-                <DollarSign className="h-6 w-6 text-green-600 mr-3" />
-                <h2 className="text-2xl font-bold text-gray-900">🎉 FREE Shipping on ALL Orders!</h2>
-              </div>
-
-              {/* Prominent Free Shipping Message */}
-              <div className="bg-white rounded-lg p-6 mb-6 border-2 border-green-300 shadow-sm">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-green-600 mb-2">$0.00 SHIPPING</div>
-                  <div className="text-lg text-gray-800 mb-3">
-                    <strong>Every order ships completely FREE!</strong>
-                  </div>
-                  <div className="text-gray-700">
-                    No minimum order required • No hidden fees • No exceptions
-                  </div>
-                </div>
-              </div>
-
-              {/* Desktop Table */}
-              <div className="hidden md:block overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="bg-green-50">
-                      <th className="border border-green-200 px-4 py-3 text-left font-semibold text-gray-900">Order Size</th>
-                      <th className="border border-green-200 px-4 py-3 text-left font-semibold text-gray-900">Shipping Cost</th>
-                      <th className="border border-green-200 px-4 py-3 text-left font-semibold text-gray-900">Delivery Time</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="bg-green-50">
-                      <td className="border border-green-200 px-4 py-3 text-gray-800 font-medium">Any Order Amount</td>
-                      <td className="border border-green-200 px-4 py-3 text-green-700 font-bold text-lg">FREE</td>
-                      <td className="border border-green-200 px-4 py-3 text-gray-700">1 business day (next-day air)</td>
-                    </tr>
-                    <tr className="bg-slate-50">
-                      <td className="border border-slate-200 px-4 py-3 text-gray-700">Same-Day Processing</td>
-                      <td className="border border-slate-200 px-4 py-3 text-green-700 font-bold">FREE</td>
-                      <td className="border border-slate-200 px-4 py-3 text-gray-700">Same day + next-day air</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Mobile Cards */}
-              <div className="md:hidden space-y-4">
-                <div className="bg-green-50 rounded-lg p-4 border-2 border-green-300">
-                  <div className="font-bold text-gray-900 mb-2 text-lg">Any Order Amount</div>
-                  <div className="text-sm text-gray-700">
-                    <div className="flex justify-between mb-1">
-                      <span>Shipping Cost:</span>
-                      <span className="text-green-700 font-bold text-lg">FREE</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Delivery Time:</span>
-                      <span>1 business day (next-day air)</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-slate-50 rounded-lg p-4 border-2 border-slate-200">
-                  <div className="font-semibold text-gray-900 mb-2">Same-Day Processing</div>
-                  <div className="text-sm text-gray-700">
-                    <div className="flex justify-between mb-1">
-                      <span>Shipping Cost:</span>
-                      <span className="text-green-700 font-bold">FREE</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Delivery Time:</span>
-                      <span>Same day + next-day air</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Free Shipping Guarantee */}
-              <div className="mt-4 p-4 bg-green-100 border-2 border-green-300 rounded-lg">
-                <p className="text-green-800 text-sm font-medium text-center">
-                  ✅ <strong>100% FREE SHIPPING GUARANTEE:</strong> No minimum order • No hidden fees • No exceptions
-                </p>
-              </div>
-            </section>
-
-            {/* Shipping Coverage */}
-            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
-              <div className="flex items-center mb-4">
-                <MapPin className="h-6 w-6 text-purple-500 mr-3" />
-                <h2 className="text-2xl font-bold text-gray-900">Shipping Coverage</h2>
-              </div>
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-3">Domestic Shipping</h3>
-                  <ul className="space-y-2 text-gray-700">
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-purple-400 rounded-full mr-3 mt-2"></span>
-                      All 50 United States
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-purple-400 rounded-full mr-3 mt-2"></span>
-                      Alaska and Hawaii (FREE shipping included)
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-purple-400 rounded-full mr-3 mt-2"></span>
-                      PO Boxes and military addresses accepted
-                    </li>
-                  </ul>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-3">International Shipping</h3>
-                  <ul className="space-y-2 text-gray-700">
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-purple-400 rounded-full mr-3 mt-2"></span>
-                      Currently not available
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-purple-400 rounded-full mr-3 mt-2"></span>
-                      Contact us for special arrangements
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-purple-400 rounded-full mr-3 mt-2"></span>
-                      Future expansion planned
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </section>
-
-            {/* Packaging */}
-            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
-              <div className="flex items-center mb-4">
-                <Package className="h-6 w-6 text-orange-500 mr-3" />
-                <h2 className="text-2xl font-bold text-gray-900">Packaging & Protection</h2>
-              </div>
-              <div className="space-y-4 text-gray-700">
-                <p className="leading-relaxed">
-                  Your banners are carefully packaged to ensure they arrive in perfect condition:
-                </p>
-                <ul className="space-y-2">
-                  <li className="flex items-start">
-                    <span className="w-2 h-2 bg-orange-400 rounded-full mr-3 mt-2"></span>
-                    Rolled in protective tubes for larger banners
-                  </li>
-                  <li className="flex items-start">
-                    <span className="w-2 h-2 bg-orange-400 rounded-full mr-3 mt-2"></span>
-                    Flat packaging for smaller items
-                  </li>
-                  <li className="flex items-start">
-                    <span className="w-2 h-2 bg-orange-400 rounded-full mr-3 mt-2"></span>
-                    Moisture-resistant materials
-                  </li>
-                  <li className="flex items-start">
-                    <span className="w-2 h-2 bg-orange-400 rounded-full mr-3 mt-2"></span>
-                    Clearly labeled with handling instructions
-                  </li>
-                </ul>
-              </div>
-            </section>
-
-            {/* Tracking & Delivery */}
-            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
-              <div className="flex items-center mb-4">
-                <Truck className="h-6 w-6 text-indigo-500 mr-3" />
-                <h2 className="text-2xl font-bold text-gray-900">Tracking & Delivery</h2>
-              </div>
-              <div className="space-y-4 text-gray-700">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">Order Tracking</h3>
-                  <ul className="space-y-2">
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-indigo-400 rounded-full mr-3 mt-2"></span>
-                      Tracking number provided via email when shipped
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-indigo-400 rounded-full mr-3 mt-2"></span>
-                      Real-time updates through carrier website
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-indigo-400 rounded-full mr-3 mt-2"></span>
-                      SMS notifications available (carrier dependent)
-                    </li>
-                  </ul>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">Delivery Options</h3>
-                  <ul className="space-y-2">
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-indigo-400 rounded-full mr-3 mt-2"></span>
-                      Standard delivery to your address
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-indigo-400 rounded-full mr-3 mt-2"></span>
-                      Signature required for high-value orders
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-indigo-400 rounded-full mr-3 mt-2"></span>
-                      Hold at carrier location available
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </section>
-
-            {/* Important Notes */}
-            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
-              <div className="flex items-center mb-4">
-                <AlertTriangle className="h-6 w-6 text-red-500 mr-3" />
-                <h2 className="text-2xl font-bold text-gray-900">Important Shipping Notes</h2>
-              </div>
-              <div className="space-y-4">
-                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-lg">
-                  <h3 className="font-semibold text-yellow-800 mb-2">Address Accuracy</h3>
-                  <p className="text-yellow-700 text-sm">
-                    Please ensure your shipping address is correct. We are not responsible for additional charges due to incorrect addresses provided by customers.
-                  </p>
-                </div>
-                <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-r-lg">
-                  <h3 className="font-semibold text-red-800 mb-2">Weather & Carrier Delays</h3>
-                  <p className="text-red-700 text-sm">
-                    We are not liable for shipping delays due to weather conditions, carrier issues, or other circumstances beyond our control.
-                  </p>
-                </div>
-                <div className="bg-slate-50 border-l-4 border-slate-200 p-4 rounded-r-lg">
-                  <h3 className="font-semibold text-blue-800 mb-2">Lost or Damaged Packages</h3>
-                  <p className="text-[#18448D] text-sm">
-                    Report lost or damaged packages immediately. We will work with the carrier to resolve issues and may reprint your order if necessary.
-                  </p>
-                </div>
-              </div>
-            </section>
-          </div>
-
-          {/* Contact Information */}
-          <div className="mt-12 text-center">
-            <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Questions About Shipping?</h3>
-              <p className="text-gray-600 text-sm mb-4">
-                Our customer service team is here to help with any shipping questions or concerns.
-              </p>
-              <div className="flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-6">
-                <a href="mailto:support@bannersonthefly.com" className="text-orange-500 hover:text-blue-800 text-sm">
-                  support@bannersonthefly.com
-                </a>
-                <span className="text-gray-400 hidden sm:block">|</span>
-                <span className="text-gray-600 text-sm">24/7 Support Available</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* JSON-LD Schema for FAQ */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "FAQPage",
-            "mainEntity": [
-              {
-                "@type": "Question",
-                "name": "How fast do orders ship?",
-                "acceptedAnswer": {
-                  "@type": "Answer",
-                  "text": "Most orders placed by midnight ship the next business day (24-hour production guarantee)."
-                }
-              },
-              {
-                "@type": "Question",
-                "name": "How much is shipping?",
-                "acceptedAnswer": {
-                  "@type": "Answer",
-                  "text": "Shipping is completely FREE on all orders with no minimum required. Every order ships via next-day air at no cost to you."
-                }
-              },
-              {
-                "@type": "Question",
-                "name": "Do you ship to Alaska/Hawaii?",
-                "acceptedAnswer": {
-                  "@type": "Answer",
-                  "text": "Yes; additional fees may apply."
-                }
-              },
-              {
-                "@type": "Question",
-                "name": "Do you offer international shipping?",
-                "acceptedAnswer": {
-                  "@type": "Answer",
-                  "text": "Not currently; contact us for special arrangements."
-                }
-              }
-            ]
-          })
-        }}
-      />
-    </Layout>
-  );
+const shippingSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: shippingFaqs.map((faq) => ({
+    '@type': 'Question',
+    name: faq.question,
+    acceptedAnswer: { '@type': 'Answer', text: faq.answer },
+  })),
 };
+
+const Shipping: React.FC = () => (
+  <Layout showFooterBanner={false}>
+    <SEO
+      title="Production & Shipping Information | Banners On The Fly"
+      description="Understand standard production time, free next-day air transit, delivery estimates, tracking, and damage reporting before ordering custom printed products."
+      canonical={`${SITE_URL}/shipping`}
+      ogImage="/images/og-vinyl-banners.png"
+      ogImageAlt="Banners On The Fly production and shipping information"
+      schema={shippingSchema}
+    />
+
+    <section className="border-b border-slate-200 bg-slate-950 px-4 py-14 text-white sm:py-20">
+      <div className="mx-auto max-w-4xl text-center">
+        <Truck className="mx-auto h-10 w-10 text-orange-400" aria-hidden="true" />
+        <h1 className="mt-4 text-4xl font-black sm:text-5xl">Production and shipping information</h1>
+        <p className="mx-auto mt-5 max-w-3xl text-lg leading-8 text-slate-200">
+          Production happens first. Carrier transit begins after the finished order ships. Review both parts of the timeline before choosing an event date.
+        </p>
+      </div>
+    </section>
+
+    <div className="mx-auto max-w-5xl space-y-8 px-4 py-12 sm:px-6 lg:px-8">
+      <section className="grid gap-5 md:grid-cols-2" aria-label="Production and transit timing">
+        <article className="rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
+          <Clock className="h-7 w-7 text-[#18448D]" aria-hidden="true" />
+          <h2 className="mt-4 text-2xl font-black text-slate-950">1. Production time</h2>
+          <p className="mt-3 leading-7 text-slate-600">{SITE_POLICIES.production.detail}</p>
+        </article>
+        <article className="rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
+          <Truck className="h-7 w-7 text-[#18448D]" aria-hidden="true" />
+          <h2 className="mt-4 text-2xl font-black text-slate-950">2. Carrier transit</h2>
+          <p className="mt-3 leading-7 text-slate-600">{SITE_POLICIES.shipping.detail}</p>
+        </article>
+      </section>
+
+      <section className="rounded-2xl border border-amber-200 bg-amber-50 p-7" aria-labelledby="event-date-heading">
+        <AlertTriangle className="h-7 w-7 text-amber-700" aria-hidden="true" />
+        <h2 id="event-date-heading" className="mt-4 text-2xl font-black text-slate-950">Ordering for a fixed event date</h2>
+        <p className="mt-3 leading-7 text-slate-700">
+          Build in time for file corrections, production, carrier transit, and possible delays. A next-day air shipping method describes transit speed after shipment; it does not mean the product will arrive within 24 hours of checkout.
+        </p>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-7" aria-labelledby="tracking-heading">
+        <PackageCheck className="h-7 w-7 text-[#18448D]" aria-hidden="true" />
+        <h2 id="tracking-heading" className="mt-4 text-2xl font-black text-slate-950">Tracking and delivery</h2>
+        <ul className="mt-4 space-y-3 leading-7 text-slate-600">
+          <li>Tracking information is sent after the order ships.</li>
+          <li>Delivery estimates can change because of carrier, weather, destination, weekend, or holiday conditions.</li>
+          <li>Confirm the complete delivery address before checkout. Address corrections can add time or carrier charges.</li>
+          <li>{SITE_POLICIES.returns.detail}</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="shipping-faq-heading">
+        <h2 id="shipping-faq-heading" className="text-3xl font-black text-slate-950">Shipping FAQs</h2>
+        <div className="mt-6 space-y-4">
+          {shippingFaqs.map((faq) => (
+            <details key={faq.question} className="rounded-2xl border border-slate-200 bg-white p-5 open:border-[#18448D]">
+              <summary className="cursor-pointer font-bold text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500">
+                {faq.question}
+              </summary>
+              <p className="mt-3 leading-7 text-slate-600">{faq.answer}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-3xl bg-[#18448D] p-8 text-center text-white sm:p-10">
+        <Mail className="mx-auto h-7 w-7 text-orange-300" aria-hidden="true" />
+        <h2 className="mt-3 text-3xl font-black">Need help planning an order?</h2>
+        <p className="mx-auto mt-3 max-w-2xl leading-7 text-blue-100">
+          Contact support before ordering if you have a fixed deadline, unusual quantity, or custom production requirement.
+        </p>
+        <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <a className="inline-flex min-h-12 items-center justify-center rounded-md bg-orange-700 px-6 font-bold text-white hover:bg-orange-800" href="mailto:support@bannersonthefly.com">
+            Email support
+          </a>
+          <Link className="inline-flex min-h-12 items-center justify-center rounded-md border-2 border-white px-6 font-bold text-white hover:bg-white hover:text-[#18448D]" to="/faq">
+            Review all FAQs
+          </Link>
+        </div>
+      </section>
+    </div>
+  </Layout>
+);
 
 export default Shipping;

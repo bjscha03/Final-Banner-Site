@@ -33,7 +33,7 @@ const HeroSection: React.FC = () => {
           {/* Trust Badge */}
           <div className="inline-flex items-center gap-3 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-400/30 px-6 py-3 text-sm font-semibold tracking-wide backdrop-blur-sm mb-12 animate-pulse">
             <Zap className="h-4 w-4" />
-            <span>PROFESSIONAL BANNERS • FREE NEXT-DAY AIR • 24-HOUR PRODUCTION</span>
+            <span>PROFESSIONAL BANNERS • FREE NEXT-DAY AIR AFTER PRODUCTION • MOST STANDARD ORDERS: 24-HOUR PRODUCTION</span>
             <CheckCircle className="h-4 w-4" />
           </div>
 
@@ -48,7 +48,7 @@ const HeroSection: React.FC = () => {
 
             <p className="text-xl md:text-2xl text-slate-300 font-light max-w-3xl mx-auto leading-relaxed">
               Professional vinyl banners delivered faster than anyone else.
-              <span className="text-white font-medium"> Premium quality, competitive pricing, 24-hour production.</span>
+              <span className="text-white font-medium"> Current options, online pricing, and live print preview.</span>
             </p>
           </div>
 
@@ -81,7 +81,7 @@ const HeroSection: React.FC = () => {
               </div>
               <div className="text-4xl md:text-5xl font-black text-white mb-2">24hr</div>
               <div className="text-slate-300 font-medium text-lg">Production Time</div>
-              <div className="text-slate-400 text-sm mt-1">Guaranteed delivery</div>
+              <div className="text-slate-400 text-sm mt-1">Estimated delivery</div>
             </div>
 
             <div className="group text-center p-8 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-sm hover:bg-white/10 transition-all duration-300">

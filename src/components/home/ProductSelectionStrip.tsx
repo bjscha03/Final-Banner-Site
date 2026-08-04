@@ -56,7 +56,7 @@ const ProductSelectionStrip: React.FC = () => {
                 src={product.imageUrl}
                 alt={product.imageAlt}
                 loading="lazy"
-                className={`absolute inset-0 h-full w-full ${product.imageFit} transition-transform duration-[250ms] ease-in-out group-hover:scale-[1.03]`}
+                className={`absolute inset-0 h-full w-full ${product.imageFit} transition-transform duration-300 ease-in-out group-hover:scale-[1.03]`}
               />
 
               {/* Orange pill label — top-left */}

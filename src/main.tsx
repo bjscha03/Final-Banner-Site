@@ -1,5 +1,5 @@
 import { FormEvent, useMemo, useState } from 'react';
-import { createRoot } from 'react-dom/client';
+import { createRoot, hydrateRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 import './admin-preview.css';
@@ -117,7 +117,14 @@ installPayPalCheckoutStorageGuard();
 installPayPalCaptureResponseGuard();
 
 const RootComponent = shouldRequirePreviewGate() ? PreviewAccessGate : App;
+const rootElement = document.getElementById('root')!;
+const canHydrate = document.documentElement.dataset.prerendered === 'true' && RootComponent === App;
 
-createRoot(document.getElementById('root')!).render(<RootComponent />);
+if (canHydrate) {
+  hydrateRoot(rootElement, <RootComponent />);
+} else {
+  if (rootElement.hasChildNodes()) rootElement.replaceChildren();
+  createRoot(rootElement).render(<RootComponent />);
+}
 
 import './buildId';

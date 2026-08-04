@@ -77,9 +77,9 @@ const AppLayout: React.FC = () => {
                 <p className="text-gray-600 mb-4">
                   All orders are subject to approval and availability. We reserve the right to refuse any order.
                 </p>
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Quality Guarantee</h2>
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">Damage or Production Defects</h2>
                 <p className="text-gray-600 mb-4">
-                  We guarantee 100% satisfaction with our products. If you're not satisfied, we'll reprint or refund.
+                  Custom products are final sale. Report verified damage or a production defect within five business days with the order number and photos. Eligible claims are resolved with a reprint.
                 </p>
               </div>
             </div>

@@ -13,28 +13,38 @@ export interface SEOProps {
   ogImage?: string;
   ogType?: 'website' | 'article' | 'product';
   twitterCard?: 'summary' | 'summary_large_image';
+  /** Deprecated compatibility input. Meta keywords are intentionally not emitted. */
   keywords?: string[];
   schema?: object | object[]; // JSON-LD schema markup
   noindex?: boolean;
   nofollow?: boolean;
+  preloadImage?: string;
+  ogImageAlt?: string;
+  ogImageWidth?: number;
+  ogImageHeight?: number;
 }
 
 const SEO: React.FC<SEOProps> = ({
   title,
   description,
   canonical,
-  // Default OG image: 1200x630 PNG. TODO: ship a real /images/og-default.png artwork.
-  ogImage = '/images/og-default.png',
+  ogImage = '/images/og-vinyl-banners.png',
   ogType = 'website',
   twitterCard = 'summary_large_image',
-  keywords = [],
   schema,
   noindex = false,
   nofollow = false,
+  preloadImage,
+  ogImageAlt = 'Banners On The Fly custom printing',
+  ogImageWidth = 1200,
+  ogImageHeight = 630,
 }) => {
   const siteUrl = 'https://bannersonthefly.com';
   const fullCanonical = canonical || siteUrl;
   const fullOgImage = ogImage.startsWith('http') ? ogImage : `${siteUrl}${ogImage}`;
+  const fullPreloadImage = preloadImage
+    ? (preloadImage.startsWith('http') ? preloadImage : `${siteUrl}${preloadImage}`)
+    : undefined;
 
   // Construct robots meta tag
   const robotsContent = [];
@@ -43,13 +53,13 @@ const SEO: React.FC<SEOProps> = ({
   const robotsTag = robotsContent.length > 0 ? robotsContent.join(', ') : 'index, follow';
 
   return (
-    <Helmet>
+    <Helmet prioritizeSeoTags>
       {/* Basic Meta Tags */}
       <title>{title}</title>
       <meta name="description" content={description} />
-      {keywords.length > 0 && <meta name="keywords" content={keywords.join(', ')} />}
       <meta name="robots" content={robotsTag} />
       <link rel="canonical" href={fullCanonical} />
+      {fullPreloadImage && <link rel="preload" as="image" href={fullPreloadImage} />}
 
       {/* Open Graph Meta Tags */}
       <meta property="og:title" content={title} />
@@ -57,6 +67,11 @@ const SEO: React.FC<SEOProps> = ({
       <meta property="og:type" content={ogType} />
       <meta property="og:url" content={fullCanonical} />
       <meta property="og:image" content={fullOgImage} />
+      <meta property="og:image:secure_url" content={fullOgImage} />
+      <meta property="og:image:type" content="image/png" />
+      <meta property="og:image:width" content={String(ogImageWidth)} />
+      <meta property="og:image:height" content={String(ogImageHeight)} />
+      <meta property="og:image:alt" content={ogImageAlt} />
       <meta property="og:site_name" content="Banners On The Fly" />
 
       {/* Twitter Card Meta Tags */}
@@ -64,6 +79,7 @@ const SEO: React.FC<SEOProps> = ({
       <meta name="twitter:title" content={title} />
       <meta name="twitter:description" content={description} />
       <meta name="twitter:image" content={fullOgImage} />
+      <meta name="twitter:image:alt" content={ogImageAlt} />
 
       {/* Schema.org JSON-LD */}
       {schema && (
@@ -85,20 +101,14 @@ export const getOrganizationSchema = () => ({
   '@type': 'Organization',
   name: 'Banners On The Fly',
   url: 'https://bannersonthefly.com',
-  logo: 'https://bannersonthefly.com/images/logo.svg',
-  description: 'Professional vinyl banners with free next-day air shipping and 24-hour production',
-  address: {
-    '@type': 'PostalAddress',
-    addressCountry: 'US',
-  },
+  logo: 'https://bannersonthefly.com/images/logo-social.svg',
+  description: 'Online custom banner, yard sign, and car magnet printing with nationwide shipping.',
   contactPoint: {
     '@type': 'ContactPoint',
     contactType: 'Customer Service',
     email: 'support@bannersonthefly.com',
   },
-  sameAs: [
-    // Add social media profiles here when available
-  ],
+  sameAs: ['https://www.linkedin.com/company/banners-on-the-fly/'],
 });
 
 /**
@@ -126,6 +136,7 @@ export const getProductSchema = (product: {
   priceCurrency?: string;
   availability?: string;
   brand?: string;
+  offerUrl?: string;
 }) => ({
   '@context': 'https://schema.org',
   '@type': 'Product',
@@ -144,7 +155,7 @@ export const getProductSchema = (product: {
       price: product.price,
       priceCurrency: product.priceCurrency || 'USD',
       availability: product.availability || 'https://schema.org/InStock',
-      url: 'https://bannersonthefly.com/design',
+      url: product.offerUrl || 'https://bannersonthefly.com/design?product=banner',
     },
   }),
 });
@@ -167,7 +178,7 @@ export const getWebPageSchema = (page: {
     name: 'Banners On The Fly',
     logo: {
       '@type': 'ImageObject',
-      url: 'https://bannersonthefly.com/images/logo.svg',
+      url: 'https://bannersonthefly.com/images/logo-social.svg',
     },
   },
 });

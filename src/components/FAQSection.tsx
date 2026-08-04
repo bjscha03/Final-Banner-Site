@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, HelpCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { SITE_POLICIES } from '@/lib/sitePolicies';
 
 const FAQSection: React.FC = () => {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
@@ -7,15 +9,15 @@ const FAQSection: React.FC = () => {
   const faqs = [
     {
       question: "What file formats do you accept?",
-      answer: "We accept PDF, JPG, and PNG files up to 100MB. For best results, we recommend high-resolution PDF files with embedded fonts and images at 300 DPI."
+      answer: SITE_POLICIES.artwork.detail
     },
     {
       question: "What is your turnaround time?",
-      answer: "We guarantee 24-hour production on all standard orders. Orders placed before 2 PM EST are typically printed and shipped the same day."
+      answer: SITE_POLICIES.production.detail
     },
     {
       question: "What banner sizes do you offer?",
-      answer: "We can print banners in virtually any size from 1' x 1' up to 16' x 50'. Common sizes include 2'x4', 3'x6', 4'x8', and 6'x10'. Custom sizes are available at no extra charge."
+      answer: "The banner configurator accepts dimensions from 6 inches to 600 inches per side, up to 1,000 square feet. Larger work requires a custom quote and may need additional production time."
     },
     {
       question: "What materials do you use?",
@@ -23,19 +25,19 @@ const FAQSection: React.FC = () => {
     },
     {
       question: "How do grommets work?",
-      answer: "Grommets are metal-reinforced holes that make hanging easy and prevent tearing. We offer grommets in corners only, every 2 feet, or every 18 inches along the perimeter."
+      answer: "The current banner configurator offers no grommets, every 2–3 feet, every 1–2 feet, four corners only, top corners only, right corners only, or left corners only."
     },
     {
       question: "What is your return policy?",
-      answer: "Because our products are custom-made, we don't accept returns. If your order arrives damaged or defective, we'll replace it at no cost—just contact support with your order number and photos."
+      answer: SITE_POLICIES.returns.detail
     },
     {
       question: "Do you provide design proofs?",
-      answer: "We don't provide digital proofs, but you'll see a full print preview before placing your order."
+      answer: SITE_POLICIES.preview.detail
     },
     {
       question: "What shipping options are available?",
-      answer: "All orders include FREE next-day air shipping with 24-hour production. No minimum order required! We don't offer paid shipping upgrades since every order ships fast and free."
+      answer: SITE_POLICIES.shipping.detail
     },
     {
       question: "Do you offer bulk discounts?",
@@ -96,11 +98,11 @@ const FAQSection: React.FC = () => {
               Still have questions?
             </h3>
             <p className="text-gray-600 mb-6">
-              Our customer support team is available 24/7 to help with any questions about your banner order.
+              Send us a message if you have a question before placing your order.
             </p>
-            <button className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 rounded-lg font-semibold transition-colors">
+            <Link to="/contact" className="inline-flex min-h-11 items-center justify-center bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 rounded-lg font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2">
               Contact Support
-            </button>
+            </Link>
           </div>
         </div>
       </div>

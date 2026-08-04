@@ -19,15 +19,14 @@ export function ThemeProvider({
   value: _value,
   ...props
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window !== "undefined") {
-      const savedTheme = localStorage.getItem("theme")
-      return (savedTheme && (savedTheme === "dark" || savedTheme === "light" || savedTheme === "system")
-        ? savedTheme
-        : defaultTheme) as Theme
+  const [theme, setThemeState] = useState<Theme>(defaultTheme as Theme)
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme")
+    if (savedTheme === "dark" || savedTheme === "light" || savedTheme === "system") {
+      setThemeState(savedTheme)
     }
-    return defaultTheme as Theme
-  })
+  }, [])
 
   useEffect(() => {
     const root = window.document.documentElement
@@ -49,7 +48,7 @@ export function ThemeProvider({
     theme,
     setTheme: (theme: Theme) => {
       localStorage.setItem("theme", theme)
-      setTheme(theme)
+      setThemeState(theme)
     },
   }
 

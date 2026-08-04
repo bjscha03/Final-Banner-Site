@@ -5,5 +5,11 @@
 /ai-test-direct.html   /ai-test-direct.html   200
 /ai-button-test.html   /ai-button-test.html   200
 
+# Product hubs and generated city pages are physical HTML files. Unknown
+# children under these namespaces must return a real 404 instead of the SPA.
+/vinyl-banners/*   /404.html   404
+/yard-signs/*      /404.html   404
+/car-magnets/*     /404.html   404
+
 # SPA fallback for React Router (must be last)
 /*    /index.html   200

@@ -71,7 +71,10 @@ const Footer: React.FC = () => {
 
   const quickLinks = [
     { name: 'Home', href: '/' },
-    { name: 'Design Tool', href: '/design' },
+    { name: 'Vinyl Banners', href: '/vinyl-banners' },
+    { name: 'Yard Signs', href: '/yard-signs' },
+    { name: 'Car Magnets', href: '/car-magnets' },
+    { name: 'Service Areas', href: '/locations' },
     { name: 'About Us', href: '/about' },
     { name: 'FAQ', href: '/faq' }
   ];
@@ -95,8 +98,8 @@ const Footer: React.FC = () => {
               Banners On The Fly
             </h3>
             <p className="text-gray-300 mb-6">
-              Professional vinyl signage printing with 24-hour production and next-day delivery. 
-              Quality banners for businesses nationwide.
+              Custom banners, yard signs, and car magnets ordered online and shipped nationwide.
+              Production time and carrier transit time are shown separately.
             </p>
             <div className="space-y-2">
               <div className="flex items-center text-gray-300">
@@ -153,11 +156,12 @@ const Footer: React.FC = () => {
             <form onSubmit={handleNewsletterSubmit} className="space-y-3">
               <div className="flex">
                 <input
+                  id="footer-newsletter-email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email"
-                  className={`flex-1 px-3 py-2 bg-gray-800 border rounded-l-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-400 transition-colors ${
+                  className={`min-h-11 min-w-0 flex-1 px-3 py-2 bg-gray-800 border rounded-l-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-400 transition-colors ${
                     submitStatus === 'success'
                       ? 'border-green-500 focus:ring-green-500'
                       : submitStatus === 'error'
@@ -166,18 +170,20 @@ const Footer: React.FC = () => {
                   }`}
                   required
                   disabled={isSubmitting}
+                  aria-label="Email address for newsletter"
                 />
                 <button
                   type="submit"
                   disabled={isSubmitting || !email.trim()}
-                  className={`px-4 py-2 rounded-r-lg transition-colors flex items-center justify-center min-w-[48px] ${
+                  aria-label="Subscribe to newsletter"
+                  className={`min-h-11 px-4 py-2 rounded-r-lg transition-colors flex items-center justify-center min-w-[48px] ${
                     submitStatus === 'success'
                       ? 'bg-green-500 hover:bg-green-600'
                       : submitStatus === 'error'
                       ? 'bg-red-500 hover:bg-red-600'
                       : isSubmitting
                       ? 'bg-gray-500 cursor-not-allowed'
-                      : 'bg-orange-500 hover:bg-orange-600'
+                      : 'bg-orange-700 hover:bg-orange-800'
                   }`}
                 >
                   {isSubmitting ? (
@@ -213,10 +219,10 @@ const Footer: React.FC = () => {
               © {new Date().getFullYear()} Banners On The Fly. All rights reserved.
             </p>
             <div className="flex items-center space-x-6 mt-4 md:mt-0">
-              <span className="text-gray-400 text-sm">Trusted by 10,000+ businesses</span>
+              <span className="text-gray-400 text-sm">Online ordering available nationwide</span>
               <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                <span className="text-green-400 text-sm">24/7 Production Active</span>
+                <div className="w-2 h-2 bg-green-400 rounded-full" aria-hidden="true"></div>
+                <span className="text-green-400 text-sm">Secure online checkout</span>
               </div>
             </div>
           </div>

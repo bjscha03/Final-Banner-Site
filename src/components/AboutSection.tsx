@@ -89,7 +89,7 @@ const AboutSection: React.FC = () => {
                 </li>
                 <li className="flex items-center">
                   <div className="w-2 h-2 bg-white rounded-full mr-3"></div>
-                  100% satisfaction guarantee
+                  Live on-screen preview before checkout
                 </li>
               </ul>
             </div>

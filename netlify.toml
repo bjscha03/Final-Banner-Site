@@ -133,6 +133,23 @@
   to = "/design?ai=1"
   status = 302
 
+# Generated product/city pages are physical files and therefore shadow these
+# non-forced rules. Unknown child paths receive a true HTTP 404.
+[[redirects]]
+  from = "/vinyl-banners/*"
+  to = "/404.html"
+  status = 404
+
+[[redirects]]
+  from = "/yard-signs/*"
+  to = "/404.html"
+  status = 404
+
+[[redirects]]
+  from = "/car-magnets/*"
+  to = "/404.html"
+  status = 404
+
 # SPA fallback (must be last redirect) - exclude static assets
 [[redirects]]
   from = "/*"

@@ -465,7 +465,7 @@ const Checkout: React.FC = () => {
                 <span>Design</span><span>→</span><span>Review</span><span>→</span><span className="text-[#18448D]">Checkout</span><span>→</span><span>Complete</span>
               </div>
               <h1 className="text-3xl sm:text-4xl font-bold text-[#18448D] mb-2">Secure Checkout</h1>
-              <p className="text-base text-gray-600">Printed within 24 hours and shipped FREE via next-day air.</p>
+              <p className="text-base text-gray-600">Most standard orders are produced within 24 hours; free next-day air begins after production.</p>
               <p className="text-sm text-[#18448D] font-medium">Order before tonight’s cutoff for fastest turnaround.</p>
             </div>
             
@@ -1193,7 +1193,7 @@ const Checkout: React.FC = () => {
                 </div>
                 
                 <div className="mb-3 rounded-lg border border-[#18448D]/15 bg-blue-50 px-3 py-2">
-                  <p className="text-sm font-semibold text-[#18448D]">Printed within 24 hours and shipped FREE via next-day air.</p>
+                  <p className="text-sm font-semibold text-[#18448D]">Most standard orders are produced within 24 hours; free next-day air begins after production.</p>
                   <p className="text-xs text-blue-700">Order before tonight’s cutoff for fastest turnaround.</p>
                 </div>
                 
@@ -1283,8 +1283,8 @@ const Checkout: React.FC = () => {
                   <div className="flex flex-wrap gap-1.5">
                     {[
                       { icon: <Lock className="h-3 w-3" />, label: 'Secure encrypted checkout' },
-                      { icon: <CircleCheck className="h-3 w-3" />, label: 'Printed within 24 hours' },
-                      { icon: <Truck className="h-3 w-3" />, label: 'FREE next-day air shipping' },
+                      { icon: <CircleCheck className="h-3 w-3" />, label: 'Most standard orders: 24-hour production' },
+                      { icon: <Truck className="h-3 w-3" />, label: 'Free next-day air after production' },
                     ].map((badge) => (
                       <span key={badge.label} className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] font-medium text-gray-600">
                         {badge.icon}
@@ -1293,7 +1293,7 @@ const Checkout: React.FC = () => {
                     ))}
                   </div>
                   <p className="mt-2 text-xs text-gray-600">Secure checkout · No PayPal account required · Upload almost any file type · We check your file before production.</p>
-                  <p className="text-xs text-gray-600">Printed within 24 hours · Free next-day air shipping.</p>
+                  <p className="text-xs text-gray-600">Production time and carrier transit are separate; delivery dates are estimates.</p>
                 </div>
               </div>
 

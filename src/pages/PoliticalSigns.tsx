@@ -43,7 +43,7 @@ const FAQS = [
   },
   {
     q: 'How fast is shipping?',
-    a: 'Every political signs order includes FREE next-day air shipping after production.',
+    a: 'Free next-day air describes carrier transit after production. Delivery dates are estimates and can change.',
   },
   {
     q: 'How do I upload artwork?',
@@ -68,7 +68,7 @@ const PoliticalSigns: React.FC = () => {
         <title>Political Campaign Signs & Banners | Banners On The Fly</title>
         <meta
           name="description"
-          content="Custom political banners, yard signs, and car magnets printed within 24 hours with free next-day air shipping."
+          content="Configure political banners, yard signs, and car magnets online. Most standard orders are produced within 24 hours; carrier transit follows production."
         />
       </Helmet>
 
@@ -85,10 +85,10 @@ const PoliticalSigns: React.FC = () => {
         <div className="relative z-[2] max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-24 lg:py-28">
           <div className="max-w-2xl">
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight leading-tight text-white">
-              Political Signs <span className="text-[#FF6A00]">Printed Within 24 Hours</span>
+              Political Signs <span className="text-[#FF8A3D]">Configured Online</span>
             </h1>
             <p className="mt-5 text-lg md:text-xl text-white/90">
-              Custom political banners, yard signs, and car magnets with free next-day air shipping.
+              Custom political banners, yard signs, and car magnets with production and carrier transit shown separately.
             </p>
             <div className="mt-8">
               <button
@@ -100,7 +100,7 @@ const PoliticalSigns: React.FC = () => {
               </button>
             </div>
             <ul className="mt-6 grid sm:grid-cols-2 gap-3 text-sm font-medium">
-              {[{ icon: Clock, text: 'Printed within 24 hours' }, { icon: Truck, text: 'FREE next-day air shipping' }].map(
+              {[{ icon: Clock, text: 'Most standard orders: 24-hour production' }, { icon: Truck, text: 'Free next-day air after production' }].map(
                 ({ icon: Icon, text }) => (
                   <li key={text} className="flex items-center gap-2 text-white/90">
                     <Icon className="h-4 w-4 flex-shrink-0 text-[#FF6A00]" />
@@ -139,8 +139,8 @@ const PoliticalSigns: React.FC = () => {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {[
-              { icon: Clock, title: 'Printed within 24 hours' },
-              { icon: Truck, title: 'FREE next-day air shipping' },
+              { icon: Clock, title: 'Most standard orders: 24-hour production' },
+              { icon: Truck, title: 'Free next-day air after production' },
               { icon: ShieldCheck, title: 'Weather-resistant materials' },
               { icon: CheckCircle, title: 'Live design preview' },
             ].map(({ icon: Icon, title }) => (

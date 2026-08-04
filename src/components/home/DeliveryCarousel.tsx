@@ -128,7 +128,7 @@ const DeliveryCarousel: React.FC = () => {
           Real Orders. Delivered Fast.
         </h2>
         <p className="mt-2 text-sm sm:text-base text-gray-500">
-          Printed within 24 hours and shipped free via next-day air.
+          Most standard orders are produced within 24 hours; free next-day air begins after production.
         </p>
         <p className="mt-1 text-sm sm:text-base text-gray-500">
           Photos from actual Banners on the Fly deliveries

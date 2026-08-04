@@ -61,8 +61,8 @@ const ContactSection: React.FC = () => {
                     <MessageCircle className="h-5 w-5" />
                   </div>
                   <div>
-                    <p className="font-medium">Live Chat</p>
-                    <p className="text-blue-100">Instant support online</p>
+                    <p className="font-medium">Order Help</p>
+                    <p className="text-blue-100">Contact support with order questions</p>
                   </div>
                 </div>
               </div>
@@ -73,20 +73,20 @@ const ContactSection: React.FC = () => {
               <div className="bg-green-50 rounded-lg p-6 border border-green-200">
                 <div className="flex items-center mb-3">
                   <Clock className="h-5 w-5 text-green-600 mr-2" />
-                  <h4 className="font-semibold text-green-800">24/7 Availability</h4>
+                  <h4 className="font-semibold text-green-800">Email Support</h4>
                 </div>
                 <p className="text-green-700 text-sm">
-                  Our support team is available around the clock to help with urgent orders and questions.
+                  Send order questions to support@bannersonthefly.com and include your order number when available.
                 </p>
               </div>
               
               <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
                 <div className="flex items-center mb-3">
                   <Shield className="h-5 w-5 text-blue-600 mr-2" />
-                  <h4 className="font-semibold text-blue-800">Quality Guarantee</h4>
+                  <h4 className="font-semibold text-blue-800">Damage and Defect Review</h4>
                 </div>
                 <p className="text-blue-700 text-sm">
-                  100% satisfaction guarantee with free reprints if you're not completely satisfied.
+                  Report verified damage or a production defect within five business days with your order number and photos. Eligible claims are resolved with a reprint.
                 </p>
               </div>
             </div>

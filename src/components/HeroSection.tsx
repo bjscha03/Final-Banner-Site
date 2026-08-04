@@ -31,7 +31,7 @@ const HeroSection: React.FC = () => {
                 Custom Banners & Yard Signs
               </h1>
               <p className="text-lg md:text-2xl text-slate-100">
-                Printed in 24 Hours • Free <span className="text-orange-400 italic font-semibold">Next-Day Air</span> Shipping
+                Most standard orders: 24-hour production • Free <span className="text-orange-300 italic font-semibold">next-day air after production</span>
               </p>
             </div>
 
@@ -52,7 +52,7 @@ const HeroSection: React.FC = () => {
             <div className="flex flex-wrap items-center justify-center gap-5 pt-2 text-sm text-slate-100">
               <div className="flex items-center gap-2">
                 <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                <span>Trusted by 10,000+ customers nationwide</span>
+                <span>Online ordering with nationwide shipping</span>
               </div>
               <div className="flex items-center gap-2">
                 <Lock className="w-4 h-4 text-slate-200" />
@@ -60,7 +60,7 @@ const HeroSection: React.FC = () => {
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-400" />
-                <span>Satisfaction guaranteed</span>
+                <span>Live print preview before checkout</span>
               </div>
             </div>
           </div>

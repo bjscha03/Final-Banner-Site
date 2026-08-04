@@ -157,7 +157,7 @@ const CheckoutSummary: React.FC = () => {
 
         <div className="mt-4 text-center">
           <p className="text-sm text-gray-600">
-            Free next-day air shipping • 24-hour production • 100% satisfaction guarantee
+            Live on-screen preview • Most standard orders are produced within 24 hours • Carrier transit follows production
           </p>
         </div>
       </div>

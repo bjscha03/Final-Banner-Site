@@ -126,7 +126,7 @@ const ProductTypeSwitcher: React.FC<ProductTypeSwitcherProps> = ({
               <img
                 src={option.imageUrl}
                 alt={option.imageAlt}
-                className="absolute inset-0 h-full w-full object-cover transition-transform duration-[250ms] ease-in-out group-hover:scale-[1.03]"
+                className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 ease-in-out group-hover:scale-[1.03]"
               />
 
               {/* Orange pill label — top-left */}

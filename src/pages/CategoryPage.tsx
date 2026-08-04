@@ -93,8 +93,8 @@ const CategoryPage: React.FC = () => {
             <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
               <Shield className="h-8 w-8 text-[#18448D] flex-shrink-0" />
               <div>
-                <div className="font-bold text-gray-900">Quality</div>
-                <div className="text-sm text-gray-600">Guaranteed</div>
+                <div className="font-bold text-gray-900">Live</div>
+                <div className="text-sm text-gray-600">Print Preview</div>
               </div>
             </div>
             <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">

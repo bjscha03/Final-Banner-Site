@@ -172,12 +172,6 @@ export default function OrderCanceled({ order }: OrderCanceledProps) {
                     support@bannersonthefly.com
                   </Link>
                 </li>
-                <li style={contactItem}>
-                  Phone: (555) 123-4567
-                </li>
-                <li style={contactItem}>
-                  Hours: Monday-Friday, 9 AM - 5 PM EST
-                </li>
               </ul>
             </Section>
           </Section>

@@ -29,7 +29,7 @@ const About: React.FC = () => {
     {
       icon: Zap,
       title: 'Speed',
-      description: 'Lightning-fast 24-hour production and shipping to get your banners when you need them.',
+      description: 'Most standard orders are produced within 24 hours. Carrier transit begins after production and delivery dates are estimates.',
       gradient: 'from-yellow-400 to-orange-500'
     },
     {

@@ -19,6 +19,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { generateFinalRenderFromHTML } from '@/utils/generateFinalRenderFromHTML';
 import { renderPdfToDataUrl, type PdfPreviewResult } from '@/utils/pdf/renderPdfToDataUrl';
 import type { ProductTypeSlug } from '@/lib/products';
+import { getConfiguratorProductQuery, parseConfiguratorProductQuery } from '@/lib/configurator';
 import ProductTypeSwitcher from '@/components/design/ProductTypeSwitcher';
 import YardSignConfigurator from '@/components/design/YardSignConfigurator';
 import YardSignPriceSummary from '@/components/design/YardSignPriceSummary';
@@ -153,13 +154,13 @@ const PRODUCT_MODE_CONTENT = {
     heroDescription: (
       <>
         <p className="text-base md:text-lg text-gray-100 max-w-lg mx-auto leading-relaxed">
-          Printed in 24 hours + <strong className="text-white">Free Next-Day Air Shipping</strong>.
+          Most standard orders are produced within 24 hours. <strong className="text-white">Free next-day air begins after production</strong>.
         </p>
-        <p className="text-sm text-gray-200">Most orders arrive in 2 business days.</p>
+        <p className="text-sm text-gray-200">Delivery dates are estimates and can change.</p>
       </>
     ),
     topFeatures: [
-      { icon: Clock, iconClass: 'text-orange-500', label: '24-Hr Print' },
+      { icon: Clock, iconClass: 'text-orange-500', label: 'Most: 24-Hr Production' },
       { icon: Truck, iconClass: 'text-orange-500', label: 'Free Next-Day Air' },
       { icon: Tag, iconClass: 'text-orange-500', label: '20% Off · NEW20' },
       { icon: Brush, iconClass: 'text-orange-500', label: 'Designer Reviewed' },
@@ -176,18 +177,18 @@ const PRODUCT_MODE_CONTENT = {
     heroTitle: 'Custom Yard Signs',
     heroDescription: (
       <p className="text-base md:text-lg text-gray-100 max-w-lg mx-auto leading-relaxed">
-        Standard 24&quot; × 18&quot; corrugated plastic yard signs, printed fast and shipped next business day.
+        Standard 24&quot; × 18&quot; corrugated plastic yard signs with production and carrier transit shown separately.
       </p>
     ),
     topFeatures: [
-      { icon: Clock, iconClass: 'text-orange-500', label: '24-Hr Print' },
+      { icon: Clock, iconClass: 'text-orange-500', label: 'Most: 24-Hr Production' },
       { icon: Truck, iconClass: 'text-orange-500', label: 'Free Next-Day Air' },
       { icon: Layers, iconClass: 'text-orange-500', label: 'Up to 10 Designs' },
       { icon: Brush, iconClass: 'text-orange-500', label: 'Designer Reviewed' },
     ],
     builtTitle: 'Built for the Outdoors',
     builtItems: [
-      { icon: Clock, iconClass: 'text-orange-500', label: '24-Hour Turnaround' },
+      { icon: Clock, iconClass: 'text-orange-500', label: 'Most: 24-Hour Production' },
       { icon: Sun, iconClass: 'text-yellow-500', label: 'Outdoor Durable' },
       { icon: Palette, iconClass: 'text-purple-500', label: 'Vibrant Print' },
       { icon: Droplets, iconClass: 'text-blue-500', label: 'Corrugated Plastic' },
@@ -197,18 +198,18 @@ const PRODUCT_MODE_CONTENT = {
     heroTitle: 'Car Magnets',
     heroDescription: (
       <p className="text-base md:text-lg text-gray-100 max-w-lg mx-auto leading-relaxed">
-        Durable vehicle magnets printed fast with free next-day air shipping
+        Durable vehicle magnets with production and free next-day air transit shown separately
       </p>
     ),
     topFeatures: [
-      { icon: Clock, iconClass: 'text-orange-500', label: '24-Hour Production' },
+      { icon: Clock, iconClass: 'text-orange-500', label: 'Most: 24-Hour Production' },
       { icon: Truck, iconClass: 'text-orange-500', label: 'Free Next-Day Air' },
       { icon: Move, iconClass: 'text-orange-500', label: 'Removable Magnetic Signage' },
       { icon: Brush, iconClass: 'text-orange-500', label: 'Rounded Corner Options' },
     ],
     builtTitle: 'Built for Vehicles',
     builtItems: [
-      { icon: Clock, iconClass: 'text-orange-500', label: '24-Hour Turnaround' },
+      { icon: Clock, iconClass: 'text-orange-500', label: 'Most: 24-Hour Production' },
       { icon: Sun, iconClass: 'text-yellow-500', label: 'Outdoor Durable' },
       { icon: Palette, iconClass: 'text-purple-500', label: 'Full-Color Print' },
       { icon: Move, iconClass: 'text-blue-500', label: 'Removable Material' },
@@ -336,9 +337,7 @@ const Design: React.FC = () => {
   const [hasEnteredBuilder, setHasEnteredBuilder] = useState(false);
   const [isBuilderInView, setIsBuilderInView] = useState(false);
   const getProductQuerySlug = useCallback((type: ProductTypeSlug) => {
-    if (type === 'yard_sign') return 'yard-signs';
-    if (type === 'car_magnet') return 'car-magnets';
-    return 'banner';
+    return getConfiguratorProductQuery(type);
   }, []);
 
   // Product type state — read ?tab= or ?product= query param for routing
@@ -346,9 +345,7 @@ const Design: React.FC = () => {
     const tab = searchParams.get('tab');
     const product = searchParams.get('product');
     const param = tab || product;
-    if (param === 'yard-sign' || param === 'yard_sign' || param === 'yard-signs') return 'yard_sign' as ProductTypeSlug;
-    if (param === 'car-magnet' || param === 'car-magnets' || param === 'car_magnet' || param === 'car_magnets') return 'car_magnet' as ProductTypeSlug;
-    return 'banner' as ProductTypeSlug;
+    return parseConfiguratorProductQuery(param);
   })();
   const [productType, setProductType] = useState<ProductTypeSlug>(initialProductType);
   const isYardSign = productType === 'yard_sign';
@@ -2602,7 +2599,7 @@ const Design: React.FC = () => {
     <Layout>
       <Helmet>
         <title>Design Your Banner | Banners On The Fly</title>
-        <meta name="description" content="Design and order custom vinyl banners. Upload your artwork, choose your size and material, and get free next-day air shipping." />
+        <meta name="description" content="Design custom vinyl banners online. Upload artwork, choose size and material, preview the print, and review production and shipping before checkout." />
       </Helmet>
 
       {/* Hero */}
@@ -3165,7 +3162,7 @@ const Design: React.FC = () => {
 
             <div className="space-y-6 min-w-0 max-w-full lg:sticky lg:top-24 self-start">
               <p className="text-sm text-emerald-700 -mt-1 font-medium">
-                Includes next-day production &amp; <span className="text-emerald-700 font-semibold">free shipping</span>
+                Most standard orders are produced within 24 hours; <span className="text-emerald-700 font-semibold">carrier transit follows production</span>
               </p>
               {isCarMagnet && carMagnetPricing ? (
                 <PriceBreakdown

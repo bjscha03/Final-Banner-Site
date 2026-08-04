@@ -8,14 +8,14 @@ const WhyChooseUs: React.FC = () => {
   const features = [
     {
       icon: Clock,
-      title: '24-Hour Production',
-      description: 'Your order printed and shipped within 24 hours of order approval.',
+      title: 'Standard Production',
+      description: 'Most standard orders are produced within 24 hours; custom, large, or file-dependent work can take longer.',
       gradient: 'from-orange-500 to-amber-500',
     },
     {
       icon: Truck,
       title: 'Free Next-Day Air',
-      description: 'Complimentary expedited shipping on all orders, nationwide.',
+      description: 'Free next-day air describes carrier transit after production; delivery dates remain estimates.',
       gradient: 'from-blue-500 to-cyan-500',
     },
     {
@@ -26,14 +26,14 @@ const WhyChooseUs: React.FC = () => {
     },
     {
       icon: Trophy,
-      title: 'Trusted by Top Brands',
-      description: 'We\'ve supplied banners to leading companies like Dan-O\'s Seasoning and hundreds of growing brands nationwide.',
+      title: 'Clear Buying Information',
+      description: 'Review supported sizes, current options, artwork guidance, and limitations before ordering.',
       gradient: 'from-purple-500 to-indigo-500',
     },
     {
       icon: Award,
-      title: '100% Satisfaction',
-      description: 'We stand behind our work with a complete satisfaction guarantee.',
+      title: 'Damage & Defect Review',
+      description: 'Verified damage or production defects reported within five business days can qualify for a reprint.',
       gradient: 'from-rose-500 to-pink-500',
     },
     {

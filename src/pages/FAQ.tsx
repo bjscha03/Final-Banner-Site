@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, HelpCircle, Search } from 'lucide-react';
 import Layout from '@/components/Layout';
 import PageHeader from '@/components/PageHeader';
+import { SITE_POLICIES } from '@/lib/sitePolicies';
 
 const FAQ: React.FC = () => {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
@@ -10,17 +11,17 @@ const FAQ: React.FC = () => {
   const faqs = [
     {
       question: "What file formats do you accept?",
-      answer: "We accept PDF, JPG, and PNG files up to 100MB. For best results, we recommend high-resolution PDF files with embedded fonts and images at 300 DPI.",
+      answer: SITE_POLICIES.artwork.detail,
       category: "Design"
     },
     {
       question: "What is your turnaround time?",
-      answer: "We guarantee 24-hour production on all standard orders.",
+      answer: SITE_POLICIES.production.detail,
       category: "Production"
     },
     {
       question: "What banner sizes do you offer?",
-      answer: "We can print banners in virtually any size from 1' x 1' up to 16' x 50'. Common sizes include 2'x4', 3'x6', 4'x8', and 6'x10'. Custom sizes are available at no extra charge.",
+      answer: "The banner configurator accepts dimensions from 6 inches to 600 inches per side, up to 1,000 square feet. Larger work requires a custom quote and may need additional production time.",
       category: "Specifications"
     },
     {
@@ -30,17 +31,17 @@ const FAQ: React.FC = () => {
     },
     {
       question: "How do grommets work?",
-      answer: "Grommets are metal-reinforced holes that make hanging easy and prevent tearing. We offer grommets in corners only, every 2 feet, or every 18 inches along the perimeter.",
+      answer: "The current banner configurator offers no grommets, every 2–3 feet, every 1–2 feet, four corners only, top corners only, right corners only, or left corners only. The selected option appears in the order summary.",
       category: "Specifications"
     },
     {
       question: "What is your return policy?",
-      answer: "Because our products are custom-made, we don't accept returns. If your order arrives damaged or defective, we'll replace it at no cost—just contact support with your order number and photos.",
+      answer: SITE_POLICIES.returns.detail,
       category: "Policy"
     },
     {
       question: "Do you provide design proofs?",
-      answer: "We don't provide digital proofs, but you'll see a full print preview before placing your order.",
+      answer: SITE_POLICIES.preview.detail,
       category: "Design"
     },
     {
@@ -55,7 +56,7 @@ const FAQ: React.FC = () => {
     },
     {
       question: "What shipping options are available?",
-      answer: "All orders include FREE next-day air shipping with 24-hour production. No minimum order required! We don't offer paid shipping upgrades since every order ships fast and free.",
+      answer: SITE_POLICIES.shipping.detail,
       category: "Shipping"
     },
     {
@@ -65,12 +66,12 @@ const FAQ: React.FC = () => {
     },
     {
       question: "Can I cancel or modify my order?",
-      answer: "Once you click the Final Order button, your order cannot be cancelled or modified. As soon as you upload a file, it immediately goes into production.",
+      answer: SITE_POLICIES.cancellations.detail,
       category: "Orders"
     },
     {
       question: "Do you offer installation services?",
-      answer: "We do not offer installation services or hanging instructions. Our banners are designed for straightforward setup and can be installed using common tools and standard mounting methods. Most customers are able to install their banner quickly using grommets, rope, zip ties, or mounting hardware.",
+      answer: "We do not offer installation services. Choose attachment options for the intended mounting method, distribute wind load across enough attachment points, and use hardware appropriate for the surface and local conditions.",
       category: "Installation"
     }
   ];

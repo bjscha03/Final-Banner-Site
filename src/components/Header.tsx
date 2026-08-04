@@ -39,6 +39,11 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
 
   const navItems = [
     { name: 'Home', href: '/' },
+    { name: 'Vinyl Banners', href: '/vinyl-banners' },
+    { name: 'Yard Signs', href: '/yard-signs' },
+    { name: 'Car Magnets', href: '/car-magnets' },
+    { name: 'Service Areas', href: '/locations' },
+    { name: 'Shipping', href: '/shipping' },
     { name: 'Blog', href: '/blog' },
     { name: 'Design Tool', href: '/design' },
     { name: 'Request a Custom Quote', href: '/custom-quote' },
@@ -70,12 +75,12 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
     <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Left: Hamburger Menu (always visible, even on desktop) */}
-          <div className="flex items-center w-24" ref={menuRef}>
+          {/* Compact navigation for mobile and tablet */}
+          <div className="flex items-center w-12 lg:hidden" ref={menuRef}>
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="p-2 text-slate-600 hover:text-slate-900 transition-colors"
-              aria-label="Toggle menu"
+              className="min-h-11 min-w-11 rounded-md p-2 text-slate-600 transition-colors hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-700"
+              aria-label={isMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
               aria-expanded={isMenuOpen}
             >
               {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -184,6 +189,26 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
             </ScrollToTopLink>
           </div>
 
+          <nav className="hidden items-center gap-5 lg:flex" aria-label="Primary navigation">
+            {[
+              { name: 'Vinyl Banners', href: '/vinyl-banners' },
+              { name: 'Yard Signs', href: '/yard-signs' },
+              { name: 'Car Magnets', href: '/car-magnets' },
+              { name: 'Locations', href: '/locations' },
+              { name: 'Shipping', href: '/shipping' },
+            ].map((item) => (
+              <ScrollToTopLink
+                key={item.href}
+                to={item.href}
+                className={`rounded-md px-1 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 ${
+                  location.pathname === item.href ? 'text-[#18448D]' : 'text-slate-700 hover:text-[#18448D]'
+                }`}
+              >
+                {item.name}
+              </ScrollToTopLink>
+            ))}
+          </nav>
+
           {/* Right: User, Cart Icons */}
           <div className="flex items-center justify-end w-24 gap-1">
             {/* User Icon / Dropdown */}
@@ -191,7 +216,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
-                    className="p-2 text-slate-500 hover:text-slate-700 transition-colors"
+                    className="min-h-11 min-w-11 rounded-md p-2 text-slate-500 transition-colors hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-700"
                     aria-label="Account"
                   >
                     <User className="h-5 w-5" />
@@ -253,7 +278,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
             <button
               onClick={onCartClick}
               aria-label="Shopping cart"
-              className="relative p-2 text-orange-500 hover:text-orange-600 transition-colors"
+              className="relative min-h-11 min-w-11 rounded-md p-2 text-orange-700 transition-colors hover:text-orange-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-700"
             >
               <ShoppingCart className="h-5 w-5" />
               {cartCount > 0 && (

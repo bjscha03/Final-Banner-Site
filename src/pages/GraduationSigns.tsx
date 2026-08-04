@@ -452,12 +452,12 @@ const GraduationSigns: React.FC = () => {
         <title>Custom Graduation Signs – Designed For You | Banners On The Fly</title>
         <meta
           name="description"
-          content="Upload your own design or let our designers create one. Printed in 24 hours with free next-day air shipping."
+          content="Upload graduation artwork or request design help. Review the approval workflow, current product options, production, and shipping before ordering."
         />
         <meta property="og:title" content="Custom Graduation Signs – Designed For You" />
         <meta
           property="og:description"
-          content="Upload your own design or let our designers create one. Printed in 24 hours with free next-day air shipping."
+          content="Upload graduation artwork or request design help. Review the approval workflow, current product options, production, and shipping before ordering."
         />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://bannersonthefly.com/graduation-signs" />
@@ -469,7 +469,7 @@ const GraduationSigns: React.FC = () => {
         <meta name="twitter:title" content="Custom Graduation Signs – Designed For You" />
         <meta
           name="twitter:description"
-          content="Upload your own design or let our designers create one. Printed in 24 hours with free next-day air shipping."
+          content="Upload graduation artwork or request design help. Review the approval workflow, current product options, production, and shipping before ordering."
         />
         <meta
           name="twitter:image"
@@ -530,8 +530,8 @@ const GraduationSigns: React.FC = () => {
             </div>
             <ul className="mt-6 grid sm:grid-cols-2 gap-2.5 text-sm font-medium">
               {[
-                { icon: Clock, text: 'Printed in 24 hours after approval' },
-                { icon: Truck, text: 'FREE next-day air shipping' },
+                { icon: Clock, text: 'Most standard orders: 24-hour production after approval' },
+                { icon: Truck, text: 'Free next-day air after production' },
               ].map(({ icon: Icon, text }, i) => (
                 <li key={i} className="flex items-center gap-2 text-white/90">
                   <Icon className="h-4 w-4 flex-shrink-0 text-[#FF6A00]" />
@@ -751,7 +751,7 @@ const GraduationSigns: React.FC = () => {
                       <p className="text-lg font-bold text-[#0B1F3A] mt-1">24" × 18"</p>
                       <p className="text-sm text-gray-600">Corrugated Plastic</p>
                       <p className="text-xs text-gray-500 mt-2">
-                        One standard size for fast 24-hour production. Includes free next-day air shipping.
+                        One standard online size. Most standard orders are produced within 24 hours; free next-day air begins after production.
                       </p>
                     </div>
                     <div className="grid sm:grid-cols-2 gap-4">
@@ -980,8 +980,8 @@ const GraduationSigns: React.FC = () => {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {[
-              { icon: Clock, title: '24-Hour Production', text: 'Production starts as soon as your design is approved.' },
-              { icon: Truck, title: 'FREE Next-Day Air', text: 'Every order ships free, fast, and tracked.' },
+              { icon: Clock, title: 'Standard Production', text: 'Most standard orders are produced within 24 hours after approval.' },
+              { icon: Truck, title: 'Free Next-Day Air', text: 'Carrier transit begins after production; delivery dates are estimates.' },
               { icon: ShieldCheck, title: 'Designer Reviewed', text: 'Real humans review every print file for quality.' },
               { icon: CheckCircle, title: 'Easy Proof Approval', text: 'Approve, request edits, or pay \u2014 all in one click.' },
             ].map(({ icon: Icon, title, text }) => (

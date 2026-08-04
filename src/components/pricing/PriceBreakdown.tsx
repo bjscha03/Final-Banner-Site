@@ -140,7 +140,7 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
   const hasSameDayFee = sameDayHitServiceCents > 0;
   const shippingNote = hasSameDayFee
     ? 'Same-Day production priority selected. Next-day air shipping is still included.'
-    : '24-hour production and free next-day air shipping included.';
+    : 'Most standard orders are produced within 24 hours; free next-day air begins after production.';
   const shippingValueLabel = hasSameDayFee ? 'Next-Day Air Included' : 'FREE';
   // Footer note: combine shipping language (per spec) with the caller's note
   // (typically "Tax calculated at checkout") so the message is consistent
@@ -150,7 +150,7 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
     ? ['Next-Day Air Included', 'Same-Day production priority selected', baseFooterNote]
         .filter(Boolean)
         .join(' • ')
-    : ['FREE Next-Day Air Included', baseFooterNote].filter(Boolean).join(' • ');
+    : ['Free Next-Day Air After Production', baseFooterNote].filter(Boolean).join(' • ');
 
   const visibleAddOns = (addOns || []).filter(a => a && a.amountCents > 0);
   const hasQuantityDiscount = quantityDiscountCents > 0;

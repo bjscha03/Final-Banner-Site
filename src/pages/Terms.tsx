@@ -70,7 +70,7 @@ const Terms: React.FC = () => {
                 <h2 className="text-2xl font-bold text-gray-900">Turnaround Times</h2>
               </div>
               <p className="text-gray-700 leading-relaxed">
-                Most orders placed by midnight will ship the next business day. Custom jobs, large orders, or jobs requiring proofs may require more time. While we strive to meet 24-hour production timelines, delays can occur due to technical or production issues.
+                Most standard orders are produced within 24 hours. Large orders, custom work, or jobs requiring file review may need more time. Production time and carrier transit time are separate, and weekends, holidays, file issues, or production conditions can change the schedule.
               </p>
             </section>
 
