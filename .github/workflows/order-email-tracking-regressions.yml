@@ -9,6 +9,7 @@ on:
       - 'src/components/design/**'
       - 'src/components/cart/**'
       - 'src/components/CartModal.tsx'
+      - 'src/main.tsx'
       - 'src/lib/previewImageCache.ts'
       - 'src/lib/previewArtifactCoordinator.ts'
       - 'src/lib/cartSync.ts'

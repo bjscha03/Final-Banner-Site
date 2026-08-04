@@ -75,6 +75,25 @@ async function startDeferredHarness(page: Page, route: string): Promise<HarnessR
   return assertCompletedHarness(page, route);
 }
 
+test('preview password input is safe from iOS focus zoom', async ({ page }, testInfo) => {
+  test.skip(
+    testInfo.project.name !== 'webkit-iphone15pro-portrait',
+    'One iOS WebKit run is sufficient',
+  );
+
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('heading', { name: 'Preview Access' })).toBeVisible();
+
+  const passwordInput = page.locator('input[type="password"]');
+  await expect(passwordInput).toBeVisible();
+
+  const fontSize = await passwordInput.evaluate((input) =>
+    Number.parseFloat(getComputedStyle(input).fontSize),
+  );
+
+  expect(fontSize).toBeGreaterThanOrEqual(16);
+});
+
 test('preview identity remains stable across compact and expanded surfaces', async ({
   browser,
   page,

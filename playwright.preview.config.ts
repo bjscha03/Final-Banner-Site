@@ -28,6 +28,10 @@ export default defineConfig({
   webServer: {
     command: 'npx vite --config tests/browser/vite.handoff.config.ts',
     url: `${baseURL}/tests/browser/preview-handoff.html`,
+    env: {
+      VITE_NETLIFY_CONTEXT: 'deploy-preview',
+      VITE_PREVIEW_ACCESS_PASSWORD: 'test-preview-password',
+    },
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },
