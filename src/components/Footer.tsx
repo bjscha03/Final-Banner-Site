@@ -94,10 +94,10 @@ const Footer: React.FC = () => {
   return (
     <footer className="relative bg-[#07182E] text-white">
       <div className="h-1 bg-[#FF6A00]" />
-      <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-16">
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.3fr_0.7fr_0.7fr_0.7fr_1.2fr]">
+      <div className="mx-auto w-full max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-16">
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-10 sm:grid-cols-2 lg:grid-cols-[1.3fr_0.7fr_0.7fr_0.7fr_1.2fr]">
           {/* Company Info */}
-          <div className="md:col-span-1">
+          <div className="min-w-0 md:col-span-1">
             <h3 className="font-display text-2xl font-bold text-white mb-4">
               Banners On The Fly
             </h3>
@@ -106,9 +106,9 @@ const Footer: React.FC = () => {
               Production time and carrier transit time are shown separately.
             </p>
             <div className="space-y-2">
-              <a href="mailto:support@bannersonthefly.com" className="flex min-h-11 items-center text-slate-300 transition-colors hover:text-white">
-                <Mail className="h-4 w-4 mr-2" />
-                <span className="text-sm">support@bannersonthefly.com</span>
+              <a href="mailto:support@bannersonthefly.com" className="flex min-h-11 min-w-0 items-center text-slate-300 transition-colors hover:text-white">
+                <Mail className="mr-2 h-4 w-4 flex-none" />
+                <span className="min-w-0 break-all text-sm">support@bannersonthefly.com</span>
               </a>
               <div className="flex items-center text-slate-300">
                 <MapPin className="h-4 w-4 mr-2" />
@@ -118,7 +118,7 @@ const Footer: React.FC = () => {
           </div>
 
           {/* Quick Links */}
-          <div>
+          <div className="min-w-0">
             <h4 className="text-sm font-bold uppercase tracking-[0.16em] text-white mb-5">Products</h4>
             <ul className="space-y-2">
               {quickLinks.map((link, index) => (
@@ -134,7 +134,7 @@ const Footer: React.FC = () => {
             </ul>
           </div>
 
-          <div>
+          <div className="min-w-0">
             <h4 className="mb-5 text-sm font-bold uppercase tracking-[0.16em] text-white">Company</h4>
             <ul className="space-y-2">
               {companyLinks.map((link) => (
@@ -148,7 +148,7 @@ const Footer: React.FC = () => {
           </div>
 
           {/* Support */}
-          <div>
+          <div className="min-w-0">
             <h4 className="text-sm font-bold uppercase tracking-[0.16em] text-white mb-5">Support</h4>
             <ul className="space-y-2">
               {supportLinks.map((link, index) => (
@@ -165,13 +165,13 @@ const Footer: React.FC = () => {
           </div>
 
           {/* Newsletter */}
-          <div>
+          <div className="min-w-0">
             <h4 className="text-sm font-bold uppercase tracking-[0.16em] text-white mb-5">Print notes & offers</h4>
             <p className="text-slate-300 text-sm leading-6 mb-4">
               Get exclusive offers and signage printing tips delivered to your inbox.
             </p>
             <form onSubmit={handleNewsletterSubmit} className="space-y-3">
-              <div className="flex">
+              <div className="flex min-w-0">
                 <input
                   id="footer-newsletter-email"
                   type="email"

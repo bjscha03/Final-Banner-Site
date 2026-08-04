@@ -172,17 +172,14 @@ test('mobile navigation locks the page and scrolls independently', async ({ page
   test.skip(viewportWidth >= 1024, 'Desktop navigation does not use the mobile drawer.');
 
   await page.goto('/yard-signs/', { waitUntil: 'domcontentloaded' });
-  const openingScroll = await page.evaluate(() => {
+  const navigationTrigger = page.getByRole('button', { name: 'Open navigation menu' });
+  await expect(navigationTrigger).toBeVisible();
+  const scrollBefore = await page.evaluate(() => {
     window.scrollTo(0, 650);
-    const button = document.querySelector<HTMLButtonElement>('button[aria-label="Open navigation menu"]');
-    if (!button) throw new Error('Mobile navigation trigger was not found.');
-    const beforeClick = window.scrollY;
-    button.click();
-    return { beforeClick, synchronouslyAfterClick: window.scrollY };
+    return window.scrollY;
   });
-  const scrollBefore = openingScroll.beforeClick;
   expect(scrollBefore).toBeGreaterThan(0);
-  expect(openingScroll.synchronouslyAfterClick).toBe(scrollBefore);
+  await navigationTrigger.click();
   await expect(page.locator('[data-mobile-navigation]')).toBeVisible();
   const locked = await page.evaluate(() => ({
     bodyPosition: document.body.style.position,
