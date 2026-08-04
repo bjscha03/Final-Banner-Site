@@ -2309,7 +2309,7 @@ const GoogleAdsBanner: React.FC = () => {
 
               <div className="mt-6 flex flex-wrap justify-center gap-x-5 gap-y-3 text-sm font-semibold text-white lg:justify-start">
                 <span className="inline-flex items-center gap-2"><Clock className="h-4 w-4 text-[#FF8A3D]" />Most standard orders: 24-hour production</span>
-                <span className="inline-flex items-center gap-2"><Truck className="h-4 w-4 text-[#FF8A3D]" />Free next-day air after production</span>
+                <span className="inline-flex items-center gap-2"><Truck className="h-4 w-4 text-[#FF8A3D]" />Free next-day air anywhere in the U.S.</span>
                 <span className="inline-flex items-center gap-2"><FileCheck className="h-4 w-4 text-[#FF8A3D]" />Every file reviewed before print</span>
               </div>
 
@@ -2357,7 +2357,7 @@ const GoogleAdsBanner: React.FC = () => {
                   <li className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0B1F3A] text-xs font-bold text-white">4</span>Continue to secure checkout</li>
                 </ol>
                 <div className="mt-5 border-l-4 border-[#FF6A00] bg-[#FFF7F1] px-4 py-3 text-sm leading-6 text-slate-700">
-                  Free next-day air is included after production. Production time and carrier transit are shown separately.
+                  Free next-day air anywhere in the United States is included after production. Production time and carrier transit are shown separately.
                 </div>
               </div>
             </aside>
