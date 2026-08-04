@@ -80,6 +80,8 @@ export interface BuilderCtaDescriptor {
 }
 
 export interface BuilderProgress {
+  /** Ordered steps that are actually applicable to this product. */
+  steps: BuilderStepKey[];
   /** 1-indexed current step number. Equals `total` when all steps are complete. */
   current: number;
   /** Total number of steps shown in the progress indicator. */
@@ -136,7 +138,11 @@ const isReviewed = (flag: boolean | undefined): boolean => Boolean(flag);
  * Compute the per-step completion bitmap used by the progress indicator.
  */
 export function getProgress(state: BuilderStepState): BuilderProgress {
-  const visibleSteps = BUILDER_STEPS.filter((k) => !(k === 'material' && state.materialRequired === false));
+  const visibleSteps = BUILDER_STEPS.filter((key) => {
+    if (key === 'material' && state.materialRequired === false) return false;
+    if (key === 'options' && !state.optionsRequired) return false;
+    return true;
+  });
   const completed: Record<BuilderStepKey, boolean> = {
     size: isReviewed(state.sizeConfirmed),
     material: isReviewed(state.materialConfirmed),
@@ -149,8 +155,24 @@ export function getProgress(state: BuilderStepState): BuilderProgress {
   const isComplete = idx === -1;
   const current = isComplete ? visibleSteps.length : idx + 1;
   const currentKey = visibleSteps[Math.min(current - 1, visibleSteps.length - 1)];
-  const label = isComplete ? COMPLETE_PROGRESS_LABEL : STEP_LABELS[currentKey];
+  const currentSelectionLabel = currentKey === 'size'
+    ? state.sizeLabel
+    : currentKey === 'material'
+      ? state.materialLabel
+      : currentKey === 'quantity'
+        ? state.quantityLabel
+        : currentKey === 'options'
+          ? state.optionsLabel
+          : null;
+  const label = isComplete
+    ? COMPLETE_PROGRESS_LABEL
+    : currentKey === 'upload'
+      ? STEP_LABELS.upload
+      : currentKey === 'options'
+        ? `Review options${currentSelectionLabel ? `: ${currentSelectionLabel}` : ''}`
+        : `Confirm ${STEP_LABELS[currentKey].toLowerCase()}${currentSelectionLabel ? `: ${currentSelectionLabel}` : ''}`;
   return {
+    steps: visibleSteps,
     current,
     total: visibleSteps.length,
     label,
@@ -206,44 +228,44 @@ export function getNextStep(state: BuilderStepState): BuilderCtaDescriptor {
   if (!isReviewed(state.sizeConfirmed)) {
     return {
       step: 'size',
-      label: `${state.sizeLabel ?? 'Size'} selected — Continue`,
+      label: `Use ${state.sizeLabel ?? 'selected size'}`,
       scrollTargetId: STEP_ANCHORS.size,
       disabled: false,
       loading: false,
-      helper: null,
+      helper: 'This size is already selected. Continue if it is correct.',
     };
   }
 
-  if (!isReviewed(state.materialConfirmed)) {
+  if (state.materialRequired !== false && !isReviewed(state.materialConfirmed)) {
     return {
       step: 'material',
-      label: `${state.materialLabel ?? 'Material'} selected — Continue`,
+      label: `Use ${state.materialLabel ?? 'selected material'}`,
       scrollTargetId: STEP_ANCHORS.material,
       disabled: false,
       loading: false,
-      helper: null,
+      helper: 'This material is already selected. Continue if it is correct.',
     };
   }
 
   if (!isReviewed(state.quantityConfirmed)) {
     return {
       step: 'quantity',
-      label: `${state.quantityLabel ?? 'Qty selected'} — Continue`,
+      label: `Use ${state.quantityLabel ?? 'selected quantity'}`,
       scrollTargetId: STEP_ANCHORS.quantity,
       disabled: false,
       loading: false,
-      helper: null,
+      helper: 'This quantity is already selected. Continue if it is correct.',
     };
   }
 
-  if (!isReviewed(state.optionsReviewed)) {
+  if (state.optionsRequired && !isReviewed(state.optionsReviewed)) {
     return {
       step: 'options',
-      label: `${state.optionsLabel ?? 'Options selected'} — Continue`,
+      label: state.optionsLabel ? `Use ${state.optionsLabel}` : 'Review options',
       scrollTargetId: STEP_ANCHORS.options,
       disabled: false,
       loading: false,
-      helper: null,
+      helper: 'Review the current option before continuing.',
     };
   }
 
@@ -341,6 +363,8 @@ export interface YardSignCtaState {
   uploadError: string | null;
   /** True once any item has just been added to the cart (post-add success state). */
   hasJustAddedToCart: boolean;
+  /** True after the customer has reviewed the optional stake choice. */
+  stakesReviewed: boolean;
   /** Total cart item count (for the "View Cart (n)" label). */
   cartItemCount: number;
 }
@@ -487,6 +511,17 @@ export function getYardSignCtaState(state: YardSignCtaState): YardSignCtaDescrip
       helper:
         state.quantityValidationMessage ??
         'Yard signs must be ordered in increments of 10 (10, 20, 30, etc.).',
+    };
+  }
+
+  if (!state.stakesReviewed) {
+    return {
+      step: 'review_stakes',
+      label: 'Review Optional Stakes',
+      scrollTargetId: YARD_SIGN_ANCHORS.finishing,
+      disabled: false,
+      loading: false,
+      helper: 'Choose stakes or continue without them.',
     };
   }
 

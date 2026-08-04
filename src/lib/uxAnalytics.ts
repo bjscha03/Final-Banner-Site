@@ -17,6 +17,8 @@
  * Never throws. Safe in SSR (no-ops when `window` is undefined).
  */
 
+import { gtag } from './analytics';
+
 declare global {
   interface Window {
     clarity?: (...args: unknown[]) => void;
@@ -69,18 +71,23 @@ export function logUx(event: UxEvent, payload?: UxPayload): void {
     }
 
     if (typeof window === 'undefined') return;
-    const clarity = window.clarity;
-    if (typeof clarity !== 'function') return;
 
-    // Fire as a Clarity custom event for funnel analysis.
-    clarity('event', event);
-    if (payload) {
-      for (const [key, value] of Object.entries(payload)) {
-        if (value === undefined || value === null) continue;
-        // Clarity 'set' tags are string-only.
-        const str = typeof value === 'string' ? value : JSON.stringify(value);
-        // Truncate so we never blow past Clarity's tag value limit.
-        clarity('set', `${event}.${key}`, str.length > 200 ? str.slice(0, 200) : str);
+    // Mirror the same funnel event into GA4 so paid-traffic drop-off can be
+    // analyzed alongside standard ecommerce events.
+    gtag('event', event, payload || {});
+
+    const clarity = window.clarity;
+    if (typeof clarity === 'function') {
+      // Fire as a Clarity custom event for funnel analysis.
+      clarity('event', event);
+      if (payload) {
+        for (const [key, value] of Object.entries(payload)) {
+          if (value === undefined || value === null) continue;
+          // Clarity 'set' tags are string-only.
+          const str = typeof value === 'string' ? value : JSON.stringify(value);
+          // Truncate so we never blow past Clarity's tag value limit.
+          clarity('set', `${event}.${key}`, str.length > 200 ? str.slice(0, 200) : str);
+        }
       }
     }
   } catch {

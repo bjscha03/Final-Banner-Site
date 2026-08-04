@@ -665,6 +665,7 @@ export const useCartStore = create<CartState>()(
           size: `${quote.widthIn}x${quote.heightIn}`,
           price: newItem.line_total_cents,
           quantity: newItem.quantity,
+          productType: newItem.product_type,
         });
         
         // Track Facebook Pixel AddToCart
@@ -732,6 +733,7 @@ export const useCartStore = create<CartState>()(
           size: 'n/a',
           price: DEPOSIT_PRICE_CENTS,
           quantity: 1,
+          productType: 'design_deposit',
         });
         trackFBAddToCart({
           content_name: 'Graduation Design Deposit',
@@ -810,6 +812,7 @@ export const useCartStore = create<CartState>()(
           size: 'n/a',
           price: amountCents,
           quantity: 1,
+          productType: 'graduation_final_payment',
         });
         trackFBAddToCart({
           content_name: 'Graduation Final Product Payment',

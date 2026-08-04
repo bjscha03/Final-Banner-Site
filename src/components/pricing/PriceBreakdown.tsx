@@ -95,6 +95,13 @@ export interface PriceBreakdownProps {
   /** Footer note (e.g. "Tax calculated at checkout"). */
   footerNote?: string;
 
+  /**
+   * When true, the destination is not known yet. Hide estimated tax and
+   * present a pre-tax subtotal so the product builder never implies a
+   * nationwide customer's final tax amount.
+   */
+  taxCalculatedAtCheckout?: boolean;
+
   /** Class name on outer container. */
   className?: string;
 }
@@ -127,6 +134,7 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
   totalCents,
   promo,
   footerNote = 'Tax calculated at checkout',
+  taxCalculatedAtCheckout = false,
   className = '',
 }) => {
   const taxLabel = `Tax${taxRate ? ` (${Math.round(taxRate * 100)}%)` : ''}`;
@@ -335,21 +343,27 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
               <p className="text-[11px] text-slate-500 leading-tight pl-5">{shippingNote}</p>
             </div>
 
-            <div className="flex justify-between gap-3">
-              <span className="text-gray-600">{taxLabel}</span>
-              <span className="font-semibold text-gray-800">
-                {usd(taxCents / 100)}
-              </span>
-            </div>
+            {!taxCalculatedAtCheckout && (
+              <div className="flex justify-between gap-3">
+                <span className="text-gray-600">{taxLabel}</span>
+                <span className="font-semibold text-gray-800">
+                  {usd(taxCents / 100)}
+                </span>
+              </div>
+            )}
 
+            {!taxCalculatedAtCheckout && (
+              <div className="flex justify-between gap-3 pt-2 mt-1 border-t border-slate-300/60">
+                <span className="font-bold text-gray-800">Adjusted subtotal</span>
+                <span className="font-bold text-gray-800">
+                  {usd(adjustedSubtotalCents / 100)}
+                </span>
+              </div>
+            )}
             <div className="flex justify-between gap-3 pt-2 mt-1 border-t border-slate-300/60">
-              <span className="font-bold text-gray-800">Adjusted subtotal</span>
               <span className="font-bold text-gray-800">
-                {usd(adjustedSubtotalCents / 100)}
+                {taxCalculatedAtCheckout ? 'Subtotal before tax' : 'Total with tax'}
               </span>
-            </div>
-            <div className="flex justify-between gap-3">
-              <span className="font-bold text-gray-800">Total with tax</span>
               <span className="font-bold text-[#ff6b35]">
                 {usd(totalCents / 100)}
               </span>
@@ -367,6 +381,8 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
                   value={promo.code}
                   onChange={e => promo.onCodeChange(e.target.value.toUpperCase())}
                   placeholder="Promo Code"
+                  aria-label="Promo code"
+                  autoComplete="off"
                   className="flex-1 min-w-0 border rounded-xl px-3 py-2 text-base"
                 />
                 <button

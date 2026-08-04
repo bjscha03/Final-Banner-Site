@@ -17,30 +17,27 @@ export function formatCountdown(ms: number): string {
 }
 
 /**
- * Standard countdown line:
- *   "Order within HH:MM:SS to have it shipped <SHIP DAY> and delivered <DELIVERY DAY>"
+ * Standard countdown line. Destination is unknown at this stage, so we
+ * promise only the estimated ship date and keep carrier transit separate.
  */
 export function standardLine(estimate: DeliveryEstimate, remainingMs: number): string {
-  return `Order within ${formatCountdown(remainingMs)} to have it shipped ${formatWeekdayLong(estimate.shipDate)} and delivered ${formatWeekdayLong(estimate.deliveryDate)}.`;
+  return `Order within ${formatCountdown(remainingMs)} for an estimated ship date of ${formatWeekdayLong(estimate.shipDate)}. Free next-day air anywhere in the United States begins after production.`;
 }
 
 /**
- * HIT countdown line:
- *   "Add HIT Service within HH:MM:SS to receive by <FASTER DELIVERY DATE>"
- *
- * Note `estimate` here should be computed with `isHitSelected = true` so the
- * `deliveryDate` reflects the faster (HIT-overridden) date.
+ * HIT countdown line. The destination is not known yet, so the offer is
+ * expressed as an earlier estimated ship date rather than an arrival promise.
  */
 export function hitOfferLine(estimate: DeliveryEstimate, remainingMs: number): string {
-  return `Add HIT Service within ${formatCountdown(remainingMs)} to receive by ${formatWeekdayLong(estimate.deliveryDate)}.`;
+  return `Add HIT Service within ${formatCountdown(remainingMs)} for an estimated ship date of ${formatWeekdayLong(estimate.shipDate)}.`;
 }
 
 /** Confirmation line shown once HIT has been selected. */
 export function hitSelectedLine(estimate: DeliveryEstimate): string {
-  return `Same-Day Hit Service active — shipping ${formatWeekdayLong(estimate.shipDate)}, delivered ${formatWeekdayLong(estimate.deliveryDate)}.`;
+  return `Same-Day Hit Service active — estimated to ship ${formatWeekdayLong(estimate.shipDate)}. Free next-day air anywhere in the United States follows production.`;
 }
 
 /** Weekend-lock line. */
 export function weekendLockLine(estimate: DeliveryEstimate): string {
-  return `Orders placed now will ship ${formatWeekdayLong(estimate.shipDate)} and be delivered ${formatWeekdayLong(estimate.deliveryDate)}.`;
+  return `Orders placed now are estimated to ship ${formatWeekdayLong(estimate.shipDate)}. Free next-day air anywhere in the United States follows production.`;
 }

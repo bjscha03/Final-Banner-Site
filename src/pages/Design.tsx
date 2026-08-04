@@ -2440,6 +2440,7 @@ const Design: React.FC = () => {
         isUploading: yardSignUploadStatus.isUploading,
         uploadError: yardSignUploadStatus.uploadError,
         hasJustAddedToCart: false,
+        stakesReviewed: hasReviewedYardSignStakes,
         cartItemCount,
       });
       const wrap = (fn?: () => void) => fn ? () => {

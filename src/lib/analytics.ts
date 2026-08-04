@@ -52,14 +52,25 @@ export const trackAddToCart = (item: {
   size: string;
   price: number;
   quantity?: number;
+  productType?: string;
 }) => {
+  const normalizedType = item.productType || 'banner';
+  const productLabel = normalizedType === 'yard_sign'
+    ? 'Yard Sign'
+    : normalizedType === 'car_magnet'
+      ? 'Car Magnet'
+      : normalizedType === 'design_deposit'
+        ? 'Design Service'
+        : normalizedType === 'graduation_final_payment'
+          ? 'Graduation Final Payment'
+          : 'Banner';
   gtag('event', 'add_to_cart', {
     currency: 'USD',
     value: item.price / 100, // Convert cents to dollars
     items: [{
       item_id: item.id,
-      item_name: `${item.size} ${item.material} Banner`,
-      item_category: 'Banner',
+      item_name: item.name || `${item.size} ${item.material} ${productLabel}`,
+      item_category: productLabel,
       item_variant: item.material,
       price: item.price / 100,
       quantity: item.quantity || 1,

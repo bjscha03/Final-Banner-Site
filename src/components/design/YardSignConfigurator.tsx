@@ -423,9 +423,12 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
                 : 'border-gray-200 hover:border-gray-400'
             }`}
           >
-            <p className={`text-sm font-semibold ${sidedness === 'single' ? 'text-orange-700' : 'text-gray-800'}`}>
-              Single-Sided
-            </p>
+            <div className="flex items-center justify-between gap-2">
+              <p className={`text-sm font-semibold ${sidedness === 'single' ? 'text-orange-700' : 'text-gray-800'}`}>
+                Single-Sided
+              </p>
+              {sidedness === 'single' && <CheckCircle className="h-4 w-4 text-orange-600" aria-hidden="true" />}
+            </div>
             <p className="text-xs text-gray-500 mt-0.5">{usd(YARD_SIGN_SINGLE_SIDED_CENTS / 100)}/sign</p>
           </button>
           <button
@@ -436,12 +439,22 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
                 : 'border-gray-200 hover:border-gray-400'
             }`}
           >
-            <p className={`text-sm font-semibold ${sidedness === 'double' ? 'text-orange-700' : 'text-gray-800'}`}>
-              Double-Sided
-            </p>
+            <div className="flex items-center justify-between gap-2">
+              <p className={`text-sm font-semibold ${sidedness === 'double' ? 'text-orange-700' : 'text-gray-800'}`}>
+                Double-Sided
+              </p>
+              {sidedness === 'double' && <CheckCircle className="h-4 w-4 text-orange-600" aria-hidden="true" />}
+            </div>
             <p className="text-xs text-gray-500 mt-0.5">{usd(YARD_SIGN_DOUBLE_SIDED_CENTS / 100)}/sign</p>
           </button>
         </div>
+        <p className="mt-2 flex items-start gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600">
+          <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#18448D]" aria-hidden="true" />
+          <span>
+            <strong className="text-slate-800">{sidedness === 'single' ? 'Single-sided' : 'Double-sided'} printing is selected{sidedness === 'single' ? ' by default' : ''}.</strong>{' '}
+            Leave it as-is or choose the other print style.
+          </span>
+        </p>
       </ConfigCard>
 
       {/* Step 3 — Add Designs (upload + per-design quantity) */}

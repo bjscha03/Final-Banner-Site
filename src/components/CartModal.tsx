@@ -8,7 +8,7 @@ import { useCartStore } from '@/store/cart';
 import { getItemDisplayName, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
 import { getProductCopy, getDominantProductType } from '@/lib/product-copy';
 import CartItemBreakdown from './cart/CartItemBreakdown';
-import DeliveryTimer from './delivery/DeliveryTimer';
+import SameDayHitServiceCard from './cart/SameDayHitServiceCard';
 import { getGrommetLabelForDisplay, getGrommetModeForPreview } from '@/lib/cartGrommet';
 import { getExpandedPreviewSelection, getSmallPreviewSelection } from '@/lib/previewSelection';
 
@@ -220,22 +220,27 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                         </div>
                       </div>
 
-                      <div className="mb-3 space-y-1 text-xs text-gray-600">
-                        <p><span className="font-medium text-gray-700">Size:</span> {normalized.sizeDisplay}</p>
-                        <p><span className="font-medium text-gray-700">Material:</span> {normalized.materialDisplay}</p>
-                        <p><span className="font-medium text-gray-700">Print:</span> {normalized.printDisplay}</p>
-                        <p><span className="font-medium text-gray-700">Qty:</span> {normalized.qtyDisplay}</p>
-                        {normalized.uploadedDesignsCount ? <p><span className="font-medium text-gray-700">Uploaded Designs:</span> {normalized.uploadedDesignsCount}</p> : null}
-                        {normalized.stepStakesQty ? <p><span className="font-medium text-gray-700">Step Stakes:</span> {normalized.stepStakesQty}</p> : null}
-                        {normalized.productType === 'banner' ? (
-                          <>
-                            <p><span className="font-medium text-gray-700">Grommets:</span> {grommetLabel}</p>
-                            <p><span className="font-medium text-gray-700">Pole Pockets:</span> {normalized.polePocketsDisplay}</p>
-                            <p><span className="font-medium text-gray-700">Rope:</span> {normalized.ropeDisplay}</p>
-                          </>
-                        ) : null}
-                        {normalized.roundedCornersDisplay ? <p><span className="font-medium text-gray-700">Rounded Corners:</span> {normalized.roundedCornersDisplay}</p> : null}
-                      </div>
+                      <dl className="mb-3 grid grid-cols-2 gap-2">
+                        {[
+                          { label: 'Size', value: normalized.sizeDisplay },
+                          { label: 'Material', value: normalized.materialDisplay },
+                          { label: 'Print', value: normalized.printDisplay },
+                          { label: 'Qty', value: normalized.qtyDisplay },
+                          ...(normalized.uploadedDesignsCount ? [{ label: 'Uploaded Designs', value: String(normalized.uploadedDesignsCount) }] : []),
+                          ...(normalized.stepStakesQty ? [{ label: 'Step Stakes', value: String(normalized.stepStakesQty) }] : []),
+                          ...(normalized.productType === 'banner' ? [
+                            { label: 'Grommets', value: grommetLabel },
+                            { label: 'Pole Pockets', value: normalized.polePocketsDisplay },
+                            { label: 'Rope', value: normalized.ropeDisplay },
+                          ] : []),
+                          ...(normalized.roundedCornersDisplay ? [{ label: 'Rounded Corners', value: normalized.roundedCornersDisplay }] : []),
+                        ].map((detail) => (
+                          <div key={detail.label} className="min-w-0 rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-2">
+                            <dt className="text-[10px] font-bold uppercase tracking-[0.06em] text-slate-500">{detail.label}</dt>
+                            <dd className="mt-0.5 break-words text-xs font-semibold leading-4 text-slate-800">{detail.value}</dd>
+                          </div>
+                        ))}
+                      </dl>
 
                       <div className="mb-3">
                         <CartItemBreakdown
@@ -252,7 +257,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                           <div className="flex items-center gap-1 rounded-lg bg-gray-100 p-1">
                             <button
                               onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
-                              className="rounded-md p-1.5 transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+                              className="flex h-10 w-10 items-center justify-center rounded-md transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
                               disabled={item.quantity <= 1}
                               aria-label="Decrease quantity"
                             >
@@ -261,7 +266,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                             <span className="w-8 text-center text-sm font-semibold text-gray-900">{item.quantity}</span>
                             <button
                               onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                              className="rounded-md p-1.5 transition-colors hover:bg-white"
+                              className="flex h-10 w-10 items-center justify-center rounded-md transition-colors hover:bg-white"
                               aria-label="Increase quantity"
                             >
                               <Plus className="h-3.5 w-3.5 text-gray-700" />
@@ -287,7 +292,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
 
           {items.length > 0 && (
             <div className="cart-modal__footer space-y-2.5 border-t border-gray-200 bg-white p-4 shadow-lg sm:space-y-3 sm:p-6">
-              <DeliveryTimer variant="compact" reflectCartSelection />
+              <SameDayHitServiceCard variant="compact" />
               <div className="flex justify-between text-gray-700">
                 <span className="font-medium">Subtotal:</span>
                 <span className="font-semibold">{usd(subtotalCents / 100)}</span>
@@ -317,9 +322,12 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                   <span className="font-semibold">+{usd(saturdayFeeCents / 100)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-gray-700">
-                <span className="font-medium">Tax (6%):</span>
-                <span className="font-semibold">{usd(taxCents / 100)}</span>
+              <div className="space-y-0.5">
+                <div className="flex justify-between text-gray-700">
+                  <span className="font-medium">Estimated tax:</span>
+                  <span className="font-semibold">{usd(taxCents / 100)}</span>
+                </div>
+                <p className="text-[11px] text-slate-500">Final tax is confirmed from the shipping address at checkout.</p>
               </div>
               <div className="flex justify-between border-t border-gray-300 pt-3 text-xl font-bold">
                 <span className="text-gray-900">Total:</span>
@@ -332,9 +340,6 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
               >
                 Proceed to Checkout
               </button>
-              <div className="mt-3 flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2">
-                <span className="text-sm font-medium text-blue-700">📦 Friday orders arrive Tuesday.</span>
-              </div>
             </div>
           )}
         </div>
