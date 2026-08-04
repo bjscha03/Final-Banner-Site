@@ -139,7 +139,7 @@ export const DeliveryTimer: React.FC<DeliveryTimerProps> = ({
               {formatCountdown(remainingMs)}
             </p>
             <p className={`text-slate-500 ${isCompact ? 'text-[11px]' : 'text-xs'}`}>
-              Standard option: ship {formatWeekdayLong(estimate.shipDate)}, deliver {formatWeekdayLong(estimate.deliveryDate)}
+              Standard option: estimated to ship {formatWeekdayLong(estimate.shipDate)}; carrier transit follows production
             </p>
           </div>
         </div>
@@ -160,13 +160,13 @@ export const DeliveryTimer: React.FC<DeliveryTimerProps> = ({
         </div>
         <div className="flex-1 min-w-0">
           <h3 className={`font-bold ${isCompact ? 'text-sm' : 'text-base'}`}>
-            Order today for {formatWeekdayLong(estimate.deliveryDate)} delivery
+            Estimated ship date: {formatWeekdayLong(estimate.shipDate)}
           </h3>
           <p className={`mt-1 ${isCompact ? 'text-xs' : 'text-sm'}`}>
             {standardLine(estimate, remainingMs)}
           </p>
           <p className={`mt-1 leading-tight text-slate-500 ${isCompact ? 'text-[10px]' : 'text-xs'}`}>
-            Holiday shipping schedules may vary. HIT service orders accepted until 1:00 PM ET.
+            Arrival timing depends on destination and carrier schedules. HIT service orders are accepted until 1:00 PM ET.
           </p>
           <p className={`mt-2 font-mono font-bold ${isCompact ? 'text-base' : 'text-lg'} text-blue-700`}>
             {formatCountdown(remainingMs)}
