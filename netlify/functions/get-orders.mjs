@@ -172,13 +172,20 @@ async function enrichOrderPaymentMetadata(sql, orders) {
 
   const placeholders = ids.map((_, index) => `$${index + 1}`).join(', ');
   const paymentRows = await sql(
-    `SELECT id::text AS id,
-            total_cents,
-            payment_method,
-            paypal_order_id,
-            paypal_capture_id,
-            is_test_order,
-            test_order_reason,
+    `SELECT orders.id::text AS id,
+            orders.total_cents,
+            orders.payment_method,
+            orders.paypal_order_id,
+            orders.paypal_capture_id,
+            orders.is_test_order,
+            orders.test_order_reason,
+            CASE
+              WHEN TRIM(COALESCE(orders.email, '')) ~* '^[^@[:space:]]+@[^@[:space:]]+[.][^@[:space:]]+$'
+                THEN LOWER(TRIM(orders.email))
+              WHEN TRIM(COALESCE(profiles.email, '')) ~* '^[^@[:space:]]+@[^@[:space:]]+[.][^@[:space:]]+$'
+                THEN LOWER(TRIM(profiles.email))
+              ELSE NULL
+            END AS review_request_customer_email,
             to_jsonb(orders)->>'payment_reconciliation_status' AS payment_reconciliation_status,
             to_jsonb(orders)->>'confirmation_email_status' AS confirmation_email_status,
             to_jsonb(orders)->>'confirmation_emailed_at' AS confirmation_emailed_at,
@@ -191,15 +198,41 @@ async function enrichOrderPaymentMetadata(sql, orders) {
             to_jsonb(orders)->>'shipping_notification_sent' AS shipping_notification_sent,
             to_jsonb(orders)->>'shipping_notification_sent_at' AS shipping_notification_sent_at
        FROM orders
-      WHERE id::text IN (${placeholders})`,
+       LEFT JOIN profiles ON orders.user_id = profiles.id
+      WHERE orders.id::text IN (${placeholders})`,
     ids,
   );
   const paymentById = new Map(paymentRows.map((row) => [String(row.id), row]));
+
+  // Review-request history is intentionally isolated from the orders table.
+  // If migration 020 has not run yet, keep the admin list available and show
+  // no prior-send metadata until the migration or first endpoint call creates it.
+  let reviewById = new Map();
+  try {
+    const reviewRows = await sql(
+      `SELECT order_id::text AS order_id,
+              MAX(sent_at) AS last_sent_at,
+              COUNT(*)::int AS sent_count
+         FROM review_request_history
+        WHERE status = 'sent'
+          AND order_id::text IN (${placeholders})
+        GROUP BY order_id`,
+      ids,
+    );
+    reviewById = new Map(reviewRows.map((row) => [String(row.order_id), row]));
+  } catch (error) {
+    if (String(error?.code || '') !== '42P01') {
+      console.warn('[get-orders] review-request metadata unavailable', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
 
   await reconcilePendingPayPalOrders(sql, orders, paymentById);
 
   return orders.map((order) => {
     const payment = paymentById.get(String(order.id));
+    const review = reviewById.get(String(order.id));
     if (!payment) return order;
 
     const combinedPaymentState = {
@@ -230,6 +263,9 @@ async function enrichOrderPaymentMetadata(sql, orders) {
       shipping_notification_status: payment.shipping_notification_status || order.shipping_notification_status || null,
       shipping_notification_sent: payment.shipping_notification_sent === 'true' || order.shipping_notification_sent === true,
       shipping_notification_sent_at: payment.shipping_notification_sent_at || order.shipping_notification_sent_at || null,
+      review_request_customer_email: payment.review_request_customer_email || order.email || null,
+      review_request_last_sent_at: review?.last_sent_at || null,
+      review_request_sent_count: Number(review?.sent_count || 0),
     };
   });
 }

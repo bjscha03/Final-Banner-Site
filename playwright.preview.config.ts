@@ -11,6 +11,7 @@ export default defineConfig({
   testMatch: [
     'preview-handoff.playwright.spec.ts',
     'checkout-thumbnail-real-route.playwright.spec.ts',
+    'admin-review-request.playwright.spec.ts',
   ],
   fullyParallel: true,
   workers: process.env.CI ? 4 : 2,

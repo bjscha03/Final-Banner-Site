@@ -46,6 +46,7 @@ import GrommetOverlay from '@/components/preview/GrommetOverlay';
 import StablePreviewImage from '@/components/preview/StablePreviewImage';
 import { getGrommetLabel } from '@/lib/grommets';
 import EditCustomerInfoDialog from '@/components/orders/EditCustomerInfoDialog';
+import ReviewRequestAction from '@/components/orders/ReviewRequestAction';
 
 const PAGE_SIZE = 20;
 
@@ -428,6 +429,14 @@ const AdminOrders: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   const handleCustomerInfoUpdated = (updated: Order) => setOrders(current => current.map(order => order.id === updated.id ? { ...order, ...updated } : order));
+  const handleReviewRequestSent = (orderId: string, update: { sentAt: string; customerEmail: string }) => {
+    setOrders(current => current.map(order => order.id === orderId ? {
+      ...order,
+      review_request_last_sent_at: update.sentAt,
+      review_request_customer_email: update.customerEmail,
+      review_request_sent_count: Math.max(Number(order.review_request_sent_count || 0), 1),
+    } : order));
+  };
 
   const handleAddTracking = async (orderId: string, carrier: TrackingCarrier, trackingNumber: string, trackingNumbers?: TrackingEntry[]) => {
     try {
@@ -1242,6 +1251,7 @@ const AdminOrders: React.FC = () => {
                       pdfLoadingStates={pdfLoadingStates}
                       getItemsSummary={getItemsSummary}
                       onCustomerInfoUpdated={handleCustomerInfoUpdated}
+                      onReviewRequestSent={handleReviewRequestSent}
                     />
                   ))}
                 </div>
@@ -1264,6 +1274,7 @@ const AdminOrders: React.FC = () => {
                       pdfLoadingStates={pdfLoadingStates}
                       getItemsSummary={getItemsSummary}
                       onCustomerInfoUpdated={handleCustomerInfoUpdated}
+                      onReviewRequestSent={handleReviewRequestSent}
                     />
                   ))}
                 </div>
@@ -1318,6 +1329,7 @@ interface AdminOrderRowProps {
   getItemsSummary: (order: Order) => string;
   pdfLoadingStates: Record<string, boolean>;
   onCustomerInfoUpdated: (order: Order) => void;
+  onReviewRequestSent: (orderId: string, update: { sentAt: string; customerEmail: string }) => void;
 }
 
 const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
@@ -1333,7 +1345,8 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   getStatusLabel,
   getItemsSummary,
   pdfLoadingStates,
-  onCustomerInfoUpdated
+  onCustomerInfoUpdated,
+  onReviewRequestSent
 }) => {
   const [trackingRows, setTrackingRows] = useState<TrackingEntry[]>([{ carrier: DEFAULT_TRACKING_CARRIER, trackingNumber: '', label: 'Package 1' }]);
   const [isAddingTracking, setIsAddingTracking] = useState(false);
@@ -1772,6 +1785,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                     </>
                   )}
                 </Button>
+              <ReviewRequestAction order={order} onSent={onReviewRequestSent} />
             </div>
 
             {order.status === 'in_production' && order.production_email_sent_at && (
@@ -1833,6 +1847,7 @@ interface AdminOrderCardProps {
   getItemsSummary: (order: Order) => string;
   pdfLoadingStates: Record<string, boolean>;
   onCustomerInfoUpdated: (order: Order) => void;
+  onReviewRequestSent: (orderId: string, update: { sentAt: string; customerEmail: string }) => void;
 }
 
 const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
@@ -1845,7 +1860,8 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
   getStatusLabel,
   getItemsSummary,
   pdfLoadingStates,
-  onCustomerInfoUpdated
+  onCustomerInfoUpdated,
+  onReviewRequestSent
 }) => {
   const [isMarkingProduction, setIsMarkingProduction] = useState(false);
   const [isSendingNotification, setIsSendingNotification] = useState(false);
@@ -2061,6 +2077,8 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
           >
             {isSendingNotification ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Sending...</> : <><Mail className="h-3 w-3 mr-1" />{order.shipping_notification_sent ? 'Resend Tracking Email' : 'Send Tracking Email'}</>}
           </Button>
+
+        <ReviewRequestAction order={order} onSent={onReviewRequestSent} fullWidth />
 
         <OrderDetails
           order={order}
