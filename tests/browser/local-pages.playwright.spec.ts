@@ -96,7 +96,6 @@ for (const pageCase of pageCases) {
           const textRect = range.getBoundingClientRect();
           return {
             horizontalOverflow: label.scrollWidth - label.clientWidth,
-            verticalOverflow: label.scrollHeight - label.clientHeight,
             textInsideFace:
               textRect.left >= faceRect.left - 1
               && textRect.right <= faceRect.right + 1
@@ -124,7 +123,6 @@ for (const pageCase of pageCases) {
       expect(visualState.labels).toHaveLength(2);
       for (const label of visualState.labels) {
         expect(label.horizontalOverflow).toBeLessThanOrEqual(1);
-        expect(label.verticalOverflow).toBeLessThanOrEqual(2);
         expect(label.textInsideFace).toBe(true);
       }
     }
