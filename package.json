@@ -9,6 +9,7 @@
     "build": "npm run generate:seo-assets && vite build && vite build --config vite.ssr.config.ts && node scripts/prerender-local-pages.mjs && node scripts/verify-local-build.mjs",
     "generate:seo-assets": "node scripts/generate-seo-assets.mjs",
     "test:local-pages": "vitest run src/lib/seo/__tests__/localPages.test.ts",
+    "test:ai-designer": "vitest run --config vitest.ai.config.ts netlify/functions/__tests__/ai-designer.test.mjs netlify/functions/__tests__/admin-sign-in.test.mjs",
     "test:local-pages:browser": "npm run build && playwright test --config=playwright.local-pages.config.ts",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",

@@ -47,6 +47,27 @@
   timeout = 60
   memory = 1024
 
+[functions."ai-designer-generate"]
+  timeout = 120
+  memory = 2048
+
+[functions."ai-designer-edit"]
+  timeout = 120
+  memory = 2048
+
+[functions."ai-designer-status"]
+  timeout = 30
+  memory = 512
+
+[functions."ai-designer-brief"]
+  timeout = 30
+  memory = 512
+
+[functions."ai-designer-cleanup"]
+  schedule = "@daily"
+  timeout = 60
+  memory = 512
+
 
 [dev]
   targetPort = 8080
@@ -237,6 +258,11 @@
 # Preview/branch deploy crawler protection
 [context.deploy-preview]
   command = "npm run build"
+
+[context.deploy-preview.environment]
+  VITE_ENABLE_AI = "true"
+  AI_DESIGNER_ENABLED = "true"
+  OPENAI_IMAGE_MODEL = "gpt-image-2-2026-04-21"
 
 [[context.deploy-preview.headers]]
   for = "/*"

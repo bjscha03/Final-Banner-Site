@@ -66,7 +66,12 @@ import {
 } from '@/lib/builderSteps';
 import { logUx } from '@/lib/uxAnalytics';
 import { formatOptionValue, getDisplayPlacement } from '@/lib/product-display';
-import { useAuth, isAdmin } from '@/lib/auth';
+import { useAuth } from '@/lib/auth';
+import CreateWithAIModal, { type AIDesignSession, type CreateWithAIResult } from '@/components/design/CreateWithAIModal';
+import EditWithAIModal from '@/components/design/EditWithAIModal';
+import { useAIAdminAccess } from '@/hooks/useAIAdminAccess';
+import { consumeAIHandoff } from '@/lib/aiDesignHandoff';
+import { trackAIEvent } from '@/lib/aiAnalytics';
 import type { ArtworkManifest } from '@/types/artwork';
 import {
   PREVIEW_ARTIFACT_VERSION,
@@ -315,18 +320,18 @@ function buildCartArtworkForEditor(item: CartItem): UploadedArtworkFile | null {
 
 const Design: React.FC = () => {
   const { user } = useAuth();
-  const userIsAdmin = isAdmin(user);
-  const showCreateWithAI = false; // Legacy AI designer disabled; use /admin/ai-designer only.
+  const aiAccess = useAIAdminAccess(Boolean(user));
+  const showCreateWithAI = aiAccess.ready;
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;
     console.log('[AI_VISIBILITY][Design]', {
       userId: user?.id ?? null,
       email: user?.email ?? null,
-      isAdmin: userIsAdmin,
+      isAdmin: aiAccess.authorized,
       shouldRenderCreateWithAI: showCreateWithAI,
     });
-  }, [user?.id, user?.email, userIsAdmin, showCreateWithAI]);
+  }, [user?.id, user?.email, aiAccess.authorized, showCreateWithAI]);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const location = useLocation();
@@ -714,6 +719,8 @@ const Design: React.FC = () => {
   const [aiPrompt, setAiPrompt] = useState<string | null>(null);
   const [aiEditModalOpen, setAiEditModalOpen] = useState(false);
   const [aiEditPrompt, setAiEditPrompt] = useState<string | null>(null);
+  const [aiDesignSession, setAiDesignSession] = useState<AIDesignSession | null>(null);
+  const aiHandoffProcessedRef = useRef(false);
 
   const quoteStore = useQuoteStore();
   const cartStore = useCartStore();
@@ -1399,6 +1406,7 @@ const Design: React.FC = () => {
       const file = base64ToFile(result.imageBase64, result.fileName, result.mimeType);
       setAiPrompt(result.prompt);
       setAiEditPrompt(null);
+      setAiDesignSession(result.session);
       // Reset position/scale so the AI image is shown full-bleed by default.
       setImgPos({ x: 0, y: 0 });
       setImgScale(1);
@@ -1408,12 +1416,48 @@ const Design: React.FC = () => {
     [handleFileUpload],
   );
 
+  // The admin AI workspace hands this route a short-lived in-memory token.
+  // High-resolution image bytes never enter browser history, local/session
+  // storage, or the cart. The existing upload handler persists the consumed
+  // artifact through the same permanent pipeline used by normal uploads.
+  useEffect(() => {
+    const state = location.state as { aiHandoffId?: string } | null;
+    if (!state?.aiHandoffId || aiHandoffProcessedRef.current) return;
+    const handoff = consumeAIHandoff(state.aiHandoffId);
+    if (!handoff) {
+      navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+      toast({ title: 'AI handoff expired', description: 'Return to the AI Designer and approve the artwork again.', variant: 'destructive' });
+      return;
+    }
+    aiHandoffProcessedRef.current = true;
+    const config = handoff.configurator;
+    const targetWidth = Number(config.widthIn || handoff.result.width);
+    const targetHeight = Number(config.heightIn || handoff.result.height);
+    setProductType('banner');
+    setUnit('in');
+    setWidthCustomInStr(String(targetWidth));
+    setHeightCustomInStr(String(targetHeight));
+    if (config.material) setMaterial(config.material);
+    if (config.quantity) setQuantity(Math.max(1, Number(config.quantity)));
+    setHasEnteredBuilder(true);
+
+    const frame = window.requestAnimationFrame(() => {
+      void handleAIGenerated(handoff.result)
+        .then(() => navigate(`${location.pathname}${location.search}`, { replace: true, state: null }))
+        .catch(() => {
+          aiHandoffProcessedRef.current = false;
+        });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [handleAIGenerated, location.pathname, location.search, location.state, navigate, setProductType, toast]);
+
   // Handle a successful "Edit with AI" update: replace the existing AI image
   // on the canvas (no second image layer) and persist the edit prompt.
   const handleAIEdited = useCallback(
     async (result: CreateWithAIResult & { editPrompt: string }) => {
       const file = base64ToFile(result.imageBase64, result.fileName, result.mimeType);
       setAiEditPrompt(result.editPrompt);
+      setAiDesignSession(result.session);
       // Keep aiPrompt as-is (the original "Create with AI" intent).
       setImgPos({ x: 0, y: 0 });
       setImgScale(1);
@@ -1446,6 +1490,7 @@ const Design: React.FC = () => {
     setUploadError('');
     setAiPrompt(null);
     setAiEditPrompt(null);
+    setAiDesignSession(null);
     setHasJustAddedToCart(false);
     setHasReviewedYardSignStakes(false);
     setHasReviewedYardSignPrintSide(false);
@@ -1488,6 +1533,10 @@ const Design: React.FC = () => {
     navigateUrl?: string,
   ) => {
     setPendingCheckoutData(null);
+    if (aiDesignSession) {
+      trackAIEvent('ai_added_to_cart', { product_type: 'banner' });
+      if (actionType === 'checkout') trackAIEvent('ai_checkout_started', { product_type: 'banner' });
+    }
     if (actionType === 'checkout') {
       if (navigateUrl) {
         window.history.replaceState(null, '', navigateUrl);
@@ -1500,7 +1549,7 @@ const Design: React.FC = () => {
       resetAfterSuccessfulAdd();
       logUx('add_to_cart_completed', { source: 'finish_add_to_cart' });
     }
-  }, [navigate, toast, resetAfterSuccessfulAdd]);
+  }, [aiDesignSession, navigate, toast, resetAfterSuccessfulAdd]);
 
   const prepareCurrentPlacementPreview = useCallback(async (
     editorSource: 'inline' | 'modal',
@@ -2684,7 +2733,7 @@ const Design: React.FC = () => {
                   onPromoRemove={handlePromoRemove}
                   autoOpenDesignId={autoOpenDesignId}
                   onUploadStatusChange={setYardSignUploadStatus}
-                  showCreateWithAI={showCreateWithAI}
+                  showCreateWithAI={false}
                   onPreviewDone={(id) => {
                     // The user finished positioning a design; advance the
                     // sticky CTA to the next step.
@@ -3023,7 +3072,7 @@ const Design: React.FC = () => {
                       style={previewCanvasStyle}
                       className="mx-auto"
                     />
-                    {!isYardSign && showCreateWithAI && (
+                    {!isYardSign && !isCarMagnet && showCreateWithAI && (
                       <div className="mt-3 flex flex-col items-center gap-1">
                         <button
                           type="button"
@@ -3126,15 +3175,15 @@ const Design: React.FC = () => {
                         <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
                         <span className="text-sm font-semibold text-green-800 truncate">{uploadedFile.name}</span>
                       </div>
-                      <button onClick={() => { setUploadedFile(null); setImgPos({ x: 0, y: 0 }); setImgScale(1); setImgScaleY(1); setAiPrompt(null); setAiEditPrompt(null); }} className="ml-2 flex-shrink-0 p-1.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
+                      <button onClick={() => { setUploadedFile(null); setImgPos({ x: 0, y: 0 }); setImgScale(1); setImgScaleY(1); setAiPrompt(null); setAiEditPrompt(null); setAiDesignSession(null); }} className="ml-2 flex-shrink-0 p-1.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
                     </div>
-                    {aiPrompt && !isYardSign && showCreateWithAI && (
+                    {aiPrompt && !isYardSign && !isCarMagnet && showCreateWithAI && (
                       <div className="mt-2 flex justify-center">
                         <button
                           type="button"
                           onClick={() => setAiEditModalOpen(true)}
                           disabled={!widthIn || !heightIn || !material || isUploading}
-                          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-600 text-white text-sm font-semibold shadow-sm hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#0b1f3a] text-white text-sm font-semibold shadow-sm hover:bg-[#12345d] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                           <Sparkles className="w-4 h-4" />
                           Edit with AI
@@ -3481,7 +3530,7 @@ const Design: React.FC = () => {
         isProcessing={isProcessingUpsell}
       />
       {/* Create with AI Modal */}
-      {!isYardSign && showCreateWithAI && (
+      {!isYardSign && !isCarMagnet && showCreateWithAI && (
         <CreateWithAIModal
           open={aiModalOpen}
           onOpenChange={setAiModalOpen}
@@ -3490,11 +3539,12 @@ const Design: React.FC = () => {
           heightIn={heightIn || null}
           material={material || null}
           materialLabel={materialLabel}
+          quantity={quantity}
           onGenerated={handleAIGenerated}
         />
       )}
       {/* Edit with AI Modal — only available after an AI design exists */}
-      {!isYardSign && showCreateWithAI && (
+      {!isYardSign && !isCarMagnet && showCreateWithAI && (
         <EditWithAIModal
           open={aiEditModalOpen}
           onOpenChange={setAiEditModalOpen}
@@ -3505,6 +3555,7 @@ const Design: React.FC = () => {
           materialLabel={materialLabel}
           originalPrompt={aiPrompt}
           currentImageUrl={uploadedFile?.thumbnailUrl || uploadedFile?.url || null}
+          session={aiDesignSession}
           onEdited={handleAIEdited}
         />
       )}

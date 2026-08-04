@@ -3,48 +3,62 @@
 const crypto = require('crypto');
 const { createSessionToken } = require('../server-auth.cjs');
 
-// Temporary server-only credential retained for the existing password-only
-// admin experience. It is never imported into or returned to the browser.
-const EXPECTED_PASSWORD = 'admin';
-
 const headers = {
   'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Cache-Control': 'no-store',
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'no-referrer',
+  'Vary': 'Origin',
 };
 
-exports.handler = async (event, context) => {
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, headers, body: JSON.stringify({ ok: false, error: 'Method not allowed' }) };
+function response(statusCode, payload, extraHeaders = {}) {
+  return { statusCode, headers: { ...headers, ...extraHeaders }, body: JSON.stringify(payload) };
+}
+
+function requestOrigin(event) {
+  const origin = String(event?.headers?.origin || '').trim();
+  const host = String(event?.headers?.['x-forwarded-host'] || event?.headers?.host || '').trim();
+  const proto = String(event?.headers?.['x-forwarded-proto'] || 'https').split(',')[0].trim();
+  return { origin, expected: host ? `${proto}://${host}` : '' };
+}
+
+function configuredPasswordHash() {
+  const configuredHash = String(process.env.ADMIN_PASSWORD_SHA256 || '').trim().toLowerCase();
+  if (/^[a-f0-9]{64}$/.test(configuredHash)) return Buffer.from(configuredHash, 'hex');
+  const configuredPassword = String(process.env.ADMIN_PASSWORD || '');
+  if (configuredPassword.length >= 12) return crypto.createHash('sha256').update(configuredPassword).digest();
+  return null;
+}
+
+exports.handler = async (event) => {
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: { ...headers, Allow: 'POST, OPTIONS' }, body: '' };
+  if (event.httpMethod !== 'POST') return response(405, { ok: false, error: 'Method not allowed' }, { Allow: 'POST, OPTIONS' });
+
+  const { origin, expected } = requestOrigin(event);
+  if (!origin || !expected || origin !== expected) {
+    return response(403, { ok: false, error: 'This request must come from the same site.' });
+  }
+
+  const expectedHash = configuredPasswordHash();
+  if (!expectedHash || !(process.env.AUTH_SESSION_SECRET || process.env.CLOUDINARY_API_SECRET)) {
+    return response(503, { ok: false, error: 'Admin authentication is not configured for this deployment.' });
   }
 
   let password;
   try {
     ({ password } = JSON.parse(event.body || '{}'));
   } catch {
-    return { statusCode: 400, headers, body: JSON.stringify({ ok: false, error: 'Invalid request body' }) };
+    return response(400, { ok: false, error: 'Invalid request body' });
   }
   if (!password || typeof password !== 'string') {
-    return { statusCode: 400, headers, body: JSON.stringify({ ok: false, error: 'Password is required' }) };
+    return response(400, { ok: false, error: 'Password is required' });
   }
 
-  const submitted = Buffer.from(password);
-  const expected = Buffer.from(EXPECTED_PASSWORD);
-  const passwordMatches = submitted.length === expected.length && crypto.timingSafeEqual(submitted, expected);
-  if (!passwordMatches) {
-    return { statusCode: 401, headers, body: JSON.stringify({ ok: false, error: 'Invalid admin password' }) };
+  const submittedHash = crypto.createHash('sha256').update(password).digest();
+  if (!crypto.timingSafeEqual(submittedHash, expectedHash)) {
+    return response(401, { ok: false, error: 'Invalid admin password' });
   }
 
-  // This server-issued identity is only a UI/session subject. Every protected
-  // endpoint still verifies the signed HMAC token and its admin claim.
   const adminUser = { id: 'server-admin', email: '', is_admin: true };
-  return {
-    statusCode: 200,
-    headers,
-    body: JSON.stringify({ ok: true, user: adminUser, sessionToken: createSessionToken(adminUser) }),
-  };
+  return response(200, { ok: true, user: adminUser, sessionToken: createSessionToken(adminUser) });
 };
-

@@ -16,7 +16,7 @@ import { getQuantityDiscountRate } from '@/lib/quantity-discount';
 import { generateFinalRenderFromHTML } from '@/utils/generateFinalRenderFromHTML';
 import { renderPdfToDataUrl, type PdfPreviewResult } from '@/utils/pdf/renderPdfToDataUrl';
 import { useToast } from '@/components/ui/use-toast';
-import { useAuth, isAdmin } from '@/lib/auth';
+import { useAuth } from '@/lib/auth';
 
 import type { ProductTypeSlug } from '@/lib/products';
 import { getProductConfig } from '@/lib/products';
@@ -50,9 +50,10 @@ import {
   type CarMagnetRoundedCorner,
 } from '@/lib/car-magnet-pricing';
 import { BANNER_MATERIALS as MATERIALS } from '@/lib/banner-materials';
-import CreateWithAIModal, { type CreateWithAIResult } from '@/components/design/CreateWithAIModal';
+import CreateWithAIModal, { type AIDesignSession, type CreateWithAIResult } from '@/components/design/CreateWithAIModal';
 import EditWithAIModal from '@/components/design/EditWithAIModal';
-import { ENABLE_AI } from '@/lib/featureFlags';
+import { useAIAdminAccess } from '@/hooks/useAIAdminAccess';
+import { trackAIEvent } from '@/lib/aiAnalytics';
 import { base64ToFile } from '@/utils/base64ToFile';
 import { uploadArtworkFile, validateArtworkFile } from '@/utils/uploadArtworkFile';
 import { computeSameDayFeesCents } from '@/lib/sameDayService';
@@ -258,18 +259,18 @@ const GoogleAdsBanner: React.FC = () => {
 
   // Admin detection for yard signs visibility
   const { user } = useAuth();
-  const userIsAdmin = isAdmin(user);
-  const showCreateWithAI = ENABLE_AI && !!user && userIsAdmin;
+  const aiAccess = useAIAdminAccess(Boolean(user));
+  const showCreateWithAI = aiAccess.ready;
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;
     console.log('[AI_VISIBILITY][GoogleAdsBanner]', {
       userId: user?.id ?? null,
       email: user?.email ?? null,
-      isAdmin: userIsAdmin,
+      isAdmin: aiAccess.authorized,
       shouldRenderCreateWithAI: showCreateWithAI,
     });
-  }, [user?.id, user?.email, userIsAdmin, showCreateWithAI]);
+  }, [user?.id, user?.email, aiAccess.authorized, showCreateWithAI]);
 
   // Product type state — public for both banners and yard signs
   // Read ?tab= (preferred) or ?product= (legacy) query param so "Add Another Yard Sign" links open the correct tab
@@ -417,6 +418,7 @@ const GoogleAdsBanner: React.FC = () => {
   const [aiPrompt, setAiPrompt] = useState<string | null>(null);
   const [aiEditModalOpen, setAiEditModalOpen] = useState(false);
   const [aiEditPrompt, setAiEditPrompt] = useState<string | null>(null);
+  const [aiDesignSession, setAiDesignSession] = useState<AIDesignSession | null>(null);
 
   const quoteStore = useQuoteStore();
   const cartStore = useCartStore();
@@ -1316,6 +1318,7 @@ const GoogleAdsBanner: React.FC = () => {
       const file = base64ToFile(result.imageBase64, result.fileName, result.mimeType);
       setAiPrompt(result.prompt);
       setAiEditPrompt(null);
+      setAiDesignSession(result.session);
       setImgPos({ x: 0, y: 0 });
       setImgScale(1);
       setImgScaleY(1);
@@ -1329,6 +1332,7 @@ const GoogleAdsBanner: React.FC = () => {
     async (result: CreateWithAIResult & { editPrompt: string }) => {
       const file = base64ToFile(result.imageBase64, result.fileName, result.mimeType);
       setAiEditPrompt(result.editPrompt);
+      setAiDesignSession(result.session);
       setImgPos({ x: 0, y: 0 });
       setImgScale(1);
       setImgScaleY(1);
@@ -1359,6 +1363,7 @@ const GoogleAdsBanner: React.FC = () => {
     setUploadError('');
     setAiPrompt(null);
     setAiEditPrompt(null);
+    setAiDesignSession(null);
     setHasJustAddedToCart(false);
     setShowPostAddResetNotice(false);
     setHasReviewedYardSignStakes(false);
@@ -1405,6 +1410,10 @@ const GoogleAdsBanner: React.FC = () => {
     navigateUrl?: string,
   ) => {
     setPendingCheckoutData(null);
+    if (aiDesignSession) {
+      trackAIEvent('ai_added_to_cart', { product_type: 'banner' });
+      if (actionType === 'checkout') trackAIEvent('ai_checkout_started', { product_type: 'banner' });
+    }
     if (actionType === 'checkout') {
       if (navigateUrl) {
         window.history.replaceState(null, '', navigateUrl);
@@ -1417,7 +1426,7 @@ const GoogleAdsBanner: React.FC = () => {
       resetAfterSuccessfulAdd();
       logUx('add_to_cart_completed', { source: 'finish_add_to_cart' });
     }
-  }, [navigate, toast, resetAfterSuccessfulAdd]);
+  }, [aiDesignSession, navigate, toast, resetAfterSuccessfulAdd]);
 
   const prepareCurrentPlacementPreview = useCallback(async (
     editorSource: 'inline' | 'modal',
@@ -2433,7 +2442,7 @@ const GoogleAdsBanner: React.FC = () => {
                     onPromoRemove={handlePromoRemove}
                     autoOpenDesignId={autoOpenDesignId}
                     onUploadStatusChange={setYardSignUploadStatus}
-                    showCreateWithAI={showCreateWithAI}
+                    showCreateWithAI={false}
                     onPreviewDone={(id) => logUx('preview_done', { designId: id, productType: 'yard_sign' })}
                     previewOpenTrigger={yardSignPreviewTrigger}
                   />
@@ -2785,7 +2794,7 @@ const GoogleAdsBanner: React.FC = () => {
                         style={previewCanvasStyle}
                         className="mx-auto"
                       />
-                      {!isYardSign && showCreateWithAI && (
+                      {!isYardSign && !isCarMagnet && showCreateWithAI && (
                         <div className="mt-3 flex flex-col items-center gap-1">
                           <button
                             type="button"
@@ -2893,15 +2902,15 @@ const GoogleAdsBanner: React.FC = () => {
                           <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
                           <span className="text-sm font-semibold text-green-800 truncate">{uploadedFile.name}</span>
                         </div>
-                        <button type="button" aria-label="Remove uploaded artwork" onClick={() => { setUploadedFile(null); setImgPos({ x: 0, y: 0 }); setImgScale(1); setImgScaleY(1); setAiPrompt(null); setAiEditPrompt(null); }} className="ml-2 flex-shrink-0 p-2.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
+                        <button type="button" aria-label="Remove uploaded artwork" onClick={() => { setUploadedFile(null); setImgPos({ x: 0, y: 0 }); setImgScale(1); setImgScaleY(1); setAiPrompt(null); setAiEditPrompt(null); setAiDesignSession(null); }} className="ml-2 flex-shrink-0 p-2.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
                       </div>
-                      {aiPrompt && !isYardSign && showCreateWithAI && (
+                      {aiPrompt && !isYardSign && !isCarMagnet && showCreateWithAI && (
                         <div className="mt-2 flex justify-center">
                           <button
                             type="button"
                             onClick={() => setAiEditModalOpen(true)}
                             disabled={!widthIn || !heightIn || !material || isUploading}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-600 text-white text-sm font-semibold shadow-sm hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#0b1f3a] text-white text-sm font-semibold shadow-sm hover:bg-[#12345d] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                           >
                             <Sparkles className="w-4 h-4" />
                             Edit with AI
@@ -3312,7 +3321,7 @@ const GoogleAdsBanner: React.FC = () => {
         onClose={() => setIsCartOpen(false)}
       />
       {/* Create with AI Modal */}
-      {!isYardSign && showCreateWithAI && (
+      {!isYardSign && !isCarMagnet && showCreateWithAI && (
         <CreateWithAIModal
           open={aiModalOpen}
           onOpenChange={setAiModalOpen}
@@ -3321,11 +3330,12 @@ const GoogleAdsBanner: React.FC = () => {
           heightIn={heightIn || null}
           material={material || null}
           materialLabel={materialLabel}
+          quantity={quantity}
           onGenerated={handleAIGenerated}
         />
       )}
       {/* Edit with AI Modal */}
-      {!isYardSign && showCreateWithAI && (
+      {!isYardSign && !isCarMagnet && showCreateWithAI && (
         <EditWithAIModal
           open={aiEditModalOpen}
           onOpenChange={setAiEditModalOpen}
@@ -3336,6 +3346,7 @@ const GoogleAdsBanner: React.FC = () => {
           materialLabel={materialLabel}
           originalPrompt={aiPrompt}
           currentImageUrl={uploadedFile?.thumbnailUrl || uploadedFile?.url || null}
+          session={aiDesignSession}
           onEdited={handleAIEdited}
         />
       )}
