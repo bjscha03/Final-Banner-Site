@@ -190,7 +190,9 @@ async function finalizeConcept({ rawBackground, brief, plan, logo, reference, se
 async function statusHandler(event) {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: { Allow: 'GET, POST, OPTIONS' }, body: '' };
   if (!['GET', 'POST'].includes(event.httpMethod)) return json(405, { error: 'METHOD_NOT_ALLOWED', message: 'Use GET or POST.' }, { Allow: 'GET, POST, OPTIONS' });
-  const auth = authorize(event, { requireOrigin: event.httpMethod === 'POST' });
+  // This endpoint is read-only. Do not let Netlify's preview drawer/proxy host
+  // rewriting turn a valid signed session into a false 403.
+  const auth = authorize(event, { skipOrigin: true });
   if (auth.response) return auth.response;
   const enabled = isEnabled(event?.netlify?.deployContext);
   const keyConfigured = Boolean(process.env.OPENAI_API_KEY);

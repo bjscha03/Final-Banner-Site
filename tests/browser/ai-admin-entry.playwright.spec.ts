@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('signed admin keeps the AI route and designer entry when readiness is unavailable', async ({ page }) => {
+test('signed admin sees in-place reconnect when the preview proxy rejects status', async ({ page }) => {
   await page.addInitScript(() => {
     const admin = {
       id: '00000000-0000-0000-0000-000000000001',
@@ -21,9 +21,9 @@ test('signed admin keeps the AI route and designer entry when readiness is unava
     expect(requestHeaders['x-banners-admin-session']).toBe('browser-test-signed-session');
     expect(route.request().postDataJSON()).toMatchObject({ adminSessionToken: 'browser-test-signed-session' });
     await route.fulfill({
-      status: 503,
+      status: 403,
       contentType: 'application/json',
-      body: JSON.stringify({ error: 'STATUS_UNAVAILABLE' }),
+      body: JSON.stringify({ error: 'FORBIDDEN_ORIGIN' }),
     });
   });
 
@@ -31,6 +31,8 @@ test('signed admin keeps the AI route and designer entry when readiness is unava
   await expect(page).toHaveURL(/\/admin\/ai-designer$/);
   await expect(page.getByRole('heading', { name: 'Production AI Banner Designer' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Admin Login' })).toHaveCount(0);
+  await expect(page.getByLabel('Admin password')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Reconnect admin' })).toBeVisible();
 
   await page.goto('/design?product=banner', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('button', { name: 'Create with AI' })).toBeVisible();

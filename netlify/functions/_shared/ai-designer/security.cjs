@@ -46,8 +46,10 @@ function enforceSameOrigin(event, { requireOrigin = true } = {}) {
 function authorize(event, options = {}) {
   const auth = requireAdmin(event);
   if (!auth.ok) return { response: auth.response };
-  const originError = enforceSameOrigin(event, options);
-  if (originError) return { response: originError };
+  if (!options.skipOrigin) {
+    const originError = enforceSameOrigin(event, options);
+    if (originError) return { response: originError };
+  }
   return { session: auth.session };
 }
 

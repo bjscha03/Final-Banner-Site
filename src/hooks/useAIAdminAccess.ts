@@ -57,7 +57,7 @@ export function useAIAdminAccess(active = true) {
       .then(async (response) => {
         const body = await response.json().catch(() => ({}));
         if (!response.ok) {
-          const authenticationFailed = response.status === 401;
+          const authenticationFailed = response.status === 401 || response.status === 403;
           setStatus({
             ...CLOSED,
             loading: false,

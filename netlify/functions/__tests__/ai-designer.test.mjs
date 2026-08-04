@@ -173,7 +173,7 @@ describe('AI designer authorization and fail-closed controls', () => {
     expect(JSON.parse(response.body)).toMatchObject({ authorized: true });
   });
 
-  it('accepts a same-origin JSON session fallback when preview headers are unavailable', async () => {
+  it('accepts the JSON session fallback when the preview proxy rewrites the forwarded host', async () => {
     const token = createSessionToken({ id: 'test-admin', email: 'admin@example.test', is_admin: true });
     const wrapped = withDesignerRuntime(statusHandler);
     const response = await wrapped(
@@ -182,7 +182,7 @@ describe('AI designer authorization and fail-closed controls', () => {
         headers: {
           'Content-Type': 'application/json',
           Origin: 'https://preview.example.test',
-          'X-Forwarded-Host': 'preview.example.test',
+          'X-Forwarded-Host': 'deploy-preview-drawer.example.test',
           'X-Forwarded-Proto': 'https',
         },
         body: JSON.stringify({ adminSessionToken: token }),
