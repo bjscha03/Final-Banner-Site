@@ -124,6 +124,7 @@ export interface Order {
   payment_method?: 'stripe' | 'paypal' | string | null;
   paypal_order_id?: string | null;
   paypal_capture_id?: string | null;
+  payment_reconciliation_status?: string | null;
   stripe_payment_intent_id?: string | null;
   stripe_charge_id?: string | null;
   stripe_wallet_type?: string | null;
@@ -131,6 +132,9 @@ export interface Order {
   customer_info_admin_updated_at?: string | null;
   is_test_order?: boolean;
   test_order_reason?: string | null;
+  review_request_customer_email?: string | null;
+  review_request_last_sent_at?: string | null;
+  review_request_sent_count?: number;
 }
 
 export interface CreateOrderData {
