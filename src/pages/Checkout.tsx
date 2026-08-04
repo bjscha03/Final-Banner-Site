@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCartStore } from '@/store/cart';
 import { useAuth, getCurrentUser } from '@/lib/auth';
@@ -269,27 +269,30 @@ const Checkout: React.FC = () => {
 
 
 
-  // Track begin checkout event
+  // Track checkout only after the persisted cart has finished hydrating.
+  // A ref prevents duplicate events when totals or migrated items settle.
+  const checkoutTrackedRef = useRef(false);
   useEffect(() => {
-    if (items.length > 0) {
-      const analyticsItems = items.map(item => ({
-        item_id: item.id,
-        item_name: `${item.width_in}x${item.height_in} ${item.material} ${getItemDisplayName(item)}`,
-        item_category: getProductCategory(item.product_type),
-        item_variant: item.material,
-        price: item.line_total_cents,
-        quantity: item.quantity,
-      }));
-      trackBeginCheckout(analyticsItems, totalCents);
-      trackViewCart(analyticsItems, totalCents);
-      
-      // Track Facebook Pixel InitiateCheckout
-      trackFBInitiateCheckout({
-        value: totalCents,
-        num_items: items.length,
-      });
-    }
-  }, []); // Only track once on mount
+    if (checkoutTrackedRef.current || isLoading || items.length === 0) return;
+
+    const analyticsItems = items.map(item => ({
+      item_id: item.id,
+      item_name: `${item.width_in}x${item.height_in} ${item.material} ${getItemDisplayName(item)}`,
+      item_category: getProductCategory(item.product_type),
+      item_variant: item.material,
+      price: item.line_total_cents,
+      quantity: item.quantity,
+    }));
+    checkoutTrackedRef.current = true;
+    trackBeginCheckout(analyticsItems, totalCents);
+    trackViewCart(analyticsItems, totalCents);
+
+    // Track Facebook Pixel InitiateCheckout
+    trackFBInitiateCheckout({
+      value: totalCents,
+      num_items: items.length,
+    });
+  }, [isLoading, items, totalCents]);
 
   // Show loading state while cart is being loaded/merged
   if (isLoading) {
