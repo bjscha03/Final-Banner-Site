@@ -483,14 +483,18 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
 
   useEffect(() => {
     if (!selected) return;
-    const outside = (event: PointerEvent) => {
+    const outside = (event: MouseEvent) => {
       const node = internalRef.current;
       const target = event.target as HTMLElement | null;
       if (!node || !target || node.contains(target) || target.closest('[data-artwork-toolbar="true"]')) return;
       setSelected(false);
     };
-    document.addEventListener('pointerdown', outside, true);
-    return () => document.removeEventListener('pointerdown', outside, true);
+    // Deselect only after the browser has dispatched the destination click.
+    // Collapsing the portaled toolbar during pointerdown can move controls in
+    // the surrounding layout before pointerup, causing the intended button
+    // (for example Add to Cart) to miss its click entirely.
+    document.addEventListener('click', outside, true);
+    return () => document.removeEventListener('click', outside, true);
   }, [selected]);
 
   const reset = useCallback(() => commitTransform({ x: 0, y: 0, scaleX: 1, scaleY: 1 }), [commitTransform]);
