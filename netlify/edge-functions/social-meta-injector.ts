@@ -23,7 +23,7 @@ const blogPosts: Record<string, { title: string; description: string; image: str
   "13oz-vs-15oz-vs-18oz-vinyl-banner-guide": {
     title: "13 oz vs. 15 oz vs. 18 oz Vinyl Banners: Which Should You Choose?",
     description: "Compare 13 oz, 15 oz, and 18 oz vinyl banners by durability, rigidity, portability, and best use so you can choose the right material confidently today.",
-    image: "https://bannersonthefly.com/images/blog/13oz-vs-15oz-vs-18oz-vinyl-banner-guide.webp"
+    image: "https://bannersonthefly.com/cld-assets/images/blog/13oz-vs-15oz-vs-18oz-vinyl-banner-guide.webp"
   },
   "danos-seasoning-banner-success-story": {
     title: "From Flea Markets to Food Festivals: How Dano's Seasoning Grew with the Right Banners",
