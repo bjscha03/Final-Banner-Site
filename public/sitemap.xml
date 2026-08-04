@@ -81,6 +81,12 @@
 
   <!-- Blog Posts (published) -->
   <url>
+    <loc>https://bannersonthefly.com/blog/13oz-vs-15oz-vs-18oz-vinyl-banner-guide</loc>
+    <lastmod>2026-08-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://bannersonthefly.com/blog/danos-seasoning-banner-success-story</loc>
     <lastmod>2025-10-17</lastmod>
     <changefreq>monthly</changefreq>
