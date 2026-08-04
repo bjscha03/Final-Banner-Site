@@ -3,6 +3,8 @@
 const crypto = require('crypto');
 
 const SESSION_TTL_SECONDS = 8 * 60 * 60;
+const SESSION_HEADER = 'x-banners-admin-session';
+const SESSION_COOKIE = 'banners_admin_session';
 
 function secret() {
   return process.env.AUTH_SESSION_SECRET || process.env.CLOUDINARY_API_SECRET || '';
@@ -24,9 +26,27 @@ function createSessionToken(user) {
   return `${payload}.${signature}`;
 }
 
+function cleanToken(value) {
+  return String(value || '').replace(/^Bearer\s+/i, '').trim();
+}
+
+function readCookie(event, name) {
+  const source = String(event?.headers?.cookie || event?.headers?.Cookie || '');
+  const entry = source.split(';').map((part) => part.trim()).find((part) => part.startsWith(`${name}=`));
+  if (!entry) return '';
+  try {
+    return decodeURIComponent(entry.slice(name.length + 1));
+  } catch {
+    return '';
+  }
+}
+
 function readBearer(event) {
+  const dedicated = event?.headers?.[SESSION_HEADER] || event?.headers?.['X-Banners-Admin-Session'];
+  if (dedicated) return cleanToken(dedicated);
   const value = event?.headers?.authorization || event?.headers?.Authorization || '';
-  return /^Bearer\s+(.+)$/i.exec(String(value))?.[1] || '';
+  const bearer = /^Bearer\s+(.+)$/i.exec(String(value))?.[1] || '';
+  return bearer || readCookie(event, SESSION_COOKIE);
 }
 
 function verifySessionToken(token) {

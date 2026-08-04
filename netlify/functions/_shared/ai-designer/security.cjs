@@ -14,7 +14,7 @@ function json(statusCode, payload, extraHeaders = {}) {
       'Cache-Control': 'no-store',
       'X-Content-Type-Options': 'nosniff',
       'Referrer-Policy': 'no-referrer',
-      'Vary': 'Authorization, Origin',
+      'Vary': 'Authorization, X-Banners-Admin-Session, Cookie, Origin',
       ...extraHeaders,
     },
     body: JSON.stringify(payload),
