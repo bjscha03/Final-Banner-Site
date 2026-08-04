@@ -24,6 +24,8 @@ interface YardSignPriceSummaryProps {
   onPromoRemove: () => void;
   /** Same-Day Hit Service fee in cents. When > 0, shown as a line item. */
   sameDayHitServiceCents?: number;
+  /** Hide destination-dependent tax until checkout has a shipping address. */
+  taxCalculatedAtCheckout?: boolean;
 }
 
 const YardSignPriceSummary: React.FC<YardSignPriceSummaryProps> = ({
@@ -35,6 +37,7 @@ const YardSignPriceSummary: React.FC<YardSignPriceSummaryProps> = ({
   onPromoApply,
   onPromoRemove,
   sameDayHitServiceCents = 0,
+  taxCalculatedAtCheckout = false,
 }) => {
   const quantityValidation = validateYardSignQuantity(pricing.totalSignQuantity);
   const isInvalid = !quantityValidation.valid && pricing.totalSignQuantity > 0;
@@ -93,10 +96,11 @@ const YardSignPriceSummary: React.FC<YardSignPriceSummaryProps> = ({
       promoDiscountRate={pricing.promoDiscountRate}
       promoDiscountCode={promoApplied ? promoCode : undefined}
       sameDayHitServiceCents={sameDayHitServiceCents}
-      taxCents={pricing.taxCents}
+      taxCents={taxCalculatedAtCheckout ? 0 : pricing.taxCents}
       taxRate={pricing.taxRate}
       adjustedSubtotalCents={pricing.totalCents}
-      totalCents={pricing.totalWithTaxCents + sameDayHitServiceCents}
+      totalCents={(taxCalculatedAtCheckout ? pricing.totalCents : pricing.totalWithTaxCents) + sameDayHitServiceCents}
+      taxCalculatedAtCheckout={taxCalculatedAtCheckout}
       promo={{
         code: promoCode,
         applied: promoApplied,
