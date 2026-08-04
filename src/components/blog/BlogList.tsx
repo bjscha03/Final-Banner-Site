@@ -77,7 +77,15 @@ export function BlogList({ posts, allTags, currentPage, totalPages, onPageChange
 
       {(searchQuery || selectedTags.length > 0) && <div className="mt-5 flex items-center justify-between gap-4"><p className="text-sm text-slate-500">{filteredPosts.length} matching article{filteredPosts.length === 1 ? '' : 's'}</p><button onClick={clearFilters} className="text-sm font-bold text-[#0B1F3A] underline decoration-[#FF6A00] underline-offset-4">Clear filters</button></div>}
 
-      {featuredPost && <div className="mt-10"><BlogCard post={featuredPost} featured /></div>}
+      {featuredPost && (
+        <section className="mt-10" aria-labelledby="featured-article-heading">
+          <div className="mb-6 flex items-center gap-4">
+            <p id="featured-article-heading" className="brand-eyebrow">Featured article</p>
+            <div className="h-px flex-1 bg-slate-200" aria-hidden="true" />
+          </div>
+          <BlogCard post={featuredPost} featured />
+        </section>
+      )}
 
       {regularPosts.length > 0 ? (
         <section className="mt-14" aria-labelledby="latest-articles-heading">

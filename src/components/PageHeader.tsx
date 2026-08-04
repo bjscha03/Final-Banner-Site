@@ -12,17 +12,9 @@ interface PageHeaderProps {
 /**
  * PageHeader Component
  * 
- * A reusable, visually appealing page title header component that matches
- * the site's branding and design system.
- * 
- * Features:
- * - Consistent typography and spacing across all pages
- * - Optional icon support
- * - Optional subtitle text
- * - Gradient background option
- * - Responsive design (mobile, tablet, desktop)
- * - Brand colors: #18448D (primary blue), #ff6b35 or #f7931e (orange accents)
- * 
+ * A restrained page title header shared by the site's utility pages.
+ * Solid navy avoids decorative seams and partial rules across wide screens.
+ *
  * @param title - The main page title (required)
  * @param subtitle - Optional descriptive text below the title
  * @param icon - Optional Lucide icon component to display next to the title
@@ -37,11 +29,9 @@ const PageHeader: React.FC<PageHeaderProps> = ({
 }) => {
   return (
     <div
+      data-page-header
       className="relative overflow-hidden border-b border-white/10 bg-[#0B1F3A]"
     >
-      <div className="absolute inset-y-0 right-0 hidden w-1/3 border-l border-white/10 lg:block" aria-hidden="true" />
-      <div className="absolute bottom-0 right-0 h-1 w-1/3 bg-[#FF6A00]" aria-hidden="true" />
-
       <div className="relative mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
         <div className={centered ? 'text-center' : ''}>
           <div className={`flex items-center gap-4 ${centered ? 'justify-center' : ''}`}>

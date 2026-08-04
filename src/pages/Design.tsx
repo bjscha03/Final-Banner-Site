@@ -6,7 +6,7 @@ import Layout from '@/components/Layout';
 import { useQuoteStore, type MaterialKey } from '@/store/quote';
 import { useCartStore, type CartItem } from '@/store/cart';
 import { useUIStore } from '@/store/ui';
-import { calcTotals, usd, PRICE_PER_SQFT } from '@/lib/pricing';
+import { calcTotals, usd } from '@/lib/pricing';
 import { DESIGN_GROMMET_OPTIONS } from '@/lib/grommets';
 import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
 import {
@@ -976,7 +976,6 @@ const Design: React.FC = () => {
   });
   const totals = calcTotals({ widthIn, heightIn, qty: quantity, material, addRope, polePockets });
 
-  const pricePerSqFt = PRICE_PER_SQFT[material];
   const selectedMaterial = MATERIALS.find(m => m.mapped === material) || MATERIALS[0];
   const materialLabel = isCarMagnet ? 'Premium Magnetic Material' : selectedMaterial.label;
   const grommetsLabel = DESIGN_GROMMET_OPTIONS.find(o => o.value === grommets)?.label || 'None';
@@ -2603,7 +2602,6 @@ const Design: React.FC = () => {
 
       {/* Hero */}
       <section className="relative overflow-hidden border-b border-white/10 bg-[#0B1F3A] px-4 py-12 text-white md:py-16">
-        <div className="absolute inset-y-0 right-0 hidden w-1/3 border-l border-white/10 bg-[#102A4C] lg:block" aria-hidden="true" />
         <div className="relative z-[2] mx-auto max-w-4xl text-center">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF8A3D]">Online order builder</p>
           <h1 className="mt-4 font-display text-4xl font-bold leading-[1.05] tracking-[-0.04em] text-white sm:text-5xl">
@@ -3175,8 +3173,8 @@ const Design: React.FC = () => {
                 />
               ) : (
                 <PriceBreakdown
-                  topLine={`${sqft.toFixed(2)} sq ft • ${usd(pricePerSqFt)} per sq ft`}
-                  secondaryLine={`for ${quantity} ${quantity === 1 ? 'banner' : 'banners'} • ${widthDisplay} × ${heightDisplay} • ${materialLabel}`}
+                  topLine={`${materialLabel} • ${widthDisplay} × ${heightDisplay}`}
+                  secondaryLine={`for ${quantity} ${quantity === 1 ? 'banner' : 'banners'} • Current configured total shown below`}
                   showTopSummary={false}
                   detailRows={[
                     { label: 'Grommets', value: formatOptionValue(grommetsLabel) },

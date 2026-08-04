@@ -105,7 +105,7 @@ export const PRODUCT_LANDING_DATA: Record<CityProductSlug, ProductLandingDefinit
       `Custom width and height from ${bannerConfig.dimensions.minIn}″ to ${bannerConfig.dimensions.maxIn}″`,
       `Up to ${bannerConfig.dimensions.maxSqFt.toLocaleString()} square feet per configured banner`,
     ],
-    materials: bannerConfig.materials.map((material) => `${material.label} — ${formatMoney(Math.round(material.pricePerSqFt * 100))}/sq ft`),
+    materials: bannerConfig.materials.map((material) => material.label),
     options: [
       `Grommets: ${bannerConfig.grommets.map((option) => option.label).join(', ')}`,
       `Rope: ${formatMoney(bannerConfig.rope.pricePerFootCents)} per linear foot`,

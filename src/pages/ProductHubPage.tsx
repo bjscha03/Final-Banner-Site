@@ -47,7 +47,6 @@ const ProductHubPage: React.FC<ProductHubPageProps> = ({ productSlug }) => {
       />
 
       <section className="relative overflow-hidden bg-[#0B1F3A] text-white">
-        <div className="absolute inset-y-0 right-0 hidden w-[43%] border-l border-white/10 bg-[#102A4C] lg:block" aria-hidden="true" />
         <div className="brand-shell relative grid items-center gap-10 py-12 sm:py-16 lg:grid-cols-[1.04fr_0.96fr] lg:gap-16 lg:py-20">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF8A3D]">Product specifications & current pricing</p>
@@ -58,6 +57,7 @@ const ProductHubPage: React.FC<ProductHubPageProps> = ({ productSlug }) => {
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400">Starting price</p>
                 <p className="mt-1 font-display text-4xl font-bold text-white">{formatMoney(product.startingPriceCents)}</p>
+                <p className="mt-1 max-w-[250px] text-xs leading-5 text-slate-300">Includes free next-day air shipping after production</p>
               </div>
               <p className="max-w-sm pb-1 text-sm leading-6 text-slate-300">{product.minimumOrderLabel}. Your total updates before checkout.</p>
             </div>
@@ -77,8 +77,7 @@ const ProductHubPage: React.FC<ProductHubPageProps> = ({ productSlug }) => {
           </div>
 
           <div className="relative">
-            <div className="absolute -left-3 top-8 h-[80%] w-1 bg-[#FF6A00]" aria-hidden="true" />
-            <ProductVisual productSlug={productSlug} priority className="aspect-[4/3] border border-white/15 bg-white" />
+            <ProductVisual productSlug={productSlug} priority className="aspect-[16/11] border border-white/15 bg-white" />
             <div className="border-x border-b border-white/15 bg-white px-5 py-4 text-[#0B1F3A]">
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Available online</p>
               <p className="mt-1 font-display text-lg font-bold">{product.minimumOrderLabel}</p>

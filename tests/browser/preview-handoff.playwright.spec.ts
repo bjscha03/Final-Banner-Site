@@ -94,7 +94,7 @@ test('preview password input is safe from iOS focus zoom', async ({ page }, test
   expect(fontSize).toBeGreaterThanOrEqual(16);
 });
 
-test('design selector keeps banner, yard-sign, and magnet mockups fully inside their frames', async ({ page }, testInfo) => {
+test('design selector keeps all three photographic products fully inside their frames', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium-1440x900', 'One desktop selector run is sufficient');
 
   await page.goto('/design?product=banner', { waitUntil: 'domcontentloaded' });
@@ -105,110 +105,33 @@ test('design selector keeps banner, yard-sign, and magnet mockups fully inside t
     const selectorStages = page.locator('[role="tab"] [data-selector-product-stage]');
     await expect(selectorStages).toHaveCount(3);
 
-    const diagramSubjects = page.locator('[role="tab"] [data-selector-product-subject]');
-    await expect(diagramSubjects).toHaveCount(2);
-    const diagramMargins = await diagramSubjects.evaluateAll((subjects) => subjects.map((subject) => {
-      const frame = subject.closest<HTMLElement>('[data-selector-product-stage]');
-      if (!frame) throw new Error('Selector product stage is missing.');
-      const subjectRect = subject.getBoundingClientRect();
-      const frameRect = frame.getBoundingClientRect();
-      return {
-        left: (subjectRect.left - frameRect.left) / frameRect.width,
-        right: (frameRect.right - subjectRect.right) / frameRect.width,
-        top: (subjectRect.top - frameRect.top) / frameRect.height,
-        bottom: (frameRect.bottom - subjectRect.bottom) / frameRect.height,
-      };
-    }));
-    for (const margins of diagramMargins) {
-      expect(Math.min(margins.left, margins.right, margins.top, margins.bottom), `diagram safety margin at ${width}px`).toBeGreaterThanOrEqual(0.03);
-    }
-
-    const faceStates = await page.locator('[role="tab"] [data-selector-product-face]').evaluateAll((faces) => faces.map((face) => {
-      const element = face as HTMLElement;
-      const stage = element.closest<HTMLElement>('[data-selector-product-stage]');
-      if (!stage) throw new Error('Selector face is missing its stage.');
-      const faceRect = element.getBoundingClientRect();
-      const stageRect = stage.getBoundingClientRect();
-      const labels = Array.from(element.querySelectorAll<HTMLElement>('p')).map((label) => {
-        const range = document.createRange();
-        range.selectNodeContents(label);
-        const textRect = range.getBoundingClientRect();
-        const labelRect = label.getBoundingClientRect();
-        return {
-          horizontalOverflow: label.scrollWidth - label.clientWidth,
-          textInsideFace:
-            textRect.left >= faceRect.left - 1
-            && textRect.right <= faceRect.right + 1
-            && textRect.top >= faceRect.top - 1
-            && textRect.bottom <= faceRect.bottom + 1,
-          labelInsideFace:
-            labelRect.left >= faceRect.left - 1
-            && labelRect.right <= faceRect.right + 1
-            && labelRect.top >= faceRect.top - 1
-            && labelRect.bottom <= faceRect.bottom + 1,
-        };
-      });
-      return {
-        faceInsideStage:
-          faceRect.left >= stageRect.left - 1
-          && faceRect.right <= stageRect.right + 1
-          && faceRect.top >= stageRect.top - 1
-          && faceRect.bottom <= stageRect.bottom + 1,
-        horizontalOverflow: element.scrollWidth - element.clientWidth,
-        verticalOverflow: element.scrollHeight - element.clientHeight,
-        labels,
-      };
-    }));
-    expect(faceStates).toHaveLength(2);
-    for (const state of faceStates) {
-      expect(state.faceInsideStage, `face containment at ${width}px`).toBe(true);
-      expect(state.horizontalOverflow, `face horizontal overflow at ${width}px`).toBeLessThanOrEqual(1);
-      expect(state.verticalOverflow, `face vertical overflow at ${width}px`).toBeLessThanOrEqual(1);
-      expect(state.labels).toHaveLength(2);
-      for (const label of state.labels) {
-        expect(label.horizontalOverflow, `label horizontal overflow at ${width}px`).toBeLessThanOrEqual(1);
-        // scrollHeight is not a clipping signal for a tight single-line font:
-        // Chromium may report 2-3 extra pixels for font ascender/descender
-        // metrics. The rendered glyph Range and label/face rectangles are the
-        // direct visual bounds, so those remain the vertical authority.
-        expect(label.textInsideFace, `text containment at ${width}px`).toBe(true);
-        expect(label.labelInsideFace, `label containment at ${width}px`).toBe(true);
-      }
-    }
-
     const productImages = page.locator('[role="tab"] [data-product-visual-image]');
-    await expect(productImages).toHaveCount(1);
+    await expect(productImages).toHaveCount(3);
     await page.waitForFunction(() => {
       const images = Array.from(document.querySelectorAll<HTMLImageElement>('[role="tab"] [data-product-visual-image]'));
-      return images.length === 1 && images.every((image) => image.complete && image.naturalWidth > 0);
+      return images.length === 3 && images.every((image) => image.complete && image.naturalWidth > 0);
     });
 
-    const imageState = await productImages.first().evaluate((element) => {
+    const imageStates = await productImages.evaluateAll((elements) => elements.map((element) => {
       const image = element as HTMLImageElement;
       const stage = image.closest<HTMLElement>('[data-selector-product-stage]');
-      if (!stage) throw new Error('Magnet image is missing its stage.');
+      if (!stage) throw new Error('Product image is missing its selector stage.');
       const rect = image.getBoundingClientRect();
       const stageRect = stage.getBoundingClientRect();
-      const naturalRatio = image.naturalWidth / image.naturalHeight;
-      const renderedWidth = Math.min(rect.width, rect.height * naturalRatio);
-      const renderedHeight = renderedWidth / naturalRatio;
-      const renderedRect = {
-        left: rect.left + (rect.width - renderedWidth) / 2,
-        right: rect.left + (rect.width + renderedWidth) / 2,
-        top: rect.top + (rect.height - renderedHeight) / 2,
-        bottom: rect.top + (rect.height + renderedHeight) / 2,
-      };
       return {
         objectFit: getComputedStyle(image).objectFit,
-        renderedInsideStage:
-          renderedRect.left >= stageRect.left - 1
-          && renderedRect.right <= stageRect.right + 1
-          && renderedRect.top >= stageRect.top - 1
-          && renderedRect.bottom <= stageRect.bottom + 1,
+        insideStage:
+          rect.left >= stageRect.left - 1
+          && rect.right <= stageRect.right + 1
+          && rect.top >= stageRect.top - 1
+          && rect.bottom <= stageRect.bottom + 1,
       };
-    });
-    expect(imageState.objectFit).toBe('contain');
-    expect(imageState.renderedInsideStage, `magnet containment at ${width}px`).toBe(true);
+    }));
+    expect(imageStates).toHaveLength(3);
+    for (const state of imageStates) {
+      expect(state.objectFit).toBe('contain');
+      expect(state.insideStage, `product containment at ${width}px`).toBe(true);
+    }
   }
 });
 

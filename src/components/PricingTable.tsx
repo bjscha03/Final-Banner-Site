@@ -5,26 +5,26 @@ import { Link } from 'react-router-dom';
 const materials = [
   {
     name: '13oz Vinyl',
-    rate: '$4.50 / sq ft',
+    profile: 'Lightweight vinyl',
     use: 'Indoor displays and short-term outdoor campaigns',
-    traits: ['Lightweight', 'Smooth finish', 'Lowest material rate'],
+    traits: ['Smooth finish', 'Easy to handle', 'Short-term versatility'],
   },
   {
     name: '15oz Vinyl',
-    rate: '$6 / sq ft',
+    profile: 'Versatile outdoor vinyl',
     use: 'Everyday outdoor promotions, events, and storefronts',
     traits: ['Outdoor-ready', 'Added durability', 'Versatile choice'],
     recommended: true,
   },
   {
     name: '18oz Vinyl',
-    rate: '$7.50 / sq ft',
+    profile: 'Heavy-duty vinyl',
     use: 'Heavy-duty and longer-term outdoor display needs',
     traits: ['Heaviest vinyl', 'High durability', 'Longer-term use'],
   },
   {
     name: 'Mesh Banner',
-    rate: '$6 / sq ft',
+    profile: 'Wind-permeable mesh',
     use: 'Fences and outdoor placements where wind can pass through',
     traits: ['Wind-permeable', 'Fence-friendly', 'Outdoor use'],
   },
@@ -37,7 +37,8 @@ const PricingTable: React.FC = () => (
         <div className="max-w-3xl">
           <p className="brand-eyebrow">Vinyl banner materials</p>
           <h2 id="material-heading" className="brand-title mt-3">Pick the material for the environment.</h2>
-          <p className="brand-copy mt-4">Rates below are current base material rates before tax and paid finishing options. The configurator calculates your exact size and quantity.</p>
+          <p className="brand-copy mt-4">Compare finish, durability, and the environment where the banner will hang. The configurator calculates the exact current total for your size, quantity, and finishing choices.</p>
+          <p className="mt-3 text-sm font-semibold leading-6 text-[#0B1F3A]">Every displayed banner total includes free next-day air shipping after production.</p>
         </div>
         <Link to="/vinyl-banners" className="inline-flex items-center gap-2 font-bold text-[#0B1F3A] underline decoration-[#FF6A00] decoration-2 underline-offset-4">
           Full banner buying guide <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -50,7 +51,7 @@ const PricingTable: React.FC = () => (
             {material.recommended && <div className="absolute inset-x-0 top-0 h-1 bg-[#FF6A00]" aria-hidden="true" />}
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#A63C00]">{material.recommended ? 'Most versatile' : 'Material'}</p>
             <h3 className="mt-3 font-display text-2xl font-bold text-[#0B1F3A]">{material.name}</h3>
-            <p className="mt-2 font-display text-xl font-bold text-[#A63C00]">{material.rate}</p>
+            <p className="mt-2 text-sm font-bold uppercase tracking-[0.08em] text-[#A63C00]">{material.profile}</p>
             <p className="mt-5 min-h-[72px] text-sm leading-6 text-slate-600">{material.use}</p>
             <ul className="mt-5 space-y-2 border-t border-slate-200 pt-5 text-sm text-slate-700">
               {material.traits.map((trait) => (

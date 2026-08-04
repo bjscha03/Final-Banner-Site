@@ -98,10 +98,21 @@ const Footer: React.FC = () => {
         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-10 sm:grid-cols-2 lg:grid-cols-[1.3fr_0.7fr_0.7fr_0.7fr_1.2fr]">
           {/* Company Info */}
           <div className="min-w-0 md:col-span-1">
-            <h3 className="font-display text-2xl font-bold text-white mb-4">
-              Banners On The Fly
-            </h3>
-            <p className="max-w-sm text-sm leading-6 text-slate-300 mb-6">
+            <ScrollToTopLink
+              to="/"
+              aria-label="Banners On The Fly home"
+              className="inline-flex bg-white px-4 py-3 shadow-[0_10px_24px_rgba(0,0,0,0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF8A3D]"
+            >
+              <img
+                src="/images/logo-full.svg"
+                alt="Banners On The Fly"
+                width="260"
+                height="65"
+                loading="lazy"
+                className="h-auto w-[210px] max-w-full"
+              />
+            </ScrollToTopLink>
+            <p className="mb-6 mt-5 max-w-sm text-sm leading-6 text-slate-300">
               Custom banners, yard signs, and car magnets ordered online and shipped nationwide.
               Production time and carrier transit time are shown separately.
             </p>
@@ -233,7 +244,7 @@ const Footer: React.FC = () => {
         <div className="mt-12 border-t border-white/10 pt-7">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <p className="text-slate-400 text-sm">
-              © {new Date().getFullYear()} Banners On The Fly. All rights reserved.
+              © {new Date().getFullYear()}. All rights reserved.
             </p>
             <div className="mt-4 flex flex-col items-center gap-2 text-center sm:flex-row sm:flex-wrap sm:justify-center sm:gap-x-6 md:mt-0 md:justify-end md:text-left">
               <span className="text-slate-400 text-sm">Online ordering · Nationwide shipping</span>

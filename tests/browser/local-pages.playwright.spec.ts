@@ -65,67 +65,31 @@ for (const pageCase of pageCases) {
       await expect(page.getByText('24″ × 18″', { exact: true })).toBeVisible();
     }
 
-    if (pageCase.product === 'car-magnets') {
-      const productImage = page.locator('[data-product-visual-image]').first();
-      await expect(productImage).toBeVisible();
-      const productImageState = await productImage.evaluate((image) => ({
+    const visualSlug = pageCase.product === 'banner' ? 'vinyl-banners' : pageCase.product;
+    const productImage = page.locator(`[data-product-visual-image="${visualSlug}"]`).first();
+    await expect(productImage).toBeVisible();
+    const productImageState = await productImage.evaluate((image) => {
+      const stage = image.closest<HTMLElement>('[data-product-visual-stage]');
+      if (!stage) throw new Error('Product image is missing its bounded stage.');
+      const imageRect = image.getBoundingClientRect();
+      const stageRect = stage.getBoundingClientRect();
+      return {
         complete: (image as HTMLImageElement).complete,
         naturalWidth: (image as HTMLImageElement).naturalWidth,
         naturalHeight: (image as HTMLImageElement).naturalHeight,
         objectFit: getComputedStyle(image).objectFit,
-      }));
-      expect(productImageState.complete).toBe(true);
-      expect(productImageState.naturalWidth).toBeGreaterThan(0);
-      expect(productImageState.naturalHeight).toBeGreaterThan(0);
-      expect(productImageState.objectFit).toBe('contain');
-    } else {
-      const visualSlug = pageCase.product === 'banner' ? 'vinyl-banners' : 'yard-signs';
-      const subject = page.locator(`[data-product-visual-subject="${visualSlug}"]`).first();
-      await expect(subject).toBeVisible();
-      const visualState = await subject.evaluate((element) => {
-        const stage = element.closest<HTMLElement>('[data-product-visual-stage]');
-        if (!stage) throw new Error('Product diagram is missing its stage.');
-        const subjectRect = element.getBoundingClientRect();
-        const stageRect = stage.getBoundingClientRect();
-        const face = stage.querySelector<HTMLElement>('[data-product-visual-face]');
-        if (!face) throw new Error('Product diagram is missing its face.');
-        const faceRect = face.getBoundingClientRect();
-        const labels = Array.from(face.querySelectorAll<HTMLElement>('p')).map((label) => {
-          const range = document.createRange();
-          range.selectNodeContents(label);
-          const textRect = range.getBoundingClientRect();
-          return {
-            horizontalOverflow: label.scrollWidth - label.clientWidth,
-            textInsideFace:
-              textRect.left >= faceRect.left - 1
-              && textRect.right <= faceRect.right + 1
-              && textRect.top >= faceRect.top - 1
-              && textRect.bottom <= faceRect.bottom + 1,
-          };
-        });
-        return {
-          minimumMargin: Math.min(
-            (subjectRect.left - stageRect.left) / stageRect.width,
-            (stageRect.right - subjectRect.right) / stageRect.width,
-            (subjectRect.top - stageRect.top) / stageRect.height,
-            (stageRect.bottom - subjectRect.bottom) / stageRect.height,
-          ),
-          faceInsideStage:
-            faceRect.left >= stageRect.left - 1
-            && faceRect.right <= stageRect.right + 1
-            && faceRect.top >= stageRect.top - 1
-            && faceRect.bottom <= stageRect.bottom + 1,
-          labels,
-        };
-      });
-      expect(visualState.minimumMargin).toBeGreaterThanOrEqual(0.03);
-      expect(visualState.faceInsideStage).toBe(true);
-      expect(visualState.labels).toHaveLength(2);
-      for (const label of visualState.labels) {
-        expect(label.horizontalOverflow).toBeLessThanOrEqual(1);
-        expect(label.textInsideFace).toBe(true);
-      }
-    }
+        insideStage:
+          imageRect.left >= stageRect.left - 1
+          && imageRect.right <= stageRect.right + 1
+          && imageRect.top >= stageRect.top - 1
+          && imageRect.bottom <= stageRect.bottom + 1,
+      };
+    });
+    expect(productImageState.complete).toBe(true);
+    expect(productImageState.naturalWidth).toBeGreaterThan(0);
+    expect(productImageState.naturalHeight).toBeGreaterThan(0);
+    expect(['contain', 'cover']).toContain(productImageState.objectFit);
+    expect(productImageState.insideStage).toBe(true);
 
     const viewportWidth = testInfo.project.use.viewport?.width || 0;
     if (viewportWidth < 1024) {
@@ -275,4 +239,21 @@ test('size comparison diagrams never exceed their bounded stages', async ({ page
   for (const state of states) {
     expect(Math.min(state.left, state.right, state.top, state.bottom)).toBeGreaterThanOrEqual(8);
   }
+  await expect(page.locator('[data-size-snapshot-hardware="grommet"]')).toHaveCount(12);
+  await expect(page.locator('[data-shipping-included]')).toHaveCount(3);
+
+  await page.goto('/car-magnets/', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('[data-size-snapshot-product="car-magnets"]')).toHaveCount(5);
+  await expect(page.locator('[data-size-snapshot-hardware="grommet"]')).toHaveCount(0);
+  await expect(page.locator('[data-shipping-included]')).toHaveCount(5);
+});
+
+test('footer uses the brand mark and blog exposes one featured label', async ({ page }) => {
+  await page.goto('/blog', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByText('Featured article', { exact: true })).toHaveCount(1);
+
+  const footer = page.locator('footer');
+  await expect(footer.locator('img[alt="Banners On The Fly"]')).toBeVisible();
+  await expect(footer.locator('h3')).toHaveCount(0);
+  await expect(footer.getByText('Banners On The Fly', { exact: true })).toHaveCount(0);
 });

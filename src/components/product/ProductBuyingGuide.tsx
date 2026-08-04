@@ -10,7 +10,44 @@ interface ProductBuyingGuideProps {
   faqHeading?: string;
 }
 
-const snapshotWidths = ['w-[46%]', 'w-[70%]', 'w-full'];
+const bannerSnapshotWidths = ['w-1/2', 'w-3/4', 'w-full'];
+const magnetSnapshotWidths = ['w-[34%]', 'w-[46%]', 'w-[58%]', 'w-3/4', 'w-full'];
+
+interface SizeSnapshotProps {
+  productSlug: ProductLandingDefinition['slug'];
+  index: number;
+}
+
+const SizeSnapshot: React.FC<SizeSnapshotProps> = ({ productSlug, index }) => {
+  const isMagnet = productSlug === 'car-magnets';
+  const widthClass = (isMagnet ? magnetSnapshotWidths : bannerSnapshotWidths)[index] || 'w-full';
+
+  return (
+    <div
+      data-size-snapshot-stage
+      data-size-snapshot-product={productSlug}
+      className="flex h-28 min-w-0 items-center justify-center overflow-hidden bg-[#F2F4F6] p-3"
+      aria-hidden="true"
+    >
+      <div className="flex w-full max-w-[180px] items-center justify-center">
+        <div
+          data-size-snapshot-subject
+          className={`${widthClass} relative aspect-[2/1] max-w-full border-2 border-[#0B1F3A] bg-white shadow-[4px_5px_0_#D7DEE7] ${isMagnet ? 'rounded-[7px]' : ''}`}
+        >
+          {isMagnet ? (
+            <div className="absolute inset-[7%] rounded-[4px] border border-slate-300 bg-gradient-to-br from-white to-slate-100" />
+          ) : (
+            <>
+              {['left-1.5 top-1.5', 'right-1.5 top-1.5', 'bottom-1.5 left-1.5', 'bottom-1.5 right-1.5'].map((position) => (
+                <span key={position} data-size-snapshot-hardware="grommet" className={`absolute ${position} h-1.5 w-1.5 rounded-full border border-slate-400 bg-slate-100`} />
+              ))}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const ProductBuyingGuide: React.FC<ProductBuyingGuideProps> = ({
   product,
@@ -36,7 +73,7 @@ const ProductBuyingGuide: React.FC<ProductBuyingGuideProps> = ({
             <p className="brand-copy mt-4">
               {isFixedSizeYardSign
                 ? 'Every yard sign uses the same 24 × 18-inch corrugated-plastic format. Choose single- or double-sided printing, then add step stakes only if you need them.'
-                : 'These are live examples from the same pricing data used by the configurator. Tax and paid options are not included.'}
+                : 'These are live examples from the same pricing data used by the configurator. Displayed product prices include free next-day air shipping after production; tax and paid options are not included.'}
             </p>
             {!isFixedSizeYardSign && sharedConfiguration && (
               <div className="mt-6 border-l-4 border-[#FF6A00] bg-[#F7F7F7] p-4 text-sm leading-6 text-slate-700">
@@ -57,6 +94,7 @@ const ProductBuyingGuide: React.FC<ProductBuyingGuideProps> = ({
                 </div>
                 <div className="min-w-0 p-5 sm:p-6">
                   <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Current pricing · Quantity 10</p>
+                  <p className="mt-2 text-sm font-semibold leading-6 text-[#0B1F3A]">Sign prices include free next-day air shipping after production.</p>
                   <div className="mt-3 divide-y divide-slate-200 border-y border-slate-200">
                     {product.priceExamples.map((example) => {
                       const isAddOn = example.label.toLowerCase().includes('stake');
@@ -69,32 +107,31 @@ const ProductBuyingGuide: React.FC<ProductBuyingGuideProps> = ({
                             </div>
                             <p className="mt-1 text-xs leading-5 text-slate-500">{example.note || 'Before tax'}</p>
                           </div>
-                          <p className="font-display text-2xl font-bold text-[#A63C00] sm:text-right">{formatMoney(example.totalCents)}</p>
+                          <div className="sm:text-right">
+                            <p className="font-display text-2xl font-bold text-[#A63C00]">{formatMoney(example.totalCents)}</p>
+                            <p data-shipping-included={!isAddOn ? '' : undefined} className="mt-1 max-w-[210px] text-xs leading-4 text-slate-500">
+                              {isAddOn ? 'Ships with your sign order' : 'Includes free next-day air shipping'}
+                            </p>
+                          </div>
                         </article>
                       );
                     })}
                   </div>
-                  <p className="mt-4 text-xs leading-5 text-slate-500">Sign prices exclude tax. Step stakes are shown separately because they are optional and do not change the sign size.</p>
+                  <p className="mt-4 text-xs leading-5 text-slate-500">Sign prices exclude tax. Step stakes are shown separately because they are optional and do not change the sign size. Carrier transit begins after production.</p>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="grid border border-slate-200 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {product.priceExamples.map((example, index) => (
-                <article data-size-snapshot key={`${example.label}-${example.configuration}`} className={`flex min-h-[280px] min-w-0 flex-col p-5 sm:p-6 ${index > 0 ? 'border-t border-slate-200 sm:border-l sm:border-t-0' : ''}`}>
-                  <div data-size-snapshot-stage className="flex h-28 min-w-0 items-center justify-center overflow-hidden bg-[#F2F4F6] p-3" aria-hidden="true">
-                    <div className="flex w-full max-w-[180px] items-center justify-center">
-                      <div data-size-snapshot-subject className={`${snapshotWidths[index] || 'w-full'} relative aspect-[2/1] max-w-full border-2 border-[#0B1F3A] bg-white shadow-[4px_5px_0_#D7DEE7]`}>
-                        <span className="absolute left-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[#FF6A00]" />
-                        <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[#FF6A00]" />
-                      </div>
-                    </div>
-                  </div>
+                <article data-size-snapshot key={`${example.label}-${example.configuration}`} className="flex min-h-[300px] min-w-0 flex-col border border-slate-200 bg-white p-5 sm:p-6">
+                  <SizeSnapshot productSlug={product.slug} index={index} />
                   <h3 className="mt-5 font-display text-lg font-bold leading-6 text-[#0B1F3A]">{example.label}</h3>
                   {!sharedConfiguration && <p className="mt-2 text-sm leading-5 text-slate-600">{example.configuration}</p>}
-                  <div className="mt-auto flex items-end justify-between gap-3 pt-5">
+                  <div className="mt-auto pt-5">
                     <p className="font-display text-2xl font-bold text-[#A63C00]">{formatMoney(example.totalCents)}</p>
-                    <p className="text-right text-xs leading-4 text-slate-500">{example.note || 'Before tax'}</p>
+                    <p data-shipping-included className="mt-1 text-xs font-semibold leading-4 text-[#0B1F3A]">Includes free next-day air shipping</p>
+                    <p className="mt-1 text-xs leading-4 text-slate-500">{example.note || 'Before tax'} · Carrier transit after production</p>
                   </div>
                 </article>
               ))}

@@ -62,6 +62,7 @@ const MobileStickyCta: React.FC<MobileStickyCtaProps> = ({ heroElement, hideElem
         <div className="min-w-0 flex-1">
           <p className="text-xs font-medium text-slate-500">Starting at</p>
           <p className="font-display text-lg font-bold text-[#0B1F3A]">{price}</p>
+          <p className="text-[10px] leading-4 text-slate-500">Free next-day air included</p>
         </div>
         <Link to={href} className="brand-button-primary min-h-11 px-5 text-sm">{label}</Link>
       </div>
@@ -106,7 +107,6 @@ const CityProductPage: React.FC<CityProductPageProps> = ({ productSlug }) => {
       </div>
 
       <section ref={heroRef} className="relative overflow-hidden bg-[#0B1F3A] text-white">
-        <div className="absolute inset-y-0 right-0 hidden w-[43%] border-l border-white/10 bg-[#102A4C] lg:block" aria-hidden="true" />
         <div className="brand-shell relative grid items-center gap-10 py-8 sm:py-16 lg:grid-cols-[1.04fr_0.96fr] lg:gap-16 lg:py-20">
           <div>
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-[#FF8A3D] sm:text-sm">
@@ -123,6 +123,7 @@ const CityProductPage: React.FC<CityProductPageProps> = ({ productSlug }) => {
                 <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400">Starting price</p>
                 <p className="mt-1 font-display text-3xl font-bold sm:text-4xl">{startingPrice}</p>
                 <p className="mt-1 max-w-[230px] text-xs leading-5 text-slate-300 sm:hidden">{product.minimumOrderLabel}</p>
+                <p className="mt-1 max-w-[250px] text-xs leading-5 text-slate-300">Includes free next-day air shipping after production</p>
               </div>
               <p className="hidden max-w-sm pb-1 text-sm leading-6 text-slate-300 sm:block">{product.minimumOrderLabel}. Your total updates before checkout.</p>
             </div>
@@ -142,8 +143,7 @@ const CityProductPage: React.FC<CityProductPageProps> = ({ productSlug }) => {
           </div>
 
           <div className="relative">
-            <div className="absolute -left-3 top-8 h-[80%] w-1 bg-[#FF6A00]" aria-hidden="true" />
-            <ProductVisual productSlug={productSlug} priority className="aspect-[4/3] border border-white/15 bg-white" />
+            <ProductVisual productSlug={productSlug} priority className="aspect-[16/11] border border-white/15 bg-white" />
             <div className="border-x border-b border-white/15 bg-white px-5 py-4 text-[#0B1F3A]">
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Delivered product</p>
               <p className="mt-1 font-display text-lg font-bold">Configured online · Shipped nationwide</p>

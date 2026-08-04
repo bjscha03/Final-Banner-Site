@@ -24,7 +24,7 @@ const products: Product[] = [
     slug: 'yard-signs',
     title: 'Yard signs',
     description: 'Full-color 24 × 18 inch corrugated plastic signs with single- or double-sided printing.',
-    price: '10 from $120',
+    price: '10 signs from $120',
     details: 'Optional step stakes',
   },
   {
@@ -48,11 +48,14 @@ const ProductSelectionStrip: React.FC = () => (
       <div className="mt-10 grid gap-6 lg:grid-cols-3">
         {products.map((product) => (
           <article key={product.slug} className="group overflow-hidden border border-slate-200 bg-white transition-colors hover:border-[#0B1F3A]">
-            <ProductVisual productSlug={product.slug} className="aspect-[4/3] border-b border-slate-200" />
+            <ProductVisual productSlug={product.slug} className="aspect-[16/10] border-b border-slate-200" />
             <div className="p-6 sm:p-7">
-              <div className="flex items-baseline justify-between gap-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                 <h3 className="font-display text-2xl font-bold text-[#0B1F3A]">{product.title}</h3>
-                <p className="whitespace-nowrap font-display text-lg font-bold text-[#A63C00]">{product.price}</p>
+                <div className="sm:text-right">
+                  <p className="font-display text-lg font-bold text-[#A63C00]">{product.price}</p>
+                  <p className="mt-1 max-w-[170px] text-xs leading-4 text-slate-500">Includes free next-day air shipping after production</p>
+                </div>
               </div>
               <p className="mt-3 min-h-[72px] leading-6 text-slate-600">{product.description}</p>
               <p className="mt-5 border-t border-slate-200 pt-4 text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{product.details}</p>

@@ -25,8 +25,7 @@ export function BlogCard({ post, featured = false }: BlogCardProps) {
           <OptimizedImage src={heroImageUrl} alt={frontmatter.alt} width={900} className="h-full min-h-[300px] w-full object-cover" />
         </Link>
         <div className="flex flex-col justify-center p-7 sm:p-9 lg:p-11">
-          <p className="brand-eyebrow">Featured article</p>
-          <div className="mt-4 flex flex-wrap gap-3">{frontmatter.tags.slice(0, 3).map((tag) => <TagPill key={tag} tag={tag} linkTo />)}</div>
+          <div className="flex flex-wrap gap-3">{frontmatter.tags.slice(0, 3).map((tag) => <TagPill key={tag} tag={tag} linkTo />)}</div>
           <Link to={articleUrl}><h2 className="mt-4 font-display text-3xl font-bold leading-tight tracking-[-0.03em] text-[#0B1F3A] hover:text-[#A63C00]">{frontmatter.title}</h2></Link>
           <p className="mt-4 line-clamp-3 text-lg leading-7 text-slate-600">{excerpt}</p>
           <div className="mt-6 flex flex-wrap gap-5 text-sm text-slate-500">
