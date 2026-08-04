@@ -1,5 +1,5 @@
 import { FormEvent, useMemo, useState } from 'react';
-import { createRoot } from 'react-dom/client';
+import { createRoot, hydrateRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 import './admin-preview.css';
@@ -56,7 +56,16 @@ function PreviewAccessGate() {
 
     if (password === expectedPassword) {
       sessionStorage.setItem(PREVIEW_SESSION_KEY, 'true');
-      window.location.reload();
+      // iOS Safari auto-zooms focused inputs below 16px and can retain that
+      // visual scale across a reload. Release focus before entering the app so
+      // every preview route starts at the authored viewport scale.
+      const activeElement = document.activeElement;
+      if (activeElement instanceof HTMLElement) activeElement.blur();
+      const viewportMeta = document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
+      if (viewportMeta) {
+        viewportMeta.content = 'width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover';
+      }
+      window.setTimeout(() => window.location.reload(), 250);
       return;
     }
 
@@ -80,7 +89,7 @@ function PreviewAccessGate() {
                 setPassword(event.target.value);
                 setErrorMessage('');
               }}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-base"
               autoComplete="current-password"
               placeholder="Password"
             />
@@ -117,7 +126,14 @@ installPayPalCheckoutStorageGuard();
 installPayPalCaptureResponseGuard();
 
 const RootComponent = shouldRequirePreviewGate() ? PreviewAccessGate : App;
+const rootElement = document.getElementById('root')!;
+const canHydrate = document.documentElement.dataset.prerendered === 'true' && RootComponent === App;
 
-createRoot(document.getElementById('root')!).render(<RootComponent />);
+if (canHydrate) {
+  hydrateRoot(rootElement, <RootComponent />);
+} else {
+  if (rootElement.hasChildNodes()) rootElement.replaceChildren();
+  createRoot(rootElement).render(<RootComponent />);
+}
 
 import './buildId';

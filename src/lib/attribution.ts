@@ -43,13 +43,25 @@ const writeStored = (payload: AttributionPayload) => {
   }
 };
 
+const getSafeSourcePage = (rawValue: string | null): string | null => {
+  if (typeof window === 'undefined' || !rawValue || !rawValue.startsWith('/') || rawValue.startsWith('//')) return null;
+  try {
+    const sourceUrl = new URL(rawValue, window.location.origin);
+    if (sourceUrl.origin !== window.location.origin) return null;
+    return `${sourceUrl.origin}${sourceUrl.pathname}`;
+  } catch (_e) {
+    return null;
+  }
+};
+
 export const captureAttributionFromLocation = (): AttributionPayload => {
   if (typeof window === 'undefined') return {};
   const params = new URLSearchParams(window.location.search);
   const stored = readStored();
+  const sourcePage = getSafeSourcePage(params.get('source_page'));
   const next: AttributionPayload = {
     ...stored,
-    landing_page: stored.landing_page || window.location.href,
+    landing_page: stored.landing_page || sourcePage || window.location.href,
     referrer: stored.referrer || document.referrer || null,
     captured_at: stored.captured_at || new Date().toISOString(),
   };

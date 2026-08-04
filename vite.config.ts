@@ -109,7 +109,6 @@ export default defineConfig(({ mode }) => ({
             '@radix-ui/react-toggle-group',
           ],
           'canvas-editor': ['konva', 'react-konva', 'use-image'],
-          'pdf-libs': ['pdfjs-dist', 'pdfkit'],
           'charts': ['recharts'],
           'forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
           'utils': ['date-fns', 'clsx', 'tailwind-merge', 'class-variance-authority'],

@@ -4,7 +4,6 @@ import { useToast } from '@/hooks/use-toast';
 import Layout from '@/components/Layout';
 import HeroSection from '@/components/HeroSection';
 import CompanySpotlight from '@/components/CompanySpotlight';
-import TestimonialsSection from '@/components/TestimonialsSection';
 import WhyChooseUs from '@/components/WhyChooseUs';
 import PromoBanner from '@/components/PromoBanner';
 import PricingTable from '@/components/PricingTable';
@@ -67,18 +66,17 @@ const Index: React.FC = () => {
     <Layout>
       <SEO
         title="Custom Banners, Yard Signs & Car Magnets | Banners On The Fly"
-        description="Order custom banners, yard signs, and car magnets with 24-hour production and FREE next-day air shipping anywhere in the U.S."
+        description="Configure custom banners, yard signs, and car magnets online. Most standard orders are produced within 24 hours; free next-day air follows production."
         canonical="https://bannersonthefly.com/"
       />
       <PromoBanner />
       <HeroSection />
       <ProductSelectionStrip />
-      <CustomQuoteSection />
-      <DeliveryCarousel />
-      <CompanySpotlight />
-      <TestimonialsSection />
       <WhyChooseUs />
       <PricingTable />
+      <CompanySpotlight />
+      <DeliveryCarousel />
+      <CustomQuoteSection />
     </Layout>
   );
 };

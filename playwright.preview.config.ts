@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const baseURL = 'http://127.0.0.1:4175';
+const previewGateBaseURL = 'http://127.0.0.1:4176';
 const chromiumExecutablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
 const localChromiumLaunch = chromiumExecutablePath
   ? { launchOptions: { executablePath: chromiumExecutablePath } }
@@ -26,12 +27,24 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
   },
-  webServer: {
-    command: 'npx vite --config tests/browser/vite.handoff.config.ts',
-    url: `${baseURL}/tests/browser/preview-handoff.html`,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  webServer: [
+    {
+      command: 'npx vite --config tests/browser/vite.handoff.config.ts',
+      url: `${baseURL}/tests/browser/preview-handoff.html`,
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
+    {
+      command: 'npx vite --config tests/browser/vite.handoff.config.ts --port 4176',
+      url: previewGateBaseURL,
+      env: {
+        VITE_NETLIFY_CONTEXT: 'deploy-preview',
+        VITE_PREVIEW_ACCESS_PASSWORD: 'test-preview-password',
+      },
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
+  ],
   projects: [
     {
       name: 'chromium-1440x900',

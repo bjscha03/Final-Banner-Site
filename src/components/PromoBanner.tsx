@@ -17,23 +17,22 @@ const PromoBanner: React.FC = () => {
   };
 
   return (
-    <div className="bg-gradient-to-r from-orange-500 via-orange-400 to-orange-600 promo-shimmer text-white">
-      {/* Single row: Main promo message */}
-      <div className="py-2.5 px-4 text-center">
+    <div className="border-b border-orange-200 bg-[#FFF4EC] text-[#0B1F3A]">
+      <div className="px-4 py-2.5 text-center">
         <button
           onClick={handleCopyCode}
-          className="inline-flex items-center gap-2 hover:opacity-90 transition-opacity cursor-pointer group"
+          className="group inline-flex items-center gap-2 font-medium transition-colors hover:text-[#A63C00]"
           title="Click to copy code"
         >
-          <Tag className="w-4 h-4" />
+          <Tag className="h-4 w-4 text-[#FF6A00]" />
           <span className="text-sm font-medium">
             New customers: Save 20% with code{' '}
-            <span className="underline decoration-2 underline-offset-2 font-bold">{PROMO_CODE}</span>
+            <span className="border-b-2 border-[#FF6A00] font-bold">{PROMO_CODE}</span>
             {' '}(first order only)
           </span>
           <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
           {copied && (
-            <span className="text-xs bg-white/20 px-2 py-0.5 rounded animate-pulse">Copied!</span>
+            <span className="border border-orange-200 bg-white px-2 py-0.5 text-xs font-bold text-[#A63C00]">Copied</span>
           )}
         </button>
       </div>

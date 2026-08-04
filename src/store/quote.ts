@@ -119,7 +119,7 @@ export const ORDER_SIZE_LIMIT_SQFT = 1000;
 
 export const getSizeLimitMessage = (sqft: number): string | null => {
   if (sqft > ORDER_SIZE_LIMIT_SQFT) {
-    return `Orders over 1,000 sq ft require a custom quote. Please contact us at (555) 123-4567 or support@bannersonthefly.com before placing your order.`;
+    return 'Orders over 1,000 sq ft require a custom quote. Please contact support@bannersonthefly.com before placing your order.';
   }
   return null;
 };

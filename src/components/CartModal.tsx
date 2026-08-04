@@ -328,7 +328,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
 
               <button
                 onClick={handleCheckout}
-                className="mt-4 w-full rounded-lg bg-[#ff6b35] py-4 text-lg font-bold text-white shadow-lg transition-all duration-200 hover:scale-[1.02] hover:bg-[#e16629] hover:shadow-xl"
+                className="mt-4 w-full rounded-md bg-[#FF6A00] py-4 text-lg font-bold text-[#0B1F3A] transition-colors hover:bg-[#E65F00]"
               >
                 Proceed to Checkout
               </button>

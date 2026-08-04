@@ -1,9 +1,5 @@
-/**
- * Blog List Component with Search, Filtering, and Enhanced Design
- */
-
-import React, { useState, useMemo } from 'react';
-import { Search, Filter, Sparkles, BookOpen, TrendingUp, X, Send, CheckCircle, Loader2 } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { CheckCircle, Loader2, Search, Send, X } from 'lucide-react';
 import { BlogCard } from './BlogCard';
 import { TagPill } from './TagPill';
 import { useToast } from '@/components/ui/use-toast';
@@ -17,366 +13,108 @@ interface BlogListProps {
   onPageChange?: (page: number) => void;
 }
 
-export function BlogList({
-  posts,
-  allTags,
-  currentPage,
-  totalPages,
-  onPageChange,
-}: BlogListProps) {
+export function BlogList({ posts, allTags, currentPage, totalPages, onPageChange }: BlogListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [showAllTags, setShowAllTags] = useState(false);
-  
-  // Newsletter state
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const { toast } = useToast();
-  
-  const filteredPosts = useMemo(() => {
-    return posts.filter(post => {
-      const matchesSearch = searchQuery === '' || 
-        post.frontmatter.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        post.frontmatter.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        post.frontmatter.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-      
-      const matchesTags = selectedTags.length === 0 ||
-        selectedTags.every(selectedTag =>
-          post.frontmatter.tags.some(tag => tag.toLowerCase() === selectedTag.toLowerCase())
-        );
-      
-      return matchesSearch && matchesTags;
-    });
-  }, [posts, searchQuery, selectedTags]);
-  
-  const toggleTag = (tag: string) => {
-    setSelectedTags(prev =>
-      prev.includes(tag)
-        ? prev.filter(t => t !== tag)
-        : [...prev, tag]
-    );
-  };
-  
-  const clearFilters = () => {
-    setSearchQuery('');
-    setSelectedTags([]);
-  };
-  
-  // Newsletter submit handler
-  const handleNewsletterSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!newsletterEmail.trim()) {
-      toast({
-        title: "Email Required",
-        description: "Please enter your email address.",
-        variant: "destructive",
-      });
+
+  const filteredPosts = useMemo(() => posts.filter((post) => {
+    const query = searchQuery.toLowerCase();
+    const matchesSearch = !query || post.frontmatter.title.toLowerCase().includes(query) || post.frontmatter.description.toLowerCase().includes(query) || post.frontmatter.tags.some((tag) => tag.toLowerCase().includes(query));
+    const matchesTags = selectedTags.length === 0 || selectedTags.every((selected) => post.frontmatter.tags.some((tag) => tag.toLowerCase() === selected.toLowerCase()));
+    return matchesSearch && matchesTags;
+  }), [posts, searchQuery, selectedTags]);
+
+  const toggleTag = (tag: string) => setSelectedTags((current) => current.includes(tag) ? current.filter((item) => item !== tag) : [...current, tag]);
+  const clearFilters = () => { setSearchQuery(''); setSelectedTags([]); };
+  const featuredPost = !searchQuery && selectedTags.length === 0 ? filteredPosts[0] : null;
+  const regularPosts = featuredPost ? filteredPosts.slice(1) : filteredPosts;
+  const visibleTags = showAllTags ? allTags : allTags.slice(0, 8);
+
+  const handleNewsletterSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!/^\S+@\S+\.\S+$/.test(newsletterEmail.trim())) {
+      toast({ title: 'Enter a valid email', description: 'Please check the email address and try again.', variant: 'destructive' });
       return;
     }
-    
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(newsletterEmail.trim())) {
-      toast({
-        title: "Invalid Email",
-        description: "Please enter a valid email address.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
     setIsSubmitting(true);
-    setSubmitStatus('idle');
-    
     try {
-      const response = await fetch('/.netlify/functions/newsletter-signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email: newsletterEmail.trim() }),
-      });
-      
+      const response = await fetch('/.netlify/functions/newsletter-signup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: newsletterEmail.trim() }) });
       const data = await response.json();
-      
-      if (response.ok && data.success) {
-        setSubmitStatus('success');
-        setNewsletterEmail('');
-        toast({
-          title: "You're subscribed! 🎉",
-          description: data.message || "Thanks for subscribing! Check your inbox for confirmation.",
-          duration: 5000,
-        });
-      } else {
-        setSubmitStatus('error');
-        toast({
-          title: "Subscription Failed",
-          description: data.error || "Failed to subscribe. Please try again.",
-          variant: "destructive",
-        });
-      }
+      if (!response.ok || !data.success) throw new Error(data.error || 'Subscription failed');
+      setSubmitStatus('success');
+      setNewsletterEmail('');
     } catch (error) {
-      console.error('Newsletter signup error:', error);
       setSubmitStatus('error');
-      toast({
-        title: "Network Error",
-        description: "Failed to connect. Please check your internet connection and try again.",
-        variant: "destructive",
-      });
+      toast({ title: 'Subscription failed', description: error instanceof Error ? error.message : 'Please try again.', variant: 'destructive' });
     } finally {
       setIsSubmitting(false);
-      
-      // Reset status after 3 seconds
-      setTimeout(() => {
-        setSubmitStatus('idle');
-      }, 3000);
     }
   };
-  
-  // Featured post is the first post when no filters are applied
-  const featuredPost = searchQuery === '' && selectedTags.length === 0 && filteredPosts.length > 0 ? filteredPosts[0] : null;
-  const regularPosts = featuredPost ? filteredPosts.slice(1) : filteredPosts;
-  
-  // Limit visible tags
-  const visibleTags = showAllTags ? allTags : allTags.slice(0, 8);
-  const hasMoreTags = allTags.length > 8;
-  
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      {/* Search and Filters Section */}
-      <div className="mb-12">
-        {/* Search Bar */}
-        <div className="max-w-2xl mx-auto mb-8">
-          <div className="relative group">
-            <div className="absolute inset-0 bg-gradient-to-r from-[#18448D] to-[#ff6b35] rounded-2xl blur-md opacity-20 group-hover:opacity-30 transition-opacity duration-300" />
-            <div className="relative flex items-center">
-              <Search className="absolute left-5 w-5 h-5 text-gray-400 group-focus-within:text-[#18448D] transition-colors" />
-              <input
-                type="text"
-                placeholder="Search articles by title, topic, or keyword..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-14 pr-12 py-4 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-[#18448D]/20 focus:border-[#18448D] transition-all duration-300 text-gray-800 placeholder-gray-400 bg-white shadow-lg"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-5 p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              )}
-            </div>
+    <div className="brand-shell py-12 sm:py-16">
+      <div className="grid gap-6 border-b border-slate-200 pb-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
+        <div>
+          <label htmlFor="article-search" className="brand-eyebrow">Search the library</label>
+          <div className="relative mt-3 max-w-xl">
+            <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+            <input id="article-search" type="search" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search by title, topic, or keyword" className="brand-field pl-12 pr-11" />
+            {searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-slate-400" aria-label="Clear search"><X className="h-4 w-4" /></button>}
           </div>
         </div>
-        
-        {/* Tags Filter */}
         {allTags.length > 0 && (
-          <div className="text-center">
-            <div className="inline-flex items-center gap-2 mb-4 text-sm font-medium text-gray-600">
-              <Filter className="w-4 h-4 text-[#18448D]" />
-              <span>Filter by topic:</span>
-            </div>
-            <div className="flex flex-wrap gap-2 justify-center mb-4">
-              {visibleTags.map(tag => (
-                <TagPill
-                  key={tag}
-                  tag={tag}
-                  active={selectedTags.includes(tag)}
-                  onClick={() => toggleTag(tag)}
-                />
-              ))}
-            </div>
-            {hasMoreTags && (
-              <button
-                onClick={() => setShowAllTags(!showAllTags)}
-                className="text-sm font-medium text-[#18448D] hover:text-[#ff6b35] transition-colors"
-              >
-                {showAllTags ? 'Show less' : `+ ${allTags.length - 8} more topics`}
-              </button>
-            )}
-          </div>
-        )}
-        
-        {/* Active Filters */}
-        {(searchQuery || selectedTags.length > 0) && (
-          <div className="flex items-center justify-center gap-3 mt-6">
-            <span className="text-sm text-gray-500">Active filters:</span>
-            {searchQuery && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-[#18448D]/10 text-[#18448D]">
-                "{searchQuery}"
-                <button onClick={() => setSearchQuery('')} className="hover:text-[#ff6b35]">
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </span>
-            )}
-            {selectedTags.map(tag => (
-              <span key={tag} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-[#18448D] text-white">
-                {tag}
-                <button onClick={() => toggleTag(tag)} className="hover:text-[#ff6b35]">
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </span>
-            ))}
-            <button
-              onClick={clearFilters}
-              className="text-sm font-medium text-gray-500 hover:text-[#ff6b35] transition-colors underline"
-            >
-              Clear all
-            </button>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 lg:justify-end">
+            {visibleTags.map((tag) => <TagPill key={tag} tag={tag} active={selectedTags.includes(tag)} onClick={() => toggleTag(tag)} />)}
+            {allTags.length > 8 && <button onClick={() => setShowAllTags(!showAllTags)} className="px-1 text-xs font-bold text-[#A63C00]">{showAllTags ? 'Show fewer' : `+${allTags.length - 8} more`}</button>}
           </div>
         )}
       </div>
-      
-      {/* Featured Post Section */}
+
+      {(searchQuery || selectedTags.length > 0) && <div className="mt-5 flex items-center justify-between gap-4"><p className="text-sm text-slate-500">{filteredPosts.length} matching article{filteredPosts.length === 1 ? '' : 's'}</p><button onClick={clearFilters} className="text-sm font-bold text-[#0B1F3A] underline decoration-[#FF6A00] underline-offset-4">Clear filters</button></div>}
+
       {featuredPost && (
-        <div className="mb-16">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-[#ff6b35] to-[#f7931e] text-white font-semibold text-sm shadow-lg">
-              <Sparkles className="w-4 h-4" />
-              <span>Featured Article</span>
-            </div>
-            <div className="flex-grow h-px bg-gradient-to-r from-[#ff6b35]/30 to-transparent" />
+        <section className="mt-10" aria-labelledby="featured-article-heading">
+          <div className="mb-6 flex items-center gap-4">
+            <p id="featured-article-heading" className="brand-eyebrow">Featured article</p>
+            <div className="h-px flex-1 bg-slate-200" aria-hidden="true" />
           </div>
           <BlogCard post={featuredPost} featured />
-        </div>
+        </section>
       )}
-      
-      {/* Latest Articles Header */}
-      {regularPosts.length > 0 && (
-        <div className="flex items-center gap-3 mb-8">
-          <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#18448D]/10 text-[#18448D] font-semibold text-sm">
-            <BookOpen className="w-4 h-4" />
-            <span>Latest Articles</span>
-          </div>
-          <div className="flex-grow h-px bg-gradient-to-r from-[#18448D]/30 to-transparent" />
-          <span className="text-sm text-gray-500">
-            {filteredPosts.length} article{filteredPosts.length !== 1 ? 's' : ''}
-          </span>
-        </div>
-      )}
-      
-      {/* Posts Grid */}
+
       {regularPosts.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-          {regularPosts.map(post => (
-            <BlogCard key={post.slug} post={post} />
-          ))}
-        </div>
+        <section className="mt-14" aria-labelledby="latest-articles-heading">
+          <div className="flex items-end justify-between gap-4"><div><p className="brand-eyebrow">Print knowledge</p><h2 id="latest-articles-heading" className="mt-2 font-display text-3xl font-bold text-[#0B1F3A]">Latest articles</h2></div><p className="text-sm text-slate-500">{filteredPosts.length} total</p></div>
+          <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">{regularPosts.map((post) => <BlogCard key={post.slug} post={post} />)}</div>
+        </section>
       ) : (
-        <div className="text-center py-16 bg-gradient-to-br from-gray-50 to-white rounded-3xl border border-gray-100">
-          <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-[#18448D]/10 flex items-center justify-center">
-            <Search className="w-8 h-8 text-[#18448D]" />
-          </div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">No articles found</h3>
-          <p className="text-gray-600 mb-6 max-w-md mx-auto">
-            We couldn't find any articles matching your criteria. Try adjusting your search or filters.
-          </p>
-          <button
-            onClick={clearFilters}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[#18448D] to-[#1a5bc4] text-white font-semibold hover:from-[#ff6b35] hover:to-[#f7931e] transition-all duration-300 transform hover:scale-105 shadow-lg"
-          >
-            Clear all filters
-          </button>
-        </div>
+        <div className="mt-10 border border-slate-200 bg-[#F7F7F7] p-10 text-center"><h3 className="font-display text-xl font-bold text-[#0B1F3A]">No articles found</h3><p className="mt-2 text-slate-600">Try another search or clear the topic filters.</p><button onClick={clearFilters} className="brand-button-secondary mt-6">Clear filters</button></div>
       )}
-      
-      {/* Pagination */}
+
       {totalPages > 1 && onPageChange && (
-        <div className="flex justify-center items-center gap-2 mt-12">
-          <button
-            onClick={() => onPageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            className="px-5 py-3 border-2 border-gray-200 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:border-[#18448D] hover:text-[#18448D] hover:bg-[#18448D]/5 transition-all duration-300 font-medium"
-          >
-            ← Previous
-          </button>
-          
-          <div className="flex gap-2">
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-              <button
-                key={page}
-                onClick={() => onPageChange(page)}
-                className={`w-12 h-12 rounded-xl font-semibold transition-all duration-300 ${
-                  page === currentPage
-                    ? 'bg-gradient-to-r from-[#18448D] to-[#1a5bc4] text-white shadow-lg transform scale-110'
-                    : 'border-2 border-gray-200 hover:border-[#18448D] hover:text-[#18448D] hover:bg-[#18448D]/5'
-                }`}
-              >
-                {page}
-              </button>
-            ))}
-          </div>
-          
-          <button
-            onClick={() => onPageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className="px-5 py-3 border-2 border-gray-200 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:border-[#18448D] hover:text-[#18448D] hover:bg-[#18448D]/5 transition-all duration-300 font-medium"
-          >
-            Next →
-          </button>
-        </div>
+        <nav className="mt-12 flex flex-wrap items-center justify-center gap-2" aria-label="Blog pagination">
+          <button onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1} className="brand-button-secondary min-h-11 px-4 disabled:opacity-40">Previous</button>
+          {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => <button key={page} onClick={() => onPageChange(page)} className={`h-11 w-11 border font-bold ${page === currentPage ? 'border-[#0B1F3A] bg-[#0B1F3A] text-white' : 'border-slate-200 bg-white text-[#0B1F3A]'}`}>{page}</button>)}
+          <button onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages} className="brand-button-secondary min-h-11 px-4 disabled:opacity-40">Next</button>
+        </nav>
       )}
-      
-      {/* Newsletter CTA */}
-      <div className="mt-20 relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#18448D] via-[#1a4d9f] to-[#1556b1] p-10 md:p-14 text-center shadow-2xl">
-        {/* Background pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute inset-0" style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-          }} />
-        </div>
-        
-        <div className="relative z-10">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/20 text-white font-medium text-sm mb-6">
-            <TrendingUp className="w-4 h-4" />
-            <span>Stay Updated</span>
-          </div>
-          <h3 className="text-2xl md:text-3xl font-black text-white mb-4">
-            Get the Latest Banner Tips & Trends
-          </h3>
-          <p className="text-blue-100 text-lg mb-8 max-w-xl mx-auto">
-            Join our newsletter for expert advice on banner design, marketing strategies, and exclusive offers.
-          </p>
-          
-          {submitStatus === 'success' ? (
-            <div className="flex items-center justify-center gap-3 text-white">
-              <CheckCircle className="w-6 h-6 text-green-400" />
-              <span className="text-lg font-semibold">Thanks for subscribing! Check your inbox.</span>
-            </div>
-          ) : (
-            <form onSubmit={handleNewsletterSubmit} className="flex flex-col sm:flex-row gap-4 justify-center max-w-lg mx-auto">
-              <input
-                type="email"
-                placeholder="Enter your email"
-                value={newsletterEmail}
-                onChange={(e) => setNewsletterEmail(e.target.value)}
-                disabled={isSubmitting}
-                className="flex-grow px-6 py-4 rounded-xl border-2 border-white/30 bg-white/10 text-white placeholder-white/60 focus:border-white focus:bg-white/20 transition-all duration-300 disabled:opacity-50"
-              />
-              <button 
-                type="submit"
-                disabled={isSubmitting}
-                className="px-8 py-4 rounded-xl bg-gradient-to-r from-[#ff6b35] to-[#f7931e] text-white font-bold hover:from-[#ff7b45] hover:to-[#ffa32e] transition-all duration-300 transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:transform-none inline-flex items-center justify-center gap-2"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>Subscribing...</span>
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-5 h-5" />
-                    <span>Subscribe</span>
-                  </>
-                )}
-              </button>
+
+      <section className="mt-16 border-l-4 border-[#FF6A00] bg-[#0B1F3A] p-7 text-white sm:p-10">
+        <div className="grid gap-7 lg:grid-cols-[1fr_auto] lg:items-center">
+          <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-[#FF8A3D]">Occasional print notes</p><h2 className="mt-3 font-display text-2xl font-bold sm:text-3xl">Useful production and design guidance, by email.</h2><p className="mt-3 text-slate-300">Subscribe for new guides and relevant offers. No fabricated trend reports or daily noise.</p></div>
+          {submitStatus === 'success' ? <div className="flex items-center gap-2 font-bold"><CheckCircle className="h-5 w-5 text-[#FF8A3D]" />Subscribed</div> : (
+            <form onSubmit={handleNewsletterSubmit} className="flex min-w-0 flex-col gap-3 sm:flex-row">
+              <input type="email" value={newsletterEmail} onChange={(event) => setNewsletterEmail(event.target.value)} placeholder="Email address" className="min-h-12 w-full min-w-0 rounded-md border border-white/25 bg-white px-4 text-[#0B1F3A] sm:w-auto sm:min-w-[260px]" disabled={isSubmitting} />
+              <button type="submit" className="brand-button-primary gap-2" disabled={isSubmitting}>{isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}Subscribe</button>
             </form>
           )}
         </div>
-      </div>
+      </section>
     </div>
   );
 }

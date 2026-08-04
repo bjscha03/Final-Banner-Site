@@ -5,7 +5,11 @@
 import { processBlogPost, processBlogListItem } from './mdx-processor';
 import type { BlogPost, BlogListItem, PaginatedPosts } from './types';
 
-const postModules = import.meta.glob('/content/blog/*.mdx', { as: 'raw', eager: true });
+const postModules = import.meta.glob<string>('/content/blog/*.mdx', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+});
 
 export async function getAllPosts(includeDrafts: boolean = false): Promise<BlogListItem[]> {
   const posts: BlogListItem[] = [];

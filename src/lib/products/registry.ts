@@ -150,7 +150,7 @@ const bannerProduct: ProductTypeConfig = {
     minIn: 6,
     maxIn: 600,   // 50 feet
     maxSqFt: 1000,
-    sizeLimitMessage: 'Orders over 1,000 sq ft require a custom quote. Please contact us at (555) 123-4567 or support@bannersonthefly.com before placing your order.',
+    sizeLimitMessage: 'Orders over 1,000 sq ft require a custom quote. Please contact support@bannersonthefly.com before placing your order.',
   },
 
   materials: [
@@ -347,8 +347,8 @@ const carMagnetProduct: ProductTypeConfig = {
     resetWidthIn: 24,
     resetHeightIn: 12,
     minIn: 12,
-    maxIn: 42,
-    maxSqFt: 3.5,
+    maxIn: 72,
+    maxSqFt: 12,
     sizeLimitMessage: 'Car magnets are available in fixed sizes only.',
   },
 
@@ -360,8 +360,8 @@ const carMagnetProduct: ProductTypeConfig = {
     magnetic: 0,
   },
 
-  minimumUnitPriceDollars: 22,
-  minimumUnitPriceCents: 2200,
+  minimumUnitPriceDollars: 29,
+  minimumUnitPriceCents: 2900,
 
   grommets: [],
 
@@ -409,10 +409,11 @@ const carMagnetProduct: ProductTypeConfig = {
   allowCustomDimensions: false,
   freeShippingMessage: 'FREE Next-Day Air Included',
   predefinedSizes: [
-    { label: '18" × 12"', widthIn: 18, heightIn: 12, basePriceCents: 2200 },
-    { label: '24" × 12"', widthIn: 24, heightIn: 12, basePriceCents: 2800 },
-    { label: '24" × 18"', widthIn: 24, heightIn: 18, basePriceCents: 3600 },
-    { label: '42" × 12"', widthIn: 42, heightIn: 12, basePriceCents: 4400 },
+    { label: '18" × 12"', widthIn: 18, heightIn: 12, basePriceCents: 2900 },
+    { label: '24" × 12"', widthIn: 24, heightIn: 12, basePriceCents: 4000 },
+    { label: '24" × 18"', widthIn: 24, heightIn: 18, basePriceCents: 4700 },
+    { label: '42" × 12"', widthIn: 42, heightIn: 12, basePriceCents: 6000 },
+    { label: '72" × 24"', widthIn: 72, heightIn: 24, basePriceCents: 16000 },
   ],
   materialMultipliers: [
     { key: 'magnetic', label: 'Premium Magnetic Material', multiplier: 1.0 },

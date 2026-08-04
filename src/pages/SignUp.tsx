@@ -157,25 +157,25 @@ const SignUp: React.FC = () => {
   }
 
   return (
-    <Layout>
-      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50 relative overflow-hidden">
+    <Layout showFooterBanner={false}>
+      <div className="relative flex min-h-[calc(100vh-4rem)] items-center justify-center bg-[#F7F7F7] px-4 py-12 sm:px-6 lg:px-8">
 
 
-        <div className="max-w-md w-full space-y-8 relative z-10">
+        <div className="relative z-10 w-full max-w-md space-y-8">
           {/* Header */}
           <div className="text-center">
-            <div className="mx-auto h-20 w-20 flex items-center justify-center">
-              <img src="/images/logo-icon.svg" alt="Banners on the Fly" className="h-20 w-20" />
+            <div className="mx-auto flex h-16 w-16 items-center justify-center">
+              <img src="/images/logo-icon.svg" alt="Banners on the Fly" className="h-16 w-16" />
             </div>
             <h2
               ref={titleRef}
               tabIndex={-1}
-              className="mt-6 text-4xl font-extrabold text-gray-900 tracking-tight"
+              className="mt-5 font-display text-3xl font-bold tracking-[-0.035em] text-[#0B1F3A] sm:text-4xl"
             >
               Create your account
             </h2>
             <p className="mt-3 text-base text-gray-600">
-              Start creating professional banners in minutes
+              Save order history and return to your print projects.
             </p>
             <p className="mt-2 text-sm text-gray-500">
               Already have an account?{' '}
@@ -186,7 +186,7 @@ const SignUp: React.FC = () => {
                   const signInUrl = currentNextUrl !== '/design' ? `/sign-in?next=${encodeURIComponent(currentNextUrl)}` : '/sign-in';
                   navigate(signInUrl);
                 }}
-                className="font-semibold text-[#18448D] hover:text-indigo-600 transition-colors duration-200"
+                className="font-semibold text-[#0B1F3A] underline decoration-[#FF6A00] decoration-2 underline-offset-4 hover:text-[#A63C00]"
               >
                 Sign in →
               </button>
@@ -194,7 +194,7 @@ const SignUp: React.FC = () => {
           </div>
 
           {/* Main Card */}
-          <div className="bg-white rounded-2xl shadow-2xl p-8 space-y-6 border border-gray-100">
+          <div className="space-y-6 border border-slate-200 border-t-4 border-t-[#FF6A00] bg-white p-7 shadow-[0_12px_30px_rgba(11,31,58,0.07)] sm:p-8">
             <form className="space-y-5" onSubmit={handleSubmit}>
               <div>
                 <Label htmlFor="fullName" className="text-sm font-semibold text-gray-700 mb-2 block">
@@ -209,7 +209,7 @@ const SignUp: React.FC = () => {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="John Doe"
-                  className="h-12 text-base border-gray-300 focus:border-[#18448D] focus:ring-[#18448D] rounded-xl transition-all duration-200"
+                  className="h-12 rounded-md border-slate-300 text-base focus:border-[#0B1F3A] focus:ring-[#FF6A00]"
                 />
               </div>
 
@@ -226,7 +226,7 @@ const SignUp: React.FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="h-12 text-base border-gray-300 focus:border-[#18448D] focus:ring-[#18448D] rounded-xl transition-all duration-200"
+                  className="h-12 rounded-md border-slate-300 text-base focus:border-[#0B1F3A] focus:ring-[#FF6A00]"
                 />
               </div>
 
@@ -244,11 +244,11 @@ const SignUp: React.FC = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="At least 8 characters"
-                    className="pr-12 h-12 text-base border-gray-300 focus:border-[#18448D] focus:ring-[#18448D] rounded-xl transition-all duration-200"
+                    className="h-12 rounded-md border-slate-300 pr-12 text-base focus:border-[#0B1F3A] focus:ring-[#FF6A00]"
                   />
                   <button
                     type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center touch-manipulation min-w-[44px] min-h-[44px] justify-center hover:bg-gray-50 rounded-r-xl transition-colors duration-200"
+                    className="absolute inset-y-0 right-0 flex min-h-[44px] min-w-[44px] touch-manipulation items-center justify-center rounded-r-md pr-3 transition-colors hover:bg-slate-50"
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? (
@@ -271,7 +271,7 @@ const SignUp: React.FC = () => {
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full h-14 text-base font-semibold bg-[#e16629] hover:bg-[#cf452b] text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 group"
+                className="group h-14 w-full rounded-md bg-[#FF6A00] text-base font-bold text-[#0B1F3A] shadow-none hover:bg-[#E65F00]"
               >
                 {loading ? (
                   <div className="flex items-center justify-center gap-2">
@@ -306,9 +306,9 @@ const SignUp: React.FC = () => {
           {/* Footer */}
           <p className="text-center text-xs text-gray-500">
             By creating an account, you agree to our{' '}
-            <a href="/terms" className="text-[#18448D] hover:underline">Terms of Service</a>
+            <a href="/terms" className="text-[#0B1F3A] underline decoration-[#FF6A00] underline-offset-2">Terms of Service</a>
             {' '}and{' '}
-            <a href="/privacy" className="text-[#18448D] hover:underline">Privacy Policy</a>
+            <a href="/privacy" className="text-[#0B1F3A] underline decoration-[#FF6A00] underline-offset-2">Privacy Policy</a>
           </p>
         </div>
       </div>

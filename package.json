@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "sms:dev": "vite-node server/sms-server.js",
-    "build": "vite build",
+    "build": "npm run generate:seo-assets && vite build && vite build --config vite.ssr.config.ts && node scripts/prerender-local-pages.mjs && node scripts/verify-local-build.mjs",
+    "generate:seo-assets": "node scripts/generate-seo-assets.mjs",
+    "test:local-pages": "vitest run src/lib/seo/__tests__/localPages.test.ts",
+    "test:local-pages:browser": "npm run build && playwright test --config=playwright.local-pages.config.ts",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -82,6 +85,7 @@
     "node-fetch": "^2.7.0",
     "openai": "^6.3.0",
     "parse-multipart": "^1.0.4",
+    "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^5.4.149",
     "pdfkit": "^0.17.2",
     "posthog-js": "^1.279.3",
@@ -113,10 +117,10 @@
     "uuid": "^11.1.0",
     "vaul": "^0.9.3",
     "zod": "^3.25.76",
-    "zustand": "^5.0.8",
-    "pdf-lib": "^1.17.1"
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@eslint/js": "^9.9.0",
     "@playwright/test": "^1.62.1",
     "@tailwindcss/typography": "^0.5.19",

@@ -7,7 +7,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { grommetPoints, grommetRadius } from '@/lib/preview/grommets';
 import { useQuoteStore, type MaterialKey, type Grommets } from '@/store/quote';
-import { PRICE_PER_SQFT, inchesToSqFt, calcTotals, usd } from '@/lib/pricing';
+import { inchesToSqFt, calcTotals, usd } from '@/lib/pricing';
 
 // Brand colors
 const BRAND_BLUE = '#18448D';
@@ -34,11 +34,11 @@ const SIZE_PRESETS = [
 ];
 
 // Material options
-const MATERIAL_OPTIONS: { key: MaterialKey; name: string; price: number }[] = [
-  { key: '13oz', name: '13oz Vinyl', price: PRICE_PER_SQFT['13oz'] },
-  { key: '15oz', name: '15oz Vinyl', price: PRICE_PER_SQFT['15oz'] },
-  { key: '18oz', name: '18oz Vinyl', price: PRICE_PER_SQFT['18oz'] },
-  { key: 'mesh', name: 'Mesh Banner', price: PRICE_PER_SQFT['mesh'] },
+const MATERIAL_OPTIONS: { key: MaterialKey; name: string }[] = [
+  { key: '13oz', name: '13oz Vinyl' },
+  { key: '15oz', name: '15oz Vinyl' },
+  { key: '18oz', name: '18oz Vinyl' },
+  { key: 'mesh', name: 'Mesh Banner' },
 ];
 
 // Grommet options
@@ -372,7 +372,7 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
                   <SelectContent>
                     {MATERIAL_OPTIONS.map(mat => (
                       <SelectItem key={mat.key} value={mat.key} className="font-medium">
-                        {mat.name} (${mat.price}/sqft)
+                        {mat.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -725,4 +725,3 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
 };
 
 export default DesignServicePanel;
-

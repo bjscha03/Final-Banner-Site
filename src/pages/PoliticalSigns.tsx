@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { Clock, Truck, ShieldCheck, CheckCircle, ArrowRight } from 'lucide-react';
 import Layout from '@/components/Layout';
+import ProductVisual from '@/components/product/ProductVisual';
 
 type ProductType = 'banner' | 'yard_sign' | 'car_magnet';
 
@@ -10,28 +11,24 @@ const PRODUCTS: {
   key: ProductType;
   name: string;
   description: string;
-  image: string;
   slug: string;
 }[] = [
   {
     key: 'banner',
     name: 'Vinyl Banners',
     description: 'Durable campaign banners shipped fast nationwide.',
-    image: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1777020723/Vinyl_Banners_ycsdpm.png',
     slug: 'banner',
   },
   {
     key: 'yard_sign',
     name: 'Yard Signs',
     description: 'Corrugated political yard signs printed within 24 hours.',
-    image: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1777020710/Yard_Signs_incb8x.png',
     slug: 'yard-signs',
   },
   {
     key: 'car_magnet',
     name: 'Car Magnets',
     description: 'Removable campaign car magnets with vibrant full-color printing.',
-    image: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1777020742/car_magnets_dwoq8q.png',
     slug: 'car-magnets',
   },
 ];
@@ -43,7 +40,7 @@ const FAQS = [
   },
   {
     q: 'How fast is shipping?',
-    a: 'Every political signs order includes FREE next-day air shipping after production.',
+    a: 'Free next-day air describes carrier transit after production. Delivery dates are estimates and can change.',
   },
   {
     q: 'How do I upload artwork?',
@@ -68,39 +65,31 @@ const PoliticalSigns: React.FC = () => {
         <title>Political Campaign Signs & Banners | Banners On The Fly</title>
         <meta
           name="description"
-          content="Custom political banners, yard signs, and car magnets printed within 24 hours with free next-day air shipping."
+          content="Configure political banners, yard signs, and car magnets online. Most standard orders are produced within 24 hours; carrier transit follows production."
         />
       </Helmet>
 
-      <section className="relative text-white overflow-hidden bg-[#0B1F3A]">
-        <div
-          className="absolute inset-0 bg-cover bg-center sm:bg-right"
-          style={{
-            backgroundImage:
-              "url('https://res.cloudinary.com/dtrxl120u/image/upload/e_brightness:10,e_shadow:10/v1778177853/political_banners_cdgdgp.png')",
-          }}
-          aria-hidden="true"
-        />
-        <div className="absolute inset-0 bg-[#0B1F3A]/68" aria-hidden="true" />
-        <div className="relative z-[2] max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-24 lg:py-28">
+      <section className="border-b-4 border-[#FF6A00] bg-[#0B1F3A] text-white">
+        <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[1.05fr_.95fr] lg:px-8 lg:py-24">
           <div className="max-w-2xl">
+            <p className="mb-4 text-xs font-bold uppercase tracking-[0.22em] text-[#FF8A3D]">Campaign print essentials</p>
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight leading-tight text-white">
-              Political Signs <span className="text-[#FF6A00]">Printed Within 24 Hours</span>
+              Political signs, configured with confidence
             </h1>
             <p className="mt-5 text-lg md:text-xl text-white/90">
-              Custom political banners, yard signs, and car magnets with free next-day air shipping.
+              Custom political banners, yard signs, and car magnets with production and carrier transit shown separately.
             </p>
             <div className="mt-8">
               <button
                 type="button"
                 onClick={() => document.getElementById('choose-product')?.scrollIntoView({ behavior: 'smooth' })}
-                className="inline-flex items-center gap-2 rounded-lg bg-[#FF6A00] hover:bg-[#E65F00] text-white font-bold px-6 py-3.5 text-base shadow-lg transition"
+                className="brand-button-on-dark"
               >
                 Order Political Signs <ArrowRight className="h-5 w-5" />
               </button>
             </div>
             <ul className="mt-6 grid sm:grid-cols-2 gap-3 text-sm font-medium">
-              {[{ icon: Clock, text: 'Printed within 24 hours' }, { icon: Truck, text: 'FREE next-day air shipping' }].map(
+              {[{ icon: Clock, text: 'Most standard orders: 24-hour production' }, { icon: Truck, text: 'Free next-day air after production' }].map(
                 ({ icon: Icon, text }) => (
                   <li key={text} className="flex items-center gap-2 text-white/90">
                     <Icon className="h-4 w-4 flex-shrink-0 text-[#FF6A00]" />
@@ -110,6 +99,7 @@ const PoliticalSigns: React.FC = () => {
               )}
             </ul>
           </div>
+          <ProductVisual productSlug="yard-signs" priority className="min-h-[330px] border border-white/20 sm:min-h-[410px]" />
         </div>
       </section>
 
@@ -122,9 +112,13 @@ const PoliticalSigns: React.FC = () => {
                 key={product.key}
                 type="button"
                 onClick={() => navigate(`/design?product=${product.slug}&theme=political`)}
-                className="text-left rounded-2xl border-2 border-[#E5E5E5] overflow-hidden transition shadow-sm hover:shadow-md hover:border-[#FF6A00]/60 min-h-[320px]"
+                className="group overflow-hidden border border-slate-200 bg-white text-left transition-colors hover:border-[#FF6A00]"
               >
-                <img src={product.image} alt={product.name} className="w-full h-44 object-cover" />
+                <ProductVisual
+                  productSlug={product.key === 'banner' ? 'vinyl-banners' : product.key === 'yard_sign' ? 'yard-signs' : 'car-magnets'}
+                  presentation="selector"
+                  className="aspect-video border-b border-slate-200"
+                />
                 <div className="p-5">
                   <h3 className="text-2xl font-bold text-[#0B1F3A]">{product.name}</h3>
                   <p className="mt-2 text-gray-600">{product.description}</p>
@@ -139,13 +133,13 @@ const PoliticalSigns: React.FC = () => {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {[
-              { icon: Clock, title: 'Printed within 24 hours' },
-              { icon: Truck, title: 'FREE next-day air shipping' },
+              { icon: Clock, title: 'Most standard orders: 24-hour production' },
+              { icon: Truck, title: 'Free next-day air after production' },
               { icon: ShieldCheck, title: 'Weather-resistant materials' },
               { icon: CheckCircle, title: 'Live design preview' },
             ].map(({ icon: Icon, title }) => (
-              <div key={title} className="rounded-xl bg-[#F7F7F7] p-5 border border-[#E5E5E5]">
-                <div className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-[#FF6A00]/10 text-[#FF6A00] mb-3">
+              <div key={title} className="border-t-2 border-[#FF6A00] bg-[#F7F7F7] p-5">
+                <div className="mb-3 inline-flex h-10 w-10 items-center justify-center text-[#FF6A00]">
                   <Icon className="h-5 w-5" />
                 </div>
                 <h3 className="font-bold text-[#0B1F3A]">{title}</h3>
@@ -158,9 +152,9 @@ const PoliticalSigns: React.FC = () => {
       <section className="bg-white py-14 sm:py-20">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-extrabold text-[#0B1F3A] text-center">Political Campaign FAQ</h2>
-          <div className="mt-8 space-y-3">
+          <div className="mt-8 border-t border-slate-200">
             {FAQS.map((f) => (
-              <details key={f.q} className="group rounded-xl border border-[#E5E5E5] bg-[#F7F7F7] open:bg-white open:shadow-sm">
+              <details key={f.q} className="group border-b border-slate-200">
                 <summary className="cursor-pointer list-none flex items-center justify-between gap-3 p-5 font-semibold text-[#0B1F3A]">
                   <span>{f.q}</span>
                   <span className="text-[#FF6A00] group-open:rotate-45 transition">+</span>

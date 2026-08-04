@@ -108,8 +108,7 @@ const LogoShowcase: React.FC = () => {
                   Contact us for custom banner designs and printing services
                 </p>
                 <div className="space-y-2 text-gray-700">
-                  <p>john@bannersonthefly.com</p>
-                  <p>(555) 123-4567</p>
+                  <p>support@bannersonthefly.com</p>
                 </div>
               </div>
             </div>

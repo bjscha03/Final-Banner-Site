@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { trackMaterialSelected } from '@/lib/analytics';
 import { Palette, ZoomIn, Check } from 'lucide-react';
 import { useQuoteStore, MaterialKey } from '@/store/quote';
-import { PRICE_PER_SQFT } from '@/lib/pricing';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import Lightbox from './Lightbox';
@@ -170,14 +169,6 @@ const MaterialCard: React.FC = () => {
             <p className={`text-xs mt-0.5 ${isSelected ? 'text-orange-700' : 'text-gray-500'}`}>
               {materialOption.subtitle}
             </p>
-          </div>
-
-          {/* Price */}
-          <div className="flex-shrink-0 text-right">
-            <p className={`text-base font-bold ${isSelected ? 'text-orange-600' : 'text-green-600'}`}>
-              ${PRICE_PER_SQFT[materialOption.key].toFixed(2)}
-            </p>
-            <p className="text-[10px] text-gray-500">per sq ft</p>
           </div>
         </div>
       </div>

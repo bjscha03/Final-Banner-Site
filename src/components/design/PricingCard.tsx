@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuoteStore, ORDER_SIZE_LIMIT_SQFT } from '@/store/quote';
 import { useAuth } from '@/lib/auth';
 import { useCartStore } from '@/store/cart';
-import { usd, formatArea, formatDimensions, PRICE_PER_SQFT, getFeatureFlags, getPricingOptions } from '@/lib/pricing';
+import { usd, formatArea, formatDimensions, getFeatureFlags, getPricingOptions } from '@/lib/pricing';
 import { validateMinimumOrder, canProceedToCheckout } from '@/lib/validation/minimumOrder';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -830,7 +830,7 @@ const PricingCard: React.FC = () => {
           <div className="flex justify-between items-center py-2">
             <div className="flex-1">
                 <span className="text-sm text-gray-700">
-                  <span className="hidden sm:inline">Base Banner ({formatArea(baseTotals.area)} × {usd(PRICE_PER_SQFT[material])}/sq ft × {quantity})</span>
+                  <span className="hidden sm:inline">Base Banner ({formatArea(baseTotals.area)} × quantity {quantity})</span>
                   <span className="sm:hidden">Base Banner</span>
                 </span>
               </div>

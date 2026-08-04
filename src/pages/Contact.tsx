@@ -1,260 +1,133 @@
-import React, { useState, useEffect } from 'react';
-import { Mail, Clock, Shield, Send, Phone, MessageCircle, CheckCircle, AlertCircle, MapPin, Zap } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Mail, MapPin, Send } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import PageHeader from '@/components/PageHeader';
+import SEO from '@/components/SEO';
 import { useToast } from '@/components/ui/use-toast';
-import { useLocation } from 'react-router-dom';
 
 const Contact: React.FC = () => {
   const { toast } = useToast();
   const location = useLocation();
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    subject: '',
-    message: ''
-  });
+  const [formData, setFormData] = useState({ name: '', email: '', subject: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Handle URL parameters from chatbot
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
-    const from = searchParams.get('from');
-    const message = searchParams.get('message');
-
-    if (from === 'chatbot' && message) {
-      setFormData(prev => ({
-        ...prev,
+    if (searchParams.get('from') === 'chatbot' && searchParams.get('message')) {
+      setFormData((previous) => ({
+        ...previous,
         subject: 'Chatbot Inquiry',
-        message: decodeURIComponent(message)
+        message: decodeURIComponent(searchParams.get('message') || ''),
       }));
     }
   }, [location.search]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = event.target;
+    setFormData((previous) => ({ ...previous, [name]: value }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (isSubmitting) return;
-
-    // Basic validation
     if (!formData.name || !formData.email || !formData.subject || !formData.message) {
-      toast({
-        title: "Missing Information",
-        description: "Please fill in all fields before submitting.",
-        variant: "destructive",
-      });
+      toast({ title: 'Missing information', description: 'Please fill in all fields before submitting.', variant: 'destructive' });
       return;
     }
 
     setIsSubmitting(true);
-
     try {
       const response = await fetch('/.netlify/functions/contact-submit', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
-
       const result = await response.json();
-
-      if (result.ok) {
-        toast({
-          title: "Message Sent!",
-          description: "Thank you for contacting us. We'll get back to you within 24 hours.",
-        });
-
-        // Reset form
-        setFormData({ name: '', email: '', subject: '', message: '' });
-      } else {
-        throw new Error(result.error || 'Failed to send message');
-      }
+      if (!result.ok) throw new Error(result.error || 'Failed to send message');
+      toast({ title: 'Message sent', description: 'Thank you for contacting us. Our team will review your message.' });
+      setFormData({ name: '', email: '', subject: '', message: '' });
     } catch (error) {
-      console.error('Contact form error:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to send message. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: 'Message not sent', description: error instanceof Error ? error.message : 'Please try again.', variant: 'destructive' });
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <Layout>
-      <PageHeader
-        title="Contact Our Support Team"
-        subtitle="Have questions about your banner order? Our expert team is here to help 24/7."
-        icon={MessageCircle}
+    <Layout showFooterBanner={false}>
+      <SEO
+        title="Contact Banners On The Fly | Order & Artwork Support"
+        description="Contact Banners On The Fly about product options, artwork, shipping, billing, technical questions, or an existing custom print order."
+        canonical="https://bannersonthefly.com/contact"
       />
-      
-      <div className="min-h-screen bg-gray-50">
-        <div className="py-12 px-4 sm:px-6 lg:px-8">
-          <div className="max-w-7xl mx-auto">
+      <PageHeader
+        title="Contact our support team"
+        subtitle="Send the details that matter—product, size, quantity, artwork question, deadline, or order number—and we’ll route the message correctly."
+        centered={false}
+      />
 
-            <div className="grid lg:grid-cols-5 gap-12">
-              {/* Left Column - Contact Info (2 columns) */}
-              <div className="lg:col-span-2 space-y-6">
-                {/* Contact Methods */}
-                <div className="relative group">
-                  
-                  <div className="relative bg-white rounded-3xl p-8 shadow-xl border border-gray-100">
-                    <h3 className="text-2xl font-bold mb-6 text-gray-900">Get In Touch</h3>
-                    
-                    <div className="space-y-6">
-                      <div className="flex items-start group/item">
-                        <div className="flex-shrink-0">
-                          <div className="w-14 h-14 bg-orange-500 rounded-2xl flex items-center justify-center shadow-lg transform group-hover/item:scale-110 transition-transform">
-                            <Mail className="h-7 w-7 text-white" />
-                          </div>
-                        </div>
-                        <div className="ml-5">
-                          <p className="font-bold text-gray-900 text-lg mb-1">Email Support</p>
-                          <p className="text-gray-600">support@bannersonthefly.com</p>
-                          <p className="text-sm text-gray-500 mt-1">Response within 2 hours</p>
-                        </div>
-                      </div>
+      <section className="brand-section bg-[#F7F7F7]">
+        <div className="brand-shell grid gap-10 lg:grid-cols-[0.72fr_1.28fr] lg:gap-16">
+          <aside>
+            <p className="brand-eyebrow">Direct support</p>
+            <h2 className="brand-title mt-3">Give us enough context to help.</h2>
+            <p className="brand-copy mt-5">For an existing order, include the order number and the email used at checkout. For a new project, include the product, finished size, quantity, and needed-by date.</p>
 
-                      <div className="flex items-start group/item">
-                        <div className="flex-shrink-0">
-                          <div className="w-14 h-14 bg-purple-500 rounded-2xl flex items-center justify-center shadow-lg transform group-hover/item:scale-110 transition-transform">
-                            <MapPin className="h-7 w-7 text-white" />
-                          </div>
-                        </div>
-                        <div className="ml-5">
-                          <p className="font-bold text-gray-900 text-lg mb-1">Location</p>
-                          <p className="text-gray-600">Nationwide Service</p>
-                          <p className="text-sm text-gray-500 mt-1">Shipping to all 50 states</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div></div>
-
-              {/* Right Column - Contact Form (3 columns) */}
-              <div className="lg:col-span-3">
-                <div className="relative group">
-                  
-                  <div className="relative bg-white rounded-3xl p-10 shadow-2xl border-2 border-gray-100">
-                    <div className="mb-8">
-                      <h3 className="text-3xl font-bold mb-2 text-gray-900">Send us a Message</h3>
-                      <p className="text-gray-600">Fill out the form below and we'll get back to you shortly.</p>
-                    </div>
-                    
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                      <div className="grid sm:grid-cols-2 gap-6">
-                        <div className="group/input">
-                          <label htmlFor="name" className="block text-sm font-bold text-gray-700 mb-2">
-                            Full Name
-                          </label>
-                          <input
-                            type="text"
-                            id="name"
-                            name="name"
-                            value={formData.name}
-                            onChange={handleInputChange}
-                            className="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#18448D] focus:border-[#18448D] transition-all duration-200 bg-gray-50 focus:bg-white hover:border-gray-300"
-                            placeholder="John Doe"
-                            required
-                          />
-                        </div>
-                        
-                        <div className="group/input">
-                          <label htmlFor="email" className="block text-sm font-bold text-gray-700 mb-2">
-                            Email Address
-                          </label>
-                          <input
-                            type="email"
-                            id="email"
-                            name="email"
-                            value={formData.email}
-                            onChange={handleInputChange}
-                            className="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#18448D] focus:border-[#18448D] transition-all duration-200 bg-gray-50 focus:bg-white hover:border-gray-300"
-                            placeholder="john@example.com"
-                            required
-                          />
-                        </div>
-                      </div>
-                      
-                      <div className="group/input">
-                        <label htmlFor="subject" className="block text-sm font-bold text-gray-700 mb-2">
-                          Subject
-                        </label>
-                        <select
-                          id="subject"
-                          name="subject"
-                          value={formData.subject}
-                          onChange={handleInputChange}
-                          className="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#18448D] focus:border-[#18448D] transition-all duration-200 bg-gray-50 focus:bg-white hover:border-gray-300"
-                          required
-                        >
-                          <option value="">Select a topic</option>
-                          <option value="order-inquiry">Order Inquiry</option>
-                          <option value="design-help">Design Help</option>
-                          <option value="shipping">Shipping Question</option>
-                          <option value="billing">Billing Issue</option>
-                          <option value="technical">Technical Support</option>
-                          <option value="other">Other</option>
-                        </select>
-                      </div>
-                      
-                      <div className="group/input">
-                        <label htmlFor="message" className="block text-sm font-bold text-gray-700 mb-2">
-                          Message
-                        </label>
-                        <textarea
-                          id="message"
-                          name="message"
-                          value={formData.message}
-                          onChange={handleInputChange}
-                          rows={6}
-                          className="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#18448D] focus:border-[#18448D] transition-all duration-200 resize-none bg-gray-50 focus:bg-white hover:border-gray-300"
-                          placeholder="Tell us how we can help you..."
-                          required
-                        />
-                      </div>
-                      
-                      <button
-                        type="submit"
-                        disabled={isSubmitting}
-                        className="w-full bg-[#18448D] hover:bg-[#0f2d5c] text-white font-bold text-lg px-8 py-4 rounded-xl transition-colors duration-200 flex items-center justify-center shadow-lg hover:shadow-xl"
-                      >
-                        {isSubmitting ? (
-                          <>
-                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white mr-3"></div>
-                            Sending...
-                          </>
-                        ) : (
-                          <>
-                            <Send className="h-6 w-6 mr-3" />
-                            Send Message
-                          </>
-                        )}
-                      </button>
-
-                      <p className="text-center text-sm text-gray-500 mt-4">
-                        We typically respond within <span className="font-semibold text-orange-600">2 hours</span> during business hours
-                      </p>
-                    </form>
-                  </div>
-                </div>
+            <div className="mt-8 border-y border-slate-300">
+              <a href="mailto:support@bannersonthefly.com" className="flex gap-4 border-b border-slate-300 py-5 text-[#0B1F3A] hover:text-[#A63C00]">
+                <Mail className="mt-0.5 h-5 w-5 flex-none text-[#FF6A00]" aria-hidden="true" />
+                <div><p className="font-display font-bold">Email support</p><p className="mt-1 text-sm text-slate-600">support@bannersonthefly.com</p></div>
+              </a>
+              <div className="flex gap-4 py-5">
+                <MapPin className="mt-0.5 h-5 w-5 flex-none text-[#FF6A00]" aria-hidden="true" />
+                <div><p className="font-display font-bold text-[#0B1F3A]">Nationwide shipping</p><p className="mt-1 text-sm text-slate-600">Online ordering and delivery across the United States.</p></div>
               </div>
             </div>
+          </aside>
+
+          <div className="border border-slate-200 bg-white p-6 sm:p-8 lg:p-10">
+            <h2 className="font-display text-2xl font-bold text-[#0B1F3A] sm:text-3xl">Send a message</h2>
+            <p className="mt-2 text-slate-600">All fields are required.</p>
+            <form onSubmit={handleSubmit} className="mt-7 space-y-5">
+              <div className="grid gap-5 sm:grid-cols-2">
+                <ContactField label="Full name" htmlFor="name">
+                  <input id="name" name="name" value={formData.name} onChange={handleInputChange} className="brand-field" autoComplete="name" required />
+                </ContactField>
+                <ContactField label="Email address" htmlFor="email">
+                  <input id="email" name="email" type="email" value={formData.email} onChange={handleInputChange} className="brand-field" autoComplete="email" required />
+                </ContactField>
+              </div>
+              <ContactField label="What can we help with?" htmlFor="subject">
+                <select id="subject" name="subject" value={formData.subject} onChange={handleInputChange} className="brand-field" required>
+                  <option value="">Select a topic</option>
+                  <option value="order-inquiry">Existing order</option>
+                  <option value="design-help">Artwork or design help</option>
+                  <option value="shipping">Production or shipping</option>
+                  <option value="billing">Billing</option>
+                  <option value="technical">Technical support</option>
+                  <option value="other">Other</option>
+                </select>
+              </ContactField>
+              <ContactField label="Message" htmlFor="message">
+                <textarea id="message" name="message" value={formData.message} onChange={handleInputChange} rows={7} className="brand-field resize-y" placeholder="Include the product, size, quantity, deadline, or order number when relevant." required />
+              </ContactField>
+              <button type="submit" disabled={isSubmitting} className="brand-button-primary w-full gap-2 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto">
+                {isSubmitting ? 'Sending…' : <><Send className="h-5 w-5" aria-hidden="true" />Send message</>}
+              </button>
+            </form>
           </div>
         </div>
-      </div>
+      </section>
     </Layout>
   );
 };
+
+const ContactField = ({ label, htmlFor, children }: { label: string; htmlFor: string; children: React.ReactNode }) => (
+  <div>
+    <label htmlFor={htmlFor} className="mb-2 block text-sm font-bold text-[#0B1F3A]">{label}</label>
+    {children}
+  </div>
+);
 
 export default Contact;

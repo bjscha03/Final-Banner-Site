@@ -1,187 +1,46 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React from 'react';
+import { PackageCheck } from 'lucide-react';
 
-const DELIVERY_IMAGES = [
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460966/download_cz20yn.jpg', alt: 'Customer delivery photo 1 – custom vinyl banner' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460965/download-13_vmyxvp.jpg', alt: 'Customer delivery photo 2 – printed banner package' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460966/download-16_hck4qs.jpg', alt: 'Customer delivery photo 3 – banner order unboxing' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460966/download-18_yyyu7k.jpg', alt: 'Customer delivery photo 4 – next-day air banner shipment' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460966/download-17_htewfz.jpg', alt: 'Customer delivery photo 5 – rush order banner delivery' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460966/download-15_rpzqgf.jpg', alt: 'Customer delivery photo 6 – finished banner product' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460966/download-14_y2hhkv.jpg', alt: 'Customer delivery photo 7 – banner with grommets' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460965/download-12_tnp4g2.jpg', alt: 'Customer delivery photo 8 – outdoor banner installed' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460954/download-10_dknhmc.jpg', alt: 'Customer delivery photo 9 – event banner delivered' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460954/download-9_hpdvaf.jpg', alt: 'Customer delivery photo 10 – trade show banner' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460954/download-11_hxfr9e.jpg', alt: 'Customer delivery photo 11 – business banner order' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460953/download-7_eoowij.jpg', alt: 'Customer delivery photo 12 – promotional banner' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460953/download-8_xlfbuv.jpg', alt: 'Customer delivery photo 13 – custom printed banner' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460953/download-1_un1zb8.jpg', alt: 'Customer delivery photo 14 – vinyl banner shipment' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460953/download-4_mags5c.jpg', alt: 'Customer delivery photo 15 – storefront banner' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460953/download-3_sokqqv.jpg', alt: 'Customer delivery photo 16 – grand opening banner' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460953/download-6_xtzq7z.jpg', alt: 'Customer delivery photo 17 – banner display setup' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460953/download-2_pzrd1q.jpg', alt: 'Customer delivery photo 18 – indoor banner installation' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460953/download-5_wolqqp.jpg', alt: 'Customer delivery photo 19 – completed banner order' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1776363042/download_qidyrl.jpg', alt: 'Customer delivery photo 20 – recently shipped banner' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1776363042/download-3_qfh54f.jpg', alt: 'Customer delivery photo 21 – banner package arrival' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1776363042/download-1_yffld3.jpg', alt: 'Customer delivery photo 22 – custom banner received' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1776363042/download-2_scks5q.jpg', alt: 'Customer delivery photo 23 – banner order fulfilled' },
+const deliveryImages = [
+  'https://res.cloudinary.com/dtrxl120u/image/upload/w_650,q_auto,f_auto/v1774460966/download_cz20yn.jpg',
+  'https://res.cloudinary.com/dtrxl120u/image/upload/w_650,q_auto,f_auto/v1774460965/download-13_vmyxvp.jpg',
+  'https://res.cloudinary.com/dtrxl120u/image/upload/w_650,q_auto,f_auto/v1774460966/download-16_hck4qs.jpg',
+  'https://res.cloudinary.com/dtrxl120u/image/upload/w_650,q_auto,f_auto/v1774460966/download-18_yyyu7k.jpg',
+  'https://res.cloudinary.com/dtrxl120u/image/upload/w_650,q_auto,f_auto/v1774460966/download-17_htewfz.jpg',
+  'https://res.cloudinary.com/dtrxl120u/image/upload/w_650,q_auto,f_auto/v1774460966/download-15_rpzqgf.jpg',
 ];
 
-const DeliveryCarousel: React.FC = () => {
-  const trackRef = useRef<HTMLDivElement>(null);
-  const [isPaused, setIsPaused] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const dragStartX = useRef(0);
-  const scrollStartX = useRef(0);
-  const pointerTypeRef = useRef<string>('mouse');
-  const hadPointerDownRef = useRef(false);
-
-  // Seamless infinite scroll reset
-  useEffect(() => {
-    const track = trackRef.current;
-    if (!track) return;
-
-    const handleScroll = () => {
-      const halfWidth = track.scrollWidth / 2;
-      if (track.scrollLeft >= halfWidth) {
-        track.scrollLeft -= halfWidth;
-      } else if (track.scrollLeft <= 0) {
-        track.scrollLeft += halfWidth;
-      }
-    };
-
-    track.addEventListener('scroll', handleScroll);
-    return () => track.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  // Auto-scroll animation
-  useEffect(() => {
-    const track = trackRef.current;
-    if (!track) return;
-
-    let animationId: number;
-    const speed = 0.8; // pixels per frame
-
-    const step = () => {
-      if (!isPaused && !isDragging) {
-        track.scrollLeft += speed;
-        // Reset for seamless loop
-        const halfWidth = track.scrollWidth / 2;
-        if (track.scrollLeft >= halfWidth) {
-          track.scrollLeft -= halfWidth;
-        }
-      }
-      animationId = requestAnimationFrame(step);
-    };
-
-    animationId = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(animationId);
-  }, [isPaused, isDragging]);
-
-  // Touch/drag handlers for mobile swipe
-  const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    pointerTypeRef.current = e.pointerType;
-    hadPointerDownRef.current = true;
-    setIsDragging(true);
-    dragStartX.current = e.clientX;
-    scrollStartX.current = trackRef.current?.scrollLeft ?? 0;
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-  }, []);
-
-  const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (!isDragging || !trackRef.current) return;
-    const dx = e.clientX - dragStartX.current;
-    trackRef.current.scrollLeft = scrollStartX.current - dx;
-  }, [isDragging]);
-
-  const handlePointerUp = useCallback(() => {
-    setIsDragging(false);
-    // On touch devices, resume autoscroll after interaction
-    if (pointerTypeRef.current === 'touch') {
-      setIsPaused(false);
-    }
-  }, []);
-
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    const track = trackRef.current;
-    if (!track) return;
-    const scrollAmount = 220;
-    if (e.key === 'ArrowRight') {
-      track.scrollLeft += scrollAmount;
-      e.preventDefault();
-    } else if (e.key === 'ArrowLeft') {
-      track.scrollLeft -= scrollAmount;
-      e.preventDefault();
-    }
-  }, []);
-
-  // Duplicate images for seamless loop
-  const allImages = [...DELIVERY_IMAGES, ...DELIVERY_IMAGES];
-
-  return (
-    <section className="py-10 sm:py-14 bg-gray-50 overflow-hidden">
-      {/* Section header */}
-      <div className="text-center mb-8 px-4">
-        <p className="inline-flex items-center rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700 mb-3">
-          Real Deliveries. Real Speed.
-        </p>
-        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
-          Real Orders. Delivered Fast.
-        </h2>
-        <p className="mt-2 text-sm sm:text-base text-gray-500">
-          Printed within 24 hours and shipped free via next-day air.
-        </p>
-        <p className="mt-1 text-sm sm:text-base text-gray-500">
-          Photos from actual Banners on the Fly deliveries
-        </p>
-        <p className="mt-1 text-xs text-gray-400 italic">
-          Personal details are removed for privacy
-        </p>
-      </div>
-
-      {/* Carousel track */}
-      <div
-        ref={trackRef}
-        role="region"
-        aria-label="Delivery photo carousel"
-        tabIndex={0}
-        className="flex gap-3 overflow-x-hidden cursor-grab select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2 rounded-sm"
-        style={{ WebkitOverflowScrolling: 'touch' }}
-        onMouseEnter={() => setIsPaused(true)}
-        onMouseLeave={() => { setIsPaused(false); setIsDragging(false); }}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-        onKeyDown={handleKeyDown}
-        onFocus={() => {
-          // Only pause for keyboard focus, not pointer/touch focus
-          if (!hadPointerDownRef.current) setIsPaused(true);
-          hadPointerDownRef.current = false;
-        }}
-        onBlur={() => setIsPaused(false)}
-      >
-        {allImages.map((img, i) => (
-          <div
-            key={i}
-            className="relative flex-shrink-0 h-[160px] sm:h-[200px] rounded-[10px] overflow-hidden shadow-md"
-            style={{ aspectRatio: '4 / 3' }}
-          >
-            <img
-              src={img.src}
-              alt={img.alt}
-              loading="lazy"
-              draggable={false}
-              className="w-full h-full object-cover pointer-events-none"
-            />
-            {/* Delivered badge */}
-            <span className="absolute bottom-2 left-2 bg-black/60 text-white text-[10px] sm:text-xs font-semibold px-2 py-0.5 rounded-md backdrop-blur-sm">
-              ✓ Delivered
-            </span>
+const DeliveryCarousel: React.FC = () => (
+  <section className="brand-section bg-white" aria-labelledby="delivery-proof-heading">
+    <div className="brand-shell">
+      <div className="grid gap-8 lg:grid-cols-[0.72fr_1.28fr] lg:gap-14">
+        <div>
+          <p className="brand-eyebrow">Documented delivery proof</p>
+          <h2 id="delivery-proof-heading" className="brand-title mt-3">Real orders, photographed at delivery.</h2>
+          <p className="brand-copy mt-5">These are customer-submitted delivery photos—not generated lifestyle scenes. Personal and shipping details are obscured or unreadable.</p>
+          <div className="mt-7 flex items-start gap-3 border-t border-slate-200 pt-5 text-sm leading-6 text-slate-600">
+            <PackageCheck className="mt-0.5 h-5 w-5 flex-none text-[#FF6A00]" aria-hidden="true" />
+            Production time and carrier transit are separate. Tracking is sent after the finished order ships.
           </div>
-        ))}
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {deliveryImages.map((src, index) => (
+            <figure key={src} className="overflow-hidden border border-slate-200 bg-slate-100">
+              <img
+                src={src}
+                alt={`Customer-submitted package delivery photo ${index + 1}`}
+                width={650}
+                height={488}
+                loading="lazy"
+                className="aspect-[4/3] h-full w-full object-cover"
+              />
+            </figure>
+          ))}
+        </div>
       </div>
-    </section>
-  );
-};
+    </div>
+  </section>
+);
 
 export default DeliveryCarousel;

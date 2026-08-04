@@ -92,10 +92,10 @@ export function VerifyEmail() {
   };
 
   return (
-    <Layout>
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <Layout showFooterBanner={false}>
+      <div className="min-h-screen flex items-center justify-center bg-[#F7F7F7] py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8">
-          <Card>
+          <Card className="border-t-4 border-t-[#FF6A00]">
             <CardHeader className="text-center">
               <div className="flex justify-center mb-4">
                 {getIcon()}
@@ -133,10 +133,10 @@ export function VerifyEmail() {
                 {(status === 'error' || status === 'invalid') && (
                   <>
                     <Button variant="outline" asChild className="w-full">
-                      <Link to="/signup">Sign Up Again</Link>
+                      <Link to="/sign-up">Sign Up Again</Link>
                     </Button>
                     <Button variant="outline" asChild className="w-full">
-                      <Link to="/signin">Sign In</Link>
+                      <Link to="/sign-in">Sign In</Link>
                     </Button>
                   </>
                 )}

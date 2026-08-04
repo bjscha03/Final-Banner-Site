@@ -120,7 +120,6 @@ test('Admin review request requires confirmation, prevents repeat clicks, and up
   const confirmButton = dialog.getByRole('button', { name: 'Send Review Email', exact: true });
   await confirmButton.click();
   await expect(dialog.getByRole('button', { name: 'Sending…', exact: true })).toBeDisabled();
-  await expect(dialog.getByRole('button', { name: 'Sending…', exact: true })).toHaveCount(1);
   await expect(page.getByText('Review request sent', { exact: true })).toBeVisible();
   expect(reviewSendCalls).toBe(1);
 

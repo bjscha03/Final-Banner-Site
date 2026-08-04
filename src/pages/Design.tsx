@@ -6,9 +6,8 @@ import Layout from '@/components/Layout';
 import { useQuoteStore, type MaterialKey } from '@/store/quote';
 import { useCartStore, type CartItem } from '@/store/cart';
 import { useUIStore } from '@/store/ui';
-import { calcTotals, usd, PRICE_PER_SQFT } from '@/lib/pricing';
+import { calcTotals, usd } from '@/lib/pricing';
 import { DESIGN_GROMMET_OPTIONS } from '@/lib/grommets';
-import { heroBackgroundStyle } from '@/lib/heroBackground';
 import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
 import {
   calculateBannerPricing,
@@ -19,6 +18,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { generateFinalRenderFromHTML } from '@/utils/generateFinalRenderFromHTML';
 import { renderPdfToDataUrl, type PdfPreviewResult } from '@/utils/pdf/renderPdfToDataUrl';
 import type { ProductTypeSlug } from '@/lib/products';
+import { getConfiguratorProductQuery, parseConfiguratorProductQuery } from '@/lib/configurator';
 import ProductTypeSwitcher from '@/components/design/ProductTypeSwitcher';
 import YardSignConfigurator from '@/components/design/YardSignConfigurator';
 import YardSignPriceSummary from '@/components/design/YardSignPriceSummary';
@@ -153,13 +153,13 @@ const PRODUCT_MODE_CONTENT = {
     heroDescription: (
       <>
         <p className="text-base md:text-lg text-gray-100 max-w-lg mx-auto leading-relaxed">
-          Printed in 24 hours + <strong className="text-white">Free Next-Day Air Shipping</strong>.
+          Most standard orders are produced within 24 hours. <strong className="text-white">Free next-day air begins after production</strong>.
         </p>
-        <p className="text-sm text-gray-200">Most orders arrive in 2 business days.</p>
+        <p className="text-sm text-gray-200">Delivery dates are estimates and can change.</p>
       </>
     ),
     topFeatures: [
-      { icon: Clock, iconClass: 'text-orange-500', label: '24-Hr Print' },
+      { icon: Clock, iconClass: 'text-orange-500', label: 'Most: 24-Hr Production' },
       { icon: Truck, iconClass: 'text-orange-500', label: 'Free Next-Day Air' },
       { icon: Tag, iconClass: 'text-orange-500', label: '20% Off · NEW20' },
       { icon: Brush, iconClass: 'text-orange-500', label: 'Designer Reviewed' },
@@ -176,18 +176,18 @@ const PRODUCT_MODE_CONTENT = {
     heroTitle: 'Custom Yard Signs',
     heroDescription: (
       <p className="text-base md:text-lg text-gray-100 max-w-lg mx-auto leading-relaxed">
-        Standard 24&quot; × 18&quot; corrugated plastic yard signs, printed fast and shipped next business day.
+        Standard 24&quot; × 18&quot; corrugated plastic yard signs with production and carrier transit shown separately.
       </p>
     ),
     topFeatures: [
-      { icon: Clock, iconClass: 'text-orange-500', label: '24-Hr Print' },
+      { icon: Clock, iconClass: 'text-orange-500', label: 'Most: 24-Hr Production' },
       { icon: Truck, iconClass: 'text-orange-500', label: 'Free Next-Day Air' },
       { icon: Layers, iconClass: 'text-orange-500', label: 'Up to 10 Designs' },
       { icon: Brush, iconClass: 'text-orange-500', label: 'Designer Reviewed' },
     ],
     builtTitle: 'Built for the Outdoors',
     builtItems: [
-      { icon: Clock, iconClass: 'text-orange-500', label: '24-Hour Turnaround' },
+      { icon: Clock, iconClass: 'text-orange-500', label: 'Most: 24-Hour Production' },
       { icon: Sun, iconClass: 'text-yellow-500', label: 'Outdoor Durable' },
       { icon: Palette, iconClass: 'text-purple-500', label: 'Vibrant Print' },
       { icon: Droplets, iconClass: 'text-blue-500', label: 'Corrugated Plastic' },
@@ -197,18 +197,18 @@ const PRODUCT_MODE_CONTENT = {
     heroTitle: 'Car Magnets',
     heroDescription: (
       <p className="text-base md:text-lg text-gray-100 max-w-lg mx-auto leading-relaxed">
-        Durable vehicle magnets printed fast with free next-day air shipping
+        Durable vehicle magnets with production and free next-day air transit shown separately
       </p>
     ),
     topFeatures: [
-      { icon: Clock, iconClass: 'text-orange-500', label: '24-Hour Production' },
+      { icon: Clock, iconClass: 'text-orange-500', label: 'Most: 24-Hour Production' },
       { icon: Truck, iconClass: 'text-orange-500', label: 'Free Next-Day Air' },
       { icon: Move, iconClass: 'text-orange-500', label: 'Removable Magnetic Signage' },
       { icon: Brush, iconClass: 'text-orange-500', label: 'Rounded Corner Options' },
     ],
     builtTitle: 'Built for Vehicles',
     builtItems: [
-      { icon: Clock, iconClass: 'text-orange-500', label: '24-Hour Turnaround' },
+      { icon: Clock, iconClass: 'text-orange-500', label: 'Most: 24-Hour Production' },
       { icon: Sun, iconClass: 'text-yellow-500', label: 'Outdoor Durable' },
       { icon: Palette, iconClass: 'text-purple-500', label: 'Full-Color Print' },
       { icon: Move, iconClass: 'text-blue-500', label: 'Removable Material' },
@@ -336,9 +336,7 @@ const Design: React.FC = () => {
   const [hasEnteredBuilder, setHasEnteredBuilder] = useState(false);
   const [isBuilderInView, setIsBuilderInView] = useState(false);
   const getProductQuerySlug = useCallback((type: ProductTypeSlug) => {
-    if (type === 'yard_sign') return 'yard-signs';
-    if (type === 'car_magnet') return 'car-magnets';
-    return 'banner';
+    return getConfiguratorProductQuery(type);
   }, []);
 
   // Product type state — read ?tab= or ?product= query param for routing
@@ -346,9 +344,7 @@ const Design: React.FC = () => {
     const tab = searchParams.get('tab');
     const product = searchParams.get('product');
     const param = tab || product;
-    if (param === 'yard-sign' || param === 'yard_sign' || param === 'yard-signs') return 'yard_sign' as ProductTypeSlug;
-    if (param === 'car-magnet' || param === 'car-magnets' || param === 'car_magnet' || param === 'car_magnets') return 'car_magnet' as ProductTypeSlug;
-    return 'banner' as ProductTypeSlug;
+    return parseConfiguratorProductQuery(param);
   })();
   const [productType, setProductType] = useState<ProductTypeSlug>(initialProductType);
   const isYardSign = productType === 'yard_sign';
@@ -980,7 +976,6 @@ const Design: React.FC = () => {
   });
   const totals = calcTotals({ widthIn, heightIn, qty: quantity, material, addRope, polePockets });
 
-  const pricePerSqFt = PRICE_PER_SQFT[material];
   const selectedMaterial = MATERIALS.find(m => m.mapped === material) || MATERIALS[0];
   const materialLabel = isCarMagnet ? 'Premium Magnetic Material' : selectedMaterial.label;
   const grommetsLabel = DESIGN_GROMMET_OPTIONS.find(o => o.value === grommets)?.label || 'None';
@@ -2602,32 +2597,21 @@ const Design: React.FC = () => {
     <Layout>
       <Helmet>
         <title>Design Your Banner | Banners On The Fly</title>
-        <meta name="description" content="Design and order custom vinyl banners. Upload your artwork, choose your size and material, and get free next-day air shipping." />
+        <meta name="description" content="Design custom vinyl banners online. Upload artwork, choose size and material, preview the print, and review production and shipping before checkout." />
       </Helmet>
 
       {/* Hero */}
-      <section
-        className="relative overflow-hidden px-4 pt-8 pb-10 md:pt-10 md:pb-12 bg-slate-900"
-        style={heroBackgroundStyle}
-      >
-        <div
-          className="absolute inset-0 z-[1]"
-          style={{
-            background: 'linear-gradient(to bottom, rgba(0,0,0,0.48), rgba(0,0,0,0.30))',
-          }}
-          aria-hidden="true"
-        />
-        <div className="relative z-[2] max-w-2xl mx-auto text-center space-y-4">
-          <h1 className="text-white text-3xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight">
-            Design Your
-            <br />
-            <span className="text-orange-500">{modeContent.heroTitle}</span>
+      <section className="relative overflow-hidden border-b border-white/10 bg-[#0B1F3A] px-4 py-12 text-white md:py-16">
+        <div className="relative z-[2] mx-auto max-w-4xl text-center">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF8A3D]">Online order builder</p>
+          <h1 className="mt-4 font-display text-4xl font-bold leading-[1.05] tracking-[-0.04em] text-white sm:text-5xl">
+            Design your {modeContent.heroTitle}
           </h1>
 
           {modeContent.heroDescription}
 
           {/* Inline benefit pills */}
-          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[13px] text-gray-100">
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px] text-slate-200">
             {modeContent.topFeatures.map((b, i) => (
               <span key={i} className="inline-flex items-center gap-1.5 font-medium">
                 <b.icon className={`h-3.5 w-3.5 ${b.iconClass}`} /> {b.label}
@@ -2635,10 +2619,10 @@ const Design: React.FC = () => {
             ))}
           </div>
 
-          <div className="pt-2 flex flex-col items-center gap-2">
+          <div className="mt-7 flex flex-col items-center gap-2">
             <button
               onClick={scrollToOrder}
-              className="group inline-flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white font-bold text-lg px-10 py-4 rounded-xl shadow-[0_4px_14px_rgba(251,146,60,0.4)] hover:shadow-[0_6px_20px_rgba(251,146,60,0.5)] transition-all w-full sm:w-auto"
+              className="brand-button-primary w-full gap-2 px-10 text-lg sm:w-auto"
             >
               Start Order
             </button>
@@ -2646,14 +2630,14 @@ const Design: React.FC = () => {
         </div>
       </section>
 
-      <section ref={orderRef} id="order-builder" className="py-12 px-4 bg-gray-50">
+      <section ref={orderRef} id="order-builder" className="bg-[#F7F7F7] px-4 py-12 sm:py-14">
         <div className="max-w-4xl lg:max-w-7xl mx-auto">
           {/* Product type switcher — public for all users */}
-          <ProductTypeSwitcher productType={productType} onProductTypeChange={handleProductTypeChange} mobileStickyTopPx={64} />
+          <ProductTypeSwitcher productType={productType} onProductTypeChange={handleProductTypeChange} mobileStickyTopPx={77} />
           <h2
             ref={builderStartRef}
             id="builder-start"
-            className="text-2xl md:text-3xl font-bold text-center mb-10 scroll-mt-[140px] md:scroll-mt-24"
+            className="mb-10 scroll-mt-[140px] text-center font-display text-2xl font-bold text-[#0B1F3A] md:scroll-mt-24 md:text-3xl"
           >
             {isYardSign ? 'Build Your Yard Sign Order' : isCarMagnet ? 'Design Your Custom Car Magnets' : 'Build Your Banner'}
           </h2>
@@ -3165,7 +3149,7 @@ const Design: React.FC = () => {
 
             <div className="space-y-6 min-w-0 max-w-full lg:sticky lg:top-24 self-start">
               <p className="text-sm text-emerald-700 -mt-1 font-medium">
-                Includes next-day production &amp; <span className="text-emerald-700 font-semibold">free shipping</span>
+                Most standard orders are produced within 24 hours; <span className="text-emerald-700 font-semibold">carrier transit follows production</span>
               </p>
               {isCarMagnet && carMagnetPricing ? (
                 <PriceBreakdown
@@ -3189,8 +3173,8 @@ const Design: React.FC = () => {
                 />
               ) : (
                 <PriceBreakdown
-                  topLine={`${sqft.toFixed(2)} sq ft • ${usd(pricePerSqFt)} per sq ft`}
-                  secondaryLine={`for ${quantity} ${quantity === 1 ? 'banner' : 'banners'} • ${widthDisplay} × ${heightDisplay} • ${materialLabel}`}
+                  topLine={`${materialLabel} • ${widthDisplay} × ${heightDisplay}`}
+                  secondaryLine={`for ${quantity} ${quantity === 1 ? 'banner' : 'banners'} • Current configured total shown below`}
                   showTopSummary={false}
                   detailRows={[
                     { label: 'Grommets', value: formatOptionValue(grommetsLabel) },
@@ -3492,6 +3476,7 @@ const Design: React.FC = () => {
         thumbnailIsExactComposition={isReadyPlacementPreview(pendingPlacementPreview)}
         thumbnailCompositionSignature={pendingPlacementPreview?.compositionSignature}
         actionType={pendingActionType === 'checkout' ? 'checkout' : 'cart'}
+        productType={productType}
         isProcessing={isProcessingUpsell}
       />
       {/* Create with AI Modal */}

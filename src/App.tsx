@@ -1,19 +1,15 @@
 import { Suspense, lazy, useEffect } from "react";
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { HelmetProvider } from "react-helmet-async";
-import { Helmet } from "react-helmet-async";
-import { ThemeProvider } from "@/components/theme-provider";
+import { AppProviders } from "@/components/AppProviders";
 import { useCartSync } from "@/hooks/useCartSync";
 import { useCartRevalidation } from "@/hooks/useCartRevalidation";
 import { useCartStore } from "@/store/cart";
 import { toast } from "@/components/ui/use-toast";
 import { initPostHog } from "@/lib/posthog";
-import { isPreviewEnvironment } from "@/lib/environment";
 import { captureAttributionFromLocation } from "@/lib/attribution";
+import CityProductPage from "./pages/CityProductPage";
+import ProductHubPage from "./pages/ProductHubPage";
+import NotFound from "./pages/NotFound";
 // DISABLED: Popup promo flow replaced with static NEW20 code in PromoBanner
 // import { PromoPopup } from "@/components/PromoPopup";
 // import { usePromoPopup } from "@/hooks/usePromoPopup";
@@ -69,9 +65,6 @@ const CategoryPage = lazy(() => import("./pages/CategoryPage"));
 // Google Ads landing page - lazy load
 const GoogleAdsBanner = lazy(() => import("./pages/GoogleAdsBanner"));
 
-// Programmatic SEO city × product landing pages - lazy load
-const CityProductPage = lazy(() => import("./pages/CityProductPage"));
-
 // Graduation landing page - lazy load
 const GraduationSigns = lazy(() => import("./pages/GraduationSigns"));
 const PoliticalSigns = lazy(() => import("./pages/PoliticalSigns"));
@@ -89,9 +82,6 @@ const ProofApproval = lazy(() => import("./pages/ProofApproval"));
 // Utility/debug pages - lazy load
 const LogoShowcase = lazy(() => import("./pages/LogoShowcase"));
 const PdfDiagnostic = lazy(() => import("./pages/PdfDiagnostic"));
-
-// 404 page
-const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Wrapper to sync cart when user logs in and enable cross-device revalidation
 const CartSyncWrapper = ({ children }: { children: React.ReactNode }) => {
@@ -139,18 +129,6 @@ const CartSyncWrapper = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-const queryClient = new QueryClient();
-
-const PreviewNoindexGuard = () => {
-  if (!isPreviewEnvironment()) return null;
-
-  return (
-    <Helmet>
-      <meta name="robots" content="noindex,nofollow,noarchive,nosnippet,noimageindex" />
-    </Helmet>
-  );
-};
-
 const AttributionCapture = () => {
   const location = useLocation();
   useEffect(() => {
@@ -159,15 +137,8 @@ const AttributionCapture = () => {
   return null;
 };
 
-const App = () => (
-  <HelmetProvider>
-  <PreviewNoindexGuard />
-  <ThemeProvider defaultTheme="light">
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
+/** Router-dependent application tree shared by BrowserRouter and StaticRouter. */
+export const RoutedApplication = () => (
         <CartSyncWrapper>
           <AttributionCapture />
           <Suspense fallback={<PageLoader />}>
@@ -233,7 +204,9 @@ const App = () => (
             <Route path="/pdf-diagnostic" element={<PdfDiagnostic />} />
             
             {/* SEO Category Pages */}
-            <Route path="/vinyl-banners" element={<CategoryPage />} />
+            <Route path="/vinyl-banners" element={<ProductHubPage productSlug="vinyl-banners" />} />
+            <Route path="/yard-signs" element={<ProductHubPage productSlug="yard-signs" />} />
+            <Route path="/car-magnets" element={<ProductHubPage productSlug="car-magnets" />} />
             <Route path="/mesh-banners" element={<CategoryPage />} />
             <Route path="/trade-show-banners" element={<CategoryPage />} />
             <Route path="/food-truck-banners" element={<CategoryPage />} />
@@ -264,11 +237,14 @@ const App = () => (
           </Routes>
           </Suspense>
           </CartSyncWrapper>
+);
+
+const App = () => (
+  <AppProviders>
+        <BrowserRouter>
+          <RoutedApplication />
         </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
-  </ThemeProvider>
-  </HelmetProvider>
+  </AppProviders>
 );
 
 export default App;

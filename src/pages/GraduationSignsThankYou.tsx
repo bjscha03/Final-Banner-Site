@@ -40,7 +40,7 @@ const GraduationSignsThankYou: React.FC = () => {
           <div className="rounded-2xl border border-[#E5E5E5] bg-[#F7F7F7] p-6 text-left space-y-3 text-[#0B1F3A] mb-8">
             <p>✅ <strong>Your design request has been received.</strong></p>
             <p>🎨 We're creating your custom graduation design now. You'll receive a proof shortly to review and approve.</p>
-            <p>🚀 Once approved, we'll print and ship fast — FREE next-day air.</p>
+            <p>Once approved and paid, production begins. Free next-day air describes carrier transit after production.</p>
           </div>
 
           {intakeId && (
@@ -58,7 +58,7 @@ const GraduationSignsThankYou: React.FC = () => {
 
           <Link
             to="/"
-            className="inline-flex items-center gap-2 rounded-lg bg-[#FF6A00] hover:bg-[#E65F00] text-white font-bold px-8 py-3 text-lg shadow-md transition"
+            className="inline-flex items-center gap-2 rounded-lg bg-[#FF6A00] hover:bg-[#E65F00] text-[#0B1F3A] font-bold px-8 py-3 text-lg shadow-md transition"
           >
             Back to Home <ArrowRight className="h-5 w-5" />
           </Link>

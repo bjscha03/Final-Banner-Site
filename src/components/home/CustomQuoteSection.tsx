@@ -1,24 +1,27 @@
 import React from 'react';
-import { ArrowRight, ClipboardList, PackageCheck, Ruler } from 'lucide-react';
+import { ArrowRight, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const CustomQuoteSection: React.FC = () => (
-  <section className="bg-white px-4 py-12 sm:px-6 lg:px-8">
-    <div className="mx-auto max-w-6xl overflow-hidden rounded-3xl bg-gradient-to-br from-[#18448D] via-[#12366f] to-slate-950 shadow-2xl">
-      <div className="grid gap-8 p-8 text-white md:grid-cols-[1.2fr_0.8fr] md:p-10">
+  <section className="bg-white px-4 pb-14 pt-2 sm:px-6 sm:pb-16 lg:px-8 lg:pb-20">
+    <div className="mx-auto max-w-7xl border-l-4 border-[#FF6A00] bg-[#0B1F3A] text-white">
+      <div className="grid gap-9 p-7 sm:p-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-center lg:p-14">
         <div>
-          <p className="text-sm font-bold uppercase tracking-[0.25em] text-orange-300">Custom Quote</p>
-          <h2 className="mt-3 text-3xl font-black md:text-4xl">Need Something Custom?</h2>
-          <p className="mt-4 max-w-2xl text-lg text-blue-100">Need a special size, large quantity, or custom setup? Tell us what you need and we’ll prepare a personalized quote.</p>
-          <Link to="/custom-quote" className="mt-7 inline-flex items-center rounded-full bg-[#FF6A00] px-6 py-3 font-black text-white shadow-lg transition hover:bg-orange-700">Request a Custom Quote <ArrowRight className="ml-2 h-5 w-5" /></Link>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF8A3D]">Outside the standard configurator?</p>
+          <h2 className="mt-3 font-display text-3xl font-bold leading-tight tracking-[-0.035em] sm:text-4xl">Tell us what the job actually requires.</h2>
+          <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">Use the custom quote form for unusual dimensions, large quantities, specialized finishing, or an order that needs extra production planning.</p>
+          <Link to="/custom-quote" className="brand-button-primary mt-7 gap-2">
+            Request a custom quote <ArrowRight className="h-5 w-5" aria-hidden="true" />
+          </Link>
         </div>
-        <div className="grid gap-3 text-sm">
-          <div className="rounded-2xl bg-white/10 p-4 ring-1 ring-white/15"><Ruler className="mb-2 h-5 w-5 text-orange-300" /> Special sizes and unusual dimensions</div>
-          <div className="rounded-2xl bg-white/10 p-4 ring-1 ring-white/15"><PackageCheck className="mb-2 h-5 w-5 text-orange-300" /> Bulk quantities for banners, yard signs, and magnets</div>
-          <div className="rounded-2xl bg-white/10 p-4 ring-1 ring-white/15"><ClipboardList className="mb-2 h-5 w-5 text-orange-300" /> Custom finishing, setup, and artwork notes</div>
-        </div>
+        <ul className="divide-y divide-white/15 border-y border-white/15 text-sm text-slate-200">
+          {['Special sizes or configurations', 'Bulk quantities across product types', 'Artwork, finishing, and deadline notes'].map((item) => (
+            <li key={item} className="flex items-center gap-3 py-4"><Check className="h-5 w-5 flex-none text-[#FF8A3D]" aria-hidden="true" />{item}</li>
+          ))}
+        </ul>
       </div>
     </div>
   </section>
 );
+
 export default CustomQuoteSection;

@@ -8,8 +8,8 @@ export interface TrustStripProps {
 
 /**
  * Bottom trust/support strip rendered below the order builder.
- * Copy stays aligned with "24-hour production and free next-day air
- * shipping." — never promises delivery in 24 hours.
+ * Copy distinguishes standard production from carrier transit and uses the
+ * same defect-remedy wording as the customer policy pages.
  *
  * Pure presentational.
  */
@@ -18,10 +18,10 @@ export default function TrustStrip({
   supportEmail = 'support@bannersonthefly.com',
 }: TrustStripProps) {
   const items = [
-    { icon: Clock, title: 'Next-day production', subtitle: '', iconClass: 'text-orange-500' },
-    { icon: Truck, title: 'Free next-day shipping', subtitle: 'On all orders', iconClass: 'text-orange-500' },
-    { icon: ShieldCheck, title: 'Best quality guarantee', subtitle: '100% satisfaction', iconClass: 'text-orange-500' },
-    { icon: Smile, title: 'Real people, real support', subtitle: "We're here to help", iconClass: 'text-orange-500' },
+    { icon: Clock, title: 'Standard production', subtitle: 'Most orders within 24 hours', iconClass: 'text-orange-700' },
+    { icon: Truck, title: 'Free next-day air', subtitle: 'Carrier transit after production', iconClass: 'text-orange-700' },
+    { icon: ShieldCheck, title: 'Damage or defect review', subtitle: 'Eligible claims are reprinted', iconClass: 'text-orange-700' },
+    { icon: Smile, title: 'Order support', subtitle: 'Email us with questions', iconClass: 'text-orange-700' },
   ];
 
   return (

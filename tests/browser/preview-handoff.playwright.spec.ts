@@ -75,6 +75,66 @@ async function startDeferredHarness(page: Page, route: string): Promise<HarnessR
   return assertCompletedHarness(page, route);
 }
 
+test('preview password input is safe from iOS focus zoom', async ({ page }, testInfo) => {
+  test.skip(
+    testInfo.project.name !== 'webkit-iphone15pro-portrait',
+    'One iOS WebKit run is sufficient',
+  );
+
+  await page.goto('http://127.0.0.1:4176/', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('heading', { name: 'Preview Access' })).toBeVisible();
+
+  const passwordInput = page.locator('input[type="password"]');
+  await expect(passwordInput).toBeVisible();
+
+  const fontSize = await passwordInput.evaluate((input) =>
+    Number.parseFloat(getComputedStyle(input).fontSize),
+  );
+
+  expect(fontSize).toBeGreaterThanOrEqual(16);
+});
+
+test('design selector keeps all three photographic products fully inside their frames', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'chromium-1440x900', 'One desktop selector run is sufficient');
+
+  await page.goto('/design?product=banner', { waitUntil: 'domcontentloaded' });
+  for (const width of [768, 820, 1024, 1280, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+
+    const selectorStages = page.locator('[role="tab"] [data-selector-product-stage]');
+    await expect(selectorStages).toHaveCount(3);
+
+    const productImages = page.locator('[role="tab"] [data-product-visual-image]');
+    await expect(productImages).toHaveCount(3);
+    await page.waitForFunction(() => {
+      const images = Array.from(document.querySelectorAll<HTMLImageElement>('[role="tab"] [data-product-visual-image]'));
+      return images.length === 3 && images.every((image) => image.complete && image.naturalWidth > 0);
+    });
+
+    const imageStates = await productImages.evaluateAll((elements) => elements.map((element) => {
+      const image = element as HTMLImageElement;
+      const stage = image.closest<HTMLElement>('[data-selector-product-stage]');
+      if (!stage) throw new Error('Product image is missing its selector stage.');
+      const rect = image.getBoundingClientRect();
+      const stageRect = stage.getBoundingClientRect();
+      return {
+        objectFit: getComputedStyle(image).objectFit,
+        insideStage:
+          rect.left >= stageRect.left - 1
+          && rect.right <= stageRect.right + 1
+          && rect.top >= stageRect.top - 1
+          && rect.bottom <= stageRect.bottom + 1,
+      };
+    }));
+    expect(imageStates).toHaveLength(3);
+    for (const state of imageStates) {
+      expect(state.objectFit).toBe('contain');
+      expect(state.insideStage, `product containment at ${width}px`).toBe(true);
+    }
+  }
+});
+
 test('preview identity remains stable across compact and expanded surfaces', async ({
   browser,
   page,

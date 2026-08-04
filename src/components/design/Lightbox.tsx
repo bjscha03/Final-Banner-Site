@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import { useDocumentScrollLock } from '@/hooks/useDocumentScrollLock';
 
 interface LightboxProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ const Lightbox: React.FC<LightboxProps> = ({ isOpen, onClose, src, alt, title })
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const previousActiveElement = useRef<HTMLElement | null>(null);
+  useDocumentScrollLock(isOpen);
 
   useEffect(() => {
     if (isOpen) {
@@ -25,21 +27,13 @@ const Lightbox: React.FC<LightboxProps> = ({ isOpen, onClose, src, alt, title })
         closeButtonRef.current?.focus();
       }, 100);
 
-      // Prevent body scroll
-      document.body.style.overflow = 'hidden';
     } else {
-      // Restore body scroll
-      document.body.style.overflow = '';
-      
       // Restore focus to the previously focused element
       if (previousActiveElement.current) {
         previousActiveElement.current.focus();
       }
     }
 
-    return () => {
-      document.body.style.overflow = '';
-    };
   }, [isOpen]);
 
   useEffect(() => {

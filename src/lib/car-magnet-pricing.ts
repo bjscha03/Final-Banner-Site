@@ -11,13 +11,19 @@ export interface CarMagnetSizeOption {
   basePriceCents: number;
 }
 
-export const CAR_MAGNET_SIZES: CarMagnetSizeOption[] = [
-  { label: '18" × 12"', widthIn: 18, heightIn: 12, basePriceCents: 2900 },
-  { label: '24" × 12"', widthIn: 24, heightIn: 12, basePriceCents: 4000 },
-  { label: '24" × 18"', widthIn: 24, heightIn: 18, basePriceCents: 4700 },
-  { label: '42" × 12"', widthIn: 42, heightIn: 12, basePriceCents: 6000 },
-  { label: '72" × 24"', widthIn: 72, heightIn: 24, basePriceCents: 16000 },
-];
+const carMagnetConfig = getProductConfig('car_magnet');
+
+/**
+ * The product registry is the single source of truth for supported magnet
+ * sizes and prices. Checkout, the configurator, landing pages, and schema all
+ * consume this exported view of the same registry values.
+ */
+export const CAR_MAGNET_SIZES: CarMagnetSizeOption[] = (carMagnetConfig.predefinedSizes || []).map((size) => ({
+  label: size.label,
+  widthIn: size.widthIn,
+  heightIn: size.heightIn,
+  basePriceCents: size.basePriceCents,
+}));
 
 export const CAR_MAGNET_ROUNDED_CORNERS: Array<{ value: CarMagnetRoundedCorner; label: string }> = [
   { value: 'none', label: 'None' },
@@ -54,7 +60,7 @@ export interface CarMagnetPricing {
 }
 
 export function calcCarMagnetPricing(widthIn: number, heightIn: number, quantity: number): CarMagnetPricing {
-  const config = getProductConfig('car_magnet');
+  const config = carMagnetConfig;
   const size = CAR_MAGNET_SIZES.find((option) => option.widthIn === widthIn && option.heightIn === heightIn) || CAR_MAGNET_SIZES[0];
   const safeQuantity = Math.max(1, Number(quantity || 1));
   const unitPriceCents = size.basePriceCents;

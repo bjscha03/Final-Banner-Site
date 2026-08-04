@@ -7,7 +7,6 @@ import { useCartStore, type CartItem } from '@/store/cart';
 import { useUIStore } from '@/store/ui';
 import { calcTotals, usd, PRICE_PER_SQFT } from '@/lib/pricing';
 import { calculateBannerPricing, type RopePlacement } from '@/lib/bannerPricingEngine';
-import { heroBackgroundStyle } from '@/lib/heroBackground';
 import { resolvePromo } from '@/lib/promoEngine';
 import { DESIGN_GROMMET_OPTIONS } from '@/lib/grommets';
 import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
@@ -2206,7 +2205,7 @@ const GoogleAdsBanner: React.FC = () => {
     <>
       <Helmet>
         <title>{isYardSign ? 'Custom Yard Signs' : isCarMagnet ? 'Car Magnets' : 'Custom Banner Printing'} - 24 Hour Production | Banners On The Fly</title>
-        <meta name="description" content={isYardSign ? "Upload your file, choose your size, get FREE Next-Day Air shipping. 24-hour production on custom yard signs." : isCarMagnet ? "Durable vehicle magnets printed fast with free next-day air shipping." : "Upload your file, choose your size, get FREE Next-Day Air shipping. 24-hour production on custom vinyl banners."} />
+        <meta name="description" content={isYardSign ? "Upload yard-sign artwork, review the supported size and current price, and see production and shipping details before checkout." : isCarMagnet ? "Configure a supported car-magnet size, upload artwork, preview the print, and review production and shipping before checkout." : "Upload banner artwork, choose size and material, preview the print, and review production and shipping before checkout."} />
         <meta name="robots" content="noindex, nofollow" />
       </Helmet>
       <div className="min-h-screen bg-white text-gray-900">
@@ -2233,22 +2232,12 @@ const GoogleAdsBanner: React.FC = () => {
         </header>
 
         {/* HERO */}
-        <section
-          className="relative overflow-hidden px-4 pt-10 pb-12 md:pt-14 md:pb-14 bg-slate-900"
-          style={heroBackgroundStyle}
-        >
-          <div
-            className="absolute inset-0 z-[1]"
-            style={{
-              background: 'linear-gradient(to bottom, rgba(0,0,0,0.48), rgba(0,0,0,0.30))',
-            }}
-            aria-hidden="true"
-          />
-          <div className="relative z-[2] max-w-2xl mx-auto text-center space-y-5">
+        <section className="relative overflow-hidden border-b-4 border-[#FF6A00] bg-[#0B1F3A] px-4 pb-12 pt-10 md:pb-14 md:pt-14">
+          <div className="relative max-w-2xl mx-auto text-center space-y-5">
             <h1 className="text-white text-3xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight">
               {isYardSign ? 'Custom Yard Signs' : isCarMagnet ? 'Design Your Custom Car Magnets' : 'Custom Banner Printing'}
               <br />
-              <span className="text-orange-500">24-Hour Production</span>
+              <span className="text-[#FF8A3D]">Most Standard Orders: 24-Hour Production</span>
             </h1>
 
             {isYardSign ? (
@@ -2256,20 +2245,20 @@ const GoogleAdsBanner: React.FC = () => {
                 <p className="text-base md:text-lg text-gray-100 max-w-lg mx-auto leading-relaxed">
                   Standard 24&quot; × 18&quot; corrugated plastic yard signs, printed fast and shipped next business day.
                 </p>
-                <p className="text-sm text-gray-200">Printed in 24 hours + <strong className="text-white">Free Next-Day Air Shipping</strong>.</p>
+                <p className="text-sm text-gray-200">Most standard orders are produced within 24 hours; <strong className="text-white">carrier transit follows production</strong>.</p>
               </>
             ) : isCarMagnet ? (
               <>
                 <p className="text-base md:text-lg text-gray-100 max-w-lg mx-auto leading-relaxed">
-                  Durable vehicle magnets printed fast with free next-day air shipping
+                  Durable vehicle magnets with production and carrier transit shown separately
                 </p>
               </>
             ) : (
               <>
                 <p className="text-base md:text-lg text-gray-100 max-w-lg mx-auto leading-relaxed">
-                  Printed in 24 hours + <strong className="text-white">Free Next-Day Air Shipping</strong>.
+                  Most standard orders are produced within 24 hours; <strong className="text-white">carrier transit follows production</strong>.
                 </p>
-                <p className="text-sm text-gray-200">Most orders arrive in 2 business days.</p>
+                <p className="text-sm text-gray-200">Delivery dates are estimates and can change.</p>
               </>
             )}
 
@@ -2281,7 +2270,7 @@ const GoogleAdsBanner: React.FC = () => {
                 { icon: <Layers className="h-3.5 w-3.5 text-orange-500" />, label: 'Up to 10 Designs' },
                 { icon: <Brush className="h-3.5 w-3.5 text-orange-500" />, label: 'Designer Reviewed' },
               ] : isCarMagnet ? [
-                { icon: <Clock className="h-3.5 w-3.5 text-orange-500" />, label: '24-Hour Production' },
+                { icon: <Clock className="h-3.5 w-3.5 text-orange-500" />, label: 'Most: 24-Hour Production' },
                 { icon: <Truck className="h-3.5 w-3.5 text-orange-500" />, label: 'Free Next-Day Air' },
                 { icon: <Package className="h-3.5 w-3.5 text-orange-500" />, label: 'Removable Magnetic Signage' },
                 { icon: <Brush className="h-3.5 w-3.5 text-orange-500" />, label: 'Rounded Corner Options' },
@@ -2298,14 +2287,14 @@ const GoogleAdsBanner: React.FC = () => {
             </div>
 
             <div className="pt-2 flex flex-col items-center gap-2">
-              <p className="text-sm text-gray-100 font-medium">Order today to start 24-hour production.</p>
+              <p className="text-sm text-gray-100 font-medium">Order today to enter the production queue after the file is ready.</p>
               <button
                 onClick={scrollToOrder}
                 className="group inline-flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white font-bold text-lg px-10 py-4 rounded-xl shadow-[0_4px_14px_rgba(251,146,60,0.4)] hover:shadow-[0_6px_20px_rgba(251,146,60,0.5)] transition-all w-full sm:w-auto"
               >
                 Start Order
               </button>
-              <div className="text-xs text-gray-200 text-center space-y-1"><p>Upload your design in minutes.</p><p>We review files before printing.</p><p>Printed within 24 hours and shipped free via next-day air.</p></div>
+              <div className="text-xs text-gray-200 text-center space-y-1"><p>Upload your design in minutes.</p><p>Review the on-screen print preview before checkout.</p><p>Most standard orders are produced within 24 hours; carrier transit follows production.</p></div>
 
               {/* Trust bar */}
               <div className="mt-4 flex flex-col items-center gap-2">
@@ -2327,7 +2316,7 @@ const GoogleAdsBanner: React.FC = () => {
         <section ref={orderRef} id="order-builder" className="mt-8 py-12 px-4 bg-gray-50">
           <div className="max-w-4xl lg:max-w-7xl mx-auto">
             {/* Product type switcher — public for all users */}
-            <ProductTypeSwitcher productType={productType} onProductTypeChange={handleProductTypeChange} mobileStickyTopPx={56} />
+            <ProductTypeSwitcher productType={productType} onProductTypeChange={handleProductTypeChange} mobileStickyTopPx={65} />
             <h2
               ref={builderStartRef}
               id="builder-start"
@@ -2838,7 +2827,7 @@ const GoogleAdsBanner: React.FC = () => {
 
               <div className="space-y-6 min-w-0 max-w-full lg:sticky lg:top-24 self-start">
                 <p className="text-sm text-emerald-700 -mt-1 font-medium">
-                  Includes next-day production &amp; <span className="text-emerald-700 font-semibold">free shipping</span>
+                  Most standard orders are produced within 24 hours; <span className="text-emerald-700 font-semibold">carrier transit follows production</span>
                 </p>
                 {isCarMagnet && carMagnetPricing ? (
                   <PriceBreakdown

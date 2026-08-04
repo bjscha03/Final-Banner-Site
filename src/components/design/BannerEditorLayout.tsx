@@ -16,6 +16,7 @@ import { useQuoteStore } from '@/store/quote';
 import { generateFinalRender } from '@/utils/generateFinalRender';
 import { useCartStore } from '@/store/cart';
 import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
+import { useDocumentScrollLock } from '@/hooks/useDocumentScrollLock';
 import { 
   Upload, 
   Type, 
@@ -80,15 +81,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
   const desktopPanelRef = useRef<HTMLDivElement>(null);
   const mobilePanelRef = useRef<HTMLDivElement>(null);
 
-  // Lock body scroll when mobile panel is open
-  useEffect(() => {
-    if (activePanel && window.innerWidth < 1024) {
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = '';
-      };
-    }
-  }, [activePanel]);
+  useDocumentScrollLock(Boolean(activePanel && typeof window !== 'undefined' && window.innerWidth < 1024));
   const { toast } = useToast();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -2143,7 +2136,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
         <p className="text-sm">editorObjects: {editorObjects?.length || 0}</p>
       </div>
     )}
-    <div className="flex flex-col h-[calc(100dvh-145px)] lg:h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="flex h-[calc(100dvh-145px)] flex-col bg-[#F7F7F7] lg:h-screen">
 
 
       {/* Professional Header */}

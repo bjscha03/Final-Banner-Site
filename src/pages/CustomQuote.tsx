@@ -159,14 +159,14 @@ const CustomQuote: React.FC = () => {
         />
         <section className="bg-slate-50 py-16">
           <div className="mx-auto max-w-3xl px-4">
-            <div className="rounded-3xl bg-white p-8 text-center shadow-xl">
+            <div className="border-t-4 border-[#FF6A00] bg-white p-8 text-center shadow-[0_12px_30px_rgba(11,31,58,0.08)]">
               <CheckCircle2 className="mx-auto h-16 w-16 text-green-600" />
-              <h1 className="mt-4 text-3xl font-black text-slate-900">We received your request.</h1>
+              <h1 className="mt-4 font-display text-3xl font-bold text-[#0B1F3A]">We received your request.</h1>
               <p className="mt-3 text-lg text-slate-600">
                 Your custom quote request number is <strong className="text-[#18448D]">{quoteNumber}</strong>.
               </p>
               <p className="mt-2 text-slate-600">Our team will review your project details and respond with pricing.</p>
-              <Button className="mt-6 bg-[#FF6A00] hover:bg-orange-700" asChild>
+              <Button className="mt-6 bg-[#FF6A00] hover:bg-[#E65F00]" asChild>
                 <a href="/">Return Home</a>
               </Button>
             </div>
@@ -180,23 +180,23 @@ const CustomQuote: React.FC = () => {
     <Layout>
       <SEO
         title="Request a Custom Quote | Banners On The Fly"
-        description="Request a custom quote for special banner, yard sign, or magnet sizes, quantities, and finishing."
+        description="Request a custom quote for special banner sizes, unusual quantities, custom finishing, and bulk yard-sign or magnet orders."
         canonical="https://bannersonthefly.com/custom-quote"
       />
-      <section className="bg-gradient-to-br from-[#18448D] to-slate-900 px-4 py-14 text-white">
+      <section className="border-b border-white/10 bg-[#0B1F3A] px-4 py-14 text-white sm:py-16">
         <div className="mx-auto max-w-5xl">
-          <p className="text-sm font-bold uppercase tracking-[0.25em] text-orange-300">Custom Quote</p>
-          <h1 className="mt-3 text-4xl font-black md:text-5xl">Tell us about your custom project.</h1>
-          <p className="mt-4 max-w-2xl text-lg text-blue-100">
-            Special sizes, unusual quantities, custom finishing, and bulk orders for banners, yard signs, and magnets.
+          <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#FF8A3D]">Custom quote</p>
+          <h1 className="mt-3 font-display text-4xl font-bold tracking-[-0.04em] md:text-5xl">Tell us about your custom project.</h1>
+          <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-300">
+            Special banner sizes, unusual quantities, custom finishing, and bulk yard-sign or magnet orders.
           </p>
         </div>
       </section>
 
-      <form onSubmit={submit} className="bg-slate-50 py-10">
+      <form onSubmit={submit} className="bg-[#F7F7F7] py-10 sm:py-14">
         <div className="mx-auto grid max-w-5xl gap-6 px-4">
-          <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-            <h2 className="text-xl font-black text-slate-900">Contact information</h2>
+          <div className="border border-slate-200 bg-white p-6 sm:p-8">
+            <h2 className="font-display text-xl font-bold text-[#0B1F3A]">Contact information</h2>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               <Field label="Full name" required><Input value={form.fullName} onChange={(event) => update('fullName', event.target.value)} /></Field>
               <Field label="Company name"><Input value={form.companyName} onChange={(event) => update('companyName', event.target.value)} /></Field>
@@ -205,8 +205,8 @@ const CustomQuote: React.FC = () => {
             </div>
           </div>
 
-          <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-            <h2 className="text-xl font-black text-slate-900">Project details</h2>
+          <div className="border border-slate-200 bg-white p-6 sm:p-8">
+            <h2 className="font-display text-xl font-bold text-[#0B1F3A]">Project details</h2>
             <div className="mt-5 grid gap-4 md:grid-cols-4">
               <Field label="Product type" required>
                 <Select value={form.productType} onValueChange={(value: ProductType) => update('productType', value)}>
@@ -235,8 +235,8 @@ const CustomQuote: React.FC = () => {
               <Field label="Shipping ZIP code" required><Input value={form.shippingZip} onChange={(event) => update('shippingZip', event.target.value)} /></Field>
             </div>
 
-            <div className="mt-6 rounded-xl border border-blue-100 bg-blue-50 p-4">
-              <h3 className="font-bold text-[#18448D]">{PRODUCT_LABELS[form.productType]} options</h3>
+            <div className="mt-6 border-l-4 border-[#FF6A00] bg-[#F7F7F7] p-5">
+              <h3 className="font-display font-bold text-[#0B1F3A]">{PRODUCT_LABELS[form.productType]} options</h3>
               <ProductOptions form={form} update={update} />
             </div>
 
@@ -252,10 +252,10 @@ const CustomQuote: React.FC = () => {
             </Field>
           </div>
 
-          <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-            <h2 className="text-xl font-black text-slate-900">Artwork upload</h2>
+          <div className="border border-slate-200 bg-white p-6 sm:p-8">
+            <h2 className="font-display text-xl font-bold text-[#0B1F3A]">Artwork upload</h2>
             <p className="mt-1 text-sm text-slate-600">{fileHelp}</p>
-            <label className="mt-4 flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 p-8 text-center hover:border-[#18448D]">
+            <label className="mt-4 flex cursor-pointer flex-col items-center justify-center border-2 border-dashed border-slate-300 bg-[#F7F7F7] p-8 text-center transition-colors hover:border-[#FF6A00]">
               <UploadCloud className="h-10 w-10 text-[#18448D]" />
               <span className="mt-2 font-bold text-slate-900">Upload artwork files</span>
               <span className="text-sm text-slate-500">Multiple files supported</span>
@@ -273,8 +273,8 @@ const CustomQuote: React.FC = () => {
             )}
           </div>
 
-          <div className="sticky bottom-0 rounded-2xl bg-white p-4 shadow-xl ring-1 ring-slate-200">
-            <Button type="submit" disabled={submitting} className="w-full bg-[#FF6A00] py-6 text-base font-black hover:bg-orange-700">
+          <div className="sticky bottom-0 border border-slate-200 bg-white p-4 shadow-[0_-8px_24px_rgba(11,31,58,0.08)]">
+            <Button type="submit" disabled={submitting} className="w-full bg-[#FF6A00] py-6 text-base font-bold hover:bg-[#E65F00]">
               {submitting ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Submitting secure quote request…</> : 'Request a Custom Quote'}
             </Button>
           </div>

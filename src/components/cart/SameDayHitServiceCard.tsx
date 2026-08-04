@@ -138,7 +138,7 @@ const SameDayHitServiceCard: React.FC<SameDayHitServiceCardProps> = ({
           <div className="flex-1 min-w-0">
             <h3 className="text-sm font-bold text-slate-900">Want this to ship today?</h3>
             <p className="text-xs text-slate-700 mt-1">
-              Your standard order still includes 24-hour production and free next-day air
+              Most standard orders are still produced within 24 hours; free next-day air begins after production
               shipping. Add Same-Day Hit Service if you want this order prioritized to ship today.
             </p>
 
@@ -178,7 +178,7 @@ const SameDayHitServiceCard: React.FC<SameDayHitServiceCardProps> = ({
         <div className="flex-1 min-w-0">
           <h3 className="text-base font-bold text-slate-900">Need it to ship today?</h3>
           <p className="text-sm text-slate-700 mt-1">
-            Standard orders are still printed within 24 hours and shipped free via next-day air.
+            Most standard orders are still produced within 24 hours; free next-day air begins after production.
             Add Same-Day Hit Service only if you want us to prioritize production so this order
             can ship today.
           </p>

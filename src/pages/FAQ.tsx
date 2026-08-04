@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, HelpCircle, Search } from 'lucide-react';
 import Layout from '@/components/Layout';
 import PageHeader from '@/components/PageHeader';
+import { SITE_POLICIES } from '@/lib/sitePolicies';
 
 const FAQ: React.FC = () => {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
@@ -10,17 +11,17 @@ const FAQ: React.FC = () => {
   const faqs = [
     {
       question: "What file formats do you accept?",
-      answer: "We accept PDF, JPG, and PNG files up to 100MB. For best results, we recommend high-resolution PDF files with embedded fonts and images at 300 DPI.",
+      answer: SITE_POLICIES.artwork.detail,
       category: "Design"
     },
     {
       question: "What is your turnaround time?",
-      answer: "We guarantee 24-hour production on all standard orders.",
+      answer: SITE_POLICIES.production.detail,
       category: "Production"
     },
     {
       question: "What banner sizes do you offer?",
-      answer: "We can print banners in virtually any size from 1' x 1' up to 16' x 50'. Common sizes include 2'x4', 3'x6', 4'x8', and 6'x10'. Custom sizes are available at no extra charge.",
+      answer: "The banner configurator accepts dimensions from 6 inches to 600 inches per side, up to 1,000 square feet. Larger work requires a custom quote and may need additional production time.",
       category: "Specifications"
     },
     {
@@ -30,17 +31,17 @@ const FAQ: React.FC = () => {
     },
     {
       question: "How do grommets work?",
-      answer: "Grommets are metal-reinforced holes that make hanging easy and prevent tearing. We offer grommets in corners only, every 2 feet, or every 18 inches along the perimeter.",
+      answer: "The current banner configurator offers no grommets, every 2–3 feet, every 1–2 feet, four corners only, top corners only, right corners only, or left corners only. The selected option appears in the order summary.",
       category: "Specifications"
     },
     {
       question: "What is your return policy?",
-      answer: "Because our products are custom-made, we don't accept returns. If your order arrives damaged or defective, we'll replace it at no cost—just contact support with your order number and photos.",
+      answer: SITE_POLICIES.returns.detail,
       category: "Policy"
     },
     {
       question: "Do you provide design proofs?",
-      answer: "We don't provide digital proofs, but you'll see a full print preview before placing your order.",
+      answer: SITE_POLICIES.preview.detail,
       category: "Design"
     },
     {
@@ -55,7 +56,7 @@ const FAQ: React.FC = () => {
     },
     {
       question: "What shipping options are available?",
-      answer: "All orders include FREE next-day air shipping with 24-hour production. No minimum order required! We don't offer paid shipping upgrades since every order ships fast and free.",
+      answer: SITE_POLICIES.shipping.detail,
       category: "Shipping"
     },
     {
@@ -65,12 +66,12 @@ const FAQ: React.FC = () => {
     },
     {
       question: "Can I cancel or modify my order?",
-      answer: "Once you click the Final Order button, your order cannot be cancelled or modified. As soon as you upload a file, it immediately goes into production.",
+      answer: SITE_POLICIES.cancellations.detail,
       category: "Orders"
     },
     {
       question: "Do you offer installation services?",
-      answer: "We do not offer installation services or hanging instructions. Our banners are designed for straightforward setup and can be installed using common tools and standard mounting methods. Most customers are able to install their banner quickly using grommets, rope, zip ties, or mounting hardware.",
+      answer: "We do not offer installation services. Choose attachment options for the intended mounting method, distribute wind load across enough attachment points, and use hardware appropriate for the surface and local conditions.",
       category: "Installation"
     }
   ];
@@ -88,38 +89,37 @@ const FAQ: React.FC = () => {
   const categories = [...new Set(faqs.map(faq => faq.category))];
 
   return (
-    <Layout>
+    <Layout showFooterBanner={false}>
       <PageHeader
         title="Frequently Asked Questions"
-        subtitle="Find answers to common questions about our banner printing services, materials, and ordering process."
-        icon={HelpCircle}
+        subtitle="Search current answers about products, materials, artwork, pricing, production, shipping, changes, and order support."
+        centered={false}
       />
       
-      <div className="min-h-screen bg-gray-50 py-12">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="brand-section min-h-screen bg-white">
+        <div className="brand-shell max-w-5xl">
 
           {/* Search Bar */}
-          <div className="mb-8">
-            <div className="relative max-w-md mx-auto">
+          <div className="mb-7">
+            <div className="relative max-w-xl">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search FAQs..."
+                placeholder="Search questions and answers"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="brand-field pl-10"
               />
             </div>
           </div>
 
-          {/* Category Pills */}
-          <div className="flex flex-wrap justify-center gap-2 mb-8">
+          <div className="mb-8 flex flex-wrap gap-x-5 gap-y-2 border-b border-slate-200">
             <button
               onClick={() => setSearchTerm('')}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+              className={`border-b-2 px-1 py-3 text-sm font-bold transition-colors ${
                 searchTerm === '' 
-                  ? 'bg-orange-500 text-white' 
-                  : 'bg-white text-gray-600 hover:bg-gray-100'
+                  ? 'border-[#FF6A00] text-[#0B1F3A]'
+                  : 'border-transparent text-slate-500 hover:text-[#0B1F3A]'
               }`}
             >
               All
@@ -128,10 +128,10 @@ const FAQ: React.FC = () => {
               <button
                 key={category}
                 onClick={() => setSearchTerm(category)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                className={`border-b-2 px-1 py-3 text-sm font-bold transition-colors ${
                   searchTerm.toLowerCase() === category.toLowerCase()
-                    ? 'bg-orange-500 text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-100'
+                    ? 'border-[#FF6A00] text-[#0B1F3A]'
+                    : 'border-transparent text-slate-500 hover:text-[#0B1F3A]'
                 }`}
               >
                 {category}
@@ -140,22 +140,22 @@ const FAQ: React.FC = () => {
           </div>
 
           {/* FAQ Items */}
-          <div className="space-y-4">
+          <div className="border-t border-slate-200">
             {filteredFAQs.length > 0 ? (
               filteredFAQs.map((faq, index) => (
                 <div
                   key={index}
-                  className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden"
+                  className="border-b border-slate-200 bg-white"
                 >
                   <button
                     onClick={() => toggleFAQ(index)}
-                    className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-gray-50 transition-colors"
+                    className="flex w-full items-center justify-between gap-5 py-5 text-left transition-colors hover:text-[#A63C00] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00]"
                   >
-                    <div className="flex items-center space-x-3">
-                      <span className="text-xs font-medium text-orange-500 bg-slate-100 px-2 py-1 rounded">
+                    <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
+                      <span className="text-xs font-bold uppercase tracking-[0.12em] text-[#A63C00]">
                         {faq.category}
                       </span>
-                      <h3 className="text-lg font-semibold text-gray-900">
+                      <h3 className="font-display text-lg font-bold text-[#0B1F3A]">
                         {faq.question}
                       </h3>
                     </div>
@@ -167,9 +167,9 @@ const FAQ: React.FC = () => {
                   </button>
                   
                   {openIndex === index && (
-                    <div className="px-6 pb-4">
-                      <div className="border-t border-gray-200 pt-4">
-                        <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                    <div className="pb-5">
+                      <div className="max-w-3xl border-l-2 border-[#FF6A00] pl-5">
+                        <p className="whitespace-pre-line leading-7 text-slate-600">
                           {faq.answer}
                         </p>
                       </div>
@@ -189,23 +189,21 @@ const FAQ: React.FC = () => {
           </div>
 
           {/* Contact CTA */}
-          <div className="mt-16 text-center">
-            <div className="bg-slate-50 rounded-xl p-8 border border-slate-200">
-              <h3 className="text-xl font-semibold text-blue-900 mb-4">
+          <div className="mt-14 border-l-4 border-[#FF6A00] bg-[#0B1F3A] p-7 text-white sm:p-9">
+              <h3 className="font-display text-2xl font-bold">
                 Still have questions?
               </h3>
-              <p className="text-[#18448D] mb-6">
+              <p className="mt-3 max-w-2xl leading-7 text-slate-300">
                 Our support team is here to help with any questions not covered in our FAQ.
               </p>
-              <div className="flex justify-center">
+              <div className="mt-6">
                 <a
                   href="/contact"
-                  className="bg-orange-500 text-white px-6 py-3 rounded-lg font-medium hover:bg-[#18448D] transition-colors"
+                  className="brand-button-primary"
                 >
                   Contact Support
                 </a>
               </div>
-            </div>
           </div>
         </div>
       </div>
