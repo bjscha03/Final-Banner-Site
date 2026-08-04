@@ -67,6 +67,19 @@ for (const pageCase of pageCases) {
         labels.every((label) => label.scrollWidth <= label.clientWidth + 1),
       );
       expect(mockupTextFits).toBe(true);
+    } else {
+      const productImage = page.locator('[data-product-visual-image]').first();
+      await expect(productImage).toBeVisible();
+      const productImageState = await productImage.evaluate((image) => ({
+        complete: (image as HTMLImageElement).complete,
+        naturalWidth: (image as HTMLImageElement).naturalWidth,
+        naturalHeight: (image as HTMLImageElement).naturalHeight,
+        objectFit: getComputedStyle(image).objectFit,
+      }));
+      expect(productImageState.complete).toBe(true);
+      expect(productImageState.naturalWidth).toBeGreaterThan(0);
+      expect(productImageState.naturalHeight).toBeGreaterThan(0);
+      expect(productImageState.objectFit).toBe('contain');
     }
 
     const viewportWidth = testInfo.project.use.viewport?.width || 0;

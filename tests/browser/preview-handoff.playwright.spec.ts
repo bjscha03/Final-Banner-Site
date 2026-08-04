@@ -81,7 +81,7 @@ test('preview password input is safe from iOS focus zoom', async ({ page }, test
     'One iOS WebKit run is sufficient',
   );
 
-  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await page.goto('http://127.0.0.1:4176/', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: 'Preview Access' })).toBeVisible();
 
   const passwordInput = page.locator('input[type="password"]');
@@ -92,6 +92,34 @@ test('preview password input is safe from iOS focus zoom', async ({ page }, test
   );
 
   expect(fontSize).toBeGreaterThanOrEqual(16);
+});
+
+test('design selector keeps banner and magnet mockups fully inside their frames', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'chromium-1440x900', 'One desktop selector run is sufficient');
+
+  await page.goto('/design?product=banner', { waitUntil: 'domcontentloaded' });
+  const productImages = page.locator('[role="tab"] [data-product-visual-image]');
+  await expect(productImages).toHaveCount(2);
+  await page.waitForFunction(() => {
+    const images = Array.from(document.querySelectorAll<HTMLImageElement>('[role="tab"] [data-product-visual-image]'));
+    return images.length === 2 && images.every((image) => image.complete && image.naturalWidth > 0);
+  });
+
+  const imageStates = await productImages.evaluateAll((images) => images.map((image) => {
+    const element = image as HTMLImageElement;
+    const rect = element.getBoundingClientRect();
+    const naturalRatio = element.naturalWidth / element.naturalHeight;
+    const renderedWidth = Math.min(rect.width, rect.height * naturalRatio);
+    return {
+      objectFit: getComputedStyle(element).objectFit,
+      inlineSafeMargin: (rect.width - renderedWidth) / rect.width / 2,
+    };
+  }));
+
+  for (const state of imageStates) {
+    expect(state.objectFit).toBe('contain');
+    expect(state.inlineSafeMargin).toBeGreaterThanOrEqual(0.05);
+  }
 });
 
 test('preview identity remains stable across compact and expanded surfaces', async ({
