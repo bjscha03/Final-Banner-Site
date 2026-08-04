@@ -2067,6 +2067,7 @@ const GoogleAdsBanner: React.FC = () => {
     widthIn,
     heightIn,
     material,
+    materialRequired: !isCarMagnet,
     quantity,
     isUploading,
     uploadError: uploadError || null,
@@ -2079,8 +2080,12 @@ const GoogleAdsBanner: React.FC = () => {
     sizeLabel: `${widthIn}" × ${heightIn}"`,
     materialLabel: material === '13oz' ? '13oz Vinyl' : material === '15oz' ? '15oz Vinyl' : material,
     quantityLabel: `Qty ${quantity}`,
-    optionsLabel: finishingType === 'none' ? 'No finishing selected' : 'Finishing selected',
-  }), [showEntryCta, widthIn, heightIn, material, quantity, isUploading, uploadError, uploadedFile, hasConfirmedSize, hasConfirmedMaterial, hasConfirmedQuantity, hasReviewedOptions, finishingType]);
+    optionsLabel: isCarMagnet
+      ? getCarMagnetRoundedCornersLabel(carMagnetRoundedCorners)
+      : finishingType === 'none'
+        ? 'No finishing'
+        : 'Selected finishing',
+  }), [showEntryCta, widthIn, heightIn, material, isCarMagnet, carMagnetRoundedCorners, quantity, isUploading, uploadError, uploadedFile, hasConfirmedSize, hasConfirmedMaterial, hasConfirmedQuantity, hasReviewedOptions, finishingType]);
 
   const builderProgress = useMemo(() => getProgress(builderState), [builderState]);
 
@@ -2095,9 +2100,10 @@ const GoogleAdsBanner: React.FC = () => {
     setHasEnteredBuilder(true);
     setHasJustAddedToCart(false);
     logUx('step_scrolled', { step: key, source: 'progress_pill' });
+    // Progress circles navigate only. Completion requires a control change or
+    // the explicit sticky confirmation CTA.
     scrollToStepAnchor(STEP_ANCHOR_FOR(key));
-    if (key !== 'upload') confirmStep(key);
-  }, [confirmStep]);
+  }, []);
 
   const yardSignUnconfirmedDesignId = useMemo(() => {
     if (!isYardSign) return null;
@@ -2153,6 +2159,7 @@ const GoogleAdsBanner: React.FC = () => {
         isUploading: yardSignUploadStatus.isUploading,
         uploadError: yardSignUploadStatus.uploadError,
         hasJustAddedToCart: false,
+        stakesReviewed: hasReviewedYardSignStakes,
         cartItemCount,
       });
       const wrap = (fn?: () => void) => fn ? () => {
@@ -2210,11 +2217,18 @@ const GoogleAdsBanner: React.FC = () => {
         const onClick = wrap(() => {
           setHasEnteredBuilder(true);
           logUx('step_scrolled', { step: stepKey, source: 'sticky_cta' });
-          scrollToStepAnchor(targetId);
-          // Tapping the CTA confirms the step so the next render
-          // advances to the next incomplete step. Upload step is the
-          // exception — confirmation comes from a successful upload.
-          if (stepKey !== 'upload') confirmStep(stepKey as BuilderStepKey);
+          if (stepKey === 'upload') {
+            scrollToStepAnchor(targetId);
+            return;
+          }
+          // Accept the visible default/value, then move to the next incomplete
+          // applicable step instead of making the shopper tap twice.
+          const currentIndex = builderProgress.steps.indexOf(stepKey as BuilderStepKey);
+          const nextIncomplete = builderProgress.steps
+            .slice(currentIndex + 1)
+            .find((key) => !builderProgress.completed[key]);
+          confirmStep(stepKey as BuilderStepKey);
+          scrollToStepAnchor(nextIncomplete ? STEP_ANCHOR_FOR(nextIncomplete) : targetId);
         });
         return { label: desc.label, onClick, disabled: false, loading: false, helper: desc.helper };
       }
@@ -2617,68 +2631,76 @@ const GoogleAdsBanner: React.FC = () => {
                     )}
                   </div>
                 </ConfigCard>
-                <ConfigCard step={2} title="Select material" id="material-section">
-                  <div ref={materialDropdownRef} className="relative">
-                    {isCarMagnet ? (
-                      <div className="w-full border rounded-xl px-3 py-2.5 text-base bg-gray-50 text-gray-800 font-medium">
-                        Premium Magnetic Material
-                      </div>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => setMaterialDropdownOpen(prev => !prev)}
-                          className="w-full border rounded-xl px-3 py-2.5 text-base bg-white flex items-center gap-3 cursor-pointer hover:border-gray-400 transition-colors"
-                        >
-                          <img
-                            src={selectedMaterial.image}
-                            alt={selectedMaterial.label}
-                            className="w-9 h-9 rounded object-cover flex-shrink-0 bg-gray-100"
-                            onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                          />
-                          <span className="font-medium text-gray-800">{selectedMaterial.label}</span>
-                          <svg className={`ml-auto w-4 h-4 text-gray-400 transition-transform ${materialDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                        </button>
-                        {materialDropdownOpen && (
-                          <div className="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden max-h-72 overflow-y-auto">
-                            {MATERIALS.map(m => (
-                              <button
-                                key={m.key}
-                                type="button"
-                                onClick={() => { setMaterial(m.mapped); setMaterialDropdownOpen(false); }}
-                                className={`w-full flex items-center gap-3 px-3 py-3 text-left transition-colors cursor-pointer ${
-                                  m.mapped === material
-                                    ? 'bg-orange-50 border-l-2 border-orange-500'
-                                    : 'hover:bg-gray-50 border-l-2 border-transparent'
-                                }`}
-                              >
-                                <img
-                                  src={m.image}
-                                  alt={m.label}
-                                  className="w-10 h-10 rounded object-cover flex-shrink-0 bg-gray-100"
-                                  onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                                />
-                                <div className="min-w-0">
-                                  <div className={`text-sm font-medium ${m.mapped === material ? 'text-orange-700' : 'text-gray-800'}`}>{m.label}</div>
-                                  <div className="text-xs text-gray-400 truncate">{m.desc}</div>
-                                </div>
-                                {m.mapped === material && (
-                                  <CheckCircle className="ml-auto w-4 h-4 text-orange-500 flex-shrink-0" />
-                                )}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </ConfigCard>
+                {!isCarMagnet && (
+                  <ConfigCard step={2} title="Select material" id="material-section">
+                    <div ref={materialDropdownRef} className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setMaterialDropdownOpen(prev => !prev)}
+                        aria-expanded={materialDropdownOpen}
+                        aria-haspopup="listbox"
+                        className="flex min-h-14 w-full cursor-pointer items-center gap-3 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base transition-colors hover:border-[#18448D]"
+                      >
+                        <img
+                          src={selectedMaterial.image}
+                          alt=""
+                          className="h-9 w-9 flex-shrink-0 rounded bg-gray-100 object-cover"
+                          onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                        <span className="min-w-0 flex-1 text-left font-semibold text-gray-800">{selectedMaterial.label}</span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#EAF1FB] px-2 py-1 text-[11px] font-bold text-[#18448D]">
+                          <CheckCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                          Selected
+                        </span>
+                        <svg className={`h-4 w-4 flex-shrink-0 text-gray-400 transition-transform ${materialDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                      </button>
+                      <p className="mt-2 flex items-start gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600">
+                        <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#18448D]" aria-hidden="true" />
+                        <span><strong className="text-slate-800">{selectedMaterial.label}</strong> is {hasConfirmedMaterial ? 'selected' : 'selected by default'}. Leave it as-is or open the menu to choose another banner material.</span>
+                      </p>
+                      {materialDropdownOpen && (
+                        <div role="listbox" aria-label="Banner material" className="absolute z-30 mt-1 max-h-72 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg">
+                          {MATERIALS.map(m => (
+                            <button
+                              key={m.key}
+                              type="button"
+                              role="option"
+                              aria-selected={m.mapped === material}
+                              onClick={() => { setMaterial(m.mapped); setMaterialDropdownOpen(false); }}
+                              className={`flex w-full cursor-pointer items-center gap-3 border-l-2 px-3 py-3 text-left transition-colors ${m.mapped === material ? 'border-orange-500 bg-orange-50' : 'border-transparent hover:bg-gray-50'}`}
+                            >
+                              <img
+                                src={m.image}
+                                alt=""
+                                className="h-10 w-10 flex-shrink-0 rounded bg-gray-100 object-cover"
+                                onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                              />
+                              <div className="min-w-0">
+                                <div className={`text-sm font-medium ${m.mapped === material ? 'text-orange-700' : 'text-gray-800'}`}>{m.label}</div>
+                                <div className="text-xs text-gray-500">{m.desc}</div>
+                              </div>
+                              {m.mapped === material && (
+                                <CheckCircle className="ml-auto h-4 w-4 flex-shrink-0 text-orange-500" aria-hidden="true" />
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </ConfigCard>
+                )}
                   </>
                 )}
                 {/* Banner-only: Quantity + Finishing Options (yard signs include these in their config panel) */}
                 {!isYardSign && (
                   <>
-                <ConfigCard step={3} title="Quantity" id="quantity-section">
+                <ConfigCard step={isCarMagnet ? 2 : 3} title="Quantity" id="quantity-section">
+                  {isCarMagnet && (
+                    <div className="mb-4 flex items-start gap-2 rounded-xl border border-[#D7E3F4] bg-[#F4F8FD] px-3 py-2.5 text-sm text-slate-700">
+                      <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#18448D]" aria-hidden="true" />
+                      <p><strong className="text-[#0B1F3A]">Premium magnetic material is included.</strong> There is no material choice for car magnets.</p>
+                    </div>
+                  )}
                   <div className="flex items-center gap-3">
                     <button type="button" aria-label="Decrease quantity" onClick={() => setQuantity(q => Math.max(1, q - 1))} className="w-11 h-11 flex items-center justify-center border border-gray-200 rounded-xl hover:border-gray-400 transition-colors">
                       <Minus className="h-4 w-4 text-gray-600" />
@@ -2697,7 +2719,7 @@ const GoogleAdsBanner: React.FC = () => {
                     <p className="text-xs text-gray-400 mt-1.5">Order 2+ for up to 13% off</p>
                   )}
                 </ConfigCard>
-                <ConfigCard step={4} title={isCarMagnet ? 'Rounded Corners' : 'Finishing options'} id="options-section">
+                <ConfigCard step={isCarMagnet ? 3 : 4} title={isCarMagnet ? 'Rounded Corners' : 'Finishing options'} id="options-section">
                   <div className="space-y-3">
                     {isCarMagnet ? (
                       <div>
@@ -2724,7 +2746,7 @@ const GoogleAdsBanner: React.FC = () => {
                   </>
                 )}
                 {/* ========== SHARED: Upload Section ========== */}
-                <ConfigCard step={5} title="Upload your artwork" id="upload-section">
+                <ConfigCard step={isCarMagnet ? 4 : 5} title="Upload your artwork" id="upload-section">
                   {/* Helper banner: shown when the user reaches the upload card before
                       completing required choices. Doesn't block upload — just surfaces
                       what still needs to happen before "Add to Cart" works. */}
