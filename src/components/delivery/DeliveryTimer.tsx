@@ -139,7 +139,7 @@ export const DeliveryTimer: React.FC<DeliveryTimerProps> = ({
               {formatCountdown(remainingMs)}
             </p>
             <p className={`text-slate-500 ${isCompact ? 'text-[11px]' : 'text-xs'}`}>
-              Standard option: estimated to ship {formatWeekdayLong(estimate.shipDate)}; carrier transit follows production
+              Standard option: estimated to ship {formatWeekdayLong(estimate.shipDate)}; free nationwide next-day air follows
             </p>
           </div>
         </div>
@@ -166,7 +166,7 @@ export const DeliveryTimer: React.FC<DeliveryTimerProps> = ({
             {standardLine(estimate, remainingMs)}
           </p>
           <p className={`mt-1 leading-tight text-slate-500 ${isCompact ? 'text-[10px]' : 'text-xs'}`}>
-            Arrival timing depends on destination and carrier schedules. HIT service orders are accepted until 1:00 PM ET.
+            Free next-day air is available anywhere in the United States after production. Weekends, holidays, and carrier schedules can affect the arrival day; HIT service orders are accepted until 1:00 PM ET.
           </p>
           <p className={`mt-2 font-mono font-bold ${isCompact ? 'text-base' : 'text-lg'} text-blue-700`}>
             {formatCountdown(remainingMs)}
