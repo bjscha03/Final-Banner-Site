@@ -1,6 +1,7 @@
+import { withLambda } from '@netlify/aws-lambda-compat';
 import storageModule from './_shared/ai-designer/storage.cjs';
 
-export const handler = async () => {
+const cleanupHandler = async () => {
   try {
     const deleted = await storageModule.cleanupTemporaryArtwork();
     console.info('[ai_designer_cleanup]', { deleted });
@@ -9,4 +10,10 @@ export const handler = async () => {
     console.error('[ai_designer_cleanup_failed]', { category: error?.code || 'CLEANUP_FAILED' });
     return { statusCode: 500, body: JSON.stringify({ ok: false }) };
   }
+};
+
+export default withLambda(cleanupHandler);
+
+export const config = {
+  schedule: '@daily',
 };

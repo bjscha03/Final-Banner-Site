@@ -89,6 +89,18 @@ afterEach(() => {
 });
 
 describe('AI designer authorization and fail-closed controls', () => {
+  it('uses the modern Netlify runtime for every new endpoint', () => {
+    const functionNames = ['status', 'brief', 'generate', 'edit', 'cleanup'];
+    for (const name of functionNames) {
+      const source = fs.readFileSync(
+        path.resolve(`netlify/functions/ai-designer-${name}.mjs`),
+        'utf8',
+      );
+      expect(source).toContain('export default');
+      expect(source).not.toMatch(/export\s+(?:const|function)\s+handler\b/);
+    }
+  });
+
   it('fails closed when the feature flag is absent', () => {
     expect(isEnabled()).toBe(false);
   });
