@@ -1,67 +1,56 @@
 import React from 'react';
-import { Star, Lock, CheckCircle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { heroBackgroundStyle } from '@/lib/heroBackground';
+import { ArrowRight, Check, Eye, Truck } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import ProductVisual from '@/components/product/ProductVisual';
 
 const HeroSection: React.FC = () => {
   const navigate = useNavigate();
 
-  const handleUploadOrCreate = () => {
+  const startOrder = () => {
     navigate('/design');
-    setTimeout(() => {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, 100);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
-    <section
-      className="relative w-full overflow-hidden bg-slate-950 py-14 sm:py-16 md:py-20 lg:py-24"
-      style={heroBackgroundStyle}
-    >
-      <div className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <div
-          className="rounded-2xl border border-white/10 bg-black/15 p-6 sm:p-10 md:p-12 lg:p-16 backdrop-blur-[1px]"
-          style={{
-            boxShadow: '0 20px 48px rgba(2, 6, 23, 0.35)',
-          }}
-        >
-          <div className="text-center text-white space-y-5 md:space-y-6">
-            <div className="space-y-3">
-              <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight uppercase">
-                Custom Banners & Yard Signs
-              </h1>
-              <p className="text-lg md:text-2xl text-slate-100">
-                Most standard orders: 24-hour production • Free <span className="text-orange-300 italic font-semibold">next-day air after production</span>
-              </p>
+    <section className="relative overflow-hidden bg-[#0B1F3A] text-white">
+      <div className="absolute inset-y-0 right-0 hidden w-[42%] border-l border-white/10 bg-[#102A4C] lg:block" aria-hidden="true" />
+      <div className="brand-shell relative grid min-h-[650px] items-center gap-10 py-14 sm:py-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:py-20">
+        <div className="max-w-3xl">
+          <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#FF8A3D]">Custom printing · Nationwide shipping</p>
+          <h1 className="mt-5 font-display text-4xl font-bold leading-[1.02] tracking-[-0.045em] text-white sm:text-5xl lg:text-[4.25rem]">
+            Custom banners and signs that get noticed.
+          </h1>
+          <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300 sm:text-xl">
+            Choose your product, upload artwork, and review a live print preview before checkout. Most standard orders are produced within 24 hours, followed by free next-day air.
+          </p>
+
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <button type="button" onClick={startOrder} className="brand-button-primary gap-2 px-7">
+              Start your order <ArrowRight className="h-5 w-5" aria-hidden="true" />
+            </button>
+            <Link to="/vinyl-banners" className="brand-button-on-dark px-7">
+              Compare products & pricing
+            </Link>
+          </div>
+
+          <ul className="mt-9 grid gap-4 border-t border-white/15 pt-6 text-sm text-slate-200 sm:grid-cols-3" aria-label="Ordering benefits">
+            <li className="flex items-center gap-2"><Eye className="h-5 w-5 text-[#FF8A3D]" aria-hidden="true" />Live print preview</li>
+            <li className="flex items-center gap-2"><Check className="h-5 w-5 text-[#FF8A3D]" aria-hidden="true" />Current pricing shown</li>
+            <li className="flex items-center gap-2"><Truck className="h-5 w-5 text-[#FF8A3D]" aria-hidden="true" />Ships nationwide</li>
+          </ul>
+        </div>
+
+        <div className="relative mx-auto w-full max-w-xl lg:max-w-none">
+          <div className="absolute -left-3 top-8 h-[82%] w-1 bg-[#FF6A00]" aria-hidden="true" />
+          <ProductVisual productSlug="vinyl-banners" priority className="aspect-[4/3] border border-white/15 bg-white" />
+          <div className="grid grid-cols-2 border-x border-b border-white/15 bg-white text-[#0B1F3A]">
+            <div className="border-r border-slate-200 p-4 sm:p-5">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Made to size</p>
+              <p className="mt-1 font-display font-bold">6″ to 600″ per side</p>
             </div>
-
-            <p className="text-base md:text-xl text-slate-100 font-semibold tracking-wide">
-              <span className="font-extrabold">High-quality vinyl</span> • <span className="font-extrabold">Designer reviewed</span> • <span className="font-extrabold">20% off your first order</span>
-            </p>
-
-            <div className="flex items-center justify-center pt-2 pb-1">
-              <button
-                onClick={handleUploadOrCreate}
-                className="group relative px-10 py-4 sm:px-11 sm:py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-red-500 text-white text-lg font-bold rounded-lg transition-all duration-300 min-w-[240px] shadow-xl shadow-orange-900/30 hover:shadow-orange-500/45 hover:shadow-2xl hover:-translate-y-0.5 overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
-              >
-                <span className="relative z-10">Upload Design & Continue</span>
-                <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent opacity-0 group-hover:opacity-100 group-hover:animate-[btn-shine_0.8s_ease-in-out]" />
-              </button>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-center gap-5 pt-2 text-sm text-slate-100">
-              <div className="flex items-center gap-2">
-                <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                <span>Online ordering with nationwide shipping</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Lock className="w-4 h-4 text-slate-200" />
-                <span>Secure checkout · No PayPal account required</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-green-400" />
-                <span>Live print preview before checkout</span>
-              </div>
+            <div className="p-4 sm:p-5">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Starting at</p>
+              <p className="mt-1 font-display text-xl font-bold">$20</p>
             </div>
           </div>
         </div>

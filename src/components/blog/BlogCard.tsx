@@ -1,11 +1,6 @@
-/**
- * Blog Card Component
- * Enhanced with modern design, gradients, shadows, and hover effects
- */
-
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Clock, ArrowRight, Calendar } from 'lucide-react';
+import { ArrowRight, Calendar, Clock } from 'lucide-react';
 import { OptimizedImage } from './OptimizedImage';
 import { TagPill } from './TagPill';
 import type { BlogListItem } from '@/lib/blog';
@@ -17,145 +12,45 @@ interface BlogCardProps {
 
 export function BlogCard({ post, featured = false }: BlogCardProps) {
   const { frontmatter, excerpt, readingTime } = post;
-  
-  // Handle both 'hero' and 'heroImage' field names
-  const heroImageUrl = (frontmatter as any).heroImage || (frontmatter as any).hero || 'https://via.placeholder.com/640x360/18448D/ffffff?text=Blog+Post';
-  
+  const heroImageUrl = (frontmatter as any).heroImage || (frontmatter as any).hero || '/images/og-default.png';
+  const articleUrl = `/blog/${frontmatter.slug}`;
+  const date = new Date(frontmatter.publishDate || frontmatter.date).toLocaleDateString('en-US', {
+    year: 'numeric', month: featured ? 'long' : 'short', day: 'numeric',
+  });
+
   if (featured) {
     return (
-      <article className="group relative bg-white rounded-3xl shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 border border-gray-100">
-        <div className="grid md:grid-cols-2 gap-0">
-          {/* Image Section */}
-          <Link to={`/blog/${frontmatter.slug}`} className="block relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-[#18448D]/20 to-[#ff6b35]/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10" />
-            <OptimizedImage
-              src={heroImageUrl}
-              alt={frontmatter.alt}
-              width={800}
-              className="w-full h-64 md:h-full object-cover transition-transform duration-700 group-hover:scale-110"
-            />
-            {/* Featured Badge */}
-            <div className="absolute top-4 left-4 z-20">
-              <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-bold bg-gradient-to-r from-[#ff6b35] to-[#f7931e] text-white shadow-lg">
-                ⭐ Featured Article
-              </span>
-            </div>
-          </Link>
-          
-          {/* Content Section */}
-          <div className="p-8 md:p-10 flex flex-col justify-center">
-            <div className="flex flex-wrap gap-2 mb-4">
-              {frontmatter.tags.slice(0, 3).map(tag => (
-                <TagPill key={tag} tag={tag} linkTo />
-              ))}
-            </div>
-            
-            <Link to={`/blog/${frontmatter.slug}`} className="block group/title">
-              <h2 className="text-2xl md:text-3xl font-black text-gray-900 mb-4 leading-tight group-hover/title:text-[#18448D] transition-colors duration-300">
-                {frontmatter.title}
-              </h2>
-            </Link>
-            
-            <p className="text-gray-600 mb-6 line-clamp-3 text-lg leading-relaxed">{excerpt}</p>
-            
-            <div className="flex items-center gap-6 text-sm text-gray-500 mb-6">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-[#18448D]" />
-                <time dateTime={frontmatter.publishDate || frontmatter.date}>
-                  {new Date(frontmatter.publishDate || frontmatter.date).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })}
-                </time>
-              </div>
-              {readingTime && (
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-[#ff6b35]" />
-                  <span>{readingTime}</span>
-                </div>
-              )}
-            </div>
-            
-            <Link
-              to={`/blog/${frontmatter.slug}`}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[#18448D] to-[#1a5bc4] text-white font-semibold hover:from-[#ff6b35] hover:to-[#f7931e] transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl w-fit group/btn"
-            >
-              Read Full Article
-              <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover/btn:translate-x-1" />
-            </Link>
+      <article className="grid overflow-hidden border border-slate-200 bg-white lg:grid-cols-[1.05fr_0.95fr]">
+        <Link to={articleUrl} className="block min-h-[300px] overflow-hidden bg-slate-100">
+          <OptimizedImage src={heroImageUrl} alt={frontmatter.alt} width={900} className="h-full min-h-[300px] w-full object-cover" />
+        </Link>
+        <div className="flex flex-col justify-center p-7 sm:p-9 lg:p-11">
+          <p className="brand-eyebrow">Featured article</p>
+          <div className="mt-4 flex flex-wrap gap-3">{frontmatter.tags.slice(0, 3).map((tag) => <TagPill key={tag} tag={tag} linkTo />)}</div>
+          <Link to={articleUrl}><h2 className="mt-4 font-display text-3xl font-bold leading-tight tracking-[-0.03em] text-[#0B1F3A] hover:text-[#D95700]">{frontmatter.title}</h2></Link>
+          <p className="mt-4 line-clamp-3 text-lg leading-7 text-slate-600">{excerpt}</p>
+          <div className="mt-6 flex flex-wrap gap-5 text-sm text-slate-500">
+            <span className="flex items-center gap-2"><Calendar className="h-4 w-4 text-[#FF6A00]" />{date}</span>
+            {readingTime && <span className="flex items-center gap-2"><Clock className="h-4 w-4 text-[#FF6A00]" />{readingTime}</span>}
           </div>
+          <Link to={articleUrl} className="mt-7 inline-flex items-center gap-2 font-bold text-[#0B1F3A] underline decoration-[#FF6A00] decoration-2 underline-offset-4">Read article <ArrowRight className="h-4 w-4" /></Link>
         </div>
       </article>
     );
   }
-  
+
   return (
-    <article className="group relative bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-3 border border-gray-100/50 flex flex-col h-full">
-      {/* Decorative gradient border on hover */}
-      <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[#18448D] via-[#1a5bc4] to-[#ff6b35] opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10 blur-sm scale-[1.02]" />
-      
-      {/* Image Container */}
-      <Link to={`/blog/${frontmatter.slug}`} className="block relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10" />
-        <OptimizedImage
-          src={heroImageUrl}
-          alt={frontmatter.alt}
-          width={640}
-          className="w-full h-52 object-cover transition-transform duration-700 group-hover:scale-110"
-        />
-        {/* Reading time badge */}
-        {readingTime && (
-          <div className="absolute top-4 right-4 z-20">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-white/90 backdrop-blur-sm text-gray-700 shadow-lg">
-              <Clock className="w-3.5 h-3.5 text-[#ff6b35]" />
-              {readingTime}
-            </span>
-          </div>
-        )}
+    <article className="flex h-full flex-col overflow-hidden border border-slate-200 bg-white transition-colors hover:border-[#0B1F3A]">
+      <Link to={articleUrl} className="block overflow-hidden bg-slate-100">
+        <OptimizedImage src={heroImageUrl} alt={frontmatter.alt} width={640} className="aspect-[16/10] w-full object-cover" />
       </Link>
-      
-      {/* Content */}
-      <div className="p-6 flex flex-col flex-grow bg-gradient-to-b from-white to-gray-50/50">
-        {/* Tags */}
-        <div className="flex flex-wrap gap-2 mb-4">
-          {frontmatter.tags.slice(0, 3).map(tag => (
-            <TagPill key={tag} tag={tag} linkTo />
-          ))}
-        </div>
-        
-        {/* Title */}
-        <Link to={`/blog/${frontmatter.slug}`} className="block group/title">
-          <h2 className="text-xl font-bold text-gray-900 mb-3 leading-snug group-hover/title:text-[#18448D] transition-colors duration-300 line-clamp-2">
-            {frontmatter.title}
-          </h2>
-        </Link>
-        
-        {/* Excerpt */}
-        <p className="text-gray-600 mb-4 line-clamp-2 text-sm leading-relaxed flex-grow">{excerpt}</p>
-        
-        {/* Meta & CTA */}
-        <div className="mt-auto pt-4 border-t border-gray-100">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <Calendar className="w-4 h-4 text-[#18448D]" />
-              <time dateTime={frontmatter.publishDate || frontmatter.date}>
-                {new Date(frontmatter.publishDate || frontmatter.date).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
-              </time>
-            </div>
-            
-            <Link
-              to={`/blog/${frontmatter.slug}`}
-              className="inline-flex items-center gap-1.5 text-[#18448D] font-semibold text-sm hover:text-[#ff6b35] transition-all duration-300 group/link"
-            >
-              Read More
-              <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover/link:translate-x-1" />
-            </Link>
-          </div>
+      <div className="flex flex-1 flex-col p-6">
+        <div className="flex flex-wrap gap-3">{frontmatter.tags.slice(0, 2).map((tag) => <TagPill key={tag} tag={tag} linkTo />)}</div>
+        <Link to={articleUrl}><h2 className="mt-4 line-clamp-2 font-display text-xl font-bold leading-snug text-[#0B1F3A] hover:text-[#D95700]">{frontmatter.title}</h2></Link>
+        <p className="mt-3 line-clamp-3 flex-1 text-sm leading-6 text-slate-600">{excerpt}</p>
+        <div className="mt-5 flex items-center justify-between gap-4 border-t border-slate-200 pt-4 text-xs text-slate-500">
+          <time dateTime={frontmatter.publishDate || frontmatter.date}>{date}</time>
+          {readingTime && <span>{readingTime}</span>}
         </div>
       </div>
     </article>

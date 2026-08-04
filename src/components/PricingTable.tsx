@@ -1,203 +1,80 @@
 import React from 'react';
-import { Check, Columns3, Cable } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { MaterialKey } from '@/store/quote';
-import { useScrollReveal } from '@/hooks/useScrollReveal';
+import { ArrowRight, Check } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
-const PricingTable: React.FC = () => {
-  const navigate = useNavigate();
-  const { ref, isVisible } = useScrollReveal(0.1);
+const materials = [
+  {
+    name: '13oz Vinyl',
+    rate: '$4.50 / sq ft',
+    use: 'Indoor displays and short-term outdoor campaigns',
+    traits: ['Lightweight', 'Smooth finish', 'Lowest material rate'],
+  },
+  {
+    name: '15oz Vinyl',
+    rate: '$6 / sq ft',
+    use: 'Everyday outdoor promotions, events, and storefronts',
+    traits: ['Outdoor-ready', 'Added durability', 'Versatile choice'],
+    recommended: true,
+  },
+  {
+    name: '18oz Vinyl',
+    rate: '$7.50 / sq ft',
+    use: 'Heavy-duty and longer-term outdoor display needs',
+    traits: ['Heaviest vinyl', 'High durability', 'Longer-term use'],
+  },
+  {
+    name: 'Mesh Banner',
+    rate: '$6 / sq ft',
+    use: 'Fences and outdoor placements where wind can pass through',
+    traits: ['Wind-permeable', 'Fence-friendly', 'Outdoor use'],
+  },
+];
 
-  const materials = [
-    {
-      name: "13oz Vinyl",
-      key: "13oz" as MaterialKey,
-      popular: false,
-      description: "Perfect for indoor displays and short-term outdoor use",
-      features: [
-        "Indoor/Short-term outdoor",
-        "Smooth finish",
-        "Lightweight",
-        "Cost-effective",
-        "Grommets included"
-      ]
-    },
-    {
-      name: "15oz Vinyl",
-      key: "15oz" as MaterialKey,
-      popular: true,
-      description: "Most popular choice for outdoor banners and events",
-      features: [
-        "All-weather durability",
-        "UV resistant",
-        "Tear resistant",
-        "Professional grade",
-        "Grommets included",
-        "Wind resistant"
-      ]
-    },
-    {
-      name: "18oz Vinyl",
-      key: "18oz" as MaterialKey,
-      popular: false,
-      description: "Heavy-duty material for long-term outdoor displays",
-      features: [
-        "Maximum durability",
-        "Extreme weather resistant",
-        "Long-term outdoor use",
-        "Premium quality",
-        "Grommets included",
-        "Fade resistant"
-      ]
-    },
-    {
-      name: "Mesh Fence",
-      key: "mesh" as MaterialKey,
-      popular: false,
-      description: "Wind-resistant mesh perfect for fencing and construction",
-      features: [
-        "Wind-through design",
-        "Fence mounting",
-        "Construction sites",
-        "Reduced wind load",
-        "Grommets included",
-        "Weather resistant"
-      ]
-    }
-  ];
-
-  const handleMaterialSelect = (_materialKey: MaterialKey) => {
-    navigate('/design');
-    setTimeout(() => {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, 100);
-  };
-
-  return (
-    <section className="py-16 sm:py-20 bg-gradient-to-b from-slate-50 to-white relative overflow-hidden">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-30">
-        <div className="absolute top-0 right-1/4 w-80 h-80 bg-white rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 left-1/4 w-80 h-80 bg-white rounded-full blur-3xl"></div>
+const PricingTable: React.FC = () => (
+  <section className="brand-section bg-white" aria-labelledby="material-heading">
+    <div className="brand-shell">
+      <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
+        <div className="max-w-3xl">
+          <p className="brand-eyebrow">Vinyl banner materials</p>
+          <h2 id="material-heading" className="brand-title mt-3">Pick the material for the environment.</h2>
+          <p className="brand-copy mt-4">Rates below are current base material rates before tax and paid finishing options. The configurator calculates your exact size and quantity.</p>
+        </div>
+        <Link to="/vinyl-banners" className="inline-flex items-center gap-2 font-bold text-[#0B1F3A] underline decoration-[#FF6A00] decoration-2 underline-offset-4">
+          Full banner buying guide <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        </Link>
       </div>
 
-      <div ref={ref} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        {/* Header Section */}
-        <div className={`text-center mb-12 sm:mb-16 scroll-reveal ${isVisible ? 'visible' : ''}`}>
-          <h2 className="text-4xl font-bold text-slate-900 mb-6">
-            Material Options
-          </h2>
-          <p className="text-xl text-gray-700 max-w-2xl mx-auto leading-relaxed">
-            Choose the perfect material for your banner needs.
-          </p>
-        </div>
+      <div className="mt-10 grid border border-slate-200 lg:grid-cols-4">
+        {materials.map((material, index) => (
+          <article key={material.name} className={`relative p-6 sm:p-7 ${index > 0 ? 'border-t border-slate-200 lg:border-l lg:border-t-0' : ''} ${material.recommended ? 'bg-[#FFF7F1]' : 'bg-white'}`}>
+            {material.recommended && <div className="absolute inset-x-0 top-0 h-1 bg-[#FF6A00]" aria-hidden="true" />}
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#D95700]">{material.recommended ? 'Most versatile' : 'Material'}</p>
+            <h3 className="mt-3 font-display text-2xl font-bold text-[#0B1F3A]">{material.name}</h3>
+            <p className="mt-2 font-display text-xl font-bold text-[#D95700]">{material.rate}</p>
+            <p className="mt-5 min-h-[72px] text-sm leading-6 text-slate-600">{material.use}</p>
+            <ul className="mt-5 space-y-2 border-t border-slate-200 pt-5 text-sm text-slate-700">
+              {material.traits.map((trait) => (
+                <li key={trait} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 flex-none text-[#FF6A00]" aria-hidden="true" />{trait}</li>
+              ))}
+            </ul>
+          </article>
+        ))}
+      </div>
 
-        {/* Pricing Cards Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-7 lg:gap-8">
-          {materials.map((material, index) => (
-            <div
-              key={index}
-              className={`${
-                material.popular
-                  ? 'material-card-popular'
-                  : 'material-card'
-              } relative flex flex-col h-full scroll-reveal ${isVisible ? 'visible' : ''}`}
-              style={{ transitionDelay: `${(index + 1) * 150}ms` }}
-            >
-              {/* Popular Badge - Fixed Height */}
-              <div className="h-10 sm:h-11 flex items-center justify-center mb-1 sm:mb-2">
-                {material.popular && (
-                  <div className="bg-orange-500 text-white px-4 py-2 rounded-full text-xs font-bold shadow-sm">
-                    <span className="flex items-center gap-1.5">
-                      <span>⭐</span>
-                      Most Popular
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Header Section - Fixed Height */}
-              <div className="text-center mb-5 sm:mb-6 px-5 sm:px-6">
-                <h3 className="text-3xl sm:text-4xl font-extrabold text-orange-500 mb-3 sm:mb-4 leading-tight min-h-[2.5rem] sm:min-h-[2.75rem] flex items-center justify-center">
-                  {material.name}
-                </h3>
-                <p className="text-base sm:text-lg text-gray-700 font-medium leading-relaxed min-h-[3.75rem] sm:min-h-[4rem] flex items-center justify-center text-center">
-                  {material.description}
-                </p>
-              </div>
-
-              {/* Features List - Flexible Height */}
-              <div className="flex-1 px-5 sm:px-6 mb-5 sm:mb-6">
-                <ul className="space-y-2 sm:space-y-2.5">
-                  {material.features.map((feature, featureIndex) => (
-                    <li key={featureIndex} className="flex items-start text-sm sm:text-base">
-                      <Check className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 mr-2.5 flex-shrink-0 mt-0.5" />
-                      <span className="text-gray-700 leading-snug">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Button - Fixed Position at Bottom */}
-              <div className="px-5 sm:px-6 pb-5 sm:pb-6">
-                <button
-                  onClick={() => handleMaterialSelect(material.key)}
-                  className={`w-full py-3.5 sm:py-4 px-6 rounded-xl font-bold text-sm sm:text-base transition-all duration-200 shadow-lg hover:shadow-xl ${
-                    material.popular
-                      ? 'bg-orange-500 hover:bg-orange-600 text-white'
-                      : 'bg-[#18448D] hover:bg-[#0f2d5c] text-white'
-                  }`}
-                  aria-label={`Select ${material.name} and go to design tool`}
-                >
-                  Select {material.name}
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Add-On Options Section */}
-        <div className="mt-16 bg-white rounded-lg p-10 shadow-sm border border-gray-200/50">
-          <h3 className="text-2xl font-bold text-gray-900 mb-8 text-center">
-            Add-On Options
-          </h3>
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center p-6 border border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-sm transition-all duration-300">
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Check className="h-6 w-6 text-green-600" />
-              </div>
-              <h4 className="font-bold text-gray-900 mb-3 text-lg">Grommets</h4>
-              <p className="text-gray-600 mb-4 leading-relaxed">Metal reinforced holes for hanging</p>
-              <div className="bg-green-50 text-green-700 font-bold py-2 px-4 rounded-lg">
-                Included Free
-              </div>
-            </div>
-            <div className="text-center p-6 border border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-sm transition-all duration-300">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Columns3 className="h-6 w-6 text-blue-600" />
-              </div>
-              <h4 className="font-bold text-gray-900 mb-3 text-lg">Pole Pockets</h4>
-              <p className="text-gray-600 mb-4 leading-relaxed">Heat-welded pockets for pole mounting (1", 2", 3", 4" sizes)</p>
-              <div className="bg-blue-50 text-blue-700 font-bold py-2 px-4 rounded-lg">
-                <div>$15 setup fee</div>
-                <div className="text-sm">+$2.00/linear ft</div>
-              </div>
-            </div>
-            <div className="text-center p-6 border border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-sm transition-all duration-300">
-              <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Cable className="h-6 w-6 text-orange-600" />
-              </div>
-              <h4 className="font-bold text-gray-900 mb-3 text-lg">Rope</h4>
-              <p className="text-gray-600 mb-4 leading-relaxed">Nylon rope for secure mounting</p>
-              <div className="bg-orange-50 text-orange-700 font-bold py-2 px-4 rounded-lg">
-                +$2.00/linear ft
-              </div>
-            </div>
+      <div className="grid border-x border-b border-slate-200 bg-[#F7F7F7] sm:grid-cols-3">
+        {[
+          ['Grommets', 'Available placements · no separate charge'],
+          ['Pole pockets', '$15 setup + $2 per linear foot'],
+          ['Rope', '$2 per linear foot'],
+        ].map(([title, detail], index) => (
+          <div key={title} className={`p-5 sm:p-6 ${index > 0 ? 'border-t border-slate-200 sm:border-l sm:border-t-0' : ''}`}>
+            <p className="font-display font-bold text-[#0B1F3A]">{title}</p>
+            <p className="mt-1 text-sm text-slate-600">{detail}</p>
           </div>
-        </div>
+        ))}
       </div>
-    </section>
-  );
-};
+    </div>
+  </section>
+);
 
 export default PricingTable;

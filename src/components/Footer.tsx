@@ -70,13 +70,18 @@ const Footer: React.FC = () => {
   };
 
   const quickLinks = [
-    { name: 'Home', href: '/' },
     { name: 'Vinyl Banners', href: '/vinyl-banners' },
     { name: 'Yard Signs', href: '/yard-signs' },
     { name: 'Car Magnets', href: '/car-magnets' },
-    { name: 'Service Areas', href: '/locations' },
+    { name: 'Custom Quote', href: '/custom-quote' },
+    { name: 'Design Tool', href: '/design' },
+  ];
+
+  const companyLinks = [
     { name: 'About Us', href: '/about' },
-    { name: 'FAQ', href: '/faq' }
+    { name: 'Blog', href: '/blog' },
+    { name: 'Contact', href: '/contact' },
+    { name: 'FAQ', href: '/faq' },
   ];
 
   const supportLinks = [
@@ -87,26 +92,25 @@ const Footer: React.FC = () => {
   ];
 
   return (
-    <footer className="bg-black text-white relative">
-      {/* Top gradient accent */}
-      <div className="h-1 bg-gradient-to-r from-orange-500 via-[#18448D] to-orange-500" />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid md:grid-cols-4 gap-8">
+    <footer className="relative bg-[#07182E] text-white">
+      <div className="h-1 bg-[#FF6A00]" />
+      <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-16">
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.3fr_0.7fr_0.7fr_0.7fr_1.2fr]">
           {/* Company Info */}
           <div className="md:col-span-1">
-            <h3 className="text-2xl font-bold text-white mb-4">
+            <h3 className="font-display text-2xl font-bold text-white mb-4">
               Banners On The Fly
             </h3>
-            <p className="text-gray-300 mb-6">
+            <p className="max-w-sm text-sm leading-6 text-slate-300 mb-6">
               Custom banners, yard signs, and car magnets ordered online and shipped nationwide.
               Production time and carrier transit time are shown separately.
             </p>
             <div className="space-y-2">
-              <div className="flex items-center text-gray-300">
+              <a href="mailto:support@bannersonthefly.com" className="flex items-center text-slate-300 transition-colors hover:text-white">
                 <Mail className="h-4 w-4 mr-2" />
                 <span className="text-sm">support@bannersonthefly.com</span>
-              </div>
-              <div className="flex items-center text-gray-300">
+              </a>
+              <div className="flex items-center text-slate-300">
                 <MapPin className="h-4 w-4 mr-2" />
                 <span className="text-sm">Nationwide Shipping</span>
               </div>
@@ -115,14 +119,27 @@ const Footer: React.FC = () => {
 
           {/* Quick Links */}
           <div>
-            <h4 className="text-lg font-semibold text-white mb-4">Quick Links</h4>
+            <h4 className="text-sm font-bold uppercase tracking-[0.16em] text-white mb-5">Products</h4>
             <ul className="space-y-2">
               {quickLinks.map((link, index) => (
                 <li key={index}>
                   <ScrollToTopLink
                     to={link.href}
-                    className="text-gray-300 hover:text-orange-400 transition-colors text-sm"
+                    className="text-sm text-slate-300 transition-colors hover:text-white"
                   >
+                    {link.name}
+                  </ScrollToTopLink>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="mb-5 text-sm font-bold uppercase tracking-[0.16em] text-white">Company</h4>
+            <ul className="space-y-2">
+              {companyLinks.map((link) => (
+                <li key={link.href}>
+                  <ScrollToTopLink to={link.href} className="text-sm text-slate-300 transition-colors hover:text-white">
                     {link.name}
                   </ScrollToTopLink>
                 </li>
@@ -132,13 +149,13 @@ const Footer: React.FC = () => {
 
           {/* Support */}
           <div>
-            <h4 className="text-lg font-semibold text-white mb-4">Support</h4>
+            <h4 className="text-sm font-bold uppercase tracking-[0.16em] text-white mb-5">Support</h4>
             <ul className="space-y-2">
               {supportLinks.map((link, index) => (
                 <li key={index}>
                   <ScrollToTopLink
                     to={link.href}
-                    className="text-gray-300 hover:text-orange-400 transition-colors text-sm"
+                    className="text-sm text-slate-300 transition-colors hover:text-white"
                   >
                     {link.name}
                   </ScrollToTopLink>
@@ -149,8 +166,8 @@ const Footer: React.FC = () => {
 
           {/* Newsletter */}
           <div>
-            <h4 className="text-lg font-semibold text-white mb-4">Stay Updated</h4>
-            <p className="text-gray-300 text-sm mb-4">
+            <h4 className="text-sm font-bold uppercase tracking-[0.16em] text-white mb-5">Print notes & offers</h4>
+            <p className="text-slate-300 text-sm leading-6 mb-4">
               Get exclusive offers and signage printing tips delivered to your inbox.
             </p>
             <form onSubmit={handleNewsletterSubmit} className="space-y-3">
@@ -161,12 +178,12 @@ const Footer: React.FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email"
-                  className={`min-h-11 min-w-0 flex-1 px-3 py-2 bg-gray-800 border rounded-l-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-400 transition-colors ${
+                  className={`min-h-11 min-w-0 flex-1 rounded-l-md border bg-white/5 px-3 py-2 text-white placeholder-slate-400 transition-colors focus:border-[#FF6A00] focus:ring-2 focus:ring-[#FF6A00]/30 ${
                     submitStatus === 'success'
                       ? 'border-green-500 focus:ring-green-500'
                       : submitStatus === 'error'
                       ? 'border-red-500 focus:ring-red-500'
-                      : 'border-gray-700 focus:ring-orange-500'
+                      : 'border-white/20'
                   }`}
                   required
                   disabled={isSubmitting}
@@ -183,7 +200,7 @@ const Footer: React.FC = () => {
                       ? 'bg-red-500 hover:bg-red-600'
                       : isSubmitting
                       ? 'bg-gray-500 cursor-not-allowed'
-                      : 'bg-orange-700 hover:bg-orange-800'
+                      : 'bg-[#FF6A00] hover:bg-[#E65F00]'
                   }`}
                 >
                   {isSubmitting ? (
@@ -203,7 +220,7 @@ const Footer: React.FC = () => {
                 href="https://www.linkedin.com/company/banners-on-the-fly/about/?viewAsMember=true"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center space-x-2 text-gray-300 hover:text-orange-400 transition-colors"
+                className="inline-flex items-center space-x-2 text-slate-300 transition-colors hover:text-white"
               >
                 <Linkedin className="h-5 w-5" />
                 <span className="text-sm">Follow us on LinkedIn</span>
@@ -213,16 +230,16 @@ const Footer: React.FC = () => {
         </div>
 
         {/* Bottom Bar */}
-        <div className="border-t border-gray-800 mt-12 pt-8">
+        <div className="mt-12 border-t border-white/10 pt-7">
           <div className="flex flex-col md:flex-row justify-between items-center">
-            <p className="text-gray-400 text-sm">
+            <p className="text-slate-400 text-sm">
               © {new Date().getFullYear()} Banners On The Fly. All rights reserved.
             </p>
             <div className="flex items-center space-x-6 mt-4 md:mt-0">
-              <span className="text-gray-400 text-sm">Online ordering available nationwide</span>
+              <span className="text-slate-400 text-sm">Online ordering · Nationwide shipping</span>
               <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-green-400 rounded-full" aria-hidden="true"></div>
-                <span className="text-green-400 text-sm">Secure online checkout</span>
+                <div className="h-2 w-2 rounded-full bg-[#FF6A00]" aria-hidden="true"></div>
+                <span className="text-slate-300 text-sm">Secure checkout</span>
               </div>
             </div>
           </div>

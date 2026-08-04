@@ -8,7 +8,6 @@ import { useCartStore, type CartItem } from '@/store/cart';
 import { useUIStore } from '@/store/ui';
 import { calcTotals, usd, PRICE_PER_SQFT } from '@/lib/pricing';
 import { DESIGN_GROMMET_OPTIONS } from '@/lib/grommets';
-import { heroBackgroundStyle } from '@/lib/heroBackground';
 import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
 import {
   calculateBannerPricing,
@@ -2603,28 +2602,18 @@ const Design: React.FC = () => {
       </Helmet>
 
       {/* Hero */}
-      <section
-        className="relative overflow-hidden px-4 pt-8 pb-10 md:pt-10 md:pb-12 bg-slate-900"
-        style={heroBackgroundStyle}
-      >
-        <div
-          className="absolute inset-0 z-[1]"
-          style={{
-            background: 'linear-gradient(to bottom, rgba(0,0,0,0.48), rgba(0,0,0,0.30))',
-          }}
-          aria-hidden="true"
-        />
-        <div className="relative z-[2] max-w-2xl mx-auto text-center space-y-4">
-          <h1 className="text-white text-3xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight">
-            Design Your
-            <br />
-            <span className="text-orange-500">{modeContent.heroTitle}</span>
+      <section className="relative overflow-hidden border-b border-white/10 bg-[#0B1F3A] px-4 py-12 text-white md:py-16">
+        <div className="absolute inset-y-0 right-0 hidden w-1/3 border-l border-white/10 bg-[#102A4C] lg:block" aria-hidden="true" />
+        <div className="relative z-[2] mx-auto max-w-4xl text-center">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF8A3D]">Online order builder</p>
+          <h1 className="mt-4 font-display text-4xl font-bold leading-[1.05] tracking-[-0.04em] text-white sm:text-5xl">
+            Design your {modeContent.heroTitle}
           </h1>
 
           {modeContent.heroDescription}
 
           {/* Inline benefit pills */}
-          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[13px] text-gray-100">
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px] text-slate-200">
             {modeContent.topFeatures.map((b, i) => (
               <span key={i} className="inline-flex items-center gap-1.5 font-medium">
                 <b.icon className={`h-3.5 w-3.5 ${b.iconClass}`} /> {b.label}
@@ -2632,10 +2621,10 @@ const Design: React.FC = () => {
             ))}
           </div>
 
-          <div className="pt-2 flex flex-col items-center gap-2">
+          <div className="mt-7 flex flex-col items-center gap-2">
             <button
               onClick={scrollToOrder}
-              className="group inline-flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white font-bold text-lg px-10 py-4 rounded-xl shadow-[0_4px_14px_rgba(251,146,60,0.4)] hover:shadow-[0_6px_20px_rgba(251,146,60,0.5)] transition-all w-full sm:w-auto"
+              className="brand-button-primary w-full gap-2 px-10 text-lg sm:w-auto"
             >
               Start Order
             </button>
@@ -2643,14 +2632,14 @@ const Design: React.FC = () => {
         </div>
       </section>
 
-      <section ref={orderRef} id="order-builder" className="py-12 px-4 bg-gray-50">
+      <section ref={orderRef} id="order-builder" className="bg-[#F7F7F7] px-4 py-12 sm:py-14">
         <div className="max-w-4xl lg:max-w-7xl mx-auto">
           {/* Product type switcher — public for all users */}
           <ProductTypeSwitcher productType={productType} onProductTypeChange={handleProductTypeChange} mobileStickyTopPx={64} />
           <h2
             ref={builderStartRef}
             id="builder-start"
-            className="text-2xl md:text-3xl font-bold text-center mb-10 scroll-mt-[140px] md:scroll-mt-24"
+            className="mb-10 scroll-mt-[140px] text-center font-display text-2xl font-bold text-[#0B1F3A] md:scroll-mt-24 md:text-3xl"
           >
             {isYardSign ? 'Build Your Yard Sign Order' : isCarMagnet ? 'Design Your Custom Car Magnets' : 'Build Your Banner'}
           </h2>

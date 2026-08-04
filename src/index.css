@@ -520,8 +520,8 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 0 0% 100%;
+    --foreground: 216 68% 14%;
 
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
@@ -529,8 +529,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 221 83% 53%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 216 68% 14%;
+    --primary-foreground: 0 0% 100%;
 
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -546,9 +546,9 @@
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 221 83% 53%;
+    --ring: 25 100% 50%;
 
-    --radius: 0.5rem;
+    --radius: 0.375rem;
 
     --sidebar-background: 220 23% 95%;
     --sidebar-foreground: 215 25% 27%;
@@ -606,11 +606,133 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans dark:bg-background dark:text-foreground;
+    @apply bg-background text-foreground font-sans antialiased dark:bg-background dark:text-foreground;
+    color: #0B1F3A;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display;
+    letter-spacing: -0.025em;
+  }
+
+  ::selection {
+    background: rgba(255, 106, 0, 0.2);
+    color: #0B1F3A;
+  }
+
+  :focus-visible {
+    outline-color: #FF6A00;
   }
 
   pre, code {
     @apply font-mono;
+  }
+}
+
+/* Banners On The Fly visual system. Solid color, measured spacing and
+   restrained motion replace the generic gradient/glass treatment that had
+   accumulated across older pages. */
+@layer components {
+  .brand-page {
+    @apply min-h-screen bg-white text-[#0B1F3A];
+  }
+
+  .brand-shell {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .brand-section {
+    @apply py-14 sm:py-16 lg:py-20;
+  }
+
+  .brand-eyebrow {
+    @apply text-xs font-bold uppercase tracking-[0.2em] text-[#D95700];
+  }
+
+  .brand-title {
+    @apply font-display text-3xl font-bold leading-[1.08] tracking-[-0.035em] text-[#0B1F3A] sm:text-4xl lg:text-5xl;
+  }
+
+  .brand-copy {
+    @apply text-base leading-7 text-slate-600 sm:text-lg sm:leading-8;
+  }
+
+  .brand-button-primary,
+  .btn-primary,
+  .btn-hero-primary {
+    @apply inline-flex min-h-12 items-center justify-center rounded-md bg-[#FF6A00] px-6 py-3 font-bold text-white shadow-none transition-colors duration-200 hover:bg-[#E65F00] hover:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00] focus-visible:ring-offset-2 active:bg-[#CC5500];
+    transform: none;
+  }
+
+  .brand-button-secondary {
+    @apply inline-flex min-h-12 items-center justify-center rounded-md border-2 border-[#0B1F3A] bg-white px-6 py-3 font-bold text-[#0B1F3A] shadow-none transition-colors duration-200 hover:bg-[#0B1F3A] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00] focus-visible:ring-offset-2;
+  }
+
+  .brand-button-on-dark,
+  .btn-outline,
+  .btn-hero-outline {
+    @apply inline-flex min-h-12 items-center justify-center rounded-md border border-white/60 bg-transparent px-6 py-3 font-bold text-white shadow-none transition-colors duration-200 hover:border-white hover:bg-white hover:text-[#0B1F3A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B1F3A];
+    transform: none;
+    backdrop-filter: none;
+  }
+
+  .brand-card,
+  .modern-card,
+  .feature-card,
+  .testimonial-card,
+  .design-tool-card {
+    @apply rounded-xl border border-slate-200 bg-white shadow-[0_10px_30px_rgba(11,31,58,0.07)] transition-colors duration-200;
+    transform: none;
+    backdrop-filter: none;
+  }
+
+  .material-card,
+  .material-card-popular,
+  .pricing-card-enhanced {
+    @apply rounded-xl border border-slate-200 bg-white shadow-[0_10px_30px_rgba(11,31,58,0.07)] transition-colors duration-200;
+    min-height: 0;
+    transform: none;
+    backdrop-filter: none;
+  }
+
+  .material-card-popular {
+    @apply border-2 border-[#0B1F3A];
+    box-shadow: 0 12px 30px rgba(11, 31, 58, 0.1);
+  }
+
+  .material-card-popular::before,
+  .material-card-popular::after,
+  .btn-primary::before,
+  .btn-hero-primary::before,
+  .btn-outline::before,
+  .btn-hero-outline::before {
+    display: none;
+  }
+
+  .brand-rule {
+    @apply h-1 w-12 bg-[#FF6A00];
+  }
+
+  .brand-field {
+    @apply w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base text-[#0B1F3A] shadow-sm outline-none transition focus:border-[#0B1F3A] focus:ring-2 focus:ring-[#FF6A00]/30;
+  }
+
+  .brand-faq {
+    @apply border-b border-slate-200 bg-white py-5;
+  }
+
+  .brand-dark-panel {
+    @apply bg-[#0B1F3A] text-white;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 

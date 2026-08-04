@@ -42,7 +42,6 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
     { name: 'Vinyl Banners', href: '/vinyl-banners' },
     { name: 'Yard Signs', href: '/yard-signs' },
     { name: 'Car Magnets', href: '/car-magnets' },
-    { name: 'Service Areas', href: '/locations' },
     { name: 'Shipping', href: '/shipping' },
     { name: 'Blog', href: '/blog' },
     { name: 'Design Tool', href: '/design' },
@@ -72,14 +71,15 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
   };
 
   return (
-    <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
+    <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 shadow-[0_4px_20px_rgba(11,31,58,0.04)] backdrop-blur">
+      <div className="h-1 bg-[#FF6A00]" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex h-[72px] items-center justify-between lg:h-[78px]">
           {/* Compact navigation for mobile and tablet */}
           <div className="flex items-center w-12 lg:hidden" ref={menuRef}>
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="min-h-11 min-w-11 rounded-md p-2 text-slate-600 transition-colors hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-700"
+              className="min-h-11 min-w-11 rounded-md p-2 text-[#0B1F3A] transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00]"
               aria-label={isMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
               aria-expanded={isMenuOpen}
             >
@@ -88,16 +88,16 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
 
             {/* Slide-out Navigation Menu (works on all screen sizes) */}
             {isMenuOpen && (
-              <div className="absolute left-0 top-full w-64 bg-white shadow-lg border-r border-slate-200 z-50">
+              <div className="absolute left-0 top-full z-50 h-[calc(100vh-76px)] w-[min(88vw,320px)] overflow-y-auto border-r border-slate-200 bg-white shadow-[12px_18px_40px_rgba(11,31,58,0.16)]">
                 <div className="py-2">
                   {navItems.map((item) => (
                     <ScrollToTopLink
                       key={item.name}
                       to={item.href}
-                      className={`block px-4 py-3 text-sm font-medium border-b border-slate-100 ${
+                      className={`block border-b border-slate-100 px-5 py-3.5 text-sm font-semibold ${
                         location.pathname === item.href
-                          ? 'text-[#18448D] bg-blue-50'
-                          : 'text-slate-700 hover:text-[#18448D] hover:bg-slate-50'
+                          ? 'border-l-4 border-l-[#FF6A00] bg-slate-50 text-[#0B1F3A]'
+                          : 'text-slate-700 hover:bg-slate-50 hover:text-[#0B1F3A]'
                       }`}
                       onClick={() => setIsMenuOpen(false)}
                     >
@@ -184,24 +184,24 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
                 alt="Banners On The Fly"
                 width="248"
                 height="70"
-                className="h-10 md:h-14 w-auto max-w-[220px] md:max-w-[340px] object-contain"
+                className="h-10 w-auto max-w-[205px] object-contain sm:h-12 sm:max-w-[250px]"
               />
             </ScrollToTopLink>
           </div>
 
-          <nav className="hidden items-center gap-5 lg:flex" aria-label="Primary navigation">
+          <nav className="hidden items-center gap-6 lg:flex" aria-label="Primary navigation">
             {[
               { name: 'Vinyl Banners', href: '/vinyl-banners' },
               { name: 'Yard Signs', href: '/yard-signs' },
               { name: 'Car Magnets', href: '/car-magnets' },
-              { name: 'Locations', href: '/locations' },
               { name: 'Shipping', href: '/shipping' },
+              { name: 'Custom Quote', href: '/custom-quote' },
             ].map((item) => (
               <ScrollToTopLink
                 key={item.href}
                 to={item.href}
-                className={`rounded-md px-1 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 ${
-                  location.pathname === item.href ? 'text-[#18448D]' : 'text-slate-700 hover:text-[#18448D]'
+                className={`relative py-2 text-sm font-semibold transition-colors after:absolute after:inset-x-0 after:-bottom-1 after:h-0.5 after:origin-left after:bg-[#FF6A00] after:transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00] ${
+                  location.pathname === item.href ? 'text-[#0B1F3A] after:scale-x-100' : 'text-slate-600 after:scale-x-0 hover:text-[#0B1F3A] hover:after:scale-x-100'
                 }`}
               >
                 {item.name}
@@ -210,13 +210,19 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
           </nav>
 
           {/* Right: User, Cart Icons */}
-          <div className="flex items-center justify-end w-24 gap-1">
+          <div className="flex items-center justify-end gap-1 lg:w-auto lg:gap-2">
+            <ScrollToTopLink
+              to="/design"
+              className="mr-1 hidden min-h-11 items-center rounded-md bg-[#FF6A00] px-4 text-sm font-bold text-white transition-colors hover:bg-[#E65F00] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00] focus-visible:ring-offset-2 xl:inline-flex"
+            >
+              Start designing
+            </ScrollToTopLink>
             {/* User Icon / Dropdown */}
             {!loading && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
-                    className="min-h-11 min-w-11 rounded-md p-2 text-slate-500 transition-colors hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-700"
+                    className="min-h-11 min-w-11 rounded-md p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-[#0B1F3A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00]"
                     aria-label="Account"
                   >
                     <User className="h-5 w-5" />
@@ -278,11 +284,11 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
             <button
               onClick={onCartClick}
               aria-label="Shopping cart"
-              className="relative min-h-11 min-w-11 rounded-md p-2 text-orange-700 transition-colors hover:text-orange-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-700"
+              className="relative min-h-11 min-w-11 rounded-md p-2 text-[#0B1F3A] transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00]"
             >
               <ShoppingCart className="h-5 w-5" />
               {cartCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 bg-green-500 text-white text-[10px] rounded-full h-4 w-4 flex items-center justify-center font-bold">
+                <span className="absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#FF6A00] px-1 text-[10px] font-bold text-white">
                   {cartCount}
                 </span>
               )}

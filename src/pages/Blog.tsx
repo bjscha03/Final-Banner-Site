@@ -64,7 +64,7 @@ export default function Blog() {
   }
   
   return (
-    <Layout>
+    <Layout showFooterBanner={false}>
       <Helmet>
         <title>Blog - Banners on the Fly | Custom Banner Printing Tips & Guides</title>
         <meta
@@ -83,8 +83,9 @@ export default function Blog() {
       
       <PageHeader
         title="Blog"
-        subtitle="Expert tips, guides, and insights on custom banner printing, design, and marketing strategies"
+        subtitle="Practical guides for choosing materials, preparing artwork, planning production, and getting more from printed signage."
         icon={BookOpen}
+        centered={false}
       />
       
       <BlogList

@@ -1,76 +1,36 @@
 import React from 'react';
-import { Star, ArrowRight } from 'lucide-react';
-import { useScrollReveal } from '@/hooks/useScrollReveal';
+import { ArrowRight, Quote } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
-const CompanySpotlight: React.FC = () => {
-  const { ref, isVisible } = useScrollReveal(0.1);
-
-  return (
-    <section className="bg-slate-50 py-16">
-      <div ref={ref} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className={`bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-shadow duration-500 scroll-reveal ${isVisible ? 'visible' : ''}`}>
-          <div className="grid md:grid-cols-2 gap-0">
-            {/* Image */}
-            <div className="relative h-64 md:h-full min-h-[400px] bg-slate-100 overflow-hidden group">
-              <img
-                src="https://res.cloudinary.com/dtrxl120u/image/upload/v1759799151/dan-oliver_1200xx3163-3170-1048-0_zgphzw.jpg"
-                alt="Dan Oliver - Dan-O's Seasoning"
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                loading="eager"
-                onError={(e) => {
-                  console.error('Image failed to load:', e);
-                  const target = e.currentTarget as HTMLImageElement;
-                  target.style.display = 'block';
-                  target.style.backgroundColor = '#f1f5f9';
-                }}
-              />
-            </div>
-
-            {/* Content */}
-            <div className="p-8 md:p-12 flex flex-col justify-center">
-              <div className="inline-flex items-center gap-2 bg-orange-50 text-orange-600 px-3 py-1 rounded-full text-sm font-semibold mb-4 w-fit">
-                <Star className="h-4 w-4 fill-current" />
-                Featured Customer
-              </div>
-              
-              <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
-                Dan-O's Seasoning
-              </h2>
-              
-              <div className="border-l-4 border-orange-500 pl-4 mb-6">
-                <p className="text-lg text-slate-700 italic leading-relaxed">
-                  "Banners on the Fly delivered exactly what we needed for our nationwide events. 
-                  Fast, professional, and high quality every time."
-                </p>
-                <p className="text-sm text-slate-600 mt-3 font-semibold">
-                  — Dan Oliver, Founder
-                </p>
-              </div>
-
-              <div className="flex items-center gap-8 mb-6">
-                <div>
-                  <div className="text-3xl font-bold text-orange-500">100+</div>
-                  <div className="text-sm text-slate-600">Banners Ordered</div>
-                </div>
-                <div>
-                  <div className="text-3xl font-bold text-orange-500">5★</div>
-                  <div className="text-sm text-slate-600">Rating</div>
-                </div>
-              </div>
-
-              <a
-                href="/design"
-                className="inline-flex items-center justify-center bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-red-500 text-white font-semibold text-lg px-8 py-4 rounded-lg shadow-lg hover:shadow-orange-500/30 hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5 group"
-              >
-                Start your order
-                <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-              </a>
-            </div>
-          </div>
+const CompanySpotlight: React.FC = () => (
+  <section className="brand-section border-y border-slate-200 bg-[#F7F7F7]" aria-labelledby="spotlight-heading">
+    <div className="brand-shell">
+      <article className="grid overflow-hidden border border-slate-200 bg-white lg:grid-cols-[0.88fr_1.12fr]">
+        <div className="relative min-h-[360px] bg-slate-200 lg:min-h-[500px]">
+          <img
+            src="https://res.cloudinary.com/dtrxl120u/image/upload/f_auto,q_auto,w_900/v1759799151/dan-oliver_1200xx3163-3170-1048-0_zgphzw.jpg"
+            alt="Dan Oliver, founder of Dan-O's Seasoning"
+            width={900}
+            height={700}
+            loading="lazy"
+            className="absolute inset-0 h-full w-full object-cover"
+          />
         </div>
-      </div>
-    </section>
-  );
-};
+        <div className="flex flex-col justify-center p-7 sm:p-10 lg:p-14">
+          <p className="brand-eyebrow">Customer spotlight</p>
+          <h2 id="spotlight-heading" className="brand-title mt-3">Print support for a brand on the move.</h2>
+          <Quote className="mt-8 h-8 w-8 text-[#FF6A00]" aria-hidden="true" />
+          <blockquote className="mt-4 font-display text-2xl font-semibold leading-9 tracking-[-0.02em] text-[#0B1F3A] sm:text-3xl sm:leading-10">
+            “Banners on the Fly delivered exactly what we needed for our nationwide events. Fast, professional, and high quality every time.”
+          </blockquote>
+          <p className="mt-5 text-sm font-bold uppercase tracking-[0.12em] text-slate-500">Dan Oliver · Founder, Dan-O's Seasoning</p>
+          <Link to="/design" className="brand-button-primary mt-8 w-fit gap-2">
+            Start an order <ArrowRight className="h-5 w-5" aria-hidden="true" />
+          </Link>
+        </div>
+      </article>
+    </div>
+  </section>
+);
 
 export default CompanySpotlight;

@@ -9,7 +9,6 @@ import { initPostHog } from "@/lib/posthog";
 import { captureAttributionFromLocation } from "@/lib/attribution";
 import CityProductPage from "./pages/CityProductPage";
 import ProductHubPage from "./pages/ProductHubPage";
-import LocationsPage from "./pages/LocationsPage";
 import NotFound from "./pages/NotFound";
 // DISABLED: Popup promo flow replaced with static NEW20 code in PromoBanner
 // import { PromoPopup } from "@/components/PromoPopup";
@@ -208,7 +207,6 @@ export const RoutedApplication = () => (
             <Route path="/vinyl-banners" element={<ProductHubPage productSlug="vinyl-banners" />} />
             <Route path="/yard-signs" element={<ProductHubPage productSlug="yard-signs" />} />
             <Route path="/car-magnets" element={<ProductHubPage productSlug="car-magnets" />} />
-            <Route path="/locations" element={<LocationsPage />} />
             <Route path="/mesh-banners" element={<CategoryPage />} />
             <Route path="/trade-show-banners" element={<CategoryPage />} />
             <Route path="/food-truck-banners" element={<CategoryPage />} />

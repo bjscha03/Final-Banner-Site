@@ -42,6 +42,7 @@ let sitemap = await readFile(sitemapPath, 'utf8');
 const localPathPattern = /^https:\/\/bannersonthefly\.com\/(vinyl-banners|yard-signs|car-magnets)\/[^/]+\/?$/;
 sitemap = sitemap.replace(/\s*<url>[\s\S]*?<\/url>/g, (block) => {
   const location = block.match(/<loc>([^<]+)<\/loc>/)?.[1]?.trim();
+  if (location?.replace(/\/$/, '') === 'https://bannersonthefly.com/locations') return '';
   if (location && localPathPattern.test(location) && !allowedLocalUrls.has(location.replace(/\/$/, ''))) return '';
   return block;
 });

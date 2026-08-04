@@ -1,91 +1,68 @@
 import React from 'react';
-import { Clock, Shield, Truck, Award, Trophy, Headphones } from 'lucide-react';
-import { useScrollReveal } from '@/hooks/useScrollReveal';
+import { Clock, FileCheck2, Headphones, PackageCheck, ShieldCheck, Truck } from 'lucide-react';
 
-const WhyChooseUs: React.FC = () => {
-  const { ref, isVisible } = useScrollReveal(0.1);
+const features = [
+  {
+    icon: Clock,
+    title: 'Fast standard production',
+    description: 'Most standard orders are produced within 24 hours. Large, custom, or file-dependent work can take longer.',
+  },
+  {
+    icon: Truck,
+    title: 'Nationwide next-day air',
+    description: 'Free next-day air describes carrier transit after production, with timing shown separately and clearly.',
+  },
+  {
+    icon: FileCheck2,
+    title: 'Live print preview',
+    description: 'Review size, placement, cropping, and the configured product before you submit the order.',
+  },
+  {
+    icon: PackageCheck,
+    title: 'Transparent product facts',
+    description: 'Sizes, materials, add-ons, minimums, limitations, and current price examples are available before checkout.',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Damage and defect review',
+    description: 'Verified shipping damage or production defects reported within five business days can qualify for a reprint.',
+  },
+  {
+    icon: Headphones,
+    title: 'Real support when needed',
+    description: 'Ask about artwork, fixed event dates, large quantities, or unusual specifications before placing the order.',
+  },
+];
 
-  const features = [
-    {
-      icon: Clock,
-      title: 'Standard Production',
-      description: 'Most standard orders are produced within 24 hours; custom, large, or file-dependent work can take longer.',
-      gradient: 'from-orange-500 to-amber-500',
-    },
-    {
-      icon: Truck,
-      title: 'Free Next-Day Air',
-      description: 'Free next-day air describes carrier transit after production; delivery dates remain estimates.',
-      gradient: 'from-blue-500 to-cyan-500',
-    },
-    {
-      icon: Shield,
-      title: 'Premium Quality',
-      description: '13oz, 15oz, & 18oz vinyl material with vibrant, long-lasting colors.',
-      gradient: 'from-emerald-500 to-green-500',
-    },
-    {
-      icon: Trophy,
-      title: 'Clear Buying Information',
-      description: 'Review supported sizes, current options, artwork guidance, and limitations before ordering.',
-      gradient: 'from-purple-500 to-indigo-500',
-    },
-    {
-      icon: Award,
-      title: 'Damage & Defect Review',
-      description: 'Verified damage or production defects reported within five business days can qualify for a reprint.',
-      gradient: 'from-rose-500 to-pink-500',
-    },
-    {
-      icon: Headphones,
-      title: 'Expert Support',
-      description: 'Dedicated customer service team ready to help you.',
-      gradient: 'from-sky-500 to-blue-500',
-    }
-  ];
+const WhyChooseUs: React.FC = () => (
+  <section className="brand-section border-y border-slate-200 bg-[#F7F7F7]" aria-labelledby="why-heading">
+    <div className="brand-shell grid gap-10 lg:grid-cols-[0.72fr_1.28fr] lg:gap-16">
+      <div>
+        <p className="brand-eyebrow">A clearer way to order print</p>
+        <h2 id="why-heading" className="brand-title mt-3">The details you need, before you pay.</h2>
+        <p className="brand-copy mt-5">Speed matters, but so does knowing exactly what is being made. Our ordering experience keeps product facts, timing, artwork review, and pricing in view.</p>
+      </div>
 
-  return (
-    <section className="bg-gradient-to-b from-white to-slate-50 py-16">
-      <div ref={ref} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className={`text-center mb-12 scroll-reveal ${isVisible ? 'visible' : ''}`}>
-          <h2 className="text-3xl font-bold text-slate-900 mb-3">
-            Why Choose Banners on the Fly?
-          </h2>
-          <p className="text-lg text-slate-600">
-            Fast, professional, and reliable signage printing
-          </p>
-        </div>
-
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {features.map((feature, index) => {
-            const IconComponent = feature.icon;
-            return (
-              <div
-                key={index}
-                className={`bg-white border border-slate-200 rounded-xl p-6 hover:shadow-xl hover:border-orange-300 hover:-translate-y-1 transition-all duration-300 group scroll-reveal scroll-reveal-delay-${index + 1} ${isVisible ? 'visible' : ''}`}
-              >
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0">
-                    <div className={`w-12 h-12 bg-gradient-to-br ${feature.gradient} rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                      <IconComponent className="h-6 w-6 text-white" />
-                    </div>
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                      {feature.title}
-                    </h3>
-                    <p className="text-slate-600 text-sm leading-relaxed">
-                      {feature.description}
-                    </p>
-                  </div>
+      <div className="grid border-t border-slate-300 sm:grid-cols-2">
+        {features.map((feature, index) => {
+          const Icon = feature.icon;
+          return (
+            <article key={feature.title} className={`border-b border-slate-300 py-6 ${index % 2 === 0 ? 'sm:pr-7' : 'sm:border-l sm:pl-7'}`}>
+              <div className="flex gap-4">
+                <div className="flex h-10 w-10 flex-none items-center justify-center border border-[#0B1F3A]/15 bg-white text-[#0B1F3A]">
+                  <Icon className="h-5 w-5" aria-hidden="true" />
+                </div>
+                <div>
+                  <h3 className="font-display text-lg font-bold text-[#0B1F3A]">{feature.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">{feature.description}</p>
                 </div>
               </div>
-            );
-          })}
-        </div>
+            </article>
+          );
+        })}
       </div>
-    </section>
-  );
-};
+    </div>
+  </section>
+);
 
 export default WhyChooseUs;

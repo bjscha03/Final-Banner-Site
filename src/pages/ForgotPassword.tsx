@@ -54,9 +54,9 @@ const ForgotPassword: React.FC = () => {
 
   if (isSubmitted) {
     return (
-      <Layout>
-        <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-          <Card className="w-full max-w-md">
+      <Layout showFooterBanner={false}>
+        <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-[#F7F7F7] py-12 px-4 sm:px-6 lg:px-8">
+          <Card className="w-full max-w-md border-t-4 border-t-[#FF6A00]">
             <CardHeader className="text-center">
               <div className="mx-auto w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
                 <CheckCircle className="w-6 h-6 text-green-600" />
@@ -98,9 +98,9 @@ const ForgotPassword: React.FC = () => {
   }
 
   return (
-    <Layout>
-      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-        <Card className="w-full max-w-md">
+    <Layout showFooterBanner={false}>
+      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-[#F7F7F7] py-12 px-4 sm:px-6 lg:px-8">
+        <Card className="w-full max-w-md border-t-4 border-t-[#FF6A00]">
           <CardHeader className="text-center">
             <div className="mx-auto w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-4">
               <Mail className="w-6 h-6 text-orange-500" />
@@ -140,7 +140,7 @@ const ForgotPassword: React.FC = () => {
             </form>
             
             <div className="mt-6 text-center">
-              <Link to="/sign-in" className="text-sm text-orange-500 hover:text-blue-500">
+              <Link to="/sign-in" className="text-sm font-semibold text-[#0B1F3A] underline decoration-[#FF6A00] underline-offset-4">
                 <ArrowLeft className="w-4 h-4 inline mr-1" />
                 Back to Sign In
               </Link>

@@ -11,7 +11,7 @@ interface LayoutProps {
   showFooterBanner?: boolean;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children, showFooterBanner = true }) => {
+const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { getItemCount } = useCartStore();
   const { isCartOpen, setIsCartOpen } = useUIStore();
   const [hasMounted, setHasMounted] = React.useState(false);
@@ -19,7 +19,7 @@ const Layout: React.FC<LayoutProps> = ({ children, showFooterBanner = true }) =>
   React.useEffect(() => setHasMounted(true), []);
 
   return (
-    <div className="min-h-screen bg-white overflow-x-hidden max-w-[100vw]">
+    <div className="brand-page max-w-[100vw] overflow-x-hidden">
       <ScrollToTop />
       <Header
         cartCount={hasMounted ? getItemCount() : 0}
@@ -28,18 +28,6 @@ const Layout: React.FC<LayoutProps> = ({ children, showFooterBanner = true }) =>
       <main className="w-full max-w-[100vw] overflow-x-hidden">
         {children}
       </main>
-
-      {showFooterBanner && (
-        <div className="w-full">
-          <img
-            src="https://res.cloudinary.com/dtrxl120u/image/upload/v1767723458/upscaled-2x-Screenshot_2025-10-07_at_2.29.47_PM_wegqxg_ubaxdz.png"
-            alt="Banner printing services"
-            loading="lazy"
-            decoding="async"
-            className="w-full h-auto object-contain"
-          />
-        </div>
-      )}
 
       <Footer />
       <CartModal

@@ -1,37 +1,18 @@
-/**
- * Category Page Template
- * SEO-optimized page for banner product categories
- */
-
 import React from 'react';
 import { useParams, Link, Navigate } from 'react-router-dom';
+import { ArrowRight, Check, Clock, Eye, Package, Truck } from 'lucide-react';
 import Layout from '@/components/Layout';
-import SEO, {
-  getBreadcrumbSchema,
-  getProductSchema,
-  getWebPageSchema,
-  getOrganizationSchema,
-} from '@/components/SEO';
+import SEO, { getBreadcrumbSchema, getProductSchema, getWebPageSchema, getOrganizationSchema } from '@/components/SEO';
 import Breadcrumbs from '@/components/Breadcrumbs';
 import PageHeader from '@/components/PageHeader';
 import { getCategoryBySlug } from '@/lib/seo/categoryData';
-import { Check, ArrowRight, Package, Truck, Clock, Shield } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 
 const CategoryPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
-  
-  if (!slug) {
-    return <Navigate to="/" replace />;
-  }
-
+  if (!slug) return <Navigate to="/" replace />;
   const category = getCategoryBySlug(slug);
+  if (!category) return <Navigate to="/" replace />;
 
-  if (!category) {
-    return <Navigate to="/" replace />;
-  }
-
-  // Generate schema markup
   const schemas = [
     getOrganizationSchema(),
     getBreadcrumbSchema(category.breadcrumbs),
@@ -43,191 +24,111 @@ const CategoryPage: React.FC = () => {
       priceCurrency: category.schema.offers?.priceCurrency,
       availability: category.schema.offers?.availability,
     }),
-    getWebPageSchema({
-      name: category.title,
-      description: category.metaDescription,
-      url: category.canonicalUrl,
-    }),
+    getWebPageSchema({ name: category.title, description: category.metaDescription, url: category.canonicalUrl }),
+  ];
+
+  const facts = [
+    { icon: Clock, title: 'Standard production', detail: 'Most orders: 24 hours' },
+    { icon: Truck, title: 'Carrier transit', detail: 'Free next-day air' },
+    { icon: Eye, title: 'Artwork review', detail: 'Live print preview' },
+    { icon: Package, title: 'Online ordering', detail: 'Current options shown' },
   ];
 
   return (
-    <Layout>
+    <Layout showFooterBanner={false}>
       <SEO
         title={category.metaTitle}
         description={category.metaDescription}
         canonical={category.canonicalUrl}
         ogImage={category.ogImage}
         ogType="product"
-        keywords={category.keywords}
         schema={schemas}
       />
+      <PageHeader title={category.h1} subtitle={category.description} centered={false} />
 
-      <div className="bg-white">
-        {/* Page Header */}
-        <PageHeader
-          title={category.h1}
-          subtitle={category.description}
-        />
+      <div className="brand-shell py-3"><Breadcrumbs items={category.breadcrumbs} /></div>
 
-        {/* Main Content */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          {/* Breadcrumbs */}
-          <Breadcrumbs items={category.breadcrumbs} />
+      <section className="border-y border-slate-200 bg-[#F7F7F7]">
+        <div className="brand-shell grid sm:grid-cols-2 lg:grid-cols-4">
+          {facts.map((fact, index) => {
+            const Icon = fact.icon;
+            return (
+              <div key={fact.title} className={`flex gap-3 py-5 sm:px-5 ${index > 0 ? 'border-t border-slate-200 sm:border-l sm:border-t-0' : ''}`}>
+                <Icon className="mt-0.5 h-5 w-5 flex-none text-[#FF6A00]" aria-hidden="true" />
+                <div><p className="font-display text-sm font-bold text-[#0B1F3A]">{fact.title}</p><p className="mt-1 text-xs text-slate-500">{fact.detail}</p></div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
-          {/* Trust Badges */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
-            <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
-              <Clock className="h-8 w-8 text-[#18448D] flex-shrink-0" />
-              <div>
-                <div className="font-bold text-gray-900">24-Hour</div>
-                <div className="text-sm text-gray-600">Production</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
-              <Truck className="h-8 w-8 text-[#18448D] flex-shrink-0" />
-              <div>
-                <div className="font-bold text-gray-900">Free</div>
-                <div className="text-sm text-gray-600">Next-Day Air</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
-              <Shield className="h-8 w-8 text-[#18448D] flex-shrink-0" />
-              <div>
-                <div className="font-bold text-gray-900">Live</div>
-                <div className="text-sm text-gray-600">Print Preview</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
-              <Package className="h-8 w-8 text-[#18448D] flex-shrink-0" />
-              <div>
-                <div className="font-bold text-gray-900">Custom</div>
-                <div className="text-sm text-gray-600">Sizes</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Main Content Grid */}
-          <div className="grid md:grid-cols-2 gap-12 mb-12">
-            {/* Features */}
-            <div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6 border-b-2 border-gray-200 pb-3">
-                Features & Benefits
-              </h2>
-              <ul className="space-y-3">
-                {category.content.features.map((feature, index) => (
-                  <li key={index} className="flex items-start gap-3">
-                    <Check className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700">{feature}</span>
-                  </li>
+      <div className="brand-shell">
+        <section className="grid gap-10 py-14 lg:grid-cols-2 lg:gap-16">
+          {[
+            ['Features & benefits', category.content.features],
+            ['Common uses', category.content.uses],
+          ].map(([title, items]) => (
+            <div key={title as string} className="border-t-4 border-[#FF6A00] pt-6">
+              <h2 className="font-display text-2xl font-bold text-[#0B1F3A]">{title as string}</h2>
+              <ul className="mt-5 space-y-3">
+                {(items as string[]).map((item) => (
+                  <li key={item} className="flex gap-3 leading-7 text-slate-600"><Check className="mt-1 h-5 w-5 flex-none text-[#0B1F3A]" aria-hidden="true" />{item}</li>
                 ))}
               </ul>
             </div>
+          ))}
+        </section>
 
-            {/* Common Uses */}
-            <div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6 border-b-2 border-gray-200 pb-3">
-                Perfect For
-              </h2>
-              <ul className="space-y-3">
-                {category.content.uses.map((use, index) => (
-                  <li key={index} className="flex items-start gap-3">
-                    <Check className="h-5 w-5 text-[#18448D] flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700">{use}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-
-          {/* Available Sizes */}
-          <div className="mb-12">
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6 border-b-2 border-gray-200 pb-3">
-              Available Sizes
-            </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-              {category.content.sizes.map((size, index) => (
-                <div
-                  key={index}
-                  className="p-4 bg-gray-50 rounded-lg text-center border-2 border-gray-200 hover:border-[#18448D] transition-colors"
-                >
-                  <div className="font-semibold text-gray-900">{size}</div>
-                </div>
+        <section className="border-y border-slate-200 py-12" aria-labelledby="category-sizes-heading">
+          <div className="grid gap-8 lg:grid-cols-[0.55fr_1.45fr] lg:gap-14">
+            <div><p className="brand-eyebrow">Product formats</p><h2 id="category-sizes-heading" className="brand-title mt-3">Available sizes.</h2></div>
+            <div className="grid grid-cols-2 border-l border-t border-slate-200 sm:grid-cols-3 md:grid-cols-5">
+              {category.content.sizes.map((size) => (
+                <div key={size} className="flex min-h-20 items-center justify-center border-b border-r border-slate-200 p-4 text-center font-display text-sm font-bold text-[#0B1F3A]">{size}</div>
               ))}
             </div>
           </div>
+        </section>
 
-          {/* Materials (if applicable) */}
-          {category.content.materials && category.content.materials.length > 0 && (
-            <div className="mb-12">
-              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6 border-b-2 border-gray-200 pb-3">
-                Material Options
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        {category.content.materials && category.content.materials.length > 0 && (
+          <section className="py-12" aria-labelledby="category-materials-heading">
+            <div className="grid gap-8 lg:grid-cols-[0.55fr_1.45fr] lg:gap-14">
+              <div><p className="brand-eyebrow">Substrate choices</p><h2 id="category-materials-heading" className="brand-title mt-3">Material options.</h2></div>
+              <div className="border-t border-slate-200">
                 {category.content.materials.map((material, index) => (
-                  <div
-                    key={index}
-                    className="p-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg border-2 border-gray-200 hover:border-[#18448D] transition-colors"
-                  >
-                    <div className="font-bold text-lg text-gray-900">{material}</div>
-                  </div>
+                  <div key={material} className="grid border-b border-slate-200 py-4 sm:grid-cols-[48px_1fr] sm:items-center"><span className="font-display font-bold text-[#FF6A00]">0{index + 1}</span><p className="font-display font-bold text-[#0B1F3A]">{material}</p></div>
                 ))}
               </div>
             </div>
-          )}
+          </section>
+        )}
 
-          {/* CTA Section */}
-          <div className="bg-gradient-to-r from-[#18448D] to-[#1a5bb8] rounded-2xl p-8 sm:p-12 text-center text-white mb-12">
-            <h2 className="text-3xl sm:text-4xl font-black mb-4">
-              Ready to Get Started?
-            </h2>
-            <p className="text-lg sm:text-xl mb-8 text-blue-100">
-              Design your custom {category.title.toLowerCase()} online with our easy-to-use tool
-            </p>
-            <Link to="/design">
-              <Button
-                size="lg"
-                className="bg-[#ff6b35] hover:bg-[#f7931e] text-white font-bold px-8 py-6 text-lg rounded-lg shadow-lg hover:shadow-xl transition-all hover:scale-105"
-              >
-                Start Designing Now
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-            </Link>
+        <section className="my-12 border-l-4 border-[#FF6A00] bg-[#0B1F3A] p-7 text-white sm:p-10">
+          <div className="flex flex-col justify-between gap-7 lg:flex-row lg:items-center">
+            <div><h2 className="font-display text-3xl font-bold">Configure {category.title.toLowerCase()} online.</h2><p className="mt-3 max-w-2xl leading-7 text-slate-300">Upload artwork, review the on-screen preview, and see the current total before checkout.</p></div>
+            <Link to="/design" className="brand-button-primary flex-none gap-2">Start designing <ArrowRight className="h-5 w-5" aria-hidden="true" /></Link>
           </div>
+        </section>
 
-          {/* Related Categories */}
-          {category.relatedCategories.length > 0 && (
-            <div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6 border-b-2 border-gray-200 pb-3">
-                Related Products
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                {category.relatedCategories.map((relatedSlug) => {
-                  const relatedCategory = getCategoryBySlug(relatedSlug);
-                  if (!relatedCategory) return null;
-
-                  return (
-                    <Link
-                      key={relatedSlug}
-                      to={`/${relatedSlug}`}
-                      className="group p-6 bg-white border-2 border-gray-200 rounded-lg hover:border-[#18448D] hover:shadow-lg transition-all"
-                    >
-                      <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-[#18448D] transition-colors">
-                        {relatedCategory.title}
-                      </h3>
-                      <p className="text-gray-600 mb-4 line-clamp-2">
-                        {relatedCategory.description}
-                      </p>
-                      <div className="flex items-center text-[#18448D] font-semibold group-hover:text-[#ff6b35] transition-colors">
-                        Learn More
-                        <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
+        {category.relatedCategories.length > 0 && (
+          <section className="pb-16 pt-6" aria-labelledby="related-products-heading">
+            <p className="brand-eyebrow">Keep comparing</p>
+            <h2 id="related-products-heading" className="brand-title mt-3">Related products.</h2>
+            <div className="mt-8 grid border-l border-t border-slate-200 sm:grid-cols-2 lg:grid-cols-3">
+              {category.relatedCategories.map((relatedSlug) => {
+                const related = getCategoryBySlug(relatedSlug);
+                if (!related) return null;
+                return (
+                  <Link key={relatedSlug} to={`/${relatedSlug}`} className="group border-b border-r border-slate-200 p-6 hover:bg-[#F7F7F7]">
+                    <h3 className="font-display text-xl font-bold text-[#0B1F3A] group-hover:text-[#D95700]">{related.title}</h3>
+                    <p className="mt-3 line-clamp-2 leading-6 text-slate-600">{related.description}</p>
+                    <span className="mt-5 inline-flex items-center gap-2 font-bold text-[#0B1F3A]">View details <ArrowRight className="h-4 w-4 text-[#FF6A00]" /></span>
+                  </Link>
+                );
+              })}
             </div>
-          )}
-        </div>
+          </section>
+        )}
       </div>
     </Layout>
   );

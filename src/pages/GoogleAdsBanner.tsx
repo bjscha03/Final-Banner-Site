@@ -7,7 +7,6 @@ import { useCartStore, type CartItem } from '@/store/cart';
 import { useUIStore } from '@/store/ui';
 import { calcTotals, usd, PRICE_PER_SQFT } from '@/lib/pricing';
 import { calculateBannerPricing, type RopePlacement } from '@/lib/bannerPricingEngine';
-import { heroBackgroundStyle } from '@/lib/heroBackground';
 import { resolvePromo } from '@/lib/promoEngine';
 import { DESIGN_GROMMET_OPTIONS } from '@/lib/grommets';
 import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
@@ -2233,22 +2232,12 @@ const GoogleAdsBanner: React.FC = () => {
         </header>
 
         {/* HERO */}
-        <section
-          className="relative overflow-hidden px-4 pt-10 pb-12 md:pt-14 md:pb-14 bg-slate-900"
-          style={heroBackgroundStyle}
-        >
-          <div
-            className="absolute inset-0 z-[1]"
-            style={{
-              background: 'linear-gradient(to bottom, rgba(0,0,0,0.48), rgba(0,0,0,0.30))',
-            }}
-            aria-hidden="true"
-          />
-          <div className="relative z-[2] max-w-2xl mx-auto text-center space-y-5">
+        <section className="relative overflow-hidden border-b-4 border-[#FF6A00] bg-[#0B1F3A] px-4 pb-12 pt-10 md:pb-14 md:pt-14">
+          <div className="relative max-w-2xl mx-auto text-center space-y-5">
             <h1 className="text-white text-3xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight">
               {isYardSign ? 'Custom Yard Signs' : isCarMagnet ? 'Design Your Custom Car Magnets' : 'Custom Banner Printing'}
               <br />
-              <span className="text-orange-300">Most Standard Orders: 24-Hour Production</span>
+              <span className="text-[#FF8A3D]">Most Standard Orders: 24-Hour Production</span>
             </h1>
 
             {isYardSign ? (

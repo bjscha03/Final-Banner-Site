@@ -174,15 +174,15 @@ const UploadHeroSection: React.FC<UploadHeroSectionProps> = ({ onOpenAIModal, on
   }
 
   return (
-    <div className="bg-gradient-to-br from-blue-50 to-white rounded-xl shadow-lg p-8 md:p-12 mb-8 border-2 border-dashed border-blue-300 hover:border-blue-400 transition-colors">
+    <div className="mb-8 border-2 border-dashed border-slate-300 bg-white p-8 transition-colors hover:border-[#FF6A00] md:p-12">
       <div className="text-center max-w-2xl mx-auto">
-        <div className="inline-flex items-center justify-center w-20 h-20 bg-blue-100 rounded-full mb-6">
-          <Upload className="h-10 w-10 text-blue-600" />
+        <div className="mb-6 inline-flex h-16 w-16 items-center justify-center bg-[#0B1F3A]">
+          <Upload className="h-8 w-8 text-white" />
         </div>
-        <h2 className="text-3xl md:text-4xl font-bold mb-3 text-gray-900">Start by Uploading Your Artwork</h2>
-        <p className="text-lg text-gray-600 mb-8">Upload your design file (JPG, PNG, PDF) or use our AI generator to create one in seconds</p>
+        <h2 className="mb-3 font-display text-3xl font-bold text-[#0B1F3A] md:text-4xl">Start with your artwork</h2>
+        <p className="mb-8 text-lg text-slate-600">Upload a print file, or open the optional AI tool if you need a starting concept.</p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6">
-          <Button type="button" size="lg" className="bg-[#18448D] hover:bg-[#0f2d5f] text-white px-8 py-6 text-lg" onClick={handleUploadClick} disabled={isUploading}>
+          <Button type="button" size="lg" className="bg-[#FF6A00] px-8 py-6 text-lg text-white hover:bg-[#E65F00]" onClick={handleUploadClick} disabled={isUploading}>
             {isUploading ? (
               <>
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
@@ -195,9 +195,9 @@ const UploadHeroSection: React.FC<UploadHeroSectionProps> = ({ onOpenAIModal, on
               </>
             )}
           </Button>
-          <Button size="lg" variant="outline" className="border-2 border-blue-600 text-blue-600 hover:bg-blue-50 px-8 py-6 text-lg" onClick={onOpenAIModal}>
+          <Button size="lg" variant="outline" className="border-2 border-[#0B1F3A] px-8 py-6 text-lg text-[#0B1F3A] hover:bg-[#0B1F3A] hover:text-white" onClick={onOpenAIModal}>
             <Wand2 className="mr-2 h-5 w-5" />
-            Generate with AI
+            Optional AI concept
           </Button>
         </div>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 text-sm text-gray-500">

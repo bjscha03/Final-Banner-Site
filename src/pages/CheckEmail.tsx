@@ -46,10 +46,10 @@ export function CheckEmail() {
   };
 
   return (
-    <Layout>
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <Layout showFooterBanner={false}>
+      <div className="min-h-screen flex items-center justify-center bg-[#F7F7F7] py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8">
-          <Card>
+          <Card className="border-t-4 border-t-[#FF6A00]">
             <CardHeader className="text-center">
               <div className="flex justify-center mb-4">
                 <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center">
@@ -116,7 +116,7 @@ export function CheckEmail() {
                 <div className="text-center">
                   <Link 
                     to="/sign-in" 
-                    className="text-sm text-orange-500 hover:text-blue-500"
+                    className="text-sm font-semibold text-[#0B1F3A] underline decoration-[#FF6A00] underline-offset-4"
                   >
                     Back to Sign In
                   </Link>

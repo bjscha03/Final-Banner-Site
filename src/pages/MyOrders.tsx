@@ -196,8 +196,8 @@ const MyOrders: React.FC = () => {
   // Show loading state while checking authentication
   if (authLoading) {
     return (
-      <Layout>
-        <div className="bg-gray-50 py-8 min-h-[calc(100vh-4rem)]">
+      <Layout showFooterBanner={false}>
+        <div className="min-h-[calc(100vh-4rem)] bg-[#F7F7F7] py-8">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
@@ -215,14 +215,14 @@ const MyOrders: React.FC = () => {
   }
 
   return (
-    <Layout>
-      <div className="bg-gray-50 py-8 min-h-[calc(100vh-4rem)]">
+    <Layout showFooterBanner={false}>
+      <div className="min-h-[calc(100vh-4rem)] bg-[#F7F7F7] py-8">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
           <div className="mb-6 sm:mb-8">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center">
+                <h1 className="flex items-center font-display text-2xl font-bold text-[#0B1F3A] sm:text-3xl">
                   <Package className="h-6 w-6 sm:h-8 sm:w-8 mr-2 sm:mr-3 text-orange-500" />
                   My Orders
                 </h1>

@@ -15,6 +15,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import Layout from '@/components/Layout';
+import ProductVisual from '@/components/product/ProductVisual';
 import { useToast } from '@/components/ui/use-toast';
 import { useCartStore } from '@/store/cart';
 import type { MaterialKey } from '@/store/quote';
@@ -461,56 +462,19 @@ const GraduationSigns: React.FC = () => {
         />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://bannersonthefly.com/graduation-signs" />
-        <meta
-          property="og:image"
-          content="https://res.cloudinary.com/dtrxl120u/image/upload/v1777021980/Graduation_hero_xw9rnh.png"
-        />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Custom Graduation Signs – Designed For You" />
         <meta
           name="twitter:description"
           content="Upload graduation artwork or request design help. Review the approval workflow, current product options, production, and shipping before ordering."
         />
-        <meta
-          name="twitter:image"
-          content="https://res.cloudinary.com/dtrxl120u/image/upload/v1777021980/Graduation_hero_xw9rnh.png"
-        />
       </Helmet>
 
       {/* Hero */}
-      <section className="relative text-white overflow-hidden bg-[#0B1F3A]">
-        {/* Background image */}
-        <div
-          className="absolute inset-0 bg-cover bg-center sm:bg-right"
-          style={{
-            backgroundImage:
-              "url('https://res.cloudinary.com/dtrxl120u/image/upload/e_brightness:12,e_shadow:12/v1777023371/hero_tbmims.png')",
-          }}
-          aria-hidden="true"
-        />
-        {/* Dark left-side gradient overlay for text readability */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              'linear-gradient(to right, rgba(11,31,58,0.86) 0%, rgba(11,31,58,0.80) 35%, rgba(11,31,58,0.58) 55%, rgba(11,31,58,0.18) 75%, rgba(11,31,58,0) 100%)',
-          }}
-          aria-hidden="true"
-        />
-        {/* Soft blur on left portion for high-end look */}
-        <div
-          className="absolute inset-0"
-          style={{
-            backdropFilter: 'blur(4px)',
-            WebkitBackdropFilter: 'blur(4px)',
-            maskImage: 'linear-gradient(to right, black 0%, black 50%, transparent 75%)',
-            WebkitMaskImage: 'linear-gradient(to right, black 0%, black 50%, transparent 75%)',
-          }}
-          aria-hidden="true"
-        />
-        <div className="relative z-[2] max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-24 lg:py-32">
+      <section className="border-b-4 border-[#FF6A00] bg-[#0B1F3A] text-white">
+        <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[1.05fr_.95fr] lg:px-8 lg:py-24">
           <div className="max-w-xl lg:max-w-lg">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur px-4 py-1.5 text-sm font-semibold mb-6 ring-1 ring-white/20">
+            <div className="mb-6 inline-flex items-center gap-2 border-l-2 border-[#FF6A00] pl-3 text-sm font-semibold">
               <GraduationCap className="h-4 w-4 text-[#FF6A00]" /> Class of {new Date().getFullYear()}
             </div>
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight leading-tight text-white">
@@ -523,7 +487,7 @@ const GraduationSigns: React.FC = () => {
               <button
                 type="button"
                 onClick={scrollToProductSection}
-                className="inline-flex items-center gap-2 rounded-lg bg-[#FF6A00] hover:bg-[#E65F00] text-white font-bold px-6 py-3.5 text-base shadow-lg transition"
+                className="brand-button-on-dark"
               >
                 <Upload className="h-5 w-5" /> Upload My Design
               </button>
@@ -540,6 +504,7 @@ const GraduationSigns: React.FC = () => {
               ))}
             </ul>
           </div>
+          <ProductVisual productSlug="yard-signs" priority className="min-h-[330px] border border-white/20 sm:min-h-[410px]" />
         </div>
       </section>
 

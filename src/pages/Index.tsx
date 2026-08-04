@@ -4,7 +4,6 @@ import { useToast } from '@/hooks/use-toast';
 import Layout from '@/components/Layout';
 import HeroSection from '@/components/HeroSection';
 import CompanySpotlight from '@/components/CompanySpotlight';
-import TestimonialsSection from '@/components/TestimonialsSection';
 import WhyChooseUs from '@/components/WhyChooseUs';
 import PromoBanner from '@/components/PromoBanner';
 import PricingTable from '@/components/PricingTable';
@@ -73,12 +72,11 @@ const Index: React.FC = () => {
       <PromoBanner />
       <HeroSection />
       <ProductSelectionStrip />
-      <CustomQuoteSection />
-      <DeliveryCarousel />
-      <CompanySpotlight />
-      <TestimonialsSection />
       <WhyChooseUs />
       <PricingTable />
+      <CompanySpotlight />
+      <DeliveryCarousel />
+      <CustomQuoteSection />
     </Layout>
   );
 };

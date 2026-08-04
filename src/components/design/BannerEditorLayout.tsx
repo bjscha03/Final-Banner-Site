@@ -2143,7 +2143,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
         <p className="text-sm">editorObjects: {editorObjects?.length || 0}</p>
       </div>
     )}
-    <div className="flex flex-col h-[calc(100dvh-145px)] lg:h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="flex h-[calc(100dvh-145px)] flex-col bg-[#F7F7F7] lg:h-screen">
 
 
       {/* Professional Header */}

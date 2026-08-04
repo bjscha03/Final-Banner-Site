@@ -36,7 +36,7 @@ function schemaNodes(html) {
   });
 }
 
-assert(manifest.length === 64, `Expected 64 generated routes; found ${manifest.length}.`);
+assert(manifest.length === 63, `Expected 63 generated routes; found ${manifest.length}.`);
 assert(new Set(manifest.map((entry) => entry.route)).size === manifest.length, 'Generated route manifest contains duplicates.');
 
 for (const entry of manifest) {

@@ -447,8 +447,8 @@ const Checkout: React.FC = () => {
   };
 
   return (
-    <Layout>
-      <div className="bg-gradient-to-b from-gray-50 to-white py-8 sm:py-12 min-h-[calc(100vh-4rem)]">
+    <Layout showFooterBanner={false}>
+      <div className="min-h-[calc(100vh-4rem)] bg-[#F7F7F7] py-8 sm:py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
           <div className="mb-8 sm:mb-12">
@@ -461,10 +461,10 @@ const Checkout: React.FC = () => {
               Back
             </Button>
             <div className="text-center mb-8">
-              <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 mb-3">
+              <div className="mb-3 inline-flex items-center gap-2 border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
                 <span>Design</span><span>→</span><span>Review</span><span>→</span><span className="text-[#18448D]">Checkout</span><span>→</span><span>Complete</span>
               </div>
-              <h1 className="text-3xl sm:text-4xl font-bold text-[#18448D] mb-2">Secure Checkout</h1>
+              <h1 className="mb-2 font-display text-3xl font-bold tracking-[-0.035em] text-[#0B1F3A] sm:text-4xl">Secure checkout</h1>
               <p className="text-base text-gray-600">Most standard orders are produced within 24 hours; free next-day air begins after production.</p>
               <p className="text-sm text-[#18448D] font-medium">Order before tonight’s cutoff for fastest turnaround.</p>
             </div>
@@ -477,7 +477,7 @@ const Checkout: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
             {/* Order Summary - Takes 2 columns on large screens */}
             <div className="lg:col-span-2 space-y-6 w-full">
-              <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 sm:p-8 transition-shadow hover:shadow-xl">
+              <div className="border border-slate-200 border-t-4 border-t-[#FF6A00] bg-white p-6 shadow-[0_10px_28px_rgba(11,31,58,0.06)] sm:p-8">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-2xl font-bold text-[#18448D]">Order Summary</h2>
                   <div className="bg-blue-50 px-4 py-2 rounded-full">
@@ -502,7 +502,7 @@ const Checkout: React.FC = () => {
                       let depositMeta: Record<string, string> = {};
                       try { depositMeta = JSON.parse(item.design_request_text || '{}'); } catch (_e) {}
                       return (
-                        <div key={item.id} className="border border-[#FF6A00]/30 rounded-xl p-4 sm:p-5 bg-gradient-to-br from-white to-orange-50">
+                        <div key={item.id} className="border border-[#FF6A00]/30 bg-[#FFF7F1] p-4 sm:p-5">
                           <div className="flex items-center gap-4">
                             <div className="flex-shrink-0 h-16 w-16 rounded-xl bg-[#0B1F3A] flex items-center justify-center">
                               <span className="text-[#FF6A00] text-2xl">🎓</span>
@@ -551,7 +551,7 @@ const Checkout: React.FC = () => {
                       const fQty = fSpecs.quantity != null ? String(fSpecs.quantity) : '';
                       const fMaterial = String(fSpecs.material || '');
                       return (
-                        <div key={item.id} className="border border-[#FF6A00]/30 rounded-xl p-4 sm:p-5 bg-gradient-to-br from-white to-orange-50">
+                        <div key={item.id} className="border border-[#FF6A00]/30 bg-[#FFF7F1] p-4 sm:p-5">
                           <div className="flex items-start gap-4">
                             <div className="flex-shrink-0 h-16 w-16 rounded-xl bg-[#0B1F3A] flex items-center justify-center overflow-hidden">
                               {item.thumbnail_url ? (
@@ -646,7 +646,7 @@ const Checkout: React.FC = () => {
                     ];
 
                     return (
-                    <div key={item.id} className="border border-gray-200 rounded-xl p-4 sm:p-5 mb-4 last:mb-0 bg-gradient-to-br from-white to-gray-50 hover:shadow-md transition-all">
+                    <div key={item.id} className="mb-4 border border-slate-200 bg-white p-4 last:mb-0 sm:p-5">
                       <div className="grid gap-4 md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-start">
                         {isYardSign ? (
                           <div className="flex justify-center shrink-0">
@@ -983,7 +983,7 @@ const Checkout: React.FC = () => {
                         <Button
                           onClick={handleApplyDiscount}
                           disabled={isValidatingDiscount || !discountCodeInput.trim()}
-                          className="bg-[#18448D] hover:bg-[#18448D]/90 h-12 px-6 font-semibold transition-all hover:scale-105"
+                          className="h-12 bg-[#0B1F3A] px-6 font-semibold text-white hover:bg-[#102A4C]"
                         >
                           {isValidatingDiscount ? 'Validating...' : 'Apply'}
                         </Button>
@@ -1211,7 +1211,7 @@ const Checkout: React.FC = () => {
                         onSuccess={handlePaymentSuccess}
                         onError={handlePaymentError}
                       />
-                      <div className="rounded-xl border border-[#18448D]/20 bg-gradient-to-b from-white to-[#f8fbff] overflow-hidden shadow-sm">
+                      <div className="overflow-hidden border border-[#0B1F3A]/20 bg-white shadow-sm">
                         <button
                           type="button"
                           onClick={() => setShowCardForm((v) => !v)}
@@ -1308,9 +1308,9 @@ const Checkout: React.FC = () => {
 
 
               {user && (
-                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 shadow-sm">
+                <div className="border-l-4 border-[#FF6A00] bg-white p-6 shadow-sm">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-[#18448D] to-[#2563eb] rounded-full flex items-center justify-center shadow-md">
+                    <div className="flex h-10 w-10 items-center justify-center bg-[#0B1F3A]">
                       <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                       </svg>
