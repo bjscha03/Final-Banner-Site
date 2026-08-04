@@ -40,7 +40,7 @@ const HeroSection: React.FC = () => {
         </div>
 
         <div className="relative mx-auto w-full max-w-xl lg:max-w-none">
-          <ProductVisual productSlug="vinyl-banners" priority className="aspect-[16/11] border border-white/15 bg-white" />
+          <ProductVisual productSlug="vinyl-banners" priority className="aspect-[16/10] border border-white/15 bg-white" />
           <div className="grid grid-cols-2 border-x border-b border-white/15 bg-white text-[#0B1F3A]">
             <div className="border-r border-slate-200 p-4 sm:p-5">
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Made to size</p>

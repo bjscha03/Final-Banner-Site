@@ -48,7 +48,7 @@ const ProductSelectionStrip: React.FC = () => (
       <div className="mt-10 grid gap-6 lg:grid-cols-3">
         {products.map((product) => (
           <article key={product.slug} className="group overflow-hidden border border-slate-200 bg-white transition-colors hover:border-[#0B1F3A]">
-            <ProductVisual productSlug={product.slug} className="aspect-[16/10] border-b border-slate-200" />
+            <ProductVisual productSlug={product.slug} presentation="card" className="aspect-[16/10] border-b border-slate-200" />
             <div className="p-6 sm:p-7">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                 <h3 className="font-display text-2xl font-bold text-[#0B1F3A]">{product.title}</h3>

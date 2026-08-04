@@ -143,7 +143,7 @@ const CityProductPage: React.FC<CityProductPageProps> = ({ productSlug }) => {
           </div>
 
           <div className="relative">
-            <ProductVisual productSlug={productSlug} priority className="aspect-[16/11] border border-white/15 bg-white" />
+            <ProductVisual productSlug={productSlug} priority className="aspect-[16/10] border border-white/15 bg-white" />
             <div className="border-x border-b border-white/15 bg-white px-5 py-4 text-[#0B1F3A]">
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Delivered product</p>
               <p className="mt-1 font-display text-lg font-bold">Configured online · Shipped nationwide</p>

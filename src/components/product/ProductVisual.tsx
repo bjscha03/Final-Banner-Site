@@ -5,10 +5,10 @@ interface ProductVisualProps {
   productSlug: CityProductSlug;
   className?: string;
   priority?: boolean;
-  presentation?: 'default' | 'selector';
+  presentation?: 'default' | 'selector' | 'card';
 }
 
-interface ProductImageDefinition {
+interface ProductImageSource {
   src: string;
   alt: string;
   width: number;
@@ -16,13 +16,24 @@ interface ProductImageDefinition {
   defaultFit: string;
 }
 
+interface ProductImageDefinition extends ProductImageSource {
+  card?: ProductImageSource;
+}
+
 const PRODUCT_IMAGES: Record<CityProductSlug, ProductImageDefinition> = {
   'vinyl-banners': {
-    src: 'https://res.cloudinary.com/dtrxl120u/image/upload/f_auto,q_auto,w_1400/v1769209584/White-label_Outdoor_Banner_1_Product_from_4over_aas332.png',
-    alt: 'Finished full-color vinyl banner with its complete edges and mounting hardware visible',
-    width: 1400,
-    height: 1400,
-    defaultFit: 'object-contain p-[5%] sm:p-[6%]',
+    src: '/images/premium-vinyl-banner-installation-v2.webp',
+    alt: 'Navy and orange custom vinyl banner mounted on a black railing outside a modern storefront',
+    width: 1586,
+    height: 992,
+    defaultFit: 'object-cover object-center transition-transform duration-500 group-hover:scale-[1.015]',
+    card: {
+      src: '/images/vinyl-banner-product-card-v2.webp',
+      alt: 'Grand opening vinyl banner installed on a storefront railing with its complete edges and mounting hardware visible',
+      width: 1586,
+      height: 992,
+      defaultFit: 'object-cover object-center transition-transform duration-500 group-hover:scale-[1.015]',
+    },
   },
   'yard-signs': {
     src: 'https://res.cloudinary.com/dtrxl120u/image/upload/f_auto,q_auto,w_1400/v1776995816/e27d8b12-34ac-4dc2-ad13-e5882932cbfc_b9urpx.jpg',
@@ -52,7 +63,8 @@ const ProductVisual: React.FC<ProductVisualProps> = ({
   priority = false,
   presentation = 'default',
 }) => {
-  const image = PRODUCT_IMAGES[productSlug];
+  const definition = PRODUCT_IMAGES[productSlug];
+  const image = presentation === 'card' && definition.card ? definition.card : definition;
   const isSelector = presentation === 'selector';
 
   return (
