@@ -149,6 +149,9 @@ export function buildProductHubSchema(product: ProductLandingDefinition, canonic
   const image = imageNode(product);
   const productId = `${canonicalUrl}#product`;
   const offerId = `${canonicalUrl}#offer`;
+  const pageName = product.slug === 'yard-signs'
+    ? `${product.plural} | 24×18 Size, Options & Pricing`
+    : `${product.plural} | Sizes, Options & Pricing`;
   return {
     '@context': 'https://schema.org',
     '@graph': [
@@ -159,7 +162,7 @@ export function buildProductHubSchema(product: ProductLandingDefinition, canonic
         '@type': 'WebPage',
         '@id': `${canonicalUrl}#webpage`,
         url: canonicalUrl,
-        name: `${product.plural} | Sizes, Options & Pricing`,
+        name: pageName,
         description: product.overview,
         isPartOf: { '@id': `${SITE_URL}/#website` },
         primaryImageOfPage: { '@id': image['@id'] },

@@ -12,7 +12,7 @@ const PricingVisibilityBanner: React.FC = () => {
         </div>
         <div>
           <h3 className="font-display text-lg font-bold text-[#0B1F3A]">Current base material rates</h3>
-          <p className="text-sm text-slate-600">Starting at <span className="text-lg font-bold text-[#D95700]">${lowestPrice.toFixed(2)}/sq ft</span>. Options and quantity update the total.</p>
+          <p className="text-sm text-slate-600">Starting at <span className="text-lg font-bold text-[#A63C00]">${lowestPrice.toFixed(2)}/sq ft</span>. Options and quantity update the total.</p>
         </div>
       </div>
       <div className="mt-4 border-t border-slate-200 pt-4">

@@ -19,13 +19,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   React.useEffect(() => setHasMounted(true), []);
 
   return (
-    <div className="brand-page max-w-[100vw] overflow-x-hidden">
+    <div className="brand-page max-w-[100vw] overflow-x-clip">
       <ScrollToTop />
       <Header
         cartCount={hasMounted ? getItemCount() : 0}
         onCartClick={() => setIsCartOpen(true)}
       />
-      <main className="w-full max-w-[100vw] overflow-x-hidden">
+      <main className="w-full max-w-[100vw] overflow-x-clip">
         {children}
       </main>
 

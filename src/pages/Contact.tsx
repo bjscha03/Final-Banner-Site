@@ -75,7 +75,7 @@ const Contact: React.FC = () => {
             <p className="brand-copy mt-5">For an existing order, include the order number and the email used at checkout. For a new project, include the product, finished size, quantity, and needed-by date.</p>
 
             <div className="mt-8 border-y border-slate-300">
-              <a href="mailto:support@bannersonthefly.com" className="flex gap-4 border-b border-slate-300 py-5 text-[#0B1F3A] hover:text-[#D95700]">
+              <a href="mailto:support@bannersonthefly.com" className="flex gap-4 border-b border-slate-300 py-5 text-[#0B1F3A] hover:text-[#A63C00]">
                 <Mail className="mt-0.5 h-5 w-5 flex-none text-[#FF6A00]" aria-hidden="true" />
                 <div><p className="font-display font-bold">Email support</p><p className="mt-1 text-sm text-slate-600">support@bannersonthefly.com</p></div>
               </a>

@@ -195,7 +195,9 @@ export function buildCityProductPageContent(productSlug: CityProductSlug, city: 
     ],
     internalLinks: [
       { label: product.ctaLabel, to: configuratorUrl, description: `Open the ${product.singular.toLowerCase()} configurator with the correct product selected.` },
-      { label: `${product.plural} sizes and pricing`, to: `/${product.slug}`, description: `Compare current ${product.lower} sizes, options, minimums, and price examples.` },
+      productSlug === 'yard-signs'
+        ? { label: 'Yard signs fixed size and pricing', to: `/${product.slug}`, description: 'Compare the current 24×18-inch format, print-side options, minimums, optional stakes, and price examples.' }
+        : { label: `${product.plural} sizes and pricing`, to: `/${product.slug}`, description: `Compare current ${product.lower} sizes, options, minimums, and price examples.` },
       { label: 'Production and shipping details', to: '/shipping', description: 'Review how production time and carrier transit time work.' },
       { label: 'Artwork and order FAQs', to: '/faq', description: 'Check file, preview, return, and cancellation policies before ordering.' },
     ],

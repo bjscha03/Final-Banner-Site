@@ -24,6 +24,10 @@ const ProductHubPage: React.FC<ProductHubPageProps> = ({ productSlug }) => {
   const product = getProductLandingDefinition(productSlug)!;
   const canonical = `${SITE_URL}/${product.slug}`;
   const ctaUrl = getConfiguratorUrl(productSlug, `/${product.slug}`, 'product-hub');
+  const pricingLinkLabel = productSlug === 'yard-signs' ? 'See fixed size & pricing' : 'See sizes and pricing';
+  const seoTitle = productSlug === 'yard-signs'
+    ? `${product.plural} | 24×18 Size, Options & Pricing`
+    : `${product.plural} | Sizes, Options & Pricing`;
   const description = productSlug === 'vinyl-banners'
     ? `Configure custom vinyl or mesh banners from ${formatMoney(product.startingPriceCents)}. Compare materials, custom sizes, finishing options, artwork guidance, production, and shipping.`
     : productSlug === 'yard-signs'
@@ -33,7 +37,7 @@ const ProductHubPage: React.FC<ProductHubPageProps> = ({ productSlug }) => {
   return (
     <Layout showFooterBanner={false}>
       <SEO
-        title={`${product.plural} | Sizes, Options & Pricing`}
+        title={seoTitle}
         description={description}
         canonical={canonical}
         ogImage={product.socialImage}
@@ -62,7 +66,7 @@ const ProductHubPage: React.FC<ProductHubPageProps> = ({ productSlug }) => {
               <Link to={ctaUrl} className="brand-button-primary gap-2 px-7">
                 {product.ctaLabel}<ArrowRight className="h-5 w-5" aria-hidden="true" />
               </Link>
-              <a href="#sizes-pricing" className="brand-button-on-dark px-7">See sizes and pricing</a>
+              <a href="#sizes-pricing" className="brand-button-on-dark px-7">{pricingLinkLabel}</a>
             </div>
 
             <ul className="mt-8 grid gap-3 border-t border-white/15 pt-6 text-sm text-slate-200 sm:grid-cols-3">

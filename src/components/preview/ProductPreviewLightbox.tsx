@@ -16,6 +16,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { useDocumentScrollLock } from '@/hooks/useDocumentScrollLock';
 
 /**
  * FitToContainer
@@ -168,6 +169,16 @@ const ProductPreviewLightbox: React.FC<ProductPreviewLightboxProps> = ({
   // Drive an "entered" state one tick after mount so CSS transitions can run.
   const [mounted, setMounted] = useState(false);
   const [entered, setEntered] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useDocumentScrollLock(mounted);
 
   useEffect(() => {
     if (!isOpen) {
@@ -182,29 +193,55 @@ const ProductPreviewLightbox: React.FC<ProductPreviewLightboxProps> = ({
     return () => window.cancelAnimationFrame(raf);
   }, [isOpen]);
 
-  // Close on Escape, lock body scroll while open.
+  // Keep keyboard interaction inside the topmost preview. Capture-phase
+  // Escape handling prevents the parent upsell dialog from closing too.
   useEffect(() => {
     if (!isOpen) return;
+    previousFocusRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const focusFrame = window.requestAnimationFrame(() => closeRef.current?.focus());
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        e.stopPropagation();
-        onClose();
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        onCloseRef.current();
+        return;
+      }
+      if (e.key !== 'Tab' || !panelRef.current) return;
+      const focusable = Array.from(panelRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+      )).filter((element) => !element.hasAttribute('hidden'));
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!first || !last) return;
+      if (e.shiftKey && (document.activeElement === first || !panelRef.current.contains(document.activeElement))) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && (document.activeElement === last || !panelRef.current.contains(document.activeElement))) {
+        e.preventDefault();
+        first.focus();
       }
     };
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    window.addEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, true);
     return () => {
-      window.removeEventListener('keydown', onKey);
-      document.body.style.overflow = previousOverflow;
+      window.cancelAnimationFrame(focusFrame);
+      window.removeEventListener('keydown', onKey, true);
+      if (previousFocusRef.current?.isConnected) previousFocusRef.current.focus();
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!mounted || typeof document === 'undefined') return null;
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-6"
+      className="fixed inset-0 z-[10000] flex items-center justify-center"
+      style={{
+        paddingTop: 'max(8px, env(safe-area-inset-top))',
+        paddingRight: 'max(8px, env(safe-area-inset-right))',
+        paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
+        paddingLeft: 'max(8px, env(safe-area-inset-left))',
+      }}
       role="dialog"
       aria-modal="true"
       aria-label={title || 'Product preview'}
@@ -226,7 +263,8 @@ const ProductPreviewLightbox: React.FC<ProductPreviewLightboxProps> = ({
           mostly-empty box. Height is content-driven; we only impose a
           viewport-relative `max-height` as a scroll fallback. */}
       <div
-        className={`relative bg-white rounded-2xl shadow-2xl transition-all duration-200 ease-out transform ${
+        ref={panelRef}
+        className={`relative touch-pan-y overflow-x-hidden overscroll-contain rounded-xl bg-white shadow-2xl transition-all duration-200 ease-out transform ${
           entered ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-2'
         }`}
         style={{
@@ -236,14 +274,16 @@ const ProductPreviewLightbox: React.FC<ProductPreviewLightboxProps> = ({
           // stable and the FitToContainer scale calculation is correct on
           // first paint.
           width: 'min(900px, calc(100vw - 24px))',
-          maxHeight: 'calc(100vh - 32px)',
+          maxHeight: 'calc(100dvh - max(16px, env(safe-area-inset-top)) - max(16px, env(safe-area-inset-bottom)))',
           overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
         }}
         // Stop clicks inside the panel from bubbling to the backdrop button
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close button */}
         <button
+          ref={closeRef}
           type="button"
           onClick={onClose}
           aria-label="Close preview"

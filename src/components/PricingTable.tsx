@@ -48,9 +48,9 @@ const PricingTable: React.FC = () => (
         {materials.map((material, index) => (
           <article key={material.name} className={`relative p-6 sm:p-7 ${index > 0 ? 'border-t border-slate-200 lg:border-l lg:border-t-0' : ''} ${material.recommended ? 'bg-[#FFF7F1]' : 'bg-white'}`}>
             {material.recommended && <div className="absolute inset-x-0 top-0 h-1 bg-[#FF6A00]" aria-hidden="true" />}
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#D95700]">{material.recommended ? 'Most versatile' : 'Material'}</p>
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#A63C00]">{material.recommended ? 'Most versatile' : 'Material'}</p>
             <h3 className="mt-3 font-display text-2xl font-bold text-[#0B1F3A]">{material.name}</h3>
-            <p className="mt-2 font-display text-xl font-bold text-[#D95700]">{material.rate}</p>
+            <p className="mt-2 font-display text-xl font-bold text-[#A63C00]">{material.rate}</p>
             <p className="mt-5 min-h-[72px] text-sm leading-6 text-slate-600">{material.use}</p>
             <ul className="mt-5 space-y-2 border-t border-slate-200 pt-5 text-sm text-slate-700">
               {material.traits.map((trait) => (

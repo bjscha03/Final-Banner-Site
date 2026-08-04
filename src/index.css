@@ -5,14 +5,15 @@
 /* Mobile-first responsive fixes */
 @layer base {
   /* Eliminate horizontal overflow completely */
-  html, body {
+  html {
     max-width: 100%;
-    overflow-x: hidden;
+    overflow-x: clip;
     -webkit-text-size-adjust: 100%;
     -ms-text-size-adjust: 100%;
   }
 
   body {
+    max-width: 100%;
     overscroll-behavior-x: none;
     -webkit-overflow-scrolling: touch;
     touch-action: manipulation;
@@ -69,14 +70,11 @@
   body, html {
     touch-action: pan-y;
     -webkit-overflow-scrolling: touch;
-    overflow-x: hidden;
-    overflow-y: auto;
   }
 
-  /* Fix sticky elements on mobile */
-  .sticky {
-    position: relative !important;
-  }
+  html { overflow-x: clip; overflow-y: auto; }
+  body { overflow: visible; }
+
 }
 
 @layer utilities {
@@ -215,18 +213,17 @@
 
 @layer base {
   html {
-    overflow-x: hidden;
+    overflow-x: clip;
   }
 
   body {
-    overflow-x: hidden;
     width: 100%;
     position: relative;
   }
 
   #root {
     max-width: 100%;
-    overflow-x: hidden;
+    overflow-x: clip;
   }
 
   * {
@@ -647,7 +644,7 @@
   }
 
   .brand-eyebrow {
-    @apply text-xs font-bold uppercase tracking-[0.2em] text-[#D95700];
+    @apply text-xs font-bold uppercase tracking-[0.2em] text-[#A63C00];
   }
 
   .brand-title {
@@ -661,7 +658,7 @@
   .brand-button-primary,
   .btn-primary,
   .btn-hero-primary {
-    @apply inline-flex min-h-12 items-center justify-center rounded-md bg-[#FF6A00] px-6 py-3 font-bold text-white shadow-none transition-colors duration-200 hover:bg-[#E65F00] hover:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00] focus-visible:ring-offset-2 active:bg-[#CC5500];
+    @apply inline-flex min-h-12 items-center justify-center rounded-md bg-[#FF6A00] px-6 py-3 font-bold text-[#0B1F3A] shadow-none transition-colors duration-200 hover:bg-[#E65F00] hover:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00] focus-visible:ring-offset-2 active:bg-[#E65F00];
     transform: none;
   }
 

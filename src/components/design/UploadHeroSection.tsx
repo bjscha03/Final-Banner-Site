@@ -182,7 +182,7 @@ const UploadHeroSection: React.FC<UploadHeroSectionProps> = ({ onOpenAIModal, on
         <h2 className="mb-3 font-display text-3xl font-bold text-[#0B1F3A] md:text-4xl">Start with your artwork</h2>
         <p className="mb-8 text-lg text-slate-600">Upload a print file, or open the optional AI tool if you need a starting concept.</p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6">
-          <Button type="button" size="lg" className="bg-[#FF6A00] px-8 py-6 text-lg text-white hover:bg-[#E65F00]" onClick={handleUploadClick} disabled={isUploading}>
+          <Button type="button" size="lg" className="bg-[#FF6A00] px-8 py-6 text-lg text-[#0B1F3A] hover:bg-[#E65F00]" onClick={handleUploadClick} disabled={isUploading}>
             {isUploading ? (
               <>
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>

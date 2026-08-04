@@ -71,7 +71,7 @@ const ProductTypeSwitcher: React.FC<ProductTypeSwitcherProps> = ({ productType, 
               )}
             >
               {active && <div className="absolute inset-x-0 top-0 z-10 h-1 bg-[#FF6A00]" aria-hidden="true" />}
-              <ProductVisual productSlug={option.slug} className="aspect-[16/9] border-b border-slate-200" />
+              <ProductVisual productSlug={option.slug} className="aspect-[4/3] border-b border-slate-200" />
               <div className="flex items-start justify-between gap-4 p-5">
                 <div><p className="font-display text-lg font-bold text-[#0B1F3A]">{option.label}</p><p className="mt-1 text-xs text-slate-500">{option.subtext}</p></div>
                 {active && <CheckCircle2 className="h-5 w-5 flex-none text-[#FF6A00]" aria-label="Selected" />}

@@ -180,7 +180,7 @@ const CustomQuote: React.FC = () => {
     <Layout>
       <SEO
         title="Request a Custom Quote | Banners On The Fly"
-        description="Request a custom quote for special banner, yard sign, or magnet sizes, quantities, and finishing."
+        description="Request a custom quote for special banner sizes, unusual quantities, custom finishing, and bulk yard-sign or magnet orders."
         canonical="https://bannersonthefly.com/custom-quote"
       />
       <section className="border-b border-white/10 bg-[#0B1F3A] px-4 py-14 text-white sm:py-16">
@@ -188,7 +188,7 @@ const CustomQuote: React.FC = () => {
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#FF8A3D]">Custom quote</p>
           <h1 className="mt-3 font-display text-4xl font-bold tracking-[-0.04em] md:text-5xl">Tell us about your custom project.</h1>
           <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-300">
-            Special sizes, unusual quantities, custom finishing, and bulk orders for banners, yard signs, and magnets.
+            Special banner sizes, unusual quantities, custom finishing, and bulk yard-sign or magnet orders.
           </p>
         </div>
       </section>

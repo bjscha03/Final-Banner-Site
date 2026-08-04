@@ -70,7 +70,7 @@ export function BlogList({ posts, allTags, currentPage, totalPages, onPageChange
         {allTags.length > 0 && (
           <div className="flex flex-wrap gap-x-4 gap-y-1 lg:justify-end">
             {visibleTags.map((tag) => <TagPill key={tag} tag={tag} active={selectedTags.includes(tag)} onClick={() => toggleTag(tag)} />)}
-            {allTags.length > 8 && <button onClick={() => setShowAllTags(!showAllTags)} className="px-1 text-xs font-bold text-[#D95700]">{showAllTags ? 'Show fewer' : `+${allTags.length - 8} more`}</button>}
+            {allTags.length > 8 && <button onClick={() => setShowAllTags(!showAllTags)} className="px-1 text-xs font-bold text-[#A63C00]">{showAllTags ? 'Show fewer' : `+${allTags.length - 8} more`}</button>}
           </div>
         )}
       </div>
@@ -100,8 +100,8 @@ export function BlogList({ posts, allTags, currentPage, totalPages, onPageChange
         <div className="grid gap-7 lg:grid-cols-[1fr_auto] lg:items-center">
           <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-[#FF8A3D]">Occasional print notes</p><h2 className="mt-3 font-display text-2xl font-bold sm:text-3xl">Useful production and design guidance, by email.</h2><p className="mt-3 text-slate-300">Subscribe for new guides and relevant offers. No fabricated trend reports or daily noise.</p></div>
           {submitStatus === 'success' ? <div className="flex items-center gap-2 font-bold"><CheckCircle className="h-5 w-5 text-[#FF8A3D]" />Subscribed</div> : (
-            <form onSubmit={handleNewsletterSubmit} className="flex flex-col gap-3 sm:flex-row">
-              <input type="email" value={newsletterEmail} onChange={(event) => setNewsletterEmail(event.target.value)} placeholder="Email address" className="min-h-12 min-w-[260px] rounded-md border border-white/25 bg-white px-4 text-[#0B1F3A]" disabled={isSubmitting} />
+            <form onSubmit={handleNewsletterSubmit} className="flex min-w-0 flex-col gap-3 sm:flex-row">
+              <input type="email" value={newsletterEmail} onChange={(event) => setNewsletterEmail(event.target.value)} placeholder="Email address" className="min-h-12 w-full min-w-0 rounded-md border border-white/25 bg-white px-4 text-[#0B1F3A] sm:w-auto sm:min-w-[260px]" disabled={isSubmitting} />
               <button type="submit" className="brand-button-primary gap-2" disabled={isSubmitting}>{isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}Subscribe</button>
             </form>
           )}

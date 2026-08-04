@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, ShoppingCart, CreditCard, Check, ChevronDown, Eye, Loader2 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { QuoteState, Grommets, PolePocketSize } from '@/store/quote';
@@ -6,6 +6,7 @@ import { formatDimensions, usd, ropeCost, polePocketCost } from '@/lib/pricing';
 import BannerPreview from './BannerPreview';
 import ThumbnailPreviewWrapper from '@/components/preview/ThumbnailPreviewWrapper';
 import { getProductCopy } from '@/lib/product-copy';
+import { useDocumentScrollLock } from '@/hooks/useDocumentScrollLock';
 
 export interface UpsellOption {
   id: 'grommets' | 'rope' | 'polePockets';
@@ -76,22 +77,63 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
   const copy = getProductCopy(productType);
   const [selectedOptions, setSelectedOptions] = useState<UpsellOption[]>([]);
   const [dontAskAgain, setDontAskAgain] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const dialogRef = useRef<HTMLElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  const isBannerProduct = !productType || productType === 'banner';
 
-  // Check if mobile on mount and window resize
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 640);
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useDocumentScrollLock(isOpen);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    previousFocusRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const focusFrame = window.requestAnimationFrame(() => closeButtonRef.current?.focus());
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== 'Tab' || !dialogRef.current) return;
+
+      const focusable = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+      )).filter((element) => !element.hasAttribute('hidden'));
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!first || !last) return;
+      if (event.shiftKey && (document.activeElement === first || !dialogRef.current.contains(document.activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !dialogRef.current.contains(document.activeElement))) {
+        event.preventDefault();
+        first.focus();
+      }
     };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      document.removeEventListener('keydown', handleKeyDown);
+      if (previousFocusRef.current?.isConnected) previousFocusRef.current.focus();
+    };
+  }, [isOpen]);
 
   // Initialize available upsell options based on current quote
   useEffect(() => {
     if (!isOpen) return;
+
+    if (!isBannerProduct) {
+      setSelectedOptions([]);
+      return;
+    }
 
     const options: UpsellOption[] = [];
     
@@ -143,7 +185,6 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
     // every parent re-render (e.g. window resize), causing toggles like the
     // grommet checkbox to silently un-check themselves. See issue: grommets
     // disappear / get unselected when dragging the browser window.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     isOpen,
     quote.grommets,
@@ -152,6 +193,7 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
     quote.widthIn,
     quote.heightIn,
     quote.quantity,
+    isBannerProduct,
   ]);
 
   // Handle option toggle with single-selection enforcement (radio-like).
@@ -229,19 +271,6 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
     .filter(option => option.selected)
     .reduce((sum, option) => sum + option.price, 0);
 
-  // Prevent body scroll when modal is open
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isOpen]);
-
   if (!isOpen) return null;
 
   const hasSelectedOptions = selectedOptions.some(option => option.selected);
@@ -273,7 +302,9 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className="w-full px-3 py-2 text-left bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 flex items-center justify-between"
+          aria-expanded={isOpen}
+          aria-haspopup="listbox"
+          className="flex min-h-11 w-full items-center justify-between border border-slate-300 bg-white px-3 py-2 text-left shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF6A00]"
         >
           <span className="text-sm">
             {selectedOption ? selectedOption.label : placeholder}
@@ -282,16 +313,18 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
         </button>
         
         {isOpen && (
-          <div className="absolute z-[10000] w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+          <div role="listbox" aria-label={placeholder} className="relative z-[10000] mt-1 max-h-60 w-full overflow-auto border border-slate-300 bg-white shadow-lg sm:absolute">
             {options.map((option) => (
               <button
                 key={option.id || option.value}
                 type="button"
+                role="option"
+                aria-selected={(option.id || option.value) === value}
                 onClick={() => {
                   onChange(option.id || option.value || '');
                   setIsOpen(false);
                 }}
-                className="w-full px-3 py-2 text-left hover:bg-gray-50 focus:outline-none focus:bg-gray-50 first:rounded-t-lg last:rounded-b-lg"
+                className="min-h-11 w-full px-3 py-2 text-left hover:bg-[#FFF7F1] focus:outline-none focus:bg-[#FFF7F1]"
               >
                 <div className="text-sm font-medium text-gray-900">{option.label}</div>
                 {option.description && (
@@ -306,39 +339,52 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
   };
 
   return createPortal(
-    <div data-upsell-modal className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+    <div data-upsell-modal className="fixed inset-0 z-[9999] flex items-end justify-center overflow-hidden overscroll-none p-0 sm:items-center sm:p-4">
       <div 
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="absolute inset-0 touch-none bg-[#061120]/70"
         onClick={onClose}
+        aria-hidden="true"
       />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+      <section
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="upsell-modal-title"
+        className="relative flex h-[94dvh] max-h-[780px] min-h-0 w-full max-w-lg flex-col overflow-hidden rounded-t-xl bg-white shadow-2xl sm:h-auto sm:max-h-[calc(100dvh-2rem)] sm:rounded-lg"
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-200 p-4 sm:p-6">
+          <h2 id="upsell-modal-title" className="font-display text-xl font-bold text-[#0B1F3A]">
             {copy.upsellHeader}
           </h2>
           <button
+            ref={closeButtonRef}
+            type="button"
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-            aria-label="Close"
+            className="flex min-h-11 min-w-11 items-center justify-center text-slate-500 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00]"
+            aria-label="Close options"
           >
             <X className="h-5 w-5 text-gray-500" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div
+          data-upsell-scroll-region
+          className="min-h-0 flex-1 touch-pan-y space-y-5 overflow-x-hidden overflow-y-auto overscroll-contain p-4 sm:space-y-6 sm:p-6"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
           {/* Thumbnail preview notice */}
-          <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-xs text-blue-700">
-            <Eye className="h-4 w-4 flex-shrink-0 mt-0.5 text-blue-500" />
+          <div className="flex items-start gap-2 border-l-4 border-[#FF6A00] bg-[#FFF7F1] px-3 py-2 text-xs text-[#7A3212]">
+            <Eye className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#A63C00]" />
             <p>
               <span className="font-medium">Preview only.</span> {copy.reviewNoticeBody}
             </p>
           </div>
 
           {/* Product Info with Live Preview */}
-          <div className="bg-gray-50 rounded-xl p-4">
-            <div className="flex items-center gap-4">
+          <div className="border border-slate-200 bg-[#F7F7F7] p-4">
+            <div className="flex min-w-0 flex-col items-center gap-4 sm:flex-row sm:items-center">
               {/* Live Banner Preview */}
               {(() => {
                 const effectiveGrommets =
@@ -346,6 +392,7 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
                   quote.grommets;
                 return (
               <ThumbnailPreviewWrapper
+                className="mx-auto max-w-full flex-shrink-0 sm:mx-0"
                 title={`${formatDimensions(quote.widthIn, quote.heightIn)} ${copy.singularLabel}`}
                 widthIn={quote.widthIn}
                 heightIn={quote.heightIn}
@@ -394,15 +441,16 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
                   designServiceEnabled={designServiceEnabled}
                   isFinalizedSnapshot={thumbnailIsExactComposition}
                   compositionSignature={thumbnailCompositionSignature}
+                  maxSize={120}
                 />
               </ThumbnailPreviewWrapper>
                 );
               })()}
               <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-gray-900 text-lg">
+                <h3 className="break-words text-center font-display text-lg font-bold text-[#0B1F3A] sm:text-left">
                   {formatDimensions(quote.widthIn, quote.heightIn)} {copy.singularLabel}
                 </h3>
-                <p className="text-gray-600 text-sm">
+                <p className="mt-1 break-words text-center text-sm text-slate-600 sm:text-left">
                   {quote.quantity} {quote.quantity === 1 ? copy.singularLabel.toLowerCase() : copy.pluralLabel.toLowerCase()} • {quote.material} vinyl
                 </p>
               </div>
@@ -421,31 +469,35 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
             {selectedOptions.map((option) => (
               <div
                 key={option.id}
-                className={`border-2 rounded-xl p-4 transition-all ${
+                className={`border-2 p-4 transition-all ${
                   option.selected
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200'
+                    ? 'border-[#FF6A00] bg-[#FFF7F1]'
+                    : 'border-slate-200'
                 }`}
               >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-start gap-3">
-                    <div 
-                      className={`w-6 h-6 rounded border-2 flex items-center justify-center mt-0.5 cursor-pointer ${
+                <div className="mb-3 flex min-w-0 items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={option.selected}
+                      aria-label={`${option.selected ? 'Remove' : 'Add'} ${option.label}`}
+                      className={`flex min-h-11 min-w-11 flex-none items-center justify-center border-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00] focus-visible:ring-offset-2 ${
                         option.selected
-                          ? 'border-blue-500 bg-blue-500'
-                          : 'border-gray-300'
+                          ? 'border-[#0B1F3A] bg-[#0B1F3A]'
+                          : 'border-slate-300 bg-white'
                       }`}
                       onClick={() => toggleOption(option.id)}
                     >
                       {option.selected && <Check className="h-4 w-4 text-white" />}
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900">{option.label}</h4>
-                      <p className="text-sm text-gray-600 mt-1">{option.description}</p>
+                    </button>
+                    <div className="min-w-0">
+                      <h4 className="font-display font-bold text-[#0B1F3A]">{option.label}</h4>
+                      <p className="mt-1 text-sm leading-5 text-slate-600">{option.description}</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <span className="font-bold text-gray-900">
+                  <div className="flex-none text-right">
+                    <span className="font-bold text-[#0B1F3A]">
                       {option.price === 0 ? 'FREE' : usd(option.price)}
                     </span>
                   </div>
@@ -453,7 +505,7 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
 
                 {/* Detailed options for grommets */}
                 {option.id === 'grommets' && option.selected && (
-                  <div className="mt-3 pl-9">
+                  <div className="mt-3 sm:pl-14">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Grommet Placement
                     </label>
@@ -468,7 +520,7 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
 
                 {/* Detailed options for pole pockets */}
                 {option.id === 'polePockets' && option.selected && (
-                  <div className="mt-3 pl-9 space-y-3">
+                  <div className="mt-3 space-y-3 sm:pl-14">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Pole Pocket Configuration
@@ -499,32 +551,30 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-gray-200 p-6 space-y-4">
+        <div className="shrink-0 space-y-3 border-t border-slate-200 bg-white px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 sm:space-y-4 sm:p-6">
           {/* Don't ask again */}
-          <div className="flex items-center gap-2">
+          <label htmlFor="dont-ask-upsell" className="flex min-h-11 cursor-pointer items-center gap-3 text-sm text-slate-600">
             <input
               type="checkbox"
-              id="dont-ask-desktop"
+              id="dont-ask-upsell"
               checked={dontAskAgain}
               onChange={(e) => setDontAskAgain(e.target.checked)}
-              className="rounded border-gray-300"
+              className="h-5 w-5 border-slate-300 accent-[#FF6A00]"
             />
-            <label htmlFor="dont-ask-desktop" className="text-sm text-gray-600">
-              Don't ask again
-            </label>
-          </div>
+            <span>Don't ask again</span>
+          </label>
 
           {/* Action buttons */}
           <div className="space-y-3">
             <button
               onClick={handleContinue}
               disabled={isProcessing}
-              className={`w-full py-4 px-6 rounded-xl font-bold text-white transition-all ${
+              className={`min-h-12 w-full px-5 py-3 font-bold transition-colors ${
                 isProcessing
-                  ? 'bg-gray-400 cursor-not-allowed'
+                  ? 'cursor-not-allowed bg-gray-400 text-[#0B1F3A]'
                   : hasSelectedOptions
-                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
-                    : 'bg-gray-900 hover:bg-black'
+                    ? 'bg-[#FF6A00] text-[#0B1F3A] hover:bg-[#E85F00]'
+                    : 'bg-[#0B1F3A] text-white hover:bg-[#102A4C]'
               }`}
             >
               <div className="flex items-center justify-center gap-3">
@@ -551,7 +601,7 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
               <button
                 onClick={handleSkip}
                 disabled={isProcessing}
-                className={`w-full py-3 px-4 border-2 border-gray-300 rounded-xl font-semibold transition-colors ${
+                className={`min-h-11 w-full border-2 border-slate-300 px-4 py-2 font-semibold transition-colors ${
                   isProcessing
                     ? 'text-gray-400 cursor-not-allowed'
                     : 'text-gray-700 hover:bg-gray-50'
@@ -562,7 +612,7 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
             )}
           </div>
         </div>
-      </div>
+      </section>
     </div>,
     document.body
   );

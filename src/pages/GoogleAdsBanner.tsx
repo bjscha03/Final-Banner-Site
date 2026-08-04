@@ -2316,7 +2316,7 @@ const GoogleAdsBanner: React.FC = () => {
         <section ref={orderRef} id="order-builder" className="mt-8 py-12 px-4 bg-gray-50">
           <div className="max-w-4xl lg:max-w-7xl mx-auto">
             {/* Product type switcher — public for all users */}
-            <ProductTypeSwitcher productType={productType} onProductTypeChange={handleProductTypeChange} mobileStickyTopPx={56} />
+            <ProductTypeSwitcher productType={productType} onProductTypeChange={handleProductTypeChange} mobileStickyTopPx={65} />
             <h2
               ref={builderStartRef}
               id="builder-start"

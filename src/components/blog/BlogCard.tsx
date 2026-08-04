@@ -27,7 +27,7 @@ export function BlogCard({ post, featured = false }: BlogCardProps) {
         <div className="flex flex-col justify-center p-7 sm:p-9 lg:p-11">
           <p className="brand-eyebrow">Featured article</p>
           <div className="mt-4 flex flex-wrap gap-3">{frontmatter.tags.slice(0, 3).map((tag) => <TagPill key={tag} tag={tag} linkTo />)}</div>
-          <Link to={articleUrl}><h2 className="mt-4 font-display text-3xl font-bold leading-tight tracking-[-0.03em] text-[#0B1F3A] hover:text-[#D95700]">{frontmatter.title}</h2></Link>
+          <Link to={articleUrl}><h2 className="mt-4 font-display text-3xl font-bold leading-tight tracking-[-0.03em] text-[#0B1F3A] hover:text-[#A63C00]">{frontmatter.title}</h2></Link>
           <p className="mt-4 line-clamp-3 text-lg leading-7 text-slate-600">{excerpt}</p>
           <div className="mt-6 flex flex-wrap gap-5 text-sm text-slate-500">
             <span className="flex items-center gap-2"><Calendar className="h-4 w-4 text-[#FF6A00]" />{date}</span>
@@ -46,7 +46,7 @@ export function BlogCard({ post, featured = false }: BlogCardProps) {
       </Link>
       <div className="flex flex-1 flex-col p-6">
         <div className="flex flex-wrap gap-3">{frontmatter.tags.slice(0, 2).map((tag) => <TagPill key={tag} tag={tag} linkTo />)}</div>
-        <Link to={articleUrl}><h2 className="mt-4 line-clamp-2 font-display text-xl font-bold leading-snug text-[#0B1F3A] hover:text-[#D95700]">{frontmatter.title}</h2></Link>
+        <Link to={articleUrl}><h2 className="mt-4 line-clamp-2 font-display text-xl font-bold leading-snug text-[#0B1F3A] hover:text-[#A63C00]">{frontmatter.title}</h2></Link>
         <p className="mt-3 line-clamp-3 flex-1 text-sm leading-6 text-slate-600">{excerpt}</p>
         <div className="mt-5 flex items-center justify-between gap-4 border-t border-slate-200 pt-4 text-xs text-slate-500">
           <time dateTime={frontmatter.publishDate || frontmatter.date}>{date}</time>

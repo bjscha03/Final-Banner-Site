@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import ScrollToTopLink from './ScrollToTopLink';
 import { useAuth, isAdmin } from '@/lib/auth';
 import { useToast } from '@/components/ui/use-toast';
+import { useDocumentScrollLock } from '@/hooks/useDocumentScrollLock';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,6 +25,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const menuRef = useRef<HTMLDivElement>(null);
+  useDocumentScrollLock(isMenuOpen);
 
   // Close mobile menu when clicking outside
   useEffect(() => {
@@ -36,6 +38,10 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isMenuOpen]);
+
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, [location.pathname]);
 
   const navItems = [
     { name: 'Home', href: '/' },
@@ -88,7 +94,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
 
             {/* Slide-out Navigation Menu (works on all screen sizes) */}
             {isMenuOpen && (
-              <div className="absolute left-0 top-full z-50 h-[calc(100vh-76px)] w-[min(88vw,320px)] overflow-y-auto border-r border-slate-200 bg-white shadow-[12px_18px_40px_rgba(11,31,58,0.16)]">
+              <div data-mobile-navigation className="absolute left-0 top-full z-50 h-[calc(100dvh-76px)] w-[min(88vw,320px)] touch-pan-y overflow-y-auto overscroll-contain border-r border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[12px_18px_40px_rgba(11,31,58,0.16)] [-webkit-overflow-scrolling:touch]">
                 <div className="py-2">
                   {navItems.map((item) => (
                     <ScrollToTopLink
@@ -213,7 +219,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
           <div className="flex items-center justify-end gap-1 lg:w-auto lg:gap-2">
             <ScrollToTopLink
               to="/design"
-              className="mr-1 hidden min-h-11 items-center rounded-md bg-[#FF6A00] px-4 text-sm font-bold text-white transition-colors hover:bg-[#E65F00] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00] focus-visible:ring-offset-2 xl:inline-flex"
+              className="mr-1 hidden min-h-11 items-center rounded-md bg-[#FF6A00] px-4 text-sm font-bold text-[#0B1F3A] transition-colors hover:bg-[#E65F00] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00] focus-visible:ring-offset-2 xl:inline-flex"
             >
               Start designing
             </ScrollToTopLink>
@@ -288,7 +294,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
             >
               <ShoppingCart className="h-5 w-5" />
               {cartCount > 0 && (
-                <span className="absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#FF6A00] px-1 text-[10px] font-bold text-white">
+                <span className="absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#FF6A00] px-1 text-[10px] font-bold text-[#0B1F3A]">
                   {cartCount}
                 </span>
               )}

@@ -186,7 +186,7 @@ const SignIn: React.FC = () => {
                   const signUpUrl = currentNextUrl !== '/' ? `/sign-up?next=${encodeURIComponent(currentNextUrl)}` : '/sign-up';
                   navigate(signUpUrl);
                 }}
-                className="font-semibold text-[#0B1F3A] underline decoration-[#FF6A00] decoration-2 underline-offset-4 hover:text-[#D95700]"
+                className="font-semibold text-[#0B1F3A] underline decoration-[#FF6A00] decoration-2 underline-offset-4 hover:text-[#A63C00]"
               >
                 Create one now →
               </button>
@@ -220,7 +220,7 @@ const SignIn: React.FC = () => {
                   </Label>
                   <Link
                     to="/reset-password"
-                    className="text-sm font-semibold text-[#0B1F3A] underline decoration-[#FF6A00] underline-offset-4 hover:text-[#D95700]"
+                    className="text-sm font-semibold text-[#0B1F3A] underline decoration-[#FF6A00] underline-offset-4 hover:text-[#A63C00]"
                   >
                     Forgot password?
                   </Link>
@@ -254,7 +254,7 @@ const SignIn: React.FC = () => {
               <Button
                 type="submit"
                 disabled={loading}
-                className="group h-14 w-full rounded-md bg-[#FF6A00] text-base font-bold text-white shadow-none hover:bg-[#E65F00]"
+                className="group h-14 w-full rounded-md bg-[#FF6A00] text-base font-bold text-[#0B1F3A] shadow-none hover:bg-[#E65F00]"
               >
                 {loading ? (
                   <div className="flex items-center justify-center gap-2">

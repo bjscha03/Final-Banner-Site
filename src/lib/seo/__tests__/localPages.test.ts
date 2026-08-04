@@ -95,9 +95,12 @@ describe('commerce parity', () => {
     const yard = getProductConfig('yard_sign');
     const car = getProductConfig('car_magnet');
     expect(yard.allowCustomDimensions).toBe(false);
-    expect(yard.predefinedSizes).toEqual(expect.arrayContaining([
+    expect(yard.predefinedSizes).toEqual([
       expect.objectContaining({ widthIn: YARD_SIGN_WIDTH_IN, heightIn: YARD_SIGN_HEIGHT_IN }),
-    ]));
+    ]);
+    expect(PRODUCT_LANDING_DATA['yard-signs'].sizes).toHaveLength(1);
+    expect(PRODUCT_LANDING_DATA['yard-signs'].sizes[0]).toMatch(/24.*18.*only/i);
+    expect(PRODUCT_LANDING_DATA['yard-signs'].priceExamples.slice(0, 2).every((example) => /24.*18/.test(example.configuration))).toBe(true);
     expect(PRODUCT_LANDING_DATA['yard-signs'].sizes.join(' ')).not.toMatch(/custom/i);
     expect(car.allowCustomDimensions).toBe(false);
     expect(CAR_MAGNET_SIZES).toHaveLength(car.predefinedSizes?.length || 0);
@@ -134,5 +137,10 @@ describe('structured data', () => {
     expect(graph.map((node) => node['@type'])).not.toContain('LocalBusiness');
     expect(graph.find((node) => node['@type'] === 'Offer')?.price).toBe((product.startingPriceCents / 100).toFixed(2));
     expect(graph.find((node) => node['@type'] === 'FAQPage')?.mainEntity).toHaveLength(product.faqs.length);
+    const pageName = String(graph.find((node) => node['@type'] === 'WebPage')?.name);
+    if (slug === 'yard-signs') {
+      expect(pageName).toContain('24×18 Size');
+      expect(pageName).not.toContain('Sizes,');
+    }
   });
 });

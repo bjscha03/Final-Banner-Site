@@ -21,7 +21,7 @@ const PromoBanner: React.FC = () => {
       <div className="px-4 py-2.5 text-center">
         <button
           onClick={handleCopyCode}
-          className="group inline-flex items-center gap-2 font-medium transition-colors hover:text-[#D95700]"
+          className="group inline-flex items-center gap-2 font-medium transition-colors hover:text-[#A63C00]"
           title="Click to copy code"
         >
           <Tag className="h-4 w-4 text-[#FF6A00]" />
@@ -32,7 +32,7 @@ const PromoBanner: React.FC = () => {
           </span>
           <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
           {copied && (
-            <span className="border border-orange-200 bg-white px-2 py-0.5 text-xs font-bold text-[#D95700]">Copied</span>
+            <span className="border border-orange-200 bg-white px-2 py-0.5 text-xs font-bold text-[#A63C00]">Copied</span>
           )}
         </button>
       </div>

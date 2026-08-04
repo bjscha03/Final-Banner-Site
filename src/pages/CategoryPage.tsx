@@ -120,7 +120,7 @@ const CategoryPage: React.FC = () => {
                 if (!related) return null;
                 return (
                   <Link key={relatedSlug} to={`/${relatedSlug}`} className="group border-b border-r border-slate-200 p-6 hover:bg-[#F7F7F7]">
-                    <h3 className="font-display text-xl font-bold text-[#0B1F3A] group-hover:text-[#D95700]">{related.title}</h3>
+                    <h3 className="font-display text-xl font-bold text-[#0B1F3A] group-hover:text-[#A63C00]">{related.title}</h3>
                     <p className="mt-3 line-clamp-2 leading-6 text-slate-600">{related.description}</p>
                     <span className="mt-5 inline-flex items-center gap-2 font-bold text-[#0B1F3A]">View details <ArrowRight className="h-4 w-4 text-[#FF6A00]" /></span>
                   </Link>

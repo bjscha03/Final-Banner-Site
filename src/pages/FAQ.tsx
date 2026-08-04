@@ -149,10 +149,10 @@ const FAQ: React.FC = () => {
                 >
                   <button
                     onClick={() => toggleFAQ(index)}
-                    className="flex w-full items-center justify-between gap-5 py-5 text-left transition-colors hover:text-[#D95700] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00]"
+                    className="flex w-full items-center justify-between gap-5 py-5 text-left transition-colors hover:text-[#A63C00] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00]"
                   >
                     <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
-                      <span className="text-xs font-bold uppercase tracking-[0.12em] text-[#D95700]">
+                      <span className="text-xs font-bold uppercase tracking-[0.12em] text-[#A63C00]">
                         {faq.category}
                       </span>
                       <h3 className="font-display text-lg font-bold text-[#0B1F3A]">

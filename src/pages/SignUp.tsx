@@ -186,7 +186,7 @@ const SignUp: React.FC = () => {
                   const signInUrl = currentNextUrl !== '/design' ? `/sign-in?next=${encodeURIComponent(currentNextUrl)}` : '/sign-in';
                   navigate(signInUrl);
                 }}
-                className="font-semibold text-[#0B1F3A] underline decoration-[#FF6A00] decoration-2 underline-offset-4 hover:text-[#D95700]"
+                className="font-semibold text-[#0B1F3A] underline decoration-[#FF6A00] decoration-2 underline-offset-4 hover:text-[#A63C00]"
               >
                 Sign in →
               </button>
@@ -271,7 +271,7 @@ const SignUp: React.FC = () => {
               <Button
                 type="submit"
                 disabled={loading}
-                className="group h-14 w-full rounded-md bg-[#FF6A00] text-base font-bold text-white shadow-none hover:bg-[#E65F00]"
+                className="group h-14 w-full rounded-md bg-[#FF6A00] text-base font-bold text-[#0B1F3A] shadow-none hover:bg-[#E65F00]"
               >
                 {loading ? (
                   <div className="flex items-center justify-center gap-2">

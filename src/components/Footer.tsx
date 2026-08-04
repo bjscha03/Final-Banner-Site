@@ -106,7 +106,7 @@ const Footer: React.FC = () => {
               Production time and carrier transit time are shown separately.
             </p>
             <div className="space-y-2">
-              <a href="mailto:support@bannersonthefly.com" className="flex items-center text-slate-300 transition-colors hover:text-white">
+              <a href="mailto:support@bannersonthefly.com" className="flex min-h-11 items-center text-slate-300 transition-colors hover:text-white">
                 <Mail className="h-4 w-4 mr-2" />
                 <span className="text-sm">support@bannersonthefly.com</span>
               </a>
@@ -125,7 +125,7 @@ const Footer: React.FC = () => {
                 <li key={index}>
                   <ScrollToTopLink
                     to={link.href}
-                    className="text-sm text-slate-300 transition-colors hover:text-white"
+                    className="flex min-h-11 items-center text-sm text-slate-300 transition-colors hover:text-white"
                   >
                     {link.name}
                   </ScrollToTopLink>
@@ -139,7 +139,7 @@ const Footer: React.FC = () => {
             <ul className="space-y-2">
               {companyLinks.map((link) => (
                 <li key={link.href}>
-                  <ScrollToTopLink to={link.href} className="text-sm text-slate-300 transition-colors hover:text-white">
+                  <ScrollToTopLink to={link.href} className="flex min-h-11 items-center text-sm text-slate-300 transition-colors hover:text-white">
                     {link.name}
                   </ScrollToTopLink>
                 </li>
@@ -155,7 +155,7 @@ const Footer: React.FC = () => {
                 <li key={index}>
                   <ScrollToTopLink
                     to={link.href}
-                    className="text-sm text-slate-300 transition-colors hover:text-white"
+                    className="flex min-h-11 items-center text-sm text-slate-300 transition-colors hover:text-white"
                   >
                     {link.name}
                   </ScrollToTopLink>
@@ -195,12 +195,12 @@ const Footer: React.FC = () => {
                   aria-label="Subscribe to newsletter"
                   className={`min-h-11 px-4 py-2 rounded-r-lg transition-colors flex items-center justify-center min-w-[48px] ${
                     submitStatus === 'success'
-                      ? 'bg-green-500 hover:bg-green-600'
+                      ? 'bg-green-600 text-white hover:bg-green-700'
                       : submitStatus === 'error'
-                      ? 'bg-red-500 hover:bg-red-600'
+                      ? 'bg-red-600 text-white hover:bg-red-700'
                       : isSubmitting
-                      ? 'bg-gray-500 cursor-not-allowed'
-                      : 'bg-[#FF6A00] hover:bg-[#E65F00]'
+                      ? 'cursor-not-allowed bg-gray-500 text-white'
+                      : 'bg-[#FF6A00] text-[#0B1F3A] hover:bg-[#E65F00]'
                   }`}
                 >
                   {isSubmitting ? (
@@ -220,7 +220,7 @@ const Footer: React.FC = () => {
                 href="https://www.linkedin.com/company/banners-on-the-fly/about/?viewAsMember=true"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center space-x-2 text-slate-300 transition-colors hover:text-white"
+                className="inline-flex min-h-11 items-center space-x-2 text-slate-300 transition-colors hover:text-white"
               >
                 <Linkedin className="h-5 w-5" />
                 <span className="text-sm">Follow us on LinkedIn</span>
@@ -235,9 +235,9 @@ const Footer: React.FC = () => {
             <p className="text-slate-400 text-sm">
               © {new Date().getFullYear()} Banners On The Fly. All rights reserved.
             </p>
-            <div className="flex items-center space-x-6 mt-4 md:mt-0">
+            <div className="mt-4 flex flex-col items-center gap-2 text-center sm:flex-row sm:flex-wrap sm:justify-center sm:gap-x-6 md:mt-0 md:justify-end md:text-left">
               <span className="text-slate-400 text-sm">Online ordering · Nationwide shipping</span>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-2">
                 <div className="h-2 w-2 rounded-full bg-[#FF6A00]" aria-hidden="true"></div>
                 <span className="text-slate-300 text-sm">Secure checkout</span>
               </div>

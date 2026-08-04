@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { useDocumentScrollLock } from '@/hooks/useDocumentScrollLock';
 
 export interface PreviewDetail {
   label: string;
@@ -28,39 +29,54 @@ const StableProductPreviewLightbox: React.FC<ProductPreviewLightboxProps> = ({
 }) => {
   const titleId = useId();
   const closeRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useDocumentScrollLock(isOpen);
 
   useEffect(() => {
     if (!isOpen) return;
 
+    previousFocusRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
-        event.stopPropagation();
-        onClose();
+        event.stopImmediatePropagation();
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== 'Tab' || !panelRef.current) return;
+      const focusable = Array.from(panelRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+      )).filter((element) => !element.hasAttribute('hidden'));
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!first || !last) return;
+      if (event.shiftKey && (document.activeElement === first || !panelRef.current.contains(document.activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !panelRef.current.contains(document.activeElement))) {
+        event.preventDefault();
+        first.focus();
       }
     };
-
-    const html = document.documentElement;
-    const body = document.body;
-    const previousHtmlOverflow = html.style.overflow;
-    const previousBodyOverflow = body.style.overflow;
-    const previousBodyPaddingRight = body.style.paddingRight;
-    const scrollbarWidth = Math.max(0, window.innerWidth - html.clientWidth);
-
-    html.style.overflow = 'hidden';
-    body.style.overflow = 'hidden';
-    if (scrollbarWidth > 0) body.style.paddingRight = `${scrollbarWidth}px`;
     window.addEventListener('keydown', onKeyDown, true);
 
     const frame = window.requestAnimationFrame(() => closeRef.current?.focus());
     return () => {
       window.cancelAnimationFrame(frame);
       window.removeEventListener('keydown', onKeyDown, true);
-      html.style.overflow = previousHtmlOverflow;
-      body.style.overflow = previousBodyOverflow;
-      body.style.paddingRight = previousBodyPaddingRight;
+      if (previousFocusRef.current?.isConnected) previousFocusRef.current.focus();
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen || typeof document === 'undefined') return null;
 
@@ -95,6 +111,7 @@ const StableProductPreviewLightbox: React.FC<ProductPreviewLightboxProps> = ({
       />
 
       <div
+        ref={panelRef}
         className="relative w-full max-w-[900px] overflow-y-auto overflow-x-hidden rounded-2xl bg-white shadow-2xl"
         style={{
           maxHeight: 'calc(100dvh - max(16px, env(safe-area-inset-top)) - max(16px, env(safe-area-inset-bottom)))',
