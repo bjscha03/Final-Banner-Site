@@ -3,11 +3,8 @@
 const crypto = require('crypto');
 const { isEnabled, getImageModel, getValidationModel, MODEL_SNAPSHOT } = require('./config.cjs');
 const { normalizeBrief, cleanText, stableHash } = require('./schema.cjs');
-const { planCanvas, parseDataImage, validateInputImage, normalizeBackground, prepareOutpaintInput } = require('./image-utils.cjs');
 const { buildGenerationPrompt, buildEditPrompt, buildRepairPrompt } = require('./prompt.cjs');
 const { verifyModelAccess, verifyValidationModelAccess, generateImage, editImage, structureCreativeBrief } = require('./provider.cjs');
-const { compositeArtwork } = require('./compositor.cjs');
-const { validateArtwork } = require('./validation.cjs');
 const {
   isTemporaryStorageConfigured,
   storeTemporaryArtwork,
@@ -83,6 +80,10 @@ function conceptPayload({ id, versionId, generationId, backgroundRef, artwork, b
 }
 
 async function prepareInputs(body) {
+  // Load Sharp-backed helpers only inside the background worker. The public
+  // queue, status, and polling functions must be able to authenticate and
+  // respond without loading a native image-processing binary.
+  const { planCanvas, parseDataImage, validateInputImage } = require('./image-utils.cjs');
   const brief = normalizeBrief(body.brief || body);
   brief.textColor = /^#[0-9a-f]{6}$/i.test(body?.brief?.textColor || '') ? body.brief.textColor : '#ffffff';
   brief.accentColor = /^#[0-9a-f]{6}$/i.test(body?.brief?.accentColor || '') ? body.brief.accentColor : '#f97316';
@@ -303,6 +304,9 @@ function repairableFailures(validation) {
 }
 
 async function finalizeConcept({ rawBackground, brief, plan, logo, reference, session, providerResult, providerCalls, allowRepair = true }) {
+  const { normalizeBackground } = require('./image-utils.cjs');
+  const { compositeArtwork } = require('./compositor.cjs');
+  const { validateArtwork } = require('./validation.cjs');
   let background = await normalizeBackground(rawBackground, plan);
   let composite = await compositeArtwork({ background, brief, logo });
   let validation = await validateArtwork({ background, artwork: composite.buffer, brief, plan });
@@ -391,6 +395,7 @@ async function runGenerateRequest(body, session) {
   const providerCalls = [generated];
   let guided = generated;
   if (reference || plan.strategy === 'gpt-image-2-outpainting') {
+    const { prepareOutpaintInput } = require('./image-utils.cjs');
     const outpaint = await prepareOutpaintInput(generated.buffer, plan);
     const guidance = [
       reference ? 'Use the second supplied image only as visual brand and style guidance. Do not reproduce text from the reference.' : '',
@@ -447,6 +452,7 @@ async function generateHandler(event) {
 }
 
 async function runEditRequest(body, session) {
+  const { validateInputImage } = require('./image-utils.cjs');
   const started = Date.now();
   const { brief, plan, reference, logo } = await prepareInputs(body);
   if (!brief.structured) {
