@@ -17,7 +17,7 @@ test('signed admin keeps the AI route and designer entry when readiness is unava
     // admin before the readiness request had started, then fail readiness to
     // prove provider health does not hide admin entry points.
     await new Promise((resolve) => setTimeout(resolve, 300));
-    const requestHeaders = route.request().headers();
+    const requestHeaders = await route.request().allHeaders();
     expect(requestHeaders['x-banners-admin-session']).toBe('browser-test-signed-session');
     expect(requestHeaders.cookie).toContain('banners_admin_session=browser-test-signed-session');
     await route.fulfill({
