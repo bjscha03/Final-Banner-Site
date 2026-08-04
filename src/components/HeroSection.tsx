@@ -41,15 +41,13 @@ const HeroSection: React.FC = () => {
 
         <div className="relative mx-auto w-full max-w-xl lg:max-w-none">
           <ProductVisual productSlug="vinyl-banners" priority className="aspect-[16/10] border border-white/15 bg-white" />
-          <div className="grid grid-cols-2 border-x border-b border-white/15 bg-white text-[#0B1F3A]">
-            <div className="border-r border-slate-200 p-4 sm:p-5">
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Made to size</p>
-              <p className="mt-1 font-display font-bold">6″ to 600″ per side</p>
-            </div>
-            <div className="p-4 sm:p-5">
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Starting at</p>
-              <p className="mt-1 font-display text-xl font-bold">$20</p>
-              <p className="mt-1 text-xs leading-5 text-slate-500">Includes free next-day air shipping after production</p>
+          <div className="border-x border-b border-white/15 bg-white text-[#0B1F3A]">
+            <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-end sm:justify-between sm:gap-8 sm:p-5">
+              <div className="shrink-0">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Starting at</p>
+                <p className="mt-1 font-display text-xl font-bold">$20</p>
+              </div>
+              <p className="max-w-xs text-sm leading-6 text-slate-500 sm:text-right">Includes free next-day air shipping after production</p>
             </div>
           </div>
         </div>
