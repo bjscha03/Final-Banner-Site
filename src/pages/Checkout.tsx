@@ -649,8 +649,8 @@ const Checkout: React.FC = () => {
                     ];
 
                     return (
-                    <div key={item.id} className="mb-4 border border-slate-200 bg-white p-4 last:mb-0 sm:p-5">
-                      <div className="grid gap-4 md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-start">
+                    <div key={item.id} className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.06)] last:mb-0 sm:p-5">
+                      <div className="grid gap-5 md:grid-cols-[200px_minmax(0,1fr)] md:items-start lg:gap-6">
                         {isYardSign ? (
                           <div className="flex justify-center shrink-0">
                             <ThumbnailPreviewWrapper
@@ -778,7 +778,7 @@ const Checkout: React.FC = () => {
                         )}
 
                         <div className="min-w-0 space-y-3">
-                          <div className="flex items-start justify-between gap-3 md:block">
+                          <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <h3 className="font-bold text-[#18448D] text-lg sm:text-xl leading-snug break-words">
@@ -789,7 +789,7 @@ const Checkout: React.FC = () => {
                                 </span>
                               </div>
                             </div>
-                            <div className="text-right flex-shrink-0 md:hidden">
+                            <div className="flex-shrink-0 text-right">
                               <p className="font-bold text-gray-900 text-lg leading-tight">
                                 {usd(item.line_total_cents / 100)}
                               </p>
@@ -799,11 +799,11 @@ const Checkout: React.FC = () => {
                             </div>
                           </div>
 
-                          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                          <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                             {details.map((detail) => (
-                              <div key={`${item.id}-${detail.label}`} className="flex items-baseline gap-1.5 min-w-0">
-                                <dt className="font-medium text-gray-700 shrink-0">{detail.label}:</dt>
-                                <dd className="text-gray-600 min-w-0 break-words">{detail.value}</dd>
+                              <div key={`${item.id}-${detail.label}`} className="min-w-0 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2">
+                                <dt className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">{detail.label}</dt>
+                                <dd className="mt-0.5 break-words text-sm font-semibold leading-5 text-slate-800">{detail.value}</dd>
                               </div>
                             ))}
                           </dl>
@@ -817,14 +817,6 @@ const Checkout: React.FC = () => {
                           />
                         </div>
 
-                        <div className="hidden md:flex flex-col items-end text-right pl-3">
-                          <p className="font-bold text-gray-900 text-xl leading-tight">
-                            {usd(item.line_total_cents / 100)}
-                          </p>
-                          <p className="text-sm text-gray-500 font-medium mt-1">
-                            {usd(eachCents / 100)} each
-                          </p>
-                        </div>
                       </div>
 
                       <div className="flex flex-wrap items-center justify-between gap-3 pt-3 mt-4 border-t border-gray-100">
@@ -836,7 +828,7 @@ const Checkout: React.FC = () => {
                               size="sm"
                               onClick={() => handleDecreaseQuantity(item.id)}
                               disabled={item.quantity <= 1}
-                              className="h-9 w-9 p-0 border-2 hover:bg-[#18448D] hover:text-white hover:border-[#18448D] transition-all"
+                              className="h-11 w-11 p-0 border-2 hover:bg-[#18448D] hover:text-white hover:border-[#18448D] transition-all"
                             >
                               <Minus className="h-4 w-4" />
                             </Button>
@@ -846,7 +838,7 @@ const Checkout: React.FC = () => {
                               size="sm"
                               onClick={() => handleIncreaseQuantity(item.id)}
                               disabled={item.quantity >= 999}
-                              className="h-9 w-9 p-0 border-2 hover:bg-[#18448D] hover:text-white hover:border-[#18448D] transition-all"
+                              className="h-11 w-11 p-0 border-2 hover:bg-[#18448D] hover:text-white hover:border-[#18448D] transition-all"
                             >
                               <Plus className="h-4 w-4" />
                             </Button>
@@ -1184,7 +1176,7 @@ const Checkout: React.FC = () => {
             )}
             {/* Payment */}
             <div className="space-y-6 w-full">
-              <div className="bg-white rounded-xl shadow-md border border-gray-100 p-4 sm:p-5 lg:sticky lg:top-4" style={{ contain: 'layout paint' }}>
+              <div className="relative z-0 rounded-xl border border-gray-100 bg-white p-4 shadow-md sm:p-5">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-2xl font-bold text-[#18448D]">Payment</h2>
                   <div className="flex items-center gap-2 bg-green-50 px-3 py-1.5 rounded-full">
@@ -1287,7 +1279,7 @@ const Checkout: React.FC = () => {
                     {[
                       { icon: <Lock className="h-3 w-3" />, label: 'Secure encrypted checkout' },
                       { icon: <CircleCheck className="h-3 w-3" />, label: 'Most standard orders: 24-hour production' },
-                      { icon: <Truck className="h-3 w-3" />, label: 'Free next-day air after production' },
+                      { icon: <Truck className="h-3 w-3" />, label: 'Free next-day air anywhere in the U.S.' },
                     ].map((badge) => (
                       <span key={badge.label} className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] font-medium text-gray-600">
                         {badge.icon}
