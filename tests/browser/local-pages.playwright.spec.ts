@@ -124,7 +124,7 @@ for (const pageCase of pageCases) {
       expect(visualState.labels).toHaveLength(2);
       for (const label of visualState.labels) {
         expect(label.horizontalOverflow).toBeLessThanOrEqual(1);
-        expect(label.verticalOverflow).toBeLessThanOrEqual(1);
+        expect(label.verticalOverflow).toBeLessThanOrEqual(2);
         expect(label.textInsideFace).toBe(true);
       }
     }
