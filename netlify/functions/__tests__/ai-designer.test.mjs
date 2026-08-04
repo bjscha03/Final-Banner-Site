@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 import { withDesignerRuntime } from '../_shared/ai-designer/netlify-modern.mjs';
+import { shouldShowAIAdminEntry } from '../../../src/lib/aiAdminVisibility.ts';
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -317,20 +318,36 @@ describe('deterministic exact-copy composition', () => {
 });
 
 describe('admin-only UI integration and permanent artwork handoff', () => {
-  it('uses server-verified readiness for button visibility and routes approved output through normal upload', () => {
+  it('shows entry points for a signed admin without hiding them behind provider readiness', () => {
+    expect(shouldShowAIAdminEntry({
+      featureEnabled: true,
+      isAdminUser: true,
+      hasSignedSession: true,
+      authenticationFailed: false,
+    })).toBe(true);
+    for (const blocked of [
+      { featureEnabled: false, isAdminUser: true, hasSignedSession: true, authenticationFailed: false },
+      { featureEnabled: true, isAdminUser: false, hasSignedSession: true, authenticationFailed: false },
+      { featureEnabled: true, isAdminUser: true, hasSignedSession: false, authenticationFailed: false },
+      { featureEnabled: true, isAdminUser: true, hasSignedSession: true, authenticationFailed: true },
+    ]) expect(shouldShowAIAdminEntry(blocked)).toBe(false);
+
     const design = fs.readFileSync(path.resolve(__dirname, '../../../src/pages/Design.tsx'), 'utf8');
     const alternate = fs.readFileSync(path.resolve(__dirname, '../../../src/pages/GoogleAdsBanner.tsx'), 'utf8');
     const adminPage = fs.readFileSync(path.resolve(__dirname, '../../../src/pages/admin/AIDesignerPage.tsx'), 'utf8');
+    const accessHook = fs.readFileSync(path.resolve(__dirname, '../../../src/hooks/useAIAdminAccess.ts'), 'utf8');
     const handoff = fs.readFileSync(path.resolve(__dirname, '../../../src/lib/aiDesignHandoff.ts'), 'utf8');
     for (const source of [design, alternate]) {
-      expect(source).toContain('const showCreateWithAI = aiAccess.ready');
+      expect(source).toContain('const showCreateWithAI = canUseAIAdminPreview(user, aiAccess.authenticationFailed)');
+      expect(source).not.toContain('const showCreateWithAI = aiAccess.ready');
       expect(source).toContain('await handleFileUpload(file)');
       expect(source).toContain('session={aiDesignSession}');
       expect(source).not.toMatch(/localStorage\.setItem\([^\n]*(imageBase64|backgroundBase64)/);
     }
-    expect(adminPage).toContain('<Navigate to="/admin/setup" replace />');
-    expect(adminPage).toContain('!access.authorized');
+    expect(adminPage).toContain('canUseAIAdminPreview(user, access.authenticationFailed)');
+    expect(adminPage).not.toContain('user && !access.authorized');
     expect(adminPage).toContain('createAIHandoff(result');
+    expect(accessHook).toContain('const authenticationFailed = response.status === 401');
     expect(handoff).not.toMatch(/localStorage|sessionStorage/);
   });
 });

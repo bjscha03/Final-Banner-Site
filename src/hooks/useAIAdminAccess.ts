@@ -5,6 +5,7 @@ import { authorizedHeaders } from '@/lib/serverAuth';
 export type AIAdminStatus = {
   loading: boolean;
   authorized: boolean;
+  authenticationFailed: boolean;
   enabled: boolean;
   keyConfigured: boolean;
   temporaryStorageConfigured: boolean;
@@ -19,6 +20,7 @@ export type AIAdminStatus = {
 const CLOSED: AIAdminStatus = {
   loading: false,
   authorized: false,
+  authenticationFailed: false,
   enabled: false,
   keyConfigured: false,
   temporaryStorageConfigured: false,
@@ -51,12 +53,19 @@ export function useAIAdminAccess(active = true) {
       .then(async (response) => {
         const body = await response.json().catch(() => ({}));
         if (!response.ok) {
-          setStatus({ ...CLOSED, loading: false, blocker: body?.error || 'ADMIN_SESSION_REQUIRED' });
+          const authenticationFailed = response.status === 401;
+          setStatus({
+            ...CLOSED,
+            loading: false,
+            authenticationFailed,
+            blocker: authenticationFailed ? 'ADMIN_SESSION_REQUIRED' : body?.error || 'STATUS_UNAVAILABLE',
+          });
           return;
         }
         setStatus({
           loading: false,
           authorized: body.authorized === true,
+          authenticationFailed: false,
           enabled: body.enabled === true,
           keyConfigured: body.keyConfigured === true,
           temporaryStorageConfigured: body.temporaryStorageConfigured === true,
@@ -69,7 +78,12 @@ export function useAIAdminAccess(active = true) {
         });
       })
       .catch((error) => {
-        if (error?.name !== 'AbortError') setStatus({ ...CLOSED, loading: false, blocker: 'STATUS_UNAVAILABLE' });
+        if (error?.name !== 'AbortError') setStatus({
+          ...CLOSED,
+          loading: false,
+          authenticationFailed: false,
+          blocker: 'STATUS_UNAVAILABLE',
+        });
       });
     return () => controller.abort();
   }, [active]);

@@ -72,6 +72,7 @@ import EditWithAIModal from '@/components/design/EditWithAIModal';
 import { useAIAdminAccess } from '@/hooks/useAIAdminAccess';
 import { consumeAIHandoff } from '@/lib/aiDesignHandoff';
 import { trackAIEvent } from '@/lib/aiAnalytics';
+import { canUseAIAdminPreview } from '@/lib/aiAdminVisibility';
 import type { ArtworkManifest } from '@/types/artwork';
 import {
   PREVIEW_ARTIFACT_VERSION,
@@ -321,7 +322,7 @@ function buildCartArtworkForEditor(item: CartItem): UploadedArtworkFile | null {
 const Design: React.FC = () => {
   const { user } = useAuth();
   const aiAccess = useAIAdminAccess(Boolean(user));
-  const showCreateWithAI = aiAccess.ready;
+  const showCreateWithAI = canUseAIAdminPreview(user, aiAccess.authenticationFailed);
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;

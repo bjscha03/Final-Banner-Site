@@ -4,12 +4,13 @@ import { ArrowRight, Ruler, ShieldCheck } from 'lucide-react';
 import Layout from '@/components/Layout';
 import AIWorkspace from '@/components/design/ai/AIWorkspace';
 import type { CreateWithAIResult } from '@/components/design/CreateWithAIModal';
-import { useAuth, isAdmin } from '@/lib/auth';
+import { useAuth } from '@/lib/auth';
 import { useAIAdminAccess } from '@/hooks/useAIAdminAccess';
 import { calculateBannerPricing } from '@/lib/bannerPricingEngine';
 import { usd } from '@/lib/pricing';
 import type { MaterialKey } from '@/store/quote';
 import { createAIHandoff } from '@/lib/aiDesignHandoff';
+import { canUseAIAdminPreview } from '@/lib/aiAdminVisibility';
 
 const PRESETS = [
   { label: `4' × 2'`, width: 48, height: 24 },
@@ -43,8 +44,12 @@ export default function AIDesignerPage() {
   const pricing = useMemo(() => calculateBannerPricing({ widthIn, heightIn, quantity, material, addRope: false }), [widthIn, heightIn, quantity, material]);
   const materialLabel = MATERIALS.find((item) => item.value === material)?.label || material;
 
-  if (!loading && !isAdmin(user)) return <Navigate to="/admin/setup" replace />;
-  if (!access.loading && user && !access.authorized) return <Navigate to="/admin/setup?session=expired" replace />;
+  // Do not redirect while the readiness request is merely loading or failed
+  // for a non-auth reason. Only the local admin identity/signed session gate,
+  // or an explicit server 401, may revoke route access.
+  if (!loading && !canUseAIAdminPreview(user, access.authenticationFailed)) {
+    return <Navigate to={access.authenticationFailed ? '/admin/setup?session=expired' : '/admin/setup'} replace />;
+  }
 
   const useInConfigurator = (result: CreateWithAIResult) => {
     const aiHandoffId = createAIHandoff(result, { widthIn, heightIn, material, quantity });

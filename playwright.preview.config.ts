@@ -13,6 +13,7 @@ export default defineConfig({
     'preview-handoff.playwright.spec.ts',
     'checkout-thumbnail-real-route.playwright.spec.ts',
     'admin-review-request.playwright.spec.ts',
+    'ai-admin-entry.playwright.spec.ts',
   ],
   fullyParallel: true,
   workers: process.env.CI ? 4 : 2,
@@ -31,6 +32,9 @@ export default defineConfig({
     {
       command: 'npx vite --config tests/browser/vite.handoff.config.ts',
       url: `${baseURL}/tests/browser/preview-handoff.html`,
+      env: {
+        VITE_AI_BANNER_ENABLED: 'true',
+      },
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
     },
@@ -40,6 +44,7 @@ export default defineConfig({
       env: {
         VITE_NETLIFY_CONTEXT: 'deploy-preview',
         VITE_PREVIEW_ACCESS_PASSWORD: 'test-preview-password',
+        VITE_AI_BANNER_ENABLED: 'true',
       },
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
