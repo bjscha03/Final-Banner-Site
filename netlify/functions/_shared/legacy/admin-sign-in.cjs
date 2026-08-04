@@ -26,7 +26,10 @@ function configuredPasswordHash() {
   const configuredHash = String(process.env.ADMIN_PASSWORD_SHA256 || '').trim().toLowerCase();
   if (/^[a-f0-9]{64}$/.test(configuredHash)) return Buffer.from(configuredHash, 'hex');
   const configuredPassword = String(process.env.ADMIN_PASSWORD || '');
-  if (configuredPassword.length >= 12) return crypto.createHash('sha256').update(configuredPassword).digest();
+  // Preserve the site's existing server-side ADMIN_PASSWORD credential during
+  // the preview. It is never shipped to the browser; SHA-256 remains the
+  // preferred configuration for future rotations.
+  if (configuredPassword.length > 0) return crypto.createHash('sha256').update(configuredPassword).digest();
   return null;
 }
 

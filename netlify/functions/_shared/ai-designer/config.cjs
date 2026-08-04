@@ -9,10 +9,9 @@ const FLAT_ARTWORK_CONSTRAINT = [
   'Do not place the artwork inside a frame or floating canvas. Output only the final flat artwork.',
 ].join(' ');
 
-function isEnabled() {
+function isEnabled(deployContext = null) {
   if (process.env.AI_DESIGNER_ENABLED === 'true') return true;
-  return process.env.CONTEXT === 'deploy-preview'
-    && process.env.VITE_AI_BANNER_ENABLED === 'true';
+  return deployContext === 'deploy-preview';
 }
 
 function getImageModel() {

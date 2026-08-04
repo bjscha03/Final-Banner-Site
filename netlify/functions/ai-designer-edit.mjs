@@ -1,4 +1,4 @@
-import { withLambda } from '@netlify/aws-lambda-compat';
 import aiDesigner from './_shared/ai-designer/handler.cjs';
+import { withDesignerRuntime } from './_shared/ai-designer/netlify-modern.mjs';
 
-export default withLambda(aiDesigner.editHandler);
+export default withDesignerRuntime(aiDesigner.editHandler);

@@ -33,6 +33,29 @@ describe('password-only admin sign-in', () => {
     else process.env.ADMIN_PASSWORD = previousPassword;
   });
 
+  it('honors an existing non-empty ADMIN_PASSWORD without exposing it client-side', async () => {
+    const previousSecret = process.env.AUTH_SESSION_SECRET;
+    const previousPassword = process.env.ADMIN_PASSWORD;
+    const previousHash = process.env.ADMIN_PASSWORD_SHA256;
+    process.env.AUTH_SESSION_SECRET = 'test-session-secret';
+    process.env.ADMIN_PASSWORD = 'legacy';
+    delete process.env.ADMIN_PASSWORD_SHA256;
+    const { handler } = require('../_shared/legacy/admin-sign-in.cjs');
+    const response = await handler({
+      httpMethod: 'POST',
+      headers: { origin: 'https://example.test', host: 'example.test' },
+      body: JSON.stringify({ password: 'legacy' }),
+    }, {});
+    expect(response.statusCode).toBe(200);
+    expect(response.body).not.toContain('legacy');
+    if (previousSecret === undefined) delete process.env.AUTH_SESSION_SECRET;
+    else process.env.AUTH_SESSION_SECRET = previousSecret;
+    if (previousPassword === undefined) delete process.env.ADMIN_PASSWORD;
+    else process.env.ADMIN_PASSWORD = previousPassword;
+    if (previousHash === undefined) delete process.env.ADMIN_PASSWORD_SHA256;
+    else process.env.ADMIN_PASSWORD_SHA256 = previousHash;
+  });
+
   it('fails closed when the admin credential is not configured', async () => {
     const previousPassword = process.env.ADMIN_PASSWORD;
     const previousHash = process.env.ADMIN_PASSWORD_SHA256;

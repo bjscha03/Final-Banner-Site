@@ -21,8 +21,8 @@ function parseBody(event) {
   }
 }
 
-function ensureConfigured() {
-  if (!isEnabled() || !process.env.OPENAI_API_KEY || !isTemporaryStorageConfigured()) {
+function ensureConfigured(event) {
+  if (!isEnabled(event?.netlify?.deployContext) || !process.env.OPENAI_API_KEY || !isTemporaryStorageConfigured()) {
     const error = new Error('AI designer is not configured.');
     error.code = 'AI_NOT_CONFIGURED';
     throw error;
@@ -108,7 +108,7 @@ async function briefHandler(event) {
   const limited = rateLimit(event, auth.session, 'brief', 20, 10 * 60 * 1000);
   if (limited) return limited;
   try {
-    ensureConfigured();
+    ensureConfigured(event);
     const body = parseBody(event);
     const key = idempotencyKey(event, body, auth.session, 'brief');
     return await runIdempotent(key, async () => {
@@ -192,7 +192,7 @@ async function statusHandler(event) {
   if (event.httpMethod !== 'GET') return json(405, { error: 'METHOD_NOT_ALLOWED', message: 'Use GET.' }, { Allow: 'GET, OPTIONS' });
   const auth = authorize(event, { requireOrigin: false });
   if (auth.response) return auth.response;
-  const enabled = isEnabled();
+  const enabled = isEnabled(event?.netlify?.deployContext);
   const keyConfigured = Boolean(process.env.OPENAI_API_KEY);
   const temporaryStorageConfigured = isTemporaryStorageConfigured();
   let model = null;
@@ -231,7 +231,7 @@ async function generateHandler(event) {
   const limited = rateLimit(event, auth.session, 'generate', 8, 10 * 60 * 1000);
   if (limited) return limited;
   try {
-    ensureConfigured();
+    ensureConfigured(event);
     const access = await verifyModelAccess();
     if (!access.available) {
       const error = new Error('Model unavailable.');
@@ -328,7 +328,7 @@ async function editHandler(event) {
   const limited = rateLimit(event, auth.session, 'edit', 12, 10 * 60 * 1000);
   if (limited) return limited;
   try {
-    ensureConfigured();
+    ensureConfigured(event);
     const access = await verifyModelAccess();
     if (!access.available) {
       const error = new Error('Model unavailable.');

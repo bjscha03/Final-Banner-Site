@@ -4,6 +4,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
+import { withDesignerRuntime } from '../_shared/ai-designer/netlify-modern.mjs';
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -105,13 +106,40 @@ describe('AI designer authorization and fail-closed controls', () => {
     expect(isEnabled()).toBe(false);
   });
 
-  it('enables only an explicitly flagged Netlify deploy preview', () => {
-    process.env.VITE_AI_BANNER_ENABLED = 'true';
+  it('enables only an authoritative Netlify deploy-preview runtime context', () => {
     expect(isEnabled()).toBe(false);
-    process.env.CONTEXT = 'deploy-preview';
-    expect(isEnabled()).toBe(true);
-    process.env.CONTEXT = 'production';
-    expect(isEnabled()).toBe(false);
+    expect(isEnabled('deploy-preview')).toBe(true);
+    expect(isEnabled('production')).toBe(false);
+  });
+
+  it('threads Netlify deploy metadata through the status handler', async () => {
+    const event = adminEvent('GET');
+    event.netlify = { deployContext: 'deploy-preview', deployId: 'preview-test' };
+    const response = await statusHandler(event);
+    expect(response.statusCode).toBe(200);
+    expect(JSON.parse(response.body)).toMatchObject({
+      enabled: true,
+      ready: false,
+      blocker: 'AI_NOT_CONFIGURED',
+    });
+  });
+
+  it('takes deploy context from the modern Netlify runtime, not request data', async () => {
+    let receivedEvent;
+    const wrapped = withDesignerRuntime(async (event) => {
+      receivedEvent = event;
+      return { statusCode: 200, body: 'ok' };
+    });
+    const response = await wrapped(
+      new Request('https://preview.example.test/api/test'),
+      { requestId: 'request-test', deploy: { context: 'deploy-preview', id: 'deploy-test' } },
+    );
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe('ok');
+    expect(receivedEvent.netlify).toEqual({
+      deployContext: 'deploy-preview',
+      deployId: 'deploy-test',
+    });
   });
 
   it('rejects unauthenticated generation and editing before provider work', async () => {
