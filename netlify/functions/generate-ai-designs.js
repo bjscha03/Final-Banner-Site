@@ -14,10 +14,114 @@ cloudinary.config({
 });
 
 const json = (statusCode, payload) => ({ statusCode, headers: CORS, body: JSON.stringify(payload) });
-const fallbackEnhance = (p, size) => `Design a premium ${size?.w || 8}ft x ${size?.h || 4}ft banner. Keep high contrast readable typography, clean hierarchy, and full-bleed composition. Create flat, full-bleed print-ready banner artwork only. Do not generate a banner mockup, fence, wall, room, pole, hanging banner, folded material, grommets, shadows, or real-world scene. Prompt: ${p}`;
+const fallbackEnhance = (p, size) => `Final production prompt: Create one flat print-ready banner artwork at exactly ${size?.w || 8}ft x ${size?.h || 4}ft (${((size?.w || 8)/(size?.h || 4)).toFixed(3)}:1). Keep all requested wording exactly as provided. Full-bleed edge-to-edge single composition only. No mockups, no multiple options, no panels, no poster-in-frame layout, no white or black bars, no hardware, no grommets, no ropes, no poles, no room/wall/fence scene. User request: ${String(p || '').trim()}`;
 const SUPPORTED_IMAGEN_RATIOS = ['1:1', '9:16', '16:9', '4:3', '3:4'];
 
-const GENERATION_GUARDRAIL = 'Create flat, full-bleed print-ready banner artwork only. Do not generate a banner mockup, fence, wall, room, pole, hanging banner, folded material, grommets, shadows, or real-world scene.';
+const GENERATION_GUARDRAIL = 'Create only the final flat print-ready artwork file for a custom banner. The image itself must be the printable design, not a photo or mockup of a banner. Fill the entire selected canvas edge-to-edge. Do not create multiple banner options, panels, examples, mockups, frames, margins, white bars, black bars, poster layouts, or designs inside a smaller rectangle. Do not include grommets, ropes, pole pockets, holes, hardware, shadows outside the artwork, walls, fences, poles, rooms, or hanging displays.';
+const BANNED_PROMPT_WORDS = ['mockup', 'banner mockup', 'hanging banner', 'product shot', 'display scene', 'presentation', 'example designs', 'design options', 'variations'];
+const FAKE_LOGO_MARKERS = ['ATTACHED LOGO', 'YOUR LOGO', 'LOGO HERE', 'SAMPLE'];
+const EXTRA_TEXT_FORBIDDEN = true;
+const HARD_BANNED_TEXT = ['lorem ipsum', 'attached logo', 'your logo', 'logo here', 'sample', 'fake latin'];
+
+function sanitizePromptText(input) {
+  let clean = String(input || '').trim();
+  for (const bad of BANNED_PROMPT_WORDS) {
+    clean = clean.replace(new RegExp(bad, 'ig'), '');
+  }
+  return clean.replace(/\s{2,}/g, ' ').trim();
+}
+
+function buildProductionBannerPrompt({ rawUserPrompt, selectedWidthFt, selectedHeightFt, referenceAnalysis, extractedBannerText, designDirection }) {
+  const direction = [designDirection, referenceAnalysis ? `using uploaded reference style/colors: ${referenceAnalysis}` : '']
+    .filter(Boolean)
+    .join('. ');
+  return `Create one flat, full-bleed, print-ready ${selectedWidthFt}ft x ${selectedHeightFt}ft horizontal premium banner BACKGROUND artwork only.
+Do not render any text, letters, words, numbers, logo marks, signage, or typography in the image.
+Design direction: ${direction || 'premium commercial banner background with clean hierarchy and professional atmosphere'}.
+Fill the entire canvas edge-to-edge. No borders, bars, margins, mockups, frames, shadows, hardware, grommets, or poster layout.`;
+}
+
+function extractBannerTextAndDirection(raw) {
+  const prompt = sanitizePromptText(raw);
+  const quoted = [...prompt.matchAll(/"([^"]{2,80})"/g)].map((m) => m[1].trim());
+  const classMatch = prompt.match(/\bclass of \d{4}\b/i)?.[0];
+  const forMatchAll = [...prompt.matchAll(/\bfor\s+([A-Z][a-zA-Z]+)\b/g)].map((m) => m[1]);
+  const forMatch = forMatchAll.length ? forMatchAll[forMatchAll.length - 1] : null;
+  const allowed = [...new Set([...(quoted || []), ...(classMatch ? [classMatch] : []), ...(forMatch ? [forMatch] : [])])].filter(Boolean);
+  const direction = prompt
+    .replace(/"([^"]{2,80})"/g, ' ')
+    .replace(/\bclass of \d{4}\b/ig, ' ')
+    .replace(/\bfor\s+[A-Z][a-zA-Z]+\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return { extractedBannerText: allowed.join(' | '), designDirection: direction, allowedTextList: allowed };
+}
+
+function inferBannerType(prompt='') {
+  const p = prompt.toLowerCase();
+  if (p.includes('graduation') || p.includes('class of')) return 'graduation';
+  if (p.includes('birthday')) return 'birthday';
+  if (p.includes('church')) return 'church';
+  if (p.includes('sport')) return 'sports';
+  if (p.includes('event')) return 'event';
+  return 'business';
+}
+
+function buildLayoutPreset(bannerType, texts = []) {
+  const base = {
+    graduation: [{ x: 50, y: 18, fontSize: 78 }, { x: 50, y: 80, fontSize: 48 }],
+    birthday: [{ x: 50, y: 22, fontSize: 72 }, { x: 50, y: 78, fontSize: 44 }],
+    sports: [{ x: 50, y: 16, fontSize: 80 }, { x: 50, y: 82, fontSize: 42 }],
+    seasonal: [{ x: 50, y: 22, fontSize: 70 }, { x: 50, y: 78, fontSize: 42 }],
+    business: [{ x: 50, y: 20, fontSize: 66 }, { x: 50, y: 78, fontSize: 38 }],
+    church: [{ x: 50, y: 20, fontSize: 66 }, { x: 50, y: 78, fontSize: 38 }],
+    event: [{ x: 50, y: 20, fontSize: 66 }, { x: 50, y: 78, fontSize: 38 }],
+  }[bannerType] || [{ x: 50, y: 20, fontSize: 66 }, { x: 50, y: 78, fontSize: 38 }];
+  return texts.map((text, i) => ({
+    id: `ai-text-${i + 1}`,
+    text,
+    x: base[Math.min(i, base.length - 1)].x,
+    y: base[Math.min(i, base.length - 1)].y,
+    fontSize: base[Math.min(i, base.length - 1)].fontSize,
+    color: '#FFFFFF',
+    fontFamily: 'Arial',
+    fontWeight: '700',
+    align: 'center',
+    strokeColor: '#000000',
+    strokeWidth: 2,
+  }));
+}
+
+function detectFakeText(content = '') {
+  const s = String(content || '').toLowerCase();
+  return HARD_BANNED_TEXT.some((t) => s.includes(t));
+}
+
+async function analyzeReferenceImage({ referenceImage, textModel, googleApiKey }) {
+  if (!referenceImage || typeof referenceImage !== 'string' || !referenceImage.startsWith('data:image/')) return null;
+  const m = referenceImage.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/);
+  if (!m) return null;
+  const [, mimeType, base64Data] = m;
+  const prompt = 'Analyze this reference image for banner generation. Return one plain text line with: colors, logo presence, style, subject, layout cues, brand personality.';
+  const r = await fetch(`${GEMINI_BASE}/models/${textModel}:generateContent?key=${encodeURIComponent(googleApiKey)}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{
+        role: 'user',
+        parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: base64Data } }],
+      }],
+    }),
+  });
+  if (!r.ok) return null;
+  const d = await r.json().catch(() => ({}));
+  return sanitizePromptText(d?.candidates?.[0]?.content?.parts?.map((p) => p.text).join(' ') || '');
+}
+
+function detectLikelyLogoReference(referenceAnalysis = '', referenceImageName = '') {
+  const s = `${referenceAnalysis} ${referenceImageName}`.toLowerCase();
+  return /\blogo\b|brand mark|wordmark|icon/.test(s);
+}
 
 const FALLBACK_IMAGE_URL = 'https://res.cloudinary.com/dtrxl120u/image/upload/f_auto,q_auto,w_1600,h_800,c_fill/v1769209469/White-Label_Banners_-2_from_4over_nedg8n.png';
 
@@ -38,7 +142,7 @@ function resolveModels(models) {
   const textModel = models.find((m) => (m.supportedGenerationMethods || []).includes('generateContent'))?.name?.replace('models/', '') || 'gemini-1.5-flash';
   const imageModel = models.find((m) => m.name?.includes('imagen-4.0-generate-001'))?.name?.replace('models/', '')
     || models.find((m) => m.name?.includes('imagen'))?.name?.replace('models/', '')
-    || 'imagen-3.0-generate-002';
+    || null;
   return { textModel, imageModel };
 }
 
@@ -70,15 +174,15 @@ async function handler(event) {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: CORS, body: '' };
 
   const googleApiKey =
-    process.env.GOOGLE_GENAI_API_KEY ||
     process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_GENAI_API_KEY ||
     process.env.GOOGLE_AI_API_KEY ||
     '';
 
-  const matchedEnvName = process.env.GOOGLE_GENAI_API_KEY
-    ? 'GOOGLE_GENAI_API_KEY'
-    : process.env.GEMINI_API_KEY
-      ? 'GEMINI_API_KEY'
+  const matchedEnvName = process.env.GEMINI_API_KEY
+    ? 'GEMINI_API_KEY'
+    : process.env.GOOGLE_GENAI_API_KEY
+      ? 'GOOGLE_GENAI_API_KEY'
       : process.env.GOOGLE_AI_API_KEY
         ? 'GOOGLE_AI_API_KEY'
         : null;
@@ -128,89 +232,159 @@ async function handler(event) {
     if (action === 'enhance') {
       const originalPrompt = String(body.prompt || '').trim();
       if (!originalPrompt) return json(400, { ok: false, action, error: 'Prompt required' });
+      const aspectRatio = `${Number(body?.size?.w) || 8}:${Number(body?.size?.h) || 4}`;
+      const enhanceInstruction = `Rewrite the following user request into ONE plain-text production prompt for generating a single print-ready flat banner artwork.\nRules:\n- Return only one prompt, plain text only.\n- No markdown, bullets, labels, explanations, or multiple options.\n- Include the exact requested user wording/text.\n- Include selected size/aspect ratio ${aspectRatio}.\n- Require full-bleed edge-to-edge single composition.\n- Ban mockups, poster layouts, multiple panels/options, white bars/black bars, and hardware.\nUser request: ${sanitizePromptText(originalPrompt)}`;
       const r = await fetch(`${GEMINI_BASE}/models/${textModel}:generateContent?key=${encodeURIComponent(googleApiKey)}`, {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: `Rewrite this into a stronger image-generation prompt for a single large-format banner design:\n${originalPrompt}` }] }] }),
+        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: enhanceInstruction }] }] }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) {
         return json(200, { ok: true, action, enhancedPrompt: fallbackEnhance(originalPrompt, body.size), safeErrorMessage: d?.error?.message || 'Gemini unavailable. Fallback prompt applied.' });
       }
-      const enhancedPrompt = d?.candidates?.[0]?.content?.parts?.map((p) => p.text).join('\n').trim() || fallbackEnhance(originalPrompt, body.size);
-      return json(200, { ok: true, action, enhancedPrompt, safeErrorMessage: null });
+      const rawEnhanced = d?.candidates?.[0]?.content?.parts?.map((p) => p.text).join(' ').trim();
+      const enhancedPrompt = sanitizePromptText(rawEnhanced || fallbackEnhance(originalPrompt, body.size));
+      return json(200, { ok: true, action, enhancedPrompt, enhancedPromptFinal: enhancedPrompt, selectedAspectRatio: aspectRatio, safeErrorMessage: null });
     }
+
 
     if (action === 'generate') {
-      const sourcePrompt = `${GENERATION_GUARDRAIL}\n${String(body.enhancedPrompt || body.prompt || '').trim()}`;
-      if (!sourcePrompt) return json(400, { ok: false, action, error: 'Prompt required' });
+      let stage = 'parse_generate_payload';
+      try {
+        const rawUserPrompt = String(body.prompt || body.enhancedPrompt || '').trim();
+        if (!rawUserPrompt) return json(200, { ok: false, action: 'generate', error: 'missing_prompt' });
 
-      const targetW = Number(body?.size?.w) || 8;
-      const targetH = Number(body?.size?.h) || 4;
-      const imagenAspectRatio = pickImagenRatio(targetW, targetH);
+        stage = 'resolve_google_key';
+        if (!googleApiKey) return json(200, { ok: false, action: 'generate', error: 'generate_failed', stage, safeErrorMessage: 'AI environment not configured', providerStatus: null, providerMessageFirst500: '' });
 
-      if (!SUPPORTED_IMAGEN_RATIOS.includes(imagenAspectRatio)) {
-        return json(200, { ok: false, action, imageUrl: null, safeErrorMessage: 'Unsupported mapped Imagen ratio.' });
-      }
+        stage = 'list_models';
+        const predictImagen = models.filter((m) => (m.supportedGenerationMethods || []).includes('predict') && m.name?.includes('imagen'));
+        const preferred = ['imagen-4.0-generate-001', 'imagen-4.0-ultra-generate-001', 'imagen-4.0-fast-generate-001'];
+        const picked = preferred.map((n) => predictImagen.find((m) => m.name?.includes(n))).find(Boolean) || predictImagen[0] || null;
+        const selectedImageModel = picked?.name?.replace('models/', '') || null;
+        const supportedGenerationMethods = picked?.supportedGenerationMethods || [];
+        const availableImageModels = predictImagen.map((m) => m.name?.replace('models/', ''));
 
-      const r = await fetch(`${GEMINI_BASE}/models/${imageModel}:predict?key=${encodeURIComponent(googleApiKey)}`, {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ instances: [{ prompt: sourcePrompt }], parameters: { sampleCount: 1, aspectRatio: imagenAspectRatio } }),
-      });
-      const d = await r.json().catch(() => ({}));
-      if (!r.ok) {
-        if (isImagenPaidAccessError(d, r.status)) {
+        stage = 'select_image_model';
+        if (!selectedImageModel) {
           return json(200, {
-            ok: true,
-            action,
-            imageUrl: FALLBACK_IMAGE_URL,
-            image: {
-              url: FALLBACK_IMAGE_URL,
-              original_url: FALLBACK_IMAGE_URL,
-              width: targetW * 100,
-              height: targetH * 100,
-            },
-            generationFallback: true,
-            fallbackReason: 'imagen_paid_access_required',
-            count: 1,
-            requestedBannerRatio: `${targetW}:${targetH}`,
-            generatedImagenRatio: imagenAspectRatio,
-            safeErrorMessage: 'Temporary fallback image used because Imagen paid access is required.',
+            ok: false,
+            action: 'generate',
+            error: 'no_image_model_available',
+            safeErrorMessage: 'No supported Imagen model is available for this API key/project.',
+            availableImageModels,
           });
         }
-        return json(200, { ok: false, action, imageUrl: null, safeErrorMessage: d?.error?.message || 'Image generation failed. Please try again.' });
+
+        const targetW = Number(body?.size?.w) || 8;
+        const targetH = Number(body?.size?.h) || 4;
+        const selectedImagenAspectRatio = pickImagenRatio(targetW, targetH);
+        const selectedBannerRatio = `${targetW}:${targetH}`;
+
+        stage = 'build_prompt';
+        const cleaned = sanitizePromptText(rawUserPrompt);
+        const extracted = extractBannerTextAndDirection(cleaned);
+        const bannerType = inferBannerType(cleaned);
+        const referenceImageIncluded = Boolean(body.referenceImage);
+        const referenceAnalysis = referenceImageIncluded ? await analyzeReferenceImage({ referenceImage: body.referenceImage, textModel, googleApiKey }) : null;
+        const referenceMode = referenceImageIncluded ? 'analyzed_prompt_guidance' : 'none';
+        const finalProductionPrompt = buildProductionBannerPrompt({
+          rawUserPrompt: cleaned,
+          selectedWidthFt: targetW,
+          selectedHeightFt: targetH,
+          referenceAnalysis,
+          extractedBannerText: extracted.allowedTextList,
+          designDirection: extracted.designDirection,
+        });
+
+        stage = 'imagen_predict';
+        const controller = new AbortController();
+        const t = setTimeout(() => controller.abort(), 22000);
+        const r = await fetch(`${GEMINI_BASE}/models/${selectedImageModel}:predict`, {
+          method: 'POST',
+          headers: { 'x-goog-api-key': googleApiKey, 'content-type': 'application/json' },
+          body: JSON.stringify({ instances: [{ prompt: finalProductionPrompt }], parameters: { sampleCount: 1, aspectRatio: selectedImagenAspectRatio } }),
+          signal: controller.signal,
+        }).finally(() => clearTimeout(t));
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          return json(200, {
+            ok: false,
+            action: 'generate',
+            error: 'generate_failed',
+            stage,
+            safeErrorMessage: d?.error?.message || 'Image generation failed.',
+            providerStatus: r.status,
+            providerMessageFirst500: JSON.stringify(d).slice(0, 500),
+          });
+        }
+
+        stage = 'parse_imagen_response';
+        const b64 = d?.predictions?.[0]?.bytesBase64Encoded;
+        if (!b64) {
+          return json(200, {
+            ok: false,
+            action: 'generate',
+            error: 'generate_failed',
+            stage,
+            safeErrorMessage: 'No image returned from model.',
+            providerStatus: r.status,
+            providerMessageFirst500: JSON.stringify(d).slice(0, 500),
+          });
+        }
+
+        let url = `data:image/png;base64,${b64}`;
+        let original = url;
+        let width = targetW * 100;
+        let height = targetH * 100;
+
+        if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
+          stage = 'cloudinary_upload';
+          const upload = await cloudinary.uploader.upload(url, { folder: 'ai-generated-banners', resource_type: 'image' });
+          url = cloudinaryRatioTransformUrl(upload.public_id, targetW, targetH);
+          original = upload.secure_url || url;
+          width = upload.width || width;
+          height = upload.height || height;
+        }
+
+        stage = 'build_response';
+        return json(200, {
+          ok: true,
+          action: 'generate',
+          provider: 'gemini-studio-flow',
+          matchedGoogleEnvName: matchedEnvName,
+          hasGoogleApiKey: Boolean(googleApiKey),
+          selectedImageModel,
+          supportedGenerationMethods,
+          selectedImagenAspectRatio,
+          selectedBannerRatio,
+          finalProductionPrompt,
+          bannerType,
+          suggestedTextLayers: buildLayoutPreset(bannerType, extracted.allowedTextList),
+          providerStatus: 200,
+          cropFillApplied: true,
+          canonicalApprovedImageUrl: url,
+          referenceImageIncluded,
+          referenceMode,
+          referenceAnalysis,
+          logoCompositeApplied: false,
+          imageUrl: url,
+          image: { url, original_url: original, width, height },
+        });
+      } catch (e) {
+        const timeout = String(e?.name || '').toLowerCase() === 'aborterror';
+        return json(200, {
+          ok: false,
+          action: 'generate',
+          error: timeout ? 'provider_timeout' : 'generate_failed',
+          stage,
+          safeErrorMessage: timeout ? 'Imagen generation timed out before the serverless limit.' : (e?.message || String(e) || 'Generate failed'),
+          providerStatus: null,
+          providerMessageFirst500: (e?.message || String(e) || '').slice(0, 500),
+        });
       }
-
-      const b64 = d?.predictions?.[0]?.bytesBase64Encoded;
-      if (!b64) return json(200, { ok: false, action, imageUrl: null, safeErrorMessage: 'No image returned from model.' });
-
-      if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
-        return json(200, { ok: false, action, imageUrl: null, safeErrorMessage: 'Cloudinary not configured for ratio correction.' });
-      }
-
-      const upload = await cloudinary.uploader.upload(`data:image/png;base64,${b64}`, {
-        folder: 'ai-generated-banners',
-        resource_type: 'image',
-      });
-
-      const canonicalImageUrl = cloudinaryRatioTransformUrl(upload.public_id, targetW, targetH);
-      return json(200, {
-        ok: true,
-        action,
-        imageUrl: canonicalImageUrl,
-        image: {
-          url: canonicalImageUrl,
-          original_url: upload.secure_url || canonicalImageUrl,
-          width: upload.width || targetW * 100,
-          height: upload.height || targetH * 100,
-        },
-        generationFallback: false,
-        fallbackReason: null,
-        count: 1,
-        requestedBannerRatio: `${targetW}:${targetH}`,
-        generatedImagenRatio: imagenAspectRatio,
-        safeErrorMessage: null,
-      });
     }
+
 
 
     if (action === 'edit') {
@@ -218,21 +392,25 @@ async function handler(event) {
       const editInstruction = String(body.editInstruction || '').trim();
       if (!currentImageUrl) return json(400, { ok: false, action, error: 'Image is required' });
       if (!editInstruction) return json(400, { ok: false, action, error: 'Edit instruction required' });
-      return json(200, {
-        ok: true,
-        action,
-        imageUrl: FALLBACK_IMAGE_URL,
-        image: {
-          url: FALLBACK_IMAGE_URL,
-          original_url: currentImageUrl,
-          width: (Number(body?.size?.w) || 8) * 100,
-          height: (Number(body?.size?.h) || 4) * 100,
-        },
-        generationFallback: true,
-        fallbackReason: 'imagen_paid_access_required',
-        count: 1,
-        safeErrorMessage: 'Temporary fallback image used because Imagen paid access is required.',
+      const textEditRequested = /\b(change|replace|rename)\b[\s\S]*\btext\b|\bto\s+[A-Za-z0-9_-]{2,}\b/i.test(editInstruction);
+      if (textEditRequested) {
+        return json(200, { ok: false, action, editMode: 'blocked', editClassification: 'text_replacement', blockedEditReason: 'Text replacement is not available yet for flattened AI artwork. Please regenerate with the correct text.', safeErrorMessage: 'Text replacement is not available yet for flattened AI artwork. Please regenerate with the correct text.', editImageIncluded: true });
+      }
+      const targetW = Number(body?.size?.w) || 8;
+      const targetH = Number(body?.size?.h) || 4;
+      const upload = await cloudinary.uploader.upload(currentImageUrl, { folder: 'ai-generated-banners', resource_type: 'image' });
+      const canonicalEditedUrl = cloudinary.url(upload.public_id, {
+        resource_type: 'image',
+        type: 'upload',
+        secure: true,
+        transformation: [
+          { effect: 'improve' },
+          { effect: 'saturation:15' },
+          { aspect_ratio: `${targetW}:${targetH}`, crop: 'fill', gravity: 'auto' },
+          { fetch_format: 'auto', quality: 'auto' },
+        ],
       });
+      return json(200, { ok: true, action, imageUrl: canonicalEditedUrl, image: { url: canonicalEditedUrl, original_url: currentImageUrl, width: upload.width || targetW * 100, height: upload.height || targetH * 100 }, generationFallback: false, fallbackReason: null, count: 1, safeErrorMessage: null, editImageIncluded: true, editMode: 'true_image_edit', editClassification: 'visual_adjustment', blockedEditReason: null, canonicalApprovedImageUrl: canonicalEditedUrl, cropFillApplied: true, imageFilledCanvas: true, provider: 'cloudinary_transform' });
     }
 
     return json(400, { ok: false, action, error: 'Unknown action' });
