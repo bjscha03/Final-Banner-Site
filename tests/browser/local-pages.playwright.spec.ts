@@ -63,11 +63,9 @@ for (const pageCase of pageCases) {
       await expect(page.locator('[data-yard-sign-fixed-offer]')).toHaveCount(1);
       await expect(page.locator('[data-size-snapshot]')).toHaveCount(0);
       await expect(page.getByText('24″ × 18″', { exact: true })).toBeVisible();
-      const mockupTextFits = await page.locator('[role="img"][aria-label*="24 by 18 inch yard sign"] span').evaluateAll((labels) =>
-        labels.every((label) => label.scrollWidth <= label.clientWidth + 1),
-      );
-      expect(mockupTextFits).toBe(true);
-    } else {
+    }
+
+    if (pageCase.product === 'car-magnets') {
       const productImage = page.locator('[data-product-visual-image]').first();
       await expect(productImage).toBeVisible();
       const productImageState = await productImage.evaluate((image) => ({
@@ -80,6 +78,55 @@ for (const pageCase of pageCases) {
       expect(productImageState.naturalWidth).toBeGreaterThan(0);
       expect(productImageState.naturalHeight).toBeGreaterThan(0);
       expect(productImageState.objectFit).toBe('contain');
+    } else {
+      const visualSlug = pageCase.product === 'banner' ? 'vinyl-banners' : 'yard-signs';
+      const subject = page.locator(`[data-product-visual-subject="${visualSlug}"]`).first();
+      await expect(subject).toBeVisible();
+      const visualState = await subject.evaluate((element) => {
+        const stage = element.closest<HTMLElement>('[data-product-visual-stage]');
+        if (!stage) throw new Error('Product diagram is missing its stage.');
+        const subjectRect = element.getBoundingClientRect();
+        const stageRect = stage.getBoundingClientRect();
+        const face = stage.querySelector<HTMLElement>('[data-product-visual-face]');
+        if (!face) throw new Error('Product diagram is missing its face.');
+        const faceRect = face.getBoundingClientRect();
+        const labels = Array.from(face.querySelectorAll<HTMLElement>('p')).map((label) => {
+          const range = document.createRange();
+          range.selectNodeContents(label);
+          const textRect = range.getBoundingClientRect();
+          return {
+            horizontalOverflow: label.scrollWidth - label.clientWidth,
+            verticalOverflow: label.scrollHeight - label.clientHeight,
+            textInsideFace:
+              textRect.left >= faceRect.left - 1
+              && textRect.right <= faceRect.right + 1
+              && textRect.top >= faceRect.top - 1
+              && textRect.bottom <= faceRect.bottom + 1,
+          };
+        });
+        return {
+          minimumMargin: Math.min(
+            (subjectRect.left - stageRect.left) / stageRect.width,
+            (stageRect.right - subjectRect.right) / stageRect.width,
+            (subjectRect.top - stageRect.top) / stageRect.height,
+            (stageRect.bottom - subjectRect.bottom) / stageRect.height,
+          ),
+          faceInsideStage:
+            faceRect.left >= stageRect.left - 1
+            && faceRect.right <= stageRect.right + 1
+            && faceRect.top >= stageRect.top - 1
+            && faceRect.bottom <= stageRect.bottom + 1,
+          labels,
+        };
+      });
+      expect(visualState.minimumMargin).toBeGreaterThanOrEqual(0.03);
+      expect(visualState.faceInsideStage).toBe(true);
+      expect(visualState.labels).toHaveLength(2);
+      for (const label of visualState.labels) {
+        expect(label.horizontalOverflow).toBeLessThanOrEqual(1);
+        expect(label.verticalOverflow).toBeLessThanOrEqual(1);
+        expect(label.textInsideFace).toBe(true);
+      }
     }
 
     const viewportWidth = testInfo.project.use.viewport?.width || 0;
@@ -182,4 +229,55 @@ test('yard-sign hub presents one fixed format without multi-size mockups', async
   await expect(page).toHaveTitle(/24×18 Size, Options & Pricing/);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);
+});
+
+test('campaign product cards keep every full mockup inside a responsive stage', async ({ page }) => {
+  await page.goto('/political-signs', { waitUntil: 'domcontentloaded' });
+  const stages = page.locator('#choose-product [data-selector-product-stage]');
+  await expect(stages).toHaveCount(3);
+
+  const states = await stages.evaluateAll((elements) => elements.map((stage) => {
+    const stageRect = stage.getBoundingClientRect();
+    const subject = stage.querySelector<HTMLElement>('[data-selector-product-subject]');
+    const image = stage.querySelector<HTMLImageElement>('[data-product-visual-image]');
+    const target = subject || image;
+    if (!target) throw new Error('Campaign product stage has no visible product.');
+    const targetRect = target.getBoundingClientRect();
+    return {
+      stageInsideCard: stageRect.width > 0 && stageRect.height > 0,
+      targetInsideStage:
+        targetRect.left >= stageRect.left - 1
+        && targetRect.right <= stageRect.right + 1
+        && targetRect.top >= stageRect.top - 1
+        && targetRect.bottom <= stageRect.bottom + 1,
+      objectFit: image ? getComputedStyle(image).objectFit : null,
+    };
+  }));
+  expect(states).toHaveLength(3);
+  for (const state of states) {
+    expect(state.stageInsideCard).toBe(true);
+    expect(state.targetInsideStage).toBe(true);
+    if (state.objectFit) expect(state.objectFit).toBe('contain');
+  }
+});
+
+test('size comparison diagrams never exceed their bounded stages', async ({ page }) => {
+  await page.goto('/vinyl-banners/', { waitUntil: 'domcontentloaded' });
+  const stages = page.locator('[data-size-snapshot-stage]');
+  await expect(stages).toHaveCount(3);
+  const states = await stages.evaluateAll((elements) => elements.map((stage) => {
+    const subject = stage.querySelector<HTMLElement>('[data-size-snapshot-subject]');
+    if (!subject) throw new Error('Size snapshot subject is missing.');
+    const stageRect = stage.getBoundingClientRect();
+    const subjectRect = subject.getBoundingClientRect();
+    return {
+      left: subjectRect.left - stageRect.left,
+      right: stageRect.right - subjectRect.right,
+      top: subjectRect.top - stageRect.top,
+      bottom: stageRect.bottom - subjectRect.bottom,
+    };
+  }));
+  for (const state of states) {
+    expect(Math.min(state.left, state.right, state.top, state.bottom)).toBeGreaterThanOrEqual(8);
+  }
 });

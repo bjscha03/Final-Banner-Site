@@ -82,10 +82,12 @@ const ProductBuyingGuide: React.FC<ProductBuyingGuideProps> = ({
             <div className="grid border border-slate-200 sm:grid-cols-3">
               {product.priceExamples.map((example, index) => (
                 <article data-size-snapshot key={`${example.label}-${example.configuration}`} className={`flex min-h-[280px] min-w-0 flex-col p-5 sm:p-6 ${index > 0 ? 'border-t border-slate-200 sm:border-l sm:border-t-0' : ''}`}>
-                  <div className="flex h-24 min-w-0 items-center justify-center overflow-hidden bg-[#F2F4F6] px-4" aria-hidden="true">
-                    <div className={`${snapshotWidths[index] || 'w-full'} relative aspect-[2/1] max-w-full border-2 border-[#0B1F3A] bg-white shadow-[4px_5px_0_#D7DEE7]`}>
-                      <span className="absolute left-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[#FF6A00]" />
-                      <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[#FF6A00]" />
+                  <div data-size-snapshot-stage className="flex h-28 min-w-0 items-center justify-center overflow-hidden bg-[#F2F4F6] p-3" aria-hidden="true">
+                    <div className="flex w-full max-w-[180px] items-center justify-center">
+                      <div data-size-snapshot-subject className={`${snapshotWidths[index] || 'w-full'} relative aspect-[2/1] max-w-full border-2 border-[#0B1F3A] bg-white shadow-[4px_5px_0_#D7DEE7]`}>
+                        <span className="absolute left-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[#FF6A00]" />
+                        <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[#FF6A00]" />
+                      </div>
                     </div>
                   </div>
                   <h3 className="mt-5 font-display text-lg font-bold leading-6 text-[#0B1F3A]">{example.label}</h3>

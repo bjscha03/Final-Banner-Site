@@ -116,7 +116,8 @@ const PoliticalSigns: React.FC = () => {
               >
                 <ProductVisual
                   productSlug={product.key === 'banner' ? 'vinyl-banners' : product.key === 'yard_sign' ? 'yard-signs' : 'car-magnets'}
-                  className="h-48 border-b border-slate-200"
+                  presentation="selector"
+                  className="aspect-video border-b border-slate-200"
                 />
                 <div className="p-5">
                   <h3 className="text-2xl font-bold text-[#0B1F3A]">{product.name}</h3>
