@@ -274,6 +274,10 @@ test('Resend helper only succeeds with a provider message ID and retries transie
 });
 
 test('admin route is signed-session protected and review send is not wired into checkout or payment flows', async () => {
+  const preflight = await handlerModule.handler({ httpMethod: 'OPTIONS', headers: {} });
+  assert.equal(preflight.statusCode, 200);
+  assert.equal(preflight.body, '');
+
   const response = await handlerModule.handler({ httpMethod: 'POST', headers: {}, body: JSON.stringify({ orderId: paidOrder.id }) });
   assert.equal(response.statusCode, 401);
 
