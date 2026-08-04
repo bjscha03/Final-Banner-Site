@@ -340,7 +340,10 @@ function jsonResponse(statusCode, payload) {
 }
 
 const handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
+  // Netlify's AWS Lambda compatibility adapter constructs a Fetch Response
+  // from this object. A 204 response cannot carry the legacy `body` field, so
+  // use the project's established 200 preflight convention.
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
 
   const auth = requireAdmin(event);
   if (!auth.ok) return auth.response;
