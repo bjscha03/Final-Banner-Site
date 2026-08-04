@@ -72,6 +72,8 @@ function productionBrief(overrides = {}) {
 beforeEach(() => {
   process.env.AUTH_SESSION_SECRET = 'ai-designer-test-session-secret';
   delete process.env.AI_DESIGNER_ENABLED;
+  delete process.env.CONTEXT;
+  delete process.env.VITE_AI_BANNER_ENABLED;
   delete process.env.OPENAI_API_KEY;
   delete process.env.OPENAI_IMAGE_MODEL;
   delete process.env.CLOUDINARY_CLOUD_NAME;
@@ -88,6 +90,15 @@ afterEach(() => {
 
 describe('AI designer authorization and fail-closed controls', () => {
   it('fails closed when the feature flag is absent', () => {
+    expect(isEnabled()).toBe(false);
+  });
+
+  it('enables only an explicitly flagged Netlify deploy preview', () => {
+    process.env.VITE_AI_BANNER_ENABLED = 'true';
+    expect(isEnabled()).toBe(false);
+    process.env.CONTEXT = 'deploy-preview';
+    expect(isEnabled()).toBe(true);
+    process.env.CONTEXT = 'production';
     expect(isEnabled()).toBe(false);
   });
 

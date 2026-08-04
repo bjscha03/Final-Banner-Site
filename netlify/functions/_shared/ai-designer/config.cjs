@@ -10,7 +10,9 @@ const FLAT_ARTWORK_CONSTRAINT = [
 ].join(' ');
 
 function isEnabled() {
-  return process.env.AI_DESIGNER_ENABLED === 'true';
+  if (process.env.AI_DESIGNER_ENABLED === 'true') return true;
+  return process.env.CONTEXT === 'deploy-preview'
+    && process.env.VITE_AI_BANNER_ENABLED === 'true';
 }
 
 function getImageModel() {

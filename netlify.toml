@@ -260,9 +260,10 @@
   command = "npm run build"
 
 [context.deploy-preview.environment]
-  VITE_ENABLE_AI = "true"
-  AI_DESIGNER_ENABLED = "true"
-  OPENAI_IMAGE_MODEL = "gpt-image-2-2026-04-21"
+  # Reuse the site's existing AI flag name so Lambda-compatible functions do
+  # not exceed AWS's 4 KB aggregate environment-variable limit. The server
+  # additionally requires Netlify's deploy-preview CONTEXT before enabling.
+  VITE_AI_BANNER_ENABLED = "true"
 
 [[context.deploy-preview.headers]]
   for = "/*"
