@@ -27,17 +27,42 @@ function clientIp(event) {
     .trim();
 }
 
-function expectedOrigin(event) {
-  const host = String(event?.headers?.['x-forwarded-host'] || event?.headers?.host || '').trim();
+function allowedOrigins(event) {
   const proto = String(event?.headers?.['x-forwarded-proto'] || 'https').split(',')[0].trim();
-  return host ? `${proto}://${host}` : '';
+  const hosts = [event?.headers?.host, event?.headers?.['x-forwarded-host']]
+    .flatMap((value) => String(value || '').split(','))
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const origins = new Set(hosts.map((host) => `${proto}://${host}`));
+  for (const candidate of [event?.rawUrl, process.env.URL, process.env.DEPLOY_URL, process.env.DEPLOY_PRIME_URL]) {
+    try {
+      if (candidate) origins.add(new URL(String(candidate)).origin);
+    } catch {
+      // Ignore malformed platform metadata.
+    }
+  }
+  return origins;
 }
 
 function enforceSameOrigin(event, { requireOrigin = true } = {}) {
   const origin = String(event?.headers?.origin || '').trim();
-  const expected = expectedOrigin(event);
   if (!origin && !requireOrigin) return null;
-  if (!origin || !expected || origin !== expected) {
+  let previewOriginAllowed = false;
+  try {
+    const siteName = String(process.env.SITE_NAME || '').trim().toLowerCase();
+    const originUrl = new URL(origin);
+    previewOriginAllowed = Boolean(
+      siteName
+      && originUrl.protocol === 'https:'
+      && (
+        originUrl.hostname === `${siteName}.netlify.app`
+        || originUrl.hostname.endsWith(`--${siteName}.netlify.app`)
+      )
+    );
+  } catch {
+    previewOriginAllowed = false;
+  }
+  if (!origin || (!allowedOrigins(event).has(origin) && !previewOriginAllowed)) {
     return json(403, { error: 'FORBIDDEN_ORIGIN', message: 'This request must come from the same site.' });
   }
   return null;
@@ -99,7 +124,9 @@ function safeError(error) {
   const code = String(error?.code || 'AI_REQUEST_FAILED');
   const statusCode = ['INVALID_REQUEST', 'INVALID_DIMENSIONS', 'DESCRIPTION_REQUIRED', 'INVALID_IMAGE', 'IDEMPOTENCY_KEY_REQUIRED'].includes(code) ? 400
     : code === 'PROVIDER_RATE_LIMITED' ? 429
+      : code === 'PROVIDER_USER_ERROR' ? 400
       : code === 'PROVIDER_TIMEOUT' ? 504
+        : code === 'PROVIDER_UNAVAILABLE' ? 503
         : code === 'MODEL_ACCESS_DENIED' || code === 'AI_NOT_CONFIGURED' || code === 'UNAPPROVED_IMAGE_MODEL' ? 503
       : code === 'VALIDATION_FAILED' ? 422
         : 500;
@@ -113,10 +140,21 @@ function safeError(error) {
     AI_NOT_CONFIGURED: 'The AI designer is not configured for this deployment.',
     UNAPPROVED_IMAGE_MODEL: 'The configured provider is not an approved GPT Image 2 model.',
     PROVIDER_RATE_LIMITED: 'OpenAI is temporarily rate limited. Please wait and retry.',
+    PROVIDER_USER_ERROR: error.message,
     PROVIDER_TIMEOUT: 'The OpenAI request timed out safely. Please retry.',
+    PROVIDER_UNAVAILABLE: 'OpenAI is temporarily unavailable. Please retry in a moment.',
     VALIDATION_FAILED: 'The artwork did not pass print-readiness validation.',
   };
   return json(statusCode, { error: code, message: safeMessages[code] || 'The AI request could not be completed safely. Please retry.' });
+}
+
+function safeErrorPayload(error) {
+  const response = safeError(error);
+  try {
+    return { statusCode: response.statusCode, ...JSON.parse(response.body) };
+  } catch {
+    return { statusCode: 500, error: 'AI_REQUEST_FAILED', message: 'The AI request could not be completed safely. Please retry.' };
+  }
 }
 
 module.exports = {
@@ -127,4 +165,5 @@ module.exports = {
   idempotencyKey,
   runIdempotent,
   safeError,
+  safeErrorPayload,
 };

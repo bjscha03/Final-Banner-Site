@@ -92,7 +92,7 @@ afterEach(() => {
 
 describe('AI designer authorization and fail-closed controls', () => {
   it('uses the modern Netlify runtime for every new endpoint', () => {
-    const functionNames = ['status', 'brief', 'generate', 'edit', 'cleanup'];
+    const functionNames = ['status', 'brief', 'generate', 'edit', 'job', 'worker-background', 'cleanup'];
     for (const name of functionNames) {
       const source = fs.readFileSync(
         path.resolve(`netlify/functions/ai-designer-${name}.mjs`),
@@ -207,6 +207,16 @@ describe('AI designer authorization and fail-closed controls', () => {
     expect((await editHandler(event)).statusCode).toBe(403);
   });
 
+  it('accepts this site deploy-preview origin when the Netlify drawer rewrites the forwarded host', async () => {
+    process.env.SITE_NAME = 'bannersonthefly';
+    const event = adminEvent();
+    event.headers.origin = 'https://deploy-preview-424--bannersonthefly.netlify.app';
+    event.headers['x-forwarded-host'] = 'deploy-preview-drawer.netlify.app';
+    const response = await generateHandler(event);
+    expect(response.statusCode).toBe(503);
+    expect(JSON.parse(response.body)).toMatchObject({ error: 'AI_NOT_CONFIGURED' });
+  });
+
   it('returns a safe configuration error instead of falling back', async () => {
     const response = await generateHandler(adminEvent());
     expect(response.statusCode).toBe(503);
@@ -249,7 +259,8 @@ describe('GPT Image 2 provider contract', () => {
     expect(provider).toContain("toFile(currentImage, 'current-artwork.jpg'");
     expect(provider).toMatch(/const images = \[sourceFile\]/);
     expect(provider).toContain('image: images');
-    expect(provider).toContain("input_fidelity: 'high'");
+    expect(provider).not.toContain("input_fidelity: 'high'");
+    expect(provider).toMatch(/GPT Image 2 always processes image inputs at high fidelity/i);
     expect(provider).toContain("toFile(maskImage, 'outpaint-mask.png'");
   });
 
@@ -310,6 +321,17 @@ describe('private temporary artwork storage', () => {
     expect(handler).toContain('backgroundRef');
     expect(handler).not.toContain('backgroundBase64');
   });
+
+  it('queues slow provider work in a background function and polls a session-bound job', () => {
+    const worker = fs.readFileSync(path.resolve('netlify/functions/ai-designer-worker-background.mjs'), 'utf8');
+    const workspace = fs.readFileSync(path.resolve('src/components/design/ai/AIWorkspace.tsx'), 'utf8');
+    const storage = fs.readFileSync(path.resolve(__dirname, '../_shared/ai-designer/storage.cjs'), 'utf8');
+    expect(worker).toContain('background: true');
+    expect(workspace).toContain('runBackgroundJob');
+    expect(workspace).toContain('ai-designer-job');
+    expect(storage).toContain("kind: 'ai-designer-job'");
+    expect(storage).toContain('payload.sub !== subjectHash(session)');
+  });
 });
 
 describe('exact dimensions and template fill', () => {
@@ -360,6 +382,10 @@ describe('deterministic exact-copy composition', () => {
     expect(result.logoLayer).toMatchObject({ position: 'upper-right' });
     const renderedValues = result.textLayers.map((layer) => layer.value);
     for (const value of Object.values(brief.copy).filter(Boolean)) expect(renderedValues).toContain(value);
+    for (const layer of result.textLayers) {
+      const bottom = layer.y + layer.fontSize * Math.max(1, layer.lines.length) * 1.08;
+      expect(bottom).toBeLessThanOrEqual(480 * 0.96);
+    }
   });
 
   it('rejects over-limit exact copy rather than silently truncating it', () => {

@@ -103,16 +103,47 @@ function requestId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-async function readImage(file: File, maxBytes: number) {
-  if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > maxBytes) {
-    throw new Error(`Choose a PNG, JPEG, or WebP image smaller than ${Math.round(maxBytes / 1024 / 1024)}MB.`);
-  }
+async function fileToDataUrl(file: Blob) {
   return await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result || ''));
     reader.onerror = () => reject(new Error('That image could not be read.'));
     reader.readAsDataURL(file);
   });
+}
+
+async function readImage(file: File, maxBytes: number, maxDimension: number) {
+  if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 20 * 1024 * 1024) {
+    const megabytes = maxBytes / 1024 / 1024;
+    throw new Error(`Choose a PNG, JPEG, or WebP image. It will be optimized automatically to the ${Number.isInteger(megabytes) ? megabytes : megabytes.toFixed(2)}MB request limit.`);
+  }
+  if (file.size <= maxBytes) return fileToDataUrl(file);
+
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const element = new Image();
+      element.onload = () => resolve(element);
+      element.onerror = () => reject(new Error('That image could not be decoded.'));
+      element.src = objectUrl;
+    });
+    let edgeLimit = maxDimension;
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      const scale = Math.min(1, edgeLimit / Math.max(image.naturalWidth, image.naturalHeight));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('This browser could not prepare the image.');
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      const optimized = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/webp', Math.max(0.62, 0.9 - attempt * 0.06)));
+      if (optimized && optimized.size <= maxBytes) return fileToDataUrl(optimized);
+      edgeLimit = Math.max(640, Math.round(edgeLimit * 0.78));
+    }
+    throw new Error('That image could not be optimized safely. Choose a smaller source image.');
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
 }
 
 function imageSrc(concept: AIConcept) {
@@ -122,6 +153,103 @@ function imageSrc(concept: AIConcept) {
 function formatDuration(milliseconds: number) {
   if (!milliseconds) return '—';
   return `${(milliseconds / 1000).toFixed(1)}s`;
+}
+
+function waitFor(milliseconds: number, signal: AbortSignal) {
+  return new Promise<void>((resolve, reject) => {
+    if (signal.aborted) {
+      reject(new DOMException('Aborted', 'AbortError'));
+      return;
+    }
+    const onAbort = () => {
+      window.clearTimeout(timer);
+      reject(new DOMException('Aborted', 'AbortError'));
+    };
+    const timer = window.setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, milliseconds);
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+async function runBackgroundJob(
+  startPath: string,
+  payload: Record<string, unknown>,
+  signal: AbortSignal,
+  waitingMessage: string,
+  onStage: (message: string) => void,
+) {
+  const pendingKey = 'banners_ai_designer_pending_job';
+  const payloadFingerprint = JSON.stringify(payload);
+  let start: Record<string, unknown> | null = null;
+  try {
+    const pending = JSON.parse(window.sessionStorage.getItem(pendingKey) || 'null');
+    if (
+      pending?.startPath === startPath
+      && pending?.payloadFingerprint === payloadFingerprint
+      && Date.now() - Number(pending.createdAt || 0) < 2 * 60 * 60 * 1000
+    ) start = pending;
+  } catch {
+    window.sessionStorage.removeItem(pendingKey);
+  }
+
+  if (!start) {
+    const idempotencyKey = requestId();
+    const startResponse = await fetch(startPath, {
+      method: 'POST',
+      credentials: 'same-origin',
+      signal,
+      headers: authorizedHeaders({
+        'Content-Type': 'application/json',
+        'X-Idempotency-Key': idempotencyKey,
+      }),
+      body: authenticatedJsonBody({ ...payload, idempotencyKey }),
+    });
+    const started = await startResponse.json().catch(() => ({}));
+    if (!startResponse.ok || !started?.jobRef) throw new Error(started?.message || 'The AI job could not be started safely.');
+    start = { ...started, startPath, payloadFingerprint, createdAt: Date.now(), dispatched: false };
+    window.sessionStorage.setItem(pendingKey, JSON.stringify(start));
+  }
+
+  onStage(waitingMessage);
+  if (start.dispatched !== true) {
+    const workerResponse = await fetch(String(start.workerPath || '/.netlify/functions/ai-designer-worker-background'), {
+      method: 'POST',
+      credentials: 'same-origin',
+      signal,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobRef: start.jobRef }),
+    });
+    if (!workerResponse.ok) throw new Error('The secure AI worker could not be started. Please retry.');
+    start.dispatched = true;
+    window.sessionStorage.setItem(pendingKey, JSON.stringify(start));
+  }
+
+  const deadline = Date.now() + 15 * 60 * 1000;
+  const pollPath = String(start.pollPath || '/.netlify/functions/ai-designer-job');
+  while (Date.now() < deadline) {
+    await waitFor(Math.max(2000, Number(start.pollAfterMs) || 4000), signal);
+    const pollResponse = await fetch(pollPath, {
+      method: 'POST',
+      credentials: 'same-origin',
+      signal,
+      headers: authorizedHeaders({ 'Content-Type': 'application/json' }),
+      body: authenticatedJsonBody({ jobRef: start.jobRef }),
+    });
+    const job = await pollResponse.json().catch(() => ({}));
+    if (!pollResponse.ok) throw new Error(job?.message || 'The AI job status could not be checked.');
+    if (job?.status === 'completed') {
+      window.sessionStorage.removeItem(pendingKey);
+      return job;
+    }
+    if (job?.status === 'failed') {
+      window.sessionStorage.removeItem(pendingKey);
+      throw new Error(job?.message || 'The AI job could not be completed safely.');
+    }
+    onStage(job?.stage === 'Preparing the AI request' ? waitingMessage : (job?.stage || waitingMessage));
+  }
+  throw new Error('The AI job took too long to finish. Retry once; the previous job will not be charged again if it already completed.');
 }
 
 function StatusBadge({ concept }: { concept: AIConcept }) {
@@ -232,7 +360,9 @@ export default function AIWorkspace(props: Props) {
     if (!file) return;
     setError('');
     try {
-      const data = await readImage(file, kind === 'logo' ? 2 * 1024 * 1024 : 3 * 1024 * 1024);
+      // Keep the combined JSON request below Netlify's fixed buffered payload
+      // limit after Base64 expansion.
+      const data = await readImage(file, kind === 'logo' ? 768 * 1024 : 1536 * 1024, kind === 'logo' ? 1400 : 2048);
       if (kind === 'logo') setLogoImage(data);
       else setReferenceImage(data);
       setBriefReviewed(false);
@@ -267,22 +397,17 @@ export default function AIWorkspace(props: Props) {
     if (!access.ready || stage) return;
     const controller = new AbortController();
     controllerRef.current = controller;
-    const idempotencyKey = requestId();
     setError('');
     setStage('Interpreting your request as a structured production brief');
     try {
-      const response = await fetch('/.netlify/functions/ai-designer-brief', {
-        method: 'POST',
-        credentials: 'same-origin',
-        signal: controller.signal,
-        headers: authorizedHeaders({
-          'Content-Type': 'application/json',
-          'X-Idempotency-Key': idempotencyKey,
-        }),
-        body: authenticatedJsonBody({ brief, idempotencyKey }),
-      });
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok || !body?.brief?.structured) throw new Error(body?.message || 'The production brief could not be interpreted safely.');
+      const body = await runBackgroundJob(
+        '/.netlify/functions/ai-designer-brief',
+        { brief },
+        controller.signal,
+        'Interpreting your request as a structured production brief',
+        setStage,
+      );
+      if (!body?.brief?.structured) throw new Error('The production brief could not be interpreted safely.');
       setBrief((current) => ({
         ...current,
         ...body.brief,
@@ -305,24 +430,18 @@ export default function AIWorkspace(props: Props) {
     if (!access.ready || !briefReviewed || !requirementsMet || stage) return;
     const controller = new AbortController();
     controllerRef.current = controller;
-    const idempotencyKey = requestId();
     setError('');
     setStage('Preparing the structured creative brief');
     trackAIEvent('ai_generation_started', { concept_count: conceptCount, product_type: brief.productType });
     try {
       setStage('Generating artwork, correcting the exact ratio, and validating print readiness');
-      const response = await fetch('/.netlify/functions/ai-designer-generate', {
-        method: 'POST',
-        credentials: 'same-origin',
-        signal: controller.signal,
-        headers: authorizedHeaders({
-          'Content-Type': 'application/json',
-          'X-Idempotency-Key': idempotencyKey,
-        }),
-        body: authenticatedJsonBody({ brief, conceptCount, referenceImage, logoImage, idempotencyKey }),
-      });
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body?.message || 'The AI designer could not generate artwork safely.');
+      const body = await runBackgroundJob(
+        '/.netlify/functions/ai-designer-generate',
+        { brief, conceptCount, referenceImage, logoImage },
+        controller.signal,
+        'Generating artwork, correcting the exact ratio, and validating print readiness. This can take a few minutes.',
+        setStage,
+      );
       const nextConcepts = Array.isArray(body.concepts) ? body.concepts : [];
       if (!nextConcepts.length) throw new Error('No artwork was returned.');
       setGenerationId(body.generationId);
@@ -351,7 +470,6 @@ export default function AIWorkspace(props: Props) {
     if (!selected || !editInstruction.trim() || stage || !access.ready) return;
     const controller = new AbortController();
     controllerRef.current = controller;
-    const idempotencyKey = requestId();
     setError('');
     setStage('Editing the current artwork and preserving exact text layers');
     trackAIEvent('ai_edit_started', { concept_id: selected.id });
@@ -364,15 +482,9 @@ export default function AIWorkspace(props: Props) {
               : /logo.{0,24}(lower|bottom)[ -]?right|(?:lower|bottom)[ -]?right.{0,24}logo/.test(normalizedInstruction) ? 'lower-right'
                 : null;
       const briefForEdit = requestedLogoPosition ? { ...brief, logoPosition: requestedLogoPosition } : brief;
-      const response = await fetch('/.netlify/functions/ai-designer-edit', {
-        method: 'POST',
-        credentials: 'same-origin',
-        signal: controller.signal,
-        headers: authorizedHeaders({
-          'Content-Type': 'application/json',
-          'X-Idempotency-Key': idempotencyKey,
-        }),
-        body: authenticatedJsonBody({
+      const body = await runBackgroundJob(
+        '/.netlify/functions/ai-designer-edit',
+        {
           brief: briefForEdit,
           conceptId: selected.id,
           generationId: selected.generationId,
@@ -380,11 +492,11 @@ export default function AIWorkspace(props: Props) {
           editInstruction: editInstruction.trim(),
           referenceImage,
           logoImage,
-          idempotencyKey,
-        }),
-      });
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body?.message || 'The edit could not be completed safely.');
+        },
+        controller.signal,
+        'Editing the current artwork and preserving exact text layers. This can take a few minutes.',
+        setStage,
+      );
       if (!body?.usedOriginalImage || !body?.concept) throw new Error('The server did not confirm use of the current artwork.');
       setPendingEdit(body.concept);
       setPendingBrief(briefForEdit);
@@ -477,6 +589,8 @@ export default function AIWorkspace(props: Props) {
             ? 'Authenticated temporary artwork storage is not configured for this deployment.'
           : !access.modelAvailable
             ? 'GPT Image 2 is not available to the configured OpenAI project.'
+            : !access.validationModelAvailable
+              ? 'The configured validation model is not available to the OpenAI project.'
             : null;
 
   return (
@@ -555,8 +669,8 @@ export default function AIWorkspace(props: Props) {
           <div>
             <h3 className="text-lg font-black text-[#0b1f3a]">3. Optional brand assets</h3>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white p-3 text-center hover:border-orange-400"><ImagePlus className="h-5 w-5 text-orange-600" /><span className="mt-1 text-sm font-bold">Reference image</span><span className="text-xs text-slate-500">Style guidance only · max 3MB</span><input type="file" className="sr-only" accept="image/png,image/jpeg,image/webp" onChange={(event) => setImage('reference', event.target.files?.[0])} /></label>
-              <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white p-3 text-center hover:border-orange-400"><ImagePlus className="h-5 w-5 text-orange-600" /><span className="mt-1 text-sm font-bold">Logo</span><span className="text-xs text-slate-500">Placed as a controlled layer · max 2MB</span><input type="file" className="sr-only" accept="image/png,image/jpeg,image/webp" onChange={(event) => setImage('logo', event.target.files?.[0])} /></label>
+              <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white p-3 text-center hover:border-orange-400"><ImagePlus className="h-5 w-5 text-orange-600" /><span className="mt-1 text-sm font-bold">Reference image</span><span className="text-xs text-slate-500">Style guidance · optimized automatically</span><input type="file" className="sr-only" accept="image/png,image/jpeg,image/webp" onChange={(event) => setImage('reference', event.target.files?.[0])} /></label>
+              <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white p-3 text-center hover:border-orange-400"><ImagePlus className="h-5 w-5 text-orange-600" /><span className="mt-1 text-sm font-bold">Logo</span><span className="text-xs text-slate-500">Controlled layer · optimized automatically</span><input type="file" className="sr-only" accept="image/png,image/jpeg,image/webp" onChange={(event) => setImage('logo', event.target.files?.[0])} /></label>
             </div>
             {(referenceImage || logoImage) && <div className="mt-2 flex flex-wrap items-center gap-2">{referenceImage && <button type="button" onClick={() => removeImage('reference')} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold">Remove reference</button>}{logoImage && <><label className="text-sm font-semibold text-slate-700">Logo position<select value={brief.logoPosition} onChange={(event) => updateBrief('logoPosition', event.target.value as CreativeBrief['logoPosition'])} className="ml-2 min-h-11 rounded-lg border border-slate-300 bg-white px-3"><option value="upper-left">Upper left</option><option value="upper-right">Upper right</option><option value="lower-left">Lower left</option><option value="lower-right">Lower right</option></select></label><button type="button" onClick={() => removeImage('logo')} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold">Remove logo</button></>}</div>}
           </div>
@@ -582,7 +696,7 @@ export default function AIWorkspace(props: Props) {
             </div>
           </div>
 
-          {stage && <div role="status" aria-live="polite" className="flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm font-semibold text-blue-900"><span className="flex items-center gap-2"><Loader2 className="h-5 w-5 animate-spin" /> {stage}</span><button type="button" onClick={() => controllerRef.current?.abort()} className="min-h-11 rounded-lg border border-blue-300 px-3">Cancel</button></div>}
+          {stage && <div role="status" aria-live="polite" className="flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm font-semibold text-blue-900"><span className="flex items-center gap-2"><Loader2 className="h-5 w-5 animate-spin" /> {stage}</span><button type="button" onClick={() => controllerRef.current?.abort()} className="min-h-11 rounded-lg border border-blue-300 px-3" title="The secure background job will continue and can be resumed by repeating the same action.">Stop waiting</button></div>}
           {error && <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><XCircle className="mt-0.5 h-5 w-5 shrink-0" /><span>{error}</span></div>}
 
           {!concepts.length && !stage && <div className="grid min-h-72 place-items-center rounded-2xl border-2 border-dashed border-slate-300 bg-white p-8 text-center"><div><Sparkles className="mx-auto h-9 w-9 text-orange-500" /><h4 className="mt-3 text-lg font-black text-[#0b1f3a]">Your concepts will appear here</h4><p className="mt-1 max-w-md text-sm text-slate-600">Confirm the creative brief, then GPT Image 2 will create the background, apply exact text and logo layers, and validate the finished artwork.</p></div></div>}

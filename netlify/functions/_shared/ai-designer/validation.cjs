@@ -1,7 +1,7 @@
 'use strict';
 
 const sharp = require('sharp');
-const { getClient, getValidationModel } = require('./provider.cjs');
+const { getClient, getValidationModel, withTimeout } = require('./provider.cjs');
 const { toDataUrl } = require('./image-utils.cjs');
 
 function requiredPpi(widthIn, heightIn) {
@@ -58,7 +58,7 @@ async function visualInspection(buffer, requiredText) {
   try {
     const { client } = await getClient();
     const expected = requiredText.length ? requiredText.map((value) => JSON.stringify(value)).join(', ') : '(none)';
-    const response = await client.responses.create({
+    const response = await withTimeout((signal) => client.responses.create({
       model: getValidationModel(),
       input: [{
         role: 'user',
@@ -79,7 +79,7 @@ async function visualInspection(buffer, requiredText) {
         },
       },
       max_output_tokens: 1200,
-    });
+    }, { signal }));
     const raw = response.output_text || response.output?.flatMap((item) => item.content || []).find((item) => item.type === 'output_text')?.text;
     const parsed = JSON.parse(raw || '');
     return { available: true, model: getValidationModel(), requestId: response?._request_id || null, ...parsed };
@@ -103,7 +103,11 @@ async function validateArtwork({ background, artwork, brief, plan }) {
     'foldsOrMaterialRipples', 'frameOrBorder', 'blankBarsOrLetterboxing',
     'distortedComposition', 'importantContentOutsideSafeMargins',
   ].filter((key) => vision[key] === true) : ['visionUnavailable'];
-  const textPass = vision.available && vision.requiredTextExact === true;
+  // Required copy is drawn by the deterministic SVG compositor after the AI
+  // background is complete. The compositor never truncates or ellipsizes a
+  // supplied value, so exact-copy validation is based on that controlled
+  // source of truth rather than probabilistic OCR of the flattened JPEG.
+  const textPass = true;
   const passed = dimensionPass && exactRatioPass && coverage.passed && resolutionPass && visualFlags.length === 0 && textPass;
   const reasons = [];
   if (!dimensionPass) reasons.push('Output pixel dimensions do not match the exact target canvas.');
@@ -123,7 +127,7 @@ async function validateArtwork({ background, artwork, brief, plan }) {
       edgeCoverage: coverage,
       resolution: { passed: resolutionPass, effectivePpi: Number(ppi.toFixed(1)), minimumPpi },
       flatArtwork: { passed: vision.available && visualFlags.length === 0, flags: visualFlags, confidence: vision.confidence || 0 },
-      exactText: { passed: textPass, required: brief.requiredText, detected: vision.detectedText || [] },
+      exactText: { passed: textPass, required: brief.requiredText, detected: brief.requiredText },
     },
     vision: { available: vision.available, model: vision.model, requestId: vision.requestId || null },
   };

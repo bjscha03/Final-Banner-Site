@@ -13,6 +13,7 @@ export type AIAdminStatus = {
   modelSnapshot: string | null;
   validationModel: string | null;
   modelAvailable: boolean;
+  validationModelAvailable: boolean;
   ready: boolean;
   blocker: string | null;
   refresh: () => void;
@@ -29,6 +30,7 @@ const CLOSED: Omit<AIAdminStatus, 'refresh'> = {
   modelSnapshot: null,
   validationModel: null,
   modelAvailable: false,
+  validationModelAvailable: false,
   ready: false,
   blocker: 'AI_NOT_ENABLED',
 };
@@ -77,6 +79,7 @@ export function useAIAdminAccess(active = true) {
           modelSnapshot: body.modelSnapshot || null,
           validationModel: body.validationModel || null,
           modelAvailable: body.modelAvailable === true,
+          validationModelAvailable: body.validationModelAvailable === true,
           ready: body.ready === true,
           blocker: body.blocker || null,
         });

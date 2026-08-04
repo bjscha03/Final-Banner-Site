@@ -48,12 +48,17 @@
   memory = 1024
 
 [functions."ai-designer-generate"]
-  timeout = 120
   memory = 2048
 
 [functions."ai-designer-edit"]
-  timeout = 120
   memory = 2048
+
+[functions."ai-designer-worker-background"]
+  background = true
+  memory = 2048
+
+[functions."ai-designer-job"]
+  memory = 512
 
 [functions."ai-designer-status"]
   timeout = 30

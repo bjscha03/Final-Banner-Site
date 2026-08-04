@@ -1,15 +1,23 @@
 'use strict';
 
 const crypto = require('crypto');
-const { isEnabled, getImageModel, getValidationModel, getMaxConcepts, MODEL_SNAPSHOT } = require('./config.cjs');
+const { isEnabled, getImageModel, getValidationModel, MODEL_SNAPSHOT } = require('./config.cjs');
 const { normalizeBrief, cleanText, stableHash } = require('./schema.cjs');
 const { planCanvas, parseDataImage, validateInputImage, normalizeBackground, prepareOutpaintInput } = require('./image-utils.cjs');
 const { buildGenerationPrompt, buildEditPrompt, buildRepairPrompt } = require('./prompt.cjs');
-const { verifyModelAccess, generateImage, editImage, structureCreativeBrief } = require('./provider.cjs');
+const { verifyModelAccess, verifyValidationModelAccess, generateImage, editImage, structureCreativeBrief } = require('./provider.cjs');
 const { compositeArtwork } = require('./compositor.cjs');
 const { validateArtwork } = require('./validation.cjs');
-const { isTemporaryStorageConfigured, storeTemporaryArtwork, readTemporaryArtwork } = require('./storage.cjs');
-const { json, authorize, enforceBodyLimit, rateLimit, idempotencyKey, runIdempotent, safeError } = require('./security.cjs');
+const {
+  isTemporaryStorageConfigured,
+  storeTemporaryArtwork,
+  readTemporaryArtwork,
+  createJob,
+  readJob,
+  readJobInternal,
+  writeJobInternal,
+} = require('./storage.cjs');
+const { json, authorize, enforceBodyLimit, rateLimit, idempotencyKey, runIdempotent, safeError, safeErrorPayload } = require('./security.cjs');
 
 function parseBody(event) {
   try {
@@ -32,18 +40,6 @@ function ensureConfigured(event) {
 
 function providerUser(session) {
   return crypto.createHash('sha256').update(String(session.sub || 'admin')).digest('hex').slice(0, 64);
-}
-
-function estimateImageCost(results) {
-  const total = results.reduce((sum, result) => {
-    const usage = result?.usage;
-    if (!usage) return sum;
-    const inputImage = Number(usage.input_tokens_details?.image_tokens || 0);
-    const inputText = Number(usage.input_tokens_details?.text_tokens || Math.max(0, Number(usage.input_tokens || 0) - inputImage));
-    const outputImage = Number(usage.output_tokens_details?.image_tokens || usage.output_tokens || 0);
-    return sum + (inputImage * 8 + inputText * 5 + outputImage * 30) / 1_000_000;
-  }, 0);
-  return results.some((result) => result?.usage) ? Number(total.toFixed(6)) : null;
 }
 
 function publicBrief(brief) {
@@ -98,65 +94,210 @@ async function prepareInputs(body) {
   return { brief, plan, reference, logo };
 }
 
-async function briefHandler(event) {
+function requestForJob(body) {
+  const request = { ...body };
+  delete request.adminSessionToken;
+  delete request.sessionToken;
+  return request;
+}
+
+const JOB_LIMITS = {
+  brief: { bytes: 100 * 1024, requests: 20 },
+  generate: { bytes: 5 * 1024 * 1024, requests: 8 },
+  edit: { bytes: 5 * 1024 * 1024, requests: 12 },
+};
+
+async function enqueueHandler(event, action) {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: { Allow: 'POST, OPTIONS' }, body: '' };
   if (event.httpMethod !== 'POST') return json(405, { error: 'METHOD_NOT_ALLOWED', message: 'Use POST.' }, { Allow: 'POST, OPTIONS' });
   const auth = authorize(event);
   if (auth.response) return auth.response;
-  const sizeError = enforceBodyLimit(event, 100 * 1024);
+  const limits = JOB_LIMITS[action];
+  const sizeError = enforceBodyLimit(event, limits.bytes);
   if (sizeError) return sizeError;
-  const limited = rateLimit(event, auth.session, 'brief', 20, 10 * 60 * 1000);
+  const limited = rateLimit(event, auth.session, action, limits.requests, 10 * 60 * 1000);
   if (limited) return limited;
   try {
     ensureConfigured(event);
+    const access = await verifyModelAccess();
+    if (!access.available) {
+      const error = new Error('Model unavailable.');
+      error.code = 'MODEL_ACCESS_DENIED';
+      throw error;
+    }
     const body = parseBody(event);
-    const key = idempotencyKey(event, body, auth.session, 'brief');
+    const key = idempotencyKey(event, body, auth.session, action);
     return await runIdempotent(key, async () => {
-      const current = normalizeBrief({ ...(body.brief || body), structured: false });
-      const interpreted = await structureCreativeBrief({
-        description: current.description,
-        current: {
-          purpose: current.purpose,
-          targetAudience: current.targetAudience,
-          visualStyle: current.visualStyle,
-          brandPersonality: current.brandPersonality,
-          colorPalette: current.colorPalette,
-          subjectMatter: current.subjectMatter,
-          composition: current.composition,
-          focalPoint: current.focalPoint,
-          viewingDistance: current.viewingDistance,
-          textPosition: current.textPosition,
-        },
-        dimensions: `${current.widthIn} inches wide by ${current.heightIn} inches high (${current.aspectRatio.toFixed(6)}:1)`,
-        usage: current.usage,
-        user: providerUser(auth.session),
+      const job = await createJob({
+        session: auth.session,
+        action,
+        request: requestForJob(body),
+        jobId: key,
       });
-      const brief = normalizeBrief({
-        ...current,
-        ...interpreted.brief,
-        copy: current.copy,
-        widthIn: current.widthIn,
-        heightIn: current.heightIn,
-        material: current.material,
-        quantity: current.quantity,
-        productType: current.productType,
-        textPosition: current.textPosition,
-        logoPosition: current.logoPosition,
-        description: current.description,
-        structured: true,
+      return json(202, {
+        ok: true,
+        status: job.record.status,
+        jobRef: job.reference,
+        workerPath: '/.netlify/functions/ai-designer-worker-background',
+        pollPath: '/.netlify/functions/ai-designer-job',
+        pollAfterMs: 2000,
       });
-      return json(200, { ok: true, brief: publicBrief(brief), model: interpreted.model, requestId: interpreted.requestId });
     });
   } catch (error) {
     return safeError(error);
   }
 }
 
+async function jobHandler(event) {
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: { Allow: 'POST, OPTIONS' }, body: '' };
+  if (event.httpMethod !== 'POST') return json(405, { error: 'METHOD_NOT_ALLOWED', message: 'Use POST.' }, { Allow: 'POST, OPTIONS' });
+  // Polling is read-only. Authentication and the session-bound signed job
+  // reference protect the result even when Netlify's preview drawer rewrites
+  // the forwarded host.
+  const auth = authorize(event, { skipOrigin: true });
+  if (auth.response) return auth.response;
+  const sizeError = enforceBodyLimit(event, 64 * 1024);
+  if (sizeError) return sizeError;
+  try {
+    const body = parseBody(event);
+    const record = await readJob(body.jobRef, auth.session);
+    if (record.status === 'completed') return json(200, { ok: true, status: 'completed', action: record.action, ...record.result });
+    if (record.status === 'failed') return json(200, { ok: false, status: 'failed', action: record.action, ...record.error });
+    return json(200, {
+      ok: true,
+      status: record.status,
+      action: record.action,
+      stage: record.stage,
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
+    });
+  } catch (error) {
+    return safeError(error);
+  }
+}
+
+async function writeJobReliable(reference, record) {
+  let lastError;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      await writeJobInternal(reference, record);
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
+    }
+  }
+  throw lastError;
+}
+
+async function claimJob(reference, record) {
+  if (!record || ['completed', 'failed'].includes(record.status)) return null;
+  if (record.status === 'processing') {
+    const ageMs = Date.now() - new Date(record.updatedAt || record.createdAt || 0).getTime();
+    if (ageMs < 12 * 60 * 1000) return null;
+  }
+  const attemptId = crypto.randomUUID();
+  const claimed = { ...record, status: 'processing', stage: 'Preparing the AI request', attemptId };
+  await writeJobReliable(reference, claimed);
+  const confirmed = await readJobInternal(reference);
+  return confirmed?.attemptId === attemptId ? confirmed : null;
+}
+
+async function workerHandler(event) {
+  if (event.httpMethod !== 'POST') return json(405, { error: 'METHOD_NOT_ALLOWED', message: 'Use POST.' }, { Allow: 'POST' });
+  const sizeError = enforceBodyLimit(event, 64 * 1024);
+  if (sizeError) return sizeError;
+  let reference;
+  let claimed;
+  try {
+    reference = String(parseBody(event).jobRef || '');
+    const record = await readJobInternal(reference);
+    claimed = await claimJob(reference, record);
+    if (!claimed) return json(200, { ok: true, status: record?.status || 'ignored' });
+    ensureConfigured(event);
+    let result;
+    if (claimed.action === 'brief') result = await runBriefRequest(claimed.request, claimed.session);
+    else if (claimed.action === 'generate') result = await runGenerateRequest(claimed.request, claimed.session);
+    else if (claimed.action === 'edit') result = await runEditRequest(claimed.request, claimed.session);
+    else {
+      const error = new Error('Unknown AI job action.');
+      error.code = 'INVALID_REQUEST';
+      throw error;
+    }
+    await writeJobReliable(reference, {
+      version: claimed.version,
+      jobId: claimed.jobId,
+      action: claimed.action,
+      status: 'completed',
+      stage: 'Complete',
+      createdAt: claimed.createdAt,
+      result,
+    });
+    return json(200, { ok: true, status: 'completed' });
+  } catch (error) {
+    console.error('[ai_designer_background_failed]', { action: claimed?.action || null, category: error?.code || 'AI_REQUEST_FAILED' });
+    if (reference && claimed) {
+      const safe = safeErrorPayload(error);
+      await writeJobReliable(reference, {
+        version: claimed.version,
+        jobId: claimed.jobId,
+        action: claimed.action,
+        status: 'failed',
+        stage: 'Failed',
+        createdAt: claimed.createdAt,
+        error: safe,
+      }).catch(() => null);
+    }
+    return json(200, { ok: false, status: 'failed' });
+  }
+}
+
+async function runBriefRequest(body, session) {
+  const current = normalizeBrief({ ...(body.brief || body), structured: false });
+  const interpreted = await structureCreativeBrief({
+    description: current.description,
+    current: {
+      purpose: current.purpose,
+      targetAudience: current.targetAudience,
+      visualStyle: current.visualStyle,
+      brandPersonality: current.brandPersonality,
+      colorPalette: current.colorPalette,
+      subjectMatter: current.subjectMatter,
+      composition: current.composition,
+      focalPoint: current.focalPoint,
+      viewingDistance: current.viewingDistance,
+      textPosition: current.textPosition,
+    },
+    dimensions: `${current.widthIn} inches wide by ${current.heightIn} inches high (${current.aspectRatio.toFixed(6)}:1)`,
+    usage: current.usage,
+    user: providerUser(session),
+  });
+  const brief = normalizeBrief({
+    ...current,
+    ...interpreted.brief,
+    copy: current.copy,
+    widthIn: current.widthIn,
+    heightIn: current.heightIn,
+    material: current.material,
+    quantity: current.quantity,
+    productType: current.productType,
+    textPosition: current.textPosition,
+    logoPosition: current.logoPosition,
+    description: current.description,
+    structured: true,
+  });
+  return { ok: true, brief: publicBrief(brief), model: interpreted.model, requestId: interpreted.requestId };
+}
+
+async function briefHandler(event) {
+  return enqueueHandler(event, 'brief');
+}
+
 function repairableFailures(validation) {
   if (validation.passed) return [];
   const failures = [];
   if (!validation.checks.edgeCoverage.passed) failures.push('blank or letterboxed edge coverage');
-  if (!validation.checks.flatArtwork.passed && validation.checks.flatArtwork.flags.length) failures.push(...validation.checks.flatArtwork.flags);
+  if (validation.vision.available && !validation.checks.flatArtwork.passed && validation.checks.flatArtwork.flags.length) failures.push(...validation.checks.flatArtwork.flags);
   if (!validation.checks.aspectRatio.passed) failures.push('incorrect aspect ratio');
   return failures;
 }
@@ -199,11 +340,15 @@ async function statusHandler(event) {
   const temporaryStorageConfigured = isTemporaryStorageConfigured();
   let model = null;
   let access = { available: false, error: enabled && keyConfigured ? 'MODEL_NOT_CHECKED' : 'AI_NOT_CONFIGURED' };
+  let validationAccess = { available: false, error: enabled && keyConfigured ? 'MODEL_NOT_CHECKED' : 'AI_NOT_CONFIGURED' };
   try {
     model = getImageModel();
-    if (enabled && keyConfigured && temporaryStorageConfigured) access = await verifyModelAccess();
+    if (enabled && keyConfigured && temporaryStorageConfigured) {
+      [access, validationAccess] = await Promise.all([verifyModelAccess(), verifyValidationModelAccess()]);
+    }
   } catch (error) {
     access = { available: false, error: error.code || 'UNAPPROVED_IMAGE_MODEL' };
+    validationAccess = { available: false, error: error.code || 'MODEL_ACCESS_DENIED' };
   }
   return json(200, {
     authorized: true,
@@ -214,194 +359,156 @@ async function statusHandler(event) {
     modelSnapshot: model === MODEL_SNAPSHOT ? MODEL_SNAPSHOT : null,
     validationModel: getValidationModel(),
     modelAvailable: access.available === true,
+    validationModelAvailable: validationAccess.available === true,
     checkedAt: access.checkedAt || new Date().toISOString(),
-    ready: enabled && keyConfigured && temporaryStorageConfigured && access.available === true,
+    ready: enabled && keyConfigured && temporaryStorageConfigured && access.available === true && validationAccess.available === true,
     blocker: !enabled ? 'AI_NOT_CONFIGURED'
       : !keyConfigured ? 'AI_NOT_CONFIGURED'
         : !temporaryStorageConfigured ? 'TEMP_STORAGE_NOT_CONFIGURED'
-          : access.available ? null : access.error,
+          : !access.available ? access.error
+            : validationAccess.available ? null : 'VALIDATION_MODEL_ACCESS_DENIED',
   });
 }
 
-async function generateHandler(event) {
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: { Allow: 'POST, OPTIONS' }, body: '' };
-  if (event.httpMethod !== 'POST') return json(405, { error: 'METHOD_NOT_ALLOWED', message: 'Use POST.' }, { Allow: 'POST, OPTIONS' });
-  const auth = authorize(event);
-  if (auth.response) return auth.response;
-  const sizeError = enforceBodyLimit(event, 7 * 1024 * 1024);
-  if (sizeError) return sizeError;
-  const limited = rateLimit(event, auth.session, 'generate', 8, 10 * 60 * 1000);
-  if (limited) return limited;
-  try {
-    ensureConfigured(event);
-    const access = await verifyModelAccess();
-    if (!access.available) {
-      const error = new Error('Model unavailable.');
-      error.code = 'MODEL_ACCESS_DENIED';
-      throw error;
-    }
-    const body = parseBody(event);
-    const key = idempotencyKey(event, body, auth.session, 'generate');
-    return await runIdempotent(key, async () => {
-      const started = Date.now();
-      const { brief, plan, reference, logo } = await prepareInputs(body);
-      if (!brief.structured) {
-        const error = new Error('Review and confirm the structured creative brief before generating.');
-        error.code = 'INVALID_REQUEST';
-        throw error;
-      }
-      const count = Math.max(1, Math.min(getMaxConcepts(), Math.floor(Number(body.conceptCount) || 1)));
-      const generationId = crypto.randomUUID();
-      const concepts = [];
-      for (let index = 0; index < count; index += 1) {
-        const conceptStarted = Date.now();
-        const generated = await generateImage({
-          prompt: buildGenerationPrompt(brief, plan, index),
-          size: plan.providerSize,
-          user: providerUser(auth.session),
-        });
-        const providerCalls = [generated];
-        let guided = generated;
-        if (reference || plan.strategy === 'gpt-image-2-outpainting') {
-          const outpaint = await prepareOutpaintInput(generated.buffer, plan);
-          const guidance = [
-            reference ? 'Use the second supplied image only as visual brand and style guidance. Do not reproduce text from the reference.' : '',
-            plan.strategy === 'gpt-image-2-outpainting'
-              ? 'Outpaint every transparent area for the stated extreme-ratio safe corridor before final-canvas extraction. Keep the complete opaque source composition intact and extend only coherent, nonessential background beyond it.'
-              : '',
-            'Preserve the first image as the current composition and keep everything else as unchanged as technically possible.',
-          ].filter(Boolean).join(' ');
-          guided = await editImage({
-            prompt: buildEditPrompt(brief, plan, guidance),
-            size: plan.providerSize,
-            currentImage: outpaint?.image || generated.buffer,
-            currentMime: outpaint?.mimeType || 'image/jpeg',
-            maskImage: outpaint?.mask,
-            referenceImage: reference,
-            user: providerUser(auth.session),
-          });
-          providerCalls.push(guided);
-        }
-        const finalized = await finalizeConcept({ rawBackground: guided.buffer, brief, plan, logo, reference, session: auth.session, providerResult: guided, providerCalls });
-        const conceptId = crypto.randomUUID();
-        const backgroundRef = await storeTemporaryArtwork(finalized.background, { session: auth.session, generationId });
-        concepts.push(conceptPayload({
-          id: conceptId,
-          versionId: crypto.randomUUID(),
-          generationId,
-          backgroundRef,
-          artwork: finalized.composite.buffer,
-          brief,
-          plan,
-          validation: finalized.validation,
-          model: finalized.provider.model,
-          requestId: finalized.provider.requestId,
-          durationMs: Date.now() - conceptStarted,
-          textLayers: finalized.composite.textLayers,
-          logoLayer: finalized.composite.logoLayer,
-          repaired: finalized.repaired,
-          usage: finalized.provider.usage,
-          estimatedCostUsd: estimateImageCost(providerCalls),
-        }));
-      }
-      console.info('[ai_designer_generation]', {
-        generationId,
-        model: getImageModel(),
-        durationMs: Date.now() - started,
-        outputDimensions: `${plan.finalWidth}x${plan.finalHeight}`,
-        requestedAspectRatio: brief.aspectRatio,
-        ratioStrategy: plan.strategy,
-        validationStatuses: concepts.map((concept) => concept.validation.status),
-      });
-      return json(200, { ok: true, generationId, brief: publicBrief(brief), concepts, durationMs: Date.now() - started });
-    });
-  } catch (error) {
-    return safeError(error);
+async function runGenerateRequest(body, session) {
+  const started = Date.now();
+  const { brief, plan, reference, logo } = await prepareInputs(body);
+  if (!brief.structured) {
+    const error = new Error('Review and confirm the structured creative brief before generating.');
+    error.code = 'INVALID_REQUEST';
+    throw error;
   }
+  // A single high-quality concept per background job keeps every request
+  // inside Netlify's 15-minute background limit. The UI retains up to four
+  // concepts for comparison across separate requests.
+  const generationId = crypto.randomUUID();
+  const conceptStarted = Date.now();
+  const generated = await generateImage({
+    prompt: buildGenerationPrompt(brief, plan, 0),
+    size: plan.providerSize,
+    user: providerUser(session),
+  });
+  const providerCalls = [generated];
+  let guided = generated;
+  if (reference || plan.strategy === 'gpt-image-2-outpainting') {
+    const outpaint = await prepareOutpaintInput(generated.buffer, plan);
+    const guidance = [
+      reference ? 'Use the second supplied image only as visual brand and style guidance. Do not reproduce text from the reference.' : '',
+      plan.strategy === 'gpt-image-2-outpainting'
+        ? 'Outpaint every transparent area for the stated extreme-ratio safe corridor before final-canvas extraction. Keep the complete opaque source composition intact and extend only coherent, nonessential background beyond it.'
+        : '',
+      'Preserve the first image as the current composition and keep everything else as unchanged as technically possible.',
+    ].filter(Boolean).join(' ');
+    guided = await editImage({
+      prompt: buildEditPrompt(brief, plan, guidance),
+      size: plan.providerSize,
+      currentImage: outpaint?.image || generated.buffer,
+      currentMime: outpaint?.mimeType || 'image/jpeg',
+      maskImage: outpaint?.mask,
+      referenceImage: reference,
+      user: providerUser(session),
+    });
+    providerCalls.push(guided);
+  }
+  const finalized = await finalizeConcept({ rawBackground: guided.buffer, brief, plan, logo, reference, session, providerResult: guided, providerCalls });
+  const backgroundRef = await storeTemporaryArtwork(finalized.background, { session, generationId });
+  const concept = conceptPayload({
+    id: crypto.randomUUID(),
+    versionId: crypto.randomUUID(),
+    generationId,
+    backgroundRef,
+    artwork: finalized.composite.buffer,
+    brief,
+    plan,
+    validation: finalized.validation,
+    model: finalized.provider.model,
+    requestId: finalized.provider.requestId,
+    durationMs: Date.now() - conceptStarted,
+    textLayers: finalized.composite.textLayers,
+    logoLayer: finalized.composite.logoLayer,
+    repaired: finalized.repaired,
+    usage: finalized.provider.usage,
+    estimatedCostUsd: null,
+  });
+  console.info('[ai_designer_generation]', {
+    generationId,
+    model: getImageModel(),
+    durationMs: Date.now() - started,
+    outputDimensions: `${plan.finalWidth}x${plan.finalHeight}`,
+    requestedAspectRatio: brief.aspectRatio,
+    ratioStrategy: plan.strategy,
+    validationStatuses: [concept.validation.status],
+  });
+  return { ok: true, generationId, brief: publicBrief(brief), concepts: [concept], durationMs: Date.now() - started };
+}
+
+async function generateHandler(event) {
+  return enqueueHandler(event, 'generate');
+}
+
+async function runEditRequest(body, session) {
+  const started = Date.now();
+  const { brief, plan, reference, logo } = await prepareInputs(body);
+  if (!brief.structured) {
+    const error = new Error('A confirmed structured creative brief is required for editing.');
+    error.code = 'INVALID_REQUEST';
+    throw error;
+  }
+  const current = await validateInputImage(await readTemporaryArtwork(body.currentBackgroundRef, session), 40_000_000);
+  if (!current) {
+    const error = new Error('Current artwork is required for editing.');
+    error.code = 'INVALID_IMAGE';
+    throw error;
+  }
+  const instruction = cleanText(body.editInstruction, 700);
+  if (!instruction) {
+    const error = new Error('Describe the change to make.');
+    error.code = 'INVALID_REQUEST';
+    throw error;
+  }
+  const edited = await editImage({
+    prompt: buildEditPrompt(brief, plan, instruction),
+    size: plan.providerSize,
+    currentImage: current.buffer,
+    currentMime: current.mimeType,
+    referenceImage: reference,
+    user: providerUser(session),
+  });
+  const providerCalls = [edited];
+  const finalized = await finalizeConcept({ rawBackground: edited.buffer, brief, plan, logo, reference, session, providerResult: edited, providerCalls });
+  const backgroundRef = await storeTemporaryArtwork(finalized.background, { session, generationId: String(body.generationId || 'edit') });
+  const concept = conceptPayload({
+    id: String(body.conceptId || crypto.randomUUID()),
+    versionId: crypto.randomUUID(),
+    generationId: String(body.generationId || crypto.randomUUID()),
+    backgroundRef,
+    artwork: finalized.composite.buffer,
+    brief,
+    plan,
+    validation: finalized.validation,
+    model: finalized.provider.model,
+    requestId: finalized.provider.requestId,
+    durationMs: Date.now() - started,
+    textLayers: finalized.composite.textLayers,
+    logoLayer: finalized.composite.logoLayer,
+    repaired: finalized.repaired,
+    usage: finalized.provider.usage,
+    estimatedCostUsd: null,
+  });
+  console.info('[ai_designer_edit]', {
+    conceptId: concept.id,
+    versionId: concept.versionId,
+    model: getImageModel(),
+    durationMs: Date.now() - started,
+    usedOriginalImage: true,
+    outputDimensions: `${plan.finalWidth}x${plan.finalHeight}`,
+    validationStatus: concept.validation.status,
+  });
+  return { ok: true, brief: publicBrief(brief), concept, usedOriginalImage: true, durationMs: Date.now() - started };
 }
 
 async function editHandler(event) {
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: { Allow: 'POST, OPTIONS' }, body: '' };
-  if (event.httpMethod !== 'POST') return json(405, { error: 'METHOD_NOT_ALLOWED', message: 'Use POST.' }, { Allow: 'POST, OPTIONS' });
-  const auth = authorize(event);
-  if (auth.response) return auth.response;
-  const sizeError = enforceBodyLimit(event, 10 * 1024 * 1024);
-  if (sizeError) return sizeError;
-  const limited = rateLimit(event, auth.session, 'edit', 12, 10 * 60 * 1000);
-  if (limited) return limited;
-  try {
-    ensureConfigured(event);
-    const access = await verifyModelAccess();
-    if (!access.available) {
-      const error = new Error('Model unavailable.');
-      error.code = 'MODEL_ACCESS_DENIED';
-      throw error;
-    }
-    const body = parseBody(event);
-    const key = idempotencyKey(event, body, auth.session, 'edit');
-    return await runIdempotent(key, async () => {
-      const started = Date.now();
-      const { brief, plan, reference, logo } = await prepareInputs(body);
-      if (!brief.structured) {
-        const error = new Error('A confirmed structured creative brief is required for editing.');
-        error.code = 'INVALID_REQUEST';
-        throw error;
-      }
-      const current = await validateInputImage(await readTemporaryArtwork(body.currentBackgroundRef, auth.session), 40_000_000);
-      if (!current) {
-        const error = new Error('Current artwork is required for editing.');
-        error.code = 'INVALID_IMAGE';
-        throw error;
-      }
-      const instruction = cleanText(body.editInstruction, 700);
-      if (!instruction) {
-        const error = new Error('Describe the change to make.');
-        error.code = 'INVALID_REQUEST';
-        throw error;
-      }
-      const edited = await editImage({
-        prompt: buildEditPrompt(brief, plan, instruction),
-        size: plan.providerSize,
-        currentImage: current.buffer,
-        currentMime: current.mimeType,
-        referenceImage: reference,
-        user: providerUser(auth.session),
-      });
-      const providerCalls = [edited];
-      const finalized = await finalizeConcept({ rawBackground: edited.buffer, brief, plan, logo, reference, session: auth.session, providerResult: edited, providerCalls });
-      const backgroundRef = await storeTemporaryArtwork(finalized.background, { session: auth.session, generationId: String(body.generationId || 'edit') });
-      const concept = conceptPayload({
-        id: String(body.conceptId || crypto.randomUUID()),
-        versionId: crypto.randomUUID(),
-        generationId: String(body.generationId || crypto.randomUUID()),
-        backgroundRef,
-        artwork: finalized.composite.buffer,
-        brief,
-        plan,
-        validation: finalized.validation,
-        model: finalized.provider.model,
-        requestId: finalized.provider.requestId,
-        durationMs: Date.now() - started,
-        textLayers: finalized.composite.textLayers,
-        logoLayer: finalized.composite.logoLayer,
-        repaired: finalized.repaired,
-        usage: finalized.provider.usage,
-        estimatedCostUsd: estimateImageCost(providerCalls),
-      });
-      console.info('[ai_designer_edit]', {
-        conceptId: concept.id,
-        versionId: concept.versionId,
-        model: getImageModel(),
-        durationMs: Date.now() - started,
-        usedOriginalImage: true,
-        outputDimensions: `${plan.finalWidth}x${plan.finalHeight}`,
-        validationStatus: concept.validation.status,
-      });
-      return json(200, { ok: true, brief: publicBrief(brief), concept, usedOriginalImage: true, durationMs: Date.now() - started });
-    });
-  } catch (error) {
-    return safeError(error);
-  }
+  return enqueueHandler(event, 'edit');
 }
 
 function retiredHandler(event) {
@@ -413,4 +520,4 @@ function retiredHandler(event) {
   });
 }
 
-module.exports = { statusHandler, briefHandler, generateHandler, editHandler, retiredHandler };
+module.exports = { statusHandler, briefHandler, generateHandler, editHandler, jobHandler, workerHandler, retiredHandler };

@@ -3,7 +3,7 @@
 const { getImageModel, getValidationModel, getTimeoutMs } = require('./config.cjs');
 
 let cachedClient;
-let accessCache;
+const accessCache = new Map();
 
 async function getClient() {
   if (!process.env.OPENAI_API_KEY) {
@@ -31,9 +31,24 @@ function classifyProviderError(error) {
     safe.code = 'PROVIDER_RATE_LIMITED';
     throw safe;
   }
-  if (error?.name === 'AbortError') {
+  if (
+    error?.name === 'AbortError'
+    || error?.name === 'APIConnectionTimeoutError'
+    || error?.cause?.name === 'AbortError'
+    || ['ETIMEDOUT', 'ECONNABORTED'].includes(code)
+  ) {
     const safe = new Error('OpenAI image request timed out.');
     safe.code = 'PROVIDER_TIMEOUT';
+    throw safe;
+  }
+  if (status === 429 || status >= 500) {
+    const safe = new Error('OpenAI is temporarily unavailable.');
+    safe.code = 'PROVIDER_UNAVAILABLE';
+    throw safe;
+  }
+  if (status === 400 || ['moderation_blocked', 'image_generation_user_error'].includes(code)) {
+    const safe = new Error('OpenAI could not create this request as written. Adjust the description or supplied image and try again.');
+    safe.code = 'PROVIDER_USER_ERROR';
     throw safe;
   }
   const safe = new Error('OpenAI image request failed.');
@@ -41,9 +56,9 @@ function classifyProviderError(error) {
   throw safe;
 }
 
-async function withTimeout(task) {
+async function withTimeout(task, timeoutMs = getTimeoutMs()) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), getTimeoutMs());
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await task(controller.signal);
   } finally {
@@ -51,23 +66,34 @@ async function withTimeout(task) {
   }
 }
 
-async function verifyModelAccess({ force = false } = {}) {
+async function verifyNamedModelAccess(model, { force = false } = {}) {
   const now = Date.now();
-  if (!force && accessCache && accessCache.expiresAt > now) return accessCache.value;
-  const model = getImageModel();
+  const cached = accessCache.get(model);
+  if (!force && cached && cached.expiresAt > now) return cached.value;
   try {
     const { client } = await getClient();
-    const result = await withTimeout((signal) => client.models.retrieve(model, { signal }));
-    const value = { available: result?.id === model || result?.id === 'gpt-image-2', model, checkedAt: new Date().toISOString() };
-    accessCache = { value, expiresAt: now + 5 * 60 * 1000 };
+    // Readiness checks run in a synchronous Netlify function. Keep this probe
+    // short; the long-running generation and edit work is handled by a
+    // background function.
+    const result = await withTimeout((signal) => client.models.retrieve(model, { signal }), 10000);
+    const value = { available: result?.id === model || (model === getImageModel() && result?.id === 'gpt-image-2'), model, checkedAt: new Date().toISOString() };
+    accessCache.set(model, { value, expiresAt: now + 5 * 60 * 1000 });
     return value;
   } catch (error) {
     try { classifyProviderError(error); } catch (safe) {
       const value = { available: false, model, checkedAt: new Date().toISOString(), error: safe.code };
-      accessCache = { value, expiresAt: now + 60 * 1000 };
+      accessCache.set(model, { value, expiresAt: now + 60 * 1000 });
       return value;
     }
   }
+}
+
+async function verifyModelAccess(options = {}) {
+  return verifyNamedModelAccess(getImageModel(), options);
+}
+
+async function verifyValidationModelAccess(options = {}) {
+  return verifyNamedModelAccess(getValidationModel(), options);
 }
 
 function resultFromResponse(response) {
@@ -126,7 +152,8 @@ async function editImage({ prompt, size, currentImage, currentMime = 'image/jpeg
       n: 1,
       size,
       quality: 'high',
-      input_fidelity: 'high',
+      // GPT Image 2 always processes image inputs at high fidelity and rejects
+      // an explicit input_fidelity override.
       output_format: 'jpeg',
       output_compression: 90,
       background: 'opaque',
@@ -188,8 +215,10 @@ async function structureCreativeBrief({ description, current, dimensions, usage,
 module.exports = {
   getClient,
   verifyModelAccess,
+  verifyValidationModelAccess,
   generateImage,
   editImage,
   structureCreativeBrief,
   getValidationModel,
+  withTimeout,
 };

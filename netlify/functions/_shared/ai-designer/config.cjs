@@ -34,8 +34,8 @@ function getMaxConcepts() {
 }
 
 function getTimeoutMs() {
-  const configured = Number(process.env.OPENAI_IMAGE_TIMEOUT_MS || 115000);
-  return Math.max(15000, Math.min(118000, Number.isFinite(configured) ? configured : 115000));
+  const configured = Number(process.env.OPENAI_IMAGE_TIMEOUT_MS || 165000);
+  return Math.max(15000, Math.min(180000, Number.isFinite(configured) ? configured : 165000));
 }
 
 module.exports = {

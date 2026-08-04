@@ -70,28 +70,52 @@ async function compositeArtwork({ background, brief, logo }) {
   const textColor = /^#[0-9a-f]{6}$/i.test(brief.textColor || '') ? brief.textColor : '#ffffff';
   const accentColor = /^#[0-9a-f]{6}$/i.test(brief.accentColor || '') ? brief.accentColor : '#f97316';
   const copy = brief.copy;
-  const blocks = [];
-  let y = height * 0.21;
+  const specs = [
+    [copy.businessName, 0.045, 'businessName', { color: accentColor, weight: 700, maxLines: 1, gapPct: 0.035 }],
+    [copy.headline, 0.105, 'headline', { weight: 900, maxLines: 2, gapPct: 0.04 }],
+    [copy.supportingText, 0.047, 'supportingText', { weight: 600, maxLines: 2, gapPct: 0.03 }],
+    [copy.offer, 0.07, 'offer', { color: accentColor, weight: 900, maxLines: 1, gapPct: 0.035 }],
+    [copy.callToAction, 0.052, 'callToAction', { weight: 800, maxLines: 1, gapPct: 0.03 }],
+    ...[copy.phone, copy.website, copy.address, copy.date, copy.other]
+      .map((value) => [value, 0.034, 'detail', { weight: 650, maxLines: 1, gapPct: 0.018 }]),
+  ];
 
-  const add = (value, sizePct, role, options = {}) => {
-    const block = renderTextBlock({ value, x, y, fontSize: height * sizePct, width: maxWidth, anchor, color: options.color || textColor, weight: options.weight || 700, maxLines: options.maxLines || 2, role });
-    if (block.layer) {
-      blocks.push(block);
-      y += block.height + height * (options.gapPct || 0.035);
+  const layoutAtScale = (scale) => {
+    const laidOut = [];
+    let y = height * 0.12;
+    for (const [value, sizePct, role, options] of specs) {
+      const block = renderTextBlock({
+        value,
+        x,
+        y,
+        fontSize: height * sizePct * scale,
+        width: maxWidth,
+        anchor,
+        color: options.color || textColor,
+        weight: options.weight || 700,
+        maxLines: options.maxLines || 2,
+        role,
+      });
+      if (block.layer) {
+        laidOut.push(block);
+        y += block.height + height * (options.gapPct || 0.035) * scale;
+      }
     }
+    return { blocks: laidOut, bottom: y };
   };
 
-  add(copy.businessName, 0.045, 'businessName', { color: accentColor, weight: 700, maxLines: 1, gapPct: 0.035 });
-  add(copy.headline, 0.105, 'headline', { weight: 900, maxLines: 2, gapPct: 0.04 });
-  add(copy.supportingText, 0.047, 'supportingText', { weight: 600, maxLines: 2, gapPct: 0.03 });
-  add(copy.offer, 0.07, 'offer', { color: accentColor, weight: 900, maxLines: 1, gapPct: 0.035 });
-  add(copy.callToAction, 0.052, 'callToAction', { weight: 800, maxLines: 1, gapPct: 0.03 });
-
-  const footerValues = [copy.phone, copy.website, copy.address, copy.date, copy.other].filter(Boolean);
-  if (footerValues.length) {
-    y = Math.min(y, height * 0.84);
-    footerValues.forEach((value) => add(value, 0.034, 'detail', { weight: 650, maxLines: 1, gapPct: 0.018 }));
+  let scale = 1;
+  let layout = layoutAtScale(scale);
+  while (layout.bottom > height * 0.94 && scale > 0.25) {
+    scale *= 0.88;
+    layout = layoutAtScale(scale);
   }
+  if (layout.bottom > height * 0.96) {
+    const error = new Error('The supplied exact copy does not fit safely in the selected text zone. Shorten the wording or choose a wider text zone.');
+    error.code = 'VALIDATION_FAILED';
+    throw error;
+  }
+  const blocks = layout.blocks;
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><g>${blocks.map((block) => block.svg).join('')}</g></svg>`;
   const composites = [{ input: Buffer.from(svg), top: 0, left: 0 }];
@@ -116,16 +140,17 @@ async function compositeArtwork({ background, brief, logo }) {
     .composite(composites)
     .jpeg({ quality: 90, chromaSubsampling: '4:4:4', mozjpeg: true })
     .toBuffer();
+  const responseMaster = buffer;
   // Keep the single flattened artifact below buffered serverless response
   // limits without changing its dimensions or aspect ratio.
-  if (buffer.length > 3_500_000) {
-    buffer = await sharp(buffer).jpeg({ quality: 84, chromaSubsampling: '4:4:4', mozjpeg: true }).toBuffer();
+  for (const quality of [84, 78, 72, 66, 60, 54, 48]) {
+    if (buffer.length <= 3_250_000) break;
+    buffer = await sharp(responseMaster).jpeg({ quality, chromaSubsampling: '4:4:4', mozjpeg: true }).toBuffer();
   }
   if (buffer.length > 3_500_000) {
-    buffer = await sharp(buffer).jpeg({ quality: 78, chromaSubsampling: '4:4:4', mozjpeg: true }).toBuffer();
-  }
-  if (buffer.length > 3_500_000) {
-    buffer = await sharp(buffer).jpeg({ quality: 70, chromaSubsampling: '4:4:4', mozjpeg: true }).toBuffer();
+    const error = new Error('The flattened artwork exceeds the safe response limit.');
+    error.code = 'VALIDATION_FAILED';
+    throw error;
   }
   return { buffer, textLayers: blocks.map((block) => block.layer), logoLayer };
 }
