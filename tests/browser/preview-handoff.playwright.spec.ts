@@ -98,11 +98,32 @@ test('design selector keeps banner and magnet mockups fully inside their frames'
   test.skip(testInfo.project.name !== 'chromium-1440x900', 'One desktop selector run is sufficient');
 
   await page.goto('/design?product=banner', { waitUntil: 'domcontentloaded' });
+  const selectorStages = page.locator('[role="tab"] [data-selector-product-stage]');
+  await expect(selectorStages).toHaveCount(3);
+
+  const diagramSubjects = page.locator('[role="tab"] [data-selector-product-subject]');
+  await expect(diagramSubjects).toHaveCount(2);
+  const diagramMargins = await diagramSubjects.evaluateAll((subjects) => subjects.map((subject) => {
+    const frame = subject.closest<HTMLElement>('[data-selector-product-stage]');
+    if (!frame) throw new Error('Selector product stage is missing.');
+    const subjectRect = subject.getBoundingClientRect();
+    const frameRect = frame.getBoundingClientRect();
+    return {
+      left: (subjectRect.left - frameRect.left) / frameRect.width,
+      right: (frameRect.right - subjectRect.right) / frameRect.width,
+      top: (subjectRect.top - frameRect.top) / frameRect.height,
+      bottom: (frameRect.bottom - subjectRect.bottom) / frameRect.height,
+    };
+  }));
+  for (const margins of diagramMargins) {
+    expect(Math.min(margins.left, margins.right, margins.top, margins.bottom)).toBeGreaterThanOrEqual(0.03);
+  }
+
   const productImages = page.locator('[role="tab"] [data-product-visual-image]');
-  await expect(productImages).toHaveCount(2);
+  await expect(productImages).toHaveCount(1);
   await page.waitForFunction(() => {
     const images = Array.from(document.querySelectorAll<HTMLImageElement>('[role="tab"] [data-product-visual-image]'));
-    return images.length === 2 && images.every((image) => image.complete && image.naturalWidth > 0);
+    return images.length === 1 && images.every((image) => image.complete && image.naturalWidth > 0);
   });
 
   const imageStates = await productImages.evaluateAll((images) => images.map((image) => {
