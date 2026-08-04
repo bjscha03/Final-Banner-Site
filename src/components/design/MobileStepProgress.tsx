@@ -30,7 +30,7 @@ const MobileStepProgress: React.FC<MobileStepProgressProps> = ({
   onStepClick,
   className,
 }) => {
-  const { current, total, label, completed, isComplete } = progress;
+  const { steps, current, total, label, isComplete } = progress;
   const safeCurrent = Math.min(current, total);
 
   return (
@@ -50,31 +50,37 @@ const MobileStepProgress: React.FC<MobileStepProgressProps> = ({
         </p>
         <p className="text-xs font-semibold text-orange-600 truncate">{label}</p>
       </div>
-      <ol className="mt-2 flex items-center gap-1.5" aria-hidden="true">
-        {BUILDER_STEPS.map((key, i) => {
-          const isDone = completed[key];
+      <ol className="mt-3 flex items-center gap-1.5" aria-label="Order progress">
+        {steps.map((key, i) => {
+          // A progress bar should read left-to-right. Even if a shopper uploads
+          // artwork early, later steps stay numbered until every preceding
+          // required step has been reviewed.
+          const isDone = isComplete || i + 1 < safeCurrent;
           const isCurrent = !isComplete && i + 1 === safeCurrent;
           const stepLabel = STEP_LABEL_FOR(key);
+          const stateLabel = isDone ? 'completed' : isCurrent ? 'current step' : 'not completed';
           const dotClass = isDone
-            ? 'bg-gray-100 text-gray-500 border-gray-300'
+            ? 'border-[#18448D] bg-[#18448D] text-white'
             : isCurrent
-              ? 'bg-white text-orange-600 border-orange-500'
-              : 'bg-white text-gray-400 border-gray-300';
+              ? 'border-[#FF6A00] bg-[#FFF7F1] text-[#D95300] ring-2 ring-[#FF6A00]/15'
+              : 'border-slate-300 bg-white text-slate-500';
           return (
-            <li key={key} className="flex-1 flex items-center gap-1.5 min-w-0">
+            <li key={key} className="flex min-w-0 flex-1 items-center gap-1.5">
               <button
                 type="button"
                 onClick={onStepClick ? () => onStepClick(key) : undefined}
                 disabled={!onStepClick}
                 title={stepLabel}
-                aria-label={stepLabel}
-                className={`flex-shrink-0 w-6 h-6 rounded-full border flex items-center justify-center text-[11px] font-bold transition-colors ${dotClass} ${onStepClick ? 'cursor-pointer hover:opacity-80 active:scale-95' : 'cursor-default'}`}
+                aria-label={`Step ${i + 1}, ${stepLabel}, ${stateLabel}`}
+                aria-current={isCurrent ? 'step' : undefined}
+                className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border text-xs font-bold transition-colors ${dotClass} ${onStepClick ? 'cursor-pointer hover:border-[#18448D] active:scale-95' : 'cursor-default'}`}
               >
-                {isDone ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : i + 1}
+                {isDone ? <Check className="h-4 w-4" aria-hidden="true" /> : i + 1}
               </button>
-              {i < BUILDER_STEPS.length - 1 && (
+              {i < steps.length - 1 && (
                 <span
-                  className={`flex-1 h-0.5 rounded-full ${completed[key] ? 'bg-gray-300' : 'bg-gray-200'}`}
+                  aria-hidden="true"
+                  className={`h-0.5 flex-1 rounded-full ${isDone ? 'bg-[#18448D]' : 'bg-slate-200'}`}
                 />
               )}
             </li>
