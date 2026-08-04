@@ -59,7 +59,6 @@ import { computeSameDayFeesCents } from '@/lib/sameDayService';
 import ConfigCard from '@/components/design/layout/ConfigCard';
 import TrustStrip from '@/components/design/layout/TrustStrip';
 import FinishingOptionsCard, { type FinishingType } from '@/components/design/FinishingOptionsCard';
-import MobileStepProgress from '@/components/design/MobileStepProgress';
 import {
   getNextStep,
   getProgress,
@@ -1361,6 +1360,7 @@ const GoogleAdsBanner: React.FC = () => {
     setAiPrompt(null);
     setAiEditPrompt(null);
     setHasJustAddedToCart(false);
+    setShowPostAddResetNotice(false);
     setHasReviewedYardSignStakes(false);
     setHasReviewedYardSignPrintSide(false);
     setHasConfirmedSize(false);
@@ -1389,6 +1389,10 @@ const GoogleAdsBanner: React.FC = () => {
     };
 
     resetPreview();
+    // Keep the page in a distinct success state until the shopper explicitly
+    // opens the cart or chooses to build another product. This prevents the
+    // sticky bar from falling back to a stale "Use [size]" prompt.
+    setHasJustAddedToCart(true);
     setShowPostAddResetNotice(true);
     scrollProductPageToTop();
   }, [resetPreview]);
@@ -2073,10 +2077,13 @@ const GoogleAdsBanner: React.FC = () => {
     uploadError: uploadError || null,
     hasUpload: Boolean(uploadedFile),
     optionsRequired: true,
-    sizeConfirmed: hasConfirmedSize,
-    materialConfirmed: hasConfirmedMaterial,
-    quantityConfirmed: hasConfirmedQuantity,
-    optionsReviewed: hasReviewedOptions,
+    // The paid landing page is a single scrolling configurator, not a wizard.
+    // Valid visible defaults count as selected so mobile shoppers are never
+    // forced through redundant "Use…" confirmation taps.
+    sizeConfirmed: widthIn > 0 && heightIn > 0,
+    materialConfirmed: isCarMagnet || Boolean(material),
+    quantityConfirmed: quantity > 0,
+    optionsReviewed: true,
     sizeLabel: `${widthIn}" × ${heightIn}"`,
     materialLabel: material === '13oz' ? '13oz Vinyl' : material === '15oz' ? '15oz Vinyl' : material,
     quantityLabel: `Qty ${quantity}`,
@@ -2094,15 +2101,6 @@ const GoogleAdsBanner: React.FC = () => {
     else if (step === 'material') setHasConfirmedMaterial(true);
     else if (step === 'quantity') setHasConfirmedQuantity(true);
     else if (step === 'options') setHasReviewedOptions(true);
-  }, []);
-
-  const handleStepPillClick = useCallback((key: BuilderStepKey) => {
-    setHasEnteredBuilder(true);
-    setHasJustAddedToCart(false);
-    logUx('step_scrolled', { step: key, source: 'progress_pill' });
-    // Progress circles navigate only. Completion requires a control change or
-    // the explicit sticky confirmation CTA.
-    scrollToStepAnchor(STEP_ANCHOR_FOR(key));
   }, []);
 
   const yardSignUnconfirmedDesignId = useMemo(() => {
@@ -2144,7 +2142,7 @@ const GoogleAdsBanner: React.FC = () => {
     }
     if (hasJustAddedToCart) {
       const post = getPostAddToCartCta(cartItemCount);
-      return { label: post.label, onClick: openCartDrawer, disabled: false, loading: false, helper: post.helper };
+      return { label: post.label, onClick: openCartDrawer, disabled: false, loading: false, helper: null };
     }
 
     if (isYardSign) {
@@ -2391,14 +2389,28 @@ const GoogleAdsBanner: React.FC = () => {
               {isYardSign ? 'Build Your Yard Sign Order' : isCarMagnet ? 'Design Your Custom Car Magnets' : 'Build Your Banner'}
             </h2>
             {showPostAddResetNotice && (
-              <p className="mb-4 text-sm text-green-700 text-center">Added to cart. Start another order or view your cart.</p>
-            )}
-            {/* Mobile-only step progress — driven by the same step machine as
-                the sticky CTA so they can never disagree. Hidden on yard sign
-                (uses a different multi-design flow). */}
-            {hasEnteredBuilder && !isYardSign && (
-              <div className="mb-4 md:hidden">
-                <MobileStepProgress progress={builderProgress} onStepClick={handleStepPillClick} />
+              <div
+                role="status"
+                aria-live="polite"
+                className="mb-6 flex flex-col gap-4 border border-emerald-200 bg-emerald-50 p-4 text-left sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="flex min-w-0 items-start gap-3">
+                  <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-emerald-600 text-white">
+                    <CheckCircle className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <div>
+                    <p className="font-bold text-emerald-950">Added to your cart</p>
+                    <p className="mt-0.5 text-sm text-emerald-800">Your saved item is ready. View the cart or start another product.</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={openCartDrawer} className="min-h-11 bg-[#0B1F3A] px-4 py-2 text-sm font-bold text-white hover:bg-[#13335d]">
+                    View cart{cartItemCount > 0 ? ` (${cartItemCount})` : ''}
+                  </button>
+                  <button type="button" onClick={handleStartAnother} className="min-h-11 border border-emerald-700 bg-white px-4 py-2 text-sm font-bold text-emerald-900 hover:bg-emerald-100">
+                    Start another
+                  </button>
+                </div>
               </div>
             )}
             {isYardSign ? (
@@ -3133,21 +3145,33 @@ const GoogleAdsBanner: React.FC = () => {
         <div aria-hidden="true" className="h-32 md:hidden" />
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white px-4 pt-3 shadow-[0_-10px_30px_rgba(11,31,58,0.12)] md:hidden" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0.75rem))' }}>
           <div className="mx-auto flex max-w-lg items-center justify-between gap-3">
-            <div className="min-w-0 shrink-0">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Subtotal before tax</p>
-              {isYardSign && yardSignPricing ? (
-                <p className="font-display text-xl font-bold text-[#0B1F3A]">
-                  {yardSignTotalQty > 0 ? usd(yardSignPricing.totalCents / 100) : '—'}
-                </p>
-              ) : promoApplied ? (
-                <div className="flex items-center gap-2">
-                  <p className="text-xs text-slate-400 line-through">{usd(totals.materialTotal)}</p>
-                  <p className="font-display text-xl font-bold text-emerald-700">{usd(discountedTotal)}</p>
+            {hasJustAddedToCart ? (
+              <div className="flex min-w-0 shrink-0 items-center gap-2.5">
+                <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                  <CheckCircle className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-emerald-900">Added to cart</p>
+                  <p className="text-[11px] text-slate-500">{cartItemCount} {cartItemCount === 1 ? 'item' : 'items'} ready</p>
                 </div>
-              ) : (
-                <p className="font-display text-xl font-bold text-[#0B1F3A]">{usd(totals.materialTotal)}</p>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="min-w-0 shrink-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Subtotal before tax</p>
+                {isYardSign && yardSignPricing ? (
+                  <p className="font-display text-xl font-bold text-[#0B1F3A]">
+                    {yardSignTotalQty > 0 ? usd(yardSignPricing.totalCents / 100) : '—'}
+                  </p>
+                ) : promoApplied ? (
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs text-slate-400 line-through">{usd(totals.materialTotal)}</p>
+                    <p className="font-display text-xl font-bold text-emerald-700">{usd(discountedTotal)}</p>
+                  </div>
+                ) : (
+                  <p className="font-display text-xl font-bold text-[#0B1F3A]">{usd(totals.materialTotal)}</p>
+                )}
+              </div>
+            )}
             <button
               type="button"
               onClick={mobileCta.onClick}
