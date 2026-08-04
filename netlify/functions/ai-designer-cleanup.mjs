@@ -1,4 +1,5 @@
 import { withLambda } from '@netlify/aws-lambda-compat';
+import 'cloudinary';
 import storageModule from './_shared/ai-designer/storage.cjs';
 
 const cleanupHandler = async () => {
