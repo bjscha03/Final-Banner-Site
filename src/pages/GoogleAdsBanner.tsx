@@ -20,7 +20,6 @@ import { useAuth, isAdmin } from '@/lib/auth';
 
 import type { ProductTypeSlug } from '@/lib/products';
 import { getProductConfig } from '@/lib/products';
-import ProductTypeSwitcher from '@/components/design/ProductTypeSwitcher';
 import YardSignConfigurator from '@/components/design/YardSignConfigurator';
 import YardSignPriceSummary from '@/components/design/YardSignPriceSummary';
 import PriceBreakdown from '@/components/pricing/PriceBreakdown';
@@ -352,8 +351,9 @@ const GoogleAdsBanner: React.FC = () => {
   const [uploadError, setUploadError] = useState('');
   const [activePreset, setActivePreset] = useState<number | null>(0);
   const [quantity, setQuantity] = useState(initialProductType === 'yard_sign' ? 10 : 1);
-  const [promoCode, setPromoCode] = useState('');
-  const [promoApplied, setPromoApplied] = useState(false);
+  const storedPromoAtLoad = useCartStore.getState().discountCode;
+  const [promoCode, setPromoCode] = useState(storedPromoAtLoad?.code || 'NEW20');
+  const [promoApplied, setPromoApplied] = useState(Boolean(storedPromoAtLoad));
 
   // Mobile guided-flow confirmation flags. See Design.tsx for full rationale —
   // default-preselected values do NOT auto-mark a step complete; the user
@@ -910,9 +910,9 @@ const GoogleAdsBanner: React.FC = () => {
     setConstrainProps(restored.constrainProps);
     latestDesignRef.current = { ...restored };
     setQuantity(newType === 'yard_sign' ? 10 : 1);
-    setPromoCode('');
-    setPromoApplied(false);
-    // Switching product tabs is a fresh start — clear confirmation flags so
+    // A validated promotion belongs to the cart, so keep it when a customer
+    // switches product context or returns through another paid-product URL.
+    // Switching product tabs is otherwise a fresh start — clear confirmation flags so
     // the new product's mobile guided flow walks the user back through
     // size → material → quantity → options → upload from Step 1.
     setHasConfirmedSize(false);
@@ -952,17 +952,51 @@ const GoogleAdsBanner: React.FC = () => {
     setHasConfirmedSize(true);
   };
 
-  const handlePromoApply = () => {
-    if (promoCode.trim().toUpperCase() === 'NEW20') {
+  const handlePromoApply = async () => {
+    const normalizedCode = promoCode.trim().toUpperCase();
+    if (!normalizedCode) {
+      toast({ title: 'Enter a promo code', description: 'Add the code shown in the offer and try again.' });
+      return;
+    }
+
+    try {
+      const response = await fetch('/.netlify/functions/validate-discount-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: normalizedCode, userId: user?.id || null }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.valid || !result.discount) {
+        setPromoApplied(false);
+        toast({
+          title: 'Promo not applied',
+          description: result.error || 'This promotion is not available for this order.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      cartStore.applyDiscountCode(result.discount);
+      setPromoCode(result.discount.code);
       setPromoApplied(true);
-      // Promo codes are NOT persisted to sessionStorage. The user must
-      // re-enter the code in Checkout where it is validated server-side.
+      toast({
+        title: 'Discount applied',
+        description: `${result.discount.discountPercentage}% off is saved to your cart and will carry into checkout.`,
+      });
+    } catch {
+      setPromoApplied(false);
+      toast({
+        title: 'Promo could not be verified',
+        description: 'Your order is unchanged. Please try applying the code again.',
+        variant: 'destructive',
+      });
     }
   };
 
   const handlePromoRemove = () => {
+    cartStore.removeDiscountCode();
     setPromoApplied(false);
-    setPromoCode('');
+    setPromoCode('NEW20');
   };
 
 
@@ -1830,7 +1864,7 @@ const GoogleAdsBanner: React.FC = () => {
         }
         const transform = toCheckoutTransform(prepared.spec);
         setPendingActionType(actionType);
-        if (isCarMagnet || finishingType !== 'none') {
+        if (isCarMagnet || finishingType !== 'none' || hasReviewedOptions) {
           await performCheckout([], transform, actionType);
           if (editorSource === 'modal') setShowPreview(false);
         } else {
@@ -1862,7 +1896,7 @@ const GoogleAdsBanner: React.FC = () => {
     })();
     actionPreparationRef.current = promise;
     return promise;
-  }, [finishingType, heightIn, isCarMagnet, performCheckout, prepareCurrentPlacementPreview, productType, toast, widthIn]);
+  }, [finishingType, hasReviewedOptions, heightIn, isCarMagnet, performCheckout, prepareCurrentPlacementPreview, productType, toast, widthIn]);
 
   // Proceed directly to checkout only after the actual editor canvas is finalized.
   const handleCheckout = useCallback(() => {
@@ -2037,7 +2071,7 @@ const GoogleAdsBanner: React.FC = () => {
     isUploading,
     uploadError: uploadError || null,
     hasUpload: Boolean(uploadedFile),
-    optionsRequired: false,
+    optionsRequired: true,
     sizeConfirmed: hasConfirmedSize,
     materialConfirmed: hasConfirmedMaterial,
     quantityConfirmed: hasConfirmedQuantity,
@@ -2201,6 +2235,36 @@ const GoogleAdsBanner: React.FC = () => {
     });
   }, [mobileCta.label, mobileCta.disabled, productType]);
 
+  const heroContent = isYardSign
+    ? {
+        eyebrow: '24″ × 18″ YARD SIGNS · NATIONWIDE SHIPPING',
+        headline: 'Custom yard signs, produced fast.',
+        intro: 'Upload up to 10 designs, review every on-screen print preview, and see the exact order subtotal before checkout.',
+        priceLabel: '10 single-sided signs',
+        price: '$120',
+        offer: 'Up to 10 designs per order',
+        cta: 'Build my yard-sign order',
+      }
+    : isCarMagnet
+      ? {
+          eyebrow: 'CUSTOM CAR MAGNETS · NATIONWIDE SHIPPING',
+          headline: 'Custom car magnets, made fast.',
+          intro: 'Choose a supported size and corner style, upload artwork, and review the on-screen print preview before ordering.',
+          priceLabel: '18″ × 12″ car magnet',
+          price: '$29',
+          offer: 'Four sizes · Two corner styles',
+          cta: 'Build & price my car magnet',
+        }
+      : {
+          eyebrow: 'CUSTOM VINYL BANNERS · NATIONWIDE SHIPPING',
+          headline: 'Custom vinyl banners, produced fast.',
+          intro: 'Choose a size and material, upload artwork, and review the on-screen print preview before ordering.',
+          priceLabel: 'Popular 4′ × 2′ banner',
+          price: '$36',
+          offer: 'New customers: 20% off with NEW20',
+          cta: 'Build & price my banner',
+        };
+
   return (
     <>
       <Helmet>
@@ -2232,91 +2296,79 @@ const GoogleAdsBanner: React.FC = () => {
         </header>
 
         {/* HERO */}
-        <section className="relative overflow-hidden border-b-4 border-[#FF6A00] bg-[#0B1F3A] px-4 pb-12 pt-10 md:pb-14 md:pt-14">
-          <div className="relative max-w-2xl mx-auto text-center space-y-5">
-            <h1 className="text-white text-3xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight">
-              {isYardSign ? 'Custom Yard Signs' : isCarMagnet ? 'Design Your Custom Car Magnets' : 'Custom Banner Printing'}
-              <br />
-              <span className="text-[#FF8A3D]">Most Standard Orders: 24-Hour Production</span>
-            </h1>
+        <section className="relative overflow-hidden border-b-4 border-[#FF6A00] bg-[#0B1F3A] px-4 py-10 sm:py-12 lg:py-16">
+          <div className="relative mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] lg:gap-14">
+            <div className="text-center lg:text-left">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF8A3D]">{heroContent.eyebrow}</p>
+              <h1 className="mt-4 max-w-3xl font-display text-4xl font-black leading-[1.04] tracking-[-0.04em] text-white sm:text-5xl lg:text-6xl">
+                {heroContent.headline}
+              </h1>
+              <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-slate-200 sm:text-lg lg:mx-0">
+                {heroContent.intro}
+              </p>
 
-            {isYardSign ? (
-              <>
-                <p className="text-base md:text-lg text-gray-100 max-w-lg mx-auto leading-relaxed">
-                  Standard 24&quot; × 18&quot; corrugated plastic yard signs, printed fast and shipped next business day.
-                </p>
-                <p className="text-sm text-gray-200">Most standard orders are produced within 24 hours; <strong className="text-white">carrier transit follows production</strong>.</p>
-              </>
-            ) : isCarMagnet ? (
-              <>
-                <p className="text-base md:text-lg text-gray-100 max-w-lg mx-auto leading-relaxed">
-                  Durable vehicle magnets with production and carrier transit shown separately
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="text-base md:text-lg text-gray-100 max-w-lg mx-auto leading-relaxed">
-                  Most standard orders are produced within 24 hours; <strong className="text-white">carrier transit follows production</strong>.
-                </p>
-                <p className="text-sm text-gray-200">Delivery dates are estimates and can change.</p>
-              </>
-            )}
+              <div className="mt-6 flex flex-wrap justify-center gap-x-5 gap-y-3 text-sm font-semibold text-white lg:justify-start">
+                <span className="inline-flex items-center gap-2"><Clock className="h-4 w-4 text-[#FF8A3D]" />Most standard orders: 24-hour production</span>
+                <span className="inline-flex items-center gap-2"><Truck className="h-4 w-4 text-[#FF8A3D]" />Free next-day air after production</span>
+                <span className="inline-flex items-center gap-2"><FileCheck className="h-4 w-4 text-[#FF8A3D]" />Every file reviewed before print</span>
+              </div>
 
-            {/* Inline benefit pills */}
-            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[13px] text-gray-100">
-              {(isYardSign ? [
-                { icon: <Clock className="h-3.5 w-3.5 text-orange-500" />, label: '24-Hr Print' },
-                { icon: <Truck className="h-3.5 w-3.5 text-orange-500" />, label: 'Free Next-Day Air' },
-                { icon: <Layers className="h-3.5 w-3.5 text-orange-500" />, label: 'Up to 10 Designs' },
-                { icon: <Brush className="h-3.5 w-3.5 text-orange-500" />, label: 'Designer Reviewed' },
-              ] : isCarMagnet ? [
-                { icon: <Clock className="h-3.5 w-3.5 text-orange-500" />, label: 'Most: 24-Hour Production' },
-                { icon: <Truck className="h-3.5 w-3.5 text-orange-500" />, label: 'Free Next-Day Air' },
-                { icon: <Package className="h-3.5 w-3.5 text-orange-500" />, label: 'Removable Magnetic Signage' },
-                { icon: <Brush className="h-3.5 w-3.5 text-orange-500" />, label: 'Rounded Corner Options' },
-              ] : [
-                { icon: <Clock className="h-3.5 w-3.5 text-orange-500" />, label: '24-Hr Print' },
-                { icon: <Truck className="h-3.5 w-3.5 text-orange-500" />, label: 'Free Next-Day Air' },
-                { icon: <Tag className="h-3.5 w-3.5 text-orange-500" />, label: '20% Off \u00b7 NEW20' },
-                { icon: <Brush className="h-3.5 w-3.5 text-orange-500" />, label: 'Designer Reviewed' },
-              ]).map((b, i) => (
-                <span key={i} className="inline-flex items-center gap-1.5 font-medium">
-                  {b.icon} {b.label}
-                </span>
-              ))}
-            </div>
+              <div className="mt-7 flex flex-col items-center gap-3 sm:flex-row sm:justify-center lg:justify-start">
+                <button
+                  type="button"
+                  onClick={scrollToOrder}
+                  className="inline-flex min-h-12 w-full items-center justify-center gap-2 bg-[#FF6A00] px-7 py-3.5 text-base font-bold text-white shadow-[0_10px_28px_rgba(255,106,0,0.24)] transition-colors hover:bg-[#E85F00] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B1F3A] sm:w-auto"
+                >
+                  {heroContent.cta}
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </button>
+                <p className="text-sm font-semibold text-[#FFB27D]">{heroContent.offer}</p>
+              </div>
 
-            <div className="pt-2 flex flex-col items-center gap-2">
-              <p className="text-sm text-gray-100 font-medium">Order today to enter the production queue after the file is ready.</p>
-              <button
-                onClick={scrollToOrder}
-                className="group inline-flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white font-bold text-lg px-10 py-4 rounded-xl shadow-[0_4px_14px_rgba(251,146,60,0.4)] hover:shadow-[0_6px_20px_rgba(251,146,60,0.5)] transition-all w-full sm:w-auto"
-              >
-                Start Order
-              </button>
-              <div className="text-xs text-gray-200 text-center space-y-1"><p>Upload your design in minutes.</p><p>Review the on-screen print preview before checkout.</p><p>Most standard orders are produced within 24 hours; carrier transit follows production.</p></div>
-
-              {/* Trust bar */}
-              <div className="mt-4 flex flex-col items-center gap-2">
-                <div className="flex flex-col sm:flex-row items-center gap-2.5">
-                  <img
-                    src="https://res.cloudinary.com/dtrxl120u/image/upload/w_128,h_128,c_fill,f_auto,q_auto/v1759799151/dan-oliver_1200xx3163-3170-1048-0_zgphzw.jpg"
-                    alt="Dan Oliver, Dan-O's Seasoning"
-                    className="h-[60px] w-[60px] rounded-full shadow-md ring-2 ring-gray-200 object-cover"
-                  />
-                  <span className="text-orange-400 text-base tracking-wide" role="img" aria-label="Rated 5 out of 5 stars">★★★★★</span>
+              <div className="mt-7 flex items-center justify-center gap-3 border-t border-white/15 pt-5 lg:justify-start">
+                <img
+                  src="https://res.cloudinary.com/dtrxl120u/image/upload/w_128,h_128,c_fill,f_auto,q_auto/v1759799151/dan-oliver_1200xx3163-3170-1048-0_zgphzw.jpg"
+                  alt="Dan Oliver of Dan-O's Seasoning"
+                  width="48"
+                  height="48"
+                  className="h-12 w-12 rounded-full border-2 border-white/70 object-cover"
+                />
+                <div className="text-left">
+                  <span className="text-[#FF8A3D]" role="img" aria-label="Five-star customer feedback">★★★★★</span>
+                  <p className="text-xs font-semibold text-white">Trusted by Dan-O&rsquo;s Seasoning</p>
                 </div>
-                <p className="text-xs text-gray-100 font-medium">Trusted by Dan-O&rsquo;s Seasoning + 1,000+ customers</p>
               </div>
             </div>
+
+            <aside className="border border-white/15 bg-white text-[#0B1F3A] shadow-[0_24px_60px_rgba(0,0,0,0.24)]" aria-label="Popular order example">
+              <div className="border-t-4 border-[#FF6A00] p-6 sm:p-7">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Popular starting point</p>
+                <div className="mt-3 flex items-end justify-between gap-5 border-b border-slate-200 pb-5">
+                  <div>
+                    <p className="font-display text-xl font-bold">{heroContent.priceLabel}</p>
+                    <p className="mt-1 text-sm text-slate-500">Before destination-based tax</p>
+                  </div>
+                  <p className="font-display text-3xl font-black text-[#0B1F3A]">{heroContent.price}</p>
+                </div>
+                <ol className="mt-5 grid gap-3 text-sm">
+                  <li className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0B1F3A] text-xs font-bold text-white">1</span>Choose your configuration</li>
+                  <li className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0B1F3A] text-xs font-bold text-white">2</span>Upload your artwork</li>
+                  <li className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0B1F3A] text-xs font-bold text-white">3</span>Review the on-screen preview</li>
+                  <li className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0B1F3A] text-xs font-bold text-white">4</span>Continue to secure checkout</li>
+                </ol>
+                <div className="mt-5 border-l-4 border-[#FF6A00] bg-[#FFF7F1] px-4 py-3 text-sm leading-6 text-slate-700">
+                  Free next-day air is included after production. Production time and carrier transit are shown separately.
+                </div>
+              </div>
+            </aside>
           </div>
         </section>
 
-
         <section ref={orderRef} id="order-builder" className="mt-8 py-12 px-4 bg-gray-50">
           <div className="max-w-4xl lg:max-w-7xl mx-auto">
-            {/* Product type switcher — public for all users */}
-            <ProductTypeSwitcher productType={productType} onProductTypeChange={handleProductTypeChange} mobileStickyTopPx={65} />
+            <p className="mb-3 text-center text-xs font-bold uppercase tracking-[0.18em] text-[#FF6A00]">
+              {isYardSign ? '24″ × 18″ yard signs' : isCarMagnet ? 'Custom car magnets' : 'Custom vinyl banners'}
+            </p>
             <h2
               ref={builderStartRef}
               id="builder-start"
@@ -2330,8 +2382,8 @@ const GoogleAdsBanner: React.FC = () => {
             {/* Mobile-only step progress — driven by the same step machine as
                 the sticky CTA so they can never disagree. Hidden on yard sign
                 (uses a different multi-design flow). */}
-            {false && (
-              <div className="mb-4">
+            {hasEnteredBuilder && !isYardSign && (
+              <div className="mb-4 md:hidden">
                 <MobileStepProgress progress={builderProgress} onStepClick={handleStepPillClick} />
               </div>
             )}
@@ -2372,6 +2424,7 @@ const GoogleAdsBanner: React.FC = () => {
                       onPromoApply={handlePromoApply}
                       onPromoRemove={handlePromoRemove}
                       sameDayHitServiceCents={previewSameDayFeeCents}
+                      taxCalculatedAtCheckout
                     />
                   )}
 
@@ -2392,7 +2445,7 @@ const GoogleAdsBanner: React.FC = () => {
                         : 'bg-orange-300 text-white/80 cursor-not-allowed'
                     }`}
                   >
-                    Checkout
+                    Review and continue
                     <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
                   </button>
                   <button
@@ -2406,10 +2459,7 @@ const GoogleAdsBanner: React.FC = () => {
                   >
                     Add to Cart
                   </button>
-                  {/* Friday shipping badge */}
-                  <div className="flex items-center justify-center gap-2 mt-3 py-2 px-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <span className="text-sm font-medium text-blue-700">📦 Orders made on Friday will be delivered on Tuesday.</span>
-                  </div>
+
                   <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mt-1">
                     <Lock className="h-3 w-3" />
                     <span>Secure checkout.</span>
@@ -2486,6 +2536,7 @@ const GoogleAdsBanner: React.FC = () => {
                                 inputMode="numeric"
                                 pattern="[0-9]*"
                                 value={widthCustomInStr}
+                                aria-label="Banner width in inches"
                                 onChange={e => {
                                   setWidthCustomInStr(e.target.value);
                                   setActivePreset(null);
@@ -2511,6 +2562,7 @@ const GoogleAdsBanner: React.FC = () => {
                                 inputMode="numeric"
                                 pattern="[0-9]*"
                                 value={heightCustomInStr}
+                                aria-label="Banner height in inches"
                                 onChange={e => {
                                   setHeightCustomInStr(e.target.value);
                                   setActivePreset(null);
@@ -2534,18 +2586,22 @@ const GoogleAdsBanner: React.FC = () => {
                           <div>
                             <span className="text-xs text-gray-500">Width</span>
                             <div className="flex gap-1 mt-1">
-                              <input type="text" inputMode="numeric" pattern="[0-9]*" value={widthFtStr} onChange={e => { setWidthFtStr(e.target.value); setActivePreset(null); }} onFocus={e => e.target.select()} onBlur={() => { const n = parseInt(widthFtStr, 10); setWidthFtStr(String(isNaN(n) ? 1 : Math.max(1, Math.min(50, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
+                              <input type="text" inputMode="numeric" pattern="[0-9]*" value={widthFtStr}
+                                aria-label="Banner width feet" onChange={e => { setWidthFtStr(e.target.value); setActivePreset(null); }} onFocus={e => e.target.select()} onBlur={() => { const n = parseInt(widthFtStr, 10); setWidthFtStr(String(isNaN(n) ? 1 : Math.max(1, Math.min(50, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
                               <span className="self-center text-xs text-gray-500">ft</span>
-                              <input type="text" inputMode="numeric" pattern="[0-9]*" value={widthInRStr} onChange={e => { setWidthInRStr(e.target.value); setActivePreset(null); }} onFocus={e => e.target.select()} onBlur={() => { const n = parseInt(widthInRStr, 10); setWidthInRStr(String(isNaN(n) ? 0 : Math.max(0, Math.min(11, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
+                              <input type="text" inputMode="numeric" pattern="[0-9]*" value={widthInRStr}
+                                aria-label="Banner width remaining inches" onChange={e => { setWidthInRStr(e.target.value); setActivePreset(null); }} onFocus={e => e.target.select()} onBlur={() => { const n = parseInt(widthInRStr, 10); setWidthInRStr(String(isNaN(n) ? 0 : Math.max(0, Math.min(11, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
                               <span className="self-center text-xs text-gray-500">in</span>
                             </div>
                           </div>
                           <div>
                             <span className="text-xs text-gray-500">Height</span>
                             <div className="flex gap-1 mt-1">
-                              <input type="text" inputMode="numeric" pattern="[0-9]*" value={heightFtStr} onChange={e => { setHeightFtStr(e.target.value); setActivePreset(null); }} onFocus={e => e.target.select()} onBlur={() => { const n = parseInt(heightFtStr, 10); setHeightFtStr(String(isNaN(n) ? 1 : Math.max(1, Math.min(50, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
+                              <input type="text" inputMode="numeric" pattern="[0-9]*" value={heightFtStr}
+                                aria-label="Banner height feet" onChange={e => { setHeightFtStr(e.target.value); setActivePreset(null); }} onFocus={e => e.target.select()} onBlur={() => { const n = parseInt(heightFtStr, 10); setHeightFtStr(String(isNaN(n) ? 1 : Math.max(1, Math.min(50, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
                               <span className="self-center text-xs text-gray-500">ft</span>
-                              <input type="text" inputMode="numeric" pattern="[0-9]*" value={heightInRStr} onChange={e => { setHeightInRStr(e.target.value); setActivePreset(null); }} onFocus={e => e.target.select()} onBlur={() => { const n = parseInt(heightInRStr, 10); setHeightInRStr(String(isNaN(n) ? 0 : Math.max(0, Math.min(11, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
+                              <input type="text" inputMode="numeric" pattern="[0-9]*" value={heightInRStr}
+                                aria-label="Banner height remaining inches" onChange={e => { setHeightInRStr(e.target.value); setActivePreset(null); }} onFocus={e => e.target.select()} onBlur={() => { const n = parseInt(heightInRStr, 10); setHeightInRStr(String(isNaN(n) ? 0 : Math.max(0, Math.min(11, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
                               <span className="self-center text-xs text-gray-500">in</span>
                             </div>
                           </div>
@@ -2624,11 +2680,11 @@ const GoogleAdsBanner: React.FC = () => {
                   <>
                 <ConfigCard step={3} title="Quantity" id="quantity-section">
                   <div className="flex items-center gap-3">
-                    <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="w-9 h-9 flex items-center justify-center border border-gray-200 rounded-xl hover:border-gray-400 transition-colors">
+                    <button type="button" aria-label="Decrease quantity" onClick={() => setQuantity(q => Math.max(1, q - 1))} className="w-11 h-11 flex items-center justify-center border border-gray-200 rounded-xl hover:border-gray-400 transition-colors">
                       <Minus className="h-4 w-4 text-gray-600" />
                     </button>
-                    <input type="number" min={1} max={999} value={quantity} onChange={e => setQuantity(Math.max(1, +e.target.value || 1))} className="w-20 border rounded-xl px-3 py-1.5 text-base text-center" />
-                    <button onClick={() => setQuantity(q => Math.min(999, q + 1))} className="w-9 h-9 flex items-center justify-center border border-gray-200 rounded-xl hover:border-gray-400 transition-colors">
+                    <input type="number" min={1} max={999} value={quantity} aria-label="Quantity" onChange={e => setQuantity(Math.max(1, +e.target.value || 1))} className="h-11 w-20 border rounded-xl px-3 py-1.5 text-base text-center" />
+                    <button type="button" aria-label="Increase quantity" onClick={() => setQuantity(q => Math.min(999, q + 1))} className="w-11 h-11 flex items-center justify-center border border-gray-200 rounded-xl hover:border-gray-400 transition-colors">
                       <Plus className="h-4 w-4 text-gray-600" />
                     </button>
                   </div>
@@ -2803,7 +2859,7 @@ const GoogleAdsBanner: React.FC = () => {
                           <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
                           <span className="text-sm font-semibold text-green-800 truncate">{uploadedFile.name}</span>
                         </div>
-                        <button onClick={() => { setUploadedFile(null); setImgPos({ x: 0, y: 0 }); setImgScale(1); setImgScaleY(1); setAiPrompt(null); setAiEditPrompt(null); }} className="ml-2 flex-shrink-0 p-1.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
+                        <button type="button" aria-label="Remove uploaded artwork" onClick={() => { setUploadedFile(null); setImgPos({ x: 0, y: 0 }); setImgScale(1); setImgScaleY(1); setAiPrompt(null); setAiEditPrompt(null); }} className="ml-2 flex-shrink-0 p-2.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
                       </div>
                       {aiPrompt && !isYardSign && showCreateWithAI && (
                         <div className="mt-2 flex justify-center">
@@ -2843,11 +2899,12 @@ const GoogleAdsBanner: React.FC = () => {
                     quantityDiscountCents={carMagnetPricing.quantityDiscountCents}
                     quantityDiscountRate={carMagnetPricing.quantityDiscountRate}
                     sameDayHitServiceCents={previewSameDayFeeCents}
-                    taxCents={carMagnetPricing.taxCents}
+                    taxCents={0}
                     taxRate={0.06}
                     adjustedSubtotalCents={carMagnetPricing.subtotalCents}
-                    totalCents={carMagnetPricing.totalCents + previewSameDayFeeCents}
-                    footerNote="Tax calculated at checkout"
+                    totalCents={carMagnetPricing.subtotalCents + previewSameDayFeeCents}
+                    taxCalculatedAtCheckout
+                    footerNote="Destination-based tax calculated at checkout"
                   />
                 ) : (
                   <PriceBreakdown
@@ -2896,10 +2953,11 @@ const GoogleAdsBanner: React.FC = () => {
                         : undefined
                     }
                     sameDayHitServiceCents={previewSameDayFeeCents}
-                    taxCents={bannerTaxAfterAllDiscountsCents}
+                    taxCents={0}
                     taxRate={0.06}
                     adjustedSubtotalCents={bannerSubtotalAfterAllDiscountsCents}
-                    totalCents={bannerTotalAfterAllDiscountsCents + previewSameDayFeeCents}
+                    totalCents={bannerSubtotalAfterAllDiscountsCents + previewSameDayFeeCents}
+                    taxCalculatedAtCheckout
                     promo={{
                       code: promoCode,
                       applied: promoApplied,
@@ -2910,7 +2968,7 @@ const GoogleAdsBanner: React.FC = () => {
                         ? `${promoCode} — ${Math.round(bannerPromoResolution.promoDiscountRate * 100)}% off applied`
                         : `${promoCode} entered — quantity discount is larger, so we kept that`,
                     }}
-                    footerNote="Tax calculated at checkout"
+                    footerNote="Destination-based tax calculated at checkout"
                   />
                 )}
 
@@ -2932,7 +2990,7 @@ const GoogleAdsBanner: React.FC = () => {
 
                 <button onClick={handleCheckout} disabled={!uploadedFile || isUploading || isProcessingUpsell} className={`group w-full font-bold text-lg py-5 rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${uploadedFile && !isUploading && !isProcessingUpsell ? 'bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white cursor-pointer shadow-orange-500/30' : 'bg-orange-300 text-white/80 cursor-not-allowed'}`}>
                   <Lock className="h-4 w-4" aria-hidden="true" />
-                  {isProcessingUpsell ? 'Preparing exact preview…' : 'Checkout securely'}
+                  {isProcessingUpsell ? 'Preparing exact preview…' : 'Review and continue'}
                   <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
                 </button>
                 <button
@@ -2946,10 +3004,7 @@ const GoogleAdsBanner: React.FC = () => {
                 >
                   {isProcessingUpsell ? 'Preparing exact preview…' : 'Add to Cart'}
                 </button>
-                {/* Friday shipping badge */}
-                <div className="flex items-center justify-center gap-2 mt-3 py-2 px-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <span className="text-sm font-medium text-blue-700">📦 Orders made on Friday will be delivered on Tuesday.</span>
-                </div>
+
                 <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mt-1">
                   <Lock className="h-3 w-3" />
                   <span>Secure checkout.</span>
@@ -3052,35 +3107,37 @@ const GoogleAdsBanner: React.FC = () => {
         </div>
       </div>
 
-        {/* Mobile sticky subtotal bar (no progression CTA). */}
-        <div aria-hidden="true" className="md:hidden h-24" />
-        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 pt-3 shadow-lg z-40 overflow-x-clip" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0.75rem))' }}>
-          <div className="flex items-center justify-between gap-3 min-h-[44px]">
-            <div className="min-w-0">
-              {/* Pre-tax subtotal — labeled "Subtotal" so it lines up with the
-                  cart/checkout breakdown (which shows Subtotal → Tax → Total). */}
-              <p className="text-xs text-gray-500">Subtotal</p>
+        {/* Mobile guided CTA and live pre-tax subtotal. */}
+        <div aria-hidden="true" className="h-32 md:hidden" />
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white px-4 pt-3 shadow-[0_-10px_30px_rgba(11,31,58,0.12)] md:hidden" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0.75rem))' }}>
+          <div className="mx-auto flex max-w-lg items-center justify-between gap-3">
+            <div className="min-w-0 shrink-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Subtotal before tax</p>
               {isYardSign && yardSignPricing ? (
-                <p className="text-xl font-bold text-gray-900">
+                <p className="font-display text-xl font-bold text-[#0B1F3A]">
                   {yardSignTotalQty > 0 ? usd(yardSignPricing.totalCents / 100) : '—'}
                 </p>
               ) : promoApplied ? (
                 <div className="flex items-center gap-2">
-                  <p className="text-sm text-gray-400 line-through">{usd(totals.materialTotal)}</p>
-                  <p className="text-xl font-bold text-green-600">{usd(discountedTotal)}</p>
+                  <p className="text-xs text-slate-400 line-through">{usd(totals.materialTotal)}</p>
+                  <p className="font-display text-xl font-bold text-emerald-700">{usd(discountedTotal)}</p>
                 </div>
               ) : (
-                <p className="text-xl font-bold text-gray-900">{usd(totals.materialTotal)}</p>
+                <p className="font-display text-xl font-bold text-[#0B1F3A]">{usd(totals.materialTotal)}</p>
               )}
             </div>
             <button
               type="button"
-              onClick={openCartDrawer}
-              className="shrink-0 inline-flex items-center rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-[#18448D] hover:bg-slate-50 transition-colors"
+              onClick={mobileCta.onClick}
+              disabled={mobileCta.disabled}
+              className="inline-flex min-h-12 min-w-0 flex-1 items-center justify-center gap-2 bg-[#FF6A00] px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-[#E85F00] disabled:cursor-not-allowed disabled:bg-slate-300"
             >
-              View Cart ({cartItemCount})
+              {mobileCta.loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+              <span className="truncate">{mobileCta.label}</span>
+              {!mobileCta.loading && <ArrowRight className="h-4 w-4 flex-none" aria-hidden="true" />}
             </button>
           </div>
+          {mobileCta.helper && <p className="mx-auto mt-1.5 max-w-lg text-right text-[11px] leading-4 text-slate-500">{mobileCta.helper}</p>}
         </div>
 
       {/* Preview Modal */}
@@ -3092,7 +3149,7 @@ const GoogleAdsBanner: React.FC = () => {
                 <h3 className="text-lg font-bold text-gray-900">{isYardSign ? 'Live Yard Sign Preview' : isCarMagnet ? 'Live Car Magnet Preview' : 'Live Banner Preview'}</h3>
                 <p className="text-xs text-gray-400">Final print preview — what you see is what you get</p>
               </div>
-              <button onClick={() => setShowPreview(false)} className="p-2 hover:bg-gray-100 rounded-full">
+              <button type="button" aria-label="Close preview" onClick={() => setShowPreview(false)} className="p-2.5 hover:bg-gray-100 rounded-full">
                 <X className="w-5 h-5" />
               </button>
             </div>
