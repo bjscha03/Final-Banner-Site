@@ -1,7 +1,7 @@
 import type { CityProductSlug } from '@/lib/seo/cityData';
 import type { ProductTypeSlug } from '@/lib/products';
 
-export type ConfiguratorSource = 'local-page' | 'product-hub' | 'locations-hub';
+export type ConfiguratorSource = 'local-page' | 'product-hub' | 'locations-hub' | 'trade-show';
 
 const PRODUCT_QUERY: Record<CityProductSlug, string> = {
   'vinyl-banners': 'banner',

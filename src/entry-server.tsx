@@ -5,17 +5,22 @@ import type { HelmetServerState } from 'react-helmet-async';
 import { RoutedApplication } from '@/App';
 import AppProviders from '@/components/AppProviders';
 import { getAllCityProductPaths, getIndexableCityProductPaths } from '@/lib/seo/cityData';
+import { getAllTradeShowPaths, getIndexableTradeShowPaths } from '@/lib/tradeShows/tradeShows';
 
 const productHubPaths = ['/vinyl-banners', '/yard-signs', '/car-magnets'] as const;
 
 export const prerenderRoutes = [
   ...productHubPaths,
   ...getAllCityProductPaths().map(({ product, citySlug }) => `/${product}/${citySlug}`),
+  '/trade-shows',
+  ...getAllTradeShowPaths(),
 ];
 
 export const indexablePrerenderRoutes = [
   ...productHubPaths,
   ...getIndexableCityProductPaths().map(({ product, citySlug }) => `/${product}/${citySlug}`),
+  '/trade-shows',
+  ...getIndexableTradeShowPaths(),
 ];
 
 export interface RenderedRoute {

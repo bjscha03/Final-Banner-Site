@@ -78,6 +78,7 @@ const Footer: React.FC = () => {
   ];
 
   const companyLinks = [
+    { name: 'Trade Show Calendar', href: '/trade-shows' },
     { name: 'About Us', href: '/about' },
     { name: 'Blog', href: '/blog' },
     { name: 'Contact', href: '/contact' },
