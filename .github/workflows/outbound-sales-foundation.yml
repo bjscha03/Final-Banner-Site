@@ -1,0 +1,58 @@
+name: Outbound Sales Foundation
+
+on:
+  pull_request:
+    paths:
+      - 'migrations/021_outbound_sales_foundation.sql'
+      - 'migrations/021_outbound_sales_foundation.rollback.sql'
+      - 'scripts/outbound-sql-parser.cjs'
+      - 'scripts/verify-outbound-sales-migration.cjs'
+      - 'netlify/functions/_shared/outbound-sales/**'
+      - 'netlify/functions/outbound-sales-*.mjs'
+      - 'netlify/functions/__tests__/outbound-sales-foundation.test.mjs'
+      - 'src/pages/admin/sales/**'
+      - 'src/lib/outboundSales.ts'
+      - 'src/App.tsx'
+      - 'src/pages/admin/Orders.tsx'
+      - '.env.example'
+      - 'docs/outbound-sales-engine.md'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/outbound-sales-foundation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Outbound foundation contracts
+        run: npm run test:outbound-sales
+      - name: Existing AI Designer and admin-auth contracts
+        run: npm run test:ai-designer
+      - name: Lint outbound changes
+        run: |
+          npx eslint \
+            src/App.tsx \
+            src/lib/outboundSales.ts \
+            src/pages/admin/sales/*.ts \
+            src/pages/admin/sales/*.tsx \
+            netlify/functions/outbound-sales-*.mjs \
+            netlify/functions/_shared/outbound-sales/*.cjs \
+            netlify/functions/_shared/outbound-sales/providers/*.cjs \
+            netlify/functions/__tests__/outbound-sales-foundation.test.mjs \
+            scripts/outbound-sql-parser.cjs \
+            scripts/verify-outbound-sales-migration.cjs
+      - name: Type-check
+        run: npx tsc --noEmit --pretty false
+      - name: Production build
+        run: npm run build

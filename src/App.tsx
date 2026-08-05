@@ -77,6 +77,10 @@ const AdminCustomQuotes = lazy(() => import("./pages/admin/CustomQuotes"));
 const PayPalReconciliation = lazy(() => import("./pages/admin/PayPalReconciliation"));
 const AdminSetup = lazy(() => import("./pages/AdminSetup"));
 const AIDesignerPage = lazy(() => import("./pages/admin/AIDesignerPage"));
+const AdminSalesShell = lazy(() => import("./pages/admin/sales/SalesShell"));
+const AdminSalesDashboard = lazy(() => import("./pages/admin/sales/SalesDashboard"));
+const AdminSalesSettings = lazy(() => import("./pages/admin/sales/SalesSettings"));
+const AdminSalesPlaceholder = lazy(() => import("./pages/admin/sales/SalesPlaceholder"));
 const ProofApproval = lazy(() => import("./pages/ProofApproval"));
 
 // Utility/debug pages - lazy load
@@ -196,6 +200,18 @@ export const RoutedApplication = () => (
             {/* Admin login / setup page — password gate that grants admin access */}
             <Route path="/admin/setup" element={<AdminSetup />} />
             <Route path="/admin/ai-designer" element={<AIDesignerPage />} />
+            <Route path="/admin/sales" element={<AdminSalesShell />}>
+              <Route index element={<AdminSalesDashboard />} />
+              <Route path="dashboard" element={<Navigate to="/admin/sales" replace />} />
+              <Route path="prospects" element={<AdminSalesPlaceholder title="Prospect Queue" description="Provider-neutral businesses, research evidence, transparent lead scores, contact verification, suppression reasons, and generated-email previews will appear here." phase="Phase 2" exportLabel="Prospects" features={['Research evidence and source URLs', 'Lead-score explanation', 'Pipeline and suppression status', 'Generated email preview', 'Email verification result', 'Provider provenance']} />} />
+              <Route path="activity" element={<AdminSalesPlaceholder title="Email Activity" description="A delivery timeline will show generated, scheduled, sent, delivered, bounced, complained, unsubscribed, and failed messages without touching transactional email events." phase="Phase 4" exportLabel="Messages" features={['Message delivery timeline', 'Resend status and identifiers', 'Bounce and complaint controls', 'Personalization evidence', 'Campaign variation assignment', 'Permanent duplicate protection']} />} />
+              <Route path="replies" element={<AdminSalesPlaceholder title="Replies" description="Inbound replies will be safely retrieved, classified with deterministic rules first, and paired with suggested drafts for admin review—never automatic AI replies at launch." phase="Phase 4" exportLabel="Replies" features={['Reply classification', 'Suggested response drafts', 'Opt-out detection', 'Out-of-office handling', 'Wrong-contact suppression', 'Admin review status']} />} />
+              <Route path="orders" element={<AdminSalesPlaceholder title="Orders & Revenue Generated" description="Signed attribution will connect outreach to quote requests, paid orders, and revenue without changing checkout or payment behavior." phase="Phase 5" exportLabel="Attributed Orders" features={['Quote requests and quote status', 'Paid-order attribution', 'Revenue generated', 'Campaign and prospect linkage', 'Test-order exclusion', 'Auditable attribution method']} />} />
+              <Route path="performance" element={<AdminSalesPlaceholder title="Industry & Campaign Performance" description="Conservative learning will compare industries, subject styles, call-to-action styles, email length, offer framing, positioning, and send timing after minimum sample sizes are met." phase="Phase 5" features={['Industry performance', 'Campaign performance', 'Qualified reply rate', 'Quote-request conversion', 'Paid orders and revenue', 'Controlled exploration']} />} />
+              <Route path="costs" element={<AdminSalesPlaceholder title="Cost Analytics" description="OpenAI tokens, monthly spend, discovery-provider usage, email-verification cost, Resend usage, and average qualified-prospect cost will be reported independently from the AI Banner Designer." phase="Phase 3–5" features={['OpenAI API usage', 'Monthly OpenAI spend', 'Discovery-provider cost', 'Email-verification cost', 'Resend usage', 'Cost per qualified prospect']} />} />
+              <Route path="errors" element={<AdminSalesPlaceholder title="Error Logs" description="Redacted provider failures, job retries, dead-letter work, circuit-breaker events, and monitoring alerts will be available without exposing credentials or customer payloads." phase="Phase 2–6" features={['Retry history', 'Dead-letter jobs', 'Circuit-breaker events', 'Provider health', 'Redacted diagnostic context', 'Operational alerts']} />} />
+              <Route path="settings" element={<AdminSalesSettings />} />
+            </Route>
             {/* Legacy dev placeholder routes — redirect any deep links to the real admin entry */}
             <Route path="/admin/seed" element={<Navigate to="/admin/orders" replace />} />
             
