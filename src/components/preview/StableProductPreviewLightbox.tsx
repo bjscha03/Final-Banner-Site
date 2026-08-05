@@ -95,6 +95,7 @@ const StableProductPreviewLightbox: React.FC<ProductPreviewLightboxProps> = ({
         paddingRight: 'max(8px, env(safe-area-inset-right))',
         paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
         paddingLeft: 'max(8px, env(safe-area-inset-left))',
+        pointerEvents: 'auto',
         touchAction: 'pan-y',
       }}
       role="dialog"

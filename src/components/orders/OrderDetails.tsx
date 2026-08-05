@@ -358,18 +358,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
       <DialogTrigger asChild>
         {trigger || defaultTrigger}
       </DialogTrigger>
-      <DialogContent
-        className="w-[calc(100vw-1rem)] max-w-4xl max-h-[85vh] overflow-y-auto overflow-x-hidden p-4 sm:p-6"
-        onPointerDownOutside={(event) => {
-          // The enlarged artwork preview is rendered in a body-level portal
-          // so it can sit above this Radix dialog. Its close button/backdrop
-          // would otherwise be treated as an outside click and dismiss View
-          // Order too. Let the child preview own that interaction.
-          if (document.querySelector('[data-product-preview-lightbox]')) {
-            event.preventDefault();
-          }
-        }}
-      >
+      <DialogContent className="w-[calc(100vw-1rem)] max-w-4xl max-h-[85vh] overflow-y-auto overflow-x-hidden p-4 sm:p-6">
         <DialogHeader className="border-b-2 border-[#18448D] pb-4">
           <DialogTitle className="flex items-center gap-3 text-xl sm:text-2xl font-bold text-[#18448D] min-w-0">
             <Package className="h-6 w-6" />

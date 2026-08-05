@@ -304,6 +304,7 @@ test('Admin order files, organized actions, and nested preview zoom work togethe
     viewOrderDialog.evaluate((element) => Number.parseInt(getComputedStyle(element).zIndex || '0', 10)),
   ]);
   expect(layers[0]).toBeGreaterThan(layers[1]);
+  await expect(lightbox).toHaveCSS('pointer-events', 'auto');
 
   await lightbox.getByRole('button', { name: 'Close preview', exact: true }).last().click();
   await expect(lightbox).toHaveCount(0);
