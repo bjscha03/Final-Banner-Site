@@ -89,7 +89,7 @@ const AIDisclaimerDialog: React.FC<AIDisclaimerDialogProps> = ({
           </Button>
           <Button
             onClick={handleAcceptClick}
-            className="bg-orange-600 hover:bg-orange-700"
+            className="bg-orange-600 text-white hover:bg-orange-700 hover:text-white"
           >
             I Agree & Continue
           </Button>

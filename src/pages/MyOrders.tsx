@@ -254,7 +254,7 @@ const MyOrders: React.FC = () => {
                   Back to Home
                 </Button>
 
-                <Button asChild className="bg-orange-500 hover:bg-orange-600">
+                <Button asChild className="bg-orange-500 text-white hover:bg-orange-600 hover:text-white">
                   <ScrollToTopLink to="/design">
                     <Plus className="h-4 w-4 mr-2" />
                     Order New Banner

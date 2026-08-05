@@ -241,6 +241,26 @@ jobs:
             grep -q 'UNAUTHORIZED' "/tmp/${endpoint}.json"
           done
 
+          for endpoint in ai-designer-status ai-designer-brief ai-designer-generate ai-designer-edit ai-designer-job; do
+            code=$(curl -sS -o "/tmp/${endpoint}.json" -w '%{http_code}' \
+              -X POST \
+              -H 'Content-Type: application/json' \
+              --data '{}' \
+              "$PREVIEW_URL/.netlify/functions/${endpoint}")
+            test "$code" = "401"
+            grep -q 'UNAUTHORIZED' "/tmp/${endpoint}.json"
+          done
+
+          # A background function acknowledges immediately with 202. This
+          # proves the slow GPT Image 2 worker was deployed in background mode
+          # rather than under Netlify's fixed 60-second synchronous limit.
+          code=$(curl -sS -o /tmp/ai-designer-worker.json -w '%{http_code}' \
+            -X POST \
+            -H 'Content-Type: application/json' \
+            --data '{}' \
+            "$PREVIEW_URL/.netlify/functions/ai-designer-worker-background")
+          test "$code" = "202"
+
   cross-browser-preview-matrix:
     needs: regression-checks
     runs-on: ubuntu-latest

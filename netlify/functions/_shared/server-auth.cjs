@@ -3,6 +3,8 @@
 const crypto = require('crypto');
 
 const SESSION_TTL_SECONDS = 8 * 60 * 60;
+const SESSION_HEADER = 'x-banners-admin-session';
+const SESSION_COOKIE = 'banners_admin_session';
 
 function secret() {
   return process.env.AUTH_SESSION_SECRET || process.env.CLOUDINARY_API_SECRET || '';
@@ -24,9 +26,39 @@ function createSessionToken(user) {
   return `${payload}.${signature}`;
 }
 
+function cleanToken(value) {
+  return String(value || '').replace(/^Bearer\s+/i, '').trim();
+}
+
+function readCookie(event, name) {
+  const source = String(event?.headers?.cookie || event?.headers?.Cookie || '');
+  const entry = source.split(';').map((part) => part.trim()).find((part) => part.startsWith(`${name}=`));
+  if (!entry) return '';
+  try {
+    return decodeURIComponent(entry.slice(name.length + 1));
+  } catch {
+    return '';
+  }
+}
+
+function readBodyToken(event) {
+  if (event?.isBase64Encoded || typeof event?.body !== 'string') return '';
+  // The client writes this field first. Reading only a small prefix avoids
+  // parsing multi-megabyte artwork payloads before their size limit is checked.
+  const match = event.body.slice(0, 2048).match(/"adminSessionToken"\s*:\s*"([A-Za-z0-9_.-]+)"/);
+  return cleanToken(match?.[1]);
+}
+
 function readBearer(event) {
+  const dedicated = event?.headers?.[SESSION_HEADER] || event?.headers?.['X-Banners-Admin-Session'];
+  if (dedicated) return cleanToken(dedicated);
   const value = event?.headers?.authorization || event?.headers?.Authorization || '';
-  return /^Bearer\s+(.+)$/i.exec(String(value))?.[1] || '';
+  const bearer = /^Bearer\s+(.+)$/i.exec(String(value))?.[1] || '';
+  return bearer || readCookie(event, SESSION_COOKIE) || readBodyToken(event);
+}
+
+function sessionCookie(token, secure = true) {
+  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; SameSite=Strict; Max-Age=${SESSION_TTL_SECONDS}${secure ? '; Secure' : ''}`;
 }
 
 function verifySessionToken(token) {
@@ -63,4 +95,4 @@ function requireAdmin(event) {
   return session?.admin === true ? { ok: true, session } : { ok: false, response: unauthorized('Verified administrator session required') };
 }
 
-module.exports = { createSessionToken, verifySessionToken, getSession, requireAdmin, unauthorized };
+module.exports = { createSessionToken, verifySessionToken, getSession, requireAdmin, unauthorized, sessionCookie };

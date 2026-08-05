@@ -47,6 +47,32 @@
   timeout = 60
   memory = 1024
 
+[functions."ai-designer-generate"]
+  memory = 2048
+
+[functions."ai-designer-edit"]
+  memory = 2048
+
+[functions."ai-designer-worker-background"]
+  background = true
+  memory = 2048
+
+[functions."ai-designer-job"]
+  memory = 512
+
+[functions."ai-designer-status"]
+  timeout = 30
+  memory = 512
+
+[functions."ai-designer-brief"]
+  timeout = 30
+  memory = 512
+
+[functions."ai-designer-cleanup"]
+  schedule = "@daily"
+  timeout = 60
+  memory = 512
+
 
 [dev]
   targetPort = 8080
@@ -237,6 +263,12 @@
 # Preview/branch deploy crawler protection
 [context.deploy-preview]
   command = "npm run build"
+
+[context.deploy-preview.environment]
+  # Reuse the site's existing AI flag name so Lambda-compatible functions do
+  # not exceed AWS's 4 KB aggregate environment-variable limit. The server
+  # additionally requires Netlify's deploy-preview CONTEXT before enabling.
+  VITE_AI_BANNER_ENABLED = "true"
 
 [[context.deploy-preview.headers]]
   for = "/*"
