@@ -1,6 +1,10 @@
 'use strict';
 
+const { domainToASCII } = require('node:url');
 const { sanitizeForAudit } = require('../security.cjs');
+
+const DISCOVERY_ADAPTER_VERSION = '1.0';
+const MAX_DISCOVERY_RESULTS = 30;
 
 function cleanText(value, maxLength = 500) {
   const text = String(value || '').replace(/\s+/g, ' ').trim();
@@ -13,10 +17,30 @@ function canonicalDomain(value) {
   try {
     const url = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
     if (!['http:', 'https:'].includes(url.protocol)) return null;
-    return url.hostname.toLowerCase().replace(/^www\./, '').replace(/\.$/, '') || null;
+    const hostname = domainToASCII(url.hostname.toLowerCase().replace(/^www\./, '').replace(/\.$/, ''));
+    return hostname || null;
   } catch {
     return null;
   }
+}
+
+function normalizeStringArray(value, { maxItems = 20, maxLength = 120 } = {}) {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.map((entry) => cleanText(entry, maxLength)).filter(Boolean))].slice(0, maxItems);
+}
+
+function normalizeDiscoveryRequest(input = {}) {
+  const limit = Number.isInteger(input.limit) ? input.limit : MAX_DISCOVERY_RESULTS;
+  return Object.freeze({
+    locations: normalizeStringArray(input.locations, { maxItems: 10, maxLength: 120 }),
+    keywords: normalizeStringArray(input.keywords, { maxItems: 20, maxLength: 100 }),
+    employeeRanges: normalizeStringArray(input.employeeRanges, { maxItems: 10, maxLength: 40 })
+      .filter((value) => /^\d+,\d+$/.test(value)),
+    jobTitles: normalizeStringArray(input.jobTitles, { maxItems: 10, maxLength: 120 }),
+    page: Math.max(1, Math.min(500, Number.isInteger(input.page) ? input.page : 1)),
+    limit: Math.max(1, Math.min(MAX_DISCOVERY_RESULTS, limit)),
+    requestKey: cleanText(input.requestKey, 300),
+  });
 }
 
 function safeWebUrl(value) {
@@ -97,14 +121,40 @@ function assertProviderAdapter(adapter) {
   if (typeof adapter.getConfigurationStatus !== 'function') throw new TypeError('Provider adapter must expose configuration status.');
   if (typeof adapter.execute !== 'function') throw new TypeError('Provider adapter must expose execute().');
   if (typeof adapter.normalize !== 'function') throw new TypeError('Provider adapter must expose normalize().');
+  if (adapter.kind === 'discovery' && typeof adapter.estimateCost !== 'function') {
+    throw new TypeError('Discovery adapters must expose estimateCost().');
+  }
   return adapter;
 }
 
+function assertDiscoveryResult(result) {
+  if (!result || typeof result !== 'object' || !Array.isArray(result.records)) {
+    throw new TypeError('A discovery result must contain a records array.');
+  }
+  const usage = result.usage || {};
+  for (const field of ['requestCount', 'resultCount', 'estimatedCostMicrousd']) {
+    const value = Number(usage[field]);
+    if (!Number.isSafeInteger(value) || value < 0) throw new TypeError(`Discovery usage ${field} is invalid.`);
+  }
+  if (result.records.length > MAX_DISCOVERY_RESULTS) throw new TypeError('Discovery results exceed the engine limit.');
+  if (usage.resultCount !== result.records.length) throw new TypeError('Discovery result count does not match the normalized records.');
+  const records = result.records.map((record) => normalizeProviderProspect(record?.providerId, record));
+  if (usage.actualCostMicrousd !== null && usage.actualCostMicrousd !== undefined) {
+    const actual = Number(usage.actualCostMicrousd);
+    if (!Number.isSafeInteger(actual) || actual < 0) throw new TypeError('Discovery usage actualCostMicrousd is invalid.');
+  }
+  return { ...result, records };
+}
+
 module.exports = {
+  DISCOVERY_ADAPTER_VERSION,
+  MAX_DISCOVERY_RESULTS,
   canonicalDomain,
   safeWebUrl,
   normalizeAddress,
+  normalizeDiscoveryRequest,
   dedupeFingerprint,
   normalizeProviderProspect,
   assertProviderAdapter,
+  assertDiscoveryResult,
 };

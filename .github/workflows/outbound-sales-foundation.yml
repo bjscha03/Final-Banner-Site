@@ -5,17 +5,22 @@ on:
     paths:
       - 'migrations/021_outbound_sales_foundation.sql'
       - 'migrations/021_outbound_sales_foundation.rollback.sql'
+      - 'migrations/022_outbound_discovery_qualification.sql'
+      - 'migrations/022_outbound_discovery_qualification.rollback.sql'
       - 'scripts/outbound-sql-parser.cjs'
       - 'scripts/verify-outbound-sales-migration.cjs'
       - 'netlify/functions/_shared/outbound-sales/**'
       - 'netlify/functions/outbound-sales-*.mjs'
       - 'netlify/functions/__tests__/outbound-sales-foundation.test.mjs'
+      - 'netlify/functions/__tests__/outbound-sales-discovery.test.mjs'
       - 'src/pages/admin/sales/**'
       - 'src/lib/outboundSales.ts'
       - 'src/App.tsx'
       - 'src/pages/admin/Orders.tsx'
       - '.env.example'
       - 'docs/outbound-sales-engine.md'
+      - 'docs/outbound-sales-phase2.md'
+      - 'tests/browser/admin-sales-foundation.playwright.ts'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/outbound-sales-foundation.yml'
@@ -50,8 +55,10 @@ jobs:
             netlify/functions/_shared/outbound-sales/*.cjs \
             netlify/functions/_shared/outbound-sales/providers/*.cjs \
             netlify/functions/__tests__/outbound-sales-foundation.test.mjs \
+            netlify/functions/__tests__/outbound-sales-discovery.test.mjs \
             scripts/outbound-sql-parser.cjs \
-            scripts/verify-outbound-sales-migration.cjs
+            scripts/verify-outbound-sales-migration.cjs \
+            tests/browser/admin-sales-foundation.playwright.ts
       - name: Type-check
         run: npx tsc --noEmit --pretty false
       - name: Production build

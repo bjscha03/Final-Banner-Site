@@ -27,6 +27,14 @@ const EXPECTED_TABLES = Object.freeze([
   'outbound_settings',
   'outbound_suppressions',
 ]);
+const EXPECTED_PHASE2_TABLES = Object.freeze([...EXPECTED_TABLES, 'outbound_prospect_sources'].sort());
+
+const EXPECTED_PHASE2_COLUMNS = Object.freeze({
+  outbound_prospects: ['contact_state', 'exclusion_codes', 'last_qualified_at', 'qualification_version', 'research_state'],
+  outbound_contacts: ['active', 'domain_matches', 'is_free_mailbox', 'is_role_address', 'last_seen_at', 'mx_checked_at', 'mx_status', 'send_eligible', 'source_url', 'syntax_valid'],
+  outbound_research_snapshots: ['cache_status', 'content_bytes', 'content_type', 'extraction_version', 'final_url', 'http_etag', 'http_last_modified', 'http_status', 'page_manifest'],
+  outbound_provider_usage: ['provider_credits', 'rate_limit_remaining', 'rate_limit_reset_at', 'request_key', 'usage_metadata'],
+});
 
 const EXPECTED_TRIGGERS = Object.freeze([
   'outbound_audit_log_immutable_trigger',
@@ -41,7 +49,10 @@ const EXPECTED_FUNCTIONS = Object.freeze([
 ]);
 
 const CONFIRMATION = 'isolated-neon-preview';
-const MODES = new Set(['--apply', '--verify', '--rollback-cycle']);
+const MODES = new Set([
+  '--apply', '--verify', '--rollback-cycle',
+  '--phase2-apply', '--phase2-verify', '--phase2-rollback-cycle',
+]);
 
 function fail(message) {
   const error = new Error(message);
@@ -75,7 +86,7 @@ function validateTarget(databaseUrl) {
     fail(`Set OUTBOUND_TEST_DATABASE_CONFIRMATION=${CONFIRMATION} for an isolated preview branch.`);
   }
   const branchLabel = String(process.env.OUTBOUND_TEST_BRANCH_LABEL || '').trim();
-  if (!/(preview|staging|test|phase[-_ ]?1)/i.test(branchLabel)) {
+  if (!/(preview|staging|test|phase[-_ ]?[12])/i.test(branchLabel)) {
     fail('OUTBOUND_TEST_BRANCH_LABEL must identify an isolated preview or staging branch.');
   }
 
@@ -89,7 +100,7 @@ function validateTarget(databaseUrl) {
   if (!parsed.password) fail('The staging database URL must include a password.');
   if (!/\.neon\.tech$/i.test(parsed.hostname)) fail('The target must be a Neon database endpoint.');
 
-  const endpointId = parsed.hostname.split('.')[0].toLowerCase();
+  const endpointId = parsed.hostname.split('.')[0].toLowerCase().replace(/-pooler$/, '');
   const expectedEndpointId = String(process.env.OUTBOUND_TEST_ENDPOINT_ID || '').trim().toLowerCase();
   if (!expectedEndpointId || endpointId !== expectedEndpointId) {
     fail('OUTBOUND_TEST_ENDPOINT_ID must exactly match the isolated Neon endpoint.');
@@ -281,9 +292,9 @@ async function outboundCatalog(sql) {
   return { tables, indexes, constraints, triggers, functions, defaults, settings };
 }
 
-async function verifyOutboundCatalog(sql, migrationSql) {
+async function verifyOutboundCatalog(sql, migrationSql, expectedTables = EXPECTED_TABLES) {
   const catalog = await outboundCatalog(sql);
-  sameList(catalog.tables.map((row) => row.tablename), EXPECTED_TABLES, 'Outbound tables');
+  sameList(catalog.tables.map((row) => row.tablename), expectedTables, 'Outbound tables');
   sameList(catalog.triggers.map((row) => row.trigger_name), EXPECTED_TRIGGERS, 'Outbound triggers');
   sameList(catalog.functions.map((row) => row.function_name), EXPECTED_FUNCTIONS, 'Outbound functions');
 
@@ -296,7 +307,7 @@ async function verifyOutboundCatalog(sql, migrationSql) {
   const invalidConstraints = catalog.constraints.filter((row) => !row.convalidated);
   if (invalidConstraints.length) fail(`Unvalidated outbound constraints: ${invalidConstraints.map((row) => row.constraint_name).join(', ')}.`);
   const tablesWithPrimaryKeys = new Set(catalog.constraints.filter((row) => row.constraint_type === 'p').map((row) => row.table_name));
-  const missingPrimaryKeys = EXPECTED_TABLES.filter((table) => !tablesWithPrimaryKeys.has(table));
+  const missingPrimaryKeys = expectedTables.filter((table) => !tablesWithPrimaryKeys.has(table));
   if (missingPrimaryKeys.length) fail(`Outbound tables missing primary keys: ${missingPrimaryKeys.join(', ')}.`);
   const externalReferences = catalog.constraints.filter((row) => row.constraint_type === 'f' && !String(row.referenced_table || '').startsWith('outbound_'));
   if (externalReferences.length) fail('An outbound foreign key references a legacy table.');
@@ -337,6 +348,135 @@ async function verifyOutboundCatalog(sql, migrationSql) {
     functions: catalog.functions.length,
     defaults: catalog.defaults.length,
   };
+}
+
+async function verifyPhase2Catalog(sql, combinedMigrationSql) {
+  const base = await verifyOutboundCatalog(sql, combinedMigrationSql, EXPECTED_PHASE2_TABLES);
+  const columns = await sql(`
+    SELECT c.relname AS table_name, a.attname AS column_name
+      FROM pg_attribute a
+      JOIN pg_class c ON c.oid = a.attrelid
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE n.nspname = 'public'
+       AND c.relname = ANY($1::text[])
+       AND a.attnum > 0 AND NOT a.attisdropped
+     ORDER BY c.relname, a.attname
+  `, [Object.keys(EXPECTED_PHASE2_COLUMNS)]);
+  const present = new Map();
+  for (const row of columns) {
+    if (!present.has(row.table_name)) present.set(row.table_name, new Set());
+    present.get(row.table_name).add(row.column_name);
+  }
+  for (const [table, expected] of Object.entries(EXPECTED_PHASE2_COLUMNS)) {
+    const missing = expected.filter((column) => !present.get(table)?.has(column));
+    if (missing.length) fail(`Missing Phase 2 columns on ${table}: ${missing.join(', ')}.`);
+  }
+
+  const providerRows = await sql(`
+    SELECT provider_id, provider_kind, display_name, enabled, non_secret_config,
+           daily_request_limit, monthly_budget_cents
+      FROM outbound_provider_configs
+     WHERE provider_id = 'apollo'
+  `);
+  const provider = providerRows[0];
+  if (providerRows.length !== 1
+      || provider.provider_kind !== 'discovery'
+      || provider.enabled !== false
+      || Number(provider.daily_request_limit) !== 0
+      || Number(provider.monthly_budget_cents) !== 0
+      || provider.non_secret_config?.mode !== 'shadow'
+      || provider.non_secret_config?.endpoint !== 'organization_search') {
+    fail('Apollo provider defaults are not disabled and Shadow-Mode safe.');
+  }
+  return { ...base, phase2Columns: Object.values(EXPECTED_PHASE2_COLUMNS).flat().length, apolloDisabled: true };
+}
+
+async function verifyPhase2Behavior(sql) {
+  const marker = crypto.randomUUID();
+  const prospectRows = await sql(
+    `INSERT INTO outbound_prospects (
+       source_provider_id, source_record_id, business_name, normalized_business_name,
+       dedupe_fingerprint, canonical_domain, website_url
+     ) VALUES ('apollo', $1, 'Phase 2 Validation', 'phase 2 validation', $2, $3, $4)
+     RETURNING id, research_state, contact_state, qualification_version`,
+    [`phase2-${marker}`, `domain:phase2-${marker}.example.com`, `phase2-${marker}.example.com`, `https://phase2-${marker}.example.com`],
+  );
+  const prospect = prospectRows[0];
+  if (prospect.research_state !== 'pending' || prospect.contact_state !== 'pending' || prospect.qualification_version !== 'deterministic-v1') {
+    fail('Phase 2 prospect defaults are incorrect.');
+  }
+  await sql(
+    `INSERT INTO outbound_prospect_sources (prospect_id, provider_id, provider_record_id, source_url)
+     VALUES ($1, 'apollo', $2, $3), ($1, 'licensed_fixture', $4, $3)`,
+    [prospect.id, `phase2-${marker}`, `https://phase2-${marker}.example.com`, `fixture-${marker}`],
+  );
+  const sourceRows = await sql(`SELECT COUNT(*)::integer AS count FROM outbound_prospect_sources WHERE prospect_id = $1`, [prospect.id]);
+  if (Number(sourceRows[0]?.count) !== 2) fail('Provider-neutral prospect source mapping failed.');
+
+  const contactRows = await sql(
+    `INSERT INTO outbound_contacts (
+       prospect_id, email, email_normalized, syntax_valid, mx_status,
+       is_role_address, domain_matches, verification_status, contact_quality_score
+     ) VALUES ($1, $2, $2, TRUE, 'present', FALSE, TRUE, 'unverified', 85)
+     RETURNING active, send_eligible`,
+    [prospect.id, `validation-${marker}@phase2-${marker}.example.com`],
+  );
+  if (contactRows[0]?.active !== true || contactRows[0]?.send_eligible !== false) {
+    fail('Phase 2 contact defaults are not active and send-ineligible.');
+  }
+
+  const contentHash = crypto.createHash('sha256').update(marker).digest('hex');
+  await sql(
+    `INSERT INTO outbound_research_snapshots (
+       prospect_id, content_hash, website_url, final_url, http_status, content_type,
+       content_bytes, extraction_version, cache_status, page_manifest
+     ) VALUES ($1, $2, $3, $3, 200, 'text/html', 128, 'deterministic-html-v1', 'fresh', '[]'::jsonb)`,
+    [prospect.id, contentHash, `https://phase2-${marker}.example.com`],
+  );
+  await sql(
+    `INSERT INTO outbound_provider_usage (
+       provider_id, provider_kind, operation, request_key, request_count,
+       result_count, estimated_cost_microusd, status, provider_credits
+     ) VALUES ('apollo', 'discovery', 'organization_search', $1, 1, 1, 19600, 'completed', 1)`,
+    [`phase2-validation-${marker}`],
+  );
+  await sql(
+    `UPDATE outbound_prospects
+        SET status = 'ready_for_outreach', lead_score = 70,
+            score_breakdown = '{"industry":15,"visible_print_marketing_need":15}'::jsonb,
+            score_explanation = '[{"factor":"industry","points":15}]'::jsonb,
+            qualification_version = 'deterministic-v1', last_qualified_at = NOW()
+      WHERE id = $1`,
+    [prospect.id],
+  );
+  const auditRows = await sql(
+    `SELECT COUNT(*)::integer AS count FROM outbound_audit_log
+      WHERE entity_id = $1 AND action = 'prospect.status_changed'`,
+    [prospect.id],
+  );
+  if (Number(auditRows[0]?.count) !== 1) fail('Phase 2 prospect status did not enter immutable audit history.');
+
+  await sql(`DELETE FROM outbound_provider_usage WHERE request_key = $1`, [`phase2-validation-${marker}`]);
+  await sql(`DELETE FROM outbound_prospects WHERE id = $1`, [prospect.id]);
+  return { canonicalProspectSources: 2, sendEligibleDefault: false, deterministicStatusAudit: true };
+}
+
+async function assertPhase2RolledBack(sql) {
+  const tables = await sql(`SELECT to_regclass('public.outbound_prospect_sources') AS source_table`);
+  if (tables[0]?.source_table !== null) fail('Phase 2 rollback left outbound_prospect_sources.');
+  const columns = await sql(`
+    SELECT c.relname AS table_name, a.attname AS column_name
+      FROM pg_attribute a
+      JOIN pg_class c ON c.oid = a.attrelid
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE n.nspname = 'public'
+       AND c.relname = ANY($1::text[])
+       AND a.attname = ANY($2::text[])
+       AND a.attnum > 0 AND NOT a.attisdropped
+  `, [Object.keys(EXPECTED_PHASE2_COLUMNS), Object.values(EXPECTED_PHASE2_COLUMNS).flat()]);
+  if (columns.length) fail(`Phase 2 rollback left ${columns.length} additive columns.`);
+  const provider = await sql(`SELECT 1 FROM outbound_provider_configs WHERE provider_id = 'apollo'`);
+  if (provider.length) fail('Phase 2 rollback left the disabled Apollo configuration row.');
 }
 
 async function verifyBehavior(sql) {
@@ -401,6 +541,11 @@ async function main() {
   const target = validateTarget(loadDatabaseUrl());
   const migrationSql = fs.readFileSync(path.join(__dirname, '../migrations/021_outbound_sales_foundation.sql'), 'utf8');
   const rollbackSql = fs.readFileSync(path.join(__dirname, '../migrations/021_outbound_sales_foundation.rollback.sql'), 'utf8');
+  const phase2MigrationSql = fs.readFileSync(path.join(__dirname, '../migrations/022_outbound_discovery_qualification.sql'), 'utf8');
+  const phase2RollbackSql = fs.readFileSync(path.join(__dirname, '../migrations/022_outbound_discovery_qualification.rollback.sql'), 'utf8');
+  const phase2 = mode.startsWith('--phase2-');
+  const operation = phase2 ? `--${mode.slice('--phase2-'.length)}` : mode;
+  const effectiveMigrationSql = phase2 ? `${migrationSql}\n${phase2MigrationSql}` : migrationSql;
   const { neon } = await import('@neondatabase/serverless');
   const sql = neon(target.databaseUrl);
 
@@ -414,32 +559,47 @@ async function main() {
   const legacyBefore = await legacyCatalogSnapshot(sql);
   const rowsBefore = await legacyRowCounts(sql);
 
-  if (mode === '--apply' || mode === '--rollback-cycle') {
+  if (operation === '--apply' || operation === '--rollback-cycle') {
     await executeTransactionalSql(sql, migrationSql, 'Migration 021');
+    if (phase2) await executeTransactionalSql(sql, phase2MigrationSql, 'Migration 022');
   }
-  const firstValidation = await verifyOutboundCatalog(sql, migrationSql);
-  const behavior = await verifyBehavior(sql);
+  const firstValidation = phase2
+    ? await verifyPhase2Catalog(sql, effectiveMigrationSql)
+    : await verifyOutboundCatalog(sql, migrationSql);
+  const behavior = phase2 ? await verifyPhase2Behavior(sql) : await verifyBehavior(sql);
 
   const legacyAfterApply = await legacyCatalogSnapshot(sql);
   const rowsAfterApply = await legacyRowCounts(sql);
   if (legacyAfterApply.hash !== legacyBefore.hash || rowsAfterApply.hash !== rowsBefore.hash) {
-    fail('Migration 021 changed the catalog or row counts of a legacy table.');
+    fail(`Migration ${phase2 ? '021/022' : '021'} changed the catalog or row counts of a legacy table.`);
   }
 
   let rollback = null;
   let finalValidation = firstValidation;
-  if (mode === '--rollback-cycle') {
-    await executeTransactionalSql(sql, rollbackSql, 'Migration 021 rollback');
-    await assertOutboundAbsent(sql);
+  if (operation === '--rollback-cycle') {
+    if (phase2) {
+      await executeTransactionalSql(sql, phase2RollbackSql, 'Migration 022 rollback');
+      await assertPhase2RolledBack(sql);
+      await verifyOutboundCatalog(sql, migrationSql);
+    } else {
+      await executeTransactionalSql(sql, rollbackSql, 'Migration 021 rollback');
+      await assertOutboundAbsent(sql);
+    }
     const legacyAfterRollback = await legacyCatalogSnapshot(sql);
     const rowsAfterRollback = await legacyRowCounts(sql);
     if (legacyAfterRollback.hash !== legacyBefore.hash || rowsAfterRollback.hash !== rowsBefore.hash) {
       fail('Rollback changed the catalog or row counts of a legacy table.');
     }
 
-    await executeTransactionalSql(sql, migrationSql, 'Migration 021');
-    finalValidation = await verifyOutboundCatalog(sql, migrationSql);
-    rollback = { removedEveryOutboundObject: true, migrationReapplied: true };
+    if (phase2) {
+      await executeTransactionalSql(sql, phase2MigrationSql, 'Migration 022');
+      finalValidation = await verifyPhase2Catalog(sql, effectiveMigrationSql);
+      rollback = { removedEveryPhase2Object: true, phase1ObjectsPreserved: true, migrationReapplied: true };
+    } else {
+      await executeTransactionalSql(sql, migrationSql, 'Migration 021');
+      finalValidation = await verifyOutboundCatalog(sql, migrationSql);
+      rollback = { removedEveryOutboundObject: true, migrationReapplied: true };
+    }
   }
 
   console.log(JSON.stringify({
@@ -453,6 +613,7 @@ async function main() {
       writable: true,
     },
     catalog: finalValidation,
+    phase: phase2 ? 2 : 1,
     behavior,
     legacyIsolation: {
       catalogObjectsCompared: legacyBefore.count,

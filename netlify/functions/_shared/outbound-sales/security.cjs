@@ -9,6 +9,7 @@ const PUBLIC_ERROR_CODES = new Set([
   'REQUEST_TOO_LARGE',
   'SETTINGS_CONFLICT',
   'LIVE_SENDING_PHASE_LOCKED',
+  'SHADOW_MODE_PHASE_LOCKED',
   'OUTBOUND_SCHEMA_NOT_READY',
   'DATABASE_NOT_CONFIGURED',
 ]);
@@ -124,7 +125,7 @@ function safeFailure(error) {
   const statusCode = code === 'INVALID_JSON' || code === 'INVALID_SETTINGS' ? 400
     : code === 'REQUEST_TOO_LARGE' ? 413
       : code === 'SETTINGS_CONFLICT' ? 409
-        : code === 'LIVE_SENDING_PHASE_LOCKED' ? 409
+        : code === 'LIVE_SENDING_PHASE_LOCKED' || code === 'SHADOW_MODE_PHASE_LOCKED' ? 409
           : code === 'OUTBOUND_SCHEMA_NOT_READY' || code === 'DATABASE_NOT_CONFIGURED' ? 503
             : 500;
   const messages = {
@@ -132,7 +133,8 @@ function safeFailure(error) {
     INVALID_SETTINGS: error.message,
     REQUEST_TOO_LARGE: 'Request body is too large.',
     SETTINGS_CONFLICT: 'Settings changed in another session. Refresh and try again.',
-    LIVE_SENDING_PHASE_LOCKED: 'Live sending remains locked during the isolated foundation phase.',
+    LIVE_SENDING_PHASE_LOCKED: 'Live sending remains locked during deterministic discovery and qualification.',
+    SHADOW_MODE_PHASE_LOCKED: 'Shadow Mode must remain enabled during deterministic discovery and qualification.',
     OUTBOUND_SCHEMA_NOT_READY: 'The outbound database migration has not been applied.',
     DATABASE_NOT_CONFIGURED: 'The outbound database connection is not configured.',
   };

@@ -1,6 +1,6 @@
 'use strict';
 
-const FOUNDATION_PHASE = 'foundation';
+const FOUNDATION_PHASE = 'discovery_qualification';
 const PHASE_ALLOWS_LIVE_SENDING = false;
 const DEFAULT_DAILY_SEND_LIMIT = 30;
 const MAX_DAILY_SEND_LIMIT = 30;
@@ -16,8 +16,8 @@ function getRuntimeConfig(env = process.env) {
   return Object.freeze({
     phase: FOUNDATION_PHASE,
     outboundSalesEnabled: env.OUTBOUND_SALES_ENABLED === 'true',
-    // Phase 1 is a code-level lock. Environment and database configuration
-    // cannot make the foundation report or enter live mode.
+    // Phase 2 is still a code-level send lock. Environment and database
+    // configuration cannot make the subsystem report or enter live mode.
     liveSendingAvailable: PHASE_ALLOWS_LIVE_SENDING && liveSendingEnvironmentApproved,
     defaultShadowModeEnabled: true,
     defaultLiveSendingEnabled: false,
@@ -31,6 +31,7 @@ function getRuntimeConfig(env = process.env) {
       resend: configured(env.OUTBOUND_RESEND_API_KEY),
       resendWebhook: configured(env.OUTBOUND_RESEND_WEBHOOK_SECRET),
       emailVerification: configured(env.OUTBOUND_EMAIL_VERIFICATION_API_KEY),
+      apolloDiscovery: configured(env.OUTBOUND_APOLLO_API_KEY),
     }),
   });
 }

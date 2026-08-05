@@ -17,7 +17,9 @@ function createSql(env = process.env) {
 }
 
 function isMissingOutboundSchema(error) {
-  return error?.code === '42P01' && /outbound_/i.test(String(error?.message || ''));
+  const message = String(error?.message || '');
+  if (error?.code === '42P01' && /outbound_/i.test(message)) return true;
+  return error?.code === '42703' && /(research_state|contact_state|qualification_version|exclusion_codes|send_eligible|mx_status|page_manifest|provider_credits|request_key)/i.test(message);
 }
 
 module.exports = { getDatabaseUrl, createSql, isMissingOutboundSchema };
