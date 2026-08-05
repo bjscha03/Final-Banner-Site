@@ -158,7 +158,13 @@ function safeError(error) {
 function safeErrorPayload(error) {
   const response = safeError(error);
   try {
-    return { statusCode: response.statusCode, ...JSON.parse(response.body) };
+    const providerRequestId = String(error?.providerRequestId || '');
+    return {
+      statusCode: response.statusCode,
+      ...JSON.parse(response.body),
+      ...(error?.pipelineStage ? { stage: String(error.pipelineStage) } : {}),
+      ...(providerRequestId && /^[a-zA-Z0-9_-]{6,100}$/.test(providerRequestId) ? { providerRequestId } : {}),
+    };
   } catch {
     return { statusCode: 500, error: 'AI_REQUEST_FAILED', message: 'The AI request could not be completed safely. Please retry.' };
   }

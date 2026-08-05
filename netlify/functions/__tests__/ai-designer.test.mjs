@@ -18,6 +18,7 @@ const { normalizeBrief } = require('../_shared/ai-designer/schema.cjs');
 const { buildGenerationPrompt, buildEditPrompt } = require('../_shared/ai-designer/prompt.cjs');
 const { MODEL_ALIAS, MODEL_SNAPSHOT, getImageModel, isEnabled } = require('../_shared/ai-designer/config.cjs');
 const { classifyProviderError } = require('../_shared/ai-designer/provider.cjs');
+const { safeErrorPayload } = require('../_shared/ai-designer/security.cjs');
 
 const originalEnvironment = { ...process.env };
 
@@ -263,6 +264,7 @@ describe('GPT Image 2 provider contract', () => {
     expect(provider).not.toContain("input_fidelity: 'high'");
     expect(provider).toMatch(/GPT Image 2 always processes image inputs at high fidelity/i);
     expect(provider).toContain("toFile(maskImage, 'outpaint-mask.png'");
+    expect(provider.match(/moderation: 'low'/g)).toHaveLength(2);
   });
 
   it('classifies SDK aborts as timeouts instead of a generic failure', () => {
@@ -272,6 +274,19 @@ describe('GPT Image 2 provider contract', () => {
     } catch (error) {
       expect(error.code).toBe('PROVIDER_TIMEOUT');
     }
+  });
+
+  it('returns a safe stage, category, and request reference for production diagnosis', () => {
+    const error = new Error('OpenAI image request timed out.');
+    error.code = 'PROVIDER_TIMEOUT';
+    error.pipelineStage = 'generating the artwork';
+    error.providerRequestId = 'req_safe_123456';
+    expect(safeErrorPayload(error)).toMatchObject({
+      statusCode: 504,
+      error: 'PROVIDER_TIMEOUT',
+      stage: 'generating the artwork',
+      providerRequestId: 'req_safe_123456',
+    });
   });
 
   it('contains no legacy provider, stock fallback, or model downgrade in the active path', () => {

@@ -143,7 +143,10 @@ async function generateImage({ prompt, size, user }) {
       output_format: 'jpeg',
       output_compression: 90,
       background: 'opaque',
-      moderation: 'auto',
+      // Commercial banner briefs are frequently family- or event-oriented.
+      // OpenAI's low setting still enforces policy while reducing false-positive
+      // blocks for benign requests such as birthdays, schools, and sports.
+      moderation: 'low',
       user,
     }, { signal }));
     return { ...resultFromResponse(response), model };
@@ -177,7 +180,7 @@ async function editImage({ prompt, size, currentImage, currentMime = 'image/jpeg
       output_format: 'jpeg',
       output_compression: 90,
       background: 'opaque',
-      moderation: 'auto',
+      moderation: 'low',
       user,
     }, { signal }));
     return { ...resultFromResponse(response), model };

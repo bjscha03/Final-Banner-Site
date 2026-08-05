@@ -6,7 +6,8 @@ export const initPostHog = () => {
   const host = import.meta.env.VITE_POSTHOG_HOST || 'https://app.posthog.com';
 
   if (!apiKey) {
-    console.warn('[PostHog] API key not configured, tracking disabled');
+    // Analytics is optional. An intentionally absent key is not a runtime
+    // warning and must not look like a storefront or AI configuration error.
     return;
   }
 
@@ -17,30 +18,30 @@ export const initPostHog = () => {
     disable_session_recording: true, // Disable session recording for privacy
   });
 
-  console.log('[PostHog] Initialized');
+  if (import.meta.env.DEV) console.log('[PostHog] Initialized');
 };
 
 // Track promo events
 export const trackPromoEvent = (
   eventName: 'promo_shown' | 'promo_copied' | 'promo_applied_success' | 'promo_rejected',
-  properties?: Record<string, any>
+  properties?: Record<string, unknown>
 ) => {
   try {
     posthog.capture(eventName, {
       ...properties,
       timestamp: new Date().toISOString(),
     });
-    console.log(`[PostHog] Event tracked: ${eventName}`, properties);
+    if (import.meta.env.DEV) console.log(`[PostHog] Event tracked: ${eventName}`, properties);
   } catch (error) {
     console.error('[PostHog] Failed to track event:', error);
   }
 };
 
 // Identify user
-export const identifyUser = (userId: string, properties?: Record<string, any>) => {
+export const identifyUser = (userId: string, properties?: Record<string, unknown>) => {
   try {
     posthog.identify(userId, properties);
-    console.log('[PostHog] User identified:', userId);
+    if (import.meta.env.DEV) console.log('[PostHog] User identified:', userId);
   } catch (error) {
     console.error('[PostHog] Failed to identify user:', error);
   }
@@ -50,7 +51,7 @@ export const identifyUser = (userId: string, properties?: Record<string, any>) =
 export const resetUser = () => {
   try {
     posthog.reset();
-    console.log('[PostHog] User reset');
+    if (import.meta.env.DEV) console.log('[PostHog] User reset');
   } catch (error) {
     console.error('[PostHog] Failed to reset user:', error);
   }

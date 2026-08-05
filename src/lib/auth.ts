@@ -3,6 +3,12 @@ import { useState, useEffect } from 'react';
 import { generateUUID, safeStorage } from './utils';
 import { setServerSessionToken } from './serverAuth';
 
+const console = {
+  log: import.meta.env.DEV ? globalThis.console.log.bind(globalThis.console) : (..._args: unknown[]) => undefined,
+  warn: globalThis.console.warn.bind(globalThis.console),
+  error: globalThis.console.error.bind(globalThis.console),
+};
+
 // Get the correct base URL for Netlify functions
 const getNetlifyFunctionUrl = (functionName: string): string => {
   // In development, Netlify functions run on port 8888
@@ -52,7 +58,7 @@ class SecureAuthAdapter implements AuthAdapter {
 
       // Debug logging for production troubleshooting
       const hasAdminCookie = false; // Legacy unsigned admin cookies are intentionally ignored.
-      console.log('🔍 getCurrentUser Debug:', {
+      if (import.meta.env.DEV) console.log('🔍 getCurrentUser Debug:', {
         hasStoredUser: !!user,
         hasAdminCookie,
         hostname: typeof window !== 'undefined' ? window.location.hostname : 'unknown',
@@ -71,7 +77,7 @@ class SecureAuthAdapter implements AuthAdapter {
         console.log('✅ Migrated user ID to:' , newId);
       }
 
-      console.log('✅ getCurrentUser result:', user ? { id: user.id, email: user.email, is_admin: user.is_admin } : null);
+      if (import.meta.env.DEV) console.log('✅ getCurrentUser result:', user ? { id: user.id, email: user.email, is_admin: user.is_admin } : null);
 
       return user;
     } catch (error) {

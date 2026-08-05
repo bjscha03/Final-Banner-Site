@@ -10,6 +10,11 @@ import { useCartStore } from '@/store/cart';
 import { cartSyncService } from '@/lib/cartSync';
 import { useCheckoutContext } from '@/store/checkoutContext';
 
+const console = {
+  log: import.meta.env.DEV ? globalThis.console.log.bind(globalThis.console) : (..._args: unknown[]) => undefined,
+  error: globalThis.console.error.bind(globalThis.console),
+};
+
 export function useCartSync() {
   const { user } = useAuth();
   const { loadFromServer, clearCart } = useCartStore();
@@ -19,6 +24,7 @@ export function useCartSync() {
   const isSavingRef = useRef<boolean>(false);
 
   useEffect(() => {
+    const debugLog = import.meta.env.DEV ? console.log.bind(console) : () => {};
     const currentUserId = user?.id || null;
     const prevUserId = prevUserIdRef.current;
     const cartOwnerId = typeof localStorage !== 'undefined' ? localStorage.getItem('cart_owner_user_id') : null;
@@ -32,7 +38,7 @@ export function useCartSync() {
       checkoutGuestSessionId = checkoutState?.guestSessionId ?? null;
       clearCheckoutContext = checkoutState?.clearCheckoutContext;
       
-      console.log('🔍 CART SYNC: Checkout context state:', {
+      debugLog('🔍 CART SYNC: Checkout context state:', {
         checkoutGuestSessionId: checkoutGuestSessionId ? `${checkoutGuestSessionId.substring(0, 12)}...` : 'null',
         isInCheckoutFlow: checkoutState?.isInCheckoutFlow,
         returnUrl: checkoutState?.returnUrl,
@@ -43,13 +49,13 @@ export function useCartSync() {
       clearCheckoutContext = () => {};
     }
     
-    console.log('═══════════════════════════════════════════════');
-    console.log('🔍 CART SYNC HOOK: User effect triggered');
-    console.log('🔍 Previous user ID:', prevUserId);
-    console.log('🔍 Current user ID:', currentUserId);
-    console.log('🔍 Cart owner ID:', cartOwnerId);
-    console.log('🔍 Has merged:', hasMergedRef.current);
-    console.log('🔍 Checkout guest session ID:', checkoutGuestSessionId ? `${checkoutGuestSessionId.substring(0, 12)}...` : 'null');
+    debugLog('═══════════════════════════════════════════════');
+    debugLog('🔍 CART SYNC HOOK: User effect triggered');
+    debugLog('🔍 Previous user ID:', prevUserId);
+    debugLog('🔍 Current user ID:', currentUserId);
+    debugLog('🔍 Cart owner ID:', cartOwnerId);
+    debugLog('🔍 Has merged:', hasMergedRef.current);
+    debugLog('🔍 Checkout guest session ID:', checkoutGuestSessionId ? `${checkoutGuestSessionId.substring(0, 12)}...` : 'null');
     
     // CRITICAL: Don't clear cart - it syncs empty cart to server and DELETES the database cart!
     // Just update the cart_owner_user_id in localStorage
