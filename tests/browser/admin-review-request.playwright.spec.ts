@@ -308,5 +308,7 @@ test('Admin order files, organized actions, and nested preview zoom work togethe
   await lightbox.getByRole('button', { name: 'Close preview', exact: true }).last().click();
   await expect(lightbox).toHaveCount(0);
   await expect(viewOrderDialog).toBeVisible();
+  await viewOrderDialog.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(viewOrderDialog).toHaveCount(0);
   expect(pageErrors).toEqual([]);
 });
