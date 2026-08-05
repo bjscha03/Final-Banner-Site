@@ -219,7 +219,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
           <div className="flex items-center justify-end gap-1 lg:w-auto lg:gap-2">
             <ScrollToTopLink
               to="/design"
-              className="mr-1 hidden min-h-11 items-center rounded-md bg-[#FF6A00] px-4 text-sm font-bold text-[#0B1F3A] transition-colors hover:bg-[#E65F00] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00] focus-visible:ring-offset-2 xl:inline-flex"
+                className="mr-1 hidden min-h-11 items-center rounded-md bg-[#FF6A00] px-4 text-sm font-bold text-white transition-colors hover:bg-[#E65F00] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00] focus-visible:ring-offset-2 xl:inline-flex"
             >
               Start designing
             </ScrollToTopLink>
@@ -294,7 +294,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
             >
               <ShoppingCart className="h-5 w-5" />
               {cartCount > 0 && (
-                <span className="absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#FF6A00] px-1 text-[10px] font-bold text-[#0B1F3A]">
+                <span className="absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#FF6A00] px-1 text-[10px] font-bold text-white">
                   {cartCount}
                 </span>
               )}

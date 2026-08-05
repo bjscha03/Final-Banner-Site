@@ -127,6 +127,7 @@ function safeError(error) {
       : code === 'PROVIDER_USER_ERROR' ? 400
       : code === 'PROVIDER_TIMEOUT' ? 504
         : code === 'PROVIDER_UNAVAILABLE' ? 503
+          : code === 'PROVIDER_BILLING_REQUIRED' ? 503
         : code === 'MODEL_ACCESS_DENIED' || code === 'AI_NOT_CONFIGURED' || code === 'UNAPPROVED_IMAGE_MODEL' ? 503
       : code === 'VALIDATION_FAILED' ? 422
         : 500;
@@ -143,6 +144,12 @@ function safeError(error) {
     PROVIDER_USER_ERROR: error.message,
     PROVIDER_TIMEOUT: 'The OpenAI request timed out safely. Please retry.',
     PROVIDER_UNAVAILABLE: 'OpenAI is temporarily unavailable. Please retry in a moment.',
+    PROVIDER_BILLING_REQUIRED: 'The OpenAI API project has reached its spending limit or has no available credits.',
+    PROVIDER_EMPTY_RESPONSE: 'OpenAI completed the request but returned no image. Please retry once.',
+    PROVIDER_REQUEST_FAILED: 'The OpenAI image request failed before an image was returned. Please retry.',
+    AI_PIPELINE_FAILED: error.pipelineStage
+      ? `The AI job failed while ${String(error.pipelineStage).toLowerCase()}. Please retry.`
+      : 'The AI artwork pipeline could not finish safely. Please retry.',
     VALIDATION_FAILED: 'The artwork did not pass print-readiness validation.',
   };
   return json(statusCode, { error: code, message: safeMessages[code] || 'The AI request could not be completed safely. Please retry.' });

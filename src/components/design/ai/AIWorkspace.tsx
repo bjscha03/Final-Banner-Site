@@ -245,7 +245,8 @@ async function runBackgroundJob(
     }
     if (job?.status === 'failed') {
       window.sessionStorage.removeItem(pendingKey);
-      throw new Error(job?.message || 'The AI job could not be completed safely.');
+      const reference = job?.diagnosticId ? ` Reference: ${job.diagnosticId}.` : '';
+      throw new Error(`${job?.message || 'The AI job could not be completed safely.'}${reference}`);
     }
     onStage(job?.stage === 'Preparing the AI request' ? waitingMessage : (job?.stage || waitingMessage));
   }

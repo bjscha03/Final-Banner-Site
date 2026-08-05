@@ -1,7 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
-const { isEnabled, getImageModel, getValidationModel, MODEL_SNAPSHOT } = require('./config.cjs');
+const { isEnabled, getImageModel, getValidationModel, getImageQuality, MODEL_SNAPSHOT } = require('./config.cjs');
 const { normalizeBrief, cleanText, stableHash } = require('./schema.cjs');
 const { buildGenerationPrompt, buildEditPrompt, buildRepairPrompt } = require('./prompt.cjs');
 const { verifyModelAccess, verifyValidationModelAccess, generateImage, editImage, structureCreativeBrief } = require('./provider.cjs');
@@ -44,6 +44,41 @@ function publicBrief(brief) {
     ...brief,
     requiredTextHash: stableHash(brief.requiredText),
   };
+}
+
+function withPipelineStage(stage, task) {
+  return Promise.resolve()
+    .then(task)
+    .catch((error) => {
+      const currentCode = String(error?.code || '');
+      if (!/^(AI_|INVALID_|PROVIDER_|MODEL_|UNAPPROVED_|VALIDATION_|DESCRIPTION_|IDEMPOTENCY_)/.test(currentCode)) {
+        error.originalCode = currentCode || null;
+        error.code = 'AI_PIPELINE_FAILED';
+      }
+      error.pipelineStage = error.pipelineStage || stage;
+      throw error;
+    });
+}
+
+function aggregateImageUsage(providerCalls) {
+  const usage = providerCalls.reduce((total, call) => {
+    const item = call?.usage || {};
+    total.input_tokens += Number(item.input_tokens || 0);
+    total.output_tokens += Number(item.output_tokens || 0);
+    total.total_tokens += Number(item.total_tokens || 0);
+    total.input_tokens_details.image_tokens += Number(item.input_tokens_details?.image_tokens || 0);
+    total.input_tokens_details.text_tokens += Number(item.input_tokens_details?.text_tokens || 0);
+    return total;
+  }, { input_tokens: 0, output_tokens: 0, total_tokens: 0, input_tokens_details: { image_tokens: 0, text_tokens: 0 } });
+  return usage.total_tokens || usage.input_tokens || usage.output_tokens ? usage : null;
+}
+
+function estimatedImageCostUsd(usage) {
+  if (!usage) return null;
+  const imageInput = Number(usage.input_tokens_details?.image_tokens || 0) * 8 / 1_000_000;
+  const textInput = Number(usage.input_tokens_details?.text_tokens || 0) * 5 / 1_000_000;
+  const output = Number(usage.output_tokens || 0) * 30 / 1_000_000;
+  return Number((imageInput + textInput + output).toFixed(6));
 }
 
 function conceptPayload({ id, versionId, generationId, backgroundRef, artwork, brief, plan, validation, model, requestId, durationMs, textLayers, logoLayer, repaired, usage, estimatedCostUsd }) {
@@ -236,15 +271,25 @@ async function workerHandler(event) {
     });
     return json(200, { ok: true, status: 'completed' });
   } catch (error) {
-    console.error('[ai_designer_background_failed]', { action: claimed?.action || null, category: error?.code || 'AI_REQUEST_FAILED' });
+    const diagnosticId = String(claimed?.jobId || crypto.randomUUID()).slice(0, 12);
+    console.error('[ai_designer_background_failed]', {
+      diagnosticId,
+      action: claimed?.action || null,
+      stage: error?.pipelineStage || claimed?.stage || null,
+      category: error?.code || 'AI_REQUEST_FAILED',
+      originalCode: error?.originalCode || null,
+      providerRequestId: error?.providerRequestId || null,
+      providerStatus: Number(error?.status || error?.response?.status || 0) || null,
+      errorName: error?.name || null,
+    });
     if (reference && claimed) {
-      const safe = safeErrorPayload(error);
+      const safe = { ...safeErrorPayload(error), diagnosticId };
       await writeJobReliable(reference, {
         version: claimed.version,
         jobId: claimed.jobId,
         action: claimed.action,
         status: 'failed',
-        stage: 'Failed',
+        stage: error?.pipelineStage || 'Failed',
         createdAt: claimed.createdAt,
         error: safe,
       }).catch(() => null);
@@ -362,6 +407,7 @@ async function statusHandler(event) {
     model,
     modelSnapshot: model === MODEL_SNAPSHOT ? MODEL_SNAPSHOT : null,
     validationModel: getValidationModel(),
+    imageQuality: getImageQuality(),
     modelAvailable: access.available === true,
     validationModelAvailable: validationAccess.available === true,
     checkedAt: access.checkedAt || new Date().toISOString(),
@@ -376,7 +422,7 @@ async function statusHandler(event) {
 
 async function runGenerateRequest(body, session) {
   const started = Date.now();
-  const { brief, plan, reference, logo } = await prepareInputs(body);
+  const { brief, plan, reference, logo } = await withPipelineStage('preparing the design inputs', () => prepareInputs(body));
   if (!brief.structured) {
     const error = new Error('Review and confirm the structured creative brief before generating.');
     error.code = 'INVALID_REQUEST';
@@ -387,16 +433,16 @@ async function runGenerateRequest(body, session) {
   // concepts for comparison across separate requests.
   const generationId = crypto.randomUUID();
   const conceptStarted = Date.now();
-  const generated = await generateImage({
+  const generated = await withPipelineStage('generating the artwork', () => generateImage({
     prompt: buildGenerationPrompt(brief, plan, 0),
     size: plan.providerSize,
     user: providerUser(session),
-  });
+  }));
   const providerCalls = [generated];
   let guided = generated;
   if (reference || plan.strategy === 'gpt-image-2-outpainting') {
     const { prepareOutpaintInput } = require('./image-utils.cjs');
-    const outpaint = await prepareOutpaintInput(generated.buffer, plan);
+    const outpaint = await withPipelineStage('preparing the exact banner ratio', () => prepareOutpaintInput(generated.buffer, plan));
     const guidance = [
       reference ? 'Use the second supplied image only as visual brand and style guidance. Do not reproduce text from the reference.' : '',
       plan.strategy === 'gpt-image-2-outpainting'
@@ -404,7 +450,7 @@ async function runGenerateRequest(body, session) {
         : '',
       'Preserve the first image as the current composition and keep everything else as unchanged as technically possible.',
     ].filter(Boolean).join(' ');
-    guided = await editImage({
+    guided = await withPipelineStage('extending the artwork to the banner ratio', () => editImage({
       prompt: buildEditPrompt(brief, plan, guidance),
       size: plan.providerSize,
       currentImage: outpaint?.image || generated.buffer,
@@ -412,11 +458,12 @@ async function runGenerateRequest(body, session) {
       maskImage: outpaint?.mask,
       referenceImage: reference,
       user: providerUser(session),
-    });
+    }));
     providerCalls.push(guided);
   }
-  const finalized = await finalizeConcept({ rawBackground: guided.buffer, brief, plan, logo, reference, session, providerResult: guided, providerCalls });
-  const backgroundRef = await storeTemporaryArtwork(finalized.background, { session, generationId });
+  const finalized = await withPipelineStage('compositing and validating the artwork', () => finalizeConcept({ rawBackground: guided.buffer, brief, plan, logo, reference, session, providerResult: guided, providerCalls }));
+  const backgroundRef = await withPipelineStage('saving the editable artwork', () => storeTemporaryArtwork(finalized.background, { session, generationId }));
+  const aggregateUsage = aggregateImageUsage(providerCalls);
   const concept = conceptPayload({
     id: crypto.randomUUID(),
     versionId: crypto.randomUUID(),
@@ -432,8 +479,8 @@ async function runGenerateRequest(body, session) {
     textLayers: finalized.composite.textLayers,
     logoLayer: finalized.composite.logoLayer,
     repaired: finalized.repaired,
-    usage: finalized.provider.usage,
-    estimatedCostUsd: null,
+    usage: aggregateUsage,
+    estimatedCostUsd: estimatedImageCostUsd(aggregateUsage),
   });
   console.info('[ai_designer_generation]', {
     generationId,
@@ -454,13 +501,13 @@ async function generateHandler(event) {
 async function runEditRequest(body, session) {
   const { validateInputImage } = require('./image-utils.cjs');
   const started = Date.now();
-  const { brief, plan, reference, logo } = await prepareInputs(body);
+  const { brief, plan, reference, logo } = await withPipelineStage('preparing the edit inputs', () => prepareInputs(body));
   if (!brief.structured) {
     const error = new Error('A confirmed structured creative brief is required for editing.');
     error.code = 'INVALID_REQUEST';
     throw error;
   }
-  const current = await validateInputImage(await readTemporaryArtwork(body.currentBackgroundRef, session), 40_000_000);
+  const current = await withPipelineStage('loading the current artwork', async () => validateInputImage(await readTemporaryArtwork(body.currentBackgroundRef, session), 40_000_000));
   if (!current) {
     const error = new Error('Current artwork is required for editing.');
     error.code = 'INVALID_IMAGE';
@@ -472,17 +519,18 @@ async function runEditRequest(body, session) {
     error.code = 'INVALID_REQUEST';
     throw error;
   }
-  const edited = await editImage({
+  const edited = await withPipelineStage('editing the artwork', () => editImage({
     prompt: buildEditPrompt(brief, plan, instruction),
     size: plan.providerSize,
     currentImage: current.buffer,
     currentMime: current.mimeType,
     referenceImage: reference,
     user: providerUser(session),
-  });
+  }));
   const providerCalls = [edited];
-  const finalized = await finalizeConcept({ rawBackground: edited.buffer, brief, plan, logo, reference, session, providerResult: edited, providerCalls });
-  const backgroundRef = await storeTemporaryArtwork(finalized.background, { session, generationId: String(body.generationId || 'edit') });
+  const finalized = await withPipelineStage('compositing and validating the edited artwork', () => finalizeConcept({ rawBackground: edited.buffer, brief, plan, logo, reference, session, providerResult: edited, providerCalls }));
+  const backgroundRef = await withPipelineStage('saving the editable artwork', () => storeTemporaryArtwork(finalized.background, { session, generationId: String(body.generationId || 'edit') }));
+  const aggregateUsage = aggregateImageUsage(providerCalls);
   const concept = conceptPayload({
     id: String(body.conceptId || crypto.randomUUID()),
     versionId: crypto.randomUUID(),
@@ -498,8 +546,8 @@ async function runEditRequest(body, session) {
     textLayers: finalized.composite.textLayers,
     logoLayer: finalized.composite.logoLayer,
     repaired: finalized.repaired,
-    usage: finalized.provider.usage,
-    estimatedCostUsd: null,
+    usage: aggregateUsage,
+    estimatedCostUsd: estimatedImageCostUsd(aggregateUsage),
   });
   console.info('[ai_designer_edit]', {
     conceptId: concept.id,

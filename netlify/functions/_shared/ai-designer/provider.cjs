@@ -1,6 +1,6 @@
 'use strict';
 
-const { getImageModel, getValidationModel, getTimeoutMs } = require('./config.cjs');
+const { getImageModel, getValidationModel, getImageQuality, getTimeoutMs } = require('./config.cjs');
 
 let cachedClient;
 const accessCache = new Map();
@@ -21,38 +21,58 @@ async function getClient() {
 function classifyProviderError(error) {
   const status = Number(error?.status || error?.response?.status || 0);
   const code = String(error?.code || '');
+  if (['PROVIDER_EMPTY_RESPONSE', 'PROVIDER_REQUEST_FAILED'].includes(code)) throw error;
+  if (code === 'moderation_blocked' || code === 'image_generation_user_error') {
+    const safe = new Error('OpenAI could not create this request as written. Adjust the description or supplied image and try again.');
+    safe.code = 'PROVIDER_USER_ERROR';
+    safe.providerRequestId = error?.request_id || error?.requestId || null;
+    throw safe;
+  }
   if ([401, 403, 404].includes(status) || code === 'model_not_found') {
     const safe = new Error('GPT Image 2 is unavailable to the configured project.');
     safe.code = 'MODEL_ACCESS_DENIED';
+    safe.providerRequestId = error?.request_id || error?.requestId || null;
+    throw safe;
+  }
+  if (['billing_hard_limit_reached', 'insufficient_quota'].includes(code)) {
+    const safe = new Error('The configured OpenAI project has no available API budget.');
+    safe.code = 'PROVIDER_BILLING_REQUIRED';
+    safe.providerRequestId = error?.request_id || error?.requestId || null;
     throw safe;
   }
   if (status === 429) {
     const safe = new Error('OpenAI rate limit reached.');
     safe.code = 'PROVIDER_RATE_LIMITED';
+    safe.providerRequestId = error?.request_id || error?.requestId || null;
     throw safe;
   }
   if (
     error?.name === 'AbortError'
+    || error?.name === 'APIUserAbortError'
     || error?.name === 'APIConnectionTimeoutError'
     || error?.cause?.name === 'AbortError'
     || ['ETIMEDOUT', 'ECONNABORTED'].includes(code)
   ) {
     const safe = new Error('OpenAI image request timed out.');
     safe.code = 'PROVIDER_TIMEOUT';
+    safe.providerRequestId = error?.request_id || error?.requestId || null;
     throw safe;
   }
   if (status === 429 || status >= 500) {
     const safe = new Error('OpenAI is temporarily unavailable.');
     safe.code = 'PROVIDER_UNAVAILABLE';
+    safe.providerRequestId = error?.request_id || error?.requestId || null;
     throw safe;
   }
-  if (status === 400 || ['moderation_blocked', 'image_generation_user_error'].includes(code)) {
+  if (status === 400 || status === 422) {
     const safe = new Error('OpenAI could not create this request as written. Adjust the description or supplied image and try again.');
     safe.code = 'PROVIDER_USER_ERROR';
+    safe.providerRequestId = error?.request_id || error?.requestId || null;
     throw safe;
   }
   const safe = new Error('OpenAI image request failed.');
   safe.code = 'PROVIDER_REQUEST_FAILED';
+  safe.providerRequestId = error?.request_id || error?.requestId || null;
   throw safe;
 }
 
@@ -119,7 +139,7 @@ async function generateImage({ prompt, size, user }) {
       prompt,
       n: 1,
       size,
-      quality: 'high',
+      quality: getImageQuality(),
       output_format: 'jpeg',
       output_compression: 90,
       background: 'opaque',
@@ -151,7 +171,7 @@ async function editImage({ prompt, size, currentImage, currentMime = 'image/jpeg
       prompt,
       n: 1,
       size,
-      quality: 'high',
+      quality: getImageQuality(),
       // GPT Image 2 always processes image inputs at high fidelity and rejects
       // an explicit input_fidelity override.
       output_format: 'jpeg',
@@ -214,6 +234,7 @@ async function structureCreativeBrief({ description, current, dimensions, usage,
 
 module.exports = {
   getClient,
+  classifyProviderError,
   verifyModelAccess,
   verifyValidationModelAccess,
   generateImage,

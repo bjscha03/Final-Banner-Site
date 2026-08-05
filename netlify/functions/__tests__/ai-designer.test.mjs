@@ -12,11 +12,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const { createSessionToken } = require('../_shared/server-auth.cjs');
 const { statusHandler, briefHandler, generateHandler, editHandler, retiredHandler } = require('../_shared/ai-designer/handler.cjs');
-const { planCanvas, prepareOutpaintInput } = require('../_shared/ai-designer/image-utils.cjs');
+const { planCanvas, prepareOutpaintInput, PROVIDER_MAX_EDGE, PROVIDER_MAX_PIXELS } = require('../_shared/ai-designer/image-utils.cjs');
 const { compositeArtwork, wrapText } = require('../_shared/ai-designer/compositor.cjs');
 const { normalizeBrief } = require('../_shared/ai-designer/schema.cjs');
 const { buildGenerationPrompt, buildEditPrompt } = require('../_shared/ai-designer/prompt.cjs');
 const { MODEL_ALIAS, MODEL_SNAPSHOT, getImageModel, isEnabled } = require('../_shared/ai-designer/config.cjs');
+const { classifyProviderError } = require('../_shared/ai-designer/provider.cjs');
 
 const originalEnvironment = { ...process.env };
 
@@ -264,6 +265,15 @@ describe('GPT Image 2 provider contract', () => {
     expect(provider).toContain("toFile(maskImage, 'outpaint-mask.png'");
   });
 
+  it('classifies SDK aborts as timeouts instead of a generic failure', () => {
+    try {
+      classifyProviderError({ name: 'APIUserAbortError' });
+      throw new Error('Expected provider classification to throw.');
+    } catch (error) {
+      expect(error.code).toBe('PROVIDER_TIMEOUT');
+    }
+  });
+
   it('contains no legacy provider, stock fallback, or model downgrade in the active path', () => {
     const activeRoot = path.resolve(__dirname, '../_shared/ai-designer');
     const source = fs.readdirSync(activeRoot)
@@ -355,8 +365,24 @@ describe('exact dimensions and template fill', () => {
     expect(plan.finalWidth / plan.finalHeight).toBeCloseTo(widthIn / heightIn, 10);
     expect(plan.providerWidth / plan.providerHeight).toBeLessThanOrEqual(3);
     expect(plan.providerWidth / plan.providerHeight).toBeGreaterThanOrEqual(1 / 3);
+    expect(plan.providerWidth).toBeLessThanOrEqual(PROVIDER_MAX_EDGE);
+    expect(plan.providerHeight).toBeLessThanOrEqual(PROVIDER_MAX_EDGE);
+    expect(plan.providerWidth * plan.providerHeight).toBeLessThanOrEqual(PROVIDER_MAX_PIXELS);
     expect(plan.finalWidth).toBeLessThanOrEqual(3840);
     expect(plan.finalHeight).toBeLessThanOrEqual(2160);
+  });
+
+  it('keeps common banner requests out of GPT Image 2 experimental resolutions', () => {
+    expect(planCanvas(96, 48)).toMatchObject({
+      providerWidth: 2560,
+      providerHeight: 1280,
+      providerSize: '2560x1280',
+      finalWidth: 3840,
+      finalHeight: 1920,
+    });
+    const extreme = planCanvas(120, 20);
+    expect(extreme.providerWidth / extreme.providerHeight).toBeLessThanOrEqual(3);
+    expect(extreme.providerWidth * extreme.providerHeight).toBeLessThanOrEqual(PROVIDER_MAX_PIXELS);
   });
 });
 
@@ -432,5 +458,15 @@ describe('admin-only UI integration and permanent artwork handoff', () => {
     expect(clientAuth).toContain('writeSessionCookie(sessionToken)');
     expect(clientAuth).toContain('authenticatedJsonBody');
     expect(handoff).not.toMatch(/localStorage|sessionStorage/);
+  });
+});
+
+describe('sitewide orange button contrast', () => {
+  it('uses white text for shared orange button styles', () => {
+    const button = fs.readFileSync(path.resolve(__dirname, '../../../src/components/ui/button.tsx'), 'utf8');
+    const styles = fs.readFileSync(path.resolve(__dirname, '../../../src/index.css'), 'utf8');
+    expect(button).toContain('bg-[#FF6A00] text-white');
+    expect(button).not.toContain('bg-[#FF6A00] text-[#0B1F3A]');
+    expect(styles).toMatch(/\.brand-button-primary,[\s\S]*?bg-\[#FF6A00\][\s\S]*?text-white/);
   });
 });

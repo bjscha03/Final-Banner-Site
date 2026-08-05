@@ -3,6 +3,12 @@
 const sharp = require('sharp');
 
 const SUPPORTED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp']);
+// GPT Image 2 permits larger canvases, but anything above 2560x1440's pixel
+// count is explicitly experimental. Keep production calls inside the stable
+// envelope, then render the deterministic text/logo layers on the exact final
+// print canvas below.
+const PROVIDER_MAX_EDGE = 2560;
+const PROVIDER_MAX_PIXELS = 2560 * 1440;
 
 function gcd(a, b) {
   let x = Math.abs(a);
@@ -45,10 +51,29 @@ function planCanvas(widthIn, heightIn) {
     safeCorridor = `the central ${Math.round((finalWidth / providerWidth) * 100)}% of the canvas width`;
   }
 
-  if (providerWidth > maxW || providerHeight > maxH) {
-    const scale = Math.min(maxW / providerWidth, maxH / providerHeight);
-    providerWidth = Math.max(16, Math.floor((providerWidth * scale) / 16) * 16);
-    providerHeight = Math.max(16, Math.floor((providerHeight * scale) / 16) * 16);
+  const providerScale = Math.min(
+    1,
+    PROVIDER_MAX_EDGE / providerWidth,
+    PROVIDER_MAX_EDGE / providerHeight,
+    Math.sqrt(PROVIDER_MAX_PIXELS / (providerWidth * providerHeight)),
+  );
+  if (providerScale < 1) {
+    providerWidth = Math.max(16, Math.floor((providerWidth * providerScale) / 16) * 16);
+    providerHeight = Math.max(16, Math.floor((providerHeight * providerScale) / 16) * 16);
+  }
+
+  // Independent multiple-of-16 rounding can push a clamped 3:1 canvas just
+  // outside GPT Image 2's supported ratio. Grow only the short edge so the
+  // provider request is always valid and no important source content is lost.
+  if (providerWidth / providerHeight > 3) {
+    providerHeight = Math.ceil((providerWidth / 3) / 16) * 16;
+  } else if (providerHeight / providerWidth > 3) {
+    providerWidth = Math.ceil((providerHeight / 3) / 16) * 16;
+  }
+  if (providerWidth > PROVIDER_MAX_EDGE || providerHeight > PROVIDER_MAX_EDGE || providerWidth * providerHeight > PROVIDER_MAX_PIXELS) {
+    const error = new Error('The selected dimensions could not be mapped to a stable GPT Image 2 canvas.');
+    error.code = 'INVALID_DIMENSIONS';
+    throw error;
   }
 
   return {
@@ -175,6 +200,8 @@ function toDataUrl(buffer, mimeType = 'image/jpeg') {
 
 module.exports = {
   SUPPORTED_MIME,
+  PROVIDER_MAX_EDGE,
+  PROVIDER_MAX_PIXELS,
   planCanvas,
   parseDataImage,
   validateInputImage,

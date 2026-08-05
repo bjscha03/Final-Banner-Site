@@ -395,7 +395,7 @@ const ProofApproval: React.FC = () => {
                           <Button
                             onClick={handleApprove}
                             disabled={approving || !proof}
-                            className="bg-[#FF6A00] hover:bg-[#E65F00] text-[#0B1F3A] font-bold py-6 text-base"
+                            className="bg-[#FF6A00] hover:bg-[#E65F00] text-white hover:text-white font-bold py-6 text-base"
                           >
                             {approving ? (
                               <>
@@ -461,7 +461,7 @@ const ProofApproval: React.FC = () => {
                             <Button
                               onClick={handleSubmitEdits}
                               disabled={requestingEdits || !editNotes.trim()}
-                              className="bg-[#FF6A00] hover:bg-[#E65F00] text-[#0B1F3A] font-bold"
+                              className="bg-[#FF6A00] hover:bg-[#E65F00] text-white hover:text-white font-bold"
                             >
                               {requestingEdits ? (
                                 <>

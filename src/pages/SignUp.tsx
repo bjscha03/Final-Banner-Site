@@ -271,7 +271,7 @@ const SignUp: React.FC = () => {
               <Button
                 type="submit"
                 disabled={loading}
-                className="group h-14 w-full rounded-md bg-[#FF6A00] text-base font-bold text-[#0B1F3A] shadow-none hover:bg-[#E65F00]"
+                className="group h-14 w-full rounded-md bg-[#FF6A00] text-base font-bold text-white shadow-none hover:bg-[#E65F00] hover:text-white"
               >
                 {loading ? (
                   <div className="flex items-center justify-center gap-2">
