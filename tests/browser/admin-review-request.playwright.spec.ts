@@ -228,6 +228,15 @@ test('Admin order files, organized actions, and nested preview zoom work togethe
     window.open = () => popup as unknown as Window;
   }, { savedOrder: order });
 
+  let markOriginalFileRequested!: () => void;
+  let releaseOriginalFileResponse!: () => void;
+  const originalFileRequested = new Promise<void>((resolve) => {
+    markOriginalFileRequested = resolve;
+  });
+  const originalFileResponseGate = new Promise<void>((resolve) => {
+    releaseOriginalFileResponse = resolve;
+  });
+
   await page.route('**/.netlify/functions/**', async (route) => {
     const url = new URL(route.request().url());
     if (url.pathname.endsWith('/get-orders')) {
@@ -243,7 +252,8 @@ test('Admin order files, organized actions, and nested preview zoom work togethe
       return;
     }
     if (url.pathname.endsWith('/download-file')) {
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      markOriginalFileRequested();
+      await originalFileResponseGate;
       await route.fulfill({
         status: 200,
         contentType: 'application/pdf',
@@ -278,7 +288,9 @@ test('Admin order files, organized actions, and nested preview zoom work togethe
   await expect(page.locator('[data-admin-action-group]').filter({ visible: true })).toBeVisible();
 
   await originalFileButton.click();
+  await originalFileRequested;
   await expect(page.getByRole('button', { name: 'Opening...', exact: true }).filter({ visible: true })).toBeDisabled();
+  releaseOriginalFileResponse();
   await expect(page.locator('html')).toHaveAttribute('data-original-file-opened', 'true');
   await expect(originalFileButton).toBeEnabled();
 
