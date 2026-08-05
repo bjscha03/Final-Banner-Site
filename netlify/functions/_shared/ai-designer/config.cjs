@@ -11,8 +11,12 @@ const FLAT_ARTWORK_CONSTRAINT = [
 ].join(' ');
 
 function isEnabled(deployContext = null) {
+  if (process.env.AI_DESIGNER_ENABLED === 'false') return false;
   if (process.env.AI_DESIGNER_ENABLED === 'true') return true;
-  return deployContext === 'deploy-preview';
+  // Production was explicitly approved after the protected-preview gate.
+  // The runtime context is supplied by Netlify, never by request data, and
+  // every endpoint still independently requires a verified admin session.
+  return deployContext === 'deploy-preview' || deployContext === 'production';
 }
 
 function getImageModel() {

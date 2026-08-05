@@ -109,10 +109,16 @@ describe('AI designer authorization and fail-closed controls', () => {
     expect(isEnabled()).toBe(false);
   });
 
-  it('enables only an authoritative Netlify deploy-preview runtime context', () => {
+  it('enables approved Netlify preview and production contexts with an explicit kill switch', () => {
     expect(isEnabled()).toBe(false);
     expect(isEnabled('deploy-preview')).toBe(true);
+    expect(isEnabled('production')).toBe(true);
+    expect(isEnabled('branch-deploy')).toBe(false);
+    process.env.AI_DESIGNER_ENABLED = 'false';
+    expect(isEnabled('deploy-preview')).toBe(false);
     expect(isEnabled('production')).toBe(false);
+    process.env.AI_DESIGNER_ENABLED = 'true';
+    expect(isEnabled('branch-deploy')).toBe(true);
   });
 
   it('threads Netlify deploy metadata through the status handler', async () => {
