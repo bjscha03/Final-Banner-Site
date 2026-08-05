@@ -2,7 +2,9 @@ import { expect, test } from '@playwright/test';
 
 const SAFE_TEST_EMAIL = 'review-flow-test@example.com';
 const ORDER_ID = '2ad3018b-680a-463e-b761-9fdcf8a0d993';
-const PREVIEW_DATA_URL = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="240" height="360" viewBox="0 0 240 360"%3E%3Crect width="240" height="360" fill="%23f8fafc"/%3E%3Crect x="20" y="20" width="200" height="320" rx="12" fill="%2318448d"/%3E%3Ctext x="120" y="185" text-anchor="middle" fill="white" font-size="24"%3ETest Art%3C/text%3E%3C/svg%3E';
+const PREVIEW_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="360" viewBox="0 0 240 360"><rect width="240" height="360" fill="#f8fafc"/><rect x="20" y="20" width="200" height="320" rx="12" fill="#18448d"/><text x="120" y="185" text-anchor="middle" fill="white" font-size="24">Test Art</text></svg>';
+const LARGE_PREVIEW_URL = 'https://res.cloudinary.com/dtrxl120u/image/upload/v1/orders/browser-test/high-resolution-preview.jpg';
+const THUMBNAIL_PREVIEW_URL = 'https://res.cloudinary.com/dtrxl120u/image/upload/v1/orders/browser-test/thumbnail-preview.jpg';
 
 test('Admin review request requires confirmation, prevents repeat clicks, and updates persisted status', async ({ page }) => {
   let reviewSendCalls = 0;
@@ -147,6 +149,8 @@ test('Admin review request requires confirmation, prevents repeat clicks, and up
 });
 
 test('Admin order files, organized actions, and nested preview zoom work together', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
   const order = {
     id: ORDER_ID,
     user_id: null,
@@ -185,9 +189,9 @@ test('Admin order files, organized actions, and nested preview zoom work togethe
       file_url: 'orders/browser-test/original-artwork.pdf',
       file_name: 'original-artwork.pdf',
       original_filename: 'original-artwork.pdf',
-      thumbnail_url: PREVIEW_DATA_URL,
-      web_preview_url: PREVIEW_DATA_URL,
-      final_render_url: PREVIEW_DATA_URL,
+      thumbnail_url: THUMBNAIL_PREVIEW_URL,
+      web_preview_url: null,
+      final_render_url: LARGE_PREVIEW_URL,
       artwork_manifest: {
         originalUrl: 'orders/browser-test/original-artwork.pdf',
         originalFilename: 'original-artwork.pdf',
@@ -250,6 +254,22 @@ test('Admin order files, organized actions, and nested preview zoom work togethe
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
   });
 
+  // Match the real-order failure mode: the compact derivative is available,
+  // while the large derivative and its original source fail. The expanded
+  // preview must continue through the registered same-artwork fallbacks and
+  // display the thumbnail derivative instead of ending on a gray panel.
+  await page.route('https://res.cloudinary.com/**', async (route) => {
+    const url = route.request().url();
+    const isPrimary = url.includes('high-resolution-preview.jpg');
+    const isCompactPrimary = isPrimary && url.includes('w_800');
+    if (isPrimary && !isCompactPrimary) {
+      await route.fulfill({ status: 503, contentType: 'text/plain', body: 'large derivative unavailable' });
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    await route.fulfill({ status: 200, contentType: 'image/svg+xml', body: PREVIEW_SVG });
+  });
+
   await page.goto('/admin/orders', { waitUntil: 'domcontentloaded' });
 
   const originalFileButton = page.getByRole('button', { name: 'Original File', exact: true }).filter({ visible: true });
@@ -267,11 +287,16 @@ test('Admin order files, organized actions, and nested preview zoom work togethe
   await expect(viewOrderDialog).toBeVisible();
   await expect(viewOrderDialog.getByText('Original Customer Artwork', { exact: true })).toHaveCount(0);
   await expect(viewOrderDialog.getByText('Customer Placement Preview', { exact: true })).toHaveCount(0);
+  const compactPreview = viewOrderDialog.locator('[data-order-item-preview="true"] [data-commerce-preview="true"]');
+  await expect(compactPreview).toHaveAttribute('data-preview-ready', 'true');
 
   await viewOrderDialog.getByRole('button', { name: 'Open expanded Banner 1 preview', exact: true }).click();
   const lightbox = page.locator('[data-product-preview-lightbox]');
   await expect(lightbox).toBeVisible();
   await expect(lightbox.locator('[data-order-item-expanded-preview="true"]')).toBeVisible();
+  const expandedPreview = lightbox.locator('[data-commerce-preview="true"]');
+  await expect(expandedPreview).toHaveAttribute('data-preview-ready', 'true');
+  await expect(expandedPreview).toHaveAttribute('data-preview-failed', 'false');
   await expect(lightbox.locator('img').first()).toBeVisible();
 
   const layers = await Promise.all([
@@ -283,4 +308,5 @@ test('Admin order files, organized actions, and nested preview zoom work togethe
   await lightbox.getByRole('button', { name: 'Close preview', exact: true }).last().click();
   await expect(lightbox).toHaveCount(0);
   await expect(viewOrderDialog).toBeVisible();
+  expect(pageErrors).toEqual([]);
 });

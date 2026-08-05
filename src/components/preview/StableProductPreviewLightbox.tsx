@@ -89,7 +89,7 @@ const StableProductPreviewLightbox: React.FC<ProductPreviewLightboxProps> = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center"
+      className="fixed inset-0 z-[11000] flex items-center justify-center"
       style={{
         paddingTop: 'max(8px, env(safe-area-inset-top))',
         paddingRight: 'max(8px, env(safe-area-inset-right))',
@@ -102,6 +102,7 @@ const StableProductPreviewLightbox: React.FC<ProductPreviewLightboxProps> = ({
       aria-labelledby={title ? titleId : undefined}
       aria-label={title ? undefined : 'Product preview'}
       data-expanded-product-preview="true"
+      data-product-preview-lightbox
     >
       <button
         type="button"
