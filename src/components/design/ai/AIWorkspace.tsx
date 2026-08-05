@@ -218,8 +218,8 @@ async function runBackgroundJob(
       method: 'POST',
       credentials: 'same-origin',
       signal,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jobRef: start.jobRef }),
+      headers: authorizedHeaders({ 'Content-Type': 'application/json' }),
+      body: authenticatedJsonBody({ jobRef: start.jobRef }),
     });
     if (!workerResponse.ok) throw new Error('The secure AI worker could not be started. Please retry.');
     start.dispatched = true;

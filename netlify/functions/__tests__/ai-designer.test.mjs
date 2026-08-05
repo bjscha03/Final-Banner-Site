@@ -11,13 +11,13 @@ const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const { createSessionToken } = require('../_shared/server-auth.cjs');
-const { statusHandler, briefHandler, generateHandler, editHandler, retiredHandler } = require('../_shared/ai-designer/handler.cjs');
+const { statusHandler, briefHandler, generateHandler, editHandler, workerHandler, retiredHandler } = require('../_shared/ai-designer/handler.cjs');
 const { planCanvas, prepareOutpaintInput, PROVIDER_MAX_EDGE, PROVIDER_MAX_PIXELS } = require('../_shared/ai-designer/image-utils.cjs');
 const { compositeArtwork, wrapText } = require('../_shared/ai-designer/compositor.cjs');
 const { normalizeBrief } = require('../_shared/ai-designer/schema.cjs');
 const { buildGenerationPrompt, buildEditPrompt } = require('../_shared/ai-designer/prompt.cjs');
 const { MODEL_ALIAS, MODEL_SNAPSHOT, getImageModel, isEnabled } = require('../_shared/ai-designer/config.cjs');
-const { classifyProviderError } = require('../_shared/ai-designer/provider.cjs');
+const { classifyProviderError, isTransientConnectionError } = require('../_shared/ai-designer/provider.cjs');
 const { safeErrorPayload } = require('../_shared/ai-designer/security.cjs');
 
 const originalEnvironment = { ...process.env };
@@ -200,6 +200,7 @@ describe('AI designer authorization and fail-closed controls', () => {
     expect((await generateHandler(event)).statusCode).toBe(401);
     expect((await editHandler(event)).statusCode).toBe(401);
     expect((await briefHandler(event)).statusCode).toBe(401);
+    expect((await workerHandler(event)).statusCode).toBe(401);
   });
 
   it('rejects cross-origin requests even with an admin token', async () => {
@@ -274,6 +275,73 @@ describe('GPT Image 2 provider contract', () => {
     } catch (error) {
       expect(error.code).toBe('PROVIDER_TIMEOUT');
     }
+  });
+
+  it('classifies exhausted SDK and Undici connection failures as temporarily unavailable', () => {
+    for (const providerError of [
+      { name: 'APIConnectionError', cause: { code: 'ECONNRESET' } },
+      { name: 'Error', cause: { code: 'EAI_AGAIN' } },
+      { name: 'Error', cause: { code: 'UND_ERR_SOCKET' } },
+    ]) {
+      expect(isTransientConnectionError(providerError)).toBe(true);
+      try {
+        classifyProviderError(providerError);
+        throw new Error('Expected provider classification to throw.');
+      } catch (error) {
+        expect(error.code).toBe('PROVIDER_UNAVAILABLE');
+        expect(error.originalName).toBeTruthy();
+      }
+    }
+  });
+
+  it('distinguishes missing credits from ordinary rate limiting', () => {
+    for (const providerError of [
+      { status: 429, code: 'insufficient_quota', message: 'You exceeded your current quota.' },
+      { status: 429, error: { type: 'insufficient_quota', message: 'No available API credits.' } },
+      { status: 400, code: 'billing_not_active', message: 'Billing is required.' },
+    ]) {
+      try {
+        classifyProviderError(providerError);
+        throw new Error('Expected provider classification to throw.');
+      } catch (error) {
+        expect(error.code).toBe('PROVIDER_BILLING_REQUIRED');
+      }
+    }
+    try {
+      classifyProviderError({ status: 429, code: 'rate_limit_exceeded' });
+      throw new Error('Expected provider classification to throw.');
+    } catch (error) {
+      expect(error.code).toBe('PROVIDER_RATE_LIMITED');
+    }
+  });
+
+  it('uses one bounded provider retry with the queued job idempotency key', () => {
+    const provider = fs.readFileSync(path.resolve(__dirname, '../_shared/ai-designer/provider.cjs'), 'utf8');
+    const handler = fs.readFileSync(path.resolve(__dirname, '../_shared/ai-designer/handler.cjs'), 'utf8');
+    expect(provider).toMatch(/attempt < 2/);
+    expect(provider).toContain("headers: { 'Idempotency-Key': idempotencyKey }");
+    expect(provider).toContain('isTransientConnectionError(error)');
+    expect(handler).toContain("providerRequestKey(jobId, 'generate')");
+    expect(handler).toContain("providerRequestKey(jobId, 'edit')");
+    expect(handler).toContain("providerRequestKey(providerKey, 'repair')");
+  });
+
+  it('retries one transient connection with the same provider request options', async () => {
+    const { requestWithTransientRetry } = require('../_shared/ai-designer/provider.cjs');
+    const received = [];
+    const result = await requestWithTransientRetry(async (options) => {
+      received.push(options);
+      if (received.length === 1) {
+        const failure = new Error('fetch failed');
+        failure.name = 'APIConnectionError';
+        throw failure;
+      }
+      return 'recovered';
+    }, { idempotencyKey: 'stable-provider-key', timeoutMs: 15000 });
+    expect(result).toBe('recovered');
+    expect(received).toHaveLength(2);
+    expect(received[0].headers['Idempotency-Key']).toBe('stable-provider-key');
+    expect(received[1].headers['Idempotency-Key']).toBe('stable-provider-key');
   });
 
   it('returns a safe stage, category, and request reference for production diagnosis', () => {

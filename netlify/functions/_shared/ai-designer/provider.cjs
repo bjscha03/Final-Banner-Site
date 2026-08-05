@@ -4,6 +4,23 @@ const { getImageModel, getValidationModel, getImageQuality, getTimeoutMs } = req
 
 let cachedClient;
 const accessCache = new Map();
+const CONNECTION_TIMEOUT_CODES = new Set([
+  'ETIMEDOUT',
+  'ECONNABORTED',
+  'UND_ERR_CONNECT_TIMEOUT',
+  'UND_ERR_HEADERS_TIMEOUT',
+  'UND_ERR_BODY_TIMEOUT',
+]);
+const CONNECTION_FAILURE_CODES = new Set([
+  'ECONNRESET',
+  'EPIPE',
+  'ENOTFOUND',
+  'EAI_AGAIN',
+  'ECONNREFUSED',
+  'ENETUNREACH',
+  'EHOSTUNREACH',
+  'UND_ERR_SOCKET',
+]);
 
 async function getClient() {
   if (!process.env.OPENAI_API_KEY) {
@@ -13,67 +30,94 @@ async function getClient() {
   }
   if (!cachedClient) {
     const sdk = await import('openai');
-    cachedClient = { client: new sdk.default({ apiKey: process.env.OPENAI_API_KEY }), toFile: sdk.toFile };
+    cachedClient = {
+      // The SDK retries ordinary connection and 5xx failures twice. A single
+      // additional application-level retry below covers a terminal dropped
+      // connection while preserving one stable idempotency key.
+      client: new sdk.default({ apiKey: process.env.OPENAI_API_KEY, maxRetries: 2 }),
+      toFile: sdk.toFile,
+    };
   }
   return cachedClient;
 }
 
+function providerErrorDetails(error) {
+  const payload = error?.error && typeof error.error === 'object' ? error.error : {};
+  const cause = error?.cause || payload?.cause;
+  return {
+    status: Number(error?.status || error?.response?.status || payload?.status || cause?.status || 0),
+    code: String(error?.code || payload?.code || cause?.code || ''),
+    type: String(error?.type || payload?.type || ''),
+    message: [error?.message, payload?.message].filter(Boolean).join(' '),
+    name: String(error?.name || ''),
+    causeName: String(cause?.name || ''),
+    providerRequestId: error?.request_id || error?.requestId || payload?.request_id || error?.headers?.['x-request-id'] || null,
+  };
+}
+
+function isBillingError(error) {
+  const { code, type, message } = providerErrorDetails(error);
+  if (new Set([
+    'billing_hard_limit_reached',
+    'billing_not_active',
+    'insufficient_quota',
+    'usage_limit_reached',
+  ]).has(code) || type === 'insufficient_quota') return true;
+  return /(?:insufficient|exceeded|reached|no available).{0,40}(?:quota|credit|budget|spend(?:ing)? limit)|billing.{0,40}(?:inactive|required|limit)/i.test(message);
+}
+
+function isTransientConnectionError(error) {
+  const { status, code, name, causeName } = providerErrorDetails(error);
+  return name === 'APIConnectionError'
+    || causeName === 'APIConnectionError'
+    || CONNECTION_FAILURE_CODES.has(code)
+    || status === 408
+    || status === 409
+    || status >= 500;
+}
+
+function safeProviderError(error, message, code) {
+  const details = providerErrorDetails(error);
+  const safe = new Error(message);
+  safe.code = code;
+  safe.providerRequestId = details.providerRequestId;
+  safe.providerStatus = details.status || null;
+  safe.originalName = details.name || details.causeName || null;
+  safe.originalCode = details.code || null;
+  return safe;
+}
+
 function classifyProviderError(error) {
-  const status = Number(error?.status || error?.response?.status || 0);
-  const code = String(error?.code || '');
+  const { status, code, name, causeName } = providerErrorDetails(error);
   if (['PROVIDER_EMPTY_RESPONSE', 'PROVIDER_REQUEST_FAILED'].includes(code)) throw error;
   if (code === 'moderation_blocked' || code === 'image_generation_user_error') {
-    const safe = new Error('OpenAI could not create this request as written. Adjust the description or supplied image and try again.');
-    safe.code = 'PROVIDER_USER_ERROR';
-    safe.providerRequestId = error?.request_id || error?.requestId || null;
-    throw safe;
+    throw safeProviderError(error, 'OpenAI could not create this request as written. Adjust the description or supplied image and try again.', 'PROVIDER_USER_ERROR');
   }
   if ([401, 403, 404].includes(status) || code === 'model_not_found') {
-    const safe = new Error('GPT Image 2 is unavailable to the configured project.');
-    safe.code = 'MODEL_ACCESS_DENIED';
-    safe.providerRequestId = error?.request_id || error?.requestId || null;
-    throw safe;
+    throw safeProviderError(error, 'GPT Image 2 is unavailable to the configured project.', 'MODEL_ACCESS_DENIED');
   }
-  if (['billing_hard_limit_reached', 'insufficient_quota'].includes(code)) {
-    const safe = new Error('The configured OpenAI project has no available API budget.');
-    safe.code = 'PROVIDER_BILLING_REQUIRED';
-    safe.providerRequestId = error?.request_id || error?.requestId || null;
-    throw safe;
+  if (isBillingError(error)) {
+    throw safeProviderError(error, 'The configured OpenAI project has no available API budget.', 'PROVIDER_BILLING_REQUIRED');
   }
   if (status === 429) {
-    const safe = new Error('OpenAI rate limit reached.');
-    safe.code = 'PROVIDER_RATE_LIMITED';
-    safe.providerRequestId = error?.request_id || error?.requestId || null;
-    throw safe;
+    throw safeProviderError(error, 'OpenAI rate limit reached.', 'PROVIDER_RATE_LIMITED');
   }
   if (
-    error?.name === 'AbortError'
-    || error?.name === 'APIUserAbortError'
-    || error?.name === 'APIConnectionTimeoutError'
-    || error?.cause?.name === 'AbortError'
-    || ['ETIMEDOUT', 'ECONNABORTED'].includes(code)
+    name === 'AbortError'
+    || name === 'APIUserAbortError'
+    || name === 'APIConnectionTimeoutError'
+    || causeName === 'AbortError'
+    || CONNECTION_TIMEOUT_CODES.has(code)
   ) {
-    const safe = new Error('OpenAI image request timed out.');
-    safe.code = 'PROVIDER_TIMEOUT';
-    safe.providerRequestId = error?.request_id || error?.requestId || null;
-    throw safe;
+    throw safeProviderError(error, 'OpenAI image request timed out.', 'PROVIDER_TIMEOUT');
   }
-  if (status === 429 || status >= 500) {
-    const safe = new Error('OpenAI is temporarily unavailable.');
-    safe.code = 'PROVIDER_UNAVAILABLE';
-    safe.providerRequestId = error?.request_id || error?.requestId || null;
-    throw safe;
+  if (isTransientConnectionError(error)) {
+    throw safeProviderError(error, 'The connection to OpenAI was interrupted.', 'PROVIDER_UNAVAILABLE');
   }
   if (status === 400 || status === 422) {
-    const safe = new Error('OpenAI could not create this request as written. Adjust the description or supplied image and try again.');
-    safe.code = 'PROVIDER_USER_ERROR';
-    safe.providerRequestId = error?.request_id || error?.requestId || null;
-    throw safe;
+    throw safeProviderError(error, 'OpenAI could not create this request as written. Adjust the description or supplied image and try again.', 'PROVIDER_USER_ERROR');
   }
-  const safe = new Error('OpenAI image request failed.');
-  safe.code = 'PROVIDER_REQUEST_FAILED';
-  safe.providerRequestId = error?.request_id || error?.requestId || null;
-  throw safe;
+  throw safeProviderError(error, 'OpenAI image request failed.', 'PROVIDER_REQUEST_FAILED');
 }
 
 async function withTimeout(task, timeoutMs = getTimeoutMs()) {
@@ -84,6 +128,39 @@ async function withTimeout(task, timeoutMs = getTimeoutMs()) {
   } finally {
     clearTimeout(timer);
   }
+}
+
+function providerRequestOptions(signal, idempotencyKey) {
+  return {
+    signal,
+    maxRetries: 2,
+    ...(idempotencyKey ? {
+      idempotencyKey,
+      // The base OpenAI SDK currently leaves idempotencyHeader unset, so send
+      // the standard header explicitly as well as the typed request option.
+      headers: { 'Idempotency-Key': idempotencyKey },
+    } : {}),
+  };
+}
+
+async function requestWithTransientRetry(task, { idempotencyKey, timeoutMs = getTimeoutMs() } = {}) {
+  let lastError;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      return await withTimeout(
+        (signal) => task(providerRequestOptions(signal, idempotencyKey)),
+        timeoutMs,
+      );
+    } catch (error) {
+      lastError = error;
+      if (attempt === 0 && isTransientConnectionError(error)) {
+        await new Promise((resolve) => setTimeout(resolve, 750));
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw lastError;
 }
 
 async function verifyNamedModelAccess(model, { force = false } = {}) {
@@ -130,11 +207,11 @@ function resultFromResponse(response) {
   };
 }
 
-async function generateImage({ prompt, size, user }) {
+async function generateImage({ prompt, size, user, idempotencyKey }) {
   const { client } = await getClient();
   const model = getImageModel();
   try {
-    const response = await withTimeout((signal) => client.images.generate({
+    const response = await requestWithTransientRetry((options) => client.images.generate({
       model,
       prompt,
       n: 1,
@@ -148,14 +225,14 @@ async function generateImage({ prompt, size, user }) {
       // blocks for benign requests such as birthdays, schools, and sports.
       moderation: 'low',
       user,
-    }, { signal }));
+    }, options), { idempotencyKey });
     return { ...resultFromResponse(response), model };
   } catch (error) {
     classifyProviderError(error);
   }
 }
 
-async function editImage({ prompt, size, currentImage, currentMime = 'image/jpeg', maskImage, referenceImage, user }) {
+async function editImage({ prompt, size, currentImage, currentMime = 'image/jpeg', maskImage, referenceImage, user, idempotencyKey }) {
   const { client, toFile } = await getClient();
   const model = getImageModel();
   try {
@@ -167,7 +244,7 @@ async function editImage({ prompt, size, currentImage, currentMime = 'image/jpeg
     const mask = maskImage
       ? await toFile(maskImage, 'outpaint-mask.png', { type: 'image/png' })
       : undefined;
-    const response = await withTimeout((signal) => client.images.edit({
+    const response = await requestWithTransientRetry((options) => client.images.edit({
       model,
       image: images,
       ...(mask ? { mask } : {}),
@@ -182,7 +259,7 @@ async function editImage({ prompt, size, currentImage, currentMime = 'image/jpeg
       background: 'opaque',
       moderation: 'low',
       user,
-    }, { signal }));
+    }, options), { idempotencyKey });
     return { ...resultFromResponse(response), model };
   } catch (error) {
     classifyProviderError(error);
@@ -197,10 +274,10 @@ function creativeBriefSchema() {
   return { type: 'object', additionalProperties: false, required: Object.keys(properties), properties };
 }
 
-async function structureCreativeBrief({ description, current, dimensions, usage, user }) {
+async function structureCreativeBrief({ description, current, dimensions, usage, user, idempotencyKey }) {
   const { client } = await getClient();
   try {
-    const response = await withTimeout((signal) => client.responses.create({
+    const response = await requestWithTransientRetry((options) => client.responses.create({
       model: getValidationModel(),
       input: [{
         role: 'user',
@@ -227,7 +304,7 @@ async function structureCreativeBrief({ description, current, dimensions, usage,
       },
       max_output_tokens: 900,
       safety_identifier: user,
-    }, { signal }));
+    }, options), { idempotencyKey });
     const raw = response.output_text || response.output?.flatMap((item) => item.content || []).find((item) => item.type === 'output_text')?.text;
     return { brief: JSON.parse(raw || ''), requestId: response?._request_id || null, model: getValidationModel() };
   } catch (error) {
@@ -238,6 +315,8 @@ async function structureCreativeBrief({ description, current, dimensions, usage,
 module.exports = {
   getClient,
   classifyProviderError,
+  isTransientConnectionError,
+  requestWithTransientRetry,
   verifyModelAccess,
   verifyValidationModelAccess,
   generateImage,

@@ -39,6 +39,10 @@ function providerUser(session) {
   return crypto.createHash('sha256').update(String(session.sub || 'admin')).digest('hex').slice(0, 64);
 }
 
+function providerRequestKey(jobId, operation) {
+  return crypto.createHash('sha256').update(`ai-designer:${String(jobId)}:${operation}`).digest('hex');
+}
+
 function publicBrief(brief) {
   return {
     ...brief,
@@ -241,6 +245,10 @@ async function claimJob(reference, record) {
 
 async function workerHandler(event) {
   if (event.httpMethod !== 'POST') return json(405, { error: 'METHOD_NOT_ALLOWED', message: 'Use POST.' }, { Allow: 'POST' });
+  // The signed job reference protects the stored payload, but the worker is
+  // still an AI/billing surface and therefore also requires a verified admin.
+  const auth = authorize(event, { skipOrigin: true });
+  if (auth.response) return auth.response;
   const sizeError = enforceBodyLimit(event, 64 * 1024);
   if (sizeError) return sizeError;
   let reference;
@@ -252,9 +260,9 @@ async function workerHandler(event) {
     if (!claimed) return json(200, { ok: true, status: record?.status || 'ignored' });
     ensureConfigured(event);
     let result;
-    if (claimed.action === 'brief') result = await runBriefRequest(claimed.request, claimed.session);
-    else if (claimed.action === 'generate') result = await runGenerateRequest(claimed.request, claimed.session);
-    else if (claimed.action === 'edit') result = await runEditRequest(claimed.request, claimed.session);
+    if (claimed.action === 'brief') result = await runBriefRequest(claimed.request, claimed.session, claimed.jobId);
+    else if (claimed.action === 'generate') result = await runGenerateRequest(claimed.request, claimed.session, claimed.jobId);
+    else if (claimed.action === 'edit') result = await runEditRequest(claimed.request, claimed.session, claimed.jobId);
     else {
       const error = new Error('Unknown AI job action.');
       error.code = 'INVALID_REQUEST';
@@ -279,8 +287,8 @@ async function workerHandler(event) {
       category: error?.code || 'AI_REQUEST_FAILED',
       originalCode: error?.originalCode || null,
       providerRequestId: error?.providerRequestId || null,
-      providerStatus: Number(error?.status || error?.response?.status || 0) || null,
-      errorName: error?.name || null,
+      providerStatus: Number(error?.providerStatus || error?.status || error?.response?.status || 0) || null,
+      errorName: error?.originalName || error?.name || null,
     });
     if (reference && claimed) {
       const safe = { ...safeErrorPayload(error), diagnosticId };
@@ -298,7 +306,7 @@ async function workerHandler(event) {
   }
 }
 
-async function runBriefRequest(body, session) {
+async function runBriefRequest(body, session, jobId = crypto.randomUUID()) {
   const current = normalizeBrief({ ...(body.brief || body), structured: false });
   const interpreted = await structureCreativeBrief({
     description: current.description,
@@ -317,6 +325,7 @@ async function runBriefRequest(body, session) {
     dimensions: `${current.widthIn} inches wide by ${current.heightIn} inches high (${current.aspectRatio.toFixed(6)}:1)`,
     usage: current.usage,
     user: providerUser(session),
+    idempotencyKey: providerRequestKey(jobId, 'brief'),
   });
   const brief = normalizeBrief({
     ...current,
@@ -348,7 +357,7 @@ function repairableFailures(validation) {
   return failures;
 }
 
-async function finalizeConcept({ rawBackground, brief, plan, logo, reference, session, providerResult, providerCalls, allowRepair = true }) {
+async function finalizeConcept({ rawBackground, brief, plan, logo, reference, session, providerResult, providerCalls, providerKey, allowRepair = true }) {
   const { normalizeBackground } = require('./image-utils.cjs');
   const { compositeArtwork } = require('./compositor.cjs');
   const { validateArtwork } = require('./validation.cjs');
@@ -366,6 +375,7 @@ async function finalizeConcept({ rawBackground, brief, plan, logo, reference, se
       currentMime: 'image/jpeg',
       referenceImage: reference,
       user: providerUser(session),
+      idempotencyKey: providerRequestKey(providerKey, 'repair'),
     });
     background = await normalizeBackground(repair.buffer, plan);
     composite = await compositeArtwork({ background, brief, logo });
@@ -420,7 +430,7 @@ async function statusHandler(event) {
   });
 }
 
-async function runGenerateRequest(body, session) {
+async function runGenerateRequest(body, session, jobId = crypto.randomUUID()) {
   const started = Date.now();
   const { brief, plan, reference, logo } = await withPipelineStage('preparing the design inputs', () => prepareInputs(body));
   if (!brief.structured) {
@@ -437,6 +447,7 @@ async function runGenerateRequest(body, session) {
     prompt: buildGenerationPrompt(brief, plan, 0),
     size: plan.providerSize,
     user: providerUser(session),
+    idempotencyKey: providerRequestKey(jobId, 'generate'),
   }));
   const providerCalls = [generated];
   let guided = generated;
@@ -458,10 +469,11 @@ async function runGenerateRequest(body, session) {
       maskImage: outpaint?.mask,
       referenceImage: reference,
       user: providerUser(session),
+      idempotencyKey: providerRequestKey(jobId, 'outpaint'),
     }));
     providerCalls.push(guided);
   }
-  const finalized = await withPipelineStage('compositing and validating the artwork', () => finalizeConcept({ rawBackground: guided.buffer, brief, plan, logo, reference, session, providerResult: guided, providerCalls }));
+  const finalized = await withPipelineStage('compositing and validating the artwork', () => finalizeConcept({ rawBackground: guided.buffer, brief, plan, logo, reference, session, providerResult: guided, providerCalls, providerKey: jobId }));
   const backgroundRef = await withPipelineStage('saving the editable artwork', () => storeTemporaryArtwork(finalized.background, { session, generationId }));
   const aggregateUsage = aggregateImageUsage(providerCalls);
   const concept = conceptPayload({
@@ -498,7 +510,7 @@ async function generateHandler(event) {
   return enqueueHandler(event, 'generate');
 }
 
-async function runEditRequest(body, session) {
+async function runEditRequest(body, session, jobId = crypto.randomUUID()) {
   const { validateInputImage } = require('./image-utils.cjs');
   const started = Date.now();
   const { brief, plan, reference, logo } = await withPipelineStage('preparing the edit inputs', () => prepareInputs(body));
@@ -526,9 +538,10 @@ async function runEditRequest(body, session) {
     currentMime: current.mimeType,
     referenceImage: reference,
     user: providerUser(session),
+    idempotencyKey: providerRequestKey(jobId, 'edit'),
   }));
   const providerCalls = [edited];
-  const finalized = await withPipelineStage('compositing and validating the edited artwork', () => finalizeConcept({ rawBackground: edited.buffer, brief, plan, logo, reference, session, providerResult: edited, providerCalls }));
+  const finalized = await withPipelineStage('compositing and validating the edited artwork', () => finalizeConcept({ rawBackground: edited.buffer, brief, plan, logo, reference, session, providerResult: edited, providerCalls, providerKey: jobId }));
   const backgroundRef = await withPipelineStage('saving the editable artwork', () => storeTemporaryArtwork(finalized.background, { session, generationId: String(body.generationId || 'edit') }));
   const aggregateUsage = aggregateImageUsage(providerCalls);
   const concept = conceptPayload({
