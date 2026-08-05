@@ -5,6 +5,7 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
+const { transactionBodyStatements } = require('./outbound-sql-parser.cjs');
 
 const EXPECTED_TABLES = Object.freeze([
   'outbound_ai_usage',
@@ -129,6 +130,11 @@ function explicitIndexNames(migrationSql) {
   return [...migrationSql.matchAll(/CREATE\s+(?:UNIQUE\s+)?INDEX IF NOT EXISTS\s+([a-z0-9_]+)/gi)]
     .map((match) => match[1])
     .sort();
+}
+
+async function executeTransactionalSql(sql, source, label) {
+  const statements = transactionBodyStatements(source, label);
+  await sql.transaction(statements.map((statement) => sql(statement)));
 }
 
 async function legacyCatalogSnapshot(sql) {
@@ -408,7 +414,9 @@ async function main() {
   const legacyBefore = await legacyCatalogSnapshot(sql);
   const rowsBefore = await legacyRowCounts(sql);
 
-  if (mode === '--apply' || mode === '--rollback-cycle') await sql(migrationSql);
+  if (mode === '--apply' || mode === '--rollback-cycle') {
+    await executeTransactionalSql(sql, migrationSql, 'Migration 021');
+  }
   const firstValidation = await verifyOutboundCatalog(sql, migrationSql);
   const behavior = await verifyBehavior(sql);
 
@@ -421,7 +429,7 @@ async function main() {
   let rollback = null;
   let finalValidation = firstValidation;
   if (mode === '--rollback-cycle') {
-    await sql(rollbackSql);
+    await executeTransactionalSql(sql, rollbackSql, 'Migration 021 rollback');
     await assertOutboundAbsent(sql);
     const legacyAfterRollback = await legacyCatalogSnapshot(sql);
     const rowsAfterRollback = await legacyRowCounts(sql);
@@ -429,7 +437,7 @@ async function main() {
       fail('Rollback changed the catalog or row counts of a legacy table.');
     }
 
-    await sql(migrationSql);
+    await executeTransactionalSql(sql, migrationSql, 'Migration 021');
     finalValidation = await verifyOutboundCatalog(sql, migrationSql);
     rollback = { removedEveryOutboundObject: true, migrationReapplied: true };
   }
@@ -456,7 +464,9 @@ async function main() {
   }, null, 2));
 }
 
-main().catch((error) => {
-  console.error(JSON.stringify({ ok: false, code: error?.code || 'OUTBOUND_STAGING_VALIDATION_FAILED', message: safeError(error) }));
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(JSON.stringify({ ok: false, code: error?.code || 'OUTBOUND_STAGING_VALIDATION_FAILED', message: safeError(error) }));
+    process.exitCode = 1;
+  });
+}

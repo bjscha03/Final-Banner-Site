@@ -13,6 +13,7 @@ import rollbackSql from '../../../migrations/021_outbound_sales_foundation.rollb
 import appSource from '../../../src/App.tsx?raw';
 import ordersSource from '../../../src/pages/admin/Orders.tsx?raw';
 import netlifyConfigSource from '../../../netlify.toml?raw';
+import sqlParser from '../../../scripts/outbound-sql-parser.cjs';
 
 const outboundRuntimeSources = import.meta.glob('../_shared/outbound-sales/**/*.cjs', {
   eager: true,
@@ -47,6 +48,7 @@ const { safeFailure, sanitizeForAudit } = outboundSecurity;
 const { createHandlers } = outboundHandler;
 const { JOB_TYPES, retryDelaySeconds, safeJobErrorMessage, enqueueJob, claimJobs } = outboundJobs;
 const { validateCost, reserveBudget, MAX_OPENAI_COST_PER_PROSPECT_MICROUSD } = outboundBudget;
+const { splitSqlStatements, transactionBodyStatements } = sqlParser;
 
 const originalEnvironment = { ...process.env };
 
@@ -452,6 +454,24 @@ describe('database and existing-site regression contracts', () => {
     expect(rollbackSql).toContain('COMMIT;');
     expect(executableRollback).not.toMatch(/\bCASCADE\b/i);
     expect(executableRollback).not.toMatch(/\b(?:orders|users|profiles|payments|email_events)\b/i);
+  });
+
+  it('executes migration and rollback files as atomic Neon HTTP transactions', () => {
+    const migrationStatements = transactionBodyStatements(migrationSql, 'Migration 021');
+    const rollbackStatements = transactionBodyStatements(rollbackSql, 'Migration 021 rollback');
+    const functionStatement = migrationStatements.find((statement) => statement.includes('outbound_record_prospect_status_change'));
+
+    expect(migrationStatements.length).toBeGreaterThan(18);
+    expect(rollbackStatements).toHaveLength(24);
+    expect(functionStatement).toContain('RETURN NEW;');
+    expect([...migrationStatements, ...rollbackStatements]).not.toContain('BEGIN');
+    expect([...migrationStatements, ...rollbackStatements]).not.toContain('COMMIT');
+    expect(splitSqlStatements("BEGIN; SELECT ';' AS value; DO $$ BEGIN PERFORM 1; END $$; COMMIT;")).toEqual([
+      'BEGIN',
+      "SELECT ';' AS value",
+      'DO $$ BEGIN PERFORM 1; END $$',
+      'COMMIT',
+    ]);
   });
 
   it('contains no runtime DDL or external execution entrypoint in Phase 1', () => {

@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - 'migrations/021_outbound_sales_foundation.sql'
+      - 'migrations/021_outbound_sales_foundation.rollback.sql'
+      - 'scripts/outbound-sql-parser.cjs'
+      - 'scripts/verify-outbound-sales-migration.cjs'
       - 'netlify/functions/_shared/outbound-sales/**'
       - 'netlify/functions/outbound-sales-*.mjs'
       - 'netlify/functions/__tests__/outbound-sales-foundation.test.mjs'
@@ -46,7 +49,9 @@ jobs:
             netlify/functions/outbound-sales-*.mjs \
             netlify/functions/_shared/outbound-sales/*.cjs \
             netlify/functions/_shared/outbound-sales/providers/*.cjs \
-            netlify/functions/__tests__/outbound-sales-foundation.test.mjs
+            netlify/functions/__tests__/outbound-sales-foundation.test.mjs \
+            scripts/outbound-sql-parser.cjs \
+            scripts/verify-outbound-sales-migration.cjs
       - name: Type-check
         run: npx tsc --noEmit --pretty false
       - name: Production build
