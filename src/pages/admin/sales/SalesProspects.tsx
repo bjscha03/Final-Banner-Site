@@ -40,7 +40,7 @@ function Score({ value }: { value: number | null }) {
       score >= 60 ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
         : score >= 45 ? 'border-sky-200 bg-sky-50 text-sky-800'
           : 'border-slate-200 bg-slate-50 text-slate-700',
-    )}>
+    )} aria-label={value === null ? 'Lead score unavailable' : `Lead score ${value}`}>
       {value ?? '—'}<span className="text-[9px] font-bold uppercase tracking-wide">score</span>
     </div>
   );

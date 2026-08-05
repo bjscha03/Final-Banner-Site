@@ -4,7 +4,7 @@ const VISUAL_QA_PROJECTS = new Set(['chromium-1440x900', 'chromium-pixel8-portra
 
 const routes = [
   { path: '/admin/sales', label: 'Dashboard', visibleText: 'Operational safeguards' },
-  { path: '/admin/sales/prospects', label: 'Prospect Queue', visibleText: 'Prospect Queue' },
+  { path: '/admin/sales/prospects', label: 'Prospect Queue', visibleText: 'Deterministic Prospect Queue' },
   { path: '/admin/sales/activity', label: 'Email Activity', visibleText: 'Email Activity' },
   { path: '/admin/sales/replies', label: 'Replies', visibleText: 'Replies' },
   { path: '/admin/sales/orders', label: 'Orders & Revenue', visibleText: 'Orders & Revenue Generated' },
@@ -205,7 +205,7 @@ test('Shadow Mode queue exposes deterministic evidence and no-send state', async
   await page.goto('/admin/sales/prospects', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: 'Deterministic Prospect Queue' })).toBeVisible();
   await expect(page.getByText('River City Community Sports')).toBeVisible();
-  await expect(page.getByText('68', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Lead score 68')).toBeVisible();
   await expect(page.getByText('Syntax valid · business domain matches · business mailbox')).toBeVisible();
   await expect(page.getByText('No subject or email is generated in Phase 2.')).toBeVisible();
   await expect(page.getByText('$0.02')).toBeVisible();
