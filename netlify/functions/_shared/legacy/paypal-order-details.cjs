@@ -1,4 +1,8 @@
-const { getPayPalDescription } = require('./product-display-helpers.cjs');
+const {
+  getEmailItemOptions,
+  getItemDisplayName,
+  getPayPalDescription,
+} = require('./product-display-helpers.cjs');
 
 const MAX_PAYPAL_ITEMS = 100;
 
@@ -45,32 +49,37 @@ const getItemName = (item) => {
   return String(description || 'Custom printed product').slice(0, 127);
 };
 
-const buildPayPalItems = (cartItems, totalCents) => {
-  const sourceItems = Array.isArray(cartItems)
-    ? cartItems
-      .filter((item) => item && Number(item.line_total_cents || 0) > 0)
-      .slice(0, MAX_PAYPAL_ITEMS)
-    : [];
+const getItemDescription = (item) => {
+  const displayName = getItemDisplayName(item);
+  const specifications = getEmailItemOptions(item);
+  return [displayName, specifications].filter(Boolean).join(' | ').slice(0, 2048);
+};
 
-  if (!sourceItems.length) {
-    return [{
-      name: 'Custom Printed Order',
-      description: 'Banners On The Fly custom printing order',
-      sku: 'CUSTOM-ORDER',
-      quantity: '1',
-      category: 'PHYSICAL_GOODS',
-      unit_amount: { currency_code: 'USD', value: moneyFromCents(totalCents) },
-    }];
-  }
+const buildPayPalItems = (cartItems, totalCents) => {
+  if (!Array.isArray(cartItems) || !cartItems.length || cartItems.length > MAX_PAYPAL_ITEMS) return [];
+
+  // PayPal requires every item amount to be positive. Do not silently drop an
+  // invalid item because doing so would create a customer receipt with missing
+  // product metadata.
+  const sourceItems = cartItems.filter((item) => (
+    item
+    && Number.isInteger(Number(item.quantity))
+    && Number(item.quantity) > 0
+    && Number.isInteger(Number(item.line_total_cents))
+    && Number(item.line_total_cents) > 0
+  ));
+  if (sourceItems.length !== cartItems.length) return [];
 
   const allocations = allocateCents(
     totalCents,
     sourceItems.map((item) => Number(item.line_total_cents || 0)),
   );
 
+  if (allocations.some((allocation) => allocation <= 0)) return [];
+
   return sourceItems.map((item, index) => ({
     name: getItemName(item),
-    description: `${getItemName(item)}; ordered quantity ${Math.max(1, Number(item.quantity || 1))}`.slice(0, 2048),
+    description: getItemDescription(item),
     sku: getSku(item, index),
     quantity: '1',
     category: 'PHYSICAL_GOODS',

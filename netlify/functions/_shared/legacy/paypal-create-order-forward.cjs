@@ -62,6 +62,19 @@ async function retrieve(baseUrl, accessToken, id) {
   return data;
 }
 
+function hasCompleteLineItemDetails(paypalOrder, expectedItemCount) {
+  const items = paypalOrder?.purchase_units?.[0]?.items;
+  return Array.isArray(items)
+    && items.length === expectedItemCount
+    && items.every((item) => {
+      const description = String(item?.description || '');
+      return String(item?.name || '').trim().length > 0
+        && description.includes('Size:')
+        && description.includes('Material:')
+        && description.includes('Qty:');
+    });
+}
+
 async function safeRecordAttempt(sql, attempt) {
   try {
     await recordAttempt(sql, attempt);
@@ -152,6 +165,29 @@ exports.handler = async (event) => {
       return reply(409, { ok: false, error: 'PAYPAL_AMOUNT_MISMATCH' });
     }
 
+    // Use the order items that were persisted before checkout. The browser
+    // payload is intentionally not trusted here: it can be stale, incomplete,
+    // or omitted on a retry, while these rows are the production source of
+    // truth for the order and its customer-facing PayPal receipt.
+    const authoritativeItems = await sql`
+      SELECT id, product_type, width_in, height_in, quantity, material,
+             grommets, rounded_corners, rope_feet, rope_placement,
+             pole_pockets, pole_pocket_position, pole_pocket_size,
+             line_total_cents, design_service_enabled,
+             yard_sign_sidedness, yard_sign_step_stakes_qty,
+             yard_sign_design_count
+        FROM order_items
+       WHERE order_id = ${internalOrderId}
+       ORDER BY created_at ASC, id ASC
+    `;
+    if (!authoritativeItems.length) {
+      return reply(409, {
+        ok: false,
+        error: 'PAYPAL_ORDER_ITEMS_MISSING',
+        message: 'The saved order items are unavailable. PayPal checkout was not started.',
+      });
+    }
+
     const config = credentials();
     const accessToken = await token(config);
 
@@ -195,15 +231,27 @@ exports.handler = async (event) => {
       }
 
       if (ACTIVE_ORDER_STATUSES.has(existing.status)) {
-        return reply(200, {
-          ok: true,
-          reused: true,
-          paypalOrderId: existing.id,
+        if (hasCompleteLineItemDetails(existing, authoritativeItems.length)) {
+          return reply(200, {
+            ok: true,
+            reused: true,
+            paypalOrderId: existing.id,
+            internalOrderId,
+          });
+        }
+
+        // An unpaid legacy PayPal order may have been created by the old
+        // summary-only fallback. It is safe to replace because no completed
+        // capture exists, and the conditional database update below prevents
+        // a stale provider order from winning the link race.
+        console.warn('[paypal-create-order] replacing active PayPal order without complete line items', {
           internalOrderId,
+          paypalOrderId: existing.id,
+          status: existing.status,
         });
       }
 
-      if (!['VOIDED', 'EXPIRED'].includes(existing.status)) {
+      if (!ACTIVE_ORDER_STATUSES.has(existing.status) && !['VOIDED', 'EXPIRED'].includes(existing.status)) {
         return reply(409, { ok: false, error: 'PAYPAL_ORDER_NOT_REPLACEABLE' });
       }
     }
@@ -219,7 +267,7 @@ exports.handler = async (event) => {
           currency_code: 'USD',
           value: (Number(order.total_cents) / 100).toFixed(2),
         },
-        description: getPayPalDescription(Array.isArray(payload.items) ? payload.items : []).slice(0, 127),
+        description: getPayPalDescription(authoritativeItems).slice(0, 127),
         custom_id: internalOrderId,
         invoice_id: `BOTF-${internalOrderId}`,
       }],
@@ -234,32 +282,27 @@ exports.handler = async (event) => {
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
       Accept: 'application/json',
+      Prefer: 'return=representation',
       'PayPal-Request-Id': requestId,
     };
-    const detailedBody = buildDetailedPayPalOrderRequest(body, payload.items);
-    let response = await fetch(`${config.baseUrl}/v2/checkout/orders`, {
-      method: 'POST',
-      headers: requestHeaders,
-      body: JSON.stringify(detailedBody || body),
-    });
-
-    // Preserve checkout availability for a provider-side edge case while
-    // keeping the authoritative amount and identity fields unchanged.
-    if (detailedBody && !response.ok && [400, 422].includes(response.status)) {
-      let diagnostic = '';
-      try { diagnostic = (await response.clone().text()).slice(0, 500); } catch { /* no-op */ }
-      console.error('[paypal-create-order] PayPal rejected detailed line items; retrying summary-only request', {
-        status: response.status,
-        diagnostic,
-      });
-      response = await fetch(`${config.baseUrl}/v2/checkout/orders`, {
-        method: 'POST',
-        headers: requestHeaders,
-        body: JSON.stringify(body),
+    const detailedBody = buildDetailedPayPalOrderRequest(body, authoritativeItems);
+    if (!detailedBody) {
+      return reply(409, {
+        ok: false,
+        error: 'PAYPAL_LINE_ITEMS_INVALID',
+        message: 'The saved order items could not produce a complete PayPal invoice.',
       });
     }
 
+    const response = await fetch(`${config.baseUrl}/v2/checkout/orders`, {
+      method: 'POST',
+      headers: requestHeaders,
+      body: JSON.stringify(detailedBody),
+    });
+
     const paypalOrder = await response.json().catch(() => ({}));
+    const hasCompleteItems = hasCompleteLineItemDetails(paypalOrder, authoritativeItems.length);
+    const creationAccepted = response.ok && Boolean(paypalOrder.id) && hasCompleteItems;
     const identity = orderIdentity(paypalOrder);
     await safeRecordAttempt(sql, {
       internalOrderId,
@@ -272,12 +315,16 @@ exports.handler = async (event) => {
       currency: identity.currency,
       invoiceId: identity.invoiceId,
       customId: identity.customId,
-      processingStatus: response.ok ? 'created' : 'error',
-      errorCode: response.ok ? null : 'PAYPAL_CREATE_FAILED',
+      processingStatus: creationAccepted ? 'created' : 'error',
+      errorCode: !response.ok
+        ? 'PAYPAL_CREATE_FAILED'
+        : hasCompleteItems
+          ? null
+          : 'PAYPAL_LINE_ITEMS_MISSING',
       raw: paypalOrder,
     });
 
-    if (!response.ok || !paypalOrder.id) {
+    if (!creationAccepted) {
       console.error('[paypal-create-order] PayPal rejected order creation', {
         status: response.status,
         name: paypalOrder?.name || null,
@@ -287,9 +334,11 @@ exports.handler = async (event) => {
       });
       return reply(502, {
         ok: false,
-        error: 'PAYPAL_CREATE_FAILED',
+        error: response.ok ? 'PAYPAL_LINE_ITEMS_MISSING' : 'PAYPAL_CREATE_FAILED',
         providerCode: paypalOrder?.details?.[0]?.issue || paypalOrder?.name || null,
-        message: 'PayPal could not start checkout. Please try again.',
+        message: response.ok
+          ? 'PayPal did not preserve the complete invoice details. Checkout was not started.'
+          : 'PayPal could not start checkout. Please try again.',
       });
     }
 
@@ -339,4 +388,4 @@ exports.handler = async (event) => {
   }
 };
 
-exports._test = { retrieve };
+exports._test = { hasCompleteLineItemDetails, retrieve };

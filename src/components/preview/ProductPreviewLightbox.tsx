@@ -235,8 +235,13 @@ const ProductPreviewLightbox: React.FC<ProductPreviewLightboxProps> = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[10000] flex items-center justify-center"
+      className="fixed inset-0 flex items-center justify-center"
+      data-product-preview-lightbox
       style={{
+        // This lightbox can be opened from inside the Radix View Order dialog,
+        // whose content uses z-index 10000. Keep the nested preview on a
+        // strictly higher layer so the parent dialog cannot paint over it.
+        zIndex: 11000,
         paddingTop: 'max(8px, env(safe-area-inset-top))',
         paddingRight: 'max(8px, env(safe-area-inset-right))',
         paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
