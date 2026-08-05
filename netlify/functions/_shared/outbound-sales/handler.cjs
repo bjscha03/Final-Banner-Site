@@ -4,7 +4,7 @@ const { createSql, getDatabaseUrl, isMissingOutboundSchema } = require('./databa
 const { getRuntimeConfig, defaultSettings, effectiveControlState } = require('./config.cjs');
 const { getProviderConfigurationStatus } = require('./providers/manifest.cjs');
 const { loadFoundationSnapshot, updateSettings } = require('./repository.cjs');
-const { json, authorize, parseJsonBody, safeFailure } = require('./security.cjs');
+const { json, authorize, parseJsonBody, redactSecretText, safeFailure } = require('./security.cjs');
 
 const EMPTY_METRICS = Object.freeze({
   prospectsTotal: 0,
@@ -68,7 +68,7 @@ function createHandlers(dependencies = {}) {
         if (!isMissingOutboundSchema(error)) {
           databaseAvailable = false;
           console.error('[outbound-sales] foundation status unavailable', {
-            code: String(error?.code || 'DATABASE_UNAVAILABLE').slice(0, 80),
+            code: redactSecretText(error?.code || 'DATABASE_UNAVAILABLE').slice(0, 80),
           });
         }
       }

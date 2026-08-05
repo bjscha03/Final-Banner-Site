@@ -286,6 +286,15 @@ jobs:
       - name: Run browser, device, network, and lifecycle matrix
         run: npm run test:browser:matrix
 
+      - name: Upload outbound Sales Engine visual QA
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: outbound-sales-admin-visual-qa
+          path: test-results/**/*.png
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Upload failure traces
         if: failure()
         uses: actions/upload-artifact@v4

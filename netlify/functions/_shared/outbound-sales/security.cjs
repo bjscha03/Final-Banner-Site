@@ -3,6 +3,15 @@
 const { requireAdmin } = require('../server-auth.cjs');
 
 const SENSITIVE_KEY = /(secret|password|authorization|cookie|api[_-]?key|access[_-]?token|refresh[_-]?token)/i;
+const PUBLIC_ERROR_CODES = new Set([
+  'INVALID_JSON',
+  'INVALID_SETTINGS',
+  'REQUEST_TOO_LARGE',
+  'SETTINGS_CONFLICT',
+  'LIVE_SENDING_PHASE_LOCKED',
+  'OUTBOUND_SCHEMA_NOT_READY',
+  'DATABASE_NOT_CONFIGURED',
+]);
 
 function redactSecretText(value) {
   return String(value)
@@ -110,7 +119,8 @@ function sanitizeForAudit(value, depth = 0) {
 }
 
 function safeFailure(error) {
-  const code = String(error?.code || 'OUTBOUND_REQUEST_FAILED');
+  const candidateCode = String(error?.code || 'OUTBOUND_REQUEST_FAILED');
+  const code = PUBLIC_ERROR_CODES.has(candidateCode) ? candidateCode : 'OUTBOUND_REQUEST_FAILED';
   const statusCode = code === 'INVALID_JSON' || code === 'INVALID_SETTINGS' ? 400
     : code === 'REQUEST_TOO_LARGE' ? 413
       : code === 'SETTINGS_CONFLICT' ? 409

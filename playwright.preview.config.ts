@@ -14,6 +14,7 @@ export default defineConfig({
     'checkout-thumbnail-real-route.playwright.spec.ts',
     'admin-review-request.playwright.spec.ts',
     'ai-admin-entry.playwright.spec.ts',
+    'admin-sales-foundation.playwright.ts',
   ],
   fullyParallel: true,
   workers: process.env.CI ? 4 : 2,

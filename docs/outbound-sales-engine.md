@@ -10,7 +10,7 @@ The subsystem shares only the existing server-verified admin session, the server
 
 - `OUTBOUND_SALES_ENABLED` is false unless its exact server value is `true`.
 - Shadow Mode defaults to enabled.
-- Live Sending defaults to disabled and is phase-locked in Phase 1.
+- Live Sending defaults to disabled and is code-level phase-locked in Phase 1. Neither environment variables nor database/admin settings can unlock it without a later reviewed code change.
 - Emergency Pause defaults to inactive and overrides future automation when enabled.
 - The daily send limit defaults to 30 and cannot exceed 30.
 - The local monthly OpenAI stop defaults to $8.
@@ -32,6 +32,14 @@ The default row in `outbound_settings` is safe for a first deployment. Prospect 
 Opportunities and attributed orders are stored only in outbound tables. `outbound_order_attributions.source_order_id` is an isolated identifier with no foreign key, trigger, or write path into the existing `orders` table; later attribution work can observe existing orders without changing checkout or order creation.
 
 Apply the migration only through the approved production migration process after reviewing the SQL and taking the normal database backup. The UI reports `schemaReady: false` and disables writes until it is applied.
+
+### Preview validation and rollback
+
+`scripts/verify-outbound-sales-migration.cjs` is the guarded live-catalog contract suite. It accepts only `OUTBOUND_TEST_DATABASE_URL` or an owner-only URL file, requires an explicit preview/staging label and matching Neon endpoint ID, and never falls back to the application's ordinary database variables.
+
+The `--rollback-cycle` mode snapshots every non-outbound public catalog object and legacy-table row count, applies migration 021, verifies all outbound tables/indexes/constraints/triggers/functions/defaults and audit behavior, runs the outbound-only rollback, confirms that no outbound object remains, and reapplies the migration. Any change to a non-outbound schema object or row count fails validation.
+
+`migrations/021_outbound_sales_foundation.rollback.sql` is transactional, names only objects created by migration 021, and deliberately avoids `CASCADE`. It destroys outbound-only data and must not be run on production without an approved rollback and retention decision.
 
 ## Provider architecture
 

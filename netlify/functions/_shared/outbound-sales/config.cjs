@@ -1,6 +1,7 @@
 'use strict';
 
 const FOUNDATION_PHASE = 'foundation';
+const PHASE_ALLOWS_LIVE_SENDING = false;
 const DEFAULT_DAILY_SEND_LIMIT = 30;
 const MAX_DAILY_SEND_LIMIT = 30;
 const DEFAULT_MONTHLY_OPENAI_BUDGET_CENTS = 800;
@@ -11,10 +12,13 @@ function configured(value) {
 }
 
 function getRuntimeConfig(env = process.env) {
+  const liveSendingEnvironmentApproved = env.OUTBOUND_LIVE_SENDING_AVAILABLE === 'true';
   return Object.freeze({
     phase: FOUNDATION_PHASE,
     outboundSalesEnabled: env.OUTBOUND_SALES_ENABLED === 'true',
-    liveSendingAvailable: env.OUTBOUND_LIVE_SENDING_AVAILABLE === 'true',
+    // Phase 1 is a code-level lock. Environment and database configuration
+    // cannot make the foundation report or enter live mode.
+    liveSendingAvailable: PHASE_ALLOWS_LIVE_SENDING && liveSendingEnvironmentApproved,
     defaultShadowModeEnabled: true,
     defaultLiveSendingEnabled: false,
     defaultEmergencyPaused: false,
@@ -85,6 +89,7 @@ function effectiveControlState(settings = defaultSettings(), runtime = getRuntim
 
 module.exports = {
   FOUNDATION_PHASE,
+  PHASE_ALLOWS_LIVE_SENDING,
   DEFAULT_DAILY_SEND_LIMIT,
   MAX_DAILY_SEND_LIMIT,
   DEFAULT_MONTHLY_OPENAI_BUDGET_CENTS,

@@ -11,6 +11,7 @@
     "test:local-pages": "vitest run src/lib/seo/__tests__/localPages.test.ts",
     "test:ai-designer": "vitest run --config vitest.ai.config.ts netlify/functions/__tests__/ai-designer.test.mjs netlify/functions/__tests__/admin-sign-in.test.mjs",
     "test:outbound-sales": "vitest run --config vitest.ai.config.ts netlify/functions/__tests__/outbound-sales-foundation.test.mjs",
+    "test:outbound-sales:database": "node scripts/verify-outbound-sales-migration.cjs --verify",
     "test:local-pages:browser": "npm run build && playwright test --config=playwright.local-pages.config.ts",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",

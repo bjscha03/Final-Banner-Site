@@ -9,6 +9,7 @@ import outboundHandler from '../_shared/outbound-sales/handler.cjs';
 import outboundJobs from '../_shared/outbound-sales/jobs.cjs';
 import outboundBudget from '../_shared/outbound-sales/budget.cjs';
 import migrationSql from '../../../migrations/021_outbound_sales_foundation.sql?raw';
+import rollbackSql from '../../../migrations/021_outbound_sales_foundation.rollback.sql?raw';
 import appSource from '../../../src/App.tsx?raw';
 import ordersSource from '../../../src/pages/admin/Orders.tsx?raw';
 import netlifyConfigSource from '../../../netlify.toml?raw';
@@ -32,6 +33,7 @@ const {
   DEFAULT_DAILY_SEND_LIMIT,
   DEFAULT_MONTHLY_OPENAI_BUDGET_CENTS,
   OPENAI_PROJECT_LIMIT_RECOMMENDATION_CENTS,
+  PHASE_ALLOWS_LIVE_SENDING,
 } = outboundConfig;
 const {
   PROSPECT_STATUSES,
@@ -41,7 +43,7 @@ const {
 } = outboundSchema;
 const { normalizeProviderProspect, assertProviderAdapter } = providerContract;
 const { getProviderConfigurationStatus } = providerManifest;
-const { sanitizeForAudit } = outboundSecurity;
+const { safeFailure, sanitizeForAudit } = outboundSecurity;
 const { createHandlers } = outboundHandler;
 const { JOB_TYPES, retryDelaySeconds, safeJobErrorMessage, enqueueJob, claimJobs } = outboundJobs;
 const { validateCost, reserveBudget, MAX_OPENAI_COST_PER_PROSPECT_MICROUSD } = outboundBudget;
@@ -114,6 +116,7 @@ describe('isolated outbound runtime configuration', () => {
       defaultMonthlyOpenAIBudgetCents: 800,
       openAIProjectLimitRecommendationCents: 1000,
     });
+    expect(PHASE_ALLOWS_LIVE_SENDING).toBe(false);
     expect(DEFAULT_DAILY_SEND_LIMIT).toBe(30);
     expect(DEFAULT_MONTHLY_OPENAI_BUDGET_CENTS).toBe(800);
     expect(OPENAI_PROJECT_LIMIT_RECOMMENDATION_CENTS).toBe(1000);
@@ -130,11 +133,15 @@ describe('isolated outbound runtime configuration', () => {
     expect(JSON.stringify(runtime)).not.toContain('secret-value');
   });
 
-  it('requires every independent gate before reporting live sending', () => {
+  it('cannot report live sending in Phase 1 even when every environment gate is set', () => {
     const settings = { ...defaultSettings(), shadowModeEnabled: false, liveSendingEnabled: true };
     expect(effectiveControlState(settings, getRuntimeConfig({})).mode).toBe('disabled');
     expect(effectiveControlState(settings, getRuntimeConfig({ OUTBOUND_SALES_ENABLED: 'true' })).mode).toBe('shadow');
-    expect(effectiveControlState(settings, getRuntimeConfig({ OUTBOUND_SALES_ENABLED: 'true', OUTBOUND_LIVE_SENDING_AVAILABLE: 'true' }))).toMatchObject({ mode: 'live', liveSendingEnabled: true });
+    expect(effectiveControlState(settings, getRuntimeConfig({ OUTBOUND_SALES_ENABLED: 'true', OUTBOUND_LIVE_SENDING_AVAILABLE: 'true' }))).toMatchObject({
+      mode: 'shadow',
+      liveSendingAvailable: false,
+      liveSendingEnabled: false,
+    });
     expect(effectiveControlState({ ...settings, emergencyPaused: true }, getRuntimeConfig({ OUTBOUND_SALES_ENABLED: 'true', OUTBOUND_LIVE_SENDING_AVAILABLE: 'true' }))).toMatchObject({ mode: 'emergency_paused', liveSendingEnabled: false });
   });
 
@@ -272,7 +279,7 @@ describe('admin-only fail-closed handlers', () => {
       createSql: () => ({}),
       loadFoundationSnapshot: async () => readySnapshot(),
       updateSettings,
-      getRuntimeConfig: () => getRuntimeConfig({ OUTBOUND_SALES_ENABLED: 'true' }),
+      getRuntimeConfig: () => getRuntimeConfig({ OUTBOUND_SALES_ENABLED: 'true', OUTBOUND_LIVE_SENDING_AVAILABLE: 'true' }),
     });
     const response = await handlers.settingsHandler(adminEvent('PUT', {
       settingsVersion: 1,
@@ -392,6 +399,18 @@ describe('jobs, retries, audit redaction, and budget enforcement', () => {
     });
     expect(sanitized).toEqual({ status: 'shadow', nested: { providerRequestId: 'req_safe_123' } });
   });
+
+  it('never reflects unexpected error codes or secret-bearing messages to the browser', () => {
+    const secret = ['sk', 'proj', 'unexpected', 'secret', 'value'].join('-');
+    const response = safeFailure(Object.assign(new Error(`provider failed with ${secret}`), { code: secret }));
+    expect(response.statusCode).toBe(500);
+    expect(JSON.parse(response.body)).toEqual({
+      ok: false,
+      error: 'OUTBOUND_REQUEST_FAILED',
+      message: 'The outbound sales request could not be completed safely.',
+    });
+    expect(response.body).not.toContain(secret);
+  });
 });
 
 describe('database and existing-site regression contracts', () => {
@@ -421,12 +440,28 @@ describe('database and existing-site regression contracts', () => {
     expect(sql).toContain('outbound_audit_log_immutable_trigger');
   });
 
+  it('provides a transactional rollback confined to outbound objects without CASCADE', () => {
+    const executableRollback = rollbackSql.replace(/--.*$/gm, '');
+    const droppedTables = [...rollbackSql.matchAll(/DROP TABLE IF EXISTS\s+([a-z0-9_]+)/gi)].map((match) => match[1]);
+    const droppedFunctions = [...rollbackSql.matchAll(/DROP FUNCTION IF EXISTS\s+([a-z0-9_]+)/gi)].map((match) => match[1]);
+    expect(droppedTables).toHaveLength(18);
+    expect(droppedTables.every((name) => name.startsWith('outbound_'))).toBe(true);
+    expect(droppedFunctions).toHaveLength(3);
+    expect(droppedFunctions.every((name) => name.startsWith('outbound_'))).toBe(true);
+    expect(rollbackSql).toContain('BEGIN;');
+    expect(rollbackSql).toContain('COMMIT;');
+    expect(executableRollback).not.toMatch(/\bCASCADE\b/i);
+    expect(executableRollback).not.toMatch(/\b(?:orders|users|profiles|payments|email_events)\b/i);
+  });
+
   it('contains no runtime DDL or external execution entrypoint in Phase 1', () => {
     const runtimeSource = Object.values(outboundRuntimeSources).join('\n');
     expect(runtimeSource).not.toMatch(/CREATE\s+TABLE/i);
     expect(runtimeSource).not.toMatch(/ALTER\s+TABLE/i);
     expect(runtimeSource).not.toMatch(/new\s+OpenAI|\.responses\.create|\.chat\.completions\.create/);
     expect(runtimeSource).not.toMatch(/new\s+Resend|\.emails\.send/);
+    expect(runtimeSource).not.toMatch(/\bfetch\s*\(|\baxios\s*\(|https?\.(?:get|request)\s*\(/);
+    expect(runtimeSource).not.toMatch(/require\(['"](?:openai|resend|axios|undici)['"]\)/);
     const entries = Object.keys(outboundFunctionSources).map((entry) => entry.split('/').at(-1));
     expect(entries.sort()).toEqual(['outbound-sales-settings.mjs', 'outbound-sales-status.mjs']);
   });
