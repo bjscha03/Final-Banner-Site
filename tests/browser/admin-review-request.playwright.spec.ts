@@ -217,15 +217,6 @@ test('Admin order files, organized actions, and nested preview zoom work togethe
     window.sessionStorage.setItem('banners_server_session', 'browser-test-signed-session');
     window.localStorage.setItem('banners_orders', JSON.stringify([savedOrder]));
 
-    const popup = {
-      opener: null,
-      closed: false,
-      location: {
-        replace: () => document.documentElement.setAttribute('data-original-file-opened', 'true'),
-      },
-      close() { this.closed = true; },
-    };
-    window.open = () => popup as unknown as Window;
   }, { savedOrder: order });
 
   let markOriginalFileRequested!: () => void;
@@ -287,11 +278,15 @@ test('Admin order files, organized actions, and nested preview zoom work togethe
   await expect(page.locator('[data-admin-file-group]').filter({ visible: true })).toBeVisible();
   await expect(page.locator('[data-admin-action-group]').filter({ visible: true })).toBeVisible();
 
+  const pageCountBeforeDownload = page.context().pages().length;
+  const downloadPromise = page.waitForEvent('download');
   await originalFileButton.click();
   await originalFileRequested;
-  await expect(page.getByRole('button', { name: 'Opening...', exact: true }).filter({ visible: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Downloading...', exact: true }).filter({ visible: true })).toBeDisabled();
   releaseOriginalFileResponse();
-  await expect(page.locator('html')).toHaveAttribute('data-original-file-opened', 'true');
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe('original-artwork.pdf');
+  expect(page.context().pages()).toHaveLength(pageCountBeforeDownload);
   await expect(originalFileButton).toBeEnabled();
 
   await page.getByRole('button', { name: 'View Order', exact: true }).filter({ visible: true }).click();

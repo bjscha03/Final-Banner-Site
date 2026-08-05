@@ -30,7 +30,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
-  ExternalLink,
   ChevronDown,
   ChevronUp
 } from 'lucide-react';
@@ -128,6 +127,13 @@ const getOriginalFileEntries = (items: Order['items']) => items.flatMap((item, i
   const selection = getOriginalArtworkSelection(item);
   return selection ? [{ item, index, selection }] : [];
 });
+
+const getOriginalFilename = (item: any): string | undefined => {
+  const rawName = item?.artwork_manifest?.originalFilename || item?.original_filename || item?.file_name;
+  if (!rawName) return undefined;
+  const leafName = String(rawName).split(/[\\/]/).pop()?.replace(/[\u0000-\u001f\u007f]/g, '').trim();
+  return leafName || undefined;
+};
 
 const getPreviewDimensions = (item: any): { width: number; height: number } => {
   const width = Number(item?.width_in) || 24;
@@ -518,16 +524,14 @@ const AdminOrders: React.FC = () => {
     }
   };
 
-  const handleFileDownload = async (fileKey: string, orderId: string, itemIndex: number) => {
+  const handleFileDownload = async (fileKey: string, orderId: string, itemIndex: number, originalFilename?: string) => {
     const stateKey = `${orderId}-${itemIndex}`;
-    const previewWindow = window.open('', '_blank');
-    if (previewWindow) previewWindow.opener = null;
 
     try {
       setFileLoadingStates((current) => ({ ...current, [stateKey]: true }));
       toast({
-        title: "Opening Original File",
-        description: "Loading the customer's uploaded file...",
+        title: "Downloading Original File",
+        description: "Preparing the customer's uploaded file...",
       });
 
       // Use Netlify function for secure file downloads
@@ -549,39 +553,37 @@ const AdminOrders: React.FC = () => {
       else if (contentType.includes('pdf')) extension = 'pdf';
       else if (contentType.includes('tiff')) extension = 'tiff';
 
-      // Build a proper filename with extension
+      // Preserve the customer's original filename whenever it is available.
       const baseName = fileKey?.split('/').pop()?.split('.')[0] || `banner-${orderId.slice(-8)}-item-${itemIndex + 1}`;
-      const fileName = `${baseName}.${extension}`;
+      const safeOriginalFilename = originalFilename
+        ?.split(/[\\/]/)
+        .pop()
+        ?.replace(/[\u0000-\u001f\u007f]/g, '')
+        .trim();
+      const fileName = safeOriginalFilename || `${baseName}.${extension}`;
 
-      // Open the authenticated response as a browser-safe object URL. Opening
-      // the blank tab synchronously above keeps this reliable on mobile Safari
-      // and other browsers that block popups created after an awaited fetch.
+      // Force the authenticated original bytes through a download anchor. Do
+      // not navigate to the object URL: images and PDFs would open in-browser.
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      if (previewWindow && !previewWindow.closed) {
-        previewWindow.location.replace(url);
-        window.setTimeout(() => window.URL.revokeObjectURL(url), 5 * 60 * 1000);
-      } else {
-        const link = document.createElement('a');
-        link.style.display = 'none';
-        link.href = url;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.setTimeout(() => window.URL.revokeObjectURL(url), 30_000);
-      }
+      const link = document.createElement('a');
+      link.style.display = 'none';
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.setTimeout(() => window.URL.revokeObjectURL(url), 30_000);
 
       toast({
-        title: "Original File Ready",
-        description: previewWindow ? `${fileName} opened in a new tab.` : `${fileName} has been downloaded.`,
+        title: "Original File Downloaded",
+        description: `${fileName} has been downloaded.`,
       });
     } catch (error) {
-      if (previewWindow && !previewWindow.closed) previewWindow.close();
       console.error('Error downloading file:', error);
       toast({
         title: "Original File Unavailable",
-        description: "Could not open the original file. It may not exist or be accessible.",
+        description: "Could not download the original file. It may not exist or be accessible.",
         variant: "destructive",
       });
     } finally {
@@ -1349,7 +1351,7 @@ interface AdminOrderRowProps {
   order: Order;
   onAddTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string, trackingNumbers?: TrackingEntry[]) => void;
   onUpdateTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string, trackingNumbers?: TrackingEntry[]) => void;
-  onFileDownload: (fileKey: string, orderId: string, itemIndex: number) => Promise<void>;
+  onFileDownload: (fileKey: string, orderId: string, itemIndex: number, originalFilename?: string) => Promise<void>;
   onPdfDownload: (item: any, itemIndex: number, orderId: string) => void;
   onSendShippingNotification: (orderId: string) => void;
   onMarkInProduction: (orderId: string) => void;
@@ -1717,7 +1719,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
             <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Order Files</div>
             {(originalFiles.length > 0 || filesWithDownload.length > 0 || finalPrintFiles.length > 0) ? (
               <div className="grid grid-cols-1 gap-2 xl:grid-cols-2">
-                {originalFiles.map(({ index, selection }) => {
+                {originalFiles.map(({ item, index, selection }) => {
                   const loadingKey = `${order.id}-${index}`;
                   const loading = Boolean(fileLoadingStates[loadingKey]);
                   return (
@@ -1726,15 +1728,15 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                       type="button"
                       size="sm"
                       variant="outline"
-                      onClick={() => onFileDownload(selection.url, order.id, index)}
+                      onClick={() => onFileDownload(selection.url, order.id, index, getOriginalFilename(item))}
                       disabled={loading}
                       className="h-9 w-full justify-center border-blue-200 bg-white px-2.5 text-xs text-[#18448D] hover:bg-blue-50"
                       data-admin-original-file
                     >
                       {loading ? (
-                        <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />Opening...</>
+                        <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />Downloading...</>
                       ) : (
-                        <><ExternalLink className="mr-1.5 h-3.5 w-3.5" />{originalFiles.length > 1 ? `Original File ${index + 1}` : 'Original File'}</>
+                        <><Download className="mr-1.5 h-3.5 w-3.5" />{originalFiles.length > 1 ? `Original File ${index + 1}` : 'Original File'}</>
                       )}
                     </Button>
                   );
@@ -1888,7 +1890,7 @@ interface AdminOrderCardProps {
   order: Order;
   onAddTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string, trackingNumbers?: TrackingEntry[]) => void;
   onUpdateTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string, trackingNumbers?: TrackingEntry[]) => void;
-  onFileDownload: (fileKey: string, orderId: string, itemIndex: number) => Promise<void>;
+  onFileDownload: (fileKey: string, orderId: string, itemIndex: number, originalFilename?: string) => Promise<void>;
   onPdfDownload: (item: any, itemIndex: number, orderId: string) => void;
   onSendShippingNotification: (orderId: string) => void;
   onMarkInProduction: (orderId: string) => void;
@@ -2051,7 +2053,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
         <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50/70 p-3" data-admin-file-group>
           <div className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">Order Files</div>
           <div className="grid grid-cols-1 gap-2">
-            {originalFiles.map(({ index, selection }) => {
+            {originalFiles.map(({ item, index, selection }) => {
               const loadingKey = `${order.id}-${index}`;
               const loading = Boolean(fileLoadingStates[loadingKey]);
               return (
@@ -2060,15 +2062,15 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => onFileDownload(selection.url, order.id, index)}
+                  onClick={() => onFileDownload(selection.url, order.id, index, getOriginalFilename(item))}
                   disabled={loading}
                   className="h-9 w-full justify-center border-blue-200 bg-white px-3 text-xs text-[#18448D] hover:bg-blue-50"
                   data-admin-original-file
                 >
                   {loading ? (
-                    <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />Opening...</>
+                    <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />Downloading...</>
                   ) : (
-                    <><ExternalLink className="mr-1.5 h-3.5 w-3.5" />{originalFiles.length > 1 ? `Original File ${index + 1}` : 'Original File'}</>
+                    <><Download className="mr-1.5 h-3.5 w-3.5" />{originalFiles.length > 1 ? `Original File ${index + 1}` : 'Original File'}</>
                   )}
                 </Button>
               );
