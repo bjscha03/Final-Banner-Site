@@ -20,6 +20,11 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "grand-opening-banner-ideas": {
+    title: "Grand Opening Banner Ideas: A Complete Planning & Design Guide",
+    description: "Explore grand opening banner ideas, messaging, sizes, placement, materials, and a practical launch checklist for a storefront people can find quickly.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/grand-opening-banner-ideas.webp"
+  },
   "print-ready-banner-artwork-guide": {
     title: "Print-Ready Banner Artwork: The Complete File Setup Checklist",
     description: "Learn how to prepare print-ready banner artwork: dimensions, resolution, file formats, fonts, color, safe areas, and a final pre-upload checklist today.",
