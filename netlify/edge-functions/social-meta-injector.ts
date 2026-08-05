@@ -20,6 +20,11 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "print-ready-banner-artwork-guide": {
+    title: "Print-Ready Banner Artwork: The Complete File Setup Checklist",
+    description: "Learn how to prepare print-ready banner artwork: dimensions, resolution, file formats, fonts, color, safe areas, and a final pre-upload checklist today.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/print-ready-banner-artwork-guide.webp"
+  },
   "13oz-vs-15oz-vs-18oz-vinyl-banner-guide": {
     title: "13 oz vs. 15 oz vs. 18 oz Vinyl Banners: Which Should You Choose?",
     description: "Compare 13 oz, 15 oz, and 18 oz vinyl banners by durability, rigidity, portability, and best use so you can choose the right material confidently today.",
