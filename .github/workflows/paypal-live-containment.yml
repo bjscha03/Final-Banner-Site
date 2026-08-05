@@ -40,6 +40,7 @@ jobs:
         run: |
           node --test netlify/functions/__tests__/checkout-paypal-only.test.cjs
           node --test netlify/functions/__tests__/paypal-forward-live.test.mjs
+          node --test netlify/functions/__tests__/paypal-create-order-details.test.mjs
           npx vitest run src/lib/paypalCaptureResponseGuard.test.ts --reporter=verbose
           npx vitest run \
             netlify/functions/__tests__/paypal-payment-safety.test.mjs \
@@ -50,6 +51,7 @@ jobs:
           node --check netlify/functions/_shared/paypal-runtime-config.cjs
           node --check netlify/functions/_shared/legacy/paypal-config.cjs
           node --check netlify/functions/_shared/legacy/paypal-create-order-forward.cjs
+          node --check netlify/functions/_shared/legacy/paypal-order-details.cjs
           node --check netlify/functions/_shared/legacy/paypal-capture-final.cjs
           node --check netlify/functions/_shared/legacy/paypal-capture-forward.cjs
           node --check netlify/functions/_shared/legacy/paypal-customer-info.cjs

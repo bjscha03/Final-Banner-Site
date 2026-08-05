@@ -1,7 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { _test } from '../paypal-create-order.mjs';
+
+const require = createRequire(import.meta.url);
+const forwardHandlerModule = require('../_shared/legacy/paypal-create-order-forward.cjs');
 
 test('PayPal items display dimensions and preserve the exact final total', () => {
   const items = _test.buildPayPalItems([
@@ -27,6 +31,13 @@ test('PayPal items display dimensions and preserve the exact final total', () =>
   assert.equal(items.length, 2);
   assert.match(items[0].name, /96" × 24"/);
   assert.match(items[1].name, /24" × 18"/);
+  assert.match(items[0].description, /Custom Banner 96" × 24"/);
+  assert.match(items[0].description, /Material: 13oz Vinyl/);
+  assert.match(items[0].description, /Qty: 2/);
+  assert.match(items[0].description, /Grommets: Every 2–3 Feet/);
+  assert.match(items[1].description, /Material: Corrugated Plastic/);
+  assert.match(items[1].description, /Print: Double-Sided/);
+  assert.match(items[1].description, /Qty: 20/);
   const total = items.reduce(
     (sum, item) => sum + Math.round(Number(item.unit_amount.value) * 100),
     0,
@@ -63,6 +74,44 @@ test('outbound PayPal request receives valid items and item_total breakdown', ()
   assert.equal(enhanced.purchase_units[0].items[0].unit_amount.value, '42.40');
 });
 
+test('PayPal invoice creation fails closed instead of emitting a generic item', () => {
+  const summary = {
+    intent: 'CAPTURE',
+    purchase_units: [{ amount: { currency_code: 'USD', value: '10.00' } }],
+  };
+
+  assert.deepEqual(_test.buildPayPalItems([], 1000), []);
+  assert.equal(_test.buildDetailedPayPalOrderRequest(summary, []), null);
+  assert.equal(_test.buildDetailedPayPalOrderRequest(summary, [{
+    product_type: 'banner',
+    width_in: 24,
+    height_in: 36,
+    quantity: 1,
+    material: '13oz',
+    line_total_cents: 0,
+  }]), null);
+});
+
+test('PayPal order responses must preserve every required specification', () => {
+  const detailedOrder = {
+    purchase_units: [{
+      items: [{
+        name: 'Custom Banner 24" × 36"',
+        description: 'Custom Banner 24" × 36" | Size: 24" × 36" • Material: 13oz Vinyl • Qty: 1',
+      }],
+    }],
+  };
+  const genericOrder = {
+    purchase_units: [{
+      items: [{ name: 'Custom Printed Order', description: 'Banners On The Fly custom printing order' }],
+    }],
+  };
+
+  assert.equal(forwardHandlerModule._test.hasCompleteLineItemDetails(detailedOrder, 1), true);
+  assert.equal(forwardHandlerModule._test.hasCompleteLineItemDetails(genericOrder, 1), false);
+  assert.equal(forwardHandlerModule._test.hasCompleteLineItemDetails(detailedOrder, 2), false);
+});
+
 test('authoritative handler constructs PayPal line items directly', () => {
   const summary = {
     intent: 'CAPTURE',
@@ -91,7 +140,14 @@ test('authoritative handler constructs PayPal line items directly', () => {
     'utf8',
   );
   const entrypoint = readFileSync(new URL('../paypal-create-order.mjs', import.meta.url), 'utf8');
-  assert.match(forwardHandler, /buildDetailedPayPalOrderRequest\(body, payload\.items\)/);
-  assert.match(forwardHandler, /retrying summary-only request/);
+  assert.match(forwardHandler, /FROM order_items/);
+  assert.match(forwardHandler, /buildDetailedPayPalOrderRequest\(body, authoritativeItems\)/);
+  assert.match(forwardHandler, /description: getPayPalDescription\(authoritativeItems\)/);
+  assert.match(forwardHandler, /body: JSON\.stringify\(detailedBody\)/);
+  assert.match(forwardHandler, /Prefer: 'return=representation'/);
+  assert.match(forwardHandler, /replacing active PayPal order without complete line items/);
+  assert.match(forwardHandler, /const creationAccepted = response\.ok/);
+  assert.doesNotMatch(forwardHandler, /payload\.items/);
+  assert.doesNotMatch(forwardHandler, /retrying summary-only request/);
   assert.doesNotMatch(entrypoint, /globalThis\.fetch\s*=/);
 });

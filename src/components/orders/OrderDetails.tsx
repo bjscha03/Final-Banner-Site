@@ -761,31 +761,6 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                     </div>
 
                     {isAdminUser && <div className="space-y-3">
-                      <section className="rounded-lg border border-blue-200 bg-blue-50 p-3">
-                        <p className="font-semibold text-blue-900">Original Customer Artwork</p>
-                        {getBestDownloadUrl(item) ? <>
-                          <dl className="mt-2 grid grid-cols-2 gap-1 text-xs text-blue-900">
-                            <dt>Filename</dt><dd className="break-all">{item.artwork_manifest?.originalFilename || item.original_filename || item.file_name || 'Legacy filename unavailable'}</dd>
-                            <dt>MIME type</dt><dd>{item.artwork_manifest?.mimeType || 'Unknown'}</dd>
-                            <dt>Size</dt><dd>{item.artwork_manifest?.bytes ? `${(item.artwork_manifest.bytes / 1024 / 1024).toFixed(2)} MB` : 'Unknown'}</dd>
-                            <dt>Upload status</dt><dd>{item.artwork_manifest?.uploadStatus || 'legacy'}</dd>
-                          </dl>
-                        </> : <p className="mt-2 text-sm font-medium text-red-700">Original artwork missing.</p>}
-                      </section>
-
-                      <section className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                        <p className="font-semibold text-slate-900">Customer Placement Preview</p>
-                        <dl className="mt-2 grid grid-cols-2 gap-1 text-xs">
-                          <dt>Banner</dt><dd>{item.width_in} × {item.height_in} in</dd>
-                          <dt>Fit mode</dt><dd>{item.fit_mode || 'fit'}</dd>
-                          <dt>X / Y</dt><dd>{item.image_position?.x ?? 0}% / {item.image_position?.y ?? 0}%</dd>
-                          <dt>Scale</dt><dd>{Number(item.image_scale ?? 1).toFixed(2)}×</dd>
-                          <dt>Background</dt><dd>{item.canvas_background_color || '#FFFFFF'}</dd>
-                          <dt>Preview upload</dt><dd>{item.placement_preview?.uploadStatus || (item.web_preview_url ? 'uploaded' : 'legacy/unavailable')}</dd>
-                        </dl>
-                        {item.placement_preview?.error && <p className="mt-2 text-xs text-red-700">{item.placement_preview.error}</p>}
-                      </section>
-
                       <section className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
                         <p className="font-semibold text-emerald-900">Generated Production PDF</p>
                         <p className="mt-1 text-xs text-emerald-800">Status: {item.generated_print_pdf_url ? 'generated' : item.production_pdf_status || 'pending'}</p>
