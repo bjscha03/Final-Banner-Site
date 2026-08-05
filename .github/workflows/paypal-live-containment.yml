@@ -10,6 +10,7 @@ on:
       - 'src/lib/paypalCaptureResponseGuard.test.ts'
       - 'netlify/functions/paypal-config.mjs'
       - 'netlify/functions/paypal-create-order.mjs'
+      - 'netlify/functions/paypal-capture-order.mjs'
       - 'netlify/functions/paypal-capture-minimal.mjs'
       - 'netlify/functions/paypal-payment-status.mjs'
       - 'netlify/functions/paypal-webhook.mjs'
@@ -20,6 +21,7 @@ on:
       - 'netlify/functions/_shared/legacy/generate-paid-order-pdfs-background.cjs'
       - 'netlify/functions/__tests__/paypal-*.test.mjs'
       - 'netlify/functions/__tests__/checkout-paypal-only.test.cjs'
+      - 'netlify.toml'
       - '.github/workflows/paypal-live-containment.yml'
 
 permissions:
@@ -52,11 +54,13 @@ jobs:
           node --check netlify/functions/_shared/legacy/paypal-config.cjs
           node --check netlify/functions/_shared/legacy/paypal-create-order-forward.cjs
           node --check netlify/functions/_shared/legacy/paypal-order-details.cjs
+          node --check netlify/functions/_shared/legacy/paypal-capture-order.cjs
           node --check netlify/functions/_shared/legacy/paypal-capture-final.cjs
           node --check netlify/functions/_shared/legacy/paypal-capture-forward.cjs
           node --check netlify/functions/_shared/legacy/paypal-customer-info.cjs
           node --check netlify/functions/_shared/legacy/paypal-webhook-forward.cjs
           node --check netlify/functions/paypal-create-order.mjs
+          node --check netlify/functions/paypal-capture-order.mjs
           node --check netlify/functions/paypal-capture-minimal.mjs
           node --check netlify/functions/paypal-payment-status.mjs
           node --check netlify/functions/paypal-webhook.mjs
@@ -66,3 +70,22 @@ jobs:
         run: npx tsc --noEmit --pretty false
       - name: Build
         run: npm run build
+      - name: Verify deployed PayPal entrypoints cold-start
+        env:
+          PREVIEW_URL: https://deploy-preview-${{ github.event.pull_request.number }}--bannersonthefly.netlify.app
+        run: |
+          set -euo pipefail
+          ready=0
+          for attempt in $(seq 1 90); do
+            create_code=$(curl -sS -X OPTIONS -o /tmp/paypal-create-order.txt -w '%{http_code}' \
+              "$PREVIEW_URL/.netlify/functions/paypal-create-order" || true)
+            capture_code=$(curl -sS -X OPTIONS -o /tmp/paypal-capture-order.txt -w '%{http_code}' \
+              "$PREVIEW_URL/.netlify/functions/paypal-capture-order" || true)
+            if [ "$create_code" = "200" ] && [ "$capture_code" = "200" ]; then
+              ready=1
+              break
+            fi
+            echo "PayPal deploy not ready (create=${create_code:-none}, capture=${capture_code:-none}); attempt $attempt/90"
+            sleep 5
+          done
+          test "$ready" = "1"
