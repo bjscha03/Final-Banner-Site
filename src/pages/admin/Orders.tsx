@@ -1057,7 +1057,7 @@ const AdminOrders: React.FC = () => {
                     <FileText className="h-4 w-4" />
                     Custom Quotes
                     {globalOverview.customQuotes > 0 && (
-                      <Badge className="ml-1 bg-[#FF6A00] text-white">{globalOverview.customQuotes}</Badge>
+                      <Badge className="ml-1 bg-[#C94E00] text-white">{globalOverview.customQuotes}</Badge>
                     )}
                   </a>
                 </TabsTrigger>

@@ -2339,7 +2339,7 @@ const GoogleAdsBanner: React.FC = () => {
                 <button
                   type="button"
                   onClick={scrollToOrder}
-                  className="inline-flex min-h-12 w-full items-center justify-center gap-2 bg-[#FF6A00] px-7 py-3.5 text-base font-bold text-white shadow-[0_10px_28px_rgba(255,106,0,0.24)] transition-colors hover:bg-[#E85F00] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B1F3A] sm:w-auto"
+                  className="inline-flex min-h-12 w-full items-center justify-center gap-2 bg-[#C94E00] px-7 py-3.5 text-base font-bold text-white shadow-[0_10px_28px_rgba(255,106,0,0.24)] transition-colors hover:bg-[#B84300] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B1F3A] sm:w-auto"
                 >
                   {heroContent.cta}
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -3186,7 +3186,7 @@ const GoogleAdsBanner: React.FC = () => {
               type="button"
               onClick={mobileCta.onClick}
               disabled={mobileCta.disabled}
-              className="inline-flex min-h-12 min-w-0 flex-1 items-center justify-center gap-2 bg-[#FF6A00] px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-[#E85F00] disabled:cursor-not-allowed disabled:bg-slate-300"
+              className="inline-flex min-h-12 min-w-0 flex-1 items-center justify-center gap-2 bg-[#C94E00] px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-[#B84300] disabled:cursor-not-allowed disabled:bg-slate-300"
             >
               {mobileCta.loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
               <span className="truncate">{mobileCta.label}</span>

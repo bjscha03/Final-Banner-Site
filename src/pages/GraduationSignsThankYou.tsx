@@ -58,7 +58,7 @@ const GraduationSignsThankYou: React.FC = () => {
 
           <Link
             to="/"
-            className="inline-flex items-center gap-2 rounded-lg bg-[#FF6A00] hover:bg-[#E65F00] text-white font-bold px-8 py-3 text-lg shadow-md transition"
+            className="inline-flex items-center gap-2 rounded-lg bg-[#C94E00] hover:bg-[#B84300] text-white font-bold px-8 py-3 text-lg shadow-md transition"
           >
             Back to Home <ArrowRight className="h-5 w-5" />
           </Link>

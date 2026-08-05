@@ -658,7 +658,7 @@
   .brand-button-primary,
   .btn-primary,
   .btn-hero-primary {
-    @apply inline-flex min-h-12 items-center justify-center rounded-md bg-[#FF6A00] px-6 py-3 font-bold text-white shadow-none transition-colors duration-200 hover:bg-[#E65F00] hover:text-white hover:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00] focus-visible:ring-offset-2 active:bg-[#E65F00];
+    @apply inline-flex min-h-12 items-center justify-center rounded-md bg-[#C94E00] px-6 py-3 font-bold text-white shadow-none transition-colors duration-200 hover:bg-[#B84300] hover:text-white hover:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00] focus-visible:ring-offset-2 active:bg-[#B84300];
     transform: none;
   }
 
