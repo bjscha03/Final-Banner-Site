@@ -10,6 +10,7 @@
 /vinyl-banners/*   /404.html   404
 /yard-signs/*      /404.html   404
 /car-magnets/*     /404.html   404
+/trade-shows/*     /404.html   404
 
 # SPA fallback for React Router (must be last)
 /*    /index.html   200

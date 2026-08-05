@@ -9,6 +9,8 @@ import { initPostHog } from "@/lib/posthog";
 import { captureAttributionFromLocation } from "@/lib/attribution";
 import CityProductPage from "./pages/CityProductPage";
 import ProductHubPage from "./pages/ProductHubPage";
+import TradeShowDirectory from "./pages/TradeShowDirectory";
+import TradeShowDetail from "./pages/TradeShowDetail";
 import NotFound from "./pages/NotFound";
 // DISABLED: Popup promo flow replaced with static NEW20 code in PromoBanner
 // import { PromoPopup } from "@/components/PromoPopup";
@@ -231,6 +233,10 @@ export const RoutedApplication = () => (
             <Route path="/event-banners" element={<CategoryPage />} />
             <Route path="/custom-banners" element={<CategoryPage />} />
             <Route path="/construction-banners" element={<CategoryPage />} />
+
+            {/* Searchable trade show calendar and event-specific exhibitor planners */}
+            <Route path="/trade-shows" element={<TradeShowDirectory />} />
+            <Route path="/trade-shows/:slug" element={<TradeShowDetail />} />
 
             {/* Google Ads landing page */}
             <Route path="/google-ads-banner" element={<GoogleAdsBanner />} />
