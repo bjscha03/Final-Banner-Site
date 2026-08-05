@@ -64,7 +64,6 @@ const TradeShowDirectory: React.FC = () => {
       />
 
       <section className="relative overflow-hidden bg-[#0B1F3A] text-white">
-        <div className="absolute inset-y-0 right-0 hidden w-[38%] border-l border-white/10 bg-[linear-gradient(135deg,rgba(255,106,0,0.18),transparent_60%)] lg:block" aria-hidden="true" />
         <div className="brand-shell relative py-12 sm:py-16 lg:py-20">
           <div className="max-w-3xl">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF8A3D]">Exhibitor planning resource</p>
