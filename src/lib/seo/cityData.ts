@@ -24,6 +24,39 @@ export interface LocalEvidence {
   projectDetails?: string;
 }
 
+export interface LocalPageLink {
+  label: string;
+  to: string;
+  description: string;
+}
+
+export interface LocalGuideSection {
+  heading: string;
+  paragraphs: string[];
+  items?: string[];
+}
+
+export interface LocalRecommendation {
+  use: string;
+  choice: string;
+  reason: string;
+}
+
+export interface LocalGuide {
+  eyebrow: string;
+  title: string;
+  summary: string;
+  sections: LocalGuideSection[];
+  recommendations: LocalRecommendation[];
+  permitNotice?: {
+    title: string;
+    body: string;
+    href: string;
+    linkLabel: string;
+  };
+  sourceLinks: { label: string; href: string }[];
+}
+
 export interface ProductEditorialRecord {
   introduction: string;
   fulfillmentFact: string;
@@ -35,6 +68,12 @@ export interface ProductEditorialRecord {
   lastReviewed: string;
   claimsApproved: boolean;
   validationApproved: boolean;
+  metaTitle?: string;
+  metaDescription?: string;
+  h1?: string;
+  heroSubtitle?: string;
+  localGuide?: LocalGuide;
+  internalLinks?: LocalPageLink[];
   /** A deliberate exception still requires author, reviewer, facts, and validation. */
   evidenceExceptionApproved?: boolean;
 }
@@ -57,7 +96,177 @@ export interface CityEntry {
  * first-party product evidence before a page can enter the sitemap.
  */
 export const CITIES: CityEntry[] = [
-  { slug: 'louisville-ky', city: 'Louisville', state: 'KY', stateName: 'Kentucky', region: 'Kentuckiana', nearbyCitySlugs: ['lexington-ky', 'cincinnati-oh', 'indianapolis-in', 'nashville-tn'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' },
+  {
+    slug: 'louisville-ky',
+    city: 'Louisville',
+    state: 'KY',
+    stateName: 'Kentucky',
+    region: 'Kentuckiana',
+    nearbyCitySlugs: ['lexington-ky', 'cincinnati-oh', 'indianapolis-in', 'nashville-tn'],
+    serviceClassification: 'shipping-only',
+    physicalPresence: 'none-claimed',
+    editorial: {
+      'vinyl-banners': {
+        introduction:
+          'Banners On The Fly prints custom vinyl banners for Louisville businesses, schools, churches, exhibitors, event teams, and community organizations, then ships the finished order to the customer. The page is tailored to Louisville planning needs, but it does not represent a storefront or pickup location in Louisville.',
+        fulfillmentFact:
+          'Most standard vinyl-banner orders are produced within 24 hours. Free next-day air is carrier transit after production, and delivery dates are estimates.',
+        buyerGuidance: [
+          'Use solid vinyl for indoor exhibit booths, storefront promotions, stage backdrops, and protected outdoor displays where maximum color and opacity matter.',
+          'Choose mesh for fence-mounted or exposed installations where allowing airflow through the print can reduce wind load.',
+          'Keep outdoor messages short, use high contrast, and size the most important words for the expected viewing distance.',
+          'Confirm the exact property, venue, and Louisville-area sign rules before installation; requirements vary by location and display duration.',
+        ],
+        faqs: [
+          {
+            question: 'What banner material works best for outdoor events in Louisville?',
+            answer:
+              'For a protected wall or short-term display, solid 13 oz or 15 oz vinyl provides strong color and opacity. For exposed fencing or open event grounds, mesh is often the better starting point because air can pass through it. Always remove or secure any banner when severe weather is expected.',
+          },
+          {
+            question: 'Do temporary banners require a permit in Louisville?',
+            answer:
+              'Louisville Metro says temporary banner signs generally require a sign permit and are subject to location, attachment, and display-duration rules. Some cities within Jefferson County use separate zoning authority, so verify the current requirements for the exact installation address before hanging a banner.',
+          },
+          {
+            question: 'Can I order a banner for a Louisville convention or trade show?',
+            answer:
+              'Yes. Configure the finished size around the booth, table, wall, or approved hanging area, then check the Kentucky International Convention Center, Kentucky Exposition Center, or event organizer rules for rigging, placement, and move-in deadlines before ordering.',
+          },
+          {
+            question: 'How should a Louisville grand-opening banner be designed?',
+            answer:
+              'Lead with the opening message, business name, date, and one clear next step. Use high contrast and avoid crowding the layout. For street-facing displays in areas such as Downtown, NuLu, the Highlands, or Old Louisville, review the sign rules that apply to the specific property before installation.',
+          },
+        ],
+        localEvidence: [],
+        author: 'Banners On The Fly editorial',
+        reviewer: 'Source-verified local SEO review',
+        lastReviewed: '2026-08-06',
+        claimsApproved: true,
+        validationApproved: true,
+        evidenceExceptionApproved: true,
+        metaTitle: 'Vinyl Banner Printing Louisville, KY | Fast Shipping',
+        metaDescription:
+          'Order custom vinyl banners shipped to Louisville, KY with 24-hour production on most standard orders and free next-day air after production. Design online.',
+        h1: 'Vinyl Banner Printing in Louisville, KY',
+        heroSubtitle:
+          'Custom banners for Louisville businesses, schools, churches, exhibitors, and event teams.',
+        localGuide: {
+          eyebrow: 'Louisville banner planning',
+          title: 'Banner ideas built around how Louisville gathers and does business.',
+          summary:
+            'From convention floors and Derby-season hospitality to riverfront festivals and neighborhood openings, Louisville displays call for the right material, message, and mounting plan.',
+          sections: [
+            {
+              heading: 'Conventions and exhibitions',
+              paragraphs: [
+                'Louisville supports two distinct convention environments: the downtown Kentucky International Convention Center and the Kentucky Exposition Center near the airport. Exhibitors commonly need booth identification, product messaging, sponsor backdrops, registration signs, and directional banners that can be read quickly in a crowded hall.',
+              ],
+              items: [
+                'Size the banner to the approved booth or hanging area rather than guessing from a venue photo.',
+                'Confirm organizer rules for rigging, fire safety, move-in, and outside services before production.',
+                'Use a short headline and one focal image so the message works from across an aisle.',
+              ],
+            },
+            {
+              heading: 'Festivals, parks, and neighborhood events',
+              paragraphs: [
+                'WorldFest fills the Belvedere with stages, vendors, cultural programming, and visitor information, while Waterfront Park and the Big Four Lawn host concerts and community gatherings. In Old Louisville, the St. James Court Art Show brings hundreds of artists into an outdoor, rain-or-shine setting. These formats create clear needs for entry, sponsor, booth, schedule, and wayfinding banners.',
+              ],
+              items: [
+                'Use mesh on exposed fence lines and solid vinyl for protected booths, tents, or stage areas.',
+                'Plan attachment points before choosing grommet spacing, pole pockets, or rope.',
+                'Keep arrows, dates, and zone names large enough for moving crowds.',
+              ],
+            },
+            {
+              heading: 'Retail, restaurants, and grand openings',
+              paragraphs: [
+                'Downtown, NuLu, Butchertown, the Highlands, and Old Louisville each mix restaurants, shops, entertainment, and visitor traffic in different built environments. A storefront banner can announce an opening, seasonal menu, renovation, hiring event, or limited promotion without trying to carry every detail of the campaign.',
+              ],
+              items: [
+                'Prioritize the offer, business name, date, and one call to action.',
+                'Check sight lines from the sidewalk or street before finalizing type size.',
+                'Verify property, preservation-district, overlay, and permit requirements for the exact address.',
+              ],
+            },
+            {
+              heading: 'Schools, churches, nonprofits, and employers',
+              paragraphs: [
+                'University of Louisville and Simmons College of Kentucky add campus fairs, athletics, service projects, and alumni events to the local calendar. Louisville Metro also identifies healthcare, manufacturing, transportation and warehousing, and retail as major employment sectors—settings where banners support recruiting, safety, open houses, fundraising, employee recognition, and community outreach.',
+              ],
+              items: [
+                'Build reusable evergreen designs for annual programs and recurring outreach.',
+                'Use changeable date panels or leave clear space for event-specific overlays when appropriate.',
+                'For logistics and construction environments, favor simple messages and durable mounting plans.',
+              ],
+            },
+          ],
+          recommendations: [
+            {
+              use: 'Indoor exhibit booths at KICC or KEC',
+              choice: '13 oz or 15 oz solid vinyl',
+              reason: 'Strong color and opacity for booth walls, table fronts, sponsor backdrops, and aisle-facing messages.',
+            },
+            {
+              use: 'Fence runs and exposed outdoor event areas',
+              choice: 'Mesh banner material',
+              reason: 'Perforation lets air pass through the print, which can reduce wind load compared with solid vinyl.',
+            },
+            {
+              use: 'Storefront promotions and grand openings',
+              choice: '15 oz solid vinyl',
+              reason: 'A durable, professional option for bold street-facing messages when the display location is approved.',
+            },
+            {
+              use: 'Construction, logistics, and healthcare wayfinding',
+              choice: '15 oz or 18 oz vinyl',
+              reason: 'Heavier solid materials suit repeated handling, larger signs, and longer campaigns when properly supported.',
+            },
+          ],
+          permitNotice: {
+            title: 'Check Louisville sign rules before installation',
+            body:
+              'Louisville Metro says temporary banner signs generally require a permit, have specified display limits, must be attached to permanent structures, and cannot flap or move with the wind. Rules vary by location, and several cities in Jefferson County use their own zoning authority. Confirm the current rule for the exact property before hanging a banner.',
+            href: 'https://louisvilleky.gov/government/office-planning/sign-regulations',
+            linkLabel: 'Review Louisville Metro sign regulations',
+          },
+          sourceLinks: [
+            { label: 'Louisville Metro economic development strategy', href: 'https://louisvilleky.gov/government/economic-development/growing-louisville-together' },
+            { label: 'Louisville Metro WorldFest', href: 'https://louisvilleky.gov/government/city-events/worldfest' },
+            { label: 'Kentucky Exposition Center', href: 'https://kyexpo.org/' },
+            { label: 'Kentucky International Convention Center', href: 'https://kyconvention.com/' },
+            { label: 'National Weather Service Louisville', href: 'https://www.weather.gov/lmk/' },
+            { label: 'St. James Court Art Show', href: 'https://www.stjamescourtartshow.com/' },
+            { label: 'Louisville Tourism neighborhood guide', href: 'https://www.gotolouisville.com/neighborhoods/' },
+          ],
+        },
+        internalLinks: [
+          {
+            label: 'Mesh banners for exposed Louisville sites',
+            to: '/mesh-banners',
+            description: 'Compare airflow-friendly mesh for fences, construction perimeters, and open event grounds.',
+          },
+          {
+            label: 'Trade show banner planning',
+            to: '/trade-show-banners',
+            description: 'Plan booth backdrops, table-front graphics, sponsor displays, and aisle-facing messages.',
+          },
+          {
+            label: 'Event banner options',
+            to: '/event-banners',
+            description: 'Review banner ideas for entrances, schedules, sponsors, stages, vendors, and wayfinding.',
+          },
+          {
+            label: 'Grand opening banner ideas',
+            to: '/blog/grand-opening-banner-ideas',
+            description: 'Use a practical checklist for the message, date, offer, layout, and installation plan.',
+          },
+        ],
+      },
+    },
+  },
   { slug: 'lexington-ky', city: 'Lexington', state: 'KY', stateName: 'Kentucky', region: 'the Bluegrass region', nearbyCitySlugs: ['louisville-ky', 'cincinnati-oh', 'nashville-tn', 'columbus-oh'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' },
   { slug: 'cincinnati-oh', city: 'Cincinnati', state: 'OH', stateName: 'Ohio', region: 'the Tri-State area', nearbyCitySlugs: ['louisville-ky', 'lexington-ky', 'indianapolis-in', 'columbus-oh'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' },
   { slug: 'indianapolis-in', city: 'Indianapolis', state: 'IN', stateName: 'Indiana', region: 'central Indiana', nearbyCitySlugs: ['cincinnati-oh', 'louisville-ky', 'chicago-il', 'columbus-oh'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' },
@@ -132,6 +341,7 @@ export interface CityProductPageContent {
   h1: string;
   heroSubtitle: string;
   introParagraph: string;
+  localGuide?: LocalGuide;
   metaTitle: string;
   metaDescription: string;
   indexable: boolean;
@@ -164,7 +374,7 @@ export function buildCityProductPageContent(productSlug: CityProductSlug, city: 
   const editorial = city.editorial?.[productSlug];
   const configuratorUrl = getConfiguratorUrl(productSlug, path, 'local-page');
 
-  const metaTitle = `${product.plural} ${cityState} | Custom Printing`;
+  const metaTitle = editorial?.metaTitle || `${product.plural} ${cityState} | Custom Printing`;
 
   const safeIntroduction =
     `Banners On The Fly ships ${product.lower} to customers in ${cityState}. ` +
@@ -179,11 +389,12 @@ export function buildCityProductPageContent(productSlug: CityProductSlug, city: 
   return {
     path,
     canonicalUrl: `${SITE_URL}${path}`,
-    h1: `${product.plural} in ${cityState}`,
-    heroSubtitle: `Current options and online pricing for ${product.lower} shipped to ${city.city}.`,
+    h1: editorial?.h1 || `${product.plural} in ${cityState}`,
+    heroSubtitle: editorial?.heroSubtitle || `Current options and online pricing for ${product.lower} shipped to ${city.city}.`,
     introParagraph: editorial?.introduction || safeIntroduction,
+    localGuide: editorial?.localGuide,
     metaTitle,
-    metaDescription: buildMetaDescription(productSlug, city, product),
+    metaDescription: editorial?.metaDescription || buildMetaDescription(productSlug, city, product),
     indexable: gate.indexable,
     publishGateReasons: gate.reasons,
     product,
@@ -200,14 +411,19 @@ export function buildCityProductPageContent(productSlug: CityProductSlug, city: 
         : { label: `${product.plural} sizes and pricing`, to: `/${product.slug}`, description: `Compare current ${product.lower} sizes, options, minimums, and price examples.` },
       { label: 'Production and shipping details', to: '/shipping', description: 'Review how production time and carrier transit time work.' },
       { label: 'Artwork and order FAQs', to: '/faq', description: 'Check file, preview, return, and cancellation policies before ordering.' },
+      ...(editorial?.internalLinks || []),
     ],
-    siblingProductLinks: (Object.keys(PRODUCT_LANDING_DATA) as CityProductSlug[])
-      .filter((slug) => slug !== productSlug && evaluateLocalPagePublishGate(slug, city).indexable)
-      .map((slug) => ({ label: `${PRODUCT_LANDING_DATA[slug].plural} shipped to ${cityState}`, to: `/${slug}/${city.slug}` })),
-    nearbyCityLinks: city.nearbyCitySlugs
-      .map((slug) => CITY_BY_SLUG.get(slug))
-      .filter((nearby): nearby is CityEntry => Boolean(nearby && evaluateLocalPagePublishGate(productSlug, nearby).indexable))
-      .map((nearby) => ({ label: `${product.plural} shipped to ${nearby.city}, ${nearby.state}`, to: `/${productSlug}/${nearby.slug}` })),
+    siblingProductLinks: gate.indexable
+      ? (Object.keys(PRODUCT_LANDING_DATA) as CityProductSlug[])
+          .filter((slug) => slug !== productSlug && evaluateLocalPagePublishGate(slug, city).indexable)
+          .map((slug) => ({ label: `${PRODUCT_LANDING_DATA[slug].plural} shipped to ${cityState}`, to: `/${slug}/${city.slug}` }))
+      : [],
+    nearbyCityLinks: gate.indexable
+      ? city.nearbyCitySlugs
+          .map((slug) => CITY_BY_SLUG.get(slug))
+          .filter((nearby): nearby is CityEntry => Boolean(nearby && evaluateLocalPagePublishGate(productSlug, nearby).indexable))
+          .map((nearby) => ({ label: `${product.plural} shipped to ${nearby.city}, ${nearby.state}`, to: `/${productSlug}/${nearby.slug}` }))
+      : [],
     configuratorUrl,
   };
 }

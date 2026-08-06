@@ -179,6 +179,85 @@ const CityProductPage: React.FC<CityProductPageProps> = ({ productSlug }) => {
           </div>
         </section>
 
+        {content.localGuide && (
+          <section className="border-y border-slate-200 py-12 sm:py-16" aria-labelledby="local-guide-heading">
+            <div className="grid gap-8 lg:grid-cols-[0.55fr_1.45fr] lg:gap-14">
+              <div>
+                <p className="brand-eyebrow">{content.localGuide.eyebrow}</p>
+                <h2 id="local-guide-heading" className="brand-title mt-3">{content.localGuide.title}</h2>
+                <p className="mt-4 text-sm leading-6 text-slate-600">{content.localGuide.summary}</p>
+              </div>
+              <div className="grid gap-6 sm:grid-cols-2">
+                {content.localGuide.sections.map((section) => (
+                  <article key={section.heading} className="border-t-4 border-[#FF6A00] bg-[#F7F7F7] p-6">
+                    <h3 className="font-display text-xl font-bold text-[#0B1F3A]">{section.heading}</h3>
+                    {section.paragraphs.map((paragraph) => (
+                      <p key={paragraph} className="mt-3 text-sm leading-6 text-slate-600">{paragraph}</p>
+                    ))}
+                    {section.items && (
+                      <ul className="mt-4 space-y-2 text-sm leading-6 text-slate-700">
+                        {section.items.map((item) => (
+                          <li key={item} className="flex gap-2"><span className="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-[#FF6A00]" aria-hidden="true" />{item}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </article>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-12">
+              <h3 className="font-display text-2xl font-bold text-[#0B1F3A]">Choose a banner material for the Louisville setting</h3>
+              <div
+                className="mt-5 overflow-x-auto border border-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF6A00]"
+                role="region"
+                aria-label="Louisville banner material comparison"
+                tabIndex={0}
+              >
+                <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+                  <thead className="bg-[#0B1F3A] text-white">
+                    <tr>
+                      <th scope="col" className="px-5 py-4 font-semibold">Louisville use</th>
+                      <th scope="col" className="px-5 py-4 font-semibold">Good starting choice</th>
+                      <th scope="col" className="px-5 py-4 font-semibold">Why it fits</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {content.localGuide.recommendations.map((row) => (
+                      <tr key={row.use} className="border-t border-slate-200 align-top odd:bg-white even:bg-[#F7F7F7]">
+                        <th scope="row" className="px-5 py-4 font-semibold text-[#0B1F3A]">{row.use}</th>
+                        <td className="px-5 py-4 font-medium text-[#A63C00]">{row.choice}</td>
+                        <td className="px-5 py-4 leading-6 text-slate-600">{row.reason}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {content.localGuide.permitNotice && (
+              <aside className="mt-10 border-l-4 border-[#FF6A00] bg-[#FFF5ED] p-6" aria-labelledby="permit-heading">
+                <h3 id="permit-heading" className="font-display text-xl font-bold text-[#0B1F3A]">{content.localGuide.permitNotice.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-700">{content.localGuide.permitNotice.body}</p>
+                <a href={content.localGuide.permitNotice.href} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 font-semibold text-[#A63C00] underline decoration-[#FF6A00] underline-offset-4">
+                  {content.localGuide.permitNotice.linkLabel}<ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </a>
+              </aside>
+            )}
+
+            <div className="mt-8 border-t border-slate-200 pt-6">
+              <h3 className="font-display text-lg font-bold text-[#0B1F3A]">Louisville research sources</h3>
+              <ul className="mt-3 flex flex-wrap gap-x-6 gap-y-3 text-sm">
+                {content.localGuide.sourceLinks.map((source) => (
+                  <li key={source.href}>
+                    <a href={source.href} target="_blank" rel="noreferrer" className="font-semibold text-[#A63C00] underline decoration-slate-300 underline-offset-4 hover:decoration-[#FF6A00]">{source.label}</a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
+        )}
+
         <section className="py-12" aria-labelledby="uses-heading">
           <div className="grid gap-8 lg:grid-cols-[0.55fr_1.45fr] lg:gap-14">
             <div>

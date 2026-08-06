@@ -32,17 +32,53 @@ describe('local page publication controls', () => {
     expect(new Set(paths.map(({ product, citySlug }) => `${product}/${citySlug}`)).size).toBe(paths.length);
   });
 
-  it('holds pages out of the index until first-party evidence and review are supplied', () => {
-    expect(getIndexableCityProductPaths()).toEqual([]);
+  it('publishes only the reviewed Louisville vinyl-banner page', () => {
+    expect(getIndexableCityProductPaths()).toEqual([
+      { product: 'vinyl-banners', citySlug: 'louisville-ky' },
+    ]);
+
     for (const city of CITIES) {
       for (const product of productSlugs) {
         const gate = evaluateLocalPagePublishGate(product, city);
-        expect(gate.indexable).toBe(false);
-        expect(gate.reasons).toContain('No approved first-party local evidence.');
-        expect(gate.reasons).toContain('Claims approval is missing.');
-        expect(gate.reasons).toContain('Duplicate-content and policy validation is not approved.');
+        const isReviewedLouisvillePage = city.slug === 'louisville-ky' && product === 'vinyl-banners';
+        expect(gate.indexable).toBe(isReviewedLouisvillePage);
+        if (isReviewedLouisvillePage) {
+          expect(gate.reasons).toEqual([]);
+        } else {
+          expect(gate.reasons).toContain('No approved first-party local evidence.');
+          expect(gate.reasons).toContain('Claims approval is missing.');
+          expect(gate.reasons).toContain('Duplicate-content and policy validation is not approved.');
+        }
       }
     }
+  });
+
+  it('provides source-backed Louisville guidance without claiming a local storefront', () => {
+    const city = getCityBySlug('louisville-ky')!;
+    const content = buildCityProductPageContent('vinyl-banners', city);
+    expect(content.indexable).toBe(true);
+    expect(content.h1).toBe('Vinyl Banner Printing in Louisville, KY');
+    expect(content.introParagraph).toContain('does not represent a storefront or pickup location');
+    expect(content.localGuide?.sections).toHaveLength(4);
+    expect(content.localGuide?.recommendations).toHaveLength(4);
+    expect(content.localGuide?.permitNotice?.href).toBe(
+      'https://louisvilleky.gov/government/office-planning/sign-regulations',
+    );
+    expect(content.localGuide?.sourceLinks.every((source) => source.href.startsWith('https://'))).toBe(true);
+    expect(content.internalLinks.map((link) => link.to)).toEqual(expect.arrayContaining([
+      '/mesh-banners',
+      '/trade-show-banners',
+      '/event-banners',
+      '/blog/grand-opening-banner-ideas',
+    ]));
+  });
+
+  it('does not expose published-city links from an unpublished local page', () => {
+    const lexington = getCityBySlug('lexington-ky')!;
+    const content = buildCityProductPageContent('vinyl-banners', lexington);
+    expect(content.indexable).toBe(false);
+    expect(content.siblingProductLinks).toEqual([]);
+    expect(content.nearbyCityLinks).toEqual([]);
   });
 
   it('uses concise, unique metadata and honest shipping-only language', () => {
