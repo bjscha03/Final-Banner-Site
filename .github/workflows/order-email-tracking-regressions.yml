@@ -244,8 +244,8 @@ jobs:
             post_code=$(curl -sS -o /dev/null -w '%{http_code}' \
               -X POST -H 'Content-Type: application/json' --data '{}' \
               "$PREVIEW_URL/.netlify/functions/$endpoint")
-            test "$get_code" = "404"
-            test "$post_code" = "404"
+            test "$get_code" = "410"
+            test "$post_code" = "410"
           done
 
       - name: Verify deployed customer order fallback reaches Neon safely
