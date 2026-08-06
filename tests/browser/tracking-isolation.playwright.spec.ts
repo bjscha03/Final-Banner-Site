@@ -24,9 +24,9 @@ test('preview, development, and automated routes never load customer analytics',
     await page.waitForTimeout(100);
   }
 
-  const loadedAnalyticsScripts = await page.locator('script[src]').evaluateAll((scripts) => scripts
+  const loadedAnalyticsScripts = await page.locator('script[src]').evaluateAll((scripts, analyticsHosts) => scripts
     .map((script) => (script as HTMLScriptElement).src)
-    .filter((src) => ANALYTICS_HOSTS.some((host) => src.includes(host))));
+    .filter((src) => analyticsHosts.some((host) => src.includes(host))), ANALYTICS_HOSTS);
 
   expect(analyticsRequests).toEqual([]);
   expect(loadedAnalyticsScripts).toEqual([]);
