@@ -72,6 +72,15 @@ describe('local page publication controls', () => {
       '/blog/grand-opening-banner-ideas',
     ]));
   });
+
+  it('does not expose published-city links from an unpublished local page', () => {
+    const lexington = getCityBySlug('lexington-ky')!;
+    const content = buildCityProductPageContent('vinyl-banners', lexington);
+    expect(content.indexable).toBe(false);
+    expect(content.siblingProductLinks).toEqual([]);
+    expect(content.nearbyCityLinks).toEqual([]);
+  });
+
   it('uses concise, unique metadata and honest shipping-only language', () => {
     const titles = new Set<string>();
     const descriptions = new Set<string>();
