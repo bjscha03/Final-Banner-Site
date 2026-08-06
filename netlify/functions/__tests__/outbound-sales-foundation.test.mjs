@@ -523,6 +523,12 @@ describe('database and existing-site regression contracts', () => {
     expect(entries).not.toContain('outbound-sales-discover.mjs');
     expect(entries).not.toContain('outbound-sales-send.mjs');
     expect(netlifyConfigSource).not.toContain('[functions."outbound-sales-automation"]');
+
+    for (const [path, source] of Object.entries(outboundFunctionSources)) {
+      expect(source, `${path} must use Netlify's modern runtime adapter`).toContain("from '@netlify/aws-lambda-compat'");
+      expect(source, `${path} must export a modern web handler`).toMatch(/export default withLambda\(/);
+      expect(source, `${path} must not use the legacy Lambda export`).not.toMatch(/export const handler\s*=/);
+    }
   });
 
   it('adds the admin shell without changing checkout, payment, Designer, or transactional webhook routes', () => {
