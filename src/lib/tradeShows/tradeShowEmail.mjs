@@ -1,4 +1,5 @@
 const SITE_URL = 'https://bannersonthefly.com';
+const BRAND_LOGO_URL = `${SITE_URL}/images/header-logo.png`;
 
 export function escapeTradeShowEmailHtml(value) {
   return String(value ?? '')
@@ -78,7 +79,7 @@ export function buildTradeShowEmail({ event, exhibitorName, discountCode, unsubs
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:620px;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 8px 28px rgba(15,45,92,.12);">
             <tr>
               <td style="background:#f7faff;padding:24px 30px 20px;text-align:center;border-bottom:4px solid #ff6a00;">
-                <img src="https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto,w_300/https://bannersonthefly.com/cld-assets/images/logo-compact.svg" width="210" alt="Banners On The Fly" style="display:block;max-width:100%;height:auto;margin:0 auto;border:0;">
+                <img src="${BRAND_LOGO_URL}" width="210" alt="Banners On The Fly" style="display:block;max-width:100%;height:auto;margin:0 auto;border:0;">
               </td>
             </tr>
             <tr>
