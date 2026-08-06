@@ -764,7 +764,6 @@ const Checkout: React.FC = () => {
                 </div>
 
                 {/* Discount Code Section */}
-                {!isFixedFeeOnlyCart && (
                 <div className="border-t border-gray-200 pt-6 mt-6">
                   {!discountCode ? (
                     <div className="space-y-3">
@@ -830,17 +829,14 @@ const Checkout: React.FC = () => {
                     </div>
                   )}
                 </div>
-                )}
 
                 {/* Same-Day Hit Service upsell — production priority (NOT shipping) */}
-                {!isFixedFeeOnlyCart && (
-                  <div className="border-t border-gray-200 pt-6 mt-6">
-                    <DeliveryTimer reflectCartSelection />
-                    <div className="mt-4">
-                      <SameDayHitServiceCard />
-                    </div>
+                <div className="border-t border-gray-200 pt-6 mt-6">
+                  <DeliveryTimer reflectCartSelection />
+                  <div className="mt-4">
+                    <SameDayHitServiceCard />
                   </div>
-                )}
+                </div>
 
                 <div className="mt-6">
                   <div
