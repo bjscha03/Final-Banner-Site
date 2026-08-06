@@ -1,0 +1,121 @@
+'use strict';
+
+function normalizeCode(code) {
+  return String(code || '').trim().toUpperCase();
+}
+
+function validResult(discount) {
+  return { valid: true, discount };
+}
+
+function invalidResult(error) {
+  return { valid: false, error };
+}
+
+async function findTradeShowDiscount(sql, normalizedCode) {
+  try {
+    const rows = await sql`
+      SELECT trade_show_slug, code, discount_percentage
+      FROM trade_show_promo_codes
+      WHERE UPPER(code) = ${normalizedCode}
+        AND is_active = TRUE
+      LIMIT 1
+    `;
+    if (!rows.length) return null;
+    return {
+      id: `TRADE_SHOW_${rows[0].trade_show_slug}`,
+      code: String(rows[0].code).toUpperCase(),
+      discountPercentage: Number(rows[0].discount_percentage),
+      discountAmountCents: null,
+      expiresAt: '2099-12-31T23:59:59Z',
+      source: 'trade_show',
+      tradeShowSlug: rows[0].trade_show_slug,
+    };
+  } catch (error) {
+    // Deploying application code before the additive migration must not break
+    // existing promotions. Undefined-table means the migration is pending.
+    if (error?.code === '42P01') return null;
+    throw error;
+  }
+}
+
+async function validateDiscountForCheckout({ sql, code, email = null, userId = null }) {
+  const normalizedCode = normalizeCode(code);
+  const normalizedEmail = email ? String(email).trim().toLowerCase() : null;
+  if (!normalizedCode) return invalidResult('Discount code is required');
+
+  if (normalizedCode === 'NEW20') {
+    if (userId) {
+      const priorOrders = await sql`
+        SELECT id FROM orders
+        WHERE user_id = ${userId} AND status = 'paid'
+        LIMIT 1
+      `;
+      if (priorOrders.length) {
+        return invalidResult('NEW20 is valid for first-time customers only. You have a previous order on this account.');
+      }
+    }
+    return validResult({
+      id: 'NEW20_PROMO',
+      code: 'NEW20',
+      discountPercentage: 20,
+      discountAmountCents: null,
+      expiresAt: '2099-12-31T23:59:59Z',
+      source: 'new_customer',
+    });
+  }
+
+  if (normalizedCode === 'CUSTOM60') return invalidResult('Invalid discount code');
+
+  const tradeShowDiscount = await findTradeShowDiscount(sql, normalizedCode);
+  if (tradeShowDiscount) return validResult(tradeShowDiscount);
+
+  const rows = await sql`
+    SELECT id, code, discount_percentage, discount_amount_cents, used, expires_at,
+           single_use, used_by_user_id, used_by_email,
+           max_uses_per_customer, max_total_uses, email
+    FROM discount_codes
+    WHERE UPPER(code) = ${normalizedCode}
+    LIMIT 1
+  `;
+  if (!rows.length) return invalidResult('Invalid discount code');
+
+  const discount = rows[0];
+  if (discount.expires_at && new Date(discount.expires_at) < new Date()) {
+    return invalidResult('This discount code has expired');
+  }
+  if (discount.used) return invalidResult('This code has already been used');
+
+  const usedEmails = Array.isArray(discount.used_by_email) ? discount.used_by_email.map((value) => String(value).toLowerCase()) : [];
+  const perCustomerLimit = discount.max_uses_per_customer == null ? null : Number(discount.max_uses_per_customer);
+  if (normalizedEmail && perCustomerLimit !== null) {
+    const customerUses = usedEmails.filter((value) => value === normalizedEmail).length;
+    if (customerUses >= perCustomerLimit) return invalidResult('This code has already been used');
+  }
+
+  if (userId && discount.used_by_user_id) {
+    const usedUserIds = Array.isArray(discount.used_by_user_id) ? discount.used_by_user_id : [discount.used_by_user_id];
+    if (usedUserIds.map(String).includes(String(userId))) return invalidResult('This code has already been used');
+  }
+
+  if (discount.max_total_uses != null && usedEmails.length >= Number(discount.max_total_uses)) {
+    return invalidResult(Number(discount.max_total_uses) === 1
+      ? 'This code has already been used'
+      : 'This discount code has reached its maximum number of uses');
+  }
+
+  if (discount.email && normalizedEmail && String(discount.email).trim().toLowerCase() !== normalizedEmail) {
+    return invalidResult('This discount code was issued to a different email address');
+  }
+
+  return validResult({
+    id: discount.id,
+    code: String(discount.code).toUpperCase(),
+    discountPercentage: Number(discount.discount_percentage || 0) || null,
+    discountAmountCents: Number(discount.discount_amount_cents || 0) || null,
+    expiresAt: discount.expires_at,
+    source: 'discount_codes',
+  });
+}
+
+module.exports = { normalizeCode, validateDiscountForCheckout };

@@ -74,6 +74,7 @@ const PoliticalSigns = lazy(() => import("./pages/PoliticalSigns"));
 const AdminOrders = lazy(() => import("./pages/admin/Orders"));
 const AdminAbandonedCarts = lazy(() => import("./pages/admin/AbandonedCarts"));
 const AdminCustomQuotes = lazy(() => import("./pages/admin/CustomQuotes"));
+const AdminEmailTemplates = lazy(() => import("./pages/admin/EmailTemplates"));
 const PayPalReconciliation = lazy(() => import("./pages/admin/PayPalReconciliation"));
 const AdminSetup = lazy(() => import("./pages/AdminSetup"));
 const AIDesignerPage = lazy(() => import("./pages/admin/AIDesignerPage"));
@@ -198,6 +199,8 @@ export const RoutedApplication = () => (
             <Route path="/admin/orders" element={<AdminOrders />} />
             <Route path="/admin/abandoned-carts" element={<AdminAbandonedCarts />} />
             <Route path="/admin/custom-quotes" element={<AdminCustomQuotes />} />
+            <Route path="/admin/email-templates" element={<AdminEmailTemplates />} />
+            <Route path="/admin/email-templates/:slug" element={<AdminEmailTemplates />} />
             <Route path="/admin/paypal-reconciliation" element={<PayPalReconciliation />} />
             {/* Admin login / setup page — password gate that grants admin access */}
             <Route path="/admin/setup" element={<AdminSetup />} />

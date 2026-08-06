@@ -829,7 +829,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
               {(order.applied_discount_cents ?? 0) > 0 && (
                 <div className="flex justify-between items-center py-2">
                   <span className="text-base font-medium text-green-600">
-                    {order.applied_discount_label || "Discount"}
+                    {order.applied_discount_label || order.discount_code || "Discount"}
                   </span>
                   <span className="text-lg font-semibold text-green-600">
                     -{usd((order.applied_discount_cents ?? 0) / 100)}

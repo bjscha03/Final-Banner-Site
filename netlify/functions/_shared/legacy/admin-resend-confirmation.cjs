@@ -224,7 +224,7 @@ exports.handler = async (event) => {
           return calculatedTotal / 100;
         },
         discountCents: order.applied_discount_cents || 0,
-        discountLabel: order.applied_discount_label || '',
+        discountLabel: order.applied_discount_label || (order.discount_code ? `Promo: ${order.discount_code}` : ''),
         shipping_name: order.shipping_name || order.customer_name || '',
         shipping_street: order.shipping_street || '',
         shipping_street2: order.shipping_street2 || '',
@@ -315,4 +315,3 @@ exports.handler = async (event) => {
     };
   }
 };
-

@@ -1091,6 +1091,12 @@ const AdminOrders: React.FC = () => {
                     Abandoned Carts
                   </a>
                 </TabsTrigger>
+                <TabsTrigger value="email-templates" className="flex items-center gap-2 min-w-0" asChild>
+                  <a href="/admin/email-templates">
+                    <Mail className="h-4 w-4" />
+                    Email Templates
+                  </a>
+                </TabsTrigger>
                 {/* Admin-gated AI Designer entry. Keep admin-only until customer rollout. */}
                 <TabsTrigger value="ai-designer" className="flex items-center gap-2 min-w-0" asChild>
                   <a href="/admin/ai-designer">

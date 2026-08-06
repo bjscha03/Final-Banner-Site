@@ -1,251 +1,48 @@
 const { neon } = require('@neondatabase/serverless');
+const { validateDiscountForCheckout } = require('../discount-validation.cjs');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Content-Type': 'application/json'
+  'Content-Type': 'application/json',
 };
 
-exports.handler = async (event, context) => {
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 204, headers, body: '' };
+const reply = (statusCode, body) => ({ statusCode, headers, body: JSON.stringify(body) });
+
+exports.handler = async (event) => {
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
+  if (event.httpMethod !== 'POST') return reply(405, { error: 'Method not allowed' });
+
+  let payload;
+  try {
+    payload = JSON.parse(event.body || '{}');
+  } catch {
+    return reply(400, { valid: false, error: 'Invalid request body' });
   }
 
-  if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
-      headers,
-      body: JSON.stringify({ error: 'Method not allowed' })
-    };
+  if (!payload.code || typeof payload.code !== 'string') {
+    return reply(400, { valid: false, error: 'Discount code is required' });
+  }
+
+  const databaseUrl = process.env.DATABASE_URL || process.env.NETLIFY_DATABASE_URL || process.env.VITE_DATABASE_URL;
+  if (!databaseUrl) {
+    console.error('[validate-discount-code] No database URL found');
+    return reply(500, { valid: false, error: 'Database configuration error' });
   }
 
   try {
-    const { code, email, userId } = JSON.parse(event.body || '{}');
-
-    if (!code) {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ error: 'Discount code is required' })
-      };
-    }
-
-    const databaseUrl = process.env.DATABASE_URL || process.env.NETLIFY_DATABASE_URL || process.env.VITE_DATABASE_URL;
-    
-    if (!databaseUrl) {
-      console.error('[validate-discount-code] No database URL found');
-      return {
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({ error: 'Database configuration error' })
-      };
-    }
-
     const sql = neon(databaseUrl);
-    const normalizedCode = code.trim().toUpperCase();
-    const normalizedEmail = email ? email.toLowerCase() : null;
-
-    console.log('[validate-discount-code] Validating:', { code: normalizedCode, email: normalizedEmail, userId });
-
-    // SPECIAL HANDLING: NEW20 is a hardcoded first-order-only promo code
-    // It doesn't need to exist in the database - we handle it as a special case
-    if (normalizedCode === 'NEW20') {
-      console.log('[validate-discount-code] NEW20 code detected - checking first-order eligibility');
-
-      // Check first-order eligibility by account only when signed in.
-      if (userId) {
-        const existingUserOrders = await sql`
-          SELECT id, status, created_at
-          FROM orders
-          WHERE user_id = ${userId}
-            AND status = 'paid'
-          LIMIT 1
-        `;
-
-        if (existingUserOrders.length > 0) {
-          console.log('[validate-discount-code] NEW20 rejected - user has prior paid orders:', userId);
-          return {
-            statusCode: 200,
-            headers,
-            body: JSON.stringify({
-              valid: false,
-              error: 'NEW20 is valid for first-time customers only. You have a previous order on this account.'
-            })
-          };
-        }
-      }
-
-      // NEW20 is valid for this first-time customer
-      console.log('[validate-discount-code] NEW20 approved');
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({
-          valid: true,
-          discount: {
-            id: 'NEW20_PROMO',  // Virtual ID for static promo
-            code: 'NEW20',
-            discountPercentage: 20,
-            discountAmountCents: null,
-            expiresAt: '2099-12-31T23:59:59Z'  // Never expires
-          }
-        })
-      };
-    }
-
-
-    // CUSTOM60 has been retired and should never validate.
-    if (normalizedCode === 'CUSTOM60') {
-      console.log('[validate-discount-code] CUSTOM60 rejected (retired code)');
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({
-          valid: false,
-          error: 'Invalid discount code'
-        })
-      };
-    }
-
-    // Standard discount code lookup for non-NEW20 codes
-    const discountCodes = await sql`
-      SELECT
-        id,
-        code,
-        discount_percentage,
-        discount_amount_cents,
-        used,
-        expires_at,
-        single_use,
-        used_by_user_id,
-        used_by_email,
-        max_uses_per_customer,
-        max_total_uses,
-        email
-      FROM discount_codes
-      WHERE code = ${normalizedCode}
-      LIMIT 1
-    `;
-
-    if (discountCodes.length === 0) {
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({
-          valid: false,
-          error: 'Invalid discount code'
-        })
-      };
-    }
-
-    const discount = discountCodes[0];
-
-    // Check if expired
-    const now = new Date();
-    const expiresAt = new Date(discount.expires_at);
-    if (expiresAt < now) {
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({ 
-          valid: false, 
-          error: 'This discount code has expired' 
-        })
-      };
-    }
-
-    // If the code is globally marked as used (applies to single-use codes after
-    // order completion), reject immediately regardless of email/user checks.
-    if (discount.used) {
-      console.log('[validate-discount-code] Code already used (used=TRUE):', normalizedCode);
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({
-          valid: false,
-          error: 'This code has already been used',
-        })
-      };
-    }
-
-    // Check if this specific user/email has already used it
-    if (normalizedEmail && discount.used_by_email) {
-      const usedByEmails = Array.isArray(discount.used_by_email) ? discount.used_by_email : [];
-      if (usedByEmails.includes(normalizedEmail)) {
-        console.log('[validate-discount-code] Email already used:', normalizedEmail);
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify({ 
-            valid: false, 
-            error: 'This code has already been used' 
-          })
-        };
-      }
-    }
-
-    // Note: used_by_user_id is a single UUID field, not an array
-    if (userId && discount.used_by_user_id && discount.used_by_user_id === userId) {
-      console.log('[validate-discount-code] User ID already used:', userId);
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({ 
-          valid: false, 
-          error: 'This code has already been used' 
-        })
-      };
-    }
-
-    // Check max total uses if set (count emails in the array)
-    if (discount.max_total_uses !== null && discount.max_total_uses !== undefined) {
-      const totalUses = discount.used_by_email ? discount.used_by_email.length : 0;
-      if (totalUses >= discount.max_total_uses) {
-        // Use a clear single-use message when max_total_uses is 1
-        const errorMsg = discount.max_total_uses === 1
-          ? 'This code has already been used'
-          : 'This discount code has reached its maximum number of uses';
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify({ 
-            valid: false, 
-            error: errorMsg,
-          })
-        };
-      }
-    }
-
-
-
-    // Code is valid!
-    console.log('[validate-discount-code] Valid');
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({ 
-        valid: true,
-        discount: {
-          id: discount.id,
-          code: discount.code,
-          discountPercentage: discount.discount_percentage,
-          discountAmountCents: discount.discount_amount_cents,
-          expiresAt: discount.expires_at
-        }
-      })
-    };
-
+    const result = await validateDiscountForCheckout({
+      sql,
+      code: payload.code,
+      email: payload.email || null,
+      userId: payload.userId || null,
+    });
+    return reply(200, result);
   } catch (error) {
     console.error('[validate-discount-code] Error:', error);
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ 
-        error: 'Failed to validate discount code',
-        message: error.message 
-      })
-    };
+    return reply(500, { valid: false, error: 'Failed to validate discount code' });
   }
 };
 
