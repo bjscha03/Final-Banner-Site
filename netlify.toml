@@ -381,6 +381,34 @@
 
 # Edge Functions configuration
 [[edge_functions]]
+  path = "/.netlify/functions/designer-intake-submit"
+  function = "retired-campaign-gone"
+
+[[edge_functions]]
+  path = "/.netlify/functions/graduation-proof-approve"
+  function = "retired-campaign-gone"
+
+[[edge_functions]]
+  path = "/.netlify/functions/graduation-proof-get"
+  function = "retired-campaign-gone"
+
+[[edge_functions]]
+  path = "/.netlify/functions/graduation-proof-request-edits"
+  function = "retired-campaign-gone"
+
+[[edge_functions]]
+  path = "/.netlify/functions/paypal-capture-design-deposit"
+  function = "retired-campaign-gone"
+
+[[edge_functions]]
+  path = "/.netlify/functions/paypal-capture-final-product"
+  function = "retired-campaign-gone"
+
+[[edge_functions]]
+  path = "/.netlify/functions/paypal-create-deposit-for-intake"
+  function = "retired-campaign-gone"
+
+[[edge_functions]]
   path = "/blog/*"
   function = "social-meta-injector"
 
