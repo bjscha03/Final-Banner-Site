@@ -36,5 +36,17 @@ describe('tracking and private-route SEO policy', () => {
     expect(socialMetaSource).not.toContain('graduation-signs');
     expect(netlify).toContain('from = "/graduation-signs"');
     expect(netlify).toContain('to = "/custom-banners"');
+
+    for (const retiredFunction of [
+      'designer-intake-submit',
+      'graduation-proof-approve',
+      'graduation-proof-get',
+      'graduation-proof-request-edits',
+      'paypal-capture-design-deposit',
+      'paypal-capture-final-product',
+      'paypal-create-deposit-for-intake',
+    ]) {
+      expect(netlify).toContain(`from = "/.netlify/functions/${retiredFunction}"`);
+    }
   });
 });
