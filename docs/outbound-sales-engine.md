@@ -1,77 +1,82 @@
 # AI Sales Engine
 
-## Phase 1 status
+## Production state
 
-Phase 1 installs an isolated, fail-closed foundation only. It does not discover businesses, crawl websites, call OpenAI, verify email addresses, schedule work, send email, process Resend webhooks, or change order attribution.
+The outbound subsystem is feature-complete for Shadow Mode and deliberately fail-closed in production. It can model licensed discovery, deterministic qualification, cached website research, public-contact assessment, grounded personalization, experiments, reply intelligence, dry-run delivery plans, attribution candidates, performance learning, cost accounting, monitoring, and CSV exports. It cannot send an email or run production automation while the checked-in activation locks remain false.
 
-The subsystem shares only the existing server-verified admin session, the server-side Neon connection, and the admin application shell. It does not import or modify the AI Banner Designer, checkout, payment, order, transactional email, upload, preview, tracking, customer-account, or analytics implementations.
+The existing AI Banner Designer, checkout, payments, orders, transactional Resend mail, customer accounts, uploads, previews, order tracking, and analytics are outside this subsystem. Outbound code has its own `outbound_*` schema, functions, credentials, budgets, provider adapters, audit records, admin routes, and error handling.
 
-## Safety defaults
+## Non-negotiable safety defaults
 
-- `OUTBOUND_SALES_ENABLED` is false unless its exact server value is `true`.
-- Shadow Mode defaults to enabled.
-- Live Sending defaults to disabled and is code-level phase-locked in Phase 1. Neither environment variables nor database/admin settings can unlock it without a later reviewed code change.
-- Emergency Pause defaults to inactive and overrides future automation when enabled.
-- The daily send limit defaults to 30 and cannot exceed 30.
-- The local monthly OpenAI stop defaults to $8.
-- The recommended dedicated OpenAI project hard limit is $10.
-- No outbound secret is accepted from browser code or stored in the database.
+- `OUTBOUND_SALES_ENABLED=false` by default.
+- Shadow Mode defaults on and the server rejects attempts to disable it.
+- Live Sending defaults off and `PHASE_ALLOWS_LIVE_SENDING=false` is a code-level lock.
+- Resend's current Acceptable Use Policy prohibits unsolicited cold outreach. A second code-level provider-policy lock prevents the dormant outbound Resend transport from becoming usable through live-send activation alone. Existing transactional Resend email is unaffected.
+- Production automation, discovery, OpenAI execution, reply ingestion, and reply-AI fallback are code-blocked even under hostile environment and database settings.
+- Automatic reply generation and automatic reply sending are unavailable.
+- No outbound schedule is registered in `netlify.toml`; the only schedule there is the pre-existing AI Banner Designer cleanup.
+- Daily delivery can never exceed 30. The local OpenAI stop defaults to $8/month, with a recommended dedicated-project limit of $10.
+- Missing schema, database, configuration, or credentials produces an inactive state; it never falls back to existing production credentials.
 
-## Credential boundary
+Production activation requires a separate reviewed change to the code-level locks after the readiness checklist in `docs/outbound-sales-production-readiness.md` is complete. A browser toggle or environment variable alone cannot activate external work.
 
-The AI Banner Designer continues to use its existing configuration. The AI Sales Engine will use only dedicated server-side `OUTBOUND_*` credentials in later phases.
+## Architecture
 
-Phase 1 reports booleans for required configuration. It never returns environment-variable names or values to the browser. Production secrets must be installed through the deployment platform, never through the admin interface, source code, GitHub, logs, or client bundles.
+The data path is:
 
-## Migration
+1. A licensed discovery adapter returns the provider-neutral prospect contract.
+2. Deterministic code canonicalizes domains, deduplicates provider records and companies, and excludes prior customers, suppressions, and previously contacted businesses.
+3. The SSRF-safe fetcher retrieves only public HTTP(S) website content after DNS/IP validation, redirect revalidation, response-size limits, and content-type checks.
+4. Deterministic extraction records public evidence, contact candidates, content hashes, cache freshness, rejection reasons, and a transparent lead-score explanation.
+5. Only eligible, changed research can enter personalization. A pinned outbound-only OpenAI client uses a strict structured-output schema, `store:false`, no tools, bounded input/output, a 30-second timeout, one bounded retry, an idempotency key, and database budget reservation.
+6. Deterministic rendering supplies the branded preview, signature, variant assignments, evidence validation, follow-up date, and content hash. The unchanged generation key is a cache hit.
+7. Shadow delivery planning spaces at most 30 previews within the configured business window and records exactly what would be sent. It performs no external action.
+8. The dormant sender has independent configuration, idempotency, one-click unsubscribe, a physical-address footer, per-message Reply-To routing, suppression rechecks, daily counters, retries, and bounce/complaint/error circuit breakers. Its first assertion is the code-level live-send lock; its Resend implementation has an additional provider-policy lock because Resend currently prohibits cold outreach.
+9. The isolated inbound handler verifies dedicated Resend webhook signatures. Deterministic reply rules run first; optional AI fallback is non-production-only for genuinely unclear replies. Suggested responses always require admin review and are never sent automatically.
+10. Attribution reads eligible paid-order facts and writes only outbound candidate/attribution records. Learning requires minimum samples, optimizes revenue and qualified outcomes, penalizes safety events, and preserves controlled exploration.
 
-`migrations/021_outbound_sales_foundation.sql` creates only `outbound_*` tables, indexes, triggers, and functions. It does not alter or reference an existing application table. The migration is never executed by a request handler.
+## Database boundary
 
-The default row in `outbound_settings` is safe for a first deployment. Prospect and opportunity status changes receive database-level audit entries, and the generic audit table is append-only. A partial unique index permits only one initial outbound message per prospect. Provider-record, canonical-domain, deterministic-fingerprint, and normalized-email constraints create independent duplicate barriers.
+Migrations 021 through 026 create or extend only `outbound_*` objects. The complete schema has 27 outbound tables. Source order identifiers are opaque values without a foreign key, trigger, or mutation path into legacy orders. Every migration and rollback is transactional; rollbacks name only their own outbound objects and use no `CASCADE`.
 
-Opportunities and attributed orders are stored only in outbound tables. `outbound_order_attributions.source_order_id` is an isolated identifier with no foreign key, trigger, or write path into the existing `orders` table; later attribution work can observe existing orders without changing checkout or order creation.
+- 021: isolated settings, providers, campaigns, prospects, contacts, research, messages, pipeline, replies, suppressions, jobs, cost/usage, email events, and immutable audit history.
+- 022: provider source mappings and deterministic discovery/qualification fields.
+- 023: cached Shadow Mode personalization, token/cost diagnostics, and grounded preview fields.
+- 024: reply review, classification diagnostics, AI-usage linkage, and idempotent inbound events.
+- 025: campaign controls, dry-run/live delivery lifecycle, unsubscribe tokens, daily counters, and circuit-breaker history.
+- 026: attribution candidates, daily performance, learning recommendations, and operational alerts.
 
-Apply the migration only through the approved production migration process after reviewing the SQL and taking the normal database backup. The UI reports `schemaReady: false` and disables writes until it is applied.
+No request handler runs migrations. The admin remains readable and fail-closed when the outbound schema is absent. Use only the guarded preview verifier and approved deployment migration process; see the production-readiness runbook for apply and reverse order.
 
-### Preview validation and rollback
+## Provider and cost boundary
 
-`scripts/verify-outbound-sales-migration.cjs` is the guarded live-catalog contract suite. It accepts only `OUTBOUND_TEST_DATABASE_URL` or an owner-only URL file, requires an explicit preview/staging label and matching Neon endpoint ID, and never falls back to the application's ordinary database variables.
+All discovery providers implement `providers/contract.cjs`, declare a licensed or first-party acquisition mode, and are constructed through `providers/registry.cjs`. Apollo Organization Search is the first installed adapter and is allowed only in approved test/staging contexts. Google Places, Clay, Data Axle, Yelp/licensed sources, email verification, and future providers remain manifest entries until a reviewed adapter and terms assessment are added. Adding one changes only its adapter and registry entry; the core queue, jobs, qualification, budgets, and admin APIs stay provider-neutral. The project contains no LinkedIn or Google Maps scraper.
 
-The `--rollback-cycle` mode snapshots every non-outbound public catalog object and legacy-table row count, applies migration 021, verifies all outbound tables/indexes/constraints/triggers/functions/defaults and audit behavior, runs the outbound-only rollback, confirms that no outbound object remains, and reapplies the migration. Any change to a non-outbound schema object or row count fails validation.
+Provider requests, results, credits, rate-limit state, and estimated micro-USD cost are recorded. OpenAI input, cached-input, output tokens, and request latency are charged or recorded separately in integer micro-USD. Reservations include concurrent reserved spend before a provider call; incomplete provider usage is charged conservatively. The engine never re-analyzes unchanged research.
 
-`migrations/021_outbound_sales_foundation.rollback.sql` is transactional, names only objects created by migration 021, and deliberately avoids `CASCADE`. It destroys outbound-only data and must not be run on production without an approved rollback and retention decision.
+## Credential isolation
 
-## Provider architecture
+The subsystem reads only dedicated server-side `OUTBOUND_*` values. It never reads `OPENAI_API_KEY`, `RESEND_API_KEY`, or any `VITE_*` secret. Browser responses report configured/not-configured booleans only. Settings reject unknown or secret-shaped keys, logs and audit metadata are redacted, and all admin reads are `no-store`.
 
-All discovery and verification providers must implement the adapter contract in `netlify/functions/_shared/outbound-sales/providers/contract.cjs`, including an explicit `licensed_api` or `first_party` acquisition mode. Provider records normalize into the same internal prospect shape before core processing.
+The complete placeholder list is in `.env.example`. Values belong only in the deployment secret manager with the narrowest environment scope. Do not put values in source, GitHub, client bundles, browser-editable settings, database rows, or support logs.
 
-Phase 1 includes metadata for planned licensed providers but no operational adapter. Prohibited scraping sources are not implemented.
+## Admin and API surface
 
-## Job foundation
+The authenticated `/admin/sales` area includes Dashboard, Prospect Queue, Email Activity, Replies, Orders & Revenue, Industry & Campaign Performance, Cost Analytics, Error Logs, and Settings. It exposes evidence, scoring reasons, source URLs, contact assessment, suppression, generated previews, delivery state, reply classification/review, attribution, performance, cost, provider status, secret-presence status, and CSV exports.
 
-`outbound_jobs` supports durable deduplication, priorities, delayed execution, bounded attempts, leases, `FOR UPDATE SKIP LOCKED` claims, exponential backoff with jitter, and dead-letter state. No scheduler or worker entrypoint exists in Phase 1.
+Server endpoints are isolated under `outbound-sales-*`: status, settings, prospects, personalization, activity, replies, analytics, automation, inbound webhook, and unsubscribe. Admin endpoints reuse the existing signed admin session; mutations also require same-origin validation. Automation requires its own constant-time bearer secret. The webhook requires its own signature. Production gates are checked before database/client/provider construction.
 
-## Budget foundation
+## Validation
 
-Costs are stored in micro-USD so sub-cent API usage remains measurable. Reservations run in a database transaction, serialize on the locked settings row, and include both reserved and committed current-month usage before accepting another cost. Reservation keys are idempotent and cannot be reused with different cost data. OpenAI reservations are rejected above the one-cent per-prospect application ceiling.
-
-No ordinary OpenAI project key can modify or reliably reconcile organization billing. The local ledger is authoritative for application shutdown; the dedicated OpenAI project limit remains the provider-side backstop.
-
-## Admin endpoints
-
-- `GET /.netlify/functions/outbound-sales-status`
-- `GET|PUT /.netlify/functions/outbound-sales-settings`
-
-Both require the existing signed admin session. Mutations also require a same-origin request and optimistic settings version. Responses use `Cache-Control: no-store` and never contain secret values.
-
-## Phase 1 acceptance commands
+Run before every merge or activation change:
 
 ```bash
 npm run test:outbound-sales
+npm run test:outbound-sales:complete-database
 npm test -- --run
 npm run lint
 npx tsc --noEmit --pretty false
 npm run build
 ```
 
-Phase 2 must not begin until Phase 1 is reviewed and explicitly approved.
+Also complete authenticated desktop/mobile browser QA, legacy storefront/checkout/admin/AI Designer/upload/preview/payment/transactional-email smoke tests, a client-bundle and response secret scan, migration apply/rollback/reapply on an isolated writable Neon branch, and an external-action inventory proving zero outbound sends.

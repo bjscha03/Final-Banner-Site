@@ -13,6 +13,11 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "car-magnet-size-guide": {
+    title: "Car Magnet Size Guide: Choose the Right Fit for Your Vehicle",
+    description: "Use this car magnet size guide to choose the right dimensions, placement, artwork, and care for a clean, readable magnetic vehicle sign that fits well.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/car-magnet-size-guide.webp"
+  },
   "grand-opening-banner-ideas": {
     title: "Grand Opening Banner Ideas: A Complete Planning & Design Guide",
     description: "Explore grand opening banner ideas, messaging, sizes, placement, materials, and a practical launch checklist for a storefront people can find quickly.",

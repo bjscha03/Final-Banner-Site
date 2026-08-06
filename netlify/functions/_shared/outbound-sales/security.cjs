@@ -2,7 +2,7 @@
 
 const { requireAdmin } = require('../server-auth.cjs');
 
-const SENSITIVE_KEY = /(secret|password|authorization|cookie|api[_-]?key|access[_-]?token|refresh[_-]?token)/i;
+const SENSITIVE_KEY = /(secret|password|authorization|cookie|credential|private[_-]?key|api[_-]?key|access[_-]?token|refresh[_-]?token|unsubscribe[_-]?token|signature)/i;
 const PUBLIC_ERROR_CODES = new Set([
   'INVALID_JSON',
   'INVALID_SETTINGS',
@@ -10,8 +10,44 @@ const PUBLIC_ERROR_CODES = new Set([
   'SETTINGS_CONFLICT',
   'LIVE_SENDING_PHASE_LOCKED',
   'SHADOW_MODE_PHASE_LOCKED',
+  'SHADOW_GENERATION_CONTEXT_LOCKED',
+  'SHADOW_GENERATION_DISABLED',
+  'PERSONALIZATION_NOT_ELIGIBLE',
+  'PERSONALIZATION_BUDGET_EXHAUSTED',
+  'PERSONALIZATION_CONTEXT_BLOCKED',
+  'PERSONALIZATION_ALREADY_RUNNING',
+  'PERSONALIZATION_INPUT_TOO_LARGE',
+  'PERSONALIZATION_INVALID_OUTPUT',
+  'PERSONALIZATION_EMPTY_OUTPUT',
+  'PERSONALIZATION_INVALID_USAGE',
+  'PERSONALIZATION_SAVE_CONFLICT',
+  'OUTBOUND_OPENAI_NOT_CONFIGURED',
+  'OUTBOUND_OPENAI_AUTHORIZATION_FAILED',
+  'OUTBOUND_OPENAI_PROJECT_BUDGET_REACHED',
+  'OUTBOUND_OPENAI_RATE_LIMITED',
+  'OUTBOUND_OPENAI_TIMEOUT',
+  'OUTBOUND_OPENAI_UNAVAILABLE',
+  'OUTBOUND_OPENAI_REQUEST_REJECTED',
+  'OUTBOUND_OPENAI_REQUEST_FAILED',
   'OUTBOUND_SCHEMA_NOT_READY',
   'DATABASE_NOT_CONFIGURED',
+  'AUTOMATION_CONTEXT_LOCKED',
+  'INBOUND_CONTEXT_LOCKED',
+  'AUTOMATIC_REPLY_PHASE_LOCKED',
+  'REPLY_AI_CONTEXT_LOCKED',
+  'OUTBOUND_WEBHOOK_NOT_CONFIGURED',
+  'OUTBOUND_WEBHOOK_INVALID',
+  'OUTBOUND_RESEND_NOT_CONFIGURED',
+  'OUTBOUND_RECEIVED_EMAIL_UNAVAILABLE',
+  'OUTBOUND_RECEIVED_EMAIL_TIMEOUT',
+  'INBOUND_PROCESSING_DISABLED',
+  'INVALID_REPLY_REVIEW',
+  'REPLY_NOT_FOUND',
+  'INVALID_ANALYTICS_VIEW',
+  'OUTBOUND_SEND_BLOCKED',
+  'OUTBOUND_SEND_FAILED',
+  'OUTBOUND_DELIVERY_PROVIDER_POLICY_BLOCKED',
+  'OUTBOUND_DELIVERY_PROVIDER_UNSUPPORTED',
 ]);
 
 function redactSecretText(value) {
@@ -21,7 +57,17 @@ function redactSecretText(value) {
     .replace(/\bBearer\s+[a-z0-9._~+/-]{8,}={0,2}/gi, 'Bearer [REDACTED]')
     .replace(/postgres(?:ql)?:\/\/[^\s"'<>]+/gi, '[REDACTED_DATABASE_URL]')
     .replace(/\b[a-z][a-z0-9+.-]*:\/\/[^/\s:@]+:[^@\s/]+@[^\s"'<>]+/gi, '[REDACTED_CREDENTIAL_URL]')
+    .replace(/([?&](?:api[_-]?key|access[_-]?token|refresh[_-]?token|token|secret|signature|password)=)[^&#\s"'<>]*/gi, '$1[REDACTED]')
+    .replace(/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/gi, '[REDACTED_PRIVATE_KEY]')
     .replace(/((?:api[_-]?key|access[_-]?token|refresh[_-]?token|secret|password)\s*[:=]\s*)[^\s,;"']+/gi, '$1[REDACTED]');
+}
+
+function safeRequestId(value) {
+  const cleaned = redactSecretText(value ?? '')
+    .replace(/[\u0000-\u001F\u007F]/g, '')
+    .trim()
+    .slice(0, 200);
+  return cleaned || null;
 }
 
 function json(statusCode, payload, extraHeaders = {}) {
@@ -122,21 +168,98 @@ function sanitizeForAudit(value, depth = 0) {
 function safeFailure(error) {
   const candidateCode = String(error?.code || 'OUTBOUND_REQUEST_FAILED');
   const code = PUBLIC_ERROR_CODES.has(candidateCode) ? candidateCode : 'OUTBOUND_REQUEST_FAILED';
-  const statusCode = code === 'INVALID_JSON' || code === 'INVALID_SETTINGS' ? 400
-    : code === 'REQUEST_TOO_LARGE' ? 413
-      : code === 'SETTINGS_CONFLICT' ? 409
-        : code === 'LIVE_SENDING_PHASE_LOCKED' || code === 'SHADOW_MODE_PHASE_LOCKED' ? 409
-          : code === 'OUTBOUND_SCHEMA_NOT_READY' || code === 'DATABASE_NOT_CONFIGURED' ? 503
-            : 500;
+  const statusByCode = {
+    INVALID_JSON: 400,
+    INVALID_SETTINGS: 400,
+    REQUEST_TOO_LARGE: 413,
+    SETTINGS_CONFLICT: 409,
+    LIVE_SENDING_PHASE_LOCKED: 409,
+    SHADOW_MODE_PHASE_LOCKED: 409,
+    SHADOW_GENERATION_CONTEXT_LOCKED: 409,
+    SHADOW_GENERATION_DISABLED: 409,
+    PERSONALIZATION_CONTEXT_BLOCKED: 409,
+    PERSONALIZATION_NOT_ELIGIBLE: 422,
+    PERSONALIZATION_INPUT_TOO_LARGE: 422,
+    PERSONALIZATION_BUDGET_EXHAUSTED: 402,
+    PERSONALIZATION_ALREADY_RUNNING: 409,
+    PERSONALIZATION_SAVE_CONFLICT: 409,
+    PERSONALIZATION_INVALID_OUTPUT: 502,
+    PERSONALIZATION_EMPTY_OUTPUT: 502,
+    PERSONALIZATION_INVALID_USAGE: 502,
+    OUTBOUND_OPENAI_NOT_CONFIGURED: 503,
+    OUTBOUND_OPENAI_AUTHORIZATION_FAILED: 502,
+    OUTBOUND_OPENAI_PROJECT_BUDGET_REACHED: 402,
+    OUTBOUND_OPENAI_RATE_LIMITED: 429,
+    OUTBOUND_OPENAI_TIMEOUT: 504,
+    OUTBOUND_OPENAI_UNAVAILABLE: 503,
+    OUTBOUND_OPENAI_REQUEST_REJECTED: 502,
+    OUTBOUND_OPENAI_REQUEST_FAILED: 502,
+    OUTBOUND_SCHEMA_NOT_READY: 503,
+    DATABASE_NOT_CONFIGURED: 503,
+    AUTOMATION_CONTEXT_LOCKED: 409,
+    INBOUND_CONTEXT_LOCKED: 409,
+    AUTOMATIC_REPLY_PHASE_LOCKED: 409,
+    REPLY_AI_CONTEXT_LOCKED: 409,
+    OUTBOUND_WEBHOOK_NOT_CONFIGURED: 503,
+    OUTBOUND_WEBHOOK_INVALID: 400,
+    OUTBOUND_RESEND_NOT_CONFIGURED: 503,
+    OUTBOUND_RECEIVED_EMAIL_UNAVAILABLE: 503,
+    OUTBOUND_RECEIVED_EMAIL_TIMEOUT: 504,
+    INBOUND_PROCESSING_DISABLED: 409,
+    INVALID_REPLY_REVIEW: 400,
+    REPLY_NOT_FOUND: 404,
+    INVALID_ANALYTICS_VIEW: 400,
+    OUTBOUND_SEND_BLOCKED: 409,
+    OUTBOUND_SEND_FAILED: 502,
+    OUTBOUND_DELIVERY_PROVIDER_POLICY_BLOCKED: 409,
+    OUTBOUND_DELIVERY_PROVIDER_UNSUPPORTED: 503,
+  };
+  const statusCode = statusByCode[code] || 500;
   const messages = {
     INVALID_JSON: 'Request body must be valid JSON.',
-    INVALID_SETTINGS: error.message,
+    INVALID_SETTINGS: 'Outbound settings contain an invalid or unsupported value.',
     REQUEST_TOO_LARGE: 'Request body is too large.',
     SETTINGS_CONFLICT: 'Settings changed in another session. Refresh and try again.',
-    LIVE_SENDING_PHASE_LOCKED: 'Live sending remains locked during deterministic discovery and qualification.',
-    SHADOW_MODE_PHASE_LOCKED: 'Shadow Mode must remain enabled during deterministic discovery and qualification.',
+    LIVE_SENDING_PHASE_LOCKED: 'Live sending remains locked during Shadow Mode personalization.',
+    SHADOW_MODE_PHASE_LOCKED: 'Shadow Mode must remain enabled during personalization.',
+    SHADOW_GENERATION_CONTEXT_LOCKED: 'Shadow personalization is available only in explicitly enabled test or staging contexts.',
+    SHADOW_GENERATION_DISABLED: 'Shadow personalization is disabled by the global controls.',
+    PERSONALIZATION_NOT_ELIGIBLE: 'This prospect is not eligible for a Shadow Mode personalization preview.',
+    PERSONALIZATION_BUDGET_EXHAUSTED: 'The local OpenAI budget cannot cover this personalization request.',
+    PERSONALIZATION_CONTEXT_BLOCKED: 'OpenAI personalization is blocked in this deployment context.',
+    PERSONALIZATION_ALREADY_RUNNING: 'A personalization request for this evidence is already running.',
+    PERSONALIZATION_INPUT_TOO_LARGE: 'The bounded research evidence is too large to personalize safely.',
+    PERSONALIZATION_INVALID_OUTPUT: 'The outbound OpenAI response did not pass the grounded-copy contract.',
+    PERSONALIZATION_EMPTY_OUTPUT: 'The outbound OpenAI response did not contain a personalization draft.',
+    PERSONALIZATION_INVALID_USAGE: 'The outbound OpenAI response did not include valid token usage.',
+    PERSONALIZATION_SAVE_CONFLICT: 'The personalization state changed before the preview could be saved.',
+    OUTBOUND_OPENAI_NOT_CONFIGURED: 'The isolated outbound OpenAI project is not configured in this deployment.',
+    OUTBOUND_OPENAI_AUTHORIZATION_FAILED: 'The isolated outbound OpenAI project rejected its credential.',
+    OUTBOUND_OPENAI_PROJECT_BUDGET_REACHED: 'The isolated outbound OpenAI project budget has been reached.',
+    OUTBOUND_OPENAI_RATE_LIMITED: 'The isolated outbound OpenAI project is temporarily rate limited.',
+    OUTBOUND_OPENAI_TIMEOUT: 'The outbound OpenAI request timed out.',
+    OUTBOUND_OPENAI_UNAVAILABLE: 'The outbound OpenAI service is temporarily unavailable.',
+    OUTBOUND_OPENAI_REQUEST_REJECTED: 'The outbound OpenAI request or pinned model was rejected.',
+    OUTBOUND_OPENAI_REQUEST_FAILED: 'The outbound OpenAI request failed safely.',
     OUTBOUND_SCHEMA_NOT_READY: 'The outbound database migration has not been applied.',
     DATABASE_NOT_CONFIGURED: 'The outbound database connection is not configured.',
+    AUTOMATION_CONTEXT_LOCKED: 'Outbound automation is available only in explicitly enabled test or staging contexts.',
+    INBOUND_CONTEXT_LOCKED: 'Outbound inbound-event processing is available only in explicitly enabled test or staging contexts.',
+    AUTOMATIC_REPLY_PHASE_LOCKED: 'Automatic or AI-generated reply sending remains locked.',
+    REPLY_AI_CONTEXT_LOCKED: 'Optional AI reply classification is available only in an explicitly enabled test or staging context.',
+    OUTBOUND_WEBHOOK_NOT_CONFIGURED: 'The isolated outbound webhook verifier is not configured.',
+    OUTBOUND_WEBHOOK_INVALID: 'The outbound webhook request could not be verified.',
+    OUTBOUND_RESEND_NOT_CONFIGURED: 'The dedicated outbound Resend project is not configured.',
+    OUTBOUND_RECEIVED_EMAIL_UNAVAILABLE: 'The received email content is temporarily unavailable.',
+    OUTBOUND_RECEIVED_EMAIL_TIMEOUT: 'The received email lookup timed out.',
+    INBOUND_PROCESSING_DISABLED: 'Inbound reply processing is disabled.',
+    INVALID_REPLY_REVIEW: 'Reply review fields are invalid.',
+    REPLY_NOT_FOUND: 'The reply was not found.',
+    INVALID_ANALYTICS_VIEW: 'The requested analytics view is invalid.',
+    OUTBOUND_SEND_BLOCKED: 'Outbound delivery is blocked by the safety controls.',
+    OUTBOUND_SEND_FAILED: 'The dedicated outbound delivery provider rejected the request.',
+    OUTBOUND_DELIVERY_PROVIDER_POLICY_BLOCKED: 'The configured outbound delivery provider is not approved for cold outreach.',
+    OUTBOUND_DELIVERY_PROVIDER_UNSUPPORTED: 'A compliant outbound delivery provider is not installed.',
   };
   return json(statusCode, {
     ok: false,
@@ -150,6 +273,7 @@ module.exports = {
   authorize,
   parseJsonBody,
   redactSecretText,
+  safeRequestId,
   sanitizeForAudit,
   safeFailure,
   sameOriginError,

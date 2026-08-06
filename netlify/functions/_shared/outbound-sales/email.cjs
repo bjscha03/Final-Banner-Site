@@ -85,7 +85,7 @@ function verificationFor({ syntaxValid, roleAddress, freeMailbox, domainMatches,
   if (roleAddress) return { verificationStatus: 'risky', reason: 'Role or group addresses are retained as evidence but are not outreach-eligible.' };
   if (freeMailbox) return { verificationStatus: 'risky', reason: 'Free-mailbox addresses cannot establish a business-domain identity.' };
   if (!domainMatches) return { verificationStatus: 'risky', reason: 'The email domain does not match the business website domain.' };
-  return { verificationStatus: 'unverified', reason: 'Syntax and MX are valid; mailbox-level verification is not installed in Phase 2.' };
+  return { verificationStatus: 'unverified', reason: 'Syntax and MX are valid; mailbox-level verification is not configured.' };
 }
 
 async function assessEmail(value, options = {}) {
@@ -124,7 +124,7 @@ async function assessEmail(value, options = {}) {
     verificationReason: verification.reason,
     contactQualityScore: Math.max(0, Math.min(100, quality)),
     // DNS proves only that a domain accepts mail. A later licensed mailbox
-    // verifier must explicitly change this flag; Phase 2 never does.
+    // A licensed verifier must explicitly change this flag; DNS alone never does.
     sendEligible: false,
   });
 }

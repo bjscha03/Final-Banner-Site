@@ -30,7 +30,7 @@ git checkout working-cart-20251019-022338 -- src/lib/cartSync.ts
 ### Environment Variables Required:
 - `DATABASE_URL` in Netlify must be set to:
   ```
-  postgresql://neondb_owner:npg_P1LZHoBXt23D@ep-delicate-sea-aebekqeo-pooler.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require
+  [configure the current connection string in Netlify's encrypted environment]
   ```
 
 ### DO NOT:

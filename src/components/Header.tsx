@@ -4,7 +4,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import ScrollToTopLink from './ScrollToTopLink';
 import { useAuth, isAdmin } from '@/lib/auth';
 import { useToast } from '@/components/ui/use-toast';
-import { useDocumentScrollLock } from '@/hooks/useDocumentScrollLock';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,7 +24,6 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const menuRef = useRef<HTMLDivElement>(null);
-  useDocumentScrollLock(isMenuOpen);
 
   // Close mobile menu when clicking outside
   useEffect(() => {
@@ -89,14 +87,30 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
               className="min-h-11 min-w-11 rounded-md p-2 text-[#0B1F3A] transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00]"
               aria-label={isMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
               aria-expanded={isMenuOpen}
+              aria-controls="mobile-navigation"
             >
               {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
 
-            {/* Slide-out Navigation Menu (works on all screen sizes) */}
+            {/* Keep the body in normal flow: fixed-body locks can move this
+                sticky header offscreen on iOS when the page is already scrolled. */}
             {isMenuOpen && (
-              <div data-mobile-navigation className="absolute left-0 top-full z-50 h-[calc(100dvh-76px)] w-[min(88vw,320px)] touch-pan-y overflow-y-auto overscroll-contain border-r border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[12px_18px_40px_rgba(11,31,58,0.16)] [-webkit-overflow-scrolling:touch]">
-                <div className="py-2">
+              <>
+                <div
+                  data-mobile-navigation-backdrop
+                  aria-hidden="true"
+                  className="absolute left-0 top-full z-40 h-[calc(100dvh-76px)] w-screen touch-none bg-slate-950/20"
+                  onClick={() => setIsMenuOpen(false)}
+                  onWheel={(event) => event.preventDefault()}
+                />
+                <div
+                  id="mobile-navigation"
+                  data-mobile-navigation
+                  role="navigation"
+                  aria-label="Mobile navigation"
+                  className="absolute left-0 top-full z-50 h-[calc(100dvh-76px)] w-[min(88vw,320px)] touch-pan-y overflow-y-auto overscroll-contain border-r border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[12px_18px_40px_rgba(11,31,58,0.16)] [-webkit-overflow-scrolling:touch]"
+                >
+                  <div className="py-2">
                   {navItems.map((item) => (
                     <ScrollToTopLink
                       key={item.name}
@@ -178,8 +192,9 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
                       )
                     )}
                   </div>
+                  </div>
                 </div>
-              </div>
+              </>
             )}
           </div>
 

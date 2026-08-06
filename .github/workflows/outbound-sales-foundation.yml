@@ -7,12 +7,24 @@ on:
       - 'migrations/021_outbound_sales_foundation.rollback.sql'
       - 'migrations/022_outbound_discovery_qualification.sql'
       - 'migrations/022_outbound_discovery_qualification.rollback.sql'
+      - 'migrations/023_outbound_shadow_personalization.sql'
+      - 'migrations/023_outbound_shadow_personalization.rollback.sql'
+      - 'migrations/024_outbound_reply_intelligence.sql'
+      - 'migrations/024_outbound_reply_intelligence.rollback.sql'
+      - 'migrations/025_outbound_campaign_delivery_safety.sql'
+      - 'migrations/025_outbound_campaign_delivery_safety.rollback.sql'
+      - 'migrations/026_outbound_attribution_learning_monitoring.sql'
+      - 'migrations/026_outbound_attribution_learning_monitoring.rollback.sql'
       - 'scripts/outbound-sql-parser.cjs'
       - 'scripts/verify-outbound-sales-migration.cjs'
+      - 'scripts/verify-outbound-sales-complete-migrations.cjs'
+      - 'scripts/validate-outbound-personalization-staging.cjs'
       - 'netlify/functions/_shared/outbound-sales/**'
       - 'netlify/functions/outbound-sales-*.mjs'
       - 'netlify/functions/__tests__/outbound-sales-foundation.test.mjs'
       - 'netlify/functions/__tests__/outbound-sales-discovery.test.mjs'
+      - 'netlify/functions/__tests__/outbound-sales-personalization.test.mjs'
+      - 'netlify/functions/__tests__/outbound-sales-complete.test.mjs'
       - 'src/pages/admin/sales/**'
       - 'src/lib/outboundSales.ts'
       - 'src/App.tsx'
@@ -20,6 +32,8 @@ on:
       - '.env.example'
       - 'docs/outbound-sales-engine.md'
       - 'docs/outbound-sales-phase2.md'
+      - 'docs/outbound-sales-phase3.md'
+      - 'docs/outbound-sales-production-readiness.md'
       - 'tests/browser/admin-sales-foundation.playwright.ts'
       - 'package.json'
       - 'package-lock.json'
@@ -56,8 +70,12 @@ jobs:
             netlify/functions/_shared/outbound-sales/providers/*.cjs \
             netlify/functions/__tests__/outbound-sales-foundation.test.mjs \
             netlify/functions/__tests__/outbound-sales-discovery.test.mjs \
+            netlify/functions/__tests__/outbound-sales-personalization.test.mjs \
+            netlify/functions/__tests__/outbound-sales-complete.test.mjs \
             scripts/outbound-sql-parser.cjs \
             scripts/verify-outbound-sales-migration.cjs \
+            scripts/verify-outbound-sales-complete-migrations.cjs \
+            scripts/validate-outbound-personalization-staging.cjs \
             tests/browser/admin-sales-foundation.playwright.ts
       - name: Type-check
         run: npx tsc --noEmit --pretty false

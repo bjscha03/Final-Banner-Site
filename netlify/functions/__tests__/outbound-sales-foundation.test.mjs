@@ -93,9 +93,11 @@ beforeEach(() => {
   delete process.env.OUTBOUND_OPENAI_API_KEY;
   delete process.env.OUTBOUND_RESEND_API_KEY;
   delete process.env.OUTBOUND_RESEND_WEBHOOK_SECRET;
+  delete process.env.OUTBOUND_UNSUBSCRIBE_SIGNING_SECRET;
   delete process.env.OUTBOUND_EMAIL_VERIFICATION_API_KEY;
   delete process.env.OUTBOUND_APOLLO_API_KEY;
   delete process.env.OUTBOUND_PHASE2_SHADOW_EXECUTION_ENABLED;
+  delete process.env.OUTBOUND_PHASE3_SHADOW_EXECUTION_ENABLED;
   delete process.env.NETLIFY_DATABASE_URL;
   delete process.env.DATABASE_URL;
 });
@@ -131,14 +133,20 @@ describe('isolated outbound runtime configuration', () => {
       OUTBOUND_OPENAI_API_KEY: 'outbound-openai-secret-value',
       OUTBOUND_RESEND_API_KEY: 'outbound-resend-secret-value',
       OUTBOUND_RESEND_WEBHOOK_SECRET: 'outbound-webhook-secret-value',
+      OUTBOUND_UNSUBSCRIBE_SIGNING_SECRET: 'outbound-unsubscribe-secret-value',
+      OUTBOUND_AUTOMATION_SECRET: 'outbound-automation-secret-value-that-is-long-enough',
+      OUTBOUND_FROM_EMAIL: 'Banners On The Fly <sales@example.test>',
+      OUTBOUND_REPLY_TO_EMAIL: 'sales@example.test',
+      OUTBOUND_PHYSICAL_ADDRESS: '100 Example Street, Example City, NY 10001',
+      URL: 'https://preview.example.test',
       OUTBOUND_EMAIL_VERIFICATION_API_KEY: 'outbound-verification-secret-value',
       OUTBOUND_APOLLO_API_KEY: 'outbound-apollo-secret-value',
     });
-    expect(runtime.secretStatus).toEqual({ openAI: true, resend: true, resendWebhook: true, emailVerification: true, apolloDiscovery: true });
+    expect(runtime.secretStatus).toEqual({ openAI: true, resend: true, resendWebhook: true, unsubscribeSigning: true, automation: true, deliveryIdentity: true, emailVerification: true, apolloDiscovery: true });
     expect(JSON.stringify(runtime)).not.toContain('secret-value');
   });
 
-  it('cannot report live sending in Phase 1 even when every environment gate is set', () => {
+  it('cannot report live sending in the completed Shadow Mode system even when every environment gate is set', () => {
     const settings = { ...defaultSettings(), shadowModeEnabled: false, liveSendingEnabled: true };
     expect(effectiveControlState(settings, getRuntimeConfig({})).mode).toBe('disabled');
     expect(effectiveControlState(settings, getRuntimeConfig({ OUTBOUND_SALES_ENABLED: 'true' })).mode).toBe('shadow');
@@ -155,7 +163,7 @@ describe('isolated outbound runtime configuration', () => {
       OPENAI_API_KEY: 'designer-key-must-not-be-reused',
       RESEND_API_KEY: 'transactional-key-must-not-be-reused',
     });
-    expect(runtime.secretStatus).toEqual({ openAI: false, resend: false, resendWebhook: false, emailVerification: false, apolloDiscovery: false });
+    expect(runtime.secretStatus).toEqual({ openAI: false, resend: false, resendWebhook: false, unsubscribeSigning: false, automation: false, deliveryIdentity: false, emailVerification: false, apolloDiscovery: false });
     const source = Object.values(outboundRuntimeSources).join('\n');
     expect(source).not.toMatch(/process\.env\.OPENAI_API_KEY/);
     expect(source).not.toMatch(/process\.env\.RESEND_API_KEY/);
@@ -272,7 +280,18 @@ describe('admin-only fail-closed handlers', () => {
       schemaReady: false,
       databaseConfigured: false,
       controls: { mode: 'disabled', shadowModeEnabled: true, liveSendingEnabled: false, dailySendLimit: 30 },
-      safeguards: { providerExecutionInstalled: true, providerExecutionProductionBlocked: true, openAICallsInstalled: false, emailSendingInstalled: false, scheduledAutomationInstalled: false },
+      safeguards: {
+        providerExecutionInstalled: true,
+        providerExecutionProductionBlocked: true,
+        openAICallsInstalled: true,
+        openAIExecutionProductionBlocked: true,
+        emailSendingInstalled: true,
+        emailSendingProductionBlocked: true,
+        emailSendingPolicyBlocked: true,
+        scheduledAutomationInstalled: false,
+        replyAIFallbackInstalled: true,
+        replyAIFallbackProductionBlocked: true,
+      },
     });
   });
 
@@ -484,18 +503,33 @@ describe('database and existing-site regression contracts', () => {
     ]);
   });
 
-  it('contains no runtime DDL, AI/email execution, production discovery endpoint, or scheduler in Phase 2', () => {
+  it('contains no runtime DDL or production execution path and registers no production scheduler', () => {
     const runtimeSource = Object.values(outboundRuntimeSources).join('\n');
     expect(runtimeSource).not.toMatch(/CREATE\s+TABLE/i);
     expect(runtimeSource).not.toMatch(/ALTER\s+TABLE/i);
-    expect(runtimeSource).not.toMatch(/new\s+OpenAI|\.responses\.create|\.chat\.completions\.create/);
-    expect(runtimeSource).not.toMatch(/new\s+Resend|\.emails\.send/);
-    expect(runtimeSource).not.toMatch(/require\(['"](?:openai|resend|axios|undici)['"]\)/);
+    expect(runtimeSource).toContain('assertLiveSendAllowed(options)');
+    expect(runtimeSource).toContain('PHASE_ALLOWS_LIVE_SENDING');
+    expect(runtimeSource).toContain('PERSONALIZATION_CONTEXT_BLOCKED');
+    expect(runtimeSource).toContain("context === 'production'");
     expect(runtimeSource).toContain('test_staging_only');
     expect(runtimeSource).toContain('PROVIDER_EXECUTION_CONTEXT_BLOCKED');
     const entries = Object.keys(outboundFunctionSources).map((entry) => entry.split('/').at(-1));
-    expect(entries.sort()).toEqual(['outbound-sales-prospects.mjs', 'outbound-sales-settings.mjs', 'outbound-sales-status.mjs']);
+    expect(entries).toEqual(expect.arrayContaining([
+      'outbound-sales-activity.mjs', 'outbound-sales-personalize.mjs',
+      'outbound-sales-prospects.mjs', 'outbound-sales-settings.mjs', 'outbound-sales-status.mjs',
+      'outbound-sales-replies.mjs', 'outbound-sales-inbound-webhook.mjs',
+      'outbound-sales-analytics.mjs', 'outbound-sales-automation.mjs',
+      'outbound-sales-unsubscribe.mjs',
+    ]));
     expect(entries).not.toContain('outbound-sales-discover.mjs');
+    expect(entries).not.toContain('outbound-sales-send.mjs');
+    expect(netlifyConfigSource).not.toContain('[functions."outbound-sales-automation"]');
+
+    for (const [path, source] of Object.entries(outboundFunctionSources)) {
+      expect(source, `${path} must use Netlify's modern runtime adapter`).toContain("from '@netlify/aws-lambda-compat'");
+      expect(source, `${path} must export a modern web handler`).toMatch(/export default withLambda\(/);
+      expect(source, `${path} must not use the legacy Lambda export`).not.toMatch(/export const handler\s*=/);
+    }
   });
 
   it('adds the admin shell without changing checkout, payment, Designer, or transactional webhook routes', () => {

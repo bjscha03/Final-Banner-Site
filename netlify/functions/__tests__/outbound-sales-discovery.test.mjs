@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import serverAuth from '../_shared/server-auth.cjs';
 import providerContract from '../_shared/outbound-sales/providers/contract.cjs';
 import apolloProvider from '../_shared/outbound-sales/providers/apollo.cjs';
+import providerRegistry from '../_shared/outbound-sales/providers/registry.cjs';
 import ssrf from '../_shared/outbound-sales/ssrf.cjs';
 import researchModule from '../_shared/outbound-sales/research.cjs';
 import emailModule from '../_shared/outbound-sales/email.cjs';
@@ -18,6 +19,7 @@ import phase2Rollback from '../../../migrations/022_outbound_discovery_qualifica
 const { createSessionToken } = serverAuth;
 const { normalizeDiscoveryRequest, normalizeProviderProspect, assertProviderAdapter } = providerContract;
 const { createApolloAdapter, APOLLO_ORGANIZATION_SEARCH_URL, DEFAULT_COST_PER_CREDIT_MICROUSD } = apolloProvider;
+const { createDiscoveryAdapter, enabledDiscoveryProviderConfigs, hasDiscoveryAdapter } = providerRegistry;
 const { isPublicIp, normalizeWebsiteUrl, resolvePublicHost, fetchWebsitePage } = ssrf;
 const { researchWebsite, EXTRACTION_VERSION } = researchModule;
 const { normalizeEmail, extractPublicEmails, assessEmail, assessEmailCandidates } = emailModule;
@@ -82,6 +84,24 @@ describe('provider-neutral discovery and licensed Apollo adapter', () => {
     };
     expect(() => assertProviderAdapter(base)).toThrow(/estimateCost/);
     expect(assertProviderAdapter({ ...base, estimateCost: () => 0 }).id).toBe('future_source');
+  });
+
+  it('keeps provider construction behind a registry so future licensed sources do not change the core engine', () => {
+    const futureFactory = () => ({
+      id: 'future_source', kind: 'discovery', acquisitionMode: 'licensed_api',
+      getConfigurationStatus: () => ({ configured: true }),
+      execute: async () => ({ records: [], usage: { requestCount: 1, resultCount: 0, estimatedCostMicrousd: 0 } }),
+      normalize: (record) => record, estimateCost: () => 0,
+    });
+    const factories = { future_source: futureFactory };
+    expect(hasDiscoveryAdapter('future_source', factories)).toBe(true);
+    expect(createDiscoveryAdapter('future_source', {}, factories).id).toBe('future_source');
+    expect(enabledDiscoveryProviderConfigs([
+      { id: 'missing_source', enabled: true },
+      { id: 'future_source', enabled: true },
+      { id: 'disabled_source', enabled: false },
+    ], factories)).toStrictEqual([{ id: 'future_source', enabled: true }]);
+    expect(() => createDiscoveryAdapter('missing_source', {}, factories)).toThrow(/not installed/i);
   });
 
   it('uses Apollo Organization Search only in test/staging and normalizes a fixture without leaking the key', async () => {

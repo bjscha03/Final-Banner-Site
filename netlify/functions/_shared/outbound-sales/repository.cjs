@@ -1,5 +1,7 @@
 'use strict';
 
+const { safeRequestId } = require('./security.cjs');
+
 function integer(value, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? Math.trunc(parsed) : fallback;
@@ -9,12 +11,29 @@ function mapSettings(row) {
   if (!row) return null;
   return {
     shadowModeEnabled: row.shadow_mode_enabled === true,
+    shadowGenerationEnabled: row.shadow_generation_enabled === true,
     liveSendingEnabled: row.live_sending_enabled === true,
     emergencyPaused: row.emergency_paused === true,
     dailySendLimit: integer(row.daily_send_limit, 30),
     monthlyOpenAIBudgetCents: integer(row.monthly_openai_budget_cents, 800),
     openAIProjectLimitRecommendationCents: integer(row.openai_project_limit_recommendation_cents, 1000),
     monthlyProviderBudgetCents: integer(row.monthly_provider_budget_cents, 0),
+    replyIngestionEnabled: row.reply_ingestion_enabled === true,
+    replyAIFallbackEnabled: row.reply_ai_fallback_enabled === true,
+    suggestedReplyGenerationEnabled: row.suggested_reply_generation_enabled === true,
+    automationEnabled: row.automation_enabled === true,
+    deliveryWebhookEnabled: row.delivery_webhook_enabled === true,
+    attributionEnabled: row.attribution_enabled === true,
+    learningEnabled: row.learning_enabled === true,
+    monitoringEnabled: row.monitoring_enabled === true,
+    minimumLearningSample: integer(row.minimum_learning_sample, 60),
+    explorationPercent: Number(row.exploration_percent ?? 15),
+    sendingWindowStartLocal: row.sending_window_start_local || '09:30:00',
+    sendingWindowEndLocal: row.sending_window_end_local || '16:30:00',
+    minimumSpacingSeconds: integer(row.minimum_spacing_seconds, 600),
+    maximumBounceRate: Number(row.maximum_bounce_rate ?? 0.05),
+    maximumComplaintRate: Number(row.maximum_complaint_rate ?? 0.001),
+    maximumErrorRate: Number(row.maximum_error_rate ?? 0.1),
     businessTimezone: row.business_timezone || 'America/New_York',
     settingsVersion: integer(row.settings_version, 1),
     updatedAt: row.updated_at || null,
@@ -24,10 +43,18 @@ function mapSettings(row) {
 async function loadFoundationSnapshot(sql) {
   const queries = (tx) => [
     tx(
-      `SELECT shadow_mode_enabled, live_sending_enabled, emergency_paused,
+      `SELECT shadow_mode_enabled, shadow_generation_enabled,
+              live_sending_enabled, emergency_paused,
               daily_send_limit, monthly_openai_budget_cents,
               openai_project_limit_recommendation_cents,
               monthly_provider_budget_cents, business_timezone,
+              reply_ingestion_enabled, reply_ai_fallback_enabled,
+              suggested_reply_generation_enabled, automation_enabled,
+              delivery_webhook_enabled, attribution_enabled, learning_enabled,
+              monitoring_enabled, minimum_learning_sample, exploration_percent,
+              sending_window_start_local::text, sending_window_end_local::text,
+              minimum_spacing_seconds, maximum_bounce_rate,
+              maximum_complaint_rate, maximum_error_rate,
               settings_version, updated_at
          FROM outbound_settings
         WHERE id = 1`,
@@ -37,6 +64,7 @@ async function loadFoundationSnapshot(sql) {
          (SELECT COUNT(*) FROM outbound_prospects) AS prospects_total,
          (SELECT COUNT(*) FROM outbound_prospects WHERE status = 'ready_for_outreach') AS ready_for_outreach,
          (SELECT COUNT(*) FROM outbound_messages) AS messages_total,
+         (SELECT COUNT(*) FROM outbound_messages WHERE generation_status = 'generated') AS messages_generated,
          (SELECT COUNT(*) FROM outbound_messages WHERE status = 'sent') AS messages_sent,
          (SELECT COUNT(*) FROM outbound_replies) AS replies_total,
          (SELECT COUNT(*) FROM outbound_order_attributions WHERE is_test_order = FALSE) AS attributed_orders,
@@ -80,6 +108,7 @@ async function loadFoundationSnapshot(sql) {
       prospectsTotal: integer(metrics.prospects_total),
       readyForOutreach: integer(metrics.ready_for_outreach),
       messagesTotal: integer(metrics.messages_total),
+      messagesGenerated: integer(metrics.messages_generated),
       messagesSent: integer(metrics.messages_sent),
       repliesTotal: integer(metrics.replies_total),
       attributedOrders: integer(metrics.attributed_orders),
@@ -115,25 +144,36 @@ async function updateSettings(sql, next, { expectedVersion, actorId, requestId }
      ), updated AS (
        UPDATE outbound_settings AS settings
           SET shadow_mode_enabled = $1,
-              live_sending_enabled = $2,
-              emergency_paused = $3,
-              daily_send_limit = $4,
-              monthly_openai_budget_cents = $5,
+              shadow_generation_enabled = $2,
+              live_sending_enabled = $3,
+              emergency_paused = $4,
+              daily_send_limit = $5,
+              monthly_openai_budget_cents = $6,
+              reply_ingestion_enabled = $10,
+              reply_ai_fallback_enabled = $11,
+              suggested_reply_generation_enabled = $12,
+              automation_enabled = $13,
+              delivery_webhook_enabled = $14,
+              attribution_enabled = $15,
+              learning_enabled = $16,
+              monitoring_enabled = $17,
+              minimum_learning_sample = $18,
+              exploration_percent = $19,
               settings_version = settings.settings_version + 1,
-              updated_by = $7,
+              updated_by = $8,
               updated_at = NOW()
          FROM existing
         WHERE settings.id = existing.id
-          AND existing.settings_version = $6
+          AND existing.settings_version = $7
        RETURNING settings.*
      ), audit AS (
        INSERT INTO outbound_audit_log (
          actor_type, actor_id, action, entity_type, entity_id,
          previous_values, new_values, metadata, request_id
        )
-       SELECT 'admin', $7, 'settings.updated', 'settings', '1',
+       SELECT 'admin', $8, 'settings.updated', 'settings', '1',
               to_jsonb(existing), to_jsonb(updated),
-              jsonb_build_object('phase', 'foundation'), $8
+              jsonb_build_object('phase', 'shadow_personalization'), $9
          FROM existing
          JOIN updated ON TRUE
        RETURNING id
@@ -142,13 +182,24 @@ async function updateSettings(sql, next, { expectedVersion, actorId, requestId }
        FROM updated`,
     [
       next.shadowModeEnabled,
+      next.shadowGenerationEnabled,
       next.liveSendingEnabled,
       next.emergencyPaused,
       next.dailySendLimit,
       next.monthlyOpenAIBudgetCents,
       expectedVersion,
       actorId || null,
-      requestId || null,
+      safeRequestId(requestId),
+      next.replyIngestionEnabled === true,
+      next.replyAIFallbackEnabled === true,
+      next.suggestedReplyGenerationEnabled === true,
+      next.automationEnabled === true,
+      next.deliveryWebhookEnabled === true,
+      next.attributionEnabled === true,
+      next.learningEnabled === true,
+      next.monitoringEnabled === true,
+      integer(next.minimumLearningSample, 60),
+      Number(next.explorationPercent ?? 15),
     ],
   );
   if (!rows[0]) {

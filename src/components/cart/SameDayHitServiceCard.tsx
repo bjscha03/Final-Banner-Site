@@ -83,7 +83,7 @@ const SameDayHitServiceCard: React.FC<SameDayHitServiceCardProps> = ({
   }
 
   // Window is open. For the default (cart/checkout) variant, hide entirely
-  // when there is nothing eligible in the cart (e.g. only design deposits).
+  // when there is nothing eligible in the cart.
   if (!isCompact && !evalResult.hasEligibleItem) {
     return null;
   }

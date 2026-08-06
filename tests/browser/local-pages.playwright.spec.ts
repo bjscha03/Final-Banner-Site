@@ -131,7 +131,7 @@ test('product hub exposes real buying content and an indexable canonical', async
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://bannersonthefly.com/vinyl-banners');
 });
 
-test('mobile navigation locks the page and scrolls independently', async ({ page }, testInfo) => {
+test('mobile navigation stays usable after opening from a scrolled page', async ({ page }, testInfo) => {
   const viewportWidth = testInfo.project.use.viewport?.width || 0;
   test.skip(viewportWidth >= 1024, 'Desktop navigation does not use the mobile drawer.');
 
@@ -145,6 +145,8 @@ test('mobile navigation locks the page and scrolls independently', async ({ page
   expect(scrollBefore).toBeGreaterThan(0);
   await navigationTrigger.click();
   await expect(page.locator('[data-mobile-navigation]')).toBeVisible();
+  const closeButton = page.getByRole('button', { name: 'Close navigation menu' });
+  await expect(closeButton).toBeVisible();
   const locked = await page.evaluate(() => ({
     bodyPosition: document.body.style.position,
     bodyOverflow: document.body.style.overflow,
@@ -152,11 +154,19 @@ test('mobile navigation locks the page and scrolls independently', async ({ page
     htmlOverflow: document.documentElement.style.overflow,
     scrollY: window.scrollY,
   }));
-  expect(locked.bodyPosition).toBe('fixed');
-  expect(locked.bodyOverflow).toBe('hidden');
-  expect(locked.htmlOverflow).toBe('hidden');
-  expect(locked.bodyTop).toBe(`-${scrollBefore}px`);
-  expect(locked.scrollY).toBe(0);
+  expect(locked.bodyPosition).not.toBe('fixed');
+  expect(locked.bodyOverflow).toBe('');
+  expect(locked.bodyTop).toBe('');
+  expect(locked.htmlOverflow).toBe('');
+  expect(locked.scrollY).toBe(scrollBefore);
+  await expect(page.locator('[data-mobile-navigation-backdrop]')).toBeVisible();
+
+  const closeBox = await closeButton.boundingBox();
+  expect(closeBox).not.toBeNull();
+  expect(closeBox?.y ?? -1).toBeGreaterThanOrEqual(0);
+  expect((closeBox?.y ?? Number.POSITIVE_INFINITY) + (closeBox?.height ?? 0)).toBeLessThanOrEqual(
+    testInfo.project.use.viewport?.height || Number.POSITIVE_INFINITY,
+  );
 
   const drawer = page.locator('[data-mobile-navigation]');
   const drawerMetrics = await drawer.evaluate((element) => ({
@@ -170,11 +180,9 @@ test('mobile navigation locks the page and scrolls independently', async ({ page
   } else {
     await expect(drawer.getByRole('link', { name: 'Contact' })).toBeVisible();
   }
-  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  expect(await page.evaluate(() => window.scrollY)).toBe(scrollBefore);
 
-  await page.getByRole('button', { name: 'Close navigation menu' }).evaluate((button) =>
-    (button as HTMLButtonElement).click(),
-  );
+  await closeButton.click();
   await expect(page.locator('[data-mobile-navigation]')).toHaveCount(0);
   expect(await page.evaluate(() => window.scrollY)).toBe(scrollBefore);
 });

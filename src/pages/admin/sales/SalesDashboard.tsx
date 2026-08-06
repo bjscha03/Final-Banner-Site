@@ -26,8 +26,8 @@ export default function SalesDashboard() {
 
   const cards = [
     { label: 'Prospects', value: metrics?.prospectsTotal ?? 0, detail: `${metrics?.readyForOutreach ?? 0} ready for outreach`, icon: Users },
-    { label: 'Messages generated', value: metrics?.messagesTotal ?? 0, detail: `${metrics?.messagesSent ?? 0} externally sent`, icon: Send },
-    { label: 'Replies', value: metrics?.repliesTotal ?? 0, detail: 'Classification begins in Phase 4', icon: Activity },
+    { label: 'Messages generated', value: metrics?.messagesGenerated ?? 0, detail: `${metrics?.messagesSent ?? 0} externally sent`, icon: Send },
+    { label: 'Replies', value: metrics?.repliesTotal ?? 0, detail: 'Deterministic classification; review-only drafts', icon: Activity },
     { label: 'Orders generated', value: metrics?.attributedOrders ?? 0, detail: 'Paid, non-test attributed orders', icon: CircleDollarSign },
     { label: 'Revenue generated', value: money((metrics?.revenueGeneratedCents ?? 0) / 100), detail: 'Paid, non-test attributed revenue', icon: CircleDollarSign },
     { label: 'Active jobs', value: metrics?.activeJobs ?? 0, detail: `${metrics?.deadJobs ?? 0} dead-letter jobs`, icon: Database },
@@ -64,7 +64,7 @@ export default function SalesDashboard() {
         <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 px-5 py-4">
             <h2 className="flex items-center gap-2 text-lg font-black text-slate-950"><ShieldCheck className="h-5 w-5 text-[#18448D]" /> Operational safeguards</h2>
-            <p className="mt-1 text-sm text-slate-500">Phase 2 can research and qualify in staging, but remains incapable of external outreach.</p>
+            <p className="mt-1 text-sm text-slate-500">All subsystems are implemented behind independent gates; Live Sending remains code-locked off.</p>
           </div>
           <div className="grid gap-3 p-5 sm:grid-cols-2">
             {[
@@ -73,7 +73,7 @@ export default function SalesDashboard() {
               ['Live sending', controls?.liveSendingEnabled ? 'Enabled' : 'Locked off', MailX],
               ['Emergency pause', controls?.emergencyPaused ? 'Active' : 'Not active', PauseCircle],
               ['Daily send ceiling', `${controls?.dailySendLimit ?? 30} maximum`, Send],
-              ['Phase capability', 'Staging discovery only; no AI or email', ShieldCheck],
+              ['Phase capability', 'Complete Shadow Mode; live send locked', ShieldCheck],
             ].map(([label, value, Icon]) => {
               const ItemIcon = Icon as typeof ShieldCheck;
               return (

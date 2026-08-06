@@ -1,6 +1,6 @@
 'use strict';
 
-const { sanitizeForAudit } = require('./security.cjs');
+const { safeRequestId, sanitizeForAudit } = require('./security.cjs');
 
 async function appendAudit(sql, entry) {
   const rows = await sql(
@@ -19,7 +19,7 @@ async function appendAudit(sql, entry) {
       entry.previousValues == null ? null : JSON.stringify(sanitizeForAudit(entry.previousValues)),
       entry.newValues == null ? null : JSON.stringify(sanitizeForAudit(entry.newValues)),
       JSON.stringify(sanitizeForAudit(entry.metadata || {})),
-      entry.requestId || null,
+      safeRequestId(entry.requestId),
     ],
   );
   return rows[0] || null;
