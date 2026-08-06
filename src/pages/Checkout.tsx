@@ -280,19 +280,19 @@ const Checkout: React.FC = () => {
       item_name: `${item.width_in}x${item.height_in} ${item.material} ${getItemDisplayName(item)}`,
       item_category: getProductCategory(item.product_type),
       item_variant: item.material,
-      price: item.line_total_cents,
-      quantity: item.quantity,
+      price: Math.round(item.line_total_cents / Math.max(1, item.quantity)),
+      quantity: Math.max(1, item.quantity),
     }));
     checkoutTrackedRef.current = true;
-    trackBeginCheckout(analyticsItems, totalCents);
-    trackViewCart(analyticsItems, totalCents);
+    trackBeginCheckout(analyticsItems, totalCents, discountCode?.code || null);
+    trackViewCart(analyticsItems, totalCents, discountCode?.code || null);
 
     // Track Facebook Pixel InitiateCheckout
     trackFBInitiateCheckout({
       value: totalCents,
       num_items: items.length,
     });
-  }, [isLoading, items, totalCents]);
+  }, [discountCode?.code, isLoading, items, totalCents]);
 
   // Show loading state while cart is being loaded/merged
   if (isLoading) {
@@ -404,7 +404,7 @@ const Checkout: React.FC = () => {
           description: "Your $19 design deposit has been received.",
         });
         navigate(
-          `/graduation-signs/thank-you${depositIntakeId ? `?intakeId=${encodeURIComponent(depositIntakeId)}` : ''}`,
+          `/graduation-signs/thank-you?orderId=${encodeURIComponent(orderId)}${depositIntakeId ? `&intakeId=${encodeURIComponent(depositIntakeId)}` : ''}`,
           { replace: true }
         );
         return;

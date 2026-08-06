@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ProductVisual from '@/components/product/ProductVisual';
 import type { CityProductSlug } from '@/lib/seo/cityData';
+import { trackSelectItem, trackViewItemList, type AnalyticsItem } from '@/lib/analytics';
+import { getProductLandingDefinition } from '@/lib/seo/productLandingData';
 
 interface Product {
   slug: CityProductSlug;
@@ -36,7 +38,28 @@ const products: Product[] = [
   },
 ];
 
-const ProductSelectionStrip: React.FC = () => (
+const LIST_ID = 'homepage_product_lines';
+const LIST_NAME = 'Homepage product lines';
+const toAnalyticsItem = (product: Product): AnalyticsItem => ({
+  item_id: product.slug,
+  item_name: product.title,
+  item_category: 'Printing product',
+  price: getProductLandingDefinition(product.slug)!.startingPriceCents,
+  quantity: 1,
+  item_list_id: LIST_ID,
+  item_list_name: LIST_NAME,
+});
+
+const ProductSelectionStrip: React.FC = () => {
+  useEffect(() => {
+    trackViewItemList({
+      item_list_id: LIST_ID,
+      item_list_name: LIST_NAME,
+      items: products.map(toAnalyticsItem),
+    });
+  }, []);
+
+  return (
   <section className="brand-section bg-white" aria-labelledby="product-selection-heading">
     <div className="brand-shell">
       <div className="max-w-3xl">
@@ -60,7 +83,15 @@ const ProductSelectionStrip: React.FC = () => (
               <p className="mt-3 min-h-[72px] leading-6 text-slate-600">{product.description}</p>
               <p className="mt-5 border-t border-slate-200 pt-4 text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{product.details}</p>
               <div className="mt-5 flex items-center justify-between gap-4">
-                <Link to={`/${product.slug}`} className="inline-flex items-center gap-2 font-bold text-[#0B1F3A] underline decoration-[#FF6A00] decoration-2 underline-offset-4 hover:text-[#A63C00]">
+                <Link
+                  to={`/${product.slug}`}
+                  onClick={() => trackSelectItem({
+                    item_list_id: LIST_ID,
+                    item_list_name: LIST_NAME,
+                    item: toAnalyticsItem(product),
+                  })}
+                  className="inline-flex items-center gap-2 font-bold text-[#0B1F3A] underline decoration-[#FF6A00] decoration-2 underline-offset-4 hover:text-[#A63C00]"
+                >
                   Product details <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
               </div>
@@ -70,6 +101,7 @@ const ProductSelectionStrip: React.FC = () => (
       </div>
     </div>
   </section>
-);
+  );
+};
 
 export default ProductSelectionStrip;

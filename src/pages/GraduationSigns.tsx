@@ -462,6 +462,7 @@ const GraduationSigns: React.FC = () => {
         />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://bannersonthefly.com/graduation-signs" />
+        <link rel="canonical" href="https://bannersonthefly.com/graduation-signs" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Custom Graduation Signs – Designed For You" />
         <meta

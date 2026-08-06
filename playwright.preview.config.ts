@@ -15,6 +15,7 @@ export default defineConfig({
     'admin-review-request.playwright.spec.ts',
     'ai-admin-entry.playwright.spec.ts',
     'admin-sales-foundation.playwright.ts',
+    'tracking-isolation.playwright.spec.ts',
   ],
   fullyParallel: true,
   workers: process.env.CI ? 4 : 2,

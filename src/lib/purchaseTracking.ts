@@ -1,4 +1,5 @@
 import { trackFBPurchase, trackGoogleAdsPurchaseConversion, trackPurchase, type AnalyticsItem } from './analytics';
+import { isCustomerTrackingAllowed } from './trackingPolicy';
 
 export type PurchaseTrackingOrder = {
   orderId: string | null | undefined;
@@ -11,6 +12,7 @@ export type PurchaseTrackingOrder = {
   pageUrl?: string;
   paypalOrderId?: string | null;
   paypalCaptureId?: string | null;
+  coupon?: string | null;
 };
 
 export type ProviderAttempt = { provider: 'ga4' | 'meta' | 'google_ads'; attempted: boolean; ok: boolean; status?: 'not_attempted' | 'queued' | 'attempted' | 'blocked' | 'configuration_missing' | 'error'; error?: string };
@@ -21,8 +23,8 @@ const inFlight = new Set<string>();
 
 const buildProviderTrackingKey = (key: string, provider: ProviderAttempt['provider']) => `${key}_${provider}`;
 
-const devLog = (...args: any[]) => {
-  if ((import.meta as any)?.env?.DEV) console.debug('[purchase-tracking]', ...args);
+const devLog = (...args: unknown[]) => {
+  if (import.meta.env.DEV) console.debug('[purchase-tracking]', ...args);
 };
 
 export const buildPurchaseTrackingKey = (orderId?: string | null) => {
@@ -84,12 +86,19 @@ const recordPurchaseAudit = async (order: PurchaseTrackingOrder, attempts: Provi
   }
 };
 
-const attempt = (provider: ProviderAttempt['provider'], fn: () => void): ProviderAttempt => {
+const attempt = (provider: ProviderAttempt['provider'], fn: () => boolean): ProviderAttempt => {
   try {
-    fn();
-    return { provider, attempted: true, ok: true, status: 'attempted' };
-  } catch (error: any) {
-    return { provider, attempted: true, ok: false, status: 'error', error: error?.message || String(error) };
+    const queued = fn();
+    if (!queued) return { provider, attempted: false, ok: false, status: 'blocked' };
+    return { provider, attempted: true, ok: true, status: 'queued' };
+  } catch (error: unknown) {
+    return {
+      provider,
+      attempted: true,
+      ok: false,
+      status: 'error',
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
 };
 
@@ -100,13 +109,14 @@ export const attemptPurchaseTracking = async (order: PurchaseTrackingOrder): Pro
   if (!isPaidPurchaseOrder(order)) return { tracked: false, duplicate: false, attempts: [], reason: 'order_not_paid' };
   if (!Number.isFinite(order.totalCents) || order.totalCents <= 0) return { tracked: false, duplicate: false, attempts: [], reason: 'invalid_total' };
   if (!order.items.length) return { tracked: false, duplicate: false, attempts: [], reason: 'missing_items' };
+  if (!isCustomerTrackingAllowed()) return { tracked: false, duplicate: false, attempts: [], reason: 'tracking_not_allowed' };
 
   const ga4Key = buildProviderTrackingKey(key, 'ga4');
   const metaKey = buildProviderTrackingKey(key, 'meta');
   const googleAdsKey = buildProviderTrackingKey(key, 'google_ads');
   const googleAdsMissingConfigKey = `${googleAdsKey}_configuration_missing`;
-  const conversionId = (import.meta as any)?.env?.VITE_GOOGLE_ADS_CONVERSION_ID;
-  const purchaseLabel = (import.meta as any)?.env?.VITE_GOOGLE_ADS_PURCHASE_LABEL;
+  const conversionId = import.meta.env.VITE_GOOGLE_ADS_CONVERSION_ID;
+  const purchaseLabel = import.meta.env.VITE_GOOGLE_ADS_PURCHASE_LABEL;
   const hasGoogleAdsConfig = Boolean(conversionId && purchaseLabel);
   const alreadyTracked = hasStoredKey(key);
 
@@ -125,6 +135,7 @@ export const attemptPurchaseTracking = async (order: PurchaseTrackingOrder): Pro
         tax: order.taxCents || 0,
         shipping: order.shippingCents || 0,
         items: order.items,
+        coupon: order.coupon || null,
       }));
       attempts.push(ga4Attempt);
       if (ga4Attempt.ok) setStoredKey(ga4Key);
@@ -152,14 +163,12 @@ export const attemptPurchaseTracking = async (order: PurchaseTrackingOrder): Pro
     } else if (hasStoredKey(googleAdsKey)) {
       attempts.push({ provider: 'google_ads', attempted: false, ok: true, status: 'blocked' });
     } else {
-      const hadGtag = typeof window !== 'undefined' && typeof (window as any).gtag === 'function';
       const googleAdsAttempt = attempt('google_ads', () => trackGoogleAdsPurchaseConversion({
         transaction_id: transactionId,
         value: order.totalCents,
         currency: 'USD',
       }));
       if (googleAdsAttempt.ok) {
-        googleAdsAttempt.status = hadGtag ? 'attempted' : 'queued';
         setStoredKey(googleAdsKey);
       }
       attempts.push(googleAdsAttempt);

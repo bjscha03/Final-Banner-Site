@@ -5,8 +5,9 @@ import { useCartSync } from "@/hooks/useCartSync";
 import { useCartRevalidation } from "@/hooks/useCartRevalidation";
 import { useCartStore } from "@/store/cart";
 import { toast } from "@/components/ui/use-toast";
-import { initPostHog } from "@/lib/posthog";
 import { captureAttributionFromLocation } from "@/lib/attribution";
+import AnalyticsController from "@/components/AnalyticsController";
+import RouteRobotsPolicy from "@/components/RouteRobotsPolicy";
 import CityProductPage from "./pages/CityProductPage";
 import ProductHubPage from "./pages/ProductHubPage";
 import TradeShowDirectory from "./pages/TradeShowDirectory";
@@ -103,11 +104,6 @@ const CartSyncWrapper = ({ children }: { children: React.ReactNode }) => {
     debounceMs: 1000,     // Debounce revalidation calls
   });
 
-  // Initialize PostHog once
-  useEffect(() => {
-    initPostHog();
-  }, []);
-
   // Same-Day Hit Service: 60s ticker. If the ET cutoff passes mid-session,
   // automatically clear the cart flags and surface a one-time toast so the
   // customer doesn't try to check out with an option we can no longer honor.
@@ -148,6 +144,8 @@ const AttributionCapture = () => {
 export const RoutedApplication = () => (
         <CartSyncWrapper>
           <AttributionCapture />
+          <AnalyticsController />
+          <RouteRobotsPolicy />
           <Suspense fallback={<PageLoader />}>
           <Routes>
             {/* Critical path - homepage */}

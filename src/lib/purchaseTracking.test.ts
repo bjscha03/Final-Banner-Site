@@ -1,6 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { attemptPurchaseTracking, buildPurchaseTrackingKey } from './purchaseTracking';
 
+const createStorage = () => {
+  const values = new Map<string, string>();
+  return {
+    clear: () => values.clear(),
+    getItem: (key: string) => values.get(key) ?? null,
+    key: (index: number) => Array.from(values.keys())[index] ?? null,
+    removeItem: (key: string) => values.delete(key),
+    setItem: (key: string, value: string) => values.set(key, String(value)),
+    get length() { return values.size; },
+  } as Storage;
+};
+
 const baseOrder = (overrides: any = {}) => ({
   orderId: 'order-1',
   orderNumber: 'BOTF-1001',
@@ -13,18 +25,28 @@ const baseOrder = (overrides: any = {}) => ({
 });
 
 const clearGoogleAdsConfig = () => {
-  (import.meta as any).env.VITE_GOOGLE_ADS_CONVERSION_ID = '';
-  (import.meta as any).env.VITE_GOOGLE_ADS_PURCHASE_LABEL = '';
+  vi.stubEnv('VITE_GOOGLE_ADS_CONVERSION_ID', '');
+  vi.stubEnv('VITE_GOOGLE_ADS_PURCHASE_LABEL', '');
 };
 
 beforeEach(() => {
   vi.unstubAllGlobals();
-  localStorage.clear();
-  sessionStorage.clear();
-  (import.meta as any).env.VITE_GOOGLE_ADS_CONVERSION_ID = 'AW-123456789';
-  (import.meta as any).env.VITE_GOOGLE_ADS_PURCHASE_LABEL = 'purchaseLabel';
+  vi.unstubAllEnvs();
+  vi.stubGlobal('localStorage', createStorage());
+  vi.stubGlobal('sessionStorage', createStorage());
+  vi.stubGlobal('window', {
+    location: {
+      hostname: 'bannersonthefly.com',
+      pathname: '/payment-success',
+      protocol: 'https:',
+      href: 'https://bannersonthefly.com/payment-success',
+    },
+    navigator: { webdriver: false, userAgent: 'Mozilla/5.0 Chrome/130 Safari/537.36' },
+    dataLayer: [],
+  });
+  vi.stubEnv('VITE_GOOGLE_ADS_CONVERSION_ID', 'AW-123456789');
+  vi.stubEnv('VITE_GOOGLE_ADS_PURCHASE_LABEL', 'purchaseLabel');
   vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true }) })));
-  vi.stubGlobal('window', window);
   window.dataLayer = [];
   window.gtag = vi.fn();
   (window as any).fbq = vi.fn();
@@ -112,6 +134,17 @@ describe('purchase tracking', () => {
     expect((window as any).fbq).not.toHaveBeenCalled();
   });
 
+  it('never queues a purchase or audit record from an admin route', async () => {
+    window.location.pathname = '/admin/orders';
+
+    const result = await attemptPurchaseTracking(baseOrder());
+
+    expect(result.reason).toBe('tracking_not_allowed');
+    expect(window.gtag).not.toHaveBeenCalled();
+    expect((window as any).fbq).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it('queues events when gtag loads late', async () => {
     window.gtag = undefined as any;
     await attemptPurchaseTracking(baseOrder());
@@ -141,8 +174,8 @@ describe('purchase tracking', () => {
   it('can retry direct Google Ads later without resending GA4 or Meta', async () => {
     clearGoogleAdsConfig();
     await attemptPurchaseTracking(baseOrder());
-    (import.meta as any).env.VITE_GOOGLE_ADS_CONVERSION_ID = 'AW-123456789';
-    (import.meta as any).env.VITE_GOOGLE_ADS_PURCHASE_LABEL = 'purchaseLabel';
+    vi.stubEnv('VITE_GOOGLE_ADS_CONVERSION_ID', 'AW-123456789');
+    vi.stubEnv('VITE_GOOGLE_ADS_PURCHASE_LABEL', 'purchaseLabel');
 
     const retry = await attemptPurchaseTracking(baseOrder());
 

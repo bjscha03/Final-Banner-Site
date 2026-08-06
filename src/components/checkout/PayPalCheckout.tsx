@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth';
 import { useCartStore } from '@/store/cart';
 import { Loader2 } from 'lucide-react';
 import { shouldUseDeployPreviewTestCheckout } from './checkoutEnvironment';
+import { gtag } from '@/lib/analytics';
 import { getStoredAttribution } from '@/lib/attribution';
 
 interface PayPalCheckoutProps {
@@ -64,10 +65,9 @@ const extractShippingFromCapture = (captureResult: any) => {
 };
 
 const trackCheckoutPaymentClick = (method: 'card' | 'paypal') => {
-  if (typeof window === 'undefined' || !window.gtag) return;
-  window.gtag('event', 'payment_button_click', {
+  gtag('event', 'payment_button_click', {
     payment_method: method,
-    device_type: window.innerWidth < 768 ? 'mobile' : 'desktop',
+    device_type: typeof window !== 'undefined' && window.innerWidth < 768 ? 'mobile' : 'desktop',
   });
 };
 

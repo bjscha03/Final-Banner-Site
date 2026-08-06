@@ -10,6 +10,7 @@ const {
   reconcileSameDayFlags,
   getEasternTimeParts,
 } = require('../sameDayService.cjs');
+const { addPostTaxServiceFees } = require('../order-total-reconciliation.cjs');
 
 // Guard: only treat a value as a "real" authenticated user id if it is a
 // proper non-zero UUID. Placeholder values like the all-zero UUID, the
@@ -1030,6 +1031,16 @@ exports.handler = async (event, context) => {
     const orderSaturdayFeeCents = sameDayResult.fees.saturdayFeeCents;
     const orderSameDayQualified = sameDayResult.eval.windowOpen && sameDayResult.eval.hasEligibleItem;
     const orderTimestampEt = getEasternTimeParts(sameDayNow);
+    // computeTotals intentionally calculates tax before these optional
+    // services. Add the server-authoritative fees to the persisted/payment
+    // total exactly once so checkout, DB, PayPal, and analytics share a ledger.
+    orderData.total_cents = addPostTaxServiceFees({
+      baseTotalCents: orderData.total_cents,
+      sameDayFeeCents: orderSameDayFeeCents,
+      saturdayFeeCents: orderSaturdayFeeCents,
+    });
+    orderData.same_day_fee_cents = orderSameDayFeeCents;
+    orderData.saturday_fee_cents = orderSaturdayFeeCents;
     const attribution = normalizeAttribution(orderData.attribution || orderData);
 
     if (orderData.checkout_idempotency_key) {
@@ -1539,6 +1550,8 @@ exports.handler = async (event, context) => {
         applied_discount_cents: orderData.applied_discount_cents || 0,
         applied_discount_label: orderData.applied_discount_label || "",
         applied_discount_type: orderData.applied_discount_type || "none",
+        same_day_fee_cents: orderSameDayFeeCents,
+        saturday_fee_cents: orderSaturdayFeeCents,
         status: requestedStatus,
         payment_method: orderData.payment_method || null,
         is_test_order: orderData.is_test_order === true,

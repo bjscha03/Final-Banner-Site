@@ -11,6 +11,7 @@ import { StickyCTA } from './StickyCTA';
 import { TableOfContents } from './TableOfContents';
 import { BlogCard } from './BlogCard';
 import type { BlogPost as BlogPostType, BlogListItem } from '@/lib/blog';
+import { gtag, trackFBViewContent } from '@/lib/analytics';
 
 interface BlogPostProps {
   post: BlogPostType;
@@ -24,21 +25,15 @@ export function BlogPost({ post, relatedPosts }: BlogPostProps) {
   const heroImageUrl = (frontmatter as any).heroImage || (frontmatter as any).hero || 'https://via.placeholder.com/1200x600/18448D/ffffff?text=Blog+Post+Image';
   
   useEffect(() => {
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', 'blog_view', {
-        slug: frontmatter.slug,
-        tags: frontmatter.tags.join(','),
-        read_time: readingTime,
-      });
-    }
-    
-    if (typeof window !== 'undefined' && (window as any).fbq) {
-      (window as any).fbq('track', 'ViewContent', {
-        content_name: frontmatter.title,
-        content_category: 'Blog',
-        content_ids: [frontmatter.slug],
-      });
-    }
+    gtag('event', 'blog_view', {
+      slug: frontmatter.slug,
+      tags: frontmatter.tags.join(','),
+      read_time: readingTime,
+    });
+    trackFBViewContent({
+      content_name: frontmatter.title,
+      content_category: 'Blog',
+    });
     
     // Add IDs to headings for TOC navigation
     const articleElement = document.querySelector('article .prose');

@@ -1,7 +1,8 @@
 const { neon } = require('@neondatabase/serverless');
+const { getCanonicalTransactionId } = require('../purchase-analytics-reconciliation.cjs');
 
 const headers = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': 'https://bannersonthefly.com',
   'Access-Control-Allow-Headers': 'Content-Type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Content-Type': 'application/json',
@@ -34,9 +35,32 @@ exports.handler = async (event) => {
     const meta = find('meta');
     const sql = neon(dbUrl);
 
+    // Never let a client create an analytics audit row for an invented,
+    // unpaid, or mismatched order. Provider delivery is still verified in the
+    // provider dashboards; this table records only the browser queue attempt.
+    const canonicalOrders = await sql`
+      SELECT id, order_number, status, total_cents
+      FROM orders
+      WHERE id = ${orderId}
+      LIMIT 1
+    `;
+    if (!canonicalOrders.length) {
+      return { statusCode: 404, headers, body: JSON.stringify({ ok: false, error: 'ORDER_NOT_FOUND' }) };
+    }
+    const canonicalOrder = canonicalOrders[0];
+    const canonicalStatus = String(canonicalOrder.status || '').toLowerCase();
+    if (!['paid', 'completed', 'complete', 'succeeded'].includes(canonicalStatus)) {
+      return { statusCode: 409, headers, body: JSON.stringify({ ok: false, error: 'ORDER_NOT_PAID' }) };
+    }
+    const canonicalTransactionId = getCanonicalTransactionId(canonicalOrder);
+    if (canonicalTransactionId !== orderNumber) {
+      return { statusCode: 409, headers, body: JSON.stringify({ ok: false, error: 'ORDER_NUMBER_MISMATCH' }) };
+    }
+
     await sql`
       CREATE TABLE IF NOT EXISTS purchase_analytics_audit (
         id BIGSERIAL PRIMARY KEY,
+        event_key TEXT,
         order_id TEXT NOT NULL,
         order_number TEXT NOT NULL,
         paypal_order_id TEXT,
@@ -63,31 +87,49 @@ exports.handler = async (event) => {
 
     await sql`ALTER TABLE purchase_analytics_audit ADD COLUMN IF NOT EXISTS paypal_order_id TEXT`;
     await sql`ALTER TABLE purchase_analytics_audit ADD COLUMN IF NOT EXISTS paypal_capture_id TEXT`;
+    await sql`ALTER TABLE purchase_analytics_audit ADD COLUMN IF NOT EXISTS event_key TEXT`;
     await sql`ALTER TABLE purchase_analytics_audit ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`;
+    await sql`CREATE UNIQUE INDEX IF NOT EXISTS uq_purchase_analytics_audit_event_key ON purchase_analytics_audit(event_key)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_purchase_analytics_audit_order_id ON purchase_analytics_audit(order_id)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_purchase_analytics_audit_paypal_capture_id ON purchase_analytics_audit(paypal_capture_id) WHERE paypal_capture_id IS NOT NULL`;
 
     const now = new Date();
     await sql`
       INSERT INTO purchase_analytics_audit (
-        order_id, order_number, paypal_order_id, paypal_capture_id, payment_status, order_total_cents, currency,
+        event_key, order_id, order_number, paypal_order_id, paypal_capture_id, payment_status, order_total_cents, currency,
         ga4_attempted_at, ga4_status, ga4_error,
         google_ads_attempted_at, google_ads_status, google_ads_error,
         meta_attempted_at, meta_status, meta_error,
         client_user_agent, page_url, updated_at
       ) VALUES (
-        ${orderId}, ${orderNumber}, ${payload.paypal_order_id || null}, ${payload.paypal_capture_id || null}, ${payload.payment_status || null}, ${Number(payload.order_total_cents || 0)}, ${payload.currency || 'USD'},
+        ${`purchase:${orderId}`}, ${orderId}, ${orderNumber}, ${payload.paypal_order_id || null}, ${payload.paypal_capture_id || null}, ${canonicalOrder.status}, ${Number(canonicalOrder.total_cents || 0)}, 'USD',
         ${ga4.attempted ? now : null}, ${providerStatus(ga4)}, ${ga4.error || null},
         ${ads.attempted ? now : null}, ${providerStatus(ads)}, ${ads.error || null},
         ${meta.attempted ? now : null}, ${providerStatus(meta)}, ${meta.error || null},
         ${event.headers['user-agent'] || event.headers['User-Agent'] || null}, ${payload.page_url || null}, ${now}
       )
+      ON CONFLICT (event_key) DO UPDATE SET
+        paypal_order_id = EXCLUDED.paypal_order_id,
+        paypal_capture_id = EXCLUDED.paypal_capture_id,
+        payment_status = EXCLUDED.payment_status,
+        order_total_cents = EXCLUDED.order_total_cents,
+        ga4_attempted_at = COALESCE(EXCLUDED.ga4_attempted_at, purchase_analytics_audit.ga4_attempted_at),
+        ga4_status = EXCLUDED.ga4_status,
+        ga4_error = EXCLUDED.ga4_error,
+        google_ads_attempted_at = COALESCE(EXCLUDED.google_ads_attempted_at, purchase_analytics_audit.google_ads_attempted_at),
+        google_ads_status = EXCLUDED.google_ads_status,
+        google_ads_error = EXCLUDED.google_ads_error,
+        meta_attempted_at = COALESCE(EXCLUDED.meta_attempted_at, purchase_analytics_audit.meta_attempted_at),
+        meta_status = EXCLUDED.meta_status,
+        meta_error = EXCLUDED.meta_error,
+        client_user_agent = EXCLUDED.client_user_agent,
+        page_url = EXCLUDED.page_url,
+        updated_at = EXCLUDED.updated_at
     `;
 
     return { statusCode: 200, headers, body: JSON.stringify({ ok: true }) };
   } catch (error) {
     console.error('[record-purchase-analytics] error', error);
-    return { statusCode: 200, headers, body: JSON.stringify({ ok: false, error: 'AUDIT_LOG_FAILED' }) };
+    return { statusCode: 500, headers, body: JSON.stringify({ ok: false, error: 'AUDIT_LOG_FAILED' }) };
   }
 };
-

@@ -1,12 +1,43 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { CheckCircle, GraduationCap, ArrowRight } from 'lucide-react';
 import Layout from '@/components/Layout';
+import { authorizedHeaders } from '@/lib/serverAuth';
+import { attemptCanonicalPurchaseTracking } from '@/lib/canonicalPurchaseTracking';
 
 const GraduationSignsThankYou: React.FC = () => {
   const [searchParams] = useSearchParams();
   const intakeId = searchParams.get('intakeId');
+  const orderId = searchParams.get('orderId');
+
+  useEffect(() => {
+    if (!orderId) return;
+    let cancelled = false;
+
+    const loadAndTrackPurchase = async () => {
+      for (let attempt = 1; attempt <= 6 && !cancelled; attempt += 1) {
+        try {
+          const response = await fetch(`/.netlify/functions/get-order?id=${encodeURIComponent(orderId)}`, {
+            headers: authorizedHeaders(),
+          });
+          const data = response.ok ? await response.json() : null;
+          if (data?.ok && data?.order) {
+            await attemptCanonicalPurchaseTracking(orderId, data.order, window.location.href);
+            return;
+          }
+        } catch (error) {
+          if (attempt === 6 && import.meta.env.DEV) {
+            console.warn('[GraduationSignsThankYou] Unable to load paid order for purchase tracking', error);
+          }
+        }
+        await new Promise((resolve) => window.setTimeout(resolve, Math.min(attempt * 500, 2500)));
+      }
+    };
+
+    void loadAndTrackPurchase();
+    return () => { cancelled = true; };
+  }, [orderId]);
 
   return (
     <Layout>

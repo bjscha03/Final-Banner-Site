@@ -1,15 +1,15 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Home, ArrowRight } from 'lucide-react';
 import { usd } from '@/lib/pricing';
-import { attemptPurchaseTracking } from '@/lib/purchaseTracking';
 import { getItemDisplayName, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
 import { formatShippingAddress, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
 import { getDisplayOrderTotalCents } from '@/lib/order-totals';
 import { authorizedHeaders } from '@/lib/serverAuth';
 import OrderItemPreview from '@/components/preview/OrderItemPreview';
+import { attemptCanonicalPurchaseTracking } from '@/lib/canonicalPurchaseTracking';
 
 const PaymentSuccess: React.FC = () => {
   const navigate = useNavigate();
@@ -117,118 +117,17 @@ const PaymentSuccess: React.FC = () => {
     return () => { cancelled = true; };
   }, [orderId]);
 
-  const canonicalOrderItems = useMemo(() => loadedOrder?.items || [], [loadedOrder?.items]);
-  const canonicalOrderStatus = String(loadedOrder?.status || '').toLowerCase();
-  const canonicalOrderIsPaid = ['paid', 'completed', 'complete', 'succeeded'].includes(canonicalOrderStatus);
-  const canonicalOrderTotalCents = loadedOrder ? getDisplayOrderTotalCents(loadedOrder as any) : 0;
-  const canonicalOrderTaxCents = Number(loadedOrder?.tax_cents || 0);
-  const canonicalOrderShippingCents = Number((loadedOrder as any)?.shipping_cents || 0);
-
   // Calculate pricing breakdown using the same logic as cart store
 
   // Track purchase event for analytics from canonical server-loaded order data.
   useEffect(() => {
-    if (!orderId) {
-      console.log('[PaymentSuccess] Waiting for order data: missing orderId');
-      return;
-    }
-
-    if (!loadedOrder) {
-      console.log('[PaymentSuccess] Waiting for order data before purchase tracking', { orderId });
-      return;
-    }
-
-    if (!canonicalOrderIsPaid) {
-      console.log('[PaymentSuccess] Purchase tracking skipped because order not paid', {
-        orderId,
-        status: loadedOrder.status,
-      });
-      return;
-    }
-
-    if (!canonicalOrderItems.length) {
-      console.log('[PaymentSuccess] Waiting for order items before purchase tracking', { orderId });
-      return;
-    }
-
-    if (!Number.isFinite(canonicalOrderTotalCents) || canonicalOrderTotalCents <= 0) {
-      console.log('[PaymentSuccess] Waiting for final server pricing before purchase tracking', {
-        orderId,
-        total_cents: loadedOrder.total_cents,
-      });
-      return;
-    }
-
-    const trackedKey = `purchase_tracked_${orderId}`;
-    try {
-      const alreadyTracked =
-        (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(trackedKey))
-        || (typeof localStorage !== 'undefined' && localStorage.getItem(trackedKey));
-      if (alreadyTracked) {
-        console.log('[PaymentSuccess] Purchase tracking skipped because duplicate', { orderId });
-        return;
-      }
-    } catch (_e) {
-      // Storage unavailable — GA4 transaction_id still provides provider-side dedupe.
-    }
-
-    const analyticsItems = canonicalOrderItems.map((item, index) => {
-      const quantity = Number(item.quantity || 1) || 1;
-      const lineTotalCents = Number(item.line_total_cents || 0);
-      const unitPriceCents = quantity > 0 ? Math.round(lineTotalCents / quantity) : lineTotalCents;
-      const width = item.width_in || 'Custom';
-      const height = item.height_in || 'Size';
-      const material = item.material || item.product_type || 'Banner';
-      const itemId = String(
-        item.id
-        || (item as any).item_id
-        || (item as any).file_key
-        || `${orderId}-item-${index + 1}`
-      );
-
-      return {
-        item_id: itemId,
-        item_name: getItemDisplayName(item) || `${width}x${height} ${material} Banner`,
-        item_category: item.product_type || 'Banner',
-        item_variant: item.material || item.product_type || 'banner',
-        price: unitPriceCents,
-        quantity,
-      };
-    });
-
-    void attemptPurchaseTracking({
-      orderId,
-      orderNumber: loadedOrder.order_number,
-      status: loadedOrder.status,
-      totalCents: canonicalOrderTotalCents,
-      taxCents: canonicalOrderTaxCents,
-      shippingCents: canonicalOrderShippingCents,
-      items: analyticsItems,
-      pageUrl: window.location.href,
-      paypalOrderId: loadedOrder.paypal_order_id,
-      paypalCaptureId: loadedOrder.paypal_capture_id,
-    }).then((result) => {
-      if ((import.meta as any).env.DEV) {
+    if (!orderId || !loadedOrder) return;
+    void attemptCanonicalPurchaseTracking(orderId, loadedOrder, window.location.href).then((result) => {
+      if (import.meta.env.DEV) {
         console.log('[PaymentSuccess] Purchase tracking result', result);
       }
     });
-
-    console.log('[PaymentSuccess] Purchase tracking attempted', {
-      orderId,
-      value_cents: canonicalOrderTotalCents,
-      tax_cents: canonicalOrderTaxCents,
-      shipping_cents: canonicalOrderShippingCents,
-      item_count: analyticsItems.length,
-    });
-  }, [
-    orderId,
-    loadedOrder,
-    canonicalOrderItems,
-    canonicalOrderIsPaid,
-    canonicalOrderTotalCents,
-    canonicalOrderTaxCents,
-    canonicalOrderShippingCents,
-  ]);
+  }, [orderId, loadedOrder]);
   const calculatePricingBreakdown = () => {
     if (items.length === 0) {
       return { subtotal: 0, tax: 0, total: 0, discountCents: 0, discountLabel: "", shippingCents: 0, sameDayFeeCents: 0, saturdayFeeCents: 0 };

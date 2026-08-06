@@ -256,6 +256,114 @@
   [headers.values]
   Cache-Control = "public, max-age=0, must-revalidate"
 
+# Private, transactional, admin, and diagnostic SPA routes must never enter a
+# search index. The response header is authoritative even when a crawler does
+# not execute the client-side robots policy.
+[[headers]]
+  for = "/admin"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/admin/*"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/orders/*"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/proof/*"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/checkout"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/payment-success"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/order-confirmation"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/my-orders"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/my-ai-images"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/sign-in"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/sign-up"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/reset-password"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/verify-email"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/forgot-password"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/check-email"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/graduation-signs/thank-you"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/canva-test"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/pdf-diagnostic"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/logo-showcase"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/design/complete"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/design/canva-editor"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
 # Edge Functions configuration
 [[edge_functions]]
   path = "/blog/*"

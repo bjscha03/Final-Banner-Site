@@ -104,7 +104,7 @@ export default function BlogPostPage() {
       name: 'Banners on the Fly',
       logo: {
         '@type': 'ImageObject',
-        url: 'https://bannersonthefly.com/logo.png',
+        url: 'https://bannersonthefly.com/images/logo-social.svg',
       },
     },
   };

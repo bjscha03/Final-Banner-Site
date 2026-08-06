@@ -85,6 +85,8 @@ import {
   type ReadyPlacementPreviewManifest,
 } from '@/lib/previewLifecycle';
 import { createPermanentPlacementPreview } from '@/lib/previewArtifactCoordinator';
+import { trackViewItem } from '@/lib/analytics';
+import { getProductLandingDefinition } from '@/lib/seo/productLandingData';
 
 type UploadedArtworkFile = {
   editorIdentity?: string;
@@ -286,6 +288,22 @@ const GoogleAdsBanner: React.FC = () => {
   const [productType, setProductType] = useState<ProductTypeSlug>(initialProductType);
   const isYardSign = productType === 'yard_sign';
   const isCarMagnet = productType === 'car_magnet';
+
+  useEffect(() => {
+    const slug = productType === 'yard_sign'
+      ? 'yard-signs'
+      : productType === 'car_magnet'
+        ? 'car-magnets'
+        : 'vinyl-banners';
+    const product = getProductLandingDefinition(slug)!;
+    trackViewItem({
+      id: product.slug,
+      name: product.plural,
+      category: 'Google Ads product configurator',
+      variant: productType,
+      price: product.startingPriceCents,
+    });
+  }, [productType]);
 
   // Yard sign specific state (v2: simplified single-size, multi-design)
   const [yardSignDesigns, setYardSignDesigns] = useState<YardSignDesign[]>([]);
