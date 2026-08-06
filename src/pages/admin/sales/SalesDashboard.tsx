@@ -64,7 +64,7 @@ export default function SalesDashboard() {
         <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 px-5 py-4">
             <h2 className="flex items-center gap-2 text-lg font-black text-slate-950"><ShieldCheck className="h-5 w-5 text-[#18448D]" /> Operational safeguards</h2>
-            <p className="mt-1 text-sm text-slate-500">The foundation is deliberately incapable of external outreach.</p>
+            <p className="mt-1 text-sm text-slate-500">Phase 2 can research and qualify in staging, but remains incapable of external outreach.</p>
           </div>
           <div className="grid gap-3 p-5 sm:grid-cols-2">
             {[
@@ -73,7 +73,7 @@ export default function SalesDashboard() {
               ['Live sending', controls?.liveSendingEnabled ? 'Enabled' : 'Locked off', MailX],
               ['Emergency pause', controls?.emergencyPaused ? 'Active' : 'Not active', PauseCircle],
               ['Daily send ceiling', `${controls?.dailySendLimit ?? 30} maximum`, Send],
-              ['Phase capability', 'No provider, AI, or email execution', ShieldCheck],
+              ['Phase capability', 'Staging discovery only; no AI or email', ShieldCheck],
             ].map(([label, value, Icon]) => {
               const ItemIcon = Icon as typeof ShieldCheck;
               return (
@@ -112,7 +112,7 @@ export default function SalesDashboard() {
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-lg font-black text-slate-950">Provider readiness</h2>
-        <p className="mt-1 text-sm text-slate-500">Provider adapters remain uninstalled in Phase 1. Configuration status never exposes secret values.</p>
+        <p className="mt-1 text-sm text-slate-500">Apollo discovery is installed for explicitly enabled test/staging use only. Configuration status never exposes secret values.</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {(status?.providers || []).map((provider) => (
             <div key={provider.id} className="flex items-center justify-between rounded-xl border border-slate-200 p-4">

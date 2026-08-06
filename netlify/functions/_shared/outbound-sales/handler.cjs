@@ -31,7 +31,7 @@ function mergeProviderStatus(manifestStatus, storedProviders = []) {
     const saved = stored.get(provider.id);
     return {
       ...provider,
-      enabled: Boolean(provider.adapterInstalled && provider.configured && saved?.enabled),
+      enabled: Boolean(provider.adapterInstalled && provider.configured && provider.executionAllowed && saved?.enabled),
       dailyRequestLimit: saved?.dailyRequestLimit || 0,
       monthlyBudgetCents: saved?.monthlyBudgetCents || 0,
     };
@@ -90,7 +90,8 @@ function createHandlers(dependencies = {}) {
       metrics: snapshot.metrics,
       monthlyCostsMicrousd: snapshot.monthlyCostsMicrousd,
       safeguards: {
-        providerExecutionInstalled: false,
+        providerExecutionInstalled: true,
+        providerExecutionProductionBlocked: true,
         openAICallsInstalled: false,
         emailSendingInstalled: false,
         scheduledAutomationInstalled: false,
@@ -172,8 +173,13 @@ function createHandlers(dependencies = {}) {
       }
       const runtime = runtimeConfig();
       if (next.liveSendingEnabled && !runtime.liveSendingAvailable) {
-        const error = new Error('Live sending is locked during Phase 1.');
+        const error = new Error('Live sending is locked during Phase 2.');
         error.code = 'LIVE_SENDING_PHASE_LOCKED';
+        throw error;
+      }
+      if (!next.shadowModeEnabled) {
+        const error = new Error('Shadow Mode is required during Phase 2.');
+        error.code = 'SHADOW_MODE_PHASE_LOCKED';
         throw error;
       }
 

@@ -33,7 +33,7 @@ export default function SalesSettings() {
     setSaving(true);
     try {
       await updateOutboundSettings(status.settings.settingsVersion, {
-        shadowModeEnabled,
+        shadowModeEnabled: true,
         liveSendingEnabled: false,
         emergencyPaused,
         dailySendLimit,
@@ -57,6 +57,7 @@ export default function SalesSettings() {
     ['Outbound Resend', status?.secretStatus.resend],
     ['Resend webhook signing', status?.secretStatus.resendWebhook],
     ['Email verification', status?.secretStatus.emailVerification],
+    ['Apollo discovery', status?.secretStatus.apolloDiscovery],
   ] as const;
 
   return (
@@ -72,13 +73,13 @@ export default function SalesSettings() {
               <Bot className="mt-0.5 h-5 w-5 text-sky-700" />
               <div><Label className="font-black text-sky-950">Shadow Mode</Label><p className="mt-1 text-sm text-sky-800">Build the queue, research, score, verify, and preview without sending externally.</p></div>
             </div>
-            <Switch checked={shadowModeEnabled} onCheckedChange={setShadowModeEnabled} disabled={!controlsAvailable || saving} aria-label="Shadow Mode" />
+            <Switch checked={shadowModeEnabled} disabled aria-label="Shadow Mode locked on" />
           </div>
 
           <div className="flex items-start justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 opacity-80">
             <div className="flex gap-3">
               <LockKeyhole className="mt-0.5 h-5 w-5 text-slate-600" />
-              <div><Label className="font-black text-slate-900">Live Sending</Label><p className="mt-1 text-sm text-slate-600">Locked off in Phase 1. A future phase still requires your explicit admin activation.</p></div>
+              <div><Label className="font-black text-slate-900">Live Sending</Label><p className="mt-1 text-sm text-slate-600">Locked off in Phase 2. A future phase still requires your explicit admin activation.</p></div>
             </div>
             <Switch checked={false} disabled aria-label="Live Sending locked" />
           </div>
@@ -107,7 +108,7 @@ export default function SalesSettings() {
           <Button onClick={() => void save()} disabled={!controlsAvailable || saving} className="w-full bg-[#18448D] text-white hover:bg-[#12386f]">
             <Save className="mr-2 h-4 w-4" /> {saving ? 'Saving safely…' : 'Save global controls'}
           </Button>
-          {!status?.schemaReady && <p className="text-center text-sm font-semibold text-amber-700">Apply migration 021 before these database-backed controls can be saved.</p>}
+          {!status?.schemaReady && <p className="text-center text-sm font-semibold text-amber-700">The outbound migrations are not present on this database; controls remain fail-closed.</p>}
         </div>
       </section>
 
@@ -127,11 +128,11 @@ export default function SalesSettings() {
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-black text-slate-950">Provider configuration</h2><Badge variant="outline">Pluggable</Badge></div>
-          <p className="mt-1 text-sm text-slate-500">No adapter is active in Phase 1.</p>
+          <p className="mt-1 text-sm text-slate-500">Apollo is test/staging-only, disabled by default, and has no browser-editable credential path.</p>
           <div className="mt-4 space-y-3">
             {(status?.providers || []).map((provider) => (
               <div key={provider.id} className="flex items-center justify-between rounded-xl border border-slate-200 p-3">
-                <div><p className="text-sm font-bold text-slate-900">{provider.displayName}</p><p className="text-xs text-slate-500">Adapter {provider.adapterInstalled ? 'installed' : 'not installed'}</p></div>
+                <div><p className="text-sm font-bold text-slate-900">{provider.displayName}</p><p className="text-xs text-slate-500">Adapter {provider.adapterInstalled ? 'installed' : 'not installed'} · {provider.executionScope === 'test_staging_only' ? 'test/staging only' : 'inactive'}</p></div>
                 <Badge variant={provider.configured ? 'success' : 'outline'}>{provider.configured ? 'Configured' : 'Not configured'}</Badge>
               </div>
             ))}
@@ -139,7 +140,7 @@ export default function SalesSettings() {
         </section>
 
         <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-950">
-          <div className="flex gap-3"><PauseCircle className="mt-0.5 h-5 w-5" /><div><h2 className="font-black">Safe Phase 1 state</h2><p className="mt-1 text-sm">No discovery adapter, OpenAI request path, scheduler, worker entrypoint, Resend sender, or webhook mutation is installed.</p></div></div>
+          <div className="flex gap-3"><PauseCircle className="mt-0.5 h-5 w-5" /><div><h2 className="font-black">Safe Phase 2 state</h2><p className="mt-1 text-sm">Licensed discovery can run only through explicit test/staging invocation. No OpenAI path, scheduler, worker entrypoint, Resend sender, reply receiver, or production provider execution is installed.</p></div></div>
         </section>
       </div>
     </div>

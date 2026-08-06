@@ -94,6 +94,8 @@ beforeEach(() => {
   delete process.env.OUTBOUND_RESEND_API_KEY;
   delete process.env.OUTBOUND_RESEND_WEBHOOK_SECRET;
   delete process.env.OUTBOUND_EMAIL_VERIFICATION_API_KEY;
+  delete process.env.OUTBOUND_APOLLO_API_KEY;
+  delete process.env.OUTBOUND_PHASE2_SHADOW_EXECUTION_ENABLED;
   delete process.env.NETLIFY_DATABASE_URL;
   delete process.env.DATABASE_URL;
 });
@@ -130,8 +132,9 @@ describe('isolated outbound runtime configuration', () => {
       OUTBOUND_RESEND_API_KEY: 'outbound-resend-secret-value',
       OUTBOUND_RESEND_WEBHOOK_SECRET: 'outbound-webhook-secret-value',
       OUTBOUND_EMAIL_VERIFICATION_API_KEY: 'outbound-verification-secret-value',
+      OUTBOUND_APOLLO_API_KEY: 'outbound-apollo-secret-value',
     });
-    expect(runtime.secretStatus).toEqual({ openAI: true, resend: true, resendWebhook: true, emailVerification: true });
+    expect(runtime.secretStatus).toEqual({ openAI: true, resend: true, resendWebhook: true, emailVerification: true, apolloDiscovery: true });
     expect(JSON.stringify(runtime)).not.toContain('secret-value');
   });
 
@@ -152,7 +155,7 @@ describe('isolated outbound runtime configuration', () => {
       OPENAI_API_KEY: 'designer-key-must-not-be-reused',
       RESEND_API_KEY: 'transactional-key-must-not-be-reused',
     });
-    expect(runtime.secretStatus).toEqual({ openAI: false, resend: false, resendWebhook: false, emailVerification: false });
+    expect(runtime.secretStatus).toEqual({ openAI: false, resend: false, resendWebhook: false, emailVerification: false, apolloDiscovery: false });
     const source = Object.values(outboundRuntimeSources).join('\n');
     expect(source).not.toMatch(/process\.env\.OPENAI_API_KEY/);
     expect(source).not.toMatch(/process\.env\.RESEND_API_KEY/);
@@ -202,15 +205,22 @@ describe('provider-neutral prospect contract', () => {
       getConfigurationStatus() {},
       execute() {},
       normalize() {},
+      estimateCost() { return 0; },
     };
     expect(assertProviderAdapter(adapter)).toBe(adapter);
     expect(() => assertProviderAdapter({ id: 'bad', kind: 'scraper' })).toThrow(/kind/i);
     expect(() => assertProviderAdapter({ ...adapter, acquisitionMode: 'scrape_prohibited_source' })).toThrow(/licensed API/i);
   });
 
-  it('keeps every Phase 1 provider inactive while returning configuration status only', () => {
+  it('installs Apollo only for explicitly enabled test/staging use while returning configuration status only', () => {
     const providers = getProviderConfigurationStatus({ OUTBOUND_APOLLO_API_KEY: 'configured-value' });
-    expect(providers.find((provider) => provider.id === 'apollo')).toMatchObject({ configured: true, adapterInstalled: false, enabled: false });
+    expect(providers.find((provider) => provider.id === 'apollo')).toMatchObject({
+      configured: true,
+      adapterInstalled: true,
+      executionScope: 'test_staging_only',
+      executionAllowed: false,
+      enabled: false,
+    });
     expect(providers.every((provider) => provider.enabled === false)).toBe(true);
     expect(JSON.stringify(providers)).not.toContain('configured-value');
   });
@@ -262,7 +272,7 @@ describe('admin-only fail-closed handlers', () => {
       schemaReady: false,
       databaseConfigured: false,
       controls: { mode: 'disabled', shadowModeEnabled: true, liveSendingEnabled: false, dailySendLimit: 30 },
-      safeguards: { providerExecutionInstalled: false, openAICallsInstalled: false, emailSendingInstalled: false, scheduledAutomationInstalled: false },
+      safeguards: { providerExecutionInstalled: true, providerExecutionProductionBlocked: true, openAICallsInstalled: false, emailSendingInstalled: false, scheduledAutomationInstalled: false },
     });
   });
 
@@ -474,16 +484,18 @@ describe('database and existing-site regression contracts', () => {
     ]);
   });
 
-  it('contains no runtime DDL or external execution entrypoint in Phase 1', () => {
+  it('contains no runtime DDL, AI/email execution, production discovery endpoint, or scheduler in Phase 2', () => {
     const runtimeSource = Object.values(outboundRuntimeSources).join('\n');
     expect(runtimeSource).not.toMatch(/CREATE\s+TABLE/i);
     expect(runtimeSource).not.toMatch(/ALTER\s+TABLE/i);
     expect(runtimeSource).not.toMatch(/new\s+OpenAI|\.responses\.create|\.chat\.completions\.create/);
     expect(runtimeSource).not.toMatch(/new\s+Resend|\.emails\.send/);
-    expect(runtimeSource).not.toMatch(/\bfetch\s*\(|\baxios\s*\(|https?\.(?:get|request)\s*\(/);
     expect(runtimeSource).not.toMatch(/require\(['"](?:openai|resend|axios|undici)['"]\)/);
+    expect(runtimeSource).toContain('test_staging_only');
+    expect(runtimeSource).toContain('PROVIDER_EXECUTION_CONTEXT_BLOCKED');
     const entries = Object.keys(outboundFunctionSources).map((entry) => entry.split('/').at(-1));
-    expect(entries.sort()).toEqual(['outbound-sales-settings.mjs', 'outbound-sales-status.mjs']);
+    expect(entries.sort()).toEqual(['outbound-sales-prospects.mjs', 'outbound-sales-settings.mjs', 'outbound-sales-status.mjs']);
+    expect(entries).not.toContain('outbound-sales-discover.mjs');
   });
 
   it('adds the admin shell without changing checkout, payment, Designer, or transactional webhook routes', () => {

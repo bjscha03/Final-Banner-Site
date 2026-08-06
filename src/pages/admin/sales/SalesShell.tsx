@@ -84,11 +84,11 @@ export default function SalesShell() {
                   <Bot className="h-4 w-4" /> AI Sales Engine
                 </span>
                 {modeBadge(status)}
-                <Badge className="border-white/20 bg-white/10 text-white">Phase 1 Foundation</Badge>
+                <Badge className="border-white/20 bg-white/10 text-white">Phase 2 Deterministic Discovery</Badge>
               </div>
               <h1 className="mt-2 text-2xl font-black sm:text-3xl">Outbound Sales Command Center</h1>
               <p className="mt-1 max-w-3xl text-sm text-slate-300">
-                Monitor prospecting, personalization, delivery health, pipeline, revenue, and operating cost from one isolated admin workspace.
+                Monitor licensed discovery, deterministic research, exclusions, lead scoring, and cost from one isolated Shadow Mode workspace.
               </p>
             </div>
             <div className="flex items-center gap-2">

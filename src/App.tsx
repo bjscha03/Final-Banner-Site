@@ -82,6 +82,7 @@ const AIDesignerPage = lazy(() => import("./pages/admin/AIDesignerPage"));
 const AdminSalesShell = lazy(() => import("./pages/admin/sales/SalesShell"));
 const AdminSalesDashboard = lazy(() => import("./pages/admin/sales/SalesDashboard"));
 const AdminSalesSettings = lazy(() => import("./pages/admin/sales/SalesSettings"));
+const AdminSalesProspects = lazy(() => import("./pages/admin/sales/SalesProspects"));
 const AdminSalesPlaceholder = lazy(() => import("./pages/admin/sales/SalesPlaceholder"));
 const ProofApproval = lazy(() => import("./pages/ProofApproval"));
 
@@ -205,7 +206,7 @@ export const RoutedApplication = () => (
             <Route path="/admin/sales" element={<AdminSalesShell />}>
               <Route index element={<AdminSalesDashboard />} />
               <Route path="dashboard" element={<Navigate to="/admin/sales" replace />} />
-              <Route path="prospects" element={<AdminSalesPlaceholder title="Prospect Queue" description="Provider-neutral businesses, research evidence, transparent lead scores, contact verification, suppression reasons, and generated-email previews will appear here." phase="Phase 2" exportLabel="Prospects" features={['Research evidence and source URLs', 'Lead-score explanation', 'Pipeline and suppression status', 'Generated email preview', 'Email verification result', 'Provider provenance']} />} />
+              <Route path="prospects" element={<AdminSalesProspects />} />
               <Route path="activity" element={<AdminSalesPlaceholder title="Email Activity" description="A delivery timeline will show generated, scheduled, sent, delivered, bounced, complained, unsubscribed, and failed messages without touching transactional email events." phase="Phase 4" exportLabel="Messages" features={['Message delivery timeline', 'Resend status and identifiers', 'Bounce and complaint controls', 'Personalization evidence', 'Campaign variation assignment', 'Permanent duplicate protection']} />} />
               <Route path="replies" element={<AdminSalesPlaceholder title="Replies" description="Inbound replies will be safely retrieved, classified with deterministic rules first, and paired with suggested drafts for admin review—never automatic AI replies at launch." phase="Phase 4" exportLabel="Replies" features={['Reply classification', 'Suggested response drafts', 'Opt-out detection', 'Out-of-office handling', 'Wrong-contact suppression', 'Admin review status']} />} />
               <Route path="orders" element={<AdminSalesPlaceholder title="Orders & Revenue Generated" description="Signed attribution will connect outreach to quote requests, paid orders, and revenue without changing checkout or payment behavior." phase="Phase 5" exportLabel="Attributed Orders" features={['Quote requests and quote status', 'Paid-order attribution', 'Revenue generated', 'Campaign and prospect linkage', 'Test-order exclusion', 'Auditable attribution method']} />} />
