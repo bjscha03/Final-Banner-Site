@@ -5,6 +5,7 @@ import html from '../../../../index.html?raw';
 import sitemap from '../../../../public/sitemap.xml?raw';
 import appSource from '../../../App.tsx?raw';
 import socialMetaSource from '../../../../netlify/edge-functions/social-meta-injector.ts?raw';
+import redirects from '../../../../public/_redirects?raw';
 
 describe('tracking and private-route SEO policy', () => {
   it('applies admin and proof crawl exclusions to specific crawler groups', () => {
@@ -36,6 +37,8 @@ describe('tracking and private-route SEO policy', () => {
     expect(socialMetaSource).not.toContain('graduation-signs');
     expect(netlify).toContain('from = "/graduation-signs"');
     expect(netlify).toContain('to = "/custom-banners"');
+    expect(redirects).toContain('/graduation-signs     /custom-banners   301!');
+    expect(redirects.indexOf('/graduation-signs')).toBeLessThan(redirects.indexOf('/*    /index.html'));
 
     for (const retiredFunction of [
       'designer-intake-submit',
@@ -47,6 +50,7 @@ describe('tracking and private-route SEO policy', () => {
       'paypal-create-deposit-for-intake',
     ]) {
       expect(netlify).toContain(`from = "/.netlify/functions/${retiredFunction}"`);
+      expect(redirects).toContain(`/.netlify/functions/${retiredFunction}`);
     }
   });
 });
