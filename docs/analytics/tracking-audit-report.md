@@ -5,7 +5,7 @@
 - Base reviewed: main at 280e1b44
 - Candidate branch: audit/tracking-integrity
 - Production status: unchanged; this branch is not deployed to production
-- Audit status: not complete — source remediation and local validation are complete, but provider-account and real-payment verification remain open
+- Audit status: not complete — source remediation, the matching deploy preview, and automated browser validation are complete, but provider-account and real-payment verification remain open
 
 ## Executive summary
 
@@ -45,7 +45,7 @@ This is still not a final production verification. GA4, Google Ads, Search Conso
 |---|---:|---|
 | Production baseline reviewed | 34/100 | Material analytics pollution, incomplete ecommerce, and an unsafe revenue reconciliation path |
 | Candidate branch | 72/100 provisional | Source integrity and local validation are substantially improved; external configuration and real production evidence are still missing |
-| Final verified state | Not assigned | Must wait for preview, provider dashboards, controlled production orders, and post-deploy reconciliation |
+| Final verified state | Not assigned | Must wait for provider dashboards, controlled production orders, and post-deploy reconciliation |
 
 The candidate score is intentionally capped. A green build or a queued browser event is not proof that GA4 or Google Ads received and attributed a conversion.
 
@@ -396,8 +396,9 @@ Public search evidence found /sign-up indexed before deployment. After deploymen
 | Trade-show data | Pass, 5/5 | Existing trade-show suite |
 | Diff integrity | Pass | git diff --check |
 | Full Vitest command | Not a clean signal | 426 of 435 collected assertions passed; nine pre-existing failures involve browser globals, profit fixture drift, grommet expectations, and PDF window assumptions; Vitest also miscollects Playwright/node:test files |
-| Browser matrix | Test added; execution pending | Environment has no installed Chromium, Chrome, Edge, Firefox, or WebKit binaries |
-| Preview deployment | Pending | Branch must be pushed and draft PR checks must publish it |
+| Browser matrix | Pass | GitHub Actions evaluated all 224 configured cases across 14 desktop/mobile/tablet profiles: 106 passed and 118 project-inapplicable cases were intentionally skipped; checkout, tracking isolation, lifecycle, and network checks reported no failures |
+| Responsive storefront matrix | Pass | Storefront mockup, clipping, and accessibility checks passed |
+| Preview deployment | Pass | Netlify published the exact PR head; smoke checks passed for customer/admin initialization, retired route redirects, and unconditional 410 responses from every retired graduation endpoint |
 | GA4 DebugView/Realtime | Pending | Requires authorized account and a production-eligible test strategy |
 | Google Ads diagnostics | Pending | Requires authorized Ads account |
 | PayPal wallet capture | Pending | Requires approved controlled charge |
