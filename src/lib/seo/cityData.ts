@@ -151,7 +151,7 @@ export const CITIES: CityEntry[] = [
           'Order custom vinyl banners shipped to Louisville, KY with 24-hour production on most standard orders and free next-day air after production. Design online.',
         h1: 'Vinyl Banner Printing in Louisville, KY',
         heroSubtitle:
-          'Custom vinyl and mesh banner guidance for Louisville businesses, schools, churches, exhibitors, and event teams—with online pricing and nationwide fulfillment.',
+          'Custom banners for Louisville businesses, schools, churches, exhibitors, and event teams.',
         localGuide: {
           eyebrow: 'Louisville banner planning',
           title: 'Banner ideas built around how Louisville gathers and does business.',
