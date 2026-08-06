@@ -191,6 +191,11 @@ async function saveResearch(sql, prospectId, research) {
     `UPDATE outbound_prospects
         SET website_content_hash = $2, last_researched_at = NOW(),
             research_state = CASE WHEN $3 = 'reused' THEN 'unchanged' ELSE 'fetched' END,
+            personalization_state = CASE
+              WHEN personalization_content_hash IS NOT NULL
+               AND personalization_content_hash IS DISTINCT FROM $2 THEN 'stale'
+              ELSE personalization_state
+            END,
             updated_at = NOW()
       WHERE id = $1`,
     [prospectId, research.contentHash, research.cacheStatus],
@@ -391,6 +396,34 @@ function mapQueueProspect(row) {
     researchFacts: row.extracted_facts || {},
     researchCacheStatus: row.cache_status || null,
     websiteFreshnessScore: row.website_freshness_score === null ? null : Number(row.website_freshness_score),
+    personalizationState: row.personalization_state || 'pending',
+    personalizationFailureCode: row.personalization_failure_code || null,
+    lastPersonalizedAt: row.last_personalized_at || null,
+    messagePreview: row.message_id ? {
+      id: row.message_id,
+      generationStatus: row.generation_status,
+      promptVersion: row.prompt_version,
+      outputSchemaVersion: row.output_schema_version,
+      researchContentHash: row.message_research_content_hash,
+      model: row.message_model,
+      subject: row.message_subject,
+      bodyText: row.message_body_text,
+      researchSummary: row.message_research_summary,
+      personalizationEvidence: row.message_personalization_evidence || [],
+      sourceUrls: row.message_source_urls || [],
+      variantAssignments: row.message_variant_assignments || {},
+      recommendedFollowUpAt: row.message_recommended_follow_up_at,
+      estimatedOpenAICostMicrousd: Number(row.message_estimated_openai_cost_microusd) || 0,
+      actualOpenAICostMicrousd: row.message_actual_openai_cost_microusd === null
+        ? null
+        : Number(row.message_actual_openai_cost_microusd) || 0,
+      inputTokens: Number(row.message_input_tokens) || 0,
+      cachedInputTokens: Number(row.message_cached_input_tokens) || 0,
+      outputTokens: Number(row.message_output_tokens) || 0,
+      evidenceValidationStatus: row.message_evidence_validation_status,
+      generationErrorCode: row.message_generation_error_code,
+      generatedAt: row.message_generated_at,
+    } : null,
     primaryContact: row.contact_email ? {
       email: row.contact_email,
       sourceUrl: row.contact_source_url,
@@ -422,7 +455,25 @@ async function listShadowProspects(sql, { status = null, limit = 50, offset = 0,
               contact.email AS contact_email, contact.source_url AS contact_source_url,
               contact.syntax_valid, contact.verification_status, contact.verification_reason, contact.mx_status,
               contact.is_role_address, contact.is_free_mailbox, contact.domain_matches,
-              contact.contact_quality_score
+              contact.contact_quality_score,
+              message.id AS message_id, message.generation_status, message.prompt_version,
+              message.output_schema_version,
+              message.research_content_hash AS message_research_content_hash,
+              message.model AS message_model, message.subject AS message_subject,
+              message.body_text AS message_body_text,
+              message.research_summary AS message_research_summary,
+              message.personalization_evidence AS message_personalization_evidence,
+              message.source_urls AS message_source_urls,
+              message.variant_assignments AS message_variant_assignments,
+              message.recommended_follow_up_at AS message_recommended_follow_up_at,
+              message.estimated_openai_cost_microusd AS message_estimated_openai_cost_microusd,
+              message.actual_openai_cost_microusd AS message_actual_openai_cost_microusd,
+              message.input_tokens AS message_input_tokens,
+              message.cached_input_tokens AS message_cached_input_tokens,
+              message.output_tokens AS message_output_tokens,
+              message.evidence_validation_status AS message_evidence_validation_status,
+              message.generation_error_code AS message_generation_error_code,
+              message.generated_at AS message_generated_at
          FROM outbound_prospects p
          LEFT JOIN LATERAL (
            SELECT r.source_urls, r.extracted_facts, r.cache_status, r.website_freshness_score
@@ -440,6 +491,19 @@ async function listShadowProspects(sql, { status = null, limit = 50, offset = 0,
             ORDER BY c.is_primary DESC, c.contact_quality_score DESC NULLS LAST
             LIMIT 1
          ) contact ON TRUE
+         LEFT JOIN LATERAL (
+           SELECT m.id, m.generation_status, m.prompt_version, m.output_schema_version,
+                  m.research_content_hash, m.model, m.subject, m.body_text,
+                  m.research_summary, m.personalization_evidence, m.source_urls,
+                  m.variant_assignments, m.recommended_follow_up_at,
+                  m.estimated_openai_cost_microusd, m.actual_openai_cost_microusd,
+                  m.input_tokens, m.cached_input_tokens, m.output_tokens,
+                  m.evidence_validation_status, m.generation_error_code, m.generated_at
+             FROM outbound_messages m
+            WHERE m.prospect_id = p.id AND m.message_kind = 'initial'
+            ORDER BY m.created_at DESC
+            LIMIT 1
+         ) message ON TRUE
         WHERE ($1::text IS NULL OR p.status = $1)
         ORDER BY p.lead_score DESC NULLS LAST, p.last_qualified_at DESC NULLS LAST, p.discovered_at DESC
         LIMIT $2 OFFSET $3`,

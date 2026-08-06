@@ -1,27 +1,41 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   AlertTriangle, Building2, CheckCircle2, ChevronLeft, ChevronRight, CircleDollarSign,
-  ExternalLink, FileDown, Globe2, Mail, RefreshCw, Search, ShieldCheck,
+  ExternalLink, FileDown, Globe2, LoaderCircle, Mail, MailX, RefreshCw, Search, ShieldCheck, Sparkles,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
   downloadOutboundProspectsCsv,
+  generateOutboundPersonalization,
   getOutboundProspects,
   microusdToDollars,
   type OutboundProspectQueue,
   type OutboundQueueProspect,
 } from '@/lib/outboundSales';
+import { useToast } from '@/components/ui/use-toast';
+import { useSalesContext } from './SalesContext';
 
 const PAGE_SIZE = 50;
 const FILTERS = [
   ['', 'All statuses'], ['discovered', 'Discovered'], ['qualified', 'Qualified'],
-  ['ready_for_outreach', 'Ready for Outreach'], ['rejected', 'Rejected'], ['suppressed', 'Suppressed'],
+  ['rejected', 'Rejected'], ['ready_for_outreach', 'Ready for Outreach'], ['contacted', 'Contacted'],
+  ['replied', 'Replied'], ['interested', 'Interested'], ['quote_requested', 'Quote Requested'],
+  ['quote_sent', 'Quote Sent'], ['won', 'Won'], ['lost', 'Lost'],
+  ['unsubscribed', 'Unsubscribed'], ['suppressed', 'Suppressed'],
 ] as const;
 
 function titleCase(value: string | null | undefined) {
   return String(value || 'unknown').replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function displayDate(value: string | null | undefined) {
+  if (!value) return 'Not recommended';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'Not recommended' : date.toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC',
+  });
 }
 
 function statusStyle(status: string) {
@@ -46,8 +60,19 @@ function Score({ value }: { value: number | null }) {
   );
 }
 
-function ProspectCard({ prospect }: { prospect: OutboundQueueProspect }) {
+function ProspectCard({ prospect, canGenerate, generating, onGenerate }: {
+  prospect: OutboundQueueProspect;
+  canGenerate: boolean;
+  generating: boolean;
+  onGenerate: (prospectId: string) => void;
+}) {
   const contact = prospect.primaryContact;
+  const preview = prospect.messagePreview;
+  const eligible = prospect.status === 'ready_for_outreach' && Boolean(
+    contact?.syntaxValid && contact.mxStatus === 'present' && !contact.isRoleAddress
+    && !contact.isFreeMailbox && contact.domainMatches && !prospect.exclusionCodes.length
+    && !prospect.priorCustomerMatch && !prospect.suppressionReason,
+  );
   return (
     <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="flex flex-col gap-4 p-5 lg:flex-row lg:items-start lg:justify-between">
@@ -106,10 +131,44 @@ function ProspectCard({ prospect }: { prospect: OutboundQueueProspect }) {
           <p className="mt-2 text-xs text-slate-500">Freshness: {prospect.websiteFreshnessScore ?? '—'}/100 · {prospect.sourceUrls.length} source page(s)</p>
         </div>
         <div className="rounded-xl border border-sky-200 bg-sky-50 p-4">
-          <div className="flex items-center gap-2 font-black text-sky-950"><ShieldCheck className="h-4 w-4" /> Shadow-only outcome</div>
-          <p className="mt-2 text-sm text-sky-900">No subject or email is generated in Phase 2. No external email can be sent, and every contact remains send-ineligible.</p>
+          <div className="flex items-center gap-2 font-black text-sky-950"><Sparkles className="h-4 w-4" /> Shadow personalization</div>
+          <p className="mt-2 text-sm text-sky-900">{preview?.generationStatus === 'generated' ? 'A grounded preview is stored below. It has not been sent.' : `State: ${titleCase(prospect.personalizationState)}. Generation requires every staging-only safety control.`}</p>
+          <Button
+            type="button"
+            size="sm"
+            className="mt-3 bg-[#18448D] text-white hover:bg-[#12386f]"
+            onClick={() => onGenerate(prospect.id)}
+            disabled={!eligible || !canGenerate || generating || preview?.generationStatus === 'generated'}
+          >
+            {generating ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+            {generating ? 'Generating safely…' : preview?.generationStatus === 'generated' ? 'Preview generated' : 'Generate preview'}
+          </Button>
+          {!canGenerate && <p className="mt-2 text-xs font-semibold text-sky-800">Shadow Generation is disabled or unavailable in this deployment.</p>}
         </div>
       </div>
+
+      {preview?.generationStatus === 'generated' && (
+        <section className="border-b border-slate-200 bg-slate-50 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2"><Badge className="bg-emerald-700 text-white"><CheckCircle2 className="mr-1 h-3 w-3" /> Grounding passed</Badge><Badge variant="outline"><MailX className="mr-1 h-3 w-3" /> Never sent</Badge></div>
+            <div className="text-xs font-semibold text-slate-500 sm:text-right">
+              <p>Estimated {microusdToDollars(preview.estimatedOpenAICostMicrousd).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 4 })} · actual {microusdToDollars(preview.actualOpenAICostMicrousd ?? 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 4 })}</p>
+              <p className="mt-1">Suggested follow-up {displayDate(preview.recommendedFollowUpAt)} · planning only</p>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
+            <div className="rounded-xl border border-slate-200 bg-white p-5">
+              <p className="text-xs font-black uppercase tracking-wide text-[#18448D]">Exact email preview</p>
+              <p className="mt-3 border-b border-slate-200 pb-3 text-sm"><strong>Subject:</strong> {preview.subject}</p>
+              <div className="mt-4 whitespace-pre-wrap text-[15px] leading-7 text-slate-700">{preview.bodyText}</div>
+            </div>
+            <div className="space-y-3">
+              <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="font-black text-slate-900">Research summary</p><p className="mt-2 text-sm leading-6 text-slate-600">{preview.researchSummary}</p></div>
+              <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="font-black text-slate-900">Evidence used</p><div className="mt-2 space-y-2">{preview.personalizationEvidence.map((evidence, index) => <p key={`${evidence.id || 'e'}-${index}`} className="text-sm text-slate-600"><strong>{evidence.id || index + 1}:</strong> {evidence.evidence || evidence.label}</p>)}</div></div>
+            </div>
+          </div>
+        </section>
+      )}
 
       <details className="group p-5">
         <summary className="cursor-pointer list-none font-black text-[#18448D]">View score explanation and source URLs</summary>
@@ -137,12 +196,15 @@ function ProspectCard({ prospect }: { prospect: OutboundQueueProspect }) {
 }
 
 export default function SalesProspects() {
+  const { status: engineStatus, refresh: refreshEngineStatus } = useSalesContext();
+  const { toast } = useToast();
   const [queue, setQueue] = useState<OutboundProspectQueue | null>(null);
   const [status, setStatus] = useState('');
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState('');
+  const [generatingId, setGeneratingId] = useState<string | null>(null);
 
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
@@ -166,6 +228,25 @@ export default function SalesProspects() {
     setExporting(true);
     try { await downloadOutboundProspectsCsv(status || undefined); } finally { setExporting(false); }
   };
+  const generate = async (prospectId: string) => {
+    setGeneratingId(prospectId);
+    try {
+      const result = await generateOutboundPersonalization(prospectId);
+      await Promise.all([load(), refreshEngineStatus()]);
+      toast({
+        title: result.cacheHit ? 'Cached preview loaded' : 'Personalized preview generated',
+        description: 'Shadow Mode is still active. No email was sent.',
+      });
+    } catch (requestError) {
+      toast({
+        title: 'Preview was not generated',
+        description: requestError instanceof Error ? requestError.message : 'The safe generation controls blocked this request.',
+        variant: 'destructive',
+      });
+    } finally {
+      setGeneratingId(null);
+    }
+  };
   const totalProviderCost = (queue?.providerUsage || []).reduce((sum, usage) => sum + usage.costMicrousd, 0);
 
   return (
@@ -173,9 +254,9 @@ export default function SalesProspects() {
       <section className="rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sky-950 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <div className="flex flex-wrap items-center gap-2"><Badge className="bg-sky-700 text-white">Phase 2</Badge><Badge variant="outline" className="border-sky-300">Shadow Mode</Badge><Badge variant="outline" className="border-sky-300">0 external sends</Badge></div>
-            <h2 className="mt-3 text-2xl font-black">Deterministic Prospect Queue</h2>
-            <p className="mt-1 max-w-3xl text-sm text-sky-900">Licensed discovery records, canonical deduplication, public website evidence, email DNS handling, exclusions, and explainable scores. No AI or email execution exists in this phase.</p>
+            <div className="flex flex-wrap items-center gap-2"><Badge className="bg-sky-700 text-white">Complete Shadow</Badge><Badge variant="outline" className="border-sky-300">Shadow Mode</Badge><Badge variant="outline" className="border-sky-300">0 external sends</Badge></div>
+            <h2 className="mt-3 text-2xl font-black">Prospect Queue & Personalized Previews</h2>
+            <p className="mt-1 max-w-3xl text-sm text-sky-900">Deterministic qualification remains authoritative. Eligible staging prospects can receive one grounded, structured, cost-capped AI preview cached against the website research hash.</p>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <div className="rounded-xl bg-white/70 p-3"><div className="text-xs font-bold uppercase text-sky-700">Queue</div><div className="text-2xl font-black">{queue?.total ?? 0}</div></div>
@@ -199,10 +280,10 @@ export default function SalesProspects() {
       </section>
 
       {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 font-semibold text-red-800">{error}</div>}
-      {!loading && queue && !queue.schemaReady && <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-amber-900"><AlertTriangle className="mr-2 inline h-5 w-5" /> Phase 2 migrations are not present on this database. The queue is safely empty.</div>}
+      {!loading && queue && !queue.schemaReady && <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-amber-900"><AlertTriangle className="mr-2 inline h-5 w-5" /> The outbound migrations through 023 are not present on this database. The queue is safely empty.</div>}
       {loading && !queue && <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center text-slate-500">Loading the Shadow Mode queue…</div>}
-      {!loading && queue?.schemaReady && queue.prospects.length === 0 && <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center"><CheckCircle2 className="mx-auto h-8 w-8 text-slate-400" /><h3 className="mt-3 font-black text-slate-900">No prospects in this view</h3><p className="mt-1 text-sm text-slate-500">Discovery is not scheduled in Phase 2; validated staging runs populate this monitor.</p></div>}
-      <div className="space-y-4">{queue?.prospects.map((prospect) => <ProspectCard key={prospect.id} prospect={prospect} />)}</div>
+      {!loading && queue?.schemaReady && queue.prospects.length === 0 && <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center"><CheckCircle2 className="mx-auto h-8 w-8 text-slate-400" /><h3 className="mt-3 font-black text-slate-900">No prospects in this view</h3><p className="mt-1 text-sm text-slate-500">No production scheduler exists; validated staging discovery runs populate this monitor.</p></div>}
+      <div className="space-y-4">{queue?.prospects.map((prospect) => <ProspectCard key={prospect.id} prospect={prospect} canGenerate={engineStatus?.controls.shadowGenerationEnabled === true} generating={generatingId === prospect.id} onGenerate={(id) => void generate(id)} />)}</div>
 
       {queue && queue.total > PAGE_SIZE && (
         <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3">

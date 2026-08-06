@@ -10,6 +10,7 @@ const EMPTY_METRICS = Object.freeze({
   prospectsTotal: 0,
   readyForOutreach: 0,
   messagesTotal: 0,
+  messagesGenerated: 0,
   messagesSent: 0,
   repliesTotal: 0,
   attributedOrders: 0,
@@ -92,9 +93,20 @@ function createHandlers(dependencies = {}) {
       safeguards: {
         providerExecutionInstalled: true,
         providerExecutionProductionBlocked: true,
-        openAICallsInstalled: false,
-        emailSendingInstalled: false,
+        openAICallsInstalled: true,
+        openAIExecutionScope: runtime.shadowPersonalizationExecutionScope,
+        openAIExecutionProductionBlocked: runtime.shadowPersonalizationProductionBlocked,
+        emailSendingInstalled: true,
+        emailSendingProductionBlocked: true,
+        emailSendingPolicyBlocked: true,
         scheduledAutomationInstalled: false,
+        shadowAutomationInstalled: true,
+        shadowAutomationProductionBlocked: runtime.automationProductionBlocked,
+        inboundProcessingInstalled: true,
+        inboundProcessingProductionBlocked: runtime.inboundProcessingProductionBlocked,
+        replyAIFallbackInstalled: true,
+        replyAIFallbackProductionBlocked: runtime.replyAIFallbackProductionBlocked,
+        automaticRepliesInstalled: false,
         liveSendingPhaseLocked: !runtime.liveSendingAvailable,
       },
     };
@@ -133,10 +145,21 @@ function createHandlers(dependencies = {}) {
         'adminSessionToken',
         'settingsVersion',
         'shadowModeEnabled',
+        'shadowGenerationEnabled',
         'liveSendingEnabled',
         'emergencyPaused',
         'dailySendLimit',
         'monthlyOpenAIBudgetCents',
+        'replyIngestionEnabled',
+        'replyAIFallbackEnabled',
+        'suggestedReplyGenerationEnabled',
+        'automationEnabled',
+        'deliveryWebhookEnabled',
+        'attributionEnabled',
+        'learningEnabled',
+        'monitoringEnabled',
+        'minimumLearningSample',
+        'explorationPercent',
       ]);
       if (Object.keys(body).some((key) => !allowedKeys.has(key))) {
         const error = new Error('Only documented outbound control fields may be changed.');
@@ -147,12 +170,29 @@ function createHandlers(dependencies = {}) {
       const current = status.settings;
       const next = {
         shadowModeEnabled: body.shadowModeEnabled ?? current.shadowModeEnabled,
+        shadowGenerationEnabled: body.shadowGenerationEnabled ?? current.shadowGenerationEnabled,
         liveSendingEnabled: body.liveSendingEnabled ?? current.liveSendingEnabled,
         emergencyPaused: body.emergencyPaused ?? current.emergencyPaused,
         dailySendLimit: body.dailySendLimit ?? current.dailySendLimit,
         monthlyOpenAIBudgetCents: body.monthlyOpenAIBudgetCents ?? current.monthlyOpenAIBudgetCents,
+        replyIngestionEnabled: body.replyIngestionEnabled ?? current.replyIngestionEnabled,
+        replyAIFallbackEnabled: body.replyAIFallbackEnabled ?? current.replyAIFallbackEnabled,
+        suggestedReplyGenerationEnabled: body.suggestedReplyGenerationEnabled ?? current.suggestedReplyGenerationEnabled,
+        automationEnabled: body.automationEnabled ?? current.automationEnabled,
+        deliveryWebhookEnabled: body.deliveryWebhookEnabled ?? current.deliveryWebhookEnabled,
+        attributionEnabled: body.attributionEnabled ?? current.attributionEnabled,
+        learningEnabled: body.learningEnabled ?? current.learningEnabled,
+        monitoringEnabled: body.monitoringEnabled ?? current.monitoringEnabled,
+        minimumLearningSample: body.minimumLearningSample ?? current.minimumLearningSample,
+        explorationPercent: body.explorationPercent ?? current.explorationPercent,
       };
-      const allBooleans = [next.shadowModeEnabled, next.liveSendingEnabled, next.emergencyPaused]
+      const allBooleans = [
+        next.shadowModeEnabled, next.shadowGenerationEnabled, next.liveSendingEnabled,
+        next.emergencyPaused, next.replyIngestionEnabled, next.replyAIFallbackEnabled,
+        next.suggestedReplyGenerationEnabled, next.automationEnabled,
+        next.deliveryWebhookEnabled, next.attributionEnabled, next.learningEnabled,
+        next.monitoringEnabled,
+      ]
         .every((value) => typeof value === 'boolean');
       const dailyLimitValid = Number.isInteger(next.dailySendLimit)
         && next.dailySendLimit >= 0
@@ -161,7 +201,12 @@ function createHandlers(dependencies = {}) {
         && next.monthlyOpenAIBudgetCents >= 0
         && next.monthlyOpenAIBudgetCents <= 100000;
       const versionValid = Number.isInteger(body.settingsVersion) && body.settingsVersion > 0;
-      if (!allBooleans || !dailyLimitValid || !monthlyBudgetValid || !versionValid) {
+      const learningValuesValid = Number.isInteger(next.minimumLearningSample)
+        && next.minimumLearningSample >= 30
+        && Number.isFinite(next.explorationPercent)
+        && next.explorationPercent >= 5
+        && next.explorationPercent <= 30;
+      if (!allBooleans || !dailyLimitValid || !monthlyBudgetValid || !learningValuesValid || !versionValid) {
         const error = new Error('Outbound controls contain an invalid value. Daily sends must be 0–30 and the monthly budget must be a non-negative whole number of cents.');
         error.code = 'INVALID_SETTINGS';
         throw error;
@@ -173,13 +218,38 @@ function createHandlers(dependencies = {}) {
       }
       const runtime = runtimeConfig();
       if (next.liveSendingEnabled && !runtime.liveSendingAvailable) {
-        const error = new Error('Live sending is locked during Phase 2.');
+        const error = new Error('Live sending is locked pending explicit final activation.');
         error.code = 'LIVE_SENDING_PHASE_LOCKED';
         throw error;
       }
       if (!next.shadowModeEnabled) {
-        const error = new Error('Shadow Mode is required during Phase 2.');
+        const error = new Error('Shadow Mode is required until explicit final activation.');
         error.code = 'SHADOW_MODE_PHASE_LOCKED';
+        throw error;
+      }
+      if (next.shadowGenerationEnabled && !runtime.shadowPersonalizationAvailable) {
+        const error = new Error('Shadow personalization is available only in explicitly enabled test or staging contexts.');
+        error.code = 'SHADOW_GENERATION_CONTEXT_LOCKED';
+        throw error;
+      }
+      if (next.automationEnabled && !runtime.shadowAutomationAvailable) {
+        const error = new Error('Automation is available only in explicitly enabled test or staging contexts.');
+        error.code = 'AUTOMATION_CONTEXT_LOCKED';
+        throw error;
+      }
+      if ((next.replyIngestionEnabled || next.deliveryWebhookEnabled) && !runtime.inboundProcessingAvailable) {
+        const error = new Error('Inbound processing is available only in explicitly enabled test or staging contexts.');
+        error.code = 'INBOUND_CONTEXT_LOCKED';
+        throw error;
+      }
+      if (next.replyAIFallbackEnabled && !runtime.replyAIFallbackAvailable) {
+        const error = new Error('Optional AI reply classification is available only in an explicitly enabled test or staging context.');
+        error.code = 'REPLY_AI_CONTEXT_LOCKED';
+        throw error;
+      }
+      if (next.suggestedReplyGenerationEnabled) {
+        const error = new Error('Automatic and AI-generated reply sending remain locked.');
+        error.code = 'AUTOMATIC_REPLY_PHASE_LOCKED';
         throw error;
       }
 
