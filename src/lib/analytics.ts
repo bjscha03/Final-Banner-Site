@@ -5,29 +5,12 @@
  * All events follow GA4 recommended event format.
  */
 
-// Extend Window interface to include gtag
-declare global {
-  interface Window {
-    gtag?: (
-      command: 'event' | 'config' | 'set' | 'js',
-      targetOrAction: string | Date,
-      params?: Record<string, any>
-    ) => void;
-    dataLayer?: any[];
-  }
-}
+import { sendGtag, sendLinkedIn, sendMeta } from './trackingRuntime';
 
 /**
  * Helper to safely call gtag
  */
-export const gtag = (...args: any[]) => {
-  if (typeof window === 'undefined') return;
-  window.dataLayer = window.dataLayer || [];
-  if (!window.gtag) {
-    window.gtag = function gtag(){ window.dataLayer!.push(arguments); } as any;
-  }
-  window.gtag(...args as any);
-};
+export const gtag = (...args: unknown[]): boolean => sendGtag(...args);
 
 // ============================================================================
 // E-COMMERCE EVENTS (GA4 Standard)
@@ -40,7 +23,17 @@ export interface AnalyticsItem {
   item_variant?: string;
   price: number;
   quantity: number;
+  coupon?: string;
+  discount?: number;
+  item_list_id?: string;
+  item_list_name?: string;
 }
+
+const toGA4Item = (item: AnalyticsItem) => ({
+  ...item,
+  price: item.price / 100,
+  ...(typeof item.discount === 'number' ? { discount: item.discount / 100 } : {}),
+});
 
 /**
  * Track when user adds item to cart
@@ -59,21 +52,20 @@ export const trackAddToCart = (item: {
     ? 'Yard Sign'
     : normalizedType === 'car_magnet'
       ? 'Car Magnet'
-      : normalizedType === 'design_deposit'
-        ? 'Design Service'
-        : normalizedType === 'graduation_final_payment'
-          ? 'Graduation Final Payment'
-          : 'Banner';
-  gtag('event', 'add_to_cart', {
+      : 'Banner';
+  const quantity = Math.max(1, Number(item.quantity || 1));
+  return gtag('event', 'add_to_cart', {
     currency: 'USD',
-    value: item.price / 100, // Convert cents to dollars
+    value: item.price / 100,
     items: [{
       item_id: item.id,
       item_name: item.name || `${item.size} ${item.material} ${productLabel}`,
       item_category: productLabel,
       item_variant: item.material,
-      price: item.price / 100,
-      quantity: item.quantity || 1,
+      // Call sites pass the authoritative line total. GA4 item price must be
+      // the per-unit amount or quantity would multiply revenue a second time.
+      price: Math.round(item.price / quantity) / 100,
+      quantity,
     }]
   });
 };
@@ -81,14 +73,12 @@ export const trackAddToCart = (item: {
 /**
  * Track when user begins checkout
  */
-export const trackBeginCheckout = (items: AnalyticsItem[], totalValue: number) => {
-  gtag('event', 'begin_checkout', {
+export const trackBeginCheckout = (items: AnalyticsItem[], totalValue: number, coupon?: string | null) => {
+  return gtag('event', 'begin_checkout', {
     currency: 'USD',
     value: totalValue / 100,
-    items: items.map(item => ({
-      ...item,
-      price: item.price / 100,
-    }))
+    ...(coupon ? { coupon } : {}),
+    items: items.map(toGA4Item),
   });
 };
 
@@ -107,12 +97,12 @@ export const trackGoogleAdsPurchaseConversion = (params: {
   value: number; // cents
   currency?: string;
 }) => {
-  const conversionId = (import.meta as any)?.env?.VITE_GOOGLE_ADS_CONVERSION_ID;
-  const purchaseLabel = (import.meta as any)?.env?.VITE_GOOGLE_ADS_PURCHASE_LABEL;
+  const conversionId = import.meta.env.VITE_GOOGLE_ADS_CONVERSION_ID;
+  const purchaseLabel = import.meta.env.VITE_GOOGLE_ADS_PURCHASE_LABEL;
   if (!conversionId || !purchaseLabel) {
-    return;
+    return false;
   }
-  gtag('event', 'conversion', {
+  return gtag('event', 'conversion', {
     send_to: `${conversionId}/${purchaseLabel}`,
     value: params.value / 100,
     currency: params.currency || 'USD',
@@ -129,17 +119,16 @@ export const trackPurchase = (params: {
   tax?: number;
   shipping?: number;
   items: AnalyticsItem[];
+  coupon?: string | null;
 }) => {
-  gtag('event', 'purchase', {
+  return gtag('event', 'purchase', {
     transaction_id: params.transaction_id,
     currency: 'USD',
     value: params.value / 100,
     tax: (params.tax || 0) / 100,
     shipping: (params.shipping || 0) / 100,
-    items: params.items.map(item => ({
-      ...item,
-      price: item.price / 100,
-    }))
+    ...(params.coupon ? { coupon: params.coupon } : {}),
+    items: params.items.map(toGA4Item),
   });
 };
 
@@ -147,30 +136,57 @@ export const trackPurchase = (params: {
  * Track when user views a product/design page
  */
 export const trackViewItem = (item: {
-  id?: string;
+  id: string;
   name: string;
   category: string;
+  variant?: string;
+  price: number;
+  quantity?: number;
 }) => {
-  gtag('event', 'view_item', {
+  const quantity = Math.max(1, item.quantity || 1);
+  return gtag('event', 'view_item', {
+    currency: 'USD',
+    value: (item.price * quantity) / 100,
     items: [{
-      item_id: item.id || 'new_design',
+      item_id: item.id,
       item_name: item.name,
       item_category: item.category,
+      item_variant: item.variant,
+      price: item.price / 100,
+      quantity,
     }]
   });
 };
 
+export const trackViewItemList = (params: {
+  item_list_id: string;
+  item_list_name: string;
+  items: AnalyticsItem[];
+}) => gtag('event', 'view_item_list', {
+  item_list_id: params.item_list_id,
+  item_list_name: params.item_list_name,
+  items: params.items.map(toGA4Item),
+});
+
+export const trackSelectItem = (params: {
+  item_list_id: string;
+  item_list_name: string;
+  item: AnalyticsItem;
+}) => gtag('event', 'select_item', {
+  item_list_id: params.item_list_id,
+  item_list_name: params.item_list_name,
+  items: [toGA4Item(params.item)],
+});
+
 /**
  * Track when user views cart
  */
-export const trackViewCart = (items: AnalyticsItem[], totalValue: number) => {
-  gtag('event', 'view_cart', {
+export const trackViewCart = (items: AnalyticsItem[], totalValue: number, coupon?: string | null) => {
+  return gtag('event', 'view_cart', {
     currency: 'USD',
     value: totalValue / 100,
-    items: items.map(item => ({
-      ...item,
-      price: item.price / 100,
-    }))
+    ...(coupon ? { coupon } : {}),
+    items: items.map(toGA4Item),
   });
 };
 
@@ -350,9 +366,10 @@ export const trackPageView = (params: {
   page_title: string;
   page_path: string;
 }) => {
-  gtag('event', 'page_view', {
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://bannersonthefly.com';
+  return gtag('event', 'page_view', {
     page_title: params.page_title,
-    page_location: window.location.href,
+    page_location: `${origin}${params.page_path}`,
     page_path: params.page_path,
   });
 };
@@ -377,11 +394,33 @@ export const trackQuoteRequested = (params: {
 /**
  * Track shipping info entered
  */
-export const trackShippingInfoEntered = () => {
-  gtag('event', 'add_shipping_info', {
-    shipping_tier: 'free_next_day',
+export const trackShippingInfoEntered = (params: {
+  items: AnalyticsItem[];
+  value: number;
+  coupon?: string | null;
+  shippingTier?: string;
+}) => {
+  return gtag('event', 'add_shipping_info', {
+    currency: 'USD',
+    value: params.value / 100,
+    shipping_tier: params.shippingTier || 'free_next_day_air_after_production',
+    ...(params.coupon ? { coupon: params.coupon } : {}),
+    items: params.items.map(toGA4Item),
   });
 };
+
+export const trackPaymentInfoAdded = (params: {
+  paymentType: 'paypal' | 'card' | 'stripe';
+  items: AnalyticsItem[];
+  value: number;
+  coupon?: string | null;
+}) => gtag('event', 'add_payment_info', {
+  currency: 'USD',
+  value: params.value / 100,
+  payment_type: params.paymentType,
+  ...(params.coupon ? { coupon: params.coupon } : {}),
+  items: params.items.map(toGA4Item),
+});
 
 // ============================================================================
 // FACEBOOK PIXEL EVENTS
@@ -390,11 +429,10 @@ export const trackShippingInfoEntered = () => {
 /**
  * Helper to safely call Facebook Pixel
  */
-const fbq = (...args: any[]) => {
-  if (typeof window !== 'undefined' && (window as any).fbq) {
-    (window as any).fbq(...args);
-  }
-};
+const fbq = (...args: unknown[]): boolean => sendMeta(...args);
+
+/** Track one Meta page view for each eligible SPA navigation. */
+export const trackFBPageView = () => fbq('track', 'PageView');
 
 /**
  * Track Facebook Pixel ViewContent event
@@ -451,11 +489,12 @@ export const trackFBPurchase = (params: {
   currency?: string;
   transaction_id: string;
 }) => {
-  fbq('track', 'Purchase', {
+  return fbq('track', 'Purchase', {
     value: params.value / 100,
     currency: params.currency || 'USD',
     transaction_id: params.transaction_id,
-  });
+    content_type: 'product',
+  }, { eventID: params.transaction_id });
 };
 
 /**
@@ -479,11 +518,7 @@ export const trackFBCompleteRegistration = () => {
 /**
  * Helper to safely call LinkedIn Insight Tag
  */
-const lintrk = (...args: any[]) => {
-  if (typeof window !== 'undefined' && (window as any).lintrk) {
-    (window as any).lintrk(...args);
-  }
-};
+const lintrk = (...args: unknown[]): boolean => sendLinkedIn(...args);
 
 /**
  * Track LinkedIn conversion event

@@ -66,7 +66,9 @@ export const captureAttributionFromLocation = (): AttributionPayload => {
     captured_at: stored.captured_at || new Date().toISOString(),
   };
 
-  const gclid = params.get('gclid') || params.get('gclsrc');
+  // gclsrc describes the click source/type; it is not a click identifier and
+  // must never be stored in the GCLID column.
+  const gclid = params.get('gclid');
   if (gclid) { next.google_click_id = gclid; next.captured_at = new Date().toISOString(); }
   const gbraid = params.get('gbraid');
   if (gbraid) { next.gbraid = gbraid; next.captured_at = new Date().toISOString(); }

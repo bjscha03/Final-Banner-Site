@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Eye, PackageCheck, Truck } from 'lucide-react';
 import Layout from '@/components/Layout';
@@ -9,6 +9,7 @@ import { getConfiguratorUrl } from '@/lib/configurator';
 import type { CityProductSlug } from '@/lib/seo/cityData';
 import { buildProductHubSchema } from '@/lib/seo/localPageSchema';
 import { formatMoney, getProductLandingDefinition, SITE_URL } from '@/lib/seo/productLandingData';
+import { trackViewItem } from '@/lib/analytics';
 
 interface ProductHubPageProps {
   productSlug: CityProductSlug;
@@ -33,6 +34,16 @@ const ProductHubPage: React.FC<ProductHubPageProps> = ({ productSlug }) => {
     : productSlug === 'yard-signs'
       ? `Order 10 custom 24×18 yard signs from ${formatMoney(product.startingPriceCents)}. Compare print sides, optional stakes, artwork guidance, production, and shipping.`
       : `Order custom car magnets from ${formatMoney(product.startingPriceCents)}. Compare supported sizes, corner options, artwork guidance, production, shipping, installation, and care.`;
+
+  useEffect(() => {
+    trackViewItem({
+      id: product.slug,
+      name: product.plural,
+      category: 'Printing product',
+      variant: product.configuratorType,
+      price: product.startingPriceCents,
+    });
+  }, [product.configuratorType, product.plural, product.slug, product.startingPriceCents]);
 
   return (
     <Layout showFooterBanner={false}>

@@ -178,7 +178,7 @@ export const PRODUCT_LANDING_DATA: Record<CityProductSlug, ProductLandingDefinit
       `Step stakes: ${formatMoney(YARD_SIGN_STEP_STAKE_CENTS)} each`,
       `Quantity: ${YARD_SIGN_MIN_QUANTITY}–${YARD_SIGN_MAX_QUANTITY}, in increments of 10`,
     ],
-    useCases: ['Real-estate and open-house messages', 'Contractor and service-company identification', 'Campaign and event wayfinding', 'Graduation and celebration messages'],
+    useCases: ['Real-estate and open-house messages', 'Contractor and service-company identification', 'Campaign and event wayfinding', 'Birthday and celebration messages'],
     limitations: [
       'The online product is a fixed 24×18-inch rectangle; custom dimensions are not offered in this configurator.',
       `Orders must contain ${YARD_SIGN_MIN_QUANTITY}–${YARD_SIGN_MAX_QUANTITY} signs in increments of 10.`,

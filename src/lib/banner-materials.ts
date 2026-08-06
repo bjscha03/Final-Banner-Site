@@ -4,7 +4,6 @@ import type { MaterialKey } from '@/store/quote';
  * Single source of truth for the banner material picker UI used by:
  *   - /design (Design.tsx)
  *   - /google-ads-banner (GoogleAdsBanner.tsx)
- *   - /graduation-signs designer-assisted intake (GraduationSigns.tsx)
  *
  * `mapped` is the pricing-engine MaterialKey from `@/store/quote`.
  * `image` is the thumbnail rendered next to the material name.

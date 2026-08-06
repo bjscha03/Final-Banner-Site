@@ -141,22 +141,22 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
                           </ScrollToTopLink>
                           {isAdmin(user) && (
                             <>
-                              <ScrollToTopLink
-                                to="/admin/orders"
+                              <a
+                                href="/admin/orders"
                                 className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-700 hover:text-[#18448D] hover:bg-slate-50"
                                 onClick={() => setIsMenuOpen(false)}
                               >
                                 <Shield className="h-4 w-4" />
                                 Admin: Orders
-                              </ScrollToTopLink>
-                              <ScrollToTopLink
-                                to="/admin/custom-quotes"
+                              </a>
+                              <a
+                                href="/admin/custom-quotes"
                                 className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-700 hover:text-[#18448D] hover:bg-slate-50"
                                 onClick={() => setIsMenuOpen(false)}
                               >
                                 <Shield className="h-4 w-4" />
                                 Admin: Custom Quotes
-                              </ScrollToTopLink>
+                              </a>
                             </>
                           )}
                           <button
@@ -264,16 +264,16 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
                         <>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem asChild>
-                            <ScrollToTopLink to="/admin/orders" className="flex items-center">
+                            <a href="/admin/orders" className="flex items-center">
                               <Shield className="h-4 w-4 mr-2" />
                               Admin: Orders
-                            </ScrollToTopLink>
+                            </a>
                           </DropdownMenuItem>
                           <DropdownMenuItem asChild>
-                            <ScrollToTopLink to="/admin/custom-quotes" className="flex items-center">
+                            <a href="/admin/custom-quotes" className="flex items-center">
                               <Shield className="h-4 w-4 mr-2" />
                               Admin: Custom Quotes
-                            </ScrollToTopLink>
+                            </a>
                           </DropdownMenuItem>
                         </>
                       )}

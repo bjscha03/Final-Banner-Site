@@ -7,14 +7,19 @@ function withEnv(nextEnv, fn) {
   const previous = {
     CONTEXT: process.env.CONTEXT,
     DEPLOY_PRIME_URL: process.env.DEPLOY_PRIME_URL,
+    PAYPAL_ENV: process.env.PAYPAL_ENV,
   };
   process.env.CONTEXT = nextEnv.CONTEXT || '';
   process.env.DEPLOY_PRIME_URL = nextEnv.DEPLOY_PRIME_URL || '';
+  if (Object.prototype.hasOwnProperty.call(nextEnv, 'PAYPAL_ENV')) {
+    process.env.PAYPAL_ENV = nextEnv.PAYPAL_ENV;
+  }
   try {
     fn();
   } finally {
     process.env.CONTEXT = previous.CONTEXT;
     process.env.DEPLOY_PRIME_URL = previous.DEPLOY_PRIME_URL;
+    process.env.PAYPAL_ENV = previous.PAYPAL_ENV;
   }
 }
 
@@ -48,6 +53,19 @@ withEnv({ CONTEXT: 'production', DEPLOY_PRIME_URL: 'https://www.bannersonthefly.
 
 withEnv({ CONTEXT: 'production', DEPLOY_PRIME_URL: 'https://deploy-preview-357--bannersonthefly.netlify.app' }, () => {
   assert.strictEqual(_test.isDeployPreviewEnvironment(), true);
+});
+
+withEnv({ PAYPAL_ENV: 'sandbox' }, () => {
+  const orderData = { payment_method: 'paypal' };
+  _test.applySandboxPayPalTestOrder(orderData);
+  assert.strictEqual(orderData.is_test_order, true);
+  assert.match(orderData.test_order_reason, /sandbox/i);
+});
+
+withEnv({ PAYPAL_ENV: 'live' }, () => {
+  const orderData = { payment_method: 'paypal' };
+  _test.applySandboxPayPalTestOrder(orderData);
+  assert.notStrictEqual(orderData.is_test_order, true);
 });
 
 console.log('create-order deploy-preview test checkout assertions passed');

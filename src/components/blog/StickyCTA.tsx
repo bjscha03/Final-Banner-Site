@@ -4,6 +4,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { gtag } from '@/lib/analytics';
 
 interface StickyCTAProps {
   position?: 'top' | 'mid' | 'sticky';
@@ -11,11 +12,7 @@ interface StickyCTAProps {
 
 export function StickyCTA({ position = 'sticky' }: StickyCTAProps) {
   const handleClick = () => {
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', 'blog_cta_click', {
-        position,
-      });
-    }
+    gtag('event', 'blog_cta_click', { position });
   };
   
   return (

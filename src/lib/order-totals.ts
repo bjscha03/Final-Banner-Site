@@ -22,7 +22,8 @@ export function getExpectedOrderTotalCents(input: OrderTotalsInput): number {
 
 export function getDisplayOrderTotalCents(input: OrderTotalsInput): number {
   const stored = n(input.total_cents);
-  const expected = getExpectedOrderTotalCents(input);
-  // Never understate paid total in UI for legacy rows; prefer whichever is higher.
-  return Math.max(stored, expected);
+  // The stored total is the amount validated against and captured by the
+  // payment processor. Reconstruct only genuinely legacy rows that have no
+  // authoritative total; never display or report more than was charged.
+  return stored > 0 ? stored : getExpectedOrderTotalCents(input);
 }

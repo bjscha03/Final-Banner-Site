@@ -94,6 +94,26 @@
   status = 301
   force = true
 
+# Retired seasonal campaign. Keep old indexed/bookmarked URLs away from the
+# removed checkout and proof flows while preserving a useful customer landing.
+[[redirects]]
+  from = "/graduation-signs/*"
+  to = "/custom-banners"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/graduation-signs"
+  to = "/custom-banners"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/proof/*"
+  to = "/custom-banners"
+  status = 301
+  force = true
+
 # AI Banner Generator API redirects (must be before SPA fallback)
 [[redirects]]
   from = "/api/ai/generate-banner"
@@ -256,13 +276,140 @@
   [headers.values]
   Cache-Control = "public, max-age=0, must-revalidate"
 
+# Private, transactional, admin, and diagnostic SPA routes must never enter a
+# search index. The response header is authoritative even when a crawler does
+# not execute the client-side robots policy.
+[[headers]]
+  for = "/admin"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/admin/*"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/orders/*"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/proof/*"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/checkout"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/payment-success"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/order-confirmation"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/my-orders"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/my-ai-images"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/sign-in"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/sign-up"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/reset-password"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/verify-email"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/forgot-password"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/check-email"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/canva-test"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/pdf-diagnostic"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/logo-showcase"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/design/complete"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+[[headers]]
+  for = "/design/canva-editor"
+  [headers.values]
+  X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
 # Edge Functions configuration
 [[edge_functions]]
-  path = "/blog/*"
-  function = "social-meta-injector"
+  path = "/.netlify/functions/designer-intake-submit"
+  function = "retired-campaign-gone"
 
 [[edge_functions]]
-  path = "/graduation-signs"
+  path = "/.netlify/functions/graduation-proof-approve"
+  function = "retired-campaign-gone"
+
+[[edge_functions]]
+  path = "/.netlify/functions/graduation-proof-get"
+  function = "retired-campaign-gone"
+
+[[edge_functions]]
+  path = "/.netlify/functions/graduation-proof-request-edits"
+  function = "retired-campaign-gone"
+
+[[edge_functions]]
+  path = "/.netlify/functions/paypal-capture-design-deposit"
+  function = "retired-campaign-gone"
+
+[[edge_functions]]
+  path = "/.netlify/functions/paypal-capture-final-product"
+  function = "retired-campaign-gone"
+
+[[edge_functions]]
+  path = "/.netlify/functions/paypal-create-deposit-for-intake"
+  function = "retired-campaign-gone"
+
+[[edge_functions]]
+  path = "/blog/*"
   function = "social-meta-injector"
 
 # Preview/branch deploy crawler protection

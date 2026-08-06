@@ -14,6 +14,8 @@ import { useAuth } from '@/lib/auth';
 import { getStoredAttribution } from '@/lib/attribution';
 import { useCartStore } from '@/store/cart';
 import { shouldUseDeployPreviewTestCheckout } from './checkoutEnvironment';
+import { gtag, trackPaymentInfoAdded, trackShippingInfoEntered, type AnalyticsItem } from '@/lib/analytics';
+import { getItemDisplayName, getProductCategory } from '@/lib/product-display';
 
 interface PayPalCheckoutProps {
   total: number;
@@ -257,10 +259,9 @@ const isDefinitiveFailure = (payload: any, status: number): boolean => Boolean(
 );
 
 const trackPaymentClick = (method: 'card' | 'paypal') => {
-  if (typeof window === 'undefined' || !window.gtag) return;
-  window.gtag('event', 'payment_button_click', {
+  gtag('event', 'payment_button_click', {
     payment_method: method,
-    device_type: window.innerWidth < 768 ? 'mobile' : 'desktop',
+    device_type: typeof window !== 'undefined' && window.innerWidth < 768 ? 'mobile' : 'desktop',
   });
 };
 
@@ -316,6 +317,19 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
   const shippingChangeDataRef = useRef<any>(null);
   const submittedCustomerRef = useRef<SubmittedCustomer | null>(null);
   const checkoutSignatureRef = useRef<string | null>(null);
+  const shippingInfoTrackedRef = useRef(false);
+  const paymentInfoTrackedRef = useRef(new Set<'card' | 'paypal'>());
+  const analyticsItems = useMemo<AnalyticsItem[]>(() => items.map((item) => {
+    const quantity = Math.max(1, Number(item.quantity || 1));
+    return {
+      item_id: String(item.id),
+      item_name: getItemDisplayName(item),
+      item_category: getProductCategory(item.product_type),
+      item_variant: item.material || item.product_type || 'banner',
+      price: Math.round(Number(item.line_total_cents || 0) / quantity),
+      quantity,
+    };
+  }), [items]);
 
   useEffect(() => {
     if (!customer.email && user?.email) {
@@ -938,7 +952,26 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     || isCapturing
     || Boolean(verificationMessage);
 
-  const prepareCustomerForPayment = (): boolean => {
+  const trackValidatedCheckoutDetails = (method: 'card' | 'paypal') => {
+    if (!shippingInfoTrackedRef.current) {
+      shippingInfoTrackedRef.current = trackShippingInfoEntered({
+        items: analyticsItems,
+        value: total,
+        coupon: discountCode?.code || null,
+      });
+    }
+    if (!paymentInfoTrackedRef.current.has(method)) {
+      const queued = trackPaymentInfoAdded({
+        paymentType: method,
+        items: analyticsItems,
+        value: total,
+        coupon: discountCode?.code || null,
+      });
+      if (queued) paymentInfoTrackedRef.current.add(method);
+    }
+  };
+
+  const prepareCustomerForPayment = (method: 'card' | 'paypal'): boolean => {
     const error = validateCustomer();
     if (error) {
       setCardFieldsExpanded(true);
@@ -947,6 +980,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     }
     submittedCustomerRef.current = getSubmittedCustomer();
     setCheckoutError(null);
+    trackValidatedCheckoutDetails(method);
     return true;
   };
 
@@ -958,7 +992,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
       disabled={buttonsDisabled}
       onClick={(_data, actions) => {
         trackPaymentClick('paypal');
-        if (!prepareCustomerForPayment()) return actions.reject();
+        if (!prepareCustomerForPayment('paypal')) return actions.reject();
         return actions.resolve();
       }}
       createOrder={handleCreateOrder}
@@ -1090,7 +1124,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
             <PayPalCardFieldsForm />
             <InlineCardSubmit
               disabled={buttonsDisabled}
-              beforeSubmit={prepareCustomerForPayment}
+              beforeSubmit={() => prepareCustomerForPayment('card')}
             />
           </PayPalCardFieldsProvider>
         </div>

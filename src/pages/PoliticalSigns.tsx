@@ -67,6 +67,7 @@ const PoliticalSigns: React.FC = () => {
           name="description"
           content="Configure political banners, yard signs, and car magnets online. Most standard orders are produced within 24 hours; carrier transit follows production."
         />
+        <link rel="canonical" href="https://bannersonthefly.com/political-signs" />
       </Helmet>
 
       <section className="border-b-4 border-[#FF6A00] bg-[#0B1F3A] text-white">

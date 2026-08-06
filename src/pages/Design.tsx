@@ -85,6 +85,8 @@ import {
   type ReadyPlacementPreviewManifest,
 } from '@/lib/previewLifecycle';
 import { createPermanentPlacementPreview } from '@/lib/previewArtifactCoordinator';
+import { trackViewItem } from '@/lib/analytics';
+import { getProductLandingDefinition } from '@/lib/seo/productLandingData';
 
 type UploadedArtworkFile = {
   editorIdentity?: string;
@@ -2644,11 +2646,28 @@ const Design: React.FC = () => {
 
   const modeContent = PRODUCT_MODE_CONTENT[productType];
 
+  useEffect(() => {
+    const slug = productType === 'yard_sign'
+      ? 'yard-signs'
+      : productType === 'car_magnet'
+        ? 'car-magnets'
+        : 'vinyl-banners';
+    const product = getProductLandingDefinition(slug)!;
+    trackViewItem({
+      id: product.slug,
+      name: product.plural,
+      category: 'Printing product configurator',
+      variant: productType,
+      price: product.startingPriceCents,
+    });
+  }, [productType]);
+
   return (
     <Layout>
       <Helmet>
         <title>Design Your Banner | Banners On The Fly</title>
         <meta name="description" content="Design custom vinyl banners online. Upload artwork, choose size and material, preview the print, and review production and shipping before checkout." />
+        <link rel="canonical" href="https://bannersonthefly.com/design" />
       </Helmet>
 
       {/* Hero */}

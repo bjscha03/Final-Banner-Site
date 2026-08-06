@@ -8,13 +8,6 @@ const staticPages: Record<string, { title: string; description: string; image: s
     image: "https://res.cloudinary.com/dtrxl120u/image/upload/v1778180324/Screenshot_2026-05-07_at_2.58.40_PM_h8ozp5.png?v=2",
     url: "https://bannersonthefly.com/political-signs",
     type: "website"
-  },
-  "graduation-signs": {
-    title: "Custom Graduation Signs – Designed For You",
-    description: "Upload your own design or let our designers create one. Printed in 24 hours with free next-day air shipping.",
-    image: "https://res.cloudinary.com/dtrxl120u/image/upload/v1777021980/Graduation_hero_xw9rnh.png",
-    url: "https://bannersonthefly.com/graduation-signs",
-    type: "website"
   }
 };
 

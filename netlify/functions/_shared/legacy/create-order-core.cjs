@@ -10,6 +10,7 @@ const {
   reconcileSameDayFlags,
   getEasternTimeParts,
 } = require('../sameDayService.cjs');
+const { addPostTaxServiceFees } = require('../order-total-reconciliation.cjs');
 
 // Guard: only treat a value as a "real" authenticated user id if it is a
 // proper non-zero UUID. Placeholder values like the all-zero UUID, the
@@ -155,6 +156,16 @@ function applyAdminDeployPreviewTestOrder(orderData) {
   return orderData;
 }
 
+function applySandboxPayPalTestOrder(orderData) {
+  const paypalEnvironment = String(process.env.PAYPAL_ENV || 'sandbox').trim().toLowerCase();
+  const paymentMethod = String(orderData.payment_method || '').trim().toLowerCase();
+  if (paymentMethod !== 'paypal' || paypalEnvironment === 'live') return orderData;
+
+  orderData.is_test_order = true;
+  orderData.test_order_reason = `PayPal ${paypalEnvironment || 'sandbox'} environment`;
+  return orderData;
+}
+
 function normalizeCustomerName(name) {
   const fullName = String(name || '').trim().replace(/\s+/g, ' ');
   const firstName = fullName ? fullName.split(' ')[0] : null;
@@ -265,10 +276,10 @@ const computeTotals = (items, taxRate, opts, promoDiscount = null) => {
   const minAdj = Math.max(0, adjusted - raw);
 
   // IMPORTANT: Only BANNER items count toward quantity discount tiers.
-  // Yard signs, car magnets, and design_deposit items use flat pricing with NO quantity discounts.
+  // Yard signs and car magnets use flat pricing with NO quantity discounts.
   const isBanner = (i) => {
     const t = i.product_type || 'banner';
-    return t !== 'yard_sign' && t !== 'car_magnet' && t !== 'design_deposit';
+    return t !== 'yard_sign' && t !== 'car_magnet';
   };
   const bannerItems = items.filter(isBanner);
   const bannerQuantity = bannerItems.reduce((sum, i) => sum + (i.quantity || 1), 0);
@@ -427,6 +438,7 @@ exports.handler = async (event, context) => {
         };
       }
     }
+    applySandboxPayPalTestOrder(orderData);
 
     try {
       if (Array.isArray(orderData.items)) {
@@ -782,14 +794,24 @@ exports.handler = async (event, context) => {
       });
     }
 
+    const retiredCampaignTypes = new Set(['design_deposit', 'graduation_final_payment']);
+    if ((orderData.items || []).some((item) => retiredCampaignTypes.has(item.product_type))) {
+      return {
+        statusCode: 410,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        body: JSON.stringify({
+          error: 'This retired campaign can no longer accept payments.',
+          code: 'RETIRED_CAMPAIGN_ITEM',
+        }),
+      };
+    }
+
     // SERVER-SIDE: Validate yard sign quantities (must be multiples of 10, min 10, max 90)
     const YARD_SIGN_INCREMENT = 10;
     const YARD_SIGN_MIN_QTY = 10;
     const YARD_SIGN_MAX_QTY = 90;
     if (orderData.items && Array.isArray(orderData.items)) {
       for (const item of orderData.items) {
-        // Skip quantity validation for design_deposit items
-        if (item.product_type === 'design_deposit') continue;
         if (item.product_type === 'yard_sign') {
           const qty = item.quantity || 0;
           if (qty < YARD_SIGN_MIN_QTY || qty > YARD_SIGN_MAX_QTY || qty % YARD_SIGN_INCREMENT !== 0) {
@@ -807,18 +829,6 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // Check if this is a design_deposit-only order
-    const isDesignDepositOrder = orderData.items && Array.isArray(orderData.items)
-      && orderData.items.length > 0
-      && orderData.items.every(i => i.product_type === 'design_deposit');
-
-    // Check if this is a graduation final-product payment (one-off charge for
-    // approved proof balance). Distinct from the deposit so totals/checks don't
-    // collide and so post-payment hooks send the right emails.
-    const isFinalProductPayment = orderData.items && Array.isArray(orderData.items)
-      && orderData.items.length > 0
-      && orderData.items.every(i => i.product_type === 'graduation_final_payment');
-
     // ALWAYS recalculate totals server-side from line_total_cents
     const flags = getFeatureFlags();
     {
@@ -826,8 +836,7 @@ exports.handler = async (event, context) => {
       const taxRate = 0.06; // 6% tax rate
       const pricingOptions = {
         freeShipping: flags.freeShipping,
-        // Design deposit orders bypass minimum order floor to avoid unwanted adjustment
-        minFloorCents: (isDesignDepositOrder || isFinalProductPayment || !flags.minOrderFloor) ? 0 : flags.minOrderCents,
+        minFloorCents: !flags.minOrderFloor ? 0 : flags.minOrderCents,
         shippingMethodLabel: flags.shippingMethodLabel
       };
 
@@ -1030,6 +1039,16 @@ exports.handler = async (event, context) => {
     const orderSaturdayFeeCents = sameDayResult.fees.saturdayFeeCents;
     const orderSameDayQualified = sameDayResult.eval.windowOpen && sameDayResult.eval.hasEligibleItem;
     const orderTimestampEt = getEasternTimeParts(sameDayNow);
+    // computeTotals intentionally calculates tax before these optional
+    // services. Add the server-authoritative fees to the persisted/payment
+    // total exactly once so checkout, DB, PayPal, and analytics share a ledger.
+    orderData.total_cents = addPostTaxServiceFees({
+      baseTotalCents: orderData.total_cents,
+      sameDayFeeCents: orderSameDayFeeCents,
+      saturdayFeeCents: orderSaturdayFeeCents,
+    });
+    orderData.same_day_fee_cents = orderSameDayFeeCents;
+    orderData.saturday_fee_cents = orderSaturdayFeeCents;
     const attribution = normalizeAttribution(orderData.attribution || orderData);
 
     if (orderData.checkout_idempotency_key) {
@@ -1415,115 +1434,17 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // Handle post-payment logic based on order type
-    if (isDesignDepositOrder) {
-      // --- Design deposit order: update intake and send graduation emails ---
-      try {
-        const depositItem = (orderData.items || []).find(i => i.product_type === 'design_deposit');
-        let intakeMeta = {};
-        try {
-          intakeMeta = JSON.parse(depositItem?.design_request_text || '{}');
-        } catch (_e) {}
-
-        const intakeId = intakeMeta.intakeId;
-        if (intakeId) {
-          // Mark intake as paid and stamp design_fee_paid_at. The cart item
-          // metadata may also include estimated price snapshot — apply it as
-          // a fallback if the intake row doesn't already have it (older
-          // submissions without server-side estimate).
-          const estTotalFromCart = Number(intakeMeta.estimatedProductTotalCents);
-          const estSubFromCart = Number(intakeMeta.estimatedProductSubtotalCents);
-          const estTaxFromCart = Number(intakeMeta.estimatedTaxCents);
-
-          await sql`
-            UPDATE designer_intake_orders
-            SET
-              design_fee_paid = true,
-              design_fee_paid_at = COALESCE(design_fee_paid_at, NOW()),
-              status = 'design_paid',
-              last_status_change_at = NOW(),
-              estimated_product_subtotal_cents = COALESCE(estimated_product_subtotal_cents, ${Number.isFinite(estSubFromCart) ? estSubFromCart : null}),
-              estimated_tax_cents              = COALESCE(estimated_tax_cents,              ${Number.isFinite(estTaxFromCart) ? estTaxFromCart : null}),
-              estimated_product_total_cents    = COALESCE(estimated_product_total_cents,    ${Number.isFinite(estTotalFromCart) ? estTotalFromCart : null}),
-              paypal_order_id = COALESCE(paypal_order_id, ${orderData.paypal_order_id || null}),
-              updated_at = NOW()
-            WHERE id = ${intakeId}::uuid
-          `;
-          console.log('[create-order] Intake updated to design_paid:', intakeId);
-
-          // Send graduation-specific emails via shared lib (best effort).
-          try {
-            const graduation = require('../../lib/graduation.cjs');
-            const intake = await graduation.getIntakeById(sql, intakeId);
-            if (intake) {
-              await graduation.sendDesignDepositEmails(intake, orderId);
-              console.log('[create-order] Graduation deposit emails sent for intake:', intakeId);
-            } else {
-              console.warn('[create-order] Intake not found after update:', intakeId);
-            }
-          } catch (emailErr) {
-            console.error('[create-order] Failed to send graduation deposit emails:', emailErr.message, emailErr.stack);
-            // Don't fail the order
-          }
-        } else {
-          console.warn('[create-order] design_deposit order but no intakeId found in design_request_text');
-        }
-      } catch (depositErr) {
-        console.error('[create-order] Failed to update design deposit intake:', depositErr.message);
-        // Don't fail the order creation
+    // Normal product order — send standard order confirmation email.
+    try {
+      console.log('Sending order confirmation email for order:', orderId);
+      const emailResult = await sendOrderConfirmationEmail(orderId);
+      if (emailResult.ok) {
+        console.log('Order confirmation email sent successfully, email ID:', emailResult.id);
+      } else {
+        console.error('Failed to send order confirmation email:', emailResult.error);
       }
-    } else if (isFinalProductPayment) {
-      // --- Final product payment for an approved graduation proof ---
-      try {
-        const finalItem = (orderData.items || []).find(i => i.product_type === 'graduation_final_payment');
-        let finalMeta = {};
-        try {
-          finalMeta = JSON.parse(finalItem?.design_request_text || '{}');
-        } catch (_e) {}
-        const intakeId = finalMeta.intakeId;
-        const finalAmountCents = Number(finalItem?.line_total_cents || finalItem?.unit_price_cents || 0);
-        if (intakeId) {
-          await sql`
-            UPDATE designer_intake_orders
-            SET
-              final_payment_paid = true,
-              final_payment_paid_at = COALESCE(final_payment_paid_at, NOW()),
-              final_product_amount_cents = COALESCE(${finalAmountCents}, final_product_amount_cents),
-              status = 'paid_ready_for_production',
-              last_status_change_at = NOW(),
-              final_product_paypal_order_id = COALESCE(final_product_paypal_order_id, ${orderData.paypal_order_id || null}),
-              updated_at = NOW()
-            WHERE id = ${intakeId}::uuid
-          `;
-          console.log('[create-order] Intake marked paid_ready_for_production:', intakeId);
-          try {
-            const graduation = require('../../lib/graduation.cjs');
-            const intake = await graduation.getIntakeById(sql, intakeId);
-            if (intake) {
-              const proofs = await graduation.getProofsForIntake(sql, intakeId);
-              const approvedProof = proofs.reverse().find(p => p.status === 'approved') || proofs[0];
-              await graduation.sendApprovedAndPaidEmails(intake, approvedProof, finalAmountCents);
-            }
-          } catch (emailErr) {
-            console.error('[create-order] Failed to send final payment emails:', emailErr.message);
-          }
-        }
-      } catch (finalErr) {
-        console.error('[create-order] Failed to process final product payment:', finalErr.message);
-      }
-    } else {
-      // Normal product order — send standard order confirmation email
-      try {
-        console.log('Sending order confirmation email for order:', orderId);
-        const emailResult = await sendOrderConfirmationEmail(orderId);
-        if (emailResult.ok) {
-          console.log('Order confirmation email sent successfully, email ID:', emailResult.id);
-        } else {
-          console.error('Failed to send order confirmation email:', emailResult.error);
-        }
-      } catch (emailError) {
-        console.error('Error sending order confirmation email:', emailError);
-      }
+    } catch (emailError) {
+      console.error('Error sending order confirmation email:', emailError);
     }
 
     const response = {
@@ -1539,6 +1460,8 @@ exports.handler = async (event, context) => {
         applied_discount_cents: orderData.applied_discount_cents || 0,
         applied_discount_label: orderData.applied_discount_label || "",
         applied_discount_type: orderData.applied_discount_type || "none",
+        same_day_fee_cents: orderSameDayFeeCents,
+        saturday_fee_cents: orderSaturdayFeeCents,
         status: requestedStatus,
         payment_method: orderData.payment_method || null,
         is_test_order: orderData.is_test_order === true,
@@ -1589,4 +1512,4 @@ exports.handler = async (event, context) => {
   }
 };
 
-exports._test = { isDeployPreviewEnvironment, applyAdminDeployPreviewTestOrder };
+exports._test = { isDeployPreviewEnvironment, applyAdminDeployPreviewTestOrder, applySandboxPayPalTestOrder };

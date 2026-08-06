@@ -5,8 +5,9 @@ import { useCartSync } from "@/hooks/useCartSync";
 import { useCartRevalidation } from "@/hooks/useCartRevalidation";
 import { useCartStore } from "@/store/cart";
 import { toast } from "@/components/ui/use-toast";
-import { initPostHog } from "@/lib/posthog";
 import { captureAttributionFromLocation } from "@/lib/attribution";
+import AnalyticsController from "@/components/AnalyticsController";
+import RouteRobotsPolicy from "@/components/RouteRobotsPolicy";
 import CityProductPage from "./pages/CityProductPage";
 import ProductHubPage from "./pages/ProductHubPage";
 import TradeShowDirectory from "./pages/TradeShowDirectory";
@@ -67,10 +68,7 @@ const CategoryPage = lazy(() => import("./pages/CategoryPage"));
 // Google Ads landing page - lazy load
 const GoogleAdsBanner = lazy(() => import("./pages/GoogleAdsBanner"));
 
-// Graduation landing page - lazy load
-const GraduationSigns = lazy(() => import("./pages/GraduationSigns"));
 const PoliticalSigns = lazy(() => import("./pages/PoliticalSigns"));
-const GraduationSignsThankYou = lazy(() => import("./pages/GraduationSignsThankYou"));
 
 // Admin pages - lazy load (heavy, rarely accessed)
 const AdminOrders = lazy(() => import("./pages/admin/Orders"));
@@ -89,7 +87,6 @@ const AdminSalesReplies = lazy(() => import("./pages/admin/sales/SalesReplies"))
 const AdminSalesOrders = lazy(() => import("./pages/admin/sales/SalesOrders"));
 const AdminSalesPerformance = lazy(() => import("./pages/admin/sales/SalesPerformance"));
 const AdminSalesErrors = lazy(() => import("./pages/admin/sales/SalesErrors"));
-const ProofApproval = lazy(() => import("./pages/ProofApproval"));
 
 // Utility/debug pages - lazy load
 const LogoShowcase = lazy(() => import("./pages/LogoShowcase"));
@@ -107,11 +104,6 @@ const CartSyncWrapper = ({ children }: { children: React.ReactNode }) => {
     pollingInterval: 0,   // Disable periodic polling (set to 30000 for 30s polling)
     debounceMs: 1000,     // Debounce revalidation calls
   });
-
-  // Initialize PostHog once
-  useEffect(() => {
-    initPostHog();
-  }, []);
 
   // Same-Day Hit Service: 60s ticker. If the ET cutoff passes mid-session,
   // automatically clear the cart flags and surface a one-time toast so the
@@ -153,6 +145,8 @@ const AttributionCapture = () => {
 export const RoutedApplication = () => (
         <CartSyncWrapper>
           <AttributionCapture />
+          <AnalyticsController />
+          <RouteRobotsPolicy />
           <Suspense fallback={<PageLoader />}>
           <Routes>
             {/* Critical path - homepage */}
@@ -252,13 +246,7 @@ export const RoutedApplication = () => (
             <Route path="/yard-signs/:citySlug" element={<CityProductPage productSlug="yard-signs" />} />
             <Route path="/car-magnets/:citySlug" element={<CityProductPage productSlug="car-magnets" />} />
 
-            {/* Graduation landing page */}
-            <Route path="/graduation-signs" element={<GraduationSigns />} />
             <Route path="/political-signs" element={<PoliticalSigns />} />
-            <Route path="/graduation-signs/thank-you" element={<GraduationSignsThankYou />} />
-
-            {/* Customer-facing graduation proof approval (token-gated) */}
-            <Route path="/proof/:token" element={<ProofApproval />} />
 
             {/* 404 – catch-all must be last */}
             <Route path="*" element={<NotFound />} />

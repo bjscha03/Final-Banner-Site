@@ -1,14 +1,30 @@
 User-agent: Googlebot
 Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /proof
+Disallow: /proof/
 
 User-agent: Bingbot
 Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /proof
+Disallow: /proof/
 
 User-agent: Twitterbot
 Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /proof
+Disallow: /proof/
 
 User-agent: facebookexternalhit
 Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /proof
+Disallow: /proof/
 
 User-agent: *
 Allow: /
