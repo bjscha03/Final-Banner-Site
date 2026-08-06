@@ -6,14 +6,7 @@ import sitemap from '../../../../public/sitemap.xml?raw';
 import appSource from '../../../App.tsx?raw';
 import socialMetaSource from '../../../../netlify/edge-functions/social-meta-injector.ts?raw';
 import redirects from '../../../../public/_redirects?raw';
-import retiredEndpoint from '../../../../netlify/functions/_shared/retired-campaign-endpoint.mjs?raw';
-import retiredDesignerIntake from '../../../../netlify/functions/designer-intake-submit.mjs?raw';
-import retiredProofApprove from '../../../../netlify/functions/graduation-proof-approve.mjs?raw';
-import retiredProofGet from '../../../../netlify/functions/graduation-proof-get.mjs?raw';
-import retiredProofEdits from '../../../../netlify/functions/graduation-proof-request-edits.mjs?raw';
-import retiredDepositCapture from '../../../../netlify/functions/paypal-capture-design-deposit.mjs?raw';
-import retiredFinalCapture from '../../../../netlify/functions/paypal-capture-final-product.mjs?raw';
-import retiredDepositCreate from '../../../../netlify/functions/paypal-create-deposit-for-intake.mjs?raw';
+import retiredEndpoint from '../../../../netlify/edge-functions/retired-campaign-gone.ts?raw';
 
 describe('tracking and private-route SEO policy', () => {
   it('applies admin and proof crawl exclusions to specific crawler groups', () => {
@@ -48,19 +41,19 @@ describe('tracking and private-route SEO policy', () => {
     expect(redirects).toContain('/graduation-signs     /custom-banners   301!');
     expect(redirects.indexOf('/graduation-signs')).toBeLessThan(redirects.indexOf('/*    /index.html'));
 
-    expect(retiredEndpoint).toContain('statusCode: 410');
+    expect(retiredEndpoint).toContain('status: 410');
     expect(retiredEndpoint).not.toContain('paypal');
     expect(retiredEndpoint).not.toContain('database');
     for (const retiredFunction of [
-      retiredDesignerIntake,
-      retiredProofApprove,
-      retiredProofGet,
-      retiredProofEdits,
-      retiredDepositCapture,
-      retiredFinalCapture,
-      retiredDepositCreate,
+      'designer-intake-submit',
+      'graduation-proof-approve',
+      'graduation-proof-get',
+      'graduation-proof-request-edits',
+      'paypal-capture-design-deposit',
+      'paypal-capture-final-product',
+      'paypal-create-deposit-for-intake',
     ]) {
-      expect(retiredFunction.trim()).toBe("export { handler } from './_shared/retired-campaign-endpoint.mjs';");
+      expect(netlify).toContain(`path = "/.netlify/functions/${retiredFunction}"`);
     }
   });
 });
