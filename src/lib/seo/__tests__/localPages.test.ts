@@ -66,9 +66,9 @@ describe('local page publication controls', () => {
     );
     expect(content.localGuide?.sourceLinks.every((source) => source.href.startsWith('https://'))).toBe(true);
     expect(content.internalLinks.map((link) => link.to)).toEqual(expect.arrayContaining([
-      '/mesh-banners',
-      '/trade-show-banners',
-      '/event-banners',
+      '/blog/vinyl-vs-mesh-banners-guide',
+      '/trade-shows',
+      '/blog/perfect-banner-size-guide',
       '/blog/grand-opening-banner-ideas',
     ]));
   });
