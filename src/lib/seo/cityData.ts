@@ -413,13 +413,17 @@ export function buildCityProductPageContent(productSlug: CityProductSlug, city: 
       { label: 'Artwork and order FAQs', to: '/faq', description: 'Check file, preview, return, and cancellation policies before ordering.' },
       ...(editorial?.internalLinks || []),
     ],
-    siblingProductLinks: (Object.keys(PRODUCT_LANDING_DATA) as CityProductSlug[])
-      .filter((slug) => slug !== productSlug && evaluateLocalPagePublishGate(slug, city).indexable)
-      .map((slug) => ({ label: `${PRODUCT_LANDING_DATA[slug].plural} shipped to ${cityState}`, to: `/${slug}/${city.slug}` })),
-    nearbyCityLinks: city.nearbyCitySlugs
-      .map((slug) => CITY_BY_SLUG.get(slug))
-      .filter((nearby): nearby is CityEntry => Boolean(nearby && evaluateLocalPagePublishGate(productSlug, nearby).indexable))
-      .map((nearby) => ({ label: `${product.plural} shipped to ${nearby.city}, ${nearby.state}`, to: `/${productSlug}/${nearby.slug}` })),
+    siblingProductLinks: gate.indexable
+      ? (Object.keys(PRODUCT_LANDING_DATA) as CityProductSlug[])
+          .filter((slug) => slug !== productSlug && evaluateLocalPagePublishGate(slug, city).indexable)
+          .map((slug) => ({ label: `${PRODUCT_LANDING_DATA[slug].plural} shipped to ${cityState}`, to: `/${slug}/${city.slug}` }))
+      : [],
+    nearbyCityLinks: gate.indexable
+      ? city.nearbyCitySlugs
+          .map((slug) => CITY_BY_SLUG.get(slug))
+          .filter((nearby): nearby is CityEntry => Boolean(nearby && evaluateLocalPagePublishGate(productSlug, nearby).indexable))
+          .map((nearby) => ({ label: `${product.plural} shipped to ${nearby.city}, ${nearby.state}`, to: `/${productSlug}/${nearby.slug}` }))
+      : [],
     configuratorUrl,
   };
 }
