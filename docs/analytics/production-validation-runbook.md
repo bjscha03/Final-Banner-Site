@@ -15,7 +15,7 @@ On the preview storefront, verify:
 
 - The preview gate works.
 - Home, product, design, cart, checkout, blog, city, and political pages render.
-- Retired campaign and proof URLs redirect to `/custom-banners`; their payment functions return 404 because they are no longer deployed.
+- Retired campaign and proof URLs redirect to `/custom-banners`; the old function names return unconditional 410 Gone responses from logic-free tombstones.
 - No requests are made to Google tag, GA4, Meta, Clarity, Contentsquare, LinkedIn Insight, or PostHog.
 - window.dataLayer, window.gtag, and window.fbq are not created.
 - /admin and descendants also load no analytics.
