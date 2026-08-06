@@ -71,6 +71,11 @@ describe('local page publication controls', () => {
       '/blog/perfect-banner-size-guide',
       '/blog/grand-opening-banner-ideas',
     ]));
+    expect(content.internalLinks.map((link) => link.to)).not.toEqual(expect.arrayContaining([
+      '/mesh-banners',
+      '/trade-show-banners',
+      '/event-banners',
+    ]));
   });
 
   it('does not expose published-city links from an unpublished local page', () => {
