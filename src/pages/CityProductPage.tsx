@@ -208,7 +208,12 @@ const CityProductPage: React.FC<CityProductPageProps> = ({ productSlug }) => {
 
             <div className="mt-12">
               <h3 className="font-display text-2xl font-bold text-[#0B1F3A]">Choose a banner material for the Louisville setting</h3>
-              <div className="mt-5 overflow-x-auto border border-slate-200">
+              <div
+                className="mt-5 overflow-x-auto border border-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF6A00]"
+                role="region"
+                aria-label="Louisville banner material comparison"
+                tabIndex={0}
+              >
                 <table className="w-full min-w-[720px] border-collapse text-left text-sm">
                   <thead className="bg-[#0B1F3A] text-white">
                     <tr>
