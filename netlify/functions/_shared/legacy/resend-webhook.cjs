@@ -1,15 +1,29 @@
 // netlify/functions/resend-webhook.js
-const crypto = require('crypto');
 const { neon } = require('@neondatabase/serverless');
+const { Resend } = require('resend');
 
-function verify(sig, raw) {
+function header(event, name) {
+  const headers = event?.headers || {};
+  return headers[name] || headers[name.toLowerCase()] || headers[name.toUpperCase()] || '';
+}
+
+function verify(event, raw) {
   const secret = process.env.RESEND_WEBHOOK_SECRET;
-  if (!secret || !sig) return false;
-  const expected = crypto.createHmac('sha256', secret).update(raw).digest('hex');
+  if (!secret) return null;
+  const signatureHeaders = {
+    id: String(header(event, 'svix-id')),
+    timestamp: String(header(event, 'svix-timestamp')),
+    signature: String(header(event, 'svix-signature')),
+  };
+  if (Object.values(signatureHeaders).some((value) => !value)) return null;
   try {
-    return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
+    return new Resend().webhooks.verify({
+      payload: raw,
+      headers: signatureHeaders,
+      webhookSecret: secret,
+    });
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -18,14 +32,13 @@ exports.handler = async (event) => {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
-  const raw = event.body || '';
-  const sig = event.headers['x-resend-signature'] || event.headers['X-Resend-Signature'];
-
-  if (!verify(sig, raw)) {
+  const raw = event.isBase64Encoded
+    ? Buffer.from(String(event.body || ''), 'base64').toString('utf8')
+    : String(event.body || '');
+  const evt = verify(event, raw);
+  if (!evt) {
     return { statusCode: 401, body: JSON.stringify({ ok: false, error: 'BAD_SIGNATURE' }) };
   }
-
-  const evt = JSON.parse(raw);
   const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
   const db = neon(dbUrl);
 
@@ -73,11 +86,14 @@ exports.handler = async (event) => {
     let orderId = null;
     let emailTypeTag = null;
     if (evt.data && evt.data.tags) {
-      const orderIdTag = evt.data.tags.find(tag => tag.name === 'order_id');
+      const tags = Array.isArray(evt.data.tags)
+        ? evt.data.tags
+        : Object.entries(evt.data.tags).map(([name, value]) => ({ name, value }));
+      const orderIdTag = tags.find(tag => tag.name === 'order_id');
       if (orderIdTag && orderIdTag.value) {
         orderId = orderIdTag.value;
       }
-      const typeTag = evt.data.tags.find(tag => tag.name === 'type');
+      const typeTag = tags.find(tag => tag.name === 'type');
       if (typeTag && typeTag.value) {
         emailTypeTag = typeTag.value;
       }
@@ -152,4 +168,3 @@ exports.handler = async (event) => {
 
   return { statusCode: 200, body: 'ok' };
 };
-

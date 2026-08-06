@@ -47,10 +47,12 @@ interface SendHistory {
   discount_code: string;
   sending_admin_email: string | null;
   resend_message_id: string | null;
-  status: 'processing' | 'sent' | 'error';
+  status: 'processing' | 'sent' | 'error' | 'unsubscribed' | 'complained' | 'bounced' | 'suppressed';
   error_message: string | null;
   created_at: string;
   sent_at: string | null;
+  unsubscribed_at: string | null;
+  complained_at: string | null;
 }
 
 const endpoint = '/.netlify/functions/admin-trade-show-emails';
@@ -65,6 +67,16 @@ function StatusBadge({ status }: { status: EventSummary['emailTemplateStatus'] }
   return status === 'Ready'
     ? <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">Ready</Badge>
     : <Badge variant="secondary">Inactive</Badge>;
+}
+
+function SendStatusBadge({ status }: { status: SendHistory['status'] }) {
+  if (status === 'sent') return <Badge className="bg-emerald-100 text-emerald-800">Sent</Badge>;
+  if (status === 'unsubscribed') return <Badge className="bg-amber-100 text-amber-900">Unsubscribed</Badge>;
+  if (status === 'complained') return <Badge className="bg-red-100 font-black text-red-900">Spam complaint</Badge>;
+  if (status === 'bounced') return <Badge className="bg-red-100 text-red-900">Bounced</Badge>;
+  if (status === 'suppressed') return <Badge className="bg-red-100 text-red-900">Suppressed</Badge>;
+  if (status === 'error') return <Badge className="bg-red-100 text-red-800">Error</Badge>;
+  return <Badge variant="secondary">Processing</Badge>;
 }
 
 function TemplateList({ events, loading, error }: { events: EventSummary[]; loading: boolean; error: string }) {
@@ -281,7 +293,7 @@ function TemplateDetail({ event, history, reload }: { event: EventSummary; histo
                 <div key={item.id} className="grid gap-2 px-5 py-4 text-sm lg:grid-cols-[1fr_1.1fr_130px_180px] lg:items-center">
                   <div><p className="font-bold text-slate-900">{item.exhibitor_name}</p><p className="text-slate-500">{item.recipient_email}</p></div>
                   <p className="truncate text-slate-600" title={item.subject}>{item.subject}</p>
-                  <div>{item.status === 'sent' ? <Badge className="bg-emerald-100 text-emerald-800">Sent</Badge> : item.status === 'error' ? <Badge className="bg-red-100 text-red-800">Error</Badge> : <Badge variant="secondary">Processing</Badge>}</div>
+                  <div><SendStatusBadge status={item.status} /></div>
                   <div className="text-xs text-slate-500"><p>{new Date(item.created_at).toLocaleString()}</p>{item.resend_message_id && <p className="truncate" title={item.resend_message_id}>ID: {item.resend_message_id}</p>}{item.error_message && <p className="text-red-700">{item.error_message}</p>}</div>
                 </div>
               ))}

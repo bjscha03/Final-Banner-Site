@@ -11,6 +11,12 @@ import {
   formatTradeShowDateRange,
 } from '../../src/lib/tradeShows/tradeShows.ts';
 import { buildTradeShowEmail } from '../../src/lib/tradeShows/tradeShowEmail.mjs';
+import {
+  buildTradeShowUnsubscribeUrl,
+  generateUnsubscribeToken,
+  hashUnsubscribeToken,
+  normalizeComplianceEmail,
+} from './_shared/trade-show-email-compliance.mjs';
 
 const JSON_HEADERS = {
   'Content-Type': 'application/json',
@@ -178,9 +184,7 @@ function normalizeExhibitorName(value) {
 }
 
 function normalizeEmail(value) {
-  const email = String(value || '').trim().toLowerCase();
-  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return null;
-  return email;
+  return normalizeComplianceEmail(value);
 }
 
 function normalizePromotionCode(value) {
@@ -215,7 +219,7 @@ async function handleList(sql, event) {
   const history = await sql`
     SELECT id, exhibitor_name, recipient_email, subject, discount_code,
            sending_admin_email, resend_message_id, status, error_message,
-           created_at, sent_at
+           created_at, sent_at, unsubscribed_at, complained_at
     FROM trade_show_email_activity
     WHERE trade_show_slug = ${slug}
     ORDER BY created_at DESC
@@ -270,17 +274,38 @@ async function handleSend(sql, event, session) {
   const codes = await ensureTradeShowCodes(sql);
   const promotion = codes.get(tradeShow.slug);
   if (!promotion?.is_active) return reply(409, { ok: false, error: 'This trade show email template is not active.' });
-  const email = buildTradeShowEmail({ event: tradeShow, exhibitorName, discountCode: promotion.code });
+  const suppressed = await sql`
+    SELECT reason
+    FROM trade_show_email_unsubscribes
+    WHERE normalized_email = ${recipientEmail}
+    LIMIT 1
+  `;
+  if (suppressed.length) {
+    return reply(409, {
+      ok: false,
+      suppressed: true,
+      error: 'This recipient has unsubscribed or is suppressed and cannot receive trade-show promotional emails.',
+    });
+  }
+  const unsubscribeToken = generateUnsubscribeToken();
+  const unsubscribeTokenHash = hashUnsubscribeToken(unsubscribeToken);
+  const unsubscribeUrl = buildTradeShowUnsubscribeUrl(unsubscribeToken);
+  const email = buildTradeShowEmail({
+    event: tradeShow,
+    exhibitorName,
+    discountCode: promotion.code,
+    unsubscribeUrl,
+  });
 
   const inserted = await sql`
     INSERT INTO trade_show_email_activity (
       trade_show_slug, trade_show_name, exhibitor_name, recipient_email,
       subject, discount_code, sending_admin_id, sending_admin_email,
-      status, idempotency_key
+      status, idempotency_key, unsubscribe_token_hash
     ) VALUES (
       ${tradeShow.slug}, ${tradeShow.name}, ${exhibitorName}, ${recipientEmail},
       ${email.subject}, ${promotion.code}, ${session.sub || null}, ${session.email || null},
-      'processing', ${requestKey}
+      'processing', ${requestKey}, ${unsubscribeTokenHash}
     )
     ON CONFLICT (idempotency_key) DO NOTHING
     RETURNING id
@@ -322,11 +347,15 @@ async function handleSend(sql, event, session) {
       subject: email.subject,
       html: email.html,
       text: email.text,
+      headers: {
+        'List-Unsubscribe': `<${unsubscribeUrl}>`,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+      },
       tags: [
         { name: 'type', value: 'trade_show_promotion' },
         { name: 'event_slug', value: tradeShow.slug.slice(0, 256) },
       ],
-    });
+    }, { idempotencyKey: `trade-show-email/${requestKey}`.slice(0, 256) });
     if (result?.error || !result?.data?.id) throw result?.error || new Error('Resend did not return a message ID.');
 
     await sql`
