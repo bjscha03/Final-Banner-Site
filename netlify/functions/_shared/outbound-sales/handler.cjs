@@ -98,6 +98,7 @@ function createHandlers(dependencies = {}) {
         openAIExecutionProductionBlocked: runtime.shadowPersonalizationProductionBlocked,
         emailSendingInstalled: true,
         emailSendingProductionBlocked: true,
+        emailSendingPolicyBlocked: true,
         scheduledAutomationInstalled: false,
         shadowAutomationInstalled: true,
         shadowAutomationProductionBlocked: runtime.automationProductionBlocked,

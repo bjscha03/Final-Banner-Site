@@ -11,6 +11,7 @@ The existing AI Banner Designer, checkout, payments, orders, transactional Resen
 - `OUTBOUND_SALES_ENABLED=false` by default.
 - Shadow Mode defaults on and the server rejects attempts to disable it.
 - Live Sending defaults off and `PHASE_ALLOWS_LIVE_SENDING=false` is a code-level lock.
+- Resend's current Acceptable Use Policy prohibits unsolicited cold outreach. A second code-level provider-policy lock prevents the dormant outbound Resend transport from becoming usable through live-send activation alone. Existing transactional Resend email is unaffected.
 - Production automation, discovery, OpenAI execution, reply ingestion, and reply-AI fallback are code-blocked even under hostile environment and database settings.
 - Automatic reply generation and automatic reply sending are unavailable.
 - No outbound schedule is registered in `netlify.toml`; the only schedule there is the pre-existing AI Banner Designer cleanup.
@@ -30,7 +31,7 @@ The data path is:
 5. Only eligible, changed research can enter personalization. A pinned outbound-only OpenAI client uses a strict structured-output schema, `store:false`, no tools, bounded input/output, a 30-second timeout, one bounded retry, an idempotency key, and database budget reservation.
 6. Deterministic rendering supplies the branded preview, signature, variant assignments, evidence validation, follow-up date, and content hash. The unchanged generation key is a cache hit.
 7. Shadow delivery planning spaces at most 30 previews within the configured business window and records exactly what would be sent. It performs no external action.
-8. The dormant sender has independent Resend configuration, idempotency, one-click unsubscribe, a physical-address footer, per-message Reply-To routing, suppression rechecks, daily counters, retries, and bounce/complaint/error circuit breakers. Its first assertion is the code-level live-send lock.
+8. The dormant sender has independent configuration, idempotency, one-click unsubscribe, a physical-address footer, per-message Reply-To routing, suppression rechecks, daily counters, retries, and bounce/complaint/error circuit breakers. Its first assertion is the code-level live-send lock; its Resend implementation has an additional provider-policy lock because Resend currently prohibits cold outreach.
 9. The isolated inbound handler verifies dedicated Resend webhook signatures. Deterministic reply rules run first; optional AI fallback is non-production-only for genuinely unclear replies. Suggested responses always require admin review and are never sent automatically.
 10. Attribution reads eligible paid-order facts and writes only outbound candidate/attribution records. Learning requires minimum samples, optimizes revenue and qualified outcomes, penalizes safety events, and preserves controlled exploration.
 

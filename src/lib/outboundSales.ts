@@ -116,6 +116,7 @@ export interface OutboundStatus {
     openAIExecutionProductionBlocked: boolean;
     emailSendingInstalled: boolean;
     emailSendingProductionBlocked: boolean;
+    emailSendingPolicyBlocked: boolean;
     scheduledAutomationInstalled: boolean;
     shadowAutomationInstalled: boolean;
     shadowAutomationProductionBlocked: boolean;

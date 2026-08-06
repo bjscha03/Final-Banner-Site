@@ -34,7 +34,13 @@ const { htmlToPlainText, retrieveReceivedEmail } = inbound;
 const { evaluateExperiment, assignWeightedVariant, recommendedAllocation } = experiments;
 const { planSendTimes, evaluateCircuitBreaker } = deliverySafety;
 const { seedAutomationCycle, handleDiscover } = automationModule;
-const { sendOutboundMessage, createUnsubscribeToken, tokenHash } = delivery;
+const {
+  sendOutboundMessage,
+  createUnsubscribeToken,
+  tokenHash,
+  assertOutboundDeliveryProviderApproved,
+  RESEND_COLD_OUTREACH_ALLOWED,
+} = delivery;
 const { createAutomationHandler, automationAuthorized } = automationHandlerModule;
 const { createAnalyticsHandler } = analyticsHandlerModule;
 const { selectProspectingKeywords } = strategyModule;
@@ -98,6 +104,11 @@ describe('complete subsystem production locks', () => {
     const transport = vi.fn();
     await expect(sendOutboundMessage({ runtime: { liveSendingAvailable: true }, controls: { liveSendingEnabled: true, shadowModeEnabled: false }, message: { generationStatus: 'generated', evidenceValidationStatus: 'passed', deliveryState: 'ready' }, contact: { sendEligible: true }, suppressions: [], circuitBreaker: { state: 'closed' }, transport })).rejects.toMatchObject({ code: 'LIVE_SENDING_PHASE_LOCKED' });
     expect(transport).not.toHaveBeenCalled();
+  });
+  it('keeps a second provider-policy lock independent of the live-send phase lock', () => {
+    expect(RESEND_COLD_OUTREACH_ALLOWED).toBe(false);
+    expect(() => assertOutboundDeliveryProviderApproved('resend')).toThrow(expect.objectContaining({ code: 'OUTBOUND_DELIVERY_PROVIDER_POLICY_BLOCKED' }));
+    expect(() => assertOutboundDeliveryProviderApproved('not-installed')).toThrow(expect.objectContaining({ code: 'OUTBOUND_DELIVERY_PROVIDER_UNSUPPORTED' }));
   });
   it('blocks the complete delivery worker before database or secret access', async () => {
     const sql = vi.fn(); const loadDailyCounters = vi.fn();

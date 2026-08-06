@@ -287,6 +287,7 @@ describe('admin-only fail-closed handlers', () => {
         openAIExecutionProductionBlocked: true,
         emailSendingInstalled: true,
         emailSendingProductionBlocked: true,
+        emailSendingPolicyBlocked: true,
         scheduledAutomationInstalled: false,
         replyAIFallbackInstalled: true,
         replyAIFallbackProductionBlocked: true,

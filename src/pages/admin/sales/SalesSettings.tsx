@@ -203,6 +203,10 @@ export default function SalesSettings() {
           </div>
         </section>
 
+        <section className="rounded-2xl border border-amber-300 bg-amber-50 p-5 text-amber-950">
+          <div className="flex gap-3"><ShieldAlert className="mt-0.5 h-5 w-5" /><div><h2 className="font-black">Outbound delivery provider compliance lock</h2><p className="mt-1 text-sm">Resend's current Acceptable Use Policy prohibits cold outreach. The outbound Resend transport is independently code-blocked unless written provider authorization is reviewed, or a compliant provider adapter is installed. Existing transactional Resend email is unchanged.</p></div></div>
+        </section>
+
         <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-950">
           <div className="flex gap-3"><PauseCircle className="mt-0.5 h-5 w-5" /><div><h2 className="font-black">Production-ready Shadow state</h2><p className="mt-1 text-sm">The full subsystem is implemented behind independent gates. Production provider, OpenAI, inbound, automation, and live-send execution remain code-blocked or disabled; no scheduler is registered and no automatic reply path exists.</p></div></div>
         </section>

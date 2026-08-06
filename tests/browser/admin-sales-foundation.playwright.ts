@@ -101,6 +101,7 @@ const safeStatus = {
     openAIExecutionProductionBlocked: true,
     emailSendingInstalled: false,
     emailSendingProductionBlocked: true,
+    emailSendingPolicyBlocked: true,
     scheduledAutomationInstalled: false,
     shadowAutomationInstalled: true,
     shadowAutomationProductionBlocked: true,
@@ -278,6 +279,8 @@ test('safe controls and the completed-system hard locks are visibly authoritativ
   await expect(page.getByLabel('Daily send limit')).toHaveValue('30');
   await expect(page.getByLabel('Monthly OpenAI stop')).toHaveValue('8');
   await expect(page.getByText('Apollo is test/staging-only, disabled by default, and has no browser-editable credential path.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Outbound delivery provider compliance lock' })).toBeVisible();
+  await expect(page.getByText("Resend's current Acceptable Use Policy prohibits cold outreach.", { exact: false })).toBeVisible();
 });
 
 test('Shadow Mode queue exposes grounded personalized copy, cost, and no-send state', async ({ page }) => {

@@ -5,6 +5,10 @@ const { assertLiveSendAllowed } = require('./delivery-safety.cjs');
 
 const SEND_TIMEOUT_MS = 15000;
 const MAX_SEND_ATTEMPTS = 3;
+// Resend's current Acceptable Use Policy prohibits unsolicited cold outreach.
+// This independent code lock must remain false unless a reviewed activation
+// change includes written provider authorization for this exact use case.
+const RESEND_COLD_OUTREACH_ALLOWED = false;
 
 function tokenHash(token) { return crypto.createHash('sha256').update(String(token)).digest('hex'); }
 
@@ -30,10 +34,26 @@ function createUnsubscribeToken({ messageId, contactId }, env = process.env) {
   return { token, hash: tokenHash(token) };
 }
 
+function assertOutboundDeliveryProviderApproved(provider = 'resend') {
+  if (provider !== 'resend') {
+    const error = new Error('The outbound delivery provider is not installed.');
+    error.code = 'OUTBOUND_DELIVERY_PROVIDER_UNSUPPORTED';
+    throw error;
+  }
+  if (!RESEND_COLD_OUTREACH_ALLOWED) {
+    const error = new Error('The configured provider is not approved for cold outreach.');
+    error.code = 'OUTBOUND_DELIVERY_PROVIDER_POLICY_BLOCKED';
+    throw error;
+  }
+}
+
 async function sendOutboundMessage(options) {
   // This assertion is intentionally first. With the checked-in phase lock set
   // to false, neither the Resend SDK nor any outbound credential is touched.
   assertLiveSendAllowed(options);
+  // This is intentionally separate from Shadow Mode/live activation so a
+  // future activation cannot bypass the provider-policy review.
+  assertOutboundDeliveryProviderApproved('resend');
   const apiKey = String(options.env?.OUTBOUND_RESEND_API_KEY || process.env.OUTBOUND_RESEND_API_KEY || '').trim();
   if (!apiKey) { const error = new Error('Dedicated outbound Resend is not configured.'); error.code = 'OUTBOUND_SEND_BLOCKED'; throw error; }
   const transport = options.transport || (() => {
@@ -75,4 +95,13 @@ async function sendOutboundMessage(options) {
   return { providerMessageId: result.data.id, latencyMs: Math.max(0, Date.now() - started) };
 }
 
-module.exports = { SEND_TIMEOUT_MS, MAX_SEND_ATTEMPTS, tokenHash, validatedUnsubscribeUrl, createUnsubscribeToken, sendOutboundMessage };
+module.exports = {
+  SEND_TIMEOUT_MS,
+  MAX_SEND_ATTEMPTS,
+  RESEND_COLD_OUTREACH_ALLOWED,
+  tokenHash,
+  validatedUnsubscribeUrl,
+  createUnsubscribeToken,
+  assertOutboundDeliveryProviderApproved,
+  sendOutboundMessage,
+};

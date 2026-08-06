@@ -46,6 +46,8 @@ const PUBLIC_ERROR_CODES = new Set([
   'INVALID_ANALYTICS_VIEW',
   'OUTBOUND_SEND_BLOCKED',
   'OUTBOUND_SEND_FAILED',
+  'OUTBOUND_DELIVERY_PROVIDER_POLICY_BLOCKED',
+  'OUTBOUND_DELIVERY_PROVIDER_UNSUPPORTED',
 ]);
 
 function redactSecretText(value) {
@@ -209,6 +211,8 @@ function safeFailure(error) {
     INVALID_ANALYTICS_VIEW: 400,
     OUTBOUND_SEND_BLOCKED: 409,
     OUTBOUND_SEND_FAILED: 502,
+    OUTBOUND_DELIVERY_PROVIDER_POLICY_BLOCKED: 409,
+    OUTBOUND_DELIVERY_PROVIDER_UNSUPPORTED: 503,
   };
   const statusCode = statusByCode[code] || 500;
   const messages = {
@@ -254,6 +258,8 @@ function safeFailure(error) {
     INVALID_ANALYTICS_VIEW: 'The requested analytics view is invalid.',
     OUTBOUND_SEND_BLOCKED: 'Outbound delivery is blocked by the safety controls.',
     OUTBOUND_SEND_FAILED: 'The dedicated outbound delivery provider rejected the request.',
+    OUTBOUND_DELIVERY_PROVIDER_POLICY_BLOCKED: 'The configured outbound delivery provider is not approved for cold outreach.',
+    OUTBOUND_DELIVERY_PROVIDER_UNSUPPORTED: 'A compliant outbound delivery provider is not installed.',
   };
   return json(statusCode, {
     ok: false,

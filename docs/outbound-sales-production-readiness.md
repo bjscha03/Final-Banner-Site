@@ -38,7 +38,7 @@ Create separate projects/accounts with least privilege and independent billing:
 - OpenAI: `OUTBOUND_OPENAI_API_KEY`, dedicated project, $10 provider-side monthly limit, local $8 stop. Do not reuse the AI Banner Designer key.
 - Licensed discovery: initially `OUTBOUND_APOLLO_API_KEY`; confirm the subscribed plan permits the intended internal business use and document the actual credit economics. Keep all other adapters disabled.
 - Email verification: select a licensed mailbox-verification provider, complete its data-processing/retention review, and install `OUTBOUND_EMAIL_VERIFICATION_API_KEY` only after its adapter is reviewed.
-- Resend: dedicated outbound project/key and verified outbound domain. Do not reuse transactional Resend credentials.
+- Delivery provider: Resend's Acceptable Use Policy dated May 28, 2026 explicitly prohibits unsolicited messages, including cold outreach. Do not install an outbound Resend key or activate its transport without written contractual authorization for this exact workflow. Otherwise select a licensed provider that permits compliant B2B outreach and add it behind the isolated delivery interface. Existing transactional Resend credentials and routes remain untouched.
 - Runtime: 32+ byte random unsubscribe and automation secrets, configured in the secret manager and rotated through a documented overlap procedure.
 
 The admin must show booleans only. A credential value appearing in HTML, JSON, JavaScript, source maps, audit rows, function logs, error trackers, analytics, or screenshots is a release blocker.
@@ -51,10 +51,10 @@ Before any live-send activation:
 - configure and verify SPF and DKIM; publish DMARC in monitoring mode, review reports, then tighten policy deliberately;
 - configure inbound MX/routing for the dedicated Reply-To domain and verify per-message `outbound-<message-id>@domain` correlation;
 - set `OUTBOUND_FROM_EMAIL`, `OUTBOUND_REPLY_TO_EMAIL`, the canonical HTTPS `URL`, and a valid physical postal address;
-- register the dedicated Resend delivery/inbound webhook and signature secret;
+- for the approved outbound provider, register isolated delivery/inbound webhooks and signature secrets;
 - validate one-click unsubscribe and human-readable footer links end to end;
 - document CAN-SPAM and applicable state/privacy requirements, data source licenses, suppression retention, and complaint handling with counsel/owner approval;
-- verify the Resend/Apollo/OpenAI account terms for the intended use before activation.
+- verify the delivery provider, Apollo, and OpenAI account terms for the intended use before activation. Resend is currently policy-blocked for cold outreach; its policy is <https://resend.com/legal/acceptable-use>.
 
 ## Shadow acceptance gate
 
@@ -98,5 +98,7 @@ Live activation is intentionally not a settings-only operation. A separate revie
 6. separately change the live-send and production-automation code locks;
 7. start below 30/day, confirm deliverability, then increase only within the hard ceiling;
 8. retain an immediate code/config rollback and Emergency Pause procedure.
+
+The activation pull request must also remove the provider-policy lock only after attaching written authorization from the selected delivery provider. Changing the live-send lock alone is intentionally insufficient.
 
 Until that activation PR is approved, production remains a monitoring-only, fail-closed shell.
