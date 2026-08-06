@@ -67,6 +67,12 @@ export const initializeCustomerAnalytics = (): boolean => {
   // Every page view is emitted by AnalyticsController. This prevents the
   // initial config hit from duplicating the explicit SPA page_view event.
   sendGtag('config', ANALYTICS_IDS.ga4, { send_page_view: false });
+  const googleAdsConversionId = import.meta.env.VITE_GOOGLE_ADS_CONVERSION_ID;
+  if (googleAdsConversionId) {
+    // Register the Ads destination before any conversion event. Page views
+    // remain owned by AnalyticsController, so this cannot duplicate them.
+    sendGtag('config', googleAdsConversionId, { send_page_view: false });
+  }
   addScriptOnce('botf-google-tag', `https://www.googletagmanager.com/gtag/js?id=${ANALYTICS_IDS.ga4}`);
 
   ensureMetaQueue();
