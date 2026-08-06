@@ -114,6 +114,51 @@
   status = 301
   force = true
 
+# Retired graduation/deposit functions must not fall through to the SPA shell.
+# Returning the site's 404 document also makes stale clients and monitors fail
+# closed instead of receiving a misleading HTTP 200 response.
+[[redirects]]
+  from = "/.netlify/functions/designer-intake-submit"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/.netlify/functions/graduation-proof-approve"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/.netlify/functions/graduation-proof-get"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/.netlify/functions/graduation-proof-request-edits"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/.netlify/functions/paypal-capture-design-deposit"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/.netlify/functions/paypal-capture-final-product"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/.netlify/functions/paypal-create-deposit-for-intake"
+  to = "/404.html"
+  status = 404
+  force = true
+
 # AI Banner Generator API redirects (must be before SPA fallback)
 [[redirects]]
   from = "/api/ai/generate-banner"
