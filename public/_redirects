@@ -11,13 +11,6 @@
 /graduation-signs/*   /custom-banners   301!
 /graduation-signs     /custom-banners   301!
 /proof/*              /custom-banners   301!
-/.netlify/functions/designer-intake-submit                 /404.html   404
-/.netlify/functions/graduation-proof-approve               /404.html   404
-/.netlify/functions/graduation-proof-get                   /404.html   404
-/.netlify/functions/graduation-proof-request-edits         /404.html   404
-/.netlify/functions/paypal-capture-design-deposit          /404.html   404
-/.netlify/functions/paypal-capture-final-product           /404.html   404
-/.netlify/functions/paypal-create-deposit-for-intake       /404.html   404
 
 # Product hubs and generated city pages are physical HTML files. Unknown
 # children under these namespaces must return a real 404 instead of the SPA.
