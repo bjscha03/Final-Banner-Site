@@ -30,6 +30,7 @@ The candidate branch fixes the source-controlled defects without enabling analyt
 - Standard ecommerce events are wired with cent-to-dollar conversion at a single boundary and unit item prices.
 - Paid production orders are loaded from the server and mapped through one canonical purchase path for normal PayPal-card, PayPal-wallet, and credit-card success flows.
 - PayPal sandbox orders are marked as test orders server-side and are blocked from GA4, Google Ads, Meta, and the production purchase-audit table.
+- When a Google Ads conversion ID is configured, the Google tag registers the Ads destination before the one-time purchase conversion is emitted. GA4 import must remain secondary unless the direct Ads conversion is intentionally disabled, preventing double-counting.
 - The retired seasonal campaign pages, cart items, proof routes, payment functions, emails, and order-processing branches were removed. Old URLs redirect to the custom-banner page, while stale cart items are purged and rejected server-side.
 - A device becomes permanently excluded from customer analytics after the application verifies an administrator account on that device. GA4 office-IP filtering remains required for internal devices that never authenticate.
 - The database total is the payment and analytics ledger. Service fees are added exactly once before persistence and processor validation.
