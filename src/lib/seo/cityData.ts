@@ -245,18 +245,18 @@ export const CITIES: CityEntry[] = [
         internalLinks: [
           {
             label: 'Mesh banners for exposed Louisville sites',
-            to: '/mesh-banners',
+            to: '/blog/vinyl-vs-mesh-banners-guide',
             description: 'Compare airflow-friendly mesh for fences, construction perimeters, and open event grounds.',
           },
           {
             label: 'Trade show banner planning',
-            to: '/trade-show-banners',
-            description: 'Plan booth backdrops, table-front graphics, sponsor displays, and aisle-facing messages.',
+            to: '/trade-shows',
+            description: 'Browse the current U.S. trade show calendar before planning booth graphics, sponsor displays, and aisle-facing messages.'
           },
           {
-            label: 'Event banner options',
-            to: '/event-banners',
-            description: 'Review banner ideas for entrances, schedules, sponsors, stages, vendors, and wayfinding.',
+            label: 'Event banner sizing guide',
+            to: '/blog/perfect-banner-size-guide',
+            description: 'Choose dimensions for entrances, schedules, sponsor displays, stages, vendors, and wayfinding.'
           },
           {
             label: 'Grand opening banner ideas',
