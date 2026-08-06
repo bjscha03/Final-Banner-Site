@@ -10,7 +10,7 @@ const routes = [
   { path: '/admin/sales/orders', label: 'Orders & Revenue', visibleText: 'Orders & Revenue Generated' },
   { path: '/admin/sales/performance', label: 'Performance', visibleText: 'Industry & Campaign Performance' },
   { path: '/admin/sales/costs', label: 'Cost Analytics', visibleText: 'Cost Analytics' },
-  { path: '/admin/sales/errors', label: 'Error Logs', visibleText: 'Error Logs' },
+  { path: '/admin/sales/errors', label: 'Error Logs', visibleText: 'Error Logs & Monitoring' },
   { path: '/admin/sales/settings', label: 'Settings', visibleText: 'Global controls' },
 ] as const;
 
