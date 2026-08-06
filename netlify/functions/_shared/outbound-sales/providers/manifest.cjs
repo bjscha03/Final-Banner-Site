@@ -1,5 +1,7 @@
 'use strict';
 
+const { hasDiscoveryAdapter } = require('./registry.cjs');
+
 // Adding a future provider means adding an adapter module and one manifest
 // entry; the queue, prospect schema, qualification, and admin APIs stay the same.
 const PROVIDER_MANIFEST = Object.freeze([
@@ -18,9 +20,12 @@ function getProviderConfigurationStatus(env = process.env, manifest = PROVIDER_M
     kind: provider.kind,
     acquisitionMode: provider.acquisitionMode,
     configured: typeof env[provider.secretEnvName] === 'string' && env[provider.secretEnvName].trim().length > 0,
-    adapterInstalled: provider.adapterInstalled === true,
+    adapterInstalled: provider.kind === 'discovery'
+      ? hasDiscoveryAdapter(provider.id)
+      : provider.adapterInstalled === true,
     executionScope: provider.executionScope || 'not_installed',
     executionAllowed: provider.executionScope === 'test_staging_only'
+      && (provider.kind !== 'discovery' || hasDiscoveryAdapter(provider.id))
       && ['test', 'dev', 'deploy-preview', 'branch-deploy'].includes(String(env.CONTEXT || (env.NODE_ENV === 'test' ? 'test' : '')).toLowerCase())
       && (env.NODE_ENV === 'test' || env.OUTBOUND_PHASE2_SHADOW_EXECUTION_ENABLED === 'true'),
     enabled: false,

@@ -35,6 +35,16 @@ const EXPECTED_PHASE2_COLUMNS = Object.freeze({
   outbound_research_snapshots: ['cache_status', 'content_bytes', 'content_type', 'extraction_version', 'final_url', 'http_etag', 'http_last_modified', 'http_status', 'page_manifest'],
   outbound_provider_usage: ['provider_credits', 'rate_limit_remaining', 'rate_limit_reset_at', 'request_key', 'usage_metadata'],
 });
+const EXPECTED_PHASE3_COLUMNS = Object.freeze({
+  outbound_settings: ['shadow_generation_enabled'],
+  outbound_prospects: ['last_personalized_at', 'personalization_content_hash', 'personalization_failure_code', 'personalization_state'],
+  outbound_messages: [
+    'actual_openai_cost_microusd', 'cached_input_tokens', 'content_hash', 'evidence_validation_status',
+    'generated_at', 'generation_error_code', 'generation_key', 'generation_metadata', 'generation_status',
+    'input_tokens', 'model', 'output_schema_version', 'output_tokens', 'prompt_version', 'research_content_hash',
+  ],
+  outbound_ai_usage: ['error_code', 'latency_ms', 'prompt_version', 'purpose', 'research_content_hash', 'usage_metadata'],
+});
 
 const EXPECTED_TRIGGERS = Object.freeze([
   'outbound_audit_log_immutable_trigger',
@@ -52,6 +62,7 @@ const CONFIRMATION = 'isolated-neon-preview';
 const MODES = new Set([
   '--apply', '--verify', '--rollback-cycle',
   '--phase2-apply', '--phase2-verify', '--phase2-rollback-cycle',
+  '--phase3-apply', '--phase3-verify', '--phase3-rollback-cycle',
 ]);
 
 function fail(message) {
@@ -86,7 +97,7 @@ function validateTarget(databaseUrl) {
     fail(`Set OUTBOUND_TEST_DATABASE_CONFIRMATION=${CONFIRMATION} for an isolated preview branch.`);
   }
   const branchLabel = String(process.env.OUTBOUND_TEST_BRANCH_LABEL || '').trim();
-  if (!/(preview|staging|test|phase[-_ ]?[12])/i.test(branchLabel)) {
+  if (!/(preview|staging|test|phase[-_ ]?[123])/i.test(branchLabel)) {
     fail('OUTBOUND_TEST_BRANCH_LABEL must identify an isolated preview or staging branch.');
   }
 
@@ -218,19 +229,24 @@ async function legacyCatalogSnapshot(sql) {
 }
 
 async function legacyRowCounts(sql) {
-  const tables = await sql(`
-    SELECT tablename
-      FROM pg_tables
-     WHERE schemaname = 'public'
-       AND tablename NOT LIKE 'outbound\\_%' ESCAPE '\\'
+  // One server-side statement avoids dozens of HTTP round trips while still
+  // obtaining exact counts. format(%I) quotes catalog-sourced identifiers.
+  const rows = await sql(`
+    WITH legacy_tables AS (
+      SELECT tablename
+        FROM pg_tables
+       WHERE schemaname = 'public'
+         AND tablename NOT LIKE 'outbound\\_%' ESCAPE '\\'
+    )
+    SELECT tablename,
+           ((xpath('//row_count/text()', query_to_xml(
+             format('SELECT COUNT(*) AS row_count FROM public.%I', tablename),
+             FALSE, TRUE, ''
+           )))[1]::text) AS row_count
+      FROM legacy_tables
      ORDER BY tablename
   `);
-  const result = [];
-  for (const { tablename } of tables) {
-    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tablename)) fail('Unsafe legacy table identifier.');
-    const rows = await sql(`SELECT COUNT(*)::text AS row_count FROM public."${tablename}"`);
-    result.push({ table: tablename, rowCount: rows[0]?.row_count || '0' });
-  }
+  const result = rows.map((row) => ({ table: row.tablename, rowCount: row.row_count || '0' }));
   return { count: result.length, hash: hashRows(result) };
 }
 
@@ -391,6 +407,34 @@ async function verifyPhase2Catalog(sql, combinedMigrationSql) {
   return { ...base, phase2Columns: Object.values(EXPECTED_PHASE2_COLUMNS).flat().length, apolloDisabled: true };
 }
 
+async function verifyPhase3Catalog(sql, combinedMigrationSql) {
+  const base = await verifyPhase2Catalog(sql, combinedMigrationSql);
+  const columns = await sql(`
+    SELECT c.relname AS table_name, a.attname AS column_name
+      FROM pg_attribute a
+      JOIN pg_class c ON c.oid = a.attrelid
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE n.nspname = 'public'
+       AND c.relname = ANY($1::text[])
+       AND a.attnum > 0 AND NOT a.attisdropped
+     ORDER BY c.relname, a.attname
+  `, [Object.keys(EXPECTED_PHASE3_COLUMNS)]);
+  const present = new Map();
+  for (const row of columns) {
+    if (!present.has(row.table_name)) present.set(row.table_name, new Set());
+    present.get(row.table_name).add(row.column_name);
+  }
+  for (const [table, expected] of Object.entries(EXPECTED_PHASE3_COLUMNS)) {
+    const missing = expected.filter((column) => !present.get(table)?.has(column));
+    if (missing.length) fail(`Missing Phase 3 columns on ${table}: ${missing.join(', ')}.`);
+  }
+  const settings = await sql(`SELECT shadow_generation_enabled FROM outbound_settings WHERE id = 1`);
+  if (settings.length !== 1 || settings[0].shadow_generation_enabled !== false) {
+    fail('Shadow personalization must default to disabled.');
+  }
+  return { ...base, phase3Columns: Object.values(EXPECTED_PHASE3_COLUMNS).flat().length, shadowGenerationDisabled: true };
+}
+
 async function verifyPhase2Behavior(sql) {
   const marker = crypto.randomUUID();
   const prospectRows = await sql(
@@ -461,22 +505,92 @@ async function verifyPhase2Behavior(sql) {
   return { canonicalProspectSources: 2, sendEligibleDefault: false, deterministicStatusAudit: true };
 }
 
+function expectedColumnPairs(expectedColumns) {
+  return Object.entries(expectedColumns).flatMap(([tableName, columns]) => (
+    columns.map((columnName) => ({ tableName, columnName }))
+  ));
+}
+
+async function additiveColumnsStillPresent(sql, expectedColumns) {
+  const pairs = expectedColumnPairs(expectedColumns);
+  return sql(`
+    WITH expected(table_name, column_name) AS (
+      SELECT * FROM UNNEST($1::text[], $2::text[])
+    )
+    SELECT c.relname AS table_name, a.attname AS column_name
+      FROM expected e
+      JOIN pg_namespace n ON n.nspname = 'public'
+      JOIN pg_class c ON c.relnamespace = n.oid AND c.relname = e.table_name
+      JOIN pg_attribute a ON a.attrelid = c.oid AND a.attname = e.column_name
+     WHERE a.attnum > 0 AND NOT a.attisdropped
+     ORDER BY c.relname, a.attname
+  `, [pairs.map((pair) => pair.tableName), pairs.map((pair) => pair.columnName)]);
+}
+
 async function assertPhase2RolledBack(sql) {
   const tables = await sql(`SELECT to_regclass('public.outbound_prospect_sources') AS source_table`);
   if (tables[0]?.source_table !== null) fail('Phase 2 rollback left outbound_prospect_sources.');
-  const columns = await sql(`
-    SELECT c.relname AS table_name, a.attname AS column_name
-      FROM pg_attribute a
-      JOIN pg_class c ON c.oid = a.attrelid
-      JOIN pg_namespace n ON n.oid = c.relnamespace
-     WHERE n.nspname = 'public'
-       AND c.relname = ANY($1::text[])
-       AND a.attname = ANY($2::text[])
-       AND a.attnum > 0 AND NOT a.attisdropped
-  `, [Object.keys(EXPECTED_PHASE2_COLUMNS), Object.values(EXPECTED_PHASE2_COLUMNS).flat()]);
+  const columns = await additiveColumnsStillPresent(sql, EXPECTED_PHASE2_COLUMNS);
   if (columns.length) fail(`Phase 2 rollback left ${columns.length} additive columns.`);
   const provider = await sql(`SELECT 1 FROM outbound_provider_configs WHERE provider_id = 'apollo'`);
   if (provider.length) fail('Phase 2 rollback left the disabled Apollo configuration row.');
+}
+
+async function verifyPhase3Behavior(sql) {
+  const marker = crypto.randomUUID();
+  const prospects = await sql(
+    `INSERT INTO outbound_prospects (
+       source_provider_id, source_record_id, business_name, normalized_business_name,
+       dedupe_fingerprint, canonical_domain, website_url
+     ) VALUES ('licensed_fixture', $1, 'Phase 3 Validation', 'phase 3 validation', $2, $3, $4)
+     RETURNING id, personalization_state`,
+    [`phase3-${marker}`, `domain:phase3-${marker}.example.com`, `phase3-${marker}.example.com`, `https://phase3-${marker}.example.com`],
+  );
+  const prospect = prospects[0];
+  if (prospect.personalization_state !== 'pending') fail('Phase 3 personalization state does not default to pending.');
+  const generationKey = `personalization:${crypto.createHash('sha256').update(marker).digest('hex')}`;
+  const messages = await sql(
+    `INSERT INTO outbound_messages (prospect_id, generation_key, generation_status)
+     VALUES ($1, $2, 'generating')
+     RETURNING id, status, generation_status, input_tokens, cached_input_tokens, output_tokens,
+               evidence_validation_status, resend_message_id, sent_at`,
+    [prospect.id, generationKey],
+  );
+  const message = messages[0];
+  if (message.status !== 'draft' || message.generation_status !== 'generating'
+      || Number(message.input_tokens) !== 0 || Number(message.cached_input_tokens) !== 0
+      || Number(message.output_tokens) !== 0 || message.evidence_validation_status !== 'pending'
+      || message.resend_message_id !== null || message.sent_at !== null) {
+    fail('Phase 3 message defaults are not Shadow-Mode safe.');
+  }
+  let duplicateRejected = false;
+  try {
+    await sql(
+      `INSERT INTO outbound_messages (prospect_id, message_kind, generation_key)
+       VALUES ($1, 'follow_up', $2)`,
+      [prospect.id, generationKey],
+    );
+  } catch (error) {
+    duplicateRejected = error?.code === '23505';
+  }
+  if (!duplicateRejected) fail('Phase 3 generation keys are not unique.');
+  await sql(`DELETE FROM outbound_messages WHERE id = $1`, [message.id]);
+  await sql(`DELETE FROM outbound_prospects WHERE id = $1`, [prospect.id]);
+  return { shadowMessageDefaults: true, generationKeyUnique: true, externalDeliveryFieldsEmpty: true };
+}
+
+async function assertPhase3RolledBack(sql) {
+  const columns = await additiveColumnsStillPresent(sql, EXPECTED_PHASE3_COLUMNS);
+  if (columns.length) fail(`Phase 3 rollback left ${columns.length} additive columns.`);
+  const indexes = await sql(`
+    SELECT indexname FROM pg_indexes
+     WHERE schemaname = 'public'
+       AND indexname = ANY($1::text[])
+  `, [[
+    'outbound_ai_usage_prospect_idx', 'outbound_messages_shadow_generation_idx',
+    'outbound_messages_generation_key_uidx', 'outbound_prospects_personalization_queue_idx',
+  ]]);
+  if (indexes.length) fail(`Phase 3 rollback left ${indexes.length} indexes.`);
 }
 
 async function verifyBehavior(sql) {
@@ -543,9 +657,13 @@ async function main() {
   const rollbackSql = fs.readFileSync(path.join(__dirname, '../migrations/021_outbound_sales_foundation.rollback.sql'), 'utf8');
   const phase2MigrationSql = fs.readFileSync(path.join(__dirname, '../migrations/022_outbound_discovery_qualification.sql'), 'utf8');
   const phase2RollbackSql = fs.readFileSync(path.join(__dirname, '../migrations/022_outbound_discovery_qualification.rollback.sql'), 'utf8');
-  const phase2 = mode.startsWith('--phase2-');
-  const operation = phase2 ? `--${mode.slice('--phase2-'.length)}` : mode;
-  const effectiveMigrationSql = phase2 ? `${migrationSql}\n${phase2MigrationSql}` : migrationSql;
+  const phase3MigrationSql = fs.readFileSync(path.join(__dirname, '../migrations/023_outbound_shadow_personalization.sql'), 'utf8');
+  const phase3RollbackSql = fs.readFileSync(path.join(__dirname, '../migrations/023_outbound_shadow_personalization.rollback.sql'), 'utf8');
+  const phase = mode.startsWith('--phase3-') ? 3 : mode.startsWith('--phase2-') ? 2 : 1;
+  const operation = phase === 3 ? `--${mode.slice('--phase3-'.length)}`
+    : phase === 2 ? `--${mode.slice('--phase2-'.length)}` : mode;
+  const effectiveMigrationSql = phase === 3 ? `${migrationSql}\n${phase2MigrationSql}\n${phase3MigrationSql}`
+    : phase === 2 ? `${migrationSql}\n${phase2MigrationSql}` : migrationSql;
   const { neon } = await import('@neondatabase/serverless');
   const sql = neon(target.databaseUrl);
 
@@ -561,23 +679,29 @@ async function main() {
 
   if (operation === '--apply' || operation === '--rollback-cycle') {
     await executeTransactionalSql(sql, migrationSql, 'Migration 021');
-    if (phase2) await executeTransactionalSql(sql, phase2MigrationSql, 'Migration 022');
+    if (phase >= 2) await executeTransactionalSql(sql, phase2MigrationSql, 'Migration 022');
+    if (phase >= 3) await executeTransactionalSql(sql, phase3MigrationSql, 'Migration 023');
   }
-  const firstValidation = phase2
-    ? await verifyPhase2Catalog(sql, effectiveMigrationSql)
-    : await verifyOutboundCatalog(sql, migrationSql);
-  const behavior = phase2 ? await verifyPhase2Behavior(sql) : await verifyBehavior(sql);
+  const firstValidation = phase === 3 ? await verifyPhase3Catalog(sql, effectiveMigrationSql)
+    : phase === 2 ? await verifyPhase2Catalog(sql, effectiveMigrationSql)
+      : await verifyOutboundCatalog(sql, migrationSql);
+  const behavior = phase === 3 ? await verifyPhase3Behavior(sql)
+    : phase === 2 ? await verifyPhase2Behavior(sql) : await verifyBehavior(sql);
 
   const legacyAfterApply = await legacyCatalogSnapshot(sql);
   const rowsAfterApply = await legacyRowCounts(sql);
   if (legacyAfterApply.hash !== legacyBefore.hash || rowsAfterApply.hash !== rowsBefore.hash) {
-    fail(`Migration ${phase2 ? '021/022' : '021'} changed the catalog or row counts of a legacy table.`);
+    fail(`Migration ${phase === 3 ? '021/022/023' : phase === 2 ? '021/022' : '021'} changed the catalog or row counts of a legacy table.`);
   }
 
   let rollback = null;
   let finalValidation = firstValidation;
   if (operation === '--rollback-cycle') {
-    if (phase2) {
+    if (phase === 3) {
+      await executeTransactionalSql(sql, phase3RollbackSql, 'Migration 023 rollback');
+      await assertPhase3RolledBack(sql);
+      await verifyPhase2Catalog(sql, `${migrationSql}\n${phase2MigrationSql}`);
+    } else if (phase === 2) {
       await executeTransactionalSql(sql, phase2RollbackSql, 'Migration 022 rollback');
       await assertPhase2RolledBack(sql);
       await verifyOutboundCatalog(sql, migrationSql);
@@ -591,7 +715,11 @@ async function main() {
       fail('Rollback changed the catalog or row counts of a legacy table.');
     }
 
-    if (phase2) {
+    if (phase === 3) {
+      await executeTransactionalSql(sql, phase3MigrationSql, 'Migration 023');
+      finalValidation = await verifyPhase3Catalog(sql, effectiveMigrationSql);
+      rollback = { removedEveryPhase3Object: true, phase2ObjectsPreserved: true, migrationReapplied: true };
+    } else if (phase === 2) {
       await executeTransactionalSql(sql, phase2MigrationSql, 'Migration 022');
       finalValidation = await verifyPhase2Catalog(sql, effectiveMigrationSql);
       rollback = { removedEveryPhase2Object: true, phase1ObjectsPreserved: true, migrationReapplied: true };
@@ -613,7 +741,7 @@ async function main() {
       writable: true,
     },
     catalog: finalValidation,
-    phase: phase2 ? 2 : 1,
+    phase,
     behavior,
     legacyIsolation: {
       catalogObjectsCompared: legacyBefore.count,
@@ -631,3 +759,5 @@ if (require.main === module) {
     process.exitCode = 1;
   });
 }
+
+module.exports = { expectedColumnPairs };

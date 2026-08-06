@@ -27,7 +27,7 @@ function assertShadowExecutionAllowed(env = process.env) {
     throw error;
   }
   if (context === 'production') {
-    const error = new Error('Licensed discovery execution is blocked in production during Phase 2.');
+    const error = new Error('Licensed discovery execution is blocked outside an approved non-production validation context.');
     error.code = 'PROVIDER_EXECUTION_CONTEXT_BLOCKED';
     throw error;
   }
