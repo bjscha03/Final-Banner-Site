@@ -192,6 +192,8 @@ export interface DiscountCode {
   discountPercentage: number;
   discountAmountCents: number | null;
   expiresAt: string;
+  source?: 'new_customer' | 'trade_show' | 'discount_codes';
+  tradeShowSlug?: string;
 }
 
 export interface CartState {

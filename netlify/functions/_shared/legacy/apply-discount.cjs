@@ -28,6 +28,30 @@ exports.handler = async (event, context) => {
     const normalizedEmail = email ? email.toLowerCase() : null;
     console.log('[apply-discount] Applying:', { code: normalizedCode, orderId, userId, email: normalizedEmail });
 
+    // Trade-show promotions are stable, reusable event codes. The order row
+    // records the applied code; the shared event code itself is never consumed.
+    try {
+      const tradeShowCodes = await sql`
+        SELECT code, discount_percentage
+        FROM trade_show_promo_codes
+        WHERE UPPER(code) = ${normalizedCode} AND is_active = TRUE
+        LIMIT 1
+      `;
+      if (tradeShowCodes.length) {
+        return {
+          statusCode: 200, headers,
+          body: JSON.stringify({
+            success: true,
+            code: String(tradeShowCodes[0].code).toUpperCase(),
+            discountPercentage: Number(tradeShowCodes[0].discount_percentage),
+            discountAmountCents: null,
+          }),
+        };
+      }
+    } catch (error) {
+      if (error?.code !== '42P01') throw error;
+    }
+
     // SPECIAL HANDLING: NEW20 is a hardcoded first-order-only promo code
     // It's not in the database, so we handle it as a special case
     if (normalizedCode === 'NEW20') {
@@ -133,4 +157,3 @@ exports.handler = async (event, context) => {
     return { statusCode: 500, headers, body: JSON.stringify({ error: error.message }) };
   }
 };
-

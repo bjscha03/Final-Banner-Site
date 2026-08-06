@@ -861,7 +861,7 @@ exports.handler = async (event) => {
           return itemRows.reduce((sum, item) => sum + item.line_total_cents, 0);
         },
         discountCents: order.applied_discount_cents || 0,
-        discountLabel: order.applied_discount_label || "",
+        discountLabel: order.applied_discount_label || (order.discount_code ? `Promo: ${order.discount_code}` : ""),
         discountType: order.applied_discount_type || "none",
         // Same-Day Hit Service fields
         sameDayHitService: !!order.same_day_hit_service,

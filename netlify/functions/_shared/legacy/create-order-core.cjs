@@ -11,6 +11,7 @@ const {
   getEasternTimeParts,
 } = require('../sameDayService.cjs');
 const { addPostTaxServiceFees } = require('../order-total-reconciliation.cjs');
+const { validateDiscountForCheckout } = require('../discount-validation.cjs');
 
 // Guard: only treat a value as a "real" authenticated user id if it is a
 // proper non-zero UUID. Placeholder values like the all-zero UUID, the
@@ -840,6 +841,31 @@ exports.handler = async (event, context) => {
         shippingMethodLabel: flags.shippingMethodLabel
       };
 
+      // Resolve the promotion from Neon using only the submitted code. Never
+      // trust a browser-supplied percentage or fixed amount when calculating
+      // the amount that will be persisted and charged.
+      if (orderData.discountCode?.code) {
+        const authoritativeDiscount = await validateDiscountForCheckout({
+          sql,
+          code: orderData.discountCode.code,
+          email: orderData.email || null,
+          userId: isRealUserId(orderData.user_id) ? orderData.user_id : null,
+        });
+        if (!authoritativeDiscount.valid) {
+          return {
+            statusCode: 400,
+            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+            body: JSON.stringify({
+              error: authoritativeDiscount.error || 'Invalid discount code',
+              code: 'DISCOUNT_CODE_INVALID',
+            }),
+          };
+        }
+        orderData.discountCode = authoritativeDiscount.discount;
+      } else {
+        orderData.discountCode = null;
+      }
+
       // Recalculate totals from line items
       const recalculatedTotals = computeTotals(orderData.items || [], taxRate, pricingOptions, orderData.discountCode || null);
 
@@ -1141,8 +1167,8 @@ exports.handler = async (event, context) => {
     }
 
     const orderResult = await sql`
-      INSERT INTO orders (id, user_id, email, customer_name, customer_first_name, subtotal_cents, tax_cents, total_cents, status, paypal_order_id, paypal_capture_id, stripe_payment_intent_id, payment_method, checkout_idempotency_key, payment_reconciliation_status, shipping_name, shipping_street, shipping_street2, shipping_city, shipping_state, shipping_zip, shipping_country, applied_discount_cents, applied_discount_label, applied_discount_type, same_day_hit_service, saturday_delivery, same_day_fee_cents, saturday_fee_cents, order_timestamp_et, same_day_qualified, is_test_order, test_order_reason, google_click_id, gbraid, wbraid, landing_page, referrer, utm_source, utm_medium, utm_campaign, utm_term, utm_content, consent_status)
-      VALUES (${orderId}, ${finalUserId}, ${userEmail}, ${orderData.customer_name || null}, ${orderData.customer_first_name || null}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, ${requestedStatus}, ${orderData.paypal_order_id || null}, ${orderData.paypal_capture_id || null}, ${orderData.stripe_payment_intent_id || null}, ${orderData.payment_method || (orderData.stripe_payment_intent_id ? 'stripe' : (orderData.paypal_order_id ? 'paypal' : null))}, ${orderData.checkout_idempotency_key || null}, ${requestedStatus === 'pending' ? 'awaiting_capture' : 'not_required'}, ${orderData.shipping_name || null}, ${orderData.shipping_street || null}, ${orderData.shipping_street2 || null}, ${orderData.shipping_city || null}, ${orderData.shipping_state || null}, ${orderData.shipping_zip || null}, ${orderData.shipping_country || 'US'}, ${orderData.applied_discount_cents || 0}, ${orderData.applied_discount_label || ''}, ${orderData.applied_discount_type || 'none'}, ${orderSameDayHitService}, ${orderSaturdayDelivery}, ${orderSameDayFeeCents}, ${orderSaturdayFeeCents}, ${orderTimestampEt.display}, ${orderSameDayQualified}, ${orderData.is_test_order === true}, ${orderData.test_order_reason || null}, ${attribution.google_click_id}, ${attribution.gbraid}, ${attribution.wbraid}, ${attribution.landing_page}, ${attribution.referrer}, ${attribution.utm_source}, ${attribution.utm_medium}, ${attribution.utm_campaign}, ${attribution.utm_term}, ${attribution.utm_content}, ${attribution.consent_status})
+      INSERT INTO orders (id, user_id, email, customer_name, customer_first_name, subtotal_cents, tax_cents, total_cents, status, paypal_order_id, paypal_capture_id, stripe_payment_intent_id, payment_method, checkout_idempotency_key, payment_reconciliation_status, shipping_name, shipping_street, shipping_street2, shipping_city, shipping_state, shipping_zip, shipping_country, discount_code, applied_discount_cents, applied_discount_label, applied_discount_type, same_day_hit_service, saturday_delivery, same_day_fee_cents, saturday_fee_cents, order_timestamp_et, same_day_qualified, is_test_order, test_order_reason, google_click_id, gbraid, wbraid, landing_page, referrer, utm_source, utm_medium, utm_campaign, utm_term, utm_content, consent_status)
+      VALUES (${orderId}, ${finalUserId}, ${userEmail}, ${orderData.customer_name || null}, ${orderData.customer_first_name || null}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, ${requestedStatus}, ${orderData.paypal_order_id || null}, ${orderData.paypal_capture_id || null}, ${orderData.stripe_payment_intent_id || null}, ${orderData.payment_method || (orderData.stripe_payment_intent_id ? 'stripe' : (orderData.paypal_order_id ? 'paypal' : null))}, ${orderData.checkout_idempotency_key || null}, ${requestedStatus === 'pending' ? 'awaiting_capture' : 'not_required'}, ${orderData.shipping_name || null}, ${orderData.shipping_street || null}, ${orderData.shipping_street2 || null}, ${orderData.shipping_city || null}, ${orderData.shipping_state || null}, ${orderData.shipping_zip || null}, ${orderData.shipping_country || 'US'}, ${orderData.discountCode?.code || null}, ${orderData.applied_discount_cents || 0}, ${orderData.applied_discount_label || ''}, ${orderData.applied_discount_type || 'none'}, ${orderSameDayHitService}, ${orderSaturdayDelivery}, ${orderSameDayFeeCents}, ${orderSaturdayFeeCents}, ${orderTimestampEt.display}, ${orderSameDayQualified}, ${orderData.is_test_order === true}, ${orderData.test_order_reason || null}, ${attribution.google_click_id}, ${attribution.gbraid}, ${attribution.wbraid}, ${attribution.landing_page}, ${attribution.referrer}, ${attribution.utm_source}, ${attribution.utm_medium}, ${attribution.utm_campaign}, ${attribution.utm_term}, ${attribution.utm_content}, ${attribution.consent_status})
       RETURNING *
     `;
 
@@ -1403,7 +1429,7 @@ exports.handler = async (event, context) => {
     // cannot be reused by any subsequent checkout session.
     if (orderData.discountCode && orderData.discountCode.code) {
       const dcCode = String(orderData.discountCode.code).trim().toUpperCase();
-      if (dcCode !== 'NEW20') {
+      if (dcCode !== 'NEW20' && orderData.discountCode.source !== 'trade_show') {
         try {
           const normalizedEmailForDiscount = userEmail ? userEmail.toLowerCase() : null;
           await sql`
@@ -1460,6 +1486,7 @@ exports.handler = async (event, context) => {
         applied_discount_cents: orderData.applied_discount_cents || 0,
         applied_discount_label: orderData.applied_discount_label || "",
         applied_discount_type: orderData.applied_discount_type || "none",
+        discount_code: orderData.discountCode?.code || null,
         same_day_fee_cents: orderSameDayFeeCents,
         saturday_fee_cents: orderSaturdayFeeCents,
         status: requestedStatus,

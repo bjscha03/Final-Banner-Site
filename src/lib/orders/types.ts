@@ -113,6 +113,7 @@ export interface Order {
   applied_discount_cents?: number;
   applied_discount_label?: string;
   applied_discount_type?: string;
+  discount_code?: string | null;
   // Same-Day Hit Service (production priority — NOT shipping)
   same_day_hit_service?: boolean;
   saturday_delivery?: boolean;
@@ -165,6 +166,7 @@ export interface CreateOrderData {
   applied_discount_cents?: number;
   applied_discount_label?: string;
   applied_discount_type?: string;
+  discount_code?: string | null;
 }
 
 export interface OrdersAdapter {
