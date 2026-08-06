@@ -53,6 +53,15 @@ beforeEach(() => {
 });
 
 describe('purchase tracking', () => {
+  it('never sends purchase or conversion events for a test order', async () => {
+    const result = await attemptPurchaseTracking(baseOrder({ isTestOrder: true }));
+
+    expect(result).toMatchObject({ tracked: false, reason: 'test_order' });
+    expect(window.gtag).not.toHaveBeenCalled();
+    expect((window as any).fbq).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it('fires GA4 once when Google Ads env variables are missing', async () => {
     clearGoogleAdsConfig();
 

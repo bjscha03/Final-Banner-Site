@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import robots from '../../../../public/robots.txt?raw';
 import netlify from '../../../../netlify.toml?raw';
 import html from '../../../../index.html?raw';
+import sitemap from '../../../../public/sitemap.xml?raw';
+import appSource from '../../../App.tsx?raw';
+import socialMetaSource from '../../../../netlify/edge-functions/social-meta-injector.ts?raw';
 
 describe('tracking and private-route SEO policy', () => {
   it('applies admin and proof crawl exclusions to specific crawler groups', () => {
@@ -24,5 +27,14 @@ describe('tracking and private-route SEO policy', () => {
     expect(html).not.toContain('fbq(\'init\'');
     expect(html).not.toContain('clarity.ms/tag');
     expect(html).not.toContain('t.contentsquare.net/uxa');
+  });
+
+  it('removes the retired seasonal campaign while redirecting old URLs', () => {
+    expect(appSource).not.toContain('GraduationSigns');
+    expect(appSource).not.toContain('ProofApproval');
+    expect(sitemap).not.toContain('/graduation-signs');
+    expect(socialMetaSource).not.toContain('graduation-signs');
+    expect(netlify).toContain('from = "/graduation-signs"');
+    expect(netlify).toContain('to = "/custom-banners"');
   });
 });

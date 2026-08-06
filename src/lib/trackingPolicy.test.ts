@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { getSanitizedAnalyticsPath, getTrackingDecision, type TrackingContext } from './trackingPolicy';
+import { describe, expect, it, vi } from 'vitest';
+import { getSanitizedAnalyticsPath, getTrackingDecision, markCurrentDeviceAsInternal, type TrackingContext } from './trackingPolicy';
 
 const productionContext = (overrides: Partial<TrackingContext> = {}): TrackingContext => ({
   hostname: 'bannersonthefly.com',
@@ -30,11 +30,24 @@ describe('customer tracking policy', () => {
     expect(getTrackingDecision(productionContext({ pathname: '/payment-success' })).allowed).toBe(true);
   });
 
-  it('redacts order and proof identifiers without dropping campaign parameters', () => {
+  it('blocks a device after a verified admin marks it as internal', () => {
+    const values = new Map<string, string>();
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => values.get(key) || null,
+      setItem: (key: string, value: string) => values.set(key, value),
+    });
+    try {
+      markCurrentDeviceAsInternal();
+      expect(getTrackingDecision(productionContext())).toEqual({ allowed: false, reason: 'internal_device' });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('redacts order identifiers without dropping campaign parameters', () => {
     expect(getSanitizedAnalyticsPath({
       pathname: '/payment-success',
       search: '?orderId=secret&utm_source=google&gclid=click-1',
     })).toBe('/payment-success?utm_source=google&gclid=click-1');
-    expect(getSanitizedAnalyticsPath({ pathname: '/proof/private-token', search: '' })).toBe('/proof/[token]');
   });
 });

@@ -5,6 +5,7 @@ export type TrackingExclusionReason =
   | 'non_production_host'
   | 'non_https_production'
   | 'excluded_route'
+  | 'internal_device'
   | 'automated_browser'
   | 'known_bot';
 
@@ -32,6 +33,23 @@ const NON_CUSTOMER_PATHS = [
 // synthetic checks are not customer sessions; broad device/browser matching
 // would risk excluding real shoppers.
 const NON_CUSTOMER_USER_AGENT = /(?:headlesschrome|lighthouse|pagespeed|googlebot|bingbot|duckduckbot|baiduspider|yandexbot|crawler|spider)/i;
+const INTERNAL_TRAFFIC_STORAGE_KEY = 'botf_internal_traffic_device';
+
+export const markCurrentDeviceAsInternal = (): void => {
+  try {
+    localStorage.setItem(INTERNAL_TRAFFIC_STORAGE_KEY, '1');
+  } catch (_error) {
+    // GA4's office-IP filter remains the fallback when storage is unavailable.
+  }
+};
+
+export const isCurrentDeviceInternal = (): boolean => {
+  try {
+    return localStorage.getItem(INTERNAL_TRAFFIC_STORAGE_KEY) === '1';
+  } catch (_error) {
+    return false;
+  }
+};
 
 const isExcludedPath = (pathname: string): boolean => NON_CUSTOMER_PATHS.some(
   (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
@@ -53,6 +71,7 @@ export const getTrackingDecision = (context: TrackingContext | null = getBrowser
   if (!isProductionHost(context.hostname)) return { allowed: false, reason: 'non_production_host' };
   if (context.protocol !== 'https:') return { allowed: false, reason: 'non_https_production' };
   if (isExcludedPath(context.pathname)) return { allowed: false, reason: 'excluded_route' };
+  if (isCurrentDeviceInternal()) return { allowed: false, reason: 'internal_device' };
   if (context.webdriver) return { allowed: false, reason: 'automated_browser' };
   if (NON_CUSTOMER_USER_AGENT.test(context.userAgent)) return { allowed: false, reason: 'known_bot' };
   return { allowed: true, reason: null };
@@ -63,7 +82,6 @@ export const isCustomerTrackingAllowed = (): boolean => getTrackingDecision().al
 const SENSITIVE_QUERY_KEYS = new Set([
   'code',
   'email',
-  'intakeid',
   'key',
   'orderid',
   'session',
@@ -76,7 +94,6 @@ const SENSITIVE_QUERY_KEYS = new Set([
  */
 export const getSanitizedAnalyticsPath = (url: Pick<Location, 'pathname' | 'search'>): string => {
   let pathname = url.pathname || '/';
-  if (pathname.startsWith('/proof/')) pathname = '/proof/[token]';
   if (pathname.startsWith('/orders/')) pathname = '/orders/[order-id]';
 
   const params = new URLSearchParams(url.search || '');

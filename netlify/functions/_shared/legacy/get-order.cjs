@@ -215,6 +215,8 @@ exports.handler = async (event, context) => {
       'payment_method',
       'paypal_order_id',
       'paypal_capture_id',
+      'is_test_order',
+      'test_order_reason',
       'created_at',
       'updated_at',
     ].map(safeOrderCol).join(', ');
@@ -364,4 +366,3 @@ exports.handler = async (event, context) => {
     };
   }
 };
-

@@ -39,7 +39,7 @@ exports.handler = async (event) => {
     // unpaid, or mismatched order. Provider delivery is still verified in the
     // provider dashboards; this table records only the browser queue attempt.
     const canonicalOrders = await sql`
-      SELECT id, order_number, status, total_cents
+      SELECT id, order_number, status, total_cents, is_test_order
       FROM orders
       WHERE id = ${orderId}
       LIMIT 1
@@ -48,6 +48,9 @@ exports.handler = async (event) => {
       return { statusCode: 404, headers, body: JSON.stringify({ ok: false, error: 'ORDER_NOT_FOUND' }) };
     }
     const canonicalOrder = canonicalOrders[0];
+    if (canonicalOrder.is_test_order === true) {
+      return { statusCode: 409, headers, body: JSON.stringify({ ok: false, skipped: true, error: 'TEST_ORDER' }) };
+    }
     const canonicalStatus = String(canonicalOrder.status || '').toLowerCase();
     if (!['paid', 'completed', 'complete', 'succeeded'].includes(canonicalStatus)) {
       return { statusCode: 409, headers, body: JSON.stringify({ ok: false, error: 'ORDER_NOT_PAID' }) };

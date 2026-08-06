@@ -14,7 +14,7 @@ The production source had several confirmed trust-breaking defects:
 - The universal HTML shell loaded GA4, Meta, Clarity, Contentsquare, and LinkedIn on every route, including admin routes. Production observation confirmed those libraries loaded on /admin/orders.
 - GA4 relied on its initial automatic page view but did not explicitly track SPA route changes.
 - The standard ecommerce funnel was incomplete. view_item_list, select_item, and add_payment_info were absent, while other ecommerce helpers existed without active call sites.
-- A purchase was emitted only from the ordinary payment-success route. The graduation design-deposit flow used a different thank-you route and could miss the purchase event.
+- A retired seasonal campaign still exposed a separate deposit, proof, balance-payment, and thank-you flow that could create orders outside the ordinary purchase route.
 - Ecommerce item price represented the full line total while quantity was also supplied, allowing item revenue to be multiplied twice.
 - Optional same-day and Saturday fees were calculated by the server but were not included in the persisted payment total. That could make the website, database, PayPal request, and analytics value disagree or cause PayPal order creation to fail its amount check.
 - gclsrc, which describes the click-source type, was incorrectly treated as a GCLID.
@@ -28,7 +28,10 @@ The candidate branch fixes the source-controlled defects without enabling analyt
 - Admin, preview, localhost, development, automation, and conservative known-bot traffic are rejected before any analytics library is loaded.
 - GA4, Meta, and optional PostHog page views are emitted once per eligible SPA navigation; GA4 automatic page views are disabled.
 - Standard ecommerce events are wired with cent-to-dollar conversion at a single boundary and unit item prices.
-- Paid orders are loaded from the server and mapped through one canonical purchase path for normal, PayPal-card, PayPal-wallet, and graduation-deposit success flows.
+- Paid production orders are loaded from the server and mapped through one canonical purchase path for normal PayPal-card, PayPal-wallet, and credit-card success flows.
+- PayPal sandbox orders are marked as test orders server-side and are blocked from GA4, Google Ads, Meta, and the production purchase-audit table.
+- The retired seasonal campaign pages, cart items, proof routes, payment functions, emails, and order-processing branches were removed. Old URLs redirect to the custom-banner page, while stale cart items are purged and rejected server-side.
+- A device becomes permanently excluded from customer analytics after the application verifies an administrator account on that device. GA4 office-IP filtering remains required for internal devices that never authenticate.
 - The database total is the payment and analytics ledger. Service fees are added exactly once before persistence and processor validation.
 - Purchase dedupe now uses local/session provider keys, GA4 and Google Ads transaction_id, Meta eventID, and a unique server audit event key.
 - Private-route noindex controls, crawler rules, missing canonicals, sitemap entries, and a broken schema logo reference are corrected.
@@ -215,7 +218,8 @@ No office IP was supplied and no GA4 administrator session was available, so no 
 |---|---|---|---|---|
 | Critical | Universal HTML shell loaded every tag on every route | Admin, preview, and synthetic traffic contaminated audiences, sessions, and replay tools | index.html, App, new loader/controller/policy files | Fixed in candidate |
 | Critical | Optional service fees were not added to persisted total | Website, DB, PayPal, and analytics could disagree; PayPal amount validation could fail | create-order-core.cjs, order-totals.ts, reconciliation helper/tests | Fixed in candidate |
-| Critical | Graduation deposit bypassed the ordinary purchase route | Paid deposits could be missing from GA4/Ads/Meta | Checkout.tsx, GraduationSignsThankYou.tsx, canonicalPurchaseTracking.ts | Fixed in candidate |
+| Critical | Retired campaign still exposed deposit and balance-payment paths | Obsolete payments could be accepted outside the supported order flow | Campaign pages/functions, Checkout.tsx, cart.ts, create-order-core.cjs | Removed in candidate; stale items are purged and rejected |
+| Critical | PayPal sandbox orders were not consistently marked as test orders | Test payments could enter production purchase/conversion reporting | create-order-core.cjs, get-order.cjs, canonicalPurchaseTracking.ts, purchaseTracking.ts, record-purchase-analytics.cjs | Fixed in candidate with server and client fail-closed guards |
 | Critical | Purchase item price used line total plus quantity | GA item revenue could be multiplied twice | analytics.ts, Checkout.tsx, PayPalCheckoutReliable.tsx, canonical mapper | Fixed in candidate |
 | Critical | Tracked .env and .env.backup contain non-empty database, PayPal sandbox, and Cloudinary credential variables | Public repository history may expose live or reusable secrets | .env, .env.backup and git history | Not changed; rotate credentials, remove tracked secret files, and scrub history in a separate approved security operation |
 | High | SPA route page views were not explicitly managed | Blank/wrong landing pages and session attribution; initial page view only | index.html, AnalyticsController.tsx, analyticsLoader.ts | Fixed in candidate |
@@ -227,8 +231,8 @@ No office IP was supplied and no GA4 administrator session was available, so no 
 | High | Google Ads linking, import, primary action, window, attribution model, and enhanced conversion settings are account-controlled and unverified | Missing or double-counted Ads conversions | Google Ads/GA4 accounts | Open blocker |
 | High | /sign-up is currently discoverable in public search | Auth/utility surface appears in the index | netlify.toml, RouteRobotsPolicy.tsx | Candidate adds response and client noindex; deindex verification requires deployment/Search Console |
 | Medium | Crawler-specific robots groups bypassed wildcard admin/proof rules | Private URLs could be crawled despite wildcard rules | public/robots.txt | Fixed in candidate |
-| Medium | Missing canonicals for design, graduation, and political pages | Duplicate/canonical ambiguity | Design.tsx, GraduationSigns.tsx, PoliticalSigns.tsx | Fixed in candidate |
-| Medium | Graduation and political landing pages absent from sitemap | Slower discovery and incomplete sitemap parity | public/sitemap.xml | Fixed in candidate |
+| Medium | Missing canonicals for design and political pages | Duplicate/canonical ambiguity | Design.tsx, PoliticalSigns.tsx | Fixed in candidate |
+| Medium | Political landing page absent from sitemap | Slower discovery and incomplete sitemap parity | public/sitemap.xml | Fixed in candidate |
 | Medium | Blog publisher schema referenced nonexistent /logo.png | Structured-data validation warning/broken image | BlogPostPage.tsx | Fixed to existing social logo asset |
 | Medium | Exact source of Direct/Unassigned traffic could not be quantified without GA4 reports | Root-cause percentages remain unknown | GA4 account | Confirmed source mechanisms fixed; quantitative validation open |
 | Medium | Cross-domain settings cannot be assessed from source | Session continuity risk if checkout changes to a redirect domain | GA4 stream | Current PayPal SDK returns to same-site success flow; account review still required |
@@ -317,8 +321,8 @@ No real wallet or card charge was authorized during this branch audit. A final r
 - robots.txt now repeats admin/proof exclusions inside specific Googlebot and Bingbot groups.
 - Response-level X-Robots-Tag rules cover admin, private order/proof, checkout, payment, auth, thank-you, and utility routes.
 - A client robots policy provides a second noindex layer for SPA-rendered private routes.
-- Canonicals were added to the design, graduation, and political landing pages.
-- Graduation and political landing pages were added to the sitemap.
+- Canonicals were added to the design and political landing pages.
+- The political landing page was added to the sitemap.
 - Blog publisher logo schema now points to an existing asset.
 - The production build prerendered 139 routes plus 404.html and verified 19 sitemap-eligible routes.
 - The build verifier passed city pages, blog pages, schema, metadata, CTA, sitemap parity, 404 output, and social assets.
@@ -365,7 +369,6 @@ Public search evidence found /sign-up indexed before deployment. After deploymen
 - src/store/cart.ts call semantics validated
 - src/pages/Checkout.tsx
 - src/pages/PaymentSuccess.tsx
-- src/pages/GraduationSignsThankYou.tsx
 - Product list/product detail/configurator call sites
 - PayPal wallet/card checkout components
 - netlify/functions/_shared/legacy/create-order-core.cjs
@@ -378,7 +381,7 @@ Public search evidence found /sign-up indexed before deployment. After deploymen
 - public/robots.txt
 - public/sitemap.xml
 - src/components/RouteRobotsPolicy.tsx
-- Design, graduation, political, and blog metadata files
+- Design, political, and blog metadata files
 
 ## Validation results
 

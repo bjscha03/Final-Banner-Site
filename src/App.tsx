@@ -68,10 +68,7 @@ const CategoryPage = lazy(() => import("./pages/CategoryPage"));
 // Google Ads landing page - lazy load
 const GoogleAdsBanner = lazy(() => import("./pages/GoogleAdsBanner"));
 
-// Graduation landing page - lazy load
-const GraduationSigns = lazy(() => import("./pages/GraduationSigns"));
 const PoliticalSigns = lazy(() => import("./pages/PoliticalSigns"));
-const GraduationSignsThankYou = lazy(() => import("./pages/GraduationSignsThankYou"));
 
 // Admin pages - lazy load (heavy, rarely accessed)
 const AdminOrders = lazy(() => import("./pages/admin/Orders"));
@@ -85,7 +82,6 @@ const AdminSalesDashboard = lazy(() => import("./pages/admin/sales/SalesDashboar
 const AdminSalesSettings = lazy(() => import("./pages/admin/sales/SalesSettings"));
 const AdminSalesProspects = lazy(() => import("./pages/admin/sales/SalesProspects"));
 const AdminSalesPlaceholder = lazy(() => import("./pages/admin/sales/SalesPlaceholder"));
-const ProofApproval = lazy(() => import("./pages/ProofApproval"));
 
 // Utility/debug pages - lazy load
 const LogoShowcase = lazy(() => import("./pages/LogoShowcase"));
@@ -245,13 +241,7 @@ export const RoutedApplication = () => (
             <Route path="/yard-signs/:citySlug" element={<CityProductPage productSlug="yard-signs" />} />
             <Route path="/car-magnets/:citySlug" element={<CityProductPage productSlug="car-magnets" />} />
 
-            {/* Graduation landing page */}
-            <Route path="/graduation-signs" element={<GraduationSigns />} />
             <Route path="/political-signs" element={<PoliticalSigns />} />
-            <Route path="/graduation-signs/thank-you" element={<GraduationSignsThankYou />} />
-
-            {/* Customer-facing graduation proof approval (token-gated) */}
-            <Route path="/proof/:token" element={<ProofApproval />} />
 
             {/* 404 – catch-all must be last */}
             <Route path="*" element={<NotFound />} />

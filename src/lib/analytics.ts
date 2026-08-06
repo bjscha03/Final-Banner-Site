@@ -52,11 +52,7 @@ export const trackAddToCart = (item: {
     ? 'Yard Sign'
     : normalizedType === 'car_magnet'
       ? 'Car Magnet'
-      : normalizedType === 'design_deposit'
-        ? 'Design Service'
-        : normalizedType === 'graduation_final_payment'
-          ? 'Graduation Final Payment'
-          : 'Banner';
+      : 'Banner';
   const quantity = Math.max(1, Number(item.quantity || 1));
   return gtag('event', 'add_to_cart', {
     currency: 'USD',

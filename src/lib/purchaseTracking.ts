@@ -13,6 +13,7 @@ export type PurchaseTrackingOrder = {
   paypalOrderId?: string | null;
   paypalCaptureId?: string | null;
   coupon?: string | null;
+  isTestOrder?: boolean;
 };
 
 export type ProviderAttempt = { provider: 'ga4' | 'meta' | 'google_ads'; attempted: boolean; ok: boolean; status?: 'not_attempted' | 'queued' | 'attempted' | 'blocked' | 'configuration_missing' | 'error'; error?: string };
@@ -106,6 +107,7 @@ export const attemptPurchaseTracking = async (order: PurchaseTrackingOrder): Pro
   const key = buildPurchaseTrackingKey(order.orderId);
   const transactionId = getPurchaseTransactionId(order);
   if (!key || !transactionId) return { tracked: false, duplicate: false, attempts: [], reason: 'missing_order_id' };
+  if (order.isTestOrder === true) return { tracked: false, duplicate: false, attempts: [], reason: 'test_order' };
   if (!isPaidPurchaseOrder(order)) return { tracked: false, duplicate: false, attempts: [], reason: 'order_not_paid' };
   if (!Number.isFinite(order.totalCents) || order.totalCents <= 0) return { tracked: false, duplicate: false, attempts: [], reason: 'invalid_total' };
   if (!order.items.length) return { tracked: false, duplicate: false, attempts: [], reason: 'missing_items' };

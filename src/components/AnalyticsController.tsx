@@ -4,6 +4,8 @@ import { initializeCustomerAnalytics, stopScheduledAnalyticsLoads } from '@/lib/
 import { trackFBPageView, trackPageView } from '@/lib/analytics';
 import { initPostHog, trackPostHogPageView } from '@/lib/posthog';
 import { getSanitizedAnalyticsPath, isCustomerTrackingAllowed } from '@/lib/trackingPolicy';
+import { markCurrentDeviceAsInternal } from '@/lib/trackingPolicy';
+import { isAdmin, useAuth } from '@/lib/auth';
 
 /**
  * The only route-level analytics entrypoint. It loads tags exclusively for a
@@ -11,10 +13,13 @@ import { getSanitizedAnalyticsPath, isCustomerTrackingAllowed } from '@/lib/trac
  */
 const AnalyticsController = () => {
   const location = useLocation();
+  const { user, loading: authLoading } = useAuth();
   const lastNavigationRef = useRef<string | null>(null);
   const wasAllowedRef = useRef<boolean | null>(null);
 
   useEffect(() => {
+    if (authLoading) return;
+    if (isAdmin(user)) markCurrentDeviceAsInternal();
     const allowed = isCustomerTrackingAllowed();
 
     // A hard boundary prevents already-loaded session-replay and advertising
@@ -43,7 +48,7 @@ const AnalyticsController = () => {
       trackPostHogPageView(pagePath);
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [location.key, location.pathname, location.search]);
+  }, [authLoading, location.key, location.pathname, location.search, user]);
 
   return null;
 };

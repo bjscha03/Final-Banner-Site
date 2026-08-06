@@ -116,12 +116,7 @@ const Checkout: React.FC = () => {
     ? 'Please upload at least one design for your yard sign order.'
     : '';
 
-  const isFixedFeeOnlyCart = items.length > 0 && items.every(
-    i => i.product_type === 'design_deposit' || i.product_type === 'graduation_final_payment'
-  );
-
-  const canProceed = isFixedFeeOnlyCart
-    || (minimumOrderValidation.isValid && !yardSignInvalid);
+  const canProceed = minimumOrderValidation.isValid && !yardSignInvalid;
   if (flags.freeShipping || flags.minOrderFloor) {
     const pricingItems: PricingItem[] = items.map(item => ({ line_total_cents: item.line_total_cents }));
     const totals = computeTotals(pricingItems, 0.06, pricingOptions);
@@ -350,65 +345,8 @@ const Checkout: React.FC = () => {
     try {
       console.log('Payment success handler called with order ID:', orderId);
 
-      // Check if cart had a design_deposit item before clearing
-      const depositItem = items.find(i => i.product_type === 'design_deposit');
-      let depositIntakeId: string | null = null;
-      if (depositItem?.design_request_text) {
-        try {
-          const meta = JSON.parse(depositItem.design_request_text);
-          depositIntakeId = meta.intakeId || null;
-        } catch (_e) {
-          // ignore parse errors
-        }
-      }
-
-      // Check if cart had a graduation_final_payment item before clearing
-      const finalItem = items.find(i => i.product_type === 'graduation_final_payment');
-      let finalIntakeId: string | null = null;
-      if (finalItem?.design_request_text) {
-        try {
-          const meta = JSON.parse(finalItem.design_request_text);
-          finalIntakeId = meta.intakeId || null;
-        } catch (_e) {
-          // ignore parse errors
-        }
-      }
-
       // Clear the cart
       clearCart();
-
-      if (finalItem) {
-        // Graduation final product balance payment — show success and
-        // redirect to a confirmation. We use the standard payment-success
-        // page so the customer sees a unified order receipt; the intake
-        // is marked paid_ready_for_production in create-order.cjs.
-        toast({
-          title: 'Payment Received!',
-          description: 'Your graduation order is paid in full and production is starting.',
-        });
-        navigate(`/payment-success?orderId=${orderId}${finalIntakeId ? `&intakeId=${encodeURIComponent(finalIntakeId)}` : ''}`, {
-          replace: true,
-          state: {
-            fromCheckout: true,
-            orderId,
-            orderData,
-          },
-        });
-        return;
-      }
-
-      if (depositItem) {
-        // Design deposit payment — redirect to graduation thank-you page
-        toast({
-          title: "Payment Received!",
-          description: "Your $19 design deposit has been received.",
-        });
-        navigate(
-          `/graduation-signs/thank-you?orderId=${encodeURIComponent(orderId)}${depositIntakeId ? `&intakeId=${encodeURIComponent(depositIntakeId)}` : ''}`,
-          { replace: true }
-        );
-        return;
-      }
 
       // Normal product checkout — show success message and navigate
       toast({
@@ -488,131 +426,16 @@ const Checkout: React.FC = () => {
                   </div>
                 </div>
                 
-                {/* Thumbnail preview notice - shown once above all items (not for fixed-fee-only carts) */}
-                {!isFixedFeeOnlyCart && (
+                {/* Thumbnail preview notice - shown once above all items */}
                 <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-xs text-blue-700 mb-4">
                   <Eye className="h-4 w-4 flex-shrink-0 mt-0.5 text-blue-500" />
                   <p>
                     <span className="font-medium">Preview only.</span> {productCopy.reviewNoticeBody}
                   </p>
                 </div>
-                )}
 
                 <div className="space-y-4">
                   {items.map((item) => {
-                    // Design deposit items get a simplified flat-fee card
-                    if (item.product_type === 'design_deposit') {
-                      let depositMeta: Record<string, string> = {};
-                      try { depositMeta = JSON.parse(item.design_request_text || '{}'); } catch (_e) {}
-                      return (
-                        <div key={item.id} className="border border-[#FF6A00]/30 bg-[#FFF7F1] p-4 sm:p-5">
-                          <div className="flex items-center gap-4">
-                            <div className="flex-shrink-0 h-16 w-16 rounded-xl bg-[#0B1F3A] flex items-center justify-center">
-                              <span className="text-[#FF6A00] text-2xl">🎓</span>
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <h3 className="font-bold text-[#0B1F3A] text-lg">Graduation Design Deposit</h3>
-                              <p className="text-sm text-gray-600 mt-0.5">
-                                {`Custom design proof for graduation ${depositMeta.productType === 'yard_sign' ? 'yard sign' : depositMeta.productType === 'car_magnet' ? 'car magnet' : 'banner'}`}
-                              </p>
-                              {depositMeta.graduateName && (
-                                <p className="text-xs text-gray-500 mt-1">For: {depositMeta.graduateName}{depositMeta.schoolName ? ` · ${depositMeta.schoolName}` : ''}{depositMeta.graduationYear ? ` ${depositMeta.graduationYear}` : ''}</p>
-                              )}
-                            </div>
-                            <div className="text-right flex-shrink-0">
-                              <p className="font-bold text-gray-900 text-xl">{usd(item.line_total_cents / 100)}</p>
-                            </div>
-                          </div>
-                          <div className="mt-3 pt-3 border-t border-gray-100 flex justify-end">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleRemoveItem(item.id)}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-100 font-semibold transition-all"
-                            >
-                              <Trash2 className="h-4 w-4 mr-1" />
-                              Remove
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    // Graduation final product payment items get their own
-                    // simplified card (no preview/options — the price and
-                    // print artwork are server-authoritative from the
-                    // approved proof).
-                    if (item.product_type === 'graduation_final_payment') {
-                      let finalMeta: Record<string, any> = {};
-                      try { finalMeta = JSON.parse(item.design_request_text || '{}'); } catch (_e) {}
-                      const fSpecs = (finalMeta.productSpecs || {}) as Record<string, any>;
-                      const fProductLabel =
-                        finalMeta.productType === 'yard_sign' ? 'Yard Sign'
-                        : finalMeta.productType === 'car_magnet' ? 'Car Magnet'
-                        : 'Banner';
-                      const fSize = String(fSpecs.size || fSpecs.sizeType || '');
-                      const fQty = fSpecs.quantity != null ? String(fSpecs.quantity) : '';
-                      const fMaterial = String(fSpecs.material || '');
-                      return (
-                        <div key={item.id} className="border border-[#FF6A00]/30 bg-[#FFF7F1] p-4 sm:p-5">
-                          <div className="flex items-start gap-4">
-                            <div className="flex-shrink-0 h-16 w-16 rounded-xl bg-[#0B1F3A] flex items-center justify-center overflow-hidden">
-                              {item.thumbnail_url ? (
-                                <img
-                                  src={item.thumbnail_url}
-                                  alt="Approved proof"
-                                  className="h-full w-full object-cover"
-                                />
-                              ) : (
-                                <span className="text-[#FF6A00] text-2xl">🎓</span>
-                              )}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <h3 className="font-bold text-[#0B1F3A] text-lg">Graduation Final Product Balance</h3>
-                              <p className="text-sm text-gray-600 mt-0.5">
-                                {`Approved ${fProductLabel.toLowerCase()} — production starts after payment`}
-                              </p>
-                              <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-600">
-                                <span>Product: <strong className="text-[#0B1F3A]">{fProductLabel}</strong></span>
-                                {fSize && <span>Size: <strong className="text-[#0B1F3A]">{fSize}</strong></span>}
-                                {fQty && <span>Qty: <strong className="text-[#0B1F3A]">{fQty}</strong></span>}
-                                {fMaterial && <span>Material: <strong className="text-[#0B1F3A]">{fMaterial}</strong></span>}
-                                {finalMeta.proofVersionNumber != null && (
-                                  <span>Proof: <strong className="text-[#0B1F3A]">v{String(finalMeta.proofVersionNumber)}</strong></span>
-                                )}
-                              </div>
-                              {finalMeta.approvedProofUrl && (
-                                <p className="mt-2 text-xs">
-                                  <a
-                                    href={finalMeta.approvedProofUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-[#FF6A00] underline"
-                                  >
-                                    View approved proof
-                                  </a>
-                                </p>
-                              )}
-                            </div>
-                            <div className="text-right flex-shrink-0">
-                              <p className="font-bold text-gray-900 text-xl">{usd(item.line_total_cents / 100)}</p>
-                            </div>
-                          </div>
-                          <div className="mt-3 pt-3 border-t border-gray-100 flex justify-end">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleRemoveItem(item.id)}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-100 font-semibold transition-all"
-                            >
-                              <Trash2 className="h-4 w-4 mr-1" />
-                              Remove
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    }
-
                     const eachCents = computeEach(item);
                     const normalized = normalizeOrderItemDisplay(item as NormalizableOrderItem);
                     const grommetLabel = getGrommetLabelForDisplay(item, normalized.grommetsDisplay);
@@ -860,11 +683,10 @@ const Checkout: React.FC = () => {
                 </div>
 
                 {/* Add Another Item button — product-aware for correct tab routing */}
-                {!isFixedFeeOnlyCart && (
                 <div className="mt-4">
                   {(() => {
                     const hasYardSigns = items.some(i => isYardSignItem(i));
-                    const hasBanners = items.some(i => !isYardSignItem(i) && i.product_type !== 'design_deposit');
+                    const hasBanners = items.some(i => !isYardSignItem(i));
                     const isMixed = hasYardSigns && hasBanners;
 
                     if (!isFromGoogleAds) {
@@ -940,7 +762,6 @@ const Checkout: React.FC = () => {
                     );
                   })()}
                 </div>
-                )}
 
                 {/* Discount Code Section */}
                 {!isFixedFeeOnlyCart && (

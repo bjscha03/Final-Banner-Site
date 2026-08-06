@@ -14,6 +14,7 @@ export type CanonicalPurchaseOrder = {
   applied_discount_label?: string | null;
   paypal_order_id?: string | null;
   paypal_capture_id?: string | null;
+  is_test_order?: boolean | null;
 };
 
 export type CanonicalPurchaseItem = NormalizableOrderItem & {
@@ -56,4 +57,5 @@ export const attemptCanonicalPurchaseTracking = (
   pageUrl,
   paypalOrderId: order.paypal_order_id,
   paypalCaptureId: order.paypal_capture_id,
+  isTestOrder: order.is_test_order === true,
 });

@@ -46,6 +46,7 @@ function publicOrderShape(order, items) {
     saturday_delivery: Boolean(order.saturday_delivery),
     same_day_fee_cents: Number(order.same_day_fee_cents || 0),
     saturday_fee_cents: Number(order.saturday_fee_cents || 0),
+    is_test_order: Boolean(order.is_test_order),
     created_at: order.created_at,
     items: items.map((rawItem) => {
       let item;

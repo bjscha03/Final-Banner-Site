@@ -9,7 +9,6 @@ const NOINDEX_EXACT_PATHS = new Set([
   '/design/canva-editor',
   '/design/complete',
   '/forgot-password',
-  '/graduation-signs/thank-you',
   '/logo-showcase',
   '/my-ai-images',
   '/my-orders',
@@ -26,7 +25,6 @@ const isPrivateOrUtilityPath = (pathname: string): boolean => (
   NOINDEX_EXACT_PATHS.has(pathname)
   || pathname.startsWith('/admin/')
   || pathname.startsWith('/orders/')
-  || pathname.startsWith('/proof/')
 );
 
 const RouteRobotsPolicy = () => {

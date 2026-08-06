@@ -23,6 +23,14 @@ import {
 const CART_DEBUG = false;
 const debugLog = CART_DEBUG ? console.log.bind(console) : () => {};
 
+// These identifiers belonged to a retired seasonal campaign. Keep the guard
+// solely to purge stale carts created before the campaign was removed; no UI
+// or checkout path can create them anymore.
+const RETIRED_CAMPAIGN_PRODUCT_TYPES = new Set(['design_deposit', 'graduation_final_payment']);
+const isRetiredCampaignItem = (item: Pick<CartItem, 'product_type'>): boolean => (
+  RETIRED_CAMPAIGN_PRODUCT_TYPES.has(item.product_type || '')
+);
+
 export type PricingMode = 'per_item' | 'per_order';
 
 export interface CartItem {
@@ -208,29 +216,6 @@ export interface CartState {
   getSameDayFeeCents: () => number;
   getSaturdayDeliveryFeeCents: () => number;
   addFromQuote: (quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => string;
-  addDesignDeposit: (intakeData: {
-    intakeId: string;
-    customerName: string;
-    customerEmail: string;
-    graduateName: string;
-    schoolName: string;
-    graduationYear: string;
-    productType: string;
-    estimatedProductSubtotalCents?: number | null;
-    estimatedTaxCents?: number | null;
-    estimatedProductTotalCents?: number | null;
-  }) => string;
-  addGraduationFinalPayment: (data: {
-    intakeId: string;
-    proofVersionNumber: number;
-    approvedProofUrl: string;
-    approvedProofFileName?: string | null;
-    productType: string;
-    productSpecs: Record<string, unknown>;
-    amountCents: number;
-    customerName?: string | null;
-    customerEmail?: string | null;
-  }) => string;
   loadItemIntoQuote: (itemId: string) => CartItem | null;
   updateCartItem: (itemId: string, quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => void;
   removeItem: (id: string) => void;
@@ -256,12 +241,6 @@ export interface CartState {
 
 // Migration function to fix old cart items with missing or zero pricing fields
 const migrateCartItem = (item: CartItem): CartItem => {
-  // design_deposit and graduation_final_payment items have a fixed,
-  // server-computed price and no dimensions — skip migration
-  if (item.product_type === 'design_deposit' || item.product_type === 'graduation_final_payment') {
-    return item;
-  }
-
   // Check if this is an old item that needs migration
   const needsMigration = 
     item.line_total_cents === 0 || 
@@ -685,144 +664,6 @@ export const useCartStore = create<CartState>()(
       return newItem.id;
       },
 
-      addDesignDeposit: ({ intakeId, customerName, customerEmail, graduateName, schoolName, graduationYear, productType, estimatedProductSubtotalCents, estimatedTaxCents, estimatedProductTotalCents }) => {
-        const DEPOSIT_PRICE_CENTS = 1900;
-        const itemId = createStableCartItemId('design-deposit');
-        const newItem: CartItem = {
-          id: itemId,
-          product_type: 'design_deposit',
-          width_in: 0,
-          height_in: 0,
-          quantity: 1,
-          material: '13oz' as MaterialKey,
-          grommets: 'none' as Grommets,
-          pole_pockets: 'none',
-          rope_feet: 0,
-          area_sqft: 0,
-          unit_price_cents: DEPOSIT_PRICE_CENTS,
-          rope_cost_cents: 0,
-          pole_pocket_cost_cents: 0,
-          line_total_cents: DEPOSIT_PRICE_CENTS,
-          // Store intake metadata as JSON in design_request_text for post-payment processing.
-          // Includes estimated product pricing so that create-order.cjs can persist
-          // it onto the intake row even if the row was created before estimate columns existed.
-          design_request_text: JSON.stringify({
-            intakeId,
-            customerName,
-            customerEmail,
-            graduateName,
-            schoolName,
-            graduationYear,
-            productType,
-            estimatedProductSubtotalCents: estimatedProductSubtotalCents ?? null,
-            estimatedTaxCents: estimatedTaxCents ?? null,
-            estimatedProductTotalCents: estimatedProductTotalCents ?? null,
-            designRequestType: 'graduation_design_deposit',
-          }),
-          design_service_enabled: false,
-          source: 'design',
-          created_at: new Date().toISOString(),
-        };
-        set((state) => ({ items: [...state.items, newItem] }));
-
-        // Track add-to-cart for graduation design deposit ($19 fixed)
-        trackAddToCart({
-          id: newItem.id,
-          name: 'Graduation Design Deposit',
-          material: 'design_service',
-          size: 'n/a',
-          price: DEPOSIT_PRICE_CENTS,
-          quantity: 1,
-          productType: 'design_deposit',
-        });
-        trackFBAddToCart({
-          content_name: 'Graduation Design Deposit',
-          value: DEPOSIT_PRICE_CENTS,
-        });
-
-        setTimeout(() => { get().syncToServer(); }, 0);
-        return itemId;
-      },
-
-      addGraduationFinalPayment: ({
-        intakeId,
-        proofVersionNumber,
-        approvedProofUrl,
-        approvedProofFileName,
-        productType,
-        productSpecs,
-        amountCents,
-        customerName,
-        customerEmail,
-      }) => {
-        // Replace any existing graduation_final_payment item for the same
-        // intake to avoid duplicates if the customer revisits the proof page.
-        const itemId = createStableCartItemId(`grad-final-${intakeId}`);
-        const newItem: CartItem = {
-          id: itemId,
-          product_type: 'graduation_final_payment',
-          width_in: 0,
-          height_in: 0,
-          quantity: 1,
-          material: '13oz' as MaterialKey,
-          grommets: 'none' as Grommets,
-          pole_pockets: 'none',
-          rope_feet: 0,
-          area_sqft: 0,
-          unit_price_cents: amountCents,
-          rope_cost_cents: 0,
-          pole_pocket_cost_cents: 0,
-          line_total_cents: amountCents,
-          // Approved proof becomes the artwork / print file source.
-          file_url: approvedProofUrl,
-          file_name: approvedProofFileName || undefined,
-          thumbnail_url: approvedProofUrl,
-          web_preview_url: approvedProofUrl,
-          print_ready_url: approvedProofUrl,
-          // Persist intake/proof metadata + product specs as JSON for
-          // post-payment processing in netlify/functions/create-order.cjs.
-          design_request_text: JSON.stringify({
-            intakeId,
-            proofVersionNumber,
-            approvedProofUrl,
-            productType,
-            productSpecs,
-            customerName: customerName || null,
-            customerEmail: customerEmail || null,
-            amountCents,
-            designRequestType: 'graduation_final_payment',
-          }),
-          design_service_enabled: false,
-          source: 'design',
-          created_at: new Date().toISOString(),
-        };
-        set((state) => ({
-          // Drop any prior graduation_final_payment items so the customer
-          // cannot accidentally end up paying twice for the same balance.
-          items: [
-            ...state.items.filter((i) => i.product_type !== 'graduation_final_payment'),
-            newItem,
-          ],
-        }));
-
-        trackAddToCart({
-          id: newItem.id,
-          name: 'Graduation Final Product Payment',
-          material: 'graduation_final_payment',
-          size: 'n/a',
-          price: amountCents,
-          quantity: 1,
-          productType: 'graduation_final_payment',
-        });
-        trackFBAddToCart({
-          content_name: 'Graduation Final Product Payment',
-          value: amountCents,
-        });
-
-        setTimeout(() => { get().syncToServer(); }, 0);
-        return itemId;
-      },
-
       updateQuantity: (id: string, quantity: number) => {
         set((state) => ({
           items: state.items.map(item => {
@@ -1157,7 +998,10 @@ export const useCartStore = create<CartState>()(
         
         try {
         const userId = cartSync.getUserId();
-        const rawItems = get().items;
+        const rawItems = get().items.filter((item) => !isRetiredCampaignItem(item));
+        if (rawItems.length !== get().items.length) {
+          set({ items: rawItems });
+        }
         
         // Helper to check if a string is a bad URL (blob, data, or too large)
         const isBadUrl = (url: string | undefined | null): boolean => {
@@ -1262,8 +1106,16 @@ export const useCartStore = create<CartState>()(
           return;
         }
 
-        const serverItems = await cartSync.loadCart(userId);
-        const localItems = get().items;
+        const loadedServerItems = await cartSync.loadCart(userId);
+        const serverItems = loadedServerItems.filter((item) => !isRetiredCampaignItem(item));
+        const localItems = get().items.filter((item) => !isRetiredCampaignItem(item));
+        const removedRetiredItems = (
+          loadedServerItems.length !== serverItems.length
+          || get().items.length !== localItems.length
+        );
+        if (get().items.length !== localItems.length) {
+          set({ items: localItems });
+        }
         const cartOwnerId = typeof localStorage !== 'undefined' ? localStorage.getItem('cart_owner_user_id') : null;
         
         
@@ -1274,6 +1126,9 @@ export const useCartStore = create<CartState>()(
           // CRITICAL: Use ONLY server items - no merging with local items
           // Local items may belong to a different user
           set({ items: serverItems });
+          if (removedRetiredItems) {
+            setTimeout(() => get().syncToServer(), 100);
+          }
           
           // Set cart owner
           if (typeof localStorage !== 'undefined') {
@@ -1364,7 +1219,7 @@ export const useCartStore = create<CartState>()(
         const items = get().items.map(migrateCartItem);
         const bannerItems = items.filter(item => {
           const t = item.product_type || 'banner';
-          return t !== 'yard_sign' && t !== 'car_magnet' && t !== 'design_deposit' && t !== 'graduation_final_payment';
+          return t !== 'yard_sign' && t !== 'car_magnet';
         });
         const totalQuantity = bannerItems.reduce((total, item) => total + item.quantity, 0);
         const rawSubtotal = bannerItems.reduce((total, item) => total + item.line_total_cents, 0);
@@ -1380,8 +1235,7 @@ export const useCartStore = create<CartState>()(
 
       // Best Discount Resolver - "Best Discount Wins" (no stacking)
       // IMPORTANT: ONLY banner items participate in quantity discounts.
-      // Yard signs, car magnets, design_deposit, and graduation_final_payment
-      // items do NOT contribute to the quantity discount tier and the quantity
+      // Yard signs and car magnets do NOT contribute to the quantity discount tier and the quantity
       // discount rate is NOT applied to their subtotal. Promo codes still apply
       // to the full cart subtotal.
       getResolvedDiscount: () => {
@@ -1391,7 +1245,7 @@ export const useCartStore = create<CartState>()(
         // Banner-only subset for quantity-discount tier + base
         const isBanner = (item: any) => {
           const t = item.product_type || 'banner';
-          return t !== 'yard_sign' && t !== 'car_magnet' && t !== 'design_deposit' && t !== 'graduation_final_payment';
+          return t !== 'yard_sign' && t !== 'car_magnet';
         };
         const bannerItems = items.filter(isBanner);
         const bannerQuantity = bannerItems.reduce((total, item) => total + item.quantity, 0);

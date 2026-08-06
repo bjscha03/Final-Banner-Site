@@ -14,7 +14,8 @@ Record:
 On the preview storefront, verify:
 
 - The preview gate works.
-- Home, product, design, cart, checkout, blog, city, graduation, and political pages render.
+- Home, product, design, cart, checkout, blog, city, and political pages render.
+- Retired campaign and proof URLs redirect to `/custom-banners`; their payment functions return 404 because they are no longer deployed.
 - No requests are made to Google tag, GA4, Meta, Clarity, Contentsquare, LinkedIn Insight, or PostHog.
 - window.dataLayer, window.gtag, and window.fbq are not created.
 - /admin and descendants also load no analytics.
@@ -56,13 +57,14 @@ Inputs required:
 
 Procedure:
 
-1. In the GA4 web stream, define internal traffic using traffic_type=internal.
-2. Create or edit the Internal Traffic data filter in Testing state.
-3. Visit a controlled non-purchase page from the office/VPN.
-4. Confirm traffic_type is visible in the test data and that an external connection is not labeled internal.
-5. Save screenshots and timestamps.
-6. Activate only after the test succeeds.
-7. Review Developer Traffic in the same Testing-first sequence.
+1. Sign in with a verified administrator account on each owner/admin browser, return to a public storefront page, and confirm no analytics requests are sent. This permanently marks that browser as an internal device.
+2. In the GA4 web stream, define internal traffic using traffic_type=internal for office/VPN devices that do not authenticate.
+3. Create or edit the Internal Traffic data filter in Testing state.
+4. Visit a controlled non-purchase page from the office/VPN.
+5. Confirm traffic_type is visible in the test data and that an external connection is not labeled internal.
+6. Save screenshots and timestamps.
+7. Activate only after the test succeeds.
+8. Review Developer Traffic in the same Testing-first sequence.
 
 Never use a client-side IP list or broad geographic exclusion.
 
@@ -123,7 +125,7 @@ Run at least:
 2. PayPal Card Fields, ordinary order.
 3. One coupon order.
 4. One optional service-fee order.
-5. Graduation design deposit.
+5. PayPal sandbox order, which must remain marked as a test order and produce no analytics purchase or advertising conversion.
 
 For each order, record:
 
@@ -209,7 +211,7 @@ The browser audit table is supporting evidence only. It does not prove provider 
 After deployment:
 
 1. Submit or confirm sitemap.xml.
-2. Inspect home, each product hub, one city page, one blog page, graduation, and political pages.
+2. Inspect home, each product hub, one city page, one blog page, and the political page.
 3. Inspect /sign-up, /checkout, /payment-success, /admin/orders, and one proof URL; each must be excluded by noindex.
 4. Request recrawl/removal for the currently indexed sign-up URL if needed.
 5. Validate Organization/Product/Article/Breadcrumb structured data.

@@ -129,8 +129,7 @@ describe('Same-Day Hit Service: product eligibility', () => {
     expect(isProductEligible('car_magnet', 1)).toBe(true);
   });
 
-  it('design_deposit / unknown / poster are NOT eligible', () => {
-    expect(isProductEligible('design_deposit', 1)).toBe(false);
+  it('unknown / poster are NOT eligible', () => {
     expect(isProductEligible('poster', 1)).toBe(false);
     expect(isProductEligible(undefined, 1)).toBe(false);
   });
@@ -161,7 +160,6 @@ describe('Same-Day Hit Service: fee computation', () => {
     const subtotal = getEligibleSubtotalCents([
       { product_type: 'banner', quantity: 1, line_total_cents: 5000 },
       { product_type: 'poster', quantity: 1, line_total_cents: 9999 },
-      { product_type: 'design_deposit', quantity: 1, line_total_cents: 1900 },
       { product_type: 'yard_sign', quantity: 10, line_total_cents: 7500 },
     ]);
     expect(subtotal).toBe(12500);
@@ -181,7 +179,7 @@ describe('Same-Day Hit Service: evaluateSameDayEligibility', () => {
   it('reports no_eligible_items when nothing matches', () => {
     const result = evaluateSameDayEligibility({
       now: etDate(2026, 4, 30, 9, 0),
-      items: [{ product_type: 'design_deposit', quantity: 1, line_total_cents: 1900 }],
+      items: [{ product_type: 'poster', quantity: 1, line_total_cents: 1900 }],
     });
     expect(result.windowOpen).toBe(true);
     expect(result.hasEligibleItem).toBe(false);
