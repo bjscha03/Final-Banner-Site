@@ -13,6 +13,11 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "grommets-pole-pockets-hemming-guide": {
+    title: "Banner Grommets vs. Pole Pockets vs. Rope: Which Finish Should You Choose?",
+    description: "Compare banner grommets, pole pockets, rope hems, and standard hemming to match the right finish to your mounting plan, hardware, and display needs today.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/grommets-pole-pockets-hemming-guide.webp"
+  },
   "car-magnet-size-guide": {
     title: "Car Magnet Size Guide: Choose the Right Fit for Your Vehicle",
     description: "Use this car magnet size guide to choose the right dimensions, placement, artwork, and care for a clean, readable magnetic vehicle sign that fits well.",
