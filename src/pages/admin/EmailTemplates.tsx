@@ -125,7 +125,7 @@ function TemplateList({ events, loading, error }: { events: EventSummary[]; load
                 >
                   <div>
                     <div className="font-black text-slate-950">{event.name}</div>
-                    <div className="mt-1 truncate text-xs text-[#18448D]">{event.landingPagePath}</div>
+                    <div className="mt-1 truncate text-xs text-[#18448D]">{event.landingPageUrl}</div>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-slate-600"><CalendarDays className="h-4 w-4 lg:hidden" />{event.dateRange}</div>
                   <div className="flex items-center gap-2 text-sm text-slate-600"><MapPin className="h-4 w-4 lg:hidden" />{event.city}, {event.state}</div>
