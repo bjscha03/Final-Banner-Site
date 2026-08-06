@@ -5,6 +5,20 @@
 /ai-test-direct.html   /ai-test-direct.html   200
 /ai-button-test.html   /ai-button-test.html   200
 
+# Retired seasonal campaign pages and server functions. These rules belong
+# here as well as netlify.toml so production, branch, and preview contexts all
+# resolve them before the SPA catch-all below.
+/graduation-signs/*   /custom-banners   301!
+/graduation-signs     /custom-banners   301!
+/proof/*              /custom-banners   301!
+/.netlify/functions/designer-intake-submit                 /404.html   404!
+/.netlify/functions/graduation-proof-approve               /404.html   404!
+/.netlify/functions/graduation-proof-get                   /404.html   404!
+/.netlify/functions/graduation-proof-request-edits         /404.html   404!
+/.netlify/functions/paypal-capture-design-deposit          /404.html   404!
+/.netlify/functions/paypal-capture-final-product           /404.html   404!
+/.netlify/functions/paypal-create-deposit-for-intake       /404.html   404!
+
 # Product hubs and generated city pages are physical HTML files. Unknown
 # children under these namespaces must return a real 404 instead of the SPA.
 /vinyl-banners/*   /404.html   404
