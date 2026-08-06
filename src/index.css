@@ -821,17 +821,19 @@ embed[type="application/pdf"] .pdfViewer .toolbar {
   }
 
   .cart-modal__footer {
-    position: sticky;
-    bottom: 0;
+    position: relative;
     z-index: 1;
+    flex: 0 0 auto;
+    min-height: 0;
+    max-height: min(48dvh, calc(100dvh - 8rem));
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
     padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
   }
   @media (max-width: 640px) {
     .cart-modal__footer {
-      max-height: 48dvh;
-      overflow-y: auto;
-      overscroll-behavior-y: contain;
-      -webkit-overflow-scrolling: touch;
+      padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
     }
   }
 

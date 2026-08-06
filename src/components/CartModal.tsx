@@ -97,7 +97,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
       <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden="true" />
       <div className="cart-modal__panel absolute right-0 top-0 w-full max-w-md bg-white shadow-xl">
         <div className="flex h-full min-h-0 flex-col">
-          <div className="flex items-center justify-between border-b border-gray-200 bg-white p-6">
+          <div className="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white p-6">
             <h2 className="flex items-center text-xl font-bold text-gray-900">
               <ShoppingBag className="mr-2 h-6 w-6 text-[#18448D]" /> Shopping Cart ({items.length})
             </h2>
@@ -108,7 +108,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
 
           <div
             ref={contentRef}
-            className="cart-modal__content min-h-[42dvh] flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain bg-gray-50 p-4 sm:p-6"
+            className="cart-modal__content min-h-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-contain bg-gray-50 p-4 sm:p-6"
           >
             {items.length === 0 ? (
               <div className="py-12 text-center">
