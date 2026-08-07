@@ -69,10 +69,6 @@ const HeroSection: React.FC = () => {
                   className="aspect-[4/5] h-full w-full object-cover sm:aspect-[16/10]"
                 />
               </picture>
-              <div className="grid gap-3 border-t border-slate-200 bg-white p-4 sm:grid-cols-[auto_1fr] sm:items-center sm:gap-6 sm:p-5">
-                <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#A63C00]">Designed for real occasions</p>
-                <p className="text-sm leading-6 text-slate-600 sm:text-right">Campaign copy remains readable HTML; the image shows a realistic finished product in use.</p>
-              </div>
             </div>
           ) : (
             <div className="overflow-hidden border border-slate-200 bg-white shadow-[0_24px_65px_rgba(11,31,58,0.12)]">
