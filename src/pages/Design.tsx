@@ -20,13 +20,13 @@ import { renderPdfToDataUrl, type PdfPreviewResult } from '@/utils/pdf/renderPdf
 import type { ProductTypeSlug } from '@/lib/products';
 import { getConfiguratorProductQuery, parseConfiguratorProductQuery } from '@/lib/configurator';
 import ProductTypeSwitcher from '@/components/design/ProductTypeSwitcher';
-import YardSignConfigurator from '@/components/design/YardSignConfigurator';
+import YardSignConfigurator, { type YardSignConfiguratorHandle } from '@/components/design/YardSignConfigurator';
 import YardSignPriceSummary from '@/components/design/YardSignPriceSummary';
 import PriceBreakdown from '@/components/pricing/PriceBreakdown';
 import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
 import DeliveryTimer from '@/components/delivery/DeliveryTimer';
 import MobileSubtotalBar from '@/components/design/MobileSubtotalBar';
-import FileUploader from '@/components/ui/FileUploader';
+import FileUploader, { type FileUploaderHandle } from '@/components/ui/FileUploader';
 import {
   calcYardSignPricing,
   getTotalDesignQuantity,
@@ -346,6 +346,7 @@ const Design: React.FC = () => {
   const { toast } = useToast();
   const orderRef = useRef<HTMLDivElement>(null);
   const builderStartRef = useRef<HTMLHeadingElement>(null);
+  const yardSignConfiguratorRef = useRef<YardSignConfiguratorHandle>(null);
   const [hasEnteredBuilder, setHasEnteredBuilder] = useState(false);
   const [isBuilderInView, setIsBuilderInView] = useState(false);
   const getProductQuerySlug = useCallback((type: ProductTypeSlug) => {
@@ -614,6 +615,7 @@ const Design: React.FC = () => {
   const [ropePlacement, setRopePlacement] = useState<RopePlacement>('top');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<UploadedArtworkFile | null>(null);
+  const fileUploaderRef = useRef<FileUploaderHandle>(null);
   const uploadedFileRef = useRef<UploadedArtworkFile | null>(null);
   const activeUploadFileRef = useRef<File | null>(null);
   const activeUploadPromiseRef = useRef<Promise<UploadedArtworkFile | null> | null>(null);
@@ -2380,11 +2382,13 @@ const Design: React.FC = () => {
 
   const showEntryCta = !hasEnteredBuilder;
 
-  // Scroll to the upload card so the mobile sticky "Upload Artwork" /
-  // "Retry Upload" CTA always reveals the file picker, even if the user is
-  // currently viewing a different step of the builder.
-  const scrollToUpload = useCallback(() => {
+  // Keep this path safe if the guided CTA is re-enabled on /design: open the
+  // picker synchronously from the tap and scroll only as a fallback.
+  const openOrScrollToUpload = useCallback(() => {
     setHasEnteredBuilder(true);
+    const opened = fileUploaderRef.current?.openFilePicker() ?? false;
+    logUx('upload_picker_requested', { source: 'sticky_cta', opened });
+    if (opened) return;
     const el = typeof document !== 'undefined' ? document.getElementById('upload-section') : null;
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -2392,6 +2396,13 @@ const Design: React.FC = () => {
       const target = builderStartRef.current ?? orderRef.current;
       target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+  }, []);
+
+  const openOrScrollToYardSignUpload = useCallback(() => {
+    setHasEnteredBuilder(true);
+    const opened = yardSignConfiguratorRef.current?.openFilePicker() ?? false;
+    logUx('upload_picker_requested', { source: 'sticky_cta', productType: 'yard_sign', opened });
+    if (!opened) scrollToStepAnchor(YARD_SIGN_ANCHORS.upload);
   }, []);
 
   // Shared step-machine state used by the sticky CTA and the mobile
@@ -2523,7 +2534,7 @@ const Design: React.FC = () => {
         case 'uploading':
           return { label: desc.label, onClick: undefined, disabled: true, loading: true, helper: desc.helper };
         case 'upload_error':
-          return { label: desc.label, onClick: wrap(() => scrollToStepAnchor(YARD_SIGN_ANCHORS.upload)), disabled: false, loading: false, helper: desc.helper };
+          return { label: desc.label, onClick: wrap(openOrScrollToYardSignUpload), disabled: false, loading: false, helper: desc.helper };
         case 'print_side':
           return {
             label: desc.label,
@@ -2540,8 +2551,7 @@ const Design: React.FC = () => {
           return {
             label: desc.label,
             onClick: wrap(() => {
-              setHasEnteredBuilder(true);
-              scrollToStepAnchor(YARD_SIGN_ANCHORS.upload);
+              openOrScrollToYardSignUpload();
             }),
             disabled: false,
             loading: false,
@@ -2621,7 +2631,7 @@ const Design: React.FC = () => {
       case 'uploading':
         return { label: desc.label, onClick: undefined, disabled: true, loading: true, helper: desc.helper };
       case 'upload_error':
-        return { label: desc.label, onClick: wrap(scrollToUpload), disabled: false, loading: false, helper: desc.helper };
+        return { label: desc.label, onClick: wrap(openOrScrollToUpload), disabled: false, loading: false, helper: desc.helper };
       case 'add_to_cart':
         return { label: desc.label, onClick: wrap(() => { logUx('add_to_cart_attempted', { productType }); handleAddToCart(); }), disabled: false, loading: false, helper: null };
       case 'size':
@@ -2634,6 +2644,10 @@ const Design: React.FC = () => {
         const onClick = wrap(() => {
           setHasEnteredBuilder(true);
           logUx('step_scrolled', { step: stepKey, source: 'sticky_cta' });
+          if (stepKey === 'upload') {
+            openOrScrollToUpload();
+            return;
+          }
           scrollToStepAnchor(targetId);
           // Tapping the CTA both reveals the section AND counts as
           // confirming it — so the next render advances the step
@@ -2697,7 +2711,7 @@ const Design: React.FC = () => {
 
           {modeContent.heroDescription}
 
-          <div data-mobile-delivery-timer className="mx-auto mt-5 max-w-xl text-left md:hidden">
+          <div className="mx-auto mt-5 max-w-xl text-left md:hidden">
             <DeliveryTimer variant="compact" className="shadow-lg" />
           </div>
 
@@ -2748,6 +2762,7 @@ const Design: React.FC = () => {
             <div className="grid md:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-10 max-w-full">
               <div className="space-y-8 min-w-0 max-w-full">
                 <YardSignConfigurator
+                  ref={yardSignConfiguratorRef}
                   designs={yardSignDesigns}
                   onDesignsChange={(next) => {
                     // Mark stakes/print-side as reviewed implicitly when the
@@ -3106,6 +3121,7 @@ const Design: React.FC = () => {
                 {!uploadedFile ? (
                   <>
                     <FileUploader
+                      ref={fileUploaderRef}
                       onUpload={handleFileUpload}
                       acceptedTypes="image/png,image/jpeg,application/pdf,.png,.jpg,.jpeg,.pdf"
                       maxSize={50 * 1024 * 1024}
