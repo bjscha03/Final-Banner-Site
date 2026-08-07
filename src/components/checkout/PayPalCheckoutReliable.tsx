@@ -16,6 +16,10 @@ import { useCartStore } from '@/store/cart';
 import { shouldUseDeployPreviewTestCheckout } from './checkoutEnvironment';
 import { gtag, trackPaymentInfoAdded, trackShippingInfoEntered, type AnalyticsItem } from '@/lib/analytics';
 import { getItemDisplayName, getProductCategory } from '@/lib/product-display';
+import {
+  type CustomerFormState,
+  validateCheckoutCustomer,
+} from './checkoutCustomer';
 
 interface PayPalCheckoutProps {
   total: number;
@@ -32,27 +36,6 @@ interface PayPalConfig {
   components?: string;
   clientToken?: string;
 }
-
-type CustomerFormState = {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  country: string;
-  street: string;
-  street2: string;
-  city: string;
-  state: string;
-  zip: string;
-  shippingSame: boolean;
-  shippingName: string;
-  shippingStreet: string;
-  shippingStreet2: string;
-  shippingCity: string;
-  shippingState: string;
-  shippingZip: string;
-  shippingCountry: string;
-};
 
 type SubmittedCustomer = {
   firstName: string;
@@ -316,6 +299,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
   const approvedOrderDataRef = useRef<any>(null);
   const shippingChangeDataRef = useRef<any>(null);
   const submittedCustomerRef = useRef<SubmittedCustomer | null>(null);
+  const customerDetailsRef = useRef<HTMLDivElement>(null);
   const checkoutSignatureRef = useRef<string | null>(null);
   const shippingInfoTrackedRef = useRef(false);
   const paymentInfoTrackedRef = useRef(new Set<'card' | 'paypal'>());
@@ -344,29 +328,10 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     setCustomer((current) => ({ ...current, [field]: value }));
   };
 
-  const validateCustomer = useCallback(() => {
-    const required: Array<keyof Pick<
-      CustomerFormState,
-      'firstName' | 'lastName' | 'email' | 'phone' | 'country' | 'street' | 'city' | 'state' | 'zip'
-    >> = ['firstName', 'lastName', 'email', 'phone', 'country', 'street', 'city', 'state', 'zip'];
-
-    if (required.some((field) => !String(customer[field]).trim())) {
-      return 'Complete every required customer and billing field.';
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email.trim())) {
-      return 'Enter a valid email address.';
-    }
-    if (!customer.shippingSame) {
-      const requiredShipping: Array<keyof Pick<
-        CustomerFormState,
-        'shippingName' | 'shippingStreet' | 'shippingCity' | 'shippingState' | 'shippingZip' | 'shippingCountry'
-      >> = ['shippingName', 'shippingStreet', 'shippingCity', 'shippingState', 'shippingZip', 'shippingCountry'];
-      if (requiredShipping.some((field) => !String(customer[field]).trim())) {
-        return 'Complete every required shipping field.';
-      }
-    }
-    return null;
-  }, [customer]);
+  const validateCustomer = useCallback(
+    () => validateCheckoutCustomer(customer),
+    [customer],
+  );
 
   const getSubmittedCustomer = useCallback((): SubmittedCustomer => {
     const fullName = `${customer.firstName.trim()} ${customer.lastName.trim()}`.trim();
@@ -973,10 +938,15 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
   };
 
   const prepareCustomerForPayment = (method: 'card' | 'paypal'): boolean => {
-    const error = validateCustomer();
-    if (error) {
-      setCardFieldsExpanded(true);
-      setCheckoutError(error);
+    const validation = validateCustomer();
+    if (validation) {
+      setCheckoutError(validation.message);
+      window.requestAnimationFrame(() => {
+        const field = customerDetailsRef.current?.querySelector<HTMLInputElement>(
+          `[data-checkout-field="${validation.field}"]`,
+        );
+        field?.focus();
+      });
       return false;
     }
     submittedCustomerRef.current = getSubmittedCustomer();
@@ -1019,24 +989,26 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     field: keyof CustomerFormState;
     label: string;
     type?: React.HTMLInputTypeAttribute;
+    inputMode?: React.InputHTMLAttributes<HTMLInputElement>['inputMode'];
     autoComplete?: string;
     wide?: boolean;
   }> = [
     { field: 'firstName', label: 'First Name *', autoComplete: 'given-name' },
     { field: 'lastName', label: 'Last Name *', autoComplete: 'family-name' },
-    { field: 'email', label: 'Email *', type: 'email', autoComplete: 'email' },
-    { field: 'phone', label: 'Phone *', type: 'tel', autoComplete: 'tel' },
+    { field: 'email', label: 'Email *', type: 'email', inputMode: 'email', autoComplete: 'email' },
+    { field: 'phone', label: 'Phone *', type: 'tel', inputMode: 'tel', autoComplete: 'tel' },
     { field: 'country', label: 'Country *', autoComplete: 'country' },
     { field: 'street', label: 'Street Address *', autoComplete: 'address-line1', wide: true },
     { field: 'street2', label: 'Apartment / Suite', autoComplete: 'address-line2', wide: true },
     { field: 'city', label: 'City *', autoComplete: 'address-level2' },
     { field: 'state', label: 'State *', autoComplete: 'address-level1' },
-    { field: 'zip', label: 'ZIP *', autoComplete: 'postal-code' },
+    { field: 'zip', label: 'ZIP *', inputMode: 'numeric', autoComplete: 'postal-code' },
   ];
 
   const shippingFields: Array<{
     field: keyof CustomerFormState;
     label: string;
+    inputMode?: React.InputHTMLAttributes<HTMLInputElement>['inputMode'];
     autoComplete?: string;
     wide?: boolean;
   }> = [
@@ -1045,9 +1017,109 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     { field: 'shippingStreet2', label: 'Shipping Apartment / Suite', autoComplete: 'shipping address-line2', wide: true },
     { field: 'shippingCity', label: 'Shipping City *', autoComplete: 'shipping address-level2' },
     { field: 'shippingState', label: 'Shipping State *', autoComplete: 'shipping address-level1' },
-    { field: 'shippingZip', label: 'Shipping ZIP *', autoComplete: 'shipping postal-code' },
+    { field: 'shippingZip', label: 'Shipping ZIP *', inputMode: 'numeric', autoComplete: 'shipping postal-code' },
     { field: 'shippingCountry', label: 'Shipping Country *', autoComplete: 'shipping country' },
   ];
+
+  const renderCustomerDetails = () => {
+    const currentValidation = checkoutError ? validateCheckoutCustomer(customer) : null;
+    return (
+      <section
+        ref={customerDetailsRef}
+        aria-labelledby="checkout-customer-heading"
+        className="rounded-lg border border-slate-200 bg-slate-50/70 p-3 sm:p-4"
+      >
+        <div className="mb-4">
+          <h3 id="checkout-customer-heading" className="text-base font-bold text-[#0B1F3A]">
+            Contact &amp; delivery
+          </h3>
+          <p className="mt-1 text-xs leading-5 text-slate-600">
+            Enter these details once, then choose card or PayPal below. We use them for your receipt, artwork questions, and delivery.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {customerFields.map(({ field, label, type = 'text', inputMode, autoComplete, wide }) => {
+            const required = field !== 'street2';
+            const isInvalid = currentValidation?.field === field;
+            return (
+              <label
+                key={field}
+                htmlFor={`checkout-${field}`}
+                className={`text-sm font-medium text-slate-800 ${wide ? 'sm:col-span-2' : ''}`}
+              >
+                {label}
+                <Input
+                  id={`checkout-${field}`}
+                  name={`billing-${field}`}
+                  data-checkout-field={field}
+                  className="mt-1 h-11 text-base sm:text-sm"
+                  type={type}
+                  inputMode={field === 'zip' && customer.country.trim().toUpperCase() !== 'US' ? 'text' : inputMode}
+                  autoComplete={autoComplete}
+                  autoCapitalize={field === 'state' || field === 'country' ? 'characters' : undefined}
+                  required={required}
+                  aria-invalid={isInvalid || undefined}
+                  aria-describedby={isInvalid ? 'checkout-customer-error' : undefined}
+                  value={String(customer[field])}
+                  onChange={(event) => {
+                    updateCustomer(field, event.target.value as never);
+                    setCheckoutError(null);
+                  }}
+                />
+              </label>
+            );
+          })}
+
+          <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-medium text-slate-800 sm:col-span-2">
+            <input
+              type="checkbox"
+              className="h-5 w-5 flex-none accent-[#18448D]"
+              checked={customer.shippingSame}
+              onChange={(event) => {
+                updateCustomer('shippingSame', event.target.checked);
+                setCheckoutError(null);
+              }}
+            />
+            Shipping address is the same as billing
+          </label>
+
+          {!customer.shippingSame
+            ? shippingFields.map(({ field, label, inputMode, autoComplete, wide }) => {
+                const required = field !== 'shippingStreet2';
+                const isInvalid = currentValidation?.field === field;
+                return (
+                  <label
+                    key={field}
+                    htmlFor={`checkout-${field}`}
+                    className={`text-sm font-medium text-slate-800 ${wide ? 'sm:col-span-2' : ''}`}
+                  >
+                    {label}
+                    <Input
+                      id={`checkout-${field}`}
+                      name={field}
+                      data-checkout-field={field}
+                      className="mt-1 h-11 text-base sm:text-sm"
+                      inputMode={field === 'shippingZip' && customer.shippingCountry.trim().toUpperCase() !== 'US' ? 'text' : inputMode}
+                      autoComplete={autoComplete}
+                      autoCapitalize={field === 'shippingState' || field === 'shippingCountry' ? 'characters' : undefined}
+                      required={required}
+                      aria-invalid={isInvalid || undefined}
+                      aria-describedby={isInvalid ? 'checkout-customer-error' : undefined}
+                      value={String(customer[field])}
+                      onChange={(event) => {
+                        updateCustomer(field, event.target.value as never);
+                        setCheckoutError(null);
+                      }}
+                    />
+                  </label>
+                );
+              })
+            : null}
+        </div>
+      </section>
+    );
+  };
 
   const renderInlineCardFields = () => (
     <div className="space-y-2.5">
@@ -1070,50 +1142,6 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
 
       {cardFieldsExpanded ? (
         <div id="paypal-inline-card-fields" className="rounded-lg border border-gray-200 p-4">
-          <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {customerFields.map(({ field, label, type = 'text', autoComplete, wide }) => (
-              <label
-                key={field}
-                className={`text-sm font-medium ${wide ? 'sm:col-span-2' : ''}`}
-              >
-                {label}
-                <Input
-                  className="mt-1"
-                  type={type}
-                  autoComplete={autoComplete}
-                  value={String(customer[field])}
-                  onChange={(event) => updateCustomer(field, event.target.value as never)}
-                />
-              </label>
-            ))}
-
-            <label className="flex items-center gap-2 text-sm sm:col-span-2">
-              <input
-                type="checkbox"
-                checked={customer.shippingSame}
-                onChange={(event) => updateCustomer('shippingSame', event.target.checked)}
-              />
-              Shipping same as billing
-            </label>
-
-            {!customer.shippingSame
-              ? shippingFields.map(({ field, label, autoComplete, wide }) => (
-                  <label
-                    key={field}
-                    className={`text-sm font-medium ${wide ? 'sm:col-span-2' : ''}`}
-                  >
-                    {label}
-                    <Input
-                      className="mt-1"
-                      autoComplete={autoComplete}
-                      value={String(customer[field])}
-                      onChange={(event) => updateCustomer(field, event.target.value as never)}
-                    />
-                  </label>
-                ))
-              : null}
-          </div>
-
           <PayPalCardFieldsProvider
             createOrder={handleCreateOrder}
             onApprove={(data) => handleApprove(data, null)}
@@ -1171,14 +1199,22 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
         </div>
       ) : null}
 
+      {!verificationMessage ? renderCustomerDetails() : null}
+
       {checkoutError ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+        <div
+          id="checkout-customer-error"
+          role="alert"
+          aria-live="assertive"
+          className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800"
+        >
           {checkoutError}
         </div>
       ) : null}
 
       {!verificationMessage ? (
         <PayPalScriptProvider options={initialOptions}>
+          <h3 className="mb-1 text-sm font-bold text-[#0B1F3A]">Choose payment method</h3>
           <p className="mb-3 text-xs text-gray-600">
             Pay securely by card or PayPal. No PayPal account required.
           </p>
