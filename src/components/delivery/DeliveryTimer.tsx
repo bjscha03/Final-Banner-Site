@@ -61,7 +61,8 @@ export const DeliveryTimer: React.FC<DeliveryTimerProps> = ({
       : 'border-blue-200 bg-blue-50 text-slate-900') +
     (className ? ` ${className}` : '');
 
-  // Weekend lock — no countdown.
+  // Weekend lock — keep the clock visible and count down to the next
+  // production-scheduling window. The engine owns this cutoff calculation.
   if (estimate.state === 'weekend_lock') {
     return (
       <div
@@ -71,9 +72,21 @@ export const DeliveryTimer: React.FC<DeliveryTimerProps> = ({
       >
         <div className="flex items-start gap-3">
           <Clock className={`${isCompact ? 'h-4 w-4' : 'h-5 w-5'} text-slate-500 mt-0.5 flex-shrink-0`} aria-hidden="true" />
-          <div>
+          <div className="flex-1 min-w-0">
             <p className={`font-semibold text-slate-800 ${isCompact ? 'text-sm' : 'text-base'}`}>
               {weekendLockLine(estimate)}
+            </p>
+            <p
+              className={`mt-2 font-mono font-bold ${isCompact ? 'text-base' : 'text-lg'} text-slate-700`}
+              data-testid="delivery-countdown"
+              role="timer"
+              aria-live="off"
+              aria-label={`${formatCountdown(remainingMs)} until production scheduling resumes`}
+            >
+              {formatCountdown(remainingMs)}
+            </p>
+            <p className={`text-slate-500 ${isCompact ? 'text-[11px]' : 'text-xs'}`}>
+              until the next production scheduling window (Eastern Time)
             </p>
           </div>
         </div>
@@ -139,7 +152,7 @@ export const DeliveryTimer: React.FC<DeliveryTimerProps> = ({
               {formatCountdown(remainingMs)}
             </p>
             <p className={`text-slate-500 ${isCompact ? 'text-[11px]' : 'text-xs'}`}>
-              Standard option: estimated to ship {formatWeekdayLong(estimate.shipDate)}; free nationwide next-day air follows
+              Standard option: expected to ship {formatWeekdayLong(estimate.shipDate)} and arrive {formatWeekdayLong(estimate.deliveryDate)}
             </p>
           </div>
         </div>
@@ -160,7 +173,7 @@ export const DeliveryTimer: React.FC<DeliveryTimerProps> = ({
         </div>
         <div className="flex-1 min-w-0">
           <h3 className={`font-bold ${isCompact ? 'text-sm' : 'text-base'}`}>
-            Estimated ship date: {formatWeekdayLong(estimate.shipDate)}
+            Expected {formatWeekdayLong(estimate.deliveryDate)} delivery
           </h3>
           <p className={`mt-1 ${isCompact ? 'text-xs' : 'text-sm'}`}>
             {standardLine(estimate, remainingMs)}
