@@ -58,6 +58,24 @@ const readPageState = async (page: Page) => page.evaluate(() => {
   };
 });
 
+const scrollStorefrontAwayFromTop = async (page: Page) => {
+  const header = page.locator('[data-site-header]');
+  await expect(header).toBeVisible();
+  await expect.poll(() => page.evaluate(() => (
+    document.documentElement.scrollHeight - window.innerHeight
+  ))).toBeGreaterThan(0);
+
+  await page.evaluate(() => {
+    const root = document.documentElement;
+    const previousScrollBehavior = root.style.scrollBehavior;
+    root.style.scrollBehavior = 'auto';
+    const maximumScroll = Math.max(1, root.scrollHeight - window.innerHeight);
+    window.scrollTo(0, Math.min(700, maximumScroll));
+    root.style.scrollBehavior = previousScrollBehavior;
+  });
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+};
+
 const clickStickyCartWithoutAutoScroll = async (page: Page) => {
   const cartButton = page.getByRole('button', { name: 'Shopping cart' }).first();
   await cartButton.evaluate((element: HTMLElement) => element.focus({ preventScroll: true }));
@@ -82,7 +100,7 @@ test('nonempty scrolled cart is contained, accessible, and preserves page state 
   await seedNonemptyGuestCart(page);
   await mockCartLoad(page);
   await page.goto('/car-magnets/', { waitUntil: 'domcontentloaded' });
-  await page.evaluate(() => window.scrollTo(0, 700));
+  await scrollStorefrontAwayFromTop(page);
 
   const beforeOpen = await readPageState(page);
   expect(beforeOpen.scrollY).toBeGreaterThan(0);
@@ -188,7 +206,7 @@ test('Google Ads cart measures its compact header instead of inheriting storefro
   await seedNonemptyGuestCart(page);
   await mockCartLoad(page);
   await page.goto('/google-ads-banner?product=banner', { waitUntil: 'domcontentloaded' });
-  await page.evaluate(() => window.scrollTo(0, 700));
+  await scrollStorefrontAwayFromTop(page);
 
   const beforeOpen = await readPageState(page);
   expect(beforeOpen.scrollY).toBeGreaterThan(0);
