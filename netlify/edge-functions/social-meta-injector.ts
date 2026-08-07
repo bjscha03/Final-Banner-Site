@@ -41,7 +41,7 @@ const blogPosts: Record<string, { title: string; description: string; image: str
   "grommets-pole-pockets-hemming-guide": {
     title: "Banner Grommets vs. Pole Pockets vs. Rope: Which Finish Should You Choose?",
     description: "Compare banner grommets, pole pockets, rope hems, and standard hemming to match the right finish to your mounting plan, hardware, and display needs today.",
-    image: "https://bannersonthefly.com/cld-assets/images/blog/grommets-pole-pockets-hemming-guide.webp"
+    image: "https://bannersonthefly.com/cld-assets/images/blog/grommets-pole-pockets-hemming-guide-v2.webp"
   },
   "car-magnet-size-guide": {
     title: "Car Magnet Size Guide: Choose the Right Fit for Your Vehicle",
@@ -51,12 +51,12 @@ const blogPosts: Record<string, { title: string; description: string; image: str
   "grand-opening-banner-ideas": {
     title: "Grand Opening Banner Ideas: A Complete Planning & Design Guide",
     description: "Explore grand opening banner ideas, messaging, sizes, placement, materials, and a practical launch checklist for a storefront people can find quickly.",
-    image: "https://bannersonthefly.com/cld-assets/images/blog/grand-opening-banner-ideas.webp"
+    image: "https://bannersonthefly.com/cld-assets/images/blog/grand-opening-banner-ideas-v2.webp"
   },
   "print-ready-banner-artwork-guide": {
     title: "Print-Ready Banner Artwork: The Complete File Setup Checklist",
     description: "Learn how to prepare print-ready banner artwork: dimensions, resolution, file formats, fonts, color, safe areas, and a final pre-upload checklist today.",
-    image: "https://bannersonthefly.com/cld-assets/images/blog/print-ready-banner-artwork-guide.webp"
+    image: "https://bannersonthefly.com/cld-assets/images/blog/print-ready-banner-artwork-guide-v2.webp"
   },
   "13oz-vs-15oz-vs-18oz-vinyl-banner-guide": {
     title: "13 oz vs. 15 oz vs. 18 oz Vinyl Banners: Which Should You Choose?",
