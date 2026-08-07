@@ -13,6 +13,11 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "banner-design-readability-tips": {
+    title: "How to Make a Banner Readable From 10, 20, or 50 Feet",
+    description: "Learn how to make a banner readable from 10, 20, or 50 feet with practical guidance on letter size, contrast, hierarchy, copy, and distance testing today.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/banner-design-readability-tips.webp"
+  },
   "grommets-pole-pockets-hemming-guide": {
     title: "Banner Grommets vs. Pole Pockets vs. Rope: Which Finish Should You Choose?",
     description: "Compare banner grommets, pole pockets, rope hems, and standard hemming to match the right finish to your mounting plan, hardware, and display needs today.",
