@@ -1,4 +1,5 @@
 import { getConfiguratorUrl } from '@/lib/configurator';
+import { REMAINING_CITY_VINYL_EDITORIAL } from '@/lib/seo/cityEditorialData';
 import {
   PRODUCT_LANDING_DATA,
   SITE_URL,
@@ -89,6 +90,12 @@ export interface CityEntry {
   physicalPresence: 'none-claimed';
   editorial?: Partial<Record<CityProductSlug, ProductEditorialRecord>>;
 }
+
+const reviewedVinylCity = (city: Omit<CityEntry, 'editorial'>): CityEntry => {
+  const editorial = REMAINING_CITY_VINYL_EDITORIAL[city.slug];
+  if (!editorial) throw new Error(`Missing reviewed vinyl editorial for ${city.slug}`);
+  return { ...city, editorial: { 'vinyl-banners': editorial } };
+};
 
 /**
  * Service-area registry only. A city in this array does not automatically
@@ -446,24 +453,24 @@ export const CITIES: CityEntry[] = [
       },
     },
   },
-  { slug: 'cincinnati-oh', city: 'Cincinnati', state: 'OH', stateName: 'Ohio', region: 'the Tri-State area', nearbyCitySlugs: ['louisville-ky', 'lexington-ky', 'indianapolis-in', 'columbus-oh'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' },
-  { slug: 'indianapolis-in', city: 'Indianapolis', state: 'IN', stateName: 'Indiana', region: 'central Indiana', nearbyCitySlugs: ['cincinnati-oh', 'louisville-ky', 'chicago-il', 'columbus-oh'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' },
-  { slug: 'nashville-tn', city: 'Nashville', state: 'TN', stateName: 'Tennessee', region: 'Middle Tennessee', nearbyCitySlugs: ['louisville-ky', 'atlanta-ga', 'lexington-ky', 'st-louis-mo'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' },
-  { slug: 'columbus-oh', city: 'Columbus', state: 'OH', stateName: 'Ohio', region: 'central Ohio', nearbyCitySlugs: ['cincinnati-oh', 'indianapolis-in', 'lexington-ky', 'chicago-il'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' },
-  { slug: 'chicago-il', city: 'Chicago', state: 'IL', stateName: 'Illinois', region: 'Chicagoland', nearbyCitySlugs: ['indianapolis-in', 'st-louis-mo', 'columbus-oh', 'cincinnati-oh'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' },
-  { slug: 'st-louis-mo', city: 'St. Louis', state: 'MO', stateName: 'Missouri', region: 'the Greater St. Louis area', nearbyCitySlugs: ['chicago-il', 'indianapolis-in', 'nashville-tn', 'louisville-ky'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' },
-  { slug: 'atlanta-ga', city: 'Atlanta', state: 'GA', stateName: 'Georgia', region: 'metro Atlanta', nearbyCitySlugs: ['nashville-tn', 'charlotte-nc', 'raleigh-nc', 'jacksonville-fl'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' },
-  { slug: 'charlotte-nc', city: 'Charlotte', state: 'NC', stateName: 'North Carolina', region: 'the Carolinas', nearbyCitySlugs: ['raleigh-nc', 'atlanta-ga', 'nashville-tn', 'jacksonville-fl'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' },
-  { slug: 'dallas-tx', city: 'Dallas', state: 'TX', stateName: 'Texas', region: 'Dallas–Fort Worth', nearbyCitySlugs: ['austin-tx', 'houston-tx', 'phoenix-az', 'denver-co'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' },
-  { slug: 'houston-tx', city: 'Houston', state: 'TX', stateName: 'Texas', region: 'the Gulf Coast', nearbyCitySlugs: ['austin-tx', 'dallas-tx', 'phoenix-az', 'atlanta-ga'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' },
-  { slug: 'austin-tx', city: 'Austin', state: 'TX', stateName: 'Texas', region: 'central Texas', nearbyCitySlugs: ['dallas-tx', 'houston-tx', 'phoenix-az', 'denver-co'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' },
-  { slug: 'phoenix-az', city: 'Phoenix', state: 'AZ', stateName: 'Arizona', region: 'the Valley of the Sun', nearbyCitySlugs: ['denver-co', 'dallas-tx', 'austin-tx', 'houston-tx'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' },
-  { slug: 'denver-co', city: 'Denver', state: 'CO', stateName: 'Colorado', region: 'the Front Range', nearbyCitySlugs: ['phoenix-az', 'dallas-tx', 'austin-tx', 'chicago-il'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' },
-  { slug: 'tampa-fl', city: 'Tampa', state: 'FL', stateName: 'Florida', region: 'the Tampa Bay area', nearbyCitySlugs: ['orlando-fl', 'miami-fl', 'jacksonville-fl', 'atlanta-ga'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' },
-  { slug: 'orlando-fl', city: 'Orlando', state: 'FL', stateName: 'Florida', region: 'central Florida', nearbyCitySlugs: ['tampa-fl', 'miami-fl', 'jacksonville-fl', 'atlanta-ga'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' },
-  { slug: 'miami-fl', city: 'Miami', state: 'FL', stateName: 'Florida', region: 'South Florida', nearbyCitySlugs: ['orlando-fl', 'tampa-fl', 'jacksonville-fl', 'atlanta-ga'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' },
-  { slug: 'jacksonville-fl', city: 'Jacksonville', state: 'FL', stateName: 'Florida', region: 'northeast Florida', nearbyCitySlugs: ['orlando-fl', 'tampa-fl', 'atlanta-ga', 'raleigh-nc'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' },
-  { slug: 'raleigh-nc', city: 'Raleigh', state: 'NC', stateName: 'North Carolina', region: 'the Research Triangle', nearbyCitySlugs: ['charlotte-nc', 'atlanta-ga', 'jacksonville-fl', 'nashville-tn'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' },
+  reviewedVinylCity({ slug: 'cincinnati-oh', city: 'Cincinnati', state: 'OH', stateName: 'Ohio', region: 'the Tri-State area', nearbyCitySlugs: ['louisville-ky', 'lexington-ky', 'indianapolis-in', 'columbus-oh'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' }),
+  reviewedVinylCity({ slug: 'indianapolis-in', city: 'Indianapolis', state: 'IN', stateName: 'Indiana', region: 'central Indiana', nearbyCitySlugs: ['cincinnati-oh', 'louisville-ky', 'chicago-il', 'columbus-oh'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' }),
+  reviewedVinylCity({ slug: 'nashville-tn', city: 'Nashville', state: 'TN', stateName: 'Tennessee', region: 'Middle Tennessee', nearbyCitySlugs: ['louisville-ky', 'atlanta-ga', 'lexington-ky', 'st-louis-mo'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' }),
+  reviewedVinylCity({ slug: 'columbus-oh', city: 'Columbus', state: 'OH', stateName: 'Ohio', region: 'central Ohio', nearbyCitySlugs: ['cincinnati-oh', 'indianapolis-in', 'lexington-ky', 'chicago-il'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' }),
+  reviewedVinylCity({ slug: 'chicago-il', city: 'Chicago', state: 'IL', stateName: 'Illinois', region: 'Chicagoland', nearbyCitySlugs: ['indianapolis-in', 'st-louis-mo', 'columbus-oh', 'cincinnati-oh'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' }),
+  reviewedVinylCity({ slug: 'st-louis-mo', city: 'St. Louis', state: 'MO', stateName: 'Missouri', region: 'the Greater St. Louis area', nearbyCitySlugs: ['chicago-il', 'indianapolis-in', 'nashville-tn', 'louisville-ky'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' }),
+  reviewedVinylCity({ slug: 'atlanta-ga', city: 'Atlanta', state: 'GA', stateName: 'Georgia', region: 'metro Atlanta', nearbyCitySlugs: ['nashville-tn', 'charlotte-nc', 'raleigh-nc', 'jacksonville-fl'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' }),
+  reviewedVinylCity({ slug: 'charlotte-nc', city: 'Charlotte', state: 'NC', stateName: 'North Carolina', region: 'the Carolinas', nearbyCitySlugs: ['raleigh-nc', 'atlanta-ga', 'nashville-tn', 'jacksonville-fl'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' }),
+  reviewedVinylCity({ slug: 'dallas-tx', city: 'Dallas', state: 'TX', stateName: 'Texas', region: 'Dallas–Fort Worth', nearbyCitySlugs: ['austin-tx', 'houston-tx', 'phoenix-az', 'denver-co'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' }),
+  reviewedVinylCity({ slug: 'houston-tx', city: 'Houston', state: 'TX', stateName: 'Texas', region: 'the Gulf Coast', nearbyCitySlugs: ['austin-tx', 'dallas-tx', 'phoenix-az', 'atlanta-ga'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' }),
+  reviewedVinylCity({ slug: 'austin-tx', city: 'Austin', state: 'TX', stateName: 'Texas', region: 'central Texas', nearbyCitySlugs: ['dallas-tx', 'houston-tx', 'phoenix-az', 'denver-co'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' }),
+  reviewedVinylCity({ slug: 'phoenix-az', city: 'Phoenix', state: 'AZ', stateName: 'Arizona', region: 'the Valley of the Sun', nearbyCitySlugs: ['denver-co', 'dallas-tx', 'austin-tx', 'houston-tx'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' }),
+  reviewedVinylCity({ slug: 'denver-co', city: 'Denver', state: 'CO', stateName: 'Colorado', region: 'the Front Range', nearbyCitySlugs: ['phoenix-az', 'dallas-tx', 'austin-tx', 'chicago-il'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' }),
+  reviewedVinylCity({ slug: 'tampa-fl', city: 'Tampa', state: 'FL', stateName: 'Florida', region: 'the Tampa Bay area', nearbyCitySlugs: ['orlando-fl', 'miami-fl', 'jacksonville-fl', 'atlanta-ga'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' }),
+  reviewedVinylCity({ slug: 'orlando-fl', city: 'Orlando', state: 'FL', stateName: 'Florida', region: 'central Florida', nearbyCitySlugs: ['tampa-fl', 'miami-fl', 'jacksonville-fl', 'atlanta-ga'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' }),
+  reviewedVinylCity({ slug: 'miami-fl', city: 'Miami', state: 'FL', stateName: 'Florida', region: 'South Florida', nearbyCitySlugs: ['orlando-fl', 'tampa-fl', 'jacksonville-fl', 'atlanta-ga'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' }),
+  reviewedVinylCity({ slug: 'jacksonville-fl', city: 'Jacksonville', state: 'FL', stateName: 'Florida', region: 'northeast Florida', nearbyCitySlugs: ['orlando-fl', 'tampa-fl', 'atlanta-ga', 'raleigh-nc'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' }),
+  reviewedVinylCity({ slug: 'raleigh-nc', city: 'Raleigh', state: 'NC', stateName: 'North Carolina', region: 'the Research Triangle', nearbyCitySlugs: ['charlotte-nc', 'atlanta-ga', 'jacksonville-fl', 'nashville-tn'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' }),
 ];
 
 const CITY_BY_SLUG = new Map(CITIES.map((city) => [city.slug, city]));
