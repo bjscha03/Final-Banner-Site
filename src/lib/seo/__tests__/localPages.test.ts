@@ -32,17 +32,19 @@ describe('local page publication controls', () => {
     expect(new Set(paths.map(({ product, citySlug }) => `${product}/${citySlug}`)).size).toBe(paths.length);
   });
 
-  it('publishes only the reviewed Louisville vinyl-banner page', () => {
+  it('publishes only the reviewed Louisville and Lexington vinyl-banner pages', () => {
     expect(getIndexableCityProductPaths()).toEqual([
       { product: 'vinyl-banners', citySlug: 'louisville-ky' },
+      { product: 'vinyl-banners', citySlug: 'lexington-ky' },
     ]);
 
     for (const city of CITIES) {
       for (const product of productSlugs) {
         const gate = evaluateLocalPagePublishGate(product, city);
-        const isReviewedLouisvillePage = city.slug === 'louisville-ky' && product === 'vinyl-banners';
-        expect(gate.indexable).toBe(isReviewedLouisvillePage);
-        if (isReviewedLouisvillePage) {
+        const isReviewedVinylPage =
+          ['louisville-ky', 'lexington-ky'].includes(city.slug) && product === 'vinyl-banners';
+        expect(gate.indexable).toBe(isReviewedVinylPage);
+        if (isReviewedVinylPage) {
           expect(gate.reasons).toEqual([]);
         } else {
           expect(gate.reasons).toContain('No approved first-party local evidence.');
@@ -78,9 +80,33 @@ describe('local page publication controls', () => {
     ]));
   });
 
+  it('provides source-backed Lexington guidance without claiming a local storefront', () => {
+    const city = getCityBySlug('lexington-ky')!;
+    const content = buildCityProductPageContent('vinyl-banners', city);
+    expect(content.indexable).toBe(true);
+    expect(content.h1).toBe('Vinyl Banner Printing in Lexington, KY');
+    expect(content.introParagraph).toContain('does not represent a storefront or pickup location');
+    expect(content.localGuide?.sections).toHaveLength(4);
+    expect(content.localGuide?.recommendations).toHaveLength(4);
+    expect(content.localGuide?.permitNotice?.href).toBe(
+      'https://www.lexingtonky.gov/government/departments-programs/housing-advocacy-community-development/code-enforcement',
+    );
+    expect(content.localGuide?.sourceLinks).toHaveLength(11);
+    expect(content.localGuide?.sourceLinks.every((source) => source.href.startsWith('https://')).toBe(true);
+    expect(content.internalLinks.map((link) => link.to)).toEqual(expect.arrayContaining([
+      '/blog/vinyl-vs-mesh-banners-guide',
+      '/trade-shows',
+      '/blog/perfect-banner-size-guide',
+      '/blog/grand-opening-banner-ideas',
+    ]));
+    expect(content.nearbyCityLinks).toEqual([
+      { label: 'Vinyl Banners shipped to Louisville, KY', to: '/vinyl-banners/louisville-ky' },
+    ]);
+  });
+
   it('does not expose published-city links from an unpublished local page', () => {
-    const lexington = getCityBySlug('lexington-ky')!;
-    const content = buildCityProductPageContent('vinyl-banners', lexington);
+    const cincinnati = getCityBySlug('cincinnati-oh')!;
+    const content = buildCityProductPageContent('vinyl-banners', cincinnati);
     expect(content.indexable).toBe(false);
     expect(content.siblingProductLinks).toEqual([]);
     expect(content.nearbyCityLinks).toEqual([]);
@@ -97,7 +123,11 @@ describe('local page publication controls', () => {
         expect(content.canonicalUrl).toBe(`${SITE_URL}/${product}/${city.slug}`);
         expect(content.introParagraph).toContain('does not represent a storefront or pickup location');
         expect(content.siblingProductLinks).toEqual([]);
-        expect(content.nearbyCityLinks).toEqual([]);
+        if (product === 'vinyl-banners' && ['louisville-ky', 'lexington-ky'].includes(city.slug)) {
+          expect(content.nearbyCityLinks).toHaveLength(1);
+        } else {
+          expect(content.nearbyCityLinks).toEqual([]);
+        }
         titles.add(content.metaTitle);
         descriptions.add(content.metaDescription);
       }

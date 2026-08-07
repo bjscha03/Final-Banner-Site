@@ -207,17 +207,17 @@ const CityProductPage: React.FC<CityProductPageProps> = ({ productSlug }) => {
             </div>
 
             <div className="mt-12">
-              <h3 className="font-display text-2xl font-bold text-[#0B1F3A]">Choose a banner material for the Louisville setting</h3>
+              <h3 className="font-display text-2xl font-bold text-[#0B1F3A]">Choose a banner material for the {city.city} setting</h3>
               <div
                 className="mt-5 overflow-x-auto border border-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF6A00]"
                 role="region"
-                aria-label="Louisville banner material comparison"
+                aria-label={`${city.city} banner material comparison`}
                 tabIndex={0}
               >
                 <table className="w-full min-w-[720px] border-collapse text-left text-sm">
                   <thead className="bg-[#0B1F3A] text-white">
                     <tr>
-                      <th scope="col" className="px-5 py-4 font-semibold">Louisville use</th>
+                      <th scope="col" className="px-5 py-4 font-semibold">{city.city} use</th>
                       <th scope="col" className="px-5 py-4 font-semibold">Good starting choice</th>
                       <th scope="col" className="px-5 py-4 font-semibold">Why it fits</th>
                     </tr>
@@ -246,7 +246,7 @@ const CityProductPage: React.FC<CityProductPageProps> = ({ productSlug }) => {
             )}
 
             <div className="mt-8 border-t border-slate-200 pt-6">
-              <h3 className="font-display text-lg font-bold text-[#0B1F3A]">Louisville research sources</h3>
+              <h3 className="font-display text-lg font-bold text-[#0B1F3A]">{city.city} research sources</h3>
               <ul className="mt-3 flex flex-wrap gap-x-6 gap-y-3 text-sm">
                 {content.localGuide.sourceLinks.map((source) => (
                   <li key={source.href}>

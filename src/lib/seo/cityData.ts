@@ -267,7 +267,185 @@ export const CITIES: CityEntry[] = [
       },
     },
   },
-  { slug: 'lexington-ky', city: 'Lexington', state: 'KY', stateName: 'Kentucky', region: 'the Bluegrass region', nearbyCitySlugs: ['louisville-ky', 'cincinnati-oh', 'nashville-tn', 'columbus-oh'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' },
+  {
+    slug: 'lexington-ky',
+    city: 'Lexington',
+    state: 'KY',
+    stateName: 'Kentucky',
+    region: 'the Bluegrass region',
+    nearbyCitySlugs: ['louisville-ky', 'cincinnati-oh', 'nashville-tn', 'columbus-oh'],
+    serviceClassification: 'shipping-only',
+    physicalPresence: 'none-claimed',
+    editorial: {
+      'vinyl-banners': {
+        introduction:
+          'Banners On The Fly prints custom vinyl banners for Lexington businesses, equine organizations, schools, churches, exhibitors, event teams, and community groups, then ships the finished order to the customer. This page is written for Lexington planning needs, but it does not represent a storefront or pickup location in Lexington.',
+        fulfillmentFact:
+          'Most standard vinyl-banner orders are produced within 24 hours. Free next-day air is carrier transit after production, and delivery dates are estimates.',
+        buyerGuidance: [
+          'Use solid vinyl for indoor exhibit booths, storefront promotions, sponsor backdrops, campus events, and protected outdoor displays where color and opacity matter most.',
+          'Choose mesh for approved fence-mounted or exposed installations where allowing air through the print can reduce wind load.',
+          'Keep outdoor messages short, use high contrast, and size the headline for the viewing distance on foot, from a vehicle, or across an event aisle.',
+          'Confirm the exact property, venue, campus, and Lexington temporary-sign rules before installation; requirements depend on the site and display.',
+        ],
+        faqs: [
+          {
+            question: 'What banner material works best for outdoor events in Lexington?',
+            answer:
+              'Solid 13 oz or 15 oz vinyl is a strong choice for a protected tent, wall, or short-term display. Mesh is usually the better starting point for an approved fence line or open site where airflow matters. No banner should be treated as storm-rated: inspect the mounting points and remove the display when severe weather or damaging wind is expected.',
+          },
+          {
+            question: 'Do temporary banners require approval in Lexington?',
+            answer:
+              'Requirements depend on the property and display. Lexington Code Enforcement says it enforces Article 17 temporary-sign rules and inspects illegal temporary signs. Banners proposed for downtown street lights or corner flags use a separate Mayor’s Office application that must be submitted at least 60 days ahead. Confirm the current rule with the property owner, venue, and city for the exact location.',
+          },
+          {
+            question: 'Can I order banners for a Lexington convention or trade show?',
+            answer:
+              'Yes. Measure the approved booth, table front, wall, or hanging area first, then confirm Central Bank Center or organizer rules for placement, rigging, fire safety, and move-in. A concise aisle-facing headline usually works better than a banner filled with small copy.',
+          },
+          {
+            question: 'What should go on a Lexington grand-opening banner?',
+            answer:
+              'Lead with “Grand Opening,” the business name, the date, and one useful next step such as “Now Open” or a short URL. Check the sight line from the sidewalk or parking area, leave enough contrast around the headline, and verify the property’s sign requirements before installation.',
+          },
+        ],
+        localEvidence: [],
+        author: 'Banners On The Fly editorial',
+        reviewer: 'Source-verified local SEO review',
+        lastReviewed: '2026-08-07',
+        claimsApproved: true,
+        validationApproved: true,
+        evidenceExceptionApproved: true,
+        metaTitle: 'Vinyl Banner Printing Lexington, KY | Fast Shipping',
+        metaDescription:
+          'Order custom vinyl banners shipped to Lexington, KY with 24-hour production on most standard orders and free next-day air after production. Design online.',
+        h1: 'Vinyl Banner Printing in Lexington, KY',
+        heroSubtitle:
+          'Custom banners for Lexington businesses, schools, churches, exhibitors, equine events, and community teams.',
+        localGuide: {
+          eyebrow: 'Lexington banner field guide',
+          title: 'Plan a banner that fits Lexington’s venue, audience, and setting.',
+          summary:
+            'Lexington’s event calendar moves between downtown exhibit halls, campuses, neighborhood markets, horse-country venues, parks, and storefronts. The strongest banner plan starts with where it will hang, how people will approach it, and what they need to understand in a few seconds.',
+          sections: [
+            {
+              heading: 'Equine events and open Bluegrass sites',
+              paragraphs: [
+                'The Kentucky Horse Park hosts horse shows, trade shows, festivals, conferences, concerts, and other gatherings across large indoor facilities and more than 1,200 acres. Keeneland’s spring and fall racing seasons create another distinctive Lexington rhythm for hospitality, vendors, farms, sponsors, and visitor-facing businesses.',
+                'For an approved fence or exposed perimeter, mesh can reduce wind load by letting air pass through the print. Solid vinyl is usually a better fit for a protected registration tent, sponsor wall, barn entrance, or indoor hospitality area where opacity and saturated color matter more.',
+              ],
+              items: [
+                'Confirm the venue’s placement, fastener, rigging, and sponsor rules before choosing size or finishing.',
+                'Use large zone names, arrows, gate numbers, or barn identifiers for people moving through a broad site.',
+                'Avoid attaching a banner to an animal enclosure or temporary structure unless the site operator expressly approves the mounting plan.',
+              ],
+            },
+            {
+              heading: 'Downtown conventions, music, and markets',
+              paragraphs: [
+                'Central Bank Center connects 100,000 square feet of exhibit space with meeting rooms and Rupp Arena, making booth identification, product messaging, registration signs, sponsor backdrops, and directional banners practical tools for exhibitors. Nearby, Thursday Night Live brings food, art, beverages, and local music to Tandy Centennial Park during its warm-season run.',
+                'The Lexington Farmers’ Market also operates in distinct settings: downtown Main Street, Southland Drive, the Warehouse Block on National Avenue, and Greyline Station. Vendors and organizers can use concise banners for booth names, pickup points, demonstrations, schedules, and sponsor recognition—subject to each market or venue’s rules.',
+              ],
+              items: [
+                'Measure the approved booth or table before ordering; do not estimate from a venue photograph.',
+                'For crowded aisles, place the business name and main benefit high enough to remain visible behind visitors.',
+                'Keep arrows and pickup instructions separate from promotional copy so wayfinding stays clear.',
+              ],
+            },
+            {
+              heading: 'Campuses, schools, sports, and community groups',
+              paragraphs: [
+                'The University of Kentucky and downtown Transylvania University support campus fairs, athletics, student organizations, alumni gatherings, performances, and service projects. Fayette County Public Schools serves more than 40,000 students, creating recurring needs for enrollment events, booster programs, concerts, tournaments, graduations, and family nights.',
+                'Churches, faith communities, nonprofits, youth leagues, and neighborhood associations can get more use from a banner when the core design is evergreen. A reusable welcome or sponsor banner can be paired with a separate date sign instead of reprinting the entire message for every event.',
+              ],
+              items: [
+                'Use school, team, or organization brand colors with enough contrast for outdoor readability.',
+                'Leave generous margins around sponsor logos and follow each organization’s identity guidelines.',
+                'Ask the campus, school, park, or facility manager to approve both placement and attachment hardware.',
+              ],
+            },
+            {
+              heading: 'Storefronts, makers, and growing industries',
+              paragraphs: [
+                'Downtown, the Distillery District, the Warehouse Block, Southland, and the East End all give Lexington businesses different pedestrian, parking, and street-facing sight lines. Restaurants, retailers, galleries, makers, and service businesses can use banners for openings, seasonal hours, hiring, pop-ups, renovations, and limited promotions without asking one sign to carry every campaign detail.',
+                'Greater Lexington identifies agtech, biotech and biopharma, advanced manufacturing, logistics, business services, and food and beverage processing as target industries. In those settings, durable banners can support recruiting, safety communication, facility wayfinding, supplier days, construction milestones, and community outreach.',
+              ],
+              items: [
+                'Prioritize one action: visit, register, apply, enter, check in, or learn more.',
+                'Check the message from the real viewing distance before approving the artwork.',
+                'For longer campaigns, plan reinforced mounting points and a regular inspection schedule.',
+              ],
+            },
+          ],
+          recommendations: [
+            {
+              use: 'Indoor booths at Central Bank Center',
+              choice: '13 oz or 15 oz solid vinyl',
+              reason: 'Strong color and opacity for table fronts, booth walls, sponsor backdrops, and aisle-facing messages.',
+            },
+            {
+              use: 'Approved fence lines and exposed event grounds',
+              choice: 'Mesh banner material',
+              reason: 'Perforation allows airflow and can reduce wind load compared with solid vinyl; secure mounting and weather monitoring still matter.',
+            },
+            {
+              use: 'Storefront promotions and grand openings',
+              choice: '15 oz solid vinyl',
+              reason: 'A durable, professional option for a bold street-facing message when the property and display are approved.',
+            },
+            {
+              use: 'Construction, campus, and facility wayfinding',
+              choice: '15 oz or 18 oz vinyl',
+              reason: 'Heavier solid materials suit repeated handling or longer campaigns when the support and attachment plan are appropriate.',
+            },
+          ],
+          permitNotice: {
+            title: 'Verify the exact Lexington sign and venue rules',
+            body:
+              'Lexington Code Enforcement says it enforces Article 17 temporary-sign rules and inspects illegal temporary signs. The city also has a separate program for banners on downtown street lights and corner flags; that application is due at least 60 days in advance. Check the current requirements for the exact property and get venue or property-owner approval before installation.',
+            href: 'https://www.lexingtonky.gov/government/departments-programs/housing-advocacy-community-development/code-enforcement',
+            linkLabel: 'Review Lexington temporary-sign enforcement',
+          },
+          sourceLinks: [
+            { label: 'Lexington economic development', href: 'https://www.lexingtonky.gov/economic-development' },
+            { label: 'Greater Lexington target industries', href: 'https://locateinlexington.com/industries/' },
+            { label: 'Central Bank Center facility guide', href: 'https://www.centralbankcenter.com/convention-center/facility' },
+            { label: 'Kentucky Horse Park event facilities', href: 'https://kyhorsepark.com/events/your-event/' },
+            { label: 'Keeneland', href: 'https://www.keeneland.com/' },
+            { label: 'Lexington Farmers’ Market locations', href: 'https://www.lexingtonfarmersmarket.com/' },
+            { label: 'Downtown Lexington Thursday Night Live', href: 'https://downtownlex.com/central-bank-thursday-night-live/' },
+            { label: 'Fayette County Public Schools', href: 'https://www.fcps.net/about/about-fcps' },
+            { label: 'Transylvania University', href: 'https://www.transy.edu/' },
+            { label: 'National Weather Service Lexington climate resources', href: 'https://www.weather.gov/lmk/climate' },
+            { label: 'Lexington street-banner application', href: 'https://www.lexingtonky.gov/government/mayors-office/street-banner-application' },
+          ],
+        },
+        internalLinks: [
+          {
+            label: 'Vinyl versus mesh banner guide',
+            to: '/blog/vinyl-vs-mesh-banners-guide',
+            description: 'Compare solid vinyl with airflow-friendly mesh for fences, equine venues, construction perimeters, and open event grounds.',
+          },
+          {
+            label: 'Trade show planning calendar',
+            to: '/trade-shows',
+            description: 'Check the current U.S. trade show calendar while planning booth graphics, sponsor displays, and aisle-facing messages.',
+          },
+          {
+            label: 'Banner size and viewing-distance guide',
+            to: '/blog/perfect-banner-size-guide',
+            description: 'Choose practical dimensions for storefronts, stages, registration areas, booths, and wayfinding.',
+          },
+          {
+            label: 'Grand opening banner ideas',
+            to: '/blog/grand-opening-banner-ideas',
+            description: 'Use a practical checklist for the headline, date, offer, layout, and installation plan.',
+          },
+        ],
+      },
+    },
+  },
   { slug: 'cincinnati-oh', city: 'Cincinnati', state: 'OH', stateName: 'Ohio', region: 'the Tri-State area', nearbyCitySlugs: ['louisville-ky', 'lexington-ky', 'indianapolis-in', 'columbus-oh'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' },
   { slug: 'indianapolis-in', city: 'Indianapolis', state: 'IN', stateName: 'Indiana', region: 'central Indiana', nearbyCitySlugs: ['cincinnati-oh', 'louisville-ky', 'chicago-il', 'columbus-oh'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' },
   { slug: 'nashville-tn', city: 'Nashville', state: 'TN', stateName: 'Tennessee', region: 'Middle Tennessee', nearbyCitySlugs: ['louisville-ky', 'atlanta-ga', 'lexington-ky', 'st-louis-mo'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' },
