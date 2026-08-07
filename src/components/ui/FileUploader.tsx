@@ -1,5 +1,6 @@
-import React, { useRef, useState } from 'react';
+import React, { forwardRef, useCallback, useImperativeHandle, useRef, useState } from 'react';
 import { Loader2, Upload } from 'lucide-react';
+import { activateFilePicker } from './filePicker';
 
 interface FileUploaderProps {
   onUpload: (file: File) => void;
@@ -14,9 +15,19 @@ interface FileUploaderProps {
   style?: React.CSSProperties;
 }
 
+export interface FileUploaderHandle {
+  /**
+   * Opens the native file chooser synchronously from the caller's user gesture.
+   * The boolean result lets sticky CTAs fall back to scrolling when the input is
+   * temporarily unavailable or blocked by an in-progress upload.
+   */
+  openFilePicker: () => boolean;
+  focus: () => void;
+}
+
 const DEFAULT_SUBTEXT = 'PNG, JPG, or PDF • Max 50MB';
 
-const FileUploader: React.FC<FileUploaderProps> = ({
+const FileUploader = forwardRef<FileUploaderHandle, FileUploaderProps>(({
   onUpload,
   acceptedTypes,
   maxSize,
@@ -27,7 +38,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({
   disabled = false,
   className = '',
   style,
-}) => {
+}, ref) => {
   const localInputRef = useRef<HTMLInputElement>(null);
   const [isDragActive, setIsDragActive] = useState(false);
 
@@ -42,10 +53,14 @@ const FileUploader: React.FC<FileUploaderProps> = ({
     onUpload(files[0]);
   };
 
-  const openFilePicker = () => {
-    if (disabled || isUploading) return;
-    localInputRef.current?.click();
-  };
+  const openFilePicker = useCallback((): boolean => {
+    return activateFilePicker(localInputRef.current, disabled || isUploading);
+  }, [disabled, isUploading]);
+
+  useImperativeHandle(ref, () => ({
+    openFilePicker,
+    focus: () => localInputRef.current?.parentElement?.focus(),
+  }), [openFilePicker]);
 
   return (
     <div
@@ -115,6 +130,8 @@ const FileUploader: React.FC<FileUploaderProps> = ({
       )}
     </div>
   );
-};
+});
+
+FileUploader.displayName = 'FileUploader';
 
 export default FileUploader;
