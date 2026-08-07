@@ -13,6 +13,26 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "real-estate-open-house-banners": {
+    title: "Open House Banners and Yard Signs: A Complete Planning Guide",
+    description: "Plan effective open house banners and yard signs with practical guidance on messaging, placement, readable design, directional flow, safety, and reuse.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/real-estate-open-house-banners.webp"
+  },
+  "color-accuracy-cmyk-banners": {
+    title: "CMYK Banner Printing: How to Get More Predictable Color",
+    description: "Prepare color for CMYK banner printing with practical advice on RGB conversion, brand colors, profiles, black, gradients, file checks, and expectations.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/color-accuracy-cmyk-banners.webp"
+  },
+  "outdoor-banner-durability-guide": {
+    title: "How Long Do Outdoor Banners Last? A Durability and Care Guide",
+    description: "Learn what affects outdoor banner durability, how material, wind, mounting, sun, and storage change performance, and when to inspect or replace a banner.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/outdoor-banner-durability-guide.webp"
+  },
+  "trade-show-banner-sizes-guide": {
+    title: "Trade Show Banner Sizes: A Practical Guide for 10×10 and 10×20 Booths",
+    description: "Choose trade show banner sizes for 10×10 and 10×20 booths with practical layouts, viewing-distance guidance, setup checks, artwork tips, and planning advice.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/trade-show-banner-sizes-guide.webp"
+  },
   "banner-design-readability-tips": {
     title: "How to Make a Banner Readable From 10, 20, or 50 Feet",
     description: "Learn how to make a banner readable from 10, 20, or 50 feet with practical guidance on letter size, contrast, hierarchy, copy, and distance testing today.",
