@@ -8,6 +8,7 @@ import { toast } from "@/components/ui/use-toast";
 import { captureAttributionFromLocation } from "@/lib/attribution";
 import AnalyticsController from "@/components/AnalyticsController";
 import RouteRobotsPolicy from "@/components/RouteRobotsPolicy";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import CityProductPage from "./pages/CityProductPage";
 import ProductHubPage from "./pages/ProductHubPage";
 import TradeShowDirectory from "./pages/TradeShowDirectory";
@@ -148,6 +149,7 @@ export const RoutedApplication = () => (
           <AttributionCapture />
           <AnalyticsController />
           <RouteRobotsPolicy />
+          <ErrorBoundary>
           <Suspense fallback={<PageLoader />}>
           <Routes>
             {/* Critical path - homepage */}
@@ -255,6 +257,7 @@ export const RoutedApplication = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
           </Suspense>
+          </ErrorBoundary>
           </CartSyncWrapper>
 );
 

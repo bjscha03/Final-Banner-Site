@@ -15,6 +15,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { getItemCount } = useCartStore();
   const { isCartOpen, setIsCartOpen } = useUIStore();
   const [hasMounted, setHasMounted] = React.useState(false);
+  const openCart = React.useCallback(() => setIsCartOpen(true), [setIsCartOpen]);
+  const closeCart = React.useCallback(() => setIsCartOpen(false), [setIsCartOpen]);
 
   React.useEffect(() => setHasMounted(true), []);
 
@@ -23,7 +25,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <ScrollToTop />
       <Header
         cartCount={hasMounted ? getItemCount() : 0}
-        onCartClick={() => setIsCartOpen(true)}
+        onCartClick={openCart}
       />
       <main className="w-full max-w-[100vw] overflow-x-clip">
         {children}
@@ -32,7 +34,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <Footer />
       <CartModal
         isOpen={isCartOpen}
-        onClose={() => setIsCartOpen(false)}
+        onClose={closeCart}
       />
     </div>
   );

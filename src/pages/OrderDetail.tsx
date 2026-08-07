@@ -9,6 +9,7 @@ import { formatShippingAddress, hasShippingAddress, normalizeShippingAddress } f
 import { getDisplayOrderTotalCents } from '@/lib/order-totals';
 import OrderItemPreview from '@/components/preview/OrderItemPreview';
 import { authorizedHeaders } from '@/lib/serverAuth';
+import { consumeOrderViewCredential } from '@/lib/orderViewCredential';
 
 interface OrderItem {
   width_in: number;
@@ -99,13 +100,20 @@ const OrderDetail: React.FC = () => {
   const fetchOrder = async (orderId: string) => {
     try {
       setLoading(true);
-      const response = await fetch(`/.netlify/functions/get-order?id=${orderId}`, { headers: authorizedHeaders() });
+      const orderViewToken = consumeOrderViewCredential(orderId);
+      const response = await fetch(`/.netlify/functions/get-order?id=${encodeURIComponent(orderId)}`, {
+        headers: authorizedHeaders(orderViewToken
+          ? { 'X-Order-View-Token': orderViewToken }
+          : {}),
+      });
       const data = await response.json();
       
       if (data.ok && data.order) {
         setOrder(data.order);
       } else {
-        setError(data.error || 'Order not found');
+        setError(response.status === 401
+          ? 'This secure order link is invalid or has expired. Sign in to your account or contact support for a new link.'
+          : (data.error || 'Order not found'));
       }
     } catch (err) {
       setError('Failed to load order details');

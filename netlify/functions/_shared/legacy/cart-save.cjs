@@ -3,6 +3,7 @@ const {
   PreviewArtifactValidationError,
   normalizeCartItemPlacement,
 } = require('../preview-artifact.cjs');
+const { runAtomicBatch } = require('../atomic-batch.cjs');
 
 exports.handler = async (event, context) => {
   const headers = {
@@ -129,17 +130,17 @@ exports.handler = async (event, context) => {
         // Profile doesn't exist - fall back to session-based cart
         console.log('[cart-save] Profile does not exist for userId, using session-based storage');
         if (sessionId) {
-          await sql.transaction(async (tx) => {
-            await tx`SELECT pg_advisory_xact_lock(hashtext(${'cart-session:' + sessionId})::bigint)`;
-            await tx`
+          await runAtomicBatch(sql, [
+            sql`SELECT pg_advisory_xact_lock(hashtext(${'cart-session:' + sessionId})::bigint)`,
+            sql`
               DELETE FROM user_carts
               WHERE session_id = ${sessionId} AND status = 'active'
-            `;
-            await tx`
+            `,
+            sql`
               INSERT INTO user_carts (session_id, cart_data, status, updated_at, last_accessed_at)
               VALUES (${sessionId}, ${cartDataJson}::jsonb, 'active', NOW(), NOW())
-            `;
-          });
+            `,
+          ]);
           console.log('[cart-save] Cart saved using session fallback');
           return { statusCode: 200, headers, body: JSON.stringify({ success: true, fallback: 'session' }) };
         } else {
@@ -149,36 +150,34 @@ exports.handler = async (event, context) => {
       }
       
       // Profile exists - save with userId
-      await sql.transaction(async (tx) => {
-        await tx`SELECT pg_advisory_xact_lock(hashtext(${'cart-user:' + userId})::bigint)`;
-        console.log('[cart-save] Deleting all active carts for user:', userId);
-        await tx`
+      console.log('[cart-save] Replacing active cart for user:', userId);
+      await runAtomicBatch(sql, [
+        sql`SELECT pg_advisory_xact_lock(hashtext(${'cart-user:' + userId})::bigint)`,
+        sql`
           DELETE FROM user_carts
           WHERE user_id = ${userId} AND status = 'active'
-        `;
-        console.log('[cart-save] Inserting new cart for user:', userId);
-        await tx`
+        `,
+        sql`
           INSERT INTO user_carts (user_id, cart_data, status, updated_at, last_accessed_at)
           VALUES (${userId}, ${cartDataJson}::jsonb, 'active', NOW(), NOW())
-        `;
-      });
+        `,
+      ]);
       
       console.log('[cart-save] Cart saved successfully for user:', userId);
     } else if (sessionId) {
       // BULLETPROOF: Delete ALL active carts for this session first, then insert new one
-      await sql.transaction(async (tx) => {
-        await tx`SELECT pg_advisory_xact_lock(hashtext(${'cart-session:' + sessionId})::bigint)`;
-        console.log('[cart-save] Deleting all active carts for session:', sessionId);
-        await tx`
+      console.log('[cart-save] Replacing active cart for session:', sessionId);
+      await runAtomicBatch(sql, [
+        sql`SELECT pg_advisory_xact_lock(hashtext(${'cart-session:' + sessionId})::bigint)`,
+        sql`
           DELETE FROM user_carts
           WHERE session_id = ${sessionId} AND status = 'active'
-        `;
-        console.log('[cart-save] Inserting new cart for session:', sessionId);
-        await tx`
+        `,
+        sql`
           INSERT INTO user_carts (session_id, cart_data, status, updated_at, last_accessed_at)
           VALUES (${sessionId}, ${cartDataJson}::jsonb, 'active', NOW(), NOW())
-        `;
-      });
+        `,
+      ]);
       
       console.log('[cart-save] Cart saved successfully for session:', sessionId);
     }

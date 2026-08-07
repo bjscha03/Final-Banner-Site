@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test';
 
+test.afterEach(async ({ page }) => {
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
 test('signed admin sees in-place reconnect when the preview proxy rejects status', async ({ page }) => {
   await page.addInitScript(() => {
     const admin = {

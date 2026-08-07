@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test';
 
+test.afterEach(async ({ page }) => {
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
 const VISUAL_QA_PROJECTS = new Set(['chromium-1440x900', 'chromium-pixel8-portrait']);
 
 const routes = [

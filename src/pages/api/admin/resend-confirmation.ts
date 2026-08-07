@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { sendEmail } from '../../../lib/email';
 import { neon } from '@neondatabase/serverless';
+import { createGuestOrderViewUrl } from '../../../lib/orderViewUrl.server';
 
 export const POST: APIRoute = async ({ request }) => {
   try {
@@ -96,7 +97,10 @@ export const POST: APIRoute = async ({ request }) => {
           zip: order.shipping_address.zip
         } : undefined
       },
-      invoiceUrl: `${import.meta.env.PUBLIC_SITE_URL || 'https://bannersonthefly.com'}/orders/${order.id}`
+      invoiceUrl: createGuestOrderViewUrl(
+        import.meta.env.PUBLIC_SITE_URL || 'https://bannersonthefly.com',
+        order,
+      )
     };
 
     // Send the email

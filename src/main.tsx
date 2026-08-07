@@ -6,6 +6,8 @@ import './admin-preview.css';
 import { isPreviewEnvironment, isProductionHost } from './lib/environment';
 import { installPayPalCheckoutStorageGuard } from './lib/paypalCheckoutStorageGuard';
 import { installPayPalCaptureResponseGuard } from './lib/paypalCaptureResponseGuard';
+import { installChunkRecovery } from './lib/chunkRecovery';
+import { consumeOrderViewCredentialFromCurrentRoute } from './lib/orderViewCredential';
 
 const PREVIEW_SESSION_KEY = 'preview_access_granted';
 
@@ -118,12 +120,20 @@ function shouldRequirePreviewGate(): boolean {
   return !hasAccess;
 }
 
+// Remove signed email credentials from the address bar before attribution,
+// analytics, or session-replay code can initialize. The credential remains
+// available only in this tab and OrderDetail sends it in a dedicated header.
+consumeOrderViewCredentialFromCurrentRoute();
 // Install before React mounts so legacy/stale checkout locks cannot be read by
 // PayPalCheckout during responsive remounts or browser-width changes.
 installPayPalCheckoutStorageGuard();
 // Normalize every uncertain PayPal capture response into a do-not-retry lock
 // before the checkout component can interpret it as a normal payment failure.
 installPayPalCaptureResponseGuard();
+// An already-open tab can request an obsolete lazy chunk after a Netlify
+// deploy. Refresh once to load the new chunk map instead of leaving a blank
+// root-level spinner forever.
+installChunkRecovery();
 
 const RootComponent = shouldRequirePreviewGate() ? PreviewAccessGate : App;
 const rootElement = document.getElementById('root')!;

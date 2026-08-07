@@ -201,6 +201,13 @@
   to = "/404.html"
   status = 404
 
+# Existing hashed assets shadow this non-forced rule. Missing/stale chunks must
+# never be rewritten to index.html with JavaScript cache headers.
+[[redirects]]
+  from = "/assets/*"
+  to = "/404.html"
+  status = 404
+
 # SPA fallback (must be last redirect) - exclude static assets
 [[redirects]]
   from = "/*"

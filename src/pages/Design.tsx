@@ -48,7 +48,11 @@ import GrommetOverlay from '@/components/preview/GrommetOverlay';
 import PreviewRulerFrame from '@/components/preview/PreviewRulerFrame';
 import ArtworkPreviewEditor, { type ArtworkPreviewEditorHandle } from '@/components/design/ArtworkPreviewEditor';
 import { base64ToFile } from '@/utils/base64ToFile';
-import { uploadArtworkFile, validateArtworkFile } from '@/utils/uploadArtworkFile';
+import {
+  getArtworkUploadDiagnostic,
+  uploadArtworkFile,
+  validateArtworkFile,
+} from '@/utils/uploadArtworkFile';
 import { computeSameDayFeesCents } from '@/lib/sameDayService';
 import ConfigCard from '@/components/design/layout/ConfigCard';
 import TrustStrip from '@/components/design/layout/TrustStrip';
@@ -1216,10 +1220,12 @@ const Design: React.FC = () => {
         transport: result.transport,
         publicIdPresent: Boolean(result.fileKey),
       });
+      const uploadDescriptor = getArtworkUploadDiagnostic(null, file);
       logUx('upload_success', {
-        name: file.name,
-        fileKey: result.fileKey,
+        correlationId,
         transport: result.transport,
+        sizeBucket: uploadDescriptor.sizeBucket,
+        mimeType: uploadDescriptor.mimeType,
       });
 
       if (permanentPreviewLoaded) {
@@ -1240,13 +1246,18 @@ const Design: React.FC = () => {
       if (generation !== uploadGenerationRef.current) return null;
       const cancelled = controller.signal.aborted;
       if (!cancelled) {
+        const diagnostic = getArtworkUploadDiagnostic(error, file);
         console.error('[artwork_upload]', { correlationId, stage: 'original_upload_failed', error });
         logUx('upload_error', {
-          name: file.name,
-          message: error instanceof Error ? error.message : String(error),
+          correlationId,
+          phase: diagnostic.phase,
+          status: diagnostic.status ?? 'network',
+          retryable: diagnostic.retryable,
+          sizeBucket: diagnostic.sizeBucket,
+          mimeType: diagnostic.mimeType,
         });
         setUploadError(
-          'ORIGINAL_UPLOAD_INCOMPLETE: The secure original upload failed. Your selected file and configuration were preserved.',
+          'Artwork upload did not finish. Your file and choices are still here. Check your connection, then try again.',
         );
       }
       return null;
@@ -1288,7 +1299,12 @@ const Design: React.FC = () => {
       : (file.type || (extension === 'png' ? 'image/png' : 'image/jpeg'));
 
     setIsUploading(true);
-    logUx('upload_start', { name: file.name, size: file.size, type: file.type });
+    const uploadDescriptor = getArtworkUploadDiagnostic(null, file);
+    logUx('upload_start', {
+      correlationId,
+      sizeBucket: uploadDescriptor.sizeBucket,
+      mimeType: uploadDescriptor.mimeType,
+    });
 
     try {
       let previewUrl = '';
@@ -1393,8 +1409,8 @@ const Design: React.FC = () => {
     }
 
     toast({
-      title: 'ORIGINAL_UPLOAD_INCOMPLETE',
-      description: 'The secure original upload could not be completed. Your selected file and configuration were preserved; no cart item was created.',
+      title: 'Artwork upload did not finish',
+      description: 'Your file and choices are still here. Check your connection and try Add to cart again.',
       variant: 'destructive',
     });
     return null;

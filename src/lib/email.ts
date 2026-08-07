@@ -12,6 +12,7 @@ import OrderInProduction from '../emails/OrderInProduction';
 import ContactReceived from '../emails/ContactReceived';
 import ContactAcknowledgment from '../emails/ContactAcknowledgment';
 import AdminOrderNotification from '../emails/AdminOrderNotification';
+import { createGuestOrderViewUrl } from './orderViewUrl.server';
 
 // Email-compatible logo header HTML for inline templates
 export function createEmailLogoHeader(): string {
@@ -317,6 +318,7 @@ export async function sendEmail(
 // Backward compatibility function for existing order confirmation
 export async function sendOrderConfirmation(order: any, customerEmail: string): Promise<boolean> {
   try {
+    const siteOrigin = process.env.PUBLIC_SITE_URL || 'https://bannersonthefly.com';
     // Convert old order format to new format
     const orderPayload = {
       to: customerEmail,
@@ -358,7 +360,7 @@ export async function sendOrderConfirmation(order: any, customerEmail: string): 
         total: order.total_cents / 100,
         shippingAddress: order.shipping_address
       },
-      invoiceUrl: `/orders/${order.id}`
+      invoiceUrl: createGuestOrderViewUrl(siteOrigin, order)
     };
 
     const result = await sendEmail('order.confirmation', orderPayload);

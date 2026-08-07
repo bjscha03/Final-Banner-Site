@@ -1,5 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
-const { randomUUID } = require('crypto');
+const { createHash, randomUUID } = require('crypto');
 const { normalizeArtworkManifest } = require('../artwork-manifest.cjs');
 const {
   PreviewArtifactValidationError,
@@ -12,6 +12,23 @@ const {
 } = require('../sameDayService.cjs');
 const { addPostTaxServiceFees } = require('../order-total-reconciliation.cjs');
 const { validateDiscountForCheckout } = require('../discount-validation.cjs');
+const { runAtomicBatch, isUniqueViolation } = require('../atomic-batch.cjs');
+
+let orderSchemaReadyPromise = null;
+
+function ensureOrderSchemaOnce(migrate) {
+  if (!orderSchemaReadyPromise) {
+    orderSchemaReadyPromise = Promise.resolve()
+      .then(migrate)
+      .catch((error) => {
+        // A transient migration failure must be visible to the request and
+        // retryable by a later invocation; never mark a failed schema ready.
+        orderSchemaReadyPromise = null;
+        throw error;
+      });
+  }
+  return orderSchemaReadyPromise;
+}
 
 // Guard: only treat a value as a "real" authenticated user id if it is a
 // proper non-zero UUID. Placeholder values like the all-zero UUID, the
@@ -129,6 +146,229 @@ function validatePrintSceneV2(canvasStateJson) {
     }
   }
   return scene;
+}
+
+function stableStringify(value) {
+  if (value === null || value === undefined) return 'null';
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  if (typeof value === 'object') {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function canonicalJson(value, fallback = null) {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value !== 'string') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
+
+function numericValue(value, fallback = 0) {
+  const numeric = Number(value ?? fallback);
+  return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function booleanValue(value) {
+  if (value === false || value === 0 || value === null || value === undefined) return false;
+  if (typeof value === 'string' && ['false', '0', 'none', 'no', 'off', ''].includes(value.trim().toLowerCase())) return false;
+  return true;
+}
+
+function itemSignatureProjection(item) {
+  const polePockets = booleanValue(item.pole_pockets)
+    && item.pole_pockets !== 'none'
+    && item.pole_pockets !== 'false';
+
+  return {
+    product_type: item.product_type || 'banner',
+    width_in: numericValue(item.width_in),
+    height_in: numericValue(item.height_in),
+    quantity: numericValue(item.quantity, 1),
+    material: item.material || '13oz',
+    grommets: item.grommets || 'none',
+    rounded_corners: item.rounded_corners || null,
+    rope_feet: numericValue(item.rope_feet),
+    rope_placement: item.rope_placement || null,
+    pole_pockets: polePockets,
+    pole_pocket_position: item.pole_pocket_position || null,
+    pole_pocket_size: item.pole_pocket_size || null,
+    pole_pocket_cost_cents: numericValue(item.pole_pocket_cost_cents),
+    line_total_cents: numericValue(item.line_total_cents),
+    file_key: item.file_key || null,
+    file_name: item.file_name || item.artwork_manifest?.originalFilename || null,
+    file_url: item.file_url || null,
+    artwork_manifest: canonicalJson(item.artwork_manifest),
+    placement_preview: canonicalJson(item.placement_preview),
+    original_filename: item.artwork_manifest?.originalFilename || item.file_name || null,
+    print_ready_url: item.print_ready_url || null,
+    web_preview_url: item.web_preview_url || null,
+    text_elements: canonicalJson(item.text_elements, []),
+    overlay_image: canonicalJson(item.overlay_image),
+    overlay_images: canonicalJson(item.overlay_images),
+    canvas_background_color: item.canvas_background_color || '#FFFFFF',
+    image_scale: numericValue(item.image_scale, 1),
+    image_position: canonicalJson(item.image_position, { x: 0, y: 0 }),
+    thumbnail_url: item.thumbnail_url || null,
+    final_render_url: item.final_render_url || null,
+    final_render_file_key: item.final_render_file_key || null,
+    final_render_width_px: item.final_render_width_px == null ? null : numericValue(item.final_render_width_px),
+    final_render_height_px: item.final_render_height_px == null ? null : numericValue(item.final_render_height_px),
+    final_render_dpi: item.final_render_dpi == null ? null : numericValue(item.final_render_dpi),
+    canvas_state_json: canonicalJson(item.canvas_state_json),
+    design_service_enabled: booleanValue(item.design_service_enabled),
+    design_request_text: item.design_request_text || null,
+    design_draft_preference: item.design_draft_preference || null,
+    design_draft_contact: item.design_draft_contact || null,
+    design_uploaded_assets: canonicalJson(item.design_uploaded_assets, []),
+    yard_sign_sidedness: item.yard_sign_sidedness ?? null,
+    yard_sign_step_stakes_enabled: booleanValue(item.yard_sign_step_stakes_enabled),
+    yard_sign_step_stakes_qty: numericValue(item.yard_sign_step_stakes_qty),
+    yard_sign_design_count: numericValue(item.yard_sign_design_count),
+    yard_sign_designs: canonicalJson(item.yard_sign_designs),
+    yard_sign_signs_subtotal_cents: numericValue(item.yard_sign_signs_subtotal_cents),
+    yard_sign_stakes_subtotal_cents: numericValue(item.yard_sign_stakes_subtotal_cents),
+  };
+}
+
+function prepareOrderItems(rawItems) {
+  if (rawItems === undefined || rawItems === null) return [];
+  if (!Array.isArray(rawItems)) {
+    const error = new TypeError('Order items must be an array.');
+    error.code = 'ORDER_ITEMS_INVALID';
+    throw error;
+  }
+
+  return rawItems.map((rawItem, index) => {
+    if (!rawItem || typeof rawItem !== 'object' || Array.isArray(rawItem)) {
+      const error = new TypeError(`Order item ${index + 1} must be an object.`);
+      error.code = 'ORDER_ITEM_INVALID';
+      throw error;
+    }
+
+    validatePrintSceneV2(rawItem.canvas_state_json);
+    const item = normalizeCartItemPlacement(cleanItemForDb(rawItem));
+    item.artwork_manifest = normalizeArtworkManifest(item);
+
+    const quantity = Number(item.quantity ?? 1);
+    const lineTotalCents = Number(item.line_total_cents ?? 0);
+    const width = Number(item.width_in ?? 0);
+    const height = Number(item.height_in ?? 0);
+    if (!Number.isFinite(quantity) || quantity <= 0
+      || !Number.isFinite(lineTotalCents) || lineTotalCents < 0
+      || !Number.isFinite(width) || width < 0
+      || !Number.isFinite(height) || height < 0) {
+      const error = new TypeError(`Order item ${index + 1} has invalid numeric values.`);
+      error.code = 'ORDER_ITEM_INVALID';
+      throw error;
+    }
+
+    item.quantity = quantity;
+    item.line_total_cents = lineTotalCents;
+    item.width_in = width;
+    item.height_in = height;
+    item.pole_pockets = booleanValue(item.pole_pockets);
+    item.design_service_enabled = booleanValue(item.design_service_enabled);
+    item.yard_sign_step_stakes_enabled = booleanValue(item.yard_sign_step_stakes_enabled);
+
+    return item;
+  });
+}
+
+function buildItemSignature(items) {
+  const payload = items.map(itemSignatureProjection);
+  return createHash('sha256').update(stableStringify(payload)).digest('hex');
+}
+
+function idempotencyConflict(code, message, details = {}) {
+  const error = new Error(message);
+  error.code = code;
+  error.statusCode = 409;
+  error.details = details;
+  return error;
+}
+
+async function findExistingOrderByIdentity(sql, orderData) {
+  const candidates = [];
+
+  if (orderData.checkout_idempotency_key) {
+    candidates.push(...await sql`
+      SELECT * FROM orders
+      WHERE checkout_idempotency_key = ${orderData.checkout_idempotency_key}
+      LIMIT 2
+    `);
+  }
+  if (orderData.paypal_order_id || orderData.paypal_capture_id) {
+    candidates.push(...await sql`
+      SELECT * FROM orders
+      WHERE (${orderData.paypal_order_id || null} IS NOT NULL AND paypal_order_id = ${orderData.paypal_order_id || null})
+         OR (${orderData.paypal_capture_id || null} IS NOT NULL AND paypal_capture_id = ${orderData.paypal_capture_id || null})
+      LIMIT 2
+    `);
+  }
+  if (orderData.stripe_payment_intent_id) {
+    candidates.push(...await sql`
+      SELECT * FROM orders
+      WHERE stripe_payment_intent_id = ${orderData.stripe_payment_intent_id}
+      LIMIT 2
+    `);
+  }
+
+  const distinct = [...new Map(candidates.map((order) => [String(order.id), order])).values()];
+  if (distinct.length > 1) {
+    throw idempotencyConflict(
+      'ORDER_IDEMPOTENCY_IDENTITY_CONFLICT',
+      'The submitted payment identifiers are already bound to different orders.',
+      { orderIds: distinct.map((order) => order.id) },
+    );
+  }
+  return distinct[0] || null;
+}
+
+async function verifyExistingOrderMatches(sql, existingOrder, expectedOrder, expectedItemCount, expectedItemSignature) {
+  const countRows = await sql`
+    SELECT COUNT(*)::integer AS item_count
+    FROM order_items
+    WHERE order_id = ${existingOrder.id}
+  `;
+  const actualItemCount = Number(countRows[0]?.item_count ?? -1);
+  const storedItemCount = Number(existingOrder.expected_item_count ?? -1);
+  const storedItemSignature = String(existingOrder.item_signature || '');
+  const existingStatus = String(existingOrder.status || '');
+  const expectedStatus = String(expectedOrder.status || '');
+  const statusMatches = existingStatus === expectedStatus
+    || (expectedStatus === 'pending'
+      && ['paid', 'in_production', 'shipped', 'delivered', 'refunded'].includes(existingStatus));
+
+  if (storedItemCount < 0 || !storedItemSignature) {
+    throw idempotencyConflict(
+      'ORDER_IDEMPOTENCY_UNVERIFIED',
+      'An older matching order exists but has no item-integrity metadata; it cannot be returned as a safe retry.',
+      { orderId: existingOrder.id, actualItemCount, expectedItemCount },
+    );
+  }
+  if (storedItemCount !== expectedItemCount
+    || actualItemCount !== expectedItemCount
+    || storedItemSignature !== expectedItemSignature
+    || Number(existingOrder.total_cents) !== Number(expectedOrder.total_cents)
+    || String(existingOrder.email || '').toLowerCase() !== String(expectedOrder.email || '').toLowerCase()
+    || !statusMatches) {
+    throw idempotencyConflict(
+      'ORDER_IDEMPOTENCY_PAYLOAD_CONFLICT',
+      'The idempotency key is already bound to a different or incomplete order payload.',
+      {
+        orderId: existingOrder.id,
+        actualItemCount,
+        storedItemCount,
+        expectedItemCount,
+      },
+    );
+  }
+
+  return existingOrder;
 }
 
 function isDeployPreviewEnvironment() {
@@ -442,9 +682,9 @@ exports.handler = async (event, context) => {
     applySandboxPayPalTestOrder(orderData);
 
     try {
-      if (Array.isArray(orderData.items)) {
-        orderData.items = orderData.items.map(normalizeCartItemPlacement);
-      }
+      // Normalize and validate every item before constructing any transactional
+      // query. The same prepared objects drive totals, signatures and inserts.
+      orderData.items = prepareOrderItems(orderData.items);
     } catch (error) {
       if (error instanceof PreviewArtifactValidationError) {
         return {
@@ -458,9 +698,17 @@ exports.handler = async (event, context) => {
           }),
         };
       }
+      if (error.code === 'ORDER_ITEMS_INVALID' || error.code === 'ORDER_ITEM_INVALID') {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ ok: false, error: error.code, message: error.message }),
+        };
+      }
       throw error;
     }
-    
+
+    await ensureOrderSchemaOnce(async () => {
     // AUTO-MIGRATE: Ensure text_elements and overlay_image columns exist before processing order
     try {
       await sql`
@@ -470,7 +718,7 @@ exports.handler = async (event, context) => {
       console.log('✅ Database migration: text_elements column verified/created');
     } catch (migrationError) {
       console.warn('⚠️ Database migration warning:', migrationError.message);
-      // Continue anyway - column might already exist
+      throw migrationError;
     }
     try {
       await sql`
@@ -486,6 +734,7 @@ exports.handler = async (event, context) => {
       console.log('✅ Database migration: test order columns verified/created');
     } catch (migrationError) {
       console.warn('⚠️ Test order columns migration warning:', migrationError.message);
+      throw migrationError;
     }
     
     // Add shipping address columns to orders table
@@ -505,7 +754,7 @@ exports.handler = async (event, context) => {
       console.log('✅ Database migration: shipping address columns verified/created');
     } catch (migrationError) {
       console.warn('⚠️ Shipping address migration warning:', migrationError.message);
-      // Continue anyway - columns might already exist
+      throw migrationError;
     }
 
     // AUTO-MIGRATE: Add discount columns to orders table
@@ -519,6 +768,7 @@ exports.handler = async (event, context) => {
       console.log('✅ Database migration: discount columns verified/created');
     } catch (migrationError) {
       console.warn('⚠️ Discount columns migration warning:', migrationError.message);
+      throw migrationError;
     }
     
     // AUTO-MIGRATE: Add Same-Day Hit Service columns to orders table
@@ -535,6 +785,7 @@ exports.handler = async (event, context) => {
       console.log('✅ Database migration: same-day hit service columns verified/created');
     } catch (migrationError) {
       console.warn('⚠️ Same-day hit service migration warning:', migrationError.message);
+      throw migrationError;
     }
 
 
@@ -557,6 +808,7 @@ exports.handler = async (event, context) => {
       console.log('✅ Database migration: attribution columns verified/created');
     } catch (migrationError) {
       console.warn('⚠️ Attribution columns migration warning:', migrationError.message);
+      throw migrationError;
     }
 
     // AUTO-MIGRATE: Stripe payment columns. The dedicated migration file
@@ -580,10 +832,12 @@ exports.handler = async (event, context) => {
         `;
       } catch (idxErr) {
         console.warn('⚠️ stripe_payment_intent_id index migration warning:', idxErr.message);
+        throw idxErr;
       }
       console.log('✅ Database migration: stripe_payment_intent_id + payment_method columns verified/created');
     } catch (migrationError) {
       console.warn('⚠️ Stripe columns migration warning:', migrationError.message);
+      throw migrationError;
     }
 
     // AUTO-MIGRATE: PayPal identifiers must be unique so duplicate PayPal
@@ -593,7 +847,9 @@ exports.handler = async (event, context) => {
       await sql`
         ALTER TABLE orders
         ADD COLUMN IF NOT EXISTS paypal_order_id TEXT,
-        ADD COLUMN IF NOT EXISTS paypal_capture_id TEXT
+        ADD COLUMN IF NOT EXISTS paypal_capture_id TEXT,
+        ADD COLUMN IF NOT EXISTS expected_item_count INTEGER,
+        ADD COLUMN IF NOT EXISTS item_signature TEXT
       `;
       await sql`
         CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_paypal_order_id
@@ -614,6 +870,7 @@ exports.handler = async (event, context) => {
       console.log('✅ Database migration: PayPal order/capture unique indexes verified/created');
     } catch (migrationError) {
       console.warn('⚠️ PayPal identifier migration warning:', migrationError.message);
+      throw migrationError;
     }
 
     // AUTO-MIGRATE: Stripe charge id + wallet type columns. Mirrors
@@ -636,10 +893,12 @@ exports.handler = async (event, context) => {
         `;
       } catch (idxErr) {
         console.warn('⚠️ stripe_charge_id index migration warning:', idxErr.message);
+        throw idxErr;
       }
       console.log('✅ Database migration: stripe_charge_id + stripe_wallet_type columns verified/created');
     } catch (migrationError) {
       console.warn('⚠️ Stripe charge/wallet columns migration warning:', migrationError.message);
+      throw migrationError;
     }
 
     try {
@@ -650,7 +909,7 @@ exports.handler = async (event, context) => {
       console.log('✅ Database migration: overlay_image column verified/created');
     } catch (migrationError) {
       console.warn('⚠️ Database migration warning:', migrationError.message);
-      // Continue anyway - column might already exist
+      throw migrationError;
     }
 
     // AUTO-MIGRATE: Ensure pole pocket columns exist
@@ -662,6 +921,7 @@ exports.handler = async (event, context) => {
       console.log('✅ Database migration: pole_pocket_position column verified/created');
     } catch (migrationError) {
       console.warn('⚠️ Database migration warning:', migrationError.message);
+      throw migrationError;
     }
 
     try {
@@ -672,6 +932,7 @@ exports.handler = async (event, context) => {
       console.log('✅ Database migration: rope_placement column verified/created');
     } catch (migrationError) {
       console.warn('⚠️ Database migration warning:', migrationError.message);
+      throw migrationError;
     }
 
     try {
@@ -682,6 +943,7 @@ exports.handler = async (event, context) => {
       console.log('✅ Database migration: pole_pocket_size column verified/created');
     } catch (migrationError) {
       console.warn('⚠️ Database migration warning:', migrationError.message);
+      throw migrationError;
     }
 
     try {
@@ -692,6 +954,7 @@ exports.handler = async (event, context) => {
       console.log('✅ Database migration: pole_pocket_cost_cents column verified/created');
     } catch (migrationError) {
       console.warn('⚠️ Database migration warning:', migrationError.message);
+      throw migrationError;
     }
 
     try {
@@ -702,6 +965,7 @@ exports.handler = async (event, context) => {
       console.log('✅ Database migration: rounded_corners column verified/created');
     } catch (migrationError) {
       console.warn('⚠️ Database migration warning:', migrationError.message);
+      throw migrationError;
     }
 
     // AUTO-MIGRATE: Ensure final_render columns exist (added for print-pipeline fix)
@@ -718,6 +982,7 @@ exports.handler = async (event, context) => {
       console.log('✅ Database migration: final_render + canvas_state_json columns verified/created');
     } catch (migrationError) {
       console.warn('⚠️ final_render/canvas_state migration warning:', migrationError.message);
+      throw migrationError;
     }
 
     try {
@@ -731,6 +996,7 @@ exports.handler = async (event, context) => {
       `;
     } catch (migrationError) {
       console.warn('Artwork manifest migration warning:', migrationError.message);
+      throw migrationError;
     }
 
     // AUTO-MIGRATE: Ensure image_scale, image_position, thumbnail_url columns exist
@@ -744,6 +1010,7 @@ exports.handler = async (event, context) => {
       console.log('✅ Database migration: image_scale, image_position, thumbnail_url columns verified/created');
     } catch (migrationError) {
       console.warn('⚠️ image_scale/image_position/thumbnail_url migration warning:', migrationError.message);
+      throw migrationError;
     }
 
     // AUTO-MIGRATE: Ensure product_type column exists (Phase 1 product-type registry)
@@ -755,6 +1022,7 @@ exports.handler = async (event, context) => {
       console.log('✅ Database migration: product_type column verified/created');
     } catch (migrationError) {
       console.warn('⚠️ product_type migration warning:', migrationError.message);
+      throw migrationError;
     }
 
     // AUTO-MIGRATE: Ensure yard sign metadata columns exist
@@ -772,7 +1040,9 @@ exports.handler = async (event, context) => {
       console.log('✅ Database migration: yard sign columns verified/created');
     } catch (migrationError) {
       console.warn('⚠️ yard sign columns migration warning:', migrationError.message);
+      throw migrationError;
     }
+    });
     
     console.log('Creating order with data:', orderData);
     console.log('Database URL available:', !!databaseUrl);
@@ -1077,33 +1347,7 @@ exports.handler = async (event, context) => {
     orderData.saturday_fee_cents = orderSaturdayFeeCents;
     const attribution = normalizeAttribution(orderData.attribution || orderData);
 
-    if (orderData.checkout_idempotency_key) {
-      const existingPending = await sql`SELECT * FROM orders WHERE checkout_idempotency_key = ${orderData.checkout_idempotency_key} LIMIT 1`;
-      if (existingPending.length) {
-        return { statusCode: 200, headers, body: JSON.stringify({ ok: true, orderId: existingPending[0].id, order: existingPending[0], deduped: true }) };
-      }
-    }
-
     if (orderData.paypal_order_id || orderData.paypal_capture_id) {
-      try {
-        const existing = await sql`
-          SELECT id FROM orders
-          WHERE (${orderData.paypal_order_id || null} IS NOT NULL AND paypal_order_id = ${orderData.paypal_order_id || null})
-             OR (${orderData.paypal_capture_id || null} IS NOT NULL AND paypal_capture_id = ${orderData.paypal_capture_id || null})
-          LIMIT 1
-        `;
-        if (existing && existing.length > 0) {
-          console.log('create-order: order already exists for PayPal identifiers, returning existing', existing[0].id);
-          return {
-            statusCode: 200,
-            headers,
-            body: JSON.stringify({ ok: true, orderId: existing[0].id, deduped: true }),
-          };
-        }
-      } catch (dupCheckErr) {
-        console.warn('create-order: PayPal dedupe check failed (continuing):', dupCheckErr.message);
-      }
-
       const capturedCurrency = String(orderData.paypal_captured_currency || '').toUpperCase();
       const capturedAmountCents = Number(orderData.paypal_captured_amount_cents);
       if (capturedCurrency && capturedCurrency !== 'USD') {
@@ -1128,35 +1372,34 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // Idempotency: if a Stripe PaymentIntent already created an order
-    // (e.g. webhook ran before the browser callback, or duplicate submit),
-    // return the existing order instead of inserting a second one.
-    if (orderData.stripe_payment_intent_id) {
-      try {
-        const existing = await sql`
-          SELECT id FROM orders
-          WHERE stripe_payment_intent_id = ${orderData.stripe_payment_intent_id}
-          LIMIT 1
-        `;
-        if (existing && existing.length > 0) {
-          console.log('create-order: order already exists for stripe_payment_intent_id, returning existing', existing[0].id);
-          return {
-            statusCode: 200,
-            headers,
-            body: JSON.stringify({ ok: true, orderId: existing[0].id, deduped: true }),
-          };
-        }
-      } catch (dupCheckErr) {
-        // If the column does not yet exist (migration not run), log and continue.
-        console.warn('create-order: stripe dedupe check failed (continuing):', dupCheckErr.message);
-      }
-    }
-
     // Support a "pending" pre-payment write so payment providers (Stripe)
     // can persist the order BEFORE money is captured. Only 'pending' and
     // 'paid' are accepted here — anything else falls back to 'paid' for
     // backward compatibility with existing PayPal callers.
     const requestedStatus = (orderData.payment_status === 'pending') ? 'pending' : 'paid';
+    const expectedItemCount = orderData.items.length;
+    const expectedItemSignature = buildItemSignature(orderData.items);
+    const expectedOrderIdentity = {
+      email: userEmail,
+      total_cents: orderData.total_cents,
+      status: requestedStatus,
+    };
+    const existingOrder = await findExistingOrderByIdentity(sql, orderData);
+    if (existingOrder) {
+      const verifiedOrder = await verifyExistingOrderMatches(
+        sql,
+        existingOrder,
+        expectedOrderIdentity,
+        expectedItemCount,
+        expectedItemSignature,
+      );
+      console.log('create-order: verified idempotent retry', verifiedOrder.id);
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ ok: true, orderId: verifiedOrder.id, order: verifiedOrder, deduped: true }),
+      };
+    }
     if (requestedStatus === 'pending') {
       console.log('[create-order] Creating PENDING order (pre-payment hold):', {
         orderId,
@@ -1166,37 +1409,15 @@ exports.handler = async (event, context) => {
       });
     }
 
-    const orderResult = await sql`
-      INSERT INTO orders (id, user_id, email, customer_name, customer_first_name, subtotal_cents, tax_cents, total_cents, status, paypal_order_id, paypal_capture_id, stripe_payment_intent_id, payment_method, checkout_idempotency_key, payment_reconciliation_status, shipping_name, shipping_street, shipping_street2, shipping_city, shipping_state, shipping_zip, shipping_country, discount_code, applied_discount_cents, applied_discount_label, applied_discount_type, same_day_hit_service, saturday_delivery, same_day_fee_cents, saturday_fee_cents, order_timestamp_et, same_day_qualified, is_test_order, test_order_reason, google_click_id, gbraid, wbraid, landing_page, referrer, utm_source, utm_medium, utm_campaign, utm_term, utm_content, consent_status)
-      VALUES (${orderId}, ${finalUserId}, ${userEmail}, ${orderData.customer_name || null}, ${orderData.customer_first_name || null}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, ${requestedStatus}, ${orderData.paypal_order_id || null}, ${orderData.paypal_capture_id || null}, ${orderData.stripe_payment_intent_id || null}, ${orderData.payment_method || (orderData.stripe_payment_intent_id ? 'stripe' : (orderData.paypal_order_id ? 'paypal' : null))}, ${orderData.checkout_idempotency_key || null}, ${requestedStatus === 'pending' ? 'awaiting_capture' : 'not_required'}, ${orderData.shipping_name || null}, ${orderData.shipping_street || null}, ${orderData.shipping_street2 || null}, ${orderData.shipping_city || null}, ${orderData.shipping_state || null}, ${orderData.shipping_zip || null}, ${orderData.shipping_country || 'US'}, ${orderData.discountCode?.code || null}, ${orderData.applied_discount_cents || 0}, ${orderData.applied_discount_label || ''}, ${orderData.applied_discount_type || 'none'}, ${orderSameDayHitService}, ${orderSaturdayDelivery}, ${orderSameDayFeeCents}, ${orderSaturdayFeeCents}, ${orderTimestampEt.display}, ${orderSameDayQualified}, ${orderData.is_test_order === true}, ${orderData.test_order_reason || null}, ${attribution.google_click_id}, ${attribution.gbraid}, ${attribution.wbraid}, ${attribution.landing_page}, ${attribution.referrer}, ${attribution.utm_source}, ${attribution.utm_medium}, ${attribution.utm_campaign}, ${attribution.utm_term}, ${attribution.utm_content}, ${attribution.consent_status})
+    const persistenceQueries = [sql`
+      INSERT INTO orders (id, user_id, email, customer_name, customer_first_name, subtotal_cents, tax_cents, total_cents, status, paypal_order_id, paypal_capture_id, stripe_payment_intent_id, payment_method, checkout_idempotency_key, payment_reconciliation_status, shipping_name, shipping_street, shipping_street2, shipping_city, shipping_state, shipping_zip, shipping_country, discount_code, applied_discount_cents, applied_discount_label, applied_discount_type, same_day_hit_service, saturday_delivery, same_day_fee_cents, saturday_fee_cents, order_timestamp_et, same_day_qualified, is_test_order, test_order_reason, google_click_id, gbraid, wbraid, landing_page, referrer, utm_source, utm_medium, utm_campaign, utm_term, utm_content, consent_status, expected_item_count, item_signature)
+      VALUES (${orderId}, ${finalUserId}, ${userEmail}, ${orderData.customer_name || null}, ${orderData.customer_first_name || null}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, ${requestedStatus}, ${orderData.paypal_order_id || null}, ${orderData.paypal_capture_id || null}, ${orderData.stripe_payment_intent_id || null}, ${orderData.payment_method || (orderData.stripe_payment_intent_id ? 'stripe' : (orderData.paypal_order_id ? 'paypal' : null))}, ${orderData.checkout_idempotency_key || null}, ${requestedStatus === 'pending' ? 'awaiting_capture' : 'not_required'}, ${orderData.shipping_name || null}, ${orderData.shipping_street || null}, ${orderData.shipping_street2 || null}, ${orderData.shipping_city || null}, ${orderData.shipping_state || null}, ${orderData.shipping_zip || null}, ${orderData.shipping_country || 'US'}, ${orderData.discountCode?.code || null}, ${orderData.applied_discount_cents || 0}, ${orderData.applied_discount_label || ''}, ${orderData.applied_discount_type || 'none'}, ${orderSameDayHitService}, ${orderSaturdayDelivery}, ${orderSameDayFeeCents}, ${orderSaturdayFeeCents}, ${orderTimestampEt.display}, ${orderSameDayQualified}, ${orderData.is_test_order === true}, ${orderData.test_order_reason || null}, ${attribution.google_click_id}, ${attribution.gbraid}, ${attribution.wbraid}, ${attribution.landing_page}, ${attribution.referrer}, ${attribution.utm_source}, ${attribution.utm_medium}, ${attribution.utm_campaign}, ${attribution.utm_term}, ${attribution.utm_content}, ${attribution.consent_status}, ${expectedItemCount}, ${expectedItemSignature})
       RETURNING *
-    `;
+    `];
 
-    if (!orderResult || orderResult.length === 0) {
-      throw new Error('Failed to create order - no result returned from database');
-    }
-
-    const order = orderResult[0];
-    console.log('Order created successfully:', order);
-
-    if (finalUserId && normalizedCustomerName.fullName) {
-      try {
-        await sql`
-          UPDATE profiles
-          SET full_name = COALESCE(NULLIF(full_name, ''), ${normalizedCustomerName.fullName})
-          WHERE id = ${finalUserId}
-        `;
-      } catch (profileUpdateError) {
-        console.warn('⚠️ Could not update profile full_name:', profileUpdateError.message);
-      }
-    }
-
-    // Insert order items with better error handling - only use columns that exist in database
-    if (orderData.items && Array.isArray(orderData.items)) {
-      for (const rawItem of orderData.items) {
-        validatePrintSceneV2(rawItem && rawItem.canvas_state_json);
-        const item = normalizeCartItemPlacement(cleanItemForDb(rawItem));
-        item.artwork_manifest = normalizeArtworkManifest(item);
+    // Every query is built from the already-normalized items before the fixed
+    // Neon HTTP transaction begins.
+    for (const item of orderData.items) {
         console.log("[Create Order] Cleaned item file_key:", item.file_key, "file_url:", item.file_url ? item.file_url.substring(0, 80) : null);
         console.log('[CREATE_ORDER_DEBUG] === PERSISTING ORDER ITEM ===');
         console.log('[CREATE_ORDER_DEBUG] order_id:', orderId);
@@ -1209,15 +1430,12 @@ exports.handler = async (event, context) => {
         console.log('[CREATE_ORDER_DEBUG] canvas_state_json:', item.canvas_state_json ? 'YES (' + item.canvas_state_json.length + ' chars)' : 'NULL');
         console.log('[CREATE_ORDER_DEBUG] thumbnail_url:', item.thumbnail_url ? item.thumbnail_url.substring(0, 80) : 'NULL');
         console.log('[CREATE_ORDER_DEBUG] ===========================');
-        try {
-          // Convert pole_pockets to boolean for database (boolean column)
-          const polePocketsValue = item.pole_pockets &&
-            item.pole_pockets !== 'none' &&
-            item.pole_pockets !== 'false' &&
-            item.pole_pockets !== false;
+        const polePocketsValue = item.pole_pockets &&
+          item.pole_pockets !== 'none' &&
+          item.pole_pockets !== 'false' &&
+          item.pole_pockets !== false;
 
-          try {
-            await sql`
+        persistenceQueries.push(sql`
               INSERT INTO order_items (
                 id, order_id, product_type, width_in, height_in, quantity, material,
                 grommets, rounded_corners, rope_feet, rope_placement, pole_pockets, pole_pocket_position, pole_pocket_size, pole_pocket_cost_cents,
@@ -1276,18 +1494,51 @@ exports.handler = async (event, context) => {
                 ${item.yard_sign_signs_subtotal_cents ?? 0},
                 ${item.yard_sign_stakes_subtotal_cents ?? 0}
               )
-            `;
-            console.log('[CREATE_ORDER_DEBUG] ✅ Order item saved with final_render fields');
-          } catch (textElementsError) {
-            // Never degrade to a partial artwork insert. A partial order item is
-            // worse than a retryable pending order because production cannot
-            // determine which file is authoritative.
-            throw textElementsError;
-          }
-        } catch (itemError) {
-          console.error('Error inserting order item:', itemError);
-          throw new Error(`Failed to insert order item: ${itemError.message}`);
-        }
+            `);
+    }
+
+    let transactionResults;
+    try {
+      transactionResults = await runAtomicBatch(sql, persistenceQueries);
+    } catch (writeError) {
+      if (!isUniqueViolation(writeError)) throw writeError;
+
+      // A concurrent request may have committed the same identity first.
+      // Return it only after verifying both the request signature and that all
+      // expected child rows committed.
+      const concurrentOrder = await findExistingOrderByIdentity(sql, orderData);
+      if (!concurrentOrder) throw writeError;
+      const verifiedOrder = await verifyExistingOrderMatches(
+        sql,
+        concurrentOrder,
+        expectedOrderIdentity,
+        expectedItemCount,
+        expectedItemSignature,
+      );
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ ok: true, orderId: verifiedOrder.id, order: verifiedOrder, deduped: true }),
+      };
+    }
+
+    const orderResult = transactionResults[0];
+    if (!orderResult || orderResult.length === 0) {
+      throw new Error('Failed to create order - no result returned from database');
+    }
+
+    const order = orderResult[0];
+    console.log('Order and all order items committed atomically:', order.id);
+
+    if (finalUserId && normalizedCustomerName.fullName) {
+      try {
+        await sql`
+          UPDATE profiles
+          SET full_name = COALESCE(NULLIF(full_name, ''), ${normalizedCustomerName.fullName})
+          WHERE id = ${finalUserId}
+        `;
+      } catch (profileUpdateError) {
+        console.warn('⚠️ Could not update profile full_name:', profileUpdateError.message);
       }
     }
 
@@ -1528,15 +1779,24 @@ exports.handler = async (event, context) => {
     console.error('Order data that failed:', JSON.stringify(orderData, null, 2));
 
     return {
-      statusCode: 500,
+      statusCode: error.statusCode || 500,
       headers,
       body: JSON.stringify({
         ok: false,
-        error: 'Failed to create order',
-        details: error.message
+        error: error.statusCode ? error.code : 'Failed to create order',
+        details: error.message,
+        integrity: error.details,
       }),
     };
   }
 };
 
-exports._test = { isDeployPreviewEnvironment, applyAdminDeployPreviewTestOrder, applySandboxPayPalTestOrder };
+exports._test = {
+  isDeployPreviewEnvironment,
+  applyAdminDeployPreviewTestOrder,
+  applySandboxPayPalTestOrder,
+  prepareOrderItems,
+  buildItemSignature,
+  verifyExistingOrderMatches,
+  ensureOrderSchemaOnce,
+};

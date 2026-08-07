@@ -56,7 +56,11 @@ import { useAIAdminAccess } from '@/hooks/useAIAdminAccess';
 import { trackAIEvent } from '@/lib/aiAnalytics';
 import { canUseAIAdminPreview } from '@/lib/aiAdminVisibility';
 import { base64ToFile } from '@/utils/base64ToFile';
-import { uploadArtworkFile, validateArtworkFile } from '@/utils/uploadArtworkFile';
+import {
+  getArtworkUploadDiagnostic,
+  uploadArtworkFile,
+  validateArtworkFile,
+} from '@/utils/uploadArtworkFile';
 import { computeSameDayFeesCents } from '@/lib/sameDayService';
 import ConfigCard from '@/components/design/layout/ConfigCard';
 import TrustStrip from '@/components/design/layout/TrustStrip';
@@ -1145,10 +1149,12 @@ const GoogleAdsBanner: React.FC = () => {
         transport: result.transport,
         publicIdPresent: Boolean(result.fileKey),
       });
+      const uploadDescriptor = getArtworkUploadDiagnostic(null, file);
       logUx('upload_success', {
-        name: file.name,
-        fileKey: result.fileKey,
+        correlationId,
         transport: result.transport,
+        sizeBucket: uploadDescriptor.sizeBucket,
+        mimeType: uploadDescriptor.mimeType,
       });
 
       if (permanentPreviewLoaded) {
@@ -1169,13 +1175,18 @@ const GoogleAdsBanner: React.FC = () => {
       if (generation !== uploadGenerationRef.current) return null;
       const cancelled = controller.signal.aborted;
       if (!cancelled) {
+        const diagnostic = getArtworkUploadDiagnostic(error, file);
         console.error('[artwork_upload]', { correlationId, stage: 'original_upload_failed', error });
         logUx('upload_error', {
-          name: file.name,
-          message: error instanceof Error ? error.message : String(error),
+          correlationId,
+          phase: diagnostic.phase,
+          status: diagnostic.status ?? 'network',
+          retryable: diagnostic.retryable,
+          sizeBucket: diagnostic.sizeBucket,
+          mimeType: diagnostic.mimeType,
         });
         setUploadError(
-          'ORIGINAL_UPLOAD_INCOMPLETE: The secure original upload failed. Your selected file and configuration were preserved.',
+          'Artwork upload did not finish. Your file and choices are still here. Check your connection, then try again.',
         );
       }
       return null;
@@ -1217,7 +1228,12 @@ const GoogleAdsBanner: React.FC = () => {
       : (file.type || (extension === 'png' ? 'image/png' : 'image/jpeg'));
 
     setIsUploading(true);
-    logUx('upload_start', { name: file.name, size: file.size, type: file.type });
+    const uploadDescriptor = getArtworkUploadDiagnostic(null, file);
+    logUx('upload_start', {
+      correlationId,
+      sizeBucket: uploadDescriptor.sizeBucket,
+      mimeType: uploadDescriptor.mimeType,
+    });
 
     try {
       let previewUrl = '';
@@ -1322,8 +1338,8 @@ const GoogleAdsBanner: React.FC = () => {
     }
 
     toast({
-      title: 'ORIGINAL_UPLOAD_INCOMPLETE',
-      description: 'The secure original upload could not be completed. Your selected file and configuration were preserved; no cart item was created.',
+      title: 'Artwork upload did not finish',
+      description: 'Your file and choices are still here. Check your connection and try Add to cart again.',
       variant: 'destructive',
     });
     return null;
@@ -2141,6 +2157,7 @@ const GoogleAdsBanner: React.FC = () => {
     logUx('cart_opened', { source: 'sticky_view_cart' });
     setIsCartOpen(true);
   }, [setIsCartOpen]);
+  const closeCartDrawer = useCallback(() => setIsCartOpen(false), [setIsCartOpen]);
 
   const handleStartAnother = useCallback(() => {
     resetPreview();
@@ -2313,7 +2330,7 @@ const GoogleAdsBanner: React.FC = () => {
         <meta name="robots" content="noindex, nofollow" />
       </Helmet>
       <div className="min-h-screen bg-white text-gray-900">
-        <header className="w-full border-b border-gray-100 bg-white py-3 px-4 sticky top-0 z-50">
+        <header data-site-header className="w-full border-b border-gray-100 bg-white py-3 px-4 sticky top-0 z-50">
           <div className="max-w-5xl mx-auto flex items-center justify-between">
             <div className="w-10" />
             <img src="/images/header-logo.png" alt="Banners On The Fly" width="248" height="70" className="h-10 object-contain" loading="eager" />
@@ -3337,7 +3354,7 @@ const GoogleAdsBanner: React.FC = () => {
       {/* Cart Modal */}
       <CartModal
         isOpen={isCartOpen}
-        onClose={() => setIsCartOpen(false)}
+        onClose={closeCartDrawer}
       />
       {/* Create with AI Modal */}
       {!isYardSign && !isCarMagnet && showCreateWithAI && (

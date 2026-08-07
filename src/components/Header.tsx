@@ -75,8 +75,16 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
     }
   };
 
+  const handleCartClick = () => {
+    // Never leave the mobile navigation painted above the cart drawer. The
+    // cart makes the rest of the application inert, so both drawers cannot
+    // remain open at the same time.
+    setIsMenuOpen(false);
+    onCartClick?.();
+  };
+
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 shadow-[0_4px_20px_rgba(11,31,58,0.04)] backdrop-blur">
+    <header data-site-header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 shadow-[0_4px_20px_rgba(11,31,58,0.04)] backdrop-blur">
       <div className="h-1 bg-[#FF6A00]" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex h-[72px] items-center justify-between lg:h-[78px]">
@@ -319,7 +327,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
 
             {/* Cart Icon */}
             <button
-              onClick={onCartClick}
+              onClick={handleCartClick}
               aria-label="Shopping cart"
               className="relative min-h-11 min-w-11 rounded-md p-2 text-[#0B1F3A] transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00]"
             >

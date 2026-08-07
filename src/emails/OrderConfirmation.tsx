@@ -263,18 +263,11 @@ export default function OrderConfirmation({ order, invoiceUrl }: OrderConfirmati
               </Section>
             )}
 
-            {/* Order Detail Button */}
-            <Section style={buttonContainer}>
-              <Button style={button} href={`${process.env.PUBLIC_SITE_URL || 'https://bannersonthefly.com'}/orders/${order.id}`}>
-                View Order Details
-              </Button>
-            </Section>
-
-            {/* Invoice Button (if provided) */}
+            {/* Signed guest order link (provided by the server). */}
             {invoiceUrl && (
               <Section style={buttonContainer}>
                 <Button style={button} href={invoiceUrl}>
-                  View Invoice
+                  View Order Details
                 </Button>
               </Section>
             )}

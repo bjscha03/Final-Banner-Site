@@ -19,5 +19,9 @@
 /car-magnets/*     /404.html   404
 /trade-shows/*     /404.html   404
 
+# Existing hashed assets shadow this non-forced rule. Missing/stale chunks must
+# return a real 404 instead of the SPA HTML shell.
+/assets/*          /404.html   404
+
 # SPA fallback for React Router (must be last)
 /*    /index.html   200
