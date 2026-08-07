@@ -13,6 +13,11 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "apartment-property-management-banners": {
+    title: "Apartment Leasing Banners: A Property Manager’s Planning Guide",
+    description: "Plan apartment leasing banners that attract prospects, guide tours, promote amenities, and support property operations with practical design and placement tips.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/apartment-property-management-banners.webp"
+  },
   "real-estate-open-house-banners": {
     title: "Open House Banners and Yard Signs: A Complete Planning Guide",
     description: "Plan effective open house banners and yard signs with practical guidance on messaging, placement, readable design, directional flow, safety, and reuse.",

@@ -87,6 +87,12 @@
 
   <!-- Blog Posts (published) -->
   <url>
+    <loc>https://bannersonthefly.com/blog/apartment-property-management-banners</loc>
+    <lastmod>2026-08-07</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://bannersonthefly.com/blog/real-estate-open-house-banners</loc>
     <lastmod>2026-08-07</lastmod>
     <changefreq>monthly</changefreq>
