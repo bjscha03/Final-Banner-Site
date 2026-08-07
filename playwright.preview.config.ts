@@ -18,6 +18,8 @@ export default defineConfig({
     'tracking-isolation.playwright.spec.ts',
     'cart-short-viewport.playwright.spec.ts',
     'mobile-designer-consistency.playwright.spec.ts',
+    'mobile-upload-entry.playwright.spec.ts',
+    'mobile-checkout-details.playwright.spec.ts',
   ],
   fullyParallel: true,
   workers: process.env.CI ? 4 : 2,
