@@ -76,14 +76,18 @@ const scrollStorefrontAwayFromTop = async (page: Page) => {
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
 };
 
-const clickStickyCartWithoutAutoScroll = async (page: Page) => {
-  const cartButton = page.getByRole('button', { name: 'Shopping cart' }).first();
-  await cartButton.evaluate((element: HTMLElement) => element.focus({ preventScroll: true }));
-  const box = await cartButton.boundingBox();
-  if (!box) throw new Error('The shopping-cart button has no visible bounds.');
+const clickStickyHeaderButtonWithoutAutoScroll = async (page: Page, name: string) => {
+  const button = page.getByRole('button', { name }).first();
+  await button.evaluate((element: HTMLElement) => element.focus({ preventScroll: true }));
+  const box = await button.boundingBox();
+  if (!box) throw new Error(`The ${name} button has no visible bounds.`);
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-  return cartButton;
+  return button;
 };
+
+const clickStickyCartWithoutAutoScroll = (page: Page) => (
+  clickStickyHeaderButtonWithoutAutoScroll(page, 'Shopping cart')
+);
 
 const expectDrawerFlushWithHeader = async (page: Page) => {
   const state = await readPageState(page);
@@ -95,6 +99,52 @@ const expectDrawerFlushWithHeader = async (page: Page) => {
   expect(Math.abs(cartRect.top - state.headerBottom)).toBeLessThanOrEqual(1);
   expect(Math.abs(cartRect.bottom - cartRect.viewportHeight)).toBeLessThanOrEqual(1);
 };
+
+test('scrolled account menu stays onscreen without locking the storefront', async ({ page }) => {
+  await page.goto('/design?product=banner', { waitUntil: 'domcontentloaded' });
+  await scrollStorefrontAwayFromTop(page);
+
+  const beforeOpen = await readPageState(page);
+  const accountButton = await clickStickyHeaderButtonWithoutAutoScroll(page, 'Account');
+  const menu = page.getByRole('menu');
+  await expect(menu).toBeVisible();
+  await expect(menu.getByRole('menuitem', { name: 'Sign In' })).toBeVisible();
+  await expect(menu.getByRole('menuitem', { name: 'Create Account' })).toBeVisible();
+
+  const menuRect = await menu.boundingBox();
+  const viewport = page.viewportSize();
+  expect(menuRect).not.toBeNull();
+  expect(viewport).not.toBeNull();
+  expect(menuRect?.y ?? -1).toBeGreaterThanOrEqual(0);
+  expect((menuRect?.y ?? 0) + (menuRect?.height ?? Number.POSITIVE_INFINITY))
+    .toBeLessThanOrEqual((viewport?.height ?? 0) + 1);
+  expect(menuRect?.x ?? -1).toBeGreaterThanOrEqual(0);
+  expect((menuRect?.x ?? 0) + (menuRect?.width ?? Number.POSITIVE_INFINITY))
+    .toBeLessThanOrEqual((viewport?.width ?? 0) + 1);
+
+  const openState = await page.evaluate(() => ({
+    scrollY: window.scrollY,
+    bodyPosition: window.getComputedStyle(document.body).position,
+    bodyPointerEvents: window.getComputedStyle(document.body).pointerEvents,
+    bodyOverflow: window.getComputedStyle(document.body).overflow,
+    bodyInlineStyle: document.body.getAttribute('style') || '',
+    radixScrollLock: document.body.hasAttribute('data-scroll-locked'),
+  }));
+  expect(openState.scrollY).toBe(beforeOpen.scrollY);
+  expect(openState.bodyPosition).toBe('static');
+  expect(openState.bodyPointerEvents).not.toBe('none');
+  expect(openState.bodyOverflow).not.toBe('hidden');
+  expect(openState.bodyInlineStyle).not.toContain('pointer-events: none');
+  expect(openState.radixScrollLock).toBe(false);
+
+  await page.mouse.move(400, 500);
+  await page.mouse.wheel(0, 300);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(beforeOpen.scrollY);
+
+  if (await menu.count()) await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
+  await expect(accountButton).toBeFocused();
+});
 
 test('nonempty scrolled cart is contained, accessible, and preserves page state through close paths', async ({ page }, testInfo) => {
   await seedNonemptyGuestCart(page);
@@ -123,6 +173,7 @@ test('nonempty scrolled cart is contained, accessible, and preserves page state 
   const checkoutButton = cart.getByRole('button', { name: 'Proceed to Checkout' });
   await expect(cart).toBeVisible();
   await expect(cart).toHaveAttribute('aria-modal', 'true');
+  expect(await cart.evaluate((element) => element.parentElement === document.body)).toBe(true);
   await expect(cart.getByText('Shopping Cart (1)', { exact: true })).toBeVisible();
   await expect(closeButton).toBeFocused();
   await expectDrawerFlushWithHeader(page);
