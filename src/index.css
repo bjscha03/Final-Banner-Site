@@ -216,9 +216,11 @@
     overflow-x: clip;
   }
 
+  /* Keep body unpositioned. Fixed Radix portals and viewport drawers use
+     viewport coordinates; positioning body offsets them by scrollY and can
+     leave an invisible overlay locking the page after a sticky-header click. */
   body {
     width: 100%;
-    position: relative;
   }
 
   #root {
