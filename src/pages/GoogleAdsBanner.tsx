@@ -25,6 +25,7 @@ import YardSignPriceSummary from '@/components/design/YardSignPriceSummary';
 import PriceBreakdown from '@/components/pricing/PriceBreakdown';
 import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
 import DeliveryTimer from '@/components/delivery/DeliveryTimer';
+import MobileSubtotalBar from '@/components/design/MobileSubtotalBar';
 import FileUploader from '@/components/ui/FileUploader';
 import GrommetOverlay from '@/components/preview/GrommetOverlay';
 import PreviewRulerFrame from '@/components/preview/PreviewRulerFrame';
@@ -2364,6 +2365,10 @@ const GoogleAdsBanner: React.FC = () => {
                 {heroContent.intro}
               </p>
 
+              <div data-mobile-delivery-timer className="mx-auto mt-5 max-w-xl text-left md:hidden">
+                <DeliveryTimer variant="compact" className="shadow-lg" />
+              </div>
+
               <div className="mt-6 flex flex-wrap justify-center gap-x-5 gap-y-3 text-sm font-semibold text-white lg:justify-start">
                 <span className="inline-flex items-center gap-2"><Clock className="h-4 w-4 text-[#FF8A3D]" />Most standard orders: 24-hour production</span>
                 <span className="inline-flex items-center gap-2"><Truck className="h-4 w-4 text-[#FF8A3D]" />Free next-day air anywhere in the U.S.</span>
@@ -2500,7 +2505,9 @@ const GoogleAdsBanner: React.FC = () => {
                   )}
 
                   {/* Same-Day Hit Service upsell — production priority (NOT shipping). */}
-                  <DeliveryTimer variant="compact" />
+                  <div className="hidden md:block">
+                    <DeliveryTimer variant="compact" />
+                  </div>
                   <SameDayHitServiceCard
                     variant="compact"
                     previewHasPrice={!!yardSignPricing && yardSignTotalQty > 0 && yardSignQuantityValid.valid}
@@ -3052,7 +3059,9 @@ const GoogleAdsBanner: React.FC = () => {
                 )}
 
                 {/* Same-Day Hit Service upsell — production priority (NOT shipping). */}
-                <DeliveryTimer variant="compact" />
+                <div className="hidden md:block">
+                  <DeliveryTimer variant="compact" />
+                </div>
                 <SameDayHitServiceCard
                   variant="compact"
                   previewHasPrice={
@@ -3186,50 +3195,24 @@ const GoogleAdsBanner: React.FC = () => {
         </div>
       </div>
 
-        {/* Mobile guided CTA and live pre-tax subtotal. */}
-        <div aria-hidden="true" className="h-32 md:hidden" />
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white px-4 pt-3 shadow-[0_-10px_30px_rgba(11,31,58,0.12)] md:hidden" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0.75rem))' }}>
-          <div className="mx-auto flex max-w-lg items-center justify-between gap-3">
-            {hasJustAddedToCart ? (
-              <div className="flex min-w-0 shrink-0 items-center gap-2.5">
-                <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-                  <CheckCircle className="h-5 w-5" aria-hidden="true" />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-sm font-bold text-emerald-900">Added to cart</p>
-                  <p className="text-[11px] text-slate-500">{cartItemCount} {cartItemCount === 1 ? 'item' : 'items'} ready</p>
-                </div>
+        <MobileSubtotalBar
+          cartItemCount={cartItemCount}
+          onViewCart={openCartDrawer}
+          subtotal={
+            isYardSign && yardSignPricing ? (
+              <p className="text-xl font-bold text-gray-900">
+                {yardSignTotalQty > 0 ? usd(yardSignPricing.totalCents / 100) : '—'}
+              </p>
+            ) : promoApplied ? (
+              <div className="flex items-center gap-2">
+                <p className="text-sm text-gray-400 line-through">{usd(totals.materialTotal)}</p>
+                <p className="text-xl font-bold text-green-600">{usd(discountedTotal)}</p>
               </div>
             ) : (
-              <div className="min-w-0 shrink-0">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Subtotal before tax</p>
-                {isYardSign && yardSignPricing ? (
-                  <p className="font-display text-xl font-bold text-[#0B1F3A]">
-                    {yardSignTotalQty > 0 ? usd(yardSignPricing.totalCents / 100) : '—'}
-                  </p>
-                ) : promoApplied ? (
-                  <div className="flex items-center gap-2">
-                    <p className="text-xs text-slate-400 line-through">{usd(totals.materialTotal)}</p>
-                    <p className="font-display text-xl font-bold text-emerald-700">{usd(discountedTotal)}</p>
-                  </div>
-                ) : (
-                  <p className="font-display text-xl font-bold text-[#0B1F3A]">{usd(totals.materialTotal)}</p>
-                )}
-              </div>
-            )}
-            <button
-              type="button"
-              onClick={mobileCta.onClick}
-              disabled={mobileCta.disabled}
-              className="inline-flex min-h-12 min-w-0 flex-1 items-center justify-center gap-2 bg-[#C94E00] px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-[#B84300] disabled:cursor-not-allowed disabled:bg-slate-300"
-            >
-              {mobileCta.loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
-              <span className="truncate">{mobileCta.label}</span>
-              {!mobileCta.loading && <ArrowRight className="h-4 w-4 flex-none" aria-hidden="true" />}
-            </button>
-          </div>
-          {mobileCta.helper && <p className="mx-auto mt-1.5 max-w-lg text-right text-[11px] leading-4 text-slate-500">{mobileCta.helper}</p>}
-        </div>
+              <p className="text-xl font-bold text-gray-900">{usd(totals.materialTotal)}</p>
+            )
+          }
+        />
 
       {/* Preview Modal */}
       {showPreview && uploadedFile && (
