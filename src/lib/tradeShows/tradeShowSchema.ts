@@ -1,4 +1,5 @@
-import { getBreadcrumbSchema, getWebPageSchema } from '@/components/SEO';
+import { getBreadcrumbSchema, getFAQSchema, getWebPageSchema } from '@/components/SEO';
+import { getTradeShowFaqs, getTradeShowPageContent } from './tradeShowContent';
 import {
   TRADE_SHOWS,
   getTradeShowPath,
@@ -42,13 +43,15 @@ export function buildTradeShowDirectorySchema(description: string): object[] {
 
 export function buildTradeShowDetailSchema(event: TradeShow, description: string): object[] {
   const path = getTradeShowPath(event);
+  const content = getTradeShowPageContent(event);
   const schemas: object[] = [
-    getWebPageSchema({ name: `${event.name} exhibitor guide`, description, url: path }),
+    getWebPageSchema({ name: `${event.name} exhibitor banner guide`, description, url: path }),
     getBreadcrumbSchema([
       { name: 'Home', url: '/' },
       { name: 'Trade Shows', url: '/trade-shows' },
       { name: event.shortName, url: path },
     ]),
+    getFAQSchema(getTradeShowFaqs(event)),
   ];
 
   if (isIndexableTradeShow(event)) {
@@ -56,14 +59,14 @@ export function buildTradeShowDetailSchema(event: TradeShow, description: string
       '@context': 'https://schema.org',
       '@type': 'Event',
       name: event.name,
-      description: event.editorial.summary,
+      description: content.summary,
       startDate: event.startDate,
       endDate: event.endDate,
       eventStatus: 'https://schema.org/EventScheduled',
       eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
       location: {
         '@type': 'Place',
-        name: event.editorial.venue,
+        name: content.venue || `${event.city}, ${event.state}`,
         address: {
           '@type': 'PostalAddress',
           addressLocality: event.city,
@@ -71,8 +74,10 @@ export function buildTradeShowDetailSchema(event: TradeShow, description: string
           addressCountry: 'US',
         },
       },
-      url: event.officialUrl,
-      sameAs: event.editorial.sourceUrl,
+      image: `${SITE_URL}/images/og-vinyl-banners.png`,
+      url: `${SITE_URL}${path}`,
+      sameAs: content.sourceUrl,
+      mainEntityOfPage: `${SITE_URL}${path}`,
     });
   }
 
