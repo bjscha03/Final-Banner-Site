@@ -14,6 +14,7 @@ import {
   getIndexableCityProductPaths,
   type CityProductSlug,
 } from '@/lib/seo/cityData';
+import { EXPANDED_CITY_VINYL_EDITORIAL } from '@/lib/seo/expandedCityEditorialData';
 import { buildLocalPageSchema, buildProductHubSchema } from '@/lib/seo/localPageSchema';
 import { PRODUCT_LANDING_DATA, SITE_URL } from '@/lib/seo/productLandingData';
 import {
@@ -26,6 +27,11 @@ import {
 const productSlugs = Object.keys(PRODUCT_LANDING_DATA) as CityProductSlug[];
 
 describe('local page publication controls', () => {
+  it('adds exactly 50 new source-reviewed cities to the 20-city production inventory', () => {
+    expect(CITIES).toHaveLength(70);
+    expect(Object.keys(EXPANDED_CITY_VINYL_EDITORIAL)).toHaveLength(50);
+  });
+
   it('creates one unique route for every city/product pair', () => {
     const paths = getAllCityProductPaths();
     expect(paths).toHaveLength(CITIES.length * productSlugs.length);
