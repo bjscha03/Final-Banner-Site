@@ -39,10 +39,10 @@ function schemaNodes(html) {
 const localEntries = manifest.filter((entry) => /^\/(vinyl-banners|yard-signs|car-magnets)(?:\/[^/]+)?$/.test(entry.route));
 const tradeShowEntries = manifest.filter((entry) => entry.route === '/trade-shows' || /^\/trade-shows\/[^/]+$/.test(entry.route));
 const tradeShowDetails = tradeShowEntries.filter((entry) => entry.route !== '/trade-shows');
-assert(localEntries.length === 63, `Expected 63 product/local routes; found ${localEntries.length}.`);
+assert(localEntries.length === 213, `Expected 213 product/local routes; found ${localEntries.length}.`);
 assert(tradeShowEntries.length === 76, `Expected the calendar plus 75 event routes; found ${tradeShowEntries.length}.`);
 assert(tradeShowDetails.filter((entry) => entry.indexable).length === 75, 'Expected all 75 in-depth event guides to pass the publish gate.');
-assert(manifest.length === 139, `Expected 139 generated routes in total; found ${manifest.length}.`);
+assert(manifest.length === 289, `Expected 289 generated routes in total; found ${manifest.length}.`);
 assert(new Set(manifest.map((entry) => entry.route)).size === manifest.length, 'Generated route manifest contains duplicates.');
 
 for (const entry of manifest) {
