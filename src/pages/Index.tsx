@@ -10,6 +10,7 @@ import PricingTable from '@/components/PricingTable';
 import DeliveryCarousel from '@/components/home/DeliveryCarousel';
 import ProductSelectionStrip from '@/components/home/ProductSelectionStrip';
 import CustomQuoteSection from '@/components/home/CustomQuoteSection';
+import SeasonalMerchandising from '@/components/seasonal/SeasonalMerchandising';
 import SEO from '@/components/SEO';
 
 const Index: React.FC = () => {
@@ -71,6 +72,7 @@ const Index: React.FC = () => {
       />
       <PromoBanner />
       <HeroSection />
+      <SeasonalMerchandising />
       <ProductSelectionStrip />
       <WhyChooseUs />
       <PricingTable />
