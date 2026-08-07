@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Trash2, Plus, Minus, ShoppingBag, Eye, Tag } from 'lucide-react';
 import BannerPreview from './cart/BannerPreview';
 import ThumbnailPreviewWrapper from './preview/ThumbnailPreviewWrapper';
@@ -292,7 +293,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
     contentRef.current.scrollTop = 0;
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  if (!isOpen || typeof document === 'undefined') return null;
 
   const handleCheckout = () => {
     onClose();
@@ -318,7 +319,9 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   const saturdayFeeCents = getSaturdayDeliveryFeeCents();
   const hasSameDayFee = sameDayFeeCents > 0;
 
-  return (
+  // Render at the viewport root so page wrappers, overflow clipping, and
+  // scrolled layout containers can never offset or hide the cart drawer.
+  return createPortal(
     <div
       ref={dialogRef}
       data-cart-modal
@@ -584,7 +587,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 

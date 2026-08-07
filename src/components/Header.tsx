@@ -19,6 +19,7 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const { user, loading, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -39,6 +40,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
 
   useEffect(() => {
     setIsMenuOpen(false);
+    setIsAccountMenuOpen(false);
   }, [location.pathname]);
 
   const navItems = [
@@ -80,6 +82,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
     // cart makes the rest of the application inert, so both drawers cannot
     // remain open at the same time.
     setIsMenuOpen(false);
+    setIsAccountMenuOpen(false);
     onCartClick?.();
   };
 
@@ -91,7 +94,10 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
           {/* Compact navigation for mobile and tablet */}
           <div className="flex items-center w-12 lg:hidden" ref={menuRef}>
             <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              onClick={() => {
+                setIsAccountMenuOpen(false);
+                setIsMenuOpen((open) => !open);
+              }}
               className="min-h-11 min-w-11 rounded-md p-2 text-[#0B1F3A] transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00]"
               aria-label={isMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
               aria-expanded={isMenuOpen}
@@ -258,7 +264,14 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
             </ScrollToTopLink>
             {/* User Icon / Dropdown */}
             {!loading && (
-              <DropdownMenu>
+              <DropdownMenu
+                modal={false}
+                open={isAccountMenuOpen}
+                onOpenChange={(open) => {
+                  setIsAccountMenuOpen(open);
+                  if (open) setIsMenuOpen(false);
+                }}
+              >
                 <DropdownMenuTrigger asChild>
                   <button
                     className="min-h-11 min-w-11 rounded-md p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-[#0B1F3A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00]"
