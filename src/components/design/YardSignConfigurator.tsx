@@ -18,7 +18,7 @@
  * - Re-opening the preview restores imgScale / imgPos but always renders from the
  *   original high-res source, never from the generated thumbnail.
  */
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { forwardRef, useState, useRef, useCallback, useEffect, useImperativeHandle } from 'react';
 import { X, Plus, Minus, Loader2, AlertTriangle, CheckCircle, Move, Eye, Sparkles } from 'lucide-react';
 import {
   type YardSignSidedness,
@@ -43,7 +43,7 @@ import {
   validateArtworkFile,
 } from '@/utils/uploadArtworkFile';
 import StablePreviewImage from '@/components/preview/StablePreviewImage';
-import FileUploader from '@/components/ui/FileUploader';
+import FileUploader, { type FileUploaderHandle } from '@/components/ui/FileUploader';
 import CreateWithAIModal, { type CreateWithAIResult } from '@/components/design/CreateWithAIModal';
 import { ENABLE_AI } from '@/lib/featureFlags';
 import { base64ToFile } from '@/utils/base64ToFile';
@@ -151,7 +151,11 @@ interface YardSignConfiguratorProps {
   previewOpenTrigger?: { designId: string; nonce: number } | null;
 }
 
-const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
+export interface YardSignConfiguratorHandle {
+  openFilePicker: () => boolean;
+}
+
+const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConfiguratorProps>(({
   designs,
   onDesignsChange,
   sidedness,
@@ -171,11 +175,16 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
   onPreviewDone,
   previewOpenTrigger,
   showCreateWithAI = false,
-}) => {
+}, ref) => {
   const [isUploading, setIsUploading] = useState(false);
   const [isSavingPreview, setIsSavingPreview] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [aiModalOpen, setAiModalOpen] = useState(false);
+  const fileUploaderRef = useRef<FileUploaderHandle>(null);
+
+  useImperativeHandle(ref, () => ({
+    openFilePicker: () => fileUploaderRef.current?.openFilePicker() ?? false,
+  }), []);
 
   // Mirror upload status to the parent so the mobile sticky CTA can render
   // "Uploading…" / "Retry Upload" without duplicating state.
@@ -600,6 +609,7 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
         {canAddMoreDesigns && (
           <>
             <FileUploader
+              ref={fileUploaderRef}
               onUpload={handleFileUpload}
               acceptedTypes="image/png,image/jpeg,.pdf"
               maxSize={50 * 1024 * 1024}
@@ -823,6 +833,8 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
       )}
     </div>
   );
-};
+});
+
+YardSignConfigurator.displayName = 'YardSignConfigurator';
 
 export default YardSignConfigurator;

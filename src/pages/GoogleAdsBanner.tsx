@@ -20,13 +20,13 @@ import { useAuth } from '@/lib/auth';
 
 import type { ProductTypeSlug } from '@/lib/products';
 import { getProductConfig } from '@/lib/products';
-import YardSignConfigurator from '@/components/design/YardSignConfigurator';
+import YardSignConfigurator, { type YardSignConfiguratorHandle } from '@/components/design/YardSignConfigurator';
 import YardSignPriceSummary from '@/components/design/YardSignPriceSummary';
 import PriceBreakdown from '@/components/pricing/PriceBreakdown';
 import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
 import DeliveryTimer from '@/components/delivery/DeliveryTimer';
 import MobileSubtotalBar from '@/components/design/MobileSubtotalBar';
-import FileUploader from '@/components/ui/FileUploader';
+import FileUploader, { type FileUploaderHandle } from '@/components/ui/FileUploader';
 import GrommetOverlay from '@/components/preview/GrommetOverlay';
 import PreviewRulerFrame from '@/components/preview/PreviewRulerFrame';
 import ArtworkPreviewEditor, { type ArtworkPreviewEditorHandle } from '@/components/design/ArtworkPreviewEditor';
@@ -262,6 +262,7 @@ const GoogleAdsBanner: React.FC = () => {
   }, []);
   const orderRef = useRef<HTMLDivElement>(null);
   const builderStartRef = useRef<HTMLHeadingElement>(null);
+  const yardSignConfiguratorRef = useRef<YardSignConfiguratorHandle>(null);
   const [hasEnteredBuilder, setHasEnteredBuilder] = useState(false);
   const [isBuilderInView, setIsBuilderInView] = useState(false);
 
@@ -354,6 +355,7 @@ const GoogleAdsBanner: React.FC = () => {
   const [ropePlacement, setRopePlacement] = useState<RopePlacement>('top');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<UploadedArtworkFile | null>(null);
+  const fileUploaderRef = useRef<FileUploaderHandle>(null);
   const uploadedFileRef = useRef<UploadedArtworkFile | null>(null);
   const activeUploadFileRef = useRef<File | null>(null);
   const activeUploadPromiseRef = useRef<Promise<UploadedArtworkFile | null> | null>(null);
@@ -2096,10 +2098,14 @@ const GoogleAdsBanner: React.FC = () => {
 
   const showEntryCta = !hasEnteredBuilder;
 
-  // Scroll to the upload card so the mobile sticky "Upload Artwork" /
-  // "Retry Upload" CTA always reveals the file picker.
-  const scrollToUpload = useCallback(() => {
+  // Open the native picker directly from the sticky CTA's user gesture. iOS
+  // Safari can reject delayed/programmatic file-dialog requests, so scrolling
+  // to the upload card is only the fallback when the input is unavailable.
+  const openOrScrollToUpload = useCallback(() => {
     setHasEnteredBuilder(true);
+    const opened = fileUploaderRef.current?.openFilePicker() ?? false;
+    logUx('upload_picker_requested', { source: 'sticky_cta', opened });
+    if (opened) return;
     const el = typeof document !== 'undefined' ? document.getElementById('upload-section') : null;
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -2107,6 +2113,13 @@ const GoogleAdsBanner: React.FC = () => {
       const target = builderStartRef.current ?? orderRef.current;
       target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+  }, []);
+
+  const openOrScrollToYardSignUpload = useCallback(() => {
+    setHasEnteredBuilder(true);
+    const opened = yardSignConfiguratorRef.current?.openFilePicker() ?? false;
+    logUx('upload_picker_requested', { source: 'sticky_cta', productType: 'yard_sign', opened });
+    if (!opened) scrollToStepAnchor(YARD_SIGN_ANCHORS.upload);
   }, []);
 
   // Shared step-machine state — drives both the mobile sticky CTA and the
@@ -2216,11 +2229,11 @@ const GoogleAdsBanner: React.FC = () => {
         case 'uploading':
           return { label: desc.label, onClick: undefined, disabled: true, loading: true, helper: desc.helper };
         case 'upload_error':
-          return { label: desc.label, onClick: wrap(() => scrollToStepAnchor(YARD_SIGN_ANCHORS.upload)), disabled: false, loading: false, helper: desc.helper };
+          return { label: desc.label, onClick: wrap(openOrScrollToYardSignUpload), disabled: false, loading: false, helper: desc.helper };
         case 'print_side':
           return { label: desc.label, onClick: wrap(() => { setHasEnteredBuilder(true); setHasReviewedYardSignPrintSide(true); scrollToStepAnchor(YARD_SIGN_ANCHORS.printSide); }), disabled: false, loading: false, helper: desc.helper };
         case 'add_design':
-          return { label: desc.label, onClick: wrap(() => { setHasEnteredBuilder(true); scrollToStepAnchor(YARD_SIGN_ANCHORS.upload); }), disabled: false, loading: false, helper: desc.helper };
+          return { label: desc.label, onClick: wrap(openOrScrollToYardSignUpload), disabled: false, loading: false, helper: desc.helper };
         case 'review_design':
           return { label: desc.label, onClick: wrap(() => { if (desc.designId) { setYardSignPreviewTrigger({ designId: desc.designId, nonce: Date.now() }); logUx('preview_opened', { source: 'sticky_review_design', designId: desc.designId }); } scrollToStepAnchor(YARD_SIGN_ANCHORS.upload); }), disabled: false, loading: false, helper: desc.helper };
         case 'assign_quantities':
@@ -2248,7 +2261,7 @@ const GoogleAdsBanner: React.FC = () => {
       case 'uploading':
         return { label: desc.label, onClick: undefined, disabled: true, loading: true, helper: desc.helper };
       case 'upload_error':
-        return { label: desc.label, onClick: wrap(scrollToUpload), disabled: false, loading: false, helper: desc.helper };
+        return { label: desc.label, onClick: wrap(openOrScrollToUpload), disabled: false, loading: false, helper: desc.helper };
       case 'add_to_cart':
         return { label: desc.label, onClick: wrap(() => { logUx('add_to_cart_attempted', { productType }); handleAddToCart(); }), disabled: false, loading: false, helper: null };
       case 'size':
@@ -2262,7 +2275,7 @@ const GoogleAdsBanner: React.FC = () => {
           setHasEnteredBuilder(true);
           logUx('step_scrolled', { step: stepKey, source: 'sticky_cta' });
           if (stepKey === 'upload') {
-            scrollToStepAnchor(targetId);
+            openOrScrollToUpload();
             return;
           }
           // Accept the visible default/value, then move to the next incomplete
@@ -2365,7 +2378,7 @@ const GoogleAdsBanner: React.FC = () => {
                 {heroContent.intro}
               </p>
 
-              <div data-mobile-delivery-timer className="mx-auto mt-5 max-w-xl text-left md:hidden">
+              <div className="mx-auto mt-5 max-w-xl text-left md:hidden">
                 <DeliveryTimer variant="compact" className="shadow-lg" />
               </div>
 
@@ -2468,6 +2481,7 @@ const GoogleAdsBanner: React.FC = () => {
               <div className="grid md:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-10 max-w-full">
                 <div className="space-y-8 min-w-0 max-w-full">
                   <YardSignConfigurator
+                    ref={yardSignConfiguratorRef}
                     designs={yardSignDesigns}
                     onDesignsChange={setYardSignDesigns}
                     sidedness={yardSignSidedness}
@@ -2828,6 +2842,7 @@ const GoogleAdsBanner: React.FC = () => {
                   {!uploadedFile ? (
                     <>
                       <FileUploader
+                        ref={fileUploaderRef}
                         onUpload={handleFileUpload}
                         acceptedTypes="image/png,image/jpeg,application/pdf,.png,.jpg,.jpeg,.pdf"
                         maxSize={50 * 1024 * 1024}
