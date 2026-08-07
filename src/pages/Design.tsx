@@ -25,6 +25,7 @@ import YardSignPriceSummary from '@/components/design/YardSignPriceSummary';
 import PriceBreakdown from '@/components/pricing/PriceBreakdown';
 import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
 import DeliveryTimer from '@/components/delivery/DeliveryTimer';
+import MobileSubtotalBar from '@/components/design/MobileSubtotalBar';
 import FileUploader from '@/components/ui/FileUploader';
 import {
   calcYardSignPricing,
@@ -2696,6 +2697,10 @@ const Design: React.FC = () => {
 
           {modeContent.heroDescription}
 
+          <div data-mobile-delivery-timer className="mx-auto mt-5 max-w-xl text-left md:hidden">
+            <DeliveryTimer variant="compact" className="shadow-lg" />
+          </div>
+
           {/* Inline benefit pills */}
           <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px] text-slate-200">
             {modeContent.topFeatures.map((b, i) => (
@@ -2793,7 +2798,9 @@ const Design: React.FC = () => {
                 )}
 
                 {/* Same-Day Hit Service upsell — production priority (NOT shipping). */}
-                <DeliveryTimer variant="compact" />
+                <div className="hidden md:block">
+                  <DeliveryTimer variant="compact" />
+                </div>
                 <SameDayHitServiceCard
                   variant="compact"
                   previewHasPrice={!!yardSignPricing && yardSignTotalQty > 0 && yardSignQuantityValid.valid}
@@ -3323,7 +3330,9 @@ const Design: React.FC = () => {
               )}
 
               {/* Same-Day Hit Service upsell — production priority (NOT shipping). */}
-              <DeliveryTimer variant="compact" />
+              <div className="hidden md:block">
+                <DeliveryTimer variant="compact" />
+              </div>
               <SameDayHitServiceCard
                 variant="compact"
                 previewHasPrice={
@@ -3415,37 +3424,24 @@ const Design: React.FC = () => {
         </div>
       </section>
 
-      {/* Mobile sticky subtotal bar (no progression CTA). */}
-      <div aria-hidden="true" className="md:hidden h-24" />
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 pt-3 shadow-lg z-40 overflow-x-clip" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0.75rem))' }}>
-        <div className="flex items-center justify-between gap-3 min-h-[44px]">
-          <div className="min-w-0">
-            {/* Pre-tax subtotal — labeled "Subtotal" so it lines up with the
-                cart/checkout breakdown (which shows Subtotal → Tax → Total).
-                Avoids the old "$36.00 Total" vs "$38.16 Total" confusion. */}
-            <p className="text-xs text-gray-500">Subtotal</p>
-            {isYardSign && yardSignPricing ? (
-              <p className="text-xl font-bold text-gray-900">
-                {yardSignTotalQty > 0 ? usd(yardSignPricing.totalCents / 100) : '—'}
-              </p>
-            ) : promoApplied ? (
-              <div className="flex items-center gap-2">
-                <p className="text-sm text-gray-400 line-through">{usd(totals.materialTotal)}</p>
-                <p className="text-xl font-bold text-green-600">{usd(discountedTotal)}</p>
-              </div>
-            ) : (
-              <p className="text-xl font-bold text-gray-900">{usd(totals.materialTotal)}</p>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={openCartDrawer}
-            className="shrink-0 inline-flex items-center rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-[#18448D] hover:bg-slate-50 transition-colors"
-          >
-            View Cart ({cartItemCount})
-          </button>
-        </div>
-      </div>
+      <MobileSubtotalBar
+        cartItemCount={cartItemCount}
+        onViewCart={openCartDrawer}
+        subtotal={
+          isYardSign && yardSignPricing ? (
+            <p className="text-xl font-bold text-gray-900">
+              {yardSignTotalQty > 0 ? usd(yardSignPricing.totalCents / 100) : '—'}
+            </p>
+          ) : promoApplied ? (
+            <div className="flex items-center gap-2">
+              <p className="text-sm text-gray-400 line-through">{usd(totals.materialTotal)}</p>
+              <p className="text-xl font-bold text-green-600">{usd(discountedTotal)}</p>
+            </div>
+          ) : (
+            <p className="text-xl font-bold text-gray-900">{usd(totals.materialTotal)}</p>
+          )
+        }
+      />
 
       {/* Preview Modal */}
       {showPreview && uploadedFile && (
