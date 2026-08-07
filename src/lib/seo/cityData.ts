@@ -1,5 +1,6 @@
 import { getConfiguratorUrl } from '@/lib/configurator';
 import { REMAINING_CITY_VINYL_EDITORIAL } from '@/lib/seo/cityEditorialData';
+import { EXPANDED_CITY_VINYL_EDITORIAL } from '@/lib/seo/expandedCityEditorialData';
 import {
   PRODUCT_LANDING_DATA,
   SITE_URL,
@@ -92,10 +93,67 @@ export interface CityEntry {
 }
 
 const reviewedVinylCity = (city: Omit<CityEntry, 'editorial'>): CityEntry => {
-  const editorial = REMAINING_CITY_VINYL_EDITORIAL[city.slug];
+  const editorial = REMAINING_CITY_VINYL_EDITORIAL[city.slug] ?? EXPANDED_CITY_VINYL_EDITORIAL[city.slug];
   if (!editorial) throw new Error(`Missing reviewed vinyl editorial for ${city.slug}`);
   return { ...city, editorial: { 'vinyl-banners': editorial } };
 };
+const expandedCity = (slug: string, city: string, state: string, stateName: string, region: string, nearbyCitySlugs: string[]): Omit<CityEntry, 'editorial'> => ({
+  slug, city, state, stateName, region, nearbyCitySlugs,
+  serviceClassification: 'shipping-only', physicalPresence: 'none-claimed',
+});
+
+const EXPANDED_CITIES: Array<Omit<CityEntry, 'editorial'>> = [
+  expandedCity('new-york-ny', 'New York City', 'NY', 'New York', 'the New York metropolitan area', ['newark-nj', 'philadelphia-pa', 'hartford-ct', 'providence-ri']),
+  expandedCity('los-angeles-ca', 'Los Angeles', 'CA', 'California', 'Southern California', ['san-diego-ca', 'san-francisco-ca', 'san-jose-ca', 'fresno-ca']),
+  expandedCity('san-diego-ca', 'San Diego', 'CA', 'California', 'Southern California', ['los-angeles-ca', 'las-vegas-nv', 'phoenix-az', 'tucson-az']),
+  expandedCity('san-francisco-ca', 'San Francisco', 'CA', 'California', 'the Bay Area', ['san-jose-ca', 'sacramento-ca', 'fresno-ca', 'los-angeles-ca']),
+  expandedCity('seattle-wa', 'Seattle', 'WA', 'Washington', 'Puget Sound', ['portland-or', 'spokane-wa', 'boise-id', 'san-francisco-ca']),
+  expandedCity('portland-or', 'Portland', 'OR', 'Oregon', 'the Portland metropolitan area', ['seattle-wa', 'spokane-wa', 'boise-id', 'sacramento-ca']),
+  expandedCity('las-vegas-nv', 'Las Vegas', 'NV', 'Nevada', 'the Las Vegas Valley', ['los-angeles-ca', 'san-diego-ca', 'phoenix-az', 'salt-lake-city-ut']),
+  expandedCity('san-antonio-tx', 'San Antonio', 'TX', 'Texas', 'South Central Texas', ['austin-tx', 'houston-tx', 'dallas-tx', 'fort-worth-tx']),
+  expandedCity('fort-worth-tx', 'Fort Worth', 'TX', 'Texas', 'Dallas–Fort Worth', ['dallas-tx', 'austin-tx', 'oklahoma-city-ok', 'houston-tx']),
+  expandedCity('el-paso-tx', 'El Paso', 'TX', 'Texas', 'the Borderplex', ['albuquerque-nm', 'tucson-az', 'phoenix-az', 'san-antonio-tx']),
+  expandedCity('new-orleans-la', 'New Orleans', 'LA', 'Louisiana', 'southeast Louisiana', ['memphis-tn', 'houston-tx', 'birmingham-al', 'jacksonville-fl']),
+  expandedCity('memphis-tn', 'Memphis', 'TN', 'Tennessee', 'the Mid-South', ['nashville-tn', 'st-louis-mo', 'birmingham-al', 'new-orleans-la']),
+  expandedCity('birmingham-al', 'Birmingham', 'AL', 'Alabama', 'central Alabama', ['atlanta-ga', 'nashville-tn', 'memphis-tn', 'new-orleans-la']),
+  expandedCity('savannah-ga', 'Savannah', 'GA', 'Georgia', 'the Georgia coast', ['charleston-sc', 'jacksonville-fl', 'atlanta-ga', 'orlando-fl']),
+  expandedCity('charleston-sc', 'Charleston', 'SC', 'South Carolina', 'the Lowcountry', ['savannah-ga', 'charlotte-nc', 'raleigh-nc', 'jacksonville-fl']),
+  expandedCity('virginia-beach-va', 'Virginia Beach', 'VA', 'Virginia', 'Hampton Roads', ['richmond-va', 'washington-dc', 'raleigh-nc', 'baltimore-md']),
+  expandedCity('richmond-va', 'Richmond', 'VA', 'Virginia', 'central Virginia', ['virginia-beach-va', 'washington-dc', 'baltimore-md', 'raleigh-nc']),
+  expandedCity('washington-dc', 'Washington', 'DC', 'District of Columbia', 'the Washington metropolitan area', ['baltimore-md', 'richmond-va', 'philadelphia-pa', 'virginia-beach-va']),
+  expandedCity('baltimore-md', 'Baltimore', 'MD', 'Maryland', 'Central Maryland', ['washington-dc', 'philadelphia-pa', 'richmond-va', 'newark-nj']),
+  expandedCity('philadelphia-pa', 'Philadelphia', 'PA', 'Pennsylvania', 'the Delaware Valley', ['newark-nj', 'new-york-ny', 'baltimore-md', 'washington-dc']),
+  expandedCity('pittsburgh-pa', 'Pittsburgh', 'PA', 'Pennsylvania', 'southwestern Pennsylvania', ['cleveland-oh', 'columbus-oh', 'buffalo-ny', 'philadelphia-pa']),
+  expandedCity('cleveland-oh', 'Cleveland', 'OH', 'Ohio', 'Northeast Ohio', ['pittsburgh-pa', 'columbus-oh', 'detroit-mi', 'buffalo-ny']),
+  expandedCity('detroit-mi', 'Detroit', 'MI', 'Michigan', 'Southeast Michigan', ['cleveland-oh', 'grand-rapids-mi', 'columbus-oh', 'chicago-il']),
+  expandedCity('milwaukee-wi', 'Milwaukee', 'WI', 'Wisconsin', 'southeastern Wisconsin', ['chicago-il', 'madison-wi', 'grand-rapids-mi', 'minneapolis-mn']),
+  expandedCity('minneapolis-mn', 'Minneapolis', 'MN', 'Minnesota', 'the Twin Cities', ['des-moines-ia', 'madison-wi', 'milwaukee-wi', 'omaha-ne']),
+  expandedCity('kansas-city-mo', 'Kansas City', 'MO', 'Missouri', 'the Kansas City metropolitan area', ['omaha-ne', 'wichita-ks', 'des-moines-ia', 'st-louis-mo']),
+  expandedCity('omaha-ne', 'Omaha', 'NE', 'Nebraska', 'the Omaha–Council Bluffs area', ['des-moines-ia', 'kansas-city-mo', 'wichita-ks', 'minneapolis-mn']),
+  expandedCity('oklahoma-city-ok', 'Oklahoma City', 'OK', 'Oklahoma', 'central Oklahoma', ['tulsa-ok', 'wichita-ks', 'dallas-tx', 'fort-worth-tx']),
+  expandedCity('tulsa-ok', 'Tulsa', 'OK', 'Oklahoma', 'northeastern Oklahoma', ['oklahoma-city-ok', 'wichita-ks', 'kansas-city-mo', 'dallas-tx']),
+  expandedCity('albuquerque-nm', 'Albuquerque', 'NM', 'New Mexico', 'central New Mexico', ['el-paso-tx', 'colorado-springs-co', 'denver-co', 'tucson-az']),
+  expandedCity('tucson-az', 'Tucson', 'AZ', 'Arizona', 'Southern Arizona', ['phoenix-az', 'el-paso-tx', 'albuquerque-nm', 'san-diego-ca']),
+  expandedCity('sacramento-ca', 'Sacramento', 'CA', 'California', 'the Sacramento metropolitan area', ['san-francisco-ca', 'san-jose-ca', 'fresno-ca', 'portland-or']),
+  expandedCity('san-jose-ca', 'San Jose', 'CA', 'California', 'Silicon Valley', ['san-francisco-ca', 'sacramento-ca', 'fresno-ca', 'los-angeles-ca']),
+  expandedCity('fresno-ca', 'Fresno', 'CA', 'California', 'the Central Valley', ['san-jose-ca', 'sacramento-ca', 'san-francisco-ca', 'los-angeles-ca']),
+  expandedCity('salt-lake-city-ut', 'Salt Lake City', 'UT', 'Utah', 'the Wasatch Front', ['boise-id', 'denver-co', 'las-vegas-nv', 'colorado-springs-co']),
+  expandedCity('boise-id', 'Boise', 'ID', 'Idaho', 'the Treasure Valley', ['salt-lake-city-ut', 'spokane-wa', 'portland-or', 'seattle-wa']),
+  expandedCity('spokane-wa', 'Spokane', 'WA', 'Washington', 'the Inland Northwest', ['seattle-wa', 'boise-id', 'portland-or', 'salt-lake-city-ut']),
+  expandedCity('colorado-springs-co', 'Colorado Springs', 'CO', 'Colorado', 'the Front Range', ['denver-co', 'albuquerque-nm', 'wichita-ks', 'salt-lake-city-ut']),
+  expandedCity('wichita-ks', 'Wichita', 'KS', 'Kansas', 'south-central Kansas', ['oklahoma-city-ok', 'tulsa-ok', 'kansas-city-mo', 'omaha-ne']),
+  expandedCity('des-moines-ia', 'Des Moines', 'IA', 'Iowa', 'central Iowa', ['omaha-ne', 'kansas-city-mo', 'minneapolis-mn', 'madison-wi']),
+  expandedCity('madison-wi', 'Madison', 'WI', 'Wisconsin', 'south-central Wisconsin', ['milwaukee-wi', 'chicago-il', 'minneapolis-mn', 'grand-rapids-mi']),
+  expandedCity('grand-rapids-mi', 'Grand Rapids', 'MI', 'Michigan', 'West Michigan', ['detroit-mi', 'chicago-il', 'milwaukee-wi', 'cleveland-oh']),
+  expandedCity('buffalo-ny', 'Buffalo', 'NY', 'New York', 'Western New York', ['rochester-ny', 'cleveland-oh', 'pittsburgh-pa', 'new-york-ny']),
+  expandedCity('rochester-ny', 'Rochester', 'NY', 'New York', 'the Finger Lakes region', ['buffalo-ny', 'new-york-ny', 'pittsburgh-pa', 'cleveland-oh']),
+  expandedCity('providence-ri', 'Providence', 'RI', 'Rhode Island', 'Southern New England', ['boston-ma', 'hartford-ct', 'new-york-ny', 'newark-nj']),
+  expandedCity('boston-ma', 'Boston', 'MA', 'Massachusetts', 'Greater Boston', ['providence-ri', 'hartford-ct', 'new-york-ny', 'newark-nj']),
+  expandedCity('hartford-ct', 'Hartford', 'CT', 'Connecticut', 'central Connecticut', ['providence-ri', 'boston-ma', 'new-york-ny', 'newark-nj']),
+  expandedCity('newark-nj', 'Newark', 'NJ', 'New Jersey', 'North Jersey', ['new-york-ny', 'philadelphia-pa', 'hartford-ct', 'providence-ri']),
+  expandedCity('honolulu-hi', 'Honolulu', 'HI', 'Hawaii', 'Oʻahu', ['los-angeles-ca', 'san-diego-ca', 'san-francisco-ca', 'seattle-wa']),
+  expandedCity('anchorage-ak', 'Anchorage', 'AK', 'Alaska', 'Southcentral Alaska', ['seattle-wa', 'portland-or', 'spokane-wa', 'boise-id']),
+];
 
 /**
  * Service-area registry only. A city in this array does not automatically
@@ -471,6 +529,7 @@ export const CITIES: CityEntry[] = [
   reviewedVinylCity({ slug: 'miami-fl', city: 'Miami', state: 'FL', stateName: 'Florida', region: 'South Florida', nearbyCitySlugs: ['orlando-fl', 'tampa-fl', 'jacksonville-fl', 'atlanta-ga'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' }),
   reviewedVinylCity({ slug: 'jacksonville-fl', city: 'Jacksonville', state: 'FL', stateName: 'Florida', region: 'northeast Florida', nearbyCitySlugs: ['orlando-fl', 'tampa-fl', 'atlanta-ga', 'raleigh-nc'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' }),
   reviewedVinylCity({ slug: 'raleigh-nc', city: 'Raleigh', state: 'NC', stateName: 'North Carolina', region: 'the Research Triangle', nearbyCitySlugs: ['charlotte-nc', 'atlanta-ga', 'jacksonville-fl', 'nashville-tn'], serviceClassification: 'shipping-only', physicalPresence: 'none-claimed' }),
+  ...EXPANDED_CITIES.map(reviewedVinylCity),
 ];
 
 const CITY_BY_SLUG = new Map(CITIES.map((city) => [city.slug, city]));
@@ -548,7 +607,7 @@ function buildMetaDescription(productSlug: CityProductSlug, city: CityEntry, pro
   if (productSlug === 'yard-signs') {
     return `Order 10 custom yard signs shipped to ${city.city} from ${price}. Compare single- and double-sided 24×18 signs, upload artwork, preview, and see pricing online.`;
   }
-  return `Order car magnets shipped to ${city.city} from ${price}. Compare supported sizes and corner options, upload artwork, preview, and see pricing and shipping details.`;
+  return `Order car magnets shipped to ${city.city} from ${price}. Compare supported sizes and corner options, upload artwork, preview, and see pricing.`;
 }
 
 export function buildCityProductPageContent(productSlug: CityProductSlug, city: CityEntry): CityProductPageContent {
