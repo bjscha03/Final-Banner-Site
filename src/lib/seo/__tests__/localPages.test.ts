@@ -92,7 +92,7 @@ describe('local page publication controls', () => {
       'https://www.lexingtonky.gov/government/departments-programs/housing-advocacy-community-development/code-enforcement',
     );
     expect(content.localGuide?.sourceLinks).toHaveLength(11);
-    expect(content.localGuide?.sourceLinks.every((source) => source.href.startsWith('https://')).toBe(true);
+    expect(content.localGuide?.sourceLinks.every((source) => source.href.startsWith('https://'))).toBe(true);
     expect(content.internalLinks.map((link) => link.to)).toEqual(expect.arrayContaining([
       '/blog/vinyl-vs-mesh-banners-guide',
       '/trade-shows',
