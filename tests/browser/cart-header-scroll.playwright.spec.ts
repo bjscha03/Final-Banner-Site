@@ -49,7 +49,9 @@ const readPageState = async (page: Page) => page.evaluate(() => {
     scrollY: window.scrollY,
     headerTop: headerRect.top,
     headerBottom: headerRect.bottom,
-    headerInert: header.hasAttribute('inert'),
+    // A viewport-root portal makes #root inert, so the header is effectively
+    // inert through its ancestor even though the attribute is not duplicated.
+    headerInert: Boolean(header.closest('[inert]')),
     htmlCartClass: document.documentElement.classList.contains('cart-modal-open'),
     bodyCartClass: document.body.classList.contains('cart-modal-open'),
     htmlInlineOverflow: document.documentElement.style.overflow,
