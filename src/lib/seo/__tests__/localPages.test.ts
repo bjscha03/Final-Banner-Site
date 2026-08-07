@@ -32,17 +32,15 @@ describe('local page publication controls', () => {
     expect(new Set(paths.map(({ product, citySlug }) => `${product}/${citySlug}`)).size).toBe(paths.length);
   });
 
-  it('publishes only the reviewed Louisville and Lexington vinyl-banner pages', () => {
-    expect(getIndexableCityProductPaths()).toEqual([
-      { product: 'vinyl-banners', citySlug: 'louisville-ky' },
-      { product: 'vinyl-banners', citySlug: 'lexington-ky' },
-    ]);
+  it('publishes every reviewed vinyl-banner city page and no unsupported product-city pages', () => {
+    expect(getIndexableCityProductPaths()).toEqual(
+      CITIES.map((city) => ({ product: 'vinyl-banners', citySlug: city.slug })),
+    );
 
     for (const city of CITIES) {
       for (const product of productSlugs) {
         const gate = evaluateLocalPagePublishGate(product, city);
-        const isReviewedVinylPage =
-          ['louisville-ky', 'lexington-ky'].includes(city.slug) && product === 'vinyl-banners';
+        const isReviewedVinylPage = product === 'vinyl-banners';
         expect(gate.indexable).toBe(isReviewedVinylPage);
         if (isReviewedVinylPage) {
           expect(gate.reasons).toEqual([]);
@@ -53,6 +51,36 @@ describe('local page publication controls', () => {
         }
       }
     }
+  });
+
+  it('provides distinct, source-backed local guidance for the completed city inventory', () => {
+    const localTitles = new Set<string>();
+    const localSummaries = new Set<string>();
+    const faqQuestions = new Set<string>();
+
+    for (const city of CITIES) {
+      const content = buildCityProductPageContent('vinyl-banners', city);
+      expect(content.indexable, city.slug).toBe(true);
+      expect(content.h1).toBe(`Vinyl Banner Printing in ${city.city}, ${city.state}`);
+      expect(content.introParagraph).toMatch(/does not represent|does not imply|not a .*storefront/i);
+      expect(content.localGuide?.sections, city.slug).toHaveLength(4);
+      expect(content.localGuide?.recommendations, city.slug).toHaveLength(4);
+      expect(content.localGuide?.sourceLinks.length, city.slug).toBeGreaterThanOrEqual(6);
+      expect(content.localGuide?.sourceLinks.every((source) => source.href.startsWith('https://'))).toBe(true);
+      expect(content.faqs, city.slug).toHaveLength(5);
+      expect(content.internalLinks.length, city.slug).toBeGreaterThanOrEqual(8);
+      expect(content.nearbyCityLinks, city.slug).toHaveLength(city.nearbyCitySlugs.length);
+
+      localTitles.add(content.localGuide!.title);
+      localSummaries.add(content.localGuide!.summary);
+      for (const faq of content.faqs.slice(1)) {
+        expect(faqQuestions.has(faq.question), faq.question).toBe(false);
+        faqQuestions.add(faq.question);
+      }
+    }
+
+    expect(localTitles.size).toBe(CITIES.length);
+    expect(localSummaries.size).toBe(CITIES.length);
   });
 
   it('provides source-backed Louisville guidance without claiming a local storefront', () => {
@@ -101,15 +129,23 @@ describe('local page publication controls', () => {
     ]));
     expect(content.nearbyCityLinks).toEqual([
       { label: 'Vinyl Banners shipped to Louisville, KY', to: '/vinyl-banners/louisville-ky' },
+      { label: 'Vinyl Banners shipped to Cincinnati, OH', to: '/vinyl-banners/cincinnati-oh' },
+      { label: 'Vinyl Banners shipped to Nashville, TN', to: '/vinyl-banners/nashville-tn' },
+      { label: 'Vinyl Banners shipped to Columbus, OH', to: '/vinyl-banners/columbus-oh' },
     ]);
   });
 
-  it('does not expose published-city links from an unpublished local page', () => {
+  it('connects reviewed nearby vinyl pages without exposing unsupported sibling products', () => {
     const cincinnati = getCityBySlug('cincinnati-oh')!;
     const content = buildCityProductPageContent('vinyl-banners', cincinnati);
-    expect(content.indexable).toBe(false);
+    expect(content.indexable).toBe(true);
     expect(content.siblingProductLinks).toEqual([]);
-    expect(content.nearbyCityLinks).toEqual([]);
+    expect(content.nearbyCityLinks).toEqual([
+      { label: 'Vinyl Banners shipped to Louisville, KY', to: '/vinyl-banners/louisville-ky' },
+      { label: 'Vinyl Banners shipped to Lexington, KY', to: '/vinyl-banners/lexington-ky' },
+      { label: 'Vinyl Banners shipped to Indianapolis, IN', to: '/vinyl-banners/indianapolis-in' },
+      { label: 'Vinyl Banners shipped to Columbus, OH', to: '/vinyl-banners/columbus-oh' },
+    ]);
   });
 
   it('uses concise, unique metadata and honest shipping-only language', () => {
@@ -121,10 +157,10 @@ describe('local page publication controls', () => {
         expect(content.metaTitle.length).toBeLessThanOrEqual(60);
         expect(content.metaDescription.length, `${product}/${city.slug}: ${content.metaDescription}`).toBeLessThanOrEqual(160);
         expect(content.canonicalUrl).toBe(`${SITE_URL}/${product}/${city.slug}`);
-        expect(content.introParagraph).toContain('does not represent a storefront or pickup location');
+        expect(content.introParagraph).toMatch(/does not represent|does not imply|not a .*storefront/i);
         expect(content.siblingProductLinks).toEqual([]);
-        if (product === 'vinyl-banners' && ['louisville-ky', 'lexington-ky'].includes(city.slug)) {
-          expect(content.nearbyCityLinks).toHaveLength(1);
+        if (product === 'vinyl-banners') {
+          expect(content.nearbyCityLinks).toHaveLength(city.nearbyCitySlugs.length);
         } else {
           expect(content.nearbyCityLinks).toEqual([]);
         }
