@@ -29,11 +29,16 @@ describe('DeliveryTimer', () => {
     const html = renderAt('2026-08-07T16:00:00.000Z');
 
     expect(html).toContain('data-state="weekend_lock"');
-    expect(html).toContain('expected to ship Monday and arrive Tuesday');
+    expect(html).toContain('Order now for expected Tuesday delivery');
+    expect(html).toContain('Expected ship');
+    expect(html).toContain('Expected delivery');
+    expect(html).toContain('Monday');
+    expect(html).toContain('Tuesday');
     expect(html).toContain('data-testid="delivery-countdown"');
     expect(html).toContain('role="timer"');
     expect(html).toContain('60:00:00');
-    expect(html).toContain('until the next production scheduling window (Eastern Time)');
+    expect(html).toContain('Next production window');
+    expect(html).toContain('Eastern Time');
   });
 
   it('renders standard shipment, delivery, and cutoff countdown together', () => {
