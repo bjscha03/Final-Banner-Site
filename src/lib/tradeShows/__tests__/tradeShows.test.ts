@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { getTradeShowPageContent } from '../tradeShowContent';
 import {
   TRADE_SHOWS,
   TRADE_SHOW_INDUSTRIES,
@@ -28,16 +29,34 @@ describe('August 2026 trade show data', () => {
     }
   });
 
-  it('only publishes the 15 event guides that pass the editorial gate', () => {
-    const reviewed = TRADE_SHOWS.filter(isIndexableTradeShow);
+  it('publishes all 75 event guides after the in-depth content gate', () => {
+    const indexable = TRADE_SHOWS.filter(isIndexableTradeShow);
+    expect(indexable).toHaveLength(75);
+    expect(getIndexableTradeShowPaths()).toHaveLength(75);
+
+    const content = indexable.map(getTradeShowPageContent);
+    expect(new Set(content.map((item) => item.summary)).size).toBe(75);
+    expect(new Set(content.map((item) => item.showFocus)).size).toBe(75);
+
+    for (const item of content) {
+      expect(item.contentReviewedAt).toBe('2026-08-07');
+      expect(item.sourceUrl).toMatch(/^https:\/\//);
+      expect(item.summary.length).toBeGreaterThanOrEqual(120);
+      expect(item.bannerAdvice.length).toBeGreaterThanOrEqual(100);
+      expect(item.messagePlan).toHaveLength(4);
+      expect(item.bannerGoals).toHaveLength(3);
+    }
+  });
+
+  it('preserves 15 organizer-reviewed event records without overstating the others', () => {
+    const reviewed = TRADE_SHOWS.filter((event) => getTradeShowPageContent(event).organizerVerified);
     expect(reviewed).toHaveLength(15);
-    expect(getIndexableTradeShowPaths()).toHaveLength(15);
 
     for (const event of reviewed) {
-      expect(event.editorial.reviewedAt).toBe('2026-08-05');
-      expect(event.editorial.sourceUrl).toMatch(/^https:\/\//);
-      expect(event.editorial.venue.length).toBeGreaterThan(3);
-      expect(event.editorial.verifiedFacts.length).toBeGreaterThanOrEqual(2);
+      expect(event.editorial?.reviewedAt).toBe('2026-08-05');
+      expect(event.editorial?.sourceUrl).toMatch(/^https:\/\//);
+      expect(event.editorial?.venue.length).toBeGreaterThan(3);
+      expect(event.editorial?.verifiedFacts.length).toBeGreaterThanOrEqual(2);
     }
   });
 

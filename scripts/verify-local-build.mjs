@@ -41,7 +41,7 @@ const tradeShowEntries = manifest.filter((entry) => entry.route === '/trade-show
 const tradeShowDetails = tradeShowEntries.filter((entry) => entry.route !== '/trade-shows');
 assert(localEntries.length === 63, `Expected 63 product/local routes; found ${localEntries.length}.`);
 assert(tradeShowEntries.length === 76, `Expected the calendar plus 75 event routes; found ${tradeShowEntries.length}.`);
-assert(tradeShowDetails.filter((entry) => entry.indexable).length === 15, 'Expected 15 reviewed event guides to pass the publish gate.');
+assert(tradeShowDetails.filter((entry) => entry.indexable).length === 75, 'Expected all 75 in-depth event guides to pass the publish gate.');
 assert(manifest.length === 139, `Expected 139 generated routes in total; found ${manifest.length}.`);
 assert(new Set(manifest.map((entry) => entry.route)).size === manifest.length, 'Generated route manifest contains duplicates.');
 
@@ -120,9 +120,12 @@ for (const entry of manifest) {
 
   if (isTradeShowDetail) {
     assert(types.includes('BreadcrumbList'), `${entry.route}: breadcrumb schema missing.`);
+    assert(types.includes('FAQPage'), `${entry.route}: FAQ schema missing.`);
     assert(types.includes('Event') === entry.indexable, `${entry.route}: Event schema disagrees with editorial publish gate.`);
-    assert(html.includes('Confirm on official site'), `${entry.route}: official organizer link missing.`);
+    assert(html.includes('Check current organizer details') && html.includes('Open official event site'), `${entry.route}: official organizer links missing.`);
     assert(html.includes('These are planning examples, not event specifications.'), `${entry.route}: size guidance disclaimer missing.`);
+    assert(html.includes('Banners On The Fly is not affiliated with, endorsed by, or an official supplier'), `${entry.route}: independent-resource disclosure missing.`);
+    assert((html.match(/Related 2026 exhibitor guides/g) || []).length === 1, `${entry.route}: related-guide section missing or duplicated.`);
   }
 }
 
@@ -154,4 +157,4 @@ for (const namespace of ['/vinyl-banners/*', '/yard-signs/*', '/car-magnets/*', 
   assert(rulePosition >= 0 && rulePosition < fallbackPosition, `${namespace}: true-404 rule must precede the SPA fallback.`);
 }
 
-console.log(`Verified ${manifest.length} generated routes, including 75 event pages with a 15-page editorial publish gate, schema, metadata, CTAs, sitemap parity, 404 output, and social assets.`);
+console.log(`Verified ${manifest.length} generated routes, including 75 in-depth indexable event guides with schema, FAQs, related links, disclosures, metadata, CTAs, sitemap parity, 404 output, and social assets.`);

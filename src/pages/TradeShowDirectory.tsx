@@ -14,16 +14,16 @@ import Breadcrumbs from '@/components/Breadcrumbs';
 import Layout from '@/components/Layout';
 import SEO from '@/components/SEO';
 import { getConfiguratorUrl } from '@/lib/configurator';
+import { getTradeShowPageContent } from '@/lib/tradeShows/tradeShowContent';
 import { buildTradeShowDirectorySchema } from '@/lib/tradeShows/tradeShowSchema';
 import {
   TRADE_SHOWS,
   TRADE_SHOW_INDUSTRIES,
   formatTradeShowDateRange,
   getTradeShowPath,
-  isIndexableTradeShow,
 } from '@/lib/tradeShows/tradeShows';
 
-const DESCRIPTION = 'Search 75 U.S. trade shows starting in August 2026 by event, city, state, or industry. Open an exhibitor planner and confirm details with the organizer.';
+const DESCRIPTION = 'Search 75 August 2026 U.S. trade shows and open a detailed exhibitor guide with show-specific banner messaging, sizing, setup, and organizer links.';
 const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: 'UTC' });
 
 function getMonthLabel(date: string): string {
@@ -71,7 +71,7 @@ const TradeShowDirectory: React.FC = () => {
             <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-300">Find upcoming exhibitions by event, location, or industry—then open a practical booth-banner planner built around each show.</p>
             <div className="mt-8 flex flex-wrap gap-x-8 gap-y-3 border-t border-white/15 pt-6 text-sm text-slate-200">
               <span><strong className="font-display text-2xl text-white">75</strong> shows starting Aug. 6–31</span>
-              <span><strong className="font-display text-2xl text-white">15</strong> organizer-verified guides</span>
+              <span><strong className="font-display text-2xl text-white">75</strong> detailed exhibitor guides</span>
               <span><strong className="font-display text-2xl text-white">22</strong> states + D.C.</span>
             </div>
           </div>
@@ -127,7 +127,7 @@ const TradeShowDirectory: React.FC = () => {
         {filteredEvents.length > 0 ? (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" data-trade-show-results>
             {filteredEvents.map((event) => {
-              const reviewed = isIndexableTradeShow(event);
+              const content = getTradeShowPageContent(event);
               return (
                 <article key={event.slug} className="group flex min-h-[270px] flex-col border border-slate-200 bg-white transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_14px_35px_rgba(11,31,58,0.09)]" data-trade-show-card>
                   <div className="flex border-b border-slate-200">
@@ -137,7 +137,7 @@ const TradeShowDirectory: React.FC = () => {
                     </div>
                     <div className="flex min-w-0 flex-1 items-center justify-between gap-3 px-4 py-3">
                       <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{event.industry}</span>
-                      {reviewed && <span className="inline-flex flex-none items-center gap-1 text-xs font-bold text-emerald-700"><BadgeCheck className="h-4 w-4" aria-hidden="true" />Verified</span>}
+                      {content.organizerVerified && <span className="inline-flex flex-none items-center gap-1 text-xs font-bold text-emerald-700"><BadgeCheck className="h-4 w-4" aria-hidden="true" />Organizer reviewed</span>}
                     </div>
                   </div>
                   <div className="flex flex-1 flex-col p-5">
@@ -146,7 +146,7 @@ const TradeShowDirectory: React.FC = () => {
                     </h3>
                     <div className="mt-4 space-y-2 text-sm text-slate-600">
                       <p className="flex gap-2"><CalendarDays className="mt-0.5 h-4 w-4 flex-none text-[#FF6A00]" aria-hidden="true" />{formatTradeShowDateRange(event)}</p>
-                      <p className="flex gap-2"><MapPin className="mt-0.5 h-4 w-4 flex-none text-[#FF6A00]" aria-hidden="true" />{event.city}, {event.state}{reviewed ? ` · ${event.editorial.venue}` : ''}</p>
+                      <p className="flex gap-2"><MapPin className="mt-0.5 h-4 w-4 flex-none text-[#FF6A00]" aria-hidden="true" />{event.city}, {event.state}{content.venue ? ` · ${content.venue}` : ''}</p>
                     </div>
                     <div className="mt-auto flex items-center justify-between gap-3 border-t border-slate-100 pt-5">
                       <Link to={getTradeShowPath(event)} className="inline-flex items-center gap-1.5 text-sm font-bold text-[#18448D] hover:text-[#C94F00]">Exhibitor planner<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>

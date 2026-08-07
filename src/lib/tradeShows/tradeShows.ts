@@ -1,3 +1,5 @@
+import { getTradeShowPageContent, hasTradeShowProfile } from './tradeShowContent';
+
 export const TRADE_SHOW_INDUSTRIES = [
   'Agriculture & Landscape',
   'Business & Professional',
@@ -276,12 +278,15 @@ export function getTradeShowBySlug(slug: string | undefined): TradeShow | undefi
   return TRADE_SHOWS.find((event) => event.slug === slug);
 }
 
-export function isIndexableTradeShow(event: TradeShow): event is TradeShow & { editorial: TradeShowEditorial } {
+export function isIndexableTradeShow(event: TradeShow): boolean {
+  if (!hasTradeShowProfile(event.slug)) return false;
+  const content = getTradeShowPageContent(event);
   return Boolean(
-    event.editorial?.reviewedAt
-    && event.editorial.sourceUrl.startsWith('https://')
-    && event.editorial.summary.length >= 120
-    && event.editorial.bannerAdvice.length >= 100,
+    content.contentReviewedAt
+    && content.sourceUrl.startsWith('https://')
+    && content.summary.length >= 120
+    && content.bannerAdvice.length >= 100
+    && content.messagePlan.length === 4,
   );
 }
 
@@ -291,6 +296,24 @@ export function getAllTradeShowPaths(): string[] {
 
 export function getIndexableTradeShowPaths(): string[] {
   return TRADE_SHOWS.filter(isIndexableTradeShow).map(getTradeShowPath);
+}
+
+export function getRelatedTradeShows(event: TradeShow, limit = 3): TradeShow[] {
+  const startTime = new Date(`${event.startDate}T12:00:00Z`).getTime();
+  return TRADE_SHOWS
+    .filter((candidate) => candidate.slug !== event.slug && isIndexableTradeShow(candidate))
+    .map((candidate) => {
+      const candidateTime = new Date(`${candidate.startDate}T12:00:00Z`).getTime();
+      const daysApart = Math.abs(candidateTime - startTime) / 86_400_000;
+      const score = (candidate.city === event.city ? 8 : 0)
+        + (candidate.state === event.state ? 3 : 0)
+        + (candidate.industry === event.industry ? 6 : 0)
+        + Math.max(0, 3 - daysApart / 7);
+      return { candidate, score, daysApart };
+    })
+    .sort((a, b) => b.score - a.score || a.daysApart - b.daysApart || a.candidate.name.localeCompare(b.candidate.name))
+    .slice(0, limit)
+    .map(({ candidate }) => candidate);
 }
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', {
@@ -332,13 +355,13 @@ function fitMeta(value: string, maxLength: number): string {
 }
 
 export function getTradeShowSeo(event: TradeShow): { title: string; description: string } {
-  const coreTitle = `${event.shortName} 2026 Exhibitor Guide`;
+  const coreTitle = `${event.shortName} 2026 Exhibitor Banner Guide`;
   const title = fitMeta(
     coreTitle.length <= 34 ? `${coreTitle} | Banners On The Fly` : coreTitle,
     60,
   );
   const description = fitMeta(
-    `Plan for ${event.shortName}, ${formatTradeShowDateRange(event)} in ${event.city}, ${event.state}. See event details, exhibitor banner ideas, artwork checks, and the official link.`,
+    `${event.shortName} 2026 exhibitor guide for ${formatTradeShowDateRange(event)} in ${event.city}, ${event.state}: banner messaging, sizes, setup, shipping, and official details.`,
     160,
   );
   return { title, description };
