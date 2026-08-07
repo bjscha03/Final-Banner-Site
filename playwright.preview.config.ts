@@ -17,6 +17,7 @@ export default defineConfig({
     'admin-sales-foundation.playwright.ts',
     'tracking-isolation.playwright.spec.ts',
     'cart-short-viewport.playwright.spec.ts',
+    'mobile-designer-consistency.playwright.spec.ts',
   ],
   fullyParallel: true,
   workers: process.env.CI ? 4 : 2,
