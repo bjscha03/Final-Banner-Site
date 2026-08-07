@@ -18,6 +18,8 @@ const PaymentSuccess: React.FC = () => {
   
   const orderId = searchParams.get('orderId');
   const state = location.state as {
+    orderConfirmationToken?: string | null;
+    orderAccessRecovery?: 'confirmation_email_or_account' | null;
     items?: NormalizableOrderItem[];
     shippingAddress?: {
       name?: string;
@@ -65,10 +67,12 @@ const PaymentSuccess: React.FC = () => {
     order_number?: string | null;
     paypal_order_id?: string | null;
     paypal_capture_id?: string | null;
+    is_test_order?: boolean | null;
   } | null>(null);
   
   // Get data from navigation state or defaults
   const items = loadedOrder?.items || state?.items || [];
+  const orderConfirmationToken = state?.orderConfirmationToken || null;
   const total = state?.total || 0;
   const discountCode = state?.discountCode || null;
   const serverPricing = loadedOrder
@@ -99,7 +103,10 @@ const PaymentSuccess: React.FC = () => {
       const maxAttempts = 6;
       for (let attempt = 1; attempt <= maxAttempts && !cancelled; attempt += 1) {
         try {
-          const response = await fetch(`/.netlify/functions/get-order?id=${orderId}`, { headers: authorizedHeaders() });
+          const headers = authorizedHeaders(orderConfirmationToken
+            ? { 'X-Order-Confirmation-Token': orderConfirmationToken }
+            : {});
+          const response = await fetch(`/.netlify/functions/get-order?id=${encodeURIComponent(orderId)}`, { headers });
           if (response.ok) {
             const data = await response.json();
             if (data?.ok && data?.order) {
@@ -115,7 +122,7 @@ const PaymentSuccess: React.FC = () => {
     };
     loadOrder();
     return () => { cancelled = true; };
-  }, [orderId]);
+  }, [orderId, orderConfirmationToken]);
 
   // Calculate pricing breakdown using the same logic as cart store
 
@@ -188,6 +195,11 @@ const PaymentSuccess: React.FC = () => {
             <p className="text-gray-600">
               Thank you for your payment. Your order has been processed successfully.
             </p>
+            {state?.orderAccessRecovery === 'confirmation_email_or_account' && (
+              <p className="mt-2 text-sm text-gray-600">
+                Your payment is complete. Use your confirmation email or sign in to view this order again.
+              </p>
+            )}
           </div>
 
           {/* Payment Details */}

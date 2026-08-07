@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const { neon } = require('@neondatabase/serverless');
 const { getItemDisplayName, isYardSignItem, getEmailItemOptions, normalizeOrderItemDisplay } = require('./product-display-helpers.cjs');
 const {
@@ -9,6 +10,14 @@ const {
   renderEmailLayout,
   escapeHtml,
 } = require('./email-template.cjs');
+const { createGuestOrderViewUrl } = require('../order-confirmation-token.cjs');
+const { getSession } = require('../server-auth.cjs');
+
+const DEFAULT_PUBLIC_SITE_ORIGIN = 'https://www.bannersonthefly.com';
+const ALLOWED_PUBLIC_SITE_HOSTS = new Set([
+  'bannersonthefly.com',
+  'www.bannersonthefly.com',
+]);
 
 // Generate a thumbnail URL from various image sources
 // Uses Cloudinary's URL transformation to resize images for email display
@@ -432,7 +441,7 @@ function createAdminOrderEmailHtml(payload) {
 const headers = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-admin-secret, x-internal-job-secret, x-banners-admin-session',
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 };
 
@@ -444,7 +453,46 @@ function isSecretAuthorized(event) {
   const authHeader = event.headers?.authorization || event.headers?.Authorization || '';
   const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
   const headerSecret = event.headers?.['x-admin-secret'] || event.headers?.['X-Admin-Secret'] || '';
-  return bearer === secret || headerSecret === secret;
+  return secretsMatch(bearer, secret) || secretsMatch(headerSecret, secret);
+}
+
+function secretsMatch(supplied, expected) {
+  if (!supplied || !expected) return false;
+  const suppliedBuffer = Buffer.from(String(supplied));
+  const expectedBuffer = Buffer.from(String(expected));
+  return suppliedBuffer.length === expectedBuffer.length
+    && crypto.timingSafeEqual(suppliedBuffer, expectedBuffer);
+}
+
+function isInternalJobAuthorized(event) {
+  const secret = process.env.INTERNAL_JOB_SECRET || process.env.AUTH_SESSION_SECRET;
+  if (!secret) return false;
+
+  const supplied = event.headers?.['x-internal-job-secret'] || event.headers?.['X-Internal-Job-Secret'] || '';
+  return secretsMatch(supplied, secret);
+}
+
+function isForceResendAuthorized(event) {
+  if (isSecretAuthorized(event) || isInternalJobAuthorized(event)) return true;
+  return getSession(event)?.admin === true;
+}
+
+function getCanonicalPublicSiteOrigin() {
+  const configured = String(process.env.PUBLIC_SITE_URL || '').trim();
+  if (!configured) return DEFAULT_PUBLIC_SITE_ORIGIN;
+
+  try {
+    const url = new URL(configured);
+    const hostname = url.hostname.toLowerCase();
+    const isAllowed = url.protocol === 'https:'
+      && !url.username
+      && !url.password
+      && !url.port
+      && ALLOWED_PUBLIC_SITE_HOSTS.has(hostname);
+    return isAllowed ? url.origin : DEFAULT_PUBLIC_SITE_ORIGIN;
+  } catch {
+    return DEFAULT_PUBLIC_SITE_ORIGIN;
+  }
 }
 
 // Send email with retry logic for rate limiting
@@ -683,7 +731,22 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { orderId, forceResendBoth = false, forceResendCustomer = false } = JSON.parse(event.body || '{}');
+    const request = JSON.parse(event.body || '{}');
+    const { orderId } = request;
+    const forceFlags = ['forceResendBoth', 'forceResendCustomer'];
+    const hasInvalidForceFlag = forceFlags.some((name) => (
+      Object.prototype.hasOwnProperty.call(request, name)
+      && typeof request[name] !== 'boolean'
+    ));
+    if (hasInvalidForceFlag) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ ok: false, error: 'INVALID_FORCE_RESEND_FLAG' })
+      };
+    }
+    const forceResendBoth = request.forceResendBoth === true;
+    const forceResendCustomer = request.forceResendCustomer === true;
     console.log('[notify-order] handler start', { orderId, forceResendBoth });
     
     if (!orderId || typeof orderId !== 'string') {
@@ -691,6 +754,14 @@ exports.handler = async (event) => {
         statusCode: 400,
         headers,
         body: JSON.stringify({ ok: false, error: 'Order ID is required' })
+      };
+    }
+
+    if ((forceResendBoth || forceResendCustomer) && !isForceResendAuthorized(event)) {
+      return {
+        statusCode: 401,
+        headers: { ...headers, 'Cache-Control': 'no-store' },
+        body: JSON.stringify({ ok: false, error: 'UNAUTHORIZED' })
       };
     }
 
@@ -758,12 +829,11 @@ exports.handler = async (event) => {
       SELECT * FROM order_items WHERE order_id = ${resolvedOrderId}
     `;
 
-    // Build origin URL for order details link
-    const origin = event.headers['x-forwarded-host']
-      ? `https://${event.headers['x-forwarded-host']}`
-      : process.env.PUBLIC_SITE_URL || 'https://www.bannersonthefly.com';
+    // Signed order credentials must only be sent to a trusted production
+    // origin. Forwarded headers are request-controlled at some proxy layers.
+    const origin = getCanonicalPublicSiteOrigin();
 
-    const invoiceUrl = `${origin}/orders/${resolvedOrderId}`;
+    const invoiceUrl = createGuestOrderViewUrl(origin, order);
 
     // Convert database order to email format
     // Use customer_name first, then shipping_name as fallback (shipping_name often has the actual name)

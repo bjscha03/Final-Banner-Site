@@ -3,7 +3,12 @@ import { neon } from '@neondatabase/serverless';
 import { withLambda } from '@netlify/aws-lambda-compat';
 import captureModule from './_shared/legacy/paypal-capture-forward.cjs';
 import customerInfoModule from './_shared/legacy/paypal-customer-info.cjs';
+import orderConfirmationModule from './_shared/order-confirmation-token.cjs';
 import runtimeConfig from './_shared/paypal-runtime-config.cjs';
+
+const { constantTimeEqual } = orderConfirmationModule;
+
+let neonFactory = neon;
 
 const headers = {
   'Content-Type': 'application/json',
@@ -49,38 +54,48 @@ const queuePaidOrderFollowups = async (event, orderId) => {
   }
 };
 
-const paidPayload = (order) => ({
-  ok: true,
-  success: true,
-  finalized: true,
-  paymentCaptured: true,
-  reconciliationRequired: false,
-  paymentStatusUnknown: false,
-  doNotRetry: false,
-  internalOrderId: order.id,
-  orderID: order.paypal_order_id,
-  paypalOrderID: order.paypal_order_id,
-  captureID: order.paypal_capture_id,
-  status: 'COMPLETED',
-  captureStatus: 'COMPLETED',
-  customerEmail: order.email || null,
-  customerName: order.customer_name || order.shipping_name || null,
-  customerPhone: order.customer_phone || null,
-  shippingAddress: {
-    name: order.shipping_name || order.customer_name || null,
-    street: order.shipping_street || null,
-    street2: order.shipping_street2 || null,
-    city: order.shipping_city || null,
-    state: order.shipping_state || null,
-    zip: order.shipping_zip || null,
-    country: order.shipping_country || 'US',
-  },
-  subtotal_cents: Number(order.subtotal_cents || 0),
-  tax_cents: Number(order.tax_cents || 0),
-  total_cents: Number(order.total_cents || 0),
-  confirmationEmailStatus: order.confirmation_email_status || null,
-  adminNotificationStatus: order.admin_notification_status || null,
-});
+const paidPayload = (order, confirmationAccess = {}) => {
+  const access = typeof confirmationAccess === 'string'
+    ? { orderConfirmationToken: confirmationAccess }
+    : (confirmationAccess || {});
+  return ({
+    ok: true,
+    success: true,
+    finalized: true,
+    paymentCaptured: true,
+    reconciliationRequired: false,
+    paymentStatusUnknown: false,
+    // Keep the verified-completion shape expected by the checkout client.
+    doNotRetry: false,
+    internalOrderId: order.id,
+    orderID: order.paypal_order_id,
+    paypalOrderID: order.paypal_order_id,
+    captureID: order.paypal_capture_id,
+    orderConfirmationToken: access.orderConfirmationToken || null,
+    orderConfirmationTokenAvailable: access.orderConfirmationTokenAvailable
+      ?? Boolean(access.orderConfirmationToken),
+    orderAccessRecovery: access.orderAccessRecovery || null,
+    status: 'COMPLETED',
+    captureStatus: 'COMPLETED',
+    customerEmail: order.email || null,
+    customerName: order.customer_name || order.shipping_name || null,
+    customerPhone: order.customer_phone || null,
+    shippingAddress: {
+      name: order.shipping_name || order.customer_name || null,
+      street: order.shipping_street || null,
+      street2: order.shipping_street2 || null,
+      city: order.shipping_city || null,
+      state: order.shipping_state || null,
+      zip: order.shipping_zip || null,
+      country: order.shipping_country || 'US',
+    },
+    subtotal_cents: Number(order.subtotal_cents || 0),
+    tax_cents: Number(order.tax_cents || 0),
+    total_cents: Number(order.total_cents || 0),
+    confirmationEmailStatus: order.confirmation_email_status || null,
+    adminNotificationStatus: order.admin_notification_status || null,
+  });
+};
 
 const loadOrder = async (sql, internalOrderId) => {
   const rows = await sql`
@@ -88,6 +103,7 @@ const loadOrder = async (sql, internalOrderId) => {
            customer_name, customer_phone, shipping_name, shipping_street,
            shipping_street2, shipping_city, shipping_state, shipping_zip,
            shipping_country, paypal_order_id, paypal_capture_id,
+           checkout_idempotency_key,
            payment_reconciliation_status, confirmation_email_status,
            admin_notification_status
       FROM orders
@@ -106,35 +122,18 @@ const handler = async (event) => {
   let input = {};
   try { input = JSON.parse(event.body || '{}'); } catch { return reply(400, { ok: false, error: 'INVALID_JSON' }); }
   const internalOrderId = String(input.internalOrderId || '').trim();
+  const checkoutKey = String(input.checkoutKey || '').trim();
   if (!internalOrderId) return reply(400, { ok: false, error: 'INTERNAL_ORDER_REQUIRED' });
 
   const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
   if (!dbUrl) return reply(500, { ok: false, error: 'DATABASE_NOT_CONFIGURED' });
-  const sql = neon(dbUrl);
+  const sql = neonFactory(dbUrl);
 
   try {
     let order = await loadOrder(sql, internalOrderId);
     if (!order) return reply(404, { ok: false, error: 'ORDER_NOT_FOUND' });
-
-    if (order.status === 'paid' && order.paypal_capture_id) {
-      if (order.paypal_order_id) {
-        try {
-          await customerInfoModule.refreshOrderCustomerInfo({
-            internalOrderId,
-            orderID: order.paypal_order_id,
-            approvedOrderData: input.approvedOrderData,
-            shippingChangeData: input.shippingChangeData,
-          });
-          order = await loadOrder(sql, internalOrderId) || order;
-        } catch (error) {
-          console.error('[paypal-payment-status] customer refresh failed for paid order', {
-            internalOrderId,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
-      }
-      void queuePaidOrderFollowups(event, order.id);
-      return reply(200, paidPayload(order));
+    if (!checkoutKey || !constantTimeEqual(checkoutKey, order.checkout_idempotency_key)) {
+      return reply(401, { ok: false, error: 'CHECKOUT_CONFIRMATION_REQUIRED' });
     }
 
     if (!order.paypal_order_id) {
@@ -184,7 +183,10 @@ const handler = async (event) => {
       }
       order = await loadOrder(sql, internalOrderId) || order;
       void queuePaidOrderFollowups(event, internalOrderId);
-      return reply(200, paidPayload(order));
+      return reply(200, paidPayload(
+        order,
+        capturePayload,
+      ));
     }
 
     if (statusCode === 422 && capturePayload?.paymentCaptured !== true) {
@@ -217,5 +219,16 @@ const handler = async (event) => {
   }
 };
 
-export const _test = { paidPayload, getSiteUrl, queuePaidOrderFollowups };
+export const _test = {
+  handler,
+  paidPayload,
+  getSiteUrl,
+  queuePaidOrderFollowups,
+  resetNeonFactory() {
+    neonFactory = neon;
+  },
+  setNeonFactory(factory) {
+    neonFactory = factory;
+  },
+};
 export default withLambda(handler);

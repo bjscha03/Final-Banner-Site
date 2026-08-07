@@ -10,7 +10,8 @@ const read = (relativePath) => fs.readFileSync(path.join(repoRoot, relativePath)
 
 test('cart replacement is serialized inside one owner-scoped transaction', () => {
   const source = read('netlify/functions/_shared/legacy/cart-save.cjs');
-  assert.match(source, /sql\.transaction\(async \(tx\)/);
+  assert.match(source, /runAtomicBatch\(sql, \[/);
+  assert.doesNotMatch(source, /transaction\(async/);
   assert.match(source, /pg_advisory_xact_lock/);
   assert.match(source, /cart-user:/);
   assert.match(source, /cart-session:/);

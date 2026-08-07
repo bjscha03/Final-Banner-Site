@@ -2,6 +2,15 @@ const { neon } = require('@neondatabase/serverless');
 const { normalizeTrackingEntries } = require('./tracking-helpers.cjs');
 const { normalizeShippingAddress } = require('./shipping-address-helpers.cjs');
 const { getSession, unauthorized } = require('../server-auth.cjs');
+const {
+  confirmationMatchesPaidOrder,
+  readOrderConfirmationToken,
+  readOrderViewToken,
+  verifyGuestOrderViewToken,
+  verifyOrderConfirmationToken,
+} = require('../order-confirmation-token.cjs');
+
+let neonFactory = neon;
 
 // Module-scoped cache: auto-migrations only need to run once per cold start.
 // Running ~50 ALTER TABLE statements on every request was risking the
@@ -11,17 +20,15 @@ let _migrationsRan = false;
 exports.handler = async (event, context) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Order-Confirmation-Token, X-Order-View-Token',
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    'Cache-Control': 'private, no-store, max-age=0'
   };
 
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' };
   }
-  const session = getSession(event);
-  if (!session) return unauthorized();
-
   if (event.httpMethod !== 'GET') {
     return {
       statusCode: 405,
@@ -29,6 +36,20 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({ ok: false, error: 'Method not allowed' })
     };
   }
+
+  const orderId = String(event.queryStringParameters?.id || '').trim();
+  if (!orderId) {
+    return {
+      statusCode: 400,
+      headers,
+      body: JSON.stringify({ ok: false, error: 'Order ID is required' })
+    };
+  }
+
+  const session = getSession(event);
+  const rawConfirmationToken = readOrderConfirmationToken(event);
+  const rawOrderViewToken = readOrderViewToken(event);
+  if (!session && !rawConfirmationToken && !rawOrderViewToken) return unauthorized();
 
   try {
     const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
@@ -40,7 +61,7 @@ exports.handler = async (event, context) => {
       };
     }
 
-    const sql = neon(dbUrl);
+    const sql = neonFactory(dbUrl);
 
     // AUTO-MIGRATE: Ensure all referenced columns exist.
     // Each ALTER runs independently so a single failure does not roll back the rest.
@@ -138,17 +159,6 @@ exports.handler = async (event, context) => {
       _migrationsRan = true;
     }
 
-    // Parse query parameters
-    const orderId = event.queryStringParameters?.id;
-
-    if (!orderId) {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ ok: false, error: 'Order ID is required' })
-      };
-    }
-
     // BULLETPROOF SELECT: introspect existing columns up front so a missing
     // column (e.g. silent migration failure) never 500s the endpoint.
     // Use 'orders'::regclass / 'order_items'::regclass (resolved via
@@ -215,6 +225,11 @@ exports.handler = async (event, context) => {
       'payment_method',
       'paypal_order_id',
       'paypal_capture_id',
+      // These fields are used only to verify a signed guest view credential
+      // and are removed before the response is serialized.
+      'stripe_payment_intent_id',
+      'stripe_charge_id',
+      'checkout_idempotency_key',
       'is_test_order',
       'test_order_reason',
       'created_at',
@@ -236,7 +251,20 @@ exports.handler = async (event, context) => {
     }
 
     const order = orderResult[0];
-    if (!session.admin && session.sub !== order.user_id) {
+    const confirmation = verifyOrderConfirmationToken(
+      rawConfirmationToken,
+      {
+        orderId,
+        paypalOrderId: order.paypal_order_id,
+        captureId: order.paypal_capture_id,
+      },
+      { order },
+    );
+    const orderView = verifyGuestOrderViewToken(rawOrderViewToken, order);
+    const confirmationAuthorized = confirmationMatchesPaidOrder(confirmation, order);
+    const orderViewAuthorized = Boolean(orderView);
+    const sessionAuthorized = Boolean(session && (session.admin || session.sub === order.user_id));
+    if (!confirmationAuthorized && !orderViewAuthorized && !sessionAuthorized) {
       return unauthorized('Order ownership could not be verified');
     }
 
@@ -334,8 +362,14 @@ exports.handler = async (event, context) => {
 
     // Combine order with items
     const shippingAddress = normalizeShippingAddress(order);
+    const {
+      checkout_idempotency_key: _checkoutIdempotencyKey,
+      stripe_payment_intent_id: _stripePaymentIntentId,
+      stripe_charge_id: _stripeChargeId,
+      ...publicOrder
+    } = order;
     const orderWithItems = {
-      ...order,
+      ...publicOrder,
       tracking_numbers: normalizeTrackingEntries(order),
       trackingNumbers: normalizeTrackingEntries(order),
       same_day_hit_service: inferredSameDaySelected,
@@ -365,4 +399,16 @@ exports.handler = async (event, context) => {
       })
     };
   }
+};
+
+exports._test = {
+  resetMigrations() {
+    _migrationsRan = false;
+  },
+  resetNeonFactory() {
+    neonFactory = neon;
+  },
+  setNeonFactory(factory) {
+    neonFactory = factory;
+  },
 };

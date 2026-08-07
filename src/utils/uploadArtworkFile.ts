@@ -3,6 +3,8 @@ import type { ArtworkManifest } from '@/types/artwork';
 export const MAX_ARTWORK_BYTES = 50 * 1024 * 1024;
 export const LEGACY_FUNCTION_SAFE_BYTES = 3.75 * 1024 * 1024;
 export const DIRECT_UPLOAD_ATTEMPTS = 3;
+export const CHUNKED_UPLOAD_THRESHOLD_BYTES = 8 * 1024 * 1024;
+export const UPLOAD_CHUNK_BYTES = 6 * 1024 * 1024;
 
 const SIGNATURE_ENDPOINT = '/.netlify/functions/cloudinary-upload-signature';
 const LEGACY_UPLOAD_ENDPOINT = '/.netlify/functions/upload-file';
@@ -56,16 +58,70 @@ export interface UploadArtworkOptions {
   signal?: AbortSignal;
 }
 
-class ArtworkUploadError extends Error {
+export type ArtworkUploadPhase =
+  | 'validation'
+  | 'ticket'
+  | 'direct'
+  | 'chunked'
+  | 'fallback'
+  | 'response';
+
+export interface ArtworkUploadDiagnostic {
+  phase: ArtworkUploadPhase;
+  retryable: boolean;
+  status: number | null;
+  sizeBucket: 'under-4mb' | '4mb-8mb' | '8mb-20mb' | '20mb-50mb';
+  mimeType: 'pdf' | 'png' | 'jpeg' | 'unknown';
+}
+
+export class ArtworkUploadError extends Error {
+  phase: ArtworkUploadPhase;
   status: number | null;
   retryable: boolean;
 
-  constructor(message: string, options: { status?: number | null; retryable?: boolean } = {}) {
+  constructor(
+    message: string,
+    options: {
+      phase?: ArtworkUploadPhase;
+      status?: number | null;
+      retryable?: boolean;
+    } = {},
+  ) {
     super(message);
     this.name = 'ArtworkUploadError';
+    this.phase = options.phase ?? 'response';
     this.status = options.status ?? null;
     this.retryable = options.retryable ?? false;
   }
+}
+
+export function getArtworkUploadDiagnostic(
+  error: unknown,
+  file: Pick<File, 'size' | 'type' | 'name'>,
+): ArtworkUploadDiagnostic {
+  const sizeBucket = file.size < 4 * 1024 * 1024
+    ? 'under-4mb'
+    : file.size < 8 * 1024 * 1024
+      ? '4mb-8mb'
+      : file.size < 20 * 1024 * 1024
+        ? '8mb-20mb'
+        : '20mb-50mb';
+  const normalizedType = String(file.type || '').toLowerCase();
+  const extension = extensionOf(file.name);
+  const mimeType = normalizedType === 'application/pdf' || extension === 'pdf'
+    ? 'pdf'
+    : normalizedType === 'image/png' || extension === 'png'
+      ? 'png'
+      : normalizedType === 'image/jpeg' || normalizedType === 'image/jpg' || extension === 'jpg' || extension === 'jpeg'
+        ? 'jpeg'
+        : 'unknown';
+  return {
+    phase: error instanceof ArtworkUploadError ? error.phase : 'response',
+    retryable: error instanceof ArtworkUploadError ? error.retryable : false,
+    status: error instanceof ArtworkUploadError ? error.status : null,
+    sizeBucket,
+    mimeType,
+  };
 }
 
 const extensionOf = (fileName: string) => {
@@ -157,24 +213,40 @@ async function requestUploadTicket(
     if (!response.ok) {
       throw new ArtworkUploadError(
         messageFromPayload(payload, `Could not prepare upload (${response.status}).`),
-        { status: response.status, retryable: response.status >= 500 || response.status === 408 || response.status === 429 },
+        {
+          phase: 'ticket',
+          status: response.status,
+          retryable: response.status >= 500 || response.status === 408 || response.status === 429,
+        },
       );
     }
     if (!payload?.uploadUrl || !payload?.apiKey || !payload?.signature || !payload?.timestamp) {
-      throw new ArtworkUploadError('The upload ticket was incomplete.', { retryable: true });
+      throw new ArtworkUploadError('The upload ticket was incomplete.', { phase: 'ticket', retryable: true });
     }
     return payload as ArtworkUploadTicket;
   } catch (error) {
     if ((error as { name?: string })?.name === 'AbortError') {
-      throw new ArtworkUploadError('Preparing the upload timed out.', { retryable: true });
+      throw new ArtworkUploadError('Preparing the upload timed out.', { phase: 'ticket', retryable: true });
     }
     if (error instanceof ArtworkUploadError) throw error;
     throw new ArtworkUploadError(
       error instanceof Error ? error.message : 'Could not prepare artwork upload.',
-      { retryable: true },
+      { phase: 'ticket', retryable: true },
     );
   } finally {
     timed.cleanup();
+  }
+}
+
+function appendTicketFields(formData: FormData, ticket: ArtworkUploadTicket): void {
+  formData.append('api_key', ticket.apiKey);
+  formData.append('timestamp', String(ticket.timestamp));
+  formData.append('signature', ticket.signature);
+  formData.append('folder', ticket.folder);
+  formData.append('use_filename', ticket.useFilename ? 'true' : 'false');
+  formData.append('unique_filename', ticket.uniqueFilename ? 'true' : 'false');
+  if (typeof ticket.overwrite === 'boolean') {
+    formData.append('overwrite', ticket.overwrite ? 'true' : 'false');
   }
 }
 
@@ -194,7 +266,7 @@ function uploadDirectWithProgress(
     };
     const onAbort = () => {
       xhr.abort();
-      finish(() => reject(new ArtworkUploadError('Artwork upload was cancelled.', { retryable: false })));
+      finish(() => reject(new ArtworkUploadError('Artwork upload was cancelled.', { phase: 'direct', retryable: false })));
     };
 
     xhr.open('POST', ticket.uploadUrl, true);
@@ -221,19 +293,19 @@ function uploadDirectWithProgress(
         || xhr.status >= 500;
       finish(() => reject(new ArtworkUploadError(
         messageFromPayload(payload, `Cloudinary upload failed (${xhr.status}).`),
-        { status: xhr.status, retryable },
+        { phase: 'direct', status: xhr.status, retryable },
       )));
     };
     xhr.onerror = () => finish(() => reject(new ArtworkUploadError(
       'The connection was interrupted while uploading artwork.',
-      { retryable: true },
+      { phase: 'direct', retryable: true },
     )));
     xhr.ontimeout = () => finish(() => reject(new ArtworkUploadError(
       'The artwork upload timed out.',
-      { retryable: true },
+      { phase: 'direct', retryable: true },
     )));
     xhr.onabort = () => {
-      if (!settled) finish(() => reject(new ArtworkUploadError('Artwork upload was cancelled.')));
+      if (!settled) finish(() => reject(new ArtworkUploadError('Artwork upload was cancelled.', { phase: 'direct' })));
     };
 
     if (options.signal) {
@@ -246,17 +318,129 @@ function uploadDirectWithProgress(
 
     const formData = new FormData();
     formData.append('file', file, file.name);
-    formData.append('api_key', ticket.apiKey);
-    formData.append('timestamp', String(ticket.timestamp));
-    formData.append('signature', ticket.signature);
-    formData.append('folder', ticket.folder);
-    formData.append('use_filename', ticket.useFilename ? 'true' : 'false');
-    formData.append('unique_filename', ticket.uniqueFilename ? 'true' : 'false');
-    if (typeof ticket.overwrite === 'boolean') {
-      formData.append('overwrite', ticket.overwrite ? 'true' : 'false');
-    }
+    appendTicketFields(formData, ticket);
     xhr.send(formData);
   });
+}
+
+function createChunkUploadId(): string {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+  } catch {
+    // Fall through to the non-cryptographic uniqueness fallback. This value is
+    // only a transport correlation key, never an authorization credential.
+  }
+  return `artwork-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
+function uploadChunkWithProgress(
+  file: File,
+  ticket: ArtworkUploadTicket,
+  options: UploadArtworkOptions,
+  uploadId: string,
+  start: number,
+  end: number,
+): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    let settled = false;
+    const finish = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      options.signal?.removeEventListener('abort', onAbort);
+      callback();
+    };
+    const onAbort = () => {
+      xhr.abort();
+      finish(() => reject(new ArtworkUploadError(
+        'Artwork upload was cancelled.',
+        { phase: 'chunked', retryable: false },
+      )));
+    };
+
+    xhr.open('POST', ticket.uploadUrl, true);
+    xhr.responseType = 'json';
+    xhr.timeout = 180_000;
+    xhr.setRequestHeader('X-Unique-Upload-Id', uploadId);
+    xhr.setRequestHeader('Content-Range', `bytes ${start}-${end}/${file.size}`);
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable || event.total <= 0) return;
+      const uploadedBytes = start + Math.min(event.loaded, end - start + 1);
+      options.onProgress?.(Math.max(0, Math.min(1, uploadedBytes / file.size)));
+    };
+    xhr.onload = () => {
+      const payload = xhr.response && typeof xhr.response === 'object'
+        ? xhr.response
+        : (() => {
+            try { return JSON.parse(xhr.responseText || '{}'); } catch { return {}; }
+          })();
+      if (xhr.status >= 200 && xhr.status < 300) {
+        finish(() => resolve(payload));
+        return;
+      }
+      const retryable = xhr.status === 408
+        || xhr.status === 409
+        || xhr.status === 420
+        || xhr.status === 429
+        || xhr.status >= 500;
+      finish(() => reject(new ArtworkUploadError(
+        messageFromPayload(payload, `Chunked artwork upload failed (${xhr.status}).`),
+        { phase: 'chunked', status: xhr.status, retryable },
+      )));
+    };
+    xhr.onerror = () => finish(() => reject(new ArtworkUploadError(
+      'The connection was interrupted while uploading an artwork chunk.',
+      { phase: 'chunked', retryable: true },
+    )));
+    xhr.ontimeout = () => finish(() => reject(new ArtworkUploadError(
+      'The artwork chunk upload timed out.',
+      { phase: 'chunked', retryable: true },
+    )));
+    xhr.onabort = () => {
+      if (!settled) finish(() => reject(new ArtworkUploadError(
+        'Artwork upload was cancelled.',
+        { phase: 'chunked' },
+      )));
+    };
+
+    if (options.signal) {
+      if (options.signal.aborted) {
+        onAbort();
+        return;
+      }
+      options.signal.addEventListener('abort', onAbort, { once: true });
+    }
+
+    const chunk = file.slice(start, end + 1, file.type || undefined);
+    const formData = new FormData();
+    formData.append('file', chunk, file.name);
+    appendTicketFields(formData, ticket);
+    xhr.send(formData);
+  });
+}
+
+async function uploadChunkedWithProgress(
+  file: File,
+  ticket: ArtworkUploadTicket,
+  options: UploadArtworkOptions,
+): Promise<any> {
+  const uploadId = createChunkUploadId();
+  let finalPayload: any = null;
+  for (let start = 0; start < file.size; start += UPLOAD_CHUNK_BYTES) {
+    const end = Math.min(start + UPLOAD_CHUNK_BYTES, file.size) - 1;
+    finalPayload = await uploadChunkWithProgress(
+      file,
+      ticket,
+      options,
+      uploadId,
+      start,
+      end,
+    );
+    options.onProgress?.((end + 1) / file.size);
+  }
+  return finalPayload;
 }
 
 async function uploadThroughLegacyFunction(
@@ -278,13 +462,13 @@ async function uploadThroughLegacyFunction(
     if (!response.ok) {
       throw new ArtworkUploadError(
         messageFromPayload(payload, `Fallback upload failed (${response.status}).`),
-        { status: response.status, retryable: false },
+        { phase: 'fallback', status: response.status, retryable: false },
       );
     }
     return payload;
   } catch (error) {
     if ((error as { name?: string })?.name === 'AbortError') {
-      throw new ArtworkUploadError('Fallback upload timed out.', { retryable: false });
+      throw new ArtworkUploadError('Fallback upload timed out.', { phase: 'fallback', retryable: false });
     }
     throw error;
   } finally {
@@ -312,7 +496,7 @@ function normalizeUploadResponse(
       || '',
   ).trim();
   if (!secureUrl || !publicId) {
-    throw new ArtworkUploadError('Upload completed without a permanent artwork URL.', { retryable: true });
+    throw new ArtworkUploadError('Upload completed without a permanent artwork URL.', { phase: 'response', retryable: true });
   }
 
   const pdf = isPdfArtwork(file);
@@ -379,14 +563,19 @@ export async function uploadArtworkFile(
   options: UploadArtworkOptions = {},
 ): Promise<ArtworkUploadResult> {
   const validationError = validateArtworkFile(file);
-  if (validationError) throw new ArtworkUploadError(validationError, { retryable: false });
+  if (validationError) {
+    throw new ArtworkUploadError(validationError, { phase: 'validation', retryable: false });
+  }
 
   let lastError: unknown = null;
+  const useChunkedUpload = file.size >= CHUNKED_UPLOAD_THRESHOLD_BYTES;
   for (let attempt = 1; attempt <= DIRECT_UPLOAD_ATTEMPTS; attempt += 1) {
     options.onAttempt?.(attempt, DIRECT_UPLOAD_ATTEMPTS);
     try {
       const ticket = await requestUploadTicket(file, options);
-      const payload = await uploadDirectWithProgress(file, ticket, options);
+      const payload = useChunkedUpload
+        ? await uploadChunkedWithProgress(file, ticket, options)
+        : await uploadDirectWithProgress(file, ticket, options);
       options.onProgress?.(1);
       return normalizeUploadResponse(payload, file, 'cloudinary-direct');
     } catch (error) {
@@ -412,5 +601,8 @@ export async function uploadArtworkFile(
   }
 
   if (lastError instanceof Error) throw lastError;
-  throw new ArtworkUploadError('Artwork upload failed. Please check your connection and try again.');
+  throw new ArtworkUploadError(
+    'Artwork upload failed. Please check your connection and try again.',
+    { phase: useChunkedUpload ? 'chunked' : 'direct' },
+  );
 }

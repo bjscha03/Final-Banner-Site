@@ -8,6 +8,9 @@ const {
   orderIdentity,
   recordAttempt,
 } = require('./paypal-payment-safety.cjs');
+const { createPaidOrderConfirmationToken } = require('../order-confirmation-token.cjs');
+
+let neonFactory = neon;
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -332,12 +335,26 @@ async function persistCustomerInfo(sql, order, submitted, paypalData) {
               customer_name, customer_first_name, customer_phone,
               shipping_name, shipping_street, shipping_street2, shipping_city,
               shipping_state, shipping_zip, shipping_country,
-              paypal_order_id, paypal_capture_id
+              paypal_order_id, paypal_capture_id, checkout_idempotency_key
   `;
   return rows[0] || order;
 }
 
 function successPayload(order, paypalData, validation, environment, alreadyPaid) {
+  let orderConfirmationToken = null;
+  let orderAccessRecovery = null;
+  try {
+    orderConfirmationToken = createPaidOrderConfirmationToken(order);
+  } catch (error) {
+    // The provider capture is irreversible at this point. A signing-key
+    // problem must never look like a failed payment or invite a retry.
+    orderAccessRecovery = 'confirmation_email_or_account';
+    console.error('[paypal-capture] paid order confirmation credential unavailable', {
+      internalOrderId: order?.id,
+      error: error?.message,
+    });
+  }
+
   return {
     ok: true,
     success: true,
@@ -345,6 +362,8 @@ function successPayload(order, paypalData, validation, environment, alreadyPaid)
     paymentCaptured: true,
     paymentStatusUnknown: false,
     reconciliationRequired: false,
+    // paymentCaptured + COMPLETED is the checkout client's verified-success
+    // shape. doNotRetry is reserved for status-unknown reconciliation locks.
     doNotRetry: false,
     internalOrderId: order.id,
     orderID: order.paypal_order_id,
@@ -352,6 +371,9 @@ function successPayload(order, paypalData, validation, environment, alreadyPaid)
     captureID: order.paypal_capture_id || validation.captureId,
     status: 'COMPLETED',
     captureStatus: 'COMPLETED',
+    orderConfirmationToken,
+    orderConfirmationTokenAvailable: Boolean(orderConfirmationToken),
+    orderAccessRecovery,
     capturedAmountCents: validation.amountCents,
     capturedCurrency: validation.currency,
     environment,
@@ -388,7 +410,7 @@ exports.handler = async (event) => {
 
   const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
   if (!dbUrl) return reply(500, { ok: false, error: 'DATABASE_NOT_CONFIGURED' });
-  const sql = neon(dbUrl);
+  const sql = neonFactory(dbUrl);
   let verifiedCapture = null;
 
   try {
@@ -575,7 +597,7 @@ exports.handler = async (event) => {
                 customer_name, customer_first_name, customer_phone,
                 shipping_name, shipping_street, shipping_street2, shipping_city,
                 shipping_state, shipping_zip, shipping_country,
-                paypal_order_id, paypal_capture_id
+                paypal_order_id, paypal_capture_id, checkout_idempotency_key
     `;
 
     let persisted = paidRows[0] || null;
@@ -586,7 +608,7 @@ exports.handler = async (event) => {
                customer_name, customer_first_name, customer_phone,
                shipping_name, shipping_street, shipping_street2, shipping_city,
                shipping_state, shipping_zip, shipping_country,
-               paypal_order_id, paypal_capture_id
+               paypal_order_id, paypal_capture_id, checkout_idempotency_key
           FROM orders
          WHERE id = ${internalOrderId}
          LIMIT 1
@@ -633,4 +655,11 @@ exports._test = {
   validateCompletedCapture,
   failurePayload,
   verificationPayload,
+  successPayload,
+  resetNeonFactory() {
+    neonFactory = neon;
+  },
+  setNeonFactory(factory) {
+    neonFactory = factory;
+  },
 };

@@ -16,8 +16,13 @@ export const ensureGtagQueue = (): boolean => {
   if (typeof window === 'undefined' || !isCustomerTrackingAllowed()) return false;
   window.dataLayer = window.dataLayer || [];
   if (!window.gtag) {
-    window.gtag = function gtag(...args: unknown[]) {
-      window.dataLayer!.push(args);
+    // Google Tag's command parser distinguishes the native `arguments`
+    // object from a JavaScript Array. Using a rest parameter here creates an
+    // Array and causes `config`, `event`, `js`, and `get` commands to be
+    // ignored by gtag.js even though they appear to be queued successfully.
+    // Keep this function in the canonical Google shape.
+    window.gtag = function gtag() {
+      window.dataLayer!.push(arguments);
     };
   }
   return true;

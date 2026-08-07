@@ -530,6 +530,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               internalOrderId,
+              checkoutKey: checkoutKeyRef.current,
               approvedOrderData: approvedOrderDataRef.current,
               shippingChangeData: shippingChangeDataRef.current,
               customerInfo: submittedCustomerRef.current,

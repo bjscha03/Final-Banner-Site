@@ -11,6 +11,7 @@ const {
   reconcileSameDayFlags,
   getEasternTimeParts,
 } = require('../sameDayService.cjs');
+const { runAtomicBatch } = require('../atomic-batch.cjs');
 
 // Helper to detect bad URLs (blob:, data:, or huge strings)
 function isBadUrl(url) {
@@ -311,8 +312,8 @@ exports.handler = async (event) => {
     const orderId = randomUUID();
     const finalCustomerName = customerName || `${cJson.payer.name.given_name} ${cJson.payer.name.surname}`;
 
-    await sql.transaction(async (tx) => {
-      await tx`
+    const persistenceQueries = [
+      sql`
         INSERT INTO orders (
           id, user_id, email, subtotal_cents, tax_cents, total_cents, status,
           paypal_order_id, paypal_capture_id, customer_name, shipping_address,
@@ -324,7 +325,8 @@ exports.handler = async (event) => {
           ${orderSameDayHitService}, ${orderSaturdayDelivery}, ${orderSameDayFeeCents}, ${orderSaturdayFeeCents},
           ${orderTimestampEt}, ${orderSameDayQualified}
         )
-      `;
+      `,
+    ];
 
       console.log("[PayPal Capture] Inserting", persistableCartItems.length, "items into order_items table");
       console.log("[PayPal Capture] First item overlay_image:", persistableCartItems[0]?.overlay_image ? "EXISTS" : "NULL");
@@ -368,7 +370,7 @@ exports.handler = async (event) => {
           item.pole_pockets !== 'false' &&
           item.pole_pockets !== false;
 
-        await tx`
+        persistenceQueries.push(sql`
           INSERT INTO order_items (
             id, order_id, product_type, width_in, height_in, quantity, material,
             grommets, rounded_corners, rope_feet, rope_placement, pole_pockets, pole_pocket_position, pole_pocket_size, pole_pocket_cost_cents,
@@ -428,9 +430,9 @@ exports.handler = async (event) => {
             ${item.yard_sign_signs_subtotal_cents ?? 0},
             ${item.yard_sign_stakes_subtotal_cents ?? 0}
           )
-        `;
+        `);
       }
-    });
+    await runAtomicBatch(sql, persistenceQueries);
 
     console.log('✅ PayPal order created in DB successfully:', orderId);
 

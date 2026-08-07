@@ -10,6 +10,7 @@ const {
   renderEmailLayout,
   escapeHtml,
 } = require('./email-template.cjs');
+const { createGuestOrderViewUrl } = require('../order-confirmation-token.cjs');
 
 const headers = {
   'Content-Type': 'application/json',
@@ -184,7 +185,7 @@ exports.handler = async (event) => {
       ? `https://${event.headers['x-forwarded-host']}`
       : process.env.PUBLIC_SITE_URL || 'https://www.bannersonthefly.com';
 
-    const invoiceUrl = `${origin}/orders/${orderId}`;
+    const invoiceUrl = createGuestOrderViewUrl(origin, order);
 
     // Convert database order to email format
     const emailPayload = {

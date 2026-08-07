@@ -7,7 +7,10 @@ const localExecutableArgs = process.env.PLAYWRIGHT_CHROMIUM_ARGS_JSON
 
 export default defineConfig({
   testDir: './tests/browser',
-  testMatch: 'local-pages.playwright.spec.ts',
+  testMatch: [
+    'local-pages.playwright.spec.ts',
+    'cart-header-scroll.playwright.spec.ts',
+  ],
   fullyParallel: true,
   workers: process.env.CI ? 3 : 1,
   retries: 0,

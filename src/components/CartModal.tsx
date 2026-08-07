@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { X, Trash2, Plus, Minus, ShoppingBag, Eye, Tag } from 'lucide-react';
 import BannerPreview from './cart/BannerPreview';
 import ThumbnailPreviewWrapper from './preview/ThumbnailPreviewWrapper';
@@ -16,6 +16,97 @@ interface CartModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
+
+const FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+  '[contenteditable="true"]',
+].join(',');
+
+const getFocusableElements = (container: HTMLElement): HTMLElement[] => (
+  Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter((element) => {
+    if (element.closest('[inert]') || element.getAttribute('aria-hidden') === 'true') return false;
+    const style = window.getComputedStyle(element);
+    return style.display !== 'none' && style.visibility !== 'hidden' && element.getClientRects().length > 0;
+  })
+);
+
+const findScrollableAncestor = (
+  target: EventTarget | null,
+  boundary: HTMLElement,
+): HTMLElement | null => {
+  let element = target instanceof HTMLElement ? target : null;
+  while (element && boundary.contains(element)) {
+    const style = window.getComputedStyle(element);
+    if (
+      /auto|scroll/.test(style.overflowY)
+      && element.scrollHeight > element.clientHeight + 1
+    ) {
+      return element;
+    }
+    if (element === boundary) break;
+    element = element.parentElement;
+  }
+  return null;
+};
+
+const canScrollInDirection = (element: HTMLElement, deltaY: number): boolean => {
+  if (deltaY < 0) return element.scrollTop > 0;
+  if (deltaY > 0) return element.scrollTop + element.clientHeight < element.scrollHeight - 1;
+  return false;
+};
+
+interface BackgroundElementState {
+  element: HTMLElement;
+  hadInert: boolean;
+  ariaHidden: string | null;
+  pointerEvents: string;
+}
+
+/**
+ * Make every DOM branch outside the drawer unavailable to pointer and
+ * assistive-technology navigation while preserving its exact prior state.
+ * Walking ancestor-by-ancestor also covers portals mounted beside #root.
+ */
+const makeBackgroundInert = (dialog: HTMLElement): (() => void) => {
+  const states: BackgroundElementState[] = [];
+  let activeBranch: HTMLElement | null = dialog;
+
+  while (activeBranch?.parentElement) {
+    const parent = activeBranch.parentElement;
+    for (const sibling of Array.from(parent.children)) {
+      if (!(sibling instanceof HTMLElement) || sibling === activeBranch) continue;
+      states.push({
+        element: sibling,
+        hadInert: sibling.hasAttribute('inert'),
+        ariaHidden: sibling.getAttribute('aria-hidden'),
+        pointerEvents: sibling.style.pointerEvents,
+      });
+      sibling.setAttribute('inert', '');
+      sibling.setAttribute('aria-hidden', 'true');
+      // `inert` is supported by current evergreen browsers; pointer-events is
+      // the safe fallback for older embedded Safari/WebView versions.
+      sibling.style.pointerEvents = 'none';
+    }
+    if (parent === document.body) break;
+    activeBranch = parent;
+  }
+
+  return () => {
+    for (const { element, hadInert, ariaHidden, pointerEvents } of states) {
+      if (!hadInert) element.removeAttribute('inert');
+      if (ariaHidden === null) element.removeAttribute('aria-hidden');
+      else element.setAttribute('aria-hidden', ariaHidden);
+      element.style.pointerEvents = pointerEvents;
+    }
+  };
+};
 
 const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
@@ -46,18 +137,153 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   );
 
   const contentRef = useRef<HTMLDivElement | null>(null);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  const [headerOffset, setHeaderOffset] = useState(0);
 
   useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useIsomorphicLayoutEffect(() => {
     if (!isOpen) return;
 
-    const html = document.documentElement;
-    const body = document.body;
-    html.classList.add('cart-modal-open');
-    body.classList.add('cart-modal-open');
+    const header = Array.from(document.querySelectorAll<HTMLElement>('[data-site-header]'))
+      .find((candidate) => {
+        const rect = candidate.getBoundingClientRect();
+        const style = window.getComputedStyle(candidate);
+        return rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+      });
+
+    const updateOffset = () => {
+      const bottom = header?.getBoundingClientRect().bottom ?? 0;
+      setHeaderOffset(Math.max(0, Math.round(bottom)));
+    };
+
+    updateOffset();
+    const resizeObserver = header && typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(updateOffset)
+      : null;
+    if (header && resizeObserver) resizeObserver.observe(header);
+    window.addEventListener('resize', updateOffset);
+    window.visualViewport?.addEventListener('resize', updateOffset);
 
     return () => {
-      html.classList.remove('cart-modal-open');
-      body.classList.remove('cart-modal-open');
+      resizeObserver?.disconnect();
+      window.removeEventListener('resize', updateOffset);
+      window.visualViewport?.removeEventListener('resize', updateOffset);
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!isOpen || !dialog) return;
+
+    previouslyFocusedRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    closeButtonRef.current?.focus();
+    const restoreBackground = makeBackgroundInert(dialog);
+    const lockedScrollY = window.scrollY;
+    let restoringScroll = false;
+    let lastTouchY: number | null = null;
+
+    const eventBelongsToNestedModal = (target: EventTarget | null) => {
+      if (!(target instanceof Element)) return false;
+      const containingModal = target.closest<HTMLElement>('[role="dialog"][aria-modal="true"]');
+      return Boolean(containingModal && containingModal !== dialog);
+    };
+
+    const hasOpenNestedModal = () => Array.from(
+      document.querySelectorAll<HTMLElement>('[role="dialog"][aria-modal="true"]'),
+    ).some((candidate) => candidate !== dialog && candidate.getClientRects().length > 0);
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (eventBelongsToNestedModal(event.target)) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+
+      if (event.key === 'Tab') {
+        const focusable = getFocusableElements(dialog);
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (!first || !last) {
+          event.preventDefault();
+          dialog.focus();
+          return;
+        }
+        if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
+          event.preventDefault();
+          first.focus();
+        }
+        return;
+      }
+
+      if (!['PageDown', 'PageUp', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const scrollContainer = findScrollableAncestor(document.activeElement, dialog) || contentRef.current;
+      if (!scrollContainer) return;
+      if (event.key === 'Home') scrollContainer.scrollTo({ top: 0 });
+      else if (event.key === 'End') scrollContainer.scrollTo({ top: scrollContainer.scrollHeight });
+      else scrollContainer.scrollBy({
+        top: event.key === 'PageDown' ? scrollContainer.clientHeight * 0.8 : -scrollContainer.clientHeight * 0.8,
+        behavior: 'auto',
+      });
+    };
+
+    const preventBackgroundWheel = (event: WheelEvent) => {
+      if (eventBelongsToNestedModal(event.target)) return;
+      const scrollable = findScrollableAncestor(event.target, dialog);
+      if (!scrollable || !canScrollInDirection(scrollable, event.deltaY)) event.preventDefault();
+    };
+
+    const captureTouchStart = (event: TouchEvent) => {
+      lastTouchY = event.touches[0]?.clientY ?? null;
+    };
+
+    const preventBackgroundTouchMove = (event: TouchEvent) => {
+      if (eventBelongsToNestedModal(event.target)) return;
+      const currentY = event.touches[0]?.clientY;
+      if (currentY === undefined || lastTouchY === null) {
+        event.preventDefault();
+        return;
+      }
+      const deltaY = lastTouchY - currentY;
+      lastTouchY = currentY;
+      const scrollable = findScrollableAncestor(event.target, dialog);
+      if (!scrollable || !canScrollInDirection(scrollable, deltaY)) event.preventDefault();
+    };
+
+    const preserveDocumentScroll = () => {
+      if (hasOpenNestedModal()) return;
+      if (restoringScroll || Math.abs(window.scrollY - lockedScrollY) < 1) return;
+      restoringScroll = true;
+      window.scrollTo({ top: lockedScrollY, left: 0, behavior: 'auto' });
+      window.requestAnimationFrame(() => { restoringScroll = false; });
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('wheel', preventBackgroundWheel, { capture: true, passive: false });
+    document.addEventListener('touchstart', captureTouchStart, { capture: true, passive: true });
+    document.addEventListener('touchmove', preventBackgroundTouchMove, { capture: true, passive: false });
+    window.addEventListener('scroll', preserveDocumentScroll, { passive: true });
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('wheel', preventBackgroundWheel, true);
+      document.removeEventListener('touchstart', captureTouchStart, true);
+      document.removeEventListener('touchmove', preventBackgroundTouchMove, true);
+      window.removeEventListener('scroll', preserveDocumentScroll);
+      restoreBackground();
+      if (previouslyFocusedRef.current?.isConnected) previouslyFocusedRef.current.focus({ preventScroll: true });
     };
   }, [isOpen]);
 
@@ -93,15 +319,29 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   const hasSameDayFee = sameDayFeeCents > 0;
 
   return (
-    <div className="cart-modal fixed inset-0 z-50 overflow-hidden" role="dialog" aria-modal="true" aria-label="Shopping cart">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden="true" />
+    <div
+      ref={dialogRef}
+      data-cart-modal
+      className="cart-modal fixed inset-x-0 bottom-0 z-40 overflow-hidden"
+      style={{ top: `${headerOffset}px` }}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Shopping cart"
+      tabIndex={-1}
+    >
+      <div
+        data-cart-backdrop
+        className="absolute inset-0 touch-none bg-black/50"
+        onClick={onClose}
+        aria-hidden="true"
+      />
       <div className="cart-modal__panel absolute right-0 top-0 w-full max-w-md bg-white shadow-xl">
         <div className="flex h-full min-h-0 flex-col">
           <div className="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white p-6">
             <h2 className="flex items-center text-xl font-bold text-gray-900">
               <ShoppingBag className="mr-2 h-6 w-6 text-[#18448D]" /> Shopping Cart ({items.length})
             </h2>
-            <button onClick={onClose} aria-label="Close cart" className="rounded-lg p-2 transition-colors hover:bg-gray-100">
+            <button ref={closeButtonRef} onClick={onClose} aria-label="Close cart" className="rounded-lg p-2 transition-colors hover:bg-gray-100">
               <X className="h-6 w-6 text-gray-600" />
             </button>
           </div>

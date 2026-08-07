@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   buildCloudinaryPdfPreviewUrl,
+  CHUNKED_UPLOAD_THRESHOLD_BYTES,
+  getArtworkUploadDiagnostic,
   MAX_ARTWORK_BYTES,
+  UPLOAD_CHUNK_BYTES,
   uploadArtworkFile,
   validateArtworkFile,
 } from './uploadArtworkFile';
@@ -61,6 +64,60 @@ class SuccessfulUploadXhr {
   }
 }
 
+class SuccessfulChunkedUploadXhr {
+  static requests: Array<{ headers: Record<string, string>; body: FormData }> = [];
+  status = 0;
+  response: any = null;
+  responseText = '';
+  responseType = '';
+  timeout = 0;
+  headers: Record<string, string> = {};
+  upload = { onprogress: null as ((event: ProgressEvent) => void) | null };
+  onload: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  ontimeout: (() => void) | null = null;
+  onabort: (() => void) | null = null;
+
+  open(_method: string, _url: string, _async: boolean) {}
+
+  setRequestHeader(name: string, value: string) {
+    this.headers[name] = value;
+  }
+
+  send(body: FormData) {
+    SuccessfulChunkedUploadXhr.requests.push({ headers: { ...this.headers }, body });
+    const range = this.headers['Content-Range'];
+    const match = range.match(/^bytes (\d+)-(\d+)\/(\d+)$/);
+    if (!match) throw new Error(`Invalid test range: ${range}`);
+    const start = Number(match[1]);
+    const end = Number(match[2]);
+    const total = Number(match[3]);
+    this.upload.onprogress?.({
+      lengthComputable: true,
+      loaded: end - start + 1,
+      total: end - start + 1,
+    } as ProgressEvent);
+    window.setTimeout(() => {
+      this.status = 200;
+      this.response = end + 1 < total
+        ? { done: false }
+        : {
+            done: true,
+            secure_url: 'https://res.cloudinary.com/test/image/upload/v1/uploads/large-art.pdf',
+            public_id: 'uploads/large-art',
+            bytes: total,
+            format: 'pdf',
+            resource_type: 'image',
+          };
+      this.onload?.();
+    }, 0);
+  }
+
+  abort() {
+    this.onabort?.();
+  }
+}
+
 beforeEach(() => {
   vi.stubGlobal('File', TestFile);
   vi.stubGlobal('window', {
@@ -73,6 +130,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   SuccessfulUploadXhr.sentFormData = null;
+  SuccessfulChunkedUploadXhr.requests = [];
 });
 
 describe('uploadArtworkFile', () => {
@@ -148,5 +206,60 @@ describe('uploadArtworkFile', () => {
     expect(formData?.get('use_filename')).toBe('true');
     expect(formData?.get('unique_filename')).toBe('true');
     expect(formData?.get('overwrite')).toBe('false');
+  });
+
+  it('uploads larger originals in restartable Cloudinary chunks', async () => {
+    const signatureResponse = {
+      apiKey: 'public-key',
+      cloudName: 'test',
+      expiresAt: Date.now() + 60_000,
+      folder: 'uploads',
+      overwrite: false,
+      resourceType: 'image',
+      signature: 'signature-value',
+      timestamp: 123456,
+      uniqueFilename: true,
+      uploadUrl: 'https://api.cloudinary.com/v1_1/test/image/upload',
+      useFilename: true,
+    };
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(signatureResponse), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })));
+    vi.stubGlobal('crypto', { randomUUID: () => 'fixed-upload-id' });
+    vi.stubGlobal('XMLHttpRequest', SuccessfulChunkedUploadXhr as any);
+
+    const byteLength = CHUNKED_UPLOAD_THRESHOLD_BYTES + UPLOAD_CHUNK_BYTES + 17;
+    const file = new File([new Uint8Array(byteLength)], 'large-art.pdf', { type: 'application/pdf' });
+    const progress: number[] = [];
+    const result = await uploadArtworkFile(file, {
+      onProgress: (value) => progress.push(value),
+    });
+
+    expect(result.fileKey).toBe('uploads/large-art');
+    expect(result.previewUrl).toContain('pg_1,f_jpg');
+    expect(SuccessfulChunkedUploadXhr.requests).toHaveLength(3);
+    expect(new Set(SuccessfulChunkedUploadXhr.requests.map((request) => (
+      request.headers['X-Unique-Upload-Id']
+    )))).toEqual(new Set(['fixed-upload-id']));
+    expect(SuccessfulChunkedUploadXhr.requests.map((request) => request.headers['Content-Range']))
+      .toEqual([
+        `bytes 0-${UPLOAD_CHUNK_BYTES - 1}/${byteLength}`,
+        `bytes ${UPLOAD_CHUNK_BYTES}-${(2 * UPLOAD_CHUNK_BYTES) - 1}/${byteLength}`,
+        `bytes ${2 * UPLOAD_CHUNK_BYTES}-${byteLength - 1}/${byteLength}`,
+      ]);
+    expect(progress.at(-1)).toBe(1);
+  });
+
+  it('returns bounded, non-PII diagnostics for Clarity tags', () => {
+    const file = new File(['private'], 'customer-name-private-art.png', { type: 'image/png' });
+    Object.defineProperty(file, 'size', { value: 5 * 1024 * 1024 });
+    expect(getArtworkUploadDiagnostic(new Error('secret transport response'), file)).toEqual({
+      phase: 'response',
+      retryable: false,
+      status: null,
+      sizeBucket: '4mb-8mb',
+      mimeType: 'png',
+    });
   });
 });
