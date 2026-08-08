@@ -1,205 +1,313 @@
-/**
- * PayPal Create Credits Order
- * 
- * Creates a PayPal order for purchasing AI generation credits
- */
+'use strict';
 
 const { randomUUID } = require('crypto');
+const { neon } = require('@neondatabase/serverless');
+const auth = require('../server-auth.cjs');
+const creditPayments = require('../credit-paypal-service.cjs');
 
-// PayPal API helpers
-const getPayPalCredentials = () => {
-  const env = process.env.PAYPAL_ENV || 'sandbox';
-  const clientId = process.env[`PAYPAL_CLIENT_ID_${env.toUpperCase()}`];
-  const secret = process.env[`PAYPAL_SECRET_${env.toUpperCase()}`];
-
-  console.log('PayPal credentials check:', {
-    env,
-    clientIdExists: !!clientId,
-    secretExists: !!secret,
-  });
-
-  if (!clientId || !secret) {
-    throw new Error(`PayPal credentials not configured for environment: ${env}`);
-  }
-  
-  return {
-    clientId,
-    secret,
-    baseUrl: env === 'live'
-      ? 'https://api-m.paypal.com'
-      : 'https://api-m.sandbox.paypal.com'
-  };
-};
-
-const getPayPalAccessToken = async () => {
-  const { clientId, secret, baseUrl } = getPayPalCredentials();
-  const auth = Buffer.from(`${clientId}:${secret}`).toString('base64');
-  
-  const response = await fetch(`${baseUrl}/v1/oauth2/token`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Basic ${auth}`,
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    body: 'grant_type=client_credentials'
-  });
-  
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`PayPal auth failed: ${response.status} ${error}`);
-  }
-  
-  const data = await response.json();
-  return data.access_token;
-};
+let neonFactory = neon;
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Banners-Admin-Session',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Content-Type': 'application/json',
+  'Cache-Control': 'no-store, max-age=0',
 };
 
-exports.handler = async (event, context) => {
-  const cid = randomUUID();
-  
-  // Handle preflight requests
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 200, headers, body: '' };
+const reply = (statusCode, body) => ({ statusCode, headers, body: JSON.stringify(body) });
+
+const DEFINITIVE_RESTART_CODES = new Set([
+  'CREDIT_PAYMENT_ATTEMPT_RETIRED',
+  'CREDIT_PAYPAL_ORDER_NOT_REUSABLE',
+  'CREDIT_PAYPAL_ORDER_NOT_FOUND',
+  'CREDIT_PAYPAL_CREATE_REJECTED',
+]);
+
+function errorResponse(error, identifiers = {}) {
+  const statusCode = Number(error?.statusCode || 500);
+  const restartPayment = !error?.paymentCaptured
+    && DEFINITIVE_RESTART_CODES.has(String(error?.code || ''));
+  return reply(statusCode, {
+    ok: statusCode === 202,
+    error: error?.code || 'CREDIT_ORDER_CREATE_FAILED',
+    message: statusCode >= 500
+      ? 'Credit checkout is temporarily unavailable. Please try again later.'
+      : error?.message || 'Credit checkout could not be started.',
+    paymentCaptured: Boolean(error?.paymentCaptured),
+    paymentStatusUnknown: statusCode === 202,
+    reconciliationRequired: statusCode === 202,
+    doNotRetry: Boolean(error?.paymentCaptured),
+    safeToRetry: statusCode === 202 && !error?.paymentCaptured,
+    retryAllowed: restartPayment,
+    restartPayment,
+    ...(statusCode === 202 ? identifiers : {}),
+  });
+}
+
+function assertLegacyFieldsDoNotConflict(payload, session, selectedPackage) {
+  if (payload.userId != null && String(payload.userId) !== String(session.sub)) {
+    throw new creditPayments.CreditPaymentError(
+      'CREDIT_ACCOUNT_MISMATCH',
+      'The signed-in account does not match this credit purchase.',
+      { statusCode: 403 },
+    );
+  }
+  const submittedEmail = creditPayments.normalizeEmail(payload.email);
+  const sessionEmail = creditPayments.normalizeEmail(session.email);
+  if (submittedEmail && submittedEmail !== sessionEmail) {
+    throw new creditPayments.CreditPaymentError(
+      'CREDIT_ACCOUNT_MISMATCH',
+      'The signed-in account does not match this credit purchase.',
+      { statusCode: 403 },
+    );
+  }
+  if ((payload.credits != null && Number(payload.credits) !== selectedPackage.credits)
+      || (payload.amountCents != null && Number(payload.amountCents) !== selectedPackage.amountCents)) {
+    throw new creditPayments.CreditPaymentError(
+      'CREDIT_PACKAGE_TAMPERED',
+      'The submitted credit package does not match the server price.',
+      { statusCode: 409 },
+    );
+  }
+}
+
+exports.handler = async (event) => {
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
+  if (!['GET', 'POST'].includes(event.httpMethod)) {
+    return reply(405, { ok: false, error: 'METHOD_NOT_ALLOWED' });
   }
 
-  // Only allow POST requests
-  if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
-      headers,
-      body: JSON.stringify({ ok: false, error: 'METHOD_NOT_ALLOWED', cid }),
-    };
+  const session = auth.getSession(event);
+  const sessionUserId = String(session?.sub || '').trim();
+  const sessionEmail = creditPayments.normalizeEmail(session?.email);
+  if (!sessionUserId || !sessionEmail) {
+    return reply(401, {
+      ok: false,
+      error: 'CREDIT_AUTHENTICATION_REQUIRED',
+      message: 'Sign in again before purchasing AI credits.',
+    });
   }
 
-  try {
-    console.log('=== PayPal Create Credits Order ===', { cid });
-
-    // Parse request body
-    let payload;
+  if (event.httpMethod === 'GET') {
     try {
-      payload = JSON.parse(event.body || '{}');
-    } catch (parseError) {
-      console.error('Invalid JSON:', parseError, 'cid:', cid);
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ ok: false, error: 'INVALID_JSON', cid }),
-      };
+      const config = creditPayments.getCreditPayPalConfig({ requireFeature: true });
+      return reply(200, {
+        ok: true,
+        enabled: true,
+        clientId: config.clientId,
+        environment: config.environment,
+        currency: 'USD',
+      });
+    } catch (error) {
+      return errorResponse(error);
     }
+  }
 
-    const { userId, email, credits, amountCents } = payload;
+  let payload;
+  try {
+    payload = JSON.parse(event.body || '{}');
+  } catch {
+    return reply(400, { ok: false, error: 'INVALID_JSON' });
+  }
 
-    // Validate required fields
-    if (!userId || !credits || !amountCents) {
-      console.error('Missing required fields:', { userId, credits, amountCents }, 'cid:', cid);
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ ok: false, error: 'MISSING_REQUIRED_FIELDS', cid }),
-      };
-    }
+  const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
+  if (!dbUrl) return reply(500, { ok: false, error: 'DATABASE_NOT_CONFIGURED' });
 
-    // Validate credit packages
-    const validPackages = {
-      10: 500,   // 10 credits = $5.00
-      50: 2000,  // 50 credits = $20.00
-      100: 3500, // 100 credits = $35.00
-    };
+  let checkoutKey = null;
+  let purchase = null;
+  try {
+    const selectedPackage = creditPayments.resolveCreditPackage(payload.packageId);
+    checkoutKey = creditPayments.validateCheckoutKey(payload.checkoutKey);
+    assertLegacyFieldsDoNotConflict(payload, session, selectedPackage);
+    // Check feature/environment credentials before persisting a new attempt, and
+    // check schema before any PayPal request can leave this function.
+    const config = creditPayments.getCreditPayPalConfig({ requireFeature: true });
+    const sql = neonFactory(dbUrl);
+    await creditPayments.ensureCreditPaymentSchema(sql);
 
-    if (!validPackages[credits] || validPackages[credits] !== amountCents) {
-      console.error('Invalid credit package:', { credits, amountCents }, 'cid:', cid);
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ ok: false, error: 'INVALID_PACKAGE', cid }),
-      };
-    }
-
-    // Get PayPal access token
-    const accessToken = await getPayPalAccessToken();
-    const { baseUrl } = getPayPalCredentials();
-
-    // Create PayPal order
-    const amountUSD = (amountCents / 100).toFixed(2);
-    
-    console.log('💰 Amount calculation:', { amountCents, amountUSD, credits, cid });
-    
-    // Simplified PayPal order payload - removed items/breakdown to avoid MALFORMED_REQUEST error
-    const orderPayload = {
-      intent: 'CAPTURE',
-      purchase_units: [
-        {
-          description: `${credits} AI Generation Credits`,
-          amount: {
-            currency_code: 'USD',
-            value: amountUSD,
-          },
-        },
-      ],
-      application_context: {
-        brand_name: 'Banners On The Fly',
-        shipping_preference: 'NO_SHIPPING',
-      },
-    };
-    
-    console.log('📦 PayPal order payload:', JSON.stringify(orderPayload, null, 2));
-
-    console.log('Creating PayPal order:', { credits, amountUSD, cid });
-
-    const createResponse = await fetch(`${baseUrl}/v2/checkout/orders`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify(orderPayload),
+    purchase = await creditPayments.createOrLoadPendingCreditPurchase(sql, {
+      purchaseId: randomUUID(),
+      userId: sessionUserId,
+      email: sessionEmail,
+      checkoutKey,
+      selectedPackage,
     });
 
-    if (!createResponse.ok) {
-      const errorData = await createResponse.json();
-      console.error('PayPal order creation failed:', errorData, 'cid:', cid);
-      return {
-        statusCode: createResponse.status,
-        headers,
-        body: JSON.stringify({
-          ok: false,
-          error: 'PAYPAL_ORDER_CREATION_FAILED',
-          details: errorData,
-          cid,
-        }),
-      };
+    if (purchase.status === 'failed') {
+      const conflictFailure = purchase.last_error_code === 'CREDIT_PAYPAL_CREATE_IDENTITY_MISMATCH';
+      throw new creditPayments.CreditPaymentError(
+        conflictFailure ? 'CREDIT_PAYMENT_ATTEMPT_CONFLICT' : 'CREDIT_PAYMENT_ATTEMPT_RETIRED',
+        conflictFailure
+          ? 'This saved payment attempt requires reconciliation. Do not start another payment.'
+          : 'This payment attempt ended. Start a new credit purchase.',
+        { statusCode: 409 },
+      );
     }
 
-    const orderData = await createResponse.json();
-    console.log('✅ PayPal order created successfully:', orderData.id, 'cid:', cid);
+    const accessToken = await creditPayments.getPayPalAccessToken(config);
+    if (purchase.paypal_order_id) {
+      await creditPayments.assertCreditPayPalOrderOwnership(
+        sql,
+        purchase.paypal_order_id,
+        purchase.id,
+      );
+      let existing;
+      try {
+        existing = await creditPayments.retrievePayPalOrder(
+          config,
+          accessToken,
+          purchase.paypal_order_id,
+        );
+      } catch {
+        existing = null;
+      }
+      if (!existing || (!existing.ok && existing.status !== 404)) {
+        await creditPayments.markCreditReconciliation(sql, purchase.id, 'PAYPAL_CREATE_LOOKUP_UNKNOWN');
+        throw new creditPayments.CreditPaymentError(
+          'CREDIT_PAYMENT_STATUS_UNKNOWN',
+          'We are confirming the previous PayPal attempt. No charge has been requested.',
+          { statusCode: 202, retryable: true },
+        );
+      }
+      if (existing.ok) {
+        if (!creditPayments.matchesCreditPurchase(existing.data, purchase)) {
+          throw new creditPayments.CreditPaymentError(
+            'CREDIT_PAYPAL_IDENTITY_MISMATCH',
+            'The stored PayPal order does not match this credit purchase.',
+            { statusCode: 409 },
+          );
+        }
+        const providerStatus = String(existing.data?.status || '').toUpperCase();
+        if (creditPayments.ACTIVE_PAYPAL_ORDER_STATUSES.has(providerStatus)) {
+          return reply(200, {
+            ok: true,
+            reused: true,
+            orderID: purchase.paypal_order_id,
+            purchaseId: purchase.id,
+            checkoutKey,
+            package: selectedPackage,
+          });
+        }
+        const completed = creditPayments.validateCompletedCreditCapture(existing.data, purchase);
+        if (completed.ok) {
+          const settled = await creditPayments.settleVerifiedCapture(sql, purchase, completed);
+          const notification = await creditPayments.processCreditPurchaseNotification(sql, purchase.id);
+          return reply(200, {
+            ok: true,
+            alreadyCompleted: true,
+            paymentCaptured: true,
+            captureID: completed.captureId,
+            orderID: purchase.paypal_order_id,
+            purchaseId: purchase.id,
+            purchase: settled.purchase,
+            notificationComplete: notification.complete,
+            package: selectedPackage,
+          });
+        }
+        if (providerStatus === 'COMPLETED') {
+          await creditPayments.markCreditReconciliation(sql, purchase.id, completed.code);
+          throw new creditPayments.CreditPaymentError(
+            'CREDIT_CAPTURE_RECONCILIATION_REQUIRED',
+            'PayPal reports a completed payment that does not match this purchase. Do not pay again.',
+            {
+              statusCode: 202,
+              retryable: true,
+              paymentCaptured: true,
+              captureId: completed.captureId || null,
+            },
+          );
+        }
+        throw new creditPayments.CreditPaymentError(
+          'CREDIT_PAYPAL_ORDER_NOT_REUSABLE',
+          'The prior PayPal attempt ended. Start a new credit purchase.',
+          { statusCode: 409 },
+        );
+      }
+      throw new creditPayments.CreditPaymentError(
+        'CREDIT_PAYPAL_ORDER_NOT_FOUND',
+        'The prior PayPal attempt is no longer available. Start a new credit purchase.',
+        { statusCode: 409 },
+      );
+    }
 
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({
-        ok: true,
-        orderID: orderData.id,
-        cid,
-      }),
-    };
+    let providerResult;
+    try {
+      providerResult = await creditPayments.createPayPalCreditOrder(
+        config,
+        accessToken,
+        purchase,
+        selectedPackage,
+      );
+    } catch (error) {
+      await creditPayments.markCreditReconciliation(sql, purchase.id, 'PAYPAL_CREATE_UNKNOWN');
+      throw new creditPayments.CreditPaymentError(
+        'CREDIT_PAYPAL_CREATE_UNKNOWN',
+        'PayPal order creation is being confirmed. It is safe to retry this same checkout.',
+        { statusCode: 202, retryable: true },
+      );
+    }
+
+    const providerStatus = String(providerResult.data?.status || '').toUpperCase();
+    const creationValid = providerResult.ok
+      && Boolean(providerResult.data?.id)
+      && creditPayments.ACTIVE_PAYPAL_ORDER_STATUSES.has(providerStatus)
+      && creditPayments.matchesCreditPurchase(providerResult.data, purchase);
+    if (!creationValid) {
+      const ambiguous = Number(providerResult.status) >= 500;
+      if (ambiguous) {
+        await creditPayments.markCreditReconciliation(sql, purchase.id, `PAYPAL_CREATE_${providerResult.status}`);
+        throw new creditPayments.CreditPaymentError(
+          'CREDIT_PAYPAL_CREATE_UNKNOWN',
+          'PayPal order creation is being confirmed. It is safe to retry this same checkout.',
+          { statusCode: 202, retryable: true },
+        );
+      }
+      await creditPayments.markCreditFailed(
+        sql,
+        purchase.id,
+        providerResult.ok ? 'CREDIT_PAYPAL_CREATE_IDENTITY_MISMATCH' : 'PAYPAL_CREATE_REJECTED',
+      );
+      throw new creditPayments.CreditPaymentError(
+        providerResult.ok ? 'CREDIT_PAYPAL_CREATE_IDENTITY_MISMATCH' : 'CREDIT_PAYPAL_CREATE_REJECTED',
+        'PayPal could not start this credit purchase. Start a new payment attempt.',
+        { statusCode: providerResult.ok ? 409 : 502 },
+      );
+    }
+
+    await creditPayments.assertCreditPayPalOrderOwnership(
+      sql,
+      providerResult.data.id,
+      purchase.id,
+    );
+    purchase = await creditPayments.attachPayPalOrder(sql, purchase, providerResult.data.id);
+    return reply(200, {
+      ok: true,
+      orderID: purchase.paypal_order_id,
+      purchaseId: purchase.id,
+      checkoutKey,
+      package: selectedPackage,
+    });
   } catch (error) {
-    console.error('Error creating PayPal credits order:', error, 'cid:', cid);
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({
-        ok: false,
-        error: 'INTERNAL_SERVER_ERROR',
-        message: error.message,
-        cid,
-      }),
-    };
+    console.error('[paypal-create-credits-order] failed', {
+      code: error?.code || null,
+      statusCode: error?.statusCode || 500,
+      message: error?.message,
+    });
+    return errorResponse(error, {
+      purchaseId: purchase?.id || null,
+      checkoutKey,
+    });
   }
 };
 
+exports._test = {
+  assertLegacyFieldsDoNotConflict,
+  errorResponse,
+  resetNeonFactory() {
+    neonFactory = neon;
+  },
+  setNeonFactory(factory) {
+    neonFactory = factory;
+  },
+};

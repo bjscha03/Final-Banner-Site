@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { buildPurchaseAnalyticsItems } from './canonicalPurchaseTracking';
+import {
+  buildPurchaseAnalyticsItems,
+  getCanonicalPurchaseCoupon,
+} from './canonicalPurchaseTracking';
 
 describe('canonical purchase item mapping', () => {
   it('reports unit price and quantity without multiplying a line total twice', () => {
@@ -24,5 +27,19 @@ describe('canonical purchase item mapping', () => {
       quantity: 1,
       line_total_cents: 1900,
     }])[0].item_id).toBe('uploads/banner.pdf');
+  });
+});
+
+describe('canonical purchase coupon', () => {
+  it('uses the actual discount code and never substitutes a display label', () => {
+    expect(getCanonicalPurchaseCoupon({
+      discount_code: ' NEW20 ',
+      applied_discount_label: '20% promotional discount',
+    })).toBe('NEW20');
+
+    expect(getCanonicalPurchaseCoupon({
+      discount_code: null,
+      applied_discount_label: 'Quantity discount (13% off)',
+    })).toBeNull();
   });
 });

@@ -29,5 +29,11 @@ playwright-report
 
 # Local Netlify folder
 .netlify
+
+# Environment files can contain payment, database, email, and storage secrets.
+# Keep every local/scope export out of Git while retaining the documented,
+# placeholder-only template.
 .env
+.env.*
+!.env.example
 netlify/functions/canva-config.cjs

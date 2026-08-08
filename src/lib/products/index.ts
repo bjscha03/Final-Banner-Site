@@ -26,3 +26,8 @@ export {
   chooseTargetDpi,
   DEFAULT_PRODUCT_TYPE,
 } from './registry';
+
+export {
+  validateProductConfiguration,
+  type ProductConfigurationValidation,
+} from './validation';

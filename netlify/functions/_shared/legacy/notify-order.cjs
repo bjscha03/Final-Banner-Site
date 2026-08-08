@@ -496,12 +496,19 @@ function getCanonicalPublicSiteOrigin() {
 }
 
 // Send email with retry logic for rate limiting
-async function sendEmailWithRetry(resendClient, emailData, maxAttempts = 3) {
+async function sendEmailWithRetry(resendClient, emailData, idempotencyKey = null, maxAttempts = 3) {
   let lastError;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const result = await resendClient.emails.send(emailData);
+      // The same paid order can legitimately queue follow-up work from both a
+      // browser reconciliation and a provider webhook. Use one stable Resend
+      // key per order/template so concurrent workers and transport retries
+      // cannot deliver duplicate customer/admin messages.
+      const result = await resendClient.emails.send(
+        emailData,
+        idempotencyKey ? { idempotencyKey } : undefined,
+      );
       if (result.error) {
         throw new Error(result.error);
       }
@@ -674,7 +681,12 @@ async function sendEmail(type, payload) {
       subject,
       tags
     });
-    const result = await sendEmailWithRetry(resend, emailData);
+    const providerIdempotencyKey = orderIdForTag
+      ? `bof-order-email/${type}/${String(orderIdForTag)}${
+        payload.idempotencyAttemptId ? `/manual/${payload.idempotencyAttemptId}` : ''
+      }`.slice(0, 256)
+      : null;
+    const result = await sendEmailWithRetry(resend, emailData, providerIdempotencyKey);
     console.log('[notify-order] resend send success', {
       type,
       to: payload?.to,
@@ -839,8 +851,15 @@ exports.handler = async (event) => {
     // Use customer_name first, then shipping_name as fallback (shipping_name often has the actual name)
     const customerName = order.customer_name || order.shipping_name || '';
 
+    // Automated payment/browser/webhook follow-ups share the stable provider
+    // key above. An explicitly authorized human resend must still deliver a
+    // new message, while its own transport retries remain idempotent.
+    const idempotencyAttemptId = (forceResendBoth || forceResendCustomer) && !isInternalJobAuthorized(event)
+      ? crypto.randomUUID()
+      : null;
     const emailPayload = {
       to: order.email,
+      idempotencyAttemptId,
       order: {
         id: order.id,
         number: order.id ? order.id.slice(-8).toUpperCase() : 'UNKNOWN',
@@ -1008,6 +1027,7 @@ exports.handler = async (event) => {
 
         const adminEmailPayload = {
           to: adminEmail,
+          idempotencyAttemptId,
           order: {
             ...emailPayload.order,
             email: order.email, // Add customer email to admin notification

@@ -19,7 +19,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/lib/auth';
 
 import type { ProductTypeSlug } from '@/lib/products';
-import { getProductConfig } from '@/lib/products';
+import { getProductConfig, validateProductConfiguration } from '@/lib/products';
 import YardSignConfigurator, { type YardSignConfiguratorHandle } from '@/components/design/YardSignConfigurator';
 import YardSignPriceSummary from '@/components/design/YardSignPriceSummary';
 import PriceBreakdown from '@/components/pricing/PriceBreakdown';
@@ -685,7 +685,15 @@ const GoogleAdsBanner: React.FC = () => {
   }, [widthIn, heightIn]);
   const { wrapperStyle: previewWrapperStyle, paddingPct: previewPaddingPct } = useMemo(() => getPreviewContainerStyles(isLgScreen ? 480 : 280), [getPreviewContainerStyles, isLgScreen]);
   const { wrapperStyle: dimPreviewWrapperStyle, paddingPct: dimPreviewPaddingPct } = useMemo(() => getPreviewContainerStyles(isLgScreen ? 200 : 140), [getPreviewContainerStyles, isLgScreen]);
-  const totals = calcTotals({ widthIn, heightIn, qty: quantity, material, addRope, polePockets });
+  const totals = calcTotals({
+    widthIn,
+    heightIn,
+    qty: quantity,
+    material,
+    addRope,
+    ropePlacement,
+    polePockets,
+  });
   const bannerPricing = calculateBannerPricing({
     widthIn,
     heightIn,
@@ -1546,6 +1554,20 @@ const GoogleAdsBanner: React.FC = () => {
     actionType: 'checkout' | 'cart' = 'checkout',
   ) => {
     const checkoutData = directData || pendingCheckoutData;
+    const configurationValidation = validateProductConfiguration({
+      productType,
+      widthIn,
+      heightIn,
+      grommets: productType === 'banner' ? grommets : null,
+    });
+    if (!configurationValidation.valid) {
+      toast({
+        title: 'Review product size',
+        description: configurationValidation.message,
+        variant: 'destructive',
+      });
+      return;
+    }
     let checkoutArtwork = uploadedFileRef.current;
     const preparedPlacement = preparedPlacementRef.current;
     
@@ -1833,7 +1855,9 @@ const GoogleAdsBanner: React.FC = () => {
     // Banner pricing — per sqft (existing logic)
     const updatedTotals = calcTotals({ 
       widthIn, heightIn, qty: quantity, material, 
-      addRope: finalRope, polePockets: finalPolePockets 
+      addRope: finalRope,
+      ropePlacement,
+      polePockets: finalPolePockets,
     });
     
     quoteStore.set({

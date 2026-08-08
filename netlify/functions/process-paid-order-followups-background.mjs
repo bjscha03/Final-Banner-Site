@@ -4,7 +4,6 @@ import { neon } from '@neondatabase/serverless';
 import { withLambda } from '@netlify/aws-lambda-compat';
 import notifyOrderModule from './_shared/legacy/notify-order.cjs';
 import pdfModule from './_shared/legacy/generate-paid-order-pdfs-background.cjs';
-import customerInfoModule from './_shared/legacy/paypal-customer-info.cjs';
 import runtimeConfig from './_shared/paypal-runtime-config.cjs';
 
 const json = (statusCode, body) => ({
@@ -84,18 +83,6 @@ const handler = async (event) => {
   }
 
   const failures = [];
-
-  if (order.paypal_order_id) {
-    try {
-      await customerInfoModule.refreshOrderCustomerInfo({
-        internalOrderId: orderId,
-        orderID: order.paypal_order_id,
-      });
-      order = await loadOrder(sql, orderId) || order;
-    } catch (error) {
-      failures.push(`Customer information refresh failed: ${error?.message || error}`);
-    }
-  }
 
   if (!isUsableCustomerEmail(order.email)) {
     failures.push('A usable customer email has not been returned by PayPal yet.');

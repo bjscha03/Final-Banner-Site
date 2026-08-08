@@ -55,7 +55,25 @@ const getItemDescription = (item) => {
   return [displayName, specifications].filter(Boolean).join(' | ').slice(0, 2048);
 };
 
-const buildPayPalItems = (cartItems, totalCents) => {
+const itemShape = (item, index, {
+  quantity,
+  unitAmountCents,
+  priceTier = null,
+}) => ({
+  name: getItemName(item),
+  description: priceTier
+    ? `Per-unit rounding allocation: ${quantity} of ${Number(item.quantity)} units | ${getItemDescription(item)}`.slice(0, 2048)
+    : getItemDescription(item),
+  sku: `${getSku(item, index)}${priceTier ? `-${priceTier}` : ''}`.slice(0, 127),
+  quantity: String(quantity),
+  category: 'PHYSICAL_GOODS',
+  unit_amount: {
+    currency_code: 'USD',
+    value: moneyFromCents(unitAmountCents),
+  },
+});
+
+const buildPayPalItems = (cartItems, merchandiseSubtotalCents) => {
   if (!Array.isArray(cartItems) || !cartItems.length || cartItems.length > MAX_PAYPAL_ITEMS) return [];
 
   // PayPal requires every item amount to be positive. Do not silently drop an
@@ -70,32 +88,70 @@ const buildPayPalItems = (cartItems, totalCents) => {
   ));
   if (sourceItems.length !== cartItems.length) return [];
 
-  const allocations = allocateCents(
-    totalCents,
-    sourceItems.map((item) => Number(item.line_total_cents || 0)),
+  const items = [];
+  let rawSubtotalCents = 0;
+  let invalidAllocation = false;
+  sourceItems.forEach((item, index) => {
+    const quantity = Number(item.quantity);
+    const lineTotalCents = Number(item.line_total_cents);
+    const perUnitCents = Math.floor(lineTotalCents / quantity);
+    const remainderCents = lineTotalCents - (perUnitCents * quantity);
+    if (perUnitCents <= 0) {
+      invalidAllocation = true;
+      return;
+    }
+    const lowerPriceQuantity = quantity - remainderCents;
+    if (lowerPriceQuantity > 0) {
+      items.push(itemShape(item, index, {
+        quantity: lowerPriceQuantity,
+        unitAmountCents: perUnitCents,
+        priceTier: remainderCents > 0 ? 'A' : null,
+      }));
+    }
+    if (remainderCents > 0) {
+      // Distribute indivisible pennies over real merchandise units. The two
+      // rows still sum to exactly the physical cart quantity; no fake product
+      // or extra unit is introduced for a one-time setup amount.
+      items.push(itemShape(item, index, {
+        quantity: remainderCents,
+        unitAmountCents: perUnitCents + 1,
+        priceTier: 'B',
+      }));
+    }
+    rawSubtotalCents += lineTotalCents;
+  });
+  if (invalidAllocation) return [];
+
+  const targetSubtotalCents = Math.max(0, Math.round(Number(merchandiseSubtotalCents) || 0));
+  if (targetSubtotalCents !== rawSubtotalCents) return [];
+  if (items.length > MAX_PAYPAL_ITEMS) return [];
+  const structuredSubtotalCents = items.reduce(
+    (sum, item) => sum + centsFromMoney(item.unit_amount.value) * Number(item.quantity),
+    0,
   );
-
-  if (allocations.some((allocation) => allocation <= 0)) return [];
-
-  return sourceItems.map((item, index) => ({
-    name: getItemName(item),
-    description: getItemDescription(item),
-    sku: getSku(item, index),
-    quantity: '1',
-    category: 'PHYSICAL_GOODS',
-    unit_amount: {
-      currency_code: 'USD',
-      value: moneyFromCents(allocations[index]),
-    },
-  }));
+  return structuredSubtotalCents === targetSubtotalCents ? items : [];
 };
 
-const applyPayPalOrderDetails = (orderRequest, cartItems) => {
+const applyPayPalOrderDetails = (orderRequest, cartItems, ledger = null) => {
   const purchaseUnit = orderRequest?.purchase_units?.[0];
   const totalCents = centsFromMoney(purchaseUnit?.amount?.value);
   if (!purchaseUnit || totalCents <= 0) return null;
 
-  const items = buildPayPalItems(cartItems, totalCents);
+  const merchandiseSubtotalCents = ledger == null
+    ? totalCents
+    : Math.max(0, Math.round(Number(ledger.subtotalCents) || 0));
+  const taxCents = Math.max(0, Math.round(Number(ledger?.taxCents) || 0));
+  const shippingCents = Math.max(0, Math.round(Number(ledger?.shippingCents) || 0));
+  const discountCents = Math.max(0, Math.round(Number(ledger?.discountCents) || 0));
+  const handlingCents = Math.max(0, Math.round(Number(
+    ledger?.handlingCents
+      ?? (Number(ledger?.sameDayFeeCents || 0) + Number(ledger?.saturdayFeeCents || 0)),
+  ) || 0));
+  if (merchandiseSubtotalCents + taxCents + shippingCents + handlingCents - discountCents !== totalCents) {
+    return null;
+  }
+
+  const items = buildPayPalItems(cartItems, merchandiseSubtotalCents);
   const itemTotalCents = items.reduce(
     (sum, item) => (
       sum
@@ -103,28 +159,40 @@ const applyPayPalOrderDetails = (orderRequest, cartItems) => {
     ),
     0,
   );
-  if (!items.length || itemTotalCents !== totalCents) return null;
+  if (!items.length || itemTotalCents !== merchandiseSubtotalCents) return null;
 
   purchaseUnit.items = items;
   purchaseUnit.amount.breakdown = {
-    ...(purchaseUnit.amount.breakdown || {}),
     item_total: {
       currency_code: 'USD',
       value: moneyFromCents(itemTotalCents),
     },
+    shipping: {
+      currency_code: 'USD',
+      value: moneyFromCents(shippingCents),
+    },
+    ...(taxCents > 0 ? {
+      tax_total: { currency_code: 'USD', value: moneyFromCents(taxCents) },
+    } : {}),
+    ...(handlingCents > 0 ? {
+      handling: { currency_code: 'USD', value: moneyFromCents(handlingCents) },
+    } : {}),
+    ...(discountCents > 0 ? {
+      discount: { currency_code: 'USD', value: moneyFromCents(discountCents) },
+    } : {}),
   };
   return orderRequest;
 };
 
-const buildDetailedPayPalOrderRequest = (summaryRequest, cartItems) => {
+const buildDetailedPayPalOrderRequest = (summaryRequest, cartItems, ledger = null) => {
   const clonedRequest = JSON.parse(JSON.stringify(summaryRequest || {}));
-  return applyPayPalOrderDetails(clonedRequest, cartItems);
+  return applyPayPalOrderDetails(clonedRequest, cartItems, ledger);
 };
 
 const enhancePayPalOrderRequest = (outboundBody, originalEventBody) => {
   const orderRequest = JSON.parse(String(outboundBody || '{}'));
   const eventPayload = JSON.parse(String(originalEventBody || '{}'));
-  return applyPayPalOrderDetails(orderRequest, eventPayload.items);
+  return applyPayPalOrderDetails(orderRequest, eventPayload.items, eventPayload.ledger || null);
 };
 
 module.exports = {

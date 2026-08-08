@@ -83,6 +83,33 @@ test('only a paid order with PayPal capture proof can receive a token', () => {
   assert.ok(createPaidOrderConfirmationToken(order, { secret, nowSeconds }));
 });
 
+test('Stripe confirmation token v2 is provider-neutral and bound to intent plus charge', () => {
+  const stripeOrder = {
+    ...order,
+    payment_method: 'stripe',
+    paypal_order_id: null,
+    paypal_capture_id: null,
+    stripe_payment_intent_id: 'pi_test_123',
+    stripe_charge_id: 'ch_test_456',
+  };
+  const token = createPaidOrderConfirmationToken(stripeOrder, { secret, nowSeconds });
+  const claims = verifyOrderConfirmationToken(token, { orderId: stripeOrder.id }, {
+    secret,
+    nowSeconds,
+    order: stripeOrder,
+  });
+  assert.equal(claims.v, 2);
+  assert.equal(claims.provider, 'stripe');
+  assert.equal(claims.paymentId, stripeOrder.stripe_payment_intent_id);
+  assert.equal(confirmationMatchesPaidOrder(claims, stripeOrder), true);
+  assert.equal(confirmationMatchesPaidOrder(claims, { ...stripeOrder, stripe_charge_id: 'ch_other' }), false);
+  assert.equal(verifyOrderConfirmationToken(token, {}, {
+    secret,
+    nowSeconds,
+    order: { ...stripeOrder, stripe_payment_intent_id: 'pi_other' },
+  }), null);
+});
+
 test('confirmation credential is read only from its request header', () => {
   const token = createToken();
   assert.equal(readOrderConfirmationToken({

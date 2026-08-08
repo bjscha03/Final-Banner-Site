@@ -37,11 +37,19 @@ on:
       - 'vite.config.ts'
       - 'netlify/functions/get-order.mjs'
       - 'netlify/functions/get-orders.mjs'
+      - 'netlify/functions/stripe-*.mjs'
       - 'netlify/functions/update-tracking.mjs'
       - 'netlify/functions/send-shipping-notification.mjs'
       - 'netlify/functions/resend-tracking-email.mjs'
       - 'netlify/functions/_shared/**'
       - 'netlify/functions/__tests__/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.env.example'
+      - '.env*'
+      - '.gitignore'
+      - 'docs/stripe-payments-deployment.md'
+      - 'netlify.toml'
       - '.github/workflows/order-email-tracking-regressions.yml'
 
 permissions:
@@ -64,13 +72,31 @@ jobs:
       - name: Install exact dependencies
         run: npm ci
 
+      - name: Reject tracked environment files
+        run: |
+          set -euo pipefail
+          tracked=$(git ls-files '.env' '.env.*' | grep -v '^.env.example$' || true)
+          if [ -n "$tracked" ]; then
+            echo "Secret-bearing environment files must not be tracked:"
+            printf '%s\n' "$tracked"
+            exit 1
+          fi
+
       - name: Run checkout, preview, order, email, and tracking tests
         run: |
           node --test \
-            netlify/functions/__tests__/checkout-paypal-only.test.cjs \
+            netlify/functions/__tests__/checkout-payment-providers.test.cjs \
+            netlify/functions/__tests__/stripe-checkout-service.test.cjs \
+            netlify/functions/__tests__/stripe-finalize-order.test.cjs \
+            netlify/functions/__tests__/stripe-payment-handlers.test.mjs \
+            netlify/functions/__tests__/stripe-runtime-config.test.cjs \
+            netlify/functions/__tests__/stripe-server-pricing.test.cjs \
             netlify/functions/__tests__/cart-persistence-ordering.test.cjs \
             netlify/functions/__tests__/preview-pipeline.test.cjs \
             netlify/functions/__tests__/admin-order-visibility.test.cjs \
+            netlify/functions/__tests__/order-confirmation-token.test.cjs \
+            netlify/functions/__tests__/guest-order-confirmation-flow.test.cjs \
+            netlify/functions/__tests__/purchase-analytics-reconciliation.test.cjs \
             netlify/functions/__tests__/mark-in-production-email.test.cjs \
             netlify/functions/__tests__/tracking-email-handler.test.cjs \
             netlify/functions/__tests__/get-order-public.test.cjs
@@ -87,6 +113,8 @@ jobs:
             src/lib/order-thumbnail.test.ts \
             src/store/cart.previewLifecycle.test.ts \
             src/components/checkout/PayPalCheckoutReliable.identity.test.ts \
+            src/components/checkout/StripeCheckout.flow.test.ts \
+            src/components/checkout/stripeCheckoutState.test.ts \
             --reporter=verbose
 
       - name: Run real-browser artwork handoff regression
@@ -218,6 +246,47 @@ jobs:
             test "$code" = "200"
             grep -qi '<!doctype html' "/tmp/${safe_name}.html"
           done
+
+      - name: Verify deployed Stripe entrypoints initialize safely
+        env:
+          PREVIEW_URL: https://deploy-preview-${{ github.event.pull_request.number }}--bannersonthefly.netlify.app
+        run: |
+          set -euo pipefail
+
+          for endpoint in stripe-config stripe-create-payment-intent stripe-finalize-order stripe-payment-status; do
+            code=$(curl -sS -X OPTIONS -o "/tmp/${endpoint}.txt" -w '%{http_code}' \
+              "$PREVIEW_URL/.netlify/functions/$endpoint")
+            case "$code" in
+              200|204) ;;
+              *) echo "$endpoint did not initialize (HTTP $code)"; exit 1 ;;
+            esac
+          done
+
+          code=$(curl -sS -o /tmp/stripe-config.json -w '%{http_code}' \
+            "$PREVIEW_URL/.netlify/functions/stripe-config")
+          test "$code" = "200"
+          jq -e '(.enabled | type) == "boolean"' /tmp/stripe-config.json >/dev/null
+          jq -e '.environment == "test" or .environment == "live"' /tmp/stripe-config.json >/dev/null
+          jq -e '(.publishableKey == null) or ((.publishableKey | type) == "string" and (.publishableKey | startswith("pk_")))' \
+            /tmp/stripe-config.json >/dev/null
+          if jq -e 'has("secretKey") or has("webhookSecret") or has("secret_key") or has("webhook_secret")' \
+            /tmp/stripe-config.json >/dev/null; then
+            echo "stripe-config exposed a forbidden secret field"
+            exit 1
+          fi
+          if [ "$(jq -r '.enabled' /tmp/stripe-config.json)" = "true" ]; then
+            jq -e '.environment == "test" and (.publishableKey | startswith("pk_test_"))' \
+              /tmp/stripe-config.json >/dev/null
+          fi
+
+          # An unsigned webhook must never be acknowledged as a valid event.
+          code=$(curl -sS -o /tmp/stripe-webhook.json -w '%{http_code}' \
+            -X POST -H 'Content-Type: application/json' --data '{}' \
+            "$PREVIEW_URL/.netlify/functions/stripe-webhook")
+          case "$code" in
+            400|401|403|405|503) ;;
+            *) echo "Unsigned Stripe webhook returned unsafe HTTP $code"; exit 1 ;;
+          esac
 
       - name: Verify retired campaign routes and functions stay unavailable
         env:

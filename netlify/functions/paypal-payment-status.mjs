@@ -5,6 +5,7 @@ import captureModule from './_shared/legacy/paypal-capture-forward.cjs';
 import customerInfoModule from './_shared/legacy/paypal-customer-info.cjs';
 import orderConfirmationModule from './_shared/order-confirmation-token.cjs';
 import runtimeConfig from './_shared/paypal-runtime-config.cjs';
+import internalUrlModule from './_shared/stripe-runtime-config.cjs';
 
 const { constantTimeEqual } = orderConfirmationModule;
 
@@ -24,12 +25,7 @@ const reply = (statusCode, body) => ({
   body: JSON.stringify(body),
 });
 
-const getSiteUrl = (event) => {
-  const host = event?.headers?.['x-forwarded-host'] || event?.headers?.host;
-  if (host) return `https://${host}`;
-  const configured = process.env.DEPLOY_PRIME_URL || process.env.URL || process.env.PUBLIC_SITE_URL;
-  return configured ? String(configured).replace(/\/$/, '') : null;
-};
+const getSiteUrl = internalUrlModule.siteUrlForEvent;
 
 const queuePaidOrderFollowups = async (event, orderId) => {
   const siteUrl = getSiteUrl(event);
@@ -155,6 +151,7 @@ const handler = async (event) => {
       body: JSON.stringify({
         orderID: order.paypal_order_id,
         internalOrderId,
+        checkoutKey: order.checkout_idempotency_key,
         reconcileOnly: true,
       }),
     });
@@ -168,19 +165,6 @@ const handler = async (event) => {
       && capturePayload?.paymentCaptured === true
       && capturePayload?.captureStatus === 'COMPLETED'
     ) {
-      try {
-        await customerInfoModule.refreshOrderCustomerInfo({
-          internalOrderId,
-          orderID: order.paypal_order_id,
-          approvedOrderData: input.approvedOrderData,
-          shippingChangeData: input.shippingChangeData,
-        });
-      } catch (error) {
-        console.error('[paypal-payment-status] customer refresh failed after reconciliation', {
-          internalOrderId,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
       order = await loadOrder(sql, internalOrderId) || order;
       void queuePaidOrderFollowups(event, internalOrderId);
       return reply(200, paidPayload(

@@ -1,52 +1,27 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { readFile } from 'node:fs/promises';
-import captureModule from '../_shared/legacy/paypal-capture-minimal.cjs';
+import captureModule from '../_shared/legacy/paypal-capture-final.cjs';
 
 const {
   extractCustomerEmail,
   extractShippingAddress,
-  customerFirstName,
-  queueProductionPdfs,
-  buildSuccessPayload,
-  buildReconciliationPayload,
+  successPayload,
+  verificationPayload,
   validateCompletedCapture,
 } = captureModule._test;
 
-describe('PayPal capture production behavior', () => {
-  const originalEnv = { ...process.env };
-
-  beforeEach(() => {
-    process.env.URL = 'https://example.test';
-    process.env.INTERNAL_JOB_SECRET = 'test-secret';
-    global.fetch = vi.fn();
-  });
-
-  afterEach(() => {
-    process.env = { ...originalEnv };
-    vi.restoreAllMocks();
-  });
-
-  it('extracts a usable guest-card customer email', () => {
+describe('deployed PayPal capture lifecycle', () => {
+  it('extracts provider-verified wallet/card contact without generated placeholders', () => {
     expect(extractCustomerEmail({
+      payer: { email_address: 'guest-123@bannersonthefly.com' },
       payment_source: {
-        card: {
-          attributes: {
-            customer: { email_address: 'Customer@Example.com' },
-          },
-        },
+        card: { attributes: { customer: { email_address: 'Customer@Example.com' } } },
       },
     })).toBe('customer@example.com');
   });
 
-  it('extracts PayPal-wallet email and ignores generated guest placeholders', () => {
-    expect(extractCustomerEmail({
-      payer: { email_address: 'guest-123@bannersonthefly.com' },
-      payment_source: { paypal: { email_address: 'wallet@example.com' } },
-    })).toBe('wallet@example.com');
-  });
-
-  it('extracts customer name and the complete shipping address', () => {
-    const shipping = extractShippingAddress({
+  it('extracts the complete GET_FROM_FILE shipping address', () => {
+    expect(extractShippingAddress({
       purchase_units: [{
         shipping: {
           name: { full_name: 'Chantale Riolo' },
@@ -60,9 +35,7 @@ describe('PayPal capture production behavior', () => {
           },
         },
       }],
-    });
-
-    expect(shipping).toEqual({
+    })).toEqual({
       name: 'Chantale Riolo',
       street: '123 Main Street',
       street2: 'Suite 4',
@@ -71,123 +44,97 @@ describe('PayPal capture production behavior', () => {
       zip: '14201',
       country: 'US',
     });
-    expect(customerFirstName(shipping)).toBe('Chantale');
   });
 
-  it('queues production PDFs with the existing internal-secret contract', async () => {
-    global.fetch.mockResolvedValue({ ok: true, status: 202 });
-
-    await expect(queueProductionPdfs('internal-1')).resolves.toBe(true);
-    expect(global.fetch).toHaveBeenCalledWith(
-      'https://example.test/.netlify/functions/generate-paid-order-pdfs-background',
-      expect.objectContaining({
-        method: 'POST',
-        headers: expect.objectContaining({
-          'X-Internal-Job-Secret': 'test-secret',
-        }),
-        body: JSON.stringify({ orderId: 'internal-1' }),
-      }),
-    );
-  });
-
-  it('does not throw or change payment success when PDF queueing fails', async () => {
-    global.fetch.mockResolvedValue({ ok: false, status: 500 });
-    await expect(queueProductionPdfs('internal-2')).resolves.toBe(false);
-  });
-
-  it('keeps the successful capture response contract and additive safety fields', () => {
-    const response = buildSuccessPayload({
-      orderID: 'PAYPAL-ORDER',
-      internalOrderId: 'INTERNAL-ORDER',
-      validation: {
-        captureId: 'CAPTURE-1',
-        orderStatus: 'COMPLETED',
-        captureStatus: 'COMPLETED',
-        amountCents: 8000,
-        currency: 'USD',
-      },
-      environment: 'sandbox',
-      paypalData: { status: 'COMPLETED' },
-      shippingAddress: {
-        name: 'Chantale Riolo',
-        street: '123 Main Street',
-        city: 'Buffalo',
-        state: 'NY',
-        zip: '14201',
-        country: 'US',
-      },
-      persistedOrder: {
-        email: 'chantale@example.com',
-        customer_name: 'Chantale Riolo',
-        shipping_street: '123 Main Street',
-        shipping_city: 'Buffalo',
-        shipping_state: 'NY',
-        shipping_zip: '14201',
-      },
-    });
-
-    expect(response).toMatchObject({
-      success: true,
-      paymentCaptured: true,
-      reconciliationRequired: false,
-      paypalOrderID: 'PAYPAL-ORDER',
-      orderID: 'PAYPAL-ORDER',
-      captureID: 'CAPTURE-1',
+  it('accepts only an exact completed USD capture', () => {
+    const completed = validateCompletedCapture({
       status: 'COMPLETED',
+      purchase_units: [{
+        payments: { captures: [{
+          id: 'CAPTURE-2',
+          status: 'COMPLETED',
+          amount: { currency_code: 'USD', value: '42.40' },
+        }] },
+      }],
+    }, 4240);
+    expect(completed).toMatchObject({
+      ok: true,
+      captureId: 'CAPTURE-2',
+      captureStatus: 'COMPLETED',
+      amountCents: 4240,
+      currency: 'USD',
+    });
+    expect(validateCompletedCapture({
+      status: 'COMPLETED',
+      purchase_units: [{ payments: { captures: [{
+        id: 'CAPTURE-3', status: 'PENDING', amount: { currency_code: 'USD', value: '42.40' },
+      }] } }],
+    }, 4240).ok).toBe(false);
+    expect(validateCompletedCapture({
+      status: 'COMPLETED',
+      purchase_units: [{ payments: { captures: [{
+        id: 'CAPTURE-4', status: 'COMPLETED', amount: { currency_code: 'EUR', value: '42.40' },
+      }] } }],
+    }, 4240).ok).toBe(false);
+  });
+
+  it('keeps unknown results locked and completed results canonical', () => {
+    expect(verificationPayload('PAYPAL-ORDER', 'INTERNAL-ORDER')).toMatchObject({
+      paymentCaptured: false,
+      paymentStatusUnknown: true,
+      reconciliationRequired: true,
+      doNotRetry: true,
+    });
+    expect(successPayload({
+      id: 'INTERNAL-ORDER',
+      paypal_order_id: 'PAYPAL-ORDER',
+      paypal_capture_id: 'CAPTURE-1',
+      total_cents: 8000,
+      status: 'paid',
+    }, null, {
+      captureId: 'CAPTURE-1',
+      amountCents: 8000,
+      currency: 'USD',
+    }, 'sandbox', true)).toMatchObject({
+      success: true,
+      finalized: true,
+      paymentCaptured: true,
+      captureID: 'CAPTURE-1',
       captureStatus: 'COMPLETED',
       capturedAmountCents: 8000,
       capturedCurrency: 'USD',
       environment: 'sandbox',
-      internalOrderId: 'INTERNAL-ORDER',
     });
   });
 
-  it('returns a do-not-retry reconciliation contract after a verified completed capture', () => {
-    const validation = validateCompletedCapture({
-      status: 'COMPLETED',
-      purchase_units: [{
-        payments: {
-          captures: [{
-            id: 'CAPTURE-2',
-            status: 'COMPLETED',
-            amount: { currency_code: 'USD', value: '42.40' },
-          }],
-        },
-      }],
-    }, 4240);
-
-    expect(validation.ok).toBe(true);
-    expect(buildReconciliationPayload({
-      orderID: 'PAYPAL-2',
-      internalOrderId: 'INTERNAL-2',
-      validation,
-      environment: 'live',
-      paypalData: { status: 'COMPLETED' },
-      shippingAddress: null,
-    })).toMatchObject({
-      success: true,
-      paymentCaptured: true,
-      reconciliationRequired: true,
-      captureID: 'CAPTURE-2',
-      status: 'COMPLETED',
-      captureStatus: 'COMPLETED',
-    });
-  });
-
-  it('keeps stale-link rejection and paid finalization before production queueing', async () => {
+  it('authenticates the binding before provider access and atomically replaces provider shipping', async () => {
     const source = await readFile(
-      new URL('../_shared/legacy/paypal-capture-minimal.cjs', import.meta.url),
+      new URL('../_shared/legacy/paypal-capture-final.cjs', import.meta.url),
       'utf8',
     );
+    const auth = source.indexOf('constantTimeEqual(checkoutKey, order.checkout_idempotency_key)');
+    const oauth = source.indexOf('const config = getConfig()');
+    const capture = source.indexOf('/capture`');
+    const paid = source.indexOf("status = 'paid'");
 
-    const staleCheck = source.indexOf("if (order.paypal_order_id !== orderID)");
-    const oauth = source.indexOf('getPayPalAccessToken(paypalConfig)');
-    const paidUpdate = source.indexOf("UPDATE orders SET\n        status = 'paid'");
-    const productionQueue = source.indexOf('await queueProductionPdfs(internalOrderId)', paidUpdate);
+    expect(auth).toBeGreaterThan(-1);
+    expect(oauth).toBeGreaterThan(auth);
+    expect(capture).toBeGreaterThan(oauth);
+    expect(paid).toBeGreaterThan(capture);
+    expect(source).toMatch(/shipping_street2 = CASE WHEN \$\{hasCompleteProviderShipping\}[\s\S]*THEN \$\{paypalAddress\?\.street2 \|\| null\}/);
+    expect(source).not.toMatch(/input\.customer|input\.shippingAddress|approvedOrderData|shippingChangeData/);
+    expect(source).toMatch(/The already-paid winner is immutable/);
+  });
 
-    expect(staleCheck).toBeGreaterThan(-1);
-    expect(oauth).toBeGreaterThan(staleCheck);
-    expect(paidUpdate).toBeGreaterThan(-1);
-    expect(productionQueue).toBeGreaterThan(paidUpdate);
+  it('all deployed capture routes use the full authoritative wrapper', async () => {
+    const active = await readFile(new URL('../paypal-capture-minimal.mjs', import.meta.url), 'utf8');
+    const compatibility = await readFile(new URL('../paypal-capture-order.mjs', import.meta.url), 'utf8');
+    const netlify = await readFile(new URL('../../../netlify.toml', import.meta.url), 'utf8');
+
+    expect(active).toMatch(/paypal-capture-forward\.cjs/);
+    expect(active).toMatch(/queuePaidOrderFollowups\(event, internalOrderId\)/);
+    expect(compatibility).toMatch(/export \{ default \} from '\.\/paypal-capture-minimal\.mjs'/);
+    expect(compatibility).not.toMatch(/paypal-capture-order\.cjs|paypal-capture-forward\.cjs/);
+    expect(netlify).toMatch(/from = "\/api\/paypal\/capture-order"[\s\S]*to = "\/\.netlify\/functions\/paypal-capture-order"/);
   });
 });

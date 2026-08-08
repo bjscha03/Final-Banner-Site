@@ -2,6 +2,8 @@ import { neon } from '@neondatabase/serverless';
 import { withLambda } from '@netlify/aws-lambda-compat';
 import legacyModule from './_shared/legacy/get-orders.cjs';
 import visibilityModule from './_shared/admin-order-visibility.cjs';
+import paypalCaptureModule from './_shared/legacy/paypal-capture-forward.cjs';
+import checkoutModule from './_shared/stripe-checkout-service.cjs';
 
 const {
   hasCompletedPayPalPaymentEvidence,
@@ -10,52 +12,6 @@ const {
 
 const PAGE_SIZE = 20;
 const MAX_ADMIN_SCAN_PAGES = 5000;
-
-const getPayPalConfig = () => {
-  const environment = String(process.env.PAYPAL_ENV || 'sandbox').toLowerCase();
-  const suffix = environment.toUpperCase();
-  const clientId = process.env[`PAYPAL_CLIENT_ID_${suffix}`];
-  const secret = process.env[`PAYPAL_SECRET_${suffix}`];
-  const baseUrl = environment === 'live'
-    ? 'https://api-m.paypal.com'
-    : 'https://api-m.sandbox.paypal.com';
-  return { environment, clientId, secret, baseUrl };
-};
-
-const getPayPalAccessToken = async () => {
-  const config = getPayPalConfig();
-  if (!config.clientId || !config.secret) {
-    throw new Error(`PayPal credentials are missing for ${config.environment}`);
-  }
-
-  const response = await fetch(`${config.baseUrl}/v1/oauth2/token`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Basic ${Buffer.from(`${config.clientId}:${config.secret}`).toString('base64')}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-      Accept: 'application/json',
-    },
-    body: 'grant_type=client_credentials',
-  });
-  if (!response.ok) throw new Error(`PayPal OAuth returned ${response.status}`);
-  const body = await response.json();
-  return { accessToken: body.access_token, baseUrl: config.baseUrl };
-};
-
-const getCompletedCapture = (paypalOrder) => {
-  const units = Array.isArray(paypalOrder?.purchase_units) ? paypalOrder.purchase_units : [];
-  for (const unit of units) {
-    const captures = Array.isArray(unit?.payments?.captures) ? unit.payments.captures : [];
-    const capture = captures.find((candidate) => String(candidate?.status || '').toUpperCase() === 'COMPLETED');
-    if (capture) return capture;
-  }
-  return null;
-};
-
-const amountToCents = (value) => {
-  const amount = Number(value);
-  return Number.isFinite(amount) ? Math.round(amount * 100) : null;
-};
 
 const parseOrders = (response) => {
   if (!response?.body) return null;
@@ -75,82 +31,51 @@ const fetchLegacyOrdersPage = (event, context, page) => legacyModule.handler({
   },
 }, context);
 
-async function reconcilePendingPayPalOrders(sql, orders, paymentById) {
+async function reconcilePendingPayPalOrders(sql, orders, paymentById, event = {}) {
   const candidates = orders
     .map((order) => ({ order, payment: paymentById.get(String(order?.id)) }))
     .filter(({ order, payment }) => (
       String(order?.status || '').toLowerCase() === 'pending'
       && payment?.paypal_order_id
       && !payment?.paypal_capture_id
+      && String(payment?.payment_method || '').toLowerCase() === 'paypal'
+      && !payment?.stripe_payment_intent_id
       && String(payment?.payment_reconciliation_status || '').toLowerCase() !== 'complete'
     ));
 
   if (!candidates.length) return;
 
-  let paypal;
-  try {
-    paypal = await getPayPalAccessToken();
-  } catch (error) {
-    console.error('[get-orders] PayPal reconciliation could not authenticate', {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return;
-  }
-
   for (const { order, payment } of candidates) {
     try {
-      const response = await fetch(`${paypal.baseUrl}/v2/checkout/orders/${encodeURIComponent(payment.paypal_order_id)}`, {
-        headers: {
-          Authorization: `Bearer ${paypal.accessToken}`,
-          Accept: 'application/json',
-        },
+      const response = await paypalCaptureModule.handler({
+        httpMethod: 'POST',
+        headers: event?.headers || {},
+        body: JSON.stringify({
+          orderID: payment.paypal_order_id,
+          internalOrderId: order.id,
+          checkoutKey: payment.checkout_idempotency_key,
+          reconcileOnly: true,
+        }),
       });
-      if (!response.ok) {
-        console.warn('[get-orders] PayPal order lookup failed', {
-          orderId: order.id,
-          paypalOrderId: payment.paypal_order_id,
-          status: response.status,
-        });
+      let payload = {};
+      try { payload = JSON.parse(response?.body || '{}'); } catch { /* handled below */ }
+      if (Number(response?.statusCode || 500) !== 200
+          || payload?.paymentCaptured !== true
+          || payload?.captureStatus !== 'COMPLETED'
+          || !payload?.captureID) {
         continue;
       }
 
-      const paypalOrder = await response.json();
-      const capture = getCompletedCapture(paypalOrder);
-      if (!capture) continue;
-
-      const currency = String(capture?.amount?.currency_code || '').toUpperCase();
-      const capturedCents = amountToCents(capture?.amount?.value);
-      const expectedCents = Number(payment.total_cents || order.total_cents || 0);
-      if (currency !== 'USD' || !capturedCents || capturedCents !== expectedCents) {
-        console.error('[get-orders] Refusing PayPal reconciliation because capture total does not match order', {
-          orderId: order.id,
-          paypalOrderId: payment.paypal_order_id,
-          captureId: capture.id || null,
-          currency,
-          capturedCents,
-          expectedCents,
-        });
-        continue;
-      }
-
-      const updated = await sql`
-        UPDATE orders
-           SET status = 'paid',
-               paypal_capture_id = ${capture.id},
-               payment_reconciliation_status = 'complete',
-               updated_at = NOW()
-         WHERE id = ${order.id}
-           AND status = 'pending'
-        RETURNING id
-      `;
-      if (!updated.length) continue;
-
-      payment.paypal_capture_id = capture.id;
+      payment.paypal_capture_id = payload.captureID;
       payment.payment_reconciliation_status = 'complete';
+      payment.payment_method = 'paypal';
+      order.status = 'paid';
+      const followupsQueued = await checkoutModule.queuePaidOrderFollowups(event, order.id);
       console.log('[get-orders] Reconciled completed PayPal payment for Admin', {
         orderId: order.id,
         paypalOrderId: payment.paypal_order_id,
-        captureId: capture.id,
+        captureId: payload.captureID,
+        followupsQueued,
       });
     } catch (error) {
       console.error('[get-orders] PayPal reconciliation failed for order', {
@@ -162,7 +87,7 @@ async function reconcilePendingPayPalOrders(sql, orders, paymentById) {
   }
 }
 
-async function enrichOrderPaymentMetadata(sql, orders) {
+async function enrichOrderPaymentMetadata(sql, orders, options = {}) {
   if (!orders.length) return orders;
 
   const ids = orders
@@ -177,6 +102,10 @@ async function enrichOrderPaymentMetadata(sql, orders) {
             orders.payment_method,
             orders.paypal_order_id,
             orders.paypal_capture_id,
+            orders.stripe_payment_intent_id,
+            orders.stripe_charge_id,
+            orders.stripe_wallet_type,
+            orders.checkout_idempotency_key,
             orders.is_test_order,
             orders.test_order_reason,
             CASE
@@ -228,7 +157,7 @@ async function enrichOrderPaymentMetadata(sql, orders) {
     }
   }
 
-  await reconcilePendingPayPalOrders(sql, orders, paymentById);
+  await reconcilePendingPayPalOrders(sql, orders, paymentById, options.event || {});
 
   return orders.map((order) => {
     const payment = paymentById.get(String(order.id));
@@ -250,6 +179,11 @@ async function enrichOrderPaymentMetadata(sql, orders) {
       payment_method: payment.payment_method || order.payment_method || null,
       paypal_order_id: payment.paypal_order_id || order.paypal_order_id || null,
       paypal_capture_id: payment.paypal_capture_id || order.paypal_capture_id || null,
+      ...(options.includeStripeReferences ? {
+        stripe_payment_intent_id: payment.stripe_payment_intent_id || order.stripe_payment_intent_id || null,
+        stripe_charge_id: payment.stripe_charge_id || order.stripe_charge_id || null,
+      } : {}),
+      stripe_wallet_type: payment.stripe_wallet_type || order.stripe_wallet_type || null,
       is_test_order: payment.is_test_order === true || payment.is_test_order === 'true' || order.is_test_order === true,
       test_order_reason: payment.test_order_reason || order.test_order_reason || null,
       payment_reconciliation_status: payment.payment_reconciliation_status || order.payment_reconciliation_status || null,
@@ -290,7 +224,10 @@ async function loadAdminPaidPage(event, context, sql, requestedPage) {
     let enrichedOrders = rawOrders;
     if (sql) {
       try {
-        enrichedOrders = await enrichOrderPaymentMetadata(sql, rawOrders);
+        enrichedOrders = await enrichOrderPaymentMetadata(sql, rawOrders, {
+          includeStripeReferences: true,
+          event,
+        });
       } catch (error) {
         // Fail closed for Admin: if payment metadata cannot be verified, only
         // canonical paid lifecycle statuses survive the visibility filter.

@@ -1,17 +1,12 @@
 import { withLambda } from '@netlify/aws-lambda-compat';
 import webhookModule from './_shared/legacy/paypal-webhook-forward.cjs';
-import customerInfoModule from './_shared/legacy/paypal-customer-info.cjs';
 import paypalConversionHelpers from './_shared/paypalConversionHelpers.cjs';
 import runtimeConfig from './_shared/paypal-runtime-config.cjs';
+import internalUrlModule from './_shared/stripe-runtime-config.cjs';
 
 const { getPayPalWebhookOrderId } = paypalConversionHelpers;
 
-const getSiteUrl = (event) => {
-  const host = event?.headers?.['x-forwarded-host'] || event?.headers?.host;
-  if (host) return `https://${host}`;
-  const configured = process.env.DEPLOY_PRIME_URL || process.env.URL || process.env.PUBLIC_SITE_URL;
-  return configured ? String(configured).replace(/\/$/, '') : null;
-};
+const getSiteUrl = internalUrlModule.siteUrlForEvent;
 
 const getProviderOrderId = (event, payload) => {
   if (payload?.orderID || payload?.paypalOrderID) {
@@ -66,6 +61,21 @@ const handler = async (event, context) => {
   let payload = {};
   try { payload = JSON.parse(response.body || '{}'); } catch { return response; }
 
+  // The authenticated core records a completed webhook before this wrapper
+  // queues order follow-ups. If that queue call fails, PayPal retries receive
+  // the core's idempotent duplicate response. Use that duplicate to retry the
+  // queue instead of acknowledging the event and silently losing fulfillment.
+  if (payload?.duplicate === true && payload?.orderId) {
+    const followupsQueued = await queuePaidOrderFollowups(event, payload.orderId);
+    response.statusCode = followupsQueued ? 200 : 503;
+    response.body = JSON.stringify({
+      ...payload,
+      followupsQueued,
+      ...(followupsQueued ? {} : { error: 'FOLLOWUPS_NOT_QUEUED' }),
+    });
+    return response;
+  }
+
   const paypalOrderId = getProviderOrderId(event, payload);
   const definitivePaidState = Boolean(
     payload?.orderId
@@ -75,27 +85,15 @@ const handler = async (event, context) => {
   );
   if (!definitivePaidState) return response;
 
-  let refreshedCustomer = null;
-  try {
-    refreshedCustomer = await customerInfoModule.refreshOrderCustomerInfo({
-      internalOrderId: payload.orderId,
-      orderID: paypalOrderId,
-    });
-  } catch (error) {
-    console.error('[paypal-webhook] customer information refresh failed', {
-      orderId: payload.orderId,
-      paypalOrderId,
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-
   const followupsQueued = await queuePaidOrderFollowups(event, payload.orderId);
+  response.statusCode = followupsQueued ? 200 : 503;
   response.body = JSON.stringify({
     ...payload,
     orderID: paypalOrderId,
     paypalOrderID: paypalOrderId,
-    customerInfoPersisted: Boolean(refreshedCustomer),
+    customerInfoPersisted: Boolean(payload.customerEmail || payload.customerName),
     followupsQueued,
+    ...(followupsQueued ? {} : { error: 'FOLLOWUPS_NOT_QUEUED' }),
   });
   return response;
 };

@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCartStore } from '@/store/cart';
+import { useCartStore, type CanonicalCartQuote } from '@/store/cart';
 import { useAuth, getCurrentUser } from '@/lib/auth';
 import { getOrdersAdapter } from '../lib/orders/adapter';
 import { OrderItem } from '../lib/orders/types';
@@ -12,7 +12,7 @@ import PayPalCheckout from '@/components/checkout/PayPalCheckoutReliable';
 import StripeCheckout from '@/components/checkout/StripeCheckout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Package, Plus, Minus, Trash2, Eye, Tag, Lock, Truck, CircleCheck } from 'lucide-react';
+import { ArrowLeft, Package, Plus, Minus, Trash2, Eye, Tag, Lock, Truck, CircleCheck, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { emailApi } from '@/lib/api';
 import { CartItem } from '@/store/cart';
@@ -27,10 +27,21 @@ import { getItemDisplayName, isYardSignItem, getProductCategory, normalizeOrderI
 import { getProductCopy, getDominantProductType } from '@/lib/product-copy';
 import { getGrommetLabelForDisplay, getGrommetModeForPreview } from '@/lib/cartGrommet';
 import { getExpandedPreviewSelection, getSmallPreviewSelection } from '@/lib/previewSelection';
+import { sanitizedStripeReturnPath } from '@/components/checkout/stripeReturnUrl';
+import {
+  clearActiveCheckoutMarker,
+  readActiveCheckoutMarker,
+  writeActiveCheckoutMarker,
+  type ActiveCheckoutMarker,
+  type CheckoutPaymentStateEvent,
+} from '@/components/checkout/checkoutPaymentState';
+import { storeOrderConfirmationToken } from '@/lib/orderConfirmationStorage';
+
+const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
-  const { items: rawItems, getMigratedItems, isLoading, syncToServer, clearCart, getSubtotalCents, getTaxCents, getTotalCents, updateQuantity, removeItem, discountCode, applyDiscountCode, removeDiscountCode, getResolvedDiscount, sameDayHitService, saturdayDelivery, getSameDayFeeCents, getSaturdayDeliveryFeeCents } = useCartStore();
+  const { items: rawItems, getMigratedItems, isLoading, syncToServer, clearCart, getSubtotalCents, getTaxCents, getTotalCents, updateQuantity, removeItem, applyCanonicalPricingQuote, discountCode, applyDiscountCode, removeDiscountCode, getResolvedDiscount, sameDayHitService, saturdayDelivery, getSameDayFeeCents, getSaturdayDeliveryFeeCents } = useCartStore();
 
   // CRITICAL: Use migrated items to ensure rope/pole pocket costs are calculated
   const items = getMigratedItems();
@@ -40,20 +51,130 @@ const Checkout: React.FC = () => {
   const [discountCodeInput, setDiscountCodeInput] = useState('');
   const [isValidatingDiscount, setIsValidatingDiscount] = useState(false);
   const [discountError, setDiscountError] = useState('');
-  // Feature flag to temporarily disable Stripe (Card / Apple Pay / Google Pay)
-  // in checkout. When false, the Stripe tab is hidden and PayPal is the only
-  // available payment method. Stripe code/components are preserved so this can
-  // be re-enabled later by simply switching ENABLE_STRIPE to true.
-  const ENABLE_STRIPE = false;
-  // Selected payment provider tab. Stripe (cards + Apple/Google Pay) is
-  // shown first when configured; PayPal remains as an alternative.
-  const stripeAvailable = ENABLE_STRIPE && Boolean(
-    (import.meta as any).env?.VITE_STRIPE_PUBLISHABLE_KEY
+  const [stripeRuntime, setStripeRuntime] = useState<{
+    status: 'loading' | 'available' | 'unavailable';
+    publishableKey: string | null;
+    environment: 'test' | 'live' | null;
+  }>({ status: 'loading', publishableKey: null, environment: null });
+  // Read once during the initial render. This makes the provider-neutral lock
+  // synchronous, including the crash window where only a checkout key exists
+  // and the create-payment response never reached the browser.
+  const [initialActiveCheckout] = useState<ActiveCheckoutMarker | null>(() => readActiveCheckoutMarker());
+  const [activeCheckout, setActiveCheckout] = useState<ActiveCheckoutMarker | null>(initialActiveCheckout);
+  const [needsStoredCheckoutRecovery, setNeedsStoredCheckoutRecovery] = useState(Boolean(initialActiveCheckout));
+  const [recoveryMessage, setRecoveryMessage] = useState<string | null>(null);
+  const [recoveryChecking, setRecoveryChecking] = useState(false);
+  const [staleCartReview, setStaleCartReview] = useState<{
+    serverTotalCents: number;
+    applyFailed: boolean;
+  } | null>(null);
+  const [paymentProvider, setPaymentProvider] = useState<'stripe' | 'paypal'>(
+    initialActiveCheckout?.provider || 'stripe',
   );
-  // Keep PayPal as the default tab for strongest first-impression trust,
-  // while still offering Stripe card + wallet flows as a secondary option.
-  const [showCardForm, setShowCardForm] = useState(false);
   const [showPromoCode, setShowPromoCode] = useState(false);
+  const paymentSuccessHandledRef = useRef(false);
+  const checkoutLocked = Boolean(activeCheckout) || recoveryChecking;
+
+  const handlePaymentStateChange = useCallback((event: CheckoutPaymentStateEvent) => {
+    setNeedsStoredCheckoutRecovery(false);
+    if (event.active) {
+      const marker = writeActiveCheckoutMarker({
+        provider: event.provider,
+        checkoutKey: event.checkoutKey,
+        phase: event.phase,
+        orderId: event.orderId,
+        paymentIntentId: event.paymentIntentId,
+        totalCents: event.totalCents,
+      });
+      setActiveCheckout(marker);
+      setPaymentProvider(event.provider);
+      setRecoveryMessage(event.phase === 'requires_action'
+        ? 'Your bank needs one more authentication step before payment can finish.'
+        : 'Your payment is still being securely verified. Cart changes are temporarily locked.');
+      return;
+    }
+
+    clearActiveCheckoutMarker(event.checkoutKey);
+    setActiveCheckout((current) => (
+      !current || current.checkoutKey === event.checkoutKey ? null : current
+    ));
+    setRecoveryMessage(null);
+  }, []);
+
+  const handleCanonicalQuote = useCallback((
+    quote: CanonicalCartQuote,
+    serverTotalCents: number,
+  ): boolean => {
+    const totalsMatch = Number.isSafeInteger(serverTotalCents)
+      && serverTotalCents >= 0
+      && serverTotalCents === quote.totalCents;
+    const applied = totalsMatch && applyCanonicalPricingQuote(quote);
+    setStaleCartReview({
+      serverTotalCents: totalsMatch ? serverTotalCents : 0,
+      applyFailed: !applied,
+    });
+    setRecoveryMessage(null);
+    toast({
+      title: applied ? 'Your order total was updated' : 'Refresh checkout before paying',
+      description: applied
+        ? 'We applied current server pricing. Review the updated total before submitting a fresh payment.'
+        : 'The server quote did not match this cart exactly, so payment remains blocked for your protection.',
+      variant: applied ? undefined : 'destructive',
+    });
+    return applied;
+  }, [applyCanonicalPricingQuote, toast]);
+
+  // Stripe can append the PaymentIntent client secret after a 3DS redirect.
+  // Strip it in a layout effect before checkout's passive analytics effects.
+  // The values are never read or used as authorization; recovery uses the
+  // session-bound checkout key and same-origin POST status endpoint instead.
+  useIsomorphicLayoutEffect(() => {
+    const cleanPath = sanitizedStripeReturnPath(window.location.href);
+    if (cleanPath) window.history.replaceState(window.history.state, '', cleanPath);
+  }, []);
+
+  // Stripe configuration is resolved server-side so preview/test and live keys
+  // cannot cross environments. A bounded failure falls back to the existing
+  // PayPal checkout instead of leaving customers on an endless loading state.
+  useEffect(() => {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 7000);
+    let active = true;
+    void fetch('/.netlify/functions/stripe-config', {
+      method: 'GET',
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json' },
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => ({}));
+        if (!active) return;
+        const publishableKey = typeof payload?.publishableKey === 'string'
+          ? payload.publishableKey.trim()
+          : '';
+        const environment = payload?.environment === 'live' ? 'live' : 'test';
+        const prefixMatches = environment === 'live'
+          ? publishableKey.startsWith('pk_live_')
+          : publishableKey.startsWith('pk_test_');
+        if (response.ok && payload?.enabled === true && prefixMatches) {
+          setStripeRuntime({ status: 'available', publishableKey, environment });
+          return;
+        }
+        setStripeRuntime({ status: 'unavailable', publishableKey: null, environment: null });
+      })
+      .catch(() => {
+        if (active) setStripeRuntime({ status: 'unavailable', publishableKey: null, environment: null });
+      })
+      .finally(() => window.clearTimeout(timeout));
+
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, []);
+
+  const stripeAvailable = stripeRuntime.status === 'available' && Boolean(stripeRuntime.publishableKey);
 
   // Get totals from cart store methods
   const subtotalCents = getSubtotalCents();
@@ -117,6 +238,8 @@ const Checkout: React.FC = () => {
     : '';
 
   const canProceed = minimumOrderValidation.isValid && !yardSignInvalid;
+  const providerTotalCents = activeCheckout?.totalCents || totalCents;
+  const paymentSubmissionBlocked = !canProceed || Boolean(staleCartReview);
   if (flags.freeShipping || flags.minOrderFloor) {
     const pricingItems: PricingItem[] = items.map(item => ({ line_total_cents: item.line_total_cents }));
     const totals = computeTotals(pricingItems, 0.06, pricingOptions);
@@ -175,6 +298,7 @@ const Checkout: React.FC = () => {
   // (e.g. NEW20 leaking from a previous design-page session).
   // Cart management functions
   const handleIncreaseQuantity = (itemId: string) => {
+    if (checkoutLocked) return;
     const item = items.find(i => i.id === itemId);
     if (item && item.quantity < 999) {
       updateQuantity(itemId, item.quantity + 1);
@@ -182,6 +306,7 @@ const Checkout: React.FC = () => {
   };
 
   const handleDecreaseQuantity = (itemId: string) => {
+    if (checkoutLocked) return;
     const item = items.find(i => i.id === itemId);
     if (item && item.quantity > 1) {
       updateQuantity(itemId, item.quantity - 1);
@@ -189,6 +314,7 @@ const Checkout: React.FC = () => {
   };
 
   const handleRemoveItem = (itemId: string) => {
+    if (checkoutLocked) return;
     removeItem(itemId);
     toast({
       title: "Item Removed",
@@ -198,6 +324,7 @@ const Checkout: React.FC = () => {
 
   // Discount code handlers
   const handleApplyDiscount = async () => {
+    if (checkoutLocked) return;
     if (!discountCodeInput.trim()) {
       setDiscountError('Please enter a discount code');
       return;
@@ -253,6 +380,7 @@ const Checkout: React.FC = () => {
   };
 
   const handleRemoveDiscount = () => {
+    if (checkoutLocked) return;
     removeDiscountCode();
     setDiscountCodeInput('');
     setDiscountError('');
@@ -289,6 +417,163 @@ const Checkout: React.FC = () => {
     });
   }, [discountCode?.code, isLoading, items, totalCents]);
 
+  const handlePaymentSuccess = useCallback(async (orderId: string, orderData?: any) => {
+    if (paymentSuccessHandledRef.current) return;
+    paymentSuccessHandledRef.current = true;
+    try {
+      console.log('Payment success handler called with order ID:', orderId);
+      const paidItems = items;
+      const paidTotalCents = Number.isInteger(Number(orderData?.total_cents))
+        ? Number(orderData.total_cents)
+        : totalCents;
+      const confirmationToken = orderData?.orderConfirmationToken
+        || orderData?.confirmationToken
+        || null;
+      if (confirmationToken) {
+        // The signed credential is scoped by order and is only ever sent in
+        // X-Order-Confirmation-Token, never in a URL.
+        storeOrderConfirmationToken(orderId, confirmationToken);
+      }
+
+      clearActiveCheckoutMarker();
+      setActiveCheckout(null);
+      setRecoveryMessage(null);
+      clearCart();
+
+      toast({
+        title: 'Order Placed Successfully!',
+        description: `Your order has been created and payment processed. Order ID: ${orderId}`,
+      });
+
+      navigate(`/payment-success?orderId=${orderId}`, {
+        replace: true,
+        state: {
+          fromCheckout: true,
+          orderId,
+          orderConfirmationToken: confirmationToken,
+          orderAccessRecovery: orderData?.orderAccessRecovery || null,
+          items: paidItems,
+          shippingAddress: orderData?.shippingAddress || null,
+          total: paidTotalCents,
+          discountCode: discountCode ? { code: discountCode.code, discountPercentage: discountCode.discountPercentage, discountAmountCents: discountCode.discountAmountCents } : null,
+          serverPricing: orderData ? { subtotal_cents: orderData.subtotal_cents, tax_cents: orderData.tax_cents, total_cents: orderData.total_cents, applied_discount_cents: orderData.applied_discount_cents, applied_discount_label: orderData.applied_discount_label, applied_discount_type: orderData.applied_discount_type, same_day_fee_cents: orderData.same_day_fee_cents, saturday_fee_cents: orderData.saturday_fee_cents, shipping_cents: orderData.shipping_cents } : null,
+        },
+      });
+    } catch (error) {
+      console.error('Payment success handler error:', error);
+      toast({
+        title: 'Order Processing Error',
+        description: 'Your payment was processed but there was an issue completing your order. Please contact support.',
+        variant: 'destructive',
+      });
+    }
+  }, [clearCart, discountCode, items, navigate, toast, totalCents]);
+
+  const handlePaymentError = useCallback((error: any) => {
+    console.error('Payment error:', error);
+    if (error?.code === 'STALE_CART_TOTAL') return;
+    if (error?.paymentStatusUnknown === true || error?.doNotRetry === true) {
+      toast({
+        title: 'Payment verification in progress',
+        description: 'We are checking the payment result. Do not submit another payment.',
+      });
+      return;
+    }
+    toast({
+      title: 'Payment Failed',
+      description: 'There was an error processing your payment. Please try again.',
+      variant: 'destructive',
+    });
+  }, [toast]);
+
+  const reconcileStoredStripeCheckout = useCallback(async () => {
+    const marker = activeCheckout;
+    if (!marker || marker.provider !== 'stripe') return;
+    setRecoveryChecking(true);
+    setRecoveryMessage('Restoring your secure payment status…');
+    try {
+      const response = await fetch('/.netlify/functions/stripe-payment-status', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ checkoutKey: marker.checkoutKey }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (response.ok && payload?.ok === true && payload?.paid === true && payload?.finalized === true && payload?.confirmationToken) {
+        const orderId = payload.orderId || payload.order?.id;
+        if (orderId) {
+          await handlePaymentSuccess(orderId, {
+            ...(payload.order || {}),
+            orderConfirmationToken: payload.confirmationToken,
+            shippingAddress: payload.shippingAddress || payload.order?.shipping_address,
+          });
+          return;
+        }
+      }
+
+      if (response.ok && payload?.activePayment === true) {
+        const phase = payload?.status === 'requires_action' ? 'requires_action' : 'verifying';
+        const refreshed = writeActiveCheckoutMarker({
+          provider: 'stripe',
+          checkoutKey: marker.checkoutKey,
+          phase,
+          orderId: payload.orderId || marker.orderId,
+          paymentIntentId: payload.paymentIntentId || marker.paymentIntentId,
+          totalCents: marker.totalCents,
+        });
+        setActiveCheckout(refreshed);
+        setPaymentProvider('stripe');
+        setRecoveryMessage(phase === 'requires_action'
+          ? 'Your bank needs one more authentication step. Resume it in the secure payment panel.'
+          : 'Your payment is still being securely verified. Cart changes remain locked.');
+        return;
+      }
+
+      if (response.status === 404 || payload?.safeToRetry === true) {
+        clearActiveCheckoutMarker(marker.checkoutKey);
+        setActiveCheckout(null);
+        setRecoveryMessage(payload?.message || 'No payment was completed. You may review the cart and try again.');
+        return;
+      }
+
+      setRecoveryMessage('Payment verification is taking longer than usual. Do not submit another payment; check status again shortly.');
+    } catch {
+      setRecoveryMessage('We could not reach payment verification. Your cart is locked to prevent a duplicate charge; check status again shortly.');
+    } finally {
+      setRecoveryChecking(false);
+      setNeedsStoredCheckoutRecovery(false);
+    }
+  }, [activeCheckout, handlePaymentSuccess]);
+
+  useEffect(() => {
+    if (!needsStoredCheckoutRecovery || !activeCheckout) return;
+    if (activeCheckout.provider === 'paypal') {
+      setPaymentProvider('paypal');
+      setRecoveryMessage('Restoring your PayPal verification…');
+      setNeedsStoredCheckoutRecovery(false);
+      return;
+    }
+    if (stripeRuntime.status === 'loading') return;
+    if (stripeRuntime.status === 'available') {
+      // The mounted Stripe panel owns polling/action recovery when Stripe.js
+      // is available. Checkout owns the same key-only recovery when runtime
+      // configuration failed, avoiding duplicate status requests on reload.
+      setNeedsStoredCheckoutRecovery(false);
+      return;
+    }
+    void reconcileStoredStripeCheckout();
+  }, [activeCheckout, needsStoredCheckoutRecovery, reconcileStoredStripeCheckout, stripeRuntime.status]);
+
+  useEffect(() => {
+    if (!checkoutLocked) return;
+    const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warnBeforeLeaving);
+    return () => window.removeEventListener('beforeunload', warnBeforeLeaving);
+  }, [checkoutLocked]);
+
   // Show loading state while cart is being loaded/merged
   if (isLoading) {
     return (
@@ -319,7 +604,7 @@ const Checkout: React.FC = () => {
   };
 
   // Redirect if cart is empty
-  if (items.length === 0) {
+  if (items.length === 0 && !checkoutLocked) {
     return (
       <Layout>
         <div className="bg-gray-50 py-8 min-h-[calc(100vh-4rem)]">
@@ -341,54 +626,6 @@ const Checkout: React.FC = () => {
     );
   }
 
-  const handlePaymentSuccess = async (orderId: string, orderData?: any) => {
-    try {
-      console.log('Payment success handler called with order ID:', orderId);
-
-      // Clear the cart
-      clearCart();
-
-      // Normal product checkout — show success message and navigate
-      toast({
-        title: "Order Placed Successfully!",
-        description: `Your order has been created and payment processed. Order ID: ${orderId}`,
-      });
-
-      // Navigate to simple success page instead of order confirmation
-      navigate(`/payment-success?orderId=${orderId}`, {
-        replace: true,
-        state: {
-          fromCheckout: true,
-          orderId: orderId,
-          orderConfirmationToken: orderData?.orderConfirmationToken || null,
-          orderAccessRecovery: orderData?.orderAccessRecovery || null,
-          items: items,
-          shippingAddress: orderData?.shippingAddress || null,
-          total: getTotalCents(),
-          discountCode: discountCode ? { code: discountCode.code, discountPercentage: discountCode.discountPercentage, discountAmountCents: discountCode.discountAmountCents } : null,
-          serverPricing: orderData ? { subtotal_cents: orderData.subtotal_cents, tax_cents: orderData.tax_cents, total_cents: orderData.total_cents, applied_discount_cents: orderData.applied_discount_cents, applied_discount_label: orderData.applied_discount_label, applied_discount_type: orderData.applied_discount_type } : null
-        }
-      });
-
-    } catch (error) {
-      console.error('Payment success handler error:', error);
-      toast({
-        title: "Order Processing Error",
-        description: "Your payment was processed but there was an issue completing your order. Please contact support.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handlePaymentError = (error: any) => {
-    console.error('Payment error:', error);
-    toast({
-      title: "Payment Failed",
-      description: "There was an error processing your payment. Please try again.",
-      variant: "destructive",
-    });
-  };
-
   return (
     <Layout showFooterBanner={false}>
       <div className="min-h-[calc(100vh-4rem)] bg-[#F7F7F7] py-8 sm:py-12">
@@ -397,7 +634,8 @@ const Checkout: React.FC = () => {
           <div className="mb-8 sm:mb-12">
             <Button
               variant="ghost"
-              onClick={() => navigate(-1)}
+              onClick={() => { if (!checkoutLocked) navigate(-1); }}
+              disabled={checkoutLocked}
               className="mb-6 hover:bg-gray-100 transition-colors"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
@@ -652,7 +890,7 @@ const Checkout: React.FC = () => {
                               variant="outline"
                               size="sm"
                               onClick={() => handleDecreaseQuantity(item.id)}
-                              disabled={item.quantity <= 1}
+                              disabled={checkoutLocked || item.quantity <= 1}
                               className="h-11 w-11 p-0 border-2 hover:bg-[#18448D] hover:text-white hover:border-[#18448D] transition-all"
                             >
                               <Minus className="h-4 w-4" />
@@ -662,7 +900,7 @@ const Checkout: React.FC = () => {
                               variant="outline"
                               size="sm"
                               onClick={() => handleIncreaseQuantity(item.id)}
-                              disabled={item.quantity >= 999}
+                              disabled={checkoutLocked || item.quantity >= 999}
                               className="h-11 w-11 p-0 border-2 hover:bg-[#18448D] hover:text-white hover:border-[#18448D] transition-all"
                             >
                               <Plus className="h-4 w-4" />
@@ -674,6 +912,7 @@ const Checkout: React.FC = () => {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleRemoveItem(item.id)}
+                          disabled={checkoutLocked}
                           className="text-red-600 hover:text-red-700 hover:bg-red-100 font-semibold transition-all"
                         >
                           <Trash2 className="h-4 w-4 mr-1" />
@@ -699,6 +938,7 @@ const Checkout: React.FC = () => {
                             <Button
                               variant="outline"
                               onClick={() => navigate(getAddAnotherUrl('banner'))}
+                              disabled={checkoutLocked}
                               className="flex-1 border-dashed border-2 border-gray-300 text-gray-600 hover:border-[#18448D] hover:text-[#18448D] hover:bg-blue-50 transition-all py-3"
                             >
                               <Plus className="h-4 w-4 mr-2" />
@@ -707,6 +947,7 @@ const Checkout: React.FC = () => {
                             <Button
                               variant="outline"
                               onClick={() => navigate(getAddAnotherUrl('yard_sign'))}
+                              disabled={checkoutLocked}
                               className="flex-1 border-dashed border-2 border-gray-300 text-gray-600 hover:border-[#18448D] hover:text-[#18448D] hover:bg-blue-50 transition-all py-3"
                             >
                               <Plus className="h-4 w-4 mr-2" />
@@ -719,6 +960,7 @@ const Checkout: React.FC = () => {
                         <Button
                           variant="outline"
                           onClick={() => navigate(getAddAnotherUrl(dominantProductType))}
+                          disabled={checkoutLocked}
                           className="w-full border-dashed border-2 border-gray-300 text-gray-600 hover:border-[#18448D] hover:text-[#18448D] hover:bg-blue-50 transition-all py-3"
                         >
                           <Plus className="h-4 w-4 mr-2" />
@@ -734,6 +976,7 @@ const Checkout: React.FC = () => {
                           <Button
                             variant="outline"
                             onClick={() => navigate(getAddAnotherUrl('banner'))}
+                            disabled={checkoutLocked}
                             className="flex-1 border-dashed border-2 border-gray-300 text-gray-600 hover:border-[#18448D] hover:text-[#18448D] hover:bg-blue-50 transition-all py-3"
                           >
                             <Plus className="h-4 w-4 mr-2" />
@@ -742,6 +985,7 @@ const Checkout: React.FC = () => {
                           <Button
                             variant="outline"
                             onClick={() => navigate(getAddAnotherUrl('yard_sign'))}
+                            disabled={checkoutLocked}
                             className="flex-1 border-dashed border-2 border-gray-300 text-gray-600 hover:border-[#18448D] hover:text-[#18448D] hover:bg-blue-50 transition-all py-3"
                           >
                             <Plus className="h-4 w-4 mr-2" />
@@ -756,6 +1000,7 @@ const Checkout: React.FC = () => {
                       <Button
                         variant="outline"
                         onClick={() => navigate(getAddAnotherUrl(dominantProductType))}
+                        disabled={checkoutLocked}
                         className="w-full border-dashed border-2 border-gray-300 text-gray-600 hover:border-[#18448D] hover:text-[#18448D] hover:bg-blue-50 transition-all py-3"
                       >
                         <Plus className="h-4 w-4 mr-2" />
@@ -772,6 +1017,7 @@ const Checkout: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setShowPromoCode((v) => !v)}
+                        disabled={checkoutLocked}
                         className="text-sm font-semibold text-[#18448D] underline underline-offset-2"
                       >
                         Have a promo code?
@@ -795,11 +1041,11 @@ const Checkout: React.FC = () => {
                           onChange={(e) => setDiscountCodeInput(e.target.value.toUpperCase())}
                           onKeyPress={(e) => e.key === 'Enter' && handleApplyDiscount()}
                           className="flex-1 h-12 text-base border-2 focus:border-[#18448D] transition-colors"
-                          disabled={isValidatingDiscount}
+                          disabled={checkoutLocked || isValidatingDiscount}
                         />
                         <Button
                           onClick={handleApplyDiscount}
-                          disabled={isValidatingDiscount || !discountCodeInput.trim()}
+                          disabled={checkoutLocked || isValidatingDiscount || !discountCodeInput.trim()}
                           className="h-12 bg-[#0B1F3A] px-6 font-semibold text-white hover:bg-[#102A4C]"
                         >
                           {isValidatingDiscount ? 'Validating...' : 'Apply'}
@@ -824,6 +1070,7 @@ const Checkout: React.FC = () => {
                       </span>
                       <button
                         onClick={handleRemoveDiscount}
+                        disabled={checkoutLocked}
                         className="text-xs text-red-500 hover:text-red-700 font-medium"
                       >
                         Remove
@@ -836,7 +1083,7 @@ const Checkout: React.FC = () => {
                 <div className="border-t border-gray-200 pt-6 mt-6">
                   <DeliveryTimer reflectCartSelection />
                   <div className="mt-4">
-                    <SameDayHitServiceCard />
+                    <SameDayHitServiceCard disabled={checkoutLocked} />
                   </div>
                 </div>
 
@@ -1010,63 +1257,101 @@ const Checkout: React.FC = () => {
                   <p className="text-sm font-semibold text-[#18448D]">Most standard orders are produced within 24 hours; free next-day air begins after production.</p>
                   <p className="text-xs text-blue-700">Order before tonight’s cutoff for fastest turnaround.</p>
                 </div>
+
+                {recoveryMessage ? (
+                  <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3" role="status" aria-live="polite">
+                    <p className="text-sm font-medium text-blue-900">{recoveryMessage}</p>
+                    {activeCheckout?.provider === 'stripe' && !recoveryChecking ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-2 border-blue-300 bg-white text-blue-800 hover:bg-blue-100"
+                        onClick={() => void reconcileStoredStripeCheckout()}
+                      >
+                        Check payment status
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {staleCartReview ? (
+                  <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3" role="alert">
+                    <p className="text-sm font-bold text-amber-950">
+                      {staleCartReview.applyFailed ? 'Checkout needs a secure refresh' : 'Pricing was updated securely'}
+                    </p>
+                    <p className="mt-1 text-sm text-amber-900">
+                      {staleCartReview.applyFailed
+                        ? 'The server quote did not match the current cart exactly. No payment was created; refresh before trying again.'
+                        : <>Review the updated order total of {usd(staleCartReview.serverTotalCents / 100)}. No payment was created from the old total.</>}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mt-3 border-amber-400 bg-white text-amber-950 hover:bg-amber-100"
+                      onClick={() => {
+                        if (staleCartReview.applyFailed) window.location.reload();
+                        else setStaleCartReview(null);
+                      }}
+                    >
+                      {staleCartReview.applyFailed ? 'Refresh checkout' : 'I reviewed the updated total'}
+                    </Button>
+                  </div>
+                ) : null}
                 
-                {stripeAvailable ? (
-                  <>
-                    {/* Payment-method tabs. We render both providers but
-                        only mount the one the user has selected, so
-                        Stripe doesn't initialize a PaymentIntent until
-                        the user actually picks the card / wallet flow. */}
-                    <h3 className="text-base font-semibold text-gray-900 mb-3">Choose payment method</h3>
+                {stripeRuntime.status === 'loading' ? (
+                  <div className="min-h-[132px] rounded-lg border border-slate-200 bg-slate-50 p-4" role="status" aria-live="polite">
+                    <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                      <Loader2 className="h-4 w-4 animate-spin text-[#18448D]" aria-hidden="true" />
+                      Loading secure payment options…
+                    </div>
+                    <div className="mt-4 h-12 animate-pulse rounded-md bg-slate-200/70" aria-hidden="true" />
+                  </div>
+                ) : stripeAvailable && stripeRuntime.publishableKey ? (
+                  paymentProvider === 'stripe' ? (
+                    <StripeCheckout
+                      publishableKey={stripeRuntime.publishableKey}
+                      disabled={paymentSubmissionBlocked || checkoutLocked}
+                      total={providerTotalCents}
+                      onSuccess={handlePaymentSuccess}
+                      onError={handlePaymentError}
+                      resumeCheckout={activeCheckout}
+                      onPaymentStateChange={handlePaymentStateChange}
+                      onCanonicalQuote={handleCanonicalQuote}
+                      onSwitchToPayPal={() => { if (!checkoutLocked) setPaymentProvider('paypal'); }}
+                    />
+                  ) : (
                     <div className="space-y-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <h3 className="text-base font-bold text-[#0B1F3A]">Additional payment options</h3>
+                          <p className="mt-0.5 text-xs text-slate-600">Use PayPal or PayPal-hosted debit and credit card fields.</p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-10 flex-none text-[#18448D] hover:bg-blue-50"
+                          disabled={checkoutLocked}
+                          onClick={() => { if (!checkoutLocked) setPaymentProvider('stripe'); }}
+                        >
+                          Card or wallet
+                        </Button>
+                      </div>
                       <PayPalCheckout
-                        disabled={!canProceed}
-                        total={totalCents}
+                        disabled={paymentSubmissionBlocked || (checkoutLocked && activeCheckout?.provider !== 'paypal')}
+                        providerLocked={checkoutLocked}
+                        total={providerTotalCents}
                         onSuccess={handlePaymentSuccess}
                         onError={handlePaymentError}
+                        cardFirstLayout
+                        resumeCheckout={activeCheckout}
+                        onPaymentStateChange={handlePaymentStateChange}
+                        onCanonicalQuote={handleCanonicalQuote}
                       />
-                      <div className="overflow-hidden border border-[#0B1F3A]/20 bg-white shadow-sm">
-                        <button
-                          type="button"
-                          onClick={() => setShowCardForm((v) => !v)}
-                          className="w-full flex items-center justify-between p-4 text-left"
-                          aria-expanded={showCardForm}
-                        >
-                          <div>
-                            <p className="font-semibold text-[#18448D]">Debit or Credit Card</p>
-                            <p className="text-sm text-gray-600">Secure card payment</p>
-                            <p className="text-xs text-gray-500 mt-1">Visa · Mastercard · Amex · Discover</p>
-                          </div>
-                          <span className="text-xl text-[#18448D]">{showCardForm ? '−' : '+'}</span>
-                        </button>
-                        <div className="px-4 pb-3">
-                          <p className="text-[11px] text-gray-500">Secure card processing</p>
-                        </div>
-                        <div className="px-4 pb-1">
-                          <StripeCheckout
-                            disabled={!canProceed}
-                            total={totalCents}
-                            onSuccess={handlePaymentSuccess}
-                            onError={handlePaymentError}
-                            showCardForm={false}
-                            showWallets
-                          />
-                        </div>
-                        {showCardForm && (
-                          <div className="p-4 border-t border-gray-100">
-                            <StripeCheckout
-                              disabled={!canProceed}
-                              total={totalCents}
-                              onSuccess={handlePaymentSuccess}
-                              onError={handlePaymentError}
-                              showCardForm
-                              showWallets={false}
-                            />
-                          </div>
-                        )}
-                      </div>
                     </div>
-                  </>
+                  )
                 ) : (
                   <div className="space-y-3">
                     <div className="space-y-2 rounded-lg border border-[#E7D9C7] bg-[#FCF7F0] p-3 shadow-sm">
@@ -1084,11 +1369,15 @@ const Checkout: React.FC = () => {
                       </div>
                     </div>
                     <PayPalCheckout
-                      disabled={!canProceed}
-                      total={totalCents}
+                      disabled={paymentSubmissionBlocked || (checkoutLocked && activeCheckout?.provider !== 'paypal')}
+                      providerLocked={checkoutLocked}
+                      total={providerTotalCents}
                       onSuccess={handlePaymentSuccess}
                       onError={handlePaymentError}
                       cardFirstLayout
+                      resumeCheckout={activeCheckout}
+                      onPaymentStateChange={handlePaymentStateChange}
+                      onCanonicalQuote={handleCanonicalQuote}
                     />
                   </div>
                 )}

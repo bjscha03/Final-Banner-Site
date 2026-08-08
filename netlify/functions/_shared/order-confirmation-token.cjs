@@ -105,9 +105,46 @@ function createOrderConfirmationToken(claims, options = {}) {
   return `${payload}.${signatureFor(ORDER_CONFIRMATION_PURPOSE, payload, secret)}`;
 }
 
+function createProviderOrderConfirmationToken(claims, options = {}) {
+  const secret = confirmationSecrets(options.order, options)[0];
+  if (!secret) throw new Error('ORDER_CONFIRMATION_TOKEN_SECRET is not configured');
+
+  const provider = cleanBoundValue(claims?.provider, 'provider', 30).toLowerCase();
+  if (!['stripe'].includes(provider)) {
+    throw new Error('Unsupported payment provider for order confirmation token');
+  }
+  const issuedAt = Number.isFinite(options.nowSeconds)
+    ? Math.floor(options.nowSeconds)
+    : Math.floor(Date.now() / 1000);
+  const ttlSeconds = Number.isFinite(options.ttlSeconds)
+    ? Math.max(1, Math.min(Math.floor(options.ttlSeconds), ORDER_CONFIRMATION_TTL_SECONDS))
+    : ORDER_CONFIRMATION_TTL_SECONDS;
+  const payload = base64url(JSON.stringify({
+    v: 2,
+    purpose: ORDER_CONFIRMATION_PURPOSE,
+    provider,
+    orderId: cleanBoundValue(claims?.orderId, 'orderId', 100),
+    paymentId: cleanBoundValue(claims?.paymentId, 'paymentId'),
+    paymentReference: cleanBoundValue(claims?.paymentReference || '-', 'paymentReference'),
+    iat: issuedAt,
+    exp: issuedAt + ttlSeconds,
+  }));
+
+  return `${payload}.${signatureFor(ORDER_CONFIRMATION_PURPOSE, payload, secret)}`;
+}
+
 function createPaidOrderConfirmationToken(order, options = {}) {
   if (!PAID_ORDER_STATUSES.has(String(order?.status || '').toLowerCase())) {
     throw new Error('A paid order is required to create an order confirmation token');
+  }
+  const stripeIntentId = String(order?.stripe_payment_intent_id || '').trim();
+  if (stripeIntentId) {
+    return createProviderOrderConfirmationToken({
+      provider: 'stripe',
+      orderId: order.id,
+      paymentId: stripeIntentId,
+      paymentReference: String(order?.stripe_charge_id || '').trim() || '-',
+    }, { ...options, order });
   }
   return createOrderConfirmationToken({
     orderId: order.id,
@@ -135,14 +172,28 @@ function verifyOrderConfirmationToken(token, expected = {}, options = {}) {
       ? Math.floor(options.nowSeconds)
       : Math.floor(Date.now() / 1000);
 
-    if (claims?.v !== 1 || claims?.purpose !== ORDER_CONFIRMATION_PURPOSE) return null;
+    if (![1, 2].includes(claims?.v) || claims?.purpose !== ORDER_CONFIRMATION_PURPOSE) return null;
     if (!Number.isInteger(claims.iat) || !Number.isInteger(claims.exp)) return null;
     if (claims.iat > now + 60 || claims.exp <= now) return null;
     if (claims.exp <= claims.iat || claims.exp - claims.iat > ORDER_CONFIRMATION_TTL_SECONDS) return null;
-    if (!claims.orderId || !claims.paypalOrderId || !claims.captureId) return null;
-    if (expected.orderId && !constantTimeEqual(claims.orderId, expected.orderId)) return null;
-    if (expected.paypalOrderId && !constantTimeEqual(claims.paypalOrderId, expected.paypalOrderId)) return null;
-    if (expected.captureId && !constantTimeEqual(claims.captureId, expected.captureId)) return null;
+    if (claims.v === 1) {
+      if (!claims.orderId || !claims.paypalOrderId || !claims.captureId) return null;
+      if (expected.orderId && !constantTimeEqual(claims.orderId, expected.orderId)) return null;
+      if (expected.paypalOrderId && !constantTimeEqual(claims.paypalOrderId, expected.paypalOrderId)) return null;
+      if (expected.captureId && !constantTimeEqual(claims.captureId, expected.captureId)) return null;
+    } else {
+      if (!claims.orderId || claims.provider !== 'stripe' || !claims.paymentId || !claims.paymentReference) return null;
+      if (expected.orderId && !constantTimeEqual(claims.orderId, expected.orderId)) return null;
+      if (expected.provider && !constantTimeEqual(claims.provider, expected.provider)) return null;
+      if (expected.paymentId && !constantTimeEqual(claims.paymentId, expected.paymentId)) return null;
+      if (expected.paymentReference && !constantTimeEqual(claims.paymentReference, expected.paymentReference)) return null;
+      if (options.order) {
+        const orderIntent = String(options.order.stripe_payment_intent_id || '').trim();
+        const orderCharge = String(options.order.stripe_charge_id || '').trim() || '-';
+        if (!orderIntent || !constantTimeEqual(claims.paymentId, orderIntent)) return null;
+        if (!constantTimeEqual(claims.paymentReference, orderCharge)) return null;
+      }
+    }
 
     return claims;
   } catch {
@@ -278,12 +329,17 @@ function readOrderViewToken(event) {
 }
 
 function confirmationMatchesPaidOrder(claims, order) {
+  if (!claims || !order || !PAID_ORDER_STATUSES.has(String(order.status || '').toLowerCase())) return false;
+  if (!constantTimeEqual(claims.orderId, order.id)) return false;
+  if (claims.v === 2 && claims.provider === 'stripe') {
+    return Boolean(
+      order.stripe_payment_intent_id
+      && constantTimeEqual(claims.paymentId, order.stripe_payment_intent_id)
+      && constantTimeEqual(claims.paymentReference, String(order.stripe_charge_id || '').trim() || '-'),
+    );
+  }
   return Boolean(
-    claims
-    && order
-    && PAID_ORDER_STATUSES.has(String(order.status || '').toLowerCase())
-    && constantTimeEqual(claims.orderId, order.id)
-    && constantTimeEqual(claims.paypalOrderId, order.paypal_order_id)
+    constantTimeEqual(claims.paypalOrderId, order.paypal_order_id)
     && constantTimeEqual(claims.captureId, order.paypal_capture_id),
   );
 }
@@ -302,6 +358,7 @@ module.exports = {
   createGuestOrderViewToken,
   createGuestOrderViewUrl,
   createOrderConfirmationToken,
+  createProviderOrderConfirmationToken,
   createPaidOrderConfirmationToken,
   paymentBindingForOrder,
   readOrderConfirmationToken,
