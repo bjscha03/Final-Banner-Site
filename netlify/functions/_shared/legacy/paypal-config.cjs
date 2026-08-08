@@ -72,7 +72,7 @@ exports.handler = async (event) => {
   }
 
   try {
-    const prepared = runtimeConfig.preparePayPalRuntime();
+    const prepared = runtimeConfig.preparePayPalRuntime({ event });
     if (!prepared.enabled) {
       console.warn('[paypal-config] PayPal is unavailable for this deploy context', {
         context: prepared.context,
@@ -108,7 +108,7 @@ exports.handler = async (event) => {
     return reply(500, {
       enabled: false,
       clientId: null,
-      environment: runtimeConfig.expectedEnvironment(),
+      environment: runtimeConfig.expectedEnvironment(event),
       components: 'buttons,card-fields',
       error: 'Internal server error',
     });

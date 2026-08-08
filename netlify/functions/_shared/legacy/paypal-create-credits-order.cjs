@@ -91,7 +91,7 @@ exports.handler = async (event) => {
 
   if (event.httpMethod === 'GET') {
     try {
-      const config = creditPayments.getCreditPayPalConfig({ requireFeature: true });
+      const config = creditPayments.getCreditPayPalConfig({ requireFeature: true, event });
       return reply(200, {
         ok: true,
         enabled: true,
@@ -122,7 +122,7 @@ exports.handler = async (event) => {
     assertLegacyFieldsDoNotConflict(payload, session, selectedPackage);
     // Check feature/environment credentials before persisting a new attempt, and
     // check schema before any PayPal request can leave this function.
-    const config = creditPayments.getCreditPayPalConfig({ requireFeature: true });
+    const config = creditPayments.getCreditPayPalConfig({ requireFeature: true, event });
     const sql = neonFactory(dbUrl);
     await creditPayments.ensureCreditPaymentSchema(sql);
 

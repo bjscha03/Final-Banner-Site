@@ -112,7 +112,7 @@ const loadOrder = async (sql, internalOrderId) => {
 const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
   if (event.httpMethod !== 'POST') return reply(405, { ok: false, error: 'METHOD_NOT_ALLOWED' });
-  const runtime = runtimeConfig.preparePayPalRuntime({ requireFeature: false });
+  const runtime = runtimeConfig.preparePayPalRuntime({ requireFeature: false, event });
   if (!runtime.enabled) {
     return reply(503, {
       ok: false,
@@ -158,6 +158,7 @@ const handler = async (event) => {
     }
 
     const captureResponse = await captureModule.handler({
+      ...event,
       httpMethod: 'POST',
       headers: event.headers || {},
       body: JSON.stringify({

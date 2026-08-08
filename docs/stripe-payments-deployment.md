@@ -153,7 +153,9 @@ preview look more complete.
 Set `FEATURE_PAYPAL=0`, `FEATURE_PAYPAL_CREDITS=0`, and `PAYPAL_ENV=sandbox`
 in Netlify's **Deploy Preview** context. The server also rejects every provider-
 facing PayPal path on a Deploy Preview even if a broader-scope live flag or key
-is inherited; the context variables are defense in depth, not the only guard.
+is inherited. It checks both Netlify deployment metadata and the actual
+`deploy-preview-*` request hostname; the context variables are defense in depth,
+not the only guard.
 Production continues to require live mode, while an isolated branch deploy may
 use explicitly scoped sandbox credentials and its own sandbox
 `PAYPAL_WEBHOOK_ID`.

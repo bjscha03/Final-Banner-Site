@@ -192,7 +192,7 @@ exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
   if (event.httpMethod !== 'POST') return reply(405, { ok: false, error: 'METHOD_NOT_ALLOWED' });
 
-  const runtime = runtimeConfig.preparePayPalRuntime();
+  const runtime = runtimeConfig.preparePayPalRuntime({ event });
   if (!runtime.enabled) {
     return reply(503, {
       ok: false,

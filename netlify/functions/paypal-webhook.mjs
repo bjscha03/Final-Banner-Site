@@ -54,7 +54,7 @@ const queuePaidOrderFollowups = async (event, orderId) => {
 
 const handler = async (event, context) => {
   if (event.httpMethod === 'POST') {
-    const runtime = runtimeConfig.preparePayPalRuntime({ requireFeature: false });
+    const runtime = runtimeConfig.preparePayPalRuntime({ requireFeature: false, event });
     if (!runtime.enabled) {
       return {
         statusCode: 503,

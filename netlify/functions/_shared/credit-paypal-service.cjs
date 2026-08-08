@@ -1,5 +1,7 @@
 'use strict';
 
+const paypalRuntime = require('./paypal-runtime-config.cjs');
+
 const CREDIT_PACKAGES = Object.freeze({
   starter: Object.freeze({ id: 'starter', credits: 10, amountCents: 500, label: '10 AI Generation Credits' }),
   popular: Object.freeze({ id: 'popular', credits: 50, amountCents: 2000, label: '50 AI Generation Credits' }),
@@ -185,23 +187,11 @@ function validateCompletedCreditCapture(order, purchase, expectedCaptureId = nul
   return { ok: true, captureId, currency, amountCents, capture };
 }
 
-function deploymentKind() {
-  const context = clean(process.env.CONTEXT, 40)?.toLowerCase() || '';
-  if (context) return context;
-  const configuredUrl = clean(process.env.DEPLOY_PRIME_URL || process.env.URL, 500);
-  if (!configuredUrl) return '';
-  try {
-    const host = new URL(configuredUrl).hostname.toLowerCase();
-    if (host === 'bannersonthefly.com' || host === 'www.bannersonthefly.com') return 'production';
-    if (/^deploy-preview-\d+--.+\.netlify\.app$/.test(host)) return 'deploy-preview';
-    if (host.endsWith('.netlify.app')) return 'branch-deploy';
-  } catch {
-    return '';
-  }
-  return '';
+function deploymentKind(event = {}) {
+  return paypalRuntime.deploymentContext(event);
 }
 
-function getCreditPayPalConfig({ requireFeature = true } = {}) {
+function getCreditPayPalConfig({ requireFeature = true, event = {} } = {}) {
   if (requireFeature) {
     if (String(process.env.FEATURE_PAYPAL || '').trim() !== '1'
         || String(process.env.FEATURE_PAYPAL_CREDITS || '').trim() !== '1') {
@@ -221,7 +211,7 @@ function getCreditPayPalConfig({ requireFeature = true } = {}) {
       { statusCode: 503 },
     );
   }
-  const deploy = deploymentKind();
+  const deploy = deploymentKind(event);
   if (deploy === 'deploy-preview') {
     throw new CreditPaymentError(
       'PAYPAL_CREDITS_PREVIEW_DISABLED',
@@ -954,6 +944,7 @@ async function reconcileCreditPayment({
   captureIfApproved = false,
   reconcileOnly = false,
   requireFeature = true,
+  event = {},
   fetchImpl = globalThis.fetch,
 }) {
   if (!purchase || purchase.payment_method !== 'paypal') {
@@ -969,7 +960,7 @@ async function reconcileCreditPayment({
 
   const captureRequestStarted = purchase.paypal_capture_request_id === creditCaptureRequestId(purchase.id);
 
-  const config = getCreditPayPalConfig({ requireFeature });
+  const config = getCreditPayPalConfig({ requireFeature, event });
   const accessToken = await getPayPalAccessToken(config, fetchImpl);
   let retrieved;
   try {

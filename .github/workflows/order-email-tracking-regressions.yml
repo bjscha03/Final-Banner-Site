@@ -291,6 +291,30 @@ jobs:
             *) echo "Unsigned Stripe webhook returned unsafe HTTP $code"; exit 1 ;;
           esac
 
+      - name: Verify Deploy Preview PayPal containment and compatibility routing
+        env:
+          PREVIEW_URL: https://deploy-preview-${{ github.event.pull_request.number }}--bannersonthefly.netlify.app
+        run: |
+          set -euo pipefail
+
+          code=$(curl -sS -o /tmp/paypal-config.json -w '%{http_code}' \
+            "$PREVIEW_URL/.netlify/functions/paypal-config")
+          test "$code" = "200"
+          jq -e '.enabled == false and .clientId == null and .environment == "sandbox"' \
+            /tmp/paypal-config.json >/dev/null
+          if jq -e 'has("clientToken") or has("clientSecret") or has("secret")' \
+            /tmp/paypal-config.json >/dev/null; then
+            echo "paypal-config exposed a forbidden credential field"
+            exit 1
+          fi
+
+          # OPTIONS proves the historical aliases route to their hardened
+          # functions without creating, approving, or capturing a payment.
+          for route in /api/paypal/create-order /api/paypal/capture-order; do
+            code=$(curl -sS -X OPTIONS -o /dev/null -w '%{http_code}' "$PREVIEW_URL$route")
+            test "$code" = "200"
+          done
+
       - name: Verify retired campaign routes and functions stay unavailable
         env:
           PREVIEW_URL: https://deploy-preview-${{ github.event.pull_request.number }}--bannersonthefly.netlify.app

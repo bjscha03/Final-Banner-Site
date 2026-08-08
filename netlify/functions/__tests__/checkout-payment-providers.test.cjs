@@ -52,6 +52,7 @@ test('PayPal remains production-contained and queues the existing paid-order fol
   const capture = read('netlify/functions/_shared/legacy/paypal-capture-final.cjs');
   const captureEntrypoint = read('netlify/functions/paypal-capture-minimal.mjs');
   const compatibilityCapture = read('netlify/functions/paypal-capture-order.mjs');
+  const redirects = read('public/_redirects');
   const checkout = read('src/components/checkout/PayPalCheckoutReliable.tsx');
 
   assert.match(runtime, /\['live', 'production', 'prod'\]/);
@@ -65,6 +66,11 @@ test('PayPal remains production-contained and queues the existing paid-order fol
   assert.match(captureEntrypoint, /followupsQueued/);
   assert.match(compatibilityCapture, /export \{ default \} from '\.\/paypal-capture-minimal\.mjs'/);
   assert.doesNotMatch(compatibilityCapture, /paypal-capture-order\.cjs|paypal-capture-forward\.cjs/);
+  const createAlias = redirects.indexOf('/api/paypal/create-order');
+  const captureAlias = redirects.indexOf('/api/paypal/capture-order');
+  const broadApiRewrite = redirects.indexOf('/api/*');
+  assert.ok(createAlias >= 0 && createAlias < broadApiRewrite);
+  assert.ok(captureAlias >= 0 && captureAlias < broadApiRewrite);
   assert.match(createOrder, /constantTimeEqual\(checkoutKey, order\.checkout_idempotency_key\)/);
   assert.match(capture, /constantTimeEqual\(checkoutKey, order\.checkout_idempotency_key\)/);
   assert.ok((checkout.match(/checkoutKey:\s*checkoutKeyRef\.current/g) || []).length >= 3);

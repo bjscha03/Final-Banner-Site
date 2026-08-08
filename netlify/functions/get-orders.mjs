@@ -48,6 +48,7 @@ async function reconcilePendingPayPalOrders(sql, orders, paymentById, event = {}
   for (const { order, payment } of candidates) {
     try {
       const response = await paypalCaptureModule.handler({
+        ...event,
         httpMethod: 'POST',
         headers: event?.headers || {},
         body: JSON.stringify({
@@ -278,7 +279,7 @@ const handler = async (event, context) => {
   if (!orders || orders.length === 0 || !sql) return response;
 
   try {
-    response.body = JSON.stringify(await enrichOrderPaymentMetadata(sql, orders));
+    response.body = JSON.stringify(await enrichOrderPaymentMetadata(sql, orders, { event }));
   } catch (error) {
     console.error('[get-orders] metadata enrichment failed; returning base user order response', {
       error: error instanceof Error ? error.message : String(error),
@@ -288,5 +289,5 @@ const handler = async (event, context) => {
   return response;
 };
 
-export const _test = { parseOrders };
+export const _test = { parseOrders, reconcilePendingPayPalOrders };
 export default withLambda(handler);

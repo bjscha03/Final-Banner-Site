@@ -237,6 +237,7 @@ exports.handler = async (event) => {
           // A kill switch stops new capture attempts, never fulfillment of a
           // provider-authenticated payment that has already completed.
           requireFeature: false,
+          event,
         });
         const notification = await creditPayments.processCreditPurchaseNotification(
           sql,
@@ -290,6 +291,7 @@ exports.handler = async (event) => {
 
     const internalOrderId = orders[0].id;
     const captureResponse = await captureModule.handler({
+      ...event,
       httpMethod: 'POST',
       headers: event.headers || {},
       body: JSON.stringify({

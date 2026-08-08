@@ -18,13 +18,69 @@ function normalizeEnvironment(value) {
   return 'sandbox';
 }
 
-function deploymentContext() {
+function hostname(value) {
+  const normalized = clean(value);
+  if (!normalized) return '';
+  try {
+    return new URL(normalized.includes('://') ? normalized : `https://${normalized}`)
+      .hostname
+      .toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+function requestHostnames(event = {}) {
+  const headers = event?.headers || {};
+  const header = (name) => {
+    if (typeof headers?.get === 'function') return headers.get(name) || '';
+    const key = Object.keys(headers).find((candidate) => candidate.toLowerCase() === name);
+    return key ? headers[key] : '';
+  };
+  return [
+    event?.rawUrl,
+    event?.raw_url,
+    event?.url,
+    header('host'),
+    ...String(header('x-forwarded-host') || '').split(','),
+  ].map(hostname).filter(Boolean);
+}
+
+function previewContextForHostname(host) {
+  if (/^deploy-preview-\d+--.+\.netlify\.app$/.test(host)) return 'deploy-preview';
+  // Any branch/deploy-specific Netlify hostname is nonproduction even if a
+  // runtime unexpectedly exposes the site's production URL/CONTEXT.
+  if (host.endsWith('.netlify.app')
+      && host !== 'bannersonthefly.netlify.app'
+      && host.includes('--')) {
+    return 'branch-deploy';
+  }
+  return '';
+}
+
+function deploymentContext(event = {}) {
+  // DEPLOY_PRIME_URL is deployment-controlled when Netlify exposes it. Only an
+  // explicit Deploy Preview result may override CONTEXT; a production deploy's
+  // immutable `hash--site.netlify.app` URL must not demote the live deployment.
+  for (const candidate of [process.env.DEPLOY_PRIME_URL, process.env.DEPLOY_URL]) {
+    const inferredHost = hostname(candidate);
+    if (/^deploy-preview-\d+--.+\.netlify\.app$/.test(inferredHost)) return 'deploy-preview';
+  }
+
+  // The actual request host is the final containment boundary for Netlify
+  // runtimes that omit build-only context variables. It can only downgrade a
+  // request to nonproduction, never upgrade one to production.
+  for (const requestHost of requestHostnames(event)) {
+    const inferred = previewContextForHostname(requestHost);
+    if (inferred) return inferred;
+  }
+
   const configured = clean(process.env.CONTEXT).toLowerCase();
   if (configured) return configured;
 
   // CONTEXT is set by Netlify Functions. URL inference is a defensive fallback
   // for local tests or an unusual invocation where that value is absent.
-  for (const candidate of [process.env.DEPLOY_PRIME_URL, process.env.URL]) {
+  for (const candidate of [process.env.URL]) {
     try {
       const hostname = new URL(clean(candidate)).hostname.toLowerCase();
       if (/^deploy-preview-\d+--.+\.netlify\.app$/.test(hostname)) return 'deploy-preview';
@@ -39,17 +95,17 @@ function deploymentContext() {
   return 'unknown';
 }
 
-function isProductionContext() {
-  return deploymentContext() === 'production';
+function isProductionContext(event = {}) {
+  return deploymentContext(event) === 'production';
 }
 
-function expectedEnvironment() {
-  return isProductionContext() ? 'live' : 'sandbox';
+function expectedEnvironment(event = {}) {
+  return isProductionContext(event) ? 'live' : 'sandbox';
 }
 
-function resolveCredentials(environment) {
+function resolveCredentials(environment, event = {}) {
   const suffix = environment === 'live' ? 'LIVE' : 'SANDBOX';
-  const productionFallback = environment === 'live' && isProductionContext();
+  const productionFallback = environment === 'live' && isProductionContext(event);
   return {
     // Provider credentials must be explicitly scoped outside production.
     // Legacy generic/Vite client variables remain a production-live fallback
@@ -74,11 +130,11 @@ function featureEnabled() {
   return String(process.env.FEATURE_PAYPAL || '').trim() === '1';
 }
 
-function resolvePayPalRuntime({ requireFeature = true } = {}) {
-  const context = deploymentContext();
-  const environment = expectedEnvironment();
+function resolvePayPalRuntime({ requireFeature = true, event = {} } = {}) {
+  const context = deploymentContext(event);
+  const environment = expectedEnvironment(event);
   const configuredEnvironment = normalizeEnvironment(process.env.PAYPAL_ENV);
-  const { clientId, clientSecret } = resolveCredentials(environment);
+  const { clientId, clientSecret } = resolveCredentials(environment, event);
   const errors = [];
 
   if (requireFeature && !featureEnabled()) errors.push('PAYPAL_DISABLED');
@@ -131,6 +187,8 @@ module.exports = {
   isProductionContext,
   normalizeEnvironment,
   preparePayPalRuntime,
+  previewContextForHostname,
+  requestHostnames,
   resolveCredentials,
   resolvePayPalRuntime,
 };

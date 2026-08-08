@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import { _test as getOrdersTest } from '../get-orders.mjs';
 
 const require = createRequire(import.meta.url);
 const runtime = require('../_shared/paypal-runtime-config.cjs');
@@ -18,7 +19,7 @@ const paypalStatusModule = await import('../paypal-payment-status.mjs');
 const paypalWebhookModule = await import('../paypal-webhook.mjs');
 
 const MANAGED_ENV = [
-  'CONTEXT', 'DEPLOY_PRIME_URL', 'URL', 'FEATURE_PAYPAL', 'FEATURE_PAYPAL_CREDITS',
+  'CONTEXT', 'DEPLOY_PRIME_URL', 'DEPLOY_URL', 'URL', 'FEATURE_PAYPAL', 'FEATURE_PAYPAL_CREDITS',
   'PAYPAL_ENV', 'PAYPAL_CLIENT_ID_LIVE', 'PAYPAL_SECRET_LIVE',
   'PAYPAL_CLIENT_ID_SANDBOX', 'PAYPAL_SECRET_SANDBOX',
   'PAYPAL_LIVE_CLIENT_ID', 'PAYPAL_LIVE_SECRET',
@@ -187,6 +188,122 @@ test('deploy previews reject inherited live PayPal before every provider-facing 
   });
 });
 
+test('preview request host overrides production-looking runtime variables before provider or database access', async () => {
+  await withEnv({
+    CONTEXT: 'production',
+    URL: 'https://bannersonthefly.com',
+    FEATURE_PAYPAL: '1',
+    FEATURE_PAYPAL_CREDITS: '1',
+    PAYPAL_ENV: 'live',
+    PAYPAL_CLIENT_ID_LIVE: 'inherited-production-client-id',
+    PAYPAL_SECRET_LIVE: 'inherited-production-secret',
+    DATABASE_URL: 'postgresql://preview.invalid/database',
+    AUTH_SESSION_SECRET: 'preview-host-auth-secret',
+  }, async () => {
+    const previewHost = 'deploy-preview-453--bannersonthefly.netlify.app';
+    const event = {
+      httpMethod: 'POST',
+      headers: { host: previewHost },
+      body: '{}',
+    };
+    const resolved = runtime.resolvePayPalRuntime({ event });
+    assert.equal(resolved.context, 'deploy-preview');
+    assert.equal(resolved.environment, 'sandbox');
+    assert.equal(resolved.enabled, false);
+    assert.ok(resolved.errors.includes('PAYPAL_DEPLOY_PREVIEW_DISABLED'));
+    assert.ok(resolved.errors.includes('PAYPAL_ENV_CONTEXT_MISMATCH'));
+
+    const originalFetch = global.fetch;
+    let providerCalls = 0;
+    global.fetch = async () => {
+      providerCalls += 1;
+      throw new Error('provider access must not occur for a preview request host');
+    };
+    try {
+      const configResponse = await paypalConfigModule.default(new Request(
+        `https://${previewHost}/.netlify/functions/paypal-config`,
+      ), {});
+      assert.equal(configResponse.status, 200);
+      assert.deepEqual(await configResponse.json(), {
+        enabled: false,
+        clientId: null,
+        environment: 'sandbox',
+        components: 'buttons,card-fields',
+      });
+
+      const createResponse = await createCore.handler({
+        ...event,
+        body: JSON.stringify({ internalOrderId: 'preview-order' }),
+      });
+      assert.equal(createResponse.statusCode, 503);
+      assert.equal(JSON.parse(createResponse.body).error, 'PAYPAL_DISABLED');
+
+      const captureResponse = await captureCore.handler({
+        ...event,
+        body: JSON.stringify({
+          internalOrderId: 'preview-order',
+          orderID: 'PREVIEW-PAYPAL-ORDER',
+          checkoutKey: 'preview-checkout-key',
+        }),
+      });
+      assert.equal(captureResponse.statusCode, 503);
+      assert.equal(JSON.parse(captureResponse.body).doNotRetry, true);
+
+      const statusResponse = await paypalStatusModule._test.handler({
+        ...event,
+        body: JSON.stringify({ internalOrderId: 'preview-order', checkoutKey: 'preview-checkout-key' }),
+      });
+      assert.equal(statusResponse.statusCode, 503);
+      assert.equal(JSON.parse(statusResponse.body).doNotRetry, true);
+
+      const pendingOrder = { id: 'preview-order', status: 'pending' };
+      await getOrdersTest.reconcilePendingPayPalOrders(
+        async () => [],
+        [pendingOrder],
+        new Map([[pendingOrder.id, {
+          payment_method: 'paypal',
+          paypal_order_id: 'PREVIEW-PAYPAL-ORDER',
+          paypal_capture_id: null,
+          stripe_payment_intent_id: null,
+          checkout_idempotency_key: 'preview-checkout-key',
+          payment_reconciliation_status: 'required',
+        }]]),
+        {
+          rawUrl: `https://${previewHost}/.netlify/functions/get-orders?page=1`,
+          headers: {},
+        },
+      );
+
+      const webhookResponse = await paypalWebhookModule.default(new Request(
+        `https://${previewHost}/.netlify/functions/paypal-webhook`,
+        { method: 'POST', body: '{}' },
+      ), {});
+      assert.equal(webhookResponse.status, 503);
+      assert.equal((await webhookResponse.json()).error, 'PAYPAL_DISABLED');
+
+      assert.throws(
+        () => creditPayments.getCreditPayPalConfig({ requireFeature: true, event }),
+        (error) => error?.code === 'PAYPAL_CREDITS_PREVIEW_DISABLED' && error?.statusCode === 503,
+      );
+
+      const sessionToken = serverAuth.createSessionToken({
+        id: 'preview-host-user',
+        email: 'preview-host@example.com',
+        is_admin: false,
+      });
+      const creditConfigResponse = await creditCreate.handler({
+        httpMethod: 'GET',
+        headers: { host: previewHost, Authorization: `Bearer ${sessionToken}` },
+      });
+      assert.equal(creditConfigResponse.statusCode, 503);
+      assert.equal(JSON.parse(creditConfigResponse.body).error, 'PAYPAL_CREDITS_PREVIEW_DISABLED');
+      assert.equal(providerCalls, 0);
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+});
+
 test('deploy previews deny PayPal even with sandbox keys while branch deploys require scoped sandbox keys', async () => {
   await withEnv({
     CONTEXT: 'deploy-preview',
@@ -240,6 +357,7 @@ test('deploy previews deny PayPal even with sandbox keys while branch deploys re
 test('production PayPal remains live with explicitly scoped live credentials', async () => {
   await withEnv({
     CONTEXT: 'production',
+    DEPLOY_URL: 'https://abc123--bannersonthefly.netlify.app',
     FEATURE_PAYPAL: '1',
     PAYPAL_ENV: 'live',
     PAYPAL_CLIENT_ID_LIVE: 'production-live-client-id',
@@ -247,6 +365,7 @@ test('production PayPal remains live with explicitly scoped live credentials', a
   }, async () => {
     const resolved = runtime.resolvePayPalRuntime();
     assert.equal(resolved.enabled, true);
+    assert.equal(resolved.context, 'production');
     assert.equal(resolved.environment, 'live');
     assert.equal(resolved.clientId, 'production-live-client-id');
     assert.equal(resolved.clientSecret, 'production-live-secret');

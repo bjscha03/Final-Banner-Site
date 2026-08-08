@@ -138,7 +138,7 @@ exports.handler = async (event) => {
     // duplicate historical provider ID, disabled feature, or live/preview key
     // mismatch therefore fails without touching PayPal.
     creditPayments.validateCheckoutKey(checkoutKey);
-    creditPayments.getCreditPayPalConfig({ requireFeature: !reconcileOnly });
+    creditPayments.getCreditPayPalConfig({ requireFeature: !reconcileOnly, event });
     await creditPayments.ensureCreditPaymentSchema(sql);
     purchase = await creditPayments.loadCreditPurchaseById(sql, purchaseId, sessionUserId);
     if (!purchase) {
@@ -171,6 +171,7 @@ exports.handler = async (event) => {
       captureIfApproved: !reconcileOnly,
       reconcileOnly,
       requireFeature: !reconcileOnly,
+      event,
     });
     const notification = await creditPayments.processCreditPurchaseNotification(sql, purchase.id);
     return reply(200, successPayload(result, notification));
