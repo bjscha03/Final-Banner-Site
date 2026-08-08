@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { _test as paymentStatusTest } from '../paypal-payment-status.mjs';
+import getOrdersHandler, { _test as getOrdersTest } from '../get-orders.mjs';
 
 const require = createRequire(import.meta.url);
 const captureModule = require('../_shared/legacy/paypal-capture-final.cjs');
@@ -70,7 +71,7 @@ function statusDatabase(order = { ...paidOrder, checkout_idempotency_key: 'corre
 }
 
 test.before(() => {
-  process.env.NETLIFY_DATABASE_URL = 'postgres://handler-test.invalid/database';
+  process.env.NETLIFY_DATABASE_URL = 'postgresql://handler:handler@handler-test.invalid/database';
   process.env.FEATURE_PAYPAL = '1';
   process.env.CONTEXT = 'branch-deploy';
   process.env.PAYPAL_ENV = 'sandbox';
@@ -85,6 +86,17 @@ test.after(() => {
     if (value === undefined) delete process.env[name];
     else process.env[name] = value;
   }
+});
+
+test('admin order endpoint imports cleanly and rejects an unsigned request before database access', async () => {
+  assert.equal(typeof getOrdersTest.parseOrders, 'function');
+
+  const response = await getOrdersHandler(new Request(
+    'https://deploy-preview-453--bannersonthefly.netlify.app/.netlify/functions/get-orders?page=1',
+  ), {});
+
+  assert.equal(response.status, 401);
+  assert.equal((await response.json()).error, 'UNAUTHORIZED');
 });
 
 test('a completed PayPal capture stays a 200 paid success when every token secret is missing', async () => {

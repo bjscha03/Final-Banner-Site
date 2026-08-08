@@ -93,6 +93,7 @@ jobs:
             netlify/functions/__tests__/stripe-runtime-config.test.cjs \
             netlify/functions/__tests__/stripe-server-pricing.test.cjs \
             netlify/functions/__tests__/paypal-preview-containment.test.mjs \
+            netlify/functions/__tests__/payment-access-handler.test.mjs \
             netlify/functions/__tests__/cart-persistence-ordering.test.cjs \
             netlify/functions/__tests__/preview-pipeline.test.cjs \
             netlify/functions/__tests__/admin-order-visibility.test.cjs \

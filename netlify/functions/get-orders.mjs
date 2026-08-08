@@ -288,5 +288,5 @@ const handler = async (event, context) => {
   return response;
 };
 
-export const _test = { getCompletedCapture, amountToCents, parseOrders };
+export const _test = { parseOrders };
 export default withLambda(handler);
