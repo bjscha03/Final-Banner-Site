@@ -917,6 +917,12 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     || isPreparing
     || isCapturing
     || Boolean(verificationMessage);
+  // Cart-level validation blocks the actual payment submission, not this
+  // disclosure control. Customers must still be able to open the hosted card
+  // fields; Pay Now remains protected by `buttonsDisabled` and server checks.
+  const cardToggleDisabled = isPreparing
+    || isCapturing
+    || Boolean(verificationMessage);
 
   const trackValidatedCheckoutDetails = (method: 'card' | 'paypal') => {
     if (!shippingInfoTrackedRef.current) {
@@ -1130,7 +1136,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
         className="w-full border-gray-900 bg-gray-900 text-white hover:bg-gray-800 hover:text-white"
         aria-expanded={cardFieldsExpanded}
         aria-controls="paypal-inline-card-fields"
-        disabled={buttonsDisabled}
+        disabled={cardToggleDisabled}
         onClick={() => {
           setCheckoutError(null);
           setCardFieldsExpanded((expanded) => !expanded);
