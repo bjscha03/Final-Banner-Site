@@ -43,11 +43,14 @@ test('guest confirmation token stays out of the URL and is sent only as a get-or
   const checkout = read('src/pages/Checkout.tsx');
   const confirmation = read('src/pages/PaymentSuccess.tsx');
 
-  assert.match(checkout, /orderConfirmationToken: orderData\?\.orderConfirmationToken/);
+  assert.match(checkout, /const confirmationToken = orderData\?\.orderConfirmationToken/);
+  assert.match(checkout, /storeOrderConfirmationToken\(orderId, confirmationToken\)/);
+  assert.match(checkout, /orderConfirmationToken: confirmationToken/);
   assert.doesNotMatch(checkout, /payment-success\?[^`]*orderConfirmationToken/);
   assert.match(confirmation, /'X-Order-Confirmation-Token': orderConfirmationToken/);
   assert.doesNotMatch(confirmation, /get-order\?[^`]*orderConfirmationToken/);
-  assert.match(confirmation, /attemptCanonicalPurchaseTracking\(orderId, loadedOrder/);
+  assert.match(confirmation, /const canonicalOrderId = loadedOrder\?\.id \|\| null/);
+  assert.match(confirmation, /attemptCanonicalPurchaseTracking\(canonicalOrderId, loadedOrder/);
 });
 
 test('customer confirmation and resend emails use signed fragment order links', () => {

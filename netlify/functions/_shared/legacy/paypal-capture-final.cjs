@@ -4,11 +4,21 @@ const { neon } = require('@neondatabase/serverless');
 const { amountToCents } = require('../paypalConversionHelpers.cjs');
 const {
   captureFromOrder,
+  isPayPalBoundOrder,
   matchesInternalOrder,
   orderIdentity,
   recordAttempt,
 } = require('./paypal-payment-safety.cjs');
-const { createPaidOrderConfirmationToken } = require('../order-confirmation-token.cjs');
+const {
+  constantTimeEqual,
+  createPaidOrderConfirmationToken,
+} = require('../order-confirmation-token.cjs');
+const {
+  claimPaymentDiscount,
+  completePaymentDiscount,
+  releasePaymentDiscount,
+} = require('../payment-discount-reservation.cjs');
+const runtimeConfig = require('../paypal-runtime-config.cjs');
 
 let neonFactory = neon;
 
@@ -122,18 +132,9 @@ function extractShippingAddress(paypalData) {
     ? paypalData.purchase_units.find((candidate) => candidate?.shipping) || paypalData.purchase_units[0]
     : null;
   const shipping = unit?.shipping || null;
-  const payer = paypalData.payer || null;
-  const source = paypalData.payment_source || {};
-  const card = source.card || null;
-  const paypal = source.paypal || null;
-  const address = shipping?.address || payer?.address || card?.billing_address || {};
-  const name = firstNonEmpty(
-    joinName(shipping?.name),
-    joinName(paypal?.name),
-    card?.name,
-    joinName(card?.attributes?.customer?.name),
-    joinName(payer?.name),
-  );
+  if (!shipping) return null;
+  const address = shipping.address || {};
+  const name = joinName(shipping.name);
   const result = {
     name,
     street: firstNonEmpty(address.address_line_1, address.line1, address.street),
@@ -145,6 +146,16 @@ function extractShippingAddress(paypalData) {
   };
   if (!(result.name || result.street || result.city || result.state || result.zip)) return null;
   return result;
+}
+
+function isCompleteShippingAddress(address) {
+  return Boolean(
+    address?.street
+    && address?.city
+    && address?.state
+    && address?.zip
+    && address?.country,
+  );
 }
 
 function allCaptures(order) {
@@ -164,21 +175,15 @@ function providerCode(payload) {
   return String(firstNonEmpty(issue, reason, payload?.status_details?.reason, payload?.name) || '').toUpperCase() || null;
 }
 
-function providerText(payload) {
-  const details = Array.isArray(payload?.details) ? payload.details : [];
-  return [
-    payload?.name,
-    payload?.message,
-    ...details.flatMap((detail) => [detail?.issue, detail?.description, detail?.reason]),
-  ].filter(Boolean).join(' ');
-}
-
-function isDefinitiveFailure(payload, httpStatus) {
+function isDefinitiveFailure(payload, _httpStatus) {
   const code = providerCode(payload);
-  if (code && DEFINITIVE_FAILURE_CODES.has(code)) return true;
-  const text = providerText(payload);
-  if (/declin|refus|expired|invalid\s+(cvv|security|expir)|cannot\s+pay|payment\s+denied/i.test(text)) return true;
-  return [400, 402, 422].includes(Number(httpStatus)) && Boolean(code) && !/INTERNAL|TIMEOUT|UNAVAILABLE/i.test(code);
+  // Once the capture request has started, an HTTP 4xx or provider message is
+  // not proof that no money moved. For example, ORDER_ALREADY_CAPTURED can be
+  // returned after PayPal accepted an earlier attempt whose response was
+  // lost. Only explicit, vetted no-capture decline codes may unlock checkout
+  // and release a reserved promotion; everything else remains reconciliation
+  // locked until the canonical order state can be retrieved.
+  return Boolean(code && DEFINITIVE_FAILURE_CODES.has(code));
 }
 
 function getConfig() {
@@ -242,7 +247,12 @@ async function markReconciliation(sql, internalOrderId, reason) {
   try {
     await sql`
       UPDATE orders
-         SET payment_reconciliation_status = 'required', updated_at = NOW()
+         SET payment_reconciliation_status = CASE
+               WHEN payment_reconciliation_status = 'discount_reserved'
+                 THEN 'discount_reserved'
+               ELSE 'required'
+             END,
+             updated_at = NOW()
        WHERE id = ${internalOrderId}
          AND status = 'pending'
     `;
@@ -288,6 +298,48 @@ function failurePayload(orderID, internalOrderId, code, message) {
   };
 }
 
+async function safeReleasePaymentDiscount(sql, order, reconciliationStatus) {
+  try {
+    await releasePaymentDiscount(sql, order, reconciliationStatus);
+  } catch (error) {
+    // A stuck reservation is safer than freeing a code whose provider state is
+    // uncertain. Same-order retries remain permitted.
+    console.error('[paypal-capture] discount reservation release failed', {
+      internalOrderId: order?.id || null,
+      code: error?.code || null,
+      message: error?.message || String(error),
+    });
+  }
+}
+
+function discountConflictPayload(orderID, internalOrderId, reservation) {
+  return {
+    ok: false,
+    success: false,
+    paymentCaptured: false,
+    paymentStatusUnknown: false,
+    reconciliationRequired: false,
+    doNotRetry: false,
+    restartCheckout: true,
+    safeToRetry: false,
+    error: reservation.code || 'DISCOUNT_RESERVATION_CONFLICT',
+    message: reservation.message || 'This discount is no longer available. Refresh checkout before paying.',
+    orderID,
+    paypalOrderID: orderID,
+    internalOrderId,
+    details: reservation.details || {},
+  };
+}
+
+function capturedReconciliationPayload(orderID, internalOrderId, error) {
+  return {
+    ...verificationPayload(orderID, internalOrderId, 'Payment was captured and order verification is still completing. Do not pay again.'),
+    paymentCaptured: true,
+    doNotRetry: true,
+    error: error || 'POST_PAYMENT_BOOKKEEPING_INCOMPLETE',
+  };
+}
+
 function validateCompletedCapture(paypalData, expectedTotalCents) {
   const capture = captureFromOrder(paypalData);
   const captureStatus = String(capture?.status || '').toUpperCase();
@@ -298,46 +350,6 @@ function validateCompletedCapture(paypalData, expectedTotalCents) {
   if (currency !== 'USD') return { ok: false, code: 'PAYPAL_CAPTURE_CURRENCY_MISMATCH' };
   if (amountCents !== Number(expectedTotalCents)) return { ok: false, code: 'PAYPAL_CAPTURE_AMOUNT_MISMATCH' };
   return { ok: true, captureId, captureStatus, currency, amountCents, capture };
-}
-
-async function persistCustomerInfo(sql, order, submitted, paypalData) {
-  const customer = normalizeCustomerInfo(submitted);
-  const paypalAddress = extractShippingAddress(paypalData);
-  const email = customer.email || extractCustomerEmail(paypalData);
-  const fullName = customer.fullName || paypalAddress?.name || null;
-  const firstName = customer.firstName || (fullName ? String(fullName).split(/\s+/)[0] : null);
-  const street = customer.address1 || paypalAddress?.street || null;
-  const street2 = customer.address2 || paypalAddress?.street2 || null;
-  const city = customer.city || paypalAddress?.city || null;
-  const state = customer.state || paypalAddress?.state || null;
-  const zip = customer.postalCode || paypalAddress?.zip || null;
-  const country = customer.country || paypalAddress?.country || 'US';
-
-  const rows = await sql`
-    UPDATE orders
-       SET email = CASE
-             WHEN ${email || null} IS NOT NULL THEN ${email || null}
-             ELSE email
-           END,
-           customer_name = COALESCE(${fullName}, customer_name, shipping_name),
-           customer_first_name = COALESCE(${firstName}, customer_first_name),
-           customer_phone = COALESCE(${customer.phone}, customer_phone),
-           shipping_name = COALESCE(${fullName}, shipping_name),
-           shipping_street = COALESCE(${street}, shipping_street),
-           shipping_street2 = COALESCE(${street2}, shipping_street2),
-           shipping_city = COALESCE(${city}, shipping_city),
-           shipping_state = COALESCE(${state}, shipping_state),
-           shipping_zip = COALESCE(${zip}, shipping_zip),
-           shipping_country = COALESCE(${country}, shipping_country, 'US'),
-           updated_at = NOW()
-     WHERE id = ${order.id}
-    RETURNING id, status, subtotal_cents, tax_cents, total_cents, email,
-              customer_name, customer_first_name, customer_phone,
-              shipping_name, shipping_street, shipping_street2, shipping_city,
-              shipping_state, shipping_zip, shipping_country,
-              paypal_order_id, paypal_capture_id, checkout_idempotency_key
-  `;
-  return rows[0] || order;
 }
 
 function successPayload(order, paypalData, validation, environment, alreadyPaid) {
@@ -358,6 +370,7 @@ function successPayload(order, paypalData, validation, environment, alreadyPaid)
   return {
     ok: true,
     success: true,
+    finalized: true,
     alreadyPaid: Boolean(alreadyPaid),
     paymentCaptured: true,
     paymentStatusUnknown: false,
@@ -399,12 +412,28 @@ function successPayload(order, paypalData, validation, environment, alreadyPaid)
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
   if (event.httpMethod !== 'POST') return reply(405, { ok: false, error: 'METHOD_NOT_ALLOWED' });
-  if (process.env.FEATURE_PAYPAL !== '1') return reply(503, { ok: false, error: 'PAYPAL_DISABLED' });
+  // A feature kill switch stops new PayPal orders, never reconciliation of an
+  // authorization/capture that may already have reached the provider.
+  const runtime = runtimeConfig.preparePayPalRuntime({ requireFeature: false, event });
+  if (!runtime.enabled) {
+    return reply(503, {
+      ok: false,
+      success: false,
+      paymentCaptured: false,
+      paymentStatusUnknown: true,
+      reconciliationRequired: true,
+      doNotRetry: true,
+      safeToRetry: false,
+      error: 'PAYPAL_DISABLED',
+      message: 'PayPal payment verification is unavailable for this deploy. Do not submit another payment.',
+    });
+  }
 
   let input = {};
   try { input = JSON.parse(event.body || '{}'); } catch { return reply(400, { ok: false, error: 'INVALID_JSON' }); }
   const orderID = clean(input.orderID, 200);
   const internalOrderId = clean(input.internalOrderId, 100);
+  const checkoutKey = clean(input.checkoutKey, 200);
   const reconcileOnly = input.reconcileOnly === true;
   if (!orderID || !internalOrderId) return reply(400, { ok: false, error: 'ORDER_IDENTIFIERS_REQUIRED' });
 
@@ -412,14 +441,18 @@ exports.handler = async (event) => {
   if (!dbUrl) return reply(500, { ok: false, error: 'DATABASE_NOT_CONFIGURED' });
   const sql = neonFactory(dbUrl);
   let verifiedCapture = null;
+  let captureAttempted = false;
 
   try {
     const rows = await sql`
       SELECT id, status, subtotal_cents, tax_cents, total_cents, currency, email,
+             user_id, discount_code, applied_discount_cents, applied_discount_type,
+             is_test_order, created_at, payment_reconciliation_status,
              customer_name, customer_first_name, customer_phone,
              shipping_name, shipping_street, shipping_street2, shipping_city,
              shipping_state, shipping_zip, shipping_country,
-             paypal_order_id, paypal_capture_id, checkout_idempotency_key
+             paypal_order_id, paypal_capture_id, stripe_payment_intent_id,
+             payment_method, checkout_idempotency_key
         FROM orders
        WHERE id = ${internalOrderId}
        LIMIT 1
@@ -427,11 +460,29 @@ exports.handler = async (event) => {
     if (!rows.length) return reply(404, { ok: false, error: 'INTERNAL_ORDER_NOT_FOUND' });
     let order = rows[0];
 
+    if (!checkoutKey || !constantTimeEqual(checkoutKey, order.checkout_idempotency_key)) {
+      return reply(401, { ok: false, error: 'CHECKOUT_CONFIRMATION_REQUIRED' });
+    }
+
+    if (!isPayPalBoundOrder(order)) {
+      return reply(409, {
+        ok: false,
+        error: 'PAYMENT_PROVIDER_CONFLICT',
+        message: 'This order is already bound to another payment method.',
+      });
+    }
     if (order.paypal_order_id !== orderID) return reply(409, { ok: false, error: 'PAYPAL_ORDER_LINK_MISMATCH' });
     if (!['pending', 'paid'].includes(order.status)) return reply(409, { ok: false, error: 'INTERNAL_ORDER_NOT_PAYABLE' });
 
     if (order.status === 'paid' && order.paypal_capture_id) {
-      order = await persistCustomerInfo(sql, order, input.customerInfo, null);
+      const discountCompletion = await completePaymentDiscount(sql, order);
+      if (!discountCompletion.ok) {
+        return reply(202, capturedReconciliationPayload(
+          orderID,
+          internalOrderId,
+          discountCompletion.code,
+        ));
+      }
       return reply(200, successPayload(order, null, {
         captureId: order.paypal_capture_id,
         amountCents: Number(order.total_cents),
@@ -470,14 +521,28 @@ exports.handler = async (event) => {
     const preexistingFailure = failedCaptureFromOrder(paypalData);
     if (!completed && preexistingFailure) {
       const code = firstNonEmpty(preexistingFailure.status_details?.reason, preexistingFailure.status, 'PAYPAL_PAYMENT_DECLINED');
+      await safeReleasePaymentDiscount(sql, order, 'payment_failed');
       return reply(422, failurePayload(orderID, internalOrderId, String(code).toUpperCase()));
     }
 
     if (!completed && reconcileOnly) {
       if (['VOIDED', 'EXPIRED'].includes(String(originalOrder?.status || '').toUpperCase())) {
+        await safeReleasePaymentDiscount(sql, order, 'canceled');
         return reply(422, failurePayload(orderID, internalOrderId, 'PAYPAL_ORDER_EXPIRED', 'This payment attempt expired. Please try again.'));
       }
       return reply(202, verificationPayload(orderID, internalOrderId));
+    }
+
+    // A stored/NEW20 promotion must be exclusively reserved before the first
+    // external capture request. This compare-and-set is shared with Stripe, so
+    // PayPal-vs-PayPal and PayPal-vs-Stripe races have exactly one winner.
+    const reservation = await claimPaymentDiscount(sql, order);
+    if (!reservation.ok) {
+      if (completed) {
+        await markReconciliation(sql, internalOrderId, reservation.code);
+        return reply(202, capturedReconciliationPayload(orderID, internalOrderId, reservation.code));
+      }
+      return reply(409, discountConflictPayload(orderID, internalOrderId, reservation));
     }
 
     if (!completed) {
@@ -485,6 +550,10 @@ exports.handler = async (event) => {
       let captureBody = {};
       let captureThrown = null;
       try {
+        // From this point on, any unclassified exception is an ambiguous
+        // provider result. The request may have reached PayPal even when its
+        // response (and a subsequent recovery GET) never reached us.
+        captureAttempted = true;
         captureResponse = await fetch(`${config.baseUrl}/v2/checkout/orders/${encodeURIComponent(orderID)}/capture`, {
           method: 'POST',
           headers: {
@@ -530,6 +599,7 @@ exports.handler = async (event) => {
               errorCode: code,
               raw: failureEvidence,
             });
+            await safeReleasePaymentDiscount(sql, order, 'payment_failed');
             return reply(422, failurePayload(orderID, internalOrderId, String(code).toUpperCase()));
           }
 
@@ -545,11 +615,16 @@ exports.handler = async (event) => {
       return reply(202, verificationPayload(orderID, internalOrderId));
     }
 
-    const submitted = normalizeCustomerInfo(input.customerInfo);
-    const paypalAddress = extractShippingAddress(paypalData) || extractShippingAddress(originalOrder);
-    const payerEmail = submitted.email || extractCustomerEmail(paypalData) || extractCustomerEmail(originalOrder);
-    const fullName = submitted.fullName || paypalAddress?.name || null;
-    const firstName = submitted.firstName || (fullName ? String(fullName).split(/\s+/)[0] : null);
+    const paypalAddress = [
+      extractShippingAddress(paypalData),
+      extractShippingAddress(originalOrder),
+    ].find(isCompleteShippingAddress) || null;
+    const payerEmail = extractCustomerEmail(paypalData) || extractCustomerEmail(originalOrder);
+    const providerShippingName = paypalAddress?.name || null;
+    const providerFirstName = providerShippingName
+      ? String(providerShippingName).split(/\s+/)[0]
+      : null;
+    const hasCompleteProviderShipping = isCompleteShippingAddress(paypalAddress);
 
     await safeRecordAttempt(sql, {
       internalOrderId,
@@ -576,28 +651,40 @@ exports.handler = async (event) => {
         paypal_capture_id = ${verifiedCapture.captureId},
         payment_method = 'paypal',
         payment_reconciliation_status = 'complete',
-        email = COALESCE(${payerEmail}, email),
-        customer_name = COALESCE(${fullName}, customer_name, shipping_name),
-        customer_first_name = COALESCE(${firstName}, customer_first_name),
-        customer_phone = COALESCE(${submitted.phone}, customer_phone),
-        shipping_name = COALESCE(${fullName}, shipping_name),
-        shipping_street = COALESCE(${submitted.address1 || paypalAddress?.street || null}, shipping_street),
-        shipping_street2 = COALESCE(${submitted.address2 || paypalAddress?.street2 || null}, shipping_street2),
-        shipping_city = COALESCE(${submitted.city || paypalAddress?.city || null}, shipping_city),
-        shipping_state = COALESCE(${submitted.state || paypalAddress?.state || null}, shipping_state),
-        shipping_zip = COALESCE(${submitted.postalCode || paypalAddress?.zip || null}, shipping_zip),
-        shipping_country = COALESCE(${submitted.country || paypalAddress?.country || 'US'}, shipping_country, 'US'),
+        email = COALESCE(email, ${payerEmail}),
+        customer_name = COALESCE(customer_name, ${providerShippingName}, shipping_name),
+        customer_first_name = COALESCE(customer_first_name, ${providerFirstName}),
+        shipping_name = CASE WHEN ${hasCompleteProviderShipping}
+          THEN COALESCE(${providerShippingName}, shipping_name, customer_name)
+          ELSE shipping_name END,
+        shipping_street = CASE WHEN ${hasCompleteProviderShipping}
+          THEN ${paypalAddress?.street || null} ELSE shipping_street END,
+        shipping_street2 = CASE WHEN ${hasCompleteProviderShipping}
+          THEN ${paypalAddress?.street2 || null} ELSE shipping_street2 END,
+        shipping_city = CASE WHEN ${hasCompleteProviderShipping}
+          THEN ${paypalAddress?.city || null} ELSE shipping_city END,
+        shipping_state = CASE WHEN ${hasCompleteProviderShipping}
+          THEN ${paypalAddress?.state || null} ELSE shipping_state END,
+        shipping_zip = CASE WHEN ${hasCompleteProviderShipping}
+          THEN ${paypalAddress?.zip || null} ELSE shipping_zip END,
+        shipping_country = CASE WHEN ${hasCompleteProviderShipping}
+          THEN ${paypalAddress?.country || null} ELSE COALESCE(shipping_country, 'US') END,
         updated_at = NOW()
       WHERE id = ${internalOrderId}
         AND status = 'pending'
         AND paypal_order_id = ${orderID}
+        AND payment_method = 'paypal'
+        AND stripe_payment_intent_id IS NULL
         AND total_cents = ${verifiedCapture.amountCents}
         AND paypal_capture_id IS NULL
       RETURNING id, status, subtotal_cents, tax_cents, total_cents, email,
+                user_id, discount_code, applied_discount_cents, applied_discount_type,
+                is_test_order, created_at, payment_reconciliation_status,
                 customer_name, customer_first_name, customer_phone,
                 shipping_name, shipping_street, shipping_street2, shipping_city,
                 shipping_state, shipping_zip, shipping_country,
-                paypal_order_id, paypal_capture_id, checkout_idempotency_key
+                paypal_order_id, paypal_capture_id, stripe_payment_intent_id,
+                payment_method, checkout_idempotency_key
     `;
 
     let persisted = paidRows[0] || null;
@@ -605,19 +692,26 @@ exports.handler = async (event) => {
     if (!persisted) {
       const currentRows = await sql`
         SELECT id, status, subtotal_cents, tax_cents, total_cents, email,
+               user_id, discount_code, applied_discount_cents, applied_discount_type,
+               is_test_order, created_at, payment_reconciliation_status,
                customer_name, customer_first_name, customer_phone,
                shipping_name, shipping_street, shipping_street2, shipping_city,
                shipping_state, shipping_zip, shipping_country,
-               paypal_order_id, paypal_capture_id, checkout_idempotency_key
+               paypal_order_id, paypal_capture_id, stripe_payment_intent_id,
+               payment_method, checkout_idempotency_key
           FROM orders
          WHERE id = ${internalOrderId}
          LIMIT 1
       `;
       const current = currentRows[0] || null;
       if (current?.status === 'paid'
+        && current.payment_method === 'paypal'
+        && !current.stripe_payment_intent_id
         && current.paypal_order_id === orderID
         && current.paypal_capture_id === verifiedCapture.captureId) {
-        persisted = await persistCustomerInfo(sql, current, input.customerInfo, paypalData);
+        // The already-paid winner is immutable. Browser retry payloads cannot
+        // change contact or fulfillment data after capture.
+        persisted = current;
         alreadyPaid = true;
       } else {
         await markReconciliation(sql, internalOrderId, 'ORDER_FINALIZATION_CONFLICT');
@@ -625,6 +719,14 @@ exports.handler = async (event) => {
       }
     }
 
+    const discountCompletion = await completePaymentDiscount(sql, persisted);
+    if (!discountCompletion.ok) {
+      return reply(202, capturedReconciliationPayload(
+        orderID,
+        internalOrderId,
+        discountCompletion.code,
+      ));
+    }
     return reply(200, successPayload(persisted, paypalData, verifiedCapture, config.env, alreadyPaid));
   } catch (error) {
     console.error('[paypal-capture] unexpected error', {
@@ -634,6 +736,10 @@ exports.handler = async (event) => {
     });
     if (verifiedCapture?.ok) {
       await markReconciliation(sql, internalOrderId, error?.message || 'FINALIZATION_FAILED');
+      return reply(202, verificationPayload(orderID, internalOrderId));
+    }
+    if (captureAttempted) {
+      await markReconciliation(sql, internalOrderId, error?.message || 'PAYPAL_CAPTURE_UNKNOWN');
       return reply(202, verificationPayload(orderID, internalOrderId));
     }
     return reply(500, {
@@ -649,6 +755,7 @@ exports._test = {
   normalizeCustomerInfo,
   extractCustomerEmail,
   extractShippingAddress,
+  isCompleteShippingAddress,
   failedCaptureFromOrder,
   providerCode,
   isDefinitiveFailure,

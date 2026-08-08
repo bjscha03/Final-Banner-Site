@@ -5,6 +5,10 @@ on:
     paths:
       - 'vite.config.ts'
       - 'src/components/checkout/PayPalCheckoutReliable.tsx'
+      - 'src/components/checkout/StripeCheckout.tsx'
+      - 'src/components/checkout/stripeCheckoutState.ts'
+      - 'src/components/checkout/stripeCheckoutState.test.ts'
+      - 'src/pages/Checkout.tsx'
       - 'src/main.tsx'
       - 'src/lib/paypalCaptureResponseGuard.ts'
       - 'src/lib/paypalCaptureResponseGuard.test.ts'
@@ -20,8 +24,10 @@ on:
       - 'netlify/functions/_shared/legacy/paypal-*.cjs'
       - 'netlify/functions/_shared/legacy/generate-paid-order-pdfs-background.cjs'
       - 'netlify/functions/__tests__/paypal-*.test.mjs'
-      - 'netlify/functions/__tests__/checkout-paypal-only.test.cjs'
+      - 'netlify/functions/__tests__/checkout-payment-providers.test.cjs'
       - 'netlify.toml'
+      - 'package.json'
+      - 'package-lock.json'
       - '.github/workflows/paypal-live-containment.yml'
 
 permissions:
@@ -40,9 +46,10 @@ jobs:
       - run: npm ci
       - name: Run PayPal regression tests
         run: |
-          node --test netlify/functions/__tests__/checkout-paypal-only.test.cjs
+          node --test netlify/functions/__tests__/checkout-payment-providers.test.cjs
           node --test netlify/functions/__tests__/paypal-forward-live.test.mjs
           node --test netlify/functions/__tests__/paypal-create-order-details.test.mjs
+          node --test netlify/functions/__tests__/paypal-preview-containment.test.mjs
           npx vitest run src/lib/paypalCaptureResponseGuard.test.ts --reporter=verbose
           npx vitest run \
             netlify/functions/__tests__/paypal-payment-safety.test.mjs \
@@ -51,6 +58,7 @@ jobs:
       - name: Check function syntax
         run: |
           node --check netlify/functions/_shared/paypal-runtime-config.cjs
+          node --check netlify/functions/_shared/credit-paypal-service.cjs
           node --check netlify/functions/_shared/legacy/paypal-config.cjs
           node --check netlify/functions/_shared/legacy/paypal-create-order-forward.cjs
           node --check netlify/functions/_shared/legacy/paypal-order-details.cjs

@@ -12,6 +12,7 @@ export type CanonicalPurchaseOrder = {
   same_day_fee_cents?: number | null;
   saturday_fee_cents?: number | null;
   applied_discount_label?: string | null;
+  discount_code?: string | null;
   paypal_order_id?: string | null;
   paypal_capture_id?: string | null;
   is_test_order?: boolean | null;
@@ -41,6 +42,11 @@ export const buildPurchaseAnalyticsItems = (orderId: string, items: CanonicalPur
   };
 });
 
+export const getCanonicalPurchaseCoupon = (order: CanonicalPurchaseOrder): string | null => {
+  const code = String(order.discount_code || '').trim();
+  return code || null;
+};
+
 export const attemptCanonicalPurchaseTracking = (
   orderId: string,
   order: CanonicalPurchaseOrder,
@@ -53,7 +59,9 @@ export const attemptCanonicalPurchaseTracking = (
   taxCents: Number(order.tax_cents || 0),
   shippingCents: Number(order.shipping_cents || 0),
   items: buildPurchaseAnalyticsItems(orderId, order.items || []),
-  coupon: order.applied_discount_label || null,
+  // GA4's coupon dimension is the customer-entered code, not a human-facing
+  // pricing label such as "20% promotion" or "quantity discount".
+  coupon: getCanonicalPurchaseCoupon(order),
   pageUrl,
   paypalOrderId: order.paypal_order_id,
   paypalCaptureId: order.paypal_capture_id,

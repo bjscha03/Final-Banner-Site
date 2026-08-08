@@ -16,6 +16,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { CreditPurchaseReceipt } from '../orders/CreditPurchaseReceipt';
+import { authorizedHeaders } from '@/lib/serverAuth';
 
 interface CreditPackage {
   id: string;
@@ -46,6 +47,69 @@ const CREDIT_PACKAGES: CreditPackage[] = [
   },
 ];
 
+const createCheckoutKey = () => {
+  const cryptoProvider = globalThis.crypto;
+  if (!cryptoProvider?.getRandomValues) {
+    throw new Error('Secure payment session generation is unavailable in this browser.');
+  }
+  const bytes = new Uint8Array(32);
+  cryptoProvider.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+};
+
+type CreditPaymentBindingStatus = 'creating' | 'authorizing' | 'capture_requested' | 'verifying';
+
+interface CreditPaymentBinding {
+  version: 1;
+  userId: string;
+  packageId: string;
+  checkoutKey: string;
+  purchaseId: string | null;
+  orderID: string | null;
+  status: CreditPaymentBindingStatus;
+}
+
+const bindingStorageKey = (userId: string) => `botf:credit-paypal:v1:${userId}`;
+
+const clearCreditPaymentBinding = (userId: string) => {
+  if (!userId || typeof window === 'undefined') return;
+  try {
+    window.sessionStorage.removeItem(bindingStorageKey(userId));
+  } catch {
+    // A clear is best-effort after a definitive terminal state. Storage writes
+    // still fail closed before any new provider order can be requested.
+  }
+};
+
+const readCreditPaymentBinding = (userId: string): CreditPaymentBinding | null => {
+  if (!userId || typeof window === 'undefined') return null;
+  try {
+    const raw = window.sessionStorage.getItem(bindingStorageKey(userId));
+    if (!raw) return null;
+    const binding = JSON.parse(raw) as Partial<CreditPaymentBinding>;
+    if (binding.version !== 1
+        || binding.userId !== userId
+        || !CREDIT_PACKAGES.some((pkg) => pkg.id === binding.packageId)
+        || !/^[A-Za-z0-9_-]{32,128}$/.test(String(binding.checkoutKey || ''))
+        || !['creating', 'authorizing', 'capture_requested', 'verifying'].includes(String(binding.status))) {
+      clearCreditPaymentBinding(userId);
+      return null;
+    }
+    return binding as CreditPaymentBinding;
+  } catch {
+    clearCreditPaymentBinding(userId);
+    return null;
+  }
+};
+
+const writeCreditPaymentBinding = (binding: CreditPaymentBinding) => {
+  window.sessionStorage.setItem(bindingStorageKey(binding.userId), JSON.stringify(binding));
+};
+
+const wait = (milliseconds: number) => new Promise((resolve) => {
+  window.setTimeout(resolve, milliseconds);
+});
+
 interface PurchaseCreditsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -73,7 +137,38 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [paypalClientId, setPaypalClientId] = useState<string | null>(null);
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
+  const [verificationPending, setVerificationPending] = useState(false);
+  const [hydratedBindingUserId, setHydratedBindingUserId] = useState<string | null>(null);
   const { toast } = useToast();
+  const checkoutKeyRef = useRef('');
+  const purchaseIdRef = useRef<string | null>(null);
+  const paypalOrderIdRef = useRef<string | null>(null);
+  const paymentCompletedRef = useRef(false);
+  const verificationPendingRef = useRef(false);
+  const paymentBindingRef = useRef<CreditPaymentBinding | null>(null);
+  const recoveryStartedRef = useRef(false);
+  const recoveryPollRef = useRef<(() => Promise<void>) | null>(null);
+  const recoveryErrorRef = useRef<((error: unknown) => void) | null>(null);
+
+  const setVerificationLocked = (locked: boolean) => {
+    verificationPendingRef.current = locked;
+    setVerificationPending(locked);
+  };
+
+  const persistBinding = (status: CreditPaymentBindingStatus) => {
+    if (!selectedPackage || !checkoutKeyRef.current) return;
+    const binding: CreditPaymentBinding = {
+      version: 1,
+      userId,
+      packageId: selectedPackage.id,
+      checkoutKey: checkoutKeyRef.current,
+      purchaseId: purchaseIdRef.current,
+      orderID: paypalOrderIdRef.current,
+      status,
+    };
+    paymentBindingRef.current = binding;
+    writeCreditPaymentBinding(binding);
+  };
 
   // Use ref to store handler so it doesn't get recreated
   const receiptHandlerRef = useRef<((event: any) => void) | null>(null);
@@ -117,13 +212,17 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
 
     const loadPayPalConfig = async () => {
       try {
-        // Try to load from Netlify function first
-        const response = await fetch('/.netlify/functions/paypal-config');
+        // This authenticated config comes from the same strict environment
+        // resolver used for credit order creation and capture. Do not fall back
+        // to a build-time key that could belong to a different PayPal mode.
+        const response = await fetch('/.netlify/functions/paypal-create-credits-order', {
+          headers: authorizedHeaders(),
+        });
         if (response.ok) {
           const config = await response.json();
           if (config.enabled && config.clientId) {
             setPaypalClientId(config.clientId);
-            console.log('✅ PayPal config loaded from Netlify function');
+            console.log('✅ Credit PayPal config loaded');
           } else {
             throw new Error('PayPal not enabled in config');
           }
@@ -132,15 +231,7 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
         }
       } catch (error) {
         console.error('Error loading PayPal config from function:', error);
-        // Fallback to environment variable
-        const fallbackClientId = import.meta.env.VITE_PAYPAL_CLIENT_ID || 
-                                 (window as any).NEXT_PUBLIC_PAYPAL_CLIENT_ID;
-        if (fallbackClientId) {
-          setPaypalClientId(fallbackClientId);
-          console.log('✅ PayPal config loaded from environment variable');
-        } else {
-          console.error('❌ No PayPal client ID available');
-        }
+        setPaypalClientId(null);
       } finally {
         setIsLoadingConfig(false);
       }
@@ -148,6 +239,43 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
 
     loadPayPalConfig();
   }, [open]);
+
+  // Keep one provider/order binding across modal closes, refreshes, and a lost
+  // capture response. A payment that may have been approved is never replaced
+  // by a fresh checkout key until the server gives a definitive retry state.
+  useEffect(() => {
+    if (!open) {
+      setHydratedBindingUserId(null);
+      return;
+    }
+    if (!userId) {
+      setHydratedBindingUserId(userId);
+      return;
+    }
+    recoveryStartedRef.current = false;
+    const binding = readCreditPaymentBinding(userId);
+    if (!binding) {
+      paymentBindingRef.current = null;
+      setHydratedBindingUserId(userId);
+      return;
+    }
+    const pkg = CREDIT_PACKAGES.find((candidate) => candidate.id === binding.packageId) || null;
+    if (!pkg) {
+      clearCreditPaymentBinding(userId);
+      setHydratedBindingUserId(userId);
+      return;
+    }
+    paymentBindingRef.current = binding;
+    checkoutKeyRef.current = binding.checkoutKey;
+    purchaseIdRef.current = binding.purchaseId;
+    paypalOrderIdRef.current = binding.orderID;
+    paymentCompletedRef.current = false;
+    setSelectedPackage(pkg);
+    const locked = binding.status === 'capture_requested' || binding.status === 'verifying';
+    setVerificationLocked(locked);
+    setIsProcessing(locked || binding.status === 'creating');
+    setHydratedBindingUserId(userId);
+  }, [open, userId]);
 
   // Show receipt modal when purchaseData is set
   useEffect(() => {
@@ -178,6 +306,7 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
   }, [purchaseData]);
 
   const handleSelectPackage = (pkg: CreditPackage) => {
+    if (hydratedBindingUserId !== userId) return;
     // Check if user is authenticated
     if (!userId || userId === 'null' || userId === 'undefined') {
       console.error('❌ User not authenticated, cannot purchase credits');
@@ -190,185 +319,225 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
       return;
     }
 
-    console.log('📦 Package selected:', pkg);
+    try {
+      checkoutKeyRef.current = createCheckoutKey();
+    } catch (error) {
+      toast({
+        title: 'Secure checkout unavailable',
+        description: error instanceof Error ? error.message : 'This browser cannot create a secure payment session.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    clearCreditPaymentBinding(userId);
+    paymentBindingRef.current = null;
+    purchaseIdRef.current = null;
+    paypalOrderIdRef.current = null;
+    paymentCompletedRef.current = false;
+    setVerificationLocked(false);
+    console.log('📦 Package selected:', pkg.id);
     setSelectedPackage(pkg);
     setIsProcessing(true);
   };
 
-  const handleCreateOrder = async () => {
-    if (!selectedPackage) {
-      throw new Error('No package selected');
-    }
-
-    console.log('🔄 Creating PayPal order for credits...');
-    
+  const readPaymentResponse = async (response: Response) => {
     try {
-      const response = await fetch('/.netlify/functions/paypal-create-credits-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId,
-          email: userEmail,
-          credits: selectedPackage.credits,
-          amountCents: Math.round(selectedPackage.price * 100),
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Failed to create order:', response.status, errorText);
-        throw new Error('Failed to create payment order');
-      }
-
-      const { orderID } = await response.json();
-      console.log('✅ PayPal order created:', orderID);
-      return orderID;
-    } catch (error) {
-      console.error('❌ Create order error:', error);
-      toast({
-        title: '❌ Error',
-        description: 'Failed to initiate purchase. Please try again.',
-        variant: 'destructive',
-      });
-      setIsProcessing(false);
-      setSelectedPackage(null);
-      throw error;
+      return await response.json();
+    } catch {
+      return { error: 'INVALID_PAYMENT_RESPONSE', message: 'The payment service returned an invalid response.' };
     }
+  };
+
+  const finishCreditPurchase = (result: any) => {
+    const purchase = result.purchase || {};
+    const receiptData = {
+      id: result.purchaseId || purchase.id,
+      credits_purchased: Number(result.credits ?? purchase.credits_purchased),
+      amount_cents: Number(result.amountCents ?? purchase.amount_cents),
+      paypal_capture_id: result.captureID || purchase.paypal_capture_id,
+      customer_name: userEmail || 'Customer',
+      email: purchase.email || userEmail || '',
+      created_at: purchase.created_at || new Date().toISOString(),
+    };
+    paymentCompletedRef.current = true;
+    setVerificationLocked(false);
+    clearCreditPaymentBinding(userId);
+    paymentBindingRef.current = null;
+    recoveryStartedRef.current = false;
+    setIsProcessing(false);
+    setSelectedPackage(null);
+    window.dispatchEvent(new CustomEvent('show-credit-receipt', {
+      detail: receiptData,
+      bubbles: true,
+    }));
+    toast({
+      title: '✅ Credits Purchased!',
+      description: `${receiptData.credits_purchased} credits have been added to your account.`,
+    });
+    onPurchaseComplete?.();
+  };
+
+  const checkCreditPayment = async (reconcileOnly: boolean) => {
+    const response = await fetch('/.netlify/functions/paypal-capture-credits-order', {
+      method: 'POST',
+      headers: authorizedHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({
+        purchaseId: purchaseIdRef.current,
+        orderID: paypalOrderIdRef.current,
+        checkoutKey: checkoutKeyRef.current,
+        reconcileOnly,
+      }),
+    });
+    return { response, payload: await readPaymentResponse(response) };
+  };
+
+  const pollCreditPayment = async () => {
+    setVerificationLocked(true);
+    persistBinding('verifying');
+    let resumeCaptureRequest = false;
+    for (let attempt = 0; attempt < 15; attempt += 1) {
+      await wait(2000);
+      const { response, payload } = await checkCreditPayment(!resumeCaptureRequest);
+      resumeCaptureRequest = false;
+      if (response.status === 200 && payload.paymentCaptured === true && payload.captureID) {
+        finishCreditPurchase(payload);
+        return;
+      }
+      if (response.status === 202 && payload.reconciliationRequired === true) {
+        // If the original browser request never reached the function, the DB has
+        // no capture-start marker. Resume once through the authenticated capture
+        // contract; otherwise reconciliation only repeats the already-persisted
+        // deterministic PayPal request ID.
+        resumeCaptureRequest = payload.captureRequestStarted === false;
+        continue;
+      }
+      if (response.status === 422) {
+        clearCreditPaymentBinding(userId);
+        paymentBindingRef.current = null;
+        purchaseIdRef.current = null;
+        paypalOrderIdRef.current = null;
+        checkoutKeyRef.current = createCheckoutKey();
+        setVerificationLocked(false);
+      }
+      {
+        throw Object.assign(new Error(payload.message || 'Credit payment verification failed.'), {
+          code: payload.error,
+        });
+      }
+    }
+    setIsProcessing(false);
+    setVerificationLocked(true);
+    toast({
+      title: 'Payment confirmation is still in progress',
+      description: 'Do not submit another payment. Your credits will appear automatically after PayPal confirmation.',
+      duration: 10000,
+    });
+  };
+
+  const handleCreateOrder = async () => {
+    if (!selectedPackage) throw new Error('No package selected');
+    if (!checkoutKeyRef.current) checkoutKeyRef.current = createCheckoutKey();
+    persistBinding('creating');
+    const response = await fetch('/.netlify/functions/paypal-create-credits-order', {
+      method: 'POST',
+      headers: authorizedHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({
+        packageId: selectedPackage.id,
+        checkoutKey: checkoutKeyRef.current,
+      }),
+    });
+    const payload = await readPaymentResponse(response);
+    if (payload.purchaseId) purchaseIdRef.current = payload.purchaseId;
+    if (payload.orderID) paypalOrderIdRef.current = payload.orderID;
+    if (response.status === 200 && payload.paymentCaptured === true) {
+      finishCreditPurchase(payload);
+      return payload.orderID;
+    }
+    if (response.status === 202 && payload.safeToRetry === true) {
+      persistBinding('creating');
+      throw Object.assign(new Error(payload.message || 'PayPal order creation is still being confirmed.'), {
+        code: payload.error,
+        preserveAttempt: true,
+      });
+    }
+    if (!response.ok || !payload.orderID || !payload.purchaseId) {
+      if (payload.restartPayment === true && payload.retryAllowed === true) {
+        clearCreditPaymentBinding(userId);
+        paymentBindingRef.current = null;
+      } else if (paypalOrderIdRef.current) {
+        setVerificationLocked(true);
+        persistBinding('verifying');
+      } else {
+        persistBinding('creating');
+      }
+      throw Object.assign(new Error(payload.message || 'Failed to initiate the credit purchase.'), {
+        code: payload.error,
+        preserveAttempt: payload.restartPayment !== true,
+      });
+    }
+    persistBinding('authorizing');
+    setIsProcessing(false);
+    return payload.orderID;
   };
 
   const handleApprove = async (data: any) => {
-    if (!selectedPackage) {
-      console.error('❌ No package selected');
+    if (!selectedPackage || !purchaseIdRef.current || !paypalOrderIdRef.current) {
+      throw new Error('The saved credit purchase is unavailable. Start a new purchase.');
+    }
+    if (String(data?.orderID || '') !== paypalOrderIdRef.current) {
+      throw new Error('PayPal returned a different order than the saved credit purchase.');
+    }
+
+    setIsProcessing(true);
+    recoveryStartedRef.current = true;
+    setVerificationLocked(true);
+    persistBinding('capture_requested');
+    const { response, payload } = await checkCreditPayment(false);
+    if (response.status === 200 && payload.paymentCaptured === true && payload.captureID) {
+      finishCreditPurchase(payload);
       return;
     }
-
-    try {
-      console.log('🔄 Capturing PayPal payment...', data.orderID);
-      
-      const captureResponse = await fetch('/.netlify/functions/paypal-capture-credits-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderID: data.orderID,
-          userId,
-          email: userEmail,
-          credits: selectedPackage.credits,
-          amountCents: Math.round(selectedPackage.price * 100),
-        }),
-      });
-
-      console.log('📡 Backend response status:', captureResponse.status);
-
-      if (!captureResponse.ok) {
-        let errorData;
-        try {
-          errorData = await captureResponse.json();
-        } catch {
-          errorData = { error: 'UNKNOWN_ERROR' };
-        }
-        
-        console.error('❌ Backend capture failed:', captureResponse.status, errorData);
-        
-        // Parse PayPal error details from backend response
-        let errorTitle = "💳 Payment Failed";
-        let errorMessage = "Your payment could not be processed. Please try again.";
-        
-        if (errorData.details) {
-          const details = errorData.details;
-          
-          // Check for INSTRUMENT_DECLINED (card declined)
-          if (details.name === 'UNPROCESSABLE_ENTITY' || 
-              (details.details && details.details.some((d: any) => d.issue === 'INSTRUMENT_DECLINED'))) {
-            errorTitle = "💳 Payment Declined";
-            errorMessage = "Your card was declined by your bank. Please try a different payment method or contact your bank.";
-            
-            // Extract specific decline reason if available
-            const declineDetail = details.details?.find((d: any) => d.issue === 'INSTRUMENT_DECLINED');
-            if (declineDetail?.description) {
-              console.error('�� Decline reason:', declineDetail.description);
-            }
-          }
-          // Check for other PayPal errors
-          else if (details.name === 'PAYPAL_CAPTURE_FAILED') {
-            errorTitle = "⚠️ Payment Processing Error";
-            errorMessage = "PayPal could not process your payment. Please try again or use a different payment method.";
-          }
-          
-          // Log debug_id if available
-          if (details.debug_id) {
-            console.error('🔍 PayPal Debug ID:', details.debug_id);
-            errorMessage += ` (Debug ID: ${details.debug_id})`;
-          }
-        }
-        
-        toast({
-          title: errorTitle,
-          description: errorMessage,
-          variant: "destructive",
-          duration: 8000, // Show for 8 seconds so user can read it
-        });
-        
-        // Reset state so user can try again
-        setIsProcessing(false);
-        setSelectedPackage(null);
-        
-        throw new Error(`Backend capture failed: ${captureResponse.status}`);
-      }
-
-      const result = await captureResponse.json();
-      console.log('📦 Capture response:', result);
-      console.log('✅ Payment captured successfully:', result);
-
-      console.log('🧾 Preparing receipt data...');
-      
-      // Store purchase data for receipt
-      const receiptData = {
-        id: result.purchaseId,
-        credits_purchased: selectedPackage.credits,
-        amount_cents: Math.round(selectedPackage.price * 100),
-        paypal_capture_id: result.purchaseId,
-        customer_name: userEmail || 'Customer',
-        email: userEmail || '',
-        created_at: new Date().toISOString(),
-      };
-      
-      console.log('📋 Receipt data prepared:', receiptData);
-      
-      // Dispatch custom event (works in PayPal callback context)
-      console.log('🚀 Dispatching show-credit-receipt event');
-      const event = new CustomEvent('show-credit-receipt', {
-        detail: receiptData,
-        bubbles: true,
-      });
-      window.dispatchEvent(event);
-      console.log('✅ Event dispatched successfully');
-      
-      toast({
-        title: '✅ Credits Purchased!',
-        description: `${selectedPackage.credits} credits have been added to your account.`,
-      });
-
-      // Reset processing state and selected package
-      setIsProcessing(false);
-      setSelectedPackage(null);
-
-      // Refresh credits
-      if (onPurchaseComplete) {
-        onPurchaseComplete();
-      }
-    } catch (error) {
-      console.error('Payment capture error:', error);
-      toast({
-        title: '❌ Payment Failed',
-        description: 'There was an error processing your payment. Please try again.',
-        variant: 'destructive',
-      });
-      setIsProcessing(false);
-      setSelectedPackage(null);
+    if (response.status === 202 && payload.reconciliationRequired === true) {
+      persistBinding('verifying');
+      await pollCreditPayment();
+      return;
     }
+    if (response.status === 422) {
+      clearCreditPaymentBinding(userId);
+      paymentBindingRef.current = null;
+      checkoutKeyRef.current = createCheckoutKey();
+      purchaseIdRef.current = null;
+      paypalOrderIdRef.current = null;
+      setVerificationLocked(false);
+    }
+    throw Object.assign(new Error(payload.message || 'The credit payment could not be completed.'), {
+      code: payload.error,
+    });
   };
 
   const handleError = (err: any) => {
+    if (paymentCompletedRef.current) return;
+    if (verificationPendingRef.current) {
+      console.warn('[CreditPurchase] PayPal callback ended while server verification remains active', err);
+      persistBinding('verifying');
+      setIsProcessing(false);
+      toast({
+        title: 'Payment confirmation is continuing',
+        description: 'Do not submit another payment. We will keep checking the saved PayPal transaction.',
+        duration: 10000,
+      });
+      return;
+    }
+    if (err?.preserveAttempt === true || paymentBindingRef.current?.status === 'creating') {
+      console.warn('[CreditPurchase] retaining the same PayPal create attempt', err);
+      setIsProcessing(false);
+      toast({
+        title: 'PayPal is still starting this purchase',
+        description: 'Please try the PayPal button again. The same saved attempt will be reused and will not create a second charge.',
+        duration: 10000,
+      });
+      return;
+    }
     console.error('💥 PayPal error:', err);
     console.error('💥 Error details:', JSON.stringify(err, null, 2));
     
@@ -426,16 +595,50 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
     
     setIsProcessing(false);
     setSelectedPackage(null);
+    clearCreditPaymentBinding(userId);
+    paymentBindingRef.current = null;
+    checkoutKeyRef.current = createCheckoutKey();
+    purchaseIdRef.current = null;
+    paypalOrderIdRef.current = null;
+    setVerificationLocked(false);
   };
 
   const handleCancel = () => {
+    if (verificationPendingRef.current) {
+      toast({
+        title: 'Payment confirmation is continuing',
+        description: 'The approved transaction remains saved. Do not submit another payment.',
+      });
+      return;
+    }
     toast({
       title: 'Payment Cancelled',
       description: 'You cancelled the payment.',
     });
     setIsProcessing(false);
     setSelectedPackage(null);
+    clearCreditPaymentBinding(userId);
+    paymentBindingRef.current = null;
+    checkoutKeyRef.current = createCheckoutKey();
+    purchaseIdRef.current = null;
+    paypalOrderIdRef.current = null;
+    setVerificationLocked(false);
   };
+
+  recoveryPollRef.current = pollCreditPayment;
+  recoveryErrorRef.current = handleError;
+
+  useEffect(() => {
+    if (!open
+        || !verificationPending
+        || recoveryStartedRef.current
+        || !purchaseIdRef.current
+        || !paypalOrderIdRef.current) return;
+    recoveryStartedRef.current = true;
+    const poll = recoveryPollRef.current;
+    if (!poll) return;
+    void poll().catch((error) => recoveryErrorRef.current?.(error));
+  }, [open, verificationPending]);
 
   const paypalInitialOptions = paypalClientId ? {
     clientId: paypalClientId,
@@ -457,7 +660,12 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
           </DialogHeader>
 
           <div className="mt-4">
-            {!selectedPackage ? (
+            {hydratedBindingUserId !== userId ? (
+              <div className="flex items-center justify-center py-12" role="status" aria-live="polite">
+                <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                <span>Restoring secure payment session...</span>
+              </div>
+            ) : !selectedPackage ? (
               <>
                 <p className="text-gray-600 mb-6">
                   Choose a credit package to continue generating AI banner images
@@ -532,13 +740,25 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
               </>
             ) : (
               <div className="text-center py-8">
-                <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
-                <p className="text-lg font-medium mb-2">Processing your purchase...</p>
+                {verificationPending ? (
+                  <Sparkles className="w-12 h-12 text-blue-600 mx-auto mb-4" />
+                ) : (
+                  <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+                )}
+                <p className="text-lg font-medium mb-2">
+                  {verificationPending ? 'Confirming your PayPal payment' : 'Processing your purchase...'}
+                </p>
                 <p className="text-sm text-gray-600 mb-6">
-                  {selectedPackage.credits} credits for ${selectedPackage.price.toFixed(2)}
+                  {verificationPending
+                    ? 'Do not submit another payment. Your balance will update as soon as PayPal confirms the capture.'
+                    : `${selectedPackage.credits} credits for $${selectedPackage.price.toFixed(2)}`}
                 </p>
 
-                {isLoadingConfig ? (
+                {verificationPending ? (
+                  <div className="max-w-md mx-auto rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900" role="status" aria-live="polite">
+                    You may close this window. This purchase remains safely bound to your account and will be reconciled without another charge.
+                  </div>
+                ) : isLoadingConfig ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin mr-2" />
                     <span>Loading payment options...</span>

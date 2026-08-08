@@ -1,5 +1,6 @@
 const { neon } = require('@neondatabase/serverless');
 const captureModule = require('./paypal-capture-forward.cjs');
+const creditPayments = require('../credit-paypal-service.cjs');
 const {
   getPayPalWebhookCaptureId,
   getPayPalWebhookOrderId,
@@ -7,6 +8,7 @@ const {
 
 const headers = { 'Content-Type': 'application/json' };
 const reply = (statusCode, body) => ({ statusCode, headers, body: JSON.stringify(body) });
+let neonFactory = neon;
 
 async function getPayPalAccessToken() {
   const env = String(process.env.PAYPAL_ENV || 'sandbox').toLowerCase();
@@ -88,7 +90,7 @@ exports.handler = async (event) => {
   if (!dbUrl) return reply(500, { ok: false, error: 'DATABASE_NOT_CONFIGURED' });
 
   const body = event.body || '{}';
-  const sql = neon(dbUrl);
+  const sql = neonFactory(dbUrl);
 
   try {
     const verified = await verifyWebhookSignature(event, body);
@@ -112,6 +114,24 @@ exports.handler = async (event) => {
     `;
     const prior = priorRows[0] || null;
     if (prior && ['completed', 'ignored'].includes(prior.processing_status)) {
+      if (prior.processing_status === 'completed' && paypalOrderId && prior.created_order_id) {
+        const priorCredits = await sql`
+          SELECT id
+            FROM credit_purchases
+           WHERE id = ${prior.created_order_id}
+             AND paypal_order_id = ${paypalOrderId}
+           LIMIT 1
+        `;
+        if (priorCredits.length === 1) {
+          return reply(200, {
+            ok: true,
+            duplicate: true,
+            creditPurchase: true,
+            creditPurchaseId: prior.created_order_id,
+            captureID: paypalCaptureId || null,
+          });
+        }
+      }
       return reply(200, {
         ok: true,
         duplicate: true,
@@ -152,13 +172,114 @@ exports.handler = async (event) => {
       return reply(400, { ok: false, error: 'PAYPAL_WEBHOOK_CAPTURE_INVALID' });
     }
 
-    const orders = await sql`
-      SELECT id
-        FROM orders
+    const creditTargets = await sql`
+      SELECT id, paypal_order_id, paypal_capture_id
+        FROM credit_purchases
        WHERE paypal_order_id = ${paypalOrderId}
+          OR paypal_capture_id = ${paypalCaptureId}
        ORDER BY created_at DESC
        LIMIT 2
     `;
+    const orders = await sql`
+      SELECT id, checkout_idempotency_key, paypal_order_id, paypal_capture_id
+        FROM orders
+       WHERE paypal_order_id = ${paypalOrderId}
+          OR paypal_capture_id = ${paypalCaptureId}
+       ORDER BY created_at DESC
+       LIMIT 2
+    `;
+
+    // A provider order must belong to exactly one payment domain. This catches
+    // both historical duplicates and any attempted banner/credit cross-route
+    // contamination before either fulfillment path runs.
+    const exactCreditTarget = creditTargets.length === 1
+      && creditTargets[0].paypal_order_id === paypalOrderId
+      && (!creditTargets[0].paypal_capture_id
+        || creditTargets[0].paypal_capture_id === paypalCaptureId);
+    const exactBannerTarget = orders.length === 1
+      && orders[0].paypal_order_id === paypalOrderId
+      && (!orders[0].paypal_capture_id || orders[0].paypal_capture_id === paypalCaptureId);
+    if (creditTargets.length > 1
+        || orders.length > 1
+        || (creditTargets.length === 1 && orders.length > 0)
+        || (creditTargets.length === 1 && !exactCreditTarget)
+        || (orders.length === 1 && !exactBannerTarget)) {
+      const message = creditTargets.length > 1
+        ? 'Multiple credit purchases reference the same PayPal order ID'
+        : orders.length > 1
+          ? 'Multiple banner orders reference the same PayPal payment ID'
+          : (creditTargets.length === 1 && orders.length > 0)
+            ? 'PayPal payment ID is linked to both a banner order and a credit purchase'
+            : 'PayPal order/capture identifiers do not resolve to the same internal purchase';
+      await updateEvent(sql, eventId, 'conflict', message);
+      return reply(503, { ok: false, error: 'PAYPAL_PAYMENT_DOMAIN_CONFLICT' });
+    }
+
+    if (creditTargets.length === 1) {
+      const creditPurchaseId = creditTargets[0].id;
+      try {
+        await creditPayments.ensureCreditPaymentSchema(sql);
+        const creditRows = await creditPayments.loadCreditPurchasesByPayPalOrder(sql, paypalOrderId);
+        if (creditRows.length !== 1 || creditRows[0].id !== creditPurchaseId) {
+          throw new creditPayments.CreditPaymentError(
+            'CREDIT_PAYPAL_ORDER_CONFLICT',
+            'The PayPal order is not uniquely bound to one credit purchase.',
+            { statusCode: 409 },
+          );
+        }
+        const settled = await creditPayments.reconcileCreditPayment({
+          sql,
+          purchase: creditRows[0],
+          paypalOrderId,
+          expectedCaptureId: paypalCaptureId,
+          captureIfApproved: false,
+          reconcileOnly: true,
+          // A kill switch stops new capture attempts, never fulfillment of a
+          // provider-authenticated payment that has already completed.
+          requireFeature: false,
+          event,
+        });
+        const notification = await creditPayments.processCreditPurchaseNotification(
+          sql,
+          creditPurchaseId,
+        );
+        if (!notification.complete) {
+          throw new creditPayments.CreditPaymentError(
+            'CREDIT_RECEIPT_PENDING',
+            'Credit receipt delivery is pending and will be retried.',
+            { statusCode: 503, retryable: true, paymentCaptured: true },
+          );
+        }
+        await updateEvent(sql, eventId, 'completed', null, creditPurchaseId);
+        return reply(200, {
+          ok: true,
+          creditPurchase: true,
+          creditPurchaseId,
+          captureID: settled.validation.captureId,
+          paymentCaptured: true,
+          creditsFulfilled: true,
+          alreadyFulfilled: !settled.newlyFulfilled,
+          receiptDelivered: true,
+        });
+      } catch (error) {
+        const retryable = Number(error?.statusCode || 500) === 202
+          || Number(error?.statusCode || 500) >= 500;
+        await updateEvent(
+          sql,
+          eventId,
+          retryable ? 'reconciliation' : 'conflict',
+          error?.code || error?.message || 'Credit payment finalization failed',
+          creditPurchaseId,
+        );
+        return reply(503, {
+          ok: false,
+          error: error?.code || 'CREDIT_WEBHOOK_FINALIZATION_FAILED',
+          creditPurchase: true,
+          creditPurchaseId,
+          reconciliationRequired: true,
+        });
+      }
+    }
 
     if (orders.length !== 1) {
       const message = orders.length > 1
@@ -170,9 +291,14 @@ exports.handler = async (event) => {
 
     const internalOrderId = orders[0].id;
     const captureResponse = await captureModule.handler({
+      ...event,
       httpMethod: 'POST',
       headers: event.headers || {},
-      body: JSON.stringify({ orderID: paypalOrderId, internalOrderId }),
+      body: JSON.stringify({
+        orderID: paypalOrderId,
+        internalOrderId,
+        checkoutKey: orders[0].checkout_idempotency_key,
+      }),
     });
 
     let capturePayload = {};
@@ -220,4 +346,13 @@ exports.handler = async (event) => {
   }
 };
 
-exports._test = { verifyWebhookSignature, ensureWebhookTable };
+exports._test = {
+  verifyWebhookSignature,
+  ensureWebhookTable,
+  resetNeonFactory() {
+    neonFactory = neon;
+  },
+  setNeonFactory(factory) {
+    neonFactory = factory;
+  },
+};

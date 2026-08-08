@@ -7,6 +7,7 @@ const path = require('node:path');
 
 const notifierPath = path.resolve(__dirname, '../_shared/legacy/notify-order.cjs');
 const sentEmails = [];
+const sentEmailOptions = [];
 let databaseConnections = 0;
 
 const order = {
@@ -71,8 +72,9 @@ Module._load = function loadWithNotifierMocks(request, parent, isMain) {
       Resend: class Resend {
         constructor() {
           this.emails = {
-            send: async (email) => {
+            send: async (email, options) => {
               sentEmails.push(email);
+              sentEmailOptions.push(options);
               return { data: { id: `email-${sentEmails.length}` } };
             },
           };
@@ -101,6 +103,7 @@ const originalEnv = {
 test.beforeEach(() => {
   databaseConnections = 0;
   sentEmails.length = 0;
+  sentEmailOptions.length = 0;
   process.env.NETLIFY_DATABASE_URL = 'postgres://notifier-test.invalid/database';
   process.env.RESEND_API_KEY = 're_test_notifier';
   process.env.RESEND_ORDER_EMAIL_SECRET = 'test-resend-secret';
@@ -178,8 +181,13 @@ test('notify-order accepts force resend from internal jobs and verified administ
   });
   assert.equal(response.statusCode, 200);
   assert.equal(sentEmails.length, 2);
+  assert.deepEqual(sentEmailOptions, [
+    { idempotencyKey: `bof-order-email/order.confirmation/${order.id}` },
+    { idempotencyKey: `bof-order-email/order.admin_notification/${order.id}` },
+  ]);
 
   sentEmails.length = 0;
+  sentEmailOptions.length = 0;
   delete process.env.INTERNAL_JOB_SECRET;
   process.env.AUTH_SESSION_SECRET = 'test-admin-session-secret';
   const adminToken = createSessionToken({ id: 'admin-1', email: 'admin@example.com', is_admin: true });

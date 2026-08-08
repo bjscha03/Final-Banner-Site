@@ -7,7 +7,7 @@ import orderDetails from './_shared/legacy/paypal-order-details.cjs';
 import runtimeConfig from './_shared/paypal-runtime-config.cjs';
 
 const handler = async (event, context) => {
-  runtimeConfig.preparePayPalRuntime();
+  runtimeConfig.preparePayPalRuntime({ event });
   return legacyModule.handler(event, context);
 };
 

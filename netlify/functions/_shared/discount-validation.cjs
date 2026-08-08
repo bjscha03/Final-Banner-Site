@@ -39,7 +39,7 @@ async function findTradeShowDiscount(sql, normalizedCode) {
   }
 }
 
-async function validateDiscountForCheckout({ sql, code, email = null, userId = null }) {
+async function validateDiscountForCheckout({ sql, code, email = null, userId = null, checkoutKey = null }) {
   const normalizedCode = normalizeCode(code);
   const normalizedEmail = email ? String(email).trim().toLowerCase() : null;
   if (!normalizedCode) return invalidResult('Discount code is required');
@@ -73,7 +73,14 @@ async function validateDiscountForCheckout({ sql, code, email = null, userId = n
   const rows = await sql`
     SELECT id, code, discount_percentage, discount_amount_cents, used, expires_at,
            single_use, used_by_user_id, used_by_email,
-           max_uses_per_customer, max_total_uses, email
+           max_uses_per_customer, max_total_uses, email, order_id,
+           EXISTS (
+             SELECT 1
+               FROM orders reserved_order
+              WHERE reserved_order.id = discount_codes.order_id
+                AND ${checkoutKey || null}::text IS NOT NULL
+                AND reserved_order.checkout_idempotency_key = ${checkoutKey || null}
+           ) AS owned_by_checkout
     FROM discount_codes
     WHERE UPPER(code) = ${normalizedCode}
     LIMIT 1
@@ -81,6 +88,20 @@ async function validateDiscountForCheckout({ sql, code, email = null, userId = n
   if (!rows.length) return invalidResult('Invalid discount code');
 
   const discount = rows[0];
+  // A provider reservation is taken immediately before confirmation. The
+  // same opaque checkout key must be able to retry that exact pending order
+  // (including after a decline) without presenting the code as stolen. No
+  // other checkout receives this exception.
+  if (discount.owned_by_checkout === true || discount.owned_by_checkout === 'true') {
+    return validResult({
+      id: discount.id,
+      code: String(discount.code).toUpperCase(),
+      discountPercentage: Number(discount.discount_percentage || 0) || null,
+      discountAmountCents: Number(discount.discount_amount_cents || 0) || null,
+      expiresAt: discount.expires_at,
+      source: 'discount_codes',
+    });
+  }
   if (discount.expires_at && new Date(discount.expires_at) < new Date()) {
     return invalidResult('This discount code has expired');
   }

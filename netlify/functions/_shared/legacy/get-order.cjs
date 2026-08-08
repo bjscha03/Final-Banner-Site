@@ -214,6 +214,7 @@ exports.handler = async (event, context) => {
       'shipping_zip',
       'shipping_country',
       'shipping_address',
+      'discount_code',
       'applied_discount_cents',
       'applied_discount_label',
       'applied_discount_type',
@@ -229,6 +230,7 @@ exports.handler = async (event, context) => {
       // and are removed before the response is serialized.
       'stripe_payment_intent_id',
       'stripe_charge_id',
+      'stripe_wallet_type',
       'checkout_idempotency_key',
       'is_test_order',
       'test_order_reason',
@@ -368,6 +370,10 @@ exports.handler = async (event, context) => {
       stripe_charge_id: _stripeChargeId,
       ...publicOrder
     } = order;
+    if (session?.admin) {
+      publicOrder.stripe_payment_intent_id = _stripePaymentIntentId || null;
+      publicOrder.stripe_charge_id = _stripeChargeId || null;
+    }
     const orderWithItems = {
       ...publicOrder,
       tracking_numbers: normalizeTrackingEntries(order),

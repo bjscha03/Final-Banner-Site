@@ -177,6 +177,7 @@ const bannerProduct: ProductTypeConfig = {
     { value: 'every-1-2ft', label: 'Every 1–2 Feet', description: 'Closer spacing' },
     { value: '4-corners', label: '4 Corners Only', description: 'One grommet in each corner' },
     { value: 'top-corners', label: 'Top Corners Only', description: 'Top two corners' },
+    { value: 'bottom-corners', label: 'Bottom Corners Only', description: 'Bottom two corners' },
     { value: 'right-corners', label: 'Right Corners Only', description: 'Right two corners' },
     { value: 'left-corners', label: 'Left Corners Only', description: 'Left two corners' },
   ],

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { inchesToSqFt, ropeCost, calcTotals, usd, PRICE_PER_SQFT, calculateTax, calculateTotalWithTax, TAX_RATE } from '../pricing';
+import { calculateBannerPricing } from '../bannerPricingEngine';
 
 describe('Pricing calculations', () => {
   it('should convert inches to square feet correctly', () => {
@@ -46,6 +47,33 @@ describe('Pricing calculations', () => {
     expect(result.materialTotal).toBe(88); // 36 * 2 + 16 = 88
     expect(result.tax).toBeCloseTo(5.28, 2); // 88 * 0.06 = 5.28
     expect(result.totalWithTax).toBeCloseTo(93.28, 2); // 88 + 5.28 = 93.28
+  });
+
+  it('keeps designer totals in parity for top-and-bottom rope placement', () => {
+    const params = {
+      widthIn: 48,
+      heightIn: 24,
+      qty: 2,
+      material: '13oz' as const,
+      addRope: true,
+      ropePlacement: 'top-bottom' as const,
+      polePockets: 'none',
+    };
+    const result = calcTotals(params);
+    const canonical = calculateBannerPricing({
+      widthIn: params.widthIn,
+      heightIn: params.heightIn,
+      quantity: params.qty,
+      material: params.material,
+      addRope: params.addRope,
+      ropePlacement: params.ropePlacement,
+      polePockets: params.polePockets,
+    });
+
+    expect(result.rope).toBe(32); // 8 linear feet * $2 * quantity 2
+    expect(result.materialTotal).toBe(104); // $72 banners + $32 rope
+    expect(result.rope * 100).toBe(canonical.ropeCostCents);
+    expect(result.materialTotal * 100).toBe(canonical.subtotalBeforeDiscountCents);
   });
 
   it('should format currency correctly', () => {
