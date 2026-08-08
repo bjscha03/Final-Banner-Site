@@ -478,6 +478,24 @@ function isForceResendAuthorized(event) {
 }
 
 function getCanonicalPublicSiteOrigin() {
+  const context = String(process.env.CONTEXT || '').trim().toLowerCase();
+  if (context === 'branch-deploy' || context === 'deploy-preview') {
+    const configuredPreview = String(process.env.DEPLOY_PRIME_URL || '').trim();
+    try {
+      const url = new URL(configuredPreview);
+      const hostname = url.hostname.toLowerCase();
+      const isOwnedNetlifyPreview = url.protocol === 'https:'
+        && !url.username
+        && !url.password
+        && !url.port
+        && /^[a-z0-9-]+--bannersonthefly\.netlify\.app$/.test(hostname);
+      if (isOwnedNetlifyPreview) return url.origin;
+    } catch {
+      // Fail closed below; never derive a signed link from request headers.
+    }
+    throw new Error('A trusted deployment URL is required for preview order emails');
+  }
+
   const configured = String(process.env.PUBLIC_SITE_URL || '').trim();
   if (!configured) return DEFAULT_PUBLIC_SITE_ORIGIN;
 
@@ -745,7 +763,7 @@ exports.handler = async (event) => {
   try {
     const request = JSON.parse(event.body || '{}');
     const { orderId } = request;
-    const forceFlags = ['forceResendBoth', 'forceResendCustomer'];
+    const forceFlags = ['forceResendBoth', 'forceResendCustomer', 'forceResendAdmin'];
     const hasInvalidForceFlag = forceFlags.some((name) => (
       Object.prototype.hasOwnProperty.call(request, name)
       && typeof request[name] !== 'boolean'
@@ -759,7 +777,13 @@ exports.handler = async (event) => {
     }
     const forceResendBoth = request.forceResendBoth === true;
     const forceResendCustomer = request.forceResendCustomer === true;
-    console.log('[notify-order] handler start', { orderId, forceResendBoth });
+    const forceResendAdmin = request.forceResendAdmin === true;
+    console.log('[notify-order] handler start', {
+      orderId,
+      forceResendBoth,
+      forceResendCustomer,
+      forceResendAdmin,
+    });
     
     if (!orderId || typeof orderId !== 'string') {
       return {
@@ -769,7 +793,7 @@ exports.handler = async (event) => {
       };
     }
 
-    if ((forceResendBoth || forceResendCustomer) && !isForceResendAuthorized(event)) {
+    if ((forceResendBoth || forceResendCustomer || forceResendAdmin) && !isForceResendAuthorized(event)) {
       return {
         statusCode: 401,
         headers: { ...headers, 'Cache-Control': 'no-store' },
@@ -827,7 +851,8 @@ exports.handler = async (event) => {
     });
 
     // Idempotency Check: If already sent, return success without sending
-    if (!forceResendBoth && !forceResendCustomer && (order.confirmation_email_status === 'sent' || order.confirmation_emailed_at)) {
+    if (!forceResendBoth && !forceResendCustomer && !forceResendAdmin
+        && (order.confirmation_email_status === 'sent' || order.confirmation_emailed_at)) {
       console.log(`Order ${orderId} confirmation email already sent, returning idempotent response`);
       return {
         statusCode: 200,
@@ -838,25 +863,42 @@ exports.handler = async (event) => {
     
     // Load order items
     const itemRows = await db`
-      SELECT * FROM order_items WHERE order_id = ${resolvedOrderId}
+      SELECT *
+      FROM order_items
+      WHERE order_id = ${resolvedOrderId}
+      ORDER BY id
     `;
-
-    // Signed order credentials must only be sent to a trusted production
-    // origin. Forwarded headers are request-controlled at some proxy layers.
-    const origin = getCanonicalPublicSiteOrigin();
-
-    const invoiceUrl = createGuestOrderViewUrl(origin, order);
-
-    // Convert database order to email format
-    // Use customer_name first, then shipping_name as fallback (shipping_name often has the actual name)
-    const customerName = order.customer_name || order.shipping_name || '';
 
     // Automated payment/browser/webhook follow-ups share the stable provider
     // key above. An explicitly authorized human resend must still deliver a
     // new message, while its own transport retries remain idempotent.
-    const idempotencyAttemptId = (forceResendBoth || forceResendCustomer) && !isInternalJobAuthorized(event)
+    const isHumanManualResend = (forceResendBoth || forceResendCustomer || forceResendAdmin)
+      && !isInternalJobAuthorized(event);
+    const idempotencyAttemptId = isHumanManualResend
       ? crypto.randomUUID()
       : null;
+
+    // The Resend key and request payload must both remain byte-stable across
+    // automated retries. Anchor the signed guest URL to immutable order time;
+    // otherwise its changing iat/exp values conflict with the stable provider
+    // idempotency key. Explicit human resends intentionally get a fresh URL.
+    const createdAtMs = new Date(order.created_at).getTime();
+    if (!isHumanManualResend && !Number.isFinite(createdAtMs)) {
+      throw new Error('Order created_at is required for deterministic email retries');
+    }
+
+    // Signed order credentials must only be sent to a trusted production
+    // origin. Forwarded headers are request-controlled at some proxy layers.
+    const origin = getCanonicalPublicSiteOrigin();
+    const invoiceUrl = createGuestOrderViewUrl(
+      origin,
+      order,
+      isHumanManualResend ? {} : { nowSeconds: Math.floor(createdAtMs / 1000) },
+    );
+
+    // Convert database order to email format
+    // Use customer_name first, then shipping_name as fallback (shipping_name often has the actual name)
+    const customerName = order.customer_name || order.shipping_name || '';
     const emailPayload = {
       to: order.email,
       idempotencyAttemptId,
@@ -993,37 +1035,49 @@ exports.handler = async (event) => {
       invoiceUrl
     };
 
-    // Send confirmation email
-    const emailResult = await sendEmail('order.confirmation', emailPayload);
+    // Admin-only recovery must not submit the customer template again. Resend
+    // retains idempotency keys for a limited window, so reusing the customer
+    // key is not a permanent substitute for independently gating each send.
+    const customerWasAlreadySent = order.confirmation_email_status === 'sent'
+      || Boolean(order.confirmation_emailed_at);
+    const emailResult = forceResendAdmin
+      ? { ok: true, id: null, skipped: true }
+      : await sendEmail('order.confirmation', emailPayload);
     let adminEmailResult = null;
     const adminEmail = process.env.ADMIN_EMAIL || 'info@bannersonthefly.com';
-    console.log('[notify-order] confirmation send result', { orderId, ok: emailResult.ok, error: emailResult.error });
-    
-    // Log email attempt
-    await logEmailAttempt({
-      type: 'order.confirmation',
-      to: order.email,
-      orderId: order.id,
-      status: emailResult.ok ? 'sent' : 'error',
-      providerMsgId: emailResult.ok ? emailResult.id : undefined,
-      errorMessage: emailResult.ok ? undefined : `${emailResult.error} ${emailResult.details ? JSON.stringify(emailResult.details) : ''}`.trim()
-    });
+
+    if (!forceResendAdmin) {
+      console.log('[notify-order] confirmation send result', { orderId, ok: emailResult.ok, error: emailResult.error });
+
+      // Log email attempt
+      await logEmailAttempt({
+        type: 'order.confirmation',
+        to: order.email,
+        orderId: order.id,
+        status: emailResult.ok ? 'sent' : 'error',
+        providerMsgId: emailResult.ok ? emailResult.id : undefined,
+        errorMessage: emailResult.ok ? undefined : `${emailResult.error} ${emailResult.details ? JSON.stringify(emailResult.details) : ''}`.trim()
+      });
+    }
 
     if (emailResult.ok) {
-      // Update order with confirmation email status
-      await db`
-        UPDATE orders
-        SET confirmation_email_status = 'sent',
-            confirmation_emailed_at = NOW()
-        WHERE id = ${resolvedOrderId}
-      `;
+      if (!forceResendAdmin) {
+        // Update order with confirmation email status
+        await db`
+          UPDATE orders
+          SET confirmation_email_status = 'sent',
+              confirmation_emailed_at = NOW()
+          WHERE id = ${resolvedOrderId}
+        `;
 
-      console.log(`Order confirmation email sent successfully for order ${orderId}, email ID: ${emailResult.id}`);
+        console.log(`Order confirmation email sent successfully for order ${orderId}, email ID: ${emailResult.id}`);
+      }
 
       // Send admin notification email to info@bannersonthefly.com
       if (!forceResendCustomer) try {
-        // Add delay to prevent rate limiting (Resend allows 2 requests per second)
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Add delay only when the customer message was sent in this request.
+        // Admin-only recovery has made no preceding Resend call to rate-limit.
+        if (!forceResendAdmin) await new Promise(resolve => setTimeout(resolve, 1000));
 
         const adminEmailPayload = {
           to: adminEmail,
@@ -1069,6 +1123,10 @@ exports.handler = async (event) => {
         }
       } catch (adminEmailError) {
         console.error(`Admin notification email error for order ${orderId}:`, adminEmailError);
+        adminEmailResult = {
+          ok: false,
+          error: adminEmailError.message || 'Unknown error',
+        };
         // Log the failed attempt
         await logEmailAttempt({
           type: 'order.admin_notification',
@@ -1080,20 +1138,22 @@ exports.handler = async (event) => {
         // Don't fail the main request if admin email fails
       }
 
+      const adminOnlyFailed = forceResendAdmin && !adminEmailResult?.ok;
+
       return {
-        statusCode: 200,
+        statusCode: adminOnlyFailed ? 500 : 200,
         headers,
         body: JSON.stringify({
-          ok: true,
+          ok: !adminOnlyFailed,
           orderId: normalizedOrderId,
-          customerEmailSent: !!emailResult.ok,
+          customerEmailSent: forceResendAdmin ? customerWasAlreadySent : !!emailResult.ok,
           adminEmailSent: !!adminEmailResult?.ok,
           resendMessageIds: {
-            customer: emailResult.id || null,
+            customer: forceResendAdmin ? null : (emailResult.id || null),
             admin: adminEmailResult?.id || null,
           },
           errors: [
-            ...(!emailResult.ok ? [`Customer confirmation failed: ${emailResult.error || 'unknown error'}`] : []),
+            ...(!forceResendAdmin && !emailResult.ok ? [`Customer confirmation failed: ${emailResult.error || 'unknown error'}`] : []),
             ...(adminEmailResult && !adminEmailResult.ok ? [`Admin notification failed: ${adminEmailResult.error || 'unknown error'}`] : [])
           ]
         })

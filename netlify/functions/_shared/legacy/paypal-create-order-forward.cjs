@@ -8,6 +8,7 @@ const {
   ACTIVE_ORDER_STATUSES,
   canBindPayPalOrder,
   captureFromOrder,
+  ensurePaymentLedger,
   matchesInternalOrder,
   orderIdentity,
   recordAttempt,
@@ -161,6 +162,36 @@ async function safeRecordAttempt(sql, attempt) {
   }
 }
 
+async function countDefinitivelyDeclinedAttempts(sql, internalOrderId) {
+  // The create request ID is PayPal's idempotency boundary. A network-lost
+  // response must reuse the same ID, while an explicitly declined payment
+  // must advance to a new ID or PayPal will replay the declined order.
+  await ensurePaymentLedger(sql);
+  const rows = await sql`
+    SELECT COUNT(DISTINCT COALESCE(paypal_order_id, request_id))::integer
+             AS declined_attempt_count
+     FROM paypal_payment_attempts
+     WHERE internal_order_id = ${internalOrderId}
+       AND processing_status = 'declined'
+       AND COALESCE(paypal_order_id, request_id) IS NOT NULL
+  `;
+  const count = Number(rows[0]?.declined_attempt_count || 0);
+  return Number.isSafeInteger(count) && count > 0 ? count : 0;
+}
+
+function createRequestId(internalOrderId, paypalOrderId, declinedAttemptCount = 0) {
+  if (paypalOrderId) {
+    return `create-${internalOrderId}-after-${paypalOrderId}`.slice(0, 108);
+  }
+  if (!declinedAttemptCount) {
+    // Preserve the historical first-attempt ID so a response lost before the
+    // order was linked still resolves to the already-created PayPal order.
+    return `create-${internalOrderId}`;
+  }
+  const suffix = `-retry-${declinedAttemptCount}`;
+  return `${`create-${internalOrderId}`.slice(0, 108 - suffix.length)}${suffix}`;
+}
+
 async function lockForReconciliation(sql, order, error) {
   try {
     await sql`
@@ -220,7 +251,8 @@ exports.handler = async (event) => {
       SELECT id, status, subtotal_cents, tax_cents, total_cents, currency,
              applied_discount_cents, same_day_fee_cents, saturday_fee_cents,
              0::integer AS shipping_cents, paypal_order_id, paypal_capture_id,
-             stripe_payment_intent_id, payment_method, checkout_idempotency_key,
+             stripe_payment_intent_id, payment_method, payment_reconciliation_status,
+             checkout_idempotency_key,
              email, customer_name, shipping_name, shipping_street,
              shipping_street2, shipping_city, shipping_state, shipping_zip,
              shipping_country
@@ -244,6 +276,21 @@ exports.handler = async (event) => {
     }
     if (!['pending', 'paid'].includes(order.status)) {
       return reply(409, { ok: false, error: 'INTERNAL_ORDER_NOT_PAYABLE' });
+    }
+    if (String(order.payment_reconciliation_status || '').toLowerCase() === 'required') {
+      return reply(202, {
+        ok: true,
+        success: false,
+        paymentCaptured: false,
+        paymentStatusUnknown: true,
+        reconciliationRequired: true,
+        doNotRetry: true,
+        safeToRetry: false,
+        retryAllowed: false,
+        paypalOrderId: order.paypal_order_id || null,
+        internalOrderId,
+        message: 'We are verifying the previous payment attempt. Do not submit another payment.',
+      });
     }
     if (
       !Number.isInteger(Number(order.total_cents))
@@ -443,9 +490,17 @@ exports.handler = async (event) => {
       }
     }
 
-    const requestId = order.paypal_order_id
-      ? `create-${internalOrderId}-after-${order.paypal_order_id}`.slice(0, 108)
-      : `create-${internalOrderId}`;
+    // Snapshot the durable retry generation before leaving for PayPal. The
+    // final link compare-and-set below requires this generation to remain
+    // unchanged, so a delayed response cannot resurrect an order that another
+    // request linked, definitively declined, and retired while this fetch was
+    // in flight.
+    const declinedAttemptCount = await countDefinitivelyDeclinedAttempts(sql, internalOrderId);
+    const requestId = createRequestId(
+      internalOrderId,
+      order.paypal_order_id,
+      declinedAttemptCount,
+    );
 
     const requestHeaders = {
       Authorization: `Bearer ${accessToken}`,
@@ -523,6 +578,20 @@ exports.handler = async (event) => {
          AND (payment_method IS NULL OR payment_method = 'paypal')
          AND stripe_payment_intent_id IS NULL
          AND (paypal_order_id IS NULL OR paypal_order_id = ${order.paypal_order_id || null})
+         AND (
+           SELECT COUNT(DISTINCT COALESCE(attempt.paypal_order_id, attempt.request_id))::integer
+             FROM paypal_payment_attempts attempt
+            WHERE attempt.internal_order_id = ${internalOrderId}
+              AND attempt.processing_status = 'declined'
+              AND COALESCE(attempt.paypal_order_id, attempt.request_id) IS NOT NULL
+         ) = ${declinedAttemptCount}
+         AND NOT EXISTS (
+           SELECT 1
+             FROM paypal_payment_attempts declined
+            WHERE declined.internal_order_id = ${internalOrderId}
+              AND declined.paypal_order_id = ${paypalOrder.id}
+              AND declined.processing_status = 'declined'
+         )
       RETURNING paypal_order_id
     `;
 
@@ -534,11 +603,29 @@ exports.handler = async (event) => {
       });
     }
 
+    const latestDeclinedAttemptCount = await countDefinitivelyDeclinedAttempts(sql, internalOrderId);
+    if (latestDeclinedAttemptCount !== declinedAttemptCount) {
+      return reply(409, {
+        ok: false,
+        error: 'PAYPAL_CREATE_ATTEMPT_RETIRED',
+        retryAllowed: true,
+        internalOrderId,
+        message: 'The previous payment attempt ended. Start the payment again.',
+      });
+    }
+
     const winner = await sql`
       SELECT paypal_order_id, paypal_capture_id, stripe_payment_intent_id,
              payment_method, status
         FROM orders
        WHERE id = ${internalOrderId}
+         AND NOT EXISTS (
+           SELECT 1
+             FROM paypal_payment_attempts declined
+            WHERE declined.internal_order_id = ${internalOrderId}
+              AND declined.paypal_order_id = orders.paypal_order_id
+              AND declined.processing_status = 'declined'
+         )
        LIMIT 1
     `;
     if (winner[0]?.paypal_order_id
@@ -564,6 +651,8 @@ exports.handler = async (event) => {
 };
 
 exports._test = {
+  countDefinitivelyDeclinedAttempts,
+  createRequestId,
   hasCompleteLineItemDetails,
   hasCompleteOrderDetails,
   persistedPayPalShipping,

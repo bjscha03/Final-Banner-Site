@@ -187,12 +187,47 @@ const handler = async (event) => {
     }
 
     if (statusCode === 422 && capturePayload?.paymentCaptured !== true) {
+      let retired = false;
       try {
-        await customerInfoModule.retireDefinitivelyDeclinedPayPalOrder({
+        retired = await customerInfoModule.retireDefinitivelyDeclinedPayPalOrder({
           internalOrderId,
           orderID: order.paypal_order_id,
         });
-      } catch { /* retry remains available even if cleanup logs elsewhere */ }
+      } catch (error) {
+        console.error('[paypal-payment-status] could not retire declined PayPal order', {
+          internalOrderId,
+          paypalOrderId: order.paypal_order_id,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+      if (!retired) {
+        try {
+          await customerInfoModule.lockPayPalOrderForReconciliation({
+            internalOrderId,
+            orderID: order.paypal_order_id,
+          });
+        } catch (error) {
+          console.error('[paypal-payment-status] could not reconciliation-lock declined PayPal order', {
+            internalOrderId,
+            paypalOrderId: order.paypal_order_id,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+        return reply(202, {
+          ...capturePayload,
+          ok: true,
+          success: false,
+          paymentCaptured: false,
+          paymentStatusUnknown: true,
+          reconciliationRequired: true,
+          doNotRetry: true,
+          safeToRetry: false,
+          restartPayment: false,
+          retryAllowed: false,
+          error: 'PAYPAL_DECLINE_RETIREMENT_INCOMPLETE',
+          message: 'This payment attempt could not be safely unlocked. Do not submit another payment while we verify it.',
+        });
+      }
       return reply(422, {
         ...capturePayload,
         restartPayment: false,

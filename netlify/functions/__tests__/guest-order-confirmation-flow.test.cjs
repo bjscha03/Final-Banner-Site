@@ -60,7 +60,10 @@ test('customer confirmation and resend emails use signed fragment order links', 
   const orderPage = read('src/pages/OrderDetail.tsx');
   const main = read('src/main.tsx');
 
-  assert.match(notify, /createGuestOrderViewUrl\(origin, order\)/);
+  assert.match(
+    notify,
+    /createGuestOrderViewUrl\(\s*origin,\s*order,\s*isHumanManualResend\s*\?\s*\{\}\s*:\s*\{\s*nowSeconds:\s*Math\.floor\(createdAtMs\s*\/\s*1000\)\s*\},?\s*\)/,
+  );
   assert.match(resend, /createGuestOrderViewUrl\(origin, order\)/);
   assert.doesNotMatch(notify, /invoiceUrl\s*=\s*`\$\{origin\}\/orders/);
   assert.doesNotMatch(resend, /invoiceUrl\s*=\s*`\$\{origin\}\/orders/);

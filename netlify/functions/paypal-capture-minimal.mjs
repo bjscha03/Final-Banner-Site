@@ -89,8 +89,9 @@ const handler = async (event, context) => {
   );
 
   if (definitiveDecline && internalOrderId && paypalOrderId) {
+    let retired = false;
     try {
-      await customerInfoModule.retireDefinitivelyDeclinedPayPalOrder({
+      retired = await customerInfoModule.retireDefinitivelyDeclinedPayPalOrder({
         internalOrderId,
         orderID: paypalOrderId,
       });
@@ -100,6 +101,37 @@ const handler = async (event, context) => {
         paypalOrderId,
         error: error instanceof Error ? error.message : String(error),
       });
+    }
+
+    if (!retired) {
+      try {
+        await customerInfoModule.lockPayPalOrderForReconciliation({
+          internalOrderId,
+          orderID: paypalOrderId,
+        });
+      } catch (error) {
+        console.error('[paypal-capture-minimal] could not reconciliation-lock declined PayPal order', {
+          internalOrderId,
+          paypalOrderId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+      response.statusCode = 202;
+      response.body = JSON.stringify({
+        ...responseBody,
+        ok: true,
+        success: false,
+        paymentCaptured: false,
+        paymentStatusUnknown: true,
+        reconciliationRequired: true,
+        doNotRetry: true,
+        safeToRetry: false,
+        restartPayment: false,
+        retryAllowed: false,
+        error: 'PAYPAL_DECLINE_RETIREMENT_INCOMPLETE',
+        message: 'This payment attempt could not be safely unlocked. Do not submit another payment while we verify it.',
+      });
+      return response;
     }
 
     response.body = JSON.stringify({
@@ -140,6 +172,7 @@ const handler = async (event, context) => {
 
 export const _test = {
   getSiteUrl,
+  handler,
   queuePaidOrderFollowups,
 };
 
