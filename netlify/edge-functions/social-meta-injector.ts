@@ -13,6 +13,11 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "restaurant-banners-menu-boards": {
+    title: "Restaurant Banner Ideas: Menu Boards, Specials & Outdoor Signage",
+    description: "Explore restaurant banner ideas for menus, specials, patios, food trucks, and events, with practical advice on messaging, design, placement, and mounting.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/restaurant-banners-menu-boards.webp"
+  },
   "school-sports-event-banners": {
     title: "School Sports Banners: A Complete Guide for Senior Night, Sponsors & Game Day",
     description: "Plan school sports banners for senior night, sponsors, schedules, and game day with practical advice on sizes, photos, materials, mounting, and reuse.",
