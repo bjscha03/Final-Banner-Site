@@ -35,6 +35,7 @@ on:
       - 'tests/browser/**'
       - 'playwright.preview.config.ts'
       - 'vite.config.ts'
+      - 'vitest.ai.config.ts'
       - 'netlify/functions/get-order.mjs'
       - 'netlify/functions/get-orders.mjs'
       - 'netlify/functions/stripe-*.mjs'
@@ -91,6 +92,7 @@ jobs:
             netlify/functions/__tests__/stripe-payment-handlers.test.mjs \
             netlify/functions/__tests__/stripe-runtime-config.test.cjs \
             netlify/functions/__tests__/stripe-server-pricing.test.cjs \
+            netlify/functions/__tests__/paypal-preview-containment.test.mjs \
             netlify/functions/__tests__/cart-persistence-ordering.test.cjs \
             netlify/functions/__tests__/preview-pipeline.test.cjs \
             netlify/functions/__tests__/admin-order-visibility.test.cjs \
@@ -103,7 +105,7 @@ jobs:
 
       - name: Run preview source-selection unit tests
         run: |
-          npx vitest run \
+          npx vitest run --config vitest.ai.config.ts \
             src/lib/commercePreviewUrl.test.ts \
             src/lib/previewSelection.test.ts \
             src/lib/__tests__/previewSelection.test.ts \

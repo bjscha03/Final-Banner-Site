@@ -16,7 +16,7 @@ let stripeFactory = (secretKey) => new Stripe(secretKey);
 let neonFactory = neon;
 
 const handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
   if (event.httpMethod !== 'POST') return reply(405, { ok: false, error: 'METHOD_NOT_ALLOWED' });
   try {
     runtimeModule.assertSameOrigin(event);

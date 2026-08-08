@@ -9,6 +9,10 @@ const captureModule = require('../_shared/legacy/paypal-capture-final.cjs');
 const trackedEnvNames = [
   'NETLIFY_DATABASE_URL',
   'FEATURE_PAYPAL',
+  'CONTEXT',
+  'PAYPAL_ENV',
+  'PAYPAL_CLIENT_ID_SANDBOX',
+  'PAYPAL_SECRET_SANDBOX',
   'ORDER_CONFIRMATION_TOKEN_SECRET',
   'ORDER_VIEW_TOKEN_SECRET',
   'AUTH_SESSION_SECRET',
@@ -68,6 +72,10 @@ function statusDatabase(order = { ...paidOrder, checkout_idempotency_key: 'corre
 test.before(() => {
   process.env.NETLIFY_DATABASE_URL = 'postgres://handler-test.invalid/database';
   process.env.FEATURE_PAYPAL = '1';
+  process.env.CONTEXT = 'branch-deploy';
+  process.env.PAYPAL_ENV = 'sandbox';
+  process.env.PAYPAL_CLIENT_ID_SANDBOX = 'sandbox-client-id';
+  process.env.PAYPAL_SECRET_SANDBOX = 'sandbox-secret';
 });
 
 test.after(() => {

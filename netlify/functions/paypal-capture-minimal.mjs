@@ -45,7 +45,26 @@ const queuePaidOrderFollowups = async (event, orderId) => {
 };
 
 const handler = async (event, context) => {
-  runtimeConfig.preparePayPalRuntime();
+  if (event.httpMethod === 'POST') {
+    const runtime = runtimeConfig.preparePayPalRuntime({ requireFeature: false });
+    if (!runtime.enabled) {
+      return {
+        statusCode: 503,
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store, max-age=0' },
+        body: JSON.stringify({
+          ok: false,
+          success: false,
+          paymentCaptured: false,
+          paymentStatusUnknown: true,
+          reconciliationRequired: true,
+          doNotRetry: true,
+          safeToRetry: false,
+          error: 'PAYPAL_DISABLED',
+          message: 'PayPal payment verification is unavailable for this deploy. Do not submit another payment.',
+        }),
+      };
+    }
+  }
 
   let requestBody = {};
   try { requestBody = JSON.parse(event.body || '{}'); } catch { /* authoritative handler returns INVALID_JSON */ }

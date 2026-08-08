@@ -7,7 +7,10 @@ const headers = {
 };
 
 const handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
+  // aws-lambda-compat constructs a Web Response from this Lambda-shaped
+  // result. A 204 with `body: ''` is invalid in the Web Response API and is
+  // surfaced by Netlify as a 502, so use an explicit empty 200 for preflight.
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
   if (event.httpMethod !== 'GET') {
     return { statusCode: 405, headers, body: JSON.stringify({ enabled: false, error: 'METHOD_NOT_ALLOWED' }) };
   }

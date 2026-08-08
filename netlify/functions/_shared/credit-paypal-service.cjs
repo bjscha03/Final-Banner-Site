@@ -222,6 +222,13 @@ function getCreditPayPalConfig({ requireFeature = true } = {}) {
     );
   }
   const deploy = deploymentKind();
+  if (deploy === 'deploy-preview') {
+    throw new CreditPaymentError(
+      'PAYPAL_CREDITS_PREVIEW_DISABLED',
+      'Provider credit payments are disabled on Deploy Previews.',
+      { statusCode: 503 },
+    );
+  }
   if (deploy === 'production' && environment !== 'live') {
     throw new CreditPaymentError(
       'PAYPAL_ENVIRONMENT_MISMATCH',
@@ -238,8 +245,14 @@ function getCreditPayPalConfig({ requireFeature = true } = {}) {
   }
 
   const suffix = environment === 'live' ? 'LIVE' : 'SANDBOX';
-  const clientId = clean(process.env[`PAYPAL_CLIENT_ID_${suffix}`], 500);
-  const secret = clean(process.env[`PAYPAL_SECRET_${suffix}`], 1000);
+  const clientId = clean(process.env[`PAYPAL_CLIENT_ID_${suffix}`], 500)
+    || (deploy === 'production'
+      ? clean(process.env.PAYPAL_CLIENT_ID || process.env.VITE_PAYPAL_CLIENT_ID, 500)
+      : null);
+  const secret = clean(process.env[`PAYPAL_SECRET_${suffix}`], 1000)
+    || (deploy === 'production'
+      ? clean(process.env.PAYPAL_SECRET || process.env.PAYPAL_CLIENT_SECRET, 1000)
+      : null);
   if (!clientId || !secret) {
     throw new CreditPaymentError(
       'PAYPAL_CREDITS_NOT_CONFIGURED',

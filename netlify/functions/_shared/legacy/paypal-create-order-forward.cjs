@@ -3,6 +3,7 @@ const { getPayPalDescription } = require('./product-display-helpers.cjs');
 const { buildDetailedPayPalOrderRequest } = require('./paypal-order-details.cjs');
 const { repriceStripeCart: repriceCheckoutCart } = require('../stripe-server-pricing.cjs');
 const { constantTimeEqual } = require('../order-confirmation-token.cjs');
+const runtimeConfig = require('../paypal-runtime-config.cjs');
 const {
   ACTIVE_ORDER_STATUSES,
   canBindPayPalOrder,
@@ -191,7 +192,8 @@ exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
   if (event.httpMethod !== 'POST') return reply(405, { ok: false, error: 'METHOD_NOT_ALLOWED' });
 
-  if (process.env.FEATURE_PAYPAL !== '1') {
+  const runtime = runtimeConfig.preparePayPalRuntime();
+  if (!runtime.enabled) {
     return reply(503, {
       ok: false,
       error: 'PAYPAL_DISABLED',

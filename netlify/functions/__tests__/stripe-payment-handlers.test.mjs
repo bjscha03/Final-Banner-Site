@@ -16,6 +16,8 @@ Object.assign(process.env, {
 const statusModule = await import('../stripe-payment-status.mjs');
 const finalizeModule = await import('../stripe-finalize-order.mjs');
 const webhookModule = await import('../stripe-webhook.mjs');
+const configModule = await import('../stripe-config.mjs');
+const createModule = await import('../stripe-create-payment-intent.mjs');
 
 const makeOrder = () => ({
   id: 'order-123',
@@ -99,6 +101,29 @@ const post = (body, extraHeaders = {}) => ({
   httpMethod: 'POST',
   headers: { host: 'deploy-preview-1--bof.netlify.app', ...extraHeaders },
   body: JSON.stringify(body),
+});
+
+test('wrapped browser Stripe functions return a valid empty preflight response', async () => {
+  const functions = [
+    ['stripe-config', configModule.default],
+    ['stripe-create-payment-intent', createModule.default],
+    ['stripe-finalize-order', finalizeModule.default],
+    ['stripe-payment-status', statusModule.default],
+  ];
+  for (const [name, wrappedHandler] of functions) {
+    const response = await wrappedHandler(new Request(
+      `https://deploy-preview-1--bof.netlify.app/.netlify/functions/${name}`,
+      { method: 'OPTIONS' },
+    ), {});
+    assert.equal(response.status, 200, name);
+    assert.equal(await response.text(), '', name);
+  }
+
+  const webhookResponse = await webhookModule.default(new Request(
+    'https://deploy-preview-1--bof.netlify.app/.netlify/functions/stripe-webhook',
+    { method: 'OPTIONS' },
+  ), {});
+  assert.equal(webhookResponse.status, 405);
 });
 
 test('status recovery refuses a wrong checkout key before calling Stripe', async () => {

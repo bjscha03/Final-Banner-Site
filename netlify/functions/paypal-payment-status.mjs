@@ -110,10 +110,22 @@ const loadOrder = async (sql, internalOrderId) => {
 };
 
 const handler = async (event) => {
-  runtimeConfig.preparePayPalRuntime();
-
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
   if (event.httpMethod !== 'POST') return reply(405, { ok: false, error: 'METHOD_NOT_ALLOWED' });
+  const runtime = runtimeConfig.preparePayPalRuntime({ requireFeature: false });
+  if (!runtime.enabled) {
+    return reply(503, {
+      ok: false,
+      finalized: false,
+      paymentCaptured: false,
+      paymentStatusUnknown: true,
+      reconciliationRequired: true,
+      doNotRetry: true,
+      safeToRetry: false,
+      error: 'PAYPAL_DISABLED',
+      message: 'PayPal payment verification is unavailable for this deploy. Do not submit another payment.',
+    });
+  }
 
   let input = {};
   try { input = JSON.parse(event.body || '{}'); } catch { return reply(400, { ok: false, error: 'INVALID_JSON' }); }

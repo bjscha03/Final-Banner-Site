@@ -18,6 +18,7 @@ const {
   completePaymentDiscount,
   releasePaymentDiscount,
 } = require('../payment-discount-reservation.cjs');
+const runtimeConfig = require('../paypal-runtime-config.cjs');
 
 let neonFactory = neon;
 
@@ -411,7 +412,22 @@ function successPayload(order, paypalData, validation, environment, alreadyPaid)
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
   if (event.httpMethod !== 'POST') return reply(405, { ok: false, error: 'METHOD_NOT_ALLOWED' });
-  if (process.env.FEATURE_PAYPAL !== '1') return reply(503, { ok: false, error: 'PAYPAL_DISABLED' });
+  // A feature kill switch stops new PayPal orders, never reconciliation of an
+  // authorization/capture that may already have reached the provider.
+  const runtime = runtimeConfig.preparePayPalRuntime({ requireFeature: false });
+  if (!runtime.enabled) {
+    return reply(503, {
+      ok: false,
+      success: false,
+      paymentCaptured: false,
+      paymentStatusUnknown: true,
+      reconciliationRequired: true,
+      doNotRetry: true,
+      safeToRetry: false,
+      error: 'PAYPAL_DISABLED',
+      message: 'PayPal payment verification is unavailable for this deploy. Do not submit another payment.',
+    });
+  }
 
   let input = {};
   try { input = JSON.parse(event.body || '{}'); } catch { return reply(400, { ok: false, error: 'INVALID_JSON' }); }

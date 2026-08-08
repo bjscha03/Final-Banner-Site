@@ -49,6 +49,7 @@ jobs:
           node --test netlify/functions/__tests__/checkout-payment-providers.test.cjs
           node --test netlify/functions/__tests__/paypal-forward-live.test.mjs
           node --test netlify/functions/__tests__/paypal-create-order-details.test.mjs
+          node --test netlify/functions/__tests__/paypal-preview-containment.test.mjs
           npx vitest run src/lib/paypalCaptureResponseGuard.test.ts --reporter=verbose
           npx vitest run \
             netlify/functions/__tests__/paypal-payment-safety.test.mjs \
@@ -57,6 +58,7 @@ jobs:
       - name: Check function syntax
         run: |
           node --check netlify/functions/_shared/paypal-runtime-config.cjs
+          node --check netlify/functions/_shared/credit-paypal-service.cjs
           node --check netlify/functions/_shared/legacy/paypal-config.cjs
           node --check netlify/functions/_shared/legacy/paypal-create-order-forward.cjs
           node --check netlify/functions/_shared/legacy/paypal-order-details.cjs

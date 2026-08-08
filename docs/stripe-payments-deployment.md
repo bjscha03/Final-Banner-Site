@@ -150,6 +150,14 @@ when available so a reviewer cannot accidentally create a PayPal sandbox/live
 order in the wrong environment. Do not remove this containment to make a PR
 preview look more complete.
 
+Set `FEATURE_PAYPAL=0`, `FEATURE_PAYPAL_CREDITS=0`, and `PAYPAL_ENV=sandbox`
+in Netlify's **Deploy Preview** context. The server also rejects every provider-
+facing PayPal path on a Deploy Preview even if a broader-scope live flag or key
+is inherited; the context variables are defense in depth, not the only guard.
+Production continues to require live mode, while an isolated branch deploy may
+use explicitly scoped sandbox credentials and its own sandbox
+`PAYPAL_WEBHOOK_ID`.
+
 PayPal code and automated capture/status tests must still pass on this branch.
 A real PayPal sandbox end-to-end test requires a separately isolated branch
 deploy whose hostname and PayPal credentials are deliberately configured for

@@ -30,7 +30,7 @@ const loadBoundOrder = async (sql, input) => {
 };
 
 const handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
   if (event.httpMethod !== 'POST') return reply(405, { ok: false, error: 'METHOD_NOT_ALLOWED' });
   try { runtimeModule.assertSameOrigin(event); } catch (error) {
     return reply(error.statusCode || 403, { ok: false, error: error.code || 'ORIGIN_REJECTED' });

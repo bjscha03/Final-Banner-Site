@@ -26,7 +26,7 @@ function configureSandbox() {
   process.env.PAYPAL_CLIENT_ID_SANDBOX = 'sandbox-client-id';
   process.env.PAYPAL_SECRET_SANDBOX = 'sandbox-secret';
   process.env.PAYPAL_WEBHOOK_ID = 'sandbox-credit-webhook';
-  process.env.CONTEXT = 'deploy-preview';
+  process.env.CONTEXT = 'branch-deploy';
   process.env.NETLIFY_DATABASE_URL = 'postgresql://credit-test.invalid/test';
 }
 
@@ -256,9 +256,14 @@ test('capture response unlocks a new payment only for a vetted definitive declin
   assert.equal(decline.restartPayment, true);
 });
 
-test('credit PayPal configuration cannot mix preview and live credentials', () => {
+test('credit PayPal configuration rejects deploy previews and cross-context credentials', () => {
   configureSandbox();
   assert.equal(credit.getCreditPayPalConfig().environment, 'sandbox');
+  process.env.CONTEXT = 'deploy-preview';
+  assert.throws(() => credit.getCreditPayPalConfig(), (error) => (
+    error.code === 'PAYPAL_CREDITS_PREVIEW_DISABLED' && error.statusCode === 503
+  ));
+  process.env.CONTEXT = 'branch-deploy';
   process.env.PAYPAL_ENV = 'live';
   process.env.PAYPAL_CLIENT_ID_LIVE = 'live-id';
   process.env.PAYPAL_SECRET_LIVE = 'live-secret';

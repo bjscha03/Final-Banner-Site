@@ -53,7 +53,16 @@ const queuePaidOrderFollowups = async (event, orderId) => {
 };
 
 const handler = async (event, context) => {
-  runtimeConfig.preparePayPalRuntime();
+  if (event.httpMethod === 'POST') {
+    const runtime = runtimeConfig.preparePayPalRuntime({ requireFeature: false });
+    if (!runtime.enabled) {
+      return {
+        statusCode: 503,
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store, max-age=0' },
+        body: JSON.stringify({ ok: false, error: 'PAYPAL_DISABLED' }),
+      };
+    }
+  }
 
   const response = await webhookModule.handler(event, context);
   if (Number(response?.statusCode || 500) !== 200) return response;
