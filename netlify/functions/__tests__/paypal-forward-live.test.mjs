@@ -147,14 +147,33 @@ test('webhook uses the same authoritative capture finalizer', () => {
 test('paid-order follow-ups use the existing notify-order Resend templates', () => {
   const source = read('../process-paid-order-followups-background.mjs');
   const retrySource = read('../retry-paid-order-followups.mjs');
+  const netlifyConfig = read('../../../netlify.toml');
 
+  assert.match(source, /import 'cloudinary'/);
+  assert.match(source, /import 'sharp'/);
+  assert.match(source, /import 'pdfkit'/);
+  assert.match(source, /import 'pdf-lib'/);
   assert.match(source, /notifyOrderModule\.handler/);
-  assert.match(source, /forceResendBoth/);
+  assert.match(source, /forceResendAdmin/);
+  assert.match(source, /if \(!expected \|\| supplied !== expected\)/);
   assert.match(source, /skipNotifications:\s*true/);
   assert.match(source, /background:\s*true/);
   assert.doesNotMatch(source, /new Resend/);
   assert.doesNotMatch(source, /<!doctype html>|New Paid Order/);
+  const notifyIndex = source.indexOf(
+    'await runExistingResendTemplates(event, orderId',
+  );
+  const pdfIndex = source.indexOf('const pdfResponse = await pdfModule.handler');
+  assert.ok(notifyIndex >= 0, 'notification call must remain present');
+  assert.ok(pdfIndex >= 0, 'PDF render call must remain present');
+  assert.ok(notifyIndex < pdfIndex, 'notifications must run before PDF rendering');
   assert.match(retrySource, /schedule:\s*'\*\/5 \* \* \* \*'/);
+  assert.match(retrySource, /siteUrlForEvent/);
+  assert.match(retrySource, /!dbUrl \|\| !siteUrl \|\| !internalSecret/);
   assert.match(retrySource, /confirmation_emailed_at IS NULL/);
   assert.match(retrySource, /admin_notification_sent_at IS NULL/);
+  assert.match(
+    netlifyConfig,
+    /\[functions\."process-paid-order-followups-background"\]\s+memory\s*=\s*2048/,
+  );
 });

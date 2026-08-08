@@ -1,33 +1,46 @@
 import '@neondatabase/serverless';
 import { neon } from '@neondatabase/serverless';
 import { withLambda } from '@netlify/aws-lambda-compat';
+import internalUrlModule from './_shared/stripe-runtime-config.cjs';
 
-const handler = async () => {
+const getSiteUrl = internalUrlModule.siteUrlForEvent;
+const isSent = (status, sentAt) => status === 'sent' || Boolean(sentAt);
+let neonFactory = neon;
+
+const handler = async (event = {}) => {
   const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
-  const siteUrl = String(process.env.URL || process.env.PUBLIC_SITE_URL || '').replace(/\/$/, '');
-  if (!dbUrl || !siteUrl) {
-    console.error('[retry-paid-order-followups] missing database URL or site URL');
+  const siteUrl = getSiteUrl(event);
+  const internalSecret = process.env.INTERNAL_JOB_SECRET || process.env.AUTH_SESSION_SECRET;
+  if (!dbUrl || !siteUrl || !internalSecret) {
+    console.error('[retry-paid-order-followups] missing database URL, site URL, or internal secret');
     return { statusCode: 500, body: JSON.stringify({ ok: false, error: 'CONFIGURATION_MISSING' }) };
   }
 
-  const sql = neon(dbUrl);
+  const sql = neonFactory(dbUrl);
   const candidates = new Set();
 
   const emailRows = await sql`
-    SELECT id
+    SELECT id, confirmation_email_status, confirmation_emailed_at,
+           admin_notification_status, admin_notification_sent_at
       FROM orders
      WHERE status IN ('paid', 'in_production', 'shipped')
        AND created_at >= NOW() - INTERVAL '7 days'
        AND (
-         confirmation_emailed_at IS NULL
-         OR COALESCE(confirmation_email_status, '') <> 'sent'
-         OR admin_notification_sent_at IS NULL
-         OR COALESCE(admin_notification_status, '') <> 'sent'
+         (confirmation_emailed_at IS NULL
+          AND COALESCE(confirmation_email_status, '') <> 'sent')
+         OR
+         (admin_notification_sent_at IS NULL
+          AND COALESCE(admin_notification_status, '') <> 'sent')
        )
      ORDER BY created_at ASC
      LIMIT 25
   `;
-  for (const row of emailRows) candidates.add(String(row.id));
+  for (const row of emailRows) {
+    if (!isSent(row.confirmation_email_status, row.confirmation_emailed_at)
+        || !isSent(row.admin_notification_status, row.admin_notification_sent_at)) {
+      candidates.add(String(row.id));
+    }
+  }
 
   try {
     const pdfRows = await sql`
@@ -47,9 +60,10 @@ const handler = async () => {
     });
   }
 
-  const internalSecret = process.env.INTERNAL_JOB_SECRET || process.env.AUTH_SESSION_SECRET;
-  const headers = { 'Content-Type': 'application/json' };
-  if (internalSecret) headers['X-Internal-Job-Secret'] = internalSecret;
+  const headers = {
+    'Content-Type': 'application/json',
+    'X-Internal-Job-Secret': internalSecret,
+  };
 
   let queued = 0;
   let failed = 0;
@@ -84,6 +98,18 @@ const handler = async () => {
 };
 
 export default withLambda(handler);
+
+export const _test = {
+  getSiteUrl,
+  handler,
+  isSent,
+  resetNeonFactory() {
+    neonFactory = neon;
+  },
+  setNeonFactory(factory) {
+    neonFactory = factory;
+  },
+};
 
 export const config = {
   schedule: '*/5 * * * *',

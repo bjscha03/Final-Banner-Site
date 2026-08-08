@@ -243,6 +243,53 @@ async function safeRecordAttempt(sql, attempt) {
   }
 }
 
+async function recordDefinitiveFailure(sql, {
+  order,
+  orderID,
+  paypalData,
+  failedCapture,
+  code,
+  raw,
+}) {
+  const identity = orderIdentity(paypalData);
+  try {
+    // Unlike observability-only ledger writes, this row authorizes clearing the
+    // provider binding and creating a fresh PayPal generation. It therefore
+    // must be durable and read back before a retryable 422 can leave the core.
+    await recordAttempt(sql, {
+      internalOrderId: order.id,
+      checkoutKey: order.checkout_idempotency_key,
+      paypalOrderId: orderID,
+      captureId: failedCapture?.id,
+      requestId: `capture-${orderID}`,
+      source: 'capture',
+      orderStatus: paypalData?.status,
+      captureStatus: failedCapture?.status,
+      amountCents: identity.amountCents,
+      currency: identity.currency,
+      invoiceId: identity.invoiceId,
+      customId: identity.customId,
+      processingStatus: 'declined',
+      errorCode: code,
+      raw: raw || paypalData,
+    });
+    const persisted = await sql`
+      SELECT 1 AS persisted
+        FROM paypal_payment_attempts
+       WHERE internal_order_id = ${order.id}
+         AND paypal_order_id = ${orderID}
+         AND processing_status = 'declined'
+       LIMIT 1
+    `;
+    if (!persisted.length) throw new Error('PAYPAL_DECLINE_MARKER_NOT_FOUND');
+  } catch (error) {
+    const durabilityError = new Error('PAYPAL_DECLINE_MARKER_PERSIST_FAILED');
+    durabilityError.code = 'PAYPAL_DECLINE_MARKER_PERSIST_FAILED';
+    durabilityError.cause = error;
+    throw durabilityError;
+  }
+}
+
 async function markReconciliation(sql, internalOrderId, reason) {
   try {
     await sql`
@@ -521,12 +568,26 @@ exports.handler = async (event) => {
     const preexistingFailure = failedCaptureFromOrder(paypalData);
     if (!completed && preexistingFailure) {
       const code = firstNonEmpty(preexistingFailure.status_details?.reason, preexistingFailure.status, 'PAYPAL_PAYMENT_DECLINED');
+      await recordDefinitiveFailure(sql, {
+        order,
+        orderID,
+        paypalData: originalOrder,
+        failedCapture: preexistingFailure,
+        code,
+      });
       await safeReleasePaymentDiscount(sql, order, 'payment_failed');
       return reply(422, failurePayload(orderID, internalOrderId, String(code).toUpperCase()));
     }
 
     if (!completed && reconcileOnly) {
       if (['VOIDED', 'EXPIRED'].includes(String(originalOrder?.status || '').toUpperCase())) {
+        await recordDefinitiveFailure(sql, {
+          order,
+          orderID,
+          paypalData: originalOrder,
+          failedCapture: null,
+          code: 'PAYPAL_ORDER_EXPIRED',
+        });
         await safeReleasePaymentDiscount(sql, order, 'canceled');
         return reply(422, failurePayload(orderID, internalOrderId, 'PAYPAL_ORDER_EXPIRED', 'This payment attempt expired. Please try again.'));
       }
@@ -587,16 +648,12 @@ exports.handler = async (event) => {
               failed?.status,
               'PAYPAL_PAYMENT_DECLINED',
             );
-            await safeRecordAttempt(sql, {
-              internalOrderId,
-              checkoutKey: order.checkout_idempotency_key,
-              paypalOrderId: orderID,
-              captureId: failed?.id,
-              requestId: `capture-${orderID}`,
-              source: 'capture',
-              captureStatus: failed?.status,
-              processingStatus: 'declined',
-              errorCode: code,
+            await recordDefinitiveFailure(sql, {
+              order,
+              orderID,
+              paypalData: originalOrder,
+              failedCapture: failed,
+              code,
               raw: failureEvidence,
             });
             await safeReleasePaymentDiscount(sql, order, 'payment_failed');
@@ -734,6 +791,14 @@ exports.handler = async (event) => {
       orderID,
       error: error?.message,
     });
+    if (error?.code === 'PAYPAL_DECLINE_MARKER_PERSIST_FAILED') {
+      await markReconciliation(sql, internalOrderId, error.code);
+      return reply(202, verificationPayload(
+        orderID,
+        internalOrderId,
+        'This payment attempt could not be safely unlocked. Do not submit another payment while we verify it.',
+      ));
+    }
     if (verifiedCapture?.ok) {
       await markReconciliation(sql, internalOrderId, error?.message || 'FINALIZATION_FAILED');
       return reply(202, verificationPayload(orderID, internalOrderId));

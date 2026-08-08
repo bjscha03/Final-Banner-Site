@@ -2,6 +2,8 @@
 
 const { neon } = require('@neondatabase/serverless');
 
+let neonFactory = neon;
+
 function clean(value, max = 500) {
   if (value === null || value === undefined) return null;
   const text = String(value).trim();
@@ -252,7 +254,7 @@ async function refreshOrderCustomerInfo({
     return null;
   }
 
-  const sql = neon(dbUrl);
+  const sql = neonFactory(dbUrl);
   const rows = await sql`
     UPDATE orders
        SET email = COALESCE(email, ${customer.email || null}),
@@ -293,7 +295,7 @@ async function refreshOrderCustomerInfo({
 async function retireDefinitivelyDeclinedPayPalOrder({ internalOrderId, orderID }) {
   const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
   if (!dbUrl || !internalOrderId || !orderID) return false;
-  const sql = neon(dbUrl);
+  const sql = neonFactory(dbUrl);
   const rows = await sql`
     UPDATE orders
        SET paypal_order_id = NULL,
@@ -303,6 +305,59 @@ async function retireDefinitivelyDeclinedPayPalOrder({ internalOrderId, orderID 
        AND status = 'pending'
        AND paypal_order_id = ${orderID}
        AND paypal_capture_id IS NULL
+       AND stripe_payment_intent_id IS NULL
+       AND (payment_method IS NULL OR payment_method = 'paypal')
+       AND EXISTS (
+         SELECT 1
+           FROM paypal_payment_attempts declined
+          WHERE declined.internal_order_id = ${internalOrderId}
+            AND declined.paypal_order_id = ${orderID}
+            AND declined.processing_status = 'declined'
+       )
+    RETURNING id
+  `;
+  if (rows.length > 0) return true;
+
+  // Two wrapper invocations can observe the same definitive 422. The first
+  // may already have cleared the binding before the second conditional UPDATE
+  // runs. Treat that exact state as idempotent success only when the same
+  // durable provider marker exists; a missing marker or a newly linked order
+  // must remain locked.
+  const alreadyRetired = await sql`
+    SELECT 1 AS retired
+      FROM orders
+     WHERE id = ${internalOrderId}
+       AND status = 'pending'
+       AND paypal_order_id IS NULL
+       AND paypal_capture_id IS NULL
+       AND stripe_payment_intent_id IS NULL
+       AND (payment_method IS NULL OR payment_method = 'paypal')
+       AND EXISTS (
+         SELECT 1
+           FROM paypal_payment_attempts declined
+          WHERE declined.internal_order_id = ${internalOrderId}
+            AND declined.paypal_order_id = ${orderID}
+            AND declined.processing_status = 'declined'
+       )
+     LIMIT 1
+  `;
+  return alreadyRetired.length > 0;
+}
+
+async function lockPayPalOrderForReconciliation({ internalOrderId, orderID }) {
+  const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
+  if (!dbUrl || !internalOrderId || !orderID) return false;
+  const sql = neonFactory(dbUrl);
+  const rows = await sql`
+    UPDATE orders
+       SET payment_reconciliation_status = 'required',
+           updated_at = NOW()
+     WHERE id = ${internalOrderId}
+       AND status = 'pending'
+       AND paypal_order_id = ${orderID}
+       AND paypal_capture_id IS NULL
+       AND stripe_payment_intent_id IS NULL
+       AND (payment_method IS NULL OR payment_method = 'paypal')
     RETURNING id
   `;
   return rows.length > 0;
@@ -317,4 +372,13 @@ module.exports = {
   retrieveOrder,
   refreshOrderCustomerInfo,
   retireDefinitivelyDeclinedPayPalOrder,
+  lockPayPalOrderForReconciliation,
+  _test: {
+    resetNeonFactory() {
+      neonFactory = neon;
+    },
+    setNeonFactory(factory) {
+      neonFactory = factory;
+    },
+  },
 };
