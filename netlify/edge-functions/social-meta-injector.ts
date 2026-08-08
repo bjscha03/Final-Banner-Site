@@ -13,6 +13,11 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "school-sports-event-banners": {
+    title: "School Sports Banners: A Complete Guide for Senior Night, Sponsors & Game Day",
+    description: "Plan school sports banners for senior night, sponsors, schedules, and game day with practical advice on sizes, photos, materials, mounting, and reuse.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/school-sports-event-banners.webp"
+  },
   "apartment-property-management-banners": {
     title: "Apartment Leasing Banners: A Property Manager’s Planning Guide",
     description: "Plan apartment leasing banners that attract prospects, guide tours, promote amenities, and support property operations with practical design and placement tips.",
