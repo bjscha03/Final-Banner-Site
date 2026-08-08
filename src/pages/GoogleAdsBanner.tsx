@@ -2402,7 +2402,7 @@ const GoogleAdsBanner: React.FC = () => {
                 {heroContent.intro}
               </p>
 
-              <div className="mx-auto mt-5 max-w-xl text-left md:hidden">
+              <div data-mobile-delivery-timer className="mx-auto mt-5 max-w-xl text-left md:hidden">
                 <DeliveryTimer variant="compact" className="shadow-lg" />
               </div>
 
