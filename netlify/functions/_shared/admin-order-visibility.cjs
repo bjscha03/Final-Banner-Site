@@ -41,14 +41,22 @@ function isAdminVisiblePaidOrder(order = {}, options = {}) {
   }
 
   if (isTestOrder) {
-    // Stripe test-mode orders are visible only to the already-authenticated
+    // Provider test-mode orders are visible only to the already-authenticated
     // Admin list on an explicit nonproduction Netlify context. This makes the
     // required end-to-end preview verification possible without ever exposing
-    // sandbox/test orders in production. A PaymentIntent reference alone is
-    // insufficient: the canonical order must have reached a paid lifecycle.
-    return paymentMethod === 'stripe'
-      && isExplicitNonProductionContext(options)
-      && PAID_ADMIN_STATUSES.has(status);
+    // sandbox/test orders in production. Provider references alone are
+    // insufficient: the canonical payment must have settled.
+    if (!isExplicitNonProductionContext(options)) return false;
+
+    if (paymentMethod === 'stripe') {
+      return PAID_ADMIN_STATUSES.has(status);
+    }
+
+    if (paymentMethod === 'paypal') {
+      return PAID_ADMIN_STATUSES.has(status) || hasCompletedPayPalPaymentEvidence(order);
+    }
+
+    return false;
   }
 
   return PAID_ADMIN_STATUSES.has(status) || hasCompletedPayPalPaymentEvidence(order);

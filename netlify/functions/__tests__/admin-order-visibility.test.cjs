@@ -59,7 +59,7 @@ test('Admin hides unpaid, failed, canceled, and no-payment test orders', () => {
   }, { context: 'deploy-preview' }), false);
 });
 
-test('settled Stripe test orders are visible only in an explicit nonproduction context', () => {
+test('settled provider test orders are visible only in an explicit nonproduction context', () => {
   const paidStripeTestOrder = {
     status: 'paid',
     payment_method: 'stripe',
@@ -80,10 +80,29 @@ test('settled Stripe test orders are visible only in an explicit nonproduction c
     is_test_order: true,
   }, { context: 'deploy-preview' }), false);
 
-  assert.equal(isAdminVisiblePaidOrder({
+  const paidPayPalTestOrder = {
     status: 'paid',
     payment_method: 'paypal',
     paypal_capture_id: 'SANDBOX-CAPTURE',
     is_test_order: true,
-  }, { context: 'deploy-preview' }), false);
+  };
+
+  assert.equal(isAdminVisiblePaidOrder(paidPayPalTestOrder, { context: 'deploy-preview' }), true);
+  assert.equal(isAdminVisiblePaidOrder(paidPayPalTestOrder, { context: 'branch-deploy' }), true);
+  assert.equal(isAdminVisiblePaidOrder(paidPayPalTestOrder, { context: 'production' }), false);
+
+  const capturedPayPalTestOrderStillReconciling = {
+    ...paidPayPalTestOrder,
+    status: 'pending',
+  };
+
+  assert.equal(isAdminVisiblePaidOrder(capturedPayPalTestOrderStillReconciling, { context: 'branch-deploy' }), true);
+  assert.equal(isAdminVisiblePaidOrder(capturedPayPalTestOrderStillReconciling, { context: 'production' }), false);
+
+  assert.equal(isAdminVisiblePaidOrder({
+    status: 'pending',
+    payment_method: 'paypal',
+    paypal_capture_id: null,
+    is_test_order: true,
+  }, { context: 'branch-deploy' }), false);
 });
