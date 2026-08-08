@@ -29,8 +29,8 @@ export async function getAllPosts(includeDrafts: boolean = false): Promise<BlogL
   }
   
   posts.sort((a, b) => {
-    const dateA = new Date(a.frontmatter.date).getTime();
-    const dateB = new Date(b.frontmatter.date).getTime();
+    const dateA = new Date(a.frontmatter.publishDate ?? a.frontmatter.date ?? 0).getTime();
+    const dateB = new Date(b.frontmatter.publishDate ?? b.frontmatter.date ?? 0).getTime();
     return dateB - dateA;
   });
   
