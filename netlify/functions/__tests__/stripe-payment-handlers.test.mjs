@@ -184,6 +184,32 @@ test('status reports provider processing without enabling a duplicate payment', 
   assert.equal(payload.paymentIntentId, order.stripe_payment_intent_id);
 });
 
+test('status returns the safe Stripe decline code needed for an actionable retry message', async () => {
+  const order = makeOrder();
+  const db = fakeSql(order);
+  const checkoutModule = await import('../_shared/stripe-checkout-service.cjs');
+  const intent = {
+    ...makeIntent('requires_payment_method'),
+    last_payment_error: {
+      code: 'card_declined',
+      decline_code: 'insufficient_funds',
+      message: 'provider text is intentionally not returned',
+    },
+  };
+  intent.metadata.checkout_key_hash = checkoutModule.default.checkoutKeyHash(order.checkout_idempotency_key);
+  statusModule._test.setNeonFactory(() => db.sql);
+  statusModule._test.setStripeFactory(() => ({ paymentIntents: { async retrieve() { return intent; } } }));
+  const response = await statusModule._test.handler(post({ checkoutKey: order.checkout_idempotency_key }));
+  const payload = JSON.parse(response.body);
+  assert.equal(response.statusCode, 200);
+  assert.equal(payload.status, 'requires_payment_method');
+  assert.equal(payload.providerCode, 'card_declined');
+  assert.equal(payload.declineCode, 'insufficient_funds');
+  assert.equal(payload.safeToRetry, true);
+  assert.equal(payload.message, 'Payment was not completed. You can safely try again.');
+  assert.equal(JSON.stringify(payload).includes('provider text'), false);
+});
+
 test('checkout-key-only recovery clears a marker when no provider Intent was ever bound', async () => {
   const order = makeOrder();
   order.stripe_payment_intent_id = null;

@@ -481,7 +481,9 @@ const Checkout: React.FC = () => {
     }
     toast({
       title: 'Payment Failed',
-      description: 'There was an error processing your payment. Please try again.',
+      description: error?.userMessage
+        || error?.message
+        || 'There was an error processing your payment. Please try again.',
       variant: 'destructive',
     });
   }, [toast]);

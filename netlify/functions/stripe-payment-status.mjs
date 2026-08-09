@@ -136,6 +136,8 @@ const handler = async (event) => {
     }
 
     const pending = ['processing', 'requires_action', 'requires_confirmation'].includes(intent.status);
+    const providerErrorCode = intent?.last_payment_error?.code || null;
+    const declineCode = intent?.last_payment_error?.decline_code || null;
     return reply(200, {
       ok: true,
       paid: false,
@@ -147,6 +149,8 @@ const handler = async (event) => {
       safeToRetry: ['requires_payment_method', 'canceled'].includes(intent.status),
       orderId: order.id,
       paymentIntentId,
+      ...(providerErrorCode ? { providerCode: providerErrorCode } : {}),
+      ...(declineCode ? { declineCode } : {}),
       // If the server-side confirmation reached Stripe but its response was
       // lost, the browser can discover `requires_action` only through this
       // recovery endpoint. Return the client secret solely after the exact
