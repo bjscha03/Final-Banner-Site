@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 const checkout = readFileSync(fileURLToPath(new URL('./Checkout.tsx', import.meta.url)), 'utf8');
 const paypal = readFileSync(fileURLToPath(new URL('../components/checkout/PayPalCheckoutReliable.tsx', import.meta.url)), 'utf8');
+const toast = readFileSync(fileURLToPath(new URL('../components/ui/toast.tsx', import.meta.url)), 'utf8');
 
 describe('provider-neutral checkout integrity', () => {
   it('restores a fixed active marker and reconciles Stripe by checkout key only', () => {
@@ -54,5 +55,11 @@ describe('provider-neutral checkout integrity', () => {
     expect(checkout).toContain('paymentSubmissionBlocked');
     expect(paypal).toContain("pending?.error === 'STALE_CART_TOTAL'");
     expect(paypal).toContain('rotatePendingBinding();');
+  });
+
+  it('shows the safe provider message and keeps desktop failure toasts fully on screen', () => {
+    expect(checkout).toContain('description: error?.userMessage');
+    expect(toast).toContain('sm:inset-x-auto sm:bottom-4 sm:right-4 sm:top-auto');
+    expect(toast).toContain('sm:w-[calc(100vw-2rem)] sm:max-w-[420px]');
   });
 });

@@ -105,6 +105,31 @@ test('intent binding requires exact server amount, order, currency, and checkout
   );
 });
 
+test('Stripe payment records receive a non-PII canonical order summary', () => {
+  const order = {
+    id: 'ca16a1ca-2e4d-42df-8723-9574490f67f1',
+    subtotal_cents: 3600,
+    tax_cents: 216,
+    total_cents: 3816,
+    applied_discount_cents: 0,
+    same_day_fee_cents: 0,
+    saturday_fee_cents: 0,
+  };
+  const metadata = checkout.stripeOrderMetadata(order, [{
+    product_type: 'banner', width_in: 48, height_in: 24, material: '13oz Vinyl', quantity: 2,
+  }]);
+  assert.equal(checkout.stripeOrderReference(order.id), 'BOTF-490F67F1');
+  assert.equal(metadata.order_reference, 'BOTF-490F67F1');
+  assert.equal(metadata.item_count, '1');
+  assert.equal(metadata.unit_count, '2');
+  assert.equal(metadata.item_summary, 'banner 48x24 13oz Vinyl x2');
+  assert.equal(metadata.subtotal_cents, '3600');
+  assert.equal(metadata.tax_cents, '216');
+  assert.equal(metadata.email, undefined);
+  assert.equal(metadata.phone, undefined);
+  assert.equal(metadata.shipping_address, undefined);
+});
+
 test('the wallet-displayed expected total is mandatory and must be integer cents', () => {
   assert.equal(checkout.validateExpectedTotal(4242), 4242);
   assert.throws(
@@ -314,6 +339,8 @@ test('PaymentIntent creation is idempotent and an attached reusable intent is no
         assert.deepEqual(params.payment_method_types, ['card']);
         assert.equal(params.receipt_email, undefined);
         assert.equal(params.metadata.email, undefined);
+        assert.equal(params.description, 'Banners On The Fly BOTF-ORDER1');
+        assert.equal(params.metadata.order_reference, 'BOTF-ORDER1');
         assert.ok(options.idempotencyKey.startsWith('bof-pi-'));
         assert.equal(options.idempotencyKey.includes(checkoutKey), false);
         return createdIntent;

@@ -63,8 +63,12 @@ describe('Stripe ConfirmationToken client flow', () => {
   });
 
   it('uses the provider decline code nested in backend details', () => {
+    expect(source).toContain('error?.details?.declineCode');
+    expect(source).toContain('error?.decline_code');
     expect(source).toContain('error?.details?.providerCode');
     expect(source).toContain('recoveryDetails.providerCode || recoveryDetails.stripeCode');
+    expect(source).toContain('userMessage: message');
+    expect(source).toContain('checkoutErrorRef.current?.scrollIntoView');
   });
 
   it('recovers requires_action behind an explicit resumable customer action', () => {

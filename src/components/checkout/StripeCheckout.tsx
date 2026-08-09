@@ -112,10 +112,11 @@ const hasSupportedWallet = (event: any): boolean => {
 
 const humanizeStripeError = (error: any): string => {
   const code = String(
-    error?.details?.providerCode
+    error?.details?.declineCode
+    || error?.decline_code
+    || error?.details?.providerCode
     || error?.providerCode
     || error?.code
-    || error?.decline_code
     || '',
   ).toLowerCase();
   if (code === 'card_declined' || code === 'generic_decline') {
@@ -137,10 +138,11 @@ const humanizeStripeError = (error: any): string => {
 const isDefinitivePaymentFailure = (error: any): boolean => {
   if (error?.paymentStatusUnknown === true || error?.doNotRetry === true) return false;
   const code = String(
-    error?.details?.providerCode
+    error?.details?.declineCode
+    || error?.decline_code
+    || error?.details?.providerCode
     || error?.providerCode
     || error?.code
-    || error?.decline_code
     || '',
   ).toLowerCase();
   const status = String(error?.payment_intent?.status || '').toLowerCase();
@@ -303,6 +305,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
   const nextActionAttemptedRef = useRef(new Set<string>());
   const mountedRef = useRef(true);
   const customerDetailsRef = useRef<HTMLDivElement>(null);
+  const checkoutErrorRef = useRef<HTMLDivElement>(null);
   const walletPhoneRef = useRef<HTMLInputElement>(null);
   const submittedCustomerRef = useRef<SubmittedCustomer | null>(null);
   const shippingTrackedRef = useRef(false);
@@ -326,6 +329,14 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
       mountedRef.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!checkoutError) return;
+    window.requestAnimationFrame(() => {
+      checkoutErrorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      checkoutErrorRef.current?.focus({ preventScroll: true });
+    });
+  }, [checkoutError]);
 
   useEffect(() => {
     if (!customer.email && user?.email) {
@@ -549,7 +560,12 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
           if (terminal) {
             const message = humanizeStripeError(payload);
             resetForRetry(message);
-            onError(new Error(message));
+            onError(Object.assign(new Error(message), {
+              userMessage: message,
+              code: payload?.code || payload?.error || null,
+              providerCode: payload?.providerCode || payload?.details?.providerCode || null,
+              decline_code: payload?.declineCode || payload?.details?.declineCode || null,
+            }));
             return;
           }
         } catch {
@@ -661,7 +677,12 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
       if (terminal) {
         const message = humanizeStripeError(payload);
         resetForRetry(message);
-        onError(new Error(message));
+        onError(Object.assign(new Error(message), {
+          userMessage: message,
+          code: payload?.code || payload?.error || null,
+          providerCode: payload?.providerCode || payload?.details?.providerCode || null,
+          decline_code: payload?.declineCode || payload?.details?.declineCode || null,
+        }));
         return;
       }
       await pollPaymentStatus();
@@ -689,7 +710,12 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
         if (isDefinitivePaymentFailure(actionResult.error)) {
           const message = humanizeStripeError(actionResult.error);
           resetForRetry(message);
-          onError(actionResult.error);
+          onError(Object.assign(new Error(message), {
+            userMessage: message,
+            code: actionResult.error.code || null,
+            providerCode: actionResult.error.code || null,
+            decline_code: actionResult.error.decline_code || null,
+          }));
           return;
         }
         // Network/browser interruption is ambiguous. Keep the exact binding
@@ -935,7 +961,12 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
         }
         const message = humanizeStripeError(error);
         resetForRetry(message);
-        onError(error instanceof Error ? error : new Error(message));
+        onError(Object.assign(new Error(message), {
+          userMessage: message,
+          code: error?.code || null,
+          providerCode: error?.providerCode || error?.details?.providerCode || null,
+          decline_code: error?.decline_code || error?.details?.declineCode || null,
+        }));
         throw error;
       })
       .finally(() => {
@@ -1204,7 +1235,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
       ) : null}
 
       {checkoutError ? (
-        <div id="stripe-checkout-error" role="alert" aria-live="assertive" className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800">
+        <div ref={checkoutErrorRef} id="stripe-checkout-error" role="alert" aria-live="assertive" tabIndex={-1} className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800 outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2">
           <CircleAlert className="mt-0.5 h-4 w-4 flex-none" aria-hidden="true" />
           <span>{checkoutError}</span>
         </div>

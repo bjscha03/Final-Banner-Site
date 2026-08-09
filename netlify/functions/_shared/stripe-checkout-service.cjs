@@ -110,6 +110,43 @@ function checkoutKeyHash(checkoutKey) {
   return crypto.createHash('sha256').update(String(checkoutKey)).digest('hex');
 }
 
+function stripeOrderReference(orderId) {
+  const suffix = String(orderId || '').replace(/[^A-Za-z0-9]/g, '').slice(-8).toUpperCase();
+  return `BOTF-${suffix || 'ORDER'}`;
+}
+
+function stripeOrderMetadata(order, items = []) {
+  const normalizedItems = Array.isArray(items) ? items : [];
+  const unitCount = normalizedItems.reduce(
+    (sum, item) => sum + Math.max(1, Number(item?.quantity || 1)),
+    0,
+  );
+  const itemSummary = normalizedItems.map((item) => {
+    const quantity = Math.max(1, Number(item?.quantity || 1));
+    const product = cleanText(item?.product_type || item?.productType || 'banner', 50) || 'banner';
+    const width = Number(item?.width_in || item?.widthIn || 0);
+    const height = Number(item?.height_in || item?.heightIn || 0);
+    const material = cleanText(item?.material, 80);
+    return [product, width > 0 && height > 0 ? `${width}x${height}` : null, material, `x${quantity}`]
+      .filter(Boolean)
+      .join(' ');
+  }).filter(Boolean).join('; ').slice(0, 500);
+
+  return {
+    bof_checkout: 'v2',
+    internal_order_id: String(order.id),
+    order_reference: stripeOrderReference(order.id),
+    item_count: String(normalizedItems.length),
+    unit_count: String(unitCount),
+    item_summary: itemSummary || 'Banners On The Fly order',
+    subtotal_cents: String(Number(order.subtotal_cents || 0)),
+    tax_cents: String(Number(order.tax_cents || 0)),
+    discount_cents: String(Number(order.applied_discount_cents || 0)),
+    same_day_fee_cents: String(Number(order.same_day_fee_cents || 0)),
+    saturday_fee_cents: String(Number(order.saturday_fee_cents || 0)),
+  };
+}
+
 function validateExpectedTotal(value) {
   const total = Number(value);
   if (!Number.isSafeInteger(total)
@@ -467,6 +504,8 @@ async function confirmBoundPaymentIntent({ stripe, sql, order, intent, confirmat
           orderId: order.id,
           paymentIntentId: intent.id,
           status: confirmed.status,
+          providerCode: confirmed?.last_payment_error?.code || null,
+          declineCode: confirmed?.last_payment_error?.decline_code || null,
         },
       );
     }
@@ -503,7 +542,8 @@ async function confirmBoundPaymentIntent({ stripe, sql, order, intent, confirmat
           orderId: order.id,
           paymentIntentId: intent.id,
           status: providerStatus,
-          providerCode: error?.code || null,
+          providerCode: error?.code || providerIntent?.last_payment_error?.code || null,
+          declineCode: error?.decline_code || providerIntent?.last_payment_error?.decline_code || null,
         },
       );
     }
@@ -527,7 +567,7 @@ async function confirmBoundPaymentIntent({ stripe, sql, order, intent, confirmat
   }
 }
 
-async function createOrReusePaymentIntent({ stripe, sql, order, confirmationTokenId, checkoutKey, customer }) {
+async function createOrReusePaymentIntent({ stripe, sql, order, confirmationTokenId, checkoutKey, customer, items = [] }) {
   let previousIntentId = order.stripe_payment_intent_id || null;
   if (previousIntentId) {
     let existing;
@@ -588,10 +628,9 @@ async function createOrReusePaymentIntent({ stripe, sql, order, confirmationToke
     currency: 'usd',
     capture_method: 'automatic',
     payment_method_types: ['card'],
-    description: 'Banners On The Fly order',
+    description: `Banners On The Fly ${stripeOrderReference(order.id)}`,
     metadata: {
-      bof_checkout: 'v2',
-      internal_order_id: String(order.id),
+      ...stripeOrderMetadata(order, items),
       checkout_key_hash: checkoutKeyHash(checkoutKey),
     },
     shipping: intentShipping(customer),
@@ -675,6 +714,7 @@ async function createOrReusePaymentIntent({ stripe, sql, order, confirmationToke
     order: { ...order, stripe_payment_intent_id: intent.id },
     intent,
     confirmationTokenId,
+    items,
   });
 }
 
@@ -749,6 +789,7 @@ async function startStripeCheckout({ input, runtime, stripe, sql }) {
     // Stripe shipping is copied from the already-persisted canonical order,
     // never directly from a retrying browser payload.
     customer: canonicalCustomerFromOrder(order),
+    items,
   });
   order = { ...order, stripe_payment_intent_id: intent.id };
   return { alreadyPaid: intent.status === 'succeeded', checkoutKey, intent, order };
@@ -858,6 +899,8 @@ module.exports = {
   releaseOrderDiscountClaim,
   startStripeCheckout,
   stripeConfirmationIdempotencyKey,
+  stripeOrderMetadata,
+  stripeOrderReference,
   validateCheckoutKey,
   validateExpectedTotal,
   validateStripeAmount,
