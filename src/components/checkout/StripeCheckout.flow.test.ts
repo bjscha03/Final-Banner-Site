@@ -83,7 +83,9 @@ describe('Stripe ConfirmationToken client flow', () => {
     expect(source).toContain('stripe.handleNextAction({ clientSecret: pending.clientSecret })');
     expect(source).toContain('Never surprise the customer by reopening');
     expect(source).toContain('current.phase !== resumedPhase');
-    expect(source).toContain('initialPollStartedForKeyRef.current === initialState.checkoutKey');
+    expect(source).toContain('const startupRecoveryRef = useRef<StoredStripeCheckout>(initialState)');
+    expect(source).toContain('const startupRecovery = startupRecoveryRef.current');
+    expect(source).toContain('initialPollStartedForKeyRef.current === startupRecovery.checkoutKey');
   });
 
   it('always releases a wallet sheet when Elements is unavailable or another payment is active', () => {
@@ -105,7 +107,7 @@ describe('Stripe ConfirmationToken client flow', () => {
     expect(source).toContain("applePay: 'always'");
     expect(source).toContain("googlePay: 'always'");
     expect(source).toContain("buttonTheme: { applePay: 'black', googlePay: 'black' }");
-    expect(source).toContain('aria-hidden={!walletsAvailable}');
+    expect(source).toContain('aria-hidden={!expressCheckoutVisible}');
     expect(source).toContain("'pointer-events-none absolute inset-x-0 top-0 invisible -z-10'");
     expect(source).not.toContain('Wallet checkout appears automatically on supported devices with an eligible wallet.');
     expect(source).not.toContain('Loading available express payment methods');
@@ -116,6 +118,18 @@ describe('Stripe ConfirmationToken client flow', () => {
   it('uses a Stripe-supported express-wallet overflow contract', () => {
     expect(source).toContain("layout: { maxColumns: 2, maxRows: 1, overflow: 'auto' }");
     expect(source).not.toMatch(/maxRows:\s*[1-9]\d*[^}]*overflow:\s*['"]never['"]/);
+  });
+
+  it('keeps the wallet Element mounted throughout confirmation', () => {
+    expect(source).toContain('const expressCheckoutVisible = walletsAvailable && !verificationMessage');
+    expect(source).toContain('aria-hidden={!expressCheckoutVisible}');
+    expect(source).not.toContain('{!verificationMessage ? <section');
+    expect(source).toMatch(/<section[\s\S]*<ExpressCheckoutElement[\s\S]*<\/section>/);
+  });
+
+  it('silently clears a checkout key that never reached payment creation', () => {
+    expect(source.match(/resetForRetry\(\);/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(source).not.toContain("resetForRetry(payload?.message || 'No payment was completed. Review the order and try again.')");
   });
 
   it('uses the current Stripe Payment Element layout contract', () => {

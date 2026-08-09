@@ -301,6 +301,12 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
       updatedAt: resumedStripe.updatedAt,
     };
   }, [resumedStripe?.checkoutKey, resumedStripe?.orderId, resumedStripe?.paymentIntentId, resumedStripe?.phase, resumedStripe?.updatedAt, signature]);
+  // Recovery present when this form mounts is the only state that may start an
+  // automatic status poll. A normal payment click synchronously updates the
+  // parent recovery prop; treating that update as startup recovery would begin
+  // polling mid-confirmation and tear down the wallet Element before Stripe can
+  // create its ConfirmationToken.
+  const startupRecoveryRef = useRef<StoredStripeCheckout>(initialState);
   const recoveryRef = useRef<StoredStripeCheckout>(initialState);
   const paymentFlightRef = useRef<Promise<void> | null>(null);
   const pollingFlightRef = useRef<Promise<void> | null>(null);
@@ -543,12 +549,12 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
             absentKeyObservations = observation.observations;
             if (observation.safeToRetry) {
               keyOnlyRecoveryRef.current = false;
-              resetForRetry(payload?.message || 'No payment was completed. Review the order and try again.');
+              resetForRetry();
               return;
             }
           } else if (response.status === 404 || payload?.safeToRetry === true) {
             keyOnlyRecoveryRef.current = false;
-            resetForRetry(payload?.message || 'No payment was completed. Review the order and try again.');
+            resetForRetry();
             return;
           } else {
             absentKeyObservations = 0;
@@ -592,11 +598,12 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
   }, [finishPaid, onError, persistRecovery, resetForRetry]);
 
   useEffect(() => {
-    if (!initialState.checkoutKey || initialState.phase === 'idle') return;
-    if (initialPollStartedForKeyRef.current === initialState.checkoutKey) return;
-    initialPollStartedForKeyRef.current = initialState.checkoutKey;
+    const startupRecovery = startupRecoveryRef.current;
+    if (!startupRecovery.checkoutKey || startupRecovery.phase === 'idle') return;
+    if (initialPollStartedForKeyRef.current === startupRecovery.checkoutKey) return;
+    initialPollStartedForKeyRef.current = startupRecovery.checkoutKey;
     void pollPaymentStatus();
-  }, [initialState.checkoutKey, initialState.phase, pollPaymentStatus]);
+  }, [pollPaymentStatus]);
 
   useEffect(() => {
     if (!resumedStripe?.checkoutKey) return;
@@ -1044,6 +1051,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
 
   const currentValidation = checkoutError ? validateCheckoutCustomer(customer) : null;
   const busy = isProcessing || isPolling || Boolean(verificationMessage);
+  const expressCheckoutVisible = walletsAvailable && !verificationMessage;
   const walletPhoneIsInvalid = walletPhoneRequired && !isValidCheckoutPhone(customer.phone);
   const focusWalletPhone = () => {
     window.requestAnimationFrame(() => walletPhoneRef.current?.focus());
@@ -1058,10 +1066,10 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
 
   return (
     <div className="relative space-y-5">
-      {!verificationMessage ? <section
+      <section
         aria-labelledby="express-checkout-heading"
-        aria-hidden={!walletsAvailable}
-        className={walletsAvailable
+        aria-hidden={!expressCheckoutVisible}
+        className={expressCheckoutVisible
           ? 'block animate-in fade-in duration-200'
           : 'pointer-events-none absolute inset-x-0 top-0 invisible -z-10'}
       >
@@ -1194,7 +1202,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
             </div>
           </div>
         </div>
-      </section> : null}
+      </section>
 
       {!verificationMessage && walletsAvailable ? (
         <div className="flex items-center gap-3" aria-hidden="true">
