@@ -4,6 +4,9 @@ import runtimeModule from './_shared/stripe-runtime-config.cjs';
 const headers = {
   'Content-Type': 'application/json',
   'Cache-Control': 'no-store, max-age=0',
+  // Safe, non-secret deploy marker used to prove the payment functions and
+  // checkout bundle came from the same verified release candidate.
+  'X-BOTF-Payment-Build': 'verified-followups-v1',
 };
 
 const handler = async (event) => {
