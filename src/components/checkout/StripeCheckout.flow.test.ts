@@ -113,6 +113,11 @@ describe('Stripe ConfirmationToken client flow', () => {
     expect(source).not.toMatch(/<button[^>]*>\s*(?:Apple Pay|Google Pay)\s*<\/button>/);
   });
 
+  it('uses a Stripe-supported express-wallet overflow contract', () => {
+    expect(source).toContain("layout: { maxColumns: 2, maxRows: 1, overflow: 'auto' }");
+    expect(source).not.toMatch(/maxRows:\s*[1-9]\d*[^}]*overflow:\s*['"]never['"]/);
+  });
+
   it('uses the current Stripe Payment Element layout contract', () => {
     expect(source).toContain('options={stripeCardPaymentElementOptions}');
     expect(paymentOptionsSource).toContain("radios: 'never'");
