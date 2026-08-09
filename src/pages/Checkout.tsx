@@ -1322,13 +1322,16 @@ const Checkout: React.FC = () => {
                         <button
                           type="button"
                           aria-pressed={paymentProvider === 'paypal'}
+                          aria-label="PayPal"
                           className={`min-h-11 rounded-lg px-3 text-sm font-bold transition ${paymentProvider === 'paypal'
-                            ? 'bg-white text-[#18448D] shadow-sm ring-1 ring-slate-200'
-                            : 'text-slate-600 hover:bg-white/70 hover:text-[#18448D]'}`}
+                            ? 'bg-[#FFC439] shadow-sm ring-1 ring-[#D9A400]'
+                            : 'text-slate-600 hover:bg-[#FFF3C4]'}`}
                           disabled={checkoutLocked}
                           onClick={() => { if (!checkoutLocked) setPaymentProvider('paypal'); }}
                         >
-                          PayPal
+                          <span aria-hidden="true" className="inline-flex items-baseline font-extrabold italic tracking-tight">
+                            <span className="text-[#003087]">Pay</span><span className="text-[#0070BA]">Pal</span>
+                          </span>
                         </button>
                       </div>
                     </div>

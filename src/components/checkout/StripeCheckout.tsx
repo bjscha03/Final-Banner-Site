@@ -241,7 +241,6 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
   const { user } = useAuth();
   const { items, discountCode, sameDayHitService, saturdayDelivery } = useCartStore();
   const resumedStripe = resumeCheckout?.provider === 'stripe' ? resumeCheckout : null;
-  const [walletsReady, setWalletsReady] = useState(false);
   const [walletsAvailable, setWalletsAvailable] = useState(false);
   const [walletPhoneRequired, setWalletPhoneRequired] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -333,15 +332,6 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
       setCustomer((current) => ({ ...current, email: user.email || '' }));
     }
   }, [customer.email, user?.email]);
-
-  useEffect(() => {
-    if (walletsReady) return;
-    const timeout = window.setTimeout(() => {
-      setWalletsAvailable(false);
-      setWalletsReady(true);
-    }, 6000);
-    return () => window.clearTimeout(timeout);
-  }, [walletsReady]);
 
   useEffect(() => {
     const loadingMessage = 'Card payment fields could not load. Refresh the page or choose PayPal.';
@@ -1031,9 +1021,15 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
   };
 
   return (
-    <div className="space-y-5">
-      {!verificationMessage ? <section aria-labelledby="express-checkout-heading">
-        <div className={walletsReady && !walletsAvailable ? 'hidden' : 'block'}>
+    <div className="relative space-y-5">
+      {!verificationMessage ? <section
+        aria-labelledby="express-checkout-heading"
+        aria-hidden={!walletsAvailable}
+        className={walletsAvailable
+          ? 'block animate-in fade-in duration-200'
+          : 'pointer-events-none absolute inset-x-0 top-0 invisible -z-10'}
+      >
+        <div>
           <div className="mb-3">
             <h3 id="express-checkout-heading" className="text-base font-bold text-[#0B1F3A]">
               Fast checkout
@@ -1064,15 +1060,13 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
             </div>
           ) : null}
           <div className="relative min-h-[48px]">
-            {!walletsReady ? (
-              <div className="absolute inset-0 h-[48px] animate-pulse rounded-md bg-slate-100" aria-label="Loading available express payment methods" />
-            ) : null}
-            <div className={walletsReady ? 'opacity-100' : 'pointer-events-none opacity-0'}>
+            <div>
               <ExpressCheckoutElement
                 options={{
                   allowedShippingCountries: ['US'],
                   billingAddressRequired: true,
                   buttonHeight: 48,
+                  buttonTheme: { applePay: 'black', googlePay: 'black' },
                   buttonType: { applePay: 'buy', googlePay: 'buy' },
                   emailRequired: true,
                   layout: { maxColumns: 2, maxRows: 1, overflow: 'never' },
@@ -1091,15 +1085,12 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
                 }}
                 onReady={(event: any) => {
                   setWalletsAvailable(hasSupportedWallet(event));
-                  setWalletsReady(true);
                 }}
                 onAvailablePaymentMethodsChange={(event: any) => {
                   setWalletsAvailable(hasSupportedWallet(event));
-                  setWalletsReady(true);
                 }}
                 onLoadError={() => {
                   setWalletsAvailable(false);
-                  setWalletsReady(true);
                 }}
                 onClick={(event: any) => {
                   if (disabled || busy) {
@@ -1164,14 +1155,6 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
             </div>
           </div>
         </div>
-        {walletsReady && !walletsAvailable ? (
-          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5" role="status">
-            <p className="text-sm font-semibold text-slate-800">Apple Pay and Google Pay</p>
-            <p className="mt-0.5 text-xs leading-5 text-slate-600">
-              Wallet checkout appears automatically on supported devices with an eligible wallet. You can still pay securely by card or PayPal.
-            </p>
-          </div>
-        ) : null}
       </section> : null}
 
       {!verificationMessage && walletsAvailable ? (

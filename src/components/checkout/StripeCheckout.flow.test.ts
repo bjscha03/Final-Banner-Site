@@ -97,8 +97,11 @@ describe('Stripe ConfirmationToken client flow', () => {
     expect(source).toContain("paymentMethodOrder: ['apple_pay', 'google_pay']");
     expect(source).toContain("applePay: 'always'");
     expect(source).toContain("googlePay: 'always'");
-    expect(source).toContain('walletsReady && !walletsAvailable');
-    expect(source).toContain('Wallet checkout appears automatically on supported devices with an eligible wallet.');
+    expect(source).toContain("buttonTheme: { applePay: 'black', googlePay: 'black' }");
+    expect(source).toContain('aria-hidden={!walletsAvailable}');
+    expect(source).toContain("'pointer-events-none absolute inset-x-0 top-0 invisible -z-10'");
+    expect(source).not.toContain('Wallet checkout appears automatically on supported devices with an eligible wallet.');
+    expect(source).not.toContain('Loading available express payment methods');
     expect(source).toContain('<ExpressCheckoutElement');
     expect(source).not.toMatch(/<button[^>]*>\s*(?:Apple Pay|Google Pay)\s*<\/button>/);
   });
