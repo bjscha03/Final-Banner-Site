@@ -104,6 +104,41 @@ test('a background 202 can never conceal missing order notifications', async () 
   }
 });
 
+test('browser completion queues follow-ups without waiting on notification delivery', async () => {
+  const previous = {
+    fetch: global.fetch,
+    deployPrimeUrl: process.env.DEPLOY_PRIME_URL,
+    internalSecret: process.env.INTERNAL_JOB_SECRET,
+  };
+  process.env.DEPLOY_PRIME_URL = 'https://agent-payment-sandbox-e2e--bannersonthefly.netlify.app';
+  process.env.INTERNAL_JOB_SECRET = 'test-internal-secret';
+  let notifyCalls = 0;
+  let backgroundCalls = 0;
+  followups.setNotifyOrderHandler(async () => {
+    notifyCalls += 1;
+    throw new Error('browser completion must not invoke email inline');
+  });
+  global.fetch = async (url, options) => {
+    backgroundCalls += 1;
+    assert.match(String(url), /process-paid-order-followups-background$/);
+    assert.deepEqual(JSON.parse(options.body), { orderId: 'order-123' });
+    return internalResponse(202);
+  };
+
+  try {
+    assert.equal(await followups.queuePaidOrderFollowupsInBackground({}, 'order-123'), true);
+    assert.equal(notifyCalls, 0);
+    assert.equal(backgroundCalls, 1);
+  } finally {
+    followups.resetNotifyOrderHandler();
+    global.fetch = previous.fetch;
+    if (previous.deployPrimeUrl === undefined) delete process.env.DEPLOY_PRIME_URL;
+    else process.env.DEPLOY_PRIME_URL = previous.deployPrimeUrl;
+    if (previous.internalSecret === undefined) delete process.env.INTERNAL_JOB_SECRET;
+    else process.env.INTERNAL_JOB_SECRET = previous.internalSecret;
+  }
+});
+
 test('public create-order cannot forge a Stripe order or test mode', async () => {
   const response = await createOrder.handler({
     httpMethod: 'POST',

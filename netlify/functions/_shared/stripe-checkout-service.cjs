@@ -5,7 +5,10 @@ const createOrderModule = require('./legacy/create-order-core.cjs');
 const { repriceStripeCart } = require('./stripe-server-pricing.cjs');
 const discountReservation = require('./payment-discount-reservation.cjs');
 const { constantTimeEqual, createPaidOrderConfirmationToken } = require('./order-confirmation-token.cjs');
-const { queuePaidOrderFollowups } = require('./paid-order-followups.cjs');
+const {
+  queuePaidOrderFollowups,
+  queuePaidOrderFollowupsInBackground,
+} = require('./paid-order-followups.cjs');
 
 const SETTLED_ORDER_STATUSES = new Set(['paid', 'in_production', 'shipped', 'delivered', 'fulfilled']);
 const REUSABLE_INTENT_STATUSES = new Set(['requires_action', 'processing', 'succeeded']);
@@ -1057,6 +1060,7 @@ module.exports = {
   normalizeCustomer,
   pendingCustomerDetailsMatch,
   queuePaidOrderFollowups,
+  queuePaidOrderFollowupsInBackground,
   releaseOrderDiscountClaim,
   startStripeCheckout,
   stripeConfirmationIdempotencyKey,

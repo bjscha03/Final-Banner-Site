@@ -491,12 +491,15 @@ const Checkout: React.FC = () => {
   const reconcileStoredStripeCheckout = useCallback(async () => {
     const marker = activeCheckout;
     if (!marker || marker.provider !== 'stripe') return;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 8000);
     setRecoveryChecking(true);
     setRecoveryMessage('Restoring your secure payment status…');
     try {
       const response = await fetch('/.netlify/functions/stripe-payment-status', {
         method: 'POST',
         credentials: 'same-origin',
+        signal: controller.signal,
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ checkoutKey: marker.checkoutKey }),
       });
@@ -505,7 +508,6 @@ const Checkout: React.FC = () => {
           && payload?.ok === true
           && payload?.paid === true
           && payload?.finalized === true
-          && payload?.followupsQueued === true
           && payload?.confirmationToken) {
         const orderId = payload.orderId || payload.order?.id;
         if (orderId) {
@@ -547,6 +549,7 @@ const Checkout: React.FC = () => {
     } catch {
       setRecoveryMessage('We could not reach payment verification. Your cart is locked to prevent a duplicate charge; check status again shortly.');
     } finally {
+      window.clearTimeout(timeout);
       setRecoveryChecking(false);
       setNeedsStoredCheckoutRecovery(false);
     }

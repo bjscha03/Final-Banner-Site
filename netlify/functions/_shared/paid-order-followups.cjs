@@ -4,6 +4,7 @@ const { siteUrlForEvent } = require('./stripe-runtime-config.cjs');
 const notifyOrderModule = require('./legacy/notify-order.cjs');
 
 let notifyOrderHandler = notifyOrderModule.handler;
+const INTERNAL_POST_TIMEOUT_MS = 8000;
 
 function internalRequestConfig(event, orderId) {
   const siteUrl = siteUrlForEvent(event);
@@ -19,11 +20,14 @@ function internalRequestConfig(event, orderId) {
 }
 
 async function postInternal(config, functionName, body) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), INTERNAL_POST_TIMEOUT_MS);
   try {
     const response = await fetch(`${config.siteUrl}/.netlify/functions/${functionName}`, {
       method: 'POST',
       headers: config.headers,
       body: JSON.stringify(body),
+      signal: controller.signal,
     });
     let payload = {};
     try { payload = await response.json(); } catch { /* An empty background 202 is expected. */ }
@@ -35,6 +39,8 @@ async function postInternal(config, functionName, body) {
       payload: {},
       error: error?.message || String(error),
     };
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -126,12 +132,36 @@ async function queuePaidOrderFollowups(event, orderId) {
   return background.ok;
 }
 
+// Browser payment completion must never wait on an email provider or PDF
+// renderer after Stripe and the canonical order are already settled. The
+// background handler performs the same idempotent customer/admin notification
+// checks before PDF work, while the signed Stripe webhook remains the durable
+// retry authority if that job later fails.
+async function queuePaidOrderFollowupsInBackground(event, orderId) {
+  const config = internalRequestConfig(event, orderId);
+  if (!config) return false;
+  const background = await postInternal(
+    config,
+    'process-paid-order-followups-background',
+    { orderId },
+  );
+  if (!background.ok) {
+    console.error('[paid-order-followups] background queue failed', {
+      orderId,
+      status: background.status,
+      error: background.payload?.error || background.error || null,
+    });
+  }
+  return background.ok;
+}
+
 module.exports = {
   deliverPaidOrderNotifications,
   internalRequestConfig,
   invokeNotifyOrder,
   postInternal,
   queuePaidOrderFollowups,
+  queuePaidOrderFollowupsInBackground,
   resetNotifyOrderHandler() { notifyOrderHandler = notifyOrderModule.handler; },
   setNotifyOrderHandler(handler) { notifyOrderHandler = handler; },
 };

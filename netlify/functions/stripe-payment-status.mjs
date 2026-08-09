@@ -129,7 +129,9 @@ const handler = async (event) => {
       });
       if (finalized.settled) {
         order = finalized.order;
-        const followupsQueued = await checkoutModule.queuePaidOrderFollowups(event, order.id);
+        // A verified captured payment can complete checkout immediately. Email
+        // and PDF delivery remain idempotent background work with webhook retry.
+        const followupsQueued = await checkoutModule.queuePaidOrderFollowupsInBackground(event, order.id);
         return reply(200, checkoutModule.canonicalPaidPayload(order, {
           activePayment: false,
           followupsQueued,

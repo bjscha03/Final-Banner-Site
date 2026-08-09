@@ -82,6 +82,10 @@ const FINALIZE_ENDPOINT = '/.netlify/functions/stripe-finalize-order';
 const STATUS_ENDPOINT = '/.netlify/functions/stripe-payment-status';
 const POLL_INTERVAL_MS = 2000;
 const POLL_ATTEMPTS = 15;
+const APP_REQUEST_TIMEOUT_MS = 25_000;
+const STATUS_REQUEST_TIMEOUT_MS = 8_000;
+const POLL_TOTAL_TIMEOUT_MS = 35_000;
+const STRIPE_STAGE_TIMEOUT_MS = 15_000;
 
 const stripePromiseCache = new Map<string, ReturnType<typeof loadStripe>>();
 
@@ -103,6 +107,44 @@ const readJson = async (response: Response): Promise<any> => {
 };
 
 const sleep = (milliseconds: number) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+
+const withStripeStageTimeout = async <T,>(operation: Promise<T>): Promise<T> => {
+  let timeout: number | undefined;
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<T>((_, reject) => {
+        timeout = window.setTimeout(() => reject(Object.assign(
+          new Error('The secure payment form did not respond in time. No payment was sent; close it and try again.'),
+          { code: 'PAYMENT_STAGE_TIMEOUT' },
+        )), STRIPE_STAGE_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timeout !== undefined) window.clearTimeout(timeout);
+  }
+};
+
+const fetchWithTimeout = async (
+  input: RequestInfo | URL,
+  init: RequestInit,
+  timeoutMs: number,
+): Promise<Response> => {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw Object.assign(new Error('The secure payment request timed out.'), {
+        code: 'PAYMENT_REQUEST_TIMEOUT',
+      });
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
+};
 
 const hasSupportedWallet = (event: any): boolean => {
   const methods = event?.availablePaymentMethods || event?.paymentMethods || {};
@@ -226,7 +268,6 @@ const isPaidPayload = (payload: any): boolean => Boolean(
   payload?.ok === true
   && payload?.paid === true
   && (payload?.finalized === true || payload?.order?.payment_status === 'paid')
-  && payload?.followupsQueued === true
   && (payload?.orderId || payload?.order?.id)
   && payload?.confirmationToken,
 );
@@ -490,15 +531,17 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
       setVerificationMessage('Your payment is being securely verified. Please keep this page open.');
       persistRecovery({ phase: 'verifying' });
       let absentKeyObservations = 0;
+      const pollingStartedAt = Date.now();
 
       for (let attempt = 0; attempt < attempts && mountedRef.current; attempt += 1) {
+        if (Date.now() - pollingStartedAt >= POLL_TOTAL_TIMEOUT_MS) break;
         try {
-          const response = await fetch(STATUS_ENDPOINT, {
+          const response = await fetchWithTimeout(STATUS_ENDPOINT, {
             method: 'POST',
             credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
             body: JSON.stringify({ checkoutKey }),
-          });
+          }, STATUS_REQUEST_TIMEOUT_MS);
           const payload = await readJson(response);
           if (response.ok && isPaidPayload(payload)) {
             finishPaid(payload);
@@ -651,12 +694,12 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
   }, [analyticsItems, discountCode?.code, total]);
 
   const postJson = useCallback(async (url: string, body: Record<string, unknown>) => {
-    const response = await fetch(url, {
+    const response = await fetchWithTimeout(url, {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify(body),
-    });
+    }, APP_REQUEST_TIMEOUT_MS);
     const payload = await readJson(response);
     return { response, payload };
   }, []);
@@ -756,19 +799,16 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
     if (!stripe || !elements) throw new Error('Secure payment fields are still loading.');
     if (disabled) throw new Error('Please resolve the cart issue above before paying.');
 
-    submittedCustomerRef.current = submittedCustomer;
-    setCheckoutError(null);
-    setCheckoutNotice(null);
-    setVerificationMessage(null);
-    setIsProcessing(true);
-    persistRecovery({ phase: 'confirming' });
-    trackCheckoutDetails(method);
     // Redirect-based authentication returns to checkout, where the persisted
     // PaymentIntent/order binding is verified server-side before we navigate
     // to the success page. The success page is never used as fulfillment.
     const returnUrl = `${window.location.origin}/checkout?stripe_return=1`;
 
-    const tokenResult = await stripe.createConfirmationToken({
+    // Do not mutate React or parent recovery state while Stripe is turning the
+    // mounted wallet/card Element into a ConfirmationToken. That avoids a
+    // rerender during the native wallet handshake. This bounded stage is also
+    // safely retryable: no PaymentIntent or charge exists until the POST below.
+    const tokenResult = await withStripeStageTimeout(stripe.createConfirmationToken({
       elements,
       params: {
         payment_method_data: {
@@ -800,10 +840,18 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
         },
         return_url: returnUrl,
       },
-    });
+    }));
     if (tokenResult.error || !tokenResult.confirmationToken) {
       throw tokenResult.error || new Error('Could not securely prepare this payment.');
     }
+
+    submittedCustomerRef.current = submittedCustomer;
+    setCheckoutError(null);
+    setCheckoutNotice(null);
+    setVerificationMessage(null);
+    setIsProcessing(true);
+    persistRecovery({ phase: 'confirming' });
+    trackCheckoutDetails(method);
 
     let createResult: Awaited<ReturnType<typeof postJson>>;
     try {
@@ -1005,7 +1053,13 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
       });
       return;
     }
-    const submitResult = await elements.submit();
+    let submitResult;
+    try {
+      submitResult = await withStripeStageTimeout(elements.submit());
+    } catch (error) {
+      setCheckoutError(humanizeStripeError(error));
+      return;
+    }
     if (submitResult.error) {
       setCheckoutError(humanizeStripeError(submitResult.error));
       return;
@@ -1182,7 +1236,15 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
                     event.paymentFailed?.({ reason: 'invalid_payment_data', message });
                     return;
                   }
-                  const submitResult = await elements.submit();
+                  let submitResult;
+                  try {
+                    submitResult = await withStripeStageTimeout(elements.submit());
+                  } catch (error) {
+                    const message = humanizeStripeError(error);
+                    setCheckoutError(message);
+                    event.paymentFailed?.({ reason: 'fail', message });
+                    return;
+                  }
                   if (submitResult.error) {
                     const message = humanizeStripeError(submitResult.error);
                     setCheckoutError(message);
