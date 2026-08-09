@@ -501,7 +501,12 @@ const Checkout: React.FC = () => {
         body: JSON.stringify({ checkoutKey: marker.checkoutKey }),
       });
       const payload = await response.json().catch(() => ({}));
-      if (response.ok && payload?.ok === true && payload?.paid === true && payload?.finalized === true && payload?.confirmationToken) {
+      if (response.ok
+          && payload?.ok === true
+          && payload?.paid === true
+          && payload?.finalized === true
+          && payload?.followupsQueued === true
+          && payload?.confirmationToken) {
         const orderId = payload.orderId || payload.order?.id;
         if (orderId) {
           await handlePaymentSuccess(orderId, {
