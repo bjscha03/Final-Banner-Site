@@ -304,6 +304,28 @@ test('preview request host overrides production-looking runtime variables before
   });
 });
 
+test('an immutable production deploy hostname cannot demote the live PayPal runtime', async () => {
+  await withEnv({
+    CONTEXT: 'production',
+    URL: 'https://bannersonthefly.com',
+    FEATURE_PAYPAL: '1',
+    PAYPAL_ENV: 'live',
+    PAYPAL_CLIENT_ID_LIVE: 'production-live-client-id',
+    PAYPAL_SECRET_LIVE: 'production-live-secret',
+  }, async () => {
+    const resolved = runtime.resolvePayPalRuntime({
+      event: {
+        rawUrl: 'https://6a779c518d3ca80008ce39e5--bannersonthefly.netlify.app/.netlify/functions/paypal-config',
+        headers: {},
+      },
+    });
+
+    assert.equal(resolved.context, 'production');
+    assert.equal(resolved.environment, 'live');
+    assert.equal(resolved.enabled, true);
+  });
+});
+
 test('deploy previews deny PayPal even with sandbox keys while branch deploys require scoped sandbox keys', async () => {
   await withEnv({
     CONTEXT: 'deploy-preview',

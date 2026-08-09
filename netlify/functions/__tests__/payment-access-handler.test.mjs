@@ -99,6 +99,55 @@ test('admin order endpoint imports cleanly and rejects an unsigned request befor
   assert.equal((await response.json()).error, 'UNAUTHORIZED');
 });
 
+test('Admin test-order visibility follows the actual branch request host when runtime context looks like production', () => {
+  const envNames = ['CONTEXT', 'DEPLOY_PRIME_URL', 'DEPLOY_URL', 'URL'];
+  const saved = Object.fromEntries(envNames.map((name) => [name, process.env[name]]));
+  const settledSandboxOrder = {
+    status: 'paid',
+    payment_method: 'paypal',
+    paypal_capture_id: 'SANDBOX-CAPTURE',
+    payment_reconciliation_status: 'complete',
+    is_test_order: true,
+  };
+
+  try {
+    process.env.CONTEXT = 'production';
+    delete process.env.DEPLOY_PRIME_URL;
+    delete process.env.DEPLOY_URL;
+    delete process.env.URL;
+
+    assert.equal(getOrdersTest.isAdminVisiblePaidOrderForEvent(settledSandboxOrder, {
+      rawUrl: 'https://agent-payment-sandbox-e2e--bannersonthefly.netlify.app/.netlify/functions/get-orders?page=1',
+      headers: {},
+    }), true);
+
+    assert.equal(getOrdersTest.isAdminVisiblePaidOrderForEvent(settledSandboxOrder, {
+      rawUrl: 'https://www.bannersonthefly.com/.netlify/functions/get-orders?page=1',
+      headers: {},
+    }), false);
+
+    assert.equal(getOrdersTest.isAdminVisiblePaidOrderForEvent(settledSandboxOrder, {
+      rawUrl: 'https://6a779c518d3ca80008ce39e5--bannersonthefly.netlify.app/.netlify/functions/get-orders?page=1',
+      headers: {},
+    }), false);
+
+    assert.equal(getOrdersTest.isAdminVisiblePaidOrderForEvent({
+      ...settledSandboxOrder,
+      status: 'pending',
+      paypal_capture_id: null,
+      payment_reconciliation_status: 'pending',
+    }, {
+      rawUrl: 'https://agent-payment-sandbox-e2e--bannersonthefly.netlify.app/.netlify/functions/get-orders?page=1',
+      headers: {},
+    }), false);
+  } finally {
+    for (const [name, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
+});
+
 test('a completed PayPal capture stays a 200 paid success when every token secret is missing', async () => {
   for (const name of [
     'ORDER_CONFIRMATION_TOKEN_SECRET',

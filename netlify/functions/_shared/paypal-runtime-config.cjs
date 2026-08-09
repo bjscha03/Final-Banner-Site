@@ -48,6 +48,11 @@ function requestHostnames(event = {}) {
 
 function previewContextForHostname(host) {
   if (/^deploy-preview-\d+--.+\.netlify\.app$/.test(host)) return 'deploy-preview';
+  // Netlify's immutable deploy permalinks use a 24-hex deploy ID before `--`
+  // for production and nonproduction deploys alike. The hostname alone cannot
+  // safely demote those requests, so defer to the deployment-controlled
+  // CONTEXT/URL values instead of treating a production permalink as a branch.
+  if (/^[0-9a-f]{24}--.+\.netlify\.app$/.test(host)) return '';
   // Any branch/deploy-specific Netlify hostname is nonproduction even if a
   // runtime unexpectedly exposes the site's production URL/CONTEXT.
   if (host.endsWith('.netlify.app')
