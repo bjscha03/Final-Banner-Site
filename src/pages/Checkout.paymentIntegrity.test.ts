@@ -29,6 +29,10 @@ describe('provider-neutral checkout integrity', () => {
   it('uses one clear Card and PayPal selector without duplicate payment hierarchies', () => {
     expect(checkout).toContain('Choose a payment method');
     expect(checkout).toContain('Card &amp; wallets');
+    expect(checkout).toContain('aria-label="PayPal"');
+    expect(checkout).toContain('bg-[#FFC439]');
+    expect(checkout).toContain('text-[#003087]');
+    expect(checkout).toContain('text-[#0070BA]');
     expect(checkout).toContain('aria-pressed={paymentProvider');
     expect(checkout).not.toContain('Additional payment options');
     expect(checkout).not.toContain('onSwitchToPayPal=');
