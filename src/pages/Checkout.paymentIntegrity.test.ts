@@ -26,6 +26,14 @@ describe('provider-neutral checkout integrity', () => {
     expect(checkout).toContain('disabled={paymentSubmissionBlocked || checkoutLocked}');
   });
 
+  it('uses one clear Card and PayPal selector without duplicate payment hierarchies', () => {
+    expect(checkout).toContain('Choose a payment method');
+    expect(checkout).toContain('Card &amp; wallets');
+    expect(checkout).toContain('aria-pressed={paymentProvider');
+    expect(checkout).not.toContain('Additional payment options');
+    expect(checkout).not.toContain('onSwitchToPayPal=');
+  });
+
   it('keeps the PayPal recovery binding across cart signature changes', () => {
     expect(paypal).toContain('if (activeBindingRef.current || verificationLockedRef.current) return');
     expect(paypal).toContain("const PAYPAL_RECOVERY_STORAGE_KEY = 'bof-paypal-checkout-v6'");

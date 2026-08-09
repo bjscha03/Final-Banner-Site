@@ -93,6 +93,16 @@ describe('Stripe ConfirmationToken client flow', () => {
     expect(source).toContain('onShippingAddressChange=');
   });
 
+  it('prioritizes eligible Apple Pay and Google Pay without rendering fake wallet buttons', () => {
+    expect(source).toContain("paymentMethodOrder: ['apple_pay', 'google_pay']");
+    expect(source).toContain("applePay: 'always'");
+    expect(source).toContain("googlePay: 'always'");
+    expect(source).toContain('walletsReady && !walletsAvailable');
+    expect(source).toContain('Wallet checkout appears automatically on supported devices with an eligible wallet.');
+    expect(source).toContain('<ExpressCheckoutElement');
+    expect(source).not.toMatch(/<button[^>]*>\s*(?:Apple Pay|Google Pay)\s*<\/button>/);
+  });
+
   it('uses the current Stripe Payment Element layout contract', () => {
     expect(source).toContain('options={stripeCardPaymentElementOptions}');
     expect(paymentOptionsSource).toContain("radios: 'never'");

@@ -7,7 +7,7 @@ import {
   useStripe,
 } from '@stripe/react-stripe-js';
 import { loadStripe, type StripeElementsOptions } from '@stripe/stripe-js';
-import { CircleAlert, Clock3, CreditCard, Loader2, RefreshCw, ShieldCheck } from 'lucide-react';
+import { CircleAlert, Clock3, CreditCard, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth';
@@ -48,7 +48,6 @@ interface StripeCheckoutProps {
   onSuccess: (orderId: string, orderData?: any) => void;
   onError: (error: any) => void;
   disabled?: boolean;
-  onSwitchToPayPal?: () => void;
   resumeCheckout?: ActiveCheckoutMarker | null;
   onPaymentStateChange?: (state: CheckoutPaymentStateEvent) => void;
   onCanonicalQuote?: (quote: CanonicalCartQuote, serverTotalCents: number) => boolean;
@@ -232,7 +231,6 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
   onSuccess,
   onError,
   disabled = false,
-  onSwitchToPayPal,
   resumeCheckout,
   onPaymentStateChange,
   onCanonicalQuote,
@@ -1034,141 +1032,146 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
 
   return (
     <div className="space-y-5">
-      {!verificationMessage ? <section
-        aria-labelledby="express-checkout-heading"
-        className={walletsReady && !walletsAvailable ? 'hidden' : 'block'}
-      >
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div>
+      {!verificationMessage ? <section aria-labelledby="express-checkout-heading">
+        <div className={walletsReady && !walletsAvailable ? 'hidden' : 'block'}>
+          <div className="mb-3">
             <h3 id="express-checkout-heading" className="text-base font-bold text-[#0B1F3A]">
-              Express checkout
+              Fast checkout
             </h3>
-            <p className="mt-0.5 text-xs text-slate-600">The fastest available wallet appears automatically.</p>
+            <p className="mt-0.5 text-xs text-slate-600">Pay instantly with an available wallet.</p>
           </div>
-          <ShieldCheck className="h-5 w-5 flex-none text-emerald-600" aria-hidden="true" />
+          {walletPhoneRequired ? (
+            <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <label htmlFor="stripe-wallet-phone" className="block text-sm font-semibold text-slate-900">
+                Phone number for wallet checkout *
+              </label>
+              <Input
+                ref={walletPhoneRef}
+                id="stripe-wallet-phone"
+                className="mt-1 h-11 bg-white text-base sm:text-sm"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                required
+                aria-invalid={walletPhoneIsInvalid || undefined}
+                aria-describedby="stripe-wallet-phone-help stripe-checkout-error"
+                value={customer.phone}
+                onChange={(event) => updateCustomer('phone', event.target.value)}
+              />
+              <p id="stripe-wallet-phone-help" className="mt-1 text-xs text-slate-700">
+                Google Pay may not share a phone number. We use this only for your order and delivery updates.
+              </p>
+            </div>
+          ) : null}
+          <div className="relative min-h-[48px]">
+            {!walletsReady ? (
+              <div className="absolute inset-0 h-[48px] animate-pulse rounded-md bg-slate-100" aria-label="Loading available express payment methods" />
+            ) : null}
+            <div className={walletsReady ? 'opacity-100' : 'pointer-events-none opacity-0'}>
+              <ExpressCheckoutElement
+                options={{
+                  allowedShippingCountries: ['US'],
+                  billingAddressRequired: true,
+                  buttonHeight: 48,
+                  buttonType: { applePay: 'buy', googlePay: 'buy' },
+                  emailRequired: true,
+                  layout: { maxColumns: 2, maxRows: 1, overflow: 'never' },
+                  paymentMethodOrder: ['apple_pay', 'google_pay'],
+                  paymentMethods: {
+                    applePay: 'always',
+                    googlePay: 'always',
+                    link: 'never',
+                    paypal: 'never',
+                    amazonPay: 'never',
+                    klarna: 'never',
+                  },
+                  phoneNumberRequired: true,
+                  shippingAddressRequired: true,
+                  shippingRates: getStripeExpressShippingRates(),
+                }}
+                onReady={(event: any) => {
+                  setWalletsAvailable(hasSupportedWallet(event));
+                  setWalletsReady(true);
+                }}
+                onAvailablePaymentMethodsChange={(event: any) => {
+                  setWalletsAvailable(hasSupportedWallet(event));
+                  setWalletsReady(true);
+                }}
+                onLoadError={() => {
+                  setWalletsAvailable(false);
+                  setWalletsReady(true);
+                }}
+                onClick={(event: any) => {
+                  if (disabled || busy) {
+                    const message = busy
+                      ? 'Another payment is already being securely verified. Check its status before trying again.'
+                      : 'Please resolve the cart issue above before paying.';
+                    event.reject?.();
+                    setCheckoutError(message);
+                    return;
+                  }
+                  if (walletPhoneRequired && !isValidCheckoutPhone(customer.phone)) {
+                    event.reject?.();
+                    requireWalletPhone();
+                    return;
+                  }
+                  event.resolve?.({ shippingRates: getStripeExpressShippingRates() });
+                }}
+                onShippingAddressChange={(event: any) => event.resolve?.({
+                  shippingRates: getStripeExpressShippingRates(),
+                })}
+                onCancel={() => {
+                  if (!busy) {
+                    setCheckoutError(null);
+                    setCheckoutNotice('Express checkout was closed. No payment was completed. You can try again whenever you’re ready.');
+                    window.setTimeout(() => {
+                      if (mountedRef.current) setCheckoutNotice(null);
+                    }, 4000);
+                  }
+                }}
+                onConfirm={async (event: any) => {
+                  if (!elements || busy) {
+                    const message = busy
+                      ? 'Another payment is already being securely verified. Check its status before trying again.'
+                      : 'Secure payment fields are not ready. Close the wallet and try again.';
+                    setCheckoutError(message);
+                    event.paymentFailed?.({ reason: 'fail', message });
+                    return;
+                  }
+                  const submittedWalletCustomer = walletCustomer(event, customer.phone);
+                  if (!isValidCheckoutPhone(submittedWalletCustomer.phone)) {
+                    const message = requireWalletPhone();
+                    event.paymentFailed?.({ reason: 'invalid_payment_data', message });
+                    return;
+                  }
+                  const submitResult = await elements.submit();
+                  if (submitResult.error) {
+                    const message = humanizeStripeError(submitResult.error);
+                    setCheckoutError(message);
+                    event.paymentFailed?.({ reason: 'invalid_payment_data', message });
+                    return;
+                  }
+                  try {
+                    await startPayment(event.expressPaymentType || 'wallet', submittedWalletCustomer);
+                  } catch (error) {
+                    event.paymentFailed?.({
+                      reason: 'fail',
+                      message: humanizeStripeError(error),
+                    });
+                  }
+                }}
+              />
+            </div>
+          </div>
         </div>
-        {walletPhoneRequired ? (
-          <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
-            <label htmlFor="stripe-wallet-phone" className="block text-sm font-semibold text-slate-900">
-              Phone number for wallet checkout *
-            </label>
-            <Input
-              ref={walletPhoneRef}
-              id="stripe-wallet-phone"
-              className="mt-1 h-11 bg-white text-base sm:text-sm"
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel"
-              required
-              aria-invalid={walletPhoneIsInvalid || undefined}
-              aria-describedby="stripe-wallet-phone-help stripe-checkout-error"
-              value={customer.phone}
-              onChange={(event) => updateCustomer('phone', event.target.value)}
-            />
-            <p id="stripe-wallet-phone-help" className="mt-1 text-xs text-slate-700">
-              Google Pay may not share a phone number. We use this only for your order and delivery updates.
+        {walletsReady && !walletsAvailable ? (
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5" role="status">
+            <p className="text-sm font-semibold text-slate-800">Apple Pay and Google Pay</p>
+            <p className="mt-0.5 text-xs leading-5 text-slate-600">
+              Wallet checkout appears automatically on supported devices with an eligible wallet. You can still pay securely by card or PayPal.
             </p>
           </div>
         ) : null}
-        <div className="relative min-h-[48px]">
-          {!walletsReady ? (
-            <div className="absolute inset-0 h-[48px] animate-pulse rounded-md bg-slate-100" aria-label="Loading available express payment methods" />
-          ) : null}
-          <div className={walletsReady ? 'opacity-100' : 'pointer-events-none opacity-0'}>
-          <ExpressCheckoutElement
-            options={{
-              allowedShippingCountries: ['US'],
-              billingAddressRequired: true,
-              buttonHeight: 48,
-              buttonType: { applePay: 'buy', googlePay: 'buy' },
-              emailRequired: true,
-              layout: { maxColumns: 2, maxRows: 1, overflow: 'never' },
-              paymentMethods: {
-                applePay: 'auto',
-                googlePay: 'auto',
-                link: 'never',
-                paypal: 'never',
-                amazonPay: 'never',
-                klarna: 'never',
-              },
-              phoneNumberRequired: true,
-              shippingAddressRequired: true,
-              shippingRates: getStripeExpressShippingRates(),
-            }}
-            onReady={(event: any) => {
-              setWalletsAvailable(hasSupportedWallet(event));
-              setWalletsReady(true);
-            }}
-            onAvailablePaymentMethodsChange={(event: any) => {
-              setWalletsAvailable(hasSupportedWallet(event));
-              setWalletsReady(true);
-            }}
-            onLoadError={() => {
-              setWalletsAvailable(false);
-              setWalletsReady(true);
-            }}
-            onClick={(event: any) => {
-              if (disabled || busy) {
-                const message = busy
-                  ? 'Another payment is already being securely verified. Check its status before trying again.'
-                  : 'Please resolve the cart issue above before paying.';
-                event.reject?.();
-                setCheckoutError(message);
-                return;
-              }
-              if (walletPhoneRequired && !isValidCheckoutPhone(customer.phone)) {
-                event.reject?.();
-                requireWalletPhone();
-                return;
-              }
-              event.resolve?.({ shippingRates: getStripeExpressShippingRates() });
-            }}
-            onShippingAddressChange={(event: any) => event.resolve?.({
-              shippingRates: getStripeExpressShippingRates(),
-            })}
-            onCancel={() => {
-              if (!busy) {
-                setCheckoutError(null);
-                setCheckoutNotice('Express checkout was closed. No payment was completed. You can try again whenever you’re ready.');
-                window.setTimeout(() => {
-                  if (mountedRef.current) setCheckoutNotice(null);
-                }, 4000);
-              }
-            }}
-            onConfirm={async (event: any) => {
-              if (!elements || busy) {
-                const message = busy
-                  ? 'Another payment is already being securely verified. Check its status before trying again.'
-                  : 'Secure payment fields are not ready. Close the wallet and try again.';
-                setCheckoutError(message);
-                event.paymentFailed?.({ reason: 'fail', message });
-                return;
-              }
-              const submittedWalletCustomer = walletCustomer(event, customer.phone);
-              if (!isValidCheckoutPhone(submittedWalletCustomer.phone)) {
-                const message = requireWalletPhone();
-                event.paymentFailed?.({ reason: 'invalid_payment_data', message });
-                return;
-              }
-              const submitResult = await elements.submit();
-              if (submitResult.error) {
-                const message = humanizeStripeError(submitResult.error);
-                setCheckoutError(message);
-                event.paymentFailed?.({ reason: 'invalid_payment_data', message });
-                return;
-              }
-              try {
-                await startPayment(event.expressPaymentType || 'wallet', submittedWalletCustomer);
-              } catch (error) {
-                event.paymentFailed?.({
-                  reason: 'fail',
-                  message: humanizeStripeError(error),
-                });
-              }
-            }}
-            />
-          </div>
-        </div>
       </section> : null}
 
       {!verificationMessage && walletsAvailable ? (
@@ -1176,26 +1179,6 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
           <span className="h-px flex-1 bg-slate-200" />
           <span className="text-xs font-medium text-slate-500">or pay another way</span>
           <span className="h-px flex-1 bg-slate-200" />
-        </div>
-      ) : null}
-
-      {!verificationMessage && onSwitchToPayPal ? (
-        <div className="space-y-3">
-          <Button
-            type="button"
-            variant="outline"
-            size="lg"
-            className="h-11 w-full border-[#18448D]/30 bg-white font-bold text-[#18448D] hover:bg-blue-50"
-            disabled={disabled || busy}
-            onClick={onSwitchToPayPal}
-          >
-            Pay with PayPal
-          </Button>
-          <div className="flex items-center gap-3" aria-hidden="true">
-            <span className="h-px flex-1 bg-slate-200" />
-            <span className="text-xs font-medium text-slate-500">or use a card</span>
-            <span className="h-px flex-1 bg-slate-200" />
-          </div>
         </div>
       ) : null}
 
@@ -1254,11 +1237,14 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
         <section aria-labelledby="card-payment-heading" className="space-y-4">
           <div className="flex items-center gap-2">
             <CreditCard className="h-4 w-4 text-[#18448D]" aria-hidden="true" />
-            <h3 id="card-payment-heading" className="text-base font-bold text-[#0B1F3A]">Credit or debit card</h3>
+            <h3 id="card-payment-heading" className="text-base font-bold text-[#0B1F3A]">Pay securely by card</h3>
           </div>
 
           <div ref={customerDetailsRef} className="rounded-lg bg-slate-50/80 p-3 sm:p-4">
-            <h4 className="mb-3 text-sm font-bold text-[#0B1F3A]">Contact &amp; delivery</h4>
+            <div className="mb-3 flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#18448D] text-xs font-bold text-white" aria-hidden="true">1</span>
+              <h4 className="text-sm font-bold text-[#0B1F3A]">Contact &amp; delivery</h4>
+            </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {customerFields
                 .filter(({ field }) => field !== 'phone' || !walletPhoneRequired)
@@ -1322,6 +1308,10 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
           </div>
 
           <div className="rounded-lg border border-slate-200 bg-white p-3 sm:p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#18448D] text-xs font-bold text-white" aria-hidden="true">2</span>
+              <h4 className="text-sm font-bold text-[#0B1F3A]">Card details</h4>
+            </div>
             <PaymentElement
               options={stripeCardPaymentElementOptions}
               onLoadError={() => setCheckoutError('Card payment fields could not load. Refresh the page or choose PayPal.')}
