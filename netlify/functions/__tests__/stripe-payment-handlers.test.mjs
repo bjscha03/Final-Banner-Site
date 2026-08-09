@@ -103,6 +103,23 @@ const post = (body, extraHeaders = {}) => ({
   body: JSON.stringify(body),
 });
 
+const successfulFollowupFetch = async (url) => {
+  if (String(url).endsWith('/notify-order')) {
+    return {
+      ok: true,
+      status: 200,
+      async json() {
+        return { ok: true, customerEmailSent: true, adminEmailSent: true };
+      },
+    };
+  }
+  return {
+    ok: true,
+    status: 202,
+    async json() { throw new Error('empty background response'); },
+  };
+};
+
 test('wrapped browser Stripe functions return a valid empty preflight response', async () => {
   const functions = [
     ['stripe-config', configModule.default],
@@ -265,7 +282,7 @@ test('status recovery atomically finalizes a succeeded payment and returns the c
   statusModule._test.setNeonFactory(() => db.sql);
   statusModule._test.setStripeFactory(() => ({ paymentIntents: { async retrieve() { return intent; } } }));
   const previousFetch = global.fetch;
-  global.fetch = async () => ({ ok: true });
+  global.fetch = successfulFollowupFetch;
   try {
     const response = await statusModule._test.handler(post({
       orderId: order.id,
@@ -326,7 +343,10 @@ test('signed success settles once, is retry-idempotent, and queues follow-ups', 
   };
   let fetchCalls = 0;
   const previousFetch = global.fetch;
-  global.fetch = async () => { fetchCalls += 1; return { ok: true }; };
+  global.fetch = async (url) => {
+    fetchCalls += 1;
+    return successfulFollowupFetch(url);
+  };
   webhookModule._test.setNeonFactory(() => db.sql);
   webhookModule._test.setStripeFactory(() => ({
     webhooks: {
@@ -351,7 +371,7 @@ test('signed success settles once, is retry-idempotent, and queues follow-ups', 
     assert.equal(retry.statusCode, 200);
     assert.equal(db.getPaidTransitions(), 1);
     assert.equal(order.stripe_wallet_type, 'google_pay');
-    assert.equal(fetchCalls, 2);
+    assert.equal(fetchCalls, 4);
   } finally {
     global.fetch = previousFetch;
   }

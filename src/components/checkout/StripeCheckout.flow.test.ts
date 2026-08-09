@@ -22,6 +22,7 @@ describe('Stripe ConfirmationToken client flow', () => {
     expect(source).toContain('stripe.handleNextAction');
     expect(source).not.toContain('stripe.confirmPayment');
     expect(source).not.toContain("paymentMethodCreation: 'manual'");
+    expect(source).toContain('payload?.followupsQueued === true');
   });
 
   it('posts the complete cart, quantity-bearing item specifications, and customer addresses', () => {

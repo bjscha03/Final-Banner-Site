@@ -7,7 +7,83 @@ const fs = require('node:fs');
 const path = require('node:path');
 const createOrder = require('../_shared/legacy/create-order-core.cjs');
 const checkout = require('../_shared/stripe-checkout-service.cjs');
+const followups = require('../_shared/paid-order-followups.cjs');
 const discounts = require('../_shared/discount-validation.cjs');
+
+const internalResponse = (status, payload = null) => ({
+  ok: status >= 200 && status < 300,
+  status,
+  async json() {
+    if (payload === null) throw new Error('empty response');
+    return payload;
+  },
+});
+
+test('paid-order completion verifies both Resend messages before queueing PDF work', async () => {
+  const previous = {
+    fetch: global.fetch,
+    deployPrimeUrl: process.env.DEPLOY_PRIME_URL,
+    internalSecret: process.env.INTERNAL_JOB_SECRET,
+  };
+  process.env.DEPLOY_PRIME_URL = 'https://agent-payment-sandbox-e2e--bannersonthefly.netlify.app';
+  process.env.INTERNAL_JOB_SECRET = 'test-internal-secret';
+  const calls = [];
+  global.fetch = async (url, options) => {
+    calls.push({ url: String(url), options });
+    if (calls.length === 1) {
+      return internalResponse(200, { ok: true, customerEmailSent: true, adminEmailSent: false });
+    }
+    if (calls.length === 2) {
+      return internalResponse(200, { ok: true, customerEmailSent: true, adminEmailSent: true });
+    }
+    return internalResponse(202);
+  };
+
+  try {
+    assert.equal(await followups.queuePaidOrderFollowups({}, 'order-123'), true);
+    assert.equal(calls.length, 3);
+    assert.match(calls[0].url, /\/\.netlify\/functions\/notify-order$/);
+    assert.deepEqual(JSON.parse(calls[0].options.body), { orderId: 'order-123' });
+    assert.deepEqual(JSON.parse(calls[1].options.body), {
+      orderId: 'order-123',
+      forceResendAdmin: true,
+    });
+    assert.match(calls[2].url, /\/\.netlify\/functions\/process-paid-order-followups-background$/);
+    assert.equal(calls[0].options.headers['X-Internal-Job-Secret'], 'test-internal-secret');
+  } finally {
+    global.fetch = previous.fetch;
+    if (previous.deployPrimeUrl === undefined) delete process.env.DEPLOY_PRIME_URL;
+    else process.env.DEPLOY_PRIME_URL = previous.deployPrimeUrl;
+    if (previous.internalSecret === undefined) delete process.env.INTERNAL_JOB_SECRET;
+    else process.env.INTERNAL_JOB_SECRET = previous.internalSecret;
+  }
+});
+
+test('a background 202 can never conceal missing order notifications', async () => {
+  const previous = {
+    fetch: global.fetch,
+    deployPrimeUrl: process.env.DEPLOY_PRIME_URL,
+    internalSecret: process.env.INTERNAL_JOB_SECRET,
+  };
+  process.env.DEPLOY_PRIME_URL = 'https://agent-payment-sandbox-e2e--bannersonthefly.netlify.app';
+  process.env.INTERNAL_JOB_SECRET = 'test-internal-secret';
+  let calls = 0;
+  global.fetch = async () => {
+    calls += 1;
+    return internalResponse(200, { ok: true });
+  };
+
+  try {
+    assert.equal(await followups.queuePaidOrderFollowups({}, 'order-123'), false);
+    assert.equal(calls, 1, 'PDF work must not be queued before both emails are verified');
+  } finally {
+    global.fetch = previous.fetch;
+    if (previous.deployPrimeUrl === undefined) delete process.env.DEPLOY_PRIME_URL;
+    else process.env.DEPLOY_PRIME_URL = previous.deployPrimeUrl;
+    if (previous.internalSecret === undefined) delete process.env.INTERNAL_JOB_SECRET;
+    else process.env.INTERNAL_JOB_SECRET = previous.internalSecret;
+  }
+});
 
 test('public create-order cannot forge a Stripe order or test mode', async () => {
   const response = await createOrder.handler({
@@ -117,12 +193,21 @@ test('Stripe payment records receive a non-PII canonical order summary', () => {
   };
   const metadata = checkout.stripeOrderMetadata(order, [{
     product_type: 'banner', width_in: 48, height_in: 24, material: '13oz Vinyl', quantity: 2,
+    grommets: 'every-2-3ft', rope_placement: 'top-bottom', rope_feet: 8,
+    pole_pocket_position: 'top', pole_pocket_size: '2', line_total_cents: 10400,
   }]);
   assert.equal(checkout.stripeOrderReference(order.id), 'BOTF-490F67F1');
   assert.equal(metadata.order_reference, 'BOTF-490F67F1');
   assert.equal(metadata.item_count, '1');
   assert.equal(metadata.unit_count, '2');
-  assert.equal(metadata.item_summary, 'banner 48x24 13oz Vinyl x2');
+  assert.equal(
+    metadata.item_summary,
+    '1. banner | 48x24in | 13oz Vinyl | qty 2 | grommets every-2-3ft | rope top-bottom 8ft | pocket top 2in | line 10400c',
+  );
+  assert.equal(metadata.item_01, metadata.item_summary);
+  assert.match(checkout.stripePaymentDescription(order, [{
+    product_type: 'banner', width_in: 48, height_in: 24, material: '13oz Vinyl', quantity: 1,
+  }]), /^Banners On The Fly BOTF-490F67F1 — 1\. banner \| 48x24in/);
   assert.equal(metadata.subtotal_cents, '3600');
   assert.equal(metadata.tax_cents, '216');
   assert.equal(metadata.email, undefined);
@@ -339,7 +424,7 @@ test('PaymentIntent creation is idempotent and an attached reusable intent is no
         assert.deepEqual(params.payment_method_types, ['card']);
         assert.equal(params.receipt_email, undefined);
         assert.equal(params.metadata.email, undefined);
-        assert.equal(params.description, 'Banners On The Fly BOTF-ORDER1');
+        assert.equal(params.description, 'Banners On The Fly BOTF-ORDER1 — Banners On The Fly order');
         assert.equal(params.metadata.order_reference, 'BOTF-ORDER1');
         assert.ok(options.idempotencyKey.startsWith('bof-pi-'));
         assert.equal(options.idempotencyKey.includes(checkoutKey), false);
@@ -635,8 +720,14 @@ test('a declined payment retries on the same bound Intent instead of creating du
       async update(id, params) {
         updateCalls += 1;
         assert.equal(id, 'pi_old');
-        assert.equal(params.description, 'Banners On The Fly BOTF-ORDER1');
-        assert.equal(params.metadata.item_summary, 'banner 48x24 13oz Vinyl x1');
+        assert.equal(
+          params.description,
+          'Banners On The Fly BOTF-ORDER1 — 1. banner | 48x24in | 13oz Vinyl | qty 1 | grommets none | line 0c',
+        );
+        assert.equal(
+          params.metadata.item_summary,
+          '1. banner | 48x24in | 13oz Vinyl | qty 1 | grommets none | line 0c',
+        );
         return {
           id: 'pi_old', status: 'requires_payment_method', amount: 4242, currency: 'usd',
           metadata: params.metadata,

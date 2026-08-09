@@ -5,7 +5,7 @@ const createOrderModule = require('./legacy/create-order-core.cjs');
 const { repriceStripeCart } = require('./stripe-server-pricing.cjs');
 const discountReservation = require('./payment-discount-reservation.cjs');
 const { constantTimeEqual, createPaidOrderConfirmationToken } = require('./order-confirmation-token.cjs');
-const { siteUrlForEvent } = require('./stripe-runtime-config.cjs');
+const { queuePaidOrderFollowups } = require('./paid-order-followups.cjs');
 
 const SETTLED_ORDER_STATUSES = new Set(['paid', 'in_production', 'shipped', 'delivered', 'fulfilled']);
 const REUSABLE_INTENT_STATUSES = new Set(['requires_action', 'processing', 'succeeded']);
@@ -115,22 +115,50 @@ function stripeOrderReference(orderId) {
   return `BOTF-${suffix || 'ORDER'}`;
 }
 
+function stripeItemReference(item, index) {
+  const quantity = Math.max(1, Number(item?.quantity || 1));
+  const product = cleanText(item?.product_type || item?.productType || 'banner', 50) || 'banner';
+  const width = Number(item?.width_in || item?.widthIn || 0);
+  const height = Number(item?.height_in || item?.heightIn || 0);
+  const parts = [
+    `${index + 1}. ${product}`,
+    width > 0 && height > 0 ? `${width}x${height}in` : null,
+    cleanText(item?.material, 80) || null,
+    `qty ${quantity}`,
+  ];
+
+  if (product === 'banner') {
+    parts.push(`grommets ${cleanText(item?.grommets || 'none', 50)}`);
+    if (item?.rope_placement) {
+      parts.push(`rope ${cleanText(item.rope_placement, 30)} ${Number(item.rope_feet || 0)}ft`);
+    }
+    const pocket = item?.pole_pocket_position || item?.pole_pockets;
+    if (pocket && pocket !== 'none') {
+      parts.push(`pocket ${cleanText(pocket, 30)} ${cleanText(item?.pole_pocket_size || '2', 10)}in`);
+    }
+  } else if (product === 'yard_sign') {
+    parts.push(`${cleanText(item?.yard_sign_sidedness || 'single', 20)} sided`);
+    parts.push(`stakes ${Number(item?.yard_sign_step_stakes_qty || 0)}`);
+    parts.push(`designs ${Number(item?.yard_sign_design_count || 0)}`);
+  } else if (product === 'car_magnet') {
+    parts.push(`corners ${cleanText(item?.rounded_corners || 'none', 30)}`);
+  }
+
+  parts.push(`line ${Number(item?.line_total_cents || 0)}c`);
+  return parts.filter(Boolean).join(' | ').slice(0, 500);
+}
+
 function stripeOrderMetadata(order, items = []) {
   const normalizedItems = Array.isArray(items) ? items : [];
   const unitCount = normalizedItems.reduce(
     (sum, item) => sum + Math.max(1, Number(item?.quantity || 1)),
     0,
   );
-  const itemSummary = normalizedItems.map((item) => {
-    const quantity = Math.max(1, Number(item?.quantity || 1));
-    const product = cleanText(item?.product_type || item?.productType || 'banner', 50) || 'banner';
-    const width = Number(item?.width_in || item?.widthIn || 0);
-    const height = Number(item?.height_in || item?.heightIn || 0);
-    const material = cleanText(item?.material, 80);
-    return [product, width > 0 && height > 0 ? `${width}x${height}` : null, material, `x${quantity}`]
-      .filter(Boolean)
-      .join(' ');
-  }).filter(Boolean).join('; ').slice(0, 500);
+  const itemReferences = normalizedItems.slice(0, 10).map(stripeItemReference);
+  const itemSummary = itemReferences.join('; ').slice(0, 500);
+  const itemMetadata = Object.fromEntries(
+    itemReferences.map((value, index) => [`item_${String(index + 1).padStart(2, '0')}`, value]),
+  );
 
   return {
     bof_checkout: 'v2',
@@ -139,12 +167,18 @@ function stripeOrderMetadata(order, items = []) {
     item_count: String(normalizedItems.length),
     unit_count: String(unitCount),
     item_summary: itemSummary || 'Banners On The Fly order',
+    ...itemMetadata,
     subtotal_cents: String(Number(order.subtotal_cents || 0)),
     tax_cents: String(Number(order.tax_cents || 0)),
     discount_cents: String(Number(order.applied_discount_cents || 0)),
     same_day_fee_cents: String(Number(order.same_day_fee_cents || 0)),
     saturday_fee_cents: String(Number(order.saturday_fee_cents || 0)),
   };
+}
+
+function stripePaymentDescription(order, items = []) {
+  const metadata = stripeOrderMetadata(order, items);
+  return `Banners On The Fly ${stripeOrderReference(order.id)} — ${metadata.item_summary}`.slice(0, 500);
 }
 
 function validateExpectedTotal(value) {
@@ -613,7 +647,7 @@ async function createOrReusePaymentIntent({ stripe, sql, order, confirmationToke
       let enriched = existing;
       try {
         enriched = await stripe.paymentIntents.update(existing.id, {
-          description: `Banners On The Fly ${stripeOrderReference(order.id)}`,
+          description: stripePaymentDescription(order, items),
           metadata: {
             ...stripeOrderMetadata(order, items),
             checkout_key_hash: checkoutKeyHash(checkoutKey),
@@ -652,7 +686,7 @@ async function createOrReusePaymentIntent({ stripe, sql, order, confirmationToke
     currency: 'usd',
     capture_method: 'automatic',
     payment_method_types: ['card'],
-    description: `Banners On The Fly ${stripeOrderReference(order.id)}`,
+    description: stripePaymentDescription(order, items),
     metadata: {
       ...stripeOrderMetadata(order, items),
       checkout_key_hash: checkoutKeyHash(checkoutKey),
@@ -878,29 +912,6 @@ function canonicalPaidPayload(order, extra = {}) {
   };
 }
 
-async function queuePaidOrderFollowups(event, orderId) {
-  const siteUrl = siteUrlForEvent(event);
-  const secret = process.env.INTERNAL_JOB_SECRET || process.env.AUTH_SESSION_SECRET;
-  if (!siteUrl || !secret || !orderId) return false;
-  try {
-    const response = await fetch(`${siteUrl}/.netlify/functions/process-paid-order-followups-background`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Internal-Job-Secret': secret,
-      },
-      body: JSON.stringify({ orderId }),
-    });
-    return response.ok;
-  } catch (error) {
-    console.error('[stripe-checkout] paid-order follow-ups could not be queued', {
-      orderId,
-      error: error?.message || String(error),
-    });
-    return false;
-  }
-}
-
 module.exports = {
   REUSABLE_INTENT_STATUSES,
   SETTLED_ORDER_STATUSES,
@@ -925,6 +936,7 @@ module.exports = {
   stripeConfirmationIdempotencyKey,
   stripeOrderMetadata,
   stripeOrderReference,
+  stripePaymentDescription,
   validateCheckoutKey,
   validateExpectedTotal,
   validateStripeAmount,

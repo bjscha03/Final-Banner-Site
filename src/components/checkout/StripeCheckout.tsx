@@ -226,6 +226,7 @@ const isPaidPayload = (payload: any): boolean => Boolean(
   payload?.ok === true
   && payload?.paid === true
   && (payload?.finalized === true || payload?.order?.payment_status === 'paid')
+  && payload?.followupsQueued === true
   && (payload?.orderId || payload?.order?.id)
   && payload?.confirmationToken,
 );
