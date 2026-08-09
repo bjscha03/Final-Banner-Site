@@ -11,7 +11,7 @@ import type { ProductTypeSlug } from '@/lib/products';
 import type { ArtworkManifest, PlacementPreviewManifest } from '@/types/artwork';
 import { createStableCartItemId } from '@/lib/cartItemIdentity';
 import { isReadyPlacementPreview, PreviewLifecycleError } from '@/lib/previewLifecycle';
-import { calculateBannerPricing } from '@/lib/bannerPricingEngine';
+import { calculateBannerPricing, type RopePlacement } from '@/lib/bannerPricingEngine';
 import {
   computeSameDayFeesCents,
   evaluateSameDayEligibility,
@@ -186,6 +186,33 @@ export interface AuthoritativePricing {
   line_total_cents: number;
 }
 
+export interface CanonicalCartQuoteLine {
+  index: number;
+  cartItemId: string;
+  productType: string;
+  unitPriceCents: number;
+  lineTotalCents: number;
+  ropeFeet: number;
+  ropeCostCents: number;
+  polePocketCostCents: number;
+  yardSignSignsSubtotalCents?: number;
+  yardSignStakesSubtotalCents?: number;
+}
+
+export interface CanonicalCartQuote {
+  items: CanonicalCartQuoteLine[];
+  subtotalCents: number;
+  taxCents: number;
+  shippingCents: number;
+  totalCents: number;
+  appliedDiscountCents: number;
+  appliedDiscountLabel?: string | null;
+  appliedDiscountType?: string | null;
+  discountCode?: string | null;
+  sameDayFeeCents?: number;
+  saturdayFeeCents?: number;
+}
+
 export interface DiscountCode {
   id: string;
   code: string;
@@ -220,6 +247,7 @@ export interface CartState {
   addFromQuote: (quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => string;
   loadItemIntoQuote: (itemId: string) => CartItem | null;
   updateCartItem: (itemId: string, quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => void;
+  applyCanonicalPricingQuote: (quote: CanonicalCartQuote) => boolean;
   removeItem: (id: string) => void;
   clearCart: () => void;
   clearCartLocal: () => void;  // Clear cart in memory only, without syncing to server
@@ -243,6 +271,11 @@ export interface CartState {
 
 // Migration function to fix old cart items with missing or zero pricing fields
 const migrateCartItem = (item: CartItem): CartItem => {
+  const storedRopePlacement: RopePlacement | null = item.rope_placement === 'bottom'
+    || item.rope_placement === 'top-bottom'
+    || item.rope_placement === 'top'
+    ? item.rope_placement
+    : ((item.rope_feet || 0) > 0 ? 'top' : null);
   // Check if this is an old item that needs migration
   const needsMigration = 
     item.line_total_cents === 0 || 
@@ -251,7 +284,9 @@ const migrateCartItem = (item: CartItem): CartItem => {
     item.unit_price_cents === undefined;
 
   if (!needsMigration) {
-    return item;
+    return item.rope_placement === storedRopePlacement
+      ? item
+      : { ...item, rope_placement: storedRopePlacement };
   }
 
   if ((item.product_type || 'banner') !== 'banner') {
@@ -267,6 +302,7 @@ const migrateCartItem = (item: CartItem): CartItem => {
     // Backward compatibility: older records may use pole_pocket_position.
     polePockets: item.pole_pockets || item.pole_pocket_position || 'none',
     addRope: (item.rope_feet || 0) > 0,
+    ropePlacement: storedRopePlacement || 'top',
   });
 
   const unit_price_cents = bannerPricing.unitBasePriceCents;
@@ -276,6 +312,8 @@ const migrateCartItem = (item: CartItem): CartItem => {
 
   const migratedItem = {
     ...item,
+    rope_feet: bannerPricing.ropeLinearFeet,
+    rope_placement: storedRopePlacement,
     unit_price_cents,
     rope_cost_cents,
     rope_pricing_mode: (item.rope_pricing_mode || 'per_item') as PricingMode,
@@ -421,6 +459,7 @@ export const useCartStore = create<CartState>()(
               grommets: quote.grommets,
               polePockets: quote.polePockets,
               addRope: quote.addRope,
+              ropePlacement: quote.ropePlacement || 'top',
             })
           : null;
         const pricePerSqFt = (productConfig.materialPriceMap as Record<MaterialKey, number>)[quote.material];
@@ -748,6 +787,7 @@ export const useCartStore = create<CartState>()(
               grommets: quote.grommets,
               polePockets: quote.polePockets,
               addRope: quote.addRope,
+              ropePlacement: quote.ropePlacement || 'top',
             })
           : null;
         const pricePerSqFt = (productConfig.materialPriceMap as Record<MaterialKey, number>)[quote.material];
@@ -940,6 +980,157 @@ export const useCartStore = create<CartState>()(
         });
         get().syncToServer();
       }, 0);
+      },
+      applyCanonicalPricingQuote: (quote: CanonicalCartQuote): boolean => {
+        const currentState = get();
+        const currentItems = currentState.items;
+        if (!quote || !Array.isArray(quote.items) || quote.items.length !== currentItems.length) {
+          return false;
+        }
+        const totalsAreValid = [
+          quote.subtotalCents,
+          quote.taxCents,
+          quote.shippingCents,
+          quote.totalCents,
+          quote.appliedDiscountCents,
+        ].every((value) => Number.isInteger(value) && value >= 0);
+        if (!totalsAreValid) return false;
+
+        const canonicalById = new Map(quote.items.map((line) => [String(line.cartItemId), line]));
+        const resolvedLines = currentItems.map((item, index) => {
+          const line = canonicalById.get(String(item.id)) || quote.items[index];
+          if (!line) return null;
+          const sameIdentity = Number(line.index) === index
+            && String(line.cartItemId) === String(item.id)
+            && String(line.productType || 'banner') === String(item.product_type || 'banner');
+          const centsAreValid = [
+            line.unitPriceCents,
+            line.lineTotalCents,
+            line.ropeCostCents,
+            line.polePocketCostCents,
+          ].every((value) => Number.isInteger(value) && value >= 0);
+          return sameIdentity && centsAreValid && Number.isFinite(line.ropeFeet) && line.ropeFeet >= 0
+            ? line
+            : null;
+        });
+        if (resolvedLines.some((line) => !line)) return false;
+
+        // Apply the candidate line fields to a local projection first. A quote
+        // may differ because an active promo definition or a service fee changed,
+        // neither of which can be faithfully repaired by replacing line prices.
+        // Never partially mutate the cart or claim success in that case.
+        const projectedItems = currentItems.map((item, index) => {
+          const line = resolvedLines[index] as CanonicalCartQuoteLine;
+          return migrateCartItem({
+            ...item,
+            unit_price_cents: line.unitPriceCents,
+            line_total_cents: line.lineTotalCents,
+            rope_feet: line.ropeFeet,
+            rope_cost_cents: line.ropeCostCents,
+            pole_pocket_cost_cents: line.polePocketCostCents,
+            yard_sign_signs_subtotal_cents: typeof line.yardSignSignsSubtotalCents === 'number'
+              && Number.isInteger(line.yardSignSignsSubtotalCents)
+              ? line.yardSignSignsSubtotalCents
+              : item.yard_sign_signs_subtotal_cents,
+            yard_sign_stakes_subtotal_cents: typeof line.yardSignStakesSubtotalCents === 'number'
+              && Number.isInteger(line.yardSignStakesSubtotalCents)
+              ? line.yardSignStakesSubtotalCents
+              : item.yard_sign_stakes_subtotal_cents,
+          });
+        });
+        const rawSubtotalCents = projectedItems.reduce(
+          (sum, item) => sum + Number(item.line_total_cents || 0),
+          0,
+        );
+        const pricingOptions = getPricingOptions();
+        const projectedSubtotalCents = Math.max(rawSubtotalCents, pricingOptions.minFloorCents || 0);
+        const bannerItems = projectedItems.filter((item) => {
+          const productType = item.product_type || 'banner';
+          return productType !== 'yard_sign' && productType !== 'car_magnet';
+        });
+        const bannerQuantity = bannerItems.reduce(
+          (sum, item) => sum + Number(item.quantity || 1),
+          0,
+        );
+        const bannerSubtotalCents = bannerItems.reduce(
+          (sum, item) => sum + Number(item.line_total_cents || 0),
+          0,
+        );
+        const currentDiscount = currentState.discountCode;
+        const projectedDiscount = resolveBestDiscount({
+          subtotalCents: rawSubtotalCents,
+          quantity: bannerQuantity,
+          quantitySubtotalCents: bannerSubtotalCents,
+          promoDiscount: currentDiscount ? {
+            code: currentDiscount.code,
+            discountPercentage: currentDiscount.discountPercentage,
+            discountAmountCents: currentDiscount.discountAmountCents || undefined,
+          } : null,
+        });
+        const subtotalAfterDiscountCents = projectedSubtotalCents
+          - projectedDiscount.appliedDiscountAmountCents;
+        const projectedTaxCents = Math.round(calculateTax(subtotalAfterDiscountCents / 100) * 100);
+        const projectedShippingCents = 0;
+        const projectedFees = currentState.sameDayHitService
+          ? computeSameDayFeesCents(getEligibleSubtotalCents(projectedItems), {
+              sameDay: true,
+              saturday: currentState.saturdayDelivery,
+            })
+          : { sameDayFeeCents: 0, saturdayFeeCents: 0 };
+        const projectedTotalCents = Math.max(
+          0,
+          subtotalAfterDiscountCents
+            + projectedTaxCents
+            + projectedShippingCents
+            + projectedFees.sameDayFeeCents
+            + projectedFees.saturdayFeeCents,
+        );
+        const normalizedCode = (value?: string | null) => {
+          const code = String(value || '').trim().toUpperCase();
+          return code || null;
+        };
+        const canonicalSameDayFeeCents = quote.sameDayFeeCents ?? 0;
+        const canonicalSaturdayFeeCents = quote.saturdayFeeCents ?? 0;
+        const canonicalAggregatesValid = [canonicalSameDayFeeCents, canonicalSaturdayFeeCents]
+          .every((value) => Number.isInteger(value) && value >= 0);
+        const canonicalMatchesProjection = canonicalAggregatesValid
+          && quote.subtotalCents === projectedSubtotalCents
+          && quote.appliedDiscountCents === projectedDiscount.appliedDiscountAmountCents
+          && String(quote.appliedDiscountType || 'none').toLowerCase() === projectedDiscount.appliedDiscountType
+          && normalizedCode(quote.discountCode) === normalizedCode(currentDiscount?.code)
+          && quote.taxCents === projectedTaxCents
+          && quote.shippingCents === projectedShippingCents
+          && canonicalSameDayFeeCents === projectedFees.sameDayFeeCents
+          && canonicalSaturdayFeeCents === projectedFees.saturdayFeeCents
+          && quote.totalCents === projectedTotalCents;
+        if (!canonicalMatchesProjection) return false;
+
+        set((state) => ({
+          items: state.items.map((item, index) => {
+            const line = resolvedLines[index] as CanonicalCartQuoteLine;
+            return {
+              ...item,
+              unit_price_cents: line.unitPriceCents,
+              line_total_cents: line.lineTotalCents,
+              rope_feet: line.ropeFeet,
+              rope_cost_cents: line.ropeCostCents,
+              pole_pocket_cost_cents: line.polePocketCostCents,
+              yard_sign_signs_subtotal_cents: typeof line.yardSignSignsSubtotalCents === 'number'
+                && Number.isInteger(line.yardSignSignsSubtotalCents)
+                ? line.yardSignSignsSubtotalCents
+                : item.yard_sign_signs_subtotal_cents,
+              yard_sign_stakes_subtotal_cents: typeof line.yardSignStakesSubtotalCents === 'number'
+                && Number.isInteger(line.yardSignStakesSubtotalCents)
+                ? line.yardSignStakesSubtotalCents
+                : item.yard_sign_stakes_subtotal_cents,
+            };
+          }),
+        }));
+
+        // Persist the authoritative display prices for reload parity. Payment
+        // still performs a fresh server reprice before any new authorization.
+        setTimeout(() => { void get().syncToServer(); }, 0);
+        return true;
       },
       removeItem: (id: string) => {
         set((state) => ({

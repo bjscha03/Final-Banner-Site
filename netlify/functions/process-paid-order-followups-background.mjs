@@ -1,10 +1,17 @@
 import '@neondatabase/serverless';
+// PDF generation is executed through copied CommonJS handlers whose runtime
+// requires are opaque to Netlify's wrapper dependency analysis. Declare every
+// native/external renderer dependency here so this background function's own
+// artifact contains them (matching the dedicated PDF entrypoint).
+import 'cloudinary';
+import 'sharp';
+import 'pdfkit';
+import 'pdf-lib';
 import 'resend';
 import { neon } from '@neondatabase/serverless';
 import { withLambda } from '@netlify/aws-lambda-compat';
 import notifyOrderModule from './_shared/legacy/notify-order.cjs';
 import pdfModule from './_shared/legacy/generate-paid-order-pdfs-background.cjs';
-import customerInfoModule from './_shared/legacy/paypal-customer-info.cjs';
 import runtimeConfig from './_shared/paypal-runtime-config.cjs';
 
 const json = (statusCode, body) => ({
@@ -37,14 +44,15 @@ const loadOrder = async (sql, orderId) => {
   return rows[0] || null;
 };
 
-const runExistingResendTemplates = async (event, orderId, forceResendBoth = false) => {
+const runExistingResendTemplates = async (event, orderId, options = {}) => {
   const response = await notifyOrderModule.handler({
     ...event,
     httpMethod: 'POST',
     headers: event.headers || {},
     body: JSON.stringify({
       orderId,
-      forceResendBoth,
+      ...(options.forceResendCustomer ? { forceResendCustomer: true } : {}),
+      ...(options.forceResendAdmin ? { forceResendAdmin: true } : {}),
     }),
   });
 
@@ -65,7 +73,7 @@ const handler = async (event) => {
 
   const expected = process.env.INTERNAL_JOB_SECRET || process.env.AUTH_SESSION_SECRET;
   const supplied = event.headers?.['x-internal-job-secret'] || event.headers?.['X-Internal-Job-Secret'];
-  if (expected && supplied !== expected) return json(401, { ok: false, error: 'UNAUTHORIZED' });
+  if (!expected || supplied !== expected) return json(401, { ok: false, error: 'UNAUTHORIZED' });
 
   let orderId;
   try { ({ orderId } = JSON.parse(event.body || '{}')); } catch {
@@ -85,18 +93,6 @@ const handler = async (event) => {
 
   const failures = [];
 
-  if (order.paypal_order_id) {
-    try {
-      await customerInfoModule.refreshOrderCustomerInfo({
-        internalOrderId: orderId,
-        orderID: order.paypal_order_id,
-      });
-      order = await loadOrder(sql, orderId) || order;
-    } catch (error) {
-      failures.push(`Customer information refresh failed: ${error?.message || error}`);
-    }
-  }
-
   if (!isUsableCustomerEmail(order.email)) {
     failures.push('A usable customer email has not been returned by PayPal yet.');
   }
@@ -104,6 +100,48 @@ const handler = async (event) => {
     failures.push('Customer name has not been returned by PayPal yet.');
   }
 
+  order = await loadOrder(sql, orderId) || order;
+  const customerSentBefore = isSent(order.confirmation_email_status, order.confirmation_emailed_at);
+  const adminSentBefore = isSent(order.admin_notification_status, order.admin_notification_sent_at);
+
+  if (isUsableCustomerEmail(order.email) && !customerSentBefore) {
+    try {
+      await runExistingResendTemplates(event, orderId, {
+        // If Admin was already notified, recover only the missing customer
+        // template. Otherwise the ordinary path sends both in sequence.
+        forceResendCustomer: adminSentBefore,
+      });
+    } catch (error) {
+      failures.push(`Order notification failed: ${error?.message || error}`);
+    }
+  }
+
+  order = await loadOrder(sql, orderId) || order;
+  const customerSentAfter = isSent(order.confirmation_email_status, order.confirmation_emailed_at);
+  const adminSentAfter = isSent(order.admin_notification_status, order.admin_notification_sent_at);
+
+  if (!adminSentAfter) {
+    try {
+      // Recover the merchant notification independently. Never force the
+      // already-sent customer confirmation merely because Admin delivery was
+      // incomplete.
+      await runExistingResendTemplates(event, orderId, { forceResendAdmin: true });
+    } catch (error) {
+      failures.push(`Admin notification recovery failed: ${error?.message || error}`);
+    }
+  }
+
+  order = await loadOrder(sql, orderId) || order;
+  if (!isSent(order.confirmation_email_status, order.confirmation_emailed_at)) {
+    failures.push('Customer confirmation is not marked sent.');
+  }
+  if (!isSent(order.admin_notification_status, order.admin_notification_sent_at)) {
+    failures.push('Admin notification is not marked sent.');
+  }
+
+  // Customer and merchant notification attempts happen before native PDF
+  // rendering. A large design, renderer crash, or native-module failure must
+  // not prevent either email from being attempted and persisted first.
   try {
     const pdfResponse = await pdfModule.handler({
       __internal: true,
@@ -120,38 +158,6 @@ const handler = async (event) => {
     failures.push(`PDF processing failed: ${error?.message || error}`);
   }
 
-  order = await loadOrder(sql, orderId) || order;
-  const customerSentBefore = isSent(order.confirmation_email_status, order.confirmation_emailed_at);
-  const adminSentBefore = isSent(order.admin_notification_status, order.admin_notification_sent_at);
-
-  if (isUsableCustomerEmail(order.email) && (!customerSentBefore || !adminSentBefore)) {
-    try {
-      await runExistingResendTemplates(event, orderId, false);
-    } catch (error) {
-      failures.push(`Order notification failed: ${error?.message || error}`);
-    }
-  }
-
-  order = await loadOrder(sql, orderId) || order;
-  const customerSentAfter = isSent(order.confirmation_email_status, order.confirmation_emailed_at);
-  const adminSentAfter = isSent(order.admin_notification_status, order.admin_notification_sent_at);
-
-  if (isUsableCustomerEmail(order.email) && customerSentAfter && !adminSentAfter) {
-    try {
-      await runExistingResendTemplates(event, orderId, true);
-    } catch (error) {
-      failures.push(`Admin notification recovery failed: ${error?.message || error}`);
-    }
-  }
-
-  order = await loadOrder(sql, orderId) || order;
-  if (!isSent(order.confirmation_email_status, order.confirmation_emailed_at)) {
-    failures.push('Customer confirmation is not marked sent.');
-  }
-  if (!isSent(order.admin_notification_status, order.admin_notification_sent_at)) {
-    failures.push('Admin notification is not marked sent.');
-  }
-
   if (failures.length) {
     console.error('[paid-order-followups] incomplete', { orderId, failures });
     throw new Error(failures.join(' | '));
@@ -166,6 +172,12 @@ const handler = async (event) => {
 };
 
 export default withLambda(handler);
+
+export const _test = {
+  handler,
+  isSent,
+  isUsableCustomerEmail,
+};
 
 export const config = {
   background: true,

@@ -31,6 +31,9 @@
   timeout = 120
   memory = 2048
 
+[functions."process-paid-order-followups-background"]
+  memory = 2048
+
 [functions."download-print-pdf"]
   timeout = 120
   memory = 2048

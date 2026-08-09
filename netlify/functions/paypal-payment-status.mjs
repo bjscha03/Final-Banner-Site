@@ -5,6 +5,7 @@ import captureModule from './_shared/legacy/paypal-capture-forward.cjs';
 import customerInfoModule from './_shared/legacy/paypal-customer-info.cjs';
 import orderConfirmationModule from './_shared/order-confirmation-token.cjs';
 import runtimeConfig from './_shared/paypal-runtime-config.cjs';
+import internalUrlModule from './_shared/stripe-runtime-config.cjs';
 
 const { constantTimeEqual } = orderConfirmationModule;
 
@@ -24,12 +25,7 @@ const reply = (statusCode, body) => ({
   body: JSON.stringify(body),
 });
 
-const getSiteUrl = (event) => {
-  const host = event?.headers?.['x-forwarded-host'] || event?.headers?.host;
-  if (host) return `https://${host}`;
-  const configured = process.env.DEPLOY_PRIME_URL || process.env.URL || process.env.PUBLIC_SITE_URL;
-  return configured ? String(configured).replace(/\/$/, '') : null;
-};
+const getSiteUrl = internalUrlModule.siteUrlForEvent;
 
 const queuePaidOrderFollowups = async (event, orderId) => {
   const siteUrl = getSiteUrl(event);
@@ -114,10 +110,22 @@ const loadOrder = async (sql, internalOrderId) => {
 };
 
 const handler = async (event) => {
-  runtimeConfig.preparePayPalRuntime();
-
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
   if (event.httpMethod !== 'POST') return reply(405, { ok: false, error: 'METHOD_NOT_ALLOWED' });
+  const runtime = runtimeConfig.preparePayPalRuntime({ requireFeature: false, event });
+  if (!runtime.enabled) {
+    return reply(503, {
+      ok: false,
+      finalized: false,
+      paymentCaptured: false,
+      paymentStatusUnknown: true,
+      reconciliationRequired: true,
+      doNotRetry: true,
+      safeToRetry: false,
+      error: 'PAYPAL_DISABLED',
+      message: 'PayPal payment verification is unavailable for this deploy. Do not submit another payment.',
+    });
+  }
 
   let input = {};
   try { input = JSON.parse(event.body || '{}'); } catch { return reply(400, { ok: false, error: 'INVALID_JSON' }); }
@@ -150,11 +158,13 @@ const handler = async (event) => {
     }
 
     const captureResponse = await captureModule.handler({
+      ...event,
       httpMethod: 'POST',
       headers: event.headers || {},
       body: JSON.stringify({
         orderID: order.paypal_order_id,
         internalOrderId,
+        checkoutKey: order.checkout_idempotency_key,
         reconcileOnly: true,
       }),
     });
@@ -168,19 +178,6 @@ const handler = async (event) => {
       && capturePayload?.paymentCaptured === true
       && capturePayload?.captureStatus === 'COMPLETED'
     ) {
-      try {
-        await customerInfoModule.refreshOrderCustomerInfo({
-          internalOrderId,
-          orderID: order.paypal_order_id,
-          approvedOrderData: input.approvedOrderData,
-          shippingChangeData: input.shippingChangeData,
-        });
-      } catch (error) {
-        console.error('[paypal-payment-status] customer refresh failed after reconciliation', {
-          internalOrderId,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
       order = await loadOrder(sql, internalOrderId) || order;
       void queuePaidOrderFollowups(event, internalOrderId);
       return reply(200, paidPayload(
@@ -190,12 +187,47 @@ const handler = async (event) => {
     }
 
     if (statusCode === 422 && capturePayload?.paymentCaptured !== true) {
+      let retired = false;
       try {
-        await customerInfoModule.retireDefinitivelyDeclinedPayPalOrder({
+        retired = await customerInfoModule.retireDefinitivelyDeclinedPayPalOrder({
           internalOrderId,
           orderID: order.paypal_order_id,
         });
-      } catch { /* retry remains available even if cleanup logs elsewhere */ }
+      } catch (error) {
+        console.error('[paypal-payment-status] could not retire declined PayPal order', {
+          internalOrderId,
+          paypalOrderId: order.paypal_order_id,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+      if (!retired) {
+        try {
+          await customerInfoModule.lockPayPalOrderForReconciliation({
+            internalOrderId,
+            orderID: order.paypal_order_id,
+          });
+        } catch (error) {
+          console.error('[paypal-payment-status] could not reconciliation-lock declined PayPal order', {
+            internalOrderId,
+            paypalOrderId: order.paypal_order_id,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+        return reply(202, {
+          ...capturePayload,
+          ok: true,
+          success: false,
+          paymentCaptured: false,
+          paymentStatusUnknown: true,
+          reconciliationRequired: true,
+          doNotRetry: true,
+          safeToRetry: false,
+          restartPayment: false,
+          retryAllowed: false,
+          error: 'PAYPAL_DECLINE_RETIREMENT_INCOMPLETE',
+          message: 'This payment attempt could not be safely unlocked. Do not submit another payment while we verify it.',
+        });
+      }
       return reply(422, {
         ...capturePayload,
         restartPayment: false,

@@ -116,14 +116,16 @@ export const attemptPurchaseTracking = async (order: PurchaseTrackingOrder): Pro
   const ga4Key = buildProviderTrackingKey(key, 'ga4');
   const metaKey = buildProviderTrackingKey(key, 'meta');
   const googleAdsKey = buildProviderTrackingKey(key, 'google_ads');
-  const googleAdsMissingConfigKey = `${googleAdsKey}_configuration_missing`;
   const conversionId = import.meta.env.VITE_GOOGLE_ADS_CONVERSION_ID;
   const purchaseLabel = import.meta.env.VITE_GOOGLE_ADS_PURCHASE_LABEL;
   const hasGoogleAdsConfig = Boolean(conversionId && purchaseLabel);
   const alreadyTracked = hasStoredKey(key);
 
   if (inFlight.has(key)) return { tracked: false, duplicate: true, key, attempts: [] };
-  if (alreadyTracked && (!hasGoogleAdsConfig || hasStoredKey(googleAdsKey) || !hasStoredKey(googleAdsMissingConfigKey))) {
+  // A provider gets its own durable success key. If GA4/Meta succeeded but the
+  // direct Ads call threw or was interrupted, a revisit must retry Ads without
+  // replaying either successful provider.
+  if (alreadyTracked && (!hasGoogleAdsConfig || hasStoredKey(googleAdsKey))) {
     return { tracked: false, duplicate: true, key, attempts: [] };
   }
 
@@ -161,7 +163,6 @@ export const attemptPurchaseTracking = async (order: PurchaseTrackingOrder): Pro
         status: 'configuration_missing',
         error: 'missing_google_ads_conversion_configuration',
       });
-      setStoredKey(googleAdsMissingConfigKey);
     } else if (hasStoredKey(googleAdsKey)) {
       attempts.push({ provider: 'google_ads', attempted: false, ok: true, status: 'blocked' });
     } else {

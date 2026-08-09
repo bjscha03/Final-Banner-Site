@@ -27,6 +27,8 @@ export interface SameDayHitServiceCardProps {
    * complete. Has no effect on the default variant.
    */
   previewHasPrice?: boolean;
+  /** Lock checkout mutations while a payment authorization is unresolved. */
+  disabled?: boolean;
 }
 
 /**
@@ -46,6 +48,7 @@ const SameDayHitServiceCard: React.FC<SameDayHitServiceCardProps> = ({
   variant = 'default',
   previewSubtotalCents,
   previewHasPrice = true,
+  disabled = false,
 }) => {
   const items = useCartStore((s) => s.items);
   const sameDayHitService = useCartStore((s) => s.sameDayHitService);
@@ -147,6 +150,7 @@ const SameDayHitServiceCard: React.FC<SameDayHitServiceCardProps> = ({
                   type="checkbox"
                   className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
                   checked={sameDayHitService}
+                  disabled={disabled}
                   onChange={(e) => setSameDayHitService(e.target.checked)}
                   aria-label="Add Same-Day Hit Service"
                 />
@@ -188,6 +192,7 @@ const SameDayHitServiceCard: React.FC<SameDayHitServiceCardProps> = ({
                   type="checkbox"
                   className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
                   checked={sameDayHitService}
+                  disabled={disabled}
                   onChange={(e) => setSameDayHitService(e.target.checked)}
                   aria-label="Add Same-Day Hit Service"
                 />
@@ -203,6 +208,7 @@ const SameDayHitServiceCard: React.FC<SameDayHitServiceCardProps> = ({
                     type="checkbox"
                     className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
                     checked={saturdayDelivery}
+                    disabled={disabled}
                     onChange={(e) => setSaturdayDelivery(e.target.checked)}
                     aria-label="Add Saturday Delivery"
                   />

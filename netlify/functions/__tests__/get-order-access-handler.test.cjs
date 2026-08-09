@@ -26,6 +26,7 @@ const order = {
   subtotal_cents: 10000,
   tax_cents: 300,
   total_cents: 10300,
+  discount_code: 'NEW20',
   status: 'paid',
   payment_method: 'paypal',
   paypal_order_id: 'PAYPAL-ORDER-123',
@@ -92,6 +93,7 @@ test('get-order handler accepts a valid fragment-delivered guest view header and
   assert.equal(payload.order.checkout_idempotency_key, undefined);
   assert.equal(payload.order.stripe_payment_intent_id, undefined);
   assert.equal(payload.order.stripe_charge_id, undefined);
+  assert.equal(payload.order.discount_code, 'NEW20');
 });
 
 test('get-order handler rejects invalid, expired, query-only, and payment-binding-mismatched guest credentials', async () => {

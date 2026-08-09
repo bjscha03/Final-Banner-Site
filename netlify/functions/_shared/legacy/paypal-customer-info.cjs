@@ -2,6 +2,8 @@
 
 const { neon } = require('@neondatabase/serverless');
 
+let neonFactory = neon;
+
 function clean(value, max = 500) {
   if (value === null || value === undefined) return null;
   const text = String(value).trim();
@@ -113,6 +115,24 @@ function extractCustomerInfo(paypalData) {
   };
 }
 
+function extractProviderShipping(paypalData) {
+  const unit = Array.isArray(paypalData?.purchase_units)
+    ? paypalData.purchase_units.find((candidate) => candidate?.shipping)
+    : null;
+  const shipping = unit?.shipping;
+  if (!shipping) return {};
+  const address = shipping.address || {};
+  return {
+    fullName: joinName(shipping.name),
+    street: firstNonEmpty(address.address_line_1, address.line1, address.street),
+    street2: firstNonEmpty(address.address_line_2, address.line2, address.street2),
+    city: firstNonEmpty(address.admin_area_2, address.city),
+    state: firstNonEmpty(address.admin_area_1, address.state, address.region),
+    zip: firstNonEmpty(address.postal_code, address.zip),
+    country: firstNonEmpty(address.country_code, address.country),
+  };
+}
+
 function mergeCustomerInfo(...sources) {
   const result = {
     email: null,
@@ -190,9 +210,6 @@ async function retrieveOrder(orderID) {
 async function refreshOrderCustomerInfo({
   internalOrderId,
   orderID,
-  submitted,
-  approvedOrderData,
-  shippingChangeData,
 }) {
   const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
   if (!dbUrl) throw new Error('DATABASE_NOT_CONFIGURED');
@@ -209,31 +226,24 @@ async function refreshOrderCustomerInfo({
     });
   }
 
-  const shippingFallback = shippingChangeData && typeof shippingChangeData === 'object'
-    ? {
-        purchase_units: [{
-          shipping: {
-            name: shippingChangeData.name || shippingChangeData.shipping_name || null,
-            address: shippingChangeData.shipping_address || shippingChangeData.address || shippingChangeData,
-          },
-        }],
-      }
-    : null;
-
-  const customer = mergeCustomerInfo(
-    normalizeSubmitted(submitted),
-    extractCustomerInfo(approvedOrderData),
-    extractCustomerInfo(providerOrder),
-    extractCustomerInfo(shippingFallback),
+  if (!providerOrder) return null;
+  const customer = extractCustomerInfo(providerOrder);
+  const shipping = extractProviderShipping(providerOrder);
+  const hasCompleteProviderShipping = Boolean(
+    shipping.street
+    && shipping.city
+    && shipping.state
+    && shipping.zip
+    && shipping.country,
   );
 
   const hasCustomerData = Boolean(
     customer.email
     || customer.fullName
-    || customer.street
-    || customer.city
-    || customer.state
-    || customer.zip,
+    || shipping.street
+    || shipping.city
+    || shipping.state
+    || shipping.zip,
   );
 
   if (!hasCustomerData) {
@@ -244,26 +254,36 @@ async function refreshOrderCustomerInfo({
     return null;
   }
 
-  const sql = neon(dbUrl);
+  const sql = neonFactory(dbUrl);
   const rows = await sql`
     UPDATE orders
-       SET email = CASE
-             WHEN ${customer.email || null} IS NOT NULL THEN ${customer.email || null}
-             ELSE email
-           END,
-           customer_name = COALESCE(${customer.fullName || null}, customer_name, shipping_name),
-           customer_first_name = COALESCE(${customer.firstName || null}, customer_first_name),
-           customer_phone = COALESCE(${customer.phone || null}, customer_phone),
-           shipping_name = COALESCE(${customer.fullName || null}, shipping_name, customer_name),
-           shipping_street = COALESCE(${customer.street || null}, shipping_street),
-           shipping_street2 = COALESCE(${customer.street2 || null}, shipping_street2),
-           shipping_city = COALESCE(${customer.city || null}, shipping_city),
-           shipping_state = COALESCE(${customer.state || null}, shipping_state),
-           shipping_zip = COALESCE(${customer.zip || null}, shipping_zip),
-           shipping_country = COALESCE(${customer.country || null}, shipping_country, 'US'),
+       SET email = COALESCE(email, ${customer.email || null}),
+           customer_name = COALESCE(customer_name, ${customer.fullName || null}, shipping_name),
+           customer_first_name = COALESCE(customer_first_name, ${customer.firstName || null}),
+           customer_phone = COALESCE(customer_phone, ${customer.phone || null}),
+           shipping_name = CASE WHEN ${hasCompleteProviderShipping}
+             THEN COALESCE(${shipping.fullName || null}, shipping_name, customer_name)
+             ELSE shipping_name END,
+           shipping_street = CASE WHEN ${hasCompleteProviderShipping}
+             THEN ${shipping.street || null} ELSE shipping_street END,
+           shipping_street2 = CASE WHEN ${hasCompleteProviderShipping}
+             THEN ${shipping.street2 || null} ELSE shipping_street2 END,
+           shipping_city = CASE WHEN ${hasCompleteProviderShipping}
+             THEN ${shipping.city || null} ELSE shipping_city END,
+           shipping_state = CASE WHEN ${hasCompleteProviderShipping}
+             THEN ${shipping.state || null} ELSE shipping_state END,
+           shipping_zip = CASE WHEN ${hasCompleteProviderShipping}
+             THEN ${shipping.zip || null} ELSE shipping_zip END,
+           shipping_country = CASE WHEN ${hasCompleteProviderShipping}
+             THEN ${shipping.country || null} ELSE COALESCE(shipping_country, 'US') END,
            updated_at = NOW()
      WHERE id = ${internalOrderId}
        AND paypal_order_id = ${orderID}
+       AND paypal_capture_id IS NOT NULL
+       AND status = 'paid'
+       AND payment_method = 'paypal'
+       AND stripe_payment_intent_id IS NULL
+       AND COALESCE(payment_reconciliation_status, '') <> 'complete'
     RETURNING id, email, customer_name, customer_first_name, customer_phone,
               shipping_name, shipping_street, shipping_street2, shipping_city,
               shipping_state, shipping_zip, shipping_country
@@ -275,7 +295,7 @@ async function refreshOrderCustomerInfo({
 async function retireDefinitivelyDeclinedPayPalOrder({ internalOrderId, orderID }) {
   const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
   if (!dbUrl || !internalOrderId || !orderID) return false;
-  const sql = neon(dbUrl);
+  const sql = neonFactory(dbUrl);
   const rows = await sql`
     UPDATE orders
        SET paypal_order_id = NULL,
@@ -285,6 +305,59 @@ async function retireDefinitivelyDeclinedPayPalOrder({ internalOrderId, orderID 
        AND status = 'pending'
        AND paypal_order_id = ${orderID}
        AND paypal_capture_id IS NULL
+       AND stripe_payment_intent_id IS NULL
+       AND (payment_method IS NULL OR payment_method = 'paypal')
+       AND EXISTS (
+         SELECT 1
+           FROM paypal_payment_attempts declined
+          WHERE declined.internal_order_id = ${internalOrderId}
+            AND declined.paypal_order_id = ${orderID}
+            AND declined.processing_status = 'declined'
+       )
+    RETURNING id
+  `;
+  if (rows.length > 0) return true;
+
+  // Two wrapper invocations can observe the same definitive 422. The first
+  // may already have cleared the binding before the second conditional UPDATE
+  // runs. Treat that exact state as idempotent success only when the same
+  // durable provider marker exists; a missing marker or a newly linked order
+  // must remain locked.
+  const alreadyRetired = await sql`
+    SELECT 1 AS retired
+      FROM orders
+     WHERE id = ${internalOrderId}
+       AND status = 'pending'
+       AND paypal_order_id IS NULL
+       AND paypal_capture_id IS NULL
+       AND stripe_payment_intent_id IS NULL
+       AND (payment_method IS NULL OR payment_method = 'paypal')
+       AND EXISTS (
+         SELECT 1
+           FROM paypal_payment_attempts declined
+          WHERE declined.internal_order_id = ${internalOrderId}
+            AND declined.paypal_order_id = ${orderID}
+            AND declined.processing_status = 'declined'
+       )
+     LIMIT 1
+  `;
+  return alreadyRetired.length > 0;
+}
+
+async function lockPayPalOrderForReconciliation({ internalOrderId, orderID }) {
+  const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
+  if (!dbUrl || !internalOrderId || !orderID) return false;
+  const sql = neonFactory(dbUrl);
+  const rows = await sql`
+    UPDATE orders
+       SET payment_reconciliation_status = 'required',
+           updated_at = NOW()
+     WHERE id = ${internalOrderId}
+       AND status = 'pending'
+       AND paypal_order_id = ${orderID}
+       AND paypal_capture_id IS NULL
+       AND stripe_payment_intent_id IS NULL
+       AND (payment_method IS NULL OR payment_method = 'paypal')
     RETURNING id
   `;
   return rows.length > 0;
@@ -294,8 +367,18 @@ module.exports = {
   normalizeEmail,
   normalizeSubmitted,
   extractCustomerInfo,
+  extractProviderShipping,
   mergeCustomerInfo,
   retrieveOrder,
   refreshOrderCustomerInfo,
   retireDefinitivelyDeclinedPayPalOrder,
+  lockPayPalOrderForReconciliation,
+  _test: {
+    resetNeonFactory() {
+      neonFactory = neon;
+    },
+    setNeonFactory(factory) {
+      neonFactory = factory;
+    },
+  },
 };

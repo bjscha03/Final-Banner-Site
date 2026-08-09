@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { _test as paymentStatusTest } from '../paypal-payment-status.mjs';
+import getOrdersHandler, { _test as getOrdersTest } from '../get-orders.mjs';
 
 const require = createRequire(import.meta.url);
 const captureModule = require('../_shared/legacy/paypal-capture-final.cjs');
@@ -9,6 +10,10 @@ const captureModule = require('../_shared/legacy/paypal-capture-final.cjs');
 const trackedEnvNames = [
   'NETLIFY_DATABASE_URL',
   'FEATURE_PAYPAL',
+  'CONTEXT',
+  'PAYPAL_ENV',
+  'PAYPAL_CLIENT_ID_SANDBOX',
+  'PAYPAL_SECRET_SANDBOX',
   'ORDER_CONFIRMATION_TOKEN_SECRET',
   'ORDER_VIEW_TOKEN_SECRET',
   'AUTH_SESSION_SECRET',
@@ -36,7 +41,9 @@ const paidOrder = {
   shipping_country: 'US',
   paypal_order_id: 'PAYPAL-ORDER-123',
   paypal_capture_id: 'PAYPAL-CAPTURE-456',
-  checkout_idempotency_key: null,
+  payment_method: 'paypal',
+  stripe_payment_intent_id: null,
+  checkout_idempotency_key: '12345678-1234-4234-9234-123456789abc',
   payment_reconciliation_status: 'complete',
   confirmation_email_status: null,
   admin_notification_status: null,
@@ -64,8 +71,12 @@ function statusDatabase(order = { ...paidOrder, checkout_idempotency_key: 'corre
 }
 
 test.before(() => {
-  process.env.NETLIFY_DATABASE_URL = 'postgres://handler-test.invalid/database';
+  process.env.NETLIFY_DATABASE_URL = 'postgresql://handler:handler@handler-test.invalid/database';
   process.env.FEATURE_PAYPAL = '1';
+  process.env.CONTEXT = 'branch-deploy';
+  process.env.PAYPAL_ENV = 'sandbox';
+  process.env.PAYPAL_CLIENT_ID_SANDBOX = 'sandbox-client-id';
+  process.env.PAYPAL_SECRET_SANDBOX = 'sandbox-secret';
 });
 
 test.after(() => {
@@ -74,6 +85,66 @@ test.after(() => {
   for (const [name, value] of Object.entries(originalEnv)) {
     if (value === undefined) delete process.env[name];
     else process.env[name] = value;
+  }
+});
+
+test('admin order endpoint imports cleanly and rejects an unsigned request before database access', async () => {
+  assert.equal(typeof getOrdersTest.parseOrders, 'function');
+
+  const response = await getOrdersHandler(new Request(
+    'https://deploy-preview-453--bannersonthefly.netlify.app/.netlify/functions/get-orders?page=1',
+  ), {});
+
+  assert.equal(response.status, 401);
+  assert.equal((await response.json()).error, 'UNAUTHORIZED');
+});
+
+test('Admin test-order visibility follows the actual branch request host when runtime context looks like production', () => {
+  const envNames = ['CONTEXT', 'DEPLOY_PRIME_URL', 'DEPLOY_URL', 'URL'];
+  const saved = Object.fromEntries(envNames.map((name) => [name, process.env[name]]));
+  const settledSandboxOrder = {
+    status: 'paid',
+    payment_method: 'paypal',
+    paypal_capture_id: 'SANDBOX-CAPTURE',
+    payment_reconciliation_status: 'complete',
+    is_test_order: true,
+  };
+
+  try {
+    process.env.CONTEXT = 'production';
+    delete process.env.DEPLOY_PRIME_URL;
+    delete process.env.DEPLOY_URL;
+    delete process.env.URL;
+
+    assert.equal(getOrdersTest.isAdminVisiblePaidOrderForEvent(settledSandboxOrder, {
+      rawUrl: 'https://agent-payment-sandbox-e2e--bannersonthefly.netlify.app/.netlify/functions/get-orders?page=1',
+      headers: {},
+    }), true);
+
+    assert.equal(getOrdersTest.isAdminVisiblePaidOrderForEvent(settledSandboxOrder, {
+      rawUrl: 'https://www.bannersonthefly.com/.netlify/functions/get-orders?page=1',
+      headers: {},
+    }), false);
+
+    assert.equal(getOrdersTest.isAdminVisiblePaidOrderForEvent(settledSandboxOrder, {
+      rawUrl: 'https://6a779c518d3ca80008ce39e5--bannersonthefly.netlify.app/.netlify/functions/get-orders?page=1',
+      headers: {},
+    }), false);
+
+    assert.equal(getOrdersTest.isAdminVisiblePaidOrderForEvent({
+      ...settledSandboxOrder,
+      status: 'pending',
+      paypal_capture_id: null,
+      payment_reconciliation_status: 'pending',
+    }, {
+      rawUrl: 'https://agent-payment-sandbox-e2e--bannersonthefly.netlify.app/.netlify/functions/get-orders?page=1',
+      headers: {},
+    }), false);
+  } finally {
+    for (const [name, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
   }
 });
 
@@ -92,6 +163,7 @@ test('a completed PayPal capture stays a 200 paid success when every token secre
     body: JSON.stringify({
       orderID: paidOrder.paypal_order_id,
       internalOrderId: paidOrder.id,
+      checkoutKey: paidOrder.checkout_idempotency_key,
     }),
   });
   const payload = JSON.parse(response.body || '{}');
@@ -100,9 +172,9 @@ test('a completed PayPal capture stays a 200 paid success when every token secre
   assert.equal(payload.paymentCaptured, true);
   assert.equal(payload.captureStatus, 'COMPLETED');
   assert.equal(payload.doNotRetry, false);
-  assert.equal(payload.orderConfirmationToken, null);
-  assert.equal(payload.orderConfirmationTokenAvailable, false);
-  assert.equal(payload.orderAccessRecovery, 'confirmation_email_or_account');
+  assert.equal(typeof payload.orderConfirmationToken, 'string');
+  assert.equal(payload.orderConfirmationTokenAvailable, true);
+  assert.equal(payload.orderAccessRecovery, null);
 });
 
 test('payment-status handler rejects a bad checkout key before reconciliation or capture', async () => {
@@ -119,6 +191,59 @@ test('payment-status handler rejects a bad checkout key before reconciliation or
 
   assert.equal(response.statusCode, 401);
   assert.equal(payload.error, 'CHECKOUT_CONFIRMATION_REQUIRED');
+});
+
+test('public capture rejects a bad checkout key before provider access', async () => {
+  captureModule._test.setNeonFactory(captureDatabase());
+  const originalFetch = global.fetch;
+  let providerCalls = 0;
+  global.fetch = async () => {
+    providerCalls += 1;
+    throw new Error('provider must not be called');
+  };
+  try {
+    const response = await captureModule.handler({
+      httpMethod: 'POST',
+      headers: {},
+      body: JSON.stringify({
+        orderID: paidOrder.paypal_order_id,
+        internalOrderId: paidOrder.id,
+        checkoutKey: 'wrong-checkout-key',
+      }),
+    });
+    assert.equal(response.statusCode, 401);
+    assert.equal(JSON.parse(response.body).error, 'CHECKOUT_CONFIRMATION_REQUIRED');
+    assert.equal(providerCalls, 0);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('already-paid capture retry is immutable and performs no customer/address update', async () => {
+  let writes = 0;
+  const sql = async (first) => {
+    const query = queryText(first);
+    if (/^\s*SELECT[\s\S]+FROM\s+orders/i.test(query)) return [paidOrder];
+    if (/^\s*UPDATE\s+orders/i.test(query)) writes += 1;
+    return [];
+  };
+  captureModule._test.setNeonFactory(() => sql);
+
+  const response = await captureModule.handler({
+    httpMethod: 'POST',
+    headers: {},
+    body: JSON.stringify({
+      orderID: paidOrder.paypal_order_id,
+      internalOrderId: paidOrder.id,
+      checkoutKey: paidOrder.checkout_idempotency_key,
+      customerInfo: { email: 'attacker@example.com', street: 'Attacker address' },
+      shippingAddress: { street: 'Attacker address' },
+    }),
+  });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(JSON.parse(response.body).alreadyPaid, true);
+  assert.equal(writes, 0);
 });
 
 test('unknown capture status remains locked while verified completion remains a success', () => {

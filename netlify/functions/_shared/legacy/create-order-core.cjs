@@ -13,8 +13,21 @@ const {
 const { addPostTaxServiceFees } = require('../order-total-reconciliation.cjs');
 const { validateDiscountForCheckout } = require('../discount-validation.cjs');
 const { runAtomicBatch, isUniqueViolation } = require('../atomic-batch.cjs');
+const { repriceStripeCart: repriceCheckoutCart } = require('../stripe-server-pricing.cjs');
 
 let orderSchemaReadyPromise = null;
+
+// Stripe is the only checkout path that calls this module in-process. A
+// Symbol cannot be recreated through JSON, so a browser cannot forge the
+// trusted mode or mark a live charge as a preview/test order.
+const TRUSTED_STRIPE_CONTEXT = Symbol('trusted-stripe-create-order-context');
+
+function createTrustedStripeContext(mode) {
+  if (!['test', 'live'].includes(mode)) {
+    throw new TypeError('Trusted Stripe mode must be test or live.');
+  }
+  return Object.freeze({ [TRUSTED_STRIPE_CONTEXT]: mode });
+}
 
 function ensureOrderSchemaOnce(migrate) {
   if (!orderSchemaReadyPromise) {
@@ -48,6 +61,38 @@ function isRealUserId(value) {
   return true;
 }
 
+function isSecureCheckoutKey(value) {
+  return typeof value === 'string'
+    && /^[A-Za-z0-9_-]{32,200}$/.test(value.trim());
+}
+
+function canonicalQuoteForCheckout(items, orderData) {
+  return {
+    items: (items || []).map((item, index) => ({
+      index,
+      cartItemId: cleanText(item?.id, 160),
+      productType: item?.product_type || 'banner',
+      unitPriceCents: Number(item?.unit_price_cents || 0),
+      lineTotalCents: Number(item?.line_total_cents || 0),
+      ropeFeet: Number(item?.rope_feet || 0),
+      ropeCostCents: Number(item?.rope_cost_cents || 0),
+      polePocketCostCents: Number(item?.pole_pocket_cost_cents || 0),
+      yardSignSignsSubtotalCents: Number(item?.yard_sign_signs_subtotal_cents || 0),
+      yardSignStakesSubtotalCents: Number(item?.yard_sign_stakes_subtotal_cents || 0),
+    })),
+    subtotalCents: Number(orderData?.subtotal_cents || 0),
+    taxCents: Number(orderData?.tax_cents || 0),
+    shippingCents: Number(orderData?.shipping_cents || 0),
+    totalCents: Number(orderData?.total_cents || 0),
+    appliedDiscountCents: Number(orderData?.applied_discount_cents || 0),
+    appliedDiscountLabel: orderData?.applied_discount_label || '',
+    appliedDiscountType: orderData?.applied_discount_type || 'none',
+    discountCode: orderData?.discountCode?.code || null,
+    sameDayFeeCents: Number(orderData?.same_day_fee_cents || 0),
+    saturdayFeeCents: Number(orderData?.saturday_fee_cents || 0),
+  };
+}
+
 // Helper to detect bad URLs (blob:, data:, or huge strings)
 
 function cleanText(value, max = 1000) {
@@ -70,6 +115,21 @@ function normalizeAttribution(input) {
     utm_term: cleanText(a.utm_term, 255),
     utm_content: cleanText(a.utm_content, 255),
     consent_status: cleanText(a.consent_status, 255) || 'unknown',
+  };
+}
+
+function safeOrderLogSummary(orderData) {
+  const order = orderData && typeof orderData === 'object' ? orderData : {};
+  return {
+    paymentMethod: String(order.payment_method || 'unspecified').slice(0, 40),
+    paymentStatus: String(order.payment_status || 'unspecified').slice(0, 40),
+    itemCount: Array.isArray(order.items) ? order.items.length : 0,
+    hasUserId: Boolean(order.user_id),
+    hasCustomerEmail: Boolean(order.email),
+    hasShippingAddress: Boolean(order.shipping_street || order.shippingAddress),
+    hasDiscountCode: Boolean(order.discountCode?.code),
+    sameDayRequested: order.sameDayHitService === true,
+    saturdayRequested: order.saturdayDelivery === true,
   };
 }
 
@@ -615,9 +675,6 @@ async function sendOrderConfirmationEmail(orderId) {
   };
 }
 
-// Neon database connection
-const sql = neon(process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL);
-
 exports.handler = async (event, context) => {
   // Set CORS headers
   const headers = {
@@ -659,8 +716,56 @@ exports.handler = async (event, context) => {
         }),
       };
     }
+    // Construct the Neon client only after configuration has been checked.
+    // Import-time connection creation made every consumer of this shared
+    // module (including Stripe OPTIONS/config smoke paths) crash before it
+    // could return a controlled fail-closed response when the variable was
+    // absent. The connection remains request-local and Neon HTTP itself is
+    // stateless; all existing order queries below use this same `sql` value.
+    const sql = neon(databaseUrl);
 
     orderData = JSON.parse(event.body);
+    const trustedStripeMode = context && context[TRUSTED_STRIPE_CONTEXT];
+    const requestedPaymentMethod = String(orderData.payment_method || '').trim().toLowerCase();
+    const isPayPalPendingCheckout = !trustedStripeMode
+      && requestedPaymentMethod === 'paypal'
+      && orderData.payment_status === 'pending';
+    const submittedExpectedTotalCents = isPayPalPendingCheckout
+      ? Number(orderData.total_cents)
+      : null;
+    if (isPayPalPendingCheckout && !isSecureCheckoutKey(orderData.checkout_idempotency_key)) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({
+          ok: false,
+          error: 'CHECKOUT_KEY_INVALID',
+          message: 'Secure checkout could not be initialized. Refresh checkout and try again.',
+        }),
+      };
+    }
+    if (!trustedStripeMode && (requestedPaymentMethod === 'stripe' || orderData.stripe_payment_intent_id)) {
+      return {
+        statusCode: 403,
+        headers,
+        body: JSON.stringify({
+          ok: false,
+          error: 'STRIPE_CREATE_ORDER_NOT_AUTHORIZED',
+          message: 'Stripe orders must be created by the verified payment endpoint.',
+        }),
+      };
+    }
+    if (trustedStripeMode) {
+      orderData.payment_method = 'stripe';
+      orderData.payment_status = 'pending';
+      orderData.is_test_order = trustedStripeMode === 'test';
+      orderData.test_order_reason = trustedStripeMode === 'test'
+        ? 'Stripe test-mode checkout'
+        : null;
+      orderData.paypal_order_id = null;
+      orderData.paypal_capture_id = null;
+      orderData.stripe_payment_intent_id = null;
+    }
     const isAdminDeployPreviewTest = orderData.checkout_mode === 'admin_deploy_preview_test';
     if (isAdminDeployPreviewTest) {
       try {
@@ -685,6 +790,12 @@ exports.handler = async (event, context) => {
       // Normalize and validate every item before constructing any transactional
       // query. The same prepared objects drive totals, signatures and inserts.
       orderData.items = prepareOrderItems(orderData.items);
+      if (trustedStripeMode || isPayPalPendingCheckout) {
+        // The browser supplies product configuration, never price authority.
+        // Both provider paths use the same registry-backed calculator before
+        // any order row or provider amount can be created.
+        orderData.items = repriceCheckoutCart(orderData.items);
+      }
     } catch (error) {
       if (error instanceof PreviewArtifactValidationError) {
         return {
@@ -698,11 +809,18 @@ exports.handler = async (event, context) => {
           }),
         };
       }
-      if (error.code === 'ORDER_ITEMS_INVALID' || error.code === 'ORDER_ITEM_INVALID') {
+      if (error.code === 'ORDER_ITEMS_INVALID'
+          || error.code === 'ORDER_ITEM_INVALID'
+          || error?.name === 'StripePricingError') {
         return {
-          statusCode: 400,
+          statusCode: error?.statusCode || 400,
           headers,
-          body: JSON.stringify({ ok: false, error: error.code, message: error.message }),
+          body: JSON.stringify({
+            ok: false,
+            error: error.code,
+            message: error.message,
+            ...(error.details && Object.keys(error.details).length ? { details: error.details } : {}),
+          }),
         };
       }
       throw error;
@@ -1044,19 +1162,21 @@ exports.handler = async (event, context) => {
     }
     });
     
-    console.log('Creating order with data:', orderData);
+    console.log('Creating order:', safeOrderLogSummary(orderData));
     console.log('Database URL available:', !!databaseUrl);
     console.log('📦 Items received:', orderData.items?.length || 0);
     if (orderData.items && orderData.items.length > 0) {
       orderData.items.forEach((item, index) => {
         console.log(`[CREATE_ORDER_DEBUG] Item ${index + 1}:`, {
+          product_type: item.product_type || 'banner',
           width_in: item.width_in,
           height_in: item.height_in,
-          file_key: item.file_key,
-          text_elements: item.text_elements,
+          quantity: item.quantity,
+          material: item.material,
           pole_pockets: item.pole_pockets,
-          final_render_url: item.final_render_url ? item.final_render_url.substring(0, 80) : 'NONE',
-          final_render_file_key: item.final_render_file_key || 'NONE',
+          has_artwork_file: Boolean(item.file_key || item.file_url),
+          has_text_elements: Array.isArray(item.text_elements) && item.text_elements.length > 0,
+          has_final_render: Boolean(item.final_render_url || item.final_render_file_key),
           final_render_width_px: item.final_render_width_px || 'NONE',
           final_render_height_px: item.final_render_height_px || 'NONE',
           final_render_dpi: item.final_render_dpi || 'NONE',
@@ -1120,6 +1240,7 @@ exports.handler = async (event, context) => {
           code: orderData.discountCode.code,
           email: orderData.email || null,
           userId: isRealUserId(orderData.user_id) ? orderData.user_id : null,
+          checkoutKey: orderData.checkout_idempotency_key || null,
         });
         if (!authoritativeDiscount.valid) {
           return {
@@ -1184,15 +1305,14 @@ exports.handler = async (event, context) => {
 
     // Insert order into database with simplified approach
     console.log('Inserting order with ID:', orderId);
-    console.log('Order data:', JSON.stringify(orderData, null, 2));
-    console.log('User ID:', orderData.user_id);
+    console.log('Order input summary:', safeOrderLogSummary(orderData));
 
     // Handle user_id - CRITICAL FIX: Always use real user email, never guest email
     let finalUserId = null;
     let userEmail = null; // CHANGED: Don't default to guest email
 
     console.log('🔍 ORDER CREATION DEBUG:');
-    console.log('Order data received:', JSON.stringify(orderData, null, 2));
+    console.log('Order data received:', safeOrderLogSummary(orderData));
 
     // Sanitize incoming user_id. Placeholder values (all-zero UUID,
     // "guest", malformed strings) must be treated as if no user_id was
@@ -1200,13 +1320,13 @@ exports.handler = async (event, context) => {
     const rawIncomingUserId = orderData.user_id;
     const sanitizedUserId = isRealUserId(rawIncomingUserId) ? rawIncomingUserId : null;
     if (rawIncomingUserId && !sanitizedUserId) {
-      console.log('🛡️ Ignoring placeholder/guest user_id; treating as guest order:', String(rawIncomingUserId).slice(0, 64));
+      console.log('🛡️ Ignoring placeholder/guest user_id; treating as guest order');
     }
 
     // STEP 1: If we have a real user_id, find the user and get their REAL email
     if (sanitizedUserId) {
       try {
-        console.log('🔍 Looking for user with ID:', sanitizedUserId);
+        console.log('🔍 Resolving authenticated profile for order');
         const userCheck = await sql`
           SELECT id, email, username, full_name FROM profiles WHERE id = ${sanitizedUserId}
         `;
@@ -1215,20 +1335,18 @@ exports.handler = async (event, context) => {
           finalUserId = sanitizedUserId;
           userEmail = userCheck[0].email; // CRITICAL: Use the REAL user email
           console.log('✅ User found in profiles table:');
-          console.log('   - User ID:', finalUserId);
-          console.log('   - Real Email:', userEmail);
-          console.log('   - Username:', userCheck[0].username);
+          console.log('   - Authenticated profile resolved: true');
         } else {
           // The user_id passed validation as a real-looking UUID but is
           // not present in the profiles table. If we have a usable email
           // on the order, treat this as a guest order rather than failing
           // — this matches the expectation that Stripe pending orders
           // can be created for guests.
-          console.log('⚠️ user_id not found in profiles table; falling back to guest/email path:', sanitizedUserId);
+          console.log('⚠️ Authenticated profile was not found; falling back to guest/email path');
           if (!orderData.email) {
             // No email and no resolvable user → we genuinely cannot
             // attribute the order. Fail loudly as before.
-            throw new Error(`User ${sanitizedUserId} not found in database. User must be created first.`);
+            throw new Error('Authenticated profile was not found and no customer email was provided.');
           }
         }
       } catch (userError) {
@@ -1238,18 +1356,22 @@ exports.handler = async (event, context) => {
     }
 
     // STEP 2: If no user_id provided, check if we have email in order data
-    if (!finalUserId && orderData.email) {
+    // Legacy PayPal behavior may associate an order by email. Stripe's new
+    // path has a signed-session user id available at its entrypoint and must
+    // not let an unauthenticated browser claim account ownership by merely
+    // typing that account's email address.
+    if (!trustedStripeMode && !isPayPalPendingCheckout && !finalUserId && orderData.email) {
       try {
-        console.log('🔍 No user_id provided, trying to find user by email:', orderData.email);
+        console.log('🔍 No user_id provided, trying to resolve a profile by email');
         const emailCheck = await sql`
           SELECT id, email FROM profiles WHERE email = ${orderData.email}
         `;
         if (emailCheck.length > 0) {
           finalUserId = emailCheck[0].id;
           userEmail = emailCheck[0].email;
-          console.log('✅ User found by email:', finalUserId, userEmail);
+          console.log('✅ User profile found by email');
         } else {
-          console.log('❌ No user found with email:', orderData.email);
+          console.log('No user profile found by email; continuing as guest');
         }
       } catch (emailError) {
         console.error('❌ Error checking user by email:', emailError);
@@ -1259,15 +1381,14 @@ exports.handler = async (event, context) => {
     // STEP 3: Final validation - ALWAYS ensure we have an email
     if (!userEmail) {
       console.log('❌ No userEmail found, checking orderData.email');
-      console.log('   - finalUserId:', finalUserId);
-      console.log('   - userEmail:', userEmail);
-      console.log('   - orderData.user_id:', orderData.user_id);
-      console.log('   - orderData.email:', orderData.email);
+      console.log('   - has resolved user ID:', Boolean(finalUserId));
+      console.log('   - has resolved email:', Boolean(userEmail));
+      console.log('   - has submitted email:', Boolean(orderData.email));
 
       // Use provided email or fail
       if (orderData.email && orderData.email !== 'guest@example.com') {
         userEmail = orderData.email;
-        console.log('✅ Using provided email for order:', userEmail);
+        console.log('✅ Using submitted email for guest order');
       } else {
         throw new Error('Cannot create order: No valid email provided. Email is required for all orders.');
       }
@@ -1278,8 +1399,10 @@ exports.handler = async (event, context) => {
       throw new Error('Cannot create order: Valid email address is required');
     }
 
-    console.log('Final user_id for order:', finalUserId);
-    console.log('Final email for order:', userEmail);
+    console.log('Order customer identity resolved:', {
+      hasUserId: Boolean(finalUserId),
+      hasEmail: Boolean(userEmail),
+    });
 
     const normalizedShippingAddress = normalizeShippingAddress({
       ...orderData,
@@ -1345,6 +1468,54 @@ exports.handler = async (event, context) => {
     });
     orderData.same_day_fee_cents = orderSameDayFeeCents;
     orderData.saturday_fee_cents = orderSaturdayFeeCents;
+
+    if (isPayPalPendingCheckout) {
+      if (!Number.isInteger(submittedExpectedTotalCents) || submittedExpectedTotalCents <= 0) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({
+            ok: false,
+            error: 'EXPECTED_TOTAL_INVALID',
+            message: 'The displayed checkout total is invalid. Refresh checkout and try again.',
+          }),
+        };
+      }
+      if (submittedExpectedTotalCents !== Number(orderData.total_cents)) {
+        const canonicalQuote = canonicalQuoteForCheckout(orderData.items, orderData);
+        return {
+          statusCode: 409,
+          headers,
+          body: JSON.stringify({
+            ok: false,
+            error: 'STALE_CART_TOTAL',
+            message: 'Your order total changed. Review the updated total before paying.',
+            details: {
+              restartCheckout: true,
+              safeToRetry: false,
+              bindingState: 'restart_required',
+              serverTotalCents: Number(orderData.total_cents),
+              canonicalQuote,
+              subtotalCents: Number(orderData.subtotal_cents || 0),
+              taxCents: Number(orderData.tax_cents || 0),
+              appliedDiscountCents: Number(orderData.applied_discount_cents || 0),
+              sameDayFeeCents: Number(orderData.same_day_fee_cents || 0),
+              saturdayFeeCents: Number(orderData.saturday_fee_cents || 0),
+              items: orderData.items.map((item, index) => ({
+                index,
+                cartItemId: item.id || null,
+                productType: item.product_type || 'banner',
+                unitPriceCents: Number(item.unit_price_cents || 0),
+                lineTotalCents: Number(item.line_total_cents || 0),
+                ropeFeet: Number(item.rope_feet || 0),
+                ropeCostCents: Number(item.rope_cost_cents || 0),
+                polePocketCostCents: Number(item.pole_pocket_cost_cents || 0),
+              })),
+            },
+          }),
+        };
+      }
+    }
     const attribution = normalizeAttribution(orderData.attribution || orderData);
 
     if (orderData.paypal_order_id || orderData.paypal_capture_id) {
@@ -1403,15 +1574,15 @@ exports.handler = async (event, context) => {
     if (requestedStatus === 'pending') {
       console.log('[create-order] Creating PENDING order (pre-payment hold):', {
         orderId,
-        userEmail,
+        hasCustomerEmail: Boolean(userEmail),
         total_cents: orderData.total_cents,
         payment_method: orderData.payment_method || null,
       });
     }
 
     const persistenceQueries = [sql`
-      INSERT INTO orders (id, user_id, email, customer_name, customer_first_name, subtotal_cents, tax_cents, total_cents, status, paypal_order_id, paypal_capture_id, stripe_payment_intent_id, payment_method, checkout_idempotency_key, payment_reconciliation_status, shipping_name, shipping_street, shipping_street2, shipping_city, shipping_state, shipping_zip, shipping_country, discount_code, applied_discount_cents, applied_discount_label, applied_discount_type, same_day_hit_service, saturday_delivery, same_day_fee_cents, saturday_fee_cents, order_timestamp_et, same_day_qualified, is_test_order, test_order_reason, google_click_id, gbraid, wbraid, landing_page, referrer, utm_source, utm_medium, utm_campaign, utm_term, utm_content, consent_status, expected_item_count, item_signature)
-      VALUES (${orderId}, ${finalUserId}, ${userEmail}, ${orderData.customer_name || null}, ${orderData.customer_first_name || null}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, ${requestedStatus}, ${orderData.paypal_order_id || null}, ${orderData.paypal_capture_id || null}, ${orderData.stripe_payment_intent_id || null}, ${orderData.payment_method || (orderData.stripe_payment_intent_id ? 'stripe' : (orderData.paypal_order_id ? 'paypal' : null))}, ${orderData.checkout_idempotency_key || null}, ${requestedStatus === 'pending' ? 'awaiting_capture' : 'not_required'}, ${orderData.shipping_name || null}, ${orderData.shipping_street || null}, ${orderData.shipping_street2 || null}, ${orderData.shipping_city || null}, ${orderData.shipping_state || null}, ${orderData.shipping_zip || null}, ${orderData.shipping_country || 'US'}, ${orderData.discountCode?.code || null}, ${orderData.applied_discount_cents || 0}, ${orderData.applied_discount_label || ''}, ${orderData.applied_discount_type || 'none'}, ${orderSameDayHitService}, ${orderSaturdayDelivery}, ${orderSameDayFeeCents}, ${orderSaturdayFeeCents}, ${orderTimestampEt.display}, ${orderSameDayQualified}, ${orderData.is_test_order === true}, ${orderData.test_order_reason || null}, ${attribution.google_click_id}, ${attribution.gbraid}, ${attribution.wbraid}, ${attribution.landing_page}, ${attribution.referrer}, ${attribution.utm_source}, ${attribution.utm_medium}, ${attribution.utm_campaign}, ${attribution.utm_term}, ${attribution.utm_content}, ${attribution.consent_status}, ${expectedItemCount}, ${expectedItemSignature})
+      INSERT INTO orders (id, user_id, email, customer_name, customer_first_name, customer_phone, subtotal_cents, tax_cents, total_cents, status, paypal_order_id, paypal_capture_id, stripe_payment_intent_id, payment_method, checkout_idempotency_key, payment_reconciliation_status, shipping_name, shipping_street, shipping_street2, shipping_city, shipping_state, shipping_zip, shipping_country, discount_code, applied_discount_cents, applied_discount_label, applied_discount_type, same_day_hit_service, saturday_delivery, same_day_fee_cents, saturday_fee_cents, order_timestamp_et, same_day_qualified, is_test_order, test_order_reason, google_click_id, gbraid, wbraid, landing_page, referrer, utm_source, utm_medium, utm_campaign, utm_term, utm_content, consent_status, expected_item_count, item_signature)
+      VALUES (${orderId}, ${finalUserId}, ${userEmail}, ${orderData.customer_name || null}, ${orderData.customer_first_name || null}, ${orderData.customer_phone || null}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, ${requestedStatus}, ${orderData.paypal_order_id || null}, ${orderData.paypal_capture_id || null}, ${orderData.stripe_payment_intent_id || null}, ${orderData.payment_method || (orderData.stripe_payment_intent_id ? 'stripe' : (orderData.paypal_order_id ? 'paypal' : null))}, ${orderData.checkout_idempotency_key || null}, ${requestedStatus === 'pending' ? 'awaiting_capture' : 'not_required'}, ${orderData.shipping_name || null}, ${orderData.shipping_street || null}, ${orderData.shipping_street2 || null}, ${orderData.shipping_city || null}, ${orderData.shipping_state || null}, ${orderData.shipping_zip || null}, ${orderData.shipping_country || 'US'}, ${orderData.discountCode?.code || null}, ${orderData.applied_discount_cents || 0}, ${orderData.applied_discount_label || ''}, ${orderData.applied_discount_type || 'none'}, ${orderSameDayHitService}, ${orderSaturdayDelivery}, ${orderSameDayFeeCents}, ${orderSaturdayFeeCents}, ${orderTimestampEt.display}, ${orderSameDayQualified}, ${orderData.is_test_order === true}, ${orderData.test_order_reason || null}, ${attribution.google_click_id}, ${attribution.gbraid}, ${attribution.wbraid}, ${attribution.landing_page}, ${attribution.referrer}, ${attribution.utm_source}, ${attribution.utm_medium}, ${attribution.utm_campaign}, ${attribution.utm_term}, ${attribution.utm_content}, ${attribution.consent_status}, ${expectedItemCount}, ${expectedItemSignature})
       RETURNING *
     `];
 
@@ -1606,7 +1777,7 @@ exports.handler = async (event, context) => {
     if (requestedStatus === 'pending') {
       console.log('[create-order] PENDING order persisted, awaiting payment confirmation:', {
         orderId,
-        userEmail,
+        hasCustomerEmail: Boolean(userEmail),
         total_cents: orderData.total_cents || 0,
       });
       return {
@@ -1776,7 +1947,7 @@ exports.handler = async (event, context) => {
   } catch (error) {
     console.error('❌ CRITICAL ERROR creating order:', error);
     console.error('Error stack:', error.stack);
-    console.error('Order data that failed:', JSON.stringify(orderData, null, 2));
+    console.error('Order input summary that failed:', safeOrderLogSummary(orderData));
 
     return {
       statusCode: error.statusCode || 500,
@@ -1799,4 +1970,8 @@ exports._test = {
   buildItemSignature,
   verifyExistingOrderMatches,
   ensureOrderSchemaOnce,
+  isSecureCheckoutKey,
+  canonicalQuoteForCheckout,
 };
+
+exports.createTrustedStripeContext = createTrustedStripeContext;
