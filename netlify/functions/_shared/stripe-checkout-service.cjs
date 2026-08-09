@@ -610,7 +610,31 @@ async function createOrReusePaymentIntent({ stripe, sql, order, confirmationToke
       // PaymentIntent can settle at most once, so retrying confirmation on the
       // same Intent is safer than displacing it while an older browser still
       // holds its client secret.
-      return confirmBoundPaymentIntent({ stripe, sql, order, intent: existing, confirmationTokenId });
+      let enriched = existing;
+      try {
+        enriched = await stripe.paymentIntents.update(existing.id, {
+          description: `Banners On The Fly ${stripeOrderReference(order.id)}`,
+          metadata: {
+            ...stripeOrderMetadata(order, items),
+            checkout_key_hash: checkoutKeyHash(checkoutKey),
+          },
+        });
+        verifyIntentBinding(enriched, order, checkoutKey);
+      } catch (error) {
+        checkoutError(
+          'PAYMENT_REFERENCE_UPDATE_FAILED',
+          'Payment details could not be prepared. No charge was attempted; try again.',
+          503,
+          {
+            orderId: order.id,
+            paymentIntentId: existing.id,
+            status: existing.status,
+            safeToRetry: true,
+            providerCode: error?.code || null,
+          },
+        );
+      }
+      return confirmBoundPaymentIntent({ stripe, sql, order, intent: enriched, confirmationTokenId });
     }
     if (existing.status !== 'canceled') {
       checkoutError('PAYMENT_ALREADY_IN_PROGRESS', 'This payment is already being processed. Do not submit another payment.', 503, {
