@@ -181,6 +181,129 @@ function stripePaymentDescription(order, items = []) {
   return `Banners On The Fly ${stripeOrderReference(order.id)} — ${metadata.item_summary}`.slice(0, 500);
 }
 
+function stripePaymentAccounting(order, items = []) {
+  const normalizedItems = Array.isArray(items) ? items : [];
+  if (!normalizedItems.length) return null;
+
+  const lines = normalizedItems.map((item, index) => {
+    const lineTotal = Number(item?.line_total_cents || 0);
+    const requestedQuantity = Math.max(1, Math.trunc(Number(item?.quantity || 1)));
+    if (!Number.isSafeInteger(lineTotal) || lineTotal < 0) {
+      checkoutError(
+        'STRIPE_LINE_ITEM_INVALID',
+        'The Stripe order reference could not be prepared. No charge was attempted.',
+        503,
+      );
+    }
+    const quantity = lineTotal % requestedQuantity === 0 ? requestedQuantity : 1;
+    const unitCost = lineTotal / quantity;
+    const product = cleanText(item?.product_type || item?.productType || 'banner', 50) || 'banner';
+    const productCode = ({
+      banner: 'BANNER',
+      yard_sign: 'YARDSIGN',
+      car_magnet: 'CARMAGNET',
+    })[product] || 'CUSTOM';
+    return {
+      product_code: productCode,
+      product_name: stripeItemReference(item, index),
+      quantity,
+      unit_cost: unitCost,
+    };
+  });
+
+  const merchandiseCents = normalizedItems.reduce(
+    (sum, item) => sum + Number(item?.line_total_cents || 0),
+    0,
+  );
+  const subtotalCents = Number(order?.subtotal_cents || 0);
+  const minimumOrderAdjustment = subtotalCents - merchandiseCents;
+  if (!Number.isSafeInteger(minimumOrderAdjustment) || minimumOrderAdjustment < 0) {
+    checkoutError(
+      'STRIPE_LINE_ITEM_TOTAL_MISMATCH',
+      'The Stripe order total could not be reconciled. No charge was attempted.',
+      503,
+    );
+  }
+  if (minimumOrderAdjustment > 0) {
+    lines.push({
+      product_code: 'MINORDER',
+      product_name: 'Minimum order adjustment',
+      quantity: 1,
+      unit_cost: minimumOrderAdjustment,
+    });
+  }
+
+  const serviceFees = [
+    ['SAMEDAY', 'Same-Day Hit Service', Number(order?.same_day_fee_cents || 0)],
+    ['SATURDAY', 'Saturday delivery service', Number(order?.saturday_fee_cents || 0)],
+  ];
+  for (const [productCode, productName, cents] of serviceFees) {
+    if (!Number.isSafeInteger(cents) || cents < 0) {
+      checkoutError(
+        'STRIPE_LINE_ITEM_INVALID',
+        'The Stripe service fee reference could not be prepared. No charge was attempted.',
+        503,
+      );
+    }
+    if (cents > 0) {
+      lines.push({
+        product_code: productCode,
+        product_name: productName,
+        quantity: 1,
+        unit_cost: cents,
+      });
+    }
+  }
+
+  if (lines.length > 200) {
+    checkoutError(
+      'STRIPE_LINE_ITEM_LIMIT_EXCEEDED',
+      'This order has too many lines for online payment. Contact us for assistance.',
+      409,
+    );
+  }
+
+  const discountCents = Number(order?.applied_discount_cents || 0);
+  const taxCents = Number(order?.tax_cents || 0);
+  const shippingCents = Number(order?.shipping_cents || 0);
+  const totalCents = Number(order?.total_cents || 0);
+  const lineGross = lines.reduce((sum, line) => sum + (line.unit_cost * line.quantity), 0);
+  const computedTotal = lineGross - discountCents + taxCents + shippingCents;
+  if (![discountCents, taxCents, shippingCents, totalCents, computedTotal]
+    .every(Number.isSafeInteger)
+      || discountCents < 0
+      || taxCents < 0
+      || shippingCents < 0
+      || computedTotal !== totalCents) {
+    checkoutError(
+      'STRIPE_LINE_ITEM_TOTAL_MISMATCH',
+      'The Stripe order total could not be reconciled. No charge was attempted.',
+      503,
+      { expectedTotalCents: totalCents, computedTotalCents: computedTotal },
+    );
+  }
+
+  const orderReference = stripeOrderReference(order.id).replace(/[^A-Za-z0-9]/g, '');
+  return {
+    amount_details: {
+      enforce_arithmetic_validation: true,
+      line_items: lines,
+      tax: { total_tax_amount: taxCents },
+      shipping: {
+        amount: shippingCents,
+        ...(cleanText(order?.shipping_zip, 10)
+          ? { to_postal_code: cleanText(order.shipping_zip, 10) }
+          : {}),
+      },
+      ...(discountCents > 0 ? { discount_amount: discountCents } : {}),
+    },
+    payment_details: {
+      customer_reference: orderReference,
+      order_reference: orderReference,
+    },
+  };
+}
+
 function validateExpectedTotal(value) {
   const total = Number(value);
   if (!Number.isSafeInteger(total)
@@ -602,6 +725,7 @@ async function confirmBoundPaymentIntent({ stripe, sql, order, intent, confirmat
 }
 
 async function createOrReusePaymentIntent({ stripe, sql, order, confirmationTokenId, checkoutKey, customer, items = [] }) {
+  const accounting = stripePaymentAccounting(order, items);
   let previousIntentId = order.stripe_payment_intent_id || null;
   if (previousIntentId) {
     let existing;
@@ -652,6 +776,7 @@ async function createOrReusePaymentIntent({ stripe, sql, order, confirmationToke
             ...stripeOrderMetadata(order, items),
             checkout_key_hash: checkoutKeyHash(checkoutKey),
           },
+          ...(accounting || {}),
         });
         verifyIntentBinding(enriched, order, checkoutKey);
       } catch (error) {
@@ -692,6 +817,7 @@ async function createOrReusePaymentIntent({ stripe, sql, order, confirmationToke
       checkout_key_hash: checkoutKeyHash(checkoutKey),
     },
     shipping: intentShipping(customer),
+    ...(accounting || {}),
   }, {
     idempotencyKey: stripeIdempotencyKey(order.id, confirmationTokenId, previousIntentId),
   });
@@ -936,6 +1062,7 @@ module.exports = {
   stripeConfirmationIdempotencyKey,
   stripeOrderMetadata,
   stripeOrderReference,
+  stripePaymentAccounting,
   stripePaymentDescription,
   validateCheckoutKey,
   validateExpectedTotal,

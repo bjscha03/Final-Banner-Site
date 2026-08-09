@@ -234,6 +234,88 @@ test('Stripe payment records receive a non-PII canonical order summary', () => {
   assert.equal(metadata.shipping_address, undefined);
 });
 
+test('Stripe receives structured, arithmetically exact payment line items and order references', () => {
+  const accounting = checkout.stripePaymentAccounting({
+    id: 'ca16a1ca-2e4d-42df-8723-9574490f67f1',
+    subtotal_cents: 12000,
+    tax_cents: 648,
+    shipping_cents: 0,
+    total_cents: 11448,
+    applied_discount_cents: 2000,
+    same_day_fee_cents: 500,
+    saturday_fee_cents: 300,
+    shipping_zip: '40299',
+  }, [{
+    product_type: 'banner', width_in: 48, height_in: 24, material: '13oz Vinyl', quantity: 2,
+    grommets: 'every-2-3ft', rope_placement: 'top-bottom', rope_feet: 8,
+    pole_pocket_position: 'top', pole_pocket_size: '2', line_total_cents: 10400,
+  }, {
+    product_type: 'car_magnet', width_in: 24, height_in: 18, material: '30mil', quantity: 2,
+    rounded_corners: 'rounded', line_total_cents: 1500,
+  }]);
+
+  assert.deepEqual(accounting.payment_details, {
+    customer_reference: 'BOTF490F67F1',
+    order_reference: 'BOTF490F67F1',
+  });
+  assert.equal(accounting.amount_details.enforce_arithmetic_validation, true);
+  assert.equal(accounting.amount_details.tax.total_tax_amount, 648);
+  assert.equal(accounting.amount_details.shipping.amount, 0);
+  assert.equal(accounting.amount_details.shipping.to_postal_code, '40299');
+  assert.equal(accounting.amount_details.discount_amount, 2000);
+  assert.deepEqual(
+    accounting.amount_details.line_items.map(({ product_code, quantity, unit_cost }) => ({
+      product_code, quantity, unit_cost,
+    })),
+    [
+      { product_code: 'BANNER', quantity: 2, unit_cost: 5200 },
+      { product_code: 'CARMAGNET', quantity: 2, unit_cost: 750 },
+      { product_code: 'MINORDER', quantity: 1, unit_cost: 100 },
+      { product_code: 'SAMEDAY', quantity: 1, unit_cost: 500 },
+      { product_code: 'SATURDAY', quantity: 1, unit_cost: 300 },
+    ],
+  );
+  const gross = accounting.amount_details.line_items.reduce(
+    (sum, line) => sum + (line.unit_cost * line.quantity),
+    0,
+  );
+  assert.equal(
+    gross - accounting.amount_details.discount_amount
+      + accounting.amount_details.tax.total_tax_amount
+      + accounting.amount_details.shipping.amount,
+    11448,
+  );
+  assert.equal(JSON.stringify(accounting).includes('buyer@example.com'), false);
+});
+
+test('Stripe line items preserve exact cents when a cart line is not evenly divisible by quantity', () => {
+  const accounting = checkout.stripePaymentAccounting({
+    id: 'order-odd-cents', subtotal_cents: 101, tax_cents: 6,
+    shipping_cents: 0, total_cents: 107,
+  }, [{
+    product_type: 'yard_sign', width_in: 24, height_in: 18,
+    material: '4mm Coroplast', quantity: 2, line_total_cents: 101,
+  }]);
+  const [line] = accounting.amount_details.line_items;
+  assert.equal(line.quantity, 1);
+  assert.equal(line.unit_cost, 101);
+  assert.match(line.product_name, /qty 2/);
+});
+
+test('Stripe line-item arithmetic fails closed before provider creation', () => {
+  assert.throws(
+    () => checkout.stripePaymentAccounting({
+      id: 'order-bad-total', subtotal_cents: 3600, tax_cents: 216,
+      shipping_cents: 0, total_cents: 1,
+    }, [{
+      product_type: 'banner', width_in: 48, height_in: 24,
+      material: '13oz', quantity: 1, line_total_cents: 3600,
+    }]),
+    (error) => error.code === 'STRIPE_LINE_ITEM_TOTAL_MISMATCH'
+      && error.statusCode === 503,
+  );
+});
+
 test('the wallet-displayed expected total is mandatory and must be integer cents', () => {
   assert.equal(checkout.validateExpectedTotal(4242), 4242);
   assert.throws(
@@ -709,7 +791,10 @@ test('order recovery is bound to the constant-time checkout key', async () => {
 
 test('a declined payment retries on the same bound Intent instead of creating duplicate-charge risk', async () => {
   const checkoutKey = 'checkout_key_12345678901234567890';
-  const order = { id: 'order-1', status: 'pending', total_cents: 4242, stripe_payment_intent_id: 'pi_old' };
+  const order = {
+    id: 'order-1', status: 'pending', subtotal_cents: 4000, tax_cents: 242,
+    shipping_cents: 0, total_cents: 4242, stripe_payment_intent_id: 'pi_old',
+  };
   let createCalls = 0;
   let confirmCalls = 0;
   let updateCalls = 0;
@@ -741,12 +826,16 @@ test('a declined payment retries on the same bound Intent instead of creating du
         assert.equal(id, 'pi_old');
         assert.equal(
           params.description,
-          'Banners On The Fly BOTF-ORDER1 — 1. banner | 48x24in | 13oz Vinyl | qty 1 | grommets none | line 0c',
+          'Banners On The Fly BOTF-ORDER1 — 1. banner | 48x24in | 13oz Vinyl | qty 1 | grommets none | line 4000c',
         );
         assert.equal(
           params.metadata.item_summary,
-          '1. banner | 48x24in | 13oz Vinyl | qty 1 | grommets none | line 0c',
+          '1. banner | 48x24in | 13oz Vinyl | qty 1 | grommets none | line 4000c',
         );
+        assert.equal(params.amount_details.enforce_arithmetic_validation, true);
+        assert.equal(params.amount_details.line_items[0].unit_cost, 4000);
+        assert.equal(params.amount_details.tax.total_tax_amount, 242);
+        assert.equal(params.payment_details.order_reference, 'BOTFORDER1');
         return {
           id: 'pi_old', status: 'requires_payment_method', amount: 4242, currency: 'usd',
           metadata: params.metadata,
@@ -762,7 +851,10 @@ test('a declined payment retries on the same bound Intent instead of creating du
     confirmationTokenId: 'ctoken_new',
     checkoutKey,
     customer: { phone: '5025550100', shipping: {} },
-    items: [{ product_type: 'banner', width_in: 48, height_in: 24, material: '13oz Vinyl', quantity: 1 }],
+    items: [{
+      product_type: 'banner', width_in: 48, height_in: 24,
+      material: '13oz Vinyl', quantity: 1, line_total_cents: 4000,
+    }],
   });
   assert.equal(retried.id, 'pi_old');
   assert.equal(retried.status, 'requires_action');
