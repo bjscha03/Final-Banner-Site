@@ -9,7 +9,7 @@ import authModule from './_shared/server-auth.cjs';
 const headers = {
   'Content-Type': 'application/json',
   'Cache-Control': 'no-store, max-age=0',
-  'X-BOTF-Payment-Build': 'verified-followups-v2',
+  'X-BOTF-Payment-Build': 'verified-followups-v3',
 };
 const reply = (statusCode, body) => ({ statusCode, headers, body: JSON.stringify(body) });
 
