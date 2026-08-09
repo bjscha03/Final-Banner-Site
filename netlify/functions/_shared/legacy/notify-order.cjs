@@ -854,10 +854,17 @@ exports.handler = async (event) => {
     if (!forceResendBoth && !forceResendCustomer && !forceResendAdmin
         && (order.confirmation_email_status === 'sent' || order.confirmation_emailed_at)) {
       console.log(`Order ${orderId} confirmation email already sent, returning idempotent response`);
+      const adminAlreadySent = order.admin_notification_status === 'sent'
+        || Boolean(order.admin_notification_sent_at);
       return {
         statusCode: 200,
         headers,
-        body: JSON.stringify({ ok: true, idempotent: true })
+        body: JSON.stringify({
+          ok: true,
+          idempotent: true,
+          customerEmailSent: true,
+          adminEmailSent: adminAlreadySent,
+        })
       };
     }
     
