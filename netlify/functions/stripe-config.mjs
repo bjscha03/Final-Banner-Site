@@ -6,7 +6,7 @@ const headers = {
   'Cache-Control': 'no-store, max-age=0',
   // Safe, non-secret deploy marker used to prove the payment functions and
   // checkout bundle came from the same verified release candidate.
-  'X-BOTF-Payment-Build': 'verified-followups-v1',
+  'X-BOTF-Payment-Build': 'verified-followups-v2',
 };
 
 const handler = async (event) => {

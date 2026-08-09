@@ -18,6 +18,7 @@ const finalizeModule = await import('../stripe-finalize-order.mjs');
 const webhookModule = await import('../stripe-webhook.mjs');
 const configModule = await import('../stripe-config.mjs');
 const createModule = await import('../stripe-create-payment-intent.mjs');
+const followupModule = (await import('../_shared/paid-order-followups.cjs')).default;
 
 const makeOrder = () => ({
   id: 'order-123',
@@ -104,21 +105,17 @@ const post = (body, extraHeaders = {}) => ({
 });
 
 const successfulFollowupFetch = async (url) => {
-  if (String(url).endsWith('/notify-order')) {
-    return {
-      ok: true,
-      status: 200,
-      async json() {
-        return { ok: true, customerEmailSent: true, adminEmailSent: true };
-      },
-    };
-  }
   return {
     ok: true,
     status: 202,
     async json() { throw new Error('empty background response'); },
   };
 };
+
+const successfulNotifyOrder = async () => ({
+  statusCode: 200,
+  body: JSON.stringify({ ok: true, customerEmailSent: true, adminEmailSent: true }),
+});
 
 test('wrapped browser Stripe functions return a valid empty preflight response', async () => {
   const functions = [
@@ -283,6 +280,7 @@ test('status recovery atomically finalizes a succeeded payment and returns the c
   statusModule._test.setStripeFactory(() => ({ paymentIntents: { async retrieve() { return intent; } } }));
   const previousFetch = global.fetch;
   global.fetch = successfulFollowupFetch;
+  followupModule.setNotifyOrderHandler(successfulNotifyOrder);
   try {
     const response = await statusModule._test.handler(post({
       orderId: order.id,
@@ -299,6 +297,7 @@ test('status recovery atomically finalizes a succeeded payment and returns the c
     assert.ok(payload.confirmationToken.includes('.'));
     assert.equal(db.getPaidTransitions(), 1);
   } finally {
+    followupModule.resetNotifyOrderHandler();
     global.fetch = previousFetch;
   }
 });
@@ -343,6 +342,7 @@ test('signed success settles once, is retry-idempotent, and queues follow-ups', 
   };
   let fetchCalls = 0;
   const previousFetch = global.fetch;
+  followupModule.setNotifyOrderHandler(successfulNotifyOrder);
   global.fetch = async (url) => {
     fetchCalls += 1;
     return successfulFollowupFetch(url);
@@ -371,8 +371,9 @@ test('signed success settles once, is retry-idempotent, and queues follow-ups', 
     assert.equal(retry.statusCode, 200);
     assert.equal(db.getPaidTransitions(), 1);
     assert.equal(order.stripe_wallet_type, 'google_pay');
-    assert.equal(fetchCalls, 4);
+    assert.equal(fetchCalls, 2);
   } finally {
+    followupModule.resetNotifyOrderHandler();
     global.fetch = previousFetch;
   }
 });
@@ -394,6 +395,7 @@ test('authenticated paid event returns non-2xx when its order cannot be fulfille
 });
 
 test.after(() => {
+  followupModule.resetNotifyOrderHandler();
   statusModule._test.resetFactories();
   finalizeModule._test.resetFactories();
   webhookModule._test.resetFactories();

@@ -1,6 +1,9 @@
 'use strict';
 
 const { siteUrlForEvent } = require('./stripe-runtime-config.cjs');
+const notifyOrderModule = require('./legacy/notify-order.cjs');
+
+let notifyOrderHandler = notifyOrderModule.handler;
 
 function internalRequestConfig(event, orderId) {
   const siteUrl = siteUrlForEvent(event);
@@ -35,11 +38,36 @@ async function postInternal(config, functionName, body) {
   }
 }
 
+async function invokeNotifyOrder(config, body) {
+  try {
+    const response = await notifyOrderHandler({
+      httpMethod: 'POST',
+      headers: config.headers,
+      body: JSON.stringify(body),
+    });
+    let payload = {};
+    try { payload = JSON.parse(response?.body || '{}'); } catch { /* malformed payload fails below */ }
+    const status = Number(response?.statusCode || 500);
+    return { ok: status >= 200 && status < 300, status, payload };
+  } catch (error) {
+    return {
+      ok: false,
+      status: 0,
+      payload: {},
+      error: error?.message || String(error),
+    };
+  }
+}
+
 async function deliverPaidOrderNotifications(event, orderId) {
   const config = internalRequestConfig(event, orderId);
   if (!config) return false;
 
-  const initial = await postInternal(config, 'notify-order', { orderId });
+  // Invoke the existing idempotent notification handler in-process. This
+  // avoids a deploy-host routing mismatch between independently cached
+  // Netlify function artifacts while preserving the exact established email
+  // templates, database writes, and Resend idempotency keys.
+  const initial = await invokeNotifyOrder(config, { orderId });
   if (!initial.ok || initial.payload?.ok === false) {
     console.error('[paid-order-followups] customer notification failed', {
       orderId,
@@ -54,7 +82,7 @@ async function deliverPaidOrderNotifications(event, orderId) {
   let adminSent = initial.payload?.adminEmailSent === true;
 
   if (customerSent && !adminSent) {
-    const adminRecovery = await postInternal(config, 'notify-order', {
+    const adminRecovery = await invokeNotifyOrder(config, {
       orderId,
       forceResendAdmin: true,
     });
@@ -101,6 +129,9 @@ async function queuePaidOrderFollowups(event, orderId) {
 module.exports = {
   deliverPaidOrderNotifications,
   internalRequestConfig,
+  invokeNotifyOrder,
   postInternal,
   queuePaidOrderFollowups,
+  resetNotifyOrderHandler() { notifyOrderHandler = notifyOrderModule.handler; },
+  setNotifyOrderHandler(handler) { notifyOrderHandler = handler; },
 };

@@ -27,30 +27,42 @@ test('paid-order completion verifies both Resend messages before queueing PDF wo
   };
   process.env.DEPLOY_PRIME_URL = 'https://agent-payment-sandbox-e2e--bannersonthefly.netlify.app';
   process.env.INTERNAL_JOB_SECRET = 'test-internal-secret';
-  const calls = [];
+  const notifyCalls = [];
+  const backgroundCalls = [];
+  followups.setNotifyOrderHandler(async (event) => {
+    const body = JSON.parse(event.body);
+    notifyCalls.push({ event, body });
+    return {
+      statusCode: 200,
+      body: JSON.stringify(notifyCalls.length === 1
+        ? { ok: true, customerEmailSent: true, adminEmailSent: false }
+        : { ok: true, customerEmailSent: true, adminEmailSent: true }),
+    };
+  });
   global.fetch = async (url, options) => {
-    calls.push({ url: String(url), options });
-    if (calls.length === 1) {
-      return internalResponse(200, { ok: true, customerEmailSent: true, adminEmailSent: false });
-    }
-    if (calls.length === 2) {
-      return internalResponse(200, { ok: true, customerEmailSent: true, adminEmailSent: true });
-    }
+    backgroundCalls.push({ url: String(url), options });
     return internalResponse(202);
   };
 
   try {
     assert.equal(await followups.queuePaidOrderFollowups({}, 'order-123'), true);
-    assert.equal(calls.length, 3);
-    assert.match(calls[0].url, /\/\.netlify\/functions\/notify-order$/);
-    assert.deepEqual(JSON.parse(calls[0].options.body), { orderId: 'order-123' });
-    assert.deepEqual(JSON.parse(calls[1].options.body), {
+    assert.equal(notifyCalls.length, 2);
+    assert.deepEqual(notifyCalls[0].body, { orderId: 'order-123' });
+    assert.deepEqual(notifyCalls[1].body, {
       orderId: 'order-123',
       forceResendAdmin: true,
     });
-    assert.match(calls[2].url, /\/\.netlify\/functions\/process-paid-order-followups-background$/);
-    assert.equal(calls[0].options.headers['X-Internal-Job-Secret'], 'test-internal-secret');
+    assert.equal(
+      notifyCalls[0].event.headers['X-Internal-Job-Secret'],
+      'test-internal-secret',
+    );
+    assert.equal(backgroundCalls.length, 1);
+    assert.match(
+      backgroundCalls[0].url,
+      /\/\.netlify\/functions\/process-paid-order-followups-background$/,
+    );
   } finally {
+    followups.resetNotifyOrderHandler();
     global.fetch = previous.fetch;
     if (previous.deployPrimeUrl === undefined) delete process.env.DEPLOY_PRIME_URL;
     else process.env.DEPLOY_PRIME_URL = previous.deployPrimeUrl;
@@ -67,16 +79,23 @@ test('a background 202 can never conceal missing order notifications', async () 
   };
   process.env.DEPLOY_PRIME_URL = 'https://agent-payment-sandbox-e2e--bannersonthefly.netlify.app';
   process.env.INTERNAL_JOB_SECRET = 'test-internal-secret';
-  let calls = 0;
+  let notifyCalls = 0;
+  let backgroundCalls = 0;
+  followups.setNotifyOrderHandler(async () => {
+    notifyCalls += 1;
+    return { statusCode: 200, body: JSON.stringify({ ok: true }) };
+  });
   global.fetch = async () => {
-    calls += 1;
-    return internalResponse(200, { ok: true });
+    backgroundCalls += 1;
+    return internalResponse(202);
   };
 
   try {
     assert.equal(await followups.queuePaidOrderFollowups({}, 'order-123'), false);
-    assert.equal(calls, 1, 'PDF work must not be queued before both emails are verified');
+    assert.equal(notifyCalls, 1);
+    assert.equal(backgroundCalls, 0, 'PDF work must not be queued before both emails are verified');
   } finally {
+    followups.resetNotifyOrderHandler();
     global.fetch = previous.fetch;
     if (previous.deployPrimeUrl === undefined) delete process.env.DEPLOY_PRIME_URL;
     else process.env.DEPLOY_PRIME_URL = previous.deployPrimeUrl;

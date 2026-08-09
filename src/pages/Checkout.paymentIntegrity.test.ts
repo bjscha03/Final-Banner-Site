@@ -15,6 +15,7 @@ describe('provider-neutral checkout integrity', () => {
     expect(checkout).toContain("if (stripeRuntime.status === 'available')");
     expect(checkout).toContain("if (items.length === 0 && !checkoutLocked)");
     expect(checkout).toContain("window.addEventListener('beforeunload', warnBeforeLeaving)");
+    expect(checkout).toContain('payload?.followupsQueued === true');
   });
 
   it('locks cart and provider mutations during an unresolved authorization', () => {
