@@ -15,6 +15,10 @@ const { deploymentContext } = paypalRuntimeModule;
 const PAGE_SIZE = 20;
 const MAX_ADMIN_SCAN_PAGES = 5000;
 
+// Keep Stripe settlement reconciliation coupled to the verified paid-order
+// follow-up bundle when Netlify performs incremental function builds.
+const PAYMENT_BUILD = 'verified-followups-v1';
+
 const parseOrders = (response) => {
   if (!response?.body) return null;
   try {
@@ -296,6 +300,7 @@ const handler = async (event, context) => {
 };
 
 export const _test = {
+  PAYMENT_BUILD,
   isAdminVisiblePaidOrderForEvent,
   parseOrders,
   reconcilePendingPayPalOrders,

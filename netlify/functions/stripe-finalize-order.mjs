@@ -6,7 +6,11 @@ import runtimeModule from './_shared/stripe-runtime-config.cjs';
 import checkoutModule from './_shared/stripe-checkout-service.cjs';
 import finalizerModule from './_shared/finalizeStripeOrder.cjs';
 
-const headers = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store, max-age=0' };
+const headers = {
+  'Content-Type': 'application/json',
+  'Cache-Control': 'no-store, max-age=0',
+  'X-BOTF-Payment-Build': 'verified-followups-v1',
+};
 const reply = (statusCode, body) => ({ statusCode, headers, body: JSON.stringify(body) });
 let stripeFactory = (secretKey) => new Stripe(secretKey);
 let neonFactory = neon;
