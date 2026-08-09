@@ -320,6 +320,36 @@ test('status recovery atomically finalizes a succeeded payment and returns the c
   }
 });
 
+test('a paid browser response is not withheld when follow-up queueing is temporarily unavailable', async () => {
+  const order = makeOrder();
+  const db = fakeSql(order);
+  const checkoutModule = await import('../_shared/stripe-checkout-service.cjs');
+  const intent = makeIntent('succeeded');
+  intent.metadata.checkout_key_hash = checkoutModule.default.checkoutKeyHash(order.checkout_idempotency_key);
+  statusModule._test.setNeonFactory(() => db.sql);
+  statusModule._test.setStripeFactory(() => ({ paymentIntents: { async retrieve() { return intent; } } }));
+  const previousFetch = global.fetch;
+  global.fetch = async () => ({
+    ok: false,
+    status: 503,
+    async json() { return { error: 'TEMPORARY_BACKGROUND_OUTAGE' }; },
+  });
+  try {
+    const response = await statusModule._test.handler(post({
+      checkoutKey: order.checkout_idempotency_key,
+    }));
+    const payload = JSON.parse(response.body);
+    assert.equal(response.statusCode, 200);
+    assert.equal(payload.ok, true);
+    assert.equal(payload.paid, true);
+    assert.equal(payload.finalized, true);
+    assert.equal(payload.followupsQueued, false);
+    assert.equal(typeof payload.confirmationToken, 'string');
+  } finally {
+    global.fetch = previousFetch;
+  }
+});
+
 test('a captured payment reconciliation failure never returns a terminal retry-payment response', async () => {
   const order = makeOrder();
   const db = fakeSql(order);

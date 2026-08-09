@@ -106,7 +106,10 @@ const handler = async (event) => {
       });
     }
 
-    const followupsQueued = await checkoutModule.queuePaidOrderFollowups(event, finalized.order.id);
+    // Payment/order settlement is the browser's success boundary. Queue
+    // notification/PDF work, but never hold the wallet UI open while an email
+    // provider responds; the signed webhook retries incomplete follow-ups.
+    const followupsQueued = await checkoutModule.queuePaidOrderFollowupsInBackground(event, finalized.order.id);
     return reply(200, checkoutModule.canonicalPaidPayload(finalized.order, {
       alreadyPaid: finalized.alreadyPaid === true,
       followupsQueued,

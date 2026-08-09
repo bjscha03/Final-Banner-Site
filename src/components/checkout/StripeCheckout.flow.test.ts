@@ -22,7 +22,7 @@ describe('Stripe ConfirmationToken client flow', () => {
     expect(source).toContain('stripe.handleNextAction');
     expect(source).not.toContain('stripe.confirmPayment');
     expect(source).not.toContain("paymentMethodCreation: 'manual'");
-    expect(source).toContain('payload?.followupsQueued === true');
+    expect(source).not.toContain('payload?.followupsQueued === true');
   });
 
   it('posts the complete cart, quantity-bearing item specifications, and customer addresses', () => {
@@ -38,10 +38,33 @@ describe('Stripe ConfirmationToken client flow', () => {
   });
 
   it('keeps payment recovery references out of query strings', () => {
-    expect(source).toContain("fetch(STATUS_ENDPOINT, {");
+    expect(source).toContain("fetchWithTimeout(STATUS_ENDPOINT, {");
     expect(source).toContain("method: 'POST'");
     expect(source).toContain('body: JSON.stringify({ checkoutKey })');
     expect(source).not.toMatch(/URLSearchParams\(\{\s*paymentIntentId/);
+  });
+
+  it('bounds application-owned payment requests and the total recovery window', () => {
+    expect(source).toContain('const APP_REQUEST_TIMEOUT_MS = 25_000');
+    expect(source).toContain('const STATUS_REQUEST_TIMEOUT_MS = 8_000');
+    expect(source).toContain('const POLL_TOTAL_TIMEOUT_MS = 35_000');
+    expect(source).toContain('const STRIPE_STAGE_TIMEOUT_MS = 15_000');
+    expect(source).toContain('const controller = new AbortController()');
+    expect(source).toContain("code: 'PAYMENT_REQUEST_TIMEOUT'");
+    expect(source).toContain("code: 'PAYMENT_STAGE_TIMEOUT'");
+    expect(source).toContain('withStripeStageTimeout(stripe.createConfirmationToken({');
+    expect(source).toContain('withStripeStageTimeout(elements.submit())');
+    expect(source).toContain('Date.now() - pollingStartedAt >= POLL_TOTAL_TIMEOUT_MS');
+  });
+
+  it('does not rerender or lock checkout before Stripe creates the confirmation token', () => {
+    const tokenStart = source.indexOf('const tokenResult = await withStripeStageTimeout');
+    const processingStart = source.indexOf('setIsProcessing(true)', tokenStart);
+    const confirmingRecovery = source.indexOf("persistRecovery({ phase: 'confirming' })", tokenStart);
+
+    expect(tokenStart).toBeGreaterThan(-1);
+    expect(processingStart).toBeGreaterThan(tokenStart);
+    expect(confirmingRecovery).toBeGreaterThan(tokenStart);
   });
 
   it('keeps a checkout-key-only lock when the create response is lost', () => {
@@ -140,7 +163,7 @@ describe('Stripe ConfirmationToken client flow', () => {
 
   it('stops before payment creation when a wallet omits its phone and focuses a safe fallback', () => {
     const phoneGuard = source.indexOf('if (!isValidCheckoutPhone(submittedWalletCustomer.phone))');
-    const elementsSubmit = source.indexOf('const submitResult = await elements.submit();', phoneGuard);
+    const elementsSubmit = source.indexOf('withStripeStageTimeout(elements.submit())', phoneGuard);
     const paymentStart = source.indexOf("await startPayment(event.expressPaymentType || 'wallet'", phoneGuard);
 
     expect(phoneGuard).toBeGreaterThan(-1);

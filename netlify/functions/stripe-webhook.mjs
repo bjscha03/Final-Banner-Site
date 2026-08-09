@@ -1,4 +1,8 @@
 import '@neondatabase/serverless';
+// notify-order loads Resend dynamically from the shared CommonJS handler.
+// This direct entrypoint import makes Netlify include the package in the
+// webhook artifact instead of failing every paid-order notification at runtime.
+import 'resend';
 import Stripe from 'stripe';
 import { neon } from '@neondatabase/serverless';
 import { withLambda } from '@netlify/aws-lambda-compat';
