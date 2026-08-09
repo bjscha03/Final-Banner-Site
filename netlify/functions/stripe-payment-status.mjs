@@ -202,3 +202,6 @@ export const _test = {
   setNeonFactory(factory) { neonFactory = factory; },
 };
 export default withLambda(handler);
+
+// Explicit entrypoint marker prevents an incremental deploy from reusing a
+// pre-verification settlement artifact.
