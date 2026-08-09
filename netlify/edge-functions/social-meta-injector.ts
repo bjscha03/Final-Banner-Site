@@ -13,6 +13,11 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "construction-safety-banners-osha": {
+    title: "Construction Safety Banners: Jobsite Messaging & Placement Guide",
+    description: "Plan construction safety banners for jobsite rules, PPE reminders, access, traffic flow, and branding without replacing required regulatory signs or controls.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/construction-safety-banners-osha.webp"
+  },
   "nonprofit-fundraiser-banners": {
     title: "Fundraiser Banner Ideas: Sponsorship, Wayfinding & Event Signage",
     description: "Explore fundraiser banner ideas for registration, sponsors, donations, wayfinding, finish lines, and photo areas, with practical planning and design tips.",
