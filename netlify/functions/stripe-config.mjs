@@ -31,3 +31,6 @@ const handler = async (event) => {
 
 export const _test = { handler };
 export default withLambda(handler);
+
+// Keep this marker in the function source so Netlify rebuilds the verified
+// sandbox function bundle when payment-release validation is requested.
