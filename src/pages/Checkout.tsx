@@ -1253,11 +1253,6 @@ const Checkout: React.FC = () => {
                   </div>
                 </div>
                 
-                <div className="mb-3 rounded-lg border border-[#18448D]/15 bg-blue-50 px-3 py-2">
-                  <p className="text-sm font-semibold text-[#18448D]">Most standard orders are produced within 24 hours; free next-day air begins after production.</p>
-                  <p className="text-xs text-blue-700">Order before tonight’s cutoff for fastest turnaround.</p>
-                </div>
-
                 {recoveryMessage ? (
                   <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3" role="status" aria-live="polite">
                     <p className="text-sm font-medium text-blue-900">{recoveryMessage}</p>
@@ -1309,36 +1304,47 @@ const Checkout: React.FC = () => {
                     <div className="mt-4 h-12 animate-pulse rounded-md bg-slate-200/70" aria-hidden="true" />
                   </div>
                 ) : stripeAvailable && stripeRuntime.publishableKey ? (
-                  paymentProvider === 'stripe' ? (
-                    <StripeCheckout
-                      publishableKey={stripeRuntime.publishableKey}
-                      disabled={paymentSubmissionBlocked || checkoutLocked}
-                      total={providerTotalCents}
-                      onSuccess={handlePaymentSuccess}
-                      onError={handlePaymentError}
-                      resumeCheckout={activeCheckout}
-                      onPaymentStateChange={handlePaymentStateChange}
-                      onCanonicalQuote={handleCanonicalQuote}
-                      onSwitchToPayPal={() => { if (!checkoutLocked) setPaymentProvider('paypal'); }}
-                    />
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <h3 className="text-base font-bold text-[#0B1F3A]">Additional payment options</h3>
-                          <p className="mt-0.5 text-xs text-slate-600">Use PayPal or PayPal-hosted debit and credit card fields.</p>
-                        </div>
-                        <Button
+                  <div className="space-y-5">
+                    <div>
+                      <p className="mb-2 text-sm font-bold text-[#0B1F3A]">Choose a payment method</p>
+                      <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1" role="group" aria-label="Choose a payment method">
+                        <button
                           type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-10 flex-none text-[#18448D] hover:bg-blue-50"
+                          aria-pressed={paymentProvider === 'stripe'}
+                          className={`min-h-11 rounded-lg px-3 text-sm font-bold transition ${paymentProvider === 'stripe'
+                            ? 'bg-white text-[#18448D] shadow-sm ring-1 ring-slate-200'
+                            : 'text-slate-600 hover:bg-white/70 hover:text-[#18448D]'}`}
                           disabled={checkoutLocked}
                           onClick={() => { if (!checkoutLocked) setPaymentProvider('stripe'); }}
                         >
-                          Card or wallet
-                        </Button>
+                          Card &amp; wallets
+                        </button>
+                        <button
+                          type="button"
+                          aria-pressed={paymentProvider === 'paypal'}
+                          className={`min-h-11 rounded-lg px-3 text-sm font-bold transition ${paymentProvider === 'paypal'
+                            ? 'bg-white text-[#18448D] shadow-sm ring-1 ring-slate-200'
+                            : 'text-slate-600 hover:bg-white/70 hover:text-[#18448D]'}`}
+                          disabled={checkoutLocked}
+                          onClick={() => { if (!checkoutLocked) setPaymentProvider('paypal'); }}
+                        >
+                          PayPal
+                        </button>
                       </div>
+                    </div>
+
+                    {paymentProvider === 'stripe' ? (
+                      <StripeCheckout
+                        publishableKey={stripeRuntime.publishableKey}
+                        disabled={paymentSubmissionBlocked || checkoutLocked}
+                        total={providerTotalCents}
+                        onSuccess={handlePaymentSuccess}
+                        onError={handlePaymentError}
+                        resumeCheckout={activeCheckout}
+                        onPaymentStateChange={handlePaymentStateChange}
+                        onCanonicalQuote={handleCanonicalQuote}
+                      />
+                    ) : (
                       <PayPalCheckout
                         disabled={paymentSubmissionBlocked || (checkoutLocked && activeCheckout?.provider !== 'paypal')}
                         providerLocked={checkoutLocked}
@@ -1350,8 +1356,8 @@ const Checkout: React.FC = () => {
                         onPaymentStateChange={handlePaymentStateChange}
                         onCanonicalQuote={handleCanonicalQuote}
                       />
-                    </div>
-                  )
+                    )}
+                  </div>
                 ) : (
                   <div className="space-y-3">
                     <div className="space-y-2 rounded-lg border border-[#E7D9C7] bg-[#FCF7F0] p-3 shadow-sm">
