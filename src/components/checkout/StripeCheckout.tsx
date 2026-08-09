@@ -40,6 +40,7 @@ import type {
 } from './checkoutPaymentState';
 import { getStripeExpressShippingRates } from './stripeExpressShipping';
 import { isValidCheckoutPhone, selectWalletCheckoutPhone } from './stripeWalletPhone';
+import { stripeCardPaymentElementOptions } from './stripePaymentElementOptions';
 
 interface StripeCheckoutProps {
   publishableKey: string;
@@ -1322,12 +1323,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
 
           <div className="rounded-lg border border-slate-200 bg-white p-3 sm:p-4">
             <PaymentElement
-              options={{
-                layout: { type: 'accordion', defaultCollapsed: false, radios: false, spacedAccordionItems: false },
-                paymentMethodOrder: ['card'],
-                wallets: { applePay: 'never', googlePay: 'never' },
-                terms: { card: 'never' },
-              }}
+              options={stripeCardPaymentElementOptions}
               onLoadError={() => setCheckoutError('Card payment fields could not load. Refresh the page or choose PayPal.')}
             />
           </div>

@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { canAttemptChunkRecovery, installChunkRecovery, isChunkLoadFailure } from './chunkRecovery';
+import {
+  canAttemptChunkRecovery,
+  installChunkRecovery,
+  isChunkLoadFailure,
+  reloadLatestVersion,
+} from './chunkRecovery';
 
 const createRecoveryTarget = (storedTimestamp: string | null = null) => {
   const listeners = new Map<string, EventListener>();
@@ -94,5 +99,40 @@ describe('chunk recovery', () => {
 
     expect(reload).not.toHaveBeenCalled();
     expect(event.preventDefault).not.toHaveBeenCalled();
+  });
+
+  it('forces a cache-busted navigation and clears the automatic recovery guard', () => {
+    const removeItem = vi.fn();
+    const replace = vi.fn();
+    const target = {
+      location: {
+        href: 'https://preview.example/checkout?promo=SAVE20#payment',
+        replace,
+      },
+      sessionStorage: { removeItem },
+    };
+
+    reloadLatestVersion(target as unknown as Window, 123456);
+
+    expect(removeItem).toHaveBeenCalledWith('botf_chunk_recovery_at');
+    expect(replace).toHaveBeenCalledWith(
+      'https://preview.example/checkout?promo=SAVE20&_botf_refresh=123456#payment',
+    );
+  });
+
+  it('still navigates when browser storage is unavailable', () => {
+    const replace = vi.fn();
+    const target = {
+      location: { href: 'https://preview.example/checkout', replace },
+      sessionStorage: {
+        removeItem: vi.fn(() => {
+          throw new DOMException('Storage is disabled', 'SecurityError');
+        }),
+      },
+    };
+
+    reloadLatestVersion(target as unknown as Window, 55);
+
+    expect(replace).toHaveBeenCalledWith('https://preview.example/checkout?_botf_refresh=55');
   });
 });

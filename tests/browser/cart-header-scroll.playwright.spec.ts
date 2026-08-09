@@ -293,6 +293,14 @@ test('a rejected lazy route chunk renders the branded recovery boundary instead 
 
   await page.locator('a[href="/shipping"]:visible').first().click();
   await expect(page.getByRole('heading', { name: 'This page needs a quick refresh' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Reload page' })).toBeVisible();
+  const reloadButton = page.getByRole('button', { name: 'Reload page' });
+  await expect(reloadButton).toBeVisible();
   expect(shippingChunkAborted).toBe(true);
+
+  // A manual recovery must bypass the automatic reload guard and cached HTML,
+  // then return the customer to the same route with the current chunk map.
+  await page.unroute(/\/assets\/Shipping-[^/]+\.js(?:\?.*)?$/);
+  await reloadButton.click();
+  await expect(page).toHaveURL(/\/shipping\?[^#]*_botf_refresh=\d+/);
+  await expect(page.getByRole('heading', { name: 'This page needs a quick refresh' })).toHaveCount(0);
 });

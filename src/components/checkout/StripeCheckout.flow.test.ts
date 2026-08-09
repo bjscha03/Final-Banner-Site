@@ -10,6 +10,10 @@ const stateSource = readFileSync(
   fileURLToPath(new URL('./stripeCheckoutState.ts', import.meta.url)),
   'utf8',
 );
+const paymentOptionsSource = readFileSync(
+  fileURLToPath(new URL('./stripePaymentElementOptions.ts', import.meta.url)),
+  'utf8',
+);
 
 describe('Stripe ConfirmationToken client flow', () => {
   it('lets the server confirm the PaymentIntent and only handles required customer action', () => {
@@ -87,6 +91,12 @@ describe('Stripe ConfirmationToken client flow', () => {
     expect(source).toContain('shippingAddressRequired: true');
     expect(source.match(/shippingRates: getStripeExpressShippingRates\(\)/g)).toHaveLength(3);
     expect(source).toContain('onShippingAddressChange=');
+  });
+
+  it('uses the current Stripe Payment Element layout contract', () => {
+    expect(source).toContain('options={stripeCardPaymentElementOptions}');
+    expect(paymentOptionsSource).toContain("radios: 'never'");
+    expect(paymentOptionsSource).not.toContain('radios: false');
   });
 
   it('stops before payment creation when a wallet omits its phone and focuses a safe fallback', () => {
