@@ -91,6 +91,7 @@ test('PayPal pending orders use the same registry repricer before persistence', 
 test('Stripe UI uses deferred Elements with one Express wallet surface and one card surface', () => {
   const packageJson = JSON.parse(read('package.json'));
   const stripeCheckout = read('src/components/checkout/StripeCheckout.tsx');
+  const paymentElementOptions = read('src/components/checkout/stripePaymentElementOptions.ts');
 
   assert.ok(packageJson.dependencies?.['@stripe/stripe-js']);
   assert.ok(packageJson.dependencies?.['@stripe/react-stripe-js']);
@@ -104,8 +105,11 @@ test('Stripe UI uses deferred Elements with one Express wallet surface and one c
   assert.match(stripeCheckout, /stripe\.handleNextAction\s*\(/);
   assert.doesNotMatch(stripeCheckout, /stripe\.confirmPayment\s*\(/);
   assert.match(stripeCheckout, /onAvailablePaymentMethodsChange/);
-  assert.match(stripeCheckout, /applePay:\s*['"]never['"]/);
-  assert.match(stripeCheckout, /googlePay:\s*['"]never['"]/);
+  assert.match(stripeCheckout, /stripeCardPaymentElementOptions/);
+  assert.match(paymentElementOptions, /radios:\s*['"]never['"]/);
+  assert.doesNotMatch(paymentElementOptions, /radios:\s*(?:false|true)/);
+  assert.match(paymentElementOptions, /applePay:\s*['"]never['"]/);
+  assert.match(paymentElementOptions, /googlePay:\s*['"]never['"]/);
   assert.doesNotMatch(stripeCheckout, /trackPurchase|attemptPurchaseTracking|purchase\s*\(/);
 });
 
