@@ -157,6 +157,24 @@ test('status recovery refuses a wrong checkout key before calling Stripe', async
   assert.equal(retrieveCalls, 0);
 });
 
+test('key-only status recovery reports not_started without a browser-console 404', async () => {
+  let retrieveCalls = 0;
+  statusModule._test.setNeonFactory(() => async () => []);
+  statusModule._test.setStripeFactory(() => ({
+    paymentIntents: { async retrieve() { retrieveCalls += 1; return makeIntent('processing'); } },
+  }));
+  const response = await statusModule._test.handler(post({
+    checkoutKey: 'missing_checkout_key_12345678901234567890',
+  }));
+  const payload = JSON.parse(response.body);
+  assert.equal(response.statusCode, 200);
+  assert.equal(payload.ok, true);
+  assert.equal(payload.status, 'not_started');
+  assert.equal(payload.safeToRetry, true);
+  assert.equal(payload.activePayment, false);
+  assert.equal(retrieveCalls, 0);
+});
+
 test('status fails closed without enabling another charge when provider binding is inconsistent', async () => {
   const order = makeOrder();
   const db = fakeSql(order);

@@ -1105,7 +1105,10 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
                   buttonTheme: { applePay: 'black', googlePay: 'black' },
                   buttonType: { applePay: 'buy', googlePay: 'buy' },
                   emailRequired: true,
-                  layout: { maxColumns: 2, maxRows: 1, overflow: 'never' },
+                  // Stripe requires `overflow: "auto"` when maxRows is non-zero.
+                  // Keep both eligible wallet buttons on one row while allowing
+                  // Stripe to manage constrained widths without failing to mount.
+                  layout: { maxColumns: 2, maxRows: 1, overflow: 'auto' },
                   paymentMethodOrder: ['apple_pay', 'google_pay'],
                   paymentMethods: {
                     applePay: 'always',

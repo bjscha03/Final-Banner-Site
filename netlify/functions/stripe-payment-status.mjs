@@ -54,6 +54,22 @@ const handler = async (event) => {
     let order = await checkoutModule.loadStripeOrder(sql, requestedOrderId
       ? { orderId: requestedOrderId, checkoutKey }
       : { checkoutKey });
+    if (!order && !requestedOrderId && !requestedPaymentIntentId) {
+      // A key-only recovery check is expected before the first durable payment
+      // write when a browser is restoring local checkout state. Return a clean
+      // non-error response so the browser can perform its bounded absence check
+      // without emitting a misleading 404 in DevTools. Do not reveal whether a
+      // different checkout key or order exists.
+      return reply(200, {
+        ok: true,
+        paid: false,
+        finalized: false,
+        activePayment: false,
+        safeToRetry: true,
+        status: 'not_started',
+        message: 'No payment was completed. Review the order and try again.',
+      });
+    }
     if (!order
         || (requestedPaymentIntentId && order.stripe_payment_intent_id !== requestedPaymentIntentId)) {
       return reply(404, { ok: false, error: 'PAYMENT_NOT_FOUND' });
