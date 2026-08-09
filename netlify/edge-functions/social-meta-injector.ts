@@ -13,6 +13,11 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "nonprofit-fundraiser-banners": {
+    title: "Fundraiser Banner Ideas: Sponsorship, Wayfinding & Event Signage",
+    description: "Explore fundraiser banner ideas for registration, sponsors, donations, wayfinding, finish lines, and photo areas, with practical planning and design tips.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/nonprofit-fundraiser-banners.webp"
+  },
   "restaurant-banners-menu-boards": {
     title: "Restaurant Banner Ideas: Menu Boards, Specials & Outdoor Signage",
     description: "Explore restaurant banner ideas for menus, specials, patios, food trucks, and events, with practical advice on messaging, design, placement, and mounting.",

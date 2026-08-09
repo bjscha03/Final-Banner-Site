@@ -87,6 +87,12 @@
 
   <!-- Blog Posts (published) -->
   <url>
+    <loc>https://bannersonthefly.com/blog/nonprofit-fundraiser-banners</loc>
+    <lastmod>2026-08-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://bannersonthefly.com/blog/restaurant-banners-menu-boards</loc>
     <lastmod>2026-08-08</lastmod>
     <changefreq>monthly</changefreq>
