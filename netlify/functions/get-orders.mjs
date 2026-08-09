@@ -3,12 +3,14 @@ import { withLambda } from '@netlify/aws-lambda-compat';
 import legacyModule from './_shared/legacy/get-orders.cjs';
 import visibilityModule from './_shared/admin-order-visibility.cjs';
 import paypalCaptureModule from './_shared/legacy/paypal-capture-forward.cjs';
+import paypalRuntimeModule from './_shared/paypal-runtime-config.cjs';
 import checkoutModule from './_shared/stripe-checkout-service.cjs';
 
 const {
   hasCompletedPayPalPaymentEvidence,
   isAdminVisiblePaidOrder,
 } = visibilityModule;
+const { deploymentContext } = paypalRuntimeModule;
 
 const PAGE_SIZE = 20;
 const MAX_ADMIN_SCAN_PAGES = 5000;
@@ -30,6 +32,10 @@ const fetchLegacyOrdersPage = (event, context, page) => legacyModule.handler({
     page: String(page),
   },
 }, context);
+
+const isAdminVisiblePaidOrderForEvent = (order, event = {}) => (
+  isAdminVisiblePaidOrder(order, { context: deploymentContext(event) })
+);
 
 async function reconcilePendingPayPalOrders(sql, orders, paymentById, event = {}) {
   const candidates = orders
@@ -240,7 +246,7 @@ async function loadAdminPaidPage(event, context, sql, requestedPage) {
     }
 
     for (const order of enrichedOrders) {
-      if (!isAdminVisiblePaidOrder(order)) continue;
+      if (!isAdminVisiblePaidOrderForEvent(order, event)) continue;
       const orderId = String(order?.id || '').trim();
       if (!orderId || seenOrderIds.has(orderId)) continue;
       seenOrderIds.add(orderId);
@@ -289,5 +295,9 @@ const handler = async (event, context) => {
   return response;
 };
 
-export const _test = { parseOrders, reconcilePendingPayPalOrders };
+export const _test = {
+  isAdminVisiblePaidOrderForEvent,
+  parseOrders,
+  reconcilePendingPayPalOrders,
+};
 export default withLambda(handler);
