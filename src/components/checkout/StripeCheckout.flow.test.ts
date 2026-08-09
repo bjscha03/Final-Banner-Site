@@ -69,6 +69,8 @@ describe('Stripe ConfirmationToken client flow', () => {
     expect(source).toContain('recoveryDetails.providerCode || recoveryDetails.stripeCode');
     expect(source).toContain('userMessage: message');
     expect(source).toContain('checkoutErrorRef.current?.scrollIntoView');
+    expect(source).toContain("code === 'test_mode_live_card'");
+    expect(source).toContain('Use test card 4242 4242 4242 4242');
   });
 
   it('recovers requires_action behind an explicit resumable customer action', () => {

@@ -125,6 +125,9 @@ const humanizeStripeError = (error: any): string => {
   if (code === 'insufficient_funds') {
     return 'This card has insufficient funds. Try another payment method.';
   }
+  if (code === 'test_mode_live_card') {
+    return 'This is a Stripe test checkout. Use test card 4242 4242 4242 4242, any future expiration date, and any CVC. No charge was made.';
+  }
   if (code === 'expired_card') return 'This card has expired. Check the date or try another card.';
   if (code === 'incorrect_cvc') return 'The card security code is incorrect. Check it and try again.';
   if (code === 'processing_error') return 'The payment network could not process this card. Please try again.';
@@ -154,6 +157,7 @@ const isDefinitivePaymentFailure = (error: any): boolean => {
       'expired_card',
       'incorrect_cvc',
       'insufficient_funds',
+      'test_mode_live_card',
       'payment_intent_authentication_failure',
       'payment_intent_unexpected_state',
     ].includes(code);

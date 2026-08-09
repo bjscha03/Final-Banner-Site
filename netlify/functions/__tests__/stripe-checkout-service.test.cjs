@@ -608,6 +608,7 @@ test('a declined payment retries on the same bound Intent instead of creating du
   const order = { id: 'order-1', status: 'pending', total_cents: 4242, stripe_payment_intent_id: 'pi_old' };
   let createCalls = 0;
   let confirmCalls = 0;
+  let updateCalls = 0;
   const stripe = {
     paymentIntents: {
       async retrieve() {
@@ -631,6 +632,16 @@ test('a declined payment retries on the same bound Intent instead of creating du
           },
         };
       },
+      async update(id, params) {
+        updateCalls += 1;
+        assert.equal(id, 'pi_old');
+        assert.equal(params.description, 'Banners On The Fly BOTF-ORDER1');
+        assert.equal(params.metadata.item_summary, 'banner 48x24 13oz Vinyl x1');
+        return {
+          id: 'pi_old', status: 'requires_payment_method', amount: 4242, currency: 'usd',
+          metadata: params.metadata,
+        };
+      },
       async create() { createCalls += 1; return {}; },
     },
   };
@@ -641,9 +652,11 @@ test('a declined payment retries on the same bound Intent instead of creating du
     confirmationTokenId: 'ctoken_new',
     checkoutKey,
     customer: { phone: '5025550100', shipping: {} },
+    items: [{ product_type: 'banner', width_in: 48, height_in: 24, material: '13oz Vinyl', quantity: 1 }],
   });
   assert.equal(retried.id, 'pi_old');
   assert.equal(retried.status, 'requires_action');
   assert.equal(confirmCalls, 1);
+  assert.equal(updateCalls, 1);
   assert.equal(createCalls, 0);
 });
