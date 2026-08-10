@@ -72,6 +72,28 @@ export interface ResolvePromoInput {
   quantity: number;
   /** Raw promo code typed by the user, or null if none. */
   code?: string | null;
+  /**
+   * Promo metadata returned by the server validator. This lets reusable,
+   * database-backed offers (including trade-show codes) render the same live
+   * estimate as checkout without adding every generated code to this bundle.
+   */
+  validatedPromo?: PromoDiscountInput | null;
+}
+
+function matchingValidatedPromo(input: ResolvePromoInput): PromoDiscountInput | null {
+  const requestedCode = String(input.code || '').trim().toUpperCase();
+  const validatedCode = String(input.validatedPromo?.code || '').trim().toUpperCase();
+  if (!requestedCode || validatedCode !== requestedCode) return null;
+
+  const discountPercentage = Number(input.validatedPromo?.discountPercentage || 0);
+  const discountAmountCents = Number(input.validatedPromo?.discountAmountCents || 0);
+  if (discountPercentage <= 0 && discountAmountCents <= 0) return null;
+
+  return {
+    code: validatedCode,
+    ...(discountPercentage > 0 ? { discountPercentage } : {}),
+    ...(discountAmountCents > 0 ? { discountAmountCents } : {}),
+  };
 }
 
 /**
@@ -80,9 +102,8 @@ export interface ResolvePromoInput {
  */
 export function resolvePromo(input: ResolvePromoInput): ResolvedDiscount {
   const promo = getKnownPromo(input.code);
-  const promoDiscount: PromoDiscountInput | null = promo
-    ? { code: promo.code, discountPercentage: promo.discountPercentage }
-    : null;
+  const promoDiscount: PromoDiscountInput | null = matchingValidatedPromo(input)
+    || (promo ? { code: promo.code, discountPercentage: promo.discountPercentage } : null);
 
   return resolveBestDiscount({
     subtotalCents: input.subtotalCents,
