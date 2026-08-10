@@ -45,7 +45,9 @@ describe('trade show email template system', () => {
     expect(email.text).toContain('Banners On The Fly is not affiliated with or endorsed by Rocky Mountain Apparel, Gift & Resort Show or its organizer.');
     expect(email.html).toContain(unsubscribeUrl.replace(/&/g, '&amp;'));
     expect(email.text).toContain(`Unsubscribe from trade-show promotional emails: ${unsubscribeUrl}`);
-    expect(email.planningUrl).toBe('https://bannersonthefly.com/trade-shows/rocky-mountain-apparel-show');
+    expect(email.planningUrl).toBe('https://bannersonthefly.com/design');
+    expect(email.html).toContain('Start Designing Your Banner');
+    expect(email.text).toContain('Start designing your banner: https://bannersonthefly.com/design');
     for (const unsupported of ['yard signs', 'tablecloths', 'retractable displays', 'booth displays']) {
       expect(email.text.toLowerCase()).not.toContain(unsupported);
     }
