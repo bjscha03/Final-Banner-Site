@@ -1,30 +1,26 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   AlertTriangle, Building2, CalendarSearch, CheckCircle2, ChevronLeft, ChevronRight,
-  ExternalLink, Eye, LoaderCircle, Mail, RefreshCw, Send, ShieldCheck, Sparkles, XCircle,
+  ExternalLink, Eye, LoaderCircle, Mail, RefreshCw, Send, ShieldCheck, Sparkles,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 import {
   getOutboundManualReviewLeads,
-  reviewOutboundLead,
   sendOutboundReviewedLead,
   type OutboundManualReviewLead,
   type OutboundManualReviewQueue,
 } from '@/lib/outboundSales';
 
 const PAGE_SIZE = 50;
-const VIEWS = ['pending', 'approved', 'sent', 'rejected', 'all'] as const;
-type View = typeof VIEWS[number];
+const VIEWS = [
+  ['ready', 'Ready to Send'],
+  ['sent', 'Sent'],
+  ['all', 'All'],
+] as const;
+type View = typeof VIEWS[number][0];
 
 function titleCase(value: string | null | undefined) {
   return String(value || 'unknown').replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -39,9 +35,8 @@ function eventBadge(lead: OutboundManualReviewLead) {
 function reviewBadge(lead: OutboundManualReviewLead) {
   if (lead.review.sendState === 'sent') return <Badge className="bg-emerald-700 text-white">Sent</Badge>;
   if (lead.review.sendState === 'processing') return <Badge className="bg-sky-700 text-white">Sending</Badge>;
-  if (lead.review.status === 'approved') return <Badge className="bg-[#18448D] text-white">Approved</Badge>;
-  if (lead.review.status === 'rejected') return <Badge variant="outline" className="border-red-300 bg-red-50 text-red-800">Rejected</Badge>;
-  return <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800">Needs review</Badge>;
+  if (lead.canSend) return <Badge className="bg-[#18448D] text-white">Ready to send</Badge>;
+  return <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800">Needs attention</Badge>;
 }
 
 function Score({ value }: { value: number | null }) {
@@ -53,26 +48,18 @@ function Score({ value }: { value: number | null }) {
 }
 
 function LeadCard({
-  lead, deliveryReady, reviewing, sending, onReview, onSend,
+  lead, deliveryReady, sending, onSend,
 }: {
   lead: OutboundManualReviewLead;
   deliveryReady: boolean;
-  reviewing: boolean;
   sending: boolean;
-  onReview: (lead: OutboundManualReviewLead, status: 'approved' | 'rejected', evidence: string, notes: string, explicitOptIn: boolean) => void;
   onSend: (lead: OutboundManualReviewLead) => void;
 }) {
-  const [explicitOptIn, setExplicitOptIn] = useState(lead.review.permissionStatus === 'explicit_opt_in');
-  const [evidence, setEvidence] = useState(lead.review.permissionEvidence);
-  const [notes, setNotes] = useState(lead.review.notes);
   const [showPreview, setShowPreview] = useState(false);
   const sent = lead.review.sendState === 'sent';
-  const approveReady = explicitOptIn && evidence.trim().length >= 8 && !sent;
   const sendReason = !deliveryReady
     ? 'Resend, sender identity, signing secret, site URL, or physical address still needs configuration.'
-    : lead.review.status !== 'approved'
-      ? 'Approve the lead and record explicit opt-in evidence first.'
-      : lead.technicalBlockers[0] || '';
+    : lead.technicalBlockers[0] || '';
 
   return (
     <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -151,35 +138,14 @@ function LeadCard({
       )}
 
       <div className="grid gap-5 p-5 xl:grid-cols-[1fr_390px]">
-        <section>
-          <h3 className="flex items-center gap-2 font-black text-slate-950"><ShieldCheck className="h-4 w-4 text-emerald-700" /> Manual qualification</h3>
-          <label className="mt-3 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
-            <Checkbox checked={explicitOptIn} onCheckedChange={(value) => setExplicitOptIn(value === true)} disabled={sent} className="mt-0.5" />
-            <span><strong>I confirm this recipient explicitly opted in to marketing email from Banners On The Fly.</strong><span className="mt-1 block text-xs">A public email address or a good sales fit alone is not permission.</span></span>
-          </label>
-          <div className="mt-3 grid gap-3 md:grid-cols-2">
-            <label className="text-sm font-bold text-slate-700">Permission evidence
-              <Textarea value={evidence} onChange={(event) => setEvidence(event.target.value)} disabled={sent} maxLength={1000} placeholder="Example: Contact submitted the trade-show banner form on Aug 10, 2026." className="mt-1 min-h-24" />
-            </label>
-            <label className="text-sm font-bold text-slate-700">Review notes
-              <Textarea value={notes} onChange={(event) => setNotes(event.target.value)} disabled={sent} maxLength={1000} placeholder="Why this company is a strong fit, event timing, or rejection reason." className="mt-1 min-h-24" />
-            </label>
-          </div>
-          {!sent && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button type="button" onClick={() => onReview(lead, 'approved', evidence, notes, explicitOptIn)} disabled={!approveReady || reviewing} className="bg-emerald-700 text-white hover:bg-emerald-800">
-                {reviewing ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />} Approve
-              </Button>
-              <Button type="button" variant="outline" onClick={() => onReview(lead, 'rejected', '', notes, false)} disabled={reviewing} className="border-red-300 text-red-800 hover:bg-red-50">
-                <XCircle className="mr-2 h-4 w-4" /> Reject
-              </Button>
-            </div>
-          )}
+        <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <h3 className="flex items-center gap-2 font-black text-slate-950"><ShieldCheck className="h-4 w-4 text-emerald-700" /> Automatic send checks</h3>
+          <p className="mt-2 text-sm leading-6 text-slate-600">When you click Send, the system verifies the email domain and rechecks prior customers, previous sends, suppressions, email quality, and the daily limit before contacting anyone.</p>
         </section>
 
         <aside className={cn('rounded-xl border p-4', lead.canSend && deliveryReady ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-slate-50')}>
-          <h3 className="font-black text-slate-950">One-at-a-time send</h3>
-          <p className="mt-1 text-sm text-slate-600">Approval never sends automatically. The final click rechecks permission, suppressions, contact quality, prior sends, and today’s 70-attempt cap.</p>
+          <h3 className="font-black text-slate-950">Send this email</h3>
+          <p className="mt-1 text-sm text-slate-600">One click sends the branded email to this contact. The opt-out link and one-click unsubscribe header are added automatically.</p>
           {lead.technicalBlockers.length > 0 && (
             <ul className="mt-3 space-y-1 text-xs font-semibold text-amber-900">
               {lead.technicalBlockers.map((blocker) => <li key={blocker}><AlertTriangle className="mr-1 inline h-3 w-3" /> {blocker}</li>)}
@@ -188,25 +154,9 @@ function LeadCard({
           {lead.review.sendState === 'sent' ? (
             <div className="mt-4 rounded-lg bg-white p-3 text-sm font-bold text-emerald-800"><CheckCircle2 className="mr-2 inline h-4 w-4" /> Sent {lead.review.sentAt ? new Date(lead.review.sentAt).toLocaleString() : ''}</div>
           ) : (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button type="button" disabled={!lead.canSend || !deliveryReady || sending} title={sendReason} className="mt-4 w-full bg-[#ff6b35] text-white hover:bg-[#e85a28]">
-                  {sending ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />} {sending ? 'Sending…' : 'Send'}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Send this marketing email now?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    One branded email will be sent to {lead.contact?.email} for {lead.businessName}. This cannot be recalled. The opt-out link and one-click unsubscribe header will be included automatically.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => onSend(lead)} className="bg-[#ff6b35] text-white hover:bg-[#e85a28]">Send email</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <Button type="button" onClick={() => onSend(lead)} disabled={!lead.canSend || !deliveryReady || sending} title={sendReason} className="mt-4 w-full bg-[#ff6b35] text-white hover:bg-[#e85a28]">
+              {sending ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />} {sending ? 'Sending…' : 'Send'}
+            </Button>
           )}
           {sendReason && !sent && <p className="mt-2 text-xs font-semibold text-slate-500">{sendReason}</p>}
         </aside>
@@ -221,8 +171,7 @@ export default function SalesLeadReview() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [offset, setOffset] = useState(0);
-  const [view, setView] = useState<View>('pending');
-  const [reviewingId, setReviewingId] = useState('');
+  const [view, setView] = useState<View>('ready');
   const [sendingId, setSendingId] = useState('');
 
   const load = useCallback(async () => {
@@ -241,24 +190,7 @@ export default function SalesLeadReview() {
 
   useEffect(() => { void load(); }, [load]);
 
-  const visibleLeads = useMemo(() => (queue?.leads || []).filter((lead) => {
-    if (view === 'all') return true;
-    if (view === 'sent') return lead.review.sendState === 'sent';
-    return lead.review.sendState !== 'sent' && lead.review.status === view;
-  }), [queue, view]);
-
-  const review = async (lead: OutboundManualReviewLead, status: 'approved' | 'rejected', evidence: string, notes: string, explicitOptIn: boolean) => {
-    setReviewingId(lead.prospectId);
-    try {
-      await reviewOutboundLead({ prospectId: lead.prospectId, reviewStatus: status, explicitOptIn, permissionEvidence: evidence, notes });
-      toast({ title: status === 'approved' ? 'Lead approved' : 'Lead rejected', description: `${lead.businessName} was updated. Nothing was sent.` });
-      await load();
-    } catch (requestError) {
-      toast({ variant: 'destructive', title: 'Review not saved', description: requestError instanceof Error ? requestError.message : 'Try again.' });
-    } finally {
-      setReviewingId('');
-    }
-  };
+  const visibleLeads = queue?.leads || [];
 
   const send = async (lead: OutboundManualReviewLead) => {
     setSendingId(lead.prospectId);
@@ -280,7 +212,7 @@ export default function SalesLeadReview() {
           <div>
             <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-orange-300"><Sparkles className="h-4 w-4" /> Event-first prospecting</div>
             <h1 className="mt-2 text-3xl font-black">Lead Review</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-blue-100">High-value companies are ranked with direct trade-show, expo, conference, and upcoming-event evidence first. You verify the source, record explicit marketing permission, approve, then send one email at a time.</p>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-blue-100">High-value companies are ranked with direct trade-show, expo, conference, and upcoming-event evidence first. Review the company and email preview, then click Send.</p>
           </div>
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="rounded-xl bg-white/10 px-4 py-3"><div className="text-2xl font-black">{queue?.total ?? '—'}</div><div className="text-[10px] font-bold uppercase tracking-wide text-blue-100">Leads</div></div>
@@ -291,12 +223,12 @@ export default function SalesLeadReview() {
       </section>
 
       <section className={cn('rounded-xl border p-4 text-sm font-semibold', queue?.deliveryReady ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-amber-200 bg-amber-50 text-amber-950')}>
-        {queue?.deliveryReady ? <><ShieldCheck className="mr-2 inline h-5 w-5" /> Manual Resend delivery is ready. Every send includes a physical address, footer opt-out, one-click unsubscribe, suppression recheck, and idempotency.</> : <><AlertTriangle className="mr-2 inline h-5 w-5" /> Review is available, but Send stays disabled until the Resend key, sender/reply identity, public site URL, unsubscribe signing secret, and physical business address are configured.</>}
+        {queue?.deliveryReady ? <><ShieldCheck className="mr-2 inline h-5 w-5" /> Resend delivery is ready. Every send includes a physical address, footer opt-out, one-click unsubscribe, suppression recheck, and duplicate protection.</> : <><AlertTriangle className="mr-2 inline h-5 w-5" /> Send stays disabled until the Resend key, sender/reply identity, public site URL, unsubscribe signing secret, and physical business address are configured.</>}
       </section>
 
       <section className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-2">
-          {VIEWS.map((option) => <Button key={option} type="button" size="sm" variant={view === option ? 'default' : 'outline'} onClick={() => { setView(option); setOffset(0); }} className={view === option ? 'bg-[#18448D] text-white hover:bg-[#12386f]' : ''}>{titleCase(option)}</Button>)}
+          {VIEWS.map(([option, label]) => <Button key={option} type="button" size="sm" variant={view === option ? 'default' : 'outline'} onClick={() => { setView(option); setOffset(0); }} className={view === option ? 'bg-[#18448D] text-white hover:bg-[#12386f]' : ''}>{label}</Button>)}
         </div>
         <Button type="button" variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={cn('mr-2 h-4 w-4', loading && 'animate-spin')} /> Refresh</Button>
       </section>
@@ -304,10 +236,10 @@ export default function SalesLeadReview() {
       {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 font-semibold text-red-800">{error}</div>}
       {!loading && queue && !queue.schemaReady && <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-amber-950"><AlertTriangle className="mr-2 inline h-5 w-5" /> Apply migration 029 to activate the Lead Review queue.</div>}
       {loading && !queue && <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center text-slate-500"><LoaderCircle className="mx-auto mb-3 h-7 w-7 animate-spin" /> Loading high-value event prospects…</div>}
-      {!loading && queue?.schemaReady && visibleLeads.length === 0 && <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center"><CheckCircle2 className="mx-auto h-8 w-8 text-slate-400" /><h2 className="mt-3 font-black text-slate-900">No leads in this view</h2><p className="mt-1 text-sm text-slate-500">Try another review state or refresh after the next lead import.</p></div>}
+      {!loading && queue?.schemaReady && visibleLeads.length === 0 && <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center"><CheckCircle2 className="mx-auto h-8 w-8 text-slate-400" /><h2 className="mt-3 font-black text-slate-900">No leads in this view</h2><p className="mt-1 text-sm text-slate-500">Try another view or refresh after the next lead import.</p></div>}
 
       <div className="space-y-5">
-        {visibleLeads.map((lead) => <LeadCard key={lead.prospectId} lead={lead} deliveryReady={queue?.deliveryReady === true} reviewing={reviewingId === lead.prospectId} sending={sendingId === lead.prospectId} onReview={(item, status, evidence, notes, optedIn) => void review(item, status, evidence, notes, optedIn)} onSend={(item) => void send(item)} />)}
+        {visibleLeads.map((lead) => <LeadCard key={lead.prospectId} lead={lead} deliveryReady={queue?.deliveryReady === true} sending={sendingId === lead.prospectId} onSend={(item) => void send(item)} />)}
       </div>
 
       {queue && queue.total > PAGE_SIZE && (
