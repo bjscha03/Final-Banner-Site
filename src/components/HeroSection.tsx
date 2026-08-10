@@ -13,10 +13,6 @@ const HeroSection: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const heroDescription = isSeasonal
-    ? 'Custom vinyl banners produced in 24 hours, followed by free next-day air.'
-    : campaign.description;
-
   const heroHeadline = isSeasonal ? (
     <>
       <span className="block sm:inline">Make the first day</span>{' '}
@@ -41,7 +37,7 @@ const HeroSection: React.FC = () => {
             width="1127"
             height="657"
             loading="eager"
-            decoding="async"
+            decoding="sync"
             fetchPriority="high"
             className="h-full w-full object-cover object-[58%_center] sm:object-[58%_center]"
           />
@@ -60,9 +56,11 @@ const HeroSection: React.FC = () => {
           <h1 className="homepage-condensed mt-4 max-w-[430px] [--homepage-mobile-size:clamp(3rem,12vw,3.6rem)] text-[3.6rem] font-black uppercase leading-[0.84] tracking-[-0.02em] text-[#061A31] sm:max-w-[700px] sm:text-[5rem] lg:text-[6.7rem] xl:text-[7.1rem]">
             {heroHeadline}
           </h1>
-          <p className="mt-4 max-w-[410px] text-base font-medium leading-6 text-[#102a43] sm:max-w-xl sm:text-lg sm:leading-7 lg:text-xl">
-            {heroDescription}
-          </p>
+          {!isSeasonal && (
+            <p className="mt-4 max-w-[410px] text-base font-medium leading-6 text-[#102a43] sm:max-w-xl sm:text-lg sm:leading-7 lg:text-xl">
+              {campaign.description}
+            </p>
+          )}
 
           <div className="mt-5 flex flex-col items-start gap-3 sm:mt-6 sm:flex-row sm:items-center sm:gap-7">
             <button

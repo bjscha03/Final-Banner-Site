@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 
 const CompanySpotlight: React.FC = () => (
   <section className="bg-[#061A31] text-white" aria-labelledby="spotlight-heading">
-    <article className="mx-auto grid max-w-[1500px] overflow-hidden lg:grid-cols-[1fr_1.08fr]">
+    <article className="grid w-full overflow-hidden lg:grid-cols-[1fr_1.08fr]">
       <div className="relative min-h-[430px] bg-[#0a294a] sm:min-h-[520px] lg:min-h-[610px]">
         <img
           src="https://res.cloudinary.com/dtrxl120u/image/upload/f_auto,q_auto,w_1100/v1759799151/dan-oliver_1200xx3163-3170-1048-0_zgphzw.jpg"

@@ -14,6 +14,31 @@
     <link rel="preconnect" href="https://res.cloudinary.com" crossorigin>
     <link rel="dns-prefetch" href="https://res.cloudinary.com">
 
+    <!-- Discover route-specific hero art before the React bundle executes. -->
+    <script>
+      (() => {
+        const preload = document.createElement('link');
+        preload.rel = 'preload';
+        preload.as = 'image';
+        preload.type = 'image/avif';
+        preload.fetchPriority = 'high';
+
+        if (window.location.pathname === '/') {
+          preload.href = window.matchMedia('(max-width: 639px)').matches
+            ? '/images/homepage/school-hero-mobile.avif'
+            : '/images/homepage/school-hero-desktop.avif';
+        } else if (window.location.pathname === '/google-ads-banner') {
+          preload.href = '/images/google-ads/banner-collage-1040.avif';
+          preload.imageSrcset = '/images/google-ads/banner-collage-520.avif 520w, /images/google-ads/banner-collage-800.avif 800w, /images/google-ads/banner-collage-1040.avif 1040w';
+          preload.imageSizes = '(min-width: 1280px) 57vw, 100vw';
+        } else {
+          return;
+        }
+
+        document.head.appendChild(preload);
+      })();
+    </script>
+
     <!-- Critical CSS - inline for immediate rendering -->
     <style>
       /* Critical above-the-fold styles */
