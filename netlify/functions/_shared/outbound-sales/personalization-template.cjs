@@ -1,8 +1,15 @@
 'use strict';
 
-const BRAND_LOGO_URL = 'https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto,w_300/https://bannersonthefly.com/cld-assets/images/logo-compact.svg';
+const SITE_URL = 'https://bannersonthefly.com';
+const DESIGN_URL = `${SITE_URL}/design?utm_source=email&utm_medium=marketing&utm_campaign=company_intro_new20`;
+const BRAND_LOGO_URL = `${SITE_URL}/images/header-logo.png`;
+const HERO_IMAGE_URL = 'https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto,w_1280/https://bannersonthefly.com/images/product-heroes/vinyl-banners-1100.webp';
 const BRAND_ORANGE = '#ff6b35';
+const BRAND_ORANGE_DARK = '#d94f16';
 const BRAND_NAVY = '#18448D';
+const BRAND_NAVY_DARK = '#0b2344';
+const FIRST_ORDER_PROMO_CODE = 'NEW20';
+const SIGNATURE = 'Best,\nBrandon\nBanners On The Fly';
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -13,35 +20,95 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+function splitBodyAndSignature(bodyText) {
+  const normalized = String(bodyText || '').trim();
+  if (!normalized.endsWith(SIGNATURE)) return { message: normalized, signature: '' };
+  return {
+    message: normalized.slice(0, -SIGNATURE.length).trim(),
+    signature: SIGNATURE,
+  };
+}
+
 function paragraphs(bodyText) {
   return String(bodyText || '').split(/\n{2,}/).map((paragraph) => {
     const lines = paragraph.split(/\n/).map(escapeHtml).join('<br>');
-    return `<p style="margin:0 0 16px;color:#334155;font-size:15px;line-height:1.65;">${lines}</p>`;
+    return `<p style="margin:0 0 17px;color:#334155;font-size:16px;line-height:1.68;">${lines}</p>`;
   }).join('');
+}
+
+function signatureBlock(signature) {
+  if (!signature) return '';
+  const lines = String(signature).split(/\n/).map(escapeHtml);
+  return `<p style="margin:24px 0 0;color:#334155;font-size:15px;line-height:1.6;">${lines[0] || ''}<br><strong style="color:${BRAND_NAVY_DARK};">${lines[1] || ''}</strong><br>${lines[2] || ''}</p>`;
 }
 
 function complianceFooter({ physicalAddress, unsubscribeUrl } = {}) {
   if (!physicalAddress || !unsubscribeUrl) return '';
-  return `<p style="margin:8px 0 0;color:#64748b;font-size:11px;line-height:1.5;">${escapeHtml(physicalAddress)}<br><a href="${escapeHtml(unsubscribeUrl)}" style="color:${BRAND_NAVY};">Unsubscribe from future sales emails</a></p>`;
+  return `<p style="margin:13px 0 0;color:#718096;font-size:11px;line-height:1.65;">${escapeHtml(physicalAddress)}<br><a href="${escapeHtml(unsubscribeUrl)}" style="color:${BRAND_NAVY};text-decoration:underline;">Unsubscribe from future marketing emails</a></p>`;
 }
 
 function renderOutboundEmailPreview({ subject, bodyText, physicalAddress, unsubscribeUrl }) {
+  const { message, signature } = splitBodyAndSignature(bodyText);
+  const safeSubject = escapeHtml(subject);
+
   return `<!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(subject)}</title></head>
-<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif;color:#1e293b;">
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="padding:20px 0;background:#f1f5f9;">
-    <tr><td align="center">
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="620" style="width:100%;max-width:620px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 16px rgba(15,23,42,0.12);">
-        <tr><td style="padding:20px 24px 12px;text-align:center;background:#ffffff;">
-          <img src="${BRAND_LOGO_URL}" alt="Banners On The Fly" width="200" style="display:block;margin:0 auto;max-width:100%;height:auto;">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="x-apple-disable-message-reformatting"><title>${safeSubject}</title></head>
+<body style="margin:0;padding:0;background:#edf2f7;font-family:Arial,Helvetica,sans-serif;color:#1e293b;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">Premium custom banners, fast production, free Next-Day Air shipping, and 20% off your first order with ${FIRST_ORDER_PROMO_CODE}.</div>
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="width:100%;background:#edf2f7;">
+    <tr><td align="center" style="padding:24px 10px;">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="640" style="width:100%;max-width:640px;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(11,35,68,.14);">
+        <tr><td style="height:7px;background:${BRAND_ORANGE};font-size:0;line-height:0;">&nbsp;</td></tr>
+        <tr><td align="center" style="padding:22px 30px;background:#ffffff;">
+          <a href="${SITE_URL}" style="text-decoration:none;"><img src="${BRAND_LOGO_URL}" alt="Banners On The Fly" width="240" style="display:block;width:240px;max-width:100%;height:auto;margin:0 auto;border:0;"></a>
         </td></tr>
-        <tr><td bgcolor="${BRAND_ORANGE}" style="padding:14px 24px;background:${BRAND_ORANGE};background:linear-gradient(135deg,${BRAND_ORANGE} 0%,${BRAND_NAVY} 100%);color:#ffffff;text-align:center;">
-          <p style="margin:0;color:#ffffff;font-size:12px;letter-spacing:.7px;text-transform:uppercase;font-weight:700;">Banners On The Fly</p>
+        <tr><td style="padding:0;background:${BRAND_NAVY_DARK};">
+          <img src="${HERO_IMAGE_URL}" alt="A professionally printed grand opening vinyl banner installed outside a business" width="640" style="display:block;width:100%;max-width:640px;height:auto;border:0;">
         </td></tr>
-        <tr><td style="padding:24px;">${paragraphs(bodyText)}</td></tr>
-        <tr><td style="padding:18px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;text-align:center;">
-          <p style="margin:0;color:#64748b;font-size:12px;line-height:1.5;">Banners On The Fly · Professional banners, signs, and printed displays</p>
+        <tr><td style="padding:30px 34px 28px;background:${BRAND_NAVY_DARK};text-align:center;">
+          <p style="margin:0 0 10px;color:#ffb08c;font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;">Professional custom printing for businesses</p>
+          <h1 style="margin:0;color:#ffffff;font-size:30px;line-height:1.2;font-weight:900;">Big visibility. Fast turnaround.</h1>
+          <p style="margin:12px auto 0;max-width:510px;color:#dbe7f6;font-size:16px;line-height:1.55;">Premium banners, signs, and magnets made to help your next promotion, opening, event, or everyday message stand out.</p>
+        </td></tr>
+        <tr><td style="padding:32px 34px 12px;background:#ffffff;">
+          ${paragraphs(message)}
+        </td></tr>
+        <tr><td style="padding:8px 34px 26px;background:#ffffff;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border:1px solid #dbe5f1;border-radius:14px;background:#f8fbff;">
+            <tr><td style="padding:18px 20px 8px;color:${BRAND_NAVY};font-size:12px;font-weight:900;letter-spacing:1px;text-transform:uppercase;">Why businesses order from us</td></tr>
+            <tr><td style="padding:0 20px 18px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                <tr><td width="30" valign="top" style="padding:7px 0;color:${BRAND_ORANGE};font-size:18px;font-weight:900;">✓</td><td style="padding:7px 0;color:#26364d;font-size:15px;line-height:1.45;"><strong>Most standard orders produced in 24 hours</strong></td></tr>
+                <tr><td width="30" valign="top" style="padding:7px 0;color:${BRAND_ORANGE};font-size:18px;font-weight:900;">✓</td><td style="padding:7px 0;color:#26364d;font-size:15px;line-height:1.45;"><strong>Free Next-Day Air shipping after production</strong></td></tr>
+                <tr><td width="30" valign="top" style="padding:7px 0;color:${BRAND_ORANGE};font-size:18px;font-weight:900;">✓</td><td style="padding:7px 0;color:#26364d;font-size:15px;line-height:1.45;"><strong>Premium vinyl, mesh, yard signs, and car magnets</strong></td></tr>
+              </table>
+            </td></tr>
+          </table>
+        </td></tr>
+        <tr><td style="padding:0 34px 28px;background:#ffffff;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border:2px dashed ${BRAND_ORANGE};border-radius:14px;background:#fff7f2;">
+            <tr><td align="center" style="padding:21px 20px;">
+              <p style="margin:0;color:${BRAND_ORANGE_DARK};font-size:12px;font-weight:900;letter-spacing:1.1px;text-transform:uppercase;">Your first order offer</p>
+              <p style="margin:6px 0 0;color:${BRAND_NAVY_DARK};font-size:27px;line-height:1.2;font-weight:900;">Save 20% with code <span style="color:${BRAND_ORANGE_DARK};white-space:nowrap;">${FIRST_ORDER_PROMO_CODE}</span></p>
+            </td></tr>
+          </table>
+        </td></tr>
+        <tr><td align="center" style="padding:0 34px 10px;background:#ffffff;">
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center">
+            <tr><td bgcolor="${BRAND_ORANGE}" style="border-radius:10px;box-shadow:0 5px 12px rgba(217,79,22,.24);">
+              <a href="${DESIGN_URL}" style="display:inline-block;padding:16px 28px;color:#ffffff;text-decoration:none;font-size:16px;line-height:1;font-weight:900;">Design &amp; Price Your Banner&nbsp; →</a>
+            </td></tr>
+          </table>
+        </td></tr>
+        <tr><td style="padding:8px 34px 31px;background:#ffffff;">
+          ${signatureBlock(signature)}
+          <p style="margin:22px 0 0;color:#718096;font-size:11px;line-height:1.6;">*Most standard orders are produced within 24 hours. Free Next-Day Air begins after production. Timing may vary based on artwork, order size, weekends, holidays, destination, and carrier conditions. First-order offer is subject to eligibility; promotions do not stack, and the best available discount applies.</p>
+        </td></tr>
+        <tr><td align="center" style="padding:22px 30px;background:#f5f8fc;border-top:1px solid #dbe5f1;">
+          <p style="margin:0;color:#334155;font-size:12px;line-height:1.6;font-weight:800;">Banners On The Fly · Premium custom printing, delivered fast</p>
+          <p style="margin:5px 0 0;color:#64748b;font-size:11px;line-height:1.6;">Vinyl Banners · Mesh Banners · Yard Signs · Car Magnets</p>
+          <p style="margin:8px 0 0;font-size:11px;line-height:1.6;"><a href="${SITE_URL}" style="color:${BRAND_NAVY};font-weight:700;text-decoration:none;">bannersonthefly.com</a></p>
           ${complianceFooter({ physicalAddress, unsubscribeUrl })}
         </td></tr>
       </table>
@@ -52,18 +119,35 @@ function renderOutboundEmailPreview({ subject, bodyText, physicalAddress, unsubs
 }
 
 function renderOutboundDeliveryContent({ subject, bodyText, physicalAddress, unsubscribeUrl }) {
+  const { message, signature } = splitBodyAndSignature(bodyText);
   const complianceText = `\n\n—\nBanners On The Fly\n${String(physicalAddress).trim()}\nUnsubscribe: ${String(unsubscribeUrl).trim()}`;
+  const marketingText = [
+    message,
+    'WHY BUSINESSES ORDER FROM US',
+    '• Most standard orders produced in 24 hours',
+    '• Free Next-Day Air shipping after production',
+    '• Premium vinyl, mesh, yard signs, and car magnets',
+    `FIRST ORDER OFFER: Save 20% with code ${FIRST_ORDER_PROMO_CODE}`,
+    `Design and price your banner: ${DESIGN_URL}`,
+    signature,
+    '*Timing may vary based on artwork, order size, weekends, holidays, destination, and carrier conditions. First-order eligibility applies; promotions do not stack, and the best available discount applies.',
+  ].filter(Boolean).join('\n\n');
   return {
-    text: `${String(bodyText || '').trim()}${complianceText}`,
+    text: `${marketingText}${complianceText}`,
     html: renderOutboundEmailPreview({ subject, bodyText, physicalAddress, unsubscribeUrl }),
   };
 }
 
 module.exports = {
+  SITE_URL,
+  DESIGN_URL,
   BRAND_LOGO_URL,
+  HERO_IMAGE_URL,
   BRAND_ORANGE,
   BRAND_NAVY,
+  FIRST_ORDER_PROMO_CODE,
   escapeHtml,
+  splitBodyAndSignature,
   paragraphs,
   complianceFooter,
   renderOutboundEmailPreview,

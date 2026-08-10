@@ -278,7 +278,11 @@ describe('grounded copy contract and deterministic cost controls', () => {
     const html = renderOutboundEmailPreview({ subject: '<script>alert(1)</script>', bodyText: 'Hi team,\n\nUse <strong>safe</strong> banners.' });
     expect(html).toContain('#ff6b35');
     expect(html).toContain('#18448D');
-    expect(html).toContain('logo-compact.svg');
+    expect(html).toContain('header-logo.png');
+    expect(html).toContain('product-heroes/vinyl-banners-1100.webp');
+    expect(html).toContain('Save 20% with code');
+    expect(html).toContain('NEW20');
+    expect(html).toContain('Design &amp; Price Your Banner');
     expect(html).not.toContain('<script>');
     expect(html).not.toContain('<strong>safe</strong>');
     expect(html).toContain('&lt;strong&gt;safe&lt;/strong&gt;');
@@ -288,8 +292,9 @@ describe('grounded copy contract and deterministic cost controls', () => {
       unsubscribeUrl: 'https://example.test/.netlify/functions/outbound-sales-unsubscribe?token=opaque',
     });
     expect(delivery.text).toContain('100 Example Street');
+    expect(delivery.text).toContain('FIRST ORDER OFFER: Save 20% with code NEW20');
     expect(delivery.text).toContain('Unsubscribe: https://example.test/');
-    expect(delivery.html).toContain('Unsubscribe from future sales emails');
+    expect(delivery.html).toContain('Unsubscribe from future marketing emails');
   });
 });
 
