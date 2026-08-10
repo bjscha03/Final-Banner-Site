@@ -95,6 +95,75 @@ async function sendOutboundMessage(options) {
   return { providerMessageId: result.data.id, latencyMs: Math.max(0, Date.now() - started) };
 }
 
+function assertPermissionedMarketingAllowed(options = {}) {
+  if (options.permissionStatus !== 'explicit_opt_in' || options.permissionAttested !== true) {
+    const error = new Error('Explicit recipient permission is required for this marketing email.');
+    error.code = 'PERMISSIONED_MARKETING_REQUIRED';
+    throw error;
+  }
+}
+
+async function sendPermissionedMarketingMessage(options) {
+  // This is deliberately separate from sendOutboundMessage. The automated
+  // cold-outreach path remains provider-policy locked; this path is available
+  // only after a named admin records evidence of the recipient's explicit
+  // marketing opt-in and then clicks Send for one recipient.
+  assertPermissionedMarketingAllowed(options);
+  const apiKey = String(options.env?.OUTBOUND_PERMISSIONED_RESEND_API_KEY || process.env.OUTBOUND_PERMISSIONED_RESEND_API_KEY || '').trim();
+  if (!apiKey) {
+    const error = new Error('Resend is not configured for permissioned marketing.');
+    error.code = 'MANUAL_MARKETING_NOT_CONFIGURED';
+    throw error;
+  }
+  const unsubscribeUrl = validatedUnsubscribeUrl(
+    options.unsubscribeUrl,
+    options.publicOrigin || options.env?.PUBLIC_SITE_URL || options.env?.URL || process.env.PUBLIC_SITE_URL || process.env.URL,
+  );
+  const transport = options.transport || (() => {
+    const { Resend } = require('resend');
+    return new Resend(apiKey);
+  })();
+  const started = Date.now();
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      const error = new Error('Permissioned marketing delivery timed out.');
+      error.code = 'MANUAL_MARKETING_SEND_FAILED';
+      reject(error);
+    }, Math.max(1000, Math.min(30000, Number(options.timeoutMs) || SEND_TIMEOUT_MS)));
+    if (typeof timer.unref === 'function') timer.unref();
+  });
+  let result;
+  try {
+    const request = Promise.resolve(transport.emails.send({
+      from: options.from,
+      to: options.contact.email,
+      replyTo: options.replyTo,
+      subject: options.message.subject,
+      text: options.message.bodyText,
+      html: options.message.bodyHtml,
+      headers: {
+        'List-Unsubscribe': `<${unsubscribeUrl}>`,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+      },
+      tags: [
+        { name: 'subsystem', value: 'manual_lead_review' },
+        { name: 'message_id', value: options.message.id },
+        { name: 'permission', value: 'explicit_opt_in' },
+      ],
+    }, { idempotencyKey: options.message.sendKey }));
+    result = await Promise.race([request, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+  if (result?.error || !result?.data?.id) {
+    const error = new Error('Resend rejected the permissioned marketing email.');
+    error.code = 'MANUAL_MARKETING_SEND_FAILED';
+    throw error;
+  }
+  return { providerMessageId: result.data.id, latencyMs: Math.max(0, Date.now() - started) };
+}
+
 module.exports = {
   SEND_TIMEOUT_MS,
   MAX_SEND_ATTEMPTS,
@@ -103,5 +172,7 @@ module.exports = {
   validatedUnsubscribeUrl,
   createUnsubscribeToken,
   assertOutboundDeliveryProviderApproved,
+  assertPermissionedMarketingAllowed,
   sendOutboundMessage,
+  sendPermissionedMarketingMessage,
 };

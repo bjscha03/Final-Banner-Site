@@ -263,6 +263,82 @@ export interface OutboundProspectQueue {
   }>;
 }
 
+export interface OutboundManualReviewLead {
+  prospectId: string;
+  businessName: string;
+  websiteUrl: string | null;
+  canonicalDomain: string | null;
+  industry: string | null;
+  businessType: string | null;
+  phone: string | null;
+  leadScore: number | null;
+  prospectStatus: string;
+  sourceProviderId: string;
+  sourceUrl: string | null;
+  scoreExplanation: Array<{ factor?: string; points?: number; label?: string; detail?: string }>;
+  qualificationEvidence: Array<{ code?: string; evidence?: string; sourceUrl?: string }>;
+  eventFit: {
+    priority: 'trade_show' | 'event_signal' | 'general_high_value';
+    label: string;
+    evidence: Array<{ code?: string; label?: string; detail?: string; evidence?: string; sourceUrl?: string; sourceUrls?: string[] }>;
+  };
+  contact: null | {
+    id: string;
+    email: string;
+    fullName: string | null;
+    jobTitle: string | null;
+    sourceUrl: string | null;
+    verificationStatus: string;
+    verificationReason: string | null;
+    syntaxValid: boolean;
+    mxStatus: string;
+    isRoleAddress: boolean;
+    isFreeMailbox: boolean;
+    domainMatches: boolean;
+    contactQualityScore: number;
+  };
+  message: null | {
+    id: string;
+    subject: string | null;
+    bodyText: string | null;
+    bodyHtml: string | null;
+    generationStatus: string;
+    evidenceValidationStatus: string;
+    sentAt: string | null;
+  };
+  review: {
+    status: 'pending' | 'approved' | 'rejected';
+    permissionStatus: 'unknown' | 'explicit_opt_in';
+    permissionEvidence: string;
+    notes: string;
+    reviewedBy: string | null;
+    reviewedAt: string | null;
+    sendState: 'not_sent' | 'processing' | 'sent' | 'failed';
+    sendAttemptCount: number;
+    resendMessageId: string | null;
+    lastSendErrorCode: string | null;
+    sentAt: string | null;
+  };
+  technicalBlockers: string[];
+  canSend: boolean;
+  discoveredAt: string;
+  lastQualifiedAt: string | null;
+}
+
+export interface OutboundManualReviewQueue {
+  ok: true;
+  schemaReady: boolean;
+  deliveryReady: boolean;
+  leads: OutboundManualReviewLead[];
+  total: number;
+  limit: number;
+  offset: number;
+  minimumScore: number;
+  reviewView: 'pending' | 'approved' | 'rejected' | 'sent' | 'all';
+  counts: { pending: number; approved: number; rejected: number; sent: number };
+  today: { attempted: number; sent: number; limit: number };
+}
+
 async function parseResponse<T>(response: Response): Promise<T> {
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -371,6 +447,44 @@ export async function downloadOutboundProspectsCsv(status?: string): Promise<voi
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+}
+
+export async function getOutboundManualReviewLeads(
+  options: { limit?: number; offset?: number; minimumScore?: number; view?: 'pending' | 'approved' | 'rejected' | 'sent' | 'all'; signal?: AbortSignal } = {},
+): Promise<OutboundManualReviewQueue> {
+  const params = new URLSearchParams();
+  if (options.limit) params.set('limit', String(options.limit));
+  if (options.offset) params.set('offset', String(options.offset));
+  if (options.minimumScore) params.set('minimumScore', String(options.minimumScore));
+  if (options.view) params.set('view', options.view);
+  const response = await adminFetch(`/.netlify/functions/outbound-sales-manual-review?${params}`, {
+    method: 'GET', credentials: 'same-origin', headers: { Accept: 'application/json' }, signal: options.signal,
+  });
+  return parseResponse<OutboundManualReviewQueue>(response);
+}
+
+export async function reviewOutboundLead(input: {
+  prospectId: string;
+  reviewStatus: 'approved' | 'rejected';
+  explicitOptIn?: boolean;
+  permissionEvidence?: string;
+  notes?: string;
+}): Promise<void> {
+  const response = await adminFetch('/.netlify/functions/outbound-sales-manual-review', {
+    method: 'PATCH', credentials: 'same-origin',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  await parseResponse(response);
+}
+
+export async function sendOutboundReviewedLead(prospectId: string): Promise<{ ok: true; duplicate: boolean; messageId: string }> {
+  const response = await adminFetch('/.netlify/functions/outbound-sales-manual-review', {
+    method: 'POST', credentials: 'same-origin',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prospectId }),
+  });
+  return parseResponse(response);
 }
 
 export function microusdToDollars(value: number): number {

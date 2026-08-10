@@ -12,7 +12,7 @@
     "test:trade-shows": "vitest run src/lib/tradeShows/__tests__/tradeShows.test.ts",
     "test:trade-show-emails": "vitest run --config vitest.ai.config.ts netlify/functions/__tests__/trade-show-email-templates.test.mjs",
     "test:ai-designer": "vitest run --config vitest.ai.config.ts netlify/functions/__tests__/ai-designer.test.mjs netlify/functions/__tests__/admin-sign-in.test.mjs",
-    "test:outbound-sales": "vitest run --config vitest.ai.config.ts netlify/functions/__tests__/outbound-sales-foundation.test.mjs netlify/functions/__tests__/outbound-sales-discovery.test.mjs netlify/functions/__tests__/outbound-sales-personalization.test.mjs netlify/functions/__tests__/outbound-sales-complete.test.mjs",
+    "test:outbound-sales": "vitest run --config vitest.ai.config.ts netlify/functions/__tests__/outbound-sales-foundation.test.mjs netlify/functions/__tests__/outbound-sales-discovery.test.mjs netlify/functions/__tests__/outbound-sales-personalization.test.mjs netlify/functions/__tests__/outbound-sales-complete.test.mjs netlify/functions/__tests__/outbound-sales-manual-review.test.mjs",
     "test:outbound-sales:database": "node scripts/verify-outbound-sales-migration.cjs --phase3-verify",
     "test:outbound-sales:complete-database": "node scripts/verify-outbound-sales-complete-migrations.cjs --verify",
     "validate:outbound-sales:personalization": "node scripts/validate-outbound-personalization-staging.cjs",

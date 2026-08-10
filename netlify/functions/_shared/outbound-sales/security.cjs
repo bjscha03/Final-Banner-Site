@@ -48,6 +48,11 @@ const PUBLIC_ERROR_CODES = new Set([
   'OUTBOUND_SEND_FAILED',
   'OUTBOUND_DELIVERY_PROVIDER_POLICY_BLOCKED',
   'OUTBOUND_DELIVERY_PROVIDER_UNSUPPORTED',
+  'INVALID_MANUAL_REVIEW',
+  'PERMISSIONED_MARKETING_REQUIRED',
+  'MANUAL_MARKETING_NOT_CONFIGURED',
+  'MANUAL_MARKETING_NOT_ELIGIBLE',
+  'MANUAL_MARKETING_SEND_FAILED',
 ]);
 
 function redactSecretText(value) {
@@ -213,6 +218,11 @@ function safeFailure(error) {
     OUTBOUND_SEND_FAILED: 502,
     OUTBOUND_DELIVERY_PROVIDER_POLICY_BLOCKED: 409,
     OUTBOUND_DELIVERY_PROVIDER_UNSUPPORTED: 503,
+    INVALID_MANUAL_REVIEW: 400,
+    PERMISSIONED_MARKETING_REQUIRED: 409,
+    MANUAL_MARKETING_NOT_CONFIGURED: 503,
+    MANUAL_MARKETING_NOT_ELIGIBLE: 409,
+    MANUAL_MARKETING_SEND_FAILED: 502,
   };
   const statusCode = statusByCode[code] || 500;
   const messages = {
@@ -260,6 +270,11 @@ function safeFailure(error) {
     OUTBOUND_SEND_FAILED: 'The dedicated outbound delivery provider rejected the request.',
     OUTBOUND_DELIVERY_PROVIDER_POLICY_BLOCKED: 'The configured outbound delivery provider is not approved for cold outreach.',
     OUTBOUND_DELIVERY_PROVIDER_UNSUPPORTED: 'A compliant outbound delivery provider is not installed.',
+    INVALID_MANUAL_REVIEW: 'Lead review fields are invalid.',
+    PERMISSIONED_MARKETING_REQUIRED: 'Approval requires recorded evidence that this recipient explicitly opted in to marketing email.',
+    MANUAL_MARKETING_NOT_CONFIGURED: 'Manual marketing delivery is not fully configured.',
+    MANUAL_MARKETING_NOT_ELIGIBLE: 'This lead is not eligible to send. Recheck approval, permission, suppression, contact quality, preview readiness, and the daily limit.',
+    MANUAL_MARKETING_SEND_FAILED: 'Resend could not send this permissioned marketing email.',
   };
   return json(statusCode, {
     ok: false,

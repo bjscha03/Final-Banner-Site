@@ -2,7 +2,18 @@
 
 const crypto = require('node:crypto');
 
+const EVENT_FIRST_INDUSTRY_KEYWORDS = Object.freeze([
+  'trade show organizers',
+  'conference and convention organizers',
+  'exhibition services',
+  'event production companies',
+  'convention centers',
+  'festival organizers',
+  'sports tournament organizers',
+]);
+
 const BASELINE_INDUSTRY_KEYWORDS = Object.freeze([
+  ...EVENT_FIRST_INDUSTRY_KEYWORDS,
   'schools',
   'churches',
   'construction',
@@ -45,11 +56,12 @@ function deterministicUnit(seed) {
 }
 
 function selectProspectingKeywords(strategy, { seed = 'outbound', limit = 3 } = {}) {
-  const source = strategy?.length
+  const safeLimit = Math.max(1, Math.min(5, Number(limit) || 3));
+  const learned = Array.isArray(strategy) && strategy.length > 0;
+  const source = learned
     ? strategy
     : BASELINE_INDUSTRY_KEYWORDS.map((keyword) => ({ keyword, weight: 1, sampleSize: 0, recommendation: 'baseline' }));
-  const safeLimit = Math.max(1, Math.min(5, Number(limit) || 3));
-  return source
+  const ranked = source
     .map((item) => ({
       ...item,
       // Efraimidis–Spirakis weighted sampling without replacement. The hash
@@ -57,11 +69,18 @@ function selectProspectingKeywords(strategy, { seed = 'outbound', limit = 3 } = 
       rank: -Math.log(deterministicUnit(`${seed}|${item.keyword}`)) / Math.max(0.000001, Number(item.weight) || 1),
     }))
     .sort((a, b) => a.rank - b.rank || a.keyword.localeCompare(b.keyword))
-    .slice(0, safeLimit)
     .map((item) => item.keyword);
+  if (learned) return ranked.slice(0, safeLimit);
+  // Until outcome-backed learning has enough sample, reserve one slot per
+  // discovery cycle for companies most likely to have an upcoming exhibitor,
+  // conference, expo, festival, or tournament banner need.
+  const eventIndex = Math.floor(deterministicUnit(`${seed}|event-first`) * EVENT_FIRST_INDUSTRY_KEYWORDS.length);
+  const eventKeyword = EVENT_FIRST_INDUSTRY_KEYWORDS[Math.min(EVENT_FIRST_INDUSTRY_KEYWORDS.length - 1, eventIndex)];
+  return [eventKeyword, ...ranked.filter((keyword) => keyword !== eventKeyword)].slice(0, safeLimit);
 }
 
 module.exports = {
+  EVENT_FIRST_INDUSTRY_KEYWORDS,
   BASELINE_INDUSTRY_KEYWORDS,
   boundedKeyword,
   loadAppliedIndustryStrategy,

@@ -12,6 +12,7 @@ import {
   Settings,
   ShieldAlert,
   ShoppingBag,
+  UserCheck,
 } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,7 @@ import { SalesContext } from './SalesContext';
 const navigation = [
   { to: '/admin/sales', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/admin/sales/prospects', label: 'Prospect Queue', icon: ClipboardList },
+  { to: '/admin/sales/lead-review', label: 'Lead Review', icon: UserCheck },
   { to: '/admin/sales/activity', label: 'Email Activity', icon: Activity },
   { to: '/admin/sales/replies', label: 'Replies', icon: Inbox },
   { to: '/admin/sales/orders', label: 'Orders & Revenue', icon: ShoppingBag },

@@ -19,7 +19,7 @@ function createSql(env = process.env) {
 function isMissingOutboundSchema(error) {
   const message = String(error?.message || '');
   if (error?.code === '42P01' && /outbound_/i.test(message)) return true;
-  const additiveColumn = /research_state|contact_state|qualification_version|exclusion_codes|send_eligible|mx_status|page_manifest|provider_credits|request_key|shadow_generation_enabled|personalization_state|generation_status|prompt_version|research_content_hash|reply_ingestion_enabled|reply_ai_fallback_enabled|suggested_reply_generation_enabled|automation_enabled|delivery_webhook_enabled|sending_window_start_local|sending_window_end_local|minimum_spacing_seconds|maximum_bounce_rate|maximum_complaint_rate|maximum_error_rate|delivery_state|planned_send_at|attribution_enabled|learning_enabled|monitoring_enabled|minimum_learning_sample|exploration_percent/i;
+  const additiveColumn = /research_state|contact_state|qualification_version|exclusion_codes|send_eligible|mx_status|page_manifest|provider_credits|request_key|shadow_generation_enabled|personalization_state|generation_status|prompt_version|research_content_hash|reply_ingestion_enabled|reply_ai_fallback_enabled|suggested_reply_generation_enabled|automation_enabled|delivery_webhook_enabled|sending_window_start_local|sending_window_end_local|minimum_spacing_seconds|maximum_bounce_rate|maximum_complaint_rate|maximum_error_rate|delivery_state|planned_send_at|attribution_enabled|learning_enabled|monitoring_enabled|minimum_learning_sample|exploration_percent|manual_attempted_count|manual_sent_count|permission_status|send_state/i;
   return error?.code === '42703' && additiveColumn.test(message);
 }
 
