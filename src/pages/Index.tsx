@@ -5,12 +5,10 @@ import Layout from '@/components/Layout';
 import HeroSection from '@/components/HeroSection';
 import CompanySpotlight from '@/components/CompanySpotlight';
 import WhyChooseUs from '@/components/WhyChooseUs';
-import PromoBanner from '@/components/PromoBanner';
 import PricingTable from '@/components/PricingTable';
 import DeliveryCarousel from '@/components/home/DeliveryCarousel';
 import ProductSelectionStrip from '@/components/home/ProductSelectionStrip';
 import CustomQuoteSection from '@/components/home/CustomQuoteSection';
-import SeasonalMerchandising from '@/components/seasonal/SeasonalMerchandising';
 import SEO from '@/components/SEO';
 
 const Index: React.FC = () => {
@@ -70,9 +68,7 @@ const Index: React.FC = () => {
         description="Configure custom banners, yard signs, and car magnets online. Most standard orders are produced within 24 hours; free next-day air follows production."
         canonical="https://bannersonthefly.com/"
       />
-      <PromoBanner />
       <HeroSection />
-      <SeasonalMerchandising />
       <ProductSelectionStrip />
       <WhyChooseUs />
       <PricingTable />

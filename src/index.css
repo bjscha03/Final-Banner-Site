@@ -735,6 +735,20 @@
   }
 }
 
+/* Homepage campaign typography mirrors the approved condensed editorial
+   direction without changing headings elsewhere in the ordering experience. */
+.homepage-condensed {
+  font-family: 'Bebas Neue', Impact, 'Arial Narrow', sans-serif;
+  font-stretch: condensed;
+  letter-spacing: -0.012em;
+}
+
+@media (max-width: 768px) {
+  .homepage-condensed {
+    font-size: var(--homepage-mobile-size, 3rem);
+  }
+}
+
 .markdown-editor {
   @apply font-mono text-base leading-relaxed;
 }

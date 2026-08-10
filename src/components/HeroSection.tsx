@@ -1,7 +1,6 @@
 import React from 'react';
-import { ArrowRight, Check, Eye, Sparkles, Truck } from 'lucide-react';
+import { ArrowRight, Monitor, Timer, Truck } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import ProductVisual from '@/components/product/ProductVisual';
 import { EVERGREEN_HERO, getHomepageHeroCampaign } from '@/lib/seasonalCampaigns';
 
 const HeroSection: React.FC = () => {
@@ -14,77 +13,80 @@ const HeroSection: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const heroDescription = isSeasonal
+    ? 'Custom vinyl banners produced in 24 hours, followed by free next-day air.'
+    : campaign.description;
+
   return (
     <section
       data-homepage-hero={campaign.id}
       {...(isSeasonal ? { 'data-seasonal-campaign': campaign.id } : {})}
-      className="relative overflow-hidden border-b border-slate-200 bg-[#F8FAF7] text-[#0B1F3A]"
+      className="relative isolate overflow-hidden bg-[#071C35] text-[#061A31]"
     >
-      <div className="pointer-events-none absolute -left-32 -top-40 h-96 w-96 rounded-full bg-[#FFE8D7]/70 blur-3xl" aria-hidden="true" />
-      <div className="pointer-events-none absolute -right-32 bottom-0 h-80 w-80 rounded-full bg-[#DDEBE6]/70 blur-3xl" aria-hidden="true" />
+      {isSeasonal ? (
+        <picture className="absolute inset-y-0 right-0 z-0 w-full sm:w-[84%] lg:w-[73%]" aria-hidden="true">
+          <source media="(max-width: 639px)" srcSet="/images/homepage/school-hero-mobile.webp" />
+          <img
+            src="/images/homepage/school-hero-desktop.webp"
+            alt=""
+            width="1127"
+            height="657"
+            loading="eager"
+            fetchPriority="high"
+            className="h-full w-full object-cover object-center sm:object-[58%_center]"
+          />
+        </picture>
+      ) : null}
 
-      <div className="brand-shell relative grid min-h-[620px] items-center gap-10 py-12 sm:py-14 lg:grid-cols-[0.9fr_1.1fr] lg:gap-14 lg:py-16">
-        <div className="max-w-3xl">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#A63C00]">{campaign.eyebrow}</p>
-          <h1 className="mt-5 font-display text-4xl font-bold leading-[1.02] tracking-[-0.045em] text-[#0B1F3A] sm:text-5xl lg:text-[4rem]">
+      <div className="absolute inset-0 z-[1] bg-[linear-gradient(90deg,#ff6900_0%,rgba(255,115,0,0.98)_25%,rgba(245,150,0,0.88)_44%,rgba(245,150,0,0.25)_64%,rgba(6,26,49,0.08)_100%)] sm:bg-[linear-gradient(90deg,#ff6900_0%,rgba(255,118,0,0.98)_24%,rgba(247,158,0,0.87)_46%,rgba(247,158,0,0.14)_70%,transparent_100%)]" aria-hidden="true" />
+      <div className="absolute inset-x-0 top-0 z-[1] h-44 bg-gradient-to-b from-[#061A31]/65 to-transparent" aria-hidden="true" />
+      <div className="absolute inset-x-0 bottom-0 z-[1] h-40 bg-gradient-to-t from-[#061A31]/35 to-transparent" aria-hidden="true" />
+
+      <div className="relative z-10 mx-auto flex min-h-[690px] max-w-[1740px] items-center px-5 pb-28 pt-[120px] sm:px-8 sm:pb-32 lg:min-h-[748px] lg:px-10 lg:pb-28 lg:pt-[142px]">
+        <div className="max-w-[680px] xl:max-w-[720px]">
+          <p className="text-xs font-black uppercase tracking-[0.09em] text-[#08213d] sm:text-sm lg:text-base">
+            {campaign.eyebrow}
+          </p>
+          <h1 className="homepage-condensed mt-4 max-w-[700px] [--homepage-mobile-size:3.75rem] text-[3.75rem] font-black uppercase leading-[0.84] tracking-[-0.02em] text-[#061A31] sm:text-[5rem] lg:text-[6.7rem] xl:text-[7.1rem]">
             {campaign.headline}
           </h1>
-          <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600 sm:text-xl">
-            {campaign.description}
+          <p className="mt-4 max-w-xl text-base font-medium leading-6 text-[#102a43] sm:text-lg sm:leading-7 lg:text-xl">
+            {heroDescription}
           </p>
 
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <button type="button" onClick={() => goTo(campaign.primaryCta.href)} className="brand-button-primary gap-2 px-7">
+          <div className="mt-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-7">
+            <button
+              type="button"
+              onClick={() => goTo(campaign.primaryCta.href)}
+              className="inline-flex min-h-12 items-center justify-center gap-3 rounded-md bg-[#071C35] px-7 py-3 text-sm font-extrabold uppercase tracking-[0.01em] text-white transition-colors hover:bg-[#0e3157] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#FF6900] sm:text-base"
+            >
               {campaign.primaryCta.label} <ArrowRight className="h-5 w-5" aria-hidden="true" />
             </button>
-            <Link to={campaign.secondaryCta.href} className="brand-button-secondary px-7">
+            <Link
+              to={campaign.secondaryCta.href}
+              className="inline-flex min-h-11 items-center gap-2 border-b-2 border-[#071C35] text-sm font-black uppercase tracking-[0.01em] text-[#071C35] transition-colors hover:border-white hover:text-white sm:text-base"
+            >
               {campaign.secondaryCta.label}
             </Link>
           </div>
-
-          <ul className="mt-9 grid gap-3 border-t border-slate-300 pt-6 text-sm font-semibold text-slate-700 sm:grid-cols-3" aria-label="Ordering benefits">
-            {campaign.valueProps.map((item, index) => {
-              const Icon = [Truck, Check, Eye][index] ?? Sparkles;
-              return (
-                <li key={item} className="flex items-start gap-2">
-                  <Icon className="mt-0.5 h-5 w-5 flex-none text-[#C94E00]" aria-hidden="true" />
-                  <span>{item}</span>
-                </li>
-              );
-            })}
-          </ul>
         </div>
+      </div>
 
-        <div className="relative mx-auto w-full max-w-2xl lg:max-w-none">
-          {isSeasonal && campaign.artwork ? (
-            <div className="overflow-hidden border border-slate-200 bg-white shadow-[0_24px_65px_rgba(11,31,58,0.14)]">
-              <picture data-seasonal-hero-art>
-                <source media="(max-width: 639px)" srcSet={campaign.artwork.mobileSrc} />
-                <img
-                  src={campaign.artwork.desktopSrc}
-                  alt={campaign.artwork.alt}
-                  width={campaign.artwork.desktopWidth}
-                  height={campaign.artwork.desktopHeight}
-                  loading="eager"
-                  className="aspect-[4/5] h-full w-full object-cover sm:aspect-[16/10]"
-                />
-              </picture>
-            </div>
-          ) : (
-            <div className="overflow-hidden border border-slate-200 bg-white shadow-[0_24px_65px_rgba(11,31,58,0.12)]">
-              <ProductVisual productSlug="vinyl-banners" priority className="aspect-[16/10] bg-white" />
-              <div className="border-t border-slate-200 bg-white text-[#0B1F3A]">
-                <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-end sm:justify-between sm:gap-8 sm:p-5">
-                  <div className="shrink-0">
-                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Starting at</p>
-                    <p className="mt-1 font-display text-xl font-bold">$20</p>
-                  </div>
-                  <p className="max-w-xs text-sm leading-6 text-slate-500 sm:text-right">Includes free next-day air shipping after production</p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+      <div className="absolute inset-x-0 bottom-0 z-20 border-t border-white/15 bg-[#071C35]/78 text-white backdrop-blur-sm">
+        <ul className="mx-auto grid max-w-[1740px] grid-cols-3 divide-x divide-[#FF6900]/80 px-3 py-3 sm:px-8 lg:max-w-[1000px] lg:py-4" aria-label="Ordering benefits">
+          <li className="flex items-center justify-center gap-2 px-2 sm:gap-3 sm:px-5">
+            <Timer className="h-5 w-5 flex-none text-[#FF6900] sm:h-7 sm:w-7" aria-hidden="true" />
+            <span className="text-[9px] font-extrabold uppercase leading-3 sm:text-sm">24-hour production</span>
+          </li>
+          <li className="flex items-center justify-center gap-2 px-2 sm:gap-3 sm:px-5">
+            <Truck className="h-5 w-5 flex-none text-[#FF6900] sm:h-7 sm:w-7" aria-hidden="true" />
+            <span className="text-[9px] font-extrabold uppercase leading-3 sm:text-sm">Free next-day air</span>
+          </li>
+          <li className="flex items-center justify-center gap-2 px-2 sm:gap-3 sm:px-5">
+            <Monitor className="h-5 w-5 flex-none text-[#FF6900] sm:h-7 sm:w-7" aria-hidden="true" />
+            <span className="text-[9px] font-extrabold uppercase leading-3 sm:text-sm">Live print preview</span>
+          </li>
+        </ul>
       </div>
     </section>
   );
