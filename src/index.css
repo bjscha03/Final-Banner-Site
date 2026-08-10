@@ -634,7 +634,7 @@
    accumulated across older pages. */
 @layer components {
   .brand-page {
-    @apply min-h-screen bg-white text-[#0B1F3A];
+    @apply min-h-screen bg-[#FBF8F2] text-[#061A31];
   }
 
   .brand-shell {
@@ -646,11 +646,13 @@
   }
 
   .brand-eyebrow {
-    @apply text-xs font-bold uppercase tracking-[0.2em] text-[#A63C00];
+    @apply text-xs font-black uppercase tracking-[0.2em] text-[#C94008];
   }
 
   .brand-title {
-    @apply font-display text-3xl font-bold leading-[1.08] tracking-[-0.035em] text-[#0B1F3A] sm:text-4xl lg:text-5xl;
+    @apply text-5xl font-black uppercase leading-[0.92] tracking-[-0.015em] text-[#061A31] sm:text-6xl lg:text-7xl;
+    font-family: 'Bebas Neue', Impact, 'Arial Narrow', sans-serif;
+    font-stretch: condensed;
   }
 
   .brand-copy {
@@ -732,6 +734,20 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Homepage campaign typography mirrors the approved condensed editorial
+   direction without changing headings elsewhere in the ordering experience. */
+.homepage-condensed {
+  font-family: 'Bebas Neue', Impact, 'Arial Narrow', sans-serif;
+  font-stretch: condensed;
+  letter-spacing: -0.012em;
+}
+
+@media (max-width: 768px) {
+  .homepage-condensed {
+    font-size: var(--homepage-mobile-size, 3rem);
   }
 }
 

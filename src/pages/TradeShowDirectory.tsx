@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import Breadcrumbs from '@/components/Breadcrumbs';
 import Layout from '@/components/Layout';
+import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
 import SEO from '@/components/SEO';
 import { getConfiguratorUrl } from '@/lib/configurator';
 import { getTradeShowPageContent } from '@/lib/tradeShows/tradeShowContent';
@@ -74,6 +75,7 @@ const TradeShowDirectory: React.FC = () => {
               <span><strong className="font-display text-2xl text-white">75</strong> detailed exhibitor guides</span>
               <span><strong className="font-display text-2xl text-white">22</strong> states + D.C.</span>
             </div>
+            <HeroDeliveryStatus className="mt-7 w-full max-w-[570px]" />
           </div>
         </div>
       </section>

@@ -26,6 +26,7 @@ import PriceBreakdown from '@/components/pricing/PriceBreakdown';
 import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
 import DeliveryTimer from '@/components/delivery/DeliveryTimer';
 import MobileSubtotalBar from '@/components/design/MobileSubtotalBar';
+import DesignPageHero from '@/components/design/DesignPageHero';
 import FileUploader, { type FileUploaderHandle } from '@/components/ui/FileUploader';
 import {
   calcYardSignPricing,
@@ -2725,39 +2726,7 @@ const Design: React.FC = () => {
         <link rel="canonical" href="https://bannersonthefly.com/design" />
       </Helmet>
 
-      {/* Hero */}
-      <section className="relative overflow-hidden border-b border-white/10 bg-[#0B1F3A] px-4 py-12 text-white md:py-16">
-        <div className="relative z-[2] mx-auto max-w-4xl text-center">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF8A3D]">Online order builder</p>
-          <h1 className="mt-4 font-display text-4xl font-bold leading-[1.05] tracking-[-0.04em] text-white sm:text-5xl">
-            Design your {modeContent.heroTitle}
-          </h1>
-
-          {modeContent.heroDescription}
-
-          <div data-mobile-delivery-timer className="mx-auto mt-5 max-w-xl text-left md:hidden">
-            <DeliveryTimer variant="compact" className="shadow-lg" />
-          </div>
-
-          {/* Inline benefit pills */}
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px] text-slate-200">
-            {modeContent.topFeatures.map((b, i) => (
-              <span key={i} className="inline-flex items-center gap-1.5 font-medium">
-                <b.icon className={`h-3.5 w-3.5 ${b.iconClass}`} /> {b.label}
-              </span>
-            ))}
-          </div>
-
-          <div className="mt-7 flex flex-col items-center gap-2">
-            <button
-              onClick={scrollToOrder}
-              className="brand-button-primary w-full gap-2 px-10 text-lg sm:w-auto"
-            >
-              Start Order
-            </button>
-          </div>
-        </div>
-      </section>
+      <DesignPageHero productType={productType} onStart={scrollToOrder} />
 
       <section ref={orderRef} id="order-builder" className="bg-[#F7F7F7] px-4 py-12 sm:py-14">
         <div className="max-w-4xl lg:max-w-7xl mx-auto">

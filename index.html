@@ -14,6 +14,57 @@
     <link rel="preconnect" href="https://res.cloudinary.com" crossorigin>
     <link rel="dns-prefetch" href="https://res.cloudinary.com">
 
+    <!-- Discover route-specific hero art before the React bundle executes. -->
+    <script>
+      (() => {
+        const preload = document.createElement('link');
+        preload.rel = 'preload';
+        preload.as = 'image';
+        preload.type = 'image/avif';
+        preload.fetchPriority = 'high';
+
+        if (window.location.pathname === '/') {
+          preload.href = window.matchMedia('(max-width: 639px)').matches
+            ? '/images/homepage/school-hero-mobile.avif'
+            : '/images/homepage/school-hero-desktop.avif';
+        } else if (window.location.pathname === '/google-ads-banner') {
+          preload.href = '/images/google-ads/banner-collage-1040.avif';
+          preload.imageSrcset = '/images/google-ads/banner-collage-520.avif 520w, /images/google-ads/banner-collage-800.avif 800w, /images/google-ads/banner-collage-1040.avif 1040w';
+          preload.imageSizes = '(min-width: 1280px) 57vw, 100vw';
+        } else if (['/vinyl-banners', '/yard-signs', '/car-magnets'].includes(window.location.pathname)) {
+          const slug = window.location.pathname.slice(1);
+          const mobile = window.matchMedia('(max-width: 1023px)').matches;
+          preload.href = mobile
+            ? `/images/product-heroes/${slug}-mobile-640.avif`
+            : `/images/product-heroes/${slug}-1100.avif`;
+          preload.imageSrcset = mobile
+            ? `/images/product-heroes/${slug}-mobile-640.avif 640w`
+            : `/images/product-heroes/${slug}-720.avif 720w, /images/product-heroes/${slug}-1100.avif 1100w`;
+          preload.imageSizes = mobile ? '100vw' : '61vw';
+        } else if (window.location.pathname === '/design') {
+          const requested = new URLSearchParams(window.location.search).get('product');
+          const slug = requested === 'yard-sign' || requested === 'yard_sign' || requested === 'yard-signs'
+            ? 'yard-signs'
+            : requested === 'car-magnet' || requested === 'car_magnet' || requested === 'car-magnets'
+              ? 'car-magnets'
+              : 'vinyl-banners';
+          const directory = slug === 'vinyl-banners' ? 'design-heroes' : 'product-heroes';
+          const mobile = window.matchMedia('(max-width: 1023px)').matches;
+          preload.href = mobile
+            ? `/images/${directory}/${slug}-mobile-640.avif`
+            : `/images/${directory}/${slug}-1100.avif`;
+          preload.imageSrcset = mobile
+            ? `/images/${directory}/${slug}-mobile-640.avif 640w`
+            : `/images/${directory}/${slug}-720.avif 720w, /images/${directory}/${slug}-1100.avif 1100w`;
+          preload.imageSizes = mobile ? '100vw' : '62vw';
+        } else {
+          return;
+        }
+
+        document.head.appendChild(preload);
+      })();
+    </script>
+
     <!-- Critical CSS - inline for immediate rendering -->
     <style>
       /* Critical above-the-fold styles */
@@ -52,8 +103,8 @@
     <link rel="preload" href="https://fonts.gstatic.com/s/poppins/v22/pxiEyp8kv8JHgFVrJJfecg.woff2" as="font" type="font/woff2" crossorigin>
     
     <!-- Load Poppins font with swap -->
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" media="print" onload="this.media='all'">
-    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap"></noscript>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Poppins:wght@400;600;700&display=swap" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Poppins:wght@400;600;700&display=swap"></noscript>
 
     <!-- Load Inter + JetBrains Mono non-blocking (moved from CSS @import) -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" media="print" onload="this.media='all'">
