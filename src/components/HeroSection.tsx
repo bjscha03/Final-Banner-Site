@@ -2,6 +2,7 @@ import React from 'react';
 import { ArrowRight, Monitor, Timer, Truck } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { EVERGREEN_HERO, getHomepageHeroCampaign } from '@/lib/seasonalCampaigns';
+import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
 
 const HeroSection: React.FC = () => {
   const navigate = useNavigate();
@@ -77,6 +78,7 @@ const HeroSection: React.FC = () => {
               {campaign.secondaryCta.label}
             </Link>
           </div>
+          <HeroDeliveryStatus className="mt-5 w-full max-w-[570px]" />
         </div>
       </div>
 

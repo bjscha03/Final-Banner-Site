@@ -25,6 +25,7 @@ import YardSignPriceSummary from '@/components/design/YardSignPriceSummary';
 import PriceBreakdown from '@/components/pricing/PriceBreakdown';
 import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
 import DeliveryTimer from '@/components/delivery/DeliveryTimer';
+import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
 import MobileSubtotalBar from '@/components/design/MobileSubtotalBar';
 import FileUploader, { type FileUploaderHandle } from '@/components/ui/FileUploader';
 import GrommetOverlay from '@/components/preview/GrommetOverlay';
@@ -190,6 +191,7 @@ const FastBannerAdHero: React.FC<{ onStart: () => void }> = ({ onStart }) => (
             First order<br />Use code NEW20
           </div>
         </div>
+        <HeroDeliveryStatus className="mt-5 w-full max-w-[505px]" />
       </div>
     </div>
 

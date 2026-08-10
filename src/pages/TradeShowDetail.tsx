@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import Breadcrumbs from '@/components/Breadcrumbs';
 import Layout from '@/components/Layout';
+import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
 import SEO from '@/components/SEO';
 import { getConfiguratorUrl } from '@/lib/configurator';
 import { getTradeShowFaqs, getTradeShowPageContent } from '@/lib/tradeShows/tradeShowContent';
@@ -119,6 +120,7 @@ const TradeShowDetail: React.FC = () => {
               </div>
               <h1 className="mt-5 max-w-5xl font-display text-4xl font-bold leading-[1.02] tracking-[-0.05em] sm:text-5xl lg:text-[4.25rem]">{event.name}</h1>
               <p className="mt-6 max-w-3xl text-lg leading-8 text-slate-300">{content.summary}</p>
+              <HeroDeliveryStatus className="mt-7 w-full max-w-[570px]" />
             </div>
 
             <div className="relative bg-white p-6 text-[#0B1F3A] shadow-[12px_12px_0_rgba(255,255,255,0.08)] sm:p-7">

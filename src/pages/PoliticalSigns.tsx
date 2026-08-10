@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { Clock, Truck, ShieldCheck, CheckCircle, ArrowRight } from 'lucide-react';
 import Layout from '@/components/Layout';
+import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
 import ProductVisual from '@/components/product/ProductVisual';
 
 type ProductType = 'banner' | 'yard_sign' | 'car_magnet';
@@ -89,6 +90,7 @@ const PoliticalSigns: React.FC = () => {
                 Order Political Signs <ArrowRight className="h-5 w-5" />
               </button>
             </div>
+            <HeroDeliveryStatus className="mt-6 w-full max-w-[570px]" />
             <ul className="mt-6 grid sm:grid-cols-2 gap-3 text-sm font-medium">
               {[{ icon: Clock, text: 'Most standard orders: 24-hour production' }, { icon: Truck, text: 'Free next-day air after production' }].map(
                 ({ icon: Icon, text }) => (

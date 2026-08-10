@@ -31,6 +31,32 @@
           preload.href = '/images/google-ads/banner-collage-1040.avif';
           preload.imageSrcset = '/images/google-ads/banner-collage-520.avif 520w, /images/google-ads/banner-collage-800.avif 800w, /images/google-ads/banner-collage-1040.avif 1040w';
           preload.imageSizes = '(min-width: 1280px) 57vw, 100vw';
+        } else if (['/vinyl-banners', '/yard-signs', '/car-magnets'].includes(window.location.pathname)) {
+          const slug = window.location.pathname.slice(1);
+          const mobile = window.matchMedia('(max-width: 1023px)').matches;
+          preload.href = mobile
+            ? `/images/product-heroes/${slug}-mobile-640.avif`
+            : `/images/product-heroes/${slug}-1100.avif`;
+          preload.imageSrcset = mobile
+            ? `/images/product-heroes/${slug}-mobile-640.avif 640w`
+            : `/images/product-heroes/${slug}-720.avif 720w, /images/product-heroes/${slug}-1100.avif 1100w`;
+          preload.imageSizes = mobile ? '100vw' : '61vw';
+        } else if (window.location.pathname === '/design') {
+          const requested = new URLSearchParams(window.location.search).get('product');
+          const slug = requested === 'yard-sign' || requested === 'yard_sign' || requested === 'yard-signs'
+            ? 'yard-signs'
+            : requested === 'car-magnet' || requested === 'car_magnet' || requested === 'car-magnets'
+              ? 'car-magnets'
+              : 'vinyl-banners';
+          const directory = slug === 'vinyl-banners' ? 'design-heroes' : 'product-heroes';
+          const mobile = window.matchMedia('(max-width: 1023px)').matches;
+          preload.href = mobile
+            ? `/images/${directory}/${slug}-mobile-640.avif`
+            : `/images/${directory}/${slug}-1100.avif`;
+          preload.imageSrcset = mobile
+            ? `/images/${directory}/${slug}-mobile-640.avif 640w`
+            : `/images/${directory}/${slug}-720.avif 720w, /images/${directory}/${slug}-1100.avif 1100w`;
+          preload.imageSizes = mobile ? '100vw' : '62vw';
         } else {
           return;
         }

@@ -1,9 +1,9 @@
 import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Eye, PackageCheck, Truck } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import Layout from '@/components/Layout';
 import ProductBuyingGuide from '@/components/product/ProductBuyingGuide';
-import ProductVisual from '@/components/product/ProductVisual';
+import ProductPageHero from '@/components/product/ProductPageHero';
 import SEO from '@/components/SEO';
 import { getConfiguratorUrl } from '@/lib/configurator';
 import type { CityProductSlug } from '@/lib/seo/cityData';
@@ -25,7 +25,6 @@ const ProductHubPage: React.FC<ProductHubPageProps> = ({ productSlug }) => {
   const product = getProductLandingDefinition(productSlug)!;
   const canonical = `${SITE_URL}/${product.slug}`;
   const ctaUrl = getConfiguratorUrl(productSlug, `/${product.slug}`, 'product-hub');
-  const pricingLinkLabel = productSlug === 'yard-signs' ? 'See fixed size & pricing' : 'See sizes and pricing';
   const seoTitle = productSlug === 'yard-signs'
     ? `${product.plural} | 24×18 Size, Options & Pricing`
     : `${product.plural} | Sizes, Options & Pricing`;
@@ -57,45 +56,7 @@ const ProductHubPage: React.FC<ProductHubPageProps> = ({ productSlug }) => {
         schema={buildProductHubSchema(product, canonical)}
       />
 
-      <section className="relative overflow-hidden bg-[#0B1F3A] text-white">
-        <div className="brand-shell relative grid items-center gap-10 py-12 sm:py-16 lg:grid-cols-[1.04fr_0.96fr] lg:gap-16 lg:py-20">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF8A3D]">Product specifications & current pricing</p>
-            <h1 className="mt-4 font-display text-4xl font-bold leading-[1.02] tracking-[-0.045em] sm:text-5xl lg:text-6xl">Custom {product.plural}</h1>
-            <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-300">{product.overview}</p>
-
-            <div className="mt-7 flex items-end gap-6 border-l-4 border-[#FF6A00] pl-5">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400">Starting price</p>
-                <p className="mt-1 font-display text-4xl font-bold text-white">{formatMoney(product.startingPriceCents)}</p>
-                <p className="mt-1 max-w-[250px] text-xs leading-5 text-slate-300">Includes free next-day air shipping after production</p>
-              </div>
-              <p className="max-w-sm pb-1 text-sm leading-6 text-slate-300">{product.minimumOrderLabel}. Your total updates before checkout.</p>
-            </div>
-
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link to={ctaUrl} className="brand-button-primary gap-2 px-7">
-                {product.ctaLabel}<ArrowRight className="h-5 w-5" aria-hidden="true" />
-              </Link>
-              <a href="#sizes-pricing" className="brand-button-on-dark px-7">{pricingLinkLabel}</a>
-            </div>
-
-            <ul className="mt-8 grid gap-3 border-t border-white/15 pt-6 text-sm text-slate-200 sm:grid-cols-3">
-              <li className="flex items-center gap-2"><Eye className="h-5 w-5 text-[#FF8A3D]" aria-hidden="true" />Live print preview</li>
-              <li className="flex items-center gap-2"><PackageCheck className="h-5 w-5 text-[#FF8A3D]" aria-hidden="true" />Current options</li>
-              <li className="flex items-center gap-2"><Truck className="h-5 w-5 text-[#FF8A3D]" aria-hidden="true" />Nationwide shipping</li>
-            </ul>
-          </div>
-
-          <div className="relative">
-            <ProductVisual productSlug={productSlug} priority className="aspect-[16/10] border border-white/15 bg-white" />
-            <div className="border-x border-b border-white/15 bg-white px-5 py-4 text-[#0B1F3A]">
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Available online</p>
-              <p className="mt-1 font-display text-lg font-bold">{product.minimumOrderLabel}</p>
-            </div>
-          </div>
-        </div>
-      </section>
+      <ProductPageHero productSlug={productSlug} ctaUrl={ctaUrl} />
 
       <nav className="border-b border-slate-200 bg-[#F7F7F7]" aria-label="Product guides">
         <div className="brand-shell flex gap-7 overflow-x-auto py-4 text-sm font-bold">

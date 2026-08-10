@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { ArrowRight, ChevronDown, Clock3, Eye, MapPin, Truck } from 'lucide-react';
 import Breadcrumbs from '@/components/Breadcrumbs';
 import Layout from '@/components/Layout';
+import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
 import ProductBuyingGuide from '@/components/product/ProductBuyingGuide';
 import ProductVisual from '@/components/product/ProductVisual';
 import SEO from '@/components/SEO';
@@ -134,6 +135,8 @@ const CityProductPage: React.FC<CityProductPageProps> = ({ productSlug }) => {
               </Link>
               <a href="#sizes-pricing" className="brand-button-on-dark px-7">{pricingLinkLabel}</a>
             </div>
+
+            <HeroDeliveryStatus className="mt-6 w-full max-w-[570px]" />
 
             <ul className="mt-8 grid gap-3 border-t border-white/15 pt-6 text-sm text-slate-200 sm:grid-cols-3" aria-label="Order facts">
               <li className="flex items-center gap-2"><Eye className="h-5 w-5 text-[#FF8A3D]" aria-hidden="true" />Live print preview</li>

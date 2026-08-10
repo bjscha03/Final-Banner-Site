@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, Clock, Mail, PackageCheck, Truck } from 'lucide-react';
 import Layout from '@/components/Layout';
+import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
 import SEO from '@/components/SEO';
 import { SITE_URL } from '@/lib/seo/productLandingData';
 import { SITE_POLICIES } from '@/lib/sitePolicies';
@@ -54,6 +55,7 @@ const Shipping: React.FC = () => (
         <p className="mx-auto mt-5 max-w-3xl text-lg leading-8 text-slate-200">
           Production happens first. Carrier transit begins after the finished order ships. Review both parts of the timeline before choosing an event date.
         </p>
+        <HeroDeliveryStatus className="mx-auto mt-7 max-w-[570px] text-left" />
       </div>
     </section>
 
