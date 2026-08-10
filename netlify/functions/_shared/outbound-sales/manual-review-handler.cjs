@@ -9,7 +9,11 @@ const {
   createUnsubscribeToken,
   sendPermissionedMarketingMessage,
 } = require('./outbound-delivery.cjs');
-const { renderOutboundDeliveryContent } = require('./personalization-template.cjs');
+const {
+  polishOutboundBodyText,
+  renderOutboundDeliveryContent,
+  renderOutboundEmailPreview,
+} = require('./personalization-template.cjs');
 const { assessEmail } = require('./email.cjs');
 const { json, authorize, parseJsonBody, redactSecretText, safeFailure } = require('./security.cjs');
 
@@ -23,29 +27,6 @@ function businessDate(now = new Date(), timeZone = 'America/New_York') {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
   }).format(now);
-}
-
-function normalizeReviewInput(body) {
-  const prospectId = String(body?.prospectId || '').trim();
-  const reviewStatus = String(body?.reviewStatus || '').trim();
-  const permissionEvidence = String(body?.permissionEvidence || '').replace(/\s+/g, ' ').trim();
-  const notes = String(body?.notes || '').replace(/\s+/g, ' ').trim();
-  if (!UUID_PATTERN.test(prospectId) || !['approved', 'rejected'].includes(reviewStatus)) {
-    const error = new Error('Lead review fields are invalid.');
-    error.code = 'INVALID_MANUAL_REVIEW';
-    throw error;
-  }
-  if (reviewStatus === 'approved' && (body?.explicitOptIn !== true || permissionEvidence.length < 8 || permissionEvidence.length > 1000)) {
-    const error = new Error('Approval requires explicit opt-in confirmation and permission evidence.');
-    error.code = 'PERMISSIONED_MARKETING_REQUIRED';
-    throw error;
-  }
-  if (notes.length > 1000) {
-    const error = new Error('Lead review notes are too long.');
-    error.code = 'INVALID_MANUAL_REVIEW';
-    throw error;
-  }
-  return { prospectId, reviewStatus, permissionEvidence, notes };
 }
 
 function publicOrigin(env = process.env) {
@@ -93,7 +74,7 @@ function emptyQueue(env = process.env) {
   return {
     leads: [], total: 0, limit: 50, offset: 0,
     minimumScore: repository.MIN_HIGH_VALUE_SCORE,
-    reviewView: 'pending',
+    reviewView: 'ready',
     counts: { pending: 0, approved: 0, rejected: 0, sent: 0 },
     today: { attempted: 0, sent: 0, limit: repository.MAX_MANUAL_DAILY_ATTEMPTS },
     deliveryReady: deliveryReady(env),
@@ -116,14 +97,14 @@ function createManualReviewHandler(options = {}) {
     if (event.httpMethod === 'OPTIONS') {
       return json(204, {}, {
         'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Banners-Admin-Session',
-        'Access-Control-Allow-Methods': 'GET, PATCH, POST, OPTIONS',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       });
     }
-    const mutating = ['PATCH', 'POST'].includes(event.httpMethod);
+    const mutating = event.httpMethod === 'POST';
     const auth = authorize(event, { requireOrigin: mutating });
     if (auth.response) return auth.response;
-    if (!['GET', 'PATCH', 'POST'].includes(event.httpMethod)) {
-      return json(405, { ok: false, error: 'METHOD_NOT_ALLOWED', message: 'Method not allowed.' }, { Allow: 'GET, PATCH, POST, OPTIONS' });
+    if (!['GET', 'POST'].includes(event.httpMethod)) {
+      return json(405, { ok: false, error: 'METHOD_NOT_ALLOWED', message: 'Method not allowed.' }, { Allow: 'GET, POST, OPTIONS' });
     }
     if (!getDatabaseUrl(env)) {
       if (event.httpMethod === 'GET') return json(200, { ok: true, schemaReady: false, ...emptyQueue(env) });
@@ -137,55 +118,24 @@ function createManualReviewHandler(options = {}) {
         const query = event.queryStringParameters || {};
         const queue = await dependencies.listManualReviewLeads(sql, {
           limit: Number(query.limit), offset: Number(query.offset), minimumScore: Number(query.minimumScore),
-          reviewView: String(query.view || 'pending').toLowerCase(),
+          reviewView: String(query.view || 'ready').toLowerCase(),
         });
-        return json(200, { ok: true, schemaReady: true, deliveryReady: deliveryReady(env), ...queue });
+        const leads = queue.leads.map((lead) => {
+          if (!lead.message?.bodyText) return lead;
+          const bodyText = polishOutboundBodyText(lead.message.bodyText);
+          return {
+            ...lead,
+            message: {
+              ...lead.message,
+              bodyText,
+              bodyHtml: renderOutboundEmailPreview({ subject: lead.message.subject, bodyText }),
+            },
+          };
+        });
+        return json(200, { ok: true, schemaReady: true, deliveryReady: deliveryReady(env), ...queue, leads });
       }
 
       const body = parseJsonBody(event);
-      if (event.httpMethod === 'PATCH') {
-        const input = normalizeReviewInput(body);
-        const reviewedBy = String(auth.session.email || auth.session.sub || '').trim();
-        let contactAssessment = null;
-        if (input.reviewStatus === 'approved') {
-          const contact = await dependencies.loadManualReviewContact(sql, input.prospectId);
-          if (contact) {
-            contactAssessment = await dependencies.assessEmail(contact.email, {
-              businessDomain: contact.canonical_domain,
-            });
-            await dependencies.saveManualContactAssessment(sql, contact.id, contactAssessment);
-          }
-        }
-        const saved = await dependencies.saveManualReview(sql, { ...input, reviewedBy });
-        if (!saved) {
-          const error = new Error('A sent lead review cannot be changed.');
-          error.code = 'MANUAL_MARKETING_NOT_ELIGIBLE';
-          throw error;
-        }
-        await dependencies.appendAudit(sql, {
-          actorType: 'admin', actorId: reviewedBy,
-          action: input.reviewStatus === 'approved' ? 'manual_lead.approved' : 'manual_lead.rejected',
-          entityType: 'prospect', entityId: input.prospectId,
-          newValues: {
-            reviewStatus: input.reviewStatus,
-            permissionStatus: input.reviewStatus === 'approved' ? 'explicit_opt_in' : 'unknown',
-          },
-          metadata: {
-            permissionEvidenceRecorded: input.reviewStatus === 'approved',
-            notesPresent: Boolean(input.notes),
-            emailDnsRechecked: Boolean(contactAssessment?.mxCheckedAt),
-            emailMxStatus: contactAssessment?.mxStatus || null,
-          },
-          requestId: event.headers?.['x-nf-request-id'] || null,
-        });
-        return json(200, { ok: true, review: {
-          prospectId: saved.prospect_id,
-          status: saved.review_status,
-          permissionStatus: saved.permission_status,
-          sendState: saved.send_state,
-        } });
-      }
-
       const prospectId = String(body?.prospectId || '').trim();
       if (!UUID_PATTERN.test(prospectId)) {
         const error = new Error('Prospect ID is invalid.');
@@ -193,6 +143,29 @@ function createManualReviewHandler(options = {}) {
         throw error;
       }
       const config = validateManualDeliveryConfiguration(env);
+      const reviewedBy = String(auth.session.email || auth.session.sub || '').trim();
+      const contact = await dependencies.loadManualReviewContact(sql, prospectId);
+      if (!contact) {
+        const error = new Error('This lead does not have an active business email.');
+        error.code = 'MANUAL_MARKETING_NOT_ELIGIBLE';
+        throw error;
+      }
+      const contactAssessment = await dependencies.assessEmail(contact.email, {
+        businessDomain: contact.canonical_domain,
+      });
+      await dependencies.saveManualContactAssessment(sql, contact.id, contactAssessment);
+      await dependencies.authorizeManualSend(sql, { prospectId, reviewedBy });
+      await dependencies.appendAudit(sql, {
+        actorType: 'admin', actorId: reviewedBy,
+        action: 'manual_lead.send_authorized', entityType: 'prospect', entityId: prospectId,
+        newValues: { reviewStatus: 'approved', permissionStatus: 'admin_authorized' },
+        metadata: {
+          authorizationSource: 'authenticated_send_click',
+          emailDnsRechecked: Boolean(contactAssessment?.mxCheckedAt),
+          emailMxStatus: contactAssessment?.mxStatus || null,
+        },
+        requestId: event.headers?.['x-nf-request-id'] || null,
+      });
       const now = new Date();
       const sendKey = stableManualSendKey(prospectId);
       const deliveryDate = businessDate(now);
@@ -205,7 +178,7 @@ function createManualReviewHandler(options = {}) {
         if (state?.send_state === 'sent') {
           return json(200, { ok: true, duplicate: true, prospectId, messageId: state.resend_message_id });
         }
-        const error = new Error('This lead is not eligible to send. Recheck approval, permission, suppression, contact quality, preview readiness, and the daily limit.');
+        const error = new Error('This lead is not eligible to send. Recheck suppression status, email quality, preview readiness, prior contact, and the daily limit.');
         error.code = 'MANUAL_MARKETING_NOT_ELIGIBLE';
         throw error;
       }
@@ -223,7 +196,7 @@ function createManualReviewHandler(options = {}) {
           physicalAddress: config.physicalAddress, unsubscribeUrl,
         });
         const result = await dependencies.sendPermissionedMarketingMessage({
-          permissionStatus: 'explicit_opt_in', permissionAttested: true,
+          permissionStatus: 'admin_authorized', adminAuthorized: true,
           message: {
             id: claimed.message_id, sendKey: claimed.send_key,
             subject: claimed.subject, bodyText: content.text, bodyHtml: content.html,
@@ -246,7 +219,7 @@ function createManualReviewHandler(options = {}) {
           actorType: 'admin', actorId: auth.session.email || auth.session.sub || null,
           action: 'manual_lead.email_sent', entityType: 'prospect', entityId: prospectId,
           newValues: { status: 'contacted', sendState: 'sent' },
-          metadata: { messageId: claimed.message_id, provider: 'resend', permissionBasis: 'explicit_opt_in' },
+          metadata: { messageId: claimed.message_id, provider: 'resend', permissionBasis: 'admin_authorized' },
           requestId: event.headers?.['x-nf-request-id'] || null,
         });
         return json(200, { ok: true, duplicate: false, prospectId, messageId: result.providerMessageId });
@@ -281,7 +254,6 @@ module.exports = {
   UUID_PATTERN,
   stableManualSendKey,
   businessDate,
-  normalizeReviewInput,
   publicOrigin,
   validateManualDeliveryConfiguration,
   deliveryReady,
