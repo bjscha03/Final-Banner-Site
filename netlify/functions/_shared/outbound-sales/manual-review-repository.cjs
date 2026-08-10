@@ -322,8 +322,8 @@ async function claimManualReviewSend(sql, data) {
        RETURNING business_date
      )
      UPDATE outbound_manual_lead_reviews review
-        SET send_state='processing',send_key=COALESCE(send_key,$4),
-            send_attempt_count=send_attempt_count+1,send_started_at=NOW(),
+        SET send_state='processing',send_key=COALESCE(review.send_key,$4),
+            send_attempt_count=review.send_attempt_count+1,send_started_at=NOW(),
             last_send_error_code=NULL,updated_at=NOW()
        FROM candidate,counter,outbound_prospects p,outbound_contacts contact,outbound_messages message
       WHERE review.prospect_id=candidate.prospect_id

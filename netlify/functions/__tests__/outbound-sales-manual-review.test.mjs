@@ -150,6 +150,18 @@ describe('manual lead review migration and qualification', () => {
     expect(keywords).toEqual(selectProspectingKeywords([], { seed: '2026-08-10', limit: 3 }));
   });
 
+  it('qualifies ambiguous claim columns against the manual review row', async () => {
+    const sql = vi.fn().mockResolvedValue([]);
+    await repository.claimManualReviewSend(sql, {
+      prospectId: PROSPECT_ID,
+      businessDate: '2026-08-10',
+      dailyLimit: 70,
+      sendKey: stableManualSendKey(PROSPECT_ID),
+    });
+    expect(sql.mock.calls[0][0]).toContain('COALESCE(review.send_key,$4)');
+    expect(sql.mock.calls[0][0]).toContain('review.send_attempt_count+1');
+  });
+
 });
 
 describe('permissioned Resend transport', () => {

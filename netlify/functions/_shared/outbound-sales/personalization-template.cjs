@@ -4,7 +4,10 @@ const SITE_URL = 'https://bannersonthefly.com';
 const DESIGN_URL = `${SITE_URL}/design?utm_source=email&utm_medium=marketing&utm_campaign=company_intro_new20`;
 const LIVE_DELIVERY_URL = `${SITE_URL}/shipping?utm_source=email&utm_medium=marketing&utm_campaign=company_intro_new20`;
 const BRAND_LOGO_URL = `${SITE_URL}/images/header-logo.png`;
-const HERO_IMAGE_PATH = '/images/email/trade-show-booth-hero.webp';
+// Netlify's /images path redirects through an optimization fetch. Email
+// previews and some mailbox proxies do not reliably follow that redirect.
+// /cld-assets serves the same checked-in image directly with a 200 response.
+const HERO_IMAGE_PATH = '/cld-assets/images/email/trade-show-booth-hero.webp';
 const HERO_IMAGE_URL = `${SITE_URL}${HERO_IMAGE_PATH}`;
 const BRAND_ORANGE = '#ff6b35';
 const BRAND_ORANGE_DARK = '#d94f16';
