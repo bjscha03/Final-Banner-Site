@@ -4,11 +4,10 @@ const SITE_URL = 'https://bannersonthefly.com';
 const DESIGN_URL = `${SITE_URL}/design?utm_source=email&utm_medium=marketing&utm_campaign=company_intro_new20`;
 const LIVE_DELIVERY_URL = `${SITE_URL}/shipping?utm_source=email&utm_medium=marketing&utm_campaign=company_intro_new20`;
 const BRAND_LOGO_URL = `${SITE_URL}/images/header-logo.png`;
-// Netlify's /images path redirects through an optimization fetch. Email
-// previews and some mailbox proxies do not reliably follow that redirect.
-// /cld-assets serves the same checked-in image directly with a 200 response.
-const HERO_IMAGE_PATH = '/cld-assets/images/email/trade-show-booth-hero.webp';
-const HERO_IMAGE_URL = `${SITE_URL}${HERO_IMAGE_PATH}`;
+// Use the same direct Cloudinary delivery domain as the site's established
+// transactional email imagery. The immutable Git commit keeps this asset
+// available before and after the preview branch is merged or removed.
+const HERO_IMAGE_URL = 'https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto,w_1280/https://raw.githubusercontent.com/bjscha03/Final-Banner-Site/0c2c37625cf645b3a8de526c02e57e35f5096bfe/public/images/email/trade-show-booth-hero.webp';
 const BRAND_ORANGE = '#ff6b35';
 const BRAND_ORANGE_DARK = '#d94f16';
 const BRAND_NAVY = '#18448D';
@@ -44,16 +43,6 @@ function polishOutboundBodyText(bodyText) {
     .replace(/Reply with (?:the |your )?(?:approximate )?(?:banner )?(?:size|dimensions?)(?: and |, ?)(?:the )?quantit(?:y|ies)[^.?!]*(?:[.?!]|$)/gi, directNextStep)
     .trim();
   return [polished, SIGNATURE].filter(Boolean).join('\n\n');
-}
-
-function secureAssetOrigin(value) {
-  try {
-    const origin = new URL(String(value || SITE_URL));
-    if (origin.protocol === 'https:' && !origin.username && !origin.password && origin.hostname) return origin.origin;
-  } catch {
-    // Use the production site for malformed or absent asset origins.
-  }
-  return SITE_URL;
 }
 
 function paragraphs(bodyText) {
@@ -96,10 +85,9 @@ function complianceFooter({ physicalAddress, unsubscribeUrl } = {}) {
   return `<p style="margin:13px 0 0;color:#718096;font-size:11px;line-height:1.65;">${escapeHtml(physicalAddress)}<br><a href="${escapeHtml(unsubscribeUrl)}" style="color:${BRAND_NAVY};text-decoration:underline;">Unsubscribe from future marketing emails</a></p>`;
 }
 
-function renderOutboundEmailPreview({ subject, bodyText, physicalAddress, unsubscribeUrl, assetOrigin }) {
+function renderOutboundEmailPreview({ subject, bodyText, physicalAddress, unsubscribeUrl }) {
   const { message, signature } = splitBodyAndSignature(polishOutboundBodyText(bodyText));
   const safeSubject = escapeHtml(subject);
-  const heroImageUrl = `${secureAssetOrigin(assetOrigin)}${HERO_IMAGE_PATH}`;
 
   return `<!doctype html>
 <html lang="en">
@@ -114,7 +102,7 @@ function renderOutboundEmailPreview({ subject, bodyText, physicalAddress, unsubs
           <a href="${SITE_URL}" style="text-decoration:none;"><img src="${BRAND_LOGO_URL}" alt="Banners On The Fly" width="240" style="display:block;width:240px;max-width:100%;height:auto;margin:0 auto;border:0;"></a>
         </td></tr>
         <tr><td style="padding:0;background:${BRAND_NAVY_DARK};">
-          <img src="${escapeHtml(heroImageUrl)}" alt="A trade show exhibitor booth using a professionally printed custom vinyl banner" width="640" style="display:block;width:100%;max-width:640px;height:auto;border:0;">
+          <img src="${HERO_IMAGE_URL}" alt="A trade show exhibitor booth using a professionally printed custom vinyl banner" width="640" style="display:block;width:100%;max-width:640px;height:auto;border:0;">
         </td></tr>
         <tr><td style="padding:30px 34px 28px;background:${BRAND_NAVY_DARK};text-align:center;">
           <p style="margin:0 0 10px;color:#ffb08c;font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;">Professional custom printing for businesses</p>
@@ -171,7 +159,7 @@ function renderOutboundEmailPreview({ subject, bodyText, physicalAddress, unsubs
 </html>`;
 }
 
-function renderOutboundDeliveryContent({ subject, bodyText, physicalAddress, unsubscribeUrl, assetOrigin }) {
+function renderOutboundDeliveryContent({ subject, bodyText, physicalAddress, unsubscribeUrl }) {
   const { message, signature } = splitBodyAndSignature(polishOutboundBodyText(bodyText));
   const complianceText = `\n\n—\nBanners On The Fly\n${String(physicalAddress).trim()}\nUnsubscribe: ${String(unsubscribeUrl).trim()}`;
   const marketingText = [
@@ -188,7 +176,7 @@ function renderOutboundDeliveryContent({ subject, bodyText, physicalAddress, uns
   ].filter(Boolean).join('\n\n');
   return {
     text: `${marketingText}${complianceText}`,
-    html: renderOutboundEmailPreview({ subject, bodyText, physicalAddress, unsubscribeUrl, assetOrigin }),
+    html: renderOutboundEmailPreview({ subject, bodyText, physicalAddress, unsubscribeUrl }),
   };
 }
 
@@ -198,7 +186,6 @@ module.exports = {
   LIVE_DELIVERY_URL,
   BRAND_LOGO_URL,
   HERO_IMAGE_URL,
-  HERO_IMAGE_PATH,
   BRAND_ORANGE,
   BRAND_NAVY,
   FIRST_ORDER_PROMO_CODE,

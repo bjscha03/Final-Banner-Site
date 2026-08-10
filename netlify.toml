@@ -15,8 +15,8 @@
   # because runtime requires live inside copied legacy handlers and are not
   # always visible to Netlify's wrapper dependency analysis.
   node_bundler = "esbuild"
-  included_files = ["src/lib/**", "src/emails/**", "node_modules/@neondatabase/serverless/**", "node_modules/node-fetch/**", "node_modules/whatwg-url/**", "node_modules/tr46/**", "node_modules/webidl-conversions/**"]
-  external_node_modules = ["@neondatabase/serverless", "node-fetch", "resend", "@react-email/components", "@react-email/render", "aws-sdk", "uuid", "cloudinary", "sharp", "pdfkit", "openai", "google-auth-library", "stripe"]
+  included_files = ["src/lib/**", "src/emails/**", "node_modules/@neondatabase/serverless/**", "node_modules/node-fetch/**", "node_modules/whatwg-url/**", "node_modules/tr46/**", "node_modules/webidl-conversions/**", "node_modules/resend/**"]
+  external_node_modules = ["@neondatabase/serverless", "node-fetch", "@react-email/components", "@react-email/render", "aws-sdk", "uuid", "cloudinary", "sharp", "pdfkit", "openai", "google-auth-library", "stripe"]
 
 # Function-specific configuration
 [functions."upload-file"]

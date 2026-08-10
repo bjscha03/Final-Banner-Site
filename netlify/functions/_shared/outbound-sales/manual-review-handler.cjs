@@ -53,18 +53,6 @@ function publicOrigin(env = process.env) {
   throw error;
 }
 
-function assetOrigin(env = process.env) {
-  for (const candidate of [env.DEPLOY_PRIME_URL, env.DEPLOY_URL, env.URL]) {
-    try {
-      const origin = new URL(String(candidate || '').trim());
-      if (origin.protocol === 'https:' && !origin.username && !origin.password && origin.hostname) return origin.origin;
-    } catch {
-      // Fall through to the stable public origin.
-    }
-  }
-  return publicOrigin(env);
-}
-
 function validateManualDeliveryConfiguration(env = process.env) {
   const origin = publicOrigin(env);
   const rawFrom = String(
@@ -177,7 +165,6 @@ function createManualReviewHandler(options = {}) {
               bodyHtml: renderOutboundEmailPreview({
                 subject: lead.message.subject,
                 bodyText,
-                assetOrigin: assetOrigin(env),
               }),
             },
           };
@@ -244,7 +231,6 @@ function createManualReviewHandler(options = {}) {
         const content = renderOutboundDeliveryContent({
           subject: claimed.subject, bodyText: claimed.body_text,
           physicalAddress: config.physicalAddress, unsubscribeUrl,
-          assetOrigin: assetOrigin(env),
         });
         const result = await dependencies.sendPermissionedMarketingMessage({
           permissionStatus: 'admin_authorized', adminAuthorized: true,
@@ -306,7 +292,6 @@ module.exports = {
   stableManualSendKey,
   businessDate,
   publicOrigin,
-  assetOrigin,
   validateManualDeliveryConfiguration,
   deliveryStatus,
   deliveryReady,

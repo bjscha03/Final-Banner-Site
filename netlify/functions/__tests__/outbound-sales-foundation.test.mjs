@@ -524,6 +524,11 @@ describe('database and existing-site regression contracts', () => {
     expect(entries).not.toContain('outbound-sales-discover.mjs');
     expect(entries).not.toContain('outbound-sales-send.mjs');
     expect(netlifyConfigSource).not.toContain('[functions."outbound-sales-automation"]');
+    expect(netlifyConfigSource).toContain('"node_modules/resend/**"');
+    const manualReviewEntry = Object.entries(outboundFunctionSources)
+      .find(([path]) => path.endsWith('/outbound-sales-manual-review.mjs'))?.[1] || '';
+    expect(manualReviewEntry).toContain("import { Resend } from 'resend'");
+    expect(manualReviewEntry).toContain('transport: new Resend(apiKey)');
 
     for (const [path, source] of Object.entries(outboundFunctionSources)) {
       expect(source, `${path} must use Netlify's modern runtime adapter`).toContain("from '@netlify/aws-lambda-compat'");
