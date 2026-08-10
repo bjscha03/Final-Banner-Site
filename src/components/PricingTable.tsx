@@ -7,14 +7,14 @@ const materials = [
     name: '13oz Vinyl',
     profile: 'Lightweight vinyl',
     use: 'Indoor displays and short-term outdoor campaigns',
-    image: '/images/homepage/material-13oz.webp',
+    imageBase: '/images/homepage/material-13oz',
     alt: '13 ounce vinyl banner used for an indoor trade show display',
   },
   {
     name: '15oz Vinyl',
     profile: 'Versatile outdoor vinyl',
     use: 'Everyday outdoor promotions, events, and storefronts',
-    image: '/images/homepage/material-15oz.webp',
+    imageBase: '/images/homepage/material-15oz',
     alt: '15 ounce vinyl grand opening banner mounted outdoors',
     recommended: true,
   },
@@ -22,14 +22,14 @@ const materials = [
     name: '18oz Vinyl',
     profile: 'Heavy-duty vinyl',
     use: 'Heavy-duty and longer-term outdoor display needs',
-    image: '/images/homepage/material-18oz.webp',
+    imageBase: '/images/homepage/material-18oz',
     alt: 'Heavy-duty 18 ounce vinyl banner mounted to a railing',
   },
   {
     name: 'Mesh Banner',
     profile: 'Wind-permeable mesh',
     use: 'Fences and outdoor placements where wind can pass through',
-    image: '/images/homepage/material-mesh.webp',
+    imageBase: '/images/homepage/material-mesh',
     alt: 'Mesh sports banner secured to a chain-link fence',
   },
 ];
@@ -63,14 +63,28 @@ const PricingTable: React.FC = () => (
               key={material.name}
               className={`relative flex flex-col bg-[#FBF8F2] ${material.recommended ? 'border border-[#F45B08]' : ''}`}
             >
-              <img
-                src={material.image}
-                alt={material.alt}
-                width="520"
-                height="876"
-                loading="lazy"
-                className="aspect-[0.62] w-full object-cover"
-              />
+              <picture className="block overflow-hidden bg-[#E8E4DC]">
+                <source
+                  type="image/avif"
+                  srcSet={`${material.imageBase}-360.avif 360w, ${material.imageBase}-640.avif 640w, ${material.imageBase}-960.avif 960w`}
+                  sizes="(min-width: 1280px) 260px, (min-width: 640px) 45vw, calc(100vw - 2rem)"
+                />
+                <source
+                  type="image/webp"
+                  srcSet={`${material.imageBase}-360.webp 360w, ${material.imageBase}.webp 640w, ${material.imageBase}-960.webp 960w`}
+                  sizes="(min-width: 1280px) 260px, (min-width: 640px) 45vw, calc(100vw - 2rem)"
+                />
+                <img
+                  src={`${material.imageBase}.webp`}
+                  alt={material.alt}
+                  width="640"
+                  height="960"
+                  loading="lazy"
+                  decoding="async"
+                  fetchPriority="low"
+                  className="aspect-[0.62] w-full object-cover transition-transform duration-500 motion-safe:hover:scale-[1.015]"
+                />
+              </picture>
               <div className={`flex-1 py-5 ${material.recommended ? 'px-3' : 'px-1'}`}>
                 <h3 className="text-xl font-extrabold text-[#061A31] sm:text-2xl">{material.name}</h3>
                 <p className="mt-1 text-xs font-black uppercase text-[#E34C12]">{material.profile}</p>

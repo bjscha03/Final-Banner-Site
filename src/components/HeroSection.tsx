@@ -17,6 +17,13 @@ const HeroSection: React.FC = () => {
     ? 'Custom vinyl banners produced in 24 hours, followed by free next-day air.'
     : campaign.description;
 
+  const heroHeadline = isSeasonal ? (
+    <>
+      <span className="block sm:inline">Make the first day</span>{' '}
+      <span className="block sm:inline">impossible to miss.</span>
+    </>
+  ) : campaign.headline;
+
   return (
     <section
       data-homepage-hero={campaign.id}
@@ -24,41 +31,44 @@ const HeroSection: React.FC = () => {
       className="relative isolate overflow-hidden bg-[#071C35] text-[#061A31]"
     >
       {isSeasonal ? (
-        <picture className="absolute inset-y-0 right-0 z-0 w-full sm:w-[84%] lg:w-[73%]" aria-hidden="true">
-          <source media="(max-width: 639px)" srcSet="/images/homepage/school-hero-mobile.webp" />
+        <picture className="absolute inset-y-0 -right-[24%] z-0 w-full sm:right-0 sm:w-[84%] lg:w-[73%]" aria-hidden="true">
+          <source media="(max-width: 639px)" type="image/avif" srcSet="/images/homepage/school-hero-mobile.avif" />
+          <source media="(max-width: 639px)" type="image/webp" srcSet="/images/homepage/school-hero-mobile.webp" />
+          <source type="image/avif" srcSet="/images/homepage/school-hero-desktop.avif" />
           <img
             src="/images/homepage/school-hero-desktop.webp"
             alt=""
             width="1127"
             height="657"
             loading="eager"
+            decoding="async"
             fetchPriority="high"
-            className="h-full w-full object-cover object-center sm:object-[58%_center]"
+            className="h-full w-full object-cover object-[58%_center] sm:object-[58%_center]"
           />
         </picture>
       ) : null}
 
-      <div className="absolute inset-0 z-[1] bg-[linear-gradient(90deg,#ff6900_0%,rgba(255,115,0,0.98)_25%,rgba(245,150,0,0.88)_44%,rgba(245,150,0,0.25)_64%,rgba(6,26,49,0.08)_100%)] sm:bg-[linear-gradient(90deg,#ff6900_0%,rgba(255,118,0,0.98)_24%,rgba(247,158,0,0.87)_46%,rgba(247,158,0,0.14)_70%,transparent_100%)]" aria-hidden="true" />
+      <div className="absolute inset-0 z-[1] bg-[linear-gradient(90deg,#ff6900_0%,#ff6900_42%,rgba(255,105,0,0.97)_67%,rgba(255,120,0,0.82)_86%,rgba(6,26,49,0.2)_100%)] sm:bg-[linear-gradient(90deg,#ff6900_0%,rgba(255,118,0,0.98)_24%,rgba(247,158,0,0.87)_46%,rgba(247,158,0,0.14)_70%,transparent_100%)]" aria-hidden="true" />
       <div className="absolute inset-x-0 top-0 z-[1] h-44 bg-gradient-to-b from-[#061A31]/65 to-transparent" aria-hidden="true" />
       <div className="absolute inset-x-0 bottom-0 z-[1] h-40 bg-gradient-to-t from-[#061A31]/35 to-transparent" aria-hidden="true" />
 
-      <div className="relative z-10 mx-auto flex min-h-[690px] max-w-[1740px] items-center px-5 pb-28 pt-[120px] sm:px-8 sm:pb-32 lg:min-h-[748px] lg:px-10 lg:pb-28 lg:pt-[142px]">
-        <div className="max-w-[680px] xl:max-w-[720px]">
+      <div className="relative z-10 mx-auto flex min-h-[640px] max-w-[1740px] items-center px-5 pb-24 pt-[104px] sm:min-h-[690px] sm:px-8 sm:pb-32 sm:pt-[120px] lg:min-h-[748px] lg:px-10 lg:pb-28 lg:pt-[142px]">
+        <div className="max-w-[430px] sm:max-w-[680px] xl:max-w-[720px]">
           <p className="text-xs font-black uppercase tracking-[0.09em] text-[#08213d] sm:text-sm lg:text-base">
             {campaign.eyebrow}
           </p>
-          <h1 className="homepage-condensed mt-4 max-w-[700px] [--homepage-mobile-size:3.75rem] text-[3.75rem] font-black uppercase leading-[0.84] tracking-[-0.02em] text-[#061A31] sm:text-[5rem] lg:text-[6.7rem] xl:text-[7.1rem]">
-            {campaign.headline}
+          <h1 className="homepage-condensed mt-4 max-w-[430px] [--homepage-mobile-size:clamp(3rem,12vw,3.6rem)] text-[3.6rem] font-black uppercase leading-[0.84] tracking-[-0.02em] text-[#061A31] sm:max-w-[700px] sm:text-[5rem] lg:text-[6.7rem] xl:text-[7.1rem]">
+            {heroHeadline}
           </h1>
-          <p className="mt-4 max-w-xl text-base font-medium leading-6 text-[#102a43] sm:text-lg sm:leading-7 lg:text-xl">
+          <p className="mt-4 max-w-[410px] text-base font-medium leading-6 text-[#102a43] sm:max-w-xl sm:text-lg sm:leading-7 lg:text-xl">
             {heroDescription}
           </p>
 
-          <div className="mt-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-7">
+          <div className="mt-5 flex flex-col items-start gap-3 sm:mt-6 sm:flex-row sm:items-center sm:gap-7">
             <button
               type="button"
               onClick={() => goTo(campaign.primaryCta.href)}
-              className="inline-flex min-h-12 items-center justify-center gap-3 rounded-md bg-[#071C35] px-7 py-3 text-sm font-extrabold uppercase tracking-[0.01em] text-white transition-colors hover:bg-[#0e3157] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#FF6900] sm:text-base"
+              className="inline-flex min-h-12 max-w-full items-center justify-center gap-3 rounded-md bg-[#071C35] px-6 py-3 text-[13px] font-extrabold uppercase tracking-[0.01em] text-white transition-colors hover:bg-[#0e3157] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#FF6900] sm:px-7 sm:text-base"
             >
               {campaign.primaryCta.label} <ArrowRight className="h-5 w-5" aria-hidden="true" />
             </button>
