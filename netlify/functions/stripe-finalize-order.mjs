@@ -41,7 +41,11 @@ const handler = async (event) => {
   }
   // Completion stays available after an emergency UI kill switch so an
   // already-authorized payment can never be orphaned.
-  const runtime = runtimeModule.resolveStripeRuntime({ requireInternalJobSecret: true, requireEnabledFlag: false });
+  const runtime = runtimeModule.resolveStripeRuntime({
+    requireInternalJobSecret: true,
+    requireEnabledFlag: false,
+    event,
+  });
   if (!runtime.enabled) return reply(503, { ok: false, error: 'STRIPE_NOT_CONFIGURED' });
   const input = parseInput(event);
   if (!input) return reply(400, { ok: false, error: 'INVALID_JSON' });

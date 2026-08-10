@@ -35,6 +35,7 @@ const handler = async (event) => {
   const runtime = runtimeModule.resolveStripeRuntime({
     requireInternalJobSecret: true,
     requireEnabledFlag: false,
+    event,
   });
   if (!runtime.enabled) {
     console.error('[stripe-webhook] configuration unavailable', {

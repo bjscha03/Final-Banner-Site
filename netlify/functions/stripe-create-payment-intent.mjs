@@ -25,7 +25,7 @@ const handler = async (event) => {
     return reply(error.statusCode || 403, { ok: false, error: error.code || 'ORIGIN_REJECTED' });
   }
 
-  const runtime = runtimeModule.resolveStripeRuntime({ requireInternalJobSecret: true });
+  const runtime = runtimeModule.resolveStripeRuntime({ requireInternalJobSecret: true, event });
   if (!runtime.enabled) {
     console.error('[stripe-create] checkout configuration is not ready', {
       context: runtime.context,
