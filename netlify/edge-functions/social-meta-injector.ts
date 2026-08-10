@@ -13,6 +13,16 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "keep-car-magnets-from-falling-off": {
+    title: "How to Keep Car Magnets From Falling Off: Installation & Care",
+    description: "Learn how to keep car magnets from falling off by checking vehicle compatibility, cleaning both surfaces, preventing edge lift, and storing magnets correctly.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/keep-car-magnets-from-falling-off.webp"
+  },
+  "step-and-repeat-banner-size-guide": {
+    title: "Step-and-Repeat Banner Size Guide: Plan a Better Photo Backdrop",
+    description: "Choose the right step-and-repeat banner size for portraits, groups, sponsor walls, and venues with practical layout, lighting, artwork, and setup guidance.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/step-and-repeat-banner-size-guide.webp"
+  },
   "construction-safety-banners-osha": {
     title: "Construction Safety Banners: Jobsite Messaging & Placement Guide",
     description: "Plan construction safety banners for jobsite rules, PPE reminders, access, traffic flow, and branding without replacing required regulatory signs or controls.",
