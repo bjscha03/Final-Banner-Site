@@ -13,6 +13,16 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "church-banner-ideas": {
+    title: "Church Banner Ideas: A Practical Guide for Welcome, Events & Seasons",
+    description: "Explore church banner ideas for welcome, worship, Easter, Christmas, outreach, and wayfinding, with practical guidance on wording, size, design, and setup.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/church-banner-ideas.webp"
+  },
+  "single-vs-double-sided-yard-signs": {
+    title: "Single-Sided vs. Double-Sided Yard Signs: Which Should You Choose?",
+    description: "Compare single-sided vs. double-sided yard signs by placement, traffic flow, artwork, arrows, stakes, and costs so every printed side earns attention.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/single-vs-double-sided-yard-signs.webp"
+  },
   "keep-car-magnets-from-falling-off": {
     title: "How to Keep Car Magnets From Falling Off: Installation & Care",
     description: "Learn how to keep car magnets from falling off by checking vehicle compatibility, cleaning both surfaces, preventing edge lift, and storing magnets correctly.",
