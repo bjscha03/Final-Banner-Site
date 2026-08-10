@@ -87,7 +87,7 @@ const PricingTable: React.FC = () => (
               </picture>
               <div className={`flex-1 py-5 ${material.recommended ? 'px-3' : 'px-1'}`}>
                 <h3 className="text-xl font-extrabold text-[#061A31] sm:text-2xl">{material.name}</h3>
-                <p className="mt-1 text-xs font-black uppercase text-[#E34C12]">{material.profile}</p>
+                <p className="mt-1 text-xs font-black uppercase text-[#C94008]">{material.profile}</p>
                 <p className="mt-5 text-sm leading-6 text-[#263d54]">{material.use}</p>
               </div>
             </article>

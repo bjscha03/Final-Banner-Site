@@ -99,7 +99,7 @@ const ProductSelectionStrip: React.FC = () => {
                 <Link
                   to={`/${vinyl.slug}`}
                   onClick={() => trackProductClick(vinyl)}
-                  className="inline-flex min-h-12 items-center justify-center gap-3 rounded-md bg-[#F45B08] px-6 py-3 font-extrabold text-white transition-colors hover:bg-[#ff741f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                  className="inline-flex min-h-12 items-center justify-center gap-3 rounded-md bg-[#C94008] px-6 py-3 font-extrabold text-white transition-colors hover:bg-[#B93808] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                 >
                   Product details <ArrowRight className="h-5 w-5" aria-hidden="true" />
                 </Link>

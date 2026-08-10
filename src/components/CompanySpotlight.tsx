@@ -26,7 +26,7 @@ const CompanySpotlight: React.FC = () => (
           “Banners on the Fly delivered exactly what we needed for our nationwide events. Fast, professional, and high quality every time.”
         </blockquote>
         <p className="mt-6 text-xs font-black uppercase tracking-[0.14em] text-slate-300 sm:text-sm">Dan Oliver · Founder, Dan-O's Seasoning</p>
-        <Link to="/design" className="mt-7 inline-flex min-h-12 w-fit items-center justify-center gap-3 rounded-md bg-[#F45B08] px-6 py-3 font-extrabold uppercase text-white transition-colors hover:bg-[#ff741f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+        <Link to="/design" className="mt-7 inline-flex min-h-12 w-fit items-center justify-center gap-3 rounded-md bg-[#C94008] px-6 py-3 font-extrabold uppercase text-white transition-colors hover:bg-[#B93808] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
           Start an order <ArrowRight className="h-5 w-5" aria-hidden="true" />
         </Link>
       </div>

@@ -17,7 +17,23 @@ describe('seasonal campaign selection', () => {
   });
 
   it('returns the evergreen fallback outside an approved campaign window', () => {
-    expect(getHomepageHeroCampaign(new Date('2026-10-01T16:00:00Z')).id).toBe(EVERGREEN_HERO.id);
+    expect(getHomepageHeroCampaign(new Date('2027-03-01T16:00:00Z')).id).toBe(EVERGREEN_HERO.id);
+  });
+
+  it('activates each newly approved campaign on its roadmap start date', () => {
+    expect(getActiveSeasonalCampaignForDate('2026-09-21')?.id).toBe('halloween-events-2026');
+    expect(getActiveSeasonalCampaignForDate('2026-11-01')?.id).toBe('veterans-day-recognition-2026');
+    expect(getActiveSeasonalCampaignForDate('2026-11-12')?.id).toBe('thanksgiving-community-2026');
+  });
+
+  it('hands overlapping windows to the campaign with the nearest expiration', () => {
+    expect(getActiveSeasonalCampaignForDate('2026-10-12')?.id).toBe('halloween-events-2026');
+    expect(getActiveSeasonalCampaignForDate('2026-11-01')?.id).toBe('veterans-day-recognition-2026');
+    expect(getActiveSeasonalCampaignForDate('2026-11-12')?.id).toBe('thanksgiving-community-2026');
+  });
+
+  it('expires the final due campaign after Thanksgiving', () => {
+    expect(getActiveSeasonalCampaignForDate('2026-11-27')).toBeNull();
   });
 
   it('uses the campaign operating timezone for date boundaries', () => {
