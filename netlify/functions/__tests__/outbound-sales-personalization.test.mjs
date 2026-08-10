@@ -38,7 +38,7 @@ const { generateShadowPersonalization } = personalization;
 const { createPersonalizationHandlers, publicMessage, activityCsv } = personalizationHandlers;
 const { claimPersonalization, savePersonalizationSuccess, savePersonalizationFailure } = personalizationRepository;
 const { safeFailure, safeRequestId } = security;
-const { renderOutboundEmailPreview, renderOutboundDeliveryContent } = template;
+const { polishOutboundBodyText, renderOutboundEmailPreview, renderOutboundDeliveryContent } = template;
 const { expectedColumnPairs } = migrationVerifier;
 
 const originalEnvironment = { ...process.env };
@@ -97,7 +97,7 @@ function validModelOutput() {
     subject: 'Banner planning for your fall soccer tournament',
     opening_paragraph: 'I saw that River City Sports Center is preparing for a fall youth soccer tournament alongside its community leagues. Events like that often need clear, durable wayfinding and sponsor visibility across several spaces.',
     value_paragraph: 'Banners On The Fly produces custom banners and printed displays, with most standard orders produced within 24 hours and free next-day air beginning after production. That can help when event details or sponsor artwork come together close to the tournament.',
-    call_to_action: 'Would it be helpful if I put together a quick banner quote based on the areas you need to cover?',
+    call_to_action: 'Reply with the approximate size and quantity whenever you are ready, and I can help with quick pricing.',
     evidence_ids: ['E1'],
     recommended_follow_up_delay_days: 5,
     personalization_notes: ['Connected the outreach to the publicly listed soccer tournament without inventing dates or quantities.'],
@@ -242,13 +242,14 @@ describe('grounded copy contract and deterministic cost controls', () => {
     expect(() => validatePersonalizationOutput({ ...validModelOutput(), subject: 'Hello {{company}}' }, { bundle })).toThrow(/placeholder/i);
     expect(() => validatePersonalizationOutput({ ...validModelOutput(), evidence_ids: ['E9'] }, { bundle })).toThrow(/evidence/i);
     expect(() => validatePersonalizationOutput({ ...validModelOutput(), subject: 'A quick print question' }, { bundle })).toThrow(/subject.*grounded/i);
+    expect(() => validatePersonalizationOutput({ ...validModelOutput(), call_to_action: 'Would it be useful if I priced a banner today?' }, { bundle })).toThrow(/direct statement/i);
     expect(() => validatePersonalizationOutput({ ...validModelOutput(), call_to_action: 'Reply with sk-proj-never-render-this-value if useful for your tournament.' }, { bundle })).toThrow(/credential/i);
     expect(() => validatePersonalizationOutput({
       ...validModelOutput(),
       subject: 'A completely unrelated observation',
       opening_paragraph: 'A unique lighthouse and volcanic geology inspired this message about unrelated maritime operations today.',
       value_paragraph: 'Our printing team can prepare durable visual materials using customer supplied artwork and selected specifications for many ordinary applications.',
-      call_to_action: 'Would a short conversation about general printed materials be useful sometime this month?',
+      call_to_action: 'Reply whenever you want to discuss general printed materials this month.',
     }, { bundle })).toThrow(/grounded/i);
   });
 
@@ -261,7 +262,7 @@ describe('grounded copy contract and deterministic cost controls', () => {
     expect(first).toBe(second);
     expect(first).not.toBe(changed);
     expect(first).toHaveLength('personalization:'.length + 64);
-    expect(PROMPT_VERSION).toBe('outbound-personalization-v1');
+    expect(PROMPT_VERSION).toBe('outbound-personalization-v2');
     expect(OUTPUT_SCHEMA_VERSION).toBe('shadow-outreach-v1');
   });
 
@@ -275,6 +276,10 @@ describe('grounded copy contract and deterministic cost controls', () => {
   });
 
   it('renders branded HTML deterministically while escaping model-controlled text', () => {
+    const polished = polishOutboundBodyText('Hi Eric,\n\nWould it be useful if I priced a show banner for booth 556 today?\n\nBest,\nBrandon\nBanners On The Fly');
+    expect(polished).not.toContain('Would it be useful');
+    expect(polished).toContain('reply with the size and quantity for quick pricing');
+    expect(polished).toContain('Brandon Schaefer\nOwner, Banners On The Fly');
     const html = renderOutboundEmailPreview({ subject: '<script>alert(1)</script>', bodyText: 'Hi team,\n\nUse <strong>safe</strong> banners.' });
     expect(html).toContain('#ff6b35');
     expect(html).toContain('#18448D');
@@ -283,16 +288,26 @@ describe('grounded copy contract and deterministic cost controls', () => {
     expect(html).toContain('Save 20% with code');
     expect(html).toContain('NEW20');
     expect(html).toContain('Design &amp; Price Your Banner');
+    expect(html).toContain('Order cutoff');
+    expect(html).toContain('10 PM ET');
+    expect(html).toContain('Most in 24 hours');
+    expect(html).toContain('Free Next-Day Air');
+    expect(html).toContain('See today&rsquo;s live ship &amp; delivery estimate');
+    expect(html).toContain('/shipping?utm_source=email');
     expect(html).not.toContain('<script>');
     expect(html).not.toContain('<strong>safe</strong>');
     expect(html).toContain('&lt;strong&gt;safe&lt;/strong&gt;');
     const delivery = renderOutboundDeliveryContent({
-      subject: 'Safe subject', bodyText: 'Safe message',
+      subject: 'Safe subject', bodyText: 'Safe message\n\nBest,\nBrandon\nBanners On The Fly',
       physicalAddress: '100 Example Street, Example City, NY 10001',
       unsubscribeUrl: 'https://example.test/.netlify/functions/outbound-sales-unsubscribe?token=opaque',
     });
     expect(delivery.text).toContain('100 Example Street');
     expect(delivery.text).toContain('FIRST ORDER OFFER: Save 20% with code NEW20');
+    expect(delivery.text).toContain('ORDER CUTOFF: 10 PM ET');
+    expect(delivery.text).toContain("See today's live ship and delivery estimate");
+    expect(delivery.text).toContain('Brandon Schaefer');
+    expect(delivery.html).toContain('Owner, Banners On The Fly');
     expect(delivery.text).toContain('Unsubscribe: https://example.test/');
     expect(delivery.html).toContain('Unsubscribe from future marketing emails');
   });
