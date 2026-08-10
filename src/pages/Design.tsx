@@ -13,7 +13,7 @@ import {
   calculateBannerPricing,
   type RopePlacement,
 } from '@/lib/bannerPricingEngine';
-import { resolvePromo, getKnownPromo } from '@/lib/promoEngine';
+import { resolvePromo } from '@/lib/promoEngine';
 import { useToast } from '@/components/ui/use-toast';
 import { generateFinalRenderFromHTML } from '@/utils/generateFinalRenderFromHTML';
 import { renderPdfToDataUrl, type PdfPreviewResult } from '@/utils/pdf/renderPdfToDataUrl';
@@ -135,9 +135,6 @@ function formatPresetLabel(w: number, h: number, unit: 'in' | 'ft'): string {
   return `${w}" × ${h}"`;
 }
 
-
-
-const PROMO_NEW20_DISCOUNT_RATE = 0.2;
 
 
 const TESTIMONIALS = [
@@ -423,8 +420,6 @@ const Design: React.FC = () => {
     // switch can't re-stash the just-restored snapshot.
     latestDesignRef.current = { ...restored };
     setQuantity(newType === 'yard_sign' ? 10 : 1);
-    setPromoCode('');
-    setPromoApplied(false);
     // Switching product tabs is a fresh start — clear confirmation flags so
     // the new product's mobile guided flow walks the user back through
     // size → material → quantity → options → upload from Step 1.
@@ -638,8 +633,9 @@ const Design: React.FC = () => {
   const [uploadError, setUploadError] = useState('');
   const [activePreset, setActivePreset] = useState<number | null>(0);
   const [quantity, setQuantity] = useState(initialProductType === 'yard_sign' ? 10 : 1);
-  const [promoCode, setPromoCode] = useState('');
-  const [promoApplied, setPromoApplied] = useState(false);
+  const storedPromoAtLoad = useCartStore.getState().discountCode;
+  const [promoCode, setPromoCode] = useState(storedPromoAtLoad?.code || '');
+  const [promoApplied, setPromoApplied] = useState(Boolean(storedPromoAtLoad));
 
   // Mobile guided-flow confirmation flags. These are the source of truth for
   // the mobile step-progress indicator and sticky CTA. Default-preselected
@@ -735,6 +731,7 @@ const Design: React.FC = () => {
 
   const quoteStore = useQuoteStore();
   const cartStore = useCartStore();
+  const activeCartPromo = promoApplied ? cartStore.discountCode : null;
   const { setIsCartOpen } = useUIStore();
 
   // Dimensions: for banners, use ft+in inputs; for yard signs, fixed 24" × 18"
@@ -808,7 +805,9 @@ const Design: React.FC = () => {
 
   // Yard sign pricing (computed reactively)
   const yardSignTotalQty = getTotalDesignQuantity(yardSignDesigns);
-  const yardSignPromoRate = promoApplied ? PROMO_NEW20_DISCOUNT_RATE : 0;
+  const yardSignPromoRate = promoApplied
+    ? Number(activeCartPromo?.discountPercentage || 0) / 100
+    : 0;
   const yardSignPricing = useMemo(() => {
     if (!isYardSign) return null;
     return calcYardSignPricing(
@@ -1021,7 +1020,17 @@ const Design: React.FC = () => {
     subtotalCents: bannerPricing.subtotalBeforeDiscountCents,
     quantity,
     code: effectivePromoCode,
-  }), [bannerPricing.subtotalBeforeDiscountCents, quantity, effectivePromoCode]);
+    validatedPromo: activeCartPromo ? {
+      code: activeCartPromo.code,
+      discountPercentage: activeCartPromo.discountPercentage,
+      discountAmountCents: activeCartPromo.discountAmountCents || undefined,
+    } : null,
+  }), [
+    bannerPricing.subtotalBeforeDiscountCents,
+    quantity,
+    effectivePromoCode,
+    activeCartPromo,
+  ]);
 
   const bannerSubtotalAfterAllDiscountsCents = Math.max(
     0,
@@ -1092,16 +1101,47 @@ const Design: React.FC = () => {
     setHasConfirmedSize(true);
   };
 
-  const handlePromoApply = () => {
-    if (promoCode.trim().toUpperCase() === 'NEW20') {
+  const handlePromoApply = async () => {
+    const normalizedCode = promoCode.trim().toUpperCase();
+    if (!normalizedCode) {
+      toast({ title: 'Enter a promo code', description: 'Add the code shown in the offer and try again.' });
+      return;
+    }
+
+    try {
+      const response = await fetch('/.netlify/functions/validate-discount-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: normalizedCode, userId: user?.id || null }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.valid || !result.discount) {
+        toast({
+          title: 'Promo not applied',
+          description: result.error || 'This promotion is not available for this order.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      cartStore.applyDiscountCode(result.discount);
+      setPromoCode(result.discount.code);
       setPromoApplied(true);
-      // Promo codes are NOT persisted to sessionStorage. The user must re-enter
-      // the code in Checkout where it is validated server-side. This prevents
-      // unvalidated codes from auto-applying to other users' carts.
+      toast({
+        title: 'Discount applied',
+        description: `${result.discount.discountPercentage}% off is saved to your cart and will carry into checkout.`,
+      });
+    } catch {
+      toast({
+        title: 'Promo could not be verified',
+        description: 'Your order is unchanged. Please try applying the code again.',
+        variant: 'destructive',
+      });
     }
   };
 
   const handlePromoRemove = () => {
+    cartStore.removeDiscountCode();
     setPromoApplied(false);
     setPromoCode('');
   };
