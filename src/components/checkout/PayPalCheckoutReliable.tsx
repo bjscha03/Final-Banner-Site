@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/lib/auth';
 import { getStoredAttribution } from '@/lib/attribution';
-import { useCartStore } from '@/store/cart';
+import { useCartStore, type CanonicalCartQuote } from '@/store/cart';
 import { shouldUseDeployPreviewTestCheckout } from './checkoutEnvironment';
 import { gtag, trackPaymentInfoAdded, trackShippingInfoEntered, type AnalyticsItem } from '@/lib/analytics';
 import { getItemDisplayName, getProductCategory } from '@/lib/product-display';
@@ -20,13 +20,26 @@ import {
   type CustomerFormState,
   validateCheckoutCustomer,
 } from './checkoutCustomer';
+import type {
+  ActiveCheckoutMarker,
+  CheckoutPaymentPhase,
+  CheckoutPaymentStateEvent,
+} from './checkoutPaymentState';
+import { togglePayPalCardFields } from './paypalCardDisclosure';
 
 interface PayPalCheckoutProps {
   total: number;
   onSuccess: (orderId: string, orderData?: any) => void;
   onError: (error: any) => void;
   disabled?: boolean;
+  /** Checkout already has an unresolved provider authorization. */
+  providerLocked?: boolean;
   cardFirstLayout?: boolean;
+  /** Hide PayPal-hosted card fields when Stripe already supplies the card form. */
+  paypalOnly?: boolean;
+  resumeCheckout?: ActiveCheckoutMarker | null;
+  onPaymentStateChange?: (state: CheckoutPaymentStateEvent) => void;
+  onCanonicalQuote?: (quote: CanonicalCartQuote, serverTotalCents: number) => boolean;
 }
 
 interface PayPalConfig {
@@ -94,20 +107,30 @@ const InlineCardSubmit: React.FC<{
 type StoredCheckout = {
   checkoutKey: string;
   internalOrderId: string | null;
-  state: 'idle' | 'processing' | 'verification';
+  state: 'authorizing' | 'processing' | 'verification';
   message?: string;
+  signature: string;
   updatedAt: number;
 };
 
 const VERIFICATION_POLL_INTERVAL_MS = 2000;
 const VERIFICATION_MAX_ATTEMPTS = 15;
 const VERIFICATION_TTL_MS = 30 * 60 * 1000;
+const PAYPAL_RECOVERY_STORAGE_KEY = 'bof-paypal-checkout-v6';
 
 const randomId = (): string => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
   }
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, (value) => value.toString(16).padStart(2, '0'));
+    return `${hex.slice(0, 4).join('')}-${hex.slice(4, 6).join('')}-${hex.slice(6, 8).join('')}-${hex.slice(8, 10).join('')}-${hex.slice(10).join('')}`;
+  }
+  throw new Error('Secure checkout requires a browser with cryptographic random-number support.');
 };
 
 const hash = (value: string): string => {
@@ -219,23 +242,30 @@ const isCompletedCapture = (payload: any): boolean => Boolean(
   && payload?.captureID
   && payload?.reconciliationRequired !== true
   && payload?.paymentStatusUnknown !== true
-  && payload?.doNotRetry !== true,
+  && payload?.doNotRetry !== true
+  && payload?.details?.paymentStatusUnknown !== true
+  && payload?.details?.doNotRetry !== true,
 );
 
 const requiresVerification = (payload: any, status: number): boolean => Boolean(
   status === 202
   || payload?.doNotRetry === true
   || payload?.paymentStatusUnknown === true
-  || payload?.reconciliationRequired === true,
+  || payload?.reconciliationRequired === true
+  || payload?.details?.doNotRetry === true
+  || payload?.details?.paymentStatusUnknown === true
 );
 
 const isDefinitiveFailure = (payload: any, status: number): boolean => Boolean(
   payload?.paymentCaptured !== true
   && payload?.reconciliationRequired !== true
   && payload?.paymentStatusUnknown !== true
+  && payload?.details?.paymentStatusUnknown !== true
+  && payload?.details?.doNotRetry !== true
   && (
     status === 422
     || payload?.retryAllowed === true
+    || payload?.details?.providerCode === 'INSTRUMENT_DECLINED'
     || payload?.providerCode === 'INSTRUMENT_DECLINED'
     || payload?.error === 'INSTRUMENT_DECLINED'
   ),
@@ -253,7 +283,12 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
   onSuccess,
   onError,
   disabled = false,
+  providerLocked = false,
   cardFirstLayout = false,
+  paypalOnly = false,
+  resumeCheckout = null,
+  onPaymentStateChange,
+  onCanonicalQuote,
 }) => {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -289,18 +324,22 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     shippingCountry: 'US',
   });
 
-  const internalOrderIdRef = useRef<string | null>(null);
-  const checkoutKeyRef = useRef<string>(randomId());
+  const resumedPayPal = resumeCheckout?.provider === 'paypal' ? resumeCheckout : null;
+  const internalOrderIdRef = useRef<string | null>(resumedPayPal?.orderId || null);
+  const checkoutKeyRef = useRef<string>(resumedPayPal?.checkoutKey || randomId());
   const createFlightRef = useRef<Promise<string> | null>(null);
   const approvalFlightRef = useRef<Promise<void> | null>(null);
   const verificationLockedRef = useRef(false);
   const pollingRef = useRef(false);
   const lastDeclineAtRef = useRef(0);
+  const staleCartHandledAtRef = useRef(0);
   const approvedOrderDataRef = useRef<any>(null);
   const shippingChangeDataRef = useRef<any>(null);
   const submittedCustomerRef = useRef<SubmittedCustomer | null>(null);
   const customerDetailsRef = useRef<HTMLDivElement>(null);
   const checkoutSignatureRef = useRef<string | null>(null);
+  const activeBindingRef = useRef(Boolean(resumedPayPal));
+  const recoveryHydratedKeyRef = useRef<string | null>(null);
   const shippingInfoTrackedRef = useRef(false);
   const paymentInfoTrackedRef = useRef(new Set<'card' | 'paypal'>());
   const analyticsItems = useMemo<AnalyticsItem[]>(() => items.map((item) => {
@@ -382,17 +421,17 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     items,
   }), [total, discountCode, sameDayHitService, saturdayDelivery, items]);
 
-  const storageKey = useMemo(
-    () => `bof-paypal-checkout-v5:${hash(checkoutSignature)}`,
-    [checkoutSignature],
-  );
-
   useEffect(() => {
     if (checkoutSignatureRef.current === null) {
       checkoutSignatureRef.current = checkoutSignature;
       return;
     }
     if (checkoutSignatureRef.current === checkoutSignature) return;
+
+    // Once PayPal/internal-order authorization begins, cart hydration or Back
+    // navigation must not discard the only recovery binding. Checkout locks
+    // mutations and the server verifies the originally bound order.
+    if (activeBindingRef.current || verificationLockedRef.current) return;
 
     // A pending internal/PayPal order is valid for exactly one cart artwork
     // identity. A replacement placement artifact must start a fresh flight;
@@ -421,14 +460,42 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
       internalOrderId: internalOrderIdRef.current,
       state,
       message,
+      signature: checkoutSignatureRef.current || checkoutSignature,
       updatedAt: Date.now(),
     };
-    window.sessionStorage.setItem(storageKey, JSON.stringify(value));
-  }, [storageKey]);
+    activeBindingRef.current = true;
+    try {
+      window.sessionStorage.setItem(PAYPAL_RECOVERY_STORAGE_KEY, JSON.stringify(value));
+    } catch {
+      // Checkout's in-memory provider-neutral lock still protects this flight.
+    }
+    const phase: CheckoutPaymentPhase = state === 'verification' ? 'verifying' : state;
+    onPaymentStateChange?.({
+      active: true,
+      provider: 'paypal',
+      checkoutKey: value.checkoutKey,
+      phase,
+      orderId: value.internalOrderId,
+      totalCents: total,
+    });
+  }, [checkoutSignature, onPaymentStateChange, total]);
 
   const clearState = useCallback(() => {
-    if (typeof window !== 'undefined') window.sessionStorage.removeItem(storageKey);
-  }, [storageKey]);
+    activeBindingRef.current = false;
+    try {
+      if (typeof window !== 'undefined') window.sessionStorage.removeItem(PAYPAL_RECOVERY_STORAGE_KEY);
+    } catch {
+      // The fixed marker expires independently if storage is unavailable.
+    }
+    onPaymentStateChange?.({
+      active: false,
+      provider: 'paypal',
+      checkoutKey: checkoutKeyRef.current,
+      phase: 'verifying',
+      orderId: internalOrderIdRef.current,
+      totalCents: total,
+    });
+  }, [onPaymentStateChange, total]);
 
   const resetForRetry = useCallback((message?: string) => {
     verificationLockedRef.current = false;
@@ -438,8 +505,35 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     setIsPolling(false);
     setVerificationMessage(null);
     setCheckoutError(message || null);
-    persistState('idle');
-  }, [persistState]);
+    clearState();
+    if (checkoutSignatureRef.current !== checkoutSignature) {
+      checkoutSignatureRef.current = checkoutSignature;
+      internalOrderIdRef.current = null;
+      checkoutKeyRef.current = randomId();
+      approvedOrderDataRef.current = null;
+      shippingChangeDataRef.current = null;
+    }
+  }, [checkoutSignature, clearState]);
+
+  const rotatePendingBinding = useCallback(() => {
+    // STALE_CART_TOTAL is returned before PayPal order creation/capture. It is
+    // therefore safe—and required—to abandon only this pending checkout key.
+    // Declines and ambiguous provider outcomes never use this path.
+    clearState();
+    verificationLockedRef.current = false;
+    pollingRef.current = false;
+    createFlightRef.current = null;
+    approvalFlightRef.current = null;
+    internalOrderIdRef.current = null;
+    checkoutKeyRef.current = randomId();
+    checkoutSignatureRef.current = checkoutSignature;
+    approvedOrderDataRef.current = null;
+    shippingChangeDataRef.current = null;
+    setIsPreparing(false);
+    setIsCapturing(false);
+    setIsPolling(false);
+    setVerificationMessage(null);
+  }, [checkoutSignature, clearState]);
 
   const finishSuccess = useCallback((payload: any, fallbackOrderId?: string | null) => {
     const internalOrderId = payload?.internalOrderId
@@ -539,15 +633,15 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
       }
 
       if (verificationLockedRef.current) {
-        resetForRetry(
-          'PayPal did not complete a capture within 30 seconds. No payment was confirmed; you may try again.',
-        );
+        const message = 'PayPal verification is taking longer than usual. Do not submit another payment; use Check payment status below.';
+        setVerificationMessage(message);
+        persistState('verification', message);
       }
     } finally {
       pollingRef.current = false;
       setIsPolling(false);
     }
-  }, [finishSuccess, resetForRetry, toast]);
+  }, [finishSuccess, persistState, resetForRetry, toast]);
 
   const startVerification = useCallback((message?: string) => {
     const text = message || 'We are confirming your payment. Do not submit another payment.';
@@ -562,22 +656,31 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     if (typeof window === 'undefined') return;
     try {
       const saved = JSON.parse(
-        window.sessionStorage.getItem(storageKey) || 'null',
+        window.sessionStorage.getItem(PAYPAL_RECOVERY_STORAGE_KEY) || 'null',
       ) as StoredCheckout | null;
-      if (saved?.checkoutKey) checkoutKeyRef.current = saved.checkoutKey;
-      if (saved?.internalOrderId) internalOrderIdRef.current = saved.internalOrderId;
+      const marker = resumeCheckout?.provider === 'paypal' ? resumeCheckout : null;
+      const checkoutKey = marker?.checkoutKey || saved?.checkoutKey;
+      const internalOrderId = marker?.orderId || saved?.internalOrderId;
+      if (checkoutKey && recoveryHydratedKeyRef.current === checkoutKey) return;
+      if (checkoutKey) recoveryHydratedKeyRef.current = checkoutKey;
+      if (checkoutKey) checkoutKeyRef.current = checkoutKey;
+      if (internalOrderId) internalOrderIdRef.current = internalOrderId;
 
       if (
-        saved?.state === 'verification'
-        && saved.internalOrderId
-        && Date.now() - Number(saved.updatedAt || 0) < VERIFICATION_TTL_MS
+        internalOrderId
+        && (
+          marker
+          || (saved && Date.now() - Number(saved.updatedAt || 0) < VERIFICATION_TTL_MS)
+        )
       ) {
-        startVerification(saved.message);
+        startVerification(saved?.message || 'We are restoring and verifying your PayPal payment. Do not submit another payment.');
+      } else if (marker && !internalOrderId) {
+        resetForRetry('PayPal setup was interrupted before authorization. No payment was completed; you may try again.');
       }
     } catch {
-      window.sessionStorage.removeItem(storageKey);
+      window.sessionStorage.removeItem(PAYPAL_RECOVERY_STORAGE_KEY);
     }
-  }, [startVerification, storageKey]);
+  }, [resetForRetry, resumeCheckout, startVerification]);
 
   useEffect(() => {
     if (isDeployPreview) {
@@ -666,6 +769,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     if (verificationLockedRef.current) throw new Error('PAYMENT_VERIFICATION_LOCKED');
     setIsPreparing(true);
     setCheckoutError(null);
+    persistState('authorizing');
 
     try {
       const submitted = submittedCustomerRef.current;
@@ -710,13 +814,34 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
         if (checkoutSignatureRef.current !== startedCheckoutSignature) {
           throw new Error('CHECKOUT_IDENTITY_CHANGED');
         }
+        const pendingDetails = pending?.details || {};
+        if (
+          pendingResponse.status === 409
+          && (pending?.error === 'STALE_CART_TOTAL' || pending?.code === 'STALE_CART_TOTAL')
+          && pendingDetails.restartCheckout === true
+          && pendingDetails.canonicalQuote
+        ) {
+          const serverTotalCents = Number(pendingDetails.serverTotalCents);
+          const applied = onCanonicalQuote?.(
+            pendingDetails.canonicalQuote as CanonicalCartQuote,
+            serverTotalCents,
+          ) === true;
+          staleCartHandledAtRef.current = Date.now();
+          rotatePendingBinding();
+          throw Object.assign(new Error(applied
+            ? 'The server found updated pricing. Review the new total before submitting a fresh payment.'
+            : 'The server found updated pricing, but this cart could not be updated safely. Refresh checkout before paying.'), {
+            code: 'STALE_CART_TOTAL',
+            canonicalQuoteApplied: applied,
+          });
+        }
         if (!pendingResponse.ok || !pending?.orderId) {
           throw new Error(
             pending?.message || pending?.error || 'Could not save the order before payment.',
           );
         }
         internalOrderIdRef.current = pending.orderId;
-        persistState('idle');
+        persistState('authorizing');
       }
 
       const response = await fetch('/.netlify/functions/paypal-create-order', {
@@ -724,6 +849,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           internalOrderId: internalOrderIdRef.current,
+          checkoutKey: checkoutKeyRef.current,
           totalCents: total,
           items,
           email: submitted.email,
@@ -750,6 +876,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
       if (!response.ok || !payload?.paypalOrderId) {
         throw new Error(
           payload?.message
+          || payload?.details?.providerCode
           || payload?.providerCode
           || payload?.error
           || 'Could not start PayPal checkout.',
@@ -792,6 +919,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
         body: JSON.stringify({
           orderID: data.orderID,
           internalOrderId: internalOrderIdRef.current,
+          checkoutKey: checkoutKeyRef.current,
           approvedOrderData,
           shippingChangeData: shippingChangeDataRef.current,
           customer: submittedCustomerRef.current,
@@ -826,6 +954,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
       }
 
       const message = payload?.message
+        || payload?.details?.providerCode
         || payload?.providerCode
         || payload?.error
         || 'Payment could not be completed.';
@@ -835,8 +964,10 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
       if (verificationLockedRef.current) return;
       const message = error instanceof Error ? error.message : 'Payment could not be completed.';
       if (message === 'PAYMENT_VERIFICATION_LOCKED') return;
-      resetForRetry(message);
-      onError(error);
+      // The customer already approved PayPal before capture began. A lost
+      // response is therefore ambiguous: retain the exact checkout binding
+      // and reconcile instead of exposing another payment attempt.
+      startVerification('We are checking the PayPal payment result. Do not submit another payment.');
     } finally {
       setIsCapturing(false);
     }
@@ -854,6 +985,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
   const handleProviderError = (error: any) => {
     if (verificationLockedRef.current) return;
     if (Date.now() - lastDeclineAtRef.current < 5000) return;
+    if (Date.now() - staleCartHandledAtRef.current < 5000) return;
 
     console.error('[PayPalCheckout] provider error', error);
     setIsPreparing(false);
@@ -908,19 +1040,21 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     intent: 'capture',
     commit: true,
     vault: false,
-    components: 'buttons,card-fields',
+    components: paypalOnly ? 'buttons' : 'buttons,card-fields',
     dataClientToken: paypalConfig.clientToken,
     disableFunding: 'paylater,credit',
   };
 
   const buttonsDisabled = disabled
+    || providerLocked
     || isPreparing
     || isCapturing
     || Boolean(verificationMessage);
-  // Cart-level validation blocks the actual payment submission, not this
-  // disclosure control. Customers must still be able to open the hosted card
-  // fields; Pay Now remains protected by `buttonsDisabled` and server checks.
-  const cardToggleDisabled = isPreparing
+  // Cart validation must block the actual PayPal/card submission, not the
+  // disclosure control. Customers still need to be able to open the hosted
+  // card form, see what information is required, and correct checkout issues.
+  const cardToggleDisabled = providerLocked
+    || isPreparing
     || isCapturing
     || Boolean(verificationMessage);
 
@@ -1139,7 +1273,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
         disabled={cardToggleDisabled}
         onClick={() => {
           setCheckoutError(null);
-          setCardFieldsExpanded((expanded) => !expanded);
+          setCardFieldsExpanded(togglePayPalCardFields);
           trackPaymentClick('card');
         }}
       >
@@ -1222,9 +1356,11 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
         <PayPalScriptProvider options={initialOptions}>
           <h3 className="mb-1 text-sm font-bold text-[#0B1F3A]">Choose payment method</h3>
           <p className="mb-3 text-xs text-gray-600">
-            Pay securely by card or PayPal. No PayPal account required.
+            {paypalOnly ? 'Complete your order securely with PayPal.' : 'Pay securely by card or PayPal. No PayPal account required.'}
           </p>
-          {cardFirstLayout ? (
+          {paypalOnly ? (
+            renderPayPalButton()
+          ) : cardFirstLayout ? (
             <div className="space-y-2.5">
               {renderInlineCardFields()}
               <div className="flex items-center gap-2">

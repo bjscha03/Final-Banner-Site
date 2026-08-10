@@ -1,7 +1,12 @@
 import { MaterialKey } from '@/store/quote';
 import { calculateQuantityDiscount } from './quantity-discount';
 import { getProductConfig, DEFAULT_PRODUCT_TYPE } from './products';
-import { calculateBannerPricing, getPolePocketLinearFeet, getRopeLinearFeet } from './bannerPricingEngine';
+import {
+  calculateBannerPricing,
+  getPolePocketLinearFeet,
+  getRopeLinearFeet,
+  type RopePlacement,
+} from './bannerPricingEngine';
 
 // Read material pricing from the product registry (banner is the default)
 const bannerConfig = getProductConfig(DEFAULT_PRODUCT_TYPE);
@@ -34,6 +39,7 @@ export interface CalcTotalsParams {
   qty: number;
   material: MaterialKey;
   addRope: boolean;
+  ropePlacement?: RopePlacement;
   polePockets?: string;
 }
 
@@ -53,6 +59,7 @@ export function calcTotals({
   qty,
   material,
   addRope,
+  ropePlacement = 'top',
   polePockets = 'none'
 }: CalcTotalsParams): CalcTotalsResult {
   const pricing = calculateBannerPricing({
@@ -61,6 +68,7 @@ export function calcTotals({
     quantity: qty,
     material,
     addRope,
+    ropePlacement,
     polePockets,
   });
   const area = pricing.areaSqFt;

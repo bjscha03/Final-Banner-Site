@@ -18,7 +18,7 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-    nodePolyfills({
+    mode !== 'test' && nodePolyfills({
       globals: {
         Buffer: true,
         global: true,

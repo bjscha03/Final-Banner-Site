@@ -18,7 +18,16 @@ const CHECKOUT_ITEM = {
   created_at: '2026-08-07T12:00:00.000Z',
 };
 
+const PAYMENT_ENDPOINTS = new Set([
+  '/.netlify/functions/create-order',
+  '/.netlify/functions/paypal-create-order',
+  '/.netlify/functions/paypal-capture-minimal',
+  '/.netlify/functions/paypal-payment-status',
+]);
+
 const installCheckoutHarness = async (page: Page) => {
+  const paymentEndpointRequests: string[] = [];
+
   await page.addInitScript((item) => {
     window.localStorage.clear();
     window.sessionStorage.clear();
@@ -30,6 +39,8 @@ const installCheckoutHarness = async (page: Page) => {
 
   await page.route('**/.netlify/functions/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
+    if (PAYMENT_ENDPOINTS.has(path)) paymentEndpointRequests.push(path);
+
     const body = path.endsWith('/cart-load')
       ? { cartData: [CHECKOUT_ITEM] }
       : path.endsWith('/paypal-config')
@@ -54,9 +65,63 @@ const installCheckoutHarness = async (page: Page) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/javascript',
-      body: 'window.paypal = window.paypal || {};',
+      body: `(() => {
+        const makeCardField = (name) => () => {
+          let mountedField = null;
+          return {
+            render(container) {
+              mountedField = document.createElement('div');
+              mountedField.dataset.paypalCardField = name;
+              mountedField.setAttribute('aria-hidden', 'true');
+              mountedField.style.cssText = 'display:block;width:100%;height:44px;';
+              container.replaceChildren(mountedField);
+              return Promise.resolve();
+            },
+            close() {
+              mountedField?.remove();
+              mountedField = null;
+              return Promise.resolve();
+            },
+          };
+        };
+
+        window.paypal = {
+          Buttons() {
+            let mountedButton = null;
+            return {
+              isEligible: () => true,
+              render(container) {
+                mountedButton = document.createElement('div');
+                mountedButton.dataset.paypalButton = 'mock';
+                mountedButton.setAttribute('aria-hidden', 'true');
+                mountedButton.style.cssText = 'display:block;width:100%;height:42px;';
+                container.replaceChildren(mountedButton);
+                return Promise.resolve();
+              },
+              close() {
+                mountedButton?.remove();
+                mountedButton = null;
+                return Promise.resolve();
+              },
+              updateProps() {},
+            };
+          },
+          CardFields() {
+            return {
+              isEligible: () => true,
+              submit: () => Promise.resolve(),
+              NameField: makeCardField('name'),
+              NumberField: makeCardField('number'),
+              ExpiryField: makeCardField('expiry'),
+              CVVField: makeCardField('cvv'),
+            };
+          },
+        };
+      })();`,
     });
   });
+
+  return { paymentEndpointRequests };
 };
 
 test('contact and delivery details are visible before either payment method', async ({ page }) => {
@@ -90,4 +155,26 @@ test('contact and delivery details are visible before either payment method', as
   expect(await page.evaluate(() => (
     document.documentElement.scrollWidth <= window.innerWidth + 1
   ))).toBe(true);
+});
+
+test('debit or credit card disclosure opens before required contact details are complete', async ({ page }) => {
+  const { paymentEndpointRequests } = await installCheckoutHarness(page);
+  await page.goto('/checkout', { waitUntil: 'domcontentloaded' });
+
+  const firstName = page.getByLabel(/First Name/);
+  const cardButton = page.getByRole('button', { name: 'Pay with Debit or Credit Card' });
+
+  await expect(firstName).toBeVisible({ timeout: 20_000 });
+  await expect(firstName).toHaveValue('');
+  await expect(cardButton).toBeEnabled();
+  await expect(cardButton).toHaveAttribute('aria-expanded', 'false');
+
+  await cardButton.click();
+
+  const cardFields = page.locator('#paypal-inline-card-fields');
+  await expect(cardButton).toHaveAttribute('aria-expanded', 'true');
+  await expect(cardFields).toHaveCount(1);
+  await expect(cardFields).toBeVisible();
+  await expect(cardFields.locator('[data-paypal-card-field]')).toHaveCount(4);
+  expect(paymentEndpointRequests).toEqual([]);
 });

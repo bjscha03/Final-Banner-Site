@@ -1,4 +1,9 @@
 # API routing for Netlify Functions
+# Keep the historical PayPal compatibility routes ahead of the broad API
+# rewrite. Netlify uses the first matching rule, and the generic mapping would
+# otherwise look for nonexistent `paypal/create-order` function paths.
+/api/paypal/create-order   /.netlify/functions/paypal-create-order   200
+/api/paypal/capture-order  /.netlify/functions/paypal-capture-order  200
 /api/*   /.netlify/functions/:splat   200
 
 # Direct test pages - serve as-is (no React routing)

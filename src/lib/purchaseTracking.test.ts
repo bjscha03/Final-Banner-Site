@@ -195,4 +195,33 @@ describe('purchase tracking', () => {
     expect(window.gtag).toHaveBeenCalledTimes(2); // original GA4 purchase plus later direct conversion
     expect((window as any).fbq).toHaveBeenCalledTimes(1);
   });
+
+  it('retries a failed direct Google Ads call without replaying successful GA4 or Meta', async () => {
+    window.gtag = vi.fn((_command, eventName) => {
+      if (eventName === 'conversion') throw new Error('ads unavailable');
+    });
+
+    const first = await attemptPurchaseTracking(baseOrder());
+    expect(first.attempts.find((attempt) => attempt.provider === 'google_ads')).toMatchObject({
+      attempted: true,
+      ok: false,
+      status: 'error',
+    });
+    expect(localStorage.getItem('purchase_tracked_order-1_google_ads')).toBeNull();
+    expect((window as any).fbq).toHaveBeenCalledTimes(1);
+
+    window.gtag = vi.fn();
+    const retry = await attemptPurchaseTracking(baseOrder());
+
+    expect(retry.duplicate).toBe(true);
+    expect(retry.attempts.find((attempt) => attempt.provider === 'ga4')).toMatchObject({ attempted: false });
+    expect(retry.attempts.find((attempt) => attempt.provider === 'meta')).toMatchObject({ attempted: false });
+    expect(retry.attempts.find((attempt) => attempt.provider === 'google_ads')).toMatchObject({
+      attempted: true,
+      ok: true,
+    });
+    expect(window.gtag).toHaveBeenCalledTimes(1);
+    expect(window.gtag).toHaveBeenCalledWith('event', 'conversion', expect.anything());
+    expect((window as any).fbq).toHaveBeenCalledTimes(1);
+  });
 });

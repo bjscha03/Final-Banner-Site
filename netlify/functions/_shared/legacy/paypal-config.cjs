@@ -72,35 +72,19 @@ exports.handler = async (event) => {
   }
 
   try {
-    const environment = runtimeConfig.normalizeEnvironment(process.env.PAYPAL_ENV);
-    if (String(process.env.FEATURE_PAYPAL || '').trim() !== '1') {
+    const prepared = runtimeConfig.preparePayPalRuntime({ event });
+    if (!prepared.enabled) {
+      console.warn('[paypal-config] PayPal is unavailable for this deploy context', {
+        context: prepared.context,
+        environment: prepared.environment,
+        configuredEnvironment: prepared.configuredEnvironment,
+        errors: prepared.errors,
+      });
       return reply(200, {
         enabled: false,
         clientId: null,
-        environment,
-        components: 'buttons,card-fields',
-      });
-    }
-
-    const prepared = runtimeConfig.preparePayPalRuntime();
-    if (!prepared.configured) {
-      console.error('[paypal-config] PayPal credentials are missing', {
-        environment: prepared.environment,
-        clientIdPresent: Boolean(prepared.clientId),
-        clientSecretPresent: Boolean(prepared.clientSecret),
-        expectedClientIdVariable: prepared.environment === 'live'
-          ? 'PAYPAL_CLIENT_ID_LIVE'
-          : 'PAYPAL_CLIENT_ID_SANDBOX',
-        expectedSecretVariable: prepared.environment === 'live'
-          ? 'PAYPAL_SECRET_LIVE'
-          : 'PAYPAL_SECRET_SANDBOX',
-      });
-      return reply(500, {
-        enabled: false,
-        clientId: null,
         environment: prepared.environment,
         components: 'buttons,card-fields',
-        error: 'PayPal configuration error',
       });
     }
 
@@ -124,7 +108,7 @@ exports.handler = async (event) => {
     return reply(500, {
       enabled: false,
       clientId: null,
-      environment: runtimeConfig.normalizeEnvironment(process.env.PAYPAL_ENV),
+      environment: runtimeConfig.expectedEnvironment(event),
       components: 'buttons,card-fields',
       error: 'Internal server error',
     });
@@ -132,6 +116,7 @@ exports.handler = async (event) => {
 };
 
 exports._test = {
+  handler: exports.handler,
   firstConfigured: runtimeConfig.firstConfigured,
   normalizeEnvironment: runtimeConfig.normalizeEnvironment,
   resolveCredentials: runtimeConfig.resolveCredentials,

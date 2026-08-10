@@ -17,7 +17,7 @@ import { resolvePromo, getKnownPromo } from '@/lib/promoEngine';
 import { useToast } from '@/components/ui/use-toast';
 import { generateFinalRenderFromHTML } from '@/utils/generateFinalRenderFromHTML';
 import { renderPdfToDataUrl, type PdfPreviewResult } from '@/utils/pdf/renderPdfToDataUrl';
-import type { ProductTypeSlug } from '@/lib/products';
+import { validateProductConfiguration, type ProductTypeSlug } from '@/lib/products';
 import { getConfiguratorProductQuery, parseConfiguratorProductQuery } from '@/lib/configurator';
 import ProductTypeSwitcher from '@/components/design/ProductTypeSwitcher';
 import YardSignConfigurator, { type YardSignConfiguratorHandle } from '@/components/design/YardSignConfigurator';
@@ -991,7 +991,15 @@ const Design: React.FC = () => {
     ropePlacement,
     polePockets,
   });
-  const totals = calcTotals({ widthIn, heightIn, qty: quantity, material, addRope, polePockets });
+  const totals = calcTotals({
+    widthIn,
+    heightIn,
+    qty: quantity,
+    material,
+    addRope,
+    ropePlacement,
+    polePockets,
+  });
 
   const selectedMaterial = MATERIALS.find(m => m.mapped === material) || MATERIALS[0];
   const materialLabel = isCarMagnet ? 'Premium Magnetic Material' : selectedMaterial.label;
@@ -1684,6 +1692,20 @@ const Design: React.FC = () => {
     const checkoutData = directData || pendingCheckoutData;
     let checkoutArtwork = uploadedFileRef.current;
     const preparedPlacement = preparedPlacementRef.current;
+    const configurationValidation = validateProductConfiguration({
+      productType,
+      widthIn,
+      heightIn,
+      grommets: productType === 'banner' ? grommets : null,
+    });
+    if (!configurationValidation.valid) {
+      toast({
+        title: 'Review product size',
+        description: configurationValidation.message,
+        variant: 'destructive',
+      });
+      return;
+    }
 
     // Yard signs: multi-design flow
     if (isYardSign && yardSignPricing) {
@@ -2099,7 +2121,9 @@ const Design: React.FC = () => {
 
     const updatedTotals = calcTotals({
       widthIn, heightIn, qty: quantity, material,
-      addRope: finalRope, polePockets: finalPolePockets
+      addRope: finalRope,
+      ropePlacement,
+      polePockets: finalPolePockets,
     });
 
     quoteStore.set({
@@ -2152,7 +2176,7 @@ const Design: React.FC = () => {
     else cartStore.addFromQuote(bannerQuoteState, undefined, pricing);
 
     finishAddToCart(actionType, '/design?product=banner');
-  }, [ensurePermanentArtworkUploaded, pendingCheckoutData, grommets, addRope, polePockets, widthIn, heightIn, quantity, material, quoteStore, cartStore, toast, isYardSign, isCarMagnet, carMagnetPricing, carMagnetRoundedCorners, yardSignPricing, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, yardSignSidedness, yardSignAddStepStakes, yardSignStepStakeQty, finishAddToCart, editItemId, aiPrompt, aiEditPrompt, ropePlacement]);
+  }, [ensurePermanentArtworkUploaded, pendingCheckoutData, grommets, addRope, polePockets, widthIn, heightIn, quantity, material, quoteStore, cartStore, toast, isYardSign, isCarMagnet, carMagnetPricing, carMagnetRoundedCorners, yardSignPricing, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, yardSignSidedness, yardSignAddStepStakes, yardSignStepStakeQty, finishAddToCart, editItemId, aiPrompt, aiEditPrompt, ropePlacement, productType]);
 
 
   const prepareAndRoutePlacement = useCallback((
@@ -2711,7 +2735,7 @@ const Design: React.FC = () => {
 
           {modeContent.heroDescription}
 
-          <div className="mx-auto mt-5 max-w-xl text-left md:hidden">
+          <div data-mobile-delivery-timer className="mx-auto mt-5 max-w-xl text-left md:hidden">
             <DeliveryTimer variant="compact" className="shadow-lg" />
           </div>
 

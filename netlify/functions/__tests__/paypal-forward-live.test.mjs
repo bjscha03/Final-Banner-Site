@@ -73,24 +73,46 @@ test('completed capture finalizes the existing internal order only after identit
   assert.match(source, /paypal_capture_id IS NULL/);
 });
 
+test('PayPal and Stripe bindings are mutually exclusive before provider authorization', () => {
+  const safety = require('../_shared/legacy/paypal-payment-safety.cjs');
+  const createSource = read('../_shared/legacy/paypal-create-order-forward.cjs');
+  const captureSource = read('../_shared/legacy/paypal-capture-final.cjs');
+  const stripeService = read('../_shared/stripe-checkout-service.cjs');
+  const stripeFinalizer = read('../_shared/finalizeStripeOrder.cjs');
+
+  assert.match(createSource, /stripe_payment_intent_id IS NULL/);
+  assert.match(createSource, /payment_method IS NULL OR payment_method = 'paypal'/);
+  assert.match(captureSource, /PAYMENT_PROVIDER_CONFLICT/);
+  assert.match(captureSource, /payment_method = 'paypal'[\s\S]*stripe_payment_intent_id IS NULL/);
+  assert.match(stripeService, /payment_method = 'stripe'[\s\S]*paypal_order_id IS NULL[\s\S]*paypal_capture_id IS NULL/);
+  assert.match(stripeFinalizer, /PAYMENT_PROVIDER_CONFLICT/);
+  assert.match(stripeFinalizer, /payment_method = 'stripe'[\s\S]*paypal_order_id IS NULL[\s\S]*paypal_capture_id IS NULL/);
+  assert.equal(safety.canBindPayPalOrder({ payment_method: null, stripe_payment_intent_id: null }), true);
+  assert.equal(safety.canBindPayPalOrder({ payment_method: 'paypal', stripe_payment_intent_id: null }), true);
+  assert.equal(safety.canBindPayPalOrder({ payment_method: 'stripe', stripe_payment_intent_id: 'pi_123' }), false);
+  assert.equal(safety.isPayPalBoundOrder({
+    payment_method: 'paypal', paypal_order_id: 'PAYPAL-ORDER', stripe_payment_intent_id: null,
+  }), true);
+  assert.equal(safety.isPayPalBoundOrder({
+    payment_method: 'paypal', paypal_order_id: 'PAYPAL-ORDER', stripe_payment_intent_id: 'pi_123',
+  }), false);
+});
+
 test('hosted PayPal payer and shipping details are persisted before notifications', () => {
-  const customerInfo = read('../_shared/legacy/paypal-customer-info.cjs');
+  const captureFinal = read('../_shared/legacy/paypal-capture-final.cjs');
   const captureWrapper = read('../paypal-capture-minimal.mjs');
   const webhookWrapper = read('../paypal-webhook.mjs');
   const followups = read('../process-paid-order-followups-background.mjs');
 
-  assert.match(customerInfo, /purchase_units/);
-  assert.match(customerInfo, /payer\?\.email_address/);
-  assert.match(customerInfo, /shipping\?\.address/);
-  assert.match(customerInfo, /Prefer:\s*'return=representation'/);
-  assert.match(customerInfo, /UPDATE orders/);
-  assert.match(customerInfo, /customer_name/);
-  assert.match(customerInfo, /shipping_street/);
-  assert.match(captureWrapper, /approvedOrderData/);
-  assert.match(captureWrapper, /refreshOrderCustomerInfo/);
-  assert.match(webhookWrapper, /refreshOrderCustomerInfo/);
+  assert.match(captureFinal, /extractCustomerEmail\(paypalData\)/);
+  assert.match(captureFinal, /extractShippingAddress\(paypalData\)/);
+  assert.match(captureFinal, /hasCompleteProviderShipping/);
+  assert.match(captureFinal, /shipping_street2 = CASE/);
+  assert.doesNotMatch(captureFinal, /input\.customer|input\.shippingAddress|approvedOrderData|shippingChangeData/);
+  assert.doesNotMatch(captureWrapper, /refreshOrderCustomerInfo/);
+  assert.doesNotMatch(webhookWrapper, /refreshOrderCustomerInfo/);
   assert.match(followups, /isUsableCustomerEmail/);
-  assert.match(followups, /refreshOrderCustomerInfo/);
+  assert.doesNotMatch(followups, /refreshOrderCustomerInfo/);
 });
 
 test('checkout redirects only for a verified completed capture', () => {
@@ -125,14 +147,33 @@ test('webhook uses the same authoritative capture finalizer', () => {
 test('paid-order follow-ups use the existing notify-order Resend templates', () => {
   const source = read('../process-paid-order-followups-background.mjs');
   const retrySource = read('../retry-paid-order-followups.mjs');
+  const netlifyConfig = read('../../../netlify.toml');
 
+  assert.match(source, /import 'cloudinary'/);
+  assert.match(source, /import 'sharp'/);
+  assert.match(source, /import 'pdfkit'/);
+  assert.match(source, /import 'pdf-lib'/);
   assert.match(source, /notifyOrderModule\.handler/);
-  assert.match(source, /forceResendBoth/);
+  assert.match(source, /forceResendAdmin/);
+  assert.match(source, /if \(!expected \|\| supplied !== expected\)/);
   assert.match(source, /skipNotifications:\s*true/);
   assert.match(source, /background:\s*true/);
   assert.doesNotMatch(source, /new Resend/);
   assert.doesNotMatch(source, /<!doctype html>|New Paid Order/);
+  const notifyIndex = source.indexOf(
+    'await runExistingResendTemplates(event, orderId',
+  );
+  const pdfIndex = source.indexOf('const pdfResponse = await pdfModule.handler');
+  assert.ok(notifyIndex >= 0, 'notification call must remain present');
+  assert.ok(pdfIndex >= 0, 'PDF render call must remain present');
+  assert.ok(notifyIndex < pdfIndex, 'notifications must run before PDF rendering');
   assert.match(retrySource, /schedule:\s*'\*\/5 \* \* \* \*'/);
+  assert.match(retrySource, /siteUrlForEvent/);
+  assert.match(retrySource, /!dbUrl \|\| !siteUrl \|\| !internalSecret/);
   assert.match(retrySource, /confirmation_emailed_at IS NULL/);
   assert.match(retrySource, /admin_notification_sent_at IS NULL/);
+  assert.match(
+    netlifyConfig,
+    /\[functions\."process-paid-order-followups-background"\]\s+memory\s*=\s*2048/,
+  );
 });

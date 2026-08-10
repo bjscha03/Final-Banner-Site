@@ -7,6 +7,7 @@ const {
 
 const headers = { 'Content-Type': 'application/json' };
 const reply = (statusCode, body) => ({ statusCode, headers, body: JSON.stringify(body) });
+let neonFactory = neon;
 
 async function getPayPalAccessToken() {
   const env = String(process.env.PAYPAL_ENV || 'sandbox').toLowerCase();
@@ -88,7 +89,7 @@ exports.handler = async (event) => {
   if (!dbUrl) return reply(500, { ok: false, error: 'DATABASE_NOT_CONFIGURED' });
 
   const body = event.body || '{}';
-  const sql = neon(dbUrl);
+  const sql = neonFactory(dbUrl);
 
   try {
     const verified = await verifyWebhookSignature(event, body);
@@ -153,12 +154,24 @@ exports.handler = async (event) => {
     }
 
     const orders = await sql`
-      SELECT id
+      SELECT id, checkout_idempotency_key, paypal_order_id, paypal_capture_id
         FROM orders
        WHERE paypal_order_id = ${paypalOrderId}
+          OR paypal_capture_id = ${paypalCaptureId}
        ORDER BY created_at DESC
        LIMIT 2
     `;
+
+    const exactBannerTarget = orders.length === 1
+      && orders[0].paypal_order_id === paypalOrderId
+      && (!orders[0].paypal_capture_id || orders[0].paypal_capture_id === paypalCaptureId);
+    if (orders.length > 1 || (orders.length === 1 && !exactBannerTarget)) {
+      const message = orders.length > 1
+        ? 'Multiple banner orders reference the same PayPal payment ID'
+        : 'PayPal order/capture identifiers do not resolve to the same internal order';
+      await updateEvent(sql, eventId, 'conflict', message);
+      return reply(503, { ok: false, error: 'PAYPAL_ORDER_CONFLICT' });
+    }
 
     if (orders.length !== 1) {
       const message = orders.length > 1
@@ -170,9 +183,14 @@ exports.handler = async (event) => {
 
     const internalOrderId = orders[0].id;
     const captureResponse = await captureModule.handler({
+      ...event,
       httpMethod: 'POST',
       headers: event.headers || {},
-      body: JSON.stringify({ orderID: paypalOrderId, internalOrderId }),
+      body: JSON.stringify({
+        orderID: paypalOrderId,
+        internalOrderId,
+        checkoutKey: orders[0].checkout_idempotency_key,
+      }),
     });
 
     let capturePayload = {};
@@ -220,4 +238,13 @@ exports.handler = async (event) => {
   }
 };
 
-exports._test = { verifyWebhookSignature, ensureWebhookTable };
+exports._test = {
+  verifyWebhookSignature,
+  ensureWebhookTable,
+  resetNeonFactory() {
+    neonFactory = neon;
+  },
+  setNeonFactory(factory) {
+    neonFactory = factory;
+  },
+};

@@ -1,4 +1,5 @@
 import React from 'react';
+import { reloadLatestVersion } from '@/lib/chunkRecovery';
 
 interface Props {
   children: React.ReactNode;
@@ -20,7 +21,7 @@ const DefaultErrorFallback = ({ error }: { error?: Error }) => (
       </p>
       <button
         type="button"
-        onClick={() => window.location.reload()}
+        onClick={() => reloadLatestVersion()}
         className="mt-6 rounded-lg bg-orange-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
       >
         Reload page

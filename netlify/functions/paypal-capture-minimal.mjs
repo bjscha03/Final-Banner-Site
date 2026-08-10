@@ -3,6 +3,7 @@ import { withLambda } from '@netlify/aws-lambda-compat';
 import captureModule from './_shared/legacy/paypal-capture-forward.cjs';
 import customerInfoModule from './_shared/legacy/paypal-customer-info.cjs';
 import runtimeConfig from './_shared/paypal-runtime-config.cjs';
+import internalUrlModule from './_shared/stripe-runtime-config.cjs';
 
 const clean = (value, max = 500) => {
   if (value === null || value === undefined) return null;
@@ -10,12 +11,7 @@ const clean = (value, max = 500) => {
   return normalized ? normalized.slice(0, max) : null;
 };
 
-const getSiteUrl = (event) => {
-  const host = event?.headers?.['x-forwarded-host'] || event?.headers?.host;
-  if (host) return `https://${host}`;
-  const configured = process.env.DEPLOY_PRIME_URL || process.env.URL || process.env.PUBLIC_SITE_URL;
-  return configured ? String(configured).replace(/\/$/, '') : null;
-};
+const getSiteUrl = internalUrlModule.siteUrlForEvent;
 
 const queuePaidOrderFollowups = async (event, orderId) => {
   const siteUrl = getSiteUrl(event);
@@ -49,7 +45,26 @@ const queuePaidOrderFollowups = async (event, orderId) => {
 };
 
 const handler = async (event, context) => {
-  runtimeConfig.preparePayPalRuntime();
+  if (event.httpMethod === 'POST') {
+    const runtime = runtimeConfig.preparePayPalRuntime({ requireFeature: false, event });
+    if (!runtime.enabled) {
+      return {
+        statusCode: 503,
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store, max-age=0' },
+        body: JSON.stringify({
+          ok: false,
+          success: false,
+          paymentCaptured: false,
+          paymentStatusUnknown: true,
+          reconciliationRequired: true,
+          doNotRetry: true,
+          safeToRetry: false,
+          error: 'PAYPAL_DISABLED',
+          message: 'PayPal payment verification is unavailable for this deploy. Do not submit another payment.',
+        }),
+      };
+    }
+  }
 
   let requestBody = {};
   try { requestBody = JSON.parse(event.body || '{}'); } catch { /* authoritative handler returns INVALID_JSON */ }
@@ -74,8 +89,9 @@ const handler = async (event, context) => {
   );
 
   if (definitiveDecline && internalOrderId && paypalOrderId) {
+    let retired = false;
     try {
-      await customerInfoModule.retireDefinitivelyDeclinedPayPalOrder({
+      retired = await customerInfoModule.retireDefinitivelyDeclinedPayPalOrder({
         internalOrderId,
         orderID: paypalOrderId,
       });
@@ -85,6 +101,37 @@ const handler = async (event, context) => {
         paypalOrderId,
         error: error instanceof Error ? error.message : String(error),
       });
+    }
+
+    if (!retired) {
+      try {
+        await customerInfoModule.lockPayPalOrderForReconciliation({
+          internalOrderId,
+          orderID: paypalOrderId,
+        });
+      } catch (error) {
+        console.error('[paypal-capture-minimal] could not reconciliation-lock declined PayPal order', {
+          internalOrderId,
+          paypalOrderId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+      response.statusCode = 202;
+      response.body = JSON.stringify({
+        ...responseBody,
+        ok: true,
+        success: false,
+        paymentCaptured: false,
+        paymentStatusUnknown: true,
+        reconciliationRequired: true,
+        doNotRetry: true,
+        safeToRetry: false,
+        restartPayment: false,
+        retryAllowed: false,
+        error: 'PAYPAL_DECLINE_RETIREMENT_INCOMPLETE',
+        message: 'This payment attempt could not be safely unlocked. Do not submit another payment while we verify it.',
+      });
+      return response;
     }
 
     response.body = JSON.stringify({
@@ -107,42 +154,17 @@ const handler = async (event, context) => {
 
   if (!definitivePaidState || !internalOrderId || !paypalOrderId) return response;
 
-  let refreshedCustomer = null;
-  try {
-    refreshedCustomer = await customerInfoModule.refreshOrderCustomerInfo({
-      internalOrderId,
-      orderID: paypalOrderId,
-      submitted: requestBody.customerInfo,
-      approvedOrderData: requestBody.approvedOrderData,
-      shippingChangeData: requestBody.shippingChangeData,
-    });
-  } catch (error) {
-    console.error('[paypal-capture-minimal] customer information refresh failed', {
-      internalOrderId,
-      paypalOrderId,
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-
   const followupsQueued = await queuePaidOrderFollowups(event, internalOrderId);
   response.body = JSON.stringify({
     ...responseBody,
-    customerInfoPersisted: Boolean(refreshedCustomer)
-      || Boolean(responseBody.customerEmail || responseBody.customerName),
-    customerEmail: refreshedCustomer?.email || responseBody.customerEmail || null,
-    customerName: refreshedCustomer?.customer_name || responseBody.customerName || null,
-    customerPhone: refreshedCustomer?.customer_phone || responseBody.customerPhone || null,
-    shippingAddress: refreshedCustomer
-      ? {
-          name: refreshedCustomer.shipping_name || refreshedCustomer.customer_name || null,
-          street: refreshedCustomer.shipping_street || null,
-          street2: refreshedCustomer.shipping_street2 || null,
-          city: refreshedCustomer.shipping_city || null,
-          state: refreshedCustomer.shipping_state || null,
-          zip: refreshedCustomer.shipping_zip || null,
-          country: refreshedCustomer.shipping_country || 'US',
-        }
-      : responseBody.shippingAddress || null,
+    // The authoritative capture transaction already persisted the provider
+    // GET_FROM_FILE address before returning success. Never mutate paid
+    // contact/fulfillment data from a browser retry payload afterward.
+    customerInfoPersisted: Boolean(responseBody.customerEmail || responseBody.customerName),
+    customerEmail: responseBody.customerEmail || null,
+    customerName: responseBody.customerName || null,
+    customerPhone: responseBody.customerPhone || null,
+    shippingAddress: responseBody.shippingAddress || null,
     followupsQueued,
   });
   return response;
@@ -150,6 +172,7 @@ const handler = async (event, context) => {
 
 export const _test = {
   getSiteUrl,
+  handler,
   queuePaidOrderFollowups,
 };
 

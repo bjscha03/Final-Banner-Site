@@ -1,5 +1,4 @@
-import { withLambda } from '@netlify/aws-lambda-compat';
-import legacyModule from './_shared/legacy/paypal-capture-order.cjs';
-
-export default withLambda(legacyModule.handler);
-
+// Compatibility route delegates to the complete deployed capture wrapper,
+// including customer recovery, decline cleanup and once-only fulfillment
+// queueing. It cannot reach the retired browser-authored capture code.
+export { default } from './paypal-capture-minimal.mjs';

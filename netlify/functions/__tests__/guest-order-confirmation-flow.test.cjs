@@ -43,11 +43,14 @@ test('guest confirmation token stays out of the URL and is sent only as a get-or
   const checkout = read('src/pages/Checkout.tsx');
   const confirmation = read('src/pages/PaymentSuccess.tsx');
 
-  assert.match(checkout, /orderConfirmationToken: orderData\?\.orderConfirmationToken/);
+  assert.match(checkout, /const confirmationToken = orderData\?\.orderConfirmationToken/);
+  assert.match(checkout, /storeOrderConfirmationToken\(orderId, confirmationToken\)/);
+  assert.match(checkout, /orderConfirmationToken: confirmationToken/);
   assert.doesNotMatch(checkout, /payment-success\?[^`]*orderConfirmationToken/);
   assert.match(confirmation, /'X-Order-Confirmation-Token': orderConfirmationToken/);
   assert.doesNotMatch(confirmation, /get-order\?[^`]*orderConfirmationToken/);
-  assert.match(confirmation, /attemptCanonicalPurchaseTracking\(orderId, loadedOrder/);
+  assert.match(confirmation, /const canonicalOrderId = loadedOrder\?\.id \|\| null/);
+  assert.match(confirmation, /attemptCanonicalPurchaseTracking\(canonicalOrderId, loadedOrder/);
 });
 
 test('customer confirmation and resend emails use signed fragment order links', () => {
@@ -57,7 +60,10 @@ test('customer confirmation and resend emails use signed fragment order links', 
   const orderPage = read('src/pages/OrderDetail.tsx');
   const main = read('src/main.tsx');
 
-  assert.match(notify, /createGuestOrderViewUrl\(origin, order\)/);
+  assert.match(
+    notify,
+    /createGuestOrderViewUrl\(\s*origin,\s*order,\s*isHumanManualResend\s*\?\s*\{\}\s*:\s*\{\s*nowSeconds:\s*Math\.floor\(createdAtMs\s*\/\s*1000\)\s*\},?\s*\)/,
+  );
   assert.match(resend, /createGuestOrderViewUrl\(origin, order\)/);
   assert.doesNotMatch(notify, /invoiceUrl\s*=\s*`\$\{origin\}\/orders/);
   assert.doesNotMatch(resend, /invoiceUrl\s*=\s*`\$\{origin\}\/orders/);

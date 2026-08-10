@@ -2,6 +2,7 @@ const CHUNK_RECOVERY_STORAGE_KEY = 'botf_chunk_recovery_at';
 const CHUNK_RECOVERY_GUARD_MS = 30_000;
 
 type RecoveryWindow = Pick<Window, 'addEventListener' | 'removeEventListener' | 'location' | 'sessionStorage'>;
+type ManualRecoveryWindow = Pick<Window, 'location' | 'sessionStorage'>;
 
 const getErrorMessage = (reason: unknown): string => {
   if (reason instanceof Error) return `${reason.name}: ${reason.message}`;
@@ -21,6 +22,26 @@ export const isChunkLoadFailure = (reason: unknown): boolean => {
 export const canAttemptChunkRecovery = (lastAttemptAt: string | null, now: number): boolean => {
   const timestamp = Number(lastAttemptAt);
   return !Number.isFinite(timestamp) || timestamp <= 0 || now - timestamp >= CHUNK_RECOVERY_GUARD_MS;
+};
+
+/**
+ * User-initiated recovery must bypass both the automatic reload guard and a
+ * cached HTML response. `replace` also prevents the broken document from
+ * remaining as a useless Back-history entry.
+ */
+export const reloadLatestVersion = (
+  target: ManualRecoveryWindow = window,
+  now = Date.now(),
+): void => {
+  try {
+    target.sessionStorage.removeItem(CHUNK_RECOVERY_STORAGE_KEY);
+  } catch {
+    // A cache-busted navigation still works when storage is unavailable.
+  }
+
+  const destination = new URL(target.location.href);
+  destination.searchParams.set('_botf_refresh', String(now));
+  target.location.replace(destination.toString());
 };
 
 /**

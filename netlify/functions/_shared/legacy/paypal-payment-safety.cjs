@@ -26,6 +26,13 @@ const matchesInternalOrder = (paypalOrder, internalOrder) => {
     && identity.amountCents === Number(internalOrder.total_cents);
 };
 
+const canBindPayPalOrder = (order) => !order?.stripe_payment_intent_id
+  && ['', 'paypal'].includes(String(order?.payment_method || '').trim().toLowerCase());
+
+const isPayPalBoundOrder = (order) => canBindPayPalOrder(order)
+  && String(order?.payment_method || '').trim().toLowerCase() === 'paypal'
+  && Boolean(order?.paypal_order_id);
+
 const sanitizePayPal = (payload) => {
   if (!payload || typeof payload !== 'object') return null;
   const clone = JSON.parse(JSON.stringify(payload));
@@ -94,4 +101,15 @@ async function recordAttempt(sql, attempt) {
   `;
 }
 
-module.exports = { ACTIVE_ORDER_STATUSES, amountToCents, captureFromOrder, orderIdentity, matchesInternalOrder, recordAttempt, sanitizePayPal, ensurePaymentLedger };
+module.exports = {
+  ACTIVE_ORDER_STATUSES,
+  amountToCents,
+  canBindPayPalOrder,
+  captureFromOrder,
+  ensurePaymentLedger,
+  isPayPalBoundOrder,
+  matchesInternalOrder,
+  orderIdentity,
+  recordAttempt,
+  sanitizePayPal,
+};
