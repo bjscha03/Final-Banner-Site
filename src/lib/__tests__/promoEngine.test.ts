@@ -32,6 +32,27 @@ describe('promoEngine', () => {
   });
 
   describe('best-discount-wins (no stacking)', () => {
+    it('uses a server-validated database promo without hard-coding it in the client', () => {
+      const r = resolvePromo({
+        subtotalCents: 10000,
+        quantity: 1,
+        code: '20rmas',
+        validatedPromo: { code: '20RMAS', discountPercentage: 20 },
+      });
+      expect(r.appliedDiscountType).toBe('promo');
+      expect(r.appliedDiscountAmountCents).toBe(2000);
+      expect(r.promoDiscountCode).toBe('20RMAS');
+    });
+    it('ignores stale validated metadata when the entered code does not match', () => {
+      const r = resolvePromo({
+        subtotalCents: 10000,
+        quantity: 1,
+        code: 'NOT-RMAS',
+        validatedPromo: { code: '20RMAS', discountPercentage: 20 },
+      });
+      expect(r.appliedDiscountType).toBe('none');
+      expect(r.appliedDiscountAmountCents).toBe(0);
+    });
     it('promo wins over quantity at qty 1 when promo is bigger', () => {
       const r = resolvePromo({ subtotalCents: 10000, quantity: 1, code: 'NEW20' });
       expect(r.appliedDiscountType).toBe('promo');
