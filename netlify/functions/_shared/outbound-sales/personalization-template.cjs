@@ -2,6 +2,7 @@
 
 const SITE_URL = 'https://bannersonthefly.com';
 const DESIGN_URL = `${SITE_URL}/design?utm_source=email&utm_medium=marketing&utm_campaign=company_intro_new20`;
+const LIVE_DELIVERY_URL = `${SITE_URL}/shipping?utm_source=email&utm_medium=marketing&utm_campaign=company_intro_new20`;
 const BRAND_LOGO_URL = `${SITE_URL}/images/header-logo.png`;
 const HERO_IMAGE_URL = 'https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto,w_1280/https://bannersonthefly.com/images/product-heroes/vinyl-banners-1100.webp';
 const BRAND_ORANGE = '#ff6b35';
@@ -9,7 +10,8 @@ const BRAND_ORANGE_DARK = '#d94f16';
 const BRAND_NAVY = '#18448D';
 const BRAND_NAVY_DARK = '#0b2344';
 const FIRST_ORDER_PROMO_CODE = 'NEW20';
-const SIGNATURE = 'Best,\nBrandon\nBanners On The Fly';
+const LEGACY_SIGNATURE = 'Best,\nBrandon\nBanners On The Fly';
+const SIGNATURE = 'Best,\nBrandon Schaefer\nOwner, Banners On The Fly\nbannersonthefly.com';
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -22,11 +24,20 @@ function escapeHtml(value) {
 
 function splitBodyAndSignature(bodyText) {
   const normalized = String(bodyText || '').trim();
-  if (!normalized.endsWith(SIGNATURE)) return { message: normalized, signature: '' };
-  return {
-    message: normalized.slice(0, -SIGNATURE.length).trim(),
-    signature: SIGNATURE,
-  };
+  const matched = [SIGNATURE, LEGACY_SIGNATURE].find((signature) => normalized.endsWith(signature));
+  if (!matched) return { message: normalized, signature: '' };
+  return { message: normalized.slice(0, -matched.length).trim(), signature: SIGNATURE };
+}
+
+function polishOutboundBodyText(bodyText) {
+  const { message } = splitBodyAndSignature(bodyText);
+  const directNextStep = 'You can design and price your banner online whenever you’re ready, or reply with the size and quantity for quick pricing.';
+  const polished = message
+    .replace(/Would it be useful if I priced a show banner for booth [^?]+\?/gi, directNextStep)
+    .replace(/Would a quick quote for a booth-width banner be helpful\?/gi, directNextStep)
+    .replace(/Would it help if I priced a booth banner for [^?]+\?/gi, directNextStep)
+    .trim();
+  return [polished, SIGNATURE].filter(Boolean).join('\n\n');
 }
 
 function paragraphs(bodyText) {
@@ -39,7 +50,29 @@ function paragraphs(bodyText) {
 function signatureBlock(signature) {
   if (!signature) return '';
   const lines = String(signature).split(/\n/).map(escapeHtml);
-  return `<p style="margin:24px 0 0;color:#334155;font-size:15px;line-height:1.6;">${lines[0] || ''}<br><strong style="color:${BRAND_NAVY_DARK};">${lines[1] || ''}</strong><br>${lines[2] || ''}</p>`;
+  return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:24px 0 0;border-collapse:separate;border-left:4px solid ${BRAND_ORANGE};border-radius:10px;background:#f8fbff;"><tr><td style="padding:15px 17px;color:#334155;font-size:14px;line-height:1.55;">${lines[0] || ''}<br><strong style="color:${BRAND_NAVY_DARK};font-size:16px;">${lines[1] || ''}</strong><br><span style="color:#52657d;">${lines[2] || ''}</span><br><a href="${SITE_URL}" style="color:${BRAND_NAVY};font-weight:700;text-decoration:none;">${lines[3] || 'bannersonthefly.com'}</a></td></tr></table>`;
+}
+
+function deliveryPromiseStrip() {
+  return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="width:100%;border-collapse:collapse;background:${BRAND_NAVY_DARK};">
+    <tr>
+      <td width="33.33%" valign="top" style="width:33.33%;padding:16px 13px;border-right:1px solid #29415e;">
+        <p style="margin:0 0 6px;color:${BRAND_ORANGE};font-size:10px;font-weight:900;letter-spacing:1px;text-transform:uppercase;">Order cutoff</p>
+        <p style="margin:0;color:#ffffff;font-size:15px;line-height:1.25;font-weight:800;">10 PM ET</p>
+      </td>
+      <td width="33.33%" valign="top" style="width:33.33%;padding:16px 13px;border-right:1px solid #29415e;">
+        <p style="margin:0 0 6px;color:${BRAND_ORANGE};font-size:10px;font-weight:900;letter-spacing:1px;text-transform:uppercase;">Production</p>
+        <p style="margin:0;color:#ffffff;font-size:15px;line-height:1.25;font-weight:800;">Most in 24 hours</p>
+      </td>
+      <td width="33.33%" valign="top" style="width:33.33%;padding:16px 13px;">
+        <p style="margin:0 0 6px;color:${BRAND_ORANGE};font-size:10px;font-weight:900;letter-spacing:1px;text-transform:uppercase;">Shipping</p>
+        <p style="margin:0;color:#ffffff;font-size:15px;line-height:1.25;font-weight:800;">Free Next-Day Air</p>
+      </td>
+    </tr>
+    <tr><td colspan="3" align="center" style="padding:0 13px 14px;color:#dbe7f6;font-size:12px;line-height:1.5;">
+      <a href="${LIVE_DELIVERY_URL}" style="color:#ffffff;font-weight:800;text-decoration:underline;">See today&rsquo;s live ship &amp; delivery estimate</a>
+    </td></tr>
+  </table>`;
 }
 
 function complianceFooter({ physicalAddress, unsubscribeUrl } = {}) {
@@ -48,7 +81,7 @@ function complianceFooter({ physicalAddress, unsubscribeUrl } = {}) {
 }
 
 function renderOutboundEmailPreview({ subject, bodyText, physicalAddress, unsubscribeUrl }) {
-  const { message, signature } = splitBodyAndSignature(bodyText);
+  const { message, signature } = splitBodyAndSignature(polishOutboundBodyText(bodyText));
   const safeSubject = escapeHtml(subject);
 
   return `<!doctype html>
@@ -70,6 +103,9 @@ function renderOutboundEmailPreview({ subject, bodyText, physicalAddress, unsubs
           <p style="margin:0 0 10px;color:#ffb08c;font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;">Professional custom printing for businesses</p>
           <h1 style="margin:0;color:#ffffff;font-size:30px;line-height:1.2;font-weight:900;">Big visibility. Fast turnaround.</h1>
           <p style="margin:12px auto 0;max-width:510px;color:#dbe7f6;font-size:16px;line-height:1.55;">Premium banners, signs, and magnets made to help your next promotion, opening, event, or everyday message stand out.</p>
+        </td></tr>
+        <tr><td style="padding:0;background:${BRAND_NAVY_DARK};border-top:1px solid #29415e;">
+          ${deliveryPromiseStrip()}
         </td></tr>
         <tr><td style="padding:32px 34px 12px;background:#ffffff;">
           ${paragraphs(message)}
@@ -119,10 +155,11 @@ function renderOutboundEmailPreview({ subject, bodyText, physicalAddress, unsubs
 }
 
 function renderOutboundDeliveryContent({ subject, bodyText, physicalAddress, unsubscribeUrl }) {
-  const { message, signature } = splitBodyAndSignature(bodyText);
+  const { message, signature } = splitBodyAndSignature(polishOutboundBodyText(bodyText));
   const complianceText = `\n\n—\nBanners On The Fly\n${String(physicalAddress).trim()}\nUnsubscribe: ${String(unsubscribeUrl).trim()}`;
   const marketingText = [
     message,
+    `ORDER CUTOFF: 10 PM ET | PRODUCTION: Most in 24 hours | SHIPPING: Free Next-Day Air\nSee today's live ship and delivery estimate: ${LIVE_DELIVERY_URL}`,
     'WHY BUSINESSES ORDER FROM US',
     '• Most standard orders produced in 24 hours',
     '• Free Next-Day Air shipping after production',
@@ -141,6 +178,7 @@ function renderOutboundDeliveryContent({ subject, bodyText, physicalAddress, uns
 module.exports = {
   SITE_URL,
   DESIGN_URL,
+  LIVE_DELIVERY_URL,
   BRAND_LOGO_URL,
   HERO_IMAGE_URL,
   BRAND_ORANGE,
@@ -148,7 +186,9 @@ module.exports = {
   FIRST_ORDER_PROMO_CODE,
   escapeHtml,
   splitBodyAndSignature,
+  polishOutboundBodyText,
   paragraphs,
+  deliveryPromiseStrip,
   complianceFooter,
   renderOutboundEmailPreview,
   renderOutboundDeliveryContent,
