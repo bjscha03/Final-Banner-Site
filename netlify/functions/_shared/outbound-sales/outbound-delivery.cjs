@@ -96,8 +96,10 @@ async function sendOutboundMessage(options) {
 }
 
 function assertPermissionedMarketingAllowed(options = {}) {
-  if (options.permissionStatus !== 'explicit_opt_in' || options.permissionAttested !== true) {
-    const error = new Error('Explicit recipient permission is required for this marketing email.');
+  const explicitlyPermissioned = options.permissionStatus === 'explicit_opt_in' && options.permissionAttested === true;
+  const adminAuthorized = options.permissionStatus === 'admin_authorized' && options.adminAuthorized === true;
+  if (!explicitlyPermissioned && !adminAuthorized) {
+    const error = new Error('An authenticated administrator must authorize this marketing email.');
     error.code = 'PERMISSIONED_MARKETING_REQUIRED';
     throw error;
   }
@@ -105,9 +107,8 @@ function assertPermissionedMarketingAllowed(options = {}) {
 
 async function sendPermissionedMarketingMessage(options) {
   // This is deliberately separate from sendOutboundMessage. The automated
-  // cold-outreach path remains provider-policy locked; this path is available
-  // only after a named admin records evidence of the recipient's explicit
-  // marketing opt-in and then clicks Send for one recipient.
+  // cold-outreach path remains provider-policy locked; this one-at-a-time path
+  // is available only when a named administrator directly clicks Send.
   assertPermissionedMarketingAllowed(options);
   const apiKey = String(
     options.env?.OUTBOUND_PERMISSIONED_RESEND_API_KEY
@@ -154,7 +155,7 @@ async function sendPermissionedMarketingMessage(options) {
       tags: [
         { name: 'subsystem', value: 'manual_lead_review' },
         { name: 'message_id', value: options.message.id },
-        { name: 'permission', value: 'explicit_opt_in' },
+        { name: 'authorization', value: options.permissionStatus },
       ],
     }, { idempotencyKey: options.message.sendKey }));
     result = await Promise.race([request, timeout]);
