@@ -206,9 +206,24 @@ describe('manual lead review endpoint', () => {
     });
     const appendAudit = vi.fn().mockResolvedValue({ id: 1 });
     const sendPermissioned = vi.fn();
+    const assessEmail = vi.fn().mockResolvedValue({
+      email: 'taylor@futureexpo.example', emailNormalized: 'taylor@futureexpo.example',
+      syntaxValid: true, isRoleAddress: false, isFreeMailbox: false, domainMatches: true,
+      mxStatus: 'present', mxCheckedAt: '2026-08-10T12:00:00.000Z',
+      verificationStatus: 'unverified', verificationReason: 'Syntax and MX are valid.',
+      contactQualityScore: 100,
+    });
+    const saveManualContactAssessment = vi.fn().mockResolvedValue({ id: CONTACT_ID });
     const handler = createManualReviewHandler({
       env: deliveryEnvironment,
-      dependencies: { createSql: () => ({}), saveManualReview, appendAudit, sendPermissionedMarketingMessage: sendPermissioned },
+      dependencies: {
+        createSql: () => ({}), saveManualReview, appendAudit,
+        sendPermissionedMarketingMessage: sendPermissioned,
+        loadManualReviewContact: vi.fn().mockResolvedValue({
+          id: CONTACT_ID, email: 'taylor@futureexpo.example', canonical_domain: 'futureexpo.example',
+        }),
+        assessEmail, saveManualContactAssessment,
+      },
     });
     const response = await handler(adminEvent('PATCH', {
       prospectId: PROSPECT_ID, reviewStatus: 'approved', explicitOptIn: true,
@@ -216,6 +231,8 @@ describe('manual lead review endpoint', () => {
     }));
     expect(response.statusCode).toBe(200);
     expect(saveManualReview).toHaveBeenCalledWith({}, expect.objectContaining({ reviewedBy: 'admin@bannersonthefly.com' }));
+    expect(assessEmail).toHaveBeenCalledWith('taylor@futureexpo.example', { businessDomain: 'futureexpo.example' });
+    expect(saveManualContactAssessment).toHaveBeenCalledWith({}, CONTACT_ID, expect.objectContaining({ mxStatus: 'present' }));
     expect(sendPermissioned).not.toHaveBeenCalled();
     expect(appendAudit).toHaveBeenCalledWith({}, expect.objectContaining({ action: 'manual_lead.approved' }));
   });

@@ -222,6 +222,40 @@ async function saveManualReview(sql, data) {
   return rows[0] || null;
 }
 
+async function loadManualReviewContact(sql, prospectId) {
+  const rows = await sql(
+    `SELECT c.id,c.email,p.canonical_domain
+       FROM outbound_prospects p
+       JOIN LATERAL (
+         SELECT contact.* FROM outbound_contacts contact
+          WHERE contact.prospect_id=p.id AND contact.active=TRUE
+          ORDER BY contact.is_primary DESC,contact.contact_quality_score DESC NULLS LAST
+          LIMIT 1
+       ) c ON TRUE
+      WHERE p.id=$1
+      LIMIT 1`,
+    [prospectId],
+  );
+  return rows[0] || null;
+}
+
+async function saveManualContactAssessment(sql, contactId, assessment) {
+  const rows = await sql(
+    `UPDATE outbound_contacts
+        SET email=$2,email_normalized=COALESCE($3,email_normalized),syntax_valid=$4,is_role_address=$5,
+            is_free_mailbox=$6,domain_matches=$7,mx_status=$8,mx_checked_at=$9,
+            verification_status=$10,verification_reason=$11,
+            contact_quality_score=$12,send_eligible=FALSE,updated_at=NOW()
+      WHERE id=$1 AND active=TRUE
+      RETURNING id,email,mx_status,verification_status`,
+    [contactId, assessment.email, assessment.emailNormalized, assessment.syntaxValid,
+      assessment.isRoleAddress, assessment.isFreeMailbox, assessment.domainMatches,
+      assessment.mxStatus, assessment.mxCheckedAt, assessment.verificationStatus,
+      assessment.verificationReason, assessment.contactQualityScore],
+  );
+  return rows[0] || null;
+}
+
 async function loadManualReviewState(sql, prospectId) {
   const rows = await sql(
     `SELECT prospect_id,review_status,permission_status,send_state,send_key,
@@ -344,6 +378,8 @@ module.exports = {
   mapLead,
   listManualReviewLeads,
   saveManualReview,
+  loadManualReviewContact,
+  saveManualContactAssessment,
   loadManualReviewState,
   claimManualReviewSend,
   markManualReviewSent,

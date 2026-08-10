@@ -10,6 +10,7 @@ const {
   sendPermissionedMarketingMessage,
 } = require('./outbound-delivery.cjs');
 const { renderOutboundDeliveryContent } = require('./personalization-template.cjs');
+const { assessEmail } = require('./email.cjs');
 const { json, authorize, parseJsonBody, redactSecretText, safeFailure } = require('./security.cjs');
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -106,6 +107,7 @@ function createManualReviewHandler(options = {}) {
     appendAudit,
     saveUnsubscribeToken,
     sendPermissionedMarketingMessage,
+    assessEmail,
     ...options.dependencies,
   };
   const env = options.env || process.env;
@@ -144,6 +146,16 @@ function createManualReviewHandler(options = {}) {
       if (event.httpMethod === 'PATCH') {
         const input = normalizeReviewInput(body);
         const reviewedBy = String(auth.session.email || auth.session.sub || '').trim();
+        let contactAssessment = null;
+        if (input.reviewStatus === 'approved') {
+          const contact = await dependencies.loadManualReviewContact(sql, input.prospectId);
+          if (contact) {
+            contactAssessment = await dependencies.assessEmail(contact.email, {
+              businessDomain: contact.canonical_domain,
+            });
+            await dependencies.saveManualContactAssessment(sql, contact.id, contactAssessment);
+          }
+        }
         const saved = await dependencies.saveManualReview(sql, { ...input, reviewedBy });
         if (!saved) {
           const error = new Error('A sent lead review cannot be changed.');
@@ -158,7 +170,12 @@ function createManualReviewHandler(options = {}) {
             reviewStatus: input.reviewStatus,
             permissionStatus: input.reviewStatus === 'approved' ? 'explicit_opt_in' : 'unknown',
           },
-          metadata: { permissionEvidenceRecorded: input.reviewStatus === 'approved', notesPresent: Boolean(input.notes) },
+          metadata: {
+            permissionEvidenceRecorded: input.reviewStatus === 'approved',
+            notesPresent: Boolean(input.notes),
+            emailDnsRechecked: Boolean(contactAssessment?.mxCheckedAt),
+            emailMxStatus: contactAssessment?.mxStatus || null,
+          },
           requestId: event.headers?.['x-nf-request-id'] || null,
         });
         return json(200, { ok: true, review: {
