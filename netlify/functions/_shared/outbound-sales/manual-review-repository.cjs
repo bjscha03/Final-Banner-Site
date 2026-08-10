@@ -9,7 +9,7 @@ function technicalBlockers(row) {
   const blockers = [];
   if (!row.contact_id) blockers.push('No active business email');
   if (row.contact_id && row.syntax_valid !== true) blockers.push('Email syntax is not valid');
-  if (row.contact_id && row.mx_status !== 'present') blockers.push('Email domain has no confirmed mail server');
+  if (row.contact_id && !['present', 'not_checked'].includes(row.mx_status)) blockers.push('Email domain has no confirmed mail server');
   if (row.contact_id && row.is_role_address === true) blockers.push('Role-based mailbox');
   if (row.contact_id && row.is_free_mailbox === true) blockers.push('Free mailbox');
   if (row.contact_id && row.domain_matches !== true) blockers.push('Email domain does not match the business');
@@ -98,9 +98,7 @@ function mapLead(row) {
       sentAt: row.review_sent_at || null,
     },
     technicalBlockers: blockers,
-    canSend: reviewStatus === 'approved'
-      && permissionStatus === 'explicit_opt_in'
-      && blockers.length === 0
+    canSend: blockers.length === 0
       && ['not_sent', 'failed'].includes(sendState),
     discoveredAt: row.discovered_at,
     lastQualifiedAt: row.last_qualified_at,
@@ -150,18 +148,19 @@ const LEAD_SELECT = `
        LIMIT 1
     ) message ON TRUE`;
 
-async function listManualReviewLeads(sql, { limit = 50, offset = 0, minimumScore = MIN_HIGH_VALUE_SCORE, reviewView = 'pending' } = {}) {
+async function listManualReviewLeads(sql, { limit = 50, offset = 0, minimumScore = MIN_HIGH_VALUE_SCORE, reviewView = 'ready' } = {}) {
   const safeLimit = Math.max(1, Math.min(100, Number(limit) || 50));
   const safeOffset = Math.max(0, Math.min(10000, Number(offset) || 0));
   const safeScore = Math.max(MIN_HIGH_VALUE_SCORE, Math.min(100, Number(minimumScore) || MIN_HIGH_VALUE_SCORE));
   const candidateWhere = `((p.lead_score >= $1 AND p.status IN ('qualified','ready_for_outreach')) OR review.prospect_id IS NOT NULL)`;
   const viewWhere = {
+    ready: "COALESCE(review.send_state,'not_sent')<>'sent' AND COALESCE(review.review_status,'pending')<>'rejected'",
     pending: "COALESCE(review.review_status,'pending')='pending' AND COALESCE(review.send_state,'not_sent')<>'sent'",
     approved: "review.review_status='approved' AND review.send_state<>'sent'",
     rejected: "review.review_status='rejected' AND review.send_state<>'sent'",
     sent: "review.send_state='sent'",
     all: 'TRUE',
-  }[reviewView] || "COALESCE(review.review_status,'pending')='pending' AND COALESCE(review.send_state,'not_sent')<>'sent'";
+  }[reviewView] || "COALESCE(review.send_state,'not_sent')<>'sent' AND COALESCE(review.review_status,'pending')<>'rejected'";
   const [rows, countRows, dailyRows] = await Promise.all([
     sql(`${LEAD_SELECT} WHERE ${candidateWhere} AND (${viewWhere})
          ORDER BY CASE WHEN review.send_state='sent' THEN 3 WHEN review.review_status='approved' THEN 0 WHEN review.review_status='rejected' THEN 2 ELSE 1 END,
@@ -186,7 +185,7 @@ async function listManualReviewLeads(sql, { limit = 50, offset = 0, minimumScore
     limit: safeLimit,
     offset: safeOffset,
     minimumScore: safeScore,
-    reviewView: Object.hasOwn({ pending: true, approved: true, rejected: true, sent: true, all: true }, reviewView) ? reviewView : 'pending',
+    reviewView: Object.hasOwn({ ready: true, pending: true, approved: true, rejected: true, sent: true, all: true }, reviewView) ? reviewView : 'ready',
     counts: leads.reduce((summary, lead) => {
       const key = lead.review.sendState === 'sent' ? 'sent' : lead.review.status;
       summary[key] = (summary[key] || 0) + 1;
@@ -218,6 +217,22 @@ async function saveManualReview(sql, data) {
      RETURNING *`,
     [data.prospectId, data.reviewStatus, approved ? 'explicit_opt_in' : 'unknown',
       approved ? data.permissionEvidence : null, data.notes || null, data.reviewedBy],
+  );
+  return rows[0] || null;
+}
+
+async function authorizeManualSend(sql, { prospectId, reviewedBy }) {
+  const rows = await sql(
+    `INSERT INTO outbound_manual_lead_reviews (
+       prospect_id,review_status,permission_status,permission_evidence,
+       reviewed_by,reviewed_at
+     ) VALUES ($1,'approved','admin_authorized',NULL,$2,NOW())
+     ON CONFLICT (prospect_id) DO UPDATE SET
+       review_status='approved',permission_status='admin_authorized',permission_evidence=NULL,
+       reviewed_by=EXCLUDED.reviewed_by,reviewed_at=NOW(),updated_at=NOW()
+     WHERE outbound_manual_lead_reviews.send_state <> 'sent'
+     RETURNING *`,
+    [prospectId, reviewedBy],
   );
   return rows[0] || null;
 }
@@ -284,7 +299,7 @@ async function claimManualReviewSend(sql, data) {
             ORDER BY m.created_at DESC LIMIT 1
          ) message ON TRUE
         WHERE review.prospect_id=$1
-          AND review.review_status='approved' AND review.permission_status='explicit_opt_in'
+          AND review.review_status='approved' AND review.permission_status IN ('explicit_opt_in','admin_authorized')
           AND review.send_state IN ('not_sent','failed') AND review.send_attempt_count<3
           AND p.status IN ('qualified','ready_for_outreach')
           AND p.first_contacted_at IS NULL AND p.prior_customer_match=FALSE AND p.suppression_reason IS NULL
@@ -355,7 +370,7 @@ async function markManualReviewSent(sql, data) {
      ) SELECT id,prospect_id FROM message_update`,
     [data.prospectId, data.sendKey, data.providerMessageId, data.latencyMs, data.messageId,
       data.businessDate, `manual-send:${data.messageId}`,
-      JSON.stringify(sanitizeForAudit({ provider: 'resend', permissionBasis: 'explicit_opt_in', latencyMs: data.latencyMs }))],
+      JSON.stringify(sanitizeForAudit({ provider: 'resend', permissionBasis: 'admin_authorized', latencyMs: data.latencyMs }))],
   );
   return rows[0] || null;
 }
@@ -378,6 +393,7 @@ module.exports = {
   mapLead,
   listManualReviewLeads,
   saveManualReview,
+  authorizeManualSend,
   loadManualReviewContact,
   saveManualContactAssessment,
   loadManualReviewState,
