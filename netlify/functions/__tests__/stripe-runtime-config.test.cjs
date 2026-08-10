@@ -10,7 +10,7 @@ const MANAGED = [
   'CONTEXT', 'NODE_ENV', 'NETLIFY_DEV', 'STRIPE_CHECKOUT_ENABLED', 'STRIPE_MODE',
   'STRIPE_PUBLISHABLE_KEY', 'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET',
   'NETLIFY_DATABASE_URL', 'DATABASE_URL', 'ORDER_CONFIRMATION_TOKEN_SECRET',
-  'AUTH_SESSION_SECRET', 'INTERNAL_JOB_SECRET', 'DEPLOY_PRIME_URL', 'URL', 'PUBLIC_SITE_URL',
+  'AUTH_SESSION_SECRET', 'INTERNAL_JOB_SECRET', 'DEPLOY_PRIME_URL', 'DEPLOY_URL', 'URL', 'PUBLIC_SITE_URL',
 ];
 
 function withEnv(values, fn) {
@@ -71,6 +71,108 @@ test('production fails closed when test credentials are configured', () => withE
   const config = runtime.resolveStripeRuntime({ requireInternalJobSecret: true });
   assert.equal(config.enabled, false);
   assert.equal(config.mode, 'live');
+}));
+
+test('production canonical URL selects live mode when runtime CONTEXT is unavailable', () => withEnv({
+  ...complete,
+  URL: 'https://bannersonthefly.com',
+  STRIPE_MODE: 'live',
+  STRIPE_PUBLISHABLE_KEY: 'pk_live_example',
+  STRIPE_SECRET_KEY: 'sk_live_example',
+}, () => {
+  const event = {
+    rawUrl: 'https://bannersonthefly.com/.netlify/functions/stripe-config',
+    headers: { host: 'bannersonthefly.com' },
+  };
+  const config = runtime.resolveStripeRuntime({ requireInternalJobSecret: true, event });
+  assert.equal(config.enabled, true);
+  assert.equal(config.context, 'production');
+  assert.equal(config.mode, 'live');
+  assert.deepEqual(runtime.publicStripeConfig(event), {
+    enabled: true,
+    publishableKey: 'pk_live_example',
+    environment: 'live',
+  });
+}));
+
+test('default Netlify production hostname selects live mode with production URL metadata', () => withEnv({
+  ...complete,
+  URL: 'https://bannersonthefly.netlify.app',
+  STRIPE_MODE: 'live',
+  STRIPE_PUBLISHABLE_KEY: 'pk_live_example',
+  STRIPE_SECRET_KEY: 'sk_live_example',
+}, () => {
+  const event = {
+    rawUrl: 'https://bannersonthefly.netlify.app/.netlify/functions/stripe-config',
+    headers: { host: 'bannersonthefly.netlify.app' },
+  };
+  const config = runtime.resolveStripeRuntime({ requireInternalJobSecret: true, event });
+  assert.equal(config.enabled, true);
+  assert.equal(config.context, 'production');
+  assert.equal(config.mode, 'live');
+}));
+
+test('preview request host cannot inherit production mode when CONTEXT is missing or misleading', () => withEnv({
+  ...complete,
+  CONTEXT: 'production',
+  URL: 'https://bannersonthefly.com',
+  STRIPE_MODE: 'live',
+  STRIPE_PUBLISHABLE_KEY: 'pk_live_example',
+  STRIPE_SECRET_KEY: 'sk_live_example',
+}, () => {
+  const event = {
+    rawUrl: 'https://deploy-preview-454--bannersonthefly.netlify.app/.netlify/functions/stripe-config',
+    headers: { host: 'deploy-preview-454--bannersonthefly.netlify.app' },
+  };
+  const config = runtime.resolveStripeRuntime({ requireInternalJobSecret: true, event });
+  assert.equal(config.enabled, false);
+  assert.equal(config.context, 'deploy-preview');
+  assert.equal(config.mode, 'test');
+  assert.ok(config.errors.includes('STRIPE_MODE_CONTEXT_MISMATCH'));
+  assert.ok(config.errors.includes('STRIPE_PUBLISHABLE_KEY_MODE_MISMATCH'));
+  assert.ok(config.errors.includes('STRIPE_SECRET_KEY_MODE_MISMATCH'));
+}));
+
+test('branch request host cannot inherit live production configuration', () => withEnv({
+  ...complete,
+  URL: 'https://bannersonthefly.com',
+  STRIPE_MODE: 'live',
+  STRIPE_PUBLISHABLE_KEY: 'pk_live_example',
+  STRIPE_SECRET_KEY: 'sk_live_example',
+}, () => {
+  const event = {
+    rawUrl: 'https://agent-payment-sandbox-e2e--bannersonthefly.netlify.app/.netlify/functions/stripe-config',
+    headers: { host: 'agent-payment-sandbox-e2e--bannersonthefly.netlify.app' },
+  };
+  const config = runtime.resolveStripeRuntime({ requireInternalJobSecret: true, event });
+  assert.equal(config.enabled, false);
+  assert.equal(config.context, 'branch-deploy');
+  assert.equal(config.mode, 'test');
+  assert.equal(config.publishableKey, 'pk_live_example');
+  assert.equal(runtime.publicStripeConfig(event).publishableKey, null);
+}));
+
+test('unknown or ambiguous request hosts never activate inherited live configuration', () => withEnv({
+  ...complete,
+  URL: 'https://bannersonthefly.com',
+  STRIPE_MODE: 'live',
+  STRIPE_PUBLISHABLE_KEY: 'pk_live_example',
+  STRIPE_SECRET_KEY: 'sk_live_example',
+}, () => {
+  for (const host of [
+    'unexpected.example',
+    '6a791d43dd545dcac9ad7602--bannersonthefly.netlify.app',
+  ]) {
+    const event = {
+      rawUrl: `https://${host}/.netlify/functions/stripe-config`,
+      headers: { host },
+    };
+    const config = runtime.resolveStripeRuntime({ requireInternalJobSecret: true, event });
+    assert.equal(config.enabled, false, host);
+    assert.equal(config.context, 'unknown', host);
+    assert.ok(config.errors.includes('STRIPE_DEPLOY_CONTEXT_UNKNOWN'), host);
+    assert.equal(runtime.publicStripeConfig(event).publishableKey, null, host);
+  }
 }));
 
 test('emergency UI kill switch does not disable webhook/finalize recovery', () => withEnv({

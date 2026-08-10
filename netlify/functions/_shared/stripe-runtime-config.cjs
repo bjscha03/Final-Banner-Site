@@ -9,12 +9,96 @@ function clean(value) {
   return String(value || '').trim();
 }
 
-function isProductionContext() {
-  return clean(process.env.CONTEXT).toLowerCase() === 'production';
+function hostname(value) {
+  const normalized = clean(value);
+  if (!normalized) return '';
+  try {
+    return new URL(normalized.includes('://') ? normalized : `https://${normalized}`)
+      .hostname
+      .toLowerCase();
+  } catch {
+    return '';
+  }
 }
 
-function expectedMode() {
-  return isProductionContext() ? 'live' : 'test';
+function requestHostnames(event = {}) {
+  const headers = event?.headers || {};
+  const header = (name) => {
+    if (typeof headers?.get === 'function') return headers.get(name) || '';
+    const key = Object.keys(headers).find((candidate) => candidate.toLowerCase() === name);
+    return key ? headers[key] : '';
+  };
+  return [
+    event?.rawUrl,
+    event?.raw_url,
+    event?.url,
+    header('host'),
+    ...String(header('x-forwarded-host') || '').split(','),
+  ].map(hostname).filter(Boolean);
+}
+
+function previewContextForHostname(host) {
+  if (/^deploy-preview-\d+--.+\.netlify\.app$/.test(host)) return 'deploy-preview';
+  // An immutable deploy permalink can represent production or nonproduction.
+  // Defer to deployment-controlled metadata instead of guessing from it.
+  if (/^[0-9a-f]{24}--.+\.netlify\.app$/.test(host)) return '';
+  if (host.endsWith('.netlify.app')
+      && host !== 'bannersonthefly.netlify.app'
+      && host.includes('--')) {
+    return 'branch-deploy';
+  }
+  return '';
+}
+
+function isProductionHostname(host) {
+  return host === 'bannersonthefly.com'
+    || host === 'www.bannersonthefly.com'
+    || host === 'bannersonthefly.netlify.app';
+}
+
+function deploymentContext(event = {}) {
+  for (const candidate of [process.env.DEPLOY_PRIME_URL, process.env.DEPLOY_URL]) {
+    const inferredHost = hostname(candidate);
+    if (/^deploy-preview-\d+--.+\.netlify\.app$/.test(inferredHost)) return 'deploy-preview';
+  }
+
+  // A request hostname can always demote a request to an explicit preview or
+  // branch. It must never upgrade an unknown deployment to production.
+  const actualRequestHosts = requestHostnames(event);
+  for (const requestHost of actualRequestHosts) {
+    const inferred = previewContextForHostname(requestHost);
+    if (inferred) return inferred;
+  }
+
+  const configured = clean(process.env.CONTEXT).toLowerCase();
+  if (['production', 'deploy-preview', 'branch-deploy', 'dev'].includes(configured)) {
+    return configured;
+  }
+  if (configured) return 'unknown';
+
+  // Netlify can omit build-only CONTEXT inside a manually published Function.
+  // Its deployment-controlled canonical URL is the first half of the fallback.
+  // The actual request must also target a known production hostname; request
+  // metadata alone can never promote an unknown deployment to production.
+  const canonicalHost = hostname(process.env.URL);
+  if (/^deploy-preview-\d+--.+\.netlify\.app$/.test(canonicalHost)) return 'deploy-preview';
+  if (!isProductionHostname(canonicalHost)) {
+    if (canonicalHost.endsWith('.netlify.app')) return 'branch-deploy';
+    return 'unknown';
+  }
+  if (actualRequestHosts.length > 0
+      && actualRequestHosts.every(isProductionHostname)) {
+    return 'production';
+  }
+  return 'unknown';
+}
+
+function isProductionContext(event = {}) {
+  return deploymentContext(event) === 'production';
+}
+
+function expectedMode(event = {}) {
+  return isProductionContext(event) ? 'live' : 'test';
 }
 
 function enabledByFlag() {
@@ -29,13 +113,15 @@ function keyMatchesMode(key, mode, kind) {
 }
 
 function resolveStripeRuntime(options = {}) {
-  const mode = expectedMode();
+  const context = deploymentContext(options.event);
+  const mode = expectedMode(options.event);
   const configuredMode = clean(process.env.STRIPE_MODE).toLowerCase();
   const publishableKey = clean(process.env.STRIPE_PUBLISHABLE_KEY);
   const secretKey = clean(process.env.STRIPE_SECRET_KEY);
   const webhookSecret = clean(process.env.STRIPE_WEBHOOK_SECRET);
   const errors = [];
 
+  if (context === 'unknown') errors.push('STRIPE_DEPLOY_CONTEXT_UNKNOWN');
   if (options.requireEnabledFlag !== false && !enabledByFlag()) errors.push('STRIPE_CHECKOUT_DISABLED');
   if (configuredMode && !['test', 'live'].includes(configuredMode)) errors.push('STRIPE_MODE_INVALID');
   if (configuredMode && configuredMode !== mode) errors.push('STRIPE_MODE_CONTEXT_MISMATCH');
@@ -55,7 +141,7 @@ function resolveStripeRuntime(options = {}) {
     enabled: errors.length === 0,
     mode,
     environment: mode,
-    context: clean(process.env.CONTEXT) || 'unknown',
+    context,
     publishableKey,
     secretKey,
     webhookSecret,
@@ -63,8 +149,8 @@ function resolveStripeRuntime(options = {}) {
   };
 }
 
-function publicStripeConfig() {
-  const runtime = resolveStripeRuntime({ requireInternalJobSecret: true });
+function publicStripeConfig(event = {}) {
+  const runtime = resolveStripeRuntime({ requireInternalJobSecret: true, event });
   return {
     enabled: runtime.enabled,
     publishableKey: runtime.enabled ? runtime.publishableKey : null,
@@ -145,6 +231,7 @@ function siteUrlForEvent(event) {
 
 module.exports = {
   assertSameOrigin,
+  deploymentContext,
   enabledByFlag,
   expectedMode,
   isLocalRequest,

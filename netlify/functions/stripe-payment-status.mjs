@@ -21,7 +21,11 @@ const handler = async (event) => {
   try { runtimeModule.assertSameOrigin(event); } catch (error) {
     return reply(error.statusCode || 403, { ok: false, error: error.code || 'ORIGIN_REJECTED' });
   }
-  const runtime = runtimeModule.resolveStripeRuntime({ requireInternalJobSecret: true, requireEnabledFlag: false });
+  const runtime = runtimeModule.resolveStripeRuntime({
+    requireInternalJobSecret: true,
+    requireEnabledFlag: false,
+    event,
+  });
   if (!runtime.enabled) {
     return reply(503, {
       ok: false,

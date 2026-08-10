@@ -25,7 +25,7 @@ const handler = async (event) => {
   return {
     statusCode: 200,
     headers,
-    body: JSON.stringify(runtimeModule.publicStripeConfig()),
+    body: JSON.stringify(runtimeModule.publicStripeConfig(event)),
   };
 };
 
