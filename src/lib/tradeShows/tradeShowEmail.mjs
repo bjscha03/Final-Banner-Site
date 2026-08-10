@@ -9,8 +9,8 @@ export function escapeTradeShowEmailHtml(value) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
-export function getTradeShowPlanningUrl(event) {
-  return `${SITE_URL}/trade-shows/${encodeURIComponent(event.slug)}`;
+export function getTradeShowPlanningUrl() {
+  return `${SITE_URL}/design`;
 }
 
 function formatDateRange(event) {
@@ -30,7 +30,7 @@ export function buildTradeShowEmail({ event, exhibitorName, discountCode, unsubs
   const cleanName = String(exhibitorName ?? '').trim();
   const cleanCode = String(discountCode ?? '').trim().toUpperCase();
   const eventDates = formatDateRange(event);
-  const planningUrl = getTradeShowPlanningUrl(event);
+  const planningUrl = getTradeShowPlanningUrl();
   const resolvedUnsubscribeUrl = String(unsubscribeUrl || `${SITE_URL}/.netlify/functions/trade-show-unsubscribe?token=preview`);
   const subject = `${cleanName} — Save 20% on banners for ${event.name}`;
   const safeName = escapeTradeShowEmailHtml(cleanName);
@@ -55,7 +55,7 @@ export function buildTradeShowEmail({ event, exhibitorName, discountCode, unsubs
     '',
     `Use code ${cleanCode} for 20% off your banner order.`,
     '',
-    `Plan and design your banner: ${planningUrl}`,
+    `Start designing your banner: ${planningUrl}`,
     '',
     `Banners On The Fly is not affiliated with or endorsed by ${event.name} or its organizer.`,
     '',
@@ -118,10 +118,10 @@ export function buildTradeShowEmail({ event, exhibitorName, discountCode, unsubs
                 </table>
                 <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:0 auto 28px;">
                   <tr><td bgcolor="#ff6a00" style="border-radius:10px;">
-                    <a href="${safePlanningUrl}" style="display:inline-block;padding:15px 24px;color:#ffffff;text-decoration:none;font-size:16px;font-weight:700;">Plan &amp; Design Your Banner</a>
+                    <a href="${safePlanningUrl}" style="display:inline-block;padding:15px 24px;color:#ffffff;text-decoration:none;font-size:16px;font-weight:700;">Start Designing Your Banner</a>
                   </td></tr>
                 </table>
-                <p style="margin:0 0 24px;text-align:center;font-size:13px;line-height:1.5;color:#6b778a;">Use the planning page to organize your banner, then confirm event details and exhibitor rules directly with the organizer.</p>
+                <p style="margin:0 0 24px;text-align:center;font-size:13px;line-height:1.5;color:#6b778a;">Upload your artwork, choose your banner options, and apply the code to carry the discount into checkout.</p>
               </td>
             </tr>
             <tr><td style="padding:22px 30px;background:#f7f9fc;text-align:center;font-size:11px;line-height:1.65;color:#718096;">
