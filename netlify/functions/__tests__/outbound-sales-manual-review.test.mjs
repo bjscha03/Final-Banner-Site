@@ -6,11 +6,13 @@ import repository from '../_shared/outbound-sales/manual-review-repository.cjs';
 import strategy from '../_shared/outbound-sales/prospecting-strategy.cjs';
 import migration29 from '../../../migrations/029_outbound_manual_lead_review.sql?raw';
 import rollback29 from '../../../migrations/029_outbound_manual_lead_review.rollback.sql?raw';
+import migration30 from '../../../migrations/030_outbound_admin_authorized_send.sql?raw';
+import rollback30 from '../../../migrations/030_outbound_admin_authorized_send.rollback.sql?raw';
 
 const { createSessionToken } = serverAuth;
 const { sendPermissionedMarketingMessage } = delivery;
 const {
-  createManualReviewHandler, normalizeReviewInput, stableManualSendKey,
+  createManualReviewHandler, stableManualSendKey,
   validateManualDeliveryConfiguration,
 } = handlerModule;
 const { mapLead, MAX_MANUAL_DAILY_ATTEMPTS } = repository;
@@ -73,7 +75,7 @@ function rowFixture() {
     verification_status: 'valid',
     verification_reason: 'Mailbox verified',
     syntax_valid: true,
-    mx_status: 'present',
+    mx_status: 'not_checked',
     is_role_address: false,
     is_free_mailbox: false,
     domain_matches: true,
@@ -85,9 +87,9 @@ function rowFixture() {
     generation_status: 'generated',
     evidence_validation_status: 'passed',
     message_sent_at: null,
-    review_status: 'approved',
-    permission_status: 'explicit_opt_in',
-    permission_evidence: 'Submitted the marketing opt-in form on 2026-08-10.',
+    review_status: 'pending',
+    permission_status: 'unknown',
+    permission_evidence: null,
     review_notes: '',
     reviewed_by: 'admin@bannersonthefly.com',
     reviewed_at: '2026-08-10T12:00:00Z',
@@ -123,6 +125,9 @@ describe('manual lead review migration and qualification', () => {
     expect(migration29).not.toMatch(/\b(?:orders|customers|profiles|payments)\b/i);
     expect(migration29).not.toContain('CASCADE');
     expect(rollback29).toContain('DROP TABLE IF EXISTS outbound_manual_lead_reviews');
+    expect(migration30).toContain("'admin_authorized'");
+    expect(migration30).toContain('authenticated Send click');
+    expect(rollback30).toContain("permission_status = 'admin_authorized'");
     expect(MAX_MANUAL_DAILY_ATTEMPTS).toBe(70);
   });
 
@@ -145,18 +150,13 @@ describe('manual lead review migration and qualification', () => {
     expect(keywords).toEqual(selectProspectingKeywords([], { seed: '2026-08-10', limit: 3 }));
   });
 
-  it('requires a positive explicit opt-in attestation plus evidence to approve', () => {
-    expect(() => normalizeReviewInput({ prospectId: PROSPECT_ID, reviewStatus: 'approved', explicitOptIn: false, permissionEvidence: 'Form signup' })).toThrow(expect.objectContaining({ code: 'PERMISSIONED_MARKETING_REQUIRED' }));
-    expect(() => normalizeReviewInput({ prospectId: PROSPECT_ID, reviewStatus: 'approved', explicitOptIn: true, permissionEvidence: 'short' })).toThrow(expect.objectContaining({ code: 'PERMISSIONED_MARKETING_REQUIRED' }));
-    expect(normalizeReviewInput({ prospectId: PROSPECT_ID, reviewStatus: 'approved', explicitOptIn: true, permissionEvidence: 'Form signup on 2026-08-10', notes: 'Upcoming expo' })).toMatchObject({ reviewStatus: 'approved' });
-  });
 });
 
 describe('permissioned Resend transport', () => {
-  it('cannot construct or call the transport without explicit recipient permission', async () => {
+  it('cannot construct or call the transport without a direct admin authorization', async () => {
     const send = vi.fn();
     await expect(sendPermissionedMarketingMessage({
-      permissionStatus: 'unknown', permissionAttested: false,
+      permissionStatus: 'unknown', adminAuthorized: false,
       env: deliveryEnvironment, transport: { emails: { send } },
     })).rejects.toMatchObject({ code: 'PERMISSIONED_MARKETING_REQUIRED' });
     expect(send).not.toHaveBeenCalled();
@@ -165,7 +165,7 @@ describe('permissioned Resend transport', () => {
   it('adds one-click unsubscribe and uses a stable provider idempotency key', async () => {
     const send = vi.fn().mockResolvedValue({ data: { id: 'resend-manual-1' } });
     const result = await sendPermissionedMarketingMessage({
-      permissionStatus: 'explicit_opt_in', permissionAttested: true,
+      permissionStatus: 'admin_authorized', adminAuthorized: true,
       env: deliveryEnvironment, transport: { emails: { send } },
       publicOrigin: 'https://bannersonthefly.com',
       unsubscribeUrl: 'https://bannersonthefly.com/.netlify/functions/outbound-sales-unsubscribe?token=opaque',
@@ -189,7 +189,7 @@ describe('permissioned Resend transport', () => {
     expect(() => validateManualDeliveryConfiguration({ ...deliveryEnvironment, OUTBOUND_PHYSICAL_ADDRESS: '' })).toThrow(expect.objectContaining({ code: 'MANUAL_MARKETING_NOT_CONFIGURED' }));
   });
 
-  it('can reuse the existing site Resend key without weakening permission checks', () => {
+  it('can reuse the existing site Resend key without weakening admin authorization checks', () => {
     const sharedKeyEnvironment = {
       ...deliveryEnvironment,
       OUTBOUND_PERMISSIONED_RESEND_API_KEY: '',
@@ -200,44 +200,7 @@ describe('permissioned Resend transport', () => {
 });
 
 describe('manual lead review endpoint', () => {
-  it('approves without sending and records an admin audit', async () => {
-    const saveManualReview = vi.fn().mockResolvedValue({
-      prospect_id: PROSPECT_ID, review_status: 'approved', permission_status: 'explicit_opt_in', send_state: 'not_sent',
-    });
-    const appendAudit = vi.fn().mockResolvedValue({ id: 1 });
-    const sendPermissioned = vi.fn();
-    const assessEmail = vi.fn().mockResolvedValue({
-      email: 'taylor@futureexpo.example', emailNormalized: 'taylor@futureexpo.example',
-      syntaxValid: true, isRoleAddress: false, isFreeMailbox: false, domainMatches: true,
-      mxStatus: 'present', mxCheckedAt: '2026-08-10T12:00:00.000Z',
-      verificationStatus: 'unverified', verificationReason: 'Syntax and MX are valid.',
-      contactQualityScore: 100,
-    });
-    const saveManualContactAssessment = vi.fn().mockResolvedValue({ id: CONTACT_ID });
-    const handler = createManualReviewHandler({
-      env: deliveryEnvironment,
-      dependencies: {
-        createSql: () => ({}), saveManualReview, appendAudit,
-        sendPermissionedMarketingMessage: sendPermissioned,
-        loadManualReviewContact: vi.fn().mockResolvedValue({
-          id: CONTACT_ID, email: 'taylor@futureexpo.example', canonical_domain: 'futureexpo.example',
-        }),
-        assessEmail, saveManualContactAssessment,
-      },
-    });
-    const response = await handler(adminEvent('PATCH', {
-      prospectId: PROSPECT_ID, reviewStatus: 'approved', explicitOptIn: true,
-      permissionEvidence: 'Opted in on the trade-show planning form.', notes: 'Expo is next month.',
-    }));
-    expect(response.statusCode).toBe(200);
-    expect(saveManualReview).toHaveBeenCalledWith({}, expect.objectContaining({ reviewedBy: 'admin@bannersonthefly.com' }));
-    expect(assessEmail).toHaveBeenCalledWith('taylor@futureexpo.example', { businessDomain: 'futureexpo.example' });
-    expect(saveManualContactAssessment).toHaveBeenCalledWith({}, CONTACT_ID, expect.objectContaining({ mxStatus: 'present' }));
-    expect(sendPermissioned).not.toHaveBeenCalled();
-    expect(appendAudit).toHaveBeenCalledWith({}, expect.objectContaining({ action: 'manual_lead.approved' }));
-  });
-
-  it('sends one approved message with branded offer and opt-out content, then commits it', async () => {
+  it('uses the Send click as authorization, verifies the email, sends once, and commits it', async () => {
     const claimed = {
       prospect_id: PROSPECT_ID, contact_id: CONTACT_ID, message_id: MESSAGE_ID,
       send_key: stableManualSendKey(PROSPECT_ID), send_attempt_count: 1,
@@ -248,7 +211,8 @@ describe('manual lead review endpoint', () => {
       generation_status: 'generated', evidence_validation_status: 'passed',
     };
     const sendPermissioned = vi.fn().mockImplementation(async (input) => {
-      expect(input.permissionAttested).toBe(true);
+      expect(input.adminAuthorized).toBe(true);
+      expect(input.permissionStatus).toBe('admin_authorized');
       expect(input.message.bodyText).toContain('NEW20');
       expect(input.message.bodyText).toContain('Unsubscribe: https://bannersonthefly.com/.netlify/functions/outbound-sales-unsubscribe?token=');
       expect(input.message.bodyHtml).toContain('Unsubscribe from future marketing emails');
@@ -257,19 +221,36 @@ describe('manual lead review endpoint', () => {
     const saveToken = vi.fn().mockResolvedValue({ id: 'token-row' });
     const markSent = vi.fn().mockResolvedValue({ id: MESSAGE_ID, prospect_id: PROSPECT_ID });
     const appendAudit = vi.fn().mockResolvedValue({ id: 2 });
+    const authorizeManualSend = vi.fn().mockResolvedValue({
+      prospect_id: PROSPECT_ID, review_status: 'approved', permission_status: 'admin_authorized', send_state: 'not_sent',
+    });
+    const assessEmail = vi.fn().mockResolvedValue({
+      email: 'events@futureexpo.example', emailNormalized: 'events@futureexpo.example',
+      syntaxValid: true, isRoleAddress: false, isFreeMailbox: false, domainMatches: true,
+      mxStatus: 'present', mxCheckedAt: '2026-08-10T12:00:00.000Z',
+      verificationStatus: 'valid', verificationReason: 'Syntax and MX are valid.', contactQualityScore: 100,
+    });
     const handler = createManualReviewHandler({
       env: deliveryEnvironment,
       dependencies: {
         createSql: () => ({}), claimManualReviewSend: vi.fn().mockResolvedValue(claimed),
         saveUnsubscribeToken: saveToken, sendPermissionedMarketingMessage: sendPermissioned,
         markManualReviewSent: markSent, markManualReviewFailed: vi.fn(), appendAudit,
+        authorizeManualSend,
+        loadManualReviewContact: vi.fn().mockResolvedValue({
+          id: CONTACT_ID, email: 'events@futureexpo.example', canonical_domain: 'futureexpo.example',
+        }),
+        assessEmail, saveManualContactAssessment: vi.fn().mockResolvedValue({ id: CONTACT_ID }),
       },
     });
     const response = await handler(adminEvent('POST', { prospectId: PROSPECT_ID }));
     expect(response.statusCode).toBe(200);
     expect(JSON.parse(response.body)).toMatchObject({ ok: true, duplicate: false, messageId: 'resend-manual-2' });
     expect(saveToken).toHaveBeenCalledOnce();
+    expect(authorizeManualSend).toHaveBeenCalledWith({}, { prospectId: PROSPECT_ID, reviewedBy: 'admin@bannersonthefly.com' });
+    expect(assessEmail).toHaveBeenCalledOnce();
     expect(markSent).toHaveBeenCalledWith({}, expect.objectContaining({ providerMessageId: 'resend-manual-2' }));
+    expect(appendAudit).toHaveBeenCalledWith({}, expect.objectContaining({ action: 'manual_lead.send_authorized' }));
     expect(appendAudit).toHaveBeenCalledWith({}, expect.objectContaining({ action: 'manual_lead.email_sent' }));
   });
 });
