@@ -188,6 +188,15 @@ describe('permissioned Resend transport', () => {
     expect(validateManualDeliveryConfiguration(deliveryEnvironment)).toMatchObject({ origin: 'https://bannersonthefly.com' });
     expect(() => validateManualDeliveryConfiguration({ ...deliveryEnvironment, OUTBOUND_PHYSICAL_ADDRESS: '' })).toThrow(expect.objectContaining({ code: 'MANUAL_MARKETING_NOT_CONFIGURED' }));
   });
+
+  it('can reuse the existing site Resend key without weakening permission checks', () => {
+    const sharedKeyEnvironment = {
+      ...deliveryEnvironment,
+      OUTBOUND_PERMISSIONED_RESEND_API_KEY: '',
+      RESEND_API_KEY: 're_existing_site_key_for_permissioned_send',
+    };
+    expect(validateManualDeliveryConfiguration(sharedKeyEnvironment)).toMatchObject({ origin: 'https://bannersonthefly.com' });
+  });
 });
 
 describe('manual lead review endpoint', () => {

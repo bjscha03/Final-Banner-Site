@@ -66,7 +66,7 @@ function validateManualDeliveryConfiguration(env = process.env) {
   const from = rawFrom && !rawFrom.includes('<') ? `Banners On The Fly <${rawFrom}>` : rawFrom;
   const replyTo = String(env.OUTBOUND_PERMISSIONED_REPLY_TO_EMAIL || '').trim();
   const physicalAddress = String(env.OUTBOUND_PHYSICAL_ADDRESS || '').replace(/\s+/g, ' ').trim();
-  const apiKey = String(env.OUTBOUND_PERMISSIONED_RESEND_API_KEY || '').trim();
+  const apiKey = String(env.OUTBOUND_PERMISSIONED_RESEND_API_KEY || env.RESEND_API_KEY || '').trim();
   const signingSecret = String(env.OUTBOUND_UNSUBSCRIBE_SIGNING_SECRET || '').trim();
   const mailboxPattern = /^(?:[^<>\r\n]{1,100}\s+<)?[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+>?$/;
   if (!mailboxPattern.test(from) || !mailboxPattern.test(replyTo)

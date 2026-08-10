@@ -109,7 +109,12 @@ async function sendPermissionedMarketingMessage(options) {
   // only after a named admin records evidence of the recipient's explicit
   // marketing opt-in and then clicks Send for one recipient.
   assertPermissionedMarketingAllowed(options);
-  const apiKey = String(options.env?.OUTBOUND_PERMISSIONED_RESEND_API_KEY || process.env.OUTBOUND_PERMISSIONED_RESEND_API_KEY || '').trim();
+  const apiKey = String(
+    options.env?.OUTBOUND_PERMISSIONED_RESEND_API_KEY
+      || options.env?.RESEND_API_KEY
+      || process.env.OUTBOUND_PERMISSIONED_RESEND_API_KEY
+      || '',
+  ).trim();
   if (!apiKey) {
     const error = new Error('Resend is not configured for permissioned marketing.');
     error.code = 'MANUAL_MARKETING_NOT_CONFIGURED';
