@@ -271,7 +271,7 @@ function safeFailure(error) {
     OUTBOUND_DELIVERY_PROVIDER_POLICY_BLOCKED: 'The configured outbound delivery provider is not approved for cold outreach.',
     OUTBOUND_DELIVERY_PROVIDER_UNSUPPORTED: 'A compliant outbound delivery provider is not installed.',
     INVALID_MANUAL_REVIEW: 'Lead review fields are invalid.',
-    PERMISSIONED_MARKETING_REQUIRED: 'Approval requires recorded evidence that this recipient explicitly opted in to marketing email.',
+    PERMISSIONED_MARKETING_REQUIRED: 'An authenticated administrator must click Send to authorize this email.',
     MANUAL_MARKETING_NOT_CONFIGURED: 'Manual marketing delivery is not fully configured.',
     MANUAL_MARKETING_NOT_ELIGIBLE: 'This lead is not eligible to send. Recheck approval, permission, suppression, contact quality, preview readiness, and the daily limit.',
     MANUAL_MARKETING_SEND_FAILED: 'Resend could not send this permissioned marketing email.',
