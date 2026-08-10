@@ -308,7 +308,7 @@ export interface OutboundManualReviewLead {
   };
   review: {
     status: 'pending' | 'approved' | 'rejected';
-    permissionStatus: 'unknown' | 'explicit_opt_in';
+    permissionStatus: 'unknown' | 'explicit_opt_in' | 'admin_authorized';
     permissionEvidence: string;
     notes: string;
     reviewedBy: string | null;
@@ -334,7 +334,7 @@ export interface OutboundManualReviewQueue {
   limit: number;
   offset: number;
   minimumScore: number;
-  reviewView: 'pending' | 'approved' | 'rejected' | 'sent' | 'all';
+  reviewView: 'ready' | 'pending' | 'approved' | 'rejected' | 'sent' | 'all';
   counts: { pending: number; approved: number; rejected: number; sent: number };
   today: { attempted: number; sent: number; limit: number };
 }
@@ -450,7 +450,7 @@ export async function downloadOutboundProspectsCsv(status?: string): Promise<voi
 }
 
 export async function getOutboundManualReviewLeads(
-  options: { limit?: number; offset?: number; minimumScore?: number; view?: 'pending' | 'approved' | 'rejected' | 'sent' | 'all'; signal?: AbortSignal } = {},
+  options: { limit?: number; offset?: number; minimumScore?: number; view?: 'ready' | 'sent' | 'all'; signal?: AbortSignal } = {},
 ): Promise<OutboundManualReviewQueue> {
   const params = new URLSearchParams();
   if (options.limit) params.set('limit', String(options.limit));
@@ -461,21 +461,6 @@ export async function getOutboundManualReviewLeads(
     method: 'GET', credentials: 'same-origin', headers: { Accept: 'application/json' }, signal: options.signal,
   });
   return parseResponse<OutboundManualReviewQueue>(response);
-}
-
-export async function reviewOutboundLead(input: {
-  prospectId: string;
-  reviewStatus: 'approved' | 'rejected';
-  explicitOptIn?: boolean;
-  permissionEvidence?: string;
-  notes?: string;
-}): Promise<void> {
-  const response = await adminFetch('/.netlify/functions/outbound-sales-manual-review', {
-    method: 'PATCH', credentials: 'same-origin',
-    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
-  });
-  await parseResponse(response);
 }
 
 export async function sendOutboundReviewedLead(prospectId: string): Promise<{ ok: true; duplicate: boolean; messageId: string }> {
