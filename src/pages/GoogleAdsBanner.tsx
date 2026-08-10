@@ -134,9 +134,6 @@ function formatPresetLabel(w: number, h: number, unit: 'in' | 'ft'): string {
   return `${w}" × ${h}"`;
 }
 
-const PROMO_NEW20_DISCOUNT_RATE = 0.2;
-
-
 const TESTIMONIALS = [
   {
     name: "Dan Oliver",
@@ -530,6 +527,7 @@ const GoogleAdsBanner: React.FC = () => {
 
   const quoteStore = useQuoteStore();
   const cartStore = useCartStore();
+  const activeCartPromo = promoApplied ? cartStore.discountCode : null;
   const { isCartOpen, setIsCartOpen } = useUIStore();
   const cartItemCount = useCartStore(s => s.getItemCount());
   const { toast } = useToast();
@@ -600,7 +598,9 @@ const GoogleAdsBanner: React.FC = () => {
 
   // Yard sign pricing (computed reactively)
   const yardSignTotalQty = getTotalDesignQuantity(yardSignDesigns);
-  const yardSignPromoRate = promoApplied ? PROMO_NEW20_DISCOUNT_RATE : 0;
+  const yardSignPromoRate = promoApplied
+    ? Number(activeCartPromo?.discountPercentage || 0) / 100
+    : 0;
   const yardSignPricing = useMemo(() => {
     if (!isYardSign) return null;
     return calcYardSignPricing(
@@ -804,7 +804,17 @@ const GoogleAdsBanner: React.FC = () => {
     subtotalCents: bannerPricing.subtotalBeforeDiscountCents,
     quantity,
     code: effectivePromoCode,
-  }), [bannerPricing.subtotalBeforeDiscountCents, quantity, effectivePromoCode]);
+    validatedPromo: activeCartPromo ? {
+      code: activeCartPromo.code,
+      discountPercentage: activeCartPromo.discountPercentage,
+      discountAmountCents: activeCartPromo.discountAmountCents || undefined,
+    } : null,
+  }), [
+    bannerPricing.subtotalBeforeDiscountCents,
+    quantity,
+    effectivePromoCode,
+    activeCartPromo,
+  ]);
 
   const bannerSubtotalAfterAllDiscountsCents = Math.max(
     0,
