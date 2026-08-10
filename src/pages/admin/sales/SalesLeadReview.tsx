@@ -58,7 +58,7 @@ function LeadCard({
   const [showPreview, setShowPreview] = useState(false);
   const sent = lead.review.sendState === 'sent';
   const sendReason = !deliveryReady
-    ? 'Resend, sender identity, signing secret, site URL, or physical address still needs configuration.'
+    ? 'Email delivery is not ready. Refresh after the listed configuration issue is fixed.'
     : lead.technicalBlockers[0] || '';
 
   return (
@@ -223,7 +223,7 @@ export default function SalesLeadReview() {
       </section>
 
       <section className={cn('rounded-xl border p-4 text-sm font-semibold', queue?.deliveryReady ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-amber-200 bg-amber-50 text-amber-950')}>
-        {queue?.deliveryReady ? <><ShieldCheck className="mr-2 inline h-5 w-5" /> Resend delivery is ready. Every send includes a physical address, footer opt-out, one-click unsubscribe, suppression recheck, and duplicate protection.</> : <><AlertTriangle className="mr-2 inline h-5 w-5" /> Send stays disabled until the Resend key, sender/reply identity, public site URL, unsubscribe signing secret, and physical business address are configured.</>}
+        {queue?.deliveryReady ? <><ShieldCheck className="mr-2 inline h-5 w-5" /> Resend delivery is ready. Every send includes a physical address, footer opt-out, one-click unsubscribe, suppression recheck, and duplicate protection.</> : <><AlertTriangle className="mr-2 inline h-5 w-5" /> Email delivery is not ready{queue?.deliveryIssues?.length ? `: ${queue.deliveryIssues.join(', ')}.` : '.'}</>}
       </section>
 
       <section className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">

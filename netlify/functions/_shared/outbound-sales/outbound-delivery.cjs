@@ -12,6 +12,25 @@ const RESEND_COLD_OUTREACH_ALLOWED = false;
 
 function tokenHash(token) { return crypto.createHash('sha256').update(String(token)).digest('hex'); }
 
+function resolveUnsubscribeSigningSecret(env = process.env) {
+  const dedicatedSecret = String(env.OUTBOUND_UNSUBSCRIBE_SIGNING_SECRET || '').trim();
+  if (dedicatedSecret.length >= 32) return dedicatedSecret;
+
+  // Existing deployments already have a stable, high-entropy admin session
+  // secret. Domain-separate it so unsubscribe tokens do not reuse that value
+  // directly or expose it to the delivery code.
+  const sessionSecret = String(env.AUTH_SESSION_SECRET || '').trim();
+  if (sessionSecret.length >= 32) {
+    return crypto.createHmac('sha256', sessionSecret)
+      .update('banners-on-the-fly:outbound-unsubscribe:v1')
+      .digest('hex');
+  }
+
+  const error = new Error('Unsubscribe signing is not configured.');
+  error.code = 'OUTBOUND_SEND_BLOCKED';
+  throw error;
+}
+
 function validatedUnsubscribeUrl(value, publicOrigin) {
   const url = new URL(String(value || ''));
   if (url.protocol !== 'https:' || url.username || url.password || !url.hostname
@@ -28,8 +47,7 @@ function validatedUnsubscribeUrl(value, publicOrigin) {
 }
 
 function createUnsubscribeToken({ messageId, contactId }, env = process.env) {
-  const secret = String(env.OUTBOUND_UNSUBSCRIBE_SIGNING_SECRET || '').trim();
-  if (secret.length < 32) { const error = new Error('Unsubscribe signing is not configured.'); error.code = 'OUTBOUND_SEND_BLOCKED'; throw error; }
+  const secret = resolveUnsubscribeSigningSecret(env);
   const token = crypto.createHmac('sha256', secret).update(`${messageId}|${contactId}`).digest('base64url');
   return { token, hash: tokenHash(token) };
 }
@@ -175,6 +193,7 @@ module.exports = {
   MAX_SEND_ATTEMPTS,
   RESEND_COLD_OUTREACH_ALLOWED,
   tokenHash,
+  resolveUnsubscribeSigningSecret,
   validatedUnsubscribeUrl,
   createUnsubscribeToken,
   assertOutboundDeliveryProviderApproved,

@@ -6,8 +6,8 @@ const DEFAULT_CAMPAIGN_KEY = 'autonomous-qualified-businesses-v1';
 const DEFAULT_VARIANTS = Object.freeze([
   ['subject_line_style','specific_observation','Specific observation'],
   ['subject_line_style','direct_business_benefit','Direct business benefit'],
-  ['call_to_action_style','simple_question','Simple question'],
-  ['call_to_action_style','quick_quote_offer','Quick quote offer'],
+  ['call_to_action_style','direct_next_step','Direct next step'],
+  ['call_to_action_style','first_order_offer','First order offer'],
   ['email_length','concise','Concise'],
   ['email_length','standard','Standard'],
   ['offer_framing','production_and_shipping','Production and shipping'],
@@ -43,6 +43,15 @@ async function ensureDefaultCampaign(sql) {
 }
 
 async function seedVariants(sql, campaignId) {
+  await sql(
+    `UPDATE outbound_campaign_variants
+        SET status='retired', updated_at=NOW()
+      WHERE campaign_id=$1
+        AND dimension='call_to_action_style'
+        AND variant_key IN ('simple_question','quick_quote_offer')
+        AND status <> 'retired'`,
+    [campaignId],
+  );
   for (const [dimension, key, displayName] of DEFAULT_VARIANTS) {
     await sql(
       `INSERT INTO outbound_campaign_variants (

@@ -329,6 +329,7 @@ export interface OutboundManualReviewQueue {
   ok: true;
   schemaReady: boolean;
   deliveryReady: boolean;
+  deliveryIssues: string[];
   leads: OutboundManualReviewLead[];
   total: number;
   limit: number;

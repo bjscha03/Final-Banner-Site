@@ -10,10 +10,10 @@ import migration30 from '../../../migrations/030_outbound_admin_authorized_send.
 import rollback30 from '../../../migrations/030_outbound_admin_authorized_send.rollback.sql?raw';
 
 const { createSessionToken } = serverAuth;
-const { sendPermissionedMarketingMessage } = delivery;
+const { resolveUnsubscribeSigningSecret, sendPermissionedMarketingMessage } = delivery;
 const {
   createManualReviewHandler, stableManualSendKey,
-  validateManualDeliveryConfiguration,
+  validateManualDeliveryConfiguration, deliveryStatus,
 } = handlerModule;
 const { mapLead, MAX_MANUAL_DAILY_ATTEMPTS } = repository;
 const { EVENT_FIRST_INDUSTRY_KEYWORDS, selectProspectingKeywords } = strategy;
@@ -184,9 +184,18 @@ describe('permissioned Resend transport', () => {
     }), { idempotencyKey: stableManualSendKey(PROSPECT_ID) });
   });
 
-  it('requires all compliance and sender configuration before a claim is attempted', () => {
+  it('requires a delivery key and resolves the complete compliance configuration before a claim is attempted', () => {
     expect(validateManualDeliveryConfiguration(deliveryEnvironment)).toMatchObject({ origin: 'https://bannersonthefly.com' });
-    expect(() => validateManualDeliveryConfiguration({ ...deliveryEnvironment, OUTBOUND_PHYSICAL_ADDRESS: '' })).toThrow(expect.objectContaining({ code: 'MANUAL_MARKETING_NOT_CONFIGURED' }));
+    const withoutKey = {
+      ...deliveryEnvironment,
+      OUTBOUND_PERMISSIONED_RESEND_API_KEY: '',
+      RESEND_API_KEY: '',
+    };
+    expect(() => validateManualDeliveryConfiguration(withoutKey)).toThrow(expect.objectContaining({
+      code: 'MANUAL_MARKETING_NOT_CONFIGURED',
+      deliveryIssues: ['Resend API key'],
+    }));
+    expect(deliveryStatus(withoutKey)).toEqual({ deliveryReady: false, deliveryIssues: ['Resend API key'] });
   });
 
   it('can reuse the existing site Resend key without weakening admin authorization checks', () => {
@@ -196,6 +205,24 @@ describe('permissioned Resend transport', () => {
       RESEND_API_KEY: 're_existing_site_key_for_permissioned_send',
     };
     expect(validateManualDeliveryConfiguration(sharedKeyEnvironment)).toMatchObject({ origin: 'https://bannersonthefly.com' });
+  });
+
+  it('reuses the existing site email settings and derives a domain-separated unsubscribe key', () => {
+    const existingSiteEnvironment = {
+      RESEND_API_KEY: 're_existing_site_key_for_permissioned_send',
+      EMAIL_FROM_INFO: 'Banners On The Fly <info@bannersonthefly.com>',
+      EMAIL_REPLY_TO: 'support@bannersonthefly.com',
+      AUTH_SESSION_SECRET: 'existing-admin-session-secret-at-least-32-characters',
+      SITE_URL: 'https://bannersonthefly.com',
+    };
+    expect(validateManualDeliveryConfiguration(existingSiteEnvironment)).toEqual({
+      origin: 'https://bannersonthefly.com',
+      from: 'Banners On The Fly <info@bannersonthefly.com>',
+      replyTo: 'support@bannersonthefly.com',
+      physicalAddress: 'PO Box 369, Crestwood, KY 40014',
+    });
+    expect(resolveUnsubscribeSigningSecret(existingSiteEnvironment)).toMatch(/^[a-f0-9]{64}$/);
+    expect(resolveUnsubscribeSigningSecret(existingSiteEnvironment)).toBe(resolveUnsubscribeSigningSecret(existingSiteEnvironment));
   });
 });
 

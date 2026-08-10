@@ -7,6 +7,7 @@ const { saveUnsubscribeToken } = require('./delivery-repository.cjs');
 const { appendAudit } = require('./audit.cjs');
 const {
   createUnsubscribeToken,
+  resolveUnsubscribeSigningSecret,
   sendPermissionedMarketingMessage,
 } = require('./outbound-delivery.cjs');
 const {
@@ -30,54 +31,99 @@ function businessDate(now = new Date(), timeZone = 'America/New_York') {
 }
 
 function publicOrigin(env = process.env) {
-  const candidate = String(env.PUBLIC_SITE_URL || env.URL || '').trim();
-  try {
-    const origin = new URL(candidate);
-    if (origin.protocol === 'https:' && !origin.username && !origin.password && origin.hostname) return origin.origin;
-  } catch {
-    // Return the fail-closed configuration error below.
+  const deployPreview = String(env.CONTEXT || '').trim() === 'deploy-preview';
+  const candidates = [
+    ...(deployPreview ? [env.DEPLOY_PRIME_URL, env.DEPLOY_URL] : []),
+    env.PUBLIC_SITE_URL,
+    env.SITE_URL,
+    env.APP_URL,
+    env.URL,
+    'https://bannersonthefly.com',
+  ];
+  for (const candidate of candidates) {
+    try {
+      const origin = new URL(String(candidate || '').trim());
+      if (origin.protocol === 'https:' && !origin.username && !origin.password && origin.hostname) return origin.origin;
+    } catch {
+      // Try the next configured site URL.
+    }
   }
   const error = new Error('A secure public site URL is required for unsubscribe links.');
   error.code = 'MANUAL_MARKETING_NOT_CONFIGURED';
   throw error;
 }
 
+function assetOrigin(env = process.env) {
+  for (const candidate of [env.DEPLOY_PRIME_URL, env.DEPLOY_URL, env.URL]) {
+    try {
+      const origin = new URL(String(candidate || '').trim());
+      if (origin.protocol === 'https:' && !origin.username && !origin.password && origin.hostname) return origin.origin;
+    } catch {
+      // Fall through to the stable public origin.
+    }
+  }
+  return publicOrigin(env);
+}
+
 function validateManualDeliveryConfiguration(env = process.env) {
   const origin = publicOrigin(env);
-  const rawFrom = String(env.OUTBOUND_PERMISSIONED_FROM_EMAIL || '').trim();
+  const rawFrom = String(
+    env.OUTBOUND_PERMISSIONED_FROM_EMAIL
+      || env.EMAIL_FROM_INFO
+      || 'info@bannersonthefly.com',
+  ).trim();
   const from = rawFrom && !rawFrom.includes('<') ? `Banners On The Fly <${rawFrom}>` : rawFrom;
-  const replyTo = String(env.OUTBOUND_PERMISSIONED_REPLY_TO_EMAIL || '').trim();
-  const physicalAddress = String(env.OUTBOUND_PHYSICAL_ADDRESS || '').replace(/\s+/g, ' ').trim();
+  const replyTo = String(
+    env.OUTBOUND_PERMISSIONED_REPLY_TO_EMAIL
+      || env.EMAIL_REPLY_TO
+      || 'support@bannersonthefly.com',
+  ).trim();
+  const physicalAddress = String(
+    env.OUTBOUND_PHYSICAL_ADDRESS
+      || 'PO Box 369, Crestwood, KY 40014',
+  ).replace(/\s+/g, ' ').trim();
   const apiKey = String(env.OUTBOUND_PERMISSIONED_RESEND_API_KEY || env.RESEND_API_KEY || '').trim();
-  const signingSecret = String(env.OUTBOUND_UNSUBSCRIBE_SIGNING_SECRET || '').trim();
   const mailboxPattern = /^(?:[^<>\r\n]{1,100}\s+<)?[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+>?$/;
-  if (!mailboxPattern.test(from) || !mailboxPattern.test(replyTo)
-      || apiKey.length < 16 || signingSecret.length < 32
-      || physicalAddress.length < 10 || physicalAddress.length > 300) {
+  const issues = [];
+  if (!mailboxPattern.test(from)) issues.push('sender identity');
+  if (!mailboxPattern.test(replyTo)) issues.push('reply-to identity');
+  if (apiKey.length < 16) issues.push('Resend API key');
+  try { resolveUnsubscribeSigningSecret(env); } catch { issues.push('unsubscribe signing'); }
+  if (physicalAddress.length < 10 || physicalAddress.length > 300) issues.push('physical address');
+  if (issues.length) {
     const error = new Error('Manual marketing delivery configuration is incomplete.');
     error.code = 'MANUAL_MARKETING_NOT_CONFIGURED';
+    error.deliveryIssues = issues;
     throw error;
   }
   return { origin, from, replyTo, physicalAddress };
 }
 
-function deliveryReady(env = process.env) {
+function deliveryStatus(env = process.env) {
   try {
     validateManualDeliveryConfiguration(env);
-    return true;
-  } catch {
-    return false;
+    return { deliveryReady: true, deliveryIssues: [] };
+  } catch (error) {
+    return {
+      deliveryReady: false,
+      deliveryIssues: Array.isArray(error?.deliveryIssues) ? error.deliveryIssues : ['delivery configuration'],
+    };
   }
 }
 
+function deliveryReady(env = process.env) {
+  return deliveryStatus(env).deliveryReady;
+}
+
 function emptyQueue(env = process.env) {
+  const status = deliveryStatus(env);
   return {
     leads: [], total: 0, limit: 50, offset: 0,
     minimumScore: repository.MIN_HIGH_VALUE_SCORE,
     reviewView: 'ready',
     counts: { pending: 0, approved: 0, rejected: 0, sent: 0 },
     today: { attempted: 0, sent: 0, limit: repository.MAX_MANUAL_DAILY_ATTEMPTS },
-    deliveryReady: deliveryReady(env),
+    ...status,
   };
 }
 
@@ -128,11 +174,15 @@ function createManualReviewHandler(options = {}) {
             message: {
               ...lead.message,
               bodyText,
-              bodyHtml: renderOutboundEmailPreview({ subject: lead.message.subject, bodyText }),
+              bodyHtml: renderOutboundEmailPreview({
+                subject: lead.message.subject,
+                bodyText,
+                assetOrigin: assetOrigin(env),
+              }),
             },
           };
         });
-        return json(200, { ok: true, schemaReady: true, deliveryReady: deliveryReady(env), ...queue, leads });
+        return json(200, { ok: true, schemaReady: true, ...deliveryStatus(env), ...queue, leads });
       }
 
       const body = parseJsonBody(event);
@@ -194,6 +244,7 @@ function createManualReviewHandler(options = {}) {
         const content = renderOutboundDeliveryContent({
           subject: claimed.subject, bodyText: claimed.body_text,
           physicalAddress: config.physicalAddress, unsubscribeUrl,
+          assetOrigin: assetOrigin(env),
         });
         const result = await dependencies.sendPermissionedMarketingMessage({
           permissionStatus: 'admin_authorized', adminAuthorized: true,
@@ -255,7 +306,9 @@ module.exports = {
   stableManualSendKey,
   businessDate,
   publicOrigin,
+  assetOrigin,
   validateManualDeliveryConfiguration,
+  deliveryStatus,
   deliveryReady,
   emptyQueue,
   createManualReviewHandler,

@@ -3,7 +3,7 @@
 const crypto = require('node:crypto');
 const { OUTBOUND_OPENAI_MODEL } = require('./config.cjs');
 
-const PROMPT_VERSION = 'outbound-personalization-v2';
+const PROMPT_VERSION = 'outbound-personalization-v3';
 const OUTPUT_SCHEMA_VERSION = 'shadow-outreach-v1';
 const MAX_PROMPT_CHARS = 7000;
 const MAX_OUTPUT_TOKENS = 900;
@@ -167,7 +167,7 @@ function deterministicVariantAssignments(prospectId, researchContentHash) {
   const choose = (offset, options) => options[digest[offset] % options.length];
   return Object.freeze({
     subjectLineStyle: choose(0, ['specific_observation', 'direct_business_benefit']),
-    callToActionStyle: choose(1, ['direct_next_step', 'quick_quote_offer']),
+    callToActionStyle: choose(1, ['direct_next_step', 'first_order_offer']),
     emailLength: choose(2, ['concise', 'standard']),
     offerFraming: choose(3, ['production_and_shipping', 'quality_and_convenience']),
     industryPositioning: choose(4, ['evidence_specific', 'industry_application']),
@@ -196,9 +196,9 @@ function buildPersonalizationPrompt(bundle, variants) {
         subjectLineStyle: variants.subjectLineStyle === 'specific_observation'
           ? 'Lead with one concrete public observation.'
           : 'Lead with a direct, evidence-grounded banner benefit.',
-        callToActionStyle: variants.callToActionStyle === 'quick_quote_offer'
-          ? 'Invite them to reply with size and quantity for quick pricing. Use a confident statement, not a question.'
-          : 'End with a direct, low-pressure invitation to design online or reply when ready. Do not ask a question.',
+        callToActionStyle: variants.callToActionStyle === 'first_order_offer'
+          ? 'Close with a concise statement that code NEW20 saves 20% on a first order.'
+          : 'End with a direct, low-pressure invitation to design online when ready. Do not ask a question.',
         offerFraming: variants.offerFraming === 'production_and_shipping'
           ? 'Frame value around fast production and shipping without promising arrival.'
           : 'Frame value around print quality and ordering convenience.',
@@ -214,6 +214,7 @@ function buildPersonalizationPrompt(bundle, variants) {
       noGenericCompliment: true,
       directCallToAction: true,
       noQuestionCallToAction: true,
+      noReplyForQuoteRequest: true,
     },
     research: bundle,
   };
@@ -294,6 +295,9 @@ function validatePersonalizationOutput(raw, { bundle }) {
   if (/[!?]{2,}/.test(output.subject) || /^(?:re|fwd):/i.test(output.subject)) throw invalidOutput('Subject style is unsafe.');
   if ([output.subject, combinedSegments].some((value) => placeholderPattern.test(value))) throw invalidOutput('Draft contains a placeholder or HTML.');
   if (/\?/.test(output.callToAction)) throw invalidOutput('Call to action must be a direct statement, not a question.');
+  if (/\breply\b.{0,100}\b(?:size|dimensions?|quantit(?:y|ies)|quote|pricing)\b/i.test(output.callToAction)) {
+    throw invalidOutput('Call to action must not ask for a reply with specifications or pricing details.');
+  }
   if ([output.researchSummary, output.subject, combinedSegments].some(containsInstructionInjection)) throw invalidOutput('Draft contains unsafe instruction-like content.');
   if ([output.researchSummary, output.subject, combinedSegments].some(containsCredentialLikeText)) throw invalidOutput('Draft contains credential-like content.');
   if (wordCount < MIN_EMAIL_WORDS || wordCount > MAX_EMAIL_WORDS) throw invalidOutput('Draft length is outside the approved range.');

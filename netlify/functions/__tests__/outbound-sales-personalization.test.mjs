@@ -97,7 +97,7 @@ function validModelOutput() {
     subject: 'Banner planning for your fall soccer tournament',
     opening_paragraph: 'I saw that River City Sports Center is preparing for a fall youth soccer tournament alongside its community leagues. Events like that often need clear, durable wayfinding and sponsor visibility across several spaces.',
     value_paragraph: 'Banners On The Fly produces custom banners and printed displays, with most standard orders produced within 24 hours and free next-day air beginning after production. That can help when event details or sponsor artwork come together close to the tournament.',
-    call_to_action: 'Reply with the approximate size and quantity whenever you are ready, and I can help with quick pricing.',
+    call_to_action: 'Use code NEW20 to save 20% on your first order whenever you are ready.',
     evidence_ids: ['E1'],
     recommended_follow_up_delay_days: 5,
     personalization_notes: ['Connected the outreach to the publicly listed soccer tournament without inventing dates or quantities.'],
@@ -243,6 +243,7 @@ describe('grounded copy contract and deterministic cost controls', () => {
     expect(() => validatePersonalizationOutput({ ...validModelOutput(), evidence_ids: ['E9'] }, { bundle })).toThrow(/evidence/i);
     expect(() => validatePersonalizationOutput({ ...validModelOutput(), subject: 'A quick print question' }, { bundle })).toThrow(/subject.*grounded/i);
     expect(() => validatePersonalizationOutput({ ...validModelOutput(), call_to_action: 'Would it be useful if I priced a banner today?' }, { bundle })).toThrow(/direct statement/i);
+    expect(() => validatePersonalizationOutput({ ...validModelOutput(), call_to_action: 'Reply with the size and quantity for quick pricing.' }, { bundle })).toThrow(/must not ask for a reply/i);
     expect(() => validatePersonalizationOutput({ ...validModelOutput(), call_to_action: 'Reply with sk-proj-never-render-this-value if useful for your tournament.' }, { bundle })).toThrow(/credential/i);
     expect(() => validatePersonalizationOutput({
       ...validModelOutput(),
@@ -262,7 +263,7 @@ describe('grounded copy contract and deterministic cost controls', () => {
     expect(first).toBe(second);
     expect(first).not.toBe(changed);
     expect(first).toHaveLength('personalization:'.length + 64);
-    expect(PROMPT_VERSION).toBe('outbound-personalization-v2');
+    expect(PROMPT_VERSION).toBe('outbound-personalization-v3');
     expect(OUTPUT_SCHEMA_VERSION).toBe('shadow-outreach-v1');
   });
 
@@ -278,13 +279,15 @@ describe('grounded copy contract and deterministic cost controls', () => {
   it('renders branded HTML deterministically while escaping model-controlled text', () => {
     const polished = polishOutboundBodyText('Hi Eric,\n\nWould it be useful if I priced a show banner for booth 556 today?\n\nBest,\nBrandon\nBanners On The Fly');
     expect(polished).not.toContain('Would it be useful');
-    expect(polished).toContain('reply with the size and quantity for quick pricing');
+    expect(polished).toContain('Use code NEW20 to save 20% on your first order');
+    expect(polished).not.toMatch(/reply with (?:the )?size/i);
     expect(polished).toContain('Brandon Schaefer\nOwner, Banners On The Fly');
     const html = renderOutboundEmailPreview({ subject: '<script>alert(1)</script>', bodyText: 'Hi team,\n\nUse <strong>safe</strong> banners.' });
     expect(html).toContain('#ff6b35');
     expect(html).toContain('#18448D');
     expect(html).toContain('header-logo.png');
-    expect(html).toContain('product-heroes/vinyl-banners-1100.webp');
+    expect(html).toContain('/images/email/trade-show-booth-hero.webp');
+    expect(html).toContain('trade show exhibitor booth');
     expect(html).toContain('Save 20% with code');
     expect(html).toContain('NEW20');
     expect(html).toContain('Design &amp; Price Your Banner');
