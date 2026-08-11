@@ -491,6 +491,18 @@ describe('Shadow Mode orchestration, accounting, and admin queue', () => {
 });
 
 describe('Phase 2 migration and isolation contracts', () => {
+  it('uses a real-Postgres-safe duplicate lookup without DISTINCT ordering ambiguity', async () => {
+    const sql = vi.fn().mockResolvedValue([]);
+    await discoveryRepository.findDuplicateProspect(sql, normalizeProviderProspect('fixture_provider', {
+      providerRecordId: 'stable-record', businessName: 'Stable Company', websiteUrl: 'https://stable.example',
+    }));
+    const query = sql.mock.calls[0][0];
+    expect(query).not.toMatch(/SELECT\s+DISTINCT/i);
+    expect(query).not.toContain('LEFT JOIN outbound_prospect_sources');
+    expect(query).toContain('ORDER BY duplicate_rank');
+    expect(query).toContain('EXISTS (');
+  });
+
   it('adds only outbound objects, keeps Apollo disabled, and provides a non-CASCADE outbound-only rollback', () => {
     const executable = phase2Migration.replace(/--.*$/gm, '');
     const rollback = phase2Rollback.replace(/--.*$/gm, '');

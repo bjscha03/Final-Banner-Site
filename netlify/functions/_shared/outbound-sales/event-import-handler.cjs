@@ -227,6 +227,7 @@ function createEventImportHandler({ dependencies = {}, env = process.env } = {})
       if (event.httpMethod === 'GET') {
         const row = await repository.loadEventBatchStatus(sql, {
           businessDate: date, eventKey: eventImport.eventData.key,
+          sourceDataVersion: eventImport.eventData.version,
         });
         return json(200, {
           ok: true, eventKey: eventImport.eventData.key, batch: mapBatchStatus(row),
@@ -249,6 +250,7 @@ function createEventImportHandler({ dependencies = {}, env = process.env } = {})
       if (!batch) throw Object.assign(new Error('The event batch failed its logical identity check.'), { code: 'EVENT_IMPORT_BATCH_CONFLICT' });
       const current = await repository.loadEventBatchStatus(sql, {
         businessDate: date, eventKey: eventImport.eventData.key,
+        sourceDataVersion: eventImport.eventData.version,
       });
       if (current?.status === 'ready' && Number(current.mockup_ready_count) >= MORNING_TARGET) {
         return json(200, {
@@ -278,7 +280,8 @@ function createEventImportHandler({ dependencies = {}, env = process.env } = {})
       let dispatchStatus;
       try {
         dispatchStatus = await (dependencies.dispatchEventBackground || dispatchEventBackground)('import', {
-          eventKey: eventImport.eventData.key, businessDate: date, shardIndex: 0,
+          eventKey: eventImport.eventData.key, sourceDataVersion: eventImport.eventData.version,
+          businessDate: date, shardIndex: 0,
         }, { env, fetchImpl: dependencies.fetch || globalThis.fetch, requestEvent: event });
       } catch (error) {
         const code = safeCode(error, 'EVENT_IMPORT_DISPATCH_FAILED');
@@ -307,6 +310,7 @@ function createEventImportHandler({ dependencies = {}, env = process.env } = {})
       });
       const queued = await repository.loadEventBatchStatus(sql, {
         businessDate: date, eventKey: eventImport.eventData.key,
+        sourceDataVersion: eventImport.eventData.version,
       });
       return json(202, {
         ok: true, queued: true, alreadyReady: false,
@@ -351,7 +355,8 @@ function createEventImportBackgroundHandler({
       });
       return emptyResponse(400);
     }
-    if (body.eventKey !== eventImport.eventData.key) {
+    if (body.eventKey !== eventImport.eventData.key
+        || body.sourceDataVersion !== eventImport.eventData.version) {
       console.error('[outbound-sales] event preparation background rejected safely', {
         code: 'EVENT_IMPORT_BACKGROUND_EVENT_INVALID',
       });
@@ -372,6 +377,7 @@ function createEventImportBackgroundHandler({
       }
       const batch = await repository.loadEventBatchStatus(sql, {
         businessDate: date, eventKey: eventImport.eventData.key,
+        sourceDataVersion: eventImport.eventData.version,
       });
       if (!batch?.id) {
         throw Object.assign(new Error('The event preparation batch was not found.'), {
@@ -400,11 +406,13 @@ function createEventImportBackgroundHandler({
         if (result.shardStatus === 'succeeded') {
           if (shardIndex + 1 < result.shardCount) {
             await (dependencies.dispatchEventBackground || dispatchEventBackground)('import', {
-              eventKey: eventImport.eventData.key, businessDate: date, shardIndex: shardIndex + 1,
+              eventKey: eventImport.eventData.key, sourceDataVersion: eventImport.eventData.version,
+              businessDate: date, shardIndex: shardIndex + 1,
             }, { env, fetchImpl: dependencies.fetch || globalThis.fetch, requestEvent: event });
           } else {
             await (dependencies.dispatchEventBackground || dispatchEventBackground)('finalize', {
-              eventKey: eventImport.eventData.key, businessDate: date, finalizerPass: 0,
+              eventKey: eventImport.eventData.key, sourceDataVersion: eventImport.eventData.version,
+              businessDate: date, finalizerPass: 0,
             }, { env, fetchImpl: dependencies.fetch || globalThis.fetch, requestEvent: event });
           }
         } else {
@@ -435,7 +443,8 @@ function createEventImportBackgroundHandler({
             && finalizerPass + 1 < MAX_FINALIZER_PASSES
             && hasMoreCandidates) {
           await (dependencies.dispatchEventBackground || dispatchEventBackground)('finalize', {
-            eventKey: eventImport.eventData.key, businessDate: date, finalizerPass: finalizerPass + 1,
+            eventKey: eventImport.eventData.key, sourceDataVersion: eventImport.eventData.version,
+            businessDate: date, finalizerPass: finalizerPass + 1,
           }, { env, fetchImpl: dependencies.fetch || globalThis.fetch, requestEvent: event });
         }
       }
@@ -443,6 +452,7 @@ function createEventImportBackgroundHandler({
       const code = safeCode(error);
       const batch = sql ? await repository.loadEventBatchStatus(sql, {
         businessDate: date, eventKey: eventImport.eventData.key,
+        sourceDataVersion: eventImport.eventData.version,
       }).catch(() => null) : null;
       if (batch?.id) {
         await repository.recordEventProgress(sql, {

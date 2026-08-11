@@ -395,6 +395,11 @@ async function runEventImportShard(options = {}) {
       }
     });
     await Promise.all(workers);
+    if (failures.length === records.length) {
+      throw Object.assign(new Error('Every record in the event import shard failed.'), {
+        code: 'EVENT_IMPORT_SHARD_ALL_RECORDS_FAILED',
+      });
+    }
     const attachedIds = await repository.attachEventProspects(sql, {
       batchId: batch.id, businessDate, eventKey: event.key, prospectIds: [...candidateIds],
     });
@@ -402,7 +407,9 @@ async function runEventImportShard(options = {}) {
       shardId: shard.id, discoveredCount: records.length,
       newProspectCount: attachedIds.length, providerCreditsUsed: 0,
     });
-    const counts = await repository.refreshEventImportCounts(sql, { batchId: batch.id, eventKey: event.key });
+    const counts = await repository.refreshEventImportCounts(sql, {
+      batchId: batch.id, eventKey: event.key, sourceDataVersion: event.version,
+    });
     const result = {
       skipped: false, eventKey: event.key, sourceDataVersion: event.version,
       batchId: batch.id, shardIndex, shardCount, discoveredCount: records.length,
@@ -425,7 +432,11 @@ async function runEventImportShard(options = {}) {
     await repository.failMorningShard(sql, { shardId: shard.id, errorCode: code }).catch(() => null);
     await repository.recordEventProgress(sql, {
       batchId: batch.id, status: 'failed', lastErrorCode: code,
-      metadata: { phase: 'import_failed', failedShard: shardIndex, externalEmailsSent: 0 },
+      metadata: {
+        phase: 'import_failed', failedShard: shardIndex,
+        failedImportCount: failures.length, failedImportCodes: failures.slice(0, 20),
+        externalEmailsSent: 0,
+      },
     }).catch(() => null);
     throw error;
   }
@@ -441,6 +452,17 @@ async function runEventFinalizer(options = {}) {
     businessDate, eventKey: event.key, targetCount: MORNING_TARGET, providerId: EVENT_PROVIDER_ID,
   });
   if (!batch) throw Object.assign(new Error('Morning batch could not be created.'), { code: 'MORNING_BATCH_NOT_CREATED' });
+  const shardCount = Math.ceil(event.records.length / EVENT_IMPORT_SHARD_SIZE);
+  const importStatus = await repository.loadEventBatchStatus(sql, {
+    businessDate, eventKey: event.key, sourceDataVersion: event.version,
+  });
+  if (Number(importStatus?.import_shard_count) !== shardCount
+      || Number(importStatus?.completed_import_shard_count) !== shardCount
+      || Number(importStatus?.failed_import_shard_count) !== 0) {
+    throw Object.assign(new Error('The active event import has not completed safely.'), {
+      code: 'EVENT_IMPORT_INCOMPLETE',
+    });
+  }
   await repository.recordEventProgress(sql, {
     batchId: batch.id, status: 'preparing', lastErrorCode: null,
     metadata: {

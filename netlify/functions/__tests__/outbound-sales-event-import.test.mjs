@@ -19,6 +19,7 @@ const BATCH_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const TOKEN = 'event-import-token-at-least-32-characters';
 const MORNING_SECRET = 'morning-preparation-secret-at-least-32-characters';
 const EVENT_KEY = 'atlanta-shoe-market-2026-08';
+const SOURCE_DATA_VERSION = eventImport.eventData.version;
 const PREVIEW_ORIGIN = 'https://deploy-preview-458--bannersonthefly.netlify.app';
 const DEPLOY_ID = '6a7b67f0c7518b000837062c';
 const IMMUTABLE_PREVIEW_ORIGIN = `https://${DEPLOY_ID}--bannersonthefly.netlify.app`;
@@ -43,7 +44,7 @@ function backgroundEvent(body) {
   return {
     httpMethod: 'POST',
     headers: { 'x-morning-prep-token': MORNING_SECRET, 'x-nf-request-id': 'event-background-test' },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ sourceDataVersion: SOURCE_DATA_VERSION, ...body }),
   };
 }
 
@@ -143,6 +144,10 @@ describe('event import isolation and quality gates', () => {
     });
     const repository = {
       ensureEventBatch: vi.fn().mockResolvedValue({ id: BATCH_ID, batch_key: `event:${EVENT_KEY}` }),
+      loadEventBatchStatus: vi.fn().mockResolvedValue(batchRow({
+        import_shard_count: 7, completed_import_shard_count: 7,
+        running_import_shard_count: 0, failed_import_shard_count: 0,
+      })),
       recordEventProgress: vi.fn().mockResolvedValue({ id: BATCH_ID }),
     };
     await eventImport.runEventFinalizer({
@@ -154,6 +159,40 @@ describe('event import isolation and quality gates', () => {
       expectedBatchKey: `event:${EVENT_KEY}`,
       requireProviderConfiguration: false,
     }));
+  });
+
+  it('refuses finalization until every shard in the active source version succeeded', async () => {
+    const runMorningFinalizer = vi.fn();
+    await expect(eventImport.runEventFinalizer({
+      sql: vi.fn(), businessDate: '2026-08-11',
+      dependencies: {
+        repository: {
+          ensureEventBatch: vi.fn().mockResolvedValue({ id: BATCH_ID, batch_key: `event:${EVENT_KEY}` }),
+          loadEventBatchStatus: vi.fn().mockResolvedValue(batchRow({
+            import_shard_count: 14, completed_import_shard_count: 7,
+            failed_import_shard_count: 0,
+          })),
+        },
+        runMorningFinalizer,
+      },
+    })).rejects.toMatchObject({ code: 'EVENT_IMPORT_INCOMPLETE' });
+    expect(runMorningFinalizer).not.toHaveBeenCalled();
+  });
+
+  it('scopes import progress to the active source version so a retry stays 7 shards and 105 records', async () => {
+    const statusSql = vi.fn().mockResolvedValue([]);
+    await eventRepository.loadEventBatchStatus(statusSql, {
+      businessDate: '2026-08-11', eventKey: EVENT_KEY, sourceDataVersion: SOURCE_DATA_VERSION,
+    });
+    expect(statusSql.mock.calls[0][0]).toContain('LEFT(shard.shard_key,LENGTH($4))=$4');
+    expect(statusSql.mock.calls[0][1][3]).toBe(`event:${EVENT_KEY}:import:${SOURCE_DATA_VERSION}:`);
+
+    const countSql = vi.fn().mockResolvedValue([]);
+    await eventRepository.refreshEventImportCounts(countSql, {
+      batchId: BATCH_ID, eventKey: EVENT_KEY, sourceDataVersion: SOURCE_DATA_VERSION,
+    });
+    expect(countSql.mock.calls[0][0]).toContain('LEFT(shard.shard_key,LENGTH($3))=$3');
+    expect(countSql.mock.calls[0][1][2]).toBe(`event:${EVENT_KEY}:import:${SOURCE_DATA_VERSION}:`);
   });
 
   it('requires confirmed MX and event scope for both preparation and final queue positions', async () => {
@@ -210,6 +249,32 @@ describe('event import isolation and quality gates', () => {
     });
     expect(result).toMatchObject({ skipped: true, shardStatus: 'succeeded', externalEmailsSent: 0 });
     expect(processProspect).not.toHaveBeenCalled();
+  });
+
+  it('fails the shard instead of chaining when every record hits an infrastructure error', async () => {
+    const repository = {
+      ensureEventBatch: vi.fn().mockResolvedValue({ id: BATCH_ID }),
+      claimMorningShard: vi.fn().mockResolvedValue({ id: 'shard-failed' }),
+      findDuplicateProspect: vi.fn().mockResolvedValue(null),
+      recordEventProgress: vi.fn().mockResolvedValue(batchRow()),
+      failMorningShard: vi.fn().mockResolvedValue({}),
+      completeMorningShard: vi.fn(),
+    };
+    await expect(eventImport.runEventImportShard({
+      sql: vi.fn(), businessDate: '2026-08-11', shardIndex: 0,
+      dependencies: {
+        repository,
+        processProspect: vi.fn().mockRejectedValue(Object.assign(new Error('bad query'), { code: '42P10' })),
+      },
+    })).rejects.toMatchObject({ code: 'EVENT_IMPORT_SHARD_ALL_RECORDS_FAILED' });
+    expect(repository.completeMorningShard).not.toHaveBeenCalled();
+    expect(repository.failMorningShard).toHaveBeenCalledWith(expect.anything(), {
+      shardId: 'shard-failed', errorCode: 'EVENT_IMPORT_SHARD_ALL_RECORDS_FAILED',
+    });
+    expect(repository.recordEventProgress).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({
+      status: 'failed', lastErrorCode: 'EVENT_IMPORT_SHARD_ALL_RECORDS_FAILED',
+      metadata: expect.objectContaining({ failedImportCount: 15 }),
+    }));
   });
 
   it('merges trusted event scope onto an existing duplicate before it can enter the event batch', async () => {

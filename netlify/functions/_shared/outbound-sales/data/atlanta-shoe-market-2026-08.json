@@ -1,6 +1,6 @@
 {
   "key": "atlanta-shoe-market-2026-08",
-  "version": "2026-08-11.2",
+  "version": "2026-08-11.3",
   "sourceDataset": "recovered-leads/unique-outreach.json",
   "sourceDatasetSha256": "dd8b34a7fec49165aff617ec15f28407f54ceba62f3d0664bf53213612fce2e8",
   "name": "Atlanta Shoe Market",

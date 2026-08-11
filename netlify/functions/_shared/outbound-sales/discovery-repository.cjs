@@ -8,28 +8,40 @@ function jsonValue(value) {
 
 async function findDuplicateProspect(sql, prospect) {
   const rows = await sql(
-    `SELECT DISTINCT p.*,
+    `SELECT p.*,
             CASE
               WHEN p.source_provider_id = $1 AND p.source_record_id = $2 THEN 'provider_id'
-              WHEN sources.provider_id = $1 AND sources.provider_record_id = $2 THEN 'provider_id'
+              WHEN EXISTS (
+                SELECT 1 FROM outbound_prospect_sources source
+                 WHERE source.prospect_id = p.id
+                   AND source.provider_id = $1 AND source.provider_record_id = $2
+              ) THEN 'provider_id'
               WHEN $3::text IS NOT NULL AND LOWER(p.canonical_domain) = $3 THEN 'canonical_domain'
               WHEN $4::text IS NOT NULL AND p.dedupe_fingerprint = $4 THEN 'fingerprint'
               ELSE 'existing'
-            END AS duplicate_match
+            END AS duplicate_match,
+            CASE
+              WHEN p.source_provider_id = $1 AND p.source_record_id = $2 THEN 1
+              WHEN EXISTS (
+                SELECT 1 FROM outbound_prospect_sources source
+                 WHERE source.prospect_id = p.id
+                   AND source.provider_id = $1 AND source.provider_record_id = $2
+              ) THEN 2
+              WHEN $3::text IS NOT NULL AND LOWER(p.canonical_domain) = $3 THEN 3
+              ELSE 4
+            END AS duplicate_rank
        FROM outbound_prospects p
-       LEFT JOIN outbound_prospect_sources sources ON sources.prospect_id = p.id
       WHERE (
         ($2::text IS NOT NULL AND p.source_provider_id = $1 AND p.source_record_id = $2)
-        OR ($2::text IS NOT NULL AND sources.provider_id = $1 AND sources.provider_record_id = $2)
+        OR ($2::text IS NOT NULL AND EXISTS (
+          SELECT 1 FROM outbound_prospect_sources source
+           WHERE source.prospect_id = p.id
+             AND source.provider_id = $1 AND source.provider_record_id = $2
+        ))
         OR ($3::text IS NOT NULL AND LOWER(p.canonical_domain) = $3)
         OR ($4::text IS NOT NULL AND p.dedupe_fingerprint = $4)
       )
-      ORDER BY CASE
-        WHEN p.source_provider_id = $1 AND p.source_record_id = $2 THEN 1
-        WHEN sources.provider_id = $1 AND sources.provider_record_id = $2 THEN 2
-        WHEN $3::text IS NOT NULL AND LOWER(p.canonical_domain) = $3 THEN 3
-        ELSE 4
-      END
+      ORDER BY duplicate_rank
       LIMIT 1`,
     [prospect.providerId, prospect.providerRecordId, prospect.canonicalDomain, prospect.dedupeFingerprint],
   );

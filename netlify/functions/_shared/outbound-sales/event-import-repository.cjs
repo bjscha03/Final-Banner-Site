@@ -23,6 +23,15 @@ function eventBatchKey(eventKey) {
   return `event:${value}`;
 }
 
+function eventImportShardPrefix(eventKey, sourceDataVersion) {
+  eventBatchKey(eventKey);
+  const version = String(sourceDataVersion || '');
+  if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}\.[0-9]+$/.test(version)) {
+    throw Object.assign(new Error('Event source data version is invalid.'), { code: 'EVENT_IMPORT_DATA_INVALID' });
+  }
+  return `event:${eventKey}:import:${version}:`;
+}
+
 async function ensureEventBatch(sql, {
   businessDate, eventKey, targetCount = 70, providerId = 'manual_event_research',
 }) {
@@ -221,14 +230,15 @@ async function attachEventProspects(sql, {
   return rows.map((row) => row.id);
 }
 
-async function refreshEventImportCounts(sql, { batchId, eventKey }) {
+async function refreshEventImportCounts(sql, { batchId, eventKey, sourceDataVersion }) {
+  const shardPrefix = eventImportShardPrefix(eventKey, sourceDataVersion);
   const rows = await sql(
     `UPDATE outbound_morning_batches batch SET
        discovered_count=COALESCE((
          SELECT SUM(shard.discovered_count)::integer
            FROM outbound_morning_batch_shards shard
           WHERE shard.batch_id=batch.id AND shard.status='succeeded'
-            AND shard.shard_key LIKE 'event:%:import:%'
+            AND LEFT(shard.shard_key,LENGTH($3))=$3
        ),0),
        new_prospect_count=(
          SELECT COUNT(*)::integer FROM outbound_prospects prospect
@@ -237,13 +247,14 @@ async function refreshEventImportCounts(sql, { batchId, eventKey }) {
        ),updated_at=NOW()
       WHERE batch.id=$1
       RETURNING id,discovered_count,new_prospect_count`,
-    [batchId, eventKey],
+    [batchId, eventKey, shardPrefix],
   );
   return rows[0] || null;
 }
 
-async function loadEventBatchStatus(sql, { businessDate, eventKey }) {
+async function loadEventBatchStatus(sql, { businessDate, eventKey, sourceDataVersion }) {
   const batchKey = eventBatchKey(eventKey);
+  const shardPrefix = eventImportShardPrefix(eventKey, sourceDataVersion);
   const rows = await sql(
     `SELECT batch.id,batch.business_date,batch.target_count,batch.status,
             batch.discovered_count,batch.new_prospect_count,batch.qualified_count,
@@ -255,12 +266,12 @@ async function loadEventBatchStatus(sql, { businessDate, eventKey }) {
             COUNT(shard.id) FILTER (WHERE shard.status='failed')::integer AS failed_import_shard_count
        FROM outbound_morning_batches batch
        LEFT JOIN outbound_morning_batch_shards shard ON shard.batch_id=batch.id
-        AND shard.shard_key LIKE 'event:%:import:%'
+        AND LEFT(shard.shard_key,LENGTH($4))=$4
       WHERE batch.business_date=$1 AND batch.batch_key=$2
         AND batch.run_metadata->>'eventKey'=$3
       GROUP BY batch.id
       LIMIT 1`,
-    [businessDate, batchKey, eventKey],
+    [businessDate, batchKey, eventKey, shardPrefix],
   );
   return rows[0] || null;
 }
@@ -384,6 +395,7 @@ async function finalizeEventBatch(sql, {
 
 module.exports = {
   eventBatchKey,
+  eventImportShardPrefix,
   ensureEventBatch,
   mapEventCandidate,
   listExistingEventProspects,
