@@ -3,7 +3,6 @@ import eventImport from '../_shared/outbound-sales/event-import.cjs';
 import eventRepository from '../_shared/outbound-sales/event-import-repository.cjs';
 import eventHandler from '../_shared/outbound-sales/event-import-handler.cjs';
 import morningPreparation from '../_shared/outbound-sales/morning-preparation.cjs';
-import companyMockup from '../_shared/outbound-sales/company-mockup.cjs';
 import manualReviewRepository from '../_shared/outbound-sales/manual-review-repository.cjs';
 import { withOutboundRuntime } from '../_shared/outbound-sales/netlify-modern.mjs';
 import eventSource from '../_shared/outbound-sales/event-import.cjs?raw';
@@ -102,7 +101,7 @@ describe('curated Atlanta event source', () => {
     });
   });
 
-  it('grounds the email and mockup in the exact event and complete multi-booth listing', () => {
+  it('grounds the email in the exact event and complete multi-booth listing without mockup language', () => {
     const event = eventImport.validateEventDefinition();
     const record = event.records[0];
     const candidate = {
@@ -115,10 +114,10 @@ describe('curated Atlanta event source', () => {
       research: { contentHash: 'research-1', sourceUrls: [record.contactSourceUrl], evidence: [], extractedFacts: {}, bannerNeedSignals: [] },
     };
     const message = morningPreparation.buildMorningMessage(candidate);
-    expect(message.bodyText).toContain(`is exhibiting at ${event.name} during ${event.dateLabel} in booth ${record.booths}.`);
-    expect(message.bodyText).toContain('This is just a quick mockup');
-    expect(message.bodyText).not.toMatch(/complimentary|reply with|size and quantity|Would it be useful/i);
-    expect(companyMockup.boothLabel({ message })).toBe(record.booths);
+    expect(message.subject).toContain(`banners for ${event.name}`);
+    expect(message.bodyText).toContain(`is exhibiting at ${event.name} during ${event.dateLabel} in booth ${record.booths}`);
+    expect(message.bodyText).toContain('wanted to reach out before the show');
+    expect(message.bodyText).not.toMatch(/quick mockup|complimentary|public branding|reply with|size and quantity|Would it be useful/i);
   });
 });
 
@@ -203,9 +202,9 @@ describe('event import isolation and quality gates', () => {
     expect(listSql.mock.calls[0][0]).toContain("c.mx_status='present'");
     expect(listSql.mock.calls[0][0]).not.toContain('not_checked');
     expect(listSql.mock.calls[0][0]).toContain("p.provider_metadata->>'eventKey'=$3");
-    expect(listSql.mock.calls[0][0]).toContain('WHEN m.id IS NULL OR mockup.id IS NULL THEN 0');
-    expect(listSql.mock.calls[0][0]).toContain('WHEN NOT (');
-    expect(listSql.mock.calls[0][0].indexOf('WHEN m.id IS NULL OR mockup.id IS NULL THEN 0'))
+    expect(listSql.mock.calls[0][0]).toContain('WHEN m.id IS NULL THEN 0');
+    expect(listSql.mock.calls[0][0]).not.toContain('outbound_company_mockups');
+    expect(listSql.mock.calls[0][0].indexOf('WHEN m.id IS NULL THEN 0'))
       .toBeLessThan(listSql.mock.calls[0][0].indexOf("COALESCE((p.provider_metadata->>'eventRank')::integer"));
 
     const finalizeSql = vi.fn().mockResolvedValue([]);
@@ -215,21 +214,13 @@ describe('event import isolation and quality gates', () => {
     expect(finalizeSql.mock.calls[0][0]).toContain("provider_metadata->>'eventKey'=$2");
     expect(finalizeSql.mock.calls[1][0]).toContain("c.mx_status='present'");
     expect(finalizeSql.mock.calls[1][0]).toContain("p.provider_metadata->>'eventKey'=$3");
-    expect(finalizeSql.mock.calls[1][0]).toContain("quality_level='logo_and_product'");
-    expect(finalizeSql.mock.calls[1][0]).toContain('"noClipGuaranteed":true');
-    expect(finalizeSql.mock.calls[1][0]).toContain('"blobBindingAudit":{"passed":true,"strongReadBackVerified":true}');
-    expect(finalizeSql.mock.calls[1][0]).toContain("mockup.blob_key IS NOT NULL");
-    for (const query of [finalizeSql.mock.calls[1][0], finalizeSql.mock.calls[2][0]]) {
-      expect(query).toContain(`mockup.render_version='${companyMockup.RENDER_VERSION}'`);
-      expect(query).toContain('"noUpscaleGuaranteed":true');
-      expect(query).toContain('"logoCompositionAudit"');
-      expect(query).toContain('"productSelectionAudit"');
-      expect(query).toContain('"layoutAudit"');
-      expect(query).toContain('"footerNoOverlapGuaranteed":true');
-      expect(query).toContain('"logoHeadlineNoOverlapGuaranteed":true');
-      expect(query).toContain('"paletteAudit"');
-      expect(query).toContain('"eventTextAudit"');
-    }
+    expect(finalizeSql.mock.calls[1][0]).not.toContain('outbound_company_mockups');
+    expect(finalizeSql.mock.calls[2][0]).toContain("mockup.render_version='company-banner-manual-upload-v1'");
+    expect(finalizeSql.mock.calls[2][0]).toContain("mockup.quality_level='manual_upload'");
+    expect(finalizeSql.mock.calls[2][0]).toContain('manual-company-banners/');
+    expect(finalizeSql.mock.calls[2][0]).toContain('"administratorUploaded":true');
+    expect(finalizeSql.mock.calls[2][0]).toContain('"width":1200,"height":675');
+    expect(finalizeSql.mock.calls[2][0]).toContain('"blobBindingAudit"');
   });
 
   it('keeps unfinalized reserve prospects out of Today until a strict queue position exists', async () => {
@@ -755,7 +746,7 @@ describe('protected admin/token trigger and resumable background chain', () => {
     });
   });
 
-  it('defers image and Blob runtime loading until the final mockup stage', async () => {
+  it('never loads image or Blob runtimes during lead and email preparation', async () => {
     const loadSharp = vi.fn().mockResolvedValue({ name: 'sharp-test' });
     const getStore = vi.fn().mockResolvedValue({ name: 'store-test' });
     const importHandler = eventHandler.createEventImportBackgroundHandler({
@@ -773,7 +764,7 @@ describe('protected admin/token trigger and resumable background chain', () => {
 
     const runEventFinalizer = vi.fn().mockResolvedValue({
       readyCount: 70, processedCount: 70, candidateCount: 70,
-      mockupFailureCount: 0, timeBudgetReached: false,
+      draftFailureCount: 0, timeBudgetReached: false,
     });
     const finalizeHandler = eventHandler.createEventImportBackgroundHandler({
       env: ENV, loadSharp, getStore,
@@ -784,10 +775,10 @@ describe('protected admin/token trigger and resumable background chain', () => {
     await finalizeHandler(backgroundEvent({
       action: 'finalize', eventKey: EVENT_KEY, businessDate: '2026-08-11', finalizerPass: 0,
     }));
-    expect(loadSharp).toHaveBeenCalledTimes(1);
-    expect(getStore).toHaveBeenCalledTimes(1);
-    expect(runEventFinalizer).toHaveBeenCalledWith(expect.objectContaining({
-      sharp: { name: 'sharp-test' }, store: { name: 'store-test' },
+    expect(loadSharp).not.toHaveBeenCalled();
+    expect(getStore).not.toHaveBeenCalled();
+    expect(runEventFinalizer).toHaveBeenCalledWith(expect.not.objectContaining({
+      sharp: expect.anything(), store: expect.anything(),
     }));
   });
 
@@ -816,7 +807,7 @@ describe('protected admin/token trigger and resumable background chain', () => {
         repository: backgroundRepository(),
         runEventFinalizer: vi.fn().mockResolvedValue({
           readyCount: 42, processedCount: 55, candidateCount: 90,
-          mockupFailureCount: 3, timeBudgetReached: true,
+          draftFailureCount: 3, timeBudgetReached: true,
         }),
         dispatchEventBackground: dispatchFinalize,
       },
@@ -834,17 +825,17 @@ describe('protected admin/token trigger and resumable background chain', () => {
     expect(backgroundEntrypoint).toContain('withOutboundRuntime');
     expect(outboundRuntimeSource).toContain('context?.deploy?.id');
     expect(outboundRuntimeSource).toContain('context?.site?.name');
-    expect(backgroundEntrypoint).not.toContain("import sharp from 'sharp'");
-    expect(backgroundEntrypoint).toContain("await import('sharp')");
+    expect(backgroundEntrypoint).not.toContain("import('sharp')");
+    expect(backgroundEntrypoint).not.toContain('@netlify/blobs');
     expect(netlifyConfig).toContain('[functions."outbound-sales-event-import-background"]');
     expect(netlifyConfig).toMatch(/\[functions\."outbound-sales-event-import-background"\][\s\S]*?background = true/);
-    expect(salesAdminSource).toContain('Load & prepare Atlanta batch');
+    expect(salesAdminSource).toContain('Load Atlanta leads');
     expect(salesAdminSource).toContain('Retry Atlanta preparation');
     expect(salesAdminSource).toContain("['queued', 'dispatching', 'dispatched']");
     expect(salesAdminSource).toContain('The preparation worker stopped making progress');
     expect(salesAdminSource).toContain('Your imported companies are still saved');
     expect(salesAdminSource).toContain('eventStartInFlight.current');
-    expect(salesAdminSource).not.toContain('use Load &amp; prepare Atlanta batch to retry safely');
-    expect(salesAdminSource).toContain('This action has no email-send path');
+    expect(salesAdminSource).toContain('no banner is generated and nothing is sent automatically');
+    expect(salesAdminSource).toContain('No automatic image generation');
   });
 });

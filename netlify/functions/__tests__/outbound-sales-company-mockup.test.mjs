@@ -1155,11 +1155,12 @@ describe('company mockup migration isolation', () => {
     expect(staleSql.mock.calls[0][1][8]).toBe(false);
   });
 
-  it('does not show an endless spinner for a missing or failed mockup', () => {
-    expect(leadReviewSource).toContain('mockupBuildActive ? (');
-    expect(leadReviewSource).toContain("lead.mockup?.status === 'failed' ? 'The last build stopped safely. Retry when ready.'");
-    expect(leadReviewSource).toContain('if (pollCount.current >= 30)');
-    expect(leadReviewSource).toMatch(/if \(pollCount\.current >= 30\)[\s\S]{0,180}setPreparingBatch\(false\)/);
+  it('keeps the legacy renderer out of the manual lead-review interface', () => {
+    expect(leadReviewSource).not.toContain('mockupBuildActive');
+    expect(leadReviewSource).not.toContain('prepareOutboundCompanyMockups');
+    expect(leadReviewSource).not.toContain('refreshOutboundCompanyMockup');
+    expect(leadReviewSource).toContain('Drop the finished banner image here');
+    expect(leadReviewSource).toContain('No automatic image generation');
   });
 
   it('stores metadata only in a dedicated outbound table and has a clean rollback', () => {

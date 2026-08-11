@@ -2,9 +2,11 @@
 
 const { sanitizeForAudit } = require('./security.cjs');
 const { polishOutboundSubject, polishOutboundBodyText } = require('./personalization-template.cjs');
+const { immutableMockupBlobAuditPassed } = require('./company-mockup-repository.cjs');
 const {
-  immutableMockupBlobAuditPassed, strictCompanyMockupReadySql, strictCompanyMockupReady,
-} = require('./company-mockup-repository.cjs');
+  manualArtworkReadySql,
+  manualArtworkReady,
+} = require('./manual-artwork-repository.cjs');
 const { eventPreparationStall } = require('./event-progress.cjs');
 
 const MIN_HIGH_VALUE_SCORE = 60;
@@ -114,35 +116,19 @@ function technicalBlockers(row) {
     blockers.push('Email draft is not addressed to the selected contact');
   }
   if (!row.message_subject || !row.message_body_text) blockers.push('Email content is incomplete');
-  if (!row.mockup_id || row.mockup_status === 'pending') blockers.push('Personalized banner is still preparing');
-  else if (row.mockup_status === 'failed') blockers.push('Personalized banner build failed safely and needs a retry');
-  else if (row.mockup_status !== 'ready' || row.mockup_quality_level !== 'logo_and_product') {
-    blockers.push('Personalized banner needs a verified logo and relevant product/service image');
-  } else if (row.mockup_generation_metadata?.compositionAudit?.passed !== true
-      || row.mockup_generation_metadata?.compositionAudit?.noClipGuaranteed !== true
-      || row.mockup_generation_metadata?.compositionAudit?.noUpscaleGuaranteed !== true) {
-    blockers.push('Personalized banner composition has not passed the full-image and no-upscale quality checks');
-  } else if (row.mockup_message_id !== row.message_id
-      || !row.message_content_hash
-      || row.mockup_generation_metadata?.messageContentHash !== row.message_content_hash) {
-    blockers.push('Personalized banner is stale for the current email or event details');
-  } else if (!immutableMockupBlobAuditPassed(row.mockup_generation_metadata, row.mockup_blob_key)) {
-    blockers.push('Personalized banner is not bound to the exact immutable preview image');
-  } else if (!strictCompanyMockupReady({
+  if (!manualArtworkReady({
     prospectId: row.prospect_id,
     status: row.mockup_status,
     renderVersion: row.mockup_render_version,
     contentHash: row.mockup_content_hash,
     blobKey: row.mockup_blob_key,
-    logoUrl: row.mockup_logo_url,
-    productImageUrl: row.mockup_product_image_url,
     qualityLevel: row.mockup_quality_level,
     messageId: row.mockup_message_id,
     expectedMessageId: row.message_id,
     expectedMessageContentHash: row.message_content_hash,
     generationMetadata: row.mockup_generation_metadata,
   })) {
-    blockers.push('Personalized banner has not passed the current production-quality contract');
+    blockers.push('Upload and review a banner design for this company before sending');
   }
   if (row.business_name && !messageMatchesCompanyIdentity({
     businessName: row.business_name,
@@ -177,6 +163,7 @@ function mapLead(row) {
   const directTradeShow = eventEvidence.some((item) => /trade[ _-]?show|conference|expo|exhibit|exhibitor/i.test(
     `${item?.label || ''} ${item?.detail || ''} ${item?.evidence || ''}`,
   ));
+  const eventName = String(row.provider_metadata?.eventName || '').replace(/\s+/g, ' ').trim() || null;
   const reviewStatus = row.review_status || 'pending';
   const permissionStatus = row.permission_status || 'unknown';
   const sendState = row.send_state || 'not_sent';
@@ -199,7 +186,8 @@ function mapLead(row) {
     qualificationEvidence: row.qualification_evidence || [],
     eventFit: {
       priority: directTradeShow ? 'trade_show' : eventEvidence.length ? 'event_signal' : 'general_high_value',
-      label: directTradeShow ? 'Trade show / expo evidence' : eventEvidence.length ? 'Upcoming event evidence' : 'General high-value fit',
+      label: eventName || (directTradeShow ? 'Trade show / expo evidence' : eventEvidence.length ? 'Upcoming event evidence' : 'General high-value fit'),
+      eventName,
       evidence: eventEvidence.slice(0, 5),
     },
     contact: row.contact_id ? {
@@ -246,14 +234,12 @@ function mapLead(row) {
         row.mockup_generation_metadata,
         row.mockup_blob_key,
       ),
-      presentationReady: strictCompanyMockupReady({
+      presentationReady: manualArtworkReady({
         prospectId: row.prospect_id,
         status: row.mockup_status,
         renderVersion: row.mockup_render_version,
         contentHash: row.mockup_content_hash,
         blobKey: row.mockup_blob_key,
-        logoUrl: row.mockup_logo_url,
-        productImageUrl: row.mockup_product_image_url,
         qualityLevel: row.mockup_quality_level,
         messageId: row.mockup_message_id,
         expectedMessageId: row.message_id,
@@ -266,8 +252,19 @@ function mapLead(row) {
         && row.mockup_generation_metadata?.messageContentHash === row.message_content_hash,
       generatedAt: row.mockup_generated_at || null,
       updatedAt: row.mockup_updated_at || null,
-      previewUrl: ['ready', 'fallback'].includes(row.mockup_status)
-        ? `/.netlify/functions/outbound-sales-company-mockup?prospectId=${encodeURIComponent(row.prospect_id)}&v=${encodeURIComponent(row.mockup_content_hash || '')}`
+      previewUrl: manualArtworkReady({
+        prospectId: row.prospect_id,
+        status: row.mockup_status,
+        renderVersion: row.mockup_render_version,
+        contentHash: row.mockup_content_hash,
+        blobKey: row.mockup_blob_key,
+        qualityLevel: row.mockup_quality_level,
+        messageId: row.mockup_message_id,
+        expectedMessageId: row.message_id,
+        expectedMessageContentHash: row.message_content_hash,
+        generationMetadata: row.mockup_generation_metadata,
+      })
+        ? `/.netlify/functions/outbound-sales-manual-artwork?prospectId=${encodeURIComponent(row.prospect_id)}&v=${encodeURIComponent(row.mockup_content_hash || '')}`
         : null,
     } : null,
     review: {
@@ -300,7 +297,7 @@ function mapLead(row) {
 
 const LEAD_SELECT = `
   SELECT p.id AS prospect_id, p.business_name, p.website_url, p.canonical_domain,
-         p.address,
+         p.address,p.provider_metadata,
          p.phone, p.industry, p.business_type, p.lead_score,
          p.status AS prospect_status, p.source_provider_id, p.source_url,
          p.score_explanation, p.qualification_evidence, p.prior_customer_match,
@@ -384,14 +381,12 @@ function cleanFilter(value, maxLength = 120) {
   return String(value || '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, maxLength);
 }
 
-const MOCKUP_READY_SQL = strictCompanyMockupReadySql({
+const MOCKUP_READY_SQL = manualArtworkReadySql({
   prospectId: 'prospect_id',
   status: 'mockup_status',
   renderVersion: 'mockup_render_version',
   contentHash: 'mockup_content_hash',
   blobKey: 'mockup_blob_key',
-  logoUrl: 'mockup_logo_url',
-  productImageUrl: 'mockup_product_image_url',
   qualityLevel: 'mockup_quality_level',
   messageId: 'mockup_message_id',
   expectedMessageId: 'message_id',
@@ -404,12 +399,6 @@ const READY_SQL = `contact_id IS NOT NULL AND syntax_valid=TRUE AND mx_status IN
   AND first_contacted_at IS NULL AND message_id IS NOT NULL AND message_contact_id=contact_id AND generation_status='generated'
   AND evidence_validation_status='passed' AND ${companyIdentitySql('business_name', 'message_subject', 'message_body_text')}
   AND (${MOCKUP_READY_SQL})`;
-const RETRYABLE_FAILED_MOCKUP_SQL = `mockup_status='failed'
-  AND COALESCE(CASE WHEN mockup_generation_metadata->'lastAttempt'->>'attemptCount' ~ '^\\d+$'
-    THEN (mockup_generation_metadata->'lastAttempt'->>'attemptCount')::integer END,0) < 3
-  AND COALESCE(CASE WHEN mockup_generation_metadata->'lastAttempt'->>'nextRetryAt'
-      ~ '^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$'
-    THEN (mockup_generation_metadata->'lastAttempt'->>'nextRetryAt')::timestamptz END,to_timestamp(0)) <= NOW()`;
 
 async function listManualReviewLeads(sql, {
   limit = 50, offset = 0, minimumScore = MIN_HIGH_VALUE_SCORE, reviewView = 'today', filters = {}, sort = 'priority',
@@ -437,7 +426,7 @@ async function listManualReviewLeads(sql, {
     conditions.push(`(business_name ILIKE ${value} OR canonical_domain ILIKE ${value} OR contact_email ILIKE ${value} OR contact_full_name ILIKE ${value} OR phone ILIKE ${value})`);
   }
   const event = cleanFilter(filters.event);
-  if (event) conditions.push(`mockup_event_label=${add(event)}`);
+  if (event) conditions.push(`COALESCE(provider_metadata->>'eventName',mockup_event_label)=${add(event)}`);
   const source = cleanFilter(filters.source, 64);
   if (source) conditions.push(`source_provider_id=${add(source)}`);
   const industry = cleanFilter(filters.industry);
@@ -456,8 +445,7 @@ async function listManualReviewLeads(sql, {
   if (filters.hasPhone === 'yes') conditions.push("NULLIF(TRIM(phone),'') IS NOT NULL");
   if (filters.hasPhone === 'no') conditions.push("NULLIF(TRIM(phone),'') IS NULL");
   if (filters.mockup === 'ready') conditions.push(`(${MOCKUP_READY_SQL})`);
-  if (filters.mockup === 'fallback') conditions.push(`(mockup_status IN ('fallback','failed') OR (mockup_status='ready' AND NOT (${MOCKUP_READY_SQL})))`);
-  if (filters.mockup === 'missing') conditions.push("(mockup_id IS NULL OR mockup_status IN ('pending','failed'))");
+  if (filters.mockup === 'fallback' || filters.mockup === 'missing') conditions.push(`NOT (${MOCKUP_READY_SQL})`);
   if (filters.emailStatus === 'ready') conditions.push("generation_status='generated' AND evidence_validation_status='passed' AND COALESCE(send_state,'not_sent') IN ('not_sent','failed')");
   if (filters.emailStatus === 'sent') conditions.push("send_state='sent'");
   if (filters.emailStatus === 'failed') conditions.push("send_state='failed'");
@@ -470,7 +458,7 @@ async function listManualReviewLeads(sql, {
     newest: 'COALESCE(imported_business_date,discovered_at::date) DESC,discovered_at DESC',
     score_desc: 'lead_score DESC NULLS LAST,business_name',
     company_asc: 'business_name ASC',
-    event_asc: 'mockup_event_label ASC NULLS LAST,business_name ASC',
+    event_asc: "COALESCE(provider_metadata->>'eventName',mockup_event_label) ASC NULLS LAST,business_name ASC",
   }[sort] || `CASE WHEN qualification_evidence::text ~* 'trade[ _-]?show|conference|expo|exhibit|exhibitor' THEN 0 WHEN qualification_evidence::text ~* 'upcoming_events|event|festival|tournament|gala' THEN 1 ELSE 2 END,
     morning_queue_position ASC NULLS LAST,lead_score DESC NULLS LAST,last_qualified_at DESC NULLS LAST,discovered_at DESC`;
   const preferredTodayBatchCte = safeView === 'today'
@@ -489,17 +477,17 @@ async function listManualReviewLeads(sql, {
           COUNT(*) FILTER (WHERE COALESCE(send_state,'not_sent')='sent')::integer AS sent,
           COUNT(*) FILTER (WHERE COALESCE(send_state,'not_sent')<>'sent')::integer AS pending,
           COUNT(*) FILTER (WHERE ${MOCKUP_READY_SQL})::integer AS mockup_ready,
-          COUNT(*) FILTER (WHERE mockup_status='fallback' OR (mockup_status='ready'
-            AND NOT (${MOCKUP_READY_SQL})))::integer AS mockup_fallback,
-          COUNT(*) FILTER (WHERE mockup_id IS NULL OR mockup_status='pending')::integer AS mockup_missing,
-          COUNT(*) FILTER (WHERE mockup_status='failed')::integer AS mockup_failed,
-          COUNT(*) FILTER (WHERE ${RETRYABLE_FAILED_MOCKUP_SQL})::integer AS mockup_retryable_failed
+          0::integer AS mockup_fallback,
+          COUNT(*) FILTER (WHERE NOT (${MOCKUP_READY_SQL}))::integer AS mockup_missing,
+          0::integer AS mockup_failed,
+          0::integer AS mockup_retryable_failed
         FROM lead_rows WHERE ${where}`, params),
     sql(`SELECT manual_attempted_count,manual_sent_count
            FROM outbound_daily_delivery_counters
           WHERE business_date=(NOW() AT TIME ZONE 'America/New_York')::date LIMIT 1`),
     sql(`${optionCte} SELECT
-          COALESCE(jsonb_agg(DISTINCT mockup_event_label) FILTER (WHERE mockup_event_label IS NOT NULL),'[]'::jsonb) AS events,
+          COALESCE(jsonb_agg(DISTINCT COALESCE(provider_metadata->>'eventName',mockup_event_label))
+            FILTER (WHERE COALESCE(provider_metadata->>'eventName',mockup_event_label) IS NOT NULL),'[]'::jsonb) AS events,
           COALESCE(jsonb_agg(DISTINCT source_provider_id) FILTER (WHERE source_provider_id IS NOT NULL),'[]'::jsonb) AS sources,
           COALESCE(jsonb_agg(DISTINCT industry) FILTER (WHERE industry IS NOT NULL),'[]'::jsonb) AS industries
         FROM lead_rows ${optionScope}`, [safeScore]),
@@ -684,19 +672,16 @@ async function claimManualReviewSend(sql, data) {
             )
           )
           AND p.status IN ('qualified','ready_for_outreach')
-          AND mockup.status='ready' AND mockup.quality_level='logo_and_product'
+          AND mockup.status='ready' AND mockup.quality_level='manual_upload'
           AND mockup.message_id=message.id AND mockup.content_hash=$5
           AND NULLIF(message.content_hash,'') IS NOT NULL
           AND mockup.generation_metadata->>'messageContentHash'=message.content_hash
-          AND mockup.generation_metadata @> '{"compositionAudit":{"passed":true,"noClipGuaranteed":true}}'::jsonb
-          AND (${strictCompanyMockupReadySql({
+          AND (${manualArtworkReadySql({
     prospectId: 'p.id',
     status: 'mockup.status',
     renderVersion: 'mockup.render_version',
     contentHash: 'mockup.content_hash',
     blobKey: 'mockup.blob_key',
-    logoUrl: 'mockup.logo_url',
-    productImageUrl: 'mockup.product_image_url',
     qualityLevel: 'mockup.quality_level',
     messageId: 'mockup.message_id',
     expectedMessageId: 'message.id',

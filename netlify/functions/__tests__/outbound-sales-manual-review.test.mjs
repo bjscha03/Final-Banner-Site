@@ -28,7 +28,7 @@ const CONTACT_ID = '22222222-2222-4222-8222-222222222222';
 const CONTACT_B_ID = '22222222-2222-4222-8222-222222222223';
 const MESSAGE_ID = '33333333-3333-4333-8333-333333333333';
 const MOCKUP_CONTENT_HASH = 'd'.repeat(64);
-const MOCKUP_BLOB_KEY = `company-banners/${PROSPECT_ID}/${MOCKUP_CONTENT_HASH}.jpg`;
+const MOCKUP_BLOB_KEY = `manual-company-banners/${PROSPECT_ID}/${MOCKUP_CONTENT_HASH}.jpg`;
 const MOCKUP_BLOB_HASH = MOCKUP_CONTENT_HASH;
 
 const deliveryEnvironment = {
@@ -102,23 +102,19 @@ function rowFixture() {
     mockup_message_id: MESSAGE_ID,
     mockup_status: 'ready',
     mockup_scene_id: 'trade_show',
-    mockup_render_version: 'company-banner-v13-complete-footer-text-bound',
-    mockup_quality_level: 'logo_and_product',
-    mockup_logo_url: 'https://futureexpo.example/logo.png',
-    mockup_product_image_url: 'https://futureexpo.example/expo.jpg',
+    mockup_render_version: 'company-banner-manual-upload-v1',
+    mockup_quality_level: 'manual_upload',
+    mockup_logo_url: null,
+    mockup_product_image_url: null,
     mockup_event_label: 'Future Expo',
     mockup_source_urls: ['https://futureexpo.example'],
     mockup_content_hash: MOCKUP_CONTENT_HASH,
     mockup_blob_key: MOCKUP_BLOB_KEY,
     mockup_generation_metadata: {
+      source: 'manual_upload',
       messageContentHash: 'c'.repeat(64),
-      compositionAudit: { passed: true, sourceVisibleFraction: 1, noClipGuaranteed: true, noUpscaleGuaranteed: true },
-      logoCompositionAudit: { passed: true, noClipGuaranteed: true, noRasterUpscaleGuaranteed: true },
-      productSelectionAudit: { passed: true, sourceVerified: true, assetRole: 'product_photo' },
-      layoutId: 'balanced_split',
-      layoutAudit: { passed: true, noOverlapGuaranteed: true, footerNoOverlapGuaranteed: true, logoHeadlineNoOverlapGuaranteed: true, layoutId: 'balanced_split' },
-      paletteAudit: { passed: true, minimumWhiteTextContrast: 7, primaryWhiteContrast: 7, secondaryWhiteContrast: 7 },
-      eventTextAudit: { passed: true, completeTextPreserved: true },
+      manualReviewAudit: { passed: true, administratorUploaded: true },
+      imageAudit: { passed: true, format: 'jpeg', width: 1200, height: 675, fit: 'contain', noCrop: true },
       blobBindingAudit: {
         passed: true, strongReadBackVerified: true, blobKey: MOCKUP_BLOB_KEY,
         expectedContentHash: MOCKUP_BLOB_HASH, persistedContentHash: MOCKUP_BLOB_HASH,
@@ -139,6 +135,24 @@ function rowFixture() {
     active_suppression: false,
     discovered_at: '2026-08-10T10:00:00Z',
     last_qualified_at: '2026-08-10T11:00:00Z',
+  };
+}
+
+function verifiedArtwork(overrides = {}) {
+  return {
+    prospectId: PROSPECT_ID,
+    businessName: 'Future Expo Group',
+    buffer: Buffer.from('exact-reviewed-company-banner'),
+    contentHash: 'f'.repeat(64),
+    blobKey: `manual-company-banners/${PROSPECT_ID}/${'f'.repeat(64)}.jpg`,
+    mimeType: 'image/jpeg',
+    width: 1200,
+    height: 675,
+    messageId: MESSAGE_ID,
+    messageContentHash: 'c'.repeat(64),
+    sendReady: true,
+    cached: true,
+    ...overrides,
   };
 }
 
@@ -219,19 +233,16 @@ describe('manual lead review migration and qualification', () => {
     const suppressed = mapLead({ ...rowFixture(), active_suppression: true });
     expect(suppressed.canSend).toBe(false);
     expect(suppressed.technicalBlockers).toContain('Active opt-out or delivery suppression');
-    const fallback = mapLead({
+    const missingUpload = mapLead({
       ...rowFixture(),
-      mockup_status: 'fallback',
-      mockup_quality_level: 'name_only',
-      mockup_generation_metadata: {
-        assetDiagnostics: [{ stage: 'logo', hostname: 'futureexpo.example', code: 'MOCKUP_ASSET_LOW_QUALITY' }],
-      },
+      mockup_id: null,
+      mockup_status: null,
+      mockup_quality_level: null,
+      mockup_generation_metadata: null,
     });
-    expect(fallback.canSend).toBe(false);
-    expect(fallback.technicalBlockers).toContain('Personalized banner needs a verified logo and relevant product/service image');
-    expect(fallback.mockup.diagnostics).toEqual([
-      { stage: 'logo', hostname: 'futureexpo.example', code: 'MOCKUP_ASSET_LOW_QUALITY' },
-    ]);
+    expect(missingUpload.canSend).toBe(false);
+    expect(missingUpload.technicalBlockers).toContain('Upload and review a banner design for this company before sending');
+    expect(missingUpload.mockup).toBeNull();
     const failed = mapLead({
       ...rowFixture(),
       mockup_status: 'failed',
@@ -240,19 +251,20 @@ describe('manual lead review migration and qualification', () => {
       mockup_updated_at: '2026-08-11T15:00:00.000Z',
     });
     expect(failed.canSend).toBe(false);
-    expect(failed.technicalBlockers).toContain('Personalized banner build failed safely and needs a retry');
+    expect(failed.technicalBlockers).toContain('Upload and review a banner design for this company before sending');
     expect(failed.mockup).toMatchObject({
       status: 'failed', lastErrorCode: 'WEBSITE_TIMEOUT',
       updatedAt: '2026-08-11T15:00:00.000Z', previewUrl: null,
     });
-    const unsafeComposition = mapLead({
+    const unsafeImageAudit = mapLead({
       ...rowFixture(),
       mockup_generation_metadata: {
-        compositionAudit: { passed: false, sourceVisibleFraction: 1, noClipGuaranteed: true },
+        ...rowFixture().mockup_generation_metadata,
+        imageAudit: { passed: false, format: 'jpeg', width: 1200, height: 675 },
       },
     });
-    expect(unsafeComposition.canSend).toBe(false);
-    expect(unsafeComposition.technicalBlockers).toContain('Personalized banner composition has not passed the full-image and no-upscale quality checks');
+    expect(unsafeImageAudit.canSend).toBe(false);
+    expect(unsafeImageAudit.technicalBlockers).toContain('Upload and review a banner design for this company before sending');
     const mutablePreview = mapLead({
       ...rowFixture(),
       mockup_generation_metadata: {
@@ -262,31 +274,31 @@ describe('manual lead review migration and qualification', () => {
     });
     expect(mutablePreview.canSend).toBe(false);
     expect(mutablePreview.mockup.immutablePreviewReady).toBe(false);
-    expect(mutablePreview.technicalBlockers).toContain('Personalized banner is not bound to the exact immutable preview image');
+    expect(mutablePreview.technicalBlockers).toContain('Upload and review a banner design for this company before sending');
     const staleContext = mapLead({
       ...rowFixture(),
       message_content_hash: 'd'.repeat(64),
     });
     expect(staleContext.canSend).toBe(false);
-    expect(staleContext.technicalBlockers).toContain('Personalized banner is stale for the current email or event details');
+    expect(staleContext.technicalBlockers).toContain('Upload and review a banner design for this company before sending');
     const staleRenderer = mapLead({
       ...rowFixture(),
       mockup_render_version: 'company-banner-v11-clean-assets-adaptive-layouts',
     });
     expect(staleRenderer.canSend).toBe(false);
     expect(staleRenderer.mockup.presentationReady).toBe(false);
-    expect(staleRenderer.technicalBlockers).toContain('Personalized banner has not passed the current production-quality contract');
+    expect(staleRenderer.technicalBlockers).toContain('Upload and review a banner design for this company before sending');
     const partialAudit = rowFixture();
-    delete partialAudit.mockup_generation_metadata.logoCompositionAudit;
+    delete partialAudit.mockup_generation_metadata.manualReviewAudit;
     const partialLead = mapLead(partialAudit);
     expect(partialLead.canSend).toBe(false);
     expect(partialLead.mockup.presentationReady).toBe(false);
-    expect(partialLead.technicalBlockers).toContain('Personalized banner has not passed the current production-quality contract');
-    const missingFooterAudit = rowFixture();
-    delete missingFooterAudit.mockup_generation_metadata.eventTextAudit;
-    const missingFooterLead = mapLead(missingFooterAudit);
-    expect(missingFooterLead.canSend).toBe(false);
-    expect(missingFooterLead.mockup.presentationReady).toBe(false);
+    expect(partialLead.technicalBlockers).toContain('Upload and review a banner design for this company before sending');
+    const wrongDimensions = rowFixture();
+    wrongDimensions.mockup_generation_metadata.imageAudit.width = 1199;
+    const wrongDimensionsLead = mapLead(wrongDimensions);
+    expect(wrongDimensionsLead.canSend).toBe(false);
+    expect(wrongDimensionsLead.mockup.presentationReady).toBe(false);
   });
 
   it('fails closed when the selected contact differs from the initial message contact, while accepting the matched pair', () => {
@@ -438,8 +450,10 @@ describe('manual lead review migration and qualification', () => {
     expect(sql.mock.calls[0][0]).toContain('message.resend_message_id IS NULL AND message.sent_at IS NULL');
     expect(sql.mock.calls[0][1]).toEqual(expect.arrayContaining([stableManualSendKey(PROSPECT_ID), MANUAL_SEND_LEASE_SECONDS]));
     expect(sql.mock.calls[0][0]).toContain('JOIN outbound_company_mockups mockup ON mockup.prospect_id=p.id');
-    expect(sql.mock.calls[0][0]).toContain("mockup.status='ready' AND mockup.quality_level='logo_and_product'");
+    expect(sql.mock.calls[0][0]).toContain("mockup.status='ready' AND mockup.quality_level='manual_upload'");
     expect(sql.mock.calls[0][0]).toContain('mockup.generation_metadata @>');
+    expect(sql.mock.calls[0][0]).toContain("mockup.render_version='company-banner-manual-upload-v1'");
+    expect(sql.mock.calls[0][0]).toContain('manual-company-banners/');
     expect(sql.mock.calls[0][0]).toContain('mockup.message_id=message.id AND mockup.content_hash=$5');
     expect(sql.mock.calls[0][0]).toContain("mockup.generation_metadata->>'messageContentHash'=message.content_hash");
     expect(sql.mock.calls[0][0]).toContain("contact.mx_status='present'");
@@ -487,11 +501,11 @@ describe('permissioned Resend transport', () => {
       from: 'Banners On The Fly <info@bannersonthefly.com>',
       replyTo: 'support@bannersonthefly.com',
       contact: { email: 'events@futureexpo.example' },
-      message: { id: MESSAGE_ID, sendKey: stableManualSendKey(PROSPECT_ID), subject: 'Expo banners', bodyText: 'Text', bodyHtml: '<p><img src="cid:company-banner-mockup">HTML</p>' },
+      message: { id: MESSAGE_ID, sendKey: stableManualSendKey(PROSPECT_ID), subject: 'Expo banners', bodyText: 'Text', bodyHtml: '<p><img src="cid:company-banner-concept">HTML</p>' },
       attachments: [{
         content: Buffer.from('email-safe-jpeg-fixture').toString('base64'),
-        filename: 'future-expo-quick-banner-mockup.jpg',
-        contentId: 'company-banner-mockup',
+        filename: 'future-expo-banner-concept.jpg',
+        contentId: 'company-banner-concept',
         contentType: 'image/jpeg',
       }],
     });
@@ -503,8 +517,8 @@ describe('permissioned Resend transport', () => {
         'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
       },
       attachments: [expect.objectContaining({
-        filename: 'future-expo-quick-banner-mockup.jpg',
-        contentId: 'company-banner-mockup',
+        filename: 'future-expo-banner-concept.jpg',
+        contentId: 'company-banner-concept',
         contentType: 'image/jpeg',
       })],
     }), { idempotencyKey: stableManualSendKey(PROSPECT_ID) });
@@ -578,13 +592,14 @@ describe('manual lead review endpoint', () => {
       expect(input.message.bodyText).toContain('NEW20');
       expect(input.message.bodyText).toContain('Unsubscribe: https://bannersonthefly.com/.netlify/functions/outbound-sales-unsubscribe?token=');
       expect(input.message.bodyHtml).toContain('Unsubscribe from future marketing emails');
-      expect(input.message.bodyHtml).toContain('cid:company-banner-mockup');
-      expect(input.message.bodyHtml).toContain('A quick banner mockup for Future Expo Group');
-      expect(input.message.bodyHtml).not.toMatch(/complimentary|custom banner concept/i);
+      expect(input.message.bodyHtml).toContain('cid:company-banner-concept');
+      expect(input.message.bodyHtml).toContain('Concept visualization only.');
+      expect(input.message.bodyHtml).not.toMatch(/quick mockup|complimentary/i);
       expect(input.attachments).toEqual([expect.objectContaining({
-        filename: 'future-expo-group-quick-banner-mockup.jpg',
-        contentId: 'company-banner-mockup',
+        filename: 'future-expo-group-banner-concept.jpg',
+        contentId: 'company-banner-concept',
         contentType: 'image/jpeg',
+        content: Buffer.from('exact-reviewed-company-banner').toString('base64'),
       })]);
       return { providerMessageId: 'resend-manual-2', latencyMs: 12 };
     });
@@ -613,18 +628,7 @@ describe('manual lead review endpoint', () => {
           id: CONTACT_ID, email: 'info@futureexpo.example', canonical_domain: 'futureexpo.example',
         }),
         assessEmail, saveManualContactAssessment: vi.fn().mockResolvedValue({ id: CONTACT_ID }),
-        prepareCompanyMockup: vi.fn().mockResolvedValue({
-          prospectId: PROSPECT_ID,
-          buffer: Buffer.from('rendered-company-banner'),
-          qualityLevel: 'logo_and_product',
-          compositionAudit: { passed: true, sourceVisibleFraction: 1, noClipGuaranteed: true },
-          blobBindingAudit: {
-            passed: true, strongReadBackVerified: true,
-            expectedContentHash: mockupContentHash, persistedContentHash: mockupContentHash,
-          },
-          plan: { contentHash: mockupContentHash, messageContentHash: 'c'.repeat(64) },
-          sendReady: true,
-        }),
+        loadVerifiedManualArtwork: vi.fn().mockResolvedValue(verifiedArtwork({ contentHash: mockupContentHash })),
       },
     });
     const response = await handler(adminEvent('POST', { prospectId: PROSPECT_ID }));
@@ -660,12 +664,7 @@ describe('manual lead review endpoint', () => {
           mxStatus: 'present', verificationStatus: 'valid', contactQualityScore: 100,
         }),
         saveManualContactAssessment: vi.fn().mockResolvedValue({ id: CONTACT_B_ID }),
-        prepareCompanyMockup: vi.fn().mockResolvedValue({
-          prospectId: PROSPECT_ID, sendReady: true, qualityLevel: 'logo_and_product',
-          compositionAudit: { passed: true, noClipGuaranteed: true },
-          blobBindingAudit: { passed: true, strongReadBackVerified: true, expectedContentHash: 'f'.repeat(64), persistedContentHash: 'f'.repeat(64) },
-          plan: { contentHash: 'f'.repeat(64), messageContentHash: 'c'.repeat(64) },
-        }),
+        loadVerifiedManualArtwork: vi.fn().mockResolvedValue(verifiedArtwork()),
         claimManualReviewSend: vi.fn().mockResolvedValue({
           prospect_id: PROSPECT_ID, contact_id: CONTACT_B_ID, message_id: MESSAGE_ID,
           message_contact_id: CONTACT_ID, send_key: stableManualSendKey(PROSPECT_ID),
@@ -674,7 +673,7 @@ describe('manual lead review endpoint', () => {
         }),
         markManualReviewFailed,
         saveUnsubscribeToken: vi.fn(),
-        attachmentFromMockup: vi.fn(),
+        attachmentFromManualArtwork: vi.fn(),
         sendPermissionedMarketingMessage,
       },
     });
@@ -689,9 +688,9 @@ describe('manual lead review endpoint', () => {
     }));
   });
 
-  it('rejects a non-customer-facing role alias before authorization, mockup work, claim, or transport', async () => {
+  it('rejects a non-customer-facing role alias before authorization, artwork loading, claim, or transport', async () => {
     const authorizeManualSend = vi.fn();
-    const prepareCompanyMockup = vi.fn();
+    const loadVerifiedManualArtwork = vi.fn();
     const claimManualReviewSend = vi.fn();
     const sendPermissionedMarketingMessage = vi.fn();
     const saveManualContactAssessment = vi.fn().mockResolvedValue({ id: CONTACT_ID });
@@ -710,7 +709,7 @@ describe('manual lead review endpoint', () => {
         }),
         saveManualContactAssessment,
         authorizeManualSend,
-        prepareCompanyMockup,
+        loadVerifiedManualArtwork,
         claimManualReviewSend,
         sendPermissionedMarketingMessage,
       },
@@ -720,12 +719,82 @@ describe('manual lead review endpoint', () => {
     expect(JSON.parse(response.body)).toMatchObject({ error: 'MANUAL_MARKETING_NOT_ELIGIBLE' });
     expect(saveManualContactAssessment).toHaveBeenCalledOnce();
     expect(authorizeManualSend).not.toHaveBeenCalled();
-    expect(prepareCompanyMockup).not.toHaveBeenCalled();
+    expect(loadVerifiedManualArtwork).not.toHaveBeenCalled();
     expect(claimManualReviewSend).not.toHaveBeenCalled();
     expect(sendPermissionedMarketingMessage).not.toHaveBeenCalled();
   });
 
-  it('fails closed before transport when only the name-only fallback exists', async () => {
+  it('fails closed before transport when no reviewed manual upload exists', async () => {
+    const sendPermissioned = vi.fn();
+    const markFailed = vi.fn().mockResolvedValue({ prospect_id: PROSPECT_ID });
+    const claimManualReviewSend = vi.fn();
+    const handler = createManualReviewHandler({
+      env: deliveryEnvironment,
+      dependencies: {
+        createSql: () => ({}),
+        loadManualReviewContact: vi.fn().mockResolvedValue({ id: CONTACT_ID, email: 'taylor@futureexpo.example', canonical_domain: 'futureexpo.example' }),
+        assessEmail: vi.fn().mockResolvedValue({
+          email: 'taylor@futureexpo.example', emailNormalized: 'taylor@futureexpo.example', syntaxValid: true,
+          isRoleAddress: false, isFreeMailbox: false, domainMatches: true, mxStatus: 'present',
+          verificationStatus: 'valid', contactQualityScore: 100,
+        }),
+        saveManualContactAssessment: vi.fn().mockResolvedValue({ id: CONTACT_ID }),
+        authorizeManualSend: vi.fn().mockResolvedValue({ prospect_id: PROSPECT_ID }),
+        appendAudit: vi.fn().mockResolvedValue({}),
+        claimManualReviewSend,
+        saveUnsubscribeToken: vi.fn().mockResolvedValue({}),
+        loadVerifiedManualArtwork: vi.fn().mockRejectedValue(Object.assign(
+          new Error('Upload and review a banner image for this company before sending.'),
+          { code: 'MANUAL_ARTWORK_NOT_READY' },
+        )),
+        sendPermissionedMarketingMessage: sendPermissioned,
+        markManualReviewFailed: markFailed,
+      },
+    });
+    const response = await handler(adminEvent('POST', { prospectId: PROSPECT_ID }));
+    expect(response.statusCode).toBe(409);
+    expect(JSON.parse(response.body)).toMatchObject({ error: 'MANUAL_ARTWORK_NOT_READY' });
+    expect(sendPermissioned).not.toHaveBeenCalled();
+    expect(claimManualReviewSend).not.toHaveBeenCalled();
+    expect(markFailed).not.toHaveBeenCalled();
+  });
+
+  it('fails closed before transport when the uploaded artwork is not bound to the current draft', async () => {
+    const sendPermissioned = vi.fn();
+    const markFailed = vi.fn().mockResolvedValue({ prospect_id: PROSPECT_ID });
+    const claimManualReviewSend = vi.fn();
+    const handler = createManualReviewHandler({
+      env: deliveryEnvironment,
+      dependencies: {
+        createSql: () => ({}),
+        loadManualReviewContact: vi.fn().mockResolvedValue({ id: CONTACT_ID, email: 'taylor@futureexpo.example', canonical_domain: 'futureexpo.example' }),
+        assessEmail: vi.fn().mockResolvedValue({
+          email: 'taylor@futureexpo.example', emailNormalized: 'taylor@futureexpo.example', syntaxValid: true,
+          isRoleAddress: false, isFreeMailbox: false, domainMatches: true, mxStatus: 'present',
+          verificationStatus: 'valid', contactQualityScore: 100,
+        }),
+        saveManualContactAssessment: vi.fn().mockResolvedValue({ id: CONTACT_ID }),
+        authorizeManualSend: vi.fn().mockResolvedValue({ prospect_id: PROSPECT_ID }),
+        appendAudit: vi.fn().mockResolvedValue({}),
+        claimManualReviewSend,
+        saveUnsubscribeToken: vi.fn().mockResolvedValue({}),
+        loadVerifiedManualArtwork: vi.fn().mockRejectedValue(Object.assign(
+          new Error('The reviewed banner is stale for the current draft.'),
+          { code: 'MANUAL_ARTWORK_NOT_READY' },
+        )),
+        sendPermissionedMarketingMessage: sendPermissioned,
+        markManualReviewFailed: markFailed,
+      },
+    });
+    const response = await handler(adminEvent('POST', { prospectId: PROSPECT_ID }));
+    expect(response.statusCode).toBe(409);
+    expect(JSON.parse(response.body)).toMatchObject({ error: 'MANUAL_ARTWORK_NOT_READY' });
+    expect(sendPermissioned).not.toHaveBeenCalled();
+    expect(claimManualReviewSend).not.toHaveBeenCalled();
+    expect(markFailed).not.toHaveBeenCalled();
+  });
+
+  it('fails closed before transport if Company A is ever paired with Company B artwork data', async () => {
     const sendPermissioned = vi.fn();
     const markFailed = vi.fn().mockResolvedValue({ prospect_id: PROSPECT_ID });
     const claimed = {
@@ -749,98 +818,17 @@ describe('manual lead review endpoint', () => {
         appendAudit: vi.fn().mockResolvedValue({}),
         claimManualReviewSend: vi.fn().mockResolvedValue(claimed),
         saveUnsubscribeToken: vi.fn().mockResolvedValue({}),
-        prepareCompanyMockup: vi.fn().mockResolvedValue({
-          prospectId: PROSPECT_ID,
-          buffer: Buffer.from('generic-name-only-banner'),
-          qualityLevel: 'name_only',
-          sendReady: false,
-        }),
-        sendPermissionedMarketingMessage: sendPermissioned,
-        markManualReviewFailed: markFailed,
-      },
-    });
-    const response = await handler(adminEvent('POST', { prospectId: PROSPECT_ID }));
-    expect(response.statusCode).toBe(409);
-    expect(JSON.parse(response.body)).toMatchObject({ error: 'COMPANY_MOCKUP_BRAND_ASSETS_INCOMPLETE' });
-    expect(sendPermissioned).not.toHaveBeenCalled();
-    expect(markFailed).not.toHaveBeenCalled();
-  });
-
-  it('fails closed before transport when the final no-crop composition audit does not pass', async () => {
-    const sendPermissioned = vi.fn();
-    const markFailed = vi.fn().mockResolvedValue({ prospect_id: PROSPECT_ID });
-    const claimed = {
-      prospect_id: PROSPECT_ID, contact_id: CONTACT_ID, message_id: MESSAGE_ID,
-      send_key: stableManualSendKey(PROSPECT_ID), business_name: 'Future Expo Group',
-      email: 'taylor@futureexpo.example', subject: 'A quick banner mockup for Future Expo Group',
-      body_text: 'Hi Taylor,\n\nThis is just a quick mockup for Future Expo Group.\n\nBest,\nBrandon Schaefer\nOwner, Banners On The Fly\nbannersonthefly.com',
-    };
-    const handler = createManualReviewHandler({
-      env: deliveryEnvironment,
-      dependencies: {
-        createSql: () => ({}),
-        loadManualReviewContact: vi.fn().mockResolvedValue({ id: CONTACT_ID, email: 'taylor@futureexpo.example', canonical_domain: 'futureexpo.example' }),
-        assessEmail: vi.fn().mockResolvedValue({
-          email: 'taylor@futureexpo.example', emailNormalized: 'taylor@futureexpo.example', syntaxValid: true,
-          isRoleAddress: false, isFreeMailbox: false, domainMatches: true, mxStatus: 'present',
-          verificationStatus: 'valid', contactQualityScore: 100,
-        }),
-        saveManualContactAssessment: vi.fn().mockResolvedValue({ id: CONTACT_ID }),
-        authorizeManualSend: vi.fn().mockResolvedValue({ prospect_id: PROSPECT_ID }),
-        appendAudit: vi.fn().mockResolvedValue({}),
-        claimManualReviewSend: vi.fn().mockResolvedValue(claimed),
-        saveUnsubscribeToken: vi.fn().mockResolvedValue({}),
-        prepareCompanyMockup: vi.fn().mockResolvedValue({
-          prospectId: PROSPECT_ID, buffer: Buffer.from('unsafe-composition'),
-          qualityLevel: 'logo_and_product', sendReady: true,
-          compositionAudit: { passed: true, sourceVisibleFraction: 1, noClipGuaranteed: false },
-        }),
-        sendPermissionedMarketingMessage: sendPermissioned,
-        markManualReviewFailed: markFailed,
-      },
-    });
-    const response = await handler(adminEvent('POST', { prospectId: PROSPECT_ID }));
-    expect(response.statusCode).toBe(409);
-    expect(JSON.parse(response.body)).toMatchObject({ error: 'COMPANY_MOCKUP_BRAND_ASSETS_INCOMPLETE' });
-    expect(sendPermissioned).not.toHaveBeenCalled();
-    expect(markFailed).not.toHaveBeenCalled();
-  });
-
-  it('fails closed before transport if Company A is ever paired with Company B mockup data', async () => {
-    const sendPermissioned = vi.fn();
-    const markFailed = vi.fn().mockResolvedValue({ prospect_id: PROSPECT_ID });
-    const claimed = {
-      prospect_id: PROSPECT_ID, contact_id: CONTACT_ID, message_id: MESSAGE_ID,
-      send_key: stableManualSendKey(PROSPECT_ID), business_name: 'Future Expo Group',
-      email: 'taylor@futureexpo.example', subject: 'Future Expo Group custom banner concept',
-      body_text: 'Hi Taylor,\n\nI made this Future Expo Group banner concept.\n\nBest,\nBrandon Schaefer\nOwner, Banners On The Fly\nbannersonthefly.com',
-    };
-    const handler = createManualReviewHandler({
-      env: deliveryEnvironment,
-      dependencies: {
-        createSql: () => ({}),
-        loadManualReviewContact: vi.fn().mockResolvedValue({ id: CONTACT_ID, email: 'taylor@futureexpo.example', canonical_domain: 'futureexpo.example' }),
-        assessEmail: vi.fn().mockResolvedValue({
-          email: 'taylor@futureexpo.example', emailNormalized: 'taylor@futureexpo.example', syntaxValid: true,
-          isRoleAddress: false, isFreeMailbox: false, domainMatches: true, mxStatus: 'present',
-          verificationStatus: 'valid', contactQualityScore: 100,
-        }),
-        saveManualContactAssessment: vi.fn().mockResolvedValue({ id: CONTACT_ID }),
-        authorizeManualSend: vi.fn().mockResolvedValue({ prospect_id: PROSPECT_ID }),
-        appendAudit: vi.fn().mockResolvedValue({}),
-        claimManualReviewSend: vi.fn().mockResolvedValue(claimed),
-        saveUnsubscribeToken: vi.fn().mockResolvedValue({}),
-        prepareCompanyMockup: vi.fn().mockResolvedValue({
+        loadVerifiedManualArtwork: vi.fn().mockResolvedValue(verifiedArtwork({
           prospectId: '99999999-9999-4999-8999-999999999999',
-          buffer: Buffer.from('wrong-company-banner'), qualityLevel: 'logo_and_product',
-        }),
+          buffer: Buffer.from('wrong-company-banner'),
+        })),
         sendPermissionedMarketingMessage: sendPermissioned,
         markManualReviewFailed: markFailed,
       },
     });
     const response = await handler(adminEvent('POST', { prospectId: PROSPECT_ID }));
     expect(response.statusCode).toBe(409);
-    expect(JSON.parse(response.body)).toMatchObject({ error: 'COMPANY_MOCKUP_IDENTITY_MISMATCH' });
+    expect(JSON.parse(response.body)).toMatchObject({ error: 'MANUAL_ARTWORK_NOT_READY' });
     expect(sendPermissioned).not.toHaveBeenCalled();
     expect(markFailed).not.toHaveBeenCalled();
   });

@@ -75,7 +75,7 @@
   timeout = 60
   memory = 1024
 
-[functions."outbound-sales-company-mockup"]
+[functions."outbound-sales-manual-artwork"]
   timeout = 60
   memory = 1024
 
@@ -84,8 +84,8 @@
   timeout = 60
   memory = 512
 
-# Manual-sales preparation only. These jobs discover/research leads and render
-# previews; they never call Resend or send email. Netlify cron is UTC, so the
+# Manual-sales preparation only. These jobs discover/research leads and prepare
+# email drafts; they never create artwork, call Resend, or send email. Netlify cron is UTC, so the
 # The 11:00 UTC finalizer and 11:30 UTC retry both finish before 8:00 AM
 # Eastern year-round, while leaving time to finalize partial progress safely.
 [functions."outbound-sales-morning-launch"]
@@ -112,7 +112,7 @@
   background = true
   memory = 2048
 
-# Admin/token-triggered Atlanta event import and resumable mockup preparation.
+# Admin/token-triggered Atlanta event import and resumable lead preparation.
 # Both endpoints are preparation-only; neither endpoint imports delivery code.
 [functions."outbound-sales-event-import"]
   timeout = 30

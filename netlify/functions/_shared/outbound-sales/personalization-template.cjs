@@ -34,14 +34,15 @@ function splitBodyAndSignature(bodyText) {
 
 function polishOutboundSubject(subject) {
   return String(subject || '')
-    .replace(/^\s*your\s+(?:complimentary banner (?:design|concept)|custom banner concept)\b/i, 'A quick banner mockup')
-    .replace(/^(.{2,100}?)\s+(?:[—:\-]\s*)?(?:a\s+)?(?:complimentary banner (?:design|concept)|custom banner concept)\b/i, '$1 — a quick banner mockup')
-    .replace(/\ba\s+(?:complimentary banner (?:design|concept)|custom banner concept)\b/gi, 'a quick banner mockup')
-    .replace(/\b(?:complimentary banner (?:design|concept)|custom banner concept)\b/gi, 'quick banner mockup')
+    .replace(/^\s*(?:a|your)\s+quick banner mockup\s+for\s+(.+)$/i, '$1 — custom banner printing')
+    .replace(/^(.{2,100}?)\s+(?:[—:\-]\s*)?(?:a\s+)?quick banner mockup(?:\s+using your brand)?\s*$/i, '$1 — custom banner printing')
+    .replace(/^\s*your\s+(?:complimentary banner (?:design|concept)|custom banner concept)\b/i, 'Custom banner printing')
+    .replace(/^(.{2,100}?)\s+(?:[—:\-]\s*)?(?:a\s+)?(?:complimentary banner (?:design|concept)|custom banner concept)\b/i, '$1 — custom banner printing')
+    .replace(/\b(?:a\s+)?quick banner mockup\b/gi, 'custom banner printing')
+    .replace(/\b(?:a\s+)?(?:complimentary banner (?:design|concept)|custom banner concept)\b/gi, 'custom banner printing')
+    .replace(/\s+using your brand\s*$/i, '')
     .replace(/\s+/g, ' ')
-    .trim()
-    .replace(/^a quick banner mockup\b/i, 'A quick banner mockup')
-    .replace(/^quick banner mockup\b/i, 'A quick banner mockup');
+    .trim();
 }
 
 function polishOutboundBodyText(bodyText) {
@@ -49,10 +50,14 @@ function polishOutboundBodyText(bodyText) {
   const directNextStep = 'Use code NEW20 to save 20% on your first order whenever you’re ready.';
   let offerSeen = false;
   const polished = message
-    .replace(/I put together a complimentary banner concept using (.+?)(?:'|’)?s public branding so you can see how the brand could look on a professionally printed display\.?/gi,
-      'This is just a quick mockup using $1’s public branding to show one way the brand could look on a printed banner.')
-    .replace(/\ba\s+(?:complimentary banner (?:design|concept)|custom banner concept)\b/gi, 'a quick banner mockup')
-    .replace(/\b(?:complimentary banner (?:design|concept)|custom banner concept)\b/gi, 'quick banner mockup')
+    .replace(/[^\n.!?]*\bmockup\b[^\n.!?]*(?:[.!?]|$)/gi, '')
+    .replace(/\s*I put together a complimentary banner concept using .+?(?:'|’)?s public branding so you can see how the brand could look on a professionally printed display\.?/gi, '')
+    .replace(/\s*This is just a quick mockup using .+?(?:'|’)?s public branding to show one way the brand could look on a printed banner\.?/gi, '')
+    .replace(/\s*(?:Your|The) (?:complimentary banner (?:design|concept)|custom banner concept) is attached\.?/gi, '')
+    .replace(/\s*(?:The image above is|This is) (?:only )?(?:a )?quick mockup[^.?!]*(?:[.?!]|$)/gi, '')
+    .replace(/\s*(?:Your|The) (?:quick )?(?:banner )?mockup is attached\.?/gi, '')
+    .replace(/\b(?:a\s+)?quick banner mockup\b/gi, 'banner printing')
+    .replace(/\b(?:a\s+)?(?:complimentary banner (?:design|concept)|custom banner concept)\b/gi, 'banner printing')
     .replace(/Would it be useful if I priced a show banner for booth [^?]+\?/gi, directNextStep)
     .replace(/Would a quick quote for a booth-width banner be helpful\?/gi, directNextStep)
     .replace(/Would it help if I priced a booth banner for [^?]+\?/gi, directNextStep)
@@ -116,10 +121,11 @@ function renderOutboundEmailPreview({
 }) {
   const { message, signature } = splitBodyAndSignature(polishOutboundBodyText(bodyText));
   const safeSubject = escapeHtml(polishOutboundSubject(subject));
+  const hasConceptImage = Boolean(mockupImageSrc);
   const heroImageSrc = escapeHtml(mockupImageSrc || HERO_IMAGE_URL);
   const company = String(businessName || '').trim();
   const heroAlt = escapeHtml(mockupAlt || (company
-    ? `Quick banner mockup using ${company}'s public branding`
+    ? `Banner concept for ${company}`
     : 'A trade show exhibitor booth using a professionally printed custom vinyl banner'));
 
   return `<!doctype html>
@@ -137,7 +143,7 @@ function renderOutboundEmailPreview({
         <tr><td style="padding:0;background:${BRAND_NAVY_DARK};">
           <img src="${heroImageSrc}" alt="${heroAlt}" width="640" style="display:block;width:100%;max-width:640px;height:auto;border:0;">
         </td></tr>
-        ${company ? `<tr><td align="center" style="padding:12px 24px;background:#fff7f2;border-bottom:1px solid #fed7c5;color:${BRAND_ORANGE_DARK};font-size:12px;line-height:1.5;font-weight:900;letter-spacing:.6px;text-transform:uppercase;">A quick banner mockup for ${escapeHtml(company)}</td></tr>` : ''}
+        ${hasConceptImage ? `<tr><td align="center" style="padding:7px 24px;background:#f8fafc;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:10px;line-height:1.45;font-weight:600;letter-spacing:.2px;">Concept visualization only.</td></tr>` : ''}
         <tr><td style="padding:30px 34px 28px;background:${BRAND_NAVY_DARK};text-align:center;">
           <p style="margin:0 0 10px;color:#ffb08c;font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;">Professional custom printing for businesses</p>
           <h1 style="margin:0;color:#ffffff;font-size:30px;line-height:1.2;font-weight:900;">Big visibility. Fast turnaround.</h1>

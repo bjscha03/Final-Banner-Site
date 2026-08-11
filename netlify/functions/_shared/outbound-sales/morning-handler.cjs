@@ -86,7 +86,7 @@ function createMorningScheduledHandler({ action, dependencies = {}, env = proces
   };
 }
 
-function createMorningBackgroundHandler({ dependencies = {}, env = process.env, getStore } = {}) {
+function createMorningBackgroundHandler({ dependencies = {}, env = process.env } = {}) {
   return async function morningBackgroundHandler(event) {
     if (event?.httpMethod !== 'POST') return response(405);
     if (!authorizedBackground(event, env)) return response(404);
@@ -108,7 +108,6 @@ function createMorningBackgroundHandler({ dependencies = {}, env = process.env, 
       } else if (body.action === 'finalize') {
         await (dependencies.runMorningFinalizer || preparation.runMorningFinalizer)({
           sql, env, businessDate: date,
-          store: typeof getStore === 'function' ? getStore() : undefined,
           dependencies: dependencies.preparation,
           requestId: event.headers?.['x-nf-request-id'] || null,
         });

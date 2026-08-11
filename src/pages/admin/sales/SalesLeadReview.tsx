@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle, Building2, CalendarSearch, CheckCircle2, ChevronLeft, ChevronRight,
-  ExternalLink, Eye, Filter, LoaderCircle, Mail, MapPin, Phone, RefreshCw, Search,
-  Send, ShieldCheck, Sparkles, UserRound, X,
+  Copy, ExternalLink, Eye, Filter, Image, LoaderCircle, Mail, MapPin, Phone, RefreshCw,
+  Search, Send, ShieldCheck, Sparkles, Upload, UserRound, X,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,14 +15,14 @@ import { cn } from '@/lib/utils';
 import {
   getOutboundManualReviewLeads,
   prepareAtlantaEventBatch,
-  prepareOutboundCompanyMockups,
-  refreshOutboundCompanyMockup,
   saveOutboundLeadNote,
   sendOutboundReviewedLead,
+  uploadOutboundManualArtwork,
   type OutboundLeadFilters,
   type OutboundManualReviewLead,
   type OutboundManualReviewQueue,
 } from '@/lib/outboundSales';
+import { buildOutboundBannerPrompt } from '@/lib/outboundBannerPrompt';
 
 const PAGE_SIZE = 50;
 const VIEWS = [
@@ -118,35 +118,6 @@ function mockupIsPresentationReady(lead: OutboundManualReviewLead) {
   return mockup?.presentationReady === true;
 }
 
-function mockupQualityLabel(lead: OutboundManualReviewLead) {
-  if (mockupIsPresentationReady(lead)) return 'Verified logo + relevant company imagery';
-  const quality = lead.mockup?.qualityLevel;
-  if (quality === 'logo_and_product') return 'Blocked — final no-crop composition check incomplete';
-  if (quality === 'logo') return 'Blocked — relevant product/service image missing';
-  if (quality === 'product') return 'Blocked — verified company logo missing';
-  return 'Blocked — verified logo and company imagery missing';
-}
-
-function mockupDiagnostic(lead: OutboundManualReviewLead) {
-  if (lead.mockup?.status === 'failed') {
-    const code = lead.mockup.lastErrorCode ? ` (${titleCase(lead.mockup.lastErrorCode)})` : '';
-    return `The last build stopped safely${code}. No email was sent. Retry branding to try the verified public assets again.`;
-  }
-  if (lead.mockup?.contextCurrent === false) {
-    return 'The email or event details changed after this image was built. Refresh branding will rebuild the correctly matched preview.';
-  }
-  if (lead.mockup?.qualityLevel === 'logo_and_product' && !mockupIsPresentationReady(lead)) {
-    return 'The verified assets are present, but the final composition or exact-preview binding did not pass. Refresh branding will rebuild it safely.';
-  }
-  const issue = lead.mockup?.diagnostics?.[0];
-  if (!issue) return 'This lead cannot be sent until the branding requirement passes.';
-  const host = issue.hostname ? ` from ${issue.hostname}` : '';
-  if (issue.code.includes('TIMEOUT')) return `The company asset request timed out${host}; Refresh branding will retry safely.`;
-  if (issue.code.includes('LOW_QUALITY')) return `A public image${host} was rejected because it was too small, blurry, or unsuitable.`;
-  if (issue.code.includes('HTTP_REJECTED')) return `The company website blocked the asset request${host}.`;
-  return `A verified public asset could not be used${host} (${issue.code}).`;
-}
-
 function Score({ value }: { value: number | null }) {
   return (
     <div className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 text-xl font-black text-emerald-800">
@@ -156,32 +127,47 @@ function Score({ value }: { value: number | null }) {
 }
 
 function LeadCard({
-  lead, deliveryReady, sending, refreshingMockup, batchPreparing, savingNote, onSend, onRefreshMockup, onSaveNote,
+  lead, deliveryReady, sending, uploadingArtwork, savingNote, onSend, onUploadArtwork, onSaveNote,
 }: {
   lead: OutboundManualReviewLead;
   deliveryReady: boolean;
   sending: boolean;
-  refreshingMockup: boolean;
-  batchPreparing: boolean;
+  uploadingArtwork: boolean;
   savingNote: boolean;
   onSend: (lead: OutboundManualReviewLead) => void;
-  onRefreshMockup: (lead: OutboundManualReviewLead) => void;
+  onUploadArtwork: (lead: OutboundManualReviewLead, file: File) => void;
   onSaveNote: (lead: OutboundManualReviewLead, notes: string) => void;
 }) {
   const [showPreview, setShowPreview] = useState(false);
+  const [showPrompt, setShowPrompt] = useState(false);
+  const [promptCopied, setPromptCopied] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
   const [notes, setNotes] = useState(lead.review.notes || '');
+  const uploadInput = useRef<HTMLInputElement | null>(null);
   useEffect(() => setNotes(lead.review.notes || ''), [lead.review.notes]);
   const sent = lead.review.sendState === 'sent';
   const presentationReady = mockupIsPresentationReady(lead);
-  const mockupBuildActive = refreshingMockup || (batchPreparing && !lead.mockup?.previewUrl
-    && (!lead.mockup || lead.mockup.status === 'pending'));
-  const mockupActionBusy = refreshingMockup || batchPreparing;
-  const sendReason = refreshingMockup
-    ? 'Wait for the refreshed company branding preview to finish before sending.'
+  const bannerPrompt = buildOutboundBannerPrompt(lead);
+  const sendReason = uploadingArtwork
+    ? 'Wait for the banner upload to finish before sending.'
     : !deliveryReady
     ? 'Email delivery is not ready. Refresh after the listed configuration issue is fixed.'
     : lead.technicalBlockers[0] || '';
   const retryableRecovery = lead.review.recoveryStatus === 'retryable';
+
+  const copyPrompt = async () => {
+    try {
+      await navigator.clipboard.writeText(bannerPrompt);
+      setPromptCopied(true);
+      window.setTimeout(() => setPromptCopied(false), 1800);
+    } catch {
+      setShowPrompt(true);
+    }
+  };
+
+  const acceptArtwork = (file: File | undefined) => {
+    if (file) onUploadArtwork(lead, file);
+  };
 
   return (
     <article id={`lead-${lead.prospectId}`} tabIndex={-1} className="scroll-mt-28 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm outline-none focus:ring-2 focus:ring-[#ff6b35]">
@@ -244,48 +230,88 @@ function LeadCard({
 
         <section className="rounded-xl border border-slate-200 bg-white p-4">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="flex items-center gap-2 font-black text-slate-950"><Mail className="h-4 w-4 text-[#18448D]" /> New branded email</h3>
-            {lead.message?.bodyHtml && <Button type="button" size="sm" variant="outline" onClick={() => setShowPreview((value) => !value)}><Eye className="mr-2 h-4 w-4" /> {showPreview ? 'Hide' : 'Preview'}</Button>}
+            <h3 className="flex items-center gap-2 font-black text-slate-950"><Mail className="h-4 w-4 text-[#18448D]" /> Email and banner</h3>
+            {lead.message?.bodyHtml && presentationReady && <Button type="button" size="sm" variant="outline" onClick={() => setShowPreview((value) => !value)}><Eye className="mr-2 h-4 w-4" /> {showPreview ? 'Hide email' : 'Preview email'}</Button>}
           </div>
           {lead.message?.generationStatus === 'generated' ? (
             <>
               <p className="mt-3 text-sm"><strong>Subject:</strong> {lead.message.subject}</p>
               <p className="mt-2 line-clamp-4 whitespace-pre-wrap text-sm leading-6 text-slate-600">{lead.message.bodyText}</p>
               <p className="mt-3 text-xs font-semibold text-slate-500">Send adds the 20% NEW20 offer, business address, footer unsubscribe link, and one-click unsubscribe header.</p>
+              <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="flex items-center gap-2 text-sm font-black text-blue-950"><Sparkles className="h-4 w-4 text-[#ff6b35]" /> Banner design prompt</p>
+                    <p className="mt-1 text-xs text-blue-900">Copy this into your banner-image GPT. The company website and exact accuracy rules are already included.</p>
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    <Button type="button" size="sm" variant="outline" className="bg-white" onClick={() => setShowPrompt((value) => !value)}>
+                      <Eye className="mr-2 h-3.5 w-3.5" /> {showPrompt ? 'Hide prompt' : 'View prompt'}
+                    </Button>
+                    <Button type="button" size="sm" onClick={() => void copyPrompt()} className="bg-[#18448D] text-white hover:bg-[#12386f]">
+                      <Copy className="mr-2 h-3.5 w-3.5" /> {promptCopied ? 'Copied' : 'Copy prompt'}
+                    </Button>
+                  </div>
+                </div>
+                {showPrompt && (
+                  <Textarea readOnly value={bannerPrompt} aria-label={`Banner prompt for ${lead.businessName}`} className="mt-3 min-h-[300px] bg-white font-mono text-xs leading-5" onFocus={(event) => event.currentTarget.select()} />
+                )}
+              </div>
+
               <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
                 {lead.mockup?.previewUrl ? (
-                  <div className="relative">
+                  <div>
                     <img
                       src={lead.mockup.previewUrl}
-                      alt={`Quick banner mockup for ${lead.businessName}`}
-                      className={cn('aspect-video w-full object-cover', !presentationReady && 'opacity-45 grayscale-[35%]')}
+                      alt={`Uploaded banner concept for ${lead.businessName}`}
+                      className="aspect-video w-full bg-slate-50 object-contain"
                       loading="lazy"
                     />
-                    {!presentationReady && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-slate-950/25 p-5 text-center">
-                        <span className="rounded-xl border border-amber-300 bg-amber-50/95 px-4 py-3 text-sm font-black text-amber-950 shadow-lg">Not send-ready<br /><span className="text-xs font-semibold">Verified assets + no-crop quality check required</span></span>
-                      </div>
-                    )}
-                  </div>
-                ) : mockupBuildActive ? (
-                  <div className="flex aspect-video items-center justify-center px-5 text-center text-sm font-semibold text-slate-500">
-                    <span><LoaderCircle className="mx-auto mb-2 h-5 w-5 animate-spin text-[#18448D]" /> Building a banner from the company&apos;s public branding…</span>
+                    <p className="border-t border-slate-200 bg-slate-50 px-3 py-1.5 text-center text-[10px] font-medium text-slate-500">Concept visualization only.</p>
                   </div>
                 ) : (
-                  <div className="flex aspect-video items-center justify-center px-5 text-center text-sm font-semibold text-slate-500">
-                    <span><AlertTriangle className="mx-auto mb-2 h-5 w-5 text-amber-600" /> {lead.mockup?.status === 'failed' ? 'The last build stopped safely. Retry when ready.' : 'No personalized banner has been built yet.'}</span>
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    aria-disabled={sent || uploadingArtwork}
+                    onClick={() => { if (!sent && !uploadingArtwork) uploadInput.current?.click(); }}
+                    onKeyDown={(event) => { if (!sent && !uploadingArtwork && (event.key === 'Enter' || event.key === ' ')) uploadInput.current?.click(); }}
+                    onDragEnter={(event) => { event.preventDefault(); setDragActive(true); }}
+                    onDragOver={(event) => { event.preventDefault(); setDragActive(true); }}
+                    onDragLeave={(event) => { event.preventDefault(); setDragActive(false); }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      setDragActive(false);
+                      if (!sent && !uploadingArtwork) acceptArtwork(event.dataTransfer.files?.[0]);
+                    }}
+                    className={cn('flex aspect-video items-center justify-center border-2 border-dashed p-6 text-center transition-colors', sent ? 'cursor-not-allowed border-slate-200 bg-slate-50 opacity-70' : 'cursor-pointer', dragActive ? 'border-[#ff6b35] bg-orange-50' : !sent && 'border-slate-300 bg-white hover:border-[#18448D] hover:bg-blue-50')}
+                  >
+                    <span>
+                      {uploadingArtwork ? <LoaderCircle className="mx-auto mb-3 h-8 w-8 animate-spin text-[#18448D]" /> : <Upload className="mx-auto mb-3 h-8 w-8 text-[#18448D]" />}
+                      <strong className="block text-sm text-slate-900">{sent ? 'Sent image is locked' : uploadingArtwork ? 'Uploading and verifying…' : 'Drop the finished banner image here'}</strong>
+                      <span className="mt-1 block text-xs text-slate-500">or click to choose a PNG, JPG, or WebP · 900×500 minimum · 4 MB maximum</span>
+                    </span>
                   </div>
                 )}
+                <input
+                  ref={uploadInput}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="sr-only"
+                  disabled={uploadingArtwork || sending || sent}
+                  onChange={(event) => {
+                    acceptArtwork(event.target.files?.[0]);
+                    event.target.value = '';
+                  }}
+                />
                 <div className="flex flex-col gap-2 border-t border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className={cn('text-xs font-black', presentationReady ? 'text-emerald-800' : 'text-amber-800')}>{mockupQualityLabel(lead)}</p>
-                    <p className="mt-0.5 text-[11px] text-slate-500">{lead.mockup?.eventLabel || titleCase(lead.mockup?.sceneId || lead.eventFit.priority)}</p>
-                    {presentationReady && <p className="mt-1 text-[11px] font-semibold text-emerald-700">Full company image preserved · no forced crop</p>}
-                    {lead.mockup && !presentationReady && <p className="mt-1 max-w-xl text-[11px] font-semibold text-amber-700">{mockupDiagnostic(lead)}</p>}
+                    <p className={cn('text-xs font-black', presentationReady ? 'text-emerald-800' : 'text-amber-800')}>{presentationReady ? 'Uploaded and ready for email preview' : 'Upload required before Send'}</p>
+                    <p className="mt-1 max-w-xl text-[11px] text-slate-500">The exact stored image shown here is the image that will appear in and attach to this company&apos;s email.</p>
                   </div>
-                  <Button type="button" size="sm" variant="outline" onClick={() => onRefreshMockup(lead)} disabled={mockupActionBusy || sending}>
-                    <RefreshCw className={cn('mr-2 h-3.5 w-3.5', mockupActionBusy && 'animate-spin')} />
-                    {mockupActionBusy ? 'Building…' : lead.mockup?.status === 'failed' ? 'Retry branding' : lead.mockup ? 'Refresh branding' : 'Build now'}
+                  <Button type="button" size="sm" variant="outline" onClick={() => uploadInput.current?.click()} disabled={uploadingArtwork || sending || sent}>
+                    {uploadingArtwork ? <LoaderCircle className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Upload className="mr-2 h-3.5 w-3.5" />}
+                    {sent ? 'Sent image locked' : presentationReady ? 'Replace image' : 'Choose image'}
                   </Button>
                 </div>
               </div>
@@ -330,7 +356,7 @@ function LeadCard({
           ) : (
             <>
               {retryableRecovery && <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs font-semibold text-amber-950"><AlertTriangle className="mr-1 inline h-3 w-3" /> A prior attempt expired before completion. Retrying reuses the same provider idempotency key and does not consume another daily attempt.</p>}
-              <Button type="button" onClick={() => onSend(lead)} disabled={!lead.canSend || !deliveryReady || sending || refreshingMockup} title={sendReason} className="mt-4 w-full bg-[#ff6b35] text-white hover:bg-[#e85a28]">
+              <Button type="button" onClick={() => onSend(lead)} disabled={!lead.canSend || !deliveryReady || sending || uploadingArtwork} title={sendReason} className="mt-4 w-full bg-[#ff6b35] text-white hover:bg-[#e85a28]">
                 {sending ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />} {sending ? 'Sending…' : retryableRecovery ? 'Retry safely' : 'Send'}
               </Button>
             </>
@@ -368,13 +394,10 @@ export default function SalesLeadReview() {
   const [filters, setFilters] = useState<OutboundLeadFilters>(EMPTY_FILTERS);
   const [sort, setSort] = useState<QueueSort>('priority');
   const [sendingId, setSendingId] = useState('');
-  const [refreshingMockupId, setRefreshingMockupId] = useState('');
+  const [uploadingArtworkId, setUploadingArtworkId] = useState('');
   const [savingNoteId, setSavingNoteId] = useState('');
-  const [preparingBatch, setPreparingBatch] = useState(false);
   const [preparingEvent, setPreparingEvent] = useState(false);
   const [advanceAfterSend, setAdvanceAfterSend] = useState(false);
-  const batchStarted = useRef(false);
-  const pollCount = useRef(0);
   const eventPollCount = useRef(0);
   const eventStartInFlight = useRef(false);
   const requestController = useRef<AbortController | null>(null);
@@ -397,20 +420,6 @@ export default function SalesLeadReview() {
     }
   }, [filters, offset, sort, view]);
 
-  const startMockupBatch = useCallback(async () => {
-    if (batchStarted.current) return;
-    batchStarted.current = true;
-    setPreparingBatch(true);
-    try {
-      await prepareOutboundCompanyMockups(70);
-      toast({ title: 'Company mockups are being prepared', description: 'Exact public logos and product images are being matched in the background.' });
-    } catch (requestError) {
-      batchStarted.current = false;
-      setPreparingBatch(false);
-      toast({ variant: 'destructive', title: 'Mockup preparation could not start', description: requestError instanceof Error ? requestError.message : 'Try again.' });
-    }
-  }, [toast]);
-
   const startAtlantaBatch = useCallback(async () => {
     if (eventStartInFlight.current) return;
     eventStartInFlight.current = true;
@@ -421,9 +430,9 @@ export default function SalesLeadReview() {
       if (result.alreadyReady) {
         setPreparingEvent(false);
         setView('today');
-        toast({ title: 'Atlanta batch is ready', description: 'The finalized 70-lead queue is ready to review. Nothing was sent automatically.' });
+        toast({ title: 'Atlanta leads are ready', description: 'The finalized 70-lead queue and email drafts are ready. Add each banner manually before Send.' });
       } else {
-        toast({ title: 'Atlanta batch preparation started', description: 'Official exhibitor data, exact booth context, company research, and strict mockups are being prepared. Nothing will be sent.' });
+        toast({ title: 'Atlanta lead preparation started', description: 'Official exhibitor data, company research, and email drafts are being prepared. No artwork is generated and nothing will be sent.' });
       }
       await load();
     } catch (requestError) {
@@ -450,14 +459,6 @@ export default function SalesLeadReview() {
   }, [preparingEvent, queue?.morningBatch]);
 
   useEffect(() => {
-    const retryableCount = (queue?.mockups.missing || 0) + (queue?.mockups.retryableFailed || 0);
-    if (!queue?.schemaReady || retryableCount < 1 || batchStarted.current || preparingEvent
-        || ['discovering', 'preparing'].includes(queue.morningBatch?.status || '')
-        || (Boolean(queue.morningBatch?.runMetadata?.eventKey) && queue.morningBatch?.status !== 'ready')) return;
-    void startMockupBatch();
-  }, [queue?.schemaReady, queue?.mockups.missing, queue?.mockups.retryableFailed, queue?.morningBatch?.status, queue?.morningBatch?.runMetadata, preparingEvent, startMockupBatch]);
-
-  useEffect(() => {
     if (!preparingEvent || eventStartInFlight.current) return undefined;
     const batch = queue?.morningBatch;
     if (eventPreparationHasStalled(batch || null)) {
@@ -469,10 +470,10 @@ export default function SalesLeadReview() {
       });
       return undefined;
     }
-    if (batch?.status === 'ready' && batch.mockupReadyCount >= batch.targetCount) {
+    if (batch?.status === 'ready' && batch.messageReadyCount >= batch.targetCount) {
       setPreparingEvent(false);
       setView('today');
-      toast({ title: 'Atlanta batch is ready', description: `${batch.mockupReadyCount} strict, company-matched mockups passed and are ready for review. Nothing was sent automatically.` });
+      toast({ title: 'Atlanta leads are ready', description: `${batch.messageReadyCount} qualified leads and email drafts are ready. Upload each banner, preview, and Send manually.` });
       return undefined;
     }
     const finalizerPass = Number(batch?.runMetadata?.finalizerPass) || 0;
@@ -481,7 +482,7 @@ export default function SalesLeadReview() {
       toast({
         variant: 'destructive',
         title: 'Atlanta preparation finished below 70',
-        description: `${batch?.mockupReadyCount || 0} mockups passed every quality gate. Failed or questionable assets stayed out of Today’s queue.`,
+        description: `${batch?.messageReadyCount || 0} qualified leads have complete email drafts. No email was sent.`,
       });
       return undefined;
     }
@@ -491,28 +492,6 @@ export default function SalesLeadReview() {
     }, 10000);
     return () => window.clearTimeout(timer);
   }, [preparingEvent, queue?.morningBatch, load, toast]);
-
-  useEffect(() => {
-    if (!preparingBatch) return undefined;
-    if ((queue?.mockups.missing || 0) + (queue?.mockups.retryableFailed || 0) === 0) {
-      setPreparingBatch(false);
-      return undefined;
-    }
-    if (pollCount.current >= 30) {
-      setPreparingBatch(false);
-      toast({
-        variant: 'destructive',
-        title: 'Mockup preparation stopped waiting',
-        description: 'Any unfinished lead is safe to retry; no email was sent.',
-      });
-      return undefined;
-    }
-    const timer = window.setTimeout(() => {
-      pollCount.current += 1;
-      void load();
-    }, 15000);
-    return () => window.clearTimeout(timer);
-  }, [preparingBatch, queue?.mockups.missing, queue?.mockups.retryableFailed, load, toast]);
 
   const visibleLeads = queue?.leads || [];
 
@@ -558,25 +537,20 @@ export default function SalesLeadReview() {
   const activeFilterCount = Object.values(filters).filter(Boolean).length;
   const eventPreparationStalled = eventPreparationHasStalled(queue?.morningBatch || null);
 
-  const refreshMockup = async (lead: OutboundManualReviewLead) => {
-    setRefreshingMockupId(lead.prospectId);
+  const uploadArtwork = async (lead: OutboundManualReviewLead, file: File) => {
+    setUploadingArtworkId(lead.prospectId);
     try {
-      const result = await refreshOutboundCompanyMockup(lead.prospectId);
-      toast(result.sendReady ? {
-        title: 'Personalized banner is send-ready',
-        description: 'The verified logo, relevant company imagery, brand treatment, offering, and event details are included.',
-      } : {
-        variant: 'destructive',
-        title: 'Branding is still incomplete',
-        description: result.qualityLevel === 'logo'
-          ? 'A relevant product or service image is still required.'
-          : result.qualityLevel === 'product' ? 'A verified company logo is still required.' : 'A verified logo and relevant company image are still required.',
-      });
+      await uploadOutboundManualArtwork(
+        lead.prospectId,
+        file,
+        lead.eventFit.evidence[0]?.label || lead.eventFit.label,
+      );
+      toast({ title: 'Banner uploaded', description: `${lead.businessName} · review the email preview, then Send when ready.` });
       await load();
     } catch (requestError) {
-      toast({ variant: 'destructive', title: 'Mockup not refreshed', description: requestError instanceof Error ? requestError.message : 'Try again.' });
+      toast({ variant: 'destructive', title: 'Banner not uploaded', description: requestError instanceof Error ? requestError.message : 'Try again.' });
     } finally {
-      setRefreshingMockupId('');
+      setUploadingArtworkId('');
     }
   };
 
@@ -587,7 +561,7 @@ export default function SalesLeadReview() {
           <div>
             <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-orange-300"><Sparkles className="h-4 w-4" /> Event-first prospecting</div>
             <h1 className="mt-2 text-3xl font-black">Lead Review</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-blue-100">High-value companies are ranked with direct trade-show, expo, conference, and upcoming-event evidence first. Review the company and email preview, then click Send.</p>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-blue-100">High-value companies are ranked with direct trade-show, expo, conference, and upcoming-event evidence first. Copy the banner prompt, upload your finished image, preview the email, then click Send.</p>
           </div>
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="rounded-xl bg-white/10 px-4 py-3"><div className="text-2xl font-black">{queue?.total ?? '—'}</div><div className="text-[10px] font-bold uppercase tracking-wide text-blue-100">Leads</div></div>
@@ -605,7 +579,7 @@ export default function SalesLeadReview() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="flex items-center gap-2 font-black text-slate-950"><CalendarSearch className="h-4 w-4 text-[#18448D]" /> Today&apos;s 8:00 AM sales queue</p>
-            <p className="mt-1 text-sm text-slate-600">Preparation only—nothing is sent automatically. You qualify each lead, then Send remains a deliberate one-click action.</p>
+            <p className="mt-1 text-sm text-slate-600">Lead and email preparation only—no banner is generated and nothing is sent automatically. You add the image and deliberately click Send.</p>
           </div>
           <div className="flex flex-col items-start gap-2 lg:items-end">
             <Badge className={cn('w-fit text-sm', queue?.morningBatch?.status === 'ready' ? 'bg-emerald-700 text-white' : 'bg-slate-700 text-white')}>
@@ -614,18 +588,18 @@ export default function SalesLeadReview() {
             <Button
               type="button"
               onClick={() => void startAtlantaBatch()}
-              disabled={preparingEvent || (queue?.morningBatch?.status === 'ready' && (queue.morningBatch.mockupReadyCount || 0) >= (queue.morningBatch.targetCount || 70))}
+              disabled={preparingEvent || (queue?.morningBatch?.status === 'ready' && (queue.morningBatch.messageReadyCount || 0) >= (queue.morningBatch.targetCount || 70))}
               className="bg-[#ff6b35] text-white hover:bg-[#e85a28]"
             >
               {preparingEvent ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <CalendarSearch className="mr-2 h-4 w-4" />}
-              {preparingEvent ? 'Loading and preparing…' : queue?.morningBatch?.status === 'ready' ? 'Atlanta batch ready' : eventPreparationStalled ? 'Retry Atlanta preparation' : 'Load & prepare Atlanta batch'}
+              {preparingEvent ? 'Loading and preparing…' : queue?.morningBatch?.status === 'ready' ? 'Atlanta leads ready' : eventPreparationStalled ? 'Retry Atlanta preparation' : 'Load Atlanta leads'}
             </Button>
-            <p className="max-w-sm text-xs text-slate-500">Imports and builds personalized previews only. This action has no email-send path.</p>
+            <p className="max-w-sm text-xs text-slate-500">Imports qualified leads and prepares email drafts only. It does not generate artwork or send email.</p>
           </div>
         </div>
         {Number(queue?.morningBatch?.runMetadata?.sourceRecordCount) > 0 && (
           <p className="mt-3 text-xs font-semibold text-slate-600">
-            Source pool: {Number(queue?.morningBatch?.runMetadata?.primaryRecordCount) || 70} ranked exhibitors + {Number(queue?.morningBatch?.runMetadata?.reserveRecordCount) || 0} quality backfills. Only finalized mockups receive Today queue positions.
+            Source pool: {Number(queue?.morningBatch?.runMetadata?.primaryRecordCount) || 70} ranked exhibitors + {Number(queue?.morningBatch?.runMetadata?.reserveRecordCount) || 0} contact-quality backfills. The best 70 complete leads receive Today queue positions.
           </p>
         )}
         {eventPreparationStalled && (
@@ -639,7 +613,7 @@ export default function SalesLeadReview() {
             ['Fresh leads', queue?.morningBatch?.newProspectCount ?? 0],
             ['Qualified', queue?.morningBatch?.qualifiedCount ?? 0],
             ['Email ready', queue?.morningBatch?.messageReadyCount ?? 0],
-            ['Mockup ready', queue?.morningBatch?.mockupReadyCount ?? 0],
+            ['Images added', queue?.morningBatch?.mockupReadyCount ?? 0],
             ['Ready at', queue?.morningBatch?.readyAt ? new Date(queue.morningBatch.readyAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '—'],
           ].map(([label, value]) => (
             <div key={label} className="rounded-xl bg-slate-50 p-3 text-center">
@@ -653,30 +627,14 @@ export default function SalesLeadReview() {
 
       <section className="flex flex-col gap-4 rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-orange-50 p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p className="flex items-center gap-2 font-black text-slate-950"><Sparkles className="h-4 w-4 text-[#ff6b35]" /> Personalized company banner system</p>
-          <p className="mt-1 text-sm leading-6 text-slate-600">Every lead gets a quick mockup using the company&apos;s verified public logo and product/service imagery when quality checks pass. Questionable assets are rejected, and incomplete mockups stay blocked from sending.</p>
+          <p className="flex items-center gap-2 font-black text-slate-950"><Image className="h-4 w-4 text-[#ff6b35]" /> Manual personalized banner workflow</p>
+          <p className="mt-1 text-sm leading-6 text-slate-600">Every lead includes a detailed company-specific prompt with its website URL. Create the image in your banner GPT, drop it into the lead, review the exact email preview, and hit Send.</p>
           <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold">
-            <Badge className="bg-emerald-700 text-white">{queue?.mockups.ready ?? 0} verified-assets ready</Badge>
-            <Badge variant="outline" className="border-blue-300 bg-white text-blue-900">{queue?.mockups.fallback ?? 0} fallback</Badge>
-            <Badge variant="outline" className="border-orange-300 bg-white text-orange-900">{queue?.mockups.missing ?? 0} preparing</Badge>
-            {(queue?.mockups.failed ?? 0) > 0 && <Badge variant="outline" className="border-red-300 bg-white text-red-900">{queue?.mockups.failed ?? 0} failed</Badge>}
-            {(queue?.mockups.retryableFailed ?? 0) > 0 && <Badge variant="outline" className="border-amber-300 bg-white text-amber-900">{queue?.mockups.retryableFailed ?? 0} retry due</Badge>}
+            <Badge className="bg-emerald-700 text-white">{queue?.mockups.ready ?? 0} images uploaded</Badge>
+            <Badge variant="outline" className="border-orange-300 bg-white text-orange-900">{queue?.mockups.missing ?? 0} waiting for upload</Badge>
           </div>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={preparingBatch}
-          onClick={() => {
-            batchStarted.current = false;
-            pollCount.current = 0;
-            setPreparingBatch(false);
-            void startMockupBatch();
-          }}
-          className="shrink-0 border-[#18448D] bg-white text-[#18448D]"
-        >
-          <Sparkles className={cn('mr-2 h-4 w-4', preparingBatch && 'animate-pulse')} /> {preparingBatch ? 'Preparing up to 70…' : 'Prepare all 70'}
-        </Button>
+        <Badge variant="outline" className="shrink-0 border-[#18448D] bg-white px-4 py-2 text-[#18448D]">No automatic image generation</Badge>
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -711,7 +669,7 @@ export default function SalesLeadReview() {
           <FilterSelect id="filter-contacted" label="Contacted previously" value={filters.contacted} placeholder="Either" options={[{ value: 'yes', label: 'Contacted' }, { value: 'no', label: 'Never contacted' }]} onChange={(value) => updateFilter('contacted', value as OutboundLeadFilters['contacted'])} />
           <FilterSelect id="filter-email" label="Has email" value={filters.hasEmail} placeholder="Either" options={[{ value: 'yes', label: 'Has email' }, { value: 'no', label: 'No email' }]} onChange={(value) => updateFilter('hasEmail', value as OutboundLeadFilters['hasEmail'])} />
           <FilterSelect id="filter-phone" label="Has phone" value={filters.hasPhone} placeholder="Either" options={[{ value: 'yes', label: 'Has phone' }, { value: 'no', label: 'No phone' }]} onChange={(value) => updateFilter('hasPhone', value as OutboundLeadFilters['hasPhone'])} />
-          <FilterSelect id="filter-mockup" label="Mockup status" value={filters.mockup} placeholder="Any mockup" options={[{ value: 'ready', label: 'Verified-assets ready' }, { value: 'fallback', label: 'Blocked fallback' }, { value: 'missing', label: 'Pending / failed' }]} onChange={(value) => updateFilter('mockup', value as OutboundLeadFilters['mockup'])} />
+          <FilterSelect id="filter-mockup" label="Banner upload" value={filters.mockup} placeholder="Any upload status" options={[{ value: 'ready', label: 'Image uploaded' }, { value: 'missing', label: 'Waiting for upload' }]} onChange={(value) => updateFilter('mockup', value as OutboundLeadFilters['mockup'])} />
           <FilterSelect id="filter-email-status" label="Email status" value={filters.emailStatus} placeholder="Any email status" options={[{ value: 'ready', label: 'Ready' }, { value: 'sent', label: 'Sent' }, { value: 'failed', label: 'Failed' }, { value: 'missing', label: 'Missing' }]} onChange={(value) => updateFilter('emailStatus', value as OutboundLeadFilters['emailStatus'])} />
           <FilterSelect id="queue-sort" label="Sort" value={sort} placeholder="Priority" options={[{ value: 'priority', label: 'Priority' }, { value: 'newest', label: 'Newest' }, { value: 'score_desc', label: 'Highest score' }, { value: 'company_asc', label: 'Company A–Z' }, { value: 'event_asc', label: 'Event A–Z' }]} onChange={(value) => { setSort((value || 'priority') as QueueSort); setOffset(0); }} />
         </div>
@@ -748,7 +706,7 @@ export default function SalesLeadReview() {
       )}
 
       <div className="space-y-5">
-        {visibleLeads.map((lead) => <LeadCard key={lead.prospectId} lead={lead} deliveryReady={queue?.deliveryReady === true} sending={sendingId === lead.prospectId} refreshingMockup={refreshingMockupId === lead.prospectId} batchPreparing={preparingBatch} savingNote={savingNoteId === lead.prospectId} onSend={(item) => void send(item)} onRefreshMockup={(item) => void refreshMockup(item)} onSaveNote={(item, notes) => void saveNote(item, notes)} />)}
+        {visibleLeads.map((lead) => <LeadCard key={lead.prospectId} lead={lead} deliveryReady={queue?.deliveryReady === true} sending={sendingId === lead.prospectId} uploadingArtwork={uploadingArtworkId === lead.prospectId} savingNote={savingNoteId === lead.prospectId} onSend={(item) => void send(item)} onUploadArtwork={(item, file) => void uploadArtwork(item, file)} onSaveNote={(item, notes) => void saveNote(item, notes)} />)}
       </div>
 
       {queue && queue.total > PAGE_SIZE && (

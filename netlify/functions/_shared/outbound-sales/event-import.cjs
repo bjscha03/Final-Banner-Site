@@ -474,7 +474,6 @@ async function runEventFinalizer(options = {}) {
   const finalizer = await (options.dependencies?.runMorningFinalizer || runMorningFinalizer)({
     sql, env: options.env || process.env, businessDate, batch,
     requireProviderConfiguration: false, expectedBatchKey: repository.eventBatchKey(event.key),
-    store: options.store, sharp: options.sharp,
     timeBudgetMs: options.timeBudgetMs || EVENT_FINALIZER_BUDGET_MS,
     dependencies: {
       repository: {
@@ -486,10 +485,7 @@ async function runEventFinalizer(options = {}) {
           query, { ...input, eventKey: event.key },
         ),
       },
-      prepareCompanyMockup: options.dependencies?.prepareCompanyMockup,
       appendAudit: options.dependencies?.appendAudit || appendAudit,
-      mockup: options.dependencies?.mockup,
-      sharp: options.sharp,
       clock: options.dependencies?.clock,
     },
   });
@@ -498,7 +494,7 @@ async function runEventFinalizer(options = {}) {
     status: finalizer.status, readyCount: finalizer.readyCount,
     candidateCount: finalizer.candidateCount, processedCount: finalizer.processedCount,
     messageReadyCount: finalizer.messageReady, mockupReadyCount: finalizer.mockupReady,
-    mockupFailureCount: finalizer.failed, timeBudgetReached: finalizer.timeBudgetReached,
+    draftFailureCount: finalizer.failed, timeBudgetReached: finalizer.timeBudgetReached,
     finalizerPass: Math.max(0, Number(options.finalizerPass) || 0),
     externalEmailsSent: 0, manualSendingOnly: true,
   };
@@ -511,7 +507,7 @@ async function runEventFinalizer(options = {}) {
       phase: result.readyCount >= MORNING_TARGET ? 'ready' : 'partial',
       finalizerPass: result.finalizerPass, readyCount: result.readyCount,
       candidateCount: result.candidateCount, processedCount: result.processedCount,
-      failedCount: result.mockupFailureCount, externalEmailsSent: 0,
+      failedCount: result.draftFailureCount, externalEmailsSent: 0,
     },
   });
   await (options.dependencies?.appendAudit || appendAudit)(sql, {

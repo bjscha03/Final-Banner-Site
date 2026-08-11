@@ -78,23 +78,20 @@ describe('daily morning queue schema and scheduling', () => {
       .toMatchObject({ id: BATCH_ID, batch_key: 'generic' });
   });
 
-  it('positions and counts only mockups that pass the complete current production contract', async () => {
+  it('positions email-ready leads without artwork and separately counts verified manual uploads', async () => {
     const sql = vi.fn().mockResolvedValue([]);
     await morningRepository.finalizeMorningBatch(sql, { batchId: BATCH_ID, targetCount: 70 });
     const rankedQuery = sql.mock.calls[1][0];
     const countQuery = sql.mock.calls[2][0];
-    for (const query of [rankedQuery, countQuery]) {
-      expect(query).toContain("mockup.render_version='company-banner-v13-complete-footer-text-bound'");
-      expect(query).toContain('"noUpscaleGuaranteed":true');
-      expect(query).toContain('"logoCompositionAudit"');
-      expect(query).toContain('"productSelectionAudit"');
-      expect(query).toContain('"layoutAudit"');
-      expect(query).toContain('"footerNoOverlapGuaranteed":true');
-      expect(query).toContain('"logoHeadlineNoOverlapGuaranteed":true');
-      expect(query).toContain('"paletteAudit"');
-      expect(query).toContain('"eventTextAudit"');
-      expect(query).toContain('"blobBindingAudit"');
-    }
+    expect(rankedQuery).toContain("m.generation_status='generated'");
+    expect(rankedQuery).not.toContain('outbound_company_mockups');
+    expect(countQuery).toContain("mockup.render_version='company-banner-manual-upload-v1'");
+    expect(countQuery).toContain("mockup.quality_level='manual_upload'");
+    expect(countQuery).toContain('manual-company-banners/');
+    expect(countQuery).toContain('"source":"manual_upload"');
+    expect(countQuery).toContain('"administratorUploaded":true');
+    expect(countQuery).toContain('"width":1200,"height":675');
+    expect(countQuery).toContain('"blobBindingAudit"');
   });
 
   it('launches preparation early enough for the 8 AM Eastern queue and never installs a mail schedule', () => {
@@ -210,15 +207,15 @@ describe('morning preparation workflow', () => {
   it('builds grounded company-specific copy and excludes the rejected reply/pricing language', () => {
     const message = morningModule.buildMorningMessage(preparationCandidate(COMPANY_A, 'Company A', 'avery@companya.example'));
     expect(message.subject).toContain('Company A');
-    expect(message.subject).toContain('quick banner mockup');
-    expect(message.bodyText.match(/Company A/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(message.subject).toContain('custom banner printing');
+    expect(message.bodyText.match(/Company A/g)?.length).toBeGreaterThanOrEqual(1);
     expect(message.bodyText).toContain('Hi Jordan');
-    expect(message.bodyText).toContain('This is just a quick mockup');
+    expect(message.bodyText).toContain('wanted to introduce Banners On The Fly');
     expect(message.bodyText).toContain('NEW20');
-    expect(message.bodyText).not.toMatch(/complimentary|custom banner concept|reply with|size and quantity|Would it be useful|booth \d+/i);
+    expect(message.bodyText).not.toMatch(/quick mockup|complimentary|custom banner concept|public branding|reply with|size and quantity|Would it be useful|booth \d+/i);
   });
 
-  it('rejects a Company A/Company B mockup mix-up and only ranks identity-matched output', async () => {
+  it('prepares company-specific drafts without invoking any artwork generator', async () => {
     const candidates = [
       preparationCandidate(COMPANY_A, 'Company A', 'avery@companya.example'),
       preparationCandidate(COMPANY_B, 'Company B', 'morgan@companyb.example'),
@@ -228,23 +225,9 @@ describe('morning preparation workflow', () => {
       ensureMorningBatch: vi.fn().mockResolvedValue({ id: BATCH_ID, batch_key: 'generic', status: 'preparing' }),
       listMorningPreparationCandidates: vi.fn().mockResolvedValue(candidates),
       saveDeterministicMorningMessage: vi.fn(async (_sql, message) => { savedMessages.push(message); return { id: `message-${message.prospectId}` }; }),
-      finalizeMorningBatch: vi.fn().mockResolvedValue({ batch: { status: 'partial' }, readyCount: 1 }),
+      finalizeMorningBatch: vi.fn().mockResolvedValue({ batch: { status: 'partial', mockup_ready_count: 0 }, readyCount: 2 }),
     };
-    const prepareCompanyMockup = vi.fn(async ({ prospectId }) => {
-      const message = savedMessages.find((item) => item.prospectId === prospectId);
-      const ready = {
-        status: 'ready', qualityLevel: 'logo_and_product', sendReady: true,
-        compositionAudit: { passed: true, sourceVisibleFraction: 1, noClipGuaranteed: true },
-        blobBindingAudit: {
-          passed: true, strongReadBackVerified: true,
-          expectedContentHash: 'a'.repeat(64), persistedContentHash: 'a'.repeat(64),
-        },
-        plan: { messageContentHash: message.contentHash },
-      };
-      return prospectId === COMPANY_A
-        ? { ...ready, prospectId: COMPANY_B }
-        : { ...ready, prospectId: COMPANY_B };
-    });
+    const prepareCompanyMockup = vi.fn();
     const result = await morningModule.runMorningFinalizer({
       sql: vi.fn(), env: morningEnv, businessDate: '2026-08-11',
       dependencies: { repository, prepareCompanyMockup, appendAudit: vi.fn().mockResolvedValue({}) },
@@ -253,13 +236,13 @@ describe('morning preparation workflow', () => {
       [COMPANY_A, expect.stringContaining('Company A')],
       [COMPANY_B, expect.stringContaining('Company B')],
     ]);
-    expect(result).toMatchObject({ readyCount: 1, mockupReady: 1, failed: 1, externalEmailsSent: 0 });
+    expect(result).toMatchObject({ readyCount: 2, messageReady: 2, mockupReady: 0, failed: 0, externalEmailsSent: 0 });
     expect(repository.listMorningPreparationCandidates).toHaveBeenCalledWith(expect.anything(), { batchId: BATCH_ID, limit: 210 });
-    expect(prepareCompanyMockup).toHaveBeenCalledWith(expect.objectContaining({ preferCachedReady: true }));
-    expect(repository.finalizeMorningBatch).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ lastErrorCode: 'MORNING_MOCKUP_NOT_READY' }));
+    expect(prepareCompanyMockup).not.toHaveBeenCalled();
+    expect(repository.finalizeMorningBatch).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ lastErrorCode: 'MORNING_TARGET_NOT_REACHED' }));
   });
 
-  it('backfills failed strict-quality mockups from a larger pool until 70 are ready', async () => {
+  it('prepares exactly 70 drafts from a larger pool and leaves artwork for manual upload', async () => {
     const candidates = Array.from({ length: 72 }, (_, index) => preparationCandidate(
       `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
       `Company ${index + 1}`,
@@ -273,68 +256,49 @@ describe('morning preparation workflow', () => {
         messages.set(message.prospectId, message);
         return { id: `message-${message.prospectId}` };
       }),
-      finalizeMorningBatch: vi.fn().mockResolvedValue({ batch: { status: 'ready' }, readyCount: 70 }),
+      finalizeMorningBatch: vi.fn().mockResolvedValue({ batch: { status: 'ready', mockup_ready_count: 0 }, readyCount: 70 }),
     };
-    let attempts = 0;
-    const prepareCompanyMockup = vi.fn(async ({ prospectId }) => {
-      attempts += 1;
-      if (attempts <= 2) return { prospectId, status: 'fallback', qualityLevel: 'name_only', sendReady: false };
-      return {
-        prospectId, status: 'ready', qualityLevel: 'logo_and_product', sendReady: true,
-        compositionAudit: { passed: true, sourceVisibleFraction: 1, noClipGuaranteed: true },
-        blobBindingAudit: {
-          passed: true, strongReadBackVerified: true,
-          expectedContentHash: 'a'.repeat(64), persistedContentHash: 'a'.repeat(64),
-        },
-        plan: { messageContentHash: messages.get(prospectId).contentHash },
-      };
-    });
+    const prepareCompanyMockup = vi.fn();
     const result = await morningModule.runMorningFinalizer({
       sql: vi.fn(), env: morningEnv, businessDate: '2026-08-11',
       dependencies: { repository, prepareCompanyMockup, appendAudit: vi.fn().mockResolvedValue({}) },
     });
-    expect(result).toMatchObject({ readyCount: 70, mockupReady: 70, failed: 2, externalEmailsSent: 0 });
-    expect(prepareCompanyMockup).toHaveBeenCalledTimes(72);
+    expect(result).toMatchObject({ readyCount: 70, messageReady: 70, mockupReady: 0, failed: 0, externalEmailsSent: 0 });
+    expect(messages.size).toBe(70);
+    expect(prepareCompanyMockup).not.toHaveBeenCalled();
     expect(repository.finalizeMorningBatch).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
       targetCount: 70, lastErrorCode: null,
     }));
   });
 
-  it('checkpoints the batch and moves past a mockup task that never settles', async () => {
-    const candidate = preparationCandidate(COMPANY_A, 'Company A', 'avery@companya.example');
+  it('continues past a failed draft and checkpoints partial progress without artwork work', async () => {
+    const candidates = [
+      preparationCandidate(COMPANY_A, 'Company A', 'avery@companya.example'),
+      preparationCandidate(COMPANY_B, 'Company B', 'morgan@companyb.example'),
+    ];
     const repository = {
       ensureMorningBatch: vi.fn().mockResolvedValue({ id: BATCH_ID, batch_key: 'generic', status: 'preparing' }),
-      listMorningPreparationCandidates: vi.fn().mockResolvedValue([candidate]),
-      saveDeterministicMorningMessage: vi.fn().mockResolvedValue({ id: 'message-a' }),
-      finalizeMorningBatch: vi.fn().mockResolvedValue({ batch: { status: 'partial' }, readyCount: 0 }),
+      listMorningPreparationCandidates: vi.fn().mockResolvedValue(candidates),
+      saveDeterministicMorningMessage: vi.fn()
+        .mockRejectedValueOnce(Object.assign(new Error('draft write failed'), { code: 'DRAFT_SAVE_FAILED' }))
+        .mockResolvedValue({ id: 'message-b' }),
+      finalizeMorningBatch: vi.fn().mockResolvedValue({ batch: { status: 'partial', mockup_ready_count: 0 }, readyCount: 1 }),
     };
-    const failureCandidate = {
-      ...candidate,
-      message: { id: 'message-a', contentHash: 'a'.repeat(64) },
-      mockup: null,
-    };
-    const mockupRepository = {
-      loadCompanyMockupCandidate: vi.fn().mockResolvedValue(failureCandidate),
-      saveCompanyMockupFailure: vi.fn().mockResolvedValue({ status: 'failed' }),
-      safeCompanyMockupErrorCode: vi.fn((code) => code),
-    };
+    const prepareCompanyMockup = vi.fn();
 
     const result = await morningModule.runMorningFinalizer({
-      sql: vi.fn(), env: morningEnv, businessDate: '2026-08-11', candidateTimeoutMs: 5,
+      sql: vi.fn(), env: morningEnv, businessDate: '2026-08-11',
       dependencies: {
         repository,
-        mockupRepository,
-        prepareCompanyMockup: vi.fn(() => new Promise(() => {})),
+        prepareCompanyMockup,
         appendAudit: vi.fn().mockResolvedValue({}),
       },
     });
 
-    expect(result).toMatchObject({ readyCount: 0, processedCount: 1, failed: 1, timeBudgetReached: false });
-    expect(mockupRepository.saveCompanyMockupFailure).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
-      candidate: failureCandidate, errorCode: 'COMPANY_MOCKUP_BUILD_TIMEOUT',
-    }));
+    expect(result).toMatchObject({ readyCount: 1, processedCount: 2, messageReady: 1, failed: 1, timeBudgetReached: false });
+    expect(prepareCompanyMockup).not.toHaveBeenCalled();
     expect(repository.finalizeMorningBatch).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
-      lastErrorCode: 'COMPANY_MOCKUP_BUILD_TIMEOUT',
+      lastErrorCode: 'DRAFT_SAVE_FAILED',
     }));
   });
 
@@ -376,21 +340,16 @@ describe('Sales Admin production workflow', () => {
     });
     const listQuery = sql.mock.calls[0][0];
     expect(listQuery).toContain('business_name ILIKE');
-    expect(listQuery).toContain('mockup_event_label=');
+    expect(listQuery).toContain("COALESCE(provider_metadata->>'eventName',mockup_event_label)=");
     expect(listQuery).toContain("source_provider_id=");
     expect(listQuery).toContain("imported_business_date");
     expect(listQuery).toContain("mockup_status='ready'");
     expect(listQuery).toContain('mockup_generation_metadata @>');
-    expect(listQuery).toContain('"noClipGuaranteed":true');
-    expect(listQuery).toContain("mockup_render_version='company-banner-v13-complete-footer-text-bound'");
-    expect(listQuery).toContain('"noUpscaleGuaranteed":true');
-    expect(listQuery).toContain('"logoCompositionAudit"');
-    expect(listQuery).toContain('"productSelectionAudit"');
-    expect(listQuery).toContain('"layoutAudit"');
-    expect(listQuery).toContain('"footerNoOverlapGuaranteed":true');
-    expect(listQuery).toContain('"logoHeadlineNoOverlapGuaranteed":true');
-    expect(listQuery).toContain('"paletteAudit"');
-    expect(listQuery).toContain('"eventTextAudit"');
+    expect(listQuery).toContain("mockup_quality_level='manual_upload'");
+    expect(listQuery).toContain("mockup_render_version='company-banner-manual-upload-v1'");
+    expect(listQuery).toContain('"source":"manual_upload"');
+    expect(listQuery).toContain('"administratorUploaded":true');
+    expect(listQuery).toContain('"width":1200,"height":675');
     expect(listQuery).toContain('"blobBindingAudit"');
     expect(listQuery).toContain('ORDER BY business_name ASC');
     const noteSql = vi.fn().mockResolvedValue([{ prospect_id: COMPANY_A, review_notes: 'Qualified', updated_at: '2026-08-11T12:00:00Z' }]);
@@ -408,9 +367,12 @@ describe('Sales Admin production workflow', () => {
     expect(salesAdminSource).toContain("['today', \"Today's Leads\"]");
     expect(salesAdminSource).toContain('setAdvanceAfterSend(true)');
     expect(salesAdminSource).toContain('saveOutboundLeadNote');
-    for (const label of ['Trade show / event', 'Lead source', 'Industry / category', 'Date imported', 'Qualification', 'Send readiness', 'Contacted previously', 'Has email', 'Has phone', 'Mockup status', 'Email status']) {
+    for (const label of ['Trade show / event', 'Lead source', 'Industry / category', 'Date imported', 'Qualification', 'Send readiness', 'Contacted previously', 'Has email', 'Has phone', 'Banner upload', 'Email status']) {
       expect(salesAdminSource).toContain(label);
     }
+    expect(salesAdminSource).toContain('Copy prompt');
+    expect(salesAdminSource).toContain('Drop the finished banner image here');
+    expect(salesAdminSource).toContain('No automatic image generation');
     expect(salesAdminSource).toContain('Clear filters');
   });
 });

@@ -11,15 +11,11 @@ const { researchWebsite } = require('./research.cjs');
 const { assessEmailCandidates } = require('./email.cjs');
 const { scoreLead } = require('./qualification.cjs');
 const { renderOutboundEmailPreview, SIGNATURE } = require('./personalization-template.cjs');
-const companyMockupRepository = require('./company-mockup-repository.cjs');
-const { RENDER_VERSION, prepareCompanyMockup } = require('./company-mockup.cjs');
-const { withAbortableDeadline } = require('./deadline.cjs');
 const { redactSecretText } = require('./security.cjs');
 
 const MORNING_TARGET = 70;
 const MORNING_PREPARATION_POOL = 210;
 const MORNING_FINALIZER_BUDGET_MS = 12 * 60 * 1000;
-const MORNING_MOCKUP_CANDIDATE_TIMEOUT_MS = 50_000;
 const MORNING_SHARD_COUNT = 8;
 const MORNING_COHORTS = Object.freeze([
   Object.freeze({ keywords: ['trade show', 'exhibitor', 'conference', 'expo'], jobTitles: ['events', 'trade show', 'marketing'] }),
@@ -220,10 +216,12 @@ function buildMorningMessage(candidate) {
   const context = hasEventSignal
     ? 'while researching businesses with upcoming event and promotional needs'
     : `while researching growing ${industry.toLowerCase()} organizations`;
-  const subject = `${company} — a quick banner mockup using your brand`;
+  const subject = event
+    ? `${company} — banners for ${event.eventName}`
+    : `${company} — custom banner printing`;
   const introduction = event
-    ? `I saw ${company} is exhibiting at ${event.eventName}${event.dateLabel ? ` during ${event.dateLabel}` : ''}${event.booth ? ` in booth ${event.booth}` : ''}. This is just a quick mockup using ${company}’s public branding to show one way the brand could look on a printed banner.`
-    : `I came across ${company} ${context}. This is just a quick mockup using ${company}’s public branding to show one way the brand could look on a printed banner.`;
+    ? `I saw ${company} is exhibiting at ${event.eventName}${event.dateLabel ? ` during ${event.dateLabel}` : ''}${event.booth ? ` in booth ${event.booth}` : ''}, and I wanted to reach out before the show.`
+    : `I came across ${company} ${context} and wanted to introduce Banners On The Fly.`;
   const bodyText = [
     `Hi ${firstName(candidate.contact.fullName)},`,
     introduction,
@@ -254,10 +252,6 @@ async function runMorningFinalizer(options) {
   if (options.requireProviderConfiguration !== false) assertMorningConfiguration(env);
   const sql = options.sql;
   const repository = { ...morningRepository, ...(options.dependencies?.repository || {}) };
-  const mockupRepository = {
-    ...companyMockupRepository,
-    ...(options.dependencies?.mockupRepository || {}),
-  };
   const date = options.businessDate || businessDate(options.now);
   const batch = options.batch || await repository.ensureMorningBatch(sql, {
     businessDate: date, targetCount: MORNING_TARGET, providerId: 'apollo',
@@ -275,68 +269,36 @@ async function runMorningFinalizer(options) {
   ));
   let cursor = 0;
   let messageReady = 0;
-  let mockupReady = 0;
+  let messagesInFlight = 0;
   const failures = [];
   const workers = Array.from({ length: Math.min(4, candidates.length) }, async () => {
-    while (cursor < candidates.length && mockupReady < MORNING_TARGET
+    while (cursor < candidates.length && messageReady < MORNING_TARGET
         && clock() - startedAt < timeBudgetMs) {
+      // Reserve each remaining target slot before awaiting a database write so
+      // concurrent workers cannot prepare more than the deliberate 70-lead cap.
+      if (messageReady + messagesInFlight >= MORNING_TARGET) return;
       const candidate = candidates[cursor];
       cursor += 1;
+      messagesInFlight += 1;
       try {
         const message = buildMorningMessage(candidate);
         const saved = await repository.saveDeterministicMorningMessage(sql, message);
         if (!saved) throw Object.assign(new Error('Message was not persisted.'), { code: 'MORNING_MESSAGE_SAVE_CONFLICT' });
         messageReady += 1;
-        const mockup = await withAbortableDeadline((signal) => (
-          options.dependencies?.prepareCompanyMockup || prepareCompanyMockup
-        )({
-          sql, prospectId: candidate.prospect.id, force: false, preferCachedReady: true,
-          store: options.store, sharp: options.sharp || options.dependencies?.sharp,
-          dependencies: { ...(options.dependencies?.mockup || {}), signal },
-        }), {
-          timeoutMs: options.candidateTimeoutMs
-            || options.dependencies?.candidateTimeoutMs
-            || MORNING_MOCKUP_CANDIDATE_TIMEOUT_MS,
-          errorCode: 'COMPANY_MOCKUP_BUILD_TIMEOUT',
-          message: 'Company mockup preparation exceeded its safe finalizer deadline.',
-        });
-        const mockupStatus = mockup?.status || mockup?.row?.status || (mockup?.sendReady ? 'ready' : 'fallback');
-        if (!mockup || mockup.prospectId !== candidate.prospect.id || mockupStatus !== 'ready'
-            || mockup.qualityLevel !== 'logo_and_product' || mockup.sendReady !== true
-            || mockup.compositionAudit?.passed !== true
-            || mockup.compositionAudit?.noClipGuaranteed !== true
-            || mockup.blobBindingAudit?.passed !== true
-            || mockup.blobBindingAudit?.strongReadBackVerified !== true
-            || mockup.blobBindingAudit?.persistedContentHash
-              !== mockup.blobBindingAudit?.expectedContentHash
-            || mockup.plan?.messageContentHash !== message.contentHash) {
-          throw Object.assign(new Error('Mockup identity or status did not pass.'), { code: 'MORNING_MOCKUP_NOT_READY' });
-        }
-        mockupReady += 1;
       } catch (error) {
-        if (error?.code !== 'MORNING_MOCKUP_NOT_READY') {
-          const failureCandidate = await mockupRepository.loadCompanyMockupCandidate(
-            sql, candidate.prospect.id,
-          ).catch(() => null);
-          if (failureCandidate) {
-            await mockupRepository.saveCompanyMockupFailure(sql, {
-              candidate: failureCandidate,
-              renderVersion: RENDER_VERSION,
-              errorCode: mockupRepository.safeCompanyMockupErrorCode(safeErrorCode(error)),
-            }).catch(() => null);
-          }
-        }
         failures.push({ prospectId: candidate.prospect.id, errorCode: safeErrorCode(error) });
+      } finally {
+        messagesInFlight -= 1;
       }
     }
   });
   await Promise.all(workers);
-  const timeBudgetReached = mockupReady < MORNING_TARGET
+  const timeBudgetReached = messageReady < MORNING_TARGET
     && cursor < candidates.length
     && clock() - startedAt >= timeBudgetMs;
   const finalized = await repository.finalizeMorningBatch(sql, {
     batchId: batch.id, targetCount: MORNING_TARGET,
-    lastErrorCode: mockupReady >= MORNING_TARGET
+    lastErrorCode: messageReady >= MORNING_TARGET
       ? null
       : timeBudgetReached ? 'MORNING_PREPARATION_TIME_BUDGET'
       : failures.length ? failures[0].errorCode : candidates.length < MORNING_TARGET ? 'MORNING_TARGET_NOT_REACHED' : null,
@@ -345,13 +307,14 @@ async function runMorningFinalizer(options) {
     actorType: 'system', actorId: 'morning-preparation',
     action: 'morning_queue.preparation_completed', entityType: 'morning_batch', entityId: batch.id,
     newValues: { status: finalized.batch?.status, readyCount: finalized.readyCount },
-    metadata: { candidates: candidates.length, processed: cursor, messageReady, mockupReady, failed: failures.length, timeBudgetReached, externalEmailsSent: 0, manualSendingOnly: true },
+    metadata: { candidates: candidates.length, processed: cursor, messageReady, manualArtworkUploadsRequired: true, failed: failures.length, timeBudgetReached, externalEmailsSent: 0, manualSendingOnly: true },
     requestId: options.requestId || null,
   }).catch(() => null);
   return {
     batchId: batch.id, status: finalized.batch?.status, readyCount: finalized.readyCount,
     candidateCount: candidates.length, processedCount: cursor,
-    messageReady, mockupReady, failed: failures.length, timeBudgetReached, externalEmailsSent: 0,
+    messageReady, mockupReady: Number(finalized.batch?.mockup_ready_count) || 0,
+    failed: failures.length, timeBudgetReached, externalEmailsSent: 0,
   };
 }
 
@@ -359,7 +322,6 @@ module.exports = {
   MORNING_TARGET,
   MORNING_PREPARATION_POOL,
   MORNING_FINALIZER_BUDGET_MS,
-  MORNING_MOCKUP_CANDIDATE_TIMEOUT_MS,
   MORNING_SHARD_COUNT,
   MORNING_COHORTS,
   businessDate,

@@ -3,12 +3,12 @@
 const { sanitizeForAudit } = require('./security.cjs');
 
 const GENERIC_BATCH_KEY = 'generic';
-const { strictCompanyMockupReadySql } = require('./company-mockup-repository.cjs');
+const { manualArtworkReadySql } = require('./manual-artwork-repository.cjs');
 
-const STRICT_MOCKUP_READY_SQL = strictCompanyMockupReadySql({
+const MANUAL_ARTWORK_READY_SQL = manualArtworkReadySql({
   prospectId: 'p.id', status: 'mockup.status', renderVersion: 'mockup.render_version',
   contentHash: 'mockup.content_hash', blobKey: 'mockup.blob_key', logoUrl: 'mockup.logo_url',
-  productImageUrl: 'mockup.product_image_url', qualityLevel: 'mockup.quality_level',
+  qualityLevel: 'mockup.quality_level',
   messageId: 'mockup.message_id', expectedMessageId: 'm.id',
   expectedMessageContentHash: 'm.content_hash', generationMetadata: 'mockup.generation_metadata',
 });
@@ -252,8 +252,6 @@ async function finalizeMorningBatch(sql, { batchId, targetCount = 70, lastErrorC
        FROM outbound_prospects p
        JOIN outbound_messages m ON m.prospect_id=p.id AND m.message_kind='initial'
          AND m.generation_status='generated' AND m.evidence_validation_status='passed' AND m.status='draft'
-       JOIN outbound_company_mockups mockup ON mockup.prospect_id=p.id
-         AND (${STRICT_MOCKUP_READY_SQL})
        JOIN outbound_contacts c ON c.prospect_id=p.id AND c.active=TRUE AND c.is_primary=TRUE
          AND m.contact_id=c.id
          AND c.syntax_valid=TRUE AND c.mx_status='present' AND c.is_role_address=FALSE
@@ -280,7 +278,7 @@ async function finalizeMorningBatch(sql, { batchId, targetCount = 70, lastErrorC
   const countRows = await sql(
     `SELECT COUNT(*) FILTER (WHERE p.status IN ('qualified','ready_for_outreach'))::integer AS qualified_count,
             COUNT(*) FILTER (WHERE m.generation_status='generated' AND m.evidence_validation_status='passed')::integer AS message_ready_count,
-            COUNT(*) FILTER (WHERE ${STRICT_MOCKUP_READY_SQL})::integer AS mockup_ready_count
+            COUNT(*) FILTER (WHERE ${MANUAL_ARTWORK_READY_SQL})::integer AS mockup_ready_count
        FROM outbound_prospects p
        LEFT JOIN outbound_messages m ON m.prospect_id=p.id AND m.message_kind='initial'
        LEFT JOIN outbound_company_mockups mockup ON mockup.prospect_id=p.id

@@ -248,7 +248,8 @@ function createEventImportHandler({ dependencies = {}, env = process.env } = {})
         businessDate: date, eventKey: eventImport.eventData.key,
         sourceDataVersion: eventImport.eventData.version,
       });
-      if (current?.status === 'ready' && Number(current.mockup_ready_count) >= MORNING_TARGET) {
+      if (current?.status === 'ready'
+          && Number(current.run_metadata?.readyCount || current.message_ready_count) >= MORNING_TARGET) {
         return json(200, {
           ok: true, queued: false, alreadyReady: true,
           eventKey: eventImport.eventData.key, batch: mapBatchStatus(current),
@@ -347,9 +348,7 @@ function emptyResponse(statusCode = 204) {
   return { statusCode, headers: { 'Cache-Control': 'no-store' }, body: '' };
 }
 
-function createEventImportBackgroundHandler({
-  dependencies = {}, env = process.env, getStore, sharp, loadSharp,
-} = {}) {
+function createEventImportBackgroundHandler({ dependencies = {}, env = process.env } = {}) {
   const repository = { ...morningRepository, ...eventRepository, ...(dependencies.repository || {}) };
   return async function eventImportBackgroundHandler(event = {}) {
     if (event.httpMethod !== 'POST') return emptyResponse(405);
@@ -445,17 +444,13 @@ function createEventImportBackgroundHandler({
           });
         }
       } else if (body.action === 'finalize') {
-        const resolvedStore = typeof getStore === 'function' ? await getStore() : undefined;
-        const resolvedSharp = typeof loadSharp === 'function' ? await loadSharp() : sharp;
         const result = await (dependencies.runEventFinalizer || eventImport.runEventFinalizer)({
           sql, env, businessDate: date, finalizerPass, requestId,
-          store: resolvedStore,
-          sharp: resolvedSharp,
           timeBudgetMs: eventImport.EVENT_FINALIZER_BUDGET_MS,
           dependencies: dependencies.preparation,
         });
         const hasMoreCandidates = result.processedCount < result.candidateCount
-          || result.mockupFailureCount > 0 || result.timeBudgetReached;
+          || result.draftFailureCount > 0 || result.timeBudgetReached;
         if (result.readyCount < MORNING_TARGET
             && finalizerPass + 1 < MAX_FINALIZER_PASSES
             && hasMoreCandidates) {

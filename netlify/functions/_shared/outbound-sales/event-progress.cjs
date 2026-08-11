@@ -14,7 +14,11 @@ function eventPreparationStall(row, nowMs = Date.now()) {
   const metadata = row.run_metadata || row.runMetadata || {};
   const status = String(row.status || '');
   const targetCount = Number(row.target_count ?? row.targetCount) || 70;
-  const readyCount = Number(row.mockup_ready_count ?? row.mockupReadyCount) || 0;
+  const readyCount = Number(
+    metadata.readyCount
+      ?? row.message_ready_count
+      ?? row.messageReadyCount,
+  ) || 0;
   if (status === 'ready' && readyCount >= targetCount) {
     return { stalled: false, reason: null };
   }

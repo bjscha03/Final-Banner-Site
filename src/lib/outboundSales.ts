@@ -288,6 +288,7 @@ export interface OutboundManualReviewLead {
   eventFit: {
     priority: 'trade_show' | 'event_signal' | 'general_high_value';
     label: string;
+    eventName?: string | null;
     evidence: Array<{ code?: string; label?: string; detail?: string; evidence?: string; sourceUrl?: string; sourceUrls?: string[] }>;
   };
   contact: null | {
@@ -323,7 +324,7 @@ export interface OutboundManualReviewLead {
     status: 'pending' | 'ready' | 'fallback' | 'failed';
     sceneId: 'trade_show' | 'storefront' | 'community_event';
     renderVersion: string | null;
-    qualityLevel: 'logo_and_product' | 'logo' | 'product' | 'name_only';
+    qualityLevel: 'logo_and_product' | 'logo' | 'product' | 'name_only' | 'manual_upload';
     logoUrl: string | null;
     productImageUrl: string | null;
     eventLabel: string | null;
@@ -553,24 +554,40 @@ export async function sendOutboundReviewedLead(prospectId: string): Promise<{ ok
   return parseResponse(response);
 }
 
-export async function refreshOutboundCompanyMockup(
-  prospectId: string,
-): Promise<{ ok: true; prospectId: string; cached: boolean; status: string; qualityLevel: string; sendReady: boolean; sceneId: string; sourceUrls: string[]; compositionAudit: OutboundMockupCompositionAudit | null; diagnostics: Array<{ stage: string; hostname: string | null; code: string }> }> {
-  const response = await adminFetch('/.netlify/functions/outbound-sales-company-mockup', {
-    method: 'POST', credentials: 'same-origin',
-    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prospectId, force: true }),
+function imageFileAsBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('The selected image could not be read.'));
+    reader.onload = () => {
+      const result = String(reader.result || '');
+      const comma = result.indexOf(',');
+      if (comma < 0) reject(new Error('The selected image could not be encoded.'));
+      else resolve(result.slice(comma + 1));
+    };
+    reader.readAsDataURL(file);
   });
-  return parseResponse(response);
 }
 
-export async function prepareOutboundCompanyMockups(limit = 70): Promise<void> {
-  const response = await adminFetch('/.netlify/functions/outbound-sales-company-mockups-background', {
+export async function uploadOutboundManualArtwork(
+  prospectId: string,
+  file: File,
+  eventLabel?: string | null,
+): Promise<{ ok: true; prospectId: string; contentHash: string; previewUrl: string; sendReady: true; width: number; height: number }> {
+  const recognizedImage = ['image/jpeg', 'image/png', 'image/webp'].includes(file.type)
+    || /\.(?:png|jpe?g|webp)$/i.test(file.name);
+  if (!recognizedImage) {
+    throw new Error('Choose a PNG, JPG, or WebP image.');
+  }
+  if (file.size > 4 * 1024 * 1024) {
+    throw new Error('The image must be under 4 MB. Export a high-quality JPG and try again.');
+  }
+  const dataBase64 = await imageFileAsBase64(file);
+  const response = await adminFetch('/.netlify/functions/outbound-sales-manual-artwork', {
     method: 'POST', credentials: 'same-origin',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-    body: JSON.stringify({ limit: Math.max(1, Math.min(70, limit)), force: false }),
+    body: JSON.stringify({ prospectId, fileName: file.name, eventLabel: eventLabel || null, dataBase64 }),
   });
-  if (!response.ok) await parseResponse(response);
+  return parseResponse(response);
 }
 
 export interface OutboundEventPreparationResult {

@@ -18,10 +18,10 @@ const {
 } = require('./personalization-template.cjs');
 const { assessEmail } = require('./email.cjs');
 const {
-  MOCKUP_CONTENT_ID,
-  prepareCompanyMockup,
-  attachmentFromMockup,
-} = require('./company-mockup.cjs');
+  MANUAL_ARTWORK_CONTENT_ID,
+  loadVerifiedManualArtwork,
+  attachmentFromManualArtwork,
+} = require('./manual-artwork.cjs');
 const { json, authorize, parseJsonBody, redactSecretText, safeFailure } = require('./security.cjs');
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -147,8 +147,8 @@ function createManualReviewHandler(options = {}) {
     saveUnsubscribeToken,
     sendPermissionedMarketingMessage,
     assessEmail,
-    prepareCompanyMockup,
-    attachmentFromMockup,
+    loadVerifiedManualArtwork,
+    attachmentFromManualArtwork,
     ...options.dependencies,
   };
   const env = options.env || process.env;
@@ -199,10 +199,10 @@ function createManualReviewHandler(options = {}) {
                 subject: lead.message.subject,
                 bodyText,
                 mockupImageSrc: lead.mockup?.previewUrl || undefined,
-                mockupAlt: lead.mockup
-                  ? `Quick banner mockup using ${lead.businessName}'s public branding`
+                mockupAlt: lead.mockup?.previewUrl
+                  ? `Banner concept for ${lead.businessName}`
                   : undefined,
-                businessName: lead.mockup ? lead.businessName : undefined,
+                businessName: lead.mockup?.previewUrl ? lead.businessName : undefined,
               }),
             },
           };
@@ -265,32 +265,20 @@ function createManualReviewHandler(options = {}) {
         },
         requestId: event.headers?.['x-nf-request-id'] || null,
       });
-      // Validate and load the exact previewed mockup before claiming the send.
-      // A slow or unavailable company website can therefore never leave a lead
-      // stuck in the processing state, and the attachment is the same audited
-      // immutable blob the admin reviewed.
-      const companyMockup = await dependencies.prepareCompanyMockup({
+      // Load the exact administrator-uploaded image before claiming the send.
+      // The immutable Blob read-back guarantees the previewed bytes and attached
+      // bytes are identical and bound to this lead's current email draft.
+      const manualArtwork = await dependencies.loadVerifiedManualArtwork({
         sql,
         prospectId,
-        force: false,
-        preferCachedReady: true,
+        store: options.store,
+        sharp: options.sharp,
       });
-      if (companyMockup?.prospectId !== prospectId) {
-        const mismatch = new Error('The personalized banner does not belong to this lead. Nothing was sent.');
-        mismatch.code = 'COMPANY_MOCKUP_IDENTITY_MISMATCH';
-        throw mismatch;
-      }
-      if (companyMockup?.sendReady !== true || companyMockup?.qualityLevel !== 'logo_and_product'
-          || companyMockup?.compositionAudit?.passed !== true
-          || companyMockup?.compositionAudit?.noClipGuaranteed !== true
-          || companyMockup?.blobBindingAudit?.passed !== true
-          || companyMockup?.blobBindingAudit?.strongReadBackVerified !== true
-          || companyMockup?.blobBindingAudit?.persistedContentHash
-            !== companyMockup?.blobBindingAudit?.expectedContentHash
-          || !companyMockup?.plan?.messageContentHash
-          || !/^[a-f0-9]{64}$/i.test(String(companyMockup?.plan?.contentHash || ''))) {
-        const incomplete = new Error('The personalized banner is missing verified company branding or relevant product/service imagery. Nothing was sent.');
-        incomplete.code = 'COMPANY_MOCKUP_BRAND_ASSETS_INCOMPLETE';
+      if (manualArtwork?.prospectId !== prospectId || manualArtwork?.sendReady !== true
+          || !/^[a-f0-9]{64}$/i.test(String(manualArtwork?.contentHash || ''))
+          || !manualArtwork?.messageContentHash) {
+        const incomplete = new Error('Upload and review a banner image for this company before sending.');
+        incomplete.code = 'MANUAL_ARTWORK_NOT_READY';
         throw incomplete;
       }
       const now = new Date();
@@ -299,7 +287,7 @@ function createManualReviewHandler(options = {}) {
       const claimed = await dependencies.claimManualReviewSend(sql, {
         prospectId, sendKey, businessDate: deliveryDate,
         dailyLimit: repository.MAX_MANUAL_DAILY_ATTEMPTS,
-        mockupContentHash: companyMockup.plan.contentHash,
+        mockupContentHash: manualArtwork.contentHash,
         leaseSeconds: repository.MANUAL_SEND_LEASE_SECONDS,
       });
       if (!claimed) {
@@ -330,7 +318,7 @@ function createManualReviewHandler(options = {}) {
           messageId: claimed.message_id, expiresAt: new Date(now.getTime() + (180 * 86400000)).toISOString(),
         });
         const unsubscribeUrl = `${config.origin}/.netlify/functions/outbound-sales-unsubscribe?token=${encodeURIComponent(token.token)}`;
-        const mockupAttachment = dependencies.attachmentFromMockup(companyMockup, claimed.business_name);
+        const mockupAttachment = dependencies.attachmentFromManualArtwork(manualArtwork, claimed.business_name);
         if (!mockupAttachment) {
           const unavailable = new Error('A safe personalized banner could not be attached. Nothing was sent.');
           unavailable.code = 'COMPANY_MOCKUP_NOT_READY';
@@ -339,8 +327,8 @@ function createManualReviewHandler(options = {}) {
         const content = renderOutboundDeliveryContent({
           subject: claimed.subject, bodyText: claimed.body_text,
           physicalAddress: config.physicalAddress, unsubscribeUrl,
-          mockupImageSrc: `cid:${MOCKUP_CONTENT_ID}`,
-          mockupAlt: `Quick banner mockup using ${claimed.business_name}'s public branding`,
+          mockupImageSrc: `cid:${MANUAL_ARTWORK_CONTENT_ID}`,
+          mockupAlt: `Banner concept for ${claimed.business_name}`,
           businessName: claimed.business_name,
         });
         const result = await dependencies.sendPermissionedMarketingMessage({
@@ -373,8 +361,8 @@ function createManualReviewHandler(options = {}) {
             messageId: claimed.message_id,
             provider: 'resend',
             permissionBasis: 'admin_authorized',
-            companyMockupIncluded: Boolean(mockupAttachment),
-            companyMockupQuality: companyMockup?.qualityLevel || null,
+            manualArtworkIncluded: Boolean(mockupAttachment),
+            manualArtworkContentHash: manualArtwork.contentHash,
           },
           requestId: event.headers?.['x-nf-request-id'] || null,
         });

@@ -1,10 +1,15 @@
 import { withLambda } from '@netlify/aws-lambda-compat';
 import { Resend } from 'resend';
-import { getStore } from '@netlify/blobs';
+import { getDeployStore, getStore } from '@netlify/blobs';
 import sharp from 'sharp';
 import manualReviewModule from './_shared/outbound-sales/manual-review-handler.cjs';
 import outboundDeliveryModule from './_shared/outbound-sales/outbound-delivery.cjs';
-import companyMockupModule from './_shared/outbound-sales/company-mockup.cjs';
+import manualArtworkModule from './_shared/outbound-sales/manual-artwork.cjs';
+
+function artworkStore() {
+  const options = { name: manualArtworkModule.MANUAL_ARTWORK_STORE_NAME, consistency: 'strong' };
+  return process.env.CONTEXT === 'production' ? getStore(options) : getDeployStore(options);
+}
 
 const manualReviewHandler = manualReviewModule.createManualReviewHandler({
   dependencies: {
@@ -19,14 +24,12 @@ const manualReviewHandler = manualReviewModule.createManualReviewHandler({
         transport: new Resend(apiKey),
       });
     },
-    prepareCompanyMockup(options) {
-      return companyMockupModule.prepareCompanyMockup({
-        ...options,
-        store: getStore({ name: 'outbound-company-mockups', consistency: 'strong' }),
-        sharp,
+    loadVerifiedManualArtwork(options) {
+      return manualArtworkModule.loadVerifiedManualArtwork({
+        ...options, store: artworkStore(), sharp,
       });
     },
-    attachmentFromMockup: companyMockupModule.attachmentFromMockup,
+    attachmentFromManualArtwork: manualArtworkModule.attachmentFromManualArtwork,
   },
 });
 
