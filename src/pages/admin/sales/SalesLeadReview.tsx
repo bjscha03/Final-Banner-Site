@@ -587,7 +587,7 @@ export default function SalesLeadReview() {
               : 'Clear filters or show all saved leads to return to the complete queue.'}
           </p>
           {view !== 'all' && (
-            <Button type="button" variant="outline" className="mt-4" onClick={() => { setView('all'); setOffset(0); }}>
+            <Button type="button" variant="outline" className="mt-4" onClick={() => { setView('all'); setFilters(EMPTY_FILTERS); setOffset(0); }}>
               Show all saved leads
             </Button>
           )}
