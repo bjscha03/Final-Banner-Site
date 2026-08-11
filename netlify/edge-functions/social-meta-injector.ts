@@ -16,7 +16,7 @@ const blogPosts: Record<string, { title: string; description: string; image: str
   "remove-wrinkles-vinyl-banner": {
     title: "How to Remove Wrinkles From a Vinyl Banner Without Damaging It",
     description: "Learn how to remove wrinkles from a vinyl banner safely with flat relaxing, gentle tension, reverse rolling, and storage methods that protect the print.",
-    image: "https://bannersonthefly.com/cld-assets/images/blog/remove-wrinkles-vinyl-banner.webp"
+    image: "https://bannersonthefly.com/cld-assets/images/blog/remove-wrinkles-vinyl-banner-expo.webp"
   },
   "banner-pole-pocket-size-guide": {
     title: "Banner Pole Pocket Size Guide: Measure the Pole Before You Order",
