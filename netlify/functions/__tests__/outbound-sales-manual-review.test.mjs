@@ -162,6 +162,21 @@ describe('manual lead review migration and qualification', () => {
     expect(sql.mock.calls[0][0]).toContain('review.send_attempt_count+1');
   });
 
+  it('commits accepted sends against the partial provider-event unique index', async () => {
+    const sql = vi.fn().mockResolvedValue([{ id: MESSAGE_ID, prospect_id: PROSPECT_ID }]);
+    await repository.markManualReviewSent(sql, {
+      prospectId: PROSPECT_ID,
+      sendKey: stableManualSendKey(PROSPECT_ID),
+      providerMessageId: 'resend-manual-1',
+      latencyMs: 120,
+      messageId: MESSAGE_ID,
+      businessDate: '2026-08-10',
+    });
+    expect(sql.mock.calls[0][0]).toContain(
+      'ON CONFLICT (provider_event_id) WHERE provider_event_id IS NOT NULL DO NOTHING',
+    );
+  });
+
 });
 
 describe('permissioned Resend transport', () => {

@@ -366,7 +366,7 @@ async function markManualReviewSent(sql, data) {
      ), event_insert AS (
        INSERT INTO outbound_email_events (message_id,provider_event_id,event_type,event_status,event_summary,event_at)
        SELECT id,$7,'sent','accepted',$8::jsonb,NOW() FROM message_update
-       ON CONFLICT (provider_event_id) DO NOTHING RETURNING id
+       ON CONFLICT (provider_event_id) WHERE provider_event_id IS NOT NULL DO NOTHING RETURNING id
      ) SELECT id,prospect_id FROM message_update`,
     [data.prospectId, data.sendKey, data.providerMessageId, data.latencyMs, data.messageId,
       data.businessDate, `manual-send:${data.messageId}`,

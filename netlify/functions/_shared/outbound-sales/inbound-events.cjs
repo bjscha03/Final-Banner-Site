@@ -309,7 +309,7 @@ async function processDeliveryEvent(options) {
          message_id, provider_event_id, event_type, event_status,
          event_summary, event_at
        ) VALUES ($1,$2,$3,$4,$5::jsonb,$6)
-       ON CONFLICT (provider_event_id) DO NOTHING`,
+       ON CONFLICT (provider_event_id) WHERE provider_event_id IS NOT NULL DO NOTHING`,
       [message.id, options.providerEventId, mapped, String(data.status || mapped).slice(0, 100),
         JSON.stringify(sanitizeForAudit({ bounceType: data.bounce?.type || null, providerEmailId: data.email_id || null })),
         payload.created_at || new Date().toISOString()],
