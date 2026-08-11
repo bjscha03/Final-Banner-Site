@@ -11,9 +11,19 @@ interface BlogListProps {
   currentPage: number;
   totalPages: number;
   onPageChange?: (page: number) => void;
+  featuredSlug?: string;
+  showFeaturedCard?: boolean;
 }
 
-export function BlogList({ posts, allTags, currentPage, totalPages, onPageChange }: BlogListProps) {
+export function BlogList({
+  posts,
+  allTags,
+  currentPage,
+  totalPages,
+  onPageChange,
+  featuredSlug,
+  showFeaturedCard = true,
+}: BlogListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [showAllTags, setShowAllTags] = useState(false);
@@ -31,8 +41,12 @@ export function BlogList({ posts, allTags, currentPage, totalPages, onPageChange
 
   const toggleTag = (tag: string) => setSelectedTags((current) => current.includes(tag) ? current.filter((item) => item !== tag) : [...current, tag]);
   const clearFilters = () => { setSearchQuery(''); setSelectedTags([]); };
-  const featuredPost = !searchQuery && selectedTags.length === 0 ? filteredPosts[0] : null;
-  const regularPosts = featuredPost ? filteredPosts.slice(1) : filteredPosts;
+  const featuredPost = !searchQuery && selectedTags.length === 0 && (showFeaturedCard || featuredSlug)
+    ? (featuredSlug ? filteredPosts.find((post) => post.slug === featuredSlug) ?? null : filteredPosts[0])
+    : null;
+  const regularPosts = featuredPost
+    ? filteredPosts.filter((post) => post.slug !== featuredPost.slug)
+    : filteredPosts;
   const visibleTags = showAllTags ? allTags : allTags.slice(0, 8);
 
   const handleNewsletterSubmit = async (event: React.FormEvent) => {
@@ -57,7 +71,7 @@ export function BlogList({ posts, allTags, currentPage, totalPages, onPageChange
   };
 
   return (
-    <div className="brand-shell py-12 sm:py-16">
+    <div id="article-library" className="brand-shell scroll-mt-24 py-12 sm:py-16">
       <div className="grid gap-6 border-b border-slate-200 pb-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
         <div>
           <label htmlFor="article-search" className="brand-eyebrow">Search the library</label>
@@ -77,7 +91,7 @@ export function BlogList({ posts, allTags, currentPage, totalPages, onPageChange
 
       {(searchQuery || selectedTags.length > 0) && <div className="mt-5 flex items-center justify-between gap-4"><p className="text-sm text-slate-500">{filteredPosts.length} matching article{filteredPosts.length === 1 ? '' : 's'}</p><button onClick={clearFilters} className="text-sm font-bold text-[#0B1F3A] underline decoration-[#FF6A00] underline-offset-4">Clear filters</button></div>}
 
-      {featuredPost && (
+      {featuredPost && showFeaturedCard && (
         <section className="mt-10" aria-labelledby="featured-article-heading">
           <div className="mb-6 flex items-center gap-4">
             <p id="featured-article-heading" className="brand-eyebrow">Featured article</p>

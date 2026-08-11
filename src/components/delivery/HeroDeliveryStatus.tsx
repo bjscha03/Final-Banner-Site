@@ -16,15 +16,74 @@ function formatHeroDate(parts: ETParts): string {
 
 interface HeroDeliveryStatusProps {
   className?: string;
+  variant?: 'compact' | 'editorial';
 }
 
-const HeroDeliveryStatus: React.FC<HeroDeliveryStatusProps> = ({ className }) => {
+const HeroDeliveryStatus: React.FC<HeroDeliveryStatusProps> = ({ className, variant = 'compact' }) => {
   const { estimate, remainingMs } = useDeliveryCountdown({ isHitSelected: false });
   const countdownLabel = estimate.state === 'weekend_lock'
     ? 'Next production'
     : estimate.state === 'hit_available'
       ? 'Fast-service cutoff'
       : 'Order cutoff';
+
+  if (variant === 'editorial') {
+    return (
+      <div
+        data-hero-delivery-status
+        data-state={estimate.state}
+        data-variant="editorial"
+        className={`border-t-[3px] border-[#F45B08] bg-[#061A31] text-white ${className || ''}`}
+        aria-label="Current order cutoff, expected ship date, and expected delivery date"
+      >
+        <div className="mx-auto grid max-w-[1740px] grid-cols-3 divide-x divide-white/20">
+          <div className="min-w-0 px-3 py-4 sm:px-6 sm:py-6 lg:px-10 lg:py-7">
+            <div className="flex items-center gap-2.5 sm:gap-4 lg:gap-6">
+              <Clock3 className="h-7 w-7 flex-none text-[#F26A21] sm:h-9 sm:w-9 lg:h-12 lg:w-12" aria-hidden="true" />
+              <div className="min-w-0">
+                <p className="truncate font-mono text-[8px] font-black uppercase tracking-[0.1em] text-white/85 sm:text-[10px] lg:text-xs">
+                  {countdownLabel}
+                </p>
+                <p
+                  className="homepage-condensed mt-1 whitespace-nowrap text-xl font-black tracking-[0.02em] text-white sm:text-2xl lg:text-[2.1rem]"
+                  role="timer"
+                  aria-live="off"
+                >
+                  {formatCountdown(remainingMs)}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="min-w-0 px-3 py-4 sm:px-6 sm:py-6 lg:px-10 lg:py-7">
+            <div className="flex items-center gap-2.5 sm:gap-4 lg:gap-6">
+              <Truck className="h-7 w-7 flex-none text-[#F26A21] sm:h-9 sm:w-9 lg:h-12 lg:w-12" aria-hidden="true" />
+              <div className="min-w-0">
+                <p className="truncate font-mono text-[8px] font-black uppercase tracking-[0.1em] text-white/85 sm:text-[10px] lg:text-xs">
+                  Expected ship
+                </p>
+                <p className="homepage-condensed mt-1 truncate text-lg font-black uppercase tracking-[0.02em] text-white sm:text-2xl lg:text-[2.1rem]">
+                  {formatHeroDate(estimate.shipDate)}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="min-w-0 px-3 py-4 sm:px-6 sm:py-6 lg:px-10 lg:py-7">
+            <div className="flex items-center gap-2.5 sm:gap-4 lg:gap-6">
+              <CalendarCheck2 className="h-7 w-7 flex-none text-[#F26A21] sm:h-9 sm:w-9 lg:h-12 lg:w-12" aria-hidden="true" />
+              <div className="min-w-0">
+                <p className="truncate font-mono text-[8px] font-black uppercase tracking-[0.1em] text-white/85 sm:text-[10px] lg:text-xs">
+                  Delivery
+                </p>
+                <p className="homepage-condensed mt-1 truncate text-lg font-black uppercase tracking-[0.02em] text-white sm:text-2xl lg:text-[2.1rem]">
+                  {formatHeroDate(estimate.deliveryDate)}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
