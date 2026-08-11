@@ -16,7 +16,7 @@ const blogPosts: Record<string, { title: string; description: string; image: str
   "banner-size-for-6-foot-table": {
     title: "What Size Banner Fits a 6-Foot Table? A Practical Measuring Guide",
     description: "Choose a banner size for a 6-foot table by measuring the usable front, planning the drop, checking hardware, and keeping event artwork readable and clear.",
-    image: "https://bannersonthefly.com/cld-assets/images/blog/banner-size-for-6-foot-table.webp"
+    image: "https://bannersonthefly.com/cld-assets/images/blog/banner-size-for-6-foot-table-check-in.webp"
   },
   "back-to-school-banners-guide": {
     title: "Back-to-School Banners: A Planning Guide for Welcome, Wayfinding & Events",
