@@ -282,6 +282,8 @@ describe('grounded copy contract and deterministic cost controls', () => {
     expect(polished).toContain('Use code NEW20 to save 20% on your first order');
     expect(polished).not.toMatch(/reply with (?:the )?size/i);
     expect(polished).toContain('Brandon Schaefer\nOwner, Banners On The Fly');
+    const deduplicatedOffer = polishOutboundBodyText('Hi Jason,\n\nFor your first order, use code NEW20 to save 20%. Use code NEW20 to save 20% on your first order whenever you’re ready.\n\nBest,\nBrandon\nBanners On The Fly');
+    expect(deduplicatedOffer.match(/Use code NEW20/g)).toHaveLength(1);
     const html = renderOutboundEmailPreview({ subject: '<script>alert(1)</script>', bodyText: 'Hi team,\n\nUse <strong>safe</strong> banners.' });
     expect(html).toContain('#ff6b35');
     expect(html).toContain('#18448D');

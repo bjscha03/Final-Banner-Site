@@ -35,12 +35,21 @@ function splitBodyAndSignature(bodyText) {
 function polishOutboundBodyText(bodyText) {
   const { message } = splitBodyAndSignature(bodyText);
   const directNextStep = 'Use code NEW20 to save 20% on your first order whenever you’re ready.';
+  let offerSeen = false;
   const polished = message
     .replace(/Would it be useful if I priced a show banner for booth [^?]+\?/gi, directNextStep)
     .replace(/Would a quick quote for a booth-width banner be helpful\?/gi, directNextStep)
     .replace(/Would it help if I priced a booth banner for [^?]+\?/gi, directNextStep)
     .replace(/You can design and price your banner online whenever you(?:'|’)re ready, or reply with the size and quantity for quick pricing\.?/gi, directNextStep)
     .replace(/Reply with (?:the |your )?(?:approximate )?(?:banner )?(?:size|dimensions?)(?: and |, ?)(?:the )?quantit(?:y|ies)[^.?!]*(?:[.?!]|$)/gi, directNextStep)
+    .replace(/(?:For your first order,\s*)?Use code NEW20 to save 20%(?: on your first order)?(?: whenever you(?:'|’)re ready)?\.?/gi, () => {
+      if (offerSeen) return '';
+      offerSeen = true;
+      return directNextStep;
+    })
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
     .trim();
   return [polished, SIGNATURE].filter(Boolean).join('\n\n');
 }
