@@ -263,6 +263,13 @@ export interface OutboundProspectQueue {
   }>;
 }
 
+export type OutboundMockupCompositionAudit = {
+  passed: boolean;
+  mode: string;
+  sourceVisibleFraction: number;
+  noClipGuaranteed: boolean;
+};
+
 export interface OutboundManualReviewLead {
   prospectId: string;
   businessName: string;
@@ -321,6 +328,8 @@ export interface OutboundManualReviewLead {
     eventLabel: string | null;
     sourceUrls: string[];
     diagnostics: Array<{ stage: string; hostname: string | null; code: string }>;
+    compositionAudit: OutboundMockupCompositionAudit | null;
+    contextCurrent: boolean;
     generatedAt: string | null;
     previewUrl: string | null;
   };
@@ -535,7 +544,7 @@ export async function sendOutboundReviewedLead(prospectId: string): Promise<{ ok
 
 export async function refreshOutboundCompanyMockup(
   prospectId: string,
-): Promise<{ ok: true; prospectId: string; cached: boolean; status: string; qualityLevel: string; sendReady: boolean; sceneId: string; sourceUrls: string[]; diagnostics: Array<{ stage: string; hostname: string | null; code: string }> }> {
+): Promise<{ ok: true; prospectId: string; cached: boolean; status: string; qualityLevel: string; sendReady: boolean; sceneId: string; sourceUrls: string[]; compositionAudit: OutboundMockupCompositionAudit | null; diagnostics: Array<{ stage: string; hostname: string | null; code: string }> }> {
   const response = await adminFetch('/.netlify/functions/outbound-sales-company-mockup', {
     method: 'POST', credentials: 'same-origin',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },

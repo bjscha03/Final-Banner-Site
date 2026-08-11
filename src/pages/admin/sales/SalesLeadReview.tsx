@@ -86,15 +86,31 @@ function reviewBadge(lead: OutboundManualReviewLead) {
   return <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800">Needs attention</Badge>;
 }
 
+function mockupIsPresentationReady(lead: OutboundManualReviewLead) {
+  const mockup = lead.mockup;
+  return mockup?.status === 'ready'
+    && mockup.qualityLevel === 'logo_and_product'
+    && mockup.contextCurrent === true
+    && mockup.compositionAudit?.passed === true
+    && mockup.compositionAudit.noClipGuaranteed === true;
+}
+
 function mockupQualityLabel(lead: OutboundManualReviewLead) {
+  if (mockupIsPresentationReady(lead)) return 'Verified logo + relevant company imagery';
   const quality = lead.mockup?.qualityLevel;
-  if (quality === 'logo_and_product') return 'Verified logo + relevant company imagery';
+  if (quality === 'logo_and_product') return 'Blocked — final no-crop composition check incomplete';
   if (quality === 'logo') return 'Blocked — relevant product/service image missing';
   if (quality === 'product') return 'Blocked — verified company logo missing';
   return 'Blocked — verified logo and company imagery missing';
 }
 
 function mockupDiagnostic(lead: OutboundManualReviewLead) {
+  if (lead.mockup?.contextCurrent === false) {
+    return 'The email or event details changed after this image was built. Refresh branding will rebuild the correctly matched preview.';
+  }
+  if (lead.mockup?.qualityLevel === 'logo_and_product' && !mockupIsPresentationReady(lead)) {
+    return 'The verified assets are present, but the final composition did not pass the full-image preservation check. Refresh branding will rebuild it safely.';
+  }
   const issue = lead.mockup?.diagnostics?.[0];
   if (!issue) return 'This lead cannot be sent until the branding requirement passes.';
   const host = issue.hostname ? ` from ${issue.hostname}` : '';
@@ -128,7 +144,10 @@ function LeadCard({
   const [notes, setNotes] = useState(lead.review.notes || '');
   useEffect(() => setNotes(lead.review.notes || ''), [lead.review.notes]);
   const sent = lead.review.sendState === 'sent';
-  const sendReason = !deliveryReady
+  const presentationReady = mockupIsPresentationReady(lead);
+  const sendReason = refreshingMockup
+    ? 'Wait for the refreshed company branding preview to finish before sending.'
+    : !deliveryReady
     ? 'Email delivery is not ready. Refresh after the listed configuration issue is fixed.'
     : lead.technicalBlockers[0] || '';
 
@@ -206,13 +225,13 @@ function LeadCard({
                   <div className="relative">
                     <img
                       src={lead.mockup.previewUrl}
-                      alt={`Personalized banner concept for ${lead.businessName}`}
-                      className={cn('aspect-video w-full object-cover', lead.mockup.qualityLevel !== 'logo_and_product' && 'opacity-45 grayscale-[35%]')}
+                      alt={`Quick banner mockup for ${lead.businessName}`}
+                      className={cn('aspect-video w-full object-cover', !presentationReady && 'opacity-45 grayscale-[35%]')}
                       loading="lazy"
                     />
-                    {lead.mockup.qualityLevel !== 'logo_and_product' && (
+                    {!presentationReady && (
                       <div className="absolute inset-0 flex items-center justify-center bg-slate-950/25 p-5 text-center">
-                        <span className="rounded-xl border border-amber-300 bg-amber-50/95 px-4 py-3 text-sm font-black text-amber-950 shadow-lg">Not send-ready<br /><span className="text-xs font-semibold">Verified logo + company imagery required</span></span>
+                        <span className="rounded-xl border border-amber-300 bg-amber-50/95 px-4 py-3 text-sm font-black text-amber-950 shadow-lg">Not send-ready<br /><span className="text-xs font-semibold">Verified assets + no-crop quality check required</span></span>
                       </div>
                     )}
                   </div>
@@ -223,11 +242,12 @@ function LeadCard({
                 )}
                 <div className="flex flex-col gap-2 border-t border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className={cn('text-xs font-black', lead.mockup?.qualityLevel === 'logo_and_product' ? 'text-emerald-800' : 'text-amber-800')}>{mockupQualityLabel(lead)}</p>
+                    <p className={cn('text-xs font-black', presentationReady ? 'text-emerald-800' : 'text-amber-800')}>{mockupQualityLabel(lead)}</p>
                     <p className="mt-0.5 text-[11px] text-slate-500">{lead.mockup?.eventLabel || titleCase(lead.mockup?.sceneId || lead.eventFit.priority)}</p>
-                    {lead.mockup && lead.mockup.qualityLevel !== 'logo_and_product' && <p className="mt-1 max-w-xl text-[11px] font-semibold text-amber-700">{mockupDiagnostic(lead)}</p>}
+                    {presentationReady && <p className="mt-1 text-[11px] font-semibold text-emerald-700">Full company image preserved · no forced crop</p>}
+                    {lead.mockup && !presentationReady && <p className="mt-1 max-w-xl text-[11px] font-semibold text-amber-700">{mockupDiagnostic(lead)}</p>}
                   </div>
-                  <Button type="button" size="sm" variant="outline" onClick={() => onRefreshMockup(lead)} disabled={refreshingMockup}>
+                  <Button type="button" size="sm" variant="outline" onClick={() => onRefreshMockup(lead)} disabled={refreshingMockup || sending}>
                     <RefreshCw className={cn('mr-2 h-3.5 w-3.5', refreshingMockup && 'animate-spin')} />
                     {lead.mockup ? 'Refresh branding' : 'Build now'}
                   </Button>
@@ -267,7 +287,7 @@ function LeadCard({
               {!lead.message?.deliveredAt && lead.message?.lastEventType && <p className="mt-1 text-xs font-semibold">Latest: {titleCase(lead.message.lastEventType)} · {localDateTime(lead.message.lastEventAt)}</p>}
             </div>
           ) : (
-            <Button type="button" onClick={() => onSend(lead)} disabled={!lead.canSend || !deliveryReady || sending} title={sendReason} className="mt-4 w-full bg-[#ff6b35] text-white hover:bg-[#e85a28]">
+            <Button type="button" onClick={() => onSend(lead)} disabled={!lead.canSend || !deliveryReady || sending || refreshingMockup} title={sendReason} className="mt-4 w-full bg-[#ff6b35] text-white hover:bg-[#e85a28]">
               {sending ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />} {sending ? 'Sending…' : 'Send'}
             </Button>
           )}
@@ -483,9 +503,9 @@ export default function SalesLeadReview() {
       <section className="flex flex-col gap-4 rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-orange-50 p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="flex items-center gap-2 font-black text-slate-950"><Sparkles className="h-4 w-4 text-[#ff6b35]" /> Personalized company banner system</p>
-          <p className="mt-1 text-sm leading-6 text-slate-600">Every lead gets a banner concept using the company&apos;s verified public logo and product/service imagery when quality checks pass. Questionable assets are rejected and replaced with a safe branded fallback.</p>
+          <p className="mt-1 text-sm leading-6 text-slate-600">Every lead gets a quick mockup using the company&apos;s verified public logo and product/service imagery when quality checks pass. Questionable assets are rejected, and incomplete mockups stay blocked from sending.</p>
           <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold">
-            <Badge className="bg-emerald-700 text-white">{queue?.mockups.ready ?? 0} exact-brand</Badge>
+            <Badge className="bg-emerald-700 text-white">{queue?.mockups.ready ?? 0} verified-assets ready</Badge>
             <Badge variant="outline" className="border-blue-300 bg-white text-blue-900">{queue?.mockups.fallback ?? 0} fallback</Badge>
             <Badge variant="outline" className="border-orange-300 bg-white text-orange-900">{queue?.mockups.missing ?? 0} preparing</Badge>
           </div>
@@ -538,7 +558,7 @@ export default function SalesLeadReview() {
           <FilterSelect id="filter-contacted" label="Contacted previously" value={filters.contacted} placeholder="Either" options={[{ value: 'yes', label: 'Contacted' }, { value: 'no', label: 'Never contacted' }]} onChange={(value) => updateFilter('contacted', value as OutboundLeadFilters['contacted'])} />
           <FilterSelect id="filter-email" label="Has email" value={filters.hasEmail} placeholder="Either" options={[{ value: 'yes', label: 'Has email' }, { value: 'no', label: 'No email' }]} onChange={(value) => updateFilter('hasEmail', value as OutboundLeadFilters['hasEmail'])} />
           <FilterSelect id="filter-phone" label="Has phone" value={filters.hasPhone} placeholder="Either" options={[{ value: 'yes', label: 'Has phone' }, { value: 'no', label: 'No phone' }]} onChange={(value) => updateFilter('hasPhone', value as OutboundLeadFilters['hasPhone'])} />
-          <FilterSelect id="filter-mockup" label="Mockup status" value={filters.mockup} placeholder="Any mockup" options={[{ value: 'ready', label: 'Exact-brand ready' }, { value: 'fallback', label: 'Safe fallback' }, { value: 'missing', label: 'Pending / failed' }]} onChange={(value) => updateFilter('mockup', value as OutboundLeadFilters['mockup'])} />
+          <FilterSelect id="filter-mockup" label="Mockup status" value={filters.mockup} placeholder="Any mockup" options={[{ value: 'ready', label: 'Verified-assets ready' }, { value: 'fallback', label: 'Blocked fallback' }, { value: 'missing', label: 'Pending / failed' }]} onChange={(value) => updateFilter('mockup', value as OutboundLeadFilters['mockup'])} />
           <FilterSelect id="filter-email-status" label="Email status" value={filters.emailStatus} placeholder="Any email status" options={[{ value: 'ready', label: 'Ready' }, { value: 'sent', label: 'Sent' }, { value: 'failed', label: 'Failed' }, { value: 'missing', label: 'Missing' }]} onChange={(value) => updateFilter('emailStatus', value as OutboundLeadFilters['emailStatus'])} />
           <FilterSelect id="queue-sort" label="Sort" value={sort} placeholder="Priority" options={[{ value: 'priority', label: 'Priority' }, { value: 'newest', label: 'Newest' }, { value: 'score_desc', label: 'Highest score' }, { value: 'company_asc', label: 'Company A–Z' }, { value: 'event_asc', label: 'Event A–Z' }]} onChange={(value) => { setSort((value || 'priority') as QueueSort); setOffset(0); }} />
         </div>

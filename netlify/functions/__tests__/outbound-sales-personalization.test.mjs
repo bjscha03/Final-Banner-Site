@@ -38,7 +38,9 @@ const { generateShadowPersonalization } = personalization;
 const { createPersonalizationHandlers, publicMessage, activityCsv } = personalizationHandlers;
 const { claimPersonalization, savePersonalizationSuccess, savePersonalizationFailure } = personalizationRepository;
 const { safeFailure, safeRequestId } = security;
-const { polishOutboundBodyText, renderOutboundEmailPreview, renderOutboundDeliveryContent } = template;
+const {
+  polishOutboundSubject, polishOutboundBodyText, renderOutboundEmailPreview, renderOutboundDeliveryContent,
+} = template;
 const { expectedColumnPairs } = migrationVerifier;
 
 const originalEnvironment = { ...process.env };
@@ -284,6 +286,13 @@ describe('grounded copy contract and deterministic cost controls', () => {
     expect(polished).toContain('Brandon Schaefer\nOwner, Banners On The Fly');
     const deduplicatedOffer = polishOutboundBodyText('Hi Jason,\n\nFor your first order, use code NEW20 to save 20%. Use code NEW20 to save 20% on your first order whenever you’re ready.\n\nBest,\nBrandon\nBanners On The Fly');
     expect(deduplicatedOffer.match(/Use code NEW20/g)).toHaveLength(1);
+    const legacyMockupCopy = polishOutboundBodyText('Hi Jason,\n\nI put together a complimentary banner concept using BED|STÜ’s public branding so you can see how the brand could look on a professionally printed display.\n\nBest,\nBrandon\nBanners On The Fly');
+    expect(legacyMockupCopy).toContain('This is just a quick mockup using BED|STÜ’s public branding');
+    expect(legacyMockupCopy).not.toMatch(/complimentary|custom banner concept/i);
+    expect(polishOutboundSubject('BED|STÜ — a custom banner concept using your brand')).toBe('BED|STÜ — a quick banner mockup using your brand');
+    expect(polishOutboundSubject('Future Expo Group custom banner concept')).toBe('Future Expo Group — a quick banner mockup');
+    expect(polishOutboundSubject('Your complimentary banner design')).toBe('A quick banner mockup');
+    expect(polishOutboundBodyText('Hi Taylor,\n\nYour complimentary banner design is attached.')).toContain('Your quick banner mockup is attached.');
     const html = renderOutboundEmailPreview({ subject: '<script>alert(1)</script>', bodyText: 'Hi team,\n\nUse <strong>safe</strong> banners.' });
     expect(html).toContain('#ff6b35');
     expect(html).toContain('#18448D');
@@ -303,6 +312,13 @@ describe('grounded copy contract and deterministic cost controls', () => {
     expect(html).not.toContain('<script>');
     expect(html).not.toContain('<strong>safe</strong>');
     expect(html).toContain('&lt;strong&gt;safe&lt;/strong&gt;');
+    const companyPreview = renderOutboundEmailPreview({
+      subject: 'A quick banner mockup for BED|STÜ', bodyText: legacyMockupCopy,
+      businessName: 'BED|STÜ', mockupImageSrc: 'cid:company-banner-mockup',
+    });
+    expect(companyPreview).toContain('A quick banner mockup for BED|STÜ');
+    expect(companyPreview).toContain('Quick banner mockup using BED|STÜ&#39;s public branding');
+    expect(companyPreview).not.toMatch(/complimentary|custom banner concept/i);
     const delivery = renderOutboundDeliveryContent({
       subject: 'Safe subject', bodyText: 'Safe message\n\nBest,\nBrandon\nBanners On The Fly',
       physicalAddress: '100 Example Street, Example City, NY 10001',

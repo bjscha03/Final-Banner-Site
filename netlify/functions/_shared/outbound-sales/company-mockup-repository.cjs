@@ -29,9 +29,11 @@ function mapCandidate(row) {
       id: row.message_id,
       subject: row.message_subject,
       bodyText: row.message_body_text,
+      contentHash: row.message_content_hash,
     } : null,
     mockup: row.mockup_id ? {
       id: row.mockup_id,
+      messageId: row.mockup_message_id,
       status: row.mockup_status,
       sceneId: row.mockup_scene_id,
       renderVersion: row.mockup_render_version,
@@ -60,7 +62,9 @@ const CANDIDATE_SELECT = `
          research.extracted_facts,research.evidence AS research_evidence,
          research.banner_need_signals,research.source_urls AS research_source_urls,
          message.id AS message_id,message.subject AS message_subject,message.body_text AS message_body_text,
-         mockup.id AS mockup_id,mockup.status AS mockup_status,mockup.scene_id AS mockup_scene_id,
+         message.content_hash AS message_content_hash,
+         mockup.id AS mockup_id,mockup.message_id AS mockup_message_id,
+         mockup.status AS mockup_status,mockup.scene_id AS mockup_scene_id,
          mockup.render_version AS mockup_render_version,mockup.content_hash AS mockup_content_hash,
          mockup.blob_key AS mockup_blob_key,mockup.mime_type AS mockup_mime_type,
          mockup.width AS mockup_width,mockup.height AS mockup_height,
@@ -76,7 +80,7 @@ const CANDIDATE_SELECT = `
        ORDER BY r.fetched_at DESC LIMIT 1
     ) research ON TRUE
     LEFT JOIN LATERAL (
-      SELECT m.id,m.subject,m.body_text FROM outbound_messages m
+      SELECT m.id,m.subject,m.body_text,m.content_hash FROM outbound_messages m
        WHERE m.prospect_id=p.id AND m.message_kind='initial'
        ORDER BY m.created_at DESC LIMIT 1
     ) message ON TRUE
@@ -87,7 +91,7 @@ async function loadCompanyMockupCandidate(sql, prospectId) {
   return mapCandidate(rows[0]);
 }
 
-async function listCompanyMockupCandidates(sql, { limit = 70, force = false } = {}) {
+async function listCompanyMockupCandidates(sql, { limit = 70, force = false, renderVersion = null } = {}) {
   const safeLimit = Math.max(1, Math.min(70, Number(limit) || 70));
   const rows = await sql(
     `${CANDIDATE_SELECT}
@@ -96,11 +100,16 @@ async function listCompanyMockupCandidates(sql, { limit = 70, force = false } = 
         AND p.prior_customer_match=FALSE
         AND p.suppression_reason IS NULL
         AND message.id IS NOT NULL
-        AND ($2::boolean=TRUE OR mockup.id IS NULL OR mockup.status IN ('pending','failed'))
+        AND ($2::boolean=TRUE OR mockup.id IS NULL OR mockup.status <> 'ready'
+          OR mockup.quality_level IS DISTINCT FROM 'logo_and_product'
+          OR mockup.message_id IS DISTINCT FROM message.id
+          OR mockup.generation_metadata->>'messageContentHash' IS DISTINCT FROM message.content_hash
+          OR ($3::text IS NOT NULL AND mockup.render_version IS DISTINCT FROM $3)
+          OR NOT (mockup.generation_metadata @> '{"compositionAudit":{"passed":true,"noClipGuaranteed":true}}'::jsonb))
       ORDER BY CASE WHEN p.qualification_evidence::text ~* 'trade[ _-]?show|conference|expo|exhibit' THEN 0 ELSE 1 END,
                p.lead_score DESC NULLS LAST,p.last_qualified_at DESC NULLS LAST
       LIMIT $1`,
-    [safeLimit, force === true],
+    [safeLimit, force === true, renderVersion],
   );
   return rows.map(mapCandidate);
 }

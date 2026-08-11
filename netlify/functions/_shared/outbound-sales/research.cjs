@@ -5,7 +5,7 @@ const { canonicalDomain } = require('./providers/contract.cjs');
 const { extractPublicEmails } = require('./email.cjs');
 const { fetchWebsitePage } = require('./ssrf.cjs');
 
-const EXTRACTION_VERSION = 'deterministic-html-v3-brand-profile';
+const EXTRACTION_VERSION = 'deterministic-html-v4-brand-composition';
 const MAX_RESEARCH_PAGES = 5;
 const SIGNAL_DEFINITIONS = Object.freeze([
   { code: 'upcoming_events', label: 'Upcoming event activity', pattern: /\b(upcoming event|event calendar|register now|save the date|festival|conference|tournament|fundraiser|gala)\b/i },
@@ -173,6 +173,11 @@ function extractBrandAssets(html, baseUrl) {
       score: candidate.score,
       alt: normalizeText(candidate.alt || '').slice(0, 180) || null,
       sourceUrl: baseUrl,
+      origin: candidate.origin || 'unknown',
+      marker: normalizeText(candidate.marker || '').slice(0, 260) || null,
+      declaredWidth: Math.max(0, Number(candidate.declaredWidth) || 0),
+      declaredHeight: Math.max(0, Number(candidate.declaredHeight) || 0),
+      likelyPrecomposed: candidate.likelyPrecomposed === true,
     });
   };
 
@@ -180,12 +185,20 @@ function extractBrandAssets(html, baseUrl) {
     const property = (attribute(tag, 'property') || attribute(tag, 'name')).toLowerCase();
     const content = attribute(tag, 'content');
     if (!content) continue;
-    if (['og:logo', 'logo'].includes(property)) add(logoCandidates, { url: content, kind: 'logo', score: 120 });
+    if (['og:logo', 'logo'].includes(property)) add(logoCandidates, {
+      url: content, kind: 'logo', score: 120, origin: 'social_meta', marker: property,
+    });
     if (['og:image', 'og:image:secure_url', 'twitter:image', 'twitter:image:src'].includes(property)) {
       if (/\b(?:logo|brandmark|wordmark)\b/i.test(content)) {
-        add(logoCandidates, { url: content, kind: 'logo', score: property.startsWith('og:') ? 125 : 115 });
+        add(logoCandidates, {
+          url: content, kind: 'logo', score: property.startsWith('og:') ? 125 : 115,
+          origin: 'social_meta', marker: property,
+        });
       } else {
-        add(imageCandidates, { url: content, kind: 'product', score: property.startsWith('og:') ? 115 : 105 });
+        add(imageCandidates, {
+          url: content, kind: 'product', score: property.startsWith('og:') ? 115 : 105,
+          origin: 'social_meta', marker: property, likelyPrecomposed: true,
+        });
       }
     }
   }
@@ -194,15 +207,22 @@ function extractBrandAssets(html, baseUrl) {
     const rel = attribute(tag, 'rel').toLowerCase();
     const href = attribute(tag, 'href');
     if (href && /(?:apple-touch-icon|mask-icon)/i.test(rel)) {
-      add(logoCandidates, { url: href, kind: 'logo', score: /apple-touch-icon/i.test(rel) ? 64 : 58, alt: rel });
+      add(logoCandidates, {
+        url: href, kind: 'logo', score: /apple-touch-icon/i.test(rel) ? 64 : 58,
+        alt: rel, origin: 'link_icon', marker: rel,
+      });
     }
   }
 
   for (const match of String(html || '').matchAll(/"logo"\s*:\s*(?:\{[^{}]{0,600}?"url"\s*:\s*)?"([^"]+)"/gi)) {
-    add(logoCandidates, { url: match[1], kind: 'logo', score: 130 });
+    add(logoCandidates, {
+      url: match[1], kind: 'logo', score: 130, origin: 'structured_data', marker: 'logo',
+    });
   }
   for (const match of String(html || '').matchAll(/"image"\s*:\s*(?:\{[^{}]{0,600}?"url"\s*:\s*)?"([^"]+)"/gi)) {
-    add(imageCandidates, { url: match[1], kind: 'product', score: 105 });
+    add(imageCandidates, {
+      url: match[1], kind: 'product', score: 105, origin: 'structured_data', marker: 'image',
+    });
   }
 
   for (const tag of String(html || '').match(/<img\b[^>]*>/gi) || []) {
@@ -213,7 +233,10 @@ function extractBrandAssets(html, baseUrl) {
     const width = Number(attribute(tag, 'width')) || 0;
     const height = Number(attribute(tag, 'height')) || 0;
     if (/\b(?:logo|brandmark|site-logo|header-logo)\b/i.test(marker)) {
-      add(logoCandidates, { url: src, kind: 'logo', score: 100 + (/\blogo\b/i.test(alt) ? 10 : 0), alt });
+      add(logoCandidates, {
+        url: src, kind: 'logo', score: 100 + (/\blogo\b/i.test(alt) ? 10 : 0), alt,
+        origin: 'html_image', marker, declaredWidth: width, declaredHeight: height,
+      });
       continue;
     }
     const tiny = width > 0 && height > 0 && (width < 240 || height < 140);
@@ -223,7 +246,10 @@ function extractBrandAssets(html, baseUrl) {
       const product = /\b(?:product|service|collection|project|portfolio|featured|showcase|footwear|shoe|boot|sneaker|sandal|loafer|bag|apparel|menu|dish|property|home|vehicle|equipment)\b/i.test(marker);
       const large = width >= 700 || height >= 500;
       const score = 50 + (hero ? 48 : 0) + (product ? 34 : 0) + (large ? 10 : 0);
-      add(imageCandidates, { url: src, kind: 'product', score, alt });
+      add(imageCandidates, {
+        url: src, kind: 'product', score, alt, origin: 'html_image', marker,
+        declaredWidth: width, declaredHeight: height, likelyPrecomposed: hero,
+      });
     }
   }
 

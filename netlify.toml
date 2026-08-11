@@ -71,6 +71,14 @@
   timeout = 30
   memory = 512
 
+[functions."outbound-sales-manual-review"]
+  timeout = 60
+  memory = 1024
+
+[functions."outbound-sales-company-mockup"]
+  timeout = 60
+  memory = 1024
+
 [functions."ai-designer-cleanup"]
   schedule = "@daily"
   timeout = 60
@@ -78,7 +86,8 @@
 
 # Manual-sales preparation only. These jobs discover/research leads and render
 # previews; they never call Resend or send email. Netlify cron is UTC, so the
-# 11:30 UTC finalizer finishes before 8:00 AM Eastern year-round.
+# The 11:00 UTC finalizer and 11:30 UTC retry both finish before 8:00 AM
+# Eastern year-round, while leaving time to finalize partial progress safely.
 [functions."outbound-sales-morning-launch"]
   schedule = "30 9 * * *"
   timeout = 30
@@ -90,6 +99,11 @@
   memory = 512
 
 [functions."outbound-sales-morning-finalize"]
+  schedule = "0 11 * * *"
+  timeout = 30
+  memory = 512
+
+[functions."outbound-sales-morning-finalize-retry"]
   schedule = "30 11 * * *"
   timeout = 30
   memory = 512

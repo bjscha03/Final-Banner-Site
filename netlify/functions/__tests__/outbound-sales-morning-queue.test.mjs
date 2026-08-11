@@ -57,9 +57,12 @@ describe('daily morning queue schema and scheduling', () => {
     expect(netlifyConfig).toContain('[functions."outbound-sales-morning-replenish"]');
     expect(netlifyConfig).toContain('schedule = "30 10 * * *"');
     expect(netlifyConfig).toContain('[functions."outbound-sales-morning-finalize"]');
+    expect(netlifyConfig).toContain('schedule = "0 11 * * *"');
+    expect(netlifyConfig).toContain('[functions."outbound-sales-morning-finalize-retry"]');
     expect(netlifyConfig).toContain('schedule = "30 11 * * *"');
     expect(morningSource).not.toMatch(/resend|sendPermissionedMarketingMessage|emails\.send/i);
     expect(morningSource).toContain('externalEmailsSent: 0');
+    expect(morningModule.MORNING_FINALIZER_BUDGET_MS).toBe(12 * 60 * 1000);
   });
 
   it('requires the licensed provider, verified-contact enrichment, budget, and a dedicated secret', () => {
@@ -145,10 +148,12 @@ describe('morning preparation workflow', () => {
   it('builds grounded company-specific copy and excludes the rejected reply/pricing language', () => {
     const message = morningModule.buildMorningMessage(preparationCandidate(COMPANY_A, 'Company A', 'avery@companya.example'));
     expect(message.subject).toContain('Company A');
+    expect(message.subject).toContain('quick banner mockup');
     expect(message.bodyText.match(/Company A/g)?.length).toBeGreaterThanOrEqual(2);
     expect(message.bodyText).toContain('Hi Jordan');
+    expect(message.bodyText).toContain('This is just a quick mockup');
     expect(message.bodyText).toContain('NEW20');
-    expect(message.bodyText).not.toMatch(/reply with|size and quantity|Would it be useful|booth \d+/i);
+    expect(message.bodyText).not.toMatch(/complimentary|custom banner concept|reply with|size and quantity|Would it be useful|booth \d+/i);
   });
 
   it('rejects a Company A/Company B mockup mix-up and only ranks identity-matched output', async () => {
@@ -163,11 +168,17 @@ describe('morning preparation workflow', () => {
       saveDeterministicMorningMessage: vi.fn(async (_sql, message) => { savedMessages.push(message); return { id: `message-${message.prospectId}` }; }),
       finalizeMorningBatch: vi.fn().mockResolvedValue({ batch: { status: 'partial' }, readyCount: 1 }),
     };
-    const prepareCompanyMockup = vi.fn(async ({ prospectId }) => (
-      prospectId === COMPANY_A
-        ? { prospectId: COMPANY_B, status: 'ready', qualityLevel: 'logo_and_product', sendReady: true }
-        : { prospectId: COMPANY_B, status: 'ready', qualityLevel: 'logo_and_product', sendReady: true }
-    ));
+    const prepareCompanyMockup = vi.fn(async ({ prospectId }) => {
+      const message = savedMessages.find((item) => item.prospectId === prospectId);
+      const ready = {
+        status: 'ready', qualityLevel: 'logo_and_product', sendReady: true,
+        compositionAudit: { passed: true, sourceVisibleFraction: 1, noClipGuaranteed: true },
+        plan: { messageContentHash: message.contentHash },
+      };
+      return prospectId === COMPANY_A
+        ? { ...ready, prospectId: COMPANY_B }
+        : { ...ready, prospectId: COMPANY_B };
+    });
     const result = await morningModule.runMorningFinalizer({
       sql: vi.fn(), env: morningEnv, businessDate: '2026-08-11',
       dependencies: { repository, prepareCompanyMockup, appendAudit: vi.fn().mockResolvedValue({}) },
@@ -177,7 +188,70 @@ describe('morning preparation workflow', () => {
       [COMPANY_B, expect.stringContaining('Company B')],
     ]);
     expect(result).toMatchObject({ readyCount: 1, mockupReady: 1, failed: 1, externalEmailsSent: 0 });
+    expect(repository.listMorningPreparationCandidates).toHaveBeenCalledWith(expect.anything(), { batchId: BATCH_ID, limit: 210 });
+    expect(prepareCompanyMockup).toHaveBeenCalledWith(expect.objectContaining({ preferCachedReady: true }));
     expect(repository.finalizeMorningBatch).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ lastErrorCode: 'MORNING_MOCKUP_NOT_READY' }));
+  });
+
+  it('backfills failed strict-quality mockups from a larger pool until 70 are ready', async () => {
+    const candidates = Array.from({ length: 72 }, (_, index) => preparationCandidate(
+      `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+      `Company ${index + 1}`,
+      `contact${index + 1}@company${index + 1}.example`,
+    ));
+    const messages = new Map();
+    const repository = {
+      ensureMorningBatch: vi.fn().mockResolvedValue({ id: BATCH_ID, status: 'preparing' }),
+      listMorningPreparationCandidates: vi.fn().mockResolvedValue(candidates),
+      saveDeterministicMorningMessage: vi.fn(async (_sql, message) => {
+        messages.set(message.prospectId, message);
+        return { id: `message-${message.prospectId}` };
+      }),
+      finalizeMorningBatch: vi.fn().mockResolvedValue({ batch: { status: 'ready' }, readyCount: 70 }),
+    };
+    let attempts = 0;
+    const prepareCompanyMockup = vi.fn(async ({ prospectId }) => {
+      attempts += 1;
+      if (attempts <= 2) return { prospectId, status: 'fallback', qualityLevel: 'name_only', sendReady: false };
+      return {
+        prospectId, status: 'ready', qualityLevel: 'logo_and_product', sendReady: true,
+        compositionAudit: { passed: true, sourceVisibleFraction: 1, noClipGuaranteed: true },
+        plan: { messageContentHash: messages.get(prospectId).contentHash },
+      };
+    });
+    const result = await morningModule.runMorningFinalizer({
+      sql: vi.fn(), env: morningEnv, businessDate: '2026-08-11',
+      dependencies: { repository, prepareCompanyMockup, appendAudit: vi.fn().mockResolvedValue({}) },
+    });
+    expect(result).toMatchObject({ readyCount: 70, mockupReady: 70, failed: 2, externalEmailsSent: 0 });
+    expect(prepareCompanyMockup).toHaveBeenCalledTimes(72);
+    expect(repository.finalizeMorningBatch).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      targetCount: 70, lastErrorCode: null,
+    }));
+  });
+
+  it('always finalizes partial progress before the background execution deadline', async () => {
+    const repository = {
+      ensureMorningBatch: vi.fn().mockResolvedValue({ id: BATCH_ID, status: 'preparing' }),
+      listMorningPreparationCandidates: vi.fn().mockResolvedValue([
+        preparationCandidate(COMPANY_A, 'Company A', 'avery@companya.example'),
+        preparationCandidate(COMPANY_B, 'Company B', 'morgan@companyb.example'),
+      ]),
+      saveDeterministicMorningMessage: vi.fn(),
+      finalizeMorningBatch: vi.fn().mockResolvedValue({ batch: { status: 'partial' }, readyCount: 24 }),
+    };
+    const clock = vi.fn().mockReturnValueOnce(0).mockReturnValue(60_000);
+    const result = await morningModule.runMorningFinalizer({
+      sql: vi.fn(), env: morningEnv, businessDate: '2026-08-11', timeBudgetMs: 30_000,
+      dependencies: {
+        repository, clock, prepareCompanyMockup: vi.fn(), appendAudit: vi.fn().mockResolvedValue({}),
+      },
+    });
+    expect(result).toMatchObject({ readyCount: 24, timeBudgetReached: true, externalEmailsSent: 0 });
+    expect(repository.saveDeterministicMorningMessage).not.toHaveBeenCalled();
+    expect(repository.finalizeMorningBatch).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      lastErrorCode: 'MORNING_PREPARATION_TIME_BUDGET',
+    }));
   });
 });
 
@@ -198,6 +272,8 @@ describe('Sales Admin production workflow', () => {
     expect(listQuery).toContain("source_provider_id=");
     expect(listQuery).toContain("imported_business_date");
     expect(listQuery).toContain("mockup_status='ready'");
+    expect(listQuery).toContain('mockup_generation_metadata @>');
+    expect(listQuery).toContain('"noClipGuaranteed":true');
     expect(listQuery).toContain('ORDER BY business_name ASC');
     const noteSql = vi.fn().mockResolvedValue([{ prospect_id: COMPANY_A, review_notes: 'Qualified', updated_at: '2026-08-11T12:00:00Z' }]);
     await manualRepository.saveManualReviewNote(noteSql, { prospectId: COMPANY_A, notes: 'Qualified', reviewedBy: 'admin@example.com' });

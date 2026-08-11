@@ -2,7 +2,7 @@
 
 const { createSql, getDatabaseUrl } = require('./database.cjs');
 const repository = require('./company-mockup-repository.cjs');
-const { prepareCompanyMockup } = require('./company-mockup.cjs');
+const { RENDER_VERSION, prepareCompanyMockup } = require('./company-mockup.cjs');
 const { appendAudit } = require('./audit.cjs');
 const { authorize, parseJsonBody } = require('./security.cjs');
 
@@ -25,7 +25,9 @@ function createCompanyMockupBatchHandler(options = {}) {
     const force = body.force === true;
     const sql = dependencies.createSql(env);
     const store = options.getStore ? options.getStore() : options.store;
-    const candidates = await dependencies.listCompanyMockupCandidates(sql, { limit, force });
+    const candidates = await dependencies.listCompanyMockupCandidates(sql, {
+      limit, force, renderVersion: RENDER_VERSION,
+    });
     let cursor = 0;
     let prepared = 0;
     let failed = 0;

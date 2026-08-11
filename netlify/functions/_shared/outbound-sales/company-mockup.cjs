@@ -11,12 +11,17 @@ const {
 } = require('./research.cjs');
 const { canonicalDomain } = require('./providers/contract.cjs');
 
-const RENDER_VERSION = 'company-banner-v7';
+const RENDER_VERSION = 'company-banner-v9-safe-relevant-image-fit';
 const MOCKUP_CONTENT_ID = 'company-banner-mockup';
 const MOCKUP_STORE_NAME = 'outbound-company-mockups';
 const MOCKUP_FONT_FILE = 'node_modules/pdfjs-dist/standard_fonts/LiberationSans-Bold.ttf';
 const OUTPUT_WIDTH = 1200;
 const OUTPUT_HEIGHT = 675;
+const PRODUCT_PANEL_WIDTH = 445;
+const PRODUCT_PANEL_HEIGHT = 320;
+const PRODUCT_SAFE_PADDING = 14;
+const PRODUCT_RELEVANCE_PATTERN = /\b(?:product|service|collection|project|portfolio|case[ _-]?stud(?:y|ies)|featured|showcase|gallery|work|solution|installation|repair|construction|landscap|roof|plumb|footwear|shoe|boot|sneaker|sandal|loafer|bag|apparel|clothing|menu|dish|food|property|real[ _-]?estate|vehicle|equipment|furniture|jewelry|cosmetic|packag|merchandise)\w*\b/i;
+const PRODUCT_IRRELEVANCE_PATTERN = /\b(?:team|staff|employee|founder|headshot|portrait|avatar|office|headquarters|about[ _-]?us|blog|news|press|testimonial|author|podcast)\b/i;
 const SCENES = Object.freeze({
   trade_show: Object.freeze({
     file: 'public/images/email/mockup-scenes/trade-show.webp',
@@ -33,7 +38,7 @@ const SCENES = Object.freeze({
 });
 
 function sha256(value) {
-  return crypto.createHash('sha256').update(String(value)).digest('hex');
+  return crypto.createHash('sha256').update(Buffer.isBuffer(value) ? value : String(value)).digest('hex');
 }
 
 function cleanLabel(value, maxLength = 76) {
@@ -193,7 +198,11 @@ async function discoverAssetCandidates(candidate, dependencies = {}) {
   const result = storedAssetCandidates(candidate);
   const websiteUrl = candidate?.prospect?.websiteUrl;
   if (!websiteUrl) return result;
-  if (result.logos.length && result.images.length && result.profile.taglineCandidates.length) return result;
+  const hasCurrentProductEvidence = result.images.some((asset) => (
+    asset?.origin && asset.origin !== 'unknown' && asset?.marker && productAssetIsRelevant(asset)
+  ));
+  if (result.logos.length && result.images.length && result.profile.taglineCandidates.length
+      && hasCurrentProductEvidence) return result;
   let home;
   try {
     home = await (dependencies.fetchPage || fetchWebsitePage)(websiteUrl, {
@@ -249,10 +258,13 @@ async function validatedAsset(response, sharpImpl, kind) {
     error.code = 'MOCKUP_ASSET_INVALID';
     throw error;
   }
-  const aspect = Math.max(metadata.width / metadata.height, metadata.height / metadata.width);
-  if ((kind === 'logo' && (metadata.width < 80 || metadata.height < 24 || aspect > 12))
-      || (kind === 'product' && (Math.min(metadata.width, metadata.height) < 240
-        || metadata.width * metadata.height < 240_000 || aspect > 4.5))) {
+  const rotated = Number(metadata.orientation) >= 5 && Number(metadata.orientation) <= 8;
+  const displayWidth = rotated ? metadata.height : metadata.width;
+  const displayHeight = rotated ? metadata.width : metadata.height;
+  const aspect = Math.max(displayWidth / displayHeight, displayHeight / displayWidth);
+  if ((kind === 'logo' && (displayWidth < 80 || displayHeight < 24 || aspect > 12))
+      || (kind === 'product' && (Math.min(displayWidth, displayHeight) < 240
+        || displayWidth * displayHeight < 240_000 || aspect > 4.5))) {
     const error = new Error('Brand asset resolution or proportions are unsuitable for an outbound mockup.');
     error.code = 'MOCKUP_ASSET_LOW_QUALITY';
     throw error;
@@ -269,19 +281,86 @@ async function validatedAsset(response, sharpImpl, kind) {
   return {
     buffer: source,
     contentType: response.contentType,
-    width: metadata.width,
-    height: metadata.height,
+    width: displayWidth,
+    height: displayHeight,
     hasAlpha: metadata.hasAlpha === true,
     finalUrl: response.finalUrl,
   };
 }
 
-async function fetchBestValid(candidates, dependencies, sharpImpl, kind) {
+function productCompositionAudit(asset, {
+  panelWidth = PRODUCT_PANEL_WIDTH,
+  panelHeight = PRODUCT_PANEL_HEIGHT,
+  padding = PRODUCT_SAFE_PADDING,
+} = {}) {
+  const sourceWidth = Math.max(1, Number(asset?.width) || 0);
+  const sourceHeight = Math.max(1, Number(asset?.height) || 0);
+  const innerWidth = Math.max(1, panelWidth - (padding * 2));
+  const innerHeight = Math.max(1, panelHeight - (padding * 2));
+  const scale = Math.min(innerWidth / sourceWidth, innerHeight / sourceHeight);
+  const displayWidth = Math.max(1, Math.round(sourceWidth * scale));
+  const displayHeight = Math.max(1, Math.round(sourceHeight * scale));
+  const displayedAreaRatio = Number(((displayWidth * displayHeight) / (panelWidth * panelHeight)).toFixed(4));
+  const minimumDisplayDimension = Math.min(displayWidth, displayHeight);
+  const enlargementRatio = Number(Math.max(1, scale).toFixed(3));
+  const passed = Boolean(asset)
+    && minimumDisplayDimension >= 115
+    && displayedAreaRatio >= 0.32
+    && enlargementRatio <= 2;
+  return {
+    passed,
+    mode: 'blurred_background_full_contain_foreground',
+    sourceWidth,
+    sourceHeight,
+    panelWidth,
+    panelHeight,
+    padding,
+    displayWidth,
+    displayHeight,
+    displayedAreaRatio,
+    sourceVisibleFraction: 1,
+    enlargementRatio,
+    noClipGuaranteed: true,
+  };
+}
+
+function productPresentationScore(asset) {
+  const audit = asset?.compositionAudit || productCompositionAudit(asset);
+  const semanticBonus = productAssetIsRelevant(asset) ? 36 : 0;
+  const precomposedPenalty = asset?.candidate?.likelyPrecomposed === true ? 18 : 0;
+  const socialPenalty = asset?.candidate?.origin === 'social_meta' ? 8 : 0;
+  return Number(asset?.candidate?.score || 0)
+    + (audit.displayedAreaRatio * 70)
+    + semanticBonus
+    - precomposedPenalty
+    - socialPenalty;
+}
+
+function productAssetIsRelevant(asset) {
+  const candidate = asset?.candidate || asset || {};
+  const marker = `${candidate.marker || ''} ${candidate.alt || ''} ${candidate.url || ''} ${candidate.sourceUrl || ''}`;
+  const hasPositiveEvidence = PRODUCT_RELEVANCE_PATTERN.test(marker);
+  const hasNegativeEvidence = PRODUCT_IRRELEVANCE_PATTERN.test(marker);
+  return hasPositiveEvidence && !hasNegativeEvidence;
+}
+
+async function fetchBestValid(candidates, dependencies, sharpImpl, kind, compositionOptions = {}) {
   const attempts = [];
-  const filtered = candidates.filter((candidate) => !/\b(?:placeholder|spacer|blank|no[-_ ]?image|loading|pixel|default[-_ ]?(?:image|photo))\b/i
-    .test(`${candidate.url} ${candidate.alt || ''}`)).slice(0, kind === 'logo' ? 10 : 14);
-  for (let index = 0; index < filtered.length; index += 3) {
-    const batch = filtered.slice(index, index + 3);
+  const nonPlaceholder = candidates.filter((candidate) => !/\b(?:placeholder|spacer|blank|no[-_ ]?image|loading|pixel|default[-_ ]?(?:image|photo))\b/i
+    .test(`${candidate.url} ${candidate.alt || ''}`));
+  const filtered = [];
+  for (const candidate of nonPlaceholder.slice(0, kind === 'logo' ? 10 : 16)) {
+    if (kind === 'product' && !productAssetIsRelevant(candidate)) {
+      const error = new Error('The public image did not have enough product or service relevance evidence.');
+      error.code = 'MOCKUP_ASSET_RELEVANCE_UNVERIFIED';
+      attempts.push(safeDiagnostic(error, 'product_relevance', candidate.url));
+      continue;
+    }
+    filtered.push(candidate);
+  }
+  const valid = [];
+  for (let index = 0; index < filtered.length; index += 6) {
+    const batch = filtered.slice(index, index + 6);
     const results = await Promise.all(batch.map(async (candidate) => {
       try {
         const response = await (dependencies.fetchAsset || fetchWebsiteAsset)(candidate.url, {
@@ -295,11 +374,28 @@ async function fetchBestValid(candidates, dependencies, sharpImpl, kind) {
       }
     }));
     for (const result of results) {
-      if (result.asset) return { asset: result.asset, attempts };
-      attempts.push(safeDiagnostic(result.error, kind, result.candidate?.url));
+      if (!result.asset) {
+        attempts.push(safeDiagnostic(result.error, kind, result.candidate?.url));
+        continue;
+      }
+      if (kind === 'product') {
+        const compositionAudit = productCompositionAudit(result.asset, compositionOptions);
+        if (!compositionAudit.passed) {
+          const error = new Error('The complete company image would be too small to present clearly without cropping.');
+          error.code = 'MOCKUP_ASSET_COMPOSITION_UNSUITABLE';
+          attempts.push(safeDiagnostic(error, 'product_composition', result.candidate?.url));
+          continue;
+        }
+        valid.push({ ...result.asset, compositionAudit });
+      } else {
+        valid.push(result.asset);
+      }
     }
   }
-  return { asset: null, attempts };
+  valid.sort((left, right) => kind === 'product'
+    ? productPresentationScore(right) - productPresentationScore(left)
+    : Number(right.candidate?.score || 0) - Number(left.candidate?.score || 0));
+  return { asset: valid[0] || null, attempts };
 }
 
 function boothLabel(candidate) {
@@ -418,17 +514,21 @@ function planFor(candidate, assets = {}) {
     businessType: candidate.prospect.businessType,
     researchHash: candidate.research?.contentHash || null,
     messageId: candidate.message?.id || null,
+    messageContentHash: candidate.message?.contentHash || null,
     sceneId,
     event,
     booth,
     brandCopy,
     logoUrl,
     productImageUrl,
+    logoAssetHash: assets.logo?.buffer ? sha256(assets.logo.buffer) : null,
+    productAssetHash: assets.product?.buffer ? sha256(assets.product.buffer) : null,
   }));
   return {
     sceneId,
     eventLabel: event,
     boothLabel: booth,
+    messageContentHash: candidate.message?.contentHash || null,
     brandCopy,
     logoUrl,
     productImageUrl,
@@ -632,10 +732,69 @@ function vectorTextPaths(font, text, {
   }).join('');
 }
 
+async function renderProductPanel(asset, width, height, palette, sharpImpl) {
+  const padding = Math.max(10, Math.round(Math.min(width, height) * 0.04375));
+  let background;
+  if (asset.hasAlpha) {
+    background = Buffer.from(`<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="panel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${palette.secondary}"/><stop offset="1" stop-color="${shiftColor(palette.secondary, 52)}"/></linearGradient></defs>
+      <rect width="100%" height="100%" fill="url(#panel)"/>
+    </svg>`);
+  } else {
+    background = await sharpImpl(asset.buffer, { failOn: 'none', limitInputPixels: 24_000_000 })
+      .rotate()
+      .resize(width, height, { fit: 'cover', position: 'attention' })
+      .blur(20)
+      .modulate({ brightness: 0.58, saturation: 0.82 })
+      .jpeg({ quality: 86, chromaSubsampling: '4:4:4' })
+      .toBuffer();
+  }
+
+  const foregroundPipeline = sharpImpl(asset.buffer, { failOn: 'none', limitInputPixels: 24_000_000 })
+    .rotate()
+    .resize(width - (padding * 2), height - (padding * 2), {
+      fit: 'inside',
+      withoutEnlargement: false,
+    });
+  const foreground = asset.hasAlpha
+    ? await foregroundPipeline.png().toBuffer({ resolveWithObject: true })
+    : await foregroundPipeline.jpeg({ quality: 95, chromaSubsampling: '4:4:4' }).toBuffer({ resolveWithObject: true });
+  const left = Math.floor((width - foreground.info.width) / 2);
+  const top = Math.floor((height - foreground.info.height) / 2);
+  const layers = [];
+  if (!asset.hasAlpha) {
+    layers.push({
+      input: Buffer.from(`<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+        <rect x="${Math.max(0, left - 6)}" y="${Math.max(0, top - 6)}" width="${Math.min(width - Math.max(0, left - 6), foreground.info.width + 12)}" height="${Math.min(height - Math.max(0, top - 6), foreground.info.height + 12)}" rx="8" fill="#000000" fill-opacity=".24"/>
+      </svg>`),
+      left: 0,
+      top: 0,
+    });
+  }
+  layers.push({ input: foreground.data, left, top });
+  layers.push({
+    input: Buffer.from(`<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="${width - 2}" height="${height - 2}" fill="none" stroke="#ffffff" stroke-opacity=".24" stroke-width="2"/></svg>`),
+    left: 0,
+    top: 0,
+  });
+  const buffer = await sharpImpl(background, { failOn: 'none', limitInputPixels: 24_000_000 })
+    .resize(width, height, { fit: 'fill' })
+    .composite(layers)
+    .png()
+    .toBuffer();
+  return {
+    buffer,
+    audit: productCompositionAudit(asset, { panelWidth: width, panelHeight: height, padding }),
+  };
+}
+
 async function renderArtwork(candidate, assets, sharpImpl, dependencies = {}) {
-  const width = 1000;
+  const width = Math.max(860, Math.min(1120, Math.round(Number(dependencies.artworkWidth) || 1000)));
   const height = 320;
-  const productWidth = assets.product ? 445 : 0;
+  const productWidth = assets.product ? Math.round(width * (PRODUCT_PANEL_WIDTH / 1000)) : 0;
+  const productLeft = width - productWidth;
+  const horizontalScale = width / 1000;
+  const textLeft = Math.max(48, Math.round(56 * horizontalScale));
   const plan = planFor(candidate, assets);
   const [palette, font, logoCard] = await Promise.all([
     resolveBrandPalette(assets, sharpImpl),
@@ -656,52 +815,43 @@ async function renderArtwork(candidate, assets, sharpImpl, dependencies = {}) {
         </linearGradient>
       </defs>
       <rect width="100%" height="100%" fill="url(#brand)"/>
-      <rect width="430" height="100%" fill="url(#orangeFade)"/>
+      <rect width="${Math.round(width * 0.43)}" height="100%" fill="url(#orangeFade)"/>
       <rect width="100%" height="8" fill="${palette.accent}"/>
     </svg>`),
     left: 0,
     top: 0,
   }];
 
+  let compositionAudit = productCompositionAudit(null, { panelWidth: productWidth, panelHeight: height });
   if (assets.product) {
-    if (assets.product.hasAlpha) {
-      layers.push({
-        input: Buffer.from(`<svg width="${productWidth}" height="${height}" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="panel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${palette.secondary}"/><stop offset="1" stop-color="${shiftColor(palette.secondary, 52)}"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#panel)"/></svg>`),
-        left: width - productWidth,
-        top: 0,
-      });
-      const productForeground = await sharpImpl(assets.product.buffer, { failOn: 'none', limitInputPixels: 24_000_000 })
-        .rotate().resize(productWidth - 38, height - 30, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } }).png().toBuffer();
-      layers.push({ input: productForeground, left: width - productWidth + 20, top: 14 });
-    } else {
-      const productPhoto = await sharpImpl(assets.product.buffer, { failOn: 'none', limitInputPixels: 24_000_000 })
-        .rotate().resize(productWidth, height, { fit: 'cover', position: 'attention' })
-        .modulate({ brightness: 0.92, saturation: 1.02 }).jpeg({ quality: 92, chromaSubsampling: '4:4:4' }).toBuffer();
-      layers.push({ input: productPhoto, left: width - productWidth, top: 0 });
-    }
+    const productPanel = await renderProductPanel(assets.product, productWidth, height, palette, sharpImpl);
+    compositionAudit = productPanel.audit;
+    layers.push({ input: productPanel.buffer, left: productLeft, top: 0 });
     layers.push({
-      input: Buffer.from(`<svg width="235" height="${height}" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="imageFade" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${palette.secondary}" stop-opacity="1"/><stop offset=".52" stop-color="${palette.secondary}" stop-opacity=".58"/><stop offset="1" stop-color="${palette.secondary}" stop-opacity="0"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#imageFade)"/></svg>`),
-      left: width - productWidth - 80,
+      input: Buffer.from(`<svg width="4" height="${height}" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="${palette.accent}" fill-opacity=".72"/></svg>`),
+      left: Math.max(0, productLeft - 2),
       top: 0,
     });
   }
 
   let logoCardHeight = 0;
   if (assets.logo) {
+    const logoMaxWidth = Math.max(250, Math.min(Math.round(330 * horizontalScale), width - productWidth - textLeft - 52));
     const logo = await sharpImpl(assets.logo.buffer, { failOn: 'none', limitInputPixels: 24_000_000 })
-      .resize(330, 86, { fit: 'inside', withoutEnlargement: false }).png().toBuffer({ resolveWithObject: true });
+      .resize(logoMaxWidth, 86, { fit: 'inside', withoutEnlargement: false }).png().toBuffer({ resolveWithObject: true });
     const cardWidth = Math.max(185, logo.info.width + 38);
     const cardHeight = Math.max(72, logo.info.height + 24);
     logoCardHeight = cardHeight;
     layers.push({
       input: Buffer.from(`<svg width="${cardWidth}" height="${cardHeight}" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="${cardWidth - 2}" height="${cardHeight - 2}" rx="13" fill="${logoCard.fill}" fill-opacity=".97" stroke="${logoCard.stroke}" stroke-opacity=".8"/></svg>`),
-      left: 54,
+      left: Math.max(44, Math.round(54 * horizontalScale)),
       top: 25,
     });
-    layers.push({ input: logo.data, left: 54 + Math.floor((cardWidth - logo.info.width) / 2), top: 25 + Math.floor((cardHeight - logo.info.height) / 2) });
+    const logoLeft = Math.max(44, Math.round(54 * horizontalScale));
+    layers.push({ input: logo.data, left: logoLeft + Math.floor((cardWidth - logo.info.width) / 2), top: 25 + Math.floor((cardHeight - logo.info.height) / 2) });
   }
 
-  const textWidth = assets.product ? 480 : 880;
+  const textWidth = assets.product ? Math.max(400, productLeft - textLeft - 20) : width - textLeft - 64;
   const svgParts = [];
   if (assets.logo) {
     const headline = fontSafeText(font, plan.brandCopy.headline || plan.brandCopy.offering || candidate.prospect.businessName);
@@ -731,7 +881,7 @@ async function renderArtwork(candidate, assets, sharpImpl, dependencies = {}) {
   const eventText = fontSafeText(font, cleanLabel([
     plan.eventLabel,
     plan.boothLabel ? `BOOTH ${plan.boothLabel}` : null,
-  ].filter(Boolean).join(' · ') || candidate.prospect.industry || candidate.prospect.businessType || 'CUSTOM BANNER CONCEPT', 80).toUpperCase());
+  ].filter(Boolean).join(' · ') || candidate.prospect.industry || candidate.prospect.businessType || 'QUICK BANNER MOCKUP', 80).toUpperCase());
   svgParts.push(`<rect x="0" y="274" width="${Math.min(textWidth, 510)}" height="1" fill="#ffffff" fill-opacity=".24"/>`);
   svgParts.push(vectorTextPaths(font, eventText, {
     baselineY: 303,
@@ -739,7 +889,7 @@ async function renderArtwork(candidate, assets, sharpImpl, dependencies = {}) {
     fill: '#ffffff',
     letterSpacing: 1.8,
   }));
-  layers.push({ input: Buffer.from(`<svg width="${textWidth}" height="${height}" xmlns="http://www.w3.org/2000/svg">${svgParts.join('')}</svg>`), left: 56, top: 0 });
+  layers.push({ input: Buffer.from(`<svg width="${textWidth}" height="${height}" xmlns="http://www.w3.org/2000/svg">${svgParts.join('')}</svg>`), left: textLeft, top: 0 });
 
   layers.push({
     input: Buffer.from(`<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="shine" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".18"/><stop offset=".38" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".08"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#shine)"/></svg>`),
@@ -747,8 +897,9 @@ async function renderArtwork(candidate, assets, sharpImpl, dependencies = {}) {
     top: 0,
   });
 
-  return sharpImpl({ create: { width, height, channels: 3, background: '#0b2344' } })
+  const buffer = await sharpImpl({ create: { width, height, channels: 3, background: '#0b2344' } })
     .composite(layers).jpeg({ quality: 92, chromaSubsampling: '4:4:4' }).toBuffer();
+  return { buffer, compositionAudit };
 }
 
 async function loadScene(sceneId, dependencies = {}) {
@@ -762,18 +913,26 @@ async function renderCompanyMockup(candidate, assets, dependencies = {}) {
   if (typeof sharpImpl !== 'function') throw new TypeError('Sharp is required to render company mockups.');
   const plan = planFor(candidate, assets);
   const scene = SCENES[plan.sceneId] || SCENES.storefront;
+  const artworkWidth = Math.round(320 * (scene.frame.width / scene.frame.height));
   const [sceneBuffer, artwork] = await Promise.all([
     loadScene(plan.sceneId, dependencies),
-    renderArtwork(candidate, assets, sharpImpl, dependencies),
+    renderArtwork(candidate, assets, sharpImpl, { ...dependencies, artworkWidth }),
   ]);
-  const fittedArtwork = await sharpImpl(artwork)
+  const fittedArtwork = await sharpImpl(artwork.buffer)
     .resize(scene.frame.width, scene.frame.height, { fit: 'fill', kernel: sharpImpl.kernel.lanczos3 })
     .jpeg({ quality: 94, chromaSubsampling: '4:4:4' }).toBuffer();
   const buffer = await sharpImpl(sceneBuffer, { failOn: 'none', limitInputPixels: 24_000_000 })
     .resize(OUTPUT_WIDTH, OUTPUT_HEIGHT, { fit: 'fill' })
     .composite([{ input: fittedArtwork, left: scene.frame.left, top: scene.frame.top }])
     .jpeg({ quality: 88, chromaSubsampling: '4:4:4', mozjpeg: true }).toBuffer();
-  return { buffer, plan, mimeType: 'image/jpeg', width: OUTPUT_WIDTH, height: OUTPUT_HEIGHT };
+  return {
+    buffer,
+    plan,
+    mimeType: 'image/jpeg',
+    width: OUTPUT_WIDTH,
+    height: OUTPUT_HEIGHT,
+    compositionAudit: artwork.compositionAudit,
+  };
 }
 
 async function blobBuffer(store, key) {
@@ -784,6 +943,51 @@ async function blobBuffer(store, key) {
   } catch {
     return null;
   }
+}
+
+async function loadVerifiedStoredMockup(candidate, store, sharpImpl) {
+  const mockup = candidate?.mockup;
+  const audit = mockup?.generationMetadata?.compositionAudit || null;
+  const expectedKey = mockup?.contentHash
+    ? `company-banners/${candidate.prospect.id}/${mockup.contentHash}.jpg`
+    : null;
+  if (!mockup || mockup.status !== 'ready' || mockup.renderVersion !== RENDER_VERSION
+      || !candidate.message?.id || mockup.messageId !== candidate.message.id
+      || !candidate.message?.contentHash
+      || mockup.generationMetadata?.messageContentHash !== candidate.message.contentHash
+      || mockup.qualityLevel !== 'logo_and_product' || !mockup.logoUrl || !mockup.productImageUrl
+      || audit?.passed !== true || audit?.noClipGuaranteed !== true
+      || !expectedKey || mockup.blobKey !== expectedKey) return null;
+  const buffer = await blobBuffer(store, mockup.blobKey);
+  if (!buffer || typeof sharpImpl !== 'function') return null;
+  try {
+    const metadata = await sharpImpl(buffer, { failOn: 'error', limitInputPixels: 24_000_000 }).metadata();
+    if (metadata.format !== 'jpeg' || metadata.width !== OUTPUT_WIDTH || metadata.height !== OUTPUT_HEIGHT) return null;
+  } catch {
+    return null;
+  }
+  return {
+    prospectId: candidate.prospect.id,
+    buffer,
+    plan: {
+      sceneId: mockup.sceneId,
+      eventLabel: mockup.eventLabel,
+      logoUrl: mockup.logoUrl,
+      productImageUrl: mockup.productImageUrl,
+      messageContentHash: mockup.generationMetadata.messageContentHash,
+      sourceUrls: mockup.sourceUrls,
+      contentHash: mockup.contentHash,
+    },
+    mimeType: 'image/jpeg',
+    width: OUTPUT_WIDTH,
+    height: OUTPUT_HEIGHT,
+    qualityLevel: mockup.qualityLevel,
+    compositionAudit: audit,
+    sendReady: true,
+    diagnostics: mockup.generationMetadata?.assetDiagnostics || [],
+    cached: true,
+    row: mockup,
+  };
 }
 
 async function prepareCompanyMockup(options) {
@@ -799,10 +1003,24 @@ async function prepareCompanyMockup(options) {
     error.code = 'COMPANY_MOCKUP_NOT_FOUND';
     throw error;
   }
+  if (options.preferCachedReady === true) {
+    const stored = await loadVerifiedStoredMockup(candidate, options.store, options.sharp);
+    if (stored) return stored;
+  }
   const candidateAssets = await discoverAssetCandidates(candidate, dependencies);
+  const selectedScene = SCENES[selectSceneId(candidate)] || SCENES.storefront;
+  const selectedArtworkWidth = Math.max(860, Math.min(1120, Math.round(320 * (selectedScene.frame.width / selectedScene.frame.height))));
+  const selectedProductPanelWidth = Math.round(selectedArtworkWidth * (PRODUCT_PANEL_WIDTH / 1000));
+  const selectedProductPadding = Math.max(10, Math.round(Math.min(selectedProductPanelWidth, PRODUCT_PANEL_HEIGHT) * 0.04375));
   const [logoResult, productResult] = await Promise.all([
     fetchBestValid(candidateAssets.logos, dependencies, options.sharp, 'logo'),
-    fetchBestValid(candidateAssets.images.filter((asset) => !candidateAssets.logos.some((logoAsset) => logoAsset.url === asset.url)), dependencies, options.sharp, 'product'),
+    fetchBestValid(
+      candidateAssets.images.filter((asset) => !candidateAssets.logos.some((logoAsset) => logoAsset.url === asset.url)),
+      dependencies,
+      options.sharp,
+      'product',
+      { panelWidth: selectedProductPanelWidth, panelHeight: PRODUCT_PANEL_HEIGHT, padding: selectedProductPadding },
+    ),
   ]);
   const logo = logoResult.asset;
   const product = productResult.asset;
@@ -813,23 +1031,36 @@ async function prepareCompanyMockup(options) {
     pageUrls: candidateAssets.pageUrls,
   };
   const plan = planFor(candidate, assets);
-  if (!options.force && candidate.mockup?.contentHash === plan.contentHash && candidate.mockup.blobKey) {
+  const expectedBlobKey = `company-banners/${candidate.prospect.id}/${plan.contentHash}.jpg`;
+  if (!options.force && options.preferCachedReady !== true
+      && candidate.mockup?.contentHash === plan.contentHash
+      && candidate.mockup.blobKey === expectedBlobKey) {
     const cached = await blobBuffer(options.store, candidate.mockup.blobKey);
-    if (cached) return {
-      prospectId: candidate.prospect.id,
-      buffer: cached,
-      plan,
-      qualityLevel: candidate.mockup.qualityLevel,
-      sendReady: candidate.mockup.status === 'ready' && candidate.mockup.qualityLevel === 'logo_and_product',
-      diagnostics: candidate.mockup.generationMetadata?.assetDiagnostics || [],
-      cached: true,
-      row: candidate.mockup,
-    };
+    if (cached) {
+      const compositionAudit = candidate.mockup.generationMetadata?.compositionAudit || null;
+      return {
+        prospectId: candidate.prospect.id,
+        buffer: cached,
+        plan,
+        qualityLevel: candidate.mockup.qualityLevel,
+        compositionAudit,
+        sendReady: candidate.mockup.status === 'ready'
+          && candidate.mockup.qualityLevel === 'logo_and_product'
+          && compositionAudit?.passed === true
+          && compositionAudit?.noClipGuaranteed === true,
+        diagnostics: candidate.mockup.generationMetadata?.assetDiagnostics || [],
+        cached: true,
+        row: candidate.mockup,
+      };
+    }
   }
 
   const rendered = await renderCompanyMockup(candidate, assets, { ...dependencies, sharp: options.sharp });
   const level = qualityLevel(logo, product);
-  const sendReady = level === 'logo_and_product';
+  const compositionAudit = rendered.compositionAudit;
+  const sendReady = level === 'logo_and_product'
+    && compositionAudit?.passed === true
+    && compositionAudit?.noClipGuaranteed === true;
   const assetDiagnostics = [
     ...(candidateAssets.diagnostics || []),
     ...(logoResult.attempts || []),
@@ -874,6 +1105,8 @@ async function prepareCompanyMockup(options) {
       brandOffering: plan.brandCopy.offering,
       brandThemeColors: plan.brandCopy.themeColors,
       boothLabel: plan.boothLabel,
+      messageContentHash: candidate.message?.contentHash || null,
+      compositionAudit,
       assetCandidateCounts: {
         logos: candidateAssets.logos.length,
         images: candidateAssets.images.length,
@@ -882,7 +1115,10 @@ async function prepareCompanyMockup(options) {
       assetDiagnostics,
       cidReady: true,
     },
-    lastErrorCode: sendReady ? null : !logo && !product
+    lastErrorCode: sendReady ? null : logo && product
+      && (compositionAudit?.passed !== true || compositionAudit?.noClipGuaranteed !== true)
+      ? 'MOCKUP_COMPOSITION_UNSAFE'
+      : !logo && !product
       ? 'VERIFIED_BRAND_ASSETS_UNAVAILABLE'
       : !logo ? 'VERIFIED_LOGO_UNAVAILABLE' : 'VERIFIED_PRODUCT_IMAGE_UNAVAILABLE',
   });
@@ -890,6 +1126,7 @@ async function prepareCompanyMockup(options) {
     prospectId: candidate.prospect.id,
     ...rendered,
     qualityLevel: level,
+    compositionAudit,
     sendReady,
     diagnostics: assetDiagnostics,
     cached: false,
@@ -899,7 +1136,7 @@ async function prepareCompanyMockup(options) {
 
 function attachmentFromMockup(mockup, businessName) {
   if (!mockup?.buffer) return null;
-  const filename = `${cleanLabel(businessName, 50).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'company'}-banner-concept.jpg`;
+  const filename = `${cleanLabel(businessName, 50).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'company'}-quick-banner-mockup.jpg`;
   return {
     content: mockup.buffer.toString('base64'),
     filename,
@@ -915,6 +1152,9 @@ module.exports = {
   MOCKUP_FONT_FILE,
   OUTPUT_WIDTH,
   OUTPUT_HEIGHT,
+  PRODUCT_PANEL_WIDTH,
+  PRODUCT_PANEL_HEIGHT,
+  PRODUCT_SAFE_PADDING,
   SCENES,
   sha256,
   cleanLabel,
@@ -925,6 +1165,9 @@ module.exports = {
   storedAssetCandidates,
   discoverAssetCandidates,
   safeSvg,
+  productCompositionAudit,
+  productPresentationScore,
+  productAssetIsRelevant,
   officialAliasLinks,
   planFor,
   qualityLevel,
@@ -932,8 +1175,10 @@ module.exports = {
   logoCardStyle,
   loadMockupFont,
   vectorTextPaths,
+  renderProductPanel,
   renderArtwork,
   renderCompanyMockup,
+  loadVerifiedStoredMockup,
   prepareCompanyMockup,
   attachmentFromMockup,
 };

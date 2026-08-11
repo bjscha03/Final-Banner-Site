@@ -1,7 +1,7 @@
 'use strict';
 
 const { sanitizeForAudit } = require('./security.cjs');
-const { polishOutboundBodyText } = require('./personalization-template.cjs');
+const { polishOutboundSubject, polishOutboundBodyText } = require('./personalization-template.cjs');
 
 const MIN_HIGH_VALUE_SCORE = 60;
 const MAX_MANUAL_DAILY_ATTEMPTS = 70;
@@ -54,6 +54,13 @@ function technicalBlockers(row) {
   if (!row.mockup_id || ['pending', 'failed'].includes(row.mockup_status)) blockers.push('Personalized banner is still preparing');
   else if (row.mockup_status !== 'ready' || row.mockup_quality_level !== 'logo_and_product') {
     blockers.push('Personalized banner needs a verified logo and relevant product/service image');
+  } else if (row.mockup_generation_metadata?.compositionAudit?.passed !== true
+      || row.mockup_generation_metadata?.compositionAudit?.noClipGuaranteed !== true) {
+    blockers.push('Personalized banner composition has not passed the no-crop quality check');
+  } else if (row.mockup_message_id !== row.message_id
+      || !row.message_content_hash
+      || row.mockup_generation_metadata?.messageContentHash !== row.message_content_hash) {
+    blockers.push('Personalized banner is stale for the current email or event details');
   }
   if (row.business_name && !messageMatchesCompanyIdentity({
     businessName: row.business_name,
@@ -119,7 +126,7 @@ function mapLead(row) {
     } : null,
     message: row.message_id ? {
       id: row.message_id,
-      subject: row.message_subject,
+      subject: polishOutboundSubject(row.message_subject),
       bodyText: polishOutboundBodyText(row.message_body_text),
       bodyHtml: row.message_body_html,
       generationStatus: row.generation_status,
@@ -140,6 +147,10 @@ function mapLead(row) {
       eventLabel: row.mockup_event_label || null,
       sourceUrls: row.mockup_source_urls || [],
       diagnostics: row.mockup_generation_metadata?.assetDiagnostics || [],
+      compositionAudit: row.mockup_generation_metadata?.compositionAudit || null,
+      contextCurrent: Boolean(row.message_content_hash)
+        && row.mockup_message_id === row.message_id
+        && row.mockup_generation_metadata?.messageContentHash === row.message_content_hash,
       generatedAt: row.mockup_generated_at || null,
       previewUrl: ['ready', 'fallback'].includes(row.mockup_status)
         ? `/.netlify/functions/outbound-sales-company-mockup?prospectId=${encodeURIComponent(row.prospect_id)}&v=${encodeURIComponent(row.mockup_content_hash || '')}`
@@ -188,13 +199,14 @@ const LEAD_SELECT = `
          contact.verification_reason, contact.syntax_valid, contact.mx_status,
          contact.is_role_address, contact.is_free_mailbox, contact.domain_matches,
          contact.contact_quality_score,
-         message.id AS message_id, message.subject AS message_subject,
+         message.id AS message_id, message.content_hash AS message_content_hash,
+         message.subject AS message_subject,
          message.body_text AS message_body_text, message.body_html AS message_body_html,
          message.generation_status, message.evidence_validation_status,
          message.sent_at AS message_sent_at,message.delivered_at AS message_delivered_at,
          last_event.event_type AS last_event_type,last_event.event_status AS last_event_status,
          last_event.event_at AS last_event_at,
-         mockup.id AS mockup_id,mockup.status AS mockup_status,
+         mockup.id AS mockup_id,mockup.message_id AS mockup_message_id,mockup.status AS mockup_status,
          mockup.scene_id AS mockup_scene_id,mockup.quality_level AS mockup_quality_level,
          mockup.logo_url AS mockup_logo_url,mockup.product_image_url AS mockup_product_image_url,
          mockup.event_label AS mockup_event_label,mockup.source_urls AS mockup_source_urls,
@@ -241,7 +253,10 @@ const READY_SQL = `contact_id IS NOT NULL AND syntax_valid=TRUE AND mx_status IN
   AND prior_customer_match=FALSE AND suppression_reason IS NULL AND active_suppression=FALSE
   AND first_contacted_at IS NULL AND message_id IS NOT NULL AND generation_status='generated'
   AND evidence_validation_status='passed' AND ${companyIdentitySql('business_name', 'message_subject', 'message_body_text')}
-  AND mockup_id IS NOT NULL AND mockup_status='ready' AND mockup_quality_level='logo_and_product'`;
+  AND mockup_id IS NOT NULL AND mockup_status='ready' AND mockup_quality_level='logo_and_product'
+  AND mockup_generation_metadata @> '{"compositionAudit":{"passed":true,"noClipGuaranteed":true}}'::jsonb
+  AND mockup_message_id=message_id AND NULLIF(message_content_hash,'') IS NOT NULL
+  AND mockup_generation_metadata->>'messageContentHash'=message_content_hash`;
 
 async function listManualReviewLeads(sql, {
   limit = 50, offset = 0, minimumScore = MIN_HIGH_VALUE_SCORE, reviewView = 'today', filters = {}, sort = 'priority',
@@ -287,8 +302,8 @@ async function listManualReviewLeads(sql, {
   if (filters.hasEmail === 'no') conditions.push('contact_id IS NULL');
   if (filters.hasPhone === 'yes') conditions.push("NULLIF(TRIM(phone),'') IS NOT NULL");
   if (filters.hasPhone === 'no') conditions.push("NULLIF(TRIM(phone),'') IS NULL");
-  if (filters.mockup === 'ready') conditions.push("mockup_status='ready'");
-  if (filters.mockup === 'fallback') conditions.push("mockup_status='fallback'");
+  if (filters.mockup === 'ready') conditions.push(`mockup_status='ready' AND mockup_generation_metadata @> '{"compositionAudit":{"passed":true,"noClipGuaranteed":true}}'::jsonb AND mockup_message_id=message_id AND mockup_generation_metadata->>'messageContentHash'=message_content_hash`);
+  if (filters.mockup === 'fallback') conditions.push(`(mockup_status='fallback' OR (mockup_status='ready' AND NOT (mockup_generation_metadata @> '{"compositionAudit":{"passed":true,"noClipGuaranteed":true}}'::jsonb AND mockup_message_id=message_id AND mockup_generation_metadata->>'messageContentHash'=message_content_hash)))`);
   if (filters.mockup === 'missing') conditions.push("(mockup_id IS NULL OR mockup_status IN ('pending','failed'))");
   if (filters.emailStatus === 'ready') conditions.push("generation_status='generated' AND evidence_validation_status='passed' AND COALESCE(send_state,'not_sent') IN ('not_sent','failed')");
   if (filters.emailStatus === 'sent') conditions.push("send_state='sent'");
@@ -314,8 +329,14 @@ async function listManualReviewLeads(sql, {
     sql(`${cte} SELECT COUNT(*)::integer AS total,
           COUNT(*) FILTER (WHERE COALESCE(send_state,'not_sent')='sent')::integer AS sent,
           COUNT(*) FILTER (WHERE COALESCE(send_state,'not_sent')<>'sent')::integer AS pending,
-          COUNT(*) FILTER (WHERE mockup_status='ready')::integer AS mockup_ready,
-          COUNT(*) FILTER (WHERE mockup_status='fallback')::integer AS mockup_fallback,
+          COUNT(*) FILTER (WHERE mockup_status='ready'
+            AND mockup_generation_metadata @> '{"compositionAudit":{"passed":true,"noClipGuaranteed":true}}'::jsonb
+            AND mockup_message_id=message_id
+            AND mockup_generation_metadata->>'messageContentHash'=message_content_hash)::integer AS mockup_ready,
+          COUNT(*) FILTER (WHERE mockup_status='fallback' OR (mockup_status='ready'
+            AND NOT (mockup_generation_metadata @> '{"compositionAudit":{"passed":true,"noClipGuaranteed":true}}'::jsonb
+              AND mockup_message_id=message_id
+              AND mockup_generation_metadata->>'messageContentHash'=message_content_hash)))::integer AS mockup_fallback,
           COUNT(*) FILTER (WHERE mockup_id IS NULL OR mockup_status IN ('pending','failed'))::integer AS mockup_missing
         FROM lead_rows WHERE ${where}`, params),
     sql(`SELECT manual_attempted_count,manual_sent_count
@@ -489,6 +510,10 @@ async function claimManualReviewSend(sql, data) {
           AND review.send_state IN ('not_sent','failed') AND review.send_attempt_count<3
           AND p.status IN ('qualified','ready_for_outreach')
           AND mockup.status='ready' AND mockup.quality_level='logo_and_product'
+          AND mockup.message_id=message.id AND mockup.content_hash=$5
+          AND NULLIF(message.content_hash,'') IS NOT NULL
+          AND mockup.generation_metadata->>'messageContentHash'=message.content_hash
+          AND mockup.generation_metadata @> '{"compositionAudit":{"passed":true,"noClipGuaranteed":true}}'::jsonb
           AND p.first_contacted_at IS NULL AND p.prior_customer_match=FALSE AND p.suppression_reason IS NULL
           AND contact.syntax_valid=TRUE AND contact.mx_status='present'
           AND contact.is_role_address=FALSE AND contact.is_free_mailbox=FALSE AND contact.domain_matches=TRUE
@@ -522,7 +547,7 @@ async function claimManualReviewSend(sql, data) {
                 contact.id AS contact_id,contact.email,
                 message.id AS message_id,message.campaign_id,message.subject,
                 message.body_text,message.generation_status,message.evidence_validation_status`,
-    [data.prospectId, data.businessDate, dailyLimit, data.sendKey],
+    [data.prospectId, data.businessDate, dailyLimit, data.sendKey, data.mockupContentHash],
   );
   return rows[0] || null;
 }

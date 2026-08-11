@@ -83,6 +83,7 @@ function rowFixture() {
     domain_matches: true,
     contact_quality_score: 95,
     message_id: MESSAGE_ID,
+    message_content_hash: 'c'.repeat(64),
     message_subject: 'Future Expo Group: banner planning for your exhibitor expo',
     message_body_text: 'Hi Taylor,\n\nI saw Future Expo Group has an upcoming exhibitor expo.\n\nBest,\nBrandon\nBanners On The Fly',
     message_body_html: '<html><body>Preview</body></html>',
@@ -90,6 +91,7 @@ function rowFixture() {
     evidence_validation_status: 'passed',
     message_sent_at: null,
     mockup_id: '44444444-4444-4444-8444-444444444444',
+    mockup_message_id: MESSAGE_ID,
     mockup_status: 'ready',
     mockup_scene_id: 'trade_show',
     mockup_quality_level: 'logo_and_product',
@@ -98,6 +100,10 @@ function rowFixture() {
     mockup_event_label: 'Future Expo',
     mockup_source_urls: ['https://futureexpo.example'],
     mockup_content_hash: 'fixture-content-hash',
+    mockup_generation_metadata: {
+      messageContentHash: 'c'.repeat(64),
+      compositionAudit: { passed: true, sourceVisibleFraction: 1, noClipGuaranteed: true },
+    },
     mockup_generated_at: '2026-08-10T11:30:00Z',
     review_status: 'pending',
     permission_status: 'unknown',
@@ -166,6 +172,20 @@ describe('manual lead review migration and qualification', () => {
     expect(fallback.mockup.diagnostics).toEqual([
       { stage: 'logo', hostname: 'futureexpo.example', code: 'MOCKUP_ASSET_LOW_QUALITY' },
     ]);
+    const unsafeComposition = mapLead({
+      ...rowFixture(),
+      mockup_generation_metadata: {
+        compositionAudit: { passed: false, sourceVisibleFraction: 1, noClipGuaranteed: true },
+      },
+    });
+    expect(unsafeComposition.canSend).toBe(false);
+    expect(unsafeComposition.technicalBlockers).toContain('Personalized banner composition has not passed the no-crop quality check');
+    const staleContext = mapLead({
+      ...rowFixture(),
+      message_content_hash: 'd'.repeat(64),
+    });
+    expect(staleContext.canSend).toBe(false);
+    expect(staleContext.technicalBlockers).toContain('Personalized banner is stale for the current email or event details');
   });
 
   it('accepts a verified parenthetical brand alias without weakening cross-company protection', () => {
@@ -212,11 +232,15 @@ describe('manual lead review migration and qualification', () => {
       businessDate: '2026-08-10',
       dailyLimit: 70,
       sendKey: stableManualSendKey(PROSPECT_ID),
+      mockupContentHash: 'e'.repeat(64),
     });
     expect(sql.mock.calls[0][0]).toContain('COALESCE(review.send_key,$4)');
     expect(sql.mock.calls[0][0]).toContain('review.send_attempt_count+1');
     expect(sql.mock.calls[0][0]).toContain('JOIN outbound_company_mockups mockup ON mockup.prospect_id=p.id');
     expect(sql.mock.calls[0][0]).toContain("mockup.status='ready' AND mockup.quality_level='logo_and_product'");
+    expect(sql.mock.calls[0][0]).toContain('mockup.generation_metadata @>');
+    expect(sql.mock.calls[0][0]).toContain('mockup.message_id=message.id AND mockup.content_hash=$5');
+    expect(sql.mock.calls[0][0]).toContain("mockup.generation_metadata->>'messageContentHash'=message.content_hash");
   });
 
   it('commits accepted sends against the partial provider-event unique index', async () => {
@@ -259,7 +283,7 @@ describe('permissioned Resend transport', () => {
       message: { id: MESSAGE_ID, sendKey: stableManualSendKey(PROSPECT_ID), subject: 'Expo banners', bodyText: 'Text', bodyHtml: '<p><img src="cid:company-banner-mockup">HTML</p>' },
       attachments: [{
         content: Buffer.from('email-safe-jpeg-fixture').toString('base64'),
-        filename: 'future-expo-banner-concept.jpg',
+        filename: 'future-expo-quick-banner-mockup.jpg',
         contentId: 'company-banner-mockup',
         contentType: 'image/jpeg',
       }],
@@ -272,7 +296,7 @@ describe('permissioned Resend transport', () => {
         'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
       },
       attachments: [expect.objectContaining({
-        filename: 'future-expo-banner-concept.jpg',
+        filename: 'future-expo-quick-banner-mockup.jpg',
         contentId: 'company-banner-mockup',
         contentType: 'image/jpeg',
       })],
@@ -339,9 +363,10 @@ describe('manual lead review endpoint', () => {
       expect(input.message.bodyText).toContain('Unsubscribe: https://bannersonthefly.com/.netlify/functions/outbound-sales-unsubscribe?token=');
       expect(input.message.bodyHtml).toContain('Unsubscribe from future marketing emails');
       expect(input.message.bodyHtml).toContain('cid:company-banner-mockup');
-      expect(input.message.bodyHtml).toContain('A complimentary banner concept created for Future Expo Group');
+      expect(input.message.bodyHtml).toContain('A quick banner mockup for Future Expo Group');
+      expect(input.message.bodyHtml).not.toMatch(/complimentary|custom banner concept/i);
       expect(input.attachments).toEqual([expect.objectContaining({
-        filename: 'future-expo-group-banner-concept.jpg',
+        filename: 'future-expo-group-quick-banner-mockup.jpg',
         contentId: 'company-banner-mockup',
         contentType: 'image/jpeg',
       })]);
@@ -359,10 +384,12 @@ describe('manual lead review endpoint', () => {
       mxStatus: 'present', mxCheckedAt: '2026-08-10T12:00:00.000Z',
       verificationStatus: 'valid', verificationReason: 'Syntax and MX are valid.', contactQualityScore: 100,
     });
+    const claimManualReviewSend = vi.fn().mockResolvedValue(claimed);
+    const mockupContentHash = 'f'.repeat(64);
     const handler = createManualReviewHandler({
       env: deliveryEnvironment,
       dependencies: {
-        createSql: () => ({}), claimManualReviewSend: vi.fn().mockResolvedValue(claimed),
+        createSql: () => ({}), claimManualReviewSend,
         saveUnsubscribeToken: saveToken, sendPermissionedMarketingMessage: sendPermissioned,
         markManualReviewSent: markSent, markManualReviewFailed: vi.fn(), appendAudit,
         authorizeManualSend,
@@ -374,6 +401,8 @@ describe('manual lead review endpoint', () => {
           prospectId: PROSPECT_ID,
           buffer: Buffer.from('rendered-company-banner'),
           qualityLevel: 'logo_and_product',
+          compositionAudit: { passed: true, sourceVisibleFraction: 1, noClipGuaranteed: true },
+          plan: { contentHash: mockupContentHash, messageContentHash: 'c'.repeat(64) },
           sendReady: true,
         }),
       },
@@ -384,6 +413,7 @@ describe('manual lead review endpoint', () => {
     expect(saveToken).toHaveBeenCalledOnce();
     expect(authorizeManualSend).toHaveBeenCalledWith({}, { prospectId: PROSPECT_ID, reviewedBy: 'admin@bannersonthefly.com' });
     expect(assessEmail).toHaveBeenCalledOnce();
+    expect(claimManualReviewSend).toHaveBeenCalledWith({}, expect.objectContaining({ mockupContentHash }));
     expect(markSent).toHaveBeenCalledWith({}, expect.objectContaining({ providerMessageId: 'resend-manual-2' }));
     expect(appendAudit).toHaveBeenCalledWith({}, expect.objectContaining({ action: 'manual_lead.send_authorized' }));
     expect(appendAudit).toHaveBeenCalledWith({}, expect.objectContaining({ action: 'manual_lead.email_sent' }));
@@ -427,9 +457,47 @@ describe('manual lead review endpoint', () => {
     expect(response.statusCode).toBe(409);
     expect(JSON.parse(response.body)).toMatchObject({ error: 'COMPANY_MOCKUP_BRAND_ASSETS_INCOMPLETE' });
     expect(sendPermissioned).not.toHaveBeenCalled();
-    expect(markFailed).toHaveBeenCalledWith({}, expect.objectContaining({
-      errorCode: 'COMPANY_MOCKUP_BRAND_ASSETS_INCOMPLETE',
-    }));
+    expect(markFailed).not.toHaveBeenCalled();
+  });
+
+  it('fails closed before transport when the final no-crop composition audit does not pass', async () => {
+    const sendPermissioned = vi.fn();
+    const markFailed = vi.fn().mockResolvedValue({ prospect_id: PROSPECT_ID });
+    const claimed = {
+      prospect_id: PROSPECT_ID, contact_id: CONTACT_ID, message_id: MESSAGE_ID,
+      send_key: stableManualSendKey(PROSPECT_ID), business_name: 'Future Expo Group',
+      email: 'taylor@futureexpo.example', subject: 'A quick banner mockup for Future Expo Group',
+      body_text: 'Hi Taylor,\n\nThis is just a quick mockup for Future Expo Group.\n\nBest,\nBrandon Schaefer\nOwner, Banners On The Fly\nbannersonthefly.com',
+    };
+    const handler = createManualReviewHandler({
+      env: deliveryEnvironment,
+      dependencies: {
+        createSql: () => ({}),
+        loadManualReviewContact: vi.fn().mockResolvedValue({ id: CONTACT_ID, email: 'taylor@futureexpo.example', canonical_domain: 'futureexpo.example' }),
+        assessEmail: vi.fn().mockResolvedValue({
+          email: 'taylor@futureexpo.example', emailNormalized: 'taylor@futureexpo.example', syntaxValid: true,
+          isRoleAddress: false, isFreeMailbox: false, domainMatches: true, mxStatus: 'present',
+          verificationStatus: 'valid', contactQualityScore: 100,
+        }),
+        saveManualContactAssessment: vi.fn().mockResolvedValue({ id: CONTACT_ID }),
+        authorizeManualSend: vi.fn().mockResolvedValue({ prospect_id: PROSPECT_ID }),
+        appendAudit: vi.fn().mockResolvedValue({}),
+        claimManualReviewSend: vi.fn().mockResolvedValue(claimed),
+        saveUnsubscribeToken: vi.fn().mockResolvedValue({}),
+        prepareCompanyMockup: vi.fn().mockResolvedValue({
+          prospectId: PROSPECT_ID, buffer: Buffer.from('unsafe-composition'),
+          qualityLevel: 'logo_and_product', sendReady: true,
+          compositionAudit: { passed: true, sourceVisibleFraction: 1, noClipGuaranteed: false },
+        }),
+        sendPermissionedMarketingMessage: sendPermissioned,
+        markManualReviewFailed: markFailed,
+      },
+    });
+    const response = await handler(adminEvent('POST', { prospectId: PROSPECT_ID }));
+    expect(response.statusCode).toBe(409);
+    expect(JSON.parse(response.body)).toMatchObject({ error: 'COMPANY_MOCKUP_BRAND_ASSETS_INCOMPLETE' });
+    expect(sendPermissioned).not.toHaveBeenCalled();
+    expect(markFailed).not.toHaveBeenCalled();
   });
 
   it('fails closed before transport if Company A is ever paired with Company B mockup data', async () => {
@@ -468,6 +536,6 @@ describe('manual lead review endpoint', () => {
     expect(response.statusCode).toBe(409);
     expect(JSON.parse(response.body)).toMatchObject({ error: 'COMPANY_MOCKUP_IDENTITY_MISMATCH' });
     expect(sendPermissioned).not.toHaveBeenCalled();
-    expect(markFailed).toHaveBeenCalledWith({}, expect.objectContaining({ prospectId: PROSPECT_ID, errorCode: 'COMPANY_MOCKUP_IDENTITY_MISMATCH' }));
+    expect(markFailed).not.toHaveBeenCalled();
   });
 });

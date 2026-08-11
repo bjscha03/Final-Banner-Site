@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import sharp from 'sharp';
 import researchModule from '../_shared/outbound-sales/research.cjs';
 import mockupModule from '../_shared/outbound-sales/company-mockup.cjs';
+import mockupRepository from '../_shared/outbound-sales/company-mockup-repository.cjs';
+import mockupHandlerSource from '../_shared/outbound-sales/company-mockup-handler.cjs?raw';
 import migration31 from '../../../migrations/031_outbound_company_banner_mockups.sql?raw';
 import rollback31 from '../../../migrations/031_outbound_company_banner_mockups.rollback.sql?raw';
 
@@ -27,7 +29,11 @@ function candidateFixture() {
       extractedFacts: {
         brandAssets: {
           logoCandidates: [{ url: 'https://amberjack.example/logo.png', kind: 'logo', score: 120 }],
-          imageCandidates: [{ url: 'https://amberjack.example/shoe.jpg', kind: 'product', score: 110 }],
+          imageCandidates: [{
+            url: 'https://amberjack.example/shoe.jpg', kind: 'product', score: 110,
+            alt: 'Amberjack shoe', origin: 'html_image', marker: 'featured product shoe',
+            sourceUrl: 'https://amberjack.example/products', likelyPrecomposed: false,
+          }],
         },
         brandProfile: {
           themeColors: ['#14213d'],
@@ -38,6 +44,7 @@ function candidateFixture() {
     },
     message: {
       id: MESSAGE_ID,
+      contentHash: 'b'.repeat(64),
       subject: 'Amberjack at Atlanta Shoe Market',
       bodyText: 'Hi Eric,\n\nI saw Amberjack is exhibiting at the Atlanta Shoe Market on August 15–17.\n\nBest,\nBrandon',
     },
@@ -89,6 +96,9 @@ describe('company-brand asset extraction', () => {
     expect(assets.imageCandidates.map((asset) => asset.url)).not.toContain('https://www.belenka.example/images/placeholder.jpg');
     expect(profile.themeColors).toEqual(['#00574a']);
     expect(profile.offeringCandidates).toContain('Barefoot shoes designed for natural movement and everyday comfort.');
+    expect(assets.imageCandidates.find((asset) => asset.url.endsWith('/shoe-1600.jpg'))).toMatchObject({
+      origin: 'html_image', likelyPrecomposed: true, declaredWidth: 860, declaredHeight: 620,
+    });
   });
 
   it('follows an explicitly labeled official sub-brand while rejecting unrelated social links', () => {
@@ -102,6 +112,25 @@ describe('company-brand asset extraction', () => {
       'https://evolutionsbrands.example/',
       'Evolutions Brands (BED|STÜ)',
     )).toEqual(['https://www.bedstu.example/']);
+  });
+
+  it('refreshes legacy stored image candidates before applying the relevance gate', async () => {
+    const candidate = candidateFixture();
+    candidate.research.extractedFacts.brandAssets.imageCandidates = [{
+      url: 'https://cdn.amberjack.example/8d11a.jpg', kind: 'product', score: 115,
+    }];
+    const fetchPage = vi.fn().mockResolvedValue({
+      finalUrl: 'https://amberjack.example/',
+      body: '<img class="site-logo" src="/logo.png" alt="Amberjack logo" width="420" height="120"><img class="featured-product" src="/products/loafer.jpg" alt="Amberjack leather loafer product" width="1000" height="700">',
+    });
+    const assets = await mockupModule.discoverAssetCandidates(candidate, { fetchPage });
+    expect(fetchPage).toHaveBeenCalled();
+    expect(assets.images).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        url: 'https://amberjack.example/products/loafer.jpg', origin: 'html_image',
+      }),
+    ]));
+    expect(assets.images.some((asset) => mockupModule.productAssetIsRelevant(asset))).toBe(true);
   });
 
   it('rejects SVG assets that can load scripts, remote files, or embedded foreign content', () => {
@@ -187,7 +216,11 @@ describe('deterministic personalized banner renderer', () => {
     const candidate = candidateFixture();
     const result = await mockupModule.renderCompanyMockup(candidate, {
       logo: { buffer: logo, finalUrl: 'https://amberjack.example/logo.png', candidate: { url: 'https://amberjack.example/logo.png' } },
-      product: { buffer: product, finalUrl: 'https://amberjack.example/shoe.jpg', candidate: { url: 'https://amberjack.example/shoe.jpg' } },
+      product: {
+        buffer: product, width: 800, height: 600, hasAlpha: false,
+        compositionAudit: mockupModule.productCompositionAudit({ width: 800, height: 600 }),
+        finalUrl: 'https://amberjack.example/shoe.jpg', candidate: { url: 'https://amberjack.example/shoe.jpg' },
+      },
       profile: candidate.research.extractedFacts.brandProfile,
       pageUrls: candidate.research.sourceUrls,
     }, {
@@ -208,6 +241,121 @@ describe('deterministic personalized banner renderer', () => {
       productImageUrl: 'https://amberjack.example/shoe.jpg',
     });
     expect(result.buffer.length).toBeLessThan(2 * 1024 * 1024);
+    expect(result.compositionAudit).toMatchObject({ passed: true, sourceVisibleFraction: 1, noClipGuaranteed: true });
+  });
+
+  it('preserves both edges of BED|STÜ-style campaign art instead of cropping embedded branding', async () => {
+    const campaign = await sharp({
+      create: { width: 1000, height: 500, channels: 3, background: '#24405f' },
+    }).composite([{
+      input: Buffer.from('<svg width="1000" height="500" xmlns="http://www.w3.org/2000/svg"><rect width="90" height="500" fill="#ff0000"/><rect x="910" width="90" height="500" fill="#00ff00"/><rect x="330" y="120" width="340" height="260" fill="#ffffff"/><text x="12" y="275" font-size="64" fill="#ffffff">B</text></svg>'),
+    }]).png().toBuffer();
+    const panel = await mockupModule.renderProductPanel({
+      buffer: campaign, width: 1000, height: 500, hasAlpha: false,
+    }, 445, 320, { primary: '#18283b', secondary: '#5a4635', accent: '#ff6b35' }, sharp);
+    const { data, info } = await sharp(panel.buffer).raw().toBuffer({ resolveWithObject: true });
+    const pixel = (x, y) => {
+      const offset = ((y * info.width) + x) * info.channels;
+      return [data[offset], data[offset + 1], data[offset + 2]];
+    };
+    const leftEdge = pixel(22, 100);
+    const rightEdge = pixel(422, 100);
+    expect(leftEdge[0]).toBeGreaterThan(leftEdge[1] + 80);
+    expect(rightEdge[1]).toBeGreaterThan(rightEdge[0] + 80);
+    expect(panel.audit).toMatchObject({ passed: true, sourceVisibleFraction: 1, noClipGuaranteed: true });
+  });
+
+  it('rejects extreme imagery that would be too small to present clearly without cropping', () => {
+    expect(mockupModule.productCompositionAudit({ width: 1800, height: 400 })).toMatchObject({
+      passed: false, sourceVisibleFraction: 1, noClipGuaranteed: true,
+    });
+    const cleanProduct = {
+      width: 900, height: 650, compositionAudit: mockupModule.productCompositionAudit({ width: 900, height: 650 }),
+      candidate: { score: 110, marker: 'featured footwear product', origin: 'html_image', likelyPrecomposed: false },
+    };
+    const socialHero = {
+      ...cleanProduct,
+      candidate: { score: 120, marker: 'og:image campaign banner', origin: 'social_meta', likelyPrecomposed: true },
+    };
+    expect(mockupModule.productPresentationScore(cleanProduct)).toBeGreaterThan(mockupModule.productPresentationScore(socialHero));
+    expect(mockupModule.productAssetIsRelevant(cleanProduct)).toBe(true);
+    expect(mockupModule.productAssetIsRelevant({
+      candidate: { marker: 'leadership team staff headshots', url: 'https://amberjack.example/about/team.jpg' },
+    })).toBe(false);
+  });
+
+  it('uses the exact selected-scene panel audit instead of a generic preflight size', async () => {
+    const { scene, logo } = await imageFixtures();
+    const wideCampaign = await sharp({
+      create: { width: 1400, height: 400, channels: 3, background: '#24405f' },
+    }).png().toBuffer();
+    const candidate = candidateFixture();
+    const preflight = mockupModule.productCompositionAudit({ width: 1400, height: 400 });
+    expect(preflight.passed).toBe(true);
+    const result = await mockupModule.renderCompanyMockup(candidate, {
+      logo: { buffer: logo, finalUrl: 'https://amberjack.example/logo.png' },
+      product: {
+        buffer: wideCampaign, width: 1400, height: 400, hasAlpha: false,
+        compositionAudit: preflight, finalUrl: 'https://amberjack.example/products/wide-shoe-campaign.png',
+      },
+      profile: candidate.research.extractedFacts.brandProfile,
+      pageUrls: candidate.research.sourceUrls,
+    }, {
+      sharp, sceneBuffers: { trade_show: scene, storefront: scene, community_event: scene },
+    });
+    expect(result.compositionAudit).toMatchObject({
+      passed: false, panelWidth: 419, panelHeight: 320, sourceVisibleFraction: 1, noClipGuaranteed: true,
+    });
+  });
+
+  it('falls through from a scene-incompatible campaign to the next relevant product image', async () => {
+    const candidate = candidateFixture();
+    candidate.research.extractedFacts.brandAssets.imageCandidates = [
+      {
+        url: 'https://amberjack.example/products/wide-shoe-campaign.png', kind: 'product', score: 180,
+        alt: 'Wide shoe campaign', marker: 'featured footwear product campaign', origin: 'html_image',
+        sourceUrl: 'https://amberjack.example/products', likelyPrecomposed: true,
+      },
+      {
+        url: 'https://amberjack.example/products/loafer.jpg', kind: 'product', score: 100,
+        alt: 'Amberjack loafer', marker: 'featured footwear product loafer', origin: 'html_image',
+        sourceUrl: 'https://amberjack.example/products', likelyPrecomposed: false,
+      },
+    ];
+    const { scene, logo, product } = await imageFixtures();
+    const wide = await sharp({ create: { width: 1400, height: 400, channels: 3, background: '#24405f' } }).png().toBuffer();
+    const result = await mockupModule.prepareCompanyMockup({
+      sql: vi.fn(), candidate, sharp,
+      dependencies: {
+        saveCompanyMockup: vi.fn().mockImplementation(async (_sql, value) => ({ ...value, id: 'mockup-scene-safe' })),
+        fetchAsset: vi.fn().mockImplementation(async (url) => ({
+          finalUrl: url,
+          contentType: url.endsWith('.png') ? 'image/png' : 'image/jpeg',
+          body: url.includes('wide-shoe') ? wide : url.endsWith('logo.png') ? logo : product,
+        })),
+        sceneBuffers: { trade_show: scene, storefront: scene, community_event: scene },
+      },
+    });
+    expect(result.plan.productImageUrl).toBe('https://amberjack.example/products/loafer.jpg');
+    expect(result.compositionAudit).toMatchObject({ passed: true, noClipGuaranteed: true, panelWidth: 419 });
+    expect(result.sendReady).toBe(true);
+  });
+
+  it('invalidates the render cache when a company replaces imagery at the same public URL', () => {
+    const candidate = candidateFixture();
+    const shared = {
+      logo: { buffer: Buffer.from('logo-v1'), finalUrl: 'https://amberjack.example/logo.png' },
+      profile: candidate.research.extractedFacts.brandProfile,
+      pageUrls: candidate.research.sourceUrls,
+    };
+    const first = mockupModule.planFor(candidate, {
+      ...shared, product: { buffer: Buffer.from('product-v1'), finalUrl: 'https://amberjack.example/shoe.jpg' },
+    });
+    const changed = mockupModule.planFor(candidate, {
+      ...shared, product: { buffer: Buffer.from('product-v2'), finalUrl: 'https://amberjack.example/shoe.jpg' },
+    });
+    expect(first.productImageUrl).toBe(changed.productImageUrl);
+    expect(first.contentHash).not.toBe(changed.contentHash);
   });
 
   it('prepares and caches a full brand match while retaining a name-only fallback path', async () => {
@@ -233,15 +381,90 @@ describe('deterministic personalized banner renderer', () => {
     });
     expect(result.qualityLevel).toBe('logo_and_product');
     expect(result.sendReady).toBe(true);
+    expect(result.compositionAudit).toMatchObject({ passed: true, sourceVisibleFraction: 1, noClipGuaranteed: true });
     expect(store.set).toHaveBeenCalledOnce();
     expect(saveCompanyMockup).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
       status: 'ready', qualityLevel: 'logo_and_product', logoUrl: 'https://amberjack.example/logo.png',
       productImageUrl: 'https://amberjack.example/shoe.jpg',
+      generationMetadata: expect.objectContaining({
+        compositionAudit: expect.objectContaining({ passed: true, sourceVisibleFraction: 1, noClipGuaranteed: true }),
+      }),
     }));
     const attachment = mockupModule.attachmentFromMockup(result, candidate.prospect.businessName);
-    expect(attachment).toMatchObject({ filename: 'amberjack-banner-concept.jpg', contentId: 'company-banner-mockup', contentType: 'image/jpeg' });
+    expect(attachment).toMatchObject({ filename: 'amberjack-quick-banner-mockup.jpg', contentId: 'company-banner-mockup', contentType: 'image/jpeg' });
     expect(Buffer.from(attachment.content, 'base64').length).toBe(result.buffer.length);
     expect(mockupModule.qualityLevel(null, null)).toBe('name_only');
+  });
+
+  it('loads the exact audited preview blob for Send without refetching company websites', async () => {
+    const candidate = candidateFixture();
+    const { scene } = await imageFixtures();
+    const contentHash = 'a'.repeat(64);
+    candidate.mockup = {
+      id: 'mockup-ready', messageId: MESSAGE_ID, status: 'ready', sceneId: 'trade_show', renderVersion: mockupModule.RENDER_VERSION,
+      contentHash, blobKey: `company-banners/${PROSPECT_ID}/${contentHash}.jpg`, mimeType: 'image/jpeg',
+      width: 1200, height: 675, logoUrl: 'https://amberjack.example/logo.png',
+      productImageUrl: 'https://amberjack.example/products/loafer.jpg', eventLabel: 'Atlanta Shoe Market',
+      qualityLevel: 'logo_and_product', sourceUrls: ['https://amberjack.example'],
+      generationMetadata: {
+        messageContentHash: candidate.message.contentHash,
+        compositionAudit: { passed: true, sourceVisibleFraction: 1, noClipGuaranteed: true },
+      },
+    };
+    const fetchPage = vi.fn();
+    const fetchAsset = vi.fn();
+    const store = { get: vi.fn().mockResolvedValue(scene) };
+    const result = await mockupModule.prepareCompanyMockup({
+      sql: vi.fn(), candidate, store, sharp, preferCachedReady: true,
+      dependencies: { fetchPage, fetchAsset },
+    });
+    expect(result).toMatchObject({
+      prospectId: PROSPECT_ID, cached: true, sendReady: true, qualityLevel: 'logo_and_product',
+      compositionAudit: { passed: true, noClipGuaranteed: true },
+    });
+    expect(store.get).toHaveBeenCalledWith(candidate.mockup.blobKey, { type: 'arrayBuffer' });
+    expect(fetchPage).not.toHaveBeenCalled();
+    expect(fetchAsset).not.toHaveBeenCalled();
+  });
+
+  it('regenerates instead of sending a corrupt or wrong-dimension cached preview', async () => {
+    const candidate = candidateFixture();
+    const { scene, logo, product } = await imageFixtures();
+    const assets = {
+      logo: { buffer: logo, finalUrl: 'https://amberjack.example/logo.png' },
+      product: { buffer: product, finalUrl: 'https://amberjack.example/shoe.jpg' },
+      profile: candidate.research.extractedFacts.brandProfile,
+      pageUrls: candidate.research.sourceUrls,
+    };
+    const plan = mockupModule.planFor(candidate, assets);
+    candidate.mockup = {
+      id: 'mockup-corrupt', messageId: MESSAGE_ID, status: 'ready', sceneId: 'trade_show',
+      renderVersion: mockupModule.RENDER_VERSION, contentHash: plan.contentHash,
+      blobKey: `company-banners/${PROSPECT_ID}/${plan.contentHash}.jpg`, mimeType: 'image/jpeg',
+      width: 1200, height: 675, logoUrl: assets.logo.finalUrl, productImageUrl: assets.product.finalUrl,
+      eventLabel: 'Atlanta Shoe Market', qualityLevel: 'logo_and_product', sourceUrls: assets.pageUrls,
+      generationMetadata: {
+        messageContentHash: candidate.message.contentHash,
+        compositionAudit: { passed: true, sourceVisibleFraction: 1, noClipGuaranteed: true },
+      },
+    };
+    const wrongSize = await sharp({ create: { width: 1199, height: 675, channels: 3, background: '#123456' } }).jpeg().toBuffer();
+    const store = { get: vi.fn().mockResolvedValue(wrongSize), set: vi.fn().mockResolvedValue(undefined) };
+    const result = await mockupModule.prepareCompanyMockup({
+      sql: vi.fn(), candidate, store, sharp, preferCachedReady: true,
+      dependencies: {
+        saveCompanyMockup: vi.fn().mockImplementation(async (_sql, value) => ({ ...value, id: 'mockup-rebuilt' })),
+        fetchAsset: vi.fn().mockImplementation(async (url) => ({
+          finalUrl: url, contentType: url.endsWith('.png') ? 'image/png' : 'image/jpeg',
+          body: url.endsWith('.png') ? logo : product,
+        })),
+        sceneBuffers: { trade_show: scene, storefront: scene, community_event: scene },
+      },
+    });
+    expect(result.cached).toBe(false);
+    expect(result.sendReady).toBe(true);
+    expect(await sharp(result.buffer).metadata()).toMatchObject({ width: 1200, height: 675, format: 'jpeg' });
+    expect(store.set).toHaveBeenCalled();
   });
 
   it('rejects tiny or flat assets and renders a clean fallback instead of mailing a poor image', async () => {
@@ -272,6 +495,21 @@ describe('deterministic personalized banner renderer', () => {
 });
 
 describe('company mockup migration isolation', () => {
+  it('serves admin previews from the exact audited cache instead of rescraping on image load', () => {
+    expect(mockupHandlerSource).toContain("preferCachedReady: event.httpMethod === 'GET'");
+  });
+
+  it('requeues every incomplete or composition-blocked mockup for a safe rebuild', async () => {
+    const sql = vi.fn().mockResolvedValue([]);
+    await mockupRepository.listCompanyMockupCandidates(sql, { limit: 70, renderVersion: mockupModule.RENDER_VERSION });
+    expect(sql.mock.calls[0][0]).toContain("mockup.status <> 'ready'");
+    expect(sql.mock.calls[0][0]).toContain("mockup.quality_level IS DISTINCT FROM 'logo_and_product'");
+    expect(sql.mock.calls[0][0]).toContain('"compositionAudit":{"passed":true,"noClipGuaranteed":true}');
+    expect(sql.mock.calls[0][0]).toContain("mockup.generation_metadata->>'messageContentHash' IS DISTINCT FROM message.content_hash");
+    expect(sql.mock.calls[0][0]).toContain('mockup.render_version IS DISTINCT FROM $3');
+    expect(sql.mock.calls[0][0]).toContain('SELECT m.id,m.subject,m.body_text,m.content_hash');
+  });
+
   it('stores metadata only in a dedicated outbound table and has a clean rollback', () => {
     expect(migration31).toContain('CREATE TABLE IF NOT EXISTS outbound_company_mockups');
     expect(migration31).toContain("'logo_and_product'");
