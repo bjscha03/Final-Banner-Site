@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle, Building2, CalendarSearch, CheckCircle2, ChevronLeft, ChevronRight,
-  Copy, ExternalLink, Eye, Filter, Image, LoaderCircle, Mail, MapPin, Phone, RefreshCw,
+  ExternalLink, Eye, Filter, Image, LoaderCircle, Mail, MapPin, Phone, RefreshCw,
   Search, Send, ShieldCheck, Sparkles, Upload, UserRound, X,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -22,7 +22,6 @@ import {
   type OutboundManualReviewLead,
   type OutboundManualReviewQueue,
 } from '@/lib/outboundSales';
-import { buildOutboundBannerPrompt } from '@/lib/outboundBannerPrompt';
 
 const PAGE_SIZE = 50;
 const VIEWS = [
@@ -139,31 +138,18 @@ function LeadCard({
   onSaveNote: (lead: OutboundManualReviewLead, notes: string) => void;
 }) {
   const [showPreview, setShowPreview] = useState(false);
-  const [showPrompt, setShowPrompt] = useState(false);
-  const [promptCopied, setPromptCopied] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [notes, setNotes] = useState(lead.review.notes || '');
   const uploadInput = useRef<HTMLInputElement | null>(null);
   useEffect(() => setNotes(lead.review.notes || ''), [lead.review.notes]);
   const sent = lead.review.sendState === 'sent';
   const presentationReady = mockupIsPresentationReady(lead);
-  const bannerPrompt = buildOutboundBannerPrompt(lead);
   const sendReason = uploadingArtwork
     ? 'Wait for the banner upload to finish before sending.'
     : !deliveryReady
     ? 'Email delivery is not ready. Refresh after the listed configuration issue is fixed.'
     : lead.technicalBlockers[0] || '';
   const retryableRecovery = lead.review.recoveryStatus === 'retryable';
-
-  const copyPrompt = async () => {
-    try {
-      await navigator.clipboard.writeText(bannerPrompt);
-      setPromptCopied(true);
-      window.setTimeout(() => setPromptCopied(false), 1800);
-    } catch {
-      setShowPrompt(true);
-    }
-  };
 
   const acceptArtwork = (file: File | undefined) => {
     if (file) onUploadArtwork(lead, file);
@@ -238,26 +224,6 @@ function LeadCard({
               <p className="mt-3 text-sm"><strong>Subject:</strong> {lead.message.subject}</p>
               <p className="mt-2 line-clamp-4 whitespace-pre-wrap text-sm leading-6 text-slate-600">{lead.message.bodyText}</p>
               <p className="mt-3 text-xs font-semibold text-slate-500">Send adds the 20% NEW20 offer, business address, footer unsubscribe link, and one-click unsubscribe header.</p>
-              <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-3">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="flex items-center gap-2 text-sm font-black text-blue-950"><Sparkles className="h-4 w-4 text-[#ff6b35]" /> Banner design prompt</p>
-                    <p className="mt-1 text-xs text-blue-900">Copy this into your banner-image GPT. The company website and exact accuracy rules are already included.</p>
-                  </div>
-                  <div className="flex shrink-0 gap-2">
-                    <Button type="button" size="sm" variant="outline" className="bg-white" onClick={() => setShowPrompt((value) => !value)}>
-                      <Eye className="mr-2 h-3.5 w-3.5" /> {showPrompt ? 'Hide prompt' : 'View prompt'}
-                    </Button>
-                    <Button type="button" size="sm" onClick={() => void copyPrompt()} className="bg-[#18448D] text-white hover:bg-[#12386f]">
-                      <Copy className="mr-2 h-3.5 w-3.5" /> {promptCopied ? 'Copied' : 'Copy prompt'}
-                    </Button>
-                  </div>
-                </div>
-                {showPrompt && (
-                  <Textarea readOnly value={bannerPrompt} aria-label={`Banner prompt for ${lead.businessName}`} className="mt-3 min-h-[300px] bg-white font-mono text-xs leading-5" onFocus={(event) => event.currentTarget.select()} />
-                )}
-              </div>
-
               <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
                 {lead.mockup?.previewUrl ? (
                   <div>
@@ -561,7 +527,7 @@ export default function SalesLeadReview() {
           <div>
             <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-orange-300"><Sparkles className="h-4 w-4" /> Event-first prospecting</div>
             <h1 className="mt-2 text-3xl font-black">Lead Review</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-blue-100">High-value companies are ranked with direct trade-show, expo, conference, and upcoming-event evidence first. Copy the banner prompt, upload your finished image, preview the email, then click Send.</p>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-blue-100">High-value companies are ranked with direct trade-show, expo, conference, and upcoming-event evidence first. Upload each company&apos;s finished banner, preview the email, then click Send.</p>
           </div>
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="rounded-xl bg-white/10 px-4 py-3"><div className="text-2xl font-black">{queue?.total ?? '—'}</div><div className="text-[10px] font-bold uppercase tracking-wide text-blue-100">Leads</div></div>
@@ -628,7 +594,7 @@ export default function SalesLeadReview() {
       <section className="flex flex-col gap-4 rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-orange-50 p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="flex items-center gap-2 font-black text-slate-950"><Image className="h-4 w-4 text-[#ff6b35]" /> Manual personalized banner workflow</p>
-          <p className="mt-1 text-sm leading-6 text-slate-600">Every lead includes a detailed company-specific prompt with its website URL. Create the image in your banner GPT, drop it into the lead, review the exact email preview, and hit Send.</p>
+          <p className="mt-1 text-sm leading-6 text-slate-600">Upload the finished banner individually for each company, review that exact image in the email preview, and hit Send only when you are satisfied.</p>
           <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold">
             <Badge className="bg-emerald-700 text-white">{queue?.mockups.ready ?? 0} images uploaded</Badge>
             <Badge variant="outline" className="border-orange-300 bg-white text-orange-900">{queue?.mockups.missing ?? 0} waiting for upload</Badge>
