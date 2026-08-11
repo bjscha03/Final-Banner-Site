@@ -3,6 +3,7 @@
  */
 
 export { BlogCard } from './BlogCard';
+export { BlogHero } from './BlogHero';
 export { BlogList } from './BlogList';
 export { BlogPost } from './BlogPost';
 export { TagPill } from './TagPill';
