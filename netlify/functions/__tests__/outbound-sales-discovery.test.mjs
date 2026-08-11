@@ -167,6 +167,43 @@ describe('SSRF-safe website transport', () => {
     expect(pinned).toEqual(['93.184.216.34', '93.184.216.35']);
   });
 
+  it('retries another validated public address when the first CDN edge cannot connect', async () => {
+    const pinned = [];
+    let requestCount = 0;
+    const requestImpl = (url, options, callback) => {
+      const request = new EventEmitter();
+      request.setTimeout = vi.fn();
+      request.destroy = (error) => queueMicrotask(() => request.emit('error', error));
+      request.end = () => {
+        options.lookup(url.hostname, {}, (_error, address) => pinned.push(address));
+        requestCount += 1;
+        if (requestCount === 1) {
+          const error = new Error('stale CDN edge');
+          error.code = 'ECONNRESET';
+          queueMicrotask(() => request.emit('error', error));
+          return;
+        }
+        const response = Readable.from([Buffer.from('<h1>Recovered</h1>')]);
+        response.statusCode = 200;
+        response.headers = { 'content-type': 'text/html' };
+        response.socket = { remoteAddress: '93.184.216.35' };
+        queueMicrotask(() => callback(response));
+      };
+      return request;
+    };
+    const response = await fetchWebsitePage('https://example.org', {
+      lookup: async () => [
+        { address: '2606:2800:220:1:248:1893:25c8:1946', family: 6 },
+        { address: '93.184.216.34', family: 4 },
+        { address: '93.184.216.35', family: 4 },
+      ],
+      requestImpl,
+      timeoutMs: 6000,
+    });
+    expect(response.body).toBe('<h1>Recovered</h1>');
+    expect(pinned).toEqual(['93.184.216.34', '93.184.216.35']);
+  });
+
   it('blocks HTTPS downgrade redirects', async () => {
     const requestImpl = requestFixture([
       { status: 302, headers: { location: 'http://www.example.org/about', 'content-type': 'text/html' }, remoteAddress: '93.184.216.34' },

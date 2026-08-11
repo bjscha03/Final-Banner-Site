@@ -177,6 +177,52 @@ function defaultRequest(url, options, onResponse) {
   return (url.protocol === 'https:' ? https : http).request(url, options, onResponse);
 }
 
+async function requestPublicResource(url, options) {
+  const approvedAddresses = await resolvePublicHost(url.hostname, options.lookup);
+  const addresses = approvedAddresses.slice(0, 4);
+  const perAddressTimeout = Math.max(500, Math.floor(options.timeoutMs / addresses.length));
+  let lastError = null;
+  for (const pinned of addresses) {
+    try {
+      // Each connection is pinned to one address that was already validated as
+      // public. Retrying another validated answer avoids making a single stale
+      // CDN edge or unreachable IPv6 route the failure point for the company.
+      return await new Promise((resolve, reject) => {
+        let settled = false;
+        const finish = (callback, result) => {
+          if (settled) return;
+          settled = true;
+          callback(result);
+        };
+        const request = options.requestImpl(url, {
+          method: 'GET',
+          headers: options.headers,
+          servername: url.hostname,
+          lookup(_hostname, _lookupOptions, callback) {
+            callback(null, pinned.address, pinned.family);
+          },
+        }, (incoming) => {
+          const remoteAddress = incoming.socket?.remoteAddress;
+          if (!remoteAddress || !isPublicIp(remoteAddress) || !sameAddress(remoteAddress, pinned.address)) {
+            incoming.destroy();
+            finish(reject, ssrfError('WEBSITE_CONNECTION_ADDRESS_MISMATCH', options.addressMismatchMessage));
+            return;
+          }
+          finish(resolve, incoming);
+        });
+        request.setTimeout(perAddressTimeout, () => request.destroy(ssrfError('WEBSITE_TIMEOUT', options.timeoutMessage)));
+        request.on('error', (error) => finish(reject, error?.code?.startsWith?.('WEBSITE_')
+          ? error : ssrfError('WEBSITE_FETCH_FAILED', options.fetchMessage)));
+        request.end();
+      });
+    } catch (error) {
+      if (error?.code === 'WEBSITE_CONNECTION_ADDRESS_MISMATCH') throw error;
+      lastError = error;
+    }
+  }
+  throw lastError || ssrfError('WEBSITE_FETCH_FAILED', options.fetchMessage);
+}
+
 async function fetchWebsitePage(value, options = {}) {
   const maxBytes = Math.max(1024, Math.min(MAX_WEBSITE_BYTES, Number(options.maxBytes) || MAX_WEBSITE_BYTES));
   const requestedRedirects = Number(options.maxRedirects);
@@ -189,42 +235,20 @@ async function fetchWebsitePage(value, options = {}) {
   const headers = {
     Accept: 'text/html,application/xhtml+xml;q=0.9,text/plain;q=0.5',
     'Accept-Encoding': 'identity',
+    'Accept-Language': 'en-US,en;q=0.8',
     'Cache-Control': 'no-cache',
-    'User-Agent': 'BannersOnTheFly-ResearchBot/2.0 (+https://bannersonthefly.com)',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
   };
   if (options.etag) headers['If-None-Match'] = String(options.etag).slice(0, 500);
   if (options.lastModified) headers['If-Modified-Since'] = String(options.lastModified).slice(0, 200);
 
   async function attempt(input, redirectsRemaining) {
     const url = normalizeWebsiteUrl(input);
-    const approvedAddresses = await resolvePublicHost(url.hostname, lookup);
-    const pinned = approvedAddresses[0];
-    const response = await new Promise((resolve, reject) => {
-      let settled = false;
-      const finish = (callback, result) => {
-        if (settled) return;
-        settled = true;
-        callback(result);
-      };
-      const request = requestImpl(url, {
-        method: 'GET',
-        headers,
-        servername: url.hostname,
-        lookup(_hostname, _lookupOptions, callback) {
-          callback(null, pinned.address, pinned.family);
-        },
-      }, (incoming) => {
-        const remoteAddress = incoming.socket?.remoteAddress;
-        if (!remoteAddress || !isPublicIp(remoteAddress) || !sameAddress(remoteAddress, pinned.address)) {
-          incoming.destroy();
-          finish(reject, ssrfError('WEBSITE_CONNECTION_ADDRESS_MISMATCH', 'Website connection did not use the approved public address.'));
-          return;
-        }
-        finish(resolve, incoming);
-      });
-      request.setTimeout(timeoutMs, () => request.destroy(ssrfError('WEBSITE_TIMEOUT', 'Website request timed out.')));
-      request.on('error', (error) => finish(reject, error?.code?.startsWith?.('WEBSITE_') ? error : ssrfError('WEBSITE_FETCH_FAILED', 'Website request failed.')));
-      request.end();
+    const response = await requestPublicResource(url, {
+      lookup, requestImpl, headers, timeoutMs,
+      timeoutMessage: 'Website request timed out.',
+      fetchMessage: 'Website request failed.',
+      addressMismatchMessage: 'Website connection did not use the approved public address.',
     });
 
     const status = Number(response.statusCode) || 0;
@@ -304,40 +328,20 @@ async function fetchWebsiteAsset(value, options = {}) {
 
   async function attempt(input, redirectsRemaining) {
     const url = normalizeWebsiteUrl(input);
-    const approvedAddresses = await resolvePublicHost(url.hostname, lookup);
-    const pinned = approvedAddresses[0];
-    const response = await new Promise((resolve, reject) => {
-      let settled = false;
-      const finish = (callback, result) => {
-        if (settled) return;
-        settled = true;
-        callback(result);
-      };
-      const request = requestImpl(url, {
-        method: 'GET',
-        headers: {
-          Accept: 'image/png,image/jpeg,image/webp,image/avif,image/gif,image/svg+xml;q=0.8',
-          'Accept-Encoding': 'identity',
-          'Accept-Language': 'en-US,en;q=0.8',
-          'User-Agent': 'BannersOnTheFly-MockupRenderer/2.0 (+https://bannersonthefly.com)',
-          ...(referer ? { Referer: referer } : {}),
-        },
-        servername: url.hostname,
-        lookup(_hostname, _lookupOptions, callback) {
-          callback(null, pinned.address, pinned.family);
-        },
-      }, (incoming) => {
-        const remoteAddress = incoming.socket?.remoteAddress;
-        if (!remoteAddress || !isPublicIp(remoteAddress) || !sameAddress(remoteAddress, pinned.address)) {
-          incoming.destroy();
-          finish(reject, ssrfError('WEBSITE_CONNECTION_ADDRESS_MISMATCH', 'Asset connection did not use the approved public address.'));
-          return;
-        }
-        finish(resolve, incoming);
-      });
-      request.setTimeout(timeoutMs, () => request.destroy(ssrfError('WEBSITE_TIMEOUT', 'Website asset request timed out.')));
-      request.on('error', (error) => finish(reject, error?.code?.startsWith?.('WEBSITE_') ? error : ssrfError('WEBSITE_FETCH_FAILED', 'Website asset request failed.')));
-      request.end();
+    const response = await requestPublicResource(url, {
+      lookup,
+      requestImpl,
+      timeoutMs,
+      headers: {
+        Accept: 'image/png,image/jpeg,image/webp,image/avif,image/gif,image/svg+xml;q=0.8',
+        'Accept-Encoding': 'identity',
+        'Accept-Language': 'en-US,en;q=0.8',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+        ...(referer ? { Referer: referer } : {}),
+      },
+      timeoutMessage: 'Website asset request timed out.',
+      fetchMessage: 'Website asset request failed.',
+      addressMismatchMessage: 'Asset connection did not use the approved public address.',
     });
 
     const status = Number(response.statusCode) || 0;
