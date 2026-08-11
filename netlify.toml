@@ -15,7 +15,7 @@
   # because runtime requires live inside copied legacy handlers and are not
   # always visible to Netlify's wrapper dependency analysis.
   node_bundler = "esbuild"
-  included_files = ["src/lib/**", "src/emails/**", "node_modules/@neondatabase/serverless/**", "node_modules/node-fetch/**", "node_modules/whatwg-url/**", "node_modules/tr46/**", "node_modules/webidl-conversions/**", "node_modules/resend/**"]
+  included_files = ["src/lib/**", "src/emails/**", "public/images/email/mockup-scenes/**", "node_modules/@neondatabase/serverless/**", "node_modules/node-fetch/**", "node_modules/whatwg-url/**", "node_modules/tr46/**", "node_modules/webidl-conversions/**", "node_modules/resend/**"]
   external_node_modules = ["@neondatabase/serverless", "node-fetch", "@react-email/components", "@react-email/render", "aws-sdk", "uuid", "cloudinary", "sharp", "pdfkit", "openai", "google-auth-library", "stripe"]
 
 # Function-specific configuration
@@ -75,6 +75,28 @@
   schedule = "@daily"
   timeout = 60
   memory = 512
+
+# Manual-sales preparation only. These jobs discover/research leads and render
+# previews; they never call Resend or send email. Netlify cron is UTC, so the
+# 11:30 UTC finalizer finishes before 8:00 AM Eastern year-round.
+[functions."outbound-sales-morning-launch"]
+  schedule = "30 9 * * *"
+  timeout = 30
+  memory = 512
+
+[functions."outbound-sales-morning-replenish"]
+  schedule = "30 10 * * *"
+  timeout = 30
+  memory = 512
+
+[functions."outbound-sales-morning-finalize"]
+  schedule = "30 11 * * *"
+  timeout = 30
+  memory = 512
+
+[functions."outbound-sales-morning-prepare-background"]
+  background = true
+  memory = 2048
 
 
 [dev]

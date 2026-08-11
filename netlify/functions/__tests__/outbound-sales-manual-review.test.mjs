@@ -81,12 +81,22 @@ function rowFixture() {
     domain_matches: true,
     contact_quality_score: 95,
     message_id: MESSAGE_ID,
-    message_subject: 'Banner planning for your exhibitor expo',
-    message_body_text: 'Hi Taylor,\n\nI saw your upcoming exhibitor expo.\n\nBest,\nBrandon\nBanners On The Fly',
+    message_subject: 'Future Expo Group: banner planning for your exhibitor expo',
+    message_body_text: 'Hi Taylor,\n\nI saw Future Expo Group has an upcoming exhibitor expo.\n\nBest,\nBrandon\nBanners On The Fly',
     message_body_html: '<html><body>Preview</body></html>',
     generation_status: 'generated',
     evidence_validation_status: 'passed',
     message_sent_at: null,
+    mockup_id: '44444444-4444-4444-8444-444444444444',
+    mockup_status: 'ready',
+    mockup_scene_id: 'trade_show',
+    mockup_quality_level: 'logo_and_product',
+    mockup_logo_url: 'https://futureexpo.example/logo.png',
+    mockup_product_image_url: 'https://futureexpo.example/expo.jpg',
+    mockup_event_label: 'Future Expo',
+    mockup_source_urls: ['https://futureexpo.example'],
+    mockup_content_hash: 'fixture-content-hash',
+    mockup_generated_at: '2026-08-10T11:30:00Z',
     review_status: 'pending',
     permission_status: 'unknown',
     permission_evidence: null,
@@ -199,7 +209,13 @@ describe('permissioned Resend transport', () => {
       from: 'Banners On The Fly <info@bannersonthefly.com>',
       replyTo: 'support@bannersonthefly.com',
       contact: { email: 'events@futureexpo.example' },
-      message: { id: MESSAGE_ID, sendKey: stableManualSendKey(PROSPECT_ID), subject: 'Expo banners', bodyText: 'Text', bodyHtml: '<p>HTML</p>' },
+      message: { id: MESSAGE_ID, sendKey: stableManualSendKey(PROSPECT_ID), subject: 'Expo banners', bodyText: 'Text', bodyHtml: '<p><img src="cid:company-banner-mockup">HTML</p>' },
+      attachments: [{
+        content: Buffer.from('email-safe-jpeg-fixture').toString('base64'),
+        filename: 'future-expo-banner-concept.jpg',
+        contentId: 'company-banner-mockup',
+        contentType: 'image/jpeg',
+      }],
     });
     expect(result.providerMessageId).toBe('resend-manual-1');
     expect(send).toHaveBeenCalledWith(expect.objectContaining({
@@ -208,6 +224,11 @@ describe('permissioned Resend transport', () => {
         'List-Unsubscribe': '<https://bannersonthefly.com/.netlify/functions/outbound-sales-unsubscribe?token=opaque>',
         'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
       },
+      attachments: [expect.objectContaining({
+        filename: 'future-expo-banner-concept.jpg',
+        contentId: 'company-banner-mockup',
+        contentType: 'image/jpeg',
+      })],
     }), { idempotencyKey: stableManualSendKey(PROSPECT_ID) });
   });
 
@@ -260,8 +281,8 @@ describe('manual lead review endpoint', () => {
       send_key: stableManualSendKey(PROSPECT_ID), send_attempt_count: 1,
       business_name: 'Future Expo Group', prospect_status: 'ready_for_outreach',
       email: 'events@futureexpo.example', campaign_id: null,
-      subject: 'Banner planning for your exhibitor expo',
-      body_text: 'Hi Taylor,\n\nI saw your upcoming exhibitor expo.\n\nBest,\nBrandon\nBanners On The Fly',
+      subject: 'Future Expo Group: banner planning for your exhibitor expo',
+      body_text: 'Hi Taylor,\n\nI saw Future Expo Group has an upcoming exhibitor expo.\n\nBest,\nBrandon\nBanners On The Fly',
       generation_status: 'generated', evidence_validation_status: 'passed',
     };
     const sendPermissioned = vi.fn().mockImplementation(async (input) => {
@@ -270,6 +291,13 @@ describe('manual lead review endpoint', () => {
       expect(input.message.bodyText).toContain('NEW20');
       expect(input.message.bodyText).toContain('Unsubscribe: https://bannersonthefly.com/.netlify/functions/outbound-sales-unsubscribe?token=');
       expect(input.message.bodyHtml).toContain('Unsubscribe from future marketing emails');
+      expect(input.message.bodyHtml).toContain('cid:company-banner-mockup');
+      expect(input.message.bodyHtml).toContain('A complimentary banner concept created for Future Expo Group');
+      expect(input.attachments).toEqual([expect.objectContaining({
+        filename: 'future-expo-group-banner-concept.jpg',
+        contentId: 'company-banner-mockup',
+        contentType: 'image/jpeg',
+      })]);
       return { providerMessageId: 'resend-manual-2', latencyMs: 12 };
     });
     const saveToken = vi.fn().mockResolvedValue({ id: 'token-row' });
@@ -295,6 +323,11 @@ describe('manual lead review endpoint', () => {
           id: CONTACT_ID, email: 'events@futureexpo.example', canonical_domain: 'futureexpo.example',
         }),
         assessEmail, saveManualContactAssessment: vi.fn().mockResolvedValue({ id: CONTACT_ID }),
+        prepareCompanyMockup: vi.fn().mockResolvedValue({
+          prospectId: PROSPECT_ID,
+          buffer: Buffer.from('rendered-company-banner'),
+          qualityLevel: 'logo_and_product',
+        }),
       },
     });
     const response = await handler(adminEvent('POST', { prospectId: PROSPECT_ID }));
@@ -306,5 +339,44 @@ describe('manual lead review endpoint', () => {
     expect(markSent).toHaveBeenCalledWith({}, expect.objectContaining({ providerMessageId: 'resend-manual-2' }));
     expect(appendAudit).toHaveBeenCalledWith({}, expect.objectContaining({ action: 'manual_lead.send_authorized' }));
     expect(appendAudit).toHaveBeenCalledWith({}, expect.objectContaining({ action: 'manual_lead.email_sent' }));
+  });
+
+  it('fails closed before transport if Company A is ever paired with Company B mockup data', async () => {
+    const sendPermissioned = vi.fn();
+    const markFailed = vi.fn().mockResolvedValue({ prospect_id: PROSPECT_ID });
+    const claimed = {
+      prospect_id: PROSPECT_ID, contact_id: CONTACT_ID, message_id: MESSAGE_ID,
+      send_key: stableManualSendKey(PROSPECT_ID), business_name: 'Future Expo Group',
+      email: 'taylor@futureexpo.example', subject: 'Future Expo Group custom banner concept',
+      body_text: 'Hi Taylor,\n\nI made this Future Expo Group banner concept.\n\nBest,\nBrandon Schaefer\nOwner, Banners On The Fly\nbannersonthefly.com',
+    };
+    const handler = createManualReviewHandler({
+      env: deliveryEnvironment,
+      dependencies: {
+        createSql: () => ({}),
+        loadManualReviewContact: vi.fn().mockResolvedValue({ id: CONTACT_ID, email: 'taylor@futureexpo.example', canonical_domain: 'futureexpo.example' }),
+        assessEmail: vi.fn().mockResolvedValue({
+          email: 'taylor@futureexpo.example', emailNormalized: 'taylor@futureexpo.example', syntaxValid: true,
+          isRoleAddress: false, isFreeMailbox: false, domainMatches: true, mxStatus: 'present',
+          verificationStatus: 'valid', contactQualityScore: 100,
+        }),
+        saveManualContactAssessment: vi.fn().mockResolvedValue({ id: CONTACT_ID }),
+        authorizeManualSend: vi.fn().mockResolvedValue({ prospect_id: PROSPECT_ID }),
+        appendAudit: vi.fn().mockResolvedValue({}),
+        claimManualReviewSend: vi.fn().mockResolvedValue(claimed),
+        saveUnsubscribeToken: vi.fn().mockResolvedValue({}),
+        prepareCompanyMockup: vi.fn().mockResolvedValue({
+          prospectId: '99999999-9999-4999-8999-999999999999',
+          buffer: Buffer.from('wrong-company-banner'), qualityLevel: 'logo_and_product',
+        }),
+        sendPermissionedMarketingMessage: sendPermissioned,
+        markManualReviewFailed: markFailed,
+      },
+    });
+    const response = await handler(adminEvent('POST', { prospectId: PROSPECT_ID }));
+    expect(response.statusCode).toBe(409);
+    expect(JSON.parse(response.body)).toMatchObject({ error: 'COMPANY_MOCKUP_IDENTITY_MISMATCH' });
+    expect(sendPermissioned).not.toHaveBeenCalled();
+    expect(markFailed).toHaveBeenCalledWith({}, expect.objectContaining({ prospectId: PROSPECT_ID, errorCode: 'COMPANY_MOCKUP_IDENTITY_MISMATCH' }));
   });
 });

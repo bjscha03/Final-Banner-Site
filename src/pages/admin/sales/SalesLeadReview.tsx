@@ -1,26 +1,73 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle, Building2, CalendarSearch, CheckCircle2, ChevronLeft, ChevronRight,
-  ExternalLink, Eye, LoaderCircle, Mail, RefreshCw, Send, ShieldCheck, Sparkles,
+  ExternalLink, Eye, Filter, LoaderCircle, Mail, MapPin, Phone, RefreshCw, Search,
+  Send, ShieldCheck, Sparkles, UserRound, X,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 import {
   getOutboundManualReviewLeads,
+  prepareOutboundCompanyMockups,
+  refreshOutboundCompanyMockup,
+  saveOutboundLeadNote,
   sendOutboundReviewedLead,
+  type OutboundLeadFilters,
   type OutboundManualReviewLead,
   type OutboundManualReviewQueue,
 } from '@/lib/outboundSales';
 
 const PAGE_SIZE = 50;
 const VIEWS = [
+  ['today', "Today's Leads"],
   ['ready', 'Ready to Send'],
   ['sent', 'Sent'],
   ['all', 'All'],
 ] as const;
 type View = typeof VIEWS[number][0];
+type QueueSort = OutboundManualReviewQueue['sort'];
+
+const EMPTY_FILTERS: OutboundLeadFilters = {};
+
+function localDateTime(value: string | null | undefined) {
+  if (!value) return '—';
+  const date = new Date(value);
+  return Number.isNaN(date.valueOf()) ? '—' : date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+function addressLabel(address: Record<string, string | null>) {
+  return [address.city, address.state || address.region, address.country].filter(Boolean).join(', ');
+}
+
+function FilterSelect({
+  id, label, value, placeholder, options, onChange,
+}: {
+  id: string;
+  label: string;
+  value?: string;
+  placeholder: string;
+  options: Array<{ value: string; label: string }>;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id} className="text-xs font-black text-slate-700">{label}</Label>
+      <Select value={value || 'all'} onValueChange={(next) => onChange(next === 'all' ? '' : next)}>
+        <SelectTrigger id={id} className="bg-white"><SelectValue placeholder={placeholder} /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">{placeholder}</SelectItem>
+          {options.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
 
 function titleCase(value: string | null | undefined) {
   return String(value || 'unknown').replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -39,6 +86,14 @@ function reviewBadge(lead: OutboundManualReviewLead) {
   return <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800">Needs attention</Badge>;
 }
 
+function mockupQualityLabel(lead: OutboundManualReviewLead) {
+  const quality = lead.mockup?.qualityLevel;
+  if (quality === 'logo_and_product') return 'Exact logo + product image';
+  if (quality === 'logo') return 'Exact company logo';
+  if (quality === 'product') return 'Exact company image';
+  return 'Verified name fallback';
+}
+
 function Score({ value }: { value: number | null }) {
   return (
     <div className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 text-xl font-black text-emerald-800">
@@ -48,21 +103,27 @@ function Score({ value }: { value: number | null }) {
 }
 
 function LeadCard({
-  lead, deliveryReady, sending, onSend,
+  lead, deliveryReady, sending, refreshingMockup, savingNote, onSend, onRefreshMockup, onSaveNote,
 }: {
   lead: OutboundManualReviewLead;
   deliveryReady: boolean;
   sending: boolean;
+  refreshingMockup: boolean;
+  savingNote: boolean;
   onSend: (lead: OutboundManualReviewLead) => void;
+  onRefreshMockup: (lead: OutboundManualReviewLead) => void;
+  onSaveNote: (lead: OutboundManualReviewLead, notes: string) => void;
 }) {
   const [showPreview, setShowPreview] = useState(false);
+  const [notes, setNotes] = useState(lead.review.notes || '');
+  useEffect(() => setNotes(lead.review.notes || ''), [lead.review.notes]);
   const sent = lead.review.sendState === 'sent';
   const sendReason = !deliveryReady
     ? 'Email delivery is not ready. Refresh after the listed configuration issue is fixed.'
     : lead.technicalBlockers[0] || '';
 
   return (
-    <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <article id={`lead-${lead.prospectId}`} tabIndex={-1} className="scroll-mt-28 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm outline-none focus:ring-2 focus:ring-[#ff6b35]">
       <div className="flex flex-col gap-4 p-5 xl:flex-row xl:items-start xl:justify-between">
         <div className="flex min-w-0 gap-4">
           <Score value={lead.leadScore} />
@@ -78,11 +139,14 @@ function LeadCard({
               <span className="inline-flex items-center gap-1"><Building2 className="h-3.5 w-3.5" /> {lead.industry || lead.businessType || 'Industry not supplied'}</span>
               <span>{lead.canonicalDomain || 'No company domain'}</span>
               <span>{titleCase(lead.prospectStatus)}</span>
+              {addressLabel(lead.address) && <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> {addressLabel(lead.address)}</span>}
             </div>
             <div className="mt-2 flex flex-wrap gap-3 text-xs font-bold">
               {lead.websiteUrl && <a href={lead.websiteUrl} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 text-[#18448D]"><ExternalLink className="h-3 w-3" /> Website</a>}
               {lead.sourceUrl && <a href={lead.sourceUrl} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 text-[#18448D]"><ExternalLink className="h-3 w-3" /> Lead source</a>}
               <span className="text-slate-500">Imported via {titleCase(lead.sourceProviderId)}</span>
+              <span className="text-slate-500">Imported {lead.importedBusinessDate || localDateTime(lead.discoveredAt)}</span>
+              {lead.morningQueuePosition && <span className="text-slate-500">Morning queue #{lead.morningQueuePosition}</span>}
             </div>
           </div>
         </div>
@@ -90,7 +154,10 @@ function LeadCard({
           <p className="font-black text-slate-900">Best contact</p>
           {lead.contact ? (
             <>
+              <p className="mt-1 inline-flex items-center gap-1 font-bold text-slate-900"><UserRound className="h-3.5 w-3.5" /> {lead.contact.fullName || 'Contact name not supplied'}</p>
+              {lead.contact.jobTitle && <p className="text-xs text-slate-500">{lead.contact.jobTitle}</p>}
               <p className="mt-1 break-all font-bold text-[#18448D]">{lead.contact.email}</p>
+              {lead.phone && <a href={`tel:${lead.phone}`} className="mt-1 inline-flex items-center gap-1 text-xs font-bold text-slate-700"><Phone className="h-3 w-3" /> {lead.phone}</a>}
               <p className="mt-1 text-xs text-slate-500">Quality {lead.contact.contactQualityScore}/100 · MX {titleCase(lead.contact.mxStatus)} · {titleCase(lead.contact.verificationStatus)}</p>
               {lead.contact.sourceUrl && <a href={lead.contact.sourceUrl} target="_blank" rel="noreferrer noopener" className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-[#18448D]"><ExternalLink className="h-3 w-3" /> Verify public source</a>}
             </>
@@ -124,6 +191,30 @@ function LeadCard({
               <p className="mt-3 text-sm"><strong>Subject:</strong> {lead.message.subject}</p>
               <p className="mt-2 line-clamp-4 whitespace-pre-wrap text-sm leading-6 text-slate-600">{lead.message.bodyText}</p>
               <p className="mt-3 text-xs font-semibold text-slate-500">Send adds the 20% NEW20 offer, business address, footer unsubscribe link, and one-click unsubscribe header.</p>
+              <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+                {lead.mockup?.previewUrl ? (
+                  <img
+                    src={lead.mockup.previewUrl}
+                    alt={`Personalized banner concept for ${lead.businessName}`}
+                    className="aspect-video w-full object-cover"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="flex aspect-video items-center justify-center px-5 text-center text-sm font-semibold text-slate-500">
+                    <span><LoaderCircle className="mx-auto mb-2 h-5 w-5 animate-spin text-[#18448D]" /> Building a banner from the company&apos;s public branding…</span>
+                  </div>
+                )}
+                <div className="flex flex-col gap-2 border-t border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-xs font-black text-slate-900">{mockupQualityLabel(lead)}</p>
+                    <p className="mt-0.5 text-[11px] text-slate-500">{lead.mockup?.eventLabel || titleCase(lead.mockup?.sceneId || lead.eventFit.priority)}</p>
+                  </div>
+                  <Button type="button" size="sm" variant="outline" onClick={() => onRefreshMockup(lead)} disabled={refreshingMockup}>
+                    <RefreshCw className={cn('mr-2 h-3.5 w-3.5', refreshingMockup && 'animate-spin')} />
+                    {lead.mockup ? 'Refresh branding' : 'Build now'}
+                  </Button>
+                </div>
+              </div>
             </>
           ) : (
             <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">The personalized email is not ready. Generate it from the Prospect Queue before sending.</div>
@@ -133,7 +224,7 @@ function LeadCard({
 
       {showPreview && lead.message?.bodyHtml && (
         <div className="border-b border-slate-200 bg-slate-100 p-4">
-          <iframe title={`Email preview for ${lead.businessName}`} srcDoc={lead.message.bodyHtml} sandbox="" className="mx-auto h-[720px] w-full max-w-[720px] rounded-xl border border-slate-300 bg-white" />
+          <iframe title={`Email preview for ${lead.businessName}`} srcDoc={lead.message.bodyHtml} sandbox="allow-same-origin" className="mx-auto h-[720px] w-full max-w-[720px] rounded-xl border border-slate-300 bg-white" />
         </div>
       )}
 
@@ -152,7 +243,11 @@ function LeadCard({
             </ul>
           )}
           {lead.review.sendState === 'sent' ? (
-            <div className="mt-4 rounded-lg bg-white p-3 text-sm font-bold text-emerald-800"><CheckCircle2 className="mr-2 inline h-4 w-4" /> Sent {lead.review.sentAt ? new Date(lead.review.sentAt).toLocaleString() : ''}</div>
+            <div className="mt-4 rounded-lg bg-white p-3 text-sm font-bold text-emerald-800">
+              <CheckCircle2 className="mr-2 inline h-4 w-4" /> Sent {localDateTime(lead.review.sentAt)}
+              {lead.message?.deliveredAt && <p className="mt-1 text-xs font-semibold">Delivered {localDateTime(lead.message.deliveredAt)}</p>}
+              {!lead.message?.deliveredAt && lead.message?.lastEventType && <p className="mt-1 text-xs font-semibold">Latest: {titleCase(lead.message.lastEventType)} · {localDateTime(lead.message.lastEventAt)}</p>}
+            </div>
           ) : (
             <Button type="button" onClick={() => onSend(lead)} disabled={!lead.canSend || !deliveryReady || sending} title={sendReason} className="mt-4 w-full bg-[#ff6b35] text-white hover:bg-[#e85a28]">
               {sending ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />} {sending ? 'Sending…' : 'Send'}
@@ -160,6 +255,22 @@ function LeadCard({
           )}
           {sendReason && !sent && <p className="mt-2 text-xs font-semibold text-slate-500">{sendReason}</p>}
         </aside>
+      </div>
+
+      <div className="border-t border-slate-200 bg-white p-5">
+        <Label htmlFor={`lead-note-${lead.prospectId}`} className="font-black text-slate-900">Sales notes</Label>
+        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end">
+          <Textarea
+            id={`lead-note-${lead.prospectId}`}
+            value={notes}
+            onChange={(event) => setNotes(event.target.value.slice(0, 2000))}
+            placeholder="Add qualification notes, booth needs, timing, or follow-up context…"
+            className="min-h-[72px] flex-1"
+          />
+          <Button type="button" variant="outline" disabled={savingNote || notes === (lead.review.notes || '')} onClick={() => onSaveNote(lead, notes)}>
+            {savingNote && <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />} Save note
+          </Button>
+        </div>
       </div>
     </article>
   );
@@ -171,37 +282,130 @@ export default function SalesLeadReview() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [offset, setOffset] = useState(0);
-  const [view, setView] = useState<View>('ready');
+  const [view, setView] = useState<View>('today');
+  const [filters, setFilters] = useState<OutboundLeadFilters>(EMPTY_FILTERS);
+  const [sort, setSort] = useState<QueueSort>('priority');
   const [sendingId, setSendingId] = useState('');
+  const [refreshingMockupId, setRefreshingMockupId] = useState('');
+  const [savingNoteId, setSavingNoteId] = useState('');
+  const [preparingBatch, setPreparingBatch] = useState(false);
+  const [advanceAfterSend, setAdvanceAfterSend] = useState(false);
+  const batchStarted = useRef(false);
+  const pollCount = useRef(0);
+  const requestController = useRef<AbortController | null>(null);
 
   const load = useCallback(async () => {
+    requestController.current?.abort();
     const controller = new AbortController();
+    requestController.current = controller;
     setLoading(true);
     setError('');
     try {
-      setQueue(await getOutboundManualReviewLeads({ limit: PAGE_SIZE, offset, minimumScore: 60, view, signal: controller.signal }));
+      const nextQueue = await getOutboundManualReviewLeads({
+        limit: PAGE_SIZE, offset, minimumScore: 60, view, filters, sort, signal: controller.signal,
+      });
+      if (!controller.signal.aborted) setQueue(nextQueue);
     } catch (requestError) {
       if ((requestError as Error)?.name !== 'AbortError') setError(requestError instanceof Error ? requestError.message : 'Unable to load lead review.');
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
-    return () => controller.abort();
-  }, [offset, view]);
+  }, [filters, offset, sort, view]);
 
-  useEffect(() => { void load(); }, [load]);
+  const startMockupBatch = useCallback(async () => {
+    if (batchStarted.current) return;
+    batchStarted.current = true;
+    setPreparingBatch(true);
+    try {
+      await prepareOutboundCompanyMockups(70);
+      toast({ title: 'Company mockups are being prepared', description: 'Exact public logos and product images are being matched in the background.' });
+    } catch (requestError) {
+      batchStarted.current = false;
+      setPreparingBatch(false);
+      toast({ variant: 'destructive', title: 'Mockup preparation could not start', description: requestError instanceof Error ? requestError.message : 'Try again.' });
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    void load();
+    return () => requestController.current?.abort();
+  }, [load]);
+
+  useEffect(() => {
+    if (!queue?.schemaReady || queue.mockups.missing < 1 || batchStarted.current) return;
+    void startMockupBatch();
+  }, [queue?.schemaReady, queue?.mockups.missing, startMockupBatch]);
+
+  useEffect(() => {
+    if (!preparingBatch || !queue?.mockups.missing || pollCount.current >= 30) {
+      if (queue?.mockups.missing === 0) setPreparingBatch(false);
+      return undefined;
+    }
+    const timer = window.setTimeout(() => {
+      pollCount.current += 1;
+      void load();
+    }, 15000);
+    return () => window.clearTimeout(timer);
+  }, [preparingBatch, queue?.mockups.missing, load]);
 
   const visibleLeads = queue?.leads || [];
+
+  useEffect(() => {
+    if (!advanceAfterSend || loading) return;
+    setAdvanceAfterSend(false);
+    const next = queue?.leads?.[0];
+    if (!next) return;
+    window.requestAnimationFrame(() => document.getElementById(`lead-${next.prospectId}`)?.focus({ preventScroll: false }));
+  }, [advanceAfterSend, loading, queue?.leads]);
 
   const send = async (lead: OutboundManualReviewLead) => {
     setSendingId(lead.prospectId);
     try {
       const result = await sendOutboundReviewedLead(lead.prospectId);
       toast({ title: result.duplicate ? 'Already sent' : 'Email sent', description: `${lead.businessName} · ${lead.contact?.email}` });
+      setAdvanceAfterSend(true);
       await load();
     } catch (requestError) {
       toast({ variant: 'destructive', title: 'Email not sent', description: requestError instanceof Error ? requestError.message : 'Resend could not send this email.' });
     } finally {
       setSendingId('');
+    }
+  };
+
+  const saveNote = async (lead: OutboundManualReviewLead, notes: string) => {
+    setSavingNoteId(lead.prospectId);
+    try {
+      await saveOutboundLeadNote(lead.prospectId, notes);
+      toast({ title: 'Note saved', description: lead.businessName });
+      await load();
+    } catch (requestError) {
+      toast({ variant: 'destructive', title: 'Note not saved', description: requestError instanceof Error ? requestError.message : 'Try again.' });
+    } finally {
+      setSavingNoteId('');
+    }
+  };
+
+  const updateFilter = <Key extends keyof OutboundLeadFilters>(key: Key, value: OutboundLeadFilters[Key]) => {
+    setFilters((current) => ({ ...current, [key]: value || undefined }));
+    setOffset(0);
+  };
+  const activeFilterCount = Object.values(filters).filter(Boolean).length;
+
+  const refreshMockup = async (lead: OutboundManualReviewLead) => {
+    setRefreshingMockupId(lead.prospectId);
+    try {
+      const result = await refreshOutboundCompanyMockup(lead.prospectId);
+      toast({
+        title: 'Company banner refreshed',
+        description: result.qualityLevel === 'logo_and_product'
+          ? 'The exact logo and company product/service image are included.'
+          : 'The strongest verified company assets available are included.',
+      });
+      await load();
+    } catch (requestError) {
+      toast({ variant: 'destructive', title: 'Mockup not refreshed', description: requestError instanceof Error ? requestError.message : 'Try again.' });
+    } finally {
+      setRefreshingMockupId('');
     }
   };
 
@@ -226,20 +430,115 @@ export default function SalesLeadReview() {
         {queue?.deliveryReady ? <><ShieldCheck className="mr-2 inline h-5 w-5" /> Resend delivery is ready. Every send includes a physical address, footer opt-out, one-click unsubscribe, suppression recheck, and duplicate protection.</> : <><AlertTriangle className="mr-2 inline h-5 w-5" /> Email delivery is not ready{queue?.deliveryIssues?.length ? `: ${queue.deliveryIssues.join(', ')}.` : '.'}</>}
       </section>
 
-      <section className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap gap-2">
-          {VIEWS.map(([option, label]) => <Button key={option} type="button" size="sm" variant={view === option ? 'default' : 'outline'} onClick={() => { setView(option); setOffset(0); }} className={view === option ? 'bg-[#18448D] text-white hover:bg-[#12386f]' : ''}>{label}</Button>)}
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="flex items-center gap-2 font-black text-slate-950"><CalendarSearch className="h-4 w-4 text-[#18448D]" /> Today&apos;s 8:00 AM sales queue</p>
+            <p className="mt-1 text-sm text-slate-600">Preparation only—nothing is sent automatically. You qualify each lead, then Send remains a deliberate one-click action.</p>
+          </div>
+          <Badge className={cn('w-fit text-sm', queue?.morningBatch?.status === 'ready' ? 'bg-emerald-700 text-white' : 'bg-slate-700 text-white')}>
+            {queue?.morningBatch ? titleCase(queue.morningBatch.status) : 'No batch reported today'}
+          </Badge>
         </div>
-        <Button type="button" variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={cn('mr-2 h-4 w-4', loading && 'animate-spin')} /> Refresh</Button>
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+          {[
+            ['Target', queue?.morningBatch?.targetCount ?? 70],
+            ['Fresh leads', queue?.morningBatch?.newProspectCount ?? 0],
+            ['Qualified', queue?.morningBatch?.qualifiedCount ?? 0],
+            ['Email ready', queue?.morningBatch?.messageReadyCount ?? 0],
+            ['Mockup ready', queue?.morningBatch?.mockupReadyCount ?? 0],
+            ['Ready at', queue?.morningBatch?.readyAt ? new Date(queue.morningBatch.readyAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '—'],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded-xl bg-slate-50 p-3 text-center">
+              <p className="text-xl font-black text-slate-950">{value}</p>
+              <p className="mt-0.5 text-[10px] font-black uppercase tracking-wide text-slate-500">{label}</p>
+            </div>
+          ))}
+        </div>
+        {queue?.morningBatch?.lastErrorCode && <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-900">Preparation needs attention: {titleCase(queue.morningBatch.lastErrorCode)}</p>}
+      </section>
+
+      <section className="flex flex-col gap-4 rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-orange-50 p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="flex items-center gap-2 font-black text-slate-950"><Sparkles className="h-4 w-4 text-[#ff6b35]" /> Personalized company banner system</p>
+          <p className="mt-1 text-sm leading-6 text-slate-600">Every lead gets a banner concept using the company&apos;s verified public logo and product/service imagery when quality checks pass. Questionable assets are rejected and replaced with a safe branded fallback.</p>
+          <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold">
+            <Badge className="bg-emerald-700 text-white">{queue?.mockups.ready ?? 0} exact-brand</Badge>
+            <Badge variant="outline" className="border-blue-300 bg-white text-blue-900">{queue?.mockups.fallback ?? 0} fallback</Badge>
+            <Badge variant="outline" className="border-orange-300 bg-white text-orange-900">{queue?.mockups.missing ?? 0} preparing</Badge>
+          </div>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={preparingBatch}
+          onClick={() => {
+            batchStarted.current = false;
+            pollCount.current = 0;
+            setPreparingBatch(false);
+            void startMockupBatch();
+          }}
+          className="shrink-0 border-[#18448D] bg-white text-[#18448D]"
+        >
+          <Sparkles className={cn('mr-2 h-4 w-4', preparingBatch && 'animate-pulse')} /> {preparingBatch ? 'Preparing up to 70…' : 'Prepare all 70'}
+        </Button>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap gap-2">
+            {VIEWS.map(([option, label]) => <Button key={option} type="button" size="sm" variant={view === option ? 'default' : 'outline'} onClick={() => { setView(option); setOffset(0); }} className={view === option ? 'bg-[#18448D] text-white hover:bg-[#12386f]' : ''}>{label}</Button>)}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline" className="border-slate-300 bg-slate-50 text-slate-700"><Filter className="mr-1 h-3 w-3" /> {activeFilterCount} active</Badge>
+            <Button type="button" size="sm" variant="ghost" disabled={!activeFilterCount} onClick={() => { setFilters(EMPTY_FILTERS); setOffset(0); }}><X className="mr-1 h-4 w-4" /> Clear filters</Button>
+            <Button type="button" size="sm" variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={cn('mr-2 h-4 w-4', loading && 'animate-spin')} /> Refresh</Button>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="space-y-1.5 md:col-span-2">
+            <Label htmlFor="lead-search" className="text-xs font-black text-slate-700">Search</Label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" />
+              <Input id="lead-search" value={filters.search || ''} onChange={(event) => updateFilter('search', event.target.value)} placeholder="Company, contact, email, domain, or phone" className="pl-9" />
+            </div>
+          </div>
+          <FilterSelect id="filter-event" label="Trade show / event" value={filters.event} placeholder="All events" options={(queue?.filterOptions?.events || []).map((value) => ({ value, label: value }))} onChange={(value) => updateFilter('event', value)} />
+          <FilterSelect id="filter-source" label="Lead source" value={filters.source} placeholder="All sources" options={(queue?.filterOptions?.sources || []).map((value) => ({ value, label: titleCase(value) }))} onChange={(value) => updateFilter('source', value)} />
+          <FilterSelect id="filter-industry" label="Industry / category" value={filters.industry} placeholder="All industries" options={(queue?.filterOptions?.industries || []).map((value) => ({ value, label: value }))} onChange={(value) => updateFilter('industry', value)} />
+          <div className="space-y-1.5">
+            <Label htmlFor="filter-imported" className="text-xs font-black text-slate-700">Date imported</Label>
+            <Input id="filter-imported" type="date" value={filters.importedDate || ''} onChange={(event) => updateFilter('importedDate', event.target.value)} />
+          </div>
+          <FilterSelect id="filter-qualified" label="Qualification" value={filters.qualification} placeholder="Any qualification" options={[{ value: 'qualified', label: 'Qualified' }, { value: 'unqualified', label: 'Unqualified' }]} onChange={(value) => updateFilter('qualification', value as OutboundLeadFilters['qualification'])} />
+          <FilterSelect id="filter-readiness" label="Send readiness" value={filters.readiness} placeholder="Any readiness" options={[{ value: 'ready', label: 'Ready to send' }, { value: 'needs_attention', label: 'Needs attention' }]} onChange={(value) => updateFilter('readiness', value as OutboundLeadFilters['readiness'])} />
+          <FilterSelect id="filter-contacted" label="Contacted previously" value={filters.contacted} placeholder="Either" options={[{ value: 'yes', label: 'Contacted' }, { value: 'no', label: 'Never contacted' }]} onChange={(value) => updateFilter('contacted', value as OutboundLeadFilters['contacted'])} />
+          <FilterSelect id="filter-email" label="Has email" value={filters.hasEmail} placeholder="Either" options={[{ value: 'yes', label: 'Has email' }, { value: 'no', label: 'No email' }]} onChange={(value) => updateFilter('hasEmail', value as OutboundLeadFilters['hasEmail'])} />
+          <FilterSelect id="filter-phone" label="Has phone" value={filters.hasPhone} placeholder="Either" options={[{ value: 'yes', label: 'Has phone' }, { value: 'no', label: 'No phone' }]} onChange={(value) => updateFilter('hasPhone', value as OutboundLeadFilters['hasPhone'])} />
+          <FilterSelect id="filter-mockup" label="Mockup status" value={filters.mockup} placeholder="Any mockup" options={[{ value: 'ready', label: 'Exact-brand ready' }, { value: 'fallback', label: 'Safe fallback' }, { value: 'missing', label: 'Pending / failed' }]} onChange={(value) => updateFilter('mockup', value as OutboundLeadFilters['mockup'])} />
+          <FilterSelect id="filter-email-status" label="Email status" value={filters.emailStatus} placeholder="Any email status" options={[{ value: 'ready', label: 'Ready' }, { value: 'sent', label: 'Sent' }, { value: 'failed', label: 'Failed' }, { value: 'missing', label: 'Missing' }]} onChange={(value) => updateFilter('emailStatus', value as OutboundLeadFilters['emailStatus'])} />
+          <FilterSelect id="queue-sort" label="Sort" value={sort} placeholder="Priority" options={[{ value: 'priority', label: 'Priority' }, { value: 'newest', label: 'Newest' }, { value: 'score_desc', label: 'Highest score' }, { value: 'company_asc', label: 'Company A–Z' }, { value: 'event_asc', label: 'Event A–Z' }]} onChange={(value) => { setSort((value || 'priority') as QueueSort); setOffset(0); }} />
+        </div>
+
+        {activeFilterCount > 0 && (
+          <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
+            {Object.entries(filters).filter(([, value]) => value).map(([key, value]) => (
+              <button key={key} type="button" onClick={() => updateFilter(key as keyof OutboundLeadFilters, '')} className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-bold text-blue-900 hover:bg-blue-100">
+                {titleCase(key)}: {String(value)} <X className="ml-1 h-3 w-3" />
+              </button>
+            ))}
+          </div>
+        )}
       </section>
 
       {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 font-semibold text-red-800">{error}</div>}
-      {!loading && queue && !queue.schemaReady && <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-amber-950"><AlertTriangle className="mr-2 inline h-5 w-5" /> Apply migration 029 to activate the Lead Review queue.</div>}
+      {!loading && queue && !queue.schemaReady && <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-amber-950"><AlertTriangle className="mr-2 inline h-5 w-5" /> Apply the current Sales Admin database migrations to activate the morning queue.</div>}
       {loading && !queue && <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center text-slate-500"><LoaderCircle className="mx-auto mb-3 h-7 w-7 animate-spin" /> Loading high-value event prospects…</div>}
       {!loading && queue?.schemaReady && visibleLeads.length === 0 && <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center"><CheckCircle2 className="mx-auto h-8 w-8 text-slate-400" /><h2 className="mt-3 font-black text-slate-900">No leads in this view</h2><p className="mt-1 text-sm text-slate-500">Try another view or refresh after the next lead import.</p></div>}
 
       <div className="space-y-5">
-        {visibleLeads.map((lead) => <LeadCard key={lead.prospectId} lead={lead} deliveryReady={queue?.deliveryReady === true} sending={sendingId === lead.prospectId} onSend={(item) => void send(item)} />)}
+        {visibleLeads.map((lead) => <LeadCard key={lead.prospectId} lead={lead} deliveryReady={queue?.deliveryReady === true} sending={sendingId === lead.prospectId} refreshingMockup={refreshingMockupId === lead.prospectId} savingNote={savingNoteId === lead.prospectId} onSend={(item) => void send(item)} onRefreshMockup={(item) => void refreshMockup(item)} onSaveNote={(item, notes) => void saveNote(item, notes)} />)}
       </div>
 
       {queue && queue.total > PAGE_SIZE && (

@@ -5,7 +5,7 @@ const { canonicalDomain } = require('./providers/contract.cjs');
 const { extractPublicEmails } = require('./email.cjs');
 const { fetchWebsitePage } = require('./ssrf.cjs');
 
-const EXTRACTION_VERSION = 'deterministic-html-v1';
+const EXTRACTION_VERSION = 'deterministic-html-v2-brand-assets';
 const MAX_RESEARCH_PAGES = 5;
 const SIGNAL_DEFINITIONS = Object.freeze([
   { code: 'upcoming_events', label: 'Upcoming event activity', pattern: /\b(upcoming event|event calendar|register now|save the date|festival|conference|tournament|fundraiser|gala)\b/i },
@@ -75,6 +75,86 @@ function descriptionFromHtml(html) {
     }
   }
   return null;
+}
+
+function publicAssetUrl(value, baseUrl) {
+  try {
+    const url = new URL(decodeEntities(value), baseUrl);
+    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) return null;
+    url.hash = '';
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+function imageSource(tag) {
+  const direct = attribute(tag, 'src') || attribute(tag, 'data-src') || attribute(tag, 'data-lazy-src');
+  if (direct && !direct.startsWith('data:')) return direct;
+  const srcset = attribute(tag, 'srcset') || attribute(tag, 'data-srcset');
+  if (!srcset) return '';
+  const candidates = srcset.split(',').map((entry) => entry.trim().split(/\s+/)[0]).filter(Boolean);
+  return candidates.at(-1) || '';
+}
+
+function extractBrandAssets(html, baseUrl) {
+  const logoCandidates = [];
+  const imageCandidates = [];
+  const seen = new Set();
+  const add = (collection, candidate) => {
+    const url = publicAssetUrl(candidate.url, baseUrl);
+    if (!url || seen.has(`${candidate.kind}:${url}`)) return;
+    seen.add(`${candidate.kind}:${url}`);
+    collection.push({
+      url,
+      kind: candidate.kind,
+      score: candidate.score,
+      alt: normalizeText(candidate.alt || '').slice(0, 180) || null,
+      sourceUrl: baseUrl,
+    });
+  };
+
+  for (const tag of String(html || '').match(/<meta\b[^>]*>/gi) || []) {
+    const property = (attribute(tag, 'property') || attribute(tag, 'name')).toLowerCase();
+    const content = attribute(tag, 'content');
+    if (!content) continue;
+    if (['og:logo', 'logo'].includes(property)) add(logoCandidates, { url: content, kind: 'logo', score: 120 });
+    if (['og:image', 'og:image:secure_url', 'twitter:image', 'twitter:image:src'].includes(property)) {
+      add(imageCandidates, { url: content, kind: 'product', score: property.startsWith('og:') ? 110 : 100 });
+    }
+  }
+
+  for (const match of String(html || '').matchAll(/"logo"\s*:\s*(?:\{[^{}]{0,600}?"url"\s*:\s*)?"([^"]+)"/gi)) {
+    add(logoCandidates, { url: match[1], kind: 'logo', score: 130 });
+  }
+  for (const match of String(html || '').matchAll(/"image"\s*:\s*(?:\{[^{}]{0,600}?"url"\s*:\s*)?"([^"]+)"/gi)) {
+    add(imageCandidates, { url: match[1], kind: 'product', score: 105 });
+  }
+
+  for (const tag of String(html || '').match(/<img\b[^>]*>/gi) || []) {
+    const src = imageSource(tag);
+    if (!src) continue;
+    const alt = attribute(tag, 'alt');
+    const marker = `${alt} ${attribute(tag, 'class')} ${attribute(tag, 'id')} ${src}`;
+    const width = Number(attribute(tag, 'width')) || 0;
+    const height = Number(attribute(tag, 'height')) || 0;
+    if (/\b(?:logo|brandmark|site-logo|header-logo)\b/i.test(marker)) {
+      add(logoCandidates, { url: src, kind: 'logo', score: 100 + (/\blogo\b/i.test(alt) ? 10 : 0), alt });
+      continue;
+    }
+    const tiny = width > 0 && height > 0 && (width < 240 || height < 140);
+    const decorative = /\b(?:icon|avatar|badge|sprite|pixel|tracking|spacer)\b/i.test(marker);
+    if (!tiny && !decorative) {
+      const semantic = /\b(?:product|service|collection|project|portfolio|hero|featured|showcase)\b/i.test(marker);
+      add(imageCandidates, { url: src, kind: 'product', score: semantic ? 80 : 50, alt });
+    }
+  }
+
+  const byScore = (left, right) => right.score - left.score || left.url.localeCompare(right.url);
+  return {
+    logoCandidates: logoCandidates.sort(byScore).slice(0, 8),
+    imageCandidates: imageCandidates.sort(byScore).slice(0, 16),
+  };
 }
 
 function dateValues(html) {
@@ -179,6 +259,7 @@ function pageExtraction(response) {
     inferredLocationCount: inferredLocationCount(text),
     emails,
     signals,
+    brandAssets: extractBrandAssets(response.body, response.finalUrl),
     links: extractLinks(response.body, response.finalUrl),
   };
 }
@@ -242,6 +323,10 @@ async function researchWebsite(options) {
     inferredLocationCount: page.inferredLocationCount || null,
     emails: (page.emails || []).slice(0, 20),
     signals: (page.signals || []).slice(0, 20),
+    brandAssets: {
+      logoCandidates: (page.brandAssets?.logoCandidates || []).slice(0, 8),
+      imageCandidates: (page.brandAssets?.imageCandidates || []).slice(0, 16),
+    },
     links: (page.links || []).slice(0, 100),
   }));
   const hashPayload = stablePages
@@ -252,6 +337,7 @@ async function researchWebsite(options) {
       description: page.description,
       emails: page.emails.map((entry) => entry.email).sort(),
       signals: page.signals.map((signal) => ({ code: signal.code, evidence: signal.evidence })),
+      brandAssets: page.brandAssets,
     }))
     .sort((left, right) => left.url.localeCompare(right.url));
   const contentHash = sha256(JSON.stringify({ extractionVersion: EXTRACTION_VERSION, pages: hashPayload }));
@@ -262,6 +348,10 @@ async function researchWebsite(options) {
   const emails = [...new Map(stablePages.flatMap((page) => page.emails).map((entry) => [entry.email, entry])).values()];
   const freshness = Math.max(...stablePages.map((page) => Number(page.freshnessScore) || 0), 0);
   const locationCount = Math.max(...stablePages.map((page) => Number(page.inferredLocationCount) || 0), 0) || null;
+  const logoCandidates = [...new Map(stablePages.flatMap((page) => page.brandAssets.logoCandidates).map((asset) => [asset.url, asset])).values()]
+    .sort((left, right) => right.score - left.score).slice(0, 8);
+  const imageCandidates = [...new Map(stablePages.flatMap((page) => page.brandAssets.imageCandidates).map((asset) => [asset.url, asset])).values()]
+    .sort((left, right) => right.score - left.score).slice(0, 16);
 
   return Object.freeze({
     contentHash,
@@ -282,6 +372,7 @@ async function researchWebsite(options) {
       inferredLocationCount: locationCount,
       pagesAnalyzed: stablePages.length,
       responsesReused: reusedResponses,
+      brandAssets: { logoCandidates, imageCandidates },
     },
     evidence: signals.map((signal) => ({ code: signal.code, label: signal.label, evidence: signal.evidence, sourceUrl: signal.sourceUrl })),
     bannerNeedSignals: signals,
@@ -301,6 +392,9 @@ module.exports = {
   textFromHtml,
   titleFromHtml,
   descriptionFromHtml,
+  publicAssetUrl,
+  imageSource,
+  extractBrandAssets,
   freshnessScore,
   detectSignals,
   extractLinks,

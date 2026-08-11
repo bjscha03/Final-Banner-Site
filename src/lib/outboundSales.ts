@@ -271,6 +271,7 @@ export interface OutboundManualReviewLead {
   industry: string | null;
   businessType: string | null;
   phone: string | null;
+  address: Record<string, string | null>;
   leadScore: number | null;
   prospectStatus: string;
   sourceProviderId: string;
@@ -305,6 +306,22 @@ export interface OutboundManualReviewLead {
     generationStatus: string;
     evidenceValidationStatus: string;
     sentAt: string | null;
+    deliveredAt: string | null;
+    lastEventType: string | null;
+    lastEventStatus: string | null;
+    lastEventAt: string | null;
+  };
+  mockup: null | {
+    id: string;
+    status: 'pending' | 'ready' | 'fallback' | 'failed';
+    sceneId: 'trade_show' | 'storefront' | 'community_event';
+    qualityLevel: 'logo_and_product' | 'logo' | 'product' | 'name_only';
+    logoUrl: string | null;
+    productImageUrl: string | null;
+    eventLabel: string | null;
+    sourceUrls: string[];
+    generatedAt: string | null;
+    previewUrl: string | null;
   };
   review: {
     status: 'pending' | 'approved' | 'rejected';
@@ -322,7 +339,25 @@ export interface OutboundManualReviewLead {
   technicalBlockers: string[];
   canSend: boolean;
   discoveredAt: string;
+  importedBusinessDate: string | null;
+  morningQueuePosition: number | null;
+  morningReadyAt: string | null;
   lastQualifiedAt: string | null;
+}
+
+export interface OutboundLeadFilters {
+  search?: string;
+  event?: string;
+  source?: string;
+  industry?: string;
+  importedDate?: string;
+  qualification?: '' | 'qualified' | 'unqualified';
+  readiness?: '' | 'ready' | 'needs_attention';
+  contacted?: '' | 'yes' | 'no';
+  hasEmail?: '' | 'yes' | 'no';
+  hasPhone?: '' | 'yes' | 'no';
+  mockup?: '' | 'ready' | 'fallback' | 'missing';
+  emailStatus?: '' | 'ready' | 'sent' | 'failed' | 'missing';
 }
 
 export interface OutboundManualReviewQueue {
@@ -335,8 +370,18 @@ export interface OutboundManualReviewQueue {
   limit: number;
   offset: number;
   minimumScore: number;
-  reviewView: 'ready' | 'pending' | 'approved' | 'rejected' | 'sent' | 'all';
+  reviewView: 'today' | 'ready' | 'sent' | 'all';
+  filters: OutboundLeadFilters;
+  sort: 'priority' | 'newest' | 'score_desc' | 'company_asc' | 'event_asc';
   counts: { pending: number; approved: number; rejected: number; sent: number };
+  mockups: { ready: number; fallback: number; missing: number };
+  filterOptions: { events: string[]; sources: string[]; industries: string[] };
+  morningBatch: null | {
+    businessDate: string; targetCount: number; status: string; discoveredCount: number;
+    newProspectCount: number; qualifiedCount: number; messageReadyCount: number;
+    mockupReadyCount: number; startedAt: string | null; readyAt: string | null;
+    lastErrorCode: string | null; updatedAt: string;
+  };
   today: { attempted: number; sent: number; limit: number };
 }
 
@@ -451,17 +496,31 @@ export async function downloadOutboundProspectsCsv(status?: string): Promise<voi
 }
 
 export async function getOutboundManualReviewLeads(
-  options: { limit?: number; offset?: number; minimumScore?: number; view?: 'ready' | 'sent' | 'all'; signal?: AbortSignal } = {},
+  options: {
+    limit?: number; offset?: number; minimumScore?: number; view?: 'today' | 'ready' | 'sent' | 'all';
+    filters?: OutboundLeadFilters; sort?: 'priority' | 'newest' | 'score_desc' | 'company_asc' | 'event_asc'; signal?: AbortSignal;
+  } = {},
 ): Promise<OutboundManualReviewQueue> {
   const params = new URLSearchParams();
   if (options.limit) params.set('limit', String(options.limit));
   if (options.offset) params.set('offset', String(options.offset));
   if (options.minimumScore) params.set('minimumScore', String(options.minimumScore));
   if (options.view) params.set('view', options.view);
+  if (options.sort) params.set('sort', options.sort);
+  for (const [key, value] of Object.entries(options.filters || {})) if (value) params.set(key, value);
   const response = await adminFetch(`/.netlify/functions/outbound-sales-manual-review?${params}`, {
     method: 'GET', credentials: 'same-origin', headers: { Accept: 'application/json' }, signal: options.signal,
   });
   return parseResponse<OutboundManualReviewQueue>(response);
+}
+
+export async function saveOutboundLeadNote(prospectId: string, notes: string): Promise<{ ok: true; prospectId: string; notes: string; updatedAt: string | null }> {
+  const response = await adminFetch('/.netlify/functions/outbound-sales-manual-review', {
+    method: 'POST', credentials: 'same-origin',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'save_note', prospectId, notes }),
+  });
+  return parseResponse(response);
 }
 
 export async function sendOutboundReviewedLead(prospectId: string): Promise<{ ok: true; duplicate: boolean; messageId: string }> {
@@ -471,6 +530,26 @@ export async function sendOutboundReviewedLead(prospectId: string): Promise<{ ok
     body: JSON.stringify({ prospectId }),
   });
   return parseResponse(response);
+}
+
+export async function refreshOutboundCompanyMockup(
+  prospectId: string,
+): Promise<{ ok: true; prospectId: string; cached: boolean; status: string; qualityLevel: string; sceneId: string; sourceUrls: string[] }> {
+  const response = await adminFetch('/.netlify/functions/outbound-sales-company-mockup', {
+    method: 'POST', credentials: 'same-origin',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prospectId, force: true }),
+  });
+  return parseResponse(response);
+}
+
+export async function prepareOutboundCompanyMockups(limit = 70): Promise<void> {
+  const response = await adminFetch('/.netlify/functions/outbound-sales-company-mockups-background', {
+    method: 'POST', credentials: 'same-origin',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ limit: Math.max(1, Math.min(70, limit)), force: false }),
+  });
+  if (!response.ok) await parseResponse(response);
 }
 
 export function microusdToDollars(value: number): number {

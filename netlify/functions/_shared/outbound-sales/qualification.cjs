@@ -68,6 +68,18 @@ function scoreLead({ prospect = {}, research = {}, contacts = [], exclusions = [
   const locationPoints = locations >= 10 ? 8 : locations >= 4 ? 6 : locations >= 2 ? 4 : locations === 1 ? 2 : 0;
   if (locationPoints) add('location_count', locationPoints, 'Multiple physical locations', `${locations} public location${locations === 1 ? '' : 's'} identified.`);
 
+  const employees = Number(prospect.providerMetadata?.estimatedEmployees || 0);
+  const employeePoints = employees >= 250 ? 10 : employees >= 75 ? 8 : employees >= 20 ? 6 : employees >= 5 ? 3 : 0;
+  if (employeePoints) add('company_scale', employeePoints, 'Established company scale', `${employees} estimated employees were supplied by the licensed company-data source.`);
+
+  const revenue = Number(prospect.providerMetadata?.revenue || 0);
+  const revenuePoints = revenue >= 25_000_000 ? 10 : revenue >= 5_000_000 ? 8 : revenue >= 1_000_000 ? 5 : 0;
+  if (revenuePoints) add('company_revenue', revenuePoints, 'Meaningful operating scale', 'Licensed company data indicates sufficient operating scale for recurring print needs.');
+
+  const growth = Number(prospect.providerMetadata?.sixMonthHeadcountGrowth || prospect.providerMetadata?.twelveMonthHeadcountGrowth || 0);
+  const growthPoints = growth >= 0.2 ? 5 : growth >= 0.08 ? 3 : 0;
+  if (growthPoints) add('company_growth', growthPoints, 'Company growth signal', 'Licensed company data indicates recent headcount growth.');
+
   const signals = signalMap(research);
   const signalWeights = {
     upcoming_events: 10,
@@ -90,6 +102,7 @@ function scoreLead({ prospect = {}, research = {}, contacts = [], exclusions = [
     const qualityPoints = contact.contactQualityScore >= 75 ? 8 : contact.contactQualityScore >= 55 ? 5 : contact.contactQualityScore >= 30 ? 2 : 0;
     add('contact_quality', qualityPoints, 'Public contact quality', `Best public email quality score: ${contact.contactQualityScore || 0}/100.`, [contact.sourceUrl]);
     if (contact.mxStatus === 'present') add('email_verification', 5, 'MX record present', 'The public email domain publishes an MX record; mailbox-level verification remains pending.', [contact.sourceUrl]);
+    if (contact.verificationStatus === 'valid') add('licensed_contact_verification', 5, 'Verified work contact', 'A licensed contact-data provider marked the work email as verified; DNS and company-domain checks were also repeated locally.', [contact.sourceUrl]);
   }
 
   const freshness = Number(research.websiteFreshnessScore || 0);

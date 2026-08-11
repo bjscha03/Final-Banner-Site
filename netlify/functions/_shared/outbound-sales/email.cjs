@@ -145,9 +145,21 @@ async function assessEmailCandidates(candidates, options = {}) {
   };
   const results = [];
   for (const candidate of unique) {
+    const assessed = await assessEmail(candidate.email, { ...options, resolveMx: resolver });
+    const licensedVerified = candidate.acquisitionMode === 'licensed_api'
+      && candidate.providerVerificationStatus === 'valid'
+      && assessed.syntaxValid
+      && assessed.mxStatus === 'present';
     results.push({
-      ...(await assessEmail(candidate.email, { ...options, resolveMx: resolver })),
+      ...assessed,
       sourceUrl: candidate.sourceUrl || null,
+      fullName: String(candidate.fullName || '').replace(/\s+/g, ' ').trim().slice(0, 200) || null,
+      jobTitle: String(candidate.jobTitle || '').replace(/\s+/g, ' ').trim().slice(0, 200) || null,
+      verificationProviderId: licensedVerified ? String(candidate.verificationProviderId || '').slice(0, 64) || null : null,
+      verificationProviderRecordId: licensedVerified ? String(candidate.verificationProviderRecordId || '').slice(0, 300) || null : null,
+      verificationStatus: licensedVerified ? 'valid' : assessed.verificationStatus,
+      verificationReason: licensedVerified ? 'Verified work email supplied by a licensed contact-data provider; domain MX was rechecked.' : assessed.verificationReason,
+      verifiedAt: licensedVerified ? new Date().toISOString() : null,
     });
   }
   return results.sort((left, right) => right.contactQualityScore - left.contactQualityScore || left.email.localeCompare(right.email));

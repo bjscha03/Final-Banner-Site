@@ -123,6 +123,31 @@ function assertPermissionedMarketingAllowed(options = {}) {
   }
 }
 
+function safeInlineAttachments(value) {
+  if (!Array.isArray(value) || !value.length) return [];
+  if (value.length > 2) {
+    const error = new Error('Too many inline marketing images.');
+    error.code = 'MANUAL_MARKETING_SEND_FAILED';
+    throw error;
+  }
+  return value.map((attachment) => {
+    const content = String(attachment?.content || '').replace(/\s+/g, '');
+    const filename = String(attachment?.filename || '').trim();
+    const contentId = String(attachment?.contentId || '').trim();
+    const contentType = String(attachment?.contentType || '').trim().toLowerCase();
+    if (!/^[A-Za-z0-9+/]+={0,2}$/.test(content)
+        || content.length > 8 * 1024 * 1024
+        || !/^[a-z0-9][a-z0-9._-]{0,99}\.jpe?g$/i.test(filename)
+        || !/^[a-z0-9][a-z0-9._-]{0,126}$/i.test(contentId)
+        || contentType !== 'image/jpeg') {
+      const error = new Error('Inline marketing image is invalid.');
+      error.code = 'MANUAL_MARKETING_SEND_FAILED';
+      throw error;
+    }
+    return { content, filename, contentId, contentType };
+  });
+}
+
 async function sendPermissionedMarketingMessage(options) {
   // This is deliberately separate from sendOutboundMessage. The automated
   // cold-outreach path remains provider-policy locked; this one-at-a-time path
@@ -148,6 +173,7 @@ async function sendPermissionedMarketingMessage(options) {
     return new Resend(apiKey);
   })();
   const started = Date.now();
+  const attachments = safeInlineAttachments(options.attachments);
   let timer;
   const timeout = new Promise((_, reject) => {
     timer = setTimeout(() => {
@@ -175,6 +201,7 @@ async function sendPermissionedMarketingMessage(options) {
         { name: 'message_id', value: options.message.id },
         { name: 'authorization', value: options.permissionStatus },
       ],
+      ...(attachments.length ? { attachments } : {}),
     }, { idempotencyKey: options.message.sendKey }));
     result = await Promise.race([request, timeout]);
   } finally {
@@ -198,6 +225,7 @@ module.exports = {
   createUnsubscribeToken,
   assertOutboundDeliveryProviderApproved,
   assertPermissionedMarketingAllowed,
+  safeInlineAttachments,
   sendOutboundMessage,
   sendPermissionedMarketingMessage,
 };

@@ -53,6 +53,10 @@ const PUBLIC_ERROR_CODES = new Set([
   'MANUAL_MARKETING_NOT_CONFIGURED',
   'MANUAL_MARKETING_NOT_ELIGIBLE',
   'MANUAL_MARKETING_SEND_FAILED',
+  'INVALID_COMPANY_MOCKUP',
+  'COMPANY_MOCKUP_NOT_FOUND',
+  'COMPANY_MOCKUP_NOT_READY',
+  'COMPANY_MOCKUP_IDENTITY_MISMATCH',
 ]);
 
 function redactSecretText(value) {
@@ -223,6 +227,10 @@ function safeFailure(error) {
     MANUAL_MARKETING_NOT_CONFIGURED: 503,
     MANUAL_MARKETING_NOT_ELIGIBLE: 409,
     MANUAL_MARKETING_SEND_FAILED: 502,
+    INVALID_COMPANY_MOCKUP: 400,
+    COMPANY_MOCKUP_NOT_READY: 409,
+    COMPANY_MOCKUP_IDENTITY_MISMATCH: 409,
+    COMPANY_MOCKUP_NOT_FOUND: 404,
   };
   const statusCode = statusByCode[code] || 500;
   const messages = {
@@ -275,6 +283,10 @@ function safeFailure(error) {
     MANUAL_MARKETING_NOT_CONFIGURED: 'Manual marketing delivery is not fully configured.',
     MANUAL_MARKETING_NOT_ELIGIBLE: 'This lead is not eligible to send. Recheck approval, permission, suppression, contact quality, preview readiness, and the daily limit.',
     MANUAL_MARKETING_SEND_FAILED: 'Resend could not send this permissioned marketing email.',
+    INVALID_COMPANY_MOCKUP: 'Company mockup fields are invalid.',
+    COMPANY_MOCKUP_NOT_FOUND: 'This company could not be found for mockup preparation.',
+    COMPANY_MOCKUP_NOT_READY: 'This company’s personalized banner is not ready yet. Refresh the banner, review it, and try Send again.',
+    COMPANY_MOCKUP_IDENTITY_MISMATCH: 'The personalized banner did not match this company. Nothing was sent; refresh the banner before trying again.',
   };
   return json(statusCode, {
     ok: false,

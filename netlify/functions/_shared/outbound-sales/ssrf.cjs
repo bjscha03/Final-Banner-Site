@@ -10,6 +10,8 @@ const MAX_WEBSITE_BYTES = 1024 * 1024;
 const MAX_REDIRECTS = 3;
 const DEFAULT_TIMEOUT_MS = 8000;
 const ALLOWED_CONTENT_TYPES = new Set(['text/html', 'application/xhtml+xml', 'text/plain']);
+const ALLOWED_IMAGE_CONTENT_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/avif', 'image/gif', 'image/svg+xml']);
+const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
 const BLOCKED_HOST_SUFFIXES = Object.freeze([
   '.localhost', '.local', '.internal', '.home.arpa', '.onion', '.test', '.example', '.invalid',
 ]);
@@ -282,12 +284,107 @@ async function fetchWebsitePage(value, options = {}) {
   return attempt(value, maxRedirects);
 }
 
+async function fetchWebsiteAsset(value, options = {}) {
+  const maxBytes = Math.max(1024, Math.min(MAX_IMAGE_BYTES, Number(options.maxBytes) || MAX_IMAGE_BYTES));
+  const requestedRedirects = Number(options.maxRedirects);
+  const maxRedirects = Number.isFinite(requestedRedirects)
+    ? Math.max(0, Math.min(MAX_REDIRECTS, requestedRedirects))
+    : MAX_REDIRECTS;
+  const timeoutMs = Math.max(500, Math.min(20000, Number(options.timeoutMs) || DEFAULT_TIMEOUT_MS));
+  const lookup = options.lookup || dns.lookup;
+  const requestImpl = options.requestImpl || defaultRequest;
+
+  async function attempt(input, redirectsRemaining) {
+    const url = normalizeWebsiteUrl(input);
+    const approvedAddresses = await resolvePublicHost(url.hostname, lookup);
+    const pinned = approvedAddresses[0];
+    const response = await new Promise((resolve, reject) => {
+      let settled = false;
+      const finish = (callback, result) => {
+        if (settled) return;
+        settled = true;
+        callback(result);
+      };
+      const request = requestImpl(url, {
+        method: 'GET',
+        headers: {
+          Accept: 'image/png,image/jpeg,image/webp,image/avif,image/gif,image/svg+xml;q=0.8',
+          'Accept-Encoding': 'identity',
+          'User-Agent': 'BannersOnTheFly-MockupRenderer/1.0 (+https://bannersonthefly.com)',
+        },
+        servername: url.hostname,
+        lookup(_hostname, _lookupOptions, callback) {
+          callback(null, pinned.address, pinned.family);
+        },
+      }, (incoming) => {
+        const remoteAddress = incoming.socket?.remoteAddress;
+        if (!remoteAddress || !isPublicIp(remoteAddress) || !sameAddress(remoteAddress, pinned.address)) {
+          incoming.destroy();
+          finish(reject, ssrfError('WEBSITE_CONNECTION_ADDRESS_MISMATCH', 'Asset connection did not use the approved public address.'));
+          return;
+        }
+        finish(resolve, incoming);
+      });
+      request.setTimeout(timeoutMs, () => request.destroy(ssrfError('WEBSITE_TIMEOUT', 'Website asset request timed out.')));
+      request.on('error', (error) => finish(reject, error?.code?.startsWith?.('WEBSITE_') ? error : ssrfError('WEBSITE_FETCH_FAILED', 'Website asset request failed.')));
+      request.end();
+    });
+
+    const status = Number(response.statusCode) || 0;
+    const location = boundedHeader(response.headers.location);
+    if ([301, 302, 303, 307, 308].includes(status)) {
+      response.resume();
+      if (!location || redirectsRemaining <= 0) throw ssrfError('WEBSITE_REDIRECT_BLOCKED', 'Website asset redirect limit was reached.');
+      let next;
+      try { next = new URL(location, url); } catch { throw ssrfError('WEBSITE_REDIRECT_INVALID', 'Website asset returned an invalid redirect.'); }
+      if (url.protocol === 'https:' && next.protocol === 'http:') {
+        throw ssrfError('WEBSITE_REDIRECT_DOWNGRADE_BLOCKED', 'HTTPS-to-HTTP asset redirects are blocked.');
+      }
+      return attempt(next.toString(), redirectsRemaining - 1);
+    }
+
+    if (status < 200 || status >= 300) {
+      response.resume();
+      throw ssrfError('WEBSITE_HTTP_REJECTED', `Website asset returned HTTP ${status}.`);
+    }
+    const rawContentType = boundedHeader(response.headers['content-type'], 200) || '';
+    const contentType = rawContentType.split(';')[0].trim().toLowerCase();
+    if (!ALLOWED_IMAGE_CONTENT_TYPES.has(contentType)) {
+      response.resume();
+      throw ssrfError('WEBSITE_CONTENT_TYPE_BLOCKED', 'Website asset is not a supported image type.');
+    }
+    const declaredLength = Number(response.headers['content-length']);
+    if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
+      response.destroy();
+      throw ssrfError('WEBSITE_RESPONSE_TOO_LARGE', 'Website asset exceeded the byte limit.');
+    }
+    const chunks = [];
+    let bytes = 0;
+    for await (const chunk of response) {
+      bytes += chunk.length;
+      if (bytes > maxBytes) {
+        response.destroy();
+        throw ssrfError('WEBSITE_RESPONSE_TOO_LARGE', 'Website asset exceeded the byte limit.');
+      }
+      chunks.push(chunk);
+    }
+    const body = Buffer.concat(chunks);
+    if (!body.length) throw ssrfError('WEBSITE_FETCH_FAILED', 'Website asset was empty.');
+    return { status, finalUrl: url.toString(), contentType, body, bytes };
+  }
+
+  return attempt(value, maxRedirects);
+}
+
 module.exports = {
   MAX_WEBSITE_BYTES,
   MAX_REDIRECTS,
   ALLOWED_CONTENT_TYPES,
+  ALLOWED_IMAGE_CONTENT_TYPES,
+  MAX_IMAGE_BYTES,
   isPublicIp,
   normalizeWebsiteUrl,
   resolvePublicHost,
   fetchWebsitePage,
+  fetchWebsiteAsset,
 };

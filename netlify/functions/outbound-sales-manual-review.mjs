@@ -1,7 +1,10 @@
 import { withLambda } from '@netlify/aws-lambda-compat';
 import { Resend } from 'resend';
+import { getStore } from '@netlify/blobs';
+import sharp from 'sharp';
 import manualReviewModule from './_shared/outbound-sales/manual-review-handler.cjs';
 import outboundDeliveryModule from './_shared/outbound-sales/outbound-delivery.cjs';
+import companyMockupModule from './_shared/outbound-sales/company-mockup.cjs';
 
 const manualReviewHandler = manualReviewModule.createManualReviewHandler({
   dependencies: {
@@ -16,6 +19,14 @@ const manualReviewHandler = manualReviewModule.createManualReviewHandler({
         transport: new Resend(apiKey),
       });
     },
+    prepareCompanyMockup(options) {
+      return companyMockupModule.prepareCompanyMockup({
+        ...options,
+        store: getStore({ name: 'outbound-company-mockups', consistency: 'strong' }),
+        sharp,
+      });
+    },
+    attachmentFromMockup: companyMockupModule.attachmentFromMockup,
   },
 });
 

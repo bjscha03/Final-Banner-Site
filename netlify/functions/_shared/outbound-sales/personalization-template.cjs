@@ -85,9 +85,17 @@ function complianceFooter({ physicalAddress, unsubscribeUrl } = {}) {
   return `<p style="margin:13px 0 0;color:#718096;font-size:11px;line-height:1.65;">${escapeHtml(physicalAddress)}<br><a href="${escapeHtml(unsubscribeUrl)}" style="color:${BRAND_NAVY};text-decoration:underline;">Unsubscribe from future marketing emails</a></p>`;
 }
 
-function renderOutboundEmailPreview({ subject, bodyText, physicalAddress, unsubscribeUrl }) {
+function renderOutboundEmailPreview({
+  subject, bodyText, physicalAddress, unsubscribeUrl,
+  mockupImageSrc, mockupAlt, businessName,
+}) {
   const { message, signature } = splitBodyAndSignature(polishOutboundBodyText(bodyText));
   const safeSubject = escapeHtml(subject);
+  const heroImageSrc = escapeHtml(mockupImageSrc || HERO_IMAGE_URL);
+  const company = String(businessName || '').trim();
+  const heroAlt = escapeHtml(mockupAlt || (company
+    ? `A custom banner concept created with ${company}'s public branding`
+    : 'A trade show exhibitor booth using a professionally printed custom vinyl banner'));
 
   return `<!doctype html>
 <html lang="en">
@@ -102,8 +110,9 @@ function renderOutboundEmailPreview({ subject, bodyText, physicalAddress, unsubs
           <a href="${SITE_URL}" style="text-decoration:none;"><img src="${BRAND_LOGO_URL}" alt="Banners On The Fly" width="240" style="display:block;width:240px;max-width:100%;height:auto;margin:0 auto;border:0;"></a>
         </td></tr>
         <tr><td style="padding:0;background:${BRAND_NAVY_DARK};">
-          <img src="${HERO_IMAGE_URL}" alt="A trade show exhibitor booth using a professionally printed custom vinyl banner" width="640" style="display:block;width:100%;max-width:640px;height:auto;border:0;">
+          <img src="${heroImageSrc}" alt="${heroAlt}" width="640" style="display:block;width:100%;max-width:640px;height:auto;border:0;">
         </td></tr>
+        ${company ? `<tr><td align="center" style="padding:12px 24px;background:#fff7f2;border-bottom:1px solid #fed7c5;color:${BRAND_ORANGE_DARK};font-size:12px;line-height:1.5;font-weight:900;letter-spacing:.6px;text-transform:uppercase;">A complimentary banner concept created for ${escapeHtml(company)}</td></tr>` : ''}
         <tr><td style="padding:30px 34px 28px;background:${BRAND_NAVY_DARK};text-align:center;">
           <p style="margin:0 0 10px;color:#ffb08c;font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;">Professional custom printing for businesses</p>
           <h1 style="margin:0;color:#ffffff;font-size:30px;line-height:1.2;font-weight:900;">Big visibility. Fast turnaround.</h1>
@@ -159,7 +168,10 @@ function renderOutboundEmailPreview({ subject, bodyText, physicalAddress, unsubs
 </html>`;
 }
 
-function renderOutboundDeliveryContent({ subject, bodyText, physicalAddress, unsubscribeUrl }) {
+function renderOutboundDeliveryContent({
+  subject, bodyText, physicalAddress, unsubscribeUrl,
+  mockupImageSrc, mockupAlt, businessName,
+}) {
   const { message, signature } = splitBodyAndSignature(polishOutboundBodyText(bodyText));
   const complianceText = `\n\n—\nBanners On The Fly\n${String(physicalAddress).trim()}\nUnsubscribe: ${String(unsubscribeUrl).trim()}`;
   const marketingText = [
@@ -176,7 +188,10 @@ function renderOutboundDeliveryContent({ subject, bodyText, physicalAddress, uns
   ].filter(Boolean).join('\n\n');
   return {
     text: `${marketingText}${complianceText}`,
-    html: renderOutboundEmailPreview({ subject, bodyText, physicalAddress, unsubscribeUrl }),
+    html: renderOutboundEmailPreview({
+      subject, bodyText, physicalAddress, unsubscribeUrl,
+      mockupImageSrc, mockupAlt, businessName,
+    }),
   };
 }
 
@@ -189,6 +204,7 @@ module.exports = {
   BRAND_ORANGE,
   BRAND_NAVY,
   FIRST_ORDER_PROMO_CODE,
+  SIGNATURE,
   escapeHtml,
   splitBodyAndSignature,
   polishOutboundBodyText,

@@ -16,6 +16,11 @@ const {
   renderOutboundEmailPreview,
 } = require('./personalization-template.cjs');
 const { assessEmail } = require('./email.cjs');
+const {
+  MOCKUP_CONTENT_ID,
+  prepareCompanyMockup,
+  attachmentFromMockup,
+} = require('./company-mockup.cjs');
 const { json, authorize, parseJsonBody, redactSecretText, safeFailure } = require('./security.cjs');
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -108,8 +113,11 @@ function emptyQueue(env = process.env) {
   return {
     leads: [], total: 0, limit: 50, offset: 0,
     minimumScore: repository.MIN_HIGH_VALUE_SCORE,
-    reviewView: 'ready',
+    reviewView: 'today', filters: {}, sort: 'priority',
     counts: { pending: 0, approved: 0, rejected: 0, sent: 0 },
+    mockups: { ready: 0, fallback: 0, missing: 0 },
+    filterOptions: { events: [], sources: [], industries: [] },
+    morningBatch: null,
     today: { attempted: 0, sent: 0, limit: repository.MAX_MANUAL_DAILY_ATTEMPTS },
     ...status,
   };
@@ -123,6 +131,8 @@ function createManualReviewHandler(options = {}) {
     saveUnsubscribeToken,
     sendPermissionedMarketingMessage,
     assessEmail,
+    prepareCompanyMockup,
+    attachmentFromMockup,
     ...options.dependencies,
   };
   const env = options.env || process.env;
@@ -152,7 +162,14 @@ function createManualReviewHandler(options = {}) {
         const query = event.queryStringParameters || {};
         const queue = await dependencies.listManualReviewLeads(sql, {
           limit: Number(query.limit), offset: Number(query.offset), minimumScore: Number(query.minimumScore),
-          reviewView: String(query.view || 'ready').toLowerCase(),
+          reviewView: String(query.view || 'today').toLowerCase(),
+          sort: String(query.sort || 'priority').toLowerCase(),
+          filters: {
+            search: query.search, event: query.event, source: query.source, industry: query.industry,
+            importedDate: query.importedDate, qualification: query.qualification,
+            readiness: query.readiness, contacted: query.contacted, hasEmail: query.hasEmail,
+            hasPhone: query.hasPhone, mockup: query.mockup, emailStatus: query.emailStatus,
+          },
         });
         const leads = queue.leads.map((lead) => {
           if (!lead.message?.bodyText) return lead;
@@ -165,6 +182,11 @@ function createManualReviewHandler(options = {}) {
               bodyHtml: renderOutboundEmailPreview({
                 subject: lead.message.subject,
                 bodyText,
+                mockupImageSrc: lead.mockup?.previewUrl || undefined,
+                mockupAlt: lead.mockup
+                  ? `A custom banner concept created with ${lead.businessName}'s public branding`
+                  : undefined,
+                businessName: lead.mockup ? lead.businessName : undefined,
               }),
             },
           };
@@ -179,8 +201,20 @@ function createManualReviewHandler(options = {}) {
         error.code = 'INVALID_MANUAL_REVIEW';
         throw error;
       }
-      const config = validateManualDeliveryConfiguration(env);
       const reviewedBy = String(auth.session.email || auth.session.sub || '').trim();
+      if (body?.action === 'save_note') {
+        const saved = await dependencies.saveManualReviewNote(sql, {
+          prospectId, notes: body.notes, reviewedBy,
+        });
+        await dependencies.appendAudit(sql, {
+          actorType: 'admin', actorId: reviewedBy,
+          action: 'manual_lead.note_saved', entityType: 'prospect', entityId: prospectId,
+          metadata: { noteLength: String(body.notes || '').trim().length },
+          requestId: event.headers?.['x-nf-request-id'] || null,
+        });
+        return json(200, { ok: true, prospectId, notes: saved?.review_notes || '', updatedAt: saved?.updated_at || null });
+      }
+      const config = validateManualDeliveryConfiguration(env);
       const contact = await dependencies.loadManualReviewContact(sql, prospectId);
       if (!contact) {
         const error = new Error('This lead does not have an active business email.');
@@ -228,9 +262,28 @@ function createManualReviewHandler(options = {}) {
           messageId: claimed.message_id, expiresAt: new Date(now.getTime() + (180 * 86400000)).toISOString(),
         });
         const unsubscribeUrl = `${config.origin}/.netlify/functions/outbound-sales-unsubscribe?token=${encodeURIComponent(token.token)}`;
+        const companyMockup = await dependencies.prepareCompanyMockup({
+          sql,
+          prospectId,
+          force: false,
+        });
+        if (companyMockup?.prospectId !== prospectId) {
+          const mismatch = new Error('The personalized banner does not belong to this lead. Nothing was sent.');
+          mismatch.code = 'COMPANY_MOCKUP_IDENTITY_MISMATCH';
+          throw mismatch;
+        }
+        const mockupAttachment = dependencies.attachmentFromMockup(companyMockup, claimed.business_name);
+        if (!mockupAttachment) {
+          const unavailable = new Error('A safe personalized banner could not be attached. Nothing was sent.');
+          unavailable.code = 'COMPANY_MOCKUP_NOT_READY';
+          throw unavailable;
+        }
         const content = renderOutboundDeliveryContent({
           subject: claimed.subject, bodyText: claimed.body_text,
           physicalAddress: config.physicalAddress, unsubscribeUrl,
+          mockupImageSrc: `cid:${MOCKUP_CONTENT_ID}`,
+          mockupAlt: `A custom banner concept created with ${claimed.business_name}'s public branding`,
+          businessName: claimed.business_name,
         });
         const result = await dependencies.sendPermissionedMarketingMessage({
           permissionStatus: 'admin_authorized', adminAuthorized: true,
@@ -241,6 +294,7 @@ function createManualReviewHandler(options = {}) {
           contact: { email: claimed.email },
           from: config.from, replyTo: config.replyTo,
           unsubscribeUrl, publicOrigin: config.origin, env,
+          attachments: [mockupAttachment],
         });
         const marked = await dependencies.markManualReviewSent(sql, {
           prospectId, sendKey: claimed.send_key, messageId: claimed.message_id,
@@ -256,7 +310,13 @@ function createManualReviewHandler(options = {}) {
           actorType: 'admin', actorId: auth.session.email || auth.session.sub || null,
           action: 'manual_lead.email_sent', entityType: 'prospect', entityId: prospectId,
           newValues: { status: 'contacted', sendState: 'sent' },
-          metadata: { messageId: claimed.message_id, provider: 'resend', permissionBasis: 'admin_authorized' },
+          metadata: {
+            messageId: claimed.message_id,
+            provider: 'resend',
+            permissionBasis: 'admin_authorized',
+            companyMockupIncluded: Boolean(mockupAttachment),
+            companyMockupQuality: companyMockup?.qualityLevel || null,
+          },
           requestId: event.headers?.['x-nf-request-id'] || null,
         });
         return json(200, { ok: true, duplicate: false, prospectId, messageId: result.providerMessageId });
