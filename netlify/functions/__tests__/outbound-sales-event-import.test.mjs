@@ -308,7 +308,8 @@ describe('protected admin/token trigger and resumable background chain', () => {
   });
 
   it('rejects an HTTP 200 gate page instead of mistaking it for a background acknowledgement', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue({ status: 200 });
+    const readBody = vi.fn();
+    const fetchImpl = vi.fn().mockResolvedValue({ status: 200, text: readBody, json: readBody });
     await expect(eventHandler.dispatchEventBackground('import', {
       eventKey: EVENT_KEY, businessDate: '2026-08-11', shardIndex: 0,
     }, {
@@ -321,8 +322,11 @@ describe('protected admin/token trigger and resumable background chain', () => {
         rawUrl: `${PREVIEW_ORIGIN}/.netlify/functions/outbound-sales-event-import`,
         headers: { Cookie: PREVIEW_COOKIE },
       },
-    })).rejects.toMatchObject({ code: 'EVENT_IMPORT_DISPATCH_FAILED' });
+    })).rejects.toMatchObject({
+      code: 'EVENT_IMPORT_DISPATCH_FAILED', dispatchResponseStatus: 200,
+    });
     expect(fetchImpl.mock.calls[0][1].redirect).toBe('manual');
+    expect(readBody).not.toHaveBeenCalled();
   });
 
   it('accepts exactly 202 and rejects redirects or non-background success statuses', async () => {
@@ -332,7 +336,9 @@ describe('protected admin/token trigger and resumable background chain', () => {
         eventKey: EVENT_KEY, businessDate: '2026-08-11', shardIndex: 0,
       }, {
         env: ENV, fetchImpl,
-      })).rejects.toMatchObject({ code: 'EVENT_IMPORT_DISPATCH_FAILED' });
+      })).rejects.toMatchObject({
+        code: 'EVENT_IMPORT_DISPATCH_FAILED', dispatchResponseStatus: status,
+      });
       expect(fetchImpl.mock.calls[0][1].redirect).toBe('manual');
     }
     await expect(eventHandler.dispatchEventBackground('import', {
@@ -386,6 +392,12 @@ describe('protected admin/token trigger and resumable background chain', () => {
     expect(fetchImpl.mock.calls[0][1].headers.Cookie).not.toContain('cart=');
     expect(fetchImpl.mock.calls[0][1].headers.Cookie).not.toContain('__nf_ab');
     expect(fetchImpl.mock.calls[0][1].headers.Cookie).not.toContain('nf_other');
+    expect(repository.recordEventProgress.mock.calls[0][1].metadata).toMatchObject({
+      dispatchPreviewAccessState: 'nf_jwt_forwarded', dispatchResponseStatus: null,
+    });
+    expect(repository.recordEventProgress.mock.calls[1][1].metadata).toMatchObject({
+      dispatchPreviewAccessState: 'nf_jwt_forwarded', dispatchResponseStatus: 202,
+    });
   });
 
   it('forwards the same-origin Preview Access cookie on chained branch-deploy background calls', async () => {
@@ -513,7 +525,7 @@ describe('protected admin/token trigger and resumable background chain', () => {
       metadata: {
         phase: 'dispatching', dispatchState: 'requesting', dispatchAction: 'import',
         dispatchShardIndex: 0, dispatchAckStatus: null, backgroundState: null,
-        dispatchPlatformCookieForwarded: false,
+        dispatchResponseStatus: null, dispatchPreviewAccessState: 'none',
         externalEmailsSent: 0,
       },
     });
@@ -522,7 +534,8 @@ describe('protected admin/token trigger and resumable background chain', () => {
       metadata: {
         phase: 'dispatched', dispatchState: 'acknowledged', dispatchAction: 'import',
         dispatchShardIndex: 0, dispatchAckStatus: 202,
-        dispatchPlatformCookieForwarded: false, externalEmailsSent: 0,
+        dispatchResponseStatus: 202, dispatchPreviewAccessState: 'none',
+        externalEmailsSent: 0,
       },
     });
   });
@@ -551,8 +564,8 @@ describe('protected admin/token trigger and resumable background chain', () => {
       batchId: BATCH_ID, status: 'failed', lastErrorCode: 'EVENT_IMPORT_DISPATCH_FAILED',
       metadata: {
         phase: 'dispatch_failed', dispatchState: 'failed', dispatchAction: 'import',
-        dispatchShardIndex: 0, dispatchAckStatus: null, externalEmailsSent: 0,
-        dispatchPlatformCookieForwarded: false,
+        dispatchShardIndex: 0, dispatchAckStatus: null, dispatchResponseStatus: 200,
+        dispatchPreviewAccessState: 'none', externalEmailsSent: 0,
       },
     });
     const durableMetadata = JSON.stringify(repository.recordEventProgress.mock.calls.map((call) => call[1]));
@@ -560,6 +573,30 @@ describe('protected admin/token trigger and resumable background chain', () => {
     expect(durableMetadata).not.toContain(MORNING_SECRET);
     expect(durableMetadata).not.toContain(PREVIEW_COOKIE);
     expect(durableMetadata).not.toContain(JSON.stringify({ action: 'start', eventKey: EVENT_KEY }));
+  });
+
+  it('keeps safe dispatch diagnostics through repository sanitization and strips cookie-named metadata', async () => {
+    const sql = vi.fn().mockResolvedValue([batchRow()]);
+    await eventRepository.recordEventProgress(sql, {
+      batchId: BATCH_ID,
+      status: 'failed',
+      lastErrorCode: 'EVENT_IMPORT_DISPATCH_FAILED',
+      metadata: {
+        dispatchResponseStatus: 403,
+        dispatchPreviewAccessState: 'nf_jwt_forwarded',
+        dispatchPlatformCookieForwarded: true,
+        rawCookie: PREVIEW_COOKIE,
+      },
+    });
+
+    const serialized = JSON.parse(sql.mock.calls[0][1][3]);
+    expect(serialized).toMatchObject({
+      dispatchResponseStatus: 403,
+      dispatchPreviewAccessState: 'nf_jwt_forwarded',
+    });
+    expect(serialized).not.toHaveProperty('dispatchPlatformCookieForwarded');
+    expect(serialized).not.toHaveProperty('rawCookie');
+    expect(JSON.stringify(serialized)).not.toContain(PREVIEW_COOKIE);
   });
 
   it('writes a background receiver heartbeat before shard work and exposes a deferred claim', async () => {

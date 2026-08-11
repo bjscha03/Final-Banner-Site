@@ -12,6 +12,11 @@ const { businessDate, MORNING_TARGET } = require('./morning-preparation.cjs');
 const MAX_FINALIZER_PASSES = 8;
 const DISPATCH_STALL_MS = 90 * 1000;
 
+function safeDispatchHttpStatus(value) {
+  const status = Number(value);
+  return Number.isInteger(status) && status >= 100 && status <= 599 ? status : null;
+}
+
 function safeCode(error, fallback = 'EVENT_IMPORT_FAILED') {
   return String(error?.code || fallback).toUpperCase()
     .replace(/[^A-Z0-9_.-]/g, '_').slice(0, 100) || fallback;
@@ -134,12 +139,14 @@ async function dispatchEventBackground(action, payload, {
       body: JSON.stringify({ action, ...payload }),
     },
   );
-  if (response.status !== 202) {
+  const responseStatus = safeDispatchHttpStatus(response?.status);
+  if (responseStatus !== 202) {
     const error = new Error('Event preparation background dispatch failed.');
     error.code = 'EVENT_IMPORT_DISPATCH_FAILED';
+    error.dispatchResponseStatus = responseStatus;
     throw error;
   }
-  return response.status;
+  return responseStatus;
 }
 
 function mapBatchStatus(row) {
@@ -174,6 +181,7 @@ function mapBatchStatus(row) {
     dispatchState: ['requesting', 'acknowledged', 'failed'].includes(metadata.dispatchState)
       ? metadata.dispatchState : null,
     dispatchAckStatus: Number(metadata.dispatchAckStatus) === 202 ? 202 : null,
+    dispatchResponseStatus: safeDispatchHttpStatus(metadata.dispatchResponseStatus),
     dispatchRequestedAt: metadata.dispatchRequestedAt || null,
     dispatchAcknowledgedAt: metadata.dispatchAcknowledgedAt || null,
     dispatchStalled,
@@ -230,7 +238,8 @@ function createEventImportHandler({ dependencies = {}, env = process.env } = {})
         return json(400, { ok: false, error: 'INVALID_EVENT_IMPORT', message: 'The requested event source is unavailable.' });
       }
       assertDispatchConfiguration(env);
-      const dispatchPlatformCookieForwarded = Boolean(previewDispatchCookie(event, env));
+      const dispatchPreviewAccessState = previewDispatchCookie(event, env)
+        ? 'nf_jwt_forwarded' : 'none';
       const batch = await repository.ensureEventBatch(sql, {
         businessDate: date, eventKey: eventImport.eventData.key,
         targetCount: MORNING_TARGET, providerId: eventImport.EVENT_PROVIDER_ID,
@@ -257,9 +266,10 @@ function createEventImportHandler({ dependencies = {}, env = process.env } = {})
           reserveRecordCount: eventImport.eventData.records.length - eventImport.eventData.primaryRecordCount,
           dispatchState: 'requesting', dispatchAction: 'import', dispatchShardIndex: 0,
           dispatchAckStatus: null, dispatchRequestedAt: new Date().toISOString(),
+          dispatchResponseStatus: null,
           dispatchAcknowledgedAt: null, backgroundState: null, backgroundAction: null,
           backgroundShardIndex: null, backgroundReceivedAt: null,
-          dispatchPlatformCookieForwarded,
+          dispatchPreviewAccessState,
           requestedBy: auth.actorId, manualSendingOnly: true, externalEmailsSent: 0,
         },
       });
@@ -275,8 +285,9 @@ function createEventImportHandler({ dependencies = {}, env = process.env } = {})
           metadata: {
             phase: 'dispatch_failed', dispatchState: 'failed', dispatchAction: 'import',
             dispatchShardIndex: 0, dispatchAckStatus: null,
+            dispatchResponseStatus: safeDispatchHttpStatus(error?.dispatchResponseStatus),
             dispatchAcknowledgedAt: null, manualSendingOnly: true, externalEmailsSent: 0,
-            dispatchPlatformCookieForwarded,
+            dispatchPreviewAccessState,
           },
         }).catch(() => null);
         throw error;
@@ -286,8 +297,9 @@ function createEventImportHandler({ dependencies = {}, env = process.env } = {})
         metadata: {
           phase: 'dispatched', dispatchState: 'acknowledged', dispatchAction: 'import',
           dispatchShardIndex: 0, dispatchAckStatus: dispatchStatus,
+          dispatchResponseStatus: dispatchStatus,
           dispatchAcknowledgedAt: new Date().toISOString(),
-          dispatchPlatformCookieForwarded,
+          dispatchPreviewAccessState,
           manualSendingOnly: true, externalEmailsSent: 0,
         },
       });
@@ -447,6 +459,7 @@ function createEventImportBackgroundHandler({
 module.exports = {
   MAX_FINALIZER_PASSES,
   DISPATCH_STALL_MS,
+  safeDispatchHttpStatus,
   constantTimeTokenMatch,
   eventTokenAuthorized,
   authorizeEventRequest,

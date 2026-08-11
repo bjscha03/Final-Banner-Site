@@ -587,7 +587,8 @@ export interface OutboundEventPreparationResult {
     failedImportShardCount: number; phase: string; sourceRecordCount: number;
     primaryRecordCount: number; reserveRecordCount: number; finalizerPass: number;
     dispatchState: 'requesting' | 'acknowledged' | 'failed' | null;
-    dispatchAckStatus: 202 | null; dispatchRequestedAt: string | null;
+    dispatchAckStatus: 202 | null; dispatchResponseStatus: number | null;
+    dispatchRequestedAt: string | null;
     dispatchAcknowledgedAt: string | null; dispatchStalled: boolean;
     backgroundState: 'running' | 'claim_deferred' | null;
     backgroundAction: 'import' | 'finalize' | null; backgroundShardIndex: number | null;
