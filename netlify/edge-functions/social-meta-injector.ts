@@ -13,6 +13,16 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "banner-size-for-6-foot-table": {
+    title: "What Size Banner Fits a 6-Foot Table? A Practical Measuring Guide",
+    description: "Choose a banner size for a 6-foot table by measuring the usable front, planning the drop, checking hardware, and keeping event artwork readable and clear.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/banner-size-for-6-foot-table.webp"
+  },
+  "back-to-school-banners-guide": {
+    title: "Back-to-School Banners: A Planning Guide for Welcome, Wayfinding & Events",
+    description: "Plan back-to-school banners for entrances, orientations, open houses, and events with practical guidance on wording, size, design, and placement on campus.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/back-to-school-banners-guide.webp"
+  },
   "remove-wrinkles-vinyl-banner": {
     title: "How to Remove Wrinkles From a Vinyl Banner Without Damaging It",
     description: "Learn how to remove wrinkles from a vinyl banner safely with flat relaxing, gentle tension, reverse rolling, and storage methods that protect the print.",
