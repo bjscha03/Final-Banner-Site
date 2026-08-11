@@ -176,6 +176,15 @@ describe('manual lead review migration and qualification', () => {
     }).technicalBlockers).toContain('Email company-name personalization does not match this lead');
   });
 
+  it('shows the same deduplicated offer copy in the admin card that delivery will render', () => {
+    const lead = mapLead({
+      ...rowFixture(),
+      message_body_text: 'Hi Taylor,\n\nFuture Expo Group is preparing for an event.\n\nFor your first order, use code NEW20 to save 20%. Use code NEW20 to save 20% on your first order whenever you’re ready.\n\nBest,\nBrandon\nBanners On The Fly',
+    });
+    expect(lead.message.bodyText.match(/Use code NEW20/g)).toHaveLength(1);
+    expect(lead.message.bodyText).toContain('Brandon Schaefer\nOwner, Banners On The Fly');
+  });
+
   it('reserves a discovery slot for trade-show and event prospects until outcome learning takes over', () => {
     const keywords = selectProspectingKeywords([], { seed: '2026-08-10', limit: 3 });
     expect(keywords).toHaveLength(3);

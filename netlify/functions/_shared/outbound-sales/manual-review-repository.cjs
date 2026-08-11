@@ -1,6 +1,7 @@
 'use strict';
 
 const { sanitizeForAudit } = require('./security.cjs');
+const { polishOutboundBodyText } = require('./personalization-template.cjs');
 
 const MIN_HIGH_VALUE_SCORE = 60;
 const MAX_MANUAL_DAILY_ATTEMPTS = 70;
@@ -116,7 +117,7 @@ function mapLead(row) {
     message: row.message_id ? {
       id: row.message_id,
       subject: row.message_subject,
-      bodyText: row.message_body_text,
+      bodyText: polishOutboundBodyText(row.message_body_text),
       bodyHtml: row.message_body_html,
       generationStatus: row.generation_status,
       evidenceValidationStatus: row.evidence_validation_status,
