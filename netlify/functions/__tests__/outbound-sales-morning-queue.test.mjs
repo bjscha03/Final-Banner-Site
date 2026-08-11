@@ -300,6 +300,44 @@ describe('morning preparation workflow', () => {
     }));
   });
 
+  it('checkpoints the batch and moves past a mockup task that never settles', async () => {
+    const candidate = preparationCandidate(COMPANY_A, 'Company A', 'avery@companya.example');
+    const repository = {
+      ensureMorningBatch: vi.fn().mockResolvedValue({ id: BATCH_ID, batch_key: 'generic', status: 'preparing' }),
+      listMorningPreparationCandidates: vi.fn().mockResolvedValue([candidate]),
+      saveDeterministicMorningMessage: vi.fn().mockResolvedValue({ id: 'message-a' }),
+      finalizeMorningBatch: vi.fn().mockResolvedValue({ batch: { status: 'partial' }, readyCount: 0 }),
+    };
+    const failureCandidate = {
+      ...candidate,
+      message: { id: 'message-a', contentHash: 'a'.repeat(64) },
+      mockup: null,
+    };
+    const mockupRepository = {
+      loadCompanyMockupCandidate: vi.fn().mockResolvedValue(failureCandidate),
+      saveCompanyMockupFailure: vi.fn().mockResolvedValue({ status: 'failed' }),
+      safeCompanyMockupErrorCode: vi.fn((code) => code),
+    };
+
+    const result = await morningModule.runMorningFinalizer({
+      sql: vi.fn(), env: morningEnv, businessDate: '2026-08-11', candidateTimeoutMs: 5,
+      dependencies: {
+        repository,
+        mockupRepository,
+        prepareCompanyMockup: vi.fn(() => new Promise(() => {})),
+        appendAudit: vi.fn().mockResolvedValue({}),
+      },
+    });
+
+    expect(result).toMatchObject({ readyCount: 0, processedCount: 1, failed: 1, timeBudgetReached: false });
+    expect(mockupRepository.saveCompanyMockupFailure).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      candidate: failureCandidate, errorCode: 'COMPANY_MOCKUP_BUILD_TIMEOUT',
+    }));
+    expect(repository.finalizeMorningBatch).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      lastErrorCode: 'COMPANY_MOCKUP_BUILD_TIMEOUT',
+    }));
+  });
+
   it('always finalizes partial progress before the background execution deadline', async () => {
     const repository = {
       ensureMorningBatch: vi.fn().mockResolvedValue({ id: BATCH_ID, batch_key: 'generic', status: 'preparing' }),

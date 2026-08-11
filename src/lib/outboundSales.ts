@@ -397,10 +397,11 @@ export interface OutboundManualReviewQueue {
   mockups: { ready: number; fallback: number; missing: number; failed: number; retryableFailed: number };
   filterOptions: { events: string[]; sources: string[]; industries: string[] };
   morningBatch: null | {
-    businessDate: string; targetCount: number; status: string; discoveredCount: number;
+    id: string; batchKey: string; businessDate: string; targetCount: number; status: string; discoveredCount: number;
     newProspectCount: number; qualifiedCount: number; messageReadyCount: number;
     mockupReadyCount: number; startedAt: string | null; readyAt: string | null;
     lastErrorCode: string | null; runMetadata?: Record<string, unknown>; updatedAt: string;
+    workerStalled: boolean; stallReason: 'handoff' | 'import' | 'finalize' | null;
   };
   today: { attempted: number; sent: number; limit: number };
 }
@@ -589,7 +590,8 @@ export interface OutboundEventPreparationResult {
     dispatchState: 'requesting' | 'acknowledged' | 'failed' | null;
     dispatchAckStatus: 202 | null; dispatchResponseStatus: number | null;
     dispatchRequestedAt: string | null;
-    dispatchAcknowledgedAt: string | null; dispatchStalled: boolean;
+    dispatchAcknowledgedAt: string | null; dispatchStalled: boolean; workerStalled: boolean;
+    stallReason: 'handoff' | 'import' | 'finalize' | null;
     backgroundState: 'running' | 'claim_deferred' | null;
     backgroundAction: 'import' | 'finalize' | null; backgroundShardIndex: number | null;
     backgroundReceivedAt: string | null;

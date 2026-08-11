@@ -3,26 +3,19 @@
 const { createSql, getDatabaseUrl, isMissingOutboundSchema } = require('./database.cjs');
 const repository = require('./company-mockup-repository.cjs');
 const { RENDER_VERSION, prepareCompanyMockup } = require('./company-mockup.cjs');
+const { withAbortableDeadline } = require('./deadline.cjs');
 const { json, authorize, parseJsonBody, redactSecretText, safeFailure } = require('./security.cjs');
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DEFAULT_PREPARATION_TIMEOUT_MS = 50_000;
 
-async function withPreparationDeadline(promise, timeoutMs = DEFAULT_PREPARATION_TIMEOUT_MS) {
-  let timer;
-  const timeout = new Promise((_, reject) => {
-    timer = setTimeout(() => {
-      const error = new Error('Company mockup preparation exceeded its safe request deadline.');
-      error.code = 'COMPANY_MOCKUP_BUILD_TIMEOUT';
-      reject(error);
-    }, Math.max(1, Number(timeoutMs) || DEFAULT_PREPARATION_TIMEOUT_MS));
-    timer.unref?.();
+async function withPreparationDeadline(taskOrPromise, timeoutMs = DEFAULT_PREPARATION_TIMEOUT_MS) {
+  const task = typeof taskOrPromise === 'function' ? taskOrPromise : () => taskOrPromise;
+  return withAbortableDeadline(task, {
+    timeoutMs,
+    errorCode: 'COMPANY_MOCKUP_BUILD_TIMEOUT',
+    message: 'Company mockup preparation exceeded its safe request deadline.',
   });
-  try {
-    return await Promise.race([promise, timeout]);
-  } finally {
-    clearTimeout(timer);
-  }
 }
 
 function createCompanyMockupHandler(options = {}) {
@@ -49,7 +42,7 @@ function createCompanyMockupHandler(options = {}) {
       const candidate = await dependencies.loadCompanyMockupCandidate(sql, prospectId);
       let result;
       try {
-        result = await withPreparationDeadline(dependencies.prepareCompanyMockup({
+        result = await withPreparationDeadline((signal) => dependencies.prepareCompanyMockup({
           sql,
           candidate,
           prospectId,
@@ -57,7 +50,7 @@ function createCompanyMockupHandler(options = {}) {
           preferCachedReady: event.httpMethod === 'GET',
           store: options.getStore ? options.getStore() : options.store,
           sharp: options.sharp,
-          dependencies: options.mockupDependencies,
+          dependencies: { ...(options.mockupDependencies || {}), signal },
         }), options.preparationTimeoutMs);
       } catch (error) {
         if (event.httpMethod === 'POST' && candidate?.prospect?.id) {

@@ -203,6 +203,10 @@ describe('event import isolation and quality gates', () => {
     expect(listSql.mock.calls[0][0]).toContain("c.mx_status='present'");
     expect(listSql.mock.calls[0][0]).not.toContain('not_checked');
     expect(listSql.mock.calls[0][0]).toContain("p.provider_metadata->>'eventKey'=$3");
+    expect(listSql.mock.calls[0][0]).toContain('WHEN m.id IS NULL OR mockup.id IS NULL THEN 0');
+    expect(listSql.mock.calls[0][0]).toContain('WHEN NOT (');
+    expect(listSql.mock.calls[0][0].indexOf('WHEN m.id IS NULL OR mockup.id IS NULL THEN 0'))
+      .toBeLessThan(listSql.mock.calls[0][0].indexOf("COALESCE((p.provider_metadata->>'eventRank')::integer"));
 
     const finalizeSql = vi.fn().mockResolvedValue([]);
     await eventRepository.finalizeEventBatch(finalizeSql, {
@@ -399,6 +403,28 @@ describe('protected admin/token trigger and resumable background chain', () => {
       },
     }));
     expect(received.dispatchStalled).toBe(false);
+  });
+
+  it('marks a hard-stopped finalizer stale while leaving an active finalizer alone', () => {
+    const staleAt = new Date(Date.now() - (7 * 60 * 1000)).toISOString();
+    const stale = eventHandler.mapBatchStatus(batchRow({
+      status: 'preparing', updated_at: staleAt,
+      run_metadata: {
+        eventKey: EVENT_KEY, phase: 'preparing', backgroundState: 'running',
+        backgroundAction: 'finalize', backgroundReceivedAt: staleAt,
+      },
+    }));
+    expect(stale).toMatchObject({ dispatchStalled: true, workerStalled: true, stallReason: 'finalize' });
+
+    const activeAt = new Date().toISOString();
+    const active = eventHandler.mapBatchStatus(batchRow({
+      status: 'preparing', updated_at: activeAt,
+      run_metadata: {
+        eventKey: EVENT_KEY, phase: 'preparing', backgroundState: 'running',
+        backgroundAction: 'finalize', backgroundReceivedAt: activeAt,
+      },
+    }));
+    expect(active).toMatchObject({ dispatchStalled: false, workerStalled: false, stallReason: null });
   });
 
   it('rejects an HTTP 200 gate page instead of mistaking it for a background acknowledgement', async () => {
@@ -601,6 +627,35 @@ describe('protected admin/token trigger and resumable background chain', () => {
     });
   });
 
+  it('resumes a saved batch at the next finalizer pass instead of reimporting completed shards', async () => {
+    const dispatch = vi.fn().mockResolvedValue(202);
+    const saved = batchRow({
+      status: 'preparing', import_shard_count: 7, completed_import_shard_count: 7,
+      failed_import_shard_count: 0,
+      run_metadata: { eventKey: EVENT_KEY, phase: 'preparing', finalizerPass: 1 },
+    });
+    const repository = {
+      ensureEventBatch: vi.fn().mockResolvedValue({ id: BATCH_ID }),
+      loadEventBatchStatus: vi.fn().mockResolvedValue(saved),
+      recordEventProgress: vi.fn().mockResolvedValue(saved),
+    };
+    const handler = eventHandler.createEventImportHandler({
+      env: ENV,
+      dependencies: { createSql: vi.fn(() => vi.fn()), repository, dispatchEventBackground: dispatch },
+    });
+
+    const response = await handler(tokenEvent('POST', { action: 'start', eventKey: EVENT_KEY }));
+
+    expect(response.statusCode).toBe(202);
+    expect(dispatch).toHaveBeenCalledWith('finalize', expect.objectContaining({ finalizerPass: 2 }), expect.anything());
+    expect(repository.recordEventProgress.mock.calls[0][1]).toMatchObject({
+      status: 'preparing',
+      metadata: {
+        dispatchAction: 'finalize', dispatchShardIndex: null, dispatchFinalizerPass: 2,
+      },
+    });
+  });
+
   it('persists a sanitized failed state when foreground dispatch is not acknowledged', async () => {
     const repository = {
       ensureEventBatch: vi.fn().mockResolvedValue({ id: BATCH_ID }),
@@ -786,7 +841,8 @@ describe('protected admin/token trigger and resumable background chain', () => {
     expect(salesAdminSource).toContain('Load & prepare Atlanta batch');
     expect(salesAdminSource).toContain('Retry Atlanta preparation');
     expect(salesAdminSource).toContain("['queued', 'dispatching', 'dispatched']");
-    expect(salesAdminSource).toContain('The preparation worker did not confirm receipt');
+    expect(salesAdminSource).toContain('The preparation worker stopped making progress');
+    expect(salesAdminSource).toContain('Your imported companies are still saved');
     expect(salesAdminSource).toContain('eventStartInFlight.current');
     expect(salesAdminSource).not.toContain('use Load &amp; prepare Atlanta batch to retry safely');
     expect(salesAdminSource).toContain('This action has no email-send path');

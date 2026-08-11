@@ -194,23 +194,34 @@ function publicNetworkError(error, fallbackMessage) {
 }
 
 async function requestPublicResource(url, options) {
+  const abortError = () => ssrfError('WEBSITE_TIMEOUT', options.timeoutMessage);
+  if (options.signal?.aborted) throw abortError();
   const approvedAddresses = await resolvePublicHost(url.hostname, options.lookup);
+  if (options.signal?.aborted) throw abortError();
   const addresses = approvedAddresses.slice(0, 4);
   const perAddressTimeout = Math.max(500, Math.floor(options.timeoutMs / addresses.length));
   let lastError = null;
   for (const pinned of addresses) {
+    if (options.signal?.aborted) throw abortError();
     try {
       // Each connection is pinned to one address that was already validated as
       // public. Retrying another validated answer avoids making a single stale
       // CDN edge or unreachable IPv6 route the failure point for the company.
       return await new Promise((resolve, reject) => {
         let settled = false;
+        let request;
+        let requestAbortListener = null;
+        const cleanupRequestAbort = () => {
+          if (requestAbortListener) options.signal?.removeEventListener('abort', requestAbortListener);
+          requestAbortListener = null;
+        };
         const finish = (callback, result) => {
           if (settled) return;
           settled = true;
+          cleanupRequestAbort();
           callback(result);
         };
-        const request = options.requestImpl(url, {
+        request = options.requestImpl(url, {
           method: 'GET',
           headers: options.headers,
           servername: url.hostname,
@@ -229,8 +240,25 @@ async function requestPublicResource(url, options) {
             finish(reject, ssrfError('WEBSITE_CONNECTION_ADDRESS_MISMATCH', options.addressMismatchMessage));
             return;
           }
+          if (options.signal?.aborted) {
+            incoming.destroy();
+            finish(reject, abortError());
+            return;
+          }
+          if (options.signal) {
+            const responseAbortListener = () => incoming.destroy(abortError());
+            const cleanupResponseAbort = () => options.signal.removeEventListener('abort', responseAbortListener);
+            options.signal.addEventListener('abort', responseAbortListener, { once: true });
+            incoming.once('close', cleanupResponseAbort);
+            incoming.once('end', cleanupResponseAbort);
+          }
           finish(resolve, incoming);
         });
+        if (options.signal) {
+          requestAbortListener = () => request.destroy(abortError());
+          options.signal.addEventListener('abort', requestAbortListener, { once: true });
+          if (options.signal.aborted) requestAbortListener();
+        }
         request.setTimeout(perAddressTimeout, () => request.destroy(ssrfError('WEBSITE_TIMEOUT', options.timeoutMessage)));
         request.on('error', (error) => finish(reject, publicNetworkError(error, options.fetchMessage)));
         request.end();
@@ -265,7 +293,7 @@ async function fetchWebsitePage(value, options = {}) {
   async function attempt(input, redirectsRemaining) {
     const url = normalizeWebsiteUrl(input);
     const response = await requestPublicResource(url, {
-      lookup, requestImpl, headers, timeoutMs,
+      lookup, requestImpl, headers, timeoutMs, signal: options.signal,
       timeoutMessage: 'Website request timed out.',
       fetchMessage: 'Website request failed.',
       addressMismatchMessage: 'Website connection did not use the approved public address.',
@@ -352,6 +380,7 @@ async function fetchWebsiteAsset(value, options = {}) {
       lookup,
       requestImpl,
       timeoutMs,
+      signal: options.signal,
       headers: {
         Accept: 'image/png,image/jpeg,image/webp,image/avif,image/gif,image/svg+xml;q=0.8',
         'Accept-Encoding': 'identity',

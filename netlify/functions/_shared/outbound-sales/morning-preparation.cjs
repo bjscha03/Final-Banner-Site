@@ -11,12 +11,15 @@ const { researchWebsite } = require('./research.cjs');
 const { assessEmailCandidates } = require('./email.cjs');
 const { scoreLead } = require('./qualification.cjs');
 const { renderOutboundEmailPreview, SIGNATURE } = require('./personalization-template.cjs');
-const { prepareCompanyMockup } = require('./company-mockup.cjs');
+const companyMockupRepository = require('./company-mockup-repository.cjs');
+const { RENDER_VERSION, prepareCompanyMockup } = require('./company-mockup.cjs');
+const { withAbortableDeadline } = require('./deadline.cjs');
 const { redactSecretText } = require('./security.cjs');
 
 const MORNING_TARGET = 70;
 const MORNING_PREPARATION_POOL = 210;
 const MORNING_FINALIZER_BUDGET_MS = 12 * 60 * 1000;
+const MORNING_MOCKUP_CANDIDATE_TIMEOUT_MS = 50_000;
 const MORNING_SHARD_COUNT = 8;
 const MORNING_COHORTS = Object.freeze([
   Object.freeze({ keywords: ['trade show', 'exhibitor', 'conference', 'expo'], jobTitles: ['events', 'trade show', 'marketing'] }),
@@ -251,6 +254,10 @@ async function runMorningFinalizer(options) {
   if (options.requireProviderConfiguration !== false) assertMorningConfiguration(env);
   const sql = options.sql;
   const repository = { ...morningRepository, ...(options.dependencies?.repository || {}) };
+  const mockupRepository = {
+    ...companyMockupRepository,
+    ...(options.dependencies?.mockupRepository || {}),
+  };
   const date = options.businessDate || businessDate(options.now);
   const batch = options.batch || await repository.ensureMorningBatch(sql, {
     businessDate: date, targetCount: MORNING_TARGET, providerId: 'apollo',
@@ -280,9 +287,18 @@ async function runMorningFinalizer(options) {
         const saved = await repository.saveDeterministicMorningMessage(sql, message);
         if (!saved) throw Object.assign(new Error('Message was not persisted.'), { code: 'MORNING_MESSAGE_SAVE_CONFLICT' });
         messageReady += 1;
-        const mockup = await (options.dependencies?.prepareCompanyMockup || prepareCompanyMockup)({
+        const mockup = await withAbortableDeadline((signal) => (
+          options.dependencies?.prepareCompanyMockup || prepareCompanyMockup
+        )({
           sql, prospectId: candidate.prospect.id, force: false, preferCachedReady: true,
-          store: options.store, sharp: options.sharp || options.dependencies?.sharp, dependencies: options.dependencies?.mockup,
+          store: options.store, sharp: options.sharp || options.dependencies?.sharp,
+          dependencies: { ...(options.dependencies?.mockup || {}), signal },
+        }), {
+          timeoutMs: options.candidateTimeoutMs
+            || options.dependencies?.candidateTimeoutMs
+            || MORNING_MOCKUP_CANDIDATE_TIMEOUT_MS,
+          errorCode: 'COMPANY_MOCKUP_BUILD_TIMEOUT',
+          message: 'Company mockup preparation exceeded its safe finalizer deadline.',
         });
         const mockupStatus = mockup?.status || mockup?.row?.status || (mockup?.sendReady ? 'ready' : 'fallback');
         if (!mockup || mockup.prospectId !== candidate.prospect.id || mockupStatus !== 'ready'
@@ -298,6 +314,18 @@ async function runMorningFinalizer(options) {
         }
         mockupReady += 1;
       } catch (error) {
+        if (error?.code !== 'MORNING_MOCKUP_NOT_READY') {
+          const failureCandidate = await mockupRepository.loadCompanyMockupCandidate(
+            sql, candidate.prospect.id,
+          ).catch(() => null);
+          if (failureCandidate) {
+            await mockupRepository.saveCompanyMockupFailure(sql, {
+              candidate: failureCandidate,
+              renderVersion: RENDER_VERSION,
+              errorCode: mockupRepository.safeCompanyMockupErrorCode(safeErrorCode(error)),
+            }).catch(() => null);
+          }
+        }
         failures.push({ prospectId: candidate.prospect.id, errorCode: safeErrorCode(error) });
       }
     }
@@ -331,6 +359,7 @@ module.exports = {
   MORNING_TARGET,
   MORNING_PREPARATION_POOL,
   MORNING_FINALIZER_BUDGET_MS,
+  MORNING_MOCKUP_CANDIDATE_TIMEOUT_MS,
   MORNING_SHARD_COUNT,
   MORNING_COHORTS,
   businessDate,

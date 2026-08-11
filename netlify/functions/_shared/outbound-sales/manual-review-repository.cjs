@@ -5,6 +5,7 @@ const { polishOutboundSubject, polishOutboundBodyText } = require('./personaliza
 const {
   immutableMockupBlobAuditPassed, strictCompanyMockupReadySql, strictCompanyMockupReady,
 } = require('./company-mockup-repository.cjs');
+const { eventPreparationStall } = require('./event-progress.cjs');
 
 const MIN_HIGH_VALUE_SCORE = 60;
 const MAX_MANUAL_DAILY_ATTEMPTS = 70;
@@ -506,6 +507,7 @@ async function listManualReviewLeads(sql, {
   ]);
   const leads = rows.map(mapLead);
   const totals = countRows[0] || {};
+  const morningBatchStall = eventPreparationStall(batchRows[0]);
   return {
     leads,
     total: Number(totals.total) || 0,
@@ -544,6 +546,8 @@ async function listManualReviewLeads(sql, {
       lastErrorCode: batchRows[0].last_error_code || null,
       runMetadata: batchRows[0].run_metadata || {},
       updatedAt: batchRows[0].updated_at,
+      workerStalled: morningBatchStall.stalled,
+      stallReason: morningBatchStall.reason,
     } : null,
     today: {
       attempted: Number(dailyRows[0]?.manual_attempted_count) || 0,

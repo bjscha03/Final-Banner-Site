@@ -1000,6 +1000,52 @@ describe('company mockup migration isolation', () => {
     }
   });
 
+  it('times out one stuck batch candidate, aborts it, and continues to a durable failure', async () => {
+    const originalSecret = process.env.AUTH_SESSION_SECRET;
+    process.env.AUTH_SESSION_SECRET = 'company-mockup-batch-timeout-test-secret';
+    const candidate = candidateFixture();
+    const saveCompanyMockupFailure = vi.fn().mockResolvedValue({ status: 'failed' });
+    let observedSignal;
+    const handler = mockupBatchModule.createCompanyMockupBatchHandler({
+      env: { DATABASE_URL: 'postgres://test.invalid/database' },
+      candidateTimeoutMs: 5,
+      dependencies: {
+        createSql: vi.fn().mockReturnValue(vi.fn()),
+        listCompanyMockupCandidates: vi.fn().mockResolvedValue([candidate]),
+        prepareCompanyMockup: vi.fn(({ dependencies }) => {
+          observedSignal = dependencies.signal;
+          return new Promise(() => {});
+        }),
+        saveCompanyMockupFailure,
+        appendAudit: vi.fn().mockResolvedValue(null),
+      },
+    });
+    const token = createSessionToken({ id: 'admin-1', email: 'admin@bannersonthefly.com', is_admin: true });
+    try {
+      const response = await handler({
+        httpMethod: 'POST',
+        headers: {
+          authorization: `Bearer ${token}`,
+          origin: 'https://bannersonthefly.com',
+          host: 'bannersonthefly.com',
+          'x-forwarded-proto': 'https',
+        },
+        body: JSON.stringify({ limit: 1 }),
+      });
+      expect(response.statusCode).toBe(204);
+      expect(observedSignal).toBeInstanceOf(AbortSignal);
+      expect(observedSignal.aborted).toBe(true);
+      expect(saveCompanyMockupFailure).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+        candidate,
+        renderVersion: mockupModule.RENDER_VERSION,
+        errorCode: 'COMPANY_MOCKUP_BUILD_TIMEOUT',
+      }));
+    } finally {
+      if (originalSecret === undefined) delete process.env.AUTH_SESSION_SECRET;
+      else process.env.AUTH_SESSION_SECRET = originalSecret;
+    }
+  });
+
   it('persists the same safe failure state when Build now fails', async () => {
     const originalSecret = process.env.AUTH_SESSION_SECRET;
     process.env.AUTH_SESSION_SECRET = 'company-mockup-build-test-secret';

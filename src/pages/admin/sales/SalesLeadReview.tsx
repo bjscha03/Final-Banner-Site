@@ -74,15 +74,29 @@ function titleCase(value: string | null | undefined) {
   return String(value || 'unknown').replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function eventDispatchHasStalled(batch: OutboundManualReviewQueue['morningBatch']) {
+function eventPreparationHasStalled(batch: OutboundManualReviewQueue['morningBatch']) {
   if (!batch) return false;
+  if (batch.workerStalled === true) return true;
   const metadata = batch.runMetadata || {};
   const waitingForBackground = metadata.dispatchState === 'acknowledged'
     || ['queued', 'dispatching', 'dispatched'].includes(String(metadata.phase || ''));
-  if (!waitingForBackground || metadata.backgroundReceivedAt) return false;
-  const referenceAt = Date.parse(typeof metadata.dispatchAcknowledgedAt === 'string'
-    ? metadata.dispatchAcknowledgedAt : batch.updatedAt);
-  return Number.isFinite(referenceAt) && Date.now() - referenceAt >= 90 * 1000;
+  if (waitingForBackground && !metadata.backgroundReceivedAt) {
+    const referenceAt = Date.parse(typeof metadata.dispatchAcknowledgedAt === 'string'
+      ? metadata.dispatchAcknowledgedAt : batch.updatedAt);
+    if (Number.isFinite(referenceAt) && Date.now() - referenceAt >= 90 * 1000) return true;
+  }
+  const action = ['import', 'finalize'].includes(String(metadata.backgroundAction || ''))
+    ? String(metadata.backgroundAction) : null;
+  const running = ['running', 'claim_deferred'].includes(String(metadata.backgroundState || ''));
+  if (!action || !running) return false;
+  const workerTimes = [
+    Date.parse(typeof metadata.backgroundReceivedAt === 'string' ? metadata.backgroundReceivedAt : ''),
+    Date.parse(batch.updatedAt),
+  ].filter(Number.isFinite);
+  if (!workerTimes.length) return false;
+  const workerAt = Math.max(...workerTimes);
+  const staleAfterMs = action === 'finalize' ? 6 * 60 * 1000 : 16 * 60 * 1000;
+  return Number.isFinite(workerAt) && Date.now() - workerAt >= staleAfterMs;
 }
 
 function eventBadge(lead: OutboundManualReviewLead) {
@@ -427,7 +441,7 @@ export default function SalesLeadReview() {
 
   useEffect(() => {
     if (preparingEvent || !queue?.morningBatch?.runMetadata?.eventKey
-        || eventDispatchHasStalled(queue.morningBatch)) return;
+        || eventPreparationHasStalled(queue.morningBatch)) return;
     if (['discovering', 'preparing', 'partial'].includes(queue.morningBatch.status)
         && (Number(queue.morningBatch.runMetadata.finalizerPass) || 0) < 7) {
       eventPollCount.current = 0;
@@ -446,12 +460,12 @@ export default function SalesLeadReview() {
   useEffect(() => {
     if (!preparingEvent || eventStartInFlight.current) return undefined;
     const batch = queue?.morningBatch;
-    if (eventDispatchHasStalled(batch || null)) {
+    if (eventPreparationHasStalled(batch || null)) {
       setPreparingEvent(false);
       toast({
         variant: 'destructive',
-        title: 'Atlanta preparation worker did not start',
-        description: 'The safe background handoff timed out before any lead work began. No email was sent, and the batch is safe to retry.',
+        title: 'Atlanta preparation worker stopped',
+        description: 'The worker stopped making progress before the queue was complete. No email was sent, and the saved batch is safe to retry.',
       });
       return undefined;
     }
@@ -542,7 +556,7 @@ export default function SalesLeadReview() {
     setOffset(0);
   };
   const activeFilterCount = Object.values(filters).filter(Boolean).length;
-  const eventHandoffStalled = eventDispatchHasStalled(queue?.morningBatch || null);
+  const eventPreparationStalled = eventPreparationHasStalled(queue?.morningBatch || null);
 
   const refreshMockup = async (lead: OutboundManualReviewLead) => {
     setRefreshingMockupId(lead.prospectId);
@@ -604,7 +618,7 @@ export default function SalesLeadReview() {
               className="bg-[#ff6b35] text-white hover:bg-[#e85a28]"
             >
               {preparingEvent ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <CalendarSearch className="mr-2 h-4 w-4" />}
-              {preparingEvent ? 'Loading and preparing…' : queue?.morningBatch?.status === 'ready' ? 'Atlanta batch ready' : eventHandoffStalled ? 'Retry Atlanta preparation' : 'Load & prepare Atlanta batch'}
+              {preparingEvent ? 'Loading and preparing…' : queue?.morningBatch?.status === 'ready' ? 'Atlanta batch ready' : eventPreparationStalled ? 'Retry Atlanta preparation' : 'Load & prepare Atlanta batch'}
             </Button>
             <p className="max-w-sm text-xs text-slate-500">Imports and builds personalized previews only. This action has no email-send path.</p>
           </div>
@@ -614,9 +628,9 @@ export default function SalesLeadReview() {
             Source pool: {Number(queue?.morningBatch?.runMetadata?.primaryRecordCount) || 70} ranked exhibitors + {Number(queue?.morningBatch?.runMetadata?.reserveRecordCount) || 0} quality backfills. Only finalized mockups receive Today queue positions.
           </p>
         )}
-        {eventHandoffStalled && (
+        {eventPreparationStalled && (
           <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-900">
-            The preparation worker did not confirm receipt. Nothing was sent; use Retry Atlanta preparation to retry safely.
+            The preparation worker stopped making progress. Your imported companies are still saved; use Retry Atlanta preparation to continue safely.
           </p>
         )}
         <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">

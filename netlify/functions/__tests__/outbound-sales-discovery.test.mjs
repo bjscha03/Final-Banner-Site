@@ -231,6 +231,27 @@ describe('SSRF-safe website transport', () => {
     })).rejects.toMatchObject({ code: 'WEBSITE_CONNECTION_RESET', message: 'Website request failed.' });
   });
 
+  it('aborts a website request that remains open beyond its caller deadline', async () => {
+    const controller = new AbortController();
+    const requestImpl = () => {
+      const request = new EventEmitter();
+      request.setTimeout = vi.fn();
+      request.destroy = (error) => queueMicrotask(() => request.emit('error', error));
+      request.end = vi.fn();
+      return request;
+    };
+    const pending = fetchWebsitePage('https://example.org', {
+      lookup: async () => [{ address: '93.184.216.34', family: 4 }],
+      requestImpl,
+      signal: controller.signal,
+    });
+
+    await Promise.resolve();
+    controller.abort();
+
+    await expect(pending).rejects.toMatchObject({ code: 'WEBSITE_TIMEOUT' });
+  });
+
   it('blocks HTTPS downgrade redirects', async () => {
     const requestImpl = requestFixture([
       { status: 302, headers: { location: 'http://www.example.org/about', 'content-type': 'text/html' }, remoteAddress: '93.184.216.34' },

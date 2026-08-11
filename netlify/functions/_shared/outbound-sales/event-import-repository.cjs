@@ -300,6 +300,15 @@ async function listEventPreparationCandidates(sql, { batchId, eventKey, limit = 
            FROM outbound_research_snapshots r WHERE r.prospect_id=p.id
           ORDER BY r.fetched_at DESC LIMIT 1
        ) research ON TRUE
+       LEFT JOIN LATERAL (
+         SELECT message.id,message.content_hash
+           FROM outbound_messages message
+          WHERE message.prospect_id=p.id AND message.message_kind='initial'
+            AND message.contact_id=contact.id
+          ORDER BY message.created_at DESC
+          LIMIT 1
+       ) m ON TRUE
+       LEFT JOIN outbound_company_mockups mockup ON mockup.prospect_id=p.id
       WHERE p.morning_batch_id=$1 AND p.provider_metadata->>'eventKey'=$3
         AND p.status IN ('qualified','ready_for_outreach')
         AND p.lead_score>=60 AND p.first_contacted_at IS NULL
@@ -311,7 +320,12 @@ async function listEventPreparationCandidates(sql, { batchId, eventKey, limit = 
              AND ((s.scope='email' AND LOWER(s.normalized_value)=LOWER(contact.email_normalized))
                OR (s.scope IN ('company_domain','email_domain') AND LOWER(s.normalized_value)=LOWER(p.canonical_domain)))
         )
-      ORDER BY COALESCE((p.provider_metadata->>'eventRank')::integer,2147483647),
+      ORDER BY CASE
+                 WHEN m.id IS NULL OR mockup.id IS NULL THEN 0
+                 WHEN NOT (${STRICT_MOCKUP_READY_SQL}) THEN 1
+                 ELSE 2
+               END,
+               COALESCE((p.provider_metadata->>'eventRank')::integer,2147483647),
                p.lead_score DESC,p.discovered_at DESC
       LIMIT $2`,
     [batchId, safeLimit, eventKey],

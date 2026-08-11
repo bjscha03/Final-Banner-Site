@@ -3,12 +3,15 @@
 const { createSql, getDatabaseUrl } = require('./database.cjs');
 const repository = require('./company-mockup-repository.cjs');
 const { RENDER_VERSION, prepareCompanyMockup } = require('./company-mockup.cjs');
+const { withAbortableDeadline } = require('./deadline.cjs');
 const { appendAudit } = require('./audit.cjs');
 const { authorize, parseJsonBody, redactSecretText } = require('./security.cjs');
 
 function safeMockupErrorCode(error) {
   return repository.safeCompanyMockupErrorCode(redactSecretText(error?.code || ''));
 }
+
+const DEFAULT_BATCH_CANDIDATE_TIMEOUT_MS = 50_000;
 
 function createCompanyMockupBatchHandler(options = {}) {
   const dependencies = {
@@ -40,13 +43,17 @@ function createCompanyMockupBatchHandler(options = {}) {
         const candidate = candidates[cursor];
         cursor += 1;
         try {
-          await dependencies.prepareCompanyMockup({
+          await withAbortableDeadline((signal) => dependencies.prepareCompanyMockup({
             sql,
             candidate,
             force,
             store,
             sharp: options.sharp,
-            dependencies: options.mockupDependencies,
+            dependencies: { ...(options.mockupDependencies || {}), signal },
+          }), {
+            timeoutMs: options.candidateTimeoutMs || DEFAULT_BATCH_CANDIDATE_TIMEOUT_MS,
+            errorCode: 'COMPANY_MOCKUP_BUILD_TIMEOUT',
+            message: 'Company mockup preparation exceeded its safe background deadline.',
           });
           prepared += 1;
         } catch (error) {
@@ -72,4 +79,8 @@ function createCompanyMockupBatchHandler(options = {}) {
   };
 }
 
-module.exports = { createCompanyMockupBatchHandler, safeMockupErrorCode };
+module.exports = {
+  DEFAULT_BATCH_CANDIDATE_TIMEOUT_MS,
+  createCompanyMockupBatchHandler,
+  safeMockupErrorCode,
+};

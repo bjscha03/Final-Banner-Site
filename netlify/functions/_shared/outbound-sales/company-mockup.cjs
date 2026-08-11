@@ -262,7 +262,18 @@ function safeDiagnostic(error, stage, url) {
   };
 }
 
+function mockupDeadlineError() {
+  const error = new Error('Company mockup preparation exceeded its safe deadline.');
+  error.code = 'COMPANY_MOCKUP_BUILD_TIMEOUT';
+  return error;
+}
+
+function assertMockupNotAborted(dependencies = {}) {
+  if (dependencies.signal?.aborted) throw mockupDeadlineError();
+}
+
 async function discoverAssetCandidates(candidate, dependencies = {}) {
+  assertMockupNotAborted(dependencies);
   const result = storedAssetCandidates(candidate);
   const websiteUrl = candidate?.prospect?.websiteUrl;
   if (!websiteUrl) return result;
@@ -274,9 +285,12 @@ async function discoverAssetCandidates(candidate, dependencies = {}) {
     home = await (dependencies.fetchPage || fetchWebsitePage)(websiteUrl, {
       maxBytes: 1024 * 1024,
       timeoutMs: 9000,
+      signal: dependencies.signal,
     });
+    assertMockupNotAborted(dependencies);
     mergeAssetPage(result, home, 20);
   } catch (error) {
+    assertMockupNotAborted(dependencies);
     result.diagnostics.push(safeDiagnostic(error, 'homepage', websiteUrl));
     return result;
   }
@@ -294,13 +308,16 @@ async function discoverAssetCandidates(candidate, dependencies = {}) {
       const response = await (dependencies.fetchPage || fetchWebsitePage)(page.url, {
         maxBytes: 1024 * 1024,
         timeoutMs: 8000,
+        signal: dependencies.signal,
       });
       return { ...page, response };
     } catch (error) {
+      assertMockupNotAborted(dependencies);
       result.diagnostics.push(safeDiagnostic(error, page.stage, page.url));
       return null;
     }
   }));
+  assertMockupNotAborted(dependencies);
   for (const page of fetchedPages.filter(Boolean)) mergeAssetPage(result, page.response, page.boost);
 
   // Parent-company sites often link to a sub-brand homepage (for example,
@@ -316,9 +333,12 @@ async function discoverAssetCandidates(candidate, dependencies = {}) {
         const detail = await (dependencies.fetchPage || fetchWebsitePage)(detailUrl, {
           maxBytes: 1024 * 1024,
           timeoutMs: 7000,
+          signal: dependencies.signal,
         });
+        assertMockupNotAborted(dependencies);
         mergeAssetPage(result, detail, 96);
       } catch (error) {
+        assertMockupNotAborted(dependencies);
         result.diagnostics.push(safeDiagnostic(error, 'official_alias_product', detailUrl));
       }
     }
@@ -516,6 +536,7 @@ function productAssetIsRelevant(asset) {
 }
 
 async function fetchBestValid(candidates, dependencies, sharpImpl, kind, compositionOptions = {}) {
+  assertMockupNotAborted(dependencies);
   const attempts = [];
   const nonPlaceholder = candidates.filter((candidate) => !/\b(?:placeholder|spacer|blank|no[-_ ]?image|loading|pixel|default[-_ ]?(?:image|photo))\b/i
     .test(`${candidate.url} ${candidate.alt || ''}`));
@@ -544,6 +565,7 @@ async function fetchBestValid(candidates, dependencies, sharpImpl, kind, composi
   }
   const valid = [];
   for (let index = 0; index < filtered.length; index += 4) {
+    assertMockupNotAborted(dependencies);
     const batch = filtered.slice(index, index + 4);
     const results = await Promise.all(batch.map(async (candidate) => {
       try {
@@ -551,6 +573,7 @@ async function fetchBestValid(candidates, dependencies, sharpImpl, kind, composi
           maxBytes: 6 * 1024 * 1024,
           timeoutMs: 8000,
           referer: candidate.sourceUrl,
+          signal: dependencies.signal,
         });
         const asset = { ...(await validatedAsset(response, sharpImpl, kind)), candidate };
         if (kind === 'product') asset.selectionAudit = productCandidateAudit(candidate);
@@ -559,6 +582,7 @@ async function fetchBestValid(candidates, dependencies, sharpImpl, kind, composi
         return { error, candidate };
       }
     }));
+    assertMockupNotAborted(dependencies);
     for (const result of results) {
       if (!result.asset) {
         attempts.push(safeDiagnostic(result.error, kind, result.candidate?.url));
@@ -1428,17 +1452,20 @@ async function renderCompanyMockup(candidate, assets, dependencies = {}) {
   };
 }
 
-async function blobBuffer(store, key) {
+async function blobBuffer(store, key, signal) {
   if (!store || !key) return null;
   try {
+    assertMockupNotAborted({ signal });
     const value = await store.get(key, { type: 'arrayBuffer' });
+    assertMockupNotAborted({ signal });
     return value ? Buffer.from(value) : null;
-  } catch {
+  } catch (error) {
+    if (signal?.aborted) throw mockupDeadlineError();
     return null;
   }
 }
 
-async function loadVerifiedStoredMockup(candidate, store, sharpImpl) {
+async function loadVerifiedStoredMockup(candidate, store, sharpImpl, signal) {
   const mockup = candidate?.mockup;
   const audit = mockup?.generationMetadata?.compositionAudit || null;
   const storedLogoAudit = mockup?.generationMetadata?.logoCompositionAudit || null;
@@ -1460,7 +1487,7 @@ async function loadVerifiedStoredMockup(candidate, store, sharpImpl) {
     expectedMessageContentHash: candidate?.message?.contentHash,
     generationMetadata: mockup?.generationMetadata,
   }, RENDER_VERSION)) return null;
-  const buffer = await blobBuffer(store, mockup.blobKey);
+  const buffer = await blobBuffer(store, mockup.blobKey, signal);
   if (!buffer || typeof sharpImpl !== 'function') return null;
   try {
     const metadata = await sharpImpl(buffer, { failOn: 'error', limitInputPixels: 24_000_000 }).metadata();
@@ -1506,17 +1533,20 @@ async function prepareCompanyMockup(options) {
     fetchAsset: fetchWebsiteAsset,
     ...options.dependencies,
   };
+  assertMockupNotAborted(dependencies);
   const candidate = options.candidate || await dependencies.loadCompanyMockupCandidate(options.sql, options.prospectId);
+  assertMockupNotAborted(dependencies);
   if (!candidate?.prospect?.id) {
     const error = new Error('Company mockup prospect was not found.');
     error.code = 'COMPANY_MOCKUP_NOT_FOUND';
     throw error;
   }
   if (options.preferCachedReady === true) {
-    const stored = await loadVerifiedStoredMockup(candidate, options.store, options.sharp);
+    const stored = await loadVerifiedStoredMockup(candidate, options.store, options.sharp, dependencies.signal);
     if (stored) return stored;
   }
   const candidateAssets = await discoverAssetCandidates(candidate, dependencies);
+  assertMockupNotAborted(dependencies);
   const selectedScene = SCENES[selectSceneId(candidate)] || SCENES.storefront;
   const selectedArtworkWidth = Math.max(860, Math.min(1120, Math.round(320 * (selectedScene.frame.width / selectedScene.frame.height))));
   const [logoResult, productResult] = await Promise.all([
@@ -1529,6 +1559,7 @@ async function prepareCompanyMockup(options) {
       { artworkWidth: selectedArtworkWidth, panelHeight: PRODUCT_PANEL_HEIGHT },
     ),
   ]);
+  assertMockupNotAborted(dependencies);
   const logo = logoResult.asset;
   const product = productResult.asset;
   const assets = {
@@ -1542,11 +1573,15 @@ async function prepareCompanyMockup(options) {
   if (!options.force && options.preferCachedReady !== true
       && candidate.mockup?.contentHash === plan.contentHash
       && candidate.mockup.blobKey === expectedBlobKey) {
-    const verifiedCached = await loadVerifiedStoredMockup(candidate, options.store, options.sharp);
+    const verifiedCached = await loadVerifiedStoredMockup(
+      candidate, options.store, options.sharp, dependencies.signal,
+    );
     if (verifiedCached) return { ...verifiedCached, plan };
   }
 
+  assertMockupNotAborted(dependencies);
   const rendered = await renderCompanyMockup(candidate, assets, { ...dependencies, sharp: options.sharp });
+  assertMockupNotAborted(dependencies);
   const level = qualityLevel(logo, product);
   const compositionAudit = rendered.compositionAudit;
   const renderedLogoAudit = rendered.logoCompositionAudit;
@@ -1583,6 +1618,7 @@ async function prepareCompanyMockup(options) {
   let storedKey = null;
   if (options.store) {
     try {
+      assertMockupNotAborted(dependencies);
       await options.store.set(blobKey, rendered.buffer, {
         metadata: {
           contentType: 'image/jpeg',
@@ -1592,11 +1628,13 @@ async function prepareCompanyMockup(options) {
           contentHash: expectedBlobHash,
         },
       });
-      const persisted = await blobBuffer(options.store, blobKey);
+      assertMockupNotAborted(dependencies);
+      const persisted = await blobBuffer(options.store, blobKey, dependencies.signal);
       persistedBlobHash = persisted ? sha256(persisted) : null;
       if (persistedBlobHash === expectedBlobHash) storedKey = blobKey;
       else blobBindingErrorCode = 'MOCKUP_BLOB_READBACK_MISMATCH';
-    } catch {
+    } catch (error) {
+      if (dependencies.signal?.aborted) throw mockupDeadlineError();
       blobBindingErrorCode = 'MOCKUP_BLOB_PERSISTENCE_FAILED';
     }
   }
@@ -1611,6 +1649,7 @@ async function prepareCompanyMockup(options) {
     assetDiagnostics.push({ stage: 'blob_persistence', hostname: null, code: blobBindingErrorCode });
   }
   const sendReady = presentationReady && blobBindingAudit.passed;
+  assertMockupNotAborted(dependencies);
   const row = await dependencies.saveCompanyMockup(options.sql, {
     prospectId: candidate.prospect.id,
     messageId: candidate.message?.id,

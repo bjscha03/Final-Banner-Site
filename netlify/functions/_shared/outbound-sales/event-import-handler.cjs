@@ -6,11 +6,11 @@ const { authorize, json, parseJsonBody, safeFailure } = require('./security.cjs'
 const morningRepository = require('./morning-repository.cjs');
 const eventRepository = require('./event-import-repository.cjs');
 const eventImport = require('./event-import.cjs');
+const { DISPATCH_STALL_MS, eventPreparationStall } = require('./event-progress.cjs');
 const { authorizedBackground, deploymentOrigin } = require('./morning-handler.cjs');
 const { businessDate, MORNING_TARGET } = require('./morning-preparation.cjs');
 
 const MAX_FINALIZER_PASSES = 8;
-const DISPATCH_STALL_MS = 90 * 1000;
 
 function safeDispatchHttpStatus(value) {
   const status = Number(value);
@@ -155,13 +155,7 @@ async function dispatchEventBackground(action, payload, {
 function mapBatchStatus(row) {
   if (!row) return null;
   const metadata = row.run_metadata || {};
-  const dispatchReferenceAt = Date.parse(String(metadata.dispatchAcknowledgedAt || row.updated_at || ''));
-  const waitingForBackground = metadata.dispatchState === 'acknowledged'
-    || ['queued', 'dispatching', 'dispatched'].includes(metadata.phase);
-  const dispatchStalled = waitingForBackground
-    && !metadata.backgroundReceivedAt
-    && Number.isFinite(dispatchReferenceAt)
-    && Date.now() - dispatchReferenceAt >= DISPATCH_STALL_MS;
+  const stall = eventPreparationStall(row);
   return {
     batchId: row.id,
     businessDate: row.business_date,
@@ -187,7 +181,9 @@ function mapBatchStatus(row) {
     dispatchResponseStatus: safeDispatchHttpStatus(metadata.dispatchResponseStatus),
     dispatchRequestedAt: metadata.dispatchRequestedAt || null,
     dispatchAcknowledgedAt: metadata.dispatchAcknowledgedAt || null,
-    dispatchStalled,
+    dispatchStalled: stall.stalled,
+    workerStalled: stall.stalled,
+    stallReason: stall.reason,
     backgroundState: ['running', 'claim_deferred'].includes(metadata.backgroundState)
       ? metadata.backgroundState : null,
     backgroundAction: ['import', 'finalize'].includes(metadata.backgroundAction)
@@ -259,8 +255,24 @@ function createEventImportHandler({ dependencies = {}, env = process.env } = {})
           externalEmailsSent: 0, manualSendingOnly: true,
         });
       }
+      const expectedImportShards = Math.ceil(
+        eventImport.eventData.records.length / eventImport.EVENT_IMPORT_SHARD_SIZE,
+      );
+      const completedImportShards = Math.max(0, Number(current?.completed_import_shard_count) || 0);
+      const importsComplete = Number(current?.import_shard_count) === expectedImportShards
+        && completedImportShards === expectedImportShards
+        && Number(current?.failed_import_shard_count) === 0;
+      const dispatchAction = importsComplete ? 'finalize' : 'import';
+      const dispatchShardIndex = dispatchAction === 'import'
+        ? Math.min(expectedImportShards - 1, completedImportShards)
+        : null;
+      const dispatchFinalizerPass = dispatchAction === 'finalize'
+        ? Math.min(MAX_FINALIZER_PASSES - 1,
+          Math.max(0, Number(current?.run_metadata?.finalizerPass) || 0) + 1)
+        : null;
       await repository.recordEventProgress(sql, {
-        batchId: batch.id, status: 'discovering', lastErrorCode: null,
+        batchId: batch.id, status: dispatchAction === 'finalize' ? 'preparing' : 'discovering',
+        lastErrorCode: null,
         metadata: {
           phase: 'dispatching', eventKey: eventImport.eventData.key,
           sourceDataVersion: eventImport.eventData.version,
@@ -268,7 +280,8 @@ function createEventImportHandler({ dependencies = {}, env = process.env } = {})
           sourceRecordCount: eventImport.eventData.records.length,
           primaryRecordCount: eventImport.eventData.primaryRecordCount,
           reserveRecordCount: eventImport.eventData.records.length - eventImport.eventData.primaryRecordCount,
-          dispatchState: 'requesting', dispatchAction: 'import', dispatchShardIndex: 0,
+          dispatchState: 'requesting', dispatchAction, dispatchShardIndex,
+          dispatchFinalizerPass,
           dispatchAckStatus: null, dispatchRequestedAt: new Date().toISOString(),
           dispatchResponseStatus: null,
           dispatchAcknowledgedAt: null, backgroundState: null, backgroundAction: null,
@@ -279,17 +292,20 @@ function createEventImportHandler({ dependencies = {}, env = process.env } = {})
       });
       let dispatchStatus;
       try {
-        dispatchStatus = await (dependencies.dispatchEventBackground || dispatchEventBackground)('import', {
+        dispatchStatus = await (dependencies.dispatchEventBackground || dispatchEventBackground)(dispatchAction, {
           eventKey: eventImport.eventData.key, sourceDataVersion: eventImport.eventData.version,
-          businessDate: date, shardIndex: 0,
+          businessDate: date,
+          ...(dispatchAction === 'import'
+            ? { shardIndex: dispatchShardIndex }
+            : { finalizerPass: dispatchFinalizerPass }),
         }, { env, fetchImpl: dependencies.fetch || globalThis.fetch, requestEvent: event });
       } catch (error) {
         const code = safeCode(error, 'EVENT_IMPORT_DISPATCH_FAILED');
         await repository.recordEventProgress(sql, {
           batchId: batch.id, status: 'failed', lastErrorCode: code,
           metadata: {
-            phase: 'dispatch_failed', dispatchState: 'failed', dispatchAction: 'import',
-            dispatchShardIndex: 0, dispatchAckStatus: null,
+            phase: 'dispatch_failed', dispatchState: 'failed', dispatchAction,
+            dispatchShardIndex, dispatchFinalizerPass, dispatchAckStatus: null,
             dispatchResponseStatus: safeDispatchHttpStatus(error?.dispatchResponseStatus),
             dispatchAcknowledgedAt: null, manualSendingOnly: true, externalEmailsSent: 0,
             dispatchPreviewAccessState,
@@ -298,10 +314,11 @@ function createEventImportHandler({ dependencies = {}, env = process.env } = {})
         throw error;
       }
       await repository.recordEventProgress(sql, {
-        batchId: batch.id, status: 'discovering', lastErrorCode: null,
+        batchId: batch.id, status: dispatchAction === 'finalize' ? 'preparing' : 'discovering',
+        lastErrorCode: null,
         metadata: {
-          phase: 'dispatched', dispatchState: 'acknowledged', dispatchAction: 'import',
-          dispatchShardIndex: 0, dispatchAckStatus: dispatchStatus,
+          phase: 'dispatched', dispatchState: 'acknowledged', dispatchAction,
+          dispatchShardIndex, dispatchFinalizerPass, dispatchAckStatus: dispatchStatus,
           dispatchResponseStatus: dispatchStatus,
           dispatchAcknowledgedAt: new Date().toISOString(),
           dispatchPreviewAccessState,
