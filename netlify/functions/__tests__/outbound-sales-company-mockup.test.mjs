@@ -137,6 +137,30 @@ describe('deterministic personalized banner renderer', () => {
     expect(mockupModule.selectSceneId(codeOnly)).toBe('trade_show');
   });
 
+  it('keeps company-wide offering copy separate from unrelated product/category captions', () => {
+    const copy = mockupModule.selectBrandCopy(candidateFixture(), {
+      themeColors: ['#00574a'],
+      taglineCandidates: ['Be barefoot. Stay stylish.', 'Ankle & High Cut Shoes'],
+      offeringCandidates: ['Barefoot and recovery shoes designed for natural everyday movement.'],
+    });
+    expect(copy).toEqual({
+      headline: 'Be barefoot. Stay stylish.',
+      offering: 'Barefoot and recovery shoes designed for natural everyday movement.',
+      themeColors: ['#00574a'],
+    });
+  });
+
+  it('automatically gives a white transparent wordmark a dark contrast card', async () => {
+    const whiteWordmark = await sharp({
+      create: { width: 400, height: 100, channels: 4, background: { r: 255, g: 255, b: 255, alpha: 1 } },
+    }).png().toBuffer();
+    const darkWordmark = await sharp({
+      create: { width: 400, height: 100, channels: 4, background: { r: 20, g: 30, b: 40, alpha: 1 } },
+    }).png().toBuffer();
+    await expect(mockupModule.logoCardStyle({ buffer: whiteWordmark }, sharp)).resolves.toMatchObject({ fill: '#111827' });
+    await expect(mockupModule.logoCardStyle({ buffer: darkWordmark }, sharp)).resolves.toMatchObject({ fill: '#ffffff' });
+  });
+
   it('renders a valid 1200x675 email-safe JPEG with exact company assets', async () => {
     const { scene, logo, product } = await imageFixtures();
     const candidate = candidateFixture();

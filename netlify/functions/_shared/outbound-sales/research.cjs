@@ -152,12 +152,6 @@ function extractBrandProfile(html) {
   for (const match of source.matchAll(/<(?:p|div)\b[^>]*(?:class|id)\s*=\s*["'][^"']*(?:tagline|slogan|hero[_ -]?(?:copy|text|title|subtitle))[^"']*["'][^>]*>([\s\S]{0,700}?)<\/(?:p|div)\s*>/gi)) {
     addUnique(taglineCandidates, brandLine(match[1], 120));
   }
-  for (const tag of source.match(/<img\b[^>]*>/gi) || []) {
-    const alt = brandLine(attribute(tag, 'alt'), 120);
-    if (alt && /product|service|collection|footwear|shoe|boot|sneaker|sandal|bag|apparel|menu|dish|project|property|vehicle|equipment/i.test(alt)) {
-      addUnique(offeringCandidates, alt);
-    }
-  }
   return {
     themeColors: themeColors.slice(0, 6),
     taglineCandidates: taglineCandidates.slice(0, 12),

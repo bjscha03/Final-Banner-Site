@@ -11,7 +11,7 @@ const {
 } = require('./research.cjs');
 const { canonicalDomain } = require('./providers/contract.cjs');
 
-const RENDER_VERSION = 'company-banner-v4';
+const RENDER_VERSION = 'company-banner-v5';
 const MOCKUP_CONTENT_ID = 'company-banner-mockup';
 const MOCKUP_STORE_NAME = 'outbound-company-mockups';
 const MOCKUP_FONT_FILE = 'node_modules/pdfjs-dist/standard_fonts/LiberationSans-Bold.ttf';
@@ -352,7 +352,10 @@ function selectBrandCopy(candidate, profile = {}) {
     .map((line, index) => ({ line: marketingLine(line, 74), score: brandLineScore(line, businessName, 'headline') - index }))
     .filter((entry) => entry.line && entry.score > -500)
     .sort((left, right) => right.score - left.score)[0]?.line || null;
-  const rankedOffering = [...offerings, ...taglines]
+  // Offering copy must describe the company, not a random product/category
+  // caption from elsewhere on the page. Product imagery already carries the
+  // specific visual; metadata-backed offering copy keeps the pairing honest.
+  const rankedOffering = [...offerings]
     .map((line, index) => ({ line: marketingLine(line, 108), score: brandLineScore(line, businessName, 'offering') - index }))
     .filter((entry) => entry.line && entry.score > -500 && normalizedBrandIdentity(entry.line) !== normalizedBrandIdentity(rankedHeadline))
     .sort((left, right) => right.score - left.score)[0]?.line || null;
@@ -476,6 +479,29 @@ async function resolveBrandPalette(assets, sharpImpl) {
   return { primary, secondary, accent: '#ff6b35' };
 }
 
+async function logoCardStyle(asset, sharpImpl) {
+  if (!asset) return { fill: '#ffffff', stroke: '#ffffff' };
+  try {
+    const { data, info } = await sharpImpl(asset.buffer, { failOn: 'none', limitInputPixels: 24_000_000 })
+      .rotate().resize(64, 32, { fit: 'inside' }).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    let luminanceTotal = 0;
+    let weightTotal = 0;
+    for (let offset = 0; offset < data.length; offset += info.channels) {
+      const alpha = info.channels >= 4 ? data[offset + 3] : 255;
+      if (alpha < 32) continue;
+      const weight = alpha / 255;
+      luminanceTotal += ((0.2126 * data[offset]) + (0.7152 * data[offset + 1]) + (0.0722 * data[offset + 2])) * weight;
+      weightTotal += weight;
+    }
+    const averageLuminance = weightTotal ? luminanceTotal / weightTotal : 0;
+    return averageLuminance > 184
+      ? { fill: '#111827', stroke: '#ffffff' }
+      : { fill: '#ffffff', stroke: '#ffffff' };
+  } catch {
+    return { fill: '#ffffff', stroke: '#ffffff' };
+  }
+}
+
 function wrapName(name, maxLineLength = 24) {
   const value = cleanLabel(name, 72) || 'YOUR BUSINESS';
   if (value.length <= maxLineLength) return [value];
@@ -579,9 +605,10 @@ async function renderArtwork(candidate, assets, sharpImpl, dependencies = {}) {
   const height = 320;
   const productWidth = assets.product ? 445 : 0;
   const plan = planFor(candidate, assets);
-  const [palette, font] = await Promise.all([
+  const [palette, font, logoCard] = await Promise.all([
     resolveBrandPalette(assets, sharpImpl),
     loadMockupFont(dependencies),
+    logoCardStyle(assets.logo, sharpImpl),
   ]);
   const layers = [{
     input: Buffer.from(`<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
@@ -635,7 +662,7 @@ async function renderArtwork(candidate, assets, sharpImpl, dependencies = {}) {
     const cardHeight = Math.max(72, logo.info.height + 24);
     logoCardHeight = cardHeight;
     layers.push({
-      input: Buffer.from(`<svg width="${cardWidth}" height="${cardHeight}" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="${cardWidth - 2}" height="${cardHeight - 2}" rx="13" fill="#fff" fill-opacity=".97" stroke="#fff" stroke-opacity=".8"/></svg>`),
+      input: Buffer.from(`<svg width="${cardWidth}" height="${cardHeight}" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="${cardWidth - 2}" height="${cardHeight - 2}" rx="13" fill="${logoCard.fill}" fill-opacity=".97" stroke="${logoCard.stroke}" stroke-opacity=".8"/></svg>`),
       left: 54,
       top: 25,
     });
@@ -870,6 +897,7 @@ module.exports = {
   planFor,
   qualityLevel,
   selectBrandCopy,
+  logoCardStyle,
   loadMockupFont,
   vectorTextPaths,
   renderArtwork,
