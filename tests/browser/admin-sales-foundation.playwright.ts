@@ -9,6 +9,7 @@ const VISUAL_QA_PROJECTS = new Set(['chromium-1440x900', 'chromium-pixel8-portra
 const routes = [
   { path: '/admin/sales', label: 'Dashboard', visibleText: 'Operational safeguards' },
   { path: '/admin/sales/prospects', label: 'Prospect Queue', visibleText: 'Prospect Queue & Personalized Previews' },
+  { path: '/admin/sales/lead-review', label: 'Lead Review', visibleText: 'Lead Review' },
   { path: '/admin/sales/activity', label: 'Email Activity', visibleText: 'Personalized Outreach Previews' },
   { path: '/admin/sales/replies', label: 'Replies', visibleText: 'Replies' },
   { path: '/admin/sales/orders', label: 'Orders & Revenue', visibleText: 'Orders & Revenue Generated' },
@@ -202,6 +203,137 @@ const shadowActivity = {
   summary: { generated: 1, failed: 0, blocked: 0, actualCostMicrousd: 610, averageCostMicrousd: 610, inputTokens: 920, cachedInputTokens: 0, outputTokens: 185 },
 };
 
+const MANUAL_BANNER_DATA_URL = `data:image/svg+xml,${encodeURIComponent(`
+  <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675">
+    <rect width="1200" height="675" fill="#171717"/>
+    <rect x="40" y="40" width="1120" height="595" rx="18" fill="#f26722"/>
+    <text x="600" y="300" fill="#ffffff" font-size="116" font-family="Arial" font-weight="900" text-anchor="middle">LUGZ</text>
+    <text x="600" y="410" fill="#171717" font-size="64" font-family="Arial" font-weight="800" text-anchor="middle">STEP IN GRIT.</text>
+  </svg>
+`)}`;
+
+function manualReviewQueue(uploaded: boolean, sent: boolean) {
+  const previewBody = `<!doctype html><html><body><img src="${MANUAL_BANNER_DATA_URL}" alt="Banner concept for Lugz"><p>Concept visualization only.</p><p>Hi Lugz team,</p></body></html>`;
+  return {
+    ok: true,
+    schemaReady: true,
+    deliveryReady: true,
+    deliveryIssues: [],
+    manualSendEnabled: true,
+    total: 1,
+    limit: 50,
+    offset: 0,
+    minimumScore: 60,
+    reviewView: 'all',
+    filters: {},
+    sort: 'priority',
+    counts: { pending: sent ? 0 : 1, approved: 0, rejected: 0, sent: sent ? 1 : 0 },
+    mockups: { ready: uploaded ? 1 : 0, fallback: 0, missing: uploaded ? 0 : 1, failed: 0, retryableFailed: 0 },
+    filterOptions: { events: ['Atlanta Shoe Market'], sources: ['event_import'], industries: ['Footwear'] },
+    morningBatch: null,
+    today: { attempted: sent ? 1 : 0, sent: sent ? 1 : 0, limit: 70 },
+    leads: [{
+      prospectId: '11111111-1111-4111-8111-111111111111',
+      businessName: 'Lugz',
+      websiteUrl: 'https://lugz.com',
+      canonicalDomain: 'lugz.com',
+      industry: 'Footwear',
+      businessType: 'Footwear brand',
+      phone: '212-555-0100',
+      address: { city: 'New York', state: 'NY', country: 'US' },
+      leadScore: 92,
+      prospectStatus: sent ? 'contacted' : 'qualified',
+      sourceProviderId: 'event_import',
+      sourceUrl: 'https://example.test/atlanta-shoe-market/lugz',
+      scoreExplanation: [],
+      qualificationEvidence: [],
+      eventFit: {
+        priority: 'trade_show',
+        label: 'Atlanta Shoe Market',
+        eventName: 'Atlanta Shoe Market',
+        evidence: [{
+          code: 'TRADE_SHOW_EXHIBITOR',
+          label: 'Atlanta Shoe Market exhibitor',
+          evidence: 'Lugz appears on the official exhibitor list.',
+          sourceUrl: 'https://example.test/atlanta-shoe-market/lugz',
+        }],
+      },
+      contact: {
+        id: '22222222-2222-4222-8222-222222222222',
+        email: 'sales@lugz.com',
+        fullName: 'Lugz Sales Team',
+        jobTitle: 'Sales',
+        sourceUrl: 'https://lugz.com/contact',
+        verificationStatus: 'verified',
+        verificationReason: null,
+        syntaxValid: true,
+        mxStatus: 'present',
+        isRoleAddress: true,
+        isFreeMailbox: false,
+        domainMatches: true,
+        contactQualityScore: 94,
+      },
+      message: {
+        id: '33333333-3333-4333-8333-333333333333',
+        subject: 'Lugz — banners for Atlanta Shoe Market',
+        bodyText: 'Hi Lugz team,\n\nI saw Lugz is exhibiting at Atlanta Shoe Market.\n\nBest,\nBrandon',
+        bodyHtml: uploaded ? previewBody : '<!doctype html><html><body><p>Hi Lugz team,</p></body></html>',
+        generationStatus: 'generated',
+        evidenceValidationStatus: 'passed',
+        sentAt: sent ? '2026-08-11T18:30:00.000Z' : null,
+        deliveredAt: null,
+        lastEventType: null,
+        lastEventStatus: null,
+        lastEventAt: null,
+      },
+      mockup: uploaded ? {
+        id: '44444444-4444-4444-8444-444444444444',
+        status: 'ready',
+        sceneId: 'trade_show',
+        renderVersion: 'manual-upload-v1',
+        qualityLevel: 'manual_upload',
+        logoUrl: null,
+        productImageUrl: null,
+        eventLabel: 'Atlanta Shoe Market',
+        sourceUrls: [],
+        diagnostics: [],
+        compositionAudit: null,
+        immutablePreviewReady: true,
+        presentationReady: true,
+        lastErrorCode: null,
+        contextCurrent: true,
+        generatedAt: '2026-08-11T18:25:00.000Z',
+        updatedAt: '2026-08-11T18:25:00.000Z',
+        previewUrl: MANUAL_BANNER_DATA_URL,
+      } : null,
+      review: {
+        status: 'pending',
+        permissionStatus: sent ? 'admin_authorized' : 'unknown',
+        permissionEvidence: '',
+        notes: '',
+        reviewedBy: sent ? 'outbound-phase3-qa@example.test' : null,
+        reviewedAt: sent ? '2026-08-11T18:30:00.000Z' : null,
+        sendState: sent ? 'sent' : 'not_sent',
+        sendAttemptCount: sent ? 1 : 0,
+        resendMessageId: sent ? 'mocked-resend-message-id' : null,
+        lastSendErrorCode: null,
+        sentAt: sent ? '2026-08-11T18:30:00.000Z' : null,
+        sendStartedAt: null,
+        sendLeaseExpiresAt: null,
+        recoveryStatus: 'not_applicable',
+      },
+      technicalBlockers: uploaded ? [] : ['Upload and review a banner design for this company before sending'],
+      technicalWarnings: ['Role inbox — verify this public company mailbox during manual qualification before sending'],
+      canSend: uploaded && !sent,
+      discoveredAt: '2026-08-11T12:00:00.000Z',
+      importedBusinessDate: '2026-08-11',
+      morningQueuePosition: 1,
+      morningReadyAt: '2026-08-11T12:15:00.000Z',
+      lastQualifiedAt: '2026-08-11T12:10:00.000Z',
+    }],
+  };
+}
+
 test.beforeEach(async ({ page }, testInfo) => {
   test.skip(!VISUAL_QA_PROJECTS.has(testInfo.project.name), 'Desktop and phone coverage are sufficient for the completed Shadow Mode admin shell.');
   await page.addInitScript(() => {
@@ -214,6 +346,8 @@ test.beforeEach(async ({ page }, testInfo) => {
     window.localStorage.setItem('banners_server_session', 'outbound-phase3-browser-contract');
     window.sessionStorage.setItem('banners_server_session', 'outbound-phase3-browser-contract');
   });
+  let manualBannerUploaded = false;
+  let manualEmailSent = false;
   await page.route('**/.netlify/functions/**', async (route) => {
     const pathname = new URL(route.request().url()).pathname;
     if (pathname.endsWith('/outbound-sales-status') || pathname.endsWith('/outbound-sales-settings')) {
@@ -232,6 +366,39 @@ test.beforeEach(async ({ page }, testInfo) => {
       const headers = await route.request().allHeaders();
       expect(headers['x-banners-admin-session']).toBe('outbound-phase3-browser-contract');
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(shadowActivity) });
+      return;
+    }
+    if (pathname.endsWith('/outbound-sales-manual-artwork')) {
+      expect(route.request().method()).toBe('POST');
+      const payload = route.request().postDataJSON();
+      expect(payload.prospectId).toBe('11111111-1111-4111-8111-111111111111');
+      expect(payload.dataBase64).toBeTruthy();
+      manualBannerUploaded = true;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          prospectId: payload.prospectId,
+          contentHash: 'a'.repeat(64),
+          previewUrl: MANUAL_BANNER_DATA_URL,
+          sendReady: true,
+          width: 1200,
+          height: 675,
+        }),
+      });
+      return;
+    }
+    if (pathname.endsWith('/outbound-sales-manual-review')) {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(manualReviewQueue(manualBannerUploaded, manualEmailSent)) });
+        return;
+      }
+      const payload = route.request().postDataJSON();
+      expect(payload).toEqual({ prospectId: '11111111-1111-4111-8111-111111111111' });
+      expect(manualBannerUploaded).toBe(true);
+      manualEmailSent = true;
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, duplicate: false, prospectId: payload.prospectId, messageId: 'mocked-resend-message-id' }) });
       return;
     }
     if (pathname.endsWith('/get-orders')) {
@@ -271,6 +438,38 @@ test('Sales Engine and existing Orders navigation round-trip without losing admi
   await expect(page).toHaveURL(/\/admin\/sales$/);
   await expect(page.getByRole('heading', { name: 'Outbound Sales Command Center' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Admin Login' })).toHaveCount(0);
+});
+
+test('Lead Review requires a per-company upload, previews that image, and sends only after the click', async ({ page }) => {
+  await page.goto('/admin/sales/lead-review', { waitUntil: 'domcontentloaded' });
+  const card = page.locator('article').filter({ hasText: 'Lugz' });
+  const sendButton = card.getByRole('button', { name: 'Send', exact: true });
+
+  await expect(card.getByText('Upload required before Send', { exact: true })).toBeVisible();
+  await expect(card.getByRole('button', { name: 'Preview email', exact: true })).toHaveCount(0);
+  await expect(sendButton).toBeDisabled();
+  await expect(card.getByText('Sent', { exact: true })).toHaveCount(0);
+
+  await card.locator('input[type="file"]').setInputFiles({
+    name: 'lugz-banner.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64'),
+  });
+
+  await expect(card.getByText('Uploaded and ready for email preview', { exact: true })).toBeVisible();
+  await expect(card.getByRole('img', { name: 'Uploaded banner concept for Lugz' })).toBeVisible();
+  await expect(card.getByText('Concept visualization only.', { exact: true })).toBeVisible();
+  await expect(sendButton).toBeEnabled();
+
+  await card.getByRole('button', { name: 'Preview email', exact: true }).click();
+  const emailPreview = page.frameLocator('iframe[title="Email preview for Lugz"]');
+  await expect(emailPreview.getByRole('img', { name: 'Banner concept for Lugz' })).toBeVisible();
+  await expect(emailPreview.getByText('Concept visualization only.', { exact: true })).toBeVisible();
+  await expect(card.getByText('Sent', { exact: true })).toHaveCount(0);
+
+  await sendButton.click();
+  await expect(card.getByText('Sent', { exact: true })).toBeVisible();
+  await expect(card.getByRole('button', { name: 'Send', exact: true })).toHaveCount(0);
 });
 
 test('safe controls and the completed-system hard locks are visibly authoritative', async ({ page }) => {
