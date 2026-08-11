@@ -7,11 +7,11 @@ const fontkit = require('fontkit');
 const repository = require('./company-mockup-repository.cjs');
 const { fetchWebsitePage, fetchWebsiteAsset } = require('./ssrf.cjs');
 const {
-  extractBrandAssets, extractBrandProfile, extractLinks, priorityLinks, publicAssetUrl,
+  extractBrandAssets, extractBrandProfile, extractLinks, priorityLinks, publicAssetUrl, pageAssetRole,
 } = require('./research.cjs');
 const { canonicalDomain } = require('./providers/contract.cjs');
 
-const RENDER_VERSION = 'company-banner-v9-safe-relevant-image-fit';
+const RENDER_VERSION = repository.COMPANY_MOCKUP_RENDER_VERSION;
 const MOCKUP_CONTENT_ID = 'company-banner-mockup';
 const MOCKUP_STORE_NAME = 'outbound-company-mockups';
 const MOCKUP_FONT_FILE = 'node_modules/pdfjs-dist/standard_fonts/LiberationSans-Bold.ttf';
@@ -20,8 +20,12 @@ const OUTPUT_HEIGHT = 675;
 const PRODUCT_PANEL_WIDTH = 445;
 const PRODUCT_PANEL_HEIGHT = 320;
 const PRODUCT_SAFE_PADDING = 14;
+const MIN_WHITE_TEXT_CONTRAST = repository.MIN_MOCKUP_WHITE_TEXT_CONTRAST;
 const PRODUCT_RELEVANCE_PATTERN = /\b(?:product|service|collection|project|portfolio|case[ _-]?stud(?:y|ies)|featured|showcase|gallery|work|solution|installation|repair|construction|landscap|roof|plumb|footwear|shoe|boot|sneaker|sandal|loafer|bag|apparel|clothing|menu|dish|food|property|real[ _-]?estate|vehicle|equipment|furniture|jewelry|cosmetic|packag|merchandise)\w*\b/i;
 const PRODUCT_IRRELEVANCE_PATTERN = /\b(?:team|staff|employee|founder|headshot|portrait|avatar|office|headquarters|about[ _-]?us|blog|news|press|testimonial|author|podcast)\b/i;
+const PRECOMPOSED_ART_PATTERN = /\b(?:campaign|hero|masthead|cover|lookbook|editorial|advert|promo|social|banner|wordmark|brand[ _-]?lockup|typograph|text[ _-]?overlay|announcement|sale[ _-]?graphic|desktop[ _-]?hero|mobile[ _-]?hero)\b/i;
+const CLEAN_PRODUCT_PATTERN = /\b(?:product(?:[ _-]?(?:image|photo|media|card|gallery|tile))?|pdp|sku|item[ _-]?(?:image|photo)|collection[ _-]?(?:item|product)|woocommerce[ _-]?(?:product|gallery)|footwear|shoe|boot|sneaker|sandal|loafer|bag|apparel)\b/i;
+const CLEAN_SERVICE_PATTERN = /\b(?:project|portfolio|case[ _-]?stud(?:y|ies)|installation|before[ _-]?and[ _-]?after|service[ _-]?(?:image|photo)|gallery[ _-]?(?:image|photo)|property|vehicle|equipment|menu[ _-]?item|dish)\b/i;
 const SCENES = Object.freeze({
   trade_show: Object.freeze({
     file: 'public/images/email/mockup-scenes/trade-show.webp',
@@ -36,6 +40,57 @@ const SCENES = Object.freeze({
     frame: Object.freeze({ left: 201, top: 237, width: 806, height: 245 }),
   }),
 });
+const MOCKUP_LAYOUTS = Object.freeze({
+  balanced_split: Object.freeze({ productRatio: PRODUCT_PANEL_WIDTH / 1000, productSide: 'right' }),
+  portrait_feature: Object.freeze({ productRatio: 0.38, productSide: 'left' }),
+  cutout_spotlight: Object.freeze({ productRatio: 0.41, productSide: 'right' }),
+  lifestyle_split: Object.freeze({ productRatio: 0.49, productSide: 'right' }),
+});
+
+function selectMockupLayoutId(asset) {
+  if (!asset) return 'balanced_split';
+  if (asset.hasAlpha === true) return 'cutout_spotlight';
+  if (asset?.selectionAudit?.assetRole === 'service_photo') return 'lifestyle_split';
+  const width = Math.max(1, Number(asset.width) || 1);
+  const height = Math.max(1, Number(asset.height) || 1);
+  const aspect = width / height;
+  if (aspect <= 0.86) return 'portrait_feature';
+  if (aspect >= 1.48) return 'lifestyle_split';
+  return 'balanced_split';
+}
+
+function mockupLayoutGeometry(asset, artworkWidth = 1000, artworkHeight = PRODUCT_PANEL_HEIGHT) {
+  const layoutId = selectMockupLayoutId(asset);
+  const layout = MOCKUP_LAYOUTS[layoutId];
+  const horizontalScale = artworkWidth / 1000;
+  const outerMargin = Math.max(44, Math.round(54 * horizontalScale));
+  const productWidth = asset ? Math.round(artworkWidth * layout.productRatio) : 0;
+  const productLeft = layout.productSide === 'left' ? 0 : artworkWidth - productWidth;
+  const gap = asset ? Math.max(18, Math.round(24 * horizontalScale)) : 0;
+  const textLeft = layout.productSide === 'left' && asset
+    ? productWidth + gap + Math.max(24, Math.round(24 * horizontalScale))
+    : outerMargin;
+  const textRight = layout.productSide === 'right' && asset
+    ? productLeft - gap
+    : artworkWidth - outerMargin;
+  const textWidth = Math.max(1, textRight - textLeft);
+  const noOverlapGuaranteed = !asset || (layout.productSide === 'left'
+    ? textLeft >= productLeft + productWidth
+    : textLeft + textWidth <= productLeft);
+  return {
+    layoutId,
+    productSide: layout.productSide,
+    artworkWidth,
+    artworkHeight,
+    productLeft,
+    productWidth,
+    textLeft,
+    textWidth,
+    gap,
+    passed: textWidth >= 360 && noOverlapGuaranteed,
+    noOverlapGuaranteed,
+  };
+}
 
 function sha256(value) {
   return crypto.createHash('sha256').update(Buffer.isBuffer(value) ? value : String(value)).digest('hex');
@@ -172,11 +227,20 @@ function mergeAssetPage(result, page, scoreBoost = 0) {
         ...asset,
         sourceUrl: asset.sourceUrl || page.finalUrl,
         score: Number(asset.score || 0) + scoreBoost,
+        selectionScore: Number(asset.selectionScore ?? asset.score ?? 0) + scoreBoost,
       };
       const existing = byUrl.get(boosted.url);
-      if (!existing || Number(existing.score || 0) < boosted.score) byUrl.set(boosted.url, boosted);
+      const existingRank = key === 'images'
+        ? Number(existing?.selectionScore ?? existing?.score ?? -Infinity)
+        : Number(existing?.score ?? -Infinity);
+      const boostedRank = key === 'images' ? boosted.selectionScore : boosted.score;
+      if (!existing || existingRank < boostedRank) byUrl.set(boosted.url, boosted);
     }
-    result[key] = [...byUrl.values()].sort((left, right) => Number(right.score || 0) - Number(left.score || 0)).slice(0, key === 'logos' ? 12 : 30);
+    result[key] = [...byUrl.values()].sort((left, right) => (
+      key === 'images'
+        ? Number(right.selectionScore ?? right.score ?? 0) - Number(left.selectionScore ?? left.score ?? 0)
+        : Number(right.score || 0) - Number(left.score || 0)
+    ) || String(left.url).localeCompare(String(right.url))).slice(0, key === 'logos' ? 12 : 30);
   };
   merge('logos', extracted.logoCandidates || []);
   merge('images', extracted.imageCandidates || []);
@@ -198,9 +262,7 @@ async function discoverAssetCandidates(candidate, dependencies = {}) {
   const result = storedAssetCandidates(candidate);
   const websiteUrl = candidate?.prospect?.websiteUrl;
   if (!websiteUrl) return result;
-  const hasCurrentProductEvidence = result.images.some((asset) => (
-    asset?.origin && asset.origin !== 'unknown' && asset?.marker && productAssetIsRelevant(asset)
-  ));
+  const hasCurrentProductEvidence = result.images.some((asset) => productCandidateAudit(asset).passed);
   if (result.logos.length && result.images.length && result.profile.taglineCandidates.length
       && hasCurrentProductEvidence) return result;
   let home;
@@ -215,13 +277,13 @@ async function discoverAssetCandidates(candidate, dependencies = {}) {
     return result;
   }
 
-  const aliasPages = officialAliasLinks(home.body, home.finalUrl, candidate.prospect.businessName);
+  const aliasPages = officialAliasLinks(home.body, home.finalUrl, candidate.prospect.businessName).slice(0, 1);
   const internalPages = priorityLinks(extractLinks(home.body, home.finalUrl))
     .filter((url) => url !== home.finalUrl)
-    .slice(0, aliasPages.length ? 1 : 2);
+    .slice(0, aliasPages.length ? 0 : 3);
   const pages = [
     ...aliasPages.map((url) => ({ url, boost: 80, stage: 'official_alias' })),
-    ...internalPages.map((url) => ({ url, boost: 10, stage: 'brand_detail' })),
+    ...internalPages.map((url) => ({ url, boost: 24, stage: 'brand_detail' })),
   ].slice(0, 3);
   const fetchedPages = await Promise.all(pages.map(async (page) => {
     try {
@@ -236,6 +298,27 @@ async function discoverAssetCandidates(candidate, dependencies = {}) {
     }
   }));
   for (const page of fetchedPages.filter(Boolean)) mergeAssetPage(result, page.response, page.boost);
+
+  // Parent-company sites often link to a sub-brand homepage (for example,
+  // Evolutions Brands -> BED|STU). Follow that verified page once more to its
+  // strongest product/collection page so a clean product photo outranks the
+  // sub-brand's precomposed homepage campaign art.
+  const aliasPage = fetchedPages.find((page) => page?.stage === 'official_alias');
+  if (aliasPage) {
+    const detailUrl = priorityLinks(extractLinks(aliasPage.response.body, aliasPage.response.finalUrl))
+      .find((url) => url !== aliasPage.response.finalUrl);
+    if (detailUrl) {
+      try {
+        const detail = await (dependencies.fetchPage || fetchWebsitePage)(detailUrl, {
+          maxBytes: 1024 * 1024,
+          timeoutMs: 7000,
+        });
+        mergeAssetPage(result, detail, 96);
+      } catch (error) {
+        result.diagnostics.push(safeDiagnostic(error, 'official_alias_product', detailUrl));
+      }
+    }
+  }
   return result;
 }
 
@@ -252,6 +335,7 @@ function safeSvg(buffer) {
 
 async function validatedAsset(response, sharpImpl, kind) {
   const source = response.contentType === 'image/svg+xml' ? safeSvg(response.body) : response.body;
+  const isVector = response.contentType === 'image/svg+xml';
   const metadata = await sharpImpl(source, { failOn: 'error', limitInputPixels: 24_000_000 }).metadata();
   if (!metadata.width || !metadata.height || metadata.width * metadata.height > 24_000_000) {
     const error = new Error('Brand asset dimensions are invalid.');
@@ -262,17 +346,22 @@ async function validatedAsset(response, sharpImpl, kind) {
   const displayWidth = rotated ? metadata.height : metadata.width;
   const displayHeight = rotated ? metadata.width : metadata.height;
   const aspect = Math.max(displayWidth / displayHeight, displayHeight / displayWidth);
-  if ((kind === 'logo' && (displayWidth < 80 || displayHeight < 24 || aspect > 12))
-      || (kind === 'product' && (Math.min(displayWidth, displayHeight) < 240
-        || displayWidth * displayHeight < 240_000 || aspect > 4.5))) {
+  if ((kind === 'logo' && ((!isVector && (displayWidth < 140 || displayHeight < 40
+        || displayWidth * displayHeight < 8_000)) || displayWidth < 80 || displayHeight < 24 || aspect > 12))
+      || (kind === 'product' && (Math.min(displayWidth, displayHeight) < 280
+        || displayWidth * displayHeight < 300_000 || aspect > 4.5))) {
     const error = new Error('Brand asset resolution or proportions are unsuitable for an outbound mockup.');
     error.code = 'MOCKUP_ASSET_LOW_QUALITY';
     throw error;
   }
+  let entropy = null;
+  let sharpness = null;
   if (kind === 'product') {
     const stats = await sharpImpl(source, { failOn: 'error', limitInputPixels: 24_000_000 })
       .rotate().resize(180, 180, { fit: 'inside' }).greyscale().stats();
-    if (Number(stats.entropy) < 1.35 || Number(stats.sharpness) < 0.25) {
+    entropy = Number(stats.entropy);
+    sharpness = Number(stats.sharpness);
+    if (entropy < 1.35 || sharpness < 0.25) {
       const error = new Error('Brand image is too flat or blurry for a presentation-ready mockup.');
       error.code = 'MOCKUP_ASSET_LOW_QUALITY';
       throw error;
@@ -284,7 +373,19 @@ async function validatedAsset(response, sharpImpl, kind) {
     width: displayWidth,
     height: displayHeight,
     hasAlpha: metadata.hasAlpha === true,
+    isVector,
     finalUrl: response.finalUrl,
+    qualityAudit: {
+      passed: true,
+      displayWidth,
+      displayHeight,
+      pixelArea: displayWidth * displayHeight,
+      entropy,
+      sharpness,
+      noRasterUpscaleRequired: isVector || (kind === 'logo'
+        ? displayWidth >= 140 && displayHeight >= 40
+        : displayWidth >= 280 && displayHeight >= 280),
+    },
   };
 }
 
@@ -297,16 +398,17 @@ function productCompositionAudit(asset, {
   const sourceHeight = Math.max(1, Number(asset?.height) || 0);
   const innerWidth = Math.max(1, panelWidth - (padding * 2));
   const innerHeight = Math.max(1, panelHeight - (padding * 2));
-  const scale = Math.min(innerWidth / sourceWidth, innerHeight / sourceHeight);
+  const scale = Math.min(1, innerWidth / sourceWidth, innerHeight / sourceHeight);
   const displayWidth = Math.max(1, Math.round(sourceWidth * scale));
   const displayHeight = Math.max(1, Math.round(sourceHeight * scale));
   const displayedAreaRatio = Number(((displayWidth * displayHeight) / (panelWidth * panelHeight)).toFixed(4));
   const minimumDisplayDimension = Math.min(displayWidth, displayHeight);
-  const enlargementRatio = Number(Math.max(1, scale).toFixed(3));
+  const enlargementRatio = 1;
+  const selectionPassed = asset?.selectionAudit?.passed;
   const passed = Boolean(asset)
     && minimumDisplayDimension >= 115
     && displayedAreaRatio >= 0.32
-    && enlargementRatio <= 2;
+    && selectionPassed !== false;
   return {
     passed,
     mode: 'blurred_background_full_contain_foreground',
@@ -320,47 +422,125 @@ function productCompositionAudit(asset, {
     displayedAreaRatio,
     sourceVisibleFraction: 1,
     enlargementRatio,
+    selectionPassed: selectionPassed ?? null,
+    sourceClass: asset?.selectionAudit?.assetRole || null,
     noClipGuaranteed: true,
+    noUpscaleGuaranteed: true,
+  };
+}
+
+function logoCompositionAudit(asset, { maxWidth = 330, maxHeight = 86 } = {}) {
+  const sourceWidth = Math.max(1, Number(asset?.width) || 0);
+  const sourceHeight = Math.max(1, Number(asset?.height) || 0);
+  const scale = asset?.isVector === true
+    ? Math.min(maxWidth / sourceWidth, maxHeight / sourceHeight)
+    : Math.min(1, maxWidth / sourceWidth, maxHeight / sourceHeight);
+  const displayWidth = Math.max(1, Math.round(sourceWidth * scale));
+  const displayHeight = Math.max(1, Math.round(sourceHeight * scale));
+  return {
+    passed: Boolean(asset) && displayWidth >= 120 && displayHeight >= 32
+      && asset?.qualityAudit?.passed !== false,
+    sourceWidth,
+    sourceHeight,
+    displayWidth,
+    displayHeight,
+    sourceVisibleFraction: 1,
+    noClipGuaranteed: true,
+    noRasterUpscaleGuaranteed: asset?.isVector === true || scale <= 1,
+    scalableVector: asset?.isVector === true,
+  };
+}
+
+function productCandidateAudit(asset) {
+  const candidate = asset?.candidate || asset || {};
+  const marker = `${candidate.marker || ''} ${candidate.alt || ''} ${candidate.url || ''} ${candidate.sourceUrl || ''}`;
+  const sourceRole = candidate.pageRole || pageAssetRole(candidate.sourceUrl || '');
+  const hasNegativeEvidence = PRODUCT_IRRELEVANCE_PATTERN.test(marker);
+  const hasProductEvidence = candidate.cleanProductEvidence === true
+    || ['product_photo', 'service_photo'].includes(candidate.assetRole)
+    || CLEAN_PRODUCT_PATTERN.test(marker) || CLEAN_SERVICE_PATTERN.test(marker)
+    || ['product_detail', 'product_collection', 'portfolio', 'service'].includes(sourceRole);
+  const hasPositiveEvidence = PRODUCT_RELEVANCE_PATTERN.test(marker) || hasProductEvidence;
+  const precomposedRisk = candidate.assetRole === 'campaign_art'
+    || candidate.likelyPrecomposed === true
+    || PRECOMPOSED_ART_PATTERN.test(`${candidate.marker || ''} ${candidate.alt || ''}`)
+    || (candidate.origin === 'social_meta' && candidate.cleanProductEvidence !== true);
+  const sourceVerified = /^https?:\/\//i.test(String(candidate.sourceUrl || ''));
+  const assetRole = candidate.assetRole
+    || (CLEAN_PRODUCT_PATTERN.test(marker) || ['product_detail', 'product_collection'].includes(sourceRole)
+      ? 'product_photo'
+      : CLEAN_SERVICE_PATTERN.test(marker) || ['portfolio', 'service'].includes(sourceRole)
+      ? 'service_photo'
+      : precomposedRisk ? 'campaign_art' : 'general_photo');
+  const passed = hasPositiveEvidence && hasProductEvidence && !hasNegativeEvidence
+    && !precomposedRisk && sourceVerified && ['product_photo', 'service_photo'].includes(assetRole);
+  return {
+    passed,
+    assetRole,
+    sourceRole,
+    sourceVerified,
+    hasProductEvidence,
+    hasNegativeEvidence,
+    precomposedRisk,
+    reason: passed ? 'verified_clean_company_image'
+      : precomposedRisk ? 'precomposed_campaign_art'
+      : hasNegativeEvidence ? 'irrelevant_people_or_editorial_image'
+      : !sourceVerified ? 'source_page_unverified'
+      : 'product_or_service_evidence_unverified',
   };
 }
 
 function productPresentationScore(asset) {
   const audit = asset?.compositionAudit || productCompositionAudit(asset);
-  const semanticBonus = productAssetIsRelevant(asset) ? 36 : 0;
-  const precomposedPenalty = asset?.candidate?.likelyPrecomposed === true ? 18 : 0;
-  const socialPenalty = asset?.candidate?.origin === 'social_meta' ? 8 : 0;
-  return Number(asset?.candidate?.score || 0)
+  const selection = asset?.selectionAudit || productCandidateAudit(asset);
+  const candidate = asset?.candidate || {};
+  const roleBonus = selection.sourceRole === 'product_detail' ? 150
+    : selection.sourceRole === 'portfolio' ? 125
+    : selection.sourceRole === 'product_collection' ? 110
+    : selection.sourceRole === 'service' ? 100 : 35;
+  return Number(candidate.selectionScore ?? candidate.score ?? 0)
     + (audit.displayedAreaRatio * 70)
-    + semanticBonus
-    - precomposedPenalty
-    - socialPenalty;
+    + roleBonus
+    + (selection.assetRole === 'product_photo' ? 45 : 30)
+    - (selection.precomposedRisk ? 500 : 0)
+    - (selection.sourceVerified ? 0 : 300);
 }
 
 function productAssetIsRelevant(asset) {
-  const candidate = asset?.candidate || asset || {};
-  const marker = `${candidate.marker || ''} ${candidate.alt || ''} ${candidate.url || ''} ${candidate.sourceUrl || ''}`;
-  const hasPositiveEvidence = PRODUCT_RELEVANCE_PATTERN.test(marker);
-  const hasNegativeEvidence = PRODUCT_IRRELEVANCE_PATTERN.test(marker);
-  return hasPositiveEvidence && !hasNegativeEvidence;
+  const selection = productCandidateAudit(asset);
+  return selection.hasProductEvidence && !selection.hasNegativeEvidence;
 }
 
 async function fetchBestValid(candidates, dependencies, sharpImpl, kind, compositionOptions = {}) {
   const attempts = [];
   const nonPlaceholder = candidates.filter((candidate) => !/\b(?:placeholder|spacer|blank|no[-_ ]?image|loading|pixel|default[-_ ]?(?:image|photo))\b/i
     .test(`${candidate.url} ${candidate.alt || ''}`));
+  const rankedCandidates = [...nonPlaceholder].sort((left, right) => {
+    if (kind !== 'product') return Number(right.score || 0) - Number(left.score || 0);
+    const leftAudit = productCandidateAudit(left);
+    const rightAudit = productCandidateAudit(right);
+    if (leftAudit.passed !== rightAudit.passed) return rightAudit.passed ? 1 : -1;
+    return Number(right.selectionScore ?? right.score ?? 0) - Number(left.selectionScore ?? left.score ?? 0)
+      || String(left.url).localeCompare(String(right.url));
+  });
   const filtered = [];
-  for (const candidate of nonPlaceholder.slice(0, kind === 'logo' ? 10 : 16)) {
-    if (kind === 'product' && !productAssetIsRelevant(candidate)) {
-      const error = new Error('The public image did not have enough product or service relevance evidence.');
-      error.code = 'MOCKUP_ASSET_RELEVANCE_UNVERIFIED';
-      attempts.push(safeDiagnostic(error, 'product_relevance', candidate.url));
-      continue;
+  for (const candidate of rankedCandidates.slice(0, kind === 'logo' ? 8 : 12)) {
+    if (kind === 'product') {
+      const selectionAudit = productCandidateAudit(candidate);
+      if (!selectionAudit.passed) {
+        const error = new Error('The public image did not pass clean product or service image gates.');
+        error.code = selectionAudit.precomposedRisk
+          ? 'MOCKUP_ASSET_PRECOMPOSED_UNSAFE'
+          : selectionAudit.sourceVerified ? 'MOCKUP_ASSET_RELEVANCE_UNVERIFIED' : 'MOCKUP_ASSET_SOURCE_UNVERIFIED';
+        attempts.push(safeDiagnostic(error, 'product_selection', candidate.url));
+        continue;
+      }
     }
     filtered.push(candidate);
   }
   const valid = [];
-  for (let index = 0; index < filtered.length; index += 6) {
-    const batch = filtered.slice(index, index + 6);
+  for (let index = 0; index < filtered.length; index += 4) {
+    const batch = filtered.slice(index, index + 4);
     const results = await Promise.all(batch.map(async (candidate) => {
       try {
         const response = await (dependencies.fetchAsset || fetchWebsiteAsset)(candidate.url, {
@@ -368,7 +548,9 @@ async function fetchBestValid(candidates, dependencies, sharpImpl, kind, composi
           timeoutMs: 8000,
           referer: candidate.sourceUrl,
         });
-        return { asset: { ...(await validatedAsset(response, sharpImpl, kind)), candidate } };
+        const asset = { ...(await validatedAsset(response, sharpImpl, kind)), candidate };
+        if (kind === 'product') asset.selectionAudit = productCandidateAudit(candidate);
+        return { asset };
       } catch (error) {
         return { error, candidate };
       }
@@ -379,18 +561,44 @@ async function fetchBestValid(candidates, dependencies, sharpImpl, kind, composi
         continue;
       }
       if (kind === 'product') {
-        const compositionAudit = productCompositionAudit(result.asset, compositionOptions);
+        const layoutGeometry = compositionOptions.artworkWidth
+          ? mockupLayoutGeometry(result.asset, compositionOptions.artworkWidth, compositionOptions.panelHeight || PRODUCT_PANEL_HEIGHT)
+          : null;
+        const layoutPadding = layoutGeometry
+          ? Math.max(10, Math.round(Math.min(layoutGeometry.productWidth, layoutGeometry.artworkHeight) * 0.04375))
+          : compositionOptions.padding;
+        const baseCompositionAudit = productCompositionAudit(result.asset, layoutGeometry ? {
+          panelWidth: layoutGeometry.productWidth,
+          panelHeight: layoutGeometry.artworkHeight,
+          padding: layoutPadding,
+        } : compositionOptions);
+        const compositionAudit = {
+          ...baseCompositionAudit,
+          passed: baseCompositionAudit.passed && (layoutGeometry?.passed ?? true),
+          layoutId: layoutGeometry?.layoutId || selectMockupLayoutId(result.asset),
+          layoutNoOverlapGuaranteed: layoutGeometry?.noOverlapGuaranteed ?? true,
+        };
         if (!compositionAudit.passed) {
           const error = new Error('The complete company image would be too small to present clearly without cropping.');
           error.code = 'MOCKUP_ASSET_COMPOSITION_UNSUITABLE';
           attempts.push(safeDiagnostic(error, 'product_composition', result.candidate?.url));
           continue;
         }
-        valid.push({ ...result.asset, compositionAudit });
+        valid.push({
+          ...result.asset,
+          layoutId: compositionAudit.layoutId,
+          layoutGeometry,
+          compositionAudit,
+        });
       } else {
         valid.push(result.asset);
       }
     }
+    // Candidates are already ranked by verified product/service context. Once
+    // a high-confidence batch yields a visually valid asset, avoid fetching
+    // lower-ranked images. This keeps a 70-company morning run bounded while
+    // still trying another batch when the best public files are broken.
+    if (valid.length) break;
   }
   valid.sort((left, right) => kind === 'product'
     ? productPresentationScore(right) - productPresentationScore(left)
@@ -400,9 +608,9 @@ async function fetchBestValid(candidates, dependencies, sharpImpl, kind, composi
 
 function boothLabel(candidate) {
   const body = String(candidate?.message?.bodyText || '');
-  const match = /\bbooths?\s*(?:#|no\.?\s*)?([a-z0-9][a-z0-9–—\-/, &]{0,20})/i.exec(body);
+  const match = /\bbooths?\s*(?:#|no\.?\s*)?([a-z0-9][a-z0-9–—\-/, &;]{0,100})(?=[.\n]|$)/i.exec(body);
   if (!match?.[1]) return null;
-  return cleanLabel(match[1].replace(/\s+(?:at|during|for|on|from|and\s+(?:a|the))\b.*$/i, ''), 24) || null;
+  return cleanLabel(match[1].replace(/\s+(?:at|during|for|on|from|and\s+(?:a|the))\b.*$/i, ''), 72) || null;
 }
 
 function marketingLine(value, maxLength = 94) {
@@ -496,6 +704,7 @@ function selectBrandCopy(candidate, profile = {}) {
 
 function planFor(candidate, assets = {}) {
   const sceneId = selectSceneId(candidate);
+  const layoutId = selectMockupLayoutId(assets.product);
   const event = eventLabel(candidate);
   const booth = boothLabel(candidate);
   const brandCopy = selectBrandCopy(candidate, assets.profile);
@@ -516,6 +725,7 @@ function planFor(candidate, assets = {}) {
     messageId: candidate.message?.id || null,
     messageContentHash: candidate.message?.contentHash || null,
     sceneId,
+    layoutId,
     event,
     booth,
     brandCopy,
@@ -526,6 +736,7 @@ function planFor(candidate, assets = {}) {
   }));
   return {
     sceneId,
+    layoutId,
     eventLabel: event,
     boothLabel: booth,
     messageContentHash: candidate.message?.contentHash || null,
@@ -597,18 +808,107 @@ function shiftColor(value, amount) {
   return hexColor({ r: rgb.r + amount, g: rgb.g + amount, b: rgb.b + amount });
 }
 
+function srgbChannel(value) {
+  const channel = Math.max(0, Math.min(255, Number(value) || 0)) / 255;
+  return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+}
+
+function relativeLuminance(value) {
+  const rgb = rgbFromHex(value);
+  if (!rgb) return null;
+  return (0.2126 * srgbChannel(rgb.r)) + (0.7152 * srgbChannel(rgb.g)) + (0.0722 * srgbChannel(rgb.b));
+}
+
+function whiteTextContrastRatio(value) {
+  const luminance = relativeLuminance(value);
+  return luminance === null ? 0 : 1.05 / (luminance + 0.05);
+}
+
+function ensureWhiteTextContrast(value, minimum = MIN_WHITE_TEXT_CONTRAST) {
+  const color = validHexColor(value) || '#1f2937';
+  const safeMinimum = Math.max(4.5, Math.min(12, Number(minimum) || MIN_WHITE_TEXT_CONTRAST));
+  if (whiteTextContrastRatio(color) >= safeMinimum) return color;
+  const rgb = rgbFromHex(color);
+  let low = 0;
+  let high = 1;
+  let best = '#000000';
+  // Scaling all three channels preserves the source hue while deterministically
+  // finding the lightest version that still passes the white-copy contrast gate.
+  for (let iteration = 0; iteration < 16; iteration += 1) {
+    const scale = (low + high) / 2;
+    const candidate = hexColor({ r: rgb.r * scale, g: rgb.g * scale, b: rgb.b * scale });
+    if (whiteTextContrastRatio(candidate) >= safeMinimum) {
+      best = candidate;
+      low = scale;
+    } else {
+      high = scale;
+    }
+  }
+  return best;
+}
+
+function paletteContrastAudit(palette) {
+  const primaryWhiteContrast = whiteTextContrastRatio(palette?.primary);
+  const secondaryWhiteContrast = whiteTextContrastRatio(palette?.secondary);
+  return {
+    passed: primaryWhiteContrast >= MIN_WHITE_TEXT_CONTRAST
+      && secondaryWhiteContrast >= MIN_WHITE_TEXT_CONTRAST,
+    minimumWhiteTextContrast: MIN_WHITE_TEXT_CONTRAST,
+    primaryWhiteContrast: Number(primaryWhiteContrast.toFixed(3)),
+    secondaryWhiteContrast: Number(secondaryWhiteContrast.toFixed(3)),
+  };
+}
+
+function colorChroma(value) {
+  const rgb = rgbFromHex(value);
+  if (!rgb) return 0;
+  return Math.max(rgb.r, rgb.g, rgb.b) - Math.min(rgb.r, rgb.g, rgb.b);
+}
+
+function pickPrimaryBrandColor(profileColors, logoColor, productColor) {
+  const candidates = [
+    ...profileColors.map((color, index) => ({ color, sourcePriority: 36 - index })),
+    { color: logoColor, sourcePriority: 24 },
+    { color: productColor, sourcePriority: 14 },
+  ].filter((candidate) => validHexColor(candidate.color));
+  if (!candidates.length) return '#1f2937';
+  return candidates
+    .map((candidate, index) => {
+      const luminance = relativeLuminance(candidate.color) ?? 1;
+      const nearWhite = luminance > 0.82 && colorChroma(candidate.color) < 28;
+      const alreadyReadable = whiteTextContrastRatio(candidate.color) >= MIN_WHITE_TEXT_CONTRAST;
+      return {
+        ...candidate,
+        index,
+        score: candidate.sourcePriority + (alreadyReadable ? 90 : 0)
+          + (colorChroma(candidate.color) * 0.18) - (nearWhite ? 220 : 0),
+      };
+    })
+    .sort((left, right) => right.score - left.score || left.index - right.index)[0].color;
+}
+
 async function resolveBrandPalette(assets, sharpImpl) {
   const [logoColor, productColor] = await Promise.all([
     dominantColor(assets.logo, sharpImpl),
     dominantColor(assets.product, sharpImpl),
   ]);
-  const profileColor = (assets.profile?.themeColors || []).map(validHexColor).find(Boolean) || null;
-  const primary = profileColor || logoColor || productColor || '#1f2937';
-  const secondaryCandidate = [productColor, logoColor].find((color) => color && colorDistance(color, primary) >= 45);
-  const primaryRgb = rgbFromHex(primary) || { r: 31, g: 41, b: 55 };
-  const primaryLuminance = (0.2126 * primaryRgb.r) + (0.7152 * primaryRgb.g) + (0.0722 * primaryRgb.b);
-  const secondary = secondaryCandidate || shiftColor(primary, primaryLuminance > 130 ? -72 : 68);
-  return { primary, secondary, accent: '#ff6b35' };
+  const profileColors = (assets.profile?.themeColors || []).map(validHexColor).filter(Boolean);
+  const rawPrimary = pickPrimaryBrandColor(profileColors, logoColor, productColor);
+  const primary = ensureWhiteTextContrast(rawPrimary);
+  const rawSecondary = [...profileColors, productColor, logoColor]
+    .filter((color) => color && color !== rawPrimary)
+    .sort((left, right) => colorDistance(right, rawPrimary) - colorDistance(left, rawPrimary))[0] || null;
+  let secondary = ensureWhiteTextContrast(rawSecondary || shiftColor(rawPrimary, -64));
+  if (colorDistance(primary, secondary) < 28) {
+    const rgb = rgbFromHex(primary) || { r: 31, g: 41, b: 55 };
+    secondary = ensureWhiteTextContrast(hexColor({
+      r: (rgb.r * 0.55) + 5,
+      g: (rgb.g * 0.55) + 14,
+      b: (rgb.b * 0.55) + 28,
+    }));
+  }
+  const palette = { primary, secondary, accent: '#ff6b35' };
+  return { ...palette, contrastAudit: paletteContrastAudit(palette) };
 }
 
 async function logoCardStyle(asset, sharpImpl) {
@@ -754,7 +1054,7 @@ async function renderProductPanel(asset, width, height, palette, sharpImpl) {
     .rotate()
     .resize(width - (padding * 2), height - (padding * 2), {
       fit: 'inside',
-      withoutEnlargement: false,
+      withoutEnlargement: true,
     });
   const foreground = asset.hasAlpha
     ? await foregroundPipeline.png().toBuffer({ resolveWithObject: true })
@@ -791,10 +1091,11 @@ async function renderProductPanel(asset, width, height, palette, sharpImpl) {
 async function renderArtwork(candidate, assets, sharpImpl, dependencies = {}) {
   const width = Math.max(860, Math.min(1120, Math.round(Number(dependencies.artworkWidth) || 1000)));
   const height = 320;
-  const productWidth = assets.product ? Math.round(width * (PRODUCT_PANEL_WIDTH / 1000)) : 0;
-  const productLeft = width - productWidth;
+  const layoutGeometry = mockupLayoutGeometry(assets.product, width, height);
+  const {
+    productWidth, productLeft, productSide, textLeft, textWidth,
+  } = layoutGeometry;
   const horizontalScale = width / 1000;
-  const textLeft = Math.max(48, Math.round(56 * horizontalScale));
   const plan = planFor(candidate, assets);
   const [palette, font, logoCard] = await Promise.all([
     resolveBrandPalette(assets, sharpImpl),
@@ -825,33 +1126,39 @@ async function renderArtwork(candidate, assets, sharpImpl, dependencies = {}) {
   let compositionAudit = productCompositionAudit(null, { panelWidth: productWidth, panelHeight: height });
   if (assets.product) {
     const productPanel = await renderProductPanel(assets.product, productWidth, height, palette, sharpImpl);
-    compositionAudit = productPanel.audit;
+    compositionAudit = {
+      ...productPanel.audit,
+      passed: productPanel.audit.passed && layoutGeometry.passed,
+      layoutId: layoutGeometry.layoutId,
+      layoutNoOverlapGuaranteed: layoutGeometry.noOverlapGuaranteed,
+    };
     layers.push({ input: productPanel.buffer, left: productLeft, top: 0 });
     layers.push({
       input: Buffer.from(`<svg width="4" height="${height}" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="${palette.accent}" fill-opacity=".72"/></svg>`),
-      left: Math.max(0, productLeft - 2),
+      left: Math.max(0, (productSide === 'left' ? productLeft + productWidth : productLeft) - 2),
       top: 0,
     });
   }
 
   let logoCardHeight = 0;
+  let logoAudit = logoCompositionAudit(null);
   if (assets.logo) {
-    const logoMaxWidth = Math.max(250, Math.min(Math.round(330 * horizontalScale), width - productWidth - textLeft - 52));
+    const logoMaxWidth = Math.max(220, Math.min(Math.round(330 * horizontalScale), textWidth - 38));
+    logoAudit = logoCompositionAudit(assets.logo, { maxWidth: logoMaxWidth, maxHeight: 86 });
     const logo = await sharpImpl(assets.logo.buffer, { failOn: 'none', limitInputPixels: 24_000_000 })
-      .resize(logoMaxWidth, 86, { fit: 'inside', withoutEnlargement: false }).png().toBuffer({ resolveWithObject: true });
+      .resize(logoMaxWidth, 86, { fit: 'inside', withoutEnlargement: assets.logo.isVector !== true }).png().toBuffer({ resolveWithObject: true });
     const cardWidth = Math.max(185, logo.info.width + 38);
     const cardHeight = Math.max(72, logo.info.height + 24);
     logoCardHeight = cardHeight;
     layers.push({
       input: Buffer.from(`<svg width="${cardWidth}" height="${cardHeight}" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="${cardWidth - 2}" height="${cardHeight - 2}" rx="13" fill="${logoCard.fill}" fill-opacity=".97" stroke="${logoCard.stroke}" stroke-opacity=".8"/></svg>`),
-      left: Math.max(44, Math.round(54 * horizontalScale)),
+      left: textLeft,
       top: 25,
     });
-    const logoLeft = Math.max(44, Math.round(54 * horizontalScale));
+    const logoLeft = textLeft;
     layers.push({ input: logo.data, left: logoLeft + Math.floor((cardWidth - logo.info.width) / 2), top: 25 + Math.floor((cardHeight - logo.info.height) / 2) });
   }
 
-  const textWidth = assets.product ? Math.max(400, productLeft - textLeft - 20) : width - textLeft - 64;
   const svgParts = [];
   if (assets.logo) {
     const headline = fontSafeText(font, plan.brandCopy.headline || plan.brandCopy.offering || candidate.prospect.businessName);
@@ -899,7 +1206,14 @@ async function renderArtwork(candidate, assets, sharpImpl, dependencies = {}) {
 
   const buffer = await sharpImpl({ create: { width, height, channels: 3, background: '#0b2344' } })
     .composite(layers).jpeg({ quality: 92, chromaSubsampling: '4:4:4' }).toBuffer();
-  return { buffer, compositionAudit };
+  return {
+    buffer,
+    compositionAudit,
+    logoCompositionAudit: logoAudit,
+    layoutId: layoutGeometry.layoutId,
+    layoutAudit: layoutGeometry,
+    paletteAudit: palette.contrastAudit,
+  };
 }
 
 async function loadScene(sceneId, dependencies = {}) {
@@ -932,6 +1246,10 @@ async function renderCompanyMockup(candidate, assets, dependencies = {}) {
     width: OUTPUT_WIDTH,
     height: OUTPUT_HEIGHT,
     compositionAudit: artwork.compositionAudit,
+    logoCompositionAudit: artwork.logoCompositionAudit,
+    layoutId: artwork.layoutId,
+    layoutAudit: artwork.layoutAudit,
+    paletteAudit: artwork.paletteAudit,
   };
 }
 
@@ -948,21 +1266,31 @@ async function blobBuffer(store, key) {
 async function loadVerifiedStoredMockup(candidate, store, sharpImpl) {
   const mockup = candidate?.mockup;
   const audit = mockup?.generationMetadata?.compositionAudit || null;
-  const expectedKey = mockup?.contentHash
-    ? `company-banners/${candidate.prospect.id}/${mockup.contentHash}.jpg`
-    : null;
-  if (!mockup || mockup.status !== 'ready' || mockup.renderVersion !== RENDER_VERSION
-      || !candidate.message?.id || mockup.messageId !== candidate.message.id
-      || !candidate.message?.contentHash
-      || mockup.generationMetadata?.messageContentHash !== candidate.message.contentHash
-      || mockup.qualityLevel !== 'logo_and_product' || !mockup.logoUrl || !mockup.productImageUrl
-      || audit?.passed !== true || audit?.noClipGuaranteed !== true
-      || !expectedKey || mockup.blobKey !== expectedKey) return null;
+  const storedLogoAudit = mockup?.generationMetadata?.logoCompositionAudit || null;
+  const storedLayoutId = mockup?.generationMetadata?.layoutId || null;
+  const storedLayoutAudit = mockup?.generationMetadata?.layoutAudit || null;
+  const storedPaletteAudit = mockup?.generationMetadata?.paletteAudit || null;
+  const storedBlobAudit = mockup?.generationMetadata?.blobBindingAudit || null;
+  if (!repository.strictCompanyMockupReady({
+    prospectId: candidate?.prospect?.id,
+    status: mockup?.status,
+    renderVersion: mockup?.renderVersion,
+    contentHash: mockup?.contentHash,
+    blobKey: mockup?.blobKey,
+    logoUrl: mockup?.logoUrl,
+    productImageUrl: mockup?.productImageUrl,
+    qualityLevel: mockup?.qualityLevel,
+    messageId: mockup?.messageId,
+    expectedMessageId: candidate?.message?.id,
+    expectedMessageContentHash: candidate?.message?.contentHash,
+    generationMetadata: mockup?.generationMetadata,
+  }, RENDER_VERSION)) return null;
   const buffer = await blobBuffer(store, mockup.blobKey);
   if (!buffer || typeof sharpImpl !== 'function') return null;
   try {
     const metadata = await sharpImpl(buffer, { failOn: 'error', limitInputPixels: 24_000_000 }).metadata();
-    if (metadata.format !== 'jpeg' || metadata.width !== OUTPUT_WIDTH || metadata.height !== OUTPUT_HEIGHT) return null;
+    if (metadata.format !== 'jpeg' || metadata.width !== OUTPUT_WIDTH || metadata.height !== OUTPUT_HEIGHT
+        || sha256(buffer) !== storedBlobAudit.expectedContentHash) return null;
   } catch {
     return null;
   }
@@ -971,6 +1299,7 @@ async function loadVerifiedStoredMockup(candidate, store, sharpImpl) {
     buffer,
     plan: {
       sceneId: mockup.sceneId,
+      layoutId: storedLayoutId,
       eventLabel: mockup.eventLabel,
       logoUrl: mockup.logoUrl,
       productImageUrl: mockup.productImageUrl,
@@ -983,6 +1312,11 @@ async function loadVerifiedStoredMockup(candidate, store, sharpImpl) {
     height: OUTPUT_HEIGHT,
     qualityLevel: mockup.qualityLevel,
     compositionAudit: audit,
+    logoCompositionAudit: storedLogoAudit,
+    layoutId: storedLayoutId,
+    layoutAudit: storedLayoutAudit,
+    paletteAudit: storedPaletteAudit,
+    blobBindingAudit: storedBlobAudit,
     sendReady: true,
     diagnostics: mockup.generationMetadata?.assetDiagnostics || [],
     cached: true,
@@ -1010,8 +1344,6 @@ async function prepareCompanyMockup(options) {
   const candidateAssets = await discoverAssetCandidates(candidate, dependencies);
   const selectedScene = SCENES[selectSceneId(candidate)] || SCENES.storefront;
   const selectedArtworkWidth = Math.max(860, Math.min(1120, Math.round(320 * (selectedScene.frame.width / selectedScene.frame.height))));
-  const selectedProductPanelWidth = Math.round(selectedArtworkWidth * (PRODUCT_PANEL_WIDTH / 1000));
-  const selectedProductPadding = Math.max(10, Math.round(Math.min(selectedProductPanelWidth, PRODUCT_PANEL_HEIGHT) * 0.04375));
   const [logoResult, productResult] = await Promise.all([
     fetchBestValid(candidateAssets.logos, dependencies, options.sharp, 'logo'),
     fetchBestValid(
@@ -1019,7 +1351,7 @@ async function prepareCompanyMockup(options) {
       dependencies,
       options.sharp,
       'product',
-      { panelWidth: selectedProductPanelWidth, panelHeight: PRODUCT_PANEL_HEIGHT, padding: selectedProductPadding },
+      { artworkWidth: selectedArtworkWidth, panelHeight: PRODUCT_PANEL_HEIGHT },
     ),
   ]);
   const logo = logoResult.asset;
@@ -1035,38 +1367,41 @@ async function prepareCompanyMockup(options) {
   if (!options.force && options.preferCachedReady !== true
       && candidate.mockup?.contentHash === plan.contentHash
       && candidate.mockup.blobKey === expectedBlobKey) {
-    const cached = await blobBuffer(options.store, candidate.mockup.blobKey);
-    if (cached) {
-      const compositionAudit = candidate.mockup.generationMetadata?.compositionAudit || null;
-      return {
-        prospectId: candidate.prospect.id,
-        buffer: cached,
-        plan,
-        qualityLevel: candidate.mockup.qualityLevel,
-        compositionAudit,
-        sendReady: candidate.mockup.status === 'ready'
-          && candidate.mockup.qualityLevel === 'logo_and_product'
-          && compositionAudit?.passed === true
-          && compositionAudit?.noClipGuaranteed === true,
-        diagnostics: candidate.mockup.generationMetadata?.assetDiagnostics || [],
-        cached: true,
-        row: candidate.mockup,
-      };
-    }
+    const verifiedCached = await loadVerifiedStoredMockup(candidate, options.store, options.sharp);
+    if (verifiedCached) return { ...verifiedCached, plan };
   }
 
   const rendered = await renderCompanyMockup(candidate, assets, { ...dependencies, sharp: options.sharp });
   const level = qualityLevel(logo, product);
   const compositionAudit = rendered.compositionAudit;
-  const sendReady = level === 'logo_and_product'
+  const renderedLogoAudit = rendered.logoCompositionAudit;
+  const renderedLayoutAudit = rendered.layoutAudit;
+  const renderedPaletteAudit = rendered.paletteAudit;
+  const presentationReady = level === 'logo_and_product'
     && compositionAudit?.passed === true
-    && compositionAudit?.noClipGuaranteed === true;
+    && compositionAudit?.noClipGuaranteed === true
+    && compositionAudit?.noUpscaleGuaranteed === true
+    && renderedLogoAudit?.passed === true
+    && renderedLogoAudit?.noClipGuaranteed === true
+    && renderedLogoAudit?.noRasterUpscaleGuaranteed === true
+    && Boolean(MOCKUP_LAYOUTS[rendered.layoutId])
+    && renderedLayoutAudit?.passed === true
+    && renderedLayoutAudit?.noOverlapGuaranteed === true
+    && renderedPaletteAudit?.passed === true
+    && Number(renderedPaletteAudit?.primaryWhiteContrast) >= MIN_WHITE_TEXT_CONTRAST
+    && Number(renderedPaletteAudit?.secondaryWhiteContrast) >= MIN_WHITE_TEXT_CONTRAST
+    && product?.selectionAudit?.passed === true
+    && logo?.qualityAudit?.passed === true
+    && product?.qualityAudit?.passed === true;
   const assetDiagnostics = [
     ...(candidateAssets.diagnostics || []),
     ...(logoResult.attempts || []),
     ...(productResult.attempts || []),
   ].slice(0, 30);
   const blobKey = `company-banners/${candidate.prospect.id}/${plan.contentHash}.jpg`;
+  const expectedBlobHash = sha256(rendered.buffer);
+  let persistedBlobHash = null;
+  let blobBindingErrorCode = options.store ? null : 'MOCKUP_BLOB_STORE_UNAVAILABLE';
   let storedKey = null;
   if (options.store) {
     try {
@@ -1076,13 +1411,28 @@ async function prepareCompanyMockup(options) {
           prospectId: candidate.prospect.id,
           renderVersion: RENDER_VERSION,
           qualityLevel: level,
+          contentHash: expectedBlobHash,
         },
       });
-      storedKey = blobKey;
+      const persisted = await blobBuffer(options.store, blobKey);
+      persistedBlobHash = persisted ? sha256(persisted) : null;
+      if (persistedBlobHash === expectedBlobHash) storedKey = blobKey;
+      else blobBindingErrorCode = 'MOCKUP_BLOB_READBACK_MISMATCH';
     } catch {
-      // The in-memory image still goes into the email. Blob storage only powers cache and admin preview.
+      blobBindingErrorCode = 'MOCKUP_BLOB_PERSISTENCE_FAILED';
     }
   }
+  const blobBindingAudit = {
+    passed: storedKey === blobKey,
+    blobKey: storedKey,
+    expectedContentHash: expectedBlobHash,
+    persistedContentHash: persistedBlobHash,
+    strongReadBackVerified: storedKey === blobKey,
+  };
+  if (!blobBindingAudit.passed) {
+    assetDiagnostics.push({ stage: 'blob_persistence', hostname: null, code: blobBindingErrorCode });
+  }
+  const sendReady = presentationReady && blobBindingAudit.passed;
   const row = await dependencies.saveCompanyMockup(options.sql, {
     prospectId: candidate.prospect.id,
     messageId: candidate.message?.id,
@@ -1107,6 +1457,14 @@ async function prepareCompanyMockup(options) {
       boothLabel: plan.boothLabel,
       messageContentHash: candidate.message?.contentHash || null,
       compositionAudit,
+      logoCompositionAudit: renderedLogoAudit,
+      layoutId: rendered.layoutId,
+      layoutAudit: renderedLayoutAudit,
+      paletteAudit: renderedPaletteAudit,
+      blobBindingAudit,
+      logoQualityAudit: logo?.qualityAudit || null,
+      productQualityAudit: product?.qualityAudit || null,
+      productSelectionAudit: product?.selectionAudit || null,
       assetCandidateCounts: {
         logos: candidateAssets.logos.length,
         images: candidateAssets.images.length,
@@ -1115,9 +1473,10 @@ async function prepareCompanyMockup(options) {
       assetDiagnostics,
       cidReady: true,
     },
-    lastErrorCode: sendReady ? null : logo && product
-      && (compositionAudit?.passed !== true || compositionAudit?.noClipGuaranteed !== true)
-      ? 'MOCKUP_COMPOSITION_UNSAFE'
+    lastErrorCode: sendReady ? null : presentationReady && !blobBindingAudit.passed
+      ? blobBindingErrorCode
+      : logo && product
+      ? 'MOCKUP_PRESENTATION_QUALITY_UNSAFE'
       : !logo && !product
       ? 'VERIFIED_BRAND_ASSETS_UNAVAILABLE'
       : !logo ? 'VERIFIED_LOGO_UNAVAILABLE' : 'VERIFIED_PRODUCT_IMAGE_UNAVAILABLE',
@@ -1127,6 +1486,7 @@ async function prepareCompanyMockup(options) {
     ...rendered,
     qualityLevel: level,
     compositionAudit,
+    blobBindingAudit,
     sendReady,
     diagnostics: assetDiagnostics,
     cached: false,
@@ -1155,7 +1515,11 @@ module.exports = {
   PRODUCT_PANEL_WIDTH,
   PRODUCT_PANEL_HEIGHT,
   PRODUCT_SAFE_PADDING,
+  MIN_WHITE_TEXT_CONTRAST,
   SCENES,
+  MOCKUP_LAYOUTS,
+  selectMockupLayoutId,
+  mockupLayoutGeometry,
   sha256,
   cleanLabel,
   selectSceneId,
@@ -1165,13 +1529,22 @@ module.exports = {
   storedAssetCandidates,
   discoverAssetCandidates,
   safeSvg,
+  validatedAsset,
   productCompositionAudit,
+  logoCompositionAudit,
+  productCandidateAudit,
   productPresentationScore,
   productAssetIsRelevant,
+  fetchBestValid,
   officialAliasLinks,
   planFor,
   qualityLevel,
   selectBrandCopy,
+  relativeLuminance,
+  whiteTextContrastRatio,
+  ensureWhiteTextContrast,
+  paletteContrastAudit,
+  resolveBrandPalette,
   logoCardStyle,
   loadMockupFont,
   vectorTextPaths,

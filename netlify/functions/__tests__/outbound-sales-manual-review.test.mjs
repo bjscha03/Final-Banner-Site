@@ -17,16 +17,23 @@ const {
 } = handlerModule;
 const {
   mapLead, messageMatchesCompanyIdentity, MAX_MANUAL_DAILY_ATTEMPTS,
+  MANUAL_ROLE_LOCAL_PARTS, MANUAL_SEND_LEASE_SECONDS, manualSendRecoveryStatus,
+  isAllowedManualRoleInbox, isManualSingleSendAssessmentEligible,
 } = repository;
 const { EVENT_FIRST_INDUSTRY_KEYWORDS, selectProspectingKeywords } = strategy;
 
 const originalEnvironment = { ...process.env };
 const PROSPECT_ID = '11111111-1111-4111-8111-111111111111';
 const CONTACT_ID = '22222222-2222-4222-8222-222222222222';
+const CONTACT_B_ID = '22222222-2222-4222-8222-222222222223';
 const MESSAGE_ID = '33333333-3333-4333-8333-333333333333';
+const MOCKUP_CONTENT_HASH = 'd'.repeat(64);
+const MOCKUP_BLOB_KEY = `company-banners/${PROSPECT_ID}/${MOCKUP_CONTENT_HASH}.jpg`;
+const MOCKUP_BLOB_HASH = MOCKUP_CONTENT_HASH;
 
 const deliveryEnvironment = {
   DATABASE_URL: 'postgres://test.invalid/database',
+  OUTBOUND_MANUAL_SEND_ENABLED: 'true',
   PUBLIC_SITE_URL: 'https://bannersonthefly.com',
   OUTBOUND_PERMISSIONED_RESEND_API_KEY: 're_test_permissioned_marketing_key',
   OUTBOUND_PERMISSIONED_FROM_EMAIL: 'info@bannersonthefly.com',
@@ -83,6 +90,7 @@ function rowFixture() {
     domain_matches: true,
     contact_quality_score: 95,
     message_id: MESSAGE_ID,
+    message_contact_id: CONTACT_ID,
     message_content_hash: 'c'.repeat(64),
     message_subject: 'Future Expo Group: banner planning for your exhibitor expo',
     message_body_text: 'Hi Taylor,\n\nI saw Future Expo Group has an upcoming exhibitor expo.\n\nBest,\nBrandon\nBanners On The Fly',
@@ -94,15 +102,26 @@ function rowFixture() {
     mockup_message_id: MESSAGE_ID,
     mockup_status: 'ready',
     mockup_scene_id: 'trade_show',
+    mockup_render_version: 'company-banner-v12-clean-assets-adaptive-contrast-bound',
     mockup_quality_level: 'logo_and_product',
     mockup_logo_url: 'https://futureexpo.example/logo.png',
     mockup_product_image_url: 'https://futureexpo.example/expo.jpg',
     mockup_event_label: 'Future Expo',
     mockup_source_urls: ['https://futureexpo.example'],
-    mockup_content_hash: 'fixture-content-hash',
+    mockup_content_hash: MOCKUP_CONTENT_HASH,
+    mockup_blob_key: MOCKUP_BLOB_KEY,
     mockup_generation_metadata: {
       messageContentHash: 'c'.repeat(64),
-      compositionAudit: { passed: true, sourceVisibleFraction: 1, noClipGuaranteed: true },
+      compositionAudit: { passed: true, sourceVisibleFraction: 1, noClipGuaranteed: true, noUpscaleGuaranteed: true },
+      logoCompositionAudit: { passed: true, noClipGuaranteed: true, noRasterUpscaleGuaranteed: true },
+      productSelectionAudit: { passed: true, sourceVerified: true, assetRole: 'product_photo' },
+      layoutId: 'balanced_split',
+      layoutAudit: { passed: true, noOverlapGuaranteed: true, layoutId: 'balanced_split' },
+      paletteAudit: { passed: true, minimumWhiteTextContrast: 7, primaryWhiteContrast: 7, secondaryWhiteContrast: 7 },
+      blobBindingAudit: {
+        passed: true, strongReadBackVerified: true, blobKey: MOCKUP_BLOB_KEY,
+        expectedContentHash: MOCKUP_BLOB_HASH, persistedContentHash: MOCKUP_BLOB_HASH,
+      },
     },
     mockup_generated_at: '2026-08-10T11:30:00Z',
     review_status: 'pending',
@@ -153,8 +172,10 @@ describe('manual lead review migration and qualification', () => {
     const lead = mapLead(rowFixture());
     expect(lead).toMatchObject({
       eventFit: { priority: 'trade_show', label: 'Trade show / expo evidence' },
+      mockup: { presentationReady: true },
       canSend: true,
       technicalBlockers: [],
+      technicalWarnings: ['Role inbox — verify this public company mailbox during manual qualification before sending'],
     });
     const suppressed = mapLead({ ...rowFixture(), active_suppression: true });
     expect(suppressed.canSend).toBe(false);
@@ -172,6 +193,19 @@ describe('manual lead review migration and qualification', () => {
     expect(fallback.mockup.diagnostics).toEqual([
       { stage: 'logo', hostname: 'futureexpo.example', code: 'MOCKUP_ASSET_LOW_QUALITY' },
     ]);
+    const failed = mapLead({
+      ...rowFixture(),
+      mockup_status: 'failed',
+      mockup_quality_level: 'name_only',
+      mockup_last_error_code: 'WEBSITE_TIMEOUT',
+      mockup_updated_at: '2026-08-11T15:00:00.000Z',
+    });
+    expect(failed.canSend).toBe(false);
+    expect(failed.technicalBlockers).toContain('Personalized banner build failed safely and needs a retry');
+    expect(failed.mockup).toMatchObject({
+      status: 'failed', lastErrorCode: 'WEBSITE_TIMEOUT',
+      updatedAt: '2026-08-11T15:00:00.000Z', previewUrl: null,
+    });
     const unsafeComposition = mapLead({
       ...rowFixture(),
       mockup_generation_metadata: {
@@ -179,13 +213,102 @@ describe('manual lead review migration and qualification', () => {
       },
     });
     expect(unsafeComposition.canSend).toBe(false);
-    expect(unsafeComposition.technicalBlockers).toContain('Personalized banner composition has not passed the no-crop quality check');
+    expect(unsafeComposition.technicalBlockers).toContain('Personalized banner composition has not passed the full-image and no-upscale quality checks');
+    const mutablePreview = mapLead({
+      ...rowFixture(),
+      mockup_generation_metadata: {
+        ...rowFixture().mockup_generation_metadata,
+        blobBindingAudit: null,
+      },
+    });
+    expect(mutablePreview.canSend).toBe(false);
+    expect(mutablePreview.mockup.immutablePreviewReady).toBe(false);
+    expect(mutablePreview.technicalBlockers).toContain('Personalized banner is not bound to the exact immutable preview image');
     const staleContext = mapLead({
       ...rowFixture(),
       message_content_hash: 'd'.repeat(64),
     });
     expect(staleContext.canSend).toBe(false);
     expect(staleContext.technicalBlockers).toContain('Personalized banner is stale for the current email or event details');
+    const staleRenderer = mapLead({
+      ...rowFixture(),
+      mockup_render_version: 'company-banner-v11-clean-assets-adaptive-layouts',
+    });
+    expect(staleRenderer.canSend).toBe(false);
+    expect(staleRenderer.mockup.presentationReady).toBe(false);
+    expect(staleRenderer.technicalBlockers).toContain('Personalized banner has not passed the current production-quality contract');
+    const partialAudit = rowFixture();
+    delete partialAudit.mockup_generation_metadata.logoCompositionAudit;
+    const partialLead = mapLead(partialAudit);
+    expect(partialLead.canSend).toBe(false);
+    expect(partialLead.mockup.presentationReady).toBe(false);
+    expect(partialLead.technicalBlockers).toContain('Personalized banner has not passed the current production-quality contract');
+  });
+
+  it('fails closed when the selected contact differs from the initial message contact, while accepting the matched pair', () => {
+    const contactBWithContactAEmail = mapLead({
+      ...rowFixture(),
+      contact_id: CONTACT_B_ID,
+      contact_email: 'casey@futureexpo.example',
+      message_contact_id: CONTACT_ID,
+    });
+    expect(contactBWithContactAEmail.canSend).toBe(false);
+    expect(contactBWithContactAEmail.technicalBlockers).toContain('Email draft is not addressed to the selected contact');
+
+    const contactBWithOwnEmail = mapLead({
+      ...rowFixture(),
+      contact_id: CONTACT_B_ID,
+      contact_email: 'casey@futureexpo.example',
+      message_contact_id: CONTACT_B_ID,
+    });
+    expect(contactBWithOwnEmail.canSend).toBe(true);
+    expect(contactBWithOwnEmail.technicalBlockers).not.toContain('Email draft is not addressed to the selected contact');
+  });
+
+  it.each(MANUAL_ROLE_LOCAL_PARTS)('allows %s@ only as a warned manual single-send contact', (localPart) => {
+    const email = `${localPart}@futureexpo.example`;
+    const lead = mapLead({
+      ...rowFixture(),
+      contact_email: email,
+      is_role_address: true,
+      verification_status: 'risky',
+    });
+    expect(isAllowedManualRoleInbox(email)).toBe(true);
+    expect(lead.canSend).toBe(true);
+    expect(lead.technicalBlockers).toEqual([]);
+    expect(lead.technicalWarnings).toEqual([
+      'Role inbox — verify this public company mailbox during manual qualification before sending',
+    ]);
+  });
+
+  it.each(['admin', 'billing', 'bookings', 'jobs', 'mail', 'press', 'webmaster'])(
+    'keeps operational role inbox %s@ blocked',
+    (localPart) => {
+      const lead = mapLead({
+        ...rowFixture(),
+        contact_email: `${localPart}@futureexpo.example`,
+        is_role_address: true,
+        verification_status: 'risky',
+      });
+      expect(lead.canSend).toBe(false);
+      expect(lead.technicalWarnings).toEqual([]);
+      expect(lead.technicalBlockers).toContain('Role-based mailbox is not eligible for manual sending');
+    },
+  );
+
+  it('requires live MX, company-domain match, and a non-free mailbox for the manual role exception', () => {
+    const valid = {
+      email: 'info@futureexpo.example', emailNormalized: 'info@futureexpo.example',
+      syntaxValid: true, mxStatus: 'present', isRoleAddress: true,
+      isFreeMailbox: false, domainMatches: true,
+    };
+    expect(isManualSingleSendAssessmentEligible(valid)).toBe(true);
+    expect(isManualSingleSendAssessmentEligible({ ...valid, email: 'admin@futureexpo.example', emailNormalized: 'admin@futureexpo.example' })).toBe(false);
+    expect(isManualSingleSendAssessmentEligible({ ...valid, mxStatus: 'not_checked' })).toBe(false);
+    expect(isManualSingleSendAssessmentEligible({ ...valid, mxStatus: 'missing' })).toBe(false);
+    expect(isManualSingleSendAssessmentEligible({ ...valid, isFreeMailbox: true })).toBe(false);
+    expect(isManualSingleSendAssessmentEligible({ ...valid, domainMatches: false })).toBe(false);
+    expect(isManualSingleSendAssessmentEligible({ ...valid, syntaxValid: false })).toBe(false);
   });
 
   it('accepts a verified parenthetical brand alias without weakening cross-company protection', () => {
@@ -225,7 +348,33 @@ describe('manual lead review migration and qualification', () => {
     expect(keywords).toEqual(selectProspectingKeywords([], { seed: '2026-08-10', limit: 3 }));
   });
 
-  it('qualifies ambiguous claim columns against the manual review row', async () => {
+  it('keeps fresh processing locked and permits only an expired unsent processing lease to be reclaimed', async () => {
+    const now = new Date('2026-08-11T12:00:00.000Z');
+    expect(manualSendRecoveryStatus({
+      send_state: 'processing', send_started_at: '2026-08-11T11:50:01.000Z',
+    }, now)).toBe('in_progress');
+    expect(manualSendRecoveryStatus({
+      send_state: 'processing', send_started_at: '2026-08-11T11:44:59.000Z',
+    }, now)).toBe('retryable');
+    expect(mapLead({
+      ...rowFixture(), review_status: 'approved', permission_status: 'admin_authorized',
+      send_state: 'processing', send_started_at: '2026-08-11T11:44:59.000Z',
+    }).canSend).toBe(true);
+    expect(MANUAL_SEND_LEASE_SECONDS).toBe(15 * 60);
+  });
+
+  it('never reclaims a processing row once any delivery evidence exists', () => {
+    const row = {
+      ...rowFixture(), send_state: 'processing', send_started_at: '2026-08-11T10:00:00.000Z',
+      review_resend_message_id: 'resend-already-accepted',
+    };
+    const lead = mapLead(row);
+    expect(manualSendRecoveryStatus(row, new Date('2026-08-11T12:00:00.000Z'))).toBe('delivery_recorded');
+    expect(lead.canSend).toBe(false);
+    expect(lead.technicalBlockers).toContain('A delivery record already exists; this email will not be sent again');
+  });
+
+  it('uses the existing idempotency key when reclaiming an expired processing lease without charging another attempt', async () => {
     const sql = vi.fn().mockResolvedValue([]);
     await repository.claimManualReviewSend(sql, {
       prospectId: PROSPECT_ID,
@@ -235,12 +384,25 @@ describe('manual lead review migration and qualification', () => {
       mockupContentHash: 'e'.repeat(64),
     });
     expect(sql.mock.calls[0][0]).toContain('COALESCE(review.send_key,$4)');
-    expect(sql.mock.calls[0][0]).toContain('review.send_attempt_count+1');
+    expect(sql.mock.calls[0][0]).toContain("m.contact_id=contact.id");
+    expect(sql.mock.calls[0][0]).toContain('message.contact_id=contact.id');
+    expect(sql.mock.calls[0][0]).toContain("review.send_state='processing'");
+    expect(sql.mock.calls[0][0]).toContain("NOW()-($6::integer * INTERVAL '1 second')");
+    expect(sql.mock.calls[0][0]).toContain('SELECT $2,1 FROM candidate WHERE NOT candidate.is_reclaim');
+    expect(sql.mock.calls[0][0]).toContain('CASE WHEN candidate.is_reclaim THEN 0 ELSE 1 END');
+    expect(sql.mock.calls[0][0]).toContain('review.resend_message_id IS NULL AND review.sent_at IS NULL');
+    expect(sql.mock.calls[0][0]).toContain('message.resend_message_id IS NULL AND message.sent_at IS NULL');
+    expect(sql.mock.calls[0][1]).toEqual(expect.arrayContaining([stableManualSendKey(PROSPECT_ID), MANUAL_SEND_LEASE_SECONDS]));
     expect(sql.mock.calls[0][0]).toContain('JOIN outbound_company_mockups mockup ON mockup.prospect_id=p.id');
     expect(sql.mock.calls[0][0]).toContain("mockup.status='ready' AND mockup.quality_level='logo_and_product'");
     expect(sql.mock.calls[0][0]).toContain('mockup.generation_metadata @>');
     expect(sql.mock.calls[0][0]).toContain('mockup.message_id=message.id AND mockup.content_hash=$5');
     expect(sql.mock.calls[0][0]).toContain("mockup.generation_metadata->>'messageContentHash'=message.content_hash");
+    expect(sql.mock.calls[0][0]).toContain("contact.mx_status='present'");
+    expect(sql.mock.calls[0][0]).toContain("SPLIT_PART(COALESCE(contact.email_normalized,''),'@',1)");
+    expect(sql.mock.calls[0][0]).toContain('contact.is_free_mailbox=FALSE AND contact.domain_matches=TRUE');
+    expect(sql.mock.calls[0][0]).toContain('p.first_contacted_at IS NULL AND p.prior_customer_match=FALSE AND p.suppression_reason IS NULL');
+    expect(sql.mock.calls[0][0]).toContain('FROM outbound_suppressions suppression');
   });
 
   it('commits accepted sends against the partial provider-event unique index', async () => {
@@ -251,6 +413,7 @@ describe('manual lead review migration and qualification', () => {
       providerMessageId: 'resend-manual-1',
       latencyMs: 120,
       messageId: MESSAGE_ID,
+      contactId: CONTACT_ID,
       businessDate: '2026-08-10',
     });
     expect(sql.mock.calls[0][0]).toContain(
@@ -270,7 +433,7 @@ describe('permissioned Resend transport', () => {
     expect(send).not.toHaveBeenCalled();
   });
 
-  it('adds one-click unsubscribe and uses a stable provider idempotency key', async () => {
+  it('prevents duplicate provider delivery by reusing the same stable provider idempotency key', async () => {
     const send = vi.fn().mockResolvedValue({ data: { id: 'resend-manual-1' } });
     const result = await sendPermissionedMarketingMessage({
       permissionStatus: 'admin_authorized', adminAuthorized: true,
@@ -314,7 +477,16 @@ describe('permissioned Resend transport', () => {
       code: 'MANUAL_MARKETING_NOT_CONFIGURED',
       deliveryIssues: ['Resend API key'],
     }));
-    expect(deliveryStatus(withoutKey)).toEqual({ deliveryReady: false, deliveryIssues: ['Resend API key'] });
+    expect(deliveryStatus(withoutKey)).toEqual({ deliveryReady: false, deliveryIssues: ['Resend API key'], manualSendEnabled: true });
+  });
+
+  it('requires explicit manual-send opt-in while allowing an intentionally enabled deploy preview', () => {
+    expect(deliveryStatus({ ...deliveryEnvironment, OUTBOUND_MANUAL_SEND_ENABLED: '' })).toEqual({
+      deliveryReady: false, deliveryIssues: ['manual-send opt-in'], manualSendEnabled: false,
+    });
+    expect(deliveryStatus({
+      ...deliveryEnvironment, CONTEXT: 'deploy-preview', DEPLOY_PRIME_URL: 'https://preview.example',
+    })).toMatchObject({ deliveryReady: true, manualSendEnabled: true });
   });
 
   it('can reuse the existing site Resend key without weakening admin authorization checks', () => {
@@ -348,10 +520,10 @@ describe('permissioned Resend transport', () => {
 describe('manual lead review endpoint', () => {
   it('uses the Send click as authorization, verifies the email, sends once, and commits it', async () => {
     const claimed = {
-      prospect_id: PROSPECT_ID, contact_id: CONTACT_ID, message_id: MESSAGE_ID,
+      prospect_id: PROSPECT_ID, contact_id: CONTACT_ID, message_id: MESSAGE_ID, message_contact_id: CONTACT_ID,
       send_key: stableManualSendKey(PROSPECT_ID), send_attempt_count: 1,
       business_name: 'Future Expo Group', prospect_status: 'ready_for_outreach',
-      email: 'events@futureexpo.example', campaign_id: null,
+      email: 'info@futureexpo.example', campaign_id: null,
       subject: 'Future Expo Group: banner planning for your exhibitor expo',
       body_text: 'Hi Taylor,\n\nI saw Future Expo Group has an upcoming exhibitor expo.\n\nBest,\nBrandon\nBanners On The Fly',
       generation_status: 'generated', evidence_validation_status: 'passed',
@@ -379,10 +551,10 @@ describe('manual lead review endpoint', () => {
       prospect_id: PROSPECT_ID, review_status: 'approved', permission_status: 'admin_authorized', send_state: 'not_sent',
     });
     const assessEmail = vi.fn().mockResolvedValue({
-      email: 'events@futureexpo.example', emailNormalized: 'events@futureexpo.example',
-      syntaxValid: true, isRoleAddress: false, isFreeMailbox: false, domainMatches: true,
+      email: 'info@futureexpo.example', emailNormalized: 'info@futureexpo.example',
+      syntaxValid: true, isRoleAddress: true, isFreeMailbox: false, domainMatches: true,
       mxStatus: 'present', mxCheckedAt: '2026-08-10T12:00:00.000Z',
-      verificationStatus: 'valid', verificationReason: 'Syntax and MX are valid.', contactQualityScore: 100,
+      verificationStatus: 'risky', verificationReason: 'Role mailbox with syntax and MX confirmed.', contactQualityScore: 85,
     });
     const claimManualReviewSend = vi.fn().mockResolvedValue(claimed);
     const mockupContentHash = 'f'.repeat(64);
@@ -394,7 +566,7 @@ describe('manual lead review endpoint', () => {
         markManualReviewSent: markSent, markManualReviewFailed: vi.fn(), appendAudit,
         authorizeManualSend,
         loadManualReviewContact: vi.fn().mockResolvedValue({
-          id: CONTACT_ID, email: 'events@futureexpo.example', canonical_domain: 'futureexpo.example',
+          id: CONTACT_ID, email: 'info@futureexpo.example', canonical_domain: 'futureexpo.example',
         }),
         assessEmail, saveManualContactAssessment: vi.fn().mockResolvedValue({ id: CONTACT_ID }),
         prepareCompanyMockup: vi.fn().mockResolvedValue({
@@ -402,6 +574,10 @@ describe('manual lead review endpoint', () => {
           buffer: Buffer.from('rendered-company-banner'),
           qualityLevel: 'logo_and_product',
           compositionAudit: { passed: true, sourceVisibleFraction: 1, noClipGuaranteed: true },
+          blobBindingAudit: {
+            passed: true, strongReadBackVerified: true,
+            expectedContentHash: mockupContentHash, persistedContentHash: mockupContentHash,
+          },
           plan: { contentHash: mockupContentHash, messageContentHash: 'c'.repeat(64) },
           sendReady: true,
         }),
@@ -415,8 +591,94 @@ describe('manual lead review endpoint', () => {
     expect(assessEmail).toHaveBeenCalledOnce();
     expect(claimManualReviewSend).toHaveBeenCalledWith({}, expect.objectContaining({ mockupContentHash }));
     expect(markSent).toHaveBeenCalledWith({}, expect.objectContaining({ providerMessageId: 'resend-manual-2' }));
-    expect(appendAudit).toHaveBeenCalledWith({}, expect.objectContaining({ action: 'manual_lead.send_authorized' }));
+    expect(appendAudit).toHaveBeenCalledWith({}, expect.objectContaining({
+      action: 'manual_lead.send_authorized',
+      metadata: expect.objectContaining({ manualRoleInbox: true, emailMxStatus: 'present' }),
+    }));
     expect(appendAudit).toHaveBeenCalledWith({}, expect.objectContaining({ action: 'manual_lead.email_sent' }));
+  });
+
+  it('fails closed before transport if a claimed contact B is paired with contact A’s draft', async () => {
+    const sendPermissionedMarketingMessage = vi.fn();
+    const markManualReviewFailed = vi.fn().mockResolvedValue({ prospect_id: PROSPECT_ID });
+    const handler = createManualReviewHandler({
+      env: deliveryEnvironment,
+      dependencies: {
+        createSql: () => ({}),
+        appendAudit: vi.fn().mockResolvedValue({}),
+        authorizeManualSend: vi.fn().mockResolvedValue({ prospect_id: PROSPECT_ID }),
+        loadManualReviewContact: vi.fn().mockResolvedValue({
+          id: CONTACT_B_ID, email: 'casey@futureexpo.example', canonical_domain: 'futureexpo.example',
+        }),
+        assessEmail: vi.fn().mockResolvedValue({
+          email: 'casey@futureexpo.example', emailNormalized: 'casey@futureexpo.example',
+          syntaxValid: true, isRoleAddress: false, isFreeMailbox: false, domainMatches: true,
+          mxStatus: 'present', verificationStatus: 'valid', contactQualityScore: 100,
+        }),
+        saveManualContactAssessment: vi.fn().mockResolvedValue({ id: CONTACT_B_ID }),
+        prepareCompanyMockup: vi.fn().mockResolvedValue({
+          prospectId: PROSPECT_ID, sendReady: true, qualityLevel: 'logo_and_product',
+          compositionAudit: { passed: true, noClipGuaranteed: true },
+          blobBindingAudit: { passed: true, strongReadBackVerified: true, expectedContentHash: 'f'.repeat(64), persistedContentHash: 'f'.repeat(64) },
+          plan: { contentHash: 'f'.repeat(64), messageContentHash: 'c'.repeat(64) },
+        }),
+        claimManualReviewSend: vi.fn().mockResolvedValue({
+          prospect_id: PROSPECT_ID, contact_id: CONTACT_B_ID, message_id: MESSAGE_ID,
+          message_contact_id: CONTACT_ID, send_key: stableManualSendKey(PROSPECT_ID),
+          business_name: 'Future Expo Group', email: 'casey@futureexpo.example',
+          subject: 'Future Expo Group: banner planning', body_text: 'Hi Taylor,',
+        }),
+        markManualReviewFailed,
+        saveUnsubscribeToken: vi.fn(),
+        attachmentFromMockup: vi.fn(),
+        sendPermissionedMarketingMessage,
+      },
+    });
+
+    const response = await handler(adminEvent('POST', { prospectId: PROSPECT_ID }));
+    expect(response.statusCode).toBe(409);
+    expect(JSON.parse(response.body)).toMatchObject({ error: 'MANUAL_MARKETING_CONTACT_MISMATCH' });
+    expect(sendPermissionedMarketingMessage).not.toHaveBeenCalled();
+    expect(markManualReviewFailed).toHaveBeenCalledWith({}, expect.objectContaining({
+      prospectId: PROSPECT_ID, sendKey: stableManualSendKey(PROSPECT_ID),
+      errorCode: 'MANUAL_MARKETING_CONTACT_MISMATCH',
+    }));
+  });
+
+  it('rejects a non-customer-facing role alias before authorization, mockup work, claim, or transport', async () => {
+    const authorizeManualSend = vi.fn();
+    const prepareCompanyMockup = vi.fn();
+    const claimManualReviewSend = vi.fn();
+    const sendPermissionedMarketingMessage = vi.fn();
+    const saveManualContactAssessment = vi.fn().mockResolvedValue({ id: CONTACT_ID });
+    const handler = createManualReviewHandler({
+      env: deliveryEnvironment,
+      dependencies: {
+        createSql: () => ({}),
+        loadManualReviewContact: vi.fn().mockResolvedValue({
+          id: CONTACT_ID, email: 'admin@futureexpo.example', canonical_domain: 'futureexpo.example',
+        }),
+        assessEmail: vi.fn().mockResolvedValue({
+          email: 'admin@futureexpo.example', emailNormalized: 'admin@futureexpo.example',
+          syntaxValid: true, isRoleAddress: true, isFreeMailbox: false, domainMatches: true,
+          mxStatus: 'present', mxCheckedAt: '2026-08-10T12:00:00.000Z',
+          verificationStatus: 'risky', contactQualityScore: 85,
+        }),
+        saveManualContactAssessment,
+        authorizeManualSend,
+        prepareCompanyMockup,
+        claimManualReviewSend,
+        sendPermissionedMarketingMessage,
+      },
+    });
+    const response = await handler(adminEvent('POST', { prospectId: PROSPECT_ID }));
+    expect(response.statusCode).toBe(409);
+    expect(JSON.parse(response.body)).toMatchObject({ error: 'MANUAL_MARKETING_NOT_ELIGIBLE' });
+    expect(saveManualContactAssessment).toHaveBeenCalledOnce();
+    expect(authorizeManualSend).not.toHaveBeenCalled();
+    expect(prepareCompanyMockup).not.toHaveBeenCalled();
+    expect(claimManualReviewSend).not.toHaveBeenCalled();
+    expect(sendPermissionedMarketingMessage).not.toHaveBeenCalled();
   });
 
   it('fails closed before transport when only the name-only fallback exists', async () => {

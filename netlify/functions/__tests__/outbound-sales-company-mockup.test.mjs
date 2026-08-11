@@ -1,14 +1,19 @@
 import { describe, expect, it, vi } from 'vitest';
 import sharp from 'sharp';
+import serverAuth from '../_shared/server-auth.cjs';
 import researchModule from '../_shared/outbound-sales/research.cjs';
 import mockupModule from '../_shared/outbound-sales/company-mockup.cjs';
 import mockupRepository from '../_shared/outbound-sales/company-mockup-repository.cjs';
+import mockupBatchModule from '../_shared/outbound-sales/company-mockup-batch-handler.cjs';
+import mockupHandlerModule from '../_shared/outbound-sales/company-mockup-handler.cjs';
 import mockupHandlerSource from '../_shared/outbound-sales/company-mockup-handler.cjs?raw';
+import leadReviewSource from '../../../src/pages/admin/sales/SalesLeadReview.tsx?raw';
 import migration31 from '../../../migrations/031_outbound_company_banner_mockups.sql?raw';
 import rollback31 from '../../../migrations/031_outbound_company_banner_mockups.rollback.sql?raw';
 
 const PROSPECT_ID = '11111111-1111-4111-8111-111111111111';
 const MESSAGE_ID = '33333333-3333-4333-8333-333333333333';
+const { createSessionToken } = serverAuth;
 
 function candidateFixture() {
   return {
@@ -61,6 +66,14 @@ async function imageFixtures() {
   return { scene, logo, product };
 }
 
+function strongMemoryStore(initial = null) {
+  let persisted = initial ? Buffer.from(initial) : null;
+  return {
+    get: vi.fn().mockImplementation(async () => persisted),
+    set: vi.fn().mockImplementation(async (_key, value) => { persisted = Buffer.from(value); }),
+  };
+}
+
 describe('company-brand asset extraction', () => {
   it('ranks exact logo metadata and real product imagery without inventing brand assets', () => {
     const html = `
@@ -73,7 +86,16 @@ describe('company-brand asset extraction', () => {
     const assets = researchModule.extractBrandAssets(html, 'https://amberjack.example/');
     expect(assets.logoCandidates.map((asset) => asset.url)).toContain('https://cdn.amberjack.example/logo.png');
     expect(assets.logoCandidates.map((asset) => asset.url)).toContain('https://amberjack.example/assets/amberjack-logo.webp');
-    expect(assets.imageCandidates[0].url).toBe('https://amberjack.example/products/featured-shoe.jpg');
+    expect(assets.imageCandidates[0]).toMatchObject({
+      url: 'https://amberjack.example/products/loafer.jpg',
+      assetRole: 'product_photo',
+      cleanProductEvidence: true,
+      likelyPrecomposed: false,
+    });
+    expect(assets.imageCandidates.find((asset) => asset.url.endsWith('/featured-shoe.jpg'))).toMatchObject({
+      assetRole: 'campaign_art',
+      likelyPrecomposed: true,
+    });
     expect(assets.imageCandidates.map((asset) => asset.url)).not.toContain('https://amberjack.example/icons/cart.png');
   });
 
@@ -112,6 +134,63 @@ describe('company-brand asset extraction', () => {
       'https://evolutionsbrands.example/',
       'Evolutions Brands (BED|STÜ)',
     )).toEqual(['https://www.bedstu.example/']);
+  });
+
+  it('follows a verified sub-brand into its product catalog and ranks a clean product photo above BED|STÜ-style campaign art', async () => {
+    const candidate = candidateFixture();
+    candidate.prospect.businessName = 'Evolutions Brands (BED|STÜ)';
+    candidate.prospect.websiteUrl = 'https://evolutionsbrands.example/';
+    candidate.research.sourceUrls = ['https://evolutionsbrands.example/'];
+    candidate.research.extractedFacts.brandAssets = { logoCandidates: [], imageCandidates: [] };
+    candidate.research.extractedFacts.brandProfile = { themeColors: [], taglineCandidates: [], offeringCandidates: [] };
+    const fetchPage = vi.fn().mockImplementation(async (url) => {
+      if (url === 'https://evolutionsbrands.example/') return {
+        finalUrl: url,
+        body: '<a href="https://www.bedstu.example/"><img alt="BED STÜ official website" src="/bedstu-mark.png"></a>',
+      };
+      if (url === 'https://www.bedstu.example/') return {
+        finalUrl: url,
+        body: `
+          <meta property="og:image" content="/campaign/bedstu-fall-wordmark.jpg">
+          <img class="hero campaign-banner" src="/campaign/bedstu-fall-wordmark.jpg" alt="BED STÜ fall footwear campaign" width="1400" height="700">
+          <a href="/collections/boots">Shop boots</a>
+        `,
+      };
+      if (url === 'https://www.bedstu.example/collections/boots') return {
+        finalUrl: url,
+        body: '<img class="product-card__image" src="/products/protege-boot.jpg" alt="BED STÜ Protege leather boot" width="1000" height="900">',
+      };
+      throw new Error(`Unexpected page ${url}`);
+    });
+    const assets = await mockupModule.discoverAssetCandidates(candidate, { fetchPage });
+    expect(fetchPage).toHaveBeenCalledTimes(3);
+    expect(assets.images[0]).toMatchObject({
+      url: 'https://www.bedstu.example/products/protege-boot.jpg',
+      sourceUrl: 'https://www.bedstu.example/collections/boots',
+      assetRole: 'product_photo',
+      cleanProductEvidence: true,
+      likelyPrecomposed: false,
+    });
+    const campaign = assets.images.find((asset) => asset.url.includes('bedstu-fall-wordmark'));
+    expect(campaign).toMatchObject({ assetRole: 'campaign_art', likelyPrecomposed: true });
+    expect(mockupModule.productCandidateAudit(campaign)).toMatchObject({
+      passed: false, precomposedRisk: true, reason: 'precomposed_campaign_art',
+    });
+  });
+
+  it('merges duplicate social metadata with clean product markup instead of poisoning the actual product photo', () => {
+    const html = `
+      <meta property="og:image" content="/products/capri-boot.jpg">
+      <img class="product-card__image" src="/products/capri-boot.jpg" alt="Capri leather boot product photo" width="1200" height="1000">
+    `;
+    const assets = researchModule.extractBrandAssets(html, 'https://bedstu.example/collections/boots');
+    expect(assets.imageCandidates).toHaveLength(1);
+    expect(assets.imageCandidates[0]).toMatchObject({
+      origin: 'html_image', assetRole: 'product_photo', cleanProductEvidence: true, likelyPrecomposed: false,
+    });
+    expect(mockupModule.productCandidateAudit(assets.imageCandidates[0])).toMatchObject({
+      passed: true, sourceRole: 'product_collection', precomposedRisk: false,
+    });
   });
 
   it('refreshes legacy stored image candidates before applying the relevance gate', async () => {
@@ -211,6 +290,115 @@ describe('deterministic personalized banner renderer', () => {
     await expect(mockupModule.logoCardStyle({ buffer: darkWordmark }, sharp)).resolves.toMatchObject({ fill: '#ffffff' });
   });
 
+  it('rejects white theme chrome and darkens brand colors until all white copy has AAA contrast', async () => {
+    const palette = await mockupModule.resolveBrandPalette({
+      logo: null,
+      product: null,
+      profile: { themeColors: ['#ffffff', '#ffd8c7', '#18448d'] },
+    }, sharp);
+    expect(palette.primary).toBe('#18448d');
+    expect(palette.contrastAudit).toMatchObject({
+      passed: true,
+      minimumWhiteTextContrast: mockupModule.MIN_WHITE_TEXT_CONTRAST,
+    });
+    expect(mockupModule.whiteTextContrastRatio(palette.primary)).toBeGreaterThanOrEqual(7);
+    expect(mockupModule.whiteTextContrastRatio(palette.secondary)).toBeGreaterThanOrEqual(7);
+
+    const lightOnly = await mockupModule.resolveBrandPalette({
+      logo: null,
+      product: null,
+      profile: { themeColors: ['#ffb58f'] },
+    }, sharp);
+    expect(lightOnly.primary).not.toBe('#ffb58f');
+    expect(lightOnly.contrastAudit.passed).toBe(true);
+    expect(mockupModule.whiteTextContrastRatio(lightOnly.primary)).toBeGreaterThanOrEqual(7);
+  });
+
+  it('fails closed on precomposed campaign artwork even when it has a higher legacy score than a clean product photo', async () => {
+    const { product } = await imageFixtures();
+    const campaign = {
+      url: 'https://bedstu.example/campaign/bedstu-wordmark.jpg',
+      sourceUrl: 'https://bedstu.example/',
+      marker: 'hero campaign banner footwear product',
+      origin: 'html_image',
+      likelyPrecomposed: true,
+      score: 900,
+    };
+    const cleanProduct = {
+      url: 'https://bedstu.example/products/protege-boot.jpg',
+      sourceUrl: 'https://bedstu.example/products/protege-boot',
+      marker: 'product gallery image BED STÜ Protege leather boot',
+      origin: 'html_image',
+      likelyPrecomposed: false,
+      score: 80,
+    };
+    const fetchAsset = vi.fn().mockImplementation(async (url) => ({
+      finalUrl: url, contentType: 'image/jpeg', body: product,
+    }));
+    const selected = await mockupModule.fetchBestValid(
+      [campaign, cleanProduct], { fetchAsset }, sharp, 'product',
+      { panelWidth: 419, panelHeight: 320, padding: 14 },
+    );
+    expect(selected.asset.candidate.url).toBe(cleanProduct.url);
+    expect(selected.asset.selectionAudit).toMatchObject({
+      passed: true, assetRole: 'product_photo', sourceRole: 'product_detail',
+    });
+    expect(selected.attempts).toContainEqual(expect.objectContaining({
+      stage: 'product_selection', code: 'MOCKUP_ASSET_PRECOMPOSED_UNSAFE',
+    }));
+    expect(fetchAsset).toHaveBeenCalledTimes(1);
+
+    const blocked = await mockupModule.fetchBestValid(
+      [campaign], { fetchAsset }, sharp, 'product',
+      { panelWidth: 419, panelHeight: 320, padding: 14 },
+    );
+    expect(blocked.asset).toBeNull();
+  });
+
+  it('audits full-containment for both logos and product imagery without raster upscaling', () => {
+    expect(mockupModule.logoCompositionAudit({
+      width: 400, height: 80, isVector: false, qualityAudit: { passed: true },
+    }, { maxWidth: 330, maxHeight: 86 })).toMatchObject({
+      passed: true, displayWidth: 330, displayHeight: 66,
+      sourceVisibleFraction: 1, noClipGuaranteed: true, noRasterUpscaleGuaranteed: true,
+    });
+    expect(mockupModule.logoCompositionAudit({
+      width: 100, height: 24, isVector: false, qualityAudit: { passed: true },
+    })).toMatchObject({ passed: false, sourceVisibleFraction: 1, noClipGuaranteed: true });
+    expect(mockupModule.productCompositionAudit({
+      width: 300, height: 300, selectionAudit: { passed: true, assetRole: 'product_photo' },
+    })).toMatchObject({
+      passed: true, displayWidth: 292, displayHeight: 292, enlargementRatio: 1,
+      sourceVisibleFraction: 1, noClipGuaranteed: true, noUpscaleGuaranteed: true,
+      selectionPassed: true, sourceClass: 'product_photo',
+    });
+  });
+
+  it('selects deterministic presentation layouts for cutouts, portrait products, and wide lifestyle or service imagery', () => {
+    const balanced = { width: 900, height: 700, hasAlpha: false, selectionAudit: { assetRole: 'product_photo' } };
+    const portrait = { width: 600, height: 900, hasAlpha: false, selectionAudit: { assetRole: 'product_photo' } };
+    const cutout = { width: 900, height: 700, hasAlpha: true, selectionAudit: { assetRole: 'product_photo' } };
+    const lifestyle = { width: 1400, height: 700, hasAlpha: false, selectionAudit: { assetRole: 'product_photo' } };
+    const service = { width: 900, height: 700, hasAlpha: false, selectionAudit: { assetRole: 'service_photo' } };
+    expect(mockupModule.selectMockupLayoutId(balanced)).toBe('balanced_split');
+    expect(mockupModule.selectMockupLayoutId(portrait)).toBe('portrait_feature');
+    expect(mockupModule.selectMockupLayoutId(cutout)).toBe('cutout_spotlight');
+    expect(mockupModule.selectMockupLayoutId(lifestyle)).toBe('lifestyle_split');
+    expect(mockupModule.selectMockupLayoutId(service)).toBe('lifestyle_split');
+
+    const geometries = [balanced, portrait, cutout, lifestyle]
+      .map((asset) => mockupModule.mockupLayoutGeometry(asset, 941, 320));
+    expect(new Set(geometries.map((geometry) => geometry.layoutId)).size).toBe(4);
+    geometries.forEach((geometry) => expect(geometry).toMatchObject({
+      passed: true, noOverlapGuaranteed: true, artworkWidth: 941, artworkHeight: 320,
+    }));
+    expect(geometries.find((geometry) => geometry.layoutId === 'portrait_feature')).toMatchObject({
+      productSide: 'left', productLeft: 0,
+    });
+    geometries.filter((geometry) => geometry.layoutId !== 'portrait_feature')
+      .forEach((geometry) => expect(geometry.productSide).toBe('right'));
+  });
+
   it('renders a valid 1200x675 email-safe JPEG with exact company assets', async () => {
     const { scene, logo, product } = await imageFixtures();
     const candidate = candidateFixture();
@@ -284,7 +472,7 @@ describe('deterministic personalized banner renderer', () => {
     })).toBe(false);
   });
 
-  it('uses the exact selected-scene panel audit instead of a generic preflight size', async () => {
+  it('uses the selected-scene adaptive lifestyle panel for wide imagery', async () => {
     const { scene, logo } = await imageFixtures();
     const wideCampaign = await sharp({
       create: { width: 1400, height: 400, channels: 3, background: '#24405f' },
@@ -303,8 +491,11 @@ describe('deterministic personalized banner renderer', () => {
     }, {
       sharp, sceneBuffers: { trade_show: scene, storefront: scene, community_event: scene },
     });
+    expect(result).toMatchObject({ layoutId: 'lifestyle_split' });
     expect(result.compositionAudit).toMatchObject({
-      passed: false, panelWidth: 419, panelHeight: 320, sourceVisibleFraction: 1, noClipGuaranteed: true,
+      passed: true, panelWidth: 461, panelHeight: 320, sourceVisibleFraction: 1,
+      noClipGuaranteed: true, noUpscaleGuaranteed: true, layoutId: 'lifestyle_split',
+      layoutNoOverlapGuaranteed: true,
     });
   });
 
@@ -324,8 +515,9 @@ describe('deterministic personalized banner renderer', () => {
     ];
     const { scene, logo, product } = await imageFixtures();
     const wide = await sharp({ create: { width: 1400, height: 400, channels: 3, background: '#24405f' } }).png().toBuffer();
+    const store = strongMemoryStore();
     const result = await mockupModule.prepareCompanyMockup({
-      sql: vi.fn(), candidate, sharp,
+      sql: vi.fn(), candidate, sharp, store,
       dependencies: {
         saveCompanyMockup: vi.fn().mockImplementation(async (_sql, value) => ({ ...value, id: 'mockup-scene-safe' })),
         fetchAsset: vi.fn().mockImplementation(async (url) => ({
@@ -361,7 +553,7 @@ describe('deterministic personalized banner renderer', () => {
   it('prepares and caches a full brand match while retaining a name-only fallback path', async () => {
     const candidate = candidateFixture();
     const { scene, logo, product } = await imageFixtures();
-    const store = { get: vi.fn().mockResolvedValue(null), set: vi.fn().mockResolvedValue(undefined) };
+    const store = strongMemoryStore();
     const saveCompanyMockup = vi.fn().mockImplementation(async (_sql, value) => ({ ...value, id: 'mockup-1' }));
     const result = await mockupModule.prepareCompanyMockup({
       sql: vi.fn(),
@@ -387,7 +579,30 @@ describe('deterministic personalized banner renderer', () => {
       status: 'ready', qualityLevel: 'logo_and_product', logoUrl: 'https://amberjack.example/logo.png',
       productImageUrl: 'https://amberjack.example/shoe.jpg',
       generationMetadata: expect.objectContaining({
-        compositionAudit: expect.objectContaining({ passed: true, sourceVisibleFraction: 1, noClipGuaranteed: true }),
+        compositionAudit: expect.objectContaining({
+          passed: true, sourceVisibleFraction: 1, noClipGuaranteed: true, noUpscaleGuaranteed: true,
+        }),
+        logoCompositionAudit: expect.objectContaining({
+          passed: true, sourceVisibleFraction: 1, noClipGuaranteed: true, noRasterUpscaleGuaranteed: true,
+        }),
+        productSelectionAudit: expect.objectContaining({
+          passed: true, assetRole: 'product_photo', sourceVerified: true,
+        }),
+        layoutId: 'balanced_split',
+        layoutAudit: expect.objectContaining({
+          passed: true, layoutId: 'balanced_split', noOverlapGuaranteed: true,
+        }),
+        paletteAudit: expect.objectContaining({
+          passed: true, minimumWhiteTextContrast: 7,
+          primaryWhiteContrast: expect.any(Number), secondaryWhiteContrast: expect.any(Number),
+        }),
+        blobBindingAudit: expect.objectContaining({
+          passed: true, strongReadBackVerified: true,
+          expectedContentHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+          persistedContentHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+        }),
+        logoQualityAudit: expect.objectContaining({ passed: true }),
+        productQualityAudit: expect.objectContaining({ passed: true }),
       }),
     }));
     const attachment = mockupModule.attachmentFromMockup(result, candidate.prospect.businessName);
@@ -396,10 +611,50 @@ describe('deterministic personalized banner renderer', () => {
     expect(mockupModule.qualityLevel(null, null)).toBe('name_only');
   });
 
+  it('fails closed when strong Blob read-back does not match the exact preview bytes', async () => {
+    const candidate = candidateFixture();
+    const { scene, logo, product } = await imageFixtures();
+    const saveCompanyMockup = vi.fn().mockImplementation(async (_sql, value) => ({ ...value, id: 'mockup-unbound' }));
+    const store = {
+      set: vi.fn().mockResolvedValue(undefined),
+      get: vi.fn().mockResolvedValue(Buffer.from('different bytes than the rendered preview')),
+    };
+    const result = await mockupModule.prepareCompanyMockup({
+      sql: vi.fn(), candidate, store, sharp,
+      dependencies: {
+        saveCompanyMockup,
+        fetchAsset: vi.fn().mockImplementation(async (url) => ({
+          finalUrl: url,
+          contentType: url.endsWith('.png') ? 'image/png' : 'image/jpeg',
+          body: url.endsWith('.png') ? logo : product,
+        })),
+        sceneBuffers: { trade_show: scene, storefront: scene, community_event: scene },
+      },
+    });
+    expect(result).toMatchObject({
+      qualityLevel: 'logo_and_product', sendReady: false, cached: false,
+      row: { status: 'fallback', blobKey: null, lastErrorCode: 'MOCKUP_BLOB_READBACK_MISMATCH' },
+    });
+    expect(saveCompanyMockup).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      status: 'fallback', blobKey: null, lastErrorCode: 'MOCKUP_BLOB_READBACK_MISMATCH',
+      generationMetadata: expect.objectContaining({
+        blobBindingAudit: expect.objectContaining({
+          passed: false, strongReadBackVerified: false,
+          expectedContentHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+          persistedContentHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+        }),
+      }),
+    }));
+    expect(result.diagnostics).toContainEqual({
+      stage: 'blob_persistence', hostname: null, code: 'MOCKUP_BLOB_READBACK_MISMATCH',
+    });
+  });
+
   it('loads the exact audited preview blob for Send without refetching company websites', async () => {
     const candidate = candidateFixture();
     const { scene } = await imageFixtures();
     const contentHash = 'a'.repeat(64);
+    const blobContentHash = mockupModule.sha256(scene);
     candidate.mockup = {
       id: 'mockup-ready', messageId: MESSAGE_ID, status: 'ready', sceneId: 'trade_show', renderVersion: mockupModule.RENDER_VERSION,
       contentHash, blobKey: `company-banners/${PROSPECT_ID}/${contentHash}.jpg`, mimeType: 'image/jpeg',
@@ -408,7 +663,26 @@ describe('deterministic personalized banner renderer', () => {
       qualityLevel: 'logo_and_product', sourceUrls: ['https://amberjack.example'],
       generationMetadata: {
         messageContentHash: candidate.message.contentHash,
-        compositionAudit: { passed: true, sourceVisibleFraction: 1, noClipGuaranteed: true },
+        compositionAudit: {
+          passed: true, sourceVisibleFraction: 1, noClipGuaranteed: true, noUpscaleGuaranteed: true,
+        },
+        logoCompositionAudit: {
+          passed: true, sourceVisibleFraction: 1, noClipGuaranteed: true, noRasterUpscaleGuaranteed: true,
+        },
+        productSelectionAudit: {
+          passed: true, assetRole: 'product_photo', sourceRole: 'product_detail', sourceVerified: true,
+        },
+        layoutId: 'balanced_split',
+        layoutAudit: { passed: true, layoutId: 'balanced_split', noOverlapGuaranteed: true },
+        paletteAudit: {
+          passed: true, minimumWhiteTextContrast: 7,
+          primaryWhiteContrast: 9, secondaryWhiteContrast: 9,
+        },
+        blobBindingAudit: {
+          passed: true, strongReadBackVerified: true,
+          blobKey: `company-banners/${PROSPECT_ID}/${contentHash}.jpg`,
+          expectedContentHash: blobContentHash, persistedContentHash: blobContentHash,
+        },
       },
     };
     const fetchPage = vi.fn();
@@ -420,11 +694,30 @@ describe('deterministic personalized banner renderer', () => {
     });
     expect(result).toMatchObject({
       prospectId: PROSPECT_ID, cached: true, sendReady: true, qualityLevel: 'logo_and_product',
-      compositionAudit: { passed: true, noClipGuaranteed: true },
+      compositionAudit: { passed: true, noClipGuaranteed: true }, layoutId: 'balanced_split',
     });
     expect(store.get).toHaveBeenCalledWith(candidate.mockup.blobKey, { type: 'arrayBuffer' });
     expect(fetchPage).not.toHaveBeenCalled();
     expect(fetchAsset).not.toHaveBeenCalled();
+  });
+
+  it('refuses to reuse a legacy ready image that lacks clean-source and no-upscale audits', async () => {
+    const candidate = candidateFixture();
+    const contentHash = 'c'.repeat(64);
+    candidate.mockup = {
+      id: 'mockup-legacy-ready', messageId: MESSAGE_ID, status: 'ready', sceneId: 'trade_show',
+      renderVersion: mockupModule.RENDER_VERSION, contentHash,
+      blobKey: `company-banners/${PROSPECT_ID}/${contentHash}.jpg`, mimeType: 'image/jpeg',
+      width: 1200, height: 675, logoUrl: 'https://amberjack.example/logo.png',
+      productImageUrl: 'https://amberjack.example/campaign/hero.jpg', qualityLevel: 'logo_and_product',
+      generationMetadata: {
+        messageContentHash: candidate.message.contentHash,
+        compositionAudit: { passed: true, sourceVisibleFraction: 1, noClipGuaranteed: true },
+      },
+    };
+    const store = { get: vi.fn() };
+    await expect(mockupModule.loadVerifiedStoredMockup(candidate, store, sharp)).resolves.toBeNull();
+    expect(store.get).not.toHaveBeenCalled();
   });
 
   it('regenerates instead of sending a corrupt or wrong-dimension cached preview', async () => {
@@ -437,6 +730,7 @@ describe('deterministic personalized banner renderer', () => {
       pageUrls: candidate.research.sourceUrls,
     };
     const plan = mockupModule.planFor(candidate, assets);
+    const expectedStoredHash = mockupModule.sha256(Buffer.from('previous exact preview bytes'));
     candidate.mockup = {
       id: 'mockup-corrupt', messageId: MESSAGE_ID, status: 'ready', sceneId: 'trade_show',
       renderVersion: mockupModule.RENDER_VERSION, contentHash: plan.contentHash,
@@ -445,11 +739,28 @@ describe('deterministic personalized banner renderer', () => {
       eventLabel: 'Atlanta Shoe Market', qualityLevel: 'logo_and_product', sourceUrls: assets.pageUrls,
       generationMetadata: {
         messageContentHash: candidate.message.contentHash,
-        compositionAudit: { passed: true, sourceVisibleFraction: 1, noClipGuaranteed: true },
+        compositionAudit: {
+          passed: true, sourceVisibleFraction: 1, noClipGuaranteed: true, noUpscaleGuaranteed: true,
+        },
+        logoCompositionAudit: {
+          passed: true, sourceVisibleFraction: 1, noClipGuaranteed: true, noRasterUpscaleGuaranteed: true,
+        },
+        productSelectionAudit: { passed: true, assetRole: 'product_photo', sourceVerified: true },
+        layoutId: 'balanced_split',
+        layoutAudit: { passed: true, layoutId: 'balanced_split', noOverlapGuaranteed: true },
+        paletteAudit: {
+          passed: true, minimumWhiteTextContrast: 7,
+          primaryWhiteContrast: 9, secondaryWhiteContrast: 9,
+        },
+        blobBindingAudit: {
+          passed: true, strongReadBackVerified: true,
+          blobKey: `company-banners/${PROSPECT_ID}/${plan.contentHash}.jpg`,
+          expectedContentHash: expectedStoredHash, persistedContentHash: expectedStoredHash,
+        },
       },
     };
     const wrongSize = await sharp({ create: { width: 1199, height: 675, channels: 3, background: '#123456' } }).jpeg().toBuffer();
-    const store = { get: vi.fn().mockResolvedValue(wrongSize), set: vi.fn().mockResolvedValue(undefined) };
+    const store = strongMemoryStore(wrongSize);
     const result = await mockupModule.prepareCompanyMockup({
       sql: vi.fn(), candidate, store, sharp, preferCachedReady: true,
       dependencies: {
@@ -465,6 +776,55 @@ describe('deterministic personalized banner renderer', () => {
     expect(result.sendReady).toBe(true);
     expect(await sharp(result.buffer).metadata()).toMatchObject({ width: 1200, height: 675, format: 'jpeg' });
     expect(store.set).toHaveBeenCalled();
+  });
+
+  it('repairs a matching loose cache entry that lacks immutable Blob binding instead of reselecting it forever', async () => {
+    const candidate = candidateFixture();
+    const { scene, logo, product } = await imageFixtures();
+    const assets = {
+      logo: { buffer: logo, finalUrl: 'https://amberjack.example/logo.png' },
+      product: { buffer: product, finalUrl: 'https://amberjack.example/shoe.jpg' },
+      profile: candidate.research.extractedFacts.brandProfile,
+      pageUrls: candidate.research.sourceUrls,
+    };
+    const plan = mockupModule.planFor(candidate, assets);
+    candidate.mockup = {
+      id: 'mockup-unbound-cache', messageId: MESSAGE_ID, status: 'ready', sceneId: 'trade_show',
+      renderVersion: mockupModule.RENDER_VERSION, contentHash: plan.contentHash,
+      blobKey: `company-banners/${PROSPECT_ID}/${plan.contentHash}.jpg`, mimeType: 'image/jpeg',
+      width: 1200, height: 675, logoUrl: assets.logo.finalUrl, productImageUrl: assets.product.finalUrl,
+      qualityLevel: 'logo_and_product', sourceUrls: assets.pageUrls,
+      generationMetadata: {
+        messageContentHash: candidate.message.contentHash,
+        compositionAudit: { passed: true, noClipGuaranteed: true, noUpscaleGuaranteed: true },
+        productSelectionAudit: { passed: true, assetRole: 'product_photo', sourceVerified: true },
+        logoCompositionAudit: { passed: true, noClipGuaranteed: true, noRasterUpscaleGuaranteed: true },
+        layoutId: 'balanced_split',
+        layoutAudit: { passed: true, layoutId: 'balanced_split', noOverlapGuaranteed: true },
+        paletteAudit: { passed: true, primaryWhiteContrast: 9, secondaryWhiteContrast: 9 },
+      },
+    };
+    const store = strongMemoryStore(scene);
+    const saveCompanyMockup = vi.fn().mockImplementation(async (_sql, value) => ({ ...value, id: 'mockup-repaired' }));
+    const result = await mockupModule.prepareCompanyMockup({
+      sql: vi.fn(), candidate, store, sharp, preferCachedReady: false,
+      dependencies: {
+        saveCompanyMockup,
+        fetchAsset: vi.fn().mockImplementation(async (url) => ({
+          finalUrl: url, contentType: url.endsWith('.png') ? 'image/png' : 'image/jpeg',
+          body: url.endsWith('.png') ? logo : product,
+        })),
+        sceneBuffers: { trade_show: scene, storefront: scene, community_event: scene },
+      },
+    });
+    expect(result).toMatchObject({ cached: false, sendReady: true, row: { status: 'ready' } });
+    expect(store.set).toHaveBeenCalledOnce();
+    expect(saveCompanyMockup).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      status: 'ready',
+      generationMetadata: expect.objectContaining({
+        blobBindingAudit: expect.objectContaining({ passed: true, strongReadBackVerified: true }),
+      }),
+    }));
   });
 
   it('rejects tiny or flat assets and renders a clean fallback instead of mailing a poor image', async () => {
@@ -502,12 +862,211 @@ describe('company mockup migration isolation', () => {
   it('requeues every incomplete or composition-blocked mockup for a safe rebuild', async () => {
     const sql = vi.fn().mockResolvedValue([]);
     await mockupRepository.listCompanyMockupCandidates(sql, { limit: 70, renderVersion: mockupModule.RENDER_VERSION });
-    expect(sql.mock.calls[0][0]).toContain("mockup.status <> 'ready'");
-    expect(sql.mock.calls[0][0]).toContain("mockup.quality_level IS DISTINCT FROM 'logo_and_product'");
-    expect(sql.mock.calls[0][0]).toContain('"compositionAudit":{"passed":true,"noClipGuaranteed":true}');
-    expect(sql.mock.calls[0][0]).toContain("mockup.generation_metadata->>'messageContentHash' IS DISTINCT FROM message.content_hash");
-    expect(sql.mock.calls[0][0]).toContain('mockup.render_version IS DISTINCT FROM $3');
+    expect(sql.mock.calls[0][0]).toContain("mockup.status='ready'");
+    expect(sql.mock.calls[0][0]).toContain("mockup.quality_level='logo_and_product'");
+    expect(sql.mock.calls[0][0]).toContain('"compositionAudit":{"passed":true,"noClipGuaranteed":true,"noUpscaleGuaranteed":true}');
+    expect(sql.mock.calls[0][0]).toContain("mockup.generation_metadata->>'messageContentHash'=message.content_hash");
+    expect(sql.mock.calls[0][0]).toContain(`mockup.render_version='${mockupModule.RENDER_VERSION}'`);
+    expect(sql.mock.calls[0][0]).toContain('"logoCompositionAudit":{"passed":true,"noClipGuaranteed":true,"noRasterUpscaleGuaranteed":true}');
+    expect(sql.mock.calls[0][0]).toContain('"productSelectionAudit":{"passed":true,"sourceVerified":true}');
+    expect(sql.mock.calls[0][0]).toContain('"layoutAudit":{"passed":true,"noOverlapGuaranteed":true}');
+    expect(sql.mock.calls[0][0]).toContain('"paletteAudit":{"passed":true,"minimumWhiteTextContrast":7}');
+    expect(sql.mock.calls[0][0]).toContain("mockup.status IS DISTINCT FROM 'failed'");
+    expect(sql.mock.calls[0][0]).toContain("'attemptCount'");
+    expect(sql.mock.calls[0][0]).toContain("'nextRetryAt'");
+    expect(sql.mock.calls[0][0]).toContain('"blobBindingAudit":{"passed":true,"strongReadBackVerified":true}');
     expect(sql.mock.calls[0][0]).toContain('SELECT m.id,m.subject,m.body_text,m.content_hash');
+  });
+
+  it('retries failed mockups with durable exponential backoff, caps automatic attempts, and resets for new copy', () => {
+    const candidate = candidateFixture();
+    const first = mockupRepository.companyMockupRetryState(
+      candidate,
+      mockupModule.RENDER_VERSION,
+      '2026-08-11T15:00:00.000Z',
+    );
+    expect(first).toEqual({
+      attemptCount: 1, retryable: true, nextRetryAt: '2026-08-11T15:05:00.000Z',
+    });
+    candidate.mockup = {
+      generationMetadata: {
+        lastAttempt: {
+          attemptCount: 2,
+          messageContentHash: candidate.message.contentHash,
+          renderVersion: mockupModule.RENDER_VERSION,
+        },
+      },
+    };
+    expect(mockupRepository.companyMockupRetryState(
+      candidate,
+      mockupModule.RENDER_VERSION,
+      '2026-08-11T15:00:00.000Z',
+    )).toEqual({
+      attemptCount: 3, retryable: false, nextRetryAt: '2026-08-11T15:20:00.000Z',
+    });
+    candidate.message.contentHash = 'e'.repeat(64);
+    expect(mockupRepository.companyMockupRetryState(
+      candidate,
+      mockupModule.RENDER_VERSION,
+      '2026-08-11T15:00:00.000Z',
+    )).toEqual(first);
+  });
+
+  it('persists a sanitized per-lead batch failure instead of leaving the mockup missing forever', async () => {
+    const originalSecret = process.env.AUTH_SESSION_SECRET;
+    process.env.AUTH_SESSION_SECRET = 'company-mockup-batch-test-secret';
+    const candidate = candidateFixture();
+    const saveCompanyMockupFailure = vi.fn().mockResolvedValue({ status: 'failed' });
+    const handler = mockupBatchModule.createCompanyMockupBatchHandler({
+      env: { DATABASE_URL: 'postgres://test.invalid/database' },
+      dependencies: {
+        createSql: vi.fn().mockReturnValue(vi.fn()),
+        listCompanyMockupCandidates: vi.fn().mockResolvedValue([candidate]),
+        prepareCompanyMockup: vi.fn().mockRejectedValue(Object.assign(
+          new Error('private diagnostic detail'),
+          { code: 'website timeout? token=should-not-leak' },
+        )),
+        saveCompanyMockupFailure,
+        appendAudit: vi.fn().mockResolvedValue(null),
+      },
+    });
+    const token = createSessionToken({ id: 'admin-1', email: 'admin@bannersonthefly.com', is_admin: true });
+    try {
+      const response = await handler({
+        httpMethod: 'POST',
+        headers: {
+          authorization: `Bearer ${token}`,
+          origin: 'https://bannersonthefly.com',
+          host: 'bannersonthefly.com',
+          'x-forwarded-proto': 'https',
+        },
+        body: JSON.stringify({ limit: 1 }),
+      });
+      expect(response.statusCode).toBe(204);
+      expect(saveCompanyMockupFailure).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+        candidate,
+        renderVersion: mockupModule.RENDER_VERSION,
+        errorCode: 'COMPANY_MOCKUP_BUILD_FAILED',
+      }));
+    } finally {
+      if (originalSecret === undefined) delete process.env.AUTH_SESSION_SECRET;
+      else process.env.AUTH_SESSION_SECRET = originalSecret;
+    }
+  });
+
+  it('persists the same safe failure state when Build now fails', async () => {
+    const originalSecret = process.env.AUTH_SESSION_SECRET;
+    process.env.AUTH_SESSION_SECRET = 'company-mockup-build-test-secret';
+    const candidate = candidateFixture();
+    const saveCompanyMockupFailure = vi.fn().mockResolvedValue({ status: 'failed' });
+    const handler = mockupHandlerModule.createCompanyMockupHandler({
+      env: { DATABASE_URL: 'postgres://test.invalid/database' },
+      dependencies: {
+        createSql: vi.fn().mockReturnValue(vi.fn()),
+        loadCompanyMockupCandidate: vi.fn().mockResolvedValue(candidate),
+        prepareCompanyMockup: vi.fn().mockRejectedValue(Object.assign(
+          new Error('private diagnostic detail'),
+          { code: 'website timeout? token=should-not-leak' },
+        )),
+        saveCompanyMockupFailure,
+      },
+    });
+    const token = createSessionToken({ id: 'admin-1', email: 'admin@bannersonthefly.com', is_admin: true });
+    try {
+      const response = await handler({
+        httpMethod: 'POST',
+        headers: {
+          authorization: `Bearer ${token}`,
+          origin: 'https://bannersonthefly.com',
+          host: 'bannersonthefly.com',
+          'x-forwarded-proto': 'https',
+        },
+        body: JSON.stringify({ prospectId: PROSPECT_ID, force: true }),
+      });
+      expect(response.statusCode).toBe(500);
+      expect(saveCompanyMockupFailure).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+        candidate,
+        renderVersion: mockupModule.RENDER_VERSION,
+        errorCode: 'COMPANY_MOCKUP_BUILD_FAILED',
+      }));
+    } finally {
+      if (originalSecret === undefined) delete process.env.AUTH_SESSION_SECRET;
+      else process.env.AUTH_SESSION_SECRET = originalSecret;
+    }
+  });
+
+  it('ends a stuck Build now request before the platform hard timeout can erase its failure state', async () => {
+    await expect(mockupHandlerModule.withPreparationDeadline(
+      new Promise(() => {}),
+      5,
+    )).rejects.toMatchObject({ code: 'COMPANY_MOCKUP_BUILD_TIMEOUT' });
+    expect(mockupHandlerModule.DEFAULT_PREPARATION_TIMEOUT_MS).toBeLessThan(60_000);
+  });
+
+  it('records failure metadata while preserving only an artifact that still passes the full current contract', async () => {
+    const candidate = candidateFixture();
+    const contentHash = 'a'.repeat(64);
+    const blobKey = `company-banners/${PROSPECT_ID}/${contentHash}.jpg`;
+    const blobHash = 'f'.repeat(64);
+    candidate.mockup = {
+      status: 'ready', sceneId: 'trade_show', renderVersion: mockupModule.RENDER_VERSION,
+      blobKey, contentHash, messageId: MESSAGE_ID, qualityLevel: 'logo_and_product',
+      logoUrl: 'https://amberjack.example/logo.png',
+      productImageUrl: 'https://amberjack.example/products/loafer.jpg',
+      generationMetadata: {
+        messageContentHash: candidate.message.contentHash,
+        compositionAudit: { passed: true, noClipGuaranteed: true, noUpscaleGuaranteed: true },
+        logoCompositionAudit: { passed: true, noClipGuaranteed: true, noRasterUpscaleGuaranteed: true },
+        productSelectionAudit: { passed: true, sourceVerified: true, assetRole: 'product_photo' },
+        layoutId: 'balanced_split',
+        layoutAudit: { passed: true, noOverlapGuaranteed: true, layoutId: 'balanced_split' },
+        paletteAudit: { passed: true, minimumWhiteTextContrast: 7, primaryWhiteContrast: 8, secondaryWhiteContrast: 9 },
+        blobBindingAudit: {
+          passed: true, strongReadBackVerified: true, blobKey,
+          expectedContentHash: blobHash, persistedContentHash: blobHash,
+        },
+      },
+    };
+    const sql = vi.fn().mockResolvedValue([{ status: 'ready', blob_key: candidate.mockup.blobKey }]);
+    await mockupRepository.saveCompanyMockupFailure(sql, {
+      candidate,
+      renderVersion: mockupModule.RENDER_VERSION,
+      errorCode: 'WEBSITE_TIMEOUT',
+      failedAt: '2026-08-11T15:00:00.000Z',
+    });
+    const [query, values] = sql.mock.calls[0];
+    expect(query).toContain('WHEN $9::boolean=TRUE');
+    expect(query).toContain('generation_metadata=outbound_company_mockups.generation_metadata || EXCLUDED.generation_metadata');
+    expect(values[4]).toMatch(/^[a-f0-9]{64}$/);
+    expect(JSON.parse(values[6])).toEqual({
+      lastAttempt: {
+        status: 'failed', errorCode: 'WEBSITE_TIMEOUT',
+        failedAt: '2026-08-11T15:00:00.000Z',
+        attemptCount: 1,
+        retryable: true,
+        nextRetryAt: '2026-08-11T15:05:00.000Z',
+        messageContentHash: candidate.message.contentHash,
+        renderVersion: mockupModule.RENDER_VERSION,
+      },
+    });
+    expect(values[8]).toBe(true);
+
+    candidate.mockup.renderVersion = 'company-banner-v11-clean-assets-adaptive-layouts';
+    const staleSql = vi.fn().mockResolvedValue([{ status: 'failed' }]);
+    await mockupRepository.saveCompanyMockupFailure(staleSql, {
+      candidate,
+      renderVersion: mockupModule.RENDER_VERSION,
+      errorCode: 'WEBSITE_TIMEOUT',
+      failedAt: '2026-08-11T15:00:00.000Z',
+    });
+    expect(staleSql.mock.calls[0][1][8]).toBe(false);
+  });
+
+  it('does not show an endless spinner for a missing or failed mockup', () => {
+    expect(leadReviewSource).toContain('mockupBuildActive ? (');
+    expect(leadReviewSource).toContain("lead.mockup?.status === 'failed' ? 'The last build stopped safely. Retry when ready.'");
+    expect(leadReviewSource).toContain('if (pollCount.current >= 30)');
+    expect(leadReviewSource).toMatch(/if \(pollCount\.current >= 30\)[\s\S]{0,180}setPreparingBatch\(false\)/);
   });
 
   it('stores metadata only in a dedicated outbound table and has a clean rollback', () => {

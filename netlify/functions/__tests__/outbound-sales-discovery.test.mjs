@@ -310,11 +310,20 @@ describe('public email extraction and verification-state handling', () => {
     const contacts = await assessEmailCandidates([
       { email: 'jane@example.com', sourceUrl: 'https://example.com/contact' },
       { email: 'info@example.com', sourceUrl: 'https://example.com/contact' },
+      { email: 'wholesale@example.com', sourceUrl: 'https://example.com/contact' },
+      { email: 'customercare@example.com', sourceUrl: 'https://example.com/contact' },
+      { email: 'retail@example.com', sourceUrl: 'https://example.com/contact' },
+      { email: 'store@example.com', sourceUrl: 'https://example.com/contact' },
     ], { businessDomain: 'example.com', resolveMx });
     expect(resolveMx).toHaveBeenCalledTimes(1);
     expect(contacts[0]).toMatchObject({ emailNormalized: 'jane@example.com', syntaxValid: true, mxStatus: 'present', verificationStatus: 'unverified', sendEligible: false });
     expect(contacts[0].domainMatches).toBe(true);
     expect(contacts.find((contact) => contact.emailNormalized === 'info@example.com')).toMatchObject({ isRoleAddress: true, verificationStatus: 'risky', sendEligible: false });
+    for (const localPart of ['wholesale', 'customercare', 'retail', 'store']) {
+      expect(contacts.find((contact) => contact.emailNormalized === `${localPart}@example.com`)).toMatchObject({
+        isRoleAddress: true, verificationStatus: 'risky', sendEligible: false,
+      });
+    }
     const missing = await assessEmail('jane@missing.example', { businessDomain: 'missing.example', resolveMx: async () => { const error = new Error('none'); error.code = 'ENODATA'; throw error; } });
     expect(missing).toMatchObject({ mxStatus: 'missing', verificationStatus: 'invalid', sendEligible: false });
   });

@@ -36,6 +36,17 @@ function businessDate(now = new Date(), timeZone = 'America/New_York') {
   }).format(now);
 }
 
+function manualSendEnabled(env = process.env) {
+  return String(env.OUTBOUND_MANUAL_SEND_ENABLED || '').trim().toLowerCase() === 'true';
+}
+
+function requireManualSendEnabled(env = process.env) {
+  if (manualSendEnabled(env)) return;
+  const error = new Error('Manual marketing delivery is disabled until OUTBOUND_MANUAL_SEND_ENABLED=true is set.');
+  error.code = 'MANUAL_MARKETING_SEND_DISABLED';
+  throw error;
+}
+
 function publicOrigin(env = process.env) {
   const deployPreview = String(env.CONTEXT || '').trim() === 'deploy-preview';
   const candidates = [
@@ -94,13 +105,17 @@ function validateManualDeliveryConfiguration(env = process.env) {
 }
 
 function deliveryStatus(env = process.env) {
+  if (!manualSendEnabled(env)) {
+    return { deliveryReady: false, deliveryIssues: ['manual-send opt-in'], manualSendEnabled: false };
+  }
   try {
     validateManualDeliveryConfiguration(env);
-    return { deliveryReady: true, deliveryIssues: [] };
+    return { deliveryReady: true, deliveryIssues: [], manualSendEnabled: true };
   } catch (error) {
     return {
       deliveryReady: false,
       deliveryIssues: Array.isArray(error?.deliveryIssues) ? error.deliveryIssues : ['delivery configuration'],
+      manualSendEnabled: true,
     };
   }
 }
@@ -116,7 +131,7 @@ function emptyQueue(env = process.env) {
     minimumScore: repository.MIN_HIGH_VALUE_SCORE,
     reviewView: 'today', filters: {}, sort: 'priority',
     counts: { pending: 0, approved: 0, rejected: 0, sent: 0 },
-    mockups: { ready: 0, fallback: 0, missing: 0 },
+    mockups: { ready: 0, fallback: 0, missing: 0, failed: 0, retryableFailed: 0 },
     filterOptions: { events: [], sources: [], industries: [] },
     morningBatch: null,
     today: { attempted: 0, sent: 0, limit: repository.MAX_MANUAL_DAILY_ATTEMPTS },
@@ -215,6 +230,7 @@ function createManualReviewHandler(options = {}) {
         });
         return json(200, { ok: true, prospectId, notes: saved?.review_notes || '', updatedAt: saved?.updated_at || null });
       }
+      requireManualSendEnabled(env);
       const config = validateManualDeliveryConfiguration(env);
       const contact = await dependencies.loadManualReviewContact(sql, prospectId);
       if (!contact) {
@@ -226,6 +242,16 @@ function createManualReviewHandler(options = {}) {
         businessDomain: contact.canonical_domain,
       });
       await dependencies.saveManualContactAssessment(sql, contact.id, contactAssessment);
+      // DNS-only verification never makes a role inbox automation-eligible. The
+      // narrow exception here is for one authenticated admin Send click to a
+      // public, company-domain contact alias explicitly allowed by this manual
+      // workflow. Syntax, live MX, business-domain match, and non-free mailbox
+      // gates are still required before authorization or any delivery claim.
+      if (!dependencies.isManualSingleSendAssessmentEligible(contactAssessment)) {
+        const error = new Error('This business email did not pass the manual single-send verification checks. Nothing was sent.');
+        error.code = 'MANUAL_MARKETING_NOT_ELIGIBLE';
+        throw error;
+      }
       await dependencies.authorizeManualSend(sql, { prospectId, reviewedBy });
       await dependencies.appendAudit(sql, {
         actorType: 'admin', actorId: reviewedBy,
@@ -235,6 +261,7 @@ function createManualReviewHandler(options = {}) {
           authorizationSource: 'authenticated_send_click',
           emailDnsRechecked: Boolean(contactAssessment?.mxCheckedAt),
           emailMxStatus: contactAssessment?.mxStatus || null,
+          manualRoleInbox: contactAssessment?.isRoleAddress === true,
         },
         requestId: event.headers?.['x-nf-request-id'] || null,
       });
@@ -256,6 +283,10 @@ function createManualReviewHandler(options = {}) {
       if (companyMockup?.sendReady !== true || companyMockup?.qualityLevel !== 'logo_and_product'
           || companyMockup?.compositionAudit?.passed !== true
           || companyMockup?.compositionAudit?.noClipGuaranteed !== true
+          || companyMockup?.blobBindingAudit?.passed !== true
+          || companyMockup?.blobBindingAudit?.strongReadBackVerified !== true
+          || companyMockup?.blobBindingAudit?.persistedContentHash
+            !== companyMockup?.blobBindingAudit?.expectedContentHash
           || !companyMockup?.plan?.messageContentHash
           || !/^[a-f0-9]{64}$/i.test(String(companyMockup?.plan?.contentHash || ''))) {
         const incomplete = new Error('The personalized banner is missing verified company branding or relevant product/service imagery. Nothing was sent.');
@@ -269,11 +300,17 @@ function createManualReviewHandler(options = {}) {
         prospectId, sendKey, businessDate: deliveryDate,
         dailyLimit: repository.MAX_MANUAL_DAILY_ATTEMPTS,
         mockupContentHash: companyMockup.plan.contentHash,
+        leaseSeconds: repository.MANUAL_SEND_LEASE_SECONDS,
       });
       if (!claimed) {
         const state = await dependencies.loadManualReviewState(sql, prospectId);
         if (state?.send_state === 'sent') {
           return json(200, { ok: true, duplicate: true, prospectId, messageId: state.resend_message_id });
+        }
+        if (repository.manualSendRecoveryStatus(state) === 'in_progress') {
+          const error = new Error('A delivery attempt is still protected by its safety lease. Refresh and retry only after the lease expires; any retry uses the same Resend idempotency key.');
+          error.code = 'MANUAL_MARKETING_SEND_IN_PROGRESS';
+          throw error;
         }
         const error = new Error('This lead is not eligible to send. Recheck suppression status, email quality, preview readiness, prior contact, and the daily limit.');
         error.code = 'MANUAL_MARKETING_NOT_ELIGIBLE';
@@ -282,6 +319,11 @@ function createManualReviewHandler(options = {}) {
 
       const started = Date.now();
       try {
+        if (claimed.message_contact_id !== claimed.contact_id) {
+          const mismatch = new Error('The approved draft is not addressed to the selected contact. Nothing was sent.');
+          mismatch.code = 'MANUAL_MARKETING_CONTACT_MISMATCH';
+          throw mismatch;
+        }
         const token = createUnsubscribeToken({ messageId: claimed.message_id, contactId: claimed.contact_id }, env);
         await dependencies.saveUnsubscribeToken(sql, {
           tokenHash: token.hash, prospectId: claimed.prospect_id, contactId: claimed.contact_id,
@@ -314,6 +356,7 @@ function createManualReviewHandler(options = {}) {
         });
         const marked = await dependencies.markManualReviewSent(sql, {
           prospectId, sendKey: claimed.send_key, messageId: claimed.message_id,
+          contactId: claimed.contact_id,
           providerMessageId: result.providerMessageId,
           latencyMs: result.latencyMs, businessDate: deliveryDate,
         });
@@ -371,6 +414,8 @@ module.exports = {
   validateManualDeliveryConfiguration,
   deliveryStatus,
   deliveryReady,
+  manualSendEnabled,
+  requireManualSendEnabled,
   emptyQueue,
   createManualReviewHandler,
   manualReviewHandler,

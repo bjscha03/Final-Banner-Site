@@ -322,6 +322,7 @@ export interface OutboundManualReviewLead {
     id: string;
     status: 'pending' | 'ready' | 'fallback' | 'failed';
     sceneId: 'trade_show' | 'storefront' | 'community_event';
+    renderVersion: string | null;
     qualityLevel: 'logo_and_product' | 'logo' | 'product' | 'name_only';
     logoUrl: string | null;
     productImageUrl: string | null;
@@ -329,8 +330,12 @@ export interface OutboundManualReviewLead {
     sourceUrls: string[];
     diagnostics: Array<{ stage: string; hostname: string | null; code: string }>;
     compositionAudit: OutboundMockupCompositionAudit | null;
+    immutablePreviewReady: boolean;
+    presentationReady: boolean;
+    lastErrorCode: string | null;
     contextCurrent: boolean;
     generatedAt: string | null;
+    updatedAt: string | null;
     previewUrl: string | null;
   };
   review: {
@@ -345,8 +350,12 @@ export interface OutboundManualReviewLead {
     resendMessageId: string | null;
     lastSendErrorCode: string | null;
     sentAt: string | null;
+    sendStartedAt: string | null;
+    sendLeaseExpiresAt: string | null;
+    recoveryStatus: 'not_applicable' | 'in_progress' | 'retryable' | 'delivery_recorded';
   };
   technicalBlockers: string[];
+  technicalWarnings: string[];
   canSend: boolean;
   discoveredAt: string;
   importedBusinessDate: string | null;
@@ -375,6 +384,7 @@ export interface OutboundManualReviewQueue {
   schemaReady: boolean;
   deliveryReady: boolean;
   deliveryIssues: string[];
+  manualSendEnabled: boolean;
   leads: OutboundManualReviewLead[];
   total: number;
   limit: number;
@@ -384,13 +394,13 @@ export interface OutboundManualReviewQueue {
   filters: OutboundLeadFilters;
   sort: 'priority' | 'newest' | 'score_desc' | 'company_asc' | 'event_asc';
   counts: { pending: number; approved: number; rejected: number; sent: number };
-  mockups: { ready: number; fallback: number; missing: number };
+  mockups: { ready: number; fallback: number; missing: number; failed: number; retryableFailed: number };
   filterOptions: { events: string[]; sources: string[]; industries: string[] };
   morningBatch: null | {
     businessDate: string; targetCount: number; status: string; discoveredCount: number;
     newProspectCount: number; qualifiedCount: number; messageReadyCount: number;
     mockupReadyCount: number; startedAt: string | null; readyAt: string | null;
-    lastErrorCode: string | null; updatedAt: string;
+    lastErrorCode: string | null; runMetadata?: Record<string, unknown>; updatedAt: string;
   };
   today: { attempted: number; sent: number; limit: number };
 }
@@ -560,6 +570,34 @@ export async function prepareOutboundCompanyMockups(limit = 70): Promise<void> {
     body: JSON.stringify({ limit: Math.max(1, Math.min(70, limit)), force: false }),
   });
   if (!response.ok) await parseResponse(response);
+}
+
+export interface OutboundEventPreparationResult {
+  ok: true;
+  queued: boolean;
+  alreadyReady: boolean;
+  eventKey: string;
+  externalEmailsSent: 0;
+  manualSendingOnly: true;
+  batch: null | {
+    batchId: string; businessDate: string; targetCount: number; status: string;
+    discoveredCount: number; attachedCount: number; qualifiedCount: number;
+    messageReadyCount: number; mockupReadyCount: number; importShardCount: number;
+    completedImportShardCount: number; runningImportShardCount: number;
+    failedImportShardCount: number; phase: string; sourceRecordCount: number;
+    primaryRecordCount: number; reserveRecordCount: number; finalizerPass: number;
+    lastErrorCode: string | null; startedAt: string | null; readyAt: string | null;
+    updatedAt: string | null; externalEmailsSent: 0; manualSendingOnly: true;
+  };
+}
+
+export async function prepareAtlantaEventBatch(): Promise<OutboundEventPreparationResult> {
+  const response = await adminFetch('/.netlify/functions/outbound-sales-event-import', {
+    method: 'POST', credentials: 'same-origin',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'start', eventKey: 'atlanta-shoe-market-2026-08' }),
+  });
+  return parseResponse<OutboundEventPreparationResult>(response);
 }
 
 export function microusdToDollars(value: number): number {

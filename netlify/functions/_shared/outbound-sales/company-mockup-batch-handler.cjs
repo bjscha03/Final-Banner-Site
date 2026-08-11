@@ -4,7 +4,11 @@ const { createSql, getDatabaseUrl } = require('./database.cjs');
 const repository = require('./company-mockup-repository.cjs');
 const { RENDER_VERSION, prepareCompanyMockup } = require('./company-mockup.cjs');
 const { appendAudit } = require('./audit.cjs');
-const { authorize, parseJsonBody } = require('./security.cjs');
+const { authorize, parseJsonBody, redactSecretText } = require('./security.cjs');
+
+function safeMockupErrorCode(error) {
+  return repository.safeCompanyMockupErrorCode(redactSecretText(error?.code || ''));
+}
 
 function createCompanyMockupBatchHandler(options = {}) {
   const dependencies = {
@@ -45,8 +49,13 @@ function createCompanyMockupBatchHandler(options = {}) {
             dependencies: options.mockupDependencies,
           });
           prepared += 1;
-        } catch {
+        } catch (error) {
           failed += 1;
+          await dependencies.saveCompanyMockupFailure(sql, {
+            candidate,
+            renderVersion: RENDER_VERSION,
+            errorCode: safeMockupErrorCode(error),
+          }).catch(() => null);
         }
       }
     });
@@ -63,4 +72,4 @@ function createCompanyMockupBatchHandler(options = {}) {
   };
 }
 
-module.exports = { createCompanyMockupBatchHandler };
+module.exports = { createCompanyMockupBatchHandler, safeMockupErrorCode };

@@ -4,9 +4,9 @@ const dns = require('node:dns').promises;
 const { domainToASCII } = require('node:url');
 
 const ROLE_LOCAL_PARTS = new Set([
-  'admin', 'billing', 'bookings', 'contact', 'customerservice', 'events', 'hello', 'help', 'info',
-  'inquiries', 'jobs', 'mail', 'marketing', 'office', 'orders', 'press', 'sales', 'service', 'support',
-  'team', 'webmaster',
+  'admin', 'billing', 'bookings', 'contact', 'customercare', 'customerservice', 'events', 'hello', 'help', 'info',
+  'inquiries', 'jobs', 'mail', 'marketing', 'office', 'orders', 'press', 'retail', 'sales', 'service', 'store',
+  'support', 'team', 'webmaster', 'wholesale',
 ]);
 const FREE_MAILBOX_DOMAINS = new Set([
   'aol.com', 'gmail.com', 'googlemail.com', 'hotmail.com', 'icloud.com', 'live.com', 'mail.com',

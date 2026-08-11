@@ -5,7 +5,7 @@ const { canonicalDomain } = require('./providers/contract.cjs');
 const { extractPublicEmails } = require('./email.cjs');
 const { fetchWebsitePage } = require('./ssrf.cjs');
 
-const EXTRACTION_VERSION = 'deterministic-html-v4-brand-composition';
+const EXTRACTION_VERSION = 'deterministic-html-v5-brand-product-evidence';
 const MAX_RESEARCH_PAGES = 5;
 const SIGNAL_DEFINITIONS = Object.freeze([
   { code: 'upcoming_events', label: 'Upcoming event activity', pattern: /\b(upcoming event|event calendar|register now|save the date|festival|conference|tournament|fundraiser|gala)\b/i },
@@ -24,6 +24,55 @@ const LINK_PRIORITY = Object.freeze([
   ['services', /\b(services?|programs?|projects?|portfolio)\b/i],
   ['contact', /\b(contact|about)\b/i],
 ]);
+
+const CAMPAIGN_ART_PATTERN = /\b(?:campaign|hero|masthead|cover|lookbook|editorial|advert|promo|social|banner|wordmark|brand[-_ ]?lockup|typograph|text[-_ ]?overlay|announcement|sale[-_ ]?graphic|desktop[-_ ]?hero|mobile[-_ ]?hero)\b/i;
+const PRODUCT_PHOTO_PATTERN = /\b(?:product(?:[-_ ]?(?:image|photo|media|card|gallery|tile))?|pdp|sku|item[-_ ]?(?:image|photo)|collection[-_ ]?(?:item|product)|woocommerce[-_ ]?(?:product|gallery)|footwear|shoe|boot|sneaker|sandal|loafer|bag|apparel)\b/i;
+const SERVICE_PHOTO_PATTERN = /\b(?:project|portfolio|case[-_ ]?stud(?:y|ies)|installation|before[-_ ]?and[-_ ]?after|service[-_ ]?(?:image|photo)|gallery[-_ ]?(?:image|photo)|property|vehicle|equipment|menu[-_ ]?item|dish)\b/i;
+
+function pageAssetRole(value) {
+  let pathname = '';
+  try { pathname = new URL(value).pathname.toLowerCase(); } catch { pathname = String(value || '').toLowerCase(); }
+  const normalized = pathname.replace(/\.[a-z0-9]{2,5}$/i, '').replace(/[-_]+/g, ' ');
+  if (/\/(?:products?|items?|p)\/[^/]+\/?$/i.test(pathname)
+      && !/\/(?:products?|items?)\/(?:all|new|featured|collections?)\/?$/i.test(pathname)) return 'product_detail';
+  if (/\/(?:collections?|catalog|shop|store|products?|menu)(?:\/|$)/i.test(pathname)) return 'product_collection';
+  if (/\/(?:projects?|portfolio|work|case[-_ ]?stud(?:y|ies)|gallery)(?:\/|$)/i.test(pathname)) return 'portfolio';
+  if (/\/(?:services?|solutions?|programs?)(?:\/|$)/i.test(pathname)) return 'service';
+  if (!normalized.replace(/\//g, '').trim()) return 'homepage';
+  return 'other';
+}
+
+function imageEvidence(candidate, baseUrl) {
+  const pageRole = pageAssetRole(baseUrl);
+  const marker = `${candidate.alt || ''} ${candidate.marker || ''} ${candidate.url || ''}`;
+  const productEvidence = PRODUCT_PHOTO_PATTERN.test(marker)
+    || pageRole === 'product_detail' || pageRole === 'product_collection';
+  const serviceEvidence = SERVICE_PHOTO_PATTERN.test(marker)
+    || pageRole === 'portfolio' || pageRole === 'service';
+  const campaignEvidence = candidate.origin === 'social_meta'
+    || candidate.likelyPrecomposed === true || CAMPAIGN_ART_PATTERN.test(marker);
+  let assetRole = 'general_photo';
+  if (campaignEvidence && !((productEvidence || serviceEvidence) && candidate.origin === 'html_image'
+      && !CAMPAIGN_ART_PATTERN.test(`${candidate.alt || ''} ${candidate.marker || ''}`))) assetRole = 'campaign_art';
+  else if (productEvidence) assetRole = 'product_photo';
+  else if (serviceEvidence) assetRole = 'service_photo';
+  const roleBonus = {
+    product_detail: 96,
+    product_collection: 72,
+    portfolio: 76,
+    service: 62,
+    homepage: 0,
+    other: 8,
+  }[pageRole] || 0;
+  const assetBonus = { product_photo: 92, service_photo: 82, general_photo: 0, campaign_art: -135 }[assetRole] || 0;
+  return {
+    pageRole,
+    assetRole,
+    selectionScore: Number(candidate.score || 0) + roleBonus + assetBonus,
+    cleanProductEvidence: ['product_photo', 'service_photo'].includes(assetRole),
+    likelyPrecomposed: assetRole === 'campaign_art',
+  };
+}
 
 function sha256(value) {
   return crypto.createHash('sha256').update(String(value)).digest('hex');
@@ -162,12 +211,14 @@ function extractBrandProfile(html) {
 function extractBrandAssets(html, baseUrl) {
   const logoCandidates = [];
   const imageCandidates = [];
-  const seen = new Set();
+  const seen = new Map();
   const add = (collection, candidate) => {
     const url = publicAssetUrl(candidate.url, baseUrl);
-    if (!url || seen.has(`${candidate.kind}:${url}`)) return;
-    seen.add(`${candidate.kind}:${url}`);
-    collection.push({
+    if (!url) return;
+    const evidence = candidate.kind === 'product' ? imageEvidence({ ...candidate, url }, baseUrl) : {
+      pageRole: pageAssetRole(baseUrl),
+    };
+    const next = {
       url,
       kind: candidate.kind,
       score: candidate.score,
@@ -178,7 +229,35 @@ function extractBrandAssets(html, baseUrl) {
       declaredWidth: Math.max(0, Number(candidate.declaredWidth) || 0),
       declaredHeight: Math.max(0, Number(candidate.declaredHeight) || 0),
       likelyPrecomposed: candidate.likelyPrecomposed === true,
-    });
+      ...evidence,
+    };
+    const key = `${candidate.kind}:${url}`;
+    const existingIndex = seen.get(key);
+    if (existingIndex === undefined) {
+      seen.set(key, collection.length);
+      collection.push(next);
+      return;
+    }
+    const existing = collection[existingIndex];
+    const preferred = Number(next.selectionScore ?? next.score ?? 0) > Number(existing.selectionScore ?? existing.score ?? 0)
+      ? next : existing;
+    collection[existingIndex] = {
+      ...existing,
+      ...preferred,
+      score: Math.max(Number(existing.score || 0), Number(next.score || 0)),
+      selectionScore: Math.max(Number(existing.selectionScore ?? existing.score ?? 0), Number(next.selectionScore ?? next.score ?? 0)),
+      alt: [existing.alt, next.alt].filter(Boolean).sort((left, right) => right.length - left.length)[0] || null,
+      marker: normalizeText([existing.marker, next.marker].filter(Boolean).join(' ')).slice(0, 260) || null,
+      declaredWidth: Math.max(existing.declaredWidth || 0, next.declaredWidth || 0),
+      declaredHeight: Math.max(existing.declaredHeight || 0, next.declaredHeight || 0),
+      cleanProductEvidence: existing.cleanProductEvidence === true || next.cleanProductEvidence === true,
+      // A product image seen both in social metadata and in clean product markup
+      // is not treated as campaign artwork merely because the metadata appeared first.
+      likelyPrecomposed: existing.likelyPrecomposed === true && next.likelyPrecomposed === true,
+      assetRole: existing.cleanProductEvidence === true || next.cleanProductEvidence === true
+        ? (next.assetRole === 'product_photo' || existing.assetRole === 'product_photo' ? 'product_photo' : 'service_photo')
+        : preferred.assetRole,
+    };
   };
 
   for (const tag of String(html || '').match(/<meta\b[^>]*>/gi) || []) {
@@ -253,7 +332,8 @@ function extractBrandAssets(html, baseUrl) {
     }
   }
 
-  const byScore = (left, right) => right.score - left.score || left.url.localeCompare(right.url);
+  const byScore = (left, right) => Number(right.selectionScore ?? right.score ?? 0) - Number(left.selectionScore ?? left.score ?? 0)
+    || right.score - left.score || left.url.localeCompare(right.url);
   return {
     logoCandidates: logoCandidates.sort(byScore).slice(0, 8),
     imageCandidates: imageCandidates.sort(byScore).slice(0, 16),
@@ -330,9 +410,33 @@ function priorityLinks(links) {
   const ranked = links.map((url) => {
     const path = new URL(url).pathname.replace(/[-_/]+/g, ' ');
     const index = LINK_PRIORITY.findIndex(([, pattern]) => pattern.test(path));
-    return { url, priority: index === -1 ? 999 : index };
+    const pageRole = pageAssetRole(url);
+    const roleOffset = {
+      product_detail: -35,
+      portfolio: -25,
+      product_collection: -20,
+      service: -10,
+      other: 0,
+      homepage: 20,
+    }[pageRole] || 0;
+    const utilityPenalty = /\b(?:account|login|sign in|cart|checkout|policy|privacy|terms|search)\b/i.test(path) ? 1000 : 0;
+    return { url, priority: index === -1 ? 999 : (index * 100) + roleOffset + utilityPenalty };
   }).filter((entry) => entry.priority < 999);
   return ranked.sort((left, right) => left.priority - right.priority || left.url.localeCompare(right.url)).map((entry) => entry.url);
+}
+
+function strongestUniqueAssets(assets, limit, scoreKey = 'score') {
+  const byUrl = new Map();
+  for (const asset of assets) {
+    const existing = byUrl.get(asset.url);
+    const valueScore = Number(asset?.[scoreKey] ?? asset?.score ?? 0);
+    const existingScore = Number(existing?.[scoreKey] ?? existing?.score ?? -Infinity);
+    if (!existing || valueScore > existingScore) byUrl.set(asset.url, asset);
+  }
+  return [...byUrl.values()]
+    .sort((left, right) => Number(right?.[scoreKey] ?? right?.score ?? 0) - Number(left?.[scoreKey] ?? left?.score ?? 0)
+      || Number(right?.score || 0) - Number(left?.score || 0) || left.url.localeCompare(right.url))
+    .slice(0, limit);
 }
 
 function inferredLocationCount(text) {
@@ -458,10 +562,8 @@ async function researchWebsite(options) {
   const emails = [...new Map(stablePages.flatMap((page) => page.emails).map((entry) => [entry.email, entry])).values()];
   const freshness = Math.max(...stablePages.map((page) => Number(page.freshnessScore) || 0), 0);
   const locationCount = Math.max(...stablePages.map((page) => Number(page.inferredLocationCount) || 0), 0) || null;
-  const logoCandidates = [...new Map(stablePages.flatMap((page) => page.brandAssets.logoCandidates).map((asset) => [asset.url, asset])).values()]
-    .sort((left, right) => right.score - left.score).slice(0, 8);
-  const imageCandidates = [...new Map(stablePages.flatMap((page) => page.brandAssets.imageCandidates).map((asset) => [asset.url, asset])).values()]
-    .sort((left, right) => right.score - left.score).slice(0, 16);
+  const logoCandidates = strongestUniqueAssets(stablePages.flatMap((page) => page.brandAssets.logoCandidates), 8);
+  const imageCandidates = strongestUniqueAssets(stablePages.flatMap((page) => page.brandAssets.imageCandidates), 16, 'selectionScore');
   const themeColors = [...new Set(stablePages.flatMap((page) => page.brandProfile.themeColors))].slice(0, 6);
   const taglineCandidates = [...new Map(stablePages.flatMap((page) => page.brandProfile.taglineCandidates).map((line) => [line.toLowerCase(), line])).values()].slice(0, 12);
   const offeringCandidates = [...new Map(stablePages.flatMap((page) => page.brandProfile.offeringCandidates).map((line) => [line.toLowerCase(), line])).values()].slice(0, 12);
@@ -508,6 +610,8 @@ module.exports = {
   descriptionFromHtml,
   publicAssetUrl,
   imageSource,
+  pageAssetRole,
+  imageEvidence,
   extractBrandAssets,
   extractBrandProfile,
   freshnessScore,

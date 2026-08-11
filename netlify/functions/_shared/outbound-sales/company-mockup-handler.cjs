@@ -1,13 +1,32 @@
 'use strict';
 
 const { createSql, getDatabaseUrl, isMissingOutboundSchema } = require('./database.cjs');
-const { prepareCompanyMockup } = require('./company-mockup.cjs');
-const { json, authorize, parseJsonBody, safeFailure } = require('./security.cjs');
+const repository = require('./company-mockup-repository.cjs');
+const { RENDER_VERSION, prepareCompanyMockup } = require('./company-mockup.cjs');
+const { json, authorize, parseJsonBody, redactSecretText, safeFailure } = require('./security.cjs');
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const DEFAULT_PREPARATION_TIMEOUT_MS = 50_000;
+
+async function withPreparationDeadline(promise, timeoutMs = DEFAULT_PREPARATION_TIMEOUT_MS) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      const error = new Error('Company mockup preparation exceeded its safe request deadline.');
+      error.code = 'COMPANY_MOCKUP_BUILD_TIMEOUT';
+      reject(error);
+    }, Math.max(1, Number(timeoutMs) || DEFAULT_PREPARATION_TIMEOUT_MS));
+    timer.unref?.();
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 function createCompanyMockupHandler(options = {}) {
-  const dependencies = { createSql, prepareCompanyMockup, ...options.dependencies };
+  const dependencies = { createSql, prepareCompanyMockup, ...repository, ...options.dependencies };
   const env = options.env || process.env;
   return async function companyMockupHandler(event) {
     if (event.httpMethod === 'OPTIONS') return json(204, {});
@@ -26,15 +45,30 @@ function createCompanyMockupHandler(options = {}) {
         error.code = 'INVALID_COMPANY_MOCKUP';
         throw error;
       }
-      const result = await dependencies.prepareCompanyMockup({
-        sql: dependencies.createSql(env),
-        prospectId,
-        force: event.httpMethod === 'POST' && input.force === true,
-        preferCachedReady: event.httpMethod === 'GET',
-        store: options.getStore ? options.getStore() : options.store,
-        sharp: options.sharp,
-        dependencies: options.mockupDependencies,
-      });
+      const sql = dependencies.createSql(env);
+      const candidate = await dependencies.loadCompanyMockupCandidate(sql, prospectId);
+      let result;
+      try {
+        result = await withPreparationDeadline(dependencies.prepareCompanyMockup({
+          sql,
+          candidate,
+          prospectId,
+          force: event.httpMethod === 'POST' && input.force === true,
+          preferCachedReady: event.httpMethod === 'GET',
+          store: options.getStore ? options.getStore() : options.store,
+          sharp: options.sharp,
+          dependencies: options.mockupDependencies,
+        }), options.preparationTimeoutMs);
+      } catch (error) {
+        if (event.httpMethod === 'POST' && candidate?.prospect?.id) {
+          await dependencies.saveCompanyMockupFailure(sql, {
+            candidate,
+            renderVersion: RENDER_VERSION,
+            errorCode: dependencies.safeCompanyMockupErrorCode(redactSecretText(error?.code || '')),
+          }).catch(() => null);
+        }
+        throw error;
+      }
       if (event.httpMethod === 'GET') {
         return {
           statusCode: 200,
@@ -71,4 +105,9 @@ function createCompanyMockupHandler(options = {}) {
   };
 }
 
-module.exports = { UUID_PATTERN, createCompanyMockupHandler };
+module.exports = {
+  UUID_PATTERN,
+  DEFAULT_PREPARATION_TIMEOUT_MS,
+  withPreparationDeadline,
+  createCompanyMockupHandler,
+};

@@ -51,6 +51,9 @@ const PUBLIC_ERROR_CODES = new Set([
   'INVALID_MANUAL_REVIEW',
   'PERMISSIONED_MARKETING_REQUIRED',
   'MANUAL_MARKETING_NOT_CONFIGURED',
+  'MANUAL_MARKETING_SEND_DISABLED',
+  'MANUAL_MARKETING_SEND_IN_PROGRESS',
+  'MANUAL_MARKETING_CONTACT_MISMATCH',
   'MANUAL_MARKETING_NOT_ELIGIBLE',
   'MANUAL_MARKETING_SEND_FAILED',
   'INVALID_COMPANY_MOCKUP',
@@ -58,6 +61,10 @@ const PUBLIC_ERROR_CODES = new Set([
   'COMPANY_MOCKUP_NOT_READY',
   'COMPANY_MOCKUP_BRAND_ASSETS_INCOMPLETE',
   'COMPANY_MOCKUP_IDENTITY_MISMATCH',
+  'INVALID_EVENT_IMPORT',
+  'EVENT_IMPORT_NOT_CONFIGURED',
+  'EVENT_IMPORT_DISPATCH_FAILED',
+  'EVENT_IMPORT_BATCH_CONFLICT',
 ]);
 
 function redactSecretText(value) {
@@ -226,6 +233,9 @@ function safeFailure(error) {
     INVALID_MANUAL_REVIEW: 400,
     PERMISSIONED_MARKETING_REQUIRED: 409,
     MANUAL_MARKETING_NOT_CONFIGURED: 503,
+    MANUAL_MARKETING_SEND_DISABLED: 409,
+    MANUAL_MARKETING_SEND_IN_PROGRESS: 409,
+    MANUAL_MARKETING_CONTACT_MISMATCH: 409,
     MANUAL_MARKETING_NOT_ELIGIBLE: 409,
     MANUAL_MARKETING_SEND_FAILED: 502,
     INVALID_COMPANY_MOCKUP: 400,
@@ -233,6 +243,10 @@ function safeFailure(error) {
     COMPANY_MOCKUP_BRAND_ASSETS_INCOMPLETE: 409,
     COMPANY_MOCKUP_IDENTITY_MISMATCH: 409,
     COMPANY_MOCKUP_NOT_FOUND: 404,
+    INVALID_EVENT_IMPORT: 400,
+    EVENT_IMPORT_NOT_CONFIGURED: 503,
+    EVENT_IMPORT_DISPATCH_FAILED: 502,
+    EVENT_IMPORT_BATCH_CONFLICT: 409,
   };
   const statusCode = statusByCode[code] || 500;
   const messages = {
@@ -283,6 +297,9 @@ function safeFailure(error) {
     INVALID_MANUAL_REVIEW: 'Lead review fields are invalid.',
     PERMISSIONED_MARKETING_REQUIRED: 'An authenticated administrator must click Send to authorize this email.',
     MANUAL_MARKETING_NOT_CONFIGURED: 'Manual marketing delivery is not fully configured.',
+    MANUAL_MARKETING_SEND_DISABLED: 'Manual marketing delivery is disabled until its explicit deployment opt-in is enabled.',
+    MANUAL_MARKETING_SEND_IN_PROGRESS: 'This email is still within its delivery safety lease. Refresh and retry after the lease expires.',
+    MANUAL_MARKETING_CONTACT_MISMATCH: 'The approved email is not addressed to the selected contact. Nothing was sent.',
     MANUAL_MARKETING_NOT_ELIGIBLE: 'This lead is not eligible to send. Recheck approval, permission, suppression, contact quality, preview readiness, and the daily limit.',
     MANUAL_MARKETING_SEND_FAILED: 'Resend could not send this permissioned marketing email.',
     INVALID_COMPANY_MOCKUP: 'Company mockup fields are invalid.',
@@ -290,6 +307,10 @@ function safeFailure(error) {
     COMPANY_MOCKUP_NOT_READY: 'This company’s personalized banner is not ready yet. Refresh the banner, review it, and try Send again.',
     COMPANY_MOCKUP_BRAND_ASSETS_INCOMPLETE: 'Verified company branding and relevant product or service imagery are required before this email can be sent.',
     COMPANY_MOCKUP_IDENTITY_MISMATCH: 'The personalized banner did not match this company. Nothing was sent; refresh the banner before trying again.',
+    INVALID_EVENT_IMPORT: 'The requested event preparation action is invalid.',
+    EVENT_IMPORT_NOT_CONFIGURED: 'Event preparation is not configured on this deploy.',
+    EVENT_IMPORT_DISPATCH_FAILED: 'Event preparation could not be queued safely.',
+    EVENT_IMPORT_BATCH_CONFLICT: 'The event batch identity did not match. No leads were changed.',
   };
   return json(statusCode, {
     ok: false,

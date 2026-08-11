@@ -12,7 +12,10 @@ function authorizedBackground(event, env = process.env) {
 }
 
 function deploymentOrigin(env = process.env) {
-  for (const candidate of [env.URL, env.DEPLOY_PRIME_URL, env.DEPLOY_URL, env.PUBLIC_SITE_URL]) {
+  // URL always points at the production site on Netlify, including while a
+  // deploy preview is executing. Prefer the deploy-scoped origins so a
+  // preview can never dispatch its background work into production.
+  for (const candidate of [env.DEPLOY_PRIME_URL, env.DEPLOY_URL, env.URL, env.PUBLIC_SITE_URL]) {
     try {
       const url = new URL(String(candidate || ''));
       if (url.protocol === 'https:' && url.hostname) return url.origin;
@@ -52,6 +55,7 @@ function createMorningScheduledHandler({ action, dependencies = {}, env = proces
     const batch = await (dependencies.ensureMorningBatch || repository.ensureMorningBatch)(sql, {
       businessDate: date, targetCount: preparation.MORNING_TARGET, providerId: 'apollo',
     });
+    if (!batch) return response();
     try {
       preparation.assertMorningConfiguration(env);
       if (batch?.status === 'ready') return response();

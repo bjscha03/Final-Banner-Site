@@ -85,6 +85,15 @@ function discoveryDependencies(overrides = {}) {
   };
 }
 
+function assertMorningBatchIdentity(batch, expectedBatchKey = morningRepository.GENERIC_BATCH_KEY) {
+  if (!batch || batch.batch_key !== expectedBatchKey) {
+    throw Object.assign(new Error('Morning batch identity did not match the requested queue.'), {
+      code: 'MORNING_BATCH_IDENTITY_MISMATCH',
+    });
+  }
+  return batch;
+}
+
 async function runMorningDiscoveryShard(options) {
   const env = options.env || process.env;
   const config = assertMorningConfiguration(env);
@@ -95,6 +104,7 @@ async function runMorningDiscoveryShard(options) {
     businessDate: date, targetCount: MORNING_TARGET, providerId: 'apollo',
   });
   if (!batch) throw Object.assign(new Error('Morning batch could not be created.'), { code: 'MORNING_BATCH_NOT_CREATED' });
+  assertMorningBatchIdentity(batch);
   if (batch.status === 'ready') return { skipped: true, reason: 'BATCH_ALREADY_READY', batchId: batch.id, externalEmailsSent: 0 };
   const request = morningDiscoveryRequest(date, options.shardIndex);
   const shard = await repository.claimMorningShard(sql, {
@@ -170,20 +180,50 @@ function firstName(fullName) {
   return value.split(' ')[0]?.slice(0, 60) || 'there';
 }
 
+function eventMessageContext(candidate) {
+  const evidence = Array.isArray(candidate?.prospect?.qualificationEvidence)
+    ? candidate.prospect.qualificationEvidence
+    : [];
+  for (const item of evidence) {
+    const combined = `${item?.label || ''} ${item?.evidence || ''}`;
+    if (!/trade[ _-]?show|conference|expo|exhibit|exhibitor|shoe market/i.test(combined)) continue;
+    const eventName = String(item?.eventName || '')
+      .replace(/\s+/g, ' ').trim().slice(0, 100)
+      || /(.{3,80}?(?:Show|Market|Expo|Conference|Convention))/i.exec(combined)?.[1]?.trim()
+      || null;
+    const booth = String(item?.booth || '')
+      .replace(/\s+/g, ' ').trim().slice(0, 120)
+      || /\bbooths?\s*(?:#|no\.?\s*)?([a-z0-9][a-z0-9–—\-/, &;]{0,100})/i.exec(item?.evidence || '')?.[1]
+        ?.replace(/[."}].*$/, '').trim()
+      || null;
+    const dateLabel = String(item?.eventDateLabel || '')
+      .replace(/\s+/g, ' ').trim().slice(0, 80)
+      || /\b((?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:\s*[–—-]\s*\d{1,2})?(?:,\s*\d{4})?)/i
+        .exec(item?.evidence || '')?.[1]
+      || null;
+    if (eventName) return { eventName, booth, dateLabel };
+  }
+  return null;
+}
+
 function buildMorningMessage(candidate) {
   const company = String(candidate.prospect.businessName || '').replace(/\s+/g, ' ').trim();
   if (!company || company.length > 150) throw Object.assign(new Error('Company name is unsuitable for personalization.'), { code: 'MORNING_COMPANY_NAME_INVALID' });
   const industry = String(candidate.prospect.industry || candidate.prospect.businessType || 'business').replace(/\s+/g, ' ').trim().slice(0, 100);
-  const hasEventSignal = /trade[ _-]?show|conference|expo|exhibit|event|festival|tournament|gala|opening/i.test(
+  const event = eventMessageContext(candidate);
+  const hasEventSignal = Boolean(event) || /trade[ _-]?show|conference|expo|exhibit|event|festival|tournament|gala|opening/i.test(
     JSON.stringify(candidate.prospect.qualificationEvidence || []),
   );
   const context = hasEventSignal
     ? 'while researching businesses with upcoming event and promotional needs'
     : `while researching growing ${industry.toLowerCase()} organizations`;
   const subject = `${company} — a quick banner mockup using your brand`;
+  const introduction = event
+    ? `I saw ${company} is exhibiting at ${event.eventName}${event.dateLabel ? ` during ${event.dateLabel}` : ''}${event.booth ? ` in booth ${event.booth}` : ''}. This is just a quick mockup using ${company}’s public branding to show one way the brand could look on a printed banner.`
+    : `I came across ${company} ${context}. This is just a quick mockup using ${company}’s public branding to show one way the brand could look on a printed banner.`;
   const bodyText = [
     `Hi ${firstName(candidate.contact.fullName)},`,
-    `I came across ${company} ${context}. This is just a quick mockup using ${company}’s public branding to show one way the brand could look on a printed banner.`,
+    introduction,
     'Banners On The Fly produces premium banners, signs, and magnets with fast turnaround and free Next-Day Air shipping after production.',
     'Use code NEW20 to save 20% on your first order whenever you’re ready.',
     SIGNATURE,
@@ -208,7 +248,7 @@ function buildMorningMessage(candidate) {
 
 async function runMorningFinalizer(options) {
   const env = options.env || process.env;
-  assertMorningConfiguration(env);
+  if (options.requireProviderConfiguration !== false) assertMorningConfiguration(env);
   const sql = options.sql;
   const repository = { ...morningRepository, ...(options.dependencies?.repository || {}) };
   const date = options.businessDate || businessDate(options.now);
@@ -216,6 +256,7 @@ async function runMorningFinalizer(options) {
     businessDate: date, targetCount: MORNING_TARGET, providerId: 'apollo',
   });
   if (!batch) throw Object.assign(new Error('Morning batch could not be loaded.'), { code: 'MORNING_BATCH_NOT_CREATED' });
+  assertMorningBatchIdentity(batch, options.expectedBatchKey || morningRepository.GENERIC_BATCH_KEY);
   const candidates = await repository.listMorningPreparationCandidates(sql, {
     batchId: batch.id, limit: MORNING_PREPARATION_POOL,
   });
@@ -248,6 +289,10 @@ async function runMorningFinalizer(options) {
             || mockup.qualityLevel !== 'logo_and_product' || mockup.sendReady !== true
             || mockup.compositionAudit?.passed !== true
             || mockup.compositionAudit?.noClipGuaranteed !== true
+            || mockup.blobBindingAudit?.passed !== true
+            || mockup.blobBindingAudit?.strongReadBackVerified !== true
+            || mockup.blobBindingAudit?.persistedContentHash
+              !== mockup.blobBindingAudit?.expectedContentHash
             || mockup.plan?.messageContentHash !== message.contentHash) {
           throw Object.assign(new Error('Mockup identity or status did not pass.'), { code: 'MORNING_MOCKUP_NOT_READY' });
         }
@@ -277,6 +322,7 @@ async function runMorningFinalizer(options) {
   }).catch(() => null);
   return {
     batchId: batch.id, status: finalized.batch?.status, readyCount: finalized.readyCount,
+    candidateCount: candidates.length, processedCount: cursor,
     messageReady, mockupReady, failed: failures.length, timeBudgetReached, externalEmailsSent: 0,
   };
 }
@@ -288,6 +334,8 @@ module.exports = {
   MORNING_SHARD_COUNT,
   MORNING_COHORTS,
   businessDate,
+  assertMorningBatchIdentity,
+  eventMessageContext,
   assertMorningConfiguration,
   discoveryPageForDate,
   morningDiscoveryRequest,

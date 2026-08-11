@@ -14,6 +14,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 import {
   getOutboundManualReviewLeads,
+  prepareAtlantaEventBatch,
   prepareOutboundCompanyMockups,
   refreshOutboundCompanyMockup,
   saveOutboundLeadNote,
@@ -81,6 +82,7 @@ function eventBadge(lead: OutboundManualReviewLead) {
 
 function reviewBadge(lead: OutboundManualReviewLead) {
   if (lead.review.sendState === 'sent') return <Badge className="bg-emerald-700 text-white">Sent</Badge>;
+  if (lead.review.recoveryStatus === 'retryable') return <Badge className="bg-amber-700 text-white">Retry available</Badge>;
   if (lead.review.sendState === 'processing') return <Badge className="bg-sky-700 text-white">Sending</Badge>;
   if (lead.canSend) return <Badge className="bg-[#18448D] text-white">Ready to send</Badge>;
   return <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800">Needs attention</Badge>;
@@ -88,11 +90,7 @@ function reviewBadge(lead: OutboundManualReviewLead) {
 
 function mockupIsPresentationReady(lead: OutboundManualReviewLead) {
   const mockup = lead.mockup;
-  return mockup?.status === 'ready'
-    && mockup.qualityLevel === 'logo_and_product'
-    && mockup.contextCurrent === true
-    && mockup.compositionAudit?.passed === true
-    && mockup.compositionAudit.noClipGuaranteed === true;
+  return mockup?.presentationReady === true;
 }
 
 function mockupQualityLabel(lead: OutboundManualReviewLead) {
@@ -105,11 +103,15 @@ function mockupQualityLabel(lead: OutboundManualReviewLead) {
 }
 
 function mockupDiagnostic(lead: OutboundManualReviewLead) {
+  if (lead.mockup?.status === 'failed') {
+    const code = lead.mockup.lastErrorCode ? ` (${titleCase(lead.mockup.lastErrorCode)})` : '';
+    return `The last build stopped safely${code}. No email was sent. Retry branding to try the verified public assets again.`;
+  }
   if (lead.mockup?.contextCurrent === false) {
     return 'The email or event details changed after this image was built. Refresh branding will rebuild the correctly matched preview.';
   }
   if (lead.mockup?.qualityLevel === 'logo_and_product' && !mockupIsPresentationReady(lead)) {
-    return 'The verified assets are present, but the final composition did not pass the full-image preservation check. Refresh branding will rebuild it safely.';
+    return 'The verified assets are present, but the final composition or exact-preview binding did not pass. Refresh branding will rebuild it safely.';
   }
   const issue = lead.mockup?.diagnostics?.[0];
   if (!issue) return 'This lead cannot be sent until the branding requirement passes.';
@@ -129,12 +131,13 @@ function Score({ value }: { value: number | null }) {
 }
 
 function LeadCard({
-  lead, deliveryReady, sending, refreshingMockup, savingNote, onSend, onRefreshMockup, onSaveNote,
+  lead, deliveryReady, sending, refreshingMockup, batchPreparing, savingNote, onSend, onRefreshMockup, onSaveNote,
 }: {
   lead: OutboundManualReviewLead;
   deliveryReady: boolean;
   sending: boolean;
   refreshingMockup: boolean;
+  batchPreparing: boolean;
   savingNote: boolean;
   onSend: (lead: OutboundManualReviewLead) => void;
   onRefreshMockup: (lead: OutboundManualReviewLead) => void;
@@ -145,11 +148,15 @@ function LeadCard({
   useEffect(() => setNotes(lead.review.notes || ''), [lead.review.notes]);
   const sent = lead.review.sendState === 'sent';
   const presentationReady = mockupIsPresentationReady(lead);
+  const mockupBuildActive = refreshingMockup || (batchPreparing && !lead.mockup?.previewUrl
+    && (!lead.mockup || lead.mockup.status === 'pending'));
+  const mockupActionBusy = refreshingMockup || batchPreparing;
   const sendReason = refreshingMockup
     ? 'Wait for the refreshed company branding preview to finish before sending.'
     : !deliveryReady
     ? 'Email delivery is not ready. Refresh after the listed configuration issue is fixed.'
     : lead.technicalBlockers[0] || '';
+  const retryableRecovery = lead.review.recoveryStatus === 'retryable';
 
   return (
     <article id={`lead-${lead.prospectId}`} tabIndex={-1} className="scroll-mt-28 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm outline-none focus:ring-2 focus:ring-[#ff6b35]">
@@ -235,9 +242,13 @@ function LeadCard({
                       </div>
                     )}
                   </div>
-                ) : (
+                ) : mockupBuildActive ? (
                   <div className="flex aspect-video items-center justify-center px-5 text-center text-sm font-semibold text-slate-500">
                     <span><LoaderCircle className="mx-auto mb-2 h-5 w-5 animate-spin text-[#18448D]" /> Building a banner from the company&apos;s public branding…</span>
+                  </div>
+                ) : (
+                  <div className="flex aspect-video items-center justify-center px-5 text-center text-sm font-semibold text-slate-500">
+                    <span><AlertTriangle className="mx-auto mb-2 h-5 w-5 text-amber-600" /> {lead.mockup?.status === 'failed' ? 'The last build stopped safely. Retry when ready.' : 'No personalized banner has been built yet.'}</span>
                   </div>
                 )}
                 <div className="flex flex-col gap-2 border-t border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
@@ -247,9 +258,9 @@ function LeadCard({
                     {presentationReady && <p className="mt-1 text-[11px] font-semibold text-emerald-700">Full company image preserved · no forced crop</p>}
                     {lead.mockup && !presentationReady && <p className="mt-1 max-w-xl text-[11px] font-semibold text-amber-700">{mockupDiagnostic(lead)}</p>}
                   </div>
-                  <Button type="button" size="sm" variant="outline" onClick={() => onRefreshMockup(lead)} disabled={refreshingMockup || sending}>
-                    <RefreshCw className={cn('mr-2 h-3.5 w-3.5', refreshingMockup && 'animate-spin')} />
-                    {lead.mockup ? 'Refresh branding' : 'Build now'}
+                  <Button type="button" size="sm" variant="outline" onClick={() => onRefreshMockup(lead)} disabled={mockupActionBusy || sending}>
+                    <RefreshCw className={cn('mr-2 h-3.5 w-3.5', mockupActionBusy && 'animate-spin')} />
+                    {mockupActionBusy ? 'Building…' : lead.mockup?.status === 'failed' ? 'Retry branding' : lead.mockup ? 'Refresh branding' : 'Build now'}
                   </Button>
                 </div>
               </div>
@@ -280,6 +291,11 @@ function LeadCard({
               {lead.technicalBlockers.map((blocker) => <li key={blocker}><AlertTriangle className="mr-1 inline h-3 w-3" /> {blocker}</li>)}
             </ul>
           )}
+          {(lead.technicalWarnings || []).length > 0 && (
+            <ul className="mt-3 space-y-1 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs font-semibold text-amber-950">
+              {(lead.technicalWarnings || []).map((warning) => <li key={warning}><AlertTriangle className="mr-1 inline h-3 w-3" /> {warning}</li>)}
+            </ul>
+          )}
           {lead.review.sendState === 'sent' ? (
             <div className="mt-4 rounded-lg bg-white p-3 text-sm font-bold text-emerald-800">
               <CheckCircle2 className="mr-2 inline h-4 w-4" /> Sent {localDateTime(lead.review.sentAt)}
@@ -287,9 +303,12 @@ function LeadCard({
               {!lead.message?.deliveredAt && lead.message?.lastEventType && <p className="mt-1 text-xs font-semibold">Latest: {titleCase(lead.message.lastEventType)} · {localDateTime(lead.message.lastEventAt)}</p>}
             </div>
           ) : (
-            <Button type="button" onClick={() => onSend(lead)} disabled={!lead.canSend || !deliveryReady || sending || refreshingMockup} title={sendReason} className="mt-4 w-full bg-[#ff6b35] text-white hover:bg-[#e85a28]">
-              {sending ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />} {sending ? 'Sending…' : 'Send'}
-            </Button>
+            <>
+              {retryableRecovery && <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs font-semibold text-amber-950"><AlertTriangle className="mr-1 inline h-3 w-3" /> A prior attempt expired before completion. Retrying reuses the same provider idempotency key and does not consume another daily attempt.</p>}
+              <Button type="button" onClick={() => onSend(lead)} disabled={!lead.canSend || !deliveryReady || sending || refreshingMockup} title={sendReason} className="mt-4 w-full bg-[#ff6b35] text-white hover:bg-[#e85a28]">
+                {sending ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />} {sending ? 'Sending…' : retryableRecovery ? 'Retry safely' : 'Send'}
+              </Button>
+            </>
           )}
           {sendReason && !sent && <p className="mt-2 text-xs font-semibold text-slate-500">{sendReason}</p>}
         </aside>
@@ -327,9 +346,11 @@ export default function SalesLeadReview() {
   const [refreshingMockupId, setRefreshingMockupId] = useState('');
   const [savingNoteId, setSavingNoteId] = useState('');
   const [preparingBatch, setPreparingBatch] = useState(false);
+  const [preparingEvent, setPreparingEvent] = useState(false);
   const [advanceAfterSend, setAdvanceAfterSend] = useState(false);
   const batchStarted = useRef(false);
   const pollCount = useRef(0);
+  const eventPollCount = useRef(0);
   const requestController = useRef<AbortController | null>(null);
 
   const load = useCallback(async () => {
@@ -364,19 +385,86 @@ export default function SalesLeadReview() {
     }
   }, [toast]);
 
+  const startAtlantaBatch = useCallback(async () => {
+    setPreparingEvent(true);
+    eventPollCount.current = 0;
+    try {
+      const result = await prepareAtlantaEventBatch();
+      if (result.alreadyReady) {
+        setPreparingEvent(false);
+        setView('today');
+        toast({ title: 'Atlanta batch is ready', description: 'The finalized 70-lead queue is ready to review. Nothing was sent automatically.' });
+      } else {
+        toast({ title: 'Atlanta batch preparation started', description: 'Official exhibitor data, exact booth context, company research, and strict mockups are being prepared. Nothing will be sent.' });
+      }
+      await load();
+    } catch (requestError) {
+      setPreparingEvent(false);
+      toast({ variant: 'destructive', title: 'Atlanta batch could not start', description: requestError instanceof Error ? requestError.message : 'Try again.' });
+    }
+  }, [load, toast]);
+
   useEffect(() => {
     void load();
     return () => requestController.current?.abort();
   }, [load]);
 
   useEffect(() => {
-    if (!queue?.schemaReady || queue.mockups.missing < 1 || batchStarted.current) return;
-    void startMockupBatch();
-  }, [queue?.schemaReady, queue?.mockups.missing, startMockupBatch]);
+    if (preparingEvent || !queue?.morningBatch?.runMetadata?.eventKey) return;
+    if (['discovering', 'preparing', 'partial'].includes(queue.morningBatch.status)
+        && (Number(queue.morningBatch.runMetadata.finalizerPass) || 0) < 7) {
+      eventPollCount.current = 0;
+      setPreparingEvent(true);
+    }
+  }, [preparingEvent, queue?.morningBatch]);
 
   useEffect(() => {
-    if (!preparingBatch || !queue?.mockups.missing || pollCount.current >= 30) {
-      if (queue?.mockups.missing === 0) setPreparingBatch(false);
+    const retryableCount = (queue?.mockups.missing || 0) + (queue?.mockups.retryableFailed || 0);
+    if (!queue?.schemaReady || retryableCount < 1 || batchStarted.current || preparingEvent
+        || ['discovering', 'preparing'].includes(queue.morningBatch?.status || '')
+        || (Boolean(queue.morningBatch?.runMetadata?.eventKey) && queue.morningBatch?.status !== 'ready')) return;
+    void startMockupBatch();
+  }, [queue?.schemaReady, queue?.mockups.missing, queue?.mockups.retryableFailed, queue?.morningBatch?.status, queue?.morningBatch?.runMetadata, preparingEvent, startMockupBatch]);
+
+  useEffect(() => {
+    if (!preparingEvent) return undefined;
+    const batch = queue?.morningBatch;
+    if (batch?.status === 'ready' && batch.mockupReadyCount >= batch.targetCount) {
+      setPreparingEvent(false);
+      setView('today');
+      toast({ title: 'Atlanta batch is ready', description: `${batch.mockupReadyCount} strict, company-matched mockups passed and are ready for review. Nothing was sent automatically.` });
+      return undefined;
+    }
+    const finalizerPass = Number(batch?.runMetadata?.finalizerPass) || 0;
+    if (eventPollCount.current >= 180 || (['partial', 'failed'].includes(batch?.status || '') && finalizerPass >= 7)) {
+      setPreparingEvent(false);
+      toast({
+        variant: 'destructive',
+        title: 'Atlanta preparation finished below 70',
+        description: `${batch?.mockupReadyCount || 0} mockups passed every quality gate. Failed or questionable assets stayed out of Today’s queue.`,
+      });
+      return undefined;
+    }
+    const timer = window.setTimeout(() => {
+      eventPollCount.current += 1;
+      void load();
+    }, 10000);
+    return () => window.clearTimeout(timer);
+  }, [preparingEvent, queue?.morningBatch, load, toast]);
+
+  useEffect(() => {
+    if (!preparingBatch) return undefined;
+    if ((queue?.mockups.missing || 0) + (queue?.mockups.retryableFailed || 0) === 0) {
+      setPreparingBatch(false);
+      return undefined;
+    }
+    if (pollCount.current >= 30) {
+      setPreparingBatch(false);
+      toast({
+        variant: 'destructive',
+        title: 'Mockup preparation stopped waiting',
+        description: 'Any unfinished lead is safe to retry; no email was sent.',
+      });
       return undefined;
     }
     const timer = window.setTimeout(() => {
@@ -384,7 +472,7 @@ export default function SalesLeadReview() {
       void load();
     }, 15000);
     return () => window.clearTimeout(timer);
-  }, [preparingBatch, queue?.mockups.missing, load]);
+  }, [preparingBatch, queue?.mockups.missing, queue?.mockups.retryableFailed, load, toast]);
 
   const visibleLeads = queue?.leads || [];
 
@@ -478,10 +566,27 @@ export default function SalesLeadReview() {
             <p className="flex items-center gap-2 font-black text-slate-950"><CalendarSearch className="h-4 w-4 text-[#18448D]" /> Today&apos;s 8:00 AM sales queue</p>
             <p className="mt-1 text-sm text-slate-600">Preparation only—nothing is sent automatically. You qualify each lead, then Send remains a deliberate one-click action.</p>
           </div>
-          <Badge className={cn('w-fit text-sm', queue?.morningBatch?.status === 'ready' ? 'bg-emerald-700 text-white' : 'bg-slate-700 text-white')}>
-            {queue?.morningBatch ? titleCase(queue.morningBatch.status) : 'No batch reported today'}
-          </Badge>
+          <div className="flex flex-col items-start gap-2 lg:items-end">
+            <Badge className={cn('w-fit text-sm', queue?.morningBatch?.status === 'ready' ? 'bg-emerald-700 text-white' : 'bg-slate-700 text-white')}>
+              {queue?.morningBatch ? titleCase(queue.morningBatch.status) : 'No batch reported today'}
+            </Badge>
+            <Button
+              type="button"
+              onClick={() => void startAtlantaBatch()}
+              disabled={preparingEvent || (queue?.morningBatch?.status === 'ready' && (queue.morningBatch.mockupReadyCount || 0) >= (queue.morningBatch.targetCount || 70))}
+              className="bg-[#ff6b35] text-white hover:bg-[#e85a28]"
+            >
+              {preparingEvent ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <CalendarSearch className="mr-2 h-4 w-4" />}
+              {preparingEvent ? 'Loading and preparing…' : queue?.morningBatch?.status === 'ready' ? 'Atlanta batch ready' : 'Load & prepare Atlanta batch'}
+            </Button>
+            <p className="max-w-sm text-xs text-slate-500">Imports and builds personalized previews only. This action has no email-send path.</p>
+          </div>
         </div>
+        {Number(queue?.morningBatch?.runMetadata?.sourceRecordCount) > 0 && (
+          <p className="mt-3 text-xs font-semibold text-slate-600">
+            Source pool: {Number(queue?.morningBatch?.runMetadata?.primaryRecordCount) || 70} ranked exhibitors + {Number(queue?.morningBatch?.runMetadata?.reserveRecordCount) || 0} quality backfills. Only finalized mockups receive Today queue positions.
+          </p>
+        )}
         <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
           {[
             ['Target', queue?.morningBatch?.targetCount ?? 70],
@@ -508,6 +613,8 @@ export default function SalesLeadReview() {
             <Badge className="bg-emerald-700 text-white">{queue?.mockups.ready ?? 0} verified-assets ready</Badge>
             <Badge variant="outline" className="border-blue-300 bg-white text-blue-900">{queue?.mockups.fallback ?? 0} fallback</Badge>
             <Badge variant="outline" className="border-orange-300 bg-white text-orange-900">{queue?.mockups.missing ?? 0} preparing</Badge>
+            {(queue?.mockups.failed ?? 0) > 0 && <Badge variant="outline" className="border-red-300 bg-white text-red-900">{queue?.mockups.failed ?? 0} failed</Badge>}
+            {(queue?.mockups.retryableFailed ?? 0) > 0 && <Badge variant="outline" className="border-amber-300 bg-white text-amber-900">{queue?.mockups.retryableFailed ?? 0} retry due</Badge>}
           </div>
         </div>
         <Button
@@ -595,7 +702,7 @@ export default function SalesLeadReview() {
       )}
 
       <div className="space-y-5">
-        {visibleLeads.map((lead) => <LeadCard key={lead.prospectId} lead={lead} deliveryReady={queue?.deliveryReady === true} sending={sendingId === lead.prospectId} refreshingMockup={refreshingMockupId === lead.prospectId} savingNote={savingNoteId === lead.prospectId} onSend={(item) => void send(item)} onRefreshMockup={(item) => void refreshMockup(item)} onSaveNote={(item, notes) => void saveNote(item, notes)} />)}
+        {visibleLeads.map((lead) => <LeadCard key={lead.prospectId} lead={lead} deliveryReady={queue?.deliveryReady === true} sending={sendingId === lead.prospectId} refreshingMockup={refreshingMockupId === lead.prospectId} batchPreparing={preparingBatch} savingNote={savingNoteId === lead.prospectId} onSend={(item) => void send(item)} onRefreshMockup={(item) => void refreshMockup(item)} onSaveNote={(item, notes) => void saveNote(item, notes)} />)}
       </div>
 
       {queue && queue.total > PAGE_SIZE && (
