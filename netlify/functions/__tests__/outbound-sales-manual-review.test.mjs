@@ -152,6 +152,44 @@ afterEach(() => {
 });
 
 describe('manual lead review migration and qualification', () => {
+  it('binds Today rows, counts, options, and summary to one event-first batch when generic and event batches coexist', async () => {
+    const eventBatchId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaae';
+    const eventBatchKey = 'event:atlanta-shoe-market-2026-08';
+    const sql = vi.fn(async (query) => {
+      if (query === repository.PREFERRED_TODAY_BATCH_SQL) {
+        return [{
+          id: eventBatchId, batch_key: eventBatchKey, business_date: '2026-08-11',
+          target_count: 70, status: 'ready', discovered_count: 105, new_prospect_count: 70,
+          qualified_count: 70, message_ready_count: 70, mockup_ready_count: 70,
+          started_at: '2026-08-11T08:00:00Z', ready_at: '2026-08-11T11:00:00Z',
+          last_error_code: null, run_metadata: { eventKey: 'atlanta-shoe-market-2026-08' },
+          updated_at: '2026-08-11T11:00:00Z',
+        }];
+      }
+      if (query.includes('COUNT(*)::integer AS total')) return [{ total: 0 }];
+      if (query.includes('manual_attempted_count')) return [];
+      if (query.includes('jsonb_agg')) return [{ events: [], sources: [], industries: [] }];
+      return [];
+    });
+
+    const result = await repository.listManualReviewLeads(sql, { reviewView: 'today' });
+    const listQuery = sql.mock.calls[0][0];
+    const countQuery = sql.mock.calls[1][0];
+    const optionQuery = sql.mock.calls[3][0];
+    const summaryQuery = sql.mock.calls[4][0];
+
+    for (const query of [listQuery, countQuery, optionQuery]) {
+      expect(query).toContain('preferred_today_batch AS');
+      expect(query).toContain("batch_key LIKE 'event:%'");
+      expect(query).toContain("batch_key='generic'");
+      expect(query).toContain('morning_batch_id=(SELECT id FROM preferred_today_batch)');
+    }
+    expect(listQuery).not.toContain("imported_business_date=(NOW() AT TIME ZONE 'America/New_York')::date");
+    expect(summaryQuery).toBe(repository.PREFERRED_TODAY_BATCH_SQL);
+    expect(summaryQuery).toContain("ORDER BY CASE WHEN batch_key LIKE 'event:%' THEN 0 ELSE 1 END,updated_at DESC,id");
+    expect(result.morningBatch).toMatchObject({ id: eventBatchId, batchKey: eventBatchKey, status: 'ready' });
+  });
+
   it('adds only isolated review and manual counter objects with fail-closed defaults', () => {
     expect(migration29).toContain('CREATE TABLE IF NOT EXISTS outbound_manual_lead_reviews');
     expect(migration29).toContain("DEFAULT 'pending'");

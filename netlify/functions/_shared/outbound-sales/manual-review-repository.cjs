@@ -366,6 +366,19 @@ const LEAD_SELECT_WITH_EVENTS = `${LEAD_SELECT}
        LIMIT 1
     ) last_event ON TRUE`;
 
+// Today is one operational queue, even when generic and event preparation both
+// produced batches for the current business date. Keep this selection in one
+// shared fragment so the queue rows, counts, filter options, and summary cannot
+// disagree about which physical batch the admin is processing.
+const PREFERRED_TODAY_BATCH_SQL = `SELECT id,batch_key,business_date,target_count,status,
+         discovered_count,new_prospect_count,qualified_count,message_ready_count,mockup_ready_count,
+         started_at,ready_at,last_error_code,run_metadata,updated_at
+    FROM outbound_morning_batches
+   WHERE business_date=(NOW() AT TIME ZONE 'America/New_York')::date
+     AND (batch_key LIKE 'event:%' OR batch_key='generic')
+   ORDER BY CASE WHEN batch_key LIKE 'event:%' THEN 0 ELSE 1 END,updated_at DESC,id
+   LIMIT 1`;
+
 function cleanFilter(value, maxLength = 120) {
   return String(value || '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, maxLength);
 }
@@ -409,8 +422,7 @@ async function listManualReviewLeads(sql, {
   const add = (value) => { params.push(value); return `$${params.length}`; };
   const conditions = [];
   if (safeView === 'today') {
-    conditions.push(`morning_batch_id IS NOT NULL AND morning_queue_position IS NOT NULL
-      AND imported_business_date=(NOW() AT TIME ZONE 'America/New_York')::date`);
+    conditions.push('morning_batch_id=(SELECT id FROM preferred_today_batch) AND morning_queue_position IS NOT NULL');
     conditions.push("COALESCE(send_state,'not_sent')<>'sent'");
   } else if (safeView === 'ready') {
     conditions.push("COALESCE(send_state,'not_sent')<>'sent'");
@@ -460,10 +472,16 @@ async function listManualReviewLeads(sql, {
     event_asc: 'mockup_event_label ASC NULLS LAST,business_name ASC',
   }[sort] || `CASE WHEN qualification_evidence::text ~* 'trade[ _-]?show|conference|expo|exhibit|exhibitor' THEN 0 WHEN qualification_evidence::text ~* 'upcoming_events|event|festival|tournament|gala' THEN 1 ELSE 2 END,
     morning_queue_position ASC NULLS LAST,lead_score DESC NULLS LAST,last_qualified_at DESC NULLS LAST,discovered_at DESC`;
-  const cte = `WITH lead_rows AS (${LEAD_SELECT_WITH_EVENTS}
+  const preferredTodayBatchCte = safeView === 'today'
+    ? `preferred_today_batch AS (${PREFERRED_TODAY_BATCH_SQL}),`
+    : '';
+  const cte = `WITH ${preferredTodayBatchCte} lead_rows AS (${LEAD_SELECT_WITH_EVENTS}
     WHERE ((p.lead_score >= $1 AND p.status IN ('qualified','ready_for_outreach','contacted')) OR review.prospect_id IS NOT NULL))`;
-  const optionCte = `WITH lead_rows AS (${LEAD_SELECT_WITH_EVENTS}
+  const optionCte = `WITH ${preferredTodayBatchCte} lead_rows AS (${LEAD_SELECT_WITH_EVENTS}
     WHERE ((p.lead_score >= $1 AND p.status IN ('qualified','ready_for_outreach','contacted')) OR review.prospect_id IS NOT NULL))`;
+  const optionScope = safeView === 'today'
+    ? "WHERE morning_batch_id=(SELECT id FROM preferred_today_batch) AND morning_queue_position IS NOT NULL AND COALESCE(send_state,'not_sent')<>'sent'"
+    : '';
   const [rows, countRows, dailyRows, optionRows, batchRows] = await Promise.all([
     sql(`${cte} SELECT * FROM lead_rows WHERE ${where} ORDER BY ${sortSql} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, safeLimit, safeOffset]),
     sql(`${cte} SELECT COUNT(*)::integer AS total,
@@ -483,13 +501,8 @@ async function listManualReviewLeads(sql, {
           COALESCE(jsonb_agg(DISTINCT mockup_event_label) FILTER (WHERE mockup_event_label IS NOT NULL),'[]'::jsonb) AS events,
           COALESCE(jsonb_agg(DISTINCT source_provider_id) FILTER (WHERE source_provider_id IS NOT NULL),'[]'::jsonb) AS sources,
           COALESCE(jsonb_agg(DISTINCT industry) FILTER (WHERE industry IS NOT NULL),'[]'::jsonb) AS industries
-        FROM lead_rows`, [safeScore]),
-    sql(`SELECT business_date,target_count,status,discovered_count,new_prospect_count,qualified_count,
-                message_ready_count,mockup_ready_count,started_at,ready_at,last_error_code,run_metadata,updated_at
-           FROM outbound_morning_batches
-          WHERE business_date=(NOW() AT TIME ZONE 'America/New_York')::date
-          ORDER BY CASE WHEN batch_key LIKE 'event:%' THEN 0 ELSE 1 END,updated_at DESC
-          LIMIT 1`),
+        FROM lead_rows ${optionScope}`, [safeScore]),
+    sql(PREFERRED_TODAY_BATCH_SQL),
   ]);
   const leads = rows.map(mapLead);
   const totals = countRows[0] || {};
@@ -516,6 +529,8 @@ async function listManualReviewLeads(sql, {
       industries: (optionRows[0]?.industries || []).sort(),
     },
     morningBatch: batchRows[0] ? {
+      id: batchRows[0].id,
+      batchKey: batchRows[0].batch_key,
       businessDate: batchRows[0].business_date,
       targetCount: Number(batchRows[0].target_count) || 70,
       status: batchRows[0].status,
@@ -799,6 +814,7 @@ module.exports = {
   technicalBlockers,
   technicalWarnings,
   mapLead,
+  PREFERRED_TODAY_BATCH_SQL,
   listManualReviewLeads,
   saveManualReview,
   saveManualReviewNote,

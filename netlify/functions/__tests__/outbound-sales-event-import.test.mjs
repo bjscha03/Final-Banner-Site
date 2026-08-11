@@ -177,7 +177,7 @@ describe('event import isolation and quality gates', () => {
     const sql = vi.fn().mockResolvedValue([]);
     await manualReviewRepository.listManualReviewLeads(sql, { reviewView: 'today' });
     const listQuery = sql.mock.calls[0][0];
-    expect(listQuery).toContain('morning_batch_id IS NOT NULL');
+    expect(listQuery).toContain('morning_batch_id=(SELECT id FROM preferred_today_batch)');
     expect(listQuery).toContain('morning_queue_position IS NOT NULL');
     expect(listQuery).not.toContain('morning_batch_id IS NULL');
   });
