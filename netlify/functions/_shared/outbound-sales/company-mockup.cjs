@@ -11,7 +11,7 @@ const {
 } = require('./research.cjs');
 const { canonicalDomain } = require('./providers/contract.cjs');
 
-const RENDER_VERSION = 'company-banner-v5';
+const RENDER_VERSION = 'company-banner-v6';
 const MOCKUP_CONTENT_ID = 'company-banner-mockup';
 const MOCKUP_STORE_NAME = 'outbound-company-mockups';
 const MOCKUP_FONT_FILE = 'node_modules/pdfjs-dist/standard_fonts/LiberationSans-Bold.ttf';
@@ -344,24 +344,56 @@ function brandLineScore(line, businessName, kind) {
   return score;
 }
 
+function stripLeadingBrandName(value, businessName) {
+  let line = String(value || '').trim();
+  const rawName = String(businessName || '').trim();
+  const variants = [
+    rawName,
+    rawName.replace(/\s*\([^()]*\)\s*$/, '').trim(),
+    ...[...rawName.matchAll(/\(([^()]{2,80})\)/g)].map((match) => match[1].trim()),
+  ].filter(Boolean).sort((left, right) => right.length - left.length);
+  for (const variant of variants) {
+    const escaped = variant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const stripped = line.replace(new RegExp(`^${escaped}\\s*(?:[|:–—-]\\s*)+`, 'i'), '').trim();
+    if (stripped.length >= 4) line = stripped;
+  }
+  return line;
+}
+
+function brandLinesOverlap(left, right) {
+  const a = normalizedBrandIdentity(left);
+  const b = normalizedBrandIdentity(right);
+  if (!a || !b) return false;
+  if (a === b || a.startsWith(`${b} `) || b.startsWith(`${a} `)) return true;
+  const aWords = new Set(a.split(' ').filter((word) => word.length > 2));
+  const bWords = new Set(b.split(' ').filter((word) => word.length > 2));
+  const smaller = Math.min(aWords.size, bWords.size);
+  if (!smaller) return false;
+  const shared = [...aWords].filter((word) => bWords.has(word)).length;
+  return shared / smaller >= 0.75;
+}
+
 function selectBrandCopy(candidate, profile = {}) {
   const businessName = candidate?.prospect?.businessName || '';
   const taglines = Array.isArray(profile.taglineCandidates) ? profile.taglineCandidates : [];
   const offerings = Array.isArray(profile.offeringCandidates) ? profile.offeringCandidates : [];
-  const rankedHeadline = [...taglines]
+  const rankedHeadlineRaw = [...taglines]
     .map((line, index) => ({ line: marketingLine(line, 74), score: brandLineScore(line, businessName, 'headline') - index }))
     .filter((entry) => entry.line && entry.score > -500)
     .sort((left, right) => right.score - left.score)[0]?.line || null;
+  const rankedHeadline = marketingLine(stripLeadingBrandName(rankedHeadlineRaw, businessName), 74);
   // Offering copy must describe the company, not a random product/category
   // caption from elsewhere on the page. Product imagery already carries the
   // specific visual; metadata-backed offering copy keeps the pairing honest.
-  const rankedOffering = [...offerings]
+  const rankedOfferingRaw = [...offerings]
     .map((line, index) => ({ line: marketingLine(line, 108), score: brandLineScore(line, businessName, 'offering') - index }))
-    .filter((entry) => entry.line && entry.score > -500 && normalizedBrandIdentity(entry.line) !== normalizedBrandIdentity(rankedHeadline))
+    .filter((entry) => entry.line && entry.score > -500)
     .sort((left, right) => right.score - left.score)[0]?.line || null;
+  const rankedOffering = marketingLine(stripLeadingBrandName(rankedOfferingRaw, businessName), 108);
+  const distinctOffering = brandLinesOverlap(rankedHeadline, rankedOffering) ? null : rankedOffering;
   return {
     headline: rankedHeadline,
-    offering: rankedOffering || marketingLine(candidate?.prospect?.industry || candidate?.prospect?.businessType, 78),
+    offering: distinctOffering || (rankedHeadline ? null : marketingLine(candidate?.prospect?.industry || candidate?.prospect?.businessType, 78)),
     themeColors: Array.isArray(profile.themeColors) ? profile.themeColors.slice(0, 6) : [],
   };
 }

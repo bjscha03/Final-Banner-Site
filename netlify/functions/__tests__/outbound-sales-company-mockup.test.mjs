@@ -150,6 +150,18 @@ describe('deterministic personalized banner renderer', () => {
     });
   });
 
+  it('removes repeated company-name prefixes and near-duplicate secondary copy', () => {
+    const candidate = candidateFixture();
+    candidate.prospect.businessName = 'Evolutions Brands (BED|STÜ)';
+    expect(mockupModule.selectBrandCopy(candidate, {
+      taglineCandidates: ['Evolutions Brands — Family-Owned American Footwear'],
+      offeringCandidates: ['Evolutions Brands — family-owned American footwear brands built with character'],
+    })).toMatchObject({
+      headline: 'Family-Owned American Footwear',
+      offering: null,
+    });
+  });
+
   it('automatically gives a white transparent wordmark a dark contrast card', async () => {
     const whiteWordmark = await sharp({
       create: { width: 400, height: 100, channels: 4, background: { r: 255, g: 255, b: 255, alpha: 1 } },
