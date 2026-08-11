@@ -363,16 +363,19 @@ describe('Sales Admin production workflow', () => {
     expect(salesAdminSource).not.toMatch(/function mockupIsPresentationReady[\s\S]{0,320}compositionAudit\.noClipGuaranteed/);
   });
 
-  it('exposes the rapid Today → preview → Send → next workflow and all requested filter groups', () => {
+  it('exposes the manual-only Today → upload → preview → Send → next workflow and all requested filter groups', () => {
     expect(salesAdminSource).toContain("['today', \"Today's Leads\"]");
     expect(salesAdminSource).toContain('setAdvanceAfterSend(true)');
     expect(salesAdminSource).toContain('saveOutboundLeadNote');
     for (const label of ['Trade show / event', 'Lead source', 'Industry / category', 'Date imported', 'Qualification', 'Send readiness', 'Contacted previously', 'Has email', 'Has phone', 'Banner upload', 'Email status']) {
       expect(salesAdminSource).toContain(label);
     }
-    expect(salesAdminSource).toContain('Copy prompt');
     expect(salesAdminSource).toContain('Drop the finished banner image here');
+    expect(salesAdminSource).toContain('Upload the finished banner individually for each company');
     expect(salesAdminSource).toContain('No automatic image generation');
+    expect(salesAdminSource).not.toContain('Copy prompt');
+    expect(salesAdminSource).not.toContain('Banner design prompt');
+    expect(salesAdminSource).not.toContain('buildOutboundBannerPrompt');
     expect(salesAdminSource).toContain('Clear filters');
   });
 });
