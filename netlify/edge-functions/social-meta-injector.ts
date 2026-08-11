@@ -13,6 +13,16 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "remove-wrinkles-vinyl-banner": {
+    title: "How to Remove Wrinkles From a Vinyl Banner Without Damaging It",
+    description: "Learn how to remove wrinkles from a vinyl banner safely with flat relaxing, gentle tension, reverse rolling, and storage methods that protect the print.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/remove-wrinkles-vinyl-banner.webp"
+  },
+  "banner-pole-pocket-size-guide": {
+    title: "Banner Pole Pocket Size Guide: Measure the Pole Before You Order",
+    description: "Choose a banner pole pocket size by measuring pole diameter, checking clearance, protecting artwork, and planning the sleeve correctly before ordering.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/banner-pole-pocket-size-guide.webp"
+  },
   "church-banner-ideas": {
     title: "Church Banner Ideas: A Practical Guide for Welcome, Events & Seasons",
     description: "Explore church banner ideas for welcome, worship, Easter, Christmas, outreach, and wayfinding, with practical guidance on wording, size, design, and setup.",
