@@ -237,7 +237,8 @@ async function finalizeMorningBatch(sql, { batchId, targetCount = 70, lastErrorC
        FROM outbound_prospects p
        JOIN outbound_messages m ON m.prospect_id=p.id AND m.message_kind='initial'
          AND m.generation_status='generated' AND m.evidence_validation_status='passed' AND m.status='draft'
-       JOIN outbound_company_mockups mockup ON mockup.prospect_id=p.id AND mockup.status IN ('ready','fallback')
+       JOIN outbound_company_mockups mockup ON mockup.prospect_id=p.id
+         AND mockup.status='ready' AND mockup.quality_level='logo_and_product'
        JOIN outbound_contacts c ON c.prospect_id=p.id AND c.active=TRUE AND c.is_primary=TRUE
          AND c.syntax_valid=TRUE AND c.mx_status='present' AND c.is_role_address=FALSE
          AND c.is_free_mailbox=FALSE AND c.domain_matches=TRUE
@@ -263,7 +264,7 @@ async function finalizeMorningBatch(sql, { batchId, targetCount = 70, lastErrorC
   const countRows = await sql(
     `SELECT COUNT(*) FILTER (WHERE p.status IN ('qualified','ready_for_outreach'))::integer AS qualified_count,
             COUNT(*) FILTER (WHERE m.generation_status='generated' AND m.evidence_validation_status='passed')::integer AS message_ready_count,
-            COUNT(*) FILTER (WHERE mockup.status IN ('ready','fallback'))::integer AS mockup_ready_count
+            COUNT(*) FILTER (WHERE mockup.status='ready' AND mockup.quality_level='logo_and_product')::integer AS mockup_ready_count
        FROM outbound_prospects p
        LEFT JOIN outbound_messages m ON m.prospect_id=p.id AND m.message_kind='initial'
        LEFT JOIN outbound_company_mockups mockup ON mockup.prospect_id=p.id

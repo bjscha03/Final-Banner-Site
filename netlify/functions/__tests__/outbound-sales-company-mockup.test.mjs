@@ -29,6 +29,11 @@ function candidateFixture() {
           logoCandidates: [{ url: 'https://amberjack.example/logo.png', kind: 'logo', score: 120 }],
           imageCandidates: [{ url: 'https://amberjack.example/shoe.jpg', kind: 'product', score: 110 }],
         },
+        brandProfile: {
+          themeColors: ['#14213d'],
+          taglineCandidates: ['Built for comfort. Designed for confidence.'],
+          offeringCandidates: ['Premium shoes made for all-day wear'],
+        },
       },
     },
     message: {
@@ -63,6 +68,40 @@ describe('company-brand asset extraction', () => {
     expect(assets.logoCandidates.map((asset) => asset.url)).toContain('https://amberjack.example/assets/amberjack-logo.webp');
     expect(assets.imageCandidates[0].url).toBe('https://amberjack.example/products/featured-shoe.jpg');
     expect(assets.imageCandidates.map((asset) => asset.url)).not.toContain('https://amberjack.example/icons/cart.png');
+  });
+
+  it('uses the strongest responsive product image and rejects flags and placeholders', () => {
+    const html = `
+      <meta name="theme-color" content="#00574a">
+      <meta name="description" content="Barefoot shoes designed for natural movement and everyday comfort.">
+      <img class="site-logo" src="/assets/be-lenka-logo.svg" alt="Be Lenka logo" width="360" height="96">
+      <img class="campaign-product" src="/tiny-shoe.jpg"
+        srcset="/shoe-320.jpg 320w, /shoe-860.jpg 860w, /shoe-1600.jpg 1600w"
+        alt="Be Lenka barefoot shoe collection" width="860" height="620">
+      <img class="language-flag" src="/flags/us.png" alt="US flag" width="640" height="480">
+      <img class="loading-placeholder" src="/images/placeholder.jpg" width="900" height="700">
+    `;
+    const assets = researchModule.extractBrandAssets(html, 'https://www.belenka.example/');
+    const profile = researchModule.extractBrandProfile(html);
+    expect(assets.logoCandidates[0].url).toBe('https://www.belenka.example/assets/be-lenka-logo.svg');
+    expect(assets.imageCandidates.map((asset) => asset.url)).toContain('https://www.belenka.example/shoe-1600.jpg');
+    expect(assets.imageCandidates.map((asset) => asset.url)).not.toContain('https://www.belenka.example/flags/us.png');
+    expect(assets.imageCandidates.map((asset) => asset.url)).not.toContain('https://www.belenka.example/images/placeholder.jpg');
+    expect(profile.themeColors).toEqual(['#00574a']);
+    expect(profile.offeringCandidates).toContain('Barefoot shoes designed for natural movement and everyday comfort.');
+  });
+
+  it('follows an explicitly labeled official sub-brand while rejecting unrelated social links', () => {
+    const html = `
+      <a href="https://www.bedstu.example/"><img alt="BED STÜ" src="/brands/bedstu.png"></a>
+      <a href="https://instagram.com/bedstu"><span>BED STÜ Instagram</span></a>
+      <a href="https://unrelated.example/">Another footwear brand</a>
+    `;
+    expect(mockupModule.officialAliasLinks(
+      html,
+      'https://evolutionsbrands.example/',
+      'Evolutions Brands (BED|STÜ)',
+    )).toEqual(['https://www.bedstu.example/']);
   });
 
   it('rejects SVG assets that can load scripts, remote files, or embedded foreign content', () => {
@@ -100,9 +139,12 @@ describe('deterministic personalized banner renderer', () => {
 
   it('renders a valid 1200x675 email-safe JPEG with exact company assets', async () => {
     const { scene, logo, product } = await imageFixtures();
-    const result = await mockupModule.renderCompanyMockup(candidateFixture(), {
+    const candidate = candidateFixture();
+    const result = await mockupModule.renderCompanyMockup(candidate, {
       logo: { buffer: logo, finalUrl: 'https://amberjack.example/logo.png', candidate: { url: 'https://amberjack.example/logo.png' } },
       product: { buffer: product, finalUrl: 'https://amberjack.example/shoe.jpg', candidate: { url: 'https://amberjack.example/shoe.jpg' } },
+      profile: candidate.research.extractedFacts.brandProfile,
+      pageUrls: candidate.research.sourceUrls,
     }, {
       sharp,
       sceneBuffers: { trade_show: scene, storefront: scene, community_event: scene },
@@ -112,6 +154,11 @@ describe('deterministic personalized banner renderer', () => {
     expect(result.plan).toMatchObject({
       sceneId: 'trade_show',
       eventLabel: 'Atlanta Shoe Market',
+      brandCopy: {
+        headline: 'Built for comfort. Designed for confidence.',
+        offering: 'Premium shoes made for all-day wear',
+        themeColors: ['#14213d'],
+      },
       logoUrl: 'https://amberjack.example/logo.png',
       productImageUrl: 'https://amberjack.example/shoe.jpg',
     });
@@ -140,6 +187,7 @@ describe('deterministic personalized banner renderer', () => {
       },
     });
     expect(result.qualityLevel).toBe('logo_and_product');
+    expect(result.sendReady).toBe(true);
     expect(store.set).toHaveBeenCalledOnce();
     expect(saveCompanyMockup).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
       status: 'ready', qualityLevel: 'logo_and_product', logoUrl: 'https://amberjack.example/logo.png',
@@ -170,6 +218,7 @@ describe('deterministic personalized banner renderer', () => {
       },
     });
     expect(result.qualityLevel).toBe('name_only');
+    expect(result.sendReady).toBe(false);
     expect(saveCompanyMockup).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
       status: 'fallback', logoUrl: null, productImageUrl: null, qualityLevel: 'name_only',
     }));

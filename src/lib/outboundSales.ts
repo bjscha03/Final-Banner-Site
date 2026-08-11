@@ -320,6 +320,7 @@ export interface OutboundManualReviewLead {
     productImageUrl: string | null;
     eventLabel: string | null;
     sourceUrls: string[];
+    diagnostics: Array<{ stage: string; hostname: string | null; code: string }>;
     generatedAt: string | null;
     previewUrl: string | null;
   };
@@ -534,7 +535,7 @@ export async function sendOutboundReviewedLead(prospectId: string): Promise<{ ok
 
 export async function refreshOutboundCompanyMockup(
   prospectId: string,
-): Promise<{ ok: true; prospectId: string; cached: boolean; status: string; qualityLevel: string; sceneId: string; sourceUrls: string[] }> {
+): Promise<{ ok: true; prospectId: string; cached: boolean; status: string; qualityLevel: string; sendReady: boolean; sceneId: string; sourceUrls: string[]; diagnostics: Array<{ stage: string; hostname: string | null; code: string }> }> {
   const response = await adminFetch('/.netlify/functions/outbound-sales-company-mockup', {
     method: 'POST', credentials: 'same-origin',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },

@@ -53,10 +53,12 @@ function createCompanyMockupHandler(options = {}) {
         ok: true,
         prospectId,
         cached: result.cached,
-        status: result.row?.status || (result.qualityLevel === 'name_only' ? 'fallback' : 'ready'),
+        status: result.row?.status || (result.sendReady ? 'ready' : 'fallback'),
         qualityLevel: result.qualityLevel,
+        sendReady: result.sendReady === true,
         sceneId: result.plan.sceneId,
         sourceUrls: result.plan.sourceUrls,
+        diagnostics: result.diagnostics || [],
       });
     } catch (error) {
       if (isMissingOutboundSchema(error)) {

@@ -51,7 +51,10 @@ function technicalBlockers(row) {
     blockers.push('Branded email preview is not ready');
   }
   if (!row.message_subject || !row.message_body_text) blockers.push('Email content is incomplete');
-  if (!row.mockup_id || !['ready', 'fallback'].includes(row.mockup_status)) blockers.push('Personalized banner is still preparing');
+  if (!row.mockup_id || ['pending', 'failed'].includes(row.mockup_status)) blockers.push('Personalized banner is still preparing');
+  else if (row.mockup_status !== 'ready' || row.mockup_quality_level !== 'logo_and_product') {
+    blockers.push('Personalized banner needs a verified logo and relevant product/service image');
+  }
   if (row.business_name && !messageMatchesCompanyIdentity({
     businessName: row.business_name,
     subject: row.message_subject,
@@ -136,6 +139,7 @@ function mapLead(row) {
       productImageUrl: row.mockup_product_image_url || null,
       eventLabel: row.mockup_event_label || null,
       sourceUrls: row.mockup_source_urls || [],
+      diagnostics: row.mockup_generation_metadata?.assetDiagnostics || [],
       generatedAt: row.mockup_generated_at || null,
       previewUrl: ['ready', 'fallback'].includes(row.mockup_status)
         ? `/.netlify/functions/outbound-sales-company-mockup?prospectId=${encodeURIComponent(row.prospect_id)}&v=${encodeURIComponent(row.mockup_content_hash || '')}`
@@ -194,7 +198,8 @@ const LEAD_SELECT = `
          mockup.scene_id AS mockup_scene_id,mockup.quality_level AS mockup_quality_level,
          mockup.logo_url AS mockup_logo_url,mockup.product_image_url AS mockup_product_image_url,
          mockup.event_label AS mockup_event_label,mockup.source_urls AS mockup_source_urls,
-         mockup.content_hash AS mockup_content_hash,mockup.generated_at AS mockup_generated_at,
+         mockup.content_hash AS mockup_content_hash,mockup.generation_metadata AS mockup_generation_metadata,
+         mockup.generated_at AS mockup_generated_at,
          EXISTS (
            SELECT 1 FROM outbound_suppressions suppression
             WHERE suppression.active=TRUE
@@ -236,7 +241,7 @@ const READY_SQL = `contact_id IS NOT NULL AND syntax_valid=TRUE AND mx_status IN
   AND prior_customer_match=FALSE AND suppression_reason IS NULL AND active_suppression=FALSE
   AND first_contacted_at IS NULL AND message_id IS NOT NULL AND generation_status='generated'
   AND evidence_validation_status='passed' AND ${companyIdentitySql('business_name', 'message_subject', 'message_body_text')}
-  AND mockup_id IS NOT NULL AND mockup_status IN ('ready','fallback')`;
+  AND mockup_id IS NOT NULL AND mockup_status='ready' AND mockup_quality_level='logo_and_product'`;
 
 async function listManualReviewLeads(sql, {
   limit = 50, offset = 0, minimumScore = MIN_HIGH_VALUE_SCORE, reviewView = 'today', filters = {}, sort = 'priority',
@@ -468,6 +473,7 @@ async function claimManualReviewSend(sql, data) {
        SELECT review.prospect_id,contact.id AS contact_id,message.id AS message_id
          FROM outbound_manual_lead_reviews review
          JOIN outbound_prospects p ON p.id=review.prospect_id
+         JOIN outbound_company_mockups mockup ON mockup.prospect_id=p.id
          JOIN LATERAL (
            SELECT c.* FROM outbound_contacts c
             WHERE c.prospect_id=p.id AND c.active=TRUE
@@ -482,6 +488,7 @@ async function claimManualReviewSend(sql, data) {
           AND review.review_status='approved' AND review.permission_status IN ('explicit_opt_in','admin_authorized')
           AND review.send_state IN ('not_sent','failed') AND review.send_attempt_count<3
           AND p.status IN ('qualified','ready_for_outreach')
+          AND mockup.status='ready' AND mockup.quality_level='logo_and_product'
           AND p.first_contacted_at IS NULL AND p.prior_customer_match=FALSE AND p.suppression_reason IS NULL
           AND contact.syntax_valid=TRUE AND contact.mx_status='present'
           AND contact.is_role_address=FALSE AND contact.is_free_mailbox=FALSE AND contact.domain_matches=TRUE

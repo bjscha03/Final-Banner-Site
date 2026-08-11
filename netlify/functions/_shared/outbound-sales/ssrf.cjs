@@ -151,7 +151,11 @@ async function resolvePublicHost(hostname, lookup = dns.lookup) {
   if (normalized.some((record) => !isPublicIp(record.address))) {
     throw ssrfError('WEBSITE_PRIVATE_ADDRESS_BLOCKED', 'Website DNS resolved to a private or reserved address.');
   }
-  return normalized;
+  // Netlify's Lambda network consistently supports public IPv4 while some
+  // dual-stack sites advertise IPv6 addresses that are not reachable from a
+  // particular function region. Keep every address validated, but pin IPv4
+  // first when both families are available.
+  return normalized.sort((left, right) => left.family - right.family);
 }
 
 function sameAddress(left, right) {
@@ -293,6 +297,10 @@ async function fetchWebsiteAsset(value, options = {}) {
   const timeoutMs = Math.max(500, Math.min(20000, Number(options.timeoutMs) || DEFAULT_TIMEOUT_MS));
   const lookup = options.lookup || dns.lookup;
   const requestImpl = options.requestImpl || defaultRequest;
+  let referer = null;
+  if (options.referer) {
+    try { referer = normalizeWebsiteUrl(options.referer).toString(); } catch { referer = null; }
+  }
 
   async function attempt(input, redirectsRemaining) {
     const url = normalizeWebsiteUrl(input);
@@ -310,7 +318,9 @@ async function fetchWebsiteAsset(value, options = {}) {
         headers: {
           Accept: 'image/png,image/jpeg,image/webp,image/avif,image/gif,image/svg+xml;q=0.8',
           'Accept-Encoding': 'identity',
-          'User-Agent': 'BannersOnTheFly-MockupRenderer/1.0 (+https://bannersonthefly.com)',
+          'Accept-Language': 'en-US,en;q=0.8',
+          'User-Agent': 'BannersOnTheFly-MockupRenderer/2.0 (+https://bannersonthefly.com)',
+          ...(referer ? { Referer: referer } : {}),
         },
         servername: url.hostname,
         lookup(_hostname, _lookupOptions, callback) {

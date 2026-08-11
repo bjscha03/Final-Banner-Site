@@ -153,6 +153,19 @@ describe('manual lead review migration and qualification', () => {
     const suppressed = mapLead({ ...rowFixture(), active_suppression: true });
     expect(suppressed.canSend).toBe(false);
     expect(suppressed.technicalBlockers).toContain('Active opt-out or delivery suppression');
+    const fallback = mapLead({
+      ...rowFixture(),
+      mockup_status: 'fallback',
+      mockup_quality_level: 'name_only',
+      mockup_generation_metadata: {
+        assetDiagnostics: [{ stage: 'logo', hostname: 'futureexpo.example', code: 'MOCKUP_ASSET_LOW_QUALITY' }],
+      },
+    });
+    expect(fallback.canSend).toBe(false);
+    expect(fallback.technicalBlockers).toContain('Personalized banner needs a verified logo and relevant product/service image');
+    expect(fallback.mockup.diagnostics).toEqual([
+      { stage: 'logo', hostname: 'futureexpo.example', code: 'MOCKUP_ASSET_LOW_QUALITY' },
+    ]);
   });
 
   it('accepts a verified parenthetical brand alias without weakening cross-company protection', () => {
@@ -202,6 +215,8 @@ describe('manual lead review migration and qualification', () => {
     });
     expect(sql.mock.calls[0][0]).toContain('COALESCE(review.send_key,$4)');
     expect(sql.mock.calls[0][0]).toContain('review.send_attempt_count+1');
+    expect(sql.mock.calls[0][0]).toContain('JOIN outbound_company_mockups mockup ON mockup.prospect_id=p.id');
+    expect(sql.mock.calls[0][0]).toContain("mockup.status='ready' AND mockup.quality_level='logo_and_product'");
   });
 
   it('commits accepted sends against the partial provider-event unique index', async () => {
@@ -359,6 +374,7 @@ describe('manual lead review endpoint', () => {
           prospectId: PROSPECT_ID,
           buffer: Buffer.from('rendered-company-banner'),
           qualityLevel: 'logo_and_product',
+          sendReady: true,
         }),
       },
     });
@@ -371,6 +387,49 @@ describe('manual lead review endpoint', () => {
     expect(markSent).toHaveBeenCalledWith({}, expect.objectContaining({ providerMessageId: 'resend-manual-2' }));
     expect(appendAudit).toHaveBeenCalledWith({}, expect.objectContaining({ action: 'manual_lead.send_authorized' }));
     expect(appendAudit).toHaveBeenCalledWith({}, expect.objectContaining({ action: 'manual_lead.email_sent' }));
+  });
+
+  it('fails closed before transport when only the name-only fallback exists', async () => {
+    const sendPermissioned = vi.fn();
+    const markFailed = vi.fn().mockResolvedValue({ prospect_id: PROSPECT_ID });
+    const claimed = {
+      prospect_id: PROSPECT_ID, contact_id: CONTACT_ID, message_id: MESSAGE_ID,
+      send_key: stableManualSendKey(PROSPECT_ID), business_name: 'Future Expo Group',
+      email: 'taylor@futureexpo.example', subject: 'Future Expo Group custom banner concept',
+      body_text: 'Hi Taylor,\n\nI made this Future Expo Group banner concept.\n\nBest,\nBrandon Schaefer\nOwner, Banners On The Fly\nbannersonthefly.com',
+    };
+    const handler = createManualReviewHandler({
+      env: deliveryEnvironment,
+      dependencies: {
+        createSql: () => ({}),
+        loadManualReviewContact: vi.fn().mockResolvedValue({ id: CONTACT_ID, email: 'taylor@futureexpo.example', canonical_domain: 'futureexpo.example' }),
+        assessEmail: vi.fn().mockResolvedValue({
+          email: 'taylor@futureexpo.example', emailNormalized: 'taylor@futureexpo.example', syntaxValid: true,
+          isRoleAddress: false, isFreeMailbox: false, domainMatches: true, mxStatus: 'present',
+          verificationStatus: 'valid', contactQualityScore: 100,
+        }),
+        saveManualContactAssessment: vi.fn().mockResolvedValue({ id: CONTACT_ID }),
+        authorizeManualSend: vi.fn().mockResolvedValue({ prospect_id: PROSPECT_ID }),
+        appendAudit: vi.fn().mockResolvedValue({}),
+        claimManualReviewSend: vi.fn().mockResolvedValue(claimed),
+        saveUnsubscribeToken: vi.fn().mockResolvedValue({}),
+        prepareCompanyMockup: vi.fn().mockResolvedValue({
+          prospectId: PROSPECT_ID,
+          buffer: Buffer.from('generic-name-only-banner'),
+          qualityLevel: 'name_only',
+          sendReady: false,
+        }),
+        sendPermissionedMarketingMessage: sendPermissioned,
+        markManualReviewFailed: markFailed,
+      },
+    });
+    const response = await handler(adminEvent('POST', { prospectId: PROSPECT_ID }));
+    expect(response.statusCode).toBe(409);
+    expect(JSON.parse(response.body)).toMatchObject({ error: 'COMPANY_MOCKUP_BRAND_ASSETS_INCOMPLETE' });
+    expect(sendPermissioned).not.toHaveBeenCalled();
+    expect(markFailed).toHaveBeenCalledWith({}, expect.objectContaining({
+      errorCode: 'COMPANY_MOCKUP_BRAND_ASSETS_INCOMPLETE',
+    }));
   });
 
   it('fails closed before transport if Company A is ever paired with Company B mockup data', async () => {

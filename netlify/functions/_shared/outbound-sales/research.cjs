@@ -5,7 +5,7 @@ const { canonicalDomain } = require('./providers/contract.cjs');
 const { extractPublicEmails } = require('./email.cjs');
 const { fetchWebsitePage } = require('./ssrf.cjs');
 
-const EXTRACTION_VERSION = 'deterministic-html-v2-brand-assets';
+const EXTRACTION_VERSION = 'deterministic-html-v3-brand-profile';
 const MAX_RESEARCH_PAGES = 5;
 const SIGNAL_DEFINITIONS = Object.freeze([
   { code: 'upcoming_events', label: 'Upcoming event activity', pattern: /\b(upcoming event|event calendar|register now|save the date|festival|conference|tournament|fundraiser|gala)\b/i },
@@ -17,6 +17,7 @@ const SIGNAL_DEFINITIONS = Object.freeze([
   { code: 'visible_print_marketing_need', label: 'Visible sign, banner, display, or print need', pattern: /\b(banner|signage|signs|trade show|exhibit|display|sponsor(?:ship)?|step and repeat|printed marketing|wayfinding|yard signs?)\b/i },
 ]);
 const LINK_PRIORITY = Object.freeze([
+  ['products', /\b(product|shop|collection|catalog|menu|portfolio|gallery)s?\b/i],
   ['events', /\b(event|calendar|festival|conference|tournament|fundraiser|gala)s?\b/i],
   ['news', /\b(news|blog|press|updates?)\b/i],
   ['growth', /\b(careers?|jobs?|locations?|coming-soon|grand-opening)\b/i],
@@ -89,12 +90,79 @@ function publicAssetUrl(value, baseUrl) {
 }
 
 function imageSource(tag) {
-  const direct = attribute(tag, 'src') || attribute(tag, 'data-src') || attribute(tag, 'data-lazy-src');
-  if (direct && !direct.startsWith('data:')) return direct;
   const srcset = attribute(tag, 'srcset') || attribute(tag, 'data-srcset');
-  if (!srcset) return '';
-  const candidates = srcset.split(',').map((entry) => entry.trim().split(/\s+/)[0]).filter(Boolean);
-  return candidates.at(-1) || '';
+  if (srcset) {
+    const candidates = srcset.split(',').map((entry, index) => {
+      const [url, descriptor = ''] = entry.trim().split(/\s+/);
+      const width = /^(\d+)w$/i.exec(descriptor);
+      const density = /^(\d+(?:\.\d+)?)x$/i.exec(descriptor);
+      return {
+        url,
+        score: width ? Number(width[1]) : density ? Number(density[1]) * 1000 : index,
+      };
+    }).filter((entry) => entry.url && !entry.url.startsWith('data:'));
+    const strongest = candidates.sort((left, right) => right.score - left.score)[0];
+    if (strongest?.url) return strongest.url;
+  }
+  const direct = attribute(tag, 'src') || attribute(tag, 'data-src') || attribute(tag, 'data-lazy-src');
+  return direct && !direct.startsWith('data:') ? direct : '';
+}
+
+function validBrandColor(value) {
+  const match = String(value || '').trim().match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (!match) return null;
+  if (match[1].length === 3) return `#${match[1].split('').map((character) => character.repeat(2)).join('')}`.toLowerCase();
+  return `#${match[1].toLowerCase()}`;
+}
+
+function brandLine(value, maxLength = 160) {
+  const line = normalizeText(String(value || '').replace(/<[^>]+>/g, ' ')).slice(0, maxLength);
+  if (line.length < 4 || /^(?:home|welcome|shop|menu|search|learn more|read more)$/i.test(line)) return null;
+  if (/cookie|privacy preference|javascript|sign in|log in|subscribe/i.test(line)) return null;
+  return line;
+}
+
+function extractBrandProfile(html) {
+  const source = String(html || '');
+  const themeColors = [];
+  const taglineCandidates = [];
+  const offeringCandidates = [];
+  const addUnique = (collection, value) => {
+    if (value && !collection.some((existing) => existing.toLowerCase() === value.toLowerCase())) collection.push(value);
+  };
+
+  addUnique(taglineCandidates, brandLine(titleFromHtml(source), 120));
+
+  for (const tag of source.match(/<meta\b[^>]*>/gi) || []) {
+    const key = (attribute(tag, 'property') || attribute(tag, 'name')).toLowerCase();
+    const content = attribute(tag, 'content');
+    if (key === 'theme-color') addUnique(themeColors, validBrandColor(content));
+    if (['description', 'og:description', 'twitter:description'].includes(key)) {
+      const line = brandLine(content);
+      addUnique(taglineCandidates, line);
+      addUnique(offeringCandidates, line);
+    }
+  }
+  for (const match of source.matchAll(/"(?:slogan|tagline)"\s*:\s*"([^"\\]{4,180})"/gi)) {
+    addUnique(taglineCandidates, brandLine(decodeEntities(match[1])));
+  }
+  for (const match of source.matchAll(/<h([12])\b[^>]*>([\s\S]{0,500}?)<\/h\1\s*>/gi)) {
+    addUnique(taglineCandidates, brandLine(match[2], 120));
+  }
+  for (const match of source.matchAll(/<(?:p|div)\b[^>]*(?:class|id)\s*=\s*["'][^"']*(?:tagline|slogan|hero[_ -]?(?:copy|text|title|subtitle))[^"']*["'][^>]*>([\s\S]{0,700}?)<\/(?:p|div)\s*>/gi)) {
+    addUnique(taglineCandidates, brandLine(match[1], 120));
+  }
+  for (const tag of source.match(/<img\b[^>]*>/gi) || []) {
+    const alt = brandLine(attribute(tag, 'alt'), 120);
+    if (alt && /product|service|collection|footwear|shoe|boot|sneaker|sandal|bag|apparel|menu|dish|project|property|vehicle|equipment/i.test(alt)) {
+      addUnique(offeringCandidates, alt);
+    }
+  }
+  return {
+    themeColors: themeColors.slice(0, 6),
+    taglineCandidates: taglineCandidates.slice(0, 12),
+    offeringCandidates: offeringCandidates.slice(0, 12),
+  };
 }
 
 function extractBrandAssets(html, baseUrl) {
@@ -120,7 +188,19 @@ function extractBrandAssets(html, baseUrl) {
     if (!content) continue;
     if (['og:logo', 'logo'].includes(property)) add(logoCandidates, { url: content, kind: 'logo', score: 120 });
     if (['og:image', 'og:image:secure_url', 'twitter:image', 'twitter:image:src'].includes(property)) {
-      add(imageCandidates, { url: content, kind: 'product', score: property.startsWith('og:') ? 110 : 100 });
+      if (/\b(?:logo|brandmark|wordmark)\b/i.test(content)) {
+        add(logoCandidates, { url: content, kind: 'logo', score: property.startsWith('og:') ? 125 : 115 });
+      } else {
+        add(imageCandidates, { url: content, kind: 'product', score: property.startsWith('og:') ? 115 : 105 });
+      }
+    }
+  }
+
+  for (const tag of String(html || '').match(/<link\b[^>]*>/gi) || []) {
+    const rel = attribute(tag, 'rel').toLowerCase();
+    const href = attribute(tag, 'href');
+    if (href && /(?:apple-touch-icon|mask-icon)/i.test(rel)) {
+      add(logoCandidates, { url: href, kind: 'logo', score: /apple-touch-icon/i.test(rel) ? 64 : 58, alt: rel });
     }
   }
 
@@ -143,10 +223,13 @@ function extractBrandAssets(html, baseUrl) {
       continue;
     }
     const tiny = width > 0 && height > 0 && (width < 240 || height < 140);
-    const decorative = /\b(?:icon|avatar|badge|sprite|pixel|tracking|spacer)\b/i.test(marker);
+    const decorative = /\b(?:icon|avatar|badge|sprite|pixel|tracking|spacer|flag|language|payment|newsletter|footer|placeholder|loading|blank)\b/i.test(marker);
     if (!tiny && !decorative) {
-      const semantic = /\b(?:product|service|collection|project|portfolio|hero|featured|showcase)\b/i.test(marker);
-      add(imageCandidates, { url: src, kind: 'product', score: semantic ? 80 : 50, alt });
+      const hero = /\b(?:hero|masthead|cover|campaign|banner)\b/i.test(marker);
+      const product = /\b(?:product|service|collection|project|portfolio|featured|showcase|footwear|shoe|boot|sneaker|sandal|loafer|bag|apparel|menu|dish|property|home|vehicle|equipment)\b/i.test(marker);
+      const large = width >= 700 || height >= 500;
+      const score = 50 + (hero ? 48 : 0) + (product ? 34 : 0) + (large ? 10 : 0);
+      add(imageCandidates, { url: src, kind: 'product', score, alt });
     }
   }
 
@@ -260,6 +343,7 @@ function pageExtraction(response) {
     emails,
     signals,
     brandAssets: extractBrandAssets(response.body, response.finalUrl),
+    brandProfile: extractBrandProfile(response.body),
     links: extractLinks(response.body, response.finalUrl),
   };
 }
@@ -327,6 +411,11 @@ async function researchWebsite(options) {
       logoCandidates: (page.brandAssets?.logoCandidates || []).slice(0, 8),
       imageCandidates: (page.brandAssets?.imageCandidates || []).slice(0, 16),
     },
+    brandProfile: {
+      themeColors: (page.brandProfile?.themeColors || []).slice(0, 6),
+      taglineCandidates: (page.brandProfile?.taglineCandidates || []).slice(0, 12),
+      offeringCandidates: (page.brandProfile?.offeringCandidates || []).slice(0, 12),
+    },
     links: (page.links || []).slice(0, 100),
   }));
   const hashPayload = stablePages
@@ -338,6 +427,7 @@ async function researchWebsite(options) {
       emails: page.emails.map((entry) => entry.email).sort(),
       signals: page.signals.map((signal) => ({ code: signal.code, evidence: signal.evidence })),
       brandAssets: page.brandAssets,
+      brandProfile: page.brandProfile,
     }))
     .sort((left, right) => left.url.localeCompare(right.url));
   const contentHash = sha256(JSON.stringify({ extractionVersion: EXTRACTION_VERSION, pages: hashPayload }));
@@ -352,6 +442,9 @@ async function researchWebsite(options) {
     .sort((left, right) => right.score - left.score).slice(0, 8);
   const imageCandidates = [...new Map(stablePages.flatMap((page) => page.brandAssets.imageCandidates).map((asset) => [asset.url, asset])).values()]
     .sort((left, right) => right.score - left.score).slice(0, 16);
+  const themeColors = [...new Set(stablePages.flatMap((page) => page.brandProfile.themeColors))].slice(0, 6);
+  const taglineCandidates = [...new Map(stablePages.flatMap((page) => page.brandProfile.taglineCandidates).map((line) => [line.toLowerCase(), line])).values()].slice(0, 12);
+  const offeringCandidates = [...new Map(stablePages.flatMap((page) => page.brandProfile.offeringCandidates).map((line) => [line.toLowerCase(), line])).values()].slice(0, 12);
 
   return Object.freeze({
     contentHash,
@@ -373,6 +466,7 @@ async function researchWebsite(options) {
       pagesAnalyzed: stablePages.length,
       responsesReused: reusedResponses,
       brandAssets: { logoCandidates, imageCandidates },
+      brandProfile: { themeColors, taglineCandidates, offeringCandidates },
     },
     evidence: signals.map((signal) => ({ code: signal.code, label: signal.label, evidence: signal.evidence, sourceUrl: signal.sourceUrl })),
     bannerNeedSignals: signals,
@@ -395,6 +489,7 @@ module.exports = {
   publicAssetUrl,
   imageSource,
   extractBrandAssets,
+  extractBrandProfile,
   freshnessScore,
   detectSignals,
   extractLinks,

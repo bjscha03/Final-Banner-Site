@@ -232,9 +232,9 @@ async function runMorningFinalizer(options) {
           sql, prospectId: candidate.prospect.id, force: false,
           store: options.store, sharp: options.sharp || options.dependencies?.sharp, dependencies: options.dependencies?.mockup,
         });
-        const mockupStatus = mockup?.status || mockup?.row?.status
-          || (mockup?.qualityLevel === 'name_only' ? 'fallback' : mockup?.qualityLevel ? 'ready' : null);
-        if (!mockup || mockup.prospectId !== candidate.prospect.id || !['ready', 'fallback'].includes(mockupStatus)) {
+        const mockupStatus = mockup?.status || mockup?.row?.status || (mockup?.sendReady ? 'ready' : 'fallback');
+        if (!mockup || mockup.prospectId !== candidate.prospect.id || mockupStatus !== 'ready'
+            || mockup.qualityLevel !== 'logo_and_product' || mockup.sendReady !== true) {
           throw Object.assign(new Error('Mockup identity or status did not pass.'), { code: 'MORNING_MOCKUP_NOT_READY' });
         }
         mockupReady += 1;

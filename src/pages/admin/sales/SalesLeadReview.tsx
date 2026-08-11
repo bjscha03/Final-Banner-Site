@@ -88,10 +88,20 @@ function reviewBadge(lead: OutboundManualReviewLead) {
 
 function mockupQualityLabel(lead: OutboundManualReviewLead) {
   const quality = lead.mockup?.qualityLevel;
-  if (quality === 'logo_and_product') return 'Exact logo + product image';
-  if (quality === 'logo') return 'Exact company logo';
-  if (quality === 'product') return 'Exact company image';
-  return 'Verified name fallback';
+  if (quality === 'logo_and_product') return 'Verified logo + relevant company imagery';
+  if (quality === 'logo') return 'Blocked — relevant product/service image missing';
+  if (quality === 'product') return 'Blocked — verified company logo missing';
+  return 'Blocked — verified logo and company imagery missing';
+}
+
+function mockupDiagnostic(lead: OutboundManualReviewLead) {
+  const issue = lead.mockup?.diagnostics?.[0];
+  if (!issue) return 'This lead cannot be sent until the branding requirement passes.';
+  const host = issue.hostname ? ` from ${issue.hostname}` : '';
+  if (issue.code.includes('TIMEOUT')) return `The company asset request timed out${host}; Refresh branding will retry safely.`;
+  if (issue.code.includes('LOW_QUALITY')) return `A public image${host} was rejected because it was too small, blurry, or unsuitable.`;
+  if (issue.code.includes('HTTP_REJECTED')) return `The company website blocked the asset request${host}.`;
+  return `A verified public asset could not be used${host} (${issue.code}).`;
 }
 
 function Score({ value }: { value: number | null }) {
@@ -193,12 +203,19 @@ function LeadCard({
               <p className="mt-3 text-xs font-semibold text-slate-500">Send adds the 20% NEW20 offer, business address, footer unsubscribe link, and one-click unsubscribe header.</p>
               <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
                 {lead.mockup?.previewUrl ? (
-                  <img
-                    src={lead.mockup.previewUrl}
-                    alt={`Personalized banner concept for ${lead.businessName}`}
-                    className="aspect-video w-full object-cover"
-                    loading="lazy"
-                  />
+                  <div className="relative">
+                    <img
+                      src={lead.mockup.previewUrl}
+                      alt={`Personalized banner concept for ${lead.businessName}`}
+                      className={cn('aspect-video w-full object-cover', lead.mockup.qualityLevel !== 'logo_and_product' && 'opacity-45 grayscale-[35%]')}
+                      loading="lazy"
+                    />
+                    {lead.mockup.qualityLevel !== 'logo_and_product' && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-slate-950/25 p-5 text-center">
+                        <span className="rounded-xl border border-amber-300 bg-amber-50/95 px-4 py-3 text-sm font-black text-amber-950 shadow-lg">Not send-ready<br /><span className="text-xs font-semibold">Verified logo + company imagery required</span></span>
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <div className="flex aspect-video items-center justify-center px-5 text-center text-sm font-semibold text-slate-500">
                     <span><LoaderCircle className="mx-auto mb-2 h-5 w-5 animate-spin text-[#18448D]" /> Building a banner from the company&apos;s public branding…</span>
@@ -206,8 +223,9 @@ function LeadCard({
                 )}
                 <div className="flex flex-col gap-2 border-t border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="text-xs font-black text-slate-900">{mockupQualityLabel(lead)}</p>
+                    <p className={cn('text-xs font-black', lead.mockup?.qualityLevel === 'logo_and_product' ? 'text-emerald-800' : 'text-amber-800')}>{mockupQualityLabel(lead)}</p>
                     <p className="mt-0.5 text-[11px] text-slate-500">{lead.mockup?.eventLabel || titleCase(lead.mockup?.sceneId || lead.eventFit.priority)}</p>
+                    {lead.mockup && lead.mockup.qualityLevel !== 'logo_and_product' && <p className="mt-1 max-w-xl text-[11px] font-semibold text-amber-700">{mockupDiagnostic(lead)}</p>}
                   </div>
                   <Button type="button" size="sm" variant="outline" onClick={() => onRefreshMockup(lead)} disabled={refreshingMockup}>
                     <RefreshCw className={cn('mr-2 h-3.5 w-3.5', refreshingMockup && 'animate-spin')} />
@@ -395,11 +413,15 @@ export default function SalesLeadReview() {
     setRefreshingMockupId(lead.prospectId);
     try {
       const result = await refreshOutboundCompanyMockup(lead.prospectId);
-      toast({
-        title: 'Company banner refreshed',
-        description: result.qualityLevel === 'logo_and_product'
-          ? 'The exact logo and company product/service image are included.'
-          : 'The strongest verified company assets available are included.',
+      toast(result.sendReady ? {
+        title: 'Personalized banner is send-ready',
+        description: 'The verified logo, relevant company imagery, brand treatment, offering, and event details are included.',
+      } : {
+        variant: 'destructive',
+        title: 'Branding is still incomplete',
+        description: result.qualityLevel === 'logo'
+          ? 'A relevant product or service image is still required.'
+          : result.qualityLevel === 'product' ? 'A verified company logo is still required.' : 'A verified logo and relevant company image are still required.',
       });
       await load();
     } catch (requestError) {

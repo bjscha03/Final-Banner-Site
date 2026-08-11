@@ -165,8 +165,8 @@ describe('morning preparation workflow', () => {
     };
     const prepareCompanyMockup = vi.fn(async ({ prospectId }) => (
       prospectId === COMPANY_A
-        ? { prospectId: COMPANY_B, status: 'ready' }
-        : { prospectId: COMPANY_B, status: 'ready' }
+        ? { prospectId: COMPANY_B, status: 'ready', qualityLevel: 'logo_and_product', sendReady: true }
+        : { prospectId: COMPANY_B, status: 'ready', qualityLevel: 'logo_and_product', sendReady: true }
     ));
     const result = await morningModule.runMorningFinalizer({
       sql: vi.fn(), env: morningEnv, businessDate: '2026-08-11',

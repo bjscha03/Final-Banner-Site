@@ -272,6 +272,11 @@ function createManualReviewHandler(options = {}) {
           mismatch.code = 'COMPANY_MOCKUP_IDENTITY_MISMATCH';
           throw mismatch;
         }
+        if (companyMockup?.sendReady !== true || companyMockup?.qualityLevel !== 'logo_and_product') {
+          const incomplete = new Error('The personalized banner is missing verified company branding or relevant product/service imagery. Nothing was sent.');
+          incomplete.code = 'COMPANY_MOCKUP_BRAND_ASSETS_INCOMPLETE';
+          throw incomplete;
+        }
         const mockupAttachment = dependencies.attachmentFromMockup(companyMockup, claimed.business_name);
         if (!mockupAttachment) {
           const unavailable = new Error('A safe personalized banner could not be attached. Nothing was sent.');
