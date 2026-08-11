@@ -7,9 +7,7 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import Layout from '@/components/Layout';
-import PageHeader from '@/components/PageHeader';
-import { BookOpen } from 'lucide-react';
-import { BlogList } from '@/components/blog';
+import { BlogHero, BlogList } from '@/components/blog';
 import { getAllPosts, getAllTags, paginatePosts } from '@/lib/blog';
 import type { BlogListItem } from '@/lib/blog';
 
@@ -49,6 +47,7 @@ export default function Blog() {
   };
   
   const paginatedData = paginatePosts(posts, currentPage, POSTS_PER_PAGE);
+  const featuredPost = posts.find((post) => post.frontmatter.featured) || posts[0];
   
   if (isLoading) {
     return (
@@ -81,12 +80,7 @@ export default function Blog() {
         <link rel="canonical" href="https://bannersonthefly.com/blog" />
       </Helmet>
       
-      <PageHeader
-        title="Blog"
-        subtitle="Practical guides for choosing materials, preparing artwork, planning production, and getting more from printed signage."
-        icon={BookOpen}
-        centered={false}
-      />
+      {featuredPost && <BlogHero post={featuredPost} />}
       
       <BlogList
         posts={paginatedData.posts}
@@ -94,6 +88,8 @@ export default function Blog() {
         currentPage={paginatedData.currentPage}
         totalPages={paginatedData.totalPages}
         onPageChange={handlePageChange}
+        featuredSlug={featuredPost?.slug}
+        showFeaturedCard={false}
       />
     </Layout>
   );
