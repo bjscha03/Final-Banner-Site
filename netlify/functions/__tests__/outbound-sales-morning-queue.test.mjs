@@ -84,12 +84,15 @@ describe('daily morning queue schema and scheduling', () => {
     const rankedQuery = sql.mock.calls[1][0];
     const countQuery = sql.mock.calls[2][0];
     for (const query of [rankedQuery, countQuery]) {
-      expect(query).toContain("mockup.render_version='company-banner-v12-clean-assets-adaptive-contrast-bound'");
+      expect(query).toContain("mockup.render_version='company-banner-v13-complete-footer-text-bound'");
       expect(query).toContain('"noUpscaleGuaranteed":true');
       expect(query).toContain('"logoCompositionAudit"');
       expect(query).toContain('"productSelectionAudit"');
       expect(query).toContain('"layoutAudit"');
+      expect(query).toContain('"footerNoOverlapGuaranteed":true');
+      expect(query).toContain('"logoHeadlineNoOverlapGuaranteed":true');
       expect(query).toContain('"paletteAudit"');
+      expect(query).toContain('"eventTextAudit"');
       expect(query).toContain('"blobBindingAudit"');
     }
   });
@@ -341,12 +344,15 @@ describe('Sales Admin production workflow', () => {
     expect(listQuery).toContain("mockup_status='ready'");
     expect(listQuery).toContain('mockup_generation_metadata @>');
     expect(listQuery).toContain('"noClipGuaranteed":true');
-    expect(listQuery).toContain("mockup_render_version='company-banner-v12-clean-assets-adaptive-contrast-bound'");
+    expect(listQuery).toContain("mockup_render_version='company-banner-v13-complete-footer-text-bound'");
     expect(listQuery).toContain('"noUpscaleGuaranteed":true');
     expect(listQuery).toContain('"logoCompositionAudit"');
     expect(listQuery).toContain('"productSelectionAudit"');
     expect(listQuery).toContain('"layoutAudit"');
+    expect(listQuery).toContain('"footerNoOverlapGuaranteed":true');
+    expect(listQuery).toContain('"logoHeadlineNoOverlapGuaranteed":true');
     expect(listQuery).toContain('"paletteAudit"');
+    expect(listQuery).toContain('"eventTextAudit"');
     expect(listQuery).toContain('"blobBindingAudit"');
     expect(listQuery).toContain('ORDER BY business_name ASC');
     const noteSql = vi.fn().mockResolvedValue([{ prospect_id: COMPANY_A, review_notes: 'Qualified', updated_at: '2026-08-11T12:00:00Z' }]);

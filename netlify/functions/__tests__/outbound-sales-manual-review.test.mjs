@@ -102,7 +102,7 @@ function rowFixture() {
     mockup_message_id: MESSAGE_ID,
     mockup_status: 'ready',
     mockup_scene_id: 'trade_show',
-    mockup_render_version: 'company-banner-v12-clean-assets-adaptive-contrast-bound',
+    mockup_render_version: 'company-banner-v13-complete-footer-text-bound',
     mockup_quality_level: 'logo_and_product',
     mockup_logo_url: 'https://futureexpo.example/logo.png',
     mockup_product_image_url: 'https://futureexpo.example/expo.jpg',
@@ -116,8 +116,9 @@ function rowFixture() {
       logoCompositionAudit: { passed: true, noClipGuaranteed: true, noRasterUpscaleGuaranteed: true },
       productSelectionAudit: { passed: true, sourceVerified: true, assetRole: 'product_photo' },
       layoutId: 'balanced_split',
-      layoutAudit: { passed: true, noOverlapGuaranteed: true, layoutId: 'balanced_split' },
+      layoutAudit: { passed: true, noOverlapGuaranteed: true, footerNoOverlapGuaranteed: true, logoHeadlineNoOverlapGuaranteed: true, layoutId: 'balanced_split' },
       paletteAudit: { passed: true, minimumWhiteTextContrast: 7, primaryWhiteContrast: 7, secondaryWhiteContrast: 7 },
+      eventTextAudit: { passed: true, completeTextPreserved: true },
       blobBindingAudit: {
         passed: true, strongReadBackVerified: true, blobKey: MOCKUP_BLOB_KEY,
         expectedContentHash: MOCKUP_BLOB_HASH, persistedContentHash: MOCKUP_BLOB_HASH,
@@ -281,6 +282,11 @@ describe('manual lead review migration and qualification', () => {
     expect(partialLead.canSend).toBe(false);
     expect(partialLead.mockup.presentationReady).toBe(false);
     expect(partialLead.technicalBlockers).toContain('Personalized banner has not passed the current production-quality contract');
+    const missingFooterAudit = rowFixture();
+    delete missingFooterAudit.mockup_generation_metadata.eventTextAudit;
+    const missingFooterLead = mapLead(missingFooterAudit);
+    expect(missingFooterLead.canSend).toBe(false);
+    expect(missingFooterLead.mockup.presentationReady).toBe(false);
   });
 
   it('fails closed when the selected contact differs from the initial message contact, while accepting the matched pair', () => {

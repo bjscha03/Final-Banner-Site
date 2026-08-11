@@ -75,6 +75,40 @@ function strongMemoryStore(initial = null) {
 }
 
 describe('company-brand asset extraction', () => {
+  it('preserves a complete long event and multi-booth footer without clipping', async () => {
+    const font = await mockupModule.loadMockupFont();
+    const text = 'ATLANTA SHOE MARKET · BOOTH 1405-1407-1409, 1504-1506-1508';
+    const layout = mockupModule.footerTextLayout(font, text, 892);
+    expect(layout).toMatchObject({ passed: true, completeTextPreserved: true });
+    expect(layout.lines.join(' ')).toBe(text);
+    expect(layout.lines.length).toBeLessThanOrEqual(2);
+    expect(layout.fontSize).toBeGreaterThanOrEqual(18);
+    expect(layout.measuredWidths.every((width) => width <= layout.maxWidth)).toBe(true);
+    expect(layout.inkTop).toBeGreaterThanOrEqual(layout.separatorY + 4);
+    expect(layout.inkBottom).toBeLessThanOrEqual(layout.verticalBottom);
+    expect(layout.baselines).toHaveLength(layout.lines.length);
+  });
+
+  it('balances a very long footer into two readable lines inside the full-width band', async () => {
+    const font = await mockupModule.loadMockupFont();
+    const text = 'INTERNATIONAL FOOTWEAR AND FASHION INDUSTRY PROFESSIONAL TRADE SHOW MARKET · BOOTH 1001-1003-1005, 1102-1104-1106, 1201-1203-1205';
+    const layout = mockupModule.footerTextLayout(font, text, 892);
+    expect(layout).toMatchObject({ passed: true, completeTextPreserved: true });
+    expect(layout.lines).toHaveLength(2);
+    expect(layout.fontSize).toBeGreaterThanOrEqual(18);
+    expect(Math.abs(layout.measuredWidths[0] - layout.measuredWidths[1])).toBeLessThan(100);
+    expect(layout.inkTop).toBeGreaterThanOrEqual(layout.separatorY + 4);
+    expect(layout.inkBottom).toBeLessThanOrEqual(layout.verticalBottom);
+  });
+
+  it('keeps every parsed booth number instead of silently truncating the final booth', () => {
+    const booths = Array.from({ length: 13 }, (_, index) => String(1001 + index)).join(', ');
+    expect(mockupModule.boothLabel({ message: { bodyText: `We will be in booths ${booths}.` } })).toBe(booths);
+    const oversizedBooths = Array.from({ length: 45 }, (_, index) => String(2001 + index)).join(', ');
+    expect(oversizedBooths.length).toBeGreaterThan(260);
+    expect(mockupModule.boothLabel({ message: { bodyText: `We will be in booths ${oversizedBooths}.` } })).toBe(oversizedBooths);
+  });
+
   it('ranks exact logo metadata and real product imagery without inventing brand assets', () => {
     const html = `
       <meta property="og:image" content="/products/featured-shoe.jpg">
@@ -368,7 +402,7 @@ describe('deterministic personalized banner renderer', () => {
     expect(mockupModule.productCompositionAudit({
       width: 300, height: 300, selectionAudit: { passed: true, assetRole: 'product_photo' },
     })).toMatchObject({
-      passed: true, displayWidth: 292, displayHeight: 292, enlargementRatio: 1,
+      passed: true, displayWidth: 216, displayHeight: 216, enlargementRatio: 1,
       sourceVisibleFraction: 1, noClipGuaranteed: true, noUpscaleGuaranteed: true,
       selectionPassed: true, sourceClass: 'product_photo',
     });
@@ -402,6 +436,7 @@ describe('deterministic personalized banner renderer', () => {
   it('renders a valid 1200x675 email-safe JPEG with exact company assets', async () => {
     const { scene, logo, product } = await imageFixtures();
     const candidate = candidateFixture();
+    candidate.message.bodyText = 'Hi Eric,\n\nI saw Amberjack is exhibiting at the Atlanta Shoe Market on August 15–17 in booths 1405-1407-1409, 1504-1506-1508.\n\nBest,\nBrandon';
     const result = await mockupModule.renderCompanyMockup(candidate, {
       logo: { buffer: logo, finalUrl: 'https://amberjack.example/logo.png', candidate: { url: 'https://amberjack.example/logo.png' } },
       product: {
@@ -420,6 +455,7 @@ describe('deterministic personalized banner renderer', () => {
     expect(result.plan).toMatchObject({
       sceneId: 'trade_show',
       eventLabel: 'Atlanta Shoe Market',
+      boothLabel: '1405-1407-1409, 1504-1506-1508',
       brandCopy: {
         headline: 'Built for comfort. Designed for confidence.',
         offering: 'Premium shoes made for all-day wear',
@@ -430,6 +466,8 @@ describe('deterministic personalized banner renderer', () => {
     });
     expect(result.buffer.length).toBeLessThan(2 * 1024 * 1024);
     expect(result.compositionAudit).toMatchObject({ passed: true, sourceVisibleFraction: 1, noClipGuaranteed: true });
+    expect(result.layoutAudit.logoHeadlineNoOverlapGuaranteed).toBe(true);
+    expect(result.layoutAudit.headlineInkTop - result.layoutAudit.logoCardBottom).toBeGreaterThanOrEqual(8);
   });
 
   it('preserves both edges of BED|STÜ-style campaign art instead of cropping embedded branding', async () => {
@@ -493,7 +531,7 @@ describe('deterministic personalized banner renderer', () => {
     });
     expect(result).toMatchObject({ layoutId: 'lifestyle_split' });
     expect(result.compositionAudit).toMatchObject({
-      passed: true, panelWidth: 461, panelHeight: 320, sourceVisibleFraction: 1,
+      passed: true, panelWidth: 461, panelHeight: 244, sourceVisibleFraction: 1,
       noClipGuaranteed: true, noUpscaleGuaranteed: true, layoutId: 'lifestyle_split',
       layoutNoOverlapGuaranteed: true,
     });
@@ -591,10 +629,15 @@ describe('deterministic personalized banner renderer', () => {
         layoutId: 'balanced_split',
         layoutAudit: expect.objectContaining({
           passed: true, layoutId: 'balanced_split', noOverlapGuaranteed: true,
+          footerNoOverlapGuaranteed: true, logoHeadlineNoOverlapGuaranteed: true,
         }),
         paletteAudit: expect.objectContaining({
           passed: true, minimumWhiteTextContrast: 7,
           primaryWhiteContrast: expect.any(Number), secondaryWhiteContrast: expect.any(Number),
+        }),
+        eventTextAudit: expect.objectContaining({
+          passed: true, completeTextPreserved: true,
+          lines: expect.any(Array), measuredWidths: expect.any(Array),
         }),
         blobBindingAudit: expect.objectContaining({
           passed: true, strongReadBackVerified: true,
@@ -673,11 +716,12 @@ describe('deterministic personalized banner renderer', () => {
           passed: true, assetRole: 'product_photo', sourceRole: 'product_detail', sourceVerified: true,
         },
         layoutId: 'balanced_split',
-        layoutAudit: { passed: true, layoutId: 'balanced_split', noOverlapGuaranteed: true },
+        layoutAudit: { passed: true, layoutId: 'balanced_split', noOverlapGuaranteed: true, footerNoOverlapGuaranteed: true, logoHeadlineNoOverlapGuaranteed: true },
         paletteAudit: {
           passed: true, minimumWhiteTextContrast: 7,
           primaryWhiteContrast: 9, secondaryWhiteContrast: 9,
         },
+        eventTextAudit: { passed: true, completeTextPreserved: true },
         blobBindingAudit: {
           passed: true, strongReadBackVerified: true,
           blobKey: `company-banners/${PROSPECT_ID}/${contentHash}.jpg`,
@@ -747,11 +791,12 @@ describe('deterministic personalized banner renderer', () => {
         },
         productSelectionAudit: { passed: true, assetRole: 'product_photo', sourceVerified: true },
         layoutId: 'balanced_split',
-        layoutAudit: { passed: true, layoutId: 'balanced_split', noOverlapGuaranteed: true },
+        layoutAudit: { passed: true, layoutId: 'balanced_split', noOverlapGuaranteed: true, footerNoOverlapGuaranteed: true, logoHeadlineNoOverlapGuaranteed: true },
         paletteAudit: {
           passed: true, minimumWhiteTextContrast: 7,
           primaryWhiteContrast: 9, secondaryWhiteContrast: 9,
         },
+        eventTextAudit: { passed: true, completeTextPreserved: true },
         blobBindingAudit: {
           passed: true, strongReadBackVerified: true,
           blobKey: `company-banners/${PROSPECT_ID}/${plan.contentHash}.jpg`,
@@ -869,8 +914,9 @@ describe('company mockup migration isolation', () => {
     expect(sql.mock.calls[0][0]).toContain(`mockup.render_version='${mockupModule.RENDER_VERSION}'`);
     expect(sql.mock.calls[0][0]).toContain('"logoCompositionAudit":{"passed":true,"noClipGuaranteed":true,"noRasterUpscaleGuaranteed":true}');
     expect(sql.mock.calls[0][0]).toContain('"productSelectionAudit":{"passed":true,"sourceVerified":true}');
-    expect(sql.mock.calls[0][0]).toContain('"layoutAudit":{"passed":true,"noOverlapGuaranteed":true}');
+    expect(sql.mock.calls[0][0]).toContain('"layoutAudit":{"passed":true,"noOverlapGuaranteed":true,"footerNoOverlapGuaranteed":true,"logoHeadlineNoOverlapGuaranteed":true}');
     expect(sql.mock.calls[0][0]).toContain('"paletteAudit":{"passed":true,"minimumWhiteTextContrast":7}');
+    expect(sql.mock.calls[0][0]).toContain('"eventTextAudit":{"passed":true,"completeTextPreserved":true}');
     expect(sql.mock.calls[0][0]).toContain("mockup.status IS DISTINCT FROM 'failed'");
     expect(sql.mock.calls[0][0]).toContain("'attemptCount'");
     expect(sql.mock.calls[0][0]).toContain("'nextRetryAt'");
@@ -1019,8 +1065,9 @@ describe('company mockup migration isolation', () => {
         logoCompositionAudit: { passed: true, noClipGuaranteed: true, noRasterUpscaleGuaranteed: true },
         productSelectionAudit: { passed: true, sourceVerified: true, assetRole: 'product_photo' },
         layoutId: 'balanced_split',
-        layoutAudit: { passed: true, noOverlapGuaranteed: true, layoutId: 'balanced_split' },
+        layoutAudit: { passed: true, noOverlapGuaranteed: true, footerNoOverlapGuaranteed: true, logoHeadlineNoOverlapGuaranteed: true, layoutId: 'balanced_split' },
         paletteAudit: { passed: true, minimumWhiteTextContrast: 7, primaryWhiteContrast: 8, secondaryWhiteContrast: 9 },
+        eventTextAudit: { passed: true, completeTextPreserved: true },
         blobBindingAudit: {
           passed: true, strongReadBackVerified: true, blobKey,
           expectedContentHash: blobHash, persistedContentHash: blobHash,

@@ -221,7 +221,10 @@ describe('event import isolation and quality gates', () => {
       expect(query).toContain('"logoCompositionAudit"');
       expect(query).toContain('"productSelectionAudit"');
       expect(query).toContain('"layoutAudit"');
+      expect(query).toContain('"footerNoOverlapGuaranteed":true');
+      expect(query).toContain('"logoHeadlineNoOverlapGuaranteed":true');
       expect(query).toContain('"paletteAudit"');
+      expect(query).toContain('"eventTextAudit"');
     }
   });
 

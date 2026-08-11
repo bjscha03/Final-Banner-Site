@@ -18,7 +18,7 @@ const MOCKUP_FONT_FILE = 'node_modules/pdfjs-dist/standard_fonts/LiberationSans-
 const OUTPUT_WIDTH = 1200;
 const OUTPUT_HEIGHT = 675;
 const PRODUCT_PANEL_WIDTH = 445;
-const PRODUCT_PANEL_HEIGHT = 320;
+const PRODUCT_PANEL_HEIGHT = 244;
 const PRODUCT_SAFE_PADDING = 14;
 const MIN_WHITE_TEXT_CONTRAST = repository.MIN_MOCKUP_WHITE_TEXT_CONTRAST;
 const PRODUCT_RELEVANCE_PATTERN = /\b(?:product|service|collection|project|portfolio|case[ _-]?stud(?:y|ies)|featured|showcase|gallery|work|solution|installation|repair|construction|landscap|roof|plumb|footwear|shoe|boot|sneaker|sandal|loafer|bag|apparel|clothing|menu|dish|food|property|real[ _-]?estate|vehicle|equipment|furniture|jewelry|cosmetic|packag|merchandise)\w*\b/i;
@@ -96,8 +96,12 @@ function sha256(value) {
   return crypto.createHash('sha256').update(Buffer.isBuffer(value) ? value : String(value)).digest('hex');
 }
 
+function normalizedLabel(value) {
+  return String(value || '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 function cleanLabel(value, maxLength = 76) {
-  return String(value || '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, maxLength);
+  return normalizedLabel(value).slice(0, maxLength);
 }
 
 function combinedEvidence(candidate) {
@@ -608,9 +612,9 @@ async function fetchBestValid(candidates, dependencies, sharpImpl, kind, composi
 
 function boothLabel(candidate) {
   const body = String(candidate?.message?.bodyText || '');
-  const match = /\bbooths?\s*(?:#|no\.?\s*)?([a-z0-9][a-z0-9–—\-/, &;]{0,100})(?=[.\n]|$)/i.exec(body);
+  const match = /\bbooths?\s*(?:#|no\.?\s*)?([a-z0-9][a-z0-9–—\-/, &;]*)(?=[.\n]|$)/i.exec(body);
   if (!match?.[1]) return null;
-  return cleanLabel(match[1].replace(/\s+(?:at|during|for|on|from|and\s+(?:a|the))\b.*$/i, ''), 72) || null;
+  return normalizedLabel(match[1].replace(/\s+(?:at|during|for|on|from|and\s+(?:a|the))\b.*$/i, '')) || null;
 }
 
 function marketingLine(value, maxLength = 94) {
@@ -992,12 +996,18 @@ function fontRun(font, text) {
   return font.layout(value);
 }
 
-function fontSafeText(font, text) {
+function fontSafeText(font, text, failOnUnsupported = false) {
   const replacements = new Map([['’', "'"], ['‘', "'"], ['“', '"'], ['”', '"'], ['—', '-'], ['–', '-'], ['…', '...']]);
   return [...String(text || '')].map((character) => {
     if (font.hasGlyphForCodePoint(character.codePointAt(0))) return character;
     const replacement = replacements.get(character) || '';
-    return [...replacement].every((value) => font.hasGlyphForCodePoint(value.codePointAt(0))) ? replacement : '';
+    if (replacement && [...replacement].every((value) => font.hasGlyphForCodePoint(value.codePointAt(0)))) return replacement;
+    if (failOnUnsupported) {
+      const error = new Error(`The bundled mockup font cannot safely render ${JSON.stringify(character)}.`);
+      error.code = 'MOCKUP_FONT_GLYPH_UNAVAILABLE';
+      throw error;
+    }
+    return '';
   }).join('');
 }
 
@@ -1015,6 +1025,90 @@ function fitFontSize(font, lines, preferredSize, maxWidth, letterSpacing = 0, mi
     if (width > maxWidth) fitted = Math.min(fitted, preferredSize * (maxWidth / width));
   }
   return Math.max(minimumSize, Math.floor(fitted));
+}
+
+function balancedMeasuredText(font, text, fontSize, maxWidth, letterSpacing = 0, maxLines = 2) {
+  const tokens = String(text || '').trim().split(/\s+/).filter(Boolean);
+  if (!tokens.length) return [];
+  const segment = (start, end) => tokens.slice(start, end).join(' ');
+  const widthOf = (value) => runWidth(fontRun(font, value), font, fontSize, letterSpacing);
+  const segmentWidths = new Map();
+  const widthBetween = (start, end) => {
+    const key = `${start}:${end}`;
+    if (!segmentWidths.has(key)) segmentWidths.set(key, widthOf(segment(start, end)));
+    return segmentWidths.get(key);
+  };
+
+  for (let targetLines = 1; targetLines <= maxLines; targetLines += 1) {
+    let best = null;
+    const visit = (start, lines, widths) => {
+      const remainingLines = targetLines - lines.length;
+      if (remainingLines === 0) {
+        if (start !== tokens.length) return;
+        const average = widths.reduce((sum, width) => sum + width, 0) / widths.length;
+        const raggedness = widths.reduce((sum, width) => sum + ((width - average) ** 2), 0);
+        const boundaryPenalty = lines.slice(0, -1).some((line) => /(?:^|\s)·$/.test(line))
+          || lines.slice(1).some((line) => /^·(?:\s|$)/.test(line)) ? 1_000_000 : 0;
+        const score = raggedness + boundaryPenalty;
+        if (!best || score < best.score) best = { lines, widths, score };
+        return;
+      }
+      if (remainingLines === 1) {
+        const width = widthBetween(start, tokens.length);
+        if (width <= maxWidth) visit(tokens.length, [...lines, segment(start, tokens.length)], [...widths, width]);
+        return;
+      }
+      const maximumEnd = tokens.length - (remainingLines - 1);
+      for (let end = start + 1; end <= maximumEnd; end += 1) {
+        const width = widthBetween(start, end);
+        if (width > maxWidth) break;
+        visit(end, [...lines, segment(start, end)], [...widths, width]);
+      }
+    };
+    visit(0, [], []);
+    if (best) return best.lines;
+  }
+  return [];
+}
+
+function footerTextLayout(font, text, maxWidth) {
+  const value = String(text || '').trim();
+  const safeMaxWidth = Math.max(240, Number(maxWidth) || 240);
+  const separatorY = 247;
+  const verticalTop = 254;
+  const verticalBottom = 314;
+  for (let fontSize = 22; fontSize >= 12; fontSize -= 1) {
+    const letterSpacing = fontSize >= 18 ? 1.1 : 0.65;
+    const lines = balancedMeasuredText(font, value, fontSize, safeMaxWidth, letterSpacing, 2);
+    const measuredWidths = lines.map((line) => Number(
+      runWidth(fontRun(font, line), font, fontSize, letterSpacing).toFixed(3),
+    ));
+    const unitsPerEm = Math.max(1, Number(font.unitsPerEm) || 1);
+    const ascent = Math.max(0, Number(font.ascent) || (unitsPerEm * 0.8)) * (fontSize / unitsPerEm);
+    const descent = Math.max(0, -(Number(font.descent) || -(unitsPerEm * 0.2))) * (fontSize / unitsPerEm);
+    const lineHeight = fontSize + 6;
+    const verticalExtent = ascent + descent + (Math.max(0, lines.length - 1) * lineHeight);
+    const verticalRoom = verticalBottom - verticalTop;
+    const firstBaseline = verticalTop + Math.max(0, (verticalRoom - verticalExtent) / 2) + ascent;
+    const baselines = lines.map((_, index) => Number((firstBaseline + (index * lineHeight)).toFixed(3)));
+    const inkTop = baselines.length ? Number((baselines[0] - ascent).toFixed(3)) : verticalTop;
+    const inkBottom = baselines.length ? Number((baselines.at(-1) + descent).toFixed(3)) : verticalBottom;
+    if (lines.length > 0 && lines.length <= 2
+        && measuredWidths.every((width) => width <= safeMaxWidth)
+        && verticalExtent <= verticalRoom
+        && inkTop >= verticalTop && inkBottom <= verticalBottom) {
+      return {
+        lines, fontSize, letterSpacing, measuredWidths, maxWidth: safeMaxWidth,
+        baselines, separatorY, inkTop, inkBottom, verticalTop, verticalBottom,
+        passed: true, completeTextPreserved: lines.join(' ') === value,
+      };
+    }
+  }
+  return {
+    lines: [], fontSize: 0, letterSpacing: 0, measuredWidths: [], maxWidth: safeMaxWidth,
+    baselines: [], separatorY, inkTop: null, inkBottom: null, verticalTop, verticalBottom,
+    passed: false, completeTextPreserved: false,
+  };
 }
 
 function vectorTextPaths(font, text, {
@@ -1091,7 +1185,9 @@ async function renderProductPanel(asset, width, height, palette, sharpImpl) {
 async function renderArtwork(candidate, assets, sharpImpl, dependencies = {}) {
   const width = Math.max(860, Math.min(1120, Math.round(Number(dependencies.artworkWidth) || 1000)));
   const height = 320;
-  const layoutGeometry = mockupLayoutGeometry(assets.product, width, height);
+  const footerTop = PRODUCT_PANEL_HEIGHT;
+  const productPanelHeight = PRODUCT_PANEL_HEIGHT;
+  const layoutGeometry = mockupLayoutGeometry(assets.product, width, productPanelHeight);
   const {
     productWidth, productLeft, productSide, textLeft, textWidth,
   } = layoutGeometry;
@@ -1123,9 +1219,9 @@ async function renderArtwork(candidate, assets, sharpImpl, dependencies = {}) {
     top: 0,
   }];
 
-  let compositionAudit = productCompositionAudit(null, { panelWidth: productWidth, panelHeight: height });
+  let compositionAudit = productCompositionAudit(null, { panelWidth: productWidth, panelHeight: productPanelHeight });
   if (assets.product) {
-    const productPanel = await renderProductPanel(assets.product, productWidth, height, palette, sharpImpl);
+    const productPanel = await renderProductPanel(assets.product, productWidth, productPanelHeight, palette, sharpImpl);
     compositionAudit = {
       ...productPanel.audit,
       passed: productPanel.audit.passed && layoutGeometry.passed,
@@ -1134,14 +1230,24 @@ async function renderArtwork(candidate, assets, sharpImpl, dependencies = {}) {
     };
     layers.push({ input: productPanel.buffer, left: productLeft, top: 0 });
     layers.push({
-      input: Buffer.from(`<svg width="4" height="${height}" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="${palette.accent}" fill-opacity=".72"/></svg>`),
+      input: Buffer.from(`<svg width="4" height="${productPanelHeight}" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="${palette.accent}" fill-opacity=".72"/></svg>`),
       left: Math.max(0, (productSide === 'left' ? productLeft + productWidth : productLeft) - 2),
       top: 0,
     });
   }
 
   let logoCardHeight = 0;
+  let logoCardBottom = 0;
   let logoAudit = logoCompositionAudit(null);
+  let textContentBottom = 0;
+  let logoHeadlineNoOverlapGuaranteed = true;
+  let headlineInkTop = null;
+  const textInkTop = (baseline, fontSize) => baseline
+    - (Math.max(0, Number(font.ascent) || (Number(font.unitsPerEm) * 0.8))
+      * (fontSize / Math.max(1, Number(font.unitsPerEm) || 1)));
+  const textInkBottom = (baseline, fontSize) => baseline
+    + (Math.max(0, -(Number(font.descent) || -(Number(font.unitsPerEm) * 0.2)))
+      * (fontSize / Math.max(1, Number(font.unitsPerEm) || 1)));
   if (assets.logo) {
     const logoMaxWidth = Math.max(220, Math.min(Math.round(330 * horizontalScale), textWidth - 38));
     logoAudit = logoCompositionAudit(assets.logo, { maxWidth: logoMaxWidth, maxHeight: 86 });
@@ -1150,6 +1256,8 @@ async function renderArtwork(candidate, assets, sharpImpl, dependencies = {}) {
     const cardWidth = Math.max(185, logo.info.width + 38);
     const cardHeight = Math.max(72, logo.info.height + 24);
     logoCardHeight = cardHeight;
+    logoCardBottom = 25 + cardHeight;
+    textContentBottom = Math.max(textContentBottom, logoCardBottom);
     layers.push({
       input: Buffer.from(`<svg width="${cardWidth}" height="${cardHeight}" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="${cardWidth - 2}" height="${cardHeight - 2}" rx="13" fill="${logoCard.fill}" fill-opacity=".97" stroke="${logoCard.stroke}" stroke-opacity=".8"/></svg>`),
       left: textLeft,
@@ -1163,18 +1271,33 @@ async function renderArtwork(candidate, assets, sharpImpl, dependencies = {}) {
   if (assets.logo) {
     const headline = fontSafeText(font, plan.brandCopy.headline || plan.brandCopy.offering || candidate.prospect.businessName);
     const headlineLines = wrapCopy(headline, assets.product ? 28 : 42, 2);
-    const headlineFont = fitFontSize(font, headlineLines, headlineLines.length === 1 ? 37 : 32, textWidth - 8, -0.6, 22);
-    const headlineStart = Math.max(148, 25 + logoCardHeight + 37);
+    const headlineFont = fitFontSize(font, headlineLines, headlineLines.length === 1 ? 32 : 26, textWidth - 8, -0.6, 20);
+    const headlineAscent = Math.max(0, Number(font.ascent) || (Number(font.unitsPerEm) * 0.8))
+      * (headlineFont / Math.max(1, Number(font.unitsPerEm) || 1));
+    const headlineStart = Math.max(142, logoCardBottom + 8 + headlineAscent);
+    headlineInkTop = textInkTop(headlineStart, headlineFont);
+    logoHeadlineNoOverlapGuaranteed = headlineInkTop >= logoCardBottom + 8;
     headlineLines.forEach((line, index) => svgParts.push(vectorTextPaths(font, line, {
       baselineY: headlineStart + (index * (headlineFont + 5)), fontSize: headlineFont, fill: '#ffffff', letterSpacing: -0.6,
     })));
+    headlineLines.forEach((_, index) => {
+      textContentBottom = Math.max(textContentBottom, textInkBottom(
+        headlineStart + (index * (headlineFont + 5)), headlineFont,
+      ));
+    });
     const offering = fontSafeText(font, plan.brandCopy.offering || '');
     if (offering && normalizedBrandIdentity(offering) !== normalizedBrandIdentity(headline)) {
       const offeringLines = wrapCopy(offering, assets.product ? 48 : 70, headlineLines.length > 1 ? 1 : 2);
-      const offeringStart = headlineStart + (headlineLines.length * (headlineFont + 5)) + 13;
-      offeringLines.forEach((line, index) => svgParts.push(vectorTextPaths(font, line, {
-        baselineY: offeringStart + (index * 21), fontSize: fitFontSize(font, [line], 17, textWidth - 8, 0.2, 13), fill: '#f3f4f6', letterSpacing: 0.2,
-      })));
+      const lastHeadlineBaseline = headlineStart + ((headlineLines.length - 1) * (headlineFont + 5));
+      const offeringStart = lastHeadlineBaseline + Math.max(28, Math.round(headlineFont * 0.85));
+      offeringLines.forEach((line, index) => {
+        const offeringFont = fitFontSize(font, [line], 17, textWidth - 8, 0.2, 13);
+        const baselineY = offeringStart + (index * 21);
+        svgParts.push(vectorTextPaths(font, line, {
+          baselineY, fontSize: offeringFont, fill: '#f3f4f6', letterSpacing: 0.2,
+        }));
+        textContentBottom = Math.max(textContentBottom, textInkBottom(baselineY, offeringFont));
+      });
     }
   } else {
     const nameLines = wrapName(fontSafeText(font, candidate.prospect.businessName), assets.product ? 18 : 24);
@@ -1183,20 +1306,70 @@ async function renderArtwork(candidate, assets, sharpImpl, dependencies = {}) {
     nameLines.forEach((line, index) => svgParts.push(vectorTextPaths(font, line, {
       baselineY: nameStart + (index * (nameFont + 6)), fontSize: nameFont, fill: '#ffffff', letterSpacing: -1,
     })));
+    nameLines.forEach((_, index) => {
+      textContentBottom = Math.max(textContentBottom, textInkBottom(
+        nameStart + (index * (nameFont + 6)), nameFont,
+      ));
+    });
   }
 
-  const eventText = fontSafeText(font, cleanLabel([
+  const footerNoOverlapGuaranteed = textContentBottom <= footerTop - 4;
+  const renderedLayoutAudit = {
+    ...layoutGeometry,
+    textContentBottom: Number(textContentBottom.toFixed(3)),
+    footerTop,
+    footerNoOverlapGuaranteed,
+    logoCardBottom: logoCardBottom || null,
+    headlineInkTop: headlineInkTop === null ? null : Number(headlineInkTop.toFixed(3)),
+    logoHeadlineNoOverlapGuaranteed,
+    passed: layoutGeometry.passed && footerNoOverlapGuaranteed && logoHeadlineNoOverlapGuaranteed,
+  };
+  if (!renderedLayoutAudit.passed) {
+    const error = new Error('The company copy cannot fit above the event footer safely.');
+    error.code = 'MOCKUP_LAYOUT_OVERFLOW';
+    throw error;
+  }
+  compositionAudit = {
+    ...compositionAudit,
+    passed: compositionAudit.passed && renderedLayoutAudit.passed,
+    layoutNoOverlapGuaranteed: renderedLayoutAudit.noOverlapGuaranteed
+      && renderedLayoutAudit.footerNoOverlapGuaranteed,
+  };
+
+  const eventTextSource = normalizedLabel([
     plan.eventLabel,
     plan.boothLabel ? `BOOTH ${plan.boothLabel}` : null,
-  ].filter(Boolean).join(' · ') || candidate.prospect.industry || candidate.prospect.businessType || 'QUICK BANNER MOCKUP', 80).toUpperCase());
-  svgParts.push(`<rect x="0" y="274" width="${Math.min(textWidth, 510)}" height="1" fill="#ffffff" fill-opacity=".24"/>`);
-  svgParts.push(vectorTextPaths(font, eventText, {
-    baselineY: 303,
-    fontSize: fitFontSize(font, [eventText], 16, textWidth - 8, 1.8, 11),
-    fill: '#ffffff',
-    letterSpacing: 1.8,
-  }));
+  ].filter(Boolean).join(' · ') || candidate.prospect.industry || candidate.prospect.businessType || 'QUICK BANNER MOCKUP').toUpperCase();
+  if (eventTextSource.length > 260) {
+    const error = new Error('The complete event and booth label exceeds the safe banner limit.');
+    error.code = 'MOCKUP_EVENT_TEXT_OVERFLOW';
+    throw error;
+  }
+  const eventText = fontSafeText(font, eventTextSource, true);
+  const eventTextAudit = footerTextLayout(font, eventText, width - 108);
+  if (!eventTextAudit.passed || !eventTextAudit.completeTextPreserved) {
+    const error = new Error('The complete event and booth label cannot be rendered safely.');
+    error.code = 'MOCKUP_EVENT_TEXT_OVERFLOW';
+    throw error;
+  }
   layers.push({ input: Buffer.from(`<svg width="${textWidth}" height="${height}" xmlns="http://www.w3.org/2000/svg">${svgParts.join('')}</svg>`), left: textLeft, top: 0 });
+
+  const footerSvgParts = [
+    `<rect x="0" y="${footerTop}" width="${width}" height="${height - footerTop}" fill="#06182f" fill-opacity=".94"/>`,
+    `<rect x="0" y="${footerTop}" width="${width}" height="4" fill="${palette.accent}"/>`,
+  ];
+  eventTextAudit.lines.forEach((line, index) => footerSvgParts.push(vectorTextPaths(font, line, {
+    x: (width - eventTextAudit.measuredWidths[index]) / 2,
+    baselineY: eventTextAudit.baselines[index],
+    fontSize: eventTextAudit.fontSize,
+    fill: '#ffffff',
+    letterSpacing: eventTextAudit.letterSpacing,
+  })));
+  layers.push({
+    input: Buffer.from(`<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">${footerSvgParts.join('')}</svg>`),
+    left: 0,
+    top: 0,
+  });
 
   layers.push({
     input: Buffer.from(`<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="shine" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".18"/><stop offset=".38" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".08"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#shine)"/></svg>`),
@@ -1211,8 +1384,9 @@ async function renderArtwork(candidate, assets, sharpImpl, dependencies = {}) {
     compositionAudit,
     logoCompositionAudit: logoAudit,
     layoutId: layoutGeometry.layoutId,
-    layoutAudit: layoutGeometry,
+    layoutAudit: renderedLayoutAudit,
     paletteAudit: palette.contrastAudit,
+    eventTextAudit,
   };
 }
 
@@ -1250,6 +1424,7 @@ async function renderCompanyMockup(candidate, assets, dependencies = {}) {
     layoutId: artwork.layoutId,
     layoutAudit: artwork.layoutAudit,
     paletteAudit: artwork.paletteAudit,
+    eventTextAudit: artwork.eventTextAudit,
   };
 }
 
@@ -1377,6 +1552,7 @@ async function prepareCompanyMockup(options) {
   const renderedLogoAudit = rendered.logoCompositionAudit;
   const renderedLayoutAudit = rendered.layoutAudit;
   const renderedPaletteAudit = rendered.paletteAudit;
+  const renderedEventTextAudit = rendered.eventTextAudit;
   const presentationReady = level === 'logo_and_product'
     && compositionAudit?.passed === true
     && compositionAudit?.noClipGuaranteed === true
@@ -1390,6 +1566,8 @@ async function prepareCompanyMockup(options) {
     && renderedPaletteAudit?.passed === true
     && Number(renderedPaletteAudit?.primaryWhiteContrast) >= MIN_WHITE_TEXT_CONTRAST
     && Number(renderedPaletteAudit?.secondaryWhiteContrast) >= MIN_WHITE_TEXT_CONTRAST
+    && renderedEventTextAudit?.passed === true
+    && renderedEventTextAudit?.completeTextPreserved === true
     && product?.selectionAudit?.passed === true
     && logo?.qualityAudit?.passed === true
     && product?.qualityAudit?.passed === true;
@@ -1461,6 +1639,7 @@ async function prepareCompanyMockup(options) {
       layoutId: rendered.layoutId,
       layoutAudit: renderedLayoutAudit,
       paletteAudit: renderedPaletteAudit,
+      eventTextAudit: renderedEventTextAudit,
       blobBindingAudit,
       logoQualityAudit: logo?.qualityAudit || null,
       productQualityAudit: product?.qualityAudit || null,
@@ -1547,6 +1726,7 @@ module.exports = {
   resolveBrandPalette,
   logoCardStyle,
   loadMockupFont,
+  footerTextLayout,
   vectorTextPaths,
   renderProductPanel,
   renderArtwork,

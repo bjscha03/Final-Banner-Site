@@ -6,7 +6,7 @@ const { sanitizeForAudit } = require('./security.cjs');
 const MAX_AUTOMATIC_MOCKUP_ATTEMPTS = 3;
 const MOCKUP_RETRY_BASE_MS = 5 * 60 * 1000;
 const MOCKUP_RETRY_MAX_MS = 6 * 60 * 60 * 1000;
-const COMPANY_MOCKUP_RENDER_VERSION = 'company-banner-v12-clean-assets-adaptive-contrast-bound';
+const COMPANY_MOCKUP_RENDER_VERSION = 'company-banner-v13-complete-footer-text-bound';
 const MIN_MOCKUP_WHITE_TEXT_CONTRAST = 7;
 const KNOWN_MOCKUP_LAYOUT_IDS = Object.freeze([
   'balanced_split', 'portrait_feature', 'cutout_spotlight', 'lifestyle_split',
@@ -67,7 +67,7 @@ function strictCompanyMockupReadySql(columns, expectedRenderVersion = COMPANY_MO
     AND ${metadata}->>'messageContentHash'=${expectedMessageContentHash}
     AND ${contentHash} ~ '^[a-f0-9]{64}$'
     AND ${blobKey}='company-banners/' || ${prospectId}::text || '/' || ${contentHash} || '.jpg'
-    AND ${metadata} @> '{"compositionAudit":{"passed":true,"noClipGuaranteed":true,"noUpscaleGuaranteed":true},"logoCompositionAudit":{"passed":true,"noClipGuaranteed":true,"noRasterUpscaleGuaranteed":true},"productSelectionAudit":{"passed":true,"sourceVerified":true},"layoutAudit":{"passed":true,"noOverlapGuaranteed":true},"paletteAudit":{"passed":true,"minimumWhiteTextContrast":7}}'::jsonb
+    AND ${metadata} @> '{"compositionAudit":{"passed":true,"noClipGuaranteed":true,"noUpscaleGuaranteed":true},"logoCompositionAudit":{"passed":true,"noClipGuaranteed":true,"noRasterUpscaleGuaranteed":true},"productSelectionAudit":{"passed":true,"sourceVerified":true},"layoutAudit":{"passed":true,"noOverlapGuaranteed":true,"footerNoOverlapGuaranteed":true,"logoHeadlineNoOverlapGuaranteed":true},"paletteAudit":{"passed":true,"minimumWhiteTextContrast":7},"eventTextAudit":{"passed":true,"completeTextPreserved":true}}'::jsonb
     AND ${metadata}->'productSelectionAudit'->>'assetRole' IN ('product_photo','service_photo')
     AND ${metadata}->>'layoutId' IN (${layouts})
     AND ${metadata}->'layoutAudit'->>'layoutId'=${metadata}->>'layoutId'
@@ -86,6 +86,7 @@ function strictCompanyMockupReady(value, expectedRenderVersion = COMPANY_MOCKUP_
   const selection = metadata.productSelectionAudit || {};
   const layout = metadata.layoutAudit || {};
   const palette = metadata.paletteAudit || {};
+  const eventText = metadata.eventTextAudit || {};
   const contentHash = String(value?.contentHash || '');
   const expectedMessageContentHash = String(value?.expectedMessageContentHash || '');
   const expectedBlobKey = value?.prospectId && /^[a-f0-9]{64}$/i.test(contentHash)
@@ -107,11 +108,15 @@ function strictCompanyMockupReady(value, expectedRenderVersion = COMPANY_MOCKUP_
     && ['product_photo', 'service_photo'].includes(selection.assetRole)
     && KNOWN_MOCKUP_LAYOUT_IDS.includes(metadata.layoutId)
     && layout.passed === true && layout.noOverlapGuaranteed === true
+    && layout.footerNoOverlapGuaranteed === true
+    && layout.logoHeadlineNoOverlapGuaranteed === true
     && layout.layoutId === metadata.layoutId
     && palette.passed === true
     && Number(palette.minimumWhiteTextContrast) === MIN_MOCKUP_WHITE_TEXT_CONTRAST
     && Number(palette.primaryWhiteContrast) >= MIN_MOCKUP_WHITE_TEXT_CONTRAST
     && Number(palette.secondaryWhiteContrast) >= MIN_MOCKUP_WHITE_TEXT_CONTRAST
+    && eventText.passed === true
+    && eventText.completeTextPreserved === true
     && immutableMockupBlobAuditPassed(metadata, value.blobKey);
 }
 
