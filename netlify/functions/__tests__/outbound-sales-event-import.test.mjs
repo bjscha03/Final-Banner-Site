@@ -2,15 +2,16 @@ import { describe, expect, it, vi } from 'vitest';
 import eventImport from '../_shared/outbound-sales/event-import.cjs';
 import eventRepository from '../_shared/outbound-sales/event-import-repository.cjs';
 import eventHandler from '../_shared/outbound-sales/event-import-handler.cjs';
-import morningHandler from '../_shared/outbound-sales/morning-handler.cjs';
 import morningPreparation from '../_shared/outbound-sales/morning-preparation.cjs';
 import companyMockup from '../_shared/outbound-sales/company-mockup.cjs';
 import manualReviewRepository from '../_shared/outbound-sales/manual-review-repository.cjs';
+import { withOutboundRuntime } from '../_shared/outbound-sales/netlify-modern.mjs';
 import eventSource from '../_shared/outbound-sales/event-import.cjs?raw';
 import eventHandlerSource from '../_shared/outbound-sales/event-import-handler.cjs?raw';
 import eventRepositorySource from '../_shared/outbound-sales/event-import-repository.cjs?raw';
 import foregroundEntrypoint from '../outbound-sales-event-import.mjs?raw';
 import backgroundEntrypoint from '../outbound-sales-event-import-background.mjs?raw';
+import outboundRuntimeSource from '../_shared/outbound-sales/netlify-modern.mjs?raw';
 import netlifyConfig from '../../../netlify.toml?raw';
 import salesAdminSource from '../../../src/pages/admin/sales/SalesLeadReview.tsx?raw';
 
@@ -19,9 +20,9 @@ const TOKEN = 'event-import-token-at-least-32-characters';
 const MORNING_SECRET = 'morning-preparation-secret-at-least-32-characters';
 const EVENT_KEY = 'atlanta-shoe-market-2026-08';
 const PREVIEW_ORIGIN = 'https://deploy-preview-458--bannersonthefly.netlify.app';
-const PREVIEW_COOKIE = 'nf_jwt=test-only-cookie';
-const MIXED_PREVIEW_COOKIES = `${PREVIEW_COOKIE}; banners_admin_session=must-not-forward; cart=must-not-forward; __nf_ab=must-not-forward; nf_other=must-not-forward`;
-const FORWARDED_PREVIEW_COOKIES = PREVIEW_COOKIE;
+const DEPLOY_ID = '6a7b67f0c7518b000837062c';
+const IMMUTABLE_PREVIEW_ORIGIN = `https://${DEPLOY_ID}--bannersonthefly.netlify.app`;
+const SENSITIVE_COOKIE = 'banners_admin_session=must-not-forward; nf_jwt=must-not-forward';
 const ENV = {
   DATABASE_URL: 'postgres://test.invalid/database',
   URL: 'https://preview.example',
@@ -266,13 +267,38 @@ describe('event import isolation and quality gates', () => {
 });
 
 describe('protected admin/token trigger and resumable background chain', () => {
-  it('dispatches background work to the current preview rather than the production URL', () => {
-    expect(morningHandler.deploymentOrigin({
-      CONTEXT: 'deploy-preview',
-      URL: 'https://bannersonthefly.com',
-      DEPLOY_PRIME_URL: 'https://deploy-preview-458--bannersonthefly.netlify.app/path-is-ignored',
-      DEPLOY_URL: 'https://preview-commit--bannersonthefly.netlify.app',
-    })).toBe('https://deploy-preview-458--bannersonthefly.netlify.app');
+  it('dispatches to the immutable current deploy even when runtime build variables are absent', () => {
+    expect(eventHandler.eventDispatchOrigin({
+      URL: 'https://bannersonthefly.com', SITE_NAME: 'bannersonthefly',
+    }, {
+      rawUrl: `${PREVIEW_ORIGIN}/.netlify/functions/outbound-sales-event-import`,
+      netlify: {
+        deployContext: 'deploy-preview', deployId: DEPLOY_ID, siteName: 'bannersonthefly',
+      },
+    })).toBe(IMMUTABLE_PREVIEW_ORIGIN);
+  });
+
+  it('passes authoritative Netlify Context through the real Lambda adapter', async () => {
+    let captured;
+    const wrapped = withOutboundRuntime(async (event) => {
+      captured = event.netlify;
+      return { statusCode: 200, headers: { 'Content-Type': 'text/plain' }, body: 'ok' };
+    });
+    const request = new Request(`${PREVIEW_ORIGIN}/test`, {
+      headers: {
+        'x-netlify-deploy-id': 'attacker-controlled',
+        'x-netlify-site-name': 'attacker-controlled',
+      },
+    });
+    const response = await wrapped(request, {
+      deploy: { context: 'deploy-preview', id: DEPLOY_ID },
+      site: { name: 'bannersonthefly' },
+    });
+
+    expect(response.status).toBe(200);
+    expect(captured).toEqual({
+      deployContext: 'deploy-preview', deployId: DEPLOY_ID, siteName: 'bannersonthefly',
+    });
   });
 
   it('uses a constant-time scoped token and never accepts a short or wrong token', () => {
@@ -314,13 +340,15 @@ describe('protected admin/token trigger and resumable background chain', () => {
       eventKey: EVENT_KEY, businessDate: '2026-08-11', shardIndex: 0,
     }, {
       env: {
-        ...ENV, CONTEXT: 'deploy-preview', URL: 'https://bannersonthefly.com',
-        DEPLOY_PRIME_URL: PREVIEW_ORIGIN,
+        ...ENV, URL: 'https://bannersonthefly.com', SITE_NAME: 'bannersonthefly',
       },
       fetchImpl,
       requestEvent: {
         rawUrl: `${PREVIEW_ORIGIN}/.netlify/functions/outbound-sales-event-import`,
-        headers: { Cookie: PREVIEW_COOKIE },
+        headers: { Cookie: SENSITIVE_COOKIE },
+        netlify: {
+          deployContext: 'deploy-preview', deployId: DEPLOY_ID, siteName: 'bannersonthefly',
+        },
       },
     })).rejects.toMatchObject({
       code: 'EVENT_IMPORT_DISPATCH_FAILED', dispatchResponseStatus: 200,
@@ -362,7 +390,7 @@ describe('protected admin/token trigger and resumable background chain', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it('forwards the same-origin Preview Access cookie from the foreground to the first background shard', async () => {
+  it('uses the immutable deploy origin and never forwards browser cookies to the first shard', async () => {
     const fetchImpl = vi.fn().mockResolvedValue({ status: 202 });
     const repository = {
       ensureEventBatch: vi.fn().mockResolvedValue({ id: BATCH_ID }),
@@ -373,40 +401,36 @@ describe('protected admin/token trigger and resumable background chain', () => {
     };
     const handler = eventHandler.createEventImportHandler({
       env: {
-        ...ENV, CONTEXT: 'deploy-preview', URL: 'https://bannersonthefly.com',
-        DEPLOY_PRIME_URL: PREVIEW_ORIGIN,
+        ...ENV, URL: 'https://bannersonthefly.com', SITE_NAME: 'bannersonthefly',
       },
       dependencies: { createSql: vi.fn(() => vi.fn()), repository, fetch: fetchImpl },
     });
     const request = tokenEvent('POST', { action: 'start', eventKey: EVENT_KEY });
     request.rawUrl = `${PREVIEW_ORIGIN}/.netlify/functions/outbound-sales-event-import`;
-    request.headers.Cookie = MIXED_PREVIEW_COOKIES;
+    request.headers.Cookie = SENSITIVE_COOKIE;
+    request.netlify = {
+      deployContext: 'deploy-preview', deployId: DEPLOY_ID, siteName: 'bannersonthefly',
+    };
 
     const result = await handler(request);
 
     expect(result.statusCode).toBe(202);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
-    expect(fetchImpl.mock.calls[0][0]).toBe(`${PREVIEW_ORIGIN}/.netlify/functions/outbound-sales-event-import-background`);
-    expect(fetchImpl.mock.calls[0][1].headers.Cookie).toBe(FORWARDED_PREVIEW_COOKIES);
-    expect(fetchImpl.mock.calls[0][1].headers.Cookie).not.toContain('banners_admin_session');
-    expect(fetchImpl.mock.calls[0][1].headers.Cookie).not.toContain('cart=');
-    expect(fetchImpl.mock.calls[0][1].headers.Cookie).not.toContain('__nf_ab');
-    expect(fetchImpl.mock.calls[0][1].headers.Cookie).not.toContain('nf_other');
+    expect(fetchImpl.mock.calls[0][0]).toBe(`${IMMUTABLE_PREVIEW_ORIGIN}/.netlify/functions/outbound-sales-event-import-background`);
+    expect(fetchImpl.mock.calls[0][1].headers.Cookie).toBeUndefined();
     expect(repository.recordEventProgress.mock.calls[0][1].metadata).toMatchObject({
-      dispatchPreviewAccessState: 'nf_jwt_forwarded', dispatchResponseStatus: null,
+      dispatchPreviewAccessState: 'not_used', dispatchResponseStatus: null,
     });
     expect(repository.recordEventProgress.mock.calls[1][1].metadata).toMatchObject({
-      dispatchPreviewAccessState: 'nf_jwt_forwarded', dispatchResponseStatus: 202,
+      dispatchPreviewAccessState: 'not_used', dispatchResponseStatus: 202,
     });
   });
 
-  it('forwards the same-origin Preview Access cookie on chained branch-deploy background calls', async () => {
-    const branchOrigin = 'https://sales-system--bannersonthefly.netlify.app';
+  it('keeps chained background work on the same immutable deploy without cookies', async () => {
     const fetchImpl = vi.fn().mockResolvedValue({ status: 202 });
     const handler = eventHandler.createEventImportBackgroundHandler({
       env: {
-        ...ENV, CONTEXT: 'branch-deploy', URL: 'https://bannersonthefly.com',
-        DEPLOY_PRIME_URL: branchOrigin,
+        ...ENV, URL: 'https://bannersonthefly.com', SITE_NAME: 'bannersonthefly',
       },
       dependencies: {
         createSql: vi.fn(() => vi.fn()),
@@ -418,18 +442,21 @@ describe('protected admin/token trigger and resumable background chain', () => {
     const request = backgroundEvent({
       action: 'import', eventKey: EVENT_KEY, businessDate: '2026-08-11', shardIndex: 0,
     });
-    request.rawUrl = `${branchOrigin}/.netlify/functions/outbound-sales-event-import-background`;
-    request.headers.Cookie = PREVIEW_COOKIE;
+    request.rawUrl = `${IMMUTABLE_PREVIEW_ORIGIN}/.netlify/functions/outbound-sales-event-import-background`;
+    request.headers.Cookie = SENSITIVE_COOKIE;
+    request.netlify = {
+      deployContext: 'deploy-preview', deployId: DEPLOY_ID, siteName: 'bannersonthefly',
+    };
 
     const result = await handler(request);
 
     expect(result.statusCode).toBe(204);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
-    expect(fetchImpl.mock.calls[0][0]).toBe(`${branchOrigin}/.netlify/functions/outbound-sales-event-import-background`);
-    expect(fetchImpl.mock.calls[0][1].headers.Cookie).toBe(PREVIEW_COOKIE);
+    expect(fetchImpl.mock.calls[0][0]).toBe(`${IMMUTABLE_PREVIEW_ORIGIN}/.netlify/functions/outbound-sales-event-import-background`);
+    expect(fetchImpl.mock.calls[0][1].headers.Cookie).toBeUndefined();
   });
 
-  it('never forwards cookies in production or from a different inbound origin', async () => {
+  it('never forwards cookies in production or from a hostile lookalike origin', async () => {
     const productionFetch = vi.fn().mockResolvedValue({ status: 202 });
     const productionOrigin = 'https://production-deploy.netlify.app';
     await eventHandler.dispatchEventBackground('import', {
@@ -442,7 +469,7 @@ describe('protected admin/token trigger and resumable background chain', () => {
       fetchImpl: productionFetch,
       requestEvent: {
         rawUrl: `${productionOrigin}/.netlify/functions/outbound-sales-event-import`,
-        headers: { Cookie: PREVIEW_COOKIE },
+        headers: { Cookie: SENSITIVE_COOKIE },
       },
     });
     expect(productionFetch.mock.calls[0][1].headers.Cookie).toBeUndefined();
@@ -458,45 +485,11 @@ describe('protected admin/token trigger and resumable background chain', () => {
       fetchImpl: crossOriginFetch,
       requestEvent: {
         rawUrl: 'https://deploy-preview-458--bannersonthefly.netlify.app.attacker.example/function',
-        headers: { Cookie: PREVIEW_COOKIE },
+        headers: { Cookie: SENSITIVE_COOKIE },
       },
     });
     expect(crossOriginFetch.mock.calls[0][0]).toBe(`${PREVIEW_ORIGIN}/.netlify/functions/outbound-sales-event-import-background`);
     expect(crossOriginFetch.mock.calls[0][1].headers.Cookie).toBeUndefined();
-  });
-
-  it('drops malformed or oversized cookie headers instead of forwarding them', async () => {
-    const malformedFetch = vi.fn().mockResolvedValue({ status: 202 });
-    await eventHandler.dispatchEventBackground('import', {
-      eventKey: EVENT_KEY, businessDate: '2026-08-11', shardIndex: 0,
-    }, {
-      env: {
-        ...ENV, CONTEXT: 'deploy-preview', URL: 'https://bannersonthefly.com',
-        DEPLOY_PRIME_URL: PREVIEW_ORIGIN,
-      },
-      fetchImpl: malformedFetch,
-      requestEvent: {
-        rawUrl: `${PREVIEW_ORIGIN}/.netlify/functions/outbound-sales-event-import`,
-        headers: { Cookie: `${PREVIEW_COOKIE}\r\nX-Injected: yes` },
-      },
-    });
-    expect(malformedFetch.mock.calls[0][1].headers.Cookie).toBeUndefined();
-
-    const oversizedFetch = vi.fn().mockResolvedValue({ status: 202 });
-    await eventHandler.dispatchEventBackground('import', {
-      eventKey: EVENT_KEY, businessDate: '2026-08-11', shardIndex: 0,
-    }, {
-      env: {
-        ...ENV, CONTEXT: 'branch-deploy', URL: 'https://bannersonthefly.com',
-        DEPLOY_URL: PREVIEW_ORIGIN,
-      },
-      fetchImpl: oversizedFetch,
-      requestEvent: {
-        rawUrl: `${PREVIEW_ORIGIN}/.netlify/functions/outbound-sales-event-import`,
-        headers: { Cookie: `nf_jwt=${'x'.repeat(8 * 1024)}` },
-      },
-    });
-    expect(oversizedFetch.mock.calls[0][1].headers.Cookie).toBeUndefined();
   });
 
   it('queues the first import shard and returns sanitized preparation-only progress', async () => {
@@ -525,7 +518,7 @@ describe('protected admin/token trigger and resumable background chain', () => {
       metadata: {
         phase: 'dispatching', dispatchState: 'requesting', dispatchAction: 'import',
         dispatchShardIndex: 0, dispatchAckStatus: null, backgroundState: null,
-        dispatchResponseStatus: null, dispatchPreviewAccessState: 'none',
+        dispatchResponseStatus: null, dispatchPreviewAccessState: 'not_used',
         externalEmailsSent: 0,
       },
     });
@@ -534,7 +527,7 @@ describe('protected admin/token trigger and resumable background chain', () => {
       metadata: {
         phase: 'dispatched', dispatchState: 'acknowledged', dispatchAction: 'import',
         dispatchShardIndex: 0, dispatchAckStatus: 202,
-        dispatchResponseStatus: 202, dispatchPreviewAccessState: 'none',
+        dispatchResponseStatus: 202, dispatchPreviewAccessState: 'not_used',
         externalEmailsSent: 0,
       },
     });
@@ -554,7 +547,7 @@ describe('protected admin/token trigger and resumable background chain', () => {
       },
     });
     const request = tokenEvent('POST', { action: 'start', eventKey: EVENT_KEY });
-    request.headers.Cookie = PREVIEW_COOKIE;
+    request.headers.Cookie = SENSITIVE_COOKIE;
 
     const response = await handler(request);
 
@@ -565,13 +558,13 @@ describe('protected admin/token trigger and resumable background chain', () => {
       metadata: {
         phase: 'dispatch_failed', dispatchState: 'failed', dispatchAction: 'import',
         dispatchShardIndex: 0, dispatchAckStatus: null, dispatchResponseStatus: 200,
-        dispatchPreviewAccessState: 'none', externalEmailsSent: 0,
+        dispatchPreviewAccessState: 'not_used', externalEmailsSent: 0,
       },
     });
     const durableMetadata = JSON.stringify(repository.recordEventProgress.mock.calls.map((call) => call[1]));
     expect(durableMetadata).not.toContain(TOKEN);
     expect(durableMetadata).not.toContain(MORNING_SECRET);
-    expect(durableMetadata).not.toContain(PREVIEW_COOKIE);
+    expect(durableMetadata).not.toContain(SENSITIVE_COOKIE);
     expect(durableMetadata).not.toContain(JSON.stringify({ action: 'start', eventKey: EVENT_KEY }));
   });
 
@@ -583,20 +576,20 @@ describe('protected admin/token trigger and resumable background chain', () => {
       lastErrorCode: 'EVENT_IMPORT_DISPATCH_FAILED',
       metadata: {
         dispatchResponseStatus: 403,
-        dispatchPreviewAccessState: 'nf_jwt_forwarded',
+        dispatchPreviewAccessState: 'not_used',
         dispatchPlatformCookieForwarded: true,
-        rawCookie: PREVIEW_COOKIE,
+        rawCookie: SENSITIVE_COOKIE,
       },
     });
 
     const serialized = JSON.parse(sql.mock.calls[0][1][3]);
     expect(serialized).toMatchObject({
       dispatchResponseStatus: 403,
-      dispatchPreviewAccessState: 'nf_jwt_forwarded',
+      dispatchPreviewAccessState: 'not_used',
     });
     expect(serialized).not.toHaveProperty('dispatchPlatformCookieForwarded');
     expect(serialized).not.toHaveProperty('rawCookie');
-    expect(JSON.stringify(serialized)).not.toContain(PREVIEW_COOKIE);
+    expect(JSON.stringify(serialized)).not.toContain(SENSITIVE_COOKIE);
   });
 
   it('writes a background receiver heartbeat before shard work and exposes a deferred claim', async () => {
@@ -714,6 +707,10 @@ describe('protected admin/token trigger and resumable background chain', () => {
   it('ships both function entrypoints, background configuration, and visible admin progress action', () => {
     expect(foregroundEntrypoint).toContain('createEventImportHandler');
     expect(backgroundEntrypoint).toContain('createEventImportBackgroundHandler');
+    expect(foregroundEntrypoint).toContain('withOutboundRuntime');
+    expect(backgroundEntrypoint).toContain('withOutboundRuntime');
+    expect(outboundRuntimeSource).toContain('context?.deploy?.id');
+    expect(outboundRuntimeSource).toContain('context?.site?.name');
     expect(backgroundEntrypoint).not.toContain("import sharp from 'sharp'");
     expect(backgroundEntrypoint).toContain("await import('sharp')");
     expect(netlifyConfig).toContain('[functions."outbound-sales-event-import-background"]');

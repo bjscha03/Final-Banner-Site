@@ -1,5 +1,5 @@
-import { withLambda } from '@netlify/aws-lambda-compat';
 import handlerModule from './_shared/outbound-sales/event-import-handler.cjs';
+import { withOutboundRuntime } from './_shared/outbound-sales/netlify-modern.mjs';
 
 const handler = handlerModule.createEventImportBackgroundHandler({
   loadSharp: async () => (await import('sharp')).default,
@@ -9,4 +9,4 @@ const handler = handlerModule.createEventImportBackgroundHandler({
   },
 });
 
-export default withLambda(handler);
+export default withOutboundRuntime(handler);

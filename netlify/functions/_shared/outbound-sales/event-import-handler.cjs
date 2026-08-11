@@ -42,13 +42,13 @@ function authorizeEventRequest(event, { env = process.env, mutating = false } = 
   return { actorId: String(auth.session.email || auth.session.sub || 'admin').slice(0, 200) };
 }
 
-function assertDispatchConfiguration(env = process.env) {
+function assertDispatchConfiguration(env = process.env, requestEvent) {
   if (String(env.OUTBOUND_MORNING_PREP_SECRET || '').length < 32) {
     const error = new Error('Event preparation background dispatch is not configured.');
     error.code = 'EVENT_IMPORT_NOT_CONFIGURED';
     throw error;
   }
-  eventDispatchOrigin(env);
+  eventDispatchOrigin(env, requestEvent);
 }
 
 function secureOrigin(value) {
@@ -61,8 +61,48 @@ function secureOrigin(value) {
   }
 }
 
-function eventDispatchOrigin(env = process.env) {
-  const context = String(env.CONTEXT || '').trim().toLowerCase();
+function safeSiteName(value) {
+  const name = String(value || '').trim().toLowerCase();
+  return /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(name) ? name : null;
+}
+
+function immutableNetlifyDeployOrigin(event) {
+  const deployId = String(event?.netlify?.deployId || '').trim().toLowerCase();
+  const siteName = safeSiteName(event?.netlify?.siteName);
+  if (!/^[0-9a-f]{24}$/.test(deployId) || !siteName) return null;
+  return `https://${deployId}--${siteName}.netlify.app`;
+}
+
+function trustedRequestOrigin(event, env = process.env) {
+  let requestUrl;
+  try {
+    requestUrl = new URL(String(event?.rawUrl || ''));
+  } catch {
+    return null;
+  }
+  if (requestUrl.protocol !== 'https:' || requestUrl.username || requestUrl.password) return null;
+
+  const siteName = safeSiteName(event?.netlify?.siteName || env.SITE_NAME);
+  if (siteName && (
+    requestUrl.hostname === `${siteName}.netlify.app`
+    || requestUrl.hostname.endsWith(`--${siteName}.netlify.app`)
+  )) return requestUrl.origin;
+
+  const productionOrigins = new Set([
+    secureOrigin(env.URL), secureOrigin(env.PUBLIC_SITE_URL),
+  ].filter(Boolean));
+  return productionOrigins.has(requestUrl.origin) ? requestUrl.origin : null;
+}
+
+function eventDispatchOrigin(env = process.env, requestEvent) {
+  const immutableOrigin = immutableNetlifyDeployOrigin(requestEvent);
+  if (immutableOrigin) return immutableOrigin;
+
+  const requestOrigin = trustedRequestOrigin(requestEvent, env);
+  if (requestOrigin) return requestOrigin;
+
+  const context = String(requestEvent?.netlify?.deployContext || env.CONTEXT || '')
+    .trim().toLowerCase();
   if (['deploy-preview', 'branch-deploy'].includes(context)) {
     for (const candidate of [env.DEPLOY_PRIME_URL, env.DEPLOY_URL]) {
       const origin = secureOrigin(candidate);
@@ -75,46 +115,11 @@ function eventDispatchOrigin(env = process.env) {
   return deploymentOrigin(env);
 }
 
-function previewDispatchCookie(event, env = process.env, expectedOrigin = eventDispatchOrigin(env)) {
-  const context = String(env.CONTEXT || '').trim().toLowerCase();
-  if (!['deploy-preview', 'branch-deploy'].includes(context)) return null;
-
-  let requestUrl;
-  try {
-    requestUrl = new URL(String(event?.rawUrl || ''));
-  } catch {
-    return null;
-  }
-  if (requestUrl.protocol !== 'https:'
-      || requestUrl.username
-      || requestUrl.password
-      || requestUrl.origin !== expectedOrigin) {
-    return null;
-  }
-
-  const cookie = event?.headers?.cookie || event?.headers?.Cookie;
-  if (typeof cookie !== 'string' || !cookie.trim() || /[\r\n]/.test(cookie)
-      || Buffer.byteLength(cookie, 'utf8') > 8 * 1024) return null;
-  const platformCookies = [];
-  for (const rawPair of cookie.split(';')) {
-    const pair = rawPair.trim();
-    const separator = pair.indexOf('=');
-    if (separator <= 0) continue;
-    const name = pair.slice(0, separator).trim();
-    const value = pair.slice(separator + 1).trim();
-    // nf_jwt is Netlify's documented site-access/RBAC cookie. Do not forward
-    // application cookies or unrelated Netlify experimentation cookies.
-    if (name !== 'nf_jwt' || !value) continue;
-    platformCookies.push(`${name}=${value}`);
-  }
-  return platformCookies.join('; ') || null;
-}
-
 async function dispatchEventBackground(action, payload, {
   env = process.env, fetchImpl = globalThis.fetch, requestEvent,
 } = {}) {
-  assertDispatchConfiguration(env);
-  const expectedOrigin = eventDispatchOrigin(env);
+  assertDispatchConfiguration(env, requestEvent);
+  const expectedOrigin = eventDispatchOrigin(env, requestEvent);
   const targetUrl = new URL(
     '/.netlify/functions/outbound-sales-event-import-background',
     `${expectedOrigin}/`,
@@ -124,12 +129,10 @@ async function dispatchEventBackground(action, payload, {
     error.code = 'EVENT_IMPORT_DISPATCH_ORIGIN_INVALID';
     throw error;
   }
-  const cookie = previewDispatchCookie(requestEvent, env, expectedOrigin);
   const headers = {
     'Content-Type': 'application/json',
     'X-Morning-Prep-Token': String(env.OUTBOUND_MORNING_PREP_SECRET),
   };
-  if (cookie) headers.Cookie = cookie;
   const response = await fetchImpl(
     targetUrl.toString(),
     {
@@ -237,9 +240,8 @@ function createEventImportHandler({ dependencies = {}, env = process.env } = {})
       if (body?.eventKey && body.eventKey !== eventImport.eventData.key) {
         return json(400, { ok: false, error: 'INVALID_EVENT_IMPORT', message: 'The requested event source is unavailable.' });
       }
-      assertDispatchConfiguration(env);
-      const dispatchPreviewAccessState = previewDispatchCookie(event, env)
-        ? 'nf_jwt_forwarded' : 'none';
+      assertDispatchConfiguration(env, event);
+      const dispatchPreviewAccessState = 'not_used';
       const batch = await repository.ensureEventBatch(sql, {
         businessDate: date, eventKey: eventImport.eventData.key,
         targetCount: MORNING_TARGET, providerId: eventImport.EVENT_PROVIDER_ID,
@@ -465,7 +467,8 @@ module.exports = {
   authorizeEventRequest,
   assertDispatchConfiguration,
   eventDispatchOrigin,
-  previewDispatchCookie,
+  immutableNetlifyDeployOrigin,
+  trustedRequestOrigin,
   dispatchEventBackground,
   mapBatchStatus,
   createEventImportHandler,
