@@ -74,6 +74,17 @@ function titleCase(value: string | null | undefined) {
   return String(value || 'unknown').replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function eventDispatchHasStalled(batch: OutboundManualReviewQueue['morningBatch']) {
+  if (!batch) return false;
+  const metadata = batch.runMetadata || {};
+  const waitingForBackground = metadata.dispatchState === 'acknowledged'
+    || ['queued', 'dispatching', 'dispatched'].includes(String(metadata.phase || ''));
+  if (!waitingForBackground || metadata.backgroundReceivedAt) return false;
+  const referenceAt = Date.parse(typeof metadata.dispatchAcknowledgedAt === 'string'
+    ? metadata.dispatchAcknowledgedAt : batch.updatedAt);
+  return Number.isFinite(referenceAt) && Date.now() - referenceAt >= 90 * 1000;
+}
+
 function eventBadge(lead: OutboundManualReviewLead) {
   if (lead.eventFit.priority === 'trade_show') return 'border-orange-300 bg-orange-50 text-orange-900';
   if (lead.eventFit.priority === 'event_signal') return 'border-sky-300 bg-sky-50 text-sky-900';
@@ -351,6 +362,7 @@ export default function SalesLeadReview() {
   const batchStarted = useRef(false);
   const pollCount = useRef(0);
   const eventPollCount = useRef(0);
+  const eventStartInFlight = useRef(false);
   const requestController = useRef<AbortController | null>(null);
 
   const load = useCallback(async () => {
@@ -386,6 +398,8 @@ export default function SalesLeadReview() {
   }, [toast]);
 
   const startAtlantaBatch = useCallback(async () => {
+    if (eventStartInFlight.current) return;
+    eventStartInFlight.current = true;
     setPreparingEvent(true);
     eventPollCount.current = 0;
     try {
@@ -401,6 +415,8 @@ export default function SalesLeadReview() {
     } catch (requestError) {
       setPreparingEvent(false);
       toast({ variant: 'destructive', title: 'Atlanta batch could not start', description: requestError instanceof Error ? requestError.message : 'Try again.' });
+    } finally {
+      eventStartInFlight.current = false;
     }
   }, [load, toast]);
 
@@ -410,7 +426,8 @@ export default function SalesLeadReview() {
   }, [load]);
 
   useEffect(() => {
-    if (preparingEvent || !queue?.morningBatch?.runMetadata?.eventKey) return;
+    if (preparingEvent || !queue?.morningBatch?.runMetadata?.eventKey
+        || eventDispatchHasStalled(queue.morningBatch)) return;
     if (['discovering', 'preparing', 'partial'].includes(queue.morningBatch.status)
         && (Number(queue.morningBatch.runMetadata.finalizerPass) || 0) < 7) {
       eventPollCount.current = 0;
@@ -427,8 +444,17 @@ export default function SalesLeadReview() {
   }, [queue?.schemaReady, queue?.mockups.missing, queue?.mockups.retryableFailed, queue?.morningBatch?.status, queue?.morningBatch?.runMetadata, preparingEvent, startMockupBatch]);
 
   useEffect(() => {
-    if (!preparingEvent) return undefined;
+    if (!preparingEvent || eventStartInFlight.current) return undefined;
     const batch = queue?.morningBatch;
+    if (eventDispatchHasStalled(batch || null)) {
+      setPreparingEvent(false);
+      toast({
+        variant: 'destructive',
+        title: 'Atlanta preparation worker did not start',
+        description: 'The safe background handoff timed out before any lead work began. No email was sent, and the batch is safe to retry.',
+      });
+      return undefined;
+    }
     if (batch?.status === 'ready' && batch.mockupReadyCount >= batch.targetCount) {
       setPreparingEvent(false);
       setView('today');
@@ -516,6 +542,7 @@ export default function SalesLeadReview() {
     setOffset(0);
   };
   const activeFilterCount = Object.values(filters).filter(Boolean).length;
+  const eventHandoffStalled = eventDispatchHasStalled(queue?.morningBatch || null);
 
   const refreshMockup = async (lead: OutboundManualReviewLead) => {
     setRefreshingMockupId(lead.prospectId);
@@ -577,7 +604,7 @@ export default function SalesLeadReview() {
               className="bg-[#ff6b35] text-white hover:bg-[#e85a28]"
             >
               {preparingEvent ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <CalendarSearch className="mr-2 h-4 w-4" />}
-              {preparingEvent ? 'Loading and preparing…' : queue?.morningBatch?.status === 'ready' ? 'Atlanta batch ready' : 'Load & prepare Atlanta batch'}
+              {preparingEvent ? 'Loading and preparing…' : queue?.morningBatch?.status === 'ready' ? 'Atlanta batch ready' : eventHandoffStalled ? 'Retry Atlanta preparation' : 'Load & prepare Atlanta batch'}
             </Button>
             <p className="max-w-sm text-xs text-slate-500">Imports and builds personalized previews only. This action has no email-send path.</p>
           </div>
@@ -585,6 +612,11 @@ export default function SalesLeadReview() {
         {Number(queue?.morningBatch?.runMetadata?.sourceRecordCount) > 0 && (
           <p className="mt-3 text-xs font-semibold text-slate-600">
             Source pool: {Number(queue?.morningBatch?.runMetadata?.primaryRecordCount) || 70} ranked exhibitors + {Number(queue?.morningBatch?.runMetadata?.reserveRecordCount) || 0} quality backfills. Only finalized mockups receive Today queue positions.
+          </p>
+        )}
+        {eventHandoffStalled && (
+          <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-900">
+            The preparation worker did not confirm receipt. Nothing was sent; use Retry Atlanta preparation to retry safely.
           </p>
         )}
         <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">

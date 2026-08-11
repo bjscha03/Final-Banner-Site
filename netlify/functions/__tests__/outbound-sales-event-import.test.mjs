@@ -18,6 +18,10 @@ const BATCH_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const TOKEN = 'event-import-token-at-least-32-characters';
 const MORNING_SECRET = 'morning-preparation-secret-at-least-32-characters';
 const EVENT_KEY = 'atlanta-shoe-market-2026-08';
+const PREVIEW_ORIGIN = 'https://deploy-preview-458--bannersonthefly.netlify.app';
+const PREVIEW_COOKIE = 'nf_jwt=test-only-cookie';
+const MIXED_PREVIEW_COOKIES = `${PREVIEW_COOKIE}; banners_admin_session=must-not-forward; cart=must-not-forward; __nf_ab=must-not-forward; nf_other=must-not-forward`;
+const FORWARDED_PREVIEW_COOKIES = PREVIEW_COOKIE;
 const ENV = {
   DATABASE_URL: 'postgres://test.invalid/database',
   URL: 'https://preview.example',
@@ -53,6 +57,14 @@ function batchRow(overrides = {}) {
       primaryRecordCount: 70, reserveRecordCount: 35 },
     last_error_code: null, started_at: '2026-08-11T08:00:00Z', ready_at: null,
     updated_at: '2026-08-11T08:00:00Z',
+    ...overrides,
+  };
+}
+
+function backgroundRepository(overrides = {}) {
+  return {
+    loadEventBatchStatus: vi.fn().mockResolvedValue(batchRow()),
+    recordEventProgress: vi.fn().mockResolvedValue(batchRow()),
     ...overrides,
   };
 }
@@ -270,6 +282,211 @@ describe('protected admin/token trigger and resumable background chain', () => {
     expect(eventHandler.eventTokenAuthorized(tokenEvent('GET'), ENV)).toBe(true);
   });
 
+  it('marks acknowledged and legacy queued handoffs stalled after 90 seconds without a receiver heartbeat', () => {
+    const legacy = eventHandler.mapBatchStatus(batchRow({
+      updated_at: '2026-08-11T17:36:29Z',
+      run_metadata: { eventKey: EVENT_KEY, phase: 'queued' },
+    }));
+    expect(legacy.dispatchStalled).toBe(true);
+
+    const acknowledged = eventHandler.mapBatchStatus(batchRow({
+      run_metadata: {
+        eventKey: EVENT_KEY, phase: 'dispatched', dispatchState: 'acknowledged',
+        dispatchAcknowledgedAt: '2026-08-11T17:36:29Z', backgroundReceivedAt: null,
+      },
+    }));
+    expect(acknowledged.dispatchStalled).toBe(true);
+
+    const received = eventHandler.mapBatchStatus(batchRow({
+      run_metadata: {
+        eventKey: EVENT_KEY, phase: 'background_received', dispatchState: 'acknowledged',
+        dispatchAcknowledgedAt: '2026-08-11T17:36:29Z',
+        backgroundReceivedAt: '2026-08-11T17:36:30Z', backgroundState: 'running',
+      },
+    }));
+    expect(received.dispatchStalled).toBe(false);
+  });
+
+  it('rejects an HTTP 200 gate page instead of mistaking it for a background acknowledgement', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({ status: 200 });
+    await expect(eventHandler.dispatchEventBackground('import', {
+      eventKey: EVENT_KEY, businessDate: '2026-08-11', shardIndex: 0,
+    }, {
+      env: {
+        ...ENV, CONTEXT: 'deploy-preview', URL: 'https://bannersonthefly.com',
+        DEPLOY_PRIME_URL: PREVIEW_ORIGIN,
+      },
+      fetchImpl,
+      requestEvent: {
+        rawUrl: `${PREVIEW_ORIGIN}/.netlify/functions/outbound-sales-event-import`,
+        headers: { Cookie: PREVIEW_COOKIE },
+      },
+    })).rejects.toMatchObject({ code: 'EVENT_IMPORT_DISPATCH_FAILED' });
+    expect(fetchImpl.mock.calls[0][1].redirect).toBe('manual');
+  });
+
+  it('accepts exactly 202 and rejects redirects or non-background success statuses', async () => {
+    for (const status of [204, 301, 302, 307, 308]) {
+      const fetchImpl = vi.fn().mockResolvedValue({ status });
+      await expect(eventHandler.dispatchEventBackground('import', {
+        eventKey: EVENT_KEY, businessDate: '2026-08-11', shardIndex: 0,
+      }, {
+        env: ENV, fetchImpl,
+      })).rejects.toMatchObject({ code: 'EVENT_IMPORT_DISPATCH_FAILED' });
+      expect(fetchImpl.mock.calls[0][1].redirect).toBe('manual');
+    }
+    await expect(eventHandler.dispatchEventBackground('import', {
+      eventKey: EVENT_KEY, businessDate: '2026-08-11', shardIndex: 0,
+    }, {
+      env: ENV, fetchImpl: vi.fn().mockResolvedValue({ status: 202 }),
+    })).resolves.toBe(202);
+  });
+
+  it('requires a deploy-scoped origin in preview contexts and never falls back to production URL', async () => {
+    const fetchImpl = vi.fn();
+    await expect(eventHandler.dispatchEventBackground('import', {
+      eventKey: EVENT_KEY, businessDate: '2026-08-11', shardIndex: 0,
+    }, {
+      env: {
+        ...ENV, CONTEXT: 'deploy-preview', URL: 'https://bannersonthefly.com',
+        DEPLOY_PRIME_URL: '', DEPLOY_URL: '',
+      },
+      fetchImpl,
+    })).rejects.toMatchObject({ code: 'EVENT_IMPORT_NOT_CONFIGURED' });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('forwards the same-origin Preview Access cookie from the foreground to the first background shard', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({ status: 202 });
+    const repository = {
+      ensureEventBatch: vi.fn().mockResolvedValue({ id: BATCH_ID }),
+      loadEventBatchStatus: vi.fn()
+        .mockResolvedValueOnce(batchRow())
+        .mockResolvedValueOnce(batchRow({ status: 'discovering' })),
+      recordEventProgress: vi.fn().mockResolvedValue(batchRow()),
+    };
+    const handler = eventHandler.createEventImportHandler({
+      env: {
+        ...ENV, CONTEXT: 'deploy-preview', URL: 'https://bannersonthefly.com',
+        DEPLOY_PRIME_URL: PREVIEW_ORIGIN,
+      },
+      dependencies: { createSql: vi.fn(() => vi.fn()), repository, fetch: fetchImpl },
+    });
+    const request = tokenEvent('POST', { action: 'start', eventKey: EVENT_KEY });
+    request.rawUrl = `${PREVIEW_ORIGIN}/.netlify/functions/outbound-sales-event-import`;
+    request.headers.Cookie = MIXED_PREVIEW_COOKIES;
+
+    const result = await handler(request);
+
+    expect(result.statusCode).toBe(202);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(fetchImpl.mock.calls[0][0]).toBe(`${PREVIEW_ORIGIN}/.netlify/functions/outbound-sales-event-import-background`);
+    expect(fetchImpl.mock.calls[0][1].headers.Cookie).toBe(FORWARDED_PREVIEW_COOKIES);
+    expect(fetchImpl.mock.calls[0][1].headers.Cookie).not.toContain('banners_admin_session');
+    expect(fetchImpl.mock.calls[0][1].headers.Cookie).not.toContain('cart=');
+    expect(fetchImpl.mock.calls[0][1].headers.Cookie).not.toContain('__nf_ab');
+    expect(fetchImpl.mock.calls[0][1].headers.Cookie).not.toContain('nf_other');
+  });
+
+  it('forwards the same-origin Preview Access cookie on chained branch-deploy background calls', async () => {
+    const branchOrigin = 'https://sales-system--bannersonthefly.netlify.app';
+    const fetchImpl = vi.fn().mockResolvedValue({ status: 202 });
+    const handler = eventHandler.createEventImportBackgroundHandler({
+      env: {
+        ...ENV, CONTEXT: 'branch-deploy', URL: 'https://bannersonthefly.com',
+        DEPLOY_PRIME_URL: branchOrigin,
+      },
+      dependencies: {
+        createSql: vi.fn(() => vi.fn()),
+        repository: backgroundRepository(),
+        runEventImportShard: vi.fn().mockResolvedValue({ shardStatus: 'succeeded', shardCount: 2 }),
+        fetch: fetchImpl,
+      },
+    });
+    const request = backgroundEvent({
+      action: 'import', eventKey: EVENT_KEY, businessDate: '2026-08-11', shardIndex: 0,
+    });
+    request.rawUrl = `${branchOrigin}/.netlify/functions/outbound-sales-event-import-background`;
+    request.headers.Cookie = PREVIEW_COOKIE;
+
+    const result = await handler(request);
+
+    expect(result.statusCode).toBe(204);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(fetchImpl.mock.calls[0][0]).toBe(`${branchOrigin}/.netlify/functions/outbound-sales-event-import-background`);
+    expect(fetchImpl.mock.calls[0][1].headers.Cookie).toBe(PREVIEW_COOKIE);
+  });
+
+  it('never forwards cookies in production or from a different inbound origin', async () => {
+    const productionFetch = vi.fn().mockResolvedValue({ status: 202 });
+    const productionOrigin = 'https://production-deploy.netlify.app';
+    await eventHandler.dispatchEventBackground('import', {
+      eventKey: EVENT_KEY, businessDate: '2026-08-11', shardIndex: 0,
+    }, {
+      env: {
+        ...ENV, CONTEXT: 'production', URL: 'https://bannersonthefly.com',
+        DEPLOY_PRIME_URL: productionOrigin,
+      },
+      fetchImpl: productionFetch,
+      requestEvent: {
+        rawUrl: `${productionOrigin}/.netlify/functions/outbound-sales-event-import`,
+        headers: { Cookie: PREVIEW_COOKIE },
+      },
+    });
+    expect(productionFetch.mock.calls[0][1].headers.Cookie).toBeUndefined();
+
+    const crossOriginFetch = vi.fn().mockResolvedValue({ status: 202 });
+    await eventHandler.dispatchEventBackground('import', {
+      eventKey: EVENT_KEY, businessDate: '2026-08-11', shardIndex: 0,
+    }, {
+      env: {
+        ...ENV, CONTEXT: 'deploy-preview', URL: 'https://bannersonthefly.com',
+        DEPLOY_PRIME_URL: PREVIEW_ORIGIN,
+      },
+      fetchImpl: crossOriginFetch,
+      requestEvent: {
+        rawUrl: 'https://deploy-preview-458--bannersonthefly.netlify.app.attacker.example/function',
+        headers: { Cookie: PREVIEW_COOKIE },
+      },
+    });
+    expect(crossOriginFetch.mock.calls[0][0]).toBe(`${PREVIEW_ORIGIN}/.netlify/functions/outbound-sales-event-import-background`);
+    expect(crossOriginFetch.mock.calls[0][1].headers.Cookie).toBeUndefined();
+  });
+
+  it('drops malformed or oversized cookie headers instead of forwarding them', async () => {
+    const malformedFetch = vi.fn().mockResolvedValue({ status: 202 });
+    await eventHandler.dispatchEventBackground('import', {
+      eventKey: EVENT_KEY, businessDate: '2026-08-11', shardIndex: 0,
+    }, {
+      env: {
+        ...ENV, CONTEXT: 'deploy-preview', URL: 'https://bannersonthefly.com',
+        DEPLOY_PRIME_URL: PREVIEW_ORIGIN,
+      },
+      fetchImpl: malformedFetch,
+      requestEvent: {
+        rawUrl: `${PREVIEW_ORIGIN}/.netlify/functions/outbound-sales-event-import`,
+        headers: { Cookie: `${PREVIEW_COOKIE}\r\nX-Injected: yes` },
+      },
+    });
+    expect(malformedFetch.mock.calls[0][1].headers.Cookie).toBeUndefined();
+
+    const oversizedFetch = vi.fn().mockResolvedValue({ status: 202 });
+    await eventHandler.dispatchEventBackground('import', {
+      eventKey: EVENT_KEY, businessDate: '2026-08-11', shardIndex: 0,
+    }, {
+      env: {
+        ...ENV, CONTEXT: 'branch-deploy', URL: 'https://bannersonthefly.com',
+        DEPLOY_URL: PREVIEW_ORIGIN,
+      },
+      fetchImpl: oversizedFetch,
+      requestEvent: {
+        rawUrl: `${PREVIEW_ORIGIN}/.netlify/functions/outbound-sales-event-import`,
+        headers: { Cookie: `nf_jwt=${'x'.repeat(8 * 1024)}` },
+      },
+    });
+    expect(oversizedFetch.mock.calls[0][1].headers.Cookie).toBeUndefined();
+  });
+
   it('queues the first import shard and returns sanitized preparation-only progress', async () => {
     const dispatch = vi.fn().mockResolvedValue(202);
     const repository = {
@@ -290,6 +507,135 @@ describe('protected admin/token trigger and resumable background chain', () => {
       externalEmailsSent: 0, manualSendingOnly: true,
     });
     expect(dispatch).toHaveBeenCalledWith('import', expect.objectContaining({ shardIndex: 0 }), expect.anything());
+    expect(repository.recordEventProgress).toHaveBeenCalledTimes(2);
+    expect(repository.recordEventProgress.mock.calls[0][1]).toMatchObject({
+      status: 'discovering', lastErrorCode: null,
+      metadata: {
+        phase: 'dispatching', dispatchState: 'requesting', dispatchAction: 'import',
+        dispatchShardIndex: 0, dispatchAckStatus: null, backgroundState: null,
+        dispatchPlatformCookieForwarded: false,
+        externalEmailsSent: 0,
+      },
+    });
+    expect(repository.recordEventProgress.mock.calls[1][1]).toMatchObject({
+      status: 'discovering', lastErrorCode: null,
+      metadata: {
+        phase: 'dispatched', dispatchState: 'acknowledged', dispatchAction: 'import',
+        dispatchShardIndex: 0, dispatchAckStatus: 202,
+        dispatchPlatformCookieForwarded: false, externalEmailsSent: 0,
+      },
+    });
+  });
+
+  it('persists a sanitized failed state when foreground dispatch is not acknowledged', async () => {
+    const repository = {
+      ensureEventBatch: vi.fn().mockResolvedValue({ id: BATCH_ID }),
+      loadEventBatchStatus: vi.fn().mockResolvedValue(batchRow()),
+      recordEventProgress: vi.fn().mockResolvedValue(batchRow()),
+    };
+    const handler = eventHandler.createEventImportHandler({
+      env: ENV,
+      dependencies: {
+        createSql: vi.fn(() => vi.fn()), repository,
+        fetch: vi.fn().mockResolvedValue({ status: 200 }),
+      },
+    });
+    const request = tokenEvent('POST', { action: 'start', eventKey: EVENT_KEY });
+    request.headers.Cookie = PREVIEW_COOKIE;
+
+    const response = await handler(request);
+
+    expect(response.statusCode).toBe(502);
+    expect(repository.recordEventProgress).toHaveBeenCalledTimes(2);
+    expect(repository.recordEventProgress.mock.calls[1][1]).toMatchObject({
+      batchId: BATCH_ID, status: 'failed', lastErrorCode: 'EVENT_IMPORT_DISPATCH_FAILED',
+      metadata: {
+        phase: 'dispatch_failed', dispatchState: 'failed', dispatchAction: 'import',
+        dispatchShardIndex: 0, dispatchAckStatus: null, externalEmailsSent: 0,
+        dispatchPlatformCookieForwarded: false,
+      },
+    });
+    const durableMetadata = JSON.stringify(repository.recordEventProgress.mock.calls.map((call) => call[1]));
+    expect(durableMetadata).not.toContain(TOKEN);
+    expect(durableMetadata).not.toContain(MORNING_SECRET);
+    expect(durableMetadata).not.toContain(PREVIEW_COOKIE);
+    expect(durableMetadata).not.toContain(JSON.stringify({ action: 'start', eventKey: EVENT_KEY }));
+  });
+
+  it('writes a background receiver heartbeat before shard work and exposes a deferred claim', async () => {
+    const order = [];
+    const repository = backgroundRepository({
+      recordEventProgress: vi.fn(async (_sql, input) => {
+        order.push(input.metadata.phase);
+        return batchRow();
+      }),
+    });
+    const runEventImportShard = vi.fn(async () => {
+      order.push('shard_work');
+      return { shardStatus: 'running', shardCount: 7 };
+    });
+    const handler = eventHandler.createEventImportBackgroundHandler({
+      env: ENV,
+      dependencies: {
+        createSql: vi.fn(() => vi.fn()), repository, runEventImportShard,
+      },
+    });
+
+    const response = await handler(backgroundEvent({
+      action: 'import', eventKey: EVENT_KEY, businessDate: '2026-08-11', shardIndex: 0,
+    }));
+
+    expect(response.statusCode).toBe(204);
+    expect(order).toEqual(['background_received', 'shard_work', 'import_claim_deferred']);
+    expect(repository.recordEventProgress.mock.calls[0][1]).toMatchObject({
+      batchId: BATCH_ID, status: 'discovering', lastErrorCode: null,
+      metadata: {
+        phase: 'background_received', backgroundState: 'running',
+        backgroundAction: 'import', backgroundShardIndex: 0, externalEmailsSent: 0,
+      },
+    });
+    expect(repository.recordEventProgress.mock.calls[1][1]).toMatchObject({
+      metadata: {
+        phase: 'import_claim_deferred', backgroundState: 'claim_deferred',
+        backgroundShardStatus: 'running', externalEmailsSent: 0,
+      },
+    });
+  });
+
+  it('defers image and Blob runtime loading until the final mockup stage', async () => {
+    const loadSharp = vi.fn().mockResolvedValue({ name: 'sharp-test' });
+    const getStore = vi.fn().mockResolvedValue({ name: 'store-test' });
+    const importHandler = eventHandler.createEventImportBackgroundHandler({
+      env: ENV, loadSharp, getStore,
+      dependencies: {
+        createSql: vi.fn(() => vi.fn()), repository: backgroundRepository(),
+        runEventImportShard: vi.fn().mockResolvedValue({ shardStatus: 'running', shardCount: 7 }),
+      },
+    });
+    await importHandler(backgroundEvent({
+      action: 'import', eventKey: EVENT_KEY, businessDate: '2026-08-11', shardIndex: 0,
+    }));
+    expect(loadSharp).not.toHaveBeenCalled();
+    expect(getStore).not.toHaveBeenCalled();
+
+    const runEventFinalizer = vi.fn().mockResolvedValue({
+      readyCount: 70, processedCount: 70, candidateCount: 70,
+      mockupFailureCount: 0, timeBudgetReached: false,
+    });
+    const finalizeHandler = eventHandler.createEventImportBackgroundHandler({
+      env: ENV, loadSharp, getStore,
+      dependencies: {
+        createSql: vi.fn(() => vi.fn()), repository: backgroundRepository(), runEventFinalizer,
+      },
+    });
+    await finalizeHandler(backgroundEvent({
+      action: 'finalize', eventKey: EVENT_KEY, businessDate: '2026-08-11', finalizerPass: 0,
+    }));
+    expect(loadSharp).toHaveBeenCalledTimes(1);
+    expect(getStore).toHaveBeenCalledTimes(1);
+    expect(runEventFinalizer).toHaveBeenCalledWith(expect.objectContaining({
+      sharp: { name: 'sharp-test' }, store: { name: 'store-test' },
+    }));
   });
 
   it('chains bounded import shards and resumable finalizer passes without sending', async () => {
@@ -298,6 +644,7 @@ describe('protected admin/token trigger and resumable background chain', () => {
       env: ENV,
       dependencies: {
         createSql: vi.fn(() => vi.fn()),
+        repository: backgroundRepository(),
         runEventImportShard: vi.fn().mockResolvedValue({ shardStatus: 'succeeded', shardCount: 7 }),
         dispatchEventBackground: dispatchImport,
       },
@@ -313,6 +660,7 @@ describe('protected admin/token trigger and resumable background chain', () => {
       env: ENV,
       dependencies: {
         createSql: vi.fn(() => vi.fn()),
+        repository: backgroundRepository(),
         runEventFinalizer: vi.fn().mockResolvedValue({
           readyCount: 42, processedCount: 55, candidateCount: 90,
           mockupFailureCount: 3, timeBudgetReached: true,
@@ -329,9 +677,16 @@ describe('protected admin/token trigger and resumable background chain', () => {
   it('ships both function entrypoints, background configuration, and visible admin progress action', () => {
     expect(foregroundEntrypoint).toContain('createEventImportHandler');
     expect(backgroundEntrypoint).toContain('createEventImportBackgroundHandler');
+    expect(backgroundEntrypoint).not.toContain("import sharp from 'sharp'");
+    expect(backgroundEntrypoint).toContain("await import('sharp')");
     expect(netlifyConfig).toContain('[functions."outbound-sales-event-import-background"]');
     expect(netlifyConfig).toMatch(/\[functions\."outbound-sales-event-import-background"\][\s\S]*?background = true/);
     expect(salesAdminSource).toContain('Load & prepare Atlanta batch');
+    expect(salesAdminSource).toContain('Retry Atlanta preparation');
+    expect(salesAdminSource).toContain("['queued', 'dispatching', 'dispatched']");
+    expect(salesAdminSource).toContain('The preparation worker did not confirm receipt');
+    expect(salesAdminSource).toContain('eventStartInFlight.current');
+    expect(salesAdminSource).not.toContain('use Load &amp; prepare Atlanta batch to retry safely');
     expect(salesAdminSource).toContain('This action has no email-send path');
   });
 });

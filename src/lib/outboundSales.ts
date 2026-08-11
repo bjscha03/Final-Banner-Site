@@ -586,6 +586,12 @@ export interface OutboundEventPreparationResult {
     completedImportShardCount: number; runningImportShardCount: number;
     failedImportShardCount: number; phase: string; sourceRecordCount: number;
     primaryRecordCount: number; reserveRecordCount: number; finalizerPass: number;
+    dispatchState: 'requesting' | 'acknowledged' | 'failed' | null;
+    dispatchAckStatus: 202 | null; dispatchRequestedAt: string | null;
+    dispatchAcknowledgedAt: string | null; dispatchStalled: boolean;
+    backgroundState: 'running' | 'claim_deferred' | null;
+    backgroundAction: 'import' | 'finalize' | null; backgroundShardIndex: number | null;
+    backgroundReceivedAt: string | null;
     lastErrorCode: string | null; startedAt: string | null; readyAt: string | null;
     updatedAt: string | null; externalEmailsSent: 0; manualSendingOnly: true;
   };

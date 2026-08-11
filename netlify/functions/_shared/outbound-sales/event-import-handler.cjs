@@ -10,6 +10,7 @@ const { authorizedBackground, deploymentOrigin } = require('./morning-handler.cj
 const { businessDate, MORNING_TARGET } = require('./morning-preparation.cjs');
 
 const MAX_FINALIZER_PASSES = 8;
+const DISPATCH_STALL_MS = 90 * 1000;
 
 function safeCode(error, fallback = 'EVENT_IMPORT_FAILED') {
   return String(error?.code || fallback).toUpperCase()
@@ -42,25 +43,98 @@ function assertDispatchConfiguration(env = process.env) {
     error.code = 'EVENT_IMPORT_NOT_CONFIGURED';
     throw error;
   }
-  deploymentOrigin(env);
+  eventDispatchOrigin(env);
+}
+
+function secureOrigin(value) {
+  try {
+    const url = new URL(String(value || ''));
+    return url.protocol === 'https:' && url.hostname && !url.username && !url.password
+      ? url.origin : null;
+  } catch {
+    return null;
+  }
+}
+
+function eventDispatchOrigin(env = process.env) {
+  const context = String(env.CONTEXT || '').trim().toLowerCase();
+  if (['deploy-preview', 'branch-deploy'].includes(context)) {
+    for (const candidate of [env.DEPLOY_PRIME_URL, env.DEPLOY_URL]) {
+      const origin = secureOrigin(candidate);
+      if (origin) return origin;
+    }
+    const error = new Error('A deploy-scoped preview origin is required.');
+    error.code = 'EVENT_IMPORT_NOT_CONFIGURED';
+    throw error;
+  }
+  return deploymentOrigin(env);
+}
+
+function previewDispatchCookie(event, env = process.env, expectedOrigin = eventDispatchOrigin(env)) {
+  const context = String(env.CONTEXT || '').trim().toLowerCase();
+  if (!['deploy-preview', 'branch-deploy'].includes(context)) return null;
+
+  let requestUrl;
+  try {
+    requestUrl = new URL(String(event?.rawUrl || ''));
+  } catch {
+    return null;
+  }
+  if (requestUrl.protocol !== 'https:'
+      || requestUrl.username
+      || requestUrl.password
+      || requestUrl.origin !== expectedOrigin) {
+    return null;
+  }
+
+  const cookie = event?.headers?.cookie || event?.headers?.Cookie;
+  if (typeof cookie !== 'string' || !cookie.trim() || /[\r\n]/.test(cookie)
+      || Buffer.byteLength(cookie, 'utf8') > 8 * 1024) return null;
+  const platformCookies = [];
+  for (const rawPair of cookie.split(';')) {
+    const pair = rawPair.trim();
+    const separator = pair.indexOf('=');
+    if (separator <= 0) continue;
+    const name = pair.slice(0, separator).trim();
+    const value = pair.slice(separator + 1).trim();
+    // nf_jwt is Netlify's documented site-access/RBAC cookie. Do not forward
+    // application cookies or unrelated Netlify experimentation cookies.
+    if (name !== 'nf_jwt' || !value) continue;
+    platformCookies.push(`${name}=${value}`);
+  }
+  return platformCookies.join('; ') || null;
 }
 
 async function dispatchEventBackground(action, payload, {
-  env = process.env, fetchImpl = globalThis.fetch,
+  env = process.env, fetchImpl = globalThis.fetch, requestEvent,
 } = {}) {
   assertDispatchConfiguration(env);
+  const expectedOrigin = eventDispatchOrigin(env);
+  const targetUrl = new URL(
+    '/.netlify/functions/outbound-sales-event-import-background',
+    `${expectedOrigin}/`,
+  );
+  if (targetUrl.origin !== expectedOrigin) {
+    const error = new Error('Event preparation background dispatch origin is invalid.');
+    error.code = 'EVENT_IMPORT_DISPATCH_ORIGIN_INVALID';
+    throw error;
+  }
+  const cookie = previewDispatchCookie(requestEvent, env, expectedOrigin);
+  const headers = {
+    'Content-Type': 'application/json',
+    'X-Morning-Prep-Token': String(env.OUTBOUND_MORNING_PREP_SECRET),
+  };
+  if (cookie) headers.Cookie = cookie;
   const response = await fetchImpl(
-    `${deploymentOrigin(env)}/.netlify/functions/outbound-sales-event-import-background`,
+    targetUrl.toString(),
     {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Morning-Prep-Token': String(env.OUTBOUND_MORNING_PREP_SECRET),
-      },
+      redirect: 'manual',
+      headers,
       body: JSON.stringify({ action, ...payload }),
     },
   );
-  if (![200, 202, 204].includes(response.status)) {
+  if (response.status !== 202) {
     const error = new Error('Event preparation background dispatch failed.');
     error.code = 'EVENT_IMPORT_DISPATCH_FAILED';
     throw error;
@@ -71,6 +145,13 @@ async function dispatchEventBackground(action, payload, {
 function mapBatchStatus(row) {
   if (!row) return null;
   const metadata = row.run_metadata || {};
+  const dispatchReferenceAt = Date.parse(String(metadata.dispatchAcknowledgedAt || row.updated_at || ''));
+  const waitingForBackground = metadata.dispatchState === 'acknowledged'
+    || ['queued', 'dispatching', 'dispatched'].includes(metadata.phase);
+  const dispatchStalled = waitingForBackground
+    && !metadata.backgroundReceivedAt
+    && Number.isFinite(dispatchReferenceAt)
+    && Date.now() - dispatchReferenceAt >= DISPATCH_STALL_MS;
   return {
     batchId: row.id,
     businessDate: row.business_date,
@@ -90,6 +171,21 @@ function mapBatchStatus(row) {
     primaryRecordCount: Math.max(0, Number(metadata.primaryRecordCount) || 0),
     reserveRecordCount: Math.max(0, Number(metadata.reserveRecordCount) || 0),
     finalizerPass: Math.max(0, Number(metadata.finalizerPass) || 0),
+    dispatchState: ['requesting', 'acknowledged', 'failed'].includes(metadata.dispatchState)
+      ? metadata.dispatchState : null,
+    dispatchAckStatus: Number(metadata.dispatchAckStatus) === 202 ? 202 : null,
+    dispatchRequestedAt: metadata.dispatchRequestedAt || null,
+    dispatchAcknowledgedAt: metadata.dispatchAcknowledgedAt || null,
+    dispatchStalled,
+    backgroundState: ['running', 'claim_deferred'].includes(metadata.backgroundState)
+      ? metadata.backgroundState : null,
+    backgroundAction: ['import', 'finalize'].includes(metadata.backgroundAction)
+      ? metadata.backgroundAction : null,
+    backgroundShardIndex: metadata.backgroundShardIndex !== null
+      && metadata.backgroundShardIndex !== undefined
+      && Number.isInteger(Number(metadata.backgroundShardIndex))
+      ? Number(metadata.backgroundShardIndex) : null,
+    backgroundReceivedAt: metadata.backgroundReceivedAt || null,
     lastErrorCode: row.last_error_code || null,
     startedAt: row.started_at || null,
     readyAt: row.ready_at || null,
@@ -134,6 +230,7 @@ function createEventImportHandler({ dependencies = {}, env = process.env } = {})
         return json(400, { ok: false, error: 'INVALID_EVENT_IMPORT', message: 'The requested event source is unavailable.' });
       }
       assertDispatchConfiguration(env);
+      const dispatchPlatformCookieForwarded = Boolean(previewDispatchCookie(event, env));
       const batch = await repository.ensureEventBatch(sql, {
         businessDate: date, eventKey: eventImport.eventData.key,
         targetCount: MORNING_TARGET, providerId: eventImport.EVENT_PROVIDER_ID,
@@ -152,18 +249,48 @@ function createEventImportHandler({ dependencies = {}, env = process.env } = {})
       await repository.recordEventProgress(sql, {
         batchId: batch.id, status: 'discovering', lastErrorCode: null,
         metadata: {
-          phase: 'queued', eventKey: eventImport.eventData.key,
+          phase: 'dispatching', eventKey: eventImport.eventData.key,
           sourceDataVersion: eventImport.eventData.version,
           sourceDatasetSha256: eventImport.eventData.sourceDatasetSha256,
           sourceRecordCount: eventImport.eventData.records.length,
           primaryRecordCount: eventImport.eventData.primaryRecordCount,
           reserveRecordCount: eventImport.eventData.records.length - eventImport.eventData.primaryRecordCount,
+          dispatchState: 'requesting', dispatchAction: 'import', dispatchShardIndex: 0,
+          dispatchAckStatus: null, dispatchRequestedAt: new Date().toISOString(),
+          dispatchAcknowledgedAt: null, backgroundState: null, backgroundAction: null,
+          backgroundShardIndex: null, backgroundReceivedAt: null,
+          dispatchPlatformCookieForwarded,
           requestedBy: auth.actorId, manualSendingOnly: true, externalEmailsSent: 0,
         },
       });
-      await (dependencies.dispatchEventBackground || dispatchEventBackground)('import', {
-        eventKey: eventImport.eventData.key, businessDate: date, shardIndex: 0,
-      }, { env, fetchImpl: dependencies.fetch || globalThis.fetch });
+      let dispatchStatus;
+      try {
+        dispatchStatus = await (dependencies.dispatchEventBackground || dispatchEventBackground)('import', {
+          eventKey: eventImport.eventData.key, businessDate: date, shardIndex: 0,
+        }, { env, fetchImpl: dependencies.fetch || globalThis.fetch, requestEvent: event });
+      } catch (error) {
+        const code = safeCode(error, 'EVENT_IMPORT_DISPATCH_FAILED');
+        await repository.recordEventProgress(sql, {
+          batchId: batch.id, status: 'failed', lastErrorCode: code,
+          metadata: {
+            phase: 'dispatch_failed', dispatchState: 'failed', dispatchAction: 'import',
+            dispatchShardIndex: 0, dispatchAckStatus: null,
+            dispatchAcknowledgedAt: null, manualSendingOnly: true, externalEmailsSent: 0,
+            dispatchPlatformCookieForwarded,
+          },
+        }).catch(() => null);
+        throw error;
+      }
+      await repository.recordEventProgress(sql, {
+        batchId: batch.id, status: 'discovering', lastErrorCode: null,
+        metadata: {
+          phase: 'dispatched', dispatchState: 'acknowledged', dispatchAction: 'import',
+          dispatchShardIndex: 0, dispatchAckStatus: dispatchStatus,
+          dispatchAcknowledgedAt: new Date().toISOString(),
+          dispatchPlatformCookieForwarded,
+          manualSendingOnly: true, externalEmailsSent: 0,
+        },
+      });
       const queued = await repository.loadEventBatchStatus(sql, {
         businessDate: date, eventKey: eventImport.eventData.key,
       });
@@ -186,24 +313,72 @@ function emptyResponse(statusCode = 204) {
 }
 
 function createEventImportBackgroundHandler({
-  dependencies = {}, env = process.env, getStore, sharp,
+  dependencies = {}, env = process.env, getStore, sharp, loadSharp,
 } = {}) {
   const repository = { ...morningRepository, ...eventRepository, ...(dependencies.repository || {}) };
   return async function eventImportBackgroundHandler(event = {}) {
     if (event.httpMethod !== 'POST') return emptyResponse(405);
-    if (!authorizedBackground(event, env)) return emptyResponse(404);
-    if (!getDatabaseUrl(env)) return emptyResponse();
+    if (!authorizedBackground(event, env)) {
+      console.error('[outbound-sales] event preparation background rejected safely', {
+        code: 'EVENT_IMPORT_BACKGROUND_UNAUTHORIZED',
+      });
+      return emptyResponse(404);
+    }
+    if (!getDatabaseUrl(env)) {
+      console.error('[outbound-sales] event preparation background rejected safely', {
+        code: 'DATABASE_NOT_CONFIGURED',
+      });
+      return emptyResponse();
+    }
     let body;
-    try { body = parseJsonBody(event); } catch { return emptyResponse(400); }
-    if (body.eventKey !== eventImport.eventData.key) return emptyResponse(400);
+    try { body = parseJsonBody(event); } catch {
+      console.error('[outbound-sales] event preparation background rejected safely', {
+        code: 'EVENT_IMPORT_BACKGROUND_BODY_INVALID',
+      });
+      return emptyResponse(400);
+    }
+    if (body.eventKey !== eventImport.eventData.key) {
+      console.error('[outbound-sales] event preparation background rejected safely', {
+        code: 'EVENT_IMPORT_BACKGROUND_EVENT_INVALID',
+      });
+      return emptyResponse(400);
+    }
     const date = /^\d{4}-\d{2}-\d{2}$/.test(String(body.businessDate || ''))
       ? String(body.businessDate)
       : businessDate(new Date());
-    const sql = (dependencies.createSql || createSql)(env);
+    let sql;
     const requestId = event.headers?.['x-nf-request-id'] || null;
     try {
+      sql = (dependencies.createSql || createSql)(env);
+      const action = ['import', 'finalize'].includes(body.action) ? body.action : null;
+      if (!action) {
+        throw Object.assign(new Error('The event preparation background action is invalid.'), {
+          code: 'EVENT_IMPORT_BACKGROUND_ACTION_INVALID',
+        });
+      }
+      const batch = await repository.loadEventBatchStatus(sql, {
+        businessDate: date, eventKey: eventImport.eventData.key,
+      });
+      if (!batch?.id) {
+        throw Object.assign(new Error('The event preparation batch was not found.'), {
+          code: 'EVENT_IMPORT_BACKGROUND_BATCH_NOT_FOUND',
+        });
+      }
+      const shardIndex = action === 'import' ? Number(body.shardIndex) : null;
+      const finalizerPass = action === 'finalize'
+        ? Math.max(0, Math.min(MAX_FINALIZER_PASSES - 1, Number(body.finalizerPass) || 0))
+        : null;
+      await repository.recordEventProgress(sql, {
+        batchId: batch.id, status: action === 'finalize' ? 'preparing' : 'discovering',
+        lastErrorCode: null,
+        metadata: {
+          phase: 'background_received', backgroundState: 'running', backgroundAction: action,
+          backgroundShardIndex: shardIndex, backgroundFinalizerPass: finalizerPass,
+          backgroundReceivedAt: new Date().toISOString(),
+          manualSendingOnly: true, externalEmailsSent: 0,
+        },
+      });
       if (body.action === 'import') {
-        const shardIndex = Number(body.shardIndex);
         const result = await (dependencies.runEventImportShard || eventImport.runEventImportShard)({
           sql, env, businessDate: date, shardIndex, requestId,
           dependencies: dependencies.preparation,
@@ -212,19 +387,31 @@ function createEventImportBackgroundHandler({
           if (shardIndex + 1 < result.shardCount) {
             await (dependencies.dispatchEventBackground || dispatchEventBackground)('import', {
               eventKey: eventImport.eventData.key, businessDate: date, shardIndex: shardIndex + 1,
-            }, { env, fetchImpl: dependencies.fetch || globalThis.fetch });
+            }, { env, fetchImpl: dependencies.fetch || globalThis.fetch, requestEvent: event });
           } else {
             await (dependencies.dispatchEventBackground || dispatchEventBackground)('finalize', {
               eventKey: eventImport.eventData.key, businessDate: date, finalizerPass: 0,
-            }, { env, fetchImpl: dependencies.fetch || globalThis.fetch });
+            }, { env, fetchImpl: dependencies.fetch || globalThis.fetch, requestEvent: event });
           }
+        } else {
+          await repository.recordEventProgress(sql, {
+            batchId: batch.id, status: 'discovering', lastErrorCode: null,
+            metadata: {
+              phase: 'import_claim_deferred', backgroundState: 'claim_deferred',
+              backgroundAction: 'import', backgroundShardIndex: shardIndex,
+              backgroundShardStatus: ['running', 'failed', 'unknown'].includes(result.shardStatus)
+                ? result.shardStatus : 'unknown',
+              manualSendingOnly: true, externalEmailsSent: 0,
+            },
+          });
         }
       } else if (body.action === 'finalize') {
-        const finalizerPass = Math.max(0, Math.min(MAX_FINALIZER_PASSES - 1, Number(body.finalizerPass) || 0));
+        const resolvedStore = typeof getStore === 'function' ? await getStore() : undefined;
+        const resolvedSharp = typeof loadSharp === 'function' ? await loadSharp() : sharp;
         const result = await (dependencies.runEventFinalizer || eventImport.runEventFinalizer)({
           sql, env, businessDate: date, finalizerPass, requestId,
-          store: typeof getStore === 'function' ? getStore() : undefined,
-          sharp,
+          store: resolvedStore,
+          sharp: resolvedSharp,
           timeBudgetMs: eventImport.EVENT_FINALIZER_BUDGET_MS,
           dependencies: dependencies.preparation,
         });
@@ -235,16 +422,14 @@ function createEventImportBackgroundHandler({
             && hasMoreCandidates) {
           await (dependencies.dispatchEventBackground || dispatchEventBackground)('finalize', {
             eventKey: eventImport.eventData.key, businessDate: date, finalizerPass: finalizerPass + 1,
-          }, { env, fetchImpl: dependencies.fetch || globalThis.fetch });
+          }, { env, fetchImpl: dependencies.fetch || globalThis.fetch, requestEvent: event });
         }
-      } else {
-        return emptyResponse(400);
       }
     } catch (error) {
       const code = safeCode(error);
-      const batch = await repository.loadEventBatchStatus(sql, {
+      const batch = sql ? await repository.loadEventBatchStatus(sql, {
         businessDate: date, eventKey: eventImport.eventData.key,
-      }).catch(() => null);
+      }).catch(() => null) : null;
       if (batch?.id) {
         await repository.recordEventProgress(sql, {
           batchId: batch.id, status: 'failed', lastErrorCode: code,
@@ -261,10 +446,13 @@ function createEventImportBackgroundHandler({
 
 module.exports = {
   MAX_FINALIZER_PASSES,
+  DISPATCH_STALL_MS,
   constantTimeTokenMatch,
   eventTokenAuthorized,
   authorizeEventRequest,
   assertDispatchConfiguration,
+  eventDispatchOrigin,
+  previewDispatchCookie,
   dispatchEventBackground,
   mapBatchStatus,
   createEventImportHandler,
