@@ -4,6 +4,35 @@ const { sanitizeForAudit } = require('./security.cjs');
 
 const MIN_HIGH_VALUE_SCORE = 60;
 const MAX_MANUAL_DAILY_ATTEMPTS = 70;
+const COMPANY_ALIAS_PATTERN_SQL = String.raw`'\(([^()]{2,80})\)'`;
+
+function companyIdentityNames(businessName) {
+  const fullName = String(businessName || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  if (!fullName) return [];
+  const aliases = [...fullName.matchAll(/\(([^()]{2,80})\)/g)]
+    .map((match) => match[1].replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+  return [...new Set([fullName, ...aliases])];
+}
+
+function messageMatchesCompanyIdentity({ businessName, subject, bodyText }) {
+  const normalizedSubject = String(subject || '').toLowerCase();
+  const normalizedBody = String(bodyText || '').toLowerCase();
+  return companyIdentityNames(businessName).some(
+    (identity) => normalizedSubject.includes(identity) && normalizedBody.includes(identity),
+  );
+}
+
+function companyIdentitySql(company, subject, body) {
+  return `(
+    (POSITION(LOWER(${company}) IN LOWER(${subject}))>0
+      AND POSITION(LOWER(${company}) IN LOWER(${body}))>0)
+    OR
+    (${company} ~ ${COMPANY_ALIAS_PATTERN_SQL}
+      AND POSITION(LOWER(SUBSTRING(${company} FROM ${COMPANY_ALIAS_PATTERN_SQL})) IN LOWER(${subject}))>0
+      AND POSITION(LOWER(SUBSTRING(${company} FROM ${COMPANY_ALIAS_PATTERN_SQL})) IN LOWER(${body}))>0)
+  )`;
+}
 
 function technicalBlockers(row) {
   const blockers = [];
@@ -22,9 +51,11 @@ function technicalBlockers(row) {
   }
   if (!row.message_subject || !row.message_body_text) blockers.push('Email content is incomplete');
   if (!row.mockup_id || !['ready', 'fallback'].includes(row.mockup_status)) blockers.push('Personalized banner is still preparing');
-  const companyName = String(row.business_name || '').trim().toLowerCase();
-  if (companyName && (!String(row.message_subject || '').toLowerCase().includes(companyName)
-      || !String(row.message_body_text || '').toLowerCase().includes(companyName))) {
+  if (row.business_name && !messageMatchesCompanyIdentity({
+    businessName: row.business_name,
+    subject: row.message_subject,
+    bodyText: row.message_body_text,
+  })) {
     blockers.push('Email company-name personalization does not match this lead');
   }
   if (!['qualified', 'ready_for_outreach', 'contacted'].includes(row.prospect_status)) blockers.push('Prospect is not qualified');
@@ -203,8 +234,7 @@ const READY_SQL = `contact_id IS NOT NULL AND syntax_valid=TRUE AND mx_status IN
   AND is_role_address=FALSE AND is_free_mailbox=FALSE AND domain_matches=TRUE
   AND prior_customer_match=FALSE AND suppression_reason IS NULL AND active_suppression=FALSE
   AND first_contacted_at IS NULL AND message_id IS NOT NULL AND generation_status='generated'
-  AND evidence_validation_status='passed' AND LOWER(message_subject) LIKE '%'||LOWER(business_name)||'%'
-  AND LOWER(message_body_text) LIKE '%'||LOWER(business_name)||'%'
+  AND evidence_validation_status='passed' AND ${companyIdentitySql('business_name', 'message_subject', 'message_body_text')}
   AND mockup_id IS NOT NULL AND mockup_status IN ('ready','fallback')`;
 
 async function listManualReviewLeads(sql, {
@@ -456,8 +486,7 @@ async function claimManualReviewSend(sql, data) {
           AND contact.is_role_address=FALSE AND contact.is_free_mailbox=FALSE AND contact.domain_matches=TRUE
           AND message.generation_status='generated' AND message.evidence_validation_status='passed'
           AND message.status='draft' AND message.subject IS NOT NULL AND message.body_text IS NOT NULL
-          AND POSITION(LOWER(p.business_name) IN LOWER(message.subject))>0
-          AND POSITION(LOWER(p.business_name) IN LOWER(message.body_text))>0
+          AND ${companyIdentitySql('p.business_name', 'message.subject', 'message.body_text')}
           AND NOT EXISTS (
             SELECT 1 FROM outbound_suppressions suppression
              WHERE suppression.active=TRUE AND (suppression.expires_at IS NULL OR suppression.expires_at>NOW())
@@ -540,6 +569,8 @@ async function markManualReviewFailed(sql, data) {
 module.exports = {
   MIN_HIGH_VALUE_SCORE,
   MAX_MANUAL_DAILY_ATTEMPTS,
+  companyIdentityNames,
+  messageMatchesCompanyIdentity,
   technicalBlockers,
   mapLead,
   listManualReviewLeads,

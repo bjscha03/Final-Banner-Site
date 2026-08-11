@@ -3,13 +3,15 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs/promises');
 const path = require('node:path');
+const fontkit = require('fontkit');
 const repository = require('./company-mockup-repository.cjs');
 const { fetchWebsitePage, fetchWebsiteAsset } = require('./ssrf.cjs');
 const { extractBrandAssets } = require('./research.cjs');
 
-const RENDER_VERSION = 'company-banner-v2';
+const RENDER_VERSION = 'company-banner-v3';
 const MOCKUP_CONTENT_ID = 'company-banner-mockup';
 const MOCKUP_STORE_NAME = 'outbound-company-mockups';
+const MOCKUP_FONT_FILE = 'node_modules/pdfjs-dist/standard_fonts/LiberationSans-Bold.ttf';
 const OUTPUT_WIDTH = 1200;
 const OUTPUT_HEIGHT = 675;
 const SCENES = Object.freeze({
@@ -29,11 +31,6 @@ const SCENES = Object.freeze({
 
 function sha256(value) {
   return crypto.createHash('sha256').update(String(value)).digest('hex');
-}
-
-function escapeXml(value) {
-  return String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 }
 
 function cleanLabel(value, maxLength = 76) {
@@ -217,6 +214,10 @@ function wrapName(name, maxLineLength = 24) {
   const value = cleanLabel(name, 72) || 'YOUR BUSINESS';
   if (value.length <= maxLineLength) return [value];
   const words = value.split(' ');
+  if (words.length === 1) {
+    const midpoint = Math.ceil(value.length / 2);
+    return [value.slice(0, midpoint), value.slice(midpoint)];
+  }
   const lines = [''];
   for (const word of words) {
     const current = lines.at(-1);
@@ -226,11 +227,69 @@ function wrapName(name, maxLineLength = 24) {
   return lines.slice(0, 2);
 }
 
-async function renderArtwork(candidate, assets, sharpImpl) {
+let cachedMockupFont;
+
+async function loadMockupFont(dependencies = {}) {
+  if (dependencies.font) return dependencies.font;
+  if (!cachedMockupFont) {
+    const fontBuffer = dependencies.fontBuffer
+      || await fs.readFile(path.resolve(process.cwd(), MOCKUP_FONT_FILE));
+    cachedMockupFont = fontkit.create(fontBuffer);
+  }
+  return cachedMockupFont;
+}
+
+function fontRun(font, text) {
+  const value = String(text || '');
+  for (const character of value) {
+    if (!font.hasGlyphForCodePoint(character.codePointAt(0))) {
+      const error = new Error(`The bundled mockup font cannot safely render ${JSON.stringify(character)}.`);
+      error.code = 'MOCKUP_FONT_GLYPH_UNAVAILABLE';
+      throw error;
+    }
+  }
+  return font.layout(value);
+}
+
+function runWidth(run, font, fontSize, letterSpacing = 0) {
+  const advance = run.positions.reduce((total, position) => total + position.xAdvance, 0);
+  return (advance * (fontSize / font.unitsPerEm))
+    + (Math.max(0, run.glyphs.length - 1) * letterSpacing);
+}
+
+function fitFontSize(font, lines, preferredSize, maxWidth, letterSpacing = 0, minimumSize = 14) {
+  let fitted = preferredSize;
+  for (const line of lines) {
+    const run = fontRun(font, line);
+    const width = runWidth(run, font, preferredSize, letterSpacing);
+    if (width > maxWidth) fitted = Math.min(fitted, preferredSize * (maxWidth / width));
+  }
+  return Math.max(minimumSize, Math.floor(fitted));
+}
+
+function vectorTextPaths(font, text, {
+  x = 0, baselineY = 0, fontSize = 24, fill = '#ffffff', letterSpacing = 0,
+} = {}) {
+  const run = fontRun(font, text);
+  const scale = fontSize / font.unitsPerEm;
+  let cursor = 0;
+  return run.glyphs.map((glyph, index) => {
+    const position = run.positions[index];
+    const glyphX = x + ((cursor + position.xOffset) * scale) + (index * letterSpacing);
+    const glyphY = baselineY - (position.yOffset * scale);
+    cursor += position.xAdvance;
+    return `<path d="${glyph.path.toSVG()}" transform="translate(${glyphX.toFixed(3)} ${glyphY.toFixed(3)}) scale(${scale.toFixed(6)} ${(-scale).toFixed(6)})" fill="${fill}"/>`;
+  }).join('');
+}
+
+async function renderArtwork(candidate, assets, sharpImpl, dependencies = {}) {
   const width = 1000;
   const height = 320;
   const productWidth = assets.product ? 450 : 0;
-  const brandColor = await dominantColor(assets.logo || assets.product, sharpImpl);
+  const [brandColor, font] = await Promise.all([
+    dominantColor(assets.logo || assets.product, sharpImpl),
+    loadMockupFont(dependencies),
+  ]);
   const layers = [{
     input: Buffer.from(`<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -278,18 +337,23 @@ async function renderArtwork(candidate, assets, sharpImpl) {
   const textWidth = assets.product ? 490 : 880;
   const lines = wrapName(candidate.prospect.businessName, assets.logo ? 27 : assets.product ? 17 : 20);
   const longestLine = Math.max(...lines.map((line) => line.length));
-  const nameFont = assets.logo
+  const preferredNameFont = assets.logo
     ? (longestLine > 22 ? 25 : lines.length === 1 ? 31 : 28)
     : (longestLine > 17 ? 42 : longestLine > 12 ? 48 : 56);
+  const nameFont = fitFontSize(font, lines, preferredNameFont, textWidth - 8, -1, 14);
   const startY = assets.logo ? 218 : (lines.length === 1 ? 166 : 128);
   const subtitle = cleanLabel(
     eventLabel(candidate) || candidate.prospect.industry || candidate.prospect.businessType || 'CUSTOM BANNER CONCEPT',
     assets.product ? 34 : 58,
   ).toUpperCase();
   const nameSvg = `<svg width="${textWidth}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-    <style>.name{font-family:Arial,Helvetica,sans-serif;font-weight:900;fill:#fff;letter-spacing:-1px}.sub{font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:800;fill:#ffcab2;letter-spacing:2px}</style>
-    ${lines.map((line, index) => `<text class="name" x="0" y="${startY + (index * (nameFont + 6))}" font-size="${nameFont}">${escapeXml(line)}</text>`).join('')}
-    <text class="sub" x="0" y="${Math.min(298, startY + (lines.length * (nameFont + 6)) + 22)}">${escapeXml(subtitle)}</text>
+    ${lines.map((line, index) => vectorTextPaths(font, line, {
+    baselineY: startY + (index * (nameFont + 6)), fontSize: nameFont, fill: '#ffffff', letterSpacing: -1,
+  })).join('')}
+    ${vectorTextPaths(font, subtitle, {
+    baselineY: Math.min(298, startY + (lines.length * (nameFont + 6)) + 22),
+    fontSize: fitFontSize(font, [subtitle], 20, textWidth - 8, 2, 12), fill: '#ffcab2', letterSpacing: 2,
+  })}
   </svg>`;
   layers.push({ input: Buffer.from(nameSvg), left: 56, top: 0 });
 
@@ -316,7 +380,7 @@ async function renderCompanyMockup(candidate, assets, dependencies = {}) {
   const scene = SCENES[plan.sceneId] || SCENES.storefront;
   const [sceneBuffer, artwork] = await Promise.all([
     loadScene(plan.sceneId, dependencies),
-    renderArtwork(candidate, assets, sharpImpl),
+    renderArtwork(candidate, assets, sharpImpl, dependencies),
   ]);
   const fittedArtwork = await sharpImpl(artwork)
     .resize(scene.frame.width, scene.frame.height, { fit: 'fill', kernel: sharpImpl.kernel.lanczos3 })
@@ -420,6 +484,7 @@ module.exports = {
   RENDER_VERSION,
   MOCKUP_CONTENT_ID,
   MOCKUP_STORE_NAME,
+  MOCKUP_FONT_FILE,
   OUTPUT_WIDTH,
   OUTPUT_HEIGHT,
   SCENES,
@@ -433,6 +498,8 @@ module.exports = {
   safeSvg,
   planFor,
   qualityLevel,
+  loadMockupFont,
+  vectorTextPaths,
   renderArtwork,
   renderCompanyMockup,
   prepareCompanyMockup,

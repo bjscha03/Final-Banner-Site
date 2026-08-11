@@ -74,6 +74,16 @@ describe('company-brand asset extraction', () => {
 });
 
 describe('deterministic personalized banner renderer', () => {
+  it('converts accented company lettering to bundled vector outlines with no runtime font dependency', async () => {
+    const font = await mockupModule.loadMockupFont();
+    const paths = mockupModule.vectorTextPaths(font, 'BED|STÜ', {
+      baselineY: 100, fontSize: 48, fill: '#ffffff', letterSpacing: -1,
+    });
+    expect(paths).toContain('<path d="');
+    expect(paths.match(/<path /g)).toHaveLength(7);
+    expect(paths).not.toContain('<text');
+  });
+
   it('selects the trade-show scene and exact event from grounded message copy', () => {
     const candidate = candidateFixture();
     expect(mockupModule.selectSceneId(candidate)).toBe('trade_show');

@@ -15,7 +15,9 @@ const {
   createManualReviewHandler, stableManualSendKey,
   validateManualDeliveryConfiguration, deliveryStatus,
 } = handlerModule;
-const { mapLead, MAX_MANUAL_DAILY_ATTEMPTS } = repository;
+const {
+  mapLead, messageMatchesCompanyIdentity, MAX_MANUAL_DAILY_ATTEMPTS,
+} = repository;
 const { EVENT_FIRST_INDUSTRY_KEYWORDS, selectProspectingKeywords } = strategy;
 
 const originalEnvironment = { ...process.env };
@@ -151,6 +153,27 @@ describe('manual lead review migration and qualification', () => {
     const suppressed = mapLead({ ...rowFixture(), active_suppression: true });
     expect(suppressed.canSend).toBe(false);
     expect(suppressed.technicalBlockers).toContain('Active opt-out or delivery suppression');
+  });
+
+  it('accepts a verified parenthetical brand alias without weakening cross-company protection', () => {
+    const brandedRow = {
+      ...rowFixture(),
+      business_name: 'Evolutions Brands (BED|STÜ)',
+      message_subject: 'Fresh booth signage for BED|STÜ at Atlanta Shoe Market',
+      message_body_text: 'Hi Jason,\n\nI saw BED|STÜ is exhibiting at the Atlanta Shoe Market.\n\nBest,\nBrandon',
+    };
+    expect(mapLead(brandedRow)).toMatchObject({ canSend: true, technicalBlockers: [] });
+    expect(messageMatchesCompanyIdentity({
+      businessName: brandedRow.business_name,
+      subject: brandedRow.message_subject,
+      bodyText: brandedRow.message_body_text,
+    })).toBe(true);
+
+    expect(mapLead({
+      ...brandedRow,
+      message_subject: 'Help Be Lenka stand out at Atlanta Shoe Market',
+      message_body_text: 'Hi Katarína,\n\nI saw Be Lenka is exhibiting at the Atlanta Shoe Market.',
+    }).technicalBlockers).toContain('Email company-name personalization does not match this lead');
   });
 
   it('reserves a discovery slot for trade-show and event prospects until outcome learning takes over', () => {
