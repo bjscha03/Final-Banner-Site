@@ -204,6 +204,27 @@ describe('SSRF-safe website transport', () => {
     expect(pinned).toEqual(['93.184.216.34', '93.184.216.35']);
   });
 
+  it('reports a safe actionable network code after every validated address fails', async () => {
+    const requestImpl = () => {
+      const request = new EventEmitter();
+      request.setTimeout = vi.fn();
+      request.destroy = (error) => queueMicrotask(() => request.emit('error', error));
+      request.end = () => {
+        const error = new Error('connection reset detail must not be exposed');
+        error.code = 'ECONNRESET';
+        queueMicrotask(() => request.emit('error', error));
+      };
+      return request;
+    };
+    await expect(fetchWebsitePage('https://example.org', {
+      lookup: async () => [
+        { address: '93.184.216.34', family: 4 },
+        { address: '93.184.216.35', family: 4 },
+      ],
+      requestImpl,
+    })).rejects.toMatchObject({ code: 'WEBSITE_CONNECTION_RESET', message: 'Website request failed.' });
+  });
+
   it('blocks HTTPS downgrade redirects', async () => {
     const requestImpl = requestFixture([
       { status: 302, headers: { location: 'http://www.example.org/about', 'content-type': 'text/html' }, remoteAddress: '93.184.216.34' },

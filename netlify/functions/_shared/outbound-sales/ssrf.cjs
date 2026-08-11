@@ -177,6 +177,22 @@ function defaultRequest(url, options, onResponse) {
   return (url.protocol === 'https:' ? https : http).request(url, options, onResponse);
 }
 
+function publicNetworkError(error, fallbackMessage) {
+  if (error?.code?.startsWith?.('WEBSITE_')) return error;
+  const codes = {
+    ECONNRESET: 'WEBSITE_CONNECTION_RESET',
+    ECONNREFUSED: 'WEBSITE_CONNECTION_REFUSED',
+    ENETUNREACH: 'WEBSITE_NETWORK_UNREACHABLE',
+    EHOSTUNREACH: 'WEBSITE_HOST_UNREACHABLE',
+    ETIMEDOUT: 'WEBSITE_TIMEOUT',
+    EPROTO: 'WEBSITE_TLS_FAILED',
+    ERR_TLS_CERT_ALTNAME_INVALID: 'WEBSITE_TLS_FAILED',
+    CERT_HAS_EXPIRED: 'WEBSITE_TLS_FAILED',
+    UNABLE_TO_VERIFY_LEAF_SIGNATURE: 'WEBSITE_TLS_FAILED',
+  };
+  return ssrfError(codes[error?.code] || 'WEBSITE_FETCH_FAILED', fallbackMessage);
+}
+
 async function requestPublicResource(url, options) {
   const approvedAddresses = await resolvePublicHost(url.hostname, options.lookup);
   const addresses = approvedAddresses.slice(0, 4);
@@ -211,8 +227,7 @@ async function requestPublicResource(url, options) {
           finish(resolve, incoming);
         });
         request.setTimeout(perAddressTimeout, () => request.destroy(ssrfError('WEBSITE_TIMEOUT', options.timeoutMessage)));
-        request.on('error', (error) => finish(reject, error?.code?.startsWith?.('WEBSITE_')
-          ? error : ssrfError('WEBSITE_FETCH_FAILED', options.fetchMessage)));
+        request.on('error', (error) => finish(reject, publicNetworkError(error, options.fetchMessage)));
         request.end();
       });
     } catch (error) {
