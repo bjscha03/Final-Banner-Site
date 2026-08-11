@@ -214,8 +214,13 @@ async function requestPublicResource(url, options) {
           method: 'GET',
           headers: options.headers,
           servername: url.hostname,
-          lookup(_hostname, _lookupOptions, callback) {
-            callback(null, pinned.address, pinned.family);
+          lookup(_hostname, lookupOptions, callback) {
+            // Node 20+ may enable automatic address-family selection and ask a
+            // custom lookup for `all: true`. Return the callback shape it
+            // requested while still pinning the connection to this one
+            // prevalidated public address.
+            if (lookupOptions?.all) callback(null, [{ address: pinned.address, family: pinned.family }]);
+            else callback(null, pinned.address, pinned.family);
           },
         }, (incoming) => {
           const remoteAddress = incoming.socket?.remoteAddress;

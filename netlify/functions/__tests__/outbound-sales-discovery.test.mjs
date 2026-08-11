@@ -165,6 +165,12 @@ describe('SSRF-safe website transport', () => {
     const pinned = [];
     for (const capture of captures) capture.options.lookup('ignored', {}, (_error, address) => pinned.push(address));
     expect(pinned).toEqual(['93.184.216.34', '93.184.216.35']);
+    const modernNodePinned = [];
+    for (const capture of captures) capture.options.lookup('ignored', { all: true }, (_error, addresses) => modernNodePinned.push(addresses));
+    expect(modernNodePinned).toEqual([
+      [{ address: '93.184.216.34', family: 4 }],
+      [{ address: '93.184.216.35', family: 4 }],
+    ]);
   });
 
   it('retries another validated public address when the first CDN edge cannot connect', async () => {
