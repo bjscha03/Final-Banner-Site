@@ -162,6 +162,15 @@ describe('deterministic personalized banner renderer', () => {
     });
   });
 
+  it('ends intentionally shortened company copy with an ellipsis instead of a dangling phrase', () => {
+    const copy = mockupModule.selectBrandCopy(candidateFixture(), {
+      taglineCandidates: ['Move naturally every day.'],
+      offeringCandidates: ['Stylish barefoot and recovery shoes, sandals, loafers, and sneakers made from premium materials for the entire family and every adventure'],
+    });
+    expect(copy.offering).toMatch(/\.\.\.$/);
+    expect(copy.offering.length).toBeLessThanOrEqual(95);
+  });
+
   it('automatically gives a white transparent wordmark a dark contrast card', async () => {
     const whiteWordmark = await sharp({
       create: { width: 400, height: 100, channels: 4, background: { r: 255, g: 255, b: 255, alpha: 1 } },

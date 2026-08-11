@@ -11,7 +11,7 @@ const {
 } = require('./research.cjs');
 const { canonicalDomain } = require('./providers/contract.cjs');
 
-const RENDER_VERSION = 'company-banner-v6';
+const RENDER_VERSION = 'company-banner-v7';
 const MOCKUP_CONTENT_ID = 'company-banner-mockup';
 const MOCKUP_STORE_NAME = 'outbound-company-mockups';
 const MOCKUP_FONT_FILE = 'node_modules/pdfjs-dist/standard_fonts/LiberationSans-Bold.ttf';
@@ -318,7 +318,7 @@ function marketingLine(value, maxLength = 94) {
   if (/cookie|privacy|sign in|log in|subscribe|customer service/i.test(line)) return null;
   if (line.length > maxLength) {
     const shortened = line.slice(0, maxLength + 1);
-    line = shortened.slice(0, Math.max(1, shortened.lastIndexOf(' '))).replace(/[,:;\-–—]+$/, '').trim();
+    line = `${shortened.slice(0, Math.max(1, shortened.lastIndexOf(' '))).replace(/[,:;\-–—]+$/, '').trim()}...`;
   }
   return line || null;
 }
@@ -386,10 +386,10 @@ function selectBrandCopy(candidate, profile = {}) {
   // caption from elsewhere on the page. Product imagery already carries the
   // specific visual; metadata-backed offering copy keeps the pairing honest.
   const rankedOfferingRaw = [...offerings]
-    .map((line, index) => ({ line: marketingLine(line, 108), score: brandLineScore(line, businessName, 'offering') - index }))
+    .map((line, index) => ({ line: marketingLine(line, 92), score: brandLineScore(line, businessName, 'offering') - index }))
     .filter((entry) => entry.line && entry.score > -500)
     .sort((left, right) => right.score - left.score)[0]?.line || null;
-  const rankedOffering = marketingLine(stripLeadingBrandName(rankedOfferingRaw, businessName), 108);
+  const rankedOffering = marketingLine(stripLeadingBrandName(rankedOfferingRaw, businessName), 92);
   const distinctOffering = brandLinesOverlap(rankedHeadline, rankedOffering) ? null : rankedOffering;
   return {
     headline: rankedHeadline,
