@@ -320,7 +320,7 @@ export default function SalesLeadReview() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [offset, setOffset] = useState(0);
-  const [view, setView] = useState<View>('today');
+  const [view, setView] = useState<View>('all');
   const [filters, setFilters] = useState<OutboundLeadFilters>(EMPTY_FILTERS);
   const [sort, setSort] = useState<QueueSort>('priority');
   const [sendingId, setSendingId] = useState('');
@@ -577,7 +577,22 @@ export default function SalesLeadReview() {
       {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 font-semibold text-red-800">{error}</div>}
       {!loading && queue && !queue.schemaReady && <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-amber-950"><AlertTriangle className="mr-2 inline h-5 w-5" /> Apply the current Sales Admin database migrations to activate the morning queue.</div>}
       {loading && !queue && <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center text-slate-500"><LoaderCircle className="mx-auto mb-3 h-7 w-7 animate-spin" /> Loading high-value event prospects…</div>}
-      {!loading && queue?.schemaReady && visibleLeads.length === 0 && <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center"><CheckCircle2 className="mx-auto h-8 w-8 text-slate-400" /><h2 className="mt-3 font-black text-slate-900">No leads in this view</h2><p className="mt-1 text-sm text-slate-500">Try another view or refresh after the next lead import.</p></div>}
+      {!loading && queue?.schemaReady && visibleLeads.length === 0 && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center">
+          <CheckCircle2 className="mx-auto h-8 w-8 text-slate-400" />
+          <h2 className="mt-3 font-black text-slate-900">{view === 'today' && activeFilterCount === 0 ? 'No new leads imported today' : 'No leads in this view'}</h2>
+          <p className="mx-auto mt-1 max-w-xl text-sm text-slate-500">
+            {view === 'today' && activeFilterCount === 0
+              ? 'Your existing leads are still saved. Show all saved leads to view earlier imports, or refresh after today’s preparation finishes.'
+              : 'Clear filters or show all saved leads to return to the complete queue.'}
+          </p>
+          {view !== 'all' && (
+            <Button type="button" variant="outline" className="mt-4" onClick={() => { setView('all'); setOffset(0); }}>
+              Show all saved leads
+            </Button>
+          )}
+        </div>
+      )}
 
       <div className="space-y-5">
         {visibleLeads.map((lead) => <LeadCard key={lead.prospectId} lead={lead} deliveryReady={queue?.deliveryReady === true} sending={sendingId === lead.prospectId} refreshingMockup={refreshingMockupId === lead.prospectId} savingNote={savingNoteId === lead.prospectId} onSend={(item) => void send(item)} onRefreshMockup={(item) => void refreshMockup(item)} onSaveNote={(item, notes) => void saveNote(item, notes)} />)}
