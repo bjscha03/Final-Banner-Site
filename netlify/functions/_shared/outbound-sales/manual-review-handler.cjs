@@ -18,10 +18,9 @@ const {
 } = require('./personalization-template.cjs');
 const { assessEmail } = require('./email.cjs');
 const {
-  MANUAL_ARTWORK_CONTENT_ID,
   loadVerifiedManualArtwork,
-  attachmentFromManualArtwork,
 } = require('./manual-artwork.cjs');
+const { manualArtworkDeliveryReady } = require('./manual-artwork-delivery.cjs');
 const { json, authorize, parseJsonBody, redactSecretText, safeFailure } = require('./security.cjs');
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -148,7 +147,6 @@ function createManualReviewHandler(options = {}) {
     sendPermissionedMarketingMessage,
     assessEmail,
     loadVerifiedManualArtwork,
-    attachmentFromManualArtwork,
     ...options.dependencies,
   };
   const env = options.env || process.env;
@@ -266,8 +264,8 @@ function createManualReviewHandler(options = {}) {
         requestId: event.headers?.['x-nf-request-id'] || null,
       });
       // Load the exact administrator-uploaded image before claiming the send.
-      // The immutable Blob read-back guarantees the previewed bytes and attached
-      // bytes are identical and bound to this lead's current email draft.
+      // The immutable Blob read-back and public-asset binding guarantee the
+      // reviewed image is the one rendered inside this lead's email.
       const manualArtwork = await dependencies.loadVerifiedManualArtwork({
         sql,
         prospectId,
@@ -276,7 +274,14 @@ function createManualReviewHandler(options = {}) {
       });
       if (manualArtwork?.prospectId !== prospectId || manualArtwork?.sendReady !== true
           || !/^[a-f0-9]{64}$/i.test(String(manualArtwork?.contentHash || ''))
-          || !manualArtwork?.messageContentHash) {
+          || !manualArtwork?.messageContentHash
+          || manualArtwork?.emailImageReady !== true
+          || !manualArtworkDeliveryReady(manualArtwork?.deliveryAsset, {
+            prospectId,
+            contentHash: manualArtwork?.contentHash,
+            width: manualArtwork?.width,
+            height: manualArtwork?.height,
+          })) {
         const incomplete = new Error('Upload and review a banner image for this company before sending.');
         incomplete.code = 'MANUAL_ARTWORK_NOT_READY';
         throw incomplete;
@@ -318,16 +323,15 @@ function createManualReviewHandler(options = {}) {
           messageId: claimed.message_id, expiresAt: new Date(now.getTime() + (180 * 86400000)).toISOString(),
         });
         const unsubscribeUrl = `${config.origin}/.netlify/functions/outbound-sales-unsubscribe?token=${encodeURIComponent(token.token)}`;
-        const mockupAttachment = dependencies.attachmentFromManualArtwork(manualArtwork, claimed.business_name);
-        if (!mockupAttachment) {
-          const unavailable = new Error('A safe personalized banner could not be attached. Nothing was sent.');
+        if (!manualArtwork.publicUrl) {
+          const unavailable = new Error('A safe personalized banner could not be hosted for the email. Nothing was sent.');
           unavailable.code = 'COMPANY_MOCKUP_NOT_READY';
           throw unavailable;
         }
         const content = renderOutboundDeliveryContent({
           subject: claimed.subject, bodyText: claimed.body_text,
           physicalAddress: config.physicalAddress, unsubscribeUrl,
-          mockupImageSrc: `cid:${MANUAL_ARTWORK_CONTENT_ID}`,
+          mockupImageSrc: manualArtwork.publicUrl,
           mockupAlt: `Banner concept for ${claimed.business_name}`,
           businessName: claimed.business_name,
         });
@@ -340,7 +344,6 @@ function createManualReviewHandler(options = {}) {
           contact: { email: claimed.email },
           from: config.from, replyTo: config.replyTo,
           unsubscribeUrl, publicOrigin: config.origin, env,
-          attachments: [mockupAttachment],
         });
         const marked = await dependencies.markManualReviewSent(sql, {
           prospectId, sendKey: claimed.send_key, messageId: claimed.message_id,
@@ -361,8 +364,10 @@ function createManualReviewHandler(options = {}) {
             messageId: claimed.message_id,
             provider: 'resend',
             permissionBasis: 'admin_authorized',
-            manualArtworkIncluded: Boolean(mockupAttachment),
+            manualArtworkIncluded: true,
             manualArtworkContentHash: manualArtwork.contentHash,
+            manualArtworkDeliveryProvider: manualArtwork.deliveryAsset.provider,
+            manualArtworkDeliveryPublicId: manualArtwork.deliveryAsset.publicId,
           },
           requestId: event.headers?.['x-nf-request-id'] || null,
         });

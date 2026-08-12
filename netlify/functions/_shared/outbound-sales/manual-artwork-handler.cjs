@@ -81,6 +81,8 @@ function createManualArtworkHandler(options = {}) {
         uploadedBy,
         store,
         sharp: options.sharp,
+        env,
+        cloudinary: options.cloudinary,
         dependencies,
       });
       await dependencies.appendAudit(sql, {
@@ -91,15 +93,21 @@ function createManualArtworkHandler(options = {}) {
           contentHash: artwork.contentHash,
           width: artwork.width,
           height: artwork.height,
+          emailImageReady: artwork.emailImageReady,
         },
-        metadata: { source: 'manual_upload', originalFilename: String(input.fileName || '').slice(0, 180) },
+        metadata: {
+          source: 'manual_upload',
+          originalFilename: String(input.fileName || '').slice(0, 180),
+          deliveryProvider: artwork.deliveryAsset?.provider || null,
+          deliveryPublicId: artwork.deliveryAsset?.publicId || null,
+        },
         requestId: event.headers?.['x-nf-request-id'] || null,
       }).catch(() => null);
       return json(200, {
         ok: true,
         prospectId,
         contentHash: artwork.contentHash,
-        previewUrl: `/.netlify/functions/outbound-sales-manual-artwork?prospectId=${encodeURIComponent(prospectId)}&v=${artwork.contentHash}`,
+        previewUrl: artwork.publicUrl,
         sendReady: true,
         width: artwork.width,
         height: artwork.height,

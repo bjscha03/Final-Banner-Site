@@ -1,5 +1,6 @@
 import { withLambda } from '@netlify/aws-lambda-compat';
 import { getDeployStore, getStore } from '@netlify/blobs';
+import 'cloudinary';
 import sharp from 'sharp';
 import handlerModule from './_shared/outbound-sales/manual-artwork-handler.cjs';
 import artworkModule from './_shared/outbound-sales/manual-artwork.cjs';

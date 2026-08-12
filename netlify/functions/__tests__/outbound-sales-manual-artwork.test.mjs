@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import sharp from 'sharp';
 import artworkModule from '../_shared/outbound-sales/manual-artwork.cjs';
 import artworkRepository from '../_shared/outbound-sales/manual-artwork-repository.cjs';
+import artworkDelivery from '../_shared/outbound-sales/manual-artwork-delivery.cjs';
 import artworkHandler from '../_shared/outbound-sales/manual-artwork-handler.cjs';
 import migration34 from '../../../migrations/034_outbound_manual_banner_uploads.sql?raw';
 import rollback34 from '../../../migrations/034_outbound_manual_banner_uploads.rollback.sql?raw';
@@ -64,6 +65,29 @@ async function sourcePng() {
   }).png({ compressionLevel: 0 }).toBuffer();
 }
 
+function deliveryAssetFor({ prospectId = PROSPECT_ID, contentHash, width = 1200, height = 675 } = {}) {
+  const publicId = artworkDelivery.manualArtworkPublicId(prospectId, contentHash);
+  return {
+    provider: 'cloudinary',
+    deliveryType: 'upload',
+    cloudName: 'dtrxl120u',
+    publicId,
+    secureUrl: `https://res.cloudinary.com/dtrxl120u/image/upload/v123/${publicId}.jpg`,
+    assetId: 'cloudinary-asset-1',
+    version: 123,
+    format: 'jpg',
+    width,
+    height,
+    bytes: 45678,
+    contentHash,
+    publicationAudit: { passed: true, publiclyHosted: true, emailEmbeddable: true },
+  };
+}
+
+function publicationMock() {
+  return vi.fn(async (options) => deliveryAssetFor(options));
+}
+
 describe('manual banner upload contract', () => {
   it('adds an isolated manual-upload state and preserves a clean rollback', () => {
     expect(migration34).toContain("'manual_upload'");
@@ -79,6 +103,7 @@ describe('manual banner upload contract', () => {
     const store = memoryStore();
     const saveManualArtwork = vi.fn(async (_sql, data) => ({ id: 'artwork-1', ...data }));
     const refreshManualArtworkBatchCount = vi.fn().mockResolvedValue({ mockup_ready_count: 1 });
+    const publishManualArtworkImage = publicationMock();
     const uploaded = await artworkModule.uploadManualArtwork({
       sql: vi.fn(),
       prospectId: PROSPECT_ID,
@@ -89,7 +114,7 @@ describe('manual banner upload contract', () => {
       uploadedBy: 'admin@bannersonthefly.com',
       store,
       sharp,
-      dependencies: { saveManualArtwork, refreshManualArtworkBatchCount },
+      dependencies: { saveManualArtwork, refreshManualArtworkBatchCount, publishManualArtworkImage },
     });
 
     expect(uploaded).toMatchObject({
@@ -119,7 +144,24 @@ describe('manual banner upload contract', () => {
         expectedContentHash: uploaded.contentHash,
         persistedContentHash: uploaded.contentHash,
       },
+      emailImageDelivery: {
+        provider: 'cloudinary',
+        deliveryType: 'upload',
+        contentHash: uploaded.contentHash,
+        publicId: `${artworkDelivery.MANUAL_ARTWORK_PUBLIC_FOLDER}/${PROSPECT_ID}/${uploaded.contentHash}`,
+        secureUrl: uploaded.publicUrl,
+        publicationAudit: { passed: true, publiclyHosted: true, emailEmbeddable: true },
+      },
+      emailImageReady: true,
     });
+    expect(publishManualArtworkImage).toHaveBeenCalledWith(expect.objectContaining({
+      prospectId: PROSPECT_ID,
+      contentHash: uploaded.contentHash,
+      buffer: uploaded.buffer,
+      width: 1200,
+      height: 675,
+    }));
+    expect(uploaded.publicUrl).toMatch(/^https:\/\/res\.cloudinary\.com\//);
     expect(saveManualArtwork).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
       prospectId: PROSPECT_ID, messageId: MESSAGE_ID, contentHash: uploaded.contentHash,
     }));
@@ -129,7 +171,7 @@ describe('manual banner upload contract', () => {
     expect(metadata).toMatchObject({ format: 'jpeg', width: 1200, height: 675 });
   });
 
-  it('serves and attaches the exact reviewed bytes, then fails closed on stale or changed data', async () => {
+  it('serves the exact reviewed bytes and the bound public email image, then fails closed on stale or changed data', async () => {
     const store = memoryStore();
     const uploaded = await artworkModule.uploadManualArtwork({
       sql: vi.fn(), candidate: candidateFixture(), sourceBuffer: await sourcePng(),
@@ -137,6 +179,7 @@ describe('manual banner upload contract', () => {
       dependencies: {
         saveManualArtwork: vi.fn().mockResolvedValue({ id: 'artwork-1' }),
         refreshManualArtworkBatchCount: vi.fn().mockResolvedValue({}),
+        publishManualArtworkImage: publicationMock(),
       },
     });
     const candidate = candidateFixture({
@@ -152,13 +195,14 @@ describe('manual banner upload contract', () => {
       sql: vi.fn(), candidate, store, sharp,
     });
     expect(verified.buffer.equals(uploaded.buffer)).toBe(true);
-    const attachment = artworkModule.attachmentFromManualArtwork(verified, 'Ariat Accessories');
-    expect(Buffer.from(attachment.content, 'base64').equals(uploaded.buffer)).toBe(true);
-    expect(attachment).toMatchObject({
-      filename: 'ariat-accessories-banner-concept.jpg',
-      contentId: 'company-banner-concept',
-      contentType: 'image/jpeg',
-    });
+    expect(verified.publicUrl).toBe(uploaded.publicUrl);
+    expect(verified.emailImageReady).toBe(true);
+    expect(artworkDelivery.manualArtworkDeliveryReady(verified.deliveryAsset, {
+      prospectId: PROSPECT_ID,
+      contentHash: uploaded.contentHash,
+      width: 1200,
+      height: 675,
+    })).toBe(true);
 
     await expect(artworkModule.loadVerifiedManualArtwork({
       sql: vi.fn(),
@@ -198,17 +242,70 @@ describe('manual banner upload contract', () => {
           blobKey: `manual-company-banners/${PROSPECT_ID}/${'d'.repeat(64)}.jpg`,
           expectedContentHash: 'd'.repeat(64), persistedContentHash: 'd'.repeat(64),
         },
+        emailImageDelivery: deliveryAssetFor({ contentHash: 'd'.repeat(64) }),
       },
     })).toBe(false);
   });
 
   it('uses deploy-scoped storage for previews and keeps all scheduled preparation image-free', () => {
     expect(artworkEntrypoint).toContain("process.env.CONTEXT === 'production' ? getStore(options) : getDeployStore(options)");
+    expect(artworkEntrypoint).toContain("import 'cloudinary'");
     for (const source of [morningBackgroundEntrypoint, eventBackgroundEntrypoint]) {
       expect(source).not.toContain("from 'sharp'");
       expect(source).not.toContain("import('sharp')");
       expect(source).not.toContain('@netlify/blobs');
     }
+  });
+
+  it('publishes a deterministic public Cloudinary image and rejects an untrusted delivery URL', async () => {
+    const contentHash = 'a'.repeat(64);
+    const expected = deliveryAssetFor({ contentHash });
+    const uploadStream = vi.fn((options, callback) => ({
+      end(buffer) {
+        expect(buffer).toEqual(Buffer.alloc(2048, 7));
+        callback(null, {
+          public_id: expected.publicId,
+          secure_url: expected.secureUrl,
+          asset_id: expected.assetId,
+          version: expected.version,
+          format: expected.format,
+          width: expected.width,
+          height: expected.height,
+          bytes: expected.bytes,
+        });
+      },
+    }));
+    const cloudinary = { config: vi.fn(), uploader: { upload_stream: uploadStream } };
+    const published = await artworkDelivery.publishManualArtworkImage({
+      buffer: Buffer.alloc(2048, 7),
+      prospectId: PROSPECT_ID,
+      contentHash,
+      width: 1200,
+      height: 675,
+      cloudinary,
+      env: {
+        CLOUDINARY_CLOUD_NAME: 'dtrxl120u',
+        CLOUDINARY_API_KEY: 'test-key',
+        CLOUDINARY_API_SECRET: 'test-secret-value',
+      },
+    });
+    expect(published).toEqual(expected);
+    expect(uploadStream).toHaveBeenCalledWith(expect.objectContaining({
+      public_id: expected.publicId,
+      resource_type: 'image',
+      type: 'upload',
+      format: 'jpg',
+      overwrite: true,
+    }), expect.any(Function));
+    expect(artworkDelivery.manualArtworkDeliveryReady({
+      ...published,
+      secureUrl: 'https://attacker.example/banner.jpg',
+    }, {
+      prospectId: PROSPECT_ID,
+      contentHash,
+      width: 1200,
+      height: 675,
+    })).toBe(false);
   });
 });
 

@@ -203,17 +203,18 @@ const shadowActivity = {
   summary: { generated: 1, failed: 0, blocked: 0, actualCostMicrousd: 610, averageCostMicrousd: 610, inputTokens: 920, cachedInputTokens: 0, outputTokens: 185 },
 };
 
-const MANUAL_BANNER_DATA_URL = `data:image/svg+xml,${encodeURIComponent(`
+const MANUAL_BANNER_PUBLIC_URL = 'https://res.cloudinary.com/dtrxl120u/image/upload/v123/outbound-sales/manual-company-banners/11111111-1111-4111-8111-111111111111/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jpg';
+const MANUAL_BANNER_SVG = `
   <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675">
     <rect width="1200" height="675" fill="#171717"/>
     <rect x="40" y="40" width="1120" height="595" rx="18" fill="#f26722"/>
     <text x="600" y="300" fill="#ffffff" font-size="116" font-family="Arial" font-weight="900" text-anchor="middle">LUGZ</text>
     <text x="600" y="410" fill="#171717" font-size="64" font-family="Arial" font-weight="800" text-anchor="middle">STEP IN GRIT.</text>
   </svg>
-`)}`;
+`;
 
 function manualReviewQueue(uploaded: boolean, sent: boolean) {
-  const previewBody = `<!doctype html><html><body><img src="${MANUAL_BANNER_DATA_URL}" alt="Banner concept for Lugz"><p>Concept visualization only.</p><p>Hi Lugz team,</p></body></html>`;
+  const previewBody = `<!doctype html><html><body><img src="${MANUAL_BANNER_PUBLIC_URL}" alt="Banner concept for Lugz"><p>Concept visualization only.</p><p>Hi Lugz team,</p></body></html>`;
   return {
     ok: true,
     schemaReady: true,
@@ -304,7 +305,7 @@ function manualReviewQueue(uploaded: boolean, sent: boolean) {
         contextCurrent: true,
         generatedAt: '2026-08-11T18:25:00.000Z',
         updatedAt: '2026-08-11T18:25:00.000Z',
-        previewUrl: MANUAL_BANNER_DATA_URL,
+        previewUrl: MANUAL_BANNER_PUBLIC_URL,
       } : null,
       review: {
         status: 'pending',
@@ -348,6 +349,9 @@ test.beforeEach(async ({ page }, testInfo) => {
   });
   let manualBannerUploaded = false;
   let manualEmailSent = false;
+  await page.route(MANUAL_BANNER_PUBLIC_URL, async (route) => {
+    await route.fulfill({ status: 200, contentType: 'image/svg+xml', body: MANUAL_BANNER_SVG });
+  });
   await page.route('**/.netlify/functions/**', async (route) => {
     const pathname = new URL(route.request().url()).pathname;
     if (pathname.endsWith('/outbound-sales-status') || pathname.endsWith('/outbound-sales-settings')) {
@@ -381,7 +385,7 @@ test.beforeEach(async ({ page }, testInfo) => {
           ok: true,
           prospectId: payload.prospectId,
           contentHash: 'a'.repeat(64),
-          previewUrl: MANUAL_BANNER_DATA_URL,
+          previewUrl: MANUAL_BANNER_PUBLIC_URL,
           sendReady: true,
           width: 1200,
           height: 675,
@@ -463,7 +467,9 @@ test('Lead Review requires a per-company upload, previews that image, and sends 
 
   await card.getByRole('button', { name: 'Preview email', exact: true }).click();
   const emailPreview = page.frameLocator('iframe[title="Email preview for Lugz"]');
-  await expect(emailPreview.getByRole('img', { name: 'Banner concept for Lugz' })).toBeVisible();
+  const deliveredBanner = emailPreview.getByRole('img', { name: 'Banner concept for Lugz' });
+  await expect(deliveredBanner).toBeVisible();
+  expect(await deliveredBanner.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth)).toBeGreaterThan(0);
   await expect(emailPreview.getByText('Concept visualization only.', { exact: true })).toBeVisible();
   await expect(card.getByText('Sent', { exact: true })).toHaveCount(0);
 

@@ -5,8 +5,12 @@ const {
   immutableMockupBlobSql,
   immutableMockupBlobAuditPassed,
 } = require('./company-mockup-repository.cjs');
+const {
+  MANUAL_ARTWORK_PUBLIC_FOLDER,
+  manualArtworkDeliveryReady,
+} = require('./manual-artwork-delivery.cjs');
 
-const MANUAL_ARTWORK_RENDER_VERSION = 'company-banner-manual-upload-v1';
+const MANUAL_ARTWORK_RENDER_VERSION = 'company-banner-manual-upload-v2';
 const MANUAL_ARTWORK_QUALITY_LEVEL = 'manual_upload';
 const MANUAL_ARTWORK_WIDTH = 1200;
 const MANUAL_ARTWORK_HEIGHT = 675;
@@ -44,6 +48,10 @@ function manualArtworkReadySql(columns) {
     AND ${metadata} @> '{"source":"manual_upload","manualReviewAudit":{"passed":true,"administratorUploaded":true},"imageAudit":{"passed":true,"format":"jpeg","width":1200,"height":675,"fit":"contain","noCrop":true}}'::jsonb
     AND ${metadata}->'blobBindingAudit'->>'expectedContentHash'=${contentHash}
     AND ${immutableMockupBlobSql(metadata, blobKey)}
+    AND ${metadata} @> '{"emailImageDelivery":{"provider":"cloudinary","deliveryType":"upload","publicationAudit":{"passed":true,"publiclyHosted":true,"emailEmbeddable":true}}}'::jsonb
+    AND ${metadata}->'emailImageDelivery'->>'contentHash'=${contentHash}
+    AND ${metadata}->'emailImageDelivery'->>'publicId'=${sqlTextLiteral(`${MANUAL_ARTWORK_PUBLIC_FOLDER}/`)} || ${prospectId}::text || '/' || ${contentHash}
+    AND ${metadata}->'emailImageDelivery'->>'secureUrl' LIKE 'https://res.cloudinary.com/%/image/upload/%/' || ${prospectId}::text || '/' || ${contentHash} || '.jpg'
   ),FALSE)`;
 }
 
@@ -73,7 +81,13 @@ function manualArtworkReady(value) {
     && imageAudit.fit === 'contain'
     && imageAudit.noCrop === true
     && metadata.blobBindingAudit?.expectedContentHash === contentHash
-    && immutableMockupBlobAuditPassed(metadata, value.blobKey);
+    && immutableMockupBlobAuditPassed(metadata, value.blobKey)
+    && manualArtworkDeliveryReady(metadata.emailImageDelivery, {
+      prospectId: value?.prospectId,
+      contentHash,
+      width: MANUAL_ARTWORK_WIDTH,
+      height: MANUAL_ARTWORK_HEIGHT,
+    });
 }
 
 function mapManualArtworkCandidate(row) {

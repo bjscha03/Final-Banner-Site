@@ -2,8 +2,8 @@
 
 const crypto = require('node:crypto');
 const repository = require('./manual-artwork-repository.cjs');
+const delivery = require('./manual-artwork-delivery.cjs');
 
-const MANUAL_ARTWORK_CONTENT_ID = 'company-banner-concept';
 const MANUAL_ARTWORK_STORE_NAME = 'outbound-company-mockups';
 const MAX_SOURCE_BYTES = 4 * 1024 * 1024;
 const MAX_INPUT_PIXELS = 40_000_000;
@@ -95,7 +95,7 @@ function assertUploadCandidate(candidate) {
 }
 
 async function uploadManualArtwork(options) {
-  const dependencies = { ...repository, ...options.dependencies };
+  const dependencies = { ...repository, ...delivery, ...options.dependencies };
   const candidate = options.candidate
     || await dependencies.loadManualArtworkCandidate(options.sql, options.prospectId);
   assertUploadCandidate(candidate);
@@ -126,6 +126,15 @@ async function uploadManualArtwork(options) {
   if (!blobBindingAudit.passed) {
     throw manualArtworkError('The uploaded image could not be verified after storage. Nothing was changed.', 'MANUAL_ARTWORK_STORAGE_FAILED');
   }
+  const emailImageDelivery = await dependencies.publishManualArtworkImage({
+    buffer: normalized.buffer,
+    prospectId: candidate.prospect.id,
+    contentHash,
+    width: repository.MANUAL_ARTWORK_WIDTH,
+    height: repository.MANUAL_ARTWORK_HEIGHT,
+    env: options.env || process.env,
+    cloudinary: options.cloudinary,
+  });
   const uploadedAt = new Date().toISOString();
   const generationMetadata = {
     source: 'manual_upload',
@@ -150,7 +159,8 @@ async function uploadManualArtwork(options) {
       sourceBytes: normalized.source.bytes,
     },
     blobBindingAudit,
-    cidReady: true,
+    emailImageDelivery,
+    emailImageReady: true,
   };
   const row = await dependencies.saveManualArtwork(options.sql, {
     prospectId: candidate.prospect.id,
@@ -176,6 +186,9 @@ async function uploadManualArtwork(options) {
     messageId: candidate.message.id,
     messageContentHash: candidate.message.contentHash,
     generationMetadata,
+    publicUrl: emailImageDelivery.secureUrl,
+    deliveryAsset: emailImageDelivery,
+    emailImageReady: true,
     sendReady: true,
     cached: false,
     row,
@@ -229,27 +242,16 @@ async function loadVerifiedManualArtwork(options) {
     messageId: candidate.message.id,
     messageContentHash: candidate.message.contentHash,
     generationMetadata: artwork.generationMetadata,
+    publicUrl: artwork.generationMetadata.emailImageDelivery.secureUrl,
+    deliveryAsset: artwork.generationMetadata.emailImageDelivery,
+    emailImageReady: true,
     sendReady: true,
     cached: true,
     row: artwork,
   };
 }
 
-function attachmentFromManualArtwork(artwork, businessName) {
-  if (!artwork?.buffer) return null;
-  const slug = cleanText(businessName, 60).toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '') || 'company';
-  return {
-    content: artwork.buffer.toString('base64'),
-    filename: `${slug}-banner-concept.jpg`,
-    contentId: MANUAL_ARTWORK_CONTENT_ID,
-    contentType: 'image/jpeg',
-  };
-}
-
 module.exports = {
-  MANUAL_ARTWORK_CONTENT_ID,
   MANUAL_ARTWORK_STORE_NAME,
   MAX_SOURCE_BYTES,
   MAX_INPUT_PIXELS,
@@ -259,5 +261,4 @@ module.exports = {
   normalizeManualArtwork,
   uploadManualArtwork,
   loadVerifiedManualArtwork,
-  attachmentFromManualArtwork,
 };

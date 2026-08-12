@@ -30,6 +30,19 @@ const MESSAGE_ID = '33333333-3333-4333-8333-333333333333';
 const MOCKUP_CONTENT_HASH = 'd'.repeat(64);
 const MOCKUP_BLOB_KEY = `manual-company-banners/${PROSPECT_ID}/${MOCKUP_CONTENT_HASH}.jpg`;
 const MOCKUP_BLOB_HASH = MOCKUP_CONTENT_HASH;
+const MOCKUP_PUBLIC_ID = `outbound-sales/manual-company-banners/${PROSPECT_ID}/${MOCKUP_CONTENT_HASH}`;
+const MOCKUP_PUBLIC_URL = `https://res.cloudinary.com/dtrxl120u/image/upload/v123/${MOCKUP_PUBLIC_ID}.jpg`;
+
+function deliveryAsset(contentHash = MOCKUP_CONTENT_HASH) {
+  const publicId = `outbound-sales/manual-company-banners/${PROSPECT_ID}/${contentHash}`;
+  return {
+    provider: 'cloudinary', deliveryType: 'upload', cloudName: 'dtrxl120u', publicId,
+    secureUrl: `https://res.cloudinary.com/dtrxl120u/image/upload/v123/${publicId}.jpg`,
+    assetId: 'cloudinary-asset-1', version: 123, format: 'jpg', width: 1200, height: 675,
+    bytes: 45678, contentHash,
+    publicationAudit: { passed: true, publiclyHosted: true, emailEmbeddable: true },
+  };
+}
 
 const deliveryEnvironment = {
   DATABASE_URL: 'postgres://test.invalid/database',
@@ -102,7 +115,7 @@ function rowFixture() {
     mockup_message_id: MESSAGE_ID,
     mockup_status: 'ready',
     mockup_scene_id: 'trade_show',
-    mockup_render_version: 'company-banner-manual-upload-v1',
+    mockup_render_version: 'company-banner-manual-upload-v2',
     mockup_quality_level: 'manual_upload',
     mockup_logo_url: null,
     mockup_product_image_url: null,
@@ -119,6 +132,8 @@ function rowFixture() {
         passed: true, strongReadBackVerified: true, blobKey: MOCKUP_BLOB_KEY,
         expectedContentHash: MOCKUP_BLOB_HASH, persistedContentHash: MOCKUP_BLOB_HASH,
       },
+      emailImageDelivery: deliveryAsset(),
+      emailImageReady: true,
     },
     mockup_generated_at: '2026-08-10T11:30:00Z',
     review_status: 'pending',
@@ -150,6 +165,9 @@ function verifiedArtwork(overrides = {}) {
     height: 675,
     messageId: MESSAGE_ID,
     messageContentHash: 'c'.repeat(64),
+    publicUrl: deliveryAsset('f'.repeat(64)).secureUrl,
+    deliveryAsset: deliveryAsset('f'.repeat(64)),
+    emailImageReady: true,
     sendReady: true,
     cached: true,
     ...overrides,
@@ -452,7 +470,7 @@ describe('manual lead review migration and qualification', () => {
     expect(sql.mock.calls[0][0]).toContain('JOIN outbound_company_mockups mockup ON mockup.prospect_id=p.id');
     expect(sql.mock.calls[0][0]).toContain("mockup.status='ready' AND mockup.quality_level='manual_upload'");
     expect(sql.mock.calls[0][0]).toContain('mockup.generation_metadata @>');
-    expect(sql.mock.calls[0][0]).toContain("mockup.render_version='company-banner-manual-upload-v1'");
+    expect(sql.mock.calls[0][0]).toContain("mockup.render_version='company-banner-manual-upload-v2'");
     expect(sql.mock.calls[0][0]).toContain('manual-company-banners/');
     expect(sql.mock.calls[0][0]).toContain('mockup.message_id=message.id AND mockup.content_hash=$5');
     expect(sql.mock.calls[0][0]).toContain("mockup.generation_metadata->>'messageContentHash'=message.content_hash");
@@ -501,13 +519,13 @@ describe('permissioned Resend transport', () => {
       from: 'Banners On The Fly <info@bannersonthefly.com>',
       replyTo: 'support@bannersonthefly.com',
       contact: { email: 'events@futureexpo.example' },
-      message: { id: MESSAGE_ID, sendKey: stableManualSendKey(PROSPECT_ID), subject: 'Expo banners', bodyText: 'Text', bodyHtml: '<p><img src="cid:company-banner-concept">HTML</p>' },
-      attachments: [{
-        content: Buffer.from('email-safe-jpeg-fixture').toString('base64'),
-        filename: 'future-expo-banner-concept.jpg',
-        contentId: 'company-banner-concept',
-        contentType: 'image/jpeg',
-      }],
+      message: {
+        id: MESSAGE_ID,
+        sendKey: stableManualSendKey(PROSPECT_ID),
+        subject: 'Expo banners',
+        bodyText: 'Text',
+        bodyHtml: `<p><img src="${MOCKUP_PUBLIC_URL}">HTML</p>`,
+      },
     });
     expect(result.providerMessageId).toBe('resend-manual-1');
     expect(send).toHaveBeenCalledWith(expect.objectContaining({
@@ -516,12 +534,9 @@ describe('permissioned Resend transport', () => {
         'List-Unsubscribe': '<https://bannersonthefly.com/.netlify/functions/outbound-sales-unsubscribe?token=opaque>',
         'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
       },
-      attachments: [expect.objectContaining({
-        filename: 'future-expo-banner-concept.jpg',
-        contentId: 'company-banner-concept',
-        contentType: 'image/jpeg',
-      })],
+      html: expect.stringContaining(MOCKUP_PUBLIC_URL),
     }), { idempotencyKey: stableManualSendKey(PROSPECT_ID) });
+    expect(send.mock.calls[0][0]).not.toHaveProperty('attachments');
   });
 
   it('requires a delivery key and resolves the complete compliance configuration before a claim is attempted', () => {
@@ -592,15 +607,11 @@ describe('manual lead review endpoint', () => {
       expect(input.message.bodyText).toContain('NEW20');
       expect(input.message.bodyText).toContain('Unsubscribe: https://bannersonthefly.com/.netlify/functions/outbound-sales-unsubscribe?token=');
       expect(input.message.bodyHtml).toContain('Unsubscribe from future marketing emails');
-      expect(input.message.bodyHtml).toContain('cid:company-banner-concept');
+      expect(input.message.bodyHtml).toContain(deliveryAsset('f'.repeat(64)).secureUrl);
+      expect(input.message.bodyHtml).not.toContain('cid:');
       expect(input.message.bodyHtml).toContain('Concept visualization only.');
       expect(input.message.bodyHtml).not.toMatch(/quick mockup|complimentary/i);
-      expect(input.attachments).toEqual([expect.objectContaining({
-        filename: 'future-expo-group-banner-concept.jpg',
-        contentId: 'company-banner-concept',
-        contentType: 'image/jpeg',
-        content: Buffer.from('exact-reviewed-company-banner').toString('base64'),
-      })]);
+      expect(input.attachments).toBeUndefined();
       return { providerMessageId: 'resend-manual-2', latencyMs: 12 };
     });
     const saveToken = vi.fn().mockResolvedValue({ id: 'token-row' });
@@ -673,7 +684,6 @@ describe('manual lead review endpoint', () => {
         }),
         markManualReviewFailed,
         saveUnsubscribeToken: vi.fn(),
-        attachmentFromManualArtwork: vi.fn(),
         sendPermissionedMarketingMessage,
       },
     });

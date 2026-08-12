@@ -264,7 +264,7 @@ function mapLead(row) {
         expectedMessageContentHash: row.message_content_hash,
         generationMetadata: row.mockup_generation_metadata,
       })
-        ? `/.netlify/functions/outbound-sales-manual-artwork?prospectId=${encodeURIComponent(row.prospect_id)}&v=${encodeURIComponent(row.mockup_content_hash || '')}`
+        ? row.mockup_generation_metadata.emailImageDelivery.secureUrl
         : null,
     } : null,
     review: {

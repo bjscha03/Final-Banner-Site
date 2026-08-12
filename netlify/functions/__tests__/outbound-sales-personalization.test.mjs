@@ -314,11 +314,13 @@ describe('grounded copy contract and deterministic cost controls', () => {
     expect(html).toContain('&lt;strong&gt;safe&lt;/strong&gt;');
     const companyPreview = renderOutboundEmailPreview({
       subject: 'A quick banner mockup for BED|STÜ', bodyText: legacyMockupCopy,
-      businessName: 'BED|STÜ', mockupImageSrc: 'cid:company-banner-concept',
+      businessName: 'BED|STÜ',
+      mockupImageSrc: 'https://res.cloudinary.com/dtrxl120u/image/upload/v123/outbound-sales/manual-company-banners/11111111-1111-4111-8111-111111111111/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jpg',
     });
     expect(companyPreview).toContain('BED|STÜ — custom banner printing');
     expect(companyPreview).toContain('Banner concept for BED|STÜ');
     expect(companyPreview).toContain('Concept visualization only.');
+    expect(companyPreview).not.toContain('cid:');
     expect(companyPreview).not.toMatch(/quick mockup|complimentary|public branding/i);
     const delivery = renderOutboundDeliveryContent({
       subject: 'Safe subject', bodyText: 'Safe message\n\nBest,\nBrandon\nBanners On The Fly',

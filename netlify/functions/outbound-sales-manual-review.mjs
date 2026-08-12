@@ -29,7 +29,6 @@ const manualReviewHandler = manualReviewModule.createManualReviewHandler({
         ...options, store: artworkStore(), sharp,
       });
     },
-    attachmentFromManualArtwork: manualArtworkModule.attachmentFromManualArtwork,
   },
 });
 

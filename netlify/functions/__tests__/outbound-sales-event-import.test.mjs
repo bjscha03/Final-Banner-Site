@@ -215,7 +215,7 @@ describe('event import isolation and quality gates', () => {
     expect(finalizeSql.mock.calls[1][0]).toContain("c.mx_status='present'");
     expect(finalizeSql.mock.calls[1][0]).toContain("p.provider_metadata->>'eventKey'=$3");
     expect(finalizeSql.mock.calls[1][0]).not.toContain('outbound_company_mockups');
-    expect(finalizeSql.mock.calls[2][0]).toContain("mockup.render_version='company-banner-manual-upload-v1'");
+    expect(finalizeSql.mock.calls[2][0]).toContain("mockup.render_version='company-banner-manual-upload-v2'");
     expect(finalizeSql.mock.calls[2][0]).toContain("mockup.quality_level='manual_upload'");
     expect(finalizeSql.mock.calls[2][0]).toContain('manual-company-banners/');
     expect(finalizeSql.mock.calls[2][0]).toContain('"administratorUploaded":true');

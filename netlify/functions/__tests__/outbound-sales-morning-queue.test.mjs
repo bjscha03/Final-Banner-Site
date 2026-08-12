@@ -85,7 +85,7 @@ describe('daily morning queue schema and scheduling', () => {
     const countQuery = sql.mock.calls[2][0];
     expect(rankedQuery).toContain("m.generation_status='generated'");
     expect(rankedQuery).not.toContain('outbound_company_mockups');
-    expect(countQuery).toContain("mockup.render_version='company-banner-manual-upload-v1'");
+    expect(countQuery).toContain("mockup.render_version='company-banner-manual-upload-v2'");
     expect(countQuery).toContain("mockup.quality_level='manual_upload'");
     expect(countQuery).toContain('manual-company-banners/');
     expect(countQuery).toContain('"source":"manual_upload"');
@@ -346,7 +346,7 @@ describe('Sales Admin production workflow', () => {
     expect(listQuery).toContain("mockup_status='ready'");
     expect(listQuery).toContain('mockup_generation_metadata @>');
     expect(listQuery).toContain("mockup_quality_level='manual_upload'");
-    expect(listQuery).toContain("mockup_render_version='company-banner-manual-upload-v1'");
+    expect(listQuery).toContain("mockup_render_version='company-banner-manual-upload-v2'");
     expect(listQuery).toContain('"source":"manual_upload"');
     expect(listQuery).toContain('"administratorUploaded":true');
     expect(listQuery).toContain('"width":1200,"height":675');
