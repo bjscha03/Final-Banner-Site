@@ -13,6 +13,16 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "banner-size-for-10x10-canopy": {
+    title: "What Size Banner Fits a 10×10 Canopy? A Vendor Setup Guide",
+    description: "Choose a banner size for a 10×10 canopy with practical measurements, placement options, mounting checks, artwork guidance, and vendor-booth examples today.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/banner-size-for-10x10-canopy.webp"
+  },
+  "how-to-clean-vinyl-banner": {
+    title: "How to Clean a Vinyl Banner Without Damaging the Print",
+    description: "Learn how to clean a vinyl banner safely with mild soap, soft cloths, careful stain testing, a clean rinse, complete drying, and damage checks before storage.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/how-to-clean-vinyl-banner.webp"
+  },
   "banner-size-for-6-foot-table": {
     title: "What Size Banner Fits a 6-Foot Table? A Practical Measuring Guide",
     description: "Choose a banner size for a 6-foot table by measuring the usable front, planning the drop, checking hardware, and keeping event artwork readable and clear.",

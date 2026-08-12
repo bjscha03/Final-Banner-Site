@@ -87,6 +87,18 @@
 
   <!-- Blog Posts (published) -->
   <url>
+    <loc>https://bannersonthefly.com/blog/banner-size-for-10x10-canopy</loc>
+    <lastmod>2026-08-12</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://bannersonthefly.com/blog/how-to-clean-vinyl-banner</loc>
+    <lastmod>2026-08-12</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://bannersonthefly.com/blog/banner-size-for-6-foot-table</loc>
     <lastmod>2026-08-11</lastmod>
     <changefreq>monthly</changefreq>
