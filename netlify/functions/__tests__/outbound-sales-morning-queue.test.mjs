@@ -373,6 +373,8 @@ describe('Sales Admin production workflow', () => {
     expect(salesAdminSource).toContain('Drop the finished banner image here');
     expect(salesAdminSource).toContain('Upload the finished banner individually for each company');
     expect(salesAdminSource).toContain('No automatic image generation');
+    expect(salesAdminSource).toContain('will appear inline in this company&apos;s email');
+    expect(salesAdminSource).not.toContain('appear in and attach to');
     expect(salesAdminSource).not.toContain('Copy prompt');
     expect(salesAdminSource).not.toContain('Banner design prompt');
     expect(salesAdminSource).not.toContain('buildOutboundBannerPrompt');

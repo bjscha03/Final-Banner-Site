@@ -273,7 +273,7 @@ function LeadCard({
                 <div className="flex flex-col gap-2 border-t border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className={cn('text-xs font-black', presentationReady ? 'text-emerald-800' : 'text-amber-800')}>{presentationReady ? 'Uploaded and ready for email preview' : 'Upload required before Send'}</p>
-                    <p className="mt-1 max-w-xl text-[11px] text-slate-500">The exact stored image shown here is the image that will appear in and attach to this company&apos;s email.</p>
+                    <p className="mt-1 max-w-xl text-[11px] text-slate-500">The exact stored image shown here is the image that will appear inline in this company&apos;s email.</p>
                   </div>
                   <Button type="button" size="sm" variant="outline" onClick={() => uploadInput.current?.click()} disabled={uploadingArtwork || sending || sent}>
                     {uploadingArtwork ? <LoaderCircle className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Upload className="mr-2 h-3.5 w-3.5" />}
