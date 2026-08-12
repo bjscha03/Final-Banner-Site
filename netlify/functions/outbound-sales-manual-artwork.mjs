@@ -7,7 +7,10 @@ import artworkModule from './_shared/outbound-sales/manual-artwork.cjs';
 
 function artworkStore() {
   const options = { name: artworkModule.MANUAL_ARTWORK_STORE_NAME, consistency: 'strong' };
-  return process.env.CONTEXT === 'production' ? getStore(options) : getDeployStore(options);
+  const deployContext = String(
+    globalThis.Netlify?.context?.deploy?.context || process.env.CONTEXT || '',
+  ).trim().toLowerCase();
+  return deployContext === 'production' ? getStore(options) : getDeployStore(options);
 }
 
 const handler = handlerModule.createManualArtworkHandler({

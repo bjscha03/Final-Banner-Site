@@ -9,6 +9,7 @@ const MAX_SOURCE_BYTES = 4 * 1024 * 1024;
 const MAX_INPUT_PIXELS = 40_000_000;
 const MIN_SOURCE_WIDTH = 900;
 const MIN_SOURCE_HEIGHT = 500;
+const RECOVERY_TIMEOUT_MS = 10_000;
 
 function sha256(value) {
   return crypto.createHash('sha256').update(Buffer.isBuffer(value) ? value : String(value)).digest('hex');
@@ -30,6 +31,54 @@ async function blobBuffer(store, key) {
   if (!store || !key) return null;
   const value = await store.get(key, { type: 'arrayBuffer' });
   return value ? Buffer.from(value) : null;
+}
+
+async function recoverPublishedManualArtwork(options) {
+  const asset = options.asset;
+  const expectedBytes = Number(asset?.bytes);
+  if (!delivery.manualArtworkDeliveryReady(asset, {
+    prospectId: options.prospectId,
+    contentHash: options.contentHash,
+    width: options.width,
+    height: options.height,
+  }) || !Number.isSafeInteger(expectedBytes) || expectedBytes < 1024 || expectedBytes > MAX_SOURCE_BYTES) {
+    throw manualArtworkError('The permanent banner image could not be verified. Nothing was sent.', 'MANUAL_ARTWORK_NOT_READY');
+  }
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  if (typeof fetchImpl !== 'function') {
+    throw manualArtworkError('The permanent banner image could not be recovered. Nothing was sent.', 'MANUAL_ARTWORK_NOT_READY');
+  }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), RECOVERY_TIMEOUT_MS);
+  let response;
+  try {
+    response = await fetchImpl(asset.secureUrl, {
+      method: 'GET',
+      headers: { Accept: 'image/jpeg' },
+      redirect: 'error',
+      signal: controller.signal,
+    });
+  } catch {
+    throw manualArtworkError('The permanent banner image could not be recovered. Nothing was sent.', 'MANUAL_ARTWORK_NOT_READY');
+  } finally {
+    clearTimeout(timeout);
+  }
+  const contentType = String(response?.headers?.get?.('content-type') || '').split(';')[0].trim().toLowerCase();
+  const contentLength = Number(response?.headers?.get?.('content-length'));
+  if (!response?.ok || contentType !== 'image/jpeg'
+      || (Number.isFinite(contentLength) && contentLength > 0 && contentLength !== expectedBytes)) {
+    throw manualArtworkError('The permanent banner image response did not match the reviewed upload. Nothing was sent.', 'MANUAL_ARTWORK_NOT_READY');
+  }
+  let buffer;
+  try {
+    buffer = Buffer.from(await response.arrayBuffer());
+  } catch {
+    throw manualArtworkError('The permanent banner image could not be read. Nothing was sent.', 'MANUAL_ARTWORK_NOT_READY');
+  }
+  if (buffer.length !== expectedBytes || sha256(buffer) !== options.contentHash) {
+    throw manualArtworkError('The permanent banner image did not match the reviewed upload. Nothing was sent.', 'MANUAL_ARTWORK_NOT_READY');
+  }
+  return buffer;
 }
 
 async function normalizeManualArtwork(sourceBuffer, sharpImpl) {
@@ -196,7 +245,7 @@ async function uploadManualArtwork(options) {
 }
 
 async function loadVerifiedManualArtwork(options) {
-  const dependencies = { ...repository, ...options.dependencies };
+  const dependencies = { ...repository, ...delivery, ...options.dependencies };
   const candidate = options.candidate
     || await dependencies.loadManualArtworkCandidate(options.sql, options.prospectId);
   assertUploadCandidate(candidate);
@@ -215,8 +264,41 @@ async function loadVerifiedManualArtwork(options) {
   })) {
     throw manualArtworkError('Upload and review a banner image for this company before sending.', 'MANUAL_ARTWORK_NOT_READY');
   }
-  const buffer = await blobBuffer(options.store, artwork.blobKey);
-  if (!buffer || sha256(buffer) !== artwork.contentHash) {
+  let buffer = await blobBuffer(options.store, artwork.blobKey);
+  if (!buffer) {
+    buffer = await recoverPublishedManualArtwork({
+      asset: artwork.generationMetadata.emailImageDelivery,
+      prospectId: candidate.prospect.id,
+      contentHash: artwork.contentHash,
+      width: repository.MANUAL_ARTWORK_WIDTH,
+      height: repository.MANUAL_ARTWORK_HEIGHT,
+      fetchImpl: options.fetchImpl,
+    });
+    if (!options.store) {
+      throw manualArtworkError('Permanent image storage is unavailable on this deploy.', 'MANUAL_ARTWORK_NOT_READY');
+    }
+    try {
+      await options.store.set(artwork.blobKey, buffer, {
+        metadata: {
+          contentType: 'image/jpeg',
+          prospectId: candidate.prospect.id,
+          messageId: candidate.message.id,
+          renderVersion: repository.MANUAL_ARTWORK_RENDER_VERSION,
+          contentHash: artwork.contentHash,
+          recoveredFrom: 'cloudinary',
+          recoveredAt: new Date().toISOString(),
+        },
+      });
+    } catch {
+      throw manualArtworkError('The permanent banner image could not be restored safely. Nothing was sent.', 'MANUAL_ARTWORK_NOT_READY');
+    }
+    const restored = await blobBuffer(options.store, artwork.blobKey);
+    if (!restored || sha256(restored) !== artwork.contentHash) {
+      throw manualArtworkError('The restored banner image did not match the reviewed upload. Nothing was sent.', 'MANUAL_ARTWORK_NOT_READY');
+    }
+    buffer = restored;
+  }
+  if (sha256(buffer) !== artwork.contentHash) {
     throw manualArtworkError('The saved banner image did not match the reviewed preview. Nothing was sent.', 'MANUAL_ARTWORK_NOT_READY');
   }
   let metadata;
@@ -257,7 +339,9 @@ module.exports = {
   MAX_INPUT_PIXELS,
   MIN_SOURCE_WIDTH,
   MIN_SOURCE_HEIGHT,
+  RECOVERY_TIMEOUT_MS,
   sha256,
+  recoverPublishedManualArtwork,
   normalizeManualArtwork,
   uploadManualArtwork,
   loadVerifiedManualArtwork,

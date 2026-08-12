@@ -7,6 +7,7 @@ import artworkHandler from '../_shared/outbound-sales/manual-artwork-handler.cjs
 import migration34 from '../../../migrations/034_outbound_manual_banner_uploads.sql?raw';
 import rollback34 from '../../../migrations/034_outbound_manual_banner_uploads.rollback.sql?raw';
 import artworkEntrypoint from '../outbound-sales-manual-artwork.mjs?raw';
+import manualReviewEntrypoint from '../outbound-sales-manual-review.mjs?raw';
 import morningBackgroundEntrypoint from '../outbound-sales-morning-prepare-background.mjs?raw';
 import eventBackgroundEntrypoint from '../outbound-sales-event-import-background.mjs?raw';
 import { buildOutboundBannerPrompt } from '../../../src/lib/outboundBannerPrompt.ts';
@@ -65,7 +66,7 @@ async function sourcePng() {
   }).png({ compressionLevel: 0 }).toBuffer();
 }
 
-function deliveryAssetFor({ prospectId = PROSPECT_ID, contentHash, width = 1200, height = 675 } = {}) {
+function deliveryAssetFor({ prospectId = PROSPECT_ID, contentHash, width = 1200, height = 675, bytes = 45678 } = {}) {
   const publicId = artworkDelivery.manualArtworkPublicId(prospectId, contentHash);
   return {
     provider: 'cloudinary',
@@ -78,14 +79,14 @@ function deliveryAssetFor({ prospectId = PROSPECT_ID, contentHash, width = 1200,
     format: 'jpg',
     width,
     height,
-    bytes: 45678,
+    bytes,
     contentHash,
     publicationAudit: { passed: true, publiclyHosted: true, emailEmbeddable: true },
   };
 }
 
 function publicationMock() {
-  return vi.fn(async (options) => deliveryAssetFor(options));
+  return vi.fn(async (options) => deliveryAssetFor({ ...options, bytes: options.buffer.length }));
 }
 
 describe('manual banner upload contract', () => {
@@ -219,6 +220,92 @@ describe('manual banner upload contract', () => {
     })).rejects.toMatchObject({ code: 'MANUAL_ARTWORK_NOT_READY' });
   });
 
+  it('recovers a missing deploy-scoped blob from the exact immutable Cloudinary upload without requiring a re-upload', async () => {
+    const originalStore = memoryStore();
+    const uploaded = await artworkModule.uploadManualArtwork({
+      sql: vi.fn(), candidate: candidateFixture(), sourceBuffer: await sourcePng(),
+      store: originalStore, sharp, uploadedBy: 'admin@bannersonthefly.com',
+      dependencies: {
+        saveManualArtwork: vi.fn().mockResolvedValue({ id: 'artwork-1' }),
+        refreshManualArtworkBatchCount: vi.fn().mockResolvedValue({}),
+        publishManualArtworkImage: publicationMock(),
+      },
+    });
+    const candidate = candidateFixture({
+      artwork: {
+        id: 'artwork-1', messageId: MESSAGE_ID, status: 'ready',
+        renderVersion: artworkRepository.MANUAL_ARTWORK_RENDER_VERSION,
+        contentHash: uploaded.contentHash, blobKey: uploaded.blobKey,
+        qualityLevel: artworkRepository.MANUAL_ARTWORK_QUALITY_LEVEL,
+        generationMetadata: uploaded.generationMetadata,
+      },
+    });
+    const currentDeployStore = memoryStore();
+    const fetchImpl = vi.fn().mockResolvedValue(new Response(uploaded.buffer, {
+      status: 200,
+      headers: {
+        'Content-Type': 'image/jpeg',
+        'Content-Length': String(uploaded.buffer.length),
+      },
+    }));
+
+    const recovered = await artworkModule.loadVerifiedManualArtwork({
+      sql: vi.fn(), candidate, store: currentDeployStore, sharp, fetchImpl,
+    });
+
+    expect(fetchImpl).toHaveBeenCalledWith(uploaded.publicUrl, expect.objectContaining({
+      method: 'GET', redirect: 'error',
+    }));
+    expect(recovered.buffer.equals(uploaded.buffer)).toBe(true);
+    expect(currentDeployStore.values.get(uploaded.blobKey).equals(uploaded.buffer)).toBe(true);
+    expect(currentDeployStore.metadata.get(uploaded.blobKey)).toMatchObject({
+      prospectId: PROSPECT_ID,
+      messageId: MESSAGE_ID,
+      contentHash: uploaded.contentHash,
+      recoveredFrom: 'cloudinary',
+    });
+  });
+
+  it('refuses recovery when the permanent image bytes do not match the reviewed content hash', async () => {
+    const reviewedBuffer = await sharp(await sourcePng())
+      .resize(1200, 675, { fit: 'contain', background: '#f8fafc' })
+      .flatten({ background: '#f8fafc' })
+      .jpeg({ quality: 94, chromaSubsampling: '4:4:4', mozjpeg: true })
+      .toBuffer();
+    const contentHash = artworkModule.sha256(reviewedBuffer);
+    const candidate = candidateFixture({
+      artwork: {
+        id: 'artwork-1', messageId: MESSAGE_ID, status: 'ready',
+        renderVersion: artworkRepository.MANUAL_ARTWORK_RENDER_VERSION,
+        contentHash,
+        blobKey: `manual-company-banners/${PROSPECT_ID}/${contentHash}.jpg`,
+        qualityLevel: artworkRepository.MANUAL_ARTWORK_QUALITY_LEVEL,
+        generationMetadata: {
+          source: 'manual_upload', messageContentHash: MESSAGE_CONTENT_HASH,
+          manualReviewAudit: { passed: true, administratorUploaded: true },
+          imageAudit: { passed: true, format: 'jpeg', width: 1200, height: 675, fit: 'contain', noCrop: true },
+          blobBindingAudit: {
+            passed: true, strongReadBackVerified: true,
+            blobKey: `manual-company-banners/${PROSPECT_ID}/${contentHash}.jpg`,
+            expectedContentHash: contentHash, persistedContentHash: contentHash,
+          },
+          emailImageDelivery: deliveryAssetFor({ contentHash, bytes: reviewedBuffer.length }),
+          emailImageReady: true,
+        },
+      },
+    });
+    const changed = Buffer.from(reviewedBuffer);
+    changed[changed.length - 1] ^= 1;
+
+    await expect(artworkModule.loadVerifiedManualArtwork({
+      sql: vi.fn(), candidate, store: memoryStore(), sharp,
+      fetchImpl: vi.fn().mockResolvedValue(new Response(changed, {
+        status: 200,
+        headers: { 'Content-Type': 'image/jpeg', 'Content-Length': String(changed.length) },
+      })),
+    })).rejects.toMatchObject({ code: 'MANUAL_ARTWORK_NOT_READY' });
+  });
+
   it('rejects malformed upload data and manual metadata that did not pass admin review', () => {
     expect(() => artworkHandler.decodeBase64Image('not base64!')).toThrow(expect.objectContaining({
       code: 'INVALID_MANUAL_ARTWORK',
@@ -248,7 +335,10 @@ describe('manual banner upload contract', () => {
   });
 
   it('uses deploy-scoped storage for previews and keeps all scheduled preparation image-free', () => {
-    expect(artworkEntrypoint).toContain("process.env.CONTEXT === 'production' ? getStore(options) : getDeployStore(options)");
+    for (const source of [artworkEntrypoint, manualReviewEntrypoint]) {
+      expect(source).toContain('globalThis.Netlify?.context?.deploy?.context');
+      expect(source).toContain("deployContext === 'production' ? getStore(options) : getDeployStore(options)");
+    }
     expect(artworkEntrypoint).toContain("import 'cloudinary'");
     for (const source of [morningBackgroundEntrypoint, eventBackgroundEntrypoint]) {
       expect(source).not.toContain("from 'sharp'");
