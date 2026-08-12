@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { Shield, Clock, Star, CheckCircle, Truck, Users, FileCheck, X, Loader2, ArrowRight, Brush, Minus, Plus, Lock, Mail, Droplets, Sun, Wind, Palette, Tag, Move, ZoomIn, ZoomOut, ShoppingCart, Ruler, Layers, Package, Sparkles, Monitor } from 'lucide-react';
+import { Shield, Clock, CheckCircle, Truck, Users, FileCheck, X, Loader2, ArrowRight, Brush, Minus, Plus, Lock, Mail, Tag, Move, ZoomIn, ZoomOut, ShoppingCart, Ruler, Layers, Package, Sparkles, Monitor } from 'lucide-react';
 import { useQuoteStore, type MaterialKey } from '@/store/quote';
 import { useCartStore, type CartItem } from '@/store/cart';
 import { useUIStore } from '@/store/ui';
@@ -133,27 +133,6 @@ function formatPresetLabel(w: number, h: number, unit: 'in' | 'ft'): string {
   if (unit === 'ft') return `${w / 12}' × ${h / 12}'`;
   return `${w}" × ${h}"`;
 }
-
-const TESTIMONIALS = [
-  {
-    name: "Dan Oliver",
-    company: "Dan-O's Seasoning",
-    image: "https://res.cloudinary.com/dtrxl120u/image/upload/w_140,h_140,c_fill,f_auto,q_auto/v1759799151/dan-oliver_1200xx3163-3170-1048-0_zgphzw.jpg",
-    text: "I've been ordering banners from these guys since before they even launched their new website. They've handled every single one of my banner needs since the day I started my business.",
-  },
-  {
-    name: "Brandon Schaefer",
-    company: "HempRise LLC",
-    image: "https://res.cloudinary.com/dtrxl120u/image/upload/w_140,h_140,c_fill,f_auto,q_auto/v1759933582/1758106259564_oysdje.jpg",
-    text: "Best banner service I've used. The 24-hour turnaround saved our grand opening event. Quality exceeded expectations.",
-  },
-  {
-    name: "Jennifer Chen",
-    company: "Premier Events",
-    image: "https://d64gsuwffb70l.cloudfront.net/68bb812d3c680d9a9bc2bdd7_1757118820418_895c1191.webp",
-    text: "We order dozens of banners monthly for events. Banners On The Fly consistently delivers premium quality with fast turnaround.",
-  },
-];
 
 const FastBannerAdHero: React.FC<{ onStart: () => void }> = ({ onStart }) => (
   <section
@@ -3244,79 +3223,6 @@ const GoogleAdsBanner: React.FC = () => {
         </section>
 
         <TrustStrip />
-
-        {/* Testimonials */}
-        <section className="py-12 px-4 bg-white">
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-2xl font-bold text-center mb-8">What Our Customers Say</h2>
-            <div className="grid md:grid-cols-3 gap-6">
-              {TESTIMONIALS.map((t, i) => (
-                <div key={i} className="bg-gray-50 rounded-xl p-5 border border-gray-100">
-                  <div className="flex items-center gap-3 mb-3">
-                    <img src={t.image} alt={t.name} width="70" height="70" className="w-10 h-10 rounded-full object-cover" loading="lazy" />
-                    <div>
-                      <p className="font-semibold text-sm text-gray-800">{t.name}</p>
-                      <p className="text-xs text-gray-400">{t.company}</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-0.5 mb-2">
-                    {[...Array(5)].map((_, j) => <Star key={j} className="h-3.5 w-3.5 fill-orange-400 text-orange-400" />)}
-                  </div>
-                  <p className="text-sm text-gray-600 leading-relaxed">{t.text}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="py-10 px-4 bg-gray-50">
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-lg font-bold text-center mb-5">
-              {isYardSign ? 'Built for the Outdoors' : 'Built to Last'}
-            </h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-              {isYardSign ? (
-                <>
-                  <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                    <Clock className="h-7 w-7 text-orange-500 mx-auto mb-1" />
-                    <p className="text-xs md:text-sm font-medium text-gray-700">24-Hour Turnaround</p>
-                  </div>
-                  <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                    <Sun className="h-7 w-7 text-yellow-500 mx-auto mb-1" />
-                    <p className="text-xs md:text-sm font-medium text-gray-700">Outdoor Durable</p>
-                  </div>
-                  <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                    <Palette className="h-7 w-7 text-purple-500 mx-auto mb-1" />
-                    <p className="text-xs md:text-sm font-medium text-gray-700">Vibrant Print</p>
-                  </div>
-                  <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                    <Droplets className="h-7 w-7 text-blue-500 mx-auto mb-1" />
-                    <p className="text-xs md:text-sm font-medium text-gray-700">Corrugated Plastic</p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                    <Droplets className="h-7 w-7 text-blue-500 mx-auto mb-1" />
-                    <p className="text-xs md:text-sm font-medium text-gray-700">Weather Resistant</p>
-                  </div>
-                  <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                    <Palette className="h-7 w-7 text-purple-500 mx-auto mb-1" />
-                    <p className="text-xs md:text-sm font-medium text-gray-700">Vibrant CMYK Colors</p>
-                  </div>
-                  <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                    <Sun className="h-7 w-7 text-yellow-500 mx-auto mb-1" />
-                    <p className="text-xs md:text-sm font-medium text-gray-700">UV Fade Resistant</p>
-                  </div>
-                  <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                    <Wind className="h-7 w-7 text-teal-500 mx-auto mb-1" />
-                    <p className="text-xs md:text-sm font-medium text-gray-700">Indoor &amp; Outdoor Use</p>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </section>
 
         <div className="py-4 pb-24 md:pb-4 text-center text-xs text-gray-400 border-t border-gray-100">
           <div className="mb-2">
