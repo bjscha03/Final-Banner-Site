@@ -14,6 +14,7 @@ import appSource from '../../../src/App.tsx?raw';
 import ordersSource from '../../../src/pages/admin/Orders.tsx?raw';
 import netlifyConfigSource from '../../../netlify.toml?raw';
 import sqlParser from '../../../scripts/outbound-sql-parser.cjs';
+import outboundModernAdapterSource from '../_shared/outbound-sales/netlify-modern.mjs?raw';
 
 const outboundRuntimeSources = import.meta.glob('../_shared/outbound-sales/**/*.cjs', {
   eager: true,
@@ -524,10 +525,22 @@ describe('database and existing-site regression contracts', () => {
     expect(entries).not.toContain('outbound-sales-discover.mjs');
     expect(entries).not.toContain('outbound-sales-send.mjs');
     expect(netlifyConfigSource).not.toContain('[functions."outbound-sales-automation"]');
+    expect(netlifyConfigSource).toContain('"node_modules/resend/**"');
+    const manualReviewEntry = Object.entries(outboundFunctionSources)
+      .find(([path]) => path.endsWith('/outbound-sales-manual-review.mjs'))?.[1] || '';
+    expect(manualReviewEntry).toContain("import { Resend } from 'resend'");
+    expect(manualReviewEntry).toContain('transport: new Resend(apiKey)');
+    expect(outboundModernAdapterSource).toContain("from '@netlify/aws-lambda-compat'");
+    expect(outboundModernAdapterSource).toContain('context?.deploy?.id');
+    expect(outboundModernAdapterSource).toContain('context?.site?.name');
 
     for (const [path, source] of Object.entries(outboundFunctionSources)) {
-      expect(source, `${path} must use Netlify's modern runtime adapter`).toContain("from '@netlify/aws-lambda-compat'");
-      expect(source, `${path} must export a modern web handler`).toMatch(/export default withLambda\(/);
+      const usesDirectAdapter = source.includes("from '@netlify/aws-lambda-compat'")
+        && /export default withLambda\(/.test(source);
+      const usesSharedAdapter = source.includes("from './_shared/outbound-sales/netlify-modern.mjs'")
+        && /export default withOutboundRuntime\(/.test(source);
+      expect(usesDirectAdapter || usesSharedAdapter,
+        `${path} must use an approved Netlify modern runtime adapter`).toBe(true);
       expect(source, `${path} must not use the legacy Lambda export`).not.toMatch(/export const handler\s*=/);
     }
   });

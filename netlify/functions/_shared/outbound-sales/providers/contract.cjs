@@ -66,6 +66,20 @@ function normalizeAddress(value) {
   });
 }
 
+function normalizeContactCandidates(value) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 5).map((contact) => ({
+    email: cleanText(contact?.email, 254),
+    fullName: cleanText(contact?.fullName, 200),
+    jobTitle: cleanText(contact?.jobTitle, 200),
+    acquisitionMode: contact?.acquisitionMode === 'licensed_api' ? 'licensed_api' : null,
+    providerVerificationStatus: contact?.providerVerificationStatus === 'valid' ? 'valid' : null,
+    verificationProviderId: cleanText(contact?.verificationProviderId, 64),
+    verificationProviderRecordId: cleanText(contact?.verificationProviderRecordId, 300),
+    sourceUrl: safeWebUrl(contact?.sourceUrl),
+  })).filter((contact) => contact.email);
+}
+
 function dedupeFingerprint({ canonicalDomain: domain, normalizedBusinessName, phone, address }) {
   if (domain) return `domain:${domain}`;
   const normalizedPhone = String(phone || '').replace(/\D/g, '');
@@ -105,6 +119,7 @@ function normalizeProviderProspect(providerId, input = {}) {
     businessType: cleanText(input.businessType, 200),
     locationCount: Number.isInteger(input.locationCount) && input.locationCount >= 0 ? input.locationCount : null,
     address,
+    contactCandidates: normalizeContactCandidates(input.contactCandidates),
     providerMetadata: input.providerMetadata && typeof input.providerMetadata === 'object' && !Array.isArray(input.providerMetadata)
       ? sanitizeForAudit(input.providerMetadata)
       : {},
@@ -152,6 +167,7 @@ module.exports = {
   canonicalDomain,
   safeWebUrl,
   normalizeAddress,
+  normalizeContactCandidates,
   normalizeDiscoveryRequest,
   dedupeFingerprint,
   normalizeProviderProspect,

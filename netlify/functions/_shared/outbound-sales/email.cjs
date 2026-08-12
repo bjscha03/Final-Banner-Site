@@ -4,9 +4,9 @@ const dns = require('node:dns').promises;
 const { domainToASCII } = require('node:url');
 
 const ROLE_LOCAL_PARTS = new Set([
-  'admin', 'billing', 'bookings', 'contact', 'customerservice', 'events', 'hello', 'help', 'info',
-  'inquiries', 'jobs', 'mail', 'marketing', 'office', 'orders', 'press', 'sales', 'service', 'support',
-  'team', 'webmaster',
+  'admin', 'billing', 'bookings', 'contact', 'customercare', 'customerservice', 'events', 'hello', 'help', 'info',
+  'inquiries', 'jobs', 'mail', 'marketing', 'office', 'orders', 'press', 'retail', 'sales', 'service', 'store',
+  'support', 'team', 'webmaster', 'wholesale',
 ]);
 const FREE_MAILBOX_DOMAINS = new Set([
   'aol.com', 'gmail.com', 'googlemail.com', 'hotmail.com', 'icloud.com', 'live.com', 'mail.com',
@@ -145,9 +145,21 @@ async function assessEmailCandidates(candidates, options = {}) {
   };
   const results = [];
   for (const candidate of unique) {
+    const assessed = await assessEmail(candidate.email, { ...options, resolveMx: resolver });
+    const licensedVerified = candidate.acquisitionMode === 'licensed_api'
+      && candidate.providerVerificationStatus === 'valid'
+      && assessed.syntaxValid
+      && assessed.mxStatus === 'present';
     results.push({
-      ...(await assessEmail(candidate.email, { ...options, resolveMx: resolver })),
+      ...assessed,
       sourceUrl: candidate.sourceUrl || null,
+      fullName: String(candidate.fullName || '').replace(/\s+/g, ' ').trim().slice(0, 200) || null,
+      jobTitle: String(candidate.jobTitle || '').replace(/\s+/g, ' ').trim().slice(0, 200) || null,
+      verificationProviderId: licensedVerified ? String(candidate.verificationProviderId || '').slice(0, 64) || null : null,
+      verificationProviderRecordId: licensedVerified ? String(candidate.verificationProviderRecordId || '').slice(0, 300) || null : null,
+      verificationStatus: licensedVerified ? 'valid' : assessed.verificationStatus,
+      verificationReason: licensedVerified ? 'Verified work email supplied by a licensed contact-data provider; domain MX was rechecked.' : assessed.verificationReason,
+      verifiedAt: licensedVerified ? new Date().toISOString() : null,
     });
   }
   return results.sort((left, right) => right.contactQualityScore - left.contactQualityScore || left.email.localeCompare(right.email));

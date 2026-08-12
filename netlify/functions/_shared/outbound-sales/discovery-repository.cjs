@@ -8,28 +8,40 @@ function jsonValue(value) {
 
 async function findDuplicateProspect(sql, prospect) {
   const rows = await sql(
-    `SELECT DISTINCT p.*,
+    `SELECT p.*,
             CASE
               WHEN p.source_provider_id = $1 AND p.source_record_id = $2 THEN 'provider_id'
-              WHEN sources.provider_id = $1 AND sources.provider_record_id = $2 THEN 'provider_id'
+              WHEN EXISTS (
+                SELECT 1 FROM outbound_prospect_sources source
+                 WHERE source.prospect_id = p.id
+                   AND source.provider_id = $1 AND source.provider_record_id = $2
+              ) THEN 'provider_id'
               WHEN $3::text IS NOT NULL AND LOWER(p.canonical_domain) = $3 THEN 'canonical_domain'
               WHEN $4::text IS NOT NULL AND p.dedupe_fingerprint = $4 THEN 'fingerprint'
               ELSE 'existing'
-            END AS duplicate_match
+            END AS duplicate_match,
+            CASE
+              WHEN p.source_provider_id = $1 AND p.source_record_id = $2 THEN 1
+              WHEN EXISTS (
+                SELECT 1 FROM outbound_prospect_sources source
+                 WHERE source.prospect_id = p.id
+                   AND source.provider_id = $1 AND source.provider_record_id = $2
+              ) THEN 2
+              WHEN $3::text IS NOT NULL AND LOWER(p.canonical_domain) = $3 THEN 3
+              ELSE 4
+            END AS duplicate_rank
        FROM outbound_prospects p
-       LEFT JOIN outbound_prospect_sources sources ON sources.prospect_id = p.id
       WHERE (
         ($2::text IS NOT NULL AND p.source_provider_id = $1 AND p.source_record_id = $2)
-        OR ($2::text IS NOT NULL AND sources.provider_id = $1 AND sources.provider_record_id = $2)
+        OR ($2::text IS NOT NULL AND EXISTS (
+          SELECT 1 FROM outbound_prospect_sources source
+           WHERE source.prospect_id = p.id
+             AND source.provider_id = $1 AND source.provider_record_id = $2
+        ))
         OR ($3::text IS NOT NULL AND LOWER(p.canonical_domain) = $3)
         OR ($4::text IS NOT NULL AND p.dedupe_fingerprint = $4)
       )
-      ORDER BY CASE
-        WHEN p.source_provider_id = $1 AND p.source_record_id = $2 THEN 1
-        WHEN sources.provider_id = $1 AND sources.provider_record_id = $2 THEN 2
-        WHEN $3::text IS NOT NULL AND LOWER(p.canonical_domain) = $3 THEN 3
-        ELSE 4
-      END
+      ORDER BY duplicate_rank
       LIMIT 1`,
     [prospect.providerId, prospect.providerRecordId, prospect.canonicalDomain, prospect.dedupeFingerprint],
   );
@@ -224,17 +236,21 @@ async function storeContacts(sql, prospectId, contacts) {
     if (!contact.emailNormalized) continue;
     await sql(
       `INSERT INTO outbound_contacts (
-         prospect_id, email, email_normalized, is_primary, contact_quality_score,
-         verification_status, verification_reason, source_url, syntax_valid,
+         prospect_id, full_name, job_title, email, email_normalized, is_primary, contact_quality_score,
+         verification_status, verification_provider_id, verification_reason, verified_at, source_url, syntax_valid,
          is_role_address, is_free_mailbox, domain_matches, active, last_seen_at,
          mx_status, mx_checked_at, send_eligible
-       ) VALUES ($1, $2, $3, FALSE, $4, $5, $6, $7, $8, $9, $10, $11, TRUE, NOW(), $12, $13, FALSE)
+       ) VALUES ($1, $2, $3, $4, $5, FALSE, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, TRUE, NOW(), $16, $17, FALSE)
        ON CONFLICT (LOWER(email_normalized)) DO UPDATE
          SET email = EXCLUDED.email,
+             full_name = COALESCE(EXCLUDED.full_name, outbound_contacts.full_name),
+             job_title = COALESCE(EXCLUDED.job_title, outbound_contacts.job_title),
              source_url = COALESCE(EXCLUDED.source_url, outbound_contacts.source_url),
              contact_quality_score = EXCLUDED.contact_quality_score,
              verification_status = EXCLUDED.verification_status,
+             verification_provider_id = COALESCE(EXCLUDED.verification_provider_id, outbound_contacts.verification_provider_id),
              verification_reason = EXCLUDED.verification_reason,
+             verified_at = COALESCE(EXCLUDED.verified_at, outbound_contacts.verified_at),
              syntax_valid = EXCLUDED.syntax_valid,
              is_role_address = EXCLUDED.is_role_address,
              is_free_mailbox = EXCLUDED.is_free_mailbox,
@@ -247,15 +263,17 @@ async function storeContacts(sql, prospectId, contacts) {
              updated_at = NOW()
        WHERE outbound_contacts.prospect_id = EXCLUDED.prospect_id`,
       [
-        prospectId, contact.email, contact.emailNormalized, contact.contactQualityScore,
-        contact.verificationStatus, contact.verificationReason, contact.sourceUrl,
+        prospectId, contact.fullName || null, contact.jobTitle || null,
+        contact.email, contact.emailNormalized, contact.contactQualityScore,
+        contact.verificationStatus, contact.verificationProviderId || null,
+        contact.verificationReason, contact.verifiedAt || null, contact.sourceUrl,
         contact.syntaxValid, contact.isRoleAddress, contact.isFreeMailbox, contact.domainMatches,
         contact.mxStatus, contact.mxCheckedAt,
       ],
     );
   }
   const rows = await sql(
-    `SELECT id, email, email_normalized, source_url, syntax_valid, is_role_address,
+    `SELECT id, email, email_normalized, full_name, job_title, source_url, syntax_valid, is_role_address,
             is_free_mailbox, domain_matches, mx_status, mx_checked_at, verification_status,
             verification_reason, contact_quality_score, send_eligible
        FROM outbound_contacts
@@ -286,6 +304,8 @@ async function storeContacts(sql, prospectId, contacts) {
   );
   return rows.map((row) => ({
     id: row.id,
+    fullName: row.full_name || null,
+    jobTitle: row.job_title || null,
     email: row.email,
     emailNormalized: row.email_normalized,
     sourceUrl: row.source_url,

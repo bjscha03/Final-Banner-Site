@@ -165,6 +165,91 @@ describe('SSRF-safe website transport', () => {
     const pinned = [];
     for (const capture of captures) capture.options.lookup('ignored', {}, (_error, address) => pinned.push(address));
     expect(pinned).toEqual(['93.184.216.34', '93.184.216.35']);
+    const modernNodePinned = [];
+    for (const capture of captures) capture.options.lookup('ignored', { all: true }, (_error, addresses) => modernNodePinned.push(addresses));
+    expect(modernNodePinned).toEqual([
+      [{ address: '93.184.216.34', family: 4 }],
+      [{ address: '93.184.216.35', family: 4 }],
+    ]);
+  });
+
+  it('retries another validated public address when the first CDN edge cannot connect', async () => {
+    const pinned = [];
+    let requestCount = 0;
+    const requestImpl = (url, options, callback) => {
+      const request = new EventEmitter();
+      request.setTimeout = vi.fn();
+      request.destroy = (error) => queueMicrotask(() => request.emit('error', error));
+      request.end = () => {
+        options.lookup(url.hostname, {}, (_error, address) => pinned.push(address));
+        requestCount += 1;
+        if (requestCount === 1) {
+          const error = new Error('stale CDN edge');
+          error.code = 'ECONNRESET';
+          queueMicrotask(() => request.emit('error', error));
+          return;
+        }
+        const response = Readable.from([Buffer.from('<h1>Recovered</h1>')]);
+        response.statusCode = 200;
+        response.headers = { 'content-type': 'text/html' };
+        response.socket = { remoteAddress: '93.184.216.35' };
+        queueMicrotask(() => callback(response));
+      };
+      return request;
+    };
+    const response = await fetchWebsitePage('https://example.org', {
+      lookup: async () => [
+        { address: '2606:2800:220:1:248:1893:25c8:1946', family: 6 },
+        { address: '93.184.216.34', family: 4 },
+        { address: '93.184.216.35', family: 4 },
+      ],
+      requestImpl,
+      timeoutMs: 6000,
+    });
+    expect(response.body).toBe('<h1>Recovered</h1>');
+    expect(pinned).toEqual(['93.184.216.34', '93.184.216.35']);
+  });
+
+  it('reports a safe actionable network code after every validated address fails', async () => {
+    const requestImpl = () => {
+      const request = new EventEmitter();
+      request.setTimeout = vi.fn();
+      request.destroy = (error) => queueMicrotask(() => request.emit('error', error));
+      request.end = () => {
+        const error = new Error('connection reset detail must not be exposed');
+        error.code = 'ECONNRESET';
+        queueMicrotask(() => request.emit('error', error));
+      };
+      return request;
+    };
+    await expect(fetchWebsitePage('https://example.org', {
+      lookup: async () => [
+        { address: '93.184.216.34', family: 4 },
+        { address: '93.184.216.35', family: 4 },
+      ],
+      requestImpl,
+    })).rejects.toMatchObject({ code: 'WEBSITE_CONNECTION_RESET', message: 'Website request failed.' });
+  });
+
+  it('aborts a website request that remains open beyond its caller deadline', async () => {
+    const controller = new AbortController();
+    const requestImpl = () => {
+      const request = new EventEmitter();
+      request.setTimeout = vi.fn();
+      request.destroy = (error) => queueMicrotask(() => request.emit('error', error));
+      request.end = vi.fn();
+      return request;
+    };
+    const pending = fetchWebsitePage('https://example.org', {
+      lookup: async () => [{ address: '93.184.216.34', family: 4 }],
+      requestImpl,
+      signal: controller.signal,
+    });
+
+    await Promise.resolve();
+    controller.abort();
+
+    await expect(pending).rejects.toMatchObject({ code: 'WEBSITE_TIMEOUT' });
   });
 
   it('blocks HTTPS downgrade redirects', async () => {
@@ -246,11 +331,20 @@ describe('public email extraction and verification-state handling', () => {
     const contacts = await assessEmailCandidates([
       { email: 'jane@example.com', sourceUrl: 'https://example.com/contact' },
       { email: 'info@example.com', sourceUrl: 'https://example.com/contact' },
+      { email: 'wholesale@example.com', sourceUrl: 'https://example.com/contact' },
+      { email: 'customercare@example.com', sourceUrl: 'https://example.com/contact' },
+      { email: 'retail@example.com', sourceUrl: 'https://example.com/contact' },
+      { email: 'store@example.com', sourceUrl: 'https://example.com/contact' },
     ], { businessDomain: 'example.com', resolveMx });
     expect(resolveMx).toHaveBeenCalledTimes(1);
     expect(contacts[0]).toMatchObject({ emailNormalized: 'jane@example.com', syntaxValid: true, mxStatus: 'present', verificationStatus: 'unverified', sendEligible: false });
     expect(contacts[0].domainMatches).toBe(true);
     expect(contacts.find((contact) => contact.emailNormalized === 'info@example.com')).toMatchObject({ isRoleAddress: true, verificationStatus: 'risky', sendEligible: false });
+    for (const localPart of ['wholesale', 'customercare', 'retail', 'store']) {
+      expect(contacts.find((contact) => contact.emailNormalized === `${localPart}@example.com`)).toMatchObject({
+        isRoleAddress: true, verificationStatus: 'risky', sendEligible: false,
+      });
+    }
     const missing = await assessEmail('jane@missing.example', { businessDomain: 'missing.example', resolveMx: async () => { const error = new Error('none'); error.code = 'ENODATA'; throw error; } });
     expect(missing).toMatchObject({ mxStatus: 'missing', verificationStatus: 'invalid', sendEligible: false });
   });
@@ -418,6 +512,18 @@ describe('Shadow Mode orchestration, accounting, and admin queue', () => {
 });
 
 describe('Phase 2 migration and isolation contracts', () => {
+  it('uses a real-Postgres-safe duplicate lookup without DISTINCT ordering ambiguity', async () => {
+    const sql = vi.fn().mockResolvedValue([]);
+    await discoveryRepository.findDuplicateProspect(sql, normalizeProviderProspect('fixture_provider', {
+      providerRecordId: 'stable-record', businessName: 'Stable Company', websiteUrl: 'https://stable.example',
+    }));
+    const query = sql.mock.calls[0][0];
+    expect(query).not.toMatch(/SELECT\s+DISTINCT/i);
+    expect(query).not.toContain('LEFT JOIN outbound_prospect_sources');
+    expect(query).toContain('ORDER BY duplicate_rank');
+    expect(query).toContain('EXISTS (');
+  });
+
   it('adds only outbound objects, keeps Apollo disabled, and provides a non-CASCADE outbound-only rollback', () => {
     const executable = phase2Migration.replace(/--.*$/gm, '');
     const rollback = phase2Rollback.replace(/--.*$/gm, '');

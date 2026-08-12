@@ -116,7 +116,13 @@ async function processProspect({ sql, normalized, dependencies, requestId }) {
     return { prospectId, created: stored.created, status: qualification.status, score: qualification.score, rejectionReasons: qualification.rejectionReasons, researchError: code };
   }
 
-  const assessed = await dependencies.assessEmailCandidates(research.emailCandidates, {
+  const providerContacts = Array.isArray(normalized?.contactCandidates)
+    ? normalized.contactCandidates
+    : [];
+  const assessed = await dependencies.assessEmailCandidates([
+    ...providerContacts,
+    ...(research.emailCandidates || []),
+  ], {
     businessDomain: scoreProspect.canonicalDomain,
     resolveMx: dependencies.resolveMx,
   });
@@ -132,6 +138,7 @@ async function processProspect({ sql, normalized, dependencies, requestId }) {
       rejectionReasons: qualification.rejectionReasons,
       exclusionCodes: qualification.exclusionCodes,
       publicContactCount: contacts.length,
+      licensedContactCount: providerContacts.length,
     },
     requestId,
   });
@@ -144,6 +151,8 @@ async function processProspect({ sql, normalized, dependencies, requestId }) {
     contactCount: contacts.length,
     rejectionReasons: qualification.rejectionReasons,
     exclusions: qualification.exclusionCodes,
+    providerRecordId: normalized.providerRecordId,
+    canonicalDomain: normalized.canonicalDomain,
   };
 }
 

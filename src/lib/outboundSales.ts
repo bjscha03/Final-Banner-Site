@@ -263,6 +263,150 @@ export interface OutboundProspectQueue {
   }>;
 }
 
+export type OutboundMockupCompositionAudit = {
+  passed: boolean;
+  mode: string;
+  sourceVisibleFraction: number;
+  noClipGuaranteed: boolean;
+};
+
+export interface OutboundManualReviewLead {
+  prospectId: string;
+  businessName: string;
+  websiteUrl: string | null;
+  canonicalDomain: string | null;
+  industry: string | null;
+  businessType: string | null;
+  phone: string | null;
+  address: Record<string, string | null>;
+  leadScore: number | null;
+  prospectStatus: string;
+  sourceProviderId: string;
+  sourceUrl: string | null;
+  scoreExplanation: Array<{ factor?: string; points?: number; label?: string; detail?: string }>;
+  qualificationEvidence: Array<{ code?: string; evidence?: string; sourceUrl?: string }>;
+  eventFit: {
+    priority: 'trade_show' | 'event_signal' | 'general_high_value';
+    label: string;
+    eventName?: string | null;
+    evidence: Array<{ code?: string; label?: string; detail?: string; evidence?: string; sourceUrl?: string; sourceUrls?: string[] }>;
+  };
+  contact: null | {
+    id: string;
+    email: string;
+    fullName: string | null;
+    jobTitle: string | null;
+    sourceUrl: string | null;
+    verificationStatus: string;
+    verificationReason: string | null;
+    syntaxValid: boolean;
+    mxStatus: string;
+    isRoleAddress: boolean;
+    isFreeMailbox: boolean;
+    domainMatches: boolean;
+    contactQualityScore: number;
+  };
+  message: null | {
+    id: string;
+    subject: string | null;
+    bodyText: string | null;
+    bodyHtml: string | null;
+    generationStatus: string;
+    evidenceValidationStatus: string;
+    sentAt: string | null;
+    deliveredAt: string | null;
+    lastEventType: string | null;
+    lastEventStatus: string | null;
+    lastEventAt: string | null;
+  };
+  mockup: null | {
+    id: string;
+    status: 'pending' | 'ready' | 'fallback' | 'failed';
+    sceneId: 'trade_show' | 'storefront' | 'community_event';
+    renderVersion: string | null;
+    qualityLevel: 'logo_and_product' | 'logo' | 'product' | 'name_only' | 'manual_upload';
+    logoUrl: string | null;
+    productImageUrl: string | null;
+    eventLabel: string | null;
+    sourceUrls: string[];
+    diagnostics: Array<{ stage: string; hostname: string | null; code: string }>;
+    compositionAudit: OutboundMockupCompositionAudit | null;
+    immutablePreviewReady: boolean;
+    presentationReady: boolean;
+    lastErrorCode: string | null;
+    contextCurrent: boolean;
+    generatedAt: string | null;
+    updatedAt: string | null;
+    previewUrl: string | null;
+  };
+  review: {
+    status: 'pending' | 'approved' | 'rejected';
+    permissionStatus: 'unknown' | 'explicit_opt_in' | 'admin_authorized';
+    permissionEvidence: string;
+    notes: string;
+    reviewedBy: string | null;
+    reviewedAt: string | null;
+    sendState: 'not_sent' | 'processing' | 'sent' | 'failed';
+    sendAttemptCount: number;
+    resendMessageId: string | null;
+    lastSendErrorCode: string | null;
+    sentAt: string | null;
+    sendStartedAt: string | null;
+    sendLeaseExpiresAt: string | null;
+    recoveryStatus: 'not_applicable' | 'in_progress' | 'retryable' | 'delivery_recorded';
+  };
+  technicalBlockers: string[];
+  technicalWarnings: string[];
+  canSend: boolean;
+  discoveredAt: string;
+  importedBusinessDate: string | null;
+  morningQueuePosition: number | null;
+  morningReadyAt: string | null;
+  lastQualifiedAt: string | null;
+}
+
+export interface OutboundLeadFilters {
+  search?: string;
+  event?: string;
+  source?: string;
+  industry?: string;
+  importedDate?: string;
+  qualification?: '' | 'qualified' | 'unqualified';
+  readiness?: '' | 'ready' | 'needs_attention';
+  contacted?: '' | 'yes' | 'no';
+  hasEmail?: '' | 'yes' | 'no';
+  hasPhone?: '' | 'yes' | 'no';
+  mockup?: '' | 'ready' | 'fallback' | 'missing';
+  emailStatus?: '' | 'ready' | 'sent' | 'failed' | 'missing';
+}
+
+export interface OutboundManualReviewQueue {
+  ok: true;
+  schemaReady: boolean;
+  deliveryReady: boolean;
+  deliveryIssues: string[];
+  manualSendEnabled: boolean;
+  leads: OutboundManualReviewLead[];
+  total: number;
+  limit: number;
+  offset: number;
+  minimumScore: number;
+  reviewView: 'today' | 'ready' | 'sent' | 'all';
+  filters: OutboundLeadFilters;
+  sort: 'priority' | 'newest' | 'score_desc' | 'company_asc' | 'event_asc';
+  counts: { pending: number; approved: number; rejected: number; sent: number };
+  mockups: { ready: number; fallback: number; missing: number; failed: number; retryableFailed: number };
+  filterOptions: { events: string[]; sources: string[]; industries: string[] };
+  morningBatch: null | {
+    id: string; batchKey: string; businessDate: string; targetCount: number; status: string; discoveredCount: number;
+    newProspectCount: number; qualifiedCount: number; messageReadyCount: number;
+    mockupReadyCount: number; startedAt: string | null; readyAt: string | null;
+    lastErrorCode: string | null; runMetadata?: Record<string, unknown>; updatedAt: string;
+    workerStalled: boolean; stallReason: 'handoff' | 'import' | 'finalize' | null;
+  };
+  today: { attempted: number; sent: number; limit: number };
+}
+
 async function parseResponse<T>(response: Response): Promise<T> {
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -371,6 +515,115 @@ export async function downloadOutboundProspectsCsv(status?: string): Promise<voi
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+}
+
+export async function getOutboundManualReviewLeads(
+  options: {
+    limit?: number; offset?: number; minimumScore?: number; view?: 'today' | 'ready' | 'sent' | 'all';
+    filters?: OutboundLeadFilters; sort?: 'priority' | 'newest' | 'score_desc' | 'company_asc' | 'event_asc'; signal?: AbortSignal;
+  } = {},
+): Promise<OutboundManualReviewQueue> {
+  const params = new URLSearchParams();
+  if (options.limit) params.set('limit', String(options.limit));
+  if (options.offset) params.set('offset', String(options.offset));
+  if (options.minimumScore) params.set('minimumScore', String(options.minimumScore));
+  if (options.view) params.set('view', options.view);
+  if (options.sort) params.set('sort', options.sort);
+  for (const [key, value] of Object.entries(options.filters || {})) if (value) params.set(key, value);
+  const response = await adminFetch(`/.netlify/functions/outbound-sales-manual-review?${params}`, {
+    method: 'GET', credentials: 'same-origin', headers: { Accept: 'application/json' }, signal: options.signal,
+  });
+  return parseResponse<OutboundManualReviewQueue>(response);
+}
+
+export async function saveOutboundLeadNote(prospectId: string, notes: string): Promise<{ ok: true; prospectId: string; notes: string; updatedAt: string | null }> {
+  const response = await adminFetch('/.netlify/functions/outbound-sales-manual-review', {
+    method: 'POST', credentials: 'same-origin',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'save_note', prospectId, notes }),
+  });
+  return parseResponse(response);
+}
+
+export async function sendOutboundReviewedLead(prospectId: string): Promise<{ ok: true; duplicate: boolean; messageId: string }> {
+  const response = await adminFetch('/.netlify/functions/outbound-sales-manual-review', {
+    method: 'POST', credentials: 'same-origin',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prospectId }),
+  });
+  return parseResponse(response);
+}
+
+function imageFileAsBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('The selected image could not be read.'));
+    reader.onload = () => {
+      const result = String(reader.result || '');
+      const comma = result.indexOf(',');
+      if (comma < 0) reject(new Error('The selected image could not be encoded.'));
+      else resolve(result.slice(comma + 1));
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+export async function uploadOutboundManualArtwork(
+  prospectId: string,
+  file: File,
+  eventLabel?: string | null,
+): Promise<{ ok: true; prospectId: string; contentHash: string; previewUrl: string; sendReady: true; width: number; height: number }> {
+  const recognizedImage = ['image/jpeg', 'image/png', 'image/webp'].includes(file.type)
+    || /\.(?:png|jpe?g|webp)$/i.test(file.name);
+  if (!recognizedImage) {
+    throw new Error('Choose a PNG, JPG, or WebP image.');
+  }
+  if (file.size > 4 * 1024 * 1024) {
+    throw new Error('The image must be under 4 MB. Export a high-quality JPG and try again.');
+  }
+  const dataBase64 = await imageFileAsBase64(file);
+  const response = await adminFetch('/.netlify/functions/outbound-sales-manual-artwork', {
+    method: 'POST', credentials: 'same-origin',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prospectId, fileName: file.name, eventLabel: eventLabel || null, dataBase64 }),
+  });
+  return parseResponse(response);
+}
+
+export interface OutboundEventPreparationResult {
+  ok: true;
+  queued: boolean;
+  alreadyReady: boolean;
+  eventKey: string;
+  externalEmailsSent: 0;
+  manualSendingOnly: true;
+  batch: null | {
+    batchId: string; businessDate: string; targetCount: number; status: string;
+    discoveredCount: number; attachedCount: number; qualifiedCount: number;
+    messageReadyCount: number; mockupReadyCount: number; importShardCount: number;
+    completedImportShardCount: number; runningImportShardCount: number;
+    failedImportShardCount: number; phase: string; sourceRecordCount: number;
+    primaryRecordCount: number; reserveRecordCount: number; finalizerPass: number;
+    dispatchState: 'requesting' | 'acknowledged' | 'failed' | null;
+    dispatchAckStatus: 202 | null; dispatchResponseStatus: number | null;
+    dispatchRequestedAt: string | null;
+    dispatchAcknowledgedAt: string | null; dispatchStalled: boolean; workerStalled: boolean;
+    stallReason: 'handoff' | 'import' | 'finalize' | null;
+    backgroundState: 'running' | 'claim_deferred' | null;
+    backgroundAction: 'import' | 'finalize' | null; backgroundShardIndex: number | null;
+    backgroundReceivedAt: string | null;
+    lastErrorCode: string | null; startedAt: string | null; readyAt: string | null;
+    updatedAt: string | null; externalEmailsSent: 0; manualSendingOnly: true;
+  };
+}
+
+export async function prepareAtlantaEventBatch(): Promise<OutboundEventPreparationResult> {
+  const response = await adminFetch('/.netlify/functions/outbound-sales-event-import', {
+    method: 'POST', credentials: 'same-origin',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'start', eventKey: 'atlanta-shoe-market-2026-08' }),
+  });
+  return parseResponse<OutboundEventPreparationResult>(response);
 }
 
 export function microusdToDollars(value: number): number {

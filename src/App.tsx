@@ -83,6 +83,7 @@ const AdminSalesShell = lazy(() => import("./pages/admin/sales/SalesShell"));
 const AdminSalesDashboard = lazy(() => import("./pages/admin/sales/SalesDashboard"));
 const AdminSalesSettings = lazy(() => import("./pages/admin/sales/SalesSettings"));
 const AdminSalesProspects = lazy(() => import("./pages/admin/sales/SalesProspects"));
+const AdminSalesLeadReview = lazy(() => import("./pages/admin/sales/SalesLeadReview"));
 const AdminSalesActivity = lazy(() => import("./pages/admin/sales/SalesActivity"));
 const AdminSalesCosts = lazy(() => import("./pages/admin/sales/SalesCosts"));
 const AdminSalesReplies = lazy(() => import("./pages/admin/sales/SalesReplies"));
@@ -211,6 +212,7 @@ export const RoutedApplication = () => (
               <Route index element={<AdminSalesDashboard />} />
               <Route path="dashboard" element={<Navigate to="/admin/sales" replace />} />
               <Route path="prospects" element={<AdminSalesProspects />} />
+              <Route path="lead-review" element={<AdminSalesLeadReview />} />
               <Route path="activity" element={<AdminSalesActivity />} />
               <Route path="replies" element={<AdminSalesReplies />} />
               <Route path="orders" element={<AdminSalesOrders />} />

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ShoppingCart, Menu, X, User, LogOut, Package, Shield, Mail } from 'lucide-react';
+import { ShoppingCart, Menu, X, User, LogOut, Package, Shield, Mail, UserCheck } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import ScrollToTopLink from './ScrollToTopLink';
 import { useAuth, isAdmin } from '@/lib/auth';
@@ -186,6 +186,14 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
                                 <Mail className="h-4 w-4" />
                                 Admin: Email Templates
                               </a>
+                              <a
+                                href="/admin/sales/lead-review"
+                                className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-700 hover:text-[#18448D] hover:bg-slate-50"
+                                onClick={() => setIsMenuOpen(false)}
+                              >
+                                <UserCheck className="h-4 w-4" />
+                                Admin: Lead Review
+                              </a>
                             </>
                           )}
                           <button
@@ -317,6 +325,12 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
                             <a href="/admin/email-templates" className="flex items-center">
                               <Mail className="h-4 w-4 mr-2" />
                               Admin: Email Templates
+                            </a>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <a href="/admin/sales/lead-review" className="flex items-center">
+                              <UserCheck className="h-4 w-4 mr-2" />
+                              Admin: Lead Review
                             </a>
                           </DropdownMenuItem>
                         </>

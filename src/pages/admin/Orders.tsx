@@ -35,7 +35,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Bot, Star, ShoppingCart } from 'lucide-react';
+import { Bot, Star, ShoppingCart, UserCheck } from 'lucide-react';
 import OrderDetails from '@/components/orders/OrderDetails';
 import { getDisplayOrderTotalCents } from '@/lib/order-totals';
 import { estimateOrderProfit } from '@/lib/admin-profit-estimate';
@@ -1108,6 +1108,12 @@ const AdminOrders: React.FC = () => {
                   <a href="/admin/sales">
                     <Bot className="h-4 w-4" />
                     AI Sales Engine
+                  </a>
+                </TabsTrigger>
+                <TabsTrigger value="lead-review" className="flex items-center gap-2 min-w-0" asChild>
+                  <a href="/admin/sales/lead-review">
+                    <UserCheck className="h-4 w-4" />
+                    Lead Review
                   </a>
                 </TabsTrigger>
               </TabsList>

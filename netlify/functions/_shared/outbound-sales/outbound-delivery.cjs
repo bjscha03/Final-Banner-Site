@@ -12,6 +12,25 @@ const RESEND_COLD_OUTREACH_ALLOWED = false;
 
 function tokenHash(token) { return crypto.createHash('sha256').update(String(token)).digest('hex'); }
 
+function resolveUnsubscribeSigningSecret(env = process.env) {
+  const dedicatedSecret = String(env.OUTBOUND_UNSUBSCRIBE_SIGNING_SECRET || '').trim();
+  if (dedicatedSecret.length >= 32) return dedicatedSecret;
+
+  // Existing deployments already have a stable, high-entropy admin session
+  // secret. Domain-separate it so unsubscribe tokens do not reuse that value
+  // directly or expose it to the delivery code.
+  const sessionSecret = String(env.AUTH_SESSION_SECRET || '').trim();
+  if (sessionSecret.length >= 32) {
+    return crypto.createHmac('sha256', sessionSecret)
+      .update('banners-on-the-fly:outbound-unsubscribe:v1')
+      .digest('hex');
+  }
+
+  const error = new Error('Unsubscribe signing is not configured.');
+  error.code = 'OUTBOUND_SEND_BLOCKED';
+  throw error;
+}
+
 function validatedUnsubscribeUrl(value, publicOrigin) {
   const url = new URL(String(value || ''));
   if (url.protocol !== 'https:' || url.username || url.password || !url.hostname
@@ -28,8 +47,7 @@ function validatedUnsubscribeUrl(value, publicOrigin) {
 }
 
 function createUnsubscribeToken({ messageId, contactId }, env = process.env) {
-  const secret = String(env.OUTBOUND_UNSUBSCRIBE_SIGNING_SECRET || '').trim();
-  if (secret.length < 32) { const error = new Error('Unsubscribe signing is not configured.'); error.code = 'OUTBOUND_SEND_BLOCKED'; throw error; }
+  const secret = resolveUnsubscribeSigningSecret(env);
   const token = crypto.createHmac('sha256', secret).update(`${messageId}|${contactId}`).digest('base64url');
   return { token, hash: tokenHash(token) };
 }
@@ -95,13 +113,119 @@ async function sendOutboundMessage(options) {
   return { providerMessageId: result.data.id, latencyMs: Math.max(0, Date.now() - started) };
 }
 
+function assertPermissionedMarketingAllowed(options = {}) {
+  const explicitlyPermissioned = options.permissionStatus === 'explicit_opt_in' && options.permissionAttested === true;
+  const adminAuthorized = options.permissionStatus === 'admin_authorized' && options.adminAuthorized === true;
+  if (!explicitlyPermissioned && !adminAuthorized) {
+    const error = new Error('An authenticated administrator must authorize this marketing email.');
+    error.code = 'PERMISSIONED_MARKETING_REQUIRED';
+    throw error;
+  }
+}
+
+function safeInlineAttachments(value) {
+  if (!Array.isArray(value) || !value.length) return [];
+  if (value.length > 2) {
+    const error = new Error('Too many inline marketing images.');
+    error.code = 'MANUAL_MARKETING_SEND_FAILED';
+    throw error;
+  }
+  return value.map((attachment) => {
+    const content = String(attachment?.content || '').replace(/\s+/g, '');
+    const filename = String(attachment?.filename || '').trim();
+    const contentId = String(attachment?.contentId || '').trim();
+    const contentType = String(attachment?.contentType || '').trim().toLowerCase();
+    if (!/^[A-Za-z0-9+/]+={0,2}$/.test(content)
+        || content.length > 8 * 1024 * 1024
+        || !/^[a-z0-9][a-z0-9._-]{0,99}\.jpe?g$/i.test(filename)
+        || !/^[a-z0-9][a-z0-9._-]{0,126}$/i.test(contentId)
+        || contentType !== 'image/jpeg') {
+      const error = new Error('Inline marketing image is invalid.');
+      error.code = 'MANUAL_MARKETING_SEND_FAILED';
+      throw error;
+    }
+    return { content, filename, contentId, contentType };
+  });
+}
+
+async function sendPermissionedMarketingMessage(options) {
+  // This is deliberately separate from sendOutboundMessage. The automated
+  // cold-outreach path remains provider-policy locked; this one-at-a-time path
+  // is available only when a named administrator directly clicks Send.
+  assertPermissionedMarketingAllowed(options);
+  const apiKey = String(
+    options.env?.OUTBOUND_PERMISSIONED_RESEND_API_KEY
+      || options.env?.RESEND_API_KEY
+      || process.env.OUTBOUND_PERMISSIONED_RESEND_API_KEY
+      || '',
+  ).trim();
+  if (!apiKey) {
+    const error = new Error('Resend is not configured for permissioned marketing.');
+    error.code = 'MANUAL_MARKETING_NOT_CONFIGURED';
+    throw error;
+  }
+  const unsubscribeUrl = validatedUnsubscribeUrl(
+    options.unsubscribeUrl,
+    options.publicOrigin || options.env?.PUBLIC_SITE_URL || options.env?.URL || process.env.PUBLIC_SITE_URL || process.env.URL,
+  );
+  const transport = options.transport || (() => {
+    const { Resend } = require('resend');
+    return new Resend(apiKey);
+  })();
+  const started = Date.now();
+  const attachments = safeInlineAttachments(options.attachments);
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      const error = new Error('Permissioned marketing delivery timed out.');
+      error.code = 'MANUAL_MARKETING_SEND_FAILED';
+      reject(error);
+    }, Math.max(1000, Math.min(30000, Number(options.timeoutMs) || SEND_TIMEOUT_MS)));
+    if (typeof timer.unref === 'function') timer.unref();
+  });
+  let result;
+  try {
+    const request = Promise.resolve(transport.emails.send({
+      from: options.from,
+      to: options.contact.email,
+      replyTo: options.replyTo,
+      subject: options.message.subject,
+      text: options.message.bodyText,
+      html: options.message.bodyHtml,
+      headers: {
+        'List-Unsubscribe': `<${unsubscribeUrl}>`,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+      },
+      tags: [
+        { name: 'subsystem', value: 'manual_lead_review' },
+        { name: 'message_id', value: options.message.id },
+        { name: 'authorization', value: options.permissionStatus },
+      ],
+      ...(attachments.length ? { attachments } : {}),
+    }, { idempotencyKey: options.message.sendKey }));
+    result = await Promise.race([request, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+  if (result?.error || !result?.data?.id) {
+    const error = new Error('Resend rejected the permissioned marketing email.');
+    error.code = 'MANUAL_MARKETING_SEND_FAILED';
+    throw error;
+  }
+  return { providerMessageId: result.data.id, latencyMs: Math.max(0, Date.now() - started) };
+}
+
 module.exports = {
   SEND_TIMEOUT_MS,
   MAX_SEND_ATTEMPTS,
   RESEND_COLD_OUTREACH_ALLOWED,
   tokenHash,
+  resolveUnsubscribeSigningSecret,
   validatedUnsubscribeUrl,
   createUnsubscribeToken,
   assertOutboundDeliveryProviderApproved,
+  assertPermissionedMarketingAllowed,
+  safeInlineAttachments,
   sendOutboundMessage,
+  sendPermissionedMarketingMessage,
 };

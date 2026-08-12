@@ -164,7 +164,7 @@ async function markDeliverySent(sql, data) {
      ), event_insert AS (
        INSERT INTO outbound_email_events (message_id,provider_event_id,event_type,event_status,event_summary,event_at)
        SELECT id,$5,'sent','accepted',$6::jsonb,NOW() FROM message_update
-       ON CONFLICT (provider_event_id) DO NOTHING RETURNING id
+       ON CONFLICT (provider_event_id) WHERE provider_event_id IS NOT NULL DO NOTHING RETURNING id
      ) SELECT * FROM message_update`,
     [data.messageId, data.providerMessageId, data.latencyMs, data.businessDate,
       `send:${data.messageId}`, JSON.stringify(sanitizeForAudit({ provider: 'resend', latencyMs: data.latencyMs }))],

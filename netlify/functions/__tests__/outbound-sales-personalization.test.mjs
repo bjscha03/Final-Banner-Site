@@ -38,7 +38,9 @@ const { generateShadowPersonalization } = personalization;
 const { createPersonalizationHandlers, publicMessage, activityCsv } = personalizationHandlers;
 const { claimPersonalization, savePersonalizationSuccess, savePersonalizationFailure } = personalizationRepository;
 const { safeFailure, safeRequestId } = security;
-const { renderOutboundEmailPreview, renderOutboundDeliveryContent } = template;
+const {
+  polishOutboundSubject, polishOutboundBodyText, renderOutboundEmailPreview, renderOutboundDeliveryContent,
+} = template;
 const { expectedColumnPairs } = migrationVerifier;
 
 const originalEnvironment = { ...process.env };
@@ -97,7 +99,7 @@ function validModelOutput() {
     subject: 'Banner planning for your fall soccer tournament',
     opening_paragraph: 'I saw that River City Sports Center is preparing for a fall youth soccer tournament alongside its community leagues. Events like that often need clear, durable wayfinding and sponsor visibility across several spaces.',
     value_paragraph: 'Banners On The Fly produces custom banners and printed displays, with most standard orders produced within 24 hours and free next-day air beginning after production. That can help when event details or sponsor artwork come together close to the tournament.',
-    call_to_action: 'Would it be helpful if I put together a quick banner quote based on the areas you need to cover?',
+    call_to_action: 'Use code NEW20 to save 20% on your first order whenever you are ready.',
     evidence_ids: ['E1'],
     recommended_follow_up_delay_days: 5,
     personalization_notes: ['Connected the outreach to the publicly listed soccer tournament without inventing dates or quantities.'],
@@ -242,13 +244,15 @@ describe('grounded copy contract and deterministic cost controls', () => {
     expect(() => validatePersonalizationOutput({ ...validModelOutput(), subject: 'Hello {{company}}' }, { bundle })).toThrow(/placeholder/i);
     expect(() => validatePersonalizationOutput({ ...validModelOutput(), evidence_ids: ['E9'] }, { bundle })).toThrow(/evidence/i);
     expect(() => validatePersonalizationOutput({ ...validModelOutput(), subject: 'A quick print question' }, { bundle })).toThrow(/subject.*grounded/i);
+    expect(() => validatePersonalizationOutput({ ...validModelOutput(), call_to_action: 'Would it be useful if I priced a banner today?' }, { bundle })).toThrow(/direct statement/i);
+    expect(() => validatePersonalizationOutput({ ...validModelOutput(), call_to_action: 'Reply with the size and quantity for quick pricing.' }, { bundle })).toThrow(/must not ask for a reply/i);
     expect(() => validatePersonalizationOutput({ ...validModelOutput(), call_to_action: 'Reply with sk-proj-never-render-this-value if useful for your tournament.' }, { bundle })).toThrow(/credential/i);
     expect(() => validatePersonalizationOutput({
       ...validModelOutput(),
       subject: 'A completely unrelated observation',
       opening_paragraph: 'A unique lighthouse and volcanic geology inspired this message about unrelated maritime operations today.',
       value_paragraph: 'Our printing team can prepare durable visual materials using customer supplied artwork and selected specifications for many ordinary applications.',
-      call_to_action: 'Would a short conversation about general printed materials be useful sometime this month?',
+      call_to_action: 'Reply whenever you want to discuss general printed materials this month.',
     }, { bundle })).toThrow(/grounded/i);
   });
 
@@ -261,7 +265,7 @@ describe('grounded copy contract and deterministic cost controls', () => {
     expect(first).toBe(second);
     expect(first).not.toBe(changed);
     expect(first).toHaveLength('personalization:'.length + 64);
-    expect(PROMPT_VERSION).toBe('outbound-personalization-v1');
+    expect(PROMPT_VERSION).toBe('outbound-personalization-v3');
     expect(OUTPUT_SCHEMA_VERSION).toBe('shadow-outreach-v1');
   });
 
@@ -275,21 +279,62 @@ describe('grounded copy contract and deterministic cost controls', () => {
   });
 
   it('renders branded HTML deterministically while escaping model-controlled text', () => {
+    const polished = polishOutboundBodyText('Hi Eric,\n\nWould it be useful if I priced a show banner for booth 556 today?\n\nBest,\nBrandon\nBanners On The Fly');
+    expect(polished).not.toContain('Would it be useful');
+    expect(polished).toContain('Use code NEW20 to save 20% on your first order');
+    expect(polished).not.toMatch(/reply with (?:the )?size/i);
+    expect(polished).toContain('Brandon Schaefer\nOwner, Banners On The Fly');
+    const deduplicatedOffer = polishOutboundBodyText('Hi Jason,\n\nFor your first order, use code NEW20 to save 20%. Use code NEW20 to save 20% on your first order whenever you’re ready.\n\nBest,\nBrandon\nBanners On The Fly');
+    expect(deduplicatedOffer.match(/Use code NEW20/g)).toHaveLength(1);
+    const legacyMockupCopy = polishOutboundBodyText('Hi Jason,\n\nI put together a complimentary banner concept using BED|STÜ’s public branding so you can see how the brand could look on a professionally printed display.\n\nBest,\nBrandon\nBanners On The Fly');
+    expect(legacyMockupCopy).not.toMatch(/quick mockup|complimentary|custom banner concept|public branding/i);
+    expect(polishOutboundBodyText('Hi Taylor,\n\nHere is the mockup I made for your booth.\n\nBest,\nBrandon')).not.toMatch(/mockup|made for your booth/i);
+    expect(polishOutboundSubject('BED|STÜ — a custom banner concept using your brand')).toBe('BED|STÜ — custom banner printing');
+    expect(polishOutboundSubject('Future Expo Group custom banner concept')).toBe('Future Expo Group — custom banner printing');
+    expect(polishOutboundSubject('Your complimentary banner design')).toBe('Custom banner printing');
+    expect(polishOutboundBodyText('Hi Taylor,\n\nYour complimentary banner design is attached.')).not.toMatch(/mockup|concept|attached/i);
     const html = renderOutboundEmailPreview({ subject: '<script>alert(1)</script>', bodyText: 'Hi team,\n\nUse <strong>safe</strong> banners.' });
     expect(html).toContain('#ff6b35');
     expect(html).toContain('#18448D');
-    expect(html).toContain('logo-compact.svg');
+    expect(html).toContain('header-logo.png');
+    expect(html).toContain('res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto,w_1280/');
+    expect(html).toContain('trade-show-booth-hero.webp');
+    expect(html).toContain('trade show exhibitor booth');
+    expect(html).toContain('Save 20% with code');
+    expect(html).toContain('NEW20');
+    expect(html).toContain('Design &amp; Price Your Banner');
+    expect(html).toContain('Order cutoff');
+    expect(html).toContain('10 PM ET');
+    expect(html).toContain('Most in 24 hours');
+    expect(html).toContain('Free Next-Day Air');
+    expect(html).toContain('See today&rsquo;s live ship &amp; delivery estimate');
+    expect(html).toContain('/shipping?utm_source=email');
     expect(html).not.toContain('<script>');
     expect(html).not.toContain('<strong>safe</strong>');
     expect(html).toContain('&lt;strong&gt;safe&lt;/strong&gt;');
+    const companyPreview = renderOutboundEmailPreview({
+      subject: 'A quick banner mockup for BED|STÜ', bodyText: legacyMockupCopy,
+      businessName: 'BED|STÜ',
+      mockupImageSrc: 'https://res.cloudinary.com/dtrxl120u/image/upload/v123/outbound-sales/manual-company-banners/11111111-1111-4111-8111-111111111111/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jpg',
+    });
+    expect(companyPreview).toContain('BED|STÜ — custom banner printing');
+    expect(companyPreview).toContain('Banner concept for BED|STÜ');
+    expect(companyPreview).toContain('Concept visualization only.');
+    expect(companyPreview).not.toContain('cid:');
+    expect(companyPreview).not.toMatch(/quick mockup|complimentary|public branding/i);
     const delivery = renderOutboundDeliveryContent({
-      subject: 'Safe subject', bodyText: 'Safe message',
+      subject: 'Safe subject', bodyText: 'Safe message\n\nBest,\nBrandon\nBanners On The Fly',
       physicalAddress: '100 Example Street, Example City, NY 10001',
       unsubscribeUrl: 'https://example.test/.netlify/functions/outbound-sales-unsubscribe?token=opaque',
     });
     expect(delivery.text).toContain('100 Example Street');
+    expect(delivery.text).toContain('FIRST ORDER OFFER: Save 20% with code NEW20');
+    expect(delivery.text).toContain('ORDER CUTOFF: 10 PM ET');
+    expect(delivery.text).toContain("See today's live ship and delivery estimate");
+    expect(delivery.text).toContain('Brandon Schaefer');
+    expect(delivery.html).toContain('Owner, Banners On The Fly');
     expect(delivery.text).toContain('Unsubscribe: https://example.test/');
-    expect(delivery.html).toContain('Unsubscribe from future sales emails');
+    expect(delivery.html).toContain('Unsubscribe from future marketing emails');
   });
 });
 
