@@ -13,6 +13,16 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "storefront-banner-size-guide": {
+    title: "Storefront Banner Size Guide: Measure Before You Order",
+    description: "Choose a storefront banner size by measuring the usable area, viewing distance, door clearances, mounting points, local rules, and message before ordering.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/storefront-banner-size-guide.webp"
+  },
+  "qr-code-on-banner-guide": {
+    title: "QR Codes on Banners: Size, Placement, and Scan-Test Guide",
+    description: "Make a QR code banner easier to scan with guidance on size, quiet zones, contrast, placement, file setup, destination checks, security, and field testing.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/qr-code-on-banner-guide.webp"
+  },
   "banner-size-for-10x10-canopy": {
     title: "What Size Banner Fits a 10×10 Canopy? A Vendor Setup Guide",
     description: "Choose a banner size for a 10×10 canopy with practical measurements, placement options, mounting checks, artwork guidance, and vendor-booth examples today.",
