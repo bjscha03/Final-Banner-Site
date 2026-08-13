@@ -13,6 +13,16 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "standard-yard-sign-size-guide": {
+    title: "Standard Yard Sign Size: Is 24×18 Inches Right?",
+    description: "Choose the standard yard sign size with practical guidance on 24×18 dimensions, orientation, message fit, stakes, placement, artwork, quantity, and ordering.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/standard-yard-sign-size-guide.webp"
+  },
+  "banner-wind-slits-guide": {
+    title: "Banner Wind Slits: Do They Work—or Weaken the Banner?",
+    description: "Learn whether banner wind slits work, how cuts affect vinyl, why mesh differs, and how mounting, inspection, forecasts, and timely removal manage wind risk.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/banner-wind-slits-guide.webp"
+  },
   "storefront-banner-size-guide": {
     title: "Storefront Banner Size Guide: Measure Before You Order",
     description: "Choose a storefront banner size by measuring the usable area, viewing distance, door clearances, mounting points, local rules, and message before ordering.",
