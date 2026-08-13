@@ -13,6 +13,16 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "will-car-magnets-stick-to-my-car": {
+    title: "Will Car Magnets Stick to Your Vehicle? Test Before You Order",
+    description: "Will car magnets stick to your car? Test the exact panel, identify incompatible materials, check contours and repairs, and decide before ordering a sign.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/will-car-magnets-stick-to-my-car.webp"
+  },
+  "halloween-banner-ideas": {
+    title: "Halloween Banner Ideas That Help Guests Find and Enjoy Your Event",
+    description: "Explore Halloween banner ideas for stores, schools, churches, and events with clear message formulas, placement plans, design tips, and a final checklist.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/halloween-banner-ideas.webp"
+  },
   "standard-yard-sign-size-guide": {
     title: "Standard Yard Sign Size: Is 24×18 Inches Right?",
     description: "Choose the standard yard sign size with practical guidance on 24×18 dimensions, orientation, message fit, stakes, placement, artwork, quantity, and ordering.",
