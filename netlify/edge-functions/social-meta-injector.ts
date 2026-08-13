@@ -16,7 +16,7 @@ const blogPosts: Record<string, { title: string; description: string; image: str
   "standard-yard-sign-size-guide": {
     title: "Standard Yard Sign Size: Is 24×18 Inches Right?",
     description: "Choose the standard yard sign size with practical guidance on 24×18 dimensions, orientation, message fit, stakes, placement, artwork, quantity, and ordering.",
-    image: "https://bannersonthefly.com/cld-assets/images/blog/standard-yard-sign-size-guide.webp"
+    image: "https://bannersonthefly.com/cld-assets/images/blog/standard-yard-sign-size-guide-v2.webp"
   },
   "banner-wind-slits-guide": {
     title: "Banner Wind Slits: Do They Work—or Weaken the Banner?",
