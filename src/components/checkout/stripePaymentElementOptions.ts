@@ -6,6 +6,10 @@ import type { StripePaymentElementOptions } from '@stripe/stripe-js';
  * one of its string modes; the former boolean value throws during mount.
  */
 export const stripeCardPaymentElementOptions: StripePaymentElementOptions = {
+  // Contact and billing details are collected in the merchant-owned form and
+  // supplied to createConfirmationToken. Do not ask for the same country or
+  // postal details again inside Stripe's card frame.
+  fields: { billingDetails: 'never' },
   layout: {
     type: 'accordion',
     defaultCollapsed: false,

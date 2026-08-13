@@ -32,9 +32,8 @@ describe('PayPal-hosted debit or credit card disclosure', () => {
     expect(disclosure).toContain('onApprove={(data) => handleApprove(data, null)}');
   });
 
-  it('keeps the hosted card choice in the Stripe-enabled alternate provider view', () => {
-    expect(checkoutSource).not.toContain('paypalOnly\n');
-    expect(checkoutSource).toMatch(/<PayPalCheckout[\s\S]*?cardFirstLayout/);
+  it('keeps the PayPal tab focused on PayPal when Stripe already handles cards', () => {
+    expect(checkoutSource).toMatch(/<PayPalCheckout[\s\S]*?paypalOnly/);
     expect(checkoutSource).toContain('providerLocked={checkoutLocked}');
   });
 

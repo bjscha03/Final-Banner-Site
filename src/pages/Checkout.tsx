@@ -637,11 +637,11 @@ const Checkout: React.FC = () => {
   }
 
   return (
-    <Layout showFooterBanner={false}>
-      <div className="min-h-[calc(100vh-4rem)] bg-[#F7F7F7] py-8 sm:py-12">
+    <Layout showFooterBanner={false} checkoutMode>
+      <div className="min-h-[calc(100vh-4rem)] bg-[#F7F7F7] py-5 sm:py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
-          <div className="mb-8 sm:mb-12">
+          <div className="mb-6 sm:mb-10">
             <Button
               variant="ghost"
               onClick={() => { if (!checkoutLocked) navigate(-1); }}
@@ -660,14 +660,11 @@ const Checkout: React.FC = () => {
               <p className="text-sm text-[#18448D] font-medium">Order before tonight’s cutoff for fastest turnaround.</p>
             </div>
             
-            <div className="mb-6">
-            </div>
-            
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
             {/* Order Summary - Takes 2 columns on large screens */}
-            <div className="lg:col-span-2 space-y-6 w-full">
+            <div id="checkout-order-summary" className="order-2 w-full space-y-6 lg:order-1 lg:col-span-2">
               <div className="border border-slate-200 border-t-4 border-t-[#FF6A00] bg-white p-6 shadow-[0_10px_28px_rgba(11,31,58,0.06)] sm:p-8">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-2xl font-bold text-[#18448D]">Order Summary</h2>
@@ -1251,7 +1248,22 @@ const Checkout: React.FC = () => {
               </div>
             )}
             {/* Payment */}
-            <div className="space-y-6 w-full">
+            <div className="order-1 w-full space-y-4 lg:order-2 lg:space-y-6">
+              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm lg:hidden">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                    {items.length} {items.length === 1 ? 'item' : 'items'}
+                  </p>
+                  <p className="text-lg font-bold text-[#0B1F3A]">{usd(totalCents / 100)} total</p>
+                </div>
+                <button
+                  type="button"
+                  className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-bold text-[#18448D] hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#18448D]"
+                  onClick={() => document.getElementById('checkout-order-summary')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                >
+                  Review order
+                </button>
+              </div>
               <div className="relative z-0 rounded-xl border border-gray-100 bg-white p-4 shadow-md sm:p-5">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-2xl font-bold text-[#18448D]">Payment</h2>
@@ -1364,7 +1376,7 @@ const Checkout: React.FC = () => {
                         total={providerTotalCents}
                         onSuccess={handlePaymentSuccess}
                         onError={handlePaymentError}
-                        cardFirstLayout
+                        paypalOnly
                         resumeCheckout={activeCheckout}
                         onPaymentStateChange={handlePaymentStateChange}
                         onCanonicalQuote={handleCanonicalQuote}
@@ -1418,16 +1430,6 @@ const Checkout: React.FC = () => {
                   <p className="text-xs text-gray-600">Production time and carrier transit are separate; delivery dates are estimates.</p>
                 </div>
               </div>
-
-              <div className="md:hidden sticky bottom-2 z-20">
-                <div className="rounded-lg border border-[#18448D]/20 bg-white/95 backdrop-blur px-3 py-2 shadow-lg">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Final total</span>
-                    <span className="text-lg font-bold text-[#FF6A00]">{usd(totalCents / 100)}</span>
-                  </div>
-                </div>
-              </div>
-
 
               {user && (
                 <div className="border-l-4 border-[#FF6A00] bg-white p-6 shadow-sm">
