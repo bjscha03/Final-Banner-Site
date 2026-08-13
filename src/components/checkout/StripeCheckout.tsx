@@ -24,6 +24,11 @@ import {
   validateCheckoutCustomer,
 } from './checkoutCustomer';
 import {
+  clearCheckoutCustomerDraft,
+  readCheckoutCustomerDraft,
+  writeCheckoutCustomerDraft,
+} from './checkoutCustomerDraft';
+import {
   buildStripeCheckoutSignature,
   clearStripeCheckoutState,
   createStripeCheckoutState,
@@ -306,26 +311,9 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
     paymentIntentId: string;
     clientSecret: string;
   } | null>(null);
-  const [customer, setCustomer] = useState<CustomerFormState>({
-    firstName: '',
-    lastName: '',
-    email: user?.email || '',
-    phone: '',
-    country: 'US',
-    street: '',
-    street2: '',
-    city: '',
-    state: '',
-    zip: '',
-    shippingSame: true,
-    shippingName: '',
-    shippingStreet: '',
-    shippingStreet2: '',
-    shippingCity: '',
-    shippingState: '',
-    shippingZip: '',
-    shippingCountry: 'US',
-  });
+  const [customer, setCustomer] = useState<CustomerFormState>(() => (
+    readCheckoutCustomerDraft(user?.email || '')
+  ));
   const initialState = useMemo(() => {
     const stored = readStripeCheckoutState(signature) || createStripeCheckoutState(signature);
     if (!resumedStripe?.checkoutKey) return stored;
@@ -392,7 +380,11 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
 
   useEffect(() => {
     if (!customer.email && user?.email) {
-      setCustomer((current) => ({ ...current, email: user.email || '' }));
+      setCustomer((current) => {
+        const next = { ...current, email: user.email || '' };
+        writeCheckoutCustomerDraft(next);
+        return next;
+      });
     }
   }, [customer.email, user?.email]);
 
@@ -482,7 +474,11 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
     field: K,
     value: CustomerFormState[K],
   ) => {
-    setCustomer((current) => ({ ...current, [field]: value }));
+    setCustomer((current) => {
+      const next = { ...current, [field]: value };
+      writeCheckoutCustomerDraft(next);
+      return next;
+    });
     setCheckoutError(null);
   };
 
@@ -497,6 +493,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
     setIsPolling(false);
     setVerificationMessage(null);
     setCheckoutError(null);
+    clearCheckoutCustomerDraft();
     onSuccess(orderId, {
       ...order,
       orderId,
@@ -1079,7 +1076,6 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
     { field: 'lastName', label: 'Last name', autoComplete: 'family-name' },
     { field: 'email', label: 'Email', type: 'email', inputMode: 'email', autoComplete: 'email' },
     { field: 'phone', label: 'Phone', type: 'tel', inputMode: 'tel', autoComplete: 'tel' },
-    { field: 'country', label: 'Country', autoComplete: 'country' },
     { field: 'street', label: 'Street address', autoComplete: 'address-line1', wide: true },
     { field: 'street2', label: 'Apartment / suite (optional)', autoComplete: 'address-line2', wide: true },
     { field: 'city', label: 'City', autoComplete: 'address-level2' },
@@ -1100,7 +1096,6 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
     { field: 'shippingCity', label: 'Shipping city', autoComplete: 'shipping address-level2' },
     { field: 'shippingState', label: 'Shipping state', autoComplete: 'shipping address-level1' },
     { field: 'shippingZip', label: 'Shipping ZIP code', inputMode: 'numeric', autoComplete: 'shipping postal-code' },
-    { field: 'shippingCountry', label: 'Shipping country', autoComplete: 'shipping country' },
   ];
 
   const currentValidation = checkoutError ? validateCheckoutCustomer(customer) : null;
@@ -1364,6 +1359,13 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
                 );
               })}
 
+              <div className="text-sm font-medium text-slate-800">
+                Country *
+                <div className="mt-1 flex h-11 items-center rounded-md border border-slate-200 bg-slate-100 px-3 text-slate-700" aria-label="Country: United States">
+                  United States
+                </div>
+              </div>
+
               <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-medium text-slate-800 sm:col-span-2">
                 <input
                   type="checkbox"
@@ -1374,7 +1376,8 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
                 Shipping address is the same as billing
               </label>
 
-              {!customer.shippingSame ? shippingFields.map(({ field, label, inputMode, autoComplete, wide }) => {
+              {!customer.shippingSame ? <>
+                {shippingFields.map(({ field, label, inputMode, autoComplete, wide }) => {
                 const required = field !== 'shippingStreet2';
                 const isInvalid = currentValidation?.field === field;
                 return (
@@ -1395,7 +1398,14 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
                     />
                   </label>
                 );
-              }) : null}
+                })}
+                <div className="text-sm font-medium text-slate-800">
+                  Shipping country *
+                  <div className="mt-1 flex h-11 items-center rounded-md border border-slate-200 bg-slate-100 px-3 text-slate-700" aria-label="Shipping country: United States">
+                    United States
+                  </div>
+                </div>
+              </> : null}
             </div>
           </div>
 

@@ -128,10 +128,15 @@ test('contact and delivery details are visible before either payment method', as
   await installCheckoutHarness(page);
   await page.goto('/checkout', { waitUntil: 'domcontentloaded' });
 
+  const checkoutHeader = page.locator('[data-checkout-header]');
   const contactHeading = page.getByRole('heading', { name: 'Contact & delivery' });
   const firstName = page.getByLabel(/First Name/);
   const cardButton = page.getByRole('button', { name: 'Pay with Debit or Credit Card' });
 
+  await expect(checkoutHeader).toBeVisible();
+  await expect(checkoutHeader).toContainText('Secure checkout');
+  await expect(page.locator('nav[aria-label="Primary navigation"]')).toHaveCount(0);
+  await expect(page.getByLabel('Email address for newsletter')).toHaveCount(0);
   await expect(contactHeading).toBeVisible({ timeout: 20_000 });
   await expect(firstName).toBeVisible();
   await expect(firstName).toHaveAttribute('autocomplete', 'given-name');
@@ -145,6 +150,15 @@ test('contact and delivery details are visible before either payment method', as
   if ((page.viewportSize()?.width ?? 1024) < 640) {
     const fontSize = await firstName.evaluate((input) => getComputedStyle(input).fontSize);
     expect(Number.parseFloat(fontSize)).toBeGreaterThanOrEqual(16);
+  }
+
+  if ((page.viewportSize()?.width ?? 1024) < 1024) {
+    const paymentBox = await page.getByRole('heading', { name: 'Payment', exact: true }).boundingBox();
+    const orderSummaryBox = await page.getByRole('heading', { name: 'Order Summary', exact: true }).boundingBox();
+    expect(paymentBox).not.toBeNull();
+    expect(orderSummaryBox).not.toBeNull();
+    expect(paymentBox!.y).toBeLessThan(orderSummaryBox!.y);
+    await expect(page.getByRole('button', { name: 'Review order' })).toBeVisible();
   }
 
   const shippingSame = page.getByLabel('Shipping address is the same as billing');

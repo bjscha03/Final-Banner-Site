@@ -21,4 +21,8 @@ describe('Stripe card Payment Element options', () => {
       googlePay: 'never',
     });
   });
+
+  it('does not collect billing details twice', () => {
+    expect(stripeCardPaymentElementOptions.fields).toEqual({ billingDetails: 'never' });
+  });
 });

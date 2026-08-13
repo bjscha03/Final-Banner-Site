@@ -20,6 +20,11 @@ import {
   type CustomerFormState,
   validateCheckoutCustomer,
 } from './checkoutCustomer';
+import {
+  clearCheckoutCustomerDraft,
+  readCheckoutCustomerDraft,
+  writeCheckoutCustomerDraft,
+} from './checkoutCustomerDraft';
 import type {
   ActiveCheckoutMarker,
   CheckoutPaymentPhase,
@@ -303,26 +308,9 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
   const [verificationMessage, setVerificationMessage] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [cardFieldsExpanded, setCardFieldsExpanded] = useState(false);
-  const [customer, setCustomer] = useState<CustomerFormState>({
-    firstName: '',
-    lastName: '',
-    email: user?.email || '',
-    phone: '',
-    country: 'US',
-    street: '',
-    street2: '',
-    city: '',
-    state: '',
-    zip: '',
-    shippingSame: true,
-    shippingName: '',
-    shippingStreet: '',
-    shippingStreet2: '',
-    shippingCity: '',
-    shippingState: '',
-    shippingZip: '',
-    shippingCountry: 'US',
-  });
+  const [customer, setCustomer] = useState<CustomerFormState>(() => (
+    readCheckoutCustomerDraft(user?.email || '')
+  ));
 
   const resumedPayPal = resumeCheckout?.provider === 'paypal' ? resumeCheckout : null;
   const internalOrderIdRef = useRef<string | null>(resumedPayPal?.orderId || null);
@@ -356,7 +344,11 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
 
   useEffect(() => {
     if (!customer.email && user?.email) {
-      setCustomer((current) => ({ ...current, email: user.email || '' }));
+      setCustomer((current) => {
+        const next = { ...current, email: user.email || '' };
+        writeCheckoutCustomerDraft(next);
+        return next;
+      });
     }
   }, [customer.email, user?.email]);
 
@@ -364,7 +356,11 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     field: K,
     value: CustomerFormState[K],
   ) => {
-    setCustomer((current) => ({ ...current, [field]: value }));
+    setCustomer((current) => {
+      const next = { ...current, [field]: value };
+      writeCheckoutCustomerDraft(next);
+      return next;
+    });
   };
 
   const validateCustomer = useCallback(
@@ -548,6 +544,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     setVerificationMessage(null);
     setCheckoutError(null);
     clearState();
+    clearCheckoutCustomerDraft();
 
     const shippingAddress = extractShipping(payload)
       || submittedCustomerRef.current?.shippingAddress
@@ -754,6 +751,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
         throw new Error(payload?.message || payload?.error || 'Test order failed.');
       }
       clearState();
+      clearCheckoutCustomerDraft();
       onSuccess(payload.id || payload.orderId, payload.order);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Test order failed.';
@@ -1137,7 +1135,6 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     { field: 'lastName', label: 'Last Name *', autoComplete: 'family-name' },
     { field: 'email', label: 'Email *', type: 'email', inputMode: 'email', autoComplete: 'email' },
     { field: 'phone', label: 'Phone *', type: 'tel', inputMode: 'tel', autoComplete: 'tel' },
-    { field: 'country', label: 'Country *', autoComplete: 'country' },
     { field: 'street', label: 'Street Address *', autoComplete: 'address-line1', wide: true },
     { field: 'street2', label: 'Apartment / Suite', autoComplete: 'address-line2', wide: true },
     { field: 'city', label: 'City *', autoComplete: 'address-level2' },
@@ -1158,7 +1155,6 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     { field: 'shippingCity', label: 'Shipping City *', autoComplete: 'shipping address-level2' },
     { field: 'shippingState', label: 'Shipping State *', autoComplete: 'shipping address-level1' },
     { field: 'shippingZip', label: 'Shipping ZIP *', inputMode: 'numeric', autoComplete: 'shipping postal-code' },
-    { field: 'shippingCountry', label: 'Shipping Country *', autoComplete: 'shipping country' },
   ];
 
   const renderCustomerDetails = () => {
@@ -1211,6 +1207,13 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
             );
           })}
 
+          <div className="text-sm font-medium text-slate-800">
+            Country *
+            <div className="mt-1 flex h-11 items-center rounded-md border border-slate-200 bg-slate-100 px-3 text-slate-700" aria-label="Country: United States">
+              United States
+            </div>
+          </div>
+
           <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-medium text-slate-800 sm:col-span-2">
             <input
               type="checkbox"
@@ -1225,7 +1228,8 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
           </label>
 
           {!customer.shippingSame
-            ? shippingFields.map(({ field, label, inputMode, autoComplete, wide }) => {
+            ? <>
+              {shippingFields.map(({ field, label, inputMode, autoComplete, wide }) => {
                 const required = field !== 'shippingStreet2';
                 const isInvalid = currentValidation?.field === field;
                 return (
@@ -1254,7 +1258,14 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
                     />
                   </label>
                 );
-              })
+              })}
+              <div className="text-sm font-medium text-slate-800">
+                Shipping country *
+                <div className="mt-1 flex h-11 items-center rounded-md border border-slate-200 bg-slate-100 px-3 text-slate-700" aria-label="Shipping country: United States">
+                  United States
+                </div>
+              </div>
+            </>
             : null}
         </div>
       </section>
