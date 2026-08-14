@@ -16,7 +16,7 @@ const blogPosts: Record<string, { title: string; description: string; image: str
   "birthday-banner-size-guide": {
     title: "What Size Birthday Banner Do I Need? A Venue-by-Venue Guide",
     description: "Choose a birthday banner size by measuring the venue, matching it to a dessert table, welcome area, feature wall, or photo setup, and checking hardware.",
-    image: "https://bannersonthefly.com/cld-assets/images/blog/birthday-banner-size-guide.webp"
+    image: "https://bannersonthefly.com/cld-assets/images/blog/birthday-banner-size-guide-v2.webp"
   },
   "garage-sale-yard-sale-banners": {
     title: "Garage Sale Banner Ideas: Wording, Placement, and Directional Signs",
@@ -36,7 +36,7 @@ const blogPosts: Record<string, { title: string; description: string; image: str
   "will-car-magnets-stick-to-my-car": {
     title: "Will Car Magnets Stick to Your Vehicle? Test Before You Order",
     description: "Will car magnets stick to your car? Test the exact panel, identify incompatible materials, check contours and repairs, and decide before ordering a sign.",
-    image: "https://bannersonthefly.com/cld-assets/images/blog/will-car-magnets-stick-to-my-car.webp"
+    image: "https://bannersonthefly.com/cld-assets/images/blog/will-car-magnets-stick-to-my-car-v2.webp"
   },
   "halloween-banner-ideas": {
     title: "Halloween Banner Ideas That Help Guests Find and Enjoy Your Event",
@@ -71,7 +71,7 @@ const blogPosts: Record<string, { title: string; description: string; image: str
   "how-to-clean-vinyl-banner": {
     title: "How to Clean a Vinyl Banner Without Damaging the Print",
     description: "Learn how to clean a vinyl banner safely with mild soap, soft cloths, careful stain testing, a clean rinse, complete drying, and damage checks before storage.",
-    image: "https://bannersonthefly.com/cld-assets/images/blog/how-to-clean-vinyl-banner.webp"
+    image: "https://bannersonthefly.com/cld-assets/images/blog/how-to-clean-vinyl-banner-v2.webp"
   },
   "banner-size-for-6-foot-table": {
     title: "What Size Banner Fits a 6-Foot Table? A Practical Measuring Guide",
@@ -171,7 +171,7 @@ const blogPosts: Record<string, { title: string; description: string; image: str
   "car-magnet-size-guide": {
     title: "Car Magnet Size Guide: Choose the Right Fit for Your Vehicle",
     description: "Use this car magnet size guide to choose the right dimensions, placement, artwork, and care for a clean, readable magnetic vehicle sign that fits well.",
-    image: "https://bannersonthefly.com/cld-assets/images/blog/car-magnet-size-guide.webp"
+    image: "https://bannersonthefly.com/cld-assets/images/blog/car-magnet-size-guide-v2.webp"
   },
   "grand-opening-banner-ideas": {
     title: "Grand Opening Banner Ideas: A Complete Planning & Design Guide",
