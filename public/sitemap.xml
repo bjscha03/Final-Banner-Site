@@ -87,6 +87,18 @@
 
   <!-- Blog Posts (published) -->
   <url>
+    <loc>https://bannersonthefly.com/blog/car-magnets-vs-vinyl-decals</loc>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://bannersonthefly.com/blog/now-hiring-banner-ideas</loc>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://bannersonthefly.com/blog/will-car-magnets-stick-to-my-car</loc>
     <lastmod>2026-08-13</lastmod>
     <changefreq>monthly</changefreq>

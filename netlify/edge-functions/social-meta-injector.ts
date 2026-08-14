@@ -13,6 +13,16 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "car-magnets-vs-vinyl-decals": {
+    title: "Car Magnets vs. Vinyl Decals: Which Is Better for Your Vehicle?",
+    description: "Compare car magnets vs. vinyl decals by removability, vehicle compatibility, installation, design flexibility, maintenance, and business use before choosing.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/car-magnets-vs-vinyl-decals.webp"
+  },
+  "now-hiring-banner-ideas": {
+    title: "Now Hiring Banner Ideas: What to Say and How to Design It",
+    description: "Plan a now hiring banner with clearer wording, readable hierarchy, application instructions, placement guidance, legal checks, examples, and a final checklist.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/now-hiring-banner-ideas.webp"
+  },
   "will-car-magnets-stick-to-my-car": {
     title: "Will Car Magnets Stick to Your Vehicle? Test Before You Order",
     description: "Will car magnets stick to your car? Test the exact panel, identify incompatible materials, check contours and repairs, and decide before ordering a sign.",
