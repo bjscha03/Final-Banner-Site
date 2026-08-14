@@ -13,6 +13,16 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "birthday-banner-size-guide": {
+    title: "What Size Birthday Banner Do I Need? A Venue-by-Venue Guide",
+    description: "Choose a birthday banner size by measuring the venue, matching it to a dessert table, welcome area, feature wall, or photo setup, and checking hardware.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/birthday-banner-size-guide.webp"
+  },
+  "garage-sale-yard-sale-banners": {
+    title: "Garage Sale Banner Ideas: Wording, Placement, and Directional Signs",
+    description: "Plan garage sale banners and directional signs with clearer wording, arrow checks, placement mapping, local-rule review, setup timing, and a teardown checklist.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/garage-sale-yard-sale-banners.webp"
+  },
   "car-magnets-vs-vinyl-decals": {
     title: "Car Magnets vs. Vinyl Decals: Which Is Better for Your Vehicle?",
     description: "Compare car magnets vs. vinyl decals by removability, vehicle compatibility, installation, design flexibility, maintenance, and business use before choosing.",
