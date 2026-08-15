@@ -13,6 +13,16 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "vinyl-banner-cost-guide": {
+    title: "How Much Does a Vinyl Banner Cost? A Practical Pricing Guide",
+    description: "Learn what determines vinyl banner cost, calculate square footage, compare materials and finishing, and build an accurate project budget before ordering.",
+    image: "https://bannersonthefly.com/images/blog/vinyl-banner-cost-guide.webp"
+  },
+  "design-banner-in-canva-for-print": {
+    title: "How to Design a Banner in Canva for Printing: A File Setup Checklist",
+    description: "Design a print-ready banner in Canva with correct proportions, safe margins, sharp images, PDF export settings, and a practical preflight checklist today.",
+    image: "https://bannersonthefly.com/images/blog/design-banner-in-canva-for-print.webp"
+  },
   "birthday-banner-size-guide": {
     title: "What Size Birthday Banner Do I Need? A Venue-by-Venue Guide",
     description: "Choose a birthday banner size by measuring the venue, matching it to a dessert table, welcome area, feature wall, or photo setup, and checking hardware.",

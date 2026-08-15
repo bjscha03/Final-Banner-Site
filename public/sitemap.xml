@@ -87,6 +87,18 @@
 
   <!-- Blog Posts (published) -->
   <url>
+    <loc>https://bannersonthefly.com/blog/vinyl-banner-cost-guide</loc>
+    <lastmod>2026-08-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://bannersonthefly.com/blog/design-banner-in-canva-for-print</loc>
+    <lastmod>2026-08-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://bannersonthefly.com/blog/birthday-banner-size-guide</loc>
     <lastmod>2026-08-14</lastmod>
     <changefreq>monthly</changefreq>
