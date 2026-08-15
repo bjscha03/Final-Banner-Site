@@ -13,6 +13,16 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "banner-vs-yard-sign": {
+    title: "Banner vs. Yard Sign: Which Format Fits Your Message?",
+    description: "Compare banners vs. yard signs by placement, message, viewing angle, quantity, installation, and reuse so you can choose the right sign format for the job.",
+    image: "https://bannersonthefly.com/images/blog/banner-vs-yard-sign.webp"
+  },
+  "how-to-store-vinyl-banners": {
+    title: "How to Store Vinyl Banners Without Creases or Damage",
+    description: "Learn how to store vinyl banners without creases: dry them completely, inspect, roll around a clean core, protect the roll, label it, and store it safely.",
+    image: "https://bannersonthefly.com/images/blog/how-to-store-vinyl-banners.webp"
+  },
   "vinyl-banner-cost-guide": {
     title: "How Much Does a Vinyl Banner Cost? A Practical Pricing Guide",
     description: "Learn what determines vinyl banner cost, calculate square footage, compare materials and finishing, and build an accurate project budget before ordering.",

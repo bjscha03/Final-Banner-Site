@@ -87,6 +87,18 @@
 
   <!-- Blog Posts (published) -->
   <url>
+    <loc>https://bannersonthefly.com/blog/banner-vs-yard-sign</loc>
+    <lastmod>2026-08-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://bannersonthefly.com/blog/how-to-store-vinyl-banners</loc>
+    <lastmod>2026-08-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://bannersonthefly.com/blog/vinyl-banner-cost-guide</loc>
     <lastmod>2026-08-15</lastmod>
     <changefreq>monthly</changefreq>
