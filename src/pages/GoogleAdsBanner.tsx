@@ -14,7 +14,7 @@ import CartModal from '@/components/CartModal';
 
 import { getQuantityDiscountRate } from '@/lib/quantity-discount';
 import { generateFinalRenderFromHTML } from '@/utils/generateFinalRenderFromHTML';
-import { renderPdfToDataUrl, type PdfPreviewResult } from '@/utils/pdf/renderPdfToDataUrl';
+import type { PdfPreviewResult } from '@/utils/pdf/renderPdfToDataUrl';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/lib/auth';
 
@@ -1138,6 +1138,9 @@ const GoogleAdsBanner: React.FC = () => {
   }), []);
 
   const generateValidatedPdfPreview = useCallback(async (file: File, correlationId: string) => {
+    // Keep the heavy PDF renderer out of the paid landing-page critical path.
+    // It is needed only after a visitor explicitly uploads a PDF.
+    const { renderPdfToDataUrl } = await import('@/utils/pdf/renderPdfToDataUrl');
     const preview = await renderPdfToDataUrl(file, {
       scale: 2,
       deviceScale: typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1,

@@ -9,17 +9,9 @@ import { captureAttributionFromLocation } from "@/lib/attribution";
 import AnalyticsController from "@/components/AnalyticsController";
 import RouteRobotsPolicy from "@/components/RouteRobotsPolicy";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import CityProductPage from "./pages/CityProductPage";
-import ProductHubPage from "./pages/ProductHubPage";
-import TradeShowDirectory from "./pages/TradeShowDirectory";
-import TradeShowDetail from "./pages/TradeShowDetail";
-import NotFound from "./pages/NotFound";
 // DISABLED: Popup promo flow replaced with static NEW20 code in PromoBanner
 // import { PromoPopup } from "@/components/PromoPopup";
 // import { usePromoPopup } from "@/hooks/usePromoPopup";
-
-// Critical path - load immediately for homepage
-import Index from "./pages/Index";
 
 // Loading fallback component
 const PageLoader = () => (
@@ -28,7 +20,10 @@ const PageLoader = () => (
   </div>
 );
 
-// Lazy load non-critical routes
+// Route-level splitting is important even for the homepage: paid-design traffic
+// must not download homepage, city-page, trade-show, and blog dependencies before
+// its configurator can render.
+const Index = lazy(() => import("./pages/Index"));
 const Design = lazy(() => import("./pages/Design"));
 // DesignEditor route removed — redirects to /design
 const DesignComplete = lazy(() => import("./pages/DesignComplete"));
@@ -65,6 +60,11 @@ const BlogTagPage = lazy(() => import("./pages/BlogTagPage"));
 
 // Category/SEO pages - lazy load
 const CategoryPage = lazy(() => import("./pages/CategoryPage"));
+const CityProductPage = lazy(() => import("./pages/CityProductPage"));
+const ProductHubPage = lazy(() => import("./pages/ProductHubPage"));
+const TradeShowDirectory = lazy(() => import("./pages/TradeShowDirectory"));
+const TradeShowDetail = lazy(() => import("./pages/TradeShowDetail"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Google Ads landing page - lazy load
 const GoogleAdsBanner = lazy(() => import("./pages/GoogleAdsBanner"));

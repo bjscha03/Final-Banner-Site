@@ -17,8 +17,8 @@ const managedTagPatterns = [
   /\s*<script\b(?=[^>]*\btype=["']application\/ld\+json["'])[^>]*>[\s\S]*?<\/script>/gi,
 ];
 
-function makeDocument(url) {
-  const rendered = render(url);
+async function makeDocument(url) {
+  const rendered = await render(url);
   let html = template;
   for (const pattern of managedTagPatterns) html = html.replace(pattern, '');
   html = html.replace('<html lang="en">', `<html lang="en" data-prerendered="true"${rendered.htmlAttributes ? ` ${rendered.htmlAttributes}` : ''}>`);
@@ -31,10 +31,10 @@ function makeDocument(url) {
 for (const route of prerenderRoutes) {
   const outputDir = path.join(distDir, route.slice(1));
   await mkdir(outputDir, { recursive: true });
-  await writeFile(path.join(outputDir, 'index.html'), makeDocument(route), 'utf8');
+  await writeFile(path.join(outputDir, 'index.html'), await makeDocument(route), 'utf8');
 }
 
-await writeFile(path.join(distDir, '404.html'), makeDocument('/__not-found__'), 'utf8');
+await writeFile(path.join(distDir, '404.html'), await makeDocument('/__not-found__'), 'utf8');
 
 const allowedLocalUrls = new Set(indexablePrerenderRoutes.map((route) => `https://bannersonthefly.com${route}`));
 const sitemapPath = path.join(distDir, 'sitemap.xml');

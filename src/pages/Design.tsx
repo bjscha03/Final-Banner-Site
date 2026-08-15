@@ -16,7 +16,7 @@ import {
 import { resolvePromo } from '@/lib/promoEngine';
 import { useToast } from '@/components/ui/use-toast';
 import { generateFinalRenderFromHTML } from '@/utils/generateFinalRenderFromHTML';
-import { renderPdfToDataUrl, type PdfPreviewResult } from '@/utils/pdf/renderPdfToDataUrl';
+import type { PdfPreviewResult } from '@/utils/pdf/renderPdfToDataUrl';
 import { validateProductConfiguration, type ProductTypeSlug } from '@/lib/products';
 import { getConfiguratorProductQuery, parseConfiguratorProductQuery } from '@/lib/configurator';
 import ProductTypeSwitcher from '@/components/design/ProductTypeSwitcher';
@@ -1137,6 +1137,9 @@ const Design: React.FC = () => {
   }), []);
 
   const generateValidatedPdfPreview = useCallback(async (file: File, correlationId: string) => {
+    // PDF.js is hundreds of kilobytes. Load it only after a customer actually
+    // selects a PDF instead of making every mobile designer visit pay the cost.
+    const { renderPdfToDataUrl } = await import('@/utils/pdf/renderPdfToDataUrl');
     const preview = await renderPdfToDataUrl(file, {
       scale: 2,
       deviceScale: typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1,
