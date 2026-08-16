@@ -13,6 +13,16 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "fence-banners-design-permitting-guide": {
+    title: "Fence Banners: How to Measure, Design, and Hang Them Securely",
+    description: "Plan fence banners with a step-by-step measuring method, vinyl-versus-mesh guidance, artwork tips, mounting checks, and a practical installation workflow.",
+    image: "https://bannersonthefly.com/images/blog/fence-banners-design-permitting-guide.webp"
+  },
+  "farmers-market-banner-ideas": {
+    title: "Farmers Market Banner Ideas: Build a Clear Booth Signage Plan",
+    description: "Plan farmers market banners for booth identity, products, prices, payment details, and wayfinding with practical sizing, design, placement, and setup tips.",
+    image: "https://bannersonthefly.com/images/blog/farmers-market-banner-ideas.webp"
+  },
   "banner-vs-yard-sign": {
     title: "Banner vs. Yard Sign: Which Format Fits Your Message?",
     description: "Compare banners vs. yard signs by placement, message, viewing angle, quantity, installation, and reuse so you can choose the right sign format for the job.",
