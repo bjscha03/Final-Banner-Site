@@ -189,7 +189,7 @@ function buildMarketingEmail({ order, customerEmail, from, replyTo, unsubscribeU
   const safeSiteUrl = escapeHtml(siteUrl);
   const safeLogoUrl = escapeHtml(logoUrl);
   const safeUnsubscribeUrl = escapeHtml(unsubscribeUrl);
-  const postalAddress = String(envValue('MARKETING_POSTAL_ADDRESS') || '').trim();
+  const postalAddress = String(envValue('MARKETING_POSTAL_ADDRESS') || envValue('OUTBOUND_PHYSICAL_ADDRESS') || '').trim();
   const postalHtml = postalAddress
     ? `<div style="margin-top:7px;">${escapeHtml(postalAddress)}</div>`
     : '';
@@ -344,17 +344,6 @@ async function sendWithRetry(resend, payload, maxAttempts = 3) {
 }
 
 async function claimAttempt(sql, { orderId, customerEmail, adminIdentifier, unsubscribeTokenHash }) {
-  await sql`
-    UPDATE past_customer_marketing_sends
-       SET status = 'failed',
-           failure_reason = COALESCE(failure_reason, 'Sending attempt expired before completion'),
-           updated_at = NOW()
-     WHERE campaign_key = ${CAMPAIGN_KEY}
-       AND normalized_email = ${customerEmail}
-       AND status = 'sending'
-       AND requested_at < NOW() - INTERVAL '10 minutes'
-  `;
-
   let rows = await sql`
     INSERT INTO past_customer_marketing_sends (
       campaign_key, order_id, recipient_email, normalized_email, status,
