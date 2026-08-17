@@ -12,21 +12,26 @@ const TOKEN_RE = /^[A-Za-z0-9_-]{32,128}$/;
 const JSON_HEADERS = {
   'Content-Type': 'application/json',
   'Cache-Control': 'no-store',
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
+
+function envValue(name) {
+  try {
+    return globalThis.Netlify?.env?.get?.(name);
+  } catch {
+    return undefined;
+  }
+}
 
 function jsonResponse(statusCode, payload) {
   return { statusCode, headers: JSON_HEADERS, body: JSON.stringify(payload) };
 }
 
 function getDbUrl() {
-  return process.env.NETLIFY_DATABASE_URL || process.env.VITE_DATABASE_URL || process.env.DATABASE_URL || process.env.NEON_DATABASE_URL;
+  return envValue('NETLIFY_DATABASE_URL') || envValue('VITE_DATABASE_URL') || envValue('DATABASE_URL') || envValue('NEON_DATABASE_URL');
 }
 
 function getSiteUrl() {
-  const raw = String(process.env.PUBLIC_SITE_URL || DEFAULT_SITE_URL).trim();
+  const raw = String(envValue('PUBLIC_SITE_URL') || DEFAULT_SITE_URL).trim();
   try {
     const parsed = new URL(raw);
     return parsed.protocol === 'https:' ? parsed.origin : DEFAULT_SITE_URL;
@@ -184,7 +189,7 @@ function buildMarketingEmail({ order, customerEmail, from, replyTo, unsubscribeU
   const safeSiteUrl = escapeHtml(siteUrl);
   const safeLogoUrl = escapeHtml(logoUrl);
   const safeUnsubscribeUrl = escapeHtml(unsubscribeUrl);
-  const postalAddress = String(process.env.MARKETING_POSTAL_ADDRESS || '').trim();
+  const postalAddress = String(envValue('MARKETING_POSTAL_ADDRESS') || '').trim();
   const postalHtml = postalAddress
     ? `<div style="margin-top:7px;">${escapeHtml(postalAddress)}</div>`
     : '';
@@ -310,6 +315,11 @@ function buildMarketingEmail({ order, customerEmail, from, replyTo, unsubscribeU
       'List-Unsubscribe': `<${unsubscribeUrl}>`,
       'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
     },
+    tags: [
+      { name: 'type', value: 'past_customer_marketing' },
+      { name: 'campaign', value: CAMPAIGN_KEY },
+      { name: 'order_id', value: String(order?.id || '') },
+    ],
   };
 }
 
@@ -411,7 +421,8 @@ async function sendHandler(event) {
 
   const dbUrl = getDbUrl();
   if (!dbUrl) return jsonResponse(500, { ok: false, code: 'DATABASE_NOT_CONFIGURED', error: 'Database configuration is missing.' });
-  if (!process.env.RESEND_API_KEY) return jsonResponse(500, { ok: false, code: 'EMAIL_NOT_CONFIGURED', error: 'Email configuration is missing.' });
+  const resendApiKey = envValue('RESEND_API_KEY');
+  if (!resendApiKey) return jsonResponse(500, { ok: false, code: 'EMAIL_NOT_CONFIGURED', error: 'Email configuration is missing.' });
 
   const sql = neon(dbUrl);
   let attemptId = null;
@@ -463,12 +474,12 @@ async function sendHandler(event) {
     }
     attemptId = claimed.attemptId;
 
-    const fromRaw = process.env.MARKETING_FROM_EMAIL || process.env.RESEND_FROM_EMAIL || process.env.EMAIL_FROM || process.env.FROM_EMAIL || 'orders@bannersonthefly.com';
+    const fromRaw = envValue('MARKETING_FROM_EMAIL') || envValue('RESEND_FROM_EMAIL') || envValue('EMAIL_FROM') || envValue('FROM_EMAIL') || 'orders@bannersonthefly.com';
     const from = fromRaw.includes('<') ? fromRaw : `Banners On The Fly <${fromRaw}>`;
-    const replyTo = process.env.MARKETING_REPLY_TO || process.env.EMAIL_REPLY_TO || 'support@bannersonthefly.com';
+    const replyTo = envValue('MARKETING_REPLY_TO') || envValue('EMAIL_REPLY_TO') || 'support@bannersonthefly.com';
     const unsubscribeUrl = buildUnsubscribeUrl(unsubscribeToken);
     const payload = buildMarketingEmail({ order, customerEmail, from, replyTo, unsubscribeUrl });
-    const resend = new Resend(process.env.RESEND_API_KEY);
+    const resend = new Resend(resendApiKey);
     const result = await sendWithRetry(resend, payload);
     const messageId = result.data.id;
 
