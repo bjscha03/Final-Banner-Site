@@ -1,6 +1,7 @@
 import { createRequire } from 'module';
+import { withLambda } from '@netlify/aws-lambda-compat';
 
 const require = createRequire(import.meta.url);
 const { unsubscribeHandler } = require('./_shared/past-customer-marketing.cjs');
 
-export const handler = unsubscribeHandler;
+export default withLambda(unsubscribeHandler);
