@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useLayoutEffect, useRef } from 'react';
 import StepHeader from './StepHeader';
 
 export interface ConfigCardProps {
@@ -16,9 +16,6 @@ export interface ConfigCardProps {
  * White card wrapper used by the redesigned configurator. Renders an
  * optional numbered StepHeader at the top, followed by the children
  * inside a soft-bordered, rounded, lightly-shadowed card.
- *
- * Pure presentational — no state, no business logic. Existing handlers
- * and form controls are passed in as `children` unmodified.
  */
 export default function ConfigCard({
   step,
@@ -29,8 +26,51 @@ export default function ConfigCard({
   id,
   children,
 }: ConfigCardProps) {
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const appliedBannerDefaultRef = useRef(false);
+
+  useLayoutEffect(() => {
+    if (id !== 'size-section' || !sectionRef.current) return;
+
+    const presetButtons = Array.from(sectionRef.current.querySelectorAll<HTMLButtonElement>('button'));
+    const popularButton = presetButtons.find((button) => {
+      const label = (button.textContent || '').replace(/\s+/g, ' ').trim();
+      return label === "6' × 3'" || label === '72" × 36"';
+    });
+
+    if (!popularButton) return;
+
+    // Keep the badge purely visual so existing pricing, cart and input logic remain untouched.
+    popularButton.classList.add(
+      'relative',
+      "before:content-['MOST_POPULAR']",
+      'before:absolute',
+      'before:-top-2.5',
+      'before:left-1/2',
+      'before:-translate-x-1/2',
+      'before:whitespace-nowrap',
+      'before:rounded-full',
+      'before:bg-orange-500',
+      'before:px-1.5',
+      'before:py-0.5',
+      'before:text-[9px]',
+      'before:font-bold',
+      'before:leading-none',
+      'before:text-white',
+      'before:shadow-sm',
+      'before:z-10',
+    );
+
+    // Do not overwrite an existing cart item's saved dimensions while editing.
+    if (appliedBannerDefaultRef.current || new URLSearchParams(window.location.search).has('editItem')) return;
+
+    appliedBannerDefaultRef.current = true;
+    popularButton.click();
+  });
+
   return (
     <section
+      ref={sectionRef}
       id={id}
       className={`bg-white border border-[#E5E7EB] rounded-xl shadow-sm p-4 md:p-6 scroll-mt-32 md:scroll-mt-24 ${className ?? ''}`}
     >
