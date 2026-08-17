@@ -1,23 +1,20 @@
 /*
  * /design visual-only layout pass.
  *
- * IMPORTANT: This stylesheet intentionally changes presentation only. The
- * configurator's existing React components, handlers, pricing engines, upload
- * flow, artwork editor, validation, checkout, cart and mobile subtotal logic
- * remain untouched.
+ * Presentation only. No pricing, option state, upload, artwork editor,
+ * validation, cart, checkout, delivery or mobile subtotal logic is changed.
  */
 
 :root {
   --designer-navy: #061a31;
-  --designer-navy-soft: #0b2b50;
   --designer-orange: #f45b08;
-  --designer-canvas: #eef2f7;
+  --designer-canvas: #eef3f8;
   --designer-card: #ffffff;
-  --designer-border: #d7dee8;
-  --designer-border-strong: #bcc9d8;
+  --designer-border: #d8e0ea;
+  --designer-border-strong: #bdcad9;
 }
 
-/* ---------- Hero: preserve content/actions, reduce the distance to the builder ---------- */
+/* ---------- Hero: keep the approved hero, shorten the runway to the builder ---------- */
 [data-design-page-hero] > .relative.z-10 {
   min-height: 0 !important;
   padding-top: 2.2rem !important;
@@ -51,48 +48,59 @@
   }
 }
 
-/* ---------- Builder canvas ---------- */
+/* ---------- Builder shell ---------- */
 #order-builder {
+  overflow-x: clip;
   background:
-    radial-gradient(circle at 50% 0, rgba(255, 255, 255, 0.96), transparent 38rem),
+    radial-gradient(circle at 50% 0, rgba(255,255,255,.98), transparent 40rem),
     var(--designer-canvas) !important;
-  border-top: 1px solid #d9e1eb;
-  padding: 1.65rem 1rem 3rem !important;
+  border-top: 1px solid #d9e2ec;
+  padding: 1.7rem 1rem 3.5rem !important;
 }
 
 #order-builder > div {
+  width: 100%;
   max-width: 1540px !important;
+  min-width: 0;
 }
 
 #order-builder #builder-start {
-  margin: 1.15rem 0 1.5rem !important;
+  margin: 1.1rem 0 1.55rem !important;
   color: var(--designer-navy) !important;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
 }
 
-/* Every configurator section becomes a deliberately separate surface. */
+#order-builder .grid,
+#order-builder .space-y-6,
+#order-builder [id$="-section"],
+#order-builder [data-testid="price-breakdown"] {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Clear, separate cards instead of one continuous white slab. */
 #order-builder [id$="-section"] {
   border: 1px solid var(--designer-border) !important;
-  border-radius: 14px !important;
-  background: rgba(255, 255, 255, 0.99) !important;
+  border-radius: 15px !important;
+  background: var(--designer-card) !important;
   box-shadow:
-    0 1px 2px rgba(6, 26, 49, 0.05),
-    0 8px 22px rgba(6, 26, 49, 0.065) !important;
+    0 1px 2px rgba(6,26,49,.04),
+    0 10px 26px rgba(6,26,49,.075) !important;
 }
 
 #order-builder [id$="-section"]:focus-within {
-  border-color: #9eb3ca !important;
+  border-color: #9fb2c8 !important;
   box-shadow:
-    0 0 0 3px rgba(11, 43, 80, 0.055),
-    0 10px 26px rgba(6, 26, 49, 0.085) !important;
+    0 0 0 3px rgba(6,26,49,.045),
+    0 12px 30px rgba(6,26,49,.09) !important;
 }
 
-/* The live-artwork surface is the visual center of gravity. */
+/* Main artwork card gets a restrained navy cap. */
 #order-builder #upload-section {
   border-color: var(--designer-border-strong) !important;
   box-shadow:
-    0 2px 4px rgba(6, 26, 49, 0.06),
-    0 14px 38px rgba(6, 26, 49, 0.105) !important;
+    0 2px 4px rgba(6,26,49,.05),
+    0 16px 38px rgba(6,26,49,.10) !important;
 }
 
 #order-builder #upload-section::before {
@@ -100,17 +108,31 @@
   display: block;
   height: 4px;
   margin: -1rem -1rem 1rem;
-  border-radius: 14px 14px 0 0;
-  background: linear-gradient(90deg, var(--designer-navy), #124a83);
+  border-radius: 15px 15px 0 0;
+  background: var(--designer-navy);
 }
 
 @media (min-width: 768px) {
   #order-builder #upload-section::before {
-    margin: -1.5rem -1.5rem 1.25rem;
+    margin: -1.5rem -1.5rem 1.2rem;
   }
 }
 
-/* Keep controls feeling intentional without changing any hit areas or handlers. */
+/* Size card: do not make Popular Sizes + Custom Size fight for a narrow rail. */
+@media (min-width: 1280px) {
+  #size-section > .mt-4 > .grid {
+    display: block !important;
+  }
+
+  #size-section > .mt-4 > .grid > div + div {
+    margin-top: 1rem !important;
+  }
+
+  #size-section input {
+    min-width: 0 !important;
+  }
+}
+
 #order-builder button,
 #order-builder input,
 #order-builder select {
@@ -120,24 +142,24 @@
 #order-builder input:focus,
 #order-builder select:focus,
 #order-builder button:focus-visible {
-  outline: 2px solid rgba(11, 43, 80, 0.35);
+  outline: 2px solid rgba(11,43,80,.33);
   outline-offset: 2px;
 }
 
-/* ---------- Desktop: settings / live preview / order summary ----------
- * The first existing wrapper uses display:contents so its exact existing
- * ConfigCard children become grid items. Nothing is moved in React and no
- * callbacks/state are changed.
+/* ---------- Large desktop ----------
+ * Existing React order and handlers remain untouched. display:contents lets
+ * the existing ConfigCards participate in a cleaner CSS grid.
+ *
+ *  setup       artwork workspace       purchase rail
+ *  steps 1-3   upload/live preview     summary
+ *  finishing options span setup + artwork below
  */
-@media (min-width: 1180px) {
+@media (min-width: 1280px) {
   #order-builder .grid:has(> .space-y-6:first-child > #size-section) {
     display: grid !important;
-    grid-template-columns:
-      minmax(275px, 0.76fr)
-      minmax(500px, 1.55fr)
-      minmax(310px, 0.88fr) !important;
-    grid-template-rows: auto auto auto auto auto !important;
-    gap: 16px 20px !important;
+    grid-template-columns: 360px minmax(0, 1fr) 380px !important;
+    grid-template-rows: auto auto auto auto !important;
+    gap: 18px 20px !important;
     align-items: start !important;
   }
 
@@ -149,36 +171,36 @@
     margin-top: 0 !important;
   }
 
-  #order-builder #size-section {
+  #size-section {
     grid-column: 1;
     grid-row: 1;
   }
 
-  #order-builder #material-section {
+  #material-section {
     grid-column: 1;
     grid-row: 2;
   }
 
-  #order-builder #quantity-section {
+  #quantity-section {
     grid-column: 1;
     grid-row: 3;
   }
 
-  #order-builder #options-section {
-    grid-column: 1;
-    grid-row: 4;
-  }
-
-  #order-builder #upload-section {
+  #upload-section {
     grid-column: 2;
-    grid-row: 1 / span 6;
+    grid-row: 1 / span 3;
     align-self: start;
-    position: sticky;
-    top: 6rem;
-    min-height: 28rem;
+    position: relative !important;
+    top: auto !important;
   }
 
-  /* Car magnets do not render a separate material section. Collapse the gap. */
+  #options-section {
+    grid-column: 1 / span 2;
+    grid-row: 4;
+    align-self: start;
+  }
+
+  /* Car magnets have no separate material step. */
   #order-builder .grid:has(> .space-y-6:first-child > #size-section):not(:has(#material-section)) #quantity-section {
     grid-row: 2;
   }
@@ -187,50 +209,176 @@
     grid-row: 3;
   }
 
+  #order-builder .grid:has(> .space-y-6:first-child > #size-section):not(:has(#material-section)) #upload-section {
+    grid-row: 1 / span 2;
+  }
+
+  /* The purchase rail stays visible but is never allowed to widen the page. */
   #order-builder .grid:has(> .space-y-6:first-child > #size-section) > .space-y-6:last-child {
     grid-column: 3;
-    grid-row: 1 / span 6;
+    grid-row: 1 / span 4;
+    width: 100%;
+    min-width: 0;
+    max-width: 380px;
     align-self: start;
     position: sticky !important;
     top: 6rem !important;
     margin: 0 !important;
     padding: 1rem;
+    overflow: hidden;
     border: 1px solid var(--designer-border);
-    border-radius: 14px;
+    border-radius: 15px;
     background: #fff;
     box-shadow:
-      0 2px 4px rgba(6, 26, 49, 0.06),
-      0 14px 38px rgba(6, 26, 49, 0.09);
+      0 2px 4px rgba(6,26,49,.05),
+      0 15px 36px rgba(6,26,49,.09);
   }
 
   #order-builder .grid:has(> .space-y-6:first-child > #size-section) > .space-y-6:last-child::before {
     content: "Order summary";
     display: block;
-    margin: -0.1rem 0 0.8rem;
-    padding-bottom: 0.8rem;
-    border-bottom: 1px solid #e3e8ef;
+    margin: 0 0 .75rem;
+    padding: 0 0 .75rem;
+    border-bottom: 1px solid #e2e8f0;
     color: var(--designer-navy);
-    font-size: 0.76rem;
+    font-size: .72rem;
+    font-weight: 850;
     line-height: 1;
-    font-weight: 800;
-    letter-spacing: 0.08em;
+    letter-spacing: .09em;
     text-transform: uppercase;
   }
 
   #order-builder .grid:has(> .space-y-6:first-child > #size-section) > .space-y-6:last-child > :not([hidden]) ~ :not([hidden]) {
-    margin-top: 0.85rem !important;
+    margin-top: .8rem !important;
+  }
+
+  /* Finish options become three clean choice cards across the wide section.
+     This fixes the giant/cropped product images caused by putting the original
+     desktop FinishingCard inside a 300px sidebar. */
+  #options-section > .mt-4 > .space-y-3 {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  #options-section > .mt-4 > .space-y-3 > div {
+    margin-top: 0 !important;
+    min-width: 0;
+  }
+
+  #options-section > .mt-4 > .space-y-3 > div:first-child,
+  #options-section > .mt-4 > .space-y-3 > div:last-child {
+    grid-column: 1 / -1;
+  }
+
+  #options-section > .mt-4 > .space-y-3 > div:nth-child(2),
+  #options-section > .mt-4 > .space-y-3 > div:nth-child(3),
+  #options-section > .mt-4 > .space-y-3 > div:nth-child(4) {
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 238px;
+    overflow: hidden;
+  }
+
+  /* text block */
+  #options-section > .mt-4 > .space-y-3 > div:nth-child(2) > div:first-child,
+  #options-section > .mt-4 > .space-y-3 > div:nth-child(3) > div:first-child,
+  #options-section > .mt-4 > .space-y-3 > div:nth-child(4) > div:first-child {
+    order: 2 !important;
+    padding: .9rem !important;
+  }
+
+  /* image/callout block */
+  #options-section > .mt-4 > .space-y-3 > div:nth-child(2) > div:nth-child(2),
+  #options-section > .mt-4 > .space-y-3 > div:nth-child(3) > div:nth-child(2),
+  #options-section > .mt-4 > .space-y-3 > div:nth-child(4) > div:nth-child(2) {
+    order: 1 !important;
+    display: block !important;
+    width: 100% !important;
+    height: 112px !important;
+    flex: 0 0 112px !important;
+  }
+
+  #options-section > .mt-4 > .space-y-3 > div:nth-child(2) > div:nth-child(2) > div:first-child,
+  #options-section > .mt-4 > .space-y-3 > div:nth-child(3) > div:nth-child(2) > div:first-child,
+  #options-section > .mt-4 > .space-y-3 > div:nth-child(4) > div:nth-child(2) > div:first-child {
+    width: 100% !important;
+    height: 112px !important;
+  }
+
+  #options-section > .mt-4 > .space-y-3 > div:nth-child(2) > div:nth-child(2) > div:first-child img,
+  #options-section > .mt-4 > .space-y-3 > div:nth-child(3) > div:nth-child(2) > div:first-child img,
+  #options-section > .mt-4 > .space-y-3 > div:nth-child(4) > div:nth-child(2) > div:first-child img {
+    position: static !important;
+    inset: auto !important;
+    display: block;
+    width: 100% !important;
+    height: 112px !important;
+    padding: 0 !important;
+    object-fit: cover !important;
+  }
+
+  /* tiny annotated zoom callout is redundant in the compact cards */
+  #options-section > .mt-4 > .space-y-3 > div:nth-child(2) > div:nth-child(2) > div:last-child,
+  #options-section > .mt-4 > .space-y-3 > div:nth-child(3) > div:nth-child(2) > div:last-child,
+  #options-section > .mt-4 > .space-y-3 > div:nth-child(4) > div:nth-child(2) > div:last-child {
+    display: none !important;
   }
 }
 
-/* ---------- Right-rail pricing: same data/inputs, calmer presentation ---------- */
+/* ---------- Standard laptop ----------
+ * Keep a generous builder column and a stable summary rail. The original
+ * controls stay in their natural order; no display:contents trick here.
+ */
+@media (min-width: 1024px) and (max-width: 1279px) {
+  #order-builder .grid:has(> .space-y-6:first-child > #size-section) {
+    grid-template-columns: minmax(0, 1fr) 350px !important;
+    gap: 20px !important;
+    align-items: start !important;
+  }
+
+  #order-builder .grid:has(> .space-y-6:first-child > #size-section) > .space-y-6:last-child {
+    min-width: 0;
+    width: 100%;
+    position: sticky !important;
+    top: 6rem !important;
+  }
+}
+
+/* Tablet gets one comfortable column instead of two squeezed columns. */
+@media (min-width: 768px) and (max-width: 1023px) {
+  #order-builder .grid:has(> .space-y-6:first-child > #size-section) {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 1.25rem !important;
+  }
+
+  #order-builder .grid:has(> .space-y-6:first-child > #size-section) > .space-y-6:last-child {
+    position: static !important;
+  }
+}
+
+/* ---------- Pricing rail: same calculations/data, contained presentation ---------- */
 #order-builder [data-testid="price-breakdown"] {
-  border-color: #d7dee8 !important;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  border-color: #d7e0e9 !important;
   border-radius: 12px !important;
   box-shadow: none !important;
 }
 
 #order-builder [data-testid="price-breakdown"] > div {
+  min-width: 0;
   padding: 1rem !important;
+}
+
+#order-builder [data-testid="price-breakdown"] * {
+  max-width: 100%;
+}
+
+#order-builder [data-testid="price-breakdown"] p,
+#order-builder [data-testid="price-breakdown"] span {
+  overflow-wrap: anywhere;
 }
 
 #order-builder [data-testid="price-breakdown"] .text-4xl {
@@ -240,24 +388,13 @@
 }
 
 #order-builder [data-testid="price-breakdown"] .mb-6 {
-  margin-bottom: 0.9rem !important;
+  margin-bottom: .9rem !important;
 }
 
-/* ---------- Tablet/mobile: preserve the existing logical DOM order ---------- */
-@media (max-width: 1179px) {
-  #order-builder .grid:has(> .space-y-6:first-child > #size-section) {
-    grid-template-columns: minmax(0, 1fr) !important;
-    gap: 1rem !important;
-  }
-
-  #order-builder .grid:has(> .space-y-6:first-child > #size-section) > .space-y-6 {
-    margin: 0 !important;
-  }
-}
-
+/* ---------- Mobile ---------- */
 @media (max-width: 767px) {
   #order-builder {
-    padding: 1rem 0.75rem 6.5rem !important;
+    padding: 1rem .75rem 6.5rem !important;
   }
 
   #order-builder #builder-start {
@@ -266,12 +403,17 @@
     font-size: 1.4rem !important;
   }
 
+  #order-builder .grid:has(> .space-y-6:first-child > #size-section) {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 1rem !important;
+  }
+
   #order-builder [id$="-section"] {
     padding: 1rem !important;
     border-radius: 12px !important;
     box-shadow:
-      0 1px 2px rgba(6, 26, 49, 0.05),
-      0 7px 18px rgba(6, 26, 49, 0.07) !important;
+      0 1px 2px rgba(6,26,49,.04),
+      0 7px 18px rgba(6,26,49,.07) !important;
   }
 
   #order-builder #upload-section::before {
@@ -279,10 +421,10 @@
   }
 
   #order-builder .space-y-6 > :not([hidden]) ~ :not([hidden]) {
-    margin-top: 0.85rem !important;
+    margin-top: .9rem !important;
   }
 
   #order-builder [data-testid="price-breakdown"] > div {
-    padding: 0.9rem !important;
+    padding: .9rem !important;
   }
 }
