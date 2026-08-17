@@ -1,0 +1,288 @@
+/*
+ * /design visual-only layout pass.
+ *
+ * IMPORTANT: This stylesheet intentionally changes presentation only. The
+ * configurator's existing React components, handlers, pricing engines, upload
+ * flow, artwork editor, validation, checkout, cart and mobile subtotal logic
+ * remain untouched.
+ */
+
+:root {
+  --designer-navy: #061a31;
+  --designer-navy-soft: #0b2b50;
+  --designer-orange: #f45b08;
+  --designer-canvas: #eef2f7;
+  --designer-card: #ffffff;
+  --designer-border: #d7dee8;
+  --designer-border-strong: #bcc9d8;
+}
+
+/* ---------- Hero: preserve content/actions, reduce the distance to the builder ---------- */
+[data-design-page-hero] > .relative.z-10 {
+  min-height: 0 !important;
+  padding-top: 2.2rem !important;
+  padding-bottom: 2.2rem !important;
+}
+
+[data-design-page-hero] .homepage-condensed {
+  font-size: clamp(3rem, 5.6vw, 5.2rem) !important;
+  line-height: 0.86 !important;
+}
+
+@media (min-width: 1024px) {
+  [data-design-page-hero] > picture.absolute {
+    width: 53% !important;
+    opacity: 0.94;
+  }
+
+  [data-design-page-hero] > .relative.z-10 > div {
+    width: 48% !important;
+    max-width: 650px !important;
+  }
+}
+
+@media (max-width: 767px) {
+  [data-design-page-hero] > .relative.z-10 {
+    padding: 1.55rem 1rem !important;
+  }
+
+  [data-design-page-hero] .homepage-condensed {
+    font-size: clamp(2.65rem, 14vw, 4rem) !important;
+  }
+}
+
+/* ---------- Builder canvas ---------- */
+#order-builder {
+  background:
+    radial-gradient(circle at 50% 0, rgba(255, 255, 255, 0.96), transparent 38rem),
+    var(--designer-canvas) !important;
+  border-top: 1px solid #d9e1eb;
+  padding: 1.65rem 1rem 3rem !important;
+}
+
+#order-builder > div {
+  max-width: 1540px !important;
+}
+
+#order-builder #builder-start {
+  margin: 1.15rem 0 1.5rem !important;
+  color: var(--designer-navy) !important;
+  letter-spacing: -0.02em;
+}
+
+/* Every configurator section becomes a deliberately separate surface. */
+#order-builder [id$="-section"] {
+  border: 1px solid var(--designer-border) !important;
+  border-radius: 14px !important;
+  background: rgba(255, 255, 255, 0.99) !important;
+  box-shadow:
+    0 1px 2px rgba(6, 26, 49, 0.05),
+    0 8px 22px rgba(6, 26, 49, 0.065) !important;
+}
+
+#order-builder [id$="-section"]:focus-within {
+  border-color: #9eb3ca !important;
+  box-shadow:
+    0 0 0 3px rgba(11, 43, 80, 0.055),
+    0 10px 26px rgba(6, 26, 49, 0.085) !important;
+}
+
+/* The live-artwork surface is the visual center of gravity. */
+#order-builder #upload-section {
+  border-color: var(--designer-border-strong) !important;
+  box-shadow:
+    0 2px 4px rgba(6, 26, 49, 0.06),
+    0 14px 38px rgba(6, 26, 49, 0.105) !important;
+}
+
+#order-builder #upload-section::before {
+  content: "";
+  display: block;
+  height: 4px;
+  margin: -1rem -1rem 1rem;
+  border-radius: 14px 14px 0 0;
+  background: linear-gradient(90deg, var(--designer-navy), #124a83);
+}
+
+@media (min-width: 768px) {
+  #order-builder #upload-section::before {
+    margin: -1.5rem -1.5rem 1.25rem;
+  }
+}
+
+/* Keep controls feeling intentional without changing any hit areas or handlers. */
+#order-builder button,
+#order-builder input,
+#order-builder select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+#order-builder input:focus,
+#order-builder select:focus,
+#order-builder button:focus-visible {
+  outline: 2px solid rgba(11, 43, 80, 0.35);
+  outline-offset: 2px;
+}
+
+/* ---------- Desktop: settings / live preview / order summary ----------
+ * The first existing wrapper uses display:contents so its exact existing
+ * ConfigCard children become grid items. Nothing is moved in React and no
+ * callbacks/state are changed.
+ */
+@media (min-width: 1180px) {
+  #order-builder .grid:has(> .space-y-6:first-child > #size-section) {
+    display: grid !important;
+    grid-template-columns:
+      minmax(275px, 0.76fr)
+      minmax(500px, 1.55fr)
+      minmax(310px, 0.88fr) !important;
+    grid-template-rows: auto auto auto auto auto !important;
+    gap: 16px 20px !important;
+    align-items: start !important;
+  }
+
+  #order-builder .grid:has(> .space-y-6:first-child > #size-section) > .space-y-6:first-child {
+    display: contents !important;
+  }
+
+  #order-builder .grid:has(> .space-y-6:first-child > #size-section) > .space-y-6:first-child > * {
+    margin-top: 0 !important;
+  }
+
+  #order-builder #size-section {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  #order-builder #material-section {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  #order-builder #quantity-section {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  #order-builder #options-section {
+    grid-column: 1;
+    grid-row: 4;
+  }
+
+  #order-builder #upload-section {
+    grid-column: 2;
+    grid-row: 1 / span 6;
+    align-self: start;
+    position: sticky;
+    top: 6rem;
+    min-height: 28rem;
+  }
+
+  /* Car magnets do not render a separate material section. Collapse the gap. */
+  #order-builder .grid:has(> .space-y-6:first-child > #size-section):not(:has(#material-section)) #quantity-section {
+    grid-row: 2;
+  }
+
+  #order-builder .grid:has(> .space-y-6:first-child > #size-section):not(:has(#material-section)) #options-section {
+    grid-row: 3;
+  }
+
+  #order-builder .grid:has(> .space-y-6:first-child > #size-section) > .space-y-6:last-child {
+    grid-column: 3;
+    grid-row: 1 / span 6;
+    align-self: start;
+    position: sticky !important;
+    top: 6rem !important;
+    margin: 0 !important;
+    padding: 1rem;
+    border: 1px solid var(--designer-border);
+    border-radius: 14px;
+    background: #fff;
+    box-shadow:
+      0 2px 4px rgba(6, 26, 49, 0.06),
+      0 14px 38px rgba(6, 26, 49, 0.09);
+  }
+
+  #order-builder .grid:has(> .space-y-6:first-child > #size-section) > .space-y-6:last-child::before {
+    content: "Order summary";
+    display: block;
+    margin: -0.1rem 0 0.8rem;
+    padding-bottom: 0.8rem;
+    border-bottom: 1px solid #e3e8ef;
+    color: var(--designer-navy);
+    font-size: 0.76rem;
+    line-height: 1;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  #order-builder .grid:has(> .space-y-6:first-child > #size-section) > .space-y-6:last-child > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0.85rem !important;
+  }
+}
+
+/* ---------- Right-rail pricing: same data/inputs, calmer presentation ---------- */
+#order-builder [data-testid="price-breakdown"] {
+  border-color: #d7dee8 !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+}
+
+#order-builder [data-testid="price-breakdown"] > div {
+  padding: 1rem !important;
+}
+
+#order-builder [data-testid="price-breakdown"] .text-4xl {
+  font-size: 2rem !important;
+  line-height: 1.05 !important;
+  color: var(--designer-navy) !important;
+}
+
+#order-builder [data-testid="price-breakdown"] .mb-6 {
+  margin-bottom: 0.9rem !important;
+}
+
+/* ---------- Tablet/mobile: preserve the existing logical DOM order ---------- */
+@media (max-width: 1179px) {
+  #order-builder .grid:has(> .space-y-6:first-child > #size-section) {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 1rem !important;
+  }
+
+  #order-builder .grid:has(> .space-y-6:first-child > #size-section) > .space-y-6 {
+    margin: 0 !important;
+  }
+}
+
+@media (max-width: 767px) {
+  #order-builder {
+    padding: 1rem 0.75rem 6.5rem !important;
+  }
+
+  #order-builder #builder-start {
+    margin: 1rem 0 !important;
+    text-align: left !important;
+    font-size: 1.4rem !important;
+  }
+
+  #order-builder [id$="-section"] {
+    padding: 1rem !important;
+    border-radius: 12px !important;
+    box-shadow:
+      0 1px 2px rgba(6, 26, 49, 0.05),
+      0 7px 18px rgba(6, 26, 49, 0.07) !important;
+  }
+
+  #order-builder #upload-section::before {
+    margin: -1rem -1rem 1rem;
+  }
+
+  #order-builder .space-y-6 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0.85rem !important;
+  }
+
+  #order-builder [data-testid="price-breakdown"] > div {
+    padding: 0.9rem !important;
+  }
+}
