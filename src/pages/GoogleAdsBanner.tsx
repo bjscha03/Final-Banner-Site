@@ -433,7 +433,7 @@ const GoogleAdsBanner: React.FC = () => {
     activePdfPreviewCleanupRef.current = null;
   }, []);
   const [uploadError, setUploadError] = useState('');
-  const [activePreset, setActivePreset] = useState<number | null>(0);
+  const [activePreset, setActivePreset] = useState<number | null>(null);
   const [quantity, setQuantity] = useState(initialProductType === 'yard_sign' ? 10 : 1);
   const storedPromoAtLoad = useCartStore.getState().discountCode;
   const [promoCode, setPromoCode] = useState(storedPromoAtLoad?.code || 'NEW20');
@@ -746,9 +746,13 @@ const GoogleAdsBanner: React.FC = () => {
   }, [widthIn, heightIn]);
   const { wrapperStyle: previewWrapperStyle, paddingPct: previewPaddingPct } = useMemo(() => getPreviewContainerStyles(isLgScreen ? 480 : 280), [getPreviewContainerStyles, isLgScreen]);
   const { wrapperStyle: dimPreviewWrapperStyle, paddingPct: dimPreviewPaddingPct } = useMemo(() => getPreviewContainerStyles(isLgScreen ? 200 : 140), [getPreviewContainerStyles, isLgScreen]);
+  const hasCommittedBannerSize =
+    isYardSign || isCarMagnet || (hasConfirmedSize && widthIn > 0 && heightIn > 0);
+  const pricingWidthIn = hasCommittedBannerSize ? widthIn : 0;
+  const pricingHeightIn = hasCommittedBannerSize ? heightIn : 0;
   const totals = calcTotals({
-    widthIn,
-    heightIn,
+    widthIn: pricingWidthIn,
+    heightIn: pricingHeightIn,
     qty: quantity,
     material,
     addRope,
@@ -756,8 +760,8 @@ const GoogleAdsBanner: React.FC = () => {
     polePockets,
   });
   const bannerPricing = calculateBannerPricing({
-    widthIn,
-    heightIn,
+    widthIn: pricingWidthIn,
+    heightIn: pricingHeightIn,
     quantity,
     material,
     grommets,
@@ -1988,6 +1992,14 @@ const GoogleAdsBanner: React.FC = () => {
     actionType: 'checkout' | 'cart',
     editorSource: 'inline' | 'modal',
   ): Promise<void> => {
+    if (!isYardSign && !isCarMagnet && !hasCommittedBannerSize) {
+      toast({
+        title: 'Choose a banner size',
+        description: 'Select a standard size or enter custom dimensions before continuing.',
+        variant: 'destructive',
+      });
+      return Promise.resolve();
+    }
     if (actionPreparationRef.current) return actionPreparationRef.current;
     const promise = (async () => {
       setIsProcessingUpsell(true);
@@ -2045,7 +2057,7 @@ const GoogleAdsBanner: React.FC = () => {
     })();
     actionPreparationRef.current = promise;
     return promise;
-  }, [finishingType, hasReviewedOptions, heightIn, isCarMagnet, performCheckout, prepareCurrentPlacementPreview, productType, toast, widthIn]);
+  }, [finishingType, hasCommittedBannerSize, hasReviewedOptions, heightIn, isCarMagnet, isYardSign, performCheckout, prepareCurrentPlacementPreview, productType, toast, widthIn]);
 
   // Proceed directly to checkout only after the actual editor canvas is finalized.
   const handleCheckout = useCallback(() => {
@@ -2932,7 +2944,7 @@ const GoogleAdsBanner: React.FC = () => {
                       what still needs to happen before "Add to Cart" works. */}
                   {!isYardSign && !isCarMagnet && !uploadedFile && (() => {
                     const missing: string[] = [];
-                    if (!widthIn || !heightIn) missing.push('size');
+                    if (!hasCommittedBannerSize) missing.push('size');
                     if (!material) missing.push('material');
                     if (missing.length === 0) return null;
                     return (
@@ -2959,7 +2971,7 @@ const GoogleAdsBanner: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => setAiModalOpen(true)}
-                            disabled={!widthIn || !heightIn || !material || isUploading}
+                            disabled={!hasCommittedBannerSize || !material || isUploading}
                             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-500 text-white text-sm font-semibold shadow-sm hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                           >
                             <Sparkles className="w-4 h-4" />
@@ -3069,7 +3081,7 @@ const GoogleAdsBanner: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => setAiEditModalOpen(true)}
-                            disabled={!widthIn || !heightIn || !material || isUploading}
+                            disabled={!hasCommittedBannerSize || !material || isUploading}
                             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#0b1f3a] text-white text-sm font-semibold shadow-sm hover:bg-[#12345d] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                           >
                             <Sparkles className="w-4 h-4" />
@@ -3193,16 +3205,16 @@ const GoogleAdsBanner: React.FC = () => {
                   }
                 />
 
-                <button onClick={handleCheckout} disabled={!uploadedFile || isUploading || isProcessingUpsell} className={`group w-full font-bold text-lg py-5 rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${uploadedFile && !isUploading && !isProcessingUpsell ? 'bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white cursor-pointer shadow-orange-500/30' : 'bg-orange-300 text-white/80 cursor-not-allowed'}`}>
+                <button onClick={handleCheckout} disabled={!uploadedFile || !hasCommittedBannerSize || isUploading || isProcessingUpsell} className={`group w-full font-bold text-lg py-5 rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${uploadedFile && hasCommittedBannerSize && !isUploading && !isProcessingUpsell ? 'bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white cursor-pointer shadow-orange-500/30' : 'bg-orange-300 text-white/80 cursor-not-allowed'}`}>
                   <Lock className="h-4 w-4" aria-hidden="true" />
                   {isProcessingUpsell ? 'Preparing exact preview…' : 'Review and continue'}
                   <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
                 </button>
                 <button
                   onClick={handleAddToCart}
-                  disabled={!uploadedFile || isUploading || isProcessingUpsell}
+                  disabled={!uploadedFile || !hasCommittedBannerSize || isUploading || isProcessingUpsell}
                   className={`w-full font-semibold text-base py-4 rounded-xl border-2 transition-all duration-200 ${
-                    uploadedFile && !isUploading && !isProcessingUpsell
+                    uploadedFile && hasCommittedBannerSize && !isUploading && !isProcessingUpsell
                       ? 'border-slate-300 text-slate-800 hover:bg-slate-50'
                       : 'border-slate-200 text-slate-400 cursor-not-allowed'
                   }`}

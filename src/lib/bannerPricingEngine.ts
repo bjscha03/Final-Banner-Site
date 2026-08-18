@@ -96,17 +96,24 @@ export const calculateBannerPricing = ({
   const safeHeightIn = Math.max(0, heightIn || 0);
   const safeQuantity = Math.max(1, Math.floor(quantity || 1));
 
+  const hasConfiguredSize = safeWidthIn > 0 && safeHeightIn > 0;
   const areaSqFt = calculateBannerAreaSqFt(safeWidthIn, safeHeightIn);
   const materialRate = MATERIAL_PRICE_MAP[material] ?? MATERIAL_PRICE_MAP['13oz'];
-  const unitBasePriceCents = Math.max(MINIMUM_UNIT_PRICE_CENTS, Math.round(areaSqFt * materialRate * 100));
+  const unitBasePriceCents = hasConfiguredSize
+    ? Math.max(MINIMUM_UNIT_PRICE_CENTS, Math.round(areaSqFt * materialRate * 100))
+    : 0;
   const baseBannerPriceCents = unitBasePriceCents * safeQuantity;
 
-  const ropeLinearFeet = addRope ? getRopeLinearFeet(safeWidthIn, safeHeightIn, ropePlacement) : 0;
+  const ropeLinearFeet = hasConfiguredSize && addRope
+    ? getRopeLinearFeet(safeWidthIn, safeHeightIn, ropePlacement)
+    : 0;
   const ropeCostCents = addRope
     ? Math.round(ropeLinearFeet * safeQuantity * ROPE_PRICE_PER_LINEAR_FOOT_CENTS)
     : 0;
 
-  const polePocketLinearFeet = getPolePocketLinearFeet(safeWidthIn, safeHeightIn, polePockets);
+  const polePocketLinearFeet = hasConfiguredSize
+    ? getPolePocketLinearFeet(safeWidthIn, safeHeightIn, polePockets)
+    : 0;
   const hasPolePockets = polePockets !== 'none' && polePocketLinearFeet > 0;
   const polePocketSetupFeeCents = hasPolePockets ? POLE_POCKET_SETUP_FEE_CENTS : 0;
   const polePocketLinearCostCents = hasPolePockets

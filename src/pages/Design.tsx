@@ -589,7 +589,7 @@ const Design: React.FC = () => {
     activePdfPreviewCleanupRef.current = null;
   }, []);
   const [uploadError, setUploadError] = useState('');
-  const [activePreset, setActivePreset] = useState<number | null>(0);
+  const [activePreset, setActivePreset] = useState<number | null>(null);
   const [quantity, setQuantity] = useState(initialProductType === 'yard_sign' ? 10 : 1);
   const storedPromoAtLoad = useCartStore.getState().discountCode;
   const [promoCode, setPromoCode] = useState(storedPromoAtLoad?.code || '');
@@ -939,9 +939,13 @@ const Design: React.FC = () => {
     () => getPreviewContainerStyles(isLgScreen ? 200 : 140),
     [getPreviewContainerStyles, isLgScreen]
   );
+  const hasCommittedBannerSize =
+    isYardSign || isCarMagnet || (hasConfirmedSize && widthIn > 0 && heightIn > 0);
+  const pricingWidthIn = hasCommittedBannerSize ? widthIn : 0;
+  const pricingHeightIn = hasCommittedBannerSize ? heightIn : 0;
   const bannerPricing = calculateBannerPricing({
-    widthIn,
-    heightIn,
+    widthIn: pricingWidthIn,
+    heightIn: pricingHeightIn,
     quantity,
     material,
     grommets,
@@ -950,8 +954,8 @@ const Design: React.FC = () => {
     polePockets,
   });
   const totals = calcTotals({
-    widthIn,
-    heightIn,
+    widthIn: pricingWidthIn,
+    heightIn: pricingHeightIn,
     qty: quantity,
     material,
     addRope,
@@ -994,8 +998,6 @@ const Design: React.FC = () => {
     0,
     bannerPricing.subtotalBeforeDiscountCents - bannerPromoResolution.appliedDiscountAmountCents,
   );
-  const bannerTaxAfterAllDiscountsCents = Math.round(bannerSubtotalAfterAllDiscountsCents * 0.06);
-  const bannerTotalAfterAllDiscountsCents = bannerSubtotalAfterAllDiscountsCents + bannerTaxAfterAllDiscountsCents;
   const discountedTotal = bannerSubtotalAfterAllDiscountsCents / 100;
   // Show "promo applied" badge only when the resolver actually selected it
   // AND the amount is non-zero (never show messaging without a real reduction).
@@ -2185,6 +2187,14 @@ const Design: React.FC = () => {
     actionType: 'checkout' | 'cart',
     editorSource: 'inline' | 'modal',
   ): Promise<void> => {
+    if (!isYardSign && !isCarMagnet && !hasCommittedBannerSize) {
+      toast({
+        title: 'Choose a banner size',
+        description: 'Select a standard size or enter custom dimensions before continuing.',
+        variant: 'destructive',
+      });
+      return Promise.resolve();
+    }
     if (actionPreparationRef.current) return actionPreparationRef.current;
     const promise = (async () => {
       setIsProcessingUpsell(true);
@@ -2243,7 +2253,7 @@ const Design: React.FC = () => {
     })();
     actionPreparationRef.current = promise;
     return promise;
-  }, [finishingType, heightIn, isCarMagnet, performCheckout, prepareCurrentPlacementPreview, productType, toast, widthIn]);
+  }, [finishingType, hasCommittedBannerSize, heightIn, isCarMagnet, isYardSign, performCheckout, prepareCurrentPlacementPreview, productType, toast, widthIn]);
 
   // Proceed only after the actual editor canvas has produced a verified artifact.
   const handleCheckout = useCallback(() => {
@@ -2803,6 +2813,7 @@ const Design: React.FC = () => {
                     onPromoApply={handlePromoApply}
                     onPromoRemove={handlePromoRemove}
                     sameDayHitServiceCents={previewSameDayFeeCents}
+                    taxCalculatedAtCheckout
                   />
                 )}
 
@@ -3103,7 +3114,7 @@ const Design: React.FC = () => {
                     surfaces what still needs to happen before "Add to Cart" works. */}
                 {!isYardSign && !isCarMagnet && !uploadedFile && (() => {
                   const missing: string[] = [];
-                  if (!widthIn || !heightIn) missing.push('size');
+                  if (!hasCommittedBannerSize) missing.push('size');
                   if (!material) missing.push('material');
                   if (missing.length === 0) return null;
                   return (
@@ -3130,7 +3141,7 @@ const Design: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => setAiModalOpen(true)}
-                          disabled={!widthIn || !heightIn || !material || isUploading}
+                          disabled={!hasCommittedBannerSize || !material || isUploading}
                           className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-500 text-white text-sm font-semibold shadow-sm hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                           <Sparkles className="w-4 h-4" />
@@ -3235,7 +3246,7 @@ const Design: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => setAiEditModalOpen(true)}
-                          disabled={!widthIn || !heightIn || !material || isUploading}
+                          disabled={!hasCommittedBannerSize || !material || isUploading}
                           className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#0b1f3a] text-white text-sm font-semibold shadow-sm hover:bg-[#12345d] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                           <Sparkles className="w-4 h-4" />
@@ -3268,11 +3279,12 @@ const Design: React.FC = () => {
                   quantityDiscountCents={carMagnetPricing.quantityDiscountCents}
                   quantityDiscountRate={carMagnetPricing.quantityDiscountRate}
                   sameDayHitServiceCents={previewSameDayFeeCents}
-                  taxCents={carMagnetPricing.taxCents}
+                  taxCents={0}
                   taxRate={0.06}
                   adjustedSubtotalCents={carMagnetPricing.subtotalCents}
-                  totalCents={carMagnetPricing.totalCents + previewSameDayFeeCents}
-                  footerNote="Tax calculated at checkout"
+                  totalCents={carMagnetPricing.subtotalCents + previewSameDayFeeCents}
+                  taxCalculatedAtCheckout
+                  footerNote="Destination-based tax calculated at checkout"
                 />
               ) : (
                 <PriceBreakdown
@@ -3321,10 +3333,11 @@ const Design: React.FC = () => {
                       : undefined
                   }
                   sameDayHitServiceCents={previewSameDayFeeCents}
-                  taxCents={bannerTaxAfterAllDiscountsCents}
+                  taxCents={0}
                   taxRate={0.06}
                   adjustedSubtotalCents={bannerSubtotalAfterAllDiscountsCents}
-                  totalCents={bannerTotalAfterAllDiscountsCents + previewSameDayFeeCents}
+                  totalCents={bannerSubtotalAfterAllDiscountsCents + previewSameDayFeeCents}
+                  taxCalculatedAtCheckout
                   promo={{
                     code: promoCode,
                     applied: promoApplied,
@@ -3335,7 +3348,7 @@ const Design: React.FC = () => {
                       ? `${promoCode} — ${Math.round(bannerPromoResolution.promoDiscountRate * 100)}% off applied`
                       : `${promoCode} entered — quantity discount is larger, so we kept that`,
                   }}
-                  footerNote="Tax calculated at checkout"
+                  footerNote="Destination-based tax calculated at checkout"
                 />
               )}
 
@@ -3357,16 +3370,16 @@ const Design: React.FC = () => {
                 }
               />
 
-              <button onClick={handleCheckout} disabled={!uploadedFile || isUploading || isProcessingUpsell} className={`group w-full font-bold text-lg py-5 rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${uploadedFile && !isUploading && !isProcessingUpsell ? 'bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white cursor-pointer shadow-orange-500/30' : 'bg-orange-300 text-white/80 cursor-not-allowed'}`}>
+              <button onClick={handleCheckout} disabled={!uploadedFile || !hasCommittedBannerSize || isUploading || isProcessingUpsell} className={`group w-full font-bold text-lg py-5 rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${uploadedFile && hasCommittedBannerSize && !isUploading && !isProcessingUpsell ? 'bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white cursor-pointer shadow-orange-500/30' : 'bg-orange-300 text-white/80 cursor-not-allowed'}`}>
                 <Lock className="h-4 w-4" aria-hidden="true" />
                 {isProcessingUpsell ? 'Preparing exact preview…' : 'Checkout securely'}
                 <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
               </button>
               <button
                 onClick={handleAddToCart}
-                disabled={!uploadedFile || isUploading || isProcessingUpsell}
+                disabled={!uploadedFile || !hasCommittedBannerSize || isUploading || isProcessingUpsell}
                 className={`w-full font-semibold text-base py-4 rounded-xl border-2 transition-all duration-200 ${
-                  uploadedFile && !isUploading && !isProcessingUpsell
+                  uploadedFile && hasCommittedBannerSize && !isUploading && !isProcessingUpsell
                     ? 'border-slate-300 text-slate-800 hover:bg-slate-50'
                     : 'border-slate-200 text-slate-400 cursor-not-allowed'
                 }`}

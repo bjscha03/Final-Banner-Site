@@ -101,4 +101,44 @@ describe('bannerPricingEngine', () => {
     expect(result.subtotalCents).toBe(6000);
     expect(result.totalCents).toBe(6360);
   });
+
+  it('returns zero until both banner dimensions are configured', () => {
+    for (const [widthIn, heightIn] of [[0, 0], [72, 0], [0, 36]]) {
+      const result = calculateBannerPricing({
+        widthIn,
+        heightIn,
+        quantity: 1,
+        material: '13oz',
+        grommets: 'none',
+        polePockets: 'left',
+        addRope: true,
+      });
+
+      expect(result.unitBasePriceCents).toBe(0);
+      expect(result.baseBannerPriceCents).toBe(0);
+      expect(result.ropeCostCents).toBe(0);
+      expect(result.polePocketCostCents).toBe(0);
+      expect(result.subtotalBeforeDiscountCents).toBe(0);
+      expect(result.taxCents).toBe(0);
+      expect(result.totalCents).toBe(0);
+    }
+  });
+
+  it("preserves the existing 6' × 3' price after the customer selects it", () => {
+    const result = calculateBannerPricing({
+      widthIn: 72,
+      heightIn: 36,
+      quantity: 1,
+      material: '13oz',
+      grommets: 'none',
+      polePockets: 'none',
+      addRope: false,
+    });
+
+    expect(result.baseBannerPriceCents).toBe(8100);
+    expect(result.subtotalCents).toBe(8100);
+    expect(result.taxCents).toBe(486);
+    expect(result.totalCents).toBe(8586);
+  });
+
 });
