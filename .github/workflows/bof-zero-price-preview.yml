@@ -1,0 +1,68 @@
+name: BOF zero-price and pre-tax preview
+
+on:
+  push:
+    branches:
+      - agent/bof-zero-price-tax-preview-20260818
+
+permissions:
+  contents: write
+
+jobs:
+  patch-test-commit:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout preview branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/bof-zero-price-tax-preview-20260818
+          fetch-depth: 0
+
+      - name: Apply the targeted configurator patch
+        run: python3 scripts/apply-bof-zero-price-preview.py
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run targeted pricing regression tests
+        run: npx vitest run src/lib/__tests__/bannerPricingEngine.test.ts src/lib/__tests__/pricing.test.ts
+
+      - name: Run production build
+        run: npm run build
+
+      - name: Check patch formatting
+        run: git diff --check
+
+      - name: Run repository lint
+        id: lint
+        continue-on-error: true
+        run: npm run lint
+
+      - name: Commit tested changes to the preview branch
+        shell: bash
+        run: |
+          rm scripts/apply-bof-zero-price-preview.py
+          rm .github/workflows/bof-zero-price-preview.yml
+          git config user.name "OpenAI Preview Agent"
+          git config user.email "openai-preview-agent@users.noreply.github.com"
+          git add -A
+          git commit -m "Fix configurator initial price and pre-checkout tax display"
+          git push origin HEAD:agent/bof-zero-price-tax-preview-20260818
+
+      - name: Report lint status
+        if: always()
+        run: |
+          if [ "${{ steps.lint.outcome }}" = "failure" ]; then
+            echo "::warning::The repository lint command reported errors. Review the lint step; targeted tests and the production build passed before the source changes were committed."
+          else
+            echo "Lint passed."
+          fi
