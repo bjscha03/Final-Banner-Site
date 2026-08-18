@@ -27,7 +27,6 @@ export default function ConfigCard({
   children,
 }: ConfigCardProps) {
   const sectionRef = useRef<HTMLElement | null>(null);
-  const appliedBannerDefaultRef = useRef(false);
 
   useLayoutEffect(() => {
     if (id !== 'size-section' || !sectionRef.current) return;
@@ -40,7 +39,8 @@ export default function ConfigCard({
 
     if (!popularButton) return;
 
-    // Keep the badge purely visual so existing pricing, cart and input logic remain untouched.
+    // Recommendation styling is visual only. It must not mutate dimensions,
+    // pricing state, or the selected preset.
     popularButton.classList.add(
       'relative',
       "before:content-['MOST_POPULAR']",
@@ -59,13 +59,17 @@ export default function ConfigCard({
       'before:text-white',
       'before:shadow-sm',
       'before:z-10',
+      'ring-1',
+      'ring-orange-200',
     );
-
-    // Do not overwrite an existing cart item's saved dimensions while editing.
-    if (appliedBannerDefaultRef.current || new URLSearchParams(window.location.search).has('editItem')) return;
-
-    appliedBannerDefaultRef.current = true;
-    popularButton.click();
+    popularButton.dataset.recommended = 'true';
+    popularButton.setAttribute(
+      'aria-label',
+      `${(popularButton.textContent || "6' × 3'").trim()} — Most popular`,
+    );
+    popularButton.style.borderColor = '#f97316';
+    popularButton.style.backgroundColor = '#fff7ed';
+    popularButton.style.color = '#c2410c';
   });
 
   return (
