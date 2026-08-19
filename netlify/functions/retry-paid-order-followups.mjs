@@ -112,5 +112,7 @@ export const _test = {
 };
 
 export const config = {
-  schedule: '*/5 * * * *',
+  // Primary Stripe/PayPal completion paths queue follow-ups immediately.
+  // This is only a recovery sweep, so hourly avoids waking Neon every 5 minutes.
+  schedule: '@hourly',
 };
