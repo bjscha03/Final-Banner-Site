@@ -13,6 +13,16 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "political-sign-disclaimer-requirements": {
+    title: "Political Sign Disclaimer Requirements: A Pre-Print Checklist",
+    description: "Review political sign disclaimer requirements, wording, readability, placement, state-law checks, and artwork steps before sending campaign signs to print.",
+    image: "https://bannersonthefly.com/images/blog/political-sign-disclaimer-requirements.webp"
+  },
+  "trade-show-banner-checklist": {
+    title: "Trade Show Booth Checklist: Plan Banners, Setup, and Backup Gear",
+    description: "Use this trade show booth checklist to confirm dimensions, banner artwork, mounting, shipping, test setup, accessibility, backup gear, and show-day checks.",
+    image: "https://bannersonthefly.com/images/blog/trade-show-banner-checklist.webp"
+  },
   "fence-banners-design-permitting-guide": {
     title: "Fence Banners: How to Measure, Design, and Hang Them Securely",
     description: "Plan fence banners with a step-by-step measuring method, vinyl-versus-mesh guidance, artwork tips, mounting checks, and a practical installation workflow.",
