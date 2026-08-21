@@ -13,6 +13,16 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "banner-resolution-dpi-pixel-size-guide": {
+    title: "What Resolution Should a Banner Be? A DPI and Pixel-Size Guide",
+    description: "Choose the right banner resolution with practical PPI targets, pixel-dimension formulas, viewing-distance guidance, vector tips, and a preflight checklist.",
+    image: "https://bannersonthefly.com/images/blog/banner-resolution-dpi-pixel-size-guide.webp"
+  },
+  "how-to-install-yard-sign-stakes": {
+    title: "How to Install Yard Sign Stakes: A Step-by-Step Guide",
+    description: "Learn how to install yard sign stakes: align the flutes, seat the panel, choose suitable soil, avoid damage, check stability, and plan safe placement.",
+    image: "https://bannersonthefly.com/images/blog/how-to-install-yard-sign-stakes.webp"
+  },
   "political-sign-disclaimer-requirements": {
     title: "Political Sign Disclaimer Requirements: A Pre-Print Checklist",
     description: "Review political sign disclaimer requirements, wording, readability, placement, state-law checks, and artwork steps before sending campaign signs to print.",
