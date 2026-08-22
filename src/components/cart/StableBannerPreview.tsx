@@ -15,6 +15,11 @@ import {
 import StablePreviewImage from '@/components/preview/StablePreviewImage';
 
 const BRAND_BLUE = '#18448D';
+// Exact proof JPEGs can contain a very small white matte caused by source and
+// product aspect ratios differing by only a few pixels. A presentation-only
+// overscan hides that seam in compact and expanded previews without changing
+// the saved placement, production artwork, or grommet geometry.
+export const FINALIZED_PREVIEW_BLEED_SCALE = 1.03;
 
 export interface BannerPreviewProps {
   widthIn: number;
@@ -249,9 +254,10 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
           ) : imageUrl && !baseFailed ? (
             <div
               className="absolute inset-0 h-full w-full"
+              data-preview-bleed-compensated={isApprovedSnapshot ? 'true' : 'false'}
               style={{
                 transform: isApprovedSnapshot
-                  ? undefined
+                  ? `scale(${FINALIZED_PREVIEW_BLEED_SCALE})`
                   : `translate(${x}%, ${y}%) scale(${scaleX}, ${scaleY})`,
                 transformOrigin: 'center center',
               }}

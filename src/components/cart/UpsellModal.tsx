@@ -441,7 +441,7 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
                   designServiceEnabled={designServiceEnabled}
                   isFinalizedSnapshot={thumbnailIsExactComposition}
                   compositionSignature={thumbnailCompositionSignature}
-                  maxSize={120}
+                  maxSize={240}
                 />
               </ThumbnailPreviewWrapper>
                 );

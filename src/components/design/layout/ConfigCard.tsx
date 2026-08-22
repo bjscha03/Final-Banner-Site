@@ -39,8 +39,13 @@ export default function ConfigCard({
 
     if (!popularButton) return;
 
-    // Recommendation styling is visual only. It must not mutate dimensions,
-    // pricing state, or the selected preset.
+    // The recommendation badge is informational only. Selection styling must
+    // remain entirely controlled by the preset button's React state so only
+    // the option the customer actually chose is highlighted.
+    popularButton.classList.remove('ring-1', 'ring-orange-200');
+    popularButton.style.removeProperty('border-color');
+    popularButton.style.removeProperty('background-color');
+    popularButton.style.removeProperty('color');
     popularButton.classList.add(
       'relative',
       "before:content-['MOST_POPULAR']",
@@ -59,17 +64,12 @@ export default function ConfigCard({
       'before:text-white',
       'before:shadow-sm',
       'before:z-10',
-      'ring-1',
-      'ring-orange-200',
     );
     popularButton.dataset.recommended = 'true';
     popularButton.setAttribute(
       'aria-label',
       `${(popularButton.textContent || "6' × 3'").trim()} — Most popular`,
     );
-    popularButton.style.borderColor = '#f97316';
-    popularButton.style.backgroundColor = '#fff7ed';
-    popularButton.style.color = '#c2410c';
   });
 
   return (
