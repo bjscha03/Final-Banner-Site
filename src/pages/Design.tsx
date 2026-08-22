@@ -93,6 +93,8 @@ import {
 import { createPermanentPlacementPreview } from '@/lib/previewArtifactCoordinator';
 import { trackViewItem } from '@/lib/analytics';
 import { getProductLandingDefinition } from '@/lib/seo/productLandingData';
+import { shouldAutoConfirmBannerSize } from '@/lib/bannerCheckoutReadiness';
+import { buildArtworkCompositionKey } from '@/lib/artworkCompositionKey';
 
 type UploadedArtworkFile = {
   editorIdentity?: string;
@@ -707,6 +709,20 @@ const Design: React.FC = () => {
   const sqft = (widthIn * heightIn) / 144;
   const latestPreviewConfigRef = useRef({ widthIn, heightIn, productType });
   latestPreviewConfigRef.current = { widthIn, heightIn, productType };
+
+  // Artwork upload is a clear commitment to the dimensions currently shown.
+  // Without this, a valid uploaded banner can remain permanently blocked by
+  // the mobile stepper's internal confirmation flag on desktop and mobile.
+  useEffect(() => {
+    if (shouldAutoConfirmBannerSize({
+      productType,
+      widthIn,
+      heightIn,
+      hasArtwork: Boolean(uploadedFile),
+    })) {
+      setHasConfirmedSize(true);
+    }
+  }, [productType, widthIn, heightIn, uploadedFile]);
 
   // Mobile guided-flow auto-confirm watchers. We snapshot each step's
   // user-controlled values on first render (so the initial defaults
@@ -3174,7 +3190,7 @@ const Design: React.FC = () => {
                             resize handles, fit/fill/reset/constrain). */}
                         <ArtworkPreviewEditor
                           ref={inlineEditorRef}
-                          compositionKey={`${uploadedFile.editorIdentity || uploadedFile.productionPublicId || uploadedFile.fileKey || uploadedFile.name}|${productType}|${widthIn}x${heightIn}`}
+                          compositionKey={buildArtworkCompositionKey(uploadedFile, productType)}
                           src={uploadedFile.previewUrl || uploadedFile.thumbnailUrl || uploadedFile.url}
                             previewUrl={uploadedFile.previewUrl || uploadedFile.thumbnailUrl || null}
                             productionUrl={uploadedFile.productionUrl || uploadedFile.url}
@@ -3451,7 +3467,7 @@ const Design: React.FC = () => {
                 >
                   <ArtworkPreviewEditor
                     ref={modalEditorRef}
-                    compositionKey={`${uploadedFile.editorIdentity || uploadedFile.productionPublicId || uploadedFile.fileKey || uploadedFile.name}|${productType}|${widthIn}x${heightIn}`}
+                    compositionKey={buildArtworkCompositionKey(uploadedFile, productType)}
                     src={uploadedFile.previewUrl || uploadedFile.thumbnailUrl || uploadedFile.url}
                             previewUrl={uploadedFile.previewUrl || uploadedFile.thumbnailUrl || null}
                             productionUrl={uploadedFile.productionUrl || uploadedFile.url}
