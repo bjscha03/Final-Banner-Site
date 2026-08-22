@@ -93,6 +93,8 @@ import {
 import { createPermanentPlacementPreview } from '@/lib/previewArtifactCoordinator';
 import { trackViewItem } from '@/lib/analytics';
 import { getProductLandingDefinition } from '@/lib/seo/productLandingData';
+import { shouldAutoConfirmBannerSize } from '@/lib/bannerCheckoutReadiness';
+import { buildArtworkCompositionKey } from '@/lib/artworkCompositionKey';
 
 type UploadedArtworkFile = {
   editorIdentity?: string;
@@ -526,6 +528,20 @@ const GoogleAdsBanner: React.FC = () => {
   const sqft = (widthIn * heightIn) / 144;
   const latestPreviewConfigRef = useRef({ widthIn, heightIn, productType });
   latestPreviewConfigRef.current = { widthIn, heightIn, productType };
+
+  // Artwork upload is a clear commitment to the dimensions currently shown.
+  // Keep the paid path in parity with /design so a valid upload cannot leave
+  // checkout disabled behind the stepper's internal confirmation flag.
+  useEffect(() => {
+    if (shouldAutoConfirmBannerSize({
+      productType,
+      widthIn,
+      heightIn,
+      hasArtwork: Boolean(uploadedFile),
+    })) {
+      setHasConfirmedSize(true);
+    }
+  }, [productType, widthIn, heightIn, uploadedFile]);
 
   // Mobile guided-flow auto-confirm watchers. See Design.tsx for full
   // rationale — the snapshot ref ensures defaults don't auto-confirm
@@ -3007,7 +3023,7 @@ const GoogleAdsBanner: React.FC = () => {
                               resize handles, fit/fill/reset/constrain). */}
                           <ArtworkPreviewEditor
                             ref={inlineEditorRef}
-                            compositionKey={`${uploadedFile.editorIdentity || uploadedFile.productionPublicId || uploadedFile.fileKey || uploadedFile.name}|${productType}|${widthIn}x${heightIn}`}
+                            compositionKey={buildArtworkCompositionKey(uploadedFile, productType)}
                             src={uploadedFile.previewUrl || uploadedFile.thumbnailUrl || uploadedFile.url}
                             previewUrl={uploadedFile.previewUrl || uploadedFile.thumbnailUrl || null}
                             productionUrl={uploadedFile.productionUrl || uploadedFile.url}
@@ -3296,7 +3312,7 @@ const GoogleAdsBanner: React.FC = () => {
                 >
                   <ArtworkPreviewEditor
                     ref={modalEditorRef}
-                    compositionKey={`${uploadedFile.editorIdentity || uploadedFile.productionPublicId || uploadedFile.fileKey || uploadedFile.name}|${productType}|${widthIn}x${heightIn}`}
+                    compositionKey={buildArtworkCompositionKey(uploadedFile, productType)}
                     src={uploadedFile.previewUrl || uploadedFile.thumbnailUrl || uploadedFile.url}
                             previewUrl={uploadedFile.previewUrl || uploadedFile.thumbnailUrl || null}
                             productionUrl={uploadedFile.productionUrl || uploadedFile.url}
