@@ -7,6 +7,12 @@ import {
   normalizedTransformFromPixels,
   type NormalizedArtworkTransform,
 } from '@/lib/previewLifecycle';
+import {
+  captureNormalizedArtworkGeometry,
+  getContainedArtworkRect,
+  restoreArtworkTransformFromGeometry,
+  type NormalizedArtworkGeometry,
+} from '@/lib/artworkTransformGeometry';
 
 export type ArtworkTransform = {
   x: number;
@@ -57,7 +63,7 @@ export interface ArtworkPreviewEditorHandle {
 
 type Corner = 'tl' | 'tr' | 'bl' | 'br';
 type Size = { w: number; h: number };
-type NormalizedPosition = { xPct: number; yPct: number; revision: number };
+type NormalizedComposition = NormalizedArtworkGeometry & { revision: number };
 
 const MIN_SCALE = 0.2;
 const MAX_SCALE = 5;
@@ -65,9 +71,10 @@ const PREVIEW_LOAD_TIMEOUT_MS = 12_000;
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 // Both the inline editor and the confirmation modal can exist at the same time.
-// Store one canonical canvas-relative position per artwork so those two views do
-// not fight over pixel coordinates when the viewport changes size.
-const normalizedPositionByArtwork = new Map<string, NormalizedPosition>();
+// Store one canonical canvas-relative composition per artwork so inline/modal
+// canvases and banner-size changes cannot fight over pixel coordinates or
+// visually resize the customer's approved artwork.
+const normalizedCompositionByArtwork = new Map<string, NormalizedComposition>();
 
 function isTopmostCanvas(node: HTMLElement): boolean {
   const rect = node.getBoundingClientRect();
@@ -109,6 +116,7 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
   const internalRef = useRef<HTMLDivElement | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const canvasSizeRef = useRef<Size | null>(null);
+  const naturalSizeRef = useRef<Size | null>(null);
   const valueRef = useRef(value);
   valueRef.current = value;
   const localValueRef = useRef(value);
@@ -128,11 +136,20 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
 
   const settleLoadedImage = useCallback((image: HTMLImageElement | null): boolean => {
     if (!image || !image.complete || !image.naturalWidth || !image.naturalHeight) return false;
-    setNaturalSize({ w: image.naturalWidth, h: image.naturalHeight });
+    const nextNaturalSize = { w: image.naturalWidth, h: image.naturalHeight };
+    naturalSizeRef.current = nextNaturalSize;
+    setNaturalSize(nextNaturalSize);
+    const canvas = canvasSizeRef.current;
+    if (canvas && !normalizedCompositionByArtwork.has(artworkKey)) {
+      normalizedCompositionByArtwork.set(artworkKey, {
+        ...captureNormalizedArtworkGeometry(localValueRef.current, canvas, nextNaturalSize),
+        revision: 0,
+      });
+    }
     setLoading(false);
     setPreviewError(null);
     return true;
-  }, []);
+  }, [artworkKey]);
 
   const setContainerNode = useCallback((node: HTMLDivElement | null) => {
     const previousNode = internalRef.current;
@@ -157,6 +174,7 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
 
   useEffect(() => {
     setNaturalSize(null);
+    naturalSizeRef.current = null;
 
     if (!imageSrc) {
       setLoading(false);
@@ -194,10 +212,18 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
   const commitTransform = useCallback((next: ArtworkTransform, updateNormalized = true) => {
     const size = canvasSizeRef.current;
     if (updateNormalized && size?.w && size?.h) {
-      const previous = normalizedPositionByArtwork.get(artworkKey);
-      normalizedPositionByArtwork.set(artworkKey, {
-        xPct: next.x / size.w,
-        yPct: next.y / size.h,
+      const previous = normalizedCompositionByArtwork.get(artworkKey);
+      const natural = naturalSizeRef.current;
+      const geometry = natural
+        ? captureNormalizedArtworkGeometry(next, size, natural)
+        : {
+            xPct: next.x / size.w,
+            yPct: next.y / size.h,
+            widthPct: previous?.widthPct ?? next.scaleX,
+            heightPct: previous?.heightPct ?? next.scaleY,
+          };
+      normalizedCompositionByArtwork.set(artworkKey, {
+        ...geometry,
         revision: (previous?.revision ?? 0) + 1,
       });
     }
@@ -229,7 +255,7 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
         width: rect.width,
         height: rect.height,
       });
-      const canonical = normalizedPositionByArtwork.get(artworkKey);
+      const canonical = normalizedCompositionByArtwork.get(artworkKey);
       return {
         compositionKey: artworkKey,
         canvasWidthPx: rect.width,
@@ -258,26 +284,41 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
       canvasSizeRef.current = next;
       setCanvasSize((current) => current && current.w === next.w && current.h === next.h ? current : next);
 
-      let normalized = normalizedPositionByArtwork.get(artworkKey);
+      let normalized = normalizedCompositionByArtwork.get(artworkKey);
       if (!normalized) {
         const base = previous || next;
+        const natural = naturalSizeRef.current;
         normalized = {
-          xPct: base.w ? valueRef.current.x / base.w : 0,
-          yPct: base.h ? valueRef.current.y / base.h : 0,
+          ...(natural
+            ? captureNormalizedArtworkGeometry(valueRef.current, base, natural)
+            : {
+                xPct: base.w ? valueRef.current.x / base.w : 0,
+                yPct: base.h ? valueRef.current.y / base.h : 0,
+                widthPct: valueRef.current.scaleX,
+                heightPct: valueRef.current.scaleY,
+              }),
           revision: 0,
         };
-        normalizedPositionByArtwork.set(artworkKey, normalized);
+        normalizedCompositionByArtwork.set(artworkKey, normalized);
       }
 
-      const resized = previous && (Math.abs(previous.w - next.w) > 0.25 || Math.abs(previous.h - next.h) > 0.25);
-      if (resized && isTopmostCanvas(node) && !dragRef.current.active && !resizeRef.current?.active && !pinchRef.current) {
+      if (isTopmostCanvas(node) && !dragRef.current.active && !resizeRef.current?.active && !pinchRef.current) {
         const current = valueRef.current;
+        const natural = naturalSizeRef.current;
+        const restored = natural
+          ? restoreArtworkTransformFromGeometry(normalized, next, natural, constrainRef.current)
+          : { ...current, x: normalized.xPct * next.w, y: normalized.yPct * next.h };
         const adjusted = {
-          ...current,
-          x: normalized.xPct * next.w,
-          y: normalized.yPct * next.h,
+          ...restored,
+          scaleX: clamp(restored.scaleX, MIN_SCALE, MAX_SCALE),
+          scaleY: clamp(restored.scaleY, MIN_SCALE, MAX_SCALE),
         };
-        if (Math.abs(adjusted.x - current.x) > 0.25 || Math.abs(adjusted.y - current.y) > 0.25) {
+        if (
+          Math.abs(adjusted.x - current.x) > 0.25
+          || Math.abs(adjusted.y - current.y) > 0.25
+          || Math.abs(adjusted.scaleX - current.scaleX) > 0.001
+          || Math.abs(adjusted.scaleY - current.scaleY) > 0.001
+        ) {
           commitTransform(adjusted, false);
         }
       }
@@ -293,10 +334,7 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
 
   const containedRect = (() => {
     if (!canvasSize || !naturalSize || naturalSize.w <= 0 || naturalSize.h <= 0) return null;
-    const canvasAspect = canvasSize.w / canvasSize.h;
-    const imageAspect = naturalSize.w / naturalSize.h;
-    const w = imageAspect > canvasAspect ? canvasSize.w : canvasSize.h * imageAspect;
-    const h = imageAspect > canvasAspect ? canvasSize.w / imageAspect : canvasSize.h;
+    const { w, h } = getContainedArtworkRect(canvasSize, naturalSize);
     return { w, h, left: (canvasSize.w - w) / 2, top: (canvasSize.h - h) / 2 };
   })();
 
@@ -308,15 +346,22 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
 
   // `value.x/y` is retained for compatibility with the parent builder state,
   // but pixels are local to a mounted canvas. Render each inline/modal editor
-  // from the shared normalized position so two differently-sized canvases
-  // always show the same approved composition.
-  const normalizedPosition = normalizedPositionByArtwork.get(artworkKey);
-  const localValue: ArtworkTransform = normalizedPosition && canvasSize
-    ? {
-        ...value,
-        x: normalizedPosition.xPct * canvasSize.w,
-        y: normalizedPosition.yPct * canvasSize.h,
-      }
+  // from the shared normalized composition so viewport and product-size
+  // changes preserve the approved center and displayed artwork width.
+  const normalizedComposition = normalizedCompositionByArtwork.get(artworkKey);
+  const localValue: ArtworkTransform = normalizedComposition && canvasSize && naturalSize
+    ? restoreArtworkTransformFromGeometry(
+        normalizedComposition,
+        canvasSize,
+        naturalSize,
+        constrain,
+      )
+    : normalizedComposition && canvasSize
+      ? {
+          ...value,
+          x: normalizedComposition.xPct * canvasSize.w,
+          y: normalizedComposition.yPct * canvasSize.h,
+        }
     : value;
   localValueRef.current = localValue;
 

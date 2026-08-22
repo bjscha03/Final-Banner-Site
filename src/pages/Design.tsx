@@ -95,6 +95,7 @@ import { trackViewItem } from '@/lib/analytics';
 import { getProductLandingDefinition } from '@/lib/seo/productLandingData';
 import { shouldAutoConfirmBannerSize } from '@/lib/bannerCheckoutReadiness';
 import { buildArtworkCompositionKey } from '@/lib/artworkCompositionKey';
+import { isPopularBannerPreset, POPULAR_BANNER_PRESET } from '@/lib/bannerDefaults';
 
 type UploadedArtworkFile = {
   editorIdentity?: string;
@@ -536,16 +537,16 @@ const Design: React.FC = () => {
   }, [editCartItems, editItemId, editItemRestored]);
 
   // Use string state for dimension inputs so users can clear and retype freely
-  const [widthFtStr, setWidthFtStr] = useState('4');
+  const [widthFtStr, setWidthFtStr] = useState('6');
   const [widthInRStr, setWidthInRStr] = useState('0');
-  const [heightFtStr, setHeightFtStr] = useState('2');
+  const [heightFtStr, setHeightFtStr] = useState('3');
   const [heightInRStr, setHeightInRStr] = useState('0');
   // Raw string state for the inches-mode "Custom Size" inputs. Keeps the
   // user's literal keystrokes (so "3" never becomes "03") and is only
   // converted/clamped on blur. Pricing reactivity is preserved by an
   // effect below that mirrors valid values into widthFtStr/widthInRStr.
-  const [widthCustomInStr, setWidthCustomInStr] = useState('48');
-  const [heightCustomInStr, setHeightCustomInStr] = useState('24');
+  const [widthCustomInStr, setWidthCustomInStr] = useState('72');
+  const [heightCustomInStr, setHeightCustomInStr] = useState('36');
   // Derived numeric values for calculations (treat empty as 0)
   const widthFt = parseInt(widthFtStr, 10) || 0;
   const widthInR = parseInt(widthInRStr, 10) || 0;
@@ -591,21 +592,18 @@ const Design: React.FC = () => {
     activePdfPreviewCleanupRef.current = null;
   }, []);
   const [uploadError, setUploadError] = useState('');
-  const [activePreset, setActivePreset] = useState<number | null>(null);
+  const [activePreset, setActivePreset] = useState<number | null>(
+    initialProductType === 'banner' ? POPULAR_BANNER_PRESET.presetIndex : null,
+  );
   const [quantity, setQuantity] = useState(initialProductType === 'yard_sign' ? 10 : 1);
   const storedPromoAtLoad = useCartStore.getState().discountCode;
   const [promoCode, setPromoCode] = useState(storedPromoAtLoad?.code || '');
   const [promoApplied, setPromoApplied] = useState(Boolean(storedPromoAtLoad));
 
-  // Mobile guided-flow confirmation flags. These are the source of truth for
-  // the mobile step-progress indicator and sticky CTA. Default-preselected
-  // values (a preset size, the `13oz` material, quantity 1) MUST NOT
-  // auto-mark a step complete — the user has to interact with the section
-  // (or tap the sticky CTA which both scrolls to the section and confirms
-  // the step) before progress advances. When the user is editing an
-  // existing cart item, all four are pre-set to true so they don't have to
-  // re-confirm each section.
-  const [hasConfirmedSize, setHasConfirmedSize] = useState(false);
+  // The popular banner size is an explicit, visible default and is therefore
+  // immediately valid for pricing/cart/checkout. Other guided steps retain
+  // their existing confirmation behavior.
+  const [hasConfirmedSize, setHasConfirmedSize] = useState(initialProductType === 'banner');
   const [hasConfirmedMaterial, setHasConfirmedMaterial] = useState(false);
   const [hasConfirmedQuantity, setHasConfirmedQuantity] = useState(false);
   const [hasReviewedOptions, setHasReviewedOptions] = useState(false);
@@ -957,6 +955,12 @@ const Design: React.FC = () => {
   );
   const hasCommittedBannerSize =
     isYardSign || isCarMagnet || (hasConfirmedSize && widthIn > 0 && heightIn > 0);
+  const showPopularBannerPriceNote = isPopularBannerPreset(
+    productType,
+    widthIn,
+    heightIn,
+    activePreset,
+  );
   const pricingWidthIn = hasCommittedBannerSize ? widthIn : 0;
   const pricingHeightIn = hasCommittedBannerSize ? heightIn : 0;
   const bannerPricing = calculateBannerPricing({
@@ -3426,6 +3430,7 @@ const Design: React.FC = () => {
       <MobileSubtotalBar
         cartItemCount={cartItemCount}
         onViewCart={openCartDrawer}
+        priceNote={showPopularBannerPriceNote ? POPULAR_BANNER_PRESET.mobilePriceNote : undefined}
         subtotal={
           isYardSign && yardSignPricing ? (
             <p className="text-xl font-bold text-gray-900">
