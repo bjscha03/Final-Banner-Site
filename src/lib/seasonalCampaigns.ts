@@ -8,14 +8,16 @@ export interface CampaignLink {
 export interface SeasonalMerchandisingCard extends CampaignLink {
   title: string;
   description: string;
-  icon: 'school' | 'trophy' | 'store';
+  icon: 'school' | 'trophy' | 'store' | 'calendar' | 'map' | 'heart' | 'landmark';
 }
 
 export interface HeroArtwork {
   desktopSrc: string;
+  desktopAvifSrc?: string;
   desktopWidth: number;
   desktopHeight: number;
   mobileSrc: string;
+  mobileAvifSrc?: string;
   mobileWidth: number;
   mobileHeight: number;
   alt: string;
@@ -76,12 +78,14 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
     secondaryCta: { label: 'Explore vinyl banners', href: '/vinyl-banners' },
     valueProps: ['24-hour standard production', 'Free next-day air after production', 'Live print preview'],
     artwork: {
-      desktopSrc: '/images/seasonal-back-to-school-2026-desktop.webp',
-      desktopWidth: 1400,
-      desktopHeight: 876,
-      mobileSrc: '/images/seasonal-back-to-school-2026-mobile.webp',
-      mobileWidth: 900,
-      mobileHeight: 1125,
+      desktopSrc: '/images/homepage/school-hero-desktop.webp',
+      desktopAvifSrc: '/images/homepage/school-hero-desktop.avif',
+      desktopWidth: 1127,
+      desktopHeight: 657,
+      mobileSrc: '/images/homepage/school-hero-mobile.webp',
+      mobileAvifSrc: '/images/homepage/school-hero-mobile.avif',
+      mobileWidth: 700,
+      mobileHeight: 657,
       alt: 'Ridgeview Academy welcome back vinyl banner professionally mounted on a school railing',
     },
     merchandising: [
@@ -108,6 +112,147 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
       },
     ],
   },
+  {
+    id: 'halloween-events-2026',
+    status: 'ready',
+    tier: 2,
+    priority: 90,
+    startDate: '2026-09-21',
+    endDate: '2026-10-31',
+    eyebrow: 'Halloween events · Trunk-or-treat · Fall promotions',
+    headline: 'Make every fall event easy to find.',
+    description:
+      'Welcome families, guide traffic, and promote October events with bright custom banners and yard signs.',
+    primaryCta: { label: 'Design Halloween signage', href: '/design' },
+    secondaryCta: { label: 'Explore vinyl banners', href: '/vinyl-banners' },
+    valueProps: ['24-hour standard production', 'Free next-day air after production', 'Live print preview'],
+    artwork: {
+      desktopSrc: '/images/seasonal-halloween-2026-desktop.webp',
+      desktopWidth: 1400,
+      desktopHeight: 875,
+      mobileSrc: '/images/seasonal-halloween-2026-mobile.webp',
+      mobileWidth: 900,
+      mobileHeight: 1125,
+      alt: 'Maple Hollow Community Center trunk-or-treat vinyl banner mounted to an outdoor railing',
+    },
+    merchandising: [
+      {
+        icon: 'calendar',
+        title: 'Trunk-or-treat & fall festivals',
+        description: 'Put the event name, date, and time where families can read them before they arrive.',
+        label: 'Create an event banner',
+        href: '/design',
+      },
+      {
+        icon: 'map',
+        title: 'Parking & event directions',
+        description: 'Use matching yard signs to guide cars, mark entrances, and keep activity areas clear.',
+        label: 'Shop yard signs',
+        href: '/yard-signs',
+      },
+      {
+        icon: 'store',
+        title: 'October business promotions',
+        description: 'Make seasonal sales, attractions, and special hours visible from the street.',
+        label: 'Explore vinyl banners',
+        href: '/vinyl-banners',
+      },
+    ],
+  },
+  {
+    id: 'veterans-day-recognition-2026',
+    status: 'ready',
+    tier: 2,
+    priority: 89,
+    startDate: '2026-10-12',
+    endDate: '2026-11-11',
+    eyebrow: 'Veterans Day · Ceremonies · Community recognition',
+    headline: 'Create a tribute your community can see.',
+    description:
+      'Honor those who served at schools, ceremonies, parades, and community gatherings with clear, respectful custom signage.',
+    primaryCta: { label: 'Create a recognition banner', href: '/design' },
+    secondaryCta: { label: 'Explore vinyl banners', href: '/vinyl-banners' },
+    valueProps: ['24-hour standard production', 'Free next-day air after production', 'Live print preview'],
+    artwork: {
+      desktopSrc: '/images/seasonal-veterans-day-2026-desktop.webp',
+      desktopWidth: 1400,
+      desktopHeight: 875,
+      mobileSrc: '/images/seasonal-veterans-day-2026-mobile.webp',
+      mobileWidth: 900,
+      mobileHeight: 1125,
+      alt: 'Cedar Grove Veterans Council recognition banner securely mounted at a civic ceremony',
+    },
+    merchandising: [
+      {
+        icon: 'landmark',
+        title: 'Ceremonies & parades',
+        description: 'Create a dignified focal banner for municipal observances, assemblies, and parade routes.',
+        label: 'Design a ceremony banner',
+        href: '/design',
+      },
+      {
+        icon: 'heart',
+        title: 'School & community tributes',
+        description: 'Recognize service with readable welcome, appreciation, and event banners.',
+        label: 'Shop vinyl banners',
+        href: '/vinyl-banners',
+      },
+      {
+        icon: 'map',
+        title: 'Arrival & viewing directions',
+        description: 'Mark parking, entrances, ceremony areas, and route changes with matching yard signs.',
+        label: 'Shop yard signs',
+        href: '/yard-signs',
+      },
+    ],
+  },
+  {
+    id: 'thanksgiving-community-2026',
+    status: 'ready',
+    tier: 2,
+    priority: 88,
+    startDate: '2026-10-19',
+    endDate: '2026-11-26',
+    eyebrow: 'Food drives · Community dinners · Fall events',
+    headline: 'Turn community support into a visible invitation.',
+    description:
+      'Promote collection dates, welcome guests, and guide volunteers with custom banners and signs made for busy community events.',
+    primaryCta: { label: 'Create Thanksgiving signage', href: '/design' },
+    secondaryCta: { label: 'Shop yard signs', href: '/yard-signs' },
+    valueProps: ['24-hour standard production', 'Free next-day air after production', 'Live print preview'],
+    artwork: {
+      desktopSrc: '/images/seasonal-thanksgiving-2026-desktop.webp',
+      desktopWidth: 1400,
+      desktopHeight: 875,
+      mobileSrc: '/images/seasonal-thanksgiving-2026-mobile.webp',
+      mobileWidth: 900,
+      mobileHeight: 1125,
+      alt: 'Harvest Bridge Food Pantry community food drive banner mounted outside a donation center',
+    },
+    merchandising: [
+      {
+        icon: 'heart',
+        title: 'Food & coat drives',
+        description: 'Show what to donate, when collections end, and where neighbors should bring items.',
+        label: 'Create a drive banner',
+        href: '/design',
+      },
+      {
+        icon: 'map',
+        title: 'Community dinner directions',
+        description: 'Guide guests, volunteers, and deliveries with clear entrance and parking signs.',
+        label: 'Shop yard signs',
+        href: '/yard-signs',
+      },
+      {
+        icon: 'store',
+        title: 'Seasonal business messages',
+        description: 'Promote holiday hours, pickup areas, catering, and fall offers before Thanksgiving week.',
+        label: 'Explore vinyl banners',
+        href: '/vinyl-banners',
+      },
+    ],
+  },
 ];
 
 export function getCampaignDateIso(date = new Date()): string {
@@ -129,7 +274,10 @@ export function getActiveSeasonalCampaignForDate(dateIso: string): SeasonalCampa
       && Boolean(campaign.artwork)
       && campaign.startDate <= dateIso
       && campaign.endDate >= dateIso)
-    .sort((a, b) => b.priority - a.priority)[0] ?? null;
+    // When roadmap windows overlap, feature the campaign that expires first so
+    // the homepage follows the nearest customer deadline, then hand off
+    // automatically to the next still-active campaign.
+    .sort((a, b) => a.endDate.localeCompare(b.endDate) || b.priority - a.priority)[0] ?? null;
 }
 
 export function getActiveSeasonalCampaign(date = new Date()): SeasonalCampaign | null {
