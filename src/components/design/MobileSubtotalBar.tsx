@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 
 export interface MobileSubtotalBarProps {
   subtotal: ReactNode;
+  priceNote?: ReactNode;
   cartItemCount: number;
   onViewCart: () => void;
 }
@@ -12,6 +13,7 @@ export interface MobileSubtotalBarProps {
  */
 export default function MobileSubtotalBar({
   subtotal,
+  priceNote,
   cartItemCount,
   onViewCart,
 }: MobileSubtotalBarProps) {
@@ -27,6 +29,11 @@ export default function MobileSubtotalBar({
           <div className="min-w-0">
             <p className="text-xs text-gray-500">Subtotal</p>
             {subtotal}
+            {priceNote ? (
+              <p data-testid="mobile-subtotal-note" className="mt-0.5 text-[11px] font-medium leading-tight text-orange-700">
+                {priceNote}
+              </p>
+            ) : null}
           </div>
           <button
             type="button"
