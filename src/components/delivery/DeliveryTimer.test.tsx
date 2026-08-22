@@ -18,6 +18,15 @@ function renderAt(isoTime: string, reflectCartSelection = false): string {
   );
 }
 
+function renderSlimAt(isoTime: string, reflectCartSelection = false): string {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date(isoTime));
+
+  return renderToStaticMarkup(
+    <DeliveryTimer variant="slim" reflectCartSelection={reflectCartSelection} />,
+  );
+}
+
 afterEach(() => {
   cartSnapshot.sameDayHitService = false;
   vi.useRealTimers();
@@ -71,5 +80,15 @@ describe('DeliveryTimer', () => {
     expect(html).toContain('expected to ship Monday and arrive Tuesday');
     expect(html).toContain('04:00:00');
     expect(html).toContain('remaining to hold your slot');
+  });
+
+  it('renders the weekend estimate as a single slim checkout strip', () => {
+    const html = renderSlimAt('2026-08-07T16:00:00.000Z');
+
+    expect(html).toContain('data-variant="slim"');
+    expect(html).toContain('Expected Tuesday delivery');
+    expect(html).toContain('Ships Monday · next production window');
+    expect(html).toContain('60:00:00');
+    expect(html).not.toContain('Expected ship</p>');
   });
 });

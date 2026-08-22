@@ -12,7 +12,7 @@ import {
   weekendLockLine,
 } from '@/lib/delivery';
 
-export type DeliveryTimerVariant = 'default' | 'compact';
+export type DeliveryTimerVariant = 'default' | 'compact' | 'slim';
 
 export interface DeliveryTimerProps {
   variant?: DeliveryTimerVariant;
@@ -49,6 +49,78 @@ export const DeliveryTimer: React.FC<DeliveryTimerProps> = ({
 
   const { estimate, remainingMs } = useDeliveryCountdown({ isHitSelected });
   const isCompact = variant === 'compact';
+  const isSlim = variant === 'slim';
+
+  if (isSlim) {
+    const isWeekend = estimate.state === 'weekend_lock';
+    const isHitActive = estimate.state === 'hit_selected';
+    const isHitOffer = estimate.state === 'hit_available';
+    const Icon = isWeekend ? Clock : isHitActive || isHitOffer ? Zap : Truck;
+    const title = isWeekend
+      ? `Expected ${formatWeekdayLong(estimate.deliveryDate)} delivery`
+      : isHitActive
+      ? `HIT active · expected ${formatWeekdayLong(estimate.deliveryDate)} delivery`
+      : isHitOffer
+      ? `HIT available · arrive ${formatWeekdayLong(getDeliveryEstimate({ isHitSelected: true }).deliveryDate)}`
+      : `Expected ${formatWeekdayLong(estimate.deliveryDate)} delivery`;
+    const supportingText = isWeekend
+      ? `Ships ${formatWeekdayLong(estimate.shipDate)} · next production window`
+      : isHitActive
+      ? `Ships ${formatWeekdayLong(estimate.shipDate)} · slot held for`
+      : isHitOffer
+      ? `Standard arrives ${formatWeekdayLong(estimate.deliveryDate)} · add HIT within`
+      : `Ships ${formatWeekdayLong(estimate.shipDate)} · order within`;
+    const theme = isWeekend
+      ? 'border-orange-200 bg-gradient-to-r from-orange-50 via-white to-blue-50'
+      : isHitActive
+      ? 'border-amber-200 bg-amber-50'
+      : isHitOffer
+      ? 'border-emerald-200 bg-emerald-50'
+      : 'border-blue-200 bg-blue-50';
+    const iconTheme = isWeekend
+      ? 'bg-orange-100 text-[#C94E00] ring-orange-200'
+      : isHitActive
+      ? 'bg-amber-100 text-amber-700 ring-amber-200'
+      : isHitOffer
+      ? 'bg-emerald-100 text-emerald-700 ring-emerald-200'
+      : 'bg-blue-100 text-blue-700 ring-blue-200';
+    const countdownTheme = isWeekend
+      ? 'text-[#C94E00]'
+      : isHitActive
+      ? 'text-amber-700'
+      : isHitOffer
+      ? 'text-emerald-700'
+      : 'text-[#18448D]';
+
+    return (
+      <div
+        className={`rounded-xl border px-3 py-2.5 shadow-sm sm:px-4 ${theme}${className ? ` ${className}` : ''}`}
+        data-testid="delivery-timer"
+        data-state={estimate.state}
+        data-variant="slim"
+        data-hit-selected={isHitActive ? 'true' : undefined}
+      >
+        <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5 sm:gap-3">
+          <span className={`flex h-8 w-8 items-center justify-center rounded-full ring-1 ${iconTheme}`}>
+            <Icon className="h-4 w-4" aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-xs font-bold leading-4 text-[#0B1F3A] sm:text-sm">{title}</p>
+            <p className="truncate text-[10px] leading-4 text-slate-600 sm:text-xs">{supportingText}</p>
+          </div>
+          <p
+            className={`whitespace-nowrap font-mono text-base font-black tracking-[0.02em] sm:text-lg ${countdownTheme}`}
+            data-testid="delivery-countdown"
+            role="timer"
+            aria-live="off"
+            aria-label={`${formatCountdown(remainingMs)} remaining for ${supportingText.toLowerCase()}`}
+          >
+            {formatCountdown(remainingMs)}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const wrapperClass =
     `rounded-xl border ${isCompact ? 'p-3 sm:p-4 text-sm' : 'p-4 sm:p-5'} ` +
