@@ -13,6 +13,16 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "what-are-yard-signs-made-of": {
+    title: "What Are Yard Signs Made Of? Corrugated Plastic Explained",
+    description: "Learn what yard signs are made of, how corrugated plastic and flutes work, and what to check before ordering, installing, reusing, or recycling signs.",
+    image: "https://bannersonthefly.com/images/blog/what-are-yard-signs-made-of.webp"
+  },
+  "parade-banner-size-guide": {
+    title: "Parade Banner Size Guide: Plan the Message, Carriers, and Hardware",
+    description: "Choose a parade banner size from group width, carrier height, message, hardware, route, and wind, then test the complete setup with this planning checklist.",
+    image: "https://bannersonthefly.com/images/blog/parade-banner-size-guide.webp"
+  },
   "banner-resolution-dpi-pixel-size-guide": {
     title: "What Resolution Should a Banner Be? A DPI and Pixel-Size Guide",
     description: "Choose the right banner resolution with practical PPI targets, pixel-dimension formulas, viewing-distance guidance, vector tips, and a preflight checklist.",
