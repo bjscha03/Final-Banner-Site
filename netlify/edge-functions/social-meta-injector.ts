@@ -13,6 +13,16 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "banner-grommet-spacing-guide": {
+    title: "Banner Grommet Spacing Guide: How Far Apart Should Grommets Be?",
+    description: "Choose banner grommet spacing by size, mounting surface, support points, and wind exposure, with practical guidance for corners and perimeter intervals.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/banner-grommet-spacing-guide.webp"
+  },
+  "holiday-retail-sale-banners": {
+    title: "Holiday Sale Banners: A Retail Planning and Design Guide",
+    description: "Plan holiday sale banners from Black Friday through New Year with clearer offers, storefront sizing, placement, artwork, installation, and changeover steps.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/holiday-retail-sale-banners.webp"
+  },
   "what-are-yard-signs-made-of": {
     title: "What Are Yard Signs Made Of? Corrugated Plastic Explained",
     description: "Learn what yard signs are made of, how corrugated plastic and flutes work, and what to check before ordering, installing, reusing, or recycling signs.",
