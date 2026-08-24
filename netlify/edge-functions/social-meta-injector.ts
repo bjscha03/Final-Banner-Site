@@ -13,6 +13,16 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "vinyl-banner-weight-calculator": {
+    title: "Vinyl Banner Weight Calculator: Estimate Weight by Size and Material",
+    description: "Estimate vinyl banner weight from width, height, and nominal material-ounce ratings, with formulas, tables, and practical finished-weight caveats for planning.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/vinyl-banner-weight-calculator.webp"
+  },
+  "finish-line-banner-size-guide": {
+    title: "Finish Line Banner Size Guide: Plan the Chute, Sponsors, and Setup",
+    description: "Choose a finish line banner size from the measured chute, approved structure, sponsor plan, sight lines, weather, installation, and race-day workflow.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/finish-line-banner-size-guide.webp"
+  },
   "banner-grommet-spacing-guide": {
     title: "Banner Grommet Spacing Guide: How Far Apart Should Grommets Be?",
     description: "Choose banner grommet spacing by size, mounting surface, support points, and wind exposure, with practical guidance for corners and perimeter intervals.",
