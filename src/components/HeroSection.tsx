@@ -8,18 +8,17 @@ const HeroSection: React.FC = () => {
   const navigate = useNavigate();
   const campaign = getHomepageHeroCampaign();
   const isSeasonal = campaign.id !== EVERGREEN_HERO.id && Boolean(campaign.artwork);
+  const artwork = campaign.artwork;
+  const headlineScale = campaign.headline.length > 44
+    ? '[--homepage-mobile-size:clamp(2.55rem,10vw,2.9rem)] text-[2.9rem] sm:text-[4rem] lg:text-[4.8rem] xl:text-[5.2rem]'
+    : campaign.headline.length > 30
+      ? '[--homepage-mobile-size:clamp(2.9rem,11vw,3.25rem)] text-[3.25rem] sm:text-[4.3rem] lg:text-[5rem] xl:text-[5.4rem]'
+      : '[--homepage-mobile-size:clamp(3rem,12vw,3.6rem)] text-[3.6rem] sm:text-[5rem] lg:text-[6.7rem] xl:text-[7.1rem]';
 
   const goTo = (href: string) => {
     navigate(href);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-
-  const heroHeadline = isSeasonal ? (
-    <>
-      <span className="block sm:inline">Make the first day</span>{' '}
-      <span className="block sm:inline">impossible to miss.</span>
-    </>
-  ) : campaign.headline;
 
   return (
     <section
@@ -27,20 +26,21 @@ const HeroSection: React.FC = () => {
       {...(isSeasonal ? { 'data-seasonal-campaign': campaign.id } : {})}
       className="relative isolate overflow-hidden bg-[#071C35] text-[#061A31]"
     >
-      {isSeasonal ? (
-        <picture className="absolute inset-y-0 -right-[24%] z-0 w-full sm:right-0 sm:w-[84%] lg:w-[73%]" aria-hidden="true">
-          <source media="(max-width: 639px)" type="image/avif" srcSet="/images/homepage/school-hero-mobile.avif" />
-          <source media="(max-width: 639px)" type="image/webp" srcSet="/images/homepage/school-hero-mobile.webp" />
-          <source type="image/avif" srcSet="/images/homepage/school-hero-desktop.avif" />
+      {isSeasonal && artwork ? (
+        <picture
+          data-seasonal-hero-art="desktop"
+          className="absolute inset-y-0 right-0 z-0 hidden w-[84%] sm:block lg:w-[73%]"
+        >
+          {artwork.desktopAvifSrc ? <source type="image/avif" srcSet={artwork.desktopAvifSrc} /> : null}
           <img
-            src="/images/homepage/school-hero-desktop.webp"
-            alt=""
-            width="1127"
-            height="657"
+            src={artwork.desktopSrc}
+            alt={artwork.alt}
+            width={artwork.desktopWidth}
+            height={artwork.desktopHeight}
             loading="eager"
-            decoding="sync"
+            decoding="async"
             fetchPriority="high"
-            className="h-full w-full object-cover object-[58%_center] sm:object-[58%_center]"
+            className="h-full w-full object-cover object-center"
           />
         </picture>
       ) : null}
@@ -54,14 +54,34 @@ const HeroSection: React.FC = () => {
           <p className="text-xs font-black uppercase tracking-[0.09em] text-[#08213d] sm:text-sm lg:text-base">
             {campaign.eyebrow}
           </p>
-          <h1 className="homepage-condensed mt-4 max-w-[430px] [--homepage-mobile-size:clamp(3rem,12vw,3.6rem)] text-[3.6rem] font-black uppercase leading-[0.84] tracking-[-0.02em] text-[#061A31] sm:max-w-[700px] sm:text-[5rem] lg:text-[6.7rem] xl:text-[7.1rem]">
-            {heroHeadline}
+          <h1
+            className={`homepage-condensed mt-4 max-w-[430px] font-black uppercase leading-[0.84] tracking-[-0.02em] text-[#061A31] sm:max-w-[700px] ${headlineScale}`}
+          >
+            {campaign.headline}
           </h1>
-          {!isSeasonal && (
+          {isSeasonal && artwork ? (
+            <picture
+              data-seasonal-hero-art="mobile"
+              className="relative mt-5 block h-[300px] w-full overflow-hidden border-y-4 border-[#071C35] bg-[#071C35] shadow-[0_18px_38px_rgba(6,26,49,0.22)] sm:hidden"
+            >
+              {artwork.mobileAvifSrc ? <source type="image/avif" srcSet={artwork.mobileAvifSrc} /> : null}
+              <img
+                src={artwork.mobileSrc}
+                alt={artwork.alt}
+                width={artwork.mobileWidth}
+                height={artwork.mobileHeight}
+                loading="eager"
+                decoding="async"
+                fetchPriority="high"
+                className="h-full w-full object-cover object-[center_65%]"
+              />
+            </picture>
+          ) : null}
+          {!isSeasonal ? (
             <p className="mt-4 max-w-[410px] text-base font-medium leading-6 text-[#102a43] sm:max-w-xl sm:text-lg sm:leading-7 lg:text-xl">
               {campaign.description}
             </p>
-          )}
+          ) : null}
 
           <div className="mt-5 flex flex-col items-start gap-3 sm:mt-6 sm:flex-row sm:items-center sm:gap-7">
             <button
