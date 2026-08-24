@@ -62,6 +62,27 @@ The customer example is the fictional `Northline Outdoor Goods`, using an origin
 - **Next due:** Christmas & Holiday Events launches 2026-11-15 and enters its 10-week production window on 2026-09-06.
 - **Production:** Draft review only. Do not merge or deploy to production.
 
+## Creative QA result
+
+The first Holiday Sales desktop and laptop renders passed, but the first mobile integration failed human creative review: the redesigned horizontal orange wash left only a narrow sliver of the customer banner visible. The mobile seasonal hero was revised to place its dedicated portrait artwork in a full-width, crop-safe product panel immediately after the headline. The complete banner, organization identity, offer, dates, hems, grommets, and mounting now remain visible while the primary CTA stays in the first screen.
+
+The final redesigned-homepage matrix passed 16/16 campaign/device combinations:
+
+| Campaign | 1440×1000 desktop | 1280×800 laptop | 390×844 iPhone | 412×915 Android |
+| --- | --- | --- | --- | --- |
+| Halloween | Pass | Pass | Pass | Pass |
+| Veterans Day | Pass | Pass | Pass | Pass |
+| Thanksgiving | Pass | Pass | Pass | Pass |
+| Holiday Sales | Pass | Pass | Pass | Pass |
+
+Every render verified the correct desktop/mobile WebP, completed image decode, expected natural dimensions, headline containment, visible primary and secondary CTAs, three supporting modules, no horizontal overflow, no page exceptions, and no serious or critical WCAG A/AA violations. Human inspection also passed signage realism, finished materials, exact intentional text, mounting, perspective, relevance, prominence, safe cropping, brightness, uniqueness, readability, and continuity with the redesigned site.
+
+- Holiday Sales desktop WebP: 1400×875, 148 KB.
+- Holiday Sales mobile WebP: 900×1125, 128 KB.
+- Campaign-selection tests: 7/7 passed.
+- Targeted ESLint: passed.
+- Production build: passed; 289 routes prerendered and verified.
+
 ## Final generation prompts
 
 ### Desktop
