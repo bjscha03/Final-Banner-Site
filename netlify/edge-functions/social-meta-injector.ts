@@ -13,6 +13,16 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "wedding-banner-size-guide": {
+    title: "Wedding Banner Size Guide: Welcome Signs, Backdrops, and Reception Displays",
+    description: "Choose a wedding banner size for welcome areas, ceremony backdrops, reception tables, and photo moments with measuring, mounting, and design guidance.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/wedding-banner-size-guide.webp"
+  },
+  "car-magnet-design-guide": {
+    title: "Car Magnet Design Guide: What to Include and What to Leave Out",
+    description: "Create a readable business car magnet design with clear hierarchy, contrast, vehicle-aware sizing, artwork checks, and a real-world proofing workflow.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/car-magnet-design-guide.webp"
+  },
   "vinyl-banner-weight-calculator": {
     title: "Vinyl Banner Weight Calculator: Estimate Weight by Size and Material",
     description: "Estimate vinyl banner weight from width, height, and nominal material-ounce ratings, with formulas, tables, and practical finished-weight caveats for planning.",
