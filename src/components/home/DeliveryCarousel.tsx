@@ -30,7 +30,7 @@ const DeliveryCarousel: React.FC = () => (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {deliveryImages.map((src, index) => (
             <figure key={src} className="relative overflow-hidden border border-[#d5d1c8] bg-slate-100">
-              <span className="absolute left-0 top-0 z-10 bg-[#F45B08] px-2 py-1 text-xs font-black text-white">
+              <span className="absolute left-0 top-0 z-10 bg-[#C94008] px-2 py-1 text-xs font-black text-white">
                 {String(index + 1).padStart(2, '0')}
               </span>
               <img

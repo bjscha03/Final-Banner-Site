@@ -9,15 +9,35 @@ import {
 describe('seasonal campaign selection', () => {
   it('activates the approved campaign on its first and last dates', () => {
     expect(getActiveSeasonalCampaignForDate('2026-08-07')?.id).toBe('back-to-school-fall-kickoff-2026');
-    expect(getActiveSeasonalCampaignForDate('2026-09-07')?.id).toBe('back-to-school-fall-kickoff-2026');
+    expect(getActiveSeasonalCampaignForDate('2026-08-24')?.id).toBe('back-to-school-fall-kickoff-2026');
   });
 
-  it('expires the campaign immediately after its configured end date', () => {
-    expect(getActiveSeasonalCampaignForDate('2026-09-08')).toBeNull();
+  it('hands off from back to school to Halloween without a stale gap', () => {
+    expect(getActiveSeasonalCampaignForDate('2026-08-25')?.id).toBe('halloween-events-2026');
   });
 
   it('returns the evergreen fallback outside an approved campaign window', () => {
-    expect(getHomepageHeroCampaign(new Date('2026-10-01T16:00:00Z')).id).toBe(EVERGREEN_HERO.id);
+    expect(getHomepageHeroCampaign(new Date('2027-03-01T16:00:00Z')).id).toBe(EVERGREEN_HERO.id);
+  });
+
+  it('activates each newly approved campaign on its roadmap start date', () => {
+    expect(getActiveSeasonalCampaignForDate('2026-08-25')?.id).toBe('halloween-events-2026');
+    expect(getActiveSeasonalCampaignForDate('2026-11-01')?.id).toBe('veterans-day-recognition-2026');
+    expect(getActiveSeasonalCampaignForDate('2026-11-12')?.id).toBe('thanksgiving-community-2026');
+    expect(getActiveSeasonalCampaignForDate('2026-11-27')?.id).toBe('holiday-sales-2026');
+  });
+
+  it('hands overlapping windows to the campaign with the nearest expiration', () => {
+    expect(getActiveSeasonalCampaignForDate('2026-10-12')?.id).toBe('halloween-events-2026');
+    expect(getActiveSeasonalCampaignForDate('2026-11-01')?.id).toBe('veterans-day-recognition-2026');
+    expect(getActiveSeasonalCampaignForDate('2026-11-12')?.id).toBe('thanksgiving-community-2026');
+    expect(getActiveSeasonalCampaignForDate('2026-11-26')?.id).toBe('thanksgiving-community-2026');
+    expect(getActiveSeasonalCampaignForDate('2026-11-27')?.id).toBe('holiday-sales-2026');
+  });
+
+  it('expires the final due campaign after the holiday sales weekend', () => {
+    expect(getActiveSeasonalCampaignForDate('2026-11-30')?.id).toBe('holiday-sales-2026');
+    expect(getActiveSeasonalCampaignForDate('2026-12-01')).toBeNull();
   });
 
   it('uses the campaign operating timezone for date boundaries', () => {
