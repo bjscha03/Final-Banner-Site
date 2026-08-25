@@ -69,7 +69,7 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
     tier: 1,
     priority: 100,
     startDate: '2026-08-07',
-    endDate: '2026-09-07',
+    endDate: '2026-08-24',
     eyebrow: 'Back to school · Open houses · Fall events',
     headline: 'Make the first day impossible to miss.',
     description:
@@ -117,7 +117,7 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
     status: 'ready',
     tier: 2,
     priority: 90,
-    startDate: '2026-09-21',
+    startDate: '2026-08-25',
     endDate: '2026-10-31',
     eyebrow: 'Halloween events · Trunk-or-treat · Fall promotions',
     headline: 'Make every fall event easy to find.',
