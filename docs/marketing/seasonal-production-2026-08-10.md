@@ -1,5 +1,7 @@
 # Seasonal Campaign Studio — 2026-08-10 production brief
 
+> Preview rebuild requested after the August 25 timing change.
+
 ## Production window
 
 The roadmap's 6–10 week production window is calculated from each campaign's configured start date. From 2026-08-10, the inclusive window is 2026-09-21 through 2026-10-19.
