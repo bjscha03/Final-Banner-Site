@@ -8,7 +8,7 @@ Three campaigns are due:
 
 | Campaign | Roadmap launch | Roadmap expiration | Event date | Status |
 | --- | --- | --- | --- | --- |
-| Halloween Events & Promotions | 2026-09-21 | 2026-10-31 | 2026-10-31 | Ready for draft review |
+| Halloween Events & Promotions | 2026-08-25 | 2026-10-31 | 2026-10-31 | Ready for draft review |
 | Veterans Day & Community Recognition | 2026-10-12 | 2026-11-11 | 2026-11-11 | Ready for draft review |
 | Thanksgiving Food Drives & Fall Events | 2026-10-19 | 2026-11-26 | 2026-11-26 | Ready for draft review |
 
@@ -20,7 +20,7 @@ The 2026 dates for Veterans Day and Thanksgiving were rechecked against the U.S.
 - When approved campaign windows overlap, the homepage displays the eligible campaign with the nearest expiration date. This preserves the roadmap windows while creating automatic handoffs: Halloween through October 31, Veterans Day November 1–11, and Thanksgiving November 12–26.
 - Each campaign expires at the end of its configured date in `America/New_York`.
 - When no approved campaign is active, the existing evergreen hero is returned automatically.
-- The currently live Back to School campaign expires after September 7. The evergreen hero remains the intended fallback from September 8–20.
+- Back to School expires after August 24. Halloween begins August 25 so the homepage moves directly into the next relevant campaign without a stale back-to-school period.
 
 ## Halloween Events & Promotions
 
@@ -107,7 +107,7 @@ All assets are responsive WebP with stripped metadata:
 
 ## Roadmap status
 
-- **Expiring:** Back to School & First Days remains configured through 2026-09-07.
+- **Expired:** Back to School & First Days ends on 2026-08-24; Halloween begins on 2026-08-25.
 - **Past the target production window:** Labor Day, Fall Sports, Election, and Fall Community campaigns are already fewer than six weeks from their roadmap starts and were not expanded into new hero campaigns in this production batch.
 - **Next due:** Holiday Sales launches 2026-11-02 and enters its 10-week production window on 2026-08-24.
 - **Following:** Christmas & Holiday Events launches 2026-11-15 and enters its 10-week production window on 2026-09-06.
