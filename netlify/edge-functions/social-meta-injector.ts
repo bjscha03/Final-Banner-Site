@@ -13,6 +13,16 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "yard-sign-design-guide": {
+    title: "Yard Sign Design Guide: Create a 24×18 Sign People Can Read",
+    description: "Design a readable 24×18 yard sign with stronger hierarchy, contrast, spacing, artwork checks, placement planning, and a practical proofing workflow today.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/yard-sign-design-guide.webp"
+  },
+  "how-to-hang-banner-on-brick-wall": {
+    title: "How to Hang a Banner on a Brick Wall: Four Safer Options",
+    description: "Learn how to hang a vinyl banner on a brick wall using brick clips, existing anchors, freestanding frames, or approved masonry hardware without guesswork.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/how-to-hang-banner-on-brick-wall.webp"
+  },
   "wedding-banner-size-guide": {
     title: "Wedding Banner Size Guide: Welcome Signs, Backdrops, and Reception Displays",
     description: "Choose a wedding banner size for welcome areas, ceremony backdrops, reception tables, and photo moments with measuring, mounting, and design guidance.",
