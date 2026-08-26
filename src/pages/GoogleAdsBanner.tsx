@@ -27,6 +27,7 @@ import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
 import DeliveryTimer from '@/components/delivery/DeliveryTimer';
 import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
 import MobileSubtotalBar from '@/components/design/MobileSubtotalBar';
+import BannerSizeUpsell from '@/components/design/BannerSizeUpsell';
 import FileUploader, { type FileUploaderHandle } from '@/components/ui/FileUploader';
 import GrommetOverlay from '@/components/preview/GrommetOverlay';
 import PreviewRulerFrame from '@/components/preview/PreviewRulerFrame';
@@ -96,6 +97,10 @@ import { getProductLandingDefinition } from '@/lib/seo/productLandingData';
 import { shouldAutoConfirmBannerSize } from '@/lib/bannerCheckoutReadiness';
 import { buildArtworkCompositionKey } from '@/lib/artworkCompositionKey';
 import { isPopularBannerPreset, POPULAR_BANNER_PRESET } from '@/lib/bannerDefaults';
+import {
+  BANNER_SIZE_UPSELL_TARGET,
+  calculateBannerSizeUpsellPriceDifferenceCents,
+} from '@/lib/bannerSizeUpsell';
 
 type UploadedArtworkFile = {
   editorIdentity?: string;
@@ -826,6 +831,34 @@ const GoogleAdsBanner: React.FC = () => {
   const bannerSubtotalAfterAllDiscountsCents = Math.max(
     0,
     bannerPricing.subtotalBeforeDiscountCents - bannerPromoResolution.appliedDiscountAmountCents,
+  );
+  const bannerSizeUpsellPriceDifferenceCents = useMemo(
+    () => calculateBannerSizeUpsellPriceDifferenceCents({
+      currentSubtotalAfterDiscountCents: bannerSubtotalAfterAllDiscountsCents,
+      quantity,
+      material,
+      grommets,
+      addRope,
+      ropePlacement,
+      polePockets,
+      promoCode: effectivePromoCode,
+      validatedPromo: activeCartPromo ? {
+        code: activeCartPromo.code,
+        discountPercentage: activeCartPromo.discountPercentage,
+        discountAmountCents: activeCartPromo.discountAmountCents || undefined,
+      } : null,
+    }),
+    [
+      bannerSubtotalAfterAllDiscountsCents,
+      quantity,
+      material,
+      grommets,
+      addRope,
+      ropePlacement,
+      polePockets,
+      effectivePromoCode,
+      activeCartPromo,
+    ],
   );
   const bannerTaxAfterAllDiscountsCents = Math.round(bannerSubtotalAfterAllDiscountsCents * 0.06);
   const bannerTotalAfterAllDiscountsCents = bannerSubtotalAfterAllDiscountsCents + bannerTaxAfterAllDiscountsCents;
@@ -2736,8 +2769,8 @@ const GoogleAdsBanner: React.FC = () => {
                     </div>
                   ) : undefined}
                 >
-                  <div className={isCarMagnet ? '' : 'grid lg:grid-cols-2 lg:gap-6'}>
-                    <div>
+                  <div className={isCarMagnet ? '' : 'grid grid-cols-1 lg:grid-cols-2 lg:gap-6'}>
+                    <div className={!isCarMagnet ? 'order-1' : undefined}>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Popular Sizes</label>
                       <div className="grid grid-cols-3 gap-2">
                         {isCarMagnet
@@ -2754,7 +2787,7 @@ const GoogleAdsBanner: React.FC = () => {
                       </div>
                     </div>
                     {!isCarMagnet && (
-                    <div className="mt-6 lg:mt-0">
+                    <div className="order-3 mt-6 lg:order-2 lg:mt-0">
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Custom Size</label>
                       {unit === 'in' ? (
                         <div className="grid grid-cols-2 gap-4">
@@ -2844,6 +2877,16 @@ const GoogleAdsBanner: React.FC = () => {
                           : `≈ ${widthIn} in × ${heightIn} in`}
                       </p>
                     </div>
+                    )}
+                    {!isCarMagnet && (
+                      <div className="order-2 mt-4 lg:order-3 lg:col-span-2 lg:mt-5">
+                        <BannerSizeUpsell
+                          widthIn={widthIn}
+                          heightIn={heightIn}
+                          priceDifferenceCents={bannerSizeUpsellPriceDifferenceCents}
+                          onUpgrade={() => applyPreset(BANNER_SIZE_UPSELL_TARGET.presetIndex)}
+                        />
+                      </div>
                     )}
                   </div>
                 </ConfigCard>
