@@ -31,7 +31,8 @@ import {
   ChevronRight,
   Copy,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Ban
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -47,6 +48,8 @@ import StablePreviewImage from '@/components/preview/StablePreviewImage';
 import { getGrommetLabel } from '@/lib/grommets';
 import EditCustomerInfoDialog from '@/components/orders/EditCustomerInfoDialog';
 import ReviewRequestAction from '@/components/orders/ReviewRequestAction';
+import AdminRefundOrderAction from '@/components/orders/AdminRefundOrderAction';
+import { summarizeAdminOrders } from '@/lib/admin-order-overview';
 
 const PAGE_SIZE = 20;
 
@@ -277,12 +280,15 @@ const AdminOrders: React.FC = () => {
   const [fileLoadingStates, setFileLoadingStates] = useState<Record<string, boolean>>({});
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
+  const pageOverview = useMemo(() => summarizeAdminOrders(orders), [orders]);
   const [globalOverview, setGlobalOverview] = useState({
     totalOrders: 0,
     inProductionOrders: 0,
     shippedOrders: 0,
     pendingOrders: 0,
+    refundedOrders: 0,
     totalRevenueCents: 0,
+    refundedRevenueCents: 0,
     abandonedCarts: 0,
     customQuotes: 0,
   });
@@ -372,12 +378,9 @@ const AdminOrders: React.FC = () => {
       ? (customQuotesResult.value?.quotes?.length ?? 0)
       : 0;
 
+    const orderOverview = summarizeAdminOrders(allOrders);
     setGlobalOverview({
-      totalOrders: allOrders.length,
-      inProductionOrders: allOrders.filter((o) => o.status === 'in_production').length,
-      shippedOrders: allOrders.filter((o) => o.tracking_number).length,
-      pendingOrders: allOrders.filter((o) => !o.tracking_number && o.status !== 'in_production').length,
-      totalRevenueCents: allOrders.filter((o) => !o.is_test_order).reduce((sum, o) => sum + o.total_cents, 0),
+      ...orderOverview,
       abandonedCarts: abandonedCartsCount,
       customQuotes: customQuotesCount,
     });
@@ -442,6 +445,10 @@ const AdminOrders: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   const handleCustomerInfoUpdated = (updated: Order) => setOrders(current => current.map(order => order.id === updated.id ? { ...order, ...updated } : order));
+  const handleOrderRefunded = (updated: Order) => {
+    setOrders(current => current.map(order => order.id === updated.id ? { ...order, ...updated } : order));
+    void loadGlobalOverview(user?.email);
+  };
   const handleReviewRequestSent = (orderId: string, update: { sentAt: string; customerEmail: string }) => {
     setOrders(current => current.map(order => order.id === orderId ? {
       ...order,
@@ -987,7 +994,7 @@ const AdminOrders: React.FC = () => {
       case 'in_production':
         return 'bg-yellow-100 text-yellow-800';
       case 'refunded':
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-red-100 text-red-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -995,6 +1002,7 @@ const AdminOrders: React.FC = () => {
 
   const getStatusLabel = (status: string): string => {
     if (status === 'in_production') return 'In Production';
+    if (status === 'refunded') return 'Cancelled / Refunded';
     return status;
   };
 
@@ -1130,7 +1138,7 @@ const AdminOrders: React.FC = () => {
                 Global totals across admin sections
               </span>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
               {[
                 {
                   label: 'Total Orders',
@@ -1150,6 +1158,11 @@ const AdminOrders: React.FC = () => {
                 {
                   label: 'Pending',
                   value: globalOverview.pendingOrders.toLocaleString(),
+                  ready: globalOverviewLoading.orders,
+                },
+                {
+                  label: 'Refunded',
+                  value: globalOverview.refundedOrders.toLocaleString(),
                   ready: globalOverviewLoading.orders,
                 },
                 {
@@ -1176,13 +1189,13 @@ const AdminOrders: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-8">
             <div className="bg-white rounded-2xl shadow-lg p-6">
               <div className="flex items-center">
                 <Package className="h-8 w-8 text-blue-600" />
                 <div className="ml-4">
                   <p className="text-sm text-gray-600">Total Orders</p>
-                  <p className="text-2xl font-bold text-gray-900">{orders.length}</p>
+                  <p className="text-2xl font-bold text-gray-900">{pageOverview.totalOrders}</p>
                 </div>
               </div>
             </div>
@@ -1195,7 +1208,7 @@ const AdminOrders: React.FC = () => {
                 <div className="ml-4">
                   <p className="text-sm text-gray-600">In Production</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {orders.filter(o => o.status === 'in_production').length}
+                    {pageOverview.inProductionOrders}
                   </p>
                 </div>
               </div>
@@ -1207,7 +1220,7 @@ const AdminOrders: React.FC = () => {
                 <div className="ml-4">
                   <p className="text-sm text-gray-600">Shipped</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {orders.filter(o => o.tracking_number).length}
+                    {pageOverview.shippedOrders}
                   </p>
                 </div>
               </div>
@@ -1221,8 +1234,23 @@ const AdminOrders: React.FC = () => {
                 <div className="ml-4">
                   <p className="text-sm text-gray-600">Pending</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {orders.filter(o => !o.tracking_number && o.status !== 'in_production').length}
+                    {pageOverview.pendingOrders}
                   </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-lg p-6">
+              <div className="flex items-center">
+                <div className="h-8 w-8 bg-red-100 rounded-full flex items-center justify-center">
+                  <Ban className="h-4 w-4 text-red-700" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm text-gray-600">Refunded</p>
+                  <p className="text-2xl font-bold text-gray-900">{pageOverview.refundedOrders}</p>
+                  {pageOverview.refundedRevenueCents > 0 && (
+                    <p className="text-xs text-red-700">{usd(pageOverview.refundedRevenueCents / 100)}</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -1235,7 +1263,7 @@ const AdminOrders: React.FC = () => {
                 <div className="ml-4">
                   <p className="text-sm text-gray-600">Revenue</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {usd(orders.filter((o) => !o.is_test_order).reduce((sum, o) => sum + o.total_cents, 0) / 100)}
+                    {usd(pageOverview.totalRevenueCents / 100)}
                   </p>
                 </div>
               </div>
@@ -1287,6 +1315,7 @@ const AdminOrders: React.FC = () => {
                       onPdfDownload={handlePdfDownload}
                       onSendShippingNotification={handleSendShippingNotification}
                       onMarkInProduction={handleMarkInProduction}
+                      onOrderRefunded={handleOrderRefunded}
                       onUploadFinalPdf={handleUploadFinalPdf}
                       getStatusColor={getStatusColor}
                       getStatusLabel={getStatusLabel}
@@ -1311,6 +1340,7 @@ const AdminOrders: React.FC = () => {
                       onPdfDownload={handlePdfDownload}
                       onSendShippingNotification={handleSendShippingNotification}
                       onMarkInProduction={handleMarkInProduction}
+                      onOrderRefunded={handleOrderRefunded}
                       onUploadFinalPdf={handleUploadFinalPdf}
                       getStatusColor={getStatusColor}
                       getStatusLabel={getStatusLabel}
@@ -1367,6 +1397,7 @@ interface AdminOrderRowProps {
   onPdfDownload: (item: any, itemIndex: number, orderId: string) => void;
   onSendShippingNotification: (orderId: string) => void;
   onMarkInProduction: (orderId: string) => void;
+  onOrderRefunded: (updatedOrder: Order) => void;
   onUploadFinalPdf?: (orderId: string, itemIndex: number, file: File) => void;
   getStatusColor: (status: string) => string;
   getStatusLabel: (status: string) => string;
@@ -1385,6 +1416,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   onPdfDownload,
   onSendShippingNotification,
   onMarkInProduction,
+  onOrderRefunded,
   onUploadFinalPdf,
   getStatusColor,
   getStatusLabel,
@@ -1837,19 +1869,23 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                 </Button>
               )}
 
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleSendNotification}
-                disabled={isSendingNotification || displayedTrackingRows.length === 0}
-                className="h-9 w-full text-xs"
-              >
-                {isSendingNotification ? (
-                  <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Sending...</>
-                ) : (
-                  <><Mail className="h-3 w-3 mr-1" />{order.shipping_notification_sent ? 'Resend Tracking Email' : 'Send Tracking Email'}</>
-                )}
-              </Button>
+              <AdminRefundOrderAction order={order} onRefunded={onOrderRefunded} fullWidth />
+
+              {order.status !== 'refunded' && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleSendNotification}
+                  disabled={isSendingNotification || displayedTrackingRows.length === 0}
+                  className="h-9 w-full text-xs"
+                >
+                  {isSendingNotification ? (
+                    <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Sending...</>
+                  ) : (
+                    <><Mail className="h-3 w-3 mr-1" />{order.shipping_notification_sent ? 'Resend Tracking Email' : 'Send Tracking Email'}</>
+                  )}
+                </Button>
+              )}
             </div>
             <ReviewRequestAction order={order} onSent={onReviewRequestSent} fullWidth />
 
@@ -1906,6 +1942,7 @@ interface AdminOrderCardProps {
   onPdfDownload: (item: any, itemIndex: number, orderId: string) => void;
   onSendShippingNotification: (orderId: string) => void;
   onMarkInProduction: (orderId: string) => void;
+  onOrderRefunded: (updatedOrder: Order) => void;
   onUploadFinalPdf?: (orderId: string, itemIndex: number, file: File) => void;
   getStatusColor: (status: string) => string;
   getStatusLabel: (status: string) => string;
@@ -1922,6 +1959,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
   onPdfDownload,
   onSendShippingNotification,
   onMarkInProduction,
+  onOrderRefunded,
   onUploadFinalPdf,
   getStatusColor,
   getStatusLabel,
@@ -2172,16 +2210,19 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
           </div>
         )}
 
+        <AdminRefundOrderAction order={order} onRefunded={onOrderRefunded} fullWidth />
 
-        <Button
-            size="sm"
-            variant="outline"
-            onClick={handleSendNotification}
-            disabled={isSendingNotification || displayedTrackingRows.length === 0}
-            className="h-9 w-full text-xs"
-          >
-            {isSendingNotification ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Sending...</> : <><Mail className="h-3 w-3 mr-1" />{order.shipping_notification_sent ? 'Resend Tracking Email' : 'Send Tracking Email'}</>}
-          </Button>
+        {order.status !== 'refunded' && (
+          <Button
+              size="sm"
+              variant="outline"
+              onClick={handleSendNotification}
+              disabled={isSendingNotification || displayedTrackingRows.length === 0}
+              className="h-9 w-full text-xs"
+            >
+              {isSendingNotification ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Sending...</> : <><Mail className="h-3 w-3 mr-1" />{order.shipping_notification_sent ? 'Resend Tracking Email' : 'Send Tracking Email'}</>}
+            </Button>
+        )}
 
         <ReviewRequestAction order={order} onSent={onReviewRequestSent} fullWidth />
         {order.customer_info_admin_updated_at && <Badge className="w-full justify-center bg-indigo-100 text-indigo-800">Customer info updated by Admin</Badge>}
