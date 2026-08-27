@@ -18,7 +18,7 @@ interface FinishingImageAsset {
 
 const buildFinishingImage = (versionedPublicId: string): FinishingImageAsset => {
   const transform = (width: number) =>
-    `https://res.cloudinary.com/dtrxl120u/image/upload/f_auto,q_auto:eco,c_limit,w_${width}/${versionedPublicId}`;
+    `https://res.cloudinary.com/dtrxl120u/image/upload/f_auto/q_auto:eco/c_limit/w_${width}/${versionedPublicId}`;
 
   return {
     src: transform(480),

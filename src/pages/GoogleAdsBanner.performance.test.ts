@@ -11,7 +11,7 @@ describe('Google Ads landing-page performance guardrails', () => {
     const paidPage = readSource('./GoogleAdsBanner.tsx');
     const regularDesigner = readSource('./Design.tsx');
 
-    expect(source).toContain('f_auto,q_auto:eco,c_limit,w_${width}');
+    expect(source).toContain('f_auto/q_auto:eco/c_limit/w_${width}');
     expect(source).toContain('srcSet={optimizeImageDelivery ? imageSrc.srcSet : undefined}');
     expect(source).toContain("loading={optimizeImageDelivery ? 'lazy' : undefined}");
     expect(source).toContain("decoding={optimizeImageDelivery ? 'async' : undefined}");

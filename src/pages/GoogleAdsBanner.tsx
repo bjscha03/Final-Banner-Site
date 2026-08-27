@@ -2504,8 +2504,8 @@ const GoogleAdsBanner: React.FC = () => {
           <div className="max-w-5xl mx-auto flex items-center justify-between">
             <div className="w-10" />
             <img
-              src="https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto:good,w_496/https://bannersonthefly.com/images/header-logo.png"
-              srcSet="https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto:good,w_248/https://bannersonthefly.com/images/header-logo.png 1x, https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto:good,w_496/https://bannersonthefly.com/images/header-logo.png 2x"
+              src="https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto/q_auto:good/w_496/https://bannersonthefly.com/images/header-logo.png"
+              srcSet="https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto/q_auto:good/w_248/https://bannersonthefly.com/images/header-logo.png 1x, https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto/q_auto:good/w_496/https://bannersonthefly.com/images/header-logo.png 2x"
               alt="Banners On The Fly"
               width="248"
               height="70"

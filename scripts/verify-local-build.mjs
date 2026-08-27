@@ -154,7 +154,7 @@ const paidLanding = await readFile(path.join(distDir, 'google-ads-banner', 'inde
 assert(paidLanding.includes('data-prerendered="true"'), '/google-ads-banner: missing prerender marker.');
 assert(paidLanding.includes('CUSTOM BANNERS.') || paidLanding.includes('Custom banners.'), '/google-ads-banner: initial HTML is missing the paid headline.');
 assert(/<meta\b(?=[^>]*name=["']robots["'])(?=[^>]*content=["'][^"']*noindex)/i.test(paidLanding), '/google-ads-banner: must remain noindex.');
-assert(paidLanding.includes('f_auto,q_auto:eco,c_limit,w_'), '/google-ads-banner: finishing images are not transformed.');
+assert(paidLanding.includes('f_auto/q_auto:eco/c_limit/w_'), '/google-ads-banner: finishing images are not transformed.');
 assert(paidLanding.includes('loading="lazy"'), '/google-ads-banner: below-fold images are not lazy-loaded.');
 assert(!paidLanding.includes('data-hero-delivery-status'), '/google-ads-banner: live delivery status must wait until hydration.');
 assert(!paidLanding.includes('data-testid="delivery-timer"'), '/google-ads-banner: live delivery timers must wait until hydration.');
