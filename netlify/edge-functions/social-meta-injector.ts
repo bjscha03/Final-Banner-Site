@@ -13,6 +13,16 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "do-car-magnets-damage-paint": {
+    title: "Do Car Magnets Damage Paint? A Safer Care and Inspection Guide",
+    description: "Do car magnets damage paint? Learn the real risk factors, pre-install inspection, daily cleaning, safe removal, and warning signs for vehicle finishes.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/do-car-magnets-damage-paint.webp"
+  },
+  "how-many-yard-signs-should-i-order": {
+    title: "How Many Yard Signs Should I Order? A Location-First Planning Guide",
+    description: "How many yard signs should you order? Count approved locations, viewing directions, deployment waves, designs, stakes, and replacement needs before buying.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/how-many-yard-signs-should-i-order.webp"
+  },
   "yard-sign-design-guide": {
     title: "Yard Sign Design Guide: Create a 24×18 Sign People Can Read",
     description: "Design a readable 24×18 yard sign with stronger hierarchy, contrast, spacing, artwork checks, placement planning, and a practical proofing workflow today.",
