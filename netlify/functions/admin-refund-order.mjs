@@ -3,6 +3,7 @@ import { neon } from '@neondatabase/serverless';
 import { withLambda } from '@netlify/aws-lambda-compat';
 import serverAuth from './_shared/server-auth.cjs';
 import refundOrder from './_shared/admin-refund-order.cjs';
+import refundEmail from './_shared/refund-order-email.cjs';
 
 const headers = {
   'Content-Type': 'application/json',
@@ -38,7 +39,12 @@ export async function handler(event) {
     const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
     if (!dbUrl) return reply(500, { ok: false, error: 'Database configuration missing' });
 
-    const result = await refundOrder.markOrderRefunded(neon(dbUrl), orderId);
+    const sql = neon(dbUrl);
+    // Validate the recipient and email transport before changing the order.
+    // This prevents a missing address or missing Resend configuration from
+    // silently creating a refunded order with no customer notification.
+    const emailOrder = await refundEmail.prepareRefundEmail(sql, orderId);
+    const result = await refundOrder.markOrderRefunded(sql, orderId);
     if (result.outcome === 'not_found') {
       return reply(404, { ok: false, error: 'Order not found' });
     }
@@ -50,12 +56,24 @@ export async function handler(event) {
       });
     }
 
+    const emailResult = await refundEmail.sendRefundEmailOnce({
+      sql,
+      order: emailOrder,
+      adminIdentifier: auth.session.email || auth.session.sub,
+    });
+
     return reply(200, {
       ok: true,
       order: result.order,
       previousStatus: result.previousStatus,
       alreadyRefunded: result.outcome === 'already_refunded',
+      customerEmail: {
+        sent: emailResult.outcome === 'sent',
+        alreadySent: emailResult.outcome === 'already_sent',
+        sentAt: emailResult.sentAt || null,
+      },
       recordOnly: true,
+      paymentRefundInitiated: false,
     });
   } catch (error) {
     console.error('[admin-refund-order] failed', {
@@ -64,6 +82,9 @@ export async function handler(event) {
       orderId,
       admin: auth.session.email || auth.session.sub,
     });
+    if (error instanceof refundEmail.RefundEmailError) {
+      return reply(error.statusCode, { ok: false, code: error.code, error: error.message });
+    }
     return reply(500, { ok: false, error: 'Unable to mark the order as cancelled/refunded' });
   }
 }

@@ -1,6 +1,7 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
 import AdminRefundOrderAction from './AdminRefundOrderAction';
 import type { Order } from '@/lib/orders/types';
 
@@ -37,5 +38,13 @@ describe('AdminRefundOrderAction', () => {
     );
 
     expect(html).toBe('');
+  });
+
+  it('confirms the customer email and payment-provider safeguard before updating', () => {
+    const source = fs.readFileSync(new URL('./AdminRefundOrderAction.tsx', import.meta.url), 'utf8');
+
+    expect(source).toContain('A refund confirmation email will be sent immediately');
+    expect(source).toContain('make sure the refund has already been issued through the payment provider');
+    expect(source).toContain('Yes — Mark &amp; Send Email');
   });
 });
