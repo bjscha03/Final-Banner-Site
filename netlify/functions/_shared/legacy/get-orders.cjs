@@ -421,6 +421,18 @@ exports.handler = async (event, context) => {
       shipping_notification_status: order.shipping_notification_status || 'pending',
       confirmation_email_status: order.confirmation_email_status || 'pending',
       confirmation_emailed_at: order.confirmation_emailed_at || null,
+      payment_method: order.payment_method || null,
+      payment_reconciliation_status: order.payment_reconciliation_status || null,
+      paypal_order_id: order.paypal_order_id || null,
+      paypal_capture_id: order.paypal_capture_id || null,
+      stripe_payment_intent_id: order.stripe_payment_intent_id || null,
+      stripe_charge_id: order.stripe_charge_id || null,
+      stripe_wallet_type: order.stripe_wallet_type || null,
+      is_test_order: order.is_test_order === true,
+      test_order_reason: order.test_order_reason || null,
+      review_request_customer_email: order.review_request_customer_email || null,
+      review_request_last_sent_at: order.review_request_last_sent_at || null,
+      review_request_sent_count: Number(order.review_request_sent_count) || 0,
       same_day_hit_service: inferredSameDaySelected,
       saturday_delivery: !!order.saturday_delivery,
       same_day_fee_cents: inferredSameDayFee,
@@ -448,4 +460,3 @@ exports.handler = async (event, context) => {
     };
   }
 };
-
