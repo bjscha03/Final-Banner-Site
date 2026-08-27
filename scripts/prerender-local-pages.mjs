@@ -6,7 +6,7 @@ const projectRoot = process.cwd();
 const distDir = path.join(projectRoot, 'dist');
 const template = await readFile(path.join(distDir, 'index.html'), 'utf8');
 const serverEntry = pathToFileURL(path.join(projectRoot, '.ssr-dist', 'entry-server.mjs')).href;
-const { render, prerenderRoutes, indexablePrerenderRoutes } = await import(serverEntry);
+const { render, prerenderRoutes, indexablePrerenderRoutes, performancePrerenderRoutes = [] } = await import(serverEntry);
 
 const managedTagPatterns = [
   /\s*<title\b[^>]*>[\s\S]*?<\/title>/gi,
@@ -29,6 +29,12 @@ async function makeDocument(url) {
 }
 
 for (const route of prerenderRoutes) {
+  const outputDir = path.join(distDir, route.slice(1));
+  await mkdir(outputDir, { recursive: true });
+  await writeFile(path.join(outputDir, 'index.html'), await makeDocument(route), 'utf8');
+}
+
+for (const route of performancePrerenderRoutes) {
   const outputDir = path.join(distDir, route.slice(1));
   await mkdir(outputDir, { recursive: true });
   await writeFile(path.join(outputDir, 'index.html'), await makeDocument(route), 'utf8');
@@ -62,4 +68,4 @@ const manifest = prerenderRoutes.map((route) => ({
 }));
 await writeFile(path.join(distDir, 'local-page-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
 
-console.log(`Prerendered ${prerenderRoutes.length} routes plus 404.html; ${indexablePrerenderRoutes.length} routes are sitemap-eligible.`);
+console.log(`Prerendered ${prerenderRoutes.length} content routes, ${performancePrerenderRoutes.length} performance route, plus 404.html; ${indexablePrerenderRoutes.length} routes are sitemap-eligible.`);

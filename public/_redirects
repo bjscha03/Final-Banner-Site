@@ -10,6 +10,10 @@
 /ai-test-direct.html   /ai-test-direct.html   200
 /ai-button-test.html   /ai-button-test.html   200
 
+# Keep the paid URL stable while serving its performance-prerendered HTML.
+# The forced rewrite prevents Netlify from adding a folder-style 301.
+/google-ads-banner   /google-ads-banner/index.html   200!
+
 # Retired seasonal campaign pages and server functions. These rules belong
 # here as well as netlify.toml so production, branch, and preview contexts all
 # resolve them before the SPA catch-all below.

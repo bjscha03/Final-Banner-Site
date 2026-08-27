@@ -137,7 +137,12 @@ installChunkRecovery();
 
 const RootComponent = shouldRequirePreviewGate() ? PreviewAccessGate : App;
 const rootElement = document.getElementById('root')!;
-const canHydrate = document.documentElement.dataset.prerendered === 'true' && RootComponent === App;
+const normalizedPathname = window.location.pathname.replace(/\/+$/, '') || '/';
+const paidProductVariant = normalizedPathname === '/google-ads-banner'
+  && ['product', 'tab'].some((key) => new URLSearchParams(window.location.search).has(key));
+const canHydrate = document.documentElement.dataset.prerendered === 'true'
+  && RootComponent === App
+  && !paidProductVariant;
 
 if (canHydrate) {
   hydrateRoot(rootElement, <RootComponent />);
