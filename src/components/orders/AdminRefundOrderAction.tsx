@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Ban, Loader2 } from 'lucide-react';
+import { Ban, Loader2, MailCheck } from 'lucide-react';
 import type { Order } from '@/lib/orders/types';
 import { adminFetch } from '@/lib/serverAuth';
 import { usd } from '@/lib/pricing';
@@ -55,15 +55,15 @@ const AdminRefundOrderAction: React.FC<AdminRefundOrderActionProps> = ({
       });
       const result = await response.json().catch(() => ({}));
 
-      if (!response.ok || !result.ok || result.order?.status !== 'refunded') {
+      if (!response.ok || !result.ok || result.order?.status !== 'refunded' || !result.customerEmail) {
         throw new Error(result.error || 'The order could not be marked as cancelled/refunded.');
       }
 
       onRefunded({ ...order, ...result.order, status: 'refunded' });
       setOpen(false);
       toast({
-        title: 'Order marked cancelled / refunded',
-        description: `Order #${order.id.slice(-8).toUpperCase()} is now excluded from active workflow and revenue statistics.`,
+        title: 'Order refunded and customer emailed',
+        description: `Order #${order.id.slice(-8).toUpperCase()} was updated and a refund confirmation was sent to ${order.email}.`,
       });
     } catch (error) {
       toast({
@@ -111,8 +111,11 @@ const AdminRefundOrderAction: React.FC<AdminRefundOrderActionProps> = ({
                 <p>
                   The order will be removed from pending, production, shipped, and revenue statistics and added to the refunded count.
                 </p>
+                <p className="font-semibold text-slate-900">
+                  A refund confirmation email will be sent immediately to {order.email}.
+                </p>
                 <p className="font-semibold text-red-700">
-                  This updates the Banners on the Fly record only. It does not send money through Apple Pay, Stripe, or PayPal.
+                  Before continuing, make sure the refund has already been issued through the payment provider. This action does not move money through Apple Pay, Stripe, or PayPal.
                 </p>
               </div>
             </AlertDialogDescription>
@@ -128,9 +131,9 @@ const AdminRefundOrderAction: React.FC<AdminRefundOrderActionProps> = ({
               className="bg-red-700 text-white hover:bg-red-800 focus-visible:ring-red-700"
             >
               {saving ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Updating…</>
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Updating &amp; Sending…</>
               ) : (
-                <><Ban className="mr-2 h-4 w-4" aria-hidden="true" />Confirm Cancelled / Refunded</>
+                <><MailCheck className="mr-2 h-4 w-4" aria-hidden="true" />Yes — Mark &amp; Send Email</>
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
