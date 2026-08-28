@@ -13,6 +13,16 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "how-to-hang-banner-on-canopy-tent": {
+    title: "How to Hang a Banner on a Canopy Tent: A Safer Setup Guide",
+    description: "Learn how to hang a banner on a canopy tent using measured frame points, grommets, short attachments, even tension, weather checks, and a safer setup.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/how-to-hang-banner-on-canopy-tent.webp"
+  },
+  "are-vinyl-banners-waterproof": {
+    title: "Are Vinyl Banners Waterproof? A Practical Rain and Care Guide",
+    description: "Are vinyl banners waterproof? Learn what rain means for the printed face, hems, grommets, mounting, drying, cleaning, storage, and safer outdoor-use planning.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/are-vinyl-banners-waterproof.webp"
+  },
   "do-car-magnets-damage-paint": {
     title: "Do Car Magnets Damage Paint? A Safer Care and Inspection Guide",
     description: "Do car magnets damage paint? Learn the real risk factors, pre-install inspection, daily cleaning, safe removal, and warning signs for vehicle finishes.",
