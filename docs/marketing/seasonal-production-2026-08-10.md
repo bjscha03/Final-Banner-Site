@@ -35,7 +35,7 @@ The 2026 dates for Veterans Day and Thanksgiving were rechecked against the U.S.
 - Eyebrow: `Halloween events · Trunk-or-treat · Fall promotions`
 - Headline: `Make every fall event easy to find.`
 - Description: `Welcome families, guide traffic, and promote October events with bright custom banners and yard signs.`
-- Primary CTA: `Design Halloween signage` → `/design`
+- Primary CTA: `Design your banner` → `/design`
 - Secondary CTA: `Explore vinyl banners` → `/vinyl-banners`
 
 **Supporting modules**
