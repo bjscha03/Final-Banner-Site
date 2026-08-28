@@ -123,7 +123,7 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
     headline: 'Make every fall event easy to find.',
     description:
       'Welcome families, guide traffic, and promote October events with bright custom banners and yard signs.',
-    primaryCta: { label: 'Design Halloween signage', href: '/design' },
+    primaryCta: { label: 'Design your banner', href: '/design' },
     secondaryCta: { label: 'Explore vinyl banners', href: '/vinyl-banners' },
     valueProps: ['24-hour standard production', 'Free next-day air after production', 'Live print preview'],
     artwork: {
