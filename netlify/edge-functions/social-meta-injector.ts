@@ -13,6 +13,16 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "how-to-repair-vinyl-banner": {
+    title: "How to Repair a Vinyl Banner: Tears, Edges, and Grommets",
+    description: "Learn how to repair a vinyl banner tear, split edge, or damaged grommet area, when a compatible patch can help, and when replacement is the safer choice.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/how-to-repair-vinyl-banner.webp"
+  },
+  "horizontal-vs-vertical-banner": {
+    title: "Horizontal vs. Vertical Banners: How to Choose Orientation",
+    description: "Compare horizontal vs. vertical banners by display space, viewing path, copy shape, finishing, and mounting so you can choose an orientation before designing.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/horizontal-vs-vertical-banner.webp"
+  },
   "how-to-hang-banner-on-canopy-tent": {
     title: "How to Hang a Banner on a Canopy Tent: A Safer Setup Guide",
     description: "Learn how to hang a banner on a canopy tent using measured frame points, grommets, short attachments, even tension, weather checks, and a safer setup.",
