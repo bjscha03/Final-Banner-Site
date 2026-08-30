@@ -13,6 +13,16 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "how-to-hang-banner-on-table": {
+    title: "How to Hang a Banner on a Table: Clips, Grommets, and Setup",
+    description: "Learn how to hang a banner on a table with compatible clips, grommets, straps, and a measured setup that stays centered without blocking the aisle at events.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/how-to-hang-banner-on-table.webp"
+  },
+  "can-vinyl-banners-be-recycled": {
+    title: "Can Vinyl Banners Be Recycled? A Reuse and Disposal Guide",
+    description: "Can vinyl banners be recycled? Learn how to verify local acceptance, prepare retired signage, prioritize safe reuse, and choose an honest disposal path.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/can-vinyl-banners-be-recycled.webp"
+  },
   "how-to-repair-vinyl-banner": {
     title: "How to Repair a Vinyl Banner: Tears, Edges, and Grommets",
     description: "Learn how to repair a vinyl banner tear, split edge, or damaged grommet area, when a compatible patch can help, and when replacement is the safer choice.",
