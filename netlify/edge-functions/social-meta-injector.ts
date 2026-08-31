@@ -13,6 +13,16 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "what-are-vinyl-banners-made-of": {
+    title: "What Are Vinyl Banners Made Of? Scrim, PVC, and Weight Explained",
+    description: "Learn what vinyl banners are made of, how PVC coatings and polyester scrim work, and what banner weight, mesh, finishing, and print mean for your project.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/what-are-vinyl-banners-made-of.webp"
+  },
+  "how-long-do-yard-signs-last": {
+    title: "How Long Do Yard Signs Last? A Weather and Reuse Guide",
+    description: "Learn how long yard signs last outside, which weather, print, stake, and storage conditions matter, and when to clean, reuse, remove, or replace a sign.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/how-long-do-yard-signs-last.webp"
+  },
   "how-to-hang-banner-on-table": {
     title: "How to Hang a Banner on a Table: Clips, Grommets, and Setup",
     description: "Learn how to hang a banner on a table with compatible clips, grommets, straps, and a measured setup that stays centered without blocking the aisle at events.",
