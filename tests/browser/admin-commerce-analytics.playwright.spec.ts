@@ -718,7 +718,7 @@ test('commerce admin analytics, customer history, and order tracking stay usable
   await expect(page.getByRole('tab', { name: 'Customers' })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Abandoned Carts' })).toBeVisible();
   await expect(page.getByLabel('Search full order history')).toBeEnabled();
-  await page.getByRole('button', { name: 'All Time', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'All Time', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('[data-admin-period-metrics]')).toContainText('Repeat Customers');
   await expect(page.getByText('Alice Buyer', { exact: true }).filter({ visible: true }).first()).toBeVisible();
 

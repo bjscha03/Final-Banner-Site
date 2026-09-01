@@ -47,10 +47,13 @@ describe('admin orders reporting and action hierarchy', () => {
 
   it('offers each requested reporting period and metric', () => {
     expect(orders).toContain("['this_month', 'last_month', 'custom', 'all_time']");
+    expect(orders).toContain("useState<AdminOrderPeriod>('all_time')");
     for (const label of ['Total Orders', 'Gross Sales', 'AOV', 'Recorded Refunds', 'Net Sales', 'New Customers', 'Repeat Customers', 'Repeat Rate']) {
       expect(orders).toContain(`label: '${label}'`);
     }
     expect(orders).toContain('Search order ID, customer name, or email');
+    expect(orders).toContain('View all orders');
+    expect(orders).toContain('outside this period.');
   });
 
   it('uses a server-bounded report instead of loading full rich order history in the browser', () => {

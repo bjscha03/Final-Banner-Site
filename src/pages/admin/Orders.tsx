@@ -317,7 +317,10 @@ const AdminOrders: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [period, setPeriod] = useState<AdminOrderPeriod>('this_month');
+  // Keep historical orders visible on first load. Period reporting remains
+  // one click away, but an inactive month should never make a populated
+  // account look as though it has no orders.
+  const [period, setPeriod] = useState<AdminOrderPeriod>('all_time');
   const [customRange, setCustomRange] = useState(initialCustomRange);
   const [showAccessDenied, setShowAccessDenied] = useState(false);
   const { toast } = useToast();
@@ -1250,11 +1253,32 @@ const AdminOrders: React.FC = () => {
               <div className="p-8 text-center">
                 <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  {searchQuery ? 'No orders found' : 'No orders yet'}
+                  {searchQuery
+                    ? 'No orders found'
+                    : period !== 'all_time' && globalOverview.totalOrders > 0
+                      ? `No orders in ${adminOrderPeriodLabel(period)}`
+                      : 'No orders yet'}
                 </h3>
                 <p className="text-gray-600">
-                  {searchQuery ? 'Try adjusting your search query.' : 'Orders will appear here when customers place them.'}
+                  {searchQuery
+                    ? 'Try adjusting your search query.'
+                    : period !== 'all_time' && globalOverview.totalOrders > 0
+                      ? `${globalOverview.totalOrders.toLocaleString()} ${globalOverview.totalOrders === 1 ? 'order exists' : 'orders exist'} outside this period.`
+                      : 'Orders will appear here when customers place them.'}
                 </p>
+                {!searchQuery && period !== 'all_time' && globalOverview.totalOrders > 0 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="mt-4"
+                    onClick={() => {
+                      setPage(1);
+                      setPeriod('all_time');
+                    }}
+                  >
+                    View all orders
+                  </Button>
+                )}
               </div>
             ) : (
               <>
