@@ -1,6 +1,9 @@
 // netlify/functions/resend-webhook.js
 const { neon } = require('@neondatabase/serverless');
 const { Resend } = require('resend');
+const { ensureAbandonedCartSchema } = require('../abandoned-cart-schema.cjs');
+
+let ensureSchema = ensureAbandonedCartSchema;
 
 function header(event, name) {
   const headers = event?.headers || {};
@@ -27,6 +30,192 @@ function verify(event, raw) {
   }
 }
 
+function tagsFromPayload(evt) {
+  const rawTags = evt?.data?.tags;
+  if (Array.isArray(rawTags)) return rawTags;
+  if (rawTags && typeof rawTags === 'object') {
+    return Object.entries(rawTags).map(([name, value]) => ({ name, value }));
+  }
+  return [];
+}
+
+function tagValue(tags, name) {
+  const value = tags.find((tag) => tag?.name === name)?.value;
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function normalizeEmail(value) {
+  const email = String(value || '').trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
+}
+
+const RECOVERY_EVENT_TYPES = Object.freeze({
+  'email.delivered': 'email_delivered',
+  'email.opened': 'email_opened',
+  'email.clicked': 'email_clicked',
+  'email.bounced': 'email_bounced',
+  'email.complained': 'email_complained',
+  'email.suppressed': 'email_suppressed',
+  'email.failed': 'email_failed',
+});
+
+const RECOVERY_SUPPRESSION_REASONS = Object.freeze({
+  'email.bounced': 'hard_bounce',
+  'email.complained': 'complaint',
+  'email.suppressed': 'provider_suppressed',
+});
+
+async function reconcileDeliveredRecovery(db, cartId, sequence, providerMsgId, providerEventId) {
+  if (!cartId || !providerMsgId || !Number.isInteger(sequence) || sequence < 1 || sequence > 3) return [];
+  const metadata = JSON.stringify({
+    reconciled_by: 'resend_webhook',
+    provider_event_id: providerEventId || null,
+  });
+  return db`
+    WITH reconciled_delivery AS (
+      INSERT INTO cart_recovery_deliveries (
+        abandoned_cart_id, sequence_number, status, provider_message_id,
+        sent_at, failure_reason, metadata, updated_at
+      ) VALUES (
+        ${cartId}, ${sequence}, 'sent', ${providerMsgId},
+        NOW(), NULL, ${metadata}::jsonb, NOW()
+      )
+      ON CONFLICT (abandoned_cart_id, sequence_number) DO UPDATE
+        SET status = 'sent',
+            provider_message_id = COALESCE(cart_recovery_deliveries.provider_message_id, EXCLUDED.provider_message_id),
+            sent_at = COALESCE(cart_recovery_deliveries.sent_at, EXCLUDED.sent_at),
+            failure_reason = NULL,
+            metadata = cart_recovery_deliveries.metadata || EXCLUDED.metadata,
+            updated_at = NOW()
+        WHERE cart_recovery_deliveries.status IN ('claimed', 'failed', 'sent')
+      RETURNING abandoned_cart_id, sent_at
+    )
+    UPDATE abandoned_carts AS cart
+       SET recovery_emails_sent = GREATEST(COALESCE(cart.recovery_emails_sent, 0), ${sequence}),
+           last_recovery_email_at = CASE
+             WHEN COALESCE(cart.recovery_emails_sent, 0) < ${sequence}
+               THEN reconciled_delivery.sent_at
+             ELSE cart.last_recovery_email_at
+           END,
+           recovery_email_claim_sequence = CASE
+             WHEN cart.recovery_email_claim_sequence = ${sequence} THEN NULL
+             ELSE cart.recovery_email_claim_sequence
+           END,
+           recovery_email_claimed_at = CASE
+             WHEN cart.recovery_email_claim_sequence = ${sequence} THEN NULL
+             ELSE cart.recovery_email_claimed_at
+           END,
+           recovery_email_last_error = CASE
+             WHEN cart.recovery_email_claim_sequence = ${sequence} THEN NULL
+             ELSE cart.recovery_email_last_error
+           END,
+           updated_at = NOW()
+      FROM reconciled_delivery
+     WHERE cart.id = reconciled_delivery.abandoned_cart_id
+     RETURNING cart.id
+  `;
+}
+
+async function recordRecoveryEvent(db, evt, event, providerMsgId, toEmail) {
+  const tags = tagsFromPayload(evt);
+  if (tagValue(tags, 'type') !== 'abandoned_cart') return { processed: false };
+
+  const cartId = tagValue(tags, 'cart_id');
+  const sequence = Number.parseInt(tagValue(tags, 'sequence'), 10);
+  const recoveryEventType = RECOVERY_EVENT_TYPES[evt?.type];
+  const providerEventId = String(header(event, 'svix-id') || '').trim().slice(0, 300);
+  if (!cartId || !recoveryEventType || !providerEventId) return { processed: false };
+
+  await ensureSchema(db);
+  const cartRows = await db`
+    SELECT id, normalized_email, email
+      FROM abandoned_carts
+     WHERE id::text = ${cartId}
+     LIMIT 1
+  `;
+  const cart = cartRows[0];
+  if (!cart) return { processed: false };
+
+  const recipient = normalizeEmail(toEmail) || normalizeEmail(cart.normalized_email) || normalizeEmail(cart.email);
+  const metadata = JSON.stringify({
+    provider_event_id: providerEventId,
+    provider_message_id: providerMsgId,
+    provider_event_type: evt.type,
+    occurred_at: evt?.created_at || new Date().toISOString(),
+  });
+
+  await db`
+    INSERT INTO cart_recovery_logs (
+      abandoned_cart_id, event_type, email_sequence_number, metadata, created_at
+    ) VALUES (
+      ${cart.id}, ${recoveryEventType},
+      ${Number.isInteger(sequence) && sequence >= 1 && sequence <= 3 ? sequence : null},
+      ${metadata}::jsonb, NOW()
+    )
+    ON CONFLICT DO NOTHING
+  `;
+
+  let deliveryReconciled = false;
+  if (recoveryEventType === 'email_delivered' && Number.isInteger(sequence) && sequence >= 1 && sequence <= 3) {
+    const reconciledRows = await reconcileDeliveredRecovery(
+      db,
+      cart.id,
+      sequence,
+      providerMsgId,
+      providerEventId,
+    );
+    deliveryReconciled = reconciledRows.length > 0;
+  }
+
+  const deliveryStatus = recoveryEventType === 'email_failed'
+    ? 'failed'
+    : RECOVERY_SUPPRESSION_REASONS[evt.type]
+      ? 'suppressed'
+      : null;
+  if (deliveryStatus) {
+    await db`
+      UPDATE cart_recovery_deliveries
+         SET status = ${deliveryStatus},
+             failure_reason = ${RECOVERY_SUPPRESSION_REASONS[evt.type] || 'provider_failed'},
+             updated_at = NOW()
+       WHERE abandoned_cart_id = ${cart.id}
+         AND (${Number.isInteger(sequence) ? sequence : null}::integer IS NULL
+              OR sequence_number = ${Number.isInteger(sequence) ? sequence : null})
+    `;
+  }
+
+  const suppressionReason = RECOVERY_SUPPRESSION_REASONS[evt.type];
+  if (suppressionReason && recipient) {
+    await db`
+      INSERT INTO recovery_email_suppressions (
+        normalized_email, reason, source, active, created_at, updated_at
+      ) VALUES (
+        ${recipient}, ${suppressionReason}, 'resend_webhook', TRUE, NOW(), NOW()
+      )
+      ON CONFLICT (normalized_email) DO UPDATE
+        SET reason = EXCLUDED.reason,
+            source = EXCLUDED.source,
+            active = TRUE,
+            updated_at = NOW()
+    `;
+    await db`
+      UPDATE abandoned_carts
+         SET recovery_suppressed_at = COALESCE(recovery_suppressed_at, NOW()),
+             recovery_suppression_reason = ${suppressionReason},
+             updated_at = NOW()
+       WHERE normalized_email = ${recipient}
+          OR LOWER(BTRIM(email)) = ${recipient}
+    `;
+  }
+
+  return {
+    processed: true,
+    cartId: String(cart.id),
+    eventType: recoveryEventType,
+    deliveryReconciled,
+  };
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
@@ -40,6 +229,9 @@ exports.handler = async (event) => {
     return { statusCode: 401, body: JSON.stringify({ ok: false, error: 'BAD_SIGNATURE' }) };
   }
   const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
+  if (!dbUrl) {
+    return { statusCode: 503, body: JSON.stringify({ ok: false, error: 'DATABASE_NOT_CONFIGURED' }) };
+  }
   const db = neon(dbUrl);
 
   const providerMsgId =
@@ -56,6 +248,7 @@ exports.handler = async (event) => {
     'email.opened': 'opened'
   };
   const newStatus = statusMap[evt.type];
+  let recoveryResult = { processed: false };
 
   if (providerMsgId && newStatus) {
     // Update email_events table with status precedence: complained > bounced > delivered > opened > sent
@@ -86,9 +279,7 @@ exports.handler = async (event) => {
     let orderId = null;
     let emailTypeTag = null;
     if (evt.data && evt.data.tags) {
-      const tags = Array.isArray(evt.data.tags)
-        ? evt.data.tags
-        : Object.entries(evt.data.tags).map(([name, value]) => ({ name, value }));
+      const tags = tagsFromPayload(evt);
       const orderIdTag = tags.find(tag => tag.name === 'order_id');
       if (orderIdTag && orderIdTag.value) {
         orderId = orderIdTag.value;
@@ -166,5 +357,31 @@ exports.handler = async (event) => {
     });
   }
 
-  return { statusCode: 200, body: 'ok' };
+  try {
+    recoveryResult = await recordRecoveryEvent(db, evt, event, providerMsgId, toEmail);
+  } catch (error) {
+    console.error('recovery webhook processing failed', {
+      eventType: evt?.type,
+      providerMsgId,
+      message: error?.message || String(error),
+    });
+    return { statusCode: 500, body: JSON.stringify({ ok: false, error: 'RECOVERY_EVENT_FAILED' }) };
+  }
+
+  return {
+    statusCode: 200,
+    body: JSON.stringify({ ok: true, recoveryProcessed: recoveryResult.processed }),
+  };
+};
+
+exports._test = {
+  RECOVERY_EVENT_TYPES,
+  RECOVERY_SUPPRESSION_REASONS,
+  normalizeEmail,
+  reconcileDeliveredRecovery,
+  recordRecoveryEvent,
+  resetDependencies() { ensureSchema = ensureAbandonedCartSchema; },
+  setEnsureSchema(value) { ensureSchema = value; },
+  tagValue,
+  tagsFromPayload,
 };

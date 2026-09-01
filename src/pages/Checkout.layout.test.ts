@@ -28,4 +28,13 @@ describe('checkout information hierarchy', () => {
     expect(checkout).not.toContain('<CartItemBreakdown');
     expect(checkout).not.toContain('Adjusted subtotal</span>');
   });
+
+  it('keeps recovery completeness failures visible after the transient toast', () => {
+    const alertMatches = checkout.match(/role="alert"/g) || [];
+
+    expect(checkout).toContain('setCartRecoveryError(outcome.message)');
+    expect(checkout).toContain("cartRecoveryError ? 'Cart could not be restored' : 'Your cart is empty'");
+    expect(checkout).toContain('{cartRecoveryError} You can start a new design below.');
+    expect(alertMatches.length).toBeGreaterThanOrEqual(2);
+  });
 });

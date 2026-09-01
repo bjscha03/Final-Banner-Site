@@ -19,8 +19,11 @@ const {
   releasePaymentDiscount,
 } = require('../payment-discount-reservation.cjs');
 const runtimeConfig = require('../paypal-runtime-config.cjs');
+const { markAbandonedCartRecovered } = require('../abandoned-cart-order-recovery.cjs');
 
 let neonFactory = neon;
+const TRUSTED_RECONCILIATION_EVENT = Symbol('trusted-paypal-reconciliation-event');
+const TRUSTED_PROVIDER_SIGNAL = Symbol('trusted-paypal-provider-signal');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -201,7 +204,7 @@ function getConfig() {
   };
 }
 
-async function getAccessToken(config) {
+async function getAccessToken(config, signal) {
   const response = await fetch(`${config.baseUrl}/v1/oauth2/token`, {
     method: 'POST',
     headers: {
@@ -210,6 +213,7 @@ async function getAccessToken(config) {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: 'grant_type=client_credentials',
+    signal,
   });
   if (!response.ok) throw new Error(`PAYPAL_AUTH_FAILED_${response.status}`);
   const payload = await response.json();
@@ -217,7 +221,7 @@ async function getAccessToken(config) {
   return payload.access_token;
 }
 
-async function retrieveOrder(config, accessToken, orderID) {
+async function retrieveOrder(config, accessToken, orderID, signal) {
   const response = await fetch(`${config.baseUrl}/v2/checkout/orders/${encodeURIComponent(orderID)}`, {
     method: 'GET',
     headers: {
@@ -225,6 +229,7 @@ async function retrieveOrder(config, accessToken, orderID) {
       Authorization: `Bearer ${accessToken}`,
       Prefer: 'return=representation',
     },
+    signal,
   });
   const data = await response.json().catch(() => ({}));
   return { ok: response.ok, status: response.status, data };
@@ -359,6 +364,122 @@ async function safeReleasePaymentDiscount(sql, order, reconciliationStatus) {
   }
 }
 
+async function safeMarkAbandonedCartRecovered(sql, order) {
+  try {
+    return await markAbandonedCartRecovered(sql, order);
+  } catch (error) {
+    // Provider settlement is authoritative. Recovery bookkeeping must never
+    // make a completed PayPal capture appear retryable to the browser.
+    console.error('[paypal-capture] abandoned-cart recovery bookkeeping failed', {
+      internalOrderId: order?.id || null,
+      code: error?.code || null,
+      message: error?.message || String(error),
+    });
+    return [];
+  }
+}
+
+const CAPTURED_BOOKKEEPING_PENDING = 'captured_bookkeeping_pending';
+const CAPTURED_ORDER_STATUSES = ['paid', 'in_production', 'shipped', 'delivered', 'fulfilled', 'refunded'];
+
+async function readCapturedBookkeepingState(sql, order) {
+  const rows = await sql`
+    SELECT payment_reconciliation_status
+      FROM orders
+     WHERE id = ${order.id}
+       AND status = ANY(${CAPTURED_ORDER_STATUSES}::text[])
+       AND payment_method = 'paypal'
+       AND paypal_order_id = ${order.paypal_order_id}
+       AND paypal_capture_id = ${order.paypal_capture_id}
+       AND stripe_payment_intent_id IS NULL
+     LIMIT 1
+  `;
+  return String(rows?.[0]?.payment_reconciliation_status || '').trim().toLowerCase();
+}
+
+async function completeCapturedBookkeeping(sql, order) {
+  let marked;
+  try {
+    const rows = await sql`
+      UPDATE orders
+         SET payment_reconciliation_status = ${CAPTURED_BOOKKEEPING_PENDING},
+             updated_at = NOW()
+       WHERE id = ${order.id}
+         AND status = ANY(${CAPTURED_ORDER_STATUSES}::text[])
+         AND payment_method = 'paypal'
+         AND paypal_order_id = ${order.paypal_order_id}
+         AND paypal_capture_id = ${order.paypal_capture_id}
+         AND stripe_payment_intent_id IS NULL
+         AND payment_reconciliation_status IS DISTINCT FROM 'complete'
+       RETURNING id
+    `;
+    marked = Array.isArray(rows) && rows.length > 0;
+  } catch (error) {
+    console.error('[paypal-capture] could not persist captured bookkeeping state', {
+      internalOrderId: order?.id || null,
+      error: error?.message || String(error),
+    });
+    return { ok: false, code: 'CAPTURED_BOOKKEEPING_STATE_PERSIST_FAILED' };
+  }
+  if (!marked) {
+    try {
+      if (await readCapturedBookkeepingState(sql, order) === 'complete') {
+        return { ok: true, alreadyComplete: true };
+      }
+    } catch {}
+    return { ok: false, code: 'CAPTURED_BOOKKEEPING_ORDER_NOT_FOUND' };
+  }
+
+  await safeMarkAbandonedCartRecovered(sql, order);
+  let discountCompletion;
+  try {
+    discountCompletion = await completePaymentDiscount(sql, order);
+  } catch (error) {
+    console.error('[paypal-capture] captured discount bookkeeping failed', {
+      internalOrderId: order?.id || null,
+      error: error?.message || String(error),
+    });
+    return { ok: false, code: 'DISCOUNT_COMPLETION_FAILED' };
+  }
+  if (!discountCompletion.ok) {
+    try {
+      if (await readCapturedBookkeepingState(sql, order) === 'complete') {
+        return { ok: true, alreadyComplete: true };
+      }
+    } catch {}
+    return discountCompletion;
+  }
+
+  try {
+    const completed = await sql`
+      UPDATE orders
+         SET payment_reconciliation_status = 'complete',
+             updated_at = NOW()
+       WHERE id = ${order.id}
+         AND status = ANY(${CAPTURED_ORDER_STATUSES}::text[])
+         AND payment_method = 'paypal'
+         AND paypal_order_id = ${order.paypal_order_id}
+         AND paypal_capture_id = ${order.paypal_capture_id}
+         AND stripe_payment_intent_id IS NULL
+         AND payment_reconciliation_status = ${CAPTURED_BOOKKEEPING_PENDING}
+       RETURNING id
+    `;
+    if (!Array.isArray(completed) || completed.length === 0) {
+      if (await readCapturedBookkeepingState(sql, order) === 'complete') {
+        return { ok: true, alreadyComplete: true };
+      }
+      return { ok: false, code: 'CAPTURED_BOOKKEEPING_COMPLETION_NOT_PERSISTED' };
+    }
+  } catch (error) {
+    console.error('[paypal-capture] could not complete captured bookkeeping state', {
+      internalOrderId: order?.id || null,
+      error: error?.message || String(error),
+    });
+    return { ok: false, code: 'CAPTURED_BOOKKEEPING_COMPLETION_FAILED' };
+  }
+  return { ok: true };
+}
+
 function discountConflictPayload(orderID, internalOrderId, reservation) {
   return {
     ok: false,
@@ -482,6 +603,8 @@ exports.handler = async (event) => {
   const internalOrderId = clean(input.internalOrderId, 100);
   const checkoutKey = clean(input.checkoutKey, 200);
   const reconcileOnly = input.reconcileOnly === true;
+  const trustedReconciliation = reconcileOnly && event?.[TRUSTED_RECONCILIATION_EVENT] === true;
+  const providerSignal = trustedReconciliation ? event?.[TRUSTED_PROVIDER_SIGNAL] : undefined;
   if (!orderID || !internalOrderId) return reply(400, { ok: false, error: 'ORDER_IDENTIFIERS_REQUIRED' });
 
   const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
@@ -499,7 +622,9 @@ exports.handler = async (event) => {
              shipping_name, shipping_street, shipping_street2, shipping_city,
              shipping_state, shipping_zip, shipping_country,
              paypal_order_id, paypal_capture_id, stripe_payment_intent_id,
-             payment_method, checkout_idempotency_key
+             payment_method, checkout_idempotency_key,
+             to_jsonb(orders)->>'abandoned_cart_id' AS abandoned_cart_id,
+             to_jsonb(orders)->>'abandoned_cart_session_id' AS abandoned_cart_session_id
         FROM orders
        WHERE id = ${internalOrderId}
        LIMIT 1
@@ -507,7 +632,8 @@ exports.handler = async (event) => {
     if (!rows.length) return reply(404, { ok: false, error: 'INTERNAL_ORDER_NOT_FOUND' });
     let order = rows[0];
 
-    if (!checkoutKey || !constantTimeEqual(checkoutKey, order.checkout_idempotency_key)) {
+    if (!trustedReconciliation
+        && (!checkoutKey || !constantTimeEqual(checkoutKey, order.checkout_idempotency_key))) {
       return reply(401, { ok: false, error: 'CHECKOUT_CONFIRMATION_REQUIRED' });
     }
 
@@ -519,15 +645,20 @@ exports.handler = async (event) => {
       });
     }
     if (order.paypal_order_id !== orderID) return reply(409, { ok: false, error: 'PAYPAL_ORDER_LINK_MISMATCH' });
-    if (!['pending', 'paid'].includes(order.status)) return reply(409, { ok: false, error: 'INTERNAL_ORDER_NOT_PAYABLE' });
-
-    if (order.status === 'paid' && order.paypal_capture_id) {
-      const discountCompletion = await completePaymentDiscount(sql, order);
-      if (!discountCompletion.ok) {
+    if (CAPTURED_ORDER_STATUSES.includes(order.status) && order.paypal_capture_id) {
+      if (String(order.payment_reconciliation_status || '').trim().toLowerCase() === 'complete') {
+        return reply(200, successPayload(order, null, {
+          captureId: order.paypal_capture_id,
+          amountCents: Number(order.total_cents),
+          currency: 'USD',
+        }, process.env.PAYPAL_ENV || 'sandbox', true));
+      }
+      const bookkeeping = await completeCapturedBookkeeping(sql, order);
+      if (!bookkeeping.ok) {
         return reply(202, capturedReconciliationPayload(
           orderID,
           internalOrderId,
-          discountCompletion.code,
+          bookkeeping.code,
         ));
       }
       return reply(200, successPayload(order, null, {
@@ -536,10 +667,11 @@ exports.handler = async (event) => {
         currency: 'USD',
       }, process.env.PAYPAL_ENV || 'sandbox', true));
     }
+    if (order.status !== 'pending') return reply(409, { ok: false, error: 'INTERNAL_ORDER_NOT_PAYABLE' });
 
     const config = getConfig();
-    const accessToken = await getAccessToken(config);
-    const originalResult = await retrieveOrder(config, accessToken, orderID);
+    const accessToken = await getAccessToken(config, providerSignal);
+    const originalResult = await retrieveOrder(config, accessToken, orderID, providerSignal);
     if (!originalResult.ok) {
       await markReconciliation(sql, internalOrderId, `retrieve_${originalResult.status}`);
       return reply(202, verificationPayload(orderID, internalOrderId));
@@ -624,6 +756,7 @@ exports.handler = async (event) => {
             'PayPal-Request-Id': `capture-${orderID}`,
             Prefer: 'return=representation',
           },
+          signal: providerSignal,
         });
         captureBody = await captureResponse.json().catch(() => ({}));
       } catch (error) {
@@ -634,7 +767,7 @@ exports.handler = async (event) => {
         paypalData = captureBody;
         completed = captureFromOrder(paypalData);
       } else {
-        const recovered = await retrieveOrder(config, accessToken, orderID);
+        const recovered = await retrieveOrder(config, accessToken, orderID, providerSignal);
         if (recovered.ok && captureFromOrder(recovered.data)) {
           paypalData = recovered.data;
           completed = captureFromOrder(paypalData);
@@ -707,7 +840,7 @@ exports.handler = async (event) => {
         status = 'paid',
         paypal_capture_id = ${verifiedCapture.captureId},
         payment_method = 'paypal',
-        payment_reconciliation_status = 'complete',
+        payment_reconciliation_status = ${CAPTURED_BOOKKEEPING_PENDING},
         email = COALESCE(email, ${payerEmail}),
         customer_name = COALESCE(customer_name, ${providerShippingName}, shipping_name),
         customer_first_name = COALESCE(customer_first_name, ${providerFirstName}),
@@ -741,7 +874,9 @@ exports.handler = async (event) => {
                 shipping_name, shipping_street, shipping_street2, shipping_city,
                 shipping_state, shipping_zip, shipping_country,
                 paypal_order_id, paypal_capture_id, stripe_payment_intent_id,
-                payment_method, checkout_idempotency_key
+                payment_method, checkout_idempotency_key,
+                to_jsonb(orders)->>'abandoned_cart_id' AS abandoned_cart_id,
+                to_jsonb(orders)->>'abandoned_cart_session_id' AS abandoned_cart_session_id
     `;
 
     let persisted = paidRows[0] || null;
@@ -755,7 +890,9 @@ exports.handler = async (event) => {
                shipping_name, shipping_street, shipping_street2, shipping_city,
                shipping_state, shipping_zip, shipping_country,
                paypal_order_id, paypal_capture_id, stripe_payment_intent_id,
-               payment_method, checkout_idempotency_key
+               payment_method, checkout_idempotency_key,
+               to_jsonb(orders)->>'abandoned_cart_id' AS abandoned_cart_id,
+               to_jsonb(orders)->>'abandoned_cart_session_id' AS abandoned_cart_session_id
           FROM orders
          WHERE id = ${internalOrderId}
          LIMIT 1
@@ -776,12 +913,12 @@ exports.handler = async (event) => {
       }
     }
 
-    const discountCompletion = await completePaymentDiscount(sql, persisted);
-    if (!discountCompletion.ok) {
+    const bookkeeping = await completeCapturedBookkeeping(sql, persisted);
+    if (!bookkeeping.ok) {
       return reply(202, capturedReconciliationPayload(
         orderID,
         internalOrderId,
-        discountCompletion.code,
+        bookkeeping.code,
       ));
     }
     return reply(200, successPayload(persisted, paypalData, verifiedCapture, config.env, alreadyPaid));
@@ -828,10 +965,26 @@ exports._test = {
   failurePayload,
   verificationPayload,
   successPayload,
+  completeCapturedBookkeeping,
+  CAPTURED_BOOKKEEPING_PENDING,
+  safeMarkAbandonedCartRecovered,
   resetNeonFactory() {
     neonFactory = neon;
   },
   setNeonFactory(factory) {
     neonFactory = factory;
+  },
+};
+
+// An HTTP request cannot serialize symbol-keyed properties. The background
+// worker uses this in-process capability only for reconcileOnly provider GETs,
+// so historical rows without a checkout key remain recoverable without
+// creating a body-controlled authentication bypass or initiating a capture.
+exports._internal = {
+  trustedReconciliationEvent(event, providerSignal) {
+    return Object.assign({}, event, {
+      [TRUSTED_RECONCILIATION_EVENT]: true,
+      [TRUSTED_PROVIDER_SIGNAL]: providerSignal,
+    });
   },
 };

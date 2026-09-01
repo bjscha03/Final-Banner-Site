@@ -14,6 +14,8 @@ const { addPostTaxServiceFees } = require('../order-total-reconciliation.cjs');
 const { validateDiscountForCheckout } = require('../discount-validation.cjs');
 const { runAtomicBatch, isUniqueViolation } = require('../atomic-batch.cjs');
 const { repriceStripeCart: repriceCheckoutCart } = require('../stripe-server-pricing.cjs');
+const { markAbandonedCartRecovered } = require('../abandoned-cart-order-recovery.cjs');
+const { verifyAbandonedCartRecoveryToken } = require('../abandoned-cart-recovery-token.cjs');
 
 let orderSchemaReadyPromise = null;
 
@@ -61,6 +63,84 @@ function isRealUserId(value) {
   return true;
 }
 
+function normalizedUuid(value) {
+  if (typeof value !== 'string') return null;
+  const candidate = value.trim().toLowerCase();
+  if (!_UUID_RE.test(candidate)) return null;
+  if (!candidate.replace(/-/g, '').replace(/0/g, '')) return null;
+  return candidate;
+}
+
+function normalizedCartSessionId(value) {
+  const sessionId = typeof value === 'string' ? value.trim() : '';
+  if (!sessionId || sessionId.length > 200 || !/^[A-Za-z0-9._:-]+$/.test(sessionId)) return null;
+  return sessionId;
+}
+
+function normalizedOrderAbandonedCartSessionId(orderData) {
+  if (orderData?.is_test_order === true) return null;
+  return normalizedCartSessionId(
+    orderData?.abandonedCartSessionId || orderData?.abandoned_cart_session_id,
+  );
+}
+
+async function resolveAbandonedCartLink(sql, {
+  cartId,
+  sessionId,
+  userId,
+  email,
+  recoveryToken,
+  isTestOrder,
+}) {
+  if (isTestOrder) return null;
+  const submittedCartId = normalizedUuid(cartId);
+  if (!submittedCartId) return null;
+  const submittedSessionId = normalizedCartSessionId(sessionId);
+  const resolvedUserId = normalizedUuid(userId);
+  const emailCandidate = String(email || '').trim().toLowerCase();
+  const normalizedEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailCandidate)
+    ? emailCandidate
+    : null;
+  const submittedRecoveryToken = typeof recoveryToken === 'string' ? recoveryToken.trim() : '';
+  let tokenAuthorizesExactCart = false;
+  if (submittedRecoveryToken) {
+    try {
+      const claims = verifyAbandonedCartRecoveryToken(submittedRecoveryToken);
+      // A valid token for any other cart is an authorization failure, never a
+      // reason to fall through to weaker browser-provided identity hints.
+      if (normalizedUuid(claims.cartId) !== submittedCartId) return null;
+      tokenAuthorizesExactCart = true;
+    } catch {
+      return null;
+    }
+  }
+  if (!tokenAuthorizesExactCart && !resolvedUserId && !submittedSessionId && !normalizedEmail) return null;
+
+  try {
+    const rows = await sql`
+      SELECT id
+        FROM abandoned_carts
+       WHERE id = ${submittedCartId}::uuid
+         AND recovery_status IN ('active', 'abandoned')
+         AND (
+           ${tokenAuthorizesExactCart}
+           OR (${resolvedUserId}::uuid IS NOT NULL AND user_id = ${resolvedUserId}::uuid)
+           OR (${submittedSessionId}::text IS NOT NULL AND session_id = ${submittedSessionId})
+           OR (${normalizedEmail}::text IS NOT NULL
+               AND LOWER(BTRIM(email)) = ${normalizedEmail})
+         )
+       LIMIT 1
+    `;
+    return rows[0]?.id ? String(rows[0].id) : null;
+  } catch (error) {
+    if (['42P01', '42703'].includes(String(error?.code || ''))) {
+      console.warn('[create-order] abandoned-cart link schema is unavailable; continuing without attribution');
+      return null;
+    }
+    throw error;
+  }
+}
+
 function isSecureCheckoutKey(value) {
   return typeof value === 'string'
     && /^[A-Za-z0-9_-]{32,200}$/.test(value.trim());
@@ -91,6 +171,25 @@ function canonicalQuoteForCheckout(items, orderData) {
     sameDayFeeCents: Number(orderData?.same_day_fee_cents || 0),
     saturdayFeeCents: Number(orderData?.saturday_fee_cents || 0),
   };
+}
+
+async function revalidateRecoveryDiscountForCanonicalIdentity(sql, {
+  discount,
+  userEmail,
+  userId,
+  checkoutKey,
+}) {
+  if (!discount?.code || discount.recoveryOffer !== true) {
+    return { valid: true, discount };
+  }
+  return validateDiscountForCheckout({
+    sql,
+    code: discount.code,
+    email: userEmail,
+    userId,
+    checkoutKey,
+    requireRecoveryEmailMatch: true,
+  });
 }
 
 // Helper to detect bad URLs (blob:, data:, or huge strings)
@@ -967,12 +1066,19 @@ exports.handler = async (event, context) => {
         ADD COLUMN IF NOT EXISTS paypal_order_id TEXT,
         ADD COLUMN IF NOT EXISTS paypal_capture_id TEXT,
         ADD COLUMN IF NOT EXISTS expected_item_count INTEGER,
-        ADD COLUMN IF NOT EXISTS item_signature TEXT
+        ADD COLUMN IF NOT EXISTS item_signature TEXT,
+        ADD COLUMN IF NOT EXISTS abandoned_cart_id UUID,
+        ADD COLUMN IF NOT EXISTS abandoned_cart_session_id TEXT
       `;
       await sql`
         CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_paypal_order_id
           ON orders(paypal_order_id)
           WHERE paypal_order_id IS NOT NULL
+      `;
+      await sql`
+        CREATE INDEX IF NOT EXISTS idx_orders_abandoned_cart_session_created_at
+          ON orders(abandoned_cart_session_id, created_at DESC)
+          WHERE abandoned_cart_session_id IS NOT NULL
       `;
       await sql`
         ALTER TABLE orders
@@ -1404,6 +1510,46 @@ exports.handler = async (event, context) => {
       hasEmail: Boolean(userEmail),
     });
 
+    // Pricing initially validates the submitted code before the canonical
+    // account email has been loaded. Revalidate recovery offers against that
+    // resolved identity so a signed-in customer cannot submit the original
+    // recipient's email while retaining the offer on a different account.
+    const canonicalRecoveryDiscount = await revalidateRecoveryDiscountForCanonicalIdentity(sql, {
+      discount: orderData.discountCode,
+      userEmail,
+      userId: finalUserId,
+      checkoutKey: orderData.checkout_idempotency_key || null,
+    });
+    if (!canonicalRecoveryDiscount.valid) {
+      return {
+        statusCode: 400,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        body: JSON.stringify({
+          error: canonicalRecoveryDiscount.error || 'Invalid discount code',
+          code: 'DISCOUNT_CODE_INVALID',
+        }),
+      };
+    }
+    orderData.discountCode = canonicalRecoveryDiscount.discount;
+
+    // A browser-provided cart UUID is only a hint. Persist it on the order
+    // after proving ownership by a matching signed recovery credential or by
+    // the current account, guest session, or normalized email.
+    const linkedAbandonedCartId = await resolveAbandonedCartLink(sql, {
+      cartId: orderData.abandonedCartId || orderData.abandoned_cart_id,
+      sessionId: orderData.abandonedCartSessionId || orderData.abandoned_cart_session_id,
+      userId: finalUserId,
+      email: userEmail,
+      recoveryToken: orderData.abandonedCartRecoveryToken || orderData.abandoned_cart_recovery_token,
+      isTestOrder: orderData.is_test_order === true,
+    });
+    orderData.abandoned_cart_id = linkedAbandonedCartId;
+    // The cart snapshot can finish after this order write. Preserve only the
+    // bounded session hint so server reconciliation can find that late row;
+    // this value is never positive email or recovery attribution on its own.
+    const linkedAbandonedCartSessionId = normalizedOrderAbandonedCartSessionId(orderData);
+    orderData.abandoned_cart_session_id = linkedAbandonedCartSessionId;
+
     const normalizedShippingAddress = normalizeShippingAddress({
       ...orderData,
       ...(orderData.shippingAddress || {}),
@@ -1581,8 +1727,8 @@ exports.handler = async (event, context) => {
     }
 
     const persistenceQueries = [sql`
-      INSERT INTO orders (id, user_id, email, customer_name, customer_first_name, customer_phone, subtotal_cents, tax_cents, total_cents, status, paypal_order_id, paypal_capture_id, stripe_payment_intent_id, payment_method, checkout_idempotency_key, payment_reconciliation_status, shipping_name, shipping_street, shipping_street2, shipping_city, shipping_state, shipping_zip, shipping_country, discount_code, applied_discount_cents, applied_discount_label, applied_discount_type, same_day_hit_service, saturday_delivery, same_day_fee_cents, saturday_fee_cents, order_timestamp_et, same_day_qualified, is_test_order, test_order_reason, google_click_id, gbraid, wbraid, landing_page, referrer, utm_source, utm_medium, utm_campaign, utm_term, utm_content, consent_status, expected_item_count, item_signature)
-      VALUES (${orderId}, ${finalUserId}, ${userEmail}, ${orderData.customer_name || null}, ${orderData.customer_first_name || null}, ${orderData.customer_phone || null}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, ${requestedStatus}, ${orderData.paypal_order_id || null}, ${orderData.paypal_capture_id || null}, ${orderData.stripe_payment_intent_id || null}, ${orderData.payment_method || (orderData.stripe_payment_intent_id ? 'stripe' : (orderData.paypal_order_id ? 'paypal' : null))}, ${orderData.checkout_idempotency_key || null}, ${requestedStatus === 'pending' ? 'awaiting_capture' : 'not_required'}, ${orderData.shipping_name || null}, ${orderData.shipping_street || null}, ${orderData.shipping_street2 || null}, ${orderData.shipping_city || null}, ${orderData.shipping_state || null}, ${orderData.shipping_zip || null}, ${orderData.shipping_country || 'US'}, ${orderData.discountCode?.code || null}, ${orderData.applied_discount_cents || 0}, ${orderData.applied_discount_label || ''}, ${orderData.applied_discount_type || 'none'}, ${orderSameDayHitService}, ${orderSaturdayDelivery}, ${orderSameDayFeeCents}, ${orderSaturdayFeeCents}, ${orderTimestampEt.display}, ${orderSameDayQualified}, ${orderData.is_test_order === true}, ${orderData.test_order_reason || null}, ${attribution.google_click_id}, ${attribution.gbraid}, ${attribution.wbraid}, ${attribution.landing_page}, ${attribution.referrer}, ${attribution.utm_source}, ${attribution.utm_medium}, ${attribution.utm_campaign}, ${attribution.utm_term}, ${attribution.utm_content}, ${attribution.consent_status}, ${expectedItemCount}, ${expectedItemSignature})
+      INSERT INTO orders (id, user_id, email, customer_name, customer_first_name, customer_phone, subtotal_cents, tax_cents, total_cents, status, paypal_order_id, paypal_capture_id, stripe_payment_intent_id, payment_method, checkout_idempotency_key, payment_reconciliation_status, shipping_name, shipping_street, shipping_street2, shipping_city, shipping_state, shipping_zip, shipping_country, discount_code, applied_discount_cents, applied_discount_label, applied_discount_type, same_day_hit_service, saturday_delivery, same_day_fee_cents, saturday_fee_cents, order_timestamp_et, same_day_qualified, is_test_order, test_order_reason, google_click_id, gbraid, wbraid, landing_page, referrer, utm_source, utm_medium, utm_campaign, utm_term, utm_content, consent_status, expected_item_count, item_signature, abandoned_cart_id, abandoned_cart_session_id)
+      VALUES (${orderId}, ${finalUserId}, ${userEmail}, ${orderData.customer_name || null}, ${orderData.customer_first_name || null}, ${orderData.customer_phone || null}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, ${requestedStatus}, ${orderData.paypal_order_id || null}, ${orderData.paypal_capture_id || null}, ${orderData.stripe_payment_intent_id || null}, ${orderData.payment_method || (orderData.stripe_payment_intent_id ? 'stripe' : (orderData.paypal_order_id ? 'paypal' : null))}, ${orderData.checkout_idempotency_key || null}, ${requestedStatus === 'pending' ? 'awaiting_capture' : 'not_required'}, ${orderData.shipping_name || null}, ${orderData.shipping_street || null}, ${orderData.shipping_street2 || null}, ${orderData.shipping_city || null}, ${orderData.shipping_state || null}, ${orderData.shipping_zip || null}, ${orderData.shipping_country || 'US'}, ${orderData.discountCode?.code || null}, ${orderData.applied_discount_cents || 0}, ${orderData.applied_discount_label || ''}, ${orderData.applied_discount_type || 'none'}, ${orderSameDayHitService}, ${orderSaturdayDelivery}, ${orderSameDayFeeCents}, ${orderSaturdayFeeCents}, ${orderTimestampEt.display}, ${orderSameDayQualified}, ${orderData.is_test_order === true}, ${orderData.test_order_reason || null}, ${attribution.google_click_id}, ${attribution.gbraid}, ${attribution.wbraid}, ${attribution.landing_page}, ${attribution.referrer}, ${attribution.utm_source}, ${attribution.utm_medium}, ${attribution.utm_campaign}, ${attribution.utm_term}, ${attribution.utm_content}, ${attribution.consent_status}, ${expectedItemCount}, ${expectedItemSignature}, ${linkedAbandonedCartId}, ${linkedAbandonedCartSessionId})
       RETURNING *
     `];
 
@@ -1800,49 +1946,19 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Mark abandoned cart as recovered if this order came from an abandoned cart
+    // Direct paid-order creation is a legacy path. Use the same exact-link-
+    // first recovery service as Stripe and PayPal settlement so one purchase
+    // cannot recover multiple historical carts.
     try {
-      console.log('Checking for abandoned cart recovery...');
-      
-      // Try to find abandoned cart by email or user_id
-      const abandonedCartQuery = finalUserId 
-        ? await sql`
-            SELECT id, recovery_status, total_value 
-            FROM abandoned_carts 
-            WHERE (user_id = ${finalUserId} OR email = ${userEmail})
-              AND recovery_status IN ('active', 'abandoned')
-            ORDER BY last_activity_at DESC
-            LIMIT 1
-          `
-        : await sql`
-            SELECT id, recovery_status, total_value 
-            FROM abandoned_carts 
-            WHERE email = ${userEmail}
-              AND recovery_status IN ('active', 'abandoned')
-            ORDER BY last_activity_at DESC
-            LIMIT 1
-          `;
-
-      if (abandonedCartQuery && abandonedCartQuery.length > 0) {
-        const abandonedCart = abandonedCartQuery[0];
-        console.log(`Found abandoned cart ${abandonedCart.id} for recovery - marking as recovered`);
-        
-        await sql`
-          UPDATE abandoned_carts
-          SET 
-            recovery_status = 'recovered',
-            recovered_at = NOW(),
-            recovered_order_id = ${orderId}
-          WHERE id = ${abandonedCart.id}
-        `;
-        
-        console.log(`✅ Abandoned cart ${abandonedCart.id} marked as recovered! Amount: $${abandonedCart.total_value}`);
-      } else {
-        console.log('No active abandoned cart found for this customer');
-      }
+      await markAbandonedCartRecovered(sql, {
+        ...order,
+        user_id: finalUserId,
+        email: userEmail,
+        abandoned_cart_id: linkedAbandonedCartId,
+      });
     } catch (recoveryError) {
       console.error('Error marking abandoned cart as recovered:', recoveryError);
-      // Don't fail the order creation if abandoned cart update fails
+      // Recovery bookkeeping is non-critical and must never roll back a paid order.
     }
 
     // Mark database discount code as used after successful order creation.
@@ -1972,6 +2088,11 @@ exports._test = {
   ensureOrderSchemaOnce,
   isSecureCheckoutKey,
   canonicalQuoteForCheckout,
+  normalizedUuid,
+  normalizedCartSessionId,
+  normalizedOrderAbandonedCartSessionId,
+  resolveAbandonedCartLink,
+  revalidateRecoveryDiscountForCanonicalIdentity,
 };
 
 exports.createTrustedStripeContext = createTrustedStripeContext;

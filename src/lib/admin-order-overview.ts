@@ -17,12 +17,16 @@ export const isRefundedOrder = (order: Pick<Order, 'status'>): boolean => (
 );
 
 const isTestOrder = (order: Pick<Order, 'is_test_order'>): boolean => order.is_test_order === true;
+const REVENUE_STATUSES = new Set(['paid', 'in_production', 'shipped', 'delivered', 'fulfilled']);
 
 export const summarizeAdminOrders = (orders: Order[]): AdminOrderOverview => {
   return orders.reduce<AdminOrderOverview>((summary, order) => {
     const status = normalizeStatus(order.status);
     const refunded = status === 'refunded';
-    const shipped = !refunded && Boolean(order.tracking_number);
+    const shipped = !refunded && (
+      Boolean(order.tracking_number)
+      || ['shipped', 'delivered', 'fulfilled'].includes(status)
+    );
     const totalCents = Number.isFinite(Number(order.total_cents)) ? Number(order.total_cents) : 0;
 
     summary.totalOrders += 1;
@@ -39,7 +43,7 @@ export const summarizeAdminOrders = (orders: Order[]): AdminOrderOverview => {
     if (shipped) summary.shippedOrders += 1;
     if (!shipped && status !== 'in_production') summary.pendingOrders += 1;
 
-    if (!isTestOrder(order)) summary.totalRevenueCents += totalCents;
+    if (!isTestOrder(order) && REVENUE_STATUSES.has(status)) summary.totalRevenueCents += totalCents;
     return summary;
   }, {
     totalOrders: 0,

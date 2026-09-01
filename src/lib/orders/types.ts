@@ -1,5 +1,9 @@
+import type { AdminBusinessMetrics } from '../admin-business-metrics';
+import type { AdminOrderOverview } from '../admin-order-overview';
+import type { PlacementPreviewManifest } from '@/types/artwork';
+
 export type MaterialKey = '13oz' | '15oz' | '18oz' | 'mesh' | 'corrugated' | 'magnetic' | 'aluminum_040' | 'aluminum_063';
-export type OrderStatus = 'paid' | 'pending' | 'failed' | 'refunded' | 'shipped' | 'in_production';
+export type OrderStatus = 'paid' | 'pending' | 'failed' | 'refunded' | 'shipped' | 'delivered' | 'fulfilled' | 'in_production';
 export type TrackingCarrier = 'fedex';
 
 export interface DesignServiceAsset {
@@ -38,6 +42,7 @@ export interface OrderItem {
   overlay_image?: any;
   transform?: any;
   preview_canvas_px?: any;
+  placement_preview?: PlacementPreviewManifest | null;
 
   // Design Service fields - "Let Our Team Design It" flow
   design_service_enabled?: boolean;
@@ -133,9 +138,44 @@ export interface Order {
   customer_info_admin_updated_at?: string | null;
   is_test_order?: boolean;
   test_order_reason?: string | null;
+  reporting_customer_email?: string | null;
   review_request_customer_email?: string | null;
   review_request_last_sent_at?: string | null;
   review_request_sent_count?: number;
+  item_count?: number;
+  items_truncated?: boolean;
+  admin_detail_loaded?: boolean;
+}
+
+export interface AdminOrdersReportQuery {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  start?: string | null;
+  endExclusive?: string | null;
+  summaryOnly?: boolean;
+}
+
+export interface AdminOrdersPagination {
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+  hasPrevious: boolean;
+  hasNext: boolean;
+}
+
+export interface AdminOrdersReportResponse {
+  orders: Order[];
+  pagination: AdminOrdersPagination;
+  metrics: AdminBusinessMetrics;
+  overview: AdminOrderOverview;
+  period: {
+    start: string | null;
+    endExclusive: string | null;
+  };
+  search: string;
+  summaryOnly: boolean;
 }
 
 export interface CreateOrderData {

@@ -3,8 +3,17 @@ const assert = require('node:assert/strict');
 
 const {
   hasCompletedPayPalPaymentEvidence,
+  isAdminListableOrder,
   isAdminVisiblePaidOrder,
 } = require('../_shared/admin-order-visibility.cjs');
+
+test('Admin list keeps historical real records without treating them as sales', () => {
+  for (const status of ['pending', 'failed', 'canceled', 'cancelled', 'completed', 'paid', 'refunded']) {
+    assert.equal(isAdminListableOrder({ status, is_test_order: false }), true);
+  }
+  assert.equal(isAdminListableOrder({ status: 'paid', is_test_order: true, payment_method: 'stripe' }), false);
+  assert.equal(isAdminListableOrder({ status: 'paid', payment_method: 'admin_deploy_preview_test' }), false);
+});
 
 test('Admin hides a PayPal checkout attempt that was never captured', () => {
   assert.equal(isAdminVisiblePaidOrder({
@@ -31,6 +40,8 @@ test('Admin shows paid lifecycle statuses', () => {
   assert.equal(isAdminVisiblePaidOrder({ status: 'paid' }), true);
   assert.equal(isAdminVisiblePaidOrder({ status: 'in_production' }), true);
   assert.equal(isAdminVisiblePaidOrder({ status: 'shipped' }), true);
+  assert.equal(isAdminVisiblePaidOrder({ status: 'delivered' }), true);
+  assert.equal(isAdminVisiblePaidOrder({ status: 'fulfilled' }), true);
   assert.equal(isAdminVisiblePaidOrder({ status: 'refunded' }), true);
 });
 
@@ -59,7 +70,7 @@ test('Admin hides unpaid, failed, canceled, and no-payment test orders', () => {
   }, { context: 'deploy-preview' }), false);
 });
 
-test('settled provider test orders are visible only in an explicit nonproduction context', () => {
+test('settled provider test orders stay hidden in every deployment context', () => {
   const paidStripeTestOrder = {
     status: 'paid',
     payment_method: 'stripe',
@@ -67,11 +78,9 @@ test('settled provider test orders are visible only in an explicit nonproduction
     is_test_order: true,
   };
 
-  assert.equal(isAdminVisiblePaidOrder(paidStripeTestOrder, { context: 'deploy-preview' }), true);
-  assert.equal(isAdminVisiblePaidOrder(paidStripeTestOrder, { context: 'branch-deploy' }), true);
-  assert.equal(isAdminVisiblePaidOrder(paidStripeTestOrder, { context: 'production' }), false);
-  assert.equal(isAdminVisiblePaidOrder(paidStripeTestOrder, { context: '' }), false);
-  assert.equal(isAdminVisiblePaidOrder(paidStripeTestOrder, { context: undefined }), false);
+  for (const context of ['deploy-preview', 'branch-deploy', 'production', '', undefined]) {
+    assert.equal(isAdminVisiblePaidOrder(paidStripeTestOrder, { context }), false);
+  }
 
   assert.equal(isAdminVisiblePaidOrder({
     status: 'pending',
@@ -87,16 +96,16 @@ test('settled provider test orders are visible only in an explicit nonproduction
     is_test_order: true,
   };
 
-  assert.equal(isAdminVisiblePaidOrder(paidPayPalTestOrder, { context: 'deploy-preview' }), true);
-  assert.equal(isAdminVisiblePaidOrder(paidPayPalTestOrder, { context: 'branch-deploy' }), true);
-  assert.equal(isAdminVisiblePaidOrder(paidPayPalTestOrder, { context: 'production' }), false);
+  for (const context of ['deploy-preview', 'branch-deploy', 'production', '', undefined]) {
+    assert.equal(isAdminVisiblePaidOrder(paidPayPalTestOrder, { context }), false);
+  }
 
   const capturedPayPalTestOrderStillReconciling = {
     ...paidPayPalTestOrder,
     status: 'pending',
   };
 
-  assert.equal(isAdminVisiblePaidOrder(capturedPayPalTestOrderStillReconciling, { context: 'branch-deploy' }), true);
+  assert.equal(isAdminVisiblePaidOrder(capturedPayPalTestOrderStillReconciling, { context: 'branch-deploy' }), false);
   assert.equal(isAdminVisiblePaidOrder(capturedPayPalTestOrderStillReconciling, { context: 'production' }), false);
 
   assert.equal(isAdminVisiblePaidOrder({

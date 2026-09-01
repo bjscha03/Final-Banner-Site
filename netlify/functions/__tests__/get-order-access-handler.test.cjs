@@ -29,6 +29,7 @@ const order = {
   discount_code: 'NEW20',
   status: 'paid',
   payment_method: 'paypal',
+  payment_reconciliation_status: 'complete',
   paypal_order_id: 'PAYPAL-ORDER-123',
   paypal_capture_id: 'PAYPAL-CAPTURE-456',
   stripe_payment_intent_id: null,
@@ -43,9 +44,10 @@ function queryText(first) {
   return String(first || '');
 }
 
-function databaseFor(orderRow) {
+function databaseFor(orderRow, observedQueries = null) {
   const sql = async (first) => {
     const query = queryText(first);
+    observedQueries?.push(query);
     if (/FROM\s+pg_attribute/i.test(query)) return [];
     if (/FROM\s+orders\s+WHERE\s+id\s*=\s*\$1/i.test(query)) return [orderRow];
     if (/FROM\s+order_items\s+WHERE\s+order_id\s*=\s*\$1/i.test(query)) return [];
@@ -71,7 +73,6 @@ test.before(() => {
   process.env.AUTH_SESSION_SECRET = 'handler-test-auth-secret';
   process.env.ORDER_VIEW_TOKEN_SECRET = 'handler-test-view-secret';
   process.env.ORDER_CONFIRMATION_TOKEN_SECRET = 'handler-test-confirmation-secret';
-  getOrderModule._test.resetMigrations();
 });
 
 test.after(() => {
@@ -136,4 +137,32 @@ test('get-order handler preserves short-lived confirmation, owner, and admin acc
   assert.equal(ownerResponse.statusCode, 200);
   assert.equal(adminResponse.statusCode, 200);
   assert.equal(outsiderResponse.statusCode, 401);
+});
+
+test('admin and customer detail reads remain read-only while preserving the full order response', async () => {
+  const queries = [];
+  getOrderModule._test.setNeonFactory(databaseFor(order, queries));
+  const owner = createSessionToken({ id: order.user_id, email: order.email, is_admin: false });
+  const admin = createSessionToken({ id: 'admin-1', email: 'admin@example.com', is_admin: true });
+
+  const ownerResponse = await getOrderModule.handler(event({ authorization: `Bearer ${owner}` }));
+  const adminResponse = await getOrderModule.handler(event({ authorization: `Bearer ${admin}` }));
+  const ownerPayload = bodyOf(ownerResponse);
+  const adminPayload = bodyOf(adminResponse);
+
+  assert.equal(ownerResponse.statusCode, 200);
+  assert.equal(adminResponse.statusCode, 200);
+  assert.equal(ownerPayload.order.id, order.id);
+  assert.equal(adminPayload.order.id, order.id);
+  assert.equal(ownerPayload.order.payment_reconciliation_status, 'complete');
+  assert.equal(adminPayload.order.payment_reconciliation_status, 'complete');
+  assert.deepEqual(ownerPayload.order.items, []);
+  assert.deepEqual(adminPayload.order.items, []);
+  assert.equal(ownerPayload.order.stripe_payment_intent_id, undefined);
+  assert.equal(adminPayload.order.stripe_payment_intent_id, null);
+  assert.ok(queries.length > 0);
+  for (const query of queries) {
+    assert.match(query.trim(), /^SELECT\b/i);
+    assert.doesNotMatch(query, /\b(?:ALTER|CREATE|DROP|TRUNCATE|INSERT|UPDATE|DELETE)\b/i);
+  }
 });

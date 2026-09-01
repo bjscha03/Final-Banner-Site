@@ -11,7 +11,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/lib/auth';
+import { useAbandonedCartCapture } from '@/hooks/useAbandonedCartCapture';
 import { getStoredAttribution } from '@/lib/attribution';
+import {
+  awaitBoundedAbandonedCartSnapshot,
+  selectAbandonedCartPaymentAttribution,
+  writeStoredAbandonedCartRecoveryAttribution,
+} from '@/lib/abandonedCartCapture';
 import { useCartStore, type CanonicalCartQuote } from '@/store/cart';
 import { shouldUseDeployPreviewTestCheckout } from './checkoutEnvironment';
 import { gtag, trackPaymentInfoAdded, trackShippingInfoEntered, type AnalyticsItem } from '@/lib/analytics';
@@ -311,6 +317,15 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
   const [customer, setCustomer] = useState<CustomerFormState>(() => (
     readCheckoutCustomerDraft(user?.email || '')
   ));
+  const {
+    markPaymentStarted,
+    getCartId: getAbandonedCartId,
+    getSessionId: getAbandonedCartSessionId,
+    getRecoveryAttribution: getAbandonedCartRecoveryAttribution,
+  } = useAbandonedCartCapture({
+    customer,
+    estimatedTotalCents: total,
+  });
 
   const resumedPayPal = resumeCheckout?.provider === 'paypal' ? resumeCheckout : null;
   const internalOrderIdRef = useRef<string | null>(resumedPayPal?.orderId || null);
@@ -330,6 +345,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
   const recoveryHydratedKeyRef = useRef<string | null>(null);
   const shippingInfoTrackedRef = useRef(false);
   const paymentInfoTrackedRef = useRef(new Set<'card' | 'paypal'>());
+  const paymentSnapshotRef = useRef<ReturnType<typeof markPaymentStarted> | null>(null);
   const analyticsItems = useMemo<AnalyticsItem[]>(() => items.map((item) => {
     const quantity = Math.max(1, Number(item.quantity || 1));
     return {
@@ -544,6 +560,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     setVerificationMessage(null);
     setCheckoutError(null);
     clearState();
+    writeStoredAbandonedCartRecoveryAttribution(null);
     clearCheckoutCustomerDraft();
 
     const shippingAddress = extractShipping(payload)
@@ -772,6 +789,15 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     try {
       const submitted = submittedCustomerRef.current;
       if (!submitted) throw new Error('Complete the required customer information before payment.');
+      const capturedSnapshot = await awaitBoundedAbandonedCartSnapshot(paymentSnapshotRef.current);
+      paymentSnapshotRef.current = null;
+      const recoveryAttribution = getAbandonedCartRecoveryAttribution();
+      const abandonedCartAttribution = selectAbandonedCartPaymentAttribution({
+        recoveryAttribution,
+        capturedCartId: capturedSnapshot?.cartId,
+        storedCartId: getAbandonedCartId(),
+        sessionId: getAbandonedCartSessionId(),
+      });
 
       if (!internalOrderIdRef.current) {
         const pendingResponse = await fetch('/.netlify/functions/create-order', {
@@ -801,6 +827,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
             payment_method: 'paypal',
             payment_status: 'pending',
             checkout_idempotency_key: checkoutKeyRef.current,
+            ...abandonedCartAttribution,
             items,
             discountCode,
             sameDayHitService: Boolean(sameDayHitService),
@@ -856,6 +883,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
           billingAddress: submitted.billingAddress,
           shippingAddress: submitted.shippingAddress,
           user_id: user?.id || null,
+          ...abandonedCartAttribution,
           discountCode,
           sameDayHitService: Boolean(sameDayHitService),
           saturdayDelivery: Boolean(saturdayDelivery),
@@ -1088,6 +1116,12 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
       return false;
     }
     submittedCustomerRef.current = getSubmittedCustomer();
+    paymentSnapshotRef.current = markPaymentStarted({
+      email: submittedCustomerRef.current.email,
+      phone: submittedCustomerRef.current.phone,
+      firstName: submittedCustomerRef.current.firstName,
+      lastName: submittedCustomerRef.current.lastName,
+    });
     setCheckoutError(null);
     trackValidatedCheckoutDetails(method);
     return true;

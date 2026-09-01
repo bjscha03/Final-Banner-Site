@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ShoppingCart, Menu, X, User, LogOut, Package, Shield, Mail, UserCheck } from 'lucide-react';
+import { ShoppingCart, Menu, X, User, LogOut, Package, Shield, Mail, UserCheck, Users } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import ScrollToTopLink from './ScrollToTopLink';
 import { useAuth, isAdmin } from '@/lib/auth';
@@ -179,6 +179,14 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
                                 Admin: Custom Quotes
                               </a>
                               <a
+                                href="/admin/customers"
+                                className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-700 hover:text-[#18448D] hover:bg-slate-50"
+                                onClick={() => setIsMenuOpen(false)}
+                              >
+                                <Users className="h-4 w-4" />
+                                Admin: Customers
+                              </a>
+                              <a
                                 href="/admin/email-templates"
                                 className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-700 hover:text-[#18448D] hover:bg-slate-50"
                                 onClick={() => setIsMenuOpen(false)}
@@ -319,6 +327,12 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
                             <a href="/admin/custom-quotes" className="flex items-center">
                               <Shield className="h-4 w-4 mr-2" />
                               Admin: Custom Quotes
+                            </a>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <a href="/admin/customers" className="flex items-center">
+                              <Users className="h-4 w-4 mr-2" />
+                              Admin: Customers
                             </a>
                           </DropdownMenuItem>
                           <DropdownMenuItem asChild>

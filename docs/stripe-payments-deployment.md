@@ -69,9 +69,10 @@ key and mode; it must never contain a secret key or webhook secret.
 3. Scope its connection URL to Deploy Preview/branch contexts only.
 4. Confirm a preview payment writes only to the preview branch.
 5. Confirm test orders, emails, and analytics cannot leak into production. Test
-   mode orders are intentionally marked. A settled Stripe test order may appear
-   to authenticated Admin on the explicit nonproduction preview so its lifecycle
-   can be verified; production Admin and purchase analytics still exclude it.
+   mode orders are intentionally marked and remain excluded from standard Admin
+   order lists, reports, customer history, and purchase analytics in every
+   deploy context. Verify their lifecycle through the isolated database,
+   provider dashboard, and test-specific logs or harnesses instead.
 6. Remove or rotate the preview database credential after the review window if
    the branch is no longer needed.
 
@@ -189,9 +190,9 @@ case.
 - [ ] Double tap, refresh, Back, timeout, network interruption, webhook retry,
       browser finalizer/webhook race, and status recovery do not duplicate an
       order, payment, email, or conversion.
-- [ ] The paid order has the expected database values and is visible through
-      the appropriate isolated-preview Admin verification path. Test-mode
-      records remain excluded from production Admin and reports.
+- [ ] The paid order has the expected values in the isolated database and the
+      provider/test logs. Test-mode records remain excluded from standard Admin
+      order lists, reports, customer history, and purchase analytics.
 - [ ] The customer confirmation and admin notification are emitted once in the
       isolated test environment; no real customer receives a test email.
 - [ ] The success page loads the canonical order with its payment-bound token,

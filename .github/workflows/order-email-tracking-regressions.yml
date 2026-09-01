@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'src/components/checkout/**'
+      - 'src/hooks/**'
       - 'src/components/orders/**'
       - 'src/components/preview/**'
       - 'src/components/design/**'
@@ -12,10 +13,22 @@ on:
       - 'src/components/product/**'
       - 'src/components/CartModal.tsx'
       - 'src/components/HeroSection.tsx'
+      - 'src/components/Header.tsx'
+      - 'src/App.tsx'
       - 'src/main.tsx'
       - 'src/lib/previewImageCache.ts'
+      - 'src/lib/auth.ts'
+      - 'src/lib/auth.logout.test.ts'
+      - 'src/lib/serverAuth.ts'
       - 'src/lib/previewArtifactCoordinator.ts'
       - 'src/lib/cartSync.ts'
+      - 'src/lib/cartSync*.test.ts'
+      - 'src/lib/abandonedCart*.ts'
+      - 'src/lib/abandoned-cart-*.ts'
+      - 'src/lib/admin-business-metrics.ts'
+      - 'src/lib/admin-customer-csv.ts'
+      - 'src/lib/admin-order-overview.ts'
+      - 'src/lib/__tests__/admin-*.test.ts'
       - 'src/lib/previewSelection.ts'
       - 'src/lib/previewSourceRegistry.ts'
       - 'src/lib/sessionArtworkPreviewSource.ts'
@@ -24,6 +37,7 @@ on:
       - 'src/lib/order-thumbnail.test.ts'
       - 'src/lib/commercePreviewUrl.ts'
       - 'src/pages/Checkout.tsx'
+      - 'src/pages/admin/**'
       - 'src/pages/Design.tsx'
       - 'src/pages/GoogleAdsBanner.tsx'
       - 'src/pages/CityProductPage.tsx'
@@ -38,12 +52,20 @@ on:
       - 'vitest.ai.config.ts'
       - 'netlify/functions/get-order.mjs'
       - 'netlify/functions/get-orders.mjs'
+      - 'netlify/functions/*abandoned-cart*.mjs'
+      - 'netlify/functions/detect-abandoned-carts.mjs'
+      - 'netlify/functions/save-cart-snapshot.mjs'
+      - 'netlify/functions/send-abandoned-cart-email.mjs'
+      - 'netlify/functions/admin-customers.mjs'
+      - 'netlify/functions/recovery-email-unsubscribe.mjs'
       - 'netlify/functions/stripe-*.mjs'
+      - 'netlify/functions/paypal-*.mjs'
       - 'netlify/functions/update-tracking.mjs'
       - 'netlify/functions/send-shipping-notification.mjs'
       - 'netlify/functions/resend-tracking-email.mjs'
       - 'netlify/functions/_shared/**'
       - 'netlify/functions/__tests__/**'
+      - 'migrations/**'
       - 'package.json'
       - 'package-lock.json'
       - '.env.example'
@@ -93,16 +115,34 @@ jobs:
             netlify/functions/__tests__/stripe-runtime-config.test.cjs \
             netlify/functions/__tests__/stripe-server-pricing.test.cjs \
             netlify/functions/__tests__/paypal-preview-containment.test.mjs \
+            netlify/functions/__tests__/paypal-capture-final-handler.test.mjs \
             netlify/functions/__tests__/payment-access-handler.test.mjs \
+            netlify/functions/__tests__/get-order-access-handler.test.cjs \
+            netlify/functions/__tests__/get-orders-legacy-readonly.test.cjs \
+            netlify/functions/__tests__/get-orders-reporting.test.mjs \
+            netlify/functions/__tests__/admin-payment-reconciliation.test.mjs \
             netlify/functions/__tests__/cart-persistence-ordering.test.cjs \
             netlify/functions/__tests__/preview-pipeline.test.cjs \
             netlify/functions/__tests__/admin-order-visibility.test.cjs \
+            netlify/functions/__tests__/admin-refund-order.test.cjs \
             netlify/functions/__tests__/order-confirmation-token.test.cjs \
             netlify/functions/__tests__/guest-order-confirmation-flow.test.cjs \
             netlify/functions/__tests__/purchase-analytics-reconciliation.test.cjs \
             netlify/functions/__tests__/mark-in-production-email.test.cjs \
             netlify/functions/__tests__/tracking-email-handler.test.cjs \
-            netlify/functions/__tests__/get-order-public.test.cjs
+            netlify/functions/__tests__/get-order-public.test.cjs \
+            netlify/functions/__tests__/abandoned-cart-delivery-safety.test.mjs \
+            netlify/functions/__tests__/abandoned-cart-capture-rate-limit.test.cjs \
+            netlify/functions/__tests__/abandoned-cart-migration.test.cjs \
+            netlify/functions/__tests__/abandoned-cart-order-link.test.cjs \
+            netlify/functions/__tests__/abandoned-cart-schema.test.cjs \
+            netlify/functions/__tests__/abandoned-cart-webhook.test.cjs \
+            netlify/functions/__tests__/admin-customers-handler.test.mjs \
+            netlify/functions/__tests__/admin-customers.test.cjs \
+            netlify/functions/__tests__/migration-runner.test.cjs \
+            netlify/functions/__tests__/recovery-delivery-race-regressions.test.mjs \
+            netlify/functions/__tests__/recovery-discount-identity.test.cjs \
+            netlify/functions/__tests__/security-data-integrity-regressions.test.mjs
 
       - name: Run preview source-selection unit tests
         run: |
@@ -112,13 +152,44 @@ jobs:
             src/lib/__tests__/previewSelection.test.ts \
             src/lib/__tests__/previewArtifactCoordinator.test.ts \
             src/lib/__tests__/cartSync.saveQueue.test.ts \
+            src/lib/__tests__/admin-business-metrics.test.ts \
+            src/lib/__tests__/admin-customer-csv.test.ts \
+            src/lib/__tests__/admin-order-overview.test.ts \
+            src/lib/abandoned-cart-admin.test.ts \
+            src/lib/auth.logout.test.ts \
+            src/lib/abandonedCartCapture.test.ts \
+            src/lib/abandonedCartRecovery.test.ts \
+            src/lib/cartSync.abandonedCapture.test.ts \
             src/lib/sessionArtworkPreviewSource.test.ts \
             src/lib/order-thumbnail.test.ts \
             src/store/cart.previewLifecycle.test.ts \
             src/components/checkout/PayPalCheckoutReliable.identity.test.ts \
             src/components/checkout/StripeCheckout.flow.test.ts \
             src/components/checkout/stripeCheckoutState.test.ts \
+            src/pages/Checkout.layout.test.ts \
+            src/pages/admin/AbandonedCarts.request-race.test.ts \
+            src/pages/admin/Customers.contract.test.ts \
+            src/pages/admin/Orders.layout.test.ts \
+            netlify/functions/__tests__/abandoned-cart-recovery.test.mjs \
+            netlify/functions/__tests__/get-abandoned-carts-admin.test.mjs \
+            netlify/functions/__tests__/save-cart-snapshot.test.mjs \
+            netlify/functions/__tests__/trade-show-email-templates.test.mjs \
             --reporter=verbose
+
+      - name: Run desktop and mobile Admin commerce browser contracts
+        run: |
+          set -euo pipefail
+          browser=$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)
+          if [ -z "$browser" ]; then
+            echo "No supported headless Chrome/Chromium executable was found"
+            exit 1
+          fi
+          PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="$browser" \
+            npx playwright test \
+              --config=playwright.preview.config.ts \
+              admin-commerce-analytics.playwright.spec.ts \
+              --project=chromium-1440x900 \
+              --project=chromium-pixel8-portrait
 
       - name: Run real-browser artwork handoff regression
         run: |

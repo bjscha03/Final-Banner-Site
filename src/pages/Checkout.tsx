@@ -36,12 +36,17 @@ import {
   type CheckoutPaymentStateEvent,
 } from '@/components/checkout/checkoutPaymentState';
 import { storeOrderConfirmationToken } from '@/lib/orderConfirmationStorage';
+import {
+  clearAbandonedCartRecoveryQuery,
+  readAbandonedCartRecoveryToken,
+  restoreAbandonedCartFromToken,
+} from '@/lib/abandonedCartRecovery';
 
 const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
-  const { items: rawItems, getMigratedItems, isLoading, syncToServer, clearCart, getSubtotalCents, getTaxCents, getTotalCents, updateQuantity, removeItem, applyCanonicalPricingQuote, discountCode, applyDiscountCode, removeDiscountCode, getResolvedDiscount, sameDayHitService, saturdayDelivery, getSameDayFeeCents, getSaturdayDeliveryFeeCents } = useCartStore();
+  const { items: rawItems, getMigratedItems, isLoading, syncToServer, replaceItemsFromRecovery, clearCart, getSubtotalCents, getTaxCents, getTotalCents, updateQuantity, removeItem, applyCanonicalPricingQuote, discountCode, applyDiscountCode, removeDiscountCode, getResolvedDiscount, sameDayHitService, saturdayDelivery, getSameDayFeeCents, getSaturdayDeliveryFeeCents } = useCartStore();
 
   // CRITICAL: Use migrated items to ensure rope/pole pocket costs are calculated
   const items = getMigratedItems();
@@ -60,9 +65,12 @@ const Checkout: React.FC = () => {
   // synchronous, including the crash window where only a checkout key exists
   // and the create-payment response never reached the browser.
   const [initialActiveCheckout] = useState<ActiveCheckoutMarker | null>(() => readActiveCheckoutMarker());
+  const [initialCartRecoveryToken] = useState<string | null>(() => readAbandonedCartRecoveryToken());
   const [activeCheckout, setActiveCheckout] = useState<ActiveCheckoutMarker | null>(initialActiveCheckout);
+  const [cartRecoveryLoading, setCartRecoveryLoading] = useState(Boolean(initialCartRecoveryToken));
   const [needsStoredCheckoutRecovery, setNeedsStoredCheckoutRecovery] = useState(Boolean(initialActiveCheckout));
   const [recoveryMessage, setRecoveryMessage] = useState<string | null>(null);
+  const [cartRecoveryError, setCartRecoveryError] = useState<string | null>(null);
   const [recoveryChecking, setRecoveryChecking] = useState(false);
   const [staleCartReview, setStaleCartReview] = useState<{
     serverTotalCents: number;
@@ -73,7 +81,8 @@ const Checkout: React.FC = () => {
   );
   const [showPromoCode, setShowPromoCode] = useState(false);
   const paymentSuccessHandledRef = useRef(false);
-  const checkoutLocked = Boolean(activeCheckout) || recoveryChecking;
+  const cartRecoveryHandledRef = useRef(false);
+  const checkoutLocked = Boolean(activeCheckout) || recoveryChecking || cartRecoveryLoading;
 
   const handlePaymentStateChange = useCallback((event: CheckoutPaymentStateEvent) => {
     setNeedsStoredCheckoutRecovery(false);
@@ -132,6 +141,43 @@ const Checkout: React.FC = () => {
     const cleanPath = sanitizedStripeReturnPath(window.location.href);
     if (cleanPath) window.history.replaceState(window.history.state, '', cleanPath);
   }, []);
+
+  // Recovery credentials are short-lived bearer tokens. Remove them (and all
+  // retired unsigned recovery parameters) from browser history before passive
+  // analytics, payment providers, or outbound navigation can observe them.
+  useIsomorphicLayoutEffect(() => {
+    clearAbandonedCartRecoveryQuery();
+  }, []);
+
+  useEffect(() => {
+    if (cartRecoveryHandledRef.current || isLoading || !initialCartRecoveryToken) return;
+    cartRecoveryHandledRef.current = true;
+    setCartRecoveryLoading(true);
+
+    void restoreAbandonedCartFromToken({
+      token: initialCartRecoveryToken,
+      replaceCartItems: replaceItemsFromRecovery,
+      applyValidatedDiscount: applyDiscountCode,
+    })
+      .then((outcome) => {
+        if (outcome.ok) {
+          setCartRecoveryError(null);
+          setRecoveryMessage(outcome.message);
+          toast({
+            title: 'Cart restored',
+            description: outcome.message,
+          });
+          return;
+        }
+        setCartRecoveryError(outcome.message);
+        toast({
+          title: 'Cart could not be restored',
+          description: outcome.message,
+          variant: 'destructive',
+        });
+      })
+      .finally(() => setCartRecoveryLoading(false));
+  }, [applyDiscountCode, initialCartRecoveryToken, isLoading, replaceItemsFromRecovery, toast]);
 
   // Stripe configuration is resolved server-side so preview/test and live keys
   // cannot cross environments. A bounded failure falls back to the existing
@@ -380,7 +426,7 @@ const Checkout: React.FC = () => {
   // A ref prevents duplicate events when totals or migrated items settle.
   const checkoutTrackedRef = useRef(false);
   useEffect(() => {
-    if (checkoutTrackedRef.current || isLoading || items.length === 0) return;
+    if (checkoutTrackedRef.current || isLoading || cartRecoveryLoading || items.length === 0) return;
 
     const analyticsItems = items.map(item => ({
       item_id: item.id,
@@ -399,7 +445,7 @@ const Checkout: React.FC = () => {
       value: totalCents,
       num_items: items.length,
     });
-  }, [discountCode?.code, isLoading, items, totalCents]);
+  }, [cartRecoveryLoading, discountCode?.code, isLoading, items, totalCents]);
 
   const handlePaymentSuccess = useCallback(async (orderId: string, orderData?: any) => {
     if (paymentSuccessHandledRef.current) return;
@@ -569,15 +615,21 @@ const Checkout: React.FC = () => {
   }, [checkoutLocked]);
 
   // Show loading state while cart is being loaded/merged
-  if (isLoading) {
+  if (isLoading || cartRecoveryLoading) {
     return (
       <Layout>
         <div className="bg-gray-50 py-8 min-h-[calc(100vh-4rem)]">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center">
               <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-[#18448D]"></div>
-              <h2 className="mt-4 text-2xl font-bold text-[#18448D]">Loading your cart...</h2>
-              <p className="mt-2 text-gray-600">Please wait while we prepare your items.</p>
+              <h2 className="mt-4 text-2xl font-bold text-[#18448D]">
+                {cartRecoveryLoading ? 'Restoring your cart...' : 'Loading your cart...'}
+              </h2>
+              <p className="mt-2 text-gray-600">
+                {cartRecoveryLoading
+                  ? 'We are securely restoring the items from your recovery link.'
+                  : 'Please wait while we prepare your items.'}
+              </p>
             </div>
           </div>
         </div>
@@ -604,9 +656,17 @@ const Checkout: React.FC = () => {
         <div className="bg-gray-50 py-8 min-h-[calc(100vh-4rem)]">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center">
-              <Package className="mx-auto h-12 w-12 text-gray-400" />
-              <h2 className="mt-4 text-2xl font-bold text-[#18448D]">Your cart is empty</h2>
-              <p className="mt-2 text-gray-600">Add some items to your cart before checking out.</p>
+              <Package className={`mx-auto h-12 w-12 ${cartRecoveryError ? 'text-red-500' : 'text-gray-400'}`} />
+              <h2 className="mt-4 text-2xl font-bold text-[#18448D]">
+                {cartRecoveryError ? 'Cart could not be restored' : 'Your cart is empty'}
+              </h2>
+              {cartRecoveryError ? (
+                <div className="mx-auto mt-3 max-w-xl rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-800" role="alert">
+                  {cartRecoveryError} You can start a new design below.
+                </div>
+              ) : (
+                <p className="mt-2 text-gray-600">Add some items to your cart before checking out.</p>
+              )}
               <Button
                 onClick={() => navigate(isFromGoogleAds ? '/google-ads-banner' : '/design')}
                 className="mt-6"
@@ -1166,6 +1226,12 @@ const Checkout: React.FC = () => {
                   </div>
                 </div>
                 
+                {cartRecoveryError ? (
+                  <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3" role="alert">
+                    <p className="text-sm font-medium text-red-900">{cartRecoveryError}</p>
+                  </div>
+                ) : null}
+
                 {recoveryMessage ? (
                   <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3" role="status" aria-live="polite">
                     <p className="text-sm font-medium text-blue-900">{recoveryMessage}</p>

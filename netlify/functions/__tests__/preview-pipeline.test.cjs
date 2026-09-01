@@ -88,8 +88,8 @@ test('active design canvas uses one persistent DOM image instead of commerce ima
 test('inline and modal editors project one normalized composition into local canvas pixels', () => {
   const editor = read('src/components/design/ArtworkPreviewEditor.tsx');
 
-  assert.match(editor, /normalizedPosition\.xPct \* canvasSize\.w/);
-  assert.match(editor, /normalizedPosition\.yPct \* canvasSize\.h/);
+  assert.match(editor, /normalizedComposition\.xPct \* canvasSize\.w/);
+  assert.match(editor, /normalizedComposition\.yPct \* canvasSize\.h/);
   assert.match(editor, /normalizedTransformFromPixels\(localValueRef\.current/);
   assert.match(editor, /original: localValueRef\.current/);
 });

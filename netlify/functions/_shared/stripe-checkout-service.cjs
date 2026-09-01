@@ -381,6 +381,9 @@ async function createPendingOrderDirect({ input, items, customer, checkoutKey, m
     payment_method: 'stripe',
     payment_status: 'pending',
     checkout_idempotency_key: checkoutKey,
+    abandonedCartId: input?.abandonedCartId || null,
+    abandonedCartSessionId: input?.abandonedCartSessionId || null,
+    abandonedCartRecoveryToken: input?.abandonedCartRecoveryToken || null,
     items,
     discountCode: discountCode ? { code: String(discountCode) } : null,
     sameDayHitService: input?.sameDayHitService === true,
@@ -425,7 +428,9 @@ async function loadStripeOrder(sql, { orderId, checkoutKey, paymentIntentId } = 
              paypal_order_id, paypal_capture_id, payment_method, payment_reconciliation_status,
              to_jsonb(orders)->>'confirmation_email_status' AS confirmation_email_status,
              to_jsonb(orders)->>'admin_notification_status' AS admin_notification_status,
-             is_test_order, created_at
+             is_test_order, created_at,
+             to_jsonb(orders)->>'abandoned_cart_id' AS abandoned_cart_id,
+             to_jsonb(orders)->>'abandoned_cart_session_id' AS abandoned_cart_session_id
         FROM orders
        WHERE stripe_payment_intent_id = ${paymentIntentId}
        LIMIT 1
@@ -442,7 +447,9 @@ async function loadStripeOrder(sql, { orderId, checkoutKey, paymentIntentId } = 
              paypal_order_id, paypal_capture_id, payment_method, payment_reconciliation_status,
              to_jsonb(orders)->>'confirmation_email_status' AS confirmation_email_status,
              to_jsonb(orders)->>'admin_notification_status' AS admin_notification_status,
-             is_test_order, created_at
+             is_test_order, created_at,
+             to_jsonb(orders)->>'abandoned_cart_id' AS abandoned_cart_id,
+             to_jsonb(orders)->>'abandoned_cart_session_id' AS abandoned_cart_session_id
         FROM orders
        WHERE id = ${orderId}
        LIMIT 1
@@ -459,7 +466,9 @@ async function loadStripeOrder(sql, { orderId, checkoutKey, paymentIntentId } = 
              paypal_order_id, paypal_capture_id, payment_method, payment_reconciliation_status,
              to_jsonb(orders)->>'confirmation_email_status' AS confirmation_email_status,
              to_jsonb(orders)->>'admin_notification_status' AS admin_notification_status,
-             is_test_order, created_at
+             is_test_order, created_at,
+             to_jsonb(orders)->>'abandoned_cart_id' AS abandoned_cart_id,
+             to_jsonb(orders)->>'abandoned_cart_session_id' AS abandoned_cart_session_id
         FROM orders
        WHERE checkout_idempotency_key = ${checkoutKey}
        LIMIT 1

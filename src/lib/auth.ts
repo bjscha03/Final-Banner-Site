@@ -166,6 +166,11 @@ class SecureAuthAdapter implements AuthAdapter {
   }
 
   async signOut(): Promise<void> {
+    // Clear every copy of the signed server credential before exposing the
+    // browser as signed out. Otherwise authorizedHeaders() can continue to
+    // authenticate guest cart/payment requests as the previous account.
+    setServerSessionToken(null);
+
     // Remove user from localStorage
     safeStorage.removeItem(this.CURRENT_USER_KEY);
     

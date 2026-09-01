@@ -81,22 +81,28 @@ test('tracking email classifies only temporary provider failures as retryable', 
   assert.equal(isRetryableProviderError({ statusCode: 422, message: 'Invalid recipient' }), false);
 });
 
-test('admin desktop and mobile actions show Send before the first tracking email', () => {
+test('the shared admin tracking card shows Send before the first tracking email', () => {
   const ordersSource = fs.readFileSync(
     path.resolve(__dirname, '../../../src/pages/admin/Orders.tsx'),
     'utf8',
   );
+  const managerSource = fs.readFileSync(
+    path.resolve(__dirname, '../../../src/components/orders/AdminTrackingManager.tsx'),
+    'utf8',
+  );
 
   assert.doesNotMatch(
-    ordersSource,
-    /shipping_notification_sent \? 'Resend Tracking Email' : 'Resend Tracking Email'/,
+    managerSource,
+    /notificationSent \? 'Resend Tracking Info' : 'Resend Tracking Info'/,
   );
   assert.match(
-    ordersSource,
-    /shipping_notification_sent \? 'Resend Tracking Email' : 'Send Tracking Email'/,
+    managerSource,
+    /notificationSent \? 'Resend Tracking Info' : 'Send Tracking Info'/,
   );
   assert.match(
-    ordersSource,
-    /<Mail className="h-3 w-3 mr-1" \/>\{order\.shipping_notification_sent \? 'Resend Tracking Email' : 'Send Tracking Email'\}/,
+    managerSource,
+    /notificationSent\s*\? '\/\.netlify\/functions\/resend-tracking-email'\s*:\s*'\/\.netlify\/functions\/send-shipping-notification'/,
   );
+  assert.match(ordersSource, /<AdminTrackingManager/);
+  assert.doesNotMatch(ordersSource, /Send Tracking Email|Resend Tracking Email/);
 });

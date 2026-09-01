@@ -13,6 +13,19 @@
  */
 
 import type { CartItem } from '@/store/cart';
+import { readCheckoutCustomerDraft } from '@/components/checkout/checkoutCustomerDraft';
+import { authorizedHeaders } from '@/lib/serverAuth';
+import {
+  normalizeCaptureContact,
+  readStoredAbandonedCartRecoveryAttribution,
+  readStoredAbandonedCartId,
+  sanitizeSnapshotItems,
+  writeStoredAbandonedCartRecoveryAttribution,
+  writeStoredAbandonedCartId,
+  type AbandonedCartContact,
+  type AbandonedCartStage,
+  type AbandonedCartTotals,
+} from '@/lib/abandonedCartCapture';
 
 // Telemetry event types
 export type CartEvent = 
@@ -40,6 +53,7 @@ interface CartEventData {
 // Session management
 const SESSION_COOKIE_NAME = 'cart_session_id';
 const SESSION_LIFETIME_DAYS = 90;
+const SNAPSHOT_REVISION_STORAGE_PREFIX = 'bof-cart-snapshot-revision-v1';
 
 type QueuedCartSave = {
   items: CartItem[];
@@ -53,9 +67,48 @@ type CartSaveQueue = {
   pending: QueuedCartSave | null;
 };
 
+export type SaveCartSnapshotOptions = {
+  stage?: AbandonedCartStage;
+  contact?: AbandonedCartContact | null;
+  totals?: AbandonedCartTotals | null;
+  metadata?: Record<string, string | number | boolean | null | undefined>;
+};
+
+export type CartSnapshotResult = {
+  cartId: string | null;
+  status: string | null;
+};
+
 class CartSyncService {
   private requestIdCounter = 0;
   private saveQueues = new Map<string, CartSaveQueue>();
+  private snapshotRevisionHighWater = 0;
+
+  private nextSnapshotRevision(ownerKey: string): number {
+    const clockRevision = Math.floor(Date.now() * 1_000);
+    const storageKey = `${SNAPSHOT_REVISION_STORAGE_PREFIX}:${ownerKey.slice(0, 200)}`;
+    let storedRevision = 0;
+    try {
+      const parsed = Number(window.sessionStorage.getItem(storageKey));
+      if (Number.isSafeInteger(parsed) && parsed > 0 && parsed < Number.MAX_SAFE_INTEGER) {
+        storedRevision = parsed;
+      }
+    } catch {
+      // Storage restrictions must not block checkout capture.
+    }
+    const revision = Math.max(
+      clockRevision,
+      this.snapshotRevisionHighWater + 1,
+      storedRevision + 1,
+    );
+    this.snapshotRevisionHighWater = revision;
+    try {
+      window.sessionStorage.setItem(storageKey, String(revision));
+    } catch {
+      // The in-memory high-water still orders this page's concurrent saves.
+    }
+    return revision;
+  }
 
   /**
    * Generate a unique request ID for tracking
@@ -92,25 +145,36 @@ class CartSyncService {
    */
   getSessionId(): string {
     if (typeof document === 'undefined') return '';
-    
-    // Try to get existing session from cookie
-    const cookies = document.cookie.split(';');
-    for (const cookie of cookies) {
-      const [name, value] = cookie.trim().split('=');
-      if (name === SESSION_COOKIE_NAME) {
-        return value;
-      }
-    }
+
+    const existing = this.getExistingSessionId();
+    if (existing) return existing;
 
     // Create new session ID
     const sessionId = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
-    
+
     // Set cookie with long lifetime
     const expires = new Date();
     expires.setDate(expires.getDate() + SESSION_LIFETIME_DAYS);
     document.cookie = `${SESSION_COOKIE_NAME}=${sessionId}; expires=${expires.toUTCString()}; path=/; SameSite=Lax${window.location.protocol === 'https:' ? '; Secure' : ''}`;
-    
+
     return sessionId;
+  }
+
+  /**
+   * Return the current guest session without creating a new cookie. This lets
+   * the first authenticated snapshot reconcile the cart that was captured
+   * immediately before sign-in.
+   */
+  getExistingSessionId(): string | null {
+    if (typeof document === 'undefined') return null;
+    const cookies = document.cookie.split(';');
+    for (const cookie of cookies) {
+      const [name, value] = cookie.trim().split('=');
+      if (name === SESSION_COOKIE_NAME) {
+        return value || null;
+      }
+    }
+    return null;
   }
 
   /**
@@ -426,11 +490,9 @@ class CartSyncService {
 
       console.log('[cart-save] Saved', items.length, 'items to server');
 
-      // Also save snapshot to abandoned_carts table for recovery tracking
-      // Only if cart has items
-      if (items.length > 0) {
-        await this.saveCartSnapshot(items, userId, sessionId);
-      }
+      // Also save a bounded snapshot for recovery tracking. Empty snapshots
+      // close the active recovery record so a cleared cart cannot be emailed.
+      await this.saveCartSnapshot(items, userId, sessionId);
 
       return true;
     } catch (error) {
@@ -449,47 +511,115 @@ class CartSyncService {
 
   /**
    * Save cart snapshot to abandoned_carts table for recovery tracking
-   * This runs in parallel with cart save and doesn't block the main flow
+   * Failures are contained so recovery telemetry never blocks the cart flow.
    */
-  private async saveCartSnapshot(items: CartItem[], userId?: string, sessionId?: string): Promise<void> {
+  async saveCartSnapshot(
+    items: CartItem[],
+    userId?: string,
+    sessionId?: string,
+    options: SaveCartSnapshotOptions = {},
+  ): Promise<CartSnapshotResult | null> {
     try {
-      // Get user email and phone from localStorage if available
-      let email: string | null = null;
-      let phone: string | null = null;
+      const snapshotSessionId = sessionId
+        || this.getExistingSessionId()
+        || this.getSessionId()
+        || undefined;
+      let storedUser: Record<string, unknown> = {};
 
       try {
         if (typeof localStorage !== 'undefined') {
           const userStr = localStorage.getItem('banners_current_user');
           if (userStr) {
-            const user = JSON.parse(userStr);
-            email = user?.email || null;
-            phone = user?.phone || null;
+            storedUser = JSON.parse(userStr) || {};
           }
         }
       } catch (e) {
         console.warn('[save-cart-snapshot] Could not get user info from localStorage:', e);
       }
 
+      const draft = readCheckoutCustomerDraft();
+      const explicitContact = normalizeCaptureContact(options.contact);
+      const draftContact = normalizeCaptureContact({
+        email: draft.email,
+        phone: draft.phone,
+        firstName: draft.firstName,
+        lastName: draft.lastName,
+      });
+      const userContact = normalizeCaptureContact({
+        email: storedUser.email as string | undefined,
+        phone: storedUser.phone as string | undefined,
+        firstName: (storedUser.firstName || storedUser.first_name) as string | undefined,
+        lastName: (storedUser.lastName || storedUser.last_name) as string | undefined,
+      });
+      const contact = {
+        email: explicitContact.email || draftContact.email || userContact.email,
+        phone: explicitContact.phone || draftContact.phone || userContact.phone,
+        firstName: explicitContact.firstName || draftContact.firstName || userContact.firstName,
+        lastName: explicitContact.lastName || draftContact.lastName || userContact.lastName,
+      };
+      const sanitizedItems = sanitizeSnapshotItems(items);
+      const recoveryAttribution = items.length > 0
+        ? readStoredAbandonedCartRecoveryAttribution()
+        : null;
+      const existingCartId = readStoredAbandonedCartId();
+      // Assign at request construction—not response time—so a pagehide flush
+      // or later contact edit always outranks any older in-flight snapshot.
+      const snapshotRevision = this.nextSnapshotRevision(
+        recoveryAttribution?.cartId
+        || existingCartId
+        || (userId ? `user:${userId}` : `session:${snapshotSessionId || 'unknown'}`),
+      );
+      const fallbackSubtotalCents = sanitizedItems.reduce((sum, item) => {
+        const value = Number(item.line_total_cents);
+        return sum + (Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0);
+      }, 0);
+      const normalizeCents = (value: number | null | undefined, fallback: number | null): number | null => (
+        Number.isSafeInteger(value) && Number(value) >= 0 ? Number(value) : fallback
+      );
+      const subtotalCents = normalizeCents(options.totals?.subtotalCents, fallbackSubtotalCents);
+      const discountCents = normalizeCents(options.totals?.discountCents, null);
+      const taxCents = normalizeCents(options.totals?.taxCents, null);
+      // A cart-stage snapshot does not know tax/final checkout total. Preserve
+      // that distinction instead of presenting the line subtotal as a final
+      // estimate; the checkout hook supplies the real estimate once known.
+      const estimatedTotalCents = normalizeCents(options.totals?.estimatedTotalCents, null);
+
       console.log('[save-cart-snapshot] Saving snapshot for abandoned cart tracking:', {
         userId: userId ? `${userId.substring(0, 8)}...` : null,
         sessionId: sessionId ? `${sessionId.substring(0, 12)}...` : null,
         itemCount: items.length,
-        hasEmail: !!email,
+        hasEmail: !!contact.email,
+        stage: options.stage || 'cart',
       });
 
       const response = await fetch('/.netlify/functions/save-cart-snapshot', {
         method: 'POST',
-        headers: {
+        headers: authorizedHeaders({
           'Content-Type': 'application/json',
-        },
+        }),
+        credentials: 'same-origin',
+        keepalive: true,
         body: JSON.stringify({
           userId,
-          sessionId,
-          email,
-          phone,
-          cartItems: items,
+          sessionId: snapshotSessionId,
+          existingCartId,
+          recoveryCartId: recoveryAttribution?.cartId || null,
+          recoveryToken: recoveryAttribution?.token || null,
+          snapshotRevision,
+          email: contact.email,
+          phone: contact.phone,
+          firstName: contact.firstName,
+          lastName: contact.lastName,
+          cartItems: sanitizedItems,
+          stage: options.stage || 'cart',
+          subtotalCents,
+          discountCents,
+          taxCents,
+          estimatedTotalCents,
           metadata: {
-            // Could add UTM params here if tracked
+            signed_in: Boolean(userId),
+            customer_type: userId ? 'signed_in' : 'guest',
+            ...options.metadata,
           },
         }),
       });
@@ -497,16 +627,36 @@ class CartSyncService {
       if (!response.ok) {
         const errorText = await response.text();
         console.warn('[save-cart-snapshot] Failed to save snapshot:', errorText);
-        return; // Don't throw - this is non-critical
+        return null; // Don't throw - this is non-critical
       }
 
       const result = await response.json();
+      if (items.length === 0) {
+        writeStoredAbandonedCartId(null);
+        writeStoredAbandonedCartRecoveryAttribution(null);
+      } else if (typeof result?.cartId === 'string') {
+        writeStoredAbandonedCartId(result.cartId);
+      }
       console.log('[save-cart-snapshot] Snapshot saved successfully:', result);
+      return {
+        cartId: typeof result?.cartId === 'string' ? result.cartId : null,
+        status: typeof result?.status === 'string' ? result.status : null,
+      };
 
     } catch (error) {
       // Log but don't throw - abandoned cart tracking is non-critical
       console.warn('[save-cart-snapshot] Error saving cart snapshot:', error);
+      return null;
     }
+  }
+
+  async saveCheckoutProgress(
+    items: CartItem[],
+    options: SaveCartSnapshotOptions,
+  ): Promise<CartSnapshotResult | null> {
+    const userId = this.getUserId() || undefined;
+    const sessionId = this.getExistingSessionId() || this.getSessionId() || undefined;
+    return this.saveCartSnapshot(items, userId, sessionId, options);
   }
 
   /**
@@ -575,7 +725,7 @@ class CartSyncService {
       console.log('🔄 [mergeGuestCartOnLogin] Merged cart items:', mergedItems.length);
 
       // Save merged cart to user's account
-      const success = await this.saveCart(mergedItems, userId);
+      const success = await this.saveCart(mergedItems, userId, sessionId || undefined);
       
       if (success) {
         console.log('✅ [mergeGuestCartOnLogin] Merged cart saved successfully');
@@ -650,10 +800,20 @@ export const cartSync = {
   isAvailable: () => cartSyncService.isAvailable(),
   getUserId: () => cartSyncService.getUserId(),
   getSessionId: () => cartSyncService.getSessionId(),
+  getExistingSessionId: () => cartSyncService.getExistingSessionId(),
   loadCart: (userId: string) => cartSyncService.loadCart(userId),
   saveCart: (items: CartItem[], userId?: string, sessionId?: string) => cartSyncService.saveCart(items, userId, sessionId),
   mergeAndSyncCart: (userId: string, localItems: CartItem[]) => cartSyncService.mergeAndSyncCart(userId, localItems),
   clearCart: (userId: string) => cartSyncService.clearCart(userId),
+  saveCartSnapshot: (
+    items: CartItem[],
+    userId?: string,
+    sessionId?: string,
+    options?: SaveCartSnapshotOptions,
+  ) => cartSyncService.saveCartSnapshot(items, userId, sessionId, options),
+  saveCheckoutProgress: (items: CartItem[], options: SaveCartSnapshotOptions) => (
+    cartSyncService.saveCheckoutProgress(items, options)
+  ),
 };
 
 // Export new service for enhanced features

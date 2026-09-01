@@ -12,11 +12,6 @@ const {
 
 let neonFactory = neon;
 
-// Module-scoped cache: auto-migrations only need to run once per cold start.
-// Running ~50 ALTER TABLE statements on every request was risking the
-// 10-second Netlify Functions timeout, returning 5xx errors to admin pages.
-let _migrationsRan = false;
-
 exports.handler = async (event, context) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -63,104 +58,10 @@ exports.handler = async (event, context) => {
 
     const sql = neonFactory(dbUrl);
 
-    // AUTO-MIGRATE: Ensure all referenced columns exist.
-    // Each ALTER runs independently so a single failure does not roll back the rest.
-    const ALLOWED_TABLES = new Set(['orders', 'order_items']);
-    const SAFE_DDL_RE = /^[A-Za-z0-9_ ,'"\.\(\)\{\}\[\]:\-#=]+$/;
-    const ensureColumn = async (table, columnDef) => {
-      if (!ALLOWED_TABLES.has(table) || !SAFE_DDL_RE.test(columnDef)) {
-        console.warn(`[get-order] Refusing unsafe migration for ${table}/${columnDef}`);
-        return;
-      }
-      try {
-        await sql(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS ${columnDef}`);
-      } catch (migErr) {
-        console.warn(`[get-order] Auto-migration ${table}.${columnDef} (non-fatal):`, migErr.message);
-      }
-    };
-
-    const orderItemColumns = [
-      `image_scale NUMERIC DEFAULT 1`,
-      `image_position JSONB DEFAULT '{"x": 0, "y": 0}'::jsonb`,
-      `thumbnail_url TEXT`,
-      `overlay_image JSONB`,
-      `overlay_images JSONB`,
-      `canvas_background_color VARCHAR(20) DEFAULT '#FFFFFF'`,
-      `file_url TEXT`,
-      `file_name VARCHAR(255)`,
-      `artwork_manifest JSONB`,
-      `placement_preview JSONB`,
-      `original_filename TEXT`,
-      `production_pdf_status TEXT DEFAULT 'pending'`,
-      `production_pdf_error TEXT`,
-      `print_ready_url TEXT`,
-      `web_preview_url TEXT`,
-      `text_elements JSONB DEFAULT '[]'::jsonb`,
-      `pole_pocket_position TEXT`,
-      `rope_placement TEXT`,
-      `pole_pocket_size TEXT`,
-      `pole_pocket_cost_cents INTEGER DEFAULT 0`,
-      `rounded_corners TEXT`,
-      `final_render_url TEXT`,
-      `final_render_file_key TEXT`,
-      `final_render_width_px INTEGER`,
-      `final_render_height_px INTEGER`,
-      `final_render_dpi INTEGER`,
-      `canvas_state_json TEXT`,
-      `design_service_enabled BOOLEAN DEFAULT FALSE`,
-      `design_request_text TEXT`,
-      `design_draft_preference VARCHAR(10)`,
-      `design_draft_contact VARCHAR(255)`,
-      `design_uploaded_assets JSONB DEFAULT '[]'::jsonb`,
-      `final_print_pdf_url TEXT`,
-      `final_print_pdf_file_key TEXT`,
-      `final_print_pdf_uploaded_at TIMESTAMP WITH TIME ZONE`,
-      `generated_print_pdf_url TEXT`,
-      `generated_print_pdf_uploaded_at TIMESTAMP WITH TIME ZONE`,
-      `generated_print_pdf_metadata JSONB`,
-      `product_type TEXT DEFAULT 'banner'`,
-      `yard_sign_sidedness TEXT`,
-      `yard_sign_step_stakes_enabled BOOLEAN DEFAULT false`,
-      `yard_sign_step_stakes_qty INTEGER DEFAULT 0`,
-      `yard_sign_design_count INTEGER DEFAULT 0`,
-      `yard_sign_designs JSONB`,
-      `yard_sign_signs_subtotal_cents INTEGER DEFAULT 0`,
-      `yard_sign_stakes_subtotal_cents INTEGER DEFAULT 0`,
-    ];
-    if (!_migrationsRan) {
-      for (const col of orderItemColumns) {
-        await ensureColumn('order_items', col);
-      }
-    }
-
-    // AUTO-MIGRATE: Ensure shipping columns exist on orders table
-    const orderColumns = [
-      `customer_name TEXT`,
-      `customer_first_name TEXT`,
-      `shipping_name TEXT`,
-      `shipping_street TEXT`,
-      `shipping_street2 TEXT`,
-      `shipping_city TEXT`,
-      `shipping_state TEXT`,
-      `shipping_zip TEXT`,
-      `shipping_country TEXT`,
-      `shipping_address JSONB`,
-      `same_day_hit_service BOOLEAN DEFAULT FALSE`,
-      `saturday_delivery BOOLEAN DEFAULT FALSE`,
-      `same_day_fee_cents INTEGER DEFAULT 0`,
-      `saturday_fee_cents INTEGER DEFAULT 0`,
-      `order_timestamp_et TEXT`,
-      `same_day_qualified BOOLEAN DEFAULT FALSE`,
-    ];
-    if (!_migrationsRan) {
-      for (const col of orderColumns) {
-        await ensureColumn('orders', col);
-      }
-      _migrationsRan = true;
-    }
-
-    // BULLETPROOF SELECT: introspect existing columns up front so a missing
-    // column (e.g. silent migration failure) never 500s the endpoint.
+    // READ-ONLY SCHEMA COMPATIBILITY: introspect existing columns up front so
+    // historical databases with an older additive schema still return NULL
+    // for unavailable fields. Detail reads must never run migrations: schema
+    // changes belong to the migration runner, not a latency-sensitive GET.
     // Use 'orders'::regclass / 'order_items'::regclass (resolved via
     // search_path) so this works regardless of the connection's current_schema().
     let existingOrderCols = new Set();
@@ -187,11 +88,6 @@ exports.handler = async (event, context) => {
     const safeOrderCol = (col) => existingOrderCols.size === 0 || existingOrderCols.has(col)
       ? col
       : `NULL AS ${col}`;
-    // For order_items, allow an alias so an aliased expression can be substituted with NULL.
-    const safeItemCol = (col, alias) => {
-      const out = alias ? ` AS ${alias}` : '';
-      return existingItemCols.size === 0 || existingItemCols.has(col) ? `${col}${out}` : `NULL${out || ` AS ${col}`}`;
-    };
 
     const orderSelectCols = [
       'id',
@@ -224,6 +120,7 @@ exports.handler = async (event, context) => {
       'saturday_fee_cents',
       'shipping_cents',
       'payment_method',
+      'payment_reconciliation_status',
       'paypal_order_id',
       'paypal_capture_id',
       // These fields are used only to verify a signed guest view credential
@@ -408,9 +305,6 @@ exports.handler = async (event, context) => {
 };
 
 exports._test = {
-  resetMigrations() {
-    _migrationsRan = false;
-  },
   resetNeonFactory() {
     neonFactory = neon;
   },

@@ -22,13 +22,14 @@ describe('admin order overview', () => {
       order('in_production', 10_000),
       order('shipped', 20_000, { tracking_number: 'TRACK-1' }),
       order('refunded', 4_579, { tracking_number: 'TRACK-OLD' }),
+      order('pending', 50_000),
     ]);
 
     expect(summary).toEqual({
-      totalOrders: 4,
+      totalOrders: 5,
       inProductionOrders: 1,
       shippedOrders: 1,
-      pendingOrders: 1,
+      pendingOrders: 2,
       refundedOrders: 1,
       totalRevenueCents: 34_579,
       refundedRevenueCents: 4_579,
@@ -46,5 +47,17 @@ describe('admin order overview', () => {
     expect(summary.refundedOrders).toBe(0);
     expect(summary.totalRevenueCents).toBe(0);
     expect(summary.refundedRevenueCents).toBe(0);
+  });
+
+  it('keeps historical delivered and fulfilled orders in settled revenue and shipped workflow', () => {
+    const summary = summarizeAdminOrders([
+      order('delivered', 7_500),
+      order('fulfilled', 8_500),
+    ]);
+
+    expect(summary.totalOrders).toBe(2);
+    expect(summary.shippedOrders).toBe(2);
+    expect(summary.pendingOrders).toBe(0);
+    expect(summary.totalRevenueCents).toBe(16_000);
   });
 });

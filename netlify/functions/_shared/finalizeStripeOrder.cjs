@@ -2,6 +2,7 @@
 
 const { loadStripeOrder, verifyIntentBinding } = require('./stripe-checkout-service.cjs');
 const { completePaymentDiscount } = require('./payment-discount-reservation.cjs');
+const { markAbandonedCartRecovered } = require('./abandoned-cart-order-recovery.cjs');
 
 const SETTLED = new Set(['paid', 'in_production', 'shipped', 'delivered', 'fulfilled']);
 const ALLOWED_WALLETS = new Set(['apple_pay', 'google_pay', 'link']);
@@ -37,15 +38,7 @@ async function runPostPaymentBookkeeping(sql, order) {
   }
 
   try {
-    await sql`
-      UPDATE abandoned_carts
-         SET recovery_status = 'recovered',
-             recovered_at = COALESCE(recovered_at, NOW()),
-             recovered_order_id = COALESCE(recovered_order_id, ${order.id})
-       WHERE recovery_status IN ('active', 'abandoned')
-         AND (${order.user_id || null}::uuid IS NOT NULL AND user_id = ${order.user_id || null}::uuid
-              OR ${order.email || null}::text IS NOT NULL AND LOWER(email) = LOWER(${order.email || null}))
-    `;
+    await markAbandonedCartRecovered(sql, order);
   } catch (error) {
     // Abandoned-cart recovery is optional in older databases; checkout must
     // not acquire a new schema dependency merely to settle a paid order.

@@ -6,10 +6,92 @@ const PREVIEW_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="240" height=
 const LARGE_PREVIEW_URL = 'https://res.cloudinary.com/dtrxl120u/image/upload/v1/orders/browser-test/high-resolution-preview.jpg';
 const THUMBNAIL_PREVIEW_URL = 'https://res.cloudinary.com/dtrxl120u/image/upload/v1/orders/browser-test/thumbnail-preview.jpg';
 
+type AdminOrderFixture = {
+  id: string;
+  status: string;
+  total_cents: number;
+  items: unknown[];
+  [key: string]: unknown;
+};
+
+const adminOrdersReportResponse = (order: AdminOrderFixture) => {
+  const summaryItems = order.items.slice(0, 1);
+  return {
+    orders: [{
+      ...order,
+      // The production report intentionally returns a bounded item subset.
+      // Files and actions stay locked until get-order returns the full record.
+      items: summaryItems,
+      item_count: order.items.length,
+      items_truncated: order.items.length > summaryItems.length,
+      admin_detail_loaded: false,
+    }],
+    pagination: {
+      page: 1,
+      pageSize: 20,
+      totalItems: 1,
+      totalPages: 1,
+      hasPrevious: false,
+      hasNext: false,
+    },
+    metrics: {
+      totalOrders: 1,
+      grossSalesCents: order.total_cents,
+      averageOrderValueCents: order.total_cents,
+      recordedRefundsCents: 0,
+      netSalesCents: order.total_cents,
+      newCustomers: 1,
+      repeatCustomers: 0,
+      repeatRate: 0,
+      identifiedCustomers: 1,
+    },
+    overview: {
+      totalOrders: 1,
+      inProductionOrders: 0,
+      shippedOrders: order.status === 'shipped' ? 1 : 0,
+      pendingOrders: order.status === 'pending' ? 1 : 0,
+      refundedOrders: order.status === 'refunded' ? 1 : 0,
+      totalRevenueCents: order.total_cents,
+      refundedRevenueCents: 0,
+    },
+    period: { start: null, endExclusive: null },
+    search: '',
+    summaryOnly: false,
+  };
+};
+
 test('Admin review request requires confirmation, prevents repeat clicks, and updates persisted status', async ({ page }) => {
   let reviewSendCalls = 0;
+  let detailLoadCalls = 0;
+  const order = {
+    id: ORDER_ID,
+    user_id: null,
+    email: SAFE_TEST_EMAIL,
+    review_request_customer_email: SAFE_TEST_EMAIL,
+    review_request_last_sent_at: null,
+    review_request_sent_count: 0,
+    customer_name: 'Browser Test Customer',
+    status: 'paid',
+    payment_method: 'paypal',
+    paypal_capture_id: 'SAFE-BROWSER-TEST-CAPTURE',
+    payment_reconciliation_status: 'complete',
+    subtotal_cents: 2000,
+    tax_cents: 120,
+    total_cents: 2120,
+    currency: 'USD',
+    created_at: '2026-08-03T20:00:00.000Z',
+    items: [],
+    is_test_order: false,
+    tracking_number: null,
+    tracking_carrier: null,
+  };
+  const currentOrder = () => ({
+    ...order,
+    review_request_last_sent_at: reviewSendCalls > 0 ? '2026-08-03T20:42:00.000Z' : null,
+    review_request_sent_count: reviewSendCalls > 0 ? 1 : 0,
+  });
 
-  await page.addInitScript(() => {
+  await page.addInitScript(({ savedOrder }) => {
     window.localStorage.setItem('banners_current_user', JSON.stringify({
       id: '00000000-0000-0000-0000-000000000001',
       email: 'admin-browser-test@example.com',
@@ -18,30 +100,9 @@ test('Admin review request requires confirmation, prevents repeat clicks, and up
     window.localStorage.setItem('banners_server_session', 'browser-test-signed-session');
     window.sessionStorage.setItem('banners_server_session', 'browser-test-signed-session');
     if (!window.localStorage.getItem('banners_orders')) {
-      window.localStorage.setItem('banners_orders', JSON.stringify([{
-        id: '2ad3018b-680a-463e-b761-9fdcf8a0d993',
-        user_id: null,
-        email: 'review-flow-test@example.com',
-        review_request_customer_email: 'review-flow-test@example.com',
-        review_request_last_sent_at: null,
-        review_request_sent_count: 0,
-        customer_name: 'Browser Test Customer',
-        status: 'paid',
-        payment_method: 'paypal',
-        paypal_capture_id: 'SAFE-BROWSER-TEST-CAPTURE',
-        payment_reconciliation_status: 'complete',
-        subtotal_cents: 2000,
-        tax_cents: 120,
-        total_cents: 2120,
-        currency: 'USD',
-        created_at: '2026-08-03T20:00:00.000Z',
-        items: [],
-        is_test_order: false,
-        tracking_number: null,
-        tracking_carrier: null,
-      }]));
+      window.localStorage.setItem('banners_orders', JSON.stringify([savedOrder]));
     }
-  });
+  }, { savedOrder: order });
 
   await page.route('**/.netlify/functions/**', async (route) => {
     const request = route.request();
@@ -52,26 +113,18 @@ test('Admin review request requires confirmation, prevents repeat clicks, and up
         status: 200,
         contentType: 'application/json',
         headers: { 'access-control-allow-origin': '*' },
-        body: JSON.stringify([{
-          id: ORDER_ID,
-          user_id: null,
-          email: SAFE_TEST_EMAIL,
-          review_request_customer_email: SAFE_TEST_EMAIL,
-          review_request_last_sent_at: reviewSendCalls > 0 ? '2026-08-03T20:42:00.000Z' : null,
-          review_request_sent_count: reviewSendCalls > 0 ? 1 : 0,
-          customer_name: 'Browser Test Customer',
-          status: 'paid',
-          payment_method: 'paypal',
-          paypal_capture_id: 'SAFE-BROWSER-TEST-CAPTURE',
-          payment_reconciliation_status: 'complete',
-          subtotal_cents: 2000,
-          tax_cents: 120,
-          total_cents: 2120,
-          currency: 'USD',
-          created_at: '2026-08-03T20:00:00.000Z',
-          items: [],
-          is_test_order: false,
-        }]),
+        body: JSON.stringify(adminOrdersReportResponse(currentOrder())),
+      });
+      return;
+    }
+
+    if (url.pathname.endsWith('/get-order')) {
+      detailLoadCalls += 1;
+      expect(url.searchParams.get('id')).toBe(ORDER_ID);
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, order: currentOrder() }),
       });
       return;
     }
@@ -111,7 +164,10 @@ test('Admin review request requires confirmation, prevents repeat clicks, and up
 
   await page.goto('/admin/orders', { waitUntil: 'domcontentloaded' });
   const sendButton = page.getByRole('button', { name: 'Send Review Email', exact: true }).filter({ visible: true });
+  await expect(sendButton).toHaveCount(0);
+  await page.getByRole('button', { name: 'Load files & actions', exact: true }).filter({ visible: true }).click();
   await expect(sendButton).toBeVisible();
+  expect(detailLoadCalls).toBe(1);
   expect(reviewSendCalls).toBe(0);
 
   await sendButton.click();
@@ -128,17 +184,10 @@ test('Admin review request requires confirmation, prevents repeat clicks, and up
 
   await expect(page.getByText(/Review request sent .*2026/).filter({ visible: true })).toBeVisible();
 
-  // Localhost intentionally uses the development storage adapter. Mirror the
-  // persisted get-orders record that production reloads from the database.
-  await page.evaluate((sentAt) => {
-    const storedOrders = JSON.parse(window.localStorage.getItem('banners_orders') || '[]');
-    storedOrders[0].review_request_last_sent_at = sentAt;
-    storedOrders[0].review_request_sent_count = 1;
-    window.localStorage.setItem('banners_orders', JSON.stringify(storedOrders));
-  }, '2026-08-03T20:42:00.000Z');
-
   await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: 'Load files & actions', exact: true }).filter({ visible: true }).click();
   await expect(page.getByText(/Review request sent .*2026/).filter({ visible: true })).toBeVisible();
+  expect(detailLoadCalls).toBe(2);
 
   await page.getByRole('button', { name: 'Send Review Email', exact: true }).filter({ visible: true }).click();
   const duplicateDialog = page.getByRole('alertdialog');
@@ -231,7 +280,20 @@ test('Admin order files, organized actions, and nested preview zoom work togethe
   await page.route('**/.netlify/functions/**', async (route) => {
     const url = new URL(route.request().url());
     if (url.pathname.endsWith('/get-orders')) {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([order]) });
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(adminOrdersReportResponse(order)),
+      });
+      return;
+    }
+    if (url.pathname.endsWith('/get-order')) {
+      expect(url.searchParams.get('id')).toBe(ORDER_ID);
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, order }),
+      });
       return;
     }
     if (url.pathname.endsWith('/get-abandoned-carts')) {
@@ -274,6 +336,14 @@ test('Admin order files, organized actions, and nested preview zoom work togethe
   await page.goto('/admin/orders', { waitUntil: 'domcontentloaded' });
 
   const originalFileButton = page.getByRole('button', { name: 'Original File', exact: true }).filter({ visible: true });
+  await expect(originalFileButton).toHaveCount(0);
+  await expect(page.locator('[data-admin-file-group]').filter({ visible: true })).toHaveCount(0);
+  const detailResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return url.pathname.endsWith('/get-order') && url.searchParams.get('id') === ORDER_ID;
+  });
+  await page.getByRole('button', { name: 'Load files & actions', exact: true }).filter({ visible: true }).click();
+  expect((await detailResponsePromise).status()).toBe(200);
   await expect(originalFileButton).toBeVisible();
   await expect(page.locator('[data-admin-file-group]').filter({ visible: true })).toBeVisible();
   await expect(page.locator('[data-admin-action-group]').filter({ visible: true })).toBeVisible();

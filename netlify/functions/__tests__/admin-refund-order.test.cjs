@@ -45,7 +45,19 @@ test('endpoint is admin-only and changes the BOF record without calling a paymen
   assert.match(source, /requireAdmin\(event\)/);
   assert.match(source, /recordOnly: true/);
   assert.match(query, /SET status = 'refunded'/);
-  assert.match(query, /IN \('paid', 'in_production', 'shipped'\)/);
+  assert.match(query, /IN \('paid', 'in_production', 'shipped', 'delivered', 'fulfilled'\)/);
+  assert.equal(refundOrder.interpretRefundRow({
+    id: 'historical-delivered',
+    previous_status: 'delivered',
+    updated_status: 'refunded',
+    total_cents: 2500,
+  }).outcome, 'refunded');
+  assert.equal(refundOrder.interpretRefundRow({
+    id: 'historical-fulfilled',
+    previous_status: 'fulfilled',
+    updated_status: 'refunded',
+    total_cents: 2500,
+  }).outcome, 'refunded');
   assert.doesNotMatch(source, /stripe|paypal/i);
   assert.doesNotMatch(query, /stripe|paypal/i);
 });

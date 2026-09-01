@@ -73,6 +73,7 @@ const PoliticalSigns = lazy(() => import("./pages/PoliticalSigns"));
 
 // Admin pages - lazy load (heavy, rarely accessed)
 const AdminOrders = lazy(() => import("./pages/admin/Orders"));
+const AdminCustomers = lazy(() => import("./pages/admin/Customers"));
 const AdminAbandonedCarts = lazy(() => import("./pages/admin/AbandonedCarts"));
 const AdminCustomQuotes = lazy(() => import("./pages/admin/CustomQuotes"));
 const AdminEmailTemplates = lazy(() => import("./pages/admin/EmailTemplates"));
@@ -200,6 +201,7 @@ export const RoutedApplication = () => (
             {/* Admin routes */}
             <Route path="/admin" element={<Navigate to="/admin/orders" replace />} />
             <Route path="/admin/orders" element={<AdminOrders />} />
+            <Route path="/admin/customers" element={<AdminCustomers />} />
             <Route path="/admin/abandoned-carts" element={<AdminAbandonedCarts />} />
             <Route path="/admin/custom-quotes" element={<AdminCustomQuotes />} />
             <Route path="/admin/email-templates" element={<AdminEmailTemplates />} />

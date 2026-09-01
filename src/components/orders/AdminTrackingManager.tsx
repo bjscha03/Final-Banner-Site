@@ -11,6 +11,7 @@ import { adminFetch } from '@/lib/serverAuth';
 interface AdminTrackingManagerProps {
   order: Order;
   onUpdated?: (next: Partial<Order>) => void;
+  instanceSuffix?: string;
 }
 
 const emptyRow = (index = 0): TrackingEntry => ({
@@ -48,8 +49,9 @@ const readJson = async (response: Response): Promise<Record<string, any>> => {
   }
 };
 
-const AdminTrackingManager: React.FC<AdminTrackingManagerProps> = ({ order, onUpdated }) => {
+const AdminTrackingManager: React.FC<AdminTrackingManagerProps> = ({ order, onUpdated, instanceSuffix }) => {
   const { toast } = useToast();
+  const headingId = `tracking-manager-${order.id}${instanceSuffix ? `-${instanceSuffix}` : ''}`;
   const storedRows = useMemo(() => normalizeTrackingEntries(order), [order]);
   const [rows, setRows] = useState<TrackingEntry[]>(storedRows);
   const [draftRows, setDraftRows] = useState<TrackingEntry[]>(storedRows.length ? storedRows : [emptyRow()]);
@@ -69,6 +71,7 @@ const AdminTrackingManager: React.FC<AdminTrackingManagerProps> = ({ order, onUp
   }, [order.id, order.tracking_number, order.tracking_numbers, order.trackingNumbers, order.shipping_notification_sent, order.shipping_notification_sent_at]);
 
   const refreshAdmin = () => {
+    if (onUpdated) return;
     if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')) {
       window.setTimeout(() => window.location.reload(), 650);
     }
@@ -85,7 +88,10 @@ const AdminTrackingManager: React.FC<AdminTrackingManagerProps> = ({ order, onUp
           carrier: DEFAULT_TRACKING_CARRIER,
           number: nextRows[0]?.trackingNumber || '',
           trackingNumbers: nextRows,
-          isUpdate: true,
+          // Preserve the existing first-save behavior: the first tracking
+          // number advances the order to shipped, while later edits only
+          // replace package details and reset notification delivery state.
+          isUpdate: rows.length > 0,
         }),
       });
       const result = await readJson(response);
@@ -111,7 +117,7 @@ const AdminTrackingManager: React.FC<AdminTrackingManagerProps> = ({ order, onUp
       toast({
         title: nextRows.length ? 'Tracking saved' : 'Tracking deleted',
         description: nextRows.length
-          ? 'Tracking was saved. Use Send Tracking Email when you are ready to notify the customer.'
+          ? 'Tracking was saved. Use Send Tracking Info when you are ready to notify the customer.'
           : 'All tracking numbers were removed. No email was sent.',
       });
       refreshAdmin();
@@ -148,6 +154,14 @@ const AdminTrackingManager: React.FC<AdminTrackingManagerProps> = ({ order, onUp
   };
 
   const sendTrackingEmail = async () => {
+    if (order.status === 'refunded') {
+      toast({
+        title: 'Refunded order',
+        description: 'Tracking information cannot be sent for a refunded order.',
+        variant: 'destructive',
+      });
+      return;
+    }
     if (!rows.length) {
       toast({
         title: 'Tracking required',
@@ -199,10 +213,10 @@ const AdminTrackingManager: React.FC<AdminTrackingManagerProps> = ({ order, onUp
   };
 
   return (
-    <section className="rounded-xl border border-blue-200 bg-blue-50/60 p-4" aria-labelledby={`tracking-manager-${order.id}`}>
+    <section className="rounded-xl border border-blue-200 bg-blue-50/60 p-4" aria-labelledby={headingId}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 id={`tracking-manager-${order.id}`} className="flex items-center gap-2 text-sm font-bold text-[#18448D]">
+          <h3 id={headingId} className="flex items-center gap-2 text-sm font-bold text-[#18448D]">
             <Truck className="h-4 w-4" />
             Tracking & customer notification
           </h3>
@@ -284,12 +298,14 @@ const AdminTrackingManager: React.FC<AdminTrackingManagerProps> = ({ order, onUp
       )}
 
       <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-blue-100 pt-3">
-        <Button type="button" size="sm" onClick={() => void sendTrackingEmail()} disabled={sending || saving || rows.length === 0} className="h-9 bg-[#18448D] text-xs hover:bg-[#12366f]">
+        <Button type="button" size="sm" onClick={() => void sendTrackingEmail()} disabled={sending || saving || rows.length === 0 || order.status === 'refunded'} className="h-9 bg-[#18448D] text-xs hover:bg-[#12366f]">
           {sending ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Mail className="mr-1 h-3 w-3" />}
-          {sending ? 'Sending…' : notificationSent ? 'Resend Tracking Email' : 'Send Tracking Email'}
+          {sending ? 'Sending…' : notificationSent ? 'Resend Tracking Info' : 'Send Tracking Info'}
         </Button>
         <div className="text-xs text-gray-600">
-          {notificationSentAt
+          {order.status === 'refunded'
+            ? 'Tracking notifications are disabled for refunded orders.'
+            : notificationSentAt
             ? `Last tracking email sent ${new Date(notificationSentAt).toLocaleString()}`
             : 'Tracking email has not been sent yet.'}
         </div>

@@ -17,6 +17,7 @@ import {
   evaluateSameDayEligibility,
   getEligibleSubtotalCents,
 } from '@/lib/sameDayService';
+import { writeStoredAbandonedCartRecoveryAttribution } from '@/lib/abandonedCartCapture';
 
 
 // PERFORMANCE: Disable verbose logging in production for faster cart operations
@@ -226,6 +227,7 @@ export interface DiscountCode {
 export interface CartState {
   syncToServer: () => Promise<void>;
   loadFromServer: () => Promise<void>;
+  replaceItemsFromRecovery: (items: CartItem[]) => Promise<void>;
   items: CartItem[];
   isLoading: boolean;  // Loading state for cart operations (merge, load from server)
   isSyncing: boolean;  // Flag to prevent loadFromServer from overwriting during sync
@@ -1136,6 +1138,9 @@ export const useCartStore = create<CartState>()(
         set((state) => ({
           items: state.items.filter(item => item.id !== id)
         }));
+        if (get().items.length === 0) {
+          writeStoredAbandonedCartRecoveryAttribution(null);
+        }
         // After item changes, ensure Same-Day flags are still valid (e.g. if
         // the removed item was the only eligible product in the cart).
         get().reconcileSameDayHitService();
@@ -1152,6 +1157,7 @@ export const useCartStore = create<CartState>()(
 
       clearCart: () => {
         set({ items: [], discountCode: null, sameDayHitService: false, saturdayDelivery: false });
+        writeStoredAbandonedCartRecoveryAttribution(null);
       // CRITICAL FIX: Sync to Neon database AFTER state update completes
       // Use setTimeout to ensure state has been updated before syncing
       setTimeout(() => {
@@ -1165,6 +1171,29 @@ export const useCartStore = create<CartState>()(
 
       clearCartLocal: () => {
         set({ items: [], discountCode: null, sameDayHitService: false, saturdayDelivery: false });
+        writeStoredAbandonedCartRecoveryAttribution(null);
+      },
+
+      replaceItemsFromRecovery: async (recoveredItems: CartItem[]) => {
+        const items = Array.isArray(recoveredItems)
+          ? recoveredItems
+              .filter((item) => item && !isRetiredCampaignItem(item))
+              .map(migrateCartItem)
+          : [];
+        if (items.length === 0) {
+          throw new Error('Recovered cart did not contain any supported items');
+        }
+
+        // Recovery is a deliberate replacement, not a merge. This prevents a
+        // stale local/account cart from being combined with the signed email
+        // snapshot, and prevents an unrelated promo from carrying over.
+        set({
+          items,
+          discountCode: null,
+          sameDayHitService: false,
+          saturdayDelivery: false,
+        });
+        await get().syncToServer();
       },
 
       applyDiscountCode: (discount: DiscountCode) => {
@@ -1264,7 +1293,7 @@ export const useCartStore = create<CartState>()(
           const sessionId = cartSync.getSessionId();
           debugLog('👤 No user logged in - saving guest cart with session ID:', sessionId ? `${sessionId.substring(0, 12)}...` : 'none');
           
-          if (sessionId && items.length > 0) {
+          if (sessionId) {
             const success = await cartSync.saveCart(items, undefined, sessionId);
             if (success) {
             } else {

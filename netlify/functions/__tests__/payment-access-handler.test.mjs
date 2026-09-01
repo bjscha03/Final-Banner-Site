@@ -99,53 +99,52 @@ test('admin order endpoint imports cleanly and rejects an unsigned request befor
   assert.equal((await response.json()).error, 'UNAUTHORIZED');
 });
 
-test('Admin test-order visibility follows the actual branch request host when runtime context looks like production', () => {
-  const envNames = ['CONTEXT', 'DEPLOY_PRIME_URL', 'DEPLOY_URL', 'URL'];
-  const saved = Object.fromEntries(envNames.map((name) => [name, process.env[name]]));
-  const settledSandboxOrder = {
-    status: 'paid',
-    payment_method: 'paypal',
-    paypal_capture_id: 'SANDBOX-CAPTURE',
-    payment_reconciliation_status: 'complete',
-    is_test_order: true,
+test('Admin rich report page size is capped to one predictable UI page', () => {
+  assert.equal(getOrdersTest.requestedAdminPageSize({}), 20);
+  assert.equal(getOrdersTest.requestedAdminPageSize({ page_size: '75' }), 20);
+  assert.equal(getOrdersTest.requestedAdminPageSize({ page_size: '5000' }), 20);
+  assert.equal(getOrdersTest.requestedAdminPageSize({ page_size: '2' }), 2);
+  assert.equal(getOrdersTest.requestedAdminPageSize({ page_size: 'invalid' }), 20);
+});
+
+test('order enrichment exposes verified profile email as a dedicated reporting identity', async () => {
+  const queries = [];
+  const legacyOrder = {
+    ...paidOrder,
+    id: 'legacy-profile-order',
+    user_id: 'legacy-profile-id',
+    email: null,
+  };
+  const sql = async (first) => {
+    const query = queryText(first);
+    queries.push(query);
+    if (/FROM orders\s+LEFT JOIN profiles/i.test(query)) {
+      return [{
+        id: legacyOrder.id,
+        total_cents: legacyOrder.total_cents,
+        payment_method: legacyOrder.payment_method,
+        paypal_capture_id: legacyOrder.paypal_capture_id,
+        payment_reconciliation_status: 'complete',
+        reporting_customer_email: 'legacy@customer-business.com',
+      }];
+    }
+    return [];
   };
 
-  try {
-    process.env.CONTEXT = 'production';
-    delete process.env.DEPLOY_PRIME_URL;
-    delete process.env.DEPLOY_URL;
-    delete process.env.URL;
+  const [enriched] = await getOrdersTest.enrichOrderPaymentMetadata(sql, [legacyOrder]);
 
-    assert.equal(getOrdersTest.isAdminVisiblePaidOrderForEvent(settledSandboxOrder, {
-      rawUrl: 'https://agent-payment-sandbox-e2e--bannersonthefly.netlify.app/.netlify/functions/get-orders?page=1',
-      headers: {},
-    }), true);
+  assert.equal(enriched.email, null);
+  assert.equal(enriched.reporting_customer_email, 'legacy@customer-business.com');
+  assert.equal(enriched.review_request_customer_email, 'legacy@customer-business.com');
+  assert.match(queries[0], /LEFT JOIN profiles ON orders\.user_id = profiles\.id/i);
+  assert.match(queries[0], /END AS reporting_customer_email/i);
+});
 
-    assert.equal(getOrdersTest.isAdminVisiblePaidOrderForEvent(settledSandboxOrder, {
-      rawUrl: 'https://www.bannersonthefly.com/.netlify/functions/get-orders?page=1',
-      headers: {},
-    }), false);
-
-    assert.equal(getOrdersTest.isAdminVisiblePaidOrderForEvent(settledSandboxOrder, {
-      rawUrl: 'https://6a779c518d3ca80008ce39e5--bannersonthefly.netlify.app/.netlify/functions/get-orders?page=1',
-      headers: {},
-    }), false);
-
-    assert.equal(getOrdersTest.isAdminVisiblePaidOrderForEvent({
-      ...settledSandboxOrder,
-      status: 'pending',
-      paypal_capture_id: null,
-      payment_reconciliation_status: 'pending',
-    }, {
-      rawUrl: 'https://agent-payment-sandbox-e2e--bannersonthefly.netlify.app/.netlify/functions/get-orders?page=1',
-      headers: {},
-    }), false);
-  } finally {
-    for (const [name, value] of Object.entries(saved)) {
-      if (value === undefined) delete process.env[name];
-      else process.env[name] = value;
-    }
-  }
+test('Admin report SQL rejects marked test and no-payment preview orders in every deployment context', () => {
+  const query = getOrdersTest.buildAdminPageQuery();
+  assert.match(query, /payment_method <> 'admin_deploy_preview_test'/i);
+  assert.match(query, /is_test_order = FALSE/i);
+  assert.doesNotMatch(query, /deployContext|DEPLOY_PRIME_URL|allowTestOrders/i);
 });
 
 test('a completed PayPal capture stays a 200 paid success when every token secret is missing', async () => {
