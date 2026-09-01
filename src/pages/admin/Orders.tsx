@@ -58,6 +58,10 @@ import {
   type AdminBusinessMetrics,
   type AdminOrderPeriod,
 } from '@/lib/admin-business-metrics';
+import {
+  ADMIN_ORDER_DETAIL_CONCURRENCY,
+  hydrateAdminOrderPage,
+} from '@/lib/orders/admin-detail-hydration';
 
 const PAGE_SIZE = 20;
 
@@ -81,6 +85,11 @@ const emptyPagination = (page = 1): AdminOrdersPagination => ({
   hasPrevious: page > 1,
   hasNext: false,
 });
+
+type AdminOrderDetailLoadOptions = {
+  expectedReportRequestId?: number;
+  expectedHydrationGeneration?: number;
+};
 
 const toLocalDateInput = (date: Date): string => {
   const year = date.getFullYear();
@@ -137,9 +146,9 @@ const getOrderItemsSummary = (order: Order): string => {
     if (info.lines > 1 && label.includes('Banner')) return `${info.lines} ${label} Designs`;
     return `${label} (Qty ${info.qty})`;
   });
-  if (!parts.length) return order.admin_detail_loaded === false ? 'Item details not loaded' : 'No items';
-  const unitsLabel = order.admin_detail_loaded === false ? 'Captured subset units' : 'Total Units';
-  return `${parts.join(' · ')} · ${unitsLabel}: ${getTotalUnits(order)}`;
+  if (!parts.length) return order.admin_detail_loaded === false ? 'Preparing order details…' : 'No items';
+  if (order.admin_detail_loaded === false) return parts.join(' · ');
+  return `${parts.join(' · ')} · Total Units: ${getTotalUnits(order)}`;
 };
 
 const getTotalUnits = (order: Order): number => (order.items || []).reduce((sum, item: any) => sum + Number(item.quantity || 0), 0);
@@ -327,7 +336,7 @@ const AdminOrders: React.FC = () => {
   const { toast } = useToast();
   const [pdfLoadingStates, setPdfLoadingStates] = useState<Record<string, boolean>>({});
   const [fileLoadingStates, setFileLoadingStates] = useState<Record<string, boolean>>({});
-  const [detailLoadingStates, setDetailLoadingStates] = useState<Record<string, boolean>>({});
+  const [detailErrorStates, setDetailErrorStates] = useState<Record<string, boolean>>({});
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<AdminOrdersPagination>(() => emptyPagination());
   const [businessMetrics, setBusinessMetrics] = useState<AdminBusinessMetrics>(() => emptyBusinessMetrics());
@@ -335,6 +344,7 @@ const AdminOrders: React.FC = () => {
   const reportRequestId = useRef(0);
   const detailAbortControllers = useRef<Map<string, AbortController>>(new Map());
   const detailRequestIds = useRef<Map<string, number>>(new Map());
+  const detailHydrationGeneration = useRef(0);
   const [globalOverview, setGlobalOverview] = useState({
     totalOrders: 0,
     inProductionOrders: 0,
@@ -354,9 +364,10 @@ const AdminOrders: React.FC = () => {
   });
 
   const abortDetailRequests = () => {
+    detailHydrationGeneration.current += 1;
     detailAbortControllers.current.forEach((controller) => controller.abort());
     detailAbortControllers.current.clear();
-    setDetailLoadingStates({});
+    setDetailErrorStates({});
   };
 
   const loadGlobalOverview = async (adminEmail?: string) => {
@@ -429,6 +440,7 @@ const AdminOrders: React.FC = () => {
     const controller = new AbortController();
     reportAbortController.current = controller;
     const requestId = ++reportRequestId.current;
+    const hydrationGeneration = detailHydrationGeneration.current;
 
     try {
       setLoading(true);
@@ -447,6 +459,7 @@ const AdminOrders: React.FC = () => {
       setReportReady(true);
       setGlobalOverview((current) => ({ ...current, ...report.overview }));
       setGlobalOverviewLoading((current) => ({ ...current, orders: true }));
+      void hydrateVisibleOrderDetails(report.orders, requestId, hydrationGeneration);
     } catch (error) {
       if (controller.signal.aborted || requestId !== reportRequestId.current) return;
       console.error('Error loading orders:', error);
@@ -511,59 +524,107 @@ const AdminOrders: React.FC = () => {
     setOrders((current) => current.map((order) => order.id === orderId ? updater(order) : order));
   };
 
-  const loadFullOrderDetails = async (orderId: string) => {
+  async function loadFullOrderDetails(
+    orderId: string,
+    options: AdminOrderDetailLoadOptions = {},
+  ): Promise<void> {
+    const expectedReportRequestId = options.expectedReportRequestId ?? reportRequestId.current;
+    const expectedHydrationGeneration = options.expectedHydrationGeneration ?? detailHydrationGeneration.current;
+    if (
+      expectedReportRequestId !== reportRequestId.current
+      || expectedHydrationGeneration !== detailHydrationGeneration.current
+    ) return;
     if (detailAbortControllers.current.has(orderId)) return;
     const controller = new AbortController();
     const requestId = (detailRequestIds.current.get(orderId) || 0) + 1;
     detailRequestIds.current.set(orderId, requestId);
     detailAbortControllers.current.set(orderId, controller);
-    setDetailLoadingStates((current) => ({ ...current, [orderId]: true }));
+    setDetailErrorStates((current) => {
+      if (!current[orderId]) return current;
+      const next = { ...current };
+      delete next[orderId];
+      return next;
+    });
     try {
       const detail = await fetchAdminOrderDetail(orderId, { signal: controller.signal });
-      if (controller.signal.aborted || detailRequestIds.current.get(orderId) !== requestId) return;
-      setOrders((current) => current.map((summary) => summary.id === orderId ? (() => {
-        const detailStatus = String(detail.status || '').toLowerCase();
-        const summaryHasCompletedPayPal = Boolean(
-          summary.paypal_capture_id
-          || (String(summary.payment_method || '').toLowerCase() === 'paypal'
-            && String(summary.payment_reconciliation_status || '').toLowerCase() === 'complete')
-        );
-        const effectiveDetailStatus = detailStatus === 'pending'
-          && String(summary.status || '').toLowerCase() === 'paid'
-          && summaryHasCompletedPayPal
-          ? 'paid'
-          : detail.status;
-        return ({
-          ...summary,
-          ...detail,
-          status: effectiveDetailStatus,
-          reporting_customer_email: summary.reporting_customer_email || detail.reporting_customer_email || null,
-          review_request_customer_email: summary.review_request_customer_email || detail.review_request_customer_email || null,
-          review_request_last_sent_at: summary.review_request_last_sent_at || detail.review_request_last_sent_at || null,
-          review_request_sent_count: Math.max(
-            Number(summary.review_request_sent_count || 0),
-            Number(detail.review_request_sent_count || 0),
-          ),
-          item_count: detail.items.length,
-          items_truncated: false,
-          admin_detail_loaded: true,
+      if (String(detail.id) !== orderId) throw new Error('Order detail response did not match the requested order');
+      if (
+        controller.signal.aborted
+        || detailRequestIds.current.get(orderId) !== requestId
+        || expectedReportRequestId !== reportRequestId.current
+        || expectedHydrationGeneration !== detailHydrationGeneration.current
+      ) return;
+      setOrders((current) => {
+        if (
+          expectedReportRequestId !== reportRequestId.current
+          || expectedHydrationGeneration !== detailHydrationGeneration.current
+        ) return current;
+        return current.map((summary) => {
+          if (summary.id !== orderId || summary.admin_detail_loaded !== false) return summary;
+          const detailStatus = String(detail.status || '').toLowerCase();
+          const summaryHasCompletedPayPal = Boolean(
+            summary.paypal_capture_id
+            || (String(summary.payment_method || '').toLowerCase() === 'paypal'
+              && String(summary.payment_reconciliation_status || '').toLowerCase() === 'complete')
+          );
+          const effectiveDetailStatus = detailStatus === 'pending'
+            && String(summary.status || '').toLowerCase() === 'paid'
+            && summaryHasCompletedPayPal
+            ? 'paid'
+            : detail.status;
+          return {
+            ...summary,
+            ...detail,
+            status: effectiveDetailStatus,
+            reporting_customer_email: summary.reporting_customer_email || detail.reporting_customer_email || null,
+            review_request_customer_email: summary.review_request_customer_email || detail.review_request_customer_email || null,
+            review_request_last_sent_at: summary.review_request_last_sent_at || detail.review_request_last_sent_at || null,
+            review_request_sent_count: Math.max(
+              Number(summary.review_request_sent_count || 0),
+              Number(detail.review_request_sent_count || 0),
+            ),
+            item_count: detail.items.length,
+            items_truncated: false,
+            admin_detail_loaded: true,
+          };
         });
-      })() : summary));
-    } catch (error) {
-      if (controller.signal.aborted || detailRequestIds.current.get(orderId) !== requestId) return;
-      console.error('Error loading full order details:', error);
-      toast({
-        title: 'Unable to Open Order',
-        description: 'Full files and actions could not be loaded. Please try again.',
-        variant: 'destructive',
       });
+    } catch (error) {
+      if (
+        controller.signal.aborted
+        || detailRequestIds.current.get(orderId) !== requestId
+        || expectedReportRequestId !== reportRequestId.current
+        || expectedHydrationGeneration !== detailHydrationGeneration.current
+      ) return;
+      console.error('Error loading full order details:', error);
+      setDetailErrorStates((current) => ({ ...current, [orderId]: true }));
     } finally {
       if (detailRequestIds.current.get(orderId) === requestId) {
         detailAbortControllers.current.delete(orderId);
-        setDetailLoadingStates((current) => ({ ...current, [orderId]: false }));
       }
     }
-  };
+  }
+
+  function hydrateVisibleOrderDetails(
+    pageOrders: Order[],
+    expectedReportRequestId: number,
+    expectedHydrationGeneration: number,
+  ): Promise<void> {
+    return hydrateAdminOrderPage({
+      orderIds: pageOrders
+        .filter((order) => order.admin_detail_loaded === false)
+        .map((order) => order.id),
+      concurrency: ADMIN_ORDER_DETAIL_CONCURRENCY,
+      shouldContinue: () => (
+        expectedReportRequestId === reportRequestId.current
+        && expectedHydrationGeneration === detailHydrationGeneration.current
+      ),
+      hydrate: (orderId) => loadFullOrderDetails(orderId, {
+        expectedReportRequestId,
+        expectedHydrationGeneration,
+      }),
+    });
+  }
 
   const handleCustomerInfoUpdated = (updated: Order) => updateOrderEverywhere(updated.id, (order) => ({ ...order, ...updated }));
   const handleOrderRefunded = (updated: Order) => {
@@ -981,6 +1042,10 @@ const AdminOrders: React.FC = () => {
     return `${itemCount} ${productLabel} (${uniqueItems} designs${order.admin_detail_loaded === false ? ', captured subset' : ''})`;
   };
 
+  const pendingDetailCount = orders.filter((order) => (
+    order.admin_detail_loaded === false && !detailErrorStates[order.id]
+  )).length;
+
   // Show loading state while checking authentication
   if (authLoading) {
     return (
@@ -1214,17 +1279,34 @@ const AdminOrders: React.FC = () => {
                 { label: 'AOV', value: usd(businessMetrics.averageOrderValueCents / 100) },
                 { label: 'Recorded Refunds', value: usd(businessMetrics.recordedRefundsCents / 100) },
                 { label: 'Net Sales', value: usd(businessMetrics.netSalesCents / 100) },
-                { label: 'New Customers', value: businessMetrics.newCustomers.toLocaleString() },
-                { label: 'Repeat Customers', value: businessMetrics.repeatCustomers.toLocaleString() },
+                { label: 'New Customers', value: businessMetrics.newCustomers.toLocaleString(), href: '/admin/customers?segment=new' },
+                { label: 'Repeat Customers', value: businessMetrics.repeatCustomers.toLocaleString(), href: '/admin/customers?segment=repeat' },
                 { label: 'Repeat Rate', value: `${(businessMetrics.repeatRate * 100).toFixed(1)}%` },
-              ].map((metric) => (
-                <div key={metric.label} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-[11px] text-gray-600">{metric.label}</p>
-                  <p className="mt-1 break-words text-base font-bold text-gray-900">
-                    {!reportReady || loading ? 'Loading…' : metric.value}
-                  </p>
-                </div>
-              ))}
+              ].map((metric) => {
+                const content = (
+                  <>
+                    <p className="text-[11px] text-gray-600">{metric.label}</p>
+                    <p className="mt-1 break-words text-base font-bold text-gray-900">
+                      {!reportReady || loading ? 'Loading…' : metric.value}
+                    </p>
+                    {metric.href && <p className="mt-1 text-[11px] font-semibold text-[#18448D]">View customers →</p>}
+                  </>
+                );
+                return metric.href ? (
+                  <a
+                    key={metric.label}
+                    href={metric.href}
+                    className="rounded-xl border border-blue-200 bg-blue-50 p-3 transition-colors hover:border-[#18448D] hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#18448D] focus-visible:ring-offset-2"
+                    aria-label={`View ${metric.label.toLowerCase()}`}
+                  >
+                    {content}
+                  </a>
+                ) : (
+                  <div key={metric.label} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    {content}
+                  </div>
+                );
+              })}
             </div>
             <p className="mt-3 text-[11px] leading-4 text-gray-500">
               AOV is net sales divided by successful orders. A new customer placed their first successful lifetime order in this period; a repeat customer placed a successful period order after an earlier successful order. Customer counts use valid, normalized email addresses and omit generated guest/preview addresses.
@@ -1248,11 +1330,19 @@ const AdminOrders: React.FC = () => {
                   disabled={!reportReady && loading}
                 />
               </div>
-              <p className="text-xs text-gray-600">
-                {reportReady
-                  ? `${pagination.totalItems.toLocaleString()} ${pagination.totalItems === 1 ? 'order' : 'orders'} · ${adminOrderPeriodLabel(period)}`
-                  : 'Loading exact metrics, search results, and pagination…'}
-              </p>
+              <div className="space-y-1 text-right">
+                <p className="text-xs text-gray-600">
+                  {reportReady
+                    ? `${pagination.totalItems.toLocaleString()} ${pagination.totalItems === 1 ? 'order' : 'orders'} · ${adminOrderPeriodLabel(period)}`
+                    : 'Loading exact metrics, search results, and pagination…'}
+                </p>
+                {!loading && pendingDetailCount > 0 && (
+                  <p className="inline-flex items-center gap-1.5 text-xs text-slate-500" data-admin-detail-page-status role="status" aria-live="polite">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                    Preparing files and actions…
+                  </p>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1316,7 +1406,7 @@ const AdminOrders: React.FC = () => {
                       onCustomerInfoUpdated={handleCustomerInfoUpdated}
                       onReviewRequestSent={handleReviewRequestSent}
                       onLoadDetails={loadFullOrderDetails}
-                      detailLoading={Boolean(detailLoadingStates[order.id])}
+                      detailError={Boolean(detailErrorStates[order.id])}
                     />
                   ))}
                 </div>
@@ -1341,7 +1431,7 @@ const AdminOrders: React.FC = () => {
                       onCustomerInfoUpdated={handleCustomerInfoUpdated}
                       onReviewRequestSent={handleReviewRequestSent}
                       onLoadDetails={loadFullOrderDetails}
-                      detailLoading={Boolean(detailLoadingStates[order.id])}
+                      detailError={Boolean(detailErrorStates[order.id])}
                     />
                   ))}
                 </div>
@@ -1398,7 +1488,7 @@ interface AdminOrderRowProps {
   onCustomerInfoUpdated: (order: Order) => void;
   onReviewRequestSent: (orderId: string, update: { sentAt: string; customerEmail: string }) => void;
   onLoadDetails: (orderId: string) => Promise<void>;
-  detailLoading: boolean;
+  detailError: boolean;
 }
 
 const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
@@ -1417,13 +1507,12 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   onCustomerInfoUpdated,
   onReviewRequestSent,
   onLoadDetails,
-  detailLoading,
+  detailError,
 }) => {
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [showCostBreakdown, setShowCostBreakdown] = useState(false);
   const orderItems = getSafeOrderItems(order);
   const detailRequired = order.admin_detail_loaded === false;
-  const totalItemCount = Math.max(orderItems.length, Number(order.item_count || 0));
   // Helper function to get the best download URL for an item (AI or uploaded)
   const getBestDownloadUrl = (item) => {
     return getOriginalArtworkSelection(item);
@@ -1520,11 +1609,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
             <div className="pt-2">
               <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Order Details</div>
               <div className="text-sm text-gray-900 break-words">{getOrderItemsSummary(order)}</div>
-              {detailRequired ? (
-                <div className="mt-2 text-xs font-medium text-amber-700">
-                  Showing {orderItems.length} of {totalItemCount} line items. Open the full order for exact units and files.
-                </div>
-              ) : (
+              {!detailRequired && (
                 <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-gray-600"><span>Total units: <b>{getTotalUnits(order)}</b></span><span>Line items: <b>{orderItems.length}</b></span><span>Print files: <b>{getPrintFileCount({ ...order, items: orderItems } as Order)}</b></span></div>
               )}
             </div>
@@ -1536,11 +1621,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
           <div><div className="text-xs font-medium uppercase tracking-wide text-gray-500">Order Total</div><div className={`text-lg font-bold ${ORDER_ACCENT_TEXT_CLASS}`}>{usd(getDisplayOrderTotalCents(order as any) / 100)}</div></div>
           {(() => {
             if (detailRequired) {
-              return (
-                <div className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs font-medium text-amber-800">
-                  Open the full order for exact production cost, shipping, profit, and margin.
-                </div>
-              );
+              return detailError ? <div className="text-xs text-slate-500">Cost details unavailable</div> : null;
             }
             const profit = estimateOrderProfit(order);
             return (
@@ -1640,22 +1721,23 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
         {/* RIGHT SECTION */}
         <div className="min-w-0 space-y-3">
           {detailRequired ? (
-            <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
-              <div className="text-sm font-semibold text-amber-900">Full order details required</div>
-              <div className="text-xs text-amber-800">
-                Load all {totalItemCount} line items and package tracking before using files or order actions.
+            detailError ? (
+              <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3" data-admin-detail-error role="status" aria-live="polite">
+                <div className="flex items-center justify-between gap-3 text-xs text-slate-600">
+                  <span>Order tools could not load.</span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-xs"
+                    aria-label={`Retry loading order ${order.id.slice(-8).toUpperCase()}`}
+                    onClick={() => void onLoadDetails(order.id)}
+                  >
+                    Retry
+                  </Button>
+                </div>
               </div>
-              <Button
-                type="button"
-                size="sm"
-                className="w-full"
-                onClick={() => void onLoadDetails(order.id)}
-                disabled={detailLoading}
-              >
-                {detailLoading ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Eye className="mr-1.5 h-4 w-4" />}
-                {detailLoading ? 'Loading full order...' : 'Load files & actions'}
-              </Button>
-            </div>
+            ) : null
           ) : (
           <>
           <div data-admin-tracking-group>
@@ -1843,7 +1925,7 @@ interface AdminOrderCardProps {
   onCustomerInfoUpdated: (order: Order) => void;
   onReviewRequestSent: (orderId: string, update: { sentAt: string; customerEmail: string }) => void;
   onLoadDetails: (orderId: string) => Promise<void>;
-  detailLoading: boolean;
+  detailError: boolean;
 }
 
 const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
@@ -1862,12 +1944,11 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
   onCustomerInfoUpdated,
   onReviewRequestSent,
   onLoadDetails,
-  detailLoading,
+  detailError,
 }) => {
   const [isMarkingProduction, setIsMarkingProduction] = useState(false);
   const orderItems = getSafeOrderItems(order);
   const detailRequired = order.admin_detail_loaded === false;
-  const totalItemCount = Math.max(orderItems.length, Number(order.item_count || 0));
   const originalFiles = getOriginalFileEntries(orderItems);
 
   const handleMarkInProduction = async () => {
@@ -1960,11 +2041,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
             <div>
               <div className="text-xs text-gray-500">Items</div>
               <div className="text-sm text-gray-800 break-words">{getOrderItemsSummary(order)}</div>
-              {detailRequired ? (
-                <div className="mt-2 text-xs font-medium text-amber-700">
-                  Showing {orderItems.length} of {totalItemCount} line items. Open the full order for exact units and files.
-                </div>
-              ) : (
+              {!detailRequired && (
                 <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-gray-600"><span>Total units: <b>{getTotalUnits(order)}</b></span><span>Line items: <b>{orderItems.length}</b></span><span>Print files: <b>{getPrintFileCount({ ...order, items: orderItems } as Order)}</b></span></div>
               )}
             </div>
@@ -1972,7 +2049,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
               <div className="text-xs text-gray-500">Total</div>
               <div className="text-lg font-bold text-[#18448D]">{usd(getDisplayOrderTotalCents(order as any) / 100)}</div>
             {detailRequired ? (
-              <div className="text-xs font-medium text-amber-700">Open the full order for exact cost, profit, and margin.</div>
+              detailError ? <div className="text-xs text-slate-500">Cost details unavailable</div> : null
             ) : (() => { const profit = estimateOrderProfit(order); return profit.needsReview ? (<div className="inline-flex rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">Needs review</div>) : (<div className="text-xs text-slate-700">Rev {usd(profit.originalSubtotalCents/100)}{profit.discountsAppliedCents>0 ? ` · Disc -${usd(profit.discountsAppliedCents/100)}` : ''}{profit.adjustedRetailSubtotalCents !== profit.originalSubtotalCents ? ` · Adj ${usd(profit.adjustedRetailSubtotalCents/100)}` : ''} · Prod {usd(profit.productionCostCents/100)} · Ship {usd(profit.shippingCostCents/100)} · Total Cost {usd(profit.totalCostCents/100)} · <span className={`${profit.netProfitCents>=0?'text-green-700':'text-red-700'} font-semibold`}>Profit {usd(profit.netProfitCents/100)}</span> · <span className={`${profit.marginPct >= 50 ? 'text-green-700' : profit.marginPct >= 35 ? 'text-amber-700' : 'text-red-700'} font-semibold`}>Margin {profit.marginPct.toFixed(1)}%</span></div>); })()}
             </div>
           </div>
@@ -1980,22 +2057,23 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
       </div>
 
       {detailRequired ? (
-        <div className="mt-3 space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
-          <div className="text-sm font-semibold text-amber-900">Full order details required</div>
-          <div className="text-xs text-amber-800">
-            Load all {totalItemCount} line items and package tracking before using files or order actions.
+        detailError ? (
+          <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50/70 p-3" data-admin-detail-error role="status" aria-live="polite">
+            <div className="flex items-center justify-between gap-3 text-xs text-slate-600">
+              <span>Order tools could not load.</span>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2 text-xs"
+                aria-label={`Retry loading order ${order.id.slice(-8).toUpperCase()}`}
+                onClick={() => void onLoadDetails(order.id)}
+              >
+                Retry
+              </Button>
+            </div>
           </div>
-          <Button
-            type="button"
-            size="sm"
-            className="w-full"
-            onClick={() => void onLoadDetails(order.id)}
-            disabled={detailLoading}
-          >
-            {detailLoading ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Eye className="mr-1.5 h-4 w-4" />}
-            {detailLoading ? 'Loading full order...' : 'Load files & actions'}
-          </Button>
-        </div>
+        ) : null
       ) : (
       <>
       <div className="mt-3" data-admin-tracking-group>

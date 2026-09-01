@@ -66,6 +66,13 @@ const positiveInteger = (value, fallback = 0) => {
 
 const safeString = (value, fallback = '') => String(value ?? fallback).trim();
 
+// Migration 006 intentionally stored this historical attribution as TEXT,
+// while orders.id is UUID. Compare canonical text forms so malformed legacy
+// values stay non-matches instead of making PostgreSQL reject the whole report.
+const recoveredOrderJoinSql = (cartAlias = 'cart', orderAlias = 'recovered_order') => (
+  `${orderAlias}.id::TEXT = LOWER(NULLIF(BTRIM(${cartAlias}.recovered_order_id), ''))`
+);
+
 const recoveredOrderStatusSql = (alias = 'recovered_order') => `CASE
   WHEN LOWER(BTRIM(COALESCE(${alias}.status, ''))) = 'pending'
    AND (
@@ -648,7 +655,7 @@ function analyticsQuery(whereClause) {
       COUNT(*) FILTER (WHERE NULLIF(BTRIM(cart.email), '') IS NOT NULL)::INTEGER AS with_email_count,
       COUNT(*) FILTER (WHERE cart.abandoned_at IS NOT NULL)::INTEGER AS abandonment_cohort_count
     FROM abandoned_carts AS cart
-    LEFT JOIN orders AS recovered_order ON recovered_order.id = cart.recovered_order_id
+    LEFT JOIN orders AS recovered_order ON ${recoveredOrderJoinSql()}
     WHERE ${whereClause}
   `;
 }
@@ -999,7 +1006,7 @@ exports.handler = async (event) => {
           ELSE NULL
         END AS first_item_thumbnail
       FROM abandoned_carts AS cart
-      LEFT JOIN orders AS recovered_order ON recovered_order.id = cart.recovered_order_id
+      LEFT JOIN orders AS recovered_order ON ${recoveredOrderJoinSql()}
       WHERE ${filtered.clause}
       ORDER BY ${sortSql(options.sort)}
       LIMIT ${limitParam} OFFSET ${offsetParam}
@@ -1061,5 +1068,6 @@ exports._test = {
   buildFilterSql,
   analyticsQuery,
   analyticsFromRow,
+  recoveredOrderJoinSql,
   recoveredRevenueState,
 };

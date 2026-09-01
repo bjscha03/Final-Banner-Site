@@ -12,11 +12,17 @@ import {
   UserPlus,
   Users,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import { useAuth, isAdmin } from '@/lib/auth';
 import { adminFetch } from '@/lib/serverAuth';
 import { buildCustomerCsv } from '@/lib/admin-customer-csv';
+import {
+  adminCustomerSegmentUrlValue,
+  resolveAdminCustomerSegment,
+  type AdminCustomerSegment as Segment,
+  withAdminCustomerSegment,
+} from '@/lib/admin-customer-segment';
 import { useToast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -31,7 +37,6 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
-type Segment = 'all' | 'first_time' | 'repeat' | 'lapsed';
 type Period = 'all_time' | 'this_month' | 'last_month' | 'custom';
 
 type CustomerOrder = {
@@ -140,7 +145,7 @@ const customerLabel = (customer: Customer) => customer.fullName || customer.emai
 const CustomerSegmentBadges = ({ customer }: { customer: Customer }) => (
   <div className="flex flex-wrap gap-1.5">
     {customer.segment === 'repeat' && <Badge className="bg-[#18448D] text-white">Repeat</Badge>}
-    {customer.segment === 'first_time' && <Badge variant="secondary">First-time</Badge>}
+    {customer.segment === 'first_time' && <Badge variant="secondary">New customer</Badge>}
     {customer.segment === 'no_completed_order' && <Badge variant="outline">No completed order</Badge>}
     {customer.isLapsed && <Badge className="bg-amber-100 text-amber-900 hover:bg-amber-100">Lapsed</Badge>}
   </div>
@@ -194,9 +199,11 @@ const emptyPagination: ListPagination = {
 const AdminCustomers: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const today = useMemo(() => new Date(), []);
-  const [segment, setSegment] = useState<Segment>('all');
+  const rawSegment = searchParams.get('segment');
+  const segment = resolveAdminCustomerSegment(rawSegment);
   const [period, setPeriod] = useState<Period>('all_time');
   const [lapsedDays, setLapsedDays] = useState('180');
   const [startDate, setStartDate] = useState(utcDateInput(new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1))));
@@ -224,6 +231,25 @@ const AdminCustomers: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const previousSegment = useRef(segment);
+
+  const selectSegment = useCallback((nextSegment: Segment) => {
+    setPage(1);
+    setSearchParams(withAdminCustomerSegment(searchParams, nextSegment));
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
+    const canonicalValue = adminCustomerSegmentUrlValue(segment);
+    const normalizedRaw = String(rawSegment || '').trim().toLowerCase();
+    if (normalizedRaw === (canonicalValue || '')) return;
+    setSearchParams(withAdminCustomerSegment(searchParams, segment), { replace: true });
+  }, [rawSegment, searchParams, segment, setSearchParams]);
+
+  useEffect(() => {
+    if (previousSegment.current === segment) return;
+    previousSegment.current = segment;
+    setPage(1);
+  }, [segment]);
 
   const customerFilterQueryString = useMemo(() => {
     const params = new URLSearchParams({
@@ -450,11 +476,22 @@ const AdminCustomers: React.FC = () => {
             </div>
           </div>
 
-          <section aria-label="Customer segments" className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard label="All customers" value={stats.all} icon={Users} active={segment === 'all'} onClick={() => { setSegment('all'); setPage(1); }} />
-            <StatCard label="First-time" value={stats.firstTime} icon={UserPlus} active={segment === 'first_time'} onClick={() => { setSegment('first_time'); setPage(1); }} />
-            <StatCard label="Repeat" value={stats.repeat} icon={Repeat2} active={segment === 'repeat'} onClick={() => { setSegment('repeat'); setPage(1); }} />
-            <StatCard label={`Lapsed (${lapsedDays}d)`} value={stats.lapsed} icon={Clock3} active={segment === 'lapsed'} onClick={() => { setSegment('lapsed'); setPage(1); }} />
+          <section aria-label="Customer segments" className="mb-6">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <StatCard label="All customers" value={stats.all} icon={Users} active={segment === 'all'} onClick={() => selectSegment('all')} />
+              <StatCard label="New customers" value={stats.firstTime} icon={UserPlus} active={segment === 'first_time'} onClick={() => selectSegment('first_time')} />
+              <StatCard label="Repeat customers" value={stats.repeat} icon={Repeat2} active={segment === 'repeat'} onClick={() => selectSegment('repeat')} />
+              <StatCard label={`Lapsed (${lapsedDays}d)`} value={stats.lapsed} icon={Clock3} active={segment === 'lapsed'} onClick={() => selectSegment('lapsed')} />
+            </div>
+            <p className="mt-2 text-sm text-slate-600" aria-live="polite">
+              {segment === 'repeat'
+                ? 'Showing repeat customers with at least two completed orders.'
+                : segment === 'first_time'
+                  ? 'Showing new customers with exactly one completed order.'
+                  : segment === 'lapsed'
+                    ? `Showing customers whose latest completed order was more than ${lapsedDays} days ago.`
+                    : 'Showing all customers with settled order history.'}
+            </p>
           </section>
 
           <section className="mb-6 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
@@ -487,13 +524,13 @@ const AdminCustomers: React.FC = () => {
                   <SelectItem value="365">Lapsed after 365 days</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={segment} onValueChange={(value) => { setSegment(value as Segment); setPage(1); }}>
+              <Select value={segment} onValueChange={(value) => selectSegment(value as Segment)}>
                 <SelectTrigger aria-label="Customer segment"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All segments</SelectItem>
-                  <SelectItem value="first_time">First-time</SelectItem>
-                  <SelectItem value="repeat">Repeat</SelectItem>
-                  <SelectItem value="lapsed">Lapsed</SelectItem>
+                  <SelectItem value="all">All customers</SelectItem>
+                  <SelectItem value="first_time">New customers</SelectItem>
+                  <SelectItem value="repeat">Repeat customers</SelectItem>
+                  <SelectItem value="lapsed">Lapsed customers</SelectItem>
                 </SelectContent>
               </Select>
               <Button onClick={() => { setAppliedQuery(query.trim()); setPage(1); }}>Apply</Button>

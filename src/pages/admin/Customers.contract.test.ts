@@ -27,5 +27,18 @@ describe('admin customer bounded-data contract', () => {
     expect(customers).toContain("params.set('page_size', '250')");
     expect(customers).toContain("mode=verify_export");
     expect(customers).toContain('buildCustomerCsv(verifiedRecords, { marketingOnly: true })');
+    expect(customers).toContain('new URLSearchParams(customerFilterQueryString)');
+  });
+
+  it('drives All, New, and Repeat segmentation from the page URL', () => {
+    expect(customers).toContain('useSearchParams()');
+    expect(customers).toContain("const rawSegment = searchParams.get('segment')");
+    expect(customers).toContain('resolveAdminCustomerSegment(rawSegment)');
+    expect(customers).toContain('setSearchParams(withAdminCustomerSegment(searchParams, nextSegment))');
+    expect(customers).toContain('segment,\n      period,');
+    expect(customers).toContain('label="All customers"');
+    expect(customers).toContain('label="New customers"');
+    expect(customers).toContain('label="Repeat customers"');
+    expect(customers).toContain('at least two completed orders');
   });
 });

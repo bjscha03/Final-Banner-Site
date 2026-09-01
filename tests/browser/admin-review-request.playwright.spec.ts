@@ -164,10 +164,8 @@ test('Admin review request requires confirmation, prevents repeat clicks, and up
 
   await page.goto('/admin/orders', { waitUntil: 'domcontentloaded' });
   const sendButton = page.getByRole('button', { name: 'Send Review Email', exact: true }).filter({ visible: true });
-  await expect(sendButton).toHaveCount(0);
-  await page.getByRole('button', { name: 'Load files & actions', exact: true }).filter({ visible: true }).click();
+  await expect.poll(() => detailLoadCalls).toBe(1);
   await expect(sendButton).toBeVisible();
-  expect(detailLoadCalls).toBe(1);
   expect(reviewSendCalls).toBe(0);
 
   await sendButton.click();
@@ -185,9 +183,8 @@ test('Admin review request requires confirmation, prevents repeat clicks, and up
   await expect(page.getByText(/Review request sent .*2026/).filter({ visible: true })).toBeVisible();
 
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.getByRole('button', { name: 'Load files & actions', exact: true }).filter({ visible: true }).click();
+  await expect.poll(() => detailLoadCalls).toBe(2);
   await expect(page.getByText(/Review request sent .*2026/).filter({ visible: true })).toBeVisible();
-  expect(detailLoadCalls).toBe(2);
 
   await page.getByRole('button', { name: 'Send Review Email', exact: true }).filter({ visible: true }).click();
   const duplicateDialog = page.getByRole('alertdialog');
@@ -276,6 +273,14 @@ test('Admin order files, organized actions, and nested preview zoom work togethe
   const originalFileResponseGate = new Promise<void>((resolve) => {
     releaseOriginalFileResponse = resolve;
   });
+  let markDetailRequested!: () => void;
+  let releaseDetailResponse!: () => void;
+  const detailRequested = new Promise<void>((resolve) => {
+    markDetailRequested = resolve;
+  });
+  const detailResponseGate = new Promise<void>((resolve) => {
+    releaseDetailResponse = resolve;
+  });
 
   await page.route('**/.netlify/functions/**', async (route) => {
     const url = new URL(route.request().url());
@@ -289,6 +294,8 @@ test('Admin order files, organized actions, and nested preview zoom work togethe
     }
     if (url.pathname.endsWith('/get-order')) {
       expect(url.searchParams.get('id')).toBe(ORDER_ID);
+      markDetailRequested();
+      await detailResponseGate;
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -333,16 +340,22 @@ test('Admin order files, organized actions, and nested preview zoom work togethe
     await route.fulfill({ status: 200, contentType: 'image/svg+xml', body: PREVIEW_SVG });
   });
 
-  await page.goto('/admin/orders', { waitUntil: 'domcontentloaded' });
-
-  const originalFileButton = page.getByRole('button', { name: 'Original File', exact: true }).filter({ visible: true });
-  await expect(originalFileButton).toHaveCount(0);
-  await expect(page.locator('[data-admin-file-group]').filter({ visible: true })).toHaveCount(0);
   const detailResponsePromise = page.waitForResponse((response) => {
     const url = new URL(response.url());
     return url.pathname.endsWith('/get-order') && url.searchParams.get('id') === ORDER_ID;
   });
-  await page.getByRole('button', { name: 'Load files & actions', exact: true }).filter({ visible: true }).click();
+  await page.goto('/admin/orders', { waitUntil: 'domcontentloaded' });
+
+  const originalFileButton = page.getByRole('button', { name: 'Original File', exact: true }).filter({ visible: true });
+  await detailRequested;
+  await expect(page.getByText('Browser Test Customer', { exact: true }).filter({ visible: true }).first()).toBeVisible();
+  await expect(page.locator('[data-admin-detail-page-status]').filter({ visible: true })).toBeVisible();
+  await expect(originalFileButton).toHaveCount(0);
+  await expect(page.locator('[data-admin-file-group]').filter({ visible: true })).toHaveCount(0);
+  await expect(page.locator('[data-admin-action-group]').filter({ visible: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Load files & actions', exact: true })).toHaveCount(0);
+  await expect(page.getByText('Full order details required', { exact: true })).toHaveCount(0);
+  releaseDetailResponse();
   expect((await detailResponsePromise).status()).toBe(200);
   await expect(originalFileButton).toBeVisible();
   await expect(page.locator('[data-admin-file-group]').filter({ visible: true })).toBeVisible();

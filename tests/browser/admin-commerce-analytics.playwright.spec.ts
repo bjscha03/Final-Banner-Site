@@ -712,6 +712,10 @@ test('commerce admin analytics, customer history, and order tracking stay usable
   await expectNoDocumentOverflow(page);
   await captureArtifact(page, testInfo, 'admin-customers');
 
+  const detailResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return url.pathname.endsWith('/get-order') && url.searchParams.get('id') === ORDER_ID;
+  });
   await page.goto('/admin/orders', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: 'Admin: Order Management' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Order performance' })).toBeVisible();
@@ -720,22 +724,11 @@ test('commerce admin analytics, customer history, and order tracking stay usable
   await expect(page.getByLabel('Search full order history')).toBeEnabled();
   await expect(page.getByRole('button', { name: 'All Time', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('[data-admin-period-metrics]')).toContainText('Repeat Customers');
+  await expect(page.getByRole('link', { name: 'View new customers' })).toHaveAttribute('href', '/admin/customers?segment=new');
+  await expect(page.getByRole('link', { name: 'View repeat customers' })).toHaveAttribute('href', '/admin/customers?segment=repeat');
   await expect(page.getByText('Alice Buyer', { exact: true }).filter({ visible: true }).first()).toBeVisible();
-
-  await expect(page.getByText(
-    'Showing 1 of 2 line items. Open the full order for exact units and files.',
-    { exact: true },
-  ).filter({ visible: true }).first()).toBeVisible();
-  await expect(page.getByText('Full order details required', { exact: true }).filter({ visible: true }).first()).toBeVisible();
-  await expect(page.locator('[data-admin-tracking-group]:visible')).toHaveCount(0);
-  await expect(page.locator('[data-admin-file-group]:visible')).toHaveCount(0);
-  await expect(page.locator('[data-admin-action-group]:visible')).toHaveCount(0);
-
-  const detailResponsePromise = page.waitForResponse((response) => {
-    const url = new URL(response.url());
-    return url.pathname.endsWith('/get-order') && url.searchParams.get('id') === ORDER_ID;
-  });
-  await page.getByRole('button', { name: 'Load files & actions' }).filter({ visible: true }).first().click();
+  await expect(page.getByRole('button', { name: 'Load files & actions' })).toHaveCount(0);
+  await expect(page.getByText('Full order details required', { exact: true })).toHaveCount(0);
   const detailResponse = await detailResponsePromise;
   expect(detailResponse.status()).toBe(200);
 
@@ -746,6 +739,7 @@ test('commerce admin analytics, customer history, and order tracking stay usable
   await expect(trackingGroup).toContainText('Saving tracking does not send an email.');
   await expect(fileGroup).toContainText('Order Files');
   await expect(actionGroup).toContainText('Order Actions');
+  await expect(page.locator('[data-admin-detail-page-status]:visible')).toHaveCount(0);
 
   const [trackingBox, fileBox, actionBox] = await Promise.all([
     trackingGroup.boundingBox(),
