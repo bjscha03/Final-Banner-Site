@@ -14,12 +14,52 @@ let deliverRecoveryEmail = sendModule.deliverRecoveryEmail;
 const CART_STATE_BATCH_SIZE = 500;
 const RECIPIENT_GROUP_BATCH_SIZE = 200;
 const DELIVERY_BATCH_SIZE = 50;
-const DELIVERY_RETRY_BACKOFF_HOURS = 1;
+const DELIVERY_RETRY_BACKOFF_MINUTES = 5;
 const CLAIM_STALE_MINUTES = 20;
 const DELIVERY_START_BUFFER_MS = 30 * 1000;
 const WORKER_SOFT_LIMIT_MS = 12 * 60 * 1000;
 const WORKER_LEASE_MINUTES = 14;
 const WORKER_JOB_NAME = 'abandoned-cart-recovery';
+const QUIET_ABANDONMENT_MINUTES = 3;
+const PAYMENT_HANDOFF_GRACE_MINUTES = 30;
+const CART_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+async function expireRecoveryOffers(sql) {
+  try {
+    return await sql`
+      WITH expired_offers AS (
+        UPDATE discount_codes
+           SET status = 'expired', updated_at = NOW()
+         WHERE campaign = 'abandoned_cart_large_banner_25'
+           AND used = FALSE
+           AND activated_at IS NOT NULL
+           AND expires_at <= NOW()
+           AND COALESCE(status, 'unused') <> 'expired'
+         RETURNING cart_id, code, expires_at, max_discount_amount_cents
+      ), logged AS (
+        INSERT INTO cart_recovery_logs (
+          abandoned_cart_id, event_type, metadata, created_at
+        )
+        SELECT cart_id, 'coupon_expired', jsonb_build_object(
+                 'idempotency_key', 'recovery-coupon-expired:' || code,
+                 'code', code,
+                 'expiresAt', expires_at,
+                 'maxDiscountAmountCents', max_discount_amount_cents
+               ), NOW()
+          FROM expired_offers
+         WHERE cart_id IS NOT NULL
+        ON CONFLICT DO NOTHING
+        RETURNING abandoned_cart_id
+      )
+      SELECT cart_id, code, expires_at FROM expired_offers
+    `;
+  } catch (error) {
+    // The offer fields and expanded event vocabulary are additive. A rolling
+    // deploy must continue recovering carts while an older DB node catches up.
+    if (['42P01', '42703', '23514'].includes(error?.code)) return [];
+    throw error;
+  }
+}
 
 async function settleCompletedCarts(sql) {
   return sql`
@@ -329,24 +369,218 @@ async function abandonInactiveCarts(sql) {
       SELECT id
         FROM abandoned_carts
        WHERE recovery_status = 'active'
-         AND last_activity_at <= NOW() - INTERVAL '1 hour'
+         -- Only carts captured by the immediate-recovery program are eligible.
+         -- Rows created by the legacy collector have neither marker and must
+         -- not be swept into a campaign when this worker first goes live.
+         AND (
+           abandonment_signaled_at IS NOT NULL
+           OR first_recovery_due_at IS NOT NULL
+         )
+         AND (
+           (
+             checkout_stage IS DISTINCT FROM 'payment_started'
+             AND (
+               abandonment_signaled_at IS NOT NULL
+               OR first_recovery_due_at <= NOW()
+             )
+           )
+           OR (
+             checkout_stage = 'payment_started'
+             AND last_activity_at <= NOW() - (${PAYMENT_HANDOFF_GRACE_MINUTES} * INTERVAL '1 minute')
+           )
+         )
          AND last_activity_at > NOW() - INTERVAL '96 hours'
          AND COALESCE(estimated_total_cents, ROUND(total_value * 100)::integer, 0) > 0
-       ORDER BY last_activity_at ASC, id
+       ORDER BY COALESCE(
+                  CASE WHEN checkout_stage IS DISTINCT FROM 'payment_started'
+                    THEN abandonment_signaled_at END,
+                  CASE WHEN checkout_stage IS DISTINCT FROM 'payment_started'
+                    THEN first_recovery_due_at END,
+                  last_activity_at + (
+                    CASE WHEN checkout_stage = 'payment_started'
+                      THEN ${PAYMENT_HANDOFF_GRACE_MINUTES}
+                      ELSE ${QUIET_ABANDONMENT_MINUTES}
+                    END * INTERVAL '1 minute'
+                  )
+                ) ASC,
+                id
        LIMIT ${CART_STATE_BATCH_SIZE}
        FOR UPDATE SKIP LOCKED
     )
     UPDATE abandoned_carts AS cart
        SET recovery_status = 'abandoned',
-           abandoned_at = COALESCE(cart.abandoned_at, cart.last_activity_at + INTERVAL '1 hour'),
+           abandoned_at = COALESCE(
+             cart.abandoned_at,
+             CASE WHEN cart.checkout_stage IS DISTINCT FROM 'payment_started'
+               THEN cart.abandonment_signaled_at END,
+             CASE WHEN cart.checkout_stage IS DISTINCT FROM 'payment_started'
+               THEN cart.first_recovery_due_at END,
+             cart.last_activity_at + (
+               CASE WHEN cart.checkout_stage = 'payment_started'
+                 THEN ${PAYMENT_HANDOFF_GRACE_MINUTES}
+                 ELSE ${QUIET_ABANDONMENT_MINUTES}
+               END * INTERVAL '1 minute'
+             )
+           ),
            updated_at = NOW()
       FROM candidates
      WHERE cart.id = candidates.id
        AND cart.recovery_status = 'active'
-       AND cart.last_activity_at <= NOW() - INTERVAL '1 hour'
+       AND (
+         cart.abandonment_signaled_at IS NOT NULL
+         OR cart.first_recovery_due_at IS NOT NULL
+       )
+       AND (
+         (
+           cart.checkout_stage IS DISTINCT FROM 'payment_started'
+           AND (
+             cart.abandonment_signaled_at IS NOT NULL
+             OR cart.first_recovery_due_at <= NOW()
+           )
+         )
+         OR (
+           cart.checkout_stage = 'payment_started'
+           AND cart.last_activity_at <= NOW() - (${PAYMENT_HANDOFF_GRACE_MINUTES} * INTERVAL '1 minute')
+         )
+       )
        AND cart.last_activity_at > NOW() - INTERVAL '96 hours'
-     RETURNING cart.id, NULLIF(BTRIM(cart.email), '') AS email
+     RETURNING cart.id, NULLIF(BTRIM(cart.email), '') AS email,
+               cart.abandonment_signaled_at, cart.first_recovery_due_at,
+               cart.checkout_stage
   `;
+}
+
+async function abandonTargetedSignaledCart(sql, cartId) {
+  const normalizedCartId = String(cartId || '').trim().toLowerCase();
+  if (!CART_ID_PATTERN.test(normalizedCartId)) return [];
+  return sql`
+    WITH target AS MATERIALIZED (
+      SELECT cart.id, cart.recovery_status
+        FROM abandoned_carts AS cart
+       WHERE cart.id = ${normalizedCartId}::uuid
+         AND cart.recovery_status IN ('active', 'abandoned')
+         AND cart.abandonment_signaled_at IS NOT NULL
+         AND COALESCE(cart.first_recovery_due_at, cart.abandonment_signaled_at) <= NOW()
+         AND cart.checkout_stage IS DISTINCT FROM 'payment_started'
+         AND cart.last_activity_at > NOW() - INTERVAL '96 hours'
+         AND COALESCE(cart.estimated_total_cents, ROUND(cart.total_value * 100)::integer, 0) > 0
+         AND NULLIF(BTRIM(cart.email), '') IS NOT NULL
+       FOR UPDATE
+    ), transitioned AS (
+      UPDATE abandoned_carts AS cart
+         SET recovery_status = 'abandoned',
+             abandoned_at = COALESCE(
+               cart.abandoned_at,
+               cart.abandonment_signaled_at,
+               cart.first_recovery_due_at,
+               cart.last_activity_at + (${QUIET_ABANDONMENT_MINUTES} * INTERVAL '1 minute')
+             ),
+             updated_at = NOW()
+        FROM target
+       WHERE cart.id = target.id
+         AND target.recovery_status = 'active'
+         AND cart.recovery_status = 'active'
+       RETURNING cart.id
+    )
+    SELECT target.id,
+           (target.recovery_status = 'active') AS newly_abandoned
+      FROM target
+     WHERE target.recovery_status = 'abandoned'
+        OR EXISTS (SELECT 1 FROM transitioned WHERE transitioned.id = target.id)
+  `;
+}
+
+async function recordTargetedCartAbandonedEvent(sql, cartId) {
+  try {
+    return await sql`
+      WITH event_lock AS MATERIALIZED (
+        SELECT pg_advisory_xact_lock(
+          hashtext('abandoned-cart-event-backfill')::bigint
+        ) AS acquired
+      )
+      INSERT INTO cart_recovery_logs (
+        abandoned_cart_id, event_type, metadata, created_at
+      )
+      SELECT cart.id, 'cart_abandoned',
+             jsonb_build_object(
+               'source', 'recovery_detector',
+               'reason', 'pagehide_signal'
+             ),
+             NOW()
+        FROM abandoned_carts AS cart
+        CROSS JOIN event_lock
+       WHERE cart.id = ${cartId}::uuid
+         AND cart.recovery_status = 'abandoned'
+         AND NOT EXISTS (
+           SELECT 1
+             FROM cart_recovery_logs AS existing
+            WHERE existing.abandoned_cart_id = cart.id
+              AND existing.event_type = 'cart_abandoned'
+         )
+      ON CONFLICT DO NOTHING
+      RETURNING abandoned_cart_id
+    `;
+  } catch (error) {
+    // Migration 042 can trail this function briefly during a rolling deploy.
+    // Delivery remains durable and the global minute scan backfills this event.
+    console.warn('[detect-abandoned-carts] targeted cart_abandoned event log deferred', {
+      cartId,
+      code: error?.code || null,
+    });
+    return [];
+  }
+}
+
+async function recordCartAbandonedEvents(sql) {
+  try {
+    return await sql`
+      WITH event_lock AS MATERIALIZED (
+        SELECT pg_advisory_xact_lock(
+          hashtext('abandoned-cart-event-backfill')::bigint
+        ) AS acquired
+      ), missing_events AS (
+        SELECT cart.id, cart.abandonment_signaled_at, cart.checkout_stage
+          FROM abandoned_carts AS cart
+         WHERE cart.recovery_status = 'abandoned'
+           AND (
+             cart.abandonment_signaled_at IS NOT NULL
+             OR cart.first_recovery_due_at IS NOT NULL
+           )
+           AND COALESCE(cart.abandoned_at, cart.last_activity_at) > NOW() - INTERVAL '96 hours'
+           AND NOT EXISTS (
+             SELECT 1
+               FROM cart_recovery_logs AS existing
+              WHERE existing.abandoned_cart_id = cart.id
+                AND existing.event_type = 'cart_abandoned'
+           )
+         ORDER BY cart.abandoned_at DESC NULLS LAST, cart.id
+         LIMIT ${CART_STATE_BATCH_SIZE}
+      )
+      INSERT INTO cart_recovery_logs (
+        abandoned_cart_id, event_type, metadata, created_at
+      )
+      SELECT missing.id, 'cart_abandoned',
+             jsonb_build_object(
+               'source', 'recovery_detector',
+               'reason', CASE WHEN missing.abandonment_signaled_at IS NOT NULL
+                                      AND missing.checkout_stage IS DISTINCT FROM 'payment_started'
+                 THEN 'pagehide_signal' ELSE 'quiet_timeout' END
+             ),
+             NOW()
+        FROM missing_events AS missing
+        CROSS JOIN event_lock
+      ON CONFLICT DO NOTHING
+      RETURNING abandoned_cart_id
+    `;
+  } catch (error) {
+    // Migration 042 can trail this function briefly during a rolling deploy.
+    // Abandonment/delivery remain available and the next minute scan retries
+    // this idempotent secondary event write.
+    console.warn('[detect-abandoned-carts] cart_abandoned event log deferred', {
+      code: error?.code || null,
+    });
+    return [];
+  }
 }
 
 async function expireStaleActiveCarts(sql) {
@@ -478,15 +712,27 @@ async function dueCandidates(sql, sequenceNumber) {
        AND delivery.sequence_number = 1
        WHERE cart.recovery_status = 'abandoned'
          AND cart.recovery_emails_sent = 0
-         AND cart.last_activity_at <= NOW() - INTERVAL '1 hour'
-         AND COALESCE(cart.abandoned_at, cart.last_activity_at) > NOW() - INTERVAL '96 hours'
+         AND (
+           cart.abandonment_signaled_at IS NOT NULL
+           OR cart.first_recovery_due_at IS NOT NULL
+         )
+         AND COALESCE(
+           cart.first_recovery_due_at,
+           cart.abandonment_signaled_at
+         ) <= NOW()
+         AND COALESCE(
+           cart.abandoned_at,
+           cart.first_recovery_due_at,
+           cart.abandonment_signaled_at,
+           cart.last_activity_at
+         ) > NOW() - INTERVAL '96 hours'
          AND NULLIF(BTRIM(cart.email), '') IS NOT NULL
          AND cart.recovery_suppressed_at IS NULL
          AND (
            delivery.id IS NULL
            OR (
              delivery.status = 'failed'
-             AND delivery.updated_at <= NOW() - (${DELIVERY_RETRY_BACKOFF_HOURS} * INTERVAL '1 hour')
+             AND delivery.updated_at <= NOW() - (${DELIVERY_RETRY_BACKOFF_MINUTES} * INTERVAL '1 minute')
            )
            OR (
              delivery.status = 'claimed'
@@ -523,22 +769,25 @@ async function dueCandidates(sql, sequenceNumber) {
   if (sequenceNumber === 2) {
     return sql`
       SELECT cart.id FROM abandoned_carts AS cart
+      JOIN cart_recovery_deliveries AS prior_delivery
+        ON prior_delivery.abandoned_cart_id = cart.id
+       AND prior_delivery.sequence_number = 1
+       AND prior_delivery.status = 'sent'
+       AND prior_delivery.sent_at IS NOT NULL
       LEFT JOIN cart_recovery_deliveries AS delivery
         ON delivery.abandoned_cart_id = cart.id
        AND delivery.sequence_number = 2
        WHERE cart.recovery_status = 'abandoned'
          AND cart.recovery_emails_sent = 1
-         AND cart.abandoned_at <= NOW() - INTERVAL '24 hours'
          AND cart.abandoned_at > NOW() - INTERVAL '96 hours'
-         AND cart.last_recovery_email_at IS NOT NULL
-         AND cart.last_recovery_email_at <= NOW() - INTERVAL '23 hours'
+         AND prior_delivery.sent_at <= NOW() - INTERVAL '23 hours'
          AND NULLIF(BTRIM(cart.email), '') IS NOT NULL
          AND cart.recovery_suppressed_at IS NULL
          AND (
            delivery.id IS NULL
            OR (
              delivery.status = 'failed'
-             AND delivery.updated_at <= NOW() - (${DELIVERY_RETRY_BACKOFF_HOURS} * INTERVAL '1 hour')
+             AND delivery.updated_at <= NOW() - (${DELIVERY_RETRY_BACKOFF_MINUTES} * INTERVAL '1 minute')
            )
            OR (
              delivery.status = 'claimed'
@@ -566,34 +815,33 @@ async function dueCandidates(sql, sequenceNumber) {
               AND (newer_active.last_activity_at, newer_active.created_at, newer_active.id) >
                   (cart.last_activity_at, cart.created_at, cart.id)
          )
-         AND NOT EXISTS (
-           SELECT 1 FROM cart_recovery_logs AS log
-            WHERE log.abandoned_cart_id = cart.id AND log.event_type = 'email_clicked'
-         )
        ORDER BY (delivery.id IS NULL) DESC,
-                CASE WHEN delivery.id IS NULL THEN cart.abandoned_at ELSE delivery.updated_at END ASC,
+                CASE WHEN delivery.id IS NULL THEN prior_delivery.sent_at ELSE delivery.updated_at END ASC,
                 cart.id
        LIMIT ${DELIVERY_BATCH_SIZE}
     `;
   }
   return sql`
     SELECT cart.id FROM abandoned_carts AS cart
+    JOIN cart_recovery_deliveries AS prior_delivery
+      ON prior_delivery.abandoned_cart_id = cart.id
+     AND prior_delivery.sequence_number = 2
+     AND prior_delivery.status = 'sent'
+     AND prior_delivery.sent_at IS NOT NULL
     LEFT JOIN cart_recovery_deliveries AS delivery
       ON delivery.abandoned_cart_id = cart.id
      AND delivery.sequence_number = 3
      WHERE cart.recovery_status = 'abandoned'
        AND cart.recovery_emails_sent = 2
-       AND cart.abandoned_at <= NOW() - INTERVAL '72 hours'
        AND cart.abandoned_at > NOW() - INTERVAL '96 hours'
-       AND cart.last_recovery_email_at IS NOT NULL
-       AND cart.last_recovery_email_at <= NOW() - INTERVAL '48 hours'
+       AND prior_delivery.sent_at <= NOW() - INTERVAL '48 hours'
        AND NULLIF(BTRIM(cart.email), '') IS NOT NULL
        AND cart.recovery_suppressed_at IS NULL
        AND (
          delivery.id IS NULL
          OR (
            delivery.status = 'failed'
-           AND delivery.updated_at <= NOW() - (${DELIVERY_RETRY_BACKOFF_HOURS} * INTERVAL '1 hour')
+           AND delivery.updated_at <= NOW() - (${DELIVERY_RETRY_BACKOFF_MINUTES} * INTERVAL '1 minute')
          )
          OR (
            delivery.status = 'claimed'
@@ -621,12 +869,8 @@ async function dueCandidates(sql, sequenceNumber) {
             AND (newer_active.last_activity_at, newer_active.created_at, newer_active.id) >
                 (cart.last_activity_at, cart.created_at, cart.id)
        )
-       AND NOT EXISTS (
-         SELECT 1 FROM cart_recovery_logs AS log
-          WHERE log.abandoned_cart_id = cart.id AND log.event_type = 'email_clicked'
-       )
      ORDER BY (delivery.id IS NULL) DESC,
-              CASE WHEN delivery.id IS NULL THEN cart.abandoned_at ELSE delivery.updated_at END ASC,
+              CASE WHEN delivery.id IS NULL THEN prior_delivery.sent_at ELSE delivery.updated_at END ASC,
               cart.id
      LIMIT ${DELIVERY_BATCH_SIZE}
   `;
@@ -782,9 +1026,11 @@ async function releaseRecoveryWorkerLease(sql, ownerToken) {
 
 async function runRecoveryScan({ sql, resend, deadlineAtMs, now = Date.now }) {
   const recovered = await settleCompletedCarts(sql);
+  const recoveryOffersExpired = await expireRecoveryOffers(sql);
   const staleActiveExpired = await expireStaleActiveCarts(sql);
   const duplicateRecipientCartsExpired = await supersedeDuplicateRecipientCarts(sql);
   const newlyAbandoned = await abandonInactiveCarts(sql);
+  const abandonmentEventsRecorded = await recordCartAbandonedEvents(sql);
   const expired = await expireAbandonedCarts(sql);
   const attemptedCartIds = new Set();
   const deliveryOptions = { deadlineAtMs, now };
@@ -799,10 +1045,12 @@ async function runRecoveryScan({ sql, resend, deadlineAtMs, now = Date.now }) {
   ], deliveryOptions);
   return {
     recoveredBeforeSend: recovered.length,
+    recoveryOffersExpired: recoveryOffersExpired.length,
     staleActiveExpired: staleActiveExpired.length,
     duplicateRecipientCartsExpired: duplicateRecipientCartsExpired.length,
     newlyAbandoned: newlyAbandoned.length,
     newlyAbandonedWithoutEmail: newlyAbandoned.filter((cart) => !cart.email).length,
+    abandonmentEventsRecorded: abandonmentEventsRecorded.length,
     email1: deliverySummaries.get(1),
     email2: deliverySummaries.get(2),
     email3: deliverySummaries.get(3),
@@ -822,6 +1070,49 @@ async function runLeasedRecoveryWorker({ sql, resend, ownerToken, deadlineAtMs, 
   } finally {
     await releaseRecoveryWorkerLease(sql, ownerToken);
   }
+}
+
+async function runTargetedRecovery({ sql, resend, cartId }) {
+  const normalizedCartId = String(cartId || '').trim().toLowerCase();
+  if (!CART_ID_PATTERN.test(normalizedCartId)) {
+    return { success: false, skipped: true, reason: 'invalid_cart_id' };
+  }
+
+  await ensureSchema(sql);
+  const targets = await abandonTargetedSignaledCart(sql, normalizedCartId);
+  const target = targets[0];
+  if (!target) {
+    return { success: true, skipped: true, reason: 'target_not_due', cartId: normalizedCartId };
+  }
+
+  await recordTargetedCartAbandonedEvent(sql, normalizedCartId);
+  const email1 = await deliverRecoveryEmail({
+    sql,
+    resend,
+    cartId: normalizedCartId,
+    sequenceNumber: 1,
+    // The scheduled retry guard remains authoritative if duplicate pagehide
+    // jobs arrive after a transient provider failure.
+    source: 'scheduled',
+  });
+  return {
+    success: true,
+    targeted: true,
+    cartId: normalizedCartId,
+    newlyAbandoned: target.newly_abandoned === true,
+    email1,
+  };
+}
+
+async function runConfiguredTargetedRecovery(options = {}) {
+  const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL || process.env.VITE_DATABASE_URL;
+  if (!dbUrl) throw new Error('DATABASE_NOT_CONFIGURED');
+  if (!process.env.RESEND_API_KEY) throw new Error('RESEND_NOT_CONFIGURED');
+  return runTargetedRecovery({
+    sql: neonFactory(dbUrl),
+    resend: resendFactory(process.env.RESEND_API_KEY),
+    cartId: options.cartId,
+  });
 }
 
 async function runConfiguredRecoveryWorker(options = {}) {
@@ -859,25 +1150,35 @@ async function handler() {
 
 exports.handler = handler;
 exports.runConfiguredRecoveryWorker = runConfiguredRecoveryWorker;
+exports.runConfiguredTargetedRecovery = runConfiguredTargetedRecovery;
 exports._test = {
   acquireRecoveryWorkerLease,
   abandonInactiveCarts,
+  abandonTargetedSignaledCart,
+  recordCartAbandonedEvents,
+  recordTargetedCartAbandonedEvent,
+  CART_ID_PATTERN,
   CART_STATE_BATCH_SIZE,
   DELIVERY_BATCH_SIZE,
-  DELIVERY_RETRY_BACKOFF_HOURS,
+  DELIVERY_RETRY_BACKOFF_MINUTES,
   DELIVERY_START_BUFFER_MS,
   deliverySummary,
   deliverFairDue,
   deliverDue,
   dueCandidates,
   expireAbandonedCarts,
+  expireRecoveryOffers,
   expireStaleActiveCarts,
   RECIPIENT_GROUP_BATCH_SIZE,
+  QUIET_ABANDONMENT_MINUTES,
+  PAYMENT_HANDOFF_GRACE_MINUTES,
   releaseRecoveryWorkerLease,
   roundRobinCandidates,
   runConfiguredRecoveryWorker,
+  runConfiguredTargetedRecovery,
   runLeasedRecoveryWorker,
   runRecoveryScan,
+  runTargetedRecovery,
   runWithConcurrency,
   settleCompletedCarts,
   supersedeDuplicateRecipientCarts,

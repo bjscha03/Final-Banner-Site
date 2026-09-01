@@ -149,6 +149,46 @@ test('public create-order cannot forge a Stripe order or test mode', async () =>
   assert.equal(JSON.parse(response.body).error, 'STRIPE_CREATE_ORDER_NOT_AUTHORIZED');
 });
 
+test('public create-order cannot forge a paid PayPal or legacy order', async () => {
+  for (const body of [
+    {
+      payment_method: 'paypal',
+      payment_status: 'paid',
+      paypal_order_id: 'PAYPAL-ORDER-FORGED',
+      paypal_capture_id: 'PAYPAL-CAPTURE-FORGED',
+      is_test_order: true,
+    },
+    {
+      payment_method: 'legacy',
+      payment_status: 'completed',
+      is_test_order: true,
+    },
+    {
+      payment_method: 'legacy',
+    },
+  ]) {
+    const response = await createOrder.handler({
+      httpMethod: 'POST',
+      headers: {},
+      body: JSON.stringify(body),
+    }, {});
+    assert.equal(response.statusCode, 403);
+    assert.equal(JSON.parse(response.body).error, 'PAYMENT_ORDER_CREATION_NOT_AUTHORIZED');
+  }
+});
+
+test('create-order status authorization permits pending and trusted preview paid only', () => {
+  const { resolveAuthorizedOrderStatus } = createOrder._test;
+  assert.equal(resolveAuthorizedOrderStatus({ payment_status: 'pending' }), 'pending');
+  assert.equal(resolveAuthorizedOrderStatus({ payment_status: 'paid' }), null);
+  assert.equal(resolveAuthorizedOrderStatus({ payment_status: 'completed' }), null);
+  assert.equal(resolveAuthorizedOrderStatus({}), null);
+  assert.equal(
+    resolveAuthorizedOrderStatus({ payment_status: 'paid' }, { allowDirectPaid: true }),
+    'paid',
+  );
+});
+
 test('trusted Stripe context is opaque and validates its mode', () => {
   assert.throws(() => createOrder.createTrustedStripeContext('sandbox'), /test or live/);
   const context = createOrder.createTrustedStripeContext('test');

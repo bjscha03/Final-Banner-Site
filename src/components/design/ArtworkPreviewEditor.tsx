@@ -45,6 +45,9 @@ export interface ArtworkPreviewEditorProps {
   onRetryPreview?: () => void | Promise<void>;
   /** Source + product configuration key used to isolate normalized geometry. */
   compositionKey?: string;
+  /** Canonical percentage transform used when restoring on a fresh browser. */
+  initialNormalizedTransform?: NormalizedArtworkTransform | null;
+  initialCompositionRevision?: number;
 }
 
 export type ArtworkCompositionSnapshot = {
@@ -75,6 +78,20 @@ const clamp = (value: number, min: number, max: number) => Math.max(min, Math.mi
 // canvases and banner-size changes cannot fight over pixel coordinates or
 // visually resize the customer's approved artwork.
 const normalizedCompositionByArtwork = new Map<string, NormalizedComposition>();
+const seededInitialTransformByArtwork = new Map<string, string>();
+
+export function geometryFromNormalizedArtworkTransform(
+  transform: NormalizedArtworkTransform,
+  canvas: Size,
+  natural: Size,
+): NormalizedArtworkGeometry {
+  return captureNormalizedArtworkGeometry({
+    x: (transform.xPct / 100) * canvas.w,
+    y: (transform.yPct / 100) * canvas.h,
+    scaleX: transform.scaleX,
+    scaleY: transform.scaleY,
+  }, canvas, natural);
+}
 
 function isTopmostCanvas(node: HTMLElement): boolean {
   const rect = node.getBoundingClientRect();
@@ -108,6 +125,8 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
   imageCrossOrigin,
   onRetryPreview,
   compositionKey,
+  initialNormalizedTransform,
+  initialCompositionRevision = 0,
 }, forwardedRef) => {
   const imageSrc = resolveArtworkPreviewImageSrc({ src, previewUrl, resourceType, mimeType });
   const artworkKey = compositionKey || productionUrl || imageSrc || src;
@@ -124,6 +143,10 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
   onChangeRef.current = onChange;
   const constrainRef = useRef(constrain);
   constrainRef.current = constrain;
+  const initialNormalizedTransformRef = useRef(initialNormalizedTransform);
+  initialNormalizedTransformRef.current = initialNormalizedTransform;
+  const initialCompositionRevisionRef = useRef(initialCompositionRevision);
+  initialCompositionRevisionRef.current = initialCompositionRevision;
 
   const [selected, setSelected] = useState(autoSelect);
   const [naturalSize, setNaturalSize] = useState<Size | null>(null);
@@ -134,13 +157,33 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
   );
   const [retryNonce, setRetryNonce] = useState(0);
 
+  const seedInitialNormalizedComposition = useCallback((canvas: Size, natural: Size): boolean => {
+    const initial = initialNormalizedTransformRef.current;
+    if (!initial || !canvas.w || !canvas.h || !natural.w || !natural.h) return false;
+    const fingerprint = [
+      initial.xPct,
+      initial.yPct,
+      initial.scaleX,
+      initial.scaleY,
+      initialCompositionRevisionRef.current,
+    ].join('|');
+    if (seededInitialTransformByArtwork.get(artworkKey) === fingerprint) return false;
+    normalizedCompositionByArtwork.set(artworkKey, {
+      ...geometryFromNormalizedArtworkTransform(initial, canvas, natural),
+      revision: initialCompositionRevisionRef.current,
+    });
+    seededInitialTransformByArtwork.set(artworkKey, fingerprint);
+    return true;
+  }, [artworkKey]);
+
   const settleLoadedImage = useCallback((image: HTMLImageElement | null): boolean => {
     if (!image || !image.complete || !image.naturalWidth || !image.naturalHeight) return false;
     const nextNaturalSize = { w: image.naturalWidth, h: image.naturalHeight };
     naturalSizeRef.current = nextNaturalSize;
     setNaturalSize(nextNaturalSize);
     const canvas = canvasSizeRef.current;
-    if (canvas && !normalizedCompositionByArtwork.has(artworkKey)) {
+    const seeded = canvas ? seedInitialNormalizedComposition(canvas, nextNaturalSize) : false;
+    if (canvas && !seeded && !normalizedCompositionByArtwork.has(artworkKey)) {
       normalizedCompositionByArtwork.set(artworkKey, {
         ...captureNormalizedArtworkGeometry(localValueRef.current, canvas, nextNaturalSize),
         revision: 0,
@@ -149,7 +192,7 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
     setLoading(false);
     setPreviewError(null);
     return true;
-  }, [artworkKey]);
+  }, [artworkKey, seedInitialNormalizedComposition]);
 
   const setContainerNode = useCallback((node: HTMLDivElement | null) => {
     const previousNode = internalRef.current;
@@ -285,9 +328,12 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
       setCanvasSize((current) => current && current.w === next.w && current.h === next.h ? current : next);
 
       let normalized = normalizedCompositionByArtwork.get(artworkKey);
+      const natural = naturalSizeRef.current;
+      if (natural && seedInitialNormalizedComposition(next, natural)) {
+        normalized = normalizedCompositionByArtwork.get(artworkKey);
+      }
       if (!normalized) {
         const base = previous || next;
-        const natural = naturalSizeRef.current;
         normalized = {
           ...(natural
             ? captureNormalizedArtworkGeometry(valueRef.current, base, natural)
@@ -330,7 +376,7 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
     const observer = new ResizeObserver(update);
     observer.observe(node);
     return () => observer.disconnect();
-  }, [artworkKey, paddingPct, commitTransform, containerRef]);
+  }, [artworkKey, paddingPct, commitTransform, containerRef, seedInitialNormalizedComposition]);
 
   const containedRect = (() => {
     if (!canvasSize || !naturalSize || naturalSize.w <= 0 || naturalSize.h <= 0) return null;

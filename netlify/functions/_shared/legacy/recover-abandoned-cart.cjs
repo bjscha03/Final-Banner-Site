@@ -5,17 +5,22 @@ const {
   RecoveryTokenError,
   verifyAbandonedCartRecoveryToken,
 } = require('../abandoned-cart-recovery-token.cjs');
+const {
+  selectWinningRecoveryDiscount,
+} = require('../abandoned-cart-discount-selection.cjs');
 
 const MAX_REQUEST_BODY_BYTES = 4096;
 const MAX_CART_CONTENTS_BYTES = 2 * 1024 * 1024;
 const MAX_RECOVERED_ITEMS = 40;
-const MAX_ITEM_BYTES = 64 * 1024;
-const MAX_RESPONSE_ITEMS_BYTES = 48_000;
+const MAX_ITEM_BYTES = 128 * 1024;
+const MAX_RESPONSE_ITEMS_BYTES = 350_000;
+const HISTORICAL_CAPTURE_MAX_CART_BYTES = 48_000;
 const HISTORICAL_CAPTURE_MAX_ITEM_BYTES = 8_000;
-const MAX_OBJECT_DEPTH = 7;
-const MAX_ARRAY_LENGTH = 50;
-const MAX_OBJECT_KEYS = 80;
-const MAX_STRING_LENGTH = 8192;
+const MAX_OBJECT_DEPTH = 10;
+const MAX_ARRAY_LENGTH = 250;
+const MAX_OBJECT_KEYS = 160;
+const MAX_STRING_LENGTH = 32_000;
+const MAX_CANVAS_STATE_LENGTH = 120_000;
 const SNAPSHOT_METADATA_KEY = '__bof_abandoned_cart_snapshot_v1';
 
 const responseHeaders = {
@@ -33,6 +38,7 @@ const allowedItemKeys = new Set([
   'product_type',
   'width_in',
   'height_in',
+  'orientation',
   'quantity',
   'material',
   'grommets',
@@ -64,7 +70,12 @@ const allowedItemKeys = new Set([
   'image_scale',
   'image_scale_y',
   'image_position',
+  'normalized_placement',
+  'constrain_proportions',
+  'artwork_constrain_proportions',
   'fit_mode',
+  'artwork_width',
+  'artwork_height',
   'aiDesign',
   'created_at',
   'source',
@@ -73,6 +84,7 @@ const allowedItemKeys = new Set([
   'final_render_width_px',
   'final_render_height_px',
   'final_render_dpi',
+  'canvas_state_json',
   'artwork_manifest',
   'placement_preview',
   'composition_signature',
@@ -87,6 +99,7 @@ const allowedItemKeys = new Set([
   'design_service_enabled',
   'design_request_text',
   'design_draft_preference',
+  'design_draft_contact',
   'design_uploaded_assets',
   'final_print_pdf_url',
   'final_print_pdf_file_key',
@@ -97,6 +110,7 @@ const allowedItemKeys = new Set([
 ]);
 
 const oversizedOptionalKeys = [
+  'canvas_state_json',
   'aiDesign',
   'text_elements',
   'overlay_image',
@@ -122,6 +136,7 @@ const commerceItemKeys = [
   'product_type',
   'width_in',
   'height_in',
+  'orientation',
   'quantity',
   'material',
   'grommets',
@@ -138,6 +153,10 @@ const commerceItemKeys = [
   'rope_pricing_mode',
   'pole_pocket_pricing_mode',
   'line_total_cents',
+  'normalized_placement',
+  'constrain_proportions',
+  'artwork_width',
+  'artwork_height',
   'yard_sign_sidedness',
   'yard_sign_step_stakes_enabled',
   'yard_sign_step_stakes_qty',
@@ -172,6 +191,7 @@ const essentialItemKeys = new Set([
   'product_type',
   'width_in',
   'height_in',
+  'orientation',
   'quantity',
   'material',
   'grommets',
@@ -180,6 +200,8 @@ const essentialItemKeys = new Set([
   'rope_cost_cents',
   'pole_pocket_cost_cents',
   'line_total_cents',
+  'normalized_placement',
+  'constrain_proportions',
 ]);
 
 const forbiddenNestedKeys = new Set([
@@ -259,6 +281,16 @@ function sanitizeValue(value, key, depth = 0) {
   if (forbiddenNestedKeys.has(normalizedKey(key))) return undefined;
 
   if (typeof value === 'string') {
+    if (key === 'canvas_state_json') {
+      if (value.length > MAX_CANVAS_STATE_LENGTH) return undefined;
+      try {
+        const parsed = JSON.parse(value);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined;
+      } catch {
+        return undefined;
+      }
+      return value;
+    }
     if (/(?:^|_)(?:url)$|Url$/.test(key)) return safeUrl(value) || undefined;
     return value.slice(0, MAX_STRING_LENGTH);
   }
@@ -309,7 +341,7 @@ function boundedUtf8String(value, maxBytes) {
   return result || null;
 }
 
-function sanitizeCartItem(rawItem) {
+function sanitizeCartItem(rawItem, { preserveExactState = false } = {}) {
   if (!rawItem || typeof rawItem !== 'object' || Array.isArray(rawItem)) return null;
 
   const id = boundedString(rawItem.id, 256);
@@ -338,7 +370,9 @@ function sanitizeCartItem(rawItem) {
   const item = {};
   for (const key of allowedItemKeys) {
     if (!Object.prototype.hasOwnProperty.call(rawItem, key)) continue;
-    const sanitized = sanitizeValue(rawItem[key], key, 0);
+    const sanitized = key === 'design_draft_contact'
+      ? boundedString(rawItem[key], 254)
+      : sanitizeValue(rawItem[key], key, 0);
     if (sanitized !== undefined) item[key] = sanitized;
   }
 
@@ -353,6 +387,9 @@ function sanitizeCartItem(rawItem) {
   item.line_total_cents = lineTotalCents;
 
   let serialized = JSON.stringify(item);
+  if (preserveExactState && Buffer.byteLength(serialized, 'utf8') > MAX_ITEM_BYTES) {
+    return null;
+  }
   for (const optionalKey of oversizedOptionalKeys) {
     if (Buffer.byteLength(serialized, 'utf8') <= MAX_ITEM_BYTES) break;
     delete item[optionalKey];
@@ -369,6 +406,29 @@ function sanitizeCartItem(rawItem) {
 
 function sanitizeCartItems(cartContents) {
   return prepareCartRecovery(cartContents).items;
+}
+
+function exactRecoveryItemIsComplete(rawItem, sanitizedItem) {
+  if (!rawItem || !sanitizedItem) return false;
+  for (const key of ['orientation', 'normalized_placement', 'constrain_proportions']) {
+    if (!Object.prototype.hasOwnProperty.call(sanitizedItem, key)) return false;
+  }
+  if (typeof rawItem.canvas_state_json === 'string'
+      && sanitizedItem.canvas_state_json !== rawItem.canvas_state_json) return false;
+  for (const key of ['artwork_width', 'artwork_height', 'design_draft_contact']) {
+    if (rawItem[key] != null && sanitizedItem[key] == null) return false;
+  }
+  if (rawItem.has_artwork === true) {
+    const manifest = sanitizedItem.artwork_manifest;
+    const placement = sanitizedItem.placement_preview;
+    const sourceUrl = manifest?.originalUrl || sanitizedItem.file_url || placement?.sourceUrl;
+    const previewUrl = placement?.previewUrl || placement?.url
+      || sanitizedItem.final_render_url || sanitizedItem.web_preview_url;
+    if (!safeUrl(sourceUrl) || !safeUrl(previewUrl)) return false;
+  }
+  if (String(sanitizedItem.pole_pockets || 'none') !== 'none'
+      && !boundedString(sanitizedItem.pole_pocket_size, 48)) return false;
+  return true;
 }
 
 function parseCartContents(cartContents) {
@@ -397,7 +457,7 @@ function readSnapshotMetadata(rawItems) {
   }
 
   const value = first[SNAPSHOT_METADATA_KEY];
-  const valid = Boolean(
+  const baseValid = Boolean(
     value
     && typeof value === 'object'
     && !Array.isArray(value)
@@ -408,7 +468,20 @@ function readSnapshotMetadata(rawItems) {
     && value.storedItemCount >= 0
     && typeof value.complete === 'boolean'
   );
-  return { present: true, valid, value: valid ? value : null };
+  const hasFidelityMetadata = Boolean(value && typeof value === 'object' && (
+    Object.prototype.hasOwnProperty.call(value, 'fidelity')
+    || Object.prototype.hasOwnProperty.call(value, 'requiredFieldsComplete')
+    || Object.prototype.hasOwnProperty.call(value, 'incompleteReasons')
+  ));
+  const fidelityValid = !hasFidelityMetadata || Boolean(
+    ['full', 'compact'].includes(value.fidelity)
+    && typeof value.requiredFieldsComplete === 'boolean'
+    && Array.isArray(value.incompleteReasons)
+    && value.incompleteReasons.length <= 40
+    && value.incompleteReasons.every((reason) => typeof reason === 'string' && reason.length <= 200)
+  );
+  const valid = baseValid && fidelityValid;
+  return { present: true, valid, value: valid ? value : null, hasFidelityMetadata };
 }
 
 function responseItemsBytes(items) {
@@ -446,10 +519,15 @@ function commerceItemSummary(item) {
   return result;
 }
 
-function fitRecoveryItems(items) {
+function fitRecoveryItems(items, { preserveExactState = false } = {}) {
   if (responseItemsBytes(items) <= MAX_RESPONSE_ITEMS_BYTES) {
     return { fits: true, items };
   }
+
+  // A field-level-complete snapshot must be returned intact or rejected. It
+  // is never safe to silently drop the canvas, manifest, or placement and
+  // still call the result an exact recovery.
+  if (preserveExactState) return { fits: false, items };
 
   const withoutArtworkPayloads = items.map(stripOptionalArtworkPayloads);
   if (responseItemsBytes(withoutArtworkPayloads) <= MAX_RESPONSE_ITEMS_BYTES) {
@@ -486,8 +564,18 @@ function prepareCartRecovery(cartContents) {
   const metadata = readSnapshotMetadata(rawItems);
   const storedPayloadBytes = responseItemsBytes(rawItems);
   const candidateItems = rawItems.slice(0, MAX_RECOVERED_ITEMS);
-  const sanitizedItems = candidateItems.map(sanitizeCartItem).filter(Boolean);
-  const fitted = fitRecoveryItems(sanitizedItems);
+  const preserveExactState = Boolean(
+    metadata.valid
+    && metadata.value.fidelity === 'full'
+    && metadata.value.requiredFieldsComplete === true
+  );
+  const sanitizedItems = candidateItems
+    .map((item) => sanitizeCartItem(item, { preserveExactState }))
+    .filter(Boolean);
+  const exactFieldsPreserved = !preserveExactState || sanitizedItems.every(
+    (item, index) => exactRecoveryItemIsComplete(candidateItems[index], item),
+  );
+  const fitted = fitRecoveryItems(sanitizedItems, { preserveExactState });
   const sourceItemCount = metadata.valid ? metadata.value.sourceItemCount : rawItems.length;
 
   let completeness = 'complete';
@@ -504,6 +592,15 @@ function prepareCartRecovery(cartContents) {
   } else if (metadata.present && !metadata.valid) {
     completeness = 'incomplete';
     reason = 'snapshot_metadata_invalid';
+  } else if (metadata.valid && metadata.value.fidelity === 'compact') {
+    completeness = 'incomplete';
+    reason = 'compact_snapshot_not_exact';
+  } else if (metadata.valid && metadata.value.requiredFieldsComplete === false) {
+    completeness = 'incomplete';
+    reason = metadata.value.incompleteReasons?.[0] || 'snapshot_required_fields_incomplete';
+  } else if (!exactFieldsPreserved) {
+    completeness = 'incomplete';
+    reason = 'exact_fields_not_preserved';
   } else if (metadata.valid && (
     metadata.value.complete !== true
     || metadata.value.sourceItemCount !== metadata.value.storedItemCount
@@ -518,7 +615,7 @@ function prepareCartRecovery(cartContents) {
     completeness = 'unknown';
     reason = 'historical_snapshot_at_limit';
   } else if (!metadata.present
-    && storedPayloadBytes >= MAX_RESPONSE_ITEMS_BYTES - HISTORICAL_CAPTURE_MAX_ITEM_BYTES) {
+    && storedPayloadBytes >= HISTORICAL_CAPTURE_MAX_CART_BYTES - HISTORICAL_CAPTURE_MAX_ITEM_BYTES) {
     // The legacy capture loop accepted items up to 8 KB and stopped before a
     // 48 KB total. A metadata-less row in this final 8 KB window may have had
     // another source item rejected by that loop, so its completeness cannot
@@ -537,9 +634,6 @@ function prepareCartRecovery(cartContents) {
 }
 
 function readToken(event) {
-  if (event.httpMethod === 'GET') {
-    return String(event.queryStringParameters?.token || '').trim();
-  }
   if (Buffer.byteLength(event.body || '', 'utf8') > MAX_REQUEST_BODY_BYTES) return null;
   try {
     const body = JSON.parse(event.body || '{}');
@@ -549,8 +643,21 @@ function readToken(event) {
   }
 }
 
+function sanitizeCheckoutState(value) {
+  let parsed = value;
+  if (typeof parsed === 'string') {
+    try { parsed = JSON.parse(parsed); } catch { return null; }
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+  const sameDayHitService = parsed.sameDayHitService === true;
+  return {
+    version: 1,
+    sameDayHitService,
+    saturdayDelivery: sameDayHitService && parsed.saturdayDelivery === true,
+  };
+}
+
 async function findSequenceDiscount(sql, cartId, sequenceNumber) {
-  if (sequenceNumber === 1) return null;
   try {
     const deliveryRows = await sql`
       SELECT delivery_discount.code
@@ -605,7 +712,7 @@ async function recordRecoveryClick(sql, cartId, sequenceNumber, expiresAt) {
         FROM cart_recovery_logs recovery_log
         CROSS JOIN click_lock
        WHERE recovery_log.abandoned_cart_id = ${cartId}
-         AND recovery_log.event_type = 'email_clicked'
+         AND recovery_log.event_type = 'recovery_link_clicked'
          AND recovery_log.email_sequence_number = ${sequenceNumber}
          AND recovery_log.metadata @> ${JSON.stringify({ source: 'signed_recovery_link' })}::jsonb
        LIMIT 1
@@ -617,7 +724,7 @@ async function recordRecoveryClick(sql, cartId, sequenceNumber, expiresAt) {
         metadata,
         created_at
       )
-      SELECT ${cartId}, 'email_clicked', ${sequenceNumber}, ${metadata}::jsonb, NOW()
+      SELECT ${cartId}, 'recovery_link_clicked', ${sequenceNumber}, ${metadata}::jsonb, NOW()
         FROM click_lock
        WHERE NOT EXISTS (SELECT 1 FROM existing_click)
       RETURNING id
@@ -629,10 +736,14 @@ async function recordRecoveryClick(sql, cartId, sequenceNumber, expiresAt) {
   `;
 }
 
-function createRecoverAbandonedCartHandler({ createSql = neon, now = () => Date.now() } = {}) {
+function createRecoverAbandonedCartHandler({
+  createSql = neon,
+  now = () => Date.now(),
+  selectWinningDiscount = selectWinningRecoveryDiscount,
+} = {}) {
   return async function handler(event) {
-    if (!['GET', 'POST'].includes(event.httpMethod)) {
-      return reply(405, { error: 'METHOD_NOT_ALLOWED' }, { Allow: 'GET, POST' });
+    if (event.httpMethod !== 'POST') {
+      return reply(405, { error: 'METHOD_NOT_ALLOWED' }, { Allow: 'POST' });
     }
     if (!requestIsSameOrigin(event)) {
       return reply(403, { error: 'CROSS_ORIGIN_REQUEST_REJECTED' });
@@ -666,12 +777,27 @@ function createRecoverAbandonedCartHandler({ createSql = neon, now = () => Date.
 
     try {
       const sql = createSql(databaseUrl);
-      const rows = await sql`
-        SELECT cart_contents, recovery_status
-          FROM abandoned_carts
-         WHERE id = ${claims.cartId}
-         LIMIT 1
-      `;
+      let rows;
+      try {
+        rows = await sql`
+          SELECT cart_contents, checkout_state, recovery_status,
+                 user_id, email, normalized_email
+            FROM abandoned_carts
+           WHERE id = ${claims.cartId}
+           LIMIT 1
+        `;
+      } catch (schemaError) {
+        if (schemaError?.code !== '42703') throw schemaError;
+        // During a rolling 042 deployment, preserve the recoverable cart and
+        // fail only the additive checkout preferences—not the entire link.
+        rows = await sql`
+          SELECT cart_contents, NULL::jsonb AS checkout_state, recovery_status,
+                 user_id, email, normalized_email
+            FROM abandoned_carts
+           WHERE id = ${claims.cartId}
+           LIMIT 1
+        `;
+      }
       if (!rows.length) return reply(404, { error: 'RECOVERY_CART_NOT_FOUND' });
       if (!['active', 'abandoned'].includes(rows[0].recovery_status)) {
         return reply(410, { error: 'RECOVERY_CART_CLOSED' });
@@ -700,8 +826,39 @@ function createRecoverAbandonedCartHandler({ createSql = neon, now = () => Date.
       }
       if (!recovery.items.length) return reply(422, { error: 'RECOVERY_CART_EMPTY' });
 
-      const discountCode = await findSequenceDiscount(sql, claims.cartId, claims.sequenceNumber);
-      await recordRecoveryClick(sql, claims.cartId, claims.sequenceNumber, claims.expiresAt);
+      const sequenceDiscountCode = await findSequenceDiscount(sql, claims.cartId, claims.sequenceNumber);
+      const selectedDiscount = await selectWinningDiscount({
+        sql,
+        checkoutState: rows[0].checkout_state,
+        recoveryCode: sequenceDiscountCode,
+        items: recovery.items,
+        cartId: claims.cartId,
+        email: rows[0].normalized_email || rows[0].email || null,
+        userId: rows[0].user_id || null,
+      });
+      const discountCode = selectedDiscount?.code || null;
+      try {
+        await recordRecoveryClick(sql, claims.cartId, claims.sequenceNumber, claims.expiresAt);
+      } catch (trackingError) {
+        // Telemetry is deliberately non-authoritative. A transient analytics
+        // write or rolling event-constraint deployment must never strand a
+        // customer whose signed cart has already been verified.
+        console.warn('[recover-abandoned-cart] recovery click tracking deferred', {
+          code: trackingError?.code || null,
+        });
+      }
+
+      // Discount selection and telemetry are intentionally separate queries.
+      // Recheck immediately before disclosure so a concurrently completed or
+      // expired cart cannot be restored from a stale earlier read.
+      const stillRecoverable = await sql`
+        SELECT id
+          FROM abandoned_carts
+         WHERE id = ${claims.cartId}
+           AND recovery_status IN ('active', 'abandoned')
+         LIMIT 1
+      `;
+      if (!stillRecoverable.length) return reply(410, { error: 'RECOVERY_CART_CLOSED' });
 
       return reply(200, {
         success: true,
@@ -715,6 +872,7 @@ function createRecoverAbandonedCartHandler({ createSql = neon, now = () => Date.
         items: recovery.items,
         sourceItemCount: recovery.sourceItemCount,
         storedItemCount: recovery.storedItemCount,
+        checkoutState: sanitizeCheckoutState(rows[0].checkout_state),
         discountCode,
       });
     } catch (error) {
@@ -735,4 +893,5 @@ module.exports = {
   requestIsSameOrigin,
   sanitizeCartItem,
   sanitizeCartItems,
+  sanitizeCheckoutState,
 };

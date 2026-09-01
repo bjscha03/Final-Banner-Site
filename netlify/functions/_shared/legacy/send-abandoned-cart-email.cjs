@@ -12,7 +12,25 @@ const {
 const {
   createAbandonedCartRecoveryToken,
 } = require('../abandoned-cart-recovery-token.cjs');
+const {
+  selectWinningRecoveryDiscount,
+} = require('../abandoned-cart-discount-selection.cjs');
+const {
+  LARGE_BANNER_RECOVERY_CAMPAIGN,
+  LARGE_BANNER_RECOVERY_PERCENTAGE,
+  LARGE_BANNER_RECOVERY_SCOPE,
+  qualifyingLargeBannerLineIds,
+  qualifyingLargeBannerSubtotalCents,
+} = require('../recovery-discount-policy.cjs');
+const { computeTotals, getFeatureFlags } = require('../checkoutTotals.cjs');
+const { addPostTaxServiceFees } = require('../order-total-reconciliation.cjs');
+const { reconcileSameDayFlags } = require('../sameDayService.cjs');
+const {
+  StripePricingError,
+  repriceStripeCart,
+} = require('../stripe-server-pricing.cjs');
 const { requireAdmin } = require('../server-auth.cjs');
+const { buildAbandonedCartEmail } = require('./abandoned-cart-email-template.cjs');
 
 const headers = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Banners-Admin-Session',
@@ -25,8 +43,37 @@ const headers = {
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CART_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const CLAIM_STALE_MINUTES = 20;
-const SCHEDULED_RETRY_BACKOFF_HOURS = 1;
+const SCHEDULED_RETRY_BACKOFF_MINUTES = 5;
+const MAX_DELIVERY_ATTEMPTS = 5;
 const PROVIDER_TIMEOUT_MS = 20 * 1000;
+const RECOVERY_EMAIL_TEMPLATE_VERSION = 'recovery_v2';
+const RECOVERY_OFFER_TTL_HOURS = 1;
+const DEFAULT_PHYSICAL_ADDRESS = 'PO Box 369, Crestwood, KY 40014';
+const RESEND_STATUS_BY_ERROR_NAME = Object.freeze({
+  missing_required_field: 422,
+  invalid_idempotency_key: 400,
+  invalid_idempotent_request: 409,
+  concurrent_idempotent_requests: 409,
+  invalid_access: 422,
+  invalid_parameter: 422,
+  invalid_region: 422,
+  rate_limit_exceeded: 429,
+  missing_api_key: 401,
+  invalid_api_key: 403,
+  suspended_api_key: 403,
+  invalid_from_address: 403,
+  validation_error: 403,
+  not_found: 404,
+  method_not_allowed: 405,
+  application_error: 500,
+  internal_server_error: 500,
+});
+const RETRYABLE_RESEND_ERROR_NAMES = new Set([
+  'concurrent_idempotent_requests',
+  'rate_limit_exceeded',
+  'application_error',
+  'internal_server_error',
+]);
 const RECOVERY_TTL_BY_SEQUENCE = Object.freeze({
   1: 96 * 60 * 60,
   2: 48 * 60 * 60,
@@ -42,20 +89,6 @@ function reply(statusCode, body) {
   return { statusCode, headers, body: JSON.stringify(body) };
 }
 
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
-}
-
-function safeNumber(value) {
-  const number = Number(value);
-  return Number.isFinite(number) && number >= 0 ? number : 0;
-}
-
 function parseCartItems(value) {
   if (Array.isArray(value)) return value;
   if (typeof value !== 'string') return [];
@@ -67,83 +100,229 @@ function parseCartItems(value) {
   }
 }
 
+function nonNegativeCents(value, fallback = 0) {
+  if (value === null || value === undefined || value === '') return fallback;
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? Math.round(number) : fallback;
+}
+
+function parseJsonObject(value) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value;
+  if (typeof value !== 'string') return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function checkoutFlags(cart) {
+  const state = parseJsonObject(cart?.checkout_state_json);
+  return {
+    sameDayHitService: state.sameDayHitService === true,
+    saturdayDelivery: state.saturdayDelivery === true,
+  };
+}
+
+function checkoutOptions() {
+  const flags = getFeatureFlags();
+  return {
+    freeShipping: flags.freeShipping,
+    minFloorCents: flags.minOrderFloor ? flags.minOrderCents : 0,
+  };
+}
+
+function recoveryOfferPricing(cart, cartItems, offer, { now = new Date(), existingPromo = null } = {}) {
+  const currentTotals = computeTotals(cartItems, 0.06, checkoutOptions(), existingPromo);
+  const savedFlags = checkoutFlags(cart);
+  const services = reconcileSameDayFlags({
+    now,
+    items: cartItems,
+    requestedSameDay: savedFlags.sameDayHitService,
+    requestedSaturday: savedFlags.saturdayDelivery,
+  });
+  const sameDayFeeCents = services.fees.sameDayFeeCents;
+  const saturdayFeeCents = services.fees.saturdayFeeCents;
+  const currentTotalCents = addPostTaxServiceFees({
+    baseTotalCents: currentTotals.total_cents,
+    sameDayFeeCents,
+    saturdayFeeCents,
+  });
+  const base = {
+    subtotalCents: currentTotals.adjusted_subtotal_cents,
+    existingDiscountCents: currentTotals.applied_discount_cents,
+    existingDiscountLabel: currentTotals.applied_discount_type === 'quantity'
+      ? 'Automatic quantity discount'
+      : currentTotals.applied_discount_type === 'promo' && existingPromo?.code
+        ? `${existingPromo.code} discount`
+        : 'Discount',
+    currentTaxCents: currentTotals.tax_cents,
+    currentTotalCents,
+    sameDayFeeCents,
+    saturdayFeeCents,
+  };
+  if (!offer) {
+    return {
+      ...base,
+      offerSavingsCents: 0,
+      offerDiscountCents: 0,
+      offerTaxCents: currentTotals.tax_cents,
+      offerTotalCents: currentTotalCents,
+    };
+  }
+
+  const offerSavingsCents = Math.min(
+    currentTotals.adjusted_subtotal_cents,
+    nonNegativeCents(offer.maxDiscountAmountCents),
+  );
+  const reservedAt = new Date(new Date(offer.expiresAt).getTime() - (RECOVERY_OFFER_TTL_HOURS * 60 * 60 * 1000));
+  const recoveryTotals = computeTotals(cartItems, 0.06, checkoutOptions(), {
+    code: offer.code,
+    discountPercentage: LARGE_BANNER_RECOVERY_PERCENTAGE,
+    campaign: LARGE_BANNER_RECOVERY_CAMPAIGN,
+    recoveryOffer: true,
+    recoveryCartId: cart.id,
+    discountScope: LARGE_BANNER_RECOVERY_SCOPE,
+    eligibleCartItemIds: offer.eligibleCartItemIds,
+    maxDiscountAmountCents: offer.maxDiscountAmountCents,
+    activatedAt: reservedAt.toISOString(),
+    expiresAt: offer.expiresAt,
+  });
+  const offerTotals = currentTotals.total_cents <= recoveryTotals.total_cents
+    ? currentTotals
+    : recoveryTotals;
+  const offerTotalCents = addPostTaxServiceFees({
+    baseTotalCents: offerTotals.total_cents,
+    sameDayFeeCents,
+    saturdayFeeCents,
+  });
+  return {
+    ...base,
+    offerSavingsCents,
+    offerDiscountCents: offerTotals.applied_discount_cents,
+    offerTaxCents: offerTotals.tax_cents,
+    offerTotalCents,
+  };
+}
+
+function configuredEmailIdentity(value, fallback) {
+  const normalized = String(value || '').trim();
+  return normalized && normalized.length <= 320 ? normalized : fallback;
+}
+
+function configuredPhysicalAddress() {
+  const normalized = String(
+    process.env.RECOVERY_PHYSICAL_ADDRESS
+      || process.env.OUTBOUND_PHYSICAL_ADDRESS
+      || DEFAULT_PHYSICAL_ADDRESS,
+  ).replace(/\s+/g, ' ').trim();
+  return normalized.length >= 10 && normalized.length <= 300
+    ? normalized
+    : DEFAULT_PHYSICAL_ADDRESS;
+}
+
+function recoveryEmailsEnabled() {
+  return String(process.env.RECOVERY_EMAILS_ENABLED || '').trim().toLowerCase() !== 'false';
+}
+
+function secureOrigin(value, { netlifyOnly = false, trustedSiteOnly = false } = {}) {
+  try {
+    const parsed = new URL(String(value || '').trim());
+    if (parsed.protocol !== 'https:' || parsed.username || parsed.password) return null;
+    if (parsed.pathname !== '/' || parsed.search || parsed.hash) return null;
+    const hostname = parsed.hostname.toLowerCase();
+    if (netlifyOnly && !hostname.endsWith('.netlify.app')) return null;
+    if (trustedSiteOnly
+        && hostname !== 'bannersonthefly.com'
+        && hostname !== 'www.bannersonthefly.com'
+        && !hostname.endsWith('.netlify.app')) return null;
+    return parsed.origin;
+  } catch {
+    return null;
+  }
+}
+
 function canonicalSiteUrl() {
-  const configured = String(process.env.RECOVERY_SITE_URL || '').trim();
-  if (/^https:\/\/[a-z0-9.-]+(?::\d+)?$/i.test(configured)) return configured.replace(/\/$/, '');
+  const explicitlyConfigured = secureOrigin(process.env.RECOVERY_SITE_URL);
+  if (explicitlyConfigured) return explicitlyConfigured;
+
+  const context = String(process.env.CONTEXT || '').trim().toLowerCase();
+  const deployPrimeOrigin = secureOrigin(process.env.DEPLOY_PRIME_URL, { netlifyOnly: true });
+  const deployPrimeHost = deployPrimeOrigin ? new URL(deployPrimeOrigin).hostname.toLowerCase() : '';
+  const unmistakablePreviewHost = /^deploy-preview-\d+--.+\.netlify\.app$/.test(deployPrimeHost)
+    || (deployPrimeHost.includes('--') && deployPrimeHost.endsWith('.netlify.app'));
+  if (deployPrimeOrigin && (['deploy-preview', 'branch-deploy'].includes(context) || unmistakablePreviewHost)) {
+    return deployPrimeOrigin;
+  }
+
+  for (const candidate of [process.env.URL, process.env.PUBLIC_SITE_URL, process.env.SITE_URL]) {
+    const origin = secureOrigin(candidate, { trustedSiteOnly: true });
+    if (origin) return origin;
+  }
   return 'https://bannersonthefly.com';
 }
 
-function generateEmailHTML(sequenceNumber, data) {
-  const { cartItems, totalValue, discountCode, recoveryUrl, unsubscribeUrl } = data;
-  const brandBlue = '#18448D';
-  const brandOrange = '#ff6b35';
-  const urgencyRed = '#dc3545';
-  const offers = Object.freeze({
-    1: {
-      subject: '👋 You left something behind at Banners On The Fly',
-      heading: 'You left something behind!',
-      messageHtml: "We noticed you were shopping but didn't complete your order. Your cart is waiting for you!",
-      cta: 'Complete Your Order',
-      percentage: 0,
-    },
-    2: {
-      subject: "🎁 Here's 10% off to complete your order",
-      heading: "Here's 10% off to complete your order! 🎁",
-      messageHtml: "We really want to help you complete your order! As a thank you for considering us, here's a special <strong>10% discount</strong> just for you.",
-      cta: 'Claim Your 10% Discount',
-      percentage: 10,
-    },
-    3: {
-      subject: '🔥 LAST CHANCE: 15% off your order (expires soon!)',
-      heading: 'Final offer: 15% OFF your order! 🔥',
-      messageHtml: "This is our <strong>final reminder</strong> about your cart - and we're making it count! We've increased your discount to <strong>15% OFF</strong> as a last chance to help you complete your order.",
-      cta: 'Claim Your 15% Discount Now',
-      percentage: 15,
-    },
-  });
-  const offer = offers[sequenceNumber];
-  if (!offer) throw new Error('Unsupported recovery email sequence');
-  const originalTotal = safeNumber(totalValue);
-  const discountedTotal = originalTotal * (1 - (offer.percentage / 100));
-  const savings = originalTotal - discountedTotal;
-  const itemRows = (Array.isArray(cartItems) ? cartItems : []).map((item) => {
-    const width = safeNumber(item.width_in ?? item.widthIn ?? item.width);
-    const height = safeNumber(item.height_in ?? item.heightIn ?? item.height);
-    const quantity = Math.max(1, Math.round(safeNumber(item.quantity) || 1));
-    const material = escapeHtml(item.material || item.product_type || 'Custom');
-    const lineCents = safeNumber(item.line_total_cents ?? item.lineTotalCents ?? item.line_total);
-    const quantityLabel = quantity > 1 ? ` (×${quantity})` : '';
-    return `<div style="display:flex;justify-content:space-between;margin-bottom:12px;gap:16px"><p style="font-size:14px;color:#525f7f;margin:0"><strong>${width}&quot; × ${height}&quot;</strong> ${material} banner${quantityLabel}</p><p style="font-size:14px;font-weight:bold;color:${brandBlue};margin:0">$${(lineCents / 100).toFixed(2)}</p></div>`;
-  }).join('');
-  const cartBlock = itemRows
-    ? `<div style="background-color:#f6f9fc;border-radius:8px;padding:24px;margin:24px 0"><p style="font-size:18px;font-weight:bold;color:${brandBlue};margin-bottom:16px">Your Cart:</p>${itemRows}<hr style="border:0;height:1px;background:#e6ebf1;margin:16px 0"><p style="font-size:18px;font-weight:bold;color:${brandBlue};margin-top:16px">Original Total: $${originalTotal.toFixed(2)}</p></div>`
-    : '';
-  const escapedCode = escapeHtml(discountCode || '');
-  const urgencyBanner = sequenceNumber === 3
-    ? `<div style="background-color:${urgencyRed};padding:16px;text-align:center;margin-bottom:24px"><p style="color:#fff;font-size:16px;font-weight:bold;margin:0;text-transform:uppercase;letter-spacing:1px">⏰ LAST CHANCE - Expires in 24 Hours!</p></div>`
-    : '';
-  let discountBlock = '';
-  if (sequenceNumber === 2) {
-    discountBlock = `<div style="background-color:${brandOrange};border-radius:12px;padding:32px;text-align:center;margin:24px 0"><p style="font-size:14px;color:#fff;font-weight:bold;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Your Discount Code:</p><p style="font-size:32px;font-weight:bold;color:#fff;letter-spacing:2px;margin:16px 0;font-family:monospace;word-break:break-all">${escapedCode}</p><p style="font-size:14px;color:#fff;margin-top:8px">10% off • Expires in 48 hours</p></div><p style="font-size:16px;color:#525f7f;margin:16px 0">You Save: <strong style="color:${brandOrange}">$${savings.toFixed(2)}</strong></p><p style="font-size:24px;font-weight:bold;color:${brandBlue};margin:8px 0">New Total: $${discountedTotal.toFixed(2)}</p>`;
-  } else if (sequenceNumber === 3) {
-    discountBlock = `<div style="background-color:${urgencyRed};border-radius:12px;padding:32px;text-align:center;margin:24px 0;border:3px solid ${brandOrange}"><p style="font-size:14px;color:#fff;font-weight:bold;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Your FINAL Discount Code:</p><p style="font-size:36px;font-weight:bold;color:#fff;letter-spacing:2px;margin:16px 0;font-family:monospace;word-break:break-all">${escapedCode}</p><p style="font-size:16px;color:#fff;margin-top:8px;font-weight:bold">15% off • Expires in 24 hours ⏰</p></div><p style="font-size:18px;font-weight:bold;color:${urgencyRed};margin:16px 0">You Save: $${savings.toFixed(2)} (15% OFF!)</p><p style="font-size:28px;font-weight:bold;color:${brandBlue};margin:8px 0">Final Price: $${discountedTotal.toFixed(2)}</p><div style="background-color:#fff5f5;border-left:4px solid ${urgencyRed};padding:16px;margin:24px 0;border-radius:8px"><p style="font-size:16px;color:${urgencyRed};margin:0">⚠️ <strong>This is your last chance!</strong> After 24 hours, this offer expires and your cart will be cleared.</p></div>`;
-  }
-  const buttonColor = sequenceNumber === 3 ? urgencyRed : brandOrange;
-  const offerReminder = sequenceNumber > 1
-    ? '<p style="font-size:16px;color:#525f7f;margin:16px 0">Your discount code will be automatically applied when you click the button above!</p>'
-    : '';
-
-  return {
-    subject: offer.subject,
-    html: `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head><body style="margin:0;padding:0;background-color:#f6f9fc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Ubuntu,sans-serif"><div style="max-width:600px;margin:0 auto 64px;background-color:#fff"><div style="background-color:${brandBlue};padding:24px;text-align:center"><h1 style="color:#fff;font-size:24px;font-weight:bold;margin:0">Banners On The Fly</h1></div>${urgencyBanner}<div style="padding:0 48px"><h2 style="font-size:28px;font-weight:bold;color:${brandBlue};margin-top:32px;margin-bottom:16px">${escapeHtml(offer.heading)}</h2><p style="font-size:16px;line-height:24px;color:#525f7f;margin-bottom:16px">${offer.messageHtml}</p>${discountBlock}${cartBlock}<div style="text-align:center;margin:32px 0"><a href="${escapeHtml(recoveryUrl)}" style="background-color:${buttonColor};border-radius:6px;color:#fff;font-size:${sequenceNumber === 3 ? '18px' : '16px'};font-weight:bold;text-decoration:none;display:inline-block;padding:${sequenceNumber === 3 ? '16px 40px' : '14px 32px'};${sequenceNumber === 3 ? `border:2px solid ${brandOrange}` : ''}">${escapeHtml(offer.cta)}</a></div>${offerReminder}<p style="font-size:14px;color:#8898aa;line-height:20px;margin-top:24px">Questions? Just reply to this email - we're here to help!</p></div><div style="padding:0 48px 48px;margin-top:32px;text-align:center"><p style="font-size:12px;color:#8898aa;line-height:16px;margin:4px 0">Banners On The Fly - Professional Custom Banners</p><p style="font-size:12px;color:#8898aa;line-height:16px;margin:4px 0"><a href="${escapeHtml(canonicalSiteUrl())}" style="color:${brandBlue};text-decoration:underline">bannersonthefly.com</a></p><p style="font-size:12px;color:#8898aa;line-height:16px;margin:12px 0 4px"><a href="${escapeHtml(unsubscribeUrl)}" style="color:${brandBlue};text-decoration:underline">Unsubscribe from cart-recovery emails</a></p></div></div></body></html>`,
-  };
-}
+const generateEmailHTML = buildAbandonedCartEmail;
 
 function normalizeProviderError(error) {
   return String(error?.message || error || 'Email provider rejected the request')
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[redacted-email]')
     .replace(/\b(?:re_|sk_)[A-Za-z0-9_-]{8,}\b/g, '[redacted-token]')
     .slice(0, 1000);
+}
+
+function resendStatusForName(name) {
+  return RESEND_STATUS_BY_ERROR_NAME[String(name || '').trim()] || null;
+}
+
+function classifyProviderError(error) {
+  const providerName = String(error?.providerName || error?.name || '').trim();
+  if (providerName && Object.hasOwn(RESEND_STATUS_BY_ERROR_NAME, providerName)) {
+    return {
+      name: providerName,
+      statusCode: RESEND_STATUS_BY_ERROR_NAME[providerName],
+      retryable: RETRYABLE_RESEND_ERROR_NAMES.has(providerName),
+    };
+  }
+  const statusCode = Number(error?.statusCode || error?.status) || null;
+  if (statusCode && statusCode >= 400 && statusCode < 500) {
+    return {
+      name: providerName || null,
+      statusCode,
+      retryable: statusCode === 408 || statusCode === 425 || statusCode === 429,
+    };
+  }
+  return {
+    name: providerName || null,
+    statusCode: statusCode || 502,
+    retryable: true,
+  };
+}
+
+function providerErrorFromResponse(responseError) {
+  const providerName = String(responseError?.name || '').trim();
+  const error = new Error(String(responseError?.message || responseError || 'Email provider rejected the request'));
+  error.name = 'ResendProviderError';
+  error.providerName = providerName || null;
+  error.statusCode = Number(responseError?.statusCode || responseError?.status)
+    || resendStatusForName(providerName)
+    || 502;
+  error.retryable = classifyProviderError(error).retryable;
+  return error;
+}
+
+function permanentDeliveryError(code, message, statusCode = 422) {
+  const error = new Error(message);
+  error.name = 'RecoveryDeliveryError';
+  error.code = code;
+  error.statusCode = statusCode;
+  error.retryable = false;
+  return error;
+}
+
+function emailPayloadDigest(payload) {
+  return crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex');
 }
 
 async function findCompletedOrder(sql, cart) {
@@ -417,27 +596,11 @@ async function consolidateRecipientCarts(sql, cartId) {
              cart.recovery_email_claim_sequence, cart.recovery_email_claimed_at,
              ROW_NUMBER() OVER (
                ORDER BY cart.last_activity_at DESC, cart.created_at DESC, cart.id DESC
-             ) AS recipient_rank,
-             MAX(COALESCE(cart.recovery_emails_sent, 0)) OVER () AS recipient_emails_sent,
-             MAX(cart.last_recovery_email_at) OVER () AS recipient_last_email_at
+             ) AS recipient_rank
         FROM abandoned_carts AS cart
         JOIN recipient_lock AS locked_recipient
           ON COALESCE(NULLIF(cart.normalized_email, ''), LOWER(BTRIM(cart.email))) = locked_recipient.recipient
        WHERE cart.recovery_status IN ('active', 'abandoned')
-    ), winner_progress AS (
-      UPDATE abandoned_carts AS winner
-         SET recovery_emails_sent = GREATEST(
-               COALESCE(winner.recovery_emails_sent, 0), ranked.recipient_emails_sent
-             ),
-             last_recovery_email_at = CASE
-               WHEN ranked.recipient_last_email_at IS NULL THEN winner.last_recovery_email_at
-               WHEN winner.last_recovery_email_at IS NULL THEN ranked.recipient_last_email_at
-               ELSE GREATEST(winner.last_recovery_email_at, ranked.recipient_last_email_at)
-             END
-        FROM ranked
-       WHERE ranked.recipient_rank = 1
-         AND winner.id = ranked.id
-       RETURNING winner.id
     ), stale_candidates AS (
       SELECT ranked.id
         FROM ranked
@@ -604,11 +767,6 @@ async function findFinalRecoveryStopReason(sql, cartId, sequenceNumber) {
              WHEN cart.recovery_status <> 'abandoned' THEN
                CASE WHEN cart.recovery_status = 'active' THEN 'cart_reactivated'
                     ELSE 'cart_no_longer_abandoned' END
-             WHEN ${sequenceNumber} > 1 AND EXISTS (
-               SELECT 1 FROM cart_recovery_logs AS click_log
-                WHERE click_log.abandoned_cart_id = cart.id
-                  AND click_log.event_type = 'email_clicked'
-             ) THEN 'recipient_clicked_recovery'
              WHEN EXISTS (
                SELECT 1
                  FROM abandoned_carts AS newer_active
@@ -728,14 +886,6 @@ async function claimSequence(sql, cartId, sequenceNumber, source) {
               AND (newer_active.last_activity_at, newer_active.created_at, newer_active.id) >
                   (cart.last_activity_at, cart.created_at, cart.id)
          )
-         AND (
-           ${sequenceNumber} = 1
-           OR NOT EXISTS (
-             SELECT 1 FROM cart_recovery_logs AS click_log
-              WHERE click_log.abandoned_cart_id = cart.id
-                AND click_log.event_type = 'email_clicked'
-           )
-         )
          AND (cart.recovery_email_claim_sequence IS NULL
               OR cart.recovery_email_claimed_at < NOW() - (${CLAIM_STALE_MINUTES} * INTERVAL '1 minute'))
     ), delivery_claim AS (
@@ -743,22 +893,41 @@ async function claimSequence(sql, cartId, sequenceNumber, source) {
         abandoned_cart_id, sequence_number, status, claimed_at, failure_reason, metadata, updated_at
       )
       SELECT id, ${sequenceNumber}, 'claimed', NOW(), NULL,
-             ${JSON.stringify({ source: source || 'unknown' })}::jsonb, NOW()
+             ${JSON.stringify({ source: source || 'unknown', attemptCount: 1 })}::jsonb, NOW()
         FROM eligible
       ON CONFLICT (abandoned_cart_id, sequence_number) DO UPDATE
         SET status = 'claimed', claimed_at = NOW(), failure_reason = NULL,
-            metadata = cart_recovery_deliveries.metadata || EXCLUDED.metadata, updated_at = NOW()
-        WHERE (
-             cart_recovery_deliveries.status = 'failed'
+            metadata = COALESCE(cart_recovery_deliveries.metadata, '{}'::jsonb)
+              || EXCLUDED.metadata
+              || jsonb_build_object(
+                   'attemptCount',
+                   CASE
+                     WHEN cart_recovery_deliveries.metadata->>'attemptCount' ~ '^[0-9]+$'
+                       THEN (cart_recovery_deliveries.metadata->>'attemptCount')::integer + 1
+                     ELSE 1
+                   END
+                 ),
+            updated_at = NOW()
+        WHERE COALESCE(
+                CASE
+                  WHEN cart_recovery_deliveries.metadata->>'attemptCount' ~ '^[0-9]+$'
+                    THEN (cart_recovery_deliveries.metadata->>'attemptCount')::integer
+                  ELSE 0
+                END,
+                0
+              ) < ${MAX_DELIVERY_ATTEMPTS}
+          AND (
+           cart_recovery_deliveries.status = 'failed'
              AND (
                NOT ${scheduledRetry}
                OR cart_recovery_deliveries.updated_at <=
-                  NOW() - (${SCHEDULED_RETRY_BACKOFF_HOURS} * INTERVAL '1 hour')
+                  NOW() - (${SCHEDULED_RETRY_BACKOFF_MINUTES} * INTERVAL '1 minute')
              )
            )
            OR (cart_recovery_deliveries.status = 'claimed'
                AND cart_recovery_deliveries.claimed_at < NOW() - (${CLAIM_STALE_MINUTES} * INTERVAL '1 minute'))
-      RETURNING abandoned_cart_id
+          )
+      RETURNING abandoned_cart_id, metadata, discount_code
     ), cart_claim AS (
       UPDATE abandoned_carts AS cart
          SET recovery_email_claim_sequence = ${sequenceNumber}, recovery_email_claimed_at = NOW(),
@@ -769,18 +938,36 @@ async function claimSequence(sql, cartId, sequenceNumber, source) {
          AND cart.recovery_emails_sent = ${sequenceNumber - 1}
       RETURNING cart.*
     )
-    SELECT * FROM cart_claim
+    SELECT cart_claim.*,
+           delivery_claim.metadata AS recovery_delivery_metadata,
+           delivery_claim.discount_code AS recovery_delivery_discount_code
+      FROM cart_claim
+      JOIN delivery_claim ON delivery_claim.abandoned_cart_id = cart_claim.id
   `;
   return rows[0] || null;
 }
 
 async function failClaim(sql, cartId, sequenceNumber, error) {
   const message = normalizeProviderError(error);
+  const terminal = error?.retryable === false;
   try {
     await sql`
       WITH failed AS (
         UPDATE cart_recovery_deliveries
-           SET status = 'failed', failure_reason = ${message}, updated_at = NOW()
+           SET status = CASE
+                 WHEN ${terminal}
+                   OR COALESCE(
+                        CASE
+                          WHEN metadata->>'attemptCount' ~ '^[0-9]+$'
+                            THEN (metadata->>'attemptCount')::integer
+                          ELSE 0
+                        END,
+                        0
+                      ) >= ${MAX_DELIVERY_ATTEMPTS}
+                   THEN 'skipped'
+                 ELSE 'failed'
+               END,
+               failure_reason = ${message}, updated_at = NOW()
          WHERE abandoned_cart_id = ${cartId} AND sequence_number = ${sequenceNumber} AND status = 'claimed'
          RETURNING abandoned_cart_id
       )
@@ -799,15 +986,156 @@ async function failClaim(sql, cartId, sequenceNumber, error) {
   }
 }
 
-async function completeClaim(sql, cartId, sequenceNumber, providerMessageId, discountCode, subject) {
+async function reserveDeliveryPayload(sql, cartId, sequenceNumber, offer, payload, stableLinks) {
+  const digest = emailPayloadDigest(payload);
+  const offerMetadata = {
+    templateVersion: RECOVERY_EMAIL_TEMPLATE_VERSION,
+    payloadDigest: digest,
+    recoveryUrl: stableLinks.recoveryUrl,
+    unsubscribeUrl: stableLinks.unsubscribeUrl,
+    offerExpected: Boolean(offer),
+    offerCode: offer?.code || null,
+    offerExpiresAt: offer?.expiresAt || null,
+    offerPercentage: offer ? LARGE_BANNER_RECOVERY_PERCENTAGE : null,
+    offerCampaign: offer ? LARGE_BANNER_RECOVERY_CAMPAIGN : null,
+    offerScope: offer ? LARGE_BANNER_RECOVERY_SCOPE : null,
+    offerEligibleCartItemIds: offer?.eligibleCartItemIds || null,
+    offerMaxDiscountAmountCents: offer?.maxDiscountAmountCents || null,
+  };
   const rows = await sql`
-    WITH delivered AS (
-      UPDATE cart_recovery_deliveries
+    UPDATE cart_recovery_deliveries
+       SET discount_code = ${offer?.code || null},
+           metadata = COALESCE(metadata, '{}'::jsonb) || ${JSON.stringify(offerMetadata)}::jsonb,
+           updated_at = NOW()
+     WHERE abandoned_cart_id = ${cartId}
+       AND sequence_number = ${sequenceNumber}
+       AND status = 'claimed'
+       AND EXISTS (
+         SELECT 1
+           FROM abandoned_carts AS cart
+          WHERE cart.id = ${cartId}
+            AND cart.recovery_status = 'abandoned'
+            AND cart.recovery_email_claim_sequence = ${sequenceNumber}
+            AND cart.recovery_suppressed_at IS NULL
+            AND NOT EXISTS (
+              SELECT 1
+                FROM recovery_email_suppressions AS suppression
+               WHERE suppression.normalized_email =
+                     COALESCE(NULLIF(cart.normalized_email, ''), LOWER(BTRIM(cart.email)))
+                 AND suppression.active = TRUE
+            )
+            AND NOT EXISTS (
+              SELECT 1
+                FROM abandoned_carts AS newer
+               WHERE newer.id <> cart.id
+                 AND newer.recovery_status IN ('active', 'abandoned')
+                 AND (
+                   (cart.user_id IS NOT NULL AND newer.user_id = cart.user_id)
+                   OR (cart.session_id IS NOT NULL AND newer.session_id = cart.session_id)
+                   OR COALESCE(NULLIF(newer.normalized_email, ''), LOWER(BTRIM(newer.email))) =
+                      COALESCE(NULLIF(cart.normalized_email, ''), LOWER(BTRIM(cart.email)))
+                 )
+                 AND (newer.last_activity_at, newer.created_at, newer.id) >
+                     (cart.last_activity_at, cart.created_at, cart.id)
+            )
+            AND NOT EXISTS (
+              SELECT 1
+                FROM orders AS order_row
+               WHERE COALESCE(order_row.is_test_order, FALSE) = FALSE
+                 AND (
+                   to_jsonb(order_row)->>'abandoned_cart_id' = cart.id::text
+                   OR (
+                     cart.session_id IS NOT NULL
+                     AND NULLIF(BTRIM(order_row.abandoned_cart_session_id), '') = cart.session_id
+                     AND cart.created_at <= order_row.created_at + INTERVAL '10 minutes'
+                     AND cart.last_activity_at >= order_row.created_at - INTERVAL '30 minutes'
+                   )
+                 )
+                 AND (
+                   LOWER(BTRIM(COALESCE(order_row.status, ''))) IN
+                     ('paid', 'in_production', 'shipped', 'delivered', 'fulfilled', 'refunded')
+                   OR (
+                     LOWER(BTRIM(COALESCE(order_row.status, ''))) = 'pending'
+                     AND order_row.created_at >= NOW() - INTERVAL '30 minutes'
+                   )
+                 )
+            )
+       )
+       AND (
+         NULLIF(metadata->>'payloadDigest', '') IS NULL
+         OR metadata->>'payloadDigest' = ${digest}
+       )
+     RETURNING abandoned_cart_id
+  `;
+  if (!rows.length) {
+    throw permanentDeliveryError(
+      'RECOVERY_IDEMPOTENT_PAYLOAD_CHANGED',
+      'The reserved recovery email payload changed and cannot be retried safely.',
+      409,
+    );
+  }
+  return { digest };
+}
+
+async function completeClaim(
+  sql,
+  cartId,
+  sequenceNumber,
+  providerMessageId,
+  offer,
+  subject,
+  deliveryMetadata = {},
+) {
+  const discountCode = offer?.code || null;
+  const rows = await sql`
+    WITH eligible_delivery AS MATERIALIZED (
+      SELECT delivery.abandoned_cart_id
+        FROM cart_recovery_deliveries AS delivery
+        JOIN abandoned_carts AS cart ON cart.id = delivery.abandoned_cart_id
+       WHERE delivery.abandoned_cart_id = ${cartId}
+         AND delivery.sequence_number = ${sequenceNumber}
+         AND delivery.status = 'claimed'
+         AND cart.recovery_status = 'abandoned'
+         AND cart.recovery_email_claim_sequence = ${sequenceNumber}
+       FOR UPDATE OF delivery, cart
+    ), activated_offer AS (
+      UPDATE discount_codes
+         SET activated_at = COALESCE(activated_at, NOW()),
+             issued_at = COALESCE(issued_at, NOW()),
+             updated_at = NOW()
+       WHERE ${discountCode}::text IS NOT NULL
+         AND EXISTS (SELECT 1 FROM eligible_delivery)
+         AND code = ${discountCode}
+         AND cart_id = ${cartId}
+         AND discount_percentage = ${LARGE_BANNER_RECOVERY_PERCENTAGE}
+         AND campaign = ${LARGE_BANNER_RECOVERY_CAMPAIGN}
+         AND discount_scope = ${LARGE_BANNER_RECOVERY_SCOPE}
+         AND eligible_cart_item_ids = ${JSON.stringify(offer?.eligibleCartItemIds || [])}::jsonb
+         AND max_discount_amount_cents = ${offer?.maxDiscountAmountCents || null}
+         AND expires_at = ${offer?.expiresAt || null}::timestamptz
+         AND expires_at > NOW()
+         AND used = FALSE
+         AND status = 'unused'
+       RETURNING code, expires_at, activated_at
+    ), delivered AS (
+      UPDATE cart_recovery_deliveries AS delivery
          SET status = 'sent', provider_message_id = ${providerMessageId},
              discount_code = ${discountCode || null}, sent_at = COALESCE(sent_at, NOW()),
-             failure_reason = NULL, updated_at = NOW()
-       WHERE abandoned_cart_id = ${cartId} AND sequence_number = ${sequenceNumber} AND status = 'claimed'
-       RETURNING abandoned_cart_id
+             failure_reason = NULL,
+             metadata = metadata || ${JSON.stringify({
+               templateVersion: RECOVERY_EMAIL_TEMPLATE_VERSION,
+               ...deliveryMetadata,
+             })}::jsonb,
+             updated_at = NOW()
+        FROM eligible_delivery
+       WHERE delivery.abandoned_cart_id = eligible_delivery.abandoned_cart_id
+         AND delivery.sequence_number = ${sequenceNumber}
+         AND delivery.status = 'claimed'
+         AND (
+           ${discountCode}::text IS NULL
+           OR EXISTS (SELECT 1 FROM activated_offer WHERE code = ${discountCode})
+         )
+       RETURNING delivery.abandoned_cart_id
     )
     UPDATE abandoned_carts AS cart
        SET recovery_emails_sent = GREATEST(recovery_emails_sent, ${sequenceNumber}),
@@ -817,7 +1145,9 @@ async function completeClaim(sql, cartId, sequenceNumber, providerMessageId, dis
      WHERE cart.id = delivered.abandoned_cart_id
        AND cart.recovery_status = 'abandoned'
        AND cart.recovery_email_claim_sequence = ${sequenceNumber}
-     RETURNING cart.id
+     RETURNING cart.id,
+               (SELECT expires_at FROM activated_offer LIMIT 1) AS offer_expires_at,
+               (SELECT activated_at FROM activated_offer LIMIT 1) AS offer_activated_at
   `;
   if (!rows.length) throw new Error('Delivery was accepted but its database claim could not be completed');
 
@@ -827,9 +1157,41 @@ async function completeClaim(sql, cartId, sequenceNumber, providerMessageId, dis
         abandoned_cart_id, event_type, email_sequence_number, metadata, created_at
       ) VALUES (
         ${cartId}, 'email_sent', ${sequenceNumber},
-        ${JSON.stringify({ subject, discountCode: discountCode || null, emailId: providerMessageId })}::jsonb, NOW()
+        ${JSON.stringify({
+          subject,
+          discountCode,
+          emailId: providerMessageId,
+          templateVersion: RECOVERY_EMAIL_TEMPLATE_VERSION,
+          ...deliveryMetadata,
+        })}::jsonb, NOW()
       )
     `;
+    if (discountCode) {
+      await sql`
+        INSERT INTO cart_recovery_logs (
+          abandoned_cart_id, event_type, email_sequence_number, metadata, created_at
+        )
+        SELECT ${cartId}, 'coupon_issued', ${sequenceNumber},
+               ${JSON.stringify({
+                 code: discountCode,
+                 percentage: LARGE_BANNER_RECOVERY_PERCENTAGE,
+                 campaign: LARGE_BANNER_RECOVERY_CAMPAIGN,
+                 scope: LARGE_BANNER_RECOVERY_SCOPE,
+                 maxDiscountAmountCents: offer.maxDiscountAmountCents,
+                 idempotency_key: `recovery_coupon_issued:${cartId}:${sequenceNumber}`,
+               })}::jsonb || jsonb_build_object(
+                 'activatedAt', ${rows[0].offer_activated_at || null}::timestamptz,
+                 'expiresAt', ${rows[0].offer_expires_at || null}::timestamptz
+               ), NOW()
+         WHERE NOT EXISTS (
+           SELECT 1
+             FROM cart_recovery_logs
+            WHERE abandoned_cart_id = ${cartId}
+              AND event_type = 'coupon_issued'
+              AND email_sequence_number = ${sequenceNumber}
+         )
+      `;
+    }
   } catch (error) {
     console.error('[send-abandoned-cart-email] secondary recovery log write failed', {
       cartId, sequenceNumber, code: error?.code || null,
@@ -837,24 +1199,64 @@ async function completeClaim(sql, cartId, sequenceNumber, providerMessageId, dis
   }
 }
 
-async function getOrCreateDiscountCode(sql, cart, sequenceNumber) {
-  const percentage = sequenceNumber === 2 ? 10 : sequenceNumber === 3 ? 15 : 0;
-  if (!percentage) return null;
+async function getOrCreateDiscountCode(sql, cart, sequenceNumber, authoritativeItems = null) {
+  if (sequenceNumber !== 1) return null;
+  let items = authoritativeItems;
+  if (!Array.isArray(items)) {
+    try {
+      items = repriceStripeCart(parseCartItems(cart.cart_contents));
+    } catch (error) {
+      if (error instanceof StripePricingError) error.retryable = false;
+      throw error;
+    }
+  }
+  const eligibleCartItemIds = qualifyingLargeBannerLineIds(items);
+  const eligibleSubtotalCents = qualifyingLargeBannerSubtotalCents(items, eligibleCartItemIds);
+  const maxDiscountAmountCents = Math.round(
+    eligibleSubtotalCents * (LARGE_BANNER_RECOVERY_PERCENTAGE / 100),
+  );
+  if (!eligibleCartItemIds.length || maxDiscountAmountCents <= 0) return null;
+
   if (cart.discount_code) {
     const existing = await sql`
-      SELECT code FROM discount_codes
-       WHERE code = ${cart.discount_code} AND discount_percentage = ${percentage}
+      SELECT code, expires_at, activated_at, eligible_cart_item_ids,
+             max_discount_amount_cents
+        FROM discount_codes
+       WHERE code = ${cart.discount_code}
+         AND discount_percentage = ${LARGE_BANNER_RECOVERY_PERCENTAGE}
          AND cart_id = ${cart.id}
-         AND used = FALSE AND expires_at > NOW()
+         AND campaign = ${LARGE_BANNER_RECOVERY_CAMPAIGN}
+         AND discount_scope = ${LARGE_BANNER_RECOVERY_SCOPE}
+         AND eligible_cart_item_ids = ${JSON.stringify(eligibleCartItemIds)}::jsonb
+         AND max_discount_amount_cents = ${maxDiscountAmountCents}
+         AND used = FALSE
+         AND status = 'unused'
+         AND expires_at > NOW()
        LIMIT 1
     `;
-    if (existing.length) return existing[0].code;
+    if (existing.length) {
+      return {
+        code: existing[0].code,
+        expiresAt: new Date(existing[0].expires_at).toISOString(),
+        activatedAt: existing[0].activated_at,
+        eligibleCartItemIds,
+        eligibleSubtotalCents,
+        maxDiscountAmountCents,
+      };
+    }
+    if (String(cart.discount_code).startsWith('RECOVER25-')) {
+      throw permanentDeliveryError(
+        'RECOVERY_OFFER_RESERVATION_INVALID',
+        'The immutable recovery offer reservation is no longer valid.',
+        409,
+      );
+    }
   }
 
   // Recovery offers are bearer credentials when copied manually. Use enough
   // entropy to make online guessing infeasible even before provider limits.
-  const code = `CART${percentage}-${crypto.randomBytes(12).toString('hex').toUpperCase()}`;
-  const expirationHours = sequenceNumber === 2 ? 48 : 24;
+  const code = `RECOVER25-${crypto.randomBytes(12).toString('hex').toUpperCase()}`;
+  const provisionalExpiresAt = new Date(Date.now() + (RECOVERY_OFFER_TTL_HOURS * 60 * 60 * 1000));
   const recipient = normalizeEmail(cart.normalized_email || cart.email);
   const rows = await sql`
     WITH superseded_offers AS (
@@ -862,21 +1264,33 @@ async function getOrCreateDiscountCode(sql, cart, sequenceNumber) {
          SET expires_at = LEAST(expires_at, NOW()), updated_at = NOW()
        WHERE cart_id = ${cart.id}
          AND used = FALSE
-         AND discount_percentage < ${percentage}
-         AND expires_at > NOW()
+         AND campaign = ${LARGE_BANNER_RECOVERY_CAMPAIGN}
+         AND code <> ${code}
        RETURNING id
     ), inserted_offer AS (
       INSERT INTO discount_codes (
-        code, discount_percentage, cart_id, email, single_use, used, expires_at, created_at, updated_at
+        code, discount_percentage, cart_id, email, single_use, used,
+        max_uses_per_customer, max_total_uses, expires_at, campaign,
+        discount_scope, eligible_cart_item_ids, max_discount_amount_cents,
+        activated_at, created_at, updated_at
       ) VALUES (
-        ${code}, ${percentage}, ${cart.id}, ${recipient}, TRUE, FALSE,
-        NOW() + (${expirationHours} * INTERVAL '1 hour'), NOW(), NOW()
-      ) RETURNING code
+        ${code}, ${LARGE_BANNER_RECOVERY_PERCENTAGE}, ${cart.id}, ${recipient}, TRUE, FALSE,
+        1, 1, ${provisionalExpiresAt.toISOString()}::timestamptz, ${LARGE_BANNER_RECOVERY_CAMPAIGN},
+        ${LARGE_BANNER_RECOVERY_SCOPE}, ${JSON.stringify(eligibleCartItemIds)}::jsonb,
+        ${maxDiscountAmountCents}, NULL, NOW(), NOW()
+      ) RETURNING code, expires_at, activated_at
     )
-    SELECT code FROM inserted_offer
+    SELECT code, expires_at, activated_at FROM inserted_offer
   `;
   await sql`UPDATE abandoned_carts SET discount_code = ${rows[0].code}, updated_at = NOW() WHERE id = ${cart.id}`;
-  return rows[0].code;
+  return {
+    code: rows[0].code,
+    expiresAt: new Date(rows[0].expires_at || provisionalExpiresAt).toISOString(),
+    activatedAt: rows[0].activated_at || null,
+    eligibleCartItemIds,
+    eligibleSubtotalCents,
+    maxDiscountAmountCents,
+  };
 }
 
 async function deliverRecoveryEmail({ sql, resend, cartId, sequenceNumber, source = 'scheduled' }) {
@@ -891,12 +1305,18 @@ async function deliverRecoveryEmail({ sql, resend, cartId, sequenceNumber, sourc
     error.statusCode = 400;
     throw error;
   }
+  if (!recoveryEmailsEnabled()) {
+    return { success: false, skipped: true, reason: 'recovery_emails_disabled' };
+  }
 
   await ensureSchema(sql);
   const carts = await sql`
     SELECT id, user_id, session_id, email, normalized_email, cart_contents,
-           total_value, estimated_total_cents, discount_code, recovery_status,
-           recovery_emails_sent, created_at, last_activity_at
+           total_value, subtotal_cents, discount_cents, tax_cents,
+           estimated_total_cents, discount_code, recovery_status,
+           recovery_emails_sent, created_at, last_activity_at, has_artwork,
+           customer_first_name, customer_last_name,
+           checkout_state AS checkout_state_json
       FROM abandoned_carts WHERE id = ${cartId} LIMIT 1
   `;
   if (!carts.length) {
@@ -945,22 +1365,6 @@ async function deliverRecoveryEmail({ sql, resend, cartId, sequenceNumber, sourc
       return { success: false, skipped: true, reason: 'suppressed' };
     }
 
-    const discountCode = await getOrCreateDiscountCode(sql, cart, sequence);
-    const siteUrl = canonicalSiteUrl();
-    const recoveryToken = createAbandonedCartRecoveryToken({
-      cartId,
-      sequenceNumber: sequence,
-      expiresInSeconds: RECOVERY_TTL_BY_SEQUENCE[sequence],
-    });
-    const unsubscribeToken = createRecoveryUnsubscribeToken(email);
-    const recoveryUrl = `${siteUrl}/checkout?recovery=${encodeURIComponent(recoveryToken)}`;
-    const unsubscribeUrl = `${siteUrl}/.netlify/functions/recovery-email-unsubscribe?token=${encodeURIComponent(unsubscribeToken)}`;
-    const totalValue = cart.estimated_total_cents === null || cart.estimated_total_cents === undefined
-      ? safeNumber(cart.total_value)
-      : safeNumber(cart.estimated_total_cents) / 100;
-    const emailData = generateEmailHTML(sequence, {
-      cartItems: parseCartItems(cart.cart_contents), totalValue, discountCode, recoveryUrl, unsubscribeUrl,
-    });
     // Keep the final external side effect behind one last database/compliance
     // check. This narrows the order-completion or unsubscribe race to the
     // provider request itself.
@@ -981,13 +1385,9 @@ async function deliverRecoveryEmail({ sql, resend, cartId, sequenceNumber, sourc
       await markSuppressed(sql, cartId, sequence, finalSuppression);
       return { success: false, skipped: true, reason: 'suppressed' };
     }
-    // Candidate selection can race a provider click webhook, a returned cart,
-    // or another cart for the same recipient. Admin sends bypass the scheduler,
-    // so repeat every stop condition before the provider side effect.
-    if (await hasRecoveryClick(sql, cartId, sequence)) {
-      await markClickStopped(sql, cartId, sequence);
-      return { success: false, skipped: true, reason: 'email_clicked' };
-    }
+    // Candidate selection can race a returned cart or another cart for the
+    // same recipient. A click alone is not a conversion and must not suppress
+    // later reminders; paid/recovered and active-cart checks remain decisive.
     if (!await isLatestRecoveryRecipientCart(sql, cartId, sequence)) {
       await stopSupersededRecipientClaim(sql, cartId, sequence);
       return { success: false, skipped: true, reason: 'superseded_recipient_cart' };
@@ -1006,13 +1406,88 @@ async function deliverRecoveryEmail({ sql, resend, cartId, sequenceNumber, sourc
       await stopFinalRecoveryClaim(sql, cartId, sequence, finalStopReason);
       return { success: false, skipped: true, reason: finalStopReason };
     }
+    let cartItems;
+    try {
+      cartItems = repriceStripeCart(parseCartItems(cart.cart_contents));
+    } catch (error) {
+      if (error instanceof StripePricingError) error.retryable = false;
+      throw error;
+    }
+    const offer = await getOrCreateDiscountCode(sql, cart, sequence, cartItems);
+    const savedDiscountSelection = await selectWinningRecoveryDiscount({
+      sql,
+      checkoutState: cart.checkout_state_json,
+      recoveryCode: null,
+      items: cartItems,
+      cartId,
+      email,
+      userId: cart.user_id,
+    });
+    const existingPromo = savedDiscountSelection?.source === 'saved'
+      ? savedDiscountSelection.discount
+      : null;
+    const siteUrl = canonicalSiteUrl();
+    const reservedDeliveryMetadata = parseJsonObject(cart.recovery_delivery_metadata);
+    const recoveryToken = reservedDeliveryMetadata.recoveryUrl
+      ? null
+      : createAbandonedCartRecoveryToken({
+        cartId,
+        sequenceNumber: sequence,
+        expiresInSeconds: RECOVERY_TTL_BY_SEQUENCE[sequence],
+      });
+    const unsubscribeToken = reservedDeliveryMetadata.unsubscribeUrl
+      ? null
+      : createRecoveryUnsubscribeToken(email);
+    // Keep the bearer token in the URL fragment so it is not sent in the
+    // initial HTTP request, server logs, or Referer headers. Checkout clears
+    // the fragment before analytics or outbound navigation runs.
+    const recoveryUrl = reservedDeliveryMetadata.recoveryUrl
+      || `${siteUrl}/checkout#recovery=${encodeURIComponent(recoveryToken)}`;
+    const unsubscribeUrl = reservedDeliveryMetadata.unsubscribeUrl
+      || `${siteUrl}/.netlify/functions/recovery-email-unsubscribe?token=${encodeURIComponent(unsubscribeToken)}`;
+    const pricing = recoveryOfferPricing(cart, cartItems, offer, { existingPromo });
+    const totalValue = pricing.currentTotalCents / 100;
+    const customerName = [cart.customer_first_name, cart.customer_last_name]
+      .map((part) => String(part || '').trim())
+      .filter(Boolean)
+      .join(' ');
+    const emailData = generateEmailHTML(sequence, {
+      cartItems,
+      customerName,
+      totalValue,
+      subtotalCents: pricing.subtotalCents,
+      discountCents: pricing.existingDiscountCents,
+      discountLabel: pricing.existingDiscountLabel,
+      taxCents: pricing.currentTaxCents,
+      estimatedTotalCents: pricing.currentTotalCents,
+      discountCode: offer?.code || null,
+      discountExpiresAt: offer?.expiresAt || null,
+      offerSavingsCents: pricing.offerSavingsCents,
+      offerDiscountCents: pricing.offerDiscountCents,
+      offerTaxCents: pricing.offerTaxCents,
+      offerTotalCents: pricing.offerTotalCents,
+      sameDayFeeCents: pricing.sameDayFeeCents,
+      saturdayFeeCents: pricing.saturdayFeeCents,
+      physicalAddress: configuredPhysicalAddress(),
+      recoveryUrl,
+      unsubscribeUrl,
+    });
     const idempotencyKey = `abandoned-cart/${cartId}/sequence/${sequence}`;
-    const result = await resend.emails.send({
-      from: 'Banners on the Fly <info@bannersonthefly.com>',
-      replyTo: 'info@bannersonthefly.com',
+    const from = configuredEmailIdentity(
+      process.env.RECOVERY_EMAIL_FROM || process.env.EMAIL_FROM,
+      'Banners on the Fly <info@bannersonthefly.com>',
+    );
+    const replyTo = configuredEmailIdentity(
+      process.env.RECOVERY_EMAIL_REPLY_TO || process.env.EMAIL_REPLY_TO,
+      'info@bannersonthefly.com',
+    );
+    const providerPayload = {
+      from,
+      replyTo,
       to: email,
       subject: emailData.subject,
       html: emailData.html,
+      text: emailData.text,
       headers: {
         'List-Unsubscribe': `<${unsubscribeUrl}>`,
         'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
@@ -1021,18 +1496,51 @@ async function deliverRecoveryEmail({ sql, resend, cartId, sequenceNumber, sourc
         { name: 'type', value: 'abandoned_cart' },
         { name: 'sequence', value: String(sequence) },
         { name: 'cart_id', value: cartId },
+        { name: 'template_version', value: RECOVERY_EMAIL_TEMPLATE_VERSION },
       ],
-    }, { idempotencyKey, signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS) });
+    };
+    await reserveDeliveryPayload(
+      sql,
+      cartId,
+      sequence,
+      offer,
+      providerPayload,
+      { recoveryUrl, unsubscribeUrl },
+    );
+    const result = await resend.emails.send(
+      providerPayload,
+      { idempotencyKey, signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS) },
+    );
     if (result?.error) {
-      const providerError = new Error(String(result.error.message || result.error));
-      providerError.statusCode = Number(result.error.statusCode || result.error.status) || 502;
-      throw providerError;
+      throw providerErrorFromResponse(result.error);
     }
     const providerMessageId = result?.data?.id;
     if (!providerMessageId) throw new Error('Resend did not return a message ID');
-    await completeClaim(sql, cartId, sequence, providerMessageId, discountCode, emailData.subject);
-    return { success: true, emailId: providerMessageId, sequenceNumber: sequence, discountCode: discountCode || null };
+    await completeClaim(sql, cartId, sequence, providerMessageId, offer, emailData.subject, {
+      itemCount: cartItems.length,
+      hasArtwork: cart.has_artwork === true,
+      offerEligible: Boolean(offer),
+      offerSavingsCents: pricing.offerSavingsCents,
+      offerDiscountCents: pricing.offerDiscountCents,
+      offerPercentage: offer ? LARGE_BANNER_RECOVERY_PERCENTAGE : null,
+      offerExpiresAt: offer?.expiresAt || null,
+    });
+    return {
+      success: true,
+      emailId: providerMessageId,
+      sequenceNumber: sequence,
+      discountCode: offer?.code || null,
+    };
   } catch (error) {
+    if (error?.retryable === undefined) {
+      const classification = classifyProviderError(error);
+      if (
+        Object.hasOwn(RESEND_STATUS_BY_ERROR_NAME, String(error?.providerName || error?.name || ''))
+        || Number(error?.statusCode) >= 400
+      ) {
+        error.retryable = classification.retryable;
+      }
+    }
     await failClaim(sql, cartId, sequence, error);
     throw error;
   }
@@ -1076,7 +1584,9 @@ exports._test = {
   claimSequence, completeClaim, consolidateRecipientCarts, failClaim, findCompletedOrder, getOrCreateDiscountCode,
   findFinalRecoveryStopReason, hasNewerActiveOwnerCart, hasRecoveryClick, isLatestRecoveryRecipientCart,
   markClickStopped, markRecovered, markSuppressed, stopFinalRecoveryClaim, stopNewerActiveOwnerClaim,
-  stopSupersededRecipientClaim,
+  stopSupersededRecipientClaim, canonicalSiteUrl, classifyProviderError, configuredPhysicalAddress, emailPayloadDigest,
+  providerErrorFromResponse, recoveryOfferPricing, reserveDeliveryPayload,
+  recoveryEmailsEnabled, DEFAULT_PHYSICAL_ADDRESS, MAX_DELIVERY_ATTEMPTS,
   PROVIDER_TIMEOUT_MS,
   resetDependencies() {
     neonFactory = neon;

@@ -32,3 +32,19 @@ describe('AbandonedCarts snapshot completeness disclosure', () => {
     expect(source).toContain('Captured quantity');
   });
 });
+
+describe('AbandonedCarts recovery funnel disclosure', () => {
+  it('renders delivery progress, recovery events, offer lifecycle, and exact linked-order totals', () => {
+    expect(source).toContain('Recovery funnel');
+    expect(source).toContain('Recovery activity');
+    expect(source).toContain('Recovery offers');
+    expect(source).toContain('Actual recovered order');
+    expect(source).toContain('cart.recovery_deliveries');
+    expect(source).toContain('cart.recovery_events');
+    expect(source).toContain('cart.recovery_offers');
+    expect(source).toContain("'recovery_link_clicked'");
+    expect(source).toContain("case 'coupon_expired'");
+    expect(source).toContain('Exact retained recovery revenue');
+    expect(source).toContain('actual total on an exactly linked, settled order');
+  });
+});

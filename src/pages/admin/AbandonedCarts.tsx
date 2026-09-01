@@ -129,6 +129,173 @@ const recoveryIneligibility = (cart: AbandonedCartAdminRecord): string | null =>
   return null;
 };
 
+const timeRemaining = (value: string | null): string => {
+  if (!value) return 'No expiration recorded';
+  const expiresAt = new Date(value).getTime();
+  if (!Number.isFinite(expiresAt)) return 'Invalid expiration';
+  const remaining = expiresAt - Date.now();
+  if (remaining <= 0) return 'Expired';
+  const minutes = Math.max(1, Math.ceil(remaining / 60_000));
+  if (minutes < 60) return `Expires in ${minutes}m`;
+  const hours = Math.ceil(minutes / 60);
+  if (hours < 48) return `Expires in ${hours}h`;
+  return `Expires in ${Math.ceil(hours / 24)}d`;
+};
+
+const recoveryEventLabel = (event: AbandonedCartAdminRecord['recovery_events'][number]): string => {
+  const sequence = event.email_sequence_number ? `Email ${event.email_sequence_number}` : 'Recovery email';
+  switch (event.event_type) {
+    case 'cart_created': return 'Cart captured';
+    case 'email_captured': return 'Customer email captured';
+    case 'cart_abandoned': return 'Cart marked abandoned';
+    case 'cart_reactivated': return 'Customer returned to cart';
+    case 'email_sent': return `${sequence} sent`;
+    case 'email_delivered': return `${sequence} delivered`;
+    case 'email_opened': return `${sequence} reported open`;
+    case 'email_clicked': return event.source === 'signed_recovery_link'
+      ? `${sequence} recovery link opened`
+      : `${sequence} link clicked`;
+    case 'recovery_link_clicked': return `${sequence} recovery link opened`;
+    case 'email_bounced': return `${sequence} bounced`;
+    case 'email_complained': return `${sequence} marked as spam`;
+    case 'email_failed': return `${sequence} failed`;
+    case 'email_suppressed': return `${sequence} suppressed`;
+    case 'cart_recovered': return 'Order recovered';
+    case 'coupon_issued': return 'Recovery offer issued';
+    case 'coupon_used': return 'Recovery offer used';
+    case 'coupon_expired': return 'Recovery offer expired';
+    case 'discount_applied': return 'Recovery discount applied';
+    default: return humanize(event.event_type);
+  }
+};
+
+const RecoveryFunnel: React.FC<{ cart: AbandonedCartAdminRecord }> = ({ cart }) => {
+  const deliveryBySequence = new Map(cart.recovery_deliveries.map((delivery) => [delivery.sequence_number, delivery]));
+  const sentSequences = new Set(cart.recovery_events
+    .filter((event) => ['email_sent', 'email_delivered'].includes(event.event_type))
+    .map((event) => event.email_sequence_number)
+    .filter((sequence): sequence is number => sequence !== null));
+  const emailStep = (sequence: number) => {
+    const delivery = deliveryBySequence.get(sequence);
+    const sent = delivery?.status === 'sent' || sentSequences.has(sequence) || cart.recovery_emails_sent >= sequence;
+    const stopped = delivery && ['failed', 'suppressed', 'skipped'].includes(delivery.status);
+    return {
+      label: `Email ${sequence}`,
+      state: sent ? 'complete' : stopped ? 'warning' : 'pending',
+      detail: sent ? 'Sent' : stopped ? humanize(delivery.status) : 'Pending',
+    };
+  };
+  const clicked = cart.recovery_events.some((event) => ['email_clicked', 'recovery_link_clicked'].includes(event.event_type));
+  const steps = [
+    { label: 'Cart', state: 'complete', detail: 'Captured' },
+    { label: 'Email', state: cart.email ? 'complete' : 'pending', detail: cart.email ? 'Captured' : 'Missing' },
+    { label: 'Abandoned', state: cart.abandoned_at ? 'complete' : 'pending', detail: cart.abandoned_at ? 'Recorded' : 'Waiting' },
+    emailStep(1),
+    emailStep(2),
+    emailStep(3),
+    { label: 'Clicked', state: clicked ? 'complete' : 'pending', detail: clicked ? 'Recorded' : 'None' },
+    { label: 'Recovered', state: cart.recovery_status === 'recovered' ? 'complete' : 'pending', detail: cart.recovery_status === 'recovered' ? 'Ordered' : 'Open' },
+  ];
+
+  return (
+    <div>
+      <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Recovery funnel</div>
+      <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {steps.map((step) => (
+          <div
+            key={step.label}
+            className={`rounded-lg border px-2.5 py-2 ${
+              step.state === 'complete'
+                ? 'border-green-200 bg-green-50'
+                : step.state === 'warning'
+                  ? 'border-amber-200 bg-amber-50'
+                  : 'border-gray-200 bg-gray-50'
+            }`}
+          >
+            <div className="text-[11px] font-semibold text-gray-900">{step.label}</div>
+            <div className={`text-[11px] ${step.state === 'complete' ? 'text-green-700' : step.state === 'warning' ? 'text-amber-700' : 'text-gray-500'}`}>{step.detail}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const RecoveryOfferList: React.FC<{ cart: AbandonedCartAdminRecord }> = ({ cart }) => {
+  if (cart.recovery_offers.length === 0) return null;
+  return (
+    <div>
+      <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Recovery offers</div>
+      <div className="mt-2 space-y-2">
+        {cart.recovery_offers.map((offer, index) => (
+          <div key={`${offer.code || 'offer'}-${index}`} className="rounded-lg border bg-gray-50 p-3 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <code className="break-all font-semibold text-[#18448D]">{offer.code || 'Code unavailable'}</code>
+              <Badge variant={offer.status === 'active' ? 'default' : 'outline'}>{humanize(offer.status)}</Badge>
+            </div>
+            <div className="mt-1 text-xs text-gray-600">
+              {offer.discount_percentage !== null
+                ? `${offer.discount_percentage}% off`
+                : offer.discount_amount_cents !== null
+                  ? `${formatCents(offer.discount_amount_cents)} off`
+                  : 'Discount amount unavailable'}
+              {' · '}{offer.status === 'active' ? timeRemaining(offer.expires_at) : offer.status === 'used' ? `Used ${formatDate(offer.used_at)}` : `Expired ${formatDate(offer.expires_at)}`}
+            </div>
+            {offer.order_id && <div className="mt-1 break-all text-xs text-gray-500">Order {offer.order_id}</div>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+type RecoveryTimelineEntry = { key: string; label: string; timestamp: string };
+
+const recoveryTimeline = (cart: AbandonedCartAdminRecord): RecoveryTimelineEntry[] => {
+  const entries: RecoveryTimelineEntry[] = [];
+  if (cart.created_at) entries.push({ key: 'cart-captured', label: 'Cart captured', timestamp: cart.created_at });
+  if (cart.abandoned_at) entries.push({ key: 'cart-abandoned', label: 'Cart marked abandoned', timestamp: cart.abandoned_at });
+  cart.recovery_events.forEach((event, index) => {
+    if (event.created_at) entries.push({ key: `event-${index}-${event.event_type}`, label: recoveryEventLabel(event), timestamp: event.created_at });
+  });
+  cart.recovery_offers.forEach((offer, index) => {
+    if (offer.issued_at) {
+      const offerLabel = offer.discount_percentage !== null
+        ? `${offer.discount_percentage}% recovery offer issued`
+        : 'Recovery offer issued';
+      entries.push({ key: `offer-issued-${index}`, label: offerLabel, timestamp: offer.issued_at });
+    }
+    if (offer.used_at) entries.push({ key: `offer-used-${index}`, label: 'Recovery offer used', timestamp: offer.used_at });
+    else if (offer.status === 'expired' && offer.expires_at) entries.push({ key: `offer-expired-${index}`, label: 'Recovery offer expired', timestamp: offer.expires_at });
+  });
+  if (cart.recovered_at) entries.push({ key: 'cart-recovered', label: 'Recovered order completed', timestamp: cart.recovered_at });
+  return entries
+    .filter((entry) => Number.isFinite(new Date(entry.timestamp).getTime()))
+    .sort((left, right) => new Date(right.timestamp).getTime() - new Date(left.timestamp).getTime())
+    .slice(0, 20);
+};
+
+const RecoveryTimeline: React.FC<{ cart: AbandonedCartAdminRecord }> = ({ cart }) => {
+  const entries = recoveryTimeline(cart);
+  return (
+    <div>
+      <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Recovery activity</div>
+      {entries.length === 0 ? (
+        <p className="mt-2 text-sm text-gray-500">No recovery activity recorded.</p>
+      ) : (
+        <ol className="mt-2 space-y-2 border-l border-gray-200 pl-3">
+          {entries.map((entry) => (
+            <li key={entry.key} className="text-sm">
+              <div className="font-medium text-gray-800">{entry.label}</div>
+              <div className="text-xs text-gray-500">{formatDate(entry.timestamp)}</div>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+};
+
 const FacetList: React.FC<{ title: string; values: AbandonedCartFacet[] }> = ({ title, values }) => (
   <div className="rounded-lg border bg-white p-4">
     <div className="text-sm font-semibold text-gray-900">{title}</div>
@@ -312,6 +479,9 @@ const CartCard: React.FC<CartCardProps> = ({ cart, sending, deleting, onSend, on
 
       <details className="border-t px-4 py-3 lg:px-5">
         <summary className="cursor-pointer text-sm font-medium text-[#18448D]">View cart and recovery details</summary>
+        <div className="mt-4">
+          <RecoveryFunnel cart={cart} />
+        </div>
         <div className="mt-4 grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
           <div>
             <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Items</div>
@@ -361,6 +531,12 @@ const CartCard: React.FC<CartCardProps> = ({ cart, sending, deleting, onSend, on
                 <div className="flex justify-between gap-4"><dt>Discount</dt><dd>{cart.discount_cents === null ? 'Not captured' : `-${formatCents(cart.discount_cents)}`}</dd></div>
                 <div className="flex justify-between gap-4"><dt>Tax</dt><dd>{formatCents(cart.tax_cents)}</dd></div>
                 <div className="flex justify-between gap-4 border-t pt-1.5 font-semibold"><dt>Estimated total</dt><dd>{formatCents(cart.estimated_total_cents)}</dd></div>
+                {cart.recovered_order_id && (
+                  <div className="mt-2 flex justify-between gap-4 border-t border-green-200 pt-2 font-semibold text-green-700">
+                    <dt>Actual recovered order</dt>
+                    <dd>{formatCents(cart.recovered_order_total_cents)}</dd>
+                  </div>
+                )}
               </dl>
             </div>
             <div>
@@ -370,13 +546,17 @@ const CartCard: React.FC<CartCardProps> = ({ cart, sending, deleting, onSend, on
                 <div><dt className="text-gray-500">Last activity</dt><dd>{formatDate(cart.last_activity_at)}</dd></div>
                 <div><dt className="text-gray-500">Abandoned</dt><dd>{formatDate(cart.abandoned_at)}</dd></div>
                 <div><dt className="text-gray-500">Recovered</dt><dd>{formatDate(cart.recovered_at)}</dd></div>
+                <div><dt className="text-gray-500">Recovered order created</dt><dd>{formatDate(cart.recovered_order_created_at)}</dd></div>
                 <div><dt className="text-gray-500">Last recovery email</dt><dd>{formatDate(cart.last_recovery_email_at)}</dd></div>
               </dl>
             </div>
+            <RecoveryOfferList cart={cart} />
+            <RecoveryTimeline cart={cart} />
             {(cart.discount_code || cart.recovered_order_id || cart.recovery_suppression_reason) && (
               <div className="rounded-lg bg-gray-50 p-3 text-sm">
                 {cart.discount_code && <div><span className="text-gray-500">Discount code:</span> {cart.discount_code}</div>}
                 {cart.recovered_order_id && <div><span className="text-gray-500">Recovered order:</span> {cart.recovered_order_id}</div>}
+                {cart.recovered_order_id && <div><span className="text-gray-500">Actual order total:</span> {formatCents(cart.recovered_order_total_cents)}</div>}
                 {cart.recovery_status === 'recovered' && cart.abandoned_at && (
                   <div>
                     <span className="text-gray-500">Revenue state:</span>{' '}
@@ -633,12 +813,12 @@ const AbandonedCarts: React.FC = () => {
         <section className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-5" aria-label="All-time abandoned cart metrics">
           <div className="min-w-0 rounded-lg border bg-white p-4"><div className="text-xs text-gray-500">Open carts</div><div className="mt-1 break-words text-lg font-bold sm:text-2xl">{allAnalytics.activeCount + allAnalytics.abandonedCount}</div></div>
           <div className="min-w-0 rounded-lg border bg-white p-4"><div className="text-xs text-gray-500">Open captured value</div><div className="mt-1 break-words text-lg font-bold sm:text-2xl">{formatCents(allAnalytics.activeValueCents)}</div></div>
-          <div className="min-w-0 rounded-lg border border-green-200 bg-green-50 p-4"><div className="text-xs text-green-700">Estimated retained recovery value</div><div className="mt-1 break-words text-lg font-bold text-green-700 sm:text-2xl">{formatCents(allAnalytics.recoveredValueCents)}</div><div className="text-xs text-green-700">{allAnalytics.recoveredRetainedCount} retained of {allAnalytics.recoveredCount} recorded recovery events</div><div className="mt-1 text-[11px] text-green-800">{allAnalytics.recoveredRefundedCount} refunded · {allAnalytics.recoveredRevenueUnknownCount} link/status unknown</div></div>
-          <div className="min-w-0 rounded-lg border border-blue-200 bg-blue-50 p-4"><div className="text-xs text-blue-700">Estimated retained value after email</div><div className="mt-1 break-words text-lg font-bold text-blue-700 sm:text-2xl">{formatCents(allAnalytics.recoveredAfterEmailValueCents)}</div><div className="text-xs text-blue-700">{allAnalytics.recoveredAfterEmailRetainedCount} retained of {allAnalytics.recoveredAfterEmailCount} after-email recovery events</div><div className="mt-1 text-[11px] text-blue-800">Correlation only; not causal attribution</div></div>
+          <div className="min-w-0 rounded-lg border border-green-200 bg-green-50 p-4"><div className="text-xs text-green-700">Exact retained recovery revenue</div><div className="mt-1 break-words text-lg font-bold text-green-700 sm:text-2xl">{formatCents(allAnalytics.recoveredValueCents)}</div><div className="text-xs text-green-700">{allAnalytics.recoveredRetainedCount} retained of {allAnalytics.recoveredCount} recorded recovery events</div><div className="mt-1 text-[11px] text-green-800">{allAnalytics.recoveredRefundedCount} refunded · {allAnalytics.recoveredRevenueUnknownCount} link/status unknown</div></div>
+          <div className="min-w-0 rounded-lg border border-blue-200 bg-blue-50 p-4"><div className="text-xs text-blue-700">Exact retained revenue after email</div><div className="mt-1 break-words text-lg font-bold text-blue-700 sm:text-2xl">{formatCents(allAnalytics.recoveredAfterEmailValueCents)}</div><div className="text-xs text-blue-700">{allAnalytics.recoveredAfterEmailRetainedCount} retained of {allAnalytics.recoveredAfterEmailCount} after-email recovery events</div><div className="mt-1 text-[11px] text-blue-800">Correlation only; not causal attribution</div></div>
           <div className="col-span-2 min-w-0 rounded-lg border border-amber-200 bg-amber-50 p-4 lg:col-span-1"><div className="text-xs text-amber-800">Recorded cart suppressions</div><div className="mt-1 break-words text-lg font-bold text-amber-800 sm:text-2xl">{allAnalytics.suppressedCount}</div><div className="text-xs text-amber-700">Stored on cart; controls also honor current suppression sources</div></div>
         </section>
         <p className="mt-2 text-xs leading-5 text-gray-500">
-          Retained recovery value uses the captured cart estimate only when an exact recovered-order link currently has a settled, non-refunded status. Exact refunded links and historical missing or unverifiable links are excluded rather than assumed retained.
+          Retained recovery revenue uses the actual total on an exactly linked, settled order. Refunded links and historical missing or unverifiable links are excluded rather than assumed retained.
         </p>
 
         <section className="mt-6 rounded-xl border bg-white p-4" aria-label="Cart filters">

@@ -52,6 +52,11 @@ const cart = (overrides: Partial<AbandonedCartAdminRecord> = {}): AbandonedCartA
   abandoned_at: '2026-08-15T14:00:00.000Z',
   recovered_at: null,
   recovered_order_id: null,
+  recovered_order_total_cents: null,
+  recovered_order_created_at: null,
+  recovery_deliveries: [],
+  recovery_events: [],
+  recovery_offers: [],
   created_at: '2026-08-15T12:00:00.000Z',
   first_item_thumbnail: null,
   ...overrides,
@@ -104,6 +109,7 @@ describe('abandoned-cart admin analytics', () => {
       recovered_order_id: 'order-retained',
       recovered_order_status: 'paid',
       recovered_revenue_state: 'retained',
+      recovered_order_total_cents: 5724,
     });
     const suppressed = cart({
       id: 'suppressed',
@@ -145,6 +151,7 @@ describe('abandoned-cart admin analytics', () => {
       recovered_order_status: 'fulfilled',
       recovered_revenue_state: 'retained',
       captured_value_cents: 10_000,
+      recovered_order_total_cents: 9_250,
     });
     const refunded = cart({
       id: 'refunded',
@@ -153,6 +160,7 @@ describe('abandoned-cart admin analytics', () => {
       recovered_order_status: 'refunded',
       recovered_revenue_state: 'refunded',
       captured_value_cents: 20_000,
+      recovered_order_total_cents: 20_000,
     });
     const historicalUnknown = cart({
       id: 'historical-unknown',
@@ -161,6 +169,7 @@ describe('abandoned-cart admin analytics', () => {
       recovered_order_status: null,
       recovered_revenue_state: 'unknown',
       captured_value_cents: 30_000,
+      recovered_order_total_cents: null,
     });
 
     const summary = summarizeAbandonedCarts([retained, refunded, historicalUnknown]);
@@ -169,10 +178,10 @@ describe('abandoned-cart admin analytics', () => {
     expect(summary.recoveredRetainedCount).toBe(1);
     expect(summary.recoveredRefundedCount).toBe(1);
     expect(summary.recoveredRevenueUnknownCount).toBe(1);
-    expect(summary.recoveredValueCents).toBe(10_000);
+    expect(summary.recoveredValueCents).toBe(9_250);
     expect(summary.recoveredAfterEmailCount).toBe(3);
     expect(summary.recoveredAfterEmailRetainedCount).toBe(1);
-    expect(summary.recoveredAfterEmailValueCents).toBe(10_000);
+    expect(summary.recoveredAfterEmailValueCents).toBe(9_250);
   });
 
   it('compares mutually exclusive post-rollout terminal outcomes once per cart', () => {

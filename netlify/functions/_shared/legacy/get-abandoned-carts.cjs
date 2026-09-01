@@ -30,6 +30,8 @@ const RECOVERY_SUPPRESSION_REASONS = new Set([
 const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 50;
 const MAX_ITEM_SUMMARIES = 50;
+const MAX_RECOVERY_EVENTS = 40;
+const MAX_RECOVERY_OFFERS = 10;
 const SNAPSHOT_METADATA_KEY = '__bof_abandoned_cart_snapshot_v1';
 const RETAINED_RECOVERY_ORDER_STATUSES = new Set([
   'paid',
@@ -65,6 +67,60 @@ const positiveInteger = (value, fallback = 0) => {
 };
 
 const safeString = (value, fallback = '') => String(value ?? fallback).trim();
+
+function jsonArray(value) {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== 'string' || !value.trim()) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function normalizeRecoveryDelivery(rawDelivery = {}) {
+  const sequenceNumber = positiveInteger(rawDelivery.sequence_number);
+  if (sequenceNumber < 1 || sequenceNumber > 3) return null;
+  return {
+    sequence_number: sequenceNumber,
+    status: safeString(rawDelivery.status, 'unknown').toLowerCase() || 'unknown',
+    claimed_at: rawDelivery.claimed_at || null,
+    sent_at: rawDelivery.sent_at || null,
+    failure_reason: safeString(rawDelivery.failure_reason) || null,
+    discount_code: safeString(rawDelivery.discount_code) || null,
+  };
+}
+
+function normalizeRecoveryEvent(rawEvent = {}) {
+  const sequenceNumber = numberOrNull(rawEvent.email_sequence_number);
+  return {
+    event_type: safeString(rawEvent.event_type, 'unknown').toLowerCase() || 'unknown',
+    email_sequence_number: sequenceNumber === null ? null : Math.max(1, Math.min(3, Math.round(sequenceNumber))),
+    created_at: rawEvent.created_at || null,
+    source: safeString(rawEvent.source) || null,
+  };
+}
+
+function normalizeRecoveryOffer(rawOffer = {}) {
+  const used = rawOffer.used === true || safeString(rawOffer.used).toLowerCase() === 'true';
+  const derivedStatus = new Set(['active', 'used', 'expired']).has(safeString(rawOffer.status).toLowerCase())
+    ? safeString(rawOffer.status).toLowerCase()
+    : used
+      ? 'used'
+      : 'active';
+  return {
+    code: safeString(rawOffer.code) || null,
+    discount_percentage: numberOrNull(rawOffer.discount_percentage),
+    discount_amount_cents: numberOrNull(rawOffer.discount_amount_cents),
+    status: derivedStatus,
+    issued_at: rawOffer.issued_at || null,
+    expires_at: rawOffer.expires_at || null,
+    used,
+    used_at: rawOffer.used_at || null,
+    order_id: rawOffer.order_id ? String(rawOffer.order_id) : null,
+  };
+}
 
 // Migration 006 intentionally stored this historical attribution as TEXT,
 // while orders.id is UUID. Compare canonical text forms so malformed legacy
@@ -199,6 +255,11 @@ function normalizeCart(row, suppressionByEmail) {
   const recoveredOrderFound = row.recovered_order_found === true
     || safeString(row.recovered_order_found).toLowerCase() === 'true';
   const isRecoveredAbandonment = recoveryStatus === 'recovered' && Boolean(row.abandoned_at);
+  const recoveryDeliveries = jsonArray(row.recovery_deliveries)
+    .map(normalizeRecoveryDelivery)
+    .filter(Boolean);
+  const recoveryEvents = jsonArray(row.recovery_events).map(normalizeRecoveryEvent);
+  const recoveryOffers = jsonArray(row.recovery_offers).map(normalizeRecoveryOffer);
 
   return {
     id: String(row.id),
@@ -238,9 +299,14 @@ function normalizeCart(row, suppressionByEmail) {
     recovered_at: row.recovered_at || null,
     recovered_order_id: recoveredOrderId,
     recovered_order_status: recoveredOrderStatus,
+    recovered_order_total_cents: numberOrNull(row.recovered_order_total_cents),
+    recovered_order_created_at: row.recovered_order_created_at || null,
     recovered_revenue_state: isRecoveredAbandonment
       ? recoveredRevenueState(recoveredOrderStatus, Boolean(recoveredOrderId && recoveredOrderFound))
       : null,
+    recovery_deliveries: recoveryDeliveries,
+    recovery_events: recoveryEvents,
+    recovery_offers: recoveryOffers,
     created_at: row.created_at,
     first_item_thumbnail: safeString(row.first_item_thumbnail) || null,
   };
@@ -364,6 +430,7 @@ function summarizeCarts(carts) {
   // Active carts and purchases completed before abandonment remain visible in
   // operational totals but must not distort "most abandoned" analytics.
   const abandonmentCohort = carts.filter((cart) => Boolean(cart.abandoned_at));
+  const recoveredOrderValue = (cart) => Math.max(0, positiveInteger(cart.recovered_order_total_cents));
 
   return {
     totalCount: carts.length,
@@ -375,10 +442,10 @@ function summarizeCarts(carts) {
     recoveredRevenueUnknownCount: unknownRecovered.length,
     expiredCount: carts.filter((cart) => cart.recovery_status === 'expired').length,
     activeValueCents: activeCarts.reduce((sum, cart) => sum + cart.captured_value_cents, 0),
-    recoveredValueCents: retainedRecovered.reduce((sum, cart) => sum + cart.captured_value_cents, 0),
+    recoveredValueCents: retainedRecovered.reduce((sum, cart) => sum + recoveredOrderValue(cart), 0),
     recoveredAfterEmailCount: recoveredAfterEmail.length,
     recoveredAfterEmailRetainedCount: retainedRecoveredAfterEmail.length,
-    recoveredAfterEmailValueCents: retainedRecoveredAfterEmail.reduce((sum, cart) => sum + cart.captured_value_cents, 0),
+    recoveredAfterEmailValueCents: retainedRecoveredAfterEmail.reduce((sum, cart) => sum + recoveredOrderValue(cart), 0),
     suppressedCount: carts.filter((cart) => Boolean(cart.recovery_suppression_reason)).length,
     withEmailCount: carts.filter((cart) => Boolean(cart.email)).length,
     abandonmentCohortCount: abandonmentCohort.length,
@@ -620,6 +687,7 @@ function buildFilterSql(filters, alias = 'cart') {
 
 function analyticsQuery(whereClause) {
   const value = capturedValueSql('cart');
+  const recoveredOrderValue = 'GREATEST(COALESCE(recovered_order.total_cents, 0), 0)::BIGINT';
   const recoveredEvent = "cart.recovery_status = 'recovered' AND cart.abandoned_at IS NOT NULL";
   const recoveredOrderStatus = recoveredOrderStatusSql();
   const retainedStatuses = Array.from(RETAINED_RECOVERY_ORDER_STATUSES)
@@ -647,10 +715,10 @@ function analyticsQuery(whereClause) {
       COUNT(*) FILTER (WHERE ${unknownRecovery})::INTEGER AS recovered_revenue_unknown_count,
       COUNT(*) FILTER (WHERE cart.recovery_status = 'expired')::INTEGER AS expired_count,
       COALESCE(SUM(${value}) FILTER (WHERE cart.recovery_status IN ('active', 'abandoned')), 0)::BIGINT AS active_value_cents,
-      COALESCE(SUM(${value}) FILTER (WHERE ${retainedRecovery}), 0)::BIGINT AS recovered_value_cents,
+      COALESCE(SUM(${recoveredOrderValue}) FILTER (WHERE ${retainedRecovery}), 0)::BIGINT AS recovered_value_cents,
       COUNT(*) FILTER (WHERE ${recoveredEvent} AND cart.recovery_emails_sent > 0)::INTEGER AS recovered_after_email_count,
       COUNT(*) FILTER (WHERE ${retainedRecovery} AND cart.recovery_emails_sent > 0)::INTEGER AS recovered_after_email_retained_count,
-      COALESCE(SUM(${value}) FILTER (WHERE ${retainedRecovery} AND cart.recovery_emails_sent > 0), 0)::BIGINT AS recovered_after_email_value_cents,
+      COALESCE(SUM(${recoveredOrderValue}) FILTER (WHERE ${retainedRecovery} AND cart.recovery_emails_sent > 0), 0)::BIGINT AS recovered_after_email_value_cents,
       COUNT(*) FILTER (WHERE cart.recovery_suppressed_at IS NOT NULL OR NULLIF(BTRIM(cart.recovery_suppression_reason), '') IS NOT NULL)::INTEGER AS suppressed_count,
       COUNT(*) FILTER (WHERE NULLIF(BTRIM(cart.email), '') IS NOT NULL)::INTEGER AS with_email_count,
       COUNT(*) FILTER (WHERE cart.abandoned_at IS NOT NULL)::INTEGER AS abandonment_cohort_count
@@ -934,6 +1002,11 @@ exports.handler = async (event) => {
         LEFT(cart.recovered_order_id::TEXT, 160) AS recovered_order_id,
         recovered_order.id IS NOT NULL AS recovered_order_found,
         LEFT(${recoveredOrderStatusSql()}, 80) AS recovered_order_status,
+        CASE
+          WHEN recovered_order.id IS NULL THEN NULL
+          ELSE GREATEST(COALESCE(recovered_order.total_cents, 0), 0)::BIGINT
+        END AS recovered_order_total_cents,
+        recovered_order.created_at AS recovered_order_created_at,
         cart.created_at,
         JSONB_ARRAY_LENGTH(CASE WHEN JSONB_TYPEOF(cart.cart_contents) = 'array' THEN cart.cart_contents ELSE '[]'::JSONB END)::INTEGER AS stored_item_count,
         CASE
@@ -1004,7 +1077,70 @@ exports.handler = async (event) => {
             cart.cart_contents->0->>'file_key'
           )
           ELSE NULL
-        END AS first_item_thumbnail
+        END AS first_item_thumbnail,
+        COALESCE((
+          SELECT JSONB_AGG(JSONB_BUILD_OBJECT(
+            'sequence_number', delivery.sequence_number,
+            'status', LEFT(delivery.status, 40),
+            'claimed_at', delivery.claimed_at,
+            'sent_at', delivery.sent_at,
+            'failure_reason', LEFT(delivery.failure_reason, 160),
+            'discount_code', LEFT(delivery.discount_code, 120)
+          ) ORDER BY delivery.sequence_number)
+            FROM cart_recovery_deliveries AS delivery
+           WHERE delivery.abandoned_cart_id = cart.id
+        ), '[]'::JSONB) AS recovery_deliveries,
+        COALESCE((
+          SELECT JSONB_AGG(JSONB_BUILD_OBJECT(
+            'event_type', recovery_event.event_type,
+            'email_sequence_number', recovery_event.email_sequence_number,
+            'created_at', recovery_event.created_at,
+            'source', recovery_event.source
+          ) ORDER BY recovery_event.created_at ASC, recovery_event.id ASC)
+            FROM (
+              SELECT recovery_log.id,
+                     LEFT(recovery_log.event_type, 64) AS event_type,
+                     recovery_log.email_sequence_number,
+                     recovery_log.created_at,
+                     LEFT(recovery_log.metadata->>'source', 80) AS source
+                FROM cart_recovery_logs AS recovery_log
+               WHERE recovery_log.abandoned_cart_id = cart.id
+               ORDER BY recovery_log.created_at DESC, recovery_log.id DESC
+               LIMIT ${MAX_RECOVERY_EVENTS}
+            ) AS recovery_event
+        ), '[]'::JSONB) AS recovery_events,
+        COALESCE((
+          SELECT JSONB_AGG(JSONB_BUILD_OBJECT(
+            'code', recovery_offer.code,
+            'discount_percentage', recovery_offer.discount_percentage,
+            'discount_amount_cents', recovery_offer.discount_amount_cents,
+            'status', recovery_offer.offer_status,
+            'issued_at', recovery_offer.issued_at,
+            'expires_at', recovery_offer.expires_at,
+            'used', recovery_offer.used,
+            'used_at', recovery_offer.used_at,
+            'order_id', recovery_offer.order_id
+          ) ORDER BY recovery_offer.issued_at DESC, recovery_offer.code ASC)
+            FROM (
+              SELECT LEFT(discount.code, 120) AS code,
+                     discount.discount_percentage,
+                     discount.discount_amount_cents,
+                     CASE
+                       WHEN COALESCE(discount.used, FALSE) THEN 'used'
+                       WHEN discount.expires_at <= NOW() THEN 'expired'
+                       ELSE 'active'
+                     END AS offer_status,
+                     discount.created_at AS issued_at,
+                     discount.expires_at,
+                     COALESCE(discount.used, FALSE) AS used,
+                     discount.used_at,
+                     discount.order_id::TEXT AS order_id
+                FROM discount_codes AS discount
+               WHERE discount.cart_id = cart.id
+               ORDER BY discount.created_at DESC, discount.id DESC
+               LIMIT ${MAX_RECOVERY_OFFERS}
+            ) AS recovery_offer
+        ), '[]'::JSONB) AS recovery_offers
       FROM abandoned_carts AS cart
       LEFT JOIN orders AS recovered_order ON ${recoveredOrderJoinSql()}
       WHERE ${filtered.clause}
@@ -1059,6 +1195,9 @@ exports.handler = async (event) => {
 exports._test = {
   normalizeItem,
   normalizeSnapshotCoverage,
+  normalizeRecoveryDelivery,
+  normalizeRecoveryEvent,
+  normalizeRecoveryOffer,
   normalizeCart,
   readSuppressionState,
   summarizeCarts,

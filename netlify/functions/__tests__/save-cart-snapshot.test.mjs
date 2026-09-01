@@ -17,6 +17,8 @@ const {
   normalizePhone,
   normalizeStage,
   normalizeSnapshotRevision,
+  normalizeCaptureKind,
+  normalizeCheckoutState,
   sanitizeCartItems,
   sanitizeSnapshotMetadata,
   isLocalCaptureRequest,
@@ -100,6 +102,86 @@ describe('save-cart-snapshot boundary helpers', () => {
     expect(normalizeStage('unknown')).toBe('cart');
     expect(highestStage('cart', 'contact')).toBe('contact');
     expect(highestStage('payment_started', 'checkout')).toBe('payment_started');
+  });
+
+  it('normalizes lifecycle capture intent and bounded checkout state', () => {
+    expect(normalizeCaptureKind('lifecycle')).toBe('lifecycle');
+    expect(normalizeCaptureKind('anything-else')).toBe('full');
+    expect(normalizeCheckoutState({
+      sameDayHitService: true,
+      saturdayDelivery: false,
+      discountCode: ' cart25 ',
+      ignored: 'never persisted',
+    })).toEqual({
+      version: 1,
+      sameDayHitService: true,
+      saturdayDelivery: false,
+      discountCode: 'CART25',
+    });
+    expect(normalizeCheckoutState(null)).toBeNull();
+    expect(snapshotSource).toMatch(/captureKind[^]*?<> 'lifecycle'/);
+    expect(snapshotSource).toMatch(/__bof_abandoned_cart_snapshot_v1'->>'complete' = 'true'/);
+    expect(snapshotSource).toMatch(/abandonment_signaled_at[^]*?first_recovery_due_at/);
+    expect(snapshotSource).toMatch(/cart_created[^]*?email_captured[^]*?cart_reactivated/);
+    expect(sanitizeSnapshotMetadata({
+      __bof_abandoned_cart_snapshot_v1: {
+        version: 1,
+        sourceItemCount: 1,
+        storedItemCount: 1,
+        complete: false,
+        fidelity: 'compact',
+        requiredFieldsComplete: false,
+        incompleteReasons: ['compact_lifecycle_capture'],
+      },
+    })).toEqual({
+      version: 1,
+      sourceItemCount: 1,
+      storedItemCount: 1,
+      complete: false,
+      fidelity: 'compact',
+      requiredFieldsComplete: false,
+      incompleteReasons: ['compact_lifecycle_capture'],
+    });
+  });
+
+  it('reports whether this exact lifecycle abandonment signal was accepted', async () => {
+    const run = async (abandonmentAccepted, checkoutStage = 'contact') => handleSnapshotRequest(snapshotEvent({
+      captureKind: 'lifecycle',
+      abandonmentSignal: true,
+      email: 'buyer@example.com',
+      stage: 'contact',
+    }), handlerDependencies(async (queries) => queries.map(({ query }) => (
+      /INSERT INTO abandoned_carts/.test(query)
+        ? [{
+          id: RECOVERY_CART_ID,
+          recovery_status: 'active',
+          checkout_stage: checkoutStage,
+          abandonment_accepted: abandonmentAccepted,
+        }]
+        : []
+    ))));
+
+    const accepted = await run(true);
+    expect(accepted.statusCode).toBe(200);
+    expect(JSON.parse(accepted.body)).toMatchObject({
+      cartId: RECOVERY_CART_ID,
+      abandonmentAccepted: true,
+    });
+
+    const stale = await run(false);
+    expect(stale.statusCode).toBe(200);
+    expect(JSON.parse(stale.body)).toMatchObject({
+      cartId: RECOVERY_CART_ID,
+      abandonmentAccepted: false,
+    });
+
+    const paymentHandoff = await run(true, 'payment_started');
+    expect(paymentHandoff.statusCode).toBe(200);
+    expect(JSON.parse(paymentHandoff.body)).toMatchObject({
+      cartId: RECOVERY_CART_ID,
+      abandonmentAccepted: false,
+    });
+    expect(snapshotSource).toMatch(/AS abandonment_accepted/);
   });
 
   it('keeps rich checkout totals when a late sparse cart save wins the network race', () => {
@@ -397,7 +479,7 @@ describe('save-cart-snapshot boundary helpers', () => {
       },
       id: 'summary-fallback',
       ...Object.fromEntries(Array.from(
-        { length: 10 },
+        { length: 40 },
         (_, index) => [`large_field_${index}`, 'x'.repeat(5_000)],
       )),
     }]);
@@ -405,7 +487,9 @@ describe('save-cart-snapshot boundary helpers', () => {
       version: 1,
       sourceItemCount: 1,
       storedItemCount: 1,
-      complete: true,
+      complete: false,
+      requiredFieldsComplete: false,
+      incompleteReasons: ['server_item_budget_exceeded'],
     });
     expect(summaryFallback[0]).not.toHaveProperty('large_field_0');
     expect(sanitizeSnapshotMetadata({

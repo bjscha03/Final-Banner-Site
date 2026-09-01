@@ -63,9 +63,14 @@ withEnv({ PAYPAL_ENV: 'sandbox' }, () => {
 });
 
 withEnv({ PAYPAL_ENV: 'live' }, () => {
-  const orderData = { payment_method: 'paypal' };
+  const orderData = {
+    payment_method: 'paypal',
+    is_test_order: true,
+    test_order_reason: 'browser supplied',
+  };
   _test.applySandboxPayPalTestOrder(orderData);
-  assert.notStrictEqual(orderData.is_test_order, true);
+  assert.strictEqual(orderData.is_test_order, false);
+  assert.strictEqual(orderData.test_order_reason, null);
 });
 
 console.log('create-order deploy-preview test checkout assertions passed');

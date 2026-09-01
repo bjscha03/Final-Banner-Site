@@ -20,7 +20,7 @@
 
 # Function-specific configuration
 [functions."detect-abandoned-carts"]
-  schedule = "0 * * * *"
+  schedule = "* * * * *"
   memory = 512
 
 [functions."detect-abandoned-carts-background"]

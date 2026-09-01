@@ -34,6 +34,13 @@ test('bootstrap contains one full advisory transaction plan and the complete ind
   assert.match(source, /ALTER COLUMN has_artwork DROP DEFAULT/);
   assert.doesNotMatch(source, /ALTER COLUMN has_artwork SET DEFAULT/);
   assert.match(source, /ADD COLUMN IF NOT EXISTS snapshot_revision BIGINT/);
+  assert.match(source, /ADD COLUMN IF NOT EXISTS abandonment_signaled_at TIMESTAMPTZ/);
+  assert.match(source, /ADD COLUMN IF NOT EXISTS first_recovery_due_at TIMESTAMPTZ/);
+  assert.match(source, /ADD COLUMN IF NOT EXISTS checkout_state JSONB/);
+  assert.match(source, /ADD COLUMN IF NOT EXISTS discount_scope TEXT NOT NULL DEFAULT 'order'/);
+  assert.match(source, /ADD COLUMN IF NOT EXISTS eligible_cart_item_ids JSONB/);
+  assert.match(source, /discount_codes_large_banner_campaign_check/);
+  assert.match(source, /expires_at <= activated_at \+ INTERVAL '1 hour'/);
   assert.match(source, /ALTER COLUMN snapshot_revision DROP NOT NULL/);
   assert.match(source, /ALTER COLUMN snapshot_revision DROP DEFAULT/);
   assert.match(source, /SET checkout_stage = NULL,\s+has_artwork = NULL/);
@@ -41,12 +48,17 @@ test('bootstrap contains one full advisory transaction plan and the complete ind
   assert.match(source, /idx_abandoned_carts_historical_unknown_repair_v1/);
   assert.match(source, /CREATE TABLE IF NOT EXISTS recovery_job_leases/);
   assert.match(source, /idx_abandoned_carts_email_presence/);
+  assert.match(source, /idx_abandoned_carts_recovery_due/);
+  assert.match(source, /ON abandoned_carts\(first_recovery_due_at, last_activity_at\)/);
+  assert.match(source, /WHERE recovery_status = 'active'/);
   assert.match(source, /ADD COLUMN IF NOT EXISTS abandoned_cart_session_id TEXT/);
   assert.match(source, /idx_orders_abandoned_cart_session_created_at/);
   assert.match(source, /orders_abandoned_cart_id_fkey/);
   assert.match(source, /REFERENCES abandoned_carts\(id\)/);
   assert.match(source, /ON DELETE SET NULL/);
   assert.match(source, /current_values IS DISTINCT FROM ARRAY/);
+  assert.match(source, /idx_discount_codes_large_banner_recovery_active/);
+  assert.match(source, /idx_cart_recovery_logs_idempotency_key/);
 });
 
 test('schema bootstrap uses one Neon transaction and verifies the resulting catalog state', async () => {
@@ -54,6 +66,8 @@ test('schema bootstrap uses one Neon transaction and verifies the resulting cata
     columns_ready: true,
     artwork_column_ready: true,
     snapshot_revision_column_ready: true,
+    recovery_discount_columns_ready: true,
+    recovery_discount_constraints_ready: true,
     order_link_ready: true,
     order_session_link_ready: true,
     order_link_fk_ready: true,
@@ -88,6 +102,7 @@ test('schema bootstrap uses one Neon transaction and verifies the resulting cata
   assert.equal(catalogReads, 2);
   assert.match(transactionQueries[0].text, /pg_advisory_xact_lock/);
   assert.match(transactionQueries.map((query) => query.text).join('\n'), /idx_abandoned_carts_email_presence/);
+  assert.match(transactionQueries.map((query) => query.text).join('\n'), /idx_abandoned_carts_recovery_due/);
   assert.match(transactionQueries.map((query) => query.text).join('\n'), /idx_orders_abandoned_cart_session_created_at/);
 });
 
@@ -96,6 +111,8 @@ test('current schema fast path performs no runtime DDL transaction', async () =>
     columns_ready: true,
     artwork_column_ready: true,
     snapshot_revision_column_ready: true,
+    recovery_discount_columns_ready: true,
+    recovery_discount_constraints_ready: true,
     order_link_ready: true,
     order_session_link_ready: true,
     order_link_fk_ready: true,
@@ -113,6 +130,8 @@ test('current schema fast path performs no runtime DDL transaction', async () =>
   };
   assert.deepEqual(await schema.applySchema(sql), { applied: false });
   assert.match(readinessQuery, /idx_abandoned_carts_historical_unknown_repair_v1/);
+  assert.match(readinessQuery, /idx_abandoned_carts_recovery_due/);
+  assert.match(readinessQuery, /idx_discount_codes_large_banner_recovery_active/);
   assert.doesNotMatch(readinessQuery, /FROM abandoned_carts(?:\s+AS\s+cart)?/i);
 
   assert.equal(await schema.schemaIsCurrent(() => Promise.resolve([{

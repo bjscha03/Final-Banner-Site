@@ -2,6 +2,11 @@
 const { neon } = require('@neondatabase/serverless');
 const { Resend } = require('resend');
 const { ensureAbandonedCartSchema } = require('../abandoned-cart-schema.cjs');
+const {
+  LARGE_BANNER_RECOVERY_CAMPAIGN,
+  LARGE_BANNER_RECOVERY_PERCENTAGE,
+  LARGE_BANNER_RECOVERY_SCOPE,
+} = require('../recovery-discount-policy.cjs');
 
 let ensureSchema = ensureAbandonedCartSchema;
 
@@ -72,23 +77,124 @@ async function reconcileDeliveredRecovery(db, cartId, sequence, providerMsgId, p
     provider_event_id: providerEventId || null,
   });
   return db`
-    WITH reconciled_delivery AS (
-      INSERT INTO cart_recovery_deliveries (
-        abandoned_cart_id, sequence_number, status, provider_message_id,
-        sent_at, failure_reason, metadata, updated_at
-      ) VALUES (
-        ${cartId}, ${sequence}, 'sent', ${providerMsgId},
-        NOW(), NULL, ${metadata}::jsonb, NOW()
+    WITH target AS MATERIALIZED (
+      SELECT cart.id AS abandoned_cart_id,
+             delivery.sequence_number,
+             delivery.metadata,
+             COALESCE(
+               NULLIF(BTRIM(delivery.discount_code), ''),
+               NULLIF(BTRIM(delivery.metadata->>'offerCode'), '')
+             ) AS offer_code,
+             (
+               COALESCE(delivery.metadata->>'offerExpected' = 'true', FALSE)
+               OR NULLIF(BTRIM(delivery.discount_code), '') IS NOT NULL
+             ) AS offer_expected,
+             NULLIF(delivery.metadata->>'offerExpiresAt', '')::timestamptz AS offer_expires_at,
+             NULLIF(delivery.metadata->>'offerMaxDiscountAmountCents', '')::integer AS offer_cap_cents,
+             delivery.metadata->'offerEligibleCartItemIds' AS offer_item_ids,
+             COALESCE(NULLIF(cart.normalized_email, ''), LOWER(BTRIM(cart.email))) AS recipient
+        FROM cart_recovery_deliveries AS delivery
+        JOIN abandoned_carts AS cart ON cart.id = delivery.abandoned_cart_id
+       WHERE delivery.abandoned_cart_id = ${cartId}
+         AND delivery.sequence_number = ${sequence}
+         AND delivery.status IN ('claimed', 'failed', 'sent')
+         AND cart.recovery_status = 'abandoned'
+         AND (
+           delivery.provider_message_id IS NULL
+           OR delivery.provider_message_id = ${providerMsgId}
+         )
+       FOR UPDATE OF delivery, cart
+    ), activated_offer AS (
+      UPDATE discount_codes AS discount
+         SET activated_at = COALESCE(discount.activated_at, NOW()),
+             issued_at = COALESCE(discount.issued_at, NOW()),
+             updated_at = NOW()
+        FROM target
+       WHERE target.offer_expected
+         AND target.sequence_number = 1
+         AND discount.activated_at IS NULL
+         AND discount.code = target.offer_code
+         AND discount.cart_id = target.abandoned_cart_id
+         AND discount.discount_percentage = ${LARGE_BANNER_RECOVERY_PERCENTAGE}
+         AND discount.campaign = ${LARGE_BANNER_RECOVERY_CAMPAIGN}
+         AND discount.discount_scope = ${LARGE_BANNER_RECOVERY_SCOPE}
+         AND discount.expires_at = target.offer_expires_at
+         AND discount.max_discount_amount_cents = target.offer_cap_cents
+         AND discount.eligible_cart_item_ids = target.offer_item_ids
+         AND discount.single_use = TRUE
+         AND discount.max_uses_per_customer = 1
+         AND discount.max_total_uses = 1
+         AND discount.used = FALSE
+         AND discount.order_id IS NULL
+         AND discount.status = 'unused'
+         AND discount.expires_at > NOW()
+         AND LOWER(BTRIM(discount.email)) = target.recipient
+       RETURNING discount.code, discount.expires_at, discount.activated_at,
+                 discount.max_discount_amount_cents
+    ), ready_offer AS (
+      SELECT code, expires_at, activated_at, max_discount_amount_cents
+        FROM activated_offer
+      UNION ALL
+      SELECT discount.code, discount.expires_at, discount.activated_at,
+             discount.max_discount_amount_cents
+        FROM discount_codes AS discount
+        JOIN target ON target.offer_expected
+                   AND discount.code = target.offer_code
+                   AND discount.cart_id = target.abandoned_cart_id
+       WHERE discount.activated_at IS NOT NULL
+         AND discount.discount_percentage = ${LARGE_BANNER_RECOVERY_PERCENTAGE}
+         AND discount.campaign = ${LARGE_BANNER_RECOVERY_CAMPAIGN}
+         AND discount.discount_scope = ${LARGE_BANNER_RECOVERY_SCOPE}
+         AND discount.expires_at = target.offer_expires_at
+         AND discount.max_discount_amount_cents = target.offer_cap_cents
+         AND discount.eligible_cart_item_ids = target.offer_item_ids
+         AND discount.single_use = TRUE
+         AND discount.max_uses_per_customer = 1
+         AND discount.max_total_uses = 1
+         AND discount.used = FALSE
+         AND discount.order_id IS NULL
+         AND discount.status = 'unused'
+         AND discount.expires_at > NOW()
+         AND LOWER(BTRIM(discount.email)) = target.recipient
+    ), reconciled_delivery AS (
+      UPDATE cart_recovery_deliveries AS delivery
+         SET status = 'sent',
+             provider_message_id = COALESCE(delivery.provider_message_id, ${providerMsgId}),
+             discount_code = target.offer_code,
+             sent_at = COALESCE(delivery.sent_at, NOW()),
+             failure_reason = NULL,
+             metadata = COALESCE(delivery.metadata, '{}'::jsonb) || ${metadata}::jsonb,
+             updated_at = NOW()
+        FROM target
+       WHERE delivery.abandoned_cart_id = target.abandoned_cart_id
+         AND delivery.sequence_number = target.sequence_number
+         AND (
+           NOT target.offer_expected
+           OR EXISTS (SELECT 1 FROM ready_offer WHERE code = target.offer_code)
+         )
+       RETURNING delivery.abandoned_cart_id, delivery.sent_at, target.offer_expected,
+                 target.offer_code
+    ), coupon_log AS (
+      INSERT INTO cart_recovery_logs (
+        abandoned_cart_id, event_type, email_sequence_number, metadata, created_at
       )
-      ON CONFLICT (abandoned_cart_id, sequence_number) DO UPDATE
-        SET status = 'sent',
-            provider_message_id = COALESCE(cart_recovery_deliveries.provider_message_id, EXCLUDED.provider_message_id),
-            sent_at = COALESCE(cart_recovery_deliveries.sent_at, EXCLUDED.sent_at),
-            failure_reason = NULL,
-            metadata = cart_recovery_deliveries.metadata || EXCLUDED.metadata,
-            updated_at = NOW()
-        WHERE cart_recovery_deliveries.status IN ('claimed', 'failed', 'sent')
-      RETURNING abandoned_cart_id, sent_at
+      SELECT reconciled_delivery.abandoned_cart_id, 'coupon_issued', ${sequence},
+             jsonb_build_object(
+               'code', ready_offer.code,
+               'percentage', ${LARGE_BANNER_RECOVERY_PERCENTAGE},
+               'campaign', ${LARGE_BANNER_RECOVERY_CAMPAIGN},
+               'scope', ${LARGE_BANNER_RECOVERY_SCOPE},
+               'maxDiscountAmountCents', ready_offer.max_discount_amount_cents,
+               'activatedAt', ready_offer.activated_at,
+               'expiresAt', ready_offer.expires_at,
+               'idempotency_key', 'recovery_coupon_issued:' || reconciled_delivery.abandoned_cart_id::text || ':' || ${sequence}::text
+             ),
+             NOW()
+        FROM reconciled_delivery
+        JOIN ready_offer ON ready_offer.code = reconciled_delivery.offer_code
+       WHERE reconciled_delivery.offer_expected
+      ON CONFLICT DO NOTHING
+      RETURNING abandoned_cart_id
     )
     UPDATE abandoned_carts AS cart
        SET recovery_emails_sent = GREATEST(COALESCE(cart.recovery_emails_sent, 0), ${sequence}),
@@ -165,6 +271,11 @@ async function recordRecoveryEvent(db, evt, event, providerMsgId, toEmail) {
       providerEventId,
     );
     deliveryReconciled = reconciledRows.length > 0;
+    if (!deliveryReconciled) {
+      const error = new Error('Delivered recovery email could not be reconciled to a usable offer');
+      error.code = 'RECOVERY_DELIVERY_RECONCILIATION_FAILED';
+      throw error;
+    }
   }
 
   const deliveryStatus = recoveryEventType === 'email_failed'

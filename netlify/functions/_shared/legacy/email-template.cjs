@@ -105,10 +105,10 @@ function renderItems(items = []) {
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                 <tr>
                   ${thumbnail ? `
-                  <td style="width:220px;padding-right:14px;vertical-align:top;">
+                  <td class="bof-item-image" style="width:220px;padding-right:14px;vertical-align:top;">
                     <img src="${escapeHtml(thumbnail)}" alt="${isYardSign ? 'Yard Sign Preview' : 'Banner Preview'}" width="220" style="display:block;width:220px;max-width:100%;height:auto;border-radius:8px;border:1px solid #d1d5db;" />
                   </td>` : ''}
-                  <td style="vertical-align:top;">
+                  <td class="bof-item-details" style="vertical-align:top;">
                     <p style="margin:0 0 4px;color:#0f172a;font-size:15px;font-weight:700;">${escapeHtml(item.name || item.displayName || 'Item')}</p>
                     <p style="margin:0 0 6px;"><span style="display:inline-block;background:#fff7ed;border:1px solid #fed7aa;border-radius:999px;color:#9a3412;font-size:11px;font-weight:700;padding:2px 8px;">${escapeHtml(badgeLabel)}</span></p>
                     ${item.sizeDisplay ? `<p style="margin:0 0 2px;color:#64748b;font-size:12px;">Size: ${escapeHtml(item.sizeDisplay)}</p>` : ''}
@@ -179,6 +179,8 @@ function renderEmailLayout({
   eyebrow = 'Banners On The Fly',
   orderNumber,
   bodyHtml,
+  preheader = '',
+  footerHtml = '',
 }) {
   return `
     <!DOCTYPE html>
@@ -187,12 +189,23 @@ function renderEmailLayout({
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>${escapeHtml(title)}</title>
+      <style>
+        @media only screen and (max-width:640px) {
+          .bof-email-shell { width:100% !important; }
+          .bof-email-content { padding-left:18px !important; padding-right:18px !important; }
+          .bof-item-image, .bof-item-details { display:block !important; width:100% !important; }
+          .bof-item-image { padding-right:0 !important; padding-bottom:12px !important; }
+          .bof-item-image img { width:100% !important; max-width:100% !important; }
+        }
+      </style>
     </head>
     <body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif;color:#1e293b;">
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="padding:20px 0;">
+      ${preheader ? `<div style="display:none!important;visibility:hidden;mso-hide:all;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;color:transparent;">${escapeHtml(preheader)}&#847;&zwnj;&#847;&zwnj;&#847;&zwnj;&#847;&zwnj;</div>` : ''}
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="padding:20px 12px;">
         <tr>
           <td align="center">
-            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="620" style="max-width:620px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 16px rgba(15,23,42,0.12);">
+            <!--[if mso]><table role="presentation" cellspacing="0" cellpadding="0" border="0" width="620"><tr><td><![endif]-->
+            <table class="bof-email-shell" role="presentation" cellspacing="0" cellpadding="0" border="0" width="620" style="width:100%;max-width:620px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 16px rgba(15,23,42,0.12);">
               <tr>
                 <td style="padding:20px 24px 10px;text-align:center;background:#ffffff;">
                   <img src="${BRAND_LOGO_URL}" alt="Banners On The Fly" width="200" style="display:block;margin:0 auto;height:auto;max-width:100%;" />
@@ -207,14 +220,16 @@ function renderEmailLayout({
                 </td>
               </tr>
               <tr>
-                <td style="padding:22px 24px;">${bodyHtml || ''}</td>
+                <td class="bof-email-content" style="padding:22px 24px;">${bodyHtml || ''}</td>
               </tr>
               <tr>
                 <td style="padding:18px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;text-align:center;">
                   <p style="margin:0;color:#64748b;font-size:12px;">Questions? Reply to this email or contact support@bannersonthefly.com</p>
+                  ${footerHtml || ''}
                 </td>
               </tr>
             </table>
+            <!--[if mso]></td></tr></table><![endif]-->
           </td>
         </tr>
       </table>
@@ -232,4 +247,3 @@ module.exports = {
   renderEmailLayout,
   escapeHtml,
 };
-

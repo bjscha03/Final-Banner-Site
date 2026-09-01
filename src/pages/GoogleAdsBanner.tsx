@@ -89,8 +89,10 @@ import {
   isReadyPlacementPreview,
   toCheckoutTransform,
   type ArtworkCompositionSpec,
+  type NormalizedArtworkTransform,
   type ReadyPlacementPreviewManifest,
 } from '@/lib/previewLifecycle';
+import { buildDesignerRecoveryFields } from '@/lib/abandonedCartCapture';
 import { createPermanentPlacementPreview } from '@/lib/previewArtifactCoordinator';
 import { trackViewItem } from '@/lib/analytics';
 import { getProductLandingDefinition } from '@/lib/seo/productLandingData';
@@ -403,6 +405,7 @@ const GoogleAdsBanner: React.FC = () => {
   const materialDropdownRef = useRef<HTMLDivElement>(null);
   const [grommets, setGrommets] = useState('none');
   const [polePockets, setPolePockets] = useState('none');
+  const [polePocketSize, setPolePocketSize] = useState('2');
   // Display unit for size inputs and the live preview ruler. Single source
   // of truth — both the Feet/Inches toggle and PreviewRulerFrame read this
   // state, so switching units updates the visible ruler immediately. Pure
@@ -469,6 +472,8 @@ const GoogleAdsBanner: React.FC = () => {
   // PR3: per-axis Y scale + constrain-proportions toggle (see Design.tsx).
   const [imgScaleY, setImgScaleY] = useState(1);
   const [constrainProps, setConstrainProps] = useState(true);
+  const [restoredNormalizedTransform, setRestoredNormalizedTransform] = useState<NormalizedArtworkTransform | null>(null);
+  const [restoredCompositionRevision, setRestoredCompositionRevision] = useState(0);
   const [isDraggingPreview, setIsDraggingPreview] = useState(false);
   const [dragStartPt, setDragStartPt] = useState({ x: 0, y: 0 });
   const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
@@ -629,10 +634,12 @@ const GoogleAdsBanner: React.FC = () => {
         && pendingRestore.widthIn === widthIn
         && pendingRestore.heightIn === heightIn
       ) {
-        setImgPos(pendingRestore.pos);
+        setImgPos({ x: 0, y: 0 });
         setImgScale(pendingRestore.scaleX);
         setImgScaleY(pendingRestore.scaleY);
         setConstrainProps(pendingRestore.constrain);
+        setRestoredNormalizedTransform(pendingRestore.normalizedTransform);
+        setRestoredCompositionRevision(pendingRestore.revision);
         cartRestoreTransformRef.current = null;
       }
       preparedPlacementRef.current = null;
@@ -642,6 +649,8 @@ const GoogleAdsBanner: React.FC = () => {
     setImgPos({ x: 0, y: 0 });
     setImgScale(1);
     setImgScaleY(1);
+    setRestoredNormalizedTransform(null);
+    setRestoredCompositionRevision(0);
     preparedPlacementRef.current = null;
     setPendingPlacementPreview(null);
   }, [heightIn, productType, widthIn]);
@@ -869,10 +878,11 @@ const GoogleAdsBanner: React.FC = () => {
     productType: ProductTypeSlug;
     widthIn: number;
     heightIn: number;
-    pos: { x: number; y: number };
+    normalizedTransform: NormalizedArtworkTransform;
     scaleX: number;
     scaleY: number;
     constrain: boolean;
+    revision: number;
   } | null>(null);
   useEffect(() => {
     if (!editItemId || editItemRestored) return;
@@ -885,6 +895,20 @@ const GoogleAdsBanner: React.FC = () => {
     setHasConfirmedMaterial(true);
     setHasConfirmedQuantity(true);
     setHasReviewedOptions(true);
+    const designerRecovery = buildDesignerRecoveryFields(item);
+    const normalizedTransform: NormalizedArtworkTransform = {
+      xPct: designerRecovery.normalized_placement.x_pct,
+      yPct: designerRecovery.normalized_placement.y_pct,
+      scaleX: designerRecovery.normalized_placement.scale_x,
+      scaleY: designerRecovery.normalized_placement.scale_y,
+    };
+    const recoveredRevision = Number(item.composition_revision || item.placement_preview?.compositionRevision || 0);
+    setImgPos({ x: 0, y: 0 });
+    setImgScale(normalizedTransform.scaleX);
+    setImgScaleY(normalizedTransform.scaleY);
+    setConstrainProps(designerRecovery.constrain_proportions);
+    setRestoredNormalizedTransform(normalizedTransform);
+    setRestoredCompositionRevision(recoveredRevision);
 
     if (item.product_type === 'yard_sign' && item.yard_sign_designs) {
       // Restore yard sign designs with saved preview state
@@ -926,10 +950,11 @@ const GoogleAdsBanner: React.FC = () => {
         productType: 'car_magnet',
         widthIn: matchedSize?.widthIn || CAR_MAGNET_SIZES[0].widthIn,
         heightIn: matchedSize?.heightIn || CAR_MAGNET_SIZES[0].heightIn,
-        pos: item.image_position || { x: 0, y: 0 },
-        scaleX: item.image_scale || 1,
-        scaleY: item.image_scale_y ?? item.image_scale ?? 1,
-        constrain: item.image_scale_y == null || item.image_scale_y === item.image_scale,
+        normalizedTransform,
+        scaleX: normalizedTransform.scaleX,
+        scaleY: normalizedTransform.scaleY,
+        constrain: designerRecovery.constrain_proportions,
+        revision: recoveredRevision,
       };
       setQuantity(item.quantity || 1);
       setShowPreview(true);
@@ -956,13 +981,15 @@ const GoogleAdsBanner: React.FC = () => {
         productType: 'banner',
         widthIn: restoredWidth,
         heightIn: restoredHeight,
-        pos: item.image_position || { x: 0, y: 0 },
-        scaleX: item.image_scale || 1,
-        scaleY: item.image_scale_y ?? item.image_scale ?? 1,
-        constrain: item.image_scale_y == null || item.image_scale_y === item.image_scale,
+        normalizedTransform,
+        scaleX: normalizedTransform.scaleX,
+        scaleY: normalizedTransform.scaleY,
+        constrain: designerRecovery.constrain_proportions,
+        revision: recoveredRevision,
       };
       if (item.grommets) setGrommets(item.grommets);
       if (item.pole_pockets) setPolePockets(item.pole_pockets);
+      setPolePocketSize(item.pole_pocket_size || '2');
       setAddRope(!!item.rope_feet);
       if (item.rope_placement) setRopePlacement(item.rope_placement as RopePlacement);
       // Restore finishingType from cart item so the correct card appears selected
@@ -1322,6 +1349,8 @@ const GoogleAdsBanner: React.FC = () => {
     // newly selected file to inherit the previous file's verified artifact.
     preparedPlacementRef.current = null;
     setPendingPlacementPreview(null);
+    setRestoredNormalizedTransform(null);
+    setRestoredCompositionRevision(0);
 
     const generation = uploadGenerationRef.current + 1;
     uploadGenerationRef.current = generation;
@@ -1509,6 +1538,9 @@ const GoogleAdsBanner: React.FC = () => {
     setImgPos({ x: 0, y: 0 });
     setImgScale(1);
     setImgScaleY(1);
+    setRestoredNormalizedTransform(null);
+    setRestoredCompositionRevision(0);
+    setPolePocketSize('2');
     setUploadError('');
     setAiPrompt(null);
     setAiEditPrompt(null);
@@ -1728,8 +1760,18 @@ const GoogleAdsBanner: React.FC = () => {
         isPdf: primaryDesign.isPdf,
         widthIn: YARD_SIGN_WIDTH_IN,
         heightIn: YARD_SIGN_HEIGHT_IN,
+        orientation: YARD_SIGN_WIDTH_IN === YARD_SIGN_HEIGHT_IN ? 'square' : YARD_SIGN_WIDTH_IN > YARD_SIGN_HEIGHT_IN ? 'landscape' : 'portrait',
         imgPos: primaryDesign.imgPos || { x: 0, y: 0 },
         imgScale: primaryDesign.imgScale || 1,
+        imgScaleY: primaryDesign.imgScaleY ?? primaryDesign.imgScale ?? 1,
+        constrainProportions: primaryDesign.imgConstrain ?? true,
+        normalizedPlacement: {
+          x_pct: primaryPlacement.positionPct.x,
+          y_pct: primaryPlacement.positionPct.y,
+          scale_x: primaryPlacement.scaleX,
+          scale_y: primaryPlacement.scaleY,
+          fit_mode: primaryPlacement.fitMode,
+        },
         containerCssWidth: null,
         containerCssHeight: null,
         bgColor: '#fafafa',
@@ -1820,9 +1862,18 @@ const GoogleAdsBanner: React.FC = () => {
         pdfPageNumber: checkoutArtwork.pdfPageNumber,
         widthIn,
         heightIn,
+        orientation: widthIn === heightIn ? 'square' : widthIn > heightIn ? 'landscape' : 'portrait',
         imgPos: checkoutData.pos,
         imgScale: checkoutData.scale,
         ...(checkoutData.scaleY != null && checkoutData.scaleY !== checkoutData.scale ? { imgScaleY: checkoutData.scaleY } : {}),
+        constrainProportions: constrainProps,
+        normalizedPlacement: {
+          x_pct: checkoutData.pos.x,
+          y_pct: checkoutData.pos.y,
+          scale_x: checkoutData.scale,
+          scale_y: checkoutData.scaleY ?? checkoutData.scale,
+          fit_mode: 'fit',
+        },
         containerCssWidth: container?.offsetWidth || null,
         containerCssHeight: container?.offsetHeight || null,
         bgColor: '#fafafa',
@@ -1896,7 +1947,7 @@ const GoogleAdsBanner: React.FC = () => {
     let finalGrommets = grommets;
     let finalRope = addRope;
     let finalPolePockets = polePockets;
-    let finalPolePocketSize = '2';
+    let finalPolePocketSize = polePocketSize;
 
     selectedOptions.forEach(opt => {
       if (opt.selected) {
@@ -1939,9 +1990,19 @@ const GoogleAdsBanner: React.FC = () => {
       pdfPageNumber: checkoutArtwork.pdfPageNumber,
       widthIn,
       heightIn,
+      orientation: widthIn === heightIn ? 'square' : widthIn > heightIn ? 'landscape' : 'portrait',
       imgPos: checkoutData.pos,
       imgScale: checkoutData.scale,
       ...(checkoutData.scaleY != null && checkoutData.scaleY !== checkoutData.scale ? { imgScaleY: checkoutData.scaleY } : {}),
+      constrainProportions: constrainProps,
+      normalizedPlacement: {
+        x_pct: checkoutData.pos.x,
+        y_pct: checkoutData.pos.y,
+        scale_x: checkoutData.scale,
+        scale_y: checkoutData.scaleY ?? checkoutData.scale,
+        fit_mode: 'fit',
+      },
+      polePocketSize: finalPolePocketSize,
       containerCssWidth: container?.offsetWidth || null,
       containerCssHeight: container?.offsetHeight || null,
       bgColor: '#fafafa',
@@ -2011,7 +2072,7 @@ const GoogleAdsBanner: React.FC = () => {
 
     console.log('[FINAL_RENDER_HTML] ✅ Cart item created with verified permanent placement preview');
     finishAddToCart(actionType, '/google-ads-banner?product=banner');
-  }, [ensurePermanentArtworkUploaded, pendingCheckoutData, grommets, addRope, polePockets, widthIn, heightIn, quantity, material, quoteStore, cartStore, isYardSign, isCarMagnet, carMagnetPricing, carMagnetRoundedCorners, yardSignMaterial, yardSignPricing, productType, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, yardSignSidedness, yardSignAddStepStakes, yardSignStepStakeQty, finishAddToCart, toast, editItemId, aiPrompt, aiEditPrompt, ropePlacement]);
+  }, [ensurePermanentArtworkUploaded, pendingCheckoutData, grommets, addRope, polePockets, polePocketSize, widthIn, heightIn, quantity, material, quoteStore, cartStore, isYardSign, isCarMagnet, carMagnetPricing, carMagnetRoundedCorners, yardSignMaterial, yardSignPricing, productType, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, yardSignSidedness, yardSignAddStepStakes, yardSignStepStakeQty, finishAddToCart, toast, editItemId, aiPrompt, aiEditPrompt, ropePlacement, constrainProps]);
 
   const prepareAndRoutePlacement = useCallback((
     actionType: 'checkout' | 'cart',
@@ -2129,6 +2190,13 @@ const GoogleAdsBanner: React.FC = () => {
     if (dontAskAgain) {
       sessionStorage.setItem('upsell-dont-show-again', 'true');
     }
+    selectedOptions.forEach((option) => {
+      if (option.selected && option.id === 'polePockets' && option.polePocketSelection) {
+        setPolePockets(option.polePocketSelection);
+        setPolePocketSize(option.polePocketSize || '2');
+        setFinishingType('pole_pockets');
+      }
+    });
     try {
       await performCheckout(selectedOptions, undefined, pendingActionType);
     } catch (error) {
@@ -3035,6 +3103,8 @@ const GoogleAdsBanner: React.FC = () => {
                           <ArtworkPreviewEditor
                             ref={inlineEditorRef}
                             compositionKey={buildArtworkCompositionKey(uploadedFile, productType)}
+                            initialNormalizedTransform={restoredNormalizedTransform}
+                            initialCompositionRevision={restoredCompositionRevision}
                             src={uploadedFile.previewUrl || uploadedFile.thumbnailUrl || uploadedFile.url}
                             previewUrl={uploadedFile.previewUrl || uploadedFile.thumbnailUrl || null}
                             productionUrl={uploadedFile.productionUrl || uploadedFile.url}
@@ -3325,6 +3395,8 @@ const GoogleAdsBanner: React.FC = () => {
                   <ArtworkPreviewEditor
                     ref={modalEditorRef}
                     compositionKey={buildArtworkCompositionKey(uploadedFile, productType)}
+                    initialNormalizedTransform={restoredNormalizedTransform}
+                    initialCompositionRevision={restoredCompositionRevision}
                     src={uploadedFile.previewUrl || uploadedFile.thumbnailUrl || uploadedFile.url}
                             previewUrl={uploadedFile.previewUrl || uploadedFile.thumbnailUrl || null}
                             productionUrl={uploadedFile.productionUrl || uploadedFile.url}
@@ -3404,6 +3476,7 @@ const GoogleAdsBanner: React.FC = () => {
           material,
           grommets: grommets as any,
           polePockets,
+          polePocketSize,
           addRope,
           thumbnailUrl: pendingPlacementPreview?.previewUrl,
           file: uploadedFile ? { name: uploadedFile.name, url: uploadedFile.url } : undefined,

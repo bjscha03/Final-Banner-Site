@@ -5,8 +5,25 @@ import {
   resolveArtworkPreviewImageSrc,
   shouldStartPreviewLoad,
 } from '../artworkPreviewSource';
+import { geometryFromNormalizedArtworkTransform } from '../ArtworkPreviewEditor';
+import { restoreArtworkTransformFromGeometry } from '@/lib/artworkTransformGeometry';
 
 describe('ArtworkPreviewEditor preview source resolution', () => {
+  it('restores percentage placement independently of the current canvas pixels', () => {
+    const geometry = geometryFromNormalizedArtworkTransform(
+      { xPct: 12.5, yPct: -5, scaleX: 1.2, scaleY: 0.8 },
+      { w: 400, h: 200 },
+      { w: 1600, h: 800 },
+    );
+
+    expect(restoreArtworkTransformFromGeometry(
+      geometry,
+      { w: 800, h: 400 },
+      { w: 1600, h: 800 },
+      false,
+    )).toEqual({ x: 100, y: -20, scaleX: 1.2, scaleY: 0.8 });
+  });
+
   it('rejects raw Cloudinary PDF URLs as image sources', () => {
     expect(resolveArtworkPreviewImageSrc({
       src: 'https://res.cloudinary.com/example/raw/upload/test.pdf',

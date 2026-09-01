@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 const checkout = readFileSync(fileURLToPath(new URL('./Checkout.tsx', import.meta.url)), 'utf8');
 const paypal = readFileSync(fileURLToPath(new URL('../components/checkout/PayPalCheckoutReliable.tsx', import.meta.url)), 'utf8');
+const stripe = readFileSync(fileURLToPath(new URL('../components/checkout/StripeCheckout.tsx', import.meta.url)), 'utf8');
 const toast = readFileSync(fileURLToPath(new URL('../components/ui/toast.tsx', import.meta.url)), 'utf8');
 
 describe('provider-neutral checkout integrity', () => {
@@ -29,6 +30,32 @@ describe('provider-neutral checkout integrity', () => {
     expect(checkout).toContain('if (!checkoutLocked) setPaymentProvider');
     expect(checkout).toContain('providerLocked={checkoutLocked}');
     expect(checkout).toContain('disabled={paymentSubmissionBlocked || checkoutLocked}');
+  });
+
+  it('defers signed cart recovery until Stripe or PayPal reconciliation releases the marker', () => {
+    expect(checkout).toContain('Boolean(initialCartRecoveryToken && !initialActiveCheckout)');
+    expect(checkout).toContain('hasActiveCheckout: Boolean(activeCheckout)');
+    expect(checkout).toContain('needsStoredCheckoutRecovery,');
+    expect(checkout).toContain('paymentRecoveryChecking: recoveryChecking');
+    expect(checkout).toContain('paymentAlreadySucceeded: paymentSuccessHandledRef.current');
+    expect(checkout).toContain('clearStoredAbandonedCartRecoveryRetryToken();');
+    expect(checkout).toContain('terminateCurrentStartupCartRecovery();');
+    expect(checkout).toContain('|| cartRecoveryCanRetry');
+    expect(checkout).toContain('Discard recovery and use this cart');
+    expect(checkout).toContain('shouldApply: () => isStartupCartRecoveryAttemptCurrent(recoveryRevision)');
+  });
+
+  it('requires tracked payment_started persistence before either provider handoff', () => {
+    expect(stripe).toContain('paymentSnapshotRequiredButMissing({');
+    expect(paypal).toContain('paymentSnapshotRequiredButMissing({');
+    expect(stripe).toContain('We could not secure this cart before payment. Please try payment again.');
+    expect(paypal).toContain('We could not secure this cart before payment. Please try payment again.');
+  });
+
+  it('restores recovered production add-ons through the cart eligibility validator', () => {
+    expect(checkout).toContain('restoreCheckoutPreferences: restoreRecoveredCheckoutPreferences');
+    expect(checkout).not.toContain('setSameDayHitService(state.sameDayHitService)');
+    expect(checkout).not.toContain('setSaturdayDelivery(state.saturdayDelivery)');
   });
 
   it('uses one clear Card and PayPal selector without duplicate payment hierarchies', () => {
