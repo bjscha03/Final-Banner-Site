@@ -13,6 +13,16 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "banner-safe-area-bleed-guide": {
+    title: "Banner Safe Area and Bleed: Keep Text Clear of Hems and Grommets",
+    description: "Plan a banner safe area around hems, grommets, and pole pockets, check bleed and borders, and preflight logos, text, and QR codes before print production.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/banner-safe-area-bleed-guide.webp"
+  },
+  "vinyl-vs-fabric-banners": {
+    title: "Vinyl vs. Fabric Banners: Which Material Fits Your Display?",
+    description: "Compare vinyl vs. fabric banners by surface, setting, light, transport, finishing, care, and documentation to choose a material for your real display.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/vinyl-vs-fabric-banners.webp"
+  },
   "what-are-vinyl-banners-made-of": {
     title: "What Are Vinyl Banners Made Of? Scrim, PVC, and Weight Explained",
     description: "Learn what vinyl banners are made of, how PVC coatings and polyester scrim work, and what banner weight, mesh, finishing, and print mean for your project.",
