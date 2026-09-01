@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cartSyncService, isCartSyncIdentity } from '@/lib/cartSync';
+import { ABANDONED_CART_SNAPSHOT_METADATA_KEY } from '@/lib/abandonedCartCapture';
 import type { CartItem } from '@/store/cart';
 import captureHookSource from '@/hooks/useAbandonedCartCapture.ts?raw';
 import cartSyncHookSource from '@/hooks/useCartSync.ts?raw';
@@ -89,9 +90,24 @@ describe('cartSync abandoned checkout capture', () => {
   it('pagehide flush reads the latest contact before assigning its newer request revision', () => {
     expect(captureHookSource).toMatch(/latestRef\.current = \{[\s\S]*?customer: normalizedCustomer/);
     expect(captureHookSource).toMatch(
-      /const flush = \(\) => \{[\s\S]*?const latest = latestRef\.current;[\s\S]*?latest\.customer\.email[\s\S]*?saveProgress\('contact'\)/,
+      /const flush = \(abandonmentSignal: boolean\) => \{[\s\S]*?const latest = latestRef\.current;[\s\S]*?latest\.customer\.email[\s\S]*?saveProgress\('contact', undefined, \{ abandonmentSignal \}\)/,
     );
-    expect(captureHookSource).toMatch(/window\.addEventListener\('pagehide', flush\)/);
+    expect(captureHookSource).toMatch(
+      /const onPageHide = \(event: PageTransitionEvent\) => \{[\s\S]*?flush\(!event\.persisted && !paymentHandoffInFlightRef\.current\)/,
+    );
+    expect(captureHookSource).toMatch(/window\.addEventListener\('pagehide', onPageHide\)/);
+    expect(captureHookSource).toMatch(/visibilityState === 'hidden'[\s\S]*?flush\(false\)/);
+    expect(captureHookSource).toMatch(/CHECKOUT_HEARTBEAT_MS = 60_000/);
+  });
+
+  it('suppresses immediate abandonment for bfcache and payment handoff pagehides', () => {
+    expect(captureHookSource).toMatch(/const paymentHandoffInFlightRef = useRef\(false\)/);
+    expect(captureHookSource).toMatch(
+      /flush\(!event\.persisted && !paymentHandoffInFlightRef\.current\)/,
+    );
+    expect(captureHookSource).toMatch(
+      /const markPaymentStarted = useCallback\([\s\S]*?paymentHandoffInFlightRef\.current = true;[\s\S]*?return saveProgress\('payment_started', contact\)/,
+    );
   });
 
   it('uses the session checkout draft and persists the returned cart id', async () => {
@@ -140,7 +156,7 @@ describe('cartSync abandoned checkout capture', () => {
     expect(sessionStorage.getItem('bof-abandoned-cart-id-v1')).toBe(saved?.cartId);
     const [, init] = fetchMock.mock.calls[0];
     const payload = JSON.parse(String(init.body));
-    expect(init).toMatchObject({ keepalive: true, credentials: 'same-origin' });
+    expect(init).toMatchObject({ keepalive: false, credentials: 'same-origin' });
     expect(payload).toMatchObject({
       sessionId: 'sess_capture_123456',
       email: 'buyer@example.com',
@@ -152,6 +168,8 @@ describe('cartSync abandoned checkout capture', () => {
       discountCents: 1_000,
       taxCents: 540,
       estimatedTotalCents: 9_540,
+      captureKind: 'full',
+      abandonmentSignal: false,
     });
     expect(payload.snapshotRevision).toEqual(expect.any(Number));
     expect(payload.cartItems[0]).toMatchObject({
@@ -160,6 +178,55 @@ describe('cartSync abandoned checkout capture', () => {
       quantity: 2,
       material: '13oz',
       file_key: 'uploads/banner.pdf',
+    });
+  });
+
+  it('uses compact payloads only for lifecycle flushes and forwards the abandonment signal', async () => {
+    const sessionStorage = memoryStorage();
+    vi.stubGlobal('window', { sessionStorage, location: { protocol: 'https:' } });
+    vi.stubGlobal('document', { cookie: 'cart_session_id=sess_lifecycle_123456' });
+    vi.stubGlobal('localStorage', memoryStorage());
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      success: true,
+      cartId: '33333333-3333-4333-8333-333333333333',
+      status: 'active',
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await cartSyncService.saveCartSnapshot(
+      [cartItem],
+      undefined,
+      'sess_lifecycle_123456',
+      {
+        stage: 'contact',
+        contact: { email: 'buyer@example.com' },
+        captureKind: 'lifecycle',
+        abandonmentSignal: true,
+        checkoutState: {
+          version: 1,
+          sameDayHitService: true,
+          saturdayDelivery: false,
+          discountCode: 'SAVE25',
+        },
+      },
+    );
+
+    const [, init] = fetchMock.mock.calls[0];
+    const payload = JSON.parse(String(init.body));
+    expect(init).toMatchObject({ keepalive: true });
+    expect(payload).toMatchObject({
+      captureKind: 'lifecycle',
+      abandonmentSignal: true,
+      checkoutState: {
+        version: 1,
+        sameDayHitService: true,
+        saturdayDelivery: false,
+        discountCode: 'SAVE25',
+      },
+    });
+    expect(payload.cartItems[0][ABANDONED_CART_SNAPSHOT_METADATA_KEY]).toMatchObject({
+      fidelity: 'compact',
+      requiredFieldsComplete: false,
     });
   });
 

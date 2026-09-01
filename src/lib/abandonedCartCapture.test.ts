@@ -4,8 +4,10 @@ import {
   ABANDONED_CART_SNAPSHOT_MAX_JSON_BYTES,
   ABANDONED_CART_SNAPSHOT_METADATA_KEY,
   awaitBoundedAbandonedCartSnapshot,
+  buildDesignerRecoveryFields,
   cartItemHasArtwork,
   normalizeCaptureContact,
+  paymentSnapshotRequiredButMissing,
   readStoredAbandonedCartRecoveryAttribution,
   readStoredAbandonedCartId,
   sanitizeSnapshotItems,
@@ -88,6 +90,100 @@ describe('abandoned-cart capture payloads', () => {
     expect(sanitizeSnapshotItems([item()])[0]?.has_artwork).toBe(false);
   });
 
+  it('preserves a complete editable design in a normal foreground snapshot', () => {
+    const canvasStateJson = JSON.stringify({
+      version: 3,
+      orientation: 'landscape',
+      constrainProportions: false,
+      originalWidth: 2400,
+      originalHeight: 1200,
+      scene: 'x'.repeat(50_000),
+    });
+    const source = item({
+      file_key: 'uploads/banner.png',
+      file_url: 'https://res.cloudinary.com/example/image/upload/banner.png',
+      canvas_state_json: canvasStateJson,
+      image_position: { x: 12.5, y: -4.25 },
+      image_scale: 1.2,
+      image_scale_y: 1.2,
+      pole_pockets: 'top-bottom',
+      pole_pocket_size: '3',
+      artwork_manifest: {
+        originalUrl: 'https://res.cloudinary.com/example/image/upload/banner.png',
+        publicId: 'uploads/banner',
+        version: 3,
+        resourceType: 'image',
+        format: 'png',
+        mimeType: 'image/png',
+        originalFilename: 'banner.png',
+        bytes: 1234,
+        width: 2400,
+        height: 1200,
+        uploadStatus: 'uploaded',
+        uploadedAt: '2026-09-01T00:00:00.000Z',
+      },
+      placement_preview: {
+        version: 3,
+        sourceIdentity: 'uploads/banner@3@1',
+        sourceUrl: 'https://res.cloudinary.com/example/image/upload/banner.png',
+        productType: 'banner',
+        widthIn: 48,
+        heightIn: 24,
+        fitMode: 'fit',
+        positionPct: { x: 12.5, y: -4.25 },
+        scaleX: 1.2,
+        scaleY: 1.2,
+        compositionRevision: 7,
+        compositionSignature: 'signature',
+        url: 'https://res.cloudinary.com/example/image/upload/preview.jpg',
+        publicId: 'previews/banner',
+        previewUrl: 'https://res.cloudinary.com/example/image/upload/preview.jpg',
+        previewPublicId: 'previews/banner',
+        previewWidthPx: 1200,
+        previewHeightPx: 600,
+        uploadStatus: 'uploaded',
+      } as any,
+      ...({
+        artwork_width: 2400,
+        artwork_height: 1200,
+        design_draft_contact: 'buyer@example.com',
+      } as any),
+    });
+
+    const [snapshot] = sanitizeSnapshotItems([source], { mode: 'full' });
+    const metadata = snapshot[ABANDONED_CART_SNAPSHOT_METADATA_KEY] as Record<string, unknown>;
+
+    expect(metadata).toMatchObject({
+      version: 1,
+      sourceItemCount: 1,
+      storedItemCount: 1,
+      complete: true,
+      fidelity: 'full',
+      requiredFieldsComplete: true,
+      incompleteReasons: [],
+    });
+    expect(snapshot).toMatchObject({
+      canvas_state_json: canvasStateJson,
+      artwork_width: 2400,
+      artwork_height: 1200,
+      design_draft_contact: 'buyer@example.com',
+      orientation: 'landscape',
+      constrain_proportions: false,
+      normalized_placement: {
+        x_pct: 12.5,
+        y_pct: -4.25,
+        scale_x: 1.2,
+        scale_y: 1.2,
+        fit_mode: 'fit',
+      },
+      pole_pocket_size: '3',
+    });
+    expect(buildDesignerRecoveryFields(snapshot)).toMatchObject({
+      constrain_proportions: false,
+      normalized_placement: { x_pct: 12.5, y_pct: -4.25 },
+    });
+  });
+
   it('stays below the browser keepalive body limit for artwork-heavy carts', () => {
     const hugeScene = JSON.stringify({ text: 'x'.repeat(100_000) });
     const items = Array.from({ length: 60 }, (_, index) => item({
@@ -96,7 +192,7 @@ describe('abandoned-cart capture payloads', () => {
       canvas_state_json: hugeScene,
       design_request_text: 'y'.repeat(20_000),
     }));
-    const cartItems = sanitizeSnapshotItems(items);
+    const cartItems = sanitizeSnapshotItems(items, { mode: 'compact' });
     const body = JSON.stringify({
       cartItems,
       email: 'buyer@example.com',
@@ -111,11 +207,13 @@ describe('abandoned-cart capture payloads', () => {
     expect(body.length).toBeLessThan(55_000);
     expect(new TextEncoder().encode(JSON.stringify(cartItems)).byteLength)
       .toBeLessThanOrEqual(ABANDONED_CART_SNAPSHOT_MAX_JSON_BYTES);
-    expect(cartItems[0]?.[ABANDONED_CART_SNAPSHOT_METADATA_KEY]).toEqual({
+    expect(cartItems[0]?.[ABANDONED_CART_SNAPSHOT_METADATA_KEY]).toMatchObject({
       version: 1,
       sourceItemCount: 60,
       storedItemCount: 40,
       complete: false,
+      fidelity: 'compact',
+      requiredFieldsComplete: false,
     });
   });
 
@@ -126,7 +224,7 @@ describe('abandoned-cart capture payloads', () => {
       canvas_state_json: JSON.stringify({ scene: 'x'.repeat(50_000) }),
       design_request_text: 'y'.repeat(50_000),
       line_total_cents: 2_000 + index,
-    })));
+    })), { mode: 'compact' });
 
     expect(cartItems).toHaveLength(30);
     expect(cartItems.map((entry) => entry.id)).toEqual(
@@ -138,11 +236,13 @@ describe('abandoned-cart capture payloads', () => {
       .toBe(true);
     expect(cartItems.every((entry) => Number.isFinite(Number(entry.line_total_cents))))
       .toBe(true);
-    expect(cartItems[0]?.[ABANDONED_CART_SNAPSHOT_METADATA_KEY]).toEqual({
+    expect(cartItems[0]?.[ABANDONED_CART_SNAPSHOT_METADATA_KEY]).toMatchObject({
       version: 1,
       sourceItemCount: 30,
       storedItemCount: 30,
-      complete: true,
+      complete: false,
+      fidelity: 'compact',
+      requiredFieldsComplete: false,
     });
     expect(Object.keys(cartItems[0] || {})[0]).toBe(ABANDONED_CART_SNAPSHOT_METADATA_KEY);
   });
@@ -153,11 +253,13 @@ describe('abandoned-cart capture payloads', () => {
     })));
 
     expect(cartItems).toHaveLength(40);
-    expect(cartItems[0]?.[ABANDONED_CART_SNAPSHOT_METADATA_KEY]).toEqual({
+    expect(cartItems[0]?.[ABANDONED_CART_SNAPSHOT_METADATA_KEY]).toMatchObject({
       version: 1,
       sourceItemCount: 41,
       storedItemCount: 40,
       complete: false,
+      fidelity: 'full',
+      requiredFieldsComplete: false,
     });
   });
 
@@ -192,11 +294,29 @@ describe('abandoned-cart capture payloads', () => {
     expect(readStoredAbandonedCartId(storage)).toBe(ordinaryId);
   });
 
-  it('waits briefly for a payment-stage snapshot and then fails open', async () => {
+  it('waits briefly for a payment-stage snapshot and reports a timeout', async () => {
     await expect(awaitBoundedAbandonedCartSnapshot(Promise.resolve({ cartId: 'ready' }), 25))
       .resolves.toEqual({ cartId: 'ready' });
     await expect(awaitBoundedAbandonedCartSnapshot(new Promise(() => {}), 25))
       .resolves.toBeNull();
+  });
+
+  it('blocks provider handoff when a tracked cart cannot persist payment_started', () => {
+    expect(paymentSnapshotRequiredButMissing({
+      capturedCartId: null,
+      storedCartId: '11111111-1111-4111-8111-111111111111',
+      sessionId: 'session-1',
+    })).toBe(true);
+    expect(paymentSnapshotRequiredButMissing({
+      capturedCartId: '22222222-2222-4222-8222-222222222222',
+      storedCartId: '11111111-1111-4111-8111-111111111111',
+      sessionId: 'session-1',
+    })).toBe(false);
+    expect(paymentSnapshotRequiredButMissing({
+      capturedCartId: null,
+      storedCartId: null,
+      sessionId: null,
+    })).toBe(false);
   });
 
   it('sends the signed emailed-cart identity instead of a replacement session snapshot', () => {

@@ -82,6 +82,14 @@ export type SaveCartSnapshotOptions = {
   contact?: AbandonedCartContact | null;
   totals?: AbandonedCartTotals | null;
   metadata?: Record<string, string | number | boolean | null | undefined>;
+  captureKind?: 'full' | 'lifecycle';
+  abandonmentSignal?: boolean;
+  checkoutState?: {
+    version: 1;
+    sameDayHitService: boolean;
+    saturdayDelivery: boolean;
+    discountCode: string | null;
+  };
 };
 
 export type CartSnapshotResult = {
@@ -569,7 +577,10 @@ class CartSyncService {
         firstName: explicitContact.firstName || draftContact.firstName || userContact.firstName,
         lastName: explicitContact.lastName || draftContact.lastName || userContact.lastName,
       };
-      const sanitizedItems = sanitizeSnapshotItems(items);
+      const captureKind = options.captureKind === 'lifecycle' ? 'lifecycle' : 'full';
+      const sanitizedItems = sanitizeSnapshotItems(items, {
+        mode: captureKind === 'lifecycle' ? 'compact' : 'full',
+      });
       const recoveryAttribution = items.length > 0
         ? readStoredAbandonedCartRecoveryAttribution()
         : null;
@@ -610,7 +621,7 @@ class CartSyncService {
           'Content-Type': 'application/json',
         }),
         credentials: 'same-origin',
-        keepalive: true,
+        keepalive: captureKind === 'lifecycle',
         body: JSON.stringify({
           userId,
           sessionId: snapshotSessionId,
@@ -618,6 +629,9 @@ class CartSyncService {
           recoveryCartId: recoveryAttribution?.cartId || null,
           recoveryToken: recoveryAttribution?.token || null,
           snapshotRevision,
+          captureKind,
+          abandonmentSignal: options.abandonmentSignal === true,
+          checkoutState: options.checkoutState || null,
           email: contact.email,
           phone: contact.phone,
           firstName: contact.firstName,

@@ -18,6 +18,7 @@ import {
   selectAbandonedCartPaymentAttribution,
   splitCaptureName,
   writeStoredAbandonedCartRecoveryAttribution,
+  paymentSnapshotRequiredButMissing,
 } from '@/lib/abandonedCartCapture';
 import {
   trackPaymentInfoAdded,
@@ -870,11 +871,21 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
     // the wallet handshake indefinitely.
     const capturedSnapshot = await awaitBoundedAbandonedCartSnapshot(paymentSnapshot);
     const recoveryAttribution = getAbandonedCartRecoveryAttribution();
+    const storedCartId = getAbandonedCartId();
+    const abandonedCartSessionId = getAbandonedCartSessionId();
+    if (paymentSnapshotRequiredButMissing({
+      capturedCartId: capturedSnapshot?.cartId,
+      storedCartId,
+      sessionId: abandonedCartSessionId,
+      recoveryAttribution,
+    })) {
+      throw new Error('We could not secure this cart before payment. Please try payment again.');
+    }
     const abandonedCartAttribution = selectAbandonedCartPaymentAttribution({
       recoveryAttribution,
       capturedCartId: capturedSnapshot?.cartId,
-      storedCartId: getAbandonedCartId(),
-      sessionId: getAbandonedCartSessionId(),
+      storedCartId,
+      sessionId: abandonedCartSessionId,
     });
 
     submittedCustomerRef.current = submittedCustomer;

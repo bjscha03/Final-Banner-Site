@@ -4,11 +4,26 @@
  * CRITICAL: Ensures cart is saved to database before logout and loaded on login
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { useAuth } from '@/lib/auth';
 import { useCartStore } from '@/store/cart';
 import { cartSyncService, isCartSyncIdentity } from '@/lib/cartSync';
 import { useCheckoutContext } from '@/store/checkoutContext';
+import {
+  clearStoredAbandonedCartRecoveryRetryToken,
+  prepareAbandonedCartRecoveryToken,
+} from '@/lib/abandonedCartRecovery';
+import { writeStoredAbandonedCartRecoveryAttribution } from '@/lib/abandonedCartCapture';
+import {
+  beginStartupCartRecovery,
+  canCommitAccountCartHydration,
+  canStartAccountCartHydration,
+  captureAccountCartHydrationTicket,
+  getStartupCartRecoverySnapshot,
+  isStartupCartRecoveryBlocking,
+  subscribeToStartupCartRecovery,
+  terminateCurrentStartupCartRecovery,
+} from '@/lib/cartRecoveryStartup';
 
 const console = {
   log: import.meta.env.DEV ? globalThis.console.log.bind(globalThis.console) : (..._args: unknown[]) => undefined,
@@ -22,6 +37,24 @@ export function useCartSync() {
   const prevUserIdRef = useRef<string | null>(null);
   const hasMergedRef = useRef<boolean>(false);
   const isSavingRef = useRef<boolean>(false);
+  const startupRecoveryInitializedRef = useRef(false);
+  const handledRestoredRevisionRef = useRef<number | null>(null);
+  const recoveryIdentityRef = useRef<{ revision: number; userId: string | null } | null>(null);
+
+  // This wrapper renders before the lazy checkout route. Claim recovery cart
+  // ownership synchronously so a signed cross-device link is a true startup
+  // barrier, not a race against the signed-in account-cart merge effect.
+  if (!startupRecoveryInitializedRef.current) {
+    startupRecoveryInitializedRef.current = true;
+    const isCheckoutRoute = typeof window !== 'undefined'
+      && /^\/checkout\/?$/.test(window.location.pathname);
+    if (isCheckoutRoute && prepareAbandonedCartRecoveryToken()) beginStartupCartRecovery();
+  }
+  const startupRecovery = useSyncExternalStore(
+    subscribeToStartupCartRecovery,
+    getStartupCartRecoverySnapshot,
+    getStartupCartRecoverySnapshot,
+  );
 
   useEffect(() => {
     const debugLog = import.meta.env.DEV ? console.log.bind(console) : () => {};
@@ -35,6 +68,60 @@ export function useCartSync() {
       return;
     }
     const currentUserId = user?.id || null;
+
+    if (isStartupCartRecoveryBlocking(startupRecovery)) {
+      const claimedIdentity = recoveryIdentityRef.current;
+      if (!claimedIdentity || claimedIdentity.revision !== startupRecovery.revision) {
+        recoveryIdentityRef.current = { revision: startupRecovery.revision, userId: currentUserId };
+      } else if (claimedIdentity.userId !== currentUserId) {
+        // A bearer recovery must never cross an auth identity transition.
+        // Clear only local UI/attribution, then let the normal account sync
+        // load the newly authoritative owner on the next coordinator update.
+        useCartStore.setState({ items: [], isLoading: false });
+        writeStoredAbandonedCartRecoveryAttribution(null);
+        clearStoredAbandonedCartRecoveryRetryToken();
+        handledRestoredRevisionRef.current = null;
+        recoveryIdentityRef.current = null;
+        hasMergedRef.current = false;
+        if (typeof localStorage !== 'undefined') localStorage.removeItem('cart_owner_user_id');
+        terminateCurrentStartupCartRecovery();
+      }
+      // Checkout will either establish the signed recovery as the source of
+      // truth, expose a retry, or release this barrier on a terminal result.
+      return;
+    }
+
+    if (startupRecovery.phase === 'restored') {
+      const claimedIdentity = recoveryIdentityRef.current;
+      if (claimedIdentity && claimedIdentity.userId !== currentUserId) {
+        useCartStore.setState({ items: [], isLoading: false });
+        writeStoredAbandonedCartRecoveryAttribution(null);
+        clearStoredAbandonedCartRecoveryRetryToken();
+        handledRestoredRevisionRef.current = null;
+        recoveryIdentityRef.current = null;
+        hasMergedRef.current = false;
+        if (typeof localStorage !== 'undefined') localStorage.removeItem('cart_owner_user_id');
+        terminateCurrentStartupCartRecovery();
+        return;
+      }
+      if (handledRestoredRevisionRef.current !== startupRecovery.revision) {
+        handledRestoredRevisionRef.current = startupRecovery.revision;
+        prevUserIdRef.current = currentUserId;
+        // Also skip a later login merge when the link was opened as a guest;
+        // merging an old account cart would violate signed replacement semantics.
+        hasMergedRef.current = true;
+        useCartStore.setState({ isLoading: false });
+        if (currentUserId && typeof localStorage !== 'undefined') {
+          localStorage.setItem('cart_owner_user_id', currentUserId);
+        }
+      }
+      // Keep focus/reconnect and auth effects from replacing the signed cart
+      // for the remainder of this checkout. Payment success releases it.
+      return;
+    }
+
+    recoveryIdentityRef.current = null;
+
     const prevUserId = prevUserIdRef.current;
     const cartOwnerId = typeof localStorage !== 'undefined' ? localStorage.getItem('cart_owner_user_id') : null;
     
@@ -151,6 +238,8 @@ export function useCartSync() {
       console.log('🔄 Checkout context guest session ID:', checkoutGuestSessionId ? `${checkoutGuestSessionId.substring(0, 12)}...` : 'null');
       
       if (!hasMergedRef.current) {
+        const hydrationTicket = captureAccountCartHydrationTicket();
+        if (!canStartAccountCartHydration(hydrationTicket)) return;
         hasMergedRef.current = true;
         
         // Set loading state to prevent "cart is empty" flash
@@ -173,6 +262,13 @@ export function useCartSync() {
             );
             console.log('✅ MERGE: Guest cart merge completed');
             console.log('✅ MERGE: Merged items count:', mergedItems.length);
+
+            if (!canCommitAccountCartHydration(hydrationTicket)) {
+              // Recovery began while the merge request was in flight. Its
+              // signed replacement remains authoritative in the UI.
+              useCartStore.setState({ isLoading: false });
+              return;
+            }
             
             // CRITICAL FIX: Only use server items - DON'T merge local items
             // Local items may belong to different user if cartOwnerId wasn't set properly
@@ -198,7 +294,7 @@ export function useCartSync() {
             // Clear loading state
             useCartStore.setState({ isLoading: false });
             // Fallback: just load user's cart
-            loadFromServer();
+            if (canCommitAccountCartHydration(hydrationTicket)) loadFromServer();
           }
         })();
       }
@@ -263,5 +359,5 @@ export function useCartSync() {
     prevUserIdRef.current = currentUserId;
     console.log('🔍 Updated prevUserIdRef to:', currentUserId);
     console.log('═══════════════════════════════════════════════');
-  }, [user, loadFromServer, clearCart]);
+  }, [user, loadFromServer, clearCart, startupRecovery]);
 }

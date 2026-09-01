@@ -38,6 +38,8 @@ exports.handler = async (event) => {
       code: payload.code,
       email: payload.email || null,
       userId: payload.userId || null,
+      recoveryCartId: payload.cartId || null,
+      requireRecoveryCartMatch: true,
     });
     return reply(200, result);
   } catch (error) {
@@ -45,4 +47,3 @@ exports.handler = async (event) => {
     return reply(500, { valid: false, error: 'Failed to validate discount code' });
   }
 };
-

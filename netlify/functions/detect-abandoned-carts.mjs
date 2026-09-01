@@ -49,7 +49,7 @@ async function handler(_request, context) {
 export default handler;
 
 export const config = {
-  schedule: '0 * * * *',
+  schedule: '* * * * *',
 };
 
 export const _test = {

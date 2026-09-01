@@ -2,9 +2,16 @@
 
 const SCHEMA_LOCK_KEY = 'abandoned-cart-schema-v3';
 const REQUIRED_EVENT_TYPES = Object.freeze([
+  'cart_abandoned',
+  'cart_created',
+  'cart_reactivated',
   'cart_recovered',
+  'coupon_expired',
+  'coupon_issued',
+  'coupon_used',
   'discount_applied',
   'email_bounced',
+  'email_captured',
   'email_clicked',
   'email_complained',
   'email_delivered',
@@ -12,6 +19,7 @@ const REQUIRED_EVENT_TYPES = Object.freeze([
   'email_opened',
   'email_sent',
   'email_suppressed',
+  'recovery_link_clicked',
   'sms_sent',
 ]);
 
@@ -40,7 +48,7 @@ async function schemaIsCurrent(sql) {
   const rows = await sql`
     SELECT
       (
-        SELECT COUNT(DISTINCT column_name) = 17
+        SELECT COUNT(DISTINCT column_name) = 20
           FROM information_schema.columns
          WHERE table_schema = current_schema()
            AND table_name = 'abandoned_carts'
@@ -51,7 +59,8 @@ async function schemaIsCurrent(sql) {
              'recovery_email_claim_sequence', 'recovery_email_claimed_at',
              'last_recovery_email_at', 'recovery_suppressed_at',
              'recovery_suppression_reason', 'recovery_email_last_error',
-             'snapshot_revision'
+             'snapshot_revision', 'abandonment_signaled_at',
+             'first_recovery_due_at', 'checkout_state'
            ]::TEXT[])
       ) AS columns_ready,
       EXISTS (
@@ -72,6 +81,28 @@ async function schemaIsCurrent(sql) {
            AND is_nullable = 'YES'
            AND column_default IS NULL
       ) AS snapshot_revision_column_ready,
+      (
+        SELECT COUNT(DISTINCT column_name) = 4
+          FROM information_schema.columns
+         WHERE table_schema = current_schema()
+           AND table_name = 'discount_codes'
+           AND column_name = ANY (ARRAY[
+             'discount_scope', 'eligible_cart_item_ids',
+             'max_discount_amount_cents', 'activated_at'
+           ]::TEXT[])
+      ) AS recovery_discount_columns_ready,
+      (
+        SELECT COUNT(DISTINCT conname) = 5
+          FROM pg_constraint
+         WHERE conrelid = to_regclass('discount_codes')
+           AND conname = ANY (ARRAY[
+             'discount_codes_discount_scope_check',
+             'discount_codes_eligible_cart_item_ids_check',
+             'discount_codes_max_discount_amount_check',
+             'discount_codes_large_banner_campaign_check',
+             'discount_codes_large_banner_activation_check'
+           ]::TEXT[])
+      ) AS recovery_discount_constraints_ready,
       EXISTS (
         SELECT 1
           FROM information_schema.columns
@@ -106,7 +137,7 @@ async function schemaIsCurrent(sql) {
         AND to_regclass('recovery_job_leases') IS NOT NULL
       ) AS tables_ready,
       (
-        SELECT COUNT(DISTINCT index_class.relname) = 13
+        SELECT COUNT(DISTINCT index_class.relname) = 16
           FROM pg_class AS index_class
           JOIN pg_namespace AS namespace ON namespace.oid = index_class.relnamespace
           JOIN pg_index AS index_state ON index_state.indexrelid = index_class.oid
@@ -123,9 +154,12 @@ async function schemaIsCurrent(sql) {
              'idx_abandoned_carts_normalized_email',
              'idx_abandoned_carts_estimated_total',
              'idx_abandoned_carts_historical_unknown_repair_v1',
+             'idx_abandoned_carts_recovery_due',
              'idx_cart_recovery_deliveries_status',
              'idx_recovery_email_suppressions_active',
              'idx_cart_recovery_logs_provider_event',
+             'idx_cart_recovery_logs_idempotency_key',
+             'idx_discount_codes_large_banner_recovery_active',
              'idx_orders_normalized_email_created_at'
            ]::TEXT[])
       ) AS indexes_ready,
@@ -141,6 +175,8 @@ async function schemaIsCurrent(sql) {
   return truthyDatabaseBoolean(row.columns_ready)
     && truthyDatabaseBoolean(row.artwork_column_ready)
     && truthyDatabaseBoolean(row.snapshot_revision_column_ready)
+    && truthyDatabaseBoolean(row.recovery_discount_columns_ready)
+    && truthyDatabaseBoolean(row.recovery_discount_constraints_ready)
     && truthyDatabaseBoolean(row.order_link_ready)
     && truthyDatabaseBoolean(row.order_session_link_ready)
     && truthyDatabaseBoolean(row.order_link_fk_ready)
@@ -170,12 +206,68 @@ function bootstrapQueries(sql) {
         ADD COLUMN IF NOT EXISTS recovery_suppressed_at TIMESTAMPTZ,
         ADD COLUMN IF NOT EXISTS recovery_suppression_reason TEXT,
         ADD COLUMN IF NOT EXISTS recovery_email_last_error TEXT,
-        ADD COLUMN IF NOT EXISTS snapshot_revision BIGINT
+        ADD COLUMN IF NOT EXISTS snapshot_revision BIGINT,
+        ADD COLUMN IF NOT EXISTS abandonment_signaled_at TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS first_recovery_due_at TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS checkout_state JSONB
     `,
     sql`
       ALTER TABLE orders
         ADD COLUMN IF NOT EXISTS abandoned_cart_id UUID,
         ADD COLUMN IF NOT EXISTS abandoned_cart_session_id TEXT
+    `,
+    sql`
+      ALTER TABLE discount_codes
+        ADD COLUMN IF NOT EXISTS discount_scope TEXT NOT NULL DEFAULT 'order',
+        ADD COLUMN IF NOT EXISTS eligible_cart_item_ids JSONB,
+        ADD COLUMN IF NOT EXISTS max_discount_amount_cents INTEGER,
+        ADD COLUMN IF NOT EXISTS activated_at TIMESTAMPTZ
+    `,
+    sql`
+      DO $recovery_discount_constraints$
+      BEGIN
+        ALTER TABLE discount_codes
+          DROP CONSTRAINT IF EXISTS discount_codes_discount_scope_check,
+          DROP CONSTRAINT IF EXISTS discount_codes_eligible_cart_item_ids_check,
+          DROP CONSTRAINT IF EXISTS discount_codes_max_discount_amount_check,
+          DROP CONSTRAINT IF EXISTS discount_codes_large_banner_campaign_check,
+          DROP CONSTRAINT IF EXISTS discount_codes_large_banner_activation_check;
+
+        ALTER TABLE discount_codes
+          ADD CONSTRAINT discount_codes_discount_scope_check
+            CHECK (discount_scope IN ('order', 'recovery_qualifying_banner_lines')),
+          ADD CONSTRAINT discount_codes_eligible_cart_item_ids_check
+            CHECK (
+              eligible_cart_item_ids IS NULL
+              OR (
+                jsonb_typeof(eligible_cart_item_ids) = 'array'
+                AND jsonb_array_length(eligible_cart_item_ids) BETWEEN 1 AND 50
+              )
+            ),
+          ADD CONSTRAINT discount_codes_max_discount_amount_check
+            CHECK (max_discount_amount_cents IS NULL OR max_discount_amount_cents > 0),
+          ADD CONSTRAINT discount_codes_large_banner_campaign_check
+            CHECK (
+              campaign IS DISTINCT FROM 'abandoned_cart_large_banner_25'
+              OR (
+                discount_scope = 'recovery_qualifying_banner_lines'
+                AND cart_id IS NOT NULL
+                AND discount_percentage = 25
+                AND eligible_cart_item_ids IS NOT NULL
+                AND max_discount_amount_cents IS NOT NULL
+              )
+            ),
+          ADD CONSTRAINT discount_codes_large_banner_activation_check
+            CHECK (
+              campaign IS DISTINCT FROM 'abandoned_cart_large_banner_25'
+              OR activated_at IS NULL
+              OR (
+                expires_at > activated_at
+                AND expires_at <= activated_at + INTERVAL '1 hour'
+              )
+            );
+      END
+      $recovery_discount_constraints$
     `,
     sql`
       UPDATE orders AS order_row
@@ -323,6 +415,11 @@ function bootstrapQueries(sql) {
         WHERE normalized_email IS NOT NULL
     `,
     sql`
+      CREATE INDEX IF NOT EXISTS idx_abandoned_carts_recovery_due
+        ON abandoned_carts(first_recovery_due_at, last_activity_at)
+        WHERE recovery_status = 'active'
+    `,
+    sql`
       CREATE TABLE IF NOT EXISTS cart_recovery_deliveries (
         id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
         abandoned_cart_id UUID NOT NULL REFERENCES abandoned_carts(id) ON DELETE CASCADE,
@@ -391,18 +488,22 @@ function bootstrapQueries(sql) {
             AS matched(match_values);
 
         IF current_values IS DISTINCT FROM ARRAY[
-          'cart_recovered', 'discount_applied', 'email_bounced', 'email_clicked',
-          'email_complained', 'email_delivered', 'email_failed', 'email_opened',
-          'email_sent', 'email_suppressed', 'sms_sent'
+          'cart_abandoned', 'cart_created', 'cart_reactivated', 'cart_recovered',
+          'coupon_expired', 'coupon_issued', 'coupon_used', 'discount_applied',
+          'email_bounced', 'email_captured', 'email_clicked', 'email_complained',
+          'email_delivered', 'email_failed', 'email_opened', 'email_sent',
+          'email_suppressed', 'recovery_link_clicked', 'sms_sent'
         ]::TEXT[] THEN
           ALTER TABLE cart_recovery_logs
             DROP CONSTRAINT IF EXISTS cart_recovery_logs_event_type_check;
           ALTER TABLE cart_recovery_logs
             ADD CONSTRAINT cart_recovery_logs_event_type_check
             CHECK (event_type IN (
-              'email_sent', 'email_delivered', 'email_opened', 'email_clicked',
-              'email_bounced', 'email_complained', 'email_failed', 'email_suppressed',
-              'sms_sent', 'cart_recovered', 'discount_applied'
+              'cart_abandoned', 'cart_created', 'cart_reactivated', 'cart_recovered',
+              'coupon_expired', 'coupon_issued', 'coupon_used', 'discount_applied',
+              'email_bounced', 'email_captured', 'email_clicked', 'email_complained',
+              'email_delivered', 'email_failed', 'email_opened', 'email_sent',
+              'email_suppressed', 'recovery_link_clicked', 'sms_sent'
             ));
         END IF;
       END
@@ -412,6 +513,17 @@ function bootstrapQueries(sql) {
       CREATE UNIQUE INDEX IF NOT EXISTS idx_cart_recovery_logs_provider_event
         ON cart_recovery_logs((metadata->>'provider_event_id'))
         WHERE NULLIF(metadata->>'provider_event_id', '') IS NOT NULL
+    `,
+    sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_cart_recovery_logs_idempotency_key
+        ON cart_recovery_logs((metadata->>'idempotency_key'))
+        WHERE NULLIF(metadata->>'idempotency_key', '') IS NOT NULL
+    `,
+    sql`
+      CREATE INDEX IF NOT EXISTS idx_discount_codes_large_banner_recovery_active
+        ON discount_codes(cart_id, expires_at)
+        WHERE campaign = 'abandoned_cart_large_banner_25'
+          AND used = FALSE
     `,
     sql`
       CREATE INDEX IF NOT EXISTS idx_orders_normalized_email_created_at

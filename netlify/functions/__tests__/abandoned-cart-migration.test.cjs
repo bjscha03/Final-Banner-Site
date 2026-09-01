@@ -3,6 +3,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
+const schema = require('../_shared/abandoned-cart-schema.cjs')._test;
+
 const migration = fs.readFileSync(
   path.resolve(__dirname, '../../../migrations/035_abandoned_cart_analytics_and_delivery_safety.sql'),
   'utf8',
@@ -17,6 +19,14 @@ const recoveryLeaseMigration = fs.readFileSync(
 );
 const snapshotRevisionMigration = fs.readFileSync(
   path.resolve(__dirname, '../../../migrations/039_abandoned_cart_snapshot_revision.sql'),
+  'utf8',
+);
+const immediateRecoveryMigration = fs.readFileSync(
+  path.resolve(__dirname, '../../../migrations/042_abandoned_cart_immediate_recovery.sql'),
+  'utf8',
+);
+const immediateRecoveryRollback = fs.readFileSync(
+  path.resolve(__dirname, '../../../migrations/042_abandoned_cart_immediate_recovery.rollback.sql'),
   'utf8',
 );
 
@@ -108,4 +118,41 @@ test('snapshot ordering migration is nullable, lock-coordinated, and has no lega
   assert.doesNotMatch(snapshotRevisionMigration, /snapshot_revision BIGINT\s+(?:NOT NULL|DEFAULT)/);
   assert.match(snapshotRevisionMigration, /ALTER COLUMN snapshot_revision DROP NOT NULL/);
   assert.match(snapshotRevisionMigration, /ALTER COLUMN snapshot_revision DROP DEFAULT/);
+});
+
+test('immediate recovery migration adds nullable scheduling state and its active-cart due index', () => {
+  assert.match(immediateRecoveryMigration, /^\s*--[\s\S]*\bBEGIN;/);
+  assert.match(immediateRecoveryMigration, /pg_advisory_xact_lock\(hashtext\('abandoned-cart-schema-v3'\)::bigint\)/);
+  assert.match(immediateRecoveryMigration, /ADD COLUMN IF NOT EXISTS abandonment_signaled_at TIMESTAMPTZ/);
+  assert.match(immediateRecoveryMigration, /ADD COLUMN IF NOT EXISTS first_recovery_due_at TIMESTAMPTZ/);
+  assert.match(immediateRecoveryMigration, /ADD COLUMN IF NOT EXISTS checkout_state JSONB/);
+  assert.doesNotMatch(immediateRecoveryMigration, /(?:abandonment_signaled_at|first_recovery_due_at|checkout_state)\s+\w+\s+(?:NOT NULL|DEFAULT)/);
+  assert.match(immediateRecoveryMigration, /CREATE INDEX IF NOT EXISTS idx_abandoned_carts_recovery_due/);
+  assert.match(immediateRecoveryMigration, /ON abandoned_carts\(first_recovery_due_at, last_activity_at\)/);
+  assert.match(immediateRecoveryMigration, /WHERE recovery_status = 'active'/);
+  assert.match(immediateRecoveryMigration, /\bCOMMIT;\s*$/);
+});
+
+test('immediate recovery migration and runtime bootstrap share the exact funnel vocabulary', () => {
+  assert.match(immediateRecoveryMigration, /current_values IS DISTINCT FROM ARRAY/);
+  for (const eventType of schema.REQUIRED_EVENT_TYPES) {
+    assert.match(immediateRecoveryMigration, new RegExp(`'${eventType}'`));
+  }
+  for (const eventType of [
+    'cart_created', 'email_captured', 'cart_abandoned', 'cart_reactivated',
+    'recovery_link_clicked', 'coupon_issued', 'coupon_used', 'coupon_expired',
+  ]) {
+    assert.ok(schema.REQUIRED_EVENT_TYPES.includes(eventType));
+  }
+});
+
+test('immediate recovery rollback removes new state while preserving existing event history', () => {
+  assert.match(immediateRecoveryRollback, /pg_advisory_xact_lock\(hashtext\('abandoned-cart-schema-v3'\)::bigint\)/);
+  assert.match(immediateRecoveryRollback, /DROP INDEX IF EXISTS idx_abandoned_carts_recovery_due/);
+  assert.match(immediateRecoveryRollback, /DROP COLUMN IF EXISTS checkout_state/);
+  assert.match(immediateRecoveryRollback, /DROP COLUMN IF EXISTS first_recovery_due_at/);
+  assert.match(immediateRecoveryRollback, /DROP COLUMN IF EXISTS abandonment_signaled_at/);
+  assert.match(immediateRecoveryRollback, /ADD CONSTRAINT cart_recovery_logs_event_type_check/);
+  assert.match(immediateRecoveryRollback, /\)\) NOT VALID;/);
+  assert.match(immediateRecoveryRollback, /\bCOMMIT;\s*$/);
 });

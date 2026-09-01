@@ -12,6 +12,34 @@ export interface AbandonedCartItemSummary {
   has_artwork: boolean | null;
 }
 
+export interface AbandonedCartRecoveryDelivery {
+  sequence_number: number;
+  status: string;
+  claimed_at: string | null;
+  sent_at: string | null;
+  failure_reason: string | null;
+  discount_code: string | null;
+}
+
+export interface AbandonedCartRecoveryEvent {
+  event_type: string;
+  email_sequence_number: number | null;
+  created_at: string | null;
+  source: string | null;
+}
+
+export interface AbandonedCartRecoveryOffer {
+  code: string | null;
+  discount_percentage: number | null;
+  discount_amount_cents: number | null;
+  status: 'active' | 'used' | 'expired' | string;
+  issued_at: string | null;
+  expires_at: string | null;
+  used: boolean;
+  used_at: string | null;
+  order_id: string | null;
+}
+
 export interface AbandonedCartAdminRecord {
   id: string;
   user_id: string | null;
@@ -49,7 +77,12 @@ export interface AbandonedCartAdminRecord {
   recovered_at: string | null;
   recovered_order_id: string | null;
   recovered_order_status?: string | null;
+  recovered_order_total_cents: number | null;
+  recovered_order_created_at: string | null;
   recovered_revenue_state?: 'retained' | 'refunded' | 'unknown' | null;
+  recovery_deliveries: AbandonedCartRecoveryDelivery[];
+  recovery_events: AbandonedCartRecoveryEvent[];
+  recovery_offers: AbandonedCartRecoveryOffer[];
   created_at: string;
   first_item_thumbnail: string | null;
   item_summaries_truncated?: boolean;
@@ -377,6 +410,11 @@ export function summarizeAbandonedCarts(carts: AbandonedCartAdminRecord[]): Aban
   const unknownRecovered = recoveredCarts.filter((cart) => cart.recovered_revenue_state !== 'retained'
     && cart.recovered_revenue_state !== 'refunded');
   const abandonmentCohort = carts.filter((cart) => Boolean(cart.abandoned_at));
+  const recoveredOrderValue = (cart: AbandonedCartAdminRecord): number => (
+    Number.isFinite(Number(cart.recovered_order_total_cents))
+      ? Math.max(0, Number(cart.recovered_order_total_cents))
+      : 0
+  );
 
   return {
     totalCount: carts.length,
@@ -388,10 +426,10 @@ export function summarizeAbandonedCarts(carts: AbandonedCartAdminRecord[]): Aban
     recoveredRevenueUnknownCount: unknownRecovered.length,
     expiredCount: carts.filter((cart) => cart.recovery_status === 'expired').length,
     activeValueCents: activeCarts.reduce((sum, cart) => sum + capturedValueCents(cart), 0),
-    recoveredValueCents: retainedRecovered.reduce((sum, cart) => sum + capturedValueCents(cart), 0),
+    recoveredValueCents: retainedRecovered.reduce((sum, cart) => sum + recoveredOrderValue(cart), 0),
     recoveredAfterEmailCount: recoveredAfterEmail.length,
     recoveredAfterEmailRetainedCount: retainedRecoveredAfterEmail.length,
-    recoveredAfterEmailValueCents: retainedRecoveredAfterEmail.reduce((sum, cart) => sum + capturedValueCents(cart), 0),
+    recoveredAfterEmailValueCents: retainedRecoveredAfterEmail.reduce((sum, cart) => sum + recoveredOrderValue(cart), 0),
     suppressedCount: carts.filter((cart) => Boolean(cart.recovery_suppressed_at || cart.recovery_suppression_reason)).length,
     withEmailCount: carts.filter((cart) => Boolean(cart.email)).length,
     abandonmentCohortCount: abandonmentCohort.length,

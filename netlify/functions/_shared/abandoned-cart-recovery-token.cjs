@@ -20,7 +20,6 @@ function resolveRecoverySecret(env = process.env) {
   const candidates = [
     env.ABANDONED_CART_RECOVERY_SECRET,
     env.AUTH_SESSION_SECRET,
-    env.CLOUDINARY_API_SECRET,
   ];
   const secret = candidates.find((candidate) => typeof candidate === 'string' && candidate.trim().length > 0);
   return secret ? secret.trim() : null;

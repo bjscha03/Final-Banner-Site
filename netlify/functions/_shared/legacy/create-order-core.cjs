@@ -12,6 +12,7 @@ const {
 } = require('../sameDayService.cjs');
 const { addPostTaxServiceFees } = require('../order-total-reconciliation.cjs');
 const { validateDiscountForCheckout } = require('../discount-validation.cjs');
+const { computeTotals, getFeatureFlags } = require('../checkoutTotals.cjs');
 const { runAtomicBatch, isUniqueViolation } = require('../atomic-batch.cjs');
 const { repriceStripeCart: repriceCheckoutCart } = require('../stripe-server-pricing.cjs');
 const { markAbandonedCartRecovered } = require('../abandoned-cart-order-recovery.cjs');
@@ -178,6 +179,7 @@ async function revalidateRecoveryDiscountForCanonicalIdentity(sql, {
   userEmail,
   userId,
   checkoutKey,
+  recoveryCartId,
 }) {
   if (!discount?.code || discount.recoveryOffer !== true) {
     return { valid: true, discount };
@@ -188,7 +190,9 @@ async function revalidateRecoveryDiscountForCanonicalIdentity(sql, {
     email: userEmail,
     userId,
     checkoutKey,
+    recoveryCartId,
     requireRecoveryEmailMatch: true,
+    requireRecoveryCartMatch: true,
   });
 }
 
@@ -559,11 +563,26 @@ function applyAdminDeployPreviewTestOrder(orderData) {
 function applySandboxPayPalTestOrder(orderData) {
   const paypalEnvironment = String(process.env.PAYPAL_ENV || 'sandbox').trim().toLowerCase();
   const paymentMethod = String(orderData.payment_method || '').trim().toLowerCase();
-  if (paymentMethod !== 'paypal' || paypalEnvironment === 'live') return orderData;
+  if (paymentMethod !== 'paypal') return orderData;
+
+  // Test-order classification is server authority. A public live PayPal
+  // request must never be able to hide a captured order, skip discount
+  // reservation, or bypass recovery bookkeeping by submitting this flag.
+  if (paypalEnvironment === 'live') {
+    orderData.is_test_order = false;
+    orderData.test_order_reason = null;
+    return orderData;
+  }
 
   orderData.is_test_order = true;
   orderData.test_order_reason = `PayPal ${paypalEnvironment || 'sandbox'} environment`;
   return orderData;
+}
+
+function resolveAuthorizedOrderStatus(orderData, { allowDirectPaid = false } = {}) {
+  if (orderData?.payment_status === 'pending') return 'pending';
+  if (allowDirectPaid) return 'paid';
+  return null;
 }
 
 function normalizeCustomerName(name) {
@@ -572,146 +591,34 @@ function normalizeCustomerName(name) {
   return { fullName: fullName || null, firstName };
 }
 
+function applyAuthoritativeOrderTotals(orderData) {
+  const flags = getFeatureFlags();
+  const totals = computeTotals(orderData.items || [], 0.06, {
+    freeShipping: flags.freeShipping,
+    minFloorCents: !flags.minOrderFloor ? 0 : flags.minOrderCents,
+    shippingMethodLabel: flags.shippingMethodLabel,
+  }, orderData.discountCode || null);
 
-
-
-// Feature flag support for new pricing logic
-const getFeatureFlags = () => {
-  return {
-    freeShipping: process.env.FEATURE_FREE_SHIPPING === '1',
-    minOrderFloor: process.env.FEATURE_MIN_ORDER_FLOOR === '1',
-    minOrderCents: parseInt(process.env.MIN_ORDER_CENTS || '2000', 10),
-    shippingMethodLabel: process.env.SHIPPING_METHOD_LABEL || 'Free Next-Day Air'
-  };
-};
-
-// Quantity discount tiers - "Buy More, Save More"
-// Must match src/lib/quantity-discount.ts exactly
-const QUANTITY_DISCOUNT_TIERS = [
-  { minQuantity: 1, discountRate: 0.00 },
-  { minQuantity: 2, discountRate: 0.05 },
-  { minQuantity: 3, discountRate: 0.07 },
-  { minQuantity: 4, discountRate: 0.10 },
-  { minQuantity: 5, discountRate: 0.13 },
-];
-
-const getQuantityDiscountRate = (quantity) => {
-  // Find the highest tier that the quantity qualifies for
-  let discountRate = 0;
-  for (const tier of QUANTITY_DISCOUNT_TIERS) {
-    if (quantity >= tier.minQuantity) {
-      discountRate = tier.discountRate;
-    }
+  orderData.subtotal_cents = totals.adjusted_subtotal_cents;
+  orderData.tax_cents = totals.tax_cents;
+  orderData.total_cents = totals.total_cents;
+  orderData.min_order_adjustment_cents = totals.min_order_adjustment_cents;
+  orderData.shipping_cents = totals.shipping_cents;
+  orderData.applied_discount_cents = totals.applied_discount_cents || 0;
+  orderData.applied_discount_type = totals.applied_discount_type || 'none';
+  if (totals.applied_discount_type === 'quantity') {
+    const percentage = Math.round(totals.applied_discount_rate * 100);
+    orderData.applied_discount_label = `Qty Discount (${percentage}% off)`;
+  } else if (totals.applied_discount_type === 'promo') {
+    orderData.applied_discount_label = `Promo: ${orderData.discountCode?.code || 'Applied'}`;
+  } else {
+    orderData.applied_discount_label = '';
   }
-  return discountRate;
-};
+  return totals;
+}
 
-const calculateQuantityDiscount = (subtotalCents, quantity) => {
-  const discountRate = getQuantityDiscountRate(quantity);
-  const discountCents = Math.round(subtotalCents * discountRate);
-  return { discountRate, discountCents };
-};
 
-/**
- * "Best Discount Wins" - server-side discount resolver
- * Only one discount is applied: whichever is higher (quantity or promo)
- *
- * IMPORTANT: Quantity discounts apply ONLY to banner items. Callers should
- * pass `quantitySubtotalCents` as the banner-only subtotal so the quantity
- * discount tier is calculated against banners only. Promo discounts continue
- * to apply to the full `subtotalCents`. If `quantitySubtotalCents` is not
- * provided it falls back to `subtotalCents` for backward compatibility.
- */
-const resolveBestDiscount = (subtotalCents, quantity, promoDiscount = null, quantitySubtotalCents = null) => {
-  const quantityBaseCents = quantitySubtotalCents == null ? subtotalCents : quantitySubtotalCents;
 
-  // Calculate quantity discount (banner-only base)
-  const quantityDiscountRate = getQuantityDiscountRate(quantity);
-  const quantityDiscountAmountCents = Math.round(quantityBaseCents * quantityDiscountRate);
-
-  // Calculate promo discount
-  let promoDiscountAmountCents = 0;
-  let promoDiscountRate = 0;
-  if (promoDiscount) {
-    if (promoDiscount.discountPercentage) {
-      promoDiscountRate = promoDiscount.discountPercentage / 100;
-      promoDiscountAmountCents = Math.round(subtotalCents * promoDiscountRate);
-    } else if (promoDiscount.discountAmountCents) {
-      promoDiscountAmountCents = Math.min(promoDiscount.discountAmountCents, subtotalCents);
-      promoDiscountRate = subtotalCents > 0 ? promoDiscountAmountCents / subtotalCents : 0;
-    }
-  }
-
-  // Pick the better one (higher amount wins)
-  if (quantityDiscountAmountCents >= promoDiscountAmountCents && quantityDiscountAmountCents > 0) {
-    return {
-      appliedDiscountType: 'quantity',
-      appliedDiscountAmountCents: quantityDiscountAmountCents,
-      appliedDiscountRate: quantityDiscountRate,
-      quantityDiscountCents: quantityDiscountAmountCents,
-      promoDiscountCents: 0, // Not applied
-    };
-  } else if (promoDiscountAmountCents > 0) {
-    return {
-      appliedDiscountType: 'promo',
-      appliedDiscountAmountCents: promoDiscountAmountCents,
-      appliedDiscountRate: promoDiscountRate,
-      quantityDiscountCents: 0, // Not applied
-      promoDiscountCents: promoDiscountAmountCents,
-    };
-  }
-
-  return {
-    appliedDiscountType: 'none',
-    appliedDiscountAmountCents: 0,
-    appliedDiscountRate: 0,
-    quantityDiscountCents: 0,
-    promoDiscountCents: 0,
-  };
-};
-
-const computeTotals = (items, taxRate, opts, promoDiscount = null) => {
-  const raw = items.reduce((sum, i) => sum + i.line_total_cents, 0);
-  const adjusted = Math.max(raw, opts.minFloorCents || 0);
-  const minAdj = Math.max(0, adjusted - raw);
-
-  // IMPORTANT: Only BANNER items count toward quantity discount tiers.
-  // Yard signs and car magnets use flat pricing with NO quantity discounts.
-  const isBanner = (i) => {
-    const t = i.product_type || 'banner';
-    return t !== 'yard_sign' && t !== 'car_magnet';
-  };
-  const bannerItems = items.filter(isBanner);
-  const bannerQuantity = bannerItems.reduce((sum, i) => sum + (i.quantity || 1), 0);
-  const bannerSubtotalCents = bannerItems.reduce((sum, i) => sum + (i.line_total_cents || 0), 0);
-  const totalQuantity = items.reduce((sum, i) => sum + (i.quantity || 1), 0);
-
-  // "Best Discount Wins" - only ONE discount applied. Quantity tier is
-  // calculated against banner subtotal only; promo against full subtotal.
-  const bestDiscount = resolveBestDiscount(adjusted, bannerQuantity, promoDiscount, bannerSubtotalCents);
-  const subtotalAfterDiscount = adjusted - bestDiscount.appliedDiscountAmountCents;
-
-  const shipping_cents = opts.freeShipping ? 0 : 0;
-  const tax_cents = Math.round(subtotalAfterDiscount * taxRate);
-  const total_cents = subtotalAfterDiscount + tax_cents + shipping_cents;
-
-  return {
-    raw_subtotal_cents: raw,
-    adjusted_subtotal_cents: adjusted,
-    min_order_adjustment_cents: minAdj,
-    total_quantity: totalQuantity,
-    applied_discount_type: bestDiscount.appliedDiscountType,
-    applied_discount_cents: bestDiscount.appliedDiscountAmountCents,
-    applied_discount_rate: bestDiscount.appliedDiscountRate,
-    quantity_discount_rate: getQuantityDiscountRate(bannerQuantity),
-    quantity_discount_cents: bestDiscount.quantityDiscountCents,
-    promo_discount_cents: bestDiscount.promoDiscountCents,
-    subtotal_after_discount_cents: subtotalAfterDiscount,
-    shipping_cents,
-    tax_cents,
-    total_cents,
-  };
-};
 
 // Send order confirmation email by calling notify-order function
 async function sendOrderConfirmationEmail(orderId) {
@@ -882,6 +789,25 @@ exports.handler = async (event, context) => {
           }),
         };
       }
+    }
+    // Browser input is never evidence that money moved. Stripe and PayPal
+    // both create a pending order first, then their provider-verified
+    // finalizers transition that same row to paid. The only direct paid write
+    // retained here is the explicitly authorized, non-production Deploy
+    // Preview test path above.
+    const requestedStatus = resolveAuthorizedOrderStatus(orderData, {
+      allowDirectPaid: isAdminDeployPreviewTest,
+    });
+    if (!requestedStatus) {
+      return {
+        statusCode: 403,
+        headers,
+        body: JSON.stringify({
+          ok: false,
+          error: 'PAYMENT_ORDER_CREATION_NOT_AUTHORIZED',
+          message: 'Paid orders must be created by an authoritative payment finalizer.',
+        }),
+      };
     }
     applySandboxPayPalTestOrder(orderData);
 
@@ -1327,16 +1253,7 @@ exports.handler = async (event, context) => {
     }
 
     // ALWAYS recalculate totals server-side from line_total_cents
-    const flags = getFeatureFlags();
     {
-
-      const taxRate = 0.06; // 6% tax rate
-      const pricingOptions = {
-        freeShipping: flags.freeShipping,
-        minFloorCents: !flags.minOrderFloor ? 0 : flags.minOrderCents,
-        shippingMethodLabel: flags.shippingMethodLabel
-      };
-
       // Resolve the promotion from Neon using only the submitted code. Never
       // trust a browser-supplied percentage or fixed amount when calculating
       // the amount that will be persisted and charged.
@@ -1363,8 +1280,10 @@ exports.handler = async (event, context) => {
         orderData.discountCode = null;
       }
 
-      // Recalculate totals from line items
-      const recalculatedTotals = computeTotals(orderData.items || [], taxRate, pricingOptions, orderData.discountCode || null);
+      // Recalculate totals from line items. Recovery offers carry only trusted
+      // database scope metadata; browser-supplied percentages and item IDs are
+      // discarded by validation above.
+      const recalculatedTotals = applyAuthoritativeOrderTotals(orderData);
 
       // Log pricing calculation
       console.info('pricing', {
@@ -1377,24 +1296,6 @@ exports.handler = async (event, context) => {
         total_cents: recalculatedTotals.total_cents,
         timestamp: new Date().toISOString()
       });
-
-      // Update order data with recalculated totals
-      orderData.subtotal_cents = recalculatedTotals.adjusted_subtotal_cents;
-      orderData.tax_cents = recalculatedTotals.tax_cents;
-      orderData.total_cents = recalculatedTotals.total_cents;
-      orderData.min_order_adjustment_cents = recalculatedTotals.min_order_adjustment_cents;
-      orderData.shipping_cents = recalculatedTotals.shipping_cents;
-      orderData.applied_discount_cents = recalculatedTotals.applied_discount_cents || 0;
-      orderData.applied_discount_type = recalculatedTotals.applied_discount_type || 'none';
-      // Build human-readable discount label
-      if (recalculatedTotals.applied_discount_type === 'quantity') {
-        const pct = Math.round(recalculatedTotals.applied_discount_rate * 100);
-        orderData.applied_discount_label = 'Qty Discount (' + pct + '% off)';
-      } else if (recalculatedTotals.applied_discount_type === 'promo') {
-        orderData.applied_discount_label = 'Promo: ' + (orderData.discountCode && orderData.discountCode.code ? orderData.discountCode.code : 'Applied');
-      } else {
-        orderData.applied_discount_label = '';
-      }
 
       console.log('✅ Server-recalculated order totals:', {
         subtotal_cents: orderData.subtotal_cents,
@@ -1510,15 +1411,28 @@ exports.handler = async (event, context) => {
       hasEmail: Boolean(userEmail),
     });
 
+    // A browser-provided cart UUID is only a hint. Resolve it before final
+    // recovery-discount validation so both the recipient and the exact source
+    // cart are bound before an order can be persisted or paid.
+    const linkedAbandonedCartId = await resolveAbandonedCartLink(sql, {
+      cartId: orderData.abandonedCartId || orderData.abandoned_cart_id,
+      sessionId: orderData.abandonedCartSessionId || orderData.abandoned_cart_session_id,
+      userId: finalUserId,
+      email: userEmail,
+      recoveryToken: orderData.abandonedCartRecoveryToken || orderData.abandoned_cart_recovery_token,
+      isTestOrder: orderData.is_test_order === true,
+    });
+    orderData.abandoned_cart_id = linkedAbandonedCartId;
+
     // Pricing initially validates the submitted code before the canonical
-    // account email has been loaded. Revalidate recovery offers against that
-    // resolved identity so a signed-in customer cannot submit the original
-    // recipient's email while retaining the offer on a different account.
+    // account email and recovery-cart ownership are loaded. Revalidate against
+    // both canonical values so a copied code cannot fund a different cart.
     const canonicalRecoveryDiscount = await revalidateRecoveryDiscountForCanonicalIdentity(sql, {
       discount: orderData.discountCode,
       userEmail,
       userId: finalUserId,
       checkoutKey: orderData.checkout_idempotency_key || null,
+      recoveryCartId: linkedAbandonedCartId,
     });
     if (!canonicalRecoveryDiscount.valid) {
       return {
@@ -1531,19 +1445,9 @@ exports.handler = async (event, context) => {
       };
     }
     orderData.discountCode = canonicalRecoveryDiscount.discount;
-
-    // A browser-provided cart UUID is only a hint. Persist it on the order
-    // after proving ownership by a matching signed recovery credential or by
-    // the current account, guest session, or normalized email.
-    const linkedAbandonedCartId = await resolveAbandonedCartLink(sql, {
-      cartId: orderData.abandonedCartId || orderData.abandoned_cart_id,
-      sessionId: orderData.abandonedCartSessionId || orderData.abandoned_cart_session_id,
-      userId: finalUserId,
-      email: userEmail,
-      recoveryToken: orderData.abandonedCartRecoveryToken || orderData.abandoned_cart_recovery_token,
-      isTestOrder: orderData.is_test_order === true,
-    });
-    orderData.abandoned_cart_id = linkedAbandonedCartId;
+    // Recompute after canonical binding. This is deliberately the last base
+    // price calculation before post-tax service fees are reconciled.
+    applyAuthoritativeOrderTotals(orderData);
     // The cart snapshot can finish after this order write. Preserve only the
     // bounded session hint so server reconciliation can find that late row;
     // this value is never positive email or recovery attribution on its own.
@@ -1689,11 +1593,9 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // Support a "pending" pre-payment write so payment providers (Stripe)
-    // can persist the order BEFORE money is captured. Only 'pending' and
-    // 'paid' are accepted here — anything else falls back to 'paid' for
-    // backward compatibility with existing PayPal callers.
-    const requestedStatus = (orderData.payment_status === 'pending') ? 'pending' : 'paid';
+    // Payment providers persist pending orders here before capture. A paid
+    // status reached this point only through the authorized preview-test path
+    // above; production settlement belongs to the verified finalizers.
     const expectedItemCount = orderData.items.length;
     const expectedItemSignature = buildItemSignature(orderData.items);
     const expectedOrderIdentity = {
@@ -2093,6 +1995,7 @@ exports._test = {
   normalizedOrderAbandonedCartSessionId,
   resolveAbandonedCartLink,
   revalidateRecoveryDiscountForCanonicalIdentity,
+  resolveAuthorizedOrderStatus,
 };
 
 exports.createTrustedStripeContext = createTrustedStripeContext;

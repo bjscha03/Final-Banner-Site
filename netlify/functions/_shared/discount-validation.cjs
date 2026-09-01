@@ -1,5 +1,13 @@
 'use strict';
 
+const {
+  LARGE_BANNER_RECOVERY_CAMPAIGN,
+  LARGE_BANNER_RECOVERY_SCOPE,
+  normalizeEligibleCartItemIds,
+  positiveInteger,
+  validateLargeBannerRecoveryMetadata,
+} = require('./recovery-discount-policy.cjs');
+
 function normalizeCode(code) {
   return String(code || '').trim().toUpperCase();
 }
@@ -10,6 +18,33 @@ function validResult(discount) {
 
 function invalidResult(error) {
   return { valid: false, error };
+}
+
+function normalizedCartId(value) {
+  return String(value || '').trim().toLowerCase() || null;
+}
+
+function storedDiscountFromRow(discount, recoveryOffer) {
+  const campaign = String(discount.campaign || '').trim() || null;
+  const discountScope = String(discount.discount_scope || 'order').trim() || 'order';
+  const result = {
+    id: discount.id,
+    code: String(discount.code).toUpperCase(),
+    discountPercentage: Number(discount.discount_percentage || 0) || null,
+    discountAmountCents: Number(discount.discount_amount_cents || 0) || null,
+    expiresAt: discount.expires_at,
+    source: 'discount_codes',
+    recoveryOffer,
+    recoveryCartId: recoveryOffer ? normalizedCartId(discount.cart_id) : null,
+    campaign,
+    discountScope,
+  };
+  if (discountScope === LARGE_BANNER_RECOVERY_SCOPE || campaign === LARGE_BANNER_RECOVERY_CAMPAIGN) {
+    result.eligibleCartItemIds = normalizeEligibleCartItemIds(discount.eligible_cart_item_ids);
+    result.maxDiscountAmountCents = positiveInteger(discount.max_discount_amount_cents);
+    result.activatedAt = discount.activated_at || null;
+  }
+  return result;
 }
 
 async function findTradeShowDiscount(sql, normalizedCode) {
@@ -45,10 +80,13 @@ async function validateDiscountForCheckout({
   email = null,
   userId = null,
   checkoutKey = null,
+  recoveryCartId = null,
   requireRecoveryEmailMatch = false,
+  requireRecoveryCartMatch = false,
 }) {
   const normalizedCode = normalizeCode(code);
   const normalizedEmail = email ? String(email).trim().toLowerCase() : null;
+  const normalizedRecoveryCartId = normalizedCartId(recoveryCartId);
   if (!normalizedCode) return invalidResult('Discount code is required');
 
   if (normalizedCode === 'NEW20') {
@@ -80,7 +118,11 @@ async function validateDiscountForCheckout({
   const rows = await sql`
     SELECT id, code, discount_percentage, discount_amount_cents, used, expires_at,
            single_use, used_by_user_id, used_by_email,
-           max_uses_per_customer, max_total_uses, email, cart_id, order_id,
+           max_uses_per_customer, max_total_uses, email, cart_id, order_id, campaign,
+           COALESCE(to_jsonb(discount_codes)->>'discount_scope', 'order') AS discount_scope,
+           to_jsonb(discount_codes)->'eligible_cart_item_ids' AS eligible_cart_item_ids,
+           to_jsonb(discount_codes)->>'max_discount_amount_cents' AS max_discount_amount_cents,
+           to_jsonb(discount_codes)->>'activated_at' AS activated_at,
            (
              SELECT recovery_status
                FROM abandoned_carts AS recovery_cart
@@ -103,6 +145,7 @@ async function validateDiscountForCheckout({
   const discount = rows[0];
   const boundEmail = discount.email ? String(discount.email).trim().toLowerCase() : null;
   const recoveryOffer = Boolean(discount.cart_id);
+  const discountRecoveryCartId = normalizedCartId(discount.cart_id);
   if (requireRecoveryEmailMatch && recoveryOffer
       && (!boundEmail || !normalizedEmail || boundEmail !== normalizedEmail)) {
     return invalidResult('This cart-recovery discount was issued to a different email address');
@@ -113,21 +156,31 @@ async function validateDiscountForCheckout({
   if (boundEmail && normalizedEmail && boundEmail !== normalizedEmail) {
     return invalidResult('This discount code was issued to a different email address');
   }
+  if (recoveryOffer && normalizedRecoveryCartId && discountRecoveryCartId !== normalizedRecoveryCartId) {
+    return invalidResult('This cart-recovery discount was issued for a different cart');
+  }
+  if (requireRecoveryCartMatch && recoveryOffer
+      && (!normalizedRecoveryCartId || discountRecoveryCartId !== normalizedRecoveryCartId)) {
+    return invalidResult('This cart-recovery discount was issued for a different cart');
+  }
+
+  const storedDiscount = storedDiscountFromRow(discount, recoveryOffer);
+  if (storedDiscount.campaign === LARGE_BANNER_RECOVERY_CAMPAIGN) {
+    if (!storedDiscount.expiresAt || new Date(storedDiscount.expiresAt).getTime() <= Date.now()) {
+      return invalidResult('This discount code has expired');
+    }
+    const metadata = validateLargeBannerRecoveryMetadata(storedDiscount);
+    if (!metadata.valid) {
+      return invalidResult('This cart-recovery discount is not available');
+    }
+  }
   // A provider reservation is taken immediately before confirmation. The
   // same opaque checkout key must be able to retry that exact pending order
   // (including after a decline or recovery transition) without presenting the
   // code as stolen. Email binding above still applies, and no other checkout
   // receives this exception.
   if (discount.owned_by_checkout === true || discount.owned_by_checkout === 'true') {
-    return validResult({
-      id: discount.id,
-      code: String(discount.code).toUpperCase(),
-      discountPercentage: Number(discount.discount_percentage || 0) || null,
-      discountAmountCents: Number(discount.discount_amount_cents || 0) || null,
-      expiresAt: discount.expires_at,
-      source: 'discount_codes',
-      recoveryOffer,
-    });
+    return validResult(storedDiscount);
   }
   if (recoveryOffer && !['active', 'abandoned'].includes(String(discount.recovery_cart_status || ''))) {
     return invalidResult('This cart-recovery discount is no longer active');
@@ -155,15 +208,7 @@ async function validateDiscountForCheckout({
       : 'This discount code has reached its maximum number of uses');
   }
 
-  return validResult({
-    id: discount.id,
-    code: String(discount.code).toUpperCase(),
-    discountPercentage: Number(discount.discount_percentage || 0) || null,
-    discountAmountCents: Number(discount.discount_amount_cents || 0) || null,
-    expiresAt: discount.expires_at,
-    source: 'discount_codes',
-    recoveryOffer,
-  });
+  return validResult(storedDiscount);
 }
 
-module.exports = { normalizeCode, validateDiscountForCheckout };
+module.exports = { normalizeCode, normalizedCartId, storedDiscountFromRow, validateDiscountForCheckout };

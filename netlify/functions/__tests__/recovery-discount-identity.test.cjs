@@ -116,3 +116,90 @@ test('legacy recovery rows without a bound recipient fail closed', async () => {
   assert.equal(result.valid, false);
   assert.match(result.error, /different email address/i);
 });
+
+test('canonical recovery validation requires the exact proven cart as well as email', async () => {
+  const initial = await validateDiscountForCheckout({
+    sql: recoveryDiscountSql({ used: false, owned_by_checkout: false }),
+    code: 'CART10-SECURE',
+  });
+  assert.equal(initial.valid, true);
+
+  const matching = await revalidateRecoveryDiscountForCanonicalIdentity(
+    recoveryDiscountSql({ used: false, owned_by_checkout: false }),
+    {
+      discount: initial.discount,
+      userEmail: 'original-recipient@example.com',
+      userId: null,
+      checkoutKey: 'checkout_key_exact_cart_identity_test_12345',
+      recoveryCartId: 'a62c61fa-8ee5-4baa-9cc7-21d5be2b4d60',
+    },
+  );
+  assert.equal(matching.valid, true);
+
+  const wrongCart = await revalidateRecoveryDiscountForCanonicalIdentity(
+    recoveryDiscountSql({ used: false, owned_by_checkout: false }),
+    {
+      discount: initial.discount,
+      userEmail: 'original-recipient@example.com',
+      userId: null,
+      checkoutKey: 'checkout_key_wrong_cart_identity_test_12345',
+      recoveryCartId: 'b72c61fa-8ee5-4baa-9cc7-21d5be2b4d60',
+    },
+  );
+  assert.equal(wrongCart.valid, false);
+  assert.match(wrongCart.error, /different cart/i);
+});
+
+test('the large-banner campaign exposes only complete activated trusted scope metadata', async () => {
+  const scopedRow = {
+    code: 'CART25-SECURE',
+    campaign: 'abandoned_cart_large_banner_25',
+    discount_percentage: 25,
+    discount_scope: 'recovery_qualifying_banner_lines',
+    eligible_cart_item_ids: ['large-line'],
+    max_discount_amount_cents: 2500,
+    activated_at: new Date(Date.now() - 60_000).toISOString(),
+    used: false,
+    owned_by_checkout: false,
+  };
+  const valid = await validateDiscountForCheckout({
+    sql: recoveryDiscountSql(scopedRow),
+    code: 'CART25-SECURE',
+    email: 'original-recipient@example.com',
+    recoveryCartId: 'a62c61fa-8ee5-4baa-9cc7-21d5be2b4d60',
+    requireRecoveryEmailMatch: true,
+    requireRecoveryCartMatch: true,
+  });
+  assert.equal(valid.valid, true);
+  assert.deepEqual(valid.discount.eligibleCartItemIds, ['large-line']);
+  assert.equal(valid.discount.maxDiscountAmountCents, 2500);
+  assert.equal(valid.discount.discountScope, 'recovery_qualifying_banner_lines');
+
+  const inactive = await validateDiscountForCheckout({
+    sql: recoveryDiscountSql({ ...scopedRow, activated_at: null }),
+    code: 'CART25-SECURE',
+    email: 'original-recipient@example.com',
+    recoveryCartId: 'a62c61fa-8ee5-4baa-9cc7-21d5be2b4d60',
+    requireRecoveryEmailMatch: true,
+    requireRecoveryCartMatch: true,
+  });
+  assert.equal(inactive.valid, false);
+  assert.match(inactive.error, /not available/i);
+
+  const expiredOwnedCheckout = await validateDiscountForCheckout({
+    sql: recoveryDiscountSql({
+      ...scopedRow,
+      activated_at: new Date(Date.now() - 60 * 60_000).toISOString(),
+      expires_at: new Date(Date.now() - 1).toISOString(),
+      used: true,
+      owned_by_checkout: true,
+    }),
+    code: 'CART25-SECURE',
+    email: 'original-recipient@example.com',
+    recoveryCartId: 'a62c61fa-8ee5-4baa-9cc7-21d5be2b4d60',
+    requireRecoveryEmailMatch: true,
+    requireRecoveryCartMatch: true,
+  });
+  assert.equal(expiredOwnedCheckout.valid, false);
+  assert.match(expiredOwnedCheckout.error, /expired/i);
+});

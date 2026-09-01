@@ -3,7 +3,13 @@ import { persist } from 'zustand/middleware';
 import { QuoteState, MaterialKey, Grommets, TextElement } from './quote';
 import { calculateTax, calculateTotalWithTax, getFeatureFlags, getPricingOptions, computeTotals, PricingItem, MINIMUM_UNIT_PRICE_CENTS } from '@/lib/pricing';
 import { calculateQuantityDiscount } from '@/lib/quantity-discount';
-import { resolveBestDiscount, ResolvedDiscount, PromoDiscountInput } from '@/lib/discount-resolver';
+import {
+  getPromoDiscountSubtotalCents,
+  resolveBestDiscount,
+  type DiscountScope,
+  type ResolvedDiscount,
+  type PromoDiscountInput,
+} from '@/lib/discount-resolver';
 import { cartSync } from '@/lib/cartSync';
 import { trackAddToCart, trackFBAddToCart } from '@/lib/analytics';
 import { getProductConfig } from '@/lib/products';
@@ -18,6 +24,11 @@ import {
   getEligibleSubtotalCents,
 } from '@/lib/sameDayService';
 import { writeStoredAbandonedCartRecoveryAttribution } from '@/lib/abandonedCartCapture';
+import {
+  canCommitAccountCartHydration,
+  canStartAccountCartHydration,
+  captureAccountCartHydrationTicket,
+} from '@/lib/cartRecoveryStartup';
 
 
 // PERFORMANCE: Disable verbose logging in production for faster cart operations
@@ -222,6 +233,13 @@ export interface DiscountCode {
   expiresAt: string;
   source?: 'new_customer' | 'trade_show' | 'discount_codes';
   tradeShowSlug?: string;
+  recoveryOffer?: boolean;
+  recoveryCartId?: string | null;
+  campaign?: string | null;
+  discountScope?: DiscountScope;
+  eligibleCartItemIds?: string[];
+  maxDiscountAmountCents?: number | null;
+  activatedAt?: string | null;
 }
 
 export interface CartState {
@@ -237,6 +255,10 @@ export interface CartState {
   saturdayDelivery: boolean;
   setSameDayHitService: (on: boolean) => void;
   setSaturdayDelivery: (on: boolean) => void;
+  restoreRecoveredCheckoutPreferences: (preferences: {
+    sameDayHitService: boolean;
+    saturdayDelivery: boolean;
+  }) => { sameDayHitService: boolean; saturdayDelivery: boolean };
   /**
    * Re-evaluate Same-Day window/eligibility against the current ET clock and
    * cart contents. Clears `sameDayHitService` (and `saturdayDelivery`) if the
@@ -368,6 +390,19 @@ export const useCartStore = create<CartState>()(
         const evalResult = evaluateSameDayEligibility({ items });
         if (!evalResult.saturdayEligible) return;
         set({ saturdayDelivery: true });
+      },
+
+      restoreRecoveredCheckoutPreferences: (preferences) => {
+        const items = get().items.map(migrateCartItem);
+        const eligibility = evaluateSameDayEligibility({ items });
+        const sameDayHitService = preferences.sameDayHitService === true
+          && eligibility.windowOpen
+          && eligibility.hasEligibleItem;
+        const saturdayDelivery = sameDayHitService
+          && preferences.saturdayDelivery === true
+          && eligibility.saturdayEligible;
+        set({ sameDayHitService, saturdayDelivery });
+        return { sameDayHitService, saturdayDelivery };
       },
 
       reconcileSameDayHitService: () => {
@@ -1059,15 +1094,25 @@ export const useCartStore = create<CartState>()(
           0,
         );
         const currentDiscount = currentState.discountCode;
+        const projectedPromoDiscount: PromoDiscountInput | null = currentDiscount ? {
+          code: currentDiscount.code,
+          discountPercentage: currentDiscount.discountPercentage,
+          discountAmountCents: currentDiscount.discountAmountCents || undefined,
+          campaign: currentDiscount.campaign,
+          discountScope: currentDiscount.discountScope,
+          eligibleCartItemIds: currentDiscount.eligibleCartItemIds,
+          maxDiscountAmountCents: currentDiscount.maxDiscountAmountCents,
+        } : null;
         const projectedDiscount = resolveBestDiscount({
-          subtotalCents: rawSubtotalCents,
+          subtotalCents: projectedSubtotalCents,
           quantity: bannerQuantity,
           quantitySubtotalCents: bannerSubtotalCents,
-          promoDiscount: currentDiscount ? {
-            code: currentDiscount.code,
-            discountPercentage: currentDiscount.discountPercentage,
-            discountAmountCents: currentDiscount.discountAmountCents || undefined,
-          } : null,
+          promoDiscount: projectedPromoDiscount,
+          promoSubtotalCents: getPromoDiscountSubtotalCents(
+            projectedItems,
+            projectedSubtotalCents,
+            projectedPromoDiscount,
+          ),
         });
         const subtotalAfterDiscountCents = projectedSubtotalCents
           - projectedDiscount.appliedDiscountAmountCents;
@@ -1317,7 +1362,11 @@ export const useCartStore = create<CartState>()(
 
       // Load cart from Neon database and merge with local
       loadFromServer: async () => {
-        
+        const hydrationTicket = captureAccountCartHydrationTicket();
+        if (!canStartAccountCartHydration(hydrationTicket)) {
+          return;
+        }
+
         // CRITICAL: Skip loading if a sync is in progress to prevent race conditions
         if (get().isSyncing) {
           return;
@@ -1329,6 +1378,11 @@ export const useCartStore = create<CartState>()(
         }
 
         const loadedServerItems = await cartSync.loadCart(userId);
+        // A signed recovery that began while this request was in flight owns
+        // the cart. Never let a late focus/login hydration overwrite it.
+        if (!canCommitAccountCartHydration(hydrationTicket)) {
+          return;
+        }
         const serverItems = loadedServerItems.filter((item) => !isRetiredCampaignItem(item));
         const localItems = get().items.filter((item) => !isRetiredCampaignItem(item));
         const removedRetiredItems = (
@@ -1481,6 +1535,10 @@ export const useCartStore = create<CartState>()(
           code: discountCode.code,
           discountPercentage: discountCode.discountPercentage,
           discountAmountCents: discountCode.discountAmountCents || undefined,
+          campaign: discountCode.campaign,
+          discountScope: discountCode.discountScope,
+          eligibleCartItemIds: discountCode.eligibleCartItemIds,
+          maxDiscountAmountCents: discountCode.maxDiscountAmountCents,
         } : null;
 
         return resolveBestDiscount({
@@ -1488,6 +1546,7 @@ export const useCartStore = create<CartState>()(
           quantity: bannerQuantity,
           quantitySubtotalCents: bannerSubtotalCents,
           promoDiscount,
+          promoSubtotalCents: getPromoDiscountSubtotalCents(items, subtotalCents, promoDiscount),
         });
       }
     }),
@@ -1544,9 +1603,9 @@ export const useCartStore = create<CartState>()(
               : undefined,
           })),
           // Same-Day Hit Service and Saturday Delivery flags are intentionally
-          // NOT persisted. The option must default to OFF on every refresh,
-          // returning session, page load, tab switch, etc. — only the
-          // customer can opt in manually within the current session.
+          // NOT trusted from local persistence. They default OFF on refresh;
+          // only a signed server recovery can request them, and the dedicated
+          // restore action revalidates the current ET window and cart first.
           // Store cart owner for rehydration check
           _cartOwnerId: cartOwnerId,
         };

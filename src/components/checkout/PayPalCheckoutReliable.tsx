@@ -15,6 +15,7 @@ import { useAbandonedCartCapture } from '@/hooks/useAbandonedCartCapture';
 import { getStoredAttribution } from '@/lib/attribution';
 import {
   awaitBoundedAbandonedCartSnapshot,
+  paymentSnapshotRequiredButMissing,
   selectAbandonedCartPaymentAttribution,
   writeStoredAbandonedCartRecoveryAttribution,
 } from '@/lib/abandonedCartCapture';
@@ -792,11 +793,21 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
       const capturedSnapshot = await awaitBoundedAbandonedCartSnapshot(paymentSnapshotRef.current);
       paymentSnapshotRef.current = null;
       const recoveryAttribution = getAbandonedCartRecoveryAttribution();
+      const storedCartId = getAbandonedCartId();
+      const abandonedCartSessionId = getAbandonedCartSessionId();
+      if (paymentSnapshotRequiredButMissing({
+        capturedCartId: capturedSnapshot?.cartId,
+        storedCartId,
+        sessionId: abandonedCartSessionId,
+        recoveryAttribution,
+      })) {
+        throw new Error('We could not secure this cart before payment. Please try payment again.');
+      }
       const abandonedCartAttribution = selectAbandonedCartPaymentAttribution({
         recoveryAttribution,
         capturedCartId: capturedSnapshot?.cartId,
-        storedCartId: getAbandonedCartId(),
-        sessionId: getAbandonedCartSessionId(),
+        storedCartId,
+        sessionId: abandonedCartSessionId,
       });
 
       if (!internalOrderIdRef.current) {

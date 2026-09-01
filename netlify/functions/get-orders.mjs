@@ -99,6 +99,9 @@ const orderBaseCteSql = () => {
              ${normalizedEmailSql(profileEmail)} AS raw_profile_email,
              ${reportingCustomerEmailSql(orderEmail, profileEmail)} AS reporting_customer_email,
              CASE
+               WHEN NULLIF(BTRIM(to_jsonb(o)->>'tracking_number'), '') IS NOT NULL
+                AND LOWER(BTRIM(COALESCE(o.status, ''))) IN ('pending', 'paid', 'in_production')
+                 THEN 'shipped'
                WHEN LOWER(BTRIM(COALESCE(o.status, ''))) = 'pending'
                 AND (
                   NULLIF(BTRIM(to_jsonb(o)->>'paypal_capture_id'), '') IS NOT NULL
@@ -117,6 +120,22 @@ const orderBaseCteSql = () => {
        WHERE payment_method <> 'admin_deploy_preview_test'
          AND is_test_order = FALSE
     )`;
+};
+
+const hasSavedTracking = (order = {}) => {
+  if (String(order.tracking_number || '').trim()) return true;
+  const trackingNumbers = order.tracking_numbers || order.trackingNumbers;
+  if (!Array.isArray(trackingNumbers)) return false;
+  return trackingNumbers.some((entry) => String(
+    typeof entry === 'string' ? entry : entry?.tracking_number || entry?.trackingNumber || entry?.number || '',
+  ).trim());
+};
+
+const deriveFulfillmentStatus = (order = {}) => {
+  const status = String(order.status || '').trim().toLowerCase();
+  return hasSavedTracking(order) && ['pending', 'paid', 'in_production'].includes(status)
+    ? 'shipped'
+    : order.status;
 };
 
 const buildAdminPageQuery = () => `${orderBaseCteSql()},
@@ -505,10 +524,11 @@ async function enrichOrderPaymentMetadata(sql, orders, options = {}) {
       ...order,
       ...payment,
     };
-    const effectiveStatus = String(order.status || '').toLowerCase() === 'pending'
+    const paymentAdjustedStatus = String(order.status || '').toLowerCase() === 'pending'
       && hasCompletedPayPalPaymentEvidence(combinedPaymentState)
       ? 'paid'
       : order.status;
+    const effectiveStatus = deriveFulfillmentStatus({ ...order, status: paymentAdjustedStatus });
 
     const reportingCustomerEmail = normalizeReportingCustomerEmail(order.email)
       || normalizeReportingCustomerEmail(payment.reporting_customer_email)
@@ -664,7 +684,7 @@ function normalizeAdminListOrders(rows = []) {
       subtotal_cents: subtotalCents,
       tax_cents: taxCents,
       total_cents: totalCents,
-      status: row.status,
+      status: deriveFulfillmentStatus(row),
       currency: 'USD',
       created_at: row.created_at,
       tracking_number: row.tracking_number || null,
@@ -887,6 +907,8 @@ export const _test = {
   loadAdminReportData,
   normalizeAdminSummary,
   normalizeAdminListOrders,
+  deriveFulfillmentStatus,
+  hasSavedTracking,
   normalizeReportingCustomerEmail,
   pageOrderIds,
   parseAdminReportRequest,

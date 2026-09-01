@@ -62,6 +62,29 @@ test('page SQL preserves non-test history while exact business metrics stay paid
   assert.match(summaryQuery, /payment_method[\s\S]*paypal[\s\S]*payment_reconciliation_status|reconciliation_status[\s\S]*complete/i);
   assert.match(summaryQuery, /is_test_order = FALSE/i);
   assert.match(summaryQuery, /admin_deploy_preview_test/i);
+  assert.match(summaryQuery, /tracking_number[\s\S]*IN \('pending', 'paid', 'in_production'\)[\s\S]*THEN 'shipped'/i);
+});
+
+test('saved tracking promotes active fulfillment states to shipped without overriding terminal states', () => {
+  for (const status of ['pending', 'paid', 'in_production']) {
+    assert.equal(_test.deriveFulfillmentStatus({ status, tracking_number: ' 123456789 ' }), 'shipped');
+  }
+  assert.equal(_test.deriveFulfillmentStatus({
+    status: 'pending',
+    tracking_numbers: [{ trackingNumber: '987654321' }],
+  }), 'shipped');
+  for (const status of ['refunded', 'canceled', 'cancelled', 'failed', 'delivered', 'fulfilled']) {
+    assert.equal(_test.deriveFulfillmentStatus({ status, tracking_number: '123456789' }), status);
+  }
+  assert.equal(_test.deriveFulfillmentStatus({ status: 'pending', tracking_number: '  ' }), 'pending');
+
+  const [normalized] = _test.normalizeAdminListOrders([{
+    id: 'tracked-pending-order',
+    status: 'pending',
+    tracking_number: '123456789',
+    items: [],
+  }]);
+  assert.equal(normalized.status, 'shipped');
 });
 
 test('Admin hydration keeps historical non-test rows regardless of legacy or terminal status', async () => {

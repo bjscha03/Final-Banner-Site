@@ -138,4 +138,72 @@ describe('canonical stale-cart quote application', () => {
       rope_cost_cents: 1600,
     });
   });
+
+  it('reproduces a scoped recovery quote from only original qualifying banner lines', () => {
+    const large = {
+      ...item,
+      id: 'large',
+      width_in: 72,
+      height_in: 36,
+      quantity: 1,
+      rope_feet: 0,
+      rope_cost_cents: 0,
+      unit_price_cents: 10000,
+      line_total_cents: 10000,
+    };
+    const small = {
+      ...item,
+      id: 'small',
+      width_in: 48,
+      height_in: 24,
+      quantity: 1,
+      rope_feet: 0,
+      rope_cost_cents: 0,
+      unit_price_cents: 4000,
+      line_total_cents: 4000,
+    };
+    useCartStore.setState({
+      items: [large, small],
+      discountCode: {
+        id: 'recovery-25',
+        code: 'CART25-SECURE',
+        discountPercentage: 25,
+        discountAmountCents: null,
+        expiresAt: '2099-12-31T23:59:59Z',
+        source: 'discount_codes',
+        recoveryOffer: true,
+        recoveryCartId: '11111111-1111-4111-8111-111111111111',
+        campaign: 'abandoned_cart_large_banner_25',
+        discountScope: 'recovery_qualifying_banner_lines',
+        eligibleCartItemIds: ['large'],
+        maxDiscountAmountCents: 2500,
+        activatedAt: '2026-09-01T12:00:00.000Z',
+      },
+    });
+    const quote: CanonicalCartQuote = {
+      items: [large, small].map((cartItem, index) => ({
+        index,
+        cartItemId: cartItem.id,
+        productType: 'banner',
+        unitPriceCents: cartItem.unit_price_cents,
+        lineTotalCents: cartItem.line_total_cents,
+        ropeFeet: 0,
+        ropeCostCents: 0,
+        polePocketCostCents: 0,
+      })),
+      subtotalCents: 14000,
+      taxCents: 690,
+      shippingCents: 0,
+      totalCents: 12190,
+      appliedDiscountCents: 2500,
+      appliedDiscountType: 'promo',
+      discountCode: 'CART25-SECURE',
+    };
+
+    expect(useCartStore.getState().applyCanonicalPricingQuote(quote)).toBe(true);
+    expect(useCartStore.getState().getResolvedDiscount()).toMatchObject({
+      appliedDiscountType: 'promo',
+      appliedDiscountAmountCents: 2500,
+    });
+  });
 });

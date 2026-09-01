@@ -24,6 +24,7 @@ type AbandonedCartCapture = {
 };
 
 const CAPTURE_DEBOUNCE_MS = 300;
+const CHECKOUT_HEARTBEAT_MS = 60_000;
 
 export const useAbandonedCartCapture = ({
   customer,
@@ -40,6 +41,8 @@ export const useAbandonedCartCapture = ({
   const taxCents = store.getTaxCents();
   const discountCents = store.getResolvedDiscount().appliedDiscountAmountCents;
   const normalizedCustomer = normalizeCaptureContact(customer);
+  const pagehideSignaledRef = useRef(false);
+  const paymentHandoffInFlightRef = useRef(false);
   const latestRef = useRef({
     items,
     customer: normalizedCustomer,
@@ -47,6 +50,9 @@ export const useAbandonedCartCapture = ({
     discountCents,
     taxCents,
     estimatedTotalCents,
+    discountCode: discountCode?.code || null,
+    sameDayHitService,
+    saturdayDelivery,
   });
   latestRef.current = {
     items,
@@ -55,6 +61,9 @@ export const useAbandonedCartCapture = ({
     discountCents,
     taxCents,
     estimatedTotalCents,
+    discountCode: discountCode?.code || null,
+    sameDayHitService,
+    saturdayDelivery,
   };
 
   const cartFingerprint = useMemo(() => JSON.stringify({
@@ -76,6 +85,7 @@ export const useAbandonedCartCapture = ({
   const saveProgress = useCallback((
     stage: AbandonedCartStage,
     contact?: AbandonedCartContact | null,
+    lifecycle?: { abandonmentSignal: boolean },
   ) => {
     const latest = latestRef.current;
     return cartSyncService.saveCheckoutProgress(latest.items, {
@@ -87,7 +97,15 @@ export const useAbandonedCartCapture = ({
         taxCents: latest.taxCents,
         estimatedTotalCents: latest.estimatedTotalCents,
       },
-      metadata: { source: 'checkout' },
+      captureKind: lifecycle ? 'lifecycle' : 'full',
+      abandonmentSignal: lifecycle?.abandonmentSignal === true,
+      checkoutState: {
+        version: 1,
+        sameDayHitService: latest.sameDayHitService,
+        saturdayDelivery: latest.saturdayDelivery,
+        discountCode: latest.discountCode,
+      },
+      metadata: { source: lifecycle ? 'checkout_lifecycle' : 'checkout' },
     });
   }, []);
 
@@ -124,30 +142,65 @@ export const useAbandonedCartCapture = ({
     taxCents,
   ]);
 
-  // Flush the latest valid contact if the tab is closed or backgrounded
-  // inside the debounce window. `keepalive` on the underlying request makes
-  // this best-effort send safe during page teardown.
+  // A visible checkout heartbeat keeps the quiet-time fallback safely in the
+  // future and clears any earlier best-effort pagehide signal after a return.
   useEffect(() => {
-    const flush = () => {
+    const heartbeat = () => {
       const latest = latestRef.current;
-      if (latest.items.length > 0 && latest.customer.email) {
-        void saveProgress('contact');
+      if (document.visibilityState === 'visible' && latest.items.length > 0) {
+        void saveProgress(latest.customer.email ? 'contact' : 'checkout');
       }
     };
+    const interval = window.setInterval(heartbeat, CHECKOUT_HEARTBEAT_MS);
     const onVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') flush();
+      if (document.visibilityState === 'visible') {
+        pagehideSignaledRef.current = false;
+        heartbeat();
+      }
     };
-    window.addEventListener('pagehide', flush);
     document.addEventListener('visibilitychange', onVisibilityChange);
     return () => {
-      window.removeEventListener('pagehide', flush);
+      window.clearInterval(interval);
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, [saveProgress]);
 
-  const markPaymentStarted = useCallback((contact?: AbandonedCartContact | null) => (
-    saveProgress('payment_started', contact)
-  ), [saveProgress]);
+  // Flush the latest valid contact if the tab is closed or backgrounded
+  // inside the debounce window. Only pagehide is an abandonment signal;
+  // ordinary tab backgrounding is a compact durability flush and the quiet
+  // heartbeat fallback decides whether the checkout was actually left.
+  useEffect(() => {
+    const flush = (abandonmentSignal: boolean) => {
+      const latest = latestRef.current;
+      if (latest.items.length > 0 && latest.customer.email) {
+        void saveProgress('contact', undefined, { abandonmentSignal });
+      }
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && !pagehideSignaledRef.current) flush(false);
+    };
+    const onPageHide = (event: PageTransitionEvent) => {
+      pagehideSignaledRef.current = true;
+      // A bfcache navigation keeps this checkout alive, and payment providers
+      // can pagehide the document while handing off authentication. Persist a
+      // compact snapshot in both cases, but let the quiet-time detector decide
+      // whether the customer actually abandoned instead of emailing now.
+      flush(!event.persisted && !paymentHandoffInFlightRef.current);
+    };
+    window.addEventListener('pagehide', onPageHide);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      window.removeEventListener('pagehide', onPageHide);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [saveProgress]);
+
+  const markPaymentStarted = useCallback((contact?: AbandonedCartContact | null) => {
+    // Set this before starting the asynchronous save. A provider redirect can
+    // fire pagehide before that request settles.
+    paymentHandoffInFlightRef.current = true;
+    return saveProgress('payment_started', contact);
+  }, [saveProgress]);
 
   return {
     markPaymentStarted,

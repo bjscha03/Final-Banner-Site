@@ -87,6 +87,7 @@ describe('get-abandoned-carts admin endpoint', () => {
       recovered_order_id: 'order-retained',
       recovered_order_found: true,
       recovered_order_status: 'delivered',
+      recovered_order_total_cents: 8800,
     }, new Map());
     const refunded = _test.normalizeCart({
       ...base,
@@ -94,6 +95,7 @@ describe('get-abandoned-carts admin endpoint', () => {
       recovered_order_id: 'order-refunded',
       recovered_order_found: true,
       recovered_order_status: 'refunded',
+      recovered_order_total_cents: 20000,
     }, new Map());
     const historicalUnknown = _test.normalizeCart({
       ...base,
@@ -101,6 +103,7 @@ describe('get-abandoned-carts admin endpoint', () => {
       recovered_order_id: null,
       recovered_order_found: false,
       recovered_order_status: null,
+      recovered_order_total_cents: null,
     }, new Map());
 
     expect(retained.recovered_revenue_state).toBe('retained');
@@ -112,10 +115,10 @@ describe('get-abandoned-carts admin endpoint', () => {
       recoveredRetainedCount: 1,
       recoveredRefundedCount: 1,
       recoveredRevenueUnknownCount: 1,
-      recoveredValueCents: 10_000,
+      recoveredValueCents: 8_800,
       recoveredAfterEmailCount: 3,
       recoveredAfterEmailRetainedCount: 1,
-      recoveredAfterEmailValueCents: 10_000,
+      recoveredAfterEmailValueCents: 8_800,
     });
 
     const query = _test.analyticsQuery('TRUE');
@@ -123,6 +126,32 @@ describe('get-abandoned-carts admin endpoint', () => {
     expect(query).toMatch(/recovered_order_status|recovered_order[\s\S]+refunded/i);
     expect(query).toMatch(/recovered_revenue_unknown_count/i);
     expect(query).toMatch(/recovered_after_email_retained_count/i);
+    expect(query).toMatch(/SUM\(GREATEST\(COALESCE\(recovered_order\.total_cents, 0\), 0\)/i);
+  });
+
+  it('normalizes bounded delivery, event, offer, and exact-order recovery facts', () => {
+    const cart = _test.normalizeCart({
+      id: 'recovery-funnel-cart',
+      total_value: 100,
+      recovery_status: 'recovered',
+      abandoned_at: '2026-09-01T10:00:00.000Z',
+      recovered_order_id: 'order-1',
+      recovered_order_found: true,
+      recovered_order_status: 'paid',
+      recovered_order_total_cents: '7500',
+      recovered_order_created_at: '2026-09-01T11:00:00.000Z',
+      recovery_deliveries: [{ sequence_number: 1, status: 'sent', sent_at: '2026-09-01T10:01:00.000Z', discount_code: 'SAVE25' }],
+      recovery_events: [{ event_type: 'email_clicked', email_sequence_number: 1, created_at: '2026-09-01T10:05:00.000Z', source: 'signed_recovery_link' }],
+      recovery_offers: [{ code: 'SAVE25', discount_percentage: '25', status: 'used', used: true, order_id: 'order-1' }],
+      item_summaries: [],
+      created_at: '2026-09-01T09:00:00.000Z',
+      last_activity_at: '2026-09-01T09:30:00.000Z',
+    }, new Map());
+
+    expect(cart.recovered_order_total_cents).toBe(7500);
+    expect(cart.recovery_deliveries).toEqual([expect.objectContaining({ sequence_number: 1, status: 'sent', discount_code: 'SAVE25' })]);
+    expect(cart.recovery_events).toEqual([expect.objectContaining({ event_type: 'email_clicked', source: 'signed_recovery_link' })]);
+    expect(cart.recovery_offers).toEqual([expect.objectContaining({ code: 'SAVE25', discount_percentage: 25, status: 'used', used: true })]);
   });
 
   it('joins the historical text recovery ID to UUID orders without an invalid uuid = text comparison', () => {
@@ -144,6 +173,10 @@ describe('get-abandoned-carts admin endpoint', () => {
     expect(query).toContain(`LEFT JOIN orders AS recovered_order ON ${join}`);
     expect(query).not.toMatch(/recovered_order\.id\s*=\s*cart\.recovered_order_id/);
     expect(source.match(/LEFT JOIN orders AS recovered_order ON \$\{recoveredOrderJoinSql\(\)\}/g)).toHaveLength(2);
+    expect(source).toMatch(/FROM cart_recovery_deliveries AS delivery/);
+    expect(source).toMatch(/FROM cart_recovery_logs AS recovery_log/);
+    expect(source).toMatch(/FROM discount_codes AS discount/);
+    expect(source).toMatch(/recovered_order\.total_cents/);
   });
 
   it('bounds pagination and parses only whitelisted server-side filters and sorting', () => {

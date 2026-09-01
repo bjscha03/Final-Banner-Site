@@ -1,5 +1,10 @@
 'use strict';
 
+const {
+  LARGE_BANNER_RECOVERY_CAMPAIGN,
+  LARGE_BANNER_RECOVERY_SCOPE,
+} = require('./recovery-discount-policy.cjs');
+
 function normalizedCode(order) {
   return String(order?.discount_code || '').trim().toUpperCase();
 }
@@ -146,11 +151,42 @@ async function claimStoredCode(sql, order, code) {
   // after a definitive failure/cancel makes the code available again.
   const claimed = await sql`
     WITH locked_target AS MATERIALIZED (
-      SELECT target.id
+      SELECT target.id, target.abandoned_cart_id, target.email
         FROM orders target
        WHERE target.id = ${order.id}
          AND target.status = 'pending'
        FOR UPDATE OF target
+    ), locked_recovery_cart AS MATERIALIZED (
+      SELECT recovery_cart.id
+        FROM abandoned_carts recovery_cart
+        JOIN locked_target
+          ON locked_target.abandoned_cart_id = recovery_cart.id
+       WHERE recovery_cart.recovery_status IN ('active', 'abandoned')
+         AND NOT EXISTS (
+           SELECT 1
+             FROM orders completed_order
+            WHERE completed_order.id <> locked_target.id
+              AND completed_order.abandoned_cart_id = recovery_cart.id
+              AND COALESCE(completed_order.is_test_order, FALSE) = FALSE
+              AND (
+                LOWER(BTRIM(COALESCE(completed_order.status, ''))) IN (
+                  'paid', 'in_production', 'shipped', 'delivered', 'fulfilled', 'refunded'
+                )
+                OR (
+                  LOWER(BTRIM(COALESCE(completed_order.status, ''))) = 'pending'
+                  AND (
+                    NULLIF(BTRIM(to_jsonb(completed_order)->>'paypal_capture_id'), '') IS NOT NULL
+                    OR (
+                      LOWER(BTRIM(COALESCE(to_jsonb(completed_order)->>'payment_method', ''))) = 'paypal'
+                      AND LOWER(BTRIM(COALESCE(
+                        to_jsonb(completed_order)->>'payment_reconciliation_status', ''
+                      ))) IN ('complete', 'completed')
+                    )
+                  )
+                )
+              )
+         )
+       FOR UPDATE OF recovery_cart
     ), reserved AS (
       UPDATE discount_codes dc
          SET used = TRUE,
@@ -160,6 +196,25 @@ async function claimStoredCode(sql, order, code) {
         FROM locked_target
        WHERE UPPER(dc.code) = ${code}
          AND (dc.expires_at IS NULL OR dc.expires_at >= NOW())
+         AND (dc.cart_id IS NULL OR dc.cart_id = locked_target.abandoned_cart_id)
+         AND (
+           NULLIF(BTRIM(dc.email), '') IS NULL
+           OR LOWER(BTRIM(dc.email)) = LOWER(BTRIM(locked_target.email))
+         )
+         AND (
+           dc.campaign IS DISTINCT FROM ${LARGE_BANNER_RECOVERY_CAMPAIGN}
+           OR (
+             dc.cart_id IN (SELECT id FROM locked_recovery_cart)
+             AND
+             dc.expires_at > NOW()
+             AND
+             dc.discount_scope = ${LARGE_BANNER_RECOVERY_SCOPE}
+             AND dc.activated_at IS NOT NULL
+             AND dc.activated_at <= NOW()
+             AND dc.eligible_cart_item_ids IS NOT NULL
+             AND dc.max_discount_amount_cents > 0
+           )
+         )
          AND (dc.order_id = ${order.id}
               OR (COALESCE(dc.used, FALSE) = FALSE AND dc.order_id IS NULL))
       RETURNING dc.id
@@ -242,11 +297,55 @@ async function completePaymentDiscount(sql, order) {
            updated_at = NOW()
      WHERE UPPER(code) = ${code}
        AND (order_id IS NULL OR order_id = ${order.id})
-    RETURNING code
+    RETURNING code, cart_id, campaign
   `;
-  if (completed.length) return { ok: true, kind: 'stored' };
+  if (completed.length) {
+    if (completed[0].cart_id) {
+      await logRecoveryDiscountConsumption(sql, order, completed[0]);
+    }
+    return { ok: true, kind: 'stored' };
+  }
   if (await activeTradeShowCode(sql, code)) return { ok: true, kind: 'trade_show' };
   return { ok: false, code: 'DISCOUNT_COMPLETION_CONFLICT' };
+}
+
+async function logRecoveryDiscountConsumption(sql, order, discount) {
+  const cartId = discount?.cart_id;
+  if (!cartId) return;
+  for (const eventType of ['discount_applied', 'coupon_used']) {
+    const metadata = {
+      idempotency_key: `recovery-discount:${order.id}:${eventType}`,
+      order_id: order.id,
+      discount_code: normalizedCode(order),
+      discount_cents: Number(order.applied_discount_cents || 0),
+      campaign: discount.campaign || null,
+    };
+    try {
+      await sql`
+        INSERT INTO cart_recovery_logs (
+          abandoned_cart_id, event_type, metadata, created_at
+        )
+        SELECT ${cartId}, ${eventType}, ${JSON.stringify(metadata)}::jsonb, NOW()
+         WHERE NOT EXISTS (
+           SELECT 1
+             FROM cart_recovery_logs existing
+            WHERE existing.abandoned_cart_id = ${cartId}
+              AND existing.event_type = ${eventType}
+              AND existing.metadata->>'order_id' = ${String(order.id)}
+         )
+        ON CONFLICT DO NOTHING
+      `;
+    } catch (error) {
+      // Analytics is secondary to payment settlement. During a rolling deploy,
+      // migration 042 may not yet allow `coupon_used`; never strand a paid
+      // order or its discount completion on the event vocabulary.
+      console.warn('[payment-discount] recovery analytics write skipped', {
+        eventType,
+        orderId: order.id,
+        code: error?.code || null,
+      });
+    }
+  }
 }
 
 module.exports = {
@@ -256,6 +355,7 @@ module.exports = {
   customerReservationIdentity,
   hasAppliedPromo,
   isTestOrder,
+  logRecoveryDiscountConsumption,
   normalizedCode,
   releasePaymentDiscount,
 };

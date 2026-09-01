@@ -34,13 +34,13 @@ const headers = {
 const STAGE_RANK = Object.freeze({ cart: 1, checkout: 2, contact: 3, payment_started: 4 });
 const MAX_BODY_LENGTH = 500_000;
 const MAX_ITEMS = 40;
-const MAX_ITEM_JSON_LENGTH = 30_000;
+const MAX_ITEM_JSON_LENGTH = 128_000;
 const MAX_CART_JSON_LENGTH = 350_000;
-const MAX_OBJECT_KEYS = 80;
-const MAX_ARRAY_ITEMS = 60;
-const MAX_DEPTH = 6;
-const MAX_STRING_LENGTH = 4_096;
-const MAX_SCENE_STRING_LENGTH = 16_000;
+const MAX_OBJECT_KEYS = 160;
+const MAX_ARRAY_ITEMS = 250;
+const MAX_DEPTH = 10;
+const MAX_STRING_LENGTH = 32_000;
+const MAX_SCENE_STRING_LENGTH = 120_000;
 const MAX_CENTS = 2_000_000_000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -154,6 +154,23 @@ function normalizeSnapshotRevision(value) {
     : null;
 }
 
+function normalizeCaptureKind(value) {
+  return value === 'lifecycle' ? 'lifecycle' : 'full';
+}
+
+function normalizeCheckoutState(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const rawDiscountCode = typeof value.discountCode === 'string'
+    ? value.discountCode.trim().toUpperCase().slice(0, 80)
+    : '';
+  return {
+    version: 1,
+    sameDayHitService: value.sameDayHitService === true,
+    saturdayDelivery: value.saturdayDelivery === true,
+    discountCode: rawDiscountCode || null,
+  };
+}
+
 function snapshotPayloadIsNewer(incomingRevision, storedRevision) {
   const incoming = normalizeSnapshotRevision(incomingRevision);
   const stored = normalizeSnapshotRevision(storedRevision);
@@ -186,8 +203,16 @@ function sanitizeUnknown(value, key = '', depth = 0) {
     if ((loweredKey.includes('url') || loweredKey.includes('src')) && isUnsafeInlineUrl(value)) {
       return null;
     }
-    const limit = key === 'canvas_state_json' ? MAX_SCENE_STRING_LENGTH : MAX_STRING_LENGTH;
-    return value.slice(0, limit);
+    if (key === 'canvas_state_json') {
+      if (value.length > MAX_SCENE_STRING_LENGTH) return null;
+      try {
+        JSON.parse(value);
+        return value;
+      } catch {
+        return null;
+      }
+    }
+    return value.slice(0, MAX_STRING_LENGTH);
   }
   if (depth >= MAX_DEPTH) return null;
   if (Array.isArray(value)) {
@@ -234,11 +259,24 @@ function sanitizeSnapshotMetadata(item) {
       || typeof value.complete !== 'boolean') {
     return null;
   }
+  const fidelity = value.fidelity === 'compact' ? 'compact'
+    : value.fidelity === 'full' ? 'full' : null;
+  const incompleteReasons = Array.isArray(value.incompleteReasons)
+    ? value.incompleteReasons
+      .filter((reason) => typeof reason === 'string' && reason.trim())
+      .slice(0, 40)
+      .map((reason) => reason.trim().slice(0, 160))
+    : [];
   return {
     version: 1,
     sourceItemCount: value.sourceItemCount,
     storedItemCount: value.storedItemCount,
     complete: value.complete,
+    ...(fidelity ? { fidelity } : {}),
+    ...(typeof value.requiredFieldsComplete === 'boolean'
+      ? { requiredFieldsComplete: value.requiredFieldsComplete }
+      : {}),
+    ...(incompleteReasons.length ? { incompleteReasons } : {}),
   };
 }
 
@@ -282,6 +320,21 @@ function itemSummary(item) {
     : summary;
 }
 
+function markSnapshotMetadataIncomplete(metadata, reason, storedItemCount) {
+  if (!metadata) return null;
+  const reasons = Array.from(new Set([
+    ...(Array.isArray(metadata.incompleteReasons) ? metadata.incompleteReasons : []),
+    reason,
+  ])).slice(0, 40);
+  return {
+    ...metadata,
+    ...(Number.isSafeInteger(storedItemCount) ? { storedItemCount } : {}),
+    complete: false,
+    requiredFieldsComplete: false,
+    incompleteReasons: reasons,
+  };
+}
+
 function sanitizeCartItems(items) {
   if (!Array.isArray(items)) return [];
   const result = [];
@@ -298,11 +351,24 @@ function sanitizeCartItems(items) {
     let serialized = JSON.stringify(sanitized);
     if (serialized.length > MAX_ITEM_JSON_LENGTH) {
       sanitized = itemSummary(item);
+      const incompleteMetadata = markSnapshotMetadataIncomplete(
+        sanitizeSnapshotMetadata(item),
+        'server_item_budget_exceeded',
+      );
+      if (incompleteMetadata) sanitized[SNAPSHOT_METADATA_KEY] = incompleteMetadata;
       serialized = JSON.stringify(sanitized);
     }
     if (totalLength + serialized.length > MAX_CART_JSON_LENGTH) break;
     totalLength += serialized.length + 1;
     result.push(sanitized);
+  }
+  const firstMetadata = sanitizeSnapshotMetadata(result[0]);
+  if (firstMetadata && firstMetadata.storedItemCount !== result.length) {
+    result[0][SNAPSHOT_METADATA_KEY] = markSnapshotMetadataIncomplete(
+      firstMetadata,
+      'server_cart_budget_exceeded',
+      result.length,
+    );
   }
   return result;
 }
@@ -325,6 +391,68 @@ function extractUtm(metadata) {
   };
 }
 
+async function recordCaptureEvents(sql, {
+  cartId,
+  email,
+  reactivatedCartId,
+  snapshotRevision,
+}) {
+  try {
+    return await sql`
+      WITH event_lock AS MATERIALIZED (
+        SELECT pg_advisory_xact_lock(
+          hashtext(${'abandoned-cart-events:' + cartId})::bigint
+        ) AS acquired
+      ), desired_events AS (
+        SELECT ${cartId}::uuid AS target_cart_id,
+               'cart_created'::text AS event_type,
+               jsonb_build_object(
+                 'source', 'checkout_snapshot',
+                 'snapshotRevision', ${snapshotRevision}::bigint
+               ) AS metadata
+        UNION ALL
+        SELECT ${cartId}::uuid,
+               'email_captured'::text,
+               jsonb_build_object(
+                 'source', 'checkout_snapshot',
+                 'snapshotRevision', ${snapshotRevision}::bigint
+               )
+         WHERE ${email}::text IS NOT NULL
+        UNION ALL
+        SELECT ${reactivatedCartId}::uuid,
+               'cart_reactivated'::text,
+               jsonb_build_object(
+                 'source', 'checkout_snapshot',
+                 'snapshotRevision', ${snapshotRevision}::bigint
+               )
+         WHERE ${reactivatedCartId}::uuid IS NOT NULL
+      )
+      INSERT INTO cart_recovery_logs (
+        abandoned_cart_id, event_type, metadata, created_at
+      )
+      SELECT desired.target_cart_id, desired.event_type, desired.metadata, NOW()
+        FROM desired_events AS desired
+        CROSS JOIN event_lock
+       WHERE NOT EXISTS (
+         SELECT 1
+           FROM cart_recovery_logs AS existing
+          WHERE existing.abandoned_cart_id = desired.target_cart_id
+            AND existing.event_type = desired.event_type
+       )
+      RETURNING event_type
+    `;
+  } catch (error) {
+    // During a rolling deploy the function can arrive before migration 042's
+    // expanded event constraint. Capture itself must remain available; the
+    // next snapshot/detector run will idempotently backfill the event.
+    console.warn('[save-cart-snapshot] Recovery event log deferred', {
+      cartId,
+      code: error?.code || null,
+    });
+    return [];
+  }
+}
+
 async function closeActiveSnapshot(sql, {
   userId,
   sessionId,
@@ -337,6 +465,8 @@ async function closeActiveSnapshot(sql, {
       UPDATE abandoned_carts
          SET recovery_status = 'expired',
              snapshot_revision = COALESCE(${snapshotRevision}::bigint, snapshot_revision),
+             abandonment_signaled_at = NULL,
+             first_recovery_due_at = NULL,
              updated_at = NOW(),
              last_activity_at = NOW()
        WHERE user_id = ${userId}
@@ -357,6 +487,8 @@ async function closeActiveSnapshot(sql, {
       UPDATE abandoned_carts
          SET recovery_status = 'expired',
              snapshot_revision = COALESCE(${snapshotRevision}::bigint, snapshot_revision),
+             abandonment_signaled_at = NULL,
+             first_recovery_due_at = NULL,
              updated_at = NOW(),
              last_activity_at = NOW()
        WHERE session_id = ${sessionId}
@@ -385,6 +517,8 @@ function expireReturnedAbandonedSnapshot(sql, values) {
            recovery_email_claim_sequence = NULL,
            recovery_email_claimed_at = NULL,
            recovery_email_last_error = NULL,
+           abandonment_signaled_at = NULL,
+           first_recovery_due_at = NULL,
            updated_at = NOW()
      WHERE ${values.existingCartId}::uuid IS NOT NULL
        AND id = ${values.existingCartId}::uuid
@@ -411,6 +545,7 @@ async function upsertForUser(sql, values) {
       cart_contents, total_value, subtotal_cents, discount_cents, tax_cents,
       estimated_total_cents, has_artwork, snapshot_revision,
       checkout_stage, checkout_stage_updated_at,
+      abandonment_signaled_at, first_recovery_due_at, checkout_state,
       last_activity_at, recovery_status, utm_source, utm_medium, utm_campaign,
       created_at, updated_at
     ) VALUES (
@@ -419,7 +554,15 @@ async function upsertForUser(sql, values) {
       ${values.totalValue}, ${values.subtotalCents}, ${values.discountCents},
       ${values.taxCents}, ${values.estimatedTotalCents}, ${values.hasArtwork},
       ${values.snapshotRevision},
-      ${values.stage}, NOW(), NOW(), 'active', ${values.utm.source},
+      ${values.stage}, NOW(),
+      CASE WHEN ${values.abandonmentSignal}::boolean THEN NOW() ELSE NULL END,
+      CASE
+        WHEN ${values.email}::text IS NULL THEN NULL
+        WHEN ${values.abandonmentSignal}::boolean THEN NOW()
+        ELSE NOW() + INTERVAL '3 minutes'
+      END,
+      ${values.checkoutStateJson}::jsonb,
+      NOW(), 'active', ${values.utm.source},
       ${values.utm.medium}, ${values.utm.campaign}, NOW(), NOW()
     )
     ON CONFLICT (user_id)
@@ -464,11 +607,21 @@ async function upsertForUser(sql, values) {
       ) THEN COALESCE(EXCLUDED.customer_last_name, abandoned_carts.customer_last_name)
         ELSE abandoned_carts.customer_last_name END,
       cart_contents = CASE WHEN (
-        (EXCLUDED.snapshot_revision IS NULL AND abandoned_carts.snapshot_revision IS NULL)
-        OR (EXCLUDED.snapshot_revision IS NOT NULL AND (
-          abandoned_carts.snapshot_revision IS NULL
-          OR EXCLUDED.snapshot_revision > abandoned_carts.snapshot_revision
-        ))
+        (
+          (EXCLUDED.snapshot_revision IS NULL AND abandoned_carts.snapshot_revision IS NULL)
+          OR (EXCLUDED.snapshot_revision IS NOT NULL AND (
+            abandoned_carts.snapshot_revision IS NULL
+            OR EXCLUDED.snapshot_revision > abandoned_carts.snapshot_revision
+          ))
+        ) AND (
+          ${values.captureKind}::text <> 'lifecycle'
+          OR COALESCE(
+            abandoned_carts.cart_contents->0->'__bof_abandoned_cart_snapshot_v1'->>'fidelity',
+            CASE WHEN abandoned_carts.cart_contents->0
+                     ->'__bof_abandoned_cart_snapshot_v1'->>'complete' = 'true'
+              THEN 'full' ELSE '' END
+          ) <> 'full'
+        )
       ) THEN EXCLUDED.cart_contents ELSE abandoned_carts.cart_contents END,
       total_value = CASE
         WHEN NOT (
@@ -548,6 +701,35 @@ async function upsertForUser(sql, values) {
           THEN NOW()
         ELSE abandoned_carts.checkout_stage_updated_at
       END,
+      abandonment_signaled_at = CASE WHEN (
+        (EXCLUDED.snapshot_revision IS NULL AND abandoned_carts.snapshot_revision IS NULL)
+        OR (EXCLUDED.snapshot_revision IS NOT NULL AND (
+          abandoned_carts.snapshot_revision IS NULL
+          OR EXCLUDED.snapshot_revision > abandoned_carts.snapshot_revision
+        ))
+      ) THEN EXCLUDED.abandonment_signaled_at ELSE abandoned_carts.abandonment_signaled_at END,
+      first_recovery_due_at = CASE WHEN (
+        (EXCLUDED.snapshot_revision IS NULL AND abandoned_carts.snapshot_revision IS NULL)
+        OR (EXCLUDED.snapshot_revision IS NOT NULL AND (
+          abandoned_carts.snapshot_revision IS NULL
+          OR EXCLUDED.snapshot_revision > abandoned_carts.snapshot_revision
+        ))
+      ) THEN CASE
+        WHEN COALESCE(EXCLUDED.normalized_email, abandoned_carts.normalized_email) IS NULL THEN NULL
+        WHEN EXCLUDED.abandonment_signaled_at IS NOT NULL THEN NOW()
+        ELSE NOW() + INTERVAL '3 minutes'
+      END ELSE abandoned_carts.first_recovery_due_at END,
+      checkout_state = CASE WHEN (
+        (EXCLUDED.snapshot_revision IS NULL AND abandoned_carts.snapshot_revision IS NULL)
+        OR (EXCLUDED.snapshot_revision IS NOT NULL AND (
+          abandoned_carts.snapshot_revision IS NULL
+          OR EXCLUDED.snapshot_revision > abandoned_carts.snapshot_revision
+        ))
+      ) AND (
+        ${values.captureKind}::text <> 'lifecycle'
+        OR abandoned_carts.checkout_state IS NULL
+      ) THEN COALESCE(EXCLUDED.checkout_state, abandoned_carts.checkout_state)
+        ELSE abandoned_carts.checkout_state END,
       recovery_suppressed_at = CASE
         WHEN (
           (EXCLUDED.snapshot_revision IS NULL AND abandoned_carts.snapshot_revision IS NULL)
@@ -596,7 +778,11 @@ async function upsertForUser(sql, values) {
       ) THEN COALESCE(EXCLUDED.utm_campaign, abandoned_carts.utm_campaign)
         ELSE abandoned_carts.utm_campaign END,
       updated_at = NOW()
-    RETURNING id, recovery_status, checkout_stage
+    RETURNING id, recovery_status, checkout_stage,
+              (
+                abandonment_signaled_at IS NOT NULL
+                AND snapshot_revision IS NOT DISTINCT FROM ${values.snapshotRevision}::bigint
+              ) AS abandonment_accepted
   `;
 
   const queries = [
@@ -605,12 +791,15 @@ async function upsertForUser(sql, values) {
   if (values.sessionId) {
     queries.push(sql`SELECT pg_advisory_xact_lock(hashtext(${'abandoned-session:' + values.sessionId})::bigint)`);
   }
-  queries.push(expireReturnedAbandonedSnapshot(sql, values));
+  const expireIndex = queries.push(expireReturnedAbandonedSnapshot(sql, values)) - 1;
   const upsertIndex = queries.push(upsert) - 1;
 
   if (!values.sessionId) {
     const results = await runAtomicBatch(sql, queries);
-    return results[upsertIndex];
+    return (results[upsertIndex] || []).map((row) => ({
+      ...row,
+      reactivatedCartId: results[expireIndex]?.[0]?.id || null,
+    }));
   }
 
   const mergeIndex = queries.push(sql`
@@ -747,7 +936,13 @@ async function upsertForUser(sql, values) {
          AND user_id IS NULL
     `);
   const results = await runAtomicBatch(sql, queries);
-  return results[mergeIndex]?.length ? results[mergeIndex] : results[upsertIndex];
+  const savedRows = results[mergeIndex]?.length ? results[mergeIndex] : results[upsertIndex];
+  const abandonmentAccepted = results[upsertIndex]?.[0]?.abandonment_accepted === true;
+  return (savedRows || []).map((row) => ({
+    ...row,
+    abandonment_accepted: abandonmentAccepted,
+    reactivatedCartId: results[expireIndex]?.[0]?.id || null,
+  }));
 }
 
 async function upsertForSession(sql, values) {
@@ -757,6 +952,7 @@ async function upsertForSession(sql, values) {
       cart_contents, total_value, subtotal_cents, discount_cents, tax_cents,
       estimated_total_cents, has_artwork, snapshot_revision,
       checkout_stage, checkout_stage_updated_at,
+      abandonment_signaled_at, first_recovery_due_at, checkout_state,
       last_activity_at, recovery_status, utm_source, utm_medium, utm_campaign,
       created_at, updated_at
     ) VALUES (
@@ -765,7 +961,15 @@ async function upsertForSession(sql, values) {
       ${values.totalValue}, ${values.subtotalCents}, ${values.discountCents},
       ${values.taxCents}, ${values.estimatedTotalCents}, ${values.hasArtwork},
       ${values.snapshotRevision},
-      ${values.stage}, NOW(), NOW(), 'active', ${values.utm.source},
+      ${values.stage}, NOW(),
+      CASE WHEN ${values.abandonmentSignal}::boolean THEN NOW() ELSE NULL END,
+      CASE
+        WHEN ${values.email}::text IS NULL THEN NULL
+        WHEN ${values.abandonmentSignal}::boolean THEN NOW()
+        ELSE NOW() + INTERVAL '3 minutes'
+      END,
+      ${values.checkoutStateJson}::jsonb,
+      NOW(), 'active', ${values.utm.source},
       ${values.utm.medium}, ${values.utm.campaign}, NOW(), NOW()
     )
     ON CONFLICT (session_id)
@@ -810,11 +1014,21 @@ async function upsertForSession(sql, values) {
       ) THEN COALESCE(EXCLUDED.customer_last_name, abandoned_carts.customer_last_name)
         ELSE abandoned_carts.customer_last_name END,
       cart_contents = CASE WHEN (
-        (EXCLUDED.snapshot_revision IS NULL AND abandoned_carts.snapshot_revision IS NULL)
-        OR (EXCLUDED.snapshot_revision IS NOT NULL AND (
-          abandoned_carts.snapshot_revision IS NULL
-          OR EXCLUDED.snapshot_revision > abandoned_carts.snapshot_revision
-        ))
+        (
+          (EXCLUDED.snapshot_revision IS NULL AND abandoned_carts.snapshot_revision IS NULL)
+          OR (EXCLUDED.snapshot_revision IS NOT NULL AND (
+            abandoned_carts.snapshot_revision IS NULL
+            OR EXCLUDED.snapshot_revision > abandoned_carts.snapshot_revision
+          ))
+        ) AND (
+          ${values.captureKind}::text <> 'lifecycle'
+          OR COALESCE(
+            abandoned_carts.cart_contents->0->'__bof_abandoned_cart_snapshot_v1'->>'fidelity',
+            CASE WHEN abandoned_carts.cart_contents->0
+                     ->'__bof_abandoned_cart_snapshot_v1'->>'complete' = 'true'
+              THEN 'full' ELSE '' END
+          ) <> 'full'
+        )
       ) THEN EXCLUDED.cart_contents ELSE abandoned_carts.cart_contents END,
       total_value = CASE
         WHEN NOT (
@@ -894,6 +1108,35 @@ async function upsertForSession(sql, values) {
           THEN NOW()
         ELSE abandoned_carts.checkout_stage_updated_at
       END,
+      abandonment_signaled_at = CASE WHEN (
+        (EXCLUDED.snapshot_revision IS NULL AND abandoned_carts.snapshot_revision IS NULL)
+        OR (EXCLUDED.snapshot_revision IS NOT NULL AND (
+          abandoned_carts.snapshot_revision IS NULL
+          OR EXCLUDED.snapshot_revision > abandoned_carts.snapshot_revision
+        ))
+      ) THEN EXCLUDED.abandonment_signaled_at ELSE abandoned_carts.abandonment_signaled_at END,
+      first_recovery_due_at = CASE WHEN (
+        (EXCLUDED.snapshot_revision IS NULL AND abandoned_carts.snapshot_revision IS NULL)
+        OR (EXCLUDED.snapshot_revision IS NOT NULL AND (
+          abandoned_carts.snapshot_revision IS NULL
+          OR EXCLUDED.snapshot_revision > abandoned_carts.snapshot_revision
+        ))
+      ) THEN CASE
+        WHEN COALESCE(EXCLUDED.normalized_email, abandoned_carts.normalized_email) IS NULL THEN NULL
+        WHEN EXCLUDED.abandonment_signaled_at IS NOT NULL THEN NOW()
+        ELSE NOW() + INTERVAL '3 minutes'
+      END ELSE abandoned_carts.first_recovery_due_at END,
+      checkout_state = CASE WHEN (
+        (EXCLUDED.snapshot_revision IS NULL AND abandoned_carts.snapshot_revision IS NULL)
+        OR (EXCLUDED.snapshot_revision IS NOT NULL AND (
+          abandoned_carts.snapshot_revision IS NULL
+          OR EXCLUDED.snapshot_revision > abandoned_carts.snapshot_revision
+        ))
+      ) AND (
+        ${values.captureKind}::text <> 'lifecycle'
+        OR abandoned_carts.checkout_state IS NULL
+      ) THEN COALESCE(EXCLUDED.checkout_state, abandoned_carts.checkout_state)
+        ELSE abandoned_carts.checkout_state END,
       recovery_suppressed_at = CASE
         WHEN (
           (EXCLUDED.snapshot_revision IS NULL AND abandoned_carts.snapshot_revision IS NULL)
@@ -942,14 +1185,21 @@ async function upsertForSession(sql, values) {
       ) THEN COALESCE(EXCLUDED.utm_campaign, abandoned_carts.utm_campaign)
         ELSE abandoned_carts.utm_campaign END,
       updated_at = NOW()
-    RETURNING id, recovery_status, checkout_stage
+    RETURNING id, recovery_status, checkout_stage,
+              (
+                abandonment_signaled_at IS NOT NULL
+                AND snapshot_revision IS NOT DISTINCT FROM ${values.snapshotRevision}::bigint
+              ) AS abandonment_accepted
   `;
   const results = await runAtomicBatch(sql, [
     sql`SELECT pg_advisory_xact_lock(hashtext(${'abandoned-session:' + values.sessionId})::bigint)`,
     expireReturnedAbandonedSnapshot(sql, values),
     upsert,
   ]);
-  return results[2];
+  return (results[2] || []).map((row) => ({
+    ...row,
+    reactivatedCartId: results[1]?.[0]?.id || null,
+  }));
 }
 
 async function rebindRecoveredSnapshot(sql, values) {
@@ -1035,8 +1285,17 @@ async function rebindRecoveredSnapshot(sql, values) {
            customer_last_name = CASE WHEN recovery_target.accept_payload
              THEN COALESCE(${values.lastName}, cart.customer_last_name)
              ELSE cart.customer_last_name END,
-           cart_contents = CASE WHEN recovery_target.accept_payload
-             THEN ${values.cartJson}::jsonb ELSE cart.cart_contents END,
+           cart_contents = CASE WHEN (
+             recovery_target.accept_payload AND (
+               ${values.captureKind}::text <> 'lifecycle'
+               OR COALESCE(
+                 cart.cart_contents->0->'__bof_abandoned_cart_snapshot_v1'->>'fidelity',
+                 CASE WHEN cart.cart_contents->0
+                          ->'__bof_abandoned_cart_snapshot_v1'->>'complete' = 'true'
+                   THEN 'full' ELSE '' END
+               ) <> 'full'
+             )
+           ) THEN ${values.cartJson}::jsonb ELSE cart.cart_contents END,
            total_value = CASE
              WHEN NOT recovery_target.accept_payload THEN cart.total_value
              WHEN ${values.estimatedTotalCents}::integer IS NULL
@@ -1075,6 +1334,27 @@ async function rebindRecoveredSnapshot(sql, values) {
                THEN NOW()
              ELSE cart.checkout_stage_updated_at
            END,
+           abandonment_signaled_at = CASE
+             WHEN recovery_target.accept_payload AND ${values.abandonmentSignal}::boolean
+               THEN NOW()
+             WHEN recovery_target.accept_payload THEN NULL
+             ELSE cart.abandonment_signaled_at
+           END,
+           first_recovery_due_at = CASE
+             WHEN recovery_target.accept_payload
+               AND COALESCE(${values.email}, cart.normalized_email) IS NULL THEN NULL
+             WHEN recovery_target.accept_payload AND ${values.abandonmentSignal}::boolean
+               THEN NOW()
+             WHEN recovery_target.accept_payload THEN NOW() + INTERVAL '3 minutes'
+             ELSE cart.first_recovery_due_at
+           END,
+           checkout_state = CASE
+             WHEN recovery_target.accept_payload AND (
+               ${values.captureKind}::text <> 'lifecycle'
+               OR cart.checkout_state IS NULL
+             ) THEN COALESCE(${values.checkoutStateJson}::jsonb, cart.checkout_state)
+             ELSE cart.checkout_state
+           END,
            recovery_status = 'active',
            abandoned_at = NULL,
            recovery_email_claim_sequence = NULL,
@@ -1102,7 +1382,12 @@ async function rebindRecoveredSnapshot(sql, values) {
            updated_at = NOW()
       FROM recovery_target
      WHERE cart.id = recovery_target.id
-     RETURNING cart.id, cart.recovery_status, cart.checkout_stage
+     RETURNING cart.id, cart.recovery_status, cart.checkout_stage,
+               (
+                 recovery_target.accept_payload
+                 AND ${values.abandonmentSignal}::boolean
+                 AND cart.abandonment_signaled_at IS NOT NULL
+               ) AS abandonment_accepted
   `) - 1;
   const results = await runAtomicBatch(sql, queries);
   return results[reboundIndex];
@@ -1184,6 +1469,10 @@ async function handleSnapshotRequest(event, dependencies = {}) {
     }
 
     const email = normalizeEmail(body.email);
+    const captureKind = normalizeCaptureKind(body.captureKind);
+    const abandonmentSignal = captureKind === 'lifecycle'
+      && body.abandonmentSignal === true
+      && Boolean(email);
     if (body.cartItems.length > 0) {
       const clientIp = clientIpFromEvent(event, { trustedOnly: protectedBrowserRequest });
       // The trusted Netlify edge IP and a keyed digest make the IP dimension
@@ -1230,6 +1519,7 @@ async function handleSnapshotRequest(event, dependencies = {}) {
         closed: true,
         cartId: closed[0]?.id || null,
         status: 'expired',
+        abandonmentAccepted: false,
       });
     }
 
@@ -1246,6 +1536,9 @@ async function handleSnapshotRequest(event, dependencies = {}) {
       existingCartId,
       recoveryCartId,
       snapshotRevision,
+      captureKind,
+      abandonmentSignal,
+      checkoutStateJson: JSON.stringify(normalizeCheckoutState(body.checkoutState)),
       email,
       phone: normalizePhone(body.phone),
       firstName: normalizeName(body.firstName),
@@ -1275,6 +1568,15 @@ async function handleSnapshotRequest(event, dependencies = {}) {
     }
     if (!saved) throw new Error('Snapshot upsert returned no cart');
 
+    const reactivatedCartId = recoveryCartId || saved.reactivatedCartId || null;
+    const reactivated = Boolean(reactivatedCartId);
+    await recordCaptureEvents(sql, {
+      cartId: saved.id,
+      email,
+      reactivatedCartId,
+      snapshotRevision,
+    });
+
     console.log('[save-cart-snapshot] Saved bounded snapshot', {
       cartId: saved.id,
       owner: userId ? 'signed_in' : 'guest',
@@ -1282,6 +1584,7 @@ async function handleSnapshotRequest(event, dependencies = {}) {
       hasEmail: Boolean(email),
       stage: saved.checkout_stage,
       rebound: Boolean(recoveryCartId),
+      reactivated,
     });
     return response(200, {
       success: true,
@@ -1289,6 +1592,11 @@ async function handleSnapshotRequest(event, dependencies = {}) {
       status: saved.recovery_status,
       stage: saved.checkout_stage,
       rebound: Boolean(recoveryCartId),
+      abandonmentAccepted: Boolean(
+        abandonmentSignal
+        && saved.abandonment_accepted === true
+        && saved.checkout_stage !== 'payment_started'
+      ),
     });
   } catch (error) {
     console.error('[save-cart-snapshot] Error:', error);
@@ -1312,6 +1620,8 @@ module.exports = {
   normalizePhone,
   normalizeName,
   normalizeSnapshotRevision,
+  normalizeCaptureKind,
+  normalizeCheckoutState,
   snapshotPayloadIsNewer,
   verifiedRecoveryCartId,
   sanitizeCartItems,
@@ -1326,4 +1636,5 @@ module.exports = {
   upsertForSession,
   upsertForUser,
   verifiedSnapshotUserId,
+  recordCaptureEvents,
 };

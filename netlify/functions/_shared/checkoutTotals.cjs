@@ -7,6 +7,11 @@
 // (Stripe) MUST use this so that the amount we charge always matches
 // the amount the existing order pipeline persists.
 
+const {
+  capPromoDiscountAmount,
+  promoSubtotalForItems,
+} = require('./recovery-discount-policy.cjs');
+
 const getFeatureFlags = () => ({
   freeShipping: process.env.FEATURE_FREE_SHIPPING === '1',
   minOrderFloor: process.env.FEATURE_MIN_ORDER_FLOOR === '1',
@@ -32,8 +37,15 @@ const getQuantityDiscountRate = (quantity) => {
   return rate;
 };
 
-const resolveBestDiscount = (subtotalCents, quantity, promoDiscount = null, quantitySubtotalCents = null) => {
+const resolveBestDiscount = (
+  subtotalCents,
+  quantity,
+  promoDiscount = null,
+  quantitySubtotalCents = null,
+  promoSubtotalCents = null,
+) => {
   const quantityBaseCents = quantitySubtotalCents == null ? subtotalCents : quantitySubtotalCents;
+  const promoBaseCents = promoSubtotalCents == null ? subtotalCents : promoSubtotalCents;
   const quantityDiscountRate = getQuantityDiscountRate(quantity);
   const quantityDiscountAmountCents = Math.round(quantityBaseCents * quantityDiscountRate);
 
@@ -42,11 +54,12 @@ const resolveBestDiscount = (subtotalCents, quantity, promoDiscount = null, quan
   if (promoDiscount) {
     if (promoDiscount.discountPercentage) {
       promoDiscountRate = promoDiscount.discountPercentage / 100;
-      promoDiscountAmountCents = Math.round(subtotalCents * promoDiscountRate);
+      promoDiscountAmountCents = Math.round(promoBaseCents * promoDiscountRate);
     } else if (promoDiscount.discountAmountCents) {
-      promoDiscountAmountCents = Math.min(promoDiscount.discountAmountCents, subtotalCents);
-      promoDiscountRate = subtotalCents > 0 ? promoDiscountAmountCents / subtotalCents : 0;
+      promoDiscountAmountCents = Math.min(promoDiscount.discountAmountCents, promoBaseCents);
+      promoDiscountRate = promoBaseCents > 0 ? promoDiscountAmountCents / promoBaseCents : 0;
     }
+    promoDiscountAmountCents = capPromoDiscountAmount(promoDiscountAmountCents, promoDiscount);
   }
 
   if (quantityDiscountAmountCents >= promoDiscountAmountCents && quantityDiscountAmountCents > 0) {
@@ -91,7 +104,14 @@ const computeTotals = (items, taxRate, opts, promoDiscount = null) => {
   const bannerSubtotalCents = bannerItems.reduce((sum, i) => sum + (i.line_total_cents || 0), 0);
   const totalQuantity = items.reduce((sum, i) => sum + (i.quantity || 1), 0);
 
-  const bestDiscount = resolveBestDiscount(adjusted, bannerQuantity, promoDiscount, bannerSubtotalCents);
+  const promoSubtotalCents = promoSubtotalForItems(items, adjusted, promoDiscount);
+  const bestDiscount = resolveBestDiscount(
+    adjusted,
+    bannerQuantity,
+    promoDiscount,
+    bannerSubtotalCents,
+    promoSubtotalCents,
+  );
   const subtotalAfterDiscount = adjusted - bestDiscount.appliedDiscountAmountCents;
 
   const shipping_cents = opts.freeShipping ? 0 : 0; // Always free for US

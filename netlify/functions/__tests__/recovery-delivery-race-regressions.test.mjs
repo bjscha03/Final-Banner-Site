@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { _test as dispatcherTest } from '../detect-abandoned-carts.mjs';
+import { config as dispatcherConfig, _test as dispatcherTest } from '../detect-abandoned-carts.mjs';
 import { _test as backgroundTest } from '../detect-abandoned-carts-background.mjs';
 
 const require = createRequire(import.meta.url);
@@ -37,7 +37,7 @@ test.after(() => {
   }
 });
 
-test('a click racing the final provider check stops sequence two and manual delivery', async () => {
+test('a click without a purchase does not stop sequence two or manual delivery', async () => {
   const cart = {
     id: cartId,
     user_id: null,
@@ -54,11 +54,12 @@ test('a click racing the final provider check stops sequence two and manual deli
     created_at: '2026-08-29T00:00:00.000Z',
   };
   let providerCalls = 0;
-  let stopped = false;
   let claimQuery = '';
   let claimValues = [];
+  const queries = [];
   const sql = async (first, ...values) => {
     const query = queryText(first);
+    queries.push(query);
     if (/SELECT id, user_id, session_id, email, normalized_email, cart_contents/i.test(query)) return [cart];
     if (/SELECT id[\s\S]+FROM orders/i.test(query)) return [];
     if (/\beligible AS\s*\(/i.test(query)) {
@@ -66,19 +67,17 @@ test('a click racing the final provider check stops sequence two and manual deli
       claimValues = values;
       return [{ ...cart, recovery_email_claim_sequence: 2 }];
     }
-    if (/SELECT code FROM discount_codes/i.test(query)) return [{ code: cart.discount_code }];
-    if (/FROM cart_recovery_logs/i.test(query) && /event_type = 'email_clicked'/i.test(query)) return [{ exists: 1 }];
-    if (/WITH stopped AS/i.test(query)) {
-      stopped = true;
-      return [];
-    }
+    if (/SELECT cart\.id[\s\S]+recovery_email_claim_sequence[\s\S]+ORDER BY candidate\.last_activity_at DESC/i.test(query)) return [{ id: cartId }];
+    if (/AS stop_reason[\s\S]+recovery_email_claim_sequence/i.test(query)) return [{ stop_reason: null }];
+    if (/UPDATE cart_recovery_deliveries[\s\S]+payloadDigest/i.test(query)) return [{ abandoned_cart_id: cartId }];
+    if (/WITH eligible_delivery AS MATERIALIZED[\s\S]+activated_offer AS[\s\S]+delivered AS/i.test(query)) return [{ id: cartId }];
     return [];
   };
   const resend = {
     emails: {
       send: async () => {
         providerCalls += 1;
-        return { data: { id: 'must-not-send' }, error: null };
+        return { data: { id: 'sequence-two-sent' }, error: null };
       },
     },
   };
@@ -94,10 +93,15 @@ test('a click racing the final provider check stops sequence two and manual deli
       source: 'admin:test',
     });
 
-    assert.deepEqual(result, { success: false, skipped: true, reason: 'email_clicked' });
-    assert.equal(providerCalls, 0);
-    assert.equal(stopped, true);
-    assert.match(claimQuery, /NOT EXISTS[\s\S]+email_clicked/);
+    assert.deepEqual(result, {
+      success: true,
+      emailId: 'sequence-two-sent',
+      sequenceNumber: 2,
+      discountCode: null,
+    });
+    assert.equal(providerCalls, 1);
+    assert.doesNotMatch(claimQuery, /email_clicked/);
+    assert.equal(queries.some((query) => /event_type = 'email_clicked'/i.test(query)), false);
     assert.match(claimQuery, /last_recovery_email_at[\s\S]+INTERVAL '1 hour'/);
     assert.equal(claimValues.includes(23), true);
   } finally {
@@ -106,6 +110,7 @@ test('a click racing the final provider check stops sequence two and manual deli
 });
 
 test('scheduler enforces inter-send gaps and attempts a cart at most once per run', async () => {
+  assert.equal(dispatcherConfig.schedule, '* * * * *');
   const queries = [];
   const sql = async (first) => {
     queries.push(queryText(first));
@@ -114,10 +119,14 @@ test('scheduler enforces inter-send gaps and attempts a cart at most once per ru
   await detector._test.dueCandidates(sql, 2);
   await detector._test.dueCandidates(sql, 3);
 
-  assert.match(queries[0], /last_recovery_email_at IS NOT NULL/);
-  assert.match(queries[0], /last_recovery_email_at <= NOW\(\) - INTERVAL '23 hours'/);
-  assert.match(queries[1], /last_recovery_email_at IS NOT NULL/);
-  assert.match(queries[1], /last_recovery_email_at <= NOW\(\) - INTERVAL '48 hours'/);
+  assert.match(queries[0], /prior_delivery\.sequence_number = 1/);
+  assert.match(queries[0], /prior_delivery\.status = 'sent'/);
+  assert.match(queries[0], /prior_delivery\.sent_at <= NOW\(\) - INTERVAL '23 hours'/);
+  assert.match(queries[1], /prior_delivery\.sequence_number = 2/);
+  assert.match(queries[1], /prior_delivery\.status = 'sent'/);
+  assert.match(queries[1], /prior_delivery\.sent_at <= NOW\(\) - INTERVAL '48 hours'/);
+  assert.doesNotMatch(queries[0], /email_clicked/);
+  assert.doesNotMatch(queries[1], /email_clicked/);
 
   const attempted = new Set();
   assert.deepEqual(
@@ -128,6 +137,32 @@ test('scheduler enforces inter-send gaps and attempts a cart at most once per ru
     detector._test.takeUnattemptedCandidates([{ id: 'cart-a' }, { id: 'cart-c' }], attempted),
     [{ id: 'cart-c' }],
   );
+});
+
+test('abandonment transition logging is idempotent and rolling-deploy safe', async () => {
+  let eventQuery = '';
+  const recorded = await detector._test.recordCartAbandonedEvents(async (first) => {
+    eventQuery = queryText(first);
+    return [{ abandoned_cart_id: cartId }];
+  });
+  assert.equal(recorded.length, 1);
+  assert.match(eventQuery, /event_type = 'cart_abandoned'/);
+  assert.match(eventQuery, /NOT EXISTS/);
+  assert.match(eventQuery, /pagehide_signal/);
+  assert.match(eventQuery, /quiet_timeout/);
+
+  const originalWarn = console.warn;
+  console.warn = () => {};
+  try {
+    const deferred = await detector._test.recordCartAbandonedEvents(async () => {
+      const error = new Error('old event constraint');
+      error.code = '23514';
+      throw error;
+    });
+    assert.deepEqual(deferred, []);
+  } finally {
+    console.warn = originalWarn;
+  }
 });
 
 test('fifty failed older deliveries cannot starve a newer never-attempted cart', async () => {
@@ -142,10 +177,10 @@ test('fifty failed older deliveries cannot starve a newer never-attempted cart',
     assert.match(dueQuery, /LEFT JOIN cart_recovery_deliveries AS delivery/);
     assert.match(dueQuery, new RegExp(`delivery\\.sequence_number = ${sequenceNumber}`));
     assert.match(dueQuery, /delivery\.id IS NULL/);
-    assert.match(dueQuery, /delivery\.status = 'failed'[\s\S]+delivery\.updated_at <= NOW\(\) - \(\? \* INTERVAL '1 hour'\)/);
+    assert.match(dueQuery, /delivery\.status = 'failed'[\s\S]+delivery\.updated_at <= NOW\(\) - \(\? \* INTERVAL '1 minute'\)/);
     assert.match(dueQuery, /ORDER BY \(delivery\.id IS NULL\) DESC/);
     assert.match(dueQuery, /ELSE delivery\.updated_at END ASC/);
-    assert.equal(dueValues.includes(detector._test.DELIVERY_RETRY_BACKOFF_HOURS), true);
+    assert.equal(dueValues.includes(detector._test.DELIVERY_RETRY_BACKOFF_MINUTES), true);
     assert.equal(dueValues.includes(detector._test.DELIVERY_BATCH_SIZE), true);
   }
 
@@ -169,8 +204,12 @@ test('fifty failed older deliveries cannot starve a newer never-attempted cart',
     claimValues = values;
     return [];
   }, cartId, 1, 'scheduled');
-  assert.match(claimQuery, /status = 'failed'[\s\S]+NOT \?[\s\S]+updated_at <=[\s\S]+INTERVAL '1 hour'/);
+  assert.match(claimQuery, /status = 'failed'[\s\S]+NOT \?[\s\S]+updated_at <=[\s\S]+INTERVAL '1 minute'/);
+  assert.match(claimQuery, /metadata->>'attemptCount'[\s\S]+< \?[\s\S]+AND \(/);
+  assert.match(claimQuery, /jsonb_build_object\([\s\S]+'attemptCount'/);
   assert.equal(claimValues.includes(true), true);
+  assert.equal(claimValues.includes(5), true);
+  assert.equal(sendModule._test.MAX_DELIVERY_ATTEMPTS, 5);
 });
 
 test('five-day and month-old active carts are batch-expired and can never enter sequence one', async () => {
@@ -193,13 +232,22 @@ test('five-day and month-old active carts are batch-expired and can never enter 
   assert.equal(expireActive.values.includes(detector._test.CART_STATE_BATCH_SIZE), true);
 
   assert.match(abandonRecent.query, /last_activity_at > NOW\(\) - INTERVAL '96 hours'/);
-  assert.match(abandonRecent.query, /last_activity_at \+ INTERVAL '1 hour'/);
+  assert.match(abandonRecent.query, /abandonment_signaled_at IS NOT NULL/);
+  assert.match(abandonRecent.query, /first_recovery_due_at <= NOW\(\)/);
+  assert.match(abandonRecent.query, /abandonment_signaled_at IS NOT NULL[\s\S]+OR first_recovery_due_at IS NOT NULL/);
+  assert.match(abandonRecent.query, /last_activity_at \+ \([\s\S]+CASE WHEN checkout_stage = 'payment_started'[\s\S]+END \* INTERVAL '1 minute'/);
+  assert.equal(abandonRecent.values.includes(detector._test.QUIET_ABANDONMENT_MINUTES), true);
+  assert.equal(detector._test.PAYMENT_HANDOFF_GRACE_MINUTES, 30);
+  assert.equal(abandonRecent.values.includes(detector._test.PAYMENT_HANDOFF_GRACE_MINUTES), true);
   assert.doesNotMatch(abandonRecent.query, /COALESCE\(cart\.abandoned_at, NOW\(\)\)/);
   assert.match(abandonRecent.query, /LIMIT \?/);
   assert.equal(abandonRecent.values.includes(detector._test.CART_STATE_BATCH_SIZE), true);
 
   assert.match(sequenceOne.query, /recovery_status = 'abandoned'/);
-  assert.match(sequenceOne.query, /COALESCE\(cart\.abandoned_at, cart\.last_activity_at\) > NOW\(\) - INTERVAL '96 hours'/);
+  assert.match(sequenceOne.query, /cart\.first_recovery_due_at/);
+  assert.match(sequenceOne.query, /cart\.abandonment_signaled_at/);
+  assert.match(sequenceOne.query, /cart\.abandonment_signaled_at IS NOT NULL[\s\S]+OR cart\.first_recovery_due_at IS NOT NULL/);
+  assert.doesNotMatch(sequenceOne.query, /cart\.last_activity_at \+ \([^)]*INTERVAL '1 minute'/);
   assert.match(expireAbandoned.query, /LIMIT \?/);
 
   const now = Date.parse('2026-09-01T00:00:00.000Z');
@@ -306,19 +354,20 @@ test('delivered webhook repairs an accepted send after DB completion failure and
       return [{ id: cartId }];
     }
     if (/AS stop_reason[\s\S]+recovery_email_claim_sequence/i.test(query)) return [{ stop_reason: null }];
-    if (/WITH delivered AS/i.test(query)) throw new Error('simulated completion database outage');
+    if (/UPDATE cart_recovery_deliveries[\s\S]+payloadDigest/i.test(query)) return [{ abandoned_cart_id: cartId }];
+    if (/WITH eligible_delivery AS MATERIALIZED[\s\S]+activated_offer AS[\s\S]+delivered AS/i.test(query)) throw new Error('simulated completion database outage');
     if (/WITH failed AS/i.test(query)) {
       state.claim = false;
       state.deliveryStatus = 'failed';
       return [];
     }
-    if (/INSERT INTO cart_recovery_logs/i.test(query)) return [];
-    if (/WITH reconciled_delivery AS/i.test(query)) {
+    if (/WITH target AS MATERIALIZED[\s\S]+reconciled_delivery AS/i.test(query)) {
       state.claim = false;
       state.deliveryStatus = 'sent';
       state.recoveryEmailsSent = 1;
       return [{ id: cartId }];
     }
+    if (/INSERT INTO cart_recovery_logs/i.test(query)) return [];
     return [];
   };
   const resend = {
@@ -369,6 +418,62 @@ test('delivered webhook repairs an accepted send after DB completion failure and
     sendModule._test.resetDependencies();
     webhookModule._test.resetDependencies();
   }
+});
+
+test('delivered webhook atomically activates the exact bound offer before marking it sent', async () => {
+  let query = '';
+  let values = [];
+  const rows = await webhookModule._test.reconcileDeliveredRecovery(
+    async (first, ...boundValues) => {
+      query = queryText(first);
+      values = boundValues;
+      return [{ id: cartId }];
+    },
+    cartId,
+    1,
+    'provider-offer-message',
+    'provider-offer-event',
+  );
+
+  assert.deepEqual(rows, [{ id: cartId }]);
+  assert.match(query, /WITH target AS MATERIALIZED[\s\S]+FOR UPDATE OF delivery, cart/);
+  assert.match(query, /discount\.code = target\.offer_code/);
+  assert.match(query, /discount\.expires_at = target\.offer_expires_at/);
+  assert.match(query, /discount\.max_discount_amount_cents = target\.offer_cap_cents/);
+  assert.match(query, /discount\.eligible_cart_item_ids = target\.offer_item_ids/);
+  assert.match(query, /discount\.activated_at IS NULL/);
+  assert.match(query, /NOT target\.offer_expected[\s\S]+EXISTS \(SELECT 1 FROM ready_offer/);
+  assert.match(query, /discount_code = target\.offer_code/);
+  assert.match(query, /'coupon_issued'/);
+  assert.doesNotMatch(query, /SET\s+expires_at\s*=/);
+  assert.equal(values.includes('abandoned_cart_large_banner_25'), true);
+  assert.equal(values.includes('recovery_qualifying_banner_lines'), true);
+  assert.equal(values.includes(25), true);
+
+  webhookModule._test.setEnsureSchema(async () => {});
+  await assert.rejects(
+    webhookModule._test.recordRecoveryEvent(
+      async (first) => {
+        const text = queryText(first);
+        if (/SELECT id, normalized_email, email[\s\S]+FROM abandoned_carts/i.test(text)) {
+          return [{ id: cartId, normalized_email: 'buyer@example.com', email: 'buyer@example.com' }];
+        }
+        return [];
+      },
+      {
+        type: 'email.delivered',
+        data: { tags: [
+          { name: 'type', value: 'abandoned_cart' },
+          { name: 'sequence', value: '1' },
+          { name: 'cart_id', value: cartId },
+        ] },
+      },
+      { headers: { 'svix-id': 'provider-offer-mismatch' } },
+      'provider-offer-message',
+      'buyer@example.com',
+    ),
+    /could not be reconciled to a usable offer/,
+  );
 });
 
 test('manual delivery rejects an active cart and the atomic claim cannot fabricate abandonment', async () => {

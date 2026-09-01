@@ -38,15 +38,24 @@ import {
 import { storeOrderConfirmationToken } from '@/lib/orderConfirmationStorage';
 import {
   clearAbandonedCartRecoveryQuery,
-  readAbandonedCartRecoveryToken,
+  clearStoredAbandonedCartRecoveryRetryToken,
+  isAbandonedCartRecoveryTokenRetryable,
+  prepareAbandonedCartRecoveryToken,
   restoreAbandonedCartFromToken,
 } from '@/lib/abandonedCartRecovery';
+import {
+  beginStartupCartRecovery,
+  canStartCartRecoveryAttempt,
+  finishStartupCartRecovery,
+  isStartupCartRecoveryAttemptCurrent,
+  terminateCurrentStartupCartRecovery,
+} from '@/lib/cartRecoveryStartup';
 
 const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
-  const { items: rawItems, getMigratedItems, isLoading, syncToServer, replaceItemsFromRecovery, clearCart, getSubtotalCents, getTaxCents, getTotalCents, updateQuantity, removeItem, applyCanonicalPricingQuote, discountCode, applyDiscountCode, removeDiscountCode, getResolvedDiscount, sameDayHitService, saturdayDelivery, getSameDayFeeCents, getSaturdayDeliveryFeeCents } = useCartStore();
+  const { items: rawItems, getMigratedItems, isLoading, syncToServer, replaceItemsFromRecovery, restoreRecoveredCheckoutPreferences, clearCart, getSubtotalCents, getTaxCents, getTotalCents, updateQuantity, removeItem, applyCanonicalPricingQuote, discountCode, applyDiscountCode, removeDiscountCode, getResolvedDiscount, sameDayHitService, saturdayDelivery, getSameDayFeeCents, getSaturdayDeliveryFeeCents } = useCartStore();
 
   // CRITICAL: Use migrated items to ensure rope/pole pocket costs are calculated
   const items = getMigratedItems();
@@ -65,12 +74,18 @@ const Checkout: React.FC = () => {
   // synchronous, including the crash window where only a checkout key exists
   // and the create-payment response never reached the browser.
   const [initialActiveCheckout] = useState<ActiveCheckoutMarker | null>(() => readActiveCheckoutMarker());
-  const [initialCartRecoveryToken] = useState<string | null>(() => readAbandonedCartRecoveryToken());
+  // Capture a valid fragment credential into bounded session state before the
+  // layout effect scrubs it from history. This permits an explicit retry after
+  // a transient outage without extending the signed token's own lifetime.
+  const [initialCartRecoveryToken] = useState<string | null>(() => prepareAbandonedCartRecoveryToken());
   const [activeCheckout, setActiveCheckout] = useState<ActiveCheckoutMarker | null>(initialActiveCheckout);
-  const [cartRecoveryLoading, setCartRecoveryLoading] = useState(Boolean(initialCartRecoveryToken));
+  const [cartRecoveryLoading, setCartRecoveryLoading] = useState(
+    Boolean(initialCartRecoveryToken && !initialActiveCheckout),
+  );
   const [needsStoredCheckoutRecovery, setNeedsStoredCheckoutRecovery] = useState(Boolean(initialActiveCheckout));
   const [recoveryMessage, setRecoveryMessage] = useState<string | null>(null);
   const [cartRecoveryError, setCartRecoveryError] = useState<string | null>(null);
+  const [cartRecoveryCanRetry, setCartRecoveryCanRetry] = useState(false);
   const [recoveryChecking, setRecoveryChecking] = useState(false);
   const [staleCartReview, setStaleCartReview] = useState<{
     serverTotalCents: number;
@@ -82,7 +97,28 @@ const Checkout: React.FC = () => {
   const [showPromoCode, setShowPromoCode] = useState(false);
   const paymentSuccessHandledRef = useRef(false);
   const cartRecoveryHandledRef = useRef(false);
-  const checkoutLocked = Boolean(activeCheckout) || recoveryChecking || cartRecoveryLoading;
+  const cartRecoveryInFlightRef = useRef(false);
+  const recoveryReleaseTimerRef = useRef<number | null>(null);
+  const checkoutLocked = Boolean(activeCheckout)
+    || recoveryChecking
+    || cartRecoveryLoading
+    || cartRecoveryCanRetry;
+
+  // Keep signed recovery authoritative only for this checkout visit. A
+  // zero-delay cleanup survives React's development effect replay (the next
+  // setup cancels it), while a real route change releases account hydration.
+  useEffect(() => {
+    if (recoveryReleaseTimerRef.current !== null) {
+      window.clearTimeout(recoveryReleaseTimerRef.current);
+      recoveryReleaseTimerRef.current = null;
+    }
+    return () => {
+      recoveryReleaseTimerRef.current = window.setTimeout(() => {
+        terminateCurrentStartupCartRecovery();
+        recoveryReleaseTimerRef.current = null;
+      }, 0);
+    };
+  }, []);
 
   const handlePaymentStateChange = useCallback((event: CheckoutPaymentStateEvent) => {
     setNeedsStoredCheckoutRecovery(false);
@@ -149,18 +185,43 @@ const Checkout: React.FC = () => {
     clearAbandonedCartRecoveryQuery();
   }, []);
 
-  useEffect(() => {
-    if (cartRecoveryHandledRef.current || isLoading || !initialCartRecoveryToken) return;
-    cartRecoveryHandledRef.current = true;
+  const attemptCartRecovery = useCallback((isRetry: boolean) => {
+    if (cartRecoveryInFlightRef.current || !canStartCartRecoveryAttempt({
+      hasToken: Boolean(initialCartRecoveryToken),
+      cartIsLoading: isLoading,
+      hasActiveCheckout: Boolean(activeCheckout),
+      needsStoredCheckoutRecovery,
+      paymentRecoveryChecking: recoveryChecking,
+      paymentAlreadySucceeded: paymentSuccessHandledRef.current,
+    })) return;
+
+    if (isRetry && !isAbandonedCartRecoveryTokenRetryable(initialCartRecoveryToken || '')) {
+      clearStoredAbandonedCartRecoveryRetryToken();
+      terminateCurrentStartupCartRecovery();
+      setCartRecoveryCanRetry(false);
+      setCartRecoveryError('This cart recovery link has expired.');
+      return;
+    }
+
+    const recoveryRevision = beginStartupCartRecovery();
+    cartRecoveryInFlightRef.current = true;
+    setCartRecoveryCanRetry(false);
+    setCartRecoveryError(null);
+    setRecoveryMessage(null);
     setCartRecoveryLoading(true);
 
     void restoreAbandonedCartFromToken({
       token: initialCartRecoveryToken,
       replaceCartItems: replaceItemsFromRecovery,
       applyValidatedDiscount: applyDiscountCode,
+      restoreCheckoutPreferences: restoreRecoveredCheckoutPreferences,
+      shouldApply: () => isStartupCartRecoveryAttemptCurrent(recoveryRevision),
     })
       .then((outcome) => {
+        if (!isStartupCartRecoveryAttemptCurrent(recoveryRevision)) return;
         if (outcome.ok) {
+          clearStoredAbandonedCartRecoveryRetryToken();
+          finishStartupCartRecovery(recoveryRevision, 'restored');
           setCartRecoveryError(null);
           setRecoveryMessage(outcome.message);
           toast({
@@ -169,15 +230,67 @@ const Checkout: React.FC = () => {
           });
           return;
         }
+
+        const retryable = outcome.status === 'unavailable'
+          && isAbandonedCartRecoveryTokenRetryable(initialCartRecoveryToken || '');
+        if (retryable) {
+          finishStartupCartRecovery(recoveryRevision, 'retryable');
+          setCartRecoveryCanRetry(true);
+        } else {
+          clearStoredAbandonedCartRecoveryRetryToken();
+          finishStartupCartRecovery(recoveryRevision, 'terminal');
+        }
         setCartRecoveryError(outcome.message);
         toast({
           title: 'Cart could not be restored',
-          description: outcome.message,
+          description: retryable ? `${outcome.message} You can retry safely.` : outcome.message,
           variant: 'destructive',
         });
       })
-      .finally(() => setCartRecoveryLoading(false));
-  }, [applyDiscountCode, initialCartRecoveryToken, isLoading, replaceItemsFromRecovery, toast]);
+      .finally(() => {
+        cartRecoveryInFlightRef.current = false;
+        setCartRecoveryLoading(false);
+      });
+  }, [
+    activeCheckout,
+    applyDiscountCode,
+    initialCartRecoveryToken,
+    isLoading,
+    needsStoredCheckoutRecovery,
+    recoveryChecking,
+    replaceItemsFromRecovery,
+    restoreRecoveredCheckoutPreferences,
+    toast,
+  ]);
+
+  const discardCartRecoveryAttempt = useCallback(() => {
+    clearStoredAbandonedCartRecoveryRetryToken();
+    terminateCurrentStartupCartRecovery();
+    setCartRecoveryCanRetry(false);
+    setCartRecoveryError(null);
+    setCartRecoveryLoading(false);
+    setRecoveryMessage(null);
+  }, []);
+
+  useEffect(() => {
+    if (cartRecoveryHandledRef.current || !canStartCartRecoveryAttempt({
+      hasToken: Boolean(initialCartRecoveryToken),
+      cartIsLoading: isLoading,
+      hasActiveCheckout: Boolean(activeCheckout),
+      needsStoredCheckoutRecovery,
+      paymentRecoveryChecking: recoveryChecking,
+      paymentAlreadySucceeded: paymentSuccessHandledRef.current,
+    })) return;
+    cartRecoveryHandledRef.current = true;
+    attemptCartRecovery(false);
+  }, [
+    activeCheckout,
+    attemptCartRecovery,
+    initialCartRecoveryToken,
+    isLoading,
+    needsStoredCheckoutRecovery,
+    recoveryChecking,
+  ]);
 
   // Stripe configuration is resolved server-side so preview/test and live keys
   // cannot cross environments. A bounded failure falls back to the existing
@@ -465,6 +578,10 @@ const Checkout: React.FC = () => {
         storeOrderConfirmationToken(orderId, confirmationToken);
       }
 
+      // An already-started payment is authoritative. Discard the deferred cart
+      // credential so it cannot restore over the newly completed order.
+      clearStoredAbandonedCartRecoveryRetryToken();
+      terminateCurrentStartupCartRecovery();
       clearActiveCheckoutMarker();
       setActiveCheckout(null);
       setRecoveryMessage(null);
@@ -662,17 +779,30 @@ const Checkout: React.FC = () => {
               </h2>
               {cartRecoveryError ? (
                 <div className="mx-auto mt-3 max-w-xl rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-800" role="alert">
-                  {cartRecoveryError} You can start a new design below.
+                  {cartRecoveryError}{' '}
+                  {cartRecoveryCanRetry
+                    ? 'Your secure recovery link is still valid, so you can retry without rebuilding the design.'
+                    : 'You can start a new design below.'}
                 </div>
               ) : (
                 <p className="mt-2 text-gray-600">Add some items to your cart before checking out.</p>
               )}
-              <Button
-                onClick={() => navigate(isFromGoogleAds ? '/google-ads-banner' : '/design')}
-                className="mt-6"
-              >
-                {isFromGoogleAds ? (dominantProductType === 'yard_sign' ? 'Order a Yard Sign' : 'Order a Banner') : 'Start Designing'}
-              </Button>
+              <div className="mt-6 flex flex-wrap justify-center gap-3">
+                {cartRecoveryCanRetry ? (
+                  <Button onClick={() => attemptCartRecovery(true)} disabled={cartRecoveryLoading}>
+                    {cartRecoveryLoading ? 'Retrying recovery…' : 'Retry cart recovery'}
+                  </Button>
+                ) : null}
+                <Button
+                  variant={cartRecoveryCanRetry ? 'outline' : 'default'}
+                  onClick={() => {
+                    discardCartRecoveryAttempt();
+                    navigate(isFromGoogleAds ? '/google-ads-banner' : '/design');
+                  }}
+                >
+                  {isFromGoogleAds ? (dominantProductType === 'yard_sign' ? 'Order a Yard Sign' : 'Order a Banner') : 'Start Designing'}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -1229,6 +1359,30 @@ const Checkout: React.FC = () => {
                 {cartRecoveryError ? (
                   <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3" role="alert">
                     <p className="text-sm font-medium text-red-900">{cartRecoveryError}</p>
+                    {cartRecoveryCanRetry ? (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="border-red-300 bg-white text-red-800 hover:bg-red-100"
+                          onClick={() => attemptCartRecovery(true)}
+                          disabled={cartRecoveryLoading}
+                        >
+                          {cartRecoveryLoading ? 'Retrying recovery…' : 'Retry cart recovery'}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-slate-700 hover:bg-white"
+                          onClick={discardCartRecoveryAttempt}
+                          disabled={cartRecoveryLoading}
+                        >
+                          Discard recovery and use this cart
+                        </Button>
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
 

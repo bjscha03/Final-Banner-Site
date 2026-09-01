@@ -34,7 +34,15 @@ describe('checkout information hierarchy', () => {
 
     expect(checkout).toContain('setCartRecoveryError(outcome.message)');
     expect(checkout).toContain("cartRecoveryError ? 'Cart could not be restored' : 'Your cart is empty'");
-    expect(checkout).toContain('{cartRecoveryError} You can start a new design below.');
+    expect(checkout).toContain("'You can start a new design below.'");
     expect(alertMatches.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('keeps a retryable fragment recovery actionable after history is scrubbed', () => {
+    expect(checkout).toContain('prepareAbandonedCartRecoveryToken()');
+    expect(checkout).toContain("outcome.status === 'unavailable'");
+    expect(checkout).toContain("finishStartupCartRecovery(recoveryRevision, 'retryable')");
+    expect(checkout).toContain('Retry cart recovery');
+    expect(checkout).toContain('isAbandonedCartRecoveryTokenRetryable');
   });
 });
