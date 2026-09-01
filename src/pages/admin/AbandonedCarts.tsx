@@ -704,7 +704,7 @@ const AbandonedCarts: React.FC = () => {
       });
       const result = await response.json();
       if (!response.ok || result?.skipped) {
-        throw new Error(result?.message || result?.reason || result?.error || 'Recovery email was not sent');
+        throw new Error(result?.message || result?.reason || result?.error || (typeof result === 'string' ? result : JSON.stringify(result)) || 'Recovery email was not sent');
       }
       toast({
         title: `Recovery email ${sequenceNumber} sent`,
