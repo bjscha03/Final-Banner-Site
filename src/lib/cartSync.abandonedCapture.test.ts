@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cartSyncService } from '@/lib/cartSync';
+import { cartSyncService, isCartSyncIdentity } from '@/lib/cartSync';
 import type { CartItem } from '@/store/cart';
 import captureHookSource from '@/hooks/useAbandonedCartCapture.ts?raw';
+import cartSyncHookSource from '@/hooks/useCartSync.ts?raw';
+import cartRevalidationSource from '@/hooks/useCartRevalidation.ts?raw';
 
 const memoryStorage = (): Storage => {
   const data = new Map<string, string>();
@@ -40,6 +42,50 @@ afterEach(() => {
 });
 
 describe('cartSync abandoned checkout capture', () => {
+  it('keeps synthetic identities outside customer cart synchronization', async () => {
+    expect(isCartSyncIdentity({ id: 'server-admin', is_admin: true })).toBe(false);
+    expect(isCartSyncIdentity({ id: 'server-admin', is_admin: false })).toBe(false);
+    expect(isCartSyncIdentity({
+      id: '11111111-1111-4111-8111-111111111111',
+      is_admin: false,
+    })).toBe(true);
+    expect(isCartSyncIdentity({
+      id: '11111111-1111-4111-8111-111111111111',
+      is_admin: true,
+    })).toBe(true);
+    expect(cartSyncHookSource).toMatch(/user && !isCartSyncIdentity\(user\)/);
+    expect(cartRevalidationSource).toMatch(/!isCartSyncIdentity\(user\)/);
+
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(cartSyncService.mergeGuestCartOnLogin(
+      'server-admin',
+      'sess_admin_must_not_close_123',
+    )).resolves.toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('does not turn an empty customer login merge into an empty recovery snapshot', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/.netlify/functions/cart-load?')) {
+        return new Response(JSON.stringify({ cartData: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      throw new Error(`Unexpected cart write: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(cartSyncService.mergeGuestCartOnLogin(
+      '11111111-1111-4111-8111-111111111111',
+      'sess_empty_login_merge_123',
+    )).resolves.toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls.every(([input]) => String(input).includes('/cart-load?'))).toBe(true);
+  });
+
   it('pagehide flush reads the latest contact before assigning its newer request revision', () => {
     expect(captureHookSource).toMatch(/latestRef\.current = \{[\s\S]*?customer: normalizedCustomer/);
     expect(captureHookSource).toMatch(
