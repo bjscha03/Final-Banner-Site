@@ -7,7 +7,7 @@
 import { useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/auth';
 import { useCartStore } from '@/store/cart';
-import { cartSyncService } from '@/lib/cartSync';
+import { cartSyncService, isCartSyncIdentity } from '@/lib/cartSync';
 import { useCheckoutContext } from '@/store/checkoutContext';
 
 const console = {
@@ -25,6 +25,15 @@ export function useCartSync() {
 
   useEffect(() => {
     const debugLog = import.meta.env.DEV ? console.log.bind(console) : () => {};
+    if (user && !isCartSyncIdentity(user)) {
+      // Synthetic identities authorize back-office pages but are not customer
+      // profile owners. Leave the guest cart and recovery snapshot completely
+      // untouched while the standalone admin session is active. A UUID-backed
+      // customer profile may still sync even when it also has admin access.
+      prevUserIdRef.current = null;
+      hasMergedRef.current = false;
+      return;
+    }
     const currentUserId = user?.id || null;
     const prevUserId = prevUserIdRef.current;
     const cartOwnerId = typeof localStorage !== 'undefined' ? localStorage.getItem('cart_owner_user_id') : null;

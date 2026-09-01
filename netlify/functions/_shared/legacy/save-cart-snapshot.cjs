@@ -1137,11 +1137,24 @@ async function handleSnapshotRequest(event, dependencies = {}) {
       return response(400, { error: 'Request body must be valid JSON' });
     }
 
-    const requestedUserId = typeof body.userId === 'string' && UUID_PATTERN.test(body.userId)
-      && body.userId !== '00000000-0000-0000-0000-000000000000'
-      ? body.userId
+    const suppliedUserId = typeof body.userId === 'string' ? body.userId.trim() : '';
+    const requestedUserId = suppliedUserId && UUID_PATTERN.test(suppliedUserId)
+      && suppliedUserId !== '00000000-0000-0000-0000-000000000000'
+      ? suppliedUserId
       : null;
+    if (suppliedUserId && !requestedUserId) {
+      return response(400, {
+        error: 'userId must be a valid customer identifier',
+        code: 'INVALID_USER_ID',
+      });
+    }
     const userId = verifiedSnapshotUserId(event, requestedUserId);
+    if (requestedUserId && !userId) {
+      return response(401, {
+        error: 'The requested signed-in cart owner could not be verified',
+        code: 'CART_OWNER_UNVERIFIED',
+      });
+    }
     const sessionId = typeof body.sessionId === 'string' && SESSION_PATTERN.test(body.sessionId)
       ? body.sessionId
       : null;
@@ -1164,11 +1177,7 @@ async function handleSnapshotRequest(event, dependencies = {}) {
       });
     }
     if (!userId && !sessionId) {
-      return response(requestedUserId ? 401 : 400, {
-        error: requestedUserId
-          ? 'The requested signed-in cart owner could not be verified'
-          : 'A valid userId or sessionId is required',
-      });
+      return response(400, { error: 'A valid userId or sessionId is required' });
     }
     if (!Array.isArray(body.cartItems)) {
       return response(400, { error: 'cartItems must be an array' });

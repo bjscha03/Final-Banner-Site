@@ -56,6 +56,38 @@ const handlerDependencies = (transactionImpl) => {
 };
 
 describe('save-cart-snapshot boundary helpers', () => {
+  it('rejects a synthetic admin user before it can close a guest-session cart', async () => {
+    let transactionCalls = 0;
+    const result = await handleSnapshotRequest(snapshotEvent({
+      userId: 'server-admin',
+      sessionId: 'sess_admin_must_not_close_123',
+      cartItems: [],
+    }), handlerDependencies(async () => {
+      transactionCalls += 1;
+      return [];
+    }));
+
+    expect(result.statusCode).toBe(400);
+    expect(JSON.parse(result.body)).toMatchObject({ code: 'INVALID_USER_ID' });
+    expect(transactionCalls).toBe(0);
+  });
+
+  it('does not downgrade an unverified customer identity to a guest-session close', async () => {
+    let transactionCalls = 0;
+    const result = await handleSnapshotRequest(snapshotEvent({
+      userId: '11111111-1111-4111-8111-111111111111',
+      sessionId: 'sess_unverified_owner_123',
+      cartItems: [],
+    }), handlerDependencies(async () => {
+      transactionCalls += 1;
+      return [];
+    }));
+
+    expect(result.statusCode).toBe(401);
+    expect(JSON.parse(result.body)).toMatchObject({ code: 'CART_OWNER_UNVERIFIED' });
+    expect(transactionCalls).toBe(0);
+  });
+
   it('normalizes contact fields before persistence', () => {
     expect(normalizeEmail(' Buyer@Example.COM ')).toBe('buyer@example.com');
     expect(normalizeEmail('buyer@')).toBeNull();

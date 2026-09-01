@@ -550,7 +550,7 @@ test.beforeEach(({ browserName }, testInfo) => {
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(({ orders, session }) => {
     window.localStorage.setItem('banners_current_user', JSON.stringify({
-      id: '00000000-0000-4000-8000-000000000001',
+      id: 'server-admin',
       email: 'admin-browser@example.test',
       is_admin: true,
     }));
@@ -644,7 +644,14 @@ test.afterEach(async ({ page }) => {
 
 test('commerce admin analytics, customer history, and order tracking stay usable', async ({ page }, testInfo) => {
   const pageErrors: string[] = [];
+  const customerCartRequests: string[] = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
+  page.on('request', (request) => {
+    const pathname = new URL(request.url()).pathname;
+    if (['/cart-load', '/cart-save', '/save-cart-snapshot'].some((suffix) => pathname.endsWith(suffix))) {
+      customerCartRequests.push(pathname);
+    }
+  });
   const isMobile = testInfo.project.name === 'chromium-pixel8-portrait';
 
   await page.goto('/admin/abandoned-carts', { waitUntil: 'domcontentloaded' });
@@ -659,6 +666,12 @@ test('commerce admin analytics, customer history, and order tracking stay usable
   await expect(page.getByText('Insufficient sample', { exact: true }).first()).toBeVisible();
   await expect(page.getByRole('button', { name: 'Send recovery email 1' }).first()).toBeEnabled();
   await expect(page.getByRole('button', { name: 'Send recovery email 2' }).first()).toBeDisabled();
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event('focus'));
+    window.dispatchEvent(new Event('online'));
+  });
+  await page.waitForTimeout(1_100);
+  expect(customerCartRequests).toEqual([]);
 
   await page.getByLabel('Size').fill('48x24');
   await page.getByRole('button', { name: 'Apply filters' }).click();

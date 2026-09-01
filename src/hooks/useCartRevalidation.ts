@@ -9,6 +9,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/auth';
+import { isCartSyncIdentity } from '@/lib/cartSync';
 import { useCartStore } from '@/store/cart';
 
 interface UseCartRevalidationOptions {
@@ -56,8 +57,8 @@ export function useCartRevalidation(options: UseCartRevalidationOptions = {}) {
    */
   const revalidateCart = () => {
     // Only revalidate if user is logged in
-    if (!user) {
-      console.log('🔄 REVALIDATION: Skipping - no user logged in');
+    if (!isCartSyncIdentity(user)) {
+      console.log('🔄 REVALIDATION: Skipping - no customer identity');
       return;
     }
 

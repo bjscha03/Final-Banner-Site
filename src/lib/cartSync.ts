@@ -54,6 +54,16 @@ interface CartEventData {
 const SESSION_COOKIE_NAME = 'cart_session_id';
 const SESSION_LIFETIME_DAYS = 90;
 const SNAPSHOT_REVISION_STORAGE_PREFIX = 'bof-cart-snapshot-revision-v1';
+const USER_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const NIL_USER_ID = '00000000-0000-0000-0000-000000000000';
+
+export function isCartSyncIdentity(user: { id?: unknown; is_admin?: unknown } | null | undefined): boolean {
+  const id = typeof user?.id === 'string' ? user.id.trim() : '';
+  // A real profile remains a commerce customer even when it also has admin
+  // privileges. Only UUID-backed profile identities may own/sync carts; the
+  // separate admin sign-in principal uses the synthetic `server-admin` ID.
+  return USER_ID_PATTERN.test(id) && id !== NIL_USER_ID;
+}
 
 type QueuedCartSave = {
   items: CartItem[];
@@ -194,14 +204,16 @@ class CartSyncService {
       const userStr = localStorage.getItem('banners_current_user');
       if (!userStr) return null;
       const user = JSON.parse(userStr);
-      const id = user?.id;
-      if (!id) return null;
+      const id = typeof user?.id === 'string' ? user.id.trim() : '';
       // Defensive: treat the nil UUID (all zeros) as "no user". This sentinel
       // can leak into localStorage from various server/auth paths and would
       // otherwise pass the server's UUID format check, then cause the
       // cart-load/cart-save Netlify functions to hang to gateway timeout
       // (502/504) and strand the checkout page on "Loading your cart...".
-      if (id === '00000000-0000-0000-0000-000000000000') return null;
+      // Synthetic admin identities are not commerce customers and must never
+      // inherit or close the browser's guest cart session. UUID-backed profile
+      // identities remain valid even when the profile also has admin access.
+      if (!isCartSyncIdentity(user)) return null;
       return id;
     } catch (error) {
       console.error('Error getting user ID:', error);
@@ -700,6 +712,10 @@ class CartSyncService {
    */
   async mergeGuestCartOnLogin(userId: string, guestSessionId?: string): Promise<CartItem[]> {
     const requestId = this.generateRequestId();
+
+    // Synthetic/admin identities are authorization principals, not profile
+    // UUIDs. Never let them touch a guest browser's commerce cart.
+    if (!isCartSyncIdentity({ id: userId, is_admin: false })) return [];
     
     try {
       console.log('🔄 [mergeGuestCartOnLogin] Starting guest cart merge', {
@@ -723,6 +739,22 @@ class CartSyncService {
       // Merge the carts (guest cart + user cart)
       const mergedItems = this.mergeCartItems(guestItems, userItems);
       console.log('🔄 [mergeGuestCartOnLogin] Merged cart items:', mergedItems.length);
+
+      // An empty login merge has nothing to persist. In particular, it must
+      // not flow through saveCartSnapshot([]), which is the explicit signal
+      // used to close a genuinely emptied customer cart.
+      if (mergedItems.length === 0) {
+        this.logEvent({
+          event: 'CART_MERGE',
+          userId,
+          sessionId,
+          requestId,
+          itemCount: 0,
+          success: true,
+          metadata: { guestItemCount: 0, userItemCount: 0, mergedItemCount: 0 },
+        });
+        return [];
+      }
 
       // Save merged cart to user's account
       const success = await this.saveCart(mergedItems, userId, sessionId || undefined);
