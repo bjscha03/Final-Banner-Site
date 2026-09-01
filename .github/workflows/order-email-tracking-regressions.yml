@@ -169,6 +169,7 @@ jobs:
             src/pages/Checkout.layout.test.ts \
             src/pages/admin/AbandonedCarts.request-race.test.ts \
             src/pages/admin/Customers.contract.test.ts \
+            src/lib/orders/admin-detail-hydration.test.ts \
             src/pages/admin/Orders.layout.test.ts \
             netlify/functions/__tests__/abandoned-cart-recovery.test.mjs \
             netlify/functions/__tests__/get-abandoned-carts-admin.test.mjs \

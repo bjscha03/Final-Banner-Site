@@ -214,6 +214,7 @@ test('list response is exactly paged, omits order arrays, and returns all-page f
   const response = await handler(adminEvent({ query: {
     segment: 'repeat',
     period: 'all_time',
+    q: ' ADA ',
     page: '2',
     page_size: '50',
   } }));
@@ -248,7 +249,11 @@ test('list response is exactly paged, omits order arrays, and returns all-page f
     hasNext: false,
   });
   const pageCall = calls.find(({ query }) => query.includes('LIMIT $7 OFFSET $8'));
+  assert.equal(pageCall.parameters[2], 'ada');
+  assert.equal(pageCall.parameters[5], 'repeat');
   assert.deepEqual(pageCall.parameters.slice(-2), [50, 0]);
+  assert.equal(body.filters.segment, 'repeat');
+  assert.equal(body.filters.search, 'ada');
   assert.equal(calls.filter(({ query }) => /LIMIT 0\s*$/i.test(query)).length, 5);
 });
 
@@ -311,6 +316,7 @@ test('export is keyset-bounded and final verification rechecks only supplied can
   const exportResponse = await handler(adminEvent({ query: {
     mode: 'export',
     segment: 'repeat',
+    q: ' ADA ',
     page_size: '9999',
   } }));
   const exportBody = JSON.parse(exportResponse.body);
@@ -321,6 +327,8 @@ test('export is keyset-bounded and final verification rechecks only supplied can
   assert.equal(exportBody.pagination.pageSize, 250);
   assert.equal(exportBody.pagination.nextCursor, null);
   const exportPageCall = exportCalls.find(({ query }) => query.includes('WHERE marketing_eligible = TRUE'));
+  assert.equal(exportPageCall.parameters[2], 'ada');
+  assert.equal(exportPageCall.parameters[5], 'repeat');
   assert.equal(exportPageCall.parameters.at(-1), 250);
 
   const verificationCalls = [];

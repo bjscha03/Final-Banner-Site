@@ -1,4 +1,5 @@
 import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const require = createRequire(import.meta.url);
@@ -118,10 +119,31 @@ describe('get-abandoned-carts admin endpoint', () => {
     });
 
     const query = _test.analyticsQuery('TRUE');
-    expect(query).toMatch(/LEFT JOIN orders AS recovered_order ON recovered_order\.id = cart\.recovered_order_id/i);
+    expect(query).toContain(`LEFT JOIN orders AS recovered_order ON ${_test.recoveredOrderJoinSql()}`);
     expect(query).toMatch(/recovered_order_status|recovered_order[\s\S]+refunded/i);
     expect(query).toMatch(/recovered_revenue_unknown_count/i);
     expect(query).toMatch(/recovered_after_email_retained_count/i);
+  });
+
+  it('joins the historical text recovery ID to UUID orders without an invalid uuid = text comparison', () => {
+    const join = _test.recoveredOrderJoinSql();
+    const query = _test.analyticsQuery('TRUE');
+    const source = readFileSync(
+      new URL('../_shared/legacy/get-abandoned-carts.cjs', import.meta.url),
+      'utf8',
+    );
+    const recoveryMigration = readFileSync(
+      new URL('../../../migrations/006_add_recovery_tracking_columns.sql', import.meta.url),
+      'utf8',
+    );
+
+    expect(recoveryMigration).toMatch(/ADD COLUMN IF NOT EXISTS recovered_order_id TEXT/i);
+    expect(join).toBe(
+      "recovered_order.id::TEXT = LOWER(NULLIF(BTRIM(cart.recovered_order_id), ''))",
+    );
+    expect(query).toContain(`LEFT JOIN orders AS recovered_order ON ${join}`);
+    expect(query).not.toMatch(/recovered_order\.id\s*=\s*cart\.recovered_order_id/);
+    expect(source.match(/LEFT JOIN orders AS recovered_order ON \$\{recoveredOrderJoinSql\(\)\}/g)).toHaveLength(2);
   });
 
   it('bounds pagination and parses only whitelisted server-side filters and sorting', () => {

@@ -51,6 +51,9 @@ describe('admin orders reporting and action hierarchy', () => {
     for (const label of ['Total Orders', 'Gross Sales', 'AOV', 'Recorded Refunds', 'Net Sales', 'New Customers', 'Repeat Customers', 'Repeat Rate']) {
       expect(orders).toContain(`label: '${label}'`);
     }
+    expect(orders).toContain("href: '/admin/customers?segment=new'");
+    expect(orders).toContain("href: '/admin/customers?segment=repeat'");
+    expect(orders).toContain('View customers →');
     expect(orders).toContain('Search order ID, customer name, or email');
     expect(orders).toContain('View all orders');
     expect(orders).toContain('outside this period.');
@@ -84,36 +87,50 @@ describe('admin orders reporting and action hierarchy', () => {
     expect(orderClient).toContain('signal: options.signal');
   });
 
-  it('cancels lazy detail work and fences duplicate or stale per-order responses', () => {
+  it('auto-hydrates current-page details with bounded, cancelable, race-fenced work', () => {
     expect(orders).toContain('useRef<Map<string, AbortController>>(new Map())');
     expect(orders).toContain('useRef<Map<string, number>>(new Map())');
+    expect(orders).toContain('const detailHydrationGeneration = useRef(0)');
+    expect(orders).toContain('detailHydrationGeneration.current += 1');
     expect(orders).toContain('detailAbortControllers.current.forEach((controller) => controller.abort())');
     expect(orders).toContain('if (detailAbortControllers.current.has(orderId)) return');
     expect(orders).toContain('detailRequestIds.current.set(orderId, requestId)');
     expect(orders).toContain('fetchAdminOrderDetail(orderId, { signal: controller.signal })');
-    expect(orders).toContain('controller.signal.aborted || detailRequestIds.current.get(orderId) !== requestId');
+    expect(orders).toContain('detailRequestIds.current.get(orderId) !== requestId');
+    expect(orders).toContain("String(detail.id) !== orderId");
+    expect(orders).toContain('summary.id !== orderId || summary.admin_detail_loaded !== false');
+    expect(orders).toContain('void hydrateVisibleOrderDetails(report.orders, requestId, hydrationGeneration)');
+    expect(orders).toContain('concurrency: ADMIN_ORDER_DETAIL_CONCURRENCY');
+    expect(orders).toContain('expectedReportRequestId === reportRequestId.current');
+    expect(orders).toContain('expectedHydrationGeneration === detailHydrationGeneration.current');
     expect(orders).toContain('admin_detail_loaded: true');
     expect(orderClient).toContain('{ cache: \'no-store\', signal: options.signal }');
   });
 
-  it('gates exact units, files, tracking, and actions behind full detail on desktop and mobile', () => {
+  it('uses a quiet automatic detail state before exact controls appear on desktop and mobile', () => {
     const desktop = componentSource('const AdminOrderRow:', '// Mobile Card Component for Orders');
     const mobile = componentSource('const AdminOrderCard:');
 
     for (const component of [desktop, mobile]) {
       expect(component).toContain('const detailRequired = order.admin_detail_loaded === false');
-      expect(component).toContain('Showing {orderItems.length} of {totalItemCount} line items.');
-      expect(component).toContain('Full order details required');
-      expect(component).toContain("detailLoading ? 'Loading full order...' : 'Load files & actions'");
-      expect(component.indexOf('Full order details required')).toBeLessThan(component.indexOf('data-admin-tracking-group'));
+      expect(component).toContain('Order tools could not load.');
+      expect(component).toContain('Retry');
+      expect(component).toContain('aria-label={`Retry loading order ${order.id.slice(-8).toUpperCase()}`}');
+      expect(component).toContain('role="status" aria-live="polite"');
+      expect(component).not.toContain('Full order details required');
+      expect(component).not.toContain('Load files & actions');
+      expect(component.indexOf('data-admin-detail-error')).toBeLessThan(component.indexOf('data-admin-tracking-group'));
       expect(component.indexOf('data-admin-tracking-group')).toBeLessThan(component.indexOf('data-admin-file-group'));
       expect(component.indexOf('data-admin-file-group')).toBeLessThan(component.indexOf('data-admin-action-group'));
     }
 
     expect(indexesOf(orders, 'const detailRequired = order.admin_detail_loaded === false')).toHaveLength(2);
-    expect(indexesOf(orders, "'Load files & actions'")).toHaveLength(2);
-    expect(orders).toContain("order.admin_detail_loaded === false ? 'Captured subset units' : 'Total Units'");
-    expect(orders).toContain('Open the full order for exact units and files.');
+    expect(indexesOf(orders, 'data-admin-detail-error')).toHaveLength(2);
+    expect(indexesOf(orders, 'data-admin-detail-page-status')).toHaveLength(1);
+    expect(orders).toContain('Preparing files and actions…');
+    expect(orders).toContain('Preparing order details…');
+    expect(orders).not.toContain('Load files & actions');
+    expect(orders).not.toContain('Captured subset units');
   });
 
   it('posts only item identity for authoritative print-PDF loading', () => {
