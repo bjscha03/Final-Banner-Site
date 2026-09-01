@@ -27,6 +27,7 @@ import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
 import DeliveryTimer from '@/components/delivery/DeliveryTimer';
 import MobileSubtotalBar from '@/components/design/MobileSubtotalBar';
 import DesignPageHero from '@/components/design/DesignPageHero';
+import RealOrdersStrip from '@/components/design/RealOrdersStrip';
 import FileUploader, { type FileUploaderHandle } from '@/components/ui/FileUploader';
 import {
   calcYardSignPricing,
@@ -2758,6 +2759,8 @@ const Design: React.FC = () => {
       </Helmet>
 
       <DesignPageHero productType={productType} onStart={scrollToOrder} />
+
+      <RealOrdersStrip />
 
       <section ref={orderRef} id="order-builder" className="bg-[#F7F7F7] px-4 py-12 sm:py-14">
         <div className="max-w-4xl lg:max-w-7xl mx-auto">

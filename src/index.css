@@ -737,6 +737,39 @@
   }
 }
 
+@keyframes real-orders-strip-scroll {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.real-orders-strip-track {
+  animation: real-orders-strip-scroll 24s linear infinite;
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
+.real-orders-strip[data-paused='true'] .real-orders-strip-track {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .real-orders-strip-track {
+    animation: none !important;
+    transform: translate3d(0, 0, 0) !important;
+    will-change: auto;
+  }
+
+  .real-orders-strip-set--duplicate,
+  .real-orders-strip-control {
+    display: none;
+  }
+}
+
 /* Homepage campaign typography mirrors the approved condensed editorial
    direction without changing headings elsewhere in the ordering experience. */
 .homepage-condensed {

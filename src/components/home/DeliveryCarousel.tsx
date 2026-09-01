@@ -1,14 +1,9 @@
 import React from 'react';
 import { PackageCheck } from 'lucide-react';
-
-const deliveryImages = [
-  'https://res.cloudinary.com/dtrxl120u/image/upload/w_650,q_auto,f_auto/v1774460966/download_cz20yn.jpg',
-  'https://res.cloudinary.com/dtrxl120u/image/upload/w_650,q_auto,f_auto/v1774460965/download-13_vmyxvp.jpg',
-  'https://res.cloudinary.com/dtrxl120u/image/upload/w_650,q_auto,f_auto/v1774460966/download-16_hck4qs.jpg',
-  'https://res.cloudinary.com/dtrxl120u/image/upload/w_650,q_auto,f_auto/v1774460966/download-18_yyyu7k.jpg',
-  'https://res.cloudinary.com/dtrxl120u/image/upload/w_650,q_auto,f_auto/v1774460966/download-17_htewfz.jpg',
-  'https://res.cloudinary.com/dtrxl120u/image/upload/w_650,q_auto,f_auto/v1774460966/download-15_rpzqgf.jpg',
-];
+import {
+  featuredDeliveryProofImages,
+  getDeliveryProofImageUrl,
+} from '@/lib/deliveryProofImages';
 
 const DeliveryCarousel: React.FC = () => (
   <section className="bg-[#FBF8F2] py-14 sm:py-16 lg:py-20" aria-labelledby="delivery-proof-heading">
@@ -28,13 +23,13 @@ const DeliveryCarousel: React.FC = () => (
         </div>
 
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {deliveryImages.map((src, index) => (
-            <figure key={src} className="relative overflow-hidden border border-[#d5d1c8] bg-slate-100">
+          {featuredDeliveryProofImages.map((image, index) => (
+            <figure key={image.id} className="relative overflow-hidden border border-[#d5d1c8] bg-slate-100">
               <span className="absolute left-0 top-0 z-10 bg-[#C94008] px-2 py-1 text-xs font-black text-white">
                 {String(index + 1).padStart(2, '0')}
               </span>
               <img
-                src={src}
+                src={getDeliveryProofImageUrl(image, 'w_650,q_auto,f_auto')}
                 alt={`Customer-submitted package delivery photo ${index + 1}`}
                 width="650"
                 height="488"
