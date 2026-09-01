@@ -113,6 +113,25 @@ function buildSchemaReadinessQuery() {
            AND constraint_state.confdeltype = 'c'
            AND constraint_state.convalidated
       )
+      AND NOT EXISTS (
+        SELECT 1
+          FROM pg_constraint constraint_state
+          JOIN pg_attribute queue_order_id
+            ON queue_order_id.attrelid = target.oid
+           AND queue_order_id.attname = 'order_id'
+          JOIN pg_attribute orders_id
+            ON orders_id.attrelid = 'public.orders'::regclass
+           AND orders_id.attname = 'id'
+         WHERE constraint_state.conrelid = target.oid
+           AND constraint_state.conname = 'admin_payment_reconciliation_queue_order_id_fkey'
+           AND NOT (
+             constraint_state.contype = 'f'
+             AND constraint_state.conkey = ARRAY[queue_order_id.attnum]::smallint[]
+             AND constraint_state.confrelid = 'public.orders'::regclass
+             AND constraint_state.confkey = ARRAY[orders_id.attnum]::smallint[]
+             AND constraint_state.confdeltype = 'c'
+           )
+      )
       AND EXISTS (
         SELECT 1 FROM pg_constraint constraint_state
          WHERE constraint_state.conrelid = target.oid
@@ -123,6 +142,18 @@ function buildSchemaReadinessQuery() {
                  '[[:space:]()]', '', 'g'
                ) = 'attempt_count>=0'
       )
+      AND NOT EXISTS (
+        SELECT 1 FROM pg_constraint constraint_state
+         WHERE constraint_state.conrelid = target.oid
+           AND constraint_state.conname = 'admin_payment_reconciliation_attempt_count_nonnegative'
+           AND NOT (
+             constraint_state.contype = 'c'
+             AND regexp_replace(
+                   LOWER(pg_get_expr(constraint_state.conbin, constraint_state.conrelid)),
+                   '[[:space:]()]', '', 'g'
+                 ) = 'attempt_count>=0'
+           )
+      )
       AND EXISTS (
         SELECT 1 FROM pg_constraint constraint_state
          WHERE constraint_state.conrelid = target.oid
@@ -132,6 +163,18 @@ function buildSchemaReadinessQuery() {
                  LOWER(pg_get_expr(constraint_state.conbin, constraint_state.conrelid)),
                  '[[:space:]()]', '', 'g'
                ) = 'lease_tokenisnullandlease_untilisnullorlease_tokenisnotnullandlease_untilisnotnull'
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM pg_constraint constraint_state
+         WHERE constraint_state.conrelid = target.oid
+           AND constraint_state.conname = 'admin_payment_reconciliation_lease_pair'
+           AND NOT (
+             constraint_state.contype = 'c'
+             AND regexp_replace(
+                   LOWER(pg_get_expr(constraint_state.conbin, constraint_state.conrelid)),
+                   '[[:space:]()]', '', 'g'
+                 ) = 'lease_tokenisnullandlease_untilisnullorlease_tokenisnotnullandlease_untilisnotnull'
+           )
       )
       AND EXISTS (
         SELECT 1 FROM pg_index index_state
@@ -147,6 +190,26 @@ function buildSchemaReadinessQuery() {
            AND index_state.indnkeyatts = 1
            AND index_state.indnatts = 1
            AND index_state.indkey::text = order_id_column.attnum::text
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM pg_class index_class
+        JOIN pg_index index_state ON index_state.indexrelid = index_class.oid
+        JOIN pg_attribute order_id_column
+          ON order_id_column.attrelid = target.oid
+         AND order_id_column.attname = 'order_id'
+         WHERE index_class.relnamespace = 'public'::regnamespace
+           AND index_class.relname = 'idx_admin_payment_reconciliation_order_id_unique'
+           AND index_state.indrelid = target.oid
+           AND NOT (
+             index_state.indisunique
+             AND index_state.indisvalid
+             AND index_state.indisready
+             AND index_state.indpred IS NULL
+             AND index_state.indexprs IS NULL
+             AND index_state.indnkeyatts = 1
+             AND index_state.indnatts = 1
+             AND index_state.indkey::text = order_id_column.attnum::text
+           )
       )
       AND EXISTS (
         SELECT 1 FROM pg_index index_state
@@ -177,6 +240,41 @@ function buildSchemaReadinessQuery() {
                  order_id_column.attnum
                )
            AND index_state.indoption::text = '0 2 0 0'
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM pg_class index_class
+        JOIN pg_index index_state ON index_state.indexrelid = index_class.oid
+        JOIN pg_attribute next_attempt_column
+          ON next_attempt_column.attrelid = target.oid
+         AND next_attempt_column.attname = 'next_attempt_at'
+        JOIN pg_attribute lease_until_column
+          ON lease_until_column.attrelid = target.oid
+         AND lease_until_column.attname = 'lease_until'
+        JOIN pg_attribute updated_at_column
+          ON updated_at_column.attrelid = target.oid
+         AND updated_at_column.attname = 'updated_at'
+        JOIN pg_attribute order_id_column
+          ON order_id_column.attrelid = target.oid
+         AND order_id_column.attname = 'order_id'
+         WHERE index_class.relnamespace = 'public'::regnamespace
+           AND index_class.relname = 'idx_admin_payment_reconciliation_due'
+           AND index_state.indrelid = target.oid
+           AND NOT (
+             NOT index_state.indisunique
+             AND index_state.indisvalid
+             AND index_state.indisready
+             AND index_state.indpred IS NULL
+             AND index_state.indexprs IS NULL
+             AND index_state.indnkeyatts = 4
+             AND index_state.indnatts = 4
+             AND index_state.indkey::text = CONCAT_WS(' ',
+                   next_attempt_column.attnum,
+                   lease_until_column.attnum,
+                   updated_at_column.attnum,
+                   order_id_column.attnum
+                 )
+             AND index_state.indoption::text = '0 2 0 0'
+           )
       )
     ) AS ready
     FROM target`;
@@ -440,7 +538,29 @@ function buildRuntimeSchemaRepairSql() {
       constraint_name
     );
 
-    IF NOT EXISTS (
+    IF EXISTS (
+      SELECT 1 FROM pg_class index_class
+      JOIN pg_index index_state ON index_state.indexrelid = index_class.oid
+       WHERE index_class.relnamespace = 'public'::regnamespace
+         AND index_class.relname = 'idx_admin_payment_reconciliation_order_id_unique'
+         AND index_state.indrelid = 'public.admin_payment_reconciliation_queue'::regclass
+         AND NOT (
+           index_state.indisunique AND index_state.indisvalid AND index_state.indisready
+           AND index_state.indpred IS NULL AND index_state.indexprs IS NULL
+           AND index_state.indnkeyatts = 1 AND index_state.indnatts = 1
+           AND index_state.indkey::text = (
+             SELECT attnum::text FROM pg_attribute
+              WHERE attrelid = 'public.admin_payment_reconciliation_queue'::regclass
+                AND attname = 'order_id'
+           )
+         )
+    ) THEN
+      DROP INDEX public.idx_admin_payment_reconciliation_order_id_unique;
+    END IF;
+    IF to_regclass('public.idx_admin_payment_reconciliation_order_id_unique') IS NULL THEN
+      CREATE UNIQUE INDEX idx_admin_payment_reconciliation_order_id_unique
+        ON public.admin_payment_reconciliation_queue (order_id);
+    ELSIF NOT EXISTS (
       SELECT 1 FROM pg_index index_state
       JOIN pg_attribute order_id_column
         ON order_id_column.attrelid = 'public.admin_payment_reconciliation_queue'::regclass
@@ -451,27 +571,45 @@ function buildRuntimeSchemaRepairSql() {
          AND index_state.indnkeyatts = 1 AND index_state.indnatts = 1
          AND index_state.indkey::text = order_id_column.attnum::text
     ) THEN
-      IF EXISTS (
-        SELECT 1 FROM pg_class index_class
-        JOIN pg_index index_state ON index_state.indexrelid = index_class.oid
-         WHERE index_class.relnamespace = 'public'::regnamespace
-           AND index_class.relname = 'idx_admin_payment_reconciliation_order_id_unique'
-           AND index_state.indrelid = 'public.admin_payment_reconciliation_queue'::regclass
-      ) THEN
-        DROP INDEX public.idx_admin_payment_reconciliation_order_id_unique;
-      END IF;
-      IF to_regclass('public.idx_admin_payment_reconciliation_order_id_unique') IS NULL THEN
-        CREATE UNIQUE INDEX idx_admin_payment_reconciliation_order_id_unique
-          ON public.admin_payment_reconciliation_queue (order_id);
-      ELSE
-        EXECUTE format(
-          'CREATE UNIQUE INDEX %I ON public.admin_payment_reconciliation_queue (order_id)',
-          'apr_order_id_uq_' || 'public.admin_payment_reconciliation_queue'::regclass::oid
-        );
-      END IF;
+      EXECUTE format(
+        'CREATE UNIQUE INDEX %I ON public.admin_payment_reconciliation_queue (order_id)',
+        'apr_order_id_uq_' || 'public.admin_payment_reconciliation_queue'::regclass::oid
+      );
     END IF;
 
-    IF NOT EXISTS (
+    IF EXISTS (
+      SELECT 1 FROM pg_class index_class
+      JOIN pg_index index_state ON index_state.indexrelid = index_class.oid
+       WHERE index_class.relnamespace = 'public'::regnamespace
+         AND index_class.relname = 'idx_admin_payment_reconciliation_due'
+         AND index_state.indrelid = 'public.admin_payment_reconciliation_queue'::regclass
+         AND NOT (
+           NOT index_state.indisunique AND index_state.indisvalid AND index_state.indisready
+           AND index_state.indpred IS NULL AND index_state.indexprs IS NULL
+           AND index_state.indnkeyatts = 4 AND index_state.indnatts = 4
+           AND index_state.indkey::text = (
+             SELECT CONCAT_WS(' ', next_attempt.attnum, lease_until.attnum, updated_at.attnum, order_id.attnum)
+               FROM pg_attribute next_attempt
+               JOIN pg_attribute lease_until ON lease_until.attrelid = next_attempt.attrelid
+                 AND lease_until.attname = 'lease_until'
+               JOIN pg_attribute updated_at ON updated_at.attrelid = next_attempt.attrelid
+                 AND updated_at.attname = 'updated_at'
+               JOIN pg_attribute order_id ON order_id.attrelid = next_attempt.attrelid
+                 AND order_id.attname = 'order_id'
+              WHERE next_attempt.attrelid = 'public.admin_payment_reconciliation_queue'::regclass
+                AND next_attempt.attname = 'next_attempt_at'
+           )
+           AND index_state.indoption::text = '0 2 0 0'
+         )
+    ) THEN
+      DROP INDEX public.idx_admin_payment_reconciliation_due;
+    END IF;
+    IF to_regclass('public.idx_admin_payment_reconciliation_due') IS NULL THEN
+      CREATE INDEX idx_admin_payment_reconciliation_due
+        ON public.admin_payment_reconciliation_queue (
+          next_attempt_at ASC, lease_until ASC NULLS FIRST, updated_at ASC, order_id ASC
+        );
+    ELSIF NOT EXISTS (
       SELECT 1 FROM pg_index index_state
       JOIN pg_attribute next_attempt_column
         ON next_attempt_column.attrelid = 'public.admin_payment_reconciliation_queue'::regclass
@@ -493,27 +631,11 @@ function buildRuntimeSchemaRepairSql() {
                lease_until_column.attnum, updated_at_column.attnum, order_id_column.attnum)
          AND index_state.indoption::text = '0 2 0 0'
     ) THEN
-      IF EXISTS (
-        SELECT 1 FROM pg_class index_class
-        JOIN pg_index index_state ON index_state.indexrelid = index_class.oid
-         WHERE index_class.relnamespace = 'public'::regnamespace
-           AND index_class.relname = 'idx_admin_payment_reconciliation_due'
-           AND index_state.indrelid = 'public.admin_payment_reconciliation_queue'::regclass
-      ) THEN
-        DROP INDEX public.idx_admin_payment_reconciliation_due;
-      END IF;
-      IF to_regclass('public.idx_admin_payment_reconciliation_due') IS NULL THEN
-        CREATE INDEX idx_admin_payment_reconciliation_due
-          ON public.admin_payment_reconciliation_queue (
-            next_attempt_at ASC, lease_until ASC NULLS FIRST, updated_at ASC, order_id ASC
-          );
-      ELSE
-        EXECUTE format(
-          'CREATE INDEX %I ON public.admin_payment_reconciliation_queue '
-          || '(next_attempt_at ASC, lease_until ASC NULLS FIRST, updated_at ASC, order_id ASC)',
-          'apr_due_' || 'public.admin_payment_reconciliation_queue'::regclass::oid
-        );
-      END IF;
+      EXECUTE format(
+        'CREATE INDEX %I ON public.admin_payment_reconciliation_queue '
+        || '(next_attempt_at ASC, lease_until ASC NULLS FIRST, updated_at ASC, order_id ASC)',
+        'apr_due_' || 'public.admin_payment_reconciliation_queue'::regclass::oid
+      );
     END IF;
   END
   $queue_schema$`;

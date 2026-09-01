@@ -263,6 +263,47 @@ test('rolling deploys repair the queue once and verify catalog readiness before 
   queue.resetSchemaReadinessForTests();
 });
 
+test('runtime readiness rejects and repairs malformed canonical queue objects beside exact alternates', () => {
+  const readiness = queue.buildSchemaReadinessQuery();
+  const repair = queue.buildRuntimeSchemaRepairSql();
+
+  assert.match(
+    readiness,
+    /constraint_state\.conname = 'admin_payment_reconciliation_queue_order_id_fkey'[\s\S]*?AND NOT \([\s\S]*?constraint_state\.confdeltype = 'c'/,
+  );
+  assert.match(
+    readiness,
+    /constraint_state\.conname = 'admin_payment_reconciliation_attempt_count_nonnegative'[\s\S]*?AND NOT \([\s\S]*?attempt_count>=0/,
+  );
+  assert.match(
+    readiness,
+    /constraint_state\.conname = 'admin_payment_reconciliation_lease_pair'[\s\S]*?AND NOT \([\s\S]*?lease_tokenisnullandlease_untilisnull/,
+  );
+  assert.match(
+    readiness,
+    /index_class\.relname = 'idx_admin_payment_reconciliation_order_id_unique'[\s\S]*?index_state\.indrelid = target\.oid[\s\S]*?AND NOT \(/,
+  );
+  assert.match(
+    readiness,
+    /index_class\.relname = 'idx_admin_payment_reconciliation_due'[\s\S]*?index_state\.indrelid = target\.oid[\s\S]*?AND NOT \(/,
+  );
+
+  for (const indexName of [
+    'idx_admin_payment_reconciliation_order_id_unique',
+    'idx_admin_payment_reconciliation_due',
+  ]) {
+    const canonicalCheck = repair.indexOf(`index_class.relname = '${indexName}'`);
+    const canonicalDrop = repair.indexOf(`DROP INDEX public.${indexName}`, canonicalCheck);
+    const exactAlternateGate = repair.indexOf('ELSIF NOT EXISTS (', canonicalCheck);
+    assert.ok(canonicalCheck >= 0, `missing canonical validation for ${indexName}`);
+    assert.ok(canonicalDrop > canonicalCheck, `missing canonical replacement for ${indexName}`);
+    assert.ok(
+      exactAlternateGate > canonicalDrop,
+      `${indexName} must be replaced even when a separate exact index already exists`,
+    );
+  }
+});
+
 test('scheduled dispatch ignores hostile request hosts and uses only immutable deploy context', async () => {
   let observed;
   const result = await dispatcher.dispatchPayPalReconciliation({
