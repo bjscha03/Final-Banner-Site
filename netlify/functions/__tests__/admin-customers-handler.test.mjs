@@ -121,6 +121,9 @@ test('analytics SQL keeps exact aggregates while bounding list, detail, and expo
   assert.match(CUSTOMER_DETAIL_QUERY, /LEFT\(COALESCE[\s\S]*, 160\) AS order_number/i);
   assert.match(CUSTOMER_DETAIL_QUERY, /LEFT JOIN profiles p ON p\.id = o\.user_id/i);
   assert.match(CUSTOMER_DETAIL_COUNT_QUERY, /COUNT\(\*\)::bigint AS total/i);
+  assert.match(CUSTOMER_ANALYTICS_CTES, /payment_method <> 'admin_deploy_preview_test'/i);
+  assert.match(CUSTOMER_DETAIL_QUERY, /payment_method'[\s\S]*<> 'admin_deploy_preview_test'/i);
+  assert.match(CUSTOMER_DETAIL_COUNT_QUERY, /payment_method'[\s\S]*<> 'admin_deploy_preview_test'/i);
   assert.match(CUSTOMER_EMAIL_IDENTITY_SQL, /CASE WHEN[\s\S]*to_jsonb\(o\)->>'email'[\s\S]*THEN NULLIF\(LOWER\(TRIM\(to_jsonb\(o\)->>'email'\)\), ''\) END/i);
   assert.match(CUSTOMER_EMAIL_IDENTITY_SQL, /CASE WHEN[\s\S]*to_jsonb\(p\)->>'email'[\s\S]*THEN NULLIF\(LOWER\(TRIM\(to_jsonb\(p\)->>'email'\)\), ''\) END/i);
   assert.ok(CUSTOMER_EMAIL_IDENTITY_SQL.indexOf("to_jsonb(o)->>'email'") < CUSTOMER_EMAIL_IDENTITY_SQL.indexOf("to_jsonb(p)->>'email'"));
@@ -137,6 +140,9 @@ test('analytics SQL keeps exact aggregates while bounding list, detail, and expo
   assert.ok(shippingNameIndex > -1 && profileNameIndex > shippingNameIndex);
 
   const complete = buildCustomerQueries({ complete: true, includeNewsletter: true });
+  assert.equal(complete.stats, CUSTOMER_STATS_QUERY);
+  assert.equal(complete.page, CUSTOMER_PAGE_QUERY);
+  assert.equal(complete.exportPage, CUSTOMER_EXPORT_PAGE_QUERY);
   assert.match(complete.stats, /EXISTS \([\s\S]*recovery_email_suppressions/i);
   assert.match(complete.stats, /FROM outbound_suppressions outbound/i);
   assert.match(complete.stats, /'wrong_contact'/i);
@@ -146,6 +152,16 @@ test('analytics SQL keeps exact aggregates while bounding list, detail, and expo
   assert.match(complete.stats, /FROM newsletter newsletter_status/i);
 
   const unavailable = buildCustomerQueries({ complete: false, includeNewsletter: false });
+  for (const [query, canonical] of [
+    [unavailable.stats, CUSTOMER_STATS_QUERY],
+    [unavailable.page, CUSTOMER_PAGE_QUERY],
+    [unavailable.exportPage, CUSTOMER_EXPORT_PAGE_QUERY],
+  ]) {
+    const canonicalSuffix = canonical.slice(CUSTOMER_ANALYTICS_CTES.length);
+    assert.equal(query.endsWith(canonicalSuffix), true);
+    assert.equal(query.match(/WITH normalized_orders AS/gi)?.length, 1);
+    assert.equal(query.includes("\\.(invalid|local|test)$"), true);
+  }
   assert.match(unavailable.stats, /AND NOT \(TRUE\)/i);
   assert.doesNotMatch(unavailable.stats, /FROM recovery_email_suppressions/i);
   assert.doesNotMatch(unavailable.stats, /FROM newsletter newsletter_status/i);

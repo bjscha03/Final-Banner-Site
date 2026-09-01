@@ -88,7 +88,9 @@ function resolveEffectiveOrderStatus(row) {
 }
 
 function isTestOrder(row) {
-  return row?.is_test_order === true || String(row?.is_test_order || '').toLowerCase() === 'true';
+  return row?.is_test_order === true
+    || String(row?.is_test_order || '').toLowerCase() === 'true'
+    || normalizeStatus(row?.payment_method) === 'admin_deploy_preview_test';
 }
 
 function parseDate(value) {

@@ -127,7 +127,8 @@ export const buildCustomerAnalyticsCtes = (
            CASE
              WHEN LOWER(COALESCE(to_jsonb(o)->>'is_test_order', 'false')) = 'true' THEN TRUE
              ELSE FALSE
-           END AS is_test_order
+           END AS is_test_order,
+           LOWER(TRIM(COALESCE(to_jsonb(o)->>'payment_method', ''))) AS payment_method
       FROM orders o
       LEFT JOIN profiles p ON p.id = o.user_id
   ), valid_orders AS (
@@ -135,6 +136,7 @@ export const buildCustomerAnalyticsCtes = (
       FROM normalized_orders
      WHERE email IS NOT NULL
        AND is_test_order = FALSE
+       AND payment_method <> 'admin_deploy_preview_test'
        AND LENGTH(email) <= 254
        AND email ~ '^[^[:space:]@]+@[^[:space:]@]+\\.[^[:space:]@]+$'
        AND SPLIT_PART(email, '@', 1) <> ALL (
@@ -298,9 +300,11 @@ export const CUSTOMER_EXPORT_PAGE_QUERY = `${CUSTOMER_ANALYTICS_CTES}
 export const buildCustomerQueries = (suppressionState) => {
   const ctes = buildCustomerAnalyticsCtes(suppressionState);
   return {
-    stats: CUSTOMER_STATS_QUERY.replace(CUSTOMER_ANALYTICS_CTES, ctes),
-    page: CUSTOMER_PAGE_QUERY.replace(CUSTOMER_ANALYTICS_CTES, ctes),
-    exportPage: CUSTOMER_EXPORT_PAGE_QUERY.replace(CUSTOMER_ANALYTICS_CTES, ctes),
+    // Use a function replacer so `$` sequences inside SQL regexes are copied
+    // literally instead of being interpreted as JavaScript replacement tokens.
+    stats: CUSTOMER_STATS_QUERY.replace(CUSTOMER_ANALYTICS_CTES, () => ctes),
+    page: CUSTOMER_PAGE_QUERY.replace(CUSTOMER_ANALYTICS_CTES, () => ctes),
+    exportPage: CUSTOMER_EXPORT_PAGE_QUERY.replace(CUSTOMER_ANALYTICS_CTES, () => ctes),
   };
 };
 
@@ -314,6 +318,7 @@ export const CUSTOMER_DETAIL_QUERY = `
     LEFT JOIN profiles p ON p.id = o.user_id
    WHERE ${CUSTOMER_EMAIL_IDENTITY_SQL} = $1
      AND LOWER(COALESCE(to_jsonb(o)->>'is_test_order', 'false')) <> 'true'
+     AND LOWER(TRIM(COALESCE(to_jsonb(o)->>'payment_method', ''))) <> 'admin_deploy_preview_test'
    ORDER BY o.created_at DESC NULLS LAST, o.id DESC
    LIMIT $2 OFFSET $3
 `;
@@ -324,6 +329,7 @@ export const CUSTOMER_DETAIL_COUNT_QUERY = `
     LEFT JOIN profiles p ON p.id = o.user_id
    WHERE ${CUSTOMER_EMAIL_IDENTITY_SQL} = $1
      AND LOWER(COALESCE(to_jsonb(o)->>'is_test_order', 'false')) <> 'true'
+     AND LOWER(TRIM(COALESCE(to_jsonb(o)->>'payment_method', ''))) <> 'admin_deploy_preview_test'
 `;
 
 let neonFactory = neon;

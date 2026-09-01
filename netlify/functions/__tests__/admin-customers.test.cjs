@@ -233,6 +233,13 @@ test('test, placeholder, refunded, and unpaid orders do not inflate completed co
     row({ id: '2', status: 'refunded', total_cents: 50_000 }),
     row({ id: '3', status: 'pending', total_cents: 40_000 }),
     row({ id: '4', status: 'paid', total_cents: 30_000, is_test_order: true }),
+    row({
+      id: 'deploy-preview',
+      email: 'deploy-preview@business.com',
+      status: 'paid',
+      total_cents: 70_000,
+      payment_method: 'admin_deploy_preview_test',
+    }),
     row({ id: '5', email: 'guest@example.com', status: 'paid', total_cents: 90_000 }),
     row({ id: '6', email: 'preview-123@bannersonthefly.com', status: 'paid', total_cents: 90_000 }),
   ], { index: new Map(), complete: true }, { period: 'all_time' }, new Date('2026-09-01T00:00:00Z'));
