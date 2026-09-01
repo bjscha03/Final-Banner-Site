@@ -33,9 +33,9 @@ test('Admin reporting request parsing bounds page, page size, search, and UTC pe
   }).error, /Invalid order reporting period/i);
 });
 
-test('page SQL is bounded and searchable while exact business metrics stay search-independent and item-free', () => {
-  const pageQuery = _test.buildAdminPageQuery(false);
-  const summaryQuery = _test.buildAdminSummaryQuery(false);
+test('page SQL preserves non-test history while exact business metrics stay paid-only, search-independent, and item-free', () => {
+  const pageQuery = _test.buildAdminPageQuery();
+  const summaryQuery = _test.buildAdminSummaryQuery();
 
   assert.match(pageQuery, /LIMIT \$4 OFFSET \$5/i);
   assert.match(pageQuery, /COUNT\(\*\)::integer FROM filtered_orders/i);
@@ -43,6 +43,10 @@ test('page SQL is bounded and searchable while exact business metrics stay searc
   assert.match(pageQuery, /customer_name/i);
   assert.match(pageQuery, /raw_order_email/i);
   assert.doesNotMatch(pageQuery, /order_items|json_agg\([^)]*items/i);
+  assert.match(pageQuery, /payment_method <> 'admin_deploy_preview_test'/i);
+  assert.match(pageQuery, /is_test_order = FALSE/i);
+  const visibleOrdersSql = pageQuery.match(/visible_orders AS \([\s\S]*?\n\s*\),\n\s*filtered_orders AS/i)?.[0] || '';
+  assert.doesNotMatch(visibleOrdersSql, /effective_status IN/i);
 
   assert.match(summaryQuery, /ROW_NUMBER\(\) OVER/i);
   assert.match(summaryQuery, /PARTITION BY reporting_customer_email/i);
@@ -58,6 +62,54 @@ test('page SQL is bounded and searchable while exact business metrics stay searc
   assert.match(summaryQuery, /payment_method[\s\S]*paypal[\s\S]*payment_reconciliation_status|reconciliation_status[\s\S]*complete/i);
   assert.match(summaryQuery, /is_test_order = FALSE/i);
   assert.match(summaryQuery, /admin_deploy_preview_test/i);
+});
+
+test('Admin hydration keeps historical non-test rows regardless of legacy or terminal status', async () => {
+  const ids = [
+    '11111111-2222-4333-8444-000011223341',
+    '11111111-2222-4333-8444-000011223342',
+    '11111111-2222-4333-8444-000011223343',
+  ];
+  const rows = [
+    { id: ids[0], status: 'completed', total_cents: 10_000, is_test_order: false, items: [], item_count: 0 },
+    { id: ids[1], status: 'cancelled', total_cents: 20_000, is_test_order: false, items: [], item_count: 0 },
+    { id: ids[2], status: 'pending', total_cents: 30_000, is_test_order: false, items: [], item_count: 0 },
+  ];
+
+  const sql = async (query) => {
+    const text = queryText(query);
+    if (/paged_orders AS/i.test(text)) {
+      return [{ page_orders: ids.map((id) => ({ id })), total_items: ids.length }];
+    }
+    if (/period_totals AS/i.test(text)) return [{}];
+    if (/WITH requested_order_ids AS/i.test(text)) return rows;
+    if (/FROM orders\s+LEFT JOIN profiles/i.test(text)) {
+      return rows.map((row) => ({
+        id: row.id,
+        total_cents: row.total_cents,
+        is_test_order: false,
+      }));
+    }
+    if (/FROM review_request_history/i.test(text)) return [];
+    throw new Error(`unexpected SQL: ${text.slice(0, 120)}`);
+  };
+
+  const report = await _test.loadAdminReportData({
+    event: { headers: {} },
+    context: {},
+    sql,
+    request: {
+      page: 1,
+      pageSize: 20,
+      search: '',
+      start: null,
+      end: null,
+      summaryOnly: false,
+    },
+  });
+
+  assert.deepEqual(report.orders.map(({ id, status }) => ({ id, status })), rows.map(({ id, status }) => ({ id, status })));
+  assert.equal(report.pagination.totalItems, 3);
 });
 
 test('reporting email identity validates order first, then falls back to a valid profile candidate', async () => {
@@ -177,7 +229,6 @@ test('summary response uses exact aggregate SQL independent of search and skips 
       end: '2026-09-01T00:00:00.000Z',
       summaryOnly: true,
     },
-    allowTestOrders: false,
   });
 
   assert.deepEqual(report.orders, []);

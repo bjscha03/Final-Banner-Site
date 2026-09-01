@@ -54,6 +54,9 @@ describe('admin orders reporting and action hierarchy', () => {
     expect(orders).toContain('Search order ID, customer name, or email');
     expect(orders).toContain('View all orders');
     expect(orders).toContain('outside this period.');
+    expect(orders).toContain("window.location.hostname.startsWith('deploy-preview-')");
+    expect(orders).toContain('Deploy Preview — isolated test database');
+    expect(orders).toContain('Production order history is intentionally unavailable here.');
   });
 
   it('uses a server-bounded report instead of loading full rich order history in the browser', () => {

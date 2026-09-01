@@ -317,6 +317,7 @@ const AdminOrders: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [isDeployPreview, setIsDeployPreview] = useState(false);
   // Keep historical orders visible on first load. Period reporting remains
   // one click away, but an inactive month should never make a populated
   // account look as though it has no orders.
@@ -462,6 +463,10 @@ const AdminOrders: React.FC = () => {
       if (!controller.signal.aborted && requestId === reportRequestId.current) setLoading(false);
     }
   };
+
+  useEffect(() => {
+    setIsDeployPreview(window.location.hostname.startsWith('deploy-preview-'));
+  }, []);
 
   useEffect(() => {
     // Redirect to the admin login page (not the customer sign-in page) when
@@ -1026,6 +1031,15 @@ const AdminOrders: React.FC = () => {
               </Button>
             </div>
           </div>
+
+          {isDeployPreview && (
+            <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950" role="status">
+              <div className="font-semibold">Deploy Preview — isolated test database</div>
+              <div className="mt-1 text-xs leading-5 text-amber-900">
+                Production order history is intentionally unavailable here. Counts and rows on this page are not production data.
+              </div>
+            </div>
+          )}
 
           {/* Admin Navigation */}
           <div className="mb-6">

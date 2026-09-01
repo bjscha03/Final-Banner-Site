@@ -2,14 +2,12 @@ import { neon } from '@neondatabase/serverless';
 import { withLambda } from '@netlify/aws-lambda-compat';
 import legacyModule from './_shared/legacy/get-orders.cjs';
 import visibilityModule from './_shared/admin-order-visibility.cjs';
-import paypalRuntimeModule from './_shared/paypal-runtime-config.cjs';
 import serverAuthModule from './_shared/server-auth.cjs';
 
 const {
   hasCompletedPayPalPaymentEvidence,
-  isAdminVisiblePaidOrder,
+  isAdminListableOrder,
 } = visibilityModule;
-const { deploymentContext } = paypalRuntimeModule;
 const { getSession, unauthorized } = serverAuthModule;
 
 const PAGE_SIZE = 20;
@@ -79,7 +77,7 @@ function normalizeReportingCustomerEmail(value) {
   return email;
 }
 
-const orderBaseCteSql = (allowTestOrders) => {
+const orderBaseCteSql = () => {
   const orderEmail = `to_jsonb(o)->>'email'`;
   const profileEmail = 'profiles.email';
   return `
@@ -117,19 +115,11 @@ const orderBaseCteSql = (allowTestOrders) => {
       SELECT *
         FROM order_base
        WHERE payment_method <> 'admin_deploy_preview_test'
-         AND (
-           (is_test_order = FALSE AND effective_status IN ('paid', 'in_production', 'shipped', 'delivered', 'fulfilled', 'refunded'))
-           OR (
-             ${allowTestOrders ? 'TRUE' : 'FALSE'}
-             AND is_test_order = TRUE
-             AND payment_method IN ('stripe', 'paypal')
-             AND effective_status IN ('paid', 'in_production', 'shipped', 'delivered', 'fulfilled', 'refunded')
-           )
-         )
+         AND is_test_order = FALSE
     )`;
 };
 
-const buildAdminPageQuery = (allowTestOrders) => `${orderBaseCteSql(allowTestOrders)},
+const buildAdminPageQuery = () => `${orderBaseCteSql()},
     filtered_orders AS (
       SELECT *
         FROM visible_orders
@@ -158,7 +148,7 @@ const buildAdminPageQuery = (allowTestOrders) => `${orderBaseCteSql(allowTestOrd
            ), '[]'::jsonb) AS page_orders,
            (SELECT COUNT(*)::integer FROM filtered_orders) AS total_items`;
 
-const buildAdminSummaryQuery = (allowTestOrders) => `${orderBaseCteSql(allowTestOrders)},
+const buildAdminSummaryQuery = () => `${orderBaseCteSql()},
     successful_lifetime AS (
       SELECT order_base.*,
              CASE WHEN reporting_customer_email IS NOT NULL THEN
@@ -213,6 +203,7 @@ const buildAdminSummaryQuery = (allowTestOrders) => `${orderBaseCteSql(allowTest
              )::integer AS overview_shipped_orders,
              COUNT(*) FILTER (
                WHERE effective_status <> 'refunded'
+                 AND effective_status NOT IN ('failed', 'canceled', 'cancelled')
                  AND tracking_number IS NULL
                  AND effective_status <> 'in_production'
                  AND effective_status NOT IN ('shipped', 'delivered', 'fulfilled')
@@ -441,10 +432,6 @@ const fetchLegacyOrdersPage = (event, context, page) => legacyModule.handler({
     page: String(page),
   },
 }, context);
-
-const isAdminVisiblePaidOrderForEvent = (order, event = {}) => (
-  isAdminVisiblePaidOrder(order, { context: deploymentContext(event) })
-);
 
 async function enrichOrderPaymentMetadata(sql, orders, options = {}) {
   if (!orders.length) return orders;
@@ -733,19 +720,19 @@ function normalizeAdminListOrders(rows = []) {
   });
 }
 
-async function loadAdminReportData({ event, context, sql, request, allowTestOrders }) {
+async function loadAdminReportData({ event, sql, request }) {
   const offset = (request.page - 1) * request.pageSize;
   // Settlement recovery is owned by the durable scheduled background queue.
   // This reporting path performs no provider I/O and has no payment side effects.
   const [pageRows, summaryRows] = await Promise.all([
-    sql(buildAdminPageQuery(allowTestOrders), [
+    sql(buildAdminPageQuery(), [
       request.start,
       request.end,
       request.search,
       request.pageSize,
       offset,
     ]),
-    sql(buildAdminSummaryQuery(allowTestOrders), [request.start, request.end]),
+    sql(buildAdminSummaryQuery(), [request.start, request.end]),
   ]);
 
   const pageRow = pageRows[0] || {};
@@ -773,9 +760,14 @@ async function loadAdminReportData({ event, context, sql, request, allowTestOrde
       });
     }
 
+    // The page query already rejects every marked test/deploy-preview row.
+    // Do not apply the paid-only visibility helper here: historical Admin
+    // records can use legacy, canceled, failed, or pending statuses and still
+    // need to remain inspectable. Period business metrics are calculated from
+    // the separate successful/refunded CTEs above.
     const byId = new Map(
       enrichedOrders
-        .filter((order) => isAdminVisiblePaidOrderForEvent(order, event))
+        .filter((order) => isAdminListableOrder(order))
         .map((order) => [String(order.id), order]),
     );
     orders = ids.map((id) => byId.get(id)).filter(Boolean);
@@ -832,10 +824,8 @@ const handleRequest = async (event, context) => {
     try {
       const report = await loadAdminReportData({
         event,
-        context,
         sql: neon(dbUrl),
         request,
-        allowTestOrders: deploymentContext(event) !== 'production',
       });
       let body = report;
       if (String(query.history_scan || '') === '1') {
@@ -894,7 +884,6 @@ export const _test = {
   buildAdminPageQuery,
   buildAdminSummaryQuery,
   enrichOrderPaymentMetadata,
-  isAdminVisiblePaidOrderForEvent,
   loadAdminReportData,
   normalizeAdminSummary,
   normalizeAdminListOrders,

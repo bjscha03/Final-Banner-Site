@@ -140,53 +140,11 @@ test('order enrichment exposes verified profile email as a dedicated reporting i
   assert.match(queries[0], /END AS reporting_customer_email/i);
 });
 
-test('Admin test-order visibility follows the actual branch request host when runtime context looks like production', () => {
-  const envNames = ['CONTEXT', 'DEPLOY_PRIME_URL', 'DEPLOY_URL', 'URL'];
-  const saved = Object.fromEntries(envNames.map((name) => [name, process.env[name]]));
-  const settledSandboxOrder = {
-    status: 'paid',
-    payment_method: 'paypal',
-    paypal_capture_id: 'SANDBOX-CAPTURE',
-    payment_reconciliation_status: 'complete',
-    is_test_order: true,
-  };
-
-  try {
-    process.env.CONTEXT = 'production';
-    delete process.env.DEPLOY_PRIME_URL;
-    delete process.env.DEPLOY_URL;
-    delete process.env.URL;
-
-    assert.equal(getOrdersTest.isAdminVisiblePaidOrderForEvent(settledSandboxOrder, {
-      rawUrl: 'https://agent-payment-sandbox-e2e--bannersonthefly.netlify.app/.netlify/functions/get-orders?page=1',
-      headers: {},
-    }), true);
-
-    assert.equal(getOrdersTest.isAdminVisiblePaidOrderForEvent(settledSandboxOrder, {
-      rawUrl: 'https://www.bannersonthefly.com/.netlify/functions/get-orders?page=1',
-      headers: {},
-    }), false);
-
-    assert.equal(getOrdersTest.isAdminVisiblePaidOrderForEvent(settledSandboxOrder, {
-      rawUrl: 'https://6a779c518d3ca80008ce39e5--bannersonthefly.netlify.app/.netlify/functions/get-orders?page=1',
-      headers: {},
-    }), false);
-
-    assert.equal(getOrdersTest.isAdminVisiblePaidOrderForEvent({
-      ...settledSandboxOrder,
-      status: 'pending',
-      paypal_capture_id: null,
-      payment_reconciliation_status: 'pending',
-    }, {
-      rawUrl: 'https://agent-payment-sandbox-e2e--bannersonthefly.netlify.app/.netlify/functions/get-orders?page=1',
-      headers: {},
-    }), false);
-  } finally {
-    for (const [name, value] of Object.entries(saved)) {
-      if (value === undefined) delete process.env[name];
-      else process.env[name] = value;
-    }
-  }
+test('Admin report SQL rejects marked test and no-payment preview orders in every deployment context', () => {
+  const query = getOrdersTest.buildAdminPageQuery();
+  assert.match(query, /payment_method <> 'admin_deploy_preview_test'/i);
+  assert.match(query, /is_test_order = FALSE/i);
+  assert.doesNotMatch(query, /deployContext|DEPLOY_PRIME_URL|allowTestOrders/i);
 });
 
 test('a completed PayPal capture stays a 200 paid success when every token secret is missing', async () => {
