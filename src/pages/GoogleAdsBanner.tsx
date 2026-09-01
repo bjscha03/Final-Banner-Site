@@ -27,6 +27,7 @@ import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
 import DeliveryTimer from '@/components/delivery/DeliveryTimer';
 import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
 import MobileSubtotalBar from '@/components/design/MobileSubtotalBar';
+import RealOrdersStrip from '@/components/design/RealOrdersStrip';
 import FileUploader, { type FileUploaderHandle } from '@/components/ui/FileUploader';
 import GrommetOverlay from '@/components/preview/GrommetOverlay';
 import PreviewRulerFrame from '@/components/preview/PreviewRulerFrame';
@@ -2576,6 +2577,8 @@ const GoogleAdsBanner: React.FC = () => {
           </div>
         </section>
         )}
+
+        <RealOrdersStrip />
 
         <section ref={orderRef} id="order-builder" className="mt-8 py-12 px-4 bg-gray-50">
           <div className="max-w-4xl lg:max-w-7xl mx-auto">
