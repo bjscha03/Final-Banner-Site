@@ -1,16 +1,25 @@
 const { neon } = require('@neondatabase/serverless');
 const crypto = require('crypto');
+const { requireAdmin } = require('../server-auth.cjs');
 
 const headers = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Banners-Admin-Session',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Content-Type': 'application/json'
+  'Content-Type': 'application/json',
+  'Cache-Control': 'no-store',
+  'Cross-Origin-Resource-Policy': 'same-origin'
 };
 
 function createDiscountCode(percentage) {
   const shortId = crypto.randomBytes(4).toString('hex').toUpperCase();
   return `CART${percentage}-${shortId}`;
+}
+
+function normalizeRecipientEmail(value) {
+  const email = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 254
+    ? email
+    : null;
 }
 
 exports.handler = async (event, context) => {
@@ -19,8 +28,16 @@ exports.handler = async (event, context) => {
     return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
   }
 
+  const authorization = requireAdmin(event);
+  if (!authorization.ok) {
+    return {
+      ...authorization.response,
+      headers: { ...headers, ...authorization.response.headers }
+    };
+  }
+
   try {
-    const DATABASE_URL = process.env.DATABASE_URL || process.env.NETLIFY_DATABASE_URL || process.env.VITE_DATABASE_URL;
+    const DATABASE_URL = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL || process.env.VITE_DATABASE_URL;
     if (!DATABASE_URL) throw new Error('DATABASE_URL not configured');
 
     const sql = neon(DATABASE_URL);
@@ -39,13 +56,28 @@ exports.handler = async (event, context) => {
       return { statusCode: 404, headers, body: JSON.stringify({ error: 'Cart not found' }) };
     }
 
-    // Return existing code if valid
+    const recipient = normalizeRecipientEmail(cart[0].email);
+    if (!recipient) {
+      return { statusCode: 422, headers, body: JSON.stringify({ error: 'Cart has no recovery email' }) };
+    }
+
+    // Return an existing code only after it is bound to this cart's current
+    // recipient. Legacy unbound rows are repaired before they are returned.
     if (cart[0].discount_code) {
       const existing = await sql`
-        SELECT code, discount_percentage, expires_at, used
+        SELECT code, discount_percentage, expires_at, used, email
         FROM discount_codes WHERE code = ${cart[0].discount_code}
       `;
-      if (existing.length > 0 && !existing[0].used) {
+      if (existing.length > 0 && !existing[0].used
+          && (!existing[0].email
+            || String(existing[0].email).trim().toLowerCase() === recipient)) {
+        if (!existing[0].email) {
+          await sql`
+            UPDATE discount_codes
+               SET email = ${recipient}, updated_at = NOW()
+             WHERE code = ${existing[0].code} AND email IS NULL
+          `;
+        }
         console.log('[generate-discount] Returning existing code:', existing[0].code);
         return {
           statusCode: 200, headers,
@@ -67,8 +99,8 @@ exports.handler = async (event, context) => {
     console.log('[generate-discount] Creating:', { code, cartId, discountPercentage, expiresAt });
 
     const result = await sql`
-      INSERT INTO discount_codes (code, discount_percentage, cart_id, single_use, used, expires_at, created_at, updated_at)
-      VALUES (${code}, ${discountPercentage}, ${cartId}, TRUE, FALSE, ${expiresAt.toISOString()}, NOW(), NOW())
+      INSERT INTO discount_codes (code, discount_percentage, cart_id, email, single_use, used, expires_at, created_at, updated_at)
+      VALUES (${code}, ${discountPercentage}, ${cartId}, ${recipient}, TRUE, FALSE, ${expiresAt.toISOString()}, NOW(), NOW())
       RETURNING id, code, discount_percentage, expires_at
     `;
 
@@ -91,4 +123,3 @@ exports.handler = async (event, context) => {
     return { statusCode: 500, headers, body: JSON.stringify({ error: error.message }) };
   }
 };
-

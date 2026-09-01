@@ -19,6 +19,22 @@
   external_node_modules = ["@neondatabase/serverless", "node-fetch", "@react-email/components", "@react-email/render", "aws-sdk", "uuid", "cloudinary", "sharp", "pdfkit", "openai", "google-auth-library", "stripe"]
 
 # Function-specific configuration
+[functions."detect-abandoned-carts"]
+  schedule = "0 * * * *"
+  memory = 512
+
+[functions."detect-abandoned-carts-background"]
+  background = true
+  memory = 512
+
+[functions."reconcile-pending-paypal"]
+  schedule = "*/5 * * * *"
+  memory = 512
+
+[functions."reconcile-pending-paypal-background"]
+  background = true
+  memory = 512
+
 [functions."upload-file"]
   timeout = 60
   memory = 1008

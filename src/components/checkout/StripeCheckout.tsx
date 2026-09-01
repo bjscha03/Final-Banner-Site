@@ -11,7 +11,14 @@ import { CircleAlert, Clock3, CreditCard, Loader2, RefreshCw } from 'lucide-reac
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth';
+import { useAbandonedCartCapture } from '@/hooks/useAbandonedCartCapture';
 import { getStoredAttribution } from '@/lib/attribution';
+import {
+  awaitBoundedAbandonedCartSnapshot,
+  selectAbandonedCartPaymentAttribution,
+  splitCaptureName,
+  writeStoredAbandonedCartRecoveryAttribution,
+} from '@/lib/abandonedCartCapture';
 import {
   trackPaymentInfoAdded,
   trackShippingInfoEntered,
@@ -314,6 +321,15 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
   const [customer, setCustomer] = useState<CustomerFormState>(() => (
     readCheckoutCustomerDraft(user?.email || '')
   ));
+  const {
+    markPaymentStarted,
+    getCartId: getAbandonedCartId,
+    getSessionId: getAbandonedCartSessionId,
+    getRecoveryAttribution: getAbandonedCartRecoveryAttribution,
+  } = useAbandonedCartCapture({
+    customer,
+    estimatedTotalCents: total,
+  });
   const initialState = useMemo(() => {
     const stored = readStripeCheckoutState(signature) || createStripeCheckoutState(signature);
     if (!resumedStripe?.checkoutKey) return stored;
@@ -489,6 +505,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
     const orderId = payload.orderId || payload.order.id;
     const order = payload.order || {};
     clearRecovery();
+    writeStoredAbandonedCartRecoveryAttribution(null);
     setIsProcessing(false);
     setIsPolling(false);
     setVerificationMessage(null);
@@ -805,6 +822,12 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
     // mounted wallet/card Element into a ConfirmationToken. That avoids a
     // rerender during the native wallet handshake. This bounded stage is also
     // safely retryable: no PaymentIntent or charge exists until the POST below.
+    const submittedName = splitCaptureName(submittedCustomer.name);
+    const paymentSnapshot = markPaymentStarted({
+      email: submittedCustomer.email,
+      phone: submittedCustomer.phone,
+      ...submittedName,
+    });
     const tokenResult = await withStripeStageTimeout(stripe.createConfirmationToken({
       elements,
       params: {
@@ -842,6 +865,18 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
       throw tokenResult.error || new Error('Could not securely prepare this payment.');
     }
 
+    // Let the payment-stage snapshot finish while Stripe prepares its native
+    // confirmation token. This closes the first-snapshot race without delaying
+    // the wallet handshake indefinitely.
+    const capturedSnapshot = await awaitBoundedAbandonedCartSnapshot(paymentSnapshot);
+    const recoveryAttribution = getAbandonedCartRecoveryAttribution();
+    const abandonedCartAttribution = selectAbandonedCartPaymentAttribution({
+      recoveryAttribution,
+      capturedCartId: capturedSnapshot?.cartId,
+      storedCartId: getAbandonedCartId(),
+      sessionId: getAbandonedCartSessionId(),
+    });
+
     submittedCustomerRef.current = submittedCustomer;
     setCheckoutError(null);
     setCheckoutNotice(null);
@@ -858,6 +893,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
         items,
         expectedTotalCents: total,
         userId: user?.id || null,
+        ...abandonedCartAttribution,
         customer: {
           email: submittedCustomer.email,
           name: submittedCustomer.name,
@@ -986,7 +1022,11 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
     elements,
     finalizeOrder,
     finishPaid,
+    getAbandonedCartId,
+    getAbandonedCartRecoveryAttribution,
+    getAbandonedCartSessionId,
     items,
+    markPaymentStarted,
     onCanonicalQuote,
     persistRecovery,
     postJson,

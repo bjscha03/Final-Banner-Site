@@ -126,6 +126,19 @@ describe('previewSelection', () => {
     })).toBeNull();
   });
 
+  it('validates the compact Admin placement manifest and fails closed on a stale signature', () => {
+    const ready = readyPlacement('https://cdn.example.com/admin-approved-placement.jpg');
+    expect(getPreviewSourceCandidates({
+      placement_preview: ready,
+      file_url: 'https://cdn.example.com/wrong-original.jpg',
+    })).toEqual(['https://cdn.example.com/admin-approved-placement.jpg']);
+
+    expect(getPreviewSourceCandidates({
+      placement_preview: { ...ready, compositionSignature: 'stale-signature' },
+      file_url: 'https://cdn.example.com/wrong-original.jpg',
+    })).toEqual([]);
+  });
+
   it('recovers a legacy artwork manifest when canonical fields are absent', () => {
     expect(getSmallPreviewUrl({
       artwork_manifest: {

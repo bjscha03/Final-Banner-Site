@@ -99,7 +99,7 @@ test('capture persists exact provider ID and atomically replaces the provider-se
     ...pending,
     status: 'paid',
     paypal_capture_id: 'CAPTURE-EXACT-1',
-    payment_reconciliation_status: 'complete',
+    payment_reconciliation_status: 'captured_bookkeeping_pending',
     shipping_name: 'Provider Recipient',
     shipping_street: '500 Provider Avenue',
     shipping_street2: null,
@@ -113,6 +113,15 @@ test('capture persists exact provider ID and atomically replaces the provider-se
     if (/UPDATE orders SET[\s\S]+status = 'paid'/i.test(query)) {
       paidUpdate = { query, values };
       return [persisted];
+    }
+    if (/SET payment_reconciliation_status = \?/i.test(query)
+        && /status = ANY\(\?::text\[\]\)/i.test(query)
+        && !/AND payment_reconciliation_status = \?/i.test(query)) {
+      return [{ id: persisted.id }];
+    }
+    if (/SET payment_reconciliation_status = 'complete'/i.test(query)
+        && /AND payment_reconciliation_status = \?/i.test(query)) {
+      return [{ id: persisted.id }];
     }
     return [];
   };
@@ -166,6 +175,8 @@ test('capture persists exact provider ID and atomically replaces the provider-se
       country: 'US',
     });
     assert.ok(paidUpdate);
+    assert.match(paidUpdate.query, /payment_reconciliation_status = \?/);
+    assert.ok(paidUpdate.values.includes('captured_bookkeeping_pending'));
     assert.match(paidUpdate.query, /shipping_street2 = CASE WHEN/);
     assert.ok(paidUpdate.values.includes('CAPTURE-EXACT-1'));
     assert.ok(paidUpdate.values.includes('500 Provider Avenue'));
@@ -174,6 +185,139 @@ test('capture persists exact provider ID and atomically replaces the provider-se
   } finally {
     global.fetch = originalFetch;
   }
+});
+
+test('captured PayPal bookkeeping remains durably retryable until discount completion succeeds', async () => {
+  const order = {
+    ...pending,
+    status: 'paid',
+    paypal_capture_id: 'CAPTURE-BOOKKEEPING-1',
+    payment_reconciliation_status: 'captured_bookkeeping_pending',
+    discount_code: 'SAVE20',
+    applied_discount_cents: 500,
+    applied_discount_type: 'promo',
+  };
+  let discountReady = false;
+  let reconciliationState = order.payment_reconciliation_status;
+  const queries = [];
+  const sql = async (first, ...values) => {
+    const query = queryText(first);
+    queries.push({ query, values });
+    if (/UPDATE orders[\s\S]+SET payment_reconciliation_status = \?/i.test(query)
+        && /status = ANY\(\?::text\[\]\)/i.test(query)
+        && !/AND payment_reconciliation_status = \?/i.test(query)) {
+      reconciliationState = values[0];
+      return [{ id: order.id }];
+    }
+    if (/UPDATE discount_codes/i.test(query)) {
+      return discountReady ? [{ code: order.discount_code }] : [];
+    }
+    if (/FROM trade_show_promo_codes/i.test(query)) return [];
+    if (/UPDATE orders[\s\S]+SET payment_reconciliation_status = 'complete'/i.test(query)) {
+      reconciliationState = 'complete';
+      return [{ id: order.id }];
+    }
+    return [];
+  };
+
+  const incomplete = await capture._test.completeCapturedBookkeeping(sql, order);
+  assert.equal(incomplete.ok, false);
+  assert.equal(incomplete.code, 'DISCOUNT_COMPLETION_CONFLICT');
+  assert.equal(reconciliationState, 'captured_bookkeeping_pending');
+  assert.equal(queries.some(({ query }) => /SET payment_reconciliation_status = 'complete'/i.test(query)), false);
+
+  discountReady = true;
+  const completed = await capture._test.completeCapturedBookkeeping(sql, {
+    ...order,
+    payment_reconciliation_status: reconciliationState,
+  });
+  assert.deepEqual(completed, { ok: true });
+  assert.equal(reconciliationState, 'complete');
+});
+
+test('completed captured bookkeeping is idempotent and is never reopened by a later retry', async () => {
+  const order = {
+    ...pending,
+    status: 'paid',
+    paypal_capture_id: 'CAPTURE-BOOKKEEPING-COMPLETE',
+    payment_reconciliation_status: 'complete',
+  };
+  let discountWrites = 0;
+  const sql = async (first) => {
+    const query = queryText(first);
+    if (/SET payment_reconciliation_status = \?/i.test(query)) return [];
+    if (/SELECT payment_reconciliation_status/i.test(query)) {
+      return [{ payment_reconciliation_status: 'complete' }];
+    }
+    if (/UPDATE discount_codes/i.test(query)) discountWrites += 1;
+    return [];
+  };
+
+  const result = await capture._test.completeCapturedBookkeeping(sql, order);
+  assert.deepEqual(result, { ok: true, alreadyComplete: true });
+  assert.equal(discountWrites, 0);
+  assert.match(capture._test.completeCapturedBookkeeping.toString(), /IS DISTINCT FROM 'complete'/);
+});
+
+test('an already-complete captured handler retry performs no bookkeeping update or provider call', async () => {
+  const order = {
+    ...pending,
+    status: 'paid',
+    paypal_capture_id: 'CAPTURE-ALREADY-COMPLETE',
+    payment_reconciliation_status: 'complete',
+  };
+  const queries = [];
+  capture._test.setNeonFactory(() => async (first) => {
+    const query = queryText(first);
+    queries.push(query);
+    if (/SELECT[\s\S]+FROM orders[\s\S]+WHERE id/i.test(query)) return [order];
+    return [];
+  });
+  const originalFetch = global.fetch;
+  let providerCalls = 0;
+  global.fetch = async () => { providerCalls += 1; throw new Error('provider call not expected'); };
+  try {
+    const response = await capture.handler({
+      httpMethod: 'POST',
+      headers: {},
+      body: JSON.stringify({
+        orderID: order.paypal_order_id,
+        internalOrderId: order.id,
+        checkoutKey,
+      }),
+    });
+    assert.equal(response.statusCode, 200, response.body);
+    assert.equal(providerCalls, 0);
+    assert.equal(queries.some((query) => /^\s*UPDATE\s+/i.test(query)), false);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('a lost final bookkeeping CAS treats an exact concurrent complete readback as success', async () => {
+  const order = {
+    ...pending,
+    status: 'paid',
+    paypal_capture_id: 'CAPTURE-CONCURRENT-COMPLETE',
+    payment_reconciliation_status: 'captured_bookkeeping_pending',
+  };
+  let finalCasAttempts = 0;
+  const sql = async (first) => {
+    const query = queryText(first);
+    if (/SET payment_reconciliation_status = \?/i.test(query)) return [{ id: order.id }];
+    if (/SET payment_reconciliation_status = 'complete'/i.test(query)) {
+      finalCasAttempts += 1;
+      return [];
+    }
+    if (/SELECT payment_reconciliation_status/i.test(query)) {
+      return [{ payment_reconciliation_status: 'complete' }];
+    }
+    return [];
+  };
+
+  const result = await capture._test.completeCapturedBookkeeping(sql, order);
+  assert.deepEqual(result, { ok: true, alreadyComplete: true });
+  assert.equal(finalCasAttempts, 1);
 });
 
 test('ORDER_ALREADY_CAPTURED with lost recovery remains locked and preserves its promo reservation', async () => {

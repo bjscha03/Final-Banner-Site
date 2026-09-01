@@ -216,22 +216,19 @@ test('preview request host overrides production-looking runtime variables before
       assert.equal(JSON.parse(statusResponse.body).doNotRetry, true);
 
       const pendingOrder = { id: 'preview-order', status: 'pending' };
-      await getOrdersTest.reconcilePendingPayPalOrders(
-        async () => [],
-        [pendingOrder],
-        new Map([[pendingOrder.id, {
+      const enriched = await getOrdersTest.enrichOrderPaymentMetadata(
+        async (query) => String(query).includes('FROM orders') ? [{
+          id: pendingOrder.id,
           payment_method: 'paypal',
           paypal_order_id: 'PREVIEW-PAYPAL-ORDER',
           paypal_capture_id: null,
           stripe_payment_intent_id: null,
-          checkout_idempotency_key: 'preview-checkout-key',
           payment_reconciliation_status: 'required',
-        }]]),
-        {
-          rawUrl: `https://${previewHost}/.netlify/functions/get-orders?page=1`,
-          headers: {},
-        },
+        }] : [],
+        [pendingOrder],
       );
+      assert.equal(enriched[0].status, 'pending');
+      assert.equal('reconcilePendingPayPalOrders' in getOrdersTest, false);
 
       const webhookResponse = await paypalWebhookModule.default(new Request(
         `https://${previewHost}/.netlify/functions/paypal-webhook`,

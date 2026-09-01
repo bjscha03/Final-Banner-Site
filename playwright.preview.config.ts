@@ -13,6 +13,7 @@ export default defineConfig({
     'preview-handoff.playwright.spec.ts',
     'checkout-thumbnail-real-route.playwright.spec.ts',
     'admin-review-request.playwright.spec.ts',
+    'admin-commerce-analytics.playwright.spec.ts',
     'ai-admin-entry.playwright.spec.ts',
     'admin-sales-foundation.playwright.ts',
     'tracking-isolation.playwright.spec.ts',

@@ -4,6 +4,8 @@ const PAID_ADMIN_STATUSES = new Set([
   'paid',
   'in_production',
   'shipped',
+  'delivered',
+  'fulfilled',
   'refunded',
 ]);
 

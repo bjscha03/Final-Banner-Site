@@ -9,19 +9,21 @@ function getDbUrl() {
   return process.env.NETLIFY_DATABASE_URL || process.env.VITE_DATABASE_URL || process.env.DATABASE_URL;
 }
 
-// Module-scoped cache: auto-migrations only need to run once per cold start.
-// Running ~50 ALTER TABLE statements on every admin request was causing the
-// function to exceed the default 10s Netlify timeout, returning 5xx errors
-// to the admin Orders page ("Error Loading Orders").
-let _migrationsRan = false;
+let neonFactory = neon;
 
 
 exports.handler = async (event, context) => {
   // Set CORS headers
   const headers = {
-    'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Content-Type': 'application/json',
+    'Cache-Control': 'private, no-store, max-age=0, must-revalidate',
+    'Cross-Origin-Resource-Policy': 'same-origin',
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'no-referrer',
+    Pragma: 'no-cache',
+    Expires: '0',
   };
 
   // Handle preflight requests
@@ -65,7 +67,7 @@ exports.handler = async (event, context) => {
     try { dbHost = new URL(dbUrl).hostname; } catch (_) { /* non-URL format */ }
     console.log(`[get-orders] Using ${whichVar} → host=${dbHost}`);
 
-    const sql = neon(dbUrl);
+    const sql = neonFactory(dbUrl);
 
     // --- Diagnostic: verify connectivity + row count (cheap on PK-indexed table) ---
     if (process.env.DEBUG_ORDERS) {
@@ -73,164 +75,66 @@ exports.handler = async (event, context) => {
       console.log(`[get-orders] schema=${countRow.schema}  orders COUNT(*)=${countRow.cnt}`);
     }
 
-    // AUTO-MIGRATE: Ensure all columns referenced by the query exist.
-    // Each ALTER runs independently so a single failure does not roll back the rest
-    // (PostgreSQL ALTER TABLE with multiple ADD COLUMN clauses is atomic).
-    // Cached at module scope: only runs on the first invocation per cold start.
-    const ALLOWED_TABLES = new Set(['orders', 'order_items']);
-    // Whitelist allowed characters for column DDL: identifiers, types, defaults,
-    // simple JSON/string literals, parens. Refuses anything with semicolons,
-    // comments, or other statement-terminating characters.
-    const SAFE_DDL_RE = /^[A-Za-z0-9_ ,'"\.\(\)\{\}\[\]:\-#=]+$/;
-    const ensureColumn = async (table, columnDef) => {
-      if (!ALLOWED_TABLES.has(table) || !SAFE_DDL_RE.test(columnDef)) {
-        console.warn(`[get-orders] Refusing unsafe migration for ${table}/${columnDef}`);
-        return;
-      }
-      try {
-        await sql(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS ${columnDef}`);
-      } catch (migErr) {
-        console.warn(`[get-orders] Auto-migration ${table}.${columnDef} (non-fatal):`, migErr.message);
-      }
-    };
-
-    const orderItemColumns = [
-      `image_scale NUMERIC DEFAULT 1`,
-      `image_position JSONB DEFAULT '{"x": 0, "y": 0}'::jsonb`,
-      `thumbnail_url TEXT`,
-      `overlay_image JSONB`,
-      `overlay_images JSONB`,
-      `canvas_background_color VARCHAR(20) DEFAULT '#FFFFFF'`,
-      `file_key VARCHAR(255)`,
-      `file_name VARCHAR(255)`,
-      `file_url TEXT`,
-      `artwork_manifest JSONB`,
-      `placement_preview JSONB`,
-      `original_filename TEXT`,
-      `production_pdf_status TEXT DEFAULT 'pending'`,
-      `production_pdf_error TEXT`,
-      `print_ready_url TEXT`,
-      `web_preview_url TEXT`,
-      `text_elements JSONB DEFAULT '[]'::jsonb`,
-      `pole_pocket_position TEXT`,
-      `rope_placement TEXT`,
-      `pole_pocket_size TEXT`,
-      `pole_pocket_cost_cents INTEGER DEFAULT 0`,
-      `rounded_corners TEXT`,
-      `final_render_url TEXT`,
-      `final_render_file_key TEXT`,
-      `final_render_width_px INTEGER`,
-      `final_render_height_px INTEGER`,
-      `final_render_dpi INTEGER`,
-      `canvas_state_json TEXT`,
-      `design_service_enabled BOOLEAN DEFAULT FALSE`,
-      `design_request_text TEXT`,
-      `design_draft_preference VARCHAR(10)`,
-      `design_draft_contact VARCHAR(255)`,
-      `design_uploaded_assets JSONB DEFAULT '[]'::jsonb`,
-      `final_print_pdf_url TEXT`,
-      `final_print_pdf_file_key TEXT`,
-      `final_print_pdf_uploaded_at TIMESTAMP WITH TIME ZONE`,
-      `generated_print_pdf_url TEXT`,
-      `generated_print_pdf_uploaded_at TIMESTAMP WITH TIME ZONE`,
-      `generated_print_pdf_metadata JSONB`,
-      `product_type TEXT DEFAULT 'banner'`,
-      // Yard sign columns (added by create-order.cjs but referenced unconditionally
-      // by get-orders SELECT; ensure they exist here too).
-      `yard_sign_sidedness TEXT`,
-      `yard_sign_step_stakes_enabled BOOLEAN DEFAULT false`,
-      `yard_sign_step_stakes_qty INTEGER DEFAULT 0`,
-      `yard_sign_design_count INTEGER DEFAULT 0`,
-      `yard_sign_designs JSONB`,
-      `yard_sign_signs_subtotal_cents INTEGER DEFAULT 0`,
-      `yard_sign_stakes_subtotal_cents INTEGER DEFAULT 0`,
-    ];
-    if (!_migrationsRan) {
-      for (const col of orderItemColumns) {
-        await ensureColumn('order_items', col);
-      }
-      console.log('[get-orders] Auto-migration: order_items columns verified');
-    }
-
-    // AUTO-MIGRATE: Ensure orders table columns exist
-    const orderColumns = [
-      `email VARCHAR(255)`,
-      `customer_name TEXT`,
-      `customer_first_name TEXT`,
-      `tracking_number VARCHAR(255)`,
-      `tracking_numbers JSONB`,
-      `shipping_name TEXT`,
-      `shipping_street TEXT`,
-      `shipping_street2 TEXT`,
-      `shipping_city TEXT`,
-      `shipping_state TEXT`,
-      `shipping_zip TEXT`,
-      `shipping_country TEXT DEFAULT 'US'`,
-      `applied_discount_cents INTEGER DEFAULT 0`,
-      `applied_discount_label TEXT DEFAULT ''`,
-      `applied_discount_type TEXT DEFAULT 'none'`,
-      `production_email_sent BOOLEAN DEFAULT FALSE`,
-      `production_email_sent_at TIMESTAMP WITH TIME ZONE`,
-      `production_email_status TEXT DEFAULT 'pending'`,
-      `shipping_notification_sent BOOLEAN DEFAULT FALSE`,
-      `shipping_notification_sent_at TIMESTAMP WITH TIME ZONE`,
-      `shipping_notification_status TEXT DEFAULT 'pending'`,
-      `confirmation_email_status TEXT DEFAULT 'pending'`,
-      `confirmation_emailed_at TIMESTAMP WITH TIME ZONE`,
-      // Same-Day Hit Service columns (added by create-order.cjs).
-      `same_day_hit_service BOOLEAN DEFAULT FALSE`,
-      `saturday_delivery BOOLEAN DEFAULT FALSE`,
-      `same_day_fee_cents INTEGER DEFAULT 0`,
-      `saturday_fee_cents INTEGER DEFAULT 0`,
-      `order_timestamp_et TEXT`,
-      `same_day_qualified BOOLEAN DEFAULT FALSE`,
-      // Payment-related columns referenced by the admin WHERE filter below.
-      // Missing any of these crashes the whole get-orders query (500 →
-      // empty admin / my-orders pages), so we ensure they exist defensively
-      // even if the matching create-order/checkout migration hasn't run yet.
-      `payment_method TEXT`,
-      `paypal_order_id TEXT`,
-      `paypal_capture_id TEXT`,
-      `stripe_charge_id TEXT`,
-      `stripe_payment_intent_id TEXT`,
-      `is_test_order BOOLEAN DEFAULT FALSE`,
-      `test_order_reason TEXT`,
-    ];
-    if (!_migrationsRan) {
-      for (const col of orderColumns) {
-        await ensureColumn('orders', col);
-      }
-      console.log('[get-orders] Auto-migration: orders columns verified');
-      _migrationsRan = true;
-    }
-
-    const { user_id, page = 1 } = event.queryStringParameters || {};
-    const limit = 20;
+    const {
+      user_id,
+      page = 1,
+      page_size: requestedPageSize,
+      order_ids: requestedOrderIds,
+    } = event.queryStringParameters || {};
+    // Customer order history remains capped at 20. Verified Admin callers may
+    // request a larger bounded page for the background full-history scan,
+    // avoiding hundreds of tiny function round trips without creating an
+    // unbounded response.
+    const parsedPageSize = Number.parseInt(String(requestedPageSize || '20'), 10);
+    const limit = !user_id && session.admin
+      ? Math.min(75, Math.max(20, Number.isFinite(parsedPageSize) ? parsedPageSize : 20))
+      : 20;
     const offset = (page - 1) * limit;
+    const requestedAdminIds = !user_id && session.admin
+      ? Array.from(new Set(String(requestedOrderIds || '')
+        .split(',')
+        .map((value) => value.trim())
+        .filter((value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value))))
+        .slice(0, limit)
+      : [];
 
-    // BULLETPROOF SELECT: dynamically build the json_build_object args
-    // from columns that actually exist in order_items. If a column is
-    // missing (e.g. a migration silently failed), it is emitted as NULL
-    // instead of being referenced as `oi.col` which would throw
-    // `column "..." does not exist` and 500 the whole admin page.
+    // READ-ONLY SCHEMA COMPATIBILITY: dynamically build the item JSON and
+    // optional Admin filter from columns that actually exist. Missing fields
+    // are emitted as NULL instead of running schema changes inside this GET.
     //
     // We use 'order_items'::regclass (resolved via search_path) instead of
     // filtering information_schema.columns by current_schema(). This works
     // regardless of which schema the table lives in, as long as the table
     // is reachable on the connection's search_path.
+    let existingOrderCols = new Set();
     let existingItemCols = new Set();
     try {
-      const cols = await sql(
-        `SELECT a.attname AS column_name
-           FROM pg_attribute a
-          WHERE a.attrelid = 'order_items'::regclass
-            AND a.attnum > 0
-            AND NOT a.attisdropped`
-      );
-      existingItemCols = new Set(cols.map(r => r.column_name));
+      const [orderCols, itemCols] = await Promise.all([
+        sql(
+          `SELECT a.attname AS column_name
+             FROM pg_attribute a
+            WHERE a.attrelid = 'orders'::regclass
+              AND a.attnum > 0
+              AND NOT a.attisdropped`
+        ),
+        sql(
+          `SELECT a.attname AS column_name
+             FROM pg_attribute a
+            WHERE a.attrelid = 'order_items'::regclass
+              AND a.attnum > 0
+              AND NOT a.attisdropped`
+        ),
+      ]);
+      existingOrderCols = new Set(orderCols.map(r => r.column_name));
+      existingItemCols = new Set(itemCols.map(r => r.column_name));
     } catch (introspectErr) {
       console.warn('[get-orders] Column introspection failed (non-fatal):', introspectErr.message);
     }
+
+    const haveOrderIntrospection = existingOrderCols.size > 0;
+    const orderColumn = (column, fallback = 'NULL') => (
+      !haveOrderIntrospection || existingOrderCols.has(column) ? `o.${column}` : fallback
+    );
 
     // (jsonKey, baseExpr-when-column-exists, fallbackExpr-when-missing)
     // baseExpr is used as-is when ALL the columns it depends on exist.
@@ -343,6 +247,22 @@ exports.handler = async (event, context) => {
            LIMIT $2 OFFSET $3`,
         [user_id, limit, offset]
       );
+    } else if (requestedAdminIds.length) {
+      if (!session.admin) return unauthorized('Verified administrator session required');
+      console.log('[get-orders] Fetching bounded Admin order IDs');
+      orders = await sql(
+        `SELECT o.*,
+                json_agg(
+                  ${itemJsonExpr}
+                ) as items
+           FROM orders o
+           LEFT JOIN order_items oi ON o.id = oi.order_id
+          WHERE o.id::text = ANY($1::text[])
+          GROUP BY o.id
+          ORDER BY array_position($1::text[], o.id::text)
+          LIMIT $2`,
+        [requestedAdminIds, limit]
+      );
     } else {
       if (!session.admin) return unauthorized('Verified administrator session required');
       console.log('[get-orders] Fetching all orders (admin)');
@@ -354,15 +274,15 @@ exports.handler = async (event, context) => {
            FROM orders o
            LEFT JOIN order_items oi ON o.id = oi.order_id
            WHERE NOT (
-             COALESCE(o.payment_method, '') = 'stripe'
-             AND COALESCE(o.status, '') = 'pending'
-             AND o.paypal_order_id IS NULL
-             AND o.paypal_capture_id IS NULL
-             AND o.stripe_charge_id IS NULL
+             COALESCE(${orderColumn('payment_method')}, '') = 'stripe'
+             AND COALESCE(${orderColumn('status')}, '') = 'pending'
+             AND ${orderColumn('paypal_order_id')} IS NULL
+             AND ${orderColumn('paypal_capture_id')} IS NULL
+             AND ${orderColumn('stripe_charge_id')} IS NULL
              AND (
-               o.email IS NULL
-               OR NULLIF(TRIM(o.email), '') IS NULL
-               OR LOWER(TRIM(COALESCE(o.customer_name, ''))) IN ('guest', 'guest customer')
+               ${orderColumn('email')} IS NULL
+               OR NULLIF(TRIM(${orderColumn('email')}), '') IS NULL
+               OR LOWER(TRIM(COALESCE(${orderColumn('customer_name')}, ''))) IN ('guest', 'guest customer')
              )
            )
            GROUP BY o.id
@@ -459,4 +379,13 @@ exports.handler = async (event, context) => {
       }),
     };
   }
+};
+
+exports._test = {
+  resetNeonFactory() {
+    neonFactory = neon;
+  },
+  setNeonFactory(factory) {
+    neonFactory = factory;
+  },
 };

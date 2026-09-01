@@ -31,6 +31,8 @@ test('Admin shows paid lifecycle statuses', () => {
   assert.equal(isAdminVisiblePaidOrder({ status: 'paid' }), true);
   assert.equal(isAdminVisiblePaidOrder({ status: 'in_production' }), true);
   assert.equal(isAdminVisiblePaidOrder({ status: 'shipped' }), true);
+  assert.equal(isAdminVisiblePaidOrder({ status: 'delivered' }), true);
+  assert.equal(isAdminVisiblePaidOrder({ status: 'fulfilled' }), true);
   assert.equal(isAdminVisiblePaidOrder({ status: 'refunded' }), true);
 });
 

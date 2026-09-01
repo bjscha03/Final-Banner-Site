@@ -23,7 +23,7 @@ type AdminRefundOrderActionProps = {
   fullWidth?: boolean;
 };
 
-const REFUNDABLE_STATUSES = new Set(['paid', 'in_production', 'shipped']);
+const REFUNDABLE_STATUSES = new Set(['paid', 'in_production', 'shipped', 'delivered', 'fulfilled']);
 
 const AdminRefundOrderAction: React.FC<AdminRefundOrderActionProps> = ({
   order,

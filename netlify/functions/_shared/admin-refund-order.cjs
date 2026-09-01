@@ -1,7 +1,7 @@
 'use strict';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const REFUNDABLE_STATUSES = new Set(['paid', 'in_production', 'shipped']);
+const REFUNDABLE_STATUSES = new Set(['paid', 'in_production', 'shipped', 'delivered', 'fulfilled']);
 
 function normalizeStatus(value) {
   return String(value || '').trim().toLowerCase();
@@ -53,7 +53,7 @@ async function markOrderRefunded(sql, orderId) {
           updated_at = NOW()
       FROM existing
       WHERE target.id = existing.id
-        AND LOWER(COALESCE(existing.status, '')) IN ('paid', 'in_production', 'shipped')
+        AND LOWER(COALESCE(existing.status, '')) IN ('paid', 'in_production', 'shipped', 'delivered', 'fulfilled')
       RETURNING target.id, target.status, target.total_cents, target.updated_at
     )
     SELECT existing.id,

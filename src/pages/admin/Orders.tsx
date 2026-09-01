@@ -1,26 +1,30 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, isAdmin } from '../../lib/auth';
-import { getOrdersAdapter } from '../../lib/orders/adapter';
-import { Order, TrackingCarrier } from '../../lib/orders/types';
-import type { TrackingEntry } from '../../lib/orders/tracking';
-import { fedexUrl, normalizeTrackingEntries, DEFAULT_TRACKING_CARRIER } from '../../lib/orders/tracking';
+import { fetchAdminOrderDetail, fetchAdminOrdersReport } from '../../lib/orders/netlify-function';
+import {
+  Order,
+  type AdminOrdersPagination,
+} from '../../lib/orders/types';
 import { usd, formatDimensions } from '@/lib/pricing';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   Shield,
   Package,
   Search,
-  Truck,
   Eye,
-  Plus,
   ArrowLeft,
   Download,
-  Edit3,
-  Save,
   X,
   FileText,
   Mail,
@@ -29,14 +33,12 @@ import {
   Upload,
   ChevronLeft,
   ChevronRight,
-  Copy,
   ChevronDown,
-  ChevronUp,
-  Ban
+  ChevronUp
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Bot, Star, ShoppingCart, UserCheck } from 'lucide-react';
+import { Bot, Star, ShoppingCart, UserCheck, UsersRound } from 'lucide-react';
 import OrderDetails from '@/components/orders/OrderDetails';
 import { getDisplayOrderTotalCents } from '@/lib/order-totals';
 import { estimateOrderProfit } from '@/lib/admin-profit-estimate';
@@ -49,9 +51,51 @@ import { getGrommetLabel } from '@/lib/grommets';
 import EditCustomerInfoDialog from '@/components/orders/EditCustomerInfoDialog';
 import ReviewRequestAction from '@/components/orders/ReviewRequestAction';
 import AdminRefundOrderAction from '@/components/orders/AdminRefundOrderAction';
-import { summarizeAdminOrders } from '@/lib/admin-order-overview';
+import AdminTrackingManager from '@/components/orders/AdminTrackingManager';
+import {
+  adminOrderPeriodLabel,
+  getAdminOrderPeriodBounds,
+  type AdminBusinessMetrics,
+  type AdminOrderPeriod,
+} from '@/lib/admin-business-metrics';
 
 const PAGE_SIZE = 20;
+
+const emptyBusinessMetrics = (): AdminBusinessMetrics => ({
+  totalOrders: 0,
+  grossSalesCents: 0,
+  averageOrderValueCents: 0,
+  recordedRefundsCents: 0,
+  netSalesCents: 0,
+  newCustomers: 0,
+  repeatCustomers: 0,
+  repeatRate: 0,
+  identifiedCustomers: 0,
+});
+
+const emptyPagination = (page = 1): AdminOrdersPagination => ({
+  page,
+  pageSize: PAGE_SIZE,
+  totalItems: 0,
+  totalPages: 1,
+  hasPrevious: page > 1,
+  hasNext: false,
+});
+
+const toLocalDateInput = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const initialCustomRange = () => {
+  const today = new Date();
+  return {
+    startDate: toLocalDateInput(new Date(today.getFullYear(), today.getMonth(), 1)),
+    endDate: toLocalDateInput(today),
+  };
+};
 
 const PRODUCT_BADGE_CLASSES: Record<string, string> = {
   'BANNER': 'bg-blue-100 text-blue-800 border-blue-200',
@@ -93,7 +137,9 @@ const getOrderItemsSummary = (order: Order): string => {
     if (info.lines > 1 && label.includes('Banner')) return `${info.lines} ${label} Designs`;
     return `${label} (Qty ${info.qty})`;
   });
-  return parts.length ? `${parts.join(' · ')} · Total Units: ${getTotalUnits(order)}` : 'No items';
+  if (!parts.length) return order.admin_detail_loaded === false ? 'Item details not loaded' : 'No items';
+  const unitsLabel = order.admin_detail_loaded === false ? 'Captured subset units' : 'Total Units';
+  return `${parts.join(' · ')} · ${unitsLabel}: ${getTotalUnits(order)}`;
 };
 
 const getTotalUnits = (order: Order): number => (order.items || []).reduce((sum, item: any) => sum + Number(item.quantity || 0), 0);
@@ -113,11 +159,14 @@ const getPrintFileLabel = (item: any, index: number, fallbackPrefix = 'PDF'): st
   return label === 'Product' ? `${fallbackPrefix} ${index + 1}` : `${label} Print File`;
 };
 
-const copyText = async (text: string) => {
-  await navigator.clipboard?.writeText(text);
-};
-
 const toTitleCase = (value: string): string => value.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
+
+const stripAsciiControlCharacters = (value: string): string => Array.from(value)
+  .filter((character) => {
+    const codePoint = character.codePointAt(0) ?? 0;
+    return codePoint > 31 && codePoint !== 127;
+  })
+  .join('');
 
 const getProductTitleLabel = (item: any): string => {
   const label = getProductTypeLabel(item);
@@ -134,7 +183,7 @@ const getOriginalFileEntries = (items: Order['items']) => items.flatMap((item, i
 const getOriginalFilename = (item: any): string | undefined => {
   const rawName = item?.artwork_manifest?.originalFilename || item?.original_filename || item?.file_name;
   if (!rawName) return undefined;
-  const leafName = String(rawName).split(/[\\/]/).pop()?.replace(/[\u0000-\u001f\u007f]/g, '').trim();
+  const leafName = stripAsciiControlCharacters(String(rawName).split(/[\\/]/).pop() || '').trim();
   return leafName || undefined;
 };
 
@@ -260,27 +309,28 @@ const getPaymentMethodInfo = (order: Order): PaymentMethodInfo | null => {
   return { label: method.charAt(0).toUpperCase() + method.slice(1), className: 'bg-gray-100 text-gray-700' };
 };
 
-const isHiddenStripeAttempt = (order: Order): boolean => {
-  const method = (order.payment_method || '').toLowerCase();
-  const isStripe = method === 'stripe' || !!order.stripe_payment_intent_id;
-  if (!isStripe) return false;
-  return order.status === 'pending' || order.status === 'failed' || order.status === 'canceled' || order.status === 'cancelled';
-};
-
 const AdminOrders: React.FC = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [reportReady, setReportReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [period, setPeriod] = useState<AdminOrderPeriod>('this_month');
+  const [customRange, setCustomRange] = useState(initialCustomRange);
   const [showAccessDenied, setShowAccessDenied] = useState(false);
   const { toast } = useToast();
   const [pdfLoadingStates, setPdfLoadingStates] = useState<Record<string, boolean>>({});
   const [fileLoadingStates, setFileLoadingStates] = useState<Record<string, boolean>>({});
+  const [detailLoadingStates, setDetailLoadingStates] = useState<Record<string, boolean>>({});
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
-  const pageOverview = useMemo(() => summarizeAdminOrders(orders), [orders]);
+  const [pagination, setPagination] = useState<AdminOrdersPagination>(() => emptyPagination());
+  const [businessMetrics, setBusinessMetrics] = useState<AdminBusinessMetrics>(() => emptyBusinessMetrics());
+  const reportAbortController = useRef<AbortController | null>(null);
+  const reportRequestId = useRef(0);
+  const detailAbortControllers = useRef<Map<string, AbortController>>(new Map());
+  const detailRequestIds = useRef<Map<string, number>>(new Map());
   const [globalOverview, setGlobalOverview] = useState({
     totalOrders: 0,
     inProductionOrders: 0,
@@ -298,56 +348,25 @@ const AdminOrders: React.FC = () => {
     abandonedCarts: false,
     customQuotes: false,
   });
-  useEffect(() => {
 
-    // Redirect to the admin login page (not the customer sign-in page) when
-    // the visitor isn't an admin yet. This restores the legacy behavior where
-    // hitting /admin/orders directly takes you to the admin password gate.
-    if (!authLoading && (!user || !isAdmin(user))) {
-      navigate('/admin/setup', { replace: true });
-      return;
-    }
-
-    if (user && isAdmin(user)) {
-      loadOrders();
-      loadGlobalOverview(user.email);
-    }
-  }, [user, authLoading, navigate]);
-
-  const loadAllOrdersForOverview = async () => {
-    const ordersAdapter = await getOrdersAdapter();
-    const allOrders: Order[] = [];
-    let pageToLoad = 1;
-
-    while (true) {
-      const pageOrders = await ordersAdapter.listAll(pageToLoad);
-      if (!pageOrders.length) break;
-      allOrders.push(...pageOrders);
-      if (pageOrders.length < PAGE_SIZE) break;
-      pageToLoad += 1;
-      if (pageToLoad > 5000) {
-        console.warn('Global overview order pagination hit safety limit at 5000 pages');
-        break;
-      }
-    }
-
-    return allOrders;
+  const abortDetailRequests = () => {
+    detailAbortControllers.current.forEach((controller) => controller.abort());
+    detailAbortControllers.current.clear();
+    setDetailLoadingStates({});
   };
 
   const loadGlobalOverview = async (adminEmail?: string) => {
-    setGlobalOverviewLoading({
-      orders: false,
+    setGlobalOverviewLoading((current) => ({
+      ...current,
       abandonedCarts: false,
       customQuotes: false,
-    });
+    }));
 
     const [
-      ordersResult,
       abandonedCartsResult,
       customQuotesResult,
     ] = await Promise.allSettled([
-      loadAllOrdersForOverview(),
-      adminFetch('/.netlify/functions/get-abandoned-carts').then(async (response) => {
+      adminFetch('/.netlify/functions/get-abandoned-carts?summary=1').then(async (response) => {
         if (!response.ok) throw new Error('Failed to fetch abandoned carts');
         return response.json();
       }),
@@ -360,10 +379,6 @@ const AdminOrders: React.FC = () => {
         : Promise.resolve({ quotes: [] }),
     ]);
 
-    const allOrders = ordersResult.status === 'fulfilled' ? ordersResult.value : [];
-    if (ordersResult.status === 'rejected') {
-      console.error('Error loading global order totals:', ordersResult.reason);
-    }
     if (abandonedCartsResult.status === 'rejected') {
       console.error('Error loading global abandoned carts total:', abandonedCartsResult.reason);
     }
@@ -372,163 +387,193 @@ const AdminOrders: React.FC = () => {
     }
 
     const abandonedCartsCount = abandonedCartsResult.status === 'fulfilled'
-      ? (abandonedCartsResult.value?.carts?.length ?? 0)
+      ? Number(abandonedCartsResult.value?.analytics?.activeCount || 0)
+        + Number(abandonedCartsResult.value?.analytics?.abandonedCount || 0)
       : 0;
     const customQuotesCount = customQuotesResult.status === 'fulfilled'
       ? (customQuotesResult.value?.quotes?.length ?? 0)
       : 0;
 
-    const orderOverview = summarizeAdminOrders(allOrders);
-    setGlobalOverview({
-      ...orderOverview,
+    setGlobalOverview((current) => ({
+      ...current,
       abandonedCarts: abandonedCartsCount,
       customQuotes: customQuotesCount,
-    });
+    }));
 
-    setGlobalOverviewLoading({
-      orders: true,
+    setGlobalOverviewLoading((current) => ({
+      ...current,
       abandonedCarts: true,
       customQuotes: true,
-    });
+    }));
   };
 
-  useEffect(() => {
-    // Filter orders based on search query
-    if (searchQuery.trim() === '') {
-      setFilteredOrders(orders);
-    } else {
-      const filtered = orders.filter(order => 
-        order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.user_id?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setFilteredOrders(filtered);
-    }
-  }, [orders, searchQuery]);
-
   const loadOrders = async (pageToLoad: number = page) => {
+    abortDetailRequests();
+    const { start, endExclusive } = getAdminOrderPeriodBounds(period, customRange);
+    if (period === 'custom' && (!start || !endExclusive)) {
+      reportAbortController.current?.abort();
+      reportRequestId.current += 1;
+      setOrders([]);
+      setPagination(emptyPagination(1));
+      setBusinessMetrics(emptyBusinessMetrics());
+      setReportReady(true);
+      setLoading(false);
+      return;
+    }
+
+    reportAbortController.current?.abort();
+    const controller = new AbortController();
+    reportAbortController.current = controller;
+    const requestId = ++reportRequestId.current;
+
     try {
       setLoading(true);
-      const ordersAdapter = await getOrdersAdapter();
-      const allOrders = await ordersAdapter.listAll(pageToLoad);
-      
-      // DEBUG: Log what we got from database
-      console.log('🔵 [Orders.tsx] loadOrders() received:', allOrders.length, 'orders');
-      if (allOrders.length > 0) {
-        console.log('🔵 [Orders.tsx] First order:', allOrders[0].id);
-        console.log('🔵 [Orders.tsx] First order items:', allOrders[0].items);
-        if (allOrders[0].items && allOrders[0].items.length > 0) {
-          console.log('🔵 [Orders.tsx] First item overlay_image:', allOrders[0].items[0].overlay_image);
-          console.log('🔵🔵🔵 CRITICAL: overlay_image from DB:', JSON.stringify(allOrders[0].items[0].overlay_image, null, 2));
-          console.log('🔵🔵🔵 CRITICAL: overlay_image from DB:', JSON.stringify(allOrders[0].items[0].overlay_image, null, 2));
-        }
-      }
-      
-      const visibleOrders = allOrders.filter((order) => !isHiddenStripeAttempt(order));
-      setHasMore(allOrders.length === PAGE_SIZE);
-      setOrders(visibleOrders);
+      const report = await fetchAdminOrdersReport({
+        page: pageToLoad,
+        pageSize: PAGE_SIZE,
+        search: debouncedSearch,
+        start: start?.toISOString() ?? null,
+        endExclusive: endExclusive?.toISOString() ?? null,
+      }, { signal: controller.signal });
+      if (controller.signal.aborted || requestId !== reportRequestId.current) return;
+
+      setOrders(report.orders);
+      setPagination(report.pagination);
+      setBusinessMetrics(report.metrics);
+      setReportReady(true);
+      setGlobalOverview((current) => ({ ...current, ...report.overview }));
+      setGlobalOverviewLoading((current) => ({ ...current, orders: true }));
     } catch (error) {
+      if (controller.signal.aborted || requestId !== reportRequestId.current) return;
       console.error('Error loading orders:', error);
+      setOrders([]);
+      setPagination(emptyPagination(pageToLoad));
+      setBusinessMetrics(emptyBusinessMetrics());
+      setReportReady(false);
       toast({
         title: "Error Loading Orders",
         description: "There was an error loading orders. Please try again.",
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted && requestId === reportRequestId.current) setLoading(false);
     }
   };
 
+  useEffect(() => {
+    // Redirect to the admin login page (not the customer sign-in page) when
+    // the visitor isn't an admin yet. This restores the legacy behavior where
+    // hitting /admin/orders directly takes you to the admin password gate.
+    if (!authLoading && (!user || !isAdmin(user))) {
+      navigate('/admin/setup', { replace: true });
+      return;
+    }
+
+    if (user && isAdmin(user)) void loadGlobalOverview(user.email);
+  }, [user, authLoading, navigate]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setPage(1);
+      setDebouncedSearch(searchQuery.trim());
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (authLoading || !user || !isAdmin(user)) return undefined;
+    void loadOrders(page);
+    return () => {
+      reportAbortController.current?.abort();
+      abortDetailRequests();
+    };
+  }, [user, authLoading, page, period, customRange.startDate, customRange.endDate, debouncedSearch]);
+
+  useEffect(() => {
+    if (page > pagination.totalPages) setPage(pagination.totalPages);
+  }, [page, pagination.totalPages]);
+
   const goToPage = (newPage: number) => {
     setPage(newPage);
-    loadOrders(newPage);
     // Scroll to top of orders section
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-  const handleCustomerInfoUpdated = (updated: Order) => setOrders(current => current.map(order => order.id === updated.id ? { ...order, ...updated } : order));
+
+  const updateOrderEverywhere = (orderId: string, updater: (order: Order) => Order) => {
+    setOrders((current) => current.map((order) => order.id === orderId ? updater(order) : order));
+  };
+
+  const loadFullOrderDetails = async (orderId: string) => {
+    if (detailAbortControllers.current.has(orderId)) return;
+    const controller = new AbortController();
+    const requestId = (detailRequestIds.current.get(orderId) || 0) + 1;
+    detailRequestIds.current.set(orderId, requestId);
+    detailAbortControllers.current.set(orderId, controller);
+    setDetailLoadingStates((current) => ({ ...current, [orderId]: true }));
+    try {
+      const detail = await fetchAdminOrderDetail(orderId, { signal: controller.signal });
+      if (controller.signal.aborted || detailRequestIds.current.get(orderId) !== requestId) return;
+      setOrders((current) => current.map((summary) => summary.id === orderId ? (() => {
+        const detailStatus = String(detail.status || '').toLowerCase();
+        const summaryHasCompletedPayPal = Boolean(
+          summary.paypal_capture_id
+          || (String(summary.payment_method || '').toLowerCase() === 'paypal'
+            && String(summary.payment_reconciliation_status || '').toLowerCase() === 'complete')
+        );
+        const effectiveDetailStatus = detailStatus === 'pending'
+          && String(summary.status || '').toLowerCase() === 'paid'
+          && summaryHasCompletedPayPal
+          ? 'paid'
+          : detail.status;
+        return ({
+          ...summary,
+          ...detail,
+          status: effectiveDetailStatus,
+          reporting_customer_email: summary.reporting_customer_email || detail.reporting_customer_email || null,
+          review_request_customer_email: summary.review_request_customer_email || detail.review_request_customer_email || null,
+          review_request_last_sent_at: summary.review_request_last_sent_at || detail.review_request_last_sent_at || null,
+          review_request_sent_count: Math.max(
+            Number(summary.review_request_sent_count || 0),
+            Number(detail.review_request_sent_count || 0),
+          ),
+          item_count: detail.items.length,
+          items_truncated: false,
+          admin_detail_loaded: true,
+        });
+      })() : summary));
+    } catch (error) {
+      if (controller.signal.aborted || detailRequestIds.current.get(orderId) !== requestId) return;
+      console.error('Error loading full order details:', error);
+      toast({
+        title: 'Unable to Open Order',
+        description: 'Full files and actions could not be loaded. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      if (detailRequestIds.current.get(orderId) === requestId) {
+        detailAbortControllers.current.delete(orderId);
+        setDetailLoadingStates((current) => ({ ...current, [orderId]: false }));
+      }
+    }
+  };
+
+  const handleCustomerInfoUpdated = (updated: Order) => updateOrderEverywhere(updated.id, (order) => ({ ...order, ...updated }));
   const handleOrderRefunded = (updated: Order) => {
-    setOrders(current => current.map(order => order.id === updated.id ? { ...order, ...updated } : order));
-    void loadGlobalOverview(user?.email);
+    updateOrderEverywhere(updated.id, (order) => ({ ...order, ...updated }));
+    void loadOrders(page);
   };
   const handleReviewRequestSent = (orderId: string, update: { sentAt: string; customerEmail: string }) => {
-    setOrders(current => current.map(order => order.id === orderId ? {
+    updateOrderEverywhere(orderId, (order) => ({
       ...order,
       review_request_last_sent_at: update.sentAt,
       review_request_customer_email: update.customerEmail,
       review_request_sent_count: Math.max(Number(order.review_request_sent_count || 0), 1),
-    } : order));
+    }));
   };
 
-  const handleAddTracking = async (orderId: string, carrier: TrackingCarrier, trackingNumber: string, trackingNumbers?: TrackingEntry[]) => {
-    try {
-      const ordersAdapter = await getOrdersAdapter();
-      const savedTrackingNumbers = trackingNumbers || [{ carrier, trackingNumber, label: 'Package 1' }];
-      await ordersAdapter.appendTracking(orderId, carrier, trackingNumber, savedTrackingNumbers);
-
-      // Update local state with tracking info and status change
-      // Note: tracking_carrier is not stored in database, so we default to 'fedex'
-      setOrders(prevOrders =>
-        prevOrders.map(order =>
-          order.id === orderId
-            ? {
-                ...order,
-                tracking_carrier: 'fedex' as const, // Default carrier since not stored in DB
-                tracking_number: savedTrackingNumbers[0]?.trackingNumber || null,
-                tracking_numbers: savedTrackingNumbers,
-                trackingNumbers: savedTrackingNumbers,
-                status: savedTrackingNumbers.length > 0 ? 'shipped' : order.status // Update status to shipped only when tracking is added
-              }
-            : order
-        )
-      );
-
-      toast({
-        title: "Tracking Saved",
-        description: `Tracking number saved for order #${orderId.slice(-8)}. No email was sent.`,
-      });
-    } catch (error) {
-      console.error('Error adding tracking:', error);
-      toast({
-        title: "Error Adding Tracking",
-        description: "There was an error adding tracking information.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleUpdateTracking = async (orderId: string, carrier: TrackingCarrier, trackingNumber: string, trackingNumbers?: TrackingEntry[]) => {
-    try {
-      const ordersAdapter = await getOrdersAdapter();
-      const savedTrackingNumbers = trackingNumbers || [{ carrier, trackingNumber, label: 'Package 1' }];
-      await ordersAdapter.updateTracking(orderId, carrier, trackingNumber, savedTrackingNumbers);
-
-      // Update local state with new tracking info (don't change status)
-      setOrders(prevOrders =>
-        prevOrders.map(order =>
-          order.id === orderId
-            ? {
-                ...order,
-                tracking_carrier: 'fedex' as const, // Default carrier since not stored in DB
-                tracking_number: savedTrackingNumbers[0]?.trackingNumber || null,
-                tracking_numbers: savedTrackingNumbers,
-                trackingNumbers: savedTrackingNumbers,
-                // Don't change status when updating existing tracking
-              }
-            : order
-        )
-      );
-
-      toast({
-        title: "Tracking Saved",
-        description: `Tracking number saved for order #${orderId.slice(-8)}. No email was sent.`,
-      });
-    } catch (error) {
-      console.error('Error updating tracking:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update tracking information. Please try again.",
-        variant: "destructive",
-      });
-    }
+  const handleTrackingUpdated = (orderId: string, update: Partial<Order>) => {
+    updateOrderEverywhere(orderId, (order) => ({ ...order, ...update }));
+    void loadOrders(page);
   };
 
   const handleFileDownload = async (fileKey: string, orderId: string, itemIndex: number, originalFilename?: string) => {
@@ -562,11 +607,10 @@ const AdminOrders: React.FC = () => {
 
       // Preserve the customer's original filename whenever it is available.
       const baseName = fileKey?.split('/').pop()?.split('.')[0] || `banner-${orderId.slice(-8)}-item-${itemIndex + 1}`;
-      const safeOriginalFilename = originalFilename
-        ?.split(/[\\/]/)
-        .pop()
-        ?.replace(/[\u0000-\u001f\u007f]/g, '')
-        .trim();
+      const originalLeafName = originalFilename?.split(/[\\/]/).pop();
+      const safeOriginalFilename = originalLeafName
+        ? stripAsciiControlCharacters(originalLeafName).trim()
+        : undefined;
       const fileName = safeOriginalFilename || `${baseName}.${extension}`;
 
       // Force the authenticated original bytes through a download anchor. Do
@@ -630,63 +674,14 @@ const AdminOrders: React.FC = () => {
       });
       console.log('[ADMIN_PDF] Routing through /.netlify/functions/download-print-pdf (backend proxy)');
 
-      // Determine the best image source
-      // CRITICAL: overlay_image.fileKey contains the ORIGINAL uploaded file (no grommets)
-      // file_key is the THUMBNAIL (has grommets baked in) - use overlay_image.fileKey first!
-      const overlayImageFileKey = item.overlay_image?.fileKey;
-      const overlayImagesFileKey = item.overlay_images?.[0]?.fileKey;
-
-      // CRITICAL FIX: Prioritize overlay_image.fileKey (original upload) over file_key (thumbnail with grommets)
-      const imageSource = item.print_ready_url || overlayImageFileKey || overlayImagesFileKey || item.file_url || item.web_preview_url || item.file_key;
-      const isCloudinaryKey = imageSource && !imageSource.startsWith('http');
-
-      console.log('[ADMIN_PDF] Image source resolution:', {
-        print_ready_url: item.print_ready_url,
-        web_preview_url: item.web_preview_url,
-        file_key: item.file_key,
-        file_url: item.file_url,
-        final_imageSource: imageSource,
-        isCloudinaryKey,
-      });
-
-      // Check if user designed with OVERLAY positioning (blank canvas + positioned image)
-      const hasOverlayWithPosition = item.overlay_image && item.overlay_image.position && item.overlay_image.scale;
-
-      // CRITICAL FIX: If user has overlay_image with position/scale, that IS their design!
-      const isOverlayOnlyDesign = hasOverlayWithPosition && !item.print_ready_url && !item.web_preview_url;
-
+      // The endpoint reloads the authoritative item scene after verifying the
+      // Admin session and order ownership. Do not echo unbounded design JSON
+      // from the list row back into this request.
       const requestBody = {
-        orderId: orderId,
+        orderId,
         itemId: item.id || null,
-        productType: (item as any).product_type || 'banner',
-        roundedCorners: (item as any).rounded_corners || null,
-        bannerWidthIn: item.width_in,
-        bannerHeightIn: item.height_in,
-        // PRIORITY 0: Design state for true server-side re-render from original assets
-        canvasStateJson: item.canvas_state_json || null,
-        // PRIORITY 1: Use final_render if available (pixel-perfect snapshot of customer design)
-        finalRenderUrl: item.final_render_url || null,
-        finalRenderFileKey: item.final_render_file_key || null,
-        finalRenderWidthPx: item.final_render_width_px || null,
-        finalRenderHeightPx: item.final_render_height_px || null,
-        finalRenderDpi: item.final_render_dpi || null,
-        // FALLBACK: Reconstruction data for older orders without final_render
-        fileKey: isOverlayOnlyDesign ? null : (isCloudinaryKey ? imageSource : null),
-        imageUrl: isOverlayOnlyDesign ? null : (isCloudinaryKey ? null : imageSource),
-        imageSource: item.print_ready_url ? 'print_ready' : (item.web_preview_url ? 'web_preview' : 'uploaded'),
-        includeBleed: false,
-        bleedIn: 0,
-        targetDpi: 300,
-        transform: isOverlayOnlyDesign ? null : (item.transform || null),
-        previewCanvasPx: isOverlayOnlyDesign ? null : (item.preview_canvas_px || null),
-        textElements: item.text_elements || [],
-        overlayImage: item.overlay_image || null,
-        overlayImages: item.overlay_images || null,
-        canvasBackgroundColor: item.canvas_background_color || '#FFFFFF',
-        imageScale: item.image_scale ?? 1,
-        imagePosition: item.image_position || { x: 0, y: 0 },
-        thumbnailUrl: item.thumbnail_url || null,
-        format: 'pdf', // Production print download is PDF
+        itemIndex,
+        format: 'pdf',
       };
 
       // Retry logic for transient 504 timeouts
@@ -828,50 +823,6 @@ const AdminOrders: React.FC = () => {
   };
 
 
-  const handleSendShippingNotification = async (orderId: string) => {
-    try {
-      const response = await adminFetch('/.netlify/functions/resend-tracking-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ orderId }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || !result.ok) {
-        throw new Error(result.error || 'Failed to send shipping notification');
-      }
-
-      // Update local state to mark notification as sent
-      setOrders(prevOrders =>
-        prevOrders.map(order =>
-          order.id === orderId
-            ? {
-                ...order,
-                shipping_notification_sent: true,
-                shipping_notification_sent_at: new Date().toISOString(),
-                shipping_notification_status: 'sent'
-              }
-            : order
-        )
-      );
-
-      toast({
-        title: "Tracking email sent successfully",
-        description: `Customer has been notified about order #${orderId.slice(-8)}`,
-      });
-    } catch (error) {
-      console.error('Send shipping notification failed:', error);
-      toast({
-        title: "Unable to send email",
-        description: "Unable to send email. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
   const handleMarkInProduction = async (orderId: string) => {
     try {
       const response = await adminFetch('/.netlify/functions/mark-in-production', {
@@ -889,18 +840,13 @@ const AdminOrders: React.FC = () => {
       }
 
       // Update local state immediately
-      setOrders(prevOrders =>
-        prevOrders.map(order =>
-          order.id === orderId
-            ? {
-                ...order,
-                status: 'in_production' as const,
-                production_email_sent: result.emailSent ?? true,
-                production_email_sent_at: new Date().toISOString()
-              }
-            : order
-        )
-      );
+      updateOrderEverywhere(orderId, (order) => ({
+        ...order,
+        status: 'in_production' as const,
+        production_email_sent: result.emailSent ?? true,
+        production_email_sent_at: new Date().toISOString(),
+      }));
+      void loadOrders(page);
 
       if (result.emailSent === false) {
         toast({
@@ -951,21 +897,18 @@ const AdminOrders: React.FC = () => {
       }
 
       // Update local state with the new PDF URL
-      setOrders(prevOrders =>
-        prevOrders.map(order => {
-          if (order.id !== orderId) return order;
-          const newItems = [...order.items];
-          if (newItems[itemIndex]) {
-            newItems[itemIndex] = {
-              ...newItems[itemIndex],
-              final_print_pdf_url: result.url,
-              final_print_pdf_file_key: result.fileKey,
-              final_print_pdf_uploaded_at: result.uploadedAt,
-            };
-          }
-          return { ...order, items: newItems };
-        })
-      );
+      updateOrderEverywhere(orderId, (order) => {
+        const newItems = [...order.items];
+        if (newItems[itemIndex]) {
+          newItems[itemIndex] = {
+            ...newItems[itemIndex],
+            final_print_pdf_url: result.url,
+            final_print_pdf_file_key: result.fileKey,
+            final_print_pdf_uploaded_at: result.uploadedAt,
+          };
+        }
+        return { ...order, items: newItems };
+      });
 
       toast({
         title: "Print File Uploaded",
@@ -986,6 +929,8 @@ const AdminOrders: React.FC = () => {
       case 'paid':
         return 'bg-green-100 text-green-800';
       case 'shipped':
+      case 'delivered':
+      case 'fulfilled':
         return 'bg-blue-100 text-blue-800';
       case 'pending':
         return 'bg-amber-100 text-amber-800';
@@ -1003,6 +948,8 @@ const AdminOrders: React.FC = () => {
   const getStatusLabel = (status: string): string => {
     if (status === 'in_production') return 'In Production';
     if (status === 'refunded') return 'Cancelled / Refunded';
+    if (status === 'delivered') return 'Delivered';
+    if (status === 'fulfilled') return 'Fulfilled';
     return status;
   };
 
@@ -1017,13 +964,13 @@ const AdminOrders: React.FC = () => {
     if (uniqueItems === 1) {
       const item = safeItems[0];
       if ((item as any).product_type === 'yard_sign') {
-        return `${itemCount} × Yard Sign 24"×18"`;
+        return `${itemCount} × Yard Sign 24"×18"${order.admin_detail_loaded === false ? ' (captured subset)' : ''}`;
       }
-      return `${itemCount} × ${formatDimensions(item.width_in, item.height_in)} ${item.material}`;
+      return `${itemCount} × ${formatDimensions(item.width_in, item.height_in)} ${item.material}${order.admin_detail_loaded === false ? ' (captured subset)' : ''}`;
     }
     
     const productLabel = hasYardSigns ? 'items' : 'banners';
-    return `${itemCount} ${productLabel} (${uniqueItems} designs)`;
+    return `${itemCount} ${productLabel} (${uniqueItems} designs${order.admin_detail_loaded === false ? ', captured subset' : ''})`;
   };
 
   // Show loading state while checking authentication
@@ -1055,9 +1002,9 @@ const AdminOrders: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 overflow-x-clip">
           {/* Header */}
           <div className="mb-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <h1 className="flex items-start text-2xl font-bold text-gray-900 sm:items-center sm:text-3xl">
                   <Shield className="h-8 w-8 mr-3 text-red-600" />
                   Admin: Order Management
                 </h1>
@@ -1069,6 +1016,7 @@ const AdminOrders: React.FC = () => {
               <Button
                 variant="outline"
                 onClick={() => navigate('/')}
+                className="w-full sm:w-auto"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Home
@@ -1097,6 +1045,12 @@ const AdminOrders: React.FC = () => {
                   <a href="/admin/abandoned-carts">
                     <ShoppingCart className="h-4 w-4" />
                     Abandoned Carts
+                  </a>
+                </TabsTrigger>
+                <TabsTrigger value="customers" className="flex items-center gap-2 min-w-0" asChild>
+                  <a href="/admin/customers">
+                    <UsersRound className="h-4 w-4" />
+                    Customers
                   </a>
                 </TabsTrigger>
                 <TabsTrigger value="email-templates" className="flex items-center gap-2 min-w-0" asChild>
@@ -1189,98 +1143,99 @@ const AdminOrders: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-8">
-            <div className="bg-white rounded-2xl shadow-lg p-6">
-              <div className="flex items-center">
-                <Package className="h-8 w-8 text-blue-600" />
-                <div className="ml-4">
-                  <p className="text-sm text-gray-600">Total Orders</p>
-                  <p className="text-2xl font-bold text-gray-900">{pageOverview.totalOrders}</p>
-                </div>
+          <section className="mb-8 rounded-2xl border border-slate-200 bg-white p-4 shadow-lg sm:p-6" aria-labelledby="order-report-heading">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <h2 id="order-report-heading" className="text-lg font-bold text-gray-900">Order performance</h2>
+                <p className="mt-1 max-w-3xl text-xs leading-5 text-gray-600">
+                  Uses each order's creation date in your local calendar. Total Orders includes paid, in-production, and shipped orders. Gross also includes currently refunded records; Recorded Refunds removes those values from net. Test and unpaid orders are excluded.
+                </p>
               </div>
-            </div>
-            
-            <div className="bg-white rounded-2xl shadow-lg p-6">
-              <div className="flex items-center">
-                <div className="h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                  <div className="h-4 w-4 bg-yellow-600 rounded-full"></div>
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm text-gray-600">In Production</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {pageOverview.inProductionOrders}
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-2xl shadow-lg p-6">
-              <div className="flex items-center">
-                <Truck className="h-8 w-8 text-green-600" />
-                <div className="ml-4">
-                  <p className="text-sm text-gray-600">Shipped</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {pageOverview.shippedOrders}
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-2xl shadow-lg p-6">
-              <div className="flex items-center">
-                <div className="h-8 w-8 bg-amber-100 rounded-full flex items-center justify-center">
-                  <div className="h-4 w-4 bg-amber-600 rounded-full"></div>
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm text-gray-600">Pending</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {pageOverview.pendingOrders}
-                  </p>
-                </div>
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Order reporting period">
+                {(['this_month', 'last_month', 'custom', 'all_time'] as AdminOrderPeriod[]).map((option) => (
+                  <Button
+                    key={option}
+                    type="button"
+                    size="sm"
+                    variant={period === option ? 'default' : 'outline'}
+                    className="h-9 text-xs"
+                    onClick={() => {
+                      setPage(1);
+                      setPeriod(option);
+                    }}
+                    aria-pressed={period === option}
+                  >
+                    {adminOrderPeriodLabel(option)}
+                  </Button>
+                ))}
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-lg p-6">
-              <div className="flex items-center">
-                <div className="h-8 w-8 bg-red-100 rounded-full flex items-center justify-center">
-                  <Ban className="h-4 w-4 text-red-700" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm text-gray-600">Refunded</p>
-                  <p className="text-2xl font-bold text-gray-900">{pageOverview.refundedOrders}</p>
-                  {pageOverview.refundedRevenueCents > 0 && (
-                    <p className="text-xs text-red-700">{usd(pageOverview.refundedRevenueCents / 100)}</p>
-                  )}
-                </div>
+            {period === 'custom' && (
+              <div className="mt-4 grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:grid-cols-2" data-admin-custom-period>
+                <label className="space-y-1 text-xs font-semibold text-gray-700">
+                  <span>Start date</span>
+                  <Input type="date" value={customRange.startDate} max={customRange.endDate || undefined} onChange={(event) => {
+                    setPage(1);
+                    setCustomRange((current) => ({ ...current, startDate: event.target.value }));
+                  }} />
+                </label>
+                <label className="space-y-1 text-xs font-semibold text-gray-700">
+                  <span>End date</span>
+                  <Input type="date" value={customRange.endDate} min={customRange.startDate || undefined} onChange={(event) => {
+                    setPage(1);
+                    setCustomRange((current) => ({ ...current, endDate: event.target.value }));
+                  }} />
+                </label>
               </div>
-            </div>
-            
-            <div className="bg-white rounded-2xl shadow-lg p-6">
-              <div className="flex items-center">
-                <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
-                  <div className="h-4 w-4 bg-green-600 rounded-full"></div>
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm text-gray-600">Revenue</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {usd(pageOverview.totalRevenueCents / 100)}
+            )}
+
+            <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8" data-admin-period-metrics>
+              {[
+                { label: 'Total Orders', value: businessMetrics.totalOrders.toLocaleString() },
+                { label: 'Gross Sales', value: usd(businessMetrics.grossSalesCents / 100) },
+                { label: 'AOV', value: usd(businessMetrics.averageOrderValueCents / 100) },
+                { label: 'Recorded Refunds', value: usd(businessMetrics.recordedRefundsCents / 100) },
+                { label: 'Net Sales', value: usd(businessMetrics.netSalesCents / 100) },
+                { label: 'New Customers', value: businessMetrics.newCustomers.toLocaleString() },
+                { label: 'Repeat Customers', value: businessMetrics.repeatCustomers.toLocaleString() },
+                { label: 'Repeat Rate', value: `${(businessMetrics.repeatRate * 100).toFixed(1)}%` },
+              ].map((metric) => (
+                <div key={metric.label} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-[11px] text-gray-600">{metric.label}</p>
+                  <p className="mt-1 break-words text-base font-bold text-gray-900">
+                    {!reportReady || loading ? 'Loading…' : metric.value}
                   </p>
                 </div>
-              </div>
+              ))}
             </div>
-          </div>
+            <p className="mt-3 text-[11px] leading-4 text-gray-500">
+              AOV is net sales divided by successful orders. A new customer placed their first successful lifetime order in this period; a repeat customer placed a successful period order after an earlier successful order. Customer counts use valid, normalized email addresses and omit generated guest/preview addresses.
+            </p>
+          </section>
 
           {/* Search */}
-          <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
-            <div className="relative max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                type="text"
-                placeholder="Search by Order ID or User ID..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
+          <div className="mb-8 rounded-2xl bg-white p-6 shadow-lg">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="relative w-full max-w-xl">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
+                <Input
+                  type="search"
+                  placeholder={reportReady
+                    ? 'Search order ID, customer name, or email...'
+                    : 'Loading order report...'}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                  aria-label="Search full order history"
+                  disabled={!reportReady && loading}
+                />
+              </div>
+              <p className="text-xs text-gray-600">
+                {reportReady
+                  ? `${pagination.totalItems.toLocaleString()} ${pagination.totalItems === 1 ? 'order' : 'orders'} · ${adminOrderPeriodLabel(period)}`
+                  : 'Loading exact metrics, search results, and pagination…'}
+              </p>
             </div>
           </div>
 
@@ -1291,7 +1246,7 @@ const AdminOrders: React.FC = () => {
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
                 <p className="mt-4 text-gray-600">Loading orders...</p>
               </div>
-            ) : filteredOrders.length === 0 ? (
+            ) : orders.length === 0 ? (
               <div className="p-8 text-center">
                 <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
@@ -1305,15 +1260,13 @@ const AdminOrders: React.FC = () => {
               <>
                 {/* Mobile Card View */}
                   <div className="block md:hidden overflow-x-clip">
-                  {filteredOrders.map((order) => (
+                  {orders.map((order) => (
                     <AdminOrderCard
                       key={order.id}
                       order={order}
-                      onAddTracking={handleAddTracking}
-                      onUpdateTracking={handleUpdateTracking}
+                      onTrackingUpdated={handleTrackingUpdated}
                       onFileDownload={handleFileDownload}
                       onPdfDownload={handlePdfDownload}
-                      onSendShippingNotification={handleSendShippingNotification}
                       onMarkInProduction={handleMarkInProduction}
                       onOrderRefunded={handleOrderRefunded}
                       onUploadFinalPdf={handleUploadFinalPdf}
@@ -1324,21 +1277,21 @@ const AdminOrders: React.FC = () => {
                       getItemsSummary={getItemsSummary}
                       onCustomerInfoUpdated={handleCustomerInfoUpdated}
                       onReviewRequestSent={handleReviewRequestSent}
+                      onLoadDetails={loadFullOrderDetails}
+                      detailLoading={Boolean(detailLoadingStates[order.id])}
                     />
                   ))}
                 </div>
                 
                 {/* Desktop Card-Row View */}
                 <div className="hidden md:block bg-gray-50 p-4 lg:p-5 space-y-3">
-                  {filteredOrders.map((order) => (
+                  {orders.map((order) => (
                     <AdminOrderRow
                       key={order.id}
                       order={order}
-                      onAddTracking={handleAddTracking}
-                      onUpdateTracking={handleUpdateTracking}
+                      onTrackingUpdated={handleTrackingUpdated}
                       onFileDownload={handleFileDownload}
                       onPdfDownload={handlePdfDownload}
-                      onSendShippingNotification={handleSendShippingNotification}
                       onMarkInProduction={handleMarkInProduction}
                       onOrderRefunded={handleOrderRefunded}
                       onUploadFinalPdf={handleUploadFinalPdf}
@@ -1349,6 +1302,8 @@ const AdminOrders: React.FC = () => {
                       getItemsSummary={getItemsSummary}
                       onCustomerInfoUpdated={handleCustomerInfoUpdated}
                       onReviewRequestSent={handleReviewRequestSent}
+                      onLoadDetails={loadFullOrderDetails}
+                      detailLoading={Boolean(detailLoadingStates[order.id])}
                     />
                   ))}
                 </div>
@@ -1357,7 +1312,7 @@ const AdminOrders: React.FC = () => {
           </div>
 
           {/* Pagination */}
-          {!loading && (page > 1 || hasMore) && (
+          {!loading && pagination.totalPages > 1 && (
             <div className="flex items-center justify-between mt-6">
               <Button
                 variant="outline"
@@ -1369,12 +1324,12 @@ const AdminOrders: React.FC = () => {
                 Previous
               </Button>
               <span className="text-sm text-gray-600">
-                Page {page}
+                Page {page} of {pagination.totalPages}
               </span>
               <Button
                 variant="outline"
                 onClick={() => goToPage(page + 1)}
-                disabled={!hasMore}
+                disabled={page >= pagination.totalPages}
                 className="flex items-center gap-1"
               >
                 Next
@@ -1391,11 +1346,9 @@ const AdminOrders: React.FC = () => {
 // Admin Order Row Component
 interface AdminOrderRowProps {
   order: Order;
-  onAddTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string, trackingNumbers?: TrackingEntry[]) => void;
-  onUpdateTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string, trackingNumbers?: TrackingEntry[]) => void;
+  onTrackingUpdated: (orderId: string, update: Partial<Order>) => void;
   onFileDownload: (fileKey: string, orderId: string, itemIndex: number, originalFilename?: string) => Promise<void>;
   onPdfDownload: (item: any, itemIndex: number, orderId: string) => void;
-  onSendShippingNotification: (orderId: string) => void;
   onMarkInProduction: (orderId: string) => void;
   onOrderRefunded: (updatedOrder: Order) => void;
   onUploadFinalPdf?: (orderId: string, itemIndex: number, file: File) => void;
@@ -1406,15 +1359,15 @@ interface AdminOrderRowProps {
   fileLoadingStates: Record<string, boolean>;
   onCustomerInfoUpdated: (order: Order) => void;
   onReviewRequestSent: (orderId: string, update: { sentAt: string; customerEmail: string }) => void;
+  onLoadDetails: (orderId: string) => Promise<void>;
+  detailLoading: boolean;
 }
 
 const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   order,
-  onAddTracking,
-  onUpdateTracking,
+  onTrackingUpdated,
   onFileDownload,
   onPdfDownload,
-  onSendShippingNotification,
   onMarkInProduction,
   onOrderRefunded,
   onUploadFinalPdf,
@@ -1424,14 +1377,15 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   pdfLoadingStates,
   fileLoadingStates,
   onCustomerInfoUpdated,
-  onReviewRequestSent
+  onReviewRequestSent,
+  onLoadDetails,
+  detailLoading,
 }) => {
-  const [trackingRows, setTrackingRows] = useState<TrackingEntry[]>([{ carrier: DEFAULT_TRACKING_CARRIER, trackingNumber: '', label: 'Package 1' }]);
-  const [isAddingTracking, setIsAddingTracking] = useState(false);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [showCostBreakdown, setShowCostBreakdown] = useState(false);
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const orderItems = getSafeOrderItems(order);
+  const detailRequired = order.admin_detail_loaded === false;
+  const totalItemCount = Math.max(orderItems.length, Number(order.item_count || 0));
   // Helper function to get the best download URL for an item (AI or uploaded)
   const getBestDownloadUrl = (item) => {
     return getOriginalArtworkSelection(item);
@@ -1453,57 +1407,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
 
   const previewItems = useMemo(() => orderItems.map((item: any, index) => ({ item, index, thumbUrl: getFinalizedThumbnailUrl(item, 720) })), [orderItems]);
 
-  const [isEditingTracking, setIsEditingTracking] = useState(false);
-  const existingTrackingRows = normalizeTrackingEntries(order);
-  const displayedTrackingRows = existingTrackingRows.length ? existingTrackingRows : [];
-  const validateRows = (rows: TrackingEntry[]) => {
-    const trimmed = rows.map((row, index) => ({ carrier: DEFAULT_TRACKING_CARRIER, trackingNumber: row.trackingNumber.trim(), label: row.label?.trim() || `Package ${index + 1}` }));
-    if (trimmed.some(row => !row.trackingNumber)) throw new Error('Blank tracking rows are not allowed.');
-    const keys = trimmed.map(row => row.trackingNumber.toLowerCase());
-    if (new Set(keys).size !== keys.length) throw new Error('Duplicate tracking numbers are not allowed.');
-    return trimmed;
-  };
-  const updateTrackingRow = (index: number, patch: Partial<TrackingEntry>) => setTrackingRows(rows => rows.map((row, rowIndex) => rowIndex === index ? { ...row, ...patch } : row));
-  const addTrackingRow = () => setTrackingRows(rows => [...rows, { carrier: DEFAULT_TRACKING_CARRIER, trackingNumber: '', label: `Package ${rows.length + 1}` }]);
-  const removeTrackingRow = (index: number) => setTrackingRows(rows => rows.filter((_, rowIndex) => rowIndex !== index));
-  const [isSendingNotification, setIsSendingNotification] = useState(false);
   const [isMarkingProduction, setIsMarkingProduction] = useState(false);
-
-  const handleAddTracking = () => {
-    try {
-      const rows = validateRows(trackingRows);
-      onAddTracking(order.id, 'fedex', rows[0]?.trackingNumber || '', rows);
-      setTrackingRows([{ carrier: DEFAULT_TRACKING_CARRIER, trackingNumber: '', label: 'Package 1' }]);
-      setIsAddingTracking(false);
-    } catch (error) { alert(error instanceof Error ? error.message : 'Invalid tracking rows'); }
-  };
-
-  const handleEditTracking = () => {
-    setTrackingRows(existingTrackingRows.length ? existingTrackingRows : [{ carrier: DEFAULT_TRACKING_CARRIER, trackingNumber: '', label: 'Package 1' }]);
-    setIsEditingTracking(true);
-  };
-
-  const handleSaveTracking = () => {
-    try {
-      const rows = validateRows(trackingRows);
-      onUpdateTracking(order.id, 'fedex', rows[0]?.trackingNumber || '', rows);
-      setIsEditingTracking(false);
-    } catch (error) { alert(error instanceof Error ? error.message : 'Invalid tracking rows'); }
-  };
-
-  const handleCancelEdit = () => {
-    setTrackingRows([{ carrier: DEFAULT_TRACKING_CARRIER, trackingNumber: '', label: 'Package 1' }]);
-    setIsEditingTracking(false);
-  };
-
-  const handleSendNotification = async () => {
-    setIsSendingNotification(true);
-    try {
-      await onSendShippingNotification(order.id);
-    } finally {
-      setIsSendingNotification(false);
-    }
-  };
 
   const handleMarkInProduction = async () => {
     setIsMarkingProduction(true);
@@ -1578,7 +1482,13 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
             <div className="pt-2">
               <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Order Details</div>
               <div className="text-sm text-gray-900 break-words">{getOrderItemsSummary(order)}</div>
-              <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-gray-600"><span>Total units: <b>{getTotalUnits(order)}</b></span><span>Line items: <b>{orderItems.length}</b></span><span>Print files: <b>{getPrintFileCount({ ...order, items: orderItems } as Order)}</b></span></div>
+              {detailRequired ? (
+                <div className="mt-2 text-xs font-medium text-amber-700">
+                  Showing {orderItems.length} of {totalItemCount} line items. Open the full order for exact units and files.
+                </div>
+              ) : (
+                <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-gray-600"><span>Total units: <b>{getTotalUnits(order)}</b></span><span>Line items: <b>{orderItems.length}</b></span><span>Print files: <b>{getPrintFileCount({ ...order, items: orderItems } as Order)}</b></span></div>
+              )}
             </div>
           </div>
         </div>
@@ -1587,6 +1497,13 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
         <div className="min-w-0 space-y-3">
           <div><div className="text-xs font-medium uppercase tracking-wide text-gray-500">Order Total</div><div className={`text-lg font-bold ${ORDER_ACCENT_TEXT_CLASS}`}>{usd(getDisplayOrderTotalCents(order as any) / 100)}</div></div>
           {(() => {
+            if (detailRequired) {
+              return (
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs font-medium text-amber-800">
+                  Open the full order for exact production cost, shipping, profit, and margin.
+                </div>
+              );
+            }
             const profit = estimateOrderProfit(order);
             return (
               <div className="rounded-md border border-slate-200 bg-slate-50 p-2 text-xs"> 
@@ -1684,79 +1601,27 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
 
         {/* RIGHT SECTION */}
         <div className="min-w-0 space-y-3">
-          <>
-          <div className="space-y-2">
-            <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Tracking</div>
-            {displayedTrackingRows.length ? (
-              <div className="space-y-2 rounded-md border border-green-100 bg-green-50 p-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge className="bg-green-100 text-green-800">
-                    <Truck className="h-3 w-3 mr-1" />
-                    FEDEX
-                  </Badge>
-                  {!isEditingTracking && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={handleEditTracking}
-                      className="h-7 px-2 text-xs"
-                    >
-                      <Edit3 className="h-3 w-3 mr-1" />
-                      Edit
-                    </Button>
-                  )}
-                </div>
-                <div className="text-xs text-gray-700">
-                  <div className="flex items-center justify-between gap-2"><span className="font-semibold">Tracking Numbers:</span>{displayedTrackingRows.length > 1 && <Button type="button" size="sm" variant="ghost" onClick={async () => { await copyText(displayedTrackingRows.map((row) => row.trackingNumber).join('\n')); setCopiedKey('all'); setTimeout(() => setCopiedKey(null), 2000); }} className="h-7 px-2 text-xs"><Copy className="mr-1 h-3 w-3" />{copiedKey === 'all' ? 'Copied' : 'Copy All'}</Button>}</div>
-                  <div className="mt-1 space-y-1">{displayedTrackingRows.map((row, index) => (
-                    <div key={`${row.trackingNumber}-${index}`} className="flex flex-wrap items-center gap-2"><span className="font-semibold">{row.label || `Package ${index + 1}`}:</span>{' '}
-                      <a href={fedexUrl(row.trackingNumber)} target="_blank" rel="noopener noreferrer" className="font-mono text-blue-600 underline hover:text-blue-800 break-all">{row.trackingNumber}</a>
-                      <Button type="button" size="sm" variant="ghost" onClick={async () => { await copyText(row.trackingNumber); setCopiedKey(`row-${index}`); setTimeout(() => setCopiedKey(null), 2000); }} className="h-7 px-2 text-xs"><Copy className="mr-1 h-3 w-3" />{copiedKey === `row-${index}` ? 'Copied' : 'Copy'}</Button>
-                    </div>
-                  ))}</div>
-                </div>
-                <div className="text-xs text-gray-700">
-                  <span className="font-semibold">Last Email Sent:</span>{' '}
-                  {order.shipping_notification_sent_at
-                    ? new Date(order.shipping_notification_sent_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
-                    : 'Not sent yet'}
-                </div>
+          {detailRequired ? (
+            <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
+              <div className="text-sm font-semibold text-amber-900">Full order details required</div>
+              <div className="text-xs text-amber-800">
+                Load all {totalItemCount} line items and package tracking before using files or order actions.
               </div>
-            ) : (
               <Button
+                type="button"
                 size="sm"
-                variant="outline"
-                onClick={() => setIsAddingTracking(true)}
-                className="h-8 text-xs"
+                className="w-full"
+                onClick={() => void onLoadDetails(order.id)}
+                disabled={detailLoading}
               >
-                <Plus className="h-3 w-3 mr-1" />
-                Add Tracking
+                {detailLoading ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Eye className="mr-1.5 h-4 w-4" />}
+                {detailLoading ? 'Loading full order...' : 'Load files & actions'}
               </Button>
-            )}
-            {(isEditingTracking || isAddingTracking) && (
-              <div className="space-y-2 rounded-md border border-blue-100 bg-blue-50 p-2">
-                {trackingRows.length === 0 && (
-                  <div className="rounded-md border border-dashed border-blue-200 bg-white p-3 text-xs text-gray-600">
-                    No tracking numbers added.
-                  </div>
-                )}
-                {trackingRows.map((row, index) => (
-                  <div key={index} className="relative space-y-2 rounded-lg border border-blue-200 bg-white p-3 pr-11">
-                    <Badge className="bg-green-100 text-green-800"><Truck className="h-3 w-3 mr-1" />FedEx</Badge>
-                    <Button type="button" size="sm" variant="ghost" onClick={() => removeTrackingRow(index)} className="absolute right-2 top-2 h-7 px-2 text-xs" aria-label="Remove package"><X className="h-3 w-3" /></Button>
-                    <label className="block text-xs font-semibold text-gray-700">Tracking Number</label>
-                    <Input type="text" placeholder="Enter FedEx tracking number" value={row.trackingNumber} onChange={(e) => updateTrackingRow(index, { trackingNumber: e.target.value })} className="h-9 w-full text-xs" />
-                    <label className="block text-xs font-semibold text-gray-700">Package Label</label>
-                    <Input type="text" placeholder={`Package ${index + 1} label (optional)`} value={row.label || ''} onChange={(e) => updateTrackingRow(index, { label: e.target.value })} className="h-9 w-full text-xs" />
-                  </div>
-                ))}
-                <div className="flex flex-wrap gap-2">
-                  <Button size="sm" variant="outline" onClick={addTrackingRow} className="h-8 px-3 text-xs"><Plus className="h-3 w-3 mr-1" />{trackingRows.length === 0 ? 'Add Tracking' : 'Add Another Tracking Number'}</Button>
-                  <Button size="sm" onClick={isEditingTracking ? handleSaveTracking : handleAddTracking} className="h-8 px-3 text-xs"><Save className="h-3 w-3 mr-1" />Save Tracking</Button>
-                  <Button size="sm" variant="ghost" onClick={isEditingTracking ? handleCancelEdit : () => setIsAddingTracking(false)} className="h-8 px-3 text-xs"><X className="h-3 w-3 mr-1" />Cancel</Button>
-                </div>
-              </div>
-            )}
+            </div>
+          ) : (
+          <>
+          <div data-admin-tracking-group>
+            <AdminTrackingManager order={order} instanceSuffix="desktop" onUpdated={(update) => onTrackingUpdated(order.id, update)} />
           </div>
 
           <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50/70 p-3" data-admin-file-group>
@@ -1827,7 +1692,6 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
               </div>
             )}
           </div>
-          </>
 
           <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm" data-admin-action-group>
             <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Order Actions</div>
@@ -1871,21 +1735,6 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
 
               <AdminRefundOrderAction order={order} onRefunded={onOrderRefunded} fullWidth />
 
-              {order.status !== 'refunded' && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleSendNotification}
-                  disabled={isSendingNotification || displayedTrackingRows.length === 0}
-                  className="h-9 w-full text-xs"
-                >
-                  {isSendingNotification ? (
-                    <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Sending...</>
-                  ) : (
-                    <><Mail className="h-3 w-3 mr-1" />{order.shipping_notification_sent ? 'Resend Tracking Email' : 'Send Tracking Email'}</>
-                  )}
-                </Button>
-              )}
             </div>
             <ReviewRequestAction order={order} onSent={onReviewRequestSent} fullWidth />
 
@@ -1895,26 +1744,32 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                 In Production {new Date(order.production_email_sent_at).toLocaleDateString()}
               </div>
             )}
-            {order.shipping_notification_sent && (
-              <div className="text-xs text-green-600 flex items-center">
-                <Mail className="h-3 w-3 mr-1" />
-                Email Sent
-              </div>
-            )}
           </div>
+          </>
+          )}
         </div>
       </div>
-      {activePreview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true">
-          <div className="max-h-[92vh] w-full max-w-3xl overflow-auto rounded-2xl bg-white p-4 shadow-2xl">
-            <div className="mb-3 flex items-start justify-between gap-3">
+      <Dialog open={Boolean(activePreview)} onOpenChange={(open) => { if (!open) setPreviewIndex(null); }}>
+        {activePreview && (
+          <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto p-4 sm:p-6">
+            <DialogHeader className="pr-8 text-left">
               <div>
-                <Badge className={`${getProductBadgeClass(getProductTypeLabel(activePreview.item))} border text-xs font-bold`}>{getProductTitleLabel(activePreview.item)}</Badge>
-                <h3 className="mt-2 text-lg font-bold text-gray-900">{getProductTitleLabel(activePreview.item)} Preview</h3>
-                <div className="mt-1 space-y-1 text-sm text-gray-600"><div>{getItemSizeLabel(activePreview.item)}</div><div>Qty {activePreview.item.quantity || 0}</div><div>{getItemMaterialLabel(activePreview.item)}</div>{getOptionRows(activePreview.item).map((row) => <div key={row.label}><span className="font-semibold">{row.label}:</span> {row.value}</div>)}</div>
+                <Badge className={`${getProductBadgeClass(getProductTypeLabel(activePreview.item))} border text-xs font-bold`}>
+                  {getProductTitleLabel(activePreview.item)}
+                </Badge>
               </div>
-              <Button type="button" variant="ghost" size="sm" onClick={() => setPreviewIndex(null)}><X className="h-4 w-4" /></Button>
-            </div>
+              <DialogTitle>{getProductTitleLabel(activePreview.item)} Preview</DialogTitle>
+              <DialogDescription asChild>
+                <div className="space-y-1 text-sm text-gray-600">
+                  <div>{getItemSizeLabel(activePreview.item)}</div>
+                  <div>Qty {activePreview.item.quantity || 0}</div>
+                  <div>{getItemMaterialLabel(activePreview.item)}</div>
+                  {getOptionRows(activePreview.item).map((row) => (
+                    <div key={row.label}><span className="font-semibold">{row.label}:</span> {row.value}</div>
+                  ))}
+                </div>
+              </DialogDescription>
+            </DialogHeader>
             <div className="flex min-h-[280px] items-center justify-center rounded-xl bg-gray-100 p-3">
               <ProductPreviewFrame item={activePreview.item} thumbUrl={activePreview.thumbUrl} large idSuffix={`lightbox-${order.id}-${activePreview.index}`} />
             </div>
@@ -1925,9 +1780,9 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                 <Button type="button" variant="outline" onClick={() => setPreviewIndex((previewIndex! + 1) % previewItems.length)}>Next<ChevronRight className="ml-1 h-4 w-4" /></Button>
               </div>
             )}
-          </div>
-        </div>
-      )}
+          </DialogContent>
+        )}
+      </Dialog>
     </div>
   );
 };
@@ -1936,11 +1791,9 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
 // Mobile Card Component for Orders
 interface AdminOrderCardProps {
   order: Order;
-  onAddTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string, trackingNumbers?: TrackingEntry[]) => void;
-  onUpdateTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string, trackingNumbers?: TrackingEntry[]) => void;
+  onTrackingUpdated: (orderId: string, update: Partial<Order>) => void;
   onFileDownload: (fileKey: string, orderId: string, itemIndex: number, originalFilename?: string) => Promise<void>;
   onPdfDownload: (item: any, itemIndex: number, orderId: string) => void;
-  onSendShippingNotification: (orderId: string) => void;
   onMarkInProduction: (orderId: string) => void;
   onOrderRefunded: (updatedOrder: Order) => void;
   onUploadFinalPdf?: (orderId: string, itemIndex: number, file: File) => void;
@@ -1951,13 +1804,15 @@ interface AdminOrderCardProps {
   fileLoadingStates: Record<string, boolean>;
   onCustomerInfoUpdated: (order: Order) => void;
   onReviewRequestSent: (orderId: string, update: { sentAt: string; customerEmail: string }) => void;
+  onLoadDetails: (orderId: string) => Promise<void>;
+  detailLoading: boolean;
 }
 
 const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
   order,
+  onTrackingUpdated,
   onFileDownload,
   onPdfDownload,
-  onSendShippingNotification,
   onMarkInProduction,
   onOrderRefunded,
   onUploadFinalPdf,
@@ -1967,14 +1822,15 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
   pdfLoadingStates,
   fileLoadingStates,
   onCustomerInfoUpdated,
-  onReviewRequestSent
+  onReviewRequestSent,
+  onLoadDetails,
+  detailLoading,
 }) => {
   const [isMarkingProduction, setIsMarkingProduction] = useState(false);
-  const [isSendingNotification, setIsSendingNotification] = useState(false);
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const orderItems = getSafeOrderItems(order);
+  const detailRequired = order.admin_detail_loaded === false;
+  const totalItemCount = Math.max(orderItems.length, Number(order.item_count || 0));
   const originalFiles = getOriginalFileEntries(orderItems);
-  const displayedTrackingRows = normalizeTrackingEntries(order);
 
   const handleMarkInProduction = async () => {
     setIsMarkingProduction(true);
@@ -1982,14 +1838,6 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
       await onMarkInProduction(order.id);
     } finally {
       setIsMarkingProduction(false);
-    }
-  };
-  const handleSendNotification = async () => {
-    setIsSendingNotification(true);
-    try {
-      await onSendShippingNotification(order.id);
-    } finally {
-      setIsSendingNotification(false);
     }
   };
   const getFilesWithDownload = () => {
@@ -2074,29 +1922,46 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
             <div>
               <div className="text-xs text-gray-500">Items</div>
               <div className="text-sm text-gray-800 break-words">{getOrderItemsSummary(order)}</div>
-              <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-gray-600"><span>Total units: <b>{getTotalUnits(order)}</b></span><span>Line items: <b>{orderItems.length}</b></span><span>Print files: <b>{getPrintFileCount({ ...order, items: orderItems } as Order)}</b></span></div>
+              {detailRequired ? (
+                <div className="mt-2 text-xs font-medium text-amber-700">
+                  Showing {orderItems.length} of {totalItemCount} line items. Open the full order for exact units and files.
+                </div>
+              ) : (
+                <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-gray-600"><span>Total units: <b>{getTotalUnits(order)}</b></span><span>Line items: <b>{orderItems.length}</b></span><span>Print files: <b>{getPrintFileCount({ ...order, items: orderItems } as Order)}</b></span></div>
+              )}
             </div>
             <div>
               <div className="text-xs text-gray-500">Total</div>
               <div className="text-lg font-bold text-[#18448D]">{usd(getDisplayOrderTotalCents(order as any) / 100)}</div>
-            {(() => { const profit = estimateOrderProfit(order); return profit.needsReview ? (<div className="inline-flex rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">Needs review</div>) : (<div className="text-xs text-slate-700">Rev {usd(profit.originalSubtotalCents/100)}{profit.discountsAppliedCents>0 ? ` · Disc -${usd(profit.discountsAppliedCents/100)}` : ''}{profit.adjustedRetailSubtotalCents !== profit.originalSubtotalCents ? ` · Adj ${usd(profit.adjustedRetailSubtotalCents/100)}` : ''} · Prod {usd(profit.productionCostCents/100)} · Ship {usd(profit.shippingCostCents/100)} · Total Cost {usd(profit.totalCostCents/100)} · <span className={`${profit.netProfitCents>=0?'text-green-700':'text-red-700'} font-semibold`}>Profit {usd(profit.netProfitCents/100)}</span> · <span className={`${profit.marginPct >= 50 ? 'text-green-700' : profit.marginPct >= 35 ? 'text-amber-700' : 'text-red-700'} font-semibold`}>Margin {profit.marginPct.toFixed(1)}%</span></div>); })()}
+            {detailRequired ? (
+              <div className="text-xs font-medium text-amber-700">Open the full order for exact cost, profit, and margin.</div>
+            ) : (() => { const profit = estimateOrderProfit(order); return profit.needsReview ? (<div className="inline-flex rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">Needs review</div>) : (<div className="text-xs text-slate-700">Rev {usd(profit.originalSubtotalCents/100)}{profit.discountsAppliedCents>0 ? ` · Disc -${usd(profit.discountsAppliedCents/100)}` : ''}{profit.adjustedRetailSubtotalCents !== profit.originalSubtotalCents ? ` · Adj ${usd(profit.adjustedRetailSubtotalCents/100)}` : ''} · Prod {usd(profit.productionCostCents/100)} · Ship {usd(profit.shippingCostCents/100)} · Total Cost {usd(profit.totalCostCents/100)} · <span className={`${profit.netProfitCents>=0?'text-green-700':'text-red-700'} font-semibold`}>Profit {usd(profit.netProfitCents/100)}</span> · <span className={`${profit.marginPct >= 50 ? 'text-green-700' : profit.marginPct >= 35 ? 'text-amber-700' : 'text-red-700'} font-semibold`}>Margin {profit.marginPct.toFixed(1)}%</span></div>); })()}
             </div>
-            {displayedTrackingRows.length > 0 && (
-              <div className="min-w-0">
-                <div className="text-xs text-gray-500 mb-1">Tracking</div>
-                <div className="space-y-1">
-                  {displayedTrackingRows.map((row, index) => (
-                    <div key={`${row.trackingNumber}-${index}`} className="flex flex-wrap items-center gap-2">
-                      <Badge className="bg-green-100 text-green-800"><Truck className="h-3 w-3 mr-1" />FEDEX</Badge>
-                      <span className="text-xs font-semibold text-gray-700">{row.label || `Package ${index + 1}`}</span>
-                      <a href={fedexUrl(row.trackingNumber)} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline break-all">{row.trackingNumber}</a><Button type="button" size="sm" variant="ghost" onClick={async () => { await copyText(row.trackingNumber); setCopiedKey(`row-${index}`); setTimeout(() => setCopiedKey(null), 2000); }} className="h-7 px-2 text-xs"><Copy className="mr-1 h-3 w-3" />{copiedKey === `row-${index}` ? 'Copied' : 'Copy'}</Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </div>
+      </div>
+
+      {detailRequired ? (
+        <div className="mt-3 space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <div className="text-sm font-semibold text-amber-900">Full order details required</div>
+          <div className="text-xs text-amber-800">
+            Load all {totalItemCount} line items and package tracking before using files or order actions.
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            className="w-full"
+            onClick={() => void onLoadDetails(order.id)}
+            disabled={detailLoading}
+          >
+            {detailLoading ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Eye className="mr-1.5 h-4 w-4" />}
+            {detailLoading ? 'Loading full order...' : 'Load files & actions'}
+          </Button>
+        </div>
+      ) : (
+      <>
+      <div className="mt-3" data-admin-tracking-group>
+        <AdminTrackingManager order={order} instanceSuffix="mobile" onUpdated={(update) => onTrackingUpdated(order.id, update)} />
       </div>
 
       {(originalFiles.length > 0 || getFilesWithDownload().length > 0 || orderItems.some(item => item.final_print_pdf_url)) && (
@@ -2212,21 +2077,11 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
 
         <AdminRefundOrderAction order={order} onRefunded={onOrderRefunded} fullWidth />
 
-        {order.status !== 'refunded' && (
-          <Button
-              size="sm"
-              variant="outline"
-              onClick={handleSendNotification}
-              disabled={isSendingNotification || displayedTrackingRows.length === 0}
-              className="h-9 w-full text-xs"
-            >
-              {isSendingNotification ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Sending...</> : <><Mail className="h-3 w-3 mr-1" />{order.shipping_notification_sent ? 'Resend Tracking Email' : 'Send Tracking Email'}</>}
-            </Button>
-        )}
-
         <ReviewRequestAction order={order} onSent={onReviewRequestSent} fullWidth />
         {order.customer_info_admin_updated_at && <Badge className="w-full justify-center bg-indigo-100 text-indigo-800">Customer info updated by Admin</Badge>}
       </div>
+      </>
+      )}
     </div>
   );
 };

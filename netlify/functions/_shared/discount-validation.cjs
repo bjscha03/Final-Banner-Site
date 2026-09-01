@@ -39,7 +39,14 @@ async function findTradeShowDiscount(sql, normalizedCode) {
   }
 }
 
-async function validateDiscountForCheckout({ sql, code, email = null, userId = null, checkoutKey = null }) {
+async function validateDiscountForCheckout({
+  sql,
+  code,
+  email = null,
+  userId = null,
+  checkoutKey = null,
+  requireRecoveryEmailMatch = false,
+}) {
   const normalizedCode = normalizeCode(code);
   const normalizedEmail = email ? String(email).trim().toLowerCase() : null;
   if (!normalizedCode) return invalidResult('Discount code is required');
@@ -73,7 +80,13 @@ async function validateDiscountForCheckout({ sql, code, email = null, userId = n
   const rows = await sql`
     SELECT id, code, discount_percentage, discount_amount_cents, used, expires_at,
            single_use, used_by_user_id, used_by_email,
-           max_uses_per_customer, max_total_uses, email, order_id,
+           max_uses_per_customer, max_total_uses, email, cart_id, order_id,
+           (
+             SELECT recovery_status
+               FROM abandoned_carts AS recovery_cart
+              WHERE recovery_cart.id = discount_codes.cart_id
+              LIMIT 1
+           ) AS recovery_cart_status,
            EXISTS (
              SELECT 1
                FROM orders reserved_order
@@ -88,10 +101,23 @@ async function validateDiscountForCheckout({ sql, code, email = null, userId = n
   if (!rows.length) return invalidResult('Invalid discount code');
 
   const discount = rows[0];
+  const boundEmail = discount.email ? String(discount.email).trim().toLowerCase() : null;
+  const recoveryOffer = Boolean(discount.cart_id);
+  if (requireRecoveryEmailMatch && recoveryOffer
+      && (!boundEmail || !normalizedEmail || boundEmail !== normalizedEmail)) {
+    return invalidResult('This cart-recovery discount was issued to a different email address');
+  }
+  // Email binding applies even to the opaque checkout that already owns a
+  // reservation. Otherwise an account switch could retain another recipient's
+  // recovery offer merely by retrying the same checkout key.
+  if (boundEmail && normalizedEmail && boundEmail !== normalizedEmail) {
+    return invalidResult('This discount code was issued to a different email address');
+  }
   // A provider reservation is taken immediately before confirmation. The
   // same opaque checkout key must be able to retry that exact pending order
-  // (including after a decline) without presenting the code as stolen. No
-  // other checkout receives this exception.
+  // (including after a decline or recovery transition) without presenting the
+  // code as stolen. Email binding above still applies, and no other checkout
+  // receives this exception.
   if (discount.owned_by_checkout === true || discount.owned_by_checkout === 'true') {
     return validResult({
       id: discount.id,
@@ -100,7 +126,11 @@ async function validateDiscountForCheckout({ sql, code, email = null, userId = n
       discountAmountCents: Number(discount.discount_amount_cents || 0) || null,
       expiresAt: discount.expires_at,
       source: 'discount_codes',
+      recoveryOffer,
     });
+  }
+  if (recoveryOffer && !['active', 'abandoned'].includes(String(discount.recovery_cart_status || ''))) {
+    return invalidResult('This cart-recovery discount is no longer active');
   }
   if (discount.expires_at && new Date(discount.expires_at) < new Date()) {
     return invalidResult('This discount code has expired');
@@ -125,10 +155,6 @@ async function validateDiscountForCheckout({ sql, code, email = null, userId = n
       : 'This discount code has reached its maximum number of uses');
   }
 
-  if (discount.email && normalizedEmail && String(discount.email).trim().toLowerCase() !== normalizedEmail) {
-    return invalidResult('This discount code was issued to a different email address');
-  }
-
   return validResult({
     id: discount.id,
     code: String(discount.code).toUpperCase(),
@@ -136,6 +162,7 @@ async function validateDiscountForCheckout({ sql, code, email = null, userId = n
     discountAmountCents: Number(discount.discount_amount_cents || 0) || null,
     expiresAt: discount.expires_at,
     source: 'discount_codes',
+    recoveryOffer,
   });
 }
 

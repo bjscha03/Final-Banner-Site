@@ -167,7 +167,7 @@ test('paid-order follow-ups use the existing notify-order Resend templates', () 
   assert.ok(notifyIndex >= 0, 'notification call must remain present');
   assert.ok(pdfIndex >= 0, 'PDF render call must remain present');
   assert.ok(notifyIndex < pdfIndex, 'notifications must run before PDF rendering');
-  assert.match(retrySource, /schedule:\s*'\*\/5 \* \* \* \*'/);
+  assert.match(retrySource, /schedule:\s*'@hourly'/);
   assert.match(retrySource, /siteUrlForEvent/);
   assert.match(retrySource, /!dbUrl \|\| !siteUrl \|\| !internalSecret/);
   assert.match(retrySource, /confirmation_emailed_at IS NULL/);

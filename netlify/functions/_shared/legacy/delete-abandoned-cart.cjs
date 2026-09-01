@@ -1,10 +1,12 @@
 const { neon } = require('@neondatabase/serverless');
+const { requireAdmin } = require('../server-auth.cjs');
 
 const headers = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Banners-Admin-Session',
   'Access-Control-Allow-Methods': 'DELETE, OPTIONS',
-  'Content-Type': 'application/json'
+  'Content-Type': 'application/json',
+  'Cache-Control': 'no-store',
+  'Cross-Origin-Resource-Policy': 'same-origin'
 };
 
 exports.handler = async (event, context) => {
@@ -19,6 +21,14 @@ exports.handler = async (event, context) => {
       statusCode: 405,
       headers,
       body: JSON.stringify({ error: 'Method not allowed' })
+    };
+  }
+
+  const authorization = requireAdmin(event);
+  if (!authorization.ok) {
+    return {
+      ...authorization.response,
+      headers: { ...headers, ...authorization.response.headers }
     };
   }
 
@@ -48,7 +58,7 @@ exports.handler = async (event, context) => {
     }
 
     // Get database connection
-    const databaseUrl = process.env.DATABASE_URL || process.env.NETLIFY_DATABASE_URL || process.env.VITE_DATABASE_URL;
+    const databaseUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL || process.env.VITE_DATABASE_URL;
     
     if (!databaseUrl) {
       console.error('[delete-abandoned-cart] No database URL found');
@@ -116,4 +126,3 @@ exports.handler = async (event, context) => {
     };
   }
 };
-

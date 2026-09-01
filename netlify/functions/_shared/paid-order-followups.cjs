@@ -6,8 +6,21 @@ const notifyOrderModule = require('./legacy/notify-order.cjs');
 let notifyOrderHandler = notifyOrderModule.handler;
 const INTERNAL_POST_TIMEOUT_MS = 8000;
 
-function internalRequestConfig(event, orderId) {
-  const siteUrl = siteUrlForEvent(event);
+function immutableNetlifyOrigin(value) {
+  try {
+    const parsed = new URL(String(value || ''));
+    if (parsed.protocol !== 'https:') return null;
+    if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?--[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.netlify\.app$/i.test(parsed.hostname)) {
+      return null;
+    }
+    return parsed.origin;
+  } catch {
+    return null;
+  }
+}
+
+function internalRequestConfig(event, orderId, options = {}) {
+  const siteUrl = immutableNetlifyOrigin(options.immutableOrigin) || siteUrlForEvent(event);
   const secret = process.env.INTERNAL_JOB_SECRET || process.env.AUTH_SESSION_SECRET;
   if (!siteUrl || !secret || !orderId) return null;
   return {
@@ -107,8 +120,8 @@ async function deliverPaidOrderNotifications(event, orderId) {
   return customerSent && adminSent;
 }
 
-async function queuePaidOrderFollowups(event, orderId) {
-  const config = internalRequestConfig(event, orderId);
+async function queuePaidOrderFollowups(event, orderId, options = {}) {
+  const config = internalRequestConfig(event, orderId, options);
   if (!config) return false;
 
   // A Netlify background invocation returns 202 before its handler runs. Send
@@ -137,8 +150,8 @@ async function queuePaidOrderFollowups(event, orderId) {
 // background handler performs the same idempotent customer/admin notification
 // checks before PDF work, while the signed Stripe webhook remains the durable
 // retry authority if that job later fails.
-async function queuePaidOrderFollowupsInBackground(event, orderId) {
-  const config = internalRequestConfig(event, orderId);
+async function queuePaidOrderFollowupsInBackground(event, orderId, options = {}) {
+  const config = internalRequestConfig(event, orderId, options);
   if (!config) return false;
   const background = await postInternal(
     config,
@@ -157,6 +170,7 @@ async function queuePaidOrderFollowupsInBackground(event, orderId) {
 
 module.exports = {
   deliverPaidOrderNotifications,
+  immutableNetlifyOrigin,
   internalRequestConfig,
   invokeNotifyOrder,
   postInternal,

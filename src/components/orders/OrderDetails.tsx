@@ -70,6 +70,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
       case 'paid':
         return 'bg-green-100 text-green-800';
       case 'shipped':
+      case 'delivered':
+      case 'fulfilled':
         return 'bg-blue-100 text-blue-800';
       case 'pending':
         return 'bg-amber-100 text-amber-800';
@@ -254,31 +256,6 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
           orderId: order.id,
           itemIndex: index,
           itemId: item.id || item.order_item_id || null,
-          productType: (item as any).product_type || 'banner',
-          roundedCorners: (item as any).rounded_corners || null,
-          bannerWidthIn: item.width_in,
-          bannerHeightIn: item.height_in,
-          canvasStateJson: item.canvas_state_json || null,
-          finalRenderUrl: item.final_render_url || null,
-          finalRenderFileKey: item.final_render_file_key || null,
-          finalRenderWidthPx: item.final_render_width_px || null,
-          finalRenderHeightPx: item.final_render_height_px || null,
-          finalRenderDpi: item.final_render_dpi || null,
-          fileKey: item.overlay_image?.fileKey || item.overlay_images?.[0]?.fileKey || item.file_key || null,
-          imageUrl: item.file_url || item.web_preview_url || null,
-          imageSource: item.print_ready_url ? 'print_ready' : (item.web_preview_url ? 'web_preview' : 'uploaded'),
-          includeBleed: false,
-          bleedIn: 0,
-          targetDpi: 300,
-          transform: item.transform || null,
-          previewCanvasPx: item.preview_canvas_px || null,
-          textElements: item.text_elements || [],
-          overlayImage: item.overlay_image || null,
-          overlayImages: item.overlay_images || null,
-          canvasBackgroundColor: item.canvas_background_color || '#FFFFFF',
-          imageScale: item.image_scale ?? 1,
-          imagePosition: item.image_position || { x: 0, y: 0 },
-          thumbnailUrl: item.thumbnail_url || null,
           format: 'pdf',
           forceRegenerate,
         }),
