@@ -561,10 +561,13 @@ test.beforeEach(async ({ page }) => {
 
   await page.route('**/.netlify/functions/**', async (route) => {
     const url = new URL(route.request().url());
-    const headers = await route.request().allHeaders();
-    expect(headers['x-banners-admin-session']).toBe(ADMIN_SESSION);
+    const expectAdminSession = async () => {
+      const headers = await route.request().allHeaders();
+      expect(headers['x-banners-admin-session']).toBe(ADMIN_SESSION);
+    };
 
     if (url.pathname.endsWith('/get-abandoned-carts')) {
+      await expectAdminSession();
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -574,6 +577,7 @@ test.beforeEach(async ({ page }) => {
     }
 
     if (url.pathname.endsWith('/admin-customers')) {
+      await expectAdminSession();
       const mode = url.searchParams.get('mode') || 'list';
       let body: unknown;
       if (mode === 'detail') {
@@ -599,6 +603,7 @@ test.beforeEach(async ({ page }) => {
     }
 
     if (url.pathname.endsWith('/get-orders')) {
+      await expectAdminSession();
       const body = url.searchParams.get('admin_report') === '1'
         ? adminOrdersReportResponse(url)
         : [orderFixture, earlierOrderFixture];
@@ -607,6 +612,7 @@ test.beforeEach(async ({ page }) => {
     }
 
     if (url.pathname.endsWith('/get-order')) {
+      await expectAdminSession();
       expect(route.request().method()).toBe('GET');
       const orderId = url.searchParams.get('id');
       const order = orderId === ORDER_ID
@@ -623,6 +629,7 @@ test.beforeEach(async ({ page }) => {
     }
 
     if (url.pathname.endsWith('/admin-custom-quotes')) {
+      await expectAdminSession();
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, quotes: [] }) });
       return;
     }
