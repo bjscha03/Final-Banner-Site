@@ -30,6 +30,24 @@ test.beforeEach(async ({ page }) => {
 });
 
 for (const route of ROUTES) {
+  test(`${route} offers the same responsive 8 by 4 banner upgrade`, async ({ page }) => {
+    await page.goto(route, { waitUntil: 'domcontentloaded' });
+
+    const upsell = page.getByTestId('banner-size-upsell');
+    await expect(upsell).toBeVisible();
+    await expect(upsell).toHaveAttribute('data-upsell-state', 'offer');
+    await expect(upsell).toContainText('BETTER LONG-DISTANCE VISIBILITY');
+    await expect(upsell).toContainText('78% more print area');
+    await expect(upsell.getByTestId('banner-size-upsell-price')).toHaveText('+$63');
+
+    await upsell.getByTestId('banner-size-upsell-button').click();
+
+    await expect(upsell).toHaveAttribute('data-upsell-state', 'selected');
+    await expect(upsell).toContainText('banner is set for stronger visibility');
+    await expect(upsell.getByTestId('banner-size-upsell-button')).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
+  });
+
   test(`${route} keeps the timer and mobile footer consistent`, async ({ page }) => {
     await page.goto(route, { waitUntil: 'domcontentloaded' });
 
