@@ -16,12 +16,12 @@ const blogPosts: Record<string, { title: string; description: string; image: str
   "banner-safe-area-bleed-guide": {
     title: "Banner Safe Area and Bleed: Keep Text Clear of Hems and Grommets",
     description: "Plan a banner safe area around hems, grommets, and pole pockets, check bleed and borders, and preflight logos, text, and QR codes before print production.",
-    image: "https://bannersonthefly.com/cld-assets/images/blog/banner-safe-area-bleed-guide.webp"
+    image: "https://bannersonthefly.com/cld-assets/images/blog/banner-safe-area-bleed-guide-v2.webp"
   },
   "vinyl-vs-fabric-banners": {
     title: "Vinyl vs. Fabric Banners: Which Material Fits Your Display?",
     description: "Compare vinyl vs. fabric banners by surface, setting, light, transport, finishing, care, and documentation to choose a material for your real display.",
-    image: "https://bannersonthefly.com/cld-assets/images/blog/vinyl-vs-fabric-banners.webp"
+    image: "https://bannersonthefly.com/cld-assets/images/blog/vinyl-vs-fabric-banners-v2.webp"
   },
   "what-are-vinyl-banners-made-of": {
     title: "What Are Vinyl Banners Made Of? Scrim, PVC, and Weight Explained",
@@ -31,12 +31,12 @@ const blogPosts: Record<string, { title: string; description: string; image: str
   "how-long-do-yard-signs-last": {
     title: "How Long Do Yard Signs Last? A Weather and Reuse Guide",
     description: "Learn how long yard signs last outside, which weather, print, stake, and storage conditions matter, and when to clean, reuse, remove, or replace a sign.",
-    image: "https://bannersonthefly.com/cld-assets/images/blog/how-long-do-yard-signs-last.webp"
+    image: "https://bannersonthefly.com/cld-assets/images/blog/how-long-do-yard-signs-last-v2.webp"
   },
   "how-to-hang-banner-on-table": {
     title: "How to Hang a Banner on a Table: Clips, Grommets, and Setup",
     description: "Learn how to hang a banner on a table with compatible clips, grommets, straps, and a measured setup that stays centered without blocking the aisle at events.",
-    image: "https://bannersonthefly.com/cld-assets/images/blog/how-to-hang-banner-on-table.webp"
+    image: "https://bannersonthefly.com/cld-assets/images/blog/how-to-hang-banner-on-table-v2.webp"
   },
   "can-vinyl-banners-be-recycled": {
     title: "Can Vinyl Banners Be Recycled? A Reuse and Disposal Guide",
@@ -51,22 +51,22 @@ const blogPosts: Record<string, { title: string; description: string; image: str
   "horizontal-vs-vertical-banner": {
     title: "Horizontal vs. Vertical Banners: How to Choose Orientation",
     description: "Compare horizontal vs. vertical banners by display space, viewing path, copy shape, finishing, and mounting so you can choose an orientation before designing.",
-    image: "https://bannersonthefly.com/cld-assets/images/blog/horizontal-vs-vertical-banner.webp"
+    image: "https://bannersonthefly.com/cld-assets/images/blog/horizontal-vs-vertical-banner-v2.webp"
   },
   "how-to-hang-banner-on-canopy-tent": {
     title: "How to Hang a Banner on a Canopy Tent: A Safer Setup Guide",
     description: "Learn how to hang a banner on a canopy tent using measured frame points, grommets, short attachments, even tension, weather checks, and a safer setup.",
-    image: "https://bannersonthefly.com/cld-assets/images/blog/how-to-hang-banner-on-canopy-tent.webp"
+    image: "https://bannersonthefly.com/cld-assets/images/blog/how-to-hang-banner-on-canopy-tent-v2.webp"
   },
   "are-vinyl-banners-waterproof": {
     title: "Are Vinyl Banners Waterproof? A Practical Rain and Care Guide",
     description: "Are vinyl banners waterproof? Learn what rain means for the printed face, hems, grommets, mounting, drying, cleaning, storage, and safer outdoor-use planning.",
-    image: "https://bannersonthefly.com/cld-assets/images/blog/are-vinyl-banners-waterproof.webp"
+    image: "https://bannersonthefly.com/cld-assets/images/blog/are-vinyl-banners-waterproof-v2.webp"
   },
   "do-car-magnets-damage-paint": {
     title: "Do Car Magnets Damage Paint? A Safer Care and Inspection Guide",
     description: "Do car magnets damage paint? Learn the real risk factors, pre-install inspection, daily cleaning, safe removal, and warning signs for vehicle finishes.",
-    image: "https://bannersonthefly.com/cld-assets/images/blog/do-car-magnets-damage-paint.webp"
+    image: "https://bannersonthefly.com/cld-assets/images/blog/do-car-magnets-damage-paint-v2.webp"
   },
   "how-many-yard-signs-should-i-order": {
     title: "How Many Yard Signs Should I Order? A Location-First Planning Guide",
