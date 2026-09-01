@@ -518,3 +518,5 @@
   to = "/robots-preview.txt"
   status = 200
   force = true
+
+# Production recovery configuration refresh: 2026-09-01
