@@ -1,15 +1,17 @@
 import React from 'react';
 import { Tag, DollarSign, Truck } from 'lucide-react';
 import { usd } from '@/lib/pricing';
+import {
+  LARGE_BANNER_PROMO_ID,
+  LARGE_BANNER_PROMO_LABEL,
+  LARGE_BANNER_PROMO_PERCENTAGE,
+} from '@/lib/discount-resolver';
 
 /**
  * Shared, site-wide pricing summary UI.
  *
- * This is the single approved style for displaying price breakdowns across
- * /design, /google-ads-banner, and any other
- * pricing surface. All input data must come pre-computed from the shared
- * pricing engines (banner / yard-sign / car-magnet) so that the same
- * configuration always renders the same numbers everywhere.
+ * All numbers are pre-computed by the shared pricing/discount engines. This
+ * component only controls presentation and never recalculates eligibility.
  */
 
 export interface PriceBreakdownAddon {
@@ -32,84 +34,33 @@ export interface PriceBreakdownPromo {
 }
 
 export interface PriceBreakdownProps {
-  /** Header heading shown above the big price (e.g. "Your Instant Quote"). */
   heading?: string;
-  /** Header subheading (small caption under heading). */
   subheading?: string;
-  /** When true, render a soft yellow header with icon. */
   showHeader?: boolean;
-
-  /** Centered top-summary primary line, e.g. "8.00 sq ft • $4.50 per sq ft" */
   topLine: string;
-  /** Centered top-summary secondary line, e.g. "for 2 banners" */
   secondaryLine?: string;
-  /** When false, hides the top summary text block above the divider. */
   showTopSummary?: boolean;
-
-  /** Optional small detail rows shown above the breakdown, e.g. Material/Print/Quantity. */
   detailRows?: PriceBreakdownDetailRow[];
-
-  /** Base subtotal before any discounts (cents). Required. */
   baseSubtotalCents: number;
-  /** Label for the base subtotal row. Defaults to "Base subtotal". */
   baseSubtotalLabel?: string;
-
-  /** Add-on rows (rope, pole pockets, stakes, etc.). Hidden when empty / zero. */
   addOns?: PriceBreakdownAddon[];
-
-  /** Quantity discount (positive cents amount; rendered as -$X.XX in green). */
   quantityDiscountCents?: number;
-  /** Quantity discount rate (0..1). When set, label includes "(N% off)". */
   quantityDiscountRate?: number;
-
-  /** Promo discount (positive cents amount; rendered as -$X.XX in green). */
   promoDiscountCents?: number;
-  /** Promo discount rate (0..1). When set, label includes "(N% off)". */
   promoDiscountRate?: number;
-  /** Promo code label (e.g., "BOTF20"). */
   promoDiscountCode?: string;
-
-  /** Optional minimum-order adjustment row (positive cents). */
   minOrderAdjustmentCents?: number;
-
-  /**
-   * Same-Day Hit Service fee (positive cents). When > 0, a line item is
-   * shown and the shipping supporting text switches to the same-day message.
-   * The caller is responsible for including this in `totalCents`.
-   */
   sameDayHitServiceCents?: number;
-
-  /** Tax (cents). */
   taxCents: number;
-  /** Tax rate 0..1; controls label like "Tax (6%)". */
   taxRate?: number;
-
-  /** Adjusted subtotal (after discounts, before tax) in cents. */
   adjustedSubtotalCents: number;
-  /** Total with tax (cents) — visually emphasized. */
   totalCents: number;
-
-  /** Optional promo input below the breakdown. */
   promo?: PriceBreakdownPromo;
-
-  /** Footer note (e.g. "Tax calculated at checkout"). */
   footerNote?: string;
-
-  /**
-   * When true, the destination is not known yet. Hide estimated tax and
-   * present a pre-tax subtotal so the product builder never implies a
-   * nationwide customer's final tax amount.
-   */
   taxCalculatedAtCheckout?: boolean;
-
-  /** Class name on outer container. */
   className?: string;
 }
 
-/**
- * Compact, polished pricing summary card. Fully responsive; no overflow on
- * mobile. All data should come from a normalized pricing engine output.
- */
 const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
   heading,
   subheading,
@@ -141,18 +92,19 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
   const quantityDiscountLabel = `Quantity discount${
     quantityDiscountRate ? ` (${Math.round(quantityDiscountRate * 100)}% off)` : ''
   }`;
-  const promoDiscountLabel = `Promo${promoDiscountCode ? ` ${promoDiscountCode}` : ''}${
-    promoDiscountRate ? ` (${Math.round(promoDiscountRate * 100)}% off)` : ''
-  }`;
+  const isAutomaticLargeBannerPromotion =
+    promoDiscountCode === LARGE_BANNER_PROMO_ID && promoDiscountCents > 0;
+  const promoDiscountLabel = isAutomaticLargeBannerPromotion
+    ? LARGE_BANNER_PROMO_LABEL
+    : `Promo${promoDiscountCode ? ` ${promoDiscountCode}` : ''}${
+        promoDiscountRate ? ` (${Math.round(promoDiscountRate * 100)}% off)` : ''
+      }`;
 
   const hasSameDayFee = sameDayHitServiceCents > 0;
   const shippingNote = hasSameDayFee
     ? 'Same-Day production priority selected. Next-day air shipping is still included.'
     : 'Most standard orders are produced within 24 hours; free next-day air begins after production.';
   const shippingValueLabel = hasSameDayFee ? 'Next-Day Air Included' : 'FREE';
-  // Footer note: combine shipping language (per spec) with the caller's note
-  // (typically "Tax calculated at checkout") so the message is consistent
-  // across product pages, cart, and checkout.
   const baseFooterNote = footerNote || '';
   const composedFooterNote = hasSameDayFee
     ? ['Next-Day Air Included', 'Same-Day production priority selected', baseFooterNote]
@@ -160,11 +112,15 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
         .join(' • ')
     : ['Free Next-Day Air After Production', baseFooterNote].filter(Boolean).join(' • ');
 
-  const visibleAddOns = (addOns || []).filter(a => a && a.amountCents > 0);
+  const visibleAddOns = (addOns || []).filter((addon) => addon && addon.amountCents > 0);
   const hasQuantityDiscount = quantityDiscountCents > 0;
   const hasPromoDiscount = promoDiscountCents > 0;
   const hasMinOrderAdjustment = minOrderAdjustmentCents > 0;
   const hasDetailRows = Boolean(detailRows && detailRows.length > 0);
+  const originalHeadlineTotalCents = isAutomaticLargeBannerPromotion
+    ? totalCents + promoDiscountCents
+    : totalCents;
+
   const detailRowsContainerClass = [
     showTopSummary ? 'pt-3 mt-2 border-t border-slate-300/60' : '',
     'space-y-1 text-sm text-gray-700',
@@ -180,37 +136,32 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
 
   return (
     <div
-      className={`bg-white border border-slate-300 rounded-xl overflow-hidden ${className}`}
+      className={`overflow-hidden rounded-xl border border-slate-300 bg-white ${className}`}
       style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.10), 0 4px 12px rgba(0,0,0,0.06)' }}
       data-testid="price-breakdown"
     >
       {showHeader && (heading || subheading) && (
         <div
-          className="px-6 py-5 border-b border-slate-200"
+          className="border-b border-slate-200 px-6 py-5"
           style={{
-            background:
-              'linear-gradient(180deg, #fefce8 0%, #fef9c3 50%, #fef08a 100%)',
+            background: 'linear-gradient(180deg, #fefce8 0%, #fef9c3 50%, #fef08a 100%)',
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
           }}
         >
           <div className="text-center">
-            <div className="inline-flex items-center gap-3 mb-2">
+            <div className="mb-2 inline-flex items-center gap-3">
               <div className="relative">
                 <div
-                  className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg"
+                  className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 shadow-lg"
                   style={{ boxShadow: '0 6px 16px rgba(249,115,22,0.5)' }}
                 >
                   <DollarSign className="h-6 w-6 text-white" />
                 </div>
-                <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full shadow-sm animate-pulse border-2 border-white" />
+                <div className="absolute -right-1 -top-1 h-4 w-4 animate-pulse rounded-full border-2 border-white bg-green-500 shadow-sm" />
               </div>
-              {heading && (
-                <h3 className="text-2xl font-bold text-slate-900">{heading}</h3>
-              )}
+              {heading && <h3 className="text-2xl font-bold text-slate-900">{heading}</h3>}
             </div>
-            {subheading && (
-              <p className="text-sm text-slate-600 font-medium">{subheading}</p>
-            )}
+            {subheading && <p className="text-sm font-medium text-slate-600">{subheading}</p>}
           </div>
         </div>
       )}
@@ -219,73 +170,91 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
         className="p-6 sm:p-8"
         style={{ background: 'linear-gradient(180deg, #ffffff 0%, #fafafa 100%)' }}
       >
-        {/* SECTION A — Top summary (centered, large total) */}
-        <div className="text-center mb-6">
-          <div
-            className="text-4xl sm:text-5xl md:text-6xl font-bold text-slate-900 leading-tight"
-            style={{ textShadow: '0 2px 4px rgba(0,0,0,0.08)' }}
-          >
-            {usd(totalCents / 100)}
-          </div>
+        {/* Primary price. Automatic large-banner savings use the approved navy,
+            gray strike-through, orange accent and green savings hierarchy. */}
+        <div className="mb-6 text-center" aria-live="polite">
+          {isAutomaticLargeBannerPromotion ? (
+            <>
+              <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+                <span
+                  className="text-4xl font-extrabold leading-tight text-[#0b2a5b] sm:text-5xl md:text-6xl"
+                  data-testid="discounted-price"
+                >
+                  {usd(totalCents / 100)}
+                </span>
+                <span
+                  className="text-2xl font-semibold text-slate-400 line-through decoration-2 sm:text-3xl"
+                  data-testid="original-price"
+                >
+                  {usd(originalHeadlineTotalCents / 100)}
+                </span>
+                <span className="rounded-lg bg-orange-500 px-3 py-2 text-sm font-extrabold text-white shadow-sm sm:text-base">
+                  {LARGE_BANNER_PROMO_PERCENTAGE}% OFF
+                </span>
+              </div>
+              <div className="mt-3 flex items-center justify-center gap-2 text-sm font-bold text-emerald-700 sm:text-base">
+                <Tag className="h-4 w-4" aria-hidden="true" />
+                <span>
+                  You save {usd(promoDiscountCents / 100)} ({LARGE_BANNER_PROMO_PERCENTAGE}%)
+                </span>
+              </div>
+            </>
+          ) : (
+            <div
+              className="text-4xl font-bold leading-tight text-[#0b2a5b] sm:text-5xl md:text-6xl"
+              style={{ textShadow: '0 2px 4px rgba(0,0,0,0.08)' }}
+            >
+              {usd(totalCents / 100)}
+            </div>
+          )}
         </div>
 
-        {/* SECTION B — Boxed breakdown panel */}
         <div
-          className="rounded-xl p-4 sm:p-5 space-y-2"
+          className="space-y-2 rounded-xl p-4 sm:p-5"
           style={{
             background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)',
-            boxShadow:
-              'inset 0 2px 4px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+            boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
             border: '1px solid rgba(148,163,184,0.3)',
           }}
         >
-          {/* Centered top summary line(s) */}
           {showTopSummary && (
             <>
-              <p className="font-bold text-gray-800 text-center break-words">{topLine}</p>
+              <p className="break-words text-center font-bold text-gray-800">{topLine}</p>
               {secondaryLine && (
-                <p className="text-sm text-gray-600 font-medium text-center break-words">
+                <p className="break-words text-center text-sm font-medium text-gray-600">
                   {secondaryLine}
                 </p>
               )}
             </>
           )}
 
-          {/* Optional configuration detail rows */}
           {hasDetailRows && (
             <div className={detailRowsContainerClass}>
-              {detailRows.map((row, idx) => (
-                <div
-                  key={`${row.label}-${idx}`}
-                  className="flex justify-between gap-3"
-                >
+              {detailRows!.map((row, idx) => (
+                <div key={`${row.label}-${idx}`} className="flex justify-between gap-3">
                   <span className="text-gray-600">{row.label}</span>
-                  <span className="font-medium text-gray-800 text-right">
-                    {row.value}
-                  </span>
+                  <span className="text-right font-medium text-gray-800">{row.value}</span>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Breakdown rows */}
           <div className={breakdownRowsClass}>
             <div className="flex justify-between gap-3">
               <span className="text-gray-600">{baseSubtotalLabel}</span>
-              <span className="font-semibold text-gray-800">
+              <span
+                className={`font-semibold text-gray-800 ${
+                  isAutomaticLargeBannerPromotion ? 'line-through decoration-2 decoration-slate-500' : ''
+                }`}
+              >
                 {usd(baseSubtotalCents / 100)}
               </span>
             </div>
 
             {visibleAddOns.map((addon, idx) => (
-              <div
-                key={`${addon.label}-${idx}`}
-                className="flex justify-between gap-3"
-              >
+              <div key={`${addon.label}-${idx}`} className="flex justify-between gap-3">
                 <span className="text-gray-600">{addon.label}</span>
-                <span className="font-semibold text-gray-800">
-                  {usd(addon.amountCents / 100)}
-                </span>
+                <span className="font-semibold text-gray-800">{usd(addon.amountCents / 100)}</span>
               </div>
             ))}
 
@@ -295,30 +264,24 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
                   <Tag className="h-3.5 w-3.5" />
                   {quantityDiscountLabel}
                 </span>
-                <span className="font-semibold">
-                  -{usd(quantityDiscountCents / 100)}
-                </span>
+                <span className="font-semibold">-{usd(quantityDiscountCents / 100)}</span>
               </div>
             )}
 
             {hasPromoDiscount && (
-              <div className="flex justify-between gap-3 text-green-700">
+              <div className="flex justify-between gap-3 text-green-700" data-testid="promotion-discount-row">
                 <span className="flex items-center gap-1">
                   <Tag className="h-3.5 w-3.5" />
                   {promoDiscountLabel}
                 </span>
-                <span className="font-semibold">
-                  -{usd(promoDiscountCents / 100)}
-                </span>
+                <span className="font-semibold">-{usd(promoDiscountCents / 100)}</span>
               </div>
             )}
 
             {hasMinOrderAdjustment && (
               <div className="flex justify-between gap-3">
                 <span className="text-gray-600">Minimum order adjustment</span>
-                <span className="font-semibold text-gray-800">
-                  {usd(minOrderAdjustmentCents / 100)}
-                </span>
+                <span className="font-semibold text-gray-800">{usd(minOrderAdjustmentCents / 100)}</span>
               </div>
             )}
 
@@ -329,49 +292,41 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
               </div>
             )}
 
-            {/* Shipping: free next-day air, with label/value adjusted when
-                Same-Day Hit Service is selected so it is never implied that
-                the same-day fee is shipping. */}
             <div className="flex flex-col gap-0.5">
               <div className="flex justify-between gap-3">
                 <span className={`flex items-center gap-1.5 font-medium ${hasSameDayFee ? 'text-slate-700' : 'text-green-700'}`}>
                   <Truck className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
                   Shipping
                 </span>
-                <span className={`font-semibold ${hasSameDayFee ? 'text-slate-700' : 'text-green-700'}`}>{shippingValueLabel}</span>
+                <span className={`font-semibold ${hasSameDayFee ? 'text-slate-700' : 'text-green-700'}`}>
+                  {shippingValueLabel}
+                </span>
               </div>
-              <p className="text-[11px] text-slate-500 leading-tight pl-5">{shippingNote}</p>
+              <p className="pl-5 text-[11px] leading-tight text-slate-500">{shippingNote}</p>
             </div>
 
             {!taxCalculatedAtCheckout && (
               <div className="flex justify-between gap-3">
                 <span className="text-gray-600">{taxLabel}</span>
-                <span className="font-semibold text-gray-800">
-                  {usd(taxCents / 100)}
-                </span>
+                <span className="font-semibold text-gray-800">{usd(taxCents / 100)}</span>
               </div>
             )}
 
             {!taxCalculatedAtCheckout && (
-              <div className="flex justify-between gap-3 pt-2 mt-1 border-t border-slate-300/60">
+              <div className="mt-1 flex justify-between gap-3 border-t border-slate-300/60 pt-2">
                 <span className="font-bold text-gray-800">Adjusted subtotal</span>
-                <span className="font-bold text-gray-800">
-                  {usd(adjustedSubtotalCents / 100)}
-                </span>
+                <span className="font-bold text-gray-800">{usd(adjustedSubtotalCents / 100)}</span>
               </div>
             )}
-            <div className="flex justify-between gap-3 pt-2 mt-1 border-t border-slate-300/60">
+            <div className="mt-1 flex justify-between gap-3 border-t border-slate-300/60 pt-2">
               <span className="font-bold text-gray-800">
                 {taxCalculatedAtCheckout ? 'Subtotal before tax' : 'Total with tax'}
               </span>
-              <span className="font-bold text-[#ff6b35]">
-                {usd(totalCents / 100)}
-              </span>
+              <span className="font-bold text-[#0b2a5b]">{usd(totalCents / 100)}</span>
             </div>
           </div>
         </div>
 
-        {/* SECTION C — Promo input */}
         {promo && (
           <div className="mt-4">
             {!promo.applied ? (
@@ -379,32 +334,30 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
                 <input
                   type="text"
                   value={promo.code}
-                  onChange={e => promo.onCodeChange(e.target.value.toUpperCase())}
+                  onChange={(event) => promo.onCodeChange(event.target.value.toUpperCase())}
                   placeholder="Promo Code"
                   aria-label="Promo code"
                   autoComplete="off"
-                  className="flex-1 min-w-0 border rounded-xl px-3 py-2 text-base"
+                  className="min-w-0 flex-1 rounded-xl border px-3 py-2 text-base"
                 />
                 <button
                   type="button"
                   onClick={promo.onApply}
-                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium whitespace-nowrap"
+                  className="whitespace-nowrap rounded-xl bg-gray-100 px-4 py-2 text-sm font-medium hover:bg-gray-200"
                 >
                   Apply
                 </button>
               </div>
             ) : (
-              <div className="flex items-center justify-between gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
-                <span className="text-sm font-semibold text-green-800 flex items-center gap-1.5 min-w-0">
+              <div className="flex items-center justify-between gap-2 rounded-xl border border-green-200 bg-green-50 px-3 py-2">
+                <span className="flex min-w-0 items-center gap-1.5 text-sm font-semibold text-green-800">
                   <Tag className="h-3.5 w-3.5 flex-shrink-0" />
-                  <span className="truncate">
-                    {promo.appliedLabel || `${promo.code} applied`}
-                  </span>
+                  <span className="truncate">{promo.appliedLabel || `${promo.code} applied`}</span>
                 </span>
                 <button
                   type="button"
                   onClick={promo.onRemove}
-                  className="text-xs text-red-500 hover:text-red-700 font-medium whitespace-nowrap"
+                  className="whitespace-nowrap text-xs font-medium text-red-500 hover:text-red-700"
                 >
                   Remove
                 </button>
@@ -414,7 +367,7 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
         )}
 
         {composedFooterNote && (
-          <p className="text-xs text-gray-400 mt-4 text-center">{composedFooterNote}</p>
+          <p className="mt-4 text-center text-xs text-gray-400">{composedFooterNote}</p>
         )}
       </div>
     </div>
