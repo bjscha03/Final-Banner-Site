@@ -1,4 +1,10 @@
-import type { ReactNode } from 'react';
+import { useSyncExternalStore, type ReactNode } from 'react';
+import { usd } from '@/lib/pricing';
+import {
+  getAutomaticPromotionDisplayServerSnapshot,
+  getAutomaticPromotionDisplaySnapshot,
+  subscribeAutomaticPromotionDisplay,
+} from '@/lib/automaticPromotionDisplay';
 
 export interface MobileSubtotalBarProps {
   subtotal: ReactNode;
@@ -17,6 +23,28 @@ export default function MobileSubtotalBar({
   cartItemCount,
   onViewCart,
 }: MobileSubtotalBarProps) {
+  const automaticPromotion = useSyncExternalStore(
+    subscribeAutomaticPromotionDisplay,
+    getAutomaticPromotionDisplaySnapshot,
+    getAutomaticPromotionDisplayServerSnapshot,
+  );
+
+  const displayedSubtotal = automaticPromotion.active ? (
+    <div data-testid="mobile-automatic-large-banner-price">
+      <div className="flex items-baseline gap-2">
+        <span className="text-sm font-semibold text-gray-400 line-through decoration-2">
+          {usd(automaticPromotion.originalSubtotalCents / 100)}
+        </span>
+        <span className="text-xl font-bold text-emerald-600">
+          {usd(automaticPromotion.discountedSubtotalCents / 100)}
+        </span>
+      </div>
+      <p className="mt-0.5 text-[10px] font-bold leading-tight text-emerald-700">
+        {automaticPromotion.label} automatically applied
+      </p>
+    </div>
+  ) : subtotal;
+
   return (
     <>
       <div aria-hidden="true" className="h-24 md:hidden" />
@@ -28,7 +56,7 @@ export default function MobileSubtotalBar({
         <div className="flex min-h-[44px] items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs text-gray-500">Subtotal</p>
-            {subtotal}
+            {displayedSubtotal}
             {priceNote ? (
               <p data-testid="mobile-subtotal-note" className="mt-0.5 text-[11px] font-medium leading-tight text-orange-700">
                 {priceNote}
