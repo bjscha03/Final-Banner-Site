@@ -917,7 +917,7 @@ async function claimSequence(sql, cartId, sequenceNumber, source) {
                 0
               ) < ${MAX_DELIVERY_ATTEMPTS}
           AND (
-           cart_recovery_deliveries.status = 'failed'
+           (cart_recovery_deliveries.status = 'failed'
              AND (
                NOT ${scheduledRetry}
                OR cart_recovery_deliveries.updated_at <=
