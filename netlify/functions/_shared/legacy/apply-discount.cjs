@@ -1,4 +1,8 @@
 const { neon } = require('@neondatabase/serverless');
+const {
+  SEPTEMBER_LARGE_BANNER_CODE,
+  buildSeptemberLargeBannerDiscount,
+} = require('../recovery-discount-policy.cjs');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -66,6 +70,25 @@ exports.handler = async (event, context) => {
           discountPercentage: 20,
           discountAmountCents: null
         })
+      };
+    }
+
+    if (normalizedCode === SEPTEMBER_LARGE_BANNER_CODE) {
+      const promotion = buildSeptemberLargeBannerDiscount();
+      if (!promotion.valid) {
+        return { statusCode: 400, headers, body: JSON.stringify({ error: 'BIG25 expired after September 8, 2026' }) };
+      }
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          success: true,
+          code: promotion.discount.code,
+          discountPercentage: promotion.discount.discountPercentage,
+          discountAmountCents: null,
+          campaign: promotion.discount.campaign,
+          discountScope: promotion.discount.discountScope,
+        }),
       };
     }
 

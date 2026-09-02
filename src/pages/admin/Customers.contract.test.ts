@@ -41,4 +41,14 @@ describe('admin customer bounded-data contract', () => {
     expect(customers).toContain('label="Repeat customers"');
     expect(customers).toContain('at least two completed orders');
   });
+
+  it('exposes a confirmed, persistent, suppression-aware September deal send action', () => {
+    expect(customers).toContain('Send Sept Deal');
+    expect(customers).toContain('Send September 25% promotion?');
+    expect(customers).toContain('/.netlify/functions/admin-send-september-promo');
+    expect(customers).toContain("customer.septemberDealStatus === 'sent'");
+    expect(customers).toContain('septemberDealSentAt');
+    expect(customers).toContain('X-Idempotency-Key');
+    expect(customers).toContain('Confirming will immediately send');
+  });
 });

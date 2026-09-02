@@ -40,6 +40,7 @@ exports.handler = async (event) => {
       userId: payload.userId || null,
       recoveryCartId: payload.cartId || null,
       requireRecoveryCartMatch: true,
+      items: Array.isArray(payload.items) ? payload.items : null,
     });
     return reply(200, result);
   } catch (error) {

@@ -3,6 +3,7 @@
 const {
   LARGE_BANNER_RECOVERY_CAMPAIGN,
   LARGE_BANNER_RECOVERY_SCOPE,
+  SEPTEMBER_LARGE_BANNER_CODE,
 } = require('./recovery-discount-policy.cjs');
 
 function normalizedCode(order) {
@@ -243,6 +244,9 @@ async function claimPaymentDiscount(sql, order) {
   if (!code) return { ok: true, claimed: false, kind: 'none' };
   if (isTestOrder(order)) return { ok: true, claimed: false, kind: 'test' };
   if (!hasAppliedPromo(order)) return { ok: true, claimed: false, kind: 'not_applied' };
+  if (code === SEPTEMBER_LARGE_BANNER_CODE) {
+    return { ok: true, claimed: false, kind: 'september_campaign' };
+  }
   return code === 'NEW20'
     ? claimNew20(sql, order)
     : claimStoredCode(sql, order, code);
@@ -250,7 +254,8 @@ async function claimPaymentDiscount(sql, order) {
 
 async function releasePaymentDiscount(sql, order, reconciliationStatus = 'payment_failed') {
   const code = normalizedCode(order);
-  if (code && code !== 'NEW20' && hasAppliedPromo(order) && !isTestOrder(order)) {
+  if (code && code !== 'NEW20' && code !== SEPTEMBER_LARGE_BANNER_CODE
+      && hasAppliedPromo(order) && !isTestOrder(order)) {
     await sql`
       UPDATE discount_codes dc
          SET used = FALSE,
@@ -278,7 +283,8 @@ async function releasePaymentDiscount(sql, order, reconciliationStatus = 'paymen
 
 async function completePaymentDiscount(sql, order) {
   const code = normalizedCode(order);
-  if (!code || isTestOrder(order) || !hasAppliedPromo(order) || code === 'NEW20') {
+  if (!code || isTestOrder(order) || !hasAppliedPromo(order)
+      || code === 'NEW20' || code === SEPTEMBER_LARGE_BANNER_CODE) {
     return { ok: true, kind: code ? 'not_stored' : 'none' };
   }
 
