@@ -1572,8 +1572,7 @@ exports.handler = async (event) => {
     });
     return reply(Number(error?.statusCode) || 500, {
       error: 'Failed to send recovery email',
-      message: Number(error?.statusCode) && Number(error.statusCode) < 500
-        ? error.message : 'Recovery email delivery failed. It is safe to retry.',
+      message: normalizeProviderError(error),
     });
   }
 };
