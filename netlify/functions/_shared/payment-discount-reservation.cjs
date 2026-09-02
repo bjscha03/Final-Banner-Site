@@ -1,6 +1,7 @@
 'use strict';
 
 const {
+  AUTOMATIC_LARGE_BANNER_PROMOTION_ID,
   LARGE_BANNER_RECOVERY_CAMPAIGN,
   LARGE_BANNER_RECOVERY_SCOPE,
   SEPTEMBER_LARGE_BANNER_CODE,
@@ -8,6 +9,11 @@ const {
 
 function normalizedCode(order) {
   return String(order?.discount_code || '').trim().toUpperCase();
+}
+
+function isNonStoredCampaignCode(code) {
+  return code === SEPTEMBER_LARGE_BANNER_CODE
+    || code === AUTOMATIC_LARGE_BANNER_PROMOTION_ID;
 }
 
 function isTestOrder(order) {
@@ -244,8 +250,14 @@ async function claimPaymentDiscount(sql, order) {
   if (!code) return { ok: true, claimed: false, kind: 'none' };
   if (isTestOrder(order)) return { ok: true, claimed: false, kind: 'test' };
   if (!hasAppliedPromo(order)) return { ok: true, claimed: false, kind: 'not_applied' };
-  if (code === SEPTEMBER_LARGE_BANNER_CODE) {
-    return { ok: true, claimed: false, kind: 'september_campaign' };
+  if (isNonStoredCampaignCode(code)) {
+    return {
+      ok: true,
+      claimed: false,
+      kind: code === AUTOMATIC_LARGE_BANNER_PROMOTION_ID
+        ? 'automatic_large_banner'
+        : 'september_campaign',
+    };
   }
   return code === 'NEW20'
     ? claimNew20(sql, order)
@@ -254,7 +266,7 @@ async function claimPaymentDiscount(sql, order) {
 
 async function releasePaymentDiscount(sql, order, reconciliationStatus = 'payment_failed') {
   const code = normalizedCode(order);
-  if (code && code !== 'NEW20' && code !== SEPTEMBER_LARGE_BANNER_CODE
+  if (code && code !== 'NEW20' && !isNonStoredCampaignCode(code)
       && hasAppliedPromo(order) && !isTestOrder(order)) {
     await sql`
       UPDATE discount_codes dc
@@ -284,7 +296,7 @@ async function releasePaymentDiscount(sql, order, reconciliationStatus = 'paymen
 async function completePaymentDiscount(sql, order) {
   const code = normalizedCode(order);
   if (!code || isTestOrder(order) || !hasAppliedPromo(order)
-      || code === 'NEW20' || code === SEPTEMBER_LARGE_BANNER_CODE) {
+      || code === 'NEW20' || isNonStoredCampaignCode(code)) {
     return { ok: true, kind: code ? 'not_stored' : 'none' };
   }
 
@@ -360,6 +372,7 @@ module.exports = {
   customerReservationIdentities,
   customerReservationIdentity,
   hasAppliedPromo,
+  isNonStoredCampaignCode,
   isTestOrder,
   logRecoveryDiscountConsumption,
   normalizedCode,
