@@ -80,6 +80,21 @@ async function findEmailSuppression(sql, emailValue) {
     return { suppressed: true, reason: outboundReason, source: 'outbound_suppressions' };
   }
 
+  const marketingRows = await optionalQuery(() => sql`
+    SELECT reason
+      FROM marketing_email_suppressions
+     WHERE normalized_email = ${email}
+       AND active = TRUE
+     LIMIT 1
+  `, 'marketing_email_suppressions');
+  if (marketingRows.length) {
+    return {
+      suppressed: true,
+      reason: String(marketingRows[0].reason || 'unsubscribe'),
+      source: 'marketing_email_suppressions',
+    };
+  }
+
   const tradeShowRows = await optionalQuery(() => sql`
     SELECT reason
       FROM trade_show_email_unsubscribes

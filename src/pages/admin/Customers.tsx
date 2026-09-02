@@ -8,6 +8,7 @@ import {
   MailX,
   Repeat2,
   Search,
+  Send,
   Shield,
   UserPlus,
   Users,
@@ -26,6 +27,16 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Dialog,
   DialogContent,
@@ -64,6 +75,9 @@ type Customer = {
   marketingEligible: boolean;
   suppressionReason: string;
   suppressionReasons: string[];
+  septemberDealStatus: 'not_sent' | 'processing' | 'sent' | 'error' | 'unsubscribed' | 'complained' | 'bounced' | 'suppressed';
+  septemberDealSentAt: string | null;
+  septemberDealUpdatedAt: string | null;
 };
 
 type FilteredSummary = {
@@ -110,7 +124,7 @@ type CustomerResponse = {
 type CustomerDetailResponse = {
   ok: boolean;
   error?: string;
-  customer: Pick<Customer, 'email' | 'marketingEligible' | 'suppressionReason' | 'suppressionReasons'>;
+  customer: Pick<Customer, 'email' | 'marketingEligible' | 'suppressionReason' | 'suppressionReasons' | 'septemberDealStatus' | 'septemberDealSentAt' | 'septemberDealUpdatedAt'>;
   orders: CustomerOrder[];
   pagination: { page: number; pageSize: number; total: number; totalPages: number; hasMore: boolean };
 };
@@ -127,6 +141,11 @@ const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD
 const formatMoney = (cents: number) => money.format((Number(cents) || 0) / 100);
 const formatDate = (value: string | null) => value
   ? new Date(value).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+  : '—';
+const formatDateTime = (value: string | null) => value
+  ? new Date(value).toLocaleString(undefined, {
+      year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+    })
   : '—';
 
 const utcDateInput = (date: Date) => {
@@ -167,6 +186,43 @@ const DetailStat = ({ label, value }: { label: string; value: string }) => (
     <p className="mt-1 font-black text-slate-900">{value}</p>
   </div>
 );
+
+const SeptemberDealAction = ({
+  customer,
+  sending,
+  onSend,
+}: {
+  customer: Customer;
+  sending: boolean;
+  onSend: (customer: Customer) => void;
+}) => {
+  const sent = customer.septemberDealStatus === 'sent';
+  const processing = sending || customer.septemberDealStatus === 'processing';
+  const blocked = !customer.marketingEligible
+    || ['unsubscribed', 'complained', 'bounced', 'suppressed'].includes(customer.septemberDealStatus);
+  return (
+    <div className="min-w-[150px]">
+      <Button
+        type="button"
+        size="sm"
+        variant={sent || blocked ? 'outline' : 'default'}
+        disabled={sent || processing || blocked}
+        onClick={() => onSend(customer)}
+        className={sent
+          ? 'w-full border-emerald-300 bg-emerald-50 text-emerald-800 disabled:opacity-100'
+          : blocked
+            ? 'w-full disabled:opacity-70'
+            : 'w-full bg-[#ff5a1f] font-extrabold text-white hover:bg-[#e94d12]'}
+      >
+        {processing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : sent ? <MailCheck className="mr-2 h-4 w-4" /> : <Send className="mr-2 h-4 w-4" />}
+        {sent ? 'Sept Deal Sent' : processing ? 'Sending…' : blocked ? 'Promo blocked' : customer.septemberDealStatus === 'error' ? 'Retry Sept Deal' : 'Send Sept Deal'}
+      </Button>
+      {sent && customer.septemberDealSentAt && (
+        <p className="mt-1 text-center text-[11px] font-medium text-emerald-800">{formatDateTime(customer.septemberDealSentAt)}</p>
+      )}
+    </div>
+  );
+};
 
 const emptyStats: CustomerResponse['stats'] = {
   all: 0,
@@ -231,6 +287,8 @@ const AdminCustomers: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [sendTarget, setSendTarget] = useState<Customer | null>(null);
+  const [sendingEmails, setSendingEmails] = useState<Set<string>>(() => new Set());
   const previousSegment = useRef(segment);
 
   const selectSegment = useCallback((nextSegment: Segment) => {
@@ -357,6 +415,61 @@ const AdminCustomers: React.FC = () => {
     setDetailError(null);
     void loadCustomerHistory(customer, 1, false);
   }, [loadCustomerHistory]);
+
+  const updateSeptemberDealState = useCallback((email: string, status: Customer['septemberDealStatus'], sentAt: string | null = null) => {
+    const update = (customer: Customer) => customer.email === email
+      ? {
+          ...customer,
+          septemberDealStatus: status,
+          septemberDealSentAt: sentAt ?? customer.septemberDealSentAt,
+          septemberDealUpdatedAt: new Date().toISOString(),
+        }
+      : customer;
+    setCustomers((current) => current.map(update));
+    setSelectedCustomer((current) => current ? update(current) : current);
+  }, []);
+
+  const sendSeptemberDeal = useCallback(async (customer: Customer) => {
+    const email = customer.email;
+    setSendTarget(null);
+    setSendingEmails((current) => new Set(current).add(email));
+    updateSeptemberDealState(email, 'processing');
+    const requestKey = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID().replace(/-/g, '_')
+      : `sept_${Date.now()}_${Math.random().toString(36).slice(2, 14)}`;
+    try {
+      const response = await adminFetch('/.netlify/functions/admin-send-september-promo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Idempotency-Key': requestKey },
+        body: JSON.stringify({ email, customerName: customer.fullName || customer.firstName || email }),
+        cache: 'no-store',
+      });
+      const data = await response.json() as {
+        ok?: boolean; error?: string; status?: Customer['septemberDealStatus']; sentAt?: string | null; duplicate?: boolean;
+      };
+      if (!response.ok || !data.ok) {
+        updateSeptemberDealState(email, data.status === 'processing' ? 'processing' : 'error');
+        throw new Error(data.error || 'The September deal email could not be sent.');
+      }
+      updateSeptemberDealState(email, 'sent', data.sentAt || new Date().toISOString());
+      toast({
+        title: data.duplicate ? 'September deal already sent' : 'September deal sent',
+        description: `${customerLabel(customer)} (${email}) received the 25% large-banner promotion.`,
+      });
+    } catch (error) {
+      toast({
+        title: 'September deal not sent',
+        description: error instanceof Error ? error.message : 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSendingEmails((current) => {
+        const next = new Set(current);
+        next.delete(email);
+        return next;
+      });
+    }
+  }, [toast, updateSeptemberDealState]);
 
   const downloadCsv = async () => {
     setExporting(true);
@@ -595,6 +708,7 @@ const AdminCustomers: React.FC = () => {
                         <TableHead>First order</TableHead>
                         <TableHead>Last order</TableHead>
                         <TableHead>Marketing</TableHead>
+                        <TableHead>September deal</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -620,6 +734,16 @@ const AdminCustomers: React.FC = () => {
                           <TableCell>{formatDate(customer.firstOrderAt)}</TableCell>
                           <TableCell>{formatDate(customer.lastOrderAt)}</TableCell>
                           <TableCell><MarketingBadge customer={customer} /></TableCell>
+                          <TableCell
+                            onClick={(event) => event.stopPropagation()}
+                            onKeyDown={(event) => event.stopPropagation()}
+                          >
+                            <SeptemberDealAction
+                              customer={customer}
+                              sending={sendingEmails.has(customer.email)}
+                              onSend={setSendTarget}
+                            />
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -627,7 +751,7 @@ const AdminCustomers: React.FC = () => {
                 </div>
                 <div className="divide-y divide-slate-200 md:hidden">
                   {customers.map((customer) => (
-                    <button key={customer.email} type="button" onClick={() => openCustomer(customer)} className="block w-full p-4 text-left hover:bg-blue-50">
+                    <div key={customer.email} className="p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0"><p className="break-words font-black text-slate-900">{customer.fullName || customer.email}</p>{customer.fullName && <p className="break-all text-sm text-slate-500">{customer.email}</p>}</div>
                         <div className="shrink-0"><MarketingBadge customer={customer} /></div>
@@ -639,7 +763,15 @@ const AdminCustomers: React.FC = () => {
                         <span className="text-slate-500">First: {formatDate(customer.firstOrderAt)}</span>
                         <span className="text-right text-slate-500">Last: {formatDate(customer.lastOrderAt)}</span>
                       </div>
-                    </button>
+                      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                        <Button type="button" variant="outline" className="w-full" onClick={() => openCustomer(customer)}>View customer</Button>
+                        <SeptemberDealAction
+                          customer={customer}
+                          sending={sendingEmails.has(customer.email)}
+                          onSend={setSendTarget}
+                        />
+                      </div>
+                    </div>
                   ))}
                 </div>
                 <div className="flex flex-col gap-3 border-t border-slate-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -702,6 +834,13 @@ const AdminCustomers: React.FC = () => {
                 <CustomerSegmentBadges customer={selectedCustomer} />
                 <MarketingBadge customer={selectedCustomer} />
                 {!selectedCustomer.marketingEligible && <span className="text-sm text-slate-600">{selectedCustomer.suppressionReasons.map(displaySuppressionReason).join(', ')}</span>}
+                <div className="ml-auto">
+                  <SeptemberDealAction
+                    customer={selectedCustomer}
+                    sending={sendingEmails.has(selectedCustomer.email)}
+                    onSend={setSendTarget}
+                  />
+                </div>
               </div>
               <div>
                 <h3 className="mb-3 text-base font-black text-slate-900">Order history</h3>
@@ -753,6 +892,34 @@ const AdminCustomers: React.FC = () => {
           )}
         </DialogContent>
       </Dialog>
+      <AlertDialog open={Boolean(sendTarget)} onOpenChange={(open) => { if (!open) setSendTarget(null); }}>
+        <AlertDialogContent>
+          {sendTarget && (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Send September 25% promotion?</AlertDialogTitle>
+                <AlertDialogDescription className="space-y-3 text-left">
+                  <span className="block">Confirming will immediately send the finished September large-banner promotion through the live email system.</span>
+                  <span className="block rounded-lg border border-slate-200 bg-slate-50 p-3 text-slate-800">
+                    <strong className="block">{customerLabel(sendTarget)}</strong>
+                    <span className="break-all">{sendTarget.email}</span>
+                  </span>
+                  <span className="block font-semibold text-slate-700">Offer: 25% off banners 6′ × 3′ or larger with code BIG25, valid through September 8.</span>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-[#ff5a1f] font-extrabold text-white hover:bg-[#e94d12]"
+                  onClick={() => void sendSeptemberDeal(sendTarget)}
+                >
+                  Send Sept Deal Now
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </>
+          )}
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 };

@@ -3,6 +3,15 @@
 const LARGE_BANNER_RECOVERY_CAMPAIGN = 'abandoned_cart_large_banner_25';
 const LARGE_BANNER_RECOVERY_SCOPE = 'recovery_qualifying_banner_lines';
 const LARGE_BANNER_RECOVERY_PERCENTAGE = 25;
+const SEPTEMBER_LARGE_BANNER_CODE = 'BIG25';
+const SEPTEMBER_LARGE_BANNER_CAMPAIGN = 'september_large_banner_2026';
+const SEPTEMBER_LARGE_BANNER_SCOPE = 'qualifying_large_banner_lines';
+const SEPTEMBER_LARGE_BANNER_PERCENTAGE = 25;
+// The promotion is valid for every local calendar day from September 1
+// through September 8 in the business's Eastern time zone (EDT in 2026).
+// Store the boundary as UTC so every Netlify region makes the same decision.
+const SEPTEMBER_LARGE_BANNER_START = '2026-09-01T04:00:00.000Z';
+const SEPTEMBER_LARGE_BANNER_END_EXCLUSIVE = '2026-09-09T04:00:00.000Z';
 const LARGE_BANNER_LONG_SIDE_INCHES = 72;
 const LARGE_BANNER_SHORT_SIDE_INCHES = 36;
 const MAX_ELIGIBLE_ITEM_IDS = 50;
@@ -68,6 +77,17 @@ function qualifyingLargeBannerSubtotalCents(items, eligibleCartItemIds) {
   }, 0);
 }
 
+function allQualifyingLargeBannerSubtotalCents(items) {
+  if (!Array.isArray(items)) return 0;
+  return items.reduce((sum, item) => {
+    if (!isQualifyingLargeBannerLine(item)) return sum;
+    const lineTotalCents = Number(item.line_total_cents);
+    return Number.isSafeInteger(lineTotalCents) && lineTotalCents >= 0
+      ? sum + lineTotalCents
+      : sum;
+  }, 0);
+}
+
 function isLargeBannerRecoveryDiscount(discount) {
   return Boolean(discount)
     && discount.campaign === LARGE_BANNER_RECOVERY_CAMPAIGN
@@ -101,9 +121,53 @@ function validateLargeBannerRecoveryMetadata(discount) {
   return { valid: true, eligibleCartItemIds, maxDiscountAmountCents };
 }
 
+function isSeptemberLargeBannerDiscount(discount) {
+  return Boolean(discount)
+    && String(discount.code || '').trim().toUpperCase() === SEPTEMBER_LARGE_BANNER_CODE
+    && discount.campaign === SEPTEMBER_LARGE_BANNER_CAMPAIGN
+    && discount.discountScope === SEPTEMBER_LARGE_BANNER_SCOPE
+    && Number(discount.discountPercentage) === SEPTEMBER_LARGE_BANNER_PERCENTAGE;
+}
+
+function septemberLargeBannerWindow(now = new Date()) {
+  const timestamp = now instanceof Date ? now.getTime() : new Date(now).getTime();
+  const start = new Date(SEPTEMBER_LARGE_BANNER_START).getTime();
+  const endExclusive = new Date(SEPTEMBER_LARGE_BANNER_END_EXCLUSIVE).getTime();
+  if (!Number.isFinite(timestamp)) return { active: false, reason: 'invalid_time' };
+  if (timestamp < start) return { active: false, reason: 'not_started' };
+  if (timestamp >= endExclusive) return { active: false, reason: 'expired' };
+  return { active: true, reason: null };
+}
+
+function buildSeptemberLargeBannerDiscount(now = new Date()) {
+  const window = septemberLargeBannerWindow(now);
+  if (!window.active) return { valid: false, reason: window.reason, discount: null };
+  return {
+    valid: true,
+    reason: null,
+    discount: {
+      id: 'SEPTEMBER_BIG25_PROMO',
+      code: SEPTEMBER_LARGE_BANNER_CODE,
+      discountPercentage: SEPTEMBER_LARGE_BANNER_PERCENTAGE,
+      discountAmountCents: null,
+      validFrom: SEPTEMBER_LARGE_BANNER_START,
+      expiresAt: SEPTEMBER_LARGE_BANNER_END_EXCLUSIVE,
+      source: 'seasonal_promotion',
+      campaign: SEPTEMBER_LARGE_BANNER_CAMPAIGN,
+      discountScope: SEPTEMBER_LARGE_BANNER_SCOPE,
+    },
+  };
+}
+
 function promoSubtotalForItems(items, fullSubtotalCents, promoDiscount) {
-  if (!promoDiscount || promoDiscount.discountScope !== LARGE_BANNER_RECOVERY_SCOPE) {
+  if (!promoDiscount || ![LARGE_BANNER_RECOVERY_SCOPE, SEPTEMBER_LARGE_BANNER_SCOPE]
+    .includes(promoDiscount.discountScope)) {
     return Math.max(0, Number(fullSubtotalCents) || 0);
+  }
+  if (promoDiscount.discountScope === SEPTEMBER_LARGE_BANNER_SCOPE) {
+    return isSeptemberLargeBannerDiscount(promoDiscount)
+      ? allQualifyingLargeBannerSubtotalCents(items)
+      : 0;
   }
   if (!isLargeBannerRecoveryDiscount(promoDiscount)) return 0;
   const metadata = validateLargeBannerRecoveryMetadata(promoDiscount);
@@ -124,13 +188,23 @@ module.exports = {
   LARGE_BANNER_RECOVERY_PERCENTAGE,
   LARGE_BANNER_RECOVERY_SCOPE,
   LARGE_BANNER_SHORT_SIDE_INCHES,
+  SEPTEMBER_LARGE_BANNER_CAMPAIGN,
+  SEPTEMBER_LARGE_BANNER_CODE,
+  SEPTEMBER_LARGE_BANNER_END_EXCLUSIVE,
+  SEPTEMBER_LARGE_BANNER_PERCENTAGE,
+  SEPTEMBER_LARGE_BANNER_SCOPE,
+  SEPTEMBER_LARGE_BANNER_START,
+  allQualifyingLargeBannerSubtotalCents,
+  buildSeptemberLargeBannerDiscount,
   capPromoDiscountAmount,
   isLargeBannerRecoveryDiscount,
   isQualifyingLargeBannerLine,
+  isSeptemberLargeBannerDiscount,
   normalizeEligibleCartItemIds,
   positiveInteger,
   promoSubtotalForItems,
   qualifyingLargeBannerLineIds,
   qualifyingLargeBannerSubtotalCents,
+  septemberLargeBannerWindow,
   validateLargeBannerRecoveryMetadata,
 };

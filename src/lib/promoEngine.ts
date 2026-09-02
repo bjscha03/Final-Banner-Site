@@ -19,7 +19,9 @@
 
 import {
   resolveBestDiscount,
+  getPromoDiscountSubtotalCents,
   calculateTotalsWithBestDiscount,
+  type PromoDiscountCartItem,
   type PromoDiscountInput,
   type ResolvedDiscount,
 } from './discount-resolver';
@@ -78,6 +80,8 @@ export interface ResolvePromoInput {
    * estimate as checkout without adding every generated code to this bundle.
    */
   validatedPromo?: PromoDiscountInput | null;
+  /** Current cart/configurator lines used to calculate scoped promotions. */
+  items?: PromoDiscountCartItem[];
 }
 
 function matchingValidatedPromo(input: ResolvePromoInput): PromoDiscountInput | null {
@@ -93,6 +97,12 @@ function matchingValidatedPromo(input: ResolvePromoInput): PromoDiscountInput | 
     code: validatedCode,
     ...(discountPercentage > 0 ? { discountPercentage } : {}),
     ...(discountAmountCents > 0 ? { discountAmountCents } : {}),
+    ...(input.validatedPromo?.campaign ? { campaign: input.validatedPromo.campaign } : {}),
+    ...(input.validatedPromo?.discountScope ? { discountScope: input.validatedPromo.discountScope } : {}),
+    ...(input.validatedPromo?.eligibleCartItemIds ? { eligibleCartItemIds: input.validatedPromo.eligibleCartItemIds } : {}),
+    ...(input.validatedPromo?.maxDiscountAmountCents
+      ? { maxDiscountAmountCents: input.validatedPromo.maxDiscountAmountCents }
+      : {}),
   };
 }
 
@@ -104,11 +114,15 @@ export function resolvePromo(input: ResolvePromoInput): ResolvedDiscount {
   const promo = getKnownPromo(input.code);
   const promoDiscount: PromoDiscountInput | null = matchingValidatedPromo(input)
     || (promo ? { code: promo.code, discountPercentage: promo.discountPercentage } : null);
+  const promoSubtotalCents = Array.isArray(input.items)
+    ? getPromoDiscountSubtotalCents(input.items, input.subtotalCents, promoDiscount)
+    : undefined;
 
   return resolveBestDiscount({
     subtotalCents: input.subtotalCents,
     quantity: input.quantity,
     promoDiscount,
+    promoSubtotalCents,
   });
 }
 

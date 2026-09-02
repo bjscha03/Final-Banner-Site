@@ -1264,6 +1264,7 @@ exports.handler = async (event, context) => {
           email: orderData.email || null,
           userId: isRealUserId(orderData.user_id) ? orderData.user_id : null,
           checkoutKey: orderData.checkout_idempotency_key || null,
+          items: orderData.items,
         });
         if (!authoritativeDiscount.valid) {
           return {
@@ -1869,7 +1870,9 @@ exports.handler = async (event, context) => {
     // cannot be reused by any subsequent checkout session.
     if (orderData.discountCode && orderData.discountCode.code) {
       const dcCode = String(orderData.discountCode.code).trim().toUpperCase();
-      if (dcCode !== 'NEW20' && orderData.discountCode.source !== 'trade_show') {
+      if (dcCode !== 'NEW20'
+          && orderData.discountCode.source !== 'trade_show'
+          && orderData.discountCode.source !== 'seasonal_promotion') {
         try {
           const normalizedEmailForDiscount = userEmail ? userEmail.toLowerCase() : null;
           await sql`

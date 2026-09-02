@@ -4,6 +4,8 @@ import {
   isQualifyingLargeBannerDiscountItem,
   LARGE_BANNER_RECOVERY_CAMPAIGN,
   LARGE_BANNER_RECOVERY_SCOPE,
+  SEPTEMBER_LARGE_BANNER_CAMPAIGN,
+  SEPTEMBER_LARGE_BANNER_SCOPE,
   resolveBestDiscount,
   type PromoDiscountCartItem,
   type PromoDiscountInput,
@@ -94,5 +96,33 @@ describe('large-banner recovery discount client parity', () => {
       quantity: 1,
       promoDiscount: scopedOffer(),
     }).appliedDiscountAmountCents).toBe(0);
+  });
+
+  it('applies BIG25 dynamically to every qualifying large-banner line only', () => {
+    const items = [
+      item('landscape', 'banner', 72, 36, 10000),
+      item('portrait', 'banner', 36, 72, 8000),
+      item('larger', 'banner', 96, 48, 16000),
+      item('small', 'banner', 48, 24, 4000),
+      item('yard', 'yard_sign', 72, 36, 12000),
+    ];
+    const promo: PromoDiscountInput = {
+      code: 'BIG25',
+      discountPercentage: 25,
+      campaign: SEPTEMBER_LARGE_BANNER_CAMPAIGN,
+      discountScope: SEPTEMBER_LARGE_BANNER_SCOPE,
+    };
+    const promoSubtotalCents = getPromoDiscountSubtotalCents(items, 50000, promo);
+    expect(promoSubtotalCents).toBe(34000);
+    const resolved = resolveBestDiscount({
+      subtotalCents: 50000,
+      quantity: 4,
+      quantitySubtotalCents: 38000,
+      promoDiscount: promo,
+      promoSubtotalCents,
+    });
+    expect(resolved.appliedDiscountType).toBe('promo');
+    expect(resolved.appliedDiscountAmountCents).toBe(8500);
+    expect(resolved.quantityDiscountAmountCents).toBe(3800);
   });
 });

@@ -1037,12 +1037,26 @@ const Design: React.FC = () => {
       code: activeCartPromo.code,
       discountPercentage: activeCartPromo.discountPercentage,
       discountAmountCents: activeCartPromo.discountAmountCents || undefined,
+      campaign: activeCartPromo.campaign,
+      discountScope: activeCartPromo.discountScope,
+      eligibleCartItemIds: activeCartPromo.eligibleCartItemIds,
+      maxDiscountAmountCents: activeCartPromo.maxDiscountAmountCents,
     } : null,
+    items: [{
+      id: 'current-configurator-line',
+      product_type: productType,
+      width_in: widthIn,
+      height_in: heightIn,
+      line_total_cents: bannerPricing.subtotalBeforeDiscountCents,
+    }],
   }), [
     bannerPricing.subtotalBeforeDiscountCents,
     quantity,
     effectivePromoCode,
     activeCartPromo,
+    productType,
+    widthIn,
+    heightIn,
   ]);
 
   const bannerSubtotalAfterAllDiscountsCents = Math.max(
@@ -1123,7 +1137,17 @@ const Design: React.FC = () => {
       const response = await fetch('/.netlify/functions/validate-discount-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: normalizedCode, userId: user?.id || null }),
+        body: JSON.stringify({
+          code: normalizedCode,
+          userId: user?.id || null,
+          items: [{
+            id: 'current-configurator-line',
+            product_type: productType,
+            width_in: widthIn,
+            height_in: heightIn,
+            line_total_cents: bannerPricing.subtotalBeforeDiscountCents,
+          }],
+        }),
       });
       const result = await response.json();
       if (!response.ok || !result.valid || !result.discount) {
@@ -1140,7 +1164,9 @@ const Design: React.FC = () => {
       setPromoApplied(true);
       toast({
         title: 'Discount applied',
-        description: `${result.discount.discountPercentage}% off is saved to your cart and will carry into checkout.`,
+        description: result.discount.code === 'BIG25'
+          ? '25% off this qualifying large banner is saved to your cart and will carry into checkout.'
+          : `${result.discount.discountPercentage}% off is saved to your cart and will carry into checkout.`,
       });
     } catch {
       toast({

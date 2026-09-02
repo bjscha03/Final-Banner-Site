@@ -483,7 +483,14 @@ const Checkout: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           code: discountCodeInput.trim(),
-          userId: user?.id || null
+          userId: user?.id || null,
+          items: items.map((item) => ({
+            id: item.id,
+            product_type: item.product_type || 'banner',
+            width_in: item.width_in,
+            height_in: item.height_in,
+            line_total_cents: item.line_total_cents,
+          })),
         }),
       });
 
@@ -501,7 +508,9 @@ const Checkout: React.FC = () => {
         
         toast({
           title: 'Discount Applied!',
-          description: `${result.discount.discountPercentage}% off your order`,
+          description: result.discount.code === 'BIG25'
+            ? '25% off qualifying large banners'
+            : `${result.discount.discountPercentage}% off your order`,
         });
         setDiscountCodeInput('');
         setDiscountError('');
