@@ -1,4 +1,4 @@
-name: One-time large-banner order persistence patch
+name: One-time large-banner storefront patch
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   patch-and-verify:
-    if: ${{ !contains(github.event.head_commit.message, '[large-banner-order-persistence]') }}
+    if: ${{ !contains(github.event.head_commit.message, '[large-banner-storefront-copy]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
@@ -21,61 +21,158 @@ jobs:
           ref: agent/automatic-large-banner-25-discount
           fetch-depth: 0
 
-      - name: Patch authoritative order persistence
+      - name: Patch direct storefront copy and promo UX
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
 
-          path = Path('netlify/functions/_shared/legacy/create-order-core.cjs')
-          text = path.read_text()
-          marker = '  orderData.applied_promotion_id = totals.applied_promotion_id || null;'
-          if marker in text:
-              print('Order persistence patch already present.')
-              raise SystemExit(0)
+          def replace_once(file_name: str, old: str, new: str, label: str) -> None:
+              path = Path(file_name)
+              text = path.read_text()
+              if new in text and old not in text:
+                  print(f'{label}: already patched')
+                  return
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly one match, found {count}')
+              path.write_text(text.replace(old, new, 1))
+              print(f'{label}: patched')
 
-          start_marker = '  orderData.applied_discount_cents = totals.applied_discount_cents || 0;\n'
-          end_marker = '  return totals;\n'
-          start = text.find(start_marker)
-          if start < 0:
-              raise SystemExit('Could not locate authoritative discount persistence start marker.')
-          end = text.find(end_marker, start)
-          if end < 0:
-              raise SystemExit('Could not locate authoritative discount persistence end marker.')
-          end += len(end_marker)
+          google_ads = 'src/pages/GoogleAdsBanner.tsx'
+          design = 'src/pages/Design.tsx'
 
-          replacement = '\n'.join([
-              '  orderData.applied_discount_cents = totals.applied_discount_cents || 0;',
-              "  orderData.applied_discount_type = totals.applied_discount_type || 'none';",
-              '  orderData.applied_promotion_id = totals.applied_promotion_id || null;',
-              '  if (totals.applied_promotion_id) {',
-              '    // Automatic pricing is persisted through the existing discount_code',
-              '    // audit field, but it is not a claimable/single-use promo code.',
-              '    orderData.discountCode = {',
-              '      id: totals.applied_promotion_id,',
-              '      code: totals.applied_promotion_id,',
-              '      discountPercentage: Math.round((totals.applied_discount_rate || 0) * 100),',
-              '      discountAmountCents: null,',
-              "      source: 'automatic_large_banner_pricing',",
-              '      campaign: totals.applied_promotion_id,',
-              "      discountScope: 'qualifying_large_banner_lines',",
-              "      displayLabel: totals.applied_discount_label || 'Large Banner 25% Off',",
-              '    };',
-              '  }',
-              "  if (totals.applied_discount_type === 'quantity') {",
-              '    const percentage = Math.round(totals.applied_discount_rate * 100);',
-              '    orderData.applied_discount_label = `Qty Discount (${percentage}% off)`;',
-              "  } else if (totals.applied_discount_type === 'promo') {",
-              '    orderData.applied_discount_label = totals.applied_discount_label',
-              "      || `Promo: ${orderData.discountCode?.code || 'Applied'}`;",
-              '  } else {',
-              "    orderData.applied_discount_label = '';",
-              '  }',
-              '  return totals;',
-              '',
-          ])
-          path.write_text(text[:start] + replacement + text[end:])
-          print('Patched automatic promotion id and label persistence.')
+          replace_once(
+              google_ads,
+              '''          <p className="homepage-condensed whitespace-nowrap [--homepage-mobile-size:3rem] text-5xl font-black uppercase leading-none text-[#E95413] sm:text-[4rem]">20% off</p>
+          <div className="border-l-2 border-[#E95413] pl-4 text-sm font-bold uppercase leading-5 tracking-[0.04em] sm:text-base sm:leading-6">
+            First order<br />Use code NEW20
+          </div>''',
+              '''          <p className="homepage-condensed whitespace-nowrap [--homepage-mobile-size:3rem] text-5xl font-black uppercase leading-none text-[#E95413] sm:text-[4rem]">25% off</p>
+          <div className="border-l-2 border-[#E95413] pl-4 text-sm font-bold uppercase leading-5 tracking-[0.04em] sm:text-base sm:leading-6">
+            6′ × 3′ &amp; larger<br />Applied automatically
+          </div>''',
+              'Google Ads hero offer',
+          )
+
+          replace_once(
+              google_ads,
+              "  const [promoCode, setPromoCode] = useState(storedPromoAtLoad?.code || 'NEW20');",
+              "  const [promoCode, setPromoCode] = useState(storedPromoAtLoad?.code || '');",
+              'Google Ads empty promo default',
+          )
+          replace_once(
+              google_ads,
+              "    setPromoCode('NEW20');",
+              "    setPromoCode('');",
+              'Google Ads promo reset',
+          )
+          replace_once(
+              google_ads,
+              "          offer: 'New customers: 20% off with NEW20',",
+              "          offer: 'Large banners 6′ × 3′ and up: 25% off automatically',",
+              'Google Ads structured offer copy',
+          )
+
+          old_promo_success = '''      cartStore.applyDiscountCode(result.discount);
+      setPromoCode(result.discount.code);
+      setPromoApplied(true);
+      toast({
+        title: 'Discount applied',
+        description: result.discount.code === 'BIG25'
+          ? '25% off this qualifying large banner is saved to your cart and will carry into checkout.'
+          : `${result.discount.discountPercentage}% off is saved to your cart and will carry into checkout.`,
+      });'''
+          new_promo_success = '''      const selectedBannerQualifiesForAutomaticPrice = productType === 'banner'
+        && hasConfirmedSize
+        && Math.max(Number(widthIn), Number(heightIn)) >= 72
+        && Math.min(Number(widthIn), Number(heightIn)) >= 36;
+      const validatedPercentage = Number(result.discount.discountPercentage || 0);
+
+      if (
+        selectedBannerQualifiesForAutomaticPrice
+        && validatedPercentage > 0
+        && validatedPercentage <= 25
+      ) {
+        cartStore.removeDiscountCode();
+        setPromoCode(normalizedCode);
+        setPromoApplied(false);
+        toast({
+          title: 'Large Banner 25% Off already applied',
+          description: `${normalizedCode} cannot be combined with the automatic 25% large-banner price.`,
+        });
+        return;
+      }
+
+      cartStore.applyDiscountCode(result.discount);
+      setPromoCode(result.discount.code);
+      setPromoApplied(true);
+      toast({
+        title: 'Discount applied',
+        description: validatedPercentage > 0
+          ? `${validatedPercentage}% off is saved to your cart and will carry into checkout.`
+          : 'Your promotion is saved to your cart and will carry into checkout.',
+      });'''
+          replace_once(google_ads, old_promo_success, new_promo_success, 'Google Ads no-stacking promo action')
+          replace_once(design, old_promo_success, new_promo_success, 'Main designer no-stacking promo action')
+
+          replace_once(
+              google_ads,
+              '''                  {!isCarMagnet && quantityDiscountRate > 0 && (
+                    <p className="text-xs text-green-600 font-medium mt-1.5">
+                      🎉 {Math.round(quantityDiscountRate * 100)}% bulk discount applied at checkout
+                    </p>
+                  )}
+                  {!isCarMagnet && quantity === 1 && (
+                    <p className="text-xs text-gray-400 mt-1.5">Order 2+ for up to 13% off</p>
+                  )}''',
+              '''                  {!isCarMagnet && bannerPromoResolution.appliedDiscountType === 'quantity' && quantityDiscountRate > 0 && (
+                    <p className="text-xs text-green-600 font-medium mt-1.5">
+                      🎉 {Math.round(quantityDiscountRate * 100)}% bulk discount applied at checkout
+                    </p>
+                  )}
+                  {!isCarMagnet && bannerPromoResolution.promotionId === 'LARGE_BANNER_25' && quantityDiscountRate > 0 && (
+                    <p className="mt-1.5 text-xs font-medium text-emerald-700">
+                      Large Banner 25% Off applied automatically. Quantity discounts cannot be combined.
+                    </p>
+                  )}
+                  {!isCarMagnet && quantity === 1 && bannerPromoResolution.promotionId !== 'LARGE_BANNER_25' && (
+                    <p className="text-xs text-gray-400 mt-1.5">Order 2+ for up to 13% off</p>
+                  )}''',
+              'Google Ads quantity-discount message',
+          )
+
+          replace_once(
+              design,
+              "      { icon: Tag, iconClass: 'text-orange-500', label: '20% Off · NEW20' },",
+              "      { icon: Tag, iconClass: 'text-orange-500', label: '25% Off · 6′×3′+' },",
+              'Main designer trust strip offer',
+          )
+          replace_once(
+              design,
+              '''                {!isCarMagnet && quantityDiscountRate > 0 && (
+                  <p className="text-xs text-green-600 font-medium mt-1.5">
+                    🎉 {Math.round(quantityDiscountRate * 100)}% bulk discount applied at checkout
+                  </p>
+                )}
+                {quantity === 1 && (
+                  <p className="text-xs text-gray-500 mt-1.5">Use +/- to adjust quantity quickly.</p>
+                )}''',
+              '''                {!isCarMagnet && bannerPromoResolution.appliedDiscountType === 'quantity' && quantityDiscountRate > 0 && (
+                  <p className="text-xs text-green-600 font-medium mt-1.5">
+                    🎉 {Math.round(quantityDiscountRate * 100)}% bulk discount applied at checkout
+                  </p>
+                )}
+                {!isCarMagnet && bannerPromoResolution.promotionId === 'LARGE_BANNER_25' && quantityDiscountRate > 0 && (
+                  <p className="mt-1.5 text-xs font-medium text-emerald-700">
+                    Large Banner 25% Off applied automatically. Quantity discounts cannot be combined.
+                  </p>
+                )}
+                {quantity === 1 && (
+                  <p className="text-xs text-gray-500 mt-1.5">Use +/- to adjust quantity quickly.</p>
+                )}''',
+              'Main designer quantity-discount message',
+          )
           PY
 
       - name: Set up Node.js
@@ -95,20 +192,21 @@ jobs:
             netlify/functions/__tests__/september-promo-discount.test.cjs
           npx vitest run \
             src/lib/__tests__/largeBannerPromotion.test.ts \
+            src/lib/__tests__/orderPricingLargeBannerPromotion.test.ts \
             src/lib/discount-resolver.recovery.test.ts \
             src/lib/__tests__/promoEngine.test.ts
 
       - name: Build storefront and server bundle
         run: npm run build
 
-      - name: Commit authoritative persistence patch
+      - name: Commit storefront patch
         run: |
-          if git diff --quiet -- netlify/functions/_shared/legacy/create-order-core.cjs; then
-            echo "No persistence patch commit needed."
+          if git diff --quiet -- src/pages/GoogleAdsBanner.tsx src/pages/Design.tsx; then
+            echo "No storefront patch commit needed."
             exit 0
           fi
           git config user.name "Banners On The Fly Automation"
           git config user.email "actions@users.noreply.github.com"
-          git add netlify/functions/_shared/legacy/create-order-core.cjs
-          git commit -m "Persist automatic large-banner promotion metadata [large-banner-order-persistence]"
+          git add src/pages/GoogleAdsBanner.tsx src/pages/Design.tsx
+          git commit -m "Update large-banner promotion storefront UX [large-banner-storefront-copy]"
           git push origin HEAD:agent/automatic-large-banner-25-discount
