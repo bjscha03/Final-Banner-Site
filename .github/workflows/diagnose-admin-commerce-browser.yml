@@ -1,4 +1,4 @@
-name: Diagnose Admin commerce browser
+name: Repair abandoned-cart admin payload normalization
 
 on:
   push:
@@ -6,38 +6,69 @@ on:
       - feat/automatic-large-banner-25
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  diagnose:
+  repair-and-verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
           ref: feat/automatic-large-banner-25
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: npm
       - run: npm ci
-      - name: Add runtime diagnostics
+      - name: Normalize optional historical cart arrays at the API boundary
         run: |
           python - <<'PY'
           from pathlib import Path
-          path = Path('tests/browser/admin-commerce-analytics.playwright.spec.ts')
+
+          path = Path('src/pages/admin/AbandonedCarts.tsx')
           text = path.read_text()
-          marker = "  await page.goto('/admin/abandoned-carts', { waitUntil: 'domcontentloaded' });\n"
-          diagnostic = marker + "  await page.waitForTimeout(5000);\n  console.log('ADMIN_PAGE_URL', page.url());\n  console.log('ADMIN_PAGE_ERRORS', JSON.stringify(pageErrors));\n  console.log('ADMIN_BODY_TEXT_START');\n  console.log((await page.locator('body').innerText()).slice(0, 12000));\n  console.log('ADMIN_BODY_TEXT_END');\n  console.log('ADMIN_HTML_START');\n  console.log((await page.content()).slice(0, 30000));\n  console.log('ADMIN_HTML_END');\n"
-          if marker not in text:
-              raise SystemExit('diagnostic insertion marker not found')
-          path.write_text(text.replace(marker, diagnostic, 1))
+          old = """      setCarts(Array.isArray(data.carts) ? data.carts : []);
+      setServerAnalytics(data.analytics || null);"""
+          new = """      const normalizedCarts = (Array.isArray(data.carts) ? data.carts : []).map((cart) => ({
+        ...cart,
+        item_summaries: Array.isArray(cart.item_summaries) ? cart.item_summaries : [],
+        recovery_events: Array.isArray(cart.recovery_events) ? cart.recovery_events : [],
+        recovery_deliveries: Array.isArray(cart.recovery_deliveries) ? cart.recovery_deliveries : [],
+        recovery_offers: Array.isArray(cart.recovery_offers) ? cart.recovery_offers : [],
+      }));
+      setCarts(normalizedCarts);
+      setServerAnalytics(data.analytics || null);"""
+          if new in text and old not in text:
+              print('Abandoned-cart payload normalization is already present.')
+          elif text.count(old) != 1:
+              raise SystemExit(f'Expected one cart assignment block, found {text.count(old)}')
+          else:
+              path.write_text(text.replace(old, new, 1))
+              print('Normalized optional item/recovery arrays before rendering historical carts.')
           PY
-      - name: Run focused browser test
+      - name: Run desktop and mobile Admin commerce browser contracts
         run: |
           browser=$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)
+          if [ -z "$browser" ]; then
+            echo "No supported Chrome/Chromium executable was found"
+            exit 1
+          fi
           PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="$browser" npx playwright test \
             --config=playwright.preview.config.ts \
             admin-commerce-analytics.playwright.spec.ts \
             --project=chromium-1440x900 \
+            --project=chromium-pixel8-portrait \
             --workers=1
+      - name: Lint repaired files
+        run: npx eslint src/pages/admin/AbandonedCarts.tsx tests/browser/admin-commerce-analytics.playwright.spec.ts
+      - name: Commit repair and remove temporary workflow
+        run: |
+          rm .github/workflows/diagnose-admin-commerce-browser.yml
+          git config user.name "Banners On The Fly CI"
+          git config user.email "actions@users.noreply.github.com"
+          git add src/pages/admin/AbandonedCarts.tsx .github/workflows/diagnose-admin-commerce-browser.yml
+          git commit -m "Normalize abandoned-cart Admin payload arrays"
+          git push origin HEAD:feat/automatic-large-banner-25
