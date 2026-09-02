@@ -1,24 +1,15 @@
 /**
- * Promo Engine - single source of truth for promo-code metadata and
- * best-discount-wins resolution across the storefront UI.
+ * Promo Engine - storefront adapter for promo metadata and centralized
+ * best-discount-wins resolution.
  *
- * Server-side validation (first-order eligibility, expiry, etc.) lives in
- * netlify/functions/validate-discount-code.cjs. This client engine only
- * mirrors the static rate metadata so UI estimates match server reality.
- *
- * USAGE RULES
- * -----------
- *  - Promo codes are NEVER auto-applied. They must come from explicit user
- *    input (e.g. the Apply button on /design or in Checkout).
- *  - Promo discounts do NOT stack with the quantity discount; the resolver
- *    picks the larger of the two ("best discount wins").
- *  - Yard signs are excluded from quantity-discount tiering at the
- *    cart-resolver layer; the per-product engine still computes magnets and
- *    banners through the same tiers.
+ * Manual promo-code validation remains server-authoritative. The automatic
+ * LARGE_BANNER_25 promotion is derived from the configured item dimensions and
+ * therefore needs no code or client-side persisted boolean.
  */
 
 import {
   resolveBestDiscount,
+  getAutomaticLargeBannerSubtotalCents,
   getPromoDiscountSubtotalCents,
   calculateTotalsWithBestDiscount,
   type PromoDiscountCartItem,
@@ -30,11 +21,7 @@ export const BEST_DISCOUNT_WINS = true as const;
 
 export interface KnownPromoCode {
   code: string;
-  /**
-   * Discount percentage as a 1-100 number (e.g. 20 means 20% off). This
-   * matches the wire shape used by `PromoDiscountInput.discountPercentage`
-   * in `discount-resolver.ts`.
-   */
+  /** Discount percentage as a 1-100 number (e.g. 20 means 20% off). */
   discountPercentage: number;
   /** Free-text description (UI only). */
   description: string;
@@ -43,9 +30,8 @@ export interface KnownPromoCode {
 }
 
 /**
- * Static catalogue of promo codes recognized by the client UI for live
- * estimates. The authoritative list lives server-side; this is for display
- * only and must NOT be used to bypass server validation at checkout.
+ * Static catalogue used only for live estimates after a code is entered. The
+ * server validator is authoritative and can reject any client-known code.
  */
 export const KNOWN_PROMO_CODES: Record<string, KnownPromoCode> = {
   NEW20: {
@@ -74,13 +60,9 @@ export interface ResolvePromoInput {
   quantity: number;
   /** Raw promo code typed by the user, or null if none. */
   code?: string | null;
-  /**
-   * Promo metadata returned by the server validator. This lets reusable,
-   * database-backed offers (including trade-show codes) render the same live
-   * estimate as checkout without adding every generated code to this bundle.
-   */
+  /** Server-validated, database-backed promotion metadata. */
   validatedPromo?: PromoDiscountInput | null;
-  /** Current cart/configurator lines used to calculate scoped promotions. */
+  /** Current cart/configurator lines used for scoped and automatic offers. */
   items?: PromoDiscountCartItem[];
 }
 
@@ -106,16 +88,15 @@ function matchingValidatedPromo(input: ResolvePromoInput): PromoDiscountInput | 
   };
 }
 
-/**
- * Resolve the single best discount (quantity vs. promo) for a given subtotal.
- * Returns the same shape as `resolveBestDiscount` for compatibility.
- */
+/** Resolve quantity, automatic large-banner, and manual promo candidates. */
 export function resolvePromo(input: ResolvePromoInput): ResolvedDiscount {
   const promo = getKnownPromo(input.code);
   const promoDiscount: PromoDiscountInput | null = matchingValidatedPromo(input)
     || (promo ? { code: promo.code, discountPercentage: promo.discountPercentage } : null);
-  const promoSubtotalCents = Array.isArray(input.items)
-    ? getPromoDiscountSubtotalCents(input.items, input.subtotalCents, promoDiscount)
+  const items = Array.isArray(input.items) ? input.items : [];
+  const automaticPromotionSubtotalCents = getAutomaticLargeBannerSubtotalCents(items);
+  const promoSubtotalCents = promoDiscount
+    ? getPromoDiscountSubtotalCents(items, input.subtotalCents, promoDiscount)
     : undefined;
 
   return resolveBestDiscount({
@@ -123,6 +104,7 @@ export function resolvePromo(input: ResolvePromoInput): ResolvedDiscount {
     quantity: input.quantity,
     promoDiscount,
     promoSubtotalCents,
+    automaticPromotionSubtotalCents,
   });
 }
 
@@ -135,12 +117,9 @@ export interface PromoTotals {
 }
 
 /**
- * Compute final totals (subtotal → best discount → tax → total).
- *
- * @param subtotalCents Raw subtotal BEFORE any discount.
- * @param quantity      Quantity counted for the tier.
- * @param taxRate       Decimal tax rate (e.g. 0.06).
- * @param code          Optional promo code typed by the user.
+ * Compute totals for callers that do not have item dimensions. Item-aware
+ * configurators and carts should use resolvePromo so automatic eligibility can
+ * be derived from their lines.
  */
 export function computePromoTotals(
   subtotalCents: number,
