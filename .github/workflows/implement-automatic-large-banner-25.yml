@@ -1,0 +1,149 @@
+name: Implement automatic large-banner 25 percent discount
+
+on:
+  push:
+    branches:
+      - feature/automatic-large-banner-25
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    if: ${{ !contains(github.event.head_commit.message, '[large-banner-implemented]') && !contains(github.event.head_commit.message, '[large-banner-cleanup]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/automatic-large-banner-25
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Auggie CLI
+        run: npm install -g @augmentcode/auggie
+
+      - name: Implement the production-ready promotion
+        env:
+          AUGMENT_SESSION_AUTH: ${{ secrets.AUGMENT_SESSION_AUTH }}
+        run: |
+          auggie --print --quiet "$(cat <<'PROMPT'
+          Work directly in this repository on the current feature branch. Implement the following production-ready change completely; do not merely write a prompt or plan, do not merge to main, and do not deploy.
+
+          BUSINESS RULE
+          Automatically apply 25% off to every finished banner line where one side is at least 72 inches and the other side is at least 36 inches, regardless of orientation. Use one centralized eligibility function equivalent to:
+          (widthIn >= 72 && heightIn >= 36) || (widthIn >= 36 && heightIn >= 72)
+          This is not area-based. It must apply only to product_type banner, never yard signs or car magnets.
+
+          Required boundary cases:
+          - 6x2 / 72x24: not eligible
+          - 6x3 / 72x36: eligible
+          - 3x6 / 36x72: eligible
+          - 9x2 / 108x24: not eligible
+          - 71x36: not eligible
+          - 72x36: eligible
+
+          PRICE AND DISCOUNT POLICY
+          - The automatic promotion ID is LARGE_BANNER_25 and the customer label is Large Banner 25% Off.
+          - Calculate from the raw finished banner line total after material, finishing, quantity, rope, pole-pocket, and other configuration changes, but before tax.
+          - Recalculate immediately whenever dimensions, material, finishing, quantity, or add-ons change.
+          - Never compound it with NEW20, BIG25, abandoned-cart percentage offers, quantity/bulk percentages, or any other percentage promotion.
+          - When more than one percentage offer is eligible, use the highest percentage rate; on equal rates use the larger savings, then prefer the automatic promotion as the tie-breaker. A higher fixed-dollar credit may win if its dollar savings is greater, but it must not stack.
+          - A qualifying banner plus NEW20 must still receive exactly 25%, never 40% and never 20%.
+          - Show this exact conflict message when a customer enters a competing percentage code: This banner already includes our 25% large-banner discount. Additional percentage discounts cannot be combined.
+          - A nonqualifying banner must continue to allow normal promo-code behavior.
+
+          SINGLE SOURCE OF TRUTH
+          Audit the existing pricing flow first, then make the smallest safe shared changes. The codebase already has central client discount logic in src/lib/discount-resolver.ts and src/lib/promoEngine.ts; cart resolution in src/store/cart.ts; authoritative server totals in netlify/functions/_shared/checkoutTotals.cjs; large-banner qualification helpers in netlify/functions/_shared/recovery-discount-policy.cjs; order persistence in netlify/functions/_shared/legacy/create-order-core.cjs; and payment reservation logic in netlify/functions/_shared/payment-discount-reservation.cjs. Reuse/refactor those instead of adding parallel math.
+
+          The exact automatic eligibility and amount must be used consistently by:
+          - regular banner designer
+          - Google Ads banner designer
+          - desktop and mobile price summaries
+          - cart drawer
+          - checkout
+          - Stripe, wallet, and PayPal server totals
+          - order records, admin, My Orders, and transactional emails through persisted applied discount metadata
+          - abandoned-cart restoration
+
+          Preserve pre-discount line totals. Persist the automatic promotion ID and friendly label in the order metadata; do not consume or reserve it as a coupon row. If a customer entered NEW20 but automatic 25% wins, do not consume NEW20.
+
+          USER INTERFACE
+          Both designer routes share ConfigCard and PriceBreakdown; implement the UI in shared components where possible.
+          - In the Dimensions preset pills add a small circular orange 25% OFF badge to 6x3, 8x3, 8x4, and 10x4. Do not add it to 4x2 or 6x2.
+          - Keep the existing MOST POPULAR marker on 6x3 and prevent overlap.
+          - Add subtle copy near dimensions: All banners 6' × 3' and up are 25% off!
+          - Price hierarchy for an eligible size: new price large/bold/navy; old price smaller/gray/crossed out; compact orange 25% OFF badge; green savings line.
+          - The breakdown should use the friendly row Large Banner 25% Off and should not present the automatic promotion as a typed coupon.
+          - Make mobile sticky pricing update to the discounted price immediately.
+          - Checkout should clearly show the original subtotal, automatic discount, savings, and final total.
+          - Keep the existing Google Ads route structure, attribution, analytics, conversion tracking, add-to-cart behavior, image persistence, checkout routing, and visual hierarchy intact.
+
+          TESTS
+          Add focused client and server regression tests covering all boundary cases, no-code automatic application, qualifying NEW20 no-stack behavior, nonqualifying NEW20 behavior, mixed carts where only qualifying banner lines form the automatic base, a higher percentage offer, a larger fixed-dollar credit, and persisted automatic metadata. Update older recovery/BIG25 expectations that are superseded by the permanent automatic rule while preserving their security/scoping tests.
+
+          Run and fix:
+          - targeted Vitest tests for the client pricing engine
+          - node --test for automatic, BIG25, and recovery server tests
+          - ESLint on every changed TS/TSX file
+          - npx tsc --noEmit
+          - npm run build
+
+          Do not return the branch until all changed code is internally consistent and the tests are green. Do not touch unrelated functionality.
+          PROMPT
+          )"
+
+      - name: Commit implementation to feature branch
+        run: |
+          git config user.name "OpenAI Implementation Bot"
+          git config user.email "openai-implementation-bot@noreply.github.com"
+          git add -A
+          git diff --staged --quiet || git commit -m "Implement automatic large-banner 25% discount [large-banner-implemented]"
+          git push origin HEAD:feature/automatic-large-banner-25
+
+      - name: Run client pricing tests
+        run: |
+          npx vitest run src/lib/__tests__/promoEngine.test.ts src/lib/automatic-large-banner-promotion.test.ts src/lib/discount-resolver.recovery.test.ts
+
+      - name: Run server pricing tests
+        run: |
+          node --test \
+            netlify/functions/__tests__/automatic-large-banner-discount.test.cjs \
+            netlify/functions/__tests__/september-promo-discount.test.cjs \
+            netlify/functions/__tests__/recovery-discount-policy.test.cjs
+
+      - name: Lint changed storefront files
+        run: |
+          npx eslint \
+            src/lib/discount-resolver.ts \
+            src/lib/promoEngine.ts \
+            src/store/cart.ts \
+            src/components/design/layout/ConfigCard.tsx \
+            src/components/pricing/PriceBreakdown.tsx \
+            src/components/design/MobileSubtotalBar.tsx \
+            src/components/checkout/CheckoutOrderTotals.tsx \
+            src/lib/automatic-large-banner-promotion.test.ts
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Production build
+        run: npm run build
+
+      - name: Remove one-time workflow after success
+        run: |
+          rm .github/workflows/implement-automatic-large-banner-25.yml
+          git add -A
+          git commit -m "Remove one-time implementation workflow [large-banner-cleanup]"
+          git push origin HEAD:feature/automatic-large-banner-25
