@@ -4,6 +4,9 @@ const SESSION_HEADER = 'X-Banners-Admin-Session';
 const SESSION_COOKIE = 'banners_admin_session';
 const SESSION_TTL_SECONDS = 8 * 60 * 60;
 
+const isDeployPreview = () => typeof window !== 'undefined'
+  && /^deploy-preview-\d+--.+\.netlify\.app$/i.test(window.location.hostname);
+
 function readStorage(storage: Storage | undefined): string | null {
   if (!storage) return null;
   try {
@@ -115,7 +118,7 @@ export async function adminFetch(input: RequestInfo | URL, init: RequestInit = {
   const token = getServerSessionToken();
   const isAdminPage = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin');
 
-  if (!token && isAdminPage) {
+  if (!token && isAdminPage && !isDeployPreview()) {
     clearStaleAdminIdentity();
     redirectToAdminLogin();
     return new Response(JSON.stringify({ error: 'UNAUTHORIZED', message: 'Admin session required' }), {
