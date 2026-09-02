@@ -1,0 +1,75 @@
+name: Verify automatic large-banner promotion
+
+on:
+  push:
+    branches:
+      - work/automatic-large-banner-25
+
+permissions:
+  contents: write
+
+concurrency:
+  group: large-banner-promo-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  implement-and-verify:
+    if: ${{ !contains(github.event.head_commit.message, '[large-banner-patched]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply cross-cutting source patches
+        run: node scripts/apply-large-banner-promo-patches.mjs
+
+      - name: Run focused client promotion tests
+        run: >-
+          npx vitest run
+          src/lib/large-banner-promotion.test.ts
+          src/lib/discount-resolver.recovery.test.ts
+          src/lib/__tests__/promoEngine.test.ts
+
+      - name: Run focused server promotion tests
+        run: >-
+          node --test
+          netlify/functions/__tests__/automatic-large-banner-promotion.test.cjs
+          netlify/functions/__tests__/recovery-discount-policy.test.cjs
+          netlify/functions/__tests__/september-promo-discount.test.cjs
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build production bundles
+        run: npm run build
+
+      - name: Run existing Vitest suite
+        run: npx vitest run
+
+      - name: Commit verified source patches
+        run: |
+          if git diff --quiet; then
+            echo "No generated source changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src netlify
+          git commit -m "[large-banner-patched] Complete automatic 25% promotion integration"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
