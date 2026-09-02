@@ -213,7 +213,6 @@ function renderFeaturedPreview(featured) {
 
 function renderOfferCard({
   code,
-  expiresAtLabel,
   recoverySavingsCents,
   appliedDiscountCents,
   offerTotalCents,
@@ -230,7 +229,7 @@ function renderOfferCard({
         <p style="margin:0;color:#ffffff;font-size:28px;line-height:1.2;font-weight:800;">25% OFF THIS ORDER</p>
         <p style="margin:14px 0 5px;color:#cbd5e1;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Your one-time code</p>
         <p style="margin:0;display:inline-block;background:#ffffff;border-radius:8px;padding:10px 16px;color:${BRAND_NAVY};font-family:Courier New,monospace;font-size:22px;font-weight:800;letter-spacing:1.5px;word-break:break-all;">${escapeHtml(code)}</p>
-        <p style="margin:14px 0 0;color:#ffffff;font-size:14px;font-weight:700;">Expires ${escapeHtml(expiresAtLabel)}</p>
+        <p style="margin:14px 0 0;color:#ffffff;font-size:14px;font-weight:700;">Expires exactly one hour after this email was sent</p>
         <p style="margin:7px 0 0;color:#e2e8f0;font-size:13px;">${escapeHtml(savingsLine)}</p>
         ${retainedBetterDiscount ? `<p style="margin:7px 0 0;color:#ffffff;font-size:12px;font-weight:700;">Checkout total ${escapeHtml(formatMoneyFromCents(offerTotalCents))}</p>` : ''}
         <p style="margin:8px 0 0;color:#cbd5e1;font-size:11px;line-height:1.5;">The 25% recovery discount applies only to qualifying 6′ × 3′ or larger banner line items in this saved cart. Your cart automatically keeps the better of this offer or an existing discount; discounts are never stacked.</p>
@@ -373,7 +372,7 @@ function buildText({
       'PRIVATE ONE-HOUR RECOVERY OFFER',
       '25% OFF THIS ORDER',
       `Code: ${offer.code}`,
-      `Expires: ${offer.expiresAtLabel}`,
+      'Expires: Exactly one hour after this email was sent',
       `25% offer savings: ${formatMoneyFromCents(offer.recoverySavingsCents)}`,
       ...(offer.retainedBetterDiscount ? [
         `${existingDiscountLabel || 'Your current discount'} saves more: ${formatMoneyFromCents(offer.appliedDiscountCents)}`,
@@ -510,7 +509,6 @@ function buildAbandonedCartEmail(sequenceNumber, data = {}) {
       ${renderFeaturedPreview(featured)}
       ${offer ? renderOfferCard({
         code: offer.code,
-        expiresAtLabel: offer.expiresAtLabel,
         recoverySavingsCents: offer.recoverySavingsCents,
         appliedDiscountCents: offer.appliedDiscountCents,
         offerTotalCents: offer.totalCents,

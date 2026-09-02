@@ -85,6 +85,16 @@ const formatDate = (value: string | null): string => {
   return Number.isNaN(date.getTime()) ? 'Not captured' : date.toLocaleString();
 };
 
+const recoverySendErrorMessage = (result: unknown): string => {
+  if (!result || typeof result !== 'object') return 'Recovery email was not sent';
+  const response = result as Record<string, unknown>;
+  for (const field of ['message', 'reason', 'error']) {
+    const value = response[field];
+    if (typeof value === 'string' && value.trim()) return value.trim().slice(0, 300);
+  }
+  return 'Recovery email was not sent';
+};
+
 const getTimeSince = (value: string | null): string => {
   if (!value) return 'Not captured';
   const date = new Date(value);
@@ -704,7 +714,7 @@ const AbandonedCarts: React.FC = () => {
       });
       const result = await response.json();
       if (!response.ok || result?.skipped) {
-        throw new Error(result?.message || result?.reason || result?.error || (typeof result === 'string' ? result : JSON.stringify(result)) || 'Recovery email was not sent');
+        throw new Error(recoverySendErrorMessage(result));
       }
       toast({
         title: `Recovery email ${sequenceNumber} sent`,

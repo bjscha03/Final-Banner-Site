@@ -115,7 +115,7 @@ test('qualifying Email 1 shows actual artwork, full options, exact expiry, and a
   assert.match(email.html, /Line Total: \$100\.00/);
   assert.match(email.html, /25% OFF THIS ORDER/);
   assert.match(email.html, /&lt;SAVE&amp;25&gt;/);
-  assert.match(email.html, /Expires January 15, 2030 at 5:00 PM EST/);
+  assert.match(email.html, /Expires exactly one hour after this email was sent/);
   assert.match(email.html, /You save \$25\.00 · Offer total \$155\.00/);
   assert.match(email.html, /25% off qualifying banner items/);
   assert.match(email.html, /-\$25\.00/);
@@ -131,7 +131,7 @@ test('qualifying Email 1 shows actual artwork, full options, exact expiry, and a
 
   assert.match(email.text, /Hi Brandon,/);
   assert.match(email.text, /Code: <SAVE&25>/);
-  assert.match(email.text, /Expires: January 15, 2030 at 5:00 PM EST/);
+  assert.match(email.text, /Expires: Exactly one hour after this email was sent/);
   assert.match(email.text, /25% offer savings: \$25\.00/);
   assert.match(email.text, /Offer total: \$155\.00/);
   assert.match(email.text, /Grommets: Every 2–3 Feet/);

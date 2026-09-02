@@ -7,7 +7,6 @@ import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
 const sendModule = require('../_shared/legacy/send-abandoned-cart-email.cjs');
-const emailTemplate = require('../_shared/legacy/abandoned-cart-email-template.cjs');
 const detector = require('../_shared/legacy/detect-abandoned-carts.cjs');
 const deleteModule = require('../_shared/legacy/delete-abandoned-cart.cjs');
 const discountModule = require('../_shared/legacy/generate-discount.cjs');
@@ -35,6 +34,12 @@ const originalEnv = {
   PUBLIC_SITE_URL: process.env.PUBLIC_SITE_URL,
   SITE_URL: process.env.SITE_URL,
   RECOVERY_EMAILS_ENABLED: process.env.RECOVERY_EMAILS_ENABLED,
+  RECOVERY_EMAIL_FROM: process.env.RECOVERY_EMAIL_FROM,
+  RECOVERY_EMAIL_REPLY_TO: process.env.RECOVERY_EMAIL_REPLY_TO,
+  EMAIL_FROM_ORDERS: process.env.EMAIL_FROM_ORDERS,
+  EMAIL_FROM_SUPPORT: process.env.EMAIL_FROM_SUPPORT,
+  EMAIL_FROM: process.env.EMAIL_FROM,
+  EMAIL_REPLY_TO: process.env.EMAIL_REPLY_TO,
 };
 
 function queryText(first) {
@@ -48,6 +53,12 @@ test.before(() => {
   process.env.NETLIFY_DATABASE_URL = 'postgres://recovery-test.invalid/db';
   process.env.RESEND_API_KEY = 're_test_key';
   process.env.RECOVERY_EMAILS_ENABLED = 'true';
+  delete process.env.RECOVERY_EMAIL_FROM;
+  delete process.env.RECOVERY_EMAIL_REPLY_TO;
+  process.env.EMAIL_FROM = 'info@bannersonthefly.com';
+  process.env.EMAIL_REPLY_TO = 'support@bannersonthefly.com';
+  process.env.EMAIL_FROM_ORDERS = 'Banners On The Fly Orders <orders@bannersonthefly.com>';
+  process.env.EMAIL_FROM_SUPPORT = 'Banners On The Fly Support <support@bannersonthefly.com>';
 });
 
 test.after(() => {
@@ -145,12 +156,18 @@ function deliveryFixture({ providerError = null, cartItems = null, cartOverrides
       assert.equal(state.claim, true);
       state.completionQuery = query;
       state.completionValues = values;
+      const completedMetadata = values.find((value) => (
+        typeof value === 'string'
+        && value.includes('"templateVersion"')
+        && value.includes('"offerExpiresAt"')
+      ));
+      if (completedMetadata) Object.assign(state.deliveryMetadata, JSON.parse(completedMetadata));
       state.sent = 1;
       state.claim = false;
       return [{
         id: cartId,
-        offer_expires_at: state.issuedCode ? state.offerExpiresAt : null,
-        offer_activated_at: state.issuedCode ? new Date().toISOString() : null,
+        offer_expires_at: state.issuedCode ? state.deliveryMetadata.offerExpiresAt : null,
+        offer_activated_at: state.issuedCode ? state.deliveryMetadata.offerActivatedAt : null,
       }];
     }
     if (/WITH failed AS/i.test(query)) {
@@ -201,6 +218,8 @@ test('concurrent sequence claims produce one Resend call and one durable complet
   assert.ok(fixture.state.options.signal instanceof AbortSignal);
   assert.equal(fixture.state.options.signal.aborted, false);
   assert.equal(fixture.state.payload.to, 'buyer@example.com');
+  assert.equal(fixture.state.payload.from, 'Banners On The Fly Orders <orders@bannersonthefly.com>');
+  assert.equal(fixture.state.payload.replyTo, 'Banners On The Fly Support <support@bannersonthefly.com>');
   assert.match(fixture.state.payload.html, /\/checkout#recovery=/);
   assert.doesNotMatch(fixture.state.payload.html, /[?&]recovery=/);
   assert.doesNotMatch(fixture.state.payload.html, /recover_cart|[?&]cart=/);
@@ -240,6 +259,56 @@ test('deploy previews keep recovery links on the isolated deploy origin', () => 
 
   process.env.DEPLOY_PRIME_URL = 'https://attacker.example/checkout';
   assert.equal(sendModule._test.canonicalSiteUrl(), 'https://bannersonthefly.com');
+});
+
+test('recovery sender uses the branded order/support identities and preserves explicit overrides', () => {
+  assert.deepEqual(sendModule._test.configuredRecoveryEmailIdentities({
+    EMAIL_FROM: 'info@bannersonthefly.com',
+    EMAIL_REPLY_TO: 'support@bannersonthefly.com',
+    EMAIL_FROM_ORDERS: 'Banners On The Fly Orders <orders@bannersonthefly.com>',
+    EMAIL_FROM_SUPPORT: 'Banners On The Fly Support <support@bannersonthefly.com>',
+  }), {
+    from: 'Banners On The Fly Orders <orders@bannersonthefly.com>',
+    replyTo: 'Banners On The Fly Support <support@bannersonthefly.com>',
+  });
+  assert.deepEqual(sendModule._test.configuredRecoveryEmailIdentities({
+    RECOVERY_EMAIL_FROM: 'Recovery Team <recovery@bannersonthefly.com>',
+    RECOVERY_EMAIL_REPLY_TO: 'Recovery Help <help@bannersonthefly.com>',
+    EMAIL_FROM_ORDERS: 'Banners On The Fly Orders <orders@bannersonthefly.com>',
+    EMAIL_FROM_SUPPORT: 'Banners On The Fly Support <support@bannersonthefly.com>',
+  }), {
+    from: 'Recovery Team <recovery@bannersonthefly.com>',
+    replyTo: 'Recovery Help <help@bannersonthefly.com>',
+  });
+});
+
+test('Admin delivery errors stay actionable without exposing raw runtime diagnostics', () => {
+  const internalError = Object.assign(
+    new Error('relation customer_secrets does not exist at postgres://private-host/db'),
+    { statusCode: 500 },
+  );
+  assert.equal(
+    sendModule._test.publicDeliveryErrorMessage(internalError),
+    'Recovery email delivery failed. It is safe to retry.',
+  );
+
+  const providerAuthError = Object.assign(
+    new Error('secret provider response'),
+    { name: 'ResendProviderError', statusCode: 401 },
+  );
+  assert.equal(
+    sendModule._test.publicDeliveryErrorMessage(providerAuthError),
+    'Email provider authentication failed. Check the email provider configuration.',
+  );
+
+  const cartError = Object.assign(
+    new Error('Cart has no valid email address'),
+    { statusCode: 422 },
+  );
+  assert.equal(
+    sendModule._test.publicDeliveryErrorMessage(cartError),
+    'Cart has no valid email address',
+  );
 });
 
 test('RECOVERY_EMAILS_ENABLED=false is an emergency delivery-only kill switch', async () => {
@@ -362,26 +431,30 @@ test('a qualifying 72x36 first email includes the scoped RECOVER25 offer, actual
   assert.equal(issuance.values.includes('["qualifying-banner-line"]'), true);
   assert.equal(issuance.values.includes(2025), true);
   assert.match(fixture.state.completionQuery, /WITH eligible_delivery AS MATERIALIZED[\s\S]+activated_offer AS[\s\S]+delivered AS/);
-  assert.match(fixture.state.completionQuery, /activated_at = COALESCE\(activated_at, NOW\(\)\)/);
-  assert.doesNotMatch(fixture.state.completionQuery, /SET\s+expires_at\s*=/);
-  assert.match(fixture.state.completionQuery, /issued_at = COALESCE\(issued_at, NOW\(\)\)/);
+  assert.match(fixture.state.completionQuery, /expires_at = CASE[\s\S]+WHEN activated_at IS NULL THEN \?::timestamptz[\s\S]+ELSE expires_at/);
+  assert.match(fixture.state.completionQuery, /activated_at = COALESCE\(activated_at, \?::timestamptz\)/);
+  assert.match(fixture.state.completionQuery, /issued_at = COALESCE\(issued_at, \?::timestamptz\)/);
   assert.equal(fixture.state.completionValues.includes(1), true);
   assert.equal(fixture.state.completionValues.includes(result.discountCode), true);
   assert.equal(fixture.state.completionValues.includes(cartId), true);
   assert.equal(fixture.state.completionValues.includes('abandoned_cart_large_banner_25'), true);
   assert.equal(fixture.state.queries.some(({ query }) => /'coupon_issued'/.test(query)), true);
-  assert.equal(fixture.state.deliveryMetadata.offerExpiresAt, fixture.state.offerExpiresAt);
+  assert.notEqual(fixture.state.deliveryMetadata.offerExpiresAt, fixture.state.offerExpiresAt);
+  assert.equal(
+    new Date(fixture.state.deliveryMetadata.offerExpiresAt).getTime()
+      - new Date(fixture.state.deliveryMetadata.offerActivatedAt).getTime(),
+    60 * 60 * 1000,
+  );
   assert.equal(fixture.state.deliveryMetadata.offerCode, result.discountCode);
   assert.equal(fixture.state.deliveryMetadata.offerMaxDiscountAmountCents, 2025);
   assert.equal(fixture.state.completionValues.includes(fixture.state.offerExpiresAt), true);
-  assert.match(
-    fixture.state.payload.html,
-    new RegExp(`Expires ${emailTemplate.formatExpiry(fixture.state.offerExpiresAt).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`),
-  );
+  assert.match(fixture.state.payload.html, /Expires exactly one hour after this email was sent/);
 });
 
 test('offer activation is a hard gate for recording provider-accepted delivery', async () => {
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  const reconciledAt = '2030-01-15T21:00:00.000Z';
+  const activatedExpiry = '2030-01-15T22:00:00.000Z';
   const offer = {
     code: 'RECOVER25-AAAAAAAAAAAAAAAAAAAAAAAA',
     expiresAt,
@@ -400,12 +473,34 @@ test('offer activation is a hard gate for recording provider-accepted delivery',
       'provider-message',
       offer,
       'subject',
+      {},
+      reconciledAt,
     ),
     /database claim could not be completed/,
   );
   assert.match(completionQuery, /expires_at = \?::timestamptz/);
+  assert.match(completionQuery, /expires_at = CASE[\s\S]+WHEN activated_at IS NULL THEN \?::timestamptz[\s\S]+ELSE expires_at/);
   assert.match(completionQuery, /OR EXISTS \(SELECT 1 FROM activated_offer WHERE code = \?\)/);
   assert.match(completionQuery, /eligible_cart_item_ids = \?::jsonb/);
+  const completionValues = [];
+  await assert.rejects(
+    sendModule._test.completeClaim(
+      async (first, ...values) => {
+        completionValues.push(...values);
+        return [];
+      },
+      cartId,
+      1,
+      'provider-message',
+      offer,
+      'subject',
+      {},
+      reconciledAt,
+    ),
+    /database claim could not be completed/,
+  );
+  assert.equal(completionValues.includes(reconciledAt), true);
+  assert.equal(completionValues.includes(activatedExpiry), true);
 });
 
 test('an unactivated offer retry reuses its exact deadline and never refreshes expiry', async () => {

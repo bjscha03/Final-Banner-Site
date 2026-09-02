@@ -131,6 +131,7 @@ jobs:
             netlify/functions/__tests__/mark-in-production-email.test.cjs \
             netlify/functions/__tests__/tracking-email-handler.test.cjs \
             netlify/functions/__tests__/get-order-public.test.cjs \
+            netlify/functions/__tests__/abandoned-cart-claim-sql.test.mjs \
             netlify/functions/__tests__/abandoned-cart-delivery-safety.test.mjs \
             netlify/functions/__tests__/abandoned-cart-capture-rate-limit.test.cjs \
             netlify/functions/__tests__/abandoned-cart-migration.test.cjs \

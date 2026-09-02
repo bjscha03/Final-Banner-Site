@@ -211,6 +211,24 @@ function configuredEmailIdentity(value, fallback) {
   return normalized && normalized.length <= 320 ? normalized : fallback;
 }
 
+function configuredRecoveryEmailIdentities(environment = process.env) {
+  return {
+    from: configuredEmailIdentity(
+      environment.RECOVERY_EMAIL_FROM
+        || environment.EMAIL_FROM_ORDERS
+        || environment.EMAIL_FROM
+        || environment.FROM_EMAIL,
+      'Banners On The Fly Orders <orders@bannersonthefly.com>',
+    ),
+    replyTo: configuredEmailIdentity(
+      environment.RECOVERY_EMAIL_REPLY_TO
+        || environment.EMAIL_FROM_SUPPORT
+        || environment.EMAIL_REPLY_TO,
+      'Banners On The Fly Support <support@bannersonthefly.com>',
+    ),
+  };
+}
+
 function configuredPhysicalAddress() {
   const normalized = String(
     process.env.RECOVERY_PHYSICAL_ADDRESS
@@ -319,6 +337,31 @@ function permanentDeliveryError(code, message, statusCode = 422) {
   error.statusCode = statusCode;
   error.retryable = false;
   return error;
+}
+
+const SAFE_ADMIN_DELIVERY_MESSAGES = new Set([
+  'A valid cartId is required',
+  'sequenceNumber must be 1, 2, or 3',
+  'Cart not found',
+  'Cart has no valid email address',
+]);
+
+function publicDeliveryErrorMessage(error) {
+  const statusCode = Number(error?.statusCode || error?.status) || 500;
+  const normalized = normalizeProviderError(error);
+  if (error?.name === 'RecoveryDeliveryError' || SAFE_ADMIN_DELIVERY_MESSAGES.has(normalized)) {
+    return normalized;
+  }
+  if (statusCode === 401 || statusCode === 403) {
+    return 'Email provider authentication failed. Check the email provider configuration.';
+  }
+  if (statusCode === 429) {
+    return 'Email provider rate limit reached. Please retry shortly.';
+  }
+  if (statusCode >= 400 && statusCode < 500) {
+    return 'Email provider rejected the recovery message. Check the recipient and sender configuration, then retry.';
+  }
+  return 'Recovery email delivery failed. It is safe to retry.';
 }
 
 function emailPayloadDigest(payload) {
@@ -1085,8 +1128,25 @@ async function completeClaim(
   offer,
   subject,
   deliveryMetadata = {},
+  reconciledAt = new Date(),
 ) {
   const discountCode = offer?.code || null;
+  const reconciliationDate = new Date(reconciledAt);
+  if (!Number.isFinite(reconciliationDate.getTime())) {
+    throw new Error('Recovery delivery reconciliation time is invalid');
+  }
+  const reconciledAtIso = reconciliationDate.toISOString();
+  const activatedOfferExpiresAt = offer
+    ? new Date(reconciliationDate.getTime() + (RECOVERY_OFFER_TTL_HOURS * 60 * 60 * 1000)).toISOString()
+    : null;
+  const completedDeliveryMetadata = {
+    templateVersion: RECOVERY_EMAIL_TEMPLATE_VERSION,
+    ...deliveryMetadata,
+    ...(offer ? {
+      offerActivatedAt: reconciledAtIso,
+      offerExpiresAt: activatedOfferExpiresAt,
+    } : {}),
+  };
   const rows = await sql`
     WITH eligible_delivery AS MATERIALIZED (
       SELECT delivery.abandoned_cart_id
@@ -1100,8 +1160,12 @@ async function completeClaim(
        FOR UPDATE OF delivery, cart
     ), activated_offer AS (
       UPDATE discount_codes
-         SET activated_at = COALESCE(activated_at, NOW()),
-             issued_at = COALESCE(issued_at, NOW()),
+         SET expires_at = CASE
+               WHEN activated_at IS NULL THEN ${activatedOfferExpiresAt}::timestamptz
+               ELSE expires_at
+             END,
+             activated_at = COALESCE(activated_at, ${reconciledAtIso}::timestamptz),
+             issued_at = COALESCE(issued_at, ${reconciledAtIso}::timestamptz),
              updated_at = NOW()
        WHERE ${discountCode}::text IS NOT NULL
          AND EXISTS (SELECT 1 FROM eligible_delivery)
@@ -1120,12 +1184,9 @@ async function completeClaim(
     ), delivered AS (
       UPDATE cart_recovery_deliveries AS delivery
          SET status = 'sent', provider_message_id = ${providerMessageId},
-             discount_code = ${discountCode || null}, sent_at = COALESCE(sent_at, NOW()),
+             discount_code = ${discountCode || null}, sent_at = COALESCE(sent_at, ${reconciledAtIso}::timestamptz),
              failure_reason = NULL,
-             metadata = metadata || ${JSON.stringify({
-               templateVersion: RECOVERY_EMAIL_TEMPLATE_VERSION,
-               ...deliveryMetadata,
-             })}::jsonb,
+             metadata = metadata || ${JSON.stringify(completedDeliveryMetadata)}::jsonb,
              updated_at = NOW()
         FROM eligible_delivery
        WHERE delivery.abandoned_cart_id = eligible_delivery.abandoned_cart_id
@@ -1139,7 +1200,7 @@ async function completeClaim(
     )
     UPDATE abandoned_carts AS cart
        SET recovery_emails_sent = GREATEST(recovery_emails_sent, ${sequenceNumber}),
-           last_recovery_email_at = NOW(), recovery_email_claim_sequence = NULL,
+           last_recovery_email_at = ${reconciledAtIso}::timestamptz, recovery_email_claim_sequence = NULL,
            recovery_email_claimed_at = NULL, recovery_email_last_error = NULL, updated_at = NOW()
       FROM delivered
      WHERE cart.id = delivered.abandoned_cart_id
@@ -1162,7 +1223,7 @@ async function completeClaim(
           discountCode,
           emailId: providerMessageId,
           templateVersion: RECOVERY_EMAIL_TEMPLATE_VERSION,
-          ...deliveryMetadata,
+          ...completedDeliveryMetadata,
         })}::jsonb, NOW()
       )
     `;
@@ -1197,6 +1258,14 @@ async function completeClaim(
       cartId, sequenceNumber, code: error?.code || null,
     });
   }
+  return {
+    offerActivatedAt: rows[0].offer_activated_at
+      ? new Date(rows[0].offer_activated_at).toISOString()
+      : null,
+    offerExpiresAt: rows[0].offer_expires_at
+      ? new Date(rows[0].offer_expires_at).toISOString()
+      : null,
+  };
 }
 
 async function getOrCreateDiscountCode(sql, cart, sequenceNumber, authoritativeItems = null) {
@@ -1473,14 +1542,7 @@ async function deliverRecoveryEmail({ sql, resend, cartId, sequenceNumber, sourc
       unsubscribeUrl,
     });
     const idempotencyKey = `abandoned-cart/${cartId}/sequence/${sequence}`;
-    const from = configuredEmailIdentity(
-      process.env.RECOVERY_EMAIL_FROM || process.env.EMAIL_FROM,
-      'Banners on the Fly <info@bannersonthefly.com>',
-    );
-    const replyTo = configuredEmailIdentity(
-      process.env.RECOVERY_EMAIL_REPLY_TO || process.env.EMAIL_REPLY_TO,
-      'info@bannersonthefly.com',
-    );
+    const { from, replyTo } = configuredRecoveryEmailIdentities();
     const providerPayload = {
       from,
       replyTo,
@@ -1516,20 +1578,21 @@ async function deliverRecoveryEmail({ sql, resend, cartId, sequenceNumber, sourc
     }
     const providerMessageId = result?.data?.id;
     if (!providerMessageId) throw new Error('Resend did not return a message ID');
-    await completeClaim(sql, cartId, sequence, providerMessageId, offer, emailData.subject, {
+    const reconciledAt = new Date();
+    const completion = await completeClaim(sql, cartId, sequence, providerMessageId, offer, emailData.subject, {
       itemCount: cartItems.length,
       hasArtwork: cart.has_artwork === true,
       offerEligible: Boolean(offer),
       offerSavingsCents: pricing.offerSavingsCents,
       offerDiscountCents: pricing.offerDiscountCents,
       offerPercentage: offer ? LARGE_BANNER_RECOVERY_PERCENTAGE : null,
-      offerExpiresAt: offer?.expiresAt || null,
-    });
+    }, reconciledAt);
     return {
       success: true,
       emailId: providerMessageId,
       sequenceNumber: sequence,
       discountCode: offer?.code || null,
+      ...(offer ? { discountExpiresAt: completion.offerExpiresAt } : {}),
     };
   } catch (error) {
     if (error?.retryable === undefined) {
@@ -1547,7 +1610,7 @@ async function deliverRecoveryEmail({ sql, resend, cartId, sequenceNumber, sourc
 }
 
 exports.handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers };
   if (event.httpMethod !== 'POST') return reply(405, { error: 'Method not allowed' });
   const authorization = requireAdmin(event);
   if (!authorization.ok) return { ...authorization.response, headers: { ...headers, ...authorization.response.headers } };
@@ -1572,7 +1635,7 @@ exports.handler = async (event) => {
     });
     return reply(Number(error?.statusCode) || 500, {
       error: 'Failed to send recovery email',
-      message: normalizeProviderError(error),
+      message: publicDeliveryErrorMessage(error),
     });
   }
 };
@@ -1584,8 +1647,8 @@ exports._test = {
   findFinalRecoveryStopReason, hasNewerActiveOwnerCart, hasRecoveryClick, isLatestRecoveryRecipientCart,
   markClickStopped, markRecovered, markSuppressed, stopFinalRecoveryClaim, stopNewerActiveOwnerClaim,
   stopSupersededRecipientClaim, canonicalSiteUrl, classifyProviderError, configuredPhysicalAddress, emailPayloadDigest,
-  providerErrorFromResponse, recoveryOfferPricing, reserveDeliveryPayload,
-  recoveryEmailsEnabled, DEFAULT_PHYSICAL_ADDRESS, MAX_DELIVERY_ATTEMPTS,
+  providerErrorFromResponse, publicDeliveryErrorMessage, recoveryOfferPricing, reserveDeliveryPayload,
+  configuredRecoveryEmailIdentities, recoveryEmailsEnabled, DEFAULT_PHYSICAL_ADDRESS, MAX_DELIVERY_ATTEMPTS,
   PROVIDER_TIMEOUT_MS,
   resetDependencies() {
     neonFactory = neon;

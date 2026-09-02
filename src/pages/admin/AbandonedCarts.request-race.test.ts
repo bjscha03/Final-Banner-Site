@@ -47,4 +47,12 @@ describe('AbandonedCarts recovery funnel disclosure', () => {
     expect(source).toContain('Exact retained recovery revenue');
     expect(source).toContain('actual total on an exactly linked, settled order');
   });
+
+  it('shows only bounded, named API errors instead of serializing raw diagnostic responses', () => {
+    expect(source).toContain('const recoverySendErrorMessage = (result: unknown): string =>');
+    expect(source).toContain("for (const field of ['message', 'reason', 'error'])");
+    expect(source).toContain('return value.trim().slice(0, 300);');
+    expect(source).toContain('throw new Error(recoverySendErrorMessage(result));');
+    expect(source).not.toContain("typeof result === 'string' ? result : JSON.stringify(result)");
+  });
 });
