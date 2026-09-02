@@ -8,31 +8,31 @@
  * (`unit_price_cents`, `rope_cost_cents`, `pole_pocket_cost_cents`,
  * `line_total_cents`, `yard_sign_signs_subtotal_cents`,
  * `yard_sign_stakes_subtotal_cents`) — i.e. the same numbers produced by the
- * shared pricing engines at Add-to-Cart time. We do NOT redo the pricing
- * math in cart UI; we render the engine output that already lives on the
- * item.
- *
- * Cart-level discounts (Best-Discount-Wins quantity OR promo) are allocated
- * to each item proportionally by raw line total so the per-item breakdown
- * reconciles with the cart summary totals.
+ * shared pricing engines at Add-to-Cart time. We do NOT redo the product
+ * pricing math in cart UI; we only allocate the already-resolved cart discount
+ * so every displayed line reconciles with the authoritative cart summary.
  */
 import React from 'react';
 import { Tag } from 'lucide-react';
 import { usd } from '@/lib/pricing';
 import type { CartItem } from '@/store/cart';
-import type { ResolvedDiscount } from '@/lib/discount-resolver';
+import {
+  isQualifyingLargeBannerDiscountItem,
+  type ResolvedDiscount,
+} from '@/lib/discount-resolver';
+import {
+  LARGE_BANNER_PROMOTION_ID,
+  LARGE_BANNER_PROMOTION_LABEL,
+  isLargeBannerPromotionIdentifier,
+} from '@/lib/largeBannerPromotion';
 import { isYardSignItem } from '@/lib/product-display';
 
 export interface CartItemBreakdownProps {
   item: CartItem;
   resolvedDiscount: ResolvedDiscount;
-  /** Raw cart subtotal (sum of all item line_total_cents) used for promo discount allocation. */
+  /** Raw cart subtotal used for ordinary full-order promo allocation. */
   cartRawSubtotalCents: number;
-  /**
-   * Banner-only subtotal (sum of line_total_cents for banner items) used for
-   * allocating the quantity discount. Quantity discounts apply ONLY to banner
-   * items. When omitted, falls back to `cartRawSubtotalCents`.
-   */
+  /** Banner-only subtotal used for quantity-discount allocation. */
   bannerRawSubtotalCents?: number;
   className?: string;
 }
@@ -50,24 +50,16 @@ const productTypeOf = (item: CartItem): 'banner' | 'yard_sign' | 'car_magnet' =>
   return 'banner';
 };
 
-/**
- * Allocate a cart-level discount amount to this item, proportionally to its
- * line_total_cents within the cart raw subtotal. Returns 0 when no discount
- * is applied or when the cart has no positive subtotal.
- */
+/** Allocate one resolved cart discount proportionally within its eligible base. */
 const allocateDiscount = (
   itemLineTotalCents: number,
-  cartRawSubtotalCents: number,
+  discountBaseCents: number,
   totalDiscountCents: number,
 ): number => {
-  if (totalDiscountCents <= 0 || cartRawSubtotalCents <= 0 || itemLineTotalCents <= 0) {
+  if (totalDiscountCents <= 0 || discountBaseCents <= 0 || itemLineTotalCents <= 0) {
     return 0;
   }
-  // Round to nearest cent. Per-item rounding may differ from cart-total
-  // discount by ≤ N cents (N = number of items), which is acceptable for a
-  // per-item attribution display. The cart summary total remains the source
-  // of truth and is unchanged by this UI.
-  return Math.round((itemLineTotalCents * totalDiscountCents) / cartRawSubtotalCents);
+  return Math.round((itemLineTotalCents * totalDiscountCents) / discountBaseCents);
 };
 
 const buildRows = (
@@ -81,7 +73,6 @@ const buildRows = (
   const rows: BreakdownRow[] = [];
 
   if (productType === 'yard_sign') {
-    // Yard signs: signs subtotal + optional step stakes. No quantity discount.
     const signsSubtotal = item.yard_sign_signs_subtotal_cents ?? lineTotalRaw;
     const stakesSubtotal = item.yard_sign_stakes_subtotal_cents ?? 0;
     rows.push({ label: 'Base sign price', amountCents: signsSubtotal });
@@ -92,10 +83,8 @@ const buildRows = (
       rows.push({ label: `Step stakes${qtyLabel}`, amountCents: stakesSubtotal });
     }
   } else if (productType === 'car_magnet') {
-    // Car magnets: flat-priced. No quantity discount applied at the item level.
     rows.push({ label: 'Base price', amountCents: lineTotalRaw });
   } else {
-    // Banner: base banner + add-ons (rope / pole pockets) from stored fields.
     const rope = item.rope_cost_cents || 0;
     const pole = item.pole_pocket_cost_cents || 0;
     const baseBanner = lineTotalRaw - rope - pole;
@@ -104,18 +93,17 @@ const buildRows = (
     if (rope > 0) rows.push({ label: 'Rope', amountCents: rope });
   }
 
-  // Per-item attribution of the cart-level resolved discount.
-  // - Quantity discounts apply ONLY to banner items: allocated proportionally
-  //   across banner items by their raw line total. Yard signs and car magnets
-  //   receive ZERO quantity-discount allocation and therefore show no
-  //   "Quantity discount" row.
-  // - Promo discounts apply to the full cart: allocated proportionally across
-  //   all items by their raw line total.
   const discountType = resolved.appliedDiscountType;
   const totalDiscountCents = resolved.appliedDiscountAmountCents;
+  const automaticLargeBannerDiscount = discountType === 'promo'
+    && (
+      resolved.promotionId === LARGE_BANNER_PROMOTION_ID
+      || isLargeBannerPromotionIdentifier(resolved.promoDiscountCode)
+    );
 
   let allocatedDiscountCents = 0;
   let discountLabel = '';
+
   if (totalDiscountCents > 0 && discountType !== 'none') {
     if (discountType === 'quantity') {
       if (productType === 'banner') {
@@ -124,9 +112,21 @@ const buildRows = (
           bannerRawSubtotalCents,
           totalDiscountCents,
         );
-      } // else: yard_sign / car_magnet → 0 (no quantity discount on non-banners)
+      }
       const ratePct = Math.round(resolved.appliedDiscountRate * 100);
       discountLabel = `Quantity discount${ratePct ? ` (${ratePct}% off)` : ''}`;
+    } else if (automaticLargeBannerDiscount) {
+      const qualifies = isQualifyingLargeBannerDiscountItem({
+        id: item.id,
+        product_type: item.product_type || 'banner',
+        width_in: item.width_in,
+        height_in: item.height_in,
+        line_total_cents: lineTotalRaw,
+      });
+      allocatedDiscountCents = qualifies
+        ? Math.round(lineTotalRaw * resolved.appliedDiscountRate)
+        : 0;
+      discountLabel = LARGE_BANNER_PROMOTION_LABEL;
     } else {
       allocatedDiscountCents = allocateDiscount(
         lineTotalRaw,
@@ -182,22 +182,16 @@ const CartItemBreakdown: React.FC<CartItemBreakdownProps> = ({
         {rows.map((row, idx) => (
           <div
             key={`${row.label}-${idx}`}
-            className={`flex justify-between gap-3 ${
-              row.isDiscount ? 'text-green-700' : ''
-            }`}
+            className={`flex justify-between gap-3 ${row.isDiscount ? 'text-green-700' : ''}`}
           >
             <span
-              className={`flex items-center gap-1 min-w-0 ${
-                row.isDiscount ? '' : 'text-gray-600'
-              }`}
+              className={`flex min-w-0 items-center gap-1 ${row.isDiscount ? '' : 'text-gray-600'}`}
             >
               {row.icon}
               <span className="truncate">{row.label}</span>
             </span>
             <span
-              className={`font-semibold whitespace-nowrap ${
-                row.isDiscount ? '' : 'text-gray-800'
-              }`}
+              className={`whitespace-nowrap font-semibold ${row.isDiscount ? '' : 'text-gray-800'}`}
             >
               {row.isDiscount ? '-' : ''}
               {usd(row.amountCents / 100)}
@@ -206,21 +200,19 @@ const CartItemBreakdown: React.FC<CartItemBreakdownProps> = ({
         ))}
 
         {hasAdjustment && (
-          <div className="flex justify-between gap-3 pt-2 mt-1 border-t border-slate-300/60">
-            <span className="text-gray-600">Line subtotal</span>
-            <span className="font-semibold text-gray-800 whitespace-nowrap">
+          <div className="flex justify-between gap-3 border-t border-slate-300/60 pt-2 mt-1">
+            <span className="text-gray-600">Original line price</span>
+            <span className="whitespace-nowrap font-semibold text-slate-400 line-through decoration-2">
               {usd(baseSubtotalCents / 100)}
             </span>
           </div>
         )}
 
         <div
-          className={`flex justify-between gap-3 ${
-            hasAdjustment ? '' : 'pt-2 mt-1 border-t border-slate-300/60'
-          }`}
+          className={`flex justify-between gap-3 ${hasAdjustment ? '' : 'border-t border-slate-300/60 pt-2 mt-1'}`}
         >
           <span className="font-bold text-gray-800">Line total</span>
-          <span className="font-bold text-[#18448D] whitespace-nowrap">
+          <span className={`whitespace-nowrap font-bold ${hasAdjustment ? 'text-emerald-600' : 'text-[#18448D]'}`}>
             {usd(lineTotalCents / 100)}
           </span>
         </div>
