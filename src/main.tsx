@@ -8,8 +8,21 @@ import { installPayPalCheckoutStorageGuard } from './lib/paypalCheckoutStorageGu
 import { installPayPalCaptureResponseGuard } from './lib/paypalCaptureResponseGuard';
 import { installChunkRecovery } from './lib/chunkRecovery';
 import { consumeOrderViewCredentialFromCurrentRoute } from './lib/orderViewCredential';
+import { createPreviewAdminCookie, hasPreviewAdminCookie } from './lib/previewAdmin';
 
 const PREVIEW_SESSION_KEY = 'preview_access_granted';
+const CURRENT_USER_KEY = 'banners_current_user';
+
+function establishPreviewAdminSession() {
+  if (typeof window === 'undefined' || !isPreviewEnvironment()) return;
+  if (sessionStorage.getItem(PREVIEW_SESSION_KEY) !== 'true') return;
+  if (!hasPreviewAdminCookie(document.cookie)) document.cookie = createPreviewAdminCookie();
+  try {
+    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify({ id: 'preview-admin', email: '', is_admin: true }));
+  } catch {
+    // The cookie remains sufficient for server authorization in storage-restricted browsers.
+  }
+}
 
 declare global {
   interface Window {
@@ -58,6 +71,7 @@ function PreviewAccessGate() {
 
     if (password === expectedPassword) {
       sessionStorage.setItem(PREVIEW_SESSION_KEY, 'true');
+      establishPreviewAdminSession();
       // iOS Safari auto-zooms focused inputs below 16px and can retain that
       // visual scale across a reload. Release focus before entering the app so
       // every preview route starts at the authored viewport scale.
@@ -134,6 +148,7 @@ installPayPalCaptureResponseGuard();
 // deploy. Refresh once to load the new chunk map instead of leaving a blank
 // root-level spinner forever.
 installChunkRecovery();
+establishPreviewAdminSession();
 
 const RootComponent = shouldRequirePreviewGate() ? PreviewAccessGate : App;
 const rootElement = document.getElementById('root')!;
