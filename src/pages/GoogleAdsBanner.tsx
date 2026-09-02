@@ -8,6 +8,7 @@ import { useUIStore } from '@/store/ui';
 import { calcTotals, usd, PRICE_PER_SQFT } from '@/lib/pricing';
 import { calculateBannerPricing, type RopePlacement } from '@/lib/bannerPricingEngine';
 import { resolvePromo } from '@/lib/promoEngine';
+import { isLargeBannerEligible } from '@/lib/discount-resolver';
 import { DESIGN_GROMMET_OPTIONS } from '@/lib/grommets';
 import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
 import CartModal from '@/components/CartModal';
@@ -2844,7 +2845,12 @@ const GoogleAdsBanner: React.FC = () => {
                               </button>
                             ))
                           : PRESET_SIZES.map((p, i) => (
-                              <button key={i} onClick={() => applyPreset(i)} className={`border rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${activePreset === i ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
+                              <button key={i} onClick={() => applyPreset(i)} className={`relative border rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${activePreset === i ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
+                                {isLargeBannerEligible(p.w, p.h, 'banner') && (
+                                  <span className="absolute -top-2 -right-2 rounded-full bg-green-600 px-1.5 py-0.5 text-[9px] font-bold leading-none text-white shadow-sm">
+                                    25% OFF
+                                  </span>
+                                )}
                                 {formatPresetLabel(p.w, p.h, unit)}
                               </button>
                             ))}
@@ -3290,6 +3296,13 @@ const GoogleAdsBanner: React.FC = () => {
                         ? bannerPromoResolution.promoDiscountCode
                         : undefined
                     }
+                    automaticDiscountCents={
+                      bannerPromoResolution.appliedDiscountType === 'automatic'
+                        ? bannerPromoResolution.appliedDiscountAmountCents
+                        : 0
+                    }
+                    automaticDiscountLabel={bannerPromoResolution.appliedDiscountLabel}
+                    discountHelperMessage={bannerPromoResolution.helperMessage}
                     sameDayHitServiceCents={previewSameDayFeeCents}
                     taxCents={0}
                     taxRate={0.06}
@@ -3304,7 +3317,9 @@ const GoogleAdsBanner: React.FC = () => {
                       onRemove: handlePromoRemove,
                       appliedLabel: bannerPromoActuallyApplied
                         ? `${promoCode} — ${Math.round(bannerPromoResolution.promoDiscountRate * 100)}% off applied`
-                        : `${promoCode} entered — quantity discount is larger, so we kept that`,
+                        : bannerPromoResolution.appliedDiscountType === 'automatic'
+                          ? `${promoCode} entered — our automatic Large Banner 25% Off is larger, so we kept that`
+                          : `${promoCode} entered — quantity discount is larger, so we kept that`,
                     }}
                     footerNote="Destination-based tax calculated at checkout"
                   />

@@ -69,6 +69,22 @@ export interface PriceBreakdownProps {
   /** Promo code label (e.g., "BOTF20"). */
   promoDiscountCode?: string;
 
+  /**
+   * Automatic Large Banner 25% Off discount (positive cents amount; rendered
+   * as -$X.XX in green). Applied automatically — no code required — and
+   * never stacks with the quantity or promo discount above.
+   */
+  automaticDiscountCents?: number;
+  /** Label for the automatic discount row. Defaults to "Large Banner 25% Off". */
+  automaticDiscountLabel?: string;
+
+  /**
+   * Optional helper/conflict message shown under the discount rows (e.g.
+   * explaining that a typed promo code was superseded by a better automatic
+   * or quantity discount).
+   */
+  discountHelperMessage?: string | null;
+
   /** Optional minimum-order adjustment row (positive cents). */
   minOrderAdjustmentCents?: number;
 
@@ -126,6 +142,9 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
   promoDiscountCents = 0,
   promoDiscountRate,
   promoDiscountCode,
+  automaticDiscountCents = 0,
+  automaticDiscountLabel = 'Large Banner 25% Off',
+  discountHelperMessage,
   minOrderAdjustmentCents = 0,
   sameDayHitServiceCents = 0,
   taxCents,
@@ -163,6 +182,7 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
   const visibleAddOns = (addOns || []).filter(a => a && a.amountCents > 0);
   const hasQuantityDiscount = quantityDiscountCents > 0;
   const hasPromoDiscount = promoDiscountCents > 0;
+  const hasAutomaticDiscount = automaticDiscountCents > 0;
   const hasMinOrderAdjustment = minOrderAdjustmentCents > 0;
   const hasDetailRows = Boolean(detailRows && detailRows.length > 0);
   const detailRowsContainerClass = [
@@ -311,6 +331,22 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
                   -{usd(promoDiscountCents / 100)}
                 </span>
               </div>
+            )}
+
+            {hasAutomaticDiscount && (
+              <div className="flex justify-between gap-3 text-green-700">
+                <span className="flex items-center gap-1">
+                  <Tag className="h-3.5 w-3.5" />
+                  {automaticDiscountLabel}
+                </span>
+                <span className="font-semibold">
+                  -{usd(automaticDiscountCents / 100)}
+                </span>
+              </div>
+            )}
+
+            {discountHelperMessage && (
+              <p className="text-xs italic leading-4 text-slate-500">{discountHelperMessage}</p>
             )}
 
             {hasMinOrderAdjustment && (

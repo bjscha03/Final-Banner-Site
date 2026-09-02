@@ -54,9 +54,12 @@ test('BIG25 discounts only qualifying banner lines and never stacks with quantit
     line('yard', 'yard_sign', 72, 36, 12000),
   ];
   const validated = await validateDiscountForCheckout({ sql: sqlMustNotRun, code: 'BIG25', items, now: activeNow });
+  // The permanent automatic Large Banner 25% Off promotion also qualifies the
+  // same line at an equal 25% rate; best-discount-wins prefers the automatic
+  // promotion on ties, so it supersedes the entered BIG25 promo code here.
   const totals = computeTotals(items, 0.06, { minFloorCents: 0, freeShipping: true }, validated.discount);
   assert.equal(totals.adjusted_subtotal_cents, 26000);
-  assert.equal(totals.applied_discount_type, 'promo');
+  assert.equal(totals.applied_discount_type, 'automatic');
   assert.equal(totals.applied_discount_cents, 2500, '25% applies to the $100 qualifying line only');
   assert.equal(totals.quantity_discount_cents, 0, 'best-discount-wins prevents stacking');
   assert.equal(totals.tax_cents, 1410);

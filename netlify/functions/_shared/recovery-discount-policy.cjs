@@ -17,6 +17,19 @@ const LARGE_BANNER_SHORT_SIDE_INCHES = 36;
 const MAX_ELIGIBLE_ITEM_IDS = 50;
 const MAX_ITEM_ID_LENGTH = 160;
 
+// Permanent, automatic (no code required) 25% off every finished banner line
+// where one side is >= 72" and the other side is >= 36", regardless of
+// orientation. Same eligibility rule as the (now superseded) BIG25 seasonal
+// promotion and the abandoned-cart recovery offer — see
+// `isQualifyingLargeBannerLine` below, which this promotion reuses directly.
+// Must mirror src/lib/discount-resolver.ts exactly.
+const AUTOMATIC_LARGE_BANNER_ID = 'LARGE_BANNER_25';
+const AUTOMATIC_LARGE_BANNER_LABEL = 'Large Banner 25% Off';
+const AUTOMATIC_LARGE_BANNER_PERCENTAGE = 25;
+const AUTOMATIC_LARGE_BANNER_RATE = AUTOMATIC_LARGE_BANNER_PERCENTAGE / 100;
+const LARGE_BANNER_CONFLICT_MESSAGE =
+  'This banner already includes our 25% large-banner discount. Additional percentage discounts cannot be combined.';
+
 function normalizeEligibleCartItemIds(value) {
   let input = value;
   if (typeof input === 'string') {
@@ -183,6 +196,11 @@ function capPromoDiscountAmount(amountCents, promoDiscount) {
 }
 
 module.exports = {
+  AUTOMATIC_LARGE_BANNER_ID,
+  AUTOMATIC_LARGE_BANNER_LABEL,
+  AUTOMATIC_LARGE_BANNER_PERCENTAGE,
+  AUTOMATIC_LARGE_BANNER_RATE,
+  LARGE_BANNER_CONFLICT_MESSAGE,
   LARGE_BANNER_LONG_SIDE_INCHES,
   LARGE_BANNER_RECOVERY_CAMPAIGN,
   LARGE_BANNER_RECOVERY_PERCENTAGE,

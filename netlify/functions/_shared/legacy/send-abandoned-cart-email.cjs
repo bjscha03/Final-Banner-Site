@@ -21,6 +21,7 @@ const {
   LARGE_BANNER_RECOVERY_SCOPE,
   qualifyingLargeBannerLineIds,
   qualifyingLargeBannerSubtotalCents,
+  AUTOMATIC_LARGE_BANNER_LABEL,
 } = require('../recovery-discount-policy.cjs');
 const { computeTotals, getFeatureFlags } = require('../checkoutTotals.cjs');
 const { addPostTaxServiceFees } = require('../order-total-reconciliation.cjs');
@@ -154,9 +155,11 @@ function recoveryOfferPricing(cart, cartItems, offer, { now = new Date(), existi
     existingDiscountCents: currentTotals.applied_discount_cents,
     existingDiscountLabel: currentTotals.applied_discount_type === 'quantity'
       ? 'Automatic quantity discount'
-      : currentTotals.applied_discount_type === 'promo' && existingPromo?.code
-        ? `${existingPromo.code} discount`
-        : 'Discount',
+      : currentTotals.applied_discount_type === 'automatic'
+        ? AUTOMATIC_LARGE_BANNER_LABEL
+        : currentTotals.applied_discount_type === 'promo' && existingPromo?.code
+          ? `${existingPromo.code} discount`
+          : 'Discount',
     currentTaxCents: currentTotals.tax_cents,
     currentTotalCents,
     sameDayFeeCents,

@@ -10,6 +10,10 @@
 const {
   capPromoDiscountAmount,
   promoSubtotalForItems,
+  allQualifyingLargeBannerSubtotalCents,
+  AUTOMATIC_LARGE_BANNER_ID,
+  AUTOMATIC_LARGE_BANNER_LABEL,
+  AUTOMATIC_LARGE_BANNER_RATE,
 } = require('./recovery-discount-policy.cjs');
 
 const getFeatureFlags = () => ({
@@ -43,14 +47,21 @@ const resolveBestDiscount = (
   promoDiscount = null,
   quantitySubtotalCents = null,
   promoSubtotalCents = null,
+  automaticDiscountBaseCents = 0,
 ) => {
   const quantityBaseCents = quantitySubtotalCents == null ? subtotalCents : quantitySubtotalCents;
   const promoBaseCents = promoSubtotalCents == null ? subtotalCents : promoSubtotalCents;
   const quantityDiscountRate = getQuantityDiscountRate(quantity);
   const quantityDiscountAmountCents = Math.round(quantityBaseCents * quantityDiscountRate);
+  const quantityDiscountAvailable = quantityDiscountAmountCents > 0;
+
+  const automaticBaseCents = Math.max(0, Number(automaticDiscountBaseCents) || 0);
+  const automaticDiscountAmountCents = Math.round(automaticBaseCents * AUTOMATIC_LARGE_BANNER_RATE);
+  const automaticDiscountAvailable = automaticDiscountAmountCents > 0;
 
   let promoDiscountAmountCents = 0;
   let promoDiscountRate = 0;
+  const promoIsPercentage = Boolean(promoDiscount && promoDiscount.discountPercentage);
   if (promoDiscount) {
     if (promoDiscount.discountPercentage) {
       promoDiscountRate = promoDiscount.discountPercentage / 100;
@@ -61,30 +72,85 @@ const resolveBestDiscount = (
     }
     promoDiscountAmountCents = capPromoDiscountAmount(promoDiscountAmountCents, promoDiscount);
   }
+  const promoDiscountAvailable = promoDiscountAmountCents > 0;
 
-  if (quantityDiscountAmountCents >= promoDiscountAmountCents && quantityDiscountAmountCents > 0) {
-    return {
-      appliedDiscountType: 'quantity',
-      appliedDiscountAmountCents: quantityDiscountAmountCents,
-      appliedDiscountRate: quantityDiscountRate,
-      quantityDiscountCents: quantityDiscountAmountCents,
-      promoDiscountCents: 0,
+  // "Best Discount Wins" — never stack. Among percentage-rate discounts
+  // (automatic, quantity, percentage promo codes) the HIGHEST EFFECTIVE RATE
+  // (actual dollars saved per dollar spent — `effectiveRate`, which accounts
+  // for dollar caps) wins; on equal effective rates the larger dollar
+  // savings wins; on a further tie the automatic promotion wins (listed
+  // first). A fixed-dollar promo code can still beat the percentage winner
+  // outright by strictly greater savings, but it never stacks with it.
+  // Must mirror src/lib/discount-resolver.ts.
+  const candidates = [];
+  if (automaticDiscountAvailable) {
+    candidates.push({
+      type: 'automatic',
+      rate: AUTOMATIC_LARGE_BANNER_RATE,
+      effectiveRate: automaticBaseCents > 0 ? automaticDiscountAmountCents / automaticBaseCents : 0,
+      amount: automaticDiscountAmountCents,
+      id: AUTOMATIC_LARGE_BANNER_ID,
+      label: AUTOMATIC_LARGE_BANNER_LABEL,
+    });
+  }
+  if (quantityDiscountAvailable) {
+    candidates.push({
+      type: 'quantity',
+      rate: quantityDiscountRate,
+      effectiveRate: quantityBaseCents > 0 ? quantityDiscountAmountCents / quantityBaseCents : 0,
+      amount: quantityDiscountAmountCents,
+      id: null,
+      label: null,
+    });
+  }
+  if (promoDiscountAvailable && promoIsPercentage) {
+    candidates.push({
+      type: 'promo',
+      rate: promoDiscountRate,
+      effectiveRate: promoBaseCents > 0 ? promoDiscountAmountCents / promoBaseCents : 0,
+      amount: promoDiscountAmountCents,
+      id: null,
+      label: null,
+    });
+  }
+
+  let winner = null;
+  for (const candidate of candidates) {
+    if (!winner
+        || candidate.effectiveRate > winner.effectiveRate
+        || (candidate.effectiveRate === winner.effectiveRate && candidate.amount > winner.amount)) {
+      winner = candidate;
+    }
+  }
+
+  if (promoDiscountAvailable && !promoIsPercentage) {
+    const fixedCandidate = {
+      type: 'promo', rate: promoDiscountRate, amount: promoDiscountAmountCents, id: null, label: null,
     };
-  } else if (promoDiscountAmountCents > 0) {
+    if (!winner || fixedCandidate.amount > winner.amount) {
+      winner = fixedCandidate;
+    }
+  }
+
+  if (!winner) {
     return {
-      appliedDiscountType: 'promo',
-      appliedDiscountAmountCents: promoDiscountAmountCents,
-      appliedDiscountRate: promoDiscountRate,
+      appliedDiscountType: 'none',
+      appliedDiscountAmountCents: 0,
+      appliedDiscountRate: 0,
+      appliedDiscountId: null,
       quantityDiscountCents: 0,
-      promoDiscountCents: promoDiscountAmountCents,
+      promoDiscountCents: 0,
+      automaticDiscountCents: 0,
     };
   }
   return {
-    appliedDiscountType: 'none',
-    appliedDiscountAmountCents: 0,
-    appliedDiscountRate: 0,
-    quantityDiscountCents: 0,
-    promoDiscountCents: 0,
+    appliedDiscountType: winner.type,
+    appliedDiscountAmountCents: winner.amount,
+    appliedDiscountRate: winner.rate,
+    appliedDiscountId: winner.id,
+    quantityDiscountCents: winner.type === 'quantity' ? winner.amount : 0,
+    promoDiscountCents: winner.type === 'promo' ? winner.amount : 0,
+    automaticDiscountCents: winner.type === 'automatic' ? winner.amount : 0,
   };
 };
 
@@ -105,12 +171,14 @@ const computeTotals = (items, taxRate, opts, promoDiscount = null) => {
   const totalQuantity = items.reduce((sum, i) => sum + (i.quantity || 1), 0);
 
   const promoSubtotalCents = promoSubtotalForItems(items, adjusted, promoDiscount);
+  const automaticDiscountBaseCents = allQualifyingLargeBannerSubtotalCents(items);
   const bestDiscount = resolveBestDiscount(
     adjusted,
     bannerQuantity,
     promoDiscount,
     bannerSubtotalCents,
     promoSubtotalCents,
+    automaticDiscountBaseCents,
   );
   const subtotalAfterDiscount = adjusted - bestDiscount.appliedDiscountAmountCents;
 
@@ -126,9 +194,11 @@ const computeTotals = (items, taxRate, opts, promoDiscount = null) => {
     applied_discount_type: bestDiscount.appliedDiscountType,
     applied_discount_cents: bestDiscount.appliedDiscountAmountCents,
     applied_discount_rate: bestDiscount.appliedDiscountRate,
+    applied_discount_id: bestDiscount.appliedDiscountId,
     quantity_discount_rate: getQuantityDiscountRate(bannerQuantity),
     quantity_discount_cents: bestDiscount.quantityDiscountCents,
     promo_discount_cents: bestDiscount.promoDiscountCents,
+    automatic_discount_cents: bestDiscount.automaticDiscountCents,
     subtotal_after_discount_cents: subtotalAfterDiscount,
     shipping_cents,
     tax_cents,

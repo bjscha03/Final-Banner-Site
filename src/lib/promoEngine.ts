@@ -20,6 +20,7 @@
 import {
   resolveBestDiscount,
   getPromoDiscountSubtotalCents,
+  getAutomaticLargeBannerSubtotalCents,
   calculateTotalsWithBestDiscount,
   type PromoDiscountCartItem,
   type PromoDiscountInput,
@@ -117,12 +118,18 @@ export function resolvePromo(input: ResolvePromoInput): ResolvedDiscount {
   const promoSubtotalCents = Array.isArray(input.items)
     ? getPromoDiscountSubtotalCents(input.items, input.subtotalCents, promoDiscount)
     : undefined;
+  // Automatic Large Banner 25% Off is evaluated unconditionally from the
+  // current items, independent of any typed promo code.
+  const automaticDiscountBaseCents = Array.isArray(input.items)
+    ? getAutomaticLargeBannerSubtotalCents(input.items)
+    : undefined;
 
   return resolveBestDiscount({
     subtotalCents: input.subtotalCents,
     quantity: input.quantity,
     promoDiscount,
     promoSubtotalCents,
+    automaticDiscountBaseCents,
   });
 }
 

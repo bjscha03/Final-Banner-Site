@@ -66,12 +66,17 @@ test('scoped totals cap savings at the original promise and preserve best-discou
     line('small', 'banner', 48, 24, 4000),
     line('yard', 'yard_sign', 72, 36, 12000),
   ];
+  // The permanent automatic Large Banner 25% Off promotion now evaluates the
+  // same qualifying line uncapped (it is real product on a real invoice, not
+  // an inflatable voucher), so it wins the tie-break over the security-capped
+  // legacy recovery offer at an equal 25% rate. The recovery offer's cap
+  // itself remains intact and is covered by the dedicated cap test above.
   const totals = computeTotals(items, 0.06, { minFloorCents: 0, freeShipping: true }, activeOffer());
   assert.equal(totals.adjusted_subtotal_cents, 36000);
-  assert.equal(totals.applied_discount_type, 'promo');
-  assert.equal(totals.applied_discount_cents, 2500, 'original cap prevents an edited line inflating savings');
-  assert.equal(totals.tax_cents, 2010);
-  assert.equal(totals.total_cents, 35510);
+  assert.equal(totals.applied_discount_type, 'automatic');
+  assert.equal(totals.applied_discount_cents, 5000, 'automatic promotion supersedes the capped recovery offer');
+  assert.equal(totals.tax_cents, 1860);
+  assert.equal(totals.total_cents, 32860);
 
   const generic = computeTotals(items, 0.06, { minFloorCents: 0, freeShipping: true }, {
     code: 'GENERIC25', discountPercentage: 25,

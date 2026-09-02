@@ -100,18 +100,23 @@ test('canonical repricing selects a stronger saved code over RECOVER25', async (
 });
 
 test('RECOVER25 wins when the validated saved code is weaker', async () => {
+  // Uses a non-large-banner line so the outcome isolates the saved-vs-recovery
+  // selection logic from the permanent automatic Large Banner 25% Off
+  // promotion (which would otherwise tie with RECOVER25-EXACT on a
+  // qualifying line and mask this comparison).
+  const smallItem = { ...ITEMS[0], width_in: 48, height_in: 24 };
   const result = await selectWinningRecoveryDiscount({
     sql: noSqlExpected,
     checkoutState: { discountCode: 'SAVE10' },
     recoveryCode: 'RECOVER25-EXACT',
-    items: ITEMS,
+    items: [smallItem],
     cartId: CART_ID,
     email: 'buyer@example.com',
     validateDiscount: async ({ code }) => ({
       valid: true,
       discount: code === 'SAVE10' ? discount('SAVE10', 10) : discount('RECOVER25-EXACT', 25),
     }),
-    reprice: () => [{ ...ITEMS[0], line_total_cents: 10_000 }],
+    reprice: () => [{ ...smallItem, line_total_cents: 10_000 }],
     flags: { freeShipping: true, minOrderFloor: false, minOrderCents: 0 },
   });
 

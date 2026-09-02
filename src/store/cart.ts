@@ -5,6 +5,7 @@ import { calculateTax, calculateTotalWithTax, getFeatureFlags, getPricingOptions
 import { calculateQuantityDiscount } from '@/lib/quantity-discount';
 import {
   getPromoDiscountSubtotalCents,
+  getAutomaticLargeBannerSubtotalCents,
   resolveBestDiscount,
   type DiscountScope,
   type ResolvedDiscount,
@@ -1113,6 +1114,7 @@ export const useCartStore = create<CartState>()(
             projectedSubtotalCents,
             projectedPromoDiscount,
           ),
+          automaticDiscountBaseCents: getAutomaticLargeBannerSubtotalCents(projectedItems),
         });
         const subtotalAfterDiscountCents = projectedSubtotalCents
           - projectedDiscount.appliedDiscountAmountCents;
@@ -1547,6 +1549,7 @@ export const useCartStore = create<CartState>()(
           quantitySubtotalCents: bannerSubtotalCents,
           promoDiscount,
           promoSubtotalCents: getPromoDiscountSubtotalCents(items, subtotalCents, promoDiscount),
+          automaticDiscountBaseCents: getAutomaticLargeBannerSubtotalCents(items),
         });
       }
     }),

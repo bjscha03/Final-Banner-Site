@@ -196,13 +196,19 @@ describe('canonical stale-cart quote application', () => {
       shippingCents: 0,
       totalCents: 12190,
       appliedDiscountCents: 2500,
-      appliedDiscountType: 'promo',
+      // The 'large' line (72x36) also qualifies for the permanent automatic
+      // Large Banner 25% Off promotion, which ties with the capped
+      // CART25-SECURE recovery offer on dollar savings (both 2,500 cents);
+      // best-discount-wins prefers the automatic promotion on ties, so the
+      // server-issued canonical quote reports type 'automatic' here even
+      // though a recovery promo code remains recorded on the cart.
+      appliedDiscountType: 'automatic',
       discountCode: 'CART25-SECURE',
     };
 
     expect(useCartStore.getState().applyCanonicalPricingQuote(quote)).toBe(true);
     expect(useCartStore.getState().getResolvedDiscount()).toMatchObject({
-      appliedDiscountType: 'promo',
+      appliedDiscountType: 'automatic',
       appliedDiscountAmountCents: 2500,
     });
   });
