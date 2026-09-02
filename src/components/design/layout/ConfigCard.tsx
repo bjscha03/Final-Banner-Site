@@ -101,7 +101,7 @@ export default function ConfigCard({
         const badge = document.createElement('span');
         badge.dataset.largeBannerDiscountBadge = 'true';
         badge.setAttribute('aria-hidden', 'true');
-        badge.className = 'pointer-events-none absolute -right-2.5 -top-3.5 z-20 flex h-9 w-9 flex-col items-center justify-center rounded-full border-2 border-white bg-emerald-600 text-center text-[8px] font-black uppercase leading-[0.9] tracking-[-0.02em] text-white shadow-md';
+        badge.className = 'pointer-events-none absolute -right-2.5 -top-3.5 z-20 flex h-9 w-9 flex-col items-center justify-center rounded-full border-2 border-white bg-[#FF6A00] text-center text-[8px] font-black uppercase leading-[0.9] tracking-[-0.02em] text-white shadow-md';
 
         const percentage = document.createElement('span');
         percentage.textContent = '25%';
@@ -153,9 +153,9 @@ export default function ConfigCard({
       {id === 'size-section' && hasLargeBannerOffer ? (
         <p
           data-testid="large-banner-discount-size-note"
-          className="mt-3 text-[11px] font-semibold leading-snug text-emerald-700"
+          className="mt-3 text-[11px] font-semibold leading-snug text-[#E95413]"
         >
-          All banners 6′ × 3′ and up are 25% off.
+          All banners 6′ × 3′ and up are 25% off!
         </p>
       ) : null}
     </>
