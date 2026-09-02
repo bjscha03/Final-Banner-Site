@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  LARGE_BANNER_PROMOTION_LABEL,
   getPromoDiscountSubtotalCents,
   isQualifyingLargeBannerDiscountItem,
   LARGE_BANNER_RECOVERY_CAMPAIGN,
@@ -45,7 +46,7 @@ describe('large-banner recovery discount client parity', () => {
     expect(isQualifyingLargeBannerDiscountItem(item('a', 'yard_sign', 72, 36, 100))).toBe(false);
   });
 
-  it('discounts only original qualifying banner IDs and respects the original cap', () => {
+  it('uses the automatic site-wide 25% price when it is better than an old recovery cap', () => {
     const items = [
       item('large', 'banner', 96, 48, 20000),
       item('small', 'banner', 48, 24, 4000),
@@ -63,7 +64,8 @@ describe('large-banner recovery discount client parity', () => {
       promoSubtotalCents,
     });
     expect(resolved.appliedDiscountType).toBe('promo');
-    expect(resolved.appliedDiscountAmountCents).toBe(2500);
+    expect(resolved.appliedDiscountAmountCents).toBe(5000);
+    expect(resolved.appliedDiscountLabel).toBe(LARGE_BANNER_PROMOTION_LABEL);
   });
 
   it('preserves generic full-order promotions and never stacks with quantity savings', () => {

@@ -221,6 +221,7 @@ test('list response is exactly paged, omits order arrays, and returns all-page f
   const sql = async (query, parameters = []) => {
     calls.push({ query, parameters });
     if (/LIMIT 0\s*$/i.test(query)) return [];
+    if (query.includes('FROM marketing_email_sends')) return [];
     if (query.includes('SELECT population_stats.*')) return [statsRow()];
     if (query.includes('FROM selected_population') && query.includes('LIMIT $7 OFFSET $8')) return [customerRow()];
     throw new Error('unexpected query');
@@ -270,7 +271,7 @@ test('list response is exactly paged, omits order arrays, and returns all-page f
   assert.deepEqual(pageCall.parameters.slice(-2), [50, 0]);
   assert.equal(body.filters.segment, 'repeat');
   assert.equal(body.filters.search, 'ada');
-  assert.equal(calls.filter(({ query }) => /LIMIT 0\s*$/i.test(query)).length, 5);
+  assert.equal(calls.filter(({ query }) => /LIMIT 0\s*$/i.test(query)).length, 6);
 });
 
 test('detail mode targets one customer and pages history without list payload duplication', async () => {
@@ -278,12 +279,14 @@ test('detail mode targets one customer and pages history without list payload du
   const sql = async (query, parameters = []) => {
     calls.push({ query, parameters });
     if (query.includes('FROM recovery_email_suppressions')) return [];
+    if (query.includes('FROM marketing_email_suppressions')) return [];
     if (query.includes('FROM outbound_suppressions')) {
       return [{ email: 'blocked@business.com', reason: 'complaint', scope: 'email' }];
     }
     if (query.includes('FROM trade_show_email_unsubscribes')) return [];
     if (query.includes('FROM email_captures')) return [];
     if (query.includes('FROM newsletter')) return [];
+    if (query.includes('FROM marketing_email_sends')) return [];
     if (query === CUSTOMER_DETAIL_COUNT_QUERY) return [{ total: '51' }];
     if (query === CUSTOMER_DETAIL_QUERY) {
       return [{
@@ -314,8 +317,8 @@ test('detail mode targets one customer and pages history without list payload du
   assert.equal(body.orders[0].status, 'delivered');
   assert.equal(body.orders[0].completed, true);
   assert.deepEqual(body.pagination, { page: 2, pageSize: 25, total: 51, totalPages: 3, hasMore: true });
-  const suppressionCalls = calls.filter(({ query }) => /FROM (recovery_email_suppressions|outbound_suppressions|trade_show_email_unsubscribes|email_captures|newsletter)/.test(query));
-  assert.equal(suppressionCalls.length, 5);
+  const suppressionCalls = calls.filter(({ query }) => /FROM (recovery_email_suppressions|marketing_email_suppressions|outbound_suppressions|trade_show_email_unsubscribes|email_captures|newsletter)/.test(query));
+  assert.equal(suppressionCalls.length, 6);
   assert.equal(suppressionCalls.every(({ query }) => /ANY\(\$\d::text\[\]\)/.test(query)), true);
   assert.deepEqual(calls.find(({ query }) => query === CUSTOMER_DETAIL_QUERY).parameters, ['blocked@business.com', 25, 25]);
 });
@@ -370,7 +373,7 @@ test('export is keyset-bounded and final verification rechecks only supplied can
 
   assert.equal(verifyResponse.statusCode, 200);
   assert.deepEqual(verifyBody.eligible, ['ada@analytical-engines.com']);
-  assert.equal(verificationCalls.length, 5);
+  assert.equal(verificationCalls.length, 6);
   assert.equal(verificationCalls.every(({ query }) => /ANY\(\$\d::text\[\]\)/.test(query)), true);
 });
 

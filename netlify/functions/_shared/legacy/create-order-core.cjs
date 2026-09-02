@@ -606,11 +606,27 @@ function applyAuthoritativeOrderTotals(orderData) {
   orderData.shipping_cents = totals.shipping_cents;
   orderData.applied_discount_cents = totals.applied_discount_cents || 0;
   orderData.applied_discount_type = totals.applied_discount_type || 'none';
+  orderData.applied_promotion_id = totals.applied_promotion_id || null;
+  if (totals.applied_promotion_id) {
+    // Automatic pricing is persisted through the existing discount_code
+    // audit field, but it is not a claimable/single-use promo code.
+    orderData.discountCode = {
+      id: totals.applied_promotion_id,
+      code: totals.applied_promotion_id,
+      discountPercentage: Math.round((totals.applied_discount_rate || 0) * 100),
+      discountAmountCents: null,
+      source: 'automatic_large_banner_pricing',
+      campaign: totals.applied_promotion_id,
+      discountScope: 'qualifying_large_banner_lines',
+      displayLabel: totals.applied_discount_label || 'Large Banner 25% Off',
+    };
+  }
   if (totals.applied_discount_type === 'quantity') {
     const percentage = Math.round(totals.applied_discount_rate * 100);
     orderData.applied_discount_label = `Qty Discount (${percentage}% off)`;
   } else if (totals.applied_discount_type === 'promo') {
-    orderData.applied_discount_label = `Promo: ${orderData.discountCode?.code || 'Applied'}`;
+    orderData.applied_discount_label = totals.applied_discount_label
+      || `Promo: ${orderData.discountCode?.code || 'Applied'}`;
   } else {
     orderData.applied_discount_label = '';
   }

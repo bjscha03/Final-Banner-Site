@@ -157,7 +157,7 @@ const PRODUCT_MODE_CONTENT = {
     topFeatures: [
       { icon: Clock, iconClass: 'text-orange-500', label: 'Most: 24-Hr Production' },
       { icon: Truck, iconClass: 'text-orange-500', label: 'Free Next-Day Air' },
-      { icon: Tag, iconClass: 'text-orange-500', label: '20% Off · NEW20' },
+      { icon: Tag, iconClass: 'text-orange-500', label: '25% Off · 6′×3′+' },
       { icon: Brush, iconClass: 'text-orange-500', label: 'Designer Reviewed' },
     ],
   },
@@ -1158,14 +1158,35 @@ const Design: React.FC = () => {
         return;
       }
 
+      const selectedBannerQualifiesForAutomaticPrice = productType === 'banner'
+        && hasConfirmedSize
+        && Math.max(Number(widthIn), Number(heightIn)) >= 72
+        && Math.min(Number(widthIn), Number(heightIn)) >= 36;
+      const validatedPercentage = Number(result.discount.discountPercentage || 0);
+
+      if (
+        selectedBannerQualifiesForAutomaticPrice
+        && validatedPercentage > 0
+        && validatedPercentage <= 25
+      ) {
+        cartStore.removeDiscountCode();
+        setPromoCode(normalizedCode);
+        setPromoApplied(false);
+        toast({
+          title: 'Large Banner 25% Off already applied',
+          description: `${normalizedCode} cannot be combined with the automatic 25% large-banner price.`,
+        });
+        return;
+      }
+
       cartStore.applyDiscountCode(result.discount);
       setPromoCode(result.discount.code);
       setPromoApplied(true);
       toast({
         title: 'Discount applied',
-        description: result.discount.code === 'BIG25'
-          ? '25% off this qualifying large banner is saved to your cart and will carry into checkout.'
-          : `${result.discount.discountPercentage}% off is saved to your cart and will carry into checkout.`,
+        description: validatedPercentage > 0
+          ? `${validatedPercentage}% off is saved to your cart and will carry into checkout.`
+          : 'Your promotion is saved to your cart and will carry into checkout.',
       });
     } catch {
       toast({
@@ -3185,9 +3206,14 @@ const Design: React.FC = () => {
                     <Plus className="h-4 w-4 text-gray-600" />
                   </button>
                 </div>
-                {!isCarMagnet && quantityDiscountRate > 0 && (
+                {!isCarMagnet && bannerPromoResolution.appliedDiscountType === 'quantity' && quantityDiscountRate > 0 && (
                   <p className="text-xs text-green-600 font-medium mt-1.5">
                     🎉 {Math.round(quantityDiscountRate * 100)}% bulk discount applied at checkout
+                  </p>
+                )}
+                {!isCarMagnet && bannerPromoResolution.promotionId === 'LARGE_BANNER_25' && quantityDiscountRate > 0 && (
+                  <p className="mt-1.5 text-xs font-medium text-emerald-700">
+                    Large Banner 25% Off applied automatically. Quantity discounts cannot be combined.
                   </p>
                 )}
                 {quantity === 1 && (

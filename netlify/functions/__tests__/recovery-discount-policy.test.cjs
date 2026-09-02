@@ -60,7 +60,7 @@ test('only original eligible qualifying line IDs contribute to the scoped subtot
   ], ['large']), 0);
 });
 
-test('scoped totals cap savings at the original promise and preserve best-discount-wins', () => {
+test('automatic site-wide pricing supersedes a smaller recovery cap without stacking', () => {
   const items = [
     line('large', 'banner', 96, 48, 20000),
     line('small', 'banner', 48, 24, 4000),
@@ -69,14 +69,24 @@ test('scoped totals cap savings at the original promise and preserve best-discou
   const totals = computeTotals(items, 0.06, { minFloorCents: 0, freeShipping: true }, activeOffer());
   assert.equal(totals.adjusted_subtotal_cents, 36000);
   assert.equal(totals.applied_discount_type, 'promo');
-  assert.equal(totals.applied_discount_cents, 2500, 'original cap prevents an edited line inflating savings');
-  assert.equal(totals.tax_cents, 2010);
-  assert.equal(totals.total_cents, 35510);
+  assert.equal(totals.applied_discount_cents, 5000);
+  assert.equal(totals.applied_discount_label, policy.AUTOMATIC_LARGE_BANNER_PROMOTION_LABEL);
+  assert.equal(totals.tax_cents, 1860);
+  assert.equal(totals.total_cents, 32860);
 
-  const generic = computeTotals(items, 0.06, { minFloorCents: 0, freeShipping: true }, {
+  const equalRateGeneric = computeTotals(items, 0.06, { minFloorCents: 0, freeShipping: true }, {
     code: 'GENERIC25', discountPercentage: 25,
   });
-  assert.equal(generic.applied_discount_cents, 9000, 'generic promotions retain full-order behavior');
+  assert.equal(equalRateGeneric.applied_discount_cents, 5000, 'an equal-rate code cannot replace automatic line pricing');
+  assert.equal(equalRateGeneric.applied_discount_label, policy.AUTOMATIC_LARGE_BANNER_PROMOTION_LABEL);
+
+  const noLargeBanner = computeTotals([
+    line('small', 'banner', 48, 24, 4000),
+    line('yard', 'yard_sign', 24, 18, 12000),
+  ], 0.06, { minFloorCents: 0, freeShipping: true }, {
+    code: 'GENERIC25', discountPercentage: 25,
+  });
+  assert.equal(noLargeBanner.applied_discount_cents, 4000, 'generic promotions retain full-order behavior when no automatic offer applies');
 });
 
 test('scoped metadata fails closed when campaign, activation, IDs, or cap are missing', () => {

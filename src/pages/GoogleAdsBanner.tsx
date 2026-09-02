@@ -168,9 +168,9 @@ const FastBannerAdHero: React.FC<{ onStart: () => void }> = ({ onStart }) => (
         </button>
 
         <div className="mt-5 grid w-full max-w-[505px] grid-cols-[auto_1fr] items-center gap-4 rounded-md border border-white/70 bg-white px-5 py-4 text-[#071C35] shadow-[0_9px_20px_rgba(57,20,0,.2)] sm:gap-5 sm:px-6">
-          <p className="homepage-condensed whitespace-nowrap [--homepage-mobile-size:3rem] text-5xl font-black uppercase leading-none text-[#E95413] sm:text-[4rem]">20% off</p>
+          <p className="homepage-condensed whitespace-nowrap [--homepage-mobile-size:3rem] text-5xl font-black uppercase leading-none text-[#E95413] sm:text-[4rem]">25% off</p>
           <div className="border-l-2 border-[#E95413] pl-4 text-sm font-bold uppercase leading-5 tracking-[0.04em] sm:text-base sm:leading-6">
-            First order<br />Use code NEW20
+            6′ × 3′ &amp; larger<br />Applied automatically
           </div>
         </div>
         <HeroDeliveryStatus className="mt-5 w-full max-w-[505px]" />
@@ -445,7 +445,7 @@ const GoogleAdsBanner: React.FC = () => {
   );
   const [quantity, setQuantity] = useState(initialProductType === 'yard_sign' ? 10 : 1);
   const storedPromoAtLoad = useCartStore.getState().discountCode;
-  const [promoCode, setPromoCode] = useState(storedPromoAtLoad?.code || 'NEW20');
+  const [promoCode, setPromoCode] = useState(storedPromoAtLoad?.code || '');
   const [promoApplied, setPromoApplied] = useState(Boolean(storedPromoAtLoad));
 
   // Keep 6′ × 3′ visually highlighted as the recommended size, but leave the
@@ -1162,14 +1162,35 @@ const GoogleAdsBanner: React.FC = () => {
         return;
       }
 
+      const selectedBannerQualifiesForAutomaticPrice = productType === 'banner'
+        && hasConfirmedSize
+        && Math.max(Number(widthIn), Number(heightIn)) >= 72
+        && Math.min(Number(widthIn), Number(heightIn)) >= 36;
+      const validatedPercentage = Number(result.discount.discountPercentage || 0);
+
+      if (
+        selectedBannerQualifiesForAutomaticPrice
+        && validatedPercentage > 0
+        && validatedPercentage <= 25
+      ) {
+        cartStore.removeDiscountCode();
+        setPromoCode(normalizedCode);
+        setPromoApplied(false);
+        toast({
+          title: 'Large Banner 25% Off already applied',
+          description: `${normalizedCode} cannot be combined with the automatic 25% large-banner price.`,
+        });
+        return;
+      }
+
       cartStore.applyDiscountCode(result.discount);
       setPromoCode(result.discount.code);
       setPromoApplied(true);
       toast({
         title: 'Discount applied',
-        description: result.discount.code === 'BIG25'
-          ? '25% off this qualifying large banner is saved to your cart and will carry into checkout.'
-          : `${result.discount.discountPercentage}% off is saved to your cart and will carry into checkout.`,
+        description: validatedPercentage > 0
+          ? `${validatedPercentage}% off is saved to your cart and will carry into checkout.`
+          : 'Your promotion is saved to your cart and will carry into checkout.',
       });
     } catch {
       setPromoApplied(false);
@@ -1184,7 +1205,7 @@ const GoogleAdsBanner: React.FC = () => {
   const handlePromoRemove = () => {
     cartStore.removeDiscountCode();
     setPromoApplied(false);
-    setPromoCode('NEW20');
+    setPromoCode('');
   };
 
 
@@ -2561,7 +2582,7 @@ const GoogleAdsBanner: React.FC = () => {
           intro: 'Choose a size and material, upload artwork, and review the on-screen print preview before ordering.',
           priceLabel: 'Popular 4′ × 2′ banner',
           price: '$36',
-          offer: 'New customers: 20% off with NEW20',
+          offer: 'Large banners 6′ × 3′ and up: 25% off automatically',
           cta: 'Build & price my banner',
         };
 
@@ -3023,12 +3044,17 @@ const GoogleAdsBanner: React.FC = () => {
                       <Plus className="h-4 w-4 text-gray-600" />
                     </button>
                   </div>
-                  {!isCarMagnet && quantityDiscountRate > 0 && (
+                  {!isCarMagnet && bannerPromoResolution.appliedDiscountType === 'quantity' && quantityDiscountRate > 0 && (
                     <p className="text-xs text-green-600 font-medium mt-1.5">
                       🎉 {Math.round(quantityDiscountRate * 100)}% bulk discount applied at checkout
                     </p>
                   )}
-                  {!isCarMagnet && quantity === 1 && (
+                  {!isCarMagnet && bannerPromoResolution.promotionId === 'LARGE_BANNER_25' && quantityDiscountRate > 0 && (
+                    <p className="mt-1.5 text-xs font-medium text-emerald-700">
+                      Large Banner 25% Off applied automatically. Quantity discounts cannot be combined.
+                    </p>
+                  )}
+                  {!isCarMagnet && quantity === 1 && bannerPromoResolution.promotionId !== 'LARGE_BANNER_25' && (
                     <p className="text-xs text-gray-400 mt-1.5">Order 2+ for up to 13% off</p>
                   )}
                 </ConfigCard>

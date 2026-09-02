@@ -1,6 +1,11 @@
-import React from 'react';
+import React, { useLayoutEffect } from 'react';
 import { Tag, DollarSign, Truck } from 'lucide-react';
 import { usd } from '@/lib/pricing';
+import {
+  LARGE_BANNER_PROMOTION_LABEL,
+  isLargeBannerPromotionIdentifier,
+} from '@/lib/largeBannerPromotion';
+import { setAutomaticPromotionDisplay } from '@/lib/automaticPromotionDisplay';
 
 /**
  * Shared, site-wide pricing summary UI.
@@ -66,7 +71,7 @@ export interface PriceBreakdownProps {
   promoDiscountCents?: number;
   /** Promo discount rate (0..1). When set, label includes "(N% off)". */
   promoDiscountRate?: number;
-  /** Promo code label (e.g., "BOTF20"). */
+  /** Promo code or automatic promotion identifier. */
   promoDiscountCode?: string;
 
   /** Optional minimum-order adjustment row (positive cents). */
@@ -141,11 +146,40 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
   const quantityDiscountLabel = `Quantity discount${
     quantityDiscountRate ? ` (${Math.round(quantityDiscountRate * 100)}% off)` : ''
   }`;
-  const promoDiscountLabel = `Promo${promoDiscountCode ? ` ${promoDiscountCode}` : ''}${
-    promoDiscountRate ? ` (${Math.round(promoDiscountRate * 100)}% off)` : ''
-  }`;
 
   const hasSameDayFee = sameDayHitServiceCents > 0;
+  const visibleAddOns = (addOns || []).filter(a => a && a.amountCents > 0);
+  const hasQuantityDiscount = quantityDiscountCents > 0;
+  const hasPromoDiscount = promoDiscountCents > 0;
+  const isAutomaticLargeBannerPromotion = hasPromoDiscount
+    && isLargeBannerPromotionIdentifier(promoDiscountCode);
+  const promoDiscountLabel = isAutomaticLargeBannerPromotion
+    ? LARGE_BANNER_PROMOTION_LABEL
+    : `Promo${promoDiscountCode ? ` ${promoDiscountCode}` : ''}${
+        promoDiscountRate ? ` (${Math.round(promoDiscountRate * 100)}% off)` : ''
+      }`;
+  const originalTotalCents = totalCents + (isAutomaticLargeBannerPromotion ? promoDiscountCents : 0);
+  const enteredPromoCode = String(promo?.code || '').trim().toUpperCase();
+  const hasDifferentEnteredPromo = Boolean(
+    promo?.applied
+    && enteredPromoCode
+    && !isLargeBannerPromotionIdentifier(enteredPromoCode),
+  );
+
+  useLayoutEffect(() => {
+    if (!isAutomaticLargeBannerPromotion) {
+      setAutomaticPromotionDisplay(null);
+      return;
+    }
+
+    setAutomaticPromotionDisplay({
+      originalSubtotalCents: adjustedSubtotalCents + promoDiscountCents,
+      discountedSubtotalCents: adjustedSubtotalCents,
+    });
+
+    return () => setAutomaticPromotionDisplay(null);
+  }, [adjustedSubtotalCents, isAutomaticLargeBannerPromotion, promoDiscountCents]);
+
   const shippingNote = hasSameDayFee
     ? 'Same-Day production priority selected. Next-day air shipping is still included.'
     : 'Most standard orders are produced within 24 hours; free next-day air begins after production.';
@@ -160,9 +194,6 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
         .join(' • ')
     : ['Free Next-Day Air After Production', baseFooterNote].filter(Boolean).join(' • ');
 
-  const visibleAddOns = (addOns || []).filter(a => a && a.amountCents > 0);
-  const hasQuantityDiscount = quantityDiscountCents > 0;
-  const hasPromoDiscount = promoDiscountCents > 0;
   const hasMinOrderAdjustment = minOrderAdjustmentCents > 0;
   const hasDetailRows = Boolean(detailRows && detailRows.length > 0);
   const detailRowsContainerClass = [
@@ -221,12 +252,30 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
       >
         {/* SECTION A — Top summary (centered, large total) */}
         <div className="text-center mb-6">
-          <div
-            className="text-4xl sm:text-5xl md:text-6xl font-bold text-slate-900 leading-tight"
-            style={{ textShadow: '0 2px 4px rgba(0,0,0,0.08)' }}
-          >
-            {usd(totalCents / 100)}
-          </div>
+          {isAutomaticLargeBannerPromotion ? (
+            <div data-testid="automatic-large-banner-sale-price">
+              <div className="mb-0.5 text-lg sm:text-xl font-semibold leading-none text-slate-400 line-through decoration-2">
+                {usd(originalTotalCents / 100)}
+              </div>
+              <div
+                className="text-4xl sm:text-5xl md:text-6xl font-bold leading-tight text-emerald-600"
+                style={{ textShadow: '0 2px 4px rgba(0,0,0,0.08)' }}
+              >
+                {usd(totalCents / 100)}
+              </div>
+              <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800">
+                <Tag className="h-3.5 w-3.5" aria-hidden="true" />
+                {LARGE_BANNER_PROMOTION_LABEL} automatically applied
+              </div>
+            </div>
+          ) : (
+            <div
+              className="text-4xl sm:text-5xl md:text-6xl font-bold text-slate-900 leading-tight"
+              style={{ textShadow: '0 2px 4px rgba(0,0,0,0.08)' }}
+            >
+              {usd(totalCents / 100)}
+            </div>
+          )}
         </div>
 
         {/* SECTION B — Boxed breakdown panel */}
@@ -254,7 +303,7 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
           {/* Optional configuration detail rows */}
           {hasDetailRows && (
             <div className={detailRowsContainerClass}>
-              {detailRows.map((row, idx) => (
+              {detailRows!.map((row, idx) => (
                 <div
                   key={`${row.label}-${idx}`}
                   className="flex justify-between gap-3"
@@ -373,7 +422,17 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
 
         {/* SECTION C — Promo input */}
         {promo && (
-          <div className="mt-4">
+          <div className="mt-4 space-y-2">
+            {isAutomaticLargeBannerPromotion && (
+              <div className="flex items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
+                <span className="flex min-w-0 items-center gap-1.5 text-sm font-semibold text-emerald-800">
+                  <Tag className="h-3.5 w-3.5 flex-shrink-0" />
+                  <span className="truncate">{LARGE_BANNER_PROMOTION_LABEL} applied automatically</span>
+                </span>
+                <span className="text-[10px] font-black uppercase tracking-wide text-emerald-700">25% OFF</span>
+              </div>
+            )}
+
             {!promo.applied ? (
               <div className="flex gap-2">
                 <input
@@ -393,6 +452,21 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
                   Apply
                 </button>
               </div>
+            ) : isAutomaticLargeBannerPromotion ? (
+              hasDifferentEnteredPromo ? (
+                <div className="flex items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                  <span className="min-w-0 text-xs font-medium leading-snug text-amber-800">
+                    {enteredPromoCode} was not combined. The automatic 25% large-banner price remains applied.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={promo.onRemove}
+                    className="whitespace-nowrap text-xs font-semibold text-red-500 hover:text-red-700"
+                  >
+                    Clear code
+                  </button>
+                </div>
+              ) : null
             ) : (
               <div className="flex items-center justify-between gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
                 <span className="text-sm font-semibold text-green-800 flex items-center gap-1.5 min-w-0">
@@ -409,6 +483,12 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
                   Remove
                 </button>
               </div>
+            )}
+
+            {isAutomaticLargeBannerPromotion && (
+              <p className="text-center text-[11px] font-medium text-slate-500">
+                Discounts cannot be combined. A larger eligible promotion will replace this one instead of stacking.
+              </p>
             )}
           </div>
         )}

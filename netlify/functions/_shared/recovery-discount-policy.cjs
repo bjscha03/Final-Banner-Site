@@ -3,13 +3,18 @@
 const LARGE_BANNER_RECOVERY_CAMPAIGN = 'abandoned_cart_large_banner_25';
 const LARGE_BANNER_RECOVERY_SCOPE = 'recovery_qualifying_banner_lines';
 const LARGE_BANNER_RECOVERY_PERCENTAGE = 25;
+const AUTOMATIC_LARGE_BANNER_PROMOTION_ID = 'LARGE_BANNER_25';
+const AUTOMATIC_LARGE_BANNER_PROMOTION_LABEL = 'Large Banner 25% Off';
+const AUTOMATIC_LARGE_BANNER_CAMPAIGN = AUTOMATIC_LARGE_BANNER_PROMOTION_ID;
+const AUTOMATIC_LARGE_BANNER_SCOPE = 'qualifying_large_banner_lines';
+const AUTOMATIC_LARGE_BANNER_PERCENTAGE = 25;
 const SEPTEMBER_LARGE_BANNER_CODE = 'BIG25';
 const SEPTEMBER_LARGE_BANNER_CAMPAIGN = 'september_large_banner_2026';
-const SEPTEMBER_LARGE_BANNER_SCOPE = 'qualifying_large_banner_lines';
+const SEPTEMBER_LARGE_BANNER_SCOPE = AUTOMATIC_LARGE_BANNER_SCOPE;
 const SEPTEMBER_LARGE_BANNER_PERCENTAGE = 25;
-// The promotion is valid for every local calendar day from September 1
-// through September 8 in the business's Eastern time zone (EDT in 2026).
-// Store the boundary as UTC so every Netlify region makes the same decision.
+// The legacy BIG25 promotion was valid for every local calendar day from
+// September 1 through September 8 in the business's Eastern time zone (EDT in
+// 2026). The automatic LARGE_BANNER_25 pricing rule has no code window.
 const SEPTEMBER_LARGE_BANNER_START = '2026-09-01T04:00:00.000Z';
 const SEPTEMBER_LARGE_BANNER_END_EXCLUSIVE = '2026-09-09T04:00:00.000Z';
 const LARGE_BANNER_LONG_SIDE_INCHES = 72;
@@ -53,6 +58,8 @@ function isQualifyingLargeBannerLine(item) {
   const height = Number(item.height_in);
   return Number.isFinite(width)
     && Number.isFinite(height)
+    && width > 0
+    && height > 0
     && Math.max(width, height) >= LARGE_BANNER_LONG_SIDE_INCHES
     && Math.min(width, height) >= LARGE_BANNER_SHORT_SIDE_INCHES;
 }
@@ -121,6 +128,28 @@ function validateLargeBannerRecoveryMetadata(discount) {
   return { valid: true, eligibleCartItemIds, maxDiscountAmountCents };
 }
 
+function isAutomaticLargeBannerDiscount(discount) {
+  return Boolean(discount)
+    && String(discount.code || '').trim().toUpperCase() === AUTOMATIC_LARGE_BANNER_PROMOTION_ID
+    && discount.campaign === AUTOMATIC_LARGE_BANNER_CAMPAIGN
+    && discount.discountScope === AUTOMATIC_LARGE_BANNER_SCOPE
+    && Number(discount.discountPercentage) === AUTOMATIC_LARGE_BANNER_PERCENTAGE;
+}
+
+function buildAutomaticLargeBannerDiscount() {
+  return {
+    id: AUTOMATIC_LARGE_BANNER_PROMOTION_ID,
+    code: AUTOMATIC_LARGE_BANNER_PROMOTION_ID,
+    discountPercentage: AUTOMATIC_LARGE_BANNER_PERCENTAGE,
+    discountAmountCents: null,
+    expiresAt: null,
+    source: 'automatic_large_banner_pricing',
+    campaign: AUTOMATIC_LARGE_BANNER_CAMPAIGN,
+    discountScope: AUTOMATIC_LARGE_BANNER_SCOPE,
+    displayLabel: AUTOMATIC_LARGE_BANNER_PROMOTION_LABEL,
+  };
+}
+
 function isSeptemberLargeBannerDiscount(discount) {
   return Boolean(discount)
     && String(discount.code || '').trim().toUpperCase() === SEPTEMBER_LARGE_BANNER_CODE
@@ -160,12 +189,13 @@ function buildSeptemberLargeBannerDiscount(now = new Date()) {
 }
 
 function promoSubtotalForItems(items, fullSubtotalCents, promoDiscount) {
-  if (!promoDiscount || ![LARGE_BANNER_RECOVERY_SCOPE, SEPTEMBER_LARGE_BANNER_SCOPE]
+  if (!promoDiscount || ![LARGE_BANNER_RECOVERY_SCOPE, AUTOMATIC_LARGE_BANNER_SCOPE]
     .includes(promoDiscount.discountScope)) {
     return Math.max(0, Number(fullSubtotalCents) || 0);
   }
-  if (promoDiscount.discountScope === SEPTEMBER_LARGE_BANNER_SCOPE) {
-    return isSeptemberLargeBannerDiscount(promoDiscount)
+  if (promoDiscount.discountScope === AUTOMATIC_LARGE_BANNER_SCOPE) {
+    return isAutomaticLargeBannerDiscount(promoDiscount)
+      || isSeptemberLargeBannerDiscount(promoDiscount)
       ? allQualifyingLargeBannerSubtotalCents(items)
       : 0;
   }
@@ -183,6 +213,11 @@ function capPromoDiscountAmount(amountCents, promoDiscount) {
 }
 
 module.exports = {
+  AUTOMATIC_LARGE_BANNER_CAMPAIGN,
+  AUTOMATIC_LARGE_BANNER_PERCENTAGE,
+  AUTOMATIC_LARGE_BANNER_PROMOTION_ID,
+  AUTOMATIC_LARGE_BANNER_PROMOTION_LABEL,
+  AUTOMATIC_LARGE_BANNER_SCOPE,
   LARGE_BANNER_LONG_SIDE_INCHES,
   LARGE_BANNER_RECOVERY_CAMPAIGN,
   LARGE_BANNER_RECOVERY_PERCENTAGE,
@@ -195,8 +230,10 @@ module.exports = {
   SEPTEMBER_LARGE_BANNER_SCOPE,
   SEPTEMBER_LARGE_BANNER_START,
   allQualifyingLargeBannerSubtotalCents,
+  buildAutomaticLargeBannerDiscount,
   buildSeptemberLargeBannerDiscount,
   capPromoDiscountAmount,
+  isAutomaticLargeBannerDiscount,
   isLargeBannerRecoveryDiscount,
   isQualifyingLargeBannerLine,
   isSeptemberLargeBannerDiscount,

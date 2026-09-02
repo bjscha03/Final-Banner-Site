@@ -332,12 +332,13 @@ test('suppression reasons exclude prior_customer and fail closed when sources ar
   assert.deepEqual(incomplete.exportSummary.unavailableSources, ['email_captures']);
 });
 
-test('bounded marketing eligibility lookup unions recovery, domain, trade-show, consent, and newsletter suppressions', async () => {
+test('bounded marketing eligibility lookup unions recovery, marketing, domain, trade-show, consent, and newsletter suppressions', async () => {
   const calls = [];
   const sql = async (query, parameters) => {
     calls.push({ query, parameters });
     if (query.includes('FROM recovery_email_suppressions')) return [{ email: 'recovery@business.com', reason: 'unsubscribed', scope: 'email' }];
     if (query.includes('FROM outbound_suppressions')) return [{ email: 'blocked-domain.com', reason: 'legal', scope: 'company_domain' }];
+    if (query.includes('FROM marketing_email_suppressions')) return [{ email: 'marketing@business.com', reason: 'unsubscribe', scope: 'email' }];
     if (query.includes('FROM trade_show_email_unsubscribes')) return [{ email: 'trade@business.com', reason: 'hard_bounce' }];
     if (query.includes('FROM email_captures')) return [{ email: 'declined@business.com', reason: 'consent_false', scope: 'email' }];
     if (query.includes('FROM newsletter')) return [{ email: 'newsletter@business.com', reason: 'newsletter_unsubscribed', scope: 'email' }];
@@ -346,6 +347,7 @@ test('bounded marketing eligibility lookup unions recovery, domain, trade-show, 
   const emails = [
     'recovery@business.com',
     'person@blocked-domain.com',
+    'marketing@business.com',
     'trade@business.com',
     'declined@business.com',
     'newsletter@business.com',
@@ -355,7 +357,7 @@ test('bounded marketing eligibility lookup unions recovery, domain, trade-show, 
 
   assert.equal(suppressionState.complete, true);
   assert.equal(result.customers.every((customer) => customer.marketingEligible === false), true);
-  assert.equal(calls.length, 5);
+  assert.equal(calls.length, 6);
   assert.equal(calls.every(({ query }) => /ANY\(\$\d::text\[\]\)/.test(query)), true);
   assert.equal(calls.every(({ parameters }) => parameters.flat().length <= 261), true);
 });
@@ -405,7 +407,7 @@ test('suppression schema probes read no source rows and treat a missing newslett
 
   assert.equal(state.complete, true);
   assert.equal(state.includeNewsletter, false);
-  assert.equal(calls.length, 5);
+  assert.equal(calls.length, 6);
   assert.equal(calls.every((query) => /LIMIT 0\s*$/i.test(query)), true);
 });
 

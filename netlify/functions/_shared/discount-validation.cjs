@@ -1,9 +1,11 @@
 'use strict';
 
 const {
+  AUTOMATIC_LARGE_BANNER_PROMOTION_ID,
   LARGE_BANNER_RECOVERY_CAMPAIGN,
   LARGE_BANNER_RECOVERY_SCOPE,
   SEPTEMBER_LARGE_BANNER_CODE,
+  buildAutomaticLargeBannerDiscount,
   buildSeptemberLargeBannerDiscount,
   isQualifyingLargeBannerLine,
   normalizeEligibleCartItemIds,
@@ -94,6 +96,23 @@ async function validateDiscountForCheckout({
   const normalizedRecoveryCartId = normalizedCartId(recoveryCartId);
   if (!normalizedCode) return invalidResult('Discount code is required');
 
+  const hasQualifyingLargeBanner = Array.isArray(items)
+    && items.some(isQualifyingLargeBannerLine);
+
+  // LARGE_BANNER_25 is the stable internal id for automatic pricing. It is
+  // accepted by server retries/canonical quotes, but customers do not need to
+  // type it and it is never reserved like a single-use coupon.
+  if (normalizedCode === AUTOMATIC_LARGE_BANNER_PROMOTION_ID) {
+    if (!hasQualifyingLargeBanner) {
+      return invalidResult("Large Banner 25% Off requires at least one 6' × 3' or larger banner");
+    }
+    return validResult(buildAutomaticLargeBannerDiscount());
+  }
+
+  // Keep the original one-week BIG25 campaign behavior for previously sent
+  // emails. During its valid window it resolves to the same line eligibility;
+  // authoritative order persistence then records LARGE_BANNER_25 as the actual
+  // automatic promotion that priced the order.
   if (normalizedCode === SEPTEMBER_LARGE_BANNER_CODE) {
     const promotion = buildSeptemberLargeBannerDiscount(now);
     if (!promotion.valid) {
@@ -101,13 +120,20 @@ async function validateDiscountForCheckout({
         ? 'BIG25 begins September 1, 2026'
         : 'BIG25 expired after September 8, 2026');
     }
-    if (!Array.isArray(items) || !items.some(isQualifyingLargeBannerLine)) {
+    if (!hasQualifyingLargeBanner) {
       return invalidResult("BIG25 requires at least one 6' × 3' or larger banner");
     }
     return validResult(promotion.discount);
   }
 
   if (normalizedCode === 'NEW20') {
+    // A customer may have applied NEW20 before adding a qualifying banner.
+    // Resolve that stale state to the automatic 25% offer instead of stacking
+    // discounts or failing the provider checkout after the cart is repriced.
+    if (hasQualifyingLargeBanner) {
+      return validResult(buildAutomaticLargeBannerDiscount());
+    }
+
     if (userId) {
       const priorOrders = await sql`
         SELECT id FROM orders
@@ -203,21 +229,29 @@ async function validateDiscountForCheckout({
   if (recoveryOffer && !['active', 'abandoned'].includes(String(discount.recovery_cart_status || ''))) {
     return invalidResult('This cart-recovery discount is no longer active');
   }
-  if (discount.expires_at && new Date(discount.expires_at) < new Date()) {
+  if (discount.expires_at && new Date(discount.expires_at) < new Date(now)) {
     return invalidResult('This discount code has expired');
   }
   if (discount.used) return invalidResult('This code has already been used');
 
-  const usedEmails = Array.isArray(discount.used_by_email) ? discount.used_by_email.map((value) => String(value).toLowerCase()) : [];
-  const perCustomerLimit = discount.max_uses_per_customer == null ? null : Number(discount.max_uses_per_customer);
+  const usedEmails = Array.isArray(discount.used_by_email)
+    ? discount.used_by_email.map((value) => String(value).toLowerCase())
+    : [];
+  const perCustomerLimit = discount.max_uses_per_customer == null
+    ? null
+    : Number(discount.max_uses_per_customer);
   if (normalizedEmail && perCustomerLimit !== null) {
     const customerUses = usedEmails.filter((value) => value === normalizedEmail).length;
     if (customerUses >= perCustomerLimit) return invalidResult('This code has already been used');
   }
 
   if (userId && discount.used_by_user_id) {
-    const usedUserIds = Array.isArray(discount.used_by_user_id) ? discount.used_by_user_id : [discount.used_by_user_id];
-    if (usedUserIds.map(String).includes(String(userId))) return invalidResult('This code has already been used');
+    const usedUserIds = Array.isArray(discount.used_by_user_id)
+      ? discount.used_by_user_id
+      : [discount.used_by_user_id];
+    if (usedUserIds.map(String).includes(String(userId))) {
+      return invalidResult('This code has already been used');
+    }
   }
 
   if (discount.max_total_uses != null && usedEmails.length >= Number(discount.max_total_uses)) {
@@ -229,4 +263,9 @@ async function validateDiscountForCheckout({
   return validResult(storedDiscount);
 }
 
-module.exports = { normalizeCode, normalizedCartId, storedDiscountFromRow, validateDiscountForCheckout };
+module.exports = {
+  normalizeCode,
+  normalizedCartId,
+  storedDiscountFromRow,
+  validateDiscountForCheckout,
+};

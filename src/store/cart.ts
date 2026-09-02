@@ -1144,7 +1144,13 @@ export const useCartStore = create<CartState>()(
           && quote.subtotalCents === projectedSubtotalCents
           && quote.appliedDiscountCents === projectedDiscount.appliedDiscountAmountCents
           && String(quote.appliedDiscountType || 'none').toLowerCase() === projectedDiscount.appliedDiscountType
-          && normalizedCode(quote.discountCode) === normalizedCode(currentDiscount?.code)
+          && (
+            normalizedCode(quote.discountCode) === normalizedCode(currentDiscount?.code)
+            || (
+              projectedDiscount.promotionId === 'LARGE_BANNER_25'
+              && ['LARGE_BANNER_25', 'BIG25'].includes(normalizedCode(quote.discountCode) || '')
+            )
+          )
           && quote.taxCents === projectedTaxCents
           && quote.shippingCents === projectedShippingCents
           && canonicalSameDayFeeCents === projectedFees.sameDayFeeCents

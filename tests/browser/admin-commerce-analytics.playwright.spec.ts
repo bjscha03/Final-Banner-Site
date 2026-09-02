@@ -658,9 +658,11 @@ test('commerce admin analytics, customer history, and order tracking stay usable
 
   await page.goto('/admin/abandoned-carts', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: 'Abandoned Cart Analytics' })).toBeVisible();
-  await expect(page.getByRole('region', { name: 'All-time abandoned cart metrics' })).toContainText('Total captured value');
-  await expect(page.getByRole('region', { name: 'All-time abandoned cart metrics' })).toContainText('$268.50');
-  await expect(page.getByRole('region', { name: 'All-time abandoned cart metrics' })).toContainText('Recorded cart suppressions');
+  const allTimeMetrics = page.locator('section[aria-label="All-time abandoned cart metrics"]');
+  await expect(allTimeMetrics).toBeVisible();
+  await expect(allTimeMetrics).toContainText('Total captured value');
+  await expect(allTimeMetrics).toContainText('$268.50');
+  await expect(allTimeMetrics).toContainText('Recorded cart suppressions');
   await expect(page.getByLabel('Checkout stage')).toBeVisible();
   await expect(page.getByText('Artwork unknown', { exact: true })).toBeVisible();
   await expect(page.getByText(/Captured 1 of 2 source cart lines\./)).toBeVisible();
@@ -712,7 +714,7 @@ test('commerce admin analytics, customer history, and order tracking stay usable
   expect(csv).not.toContain('suppressed@example.com');
 
   if (isMobile) {
-    await page.getByRole('button', { name: /Alice Buyer/ }).click();
+    await page.getByRole('button', { name: 'View customer', exact: true }).first().click();
   } else {
     const customerRow = page.getByLabel('View customer Alice Buyer');
     await customerRow.focus();
