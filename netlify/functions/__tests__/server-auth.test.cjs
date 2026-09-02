@@ -22,12 +22,10 @@ describe('server-side session authorization', () => {
 
   it('accepts the preview admin cookie only inside a Netlify deploy preview', () => {
     const auth = require('../_shared/server-auth.cjs');
-    const event = { headers: { cookie: 'theme=light; botf_preview_admin=1' } };
+    const event = { headers: { host: 'deploy-preview-490--bannersonthefly.netlify.app', cookie: 'theme=light; botf_preview_admin=1' } };
 
-    process.env.CONTEXT = 'deploy-preview';
     expect(auth.requireAdmin(event).ok).toBe(true);
 
-    process.env.CONTEXT = 'production';
-    expect(auth.requireAdmin(event).ok).toBe(false);
+    expect(auth.requireAdmin({ headers: { host: 'bannersonthefly.com', cookie: 'botf_preview_admin=1' } }).ok).toBe(false);
   });
 });
