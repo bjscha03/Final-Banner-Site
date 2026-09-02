@@ -8,6 +8,8 @@ const SESSION_COOKIE = 'banners_admin_session';
 const PREVIEW_ADMIN_COOKIE = 'botf_preview_admin';
 
 function isDeployPreviewEnvironment(event) {
+  // Netlify function runtimes do not always expose CONTEXT, so the request host
+  // is the authoritative signal for a password-gated deploy preview.
   const forwardedHost = String(event?.headers?.['x-forwarded-host'] || '').split(',')[0].trim();
   const host = forwardedHost || String(event?.headers?.host || event?.headers?.Host || '').trim();
   return /^deploy-preview-\d+--.+\.netlify\.app(?::\d+)?$/i.test(host)
