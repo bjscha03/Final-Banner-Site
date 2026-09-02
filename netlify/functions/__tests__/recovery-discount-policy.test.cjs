@@ -5,7 +5,10 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const policy = require('../_shared/recovery-discount-policy.cjs');
-const { computeTotals } = require('../_shared/checkoutTotals.cjs');
+const {
+  LARGE_BANNER_PROMO_ID,
+  computeTotals,
+} = require('../_shared/checkoutTotals.cjs');
 
 const CART_ID = '11111111-1111-4111-8111-111111111111';
 const activeOffer = (overrides = {}) => {
@@ -46,7 +49,7 @@ test('large-banner qualification is strict, orientation-independent, and not are
   assert.equal(policy.isQualifyingLargeBannerLine(line('a', 'banner', Number.NaN, 36, 100)), false);
 });
 
-test('only original eligible qualifying line IDs contribute to the scoped subtotal', () => {
+test('only requested eligible qualifying line IDs contribute to the historical scoped subtotal', () => {
   const items = [
     line('large', 'banner', 72, 36, 10000),
     line('small', 'banner', 48, 24, 4000),
@@ -60,7 +63,7 @@ test('only original eligible qualifying line IDs contribute to the scoped subtot
   ], ['large']), 0);
 });
 
-test('scoped totals cap savings at the original promise and preserve best-discount-wins', () => {
+test('old recovery 25% offers are redundant and cannot cap or stack the automatic promotion', () => {
   const items = [
     line('large', 'banner', 96, 48, 20000),
     line('small', 'banner', 48, 24, 4000),
@@ -69,17 +72,21 @@ test('scoped totals cap savings at the original promise and preserve best-discou
   const totals = computeTotals(items, 0.06, { minFloorCents: 0, freeShipping: true }, activeOffer());
   assert.equal(totals.adjusted_subtotal_cents, 36000);
   assert.equal(totals.applied_discount_type, 'promo');
-  assert.equal(totals.applied_discount_cents, 2500, 'original cap prevents an edited line inflating savings');
-  assert.equal(totals.tax_cents, 2010);
-  assert.equal(totals.total_cents, 35510);
+  assert.equal(totals.applied_promotion_id, LARGE_BANNER_PROMO_ID);
+  assert.equal(totals.applied_discount_cents, 5000, 'automatic 25% follows the current qualifying line total');
+  assert.equal(totals.quantity_discount_candidate_cents, 1200);
+  assert.equal(totals.quantity_discount_cents, 0);
+  assert.equal(totals.tax_cents, 1860);
+  assert.equal(totals.total_cents, 32860);
 
   const generic = computeTotals(items, 0.06, { minFloorCents: 0, freeShipping: true }, {
     code: 'GENERIC25', discountPercentage: 25,
   });
-  assert.equal(generic.applied_discount_cents, 9000, 'generic promotions retain full-order behavior');
+  assert.equal(generic.applied_discount_cents, 9000, 'a better full-order promotion remains eligible once');
+  assert.equal(generic.applied_promotion_source, 'promo_code');
 });
 
-test('scoped metadata fails closed when campaign, activation, IDs, or cap are missing', () => {
+test('historical scoped metadata still fails closed when campaign, activation, IDs, or cap are missing', () => {
   const item = line('large', 'banner', 72, 36, 10000);
   for (const discount of [
     activeOffer({ campaign: 'other' }),
