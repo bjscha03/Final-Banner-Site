@@ -11,3 +11,6 @@ export const canUsePreviewAdminPassword = (hostname: string, password: string) =
 
 export const createPreviewAdminCookie = () =>
   `${PREVIEW_ADMIN_COOKIE}=1; Max-Age=${8 * 60 * 60}; Path=/; SameSite=Lax`;
+
+export const hasPreviewAdminCookie = (cookieHeader: string) =>
+  cookieHeader.split(';').map((part) => part.trim()).includes(`${PREVIEW_ADMIN_COOKIE}=1`);
