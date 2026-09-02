@@ -10,7 +10,6 @@ permissions:
 
 jobs:
   patch-and-verify:
-    if: "${{ !contains(github.event.head_commit.message, '[admin-metrics-locator]') && !contains(github.event.head_commit.message, '[cleanup-admin-metrics-locator]') }}"
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -77,13 +76,21 @@ jobs:
           git config user.name "Banners On The Fly CI"
           git config user.email "actions@users.noreply.github.com"
           git add tests/browser/admin-commerce-analytics.playwright.spec.ts
-          git commit -m "Stabilize Admin metrics browser contract [admin-metrics-locator]"
-          git push origin HEAD:feat/automatic-large-banner-25
+          if git diff --staged --quiet; then
+            echo "Locator update is already committed."
+          else
+            git commit -m "Stabilize Admin metrics browser contract [admin-metrics-locator]"
+            git push origin HEAD:feat/automatic-large-banner-25
+          fi
 
       - name: Remove one-time workflow
         run: |
           git pull --ff-only origin feat/automatic-large-banner-25
-          rm .github/workflows/one-time-fix-admin-metrics-locator.yml
-          git add .github/workflows/one-time-fix-admin-metrics-locator.yml
-          git commit -m "Remove one-time Admin metrics locator workflow [cleanup-admin-metrics-locator]"
-          git push origin HEAD:feat/automatic-large-banner-25
+          if [ -f .github/workflows/one-time-fix-admin-metrics-locator.yml ]; then
+            rm .github/workflows/one-time-fix-admin-metrics-locator.yml
+            git add .github/workflows/one-time-fix-admin-metrics-locator.yml
+            git commit -m "Remove one-time Admin metrics locator workflow [cleanup-admin-metrics-locator]"
+            git push origin HEAD:feat/automatic-large-banner-25
+          else
+            echo "One-time workflow is already removed."
+          fi
