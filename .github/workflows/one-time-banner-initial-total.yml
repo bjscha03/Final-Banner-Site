@@ -1,0 +1,150 @@
+name: One-time banner initial total patch
+
+on:
+  push:
+    branches:
+      - fix/banner-initial-zero-total
+    paths:
+      - .github/workflows/one-time-banner-initial-total.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out patch branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Apply the targeted configurator change
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          replacements = [
+              (
+                  Path('src/pages/Design.tsx'),
+                  """  // The popular banner size is an explicit, visible default and is therefore
+          // immediately valid for pricing/cart/checkout. Other guided steps retain
+          // their existing confirmation behavior.
+          const [hasConfirmedSize, setHasConfirmedSize] = useState(initialProductType === 'banner');
+          """,
+                  """  // Keep 6′ × 3′ visually highlighted as the recommended size, but leave the
+          // order unpriced until the customer explicitly chooses or confirms a size.
+          const [hasConfirmedSize, setHasConfirmedSize] = useState(false);
+          """,
+              ),
+              (
+                  Path('src/pages/GoogleAdsBanner.tsx'),
+                  """  // The popular banner size is an explicit, visible default and is therefore
+          // immediately valid for pricing/cart/checkout.
+          const [hasConfirmedSize, setHasConfirmedSize] = useState(initialProductType === 'banner');
+          """,
+                  """  // Keep 6′ × 3′ visually highlighted as the recommended size, but leave the
+          // order unpriced until the customer explicitly chooses or confirms a size.
+          const [hasConfirmedSize, setHasConfirmedSize] = useState(false);
+          """,
+              ),
+          ]
+
+          for path, old, new in replacements:
+              source = path.read_text(encoding='utf-8')
+              count = source.count(old)
+              if count != 1:
+                  raise RuntimeError(f'Expected exactly one target block in {path}, found {count}')
+              path.write_text(source.replace(old, new, 1), encoding='utf-8')
+
+          defaults_path = Path('src/lib/bannerDefaults.ts')
+          defaults = defaults_path.read_text(encoding='utf-8')
+          old_note = 'mobilePriceNote: "Popular 6′ × 3′ size preselected",'
+          new_note = 'mobilePriceNote: "Most popular size: 6′ × 3′",'
+          if defaults.count(old_note) != 1:
+              raise RuntimeError('Could not find the old mobile popular-size note exactly once')
+          defaults_path.write_text(defaults.replace(old_note, new_note, 1), encoding='utf-8')
+
+          defaults_test_path = Path('src/lib/bannerDefaults.test.ts')
+          defaults_test = defaults_test_path.read_text(encoding='utf-8')
+          defaults_test = defaults_test.replace(
+              "it('defines the 6 by 3 preset as the selected banner default', () => {",
+              "it('defines the 6 by 3 preset as the highlighted recommendation', () => {",
+              1,
+          ).replace(
+              "it('does not show the default note after the customer changes size or product', () => {",
+              "it('does not show the recommendation note after the customer changes size or product', () => {",
+              1,
+          )
+          defaults_test_path.write_text(defaults_test, encoding='utf-8')
+
+          regression_test = """import { readFileSync } from 'node:fs';
+          import { fileURLToPath } from 'node:url';
+          import { describe, expect, it } from 'vitest';
+          import { POPULAR_BANNER_PRESET } from './bannerDefaults';
+
+          const pages = [
+            {
+              route: '/design',
+              source: readFileSync(fileURLToPath(new URL('../pages/Design.tsx', import.meta.url)), 'utf8'),
+            },
+            {
+              route: '/google-ads-banner',
+              source: readFileSync(fileURLToPath(new URL('../pages/GoogleAdsBanner.tsx', import.meta.url)), 'utf8'),
+            },
+          ];
+
+          describe('banner initial pricing state', () => {
+            it.each(pages)('$route keeps 6 × 3 highlighted without pricing it on first load', ({ source }) => {
+              expect(source).toContain(
+                "initialProductType === 'banner' ? POPULAR_BANNER_PRESET.presetIndex : null",
+              );
+              expect(source).toContain(
+                'const [hasConfirmedSize, setHasConfirmedSize] = useState(false);',
+              );
+              expect(source).not.toContain(
+                "const [hasConfirmedSize, setHasConfirmedSize] = useState(initialProductType === 'banner');",
+              );
+              expect(source).toContain(
+                'const pricingWidthIn = hasCommittedBannerSize ? widthIn : 0;',
+              );
+              expect(source).toContain(
+                'const pricingHeightIn = hasCommittedBannerSize ? heightIn : 0;',
+              );
+              expect(source).toContain('setHasConfirmedSize(true);');
+            });
+
+            it('labels the visible preset as a recommendation rather than a selection', () => {
+              expect(POPULAR_BANNER_PRESET.mobilePriceNote).toBe('Most popular size: 6′ × 3′');
+            });
+          });
+          """
+          Path('src/lib/bannerInitialPricingState.test.ts').write_text(regression_test, encoding='utf-8')
+
+          Path('.github/workflows/one-time-banner-initial-total.yml').unlink()
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run focused regression tests
+        run: npx vitest run src/lib/bannerInitialPricingState.test.ts src/lib/bannerDefaults.test.ts src/lib/bannerCheckoutReadiness.test.ts
+
+      - name: Build production bundles
+        run: npm run build
+
+      - name: Commit verified changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m "Start banner configurator totals at zero"
+          git push origin HEAD:fix/banner-initial-zero-total
