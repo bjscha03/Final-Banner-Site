@@ -66,7 +66,8 @@ describe('get-abandoned-carts admin endpoint', () => {
     expect(analytics.recoveredAfterEmailValueCents).toBe(0);
     expect(analytics.suppressedCount).toBe(1);
     expect(analytics.abandonmentCohortCount).toBe(0);
-    expect(analytics.topSizes).toEqual([]);
+    expect(analytics.totalCapturedValueCents).toBe(4250);
+    expect(analytics.topSizes).toEqual([{ label: '48″ × 24″', count: 1 }]);
   });
 
   it('keeps recovery events while retained revenue excludes refunded and unknown exact-order outcomes', () => {
@@ -299,7 +300,7 @@ describe('get-abandoned-carts admin endpoint', () => {
     expect(cart.item_summaries_truncated).toBe(false);
   });
 
-  it('builds size, value, and stage facets only from recorded abandonments', () => {
+  it('builds size, value, and stage facets from every matching cart', () => {
     const base = {
       id: 'cart-facet',
       total_value: 125,
@@ -319,9 +320,16 @@ describe('get-abandoned-carts admin endpoint', () => {
 
     const analytics = _test.summarizeCarts([abandoned, directPurchase]);
     expect(analytics.abandonmentCohortCount).toBe(1);
-    expect(analytics.topSizes).toEqual([{ label: '48″ × 24″', count: 1 }]);
-    expect(analytics.valueBands).toEqual([{ label: '$100–$249', count: 1 }]);
-    expect(analytics.checkoutStages).toEqual([{ label: 'contact', count: 1 }]);
+    expect(analytics.totalCapturedValueCents).toBe(25_000);
+    expect(analytics.topSizes).toEqual([
+      { label: '120″ × 60″', count: 1 },
+      { label: '48″ × 24″', count: 1 },
+    ]);
+    expect(analytics.valueBands).toEqual([{ label: '$100–$249', count: 2 }]);
+    expect(analytics.checkoutStages).toEqual([{ label: 'contact', count: 2 }]);
+
+    const query = _test.facetsQuery('TRUE');
+    expect(query).not.toMatch(/abandoned_at\s+IS\s+NOT\s+NULL/i);
   });
 
   it('preserves unknown historical artwork instead of fabricating false', () => {
