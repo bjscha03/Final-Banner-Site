@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canUsePreviewAdminPassword, createPreviewAdminCookie, PREVIEW_ADMIN_COOKIE } from '../previewAdmin';
+import { canUsePreviewAdminPassword, createPreviewAdminCookie, hasPreviewAdminCookie, PREVIEW_ADMIN_COOKIE } from '../previewAdmin';
 
 describe('previewAdmin', () => {
   it('allows password admin on Netlify Deploy Preview hostnames', () => {
@@ -23,5 +23,10 @@ describe('previewAdmin', () => {
     expect(createPreviewAdminCookie()).toContain('Max-Age=28800');
     expect(createPreviewAdminCookie()).toContain('Path=/');
     expect(createPreviewAdminCookie()).toContain('SameSite=Lax');
+  });
+
+  it('detects the preview admin cookie among other cookies', () => {
+    expect(hasPreviewAdminCookie('theme=light; botf_preview_admin=1; cart=123')).toBe(true);
+    expect(hasPreviewAdminCookie('theme=light; botf_preview_admin=0')).toBe(false);
   });
 });

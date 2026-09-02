@@ -138,9 +138,10 @@ describe('abandoned-cart admin analytics', () => {
     expect(summary.recoveredAfterEmailValueCents).toBe(5724);
     expect(summary.suppressedCount).toBe(1);
     expect(summary.abandonmentCohortCount).toBe(2);
-    expect(summary.topSizes).toEqual([{ label: '48″ × 24″', count: 2 }]);
-    expect(summary.valueBands).toEqual([{ label: '$50–$99', count: 2 }]);
-    expect(summary.checkoutStages).toEqual([{ label: 'contact', count: 2 }]);
+    expect(summary.totalCapturedValueCents).toBe(101_448);
+    expect(summary.topSizes).toEqual([{ label: '48″ × 24″', count: 2 }, { label: '120″ × 60″', count: 1 }]);
+    expect(summary.valueBands).toEqual([{ label: '$50–$99', count: 2 }, { label: '$500+', count: 1 }]);
+    expect(summary.checkoutStages).toEqual([{ label: 'contact', count: 2 }, { label: 'payment_started', count: 1 }]);
   });
 
   it('keeps recovery events but excludes refunded and historically unknown links from retained value', () => {

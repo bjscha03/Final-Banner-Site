@@ -142,6 +142,7 @@ export interface AbandonedCartAnalytics {
   recoveredRefundedCount: number;
   recoveredRevenueUnknownCount: number;
   expiredCount: number;
+  totalCapturedValueCents: number;
   activeValueCents: number;
   recoveredValueCents: number;
   recoveredAfterEmailCount: number;
@@ -425,6 +426,7 @@ export function summarizeAbandonedCarts(carts: AbandonedCartAdminRecord[]): Aban
     recoveredRefundedCount: refundedRecovered.length,
     recoveredRevenueUnknownCount: unknownRecovered.length,
     expiredCount: carts.filter((cart) => cart.recovery_status === 'expired').length,
+    totalCapturedValueCents: carts.reduce((sum, cart) => sum + capturedValueCents(cart), 0),
     activeValueCents: activeCarts.reduce((sum, cart) => sum + capturedValueCents(cart), 0),
     recoveredValueCents: retainedRecovered.reduce((sum, cart) => sum + recoveredOrderValue(cart), 0),
     recoveredAfterEmailCount: recoveredAfterEmail.length,
@@ -433,14 +435,14 @@ export function summarizeAbandonedCarts(carts: AbandonedCartAdminRecord[]): Aban
     suppressedCount: carts.filter((cart) => Boolean(cart.recovery_suppressed_at || cart.recovery_suppression_reason)).length,
     withEmailCount: carts.filter((cart) => Boolean(cart.email)).length,
     abandonmentCohortCount: abandonmentCohort.length,
-    topSizes: topFacets(cartFacetPresence(abandonmentCohort, (item) => item.dimensions || 'Unknown')),
-    topMaterials: topFacets(cartFacetPresence(abandonmentCohort, (item) => item.material || 'Unknown')),
-    topProducts: topFacets(cartFacetPresence(abandonmentCohort, (item) => item.product_type || 'banner')),
-    valueBands: topFacets(abandonmentCohort.map((cart) => ({
+    topSizes: topFacets(cartFacetPresence(carts, (item) => item.dimensions || 'Unknown')),
+    topMaterials: topFacets(cartFacetPresence(carts, (item) => item.material || 'Unknown')),
+    topProducts: topFacets(cartFacetPresence(carts, (item) => item.product_type || 'banner')),
+    valueBands: topFacets(carts.map((cart) => ({
       label: capturedValueBand(capturedValueCents(cart)),
       count: 1,
     })), 10),
-    checkoutStages: topFacets(abandonmentCohort.map((cart) => ({ label: cart.checkout_stage || 'unknown', count: 1 })), 10),
+    checkoutStages: topFacets(carts.map((cart) => ({ label: cart.checkout_stage || 'unknown', count: 1 })), 10),
     outcomeComparison: summarizeOutcomeComparison(carts),
   };
 }

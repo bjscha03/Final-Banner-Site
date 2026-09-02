@@ -426,9 +426,8 @@ function summarizeCarts(carts) {
   const refundedRecovered = recoveredCarts.filter((cart) => cart.recovered_revenue_state === 'refunded');
   const unknownRecovered = recoveredCarts.filter((cart) => cart.recovered_revenue_state !== 'retained'
     && cart.recovered_revenue_state !== 'refunded');
-  // Only a recorded abandonment event belongs in behavioral breakdowns.
-  // Active carts and purchases completed before abandonment remain visible in
-  // operational totals but must not distort "most abandoned" analytics.
+  // Recovery attribution remains restricted to carts with a real abandonment
+  // event, while general dashboard breakdowns cover every matching cart.
   const abandonmentCohort = carts.filter((cart) => Boolean(cart.abandoned_at));
   const recoveredOrderValue = (cart) => Math.max(0, positiveInteger(cart.recovered_order_total_cents));
 
@@ -441,6 +440,7 @@ function summarizeCarts(carts) {
     recoveredRefundedCount: refundedRecovered.length,
     recoveredRevenueUnknownCount: unknownRecovered.length,
     expiredCount: carts.filter((cart) => cart.recovery_status === 'expired').length,
+    totalCapturedValueCents: carts.reduce((sum, cart) => sum + cart.captured_value_cents, 0),
     activeValueCents: activeCarts.reduce((sum, cart) => sum + cart.captured_value_cents, 0),
     recoveredValueCents: retainedRecovered.reduce((sum, cart) => sum + recoveredOrderValue(cart), 0),
     recoveredAfterEmailCount: recoveredAfterEmail.length,
@@ -449,14 +449,14 @@ function summarizeCarts(carts) {
     suppressedCount: carts.filter((cart) => Boolean(cart.recovery_suppression_reason)).length,
     withEmailCount: carts.filter((cart) => Boolean(cart.email)).length,
     abandonmentCohortCount: abandonmentCohort.length,
-    topSizes: topFacets(cartFacetPresence(abandonmentCohort, (item) => item.dimensions)),
-    topMaterials: topFacets(cartFacetPresence(abandonmentCohort, (item) => item.material)),
-    topProducts: topFacets(cartFacetPresence(abandonmentCohort, (item) => item.product_type)),
-    valueBands: topFacets(abandonmentCohort.map((cart) => ({
+    topSizes: topFacets(cartFacetPresence(carts, (item) => item.dimensions)),
+    topMaterials: topFacets(cartFacetPresence(carts, (item) => item.material)),
+    topProducts: topFacets(cartFacetPresence(carts, (item) => item.product_type)),
+    valueBands: topFacets(carts.map((cart) => ({
       label: capturedValueBand(cart.captured_value_cents),
       count: 1,
     })), 10),
-    checkoutStages: topFacets(abandonmentCohort.map((cart) => ({ label: cart.checkout_stage, count: 1 })), 10),
+    checkoutStages: topFacets(carts.map((cart) => ({ label: cart.checkout_stage, count: 1 })), 10),
     outcomeComparison: summarizeOutcomeComparison(carts),
   };
 }
@@ -714,6 +714,7 @@ function analyticsQuery(whereClause) {
       COUNT(*) FILTER (WHERE ${refundedRecovery})::INTEGER AS recovered_refunded_count,
       COUNT(*) FILTER (WHERE ${unknownRecovery})::INTEGER AS recovered_revenue_unknown_count,
       COUNT(*) FILTER (WHERE cart.recovery_status = 'expired')::INTEGER AS expired_count,
+      COALESCE(SUM(${value}), 0)::BIGINT AS total_captured_value_cents,
       COALESCE(SUM(${value}) FILTER (WHERE cart.recovery_status IN ('active', 'abandoned')), 0)::BIGINT AS active_value_cents,
       COALESCE(SUM(${recoveredOrderValue}) FILTER (WHERE ${retainedRecovery}), 0)::BIGINT AS recovered_value_cents,
       COUNT(*) FILTER (WHERE ${recoveredEvent} AND cart.recovery_emails_sent > 0)::INTEGER AS recovered_after_email_count,
@@ -738,6 +739,7 @@ function analyticsFromRow(row = {}) {
     recoveredRefundedCount: positiveInteger(row.recovered_refunded_count),
     recoveredRevenueUnknownCount: positiveInteger(row.recovered_revenue_unknown_count),
     expiredCount: positiveInteger(row.expired_count),
+    totalCapturedValueCents: positiveInteger(row.total_captured_value_cents),
     activeValueCents: positiveInteger(row.active_value_cents),
     recoveredValueCents: positiveInteger(row.recovered_value_cents),
     recoveredAfterEmailCount: positiveInteger(row.recovered_after_email_count),
@@ -765,7 +767,6 @@ function facetsQuery(whereClause) {
       SELECT cart.id, cart.cart_contents, cart.checkout_stage, ${value} AS captured_value_cents
         FROM abandoned_carts AS cart
        WHERE ${whereClause}
-         AND cart.abandoned_at IS NOT NULL
     ), item_facets AS (
       SELECT DISTINCT filtered.id, 'size'::TEXT AS facet,
              CASE WHEN ${width} IS NULL OR ${height} IS NULL THEN 'Unknown'
@@ -1207,6 +1208,7 @@ exports._test = {
   buildFilterSql,
   analyticsQuery,
   analyticsFromRow,
+  facetsQuery,
   recoveredOrderJoinSql,
   recoveredRevenueState,
 };

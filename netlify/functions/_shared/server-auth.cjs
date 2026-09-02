@@ -5,6 +5,17 @@ const crypto = require('crypto');
 const SESSION_TTL_SECONDS = 8 * 60 * 60;
 const SESSION_HEADER = 'x-banners-admin-session';
 const SESSION_COOKIE = 'banners_admin_session';
+const PREVIEW_ADMIN_COOKIE = 'botf_preview_admin';
+
+function isDeployPreviewEnvironment(event) {
+  // Netlify function runtimes do not always expose CONTEXT, so the request host
+  // is the authoritative signal for a password-gated deploy preview.
+  const forwardedHost = String(event?.headers?.['x-forwarded-host'] || '').split(',')[0].trim();
+  const host = forwardedHost || String(event?.headers?.host || event?.headers?.Host || '').trim();
+  return /^deploy-preview-\d+--.+\.netlify\.app(?::\d+)?$/i.test(host)
+    || process.env.CONTEXT === 'deploy-preview'
+    || /^https:\/\/deploy-preview-\d+--.+\.netlify\.app$/i.test(process.env.DEPLOY_PRIME_URL || '');
+}
 
 function secret() {
   return process.env.AUTH_SESSION_SECRET || process.env.CLOUDINARY_API_SECRET || '';
@@ -79,6 +90,9 @@ function verifySessionToken(token) {
 }
 
 function getSession(event) {
+  if (isDeployPreviewEnvironment(event) && readCookie(event, PREVIEW_ADMIN_COOKIE) === '1') {
+    return { sub: 'preview-admin', email: '', admin: true, preview: true };
+  }
   return verifySessionToken(readBearer(event));
 }
 
