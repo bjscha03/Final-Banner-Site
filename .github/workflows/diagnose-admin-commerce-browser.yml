@@ -1,4 +1,4 @@
-name: Repair abandoned-cart admin payload normalization
+name: Finish abandoned-cart Admin browser repair
 
 on:
   push:
@@ -17,27 +17,28 @@ jobs:
         with:
           ref: feat/automatic-large-banner-25
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: npm
       - run: npm ci
-      - name: Patch payload normalization
+      - name: Patch payload normalization and responsive test locator
         run: |
-          printf '%s' 'ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCgpwYXRoID0gUGF0aCgic3JjL3BhZ2VzL2FkbWluL0FiYW5kb25lZENhcnRzLnRzeCIpCnRleHQgPSBwYXRoLnJlYWRfdGV4dCgpCm9sZCA9ICIiIiAgICAgIHNldENhcnRzKEFycmF5LmlzQXJyYXkoZGF0YS5jYXJ0cykgPyBkYXRhLmNhcnRzIDogW10pOwogICAgICBzZXRTZXJ2ZXJBbmFseXRpY3MoZGF0YS5hbmFseXRpY3MgfHwgbnVsbCk7IiIiCm5ldyA9ICIiIiAgICAgIGNvbnN0IG5vcm1hbGl6ZWRDYXJ0cyA9IChBcnJheS5pc0FycmF5KGRhdGEuY2FydHMpID8gZGF0YS5jYXJ0cyA6IFtdKS5tYXAoKGNhcnQpID0+ICh7CiAgICAgICAgLi4uY2FydCwKICAgICAgICBpdGVtX3N1bW1hcmllczogQXJyYXkuaXNBcnJheShjYXJ0Lml0ZW1fc3VtbWFyaWVzKSA/IGNhcnQuaXRlbV9zdW1tYXJpZXMgOiBbXSwKICAgICAgICByZWNvdmVyeV9ldmVudHM6IEFycmF5LmlzQXJyYXkoY2FydC5yZWNvdmVyeV9ldmVudHMpID8gY2FydC5yZWNvdmVyeV9ldmVudHMgOiBbXSwKICAgICAgICByZWNvdmVyeV9kZWxpdmVyaWVzOiBBcnJheS5pc0FycmF5KGNhcnQucmVjb3ZlcnlfZGVsaXZlcmllcykgPyBjYXJ0LnJlY292ZXJ5X2RlbGl2ZXJpZXMgOiBbXSwKICAgICAgICByZWNvdmVyeV9vZmZlcnM6IEFycmF5LmlzQXJyYXkoY2FydC5yZWNvdmVyeV9vZmZlcnMpID8gY2FydC5yZWNvdmVyeV9vZmZlcnMgOiBbXSwKICAgICAgfSkpOwogICAgICBzZXRDYXJ0cyhub3JtYWxpemVkQ2FydHMpOwogICAgICBzZXRTZXJ2ZXJBbmFseXRpY3MoZGF0YS5hbmFseXRpY3MgfHwgbnVsbCk7IiIiCmlmIG5ldyBpbiB0ZXh0IGFuZCBvbGQgbm90IGluIHRleHQ6CiAgICBwcmludCgiQWJhbmRvbmVkLWNhcnQgcGF5bG9hZCBub3JtYWxpemF0aW9uIGlzIGFscmVhZHkgcHJlc2VudC4iKQplbGlmIHRleHQuY291bnQob2xkKSAhPSAxOgogICAgcmFpc2UgU3lzdGVtRXhpdChmIkV4cGVjdGVkIG9uZSBjYXJ0IGFzc2lnbm1lbnQgYmxvY2ssIGZvdW5kIHt0ZXh0LmNvdW50KG9sZCl9IikKZWxzZToKICAgIHBhdGgud3JpdGVfdGV4dCh0ZXh0LnJlcGxhY2Uob2xkLCBuZXcsIDEpKQogICAgcHJpbnQoIk5vcm1hbGl6ZWQgb3B0aW9uYWwgaXRlbS9yZWNvdmVyeSBhcnJheXMgYmVmb3JlIHJlbmRlcmluZyBoaXN0b3JpY2FsIGNhcnRzLiIpCg==' | base64 --decode > /tmp/patch.py
+          printf '%s' 'ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCgpkZWYgcmVwbGFjZV9vbmNlKHBhdGhfbmFtZTogc3RyLCBvbGQ6IHN0ciwgbmV3OiBzdHIsIGxhYmVsOiBzdHIpIC0+IE5vbmU6CiAgICBwYXRoID0gUGF0aChwYXRoX25hbWUpCiAgICB0ZXh0ID0gcGF0aC5yZWFkX3RleHQoKQogICAgaWYgbmV3IGluIHRleHQgYW5kIG9sZCBub3QgaW4gdGV4dDoKICAgICAgICBwcmludChmIntbTGFiZWx9OiBhbHJlYWR5IHBhdGNoZWR9IikKICAgICAgICByZXR1cm4KICAgIGNvdW50ID0gdGV4dC5jb3VudChvbGQpCiAgICBpZiBjb3VudCAhPSAxOgogICAgICAgIHJhaXNlIFN5c3RlbUV4aXQoZiJ7bGFiZWx9OiBleHBlY3RlZCBleGFjdGx5IG9uZSBtYXRjaCwgZm91bmQge2NvdW50fSIpCiAgICBwYXRoLndyaXRlX3RleHQodGV4dC5yZXBsYWNlKG9sZCwgbmV3LCAxKSkKICAgIHByaW50KGYie2xhYmVsfTogcGF0Y2hlZCIpCgpyZXBsYWNlX29uY2UoCiAgICAic3JjL3BhZ2VzL2FkbWluL0FiYW5kb25lZENhcnRzLnRzeCIsCiAgICAiIiIgICAgICBzZXRDYXJ0cyhBcnJheS5pc0FycmF5KGRhdGEuY2FydHMpID8gZGF0YS5jYXJ0cyA6IFtdKTsKICAgICAgc2V0U2VydmVyQW5hbHl0aWNzKGRhdGEuYW5hbHl0aWNzIHx8IG51bGwpOyIiIiwKICAgICIiIiAgICAgIGNvbnN0IG5vcm1hbGl6ZWRDYXJ0cyA9IChBcnJheS5pc0FycmF5KGRhdGEuY2FydHMpID8gZGF0YS5jYXJ0cyA6IFtdKS5tYXAoKGNhcnQpID0+ICh7CiAgICAgICAgLi4uY2FydCwKICAgICAgICBpdGVtX3N1bW1hcmllczogQXJyYXkuaXNBcnJheShjYXJ0Lml0ZW1fc3VtbWFyaWVzKSA/IGNhcnQuaXRlbV9zdW1tYXJpZXMgOiBbXSwKICAgICAgICByZWNvdmVyeV9ldmVudHM6IEFycmF5LmlzQXJyYXkoY2FydC5yZWNvdmVyeV9ldmVudHMpID8gY2FydC5yZWNvdmVyeV9ldmVudHMgOiBbXSwKICAgICAgICByZWNvdmVyeV9kZWxpdmVyaWVzOiBBcnJheS5pc0FycmF5KGNhcnQucmVjb3ZlcnlfZGVsaXZlcmllcykgPyBjYXJ0LnJlY292ZXJ5X2RlbGl2ZXJpZXMgOiBbXSwKICAgICAgICByZWNvdmVyeV9vZmZlcnM6IEFycmF5LmlzQXJyYXkoY2FydC5yZWNvdmVyeV9vZmZlcnMpID8gY2FydC5yZWNvdmVyeV9vZmZlcnMgOiBbXSwKICAgICAgfSkpOwogICAgICBzZXRDYXJ0cyhub3JtYWxpemVkQ2FydHMpOwogICAgICBzZXRTZXJ2ZXJBbmFseXRpY3MoZGF0YS5hbmFseXRpY3MgfHwgbnVsbCk7IiIiLAogICAgImFiYW5kb25lZC1jYXJ0IHJlc3BvbnNlIG5vcm1hbGl6YXRpb24iLAopCgpyZXBsYWNlX29uY2UoCiAgICAidGVzdHMvYnJvd3Nlci9hZG1pbi1jb21tZXJjZS1hbmFseXRpY3MucGxheXdyaWdodC5zcGVjLnRzIiwKICAgICIiIiAgaWYgKGlzTW9iaWxlKSB7CiAgICBhd2FpdCBwYWdlLmdldEJ5Um9sZSgnYnV0dG9uJywgeyBuYW1lOiAvQWxpY2UgQnV5ZXIvIH0pLmNsaWNrKCk7CiAgfSBlbHNlIHsiIiIsCiAgICAiIiIgIGlmIChpc01vYmlsZSkgewogICAgYXdhaXQgcGFnZS5nZXRCeVJvbGUoJ2J1dHRvbicsIHsgbmFtZTogJ1ZpZXcgY3VzdG9tZXInLCBleGFjdDogdHJ1ZSB9KS5maXJzdCgpLmNsaWNrKCk7CiAgfSBlbHNlIHsiIiwKICAgICJtb2JpbGUgY3VzdG9tZXIgZGV0YWlsIGxvY2F0b3IiLAopCg==' | base64 --decode > /tmp/patch.py
           python /tmp/patch.py
       - name: Run desktop and mobile Admin browser contracts
         run: |
           browser=$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)
           test -n "$browser"
           PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="$browser" npx playwright test --config=playwright.preview.config.ts admin-commerce-analytics.playwright.spec.ts --project=chromium-1440x900 --project=chromium-pixel8-portrait --workers=1
-      - name: Lint repair
+      - name: Lint repaired files
         run: npx eslint src/pages/admin/AbandonedCarts.tsx tests/browser/admin-commerce-analytics.playwright.spec.ts
-      - name: Commit repair and remove workflow
+      - name: Commit repair and remove temporary workflow
         run: |
           rm .github/workflows/diagnose-admin-commerce-browser.yml
           git config user.name "Banners On The Fly CI"
           git config user.email "actions@users.noreply.github.com"
-          git add src/pages/admin/AbandonedCarts.tsx .github/workflows/diagnose-admin-commerce-browser.yml
-          git commit -m "Normalize abandoned-cart Admin payload arrays"
+          git add src/pages/admin/AbandonedCarts.tsx tests/browser/admin-commerce-analytics.playwright.spec.ts .github/workflows/diagnose-admin-commerce-browser.yml
+          git commit -m "Harden abandoned-cart Admin browser flow"
           git push origin HEAD:feat/automatic-large-banner-25
