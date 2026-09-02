@@ -1,0 +1,152 @@
+name: One-time sync stale regression fixtures
+
+on:
+  push:
+    branches:
+      - feat/automatic-large-banner-25
+
+permissions:
+  contents: write
+
+jobs:
+  sync-and-verify:
+    if: ${{ !contains(github.event.head_commit.message, '[sync-regression-tests]') && !contains(github.event.head_commit.message, '[cleanup-regression-workflow]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/automatic-large-banner-25
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update stale test expectations only
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_exact(path_name: str, old: str, new: str, label: str, expected: int = 1) -> None:
+              path = Path(path_name)
+              text = path.read_text()
+              count = text.count(old)
+              if count != expected:
+                  raise SystemExit(f'{label}: expected {expected} match(es), found {count}')
+              path.write_text(text.replace(old, new, expected))
+              print(f'{label}: updated')
+
+          paypal_test = 'netlify/functions/__tests__/abandoned-cart-order-link.test.cjs'
+          replace_exact(
+              paypal_test,
+              "  assert.match(paypal, /sessionId: getAbandonedCartSessionId\\(\\)/);",
+              "  assert.match(paypal, /const abandonedCartSessionId = getAbandonedCartSessionId\\(\\);/);\n  assert.match(paypal, /sessionId: abandonedCartSessionId/);",
+              'PayPal cart-session assertion',
+          )
+
+          handler_test = 'netlify/functions/__tests__/admin-customers-handler.test.mjs'
+          replace_exact(
+              handler_test,
+              "    if (/LIMIT 0\\s*$/i.test(query)) return [];\n    if (query.includes('SELECT population_stats.*')) return [statsRow()];",
+              "    if (/LIMIT 0\\s*$/i.test(query)) return [];\n    if (query.includes('FROM marketing_email_sends')) return [];\n    if (query.includes('SELECT population_stats.*')) return [statsRow()];",
+              'Admin list marketing-send mock',
+          )
+          replace_exact(
+              handler_test,
+              "  assert.equal(calls.filter(({ query }) => /LIMIT 0\\s*$/i.test(query)).length, 5);",
+              "  assert.equal(calls.filter(({ query }) => /LIMIT 0\\s*$/i.test(query)).length, 6);",
+              'Admin list suppression probe count',
+          )
+          replace_exact(
+              handler_test,
+              "    if (query.includes('FROM recovery_email_suppressions')) return [];\n    if (query.includes('FROM outbound_suppressions')) {",
+              "    if (query.includes('FROM recovery_email_suppressions')) return [];\n    if (query.includes('FROM marketing_email_suppressions')) return [];\n    if (query.includes('FROM outbound_suppressions')) {",
+              'Admin detail marketing suppression mock',
+          )
+          replace_exact(
+              handler_test,
+              "    if (query.includes('FROM newsletter')) return [];\n    if (query === CUSTOMER_DETAIL_COUNT_QUERY)",
+              "    if (query.includes('FROM newsletter')) return [];\n    if (query.includes('FROM marketing_email_sends')) return [];\n    if (query === CUSTOMER_DETAIL_COUNT_QUERY)",
+              'Admin detail marketing-send mock',
+          )
+          replace_exact(
+              handler_test,
+              "/FROM (recovery_email_suppressions|outbound_suppressions|trade_show_email_unsubscribes|email_captures|newsletter)/",
+              "/FROM (recovery_email_suppressions|marketing_email_suppressions|outbound_suppressions|trade_show_email_unsubscribes|email_captures|newsletter)/",
+              'Admin detail suppression-source matcher',
+          )
+          replace_exact(
+              handler_test,
+              "  assert.equal(suppressionCalls.length, 5);",
+              "  assert.equal(suppressionCalls.length, 6);",
+              'Admin detail suppression call count',
+          )
+          replace_exact(
+              handler_test,
+              "  assert.equal(verificationCalls.length, 5);",
+              "  assert.equal(verificationCalls.length, 6);",
+              'Admin export verification call count',
+          )
+
+          analytics_test = 'netlify/functions/__tests__/admin-customers.test.cjs'
+          replace_exact(
+              analytics_test,
+              "test('bounded marketing eligibility lookup unions recovery, domain, trade-show, consent, and newsletter suppressions', async () => {",
+              "test('bounded marketing eligibility lookup unions recovery, marketing, domain, trade-show, consent, and newsletter suppressions', async () => {",
+              'Admin suppression test title',
+          )
+          replace_exact(
+              analytics_test,
+              "    if (query.includes('FROM outbound_suppressions')) return [{ email: 'blocked-domain.com', reason: 'legal', scope: 'company_domain' }];\n    if (query.includes('FROM trade_show_email_unsubscribes'))",
+              "    if (query.includes('FROM outbound_suppressions')) return [{ email: 'blocked-domain.com', reason: 'legal', scope: 'company_domain' }];\n    if (query.includes('FROM marketing_email_suppressions')) return [{ email: 'marketing@business.com', reason: 'unsubscribe', scope: 'email' }];\n    if (query.includes('FROM trade_show_email_unsubscribes'))",
+              'Admin suppression marketing-source mock',
+          )
+          replace_exact(
+              analytics_test,
+              "    'person@blocked-domain.com',\n    'trade@business.com',",
+              "    'person@blocked-domain.com',\n    'marketing@business.com',\n    'trade@business.com',",
+              'Admin suppression marketing candidate',
+          )
+          replace_exact(
+              analytics_test,
+              "  assert.equal(calls.length, 5);\n  assert.equal(calls.every(({ query }) => /ANY\\(\\$\\d::text\\[\\]\\)/.test(query)), true);",
+              "  assert.equal(calls.length, 6);\n  assert.equal(calls.every(({ query }) => /ANY\\(\\$\\d::text\\[\\]\\)/.test(query)), true);",
+              'Admin bounded suppression call count',
+          )
+          replace_exact(
+              analytics_test,
+              "  assert.equal(calls.length, 5);\n  assert.equal(calls.every((query) => /LIMIT 0\\s*$/i.test(query)), true);",
+              "  assert.equal(calls.length, 6);\n  assert.equal(calls.every((query) => /LIMIT 0\\s*$/i.test(query)), true);",
+              'Admin suppression probe count',
+          )
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Re-run the six previously failing regressions
+        run: |
+          node --test \
+            netlify/functions/__tests__/abandoned-cart-order-link.test.cjs \
+            netlify/functions/__tests__/admin-customers-handler.test.mjs \
+            netlify/functions/__tests__/admin-customers.test.cjs
+
+      - name: Commit verified fixture updates
+        run: |
+          git config user.name "Banners On The Fly CI"
+          git config user.email "actions@users.noreply.github.com"
+          git add \
+            netlify/functions/__tests__/abandoned-cart-order-link.test.cjs \
+            netlify/functions/__tests__/admin-customers-handler.test.mjs \
+            netlify/functions/__tests__/admin-customers.test.cjs
+          git commit -m "Sync regression fixtures with current checkout and suppression flows [sync-regression-tests]"
+          git push origin HEAD:feat/automatic-large-banner-25
+
+      - name: Remove one-time workflow
+        run: |
+          git pull --ff-only origin feat/automatic-large-banner-25
+          rm .github/workflows/one-time-sync-regression-tests.yml
+          git add .github/workflows/one-time-sync-regression-tests.yml
+          git commit -m "Remove one-time regression workflow [cleanup-regression-workflow]"
+          git push origin HEAD:feat/automatic-large-banner-25
