@@ -151,5 +151,6 @@ test('both provider paths carry the validated cart link and bounded session hint
   assert.match(core, /verifyAbandonedCartRecoveryToken\(submittedRecoveryToken\)/);
   assert.match(paypal, /selectAbandonedCartPaymentAttribution\(\{/);
   assert.match(paypal, /\.\.\.abandonedCartAttribution/);
-  assert.match(paypal, /sessionId: getAbandonedCartSessionId\(\)/);
+  assert.match(paypal, /const abandonedCartSessionId = getAbandonedCartSessionId\(\);/);
+  assert.match(paypal, /sessionId: abandonedCartSessionId/);
 });
