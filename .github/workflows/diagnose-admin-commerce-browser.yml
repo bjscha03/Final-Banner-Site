@@ -27,8 +27,8 @@ jobs:
           from pathlib import Path
           path = Path('tests/browser/admin-commerce-analytics.playwright.spec.ts')
           text = path.read_text()
-          marker = "  await expect(page.getByRole('heading', { name: 'Abandoned Cart Analytics' })).toBeVisible();\n"
-          diagnostic = marker + "  await page.waitForTimeout(2500);\n  console.log('ADMIN_PAGE_URL', page.url());\n  console.log('ADMIN_PAGE_ERRORS', JSON.stringify(pageErrors));\n  console.log('ADMIN_BODY_TEXT_START');\n  console.log((await page.locator('body').innerText()).slice(0, 12000));\n  console.log('ADMIN_BODY_TEXT_END');\n  console.log('ADMIN_MAIN_HTML_START');\n  console.log((await page.locator('main').innerHTML()).slice(0, 20000));\n  console.log('ADMIN_MAIN_HTML_END');\n"
+          marker = "  await page.goto('/admin/abandoned-carts', { waitUntil: 'domcontentloaded' });\n"
+          diagnostic = marker + "  await page.waitForTimeout(5000);\n  console.log('ADMIN_PAGE_URL', page.url());\n  console.log('ADMIN_PAGE_ERRORS', JSON.stringify(pageErrors));\n  console.log('ADMIN_BODY_TEXT_START');\n  console.log((await page.locator('body').innerText()).slice(0, 12000));\n  console.log('ADMIN_BODY_TEXT_END');\n  console.log('ADMIN_HTML_START');\n  console.log((await page.content()).slice(0, 30000));\n  console.log('ADMIN_HTML_END');\n"
           if marker not in text:
               raise SystemExit('diagnostic insertion marker not found')
           path.write_text(text.replace(marker, diagnostic, 1))
