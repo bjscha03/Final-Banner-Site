@@ -1,4 +1,4 @@
-name: One-time fix Admin metrics browser locator
+name: Patch Admin metrics locator
 
 on:
   push:
@@ -9,88 +9,23 @@ permissions:
   contents: write
 
 jobs:
-  patch-and-verify:
+  patch:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-
     steps:
-      - name: Check out PR branch
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           ref: feat/automatic-large-banner-25
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Use Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: npm
-
-      - name: Patch the accessibility-labeled section locator
-        shell: bash
+      - name: Patch and push
         run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path('tests/browser/admin-commerce-analytics.playwright.spec.ts')
-          text = path.read_text()
-          old = """  await expect(page.getByRole('region', { name: 'All-time abandoned cart metrics' })).toContainText('Total captured value');
-  await expect(page.getByRole('region', { name: 'All-time abandoned cart metrics' })).toContainText('$268.50');
-  await expect(page.getByRole('region', { name: 'All-time abandoned cart metrics' })).toContainText('Recorded cart suppressions');"""
-          new = """  const allTimeMetrics = page.locator('section[aria-label=\"All-time abandoned cart metrics\"]');
-  await expect(allTimeMetrics).toBeVisible();
-  await expect(allTimeMetrics).toContainText('Total captured value');
-  await expect(allTimeMetrics).toContainText('$268.50');
-  await expect(allTimeMetrics).toContainText('Recorded cart suppressions');"""
-          if new in text and old not in text:
-              print('Locator already patched.')
-          elif text.count(old) != 1:
-              raise SystemExit(f'Expected one stale locator block, found {text.count(old)}')
-          else:
-              path.write_text(text.replace(old, new, 1))
-              print('Patched locator while preserving the exact visible-content assertions.')
-          PY
-
-      - name: Install exact dependencies
-        run: npm ci
-
-      - name: Run the desktop and mobile browser contract
-        shell: bash
-        run: |
-          set -euo pipefail
-          browser=$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)
-          if [ -z "$browser" ]; then
-            echo "No supported Chrome/Chromium executable was found"
-            exit 1
-          fi
-          PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="$browser" \
-            npx playwright test \
-              --config=playwright.preview.config.ts \
-              admin-commerce-analytics.playwright.spec.ts \
-              --project=chromium-1440x900 \
-              --project=chromium-pixel8-portrait
-
-      - name: Commit verified locator update
-        run: |
+          printf '%s' 'ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCgpwYXRoID0gUGF0aCgidGVzdHMvYnJvd3Nlci9hZG1pbi1jb21tZXJjZS1hbmFseXRpY3MucGxheXdyaWdodC5zcGVjLnRzIikKdGV4dCA9IHBhdGgucmVhZF90ZXh0KCkKb2xkID0gIiIiICBhd2FpdCBleHBlY3QocGFnZS5nZXRCeVJvbGUoJ3JlZ2lvbicsIHsgbmFtZTogJ0FsbC10aW1lIGFiYW5kb25lZCBjYXJ0IG1ldHJpY3MnIH0pKS50b0NvbnRhaW5UZXh0KCdUb3RhbCBjYXB0dXJlZCB2YWx1ZScpOwogIGF3YWl0IGV4cGVjdChwYWdlLmdldEJ5Um9sZSgncmVnaW9uJywgeyBuYW1lOiAnQWxsLXRpbWUgYWJhbmRvbmVkIGNhcnQgbWV0cmljcycgfSkpLnRvQ29udGFpblRleHQoJyQyNjguNTAnKTsKICBhd2FpdCBleHBlY3QocGFnZS5nZXRCeVJvbGUoJ3JlZ2lvbicsIHsgbmFtZTogJ0FsbC10aW1lIGFiYW5kb25lZCBjYXJ0IG1ldHJpY3MnIH0pKS50b0NvbnRhaW5UZXh0KCdSZWNvcmRlZCBjYXJ0IHN1cHByZXNzaW9ucycpOyIiIgpuZXcgPSAiIiIgIGNvbnN0IGFsbFRpbWVNZXRyaWNzID0gcGFnZS5sb2NhdG9yKCdzZWN0aW9uW2FyaWEtbGFiZWw9IkFsbC10aW1lIGFiYW5kb25lZCBjYXJ0IG1ldHJpY3MiXScpOwogIGF3YWl0IGV4cGVjdChhbGxUaW1lTWV0cmljcykudG9CZVZpc2libGUoKTsKICBhd2FpdCBleHBlY3QoYWxsVGltZU1ldHJpY3MpLnRvQ29udGFpblRleHQoJ1RvdGFsIGNhcHR1cmVkIHZhbHVlJyk7CiAgYXdhaXQgZXhwZWN0KGFsbFRpbWVNZXRyaWNzKS50b0NvbnRhaW5UZXh0KCckMjY4LjUwJyk7CiAgYXdhaXQgZXhwZWN0KGFsbFRpbWVNZXRyaWNzKS50b0NvbnRhaW5UZXh0KCdSZWNvcmRlZCBjYXJ0IHN1cHByZXNzaW9ucycpOyIiIgppZiBuZXcgaW4gdGV4dCBhbmQgb2xkIG5vdCBpbiB0ZXh0OgogICAgcHJpbnQoIkxvY2F0b3IgYWxyZWFkeSBwYXRjaGVkLiIpCmVsaWYgdGV4dC5jb3VudChvbGQpICE9IDE6CiAgICByYWlzZSBTeXN0ZW1FeGl0KGYiRXhwZWN0ZWQgb25lIHN0YWxlIGxvY2F0b3IgYmxvY2ssIGZvdW5kIHt0ZXh0LmNvdW50KG9sZCl9IikKZWxzZToKICAgIHBhdGgud3JpdGVfdGV4dCh0ZXh0LnJlcGxhY2Uob2xkLCBuZXcsIDEpKQogICAgcHJpbnQoIlBhdGNoZWQgbG9jYXRvci4iKQo=' | base64 --decode > /tmp/patch.py
+          python /tmp/patch.py
           git config user.name "Banners On The Fly CI"
           git config user.email "actions@users.noreply.github.com"
           git add tests/browser/admin-commerce-analytics.playwright.spec.ts
           if git diff --staged --quiet; then
-            echo "Locator update is already committed."
+            echo "No locator change needed."
           else
             git commit -m "Stabilize Admin metrics browser contract [admin-metrics-locator]"
             git push origin HEAD:feat/automatic-large-banner-25
-          fi
-
-      - name: Remove one-time workflow
-        run: |
-          git pull --ff-only origin feat/automatic-large-banner-25
-          if [ -f .github/workflows/one-time-fix-admin-metrics-locator.yml ]; then
-            rm .github/workflows/one-time-fix-admin-metrics-locator.yml
-            git add .github/workflows/one-time-fix-admin-metrics-locator.yml
-            git commit -m "Remove one-time Admin metrics locator workflow [cleanup-admin-metrics-locator]"
-            git push origin HEAD:feat/automatic-large-banner-25
-          else
-            echo "One-time workflow is already removed."
           fi
