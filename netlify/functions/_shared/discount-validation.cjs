@@ -1,10 +1,11 @@
 'use strict';
 
 const {
+  AUTOMATIC_LARGE_BANNER_PROMOTION_ID,
   LARGE_BANNER_RECOVERY_CAMPAIGN,
   LARGE_BANNER_RECOVERY_SCOPE,
   SEPTEMBER_LARGE_BANNER_CODE,
-  buildSeptemberLargeBannerDiscount,
+  buildAutomaticLargeBannerDiscount,
   isQualifyingLargeBannerLine,
   normalizeEligibleCartItemIds,
   positiveInteger,
@@ -94,20 +95,30 @@ async function validateDiscountForCheckout({
   const normalizedRecoveryCartId = normalizedCartId(recoveryCartId);
   if (!normalizedCode) return invalidResult('Discount code is required');
 
-  if (normalizedCode === SEPTEMBER_LARGE_BANNER_CODE) {
-    const promotion = buildSeptemberLargeBannerDiscount(now);
-    if (!promotion.valid) {
-      return invalidResult(promotion.reason === 'not_started'
-        ? 'BIG25 begins September 1, 2026'
-        : 'BIG25 expired after September 8, 2026');
+  const hasQualifyingLargeBanner = Array.isArray(items)
+    && items.some(isQualifyingLargeBannerLine);
+
+  // BIG25 is retained as a customer-facing alias, while LARGE_BANNER_25 is the
+  // stable internal promotion id. Both resolve to the same automatic offer so
+  // a saved legacy code can never stack with or block checkout.
+  if (
+    normalizedCode === AUTOMATIC_LARGE_BANNER_PROMOTION_ID
+    || normalizedCode === SEPTEMBER_LARGE_BANNER_CODE
+  ) {
+    if (!hasQualifyingLargeBanner) {
+      return invalidResult("Large Banner 25% Off requires at least one 6' × 3' or larger banner");
     }
-    if (!Array.isArray(items) || !items.some(isQualifyingLargeBannerLine)) {
-      return invalidResult("BIG25 requires at least one 6' × 3' or larger banner");
-    }
-    return validResult(promotion.discount);
+    return validResult(buildAutomaticLargeBannerDiscount());
   }
 
   if (normalizedCode === 'NEW20') {
+    // A customer may have applied NEW20 before adding a qualifying banner.
+    // Resolve that stale state to the automatic 25% offer instead of stacking
+    // discounts or failing the provider checkout after the cart is repriced.
+    if (hasQualifyingLargeBanner) {
+      return validResult(buildAutomaticLargeBannerDiscount());
+    }
+
     if (userId) {
       const priorOrders = await sql`
         SELECT id FROM orders
@@ -203,21 +214,29 @@ async function validateDiscountForCheckout({
   if (recoveryOffer && !['active', 'abandoned'].includes(String(discount.recovery_cart_status || ''))) {
     return invalidResult('This cart-recovery discount is no longer active');
   }
-  if (discount.expires_at && new Date(discount.expires_at) < new Date()) {
+  if (discount.expires_at && new Date(discount.expires_at) < new Date(now)) {
     return invalidResult('This discount code has expired');
   }
   if (discount.used) return invalidResult('This code has already been used');
 
-  const usedEmails = Array.isArray(discount.used_by_email) ? discount.used_by_email.map((value) => String(value).toLowerCase()) : [];
-  const perCustomerLimit = discount.max_uses_per_customer == null ? null : Number(discount.max_uses_per_customer);
+  const usedEmails = Array.isArray(discount.used_by_email)
+    ? discount.used_by_email.map((value) => String(value).toLowerCase())
+    : [];
+  const perCustomerLimit = discount.max_uses_per_customer == null
+    ? null
+    : Number(discount.max_uses_per_customer);
   if (normalizedEmail && perCustomerLimit !== null) {
     const customerUses = usedEmails.filter((value) => value === normalizedEmail).length;
     if (customerUses >= perCustomerLimit) return invalidResult('This code has already been used');
   }
 
   if (userId && discount.used_by_user_id) {
-    const usedUserIds = Array.isArray(discount.used_by_user_id) ? discount.used_by_user_id : [discount.used_by_user_id];
-    if (usedUserIds.map(String).includes(String(userId))) return invalidResult('This code has already been used');
+    const usedUserIds = Array.isArray(discount.used_by_user_id)
+      ? discount.used_by_user_id
+      : [discount.used_by_user_id];
+    if (usedUserIds.map(String).includes(String(userId))) {
+      return invalidResult('This code has already been used');
+    }
   }
 
   if (discount.max_total_uses != null && usedEmails.length >= Number(discount.max_total_uses)) {
@@ -229,4 +248,9 @@ async function validateDiscountForCheckout({
   return validResult(storedDiscount);
 }
 
-module.exports = { normalizeCode, normalizedCartId, storedDiscountFromRow, validateDiscountForCheckout };
+module.exports = {
+  normalizeCode,
+  normalizedCartId,
+  storedDiscountFromRow,
+  validateDiscountForCheckout,
+};
