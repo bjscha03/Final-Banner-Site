@@ -1,0 +1,43 @@
+name: Diagnose Admin commerce browser
+
+on:
+  push:
+    branches:
+      - feat/automatic-large-banner-25
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/automatic-large-banner-25
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Add runtime diagnostics
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('tests/browser/admin-commerce-analytics.playwright.spec.ts')
+          text = path.read_text()
+          marker = "  await expect(page.getByRole('heading', { name: 'Abandoned Cart Analytics' })).toBeVisible();\n"
+          diagnostic = marker + "  await page.waitForTimeout(2500);\n  console.log('ADMIN_PAGE_URL', page.url());\n  console.log('ADMIN_PAGE_ERRORS', JSON.stringify(pageErrors));\n  console.log('ADMIN_BODY_TEXT_START');\n  console.log((await page.locator('body').innerText()).slice(0, 12000));\n  console.log('ADMIN_BODY_TEXT_END');\n  console.log('ADMIN_MAIN_HTML_START');\n  console.log((await page.locator('main').innerHTML()).slice(0, 20000));\n  console.log('ADMIN_MAIN_HTML_END');\n"
+          if marker not in text:
+              raise SystemExit('diagnostic insertion marker not found')
+          path.write_text(text.replace(marker, diagnostic, 1))
+          PY
+      - name: Run focused browser test
+        run: |
+          browser=$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)
+          PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="$browser" npx playwright test \
+            --config=playwright.preview.config.ts \
+            admin-commerce-analytics.playwright.spec.ts \
+            --project=chromium-1440x900 \
+            --workers=1
