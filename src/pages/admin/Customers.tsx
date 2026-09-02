@@ -161,12 +161,16 @@ const displaySuppressionReason = (reason: string) => reason
 
 const customerLabel = (customer: Customer) => customer.fullName || customer.email;
 
-const CustomerSegmentBadges = ({ customer }: { customer: Customer }) => (
+const CustomerSegmentBadges = ({ customer, inactivityDays }: { customer: Customer; inactivityDays: string }) => (
   <div className="flex flex-wrap gap-1.5">
     {customer.segment === 'repeat' && <Badge className="bg-[#18448D] text-white">Repeat</Badge>}
     {customer.segment === 'first_time' && <Badge variant="secondary">New customer</Badge>}
     {customer.segment === 'no_completed_order' && <Badge variant="outline">No completed order</Badge>}
-    {customer.isLapsed && <Badge className="bg-amber-100 text-amber-900 hover:bg-amber-100">Lapsed</Badge>}
+    {customer.isLapsed && (
+      <Badge className="bg-amber-100 text-amber-900 hover:bg-amber-100">
+        Inactive {inactivityDays}+ days
+      </Badge>
+    )}
   </div>
 );
 
@@ -594,7 +598,7 @@ const AdminCustomers: React.FC = () => {
               <StatCard label="All customers" value={stats.all} icon={Users} active={segment === 'all'} onClick={() => selectSegment('all')} />
               <StatCard label="New customers" value={stats.firstTime} icon={UserPlus} active={segment === 'first_time'} onClick={() => selectSegment('first_time')} />
               <StatCard label="Repeat customers" value={stats.repeat} icon={Repeat2} active={segment === 'repeat'} onClick={() => selectSegment('repeat')} />
-              <StatCard label={`Lapsed (${lapsedDays}d)`} value={stats.lapsed} icon={Clock3} active={segment === 'lapsed'} onClick={() => selectSegment('lapsed')} />
+              <StatCard label={`Inactive ${lapsedDays}+ days`} value={stats.lapsed} icon={Clock3} active={segment === 'lapsed'} onClick={() => selectSegment('lapsed')} />
             </div>
             <p className="mt-2 text-sm text-slate-600" aria-live="polite">
               {segment === 'repeat'
@@ -630,11 +634,11 @@ const AdminCustomers: React.FC = () => {
                 </SelectContent>
               </Select>
               <Select value={lapsedDays} onValueChange={(value) => { setLapsedDays(value); setPage(1); }}>
-                <SelectTrigger aria-label="Lapsed threshold"><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-label="Customer inactivity threshold"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="90">Lapsed after 90 days</SelectItem>
-                  <SelectItem value="180">Lapsed after 180 days</SelectItem>
-                  <SelectItem value="365">Lapsed after 365 days</SelectItem>
+                  <SelectItem value="90">Inactive after 90 days</SelectItem>
+                  <SelectItem value="180">Inactive after 180 days</SelectItem>
+                  <SelectItem value="365">Inactive after 365 days</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={segment} onValueChange={(value) => selectSegment(value as Segment)}>
@@ -643,7 +647,7 @@ const AdminCustomers: React.FC = () => {
                   <SelectItem value="all">All customers</SelectItem>
                   <SelectItem value="first_time">New customers</SelectItem>
                   <SelectItem value="repeat">Repeat customers</SelectItem>
-                  <SelectItem value="lapsed">Lapsed customers</SelectItem>
+                  <SelectItem value="lapsed">Inactive customers</SelectItem>
                 </SelectContent>
               </Select>
               <Button onClick={() => { setAppliedQuery(query.trim()); setPage(1); }}>Apply</Button>
@@ -728,7 +732,7 @@ const AdminCustomers: React.FC = () => {
                           }}
                         >
                           <TableCell><p className="font-bold text-slate-900">{customer.fullName || 'Name unavailable'}</p><p className="text-sm text-slate-500">{customer.email}</p></TableCell>
-                          <TableCell><CustomerSegmentBadges customer={customer} /></TableCell>
+                          <TableCell><CustomerSegmentBadges customer={customer} inactivityDays={lapsedDays} /></TableCell>
                           <TableCell className="text-right font-bold">{customer.completedOrderCount}</TableCell>
                           <TableCell className="text-right font-bold">{formatMoney(customer.lifetimeRevenueCents)}</TableCell>
                           <TableCell>{formatDate(customer.firstOrderAt)}</TableCell>
@@ -756,7 +760,7 @@ const AdminCustomers: React.FC = () => {
                         <div className="min-w-0"><p className="break-words font-black text-slate-900">{customer.fullName || customer.email}</p>{customer.fullName && <p className="break-all text-sm text-slate-500">{customer.email}</p>}</div>
                         <div className="shrink-0"><MarketingBadge customer={customer} /></div>
                       </div>
-                      <div className="mt-3"><CustomerSegmentBadges customer={customer} /></div>
+                      <div className="mt-3"><CustomerSegmentBadges customer={customer} inactivityDays={lapsedDays} /></div>
                       <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
                         <span><strong>{customer.completedOrderCount}</strong> completed orders</span>
                         <span className="text-right font-bold">{formatMoney(customer.lifetimeRevenueCents)}</span>
@@ -831,7 +835,7 @@ const AdminCustomers: React.FC = () => {
                 <DetailStat label="Last order" value={formatDate(selectedCustomer.lastOrderAt)} />
               </div>
               <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <CustomerSegmentBadges customer={selectedCustomer} />
+                <CustomerSegmentBadges customer={selectedCustomer} inactivityDays={lapsedDays} />
                 <MarketingBadge customer={selectedCustomer} />
                 {!selectedCustomer.marketingEligible && <span className="text-sm text-slate-600">{selectedCustomer.suppressionReasons.map(displaySuppressionReason).join(', ')}</span>}
                 <div className="ml-auto">

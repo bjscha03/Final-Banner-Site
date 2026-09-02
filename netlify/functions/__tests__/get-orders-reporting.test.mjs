@@ -33,7 +33,7 @@ test('Admin reporting request parsing bounds page, page size, search, and UTC pe
   }).error, /Invalid order reporting period/i);
 });
 
-test('page SQL preserves non-test history while exact business metrics stay paid-only, search-independent, and item-free', () => {
+test('page SQL admits only settled commerce lifecycles while exact business metrics stay search-independent and item-free', () => {
   const pageQuery = _test.buildAdminPageQuery();
   const summaryQuery = _test.buildAdminSummaryQuery();
 
@@ -46,7 +46,8 @@ test('page SQL preserves non-test history while exact business metrics stay paid
   assert.match(pageQuery, /payment_method <> 'admin_deploy_preview_test'/i);
   assert.match(pageQuery, /is_test_order = FALSE/i);
   const visibleOrdersSql = pageQuery.match(/visible_orders AS \([\s\S]*?\n\s*\),\n\s*filtered_orders AS/i)?.[0] || '';
-  assert.doesNotMatch(visibleOrdersSql, /effective_status IN/i);
+  assert.match(visibleOrdersSql, /effective_status IN \('paid', 'in_production', 'shipped', 'delivered', 'fulfilled', 'refunded'\)/i);
+  assert.doesNotMatch(visibleOrdersSql, /'pending'|'failed'|'canceled'|'cancelled'/i);
 
   assert.match(summaryQuery, /ROW_NUMBER\(\) OVER/i);
   assert.match(summaryQuery, /PARTITION BY reporting_customer_email/i);
@@ -63,6 +64,8 @@ test('page SQL preserves non-test history while exact business metrics stay paid
   assert.match(summaryQuery, /is_test_order = FALSE/i);
   assert.match(summaryQuery, /admin_deploy_preview_test/i);
   assert.match(summaryQuery, /tracking_number[\s\S]*IN \('pending', 'paid', 'in_production'\)[\s\S]*THEN 'shipped'/i);
+  assert.match(summaryQuery, /tracking_numbers/i);
+  assert.match(summaryQuery, /jsonb_array_elements/i);
 });
 
 test('saved tracking promotes active fulfillment states to shipped without overriding terminal states', () => {
@@ -73,6 +76,15 @@ test('saved tracking promotes active fulfillment states to shipped without overr
     status: 'pending',
     tracking_numbers: [{ trackingNumber: '987654321' }],
   }), 'shipped');
+  const [arrayOnly] = _test.normalizeAdminListOrders([{
+    id: 'tracked-array-only-order',
+    status: 'pending',
+    tracking_number: null,
+    tracking_numbers: [{ carrier: 'fedex', trackingNumber: '555555555555' }],
+    items: [],
+  }]);
+  assert.equal(arrayOnly.status, 'shipped');
+  assert.equal(arrayOnly.trackingNumbers[0].trackingNumber, '555555555555');
   for (const status of ['refunded', 'canceled', 'cancelled', 'failed', 'delivered', 'fulfilled']) {
     assert.equal(_test.deriveFulfillmentStatus({ status, tracking_number: '123456789' }), status);
   }
@@ -85,18 +97,21 @@ test('saved tracking promotes active fulfillment states to shipped without overr
     items: [],
   }]);
   assert.equal(normalized.status, 'shipped');
+  assert.equal(normalized.trackingNumbers.length, 1);
+  assert.equal(normalized.trackingNumbers[0].trackingNumber, '123456789');
+  assert.equal(normalized.tracking_numbers[0].label, 'Package 1');
 });
 
-test('Admin hydration keeps historical non-test rows regardless of legacy or terminal status', async () => {
+test('Admin hydration keeps the selected settled rows in deterministic page order', async () => {
   const ids = [
     '11111111-2222-4333-8444-000011223341',
     '11111111-2222-4333-8444-000011223342',
     '11111111-2222-4333-8444-000011223343',
   ];
   const rows = [
-    { id: ids[0], status: 'completed', total_cents: 10_000, is_test_order: false, items: [], item_count: 0 },
-    { id: ids[1], status: 'cancelled', total_cents: 20_000, is_test_order: false, items: [], item_count: 0 },
-    { id: ids[2], status: 'pending', total_cents: 30_000, is_test_order: false, items: [], item_count: 0 },
+    { id: ids[0], status: 'paid', total_cents: 10_000, is_test_order: false, items: [], item_count: 0 },
+    { id: ids[1], status: 'refunded', total_cents: 20_000, is_test_order: false, items: [], item_count: 0 },
+    { id: ids[2], status: 'shipped', tracking_number: 'TRACK-3', total_cents: 30_000, is_test_order: false, items: [], item_count: 0 },
   ];
 
   const sql = async (query) => {

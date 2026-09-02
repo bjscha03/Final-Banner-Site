@@ -166,3 +166,21 @@ test('admin and customer detail reads remain read-only while preserving the full
     assert.doesNotMatch(query, /\b(?:ALTER|CREATE|DROP|TRUNCATE|INSERT|UPDATE|DELETE)\b/i);
   }
 });
+
+test('detail reads never demote tracked or settled legacy rows back to pending', async () => {
+  const admin = createSessionToken({ id: 'admin-1', email: 'admin@example.com', is_admin: true });
+  const trackedPending = {
+    ...order,
+    status: 'pending',
+    tracking_number: null,
+    tracking_numbers: [{ carrier: 'fedex', trackingNumber: '555555555555' }],
+  };
+  getOrderModule._test.setNeonFactory(databaseFor(trackedPending));
+  const trackedResponse = await getOrderModule.handler(event({ authorization: `Bearer ${admin}` }));
+  assert.equal(bodyOf(trackedResponse).order.status, 'shipped');
+
+  const capturedPending = { ...order, status: 'pending', tracking_number: null, tracking_numbers: [] };
+  getOrderModule._test.setNeonFactory(databaseFor(capturedPending));
+  const capturedResponse = await getOrderModule.handler(event({ authorization: `Bearer ${admin}` }));
+  assert.equal(bodyOf(capturedResponse).order.status, 'paid');
+});

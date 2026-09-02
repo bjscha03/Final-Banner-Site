@@ -51,4 +51,11 @@ describe('admin customer bounded-data contract', () => {
     expect(customers).toContain('X-Idempotency-Key');
     expect(customers).toContain('Confirming will immediately send');
   });
+
+  it('explains the inactivity segment without unexplained lapsed jargon', () => {
+    expect(customers).toContain('Inactive {inactivityDays}+ days');
+    expect(customers).toContain('Inactive ${lapsedDays}+ days');
+    expect(customers).toContain('Inactive after 180 days');
+    expect(customers).not.toContain('>Lapsed<');
+  });
 });

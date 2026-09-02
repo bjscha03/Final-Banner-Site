@@ -32,7 +32,7 @@ const dateOnly = (value: string | null): string => {
 };
 
 const segmentLabel = (customer: CustomerCsvRecord): string => {
-  if (customer.isLapsed) return 'Lapsed';
+  if (customer.isLapsed) return 'Inactive';
   if (customer.segment === 'repeat') return 'Repeat';
   if (customer.segment === 'first_time') return 'First-time';
   return 'No completed order';

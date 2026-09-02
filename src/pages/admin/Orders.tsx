@@ -562,15 +562,10 @@ const AdminOrders: React.FC = () => {
         return current.map((summary) => {
           if (summary.id !== orderId || summary.admin_detail_loaded !== false) return summary;
           const detailStatus = String(detail.status || '').toLowerCase();
-          const summaryHasCompletedPayPal = Boolean(
-            summary.paypal_capture_id
-            || (String(summary.payment_method || '').toLowerCase() === 'paypal'
-              && String(summary.payment_reconciliation_status || '').toLowerCase() === 'complete')
-          );
+          const summaryStatus = String(summary.status || '').toLowerCase();
           const effectiveDetailStatus = detailStatus === 'pending'
-            && String(summary.status || '').toLowerCase() === 'paid'
-            && summaryHasCompletedPayPal
-            ? 'paid'
+            && ['paid', 'in_production', 'shipped'].includes(summaryStatus)
+            ? summary.status
             : detail.status;
           return {
             ...summary,
@@ -1192,7 +1187,7 @@ const AdminOrders: React.FC = () => {
                   ready: globalOverviewLoading.orders,
                 },
                 {
-                  label: 'Pending',
+                  label: 'Awaiting Fulfillment',
                   value: globalOverview.pendingOrders.toLocaleString(),
                   ready: globalOverviewLoading.orders,
                 },

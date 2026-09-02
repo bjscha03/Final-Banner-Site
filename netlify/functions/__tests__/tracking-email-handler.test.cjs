@@ -9,6 +9,15 @@ const {
   sendWithRetry,
 } = require('../_shared/tracking-email-handler.cjs')._test;
 
+const trackingHandlerSource = fs.readFileSync(
+  path.resolve(__dirname, '../_shared/tracking-email-handler.cjs'),
+  'utf8',
+);
+const updateTrackingSource = fs.readFileSync(
+  path.resolve(__dirname, '../_shared/legacy/update-tracking.cjs'),
+  'utf8',
+);
+
 const order = {
   id: '2ad3018b-680a-463e-b761-9fdcf8a0d993',
   orderNumber: 'F8A0D993',
@@ -106,3 +115,23 @@ test('the shared admin tracking card shows Send before the first tracking email'
   assert.match(ordersSource, /<AdminTrackingManager/);
   assert.doesNotMatch(ordersSource, /Send Tracking Email|Resend Tracking Email/);
 });
+
+test('tracking endpoints preserve refunded and other terminal order states', () => {
+  for (const source of [trackingHandlerSource, updateTrackingSource]) {
+    expectTerminalGuard(source);
+  }
+  assert.match(
+    trackingHandlerSource,
+    /WHEN status IN \('pending', 'paid', 'in_production'\) THEN 'shipped'/,
+  );
+  assert.match(
+    updateTrackingSource,
+    /WHEN status IN \('pending', 'paid', 'in_production'\) THEN 'shipped'/,
+  );
+  assert.doesNotMatch(updateTrackingSource, /SET[\s\S]{0,200}status = 'shipped'/);
+});
+
+function expectTerminalGuard(source) {
+  assert.match(source, /\['refunded', 'canceled', 'cancelled', 'failed'\]\.includes\(currentStatus\)/);
+  assert.match(source, /statusCode: 409/);
+}

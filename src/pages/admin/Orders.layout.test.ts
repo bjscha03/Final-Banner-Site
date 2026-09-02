@@ -104,6 +104,7 @@ describe('admin orders reporting and action hierarchy', () => {
     expect(orders).toContain('expectedReportRequestId === reportRequestId.current');
     expect(orders).toContain('expectedHydrationGeneration === detailHydrationGeneration.current');
     expect(orders).toContain('admin_detail_loaded: true');
+    expect(orders).toContain("['paid', 'in_production', 'shipped'].includes(summaryStatus)");
     expect(orderClient).toContain('{ cache: \'no-store\', signal: options.signal }');
   });
 

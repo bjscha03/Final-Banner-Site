@@ -271,10 +271,25 @@ exports.handler = async (event, context) => {
       publicOrder.stripe_payment_intent_id = _stripePaymentIntentId || null;
       publicOrder.stripe_charge_id = _stripeChargeId || null;
     }
+    const trackingNumbers = normalizeTrackingEntries(order);
+    const rawStatus = String(order.status || '').trim().toLowerCase();
+    const hasCompletedPaymentEvidence = Boolean(
+      order.paypal_capture_id
+      || order.stripe_charge_id
+      || (
+        ['paypal', 'stripe'].includes(String(order.payment_method || '').trim().toLowerCase())
+        && String(order.payment_reconciliation_status || '').trim().toLowerCase() === 'complete'
+      )
+    );
+    const effectiveStatus = trackingNumbers.length > 0
+      && ['pending', 'paid', 'in_production'].includes(rawStatus)
+      ? 'shipped'
+      : (rawStatus === 'pending' && hasCompletedPaymentEvidence ? 'paid' : order.status);
     const orderWithItems = {
       ...publicOrder,
-      tracking_numbers: normalizeTrackingEntries(order),
-      trackingNumbers: normalizeTrackingEntries(order),
+      status: effectiveStatus,
+      tracking_numbers: trackingNumbers,
+      trackingNumbers,
       same_day_hit_service: inferredSameDaySelected,
       same_day_fee_cents: inferredSameDayFee,
       shippingAddress,

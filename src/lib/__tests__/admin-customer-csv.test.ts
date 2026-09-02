@@ -61,6 +61,6 @@ describe('customer CSV export', () => {
     expect(result.exported).toBe(1);
     expect(result.csv).toContain('legacy@customer-business.com');
     expect(result.csv).toContain('"2","177.77"');
-    expect(result.csv).toContain('"Lapsed"');
+    expect(result.csv).toContain('"Inactive"');
   });
 });

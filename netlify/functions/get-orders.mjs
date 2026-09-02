@@ -6,7 +6,7 @@ import serverAuthModule from './_shared/server-auth.cjs';
 
 const {
   hasCompletedPayPalPaymentEvidence,
-  isAdminListableOrder,
+  isAdminVisiblePaidOrder,
 } = visibilityModule;
 const { getSession, unauthorized } = serverAuthModule;
 
@@ -65,6 +65,30 @@ const reportingCustomerEmailSql = (orderEmailExpression, profileEmailExpression)
   ELSE NULL
 END`;
 
+// Historical rows can store package tracking only in the JSON array. Treat
+// either storage shape as authoritative shipment evidence so reporting cannot
+// regress when the legacy scalar column is absent.
+const savedTrackingSql = (alias = 'o') => `(
+  NULLIF(BTRIM(to_jsonb(${alias})->>'tracking_number'), '') IS NOT NULL
+  OR EXISTS (
+    SELECT 1
+      FROM jsonb_array_elements(
+        CASE
+          WHEN jsonb_typeof(to_jsonb(${alias})->'tracking_numbers') = 'array'
+            THEN to_jsonb(${alias})->'tracking_numbers'
+          ELSE '[]'::jsonb
+        END
+      ) AS saved_tracking(entry)
+     WHERE NULLIF(BTRIM(COALESCE(
+       CASE WHEN jsonb_typeof(entry) = 'string' THEN entry #>> '{}' ELSE NULL END,
+       entry->>'trackingNumber',
+       entry->>'tracking_number',
+       entry->>'number',
+       ''
+     )), '') IS NOT NULL
+  )
+)`;
+
 function normalizeReportingCustomerEmail(value) {
   const email = String(value || '').trim().toLowerCase();
   if (!email || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
@@ -92,6 +116,8 @@ const orderBaseCteSql = () => {
              NULLIF(BTRIM(to_jsonb(o)->>'paypal_capture_id'), '') AS paypal_capture_id,
              LOWER(COALESCE(to_jsonb(o)->>'is_test_order', 'false')) = 'true' AS is_test_order,
              NULLIF(BTRIM(to_jsonb(o)->>'tracking_number'), '') AS tracking_number,
+             to_jsonb(o)->'tracking_numbers' AS tracking_numbers,
+             ${savedTrackingSql('o')} AS has_saved_tracking,
              BTRIM(COALESCE(to_jsonb(o)->>'customer_name', '')) AS customer_name,
              BTRIM(COALESCE(to_jsonb(o)->>'customer_first_name', '')) AS customer_first_name,
              BTRIM(COALESCE(to_jsonb(o)->>'shipping_name', '')) AS shipping_name,
@@ -99,7 +125,7 @@ const orderBaseCteSql = () => {
              ${normalizedEmailSql(profileEmail)} AS raw_profile_email,
              ${reportingCustomerEmailSql(orderEmail, profileEmail)} AS reporting_customer_email,
              CASE
-               WHEN NULLIF(BTRIM(to_jsonb(o)->>'tracking_number'), '') IS NOT NULL
+               WHEN ${savedTrackingSql('o')}
                 AND LOWER(BTRIM(COALESCE(o.status, ''))) IN ('pending', 'paid', 'in_production')
                  THEN 'shipped'
                WHEN LOWER(BTRIM(COALESCE(o.status, ''))) = 'pending'
@@ -119,6 +145,7 @@ const orderBaseCteSql = () => {
         FROM order_base
        WHERE payment_method <> 'admin_deploy_preview_test'
          AND is_test_order = FALSE
+         AND effective_status IN ('paid', 'in_production', 'shipped', 'delivered', 'fulfilled', 'refunded')
     )`;
 };
 
@@ -216,14 +243,14 @@ const buildAdminSummaryQuery = () => `${orderBaseCteSql()},
              COUNT(*) FILTER (
                WHERE effective_status <> 'refunded'
                  AND (
-                   tracking_number IS NOT NULL
+                   has_saved_tracking
                    OR effective_status IN ('shipped', 'delivered', 'fulfilled')
                  )
              )::integer AS overview_shipped_orders,
              COUNT(*) FILTER (
                WHERE effective_status <> 'refunded'
                  AND effective_status NOT IN ('failed', 'canceled', 'cancelled')
-                 AND tracking_number IS NULL
+                 AND NOT has_saved_tracking
                  AND effective_status <> 'in_production'
                  AND effective_status NOT IN ('shipped', 'delivered', 'fulfilled')
              )::integer AS overview_pending_orders,
@@ -275,6 +302,7 @@ const buildAdminHydrationQuery = () => `
          LEFT(COALESCE(o.status, ''), 40) AS status,
          o.created_at,
          LEFT(to_jsonb(o)->>'tracking_number', 500) AS tracking_number,
+         to_jsonb(o)->'tracking_numbers' AS tracking_numbers,
          LEFT(to_jsonb(o)->>'shipping_name', 500) AS shipping_name,
          LEFT(to_jsonb(o)->>'shipping_street', 500) AS shipping_street,
          LEFT(to_jsonb(o)->>'shipping_street2', 500) AS shipping_street2,
@@ -664,6 +692,16 @@ function normalizeAdminListOrders(rows = []) {
       try { items = JSON.parse(items); } catch { items = []; }
     }
     if (!Array.isArray(items)) items = [];
+    let trackingNumbers = row.tracking_numbers;
+    if (typeof trackingNumbers === 'string') {
+      try { trackingNumbers = JSON.parse(trackingNumbers); } catch { trackingNumbers = null; }
+    }
+    if (!Array.isArray(trackingNumbers)) {
+      const legacyTrackingNumber = String(row.tracking_number || '').trim();
+      trackingNumbers = legacyTrackingNumber
+        ? [{ carrier: 'fedex', trackingNumber: legacyTrackingNumber, label: 'Package 1' }]
+        : null;
+    }
     const itemCount = Math.max(items.length, asInteger(row.item_count));
     const subtotalCents = asInteger(row.subtotal_cents);
     const taxCents = asInteger(row.tax_cents);
@@ -684,13 +722,13 @@ function normalizeAdminListOrders(rows = []) {
       subtotal_cents: subtotalCents,
       tax_cents: taxCents,
       total_cents: totalCents,
-      status: deriveFulfillmentStatus(row),
+      status: deriveFulfillmentStatus({ ...row, tracking_numbers: trackingNumbers }),
       currency: 'USD',
       created_at: row.created_at,
       tracking_number: row.tracking_number || null,
-      tracking_numbers: null,
-      trackingNumbers: null,
-      tracking_carrier: row.tracking_number ? 'fedex' : null,
+      tracking_numbers: trackingNumbers,
+      trackingNumbers,
+      tracking_carrier: hasSavedTracking({ ...row, tracking_numbers: trackingNumbers }) ? 'fedex' : null,
       shipping_name: row.shipping_name || null,
       shipping_street: row.shipping_street || null,
       shipping_street2: row.shipping_street2 || null,
@@ -780,14 +818,12 @@ async function loadAdminReportData({ event, sql, request }) {
       });
     }
 
-    // The page query already rejects every marked test/deploy-preview row.
-    // Do not apply the paid-only visibility helper here: historical Admin
-    // records can use legacy, canceled, failed, or pending statuses and still
-    // need to remain inspectable. Period business metrics are calculated from
-    // the separate successful/refunded CTEs above.
+    // Defense in depth: the page SQL admits only settled commerce lifecycles,
+    // and this shared predicate prevents an unpaid/test row from leaking into
+    // Admin if a future query refactor broadens that selection accidentally.
     const byId = new Map(
       enrichedOrders
-        .filter((order) => isAdminListableOrder(order))
+        .filter((order) => isAdminVisiblePaidOrder(order))
         .map((order) => [String(order.id), order]),
     );
     orders = ids.map((id) => byId.get(id)).filter(Boolean);

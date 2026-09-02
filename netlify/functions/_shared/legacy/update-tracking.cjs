@@ -39,6 +39,24 @@ exports.handler = async (event) => {
       return { statusCode: 400, headers, body: JSON.stringify({ ok: false, error: 'Order ID is required' }) };
     }
 
+    const existingOrders = await sql`
+      SELECT id, status
+        FROM orders
+       WHERE id = ${id}
+       LIMIT 1
+    `;
+    if (!existingOrders.length) {
+      return { statusCode: 404, headers, body: JSON.stringify({ ok: false, error: 'Order not found' }) };
+    }
+    const currentStatus = String(existingOrders[0].status || '').trim().toLowerCase();
+    if (['refunded', 'canceled', 'cancelled', 'failed'].includes(currentStatus)) {
+      return {
+        statusCode: 409,
+        headers,
+        body: JSON.stringify({ ok: false, error: 'Tracking cannot be changed for a refunded, canceled, or failed order.' }),
+      };
+    }
+
     await sql`
       ALTER TABLE orders
       ADD COLUMN IF NOT EXISTS tracking_numbers JSONB,
@@ -70,7 +88,10 @@ exports.handler = async (event) => {
           UPDATE orders
           SET tracking_number = ${primaryTrackingNumber},
               tracking_numbers = ${trackingJson}::jsonb,
-              status = 'shipped',
+              status = CASE
+                WHEN status IN ('pending', 'paid', 'in_production') THEN 'shipped'
+                ELSE status
+              END,
               shipping_notification_sent = FALSE,
               shipping_notification_sent_at = NULL,
               shipping_notification_status = 'pending',
@@ -83,6 +104,9 @@ exports.handler = async (event) => {
           SET tracking_number = ${primaryTrackingNumber},
               tracking_numbers = ${trackingJson}::jsonb,
               status = CASE
+                WHEN ${hasTracking} = TRUE
+                 AND status IN ('pending', 'paid', 'in_production')
+                  THEN 'shipped'
                 WHEN ${hasTracking} = FALSE AND status = 'shipped'
                   THEN CASE WHEN COALESCE(production_email_sent, FALSE) THEN 'in_production' ELSE 'paid' END
                 ELSE status

@@ -179,6 +179,14 @@ exports.handler = async (event) => {
     }
 
     const order = orders[0];
+    const currentStatus = String(order.status || '').trim().toLowerCase();
+    if (['refunded', 'canceled', 'cancelled', 'failed'].includes(currentStatus)) {
+      return {
+        statusCode: 409,
+        headers,
+        body: JSON.stringify({ ok: false, error: 'Tracking email cannot be sent for a refunded, canceled, or failed order.' }),
+      };
+    }
     const trackingNumbers = normalizeTrackingEntries(order);
     if (!trackingNumbers.length) {
       return { statusCode: 400, headers, body: JSON.stringify({ ok: false, error: 'Add at least one tracking number before sending the tracking email.' }) };
@@ -280,7 +288,10 @@ exports.handler = async (event) => {
 
     await sql`
       UPDATE orders
-         SET status = 'shipped',
+         SET status = CASE
+               WHEN status IN ('pending', 'paid', 'in_production') THEN 'shipped'
+               ELSE status
+             END,
              shipping_notification_sent = TRUE,
              shipping_notification_sent_at = NOW(),
              shipping_notification_status = 'sent',
