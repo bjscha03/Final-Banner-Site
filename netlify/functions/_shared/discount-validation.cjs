@@ -6,6 +6,7 @@ const {
   LARGE_BANNER_RECOVERY_SCOPE,
   SEPTEMBER_LARGE_BANNER_CODE,
   buildAutomaticLargeBannerDiscount,
+  buildSeptemberLargeBannerDiscount,
   isQualifyingLargeBannerLine,
   normalizeEligibleCartItemIds,
   positiveInteger,
@@ -98,17 +99,31 @@ async function validateDiscountForCheckout({
   const hasQualifyingLargeBanner = Array.isArray(items)
     && items.some(isQualifyingLargeBannerLine);
 
-  // BIG25 is retained as a customer-facing alias, while LARGE_BANNER_25 is the
-  // stable internal promotion id. Both resolve to the same automatic offer so
-  // a saved legacy code can never stack with or block checkout.
-  if (
-    normalizedCode === AUTOMATIC_LARGE_BANNER_PROMOTION_ID
-    || normalizedCode === SEPTEMBER_LARGE_BANNER_CODE
-  ) {
+  // LARGE_BANNER_25 is the stable internal id for automatic pricing. It is
+  // accepted by server retries/canonical quotes, but customers do not need to
+  // type it and it is never reserved like a single-use coupon.
+  if (normalizedCode === AUTOMATIC_LARGE_BANNER_PROMOTION_ID) {
     if (!hasQualifyingLargeBanner) {
       return invalidResult("Large Banner 25% Off requires at least one 6' × 3' or larger banner");
     }
     return validResult(buildAutomaticLargeBannerDiscount());
+  }
+
+  // Keep the original one-week BIG25 campaign behavior for previously sent
+  // emails. During its valid window it resolves to the same line eligibility;
+  // authoritative order persistence then records LARGE_BANNER_25 as the actual
+  // automatic promotion that priced the order.
+  if (normalizedCode === SEPTEMBER_LARGE_BANNER_CODE) {
+    const promotion = buildSeptemberLargeBannerDiscount(now);
+    if (!promotion.valid) {
+      return invalidResult(promotion.reason === 'not_started'
+        ? 'BIG25 begins September 1, 2026'
+        : 'BIG25 expired after September 8, 2026');
+    }
+    if (!hasQualifyingLargeBanner) {
+      return invalidResult("BIG25 requires at least one 6' × 3' or larger banner");
+    }
+    return validResult(promotion.discount);
   }
 
   if (normalizedCode === 'NEW20') {
