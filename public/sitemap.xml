@@ -87,6 +87,18 @@
 
   <!-- Blog Posts (published) -->
   <url>
+    <loc>https://bannersonthefly.com/blog/how-to-hang-banner-without-grommets</loc>
+    <lastmod>2026-09-02</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://bannersonthefly.com/blog/senior-night-banner-size-guide</loc>
+    <lastmod>2026-09-02</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://bannersonthefly.com/blog/banner-safe-area-bleed-guide</loc>
     <lastmod>2026-09-01</lastmod>
     <changefreq>monthly</changefreq>

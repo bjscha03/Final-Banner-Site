@@ -13,6 +13,16 @@ const staticPages: Record<string, { title: string; description: string; image: s
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "how-to-hang-banner-without-grommets": {
+    title: "How to Hang a Banner Without Grommets: Five Practical Methods",
+    description: "Learn how to hang a banner without grommets using pole pockets, edge clips, magnets, approved adhesives, or a frame, with practical surface and safety checks.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/how-to-hang-banner-without-grommets.webp"
+  },
+  "senior-night-banner-size-guide": {
+    title: "Senior Night Banner Size Guide: Measure Rails, Photos, and Team Sets",
+    description: "Choose a senior night banner size for gym rails, fences, hallways, and ceremonies, then plan athlete photos, consistent layouts, spacing, and mounting.",
+    image: "https://bannersonthefly.com/cld-assets/images/blog/senior-night-banner-size-guide.webp"
+  },
   "banner-safe-area-bleed-guide": {
     title: "Banner Safe Area and Bleed: Keep Text Clear of Hems and Grommets",
     description: "Plan a banner safe area around hems, grommets, and pole pockets, check bleed and borders, and preflight logos, text, and QR codes before print production.",
