@@ -136,6 +136,7 @@ test('a signed recovery credential authorizes only its exact submitted cart', as
   assert.equal(calls.length, 0);
 }));
 
+// Keep this source-level check aligned with the current PayPal attribution variable.
 test('both provider paths carry the validated cart link and bounded session hint into the order row', () => {
   const core = fs.readFileSync(path.resolve(__dirname, '../_shared/legacy/create-order-core.cjs'), 'utf8');
   const stripe = fs.readFileSync(path.resolve(__dirname, '../_shared/stripe-checkout-service.cjs'), 'utf8');
