@@ -30,7 +30,7 @@ const Layout: React.FC<LayoutProps> = ({ children, checkoutMode = false }) => {
   return (
     <div className="brand-page max-w-[100vw] overflow-x-clip">
       <ScrollToTop />
-      {isHomepage && <PromoBanner />}
+      {!location.pathname.startsWith('/admin') && <PromoBanner showStandardPromo={isHomepage} />}
       {checkoutMode ? (
         <header data-checkout-header className="border-b border-white/10 bg-[#061A31] text-white shadow-[0_8px_24px_rgba(6,26,49,0.16)]">
           <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
