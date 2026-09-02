@@ -8,6 +8,7 @@ const {
 } = require('../_shared/recovery-discount-policy.cjs');
 const { computeTotals } = require('../_shared/checkoutTotals.cjs');
 const { validateDiscountForCheckout } = require('../_shared/discount-validation.cjs');
+const { claimPaymentDiscount } = require('../_shared/payment-discount-reservation.cjs');
 
 const line = (
   id,
@@ -134,4 +135,26 @@ test('one larger promotion may replace the automatic offer without stacking', ()
   assert.equal(totals.applied_discount_label, 'VIP30 (30% off)');
   assert.equal(totals.automatic_large_banner_discount_cents, 2_500);
   assert.equal(totals.total_cents, 7_420);
+});
+
+test('Stripe and PayPal reservation flow does not treat automatic pricing as a coupon row', async () => {
+  let sqlCalled = false;
+  const result = await claimPaymentDiscount(() => {
+    sqlCalled = true;
+    throw new Error('automatic pricing must not query discount_codes');
+  }, {
+    id: 'automatic-order',
+    status: 'pending',
+    is_test_order: false,
+    discount_code: AUTOMATIC_LARGE_BANNER_PROMOTION_ID,
+    applied_discount_type: 'promo',
+    applied_discount_cents: 2_500,
+  });
+
+  assert.equal(sqlCalled, false);
+  assert.deepEqual(result, {
+    ok: true,
+    claimed: false,
+    kind: 'automatic_large_banner',
+  });
 });
