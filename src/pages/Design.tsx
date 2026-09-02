@@ -622,10 +622,9 @@ const Design: React.FC = () => {
   const [promoCode, setPromoCode] = useState(storedPromoAtLoad?.code || '');
   const [promoApplied, setPromoApplied] = useState(Boolean(storedPromoAtLoad));
 
-  // The popular banner size is an explicit, visible default and is therefore
-  // immediately valid for pricing/cart/checkout. Other guided steps retain
-  // their existing confirmation behavior.
-  const [hasConfirmedSize, setHasConfirmedSize] = useState(initialProductType === 'banner');
+  // Keep 6′ × 3′ visually highlighted as the recommended size, but leave the
+  // order unpriced until the customer explicitly chooses or confirms a size.
+  const [hasConfirmedSize, setHasConfirmedSize] = useState(false);
   const [hasConfirmedMaterial, setHasConfirmedMaterial] = useState(false);
   const [hasConfirmedQuantity, setHasConfirmedQuantity] = useState(false);
   const [hasReviewedOptions, setHasReviewedOptions] = useState(false);

@@ -2,7 +2,7 @@ export const POPULAR_BANNER_PRESET = {
   widthIn: 72,
   heightIn: 36,
   presetIndex: 2,
-  mobilePriceNote: "Popular 6′ × 3′ size preselected",
+  mobilePriceNote: "Most popular size: 6′ × 3′",
 } as const;
 
 export function isPopularBannerPreset(
