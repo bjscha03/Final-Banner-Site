@@ -4,12 +4,19 @@ const {
   LARGE_BANNER_RECOVERY_CAMPAIGN,
   LARGE_BANNER_RECOVERY_SCOPE,
   SEPTEMBER_LARGE_BANNER_CODE,
+  allQualifyingLargeBannerSubtotalCents,
   buildSeptemberLargeBannerDiscount,
+  capPromoDiscountAmount,
   isQualifyingLargeBannerLine,
   normalizeEligibleCartItemIds,
   positiveInteger,
+  promoSubtotalForItems,
   validateLargeBannerRecoveryMetadata,
 } = require('./recovery-discount-policy.cjs');
+const {
+  LARGE_BANNER_CONFLICT_MESSAGE,
+  LARGE_BANNER_PROMO_PERCENTAGE,
+} = require('./checkoutTotals.cjs');
 
 function normalizeCode(code) {
   return String(code || '').trim().toUpperCase();
@@ -50,6 +57,46 @@ function storedDiscountFromRow(discount, recoveryOffer) {
   return result;
 }
 
+function safeLineTotalCents(item) {
+  const cents = Number(item?.line_total_cents);
+  return Number.isSafeInteger(cents) && cents >= 0 ? cents : 0;
+}
+
+/**
+ * Validation-time guard for the customer-facing promo field. The payment path
+ * independently performs the same best-discount comparison in checkoutTotals,
+ * so this improves UX without becoming price authority.
+ */
+function resolveManualCodeAgainstAutomaticPromotion(discount, items) {
+  if (!discount || !Array.isArray(items) || items.length === 0) return validResult(discount);
+
+  const automaticBaseCents = allQualifyingLargeBannerSubtotalCents(items);
+  const automaticDiscountCents = Math.round(automaticBaseCents * (LARGE_BANNER_PROMO_PERCENTAGE / 100));
+  if (automaticDiscountCents <= 0) return validResult(discount);
+
+  const fullSubtotalCents = items.reduce((sum, item) => sum + safeLineTotalCents(item), 0);
+  const manualBaseCents = promoSubtotalForItems(items, fullSubtotalCents, discount);
+  const percentage = Number(discount.discountPercentage || 0);
+  const fixedAmountCents = Number(discount.discountAmountCents || 0);
+  let manualDiscountCents = 0;
+  if (percentage > 0) {
+    manualDiscountCents = Math.round(manualBaseCents * (percentage / 100));
+  } else if (fixedAmountCents > 0) {
+    manualDiscountCents = Math.min(Math.round(fixedAmountCents), manualBaseCents);
+  }
+  manualDiscountCents = capPromoDiscountAmount(manualDiscountCents, discount);
+
+  // The automatic promotion wins ties so a redundant 20/25% code can never
+  // create a second percentage layer or a confusing "code applied" state.
+  if (manualDiscountCents <= automaticDiscountCents) {
+    return invalidResult(percentage > 0
+      ? LARGE_BANNER_CONFLICT_MESSAGE
+      : 'This banner already includes a larger automatic 25% discount. The discounts cannot be combined.');
+  }
+
+  return validResult(discount);
+}
+
 async function findTradeShowDiscount(sql, normalizedCode) {
   try {
     const rows = await sql`
@@ -70,8 +117,6 @@ async function findTradeShowDiscount(sql, normalizedCode) {
       tradeShowSlug: rows[0].trade_show_slug,
     };
   } catch (error) {
-    // Deploying application code before the additive migration must not break
-    // existing promotions. Undefined-table means the migration is pending.
     if (error?.code === '42P01') return null;
     throw error;
   }
@@ -95,16 +140,16 @@ async function validateDiscountForCheckout({
   if (!normalizedCode) return invalidResult('Discount code is required');
 
   if (normalizedCode === SEPTEMBER_LARGE_BANNER_CODE) {
+    if (Array.isArray(items) && items.some(isQualifyingLargeBannerLine)) {
+      return invalidResult(LARGE_BANNER_CONFLICT_MESSAGE);
+    }
     const promotion = buildSeptemberLargeBannerDiscount(now);
     if (!promotion.valid) {
       return invalidResult(promotion.reason === 'not_started'
         ? 'BIG25 begins September 1, 2026'
         : 'BIG25 expired after September 8, 2026');
     }
-    if (!Array.isArray(items) || !items.some(isQualifyingLargeBannerLine)) {
-      return invalidResult("BIG25 requires at least one 6' × 3' or larger banner");
-    }
-    return validResult(promotion.discount);
+    return invalidResult("BIG25 requires at least one 6' × 3' or larger banner");
   }
 
   if (normalizedCode === 'NEW20') {
@@ -118,20 +163,20 @@ async function validateDiscountForCheckout({
         return invalidResult('NEW20 is valid for first-time customers only. You have a previous order on this account.');
       }
     }
-    return validResult({
+    return resolveManualCodeAgainstAutomaticPromotion({
       id: 'NEW20_PROMO',
       code: 'NEW20',
       discountPercentage: 20,
       discountAmountCents: null,
       expiresAt: '2099-12-31T23:59:59Z',
       source: 'new_customer',
-    });
+    }, items);
   }
 
   if (normalizedCode === 'CUSTOM60') return invalidResult('Invalid discount code');
 
   const tradeShowDiscount = await findTradeShowDiscount(sql, normalizedCode);
-  if (tradeShowDiscount) return validResult(tradeShowDiscount);
+  if (tradeShowDiscount) return resolveManualCodeAgainstAutomaticPromotion(tradeShowDiscount, items);
 
   const rows = await sql`
     SELECT id, code, discount_percentage, discount_amount_cents, used, expires_at,
@@ -168,9 +213,6 @@ async function validateDiscountForCheckout({
       && (!boundEmail || !normalizedEmail || boundEmail !== normalizedEmail)) {
     return invalidResult('This cart-recovery discount was issued to a different email address');
   }
-  // Email binding applies even to the opaque checkout that already owns a
-  // reservation. Otherwise an account switch could retain another recipient's
-  // recovery offer merely by retrying the same checkout key.
   if (boundEmail && normalizedEmail && boundEmail !== normalizedEmail) {
     return invalidResult('This discount code was issued to a different email address');
   }
@@ -192,13 +234,8 @@ async function validateDiscountForCheckout({
       return invalidResult('This cart-recovery discount is not available');
     }
   }
-  // A provider reservation is taken immediately before confirmation. The
-  // same opaque checkout key must be able to retry that exact pending order
-  // (including after a decline or recovery transition) without presenting the
-  // code as stolen. Email binding above still applies, and no other checkout
-  // receives this exception.
   if (discount.owned_by_checkout === true || discount.owned_by_checkout === 'true') {
-    return validResult(storedDiscount);
+    return resolveManualCodeAgainstAutomaticPromotion(storedDiscount, items);
   }
   if (recoveryOffer && !['active', 'abandoned'].includes(String(discount.recovery_cart_status || ''))) {
     return invalidResult('This cart-recovery discount is no longer active');
@@ -208,16 +245,24 @@ async function validateDiscountForCheckout({
   }
   if (discount.used) return invalidResult('This code has already been used');
 
-  const usedEmails = Array.isArray(discount.used_by_email) ? discount.used_by_email.map((value) => String(value).toLowerCase()) : [];
-  const perCustomerLimit = discount.max_uses_per_customer == null ? null : Number(discount.max_uses_per_customer);
+  const usedEmails = Array.isArray(discount.used_by_email)
+    ? discount.used_by_email.map((value) => String(value).toLowerCase())
+    : [];
+  const perCustomerLimit = discount.max_uses_per_customer == null
+    ? null
+    : Number(discount.max_uses_per_customer);
   if (normalizedEmail && perCustomerLimit !== null) {
     const customerUses = usedEmails.filter((value) => value === normalizedEmail).length;
     if (customerUses >= perCustomerLimit) return invalidResult('This code has already been used');
   }
 
   if (userId && discount.used_by_user_id) {
-    const usedUserIds = Array.isArray(discount.used_by_user_id) ? discount.used_by_user_id : [discount.used_by_user_id];
-    if (usedUserIds.map(String).includes(String(userId))) return invalidResult('This code has already been used');
+    const usedUserIds = Array.isArray(discount.used_by_user_id)
+      ? discount.used_by_user_id
+      : [discount.used_by_user_id];
+    if (usedUserIds.map(String).includes(String(userId))) {
+      return invalidResult('This code has already been used');
+    }
   }
 
   if (discount.max_total_uses != null && usedEmails.length >= Number(discount.max_total_uses)) {
@@ -226,7 +271,13 @@ async function validateDiscountForCheckout({
       : 'This discount code has reached its maximum number of uses');
   }
 
-  return validResult(storedDiscount);
+  return resolveManualCodeAgainstAutomaticPromotion(storedDiscount, items);
 }
 
-module.exports = { normalizeCode, normalizedCartId, storedDiscountFromRow, validateDiscountForCheckout };
+module.exports = {
+  normalizeCode,
+  normalizedCartId,
+  resolveManualCodeAgainstAutomaticPromotion,
+  storedDiscountFromRow,
+  validateDiscountForCheckout,
+};
