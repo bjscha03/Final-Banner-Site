@@ -24,9 +24,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Patch payload normalization and responsive test locator
-        run: |
-          printf '%s' 'ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCgpkZWYgcmVwbGFjZV9vbmNlKHBhdGhfbmFtZSwgb2xkLCBuZXcsIGxhYmVsKToKICAgIHBhdGggPSBQYXRoKHBhdGhfbmFtZSkKICAgIHRleHQgPSBwYXRoLnJlYWRfdGV4dCgpCiAgICBpZiBuZXcgaW4gdGV4dCBhbmQgb2xkIG5vdCBpbiB0ZXh0OgogICAgICAgIHByaW50KGxhYmVsICsgIjogYWxyZWFkeSBwYXRjaGVkIikKICAgICAgICByZXR1cm4KICAgIGNvdW50ID0gdGV4dC5jb3VudChvbGQpCiAgICBpZiBjb3VudCAhPSAxOgogICAgICAgIHJhaXNlIFN5c3RlbUV4aXQobGFiZWwgKyAiOiBleHBlY3RlZCBleGFjdGx5IG9uZSBtYXRjaCwgZm91bmQgIiArIHN0cihjb3VudCkpCiAgICBwYXRoLndyaXRlX3RleHQodGV4dC5yZXBsYWNlKG9sZCwgbmV3LCAxKSkKICAgIHByaW50KGxhYmVsICsgIjogcGF0Y2hlZCIpCgpyZXBsYWNlX29uY2UoCiAgICAic3JjL3BhZ2VzL2FkbWluL0FiYW5kb25lZENhcnRzLnRzeCIsCiAgICAiIiIgICAgICBzZXRDYXJ0cyhBcnJheS5pc0FycmF5KGRhdGEuY2FydHMpID8gZGF0YS5jYXJ0cyA6IFtdKTsKICAgICAgc2V0U2VydmVyQW5hbHl0aWNzKGRhdGEuYW5hbHl0aWNzIHx8IG51bGwpOyIiIiwKICAgICIiIiAgICAgIGNvbnN0IG5vcm1hbGl6ZWRDYXJ0cyA9IChBcnJheS5pc0FycmF5KGRhdGEuY2FydHMpID8gZGF0YS5jYXJ0cyA6IFtdKS5tYXAoKGNhcnQpID0+ICh7CiAgICAgICAgLi4uY2FydCwKICAgICAgICBpdGVtX3N1bW1hcmllczogQXJyYXkuaXNBcnJheShjYXJ0Lml0ZW1fc3VtbWFyaWVzKSA/IGNhcnQuaXRlbV9zdW1tYXJpZXMgOiBbXSwKICAgICAgICByZWNvdmVyeV9ldmVudHM6IEFycmF5LmlzQXJyYXkoY2FydC5yZWNvdmVyeV9ldmVudHMpID8gY2FydC5yZWNvdmVyeV9ldmVudHMgOiBbXSwKICAgICAgICByZWNvdmVyeV9kZWxpdmVyaWVzOiBBcnJheS5pc0FycmF5KGNhcnQucmVjb3ZlcnlfZGVsaXZlcmllcykgPyBjYXJ0LnJlY292ZXJ5X2RlbGl2ZXJpZXMgOiBbXSwKICAgICAgICByZWNvdmVyeV9vZmZlcnM6IEFycmF5LmlzQXJyYXkoY2FydC5yZWNvdmVyeV9vZmZlcnMpID8gY2FydC5yZWNvdmVyeV9vZmZlcnMgOiBbXSwKICAgICAgfSkpOwogICAgICBzZXRDYXJ0cyhub3JtYWxpemVkQ2FydHMpOwogICAgICBzZXRTZXJ2ZXJBbmFseXRpY3MoZGF0YS5hbmFseXRpY3MgfHwgbnVsbCk7IiIiLAogICAgImFiYW5kb25lZC1jYXJ0IHJlc3BvbnNlIG5vcm1hbGl6YXRpb24iLAopCgpyZXBsYWNlX29uY2UoCiAgICAidGVzdHMvYnJvd3Nlci9hZG1pbi1jb21tZXJjZS1hbmFseXRpY3MucGxheXdyaWdodC5zcGVjLnRzIiwKICAgICIiIiAgaWYgKGlzTW9iaWxlKSB7CiAgICBhd2FpdCBwYWdlLmdldEJ5Um9sZSgnYnV0dG9uJywgeyBuYW1lOiAvQWxpY2UgQnV5ZXIvIH0pLmNsaWNrKCk7CiAgfSBlbHNlIHsiIiIsCiAgICAiIiIgIGlmIChpc01vYmlsZSkgewogICAgYXdhaXQgcGFnZS5nZXRCeVJvbGUoJ2J1dHRvbicsIHsgbmFtZTogJ1ZpZXcgY3VzdG9tZXInLCBleGFjdDogdHJ1ZSB9KS5maXJzdCgpLmNsaWNrKCk7CiAgfSBlbHNlIHsiIiwKICAgICJtb2JpbGUgY3VzdG9tZXIgZGV0YWlsIGxvY2F0b3IiLAopCg==' | base64 --decode > /tmp/patch.py
-          python /tmp/patch.py
+        run: python scripts/patch-abandoned-cart-admin-browser.py
       - name: Run desktop and mobile Admin browser contracts
         run: |
           browser=$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)
@@ -34,11 +32,12 @@ jobs:
           PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="$browser" npx playwright test --config=playwright.preview.config.ts admin-commerce-analytics.playwright.spec.ts --project=chromium-1440x900 --project=chromium-pixel8-portrait --workers=1
       - name: Lint repaired files
         run: npx eslint src/pages/admin/AbandonedCarts.tsx tests/browser/admin-commerce-analytics.playwright.spec.ts
-      - name: Commit repair and remove temporary workflow
+      - name: Commit repair and remove temporary helpers
         run: |
           rm .github/workflows/diagnose-admin-commerce-browser.yml
+          rm scripts/patch-abandoned-cart-admin-browser.py
           git config user.name "Banners On The Fly CI"
           git config user.email "actions@users.noreply.github.com"
-          git add src/pages/admin/AbandonedCarts.tsx tests/browser/admin-commerce-analytics.playwright.spec.ts .github/workflows/diagnose-admin-commerce-browser.yml
+          git add src/pages/admin/AbandonedCarts.tsx tests/browser/admin-commerce-analytics.playwright.spec.ts .github/workflows/diagnose-admin-commerce-browser.yml scripts/patch-abandoned-cart-admin-browser.py
           git commit -m "Harden abandoned-cart Admin browser flow"
           git push origin HEAD:feat/automatic-large-banner-25
