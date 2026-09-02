@@ -4,7 +4,11 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const policy = require('../_shared/recovery-discount-policy.cjs');
 const { validateDiscountForCheckout } = require('../_shared/discount-validation.cjs');
-const { computeTotals } = require('../_shared/checkoutTotals.cjs');
+const {
+  LARGE_BANNER_CONFLICT_MESSAGE,
+  LARGE_BANNER_PROMO_ID,
+  computeTotals,
+} = require('../_shared/checkoutTotals.cjs');
 
 const line = (id, productType, width, height, cents, quantity = 1) => ({
   id,
@@ -15,24 +19,32 @@ const line = (id, productType, width, height, cents, quantity = 1) => ({
   quantity,
 });
 
-const sqlMustNotRun = async () => { throw new Error('BIG25 must not query a mutable coupon row'); };
+const sqlMustNotRun = async () => { throw new Error('automatic large-banner pricing must not query a coupon row'); };
 const activeNow = new Date('2026-09-08T18:00:00.000Z');
+const options = { minFloorCents: 0, freeShipping: true };
 
-test('BIG25 recognizes 6x3, 3x6, and larger banners without querying a coupon row', async () => {
+test('BIG25 is redundant because 6x3, 3x6, and larger banners are discounted automatically', async () => {
   for (const item of [
     line('six-by-three', 'banner', 72, 36, 10000),
     line('three-by-six', 'banner', 36, 72, 10000),
     line('eight-by-four', 'banner', 96, 48, 18000),
   ]) {
-    const result = await validateDiscountForCheckout({ sql: sqlMustNotRun, code: 'big25', items: [item], now: activeNow });
-    assert.equal(result.valid, true);
-    assert.equal(result.discount.code, 'BIG25');
-    assert.equal(result.discount.discountPercentage, 25);
-    assert.equal(result.discount.discountScope, policy.SEPTEMBER_LARGE_BANNER_SCOPE);
+    const result = await validateDiscountForCheckout({
+      sql: sqlMustNotRun,
+      code: 'big25',
+      items: [item],
+      now: activeNow,
+    });
+    assert.equal(result.valid, false);
+    assert.equal(result.error, LARGE_BANNER_CONFLICT_MESSAGE);
+
+    const totals = computeTotals([item], 0.06, options);
+    assert.equal(totals.applied_promotion_id, LARGE_BANNER_PROMO_ID);
+    assert.equal(totals.applied_discount_cents, Math.round(item.line_total_cents * 0.25));
   }
 });
 
-test('BIG25 rejects banners below either threshold and unrelated products', async () => {
+test('BIG25 cannot create eligibility for banners below either threshold or unrelated products', async () => {
   for (const item of [
     line('too-short', 'banner', 72, 35.99, 8000),
     line('too-narrow', 'banner', 71.99, 36, 8000),
@@ -41,38 +53,39 @@ test('BIG25 rejects banners below either threshold and unrelated products', asyn
     line('yard', 'yard_sign', 72, 36, 12000),
     line('magnet', 'car_magnet', 72, 36, 12000),
   ]) {
-    const result = await validateDiscountForCheckout({ sql: sqlMustNotRun, code: 'BIG25', items: [item], now: activeNow });
+    const result = await validateDiscountForCheckout({
+      sql: sqlMustNotRun,
+      code: 'BIG25',
+      items: [item],
+      now: activeNow,
+    });
     assert.equal(result.valid, false, item.id);
     assert.match(result.error, /6' × 3'/);
+    const totals = computeTotals([item], 0.06, options);
+    assert.equal(totals.automatic_promotion_eligible, false, item.id);
   }
 });
 
-test('BIG25 discounts only qualifying banner lines and never stacks with quantity savings', async () => {
+test('automatic promotion discounts only qualifying banner lines and never stacks with quantity savings', () => {
   const items = [
     line('large', 'banner', 72, 36, 10000),
     line('small', 'banner', 48, 24, 4000),
     line('yard', 'yard_sign', 72, 36, 12000),
   ];
-  const validated = await validateDiscountForCheckout({ sql: sqlMustNotRun, code: 'BIG25', items, now: activeNow });
-  const totals = computeTotals(items, 0.06, { minFloorCents: 0, freeShipping: true }, validated.discount);
+  const totals = computeTotals(items, 0.06, options);
   assert.equal(totals.adjusted_subtotal_cents, 26000);
   assert.equal(totals.applied_discount_type, 'promo');
+  assert.equal(totals.applied_promotion_id, LARGE_BANNER_PROMO_ID);
   assert.equal(totals.applied_discount_cents, 2500, '25% applies to the $100 qualifying line only');
-  assert.equal(totals.quantity_discount_cents, 0, 'best-discount-wins prevents stacking');
+  assert.equal(totals.quantity_discount_cents, 0, 'only the winning discount is applied');
+  assert.equal(totals.quantity_discount_candidate_cents, 700);
   assert.equal(totals.tax_cents, 1410);
   assert.equal(totals.total_cents, 24910);
 });
 
-test('BIG25 is active September 1 through September 8 Eastern and expires at the exclusive boundary', async () => {
-  const item = line('large', 'banner', 72, 36, 10000);
-  const before = await validateDiscountForCheckout({ sql: sqlMustNotRun, code: 'BIG25', items: [item], now: new Date('2026-09-01T03:59:59.999Z') });
-  const starts = await validateDiscountForCheckout({ sql: sqlMustNotRun, code: 'BIG25', items: [item], now: new Date(policy.SEPTEMBER_LARGE_BANNER_START) });
-  const finalSecond = await validateDiscountForCheckout({ sql: sqlMustNotRun, code: 'BIG25', items: [item], now: new Date('2026-09-09T03:59:59.999Z') });
-  const expired = await validateDiscountForCheckout({ sql: sqlMustNotRun, code: 'BIG25', items: [item], now: new Date(policy.SEPTEMBER_LARGE_BANNER_END_EXCLUSIVE) });
-  assert.equal(before.valid, false);
-  assert.match(before.error, /begins September 1/);
-  assert.equal(starts.valid, true);
-  assert.equal(finalSecond.valid, true);
-  assert.equal(expired.valid, false);
-  assert.match(expired.error, /expired after September 8/);
+test('legacy September campaign boundaries remain defined for historical records', () => {
+  assert.equal(policy.buildSeptemberLargeBannerDiscount(new Date('2026-09-01T03:59:59.999Z')).valid, false);
+  assert.equal(policy.buildSeptemberLargeBannerDiscount(new Date(policy.SEPTEMBER_LARGE_BANNER_START)).valid, true);
+  assert.equal(policy.buildSeptemberLargeBannerDiscount(new Date('2026-09-09T03:59:59.999Z')).valid, true);
+  assert.equal(policy.buildSeptemberLargeBannerDiscount(new Date(policy.SEPTEMBER_LARGE_BANNER_END_EXCLUSIVE)).valid, false);
 });
