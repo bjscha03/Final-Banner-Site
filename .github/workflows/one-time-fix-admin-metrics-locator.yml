@@ -1,0 +1,89 @@
+name: One-time fix Admin metrics browser locator
+
+on:
+  push:
+    branches:
+      - feat/automatic-large-banner-25
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    if: ${{ !contains(github.event.head_commit.message, '[admin-metrics-locator]') && !contains(github.event.head_commit.message, '[cleanup-admin-metrics-locator]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/automatic-large-banner-25
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Patch the accessibility-labeled section locator
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('tests/browser/admin-commerce-analytics.playwright.spec.ts')
+          text = path.read_text()
+          old = """  await expect(page.getByRole('region', { name: 'All-time abandoned cart metrics' })).toContainText('Total captured value');
+  await expect(page.getByRole('region', { name: 'All-time abandoned cart metrics' })).toContainText('$268.50');
+  await expect(page.getByRole('region', { name: 'All-time abandoned cart metrics' })).toContainText('Recorded cart suppressions');"""
+          new = """  const allTimeMetrics = page.locator('section[aria-label=\"All-time abandoned cart metrics\"]');
+  await expect(allTimeMetrics).toBeVisible();
+  await expect(allTimeMetrics).toContainText('Total captured value');
+  await expect(allTimeMetrics).toContainText('$268.50');
+  await expect(allTimeMetrics).toContainText('Recorded cart suppressions');"""
+          if new in text and old not in text:
+              print('Locator already patched.')
+          elif text.count(old) != 1:
+              raise SystemExit(f'Expected one stale locator block, found {text.count(old)}')
+          else:
+              path.write_text(text.replace(old, new, 1))
+              print('Patched locator while preserving the exact visible-content assertions.')
+          PY
+
+      - name: Install exact dependencies
+        run: npm ci
+
+      - name: Run the desktop and mobile browser contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          browser=$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)
+          if [ -z "$browser" ]; then
+            echo "No supported Chrome/Chromium executable was found"
+            exit 1
+          fi
+          PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="$browser" \
+            npx playwright test \
+              --config=playwright.preview.config.ts \
+              admin-commerce-analytics.playwright.spec.ts \
+              --project=chromium-1440x900 \
+              --project=chromium-pixel8-portrait
+
+      - name: Commit verified locator update
+        run: |
+          git config user.name "Banners On The Fly CI"
+          git config user.email "actions@users.noreply.github.com"
+          git add tests/browser/admin-commerce-analytics.playwright.spec.ts
+          git commit -m "Stabilize Admin metrics browser contract [admin-metrics-locator]"
+          git push origin HEAD:feat/automatic-large-banner-25
+
+      - name: Remove one-time workflow
+        run: |
+          git pull --ff-only origin feat/automatic-large-banner-25
+          rm .github/workflows/one-time-fix-admin-metrics-locator.yml
+          git add .github/workflows/one-time-fix-admin-metrics-locator.yml
+          git commit -m "Remove one-time Admin metrics locator workflow [cleanup-admin-metrics-locator]"
+          git push origin HEAD:feat/automatic-large-banner-25
