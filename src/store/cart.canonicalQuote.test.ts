@@ -197,7 +197,7 @@ describe('canonical stale-cart quote application', () => {
       totalCents: 12190,
       appliedDiscountCents: 2500,
       appliedDiscountType: 'promo',
-      discountCode: 'CART25-SECURE',
+      discountCode: 'LARGE_BANNER_25',
     };
 
     expect(useCartStore.getState().applyCanonicalPricingQuote(quote)).toBe(true);
@@ -206,4 +206,66 @@ describe('canonical stale-cart quote application', () => {
       appliedDiscountAmountCents: 2500,
     });
   });
+
+  it('accepts the server automatic promotion id when no coupon is stored', () => {
+    const large = {
+      ...item,
+      id: 'large-auto',
+      width_in: 72,
+      height_in: 36,
+      quantity: 1,
+      rope_feet: 0,
+      rope_cost_cents: 0,
+      unit_price_cents: 10000,
+      line_total_cents: 10000,
+    };
+    const small = {
+      ...item,
+      id: 'small-auto',
+      width_in: 48,
+      height_in: 24,
+      quantity: 1,
+      rope_feet: 0,
+      rope_cost_cents: 0,
+      unit_price_cents: 4000,
+      line_total_cents: 4000,
+    };
+    useCartStore.setState({
+      items: [large, small],
+      discountCode: null,
+      sameDayHitService: false,
+      saturdayDelivery: false,
+    });
+
+    const quote: CanonicalCartQuote = {
+      items: [large, small].map((cartItem, index) => ({
+        index,
+        cartItemId: cartItem.id,
+        productType: 'banner',
+        unitPriceCents: cartItem.unit_price_cents,
+        lineTotalCents: cartItem.line_total_cents,
+        ropeFeet: 0,
+        ropeCostCents: 0,
+        polePocketCostCents: 0,
+      })),
+      subtotalCents: 14000,
+      taxCents: 690,
+      shippingCents: 0,
+      totalCents: 12190,
+      appliedDiscountCents: 2500,
+      appliedDiscountLabel: 'Large Banner 25% Off',
+      appliedDiscountType: 'promo',
+      discountCode: 'LARGE_BANNER_25',
+    };
+
+    expect(useCartStore.getState().applyCanonicalPricingQuote(quote)).toBe(true);
+    expect(useCartStore.getState().discountCode).toBeNull();
+    expect(useCartStore.getState().getResolvedDiscount()).toMatchObject({
+      appliedDiscountType: 'promo',
+      appliedDiscountAmountCents: 2500,
+      appliedDiscountLabel: 'Large Banner 25% Off',
+      promotionId: 'LARGE_BANNER_25',
+    });
+  });
+
 });
