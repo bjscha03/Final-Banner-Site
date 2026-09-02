@@ -166,6 +166,7 @@ const abandonedAnalytics = {
   recoveredRefundedCount: 0,
   recoveredRevenueUnknownCount: 0,
   expiredCount: 0,
+  totalCapturedValueCents: 26_850,
   activeValueCents: 17_950,
   recoveredValueCents: 8_900,
   recoveredAfterEmailCount: 1,
@@ -225,6 +226,7 @@ const sizeFilteredAbandonedAnalytics = {
   recoveredRetainedCount: 0,
   recoveredRefundedCount: 0,
   recoveredRevenueUnknownCount: 0,
+  totalCapturedValueCents: 12_950,
   activeValueCents: 12_950,
   recoveredValueCents: 0,
   recoveredAfterEmailCount: 0,
@@ -656,8 +658,8 @@ test('commerce admin analytics, customer history, and order tracking stay usable
 
   await page.goto('/admin/abandoned-carts', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: 'Abandoned Cart Analytics' })).toBeVisible();
-  await expect(page.getByRole('region', { name: 'All-time abandoned cart metrics' })).toContainText('Open captured value');
-  await expect(page.getByRole('region', { name: 'All-time abandoned cart metrics' })).toContainText('$179.50');
+  await expect(page.getByRole('region', { name: 'All-time abandoned cart metrics' })).toContainText('Total captured value');
+  await expect(page.getByRole('region', { name: 'All-time abandoned cart metrics' })).toContainText('$268.50');
   await expect(page.getByRole('region', { name: 'All-time abandoned cart metrics' })).toContainText('Recorded cart suppressions');
   await expect(page.getByLabel('Checkout stage')).toBeVisible();
   await expect(page.getByText('Artwork unknown', { exact: true })).toBeVisible();
