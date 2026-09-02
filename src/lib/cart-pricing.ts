@@ -1,104 +1,83 @@
 /**
- * Single source of truth for cart pricing calculations
- * All UI surfaces must use computeCartTotals() to ensure consistency
+ * Single source of truth for cart pricing calculations.
+ * All UI surfaces must use computeCartTotals() to ensure consistency.
  */
 
-import { calculateQuantityDiscount, getQuantityDiscountRate } from './quantity-discount';
-import { resolveBestDiscount, PromoDiscountInput } from './discount-resolver';
+import {
+  getAutomaticLargeBannerSubtotalCents,
+  getPromoDiscountSubtotalCents,
+  resolveBestDiscount,
+  type PromoDiscountCartItem,
+  type PromoDiscountInput,
+} from './discount-resolver';
 
-// Core types for the new pricing system
-export type MoneyCents = number; // integer cents
+export type MoneyCents = number;
 
 export type CartOption = {
   id: string;
   name: string;
-  priceCents: MoneyCents;      // price *before* quantity
-  pricingMode: 'per_item' | 'per_order'; // REQUIRED
-  quantityPerItem?: number;    // e.g., 4 ft of rope per banner (default 1)
+  priceCents: MoneyCents;
+  pricingMode: 'per_item' | 'per_order';
+  quantityPerItem?: number;
 };
 
 export type CartItem = {
   id: string;
   sku: string;
-  title: string;               // e.g., "Custom Banner 48\" x 24\""
-  unitPriceCents: MoneyCents;  // base banner price per item
+  title: string;
+  unitPriceCents: MoneyCents;
   qty: number;
   options: CartOption[];
+  productType?: string;
+  widthIn?: number;
+  heightIn?: number;
 };
 
 export type Cart = {
   items: CartItem[];
-  shippingCents: MoneyCents;   // 0 when FREE
-  taxRatePct: number;          // e.g., 6 for 6%
-  promoDiscount?: PromoDiscountInput | null; // Promo code discount (if any)
+  shippingCents: MoneyCents;
+  taxRatePct: number;
+  promoDiscount?: PromoDiscountInput | null;
 };
 
-// Computed totals interface
 export interface CartTotals {
-  // Per-item calculations
   itemTotals: Array<{
     itemId: string;
-    unitEachCents: MoneyCents;     // unit price + per-item options
-    lineTotalCents: MoneyCents;    // (unitEach * qty) + per-order options
+    unitEachCents: MoneyCents;
+    lineTotalCents: MoneyCents;
     perItemOptionsCents: MoneyCents;
     perOrderOptionsCents: MoneyCents;
   }>;
-
-  // Cart-level totals
-  subtotalCents: MoneyCents;     // sum of all line totals (before any discounts)
-  totalQuantity: number;          // total qty across all items
-
-  // "Best Discount Wins" - only ONE discount is applied
+  subtotalCents: MoneyCents;
+  totalQuantity: number;
   appliedDiscountType: 'quantity' | 'promo' | 'none';
-  appliedDiscountCents: MoneyCents; // the single best discount amount
-  appliedDiscountLabel: string;     // e.g., "Quantity discount (13% off)" or "NEW20 (20% off)"
-  helperMessage: string | null;     // "Discounts can't be combined..." when both available
-
-  // Metadata for display (not applied)
-  quantityDiscountRate: number;   // e.g., 0.05 for 5%
-  quantityDiscountCents: MoneyCents; // what qty discount WOULD be
-
-  subtotalAfterDiscountsCents: MoneyCents; // subtotal - best discount
-  taxCents: MoneyCents;          // tax on subtotal after discount
-  shippingCents: MoneyCents;     // shipping cost
-  totalCents: MoneyCents;        // final total
+  appliedDiscountCents: MoneyCents;
+  appliedDiscountLabel: string;
+  appliedPromotionId: string | null;
+  helperMessage: string | null;
+  quantityDiscountRate: number;
+  quantityDiscountCents: MoneyCents;
+  automaticPromotionEligible: boolean;
+  automaticPromotionCents: MoneyCents;
+  subtotalAfterDiscountsCents: MoneyCents;
+  taxCents: MoneyCents;
+  shippingCents: MoneyCents;
+  totalCents: MoneyCents;
 }
 
-/**
- * Utility function to round to nearest cent
- */
 export const roundToCents = (n: number): MoneyCents => Math.round(n);
 
-/**
- * Format money from cents to currency string
- */
-export const formatMoney = (cents: MoneyCents): string => {
-  return `$${(cents / 100).toFixed(2)}`;
-};
+export const formatMoney = (cents: MoneyCents): string => `$${(cents / 100).toFixed(2)}`;
 
-/**
- * Single source of truth for cart pricing calculations
- * This function must be used by ALL UI surfaces to ensure consistency
- */
 export const computeCartTotals = (cart: Cart): CartTotals => {
-  const itemTotals = cart.items.map(item => {
-    // Calculate per-item options total
+  const itemTotals = cart.items.map((item) => {
     const perItemOptionsCents = item.options
-      .filter(option => option.pricingMode === 'per_item')
-      .reduce((sum, option) => {
-        const quantityPerItem = option.quantityPerItem ?? 1;
-        return sum + (option.priceCents * quantityPerItem);
-      }, 0);
-
-    // Calculate per-order options total
+      .filter((option) => option.pricingMode === 'per_item')
+      .reduce((sum, option) => sum + (option.priceCents * (option.quantityPerItem ?? 1)), 0);
     const perOrderOptionsCents = item.options
-      .filter(option => option.pricingMode === 'per_order')
+      .filter((option) => option.pricingMode === 'per_order')
       .reduce((sum, option) => sum + option.priceCents, 0);
-
-    // Unit price including per-item options
     const unitEachCents = item.unitPriceCents + perItemOptionsCents;
-
-    // Line total: (unit + per-item options) * qty + per-order options
     const lineTotalCents = (unitEachCents * item.qty) + perOrderOptionsCents;
 
     return {
@@ -110,27 +89,45 @@ export const computeCartTotals = (cart: Cart): CartTotals => {
     };
   });
 
-  // Calculate cart totals
-  const subtotalCents = roundToCents(
-    itemTotals.reduce((sum, item) => sum + item.lineTotalCents, 0)
-  );
-
-  // Total quantity across all items (for quantity discount)
+  const subtotalCents = roundToCents(itemTotals.reduce((sum, item) => sum + item.lineTotalCents, 0));
   const totalQuantity = cart.items.reduce((sum, item) => sum + item.qty, 0);
+  const bannerItems = cart.items.filter((item) => (
+    String(item.productType || 'banner').trim().toLowerCase() === 'banner'
+  ));
+  const bannerQuantity = bannerItems.reduce((sum, item) => sum + item.qty, 0);
+  const bannerItemIds = new Set(bannerItems.map((item) => item.id));
+  const bannerSubtotalCents = itemTotals.reduce((sum, item) => (
+    bannerItemIds.has(item.itemId) ? sum + item.lineTotalCents : sum
+  ), 0);
 
-  // "Best Discount Wins" - resolve which discount to apply
+  const promoItems: PromoDiscountCartItem[] = itemTotals.map((itemTotal) => {
+    const source = cart.items.find((item) => item.id === itemTotal.itemId)!;
+    return {
+      id: source.id,
+      product_type: source.productType || 'banner',
+      width_in: Number(source.widthIn || 0),
+      height_in: Number(source.heightIn || 0),
+      line_total_cents: itemTotal.lineTotalCents,
+    };
+  });
+  const automaticPromotionSubtotalCents = getAutomaticLargeBannerSubtotalCents(promoItems);
+  const promoSubtotalCents = cart.promoDiscount
+    ? getPromoDiscountSubtotalCents(promoItems, subtotalCents, cart.promoDiscount)
+    : undefined;
+
   const resolved = resolveBestDiscount({
     subtotalCents,
-    quantity: totalQuantity,
+    quantity: bannerQuantity,
+    quantitySubtotalCents: bannerSubtotalCents,
     promoDiscount: cart.promoDiscount,
+    promoSubtotalCents,
+    automaticPromotionSubtotalCents,
   });
 
-  // Subtotal after the SINGLE best discount
-  const subtotalAfterDiscountsCents = roundToCents(subtotalCents - resolved.appliedDiscountAmountCents);
-
-  // Tax is calculated on subtotal after discount
+  const subtotalAfterDiscountsCents = roundToCents(
+    Math.max(0, subtotalCents - resolved.appliedDiscountAmountCents),
+  );
   const taxCents = roundToCents(subtotalAfterDiscountsCents * cart.taxRatePct / 100);
-
   const shippingCents = cart.shippingCents;
   const totalCents = roundToCents(subtotalAfterDiscountsCents + taxCents + shippingCents);
 
@@ -141,9 +138,12 @@ export const computeCartTotals = (cart: Cart): CartTotals => {
     appliedDiscountType: resolved.appliedDiscountType,
     appliedDiscountCents: resolved.appliedDiscountAmountCents,
     appliedDiscountLabel: resolved.appliedDiscountLabel,
+    appliedPromotionId: resolved.appliedPromotionId,
     helperMessage: resolved.helperMessage,
     quantityDiscountRate: resolved.quantityDiscountRate,
     quantityDiscountCents: resolved.quantityDiscountAmountCents,
+    automaticPromotionEligible: resolved.automaticPromotionEligible,
+    automaticPromotionCents: resolved.automaticPromotionAmountCents,
     subtotalAfterDiscountsCents,
     taxCents,
     shippingCents,
