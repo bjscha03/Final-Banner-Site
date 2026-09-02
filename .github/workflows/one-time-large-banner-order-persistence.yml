@@ -12,7 +12,7 @@ jobs:
   patch-and-verify:
     if: ${{ !contains(github.event.head_commit.message, '[large-banner-order-persistence]') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - name: Check out promotion branch
@@ -29,54 +29,53 @@ jobs:
 
           path = Path('netlify/functions/_shared/legacy/create-order-core.cjs')
           text = path.read_text()
-          old = """  orderData.applied_discount_cents = totals.applied_discount_cents || 0;
-          orderData.applied_discount_type = totals.applied_discount_type || 'none';
-          if (totals.applied_discount_type === 'quantity') {
-            const percentage = Math.round(totals.applied_discount_rate * 100);
-            orderData.applied_discount_label = `Qty Discount (${percentage}% off)`;
-          } else if (totals.applied_discount_type === 'promo') {
-            orderData.applied_discount_label = `Promo: ${orderData.discountCode?.code || 'Applied'}`;
-          } else {
-            orderData.applied_discount_label = '';
-          }
-          return totals;
-          """
-          new = """  orderData.applied_discount_cents = totals.applied_discount_cents || 0;
-          orderData.applied_discount_type = totals.applied_discount_type || 'none';
-          orderData.applied_promotion_id = totals.applied_promotion_id || null;
-          if (totals.applied_promotion_id) {
-            // Automatic pricing is persisted through the existing discount_code
-            // audit field, but it is not a claimable/single-use promo code.
-            orderData.discountCode = {
-              id: totals.applied_promotion_id,
-              code: totals.applied_promotion_id,
-              discountPercentage: Math.round((totals.applied_discount_rate || 0) * 100),
-              discountAmountCents: null,
-              source: 'automatic_large_banner_pricing',
-              campaign: totals.applied_promotion_id,
-              discountScope: 'qualifying_large_banner_lines',
-              displayLabel: totals.applied_discount_label || 'Large Banner 25% Off',
-            };
-          }
-          if (totals.applied_discount_type === 'quantity') {
-            const percentage = Math.round(totals.applied_discount_rate * 100);
-            orderData.applied_discount_label = `Qty Discount (${percentage}% off)`;
-          } else if (totals.applied_discount_type === 'promo') {
-            orderData.applied_discount_label = totals.applied_discount_label
-              || `Promo: ${orderData.discountCode?.code || 'Applied'}`;
-          } else {
-            orderData.applied_discount_label = '';
-          }
-          return totals;
-          """
-
-          if new in text:
+          marker = '  orderData.applied_promotion_id = totals.applied_promotion_id || null;'
+          if marker in text:
               print('Order persistence patch already present.')
-          elif old not in text:
-              raise SystemExit('Expected applyAuthoritativeOrderTotals block was not found; refusing an unsafe patch.')
-          else:
-              path.write_text(text.replace(old, new, 1))
-              print('Patched automatic promotion id and label persistence.')
+              raise SystemExit(0)
+
+          start_marker = '  orderData.applied_discount_cents = totals.applied_discount_cents || 0;\n'
+          end_marker = '  return totals;\n'
+          start = text.find(start_marker)
+          if start < 0:
+              raise SystemExit('Could not locate authoritative discount persistence start marker.')
+          end = text.find(end_marker, start)
+          if end < 0:
+              raise SystemExit('Could not locate authoritative discount persistence end marker.')
+          end += len(end_marker)
+
+          replacement = '\n'.join([
+              '  orderData.applied_discount_cents = totals.applied_discount_cents || 0;',
+              "  orderData.applied_discount_type = totals.applied_discount_type || 'none';",
+              '  orderData.applied_promotion_id = totals.applied_promotion_id || null;',
+              '  if (totals.applied_promotion_id) {',
+              '    // Automatic pricing is persisted through the existing discount_code',
+              '    // audit field, but it is not a claimable/single-use promo code.',
+              '    orderData.discountCode = {',
+              '      id: totals.applied_promotion_id,',
+              '      code: totals.applied_promotion_id,',
+              '      discountPercentage: Math.round((totals.applied_discount_rate || 0) * 100),',
+              '      discountAmountCents: null,',
+              "      source: 'automatic_large_banner_pricing',",
+              '      campaign: totals.applied_promotion_id,',
+              "      discountScope: 'qualifying_large_banner_lines',",
+              "      displayLabel: totals.applied_discount_label || 'Large Banner 25% Off',",
+              '    };',
+              '  }',
+              "  if (totals.applied_discount_type === 'quantity') {",
+              '    const percentage = Math.round(totals.applied_discount_rate * 100);',
+              '    orderData.applied_discount_label = `Qty Discount (${percentage}% off)`;',
+              "  } else if (totals.applied_discount_type === 'promo') {",
+              '    orderData.applied_discount_label = totals.applied_discount_label',
+              "      || `Promo: ${orderData.discountCode?.code || 'Applied'}`;",
+              '  } else {',
+              "    orderData.applied_discount_label = '';",
+              '  }',
+              '  return totals;',
+              '',
+          ])
+          path.write_text(text[:start] + replacement + text[end:])
+          print('Patched automatic promotion id and label persistence.')
           PY
 
       - name: Set up Node.js
@@ -88,10 +87,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run focused automatic-discount tests
+      - name: Run automatic-discount regression tests
         run: |
-          node --test netlify/functions/__tests__/automatic-large-banner-discount.test.cjs
-          npx vitest run src/lib/__tests__/largeBannerPromotion.test.ts
+          node --test \
+            netlify/functions/__tests__/automatic-large-banner-discount.test.cjs \
+            netlify/functions/__tests__/recovery-discount-policy.test.cjs \
+            netlify/functions/__tests__/september-promo-discount.test.cjs
+          npx vitest run \
+            src/lib/__tests__/largeBannerPromotion.test.ts \
+            src/lib/discount-resolver.recovery.test.ts \
+            src/lib/__tests__/promoEngine.test.ts
 
       - name: Build storefront and server bundle
         run: npm run build
