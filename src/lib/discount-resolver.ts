@@ -14,10 +14,12 @@ import { getQuantityDiscountRate } from './quantity-discount';
 // ============================================================================
 
 export type DiscountType = 'quantity' | 'promo' | 'none';
-export type DiscountScope = 'order' | 'recovery_qualifying_banner_lines';
+export type DiscountScope = 'order' | 'recovery_qualifying_banner_lines' | 'qualifying_large_banner_lines';
 
 export const LARGE_BANNER_RECOVERY_CAMPAIGN = 'abandoned_cart_large_banner_25';
 export const LARGE_BANNER_RECOVERY_SCOPE: DiscountScope = 'recovery_qualifying_banner_lines';
+export const SEPTEMBER_LARGE_BANNER_CAMPAIGN = 'september_large_banner_2026';
+export const SEPTEMBER_LARGE_BANNER_SCOPE: DiscountScope = 'qualifying_large_banner_lines';
 
 export interface PromoDiscountInput {
   code: string;
@@ -99,6 +101,20 @@ export function getPromoDiscountSubtotalCents(
   subtotalCents: number,
   promoDiscount?: PromoDiscountInput | null,
 ): number {
+  if (promoDiscount?.discountScope === SEPTEMBER_LARGE_BANNER_SCOPE) {
+    if (promoDiscount.code.trim().toUpperCase() !== 'BIG25'
+        || promoDiscount.campaign !== SEPTEMBER_LARGE_BANNER_CAMPAIGN
+        || Number(promoDiscount.discountPercentage) !== 25) {
+      return 0;
+    }
+    return items.reduce((sum, item) => {
+      if (!isQualifyingLargeBannerDiscountItem(item)) return sum;
+      const lineTotalCents = Number(item.line_total_cents);
+      return Number.isSafeInteger(lineTotalCents) && lineTotalCents >= 0
+        ? sum + lineTotalCents
+        : sum;
+    }, 0);
+  }
   if (promoDiscount?.discountScope !== LARGE_BANNER_RECOVERY_SCOPE) return subtotalCents;
   if (promoDiscount.campaign !== LARGE_BANNER_RECOVERY_CAMPAIGN
       || !Array.isArray(promoDiscount.eligibleCartItemIds)
@@ -126,7 +142,8 @@ export function resolveBestDiscount(input: DiscountResolverInput): ResolvedDisco
   // banner-only subtotal via `quantitySubtotalCents`; if not provided we fall
   // back to the full subtotal for backward compatibility.
   const quantityBaseCents = quantitySubtotalCents ?? subtotalCents;
-  const promoIsScoped = promoDiscount?.discountScope === LARGE_BANNER_RECOVERY_SCOPE;
+  const promoIsScoped = promoDiscount?.discountScope === LARGE_BANNER_RECOVERY_SCOPE
+    || promoDiscount?.discountScope === SEPTEMBER_LARGE_BANNER_SCOPE;
   const promoBaseCents = promoSubtotalCents ?? (promoIsScoped ? 0 : subtotalCents);
 
   // Calculate quantity discount
@@ -147,7 +164,7 @@ export function resolveBestDiscount(input: DiscountResolverInput): ResolvedDisco
       promoDiscountAmountCents = Math.min(promoDiscount.discountAmountCents, promoBaseCents);
       promoDiscountRate = promoBaseCents > 0 ? promoDiscountAmountCents / promoBaseCents : 0;
     }
-    if (promoIsScoped) {
+    if (promoDiscount?.discountScope === LARGE_BANNER_RECOVERY_SCOPE) {
       const cap = Number(promoDiscount.maxDiscountAmountCents);
       promoDiscountAmountCents = Number.isSafeInteger(cap) && cap > 0
         ? Math.min(promoDiscountAmountCents, cap)

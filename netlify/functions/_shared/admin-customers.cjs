@@ -251,6 +251,14 @@ async function loadSuppressionIndex(sql, candidateValues) {
     [Array.from(OUTBOUND_SUPPRESSION_REASONS), emails, domains],
   ), index, unavailableSources);
 
+  await readSuppressionSource('marketing_email_suppressions', () => sql(
+    `SELECT normalized_email AS email, LEFT(LOWER(reason), 80) AS reason, 'email' AS scope
+       FROM marketing_email_suppressions
+      WHERE active = TRUE
+        AND normalized_email = ANY($1::text[])`,
+    [emails],
+  ), index, unavailableSources, { optionalWhenMissing: true });
+
   await readSuppressionSource('trade_show_email_unsubscribes', () => sql(
     `SELECT normalized_email AS email, LEFT(LOWER(reason), 80) AS reason
        FROM trade_show_email_unsubscribes
@@ -293,9 +301,11 @@ async function loadSuppressionIndex(sql, candidateValues) {
 async function probeSuppressionSources(sql) {
   const unavailableSources = [];
   let includeNewsletter = true;
+  let includeMarketing = true;
   const probes = [
     ['recovery_email_suppressions', `SELECT normalized_email, reason, active FROM recovery_email_suppressions LIMIT 0`, false],
     ['outbound_suppressions', `SELECT normalized_value, reason, scope, active FROM outbound_suppressions LIMIT 0`, false],
+    ['marketing_email_suppressions', `SELECT normalized_email, reason, active FROM marketing_email_suppressions LIMIT 0`, true],
     ['trade_show_email_unsubscribes', `SELECT normalized_email, reason FROM trade_show_email_unsubscribes LIMIT 0`, false],
     ['email_captures', `SELECT email, consent, captured_at, created_at FROM email_captures LIMIT 0`, false],
     ['newsletter', `SELECT email, subscribed FROM newsletter LIMIT 0`, true],
@@ -306,8 +316,9 @@ async function probeSuppressionSources(sql) {
       await sql(query);
     } catch (error) {
       const missing = ['42P01', '42703'].includes(String(error?.code || ''));
-      if (name === 'newsletter' && optionalWhenMissing && missing) {
-        includeNewsletter = false;
+      if (optionalWhenMissing && missing) {
+        if (name === 'newsletter') includeNewsletter = false;
+        if (name === 'marketing_email_suppressions') includeMarketing = false;
         continue;
       }
       unavailableSources.push(name);
@@ -320,6 +331,7 @@ async function probeSuppressionSources(sql) {
   return {
     complete: unavailableSources.length === 0,
     includeNewsletter,
+    includeMarketing,
     unavailableSources,
   };
 }

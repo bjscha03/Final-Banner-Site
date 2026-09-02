@@ -3,6 +3,9 @@
 const {
   LARGE_BANNER_RECOVERY_CAMPAIGN,
   LARGE_BANNER_RECOVERY_SCOPE,
+  SEPTEMBER_LARGE_BANNER_CODE,
+  buildSeptemberLargeBannerDiscount,
+  isQualifyingLargeBannerLine,
   normalizeEligibleCartItemIds,
   positiveInteger,
   validateLargeBannerRecoveryMetadata,
@@ -83,11 +86,26 @@ async function validateDiscountForCheckout({
   recoveryCartId = null,
   requireRecoveryEmailMatch = false,
   requireRecoveryCartMatch = false,
+  items = null,
+  now = new Date(),
 }) {
   const normalizedCode = normalizeCode(code);
   const normalizedEmail = email ? String(email).trim().toLowerCase() : null;
   const normalizedRecoveryCartId = normalizedCartId(recoveryCartId);
   if (!normalizedCode) return invalidResult('Discount code is required');
+
+  if (normalizedCode === SEPTEMBER_LARGE_BANNER_CODE) {
+    const promotion = buildSeptemberLargeBannerDiscount(now);
+    if (!promotion.valid) {
+      return invalidResult(promotion.reason === 'not_started'
+        ? 'BIG25 begins September 1, 2026'
+        : 'BIG25 expired after September 8, 2026');
+    }
+    if (!Array.isArray(items) || !items.some(isQualifyingLargeBannerLine)) {
+      return invalidResult("BIG25 requires at least one 6' × 3' or larger banner");
+    }
+    return validResult(promotion.discount);
+  }
 
   if (normalizedCode === 'NEW20') {
     if (userId) {

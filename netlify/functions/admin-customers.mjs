@@ -2,6 +2,7 @@ import { neon } from '@neondatabase/serverless';
 import { withLambda } from '@netlify/aws-lambda-compat';
 import serverAuth from './_shared/server-auth.cjs';
 import customerAnalytics from './_shared/admin-customers.cjs';
+import marketingStore from './_shared/marketing-email-store.cjs';
 
 const headers = {
   'Content-Type': 'application/json',
@@ -36,7 +37,16 @@ const suppressionPredicate = (suppressionState) => {
         WHERE recovery.active = TRUE
           AND recovery.normalized_email = rollup.email
      )`,
-    `EXISTS (
+  ];
+  if (suppressionState.includeMarketing !== false) {
+    clauses.push(`EXISTS (
+       SELECT 1
+         FROM marketing_email_suppressions marketing
+        WHERE marketing.active = TRUE
+          AND marketing.normalized_email = rollup.email
+     )`);
+  }
+  clauses.push(`EXISTS (
        SELECT 1
          FROM outbound_suppressions outbound
         WHERE outbound.active = TRUE
@@ -61,7 +71,7 @@ const suppressionPredicate = (suppressionState) => {
         ORDER BY capture.captured_at DESC, capture.created_at DESC
         LIMIT 1
      ), TRUE) = FALSE`,
-  ];
+  );
   if (suppressionState.includeNewsletter !== false) {
     clauses.push(`EXISTS (
        SELECT 1
@@ -368,6 +378,16 @@ const queryParameters = (options, suppressionState) => [
 
 const customerFromRow = (row, suppressionState) => customerAnalytics.customerFromSummaryRow(row, suppressionState);
 
+const attachSeptemberDealStatus = (customer, statuses) => {
+  const status = statuses.get(customer.email);
+  return {
+    ...customer,
+    septemberDealStatus: status?.status || 'not_sent',
+    septemberDealSentAt: status?.sentAt || null,
+    septemberDealUpdatedAt: status?.updatedAt || null,
+  };
+};
+
 const normalizeCursorMicros = (value) => {
   const text = String(value ?? '').trim();
   if (!/^-?\d{1,19}$/.test(text)) throw new Error('invalid');
@@ -455,10 +475,15 @@ async function handleList(sql, query, suppressionState, now) {
     offset: (page - 1) * requestedPagination.pageSize,
   };
   const rows = await loadCustomerPage(sql, parameters, pagination, queries.page);
+  const customers = rows.map((row) => customerFromRow(row, suppressionState)).filter(Boolean);
+  const septemberStatuses = await marketingStore.loadMarketingSendStatuses(
+    sql,
+    customers.map((customer) => customer.email),
+  );
   return {
     ok: true,
     generatedAt: now.toISOString(),
-    customers: rows.map((row) => customerFromRow(row, suppressionState)).filter(Boolean),
+    customers: customers.map((customer) => attachSeptemberDealStatus(customer, septemberStatuses)),
     stats,
     filteredSummary,
     exportSummary: {
@@ -496,6 +521,8 @@ async function handleDetail(sql, query, suppressionState, now) {
   if (history.total === 0) return reply(404, { ok: false, error: 'Customer history not found' });
   const totalPages = Math.max(1, Math.ceil(history.total / pagination.pageSize));
   const suppressionReasons = customerAnalytics.suppressionReasonsForEmail(suppressionState, email);
+  const septemberStatuses = await marketingStore.loadMarketingSendStatuses(sql, [email]);
+  const septemberStatus = septemberStatuses.get(email);
   return reply(200, {
     ok: true,
     generatedAt: now.toISOString(),
@@ -504,6 +531,9 @@ async function handleDetail(sql, query, suppressionState, now) {
       marketingEligible: suppressionReasons.length === 0,
       suppressionReason: suppressionReasons.join(', '),
       suppressionReasons,
+      septemberDealStatus: septemberStatus?.status || 'not_sent',
+      septemberDealSentAt: septemberStatus?.sentAt || null,
+      septemberDealUpdatedAt: septemberStatus?.updatedAt || null,
     },
     orders: history.rows.map(detailOrder),
     pagination: {
