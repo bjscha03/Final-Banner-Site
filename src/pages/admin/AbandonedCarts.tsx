@@ -630,7 +630,14 @@ const AbandonedCarts: React.FC = () => {
       const data = await response.json();
       if (requestId !== loadRequestId.current) return;
       if (!response.ok) throw new Error(data?.message || data?.error || 'Failed to fetch abandoned carts');
-      setCarts(Array.isArray(data.carts) ? data.carts : []);
+      const normalizedCarts = (Array.isArray(data.carts) ? data.carts : []).map((cart) => ({
+        ...cart,
+        item_summaries: Array.isArray(cart.item_summaries) ? cart.item_summaries : [],
+        recovery_events: Array.isArray(cart.recovery_events) ? cart.recovery_events : [],
+        recovery_deliveries: Array.isArray(cart.recovery_deliveries) ? cart.recovery_deliveries : [],
+        recovery_offers: Array.isArray(cart.recovery_offers) ? cart.recovery_offers : [],
+      }));
+      setCarts(normalizedCarts);
       setServerAnalytics(data.analytics || null);
       setFilteredAnalytics(data.filteredAnalytics || data.analytics || null);
       setOutcomeComparison(data.outcomeComparison || data.analytics?.outcomeComparison || null);

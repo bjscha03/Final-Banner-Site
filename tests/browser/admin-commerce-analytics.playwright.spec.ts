@@ -714,7 +714,7 @@ test('commerce admin analytics, customer history, and order tracking stay usable
   expect(csv).not.toContain('suppressed@example.com');
 
   if (isMobile) {
-    await page.getByRole('button', { name: /Alice Buyer/ }).click();
+    await page.getByRole('button', { name: 'View customer', exact: true }).first().click();
   } else {
     const customerRow = page.getByLabel('View customer Alice Buyer');
     await customerRow.focus();
