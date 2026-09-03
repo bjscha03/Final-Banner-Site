@@ -118,3 +118,19 @@ describe('getGrommetRadius', () => {
     expect(getGrommetRadius(0, 0)).toBeGreaterThanOrEqual(0.25);
   });
 });
+
+
+describe('admin portrait-order corner regression', () => {
+  it('places four-corner grommets one inch from every edge on a 36 × 60 banner', () => {
+    const points = getGrommetPositions(36, 60, '4-corners');
+
+    expect(points).toEqual([
+      { x: 1, y: 1 },
+      { x: 35, y: 1 },
+      { x: 1, y: 59 },
+      { x: 35, y: 59 },
+    ]);
+    expect((points[0].x / 36) * 100).toBeCloseTo(2.778, 3);
+    expect((points[1].x / 36) * 100).toBeCloseTo(97.222, 3);
+  });
+});

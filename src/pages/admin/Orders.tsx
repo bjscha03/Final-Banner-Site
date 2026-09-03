@@ -48,6 +48,7 @@ import { getFinalizedThumbnailCandidates, getFinalizedThumbnailUrl } from '@/lib
 import GrommetOverlay from '@/components/preview/GrommetOverlay';
 import StablePreviewImage from '@/components/preview/StablePreviewImage';
 import { getGrommetLabel } from '@/lib/grommets';
+import { getAdminPreviewFrameStyle } from '@/lib/admin-preview-frame';
 import EditCustomerInfoDialog from '@/components/orders/EditCustomerInfoDialog';
 import ReviewRequestAction from '@/components/orders/ReviewRequestAction';
 import AdminRefundOrderAction from '@/components/orders/AdminRefundOrderAction';
@@ -231,11 +232,15 @@ const ProductPreviewFrame: React.FC<{ item: any; thumbUrl: string | null; large?
   }, [candidateSignature, candidates.length]);
 
   const loading = candidates.length > 0 && !ready && !failed;
+  const frameStyle = useMemo(
+    () => getAdminPreviewFrameStyle(width, height, large),
+    [width, height, large],
+  );
 
   return (
     <div
-      className={`relative w-full overflow-hidden rounded-lg border border-gray-200 bg-white ${large ? 'max-h-[66vh]' : 'h-full'}`}
-      style={{ aspectRatio: `${width} / ${height}` }}
+      className="relative mx-auto overflow-hidden rounded-lg border border-gray-200 bg-white"
+      style={frameStyle}
       role="img"
       aria-label={`${getProductTitleLabel(item)} finished preview`}
       aria-busy={loading}
@@ -274,6 +279,7 @@ const ProductPreviewFrame: React.FC<{ item: any; thumbUrl: string | null; large?
       <svg
         viewBox={`0 0 ${width} ${height}`}
         className="pointer-events-none absolute inset-0 z-[3] h-full w-full"
+        preserveAspectRatio="none"
         aria-hidden="true"
       >
         <GrommetOverlay widthIn={width} heightIn={height} option={grommets} idSuffix={idSuffix} />

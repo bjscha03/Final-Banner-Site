@@ -50,3 +50,15 @@ test('Resend templates keep their HTML while using the permanent preview source 
   assert.match(resolver, /artwork_manifest/);
   assert.match(resolver, /buildCloudinaryUrlFromFileKey/);
 });
+
+
+test('Admin preview frame and grommet overlay share one exact product rectangle', () => {
+  const orders = read('src/pages/admin/Orders.tsx');
+  const geometry = read('src/lib/admin-preview-frame.ts');
+
+  assert.match(orders, /getAdminPreviewFrameStyle\(width, height, large\)/);
+  assert.match(orders, /preserveAspectRatio="none"/);
+  assert.doesNotMatch(orders, /large \? 'max-h-\[66vh\]' : 'h-full'/);
+  assert.match(geometry, /maxWidth: formatDvh\(ADMIN_LARGE_PREVIEW_MAX_HEIGHT_DVH \* ratio\)/);
+  assert.match(geometry, /aspectRatio/);
+});
