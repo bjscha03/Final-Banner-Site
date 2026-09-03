@@ -622,9 +622,9 @@ const Design: React.FC = () => {
   const [promoCode, setPromoCode] = useState(storedPromoAtLoad?.code || '');
   const [promoApplied, setPromoApplied] = useState(Boolean(storedPromoAtLoad));
 
-  // Keep 6′ × 3′ visually highlighted as the recommended size, but leave the
-  // order unpriced until the customer explicitly chooses or confirms a size.
-  const [hasConfirmedSize, setHasConfirmedSize] = useState(false);
+  // Start banner visitors with the 6′ × 3′ popular preset fully selected so
+  // its automatic 25%-off price is visible immediately on first load.
+  const [hasConfirmedSize, setHasConfirmedSize] = useState(initialProductType === 'banner');
   const [hasConfirmedMaterial, setHasConfirmedMaterial] = useState(false);
   const [hasConfirmedQuantity, setHasConfirmedQuantity] = useState(false);
   const [hasReviewedOptions, setHasReviewedOptions] = useState(false);
@@ -3557,10 +3557,10 @@ const Design: React.FC = () => {
             <p className="text-xl font-bold text-gray-900">
               {yardSignTotalQty > 0 ? usd(yardSignPricing.totalCents / 100) : '—'}
             </p>
-          ) : promoApplied ? (
+          ) : bannerPromoActuallyApplied ? (
             <div className="flex items-center gap-2">
               <p className="text-sm text-gray-400 line-through">{usd(totals.materialTotal)}</p>
-              <p className="text-xl font-bold text-green-600">{usd(discountedTotal)}</p>
+              <p className="text-xl font-bold text-[#0B1F3A]">{usd(discountedTotal)}</p>
             </div>
           ) : (
             <p className="text-xl font-bold text-gray-900">{usd(totals.materialTotal)}</p>
