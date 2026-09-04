@@ -5,6 +5,7 @@ const {
   LARGE_BANNER_RECOVERY_CAMPAIGN,
   LARGE_BANNER_RECOVERY_SCOPE,
   SEPTEMBER_LARGE_BANNER_CODE,
+  SMALL_BANNER_DISCOUNT_CODE,
 } = require('./recovery-discount-policy.cjs');
 
 function normalizedCode(order) {
@@ -13,7 +14,8 @@ function normalizedCode(order) {
 
 function isNonStoredCampaignCode(code) {
   return code === SEPTEMBER_LARGE_BANNER_CODE
-    || code === AUTOMATIC_LARGE_BANNER_PROMOTION_ID;
+    || code === AUTOMATIC_LARGE_BANNER_PROMOTION_ID
+    || code === SMALL_BANNER_DISCOUNT_CODE;
 }
 
 function isTestOrder(order) {
@@ -251,13 +253,10 @@ async function claimPaymentDiscount(sql, order) {
   if (isTestOrder(order)) return { ok: true, claimed: false, kind: 'test' };
   if (!hasAppliedPromo(order)) return { ok: true, claimed: false, kind: 'not_applied' };
   if (isNonStoredCampaignCode(code)) {
-    return {
-      ok: true,
-      claimed: false,
-      kind: code === AUTOMATIC_LARGE_BANNER_PROMOTION_ID
-        ? 'automatic_large_banner'
-        : 'september_campaign',
-    };
+    let kind = 'september_campaign';
+    if (code === AUTOMATIC_LARGE_BANNER_PROMOTION_ID) kind = 'automatic_large_banner';
+    else if (code === SMALL_BANNER_DISCOUNT_CODE) kind = 'small_banner_promo';
+    return { ok: true, claimed: false, kind };
   }
   return code === 'NEW20'
     ? claimNew20(sql, order)

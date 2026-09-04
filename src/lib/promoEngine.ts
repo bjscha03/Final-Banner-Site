@@ -21,6 +21,8 @@ import {
   resolveBestDiscount,
   getPromoDiscountSubtotalCents,
   calculateTotalsWithBestDiscount,
+  SMALL_BANNER_PROMOTION_SCOPE,
+  type DiscountScope,
   type PromoDiscountCartItem,
   type PromoDiscountInput,
   type ResolvedDiscount,
@@ -40,6 +42,11 @@ export interface KnownPromoCode {
   description: string;
   /** When true, server-side validation enforces first-order-only eligibility. */
   firstOrderOnly: boolean;
+  /**
+   * When set, this code only discounts cart/configurator lines matching this
+   * scope (e.g. small banners). Omitted for order-wide codes like NEW20.
+   */
+  discountScope?: DiscountScope;
 }
 
 /**
@@ -53,6 +60,16 @@ export const KNOWN_PROMO_CODES: Record<string, KnownPromoCode> = {
     discountPercentage: 20,
     description: '20% off your first order',
     firstOrderOnly: true,
+  },
+  // Virtual, reusable code for banners smaller than 6' x 3'. Banners 6' x 3'
+  // or larger receive the automatic 25% Large Banner promotion instead — the
+  // two never stack (see discount-resolver.ts / recovery-discount-policy.cjs).
+  '20OFF': {
+    code: '20OFF',
+    discountPercentage: 20,
+    description: "20% off banners smaller than 6' x 3'",
+    firstOrderOnly: false,
+    discountScope: SMALL_BANNER_PROMOTION_SCOPE,
   },
   CUSTOM60: {
     code: 'CUSTOM60',
@@ -113,7 +130,13 @@ function matchingValidatedPromo(input: ResolvePromoInput): PromoDiscountInput | 
 export function resolvePromo(input: ResolvePromoInput): ResolvedDiscount {
   const promo = getKnownPromo(input.code);
   const promoDiscount: PromoDiscountInput | null = matchingValidatedPromo(input)
-    || (promo ? { code: promo.code, discountPercentage: promo.discountPercentage } : null);
+    || (promo
+      ? {
+          code: promo.code,
+          discountPercentage: promo.discountPercentage,
+          ...(promo.discountScope ? { discountScope: promo.discountScope } : {}),
+        }
+      : null);
   const promoSubtotalCents = Array.isArray(input.items)
     ? getPromoDiscountSubtotalCents(input.items, input.subtotalCents, promoDiscount)
     : undefined;

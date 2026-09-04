@@ -5,9 +5,12 @@ const {
   LARGE_BANNER_RECOVERY_CAMPAIGN,
   LARGE_BANNER_RECOVERY_SCOPE,
   SEPTEMBER_LARGE_BANNER_CODE,
+  SMALL_BANNER_DISCOUNT_CODE,
   buildAutomaticLargeBannerDiscount,
   buildSeptemberLargeBannerDiscount,
+  buildSmallBannerDiscount,
   isQualifyingLargeBannerLine,
+  isQualifyingSmallBannerLine,
   normalizeEligibleCartItemIds,
   positiveInteger,
   validateLargeBannerRecoveryMetadata,
@@ -152,6 +155,21 @@ async function validateDiscountForCheckout({
       expiresAt: '2099-12-31T23:59:59Z',
       source: 'new_customer',
     });
+  }
+
+  if (normalizedCode === SMALL_BANNER_DISCOUNT_CODE) {
+    // Mirrors NEW20's automatic-offer redirect: a customer who applies 20OFF
+    // to a cart that also contains a qualifying 6' × 3'+ banner gets the
+    // larger automatic 25% instead of stacking or silently losing the code.
+    if (hasQualifyingLargeBanner) {
+      return validResult(buildAutomaticLargeBannerDiscount());
+    }
+    const hasQualifyingSmallBanner = Array.isArray(items)
+      && items.some(isQualifyingSmallBannerLine);
+    if (!hasQualifyingSmallBanner) {
+      return invalidResult("20OFF requires a banner smaller than 6' × 3'");
+    }
+    return validResult(buildSmallBannerDiscount());
   }
 
   if (normalizedCode === 'CUSTOM60') return invalidResult('Invalid discount code');

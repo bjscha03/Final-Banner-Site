@@ -21,6 +21,16 @@ const LARGE_BANNER_LONG_SIDE_INCHES = 72;
 const LARGE_BANNER_SHORT_SIDE_INCHES = 36;
 const MAX_ELIGIBLE_ITEM_IDS = 50;
 const MAX_ITEM_ID_LENGTH = 160;
+// Virtual "smaller than 6' x 3'" banner promo. No database row: handled the
+// same way NEW20 is, but reusable (no first-order restriction) and gated on
+// having at least one qualifying small banner line instead of order history.
+const SMALL_BANNER_DISCOUNT_CODE = '20OFF';
+const SMALL_BANNER_DISCOUNT_PERCENTAGE = 20;
+const SMALL_BANNER_DISCOUNT_CAMPAIGN = 'small_banner_20_promo';
+// Scoped like AUTOMATIC_LARGE_BANNER_SCOPE so 20OFF only ever discounts the
+// qualifying small-banner lines, never yard signs/car magnets or a
+// large-banner line that already receives the automatic 25%.
+const SMALL_BANNER_SCOPE = 'qualifying_small_banner_lines';
 
 function normalizeEligibleCartItemIds(value) {
   let input = value;
@@ -64,6 +74,16 @@ function isQualifyingLargeBannerLine(item) {
     && Math.min(width, height) >= LARGE_BANNER_SHORT_SIDE_INCHES;
 }
 
+function isQualifyingSmallBannerLine(item) {
+  if (!item || typeof item !== 'object' || Array.isArray(item)) return false;
+  if (String(item.product_type || '').trim().toLowerCase() !== 'banner') return false;
+  const width = Number(item.width_in);
+  const height = Number(item.height_in);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return false;
+  return !(Math.max(width, height) >= LARGE_BANNER_LONG_SIDE_INCHES
+    && Math.min(width, height) >= LARGE_BANNER_SHORT_SIDE_INCHES);
+}
+
 function qualifyingLargeBannerLineIds(items) {
   if (!Array.isArray(items)) return [];
   return normalizeEligibleCartItemIds(items
@@ -88,6 +108,17 @@ function allQualifyingLargeBannerSubtotalCents(items) {
   if (!Array.isArray(items)) return 0;
   return items.reduce((sum, item) => {
     if (!isQualifyingLargeBannerLine(item)) return sum;
+    const lineTotalCents = Number(item.line_total_cents);
+    return Number.isSafeInteger(lineTotalCents) && lineTotalCents >= 0
+      ? sum + lineTotalCents
+      : sum;
+  }, 0);
+}
+
+function allQualifyingSmallBannerSubtotalCents(items) {
+  if (!Array.isArray(items)) return 0;
+  return items.reduce((sum, item) => {
+    if (!isQualifyingSmallBannerLine(item)) return sum;
     const lineTotalCents = Number(item.line_total_cents);
     return Number.isSafeInteger(lineTotalCents) && lineTotalCents >= 0
       ? sum + lineTotalCents
@@ -150,6 +181,27 @@ function buildAutomaticLargeBannerDiscount() {
   };
 }
 
+function isSmallBannerDiscount(discount) {
+  return Boolean(discount)
+    && String(discount.code || '').trim().toUpperCase() === SMALL_BANNER_DISCOUNT_CODE
+    && discount.campaign === SMALL_BANNER_DISCOUNT_CAMPAIGN
+    && discount.discountScope === SMALL_BANNER_SCOPE
+    && Number(discount.discountPercentage) === SMALL_BANNER_DISCOUNT_PERCENTAGE;
+}
+
+function buildSmallBannerDiscount() {
+  return {
+    id: 'SMALL_BANNER_20_PROMO',
+    code: SMALL_BANNER_DISCOUNT_CODE,
+    discountPercentage: SMALL_BANNER_DISCOUNT_PERCENTAGE,
+    discountAmountCents: null,
+    expiresAt: '2099-12-31T23:59:59Z',
+    source: 'small_banner_promo',
+    campaign: SMALL_BANNER_DISCOUNT_CAMPAIGN,
+    discountScope: SMALL_BANNER_SCOPE,
+  };
+}
+
 function isSeptemberLargeBannerDiscount(discount) {
   return Boolean(discount)
     && String(discount.code || '').trim().toUpperCase() === SEPTEMBER_LARGE_BANNER_CODE
@@ -189,9 +241,14 @@ function buildSeptemberLargeBannerDiscount(now = new Date()) {
 }
 
 function promoSubtotalForItems(items, fullSubtotalCents, promoDiscount) {
-  if (!promoDiscount || ![LARGE_BANNER_RECOVERY_SCOPE, AUTOMATIC_LARGE_BANNER_SCOPE]
+  if (!promoDiscount || ![LARGE_BANNER_RECOVERY_SCOPE, AUTOMATIC_LARGE_BANNER_SCOPE, SMALL_BANNER_SCOPE]
     .includes(promoDiscount.discountScope)) {
     return Math.max(0, Number(fullSubtotalCents) || 0);
+  }
+  if (promoDiscount.discountScope === SMALL_BANNER_SCOPE) {
+    return isSmallBannerDiscount(promoDiscount)
+      ? allQualifyingSmallBannerSubtotalCents(items)
+      : 0;
   }
   if (promoDiscount.discountScope === AUTOMATIC_LARGE_BANNER_SCOPE) {
     return isAutomaticLargeBannerDiscount(promoDiscount)
@@ -229,14 +286,22 @@ module.exports = {
   SEPTEMBER_LARGE_BANNER_PERCENTAGE,
   SEPTEMBER_LARGE_BANNER_SCOPE,
   SEPTEMBER_LARGE_BANNER_START,
+  SMALL_BANNER_DISCOUNT_CAMPAIGN,
+  SMALL_BANNER_DISCOUNT_CODE,
+  SMALL_BANNER_DISCOUNT_PERCENTAGE,
+  SMALL_BANNER_SCOPE,
   allQualifyingLargeBannerSubtotalCents,
+  allQualifyingSmallBannerSubtotalCents,
   buildAutomaticLargeBannerDiscount,
   buildSeptemberLargeBannerDiscount,
+  buildSmallBannerDiscount,
   capPromoDiscountAmount,
   isAutomaticLargeBannerDiscount,
   isLargeBannerRecoveryDiscount,
   isQualifyingLargeBannerLine,
+  isQualifyingSmallBannerLine,
   isSeptemberLargeBannerDiscount,
+  isSmallBannerDiscount,
   normalizeEligibleCartItemIds,
   positiveInteger,
   promoSubtotalForItems,

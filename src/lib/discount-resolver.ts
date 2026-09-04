@@ -35,7 +35,11 @@ export {
 // ============================================================================
 
 export type DiscountType = 'quantity' | 'promo' | 'none';
-export type DiscountScope = 'order' | 'recovery_qualifying_banner_lines' | 'qualifying_large_banner_lines';
+export type DiscountScope =
+  | 'order'
+  | 'recovery_qualifying_banner_lines'
+  | 'qualifying_large_banner_lines'
+  | 'qualifying_small_banner_lines';
 
 export const LARGE_BANNER_RECOVERY_CAMPAIGN = 'abandoned_cart_large_banner_25';
 export const LARGE_BANNER_RECOVERY_SCOPE: DiscountScope = 'recovery_qualifying_banner_lines';
@@ -43,6 +47,13 @@ export const SEPTEMBER_LARGE_BANNER_CAMPAIGN = 'september_large_banner_2026';
 export const SEPTEMBER_LARGE_BANNER_SCOPE: DiscountScope = 'qualifying_large_banner_lines';
 export const AUTOMATIC_LARGE_BANNER_CAMPAIGN = LARGE_BANNER_PROMOTION_ID;
 export const AUTOMATIC_LARGE_BANNER_SCOPE: DiscountScope = SEPTEMBER_LARGE_BANNER_SCOPE;
+
+// Virtual "smaller than 6' x 3'" banner promo. No database row: reusable
+// (no first-order restriction) and scoped so its 20% only ever reduces the
+// qualifying small-banner lines, never a large-banner or non-banner line.
+export const SMALL_BANNER_PROMOTION_ID = '20OFF';
+export const SMALL_BANNER_PROMOTION_PERCENTAGE = 20;
+export const SMALL_BANNER_PROMOTION_SCOPE: DiscountScope = 'qualifying_small_banner_lines';
 
 export interface PromoDiscountInput {
   code: string;
@@ -151,6 +162,29 @@ export function getAutomaticLargeBannerSubtotalCents(items: PromoDiscountCartIte
   }, 0);
 }
 
+// A "small" banner is a banner line with valid, positive dimensions that does
+// NOT qualify for the automatic 25% (i.e. smaller than 6' x 3'). Yard signs,
+// car magnets, and unconfirmed (zero-dimension) lines never qualify.
+export function isQualifyingSmallBannerDiscountItem(item: PromoDiscountCartItem): boolean {
+  const productType = String(item?.product_type || '').trim().toLowerCase();
+  if (productType !== 'banner') return false;
+  const width = Number(item?.width_in);
+  const height = Number(item?.height_in);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return false;
+  return !isQualifyingLargeBannerDimensions(width, height, productType);
+}
+
+export function getSmallBannerSubtotalCents(items: PromoDiscountCartItem[]): number {
+  if (!Array.isArray(items)) return 0;
+  return items.reduce((sum, item) => {
+    if (!isQualifyingSmallBannerDiscountItem(item)) return sum;
+    const lineTotalCents = Number(item.line_total_cents);
+    return Number.isSafeInteger(lineTotalCents) && lineTotalCents >= 0
+      ? sum + lineTotalCents
+      : sum;
+  }, 0);
+}
+
 export function getPromoDiscountSubtotalCents(
   items: PromoDiscountCartItem[],
   subtotalCents: number,
@@ -164,6 +198,13 @@ export function getPromoDiscountSubtotalCents(
   // With no typed promo, the returned subtotal carries the automatic eligible
   // base into resolveBestDiscount. No discount is synthesized from a code.
   if (!promoDiscount) return automaticSubtotalCents;
+
+  if (promoDiscount.discountScope === SMALL_BANNER_PROMOTION_SCOPE) {
+    const code = String(promoDiscount.code || '').trim().toUpperCase();
+    const validSmallBannerPromotion = code === SMALL_BANNER_PROMOTION_ID
+      && Number(promoDiscount.discountPercentage) === SMALL_BANNER_PROMOTION_PERCENTAGE;
+    return validSmallBannerPromotion ? getSmallBannerSubtotalCents(items) : 0;
+  }
 
   if (promoDiscount.discountScope === SEPTEMBER_LARGE_BANNER_SCOPE) {
     const code = String(promoDiscount.code || '').trim().toUpperCase();
@@ -225,7 +266,8 @@ export function resolveBestDiscount(input: DiscountResolverInput): ResolvedDisco
     : normalizedCents(quantitySubtotalCents);
 
   const promoIsScoped = promoDiscount?.discountScope === LARGE_BANNER_RECOVERY_SCOPE
-    || promoDiscount?.discountScope === SEPTEMBER_LARGE_BANNER_SCOPE;
+    || promoDiscount?.discountScope === SEPTEMBER_LARGE_BANNER_SCOPE
+    || promoDiscount?.discountScope === SMALL_BANNER_PROMOTION_SCOPE;
   const manualPromoBaseCents = promoSubtotalCents == null
     ? (promoIsScoped ? 0 : normalizedSubtotalCents)
     : normalizedCents(promoSubtotalCents);

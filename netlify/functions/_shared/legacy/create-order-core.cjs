@@ -1881,12 +1881,13 @@ exports.handler = async (event, context) => {
     }
 
     // Mark database discount code as used after successful order creation.
-    // NEW20 is a virtual promo tracked by the orders table, not discount_codes.
-    // All other codes stored in discount_codes must be invalidated here so they
-    // cannot be reused by any subsequent checkout session.
+    // NEW20 and 20OFF are virtual promos tracked by the orders table, not
+    // discount_codes. All other codes stored in discount_codes must be
+    // invalidated here so they cannot be reused by any subsequent checkout session.
     if (orderData.discountCode && orderData.discountCode.code) {
       const dcCode = String(orderData.discountCode.code).trim().toUpperCase();
       if (dcCode !== 'NEW20'
+          && dcCode !== '20OFF'
           && orderData.discountCode.source !== 'trade_show'
           && orderData.discountCode.source !== 'seasonal_promotion') {
         try {
