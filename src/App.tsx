@@ -9,6 +9,7 @@ import { captureAttributionFromLocation } from "@/lib/attribution";
 import AnalyticsController from "@/components/AnalyticsController";
 import RouteRobotsPolicy from "@/components/RouteRobotsPolicy";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import PromoBanner from "@/components/PromoBanner";
 // DISABLED: Popup promo flow replaced with static NEW20 code in PromoBanner
 // import { PromoPopup } from "@/components/PromoPopup";
 // import { usePromoPopup } from "@/hooks/usePromoPopup";
@@ -247,8 +248,16 @@ export const RoutedApplication = () => (
             <Route path="/trade-shows" element={<TradeShowDirectory />} />
             <Route path="/trade-shows/:slug" element={<TradeShowDetail />} />
 
-            {/* Google Ads landing page */}
-            <Route path="/google-ads-banner" element={<GoogleAdsBanner />} />
+            {/* Google Ads landing page intentionally bypasses Layout, so mount the shared notice here. */}
+            <Route
+              path="/google-ads-banner"
+              element={
+                <>
+                  <PromoBanner />
+                  <GoogleAdsBanner />
+                </>
+              }
+            />
 
             {/* Programmatic SEO city pages (vinyl banners, yard signs, car magnets) */}
             <Route path="/vinyl-banners/:citySlug" element={<CityProductPage productSlug="vinyl-banners" />} />
