@@ -54,6 +54,8 @@ export const AUTOMATIC_LARGE_BANNER_SCOPE: DiscountScope = SEPTEMBER_LARGE_BANNE
 export const SMALL_BANNER_PROMOTION_ID = '20OFF';
 export const SMALL_BANNER_PROMOTION_PERCENTAGE = 20;
 export const SMALL_BANNER_PROMOTION_SCOPE: DiscountScope = 'qualifying_small_banner_lines';
+// Must match SMALL_BANNER_DISCOUNT_CAMPAIGN in recovery-discount-policy.cjs.
+export const SMALL_BANNER_PROMOTION_CAMPAIGN = 'small_banner_20_promo';
 
 export interface PromoDiscountInput {
   code: string;
@@ -202,7 +204,8 @@ export function getPromoDiscountSubtotalCents(
   if (promoDiscount.discountScope === SMALL_BANNER_PROMOTION_SCOPE) {
     const code = String(promoDiscount.code || '').trim().toUpperCase();
     const validSmallBannerPromotion = code === SMALL_BANNER_PROMOTION_ID
-      && Number(promoDiscount.discountPercentage) === SMALL_BANNER_PROMOTION_PERCENTAGE;
+      && Number(promoDiscount.discountPercentage) === SMALL_BANNER_PROMOTION_PERCENTAGE
+      && promoDiscount.campaign === SMALL_BANNER_PROMOTION_CAMPAIGN;
     return validSmallBannerPromotion ? getSmallBannerSubtotalCents(items) : 0;
   }
 

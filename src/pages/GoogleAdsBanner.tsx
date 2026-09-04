@@ -8,6 +8,7 @@ import { useUIStore } from '@/store/ui';
 import { calcTotals, usd, PRICE_PER_SQFT } from '@/lib/pricing';
 import { calculateBannerPricing, type RopePlacement } from '@/lib/bannerPricingEngine';
 import { resolvePromo } from '@/lib/promoEngine';
+import { SMALL_BANNER_PROMOTION_ID } from '@/lib/discount-resolver';
 import { DESIGN_GROMMET_OPTIONS } from '@/lib/grommets';
 import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
 import CartModal from '@/components/CartModal';
@@ -26,6 +27,7 @@ import PriceBreakdown from '@/components/pricing/PriceBreakdown';
 import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
 import DeliveryTimer from '@/components/delivery/DeliveryTimer';
 import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
+import BannerDiscountOffer from '@/components/design/BannerDiscountOffer';
 import MobileSubtotalBar from '@/components/design/MobileSubtotalBar';
 import RealOrdersStrip from '@/components/design/RealOrdersStrip';
 import FileUploader, { type FileUploaderHandle } from '@/components/ui/FileUploader';
@@ -167,12 +169,7 @@ const FastBannerAdHero: React.FC<{ onStart: () => void }> = ({ onStart }) => (
           Build &amp; price my banner <ArrowRight className="h-6 w-6" aria-hidden="true" />
         </button>
 
-        <div className="mt-5 grid w-full max-w-[505px] grid-cols-[auto_1fr] items-center gap-4 rounded-md border border-white/70 bg-white px-5 py-4 text-[#071C35] shadow-[0_9px_20px_rgba(57,20,0,.2)] sm:gap-5 sm:px-6">
-          <p className="homepage-condensed whitespace-nowrap [--homepage-mobile-size:3rem] text-5xl font-black uppercase leading-none text-[#E95413] sm:text-[4rem]">25% off</p>
-          <div className="border-l-2 border-[#E95413] pl-4 text-sm font-bold uppercase leading-5 tracking-[0.04em] sm:text-base sm:leading-6">
-            6′ × 3′ &amp; larger<br />Applied automatically
-          </div>
-        </div>
+        <BannerDiscountOffer className="mt-5 w-full max-w-[505px]" />
         <HeroDeliveryStatus className="mt-5 w-full max-w-[505px]" />
       </div>
     </div>
@@ -1168,11 +1165,13 @@ const GoogleAdsBanner: React.FC = () => {
         && Math.max(Number(widthIn), Number(heightIn)) >= 72
         && Math.min(Number(widthIn), Number(heightIn)) >= 36;
       const validatedPercentage = Number(result.discount.discountPercentage || 0);
+      const isSmallBannerPromoCode = String(result.discount.code || '').trim().toUpperCase() === SMALL_BANNER_PROMOTION_ID;
 
       if (
         selectedBannerQualifiesForAutomaticPrice
         && validatedPercentage > 0
         && validatedPercentage <= 25
+        && !isSmallBannerPromoCode
       ) {
         cartStore.removeDiscountCode();
         setPromoCode(normalizedCode);
@@ -1184,14 +1183,20 @@ const GoogleAdsBanner: React.FC = () => {
         return;
       }
 
+      // 20OFF is saved to the cart even when the current banner already
+      // qualifies for the larger automatic 25% off — the resolver picks the
+      // best discount, and switching back to a smaller banner later will let
+      // 20OFF apply again without having to re-enter it.
       cartStore.applyDiscountCode(result.discount);
       setPromoCode(result.discount.code);
       setPromoApplied(true);
       toast({
         title: 'Discount applied',
-        description: validatedPercentage > 0
-          ? `${validatedPercentage}% off is saved to your cart and will carry into checkout.`
-          : 'Your promotion is saved to your cart and will carry into checkout.',
+        description: isSmallBannerPromoCode && selectedBannerQualifiesForAutomaticPrice
+          ? 'Your banner already qualifies for the automatic 25% off, which is larger than 20OFF. We saved 20OFF to your cart for smaller banners.'
+          : validatedPercentage > 0
+            ? `${validatedPercentage}% off is saved to your cart and will carry into checkout.`
+            : 'Your promotion is saved to your cart and will carry into checkout.',
       });
     } catch {
       setPromoApplied(false);
@@ -3329,9 +3334,13 @@ const GoogleAdsBanner: React.FC = () => {
                       onCodeChange: setPromoCode,
                       onApply: handlePromoApply,
                       onRemove: handlePromoRemove,
-                      appliedLabel: bannerPromoActuallyApplied
-                        ? `${promoCode} — ${Math.round(bannerPromoResolution.promoDiscountRate * 100)}% off applied`
-                        : `${promoCode} entered — quantity discount is larger, so we kept that`,
+                      appliedLabel: bannerPromoResolution.promotionId === 'LARGE_BANNER_25'
+                        ? (promoCode.trim().toUpperCase() === SMALL_BANNER_PROMOTION_ID
+                            ? 'Large Banner 25% Off applied automatically — 20OFF is saved for smaller banners'
+                            : 'Large Banner 25% Off applied automatically')
+                        : bannerPromoActuallyApplied
+                          ? `${promoCode} — ${Math.round(bannerPromoResolution.promoDiscountRate * 100)}% off applied`
+                          : `${promoCode} entered — quantity discount is larger, so we kept that`,
                     }}
                     footerNote="Destination-based tax calculated at checkout"
                   />

@@ -14,6 +14,7 @@ import {
   type RopePlacement,
 } from '@/lib/bannerPricingEngine';
 import { resolvePromo } from '@/lib/promoEngine';
+import { SMALL_BANNER_PROMOTION_ID } from '@/lib/discount-resolver';
 import { useToast } from '@/components/ui/use-toast';
 import { generateFinalRenderFromHTML } from '@/utils/generateFinalRenderFromHTML';
 import type { PdfPreviewResult } from '@/utils/pdf/renderPdfToDataUrl';
@@ -1164,11 +1165,13 @@ const Design: React.FC = () => {
         && Math.max(Number(widthIn), Number(heightIn)) >= 72
         && Math.min(Number(widthIn), Number(heightIn)) >= 36;
       const validatedPercentage = Number(result.discount.discountPercentage || 0);
+      const isSmallBannerPromoCode = String(result.discount.code || '').trim().toUpperCase() === SMALL_BANNER_PROMOTION_ID;
 
       if (
         selectedBannerQualifiesForAutomaticPrice
         && validatedPercentage > 0
         && validatedPercentage <= 25
+        && !isSmallBannerPromoCode
       ) {
         cartStore.removeDiscountCode();
         setPromoCode(normalizedCode);
@@ -1180,14 +1183,20 @@ const Design: React.FC = () => {
         return;
       }
 
+      // 20OFF is saved to the cart even when the current banner already
+      // qualifies for the larger automatic 25% off — the resolver picks the
+      // best discount, and switching back to a smaller banner later will let
+      // 20OFF apply again without having to re-enter it.
       cartStore.applyDiscountCode(result.discount);
       setPromoCode(result.discount.code);
       setPromoApplied(true);
       toast({
         title: 'Discount applied',
-        description: validatedPercentage > 0
-          ? `${validatedPercentage}% off is saved to your cart and will carry into checkout.`
-          : 'Your promotion is saved to your cart and will carry into checkout.',
+        description: isSmallBannerPromoCode && selectedBannerQualifiesForAutomaticPrice
+          ? 'Your banner already qualifies for the automatic 25% off, which is larger than 20OFF. We saved 20OFF to your cart for smaller banners.'
+          : validatedPercentage > 0
+            ? `${validatedPercentage}% off is saved to your cart and will carry into checkout.`
+            : 'Your promotion is saved to your cart and will carry into checkout.',
       });
     } catch {
       toast({
@@ -3486,9 +3495,13 @@ const Design: React.FC = () => {
                     onCodeChange: setPromoCode,
                     onApply: handlePromoApply,
                     onRemove: handlePromoRemove,
-                    appliedLabel: bannerPromoActuallyApplied
-                      ? `${promoCode} — ${Math.round(bannerPromoResolution.promoDiscountRate * 100)}% off applied`
-                      : `${promoCode} entered — quantity discount is larger, so we kept that`,
+                    appliedLabel: bannerPromoResolution.promotionId === 'LARGE_BANNER_25'
+                      ? (promoCode.trim().toUpperCase() === SMALL_BANNER_PROMOTION_ID
+                          ? 'Large Banner 25% Off applied automatically — 20OFF is saved for smaller banners'
+                          : 'Large Banner 25% Off applied automatically')
+                      : bannerPromoActuallyApplied
+                        ? `${promoCode} — ${Math.round(bannerPromoResolution.promoDiscountRate * 100)}% off applied`
+                        : `${promoCode} entered — quantity discount is larger, so we kept that`,
                   }}
                   footerNote="Destination-based tax calculated at checkout"
                 />

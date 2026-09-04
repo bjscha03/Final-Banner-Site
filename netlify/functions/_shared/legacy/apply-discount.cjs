@@ -1,6 +1,8 @@
 const { neon } = require('@neondatabase/serverless');
 const {
   SEPTEMBER_LARGE_BANNER_CODE,
+  SMALL_BANNER_DISCOUNT_CODE,
+  SMALL_BANNER_DISCOUNT_PERCENTAGE,
   buildSeptemberLargeBannerDiscount,
 } = require('../recovery-discount-policy.cjs');
 
@@ -70,6 +72,24 @@ exports.handler = async (event, context) => {
           discountPercentage: 20,
           discountAmountCents: null
         })
+      };
+    }
+
+    // SPECIAL HANDLING: 20OFF is a virtual, reusable code for banners smaller
+    // than 6' × 3' (mirrors NEW20 above). It has no database row, so it is
+    // never marked "used" or single-use — the same code can be applied to
+    // multiple orders. Server-side scope/percentage enforcement lives in
+    // discount-validation.cjs / discount-resolver.ts.
+    if (normalizedCode === SMALL_BANNER_DISCOUNT_CODE) {
+      console.log('[apply-discount] 20OFF code - no database tracking needed (virtual, reusable promo)');
+      return {
+        statusCode: 200, headers,
+        body: JSON.stringify({
+          success: true,
+          code: SMALL_BANNER_DISCOUNT_CODE,
+          discountPercentage: SMALL_BANNER_DISCOUNT_PERCENTAGE,
+          discountAmountCents: null,
+        }),
       };
     }
 

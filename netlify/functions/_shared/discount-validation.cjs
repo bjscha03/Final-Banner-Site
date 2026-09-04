@@ -158,16 +158,18 @@ async function validateDiscountForCheckout({
   }
 
   if (normalizedCode === SMALL_BANNER_DISCOUNT_CODE) {
-    // Mirrors NEW20's automatic-offer redirect: a customer who applies 20OFF
-    // to a cart that also contains a qualifying 6' × 3'+ banner gets the
-    // larger automatic 25% instead of stacking or silently losing the code.
-    if (hasQualifyingLargeBanner) {
-      return validResult(buildAutomaticLargeBannerDiscount());
-    }
+    // 20OFF always resolves to its own (small-banner-scoped) metadata, even
+    // when a qualifying 6' × 3'+ banner is also in the cart. Authoritative
+    // totals independently compute the automatic 25% large-banner discount
+    // from the cart contents and pick whichever is larger (see
+    // checkoutTotals.cjs / discount-resolver.ts resolveBestDiscount). This
+    // lets 20OFF stay "remembered" on the cart so it applies again if the
+    // customer later switches back to a smaller banner, instead of being
+    // permanently replaced by LARGE_BANNER_25 metadata.
     const hasQualifyingSmallBanner = Array.isArray(items)
       && items.some(isQualifyingSmallBannerLine);
-    if (!hasQualifyingSmallBanner) {
-      return invalidResult("20OFF requires a banner smaller than 6' × 3'");
+    if (!hasQualifyingSmallBanner && !hasQualifyingLargeBanner) {
+      return invalidResult('20OFF requires a banner in your order');
     }
     return validResult(buildSmallBannerDiscount());
   }

@@ -1,16 +1,8 @@
-import React, { useState } from 'react';
-import { ArrowRight, Check, Clock3, Copy, Layers3, Magnet, Monitor, Truck, type LucideIcon } from 'lucide-react';
+import React from 'react';
+import { ArrowRight, Clock3, Layers3, Magnet, Monitor, Truck, type LucideIcon } from 'lucide-react';
 import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
+import BannerDiscountOffer from '@/components/design/BannerDiscountOffer';
 import type { ProductTypeSlug } from '@/lib/products';
-
-interface DesignHeroOffer {
-  /** Large headline number, e.g. "Up to 25% off". */
-  headline: string;
-  /** Supporting copy shown next to the headline. */
-  subline: string;
-  /** Promo code customers can copy for the smaller-banner tier. */
-  code: string;
-}
 
 interface DesignHeroDefinition {
   productSlug: 'vinyl-banners' | 'yard-signs' | 'car-magnets';
@@ -18,40 +10,8 @@ interface DesignHeroDefinition {
   cta: string;
   alt: string;
   benefits: Array<{ label: string; icon: LucideIcon }>;
-  /** Promo pill shown next to the CTA. Omitted when there's no current offer. */
-  offer?: DesignHeroOffer;
-}
-
-/**
- * Copies `text` to the clipboard, preferring the async Clipboard API and
- * falling back to a hidden textarea + execCommand for browsers/contexts
- * (e.g. non-HTTPS, older WebViews) where `navigator.clipboard` is unavailable.
- */
-async function copyTextToClipboard(text: string): Promise<boolean> {
-  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-    try {
-      await navigator.clipboard.writeText(text);
-      return true;
-    } catch {
-      // Fall through to the legacy fallback below.
-    }
-  }
-  if (typeof document === 'undefined') return false;
-  try {
-    const textarea = document.createElement('textarea');
-    textarea.value = text;
-    textarea.setAttribute('readonly', '');
-    textarea.style.position = 'fixed';
-    textarea.style.opacity = '0';
-    document.body.appendChild(textarea);
-    textarea.select();
-    textarea.setSelectionRange(0, textarea.value.length);
-    const successful = document.execCommand('copy');
-    document.body.removeChild(textarea);
-    return successful;
-  } catch {
-    return false;
-  }
+  /** Shows the shared banner discount offer next to the CTA. Banner only. */
+  offer?: true;
 }
 
 const DESIGN_HEROES: Record<ProductTypeSlug, DesignHeroDefinition> = {
@@ -65,11 +25,7 @@ const DESIGN_HEROES: Record<ProductTypeSlug, DesignHeroDefinition> = {
       { label: 'Free next-day air after production', icon: Truck },
       { label: 'Live print preview', icon: Monitor },
     ],
-    offer: {
-      headline: 'Up to 25% off',
-      subline: "6' × 3' & larger banners save automatically. Smaller banners save 20% with code",
-      code: '20OFF',
-    },
+    offer: true,
   },
   yard_sign: {
     productSlug: 'yard-signs',
@@ -131,14 +87,6 @@ interface DesignPageHeroProps {
 
 const DesignPageHero: React.FC<DesignPageHeroProps> = ({ productType, onStart }) => {
   const definition = DESIGN_HEROES[productType];
-  const [codeCopied, setCodeCopied] = useState(false);
-
-  const handleCopyCode = async (code: string) => {
-    const copied = await copyTextToClipboard(code);
-    if (!copied) return;
-    setCodeCopied(true);
-    window.setTimeout(() => setCodeCopied(false), 2000);
-  };
 
   return (
     <section data-design-page-hero={productType} className="relative isolate overflow-hidden border-t-4 border-[#F45B08] bg-[#E95413] text-white">
@@ -160,25 +108,7 @@ const DesignPageHero: React.FC<DesignPageHeroProps> = ({ productType, onStart })
             >
               {definition.cta}<ArrowRight className="h-5 w-5" aria-hidden="true" />
             </button>
-            {definition.offer && (
-              <div className="flex min-h-14 flex-col justify-center gap-1.5 rounded-md border border-white/80 bg-white px-5 py-2.5 text-[#061A31] shadow-[0_9px_20px_rgba(57,20,0,.18)] sm:max-w-[340px]">
-                <span className="homepage-condensed text-3xl font-black uppercase leading-none text-[#E95413] sm:text-4xl">
-                  {definition.offer.headline}
-                </span>
-                <div className="flex flex-wrap items-center gap-1.5 border-t border-[#E95413]/40 pt-1.5 text-[10px] font-bold uppercase leading-4">
-                  <span>{definition.offer.subline}</span>
-                  <button
-                    type="button"
-                    onClick={() => handleCopyCode(definition.offer!.code)}
-                    aria-label={`Copy promo code ${definition.offer.code}`}
-                    className="inline-flex items-center gap-1 rounded border border-[#E95413] px-1.5 py-0.5 font-black text-[#E95413] transition-colors hover:bg-[#E95413] hover:text-white"
-                  >
-                    {definition.offer.code}
-                    {codeCopied ? <Check className="h-3 w-3" aria-hidden="true" /> : <Copy className="h-3 w-3" aria-hidden="true" />}
-                  </button>
-                </div>
-              </div>
-            )}
+            {definition.offer && <BannerDiscountOffer className="sm:max-w-[340px]" />}
           </div>
 
           <HeroDeliveryStatus className="mt-5 w-full max-w-[585px]" />

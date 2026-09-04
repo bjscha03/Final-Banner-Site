@@ -21,6 +21,7 @@ import {
   resolveBestDiscount,
   getPromoDiscountSubtotalCents,
   calculateTotalsWithBestDiscount,
+  SMALL_BANNER_PROMOTION_CAMPAIGN,
   SMALL_BANNER_PROMOTION_SCOPE,
   type DiscountScope,
   type PromoDiscountCartItem,
@@ -47,6 +48,12 @@ export interface KnownPromoCode {
    * scope (e.g. small banners). Omitted for order-wide codes like NEW20.
    */
   discountScope?: DiscountScope;
+  /**
+   * Required alongside a scoped `discountScope` — `getPromoDiscountSubtotalCents`
+   * enforces an exact code + percentage + scope + campaign match before it
+   * will compute a non-zero scoped subtotal.
+   */
+  campaign?: string;
 }
 
 /**
@@ -70,6 +77,7 @@ export const KNOWN_PROMO_CODES: Record<string, KnownPromoCode> = {
     description: "20% off banners smaller than 6' x 3'",
     firstOrderOnly: false,
     discountScope: SMALL_BANNER_PROMOTION_SCOPE,
+    campaign: SMALL_BANNER_PROMOTION_CAMPAIGN,
   },
   CUSTOM60: {
     code: 'CUSTOM60',
@@ -135,6 +143,7 @@ export function resolvePromo(input: ResolvePromoInput): ResolvedDiscount {
           code: promo.code,
           discountPercentage: promo.discountPercentage,
           ...(promo.discountScope ? { discountScope: promo.discountScope } : {}),
+          ...(promo.campaign ? { campaign: promo.campaign } : {}),
         }
       : null);
   const promoSubtotalCents = Array.isArray(input.items)

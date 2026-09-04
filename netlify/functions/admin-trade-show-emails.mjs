@@ -133,6 +133,7 @@ async function ensureTradeShowCodes(sql) {
   for (const row of legacyCodes) occupied.add(String(row.code).toUpperCase());
   occupied.add('NEW20');
   occupied.add('CUSTOM60');
+  occupied.add('20OFF');
 
   for (const event of TRADE_SHOWS) {
     if (bySlug.has(event.slug)) continue;
@@ -239,7 +240,7 @@ async function handleCodeUpdate(sql, event) {
   const code = normalizePromotionCode(body.code);
   if (!tradeShow) return reply(404, { ok: false, error: 'Trade show not found' });
   if (!code) return reply(400, { ok: false, error: 'Use 4–24 uppercase letters, numbers, or hyphens.' });
-  if (code === 'NEW20' || code === 'CUSTOM60') return reply(409, { ok: false, error: 'That code is reserved.' });
+  if (code === 'NEW20' || code === 'CUSTOM60' || code === '20OFF') return reply(409, { ok: false, error: 'That code is reserved.' });
 
   await ensureTradeShowCodes(sql);
   const legacyConflict = await sql`SELECT id FROM discount_codes WHERE UPPER(code) = ${code} LIMIT 1`;
