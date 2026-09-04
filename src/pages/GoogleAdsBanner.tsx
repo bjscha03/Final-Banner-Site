@@ -440,17 +440,18 @@ const GoogleAdsBanner: React.FC = () => {
     activePdfPreviewCleanupRef.current = null;
   }, []);
   const [uploadError, setUploadError] = useState('');
-  const [activePreset, setActivePreset] = useState<number | null>(
-    initialProductType === 'banner' ? POPULAR_BANNER_PRESET.presetIndex : null,
-  );
+  // Fresh banner-page loads start with NO preset selected/highlighted and NO
+  // committed size, so the order summary shows $0.00 until the customer
+  // explicitly clicks a preset (e.g. 6′ × 3′) or confirms/changes a custom
+  // size. The 6′ × 3′ "MOST POPULAR" badge remains a recommendation only —
+  // see ConfigCard / isPopularBannerPreset for the informational badge logic.
+  const [activePreset, setActivePreset] = useState<number | null>(null);
   const [quantity, setQuantity] = useState(initialProductType === 'yard_sign' ? 10 : 1);
   const storedPromoAtLoad = useCartStore.getState().discountCode;
   const [promoCode, setPromoCode] = useState(storedPromoAtLoad?.code || '');
   const [promoApplied, setPromoApplied] = useState(Boolean(storedPromoAtLoad));
 
-  // Start banner visitors with the 6′ × 3′ popular preset fully selected so
-  // its automatic 25%-off price is visible immediately on first load.
-  const [hasConfirmedSize, setHasConfirmedSize] = useState(initialProductType === 'banner');
+  const [hasConfirmedSize, setHasConfirmedSize] = useState(false);
   const [hasConfirmedMaterial, setHasConfirmedMaterial] = useState(false);
   const [hasConfirmedQuantity, setHasConfirmedQuantity] = useState(false);
   const [hasReviewedOptions, setHasReviewedOptions] = useState(false);

@@ -15,22 +15,31 @@ const pages = [
 ];
 
 describe('banner initial pricing state', () => {
-  it.each(pages)('$route preselects and prices the 6 × 3 banner on first load', ({ source }) => {
+  it.each(pages)('$route starts with no preset selected and is unpriced on first load', ({ source }) => {
+    // Fresh load must NOT preselect any preset (including the 6×3 popular one).
     expect(source).toContain(
-      "initialProductType === 'banner' ? POPULAR_BANNER_PRESET.presetIndex : null",
-    );
-    expect(source).toContain(
-      "const [hasConfirmedSize, setHasConfirmedSize] = useState(initialProductType === 'banner');",
+      'const [activePreset, setActivePreset] = useState<number | null>(null);',
     );
     expect(source).not.toContain(
+      "initialProductType === 'banner' ? POPULAR_BANNER_PRESET.presetIndex : null",
+    );
+    // Fresh load must NOT auto-confirm a size, so pricing stays at $0 until
+    // the customer clicks a preset or confirms/changes a custom size.
+    expect(source).toContain(
       'const [hasConfirmedSize, setHasConfirmedSize] = useState(false);',
     );
+    expect(source).not.toContain(
+      "const [hasConfirmedSize, setHasConfirmedSize] = useState(initialProductType === 'banner');",
+    );
+    // The pricing guard itself must remain in place — it's what makes an
+    // unconfirmed size price at $0.
     expect(source).toContain(
       'const pricingWidthIn = hasCommittedBannerSize ? widthIn : 0;',
     );
     expect(source).toContain(
       'const pricingHeightIn = hasCommittedBannerSize ? heightIn : 0;',
     );
+    // Clicking a preset must still confirm the size (and thus enable pricing).
     expect(source).toContain('setHasConfirmedSize(true);');
     expect(source).toContain(') : bannerPromoActuallyApplied ? (');
   });
