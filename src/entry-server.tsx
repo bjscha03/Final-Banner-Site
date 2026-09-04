@@ -17,6 +17,10 @@ export const prerenderRoutes = [
   ...getAllTradeShowPaths(),
 ];
 
+// This noindex paid landing page is prerendered for first paint/LCP only. Keep
+// it out of the local-page manifest and sitemap eligibility checks below.
+export const performancePrerenderRoutes = ['/google-ads-banner'] as const;
+
 export const indexablePrerenderRoutes = [
   ...productHubPaths,
   ...getIndexableCityProductPaths().map(({ product, citySlug }) => `/${product}/${citySlug}`),

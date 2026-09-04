@@ -17,22 +17,34 @@
     <!-- Discover route-specific hero art before the React bundle executes. -->
     <script>
       (() => {
+        const routePath = window.location.pathname.replace(/\/+$/, '') || '/';
         const preload = document.createElement('link');
         preload.rel = 'preload';
         preload.as = 'image';
         preload.type = 'image/avif';
         preload.fetchPriority = 'high';
 
-        if (window.location.pathname === '/') {
+        if (routePath === '/') {
           preload.href = window.matchMedia('(max-width: 639px)').matches
             ? '/images/homepage/school-hero-mobile.avif'
             : '/images/homepage/school-hero-desktop.avif';
-        } else if (window.location.pathname === '/google-ads-banner') {
+        } else if (routePath === '/google-ads-banner') {
           preload.href = '/images/google-ads/banner-collage-1040.avif';
           preload.imageSrcset = '/images/google-ads/banner-collage-520.avif 520w, /images/google-ads/banner-collage-800.avif 800w, /images/google-ads/banner-collage-1040.avif 1040w';
           preload.imageSizes = '(min-width: 1280px) 57vw, 100vw';
-        } else if (['/vinyl-banners', '/yard-signs', '/car-magnets'].includes(window.location.pathname)) {
-          const slug = window.location.pathname.slice(1);
+
+          // The paid-page LCP is the Bebas Neue headline. Fetch its Latin
+          // subset immediately instead of waiting for the non-blocking Google
+          // Fonts stylesheet to be discovered after the route renders.
+          const headlineFont = document.createElement('link');
+          headlineFont.rel = 'preload';
+          headlineFont.as = 'font';
+          headlineFont.type = 'font/woff2';
+          headlineFont.crossOrigin = 'anonymous';
+          headlineFont.href = 'https://fonts.gstatic.com/s/bebasneue/v16/JTUSjIg69CK48gW7PXoo9WlhyyTh89Y.woff2';
+          document.head.appendChild(headlineFont);
+        } else if (['/vinyl-banners', '/yard-signs', '/car-magnets'].includes(routePath)) {
+          const slug = routePath.slice(1);
           const mobile = window.matchMedia('(max-width: 1023px)').matches;
           preload.href = mobile
             ? `/images/product-heroes/${slug}-mobile-640.avif`
@@ -41,7 +53,7 @@
             ? `/images/product-heroes/${slug}-mobile-640.avif 640w`
             : `/images/product-heroes/${slug}-720.avif 720w, /images/product-heroes/${slug}-1100.avif 1100w`;
           preload.imageSizes = mobile ? '100vw' : '61vw';
-        } else if (window.location.pathname === '/design') {
+        } else if (routePath === '/design') {
           const requested = new URLSearchParams(window.location.search).get('product');
           const slug = requested === 'yard-sign' || requested === 'yard_sign' || requested === 'yard-signs'
             ? 'yard-signs'

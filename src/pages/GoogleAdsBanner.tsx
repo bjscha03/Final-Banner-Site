@@ -140,7 +140,10 @@ function formatPresetLabel(w: number, h: number, unit: 'in' | 'ft'): string {
   return `${w}" × ${h}"`;
 }
 
-const FastBannerAdHero: React.FC<{ onStart: () => void }> = ({ onStart }) => (
+const FastBannerAdHero: React.FC<{ onStart: () => void; showLiveDelivery: boolean }> = ({
+  onStart,
+  showLiveDelivery,
+}) => (
   <section
     data-google-ads-hero
     className="relative isolate overflow-hidden border-b-4 border-[#FF6A00] bg-[#F86408] text-[#071C35]"
@@ -159,13 +162,16 @@ const FastBannerAdHero: React.FC<{ onStart: () => void }> = ({ onStart }) => (
           Custom banners.<br />Without the wait.
         </h1>
 
-        <button
-          type="button"
-          onClick={onStart}
+        <a
+          href="#order-builder"
+          onClick={(event) => {
+            event.preventDefault();
+            onStart();
+          }}
           className="mt-7 inline-flex min-h-14 w-full max-w-[505px] items-center justify-center gap-4 rounded-md bg-[#071C35] px-6 py-4 text-base font-black uppercase tracking-[0.035em] text-white shadow-[0_12px_30px_rgba(7,28,53,.2)] transition-colors hover:bg-[#10375f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#F86408] sm:w-auto sm:min-w-[440px] sm:text-lg"
         >
           Build &amp; price my banner <ArrowRight className="h-6 w-6" aria-hidden="true" />
-        </button>
+        </a>
 
         <div className="mt-5 grid w-full max-w-[505px] grid-cols-[auto_1fr] items-center gap-4 rounded-md border border-white/70 bg-white px-5 py-4 text-[#071C35] shadow-[0_9px_20px_rgba(57,20,0,.2)] sm:gap-5 sm:px-6">
           <p className="homepage-condensed whitespace-nowrap [--homepage-mobile-size:3rem] text-5xl font-black uppercase leading-none text-[#E95413] sm:text-[4rem]">25% off</p>
@@ -173,7 +179,14 @@ const FastBannerAdHero: React.FC<{ onStart: () => void }> = ({ onStart }) => (
             6′ × 3′ &amp; larger<br />Applied automatically
           </div>
         </div>
-        <HeroDeliveryStatus className="mt-5 w-full max-w-[505px]" />
+        {showLiveDelivery ? (
+          <HeroDeliveryStatus className="mt-5 min-h-[70px] w-full max-w-[505px]" />
+        ) : (
+          <div
+            aria-hidden="true"
+            className="mt-5 min-h-[70px] w-full max-w-[505px] rounded-md border border-white/20 bg-[#061A31]/95 shadow-[0_12px_32px_rgba(6,26,49,.22)]"
+          />
+        )}
       </div>
     </div>
 
@@ -194,7 +207,7 @@ const FastBannerAdHero: React.FC<{ onStart: () => void }> = ({ onStart }) => (
         width="1040"
         height="748"
         loading="eager"
-        decoding="sync"
+        decoding="async"
         fetchPriority="high"
         className="aspect-[1040/748] h-auto w-full object-cover xl:h-full xl:object-cover xl:object-center"
       />
@@ -410,11 +423,11 @@ const GoogleAdsBanner: React.FC = () => {
   // of truth — both the Feet/Inches toggle and PreviewRulerFrame read this
   // state, so switching units updates the visible ruler immediately. Pure
   // UI state — does NOT affect pricing, cart, or print pipeline.
-  // Initialise from localStorage so the user's previous choice survives a
-  // hard refresh; fall back to 'ft' when no stored value exists (first load).
-  const [unit, setUnit] = useState<'in' | 'ft'>(
-    () => (localStorage.getItem('banner-unit-pref') as 'in' | 'ft' | null) ?? 'ft'
-  );
+  // Start from a deterministic value so the paid route can be safely rendered
+  // into its initial HTML. The saved browser preference is restored after
+  // hydration without changing any pricing or cart values.
+  const [unit, setUnit] = useState<'in' | 'ft'>('ft');
+  const hasRestoredUnitPreferenceRef = useRef(false);
   const [addRope, setAddRope] = useState(false);
   const [finishingType, setFinishingType] = useState<FinishingType>('none');
   const [ropePlacement, setRopePlacement] = useState<RopePlacement>('top');
@@ -518,7 +531,10 @@ const GoogleAdsBanner: React.FC = () => {
   const cartStore = useCartStore();
   const activeCartPromo = promoApplied ? cartStore.discountCode : null;
   const { isCartOpen, setIsCartOpen } = useUIStore();
-  const cartItemCount = useCartStore(s => s.getItemCount());
+  const persistedCartItemCount = useCartStore(s => s.getItemCount());
+  const [hasHydratedClientState, setHasHydratedClientState] = useState(false);
+  const cartItemCount = hasHydratedClientState ? persistedCartItemCount : 0;
+  useEffect(() => setHasHydratedClientState(true), []);
   const { toast } = useToast();
 
   // Dimensions: for banners, use ft+in inputs; for yard signs, fixed 24" × 18"
@@ -700,8 +716,15 @@ const GoogleAdsBanner: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [heightCustomInStr]);
 
-  // Persist the user's unit preference so it survives hard refreshes.
+  // Restore once, then persist later user changes. Keeping the first render
+  // deterministic prevents a hydration mismatch on the prerendered paid page.
   useEffect(() => {
+    if (!hasRestoredUnitPreferenceRef.current) {
+      hasRestoredUnitPreferenceRef.current = true;
+      const savedUnit = localStorage.getItem('banner-unit-pref');
+      if (savedUnit === 'in' || savedUnit === 'ft') setUnit(savedUnit);
+      return;
+    }
     localStorage.setItem('banner-unit-pref', unit);
   }, [unit]);
   useEffect(() => {
@@ -734,12 +757,11 @@ const GoogleAdsBanner: React.FC = () => {
   }, [materialDropdownOpen]);
 
   // Track desktop breakpoint (lg: 1024px) to enlarge preview area on desktop only
-  const [isLgScreen, setIsLgScreen] = useState(() =>
-    typeof window !== 'undefined' ? window.matchMedia('(min-width: 1024px)').matches : false
-  );
+  const [isLgScreen, setIsLgScreen] = useState(false);
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 1024px)');
     const handler = () => setIsLgScreen(mq.matches);
+    handler();
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
   }, []);
@@ -2597,7 +2619,16 @@ const GoogleAdsBanner: React.FC = () => {
         <header data-site-header className="w-full border-b border-gray-100 bg-white py-3 px-4 sticky top-0 z-50">
           <div className="max-w-5xl mx-auto flex items-center justify-between">
             <div className="w-10" />
-            <img src="/images/header-logo.png" alt="Banners On The Fly" width="248" height="70" className="h-10 object-contain" loading="eager" />
+            <img
+              src="https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto/q_auto:good/w_496/https://bannersonthefly.com/images/header-logo.png"
+              srcSet="https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto/q_auto:good/w_248/https://bannersonthefly.com/images/header-logo.png 1x, https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto/q_auto:good/w_496/https://bannersonthefly.com/images/header-logo.png 2x"
+              alt="Banners On The Fly"
+              width="248"
+              height="70"
+              className="h-10 object-contain"
+              loading="eager"
+              decoding="async"
+            />
             <button
               onClick={() => setIsCartOpen(true)}
               aria-label="Shopping cart"
@@ -2618,7 +2649,10 @@ const GoogleAdsBanner: React.FC = () => {
 
         {/* HERO */}
         {!isYardSign && !isCarMagnet ? (
-          <FastBannerAdHero onStart={scrollToOrder} />
+          <FastBannerAdHero
+            onStart={scrollToOrder}
+            showLiveDelivery={hasHydratedClientState}
+          />
         ) : (
         <section className="relative overflow-hidden border-b-4 border-[#FF6A00] bg-[#0B1F3A] px-4 py-10 sm:py-12 lg:py-16">
           <div className="relative mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] lg:gap-14">
@@ -2632,7 +2666,11 @@ const GoogleAdsBanner: React.FC = () => {
               </p>
 
               <div data-mobile-delivery-timer className="mx-auto mt-5 max-w-xl text-left md:hidden">
-                <DeliveryTimer variant="compact" className="shadow-lg" />
+                {hasHydratedClientState ? (
+                  <DeliveryTimer variant="compact" className="min-h-[200px] shadow-lg" />
+                ) : (
+                  <div aria-hidden="true" className="min-h-[200px] rounded-xl border border-white/15 bg-white/5" />
+                )}
               </div>
 
               <div className="mt-6 flex flex-wrap justify-center gap-x-5 gap-y-3 text-sm font-semibold text-white lg:justify-start">
@@ -2776,13 +2814,19 @@ const GoogleAdsBanner: React.FC = () => {
 
                   {/* Same-Day Hit Service upsell — production priority (NOT shipping). */}
                   <div className="hidden md:block">
-                    <DeliveryTimer variant="compact" />
+                    {hasHydratedClientState ? (
+                      <DeliveryTimer variant="compact" className="min-h-[168px]" />
+                    ) : (
+                      <div aria-hidden="true" className="min-h-[168px] rounded-xl border border-slate-200 bg-slate-50" />
+                    )}
                   </div>
-                  <SameDayHitServiceCard
-                    variant="compact"
-                    previewHasPrice={!!yardSignPricing && yardSignTotalQty > 0 && yardSignQuantityValid.valid}
-                    previewSubtotalCents={yardSignPricing?.totalCents}
-                  />
+                  {hasHydratedClientState && (
+                    <SameDayHitServiceCard
+                      variant="compact"
+                      previewHasPrice={!!yardSignPricing && yardSignTotalQty > 0 && yardSignQuantityValid.valid}
+                      previewSubtotalCents={yardSignPricing?.totalCents}
+                    />
+                  )}
 
                   <button
                     onClick={handleCheckout}
@@ -3078,6 +3122,7 @@ const GoogleAdsBanner: React.FC = () => {
                         setAddRope={setAddRope}
                         ropePlacement={ropePlacement}
                         setRopePlacement={setRopePlacement}
+                        optimizeImageDelivery
                       />
                     )}
                   </div>
@@ -3338,21 +3383,27 @@ const GoogleAdsBanner: React.FC = () => {
 
                 {/* Same-Day Hit Service upsell — production priority (NOT shipping). */}
                 <div className="hidden md:block">
-                  <DeliveryTimer variant="compact" />
+                  {hasHydratedClientState ? (
+                    <DeliveryTimer variant="compact" className="min-h-[168px]" />
+                  ) : (
+                    <div aria-hidden="true" className="min-h-[168px] rounded-xl border border-slate-200 bg-slate-50" />
+                  )}
                 </div>
-                <SameDayHitServiceCard
-                  variant="compact"
-                  previewHasPrice={
-                    isCarMagnet
-                      ? !!carMagnetPricing && !!uploadedFile
-                      : !!uploadedFile && bannerPricing.subtotalBeforeDiscountCents > 0
-                  }
-                  previewSubtotalCents={
-                    isCarMagnet
-                      ? carMagnetPricing?.baseSubtotalCents
-                      : bannerPricing.subtotalBeforeDiscountCents
-                  }
-                />
+                {hasHydratedClientState && (
+                  <SameDayHitServiceCard
+                    variant="compact"
+                    previewHasPrice={
+                      isCarMagnet
+                        ? !!carMagnetPricing && !!uploadedFile
+                        : !!uploadedFile && bannerPricing.subtotalBeforeDiscountCents > 0
+                    }
+                    previewSubtotalCents={
+                      isCarMagnet
+                        ? carMagnetPricing?.baseSubtotalCents
+                        : bannerPricing.subtotalBeforeDiscountCents
+                    }
+                  />
+                )}
 
                 <button onClick={handleCheckout} disabled={!uploadedFile || !hasCommittedBannerSize || isUploading || isProcessingUpsell} className={`group w-full font-bold text-lg py-5 rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${uploadedFile && hasCommittedBannerSize && !isUploading && !isProcessingUpsell ? 'bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white cursor-pointer shadow-orange-500/30' : 'bg-orange-300 text-white/80 cursor-not-allowed'}`}>
                   <Lock className="h-4 w-4" aria-hidden="true" />

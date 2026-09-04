@@ -150,8 +150,20 @@ assert(/<meta\b(?=[^>]*name=["']robots["'])(?=[^>]*content=["'][^"']*noindex)/i.
 const shell = await readFile(path.join(distDir, 'index.html'), 'utf8');
 assert(!/modulepreload[^>]+(?:pdf|pdfjs|pdfkit)/i.test(shell), 'PDF code must not be preloaded on landing pages.');
 
+const paidLanding = await readFile(path.join(distDir, 'google-ads-banner', 'index.html'), 'utf8');
+assert(paidLanding.includes('data-prerendered="true"'), '/google-ads-banner: missing prerender marker.');
+assert(paidLanding.includes('CUSTOM BANNERS.') || paidLanding.includes('Custom banners.'), '/google-ads-banner: initial HTML is missing the paid headline.');
+assert(/<meta\b(?=[^>]*name=["']robots["'])(?=[^>]*content=["'][^"']*noindex)/i.test(paidLanding), '/google-ads-banner: must remain noindex.');
+assert(paidLanding.includes('f_auto/q_auto:eco/c_limit/w_'), '/google-ads-banner: finishing images are not transformed.');
+assert(paidLanding.includes('loading="lazy"'), '/google-ads-banner: below-fold images are not lazy-loaded.');
+assert(!paidLanding.includes('data-hero-delivery-status'), '/google-ads-banner: live delivery status must wait until hydration.');
+assert(!paidLanding.includes('data-testid="delivery-timer"'), '/google-ads-banner: live delivery timers must wait until hydration.');
+assert(!paidLanding.includes('data-testid="same-day-hit-service-card'), '/google-ads-banner: time-dependent HIT cards must wait until hydration.');
+
 const redirects = await readFile(path.join(distDir, '_redirects'), 'utf8');
 const fallbackPosition = redirects.indexOf('/*    /index.html   200');
+const paidLandingRewritePosition = redirects.indexOf('/google-ads-banner   /google-ads-banner/index.html   200!');
+assert(paidLandingRewritePosition >= 0 && paidLandingRewritePosition < fallbackPosition, '/google-ads-banner: prerender rewrite must precede the SPA fallback.');
 for (const namespace of ['/vinyl-banners/*', '/yard-signs/*', '/car-magnets/*', '/trade-shows/*']) {
   const rulePosition = redirects.indexOf(`${namespace}`);
   assert(rulePosition >= 0 && rulePosition < fallbackPosition, `${namespace}: true-404 rule must precede the SPA fallback.`);

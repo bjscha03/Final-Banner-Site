@@ -8,15 +8,44 @@ import {
 } from '@/lib/bannerPricingEngine';
 import { DESIGN_GROMMET_OPTIONS } from '@/lib/grommets';
 
-// ---------------------------------------------------------------------------
-// Image constants — swap these Cloudinary URLs when new assets are available
-// ---------------------------------------------------------------------------
-const FINISHING_IMAGES = {
-  grommets: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1777834341/9ac6f57f-909e-4a89-9d23-100861ebec6e_f7gk2u.png',
-  polePockets: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1777834512/486f4992-2129-46c5-b51e-2f1e85f1436a_ujkpca.png',
-  rope: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1777834830/28cd7448-1482-4754-b9a8-e006e888b0ec-1_tjmohh.png',
-  hemming: '', // placeholder — set to Cloudinary URL when available
-} as const;
+// These photos are rendered below the fold, but the original PNGs are 1.8–2.2 MB
+// each. Keep the print-quality originals in Cloudinary and request only the
+// responsive, auto-formatted pixels needed by this UI.
+interface FinishingImageAsset {
+  src: string;
+  srcSet?: string;
+}
+
+const buildFinishingImage = (versionedPublicId: string): FinishingImageAsset => {
+  const transform = (width: number) =>
+    `https://res.cloudinary.com/dtrxl120u/image/upload/f_auto/q_auto:eco/c_limit/w_${width}/${versionedPublicId}`;
+
+  return {
+    src: transform(480),
+    srcSet: [320, 480, 720].map((width) => `${transform(width)} ${width}w`).join(', '),
+  };
+};
+
+interface FinishingImageCollection {
+  grommets: FinishingImageAsset;
+  polePockets: FinishingImageAsset;
+  rope: FinishingImageAsset;
+  hemming: FinishingImageAsset | null;
+}
+
+const ORIGINAL_FINISHING_IMAGES: FinishingImageCollection = {
+  grommets: { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1777834341/9ac6f57f-909e-4a89-9d23-100861ebec6e_f7gk2u.png' },
+  polePockets: { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1777834512/486f4992-2129-46c5-b51e-2f1e85f1436a_ujkpca.png' },
+  rope: { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1777834830/28cd7448-1482-4754-b9a8-e006e888b0ec-1_tjmohh.png' },
+  hemming: null,
+};
+
+const OPTIMIZED_FINISHING_IMAGES: FinishingImageCollection = {
+  grommets: buildFinishingImage('v1777834341/9ac6f57f-909e-4a89-9d23-100861ebec6e_f7gk2u.png'),
+  polePockets: buildFinishingImage('v1777834512/486f4992-2129-46c5-b51e-2f1e85f1436a_ujkpca.png'),
+  rope: buildFinishingImage('v1777834830/28cd7448-1482-4754-b9a8-e006e888b0ec-1_tjmohh.png'),
+  hemming: null, // placeholder — set to a transformed Cloudinary asset when available
+};
 
 const FINISHING_CALLOUTS = {
   grommets: 'Metal grommets',
@@ -54,6 +83,8 @@ export interface FinishingOptionsCardProps {
   setAddRope: (v: boolean) => void;
   ropePlacement: RopePlacement;
   setRopePlacement: (v: RopePlacement) => void;
+  /** Restrict responsive/lazy image delivery to performance-sensitive hosts. */
+  optimizeImageDelivery?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -70,10 +101,12 @@ const FinishingOptionsCard: React.FC<FinishingOptionsCardProps> = ({
   setAddRope,
   ropePlacement,
   setRopePlacement,
+  optimizeImageDelivery = false,
 }) => {
   const polePocketSetupFee = POLE_POCKET_SETUP_FEE_CENTS / 100;
   const polePocketPerFt = POLE_POCKET_PRICE_PER_LINEAR_FOOT_CENTS / 100;
   const ropePerFt = ROPE_PRICE_PER_LINEAR_FOOT_CENTS / 100;
+  const finishingImages = optimizeImageDelivery ? OPTIMIZED_FINISHING_IMAGES : ORIGINAL_FINISHING_IMAGES;
 
   // Remember the last non-'none' grommet placement so switching to Pole
   // Pockets / Rope and back to Grommets restores the previous selection
@@ -155,7 +188,8 @@ const FinishingOptionsCard: React.FC<FinishingOptionsCardProps> = ({
         badge="Included Free"
         badgeColor="green"
         description="Metal reinforced holes are placed around the edges for easy hanging."
-        imageSrc={FINISHING_IMAGES.grommets}
+        imageSrc={finishingImages.grommets}
+        optimizeImageDelivery={optimizeImageDelivery}
         calloutText={FINISHING_CALLOUTS.grommets}
       >
         {finishingType === 'grommets' && (
@@ -183,7 +217,8 @@ const FinishingOptionsCard: React.FC<FinishingOptionsCardProps> = ({
         title="Pole Pockets"
         priceLabel={`$${polePocketSetupFee.toFixed(0)} setup fee + $${polePocketPerFt.toFixed(2)} / linear ft`}
         description="Pole pockets are made with heat-welded hems to slide over a pole."
-        imageSrc={FINISHING_IMAGES.polePockets}
+        imageSrc={finishingImages.polePockets}
+        optimizeImageDelivery={optimizeImageDelivery}
         calloutText={FINISHING_CALLOUTS.polePockets}
       >
         {finishingType === 'pole_pockets' && (
@@ -211,7 +246,8 @@ const FinishingOptionsCard: React.FC<FinishingOptionsCardProps> = ({
         title="Rope in Welded Hem"
         priceLabel={`$${ropePerFt.toFixed(2)} / linear ft`}
         description="Rope is inserted into the heat-welded hem for secure tying."
-        imageSrc={FINISHING_IMAGES.rope}
+        imageSrc={finishingImages.rope}
+        optimizeImageDelivery={optimizeImageDelivery}
         calloutText={FINISHING_CALLOUTS.rope}
       >
         {finishingType === 'rope' && (
@@ -241,9 +277,9 @@ const FinishingOptionsCard: React.FC<FinishingOptionsCardProps> = ({
             All banners are finished with a folded, heat-welded hem for added strength.
           </p>
         </div>
-        {FINISHING_IMAGES.hemming && (
+        {finishingImages.hemming && (
           <img
-            src={FINISHING_IMAGES.hemming}
+            src={finishingImages.hemming.src}
             alt="Hemming detail"
             className="w-16 h-10 object-cover rounded-md flex-shrink-0 opacity-90"
             onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
@@ -265,7 +301,8 @@ interface FinishingCardProps {
   badgeColor?: 'green';
   priceLabel?: string;
   description: string;
-  imageSrc: string;
+  imageSrc: FinishingImageAsset;
+  optimizeImageDelivery: boolean;
   calloutText: string;
   children?: React.ReactNode;
 }
@@ -279,6 +316,7 @@ const FinishingCard: React.FC<FinishingCardProps> = ({
   priceLabel,
   description,
   imageSrc,
+  optimizeImageDelivery,
   calloutText,
   children,
 }) => (
@@ -333,8 +371,15 @@ const FinishingCard: React.FC<FinishingCardProps> = ({
       {/* Main photo: explicit height + object-contain on mobile; absolute cover on desktop */}
       <div className="relative w-full h-[120px] md:w-56 md:h-auto md:self-stretch overflow-hidden">
         <img
-          src={imageSrc}
+          src={imageSrc.src}
+          srcSet={optimizeImageDelivery ? imageSrc.srcSet : undefined}
+          sizes={optimizeImageDelivery ? '(min-width: 768px) 224px, calc(100vw - 68px)' : undefined}
           alt={title}
+          width={optimizeImageDelivery ? 1402 : undefined}
+          height={optimizeImageDelivery ? 1122 : undefined}
+          loading={optimizeImageDelivery ? 'lazy' : undefined}
+          decoding={optimizeImageDelivery ? 'async' : undefined}
+          fetchPriority={optimizeImageDelivery ? 'low' : undefined}
           className="w-full h-full object-contain px-3 pb-3 md:p-0 md:absolute md:inset-0 md:object-cover"
           onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
         />
@@ -349,8 +394,13 @@ const FinishingCard: React.FC<FinishingCardProps> = ({
         {/* Circular callout spot */}
         <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-blue-400 overflow-hidden flex-shrink-0 shadow-sm bg-white">
           <img
-            src={imageSrc}
+            src={imageSrc.src}
             alt={`${title} detail`}
+            width={optimizeImageDelivery ? 96 : undefined}
+            height={optimizeImageDelivery ? 96 : undefined}
+            loading={optimizeImageDelivery ? 'lazy' : undefined}
+            decoding={optimizeImageDelivery ? 'async' : undefined}
+            fetchPriority={optimizeImageDelivery ? 'low' : undefined}
             className="w-full h-full object-cover scale-150"
             onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
           />
@@ -361,4 +411,3 @@ const FinishingCard: React.FC<FinishingCardProps> = ({
 );
 
 export default FinishingOptionsCard;
-

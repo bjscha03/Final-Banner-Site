@@ -273,6 +273,13 @@
   to = "/404.html"
   status = 404
 
+# Serve the performance-prerendered paid page without a trailing-slash 301.
+[[redirects]]
+  from = "/google-ads-banner"
+  to = "/google-ads-banner/index.html"
+  status = 200
+  force = true
+
 # SPA fallback (must be last redirect) - exclude static assets
 [[redirects]]
   from = "/*"
