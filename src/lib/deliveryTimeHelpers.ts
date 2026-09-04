@@ -12,14 +12,15 @@
  * 5. Weekend/holiday handling: push to next Monday/business day
  */
 
+import { BLACKOUT_DATES as AUTHORITATIVE_BLACKOUT_DATES } from './delivery/cutoffs';
+
 // Business timezone for all calculations
 export const BUSINESS_TIMEZONE = 'America/Kentucky/Louisville';
 
-// Blackout dates (holidays) - add dates in 'YYYY-MM-DD' format
-export const BLACKOUT_DATES: string[] = [
-  // '2026-01-01', // New Year's Day
-  // '2026-12-25', // Christmas
-];
+// Blackout dates (holidays), sourced from the authoritative delivery engine
+// list in `./delivery/cutoffs` so there is only ever one Labor Day (and
+// other holiday) calendar for the entire codebase.
+export const BLACKOUT_DATES: string[] = AUTHORITATIVE_BLACKOUT_DATES;
 
 export interface DeliveryConfig {
   cutoffHour: number;        // Default: 14 (2 PM ET)

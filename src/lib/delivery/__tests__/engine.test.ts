@@ -234,3 +234,69 @@ describe('delivery/engine — blackout dates', () => {
     expect(est.shipDate.ymd).toBe('2026-04-29');
   });
 });
+
+// 2026 Labor Day calendar reference:
+//   Fri 2026-09-04, Sat 09-05, Sun 09-06, Mon 09-07 (Labor Day blackout),
+//   Tue 09-08 (lock ends), Wed 09-09, Thu 09-10.
+describe('delivery/engine — Labor Day 2026 holiday blackout', () => {
+  it('Fri Sep 4 noon ET → locked; ship Tue 09-08, deliver Wed 09-09; cutoff Tue 00:00 ET', () => {
+    const est = getDeliveryEstimate({ nowET: et(2026, 9, 4, 12, 0) });
+    expect(est.state).toBe('weekend_lock');
+    expect(est.weekendLock).toBe(true);
+    expect(est.hitAvailable).toBe(false);
+    expect(est.shipDate.ymd).toBe('2026-09-08');
+    expect(est.deliveryDate.ymd).toBe('2026-09-09');
+    expect(est.cutoffTime.getTime()).toBe(fromET(2026, 9, 8, 0, 0).getTime());
+    expect(est.cutoffTime.toISOString()).toBe('2026-09-08T04:00:00.000Z');
+  });
+
+  it('Sat Sep 5 noon ET → same Tue/Wed schedule', () => {
+    const est = getDeliveryEstimate({ nowET: et(2026, 9, 5, 12, 0) });
+    expect(est.state).toBe('weekend_lock');
+    expect(est.shipDate.ymd).toBe('2026-09-08');
+    expect(est.deliveryDate.ymd).toBe('2026-09-09');
+  });
+
+  it('Sun Sep 6 noon ET → same Tue/Wed schedule', () => {
+    const est = getDeliveryEstimate({ nowET: et(2026, 9, 6, 12, 0) });
+    expect(est.state).toBe('weekend_lock');
+    expect(est.shipDate.ymd).toBe('2026-09-08');
+    expect(est.deliveryDate.ymd).toBe('2026-09-09');
+  });
+
+  it('Mon Sep 7 (Labor Day) noon ET → ship Tue 09-08 / deliver Wed 09-09, NOT Sep 14/15', () => {
+    const est = getDeliveryEstimate({ nowET: et(2026, 9, 7, 12, 0) });
+    expect(est.state).toBe('weekend_lock');
+    expect(est.weekendLock).toBe(true);
+    expect(est.hitAvailable).toBe(false);
+    expect(est.shipDate.ymd).toBe('2026-09-08');
+    expect(est.deliveryDate.ymd).toBe('2026-09-09');
+    expect(est.shipDate.ymd).not.toBe('2026-09-14');
+    expect(est.deliveryDate.ymd).not.toBe('2026-09-15');
+    // 12-hour countdown to Tue 00:00 ET.
+    expect(est.cutoffTime.getTime()).toBe(fromET(2026, 9, 8, 0, 0).getTime());
+    expect(est.cutoffTime.getTime() - et(2026, 9, 7, 12, 0).date.getTime()).toBe(12 * 60 * 60 * 1000);
+  });
+
+  it('HIT is unavailable at any point during the Labor Day blackout window', () => {
+    expect(isHitAvailable(et(2026, 9, 4, 9, 0))).toBe(false); // Fri
+    expect(isHitAvailable(et(2026, 9, 5, 9, 0))).toBe(false); // Sat
+    expect(isHitAvailable(et(2026, 9, 6, 9, 0))).toBe(false); // Sun
+    expect(isHitAvailable(et(2026, 9, 7, 9, 0))).toBe(false); // Mon (Labor Day)
+  });
+
+  it('Tue Sep 8 12:00 AM ET → lock ends automatically; normal engine behavior resumes', () => {
+    const est = getDeliveryEstimate({ nowET: et(2026, 9, 8, 0, 0) });
+    expect(est.weekendLock).toBe(false);
+    expect(est.state).toBe('hit_available'); // pre-1 PM, window open, not locked.
+    // Standard estimate: ships Wed 09-09, delivers Thu 09-10.
+    expect(est.shipDate.ymd).toBe('2026-09-09');
+    expect(est.deliveryDate.ymd).toBe('2026-09-10');
+  });
+
+  it('does not incorrectly loop a blackout Monday to the following Monday', () => {
+    const ship = getStandardShipDate(et(2026, 9, 7, 12, 0));
+    expect(ship.ymd).toBe('2026-09-08');
+    expect(ship.dayOfWeek).toBe(2); // Tuesday
+  });
+});

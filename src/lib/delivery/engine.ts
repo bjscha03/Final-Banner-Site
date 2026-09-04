@@ -71,6 +71,18 @@ function cmpClock(a: { hour: number; minute: number }, b: { hour: number; minute
 }
 
 /**
+ * True when the lock is triggered purely by the calendar (Thu >= 22:00 ET,
+ * or Fri/Sat/Sun any time) — i.e. the "upcoming Monday" weekend rule,
+ * independent of any blackout date.
+ */
+function isCalendarWeekendLock(parts: ETParts): boolean {
+  const dow = parts.dayOfWeek;
+  if (dow === 5 || dow === 6 || dow === 0) return true; // Fri / Sat / Sun
+  if (dow === 4 && cmpClock(parts, STANDARD_CUTOFF) >= 0) return true; // Thu >= 22:00
+  return false;
+}
+
+/**
  * Weekend lock is active when:
  *   - day is Friday, Saturday, or Sunday (any time), OR
  *   - day is Thursday and the time is at or after 22:00 ET, OR
@@ -81,10 +93,7 @@ function cmpClock(a: { hour: number; minute: number }, b: { hour: number; minute
  */
 export function isWeekendLock(parts: ETParts, blackoutDates: string[] = BLACKOUT_DATES): boolean {
   if (isBlackout(parts, blackoutDates)) return true;
-  const dow = parts.dayOfWeek;
-  if (dow === 5 || dow === 6 || dow === 0) return true; // Fri / Sat / Sun
-  if (dow === 4 && cmpClock(parts, STANDARD_CUTOFF) >= 0) return true; // Thu >= 22:00
-  return false;
+  return isCalendarWeekendLock(parts);
 }
 
 /**
@@ -117,17 +126,28 @@ export function isHitAvailable(parts: ETParts, blackoutDates: string[] = BLACKOU
 /**
  * Compute the ship date for a STANDARD order placed at `now` ET.
  *
- *   - Weekend lock → next Monday-or-later business day.
+ *   - Calendar weekend lock (Thu>=22:00 / Fri / Sat / Sun) → next
+ *     Monday-or-later business day.
+ *   - Standalone blackout day (e.g. a holiday landing on a weekday that is
+ *     not otherwise weekend-locked) → next business day directly, not the
+ *     following Monday.
  *   - Before 22:00 ET on a business day → tomorrow's next business day.
  *   - At/after 22:00 ET on a business day → business day AFTER next biz day.
  *   - On a non-business day pre-22:00 → next business day (weekend lock
  *     branch will already have caught Sat/Sun; this catches blackout days).
  */
 export function getStandardShipDate(now: ETParts, blackoutDates: string[] = BLACKOUT_DATES): ETParts {
-  // Weekend lock: ship the upcoming Monday (or the next business day if Monday
-  // happens to be a blackout). Per spec, Thu>=22:00 / Fri / Sat / Sun all
-  // skip directly to Monday — never Friday.
   if (isWeekendLock(now, blackoutDates)) {
+    // A blackout day that isn't itself part of the calendar weekend rule
+    // (e.g. a Monday holiday) should advance straight to the next business
+    // day rather than looping around to the following Monday.
+    if (!isCalendarWeekendLock(now)) {
+      return nextBusinessDay(now, blackoutDates);
+    }
+
+    // Calendar weekend lock: ship the upcoming Monday (or the next business
+    // day if Monday happens to be a blackout). Per spec, Thu>=22:00 / Fri /
+    // Sat / Sun all skip directly to Monday — never Friday.
     let p: ETParts = now;
     // Advance until we land on a Monday.
     do {

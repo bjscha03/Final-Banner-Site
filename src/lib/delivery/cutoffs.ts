@@ -28,5 +28,6 @@ export const HIT_CLOSE = { hour: 13, minute: 0 } as const;
  */
 export const BLACKOUT_DATES: string[] = [
   // '2026-01-01', // New Year's Day
+  '2026-09-07', // Labor Day (production/carrier blackout)
   // '2026-12-25', // Christmas
 ];
