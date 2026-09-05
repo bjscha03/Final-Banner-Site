@@ -28,7 +28,7 @@ const SizeQuantityCard: React.FC = () => {
   const [heightInput, setHeightInput] = useState(heightIn.toString());
   const [widthError, setWidthError] = useState('');
   const [heightError, setHeightError] = useState('');
-  const [unit, setUnit] = useState<DimensionUnit>('in');
+  const [unit, setUnit] = useState<DimensionUnit>('ft');
 
   const quickQuantities = [1, 2, 5, 10];
   const quickSizes = [
