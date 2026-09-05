@@ -27,6 +27,14 @@ import {
 const DESCRIPTION = 'Search 75 August 2026 U.S. trade shows and open a detailed exhibitor guide with show-specific banner messaging, sizing, setup, and organizer links.';
 const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: 'UTC' });
 
+const HERO_INDUSTRY_SHORTCUTS = [
+  { label: 'Apparel', industry: 'Fashion & Retail' },
+  { label: 'Manufacturing', industry: 'Manufacturing & Technology' },
+  { label: 'Gifts', query: 'gift' },
+  { label: 'Healthcare', industry: 'Healthcare & Wellness' },
+  { label: 'Home & Garden', industry: 'Agriculture & Landscape' },
+] as const;
+
 function getMonthLabel(date: string): string {
   return monthFormatter.format(new Date(`${date}T12:00:00Z`));
 }
@@ -49,6 +57,33 @@ const TradeShowDirectory: React.FC = () => {
   }, [industry, query, state]);
 
   const hasFilters = Boolean(query || state !== 'all' || industry !== 'all');
+  const stateCount = states.filter((value) => value !== 'DC').length;
+  const startDays = TRADE_SHOWS.map((event) => Number(event.startDate.slice(-2)));
+  const showDateRange = `Aug. ${Math.min(...startDays)}–${Math.max(...startDays)} • Nationwide`;
+
+  const scrollToResults = () => {
+    window.requestAnimationFrame(() => {
+      document.getElementById('trade-show-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
+  const handleHeroSearch = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    scrollToResults();
+  };
+
+  const applyIndustryShortcut = (shortcut: (typeof HERO_INDUSTRY_SHORTCUTS)[number]) => {
+    setState('all');
+    if ('industry' in shortcut) {
+      setIndustry(shortcut.industry);
+      setQuery('');
+    } else {
+      setIndustry('all');
+      setQuery(shortcut.query);
+    }
+    scrollToResults();
+  };
+
   const clearFilters = () => {
     setQuery('');
     setState('all');
@@ -64,20 +99,118 @@ const TradeShowDirectory: React.FC = () => {
         schema={buildTradeShowDirectorySchema(DESCRIPTION)}
       />
 
-      <section className="relative overflow-hidden bg-[#0B1F3A] text-white">
-        <div className="brand-shell relative py-12 sm:py-16 lg:py-20">
-          <div className="max-w-3xl">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#FF8A3D]">Exhibitor planning resource</p>
-            <h1 className="mt-4 font-display text-4xl font-bold leading-[1.02] tracking-[-0.045em] sm:text-5xl lg:text-6xl">August 2026 U.S. Trade Show Calendar</h1>
-            <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-300">Find upcoming exhibitions by event, location, or industry—then open a practical booth-banner planner built around each show.</p>
-            <div className="mt-8 flex flex-wrap gap-x-8 gap-y-3 border-t border-white/15 pt-6 text-sm text-slate-200">
-              <span><strong className="font-display text-2xl text-white">75</strong> shows starting Aug. 6–31</span>
-              <span><strong className="font-display text-2xl text-white">75</strong> detailed exhibitor guides</span>
-              <span><strong className="font-display text-2xl text-white">22</strong> states + D.C.</span>
+      <section
+        aria-labelledby="trade-show-calendar-title"
+        className="overflow-hidden border-t-[8px] border-[#E84B14] bg-[#E7E0DA]"
+        data-trade-show-hero
+      >
+        <div className="mx-auto grid w-full max-w-[1740px] lg:grid-cols-[40.58fr_59.42fr] 2xl:aspect-[1678/756]">
+          <div
+            className="flex min-w-0 flex-col justify-center px-5 py-10 text-[#061A31] sm:px-8 sm:py-14 lg:px-[clamp(2rem,3.3vw,3.5rem)] lg:py-10 xl:py-[clamp(2rem,4.2vw,4.4rem)]"
+            style={{
+              backgroundImage: 'radial-gradient(circle at 22% 15%, rgba(255,255,255,.62), transparent 34%), linear-gradient(110deg, #F6F2ED 0%, #E6DED8 100%)',
+            }}
+          >
+            <p className="homepage-condensed text-xl uppercase leading-none tracking-[-0.01em] text-[#D84512] [--homepage-mobile-size:1.25rem] xl:text-[clamp(1.15rem,1.2vw,1.35rem)]">
+              Exhibitor planning resource
+            </p>
+
+            <h1
+              id="trade-show-calendar-title"
+              className="homepage-condensed mt-6 font-black uppercase leading-[0.91] tracking-[-0.015em] [--homepage-mobile-size:clamp(2.8rem,14vw,4rem)] sm:text-[4.8rem] lg:mt-4 lg:text-[clamp(3.2rem,5.2vw,5.5rem)] xl:mt-[clamp(1.15rem,1.5vw,1.6rem)]"
+            >
+              <span className="block whitespace-nowrap text-[#DF4A14]">August 2026</span>
+              <span className="block whitespace-nowrap text-[#061A31]">U.S. Trade Show</span>
+              <span className="block whitespace-nowrap text-[#061A31]">Calendar</span>
+            </h1>
+
+            <p className="mt-6 max-w-[560px] text-base font-medium leading-7 text-[#14283E] sm:text-lg sm:leading-8 lg:mt-4 lg:text-base lg:leading-7 xl:mt-[clamp(1rem,1.5vw,1.6rem)] xl:text-lg xl:leading-8">
+              Find upcoming exhibitions by event, city, state, or industry—then open a practical banner planner built around each show.
+            </p>
+
+            <div className="mt-5 h-0.5 w-[92px] bg-[#DF4A14] xl:mt-[clamp(.8rem,1.4vw,1.5rem)]" aria-hidden="true" />
+
+            <form className="mt-5" onSubmit={handleHeroSearch} role="search">
+              <label htmlFor="hero-trade-show-search" className="homepage-condensed block text-xl font-black uppercase leading-none tracking-[0.01em] [--homepage-mobile-size:1.25rem]">
+                Find your next show
+              </label>
+              <div className="mt-3 overflow-hidden rounded-md border-2 border-[#061A31] bg-[#FBFAF7] transition focus-within:border-[#E84B14] focus-within:ring-2 focus-within:ring-[#E84B14]/35 sm:flex">
+                <label className="relative block min-w-0 flex-1">
+                  <span className="sr-only">Search events, cities, states, or industries</span>
+                  <Search className="pointer-events-none absolute left-4 top-1/2 h-7 w-7 -translate-y-1/2 stroke-[2.5] text-[#061A31]" aria-hidden="true" />
+                  <input
+                    id="hero-trade-show-search"
+                    type="search"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="Search event, city, state, or industry"
+                    className="h-14 w-full bg-transparent pl-14 pr-4 text-sm font-semibold text-[#061A31] outline-none placeholder:font-medium placeholder:text-[#14283E] sm:h-[60px] xl:h-16"
+                  />
+                </label>
+                <button
+                  type="submit"
+                  className="group relative inline-flex h-14 w-full items-center justify-center gap-3 bg-[#061A31] px-5 font-mono text-xs font-black uppercase tracking-[0.08em] text-white transition-colors hover:bg-[#123251] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#F45B08] sm:h-auto sm:w-[33%] sm:min-w-[176px]"
+                >
+                  Search shows
+                  <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" aria-hidden="true" />
+                  <span className="absolute inset-y-0 right-0 w-1.5 bg-[#F45B08]" aria-hidden="true" />
+                </button>
+              </div>
+            </form>
+
+            <nav aria-label="Popular trade show industries" className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-5 sm:gap-x-3 lg:grid-cols-3 xl:mt-[clamp(1rem,1.4vw,1.5rem)] xl:grid-cols-5">
+              {HERO_INDUSTRY_SHORTCUTS.map((shortcut) => (
+                <button
+                  key={shortcut.label}
+                  type="button"
+                  onClick={() => applyIndustryShortcut(shortcut)}
+                  className="group flex min-h-11 flex-col items-center justify-start gap-2 font-sans text-[11px] font-black uppercase leading-tight text-[#061A31] transition-colors hover:text-[#C94008] sm:text-[10px] xl:text-xs"
+                >
+                  <span className="whitespace-nowrap">{shortcut.label}</span>
+                  <span className="h-0.5 w-8 bg-[#E84B14] transition-all group-hover:w-12" aria-hidden="true" />
+                </button>
+              ))}
+            </nav>
+          </div>
+
+          <div className="relative aspect-[997/756] min-w-0 overflow-hidden bg-[#071B31] lg:aspect-auto">
+            <img
+              src="/images/trade-shows/august-2026-trade-show-hero.webp"
+              alt="Northfork Tackle Co. trade show booth using coordinated vinyl wall, stand, and table banners"
+              width="997"
+              height="756"
+              loading="eager"
+              decoding="async"
+              className="absolute inset-0 h-full w-full object-cover object-center"
+            />
+
+            <div className="absolute right-0 top-[7.4%] flex h-[5.85%] min-h-9 w-[30.1%] items-center justify-center rounded-l bg-[#E94B16] px-2 text-center font-mono text-[clamp(.55rem,1.18vw,1.25rem)] font-medium uppercase tracking-[-0.03em] text-white">
+              {showDateRange}
             </div>
-            <HeroDeliveryStatus className="mt-7 w-full max-w-[570px]" />
+
+            <aside
+              aria-label={`${TRADE_SHOWS.length} shows, ${TRADE_SHOWS.length} exhibitor guides, and ${stateCount} states plus the District of Columbia`}
+              className="absolute bottom-[8.1%] right-[1.7%] top-[32.8%] flex w-[17.65%] flex-col justify-evenly rounded-[clamp(.35rem,.75vw,.75rem)] border-2 border-[#36506A] bg-[linear-gradient(145deg,#09243F_0%,#04192E_100%)] px-[3%] text-center shadow-[inset_0_0_18px_rgba(92,142,181,.18)]"
+            >
+              <div className="flex flex-1 flex-col items-center justify-center">
+                <strong className="homepage-condensed text-[clamp(1.35rem,3.7vw,3.9rem)] font-black leading-none text-white [--homepage-mobile-size:clamp(1.35rem,3.7vw,3.9rem)]">{TRADE_SHOWS.length}</strong>
+                <span className="mt-1 font-sans text-[clamp(.38rem,.83vw,.88rem)] font-black uppercase leading-tight text-[#F45B08]">Shows</span>
+              </div>
+              <div className="h-px w-full bg-white/25" aria-hidden="true" />
+              <div className="flex flex-1 flex-col items-center justify-center">
+                <strong className="homepage-condensed text-[clamp(1.35rem,3.7vw,3.9rem)] font-black leading-none text-white [--homepage-mobile-size:clamp(1.35rem,3.7vw,3.9rem)]">{TRADE_SHOWS.length}</strong>
+                <span className="mt-1 font-sans text-[clamp(.35rem,.76vw,.82rem)] font-black uppercase leading-tight text-[#F45B08]">Exhibitor guides</span>
+              </div>
+              <div className="h-px w-full bg-white/25" aria-hidden="true" />
+              <div className="flex flex-1 flex-col items-center justify-center">
+                <strong className="homepage-condensed text-[clamp(1.35rem,3.7vw,3.9rem)] font-black leading-none text-white [--homepage-mobile-size:clamp(1.35rem,3.7vw,3.9rem)]">{stateCount}</strong>
+                <span className="mt-1 font-sans text-[clamp(.35rem,.76vw,.82rem)] font-black uppercase leading-tight text-[#F45B08]">States + D.C.</span>
+              </div>
+            </aside>
           </div>
         </div>
+
+        <HeroDeliveryStatus variant="trade-show" />
       </section>
 
       <section className="border-b border-slate-200 bg-[#F7F7F7]">
@@ -117,7 +250,7 @@ const TradeShowDirectory: React.FC = () => {
         </div>
       </section>
 
-      <section className="brand-shell py-10 sm:py-14">
+      <section id="trade-show-results" className="brand-shell scroll-mt-24 py-10 sm:py-14">
         <div className="mb-7 flex flex-col justify-between gap-3 border-b border-slate-200 pb-5 sm:flex-row sm:items-end">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#FF6A00]">Calendar results</p>
