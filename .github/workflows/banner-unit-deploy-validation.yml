@@ -1,0 +1,52 @@
+name: Banner Unit Deploy Validation
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/banner-unit-deploy-validation.yml'
+      - 'src/main.tsx'
+      - 'src/components/design/SizeQuantityCard.tsx'
+
+permissions:
+  contents: read
+
+jobs:
+  validate-and-export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify banner unit default contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F "const BANNER_UNIT_PREFERENCE_KEY = 'banner-unit-pref';" src/main.tsx
+          grep -F "localStorage.setItem(BANNER_UNIT_PREFERENCE_KEY, 'ft');" src/main.tsx
+          grep -F "restoreBannerUnitDefault();" src/main.tsx
+          grep -F "useState<DimensionUnit>('ft')" src/components/design/SizeQuantityCard.tsx
+          grep -F "?? 'ft'" src/pages/Design.tsx
+          grep -F "?? 'ft'" src/pages/GoogleAdsBanner.tsx
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production bundle
+        run: npm run build
+
+      - name: Upload deployable source snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: banners-on-the-fly-source-${{ github.event.pull_request.head.sha }}
+          path: |
+            .
+            !.git/**
+            !node_modules/**
+          include-hidden-files: true
+          retention-days: 1
