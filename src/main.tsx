@@ -12,6 +12,20 @@ import { createPreviewAdminCookie, hasPreviewAdminCookie } from './lib/previewAd
 
 const PREVIEW_SESSION_KEY = 'preview_access_granted';
 const CURRENT_USER_KEY = 'banners_current_user';
+const BANNER_UNIT_PREFERENCE_KEY = 'banner-unit-pref';
+
+function restoreBannerUnitDefault() {
+  if (typeof window === 'undefined') return;
+
+  try {
+    // Feet is the product default. A stale persisted "in" value from an older
+    // session/deploy must never override the first render of the banner builder.
+    // Customers can still switch to Inches during the current visit.
+    localStorage.setItem(BANNER_UNIT_PREFERENCE_KEY, 'ft');
+  } catch {
+    // Storage can be unavailable in hardened/private browser contexts.
+  }
+}
 
 function establishPreviewAdminSession() {
   if (typeof window === 'undefined' || !isPreviewEnvironment()) return;
@@ -134,6 +148,10 @@ function shouldRequirePreviewGate(): boolean {
   return !hasAccess;
 }
 
+// The banner builder must open in Feet on every fresh app load. This runs
+// before React mounts so Design and GoogleAdsBanner cannot initialize from a
+// stale persisted Inches preference.
+restoreBannerUnitDefault();
 // Remove signed email credentials from the address bar before attribution,
 // analytics, or session-replay code can initialize. The credential remains
 // available only in this tab and OrderDetail sends it in a dedicated header.
