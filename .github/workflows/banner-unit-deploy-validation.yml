@@ -40,6 +40,22 @@ jobs:
       - name: Build production bundle
         run: npm run build
 
+      - name: Package Netlify MCP runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/netlify-mcp-runtime
+          mkdir -p /tmp/netlify-mcp-runtime
+          npm install --prefix /tmp/netlify-mcp-runtime --no-package-lock --no-save @netlify/mcp@latest
+          tar -C /tmp/netlify-mcp-runtime -czf netlify-mcp-runtime.tgz .
+
+      - name: Upload Netlify MCP runtime
+        uses: actions/upload-artifact@v4
+        with:
+          name: netlify-mcp-runtime-${{ github.event.pull_request.head.sha }}
+          path: netlify-mcp-runtime.tgz
+          retention-days: 1
+
       - name: Upload deployable source snapshot
         uses: actions/upload-artifact@v4
         with:
@@ -48,5 +64,6 @@ jobs:
             .
             !.git/**
             !node_modules/**
+            !netlify-mcp-runtime.tgz
           include-hidden-files: true
           retention-days: 1
