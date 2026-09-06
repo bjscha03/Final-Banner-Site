@@ -65,7 +65,7 @@ export default function MobileSubtotalBar({
               </p>
             ) : null}
           </div>
-          {primaryAction ? <button type="button" data-banner-primary-action onClick={primaryAction.onClick} disabled={primaryAction.disabled} className="inline-flex min-h-12 max-w-[52%] items-center justify-center rounded-lg bg-[#c44700] px-4 py-3 text-sm font-bold leading-snug text-white hover:bg-[#a83d00] focus-visible:ring-2 focus-visible:ring-[#061A31] disabled:opacity-60">{primaryAction.label}</button> : <button
+          {primaryAction ? <button type="button" data-banner-primary-action onClick={primaryAction.onClick} disabled={primaryAction.disabled} className="inline-flex min-h-12 max-w-[52%] items-center justify-center rounded-lg bg-[#FF6A00] px-4 py-3 text-sm font-bold leading-snug text-[#061A31] hover:bg-[#FF6A00] focus-visible:ring-2 focus-visible:ring-[#061A31] disabled:opacity-60">{primaryAction.label}</button> : <button
             type="button"
             onClick={onViewCart}
             className="inline-flex min-h-11 shrink-0 items-center rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-[#18448D] transition-colors hover:bg-slate-50"

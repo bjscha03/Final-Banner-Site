@@ -29,11 +29,11 @@ const HeroDeliveryStatus: React.FC<HeroDeliveryStatusProps> = ({ className, vari
 
   if (variant === 'light') {
     return (
-      <div data-hero-delivery-status data-state={estimate.state} data-variant="light" className={`border-t border-slate-200 pt-4 text-[#061A31] ${className || ''}`} aria-label="Current order cutoff, expected ship date, and expected delivery date">
-        <div className="grid grid-cols-3 divide-x divide-slate-200">
+      <div data-hero-delivery-status data-state={estimate.state} data-variant="light" className={`rounded-xl border border-[#FF6A00]/30 border-t-[3px] border-t-[#FF6A00] bg-[#FFF4EA] px-3 py-4 text-[#061A31] shadow-sm sm:px-4 ${className || ''}`} aria-label="Current order cutoff, expected ship date, and expected delivery date">
+        <div className="grid grid-cols-3 divide-x divide-[#FF6A00]/20">
           <div className="min-w-0 pr-2">
             <div className="flex min-h-7 items-center gap-1.5 text-slate-600">
-              <Clock3 className="hidden h-4 w-4 shrink-0 text-[#c44700] sm:block" aria-hidden="true" />
+              <Clock3 className="hidden h-4 w-4 shrink-0 text-[#FF6A00] sm:block" aria-hidden="true" />
               <span className="text-[9px] font-bold uppercase leading-3 tracking-[0.04em] sm:text-[10px]">{countdownLabel}</span>
             </div>
             <p className="mt-1 whitespace-nowrap font-mono text-base font-bold tracking-tight sm:text-xl" role="timer" aria-live="off">{formatCountdown(remainingMs)}</p>

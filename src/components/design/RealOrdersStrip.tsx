@@ -7,7 +7,7 @@ import {
 
 const STRIP_TRANSFORMATION = 'w_224,h_112,c_fill,g_auto,q_auto:eco,f_auto';
 
-const DeliveryImageSet: React.FC<{ duplicate?: boolean }> = ({ duplicate = false }) => (
+const DeliveryImageSet: React.FC<{ duplicate?: boolean; expanded?: boolean }> = ({ duplicate = false, expanded = false }) => (
   <div
     className={`real-orders-strip-set flex h-full shrink-0 items-center gap-1 pr-1${
       duplicate ? ' real-orders-strip-set--duplicate' : ''
@@ -18,24 +18,24 @@ const DeliveryImageSet: React.FC<{ duplicate?: boolean }> = ({ duplicate = false
     {deliveryProofImages.map((image) => (
       <img
         key={image.id}
-        src={getDeliveryProofImageUrl(image, STRIP_TRANSFORMATION)}
+        src={getDeliveryProofImageUrl(image, expanded ? 'w_320,h_192,c_fill,g_auto,q_auto:eco,f_auto' : STRIP_TRANSFORMATION)}
         alt=""
         width="112"
         height="56"
         loading="eager"
         decoding="async"
-        className="h-14 w-28 max-w-none shrink-0 border-x border-white/10 object-cover"
+        className={`${expanded ? 'h-full w-28 sm:w-40' : 'h-14 w-28'} max-w-none shrink-0 border-x border-white/10 object-cover`}
       />
     ))}
   </div>
 );
 
-const RealOrdersStrip: React.FC = () => {
+const RealOrdersStrip: React.FC<{ expanded?: boolean }> = ({ expanded = false }) => {
   const [isPaused, setIsPaused] = useState(false);
 
   return (
     <section
-      className="real-orders-strip relative h-16 overflow-hidden border-y border-[#F45B08]/70 bg-[#061A31] text-white"
+      className={`real-orders-strip relative ${expanded ? 'h-24' : 'h-16'} overflow-hidden border-y border-[#FF6A00]/70 bg-[#061A31] text-white`}
       aria-label="Real customer order delivery photos"
       data-real-orders-strip
       data-paused={isPaused}
@@ -54,8 +54,8 @@ const RealOrdersStrip: React.FC = () => {
             className="real-orders-strip-track flex h-full w-max items-center"
             data-real-orders-strip-track
           >
-            <DeliveryImageSet />
-            <DeliveryImageSet duplicate />
+            <DeliveryImageSet expanded={expanded} />
+            <DeliveryImageSet duplicate expanded={expanded} />
           </div>
         </div>
 

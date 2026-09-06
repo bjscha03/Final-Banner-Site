@@ -97,13 +97,13 @@ export default function ConfigCard({
       if (isEligible) {
         foundQualifyingPreset = true;
         button.dataset.largeBannerEligible = 'true';
-        button.classList.add('relative', 'overflow-visible');
+        button.classList.add('relative', 'overflow-visible', 'pr-6');
         ariaLabel += ' — 25% off automatically';
 
         const badge = document.createElement('span');
         badge.dataset.largeBannerDiscountBadge = 'true';
         badge.setAttribute('aria-hidden', 'true');
-        badge.className = 'pointer-events-none absolute -right-2.5 -top-3.5 z-20 flex h-9 w-9 flex-col items-center justify-center rounded-full border-2 border-white bg-[#FF6A00] text-center text-[8px] font-black uppercase leading-[0.9] tracking-[-0.02em] text-white shadow-md';
+        badge.className = 'pointer-events-none absolute -right-2.5 top-1 z-20 flex h-9 w-9 flex-col items-center justify-center rounded-full border-2 border-white bg-[#FF6A00] text-center text-[8px] font-black uppercase leading-[0.9] tracking-[-0.02em] text-white shadow-md';
 
         const percentage = document.createElement('span');
         percentage.textContent = '25%';
@@ -133,7 +133,7 @@ export default function ConfigCard({
         'before:-translate-x-1/2',
         'before:whitespace-nowrap',
         'before:rounded-full',
-        'before:bg-orange-500',
+        'before:bg-[#FF6A00]',
         'before:px-1.5',
         'before:py-0.5',
         'before:text-[9px]',

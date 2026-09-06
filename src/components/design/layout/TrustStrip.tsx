@@ -18,10 +18,10 @@ export default function TrustStrip({
   supportEmail = 'support@bannersonthefly.com',
 }: TrustStripProps) {
   const items = [
-    { icon: Clock, title: 'Standard production', subtitle: 'Most orders within 24 hours', iconClass: 'text-orange-700' },
-    { icon: Truck, title: 'Free next-day air', subtitle: 'Carrier transit after production', iconClass: 'text-orange-700' },
-    { icon: ShieldCheck, title: 'Damage or defect review', subtitle: 'Eligible claims are reprinted', iconClass: 'text-orange-700' },
-    { icon: Smile, title: 'Order support', subtitle: 'Email us with questions', iconClass: 'text-orange-700' },
+    { icon: Clock, title: 'Standard production', subtitle: 'Most orders within 24 hours', iconClass: 'text-[#FF6A00]' },
+    { icon: Truck, title: 'Free next-day air', subtitle: 'Carrier transit after production', iconClass: 'text-[#FF6A00]' },
+    { icon: ShieldCheck, title: 'Damage or defect review', subtitle: 'Eligible claims are reprinted', iconClass: 'text-[#FF6A00]' },
+    { icon: Smile, title: 'Order support', subtitle: 'Email us with questions', iconClass: 'text-[#FF6A00]' },
   ];
 
   return (

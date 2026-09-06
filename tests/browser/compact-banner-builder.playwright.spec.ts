@@ -77,7 +77,7 @@ async function installUploadAndFunctionHarness(
       return;
     }
 
-    if (url.hostname !== '127.0.0.1' && url.hostname !== 'localhost') {
+    if (url.protocol !== 'blob:' && url.protocol !== 'data:' && url.hostname !== '127.0.0.1' && url.hostname !== 'localhost') {
       await route.abort();
       return;
     }
@@ -120,6 +120,11 @@ test('compact banner builder preserves dimensions, finishing, artwork and cart h
   const artwork = await asymmetricArtwork();
   const harness = await installUploadAndFunctionHarness(page, artwork, `compact-${testInfo.project.name}`);
   await page.goto('/google-ads-banner', { waitUntil: 'domcontentloaded' });
+  const strip = page.locator('[data-real-orders-strip]');
+  const builder = page.locator('#order-builder');
+  const stripBox = await strip.boundingBox();
+  const builderBox = await builder.boundingBox();
+  expect(Math.abs(builderBox!.y - (stripBox!.y + stripBox!.height))).toBeLessThanOrEqual(1);
   const action = page.locator('[data-banner-primary-action]:visible');
   const price = page.getByTestId('price-breakdown');
   await expect(action).toHaveCount(1);
@@ -158,7 +163,7 @@ test('compact banner builder preserves dimensions, finishing, artwork and cart h
   await size.getByRole('button', { name: "8' × 3' — 25% off automatically", exact: true }).click();
   await expect(preview).toBeVisible();
   await size.getByRole('button', { name: "6' × 3' — Most popular — 25% off automatically", exact: true }).click();
-  await preview.click();
+  await preview.locator('..').click();
   await page.getByRole('button', { name: 'Fit', exact: true }).first().click();
   await expect(price).toContainText('$60.75');
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
