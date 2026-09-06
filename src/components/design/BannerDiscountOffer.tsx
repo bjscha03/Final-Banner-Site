@@ -46,9 +46,10 @@ async function copyTextToClipboard(text: string): Promise<boolean> {
 export interface BannerDiscountOfferProps {
   /** Extra classes for width/margin so callers can fit their own layout. */
   className?: string;
+  variant?: 'default' | 'light';
 }
 
-const BannerDiscountOffer: React.FC<BannerDiscountOfferProps> = ({ className = '' }) => {
+const BannerDiscountOffer: React.FC<BannerDiscountOfferProps> = ({ className = '', variant = 'default' }) => {
   const [codeCopied, setCodeCopied] = useState(false);
 
   const handleCopyCode = async () => {
@@ -57,6 +58,23 @@ const BannerDiscountOffer: React.FC<BannerDiscountOfferProps> = ({ className = '
     setCodeCopied(true);
     window.setTimeout(() => setCodeCopied(false), 2000);
   };
+
+  if (variant === 'light') {
+    return (
+      <div data-banner-discount-offer className={`border-l-[3px] border-[#e65300] pl-4 text-[#061A31] ${className}`}>
+        <p className="text-base font-bold leading-6 sm:text-lg"><span className="text-xl font-extrabold text-[#c44700] sm:text-2xl">25% OFF</span> banners 6′ × 3′ &amp; larger</p>
+        <p className="mt-1 text-xs text-slate-600 sm:text-sm">Automatically applied. No code needed.</p>
+        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs sm:text-sm">
+          <p>Smaller banners: save <strong>20%</strong> with code</p>
+          <button type="button" onClick={handleCopyCode} aria-label={`Copy promo code ${SMALL_BANNER_PROMO_CODE}`} className="inline-flex min-h-11 items-center gap-2 rounded-md border border-[#061A31] bg-white px-3 font-bold hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e65300] focus-visible:ring-offset-2">
+            {SMALL_BANNER_PROMO_CODE}
+            {codeCopied ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : <Copy className="h-3.5 w-3.5" aria-hidden="true" />}
+          </button>
+          <span className="sr-only" aria-live="polite">{codeCopied ? 'Copied' : ''}</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

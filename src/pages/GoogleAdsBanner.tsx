@@ -143,77 +143,42 @@ function formatPresetLabel(w: number, h: number, unit: 'in' | 'ft'): string {
 }
 
 const FastBannerAdHero: React.FC<{ onStart: () => void }> = ({ onStart }) => (
-  <section
-    data-google-ads-hero
-    className="relative isolate overflow-hidden border-b-4 border-[#FF6A00] bg-[#F86408] text-[#071C35]"
-  >
-    <div
-      className="pointer-events-none absolute inset-0 z-0 opacity-45"
-      style={{
-        backgroundImage: 'radial-gradient(circle at 13% 18%, rgba(255,188,74,.72), transparent 35%), radial-gradient(circle at 39% 76%, rgba(146,48,0,.24), transparent 38%)',
-      }}
-      aria-hidden="true"
-    />
-
-    <div className="relative z-10 mx-auto flex max-w-[1855px] items-center px-5 py-10 sm:px-8 sm:py-12 xl:min-h-[700px] xl:px-16 xl:py-16 2xl:min-h-[748px]">
-      <div className="w-full xl:max-w-[760px]">
-        <h1 className="homepage-condensed max-w-[760px] [--homepage-mobile-size:clamp(2.5rem,12.5vw,5.1rem)] text-[5.1rem] font-black uppercase leading-[0.86] tracking-[-0.015em] text-[#071C35] sm:text-[clamp(4rem,10vw,6.6rem)] xl:text-[7.5rem]">
-          <span className="block whitespace-nowrap">Custom banners.</span><span className="block whitespace-nowrap">Without the wait.</span>
+  <section data-google-ads-hero className="border-b border-slate-100 bg-white text-[#061A31]">
+    <div className="mx-auto grid max-w-[1536px] gap-6 px-5 py-7 sm:px-8 sm:py-10 lg:grid-cols-[0.92fr_1.08fr] lg:items-center lg:gap-10 lg:px-10 lg:py-12">
+      <div className="min-w-0">
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#c44700] sm:text-sm">Custom vinyl banners</p>
+        <h1 className="mt-3 font-sans text-[clamp(2.2rem,8.7vw,3.5rem)] font-extrabold leading-[1.05] tracking-[-0.045em] lg:text-[clamp(2.5rem,4.25vw,4.5rem)]">
+          <span className="block">Big impact.</span>
+          <span className="block text-[#df5000]">Without the wait.</span>
         </h1>
-
+        <p className="mt-5 text-base leading-relaxed text-[#243e5c] sm:text-xl">
+          24-hour standard production.<br />Free next-day air after production.
+        </p>
         <button
           type="button"
           onClick={onStart}
-          className="mt-7 inline-flex min-h-14 w-full max-w-[505px] items-center justify-center gap-4 rounded-md bg-[#071C35] px-6 py-4 text-base font-black uppercase tracking-[0.035em] text-white shadow-[0_12px_30px_rgba(7,28,53,.2)] transition-colors hover:bg-[#10375f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#F86408] sm:text-lg"
+          className="mt-6 inline-flex min-h-14 w-full items-center justify-center gap-3 rounded-lg bg-[#e65300] px-4 py-4 text-base font-bold text-white transition-colors hover:bg-[#c44700] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#061A31] focus-visible:ring-offset-4 sm:max-w-[505px] sm:text-lg"
         >
-          Build &amp; price my banner <ArrowRight className="h-6 w-6" aria-hidden="true" />
+          Build &amp; price my banner <ArrowRight className="h-5 w-5 shrink-0" aria-hidden="true" />
         </button>
-
-        <BannerDiscountOffer className="mt-3 w-full max-w-[505px]" />
-        <HeroDeliveryStatus className="mt-3 w-full max-w-[505px]" />
+        <p className="mt-2 text-xs leading-5 text-slate-600 sm:text-sm">Upload your artwork · See your price · Preview instantly</p>
+        <BannerDiscountOffer variant="light" className="mt-6 w-full" />
+        <HeroDeliveryStatus variant="light" className="mt-6 w-full" />
       </div>
-    </div>
-
-    <picture className="relative z-[5] block w-full overflow-hidden bg-[#15283e] xl:absolute xl:bottom-[82px] xl:right-0 xl:top-0 xl:w-[57%]">
-      <source
-        type="image/avif"
-        srcSet="/images/google-ads/banner-collage-520.avif 520w, /images/google-ads/banner-collage-800.avif 800w, /images/google-ads/banner-collage-1040.avif 1040w"
-        sizes="(min-width: 1280px) 57vw, 100vw"
-      />
-      <source
-        type="image/webp"
-        srcSet="/images/google-ads/banner-collage-520.webp 520w, /images/google-ads/banner-collage-800.webp 800w, /images/google-ads/banner-collage-1040.webp 1040w"
-        sizes="(min-width: 1280px) 57vw, 100vw"
-      />
-      <img
-        src="/images/google-ads/banner-collage-1040.webp"
-        alt="Custom vinyl and mesh banners installed at a storefront, sports field, and market event"
-        width="1040"
-        height="748"
-        loading="eager"
-        decoding="sync"
-        fetchPriority="high"
-        className="aspect-[1040/748] h-auto w-full object-cover xl:h-full xl:object-cover xl:object-center"
-      />
-    </picture>
-
-    <div className="pointer-events-none absolute inset-y-0 left-0 z-[6] hidden w-[58%] bg-[linear-gradient(90deg,#F86408_0%,rgba(248,100,8,.99)_64%,rgba(248,100,8,.86)_82%,transparent_100%)] xl:block" aria-hidden="true" />
-
-    <div className="relative z-20 border-t border-[#FF6A00] bg-[#101820]/95 text-white">
-      <ul className="mx-auto grid max-w-[1600px] grid-cols-3 divide-x divide-[#FF6900]/80 px-2 py-3 sm:px-7 sm:py-4 xl:py-5" aria-label="Banner ordering benefits">
-        <li className="flex items-center justify-center gap-2 px-2 sm:gap-4 sm:px-6">
-          <Clock className="h-5 w-5 flex-none text-[#FF6900] sm:h-9 sm:w-9" aria-hidden="true" />
-          <span className="text-[9px] font-bold uppercase leading-3 sm:text-sm xl:text-base">24-hour standard production</span>
-        </li>
-        <li className="flex items-center justify-center gap-2 px-2 sm:gap-4 sm:px-6">
-          <Truck className="h-5 w-5 flex-none text-[#FF6900] sm:h-9 sm:w-9" aria-hidden="true" />
-          <span className="text-[9px] font-bold uppercase leading-3 sm:text-sm xl:text-base">Free next-day air after production</span>
-        </li>
-        <li className="flex items-center justify-center gap-2 px-2 sm:gap-4 sm:px-6">
-          <Monitor className="h-5 w-5 flex-none text-[#FF6900] sm:h-9 sm:w-9" aria-hidden="true" />
-          <span className="text-[9px] font-bold uppercase leading-3 sm:text-sm xl:text-base">Live print preview</span>
-        </li>
-      </ul>
+      <figure className="min-w-0">
+        <picture>
+          <source type="image/avif" srcSet="/images/google-ads/light-hero-640.avif 640w, /images/google-ads/light-hero-1200.avif 1200w" sizes="(min-width: 1536px) 760px, (min-width: 1024px) 52vw, 100vw" />
+          <img
+            src="/images/google-ads/light-hero-1200.webp"
+            srcSet="/images/google-ads/light-hero-640.webp 640w, /images/google-ads/light-hero-1200.webp 1200w"
+            sizes="(min-width: 1536px) 760px, (min-width: 1024px) 52vw, 100vw"
+            alt="Cream and orange grand opening vinyl banner mounted with grommets outside a sunny coffee shop"
+            width="1200" height="900" loading="eager" decoding="async" fetchPriority="high"
+            className="aspect-[4/3] w-full rounded-xl object-cover"
+          />
+        </picture>
+        <figcaption className="mt-2 text-center text-xs text-slate-600">Your artwork. Printed big. Ready to hang.</figcaption>
+      </figure>
     </div>
   </section>
 );
