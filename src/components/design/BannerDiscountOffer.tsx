@@ -10,8 +10,6 @@ import { Check, Copy } from 'lucide-react';
  * Never render this for yard signs or car magnets — the offer is banner-only.
  */
 const SMALL_BANNER_PROMO_CODE = '20OFF';
-const SMALL_BANNER_PROMO_HEADLINE = 'Up to 25% off';
-const SMALL_BANNER_PROMO_SUBLINE = "6' × 3' & larger banners save automatically. Smaller banners save 20% with code";
 
 /**
  * Copies `text` to the clipboard, preferring the async Clipboard API and
@@ -63,21 +61,25 @@ const BannerDiscountOffer: React.FC<BannerDiscountOfferProps> = ({ className = '
   return (
     <div
       data-banner-discount-offer
-      className={`flex min-h-14 flex-col justify-center gap-1.5 rounded-md border border-white/80 bg-white px-5 py-2.5 text-[#061A31] shadow-[0_9px_20px_rgba(57,20,0,.18)] ${className}`}
+      className={`rounded-lg border border-[#061A31]/15 bg-[#061A31]/[0.07] px-4 py-3 text-[#061A31] ${className}`}
     >
-      <span className="homepage-condensed text-3xl font-black uppercase leading-none text-[#E95413] sm:text-4xl">
-        {SMALL_BANNER_PROMO_HEADLINE}
-      </span>
-      <div className="flex flex-wrap items-center gap-1.5 border-t border-[#E95413]/40 pt-1.5 text-[10px] font-bold uppercase leading-4">
-        <span>{SMALL_BANNER_PROMO_SUBLINE}</span>
+      <div className="flex items-center gap-3 sm:gap-4">
+        <span className="homepage-condensed shrink-0 text-4xl font-black uppercase leading-none sm:text-5xl">25% OFF</span>
+        <div className="border-l border-[#061A31]/25 pl-3 text-sm leading-5 sm:pl-4">
+          <p className="font-bold">Banners 6′ × 3′ &amp; larger</p>
+          <p className="text-xs font-medium">Automatically applied. No code needed.</p>
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-[#061A31]/20 pt-2">
+        <p className="text-xs font-medium sm:text-sm">Smaller banners? <strong>Save 20%</strong> with</p>
         <button
           type="button"
           onClick={handleCopyCode}
           aria-label={`Copy promo code ${SMALL_BANNER_PROMO_CODE}`}
-          className="inline-flex items-center gap-1 rounded border border-[#E95413] px-1.5 py-0.5 font-black text-[#E95413] transition-colors hover:bg-[#E95413] hover:text-white"
+          className="inline-flex min-h-11 items-center gap-2 rounded-md bg-[#061A31] px-3 text-xs font-bold text-white transition-colors hover:bg-[#12375c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
         >
           {SMALL_BANNER_PROMO_CODE}
-          {codeCopied ? <Check className="h-3 w-3" aria-hidden="true" /> : <Copy className="h-3 w-3" aria-hidden="true" />}
+          {codeCopied ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : <Copy className="h-3.5 w-3.5" aria-hidden="true" />}
         </button>
         <span className="sr-only" aria-live="polite">{codeCopied ? 'Copied' : ''}</span>
       </div>
