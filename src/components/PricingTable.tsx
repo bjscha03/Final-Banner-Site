@@ -7,30 +7,34 @@ const materials = [
     name: '13oz Vinyl',
     profile: 'Lightweight vinyl',
     use: 'Indoor displays and short-term outdoor campaigns',
-    imageBase: '/images/homepage/material-13oz',
-    alt: '13 ounce vinyl banner used for an indoor trade show display',
+    image: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1788721124/banners-on-the-fly/homepage/material-13oz-printed-20260906.webp',
+    imageWidth: 275,
+    alt: '13 ounce vinyl coffee shop banner displayed on an indoor stand',
   },
   {
     name: '15oz Vinyl',
     profile: 'Versatile outdoor vinyl',
     use: 'Everyday outdoor promotions, events, and storefronts',
-    imageBase: '/images/homepage/material-15oz',
-    alt: '15 ounce vinyl grand opening banner mounted outdoors',
+    image: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1788721351/banners-on-the-fly/homepage/material-15oz-printed-20260906.webp',
+    imageWidth: 273,
+    alt: '15 ounce vinyl restaurant grand opening banner mounted on a storefront railing',
     recommended: true,
   },
   {
     name: '18oz Vinyl',
     profile: 'Heavy-duty vinyl',
     use: 'Heavy-duty and longer-term outdoor display needs',
-    imageBase: '/images/homepage/material-18oz',
-    alt: 'Heavy-duty 18 ounce vinyl banner mounted to a railing',
+    image: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1788721479/banners-on-the-fly/homepage/material-18oz-printed-20260906.webp',
+    imageWidth: 272,
+    alt: 'Heavy-duty 18 ounce vinyl construction hiring banner mounted outside a commercial building',
   },
   {
     name: 'Mesh Banner',
     profile: 'Wind-permeable mesh',
     use: 'Fences and outdoor placements where wind can pass through',
-    imageBase: '/images/homepage/material-mesh',
-    alt: 'Mesh sports banner secured to a chain-link fence',
+    image: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1788721642/banners-on-the-fly/homepage/material-mesh-printed-20260906.webp',
+    imageWidth: 274,
+    alt: 'Youth baseball mesh banner secured to a chain-link fence at a sports field',
   },
 ];
 
@@ -64,21 +68,11 @@ const PricingTable: React.FC = () => (
               className={`relative flex flex-col bg-[#FBF8F2] ${material.recommended ? 'border border-[#F45B08]' : ''}`}
             >
               <picture className="block overflow-hidden bg-[#E8E4DC]">
-                <source
-                  type="image/avif"
-                  srcSet={`${material.imageBase}-360.avif 360w, ${material.imageBase}-640.avif 640w, ${material.imageBase}-960.avif 960w`}
-                  sizes="(min-width: 1280px) 260px, (min-width: 640px) 45vw, calc(100vw - 2rem)"
-                />
-                <source
-                  type="image/webp"
-                  srcSet={`${material.imageBase}-360.webp 360w, ${material.imageBase}.webp 640w, ${material.imageBase}-960.webp 960w`}
-                  sizes="(min-width: 1280px) 260px, (min-width: 640px) 45vw, calc(100vw - 2rem)"
-                />
                 <img
-                  src={`${material.imageBase}.webp`}
+                  src={material.image}
                   alt={material.alt}
-                  width="640"
-                  height="960"
+                  width={material.imageWidth}
+                  height="448"
                   loading="lazy"
                   decoding="async"
                   fetchPriority="low"
