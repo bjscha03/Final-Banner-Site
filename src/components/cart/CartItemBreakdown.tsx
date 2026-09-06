@@ -35,6 +35,7 @@ export interface CartItemBreakdownProps {
   /** Banner-only subtotal used for quantity-discount allocation. */
   bannerRawSubtotalCents?: number;
   className?: string;
+  displayDiscountCents?: number;
 }
 
 interface BreakdownRow {
@@ -67,6 +68,7 @@ const buildRows = (
   resolved: ResolvedDiscount,
   cartRawSubtotalCents: number,
   bannerRawSubtotalCents: number,
+  displayDiscountCents?: number,
 ): { rows: BreakdownRow[]; baseSubtotalCents: number; lineTotalCents: number } => {
   const productType = productTypeOf(item);
   const lineTotalRaw = item.line_total_cents || 0;
@@ -139,6 +141,8 @@ const buildRows = (
     }
   }
 
+  if (displayDiscountCents !== undefined) allocatedDiscountCents = displayDiscountCents;
+
   if (allocatedDiscountCents > 0) {
     rows.push({
       label: discountLabel,
@@ -158,12 +162,14 @@ const CartItemBreakdown: React.FC<CartItemBreakdownProps> = ({
   cartRawSubtotalCents,
   bannerRawSubtotalCents,
   className = '',
+  displayDiscountCents,
 }) => {
   const { rows, baseSubtotalCents, lineTotalCents } = buildRows(
     item,
     resolvedDiscount,
     cartRawSubtotalCents,
     bannerRawSubtotalCents ?? cartRawSubtotalCents,
+    displayDiscountCents,
   );
 
   const hasAdjustment = lineTotalCents !== baseSubtotalCents;
