@@ -37,6 +37,7 @@ export interface PriceBreakdownPromo {
 }
 
 export interface PriceBreakdownProps {
+  variant?: 'default' | 'compact';
   /** Header heading shown above the big price (e.g. "Your Instant Quote"). */
   heading?: string;
   /** Header subheading (small caption under heading). */
@@ -116,6 +117,7 @@ export interface PriceBreakdownProps {
  * mobile. All data should come from a normalized pricing engine output.
  */
 const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
+  variant = 'default',
   heading,
   subheading,
   showHeader = false,
@@ -208,6 +210,34 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
   ]
     .filter(Boolean)
     .join(' ');
+
+  if (variant === 'compact') {
+    const discountCents = quantityDiscountCents + promoDiscountCents;
+    return (
+      <div data-testid="price-breakdown" data-variant="compact" className={className}>
+        <h3 className="text-xl font-bold text-[#061A31]">{heading || 'Your banner'}</h3>
+        <p className="mt-1 text-sm text-slate-600">{baseSubtotalCents > 0 ? secondaryLine : 'Choose a size to see your price.'}</p>
+        <div className="mt-4 flex flex-wrap items-baseline gap-3">
+          <p className="text-4xl font-bold tracking-tight text-[#061A31]">{usd(totalCents / 100)}</p>
+          {discountCents > 0 && <span className="text-sm text-slate-500 line-through">{usd((totalCents + discountCents) / 100)}</span>}
+        </div>
+        <p className="mt-1 text-xs text-slate-500">{taxCalculatedAtCheckout ? 'Subtotal before tax' : 'Total with tax'}</p>
+        {discountCents > 0 && <p className="mt-2 text-sm font-semibold text-emerald-700">{hasPromoDiscount ? promoDiscountLabel : quantityDiscountLabel} applied · You save {usd(discountCents / 100)}</p>}
+        <dl className="mt-4 space-y-2 border-t border-slate-200 pt-4 text-sm">
+          {detailRows?.map(row => <div key={row.label} className="flex justify-between gap-4"><dt className="text-slate-600">{row.label}</dt><dd className="text-right font-medium text-slate-800">{row.value}</dd></div>)}
+          {visibleAddOns.map(row => <div key={row.label} className="flex justify-between gap-4"><dt>{row.label}</dt><dd>{usd(row.amountCents / 100)}</dd></div>)}
+          {hasSameDayFee && <div className="flex justify-between gap-4"><dt>Same-Day Hit Service</dt><dd>{usd(sameDayHitServiceCents / 100)}</dd></div>}
+          {hasMinOrderAdjustment && <div className="flex justify-between gap-4"><dt>Minimum order adjustment</dt><dd>{usd(minOrderAdjustmentCents / 100)}</dd></div>}
+          <div className="flex justify-between gap-4"><dt>Shipping</dt><dd className="font-semibold text-emerald-700">{shippingValueLabel}</dd></div>
+          <div className="flex justify-between gap-4"><dt>Tax</dt><dd className="text-right">{taxCalculatedAtCheckout ? 'Calculated at checkout' : usd(taxCents / 100)}</dd></div>
+        </dl>
+        {promo && <details className="mt-4 border-t border-slate-200 pt-3" open={promo.applied || undefined}>
+          <summary className="cursor-pointer py-2 text-sm font-medium text-slate-700">Have a promo code?</summary>
+          {promo.applied ? <div className="flex items-center gap-3 py-2 text-xs text-slate-700"><p className="min-w-0 flex-1">{promo.appliedLabel || `${promo.code} applied`}</p><button type="button" onClick={promo.onRemove} className="min-h-11 px-2 font-semibold underline">Clear code</button></div> : <div className="mt-2 flex gap-2"><input aria-label="Promo code" placeholder="Promo Code" value={promo.code} onChange={e => promo.onCodeChange(e.target.value.toUpperCase())} className="min-w-0 flex-1 rounded-lg border px-3 py-2 text-base" autoComplete="off" /><button type="button" onClick={promo.onApply} className="min-h-11 rounded-lg bg-slate-100 px-3 text-sm font-semibold">Apply</button></div>}
+        </details>}
+      </div>
+    );
+  }
 
   return (
     <div

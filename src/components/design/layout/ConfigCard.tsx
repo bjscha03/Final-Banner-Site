@@ -3,6 +3,7 @@ import { isQualifyingLargeBannerDimensions } from '@/lib/largeBannerPromotion';
 import StepHeader from './StepHeader';
 
 export interface ConfigCardProps {
+  compact?: boolean;
   step?: number;
   title?: string;
   headerRight?: React.ReactNode;
@@ -40,6 +41,7 @@ function parsePresetDimensions(label: string): { widthIn: number; heightIn: numb
  * inside a soft-bordered, rounded, lightly-shadowed card.
  */
 export default function ConfigCard({
+  compact = false,
   step,
   title,
   headerRight,
@@ -165,9 +167,9 @@ export default function ConfigCard({
     <section
       ref={sectionRef}
       id={id}
-      className={`bg-white border border-[#E5E7EB] rounded-xl shadow-sm p-4 md:p-6 scroll-mt-32 md:scroll-mt-24 ${className ?? ''}`}
+      className={`${compact ? "min-w-0" : "bg-white border border-[#E5E7EB] rounded-xl shadow-sm p-4 md:p-6"} scroll-mt-32 md:scroll-mt-24 ${className ?? ''}`}
     >
-      {typeof step === 'number' && title ? (
+      {compact ? <><h3 className="mb-2 text-sm font-semibold text-slate-700">{title}</h3>{body}</> : typeof step === 'number' && title ? (
         <>
           <StepHeader step={step} title={title} rightSlot={headerRight} />
           <div className={`mt-4 ${bodyClassName ?? ''}`}>{body}</div>

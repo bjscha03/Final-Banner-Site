@@ -2507,6 +2507,419 @@ const GoogleAdsBanner: React.FC = () => {
     });
   }, [mobileCta.label, mobileCta.disabled, productType]);
 
+
+  const bannerAction = isProcessingUpsell || isUploading
+    ? { label: isUploading ? 'Uploading…' : 'Preparing preview…', disabled: true, onClick: () => {} }
+    : hasJustAddedToCart
+      ? { label: 'View cart', disabled: false, onClick: openCartDrawer }
+      : !hasCommittedBannerSize
+        ? { label: 'Choose a size', disabled: false, onClick: () => { setHasEnteredBuilder(true); scrollToStepAnchor('size-section'); } }
+        : !uploadedFile
+          ? { label: uploadError ? 'Retry upload' : 'Upload artwork', disabled: false, onClick: openOrScrollToUpload }
+          : { label: 'Add to cart', disabled: false, onClick: handleAddToCart };
+
+  const materialCard = (<ConfigCard compact={!isCarMagnet} step={2} title="Material" id="material-section">
+                    <div ref={materialDropdownRef} className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setMaterialDropdownOpen(prev => !prev)}
+                        aria-expanded={materialDropdownOpen}
+                        aria-haspopup="listbox"
+                        className="flex min-h-14 w-full cursor-pointer items-center gap-3 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base transition-colors hover:border-[#18448D]"
+                      >
+                        <img
+                          src={selectedMaterial.image}
+                          alt=""
+                          className="h-9 w-9 flex-shrink-0 rounded bg-gray-100 object-cover"
+                          onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                        <span className="min-w-0 flex-1 text-left font-semibold text-gray-800">{selectedMaterial.label}</span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#EAF1FB] px-2 py-1 text-[11px] font-bold text-[#18448D]">
+                          <CheckCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                          Selected
+                        </span>
+                        <svg className={`h-4 w-4 flex-shrink-0 text-gray-400 transition-transform ${materialDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                      </button>
+                      {materialDropdownOpen && (
+                        <div role="listbox" aria-label="Banner material" className="absolute z-30 mt-1 max-h-72 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg">
+                          {MATERIALS.map(m => (
+                            <button
+                              key={m.key}
+                              type="button"
+                              role="option"
+                              aria-selected={m.mapped === material}
+                              onClick={() => { setMaterial(m.mapped); setMaterialDropdownOpen(false); }}
+                              className={`flex w-full cursor-pointer items-center gap-3 border-l-2 px-3 py-3 text-left transition-colors ${m.mapped === material ? 'border-orange-500 bg-orange-50' : 'border-transparent hover:bg-gray-50'}`}
+                            >
+                              <img
+                                src={m.image}
+                                alt=""
+                                className="h-10 w-10 flex-shrink-0 rounded bg-gray-100 object-cover"
+                                onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                              />
+                              <div className="min-w-0">
+                                <div className={`text-sm font-medium ${m.mapped === material ? 'text-orange-700' : 'text-gray-800'}`}>{m.label}</div>
+                                <div className="text-xs text-gray-500">{m.desc}</div>
+                              </div>
+                              {m.mapped === material && (
+                                <CheckCircle className="ml-auto h-4 w-4 flex-shrink-0 text-orange-500" aria-hidden="true" />
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </ConfigCard>);
+  const quantityCard = (<ConfigCard compact={!isCarMagnet} step={isCarMagnet ? 2 : 3} title="Quantity" id="quantity-section">
+                  {isCarMagnet && (
+                    <div className="mb-4 flex items-start gap-2 rounded-xl border border-[#D7E3F4] bg-[#F4F8FD] px-3 py-2.5 text-sm text-slate-700">
+                      <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#18448D]" aria-hidden="true" />
+                      <p><strong className="text-[#0B1F3A]">Premium magnetic material is included.</strong> There is no material choice for car magnets.</p>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3">
+                    <button type="button" aria-label="Decrease quantity" onClick={() => setQuantity(q => Math.max(1, q - 1))} className="w-11 h-11 flex items-center justify-center border border-gray-200 rounded-xl hover:border-gray-400 transition-colors">
+                      <Minus className="h-4 w-4 text-gray-600" />
+                    </button>
+                    <input type="number" min={1} max={999} value={quantity} aria-label="Quantity" onChange={e => setQuantity(Math.max(1, +e.target.value || 1))} className="h-11 w-20 border rounded-xl px-3 py-1.5 text-base text-center" />
+                    <button type="button" aria-label="Increase quantity" onClick={() => setQuantity(q => Math.min(999, q + 1))} className="w-11 h-11 flex items-center justify-center border border-gray-200 rounded-xl hover:border-gray-400 transition-colors">
+                      <Plus className="h-4 w-4 text-gray-600" />
+                    </button>
+                  </div>
+                  {!isCarMagnet && bannerPromoResolution.appliedDiscountType === 'quantity' && quantityDiscountRate > 0 && (
+                    <p className="text-xs text-green-600 font-medium mt-1.5">
+                      🎉 {Math.round(quantityDiscountRate * 100)}% bulk discount applied at checkout
+                    </p>
+                  )}
+                  {!isCarMagnet && bannerPromoResolution.promotionId === 'LARGE_BANNER_25' && quantityDiscountRate > 0 && (
+                    <p className="mt-1.5 text-xs font-medium text-emerald-700">
+                      Large Banner 25% Off applied automatically. Quantity discounts cannot be combined.
+                    </p>
+                  )}
+                  {!isCarMagnet && quantity === 1 && bannerPromoResolution.promotionId !== 'LARGE_BANNER_25' && (
+                    <p className="text-xs text-gray-400 mt-1.5">Order 2+ for up to 13% off</p>
+                  )}
+                </ConfigCard>);
+  const sizeCard = (<ConfigCard
+                  step={1}
+                  title={isCarMagnet ? "Choose your size" : "Size & quantity"}
+                  id="size-section"
+                  headerRight={!isCarMagnet ? (
+                    <div className="inline-flex items-center rounded-lg border border-gray-200 bg-white p-0.5 text-xs" role="group" aria-label="Display unit">
+                      <button
+                        type="button"
+                        aria-pressed={unit === 'in'}
+                        onClick={() => setUnit('in')}
+                        className={`px-2.5 py-1 rounded-md transition-colors ${unit === 'in' ? 'bg-orange-500 text-white font-semibold' : 'text-gray-600 hover:text-gray-800'}`}
+                      >
+                        Inches
+                      </button>
+                      <button
+                        type="button"
+                        aria-pressed={unit === 'ft'}
+                        onClick={() => setUnit('ft')}
+                        className={`px-2.5 py-1 rounded-md transition-colors ${unit === 'ft' ? 'bg-orange-500 text-white font-semibold' : 'text-gray-600 hover:text-gray-800'}`}
+                      >
+                        Feet
+                      </button>
+                    </div>
+                  ) : undefined}
+                >
+                  <div className={isCarMagnet ? '' : 'grid lg:grid-cols-2 lg:gap-6'}>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Popular Sizes</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {isCarMagnet
+                          ? CAR_MAGNET_SIZES.map((p) => (
+                              <button key={p.label} onClick={() => setCarMagnetSizeLabel(p.label)} className={`border rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${carMagnetSizeLabel === p.label ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
+                                {p.label}
+                              </button>
+                            ))
+                          : PRESET_SIZES.map((p, i) => (
+                              <button key={i} onClick={() => applyPreset(i)} className={`border rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${activePreset === i ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
+                                {formatPresetLabel(p.w, p.h, unit)}
+                              </button>
+                            ))}
+                      </div>
+                    </div>
+                    {!isCarMagnet && (
+                    <div className="mt-6 lg:mt-0">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Custom Size</label>
+                      {unit === 'in' ? (
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <span className="text-xs text-gray-500">Width</span>
+                            <div className="flex gap-1 mt-1">
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                value={widthCustomInStr}
+                                aria-label="Banner width in inches"
+                                onChange={e => {
+                                  setWidthCustomInStr(e.target.value);
+                                  setActivePreset(null);
+                                }}
+                                onFocus={e => e.target.select()}
+                                onBlur={() => {
+                                  const n = parseInt(widthCustomInStr, 10);
+                                  const clamped = Math.max(1, Math.min(600, Number.isFinite(n) ? n : 1));
+                                  setWidthCustomInStr(String(clamped));
+                                  setWidthFtStr(String(Math.floor(clamped / 12)));
+                                  setWidthInRStr(String(clamped % 12));
+                                }}
+                                className="min-w-0 w-full max-w-20 border rounded-lg px-2 py-1.5 text-base"
+                              />
+                              <span className="self-center text-xs text-gray-500">in</span>
+                            </div>
+                          </div>
+                          <div>
+                            <span className="text-xs text-gray-500">Height</span>
+                            <div className="flex gap-1 mt-1">
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                value={heightCustomInStr}
+                                aria-label="Banner height in inches"
+                                onChange={e => {
+                                  setHeightCustomInStr(e.target.value);
+                                  setActivePreset(null);
+                                }}
+                                onFocus={e => e.target.select()}
+                                onBlur={() => {
+                                  const n = parseInt(heightCustomInStr, 10);
+                                  const clamped = Math.max(1, Math.min(600, Number.isFinite(n) ? n : 1));
+                                  setHeightCustomInStr(String(clamped));
+                                  setHeightFtStr(String(Math.floor(clamped / 12)));
+                                  setHeightInRStr(String(clamped % 12));
+                                }}
+                                className="min-w-0 w-full max-w-20 border rounded-lg px-2 py-1.5 text-base"
+                              />
+                              <span className="self-center text-xs text-gray-500">in</span>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <span className="text-xs text-gray-500">Width</span>
+                            <div className="flex gap-1 mt-1">
+                              <input type="text" inputMode="numeric" pattern="[0-9]*" value={widthFtStr}
+                                aria-label="Banner width feet" onChange={e => { setWidthFtStr(e.target.value); setActivePreset(null); }} onFocus={e => e.target.select()} onBlur={() => { const n = parseInt(widthFtStr, 10); setWidthFtStr(String(isNaN(n) ? 1 : Math.max(1, Math.min(50, n)))); }} className="min-w-0 w-full max-w-16 border rounded-lg px-2 py-1.5 text-base" />
+                              <span className="self-center text-xs text-gray-500">ft</span>
+                              <input type="text" inputMode="numeric" pattern="[0-9]*" value={widthInRStr}
+                                aria-label="Banner width remaining inches" onChange={e => { setWidthInRStr(e.target.value); setActivePreset(null); }} onFocus={e => e.target.select()} onBlur={() => { const n = parseInt(widthInRStr, 10); setWidthInRStr(String(isNaN(n) ? 0 : Math.max(0, Math.min(11, n)))); }} className="min-w-0 w-full max-w-16 border rounded-lg px-2 py-1.5 text-base" />
+                              <span className="self-center text-xs text-gray-500">in</span>
+                            </div>
+                          </div>
+                          <div>
+                            <span className="text-xs text-gray-500">Height</span>
+                            <div className="flex gap-1 mt-1">
+                              <input type="text" inputMode="numeric" pattern="[0-9]*" value={heightFtStr}
+                                aria-label="Banner height feet" onChange={e => { setHeightFtStr(e.target.value); setActivePreset(null); }} onFocus={e => e.target.select()} onBlur={() => { const n = parseInt(heightFtStr, 10); setHeightFtStr(String(isNaN(n) ? 1 : Math.max(1, Math.min(50, n)))); }} className="min-w-0 w-full max-w-16 border rounded-lg px-2 py-1.5 text-base" />
+                              <span className="self-center text-xs text-gray-500">ft</span>
+                              <input type="text" inputMode="numeric" pattern="[0-9]*" value={heightInRStr}
+                                aria-label="Banner height remaining inches" onChange={e => { setHeightInRStr(e.target.value); setActivePreset(null); }} onFocus={e => e.target.select()} onBlur={() => { const n = parseInt(heightInRStr, 10); setHeightInRStr(String(isNaN(n) ? 0 : Math.max(0, Math.min(11, n)))); }} className="min-w-0 w-full max-w-16 border rounded-lg px-2 py-1.5 text-base" />
+                              <span className="self-center text-xs text-gray-500">in</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      <p className="text-xs text-gray-500 mt-1">{sqft.toFixed(1)} sq ft</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {unit === 'in'
+                          ? `≈ ${widthFt}${widthInR > 0 ? ` ft ${widthInR} in` : ' ft'} × ${heightFt}${heightInR > 0 ? ` ft ${heightInR} in` : ' ft'}`
+                          : `≈ ${widthIn} in × ${heightIn} in`}
+                      </p>
+                    </div>
+                    )}
+                  </div>
+                {!isCarMagnet && <div className="mt-5 grid gap-4 border-t border-slate-200 pt-4 sm:grid-cols-[minmax(0,1fr)_auto]">{materialCard}{quantityCard}</div>}
+                </ConfigCard>);
+  const finishingCard = (<ConfigCard step={3} title={isCarMagnet ? 'Rounded Corners' : 'Finishing options'} id="options-section">
+                  <div className="space-y-3">
+                    {isCarMagnet ? (
+                      <div>
+                        <select value={carMagnetRoundedCorners} onChange={e => setCarMagnetRoundedCorners(e.target.value as CarMagnetRoundedCorner)} className="w-full border rounded-xl px-3 py-1.5 text-base mt-1 bg-white">
+                          {CAR_MAGNET_ROUNDED_CORNERS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                        </select>
+                      </div>
+                    ) : (
+                      <FinishingOptionsCard
+                        compact
+                        finishingType={finishingType}
+                        setFinishingType={setFinishingType}
+                        grommets={grommets}
+                        setGrommets={setGrommets}
+                        polePockets={polePockets}
+                        setPolePockets={setPolePockets}
+                        addRope={addRope}
+                        setAddRope={setAddRope}
+                        ropePlacement={ropePlacement}
+                        setRopePlacement={setRopePlacement}
+                      />
+                    )}
+                  </div>
+                </ConfigCard>);
+  const uploadCard = (<ConfigCard step={isCarMagnet ? 4 : 2} title="Upload your artwork" id="upload-section">
+                  {/* Helper banner: shown when the user reaches the upload card before
+                      completing required choices. Doesn't block upload — just surfaces
+                      what still needs to happen before "Add to Cart" works. */}
+                  {!isYardSign && !isCarMagnet && !uploadedFile && (() => {
+                    const missing: string[] = [];
+                    if (!hasCommittedBannerSize) missing.push('size');
+                    if (!material) missing.push('material');
+                    if (missing.length === 0) return null;
+                    return (
+                      <p className="mb-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                        Choose {missing.join(' and ')} before adding to cart.
+                      </p>
+                    );
+                  })()}
+                  {!uploadedFile ? (
+                    <>
+                      <FileUploader
+                        ref={fileUploaderRef}
+                        onUpload={handleFileUpload}
+                        acceptedTypes="image/png,image/jpeg,application/pdf,.png,.jpg,.jpeg,.pdf"
+                        maxSize={50 * 1024 * 1024}
+                        label="Upload your artwork"
+                        subText={`PNG, JPG, or PDF • Max 50MB • ${widthDisplay} × ${heightDisplay}`}
+                        isUploading={isUploading}
+                        style={previewCanvasStyle}
+                        className="mx-auto"
+                      />
+                      {!isYardSign && !isCarMagnet && showCreateWithAI && (
+                        <div className="mt-3 flex flex-col items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setAiModalOpen(true)}
+                            disabled={!hasCommittedBannerSize || !material || isUploading}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-500 text-white text-sm font-semibold shadow-sm hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            <Sparkles className="w-4 h-4" />
+                            Create with AI
+                          </button>
+                          {(!widthIn || !heightIn || !material) && (
+                            <p className="text-xs text-gray-500">
+                              Select size and material first so AI can fit your design perfectly.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div>
+                      {/* Preview labeling */}
+                      <div className="mb-2">
+                        <h3 className="text-sm font-bold text-gray-800">{isYardSign ? 'Live Yard Sign Preview' : isCarMagnet ? 'Live Car Magnet Preview' : 'Live Banner Preview'}</h3>
+                        <p className="text-xs text-gray-400">Final print preview — what you see is what you get</p>
+                      </div>
+                      {/* Banner preview with depth background */}
+                      <div className="rounded-xl p-4 md:p-6 max-w-full overflow-hidden bg-slate-300 border border-slate-400/70 shadow-inner">
+                        {/* Width wrapper — constrains max-width so padding-bottom produces correct height */}
+                        <PreviewRulerFrame
+                          widthIn={widthIn}
+                          heightIn={heightIn}
+                          unit={isCarMagnet ? 'in' : unit}
+                          debug={import.meta.env.DEV}
+                          className="mx-auto max-w-full"
+                          style={previewWrapperStyle}
+                        >
+                          {/* PR3: Modern Canva-style artwork editor (drag,
+                              resize handles, fit/fill/reset/constrain). */}
+                          <ArtworkPreviewEditor
+                            ref={inlineEditorRef}
+                            compositionKey={buildArtworkCompositionKey(uploadedFile, productType)}
+                            initialNormalizedTransform={restoredNormalizedTransform}
+                            initialCompositionRevision={restoredCompositionRevision}
+                            src={uploadedFile.previewUrl || uploadedFile.thumbnailUrl || uploadedFile.url}
+                            previewUrl={uploadedFile.previewUrl || uploadedFile.thumbnailUrl || null}
+                            productionUrl={uploadedFile.productionUrl || uploadedFile.url}
+                            resourceType={uploadedFile.resourceType}
+                            mimeType={uploadedFile.mimeType}
+                            onRetryPreview={uploadedFile.isPdf ? handleRetryPdfPreview : undefined}
+                            alt="Uploaded artwork preview"
+                            paddingPct={previewPaddingPct}
+                            containerRef={previewContainerRef}
+                            mobileToolbarContainer={inlineMobileToolbarEl}
+                            value={{ x: imgPos.x, y: imgPos.y, scaleX: imgScale, scaleY: imgScaleY }}
+                            onChange={(v) => {
+                              setImgPos({ x: v.x, y: v.y });
+                              setImgScale(v.scaleX);
+                              setImgScaleY(v.scaleY);
+                            }}
+                            constrain={constrainProps}
+                            onConstrainChange={setConstrainProps}
+                            showDragHint={showDragHint}
+                            canvasStyle={{
+                              backgroundColor: '#ffffff',
+                              borderRadius: 2,
+                              border: '1px solid #94a3b8',
+                              boxShadow: '0 14px 28px -10px rgba(15, 23, 42, 0.28), 0 4px 8px rgba(15, 23, 42, 0.10), inset 0 0 0 1px rgba(255,255,255,0.6)',
+                            }}
+                            overlay={
+                              grommets !== 'none' ? (
+                                <svg
+                                  className="absolute inset-0 w-full h-full pointer-events-none"
+                                  viewBox={`0 0 ${widthIn} ${heightIn}`}
+                                  preserveAspectRatio="none"
+                                  style={{ zIndex: 10 }}
+                                  aria-hidden="true"
+                                >
+                                  <GrommetOverlay
+                                    widthIn={widthIn}
+                                    heightIn={heightIn}
+                                    option={grommets}
+                                    idSuffix="ga-inline"
+                                  />
+                                </svg>
+                              ) : null
+                            }
+                          />
+                        </PreviewRulerFrame>{/* close ruler frame */}
+                      </div>
+                      {/* Toolbar slot: Fit/Fill/Reset/Locked render here
+                          BELOW the canvas on every screen size so they
+                          do not cover the printable artwork. */}
+                      <div
+                        ref={setInlineMobileToolbarEl}
+                        className="mt-2"
+                        data-mobile-artwork-toolbar="ga-inline"
+                      />
+                      {/* Size dimensions below preview */}
+                      <p className="text-xs text-gray-400 text-center mt-2">
+                        Size: {isCarMagnet ? `${widthIn}" × ${heightIn}"` : `${widthFt} ft${widthInR > 0 ? ` ${widthInR} in` : ''} × ${heightFt} ft${heightInR > 0 ? ` ${heightInR} in` : ''}`} ({sqft.toFixed(1)} sq ft)
+                      </p>
+                      {/* Confidence text */}
+                      <p className="text-xs text-gray-500 text-center mt-1 font-medium">Your design will be printed based on this preview</p>
+                      {/* File info bar */}
+                      <div className="mt-2 p-3 flex items-center justify-between bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+                          <span className="text-sm font-semibold text-green-800 truncate">{uploadedFile.name}</span>
+                        </div>
+                        <button type="button" aria-label="Remove uploaded artwork" onClick={() => { setUploadedFile(null); setImgPos({ x: 0, y: 0 }); setImgScale(1); setImgScaleY(1); setAiPrompt(null); setAiEditPrompt(null); setAiDesignSession(null); }} className="ml-2 flex-shrink-0 p-2.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
+                      </div>
+                      {aiPrompt && !isYardSign && !isCarMagnet && showCreateWithAI && (
+                        <div className="mt-2 flex justify-center">
+                          <button
+                            type="button"
+                            onClick={() => setAiEditModalOpen(true)}
+                            disabled={!hasCommittedBannerSize || !material || isUploading}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#0b1f3a] text-white text-sm font-semibold shadow-sm hover:bg-[#12345d] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            <Sparkles className="w-4 h-4" />
+                            Edit with AI
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {uploadError && <p className="text-xs text-red-600 mt-2">{uploadError}</p>}
+                  <p className="text-xs text-gray-400 mt-2 text-center">Every file reviewed by a real designer before printing.</p>
+                </ConfigCard>);
   const heroContent = isYardSign
     ? {
         eyebrow: '24″ × 18″ YARD SIGNS · NATIONWIDE SHIPPING',
@@ -2771,433 +3184,17 @@ const GoogleAdsBanner: React.FC = () => {
                 </div>
               </div>
             ) : (
-            /* ========== BANNER ORDER BUILDER (existing) ========== */
-            <div className="grid md:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-10 max-w-full">
-              <div className="space-y-6 min-w-0 max-w-full">
-                {false ? (
-                  null /* placeholder — yard sign path handled above */
-                ) : (
-                  <>
-                {/* Step 1 — Choose your size. Wraps the in/ft toggle (header right slot, banner only),
-                    popular sizes, and custom size inputs. */}
-                <ConfigCard
-                  step={1}
-                  title="Choose your size"
-                  id="size-section"
-                  headerRight={!isCarMagnet ? (
-                    <div className="inline-flex items-center rounded-lg border border-gray-200 bg-white p-0.5 text-xs" role="group" aria-label="Display unit">
-                      <button
-                        type="button"
-                        aria-pressed={unit === 'in'}
-                        onClick={() => setUnit('in')}
-                        className={`px-2.5 py-1 rounded-md transition-colors ${unit === 'in' ? 'bg-orange-500 text-white font-semibold' : 'text-gray-600 hover:text-gray-800'}`}
-                      >
-                        Inches
-                      </button>
-                      <button
-                        type="button"
-                        aria-pressed={unit === 'ft'}
-                        onClick={() => setUnit('ft')}
-                        className={`px-2.5 py-1 rounded-md transition-colors ${unit === 'ft' ? 'bg-orange-500 text-white font-semibold' : 'text-gray-600 hover:text-gray-800'}`}
-                      >
-                        Feet
-                      </button>
-                    </div>
-                  ) : undefined}
-                >
-                  <div className={isCarMagnet ? '' : 'grid lg:grid-cols-2 lg:gap-6'}>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Popular Sizes</label>
-                      <div className="grid grid-cols-3 gap-2">
-                        {isCarMagnet
-                          ? CAR_MAGNET_SIZES.map((p) => (
-                              <button key={p.label} onClick={() => setCarMagnetSizeLabel(p.label)} className={`border rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${carMagnetSizeLabel === p.label ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
-                                {p.label}
-                              </button>
-                            ))
-                          : PRESET_SIZES.map((p, i) => (
-                              <button key={i} onClick={() => applyPreset(i)} className={`border rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${activePreset === i ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
-                                {formatPresetLabel(p.w, p.h, unit)}
-                              </button>
-                            ))}
-                      </div>
-                    </div>
-                    {!isCarMagnet && (
-                    <div className="mt-6 lg:mt-0">
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Custom Size</label>
-                      {unit === 'in' ? (
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <span className="text-xs text-gray-500">Width</span>
-                            <div className="flex gap-1 mt-1">
-                              <input
-                                type="text"
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                value={widthCustomInStr}
-                                aria-label="Banner width in inches"
-                                onChange={e => {
-                                  setWidthCustomInStr(e.target.value);
-                                  setActivePreset(null);
-                                }}
-                                onFocus={e => e.target.select()}
-                                onBlur={() => {
-                                  const n = parseInt(widthCustomInStr, 10);
-                                  const clamped = Math.max(1, Math.min(600, Number.isFinite(n) ? n : 1));
-                                  setWidthCustomInStr(String(clamped));
-                                  setWidthFtStr(String(Math.floor(clamped / 12)));
-                                  setWidthInRStr(String(clamped % 12));
-                                }}
-                                className="w-20 border rounded-lg px-2 py-1.5 text-base"
-                              />
-                              <span className="self-center text-xs text-gray-500">in</span>
-                            </div>
-                          </div>
-                          <div>
-                            <span className="text-xs text-gray-500">Height</span>
-                            <div className="flex gap-1 mt-1">
-                              <input
-                                type="text"
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                value={heightCustomInStr}
-                                aria-label="Banner height in inches"
-                                onChange={e => {
-                                  setHeightCustomInStr(e.target.value);
-                                  setActivePreset(null);
-                                }}
-                                onFocus={e => e.target.select()}
-                                onBlur={() => {
-                                  const n = parseInt(heightCustomInStr, 10);
-                                  const clamped = Math.max(1, Math.min(600, Number.isFinite(n) ? n : 1));
-                                  setHeightCustomInStr(String(clamped));
-                                  setHeightFtStr(String(Math.floor(clamped / 12)));
-                                  setHeightInRStr(String(clamped % 12));
-                                }}
-                                className="w-20 border rounded-lg px-2 py-1.5 text-base"
-                              />
-                              <span className="self-center text-xs text-gray-500">in</span>
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <span className="text-xs text-gray-500">Width</span>
-                            <div className="flex gap-1 mt-1">
-                              <input type="text" inputMode="numeric" pattern="[0-9]*" value={widthFtStr}
-                                aria-label="Banner width feet" onChange={e => { setWidthFtStr(e.target.value); setActivePreset(null); }} onFocus={e => e.target.select()} onBlur={() => { const n = parseInt(widthFtStr, 10); setWidthFtStr(String(isNaN(n) ? 1 : Math.max(1, Math.min(50, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
-                              <span className="self-center text-xs text-gray-500">ft</span>
-                              <input type="text" inputMode="numeric" pattern="[0-9]*" value={widthInRStr}
-                                aria-label="Banner width remaining inches" onChange={e => { setWidthInRStr(e.target.value); setActivePreset(null); }} onFocus={e => e.target.select()} onBlur={() => { const n = parseInt(widthInRStr, 10); setWidthInRStr(String(isNaN(n) ? 0 : Math.max(0, Math.min(11, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
-                              <span className="self-center text-xs text-gray-500">in</span>
-                            </div>
-                          </div>
-                          <div>
-                            <span className="text-xs text-gray-500">Height</span>
-                            <div className="flex gap-1 mt-1">
-                              <input type="text" inputMode="numeric" pattern="[0-9]*" value={heightFtStr}
-                                aria-label="Banner height feet" onChange={e => { setHeightFtStr(e.target.value); setActivePreset(null); }} onFocus={e => e.target.select()} onBlur={() => { const n = parseInt(heightFtStr, 10); setHeightFtStr(String(isNaN(n) ? 1 : Math.max(1, Math.min(50, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
-                              <span className="self-center text-xs text-gray-500">ft</span>
-                              <input type="text" inputMode="numeric" pattern="[0-9]*" value={heightInRStr}
-                                aria-label="Banner height remaining inches" onChange={e => { setHeightInRStr(e.target.value); setActivePreset(null); }} onFocus={e => e.target.select()} onBlur={() => { const n = parseInt(heightInRStr, 10); setHeightInRStr(String(isNaN(n) ? 0 : Math.max(0, Math.min(11, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
-                              <span className="self-center text-xs text-gray-500">in</span>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      <p className="text-xs text-gray-500 mt-1">{sqft.toFixed(1)} sq ft</p>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        {unit === 'in'
-                          ? `≈ ${widthFt}${widthInR > 0 ? ` ft ${widthInR} in` : ' ft'} × ${heightFt}${heightInR > 0 ? ` ft ${heightInR} in` : ' ft'}`
-                          : `≈ ${widthIn} in × ${heightIn} in`}
-                      </p>
-                    </div>
-                    )}
-                  </div>
-                </ConfigCard>
-                {!isCarMagnet && (
-                  <ConfigCard step={2} title="Select material" id="material-section">
-                    <div ref={materialDropdownRef} className="relative">
-                      <button
-                        type="button"
-                        onClick={() => setMaterialDropdownOpen(prev => !prev)}
-                        aria-expanded={materialDropdownOpen}
-                        aria-haspopup="listbox"
-                        className="flex min-h-14 w-full cursor-pointer items-center gap-3 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base transition-colors hover:border-[#18448D]"
-                      >
-                        <img
-                          src={selectedMaterial.image}
-                          alt=""
-                          className="h-9 w-9 flex-shrink-0 rounded bg-gray-100 object-cover"
-                          onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                        />
-                        <span className="min-w-0 flex-1 text-left font-semibold text-gray-800">{selectedMaterial.label}</span>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[#EAF1FB] px-2 py-1 text-[11px] font-bold text-[#18448D]">
-                          <CheckCircle className="h-3.5 w-3.5" aria-hidden="true" />
-                          Selected
-                        </span>
-                        <svg className={`h-4 w-4 flex-shrink-0 text-gray-400 transition-transform ${materialDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                      </button>
-                      <p className="mt-2 flex items-start gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600">
-                        <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#18448D]" aria-hidden="true" />
-                        <span><strong className="text-slate-800">{selectedMaterial.label}</strong> is {hasConfirmedMaterial ? 'selected' : 'selected by default'}. Leave it as-is or open the menu to choose another banner material.</span>
-                      </p>
-                      {materialDropdownOpen && (
-                        <div role="listbox" aria-label="Banner material" className="absolute z-30 mt-1 max-h-72 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg">
-                          {MATERIALS.map(m => (
-                            <button
-                              key={m.key}
-                              type="button"
-                              role="option"
-                              aria-selected={m.mapped === material}
-                              onClick={() => { setMaterial(m.mapped); setMaterialDropdownOpen(false); }}
-                              className={`flex w-full cursor-pointer items-center gap-3 border-l-2 px-3 py-3 text-left transition-colors ${m.mapped === material ? 'border-orange-500 bg-orange-50' : 'border-transparent hover:bg-gray-50'}`}
-                            >
-                              <img
-                                src={m.image}
-                                alt=""
-                                className="h-10 w-10 flex-shrink-0 rounded bg-gray-100 object-cover"
-                                onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                              />
-                              <div className="min-w-0">
-                                <div className={`text-sm font-medium ${m.mapped === material ? 'text-orange-700' : 'text-gray-800'}`}>{m.label}</div>
-                                <div className="text-xs text-gray-500">{m.desc}</div>
-                              </div>
-                              {m.mapped === material && (
-                                <CheckCircle className="ml-auto h-4 w-4 flex-shrink-0 text-orange-500" aria-hidden="true" />
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </ConfigCard>
-                )}
-                  </>
-                )}
-                {/* Banner-only: Quantity + Finishing Options (yard signs include these in their config panel) */}
-                {!isYardSign && (
-                  <>
-                <ConfigCard step={isCarMagnet ? 2 : 3} title="Quantity" id="quantity-section">
-                  {isCarMagnet && (
-                    <div className="mb-4 flex items-start gap-2 rounded-xl border border-[#D7E3F4] bg-[#F4F8FD] px-3 py-2.5 text-sm text-slate-700">
-                      <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#18448D]" aria-hidden="true" />
-                      <p><strong className="text-[#0B1F3A]">Premium magnetic material is included.</strong> There is no material choice for car magnets.</p>
-                    </div>
-                  )}
-                  <div className="flex items-center gap-3">
-                    <button type="button" aria-label="Decrease quantity" onClick={() => setQuantity(q => Math.max(1, q - 1))} className="w-11 h-11 flex items-center justify-center border border-gray-200 rounded-xl hover:border-gray-400 transition-colors">
-                      <Minus className="h-4 w-4 text-gray-600" />
-                    </button>
-                    <input type="number" min={1} max={999} value={quantity} aria-label="Quantity" onChange={e => setQuantity(Math.max(1, +e.target.value || 1))} className="h-11 w-20 border rounded-xl px-3 py-1.5 text-base text-center" />
-                    <button type="button" aria-label="Increase quantity" onClick={() => setQuantity(q => Math.min(999, q + 1))} className="w-11 h-11 flex items-center justify-center border border-gray-200 rounded-xl hover:border-gray-400 transition-colors">
-                      <Plus className="h-4 w-4 text-gray-600" />
-                    </button>
-                  </div>
-                  {!isCarMagnet && bannerPromoResolution.appliedDiscountType === 'quantity' && quantityDiscountRate > 0 && (
-                    <p className="text-xs text-green-600 font-medium mt-1.5">
-                      🎉 {Math.round(quantityDiscountRate * 100)}% bulk discount applied at checkout
-                    </p>
-                  )}
-                  {!isCarMagnet && bannerPromoResolution.promotionId === 'LARGE_BANNER_25' && quantityDiscountRate > 0 && (
-                    <p className="mt-1.5 text-xs font-medium text-emerald-700">
-                      Large Banner 25% Off applied automatically. Quantity discounts cannot be combined.
-                    </p>
-                  )}
-                  {!isCarMagnet && quantity === 1 && bannerPromoResolution.promotionId !== 'LARGE_BANNER_25' && (
-                    <p className="text-xs text-gray-400 mt-1.5">Order 2+ for up to 13% off</p>
-                  )}
-                </ConfigCard>
-                <ConfigCard step={isCarMagnet ? 3 : 4} title={isCarMagnet ? 'Rounded Corners' : 'Finishing options'} id="options-section">
-                  <div className="space-y-3">
-                    {isCarMagnet ? (
-                      <div>
-                        <select value={carMagnetRoundedCorners} onChange={e => setCarMagnetRoundedCorners(e.target.value as CarMagnetRoundedCorner)} className="w-full border rounded-xl px-3 py-1.5 text-base mt-1 bg-white">
-                          {CAR_MAGNET_ROUNDED_CORNERS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-                        </select>
-                      </div>
-                    ) : (
-                      <FinishingOptionsCard
-                        finishingType={finishingType}
-                        setFinishingType={setFinishingType}
-                        grommets={grommets}
-                        setGrommets={setGrommets}
-                        polePockets={polePockets}
-                        setPolePockets={setPolePockets}
-                        addRope={addRope}
-                        setAddRope={setAddRope}
-                        ropePlacement={ropePlacement}
-                        setRopePlacement={setRopePlacement}
-                      />
-                    )}
-                  </div>
-                </ConfigCard>
-                  </>
-                )}
-                {/* ========== SHARED: Upload Section ========== */}
-                <ConfigCard step={isCarMagnet ? 4 : 5} title="Upload your artwork" id="upload-section">
-                  {/* Helper banner: shown when the user reaches the upload card before
-                      completing required choices. Doesn't block upload — just surfaces
-                      what still needs to happen before "Add to Cart" works. */}
-                  {!isYardSign && !isCarMagnet && !uploadedFile && (() => {
-                    const missing: string[] = [];
-                    if (!hasCommittedBannerSize) missing.push('size');
-                    if (!material) missing.push('material');
-                    if (missing.length === 0) return null;
-                    return (
-                      <p className="mb-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                        Choose {missing.join(' and ')} before adding to cart.
-                      </p>
-                    );
-                  })()}
-                  {!uploadedFile ? (
-                    <>
-                      <FileUploader
-                        ref={fileUploaderRef}
-                        onUpload={handleFileUpload}
-                        acceptedTypes="image/png,image/jpeg,application/pdf,.png,.jpg,.jpeg,.pdf"
-                        maxSize={50 * 1024 * 1024}
-                        label="Upload your artwork"
-                        subText={`PNG, JPG, or PDF • Max 50MB • ${widthDisplay} × ${heightDisplay}`}
-                        isUploading={isUploading}
-                        style={previewCanvasStyle}
-                        className="mx-auto"
-                      />
-                      {!isYardSign && !isCarMagnet && showCreateWithAI && (
-                        <div className="mt-3 flex flex-col items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => setAiModalOpen(true)}
-                            disabled={!hasCommittedBannerSize || !material || isUploading}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-500 text-white text-sm font-semibold shadow-sm hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                          >
-                            <Sparkles className="w-4 h-4" />
-                            Create with AI
-                          </button>
-                          {(!widthIn || !heightIn || !material) && (
-                            <p className="text-xs text-gray-500">
-                              Select size and material first so AI can fit your design perfectly.
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <div>
-                      {/* Preview labeling */}
-                      <div className="mb-2">
-                        <h3 className="text-sm font-bold text-gray-800">{isYardSign ? 'Live Yard Sign Preview' : isCarMagnet ? 'Live Car Magnet Preview' : 'Live Banner Preview'}</h3>
-                        <p className="text-xs text-gray-400">Final print preview — what you see is what you get</p>
-                      </div>
-                      {/* Banner preview with depth background */}
-                      <div className="rounded-xl p-4 md:p-6 max-w-full overflow-hidden bg-slate-300 border border-slate-400/70 shadow-inner">
-                        {/* Width wrapper — constrains max-width so padding-bottom produces correct height */}
-                        <PreviewRulerFrame
-                          widthIn={widthIn}
-                          heightIn={heightIn}
-                          unit={isCarMagnet ? 'in' : unit}
-                          debug={import.meta.env.DEV}
-                          className="mx-auto max-w-full"
-                          style={previewWrapperStyle}
-                        >
-                          {/* PR3: Modern Canva-style artwork editor (drag,
-                              resize handles, fit/fill/reset/constrain). */}
-                          <ArtworkPreviewEditor
-                            ref={inlineEditorRef}
-                            compositionKey={buildArtworkCompositionKey(uploadedFile, productType)}
-                            initialNormalizedTransform={restoredNormalizedTransform}
-                            initialCompositionRevision={restoredCompositionRevision}
-                            src={uploadedFile.previewUrl || uploadedFile.thumbnailUrl || uploadedFile.url}
-                            previewUrl={uploadedFile.previewUrl || uploadedFile.thumbnailUrl || null}
-                            productionUrl={uploadedFile.productionUrl || uploadedFile.url}
-                            resourceType={uploadedFile.resourceType}
-                            mimeType={uploadedFile.mimeType}
-                            onRetryPreview={uploadedFile.isPdf ? handleRetryPdfPreview : undefined}
-                            alt="Uploaded artwork preview"
-                            paddingPct={previewPaddingPct}
-                            containerRef={previewContainerRef}
-                            mobileToolbarContainer={inlineMobileToolbarEl}
-                            value={{ x: imgPos.x, y: imgPos.y, scaleX: imgScale, scaleY: imgScaleY }}
-                            onChange={(v) => {
-                              setImgPos({ x: v.x, y: v.y });
-                              setImgScale(v.scaleX);
-                              setImgScaleY(v.scaleY);
-                            }}
-                            constrain={constrainProps}
-                            onConstrainChange={setConstrainProps}
-                            showDragHint={showDragHint}
-                            canvasStyle={{
-                              backgroundColor: '#ffffff',
-                              borderRadius: 2,
-                              border: '1px solid #94a3b8',
-                              boxShadow: '0 14px 28px -10px rgba(15, 23, 42, 0.28), 0 4px 8px rgba(15, 23, 42, 0.10), inset 0 0 0 1px rgba(255,255,255,0.6)',
-                            }}
-                            overlay={
-                              grommets !== 'none' ? (
-                                <svg
-                                  className="absolute inset-0 w-full h-full pointer-events-none"
-                                  viewBox={`0 0 ${widthIn} ${heightIn}`}
-                                  preserveAspectRatio="none"
-                                  style={{ zIndex: 10 }}
-                                  aria-hidden="true"
-                                >
-                                  <GrommetOverlay
-                                    widthIn={widthIn}
-                                    heightIn={heightIn}
-                                    option={grommets}
-                                    idSuffix="ga-inline"
-                                  />
-                                </svg>
-                              ) : null
-                            }
-                          />
-                        </PreviewRulerFrame>{/* close ruler frame */}
-                      </div>
-                      {/* Toolbar slot: Fit/Fill/Reset/Locked render here
-                          BELOW the canvas on every screen size so they
-                          do not cover the printable artwork. */}
-                      <div
-                        ref={setInlineMobileToolbarEl}
-                        className="mt-2"
-                        data-mobile-artwork-toolbar="ga-inline"
-                      />
-                      {/* Size dimensions below preview */}
-                      <p className="text-xs text-gray-400 text-center mt-2">
-                        Size: {isCarMagnet ? `${widthIn}" × ${heightIn}"` : `${widthFt} ft${widthInR > 0 ? ` ${widthInR} in` : ''} × ${heightFt} ft${heightInR > 0 ? ` ${heightInR} in` : ''}`} ({sqft.toFixed(1)} sq ft)
-                      </p>
-                      {/* Confidence text */}
-                      <p className="text-xs text-gray-500 text-center mt-1 font-medium">Your design will be printed based on this preview</p>
-                      {/* File info bar */}
-                      <div className="mt-2 p-3 flex items-center justify-between bg-green-50 border border-green-200 rounded-lg">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
-                          <span className="text-sm font-semibold text-green-800 truncate">{uploadedFile.name}</span>
-                        </div>
-                        <button type="button" aria-label="Remove uploaded artwork" onClick={() => { setUploadedFile(null); setImgPos({ x: 0, y: 0 }); setImgScale(1); setImgScaleY(1); setAiPrompt(null); setAiEditPrompt(null); setAiDesignSession(null); }} className="ml-2 flex-shrink-0 p-2.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
-                      </div>
-                      {aiPrompt && !isYardSign && !isCarMagnet && showCreateWithAI && (
-                        <div className="mt-2 flex justify-center">
-                          <button
-                            type="button"
-                            onClick={() => setAiEditModalOpen(true)}
-                            disabled={!hasCommittedBannerSize || !material || isUploading}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#0b1f3a] text-white text-sm font-semibold shadow-sm hover:bg-[#12345d] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                          >
-                            <Sparkles className="w-4 h-4" />
-                            Edit with AI
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {uploadError && <p className="text-xs text-red-600 mt-2">{uploadError}</p>}
-                  <p className="text-xs text-gray-400 mt-2 text-center">Every file reviewed by a real designer before printing.</p>
-                </ConfigCard>
+            /* Compact banner builder; existing product handlers remain shared. */
+            <div data-compact-banner-builder={!isCarMagnet || undefined} className={isCarMagnet ? "grid md:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-10 max-w-full" : "grid gap-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]"}>
+              <div className="space-y-5 min-w-0 max-w-full">
+                {sizeCard}
+                {isCarMagnet && quantityCard}
+                {isCarMagnet ? <>{finishingCard}{uploadCard}</> : <>{uploadCard}{finishingCard}</>}
+
               </div>
 
-              <div className="space-y-6 min-w-0 max-w-full lg:sticky lg:top-24 self-start">
-                <p className="text-sm text-emerald-700 -mt-1 font-medium">
+              <div className={isCarMagnet ? "space-y-6 min-w-0 max-w-full lg:sticky lg:top-24 self-start" : "space-y-4 min-w-0 max-w-full self-start rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:sticky lg:top-24 lg:p-5"}>
+                <p className={isCarMagnet ? "text-sm text-emerald-700 -mt-1 font-medium" : "sr-only"}>
                   Most standard orders are produced within 24 hours; <span className="text-emerald-700 font-semibold">carrier transit follows production</span>
                 </p>
                 {isCarMagnet && carMagnetPricing ? (
@@ -3223,6 +3220,8 @@ const GoogleAdsBanner: React.FC = () => {
                   />
                 ) : (
                   <PriceBreakdown
+                    variant="compact"
+                    heading="Your banner"
                     topLine={`${sqft.toFixed(2)} sq ft • ${usd(pricePerSqFt)} per sq ft`}
                     secondaryLine={`for ${quantity} ${quantity === 1 ? 'banner' : 'banners'} • ${widthDisplay} × ${heightDisplay} • ${materialLabel}`}
                     showTopSummary={false}
@@ -3294,9 +3293,7 @@ const GoogleAdsBanner: React.FC = () => {
                 )}
 
                 {/* Same-Day Hit Service upsell — production priority (NOT shipping). */}
-                <div className="hidden md:block">
-                  <DeliveryTimer variant="compact" />
-                </div>
+                {isCarMagnet ? <div className="hidden md:block"><DeliveryTimer variant="compact" /></div> : <HeroDeliveryStatus variant="light" />}
                 <SameDayHitServiceCard
                   variant="compact"
                   previewHasPrice={
@@ -3311,6 +3308,7 @@ const GoogleAdsBanner: React.FC = () => {
                   }
                 />
 
+                {isCarMagnet ? <>
                 <button onClick={handleCheckout} disabled={!uploadedFile || !hasCommittedBannerSize || isUploading || isProcessingUpsell} className={`group w-full font-bold text-lg py-5 rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${uploadedFile && hasCommittedBannerSize && !isUploading && !isProcessingUpsell ? 'bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white cursor-pointer shadow-orange-500/30' : 'bg-orange-300 text-white/80 cursor-not-allowed'}`}>
                   <Lock className="h-4 w-4" aria-hidden="true" />
                   {isProcessingUpsell ? 'Preparing exact preview…' : 'Review and continue'}
@@ -3327,6 +3325,8 @@ const GoogleAdsBanner: React.FC = () => {
                 >
                   {isProcessingUpsell ? 'Preparing exact preview…' : 'Add to Cart'}
                 </button>
+
+                </> : <button type="button" data-banner-primary-action onClick={bannerAction.onClick} disabled={bannerAction.disabled} className="hidden min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-[#c44700] px-4 py-3 text-base font-bold text-white hover:bg-[#a83d00] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#061A31] focus-visible:ring-offset-2 disabled:opacity-60 lg:flex">{bannerAction.label}<ArrowRight className="h-5 w-5" aria-hidden="true" /></button>}
 
                 <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mt-1">
                   <Lock className="h-3 w-3" />
@@ -3358,11 +3358,17 @@ const GoogleAdsBanner: React.FC = () => {
       </div>
 
         <MobileSubtotalBar
+          primaryAction={!isYardSign && !isCarMagnet ? bannerAction : undefined}
           cartItemCount={cartItemCount}
           onViewCart={openCartDrawer}
           priceNote={showPopularBannerPriceNote ? POPULAR_BANNER_PRESET.mobilePriceNote : undefined}
           subtotal={
-            isYardSign && yardSignPricing ? (
+            !isYardSign && !isCarMagnet ? (
+              <div>
+                {bannerPromoResolution.appliedDiscountAmountCents > 0 && <p className="text-xs text-slate-500 line-through">{usd((bannerSubtotalAfterAllDiscountsCents + previewSameDayFeeCents + bannerPromoResolution.appliedDiscountAmountCents) / 100)}</p>}
+                <p className="text-xl font-bold text-[#061A31]">{usd((bannerSubtotalAfterAllDiscountsCents + previewSameDayFeeCents) / 100)}</p>
+              </div>
+            ) : isYardSign && yardSignPricing ? (
               <p className="text-xl font-bold text-gray-900">
                 {yardSignTotalQty > 0 ? usd(yardSignPricing.totalCents / 100) : '—'}
               </p>

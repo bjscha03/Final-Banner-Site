@@ -10,6 +10,7 @@ const localChromiumLaunch = chromiumExecutablePath
 export default defineConfig({
   testDir: './tests/browser',
   testMatch: [
+    'compact-banner-builder.playwright.spec.ts',
     'preview-handoff.playwright.spec.ts',
     'checkout-thumbnail-real-route.playwright.spec.ts',
     'admin-review-request.playwright.spec.ts',

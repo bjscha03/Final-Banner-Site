@@ -42,6 +42,7 @@ const ROPE_PLACEMENTS: { value: RopePlacement; label: string }[] = [
 ];
 
 export interface FinishingOptionsCardProps {
+  compact?: boolean;
   finishingType: FinishingType;
   setFinishingType: (v: FinishingType) => void;
   /** Grommet placement value — can be 'none' when type is 'grommets' but user hasn't chosen */
@@ -60,6 +61,7 @@ export interface FinishingOptionsCardProps {
 // Main component
 // ---------------------------------------------------------------------------
 const FinishingOptionsCard: React.FC<FinishingOptionsCardProps> = ({
+  compact = false,
   finishingType,
   setFinishingType,
   grommets,
@@ -149,6 +151,7 @@ const FinishingOptionsCard: React.FC<FinishingOptionsCardProps> = ({
 
       {/* ── Grommets ─────────────────────────────────────────────── */}
       <FinishingCard
+        compact={compact}
         active={finishingType === 'grommets'}
         onClick={selectGrommets}
         title="Grommets"
@@ -162,9 +165,10 @@ const FinishingOptionsCard: React.FC<FinishingOptionsCardProps> = ({
           <div className="mt-3" onClick={(e) => e.stopPropagation()}>
             <p className="text-xs font-semibold text-blue-700 mb-1">Grommet Placement:</p>
             <select
+              aria-label="Grommet placement"
               value={grommets}
               onChange={(e) => setGrommets(e.target.value)}
-              className="w-52 border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-52 max-w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
               {grommetOptions.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -178,6 +182,7 @@ const FinishingOptionsCard: React.FC<FinishingOptionsCardProps> = ({
 
       {/* ── Pole Pockets ─────────────────────────────────────────── */}
       <FinishingCard
+        compact={compact}
         active={finishingType === 'pole_pockets'}
         onClick={selectPolePockets}
         title="Pole Pockets"
@@ -190,9 +195,10 @@ const FinishingOptionsCard: React.FC<FinishingOptionsCardProps> = ({
           <div className="mt-3" onClick={(e) => e.stopPropagation()}>
             <p className="text-xs font-semibold text-blue-700 mb-1">Pole Pocket Placement:</p>
             <select
+              aria-label="Pole pocket placement"
               value={polePockets === 'none' ? 'top' : polePockets}
               onChange={(e) => setPolePockets(e.target.value)}
-              className="w-52 border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-52 max-w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
               {POLE_POCKET_PLACEMENTS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -206,6 +212,7 @@ const FinishingOptionsCard: React.FC<FinishingOptionsCardProps> = ({
 
       {/* ── Rope in Welded Hem ───────────────────────────────────── */}
       <FinishingCard
+        compact={compact}
         active={finishingType === 'rope'}
         onClick={selectRope}
         title="Rope in Welded Hem"
@@ -218,9 +225,10 @@ const FinishingOptionsCard: React.FC<FinishingOptionsCardProps> = ({
           <div className="mt-3" onClick={(e) => e.stopPropagation()}>
             <p className="text-xs font-semibold text-blue-700 mb-1">Choose Rope Placement:</p>
             <select
+              aria-label="Rope placement"
               value={ropePlacement}
               onChange={(e) => setRopePlacement(e.target.value as RopePlacement)}
-              className="w-52 border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-52 max-w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
               {ROPE_PLACEMENTS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -258,6 +266,7 @@ const FinishingOptionsCard: React.FC<FinishingOptionsCardProps> = ({
 // Internal FinishingCard sub-component
 // ---------------------------------------------------------------------------
 interface FinishingCardProps {
+  compact?: boolean;
   active: boolean;
   onClick: () => void;
   title: string;
@@ -271,6 +280,7 @@ interface FinishingCardProps {
 }
 
 const FinishingCard: React.FC<FinishingCardProps> = ({
+  compact = false,
   active,
   onClick,
   title,
@@ -281,7 +291,17 @@ const FinishingCard: React.FC<FinishingCardProps> = ({
   imageSrc,
   calloutText,
   children,
-}) => (
+}) => compact ? (
+  <div className={`overflow-hidden rounded-lg border ${active ? 'border-orange-500 bg-orange-50/40' : 'border-slate-200 bg-white'}`}>
+    <button type="button" aria-pressed={active} onClick={onClick} className="flex min-h-16 w-full items-center gap-3 px-3 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-orange-600">
+      <span aria-hidden="true" className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${active ? 'border-orange-600' : 'border-slate-300'}`}>{active && <span className="h-2.5 w-2.5 rounded-full bg-orange-600" />}</span>
+      <span className="min-w-0 flex-1"><span className="block text-sm font-bold text-slate-900">{title}</span><span className="block text-xs text-slate-600">{badge || priceLabel}</span></span>
+      <img src={imageSrc} alt="" className="h-12 w-14 shrink-0 rounded object-cover" loading="lazy" />
+    </button>
+    {active && <div className="px-4 pb-3">{children}</div>}
+    <details className="border-t border-slate-100 px-3 text-xs text-slate-600"><summary className="cursor-pointer py-2">About {title.toLowerCase()}</summary><p className="pb-3">{description}</p></details>
+  </div>
+) : (
   <div
     onClick={onClick}
     className={`relative flex flex-col md:flex-row rounded-xl border cursor-pointer transition-all duration-150 overflow-hidden ${
