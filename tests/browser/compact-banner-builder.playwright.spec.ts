@@ -183,5 +183,6 @@ test('compact banner builder preserves dimensions, finishing, artwork and cart h
   await cart.getByRole('button', { name: 'Proceed to Checkout' }).click();
   await expect(page).toHaveURL(/\/checkout/);
   await expect(page.locator(`img[src="${harness.artifactUrl}"]`).first()).toBeVisible();
-  await expect(page.getByText('$60.75', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('Discounted line total $60.75', { exact: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Price details' })).toContainText('$64.40');
 });
