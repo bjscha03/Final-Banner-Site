@@ -61,16 +61,16 @@ const BannerDiscountOffer: React.FC<BannerDiscountOfferProps> = ({ className = '
   return (
     <div
       data-banner-discount-offer
-      className={`rounded-lg border border-[#061A31]/15 bg-[#061A31]/[0.07] px-4 py-3 text-[#061A31] ${className}`}
+      className={`px-1 py-2 text-[#061A31] ${className}`}
     >
       <div className="flex items-center gap-3 sm:gap-4">
-        <span className="homepage-condensed shrink-0 text-4xl font-black uppercase leading-none sm:text-5xl">25% OFF</span>
+        <span className="shrink-0 text-2xl font-extrabold uppercase leading-none tracking-tight sm:text-3xl">25% OFF</span>
         <div className="border-l border-[#061A31]/25 pl-3 text-sm leading-5 sm:pl-4">
           <p className="font-bold">Banners 6′ × 3′ &amp; larger</p>
           <p className="text-xs font-medium">Automatically applied. No code needed.</p>
         </div>
       </div>
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-[#061A31]/20 pt-2">
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-[#061A31]/20 pt-2">
         <p className="text-xs font-medium sm:text-sm">Smaller banners? <strong>Save 20%</strong> with</p>
         <button
           type="button"
