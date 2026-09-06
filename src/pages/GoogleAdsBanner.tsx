@@ -157,8 +157,8 @@ const FastBannerAdHero: React.FC<{ onStart: () => void }> = ({ onStart }) => (
 
     <div className="relative z-10 mx-auto flex max-w-[1855px] items-center px-5 py-10 sm:px-8 sm:py-12 xl:min-h-[700px] xl:px-16 xl:py-16 2xl:min-h-[748px]">
       <div className="w-full xl:max-w-[760px]">
-        <h1 className="homepage-condensed max-w-[760px] [--homepage-mobile-size:clamp(3.8rem,17vw,5.1rem)] text-[5.1rem] font-black uppercase leading-[0.86] tracking-[-0.015em] text-[#071C35] sm:text-[6.6rem] xl:text-[7.5rem]">
-          Custom banners.<br />Without the wait.
+        <h1 className="homepage-condensed max-w-[760px] [--homepage-mobile-size:clamp(2.5rem,12.5vw,5.1rem)] text-[5.1rem] font-black uppercase leading-[0.86] tracking-[-0.015em] text-[#071C35] sm:text-[clamp(4rem,10vw,6.6rem)] xl:text-[7.5rem]">
+          <span className="block whitespace-nowrap">Custom banners.</span><span className="block whitespace-nowrap">Without the wait.</span>
         </h1>
 
         <button
