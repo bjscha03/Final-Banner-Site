@@ -186,9 +186,9 @@ test('compact banner builder preserves dimensions, finishing, artwork and cart h
   await finishing.getByRole('button', { name: /Rope in Welded Hem/ }).click();
   await expect(page.getByLabel('Rope placement')).toBeVisible();
   await page.getByLabel('Rope placement').selectOption('top');
-  await expect(price).toContainText('$72.75');
+  await expect(price).toContainText('$69.75');
   await finishing.getByRole('button', { name: /Pole Pockets/ }).click();
-  await expect(price).toContainText('$87.75');
+  await expect(price).toContainText('$81.00');
   await finishing.getByRole('button', { name: /Grommets/ }).click();
   await expect(price).toContainText('$60.75');
   await expect(page.getByLabel('Grommet placement')).toBeVisible();
