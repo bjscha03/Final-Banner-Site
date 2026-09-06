@@ -93,10 +93,10 @@ const HeroDeliveryStatus: React.FC<HeroDeliveryStatusProps> = ({ className, vari
       aria-label="Current order cutoff, expected ship date, and expected delivery date"
     >
       <div className="grid grid-cols-3 divide-x divide-white/15">
-        <div className="min-w-0 px-3 py-3 sm:px-4">
-          <div className="flex items-center gap-2 text-[#F45B08]">
-            <Clock3 className="h-4 w-4 flex-none" aria-hidden="true" />
-            <span className="truncate text-[9px] font-black uppercase tracking-[0.1em] sm:text-[10px]">{countdownLabel}</span>
+        <div className="min-w-0 px-2.5 py-3 sm:px-3">
+          <div className="flex min-h-7 items-center gap-1.5 text-[#FFAC75]">
+            <Clock3 className="hidden h-3.5 w-3.5 flex-none sm:block" aria-hidden="true" />
+            <span className="text-[9px] font-bold uppercase leading-3 tracking-[0.04em] sm:text-[10px]">{countdownLabel}</span>
           </div>
           <p
             className="mt-1 whitespace-nowrap font-mono text-sm font-black tracking-[-0.03em] sm:text-base"
@@ -106,17 +106,17 @@ const HeroDeliveryStatus: React.FC<HeroDeliveryStatusProps> = ({ className, vari
             {formatCountdown(remainingMs)}
           </p>
         </div>
-        <div className="min-w-0 px-3 py-3 sm:px-4">
-          <div className="flex items-center gap-2 text-[#F45B08]">
-            <Truck className="h-4 w-4 flex-none" aria-hidden="true" />
-            <span className="truncate text-[9px] font-black uppercase tracking-[0.1em] sm:text-[10px]">Expected ship</span>
+        <div className="min-w-0 px-2.5 py-3 sm:px-3">
+          <div className="flex min-h-7 items-center gap-1.5 text-[#FFAC75]">
+            <Truck className="hidden h-3.5 w-3.5 flex-none sm:block" aria-hidden="true" />
+            <span className="text-[9px] font-bold uppercase leading-3 tracking-[0.04em] sm:text-[10px]">Expected ship</span>
           </div>
           <p className="mt-1 truncate text-xs font-extrabold sm:text-sm">{formatHeroDate(estimate.shipDate)}</p>
         </div>
-        <div className="min-w-0 px-3 py-3 sm:px-4">
-          <div className="flex items-center gap-2 text-[#F45B08]">
-            <CalendarCheck2 className="h-4 w-4 flex-none" aria-hidden="true" />
-            <span className="truncate text-[9px] font-black uppercase tracking-[0.1em] sm:text-[10px]">Delivery</span>
+        <div className="min-w-0 px-2.5 py-3 sm:px-3">
+          <div className="flex min-h-7 items-center gap-1.5 text-[#FFAC75]">
+            <CalendarCheck2 className="hidden h-3.5 w-3.5 flex-none sm:block" aria-hidden="true" />
+            <span className="text-[9px] font-bold uppercase leading-3 tracking-[0.04em] sm:text-[10px]">Delivery</span>
           </div>
           <p className="mt-1 truncate text-xs font-extrabold sm:text-sm">{formatHeroDate(estimate.deliveryDate)}</p>
         </div>
