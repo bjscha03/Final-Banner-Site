@@ -3,6 +3,7 @@ import { isQualifyingLargeBannerDimensions } from '@/lib/largeBannerPromotion';
 import StepHeader from './StepHeader';
 
 export interface ConfigCardProps {
+  compact?: boolean;
   step?: number;
   title?: string;
   headerRight?: React.ReactNode;
@@ -40,6 +41,7 @@ function parsePresetDimensions(label: string): { widthIn: number; heightIn: numb
  * inside a soft-bordered, rounded, lightly-shadowed card.
  */
 export default function ConfigCard({
+  compact = false,
   step,
   title,
   headerRight,
@@ -95,13 +97,13 @@ export default function ConfigCard({
       if (isEligible) {
         foundQualifyingPreset = true;
         button.dataset.largeBannerEligible = 'true';
-        button.classList.add('relative', 'overflow-visible');
+        button.classList.add('relative', 'overflow-visible', 'pr-6');
         ariaLabel += ' — 25% off automatically';
 
         const badge = document.createElement('span');
         badge.dataset.largeBannerDiscountBadge = 'true';
         badge.setAttribute('aria-hidden', 'true');
-        badge.className = 'pointer-events-none absolute -right-2.5 -top-3.5 z-20 flex h-9 w-9 flex-col items-center justify-center rounded-full border-2 border-white bg-[#FF6A00] text-center text-[8px] font-black uppercase leading-[0.9] tracking-[-0.02em] text-white shadow-md';
+        badge.className = 'pointer-events-none absolute -right-2.5 top-1 z-20 flex h-9 w-9 flex-col items-center justify-center rounded-full border-2 border-white bg-[#FF6A00] text-center text-[8px] font-black uppercase leading-[0.9] tracking-[-0.02em] text-white shadow-md';
 
         const percentage = document.createElement('span');
         percentage.textContent = '25%';
@@ -131,7 +133,7 @@ export default function ConfigCard({
         'before:-translate-x-1/2',
         'before:whitespace-nowrap',
         'before:rounded-full',
-        'before:bg-orange-500',
+        'before:bg-[#FF6A00]',
         'before:px-1.5',
         'before:py-0.5',
         'before:text-[9px]',
@@ -165,9 +167,9 @@ export default function ConfigCard({
     <section
       ref={sectionRef}
       id={id}
-      className={`bg-white border border-[#E5E7EB] rounded-xl shadow-sm p-4 md:p-6 scroll-mt-32 md:scroll-mt-24 ${className ?? ''}`}
+      className={`${compact ? "min-w-0" : "bg-white border border-[#E5E7EB] rounded-xl shadow-sm p-4 md:p-6"} scroll-mt-32 md:scroll-mt-24 ${className ?? ''}`}
     >
-      {typeof step === 'number' && title ? (
+      {compact ? <><h3 className="mb-2 text-sm font-semibold text-slate-700">{title}</h3>{body}</> : typeof step === 'number' && title ? (
         <>
           <StepHeader step={step} title={title} rightSlot={headerRight} />
           <div className={`mt-4 ${bodyClassName ?? ''}`}>{body}</div>

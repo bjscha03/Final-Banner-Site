@@ -9,9 +9,9 @@ describe('BannerDiscountOffer', () => {
   it('renders the offer headline, subline, and a copy control for 20OFF', () => {
     const html = renderToStaticMarkup(<BannerDiscountOffer />);
     expect(html).toContain('data-banner-discount-offer');
-    expect(html).toContain('Up to 25% off');
-    expect(html).toContain('&#x27; × 3&#x27; &amp; larger banners save automatically');
-    expect(html).toContain('Smaller banners save 20% with code');
+    expect(html).toContain('25% OFF');
+    expect(html).toContain('Banners 6′ × 3′ &amp; larger');
+    expect(html).toContain('Save 20%');
     expect(html).toContain('20OFF');
     expect(html).toContain('aria-label="Copy promo code 20OFF"');
     expect(html).toContain('type="button"');
@@ -21,7 +21,7 @@ describe('BannerDiscountOffer', () => {
   it('accepts a className for layout without changing the offer content', () => {
     const html = renderToStaticMarkup(<BannerDiscountOffer className="mt-5 w-full max-w-[505px]" />);
     expect(html).toContain('mt-5 w-full max-w-[505px]');
-    expect(html).toContain('Up to 25% off');
+    expect(html).toContain('25% OFF');
   });
 });
 

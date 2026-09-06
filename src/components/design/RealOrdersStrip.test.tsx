@@ -68,7 +68,7 @@ describe('RealOrdersStrip', () => {
     );
 
     for (const source of [designSource, googleAdsSource]) {
-      expect(countMatches(source, /<RealOrdersStrip\s*\/>/g)).toBe(1);
+      expect(countMatches(source, /<RealOrdersStrip\b[^>]*\/>/g)).toBe(1);
       expect(countMatches(source, /import RealOrdersStrip from ['"]@\/components\/design\/RealOrdersStrip['"];?/g)).toBe(1);
     }
   });
