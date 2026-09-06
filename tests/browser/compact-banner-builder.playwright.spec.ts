@@ -32,8 +32,8 @@ async function installUploadAndFunctionHarness(
   scenario: string,
 ): Promise<UploadHarness> {
   const state: UploadHarness = {
-    originalUrl: `https://assets.example.test/${scenario}-original.png`,
-    artifactUrl: `https://assets.example.test/${scenario}-placement.jpg`,
+    originalUrl: `http://127.0.0.1:4175/__compact-test-asset?scenario=${scenario}&kind=original`,
+    artifactUrl: `http://127.0.0.1:4175/__compact-test-asset?scenario=${scenario}&kind=placement`,
     artifactBuffer: null,
     savedCarts: [],
   };
@@ -56,56 +56,9 @@ async function installUploadAndFunctionHarness(
           signature: 'browser-test-signature',
           timestamp: Math.floor(Date.now() / 1000),
           uniqueFilename: true,
-          uploadUrl: 'https://upload.example.test/image/upload',
+          uploadUrl: `http://127.0.0.1:4175/__compact-test-upload?scenario=${scenario}`,
           useFilename: true,
         }),
-      });
-      return;
-    }
-
-    if (url.hostname === 'upload.example.test') {
-      if (request.method() === 'OPTIONS') {
-        await route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*' } });
-        return;
-      }
-      const uploaded = extractMultipartFile(request);
-      const placement = uploaded.filename.startsWith('placement-v3-');
-      const metadata = await sharp(uploaded.bytes).metadata();
-      if (placement) state.artifactBuffer = uploaded.bytes;
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        headers: { 'access-control-allow-origin': '*' },
-        body: JSON.stringify({
-          secure_url: placement ? state.artifactUrl : state.originalUrl,
-          public_id: placement ? `${scenario}-placement` : `${scenario}-original`,
-          asset_id: `${scenario}-${placement ? 'placement' : 'original'}-asset`,
-          version: 7,
-          resource_type: 'image',
-          format: placement ? 'jpg' : 'png',
-          bytes: uploaded.bytes.length,
-          width: metadata.width,
-          height: metadata.height,
-        }),
-      });
-      return;
-    }
-
-    if (url.hostname === 'assets.example.test') {
-      const placement = url.pathname.endsWith('-placement.jpg');
-      const body = placement ? state.artifactBuffer : originalBytes;
-      if (!body) {
-        await route.fulfill({ status: 404, body: 'artifact not uploaded yet' });
-        return;
-      }
-      await route.fulfill({
-        status: 200,
-        contentType: placement ? 'image/jpeg' : 'image/png',
-        headers: {
-          'access-control-allow-origin': '*',
-          'cache-control': 'no-store',
-        },
-        body,
       });
       return;
     }
@@ -165,7 +118,7 @@ async function sparseArtwork(): Promise<Buffer> {
 
 test('compact banner builder preserves dimensions, finishing, artwork and cart handoff', async ({ page }, testInfo) => {
   const artwork = await asymmetricArtwork();
-  const harness = await installUploadAndFunctionHarness(page, artwork, 'compact');
+  const harness = await installUploadAndFunctionHarness(page, artwork, `compact-${testInfo.project.name}`);
   await page.goto('/google-ads-banner', { waitUntil: 'domcontentloaded' });
   const action = page.locator('[data-banner-primary-action]:visible');
   const price = page.getByTestId('price-breakdown');
@@ -205,6 +158,7 @@ test('compact banner builder preserves dimensions, finishing, artwork and cart h
   await size.getByRole('button', { name: "8' × 3' — 25% off automatically", exact: true }).click();
   await expect(preview).toBeVisible();
   await size.getByRole('button', { name: "6' × 3' — Most popular — 25% off automatically", exact: true }).click();
+  await preview.click();
   await page.getByRole('button', { name: 'Fit', exact: true }).first().click();
   await expect(price).toContainText('$60.75');
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
@@ -215,6 +169,12 @@ test('compact banner builder preserves dimensions, finishing, artwork and cart h
   await expect(cart).toBeVisible({ timeout: 60000 });
   await expect(cart.locator(`img[src="${harness.artifactUrl}"]`).first()).toBeVisible();
   await expect(cart).toContainText('$60.75');
+  const artifactResponse = await page.request.get(harness.artifactUrl);
+  expect(artifactResponse.ok()).toBe(true);
+  const baked = await artifactResponse.body();
+  expect(baked.equals(artwork)).toBe(false);
+  const dimensions = await sharp(baked).metadata();
+  expect(dimensions.width! / dimensions.height!).toBeCloseTo(2, 2);
   await cart.getByRole('button', { name: 'Proceed to Checkout' }).click();
   await expect(page).toHaveURL(/\/checkout/);
   await expect(page.locator(`img[src="${harness.artifactUrl}"]`).first()).toBeVisible();
