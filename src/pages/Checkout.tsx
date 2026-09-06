@@ -1,3 +1,5 @@
+import CartLinePrice from '@/components/cart/CartLinePrice';
+import { getCartDisplayPrices, getEnteredPromoLabel } from '@/lib/cartDisplayPricing';
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCartStore, type CanonicalCartQuote } from '@/store/cart';
@@ -340,6 +342,7 @@ const Checkout: React.FC = () => {
   const taxCents = getTaxCents();
   const totalCents = getTotalCents();
   const resolvedDiscount = getResolvedDiscount();
+  const displayPrices = getCartDisplayPrices(items, resolvedDiscount, discountCode);
   const sameDayFeeCents = getSameDayFeeCents();
   const saturdayFeeCents = getSaturdayDeliveryFeeCents();
 
@@ -402,16 +405,7 @@ const Checkout: React.FC = () => {
   };
 
   // Compute "each" price
-  const computeEach = (item: CartItem): number => {
-    const ropeMode = item.rope_pricing_mode || 'per_item';
-    const pocketMode = item.pole_pocket_pricing_mode || 'per_item';
-    const ropeCost = getRopeCost(item);
-    const pocketCost = getPolePocketCost(item);
-    
-    const perOrderCosts = (ropeMode === 'per_order' ? ropeCost : 0) + (pocketMode === 'per_order' ? pocketCost : 0);
-    const each = Math.round((item.line_total_cents - perOrderCosts) / Math.max(1, item.quantity));
-    return each;
-  };
+
 
   // Check admin status
   useEffect(() => {
@@ -507,10 +501,8 @@ const Checkout: React.FC = () => {
         });
         
         toast({
-          title: 'Discount Applied!',
-          description: result.discount.code === 'BIG25'
-            ? '25% off qualifying large banners'
-            : `${result.discount.discountPercentage}% off your order`,
+          title: 'Promo code checked',
+          description: getEnteredPromoLabel(result.discount, useCartStore.getState().getResolvedDiscount()),
         });
         setDiscountCodeInput('');
         setDiscountError('');
@@ -840,7 +832,7 @@ const Checkout: React.FC = () => {
               </div>
               <h1 className="mb-2 font-display text-3xl font-bold tracking-[-0.035em] text-[#0B1F3A] sm:text-4xl">Secure checkout</h1>
               <p className="text-base text-gray-600">Most standard orders are produced within 24 hours; free next-day air begins after production.</p>
-              <p className="text-sm text-[#18448D] font-medium">Order before tonight’s cutoff for fastest turnaround.</p>
+              <p className="text-sm text-[#18448D] font-medium">Your expected shipping and delivery dates are shown below.</p>
             </div>
             
           </div>
@@ -872,7 +864,7 @@ const Checkout: React.FC = () => {
 
                 <div className="space-y-4">
                   {items.map((item) => {
-                    const eachCents = computeEach(item);
+                    const displayPrice = displayPrices.get(item.id)!;
                     const normalized = normalizeOrderItemDisplay(item as NormalizableOrderItem);
                     const grommetLabel = getGrommetLabelForDisplay(item, normalized.grommetsDisplay);
                     const grommetMode = getGrommetModeForPreview(item);
@@ -1048,14 +1040,7 @@ const Checkout: React.FC = () => {
                                 </span>
                               </div>
                             </div>
-                            <div className="flex-shrink-0 text-right">
-                              <p className="font-bold text-gray-900 text-lg leading-tight">
-                                {usd(item.line_total_cents / 100)}
-                              </p>
-                              <p className="text-xs text-gray-500 font-medium">
-                                {usd(eachCents / 100)} each
-                              </p>
-                            </div>
+                            <CartLinePrice {...displayPrice} quantity={item.quantity} />
                           </div>
 
                           <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -1270,7 +1255,7 @@ const Checkout: React.FC = () => {
                     <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3 py-2">
                       <span className="text-sm font-semibold text-green-800 flex items-center gap-1.5">
                         <Tag className="h-3.5 w-3.5" />
-                        {discountCode.code} &mdash; {discountCode.discountPercentage}% off
+                        {getEnteredPromoLabel(discountCode, resolvedDiscount)}
                       </span>
                       <button
                         onClick={handleRemoveDiscount}

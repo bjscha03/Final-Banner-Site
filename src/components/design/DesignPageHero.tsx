@@ -100,7 +100,7 @@ const DesignPageHero: React.FC<DesignPageHeroProps> = ({ productType, onStart })
             {definition.title.map((line) => <span key={line} className="block">{line}</span>)}
           </h1>
 
-          <div className="mt-7 flex flex-col gap-4 sm:flex-row sm:items-stretch">
+          <div className="mt-7 flex w-full max-w-[505px] flex-col gap-3">
             <button
               type="button"
               onClick={onStart}
@@ -108,10 +108,10 @@ const DesignPageHero: React.FC<DesignPageHeroProps> = ({ productType, onStart })
             >
               {definition.cta}<ArrowRight className="h-5 w-5" aria-hidden="true" />
             </button>
-            {definition.offer && <BannerDiscountOffer className="sm:max-w-[340px]" />}
+            {definition.offer && <BannerDiscountOffer className="w-full" />}
           </div>
 
-          <HeroDeliveryStatus className="mt-5 w-full max-w-[585px]" />
+          <HeroDeliveryStatus className="mt-3 w-full max-w-[505px]" />
         </div>
       </div>
 

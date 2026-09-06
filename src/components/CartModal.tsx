@@ -1,3 +1,5 @@
+import CartLinePrice from '@/components/cart/CartLinePrice';
+import { getCartDisplayPrices } from '@/lib/cartDisplayPricing';
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Trash2, Plus, Minus, ShoppingBag, Eye, Tag } from 'lucide-react';
@@ -111,7 +113,7 @@ const makeBackgroundInert = (dialog: HTMLElement): (() => void) => {
 
 const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
-  const { getMigratedItems, updateQuantity, removeItem, getSubtotalCents, getTaxCents, getTotalCents, getResolvedDiscount, getSameDayFeeCents, getSaturdayDeliveryFeeCents } = useCartStore();
+  const { getMigratedItems, updateQuantity, removeItem, getSubtotalCents, getTaxCents, getTotalCents, getResolvedDiscount, getSameDayFeeCents, getSaturdayDeliveryFeeCents, discountCode } = useCartStore();
 
   // CRITICAL: Use migrated items to ensure rope/pole pocket costs are calculated
   const items = getMigratedItems();
@@ -301,20 +303,13 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const computeEach = (item: any): number => {
-    const ropeMode = item.rope_pricing_mode || 'per_item';
-    const pocketMode = item.pole_pocket_pricing_mode || 'per_item';
-    const ropeCost = item.rope_cost_cents || 0;
-    const pocketCost = item.pole_pocket_cost_cents || 0;
-    const perOrderCosts = (ropeMode === 'per_order' ? ropeCost : 0)
-      + (pocketMode === 'per_order' ? pocketCost : 0);
-    return Math.round((item.line_total_cents - perOrderCosts) / Math.max(1, item.quantity));
-  };
+
 
   const subtotalCents = getSubtotalCents();
   const taxCents = getTaxCents();
   const totalCents = getTotalCents();
   const resolvedDiscount = getResolvedDiscount();
+  const displayPrices = getCartDisplayPrices(items, resolvedDiscount, discountCode);
   const sameDayFeeCents = getSameDayFeeCents();
   const saturdayFeeCents = getSaturdayDeliveryFeeCents();
   const hasSameDayFee = sameDayFeeCents > 0;
@@ -373,7 +368,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                 </div>
 
                 {items.map((item) => {
-                  const eachCents = computeEach(item);
+                  const displayPrice = displayPrices.get(item.id)!;
                   const normalized = normalizeOrderItemDisplay(item as NormalizableOrderItem);
                   const grommetLabel = getGrommetLabelForDisplay(item, normalized.grommetsDisplay);
                   const grommetMode = getGrommetModeForPreview(item);
@@ -457,10 +452,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
 
                       <div className="mb-3 flex items-start justify-between">
                         <h3 className="text-base font-semibold text-gray-900">{getItemDisplayName(item)}</h3>
-                        <div className="ml-4 flex-shrink-0 text-right">
-                          <p className="text-lg font-bold text-[#18448D]">{usd(item.line_total_cents / 100)}</p>
-                          <p className="text-xs text-gray-600">{usd(eachCents / 100)} each</p>
-                        </div>
+                        <CartLinePrice {...displayPrice} quantity={item.quantity} />
                       </div>
 
                       <dl className="mb-3 grid grid-cols-2 gap-2">
@@ -489,6 +481,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                         <CartItemBreakdown
                           item={item}
                           resolvedDiscount={resolvedDiscount}
+                          displayDiscountCents={displayPrice.discountCents}
                           cartRawSubtotalCents={cartRawSubtotalCents}
                           bannerRawSubtotalCents={bannerRawSubtotalCents}
                         />

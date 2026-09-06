@@ -157,20 +157,20 @@ const FastBannerAdHero: React.FC<{ onStart: () => void }> = ({ onStart }) => (
 
     <div className="relative z-10 mx-auto flex max-w-[1855px] items-center px-5 py-10 sm:px-8 sm:py-12 xl:min-h-[700px] xl:px-16 xl:py-16 2xl:min-h-[748px]">
       <div className="w-full xl:max-w-[760px]">
-        <h1 className="homepage-condensed max-w-[760px] [--homepage-mobile-size:clamp(3.8rem,17vw,5.1rem)] text-[5.1rem] font-black uppercase leading-[0.86] tracking-[-0.015em] text-[#071C35] sm:text-[6.6rem] xl:text-[7.5rem]">
-          Custom banners.<br />Without the wait.
+        <h1 className="homepage-condensed max-w-[760px] [--homepage-mobile-size:clamp(2.5rem,12.5vw,5.1rem)] text-[5.1rem] font-black uppercase leading-[0.86] tracking-[-0.015em] text-[#071C35] sm:text-[clamp(4rem,10vw,6.6rem)] xl:text-[7.5rem]">
+          <span className="block whitespace-nowrap">Custom banners.</span><span className="block whitespace-nowrap">Without the wait.</span>
         </h1>
 
         <button
           type="button"
           onClick={onStart}
-          className="mt-7 inline-flex min-h-14 w-full max-w-[505px] items-center justify-center gap-4 rounded-md bg-[#071C35] px-6 py-4 text-base font-black uppercase tracking-[0.035em] text-white shadow-[0_12px_30px_rgba(7,28,53,.2)] transition-colors hover:bg-[#10375f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#F86408] sm:w-auto sm:min-w-[440px] sm:text-lg"
+          className="mt-7 inline-flex min-h-14 w-full max-w-[505px] items-center justify-center gap-4 rounded-md bg-[#071C35] px-6 py-4 text-base font-black uppercase tracking-[0.035em] text-white shadow-[0_12px_30px_rgba(7,28,53,.2)] transition-colors hover:bg-[#10375f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#F86408] sm:text-lg"
         >
           Build &amp; price my banner <ArrowRight className="h-6 w-6" aria-hidden="true" />
         </button>
 
-        <BannerDiscountOffer className="mt-5 w-full max-w-[505px]" />
-        <HeroDeliveryStatus className="mt-5 w-full max-w-[505px]" />
+        <BannerDiscountOffer className="mt-3 w-full max-w-[505px]" />
+        <HeroDeliveryStatus className="mt-3 w-full max-w-[505px]" />
       </div>
     </div>
 
@@ -702,11 +702,7 @@ const GoogleAdsBanner: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('banner-unit-pref', unit);
   }, [unit]);
-  useEffect(() => {
-    if (!showPostAddResetNotice) return;
-    const t = window.setTimeout(() => setShowPostAddResetNotice(false), 4000);
-    return () => window.clearTimeout(t);
-  }, [showPostAddResetNotice]);
+
 
   // Show drag hint briefly when artwork is first uploaded
   useEffect(() => {
@@ -1611,30 +1607,14 @@ const GoogleAdsBanner: React.FC = () => {
     }
   }, [isYardSign]);
   const resetAfterSuccessfulAdd = useCallback(() => {
-    const scrollProductPageToTop = () => {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      const scrollRoots = document.querySelectorAll<HTMLElement>('main, [data-product-scroll-root], [data-scroll-root]');
-      scrollRoots.forEach((el) => {
-        if (el.scrollHeight > el.clientHeight) {
-          el.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-      });
-      window.requestAnimationFrame(() => {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      });
-      window.setTimeout(() => {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }, 180);
-    };
-
     resetPreview();
     // Keep the page in a distinct success state until the shopper explicitly
     // opens the cart or chooses to build another product. This prevents the
     // sticky bar from falling back to a stale "Use [size]" prompt.
     setHasJustAddedToCart(true);
     setShowPostAddResetNotice(true);
-    scrollProductPageToTop();
-  }, [resetPreview]);
+    setIsCartOpen(true);
+  }, [resetPreview, setIsCartOpen]);
 
   // Shared post-add-to-cart UX:
   //  - 'checkout' -> navigate directly to /checkout (no cart drawer hop)
@@ -3340,7 +3320,9 @@ const GoogleAdsBanner: React.FC = () => {
                             : 'Large Banner 25% Off applied automatically')
                         : bannerPromoActuallyApplied
                           ? `${promoCode} — ${Math.round(bannerPromoResolution.promoDiscountRate * 100)}% off applied`
-                          : `${promoCode} entered — quantity discount is larger, so we kept that`,
+                          : bannerPromoResolution.appliedDiscountType === 'quantity'
+                          ? `${promoCode} entered — quantity discount is larger, so we kept that`
+                          : `${promoCode} saved — select an eligible size to see your discount`,
                     }}
                     footerNote="Destination-based tax calculated at checkout"
                   />

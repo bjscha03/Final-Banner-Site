@@ -905,11 +905,7 @@ const Design: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('banner-unit-pref', unit);
   }, [unit]);
-  useEffect(() => {
-    if (!showPostAddResetNotice) return;
-    const t = window.setTimeout(() => setShowPostAddResetNotice(false), 4000);
-    return () => window.clearTimeout(t);
-  }, [showPostAddResetNotice]);
+
 
   // Show drag hint briefly when artwork is first uploaded
   useEffect(() => {
@@ -1650,26 +1646,11 @@ const Design: React.FC = () => {
   }, [isYardSign]);
 
   const resetAfterSuccessfulAdd = useCallback(() => {
-    const scrollProductPageToTop = () => {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      const scrollRoots = document.querySelectorAll<HTMLElement>('main, [data-product-scroll-root], [data-scroll-root]');
-      scrollRoots.forEach((el) => {
-        if (el.scrollHeight > el.clientHeight) {
-          el.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-      });
-      window.requestAnimationFrame(() => {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      });
-      window.setTimeout(() => {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }, 180);
-    };
-
     resetPreview();
+    setHasJustAddedToCart(true);
     setShowPostAddResetNotice(true);
-    scrollProductPageToTop();
-  }, [resetPreview]);
+    setIsCartOpen(true);
+  }, [resetPreview, setIsCartOpen]);
 
   // Shared post-add-to-cart UX:
   //  - 'checkout' -> navigate directly to /checkout (no cart drawer hop)
@@ -2895,7 +2876,10 @@ const Design: React.FC = () => {
             {isYardSign ? 'Build Your Yard Sign Order' : isCarMagnet ? 'Design Your Custom Car Magnets' : 'Build Your Banner'}
           </h2>
           {showPostAddResetNotice && (
-            <p className="mb-4 text-sm text-green-700 text-center">Added to cart. Start another order or view your cart.</p>
+            <div role="status" className="mb-4 rounded-lg border border-green-200 bg-green-50 p-4 text-center">
+              <p className="text-sm text-green-800">Your artwork is saved in your cart.</p>
+              <button type="button" onClick={() => setIsCartOpen(true)} className="mt-3 min-h-11 rounded-lg bg-[#18448D] px-5 py-2 font-semibold text-white">View cart &amp; checkout</button>
+            </div>
           )}
           {/* Mobile-only step progress — driven by the same step machine as the
               sticky CTA so they can never disagree. Hidden on yard sign (uses a
@@ -3501,7 +3485,9 @@ const Design: React.FC = () => {
                           : 'Large Banner 25% Off applied automatically')
                       : bannerPromoActuallyApplied
                         ? `${promoCode} — ${Math.round(bannerPromoResolution.promoDiscountRate * 100)}% off applied`
-                        : `${promoCode} entered — quantity discount is larger, so we kept that`,
+                        : bannerPromoResolution.appliedDiscountType === 'quantity'
+                          ? `${promoCode} entered — quantity discount is larger, so we kept that`
+                          : `${promoCode} saved — select an eligible size to see your discount`,
                   }}
                   footerNote="Destination-based tax calculated at checkout"
                 />
