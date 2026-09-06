@@ -28,9 +28,9 @@
             ? '/images/homepage/school-hero-mobile.avif'
             : '/images/homepage/school-hero-desktop.avif';
         } else if (window.location.pathname === '/google-ads-banner') {
-          preload.href = '/images/google-ads/banner-collage-1040.avif';
-          preload.imageSrcset = '/images/google-ads/banner-collage-520.avif 520w, /images/google-ads/banner-collage-800.avif 800w, /images/google-ads/banner-collage-1040.avif 1040w';
-          preload.imageSizes = '(min-width: 1280px) 57vw, 100vw';
+          preload.href = '/images/google-ads/light-hero-1200.avif';
+          preload.imageSrcset = '/images/google-ads/light-hero-640.avif 640w, /images/google-ads/light-hero-1200.avif 1200w';
+          preload.imageSizes = '(min-width: 1536px) 760px, (min-width: 1024px) 52vw, 100vw';
         } else if (['/vinyl-banners', '/yard-signs', '/car-magnets'].includes(window.location.pathname)) {
           const slug = window.location.pathname.slice(1);
           const mobile = window.matchMedia('(max-width: 1023px)').matches;

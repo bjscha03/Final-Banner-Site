@@ -16,7 +16,7 @@ function formatHeroDate(parts: ETParts): string {
 
 interface HeroDeliveryStatusProps {
   className?: string;
-  variant?: 'compact' | 'editorial';
+  variant?: 'compact' | 'editorial' | 'light';
 }
 
 const HeroDeliveryStatus: React.FC<HeroDeliveryStatusProps> = ({ className, variant = 'compact' }) => {
@@ -26,6 +26,30 @@ const HeroDeliveryStatus: React.FC<HeroDeliveryStatusProps> = ({ className, vari
     : estimate.state === 'hit_available'
       ? 'Fast-service cutoff'
       : 'Order cutoff';
+
+  if (variant === 'light') {
+    return (
+      <div data-hero-delivery-status data-state={estimate.state} data-variant="light" className={`border-t border-slate-200 pt-4 text-[#061A31] ${className || ''}`} aria-label="Current order cutoff, expected ship date, and expected delivery date">
+        <div className="grid grid-cols-3 divide-x divide-slate-200">
+          <div className="min-w-0 pr-2">
+            <div className="flex min-h-7 items-center gap-1.5 text-slate-600">
+              <Clock3 className="hidden h-4 w-4 shrink-0 text-[#c44700] sm:block" aria-hidden="true" />
+              <span className="text-[9px] font-bold uppercase leading-3 tracking-[0.04em] sm:text-[10px]">{countdownLabel}</span>
+            </div>
+            <p className="mt-1 whitespace-nowrap font-mono text-base font-bold tracking-tight sm:text-xl" role="timer" aria-live="off">{formatCountdown(remainingMs)}</p>
+          </div>
+          <div className="min-w-0 px-2 sm:px-4">
+            <p className="flex min-h-7 items-center text-[9px] font-bold uppercase leading-3 tracking-[0.04em] text-slate-600 sm:text-[10px]">Expected ship</p>
+            <p className="mt-1 whitespace-nowrap text-xs font-bold sm:text-base">{formatHeroDate(estimate.shipDate)}</p>
+          </div>
+          <div className="min-w-0 pl-2 sm:pl-4">
+            <p className="flex min-h-7 items-center text-[9px] font-bold uppercase leading-3 tracking-[0.04em] text-slate-600 sm:text-[10px]">Est. delivery</p>
+            <p className="mt-1 whitespace-nowrap text-xs font-bold sm:text-base">{formatHeroDate(estimate.deliveryDate)}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (variant === 'editorial') {
     return (

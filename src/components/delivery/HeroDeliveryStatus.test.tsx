@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import HeroDeliveryStatus from './HeroDeliveryStatus';
 
-function renderAt(isoTime: string, variant: 'compact' | 'editorial' = 'compact'): string {
+function renderAt(isoTime: string, variant: 'compact' | 'editorial' | 'light' = 'compact'): string {
   vi.useFakeTimers();
   vi.setSystemTime(new Date(isoTime));
 
@@ -15,10 +15,12 @@ afterEach(() => {
 });
 
 describe('HeroDeliveryStatus', () => {
-  it('renders Tue, Sep 8 ship and Wed, Sep 9 delivery during the Labor Day 2026 holiday window (compact)', () => {
+  it.each(['compact', 'light'] as const)('renders holiday dates and a numeric countdown (%s)', (variant) => {
     // Friday, September 4, 2026 at noon ET.
-    const html = renderAt('2026-09-04T16:00:00.000Z', 'compact');
+    const html = renderAt('2026-09-04T16:00:00.000Z', variant);
 
+    expect(html).toContain('role="timer"');
+    expect(html).toMatch(/\d{2}:\d{2}:\d{2}/);
     expect(html).toContain('data-state="weekend_lock"');
     expect(html).toContain('Tue, Sep 8');
     expect(html).toContain('Wed, Sep 9');
