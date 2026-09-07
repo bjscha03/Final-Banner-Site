@@ -1,0 +1,46 @@
+name: Seasonal campaign creative QA
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/seasonal-campaign-creative-qa.yml'
+      - 'docs/marketing/seasonal-production-*.md'
+      - 'playwright.seasonal.config.ts'
+      - 'public/images/seasonal-*.webp'
+      - 'src/components/HeroSection.tsx'
+      - 'src/components/seasonal/**'
+      - 'src/lib/seasonalCampaigns.ts'
+      - 'src/lib/__tests__/seasonalCampaigns.test.ts'
+      - 'tests/browser/seasonal-campaign-matrix.playwright.spec.ts'
+
+permissions:
+  contents: read
+
+jobs:
+  creative-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Campaign selection tests
+        run: npx vitest run src/lib/__tests__/seasonalCampaigns.test.ts
+      - name: Targeted lint
+        run: npx eslint src/lib/seasonalCampaigns.ts src/lib/__tests__/seasonalCampaigns.test.ts tests/browser/seasonal-campaign-matrix.playwright.spec.ts playwright.seasonal.config.ts
+      - name: Production build
+        run: npm run build
+      - name: Four-viewport creative QA
+        run: npx playwright test --config=playwright.seasonal.config.ts
+      - name: Upload creative-QA renders
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: seasonal-campaign-creative-qa
+          path: test-results/
+          if-no-files-found: warn
+          retention-days: 14
