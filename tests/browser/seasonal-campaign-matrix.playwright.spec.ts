@@ -33,7 +33,7 @@ test('holiday events campaign passes responsive creative QA', async ({ page }, t
   await expect(hero.getByRole('heading', { level: 1, name: 'Bring every holiday gathering into view.' })).toBeVisible();
   await expect(hero.getByRole('button', { name: /Design holiday signage/i })).toBeVisible();
   await expect(hero.getByRole('link', { name: /Explore vinyl banners/i })).toBeVisible();
-  await expect(hero.getByTestId('delivery-timer')).toBeVisible();
+  await expect(hero.locator('[data-hero-delivery-status]')).toBeVisible();
 
   const mobile = (testInfo.project.use.viewport?.width || 0) < 640;
   const artwork = hero.locator(`[data-seasonal-hero-art="${mobile ? 'mobile' : 'desktop'}"] img`);
@@ -55,7 +55,7 @@ test('holiday events campaign passes responsive creative QA', async ({ page }, t
 
   const layout = await page.evaluate(() => {
     const headline = document.querySelector('[data-seasonal-campaign] h1');
-    const delivery = document.querySelector('[data-seasonal-campaign] [data-testid="delivery-timer"]');
+    const delivery = document.querySelector('[data-seasonal-campaign] [data-hero-delivery-status]');
     const heroBox = document.querySelector('[data-seasonal-campaign]')?.getBoundingClientRect();
     const headlineBox = headline?.getBoundingClientRect();
     const deliveryBox = delivery?.getBoundingClientRect();
