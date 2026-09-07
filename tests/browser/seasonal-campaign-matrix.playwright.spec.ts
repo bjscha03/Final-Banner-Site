@@ -78,8 +78,10 @@ test('holiday events campaign passes responsive creative QA', async ({ page }, t
   expect(seriousViolations, JSON.stringify(seriousViolations, null, 2)).toEqual([]);
   expect(pageErrors).toEqual([]);
 
-  await page.screenshot({
-    path: testInfo.outputPath(`holiday-events-${testInfo.project.name}.png`),
-    fullPage: true,
+  await hero.screenshot({
+    path: testInfo.outputPath(`holiday-events-${testInfo.project.name}-hero.png`),
+  });
+  await merchandising.screenshot({
+    path: testInfo.outputPath(`holiday-events-${testInfo.project.name}-modules.png`),
   });
 });
