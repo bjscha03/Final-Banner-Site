@@ -1997,7 +1997,9 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
                   TEST ORDER
                 </Badge>
               )}
-              <div className="text-xs text-gray-500">{new Date(order.created_at).toLocaleDateString()}</div>
+              <div className="text-xs text-gray-500">
+                {new Date(order.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+              </div>
               <div className="text-sm font-medium text-gray-900 break-words">{order.customer_name || order.shipping_name || 'Not provided'}</div>
               <div className="text-xs text-gray-600 break-all">{order.email || 'No email'}</div>
             </div>
