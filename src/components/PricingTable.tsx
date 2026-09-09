@@ -7,16 +7,14 @@ const materials = [
     name: '13oz Vinyl',
     profile: 'Lightweight vinyl',
     use: 'Indoor displays and short-term outdoor campaigns',
-    image: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1788721124/banners-on-the-fly/homepage/material-13oz-printed-20260906.webp',
-    imageWidth: 275,
+    imageStem: 'material-13oz',
     alt: '13 ounce vinyl coffee shop banner displayed on an indoor stand',
   },
   {
     name: '15oz Vinyl',
     profile: 'Versatile outdoor vinyl',
     use: 'Everyday outdoor promotions, events, and storefronts',
-    image: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1788721351/banners-on-the-fly/homepage/material-15oz-printed-20260906.webp',
-    imageWidth: 273,
+    imageStem: 'material-15oz',
     alt: '15 ounce vinyl restaurant grand opening banner mounted on a storefront railing',
     recommended: true,
   },
@@ -24,16 +22,14 @@ const materials = [
     name: '18oz Vinyl',
     profile: 'Heavy-duty vinyl',
     use: 'Heavy-duty and longer-term outdoor display needs',
-    image: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1788721479/banners-on-the-fly/homepage/material-18oz-printed-20260906.webp',
-    imageWidth: 272,
+    imageStem: 'material-18oz',
     alt: 'Heavy-duty 18 ounce vinyl construction hiring banner mounted outside a commercial building',
   },
   {
     name: 'Mesh Banner',
     profile: 'Wind-permeable mesh',
     use: 'Fences and outdoor placements where wind can pass through',
-    image: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1788721642/banners-on-the-fly/homepage/material-mesh-printed-20260906.webp',
-    imageWidth: 274,
+    imageStem: 'material-mesh',
     alt: 'Youth baseball mesh banner secured to a chain-link fence at a sports field',
   },
 ];
@@ -68,11 +64,21 @@ const PricingTable: React.FC = () => (
               className={`relative flex flex-col bg-[#FBF8F2] ${material.recommended ? 'border border-[#F45B08]' : ''}`}
             >
               <picture className="block overflow-hidden bg-[#E8E4DC]">
+                <source
+                  type="image/avif"
+                  srcSet={`/images/homepage/materials-hd/${material.imageStem}-360.avif 360w, /images/homepage/materials-hd/${material.imageStem}-640.avif 640w, /images/homepage/materials-hd/${material.imageStem}-960.avif 960w`}
+                  sizes="(min-width: 1280px) 25vw, (min-width: 640px) 50vw, 100vw"
+                />
+                <source
+                  type="image/webp"
+                  srcSet={`/images/homepage/materials-hd/${material.imageStem}-360.webp 360w, /images/homepage/materials-hd/${material.imageStem}-640.webp 640w, /images/homepage/materials-hd/${material.imageStem}-960.webp 960w`}
+                  sizes="(min-width: 1280px) 25vw, (min-width: 640px) 50vw, 100vw"
+                />
                 <img
-                  src={material.image}
+                  src={`/images/homepage/materials-hd/${material.imageStem}-640.webp`}
                   alt={material.alt}
-                  width={material.imageWidth}
-                  height="448"
+                  width="640"
+                  height="960"
                   loading="lazy"
                   decoding="async"
                   fetchPriority="low"
