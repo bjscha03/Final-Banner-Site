@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
+import MarketingEmailAction from '@/components/orders/MarketingEmailAction';
 
 type ReviewRequestUpdate = {
   sentAt: string;
@@ -109,80 +110,81 @@ const ReviewRequestAction: React.FC<ReviewRequestActionProps> = ({ order, onSent
   const disabledReason = eligibility.eligible ? '' : eligibility.reason;
 
   return (
-    <div className={cn(
-      'rounded-md border border-indigo-200 bg-indigo-50/70 p-2',
-      fullWidth ? 'w-full' : 'min-w-[220px]',
-    )}>
-      <Button
-        type="button"
-        size="sm"
-        onClick={() => setOpen(true)}
-        disabled={!eligibility.eligible || sending}
-        aria-describedby={`review-request-status-${order.id}`}
-        className={cn(
-          'bg-indigo-700 text-white hover:bg-indigo-800 focus-visible:ring-2 focus-visible:ring-indigo-700 focus-visible:ring-offset-2 disabled:bg-indigo-300 disabled:text-white',
-          fullWidth ? 'w-full' : 'h-8 text-xs',
-        )}
-      >
-        {sending ? (
-          <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />Sending…</>
-        ) : (
-          <><Star className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />Send Review Email</>
-        )}
-      </Button>
+    <div className={cn('space-y-2', fullWidth ? 'w-full' : 'min-w-[220px]')}>
+      <div className="rounded-md border border-indigo-200 bg-indigo-50/70 p-2">
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => setOpen(true)}
+          disabled={!eligibility.eligible || sending}
+          aria-describedby={`review-request-status-${order.id}`}
+          className={cn(
+            'bg-indigo-700 text-white hover:bg-indigo-800 focus-visible:ring-2 focus-visible:ring-indigo-700 focus-visible:ring-offset-2 disabled:bg-indigo-300 disabled:text-white',
+            fullWidth ? 'w-full' : 'h-8 text-xs',
+          )}
+        >
+          {sending ? (
+            <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />Sending…</>
+          ) : (
+            <><Star className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />Send Review Email</>
+          )}
+        </Button>
 
-      <div id={`review-request-status-${order.id}`} className="mt-1.5 text-xs leading-5">
-        {formattedLastSentAt ? (
-          <p className="font-medium text-indigo-900">Review request sent {formattedLastSentAt}</p>
-        ) : disabledReason ? (
-          <p className="text-slate-700">{disabledReason}</p>
-        ) : (
-          <p className="text-indigo-800">Manual customer follow-up</p>
-        )}
+        <div id={`review-request-status-${order.id}`} className="mt-1.5 text-xs leading-5">
+          {formattedLastSentAt ? (
+            <p className="font-medium text-indigo-900">Review request sent {formattedLastSentAt}</p>
+          ) : disabledReason ? (
+            <p className="text-slate-700">{disabledReason}</p>
+          ) : (
+            <p className="text-indigo-800">Manual customer follow-up</p>
+          )}
+        </div>
+
+        <AlertDialog open={open} onOpenChange={handleOpenChange}>
+          <AlertDialogContent className="max-w-md">
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {lastSentAt ? 'Send another review request?' : 'Send review request?'}
+              </AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-3 text-left">
+                  {lastSentAt ? (
+                    <p>
+                      A review request was already sent to this customer on{' '}
+                      <strong className="text-slate-900">{formattedLastSentAt}</strong>. Send another request?
+                    </p>
+                  ) : (
+                    <p>This will email the review request to:</p>
+                  )}
+                  <p className="break-all rounded-md border border-slate-200 bg-slate-50 px-3 py-2 font-medium text-slate-900">
+                    {customerEmail}
+                  </p>
+                  <p>No email will be sent until you confirm.</p>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={sending}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(event) => {
+                  event.preventDefault();
+                  void handleSend();
+                }}
+                disabled={sending}
+                className="bg-indigo-700 text-white hover:bg-indigo-800 focus-visible:ring-indigo-700"
+              >
+                {sending ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending…</>
+                ) : (
+                  <><Star className="mr-2 h-4 w-4" aria-hidden="true" />Send Review Email</>
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
-      <AlertDialog open={open} onOpenChange={handleOpenChange}>
-        <AlertDialogContent className="max-w-md">
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {lastSentAt ? 'Send another review request?' : 'Send review request?'}
-            </AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-3 text-left">
-                {lastSentAt ? (
-                  <p>
-                    A review request was already sent to this customer on{' '}
-                    <strong className="text-slate-900">{formattedLastSentAt}</strong>. Send another request?
-                  </p>
-                ) : (
-                  <p>This will email the review request to:</p>
-                )}
-                <p className="break-all rounded-md border border-slate-200 bg-slate-50 px-3 py-2 font-medium text-slate-900">
-                  {customerEmail}
-                </p>
-                <p>No email will be sent until you confirm.</p>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={sending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(event) => {
-                event.preventDefault();
-                void handleSend();
-              }}
-              disabled={sending}
-              className="bg-indigo-700 text-white hover:bg-indigo-800 focus-visible:ring-indigo-700"
-            >
-              {sending ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending…</>
-              ) : (
-                <><Star className="mr-2 h-4 w-4" aria-hidden="true" />Send Review Email</>
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <MarketingEmailAction order={order} fullWidth={fullWidth} />
     </div>
   );
 };
