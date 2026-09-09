@@ -315,8 +315,8 @@ export const CITIES: CityEntry[] = [
           },
           {
             label: 'Trade show banner planning',
-            to: '/trade-shows',
-            description: 'Browse the current U.S. trade show calendar before planning booth graphics, sponsor displays, and aisle-facing messages.'
+            to: '/blog/trade-show-banner-checklist',
+            description: 'Use the banner checklist when planning booth graphics, sponsor displays, and aisle-facing messages.'
           },
           {
             label: 'Event banner sizing guide',
@@ -493,9 +493,9 @@ export const CITIES: CityEntry[] = [
             description: 'Compare solid vinyl with airflow-friendly mesh for fences, equine venues, construction perimeters, and open event grounds.',
           },
           {
-            label: 'Trade show planning calendar',
-            to: '/trade-shows',
-            description: 'Check the current U.S. trade show calendar while planning booth graphics, sponsor displays, and aisle-facing messages.',
+            label: 'Trade show banner checklist',
+            to: '/blog/trade-show-banner-checklist',
+            description: 'Use the banner checklist when planning booth graphics, sponsor displays, and aisle-facing messages.',
           },
           {
             label: 'Banner size and viewing-distance guide',

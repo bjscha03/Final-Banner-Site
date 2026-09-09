@@ -49,7 +49,6 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
     { name: 'Vinyl Banners', href: '/vinyl-banners' },
     { name: 'Yard Signs', href: '/yard-signs' },
     { name: 'Car Magnets', href: '/car-magnets' },
-    { name: 'Trade Show Calendar', href: '/trade-shows' },
     { name: 'Shipping', href: '/shipping' },
     { name: 'Blog', href: '/blog' },
     { name: 'Design Tool', href: '/design' },
@@ -261,7 +260,6 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
               { name: 'Vinyl Banners', href: '/vinyl-banners' },
               { name: 'Yard Signs', href: '/yard-signs' },
               { name: 'Car Magnets', href: '/car-magnets' },
-              { name: 'Trade Shows', href: '/trade-shows' },
               { name: 'Shipping', href: '/shipping' },
               { name: 'Custom Quote', href: '/custom-quote' },
             ].map((item) => (

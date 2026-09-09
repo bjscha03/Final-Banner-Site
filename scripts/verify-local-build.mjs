@@ -38,11 +38,10 @@ function schemaNodes(html) {
 
 const localEntries = manifest.filter((entry) => /^\/(vinyl-banners|yard-signs|car-magnets)(?:\/[^/]+)?$/.test(entry.route));
 const tradeShowEntries = manifest.filter((entry) => entry.route === '/trade-shows' || /^\/trade-shows\/[^/]+$/.test(entry.route));
-const tradeShowDetails = tradeShowEntries.filter((entry) => entry.route !== '/trade-shows');
 assert(localEntries.length === 213, `Expected 213 product/local routes; found ${localEntries.length}.`);
-assert(tradeShowEntries.length === 76, `Expected the calendar plus 75 event routes; found ${tradeShowEntries.length}.`);
-assert(tradeShowDetails.filter((entry) => entry.indexable).length === 75, 'Expected all 75 in-depth event guides to pass the publish gate.');
-assert(manifest.length === 289, `Expected 289 generated routes in total; found ${manifest.length}.`);
+assert(tradeShowEntries.length === 0, 'Retired trade-show routes must not be prerendered.');
+assert(![...sitemapUrls].some((url) => url.includes('/trade-shows')), 'Retired trade-show URLs must not be in the sitemap.');
+assert(manifest.length === 213, `Expected 213 generated routes; found ${manifest.length}.`);
 assert(new Set(manifest.map((entry) => entry.route)).size === manifest.length, 'Generated route manifest contains duplicates.');
 
 for (const entry of manifest) {
@@ -53,6 +52,7 @@ for (const entry of manifest) {
   const isTradeShowDirectory = entry.route === '/trade-shows';
   const isTradeShowDetail = /^\/trade-shows\/[^/]+$/.test(entry.route);
 
+  assert(!/href=["']\/trade-shows(?:[\/"'])/.test(html), `${entry.route}: retired trade-show link remains.`);
   assert(html.includes('data-prerendered="true"'), `${entry.route}: missing prerender marker.`);
   assert(html.includes('<h1'), `${entry.route}: missing crawlable H1.`);
   assert(html.length > 15_000, `${entry.route}: initial HTML appears to be an empty or thin shell.`);
@@ -157,4 +157,4 @@ for (const namespace of ['/vinyl-banners/*', '/yard-signs/*', '/car-magnets/*', 
   assert(rulePosition >= 0 && rulePosition < fallbackPosition, `${namespace}: true-404 rule must precede the SPA fallback.`);
 }
 
-console.log(`Verified ${manifest.length} generated routes, including 75 in-depth indexable event guides with schema, FAQs, related links, disclosures, metadata, CTAs, sitemap parity, 404 output, and social assets.`);
+console.log(`Verified ${manifest.length} generated routes, with metadata, CTAs, sitemap parity, 404 output, and social assets.`);
