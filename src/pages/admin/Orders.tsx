@@ -1856,7 +1856,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
             {order.status === 'in_production' && order.production_email_sent_at && (
               <div className="text-xs text-yellow-700 flex items-center">
                 <Package className="h-3 w-3 mr-1" />
-                In Production {new Date(order.production_email_sent_at).toLocaleDateString()}
+                In Production {new Date(order.production_email_sent_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
               </div>
             )}
           </div>
