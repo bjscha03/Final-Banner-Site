@@ -134,6 +134,16 @@ describe('admin orders reporting and action hierarchy', () => {
     expect(orders).not.toContain('Captured subset units');
   });
 
+  it('shows the full local date and time when an order enters production on desktop and mobile', () => {
+    const desktop = componentSource('const AdminOrderRow:', '// Mobile Card Component for Orders');
+    const mobile = componentSource('const AdminOrderCard:');
+    const productionTimestamp = "toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })";
+
+    expect(desktop).toContain(productionTimestamp);
+    expect(mobile).toContain(productionTimestamp);
+    expect(orders).not.toContain('production_email_sent_at).toLocaleDateString()');
+  });
+
   it('posts only item identity for authoritative print-PDF loading', () => {
     const requestBody = orders.match(/const requestBody = \{([\s\S]*?)\n\s*\};/)?.[1] || '';
     const requestKeys = Array.from(
