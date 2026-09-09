@@ -262,9 +262,16 @@
   status = 404
 
 [[redirects]]
+  from = "/trade-shows"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
   from = "/trade-shows/*"
   to = "/404.html"
   status = 404
+  force = true
 
 # Existing hashed assets shadow this non-forced rule. Missing/stale chunks must
 # never be rewritten to index.html with JavaScript cache headers.

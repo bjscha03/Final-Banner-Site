@@ -42,7 +42,7 @@ const links = {
   size: (label: string, description: string): LocalPageLink => ({ label, to: '/blog/perfect-banner-size-guide', description }),
   install: (label: string, description: string): LocalPageLink => ({ label, to: '/blog/banner-installation-hanging-guide', description }),
   outdoor: (label: string, description: string): LocalPageLink => ({ label, to: '/blog/outdoor-banner-durability-guide', description }),
-  trade: (label: string, description: string): LocalPageLink => ({ label, to: '/trade-shows', description }),
+  trade: (label: string, description: string): LocalPageLink => ({ label, to: '/blog/trade-show-banner-checklist', description }),
   tradeChecklist: (label: string, description: string): LocalPageLink => ({ label, to: '/blog/trade-show-banner-checklist', description }),
   grandOpening: (label: string, description: string): LocalPageLink => ({ label, to: '/blog/grand-opening-banner-ideas', description }),
   school: (label: string, description: string): LocalPageLink => ({ label, to: '/blog/school-sports-event-banners', description }),
@@ -92,7 +92,7 @@ export const REMAINING_CITY_VINYL_EDITORIAL: Record<string, ProductEditorialReco
     ],
     internalLinks: [
       links.mesh('Vinyl versus mesh for Cincinnati sites', 'Compare solid color and opacity with airflow for riverfront, fence, and hill-exposed placements.'),
-      links.trade('Plan Cincinnati trade show graphics', 'Use the event calendar to work backward from booth deadlines, installation, and travel.'),
+      links.trade('Plan Cincinnati trade show graphics', 'Use the banner checklist to work backward from booth deadlines, installation, and travel.'),
       links.size('Size banners for markets and busy sidewalks', 'Match the headline and finished dimensions to the real viewing distance.'),
       links.grandOpening('Build a Cincinnati opening message', 'Use a concise checklist for dates, offers, calls to action, and street-facing layouts.'),
     ],

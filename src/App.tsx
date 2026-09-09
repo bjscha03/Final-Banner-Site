@@ -63,8 +63,6 @@ const BlogTagPage = lazy(() => import("./pages/BlogTagPage"));
 const CategoryPage = lazy(() => import("./pages/CategoryPage"));
 const CityProductPage = lazy(() => import("./pages/CityProductPage"));
 const ProductHubPage = lazy(() => import("./pages/ProductHubPage"));
-const TradeShowDirectory = lazy(() => import("./pages/TradeShowDirectory"));
-const TradeShowDetail = lazy(() => import("./pages/TradeShowDetail"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Google Ads landing page - lazy load
@@ -243,10 +241,6 @@ export const RoutedApplication = () => (
             <Route path="/event-banners" element={<CategoryPage />} />
             <Route path="/custom-banners" element={<CategoryPage />} />
             <Route path="/construction-banners" element={<CategoryPage />} />
-
-            {/* Searchable trade show calendar and event-specific exhibitor planners */}
-            <Route path="/trade-shows" element={<TradeShowDirectory />} />
-            <Route path="/trade-shows/:slug" element={<TradeShowDetail />} />
 
             {/* Google Ads landing page intentionally bypasses Layout, so mount the shared notice here. */}
             <Route

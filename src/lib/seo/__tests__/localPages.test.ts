@@ -103,7 +103,7 @@ describe('local page publication controls', () => {
     expect(content.localGuide?.sourceLinks.every((source) => source.href.startsWith('https://'))).toBe(true);
     expect(content.internalLinks.map((link) => link.to)).toEqual(expect.arrayContaining([
       '/blog/vinyl-vs-mesh-banners-guide',
-      '/trade-shows',
+      '/blog/trade-show-banner-checklist',
       '/blog/perfect-banner-size-guide',
       '/blog/grand-opening-banner-ideas',
     ]));
@@ -129,7 +129,7 @@ describe('local page publication controls', () => {
     expect(content.localGuide?.sourceLinks.every((source) => source.href.startsWith('https://'))).toBe(true);
     expect(content.internalLinks.map((link) => link.to)).toEqual(expect.arrayContaining([
       '/blog/vinyl-vs-mesh-banners-guide',
-      '/trade-shows',
+      '/blog/trade-show-banner-checklist',
       '/blog/perfect-banner-size-guide',
       '/blog/grand-opening-banner-ideas',
     ]));
