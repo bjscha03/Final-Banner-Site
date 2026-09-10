@@ -6,7 +6,7 @@ test('expanded prompt stays above the copy button at narrow and desktop widths',
   for (const width of [320, 390, 667, 1440]) {
     await page.setViewportSize({ width, height: 800 });
     await page.goto('/google-ads-banner', { waitUntil: 'domcontentloaded' });
-    if (width < 768) {
+    if (width < 1024) {
       await expect(page.getByRole('heading', { name: 'Build Your Banner', exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Open AI artwork help' })).not.toBeVisible();
       await expect(page.locator('[data-ai-whitespace-warning]')).toHaveCount(0);
@@ -72,7 +72,7 @@ async function installDesignerHarness(page: Page, scenario: string) {
 }
 
 test('AI artwork help stays optional, updates prompts, copies, and preserves the upload', async ({ page }, testInfo) => {
-  test.skip((page.viewportSize()?.width ?? 0) < 768, 'AI artwork help is intentionally hidden on phones');
+  test.skip((page.viewportSize()?.width ?? 0) < 1024, 'AI artwork help is intentionally hidden on smaller screens');
   await installDesignerHarness(page, `ai-help-${testInfo.project.name}`);
   await page.goto('/design?product=banner', { waitUntil: 'domcontentloaded' });
 
@@ -126,7 +126,7 @@ test('AI artwork help stays optional, updates prompts, copies, and preserves the
 });
 
 test('Google Ads banner page serves the same dimension-aware AI artwork help', async ({ page }, testInfo) => {
-  test.skip((page.viewportSize()?.width ?? 0) < 768, 'AI artwork help is intentionally hidden on phones');
+  test.skip((page.viewportSize()?.width ?? 0) < 1024, 'AI artwork help is intentionally hidden on smaller screens');
   await installDesignerHarness(page, `ai-help-landing-${testInfo.project.name}`);
   await page.goto('/google-ads-banner?product=banner', { waitUntil: 'domcontentloaded' });
 
