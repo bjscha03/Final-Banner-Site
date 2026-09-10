@@ -1,0 +1,3 @@
+# This file forces Netlify to rebuild all functions
+# Updated: 2025-10-10 to clear email template cache
+REBUILD_TIMESTAMP=2025-10-10T02:30:00Z

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-2TQ6JYYZV7"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-2TQ6JYYZV7');
+    </script>
+
+    <!-- Google Fonts for Banner Editor -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=PT+Sans:wght@400;700&family=Merriweather:wght@400;700&family=Playfair+Display:wght@400;700&family=Nunito:wght@400;700&family=Poppins:wght@400;700&family=Ubuntu:wght@400;700&family=Mukta:wght@400;700&family=Rubik:wght@400;700&family=Work+Sans:wght@400;700&family=Noto+Sans:wght@400;700&family=Fira+Sans:wght@400;700&family=Quicksand:wght@400;700&family=Karla:wght@400;700&family=Barlow:wght@400;700&family=Oxygen:wght@400;700&family=Cabin:wght@400;700&family=Bebas+Neue&family=Anton&family=Pacifico&family=Dancing+Script:wght@400;700&family=Lobster&family=Righteous&family=Permanent+Marker&family=Indie+Flower&family=Shadows+Into+Light&family=Satisfy&family=Caveat:wght@400;700&family=Amatic+SC:wght@400;700&family=Architects+Daughter&family=Kalam:wght@400;700&family=Roboto+Mono:wght@400;700&family=Source+Code+Pro:wght@400;700&family=IBM+Plex+Mono:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+    <!-- Meta Pixel Code -->
+    <script>
+    !function(f,b,e,v,n,t,s)
+    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+    n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+    n.queue=[];t=b.createElement(e);t.async=!0;
+    t.src=v;s=b.getElementsByTagName(e)[0];
+    s.parentNode.insertBefore(t,s)}(window, document,'script',
+    'https://connect.facebook.net/en_US/fbevents.js');
+    fbq('init', '1487321805934457');
+    fbq('track', 'PageView');
+    </script>
+    <!-- End Meta Pixel Code -->
+
+
+
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <!-- Content Security Policy -->
+    <title>Banners On The Fly - Professional Banners • Free Next-Day Air • 24-Hour Production</title>
+    <meta name="description" content="Professional vinyl banners with free next-day air shipping and 24-hour production. Design custom banners online with live preview." />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+
+    <meta property="og:title" content="Banners On The Fly - Professional Banners • Free Next-Day Air • 24-Hour Production" />
+    <meta property="og:description" content="Professional vinyl banners with free next-day air shipping and 24-hour production. Design custom banners online with live preview." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://bannersonthefly.com" />
+    <meta property="og:image" content="https://bannersonthefly.com/images/logo-social.svg" />
+    <meta property="og:image:secure_url" content="https://bannersonthefly.com/images/logo-social.svg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:site_name" content="Banners on the Fly" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Banners On The Fly - Professional Banners • Free Next-Day Air • 24-Hour Production" />
+    <meta name="twitter:description" content="Professional vinyl banners with free next-day air shipping and 24-hour production. Design custom banners online with live preview." />
+    <meta name="twitter:image" content="https://bannersonthefly.com/images/logo-social.svg" />
+      <script src="/force-reload.js"></script>
+      <script src="/emergency-cache-buster.js?v=1761946040"></script>
+  </head>
+
+  <body>
+    <!-- Meta Pixel Noscript -->
+    <noscript><img height="1" width="1" style="display:none"
+    src="https://www.facebook.com/tr?id=1487321805934457&ev=PageView&noscript=1"
+    /></noscript>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+
+    <!-- LinkedIn Insight Tag -->
+    <script type="text/javascript">
+    _linkedin_partner_id = "8163164";
+    window._linkedin_data_partner_ids = window._linkedin_data_partner_ids || [];
+    window._linkedin_data_partner_ids.push(_linkedin_partner_id);
+    </script><script type="text/javascript">
+    (function(l) {
+    if (!l){window.lintrk = function(a,b){window.lintrk.q.push([a,b])};
+    window.lintrk.q=[]}
+    var s = document.getElementsByTagName("script")[0];
+    var b = document.createElement("script");
+    b.type = "text/javascript";b.async = true;
+    b.src = "https://snap.licdn.com/li.lms-analytics/insight.min.js";
+    s.parentNode.insertBefore(b, s);})(window.lintrk);
+    </script>
+    <noscript>
+    <img height="1" width="1" style="display:none;" alt="" src="https://px.ads.linkedin.com/collect/?pid=8163164&fmt=gif" />
+    </noscript>
+    <!-- End LinkedIn Insight Tag -->
+  </body>
+</html>

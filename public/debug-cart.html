@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Cart Data</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #f5f5f5; }
+        pre { background: white; padding: 20px; border: 1px solid #ccc; overflow: auto; max-height: 80vh; }
+        button { padding: 10px 20px; margin-bottom: 20px; background: #18448D; color: white; border: none; cursor: pointer; }
+        .highlight { background: yellow; }
+    </style>
+</head>
+<body>
+    <h1>Cart Data Debugger</h1>
+    <button onclick="showCart()">Show Cart Data</button>
+    <button onclick="clearCart()">Clear Cart</button>
+    <pre id="output">Click "Show Cart Data" to see what's stored...</pre>
+    
+    <script>
+        function showCart() {
+            const cartData = localStorage.getItem('cart-storage');
+            if (cartData) {
+                const parsed = JSON.parse(cartData);
+                const formatted = JSON.stringify(parsed, null, 2);
+                
+                // Highlight overlay_image fields
+                const highlighted = formatted.replace(/"overlay_image":/g, '<span class="highlight">"overlay_image":</span>');
+                
+                document.getElementById('output').innerHTML = highlighted;
+            } else {
+                document.getElementById('output').textContent = 'No cart data found';
+            }
+        }
+        
+        function clearCart() {
+            localStorage.removeItem('cart-storage');
+            sessionStorage.clear();
+            document.getElementById('output').textContent = '✅ Cart cleared!';
+        }
+    </script>
+</body>
+</html>

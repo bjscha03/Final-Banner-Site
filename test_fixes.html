@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test AI Fixes</title>
+</head>
+<body>
+    <h1>Testing AI Banner Generation Fixes</h1>
+    
+    <h2>Test 1: Check for duplicate Layout import (should be fixed)</h2>
+    <p>Open browser console and navigate to: <a href="https://bannersonthefly.com/my-ai-images" target="_blank">https://bannersonthefly.com/my-ai-images</a></p>
+    <p>Expected: Page loads with header/footer, NO syntax errors in console</p>
+    
+    <h2>Test 2: Check "Use in Design" functionality</h2>
+    <ol>
+        <li>Navigate to: <a href="https://bannersonthefly.com/my-ai-images" target="_blank">My AI Images</a></li>
+        <li>Click "Use in Design" button on any saved image</li>
+        <li>Open browser console (F12)</li>
+        <li>Look for logs:
+            <ul>
+                <li>"[Design] Loading pending AI image: [URL]"</li>
+                <li>"[Design] Pending AI image loaded successfully"</li>
+            </ul>
+        </li>
+    </ol>
+    
+    <h2>Test 3: Check "Generate 2 More Options" button</h2>
+    <ol>
+        <li>Navigate to: <a href="https://bannersonthefly.com/design" target="_blank">Design Page</a></li>
+        <li>Generate an AI image</li>
+        <li>Click "Generate 2 More Options" button</li>
+        <li>Open Network tab (F12 > Network)</li>
+        <li>Verify POST request to /.netlify/functions/ai-more-variations</li>
+        <li>Verify 2 new images are added to grid</li>
+        <li>Verify 1 credit is deducted</li>
+    </ol>
+    
+    <script>
+        console.log('Test page loaded. Follow the steps above to test each fix.');
+    </script>
+</body>
+</html>

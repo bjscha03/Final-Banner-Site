@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Testing Schema Rendering</title>
+</head>
+<body>
+    <h1>Open this URL in your browser and view page source:</h1>
+    <p><a href="https://bannersonthefly.com/vinyl-banners" target="_blank">https://bannersonthefly.com/vinyl-banners</a></p>
+    
+    <h2>Instructions:</h2>
+    <ol>
+        <li>Click the link above</li>
+        <li>Wait for the page to fully load</li>
+        <li>Right-click and select "View Page Source" (or press Cmd+Option+U on Mac)</li>
+        <li>Search for "application/ld+json" (Cmd+F)</li>
+        <li>You should see the schema markup</li>
+    </ol>
+    
+    <h2>What to look for:</h2>
+    <pre>&lt;script type="application/ld+json"&gt;
+{
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": "Custom Vinyl Banners",
+  ...
+}
+&lt;/script&gt;</pre>
+    
+    <h2>If you DON'T see it:</h2>
+    <p>The schema might be added after page load. Try using browser DevTools:</p>
+    <ol>
+        <li>Right-click → Inspect (or press Cmd+Option+I)</li>
+        <li>Go to Elements tab</li>
+        <li>Search for "application/ld+json"</li>
+        <li>You should see multiple script tags with schema</li>
+    </ol>
+</body>
+</html>

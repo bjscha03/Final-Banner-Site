@@ -1,0 +1,866 @@
+/**
+ * Enhanced Cart Synchronization Service
+ * 
+ * Provides robust cart persistence with:
+ * - Single active cart per authenticated user
+ * - Guest cart support with session cookies
+ * - Deep-match merge logic for guest-to-authenticated transitions
+ * - Cross-device synchronization
+ * - Idempotency and race condition protection
+ * - Structured logging and telemetry
+ * 
+ * UPDATED: Now uses Netlify Functions for database access instead of direct Supabase client
+ */
+
+import type { CartItem } from '@/store/cart';
+import { readCheckoutCustomerDraft } from '@/components/checkout/checkoutCustomerDraft';
+import { authorizedHeaders } from '@/lib/serverAuth';
+import {
+  normalizeCaptureContact,
+  readStoredAbandonedCartRecoveryAttribution,
+  readStoredAbandonedCartId,
+  sanitizeSnapshotItems,
+  writeStoredAbandonedCartRecoveryAttribution,
+  writeStoredAbandonedCartId,
+  type AbandonedCartContact,
+  type AbandonedCartStage,
+  type AbandonedCartTotals,
+} from '@/lib/abandonedCartCapture';
+
+// Telemetry event types
+export type CartEvent = 
+  | 'CART_INIT'
+  | 'CART_ADD'
+  | 'CART_UPDATE'
+  | 'CART_REMOVE'
+  | 'CART_MERGE'
+  | 'CART_CLEAR'
+  | 'CART_LOAD'
+  | 'CART_SAVE'
+  | 'ORDER_DRAFT_RESUME';
+
+interface CartEventData {
+  event: CartEvent;
+  userId?: string;
+  sessionId?: string;
+  requestId: string;
+  itemCount?: number;
+  success: boolean;
+  error?: string;
+  metadata?: Record<string, any>;
+}
+
+// Session management
+const SESSION_COOKIE_NAME = 'cart_session_id';
+const SESSION_LIFETIME_DAYS = 90;
+const SNAPSHOT_REVISION_STORAGE_PREFIX = 'bof-cart-snapshot-revision-v1';
+const USER_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const NIL_USER_ID = '00000000-0000-0000-0000-000000000000';
+
+export function isCartSyncIdentity(user: { id?: unknown; is_admin?: unknown } | null | undefined): boolean {
+  const id = typeof user?.id === 'string' ? user.id.trim() : '';
+  // A real profile remains a commerce customer even when it also has admin
+  // privileges. Only UUID-backed profile identities may own/sync carts; the
+  // separate admin sign-in principal uses the synthetic `server-admin` ID.
+  return USER_ID_PATTERN.test(id) && id !== NIL_USER_ID;
+}
+
+type QueuedCartSave = {
+  items: CartItem[];
+  userId?: string;
+  sessionId?: string;
+  waiters: Array<(success: boolean) => void>;
+};
+
+type CartSaveQueue = {
+  running: boolean;
+  pending: QueuedCartSave | null;
+};
+
+export type SaveCartSnapshotOptions = {
+  stage?: AbandonedCartStage;
+  contact?: AbandonedCartContact | null;
+  totals?: AbandonedCartTotals | null;
+  metadata?: Record<string, string | number | boolean | null | undefined>;
+  captureKind?: 'full' | 'lifecycle';
+  abandonmentSignal?: boolean;
+  checkoutState?: {
+    version: 1;
+    sameDayHitService: boolean;
+    saturdayDelivery: boolean;
+    discountCode: string | null;
+  };
+};
+
+export type CartSnapshotResult = {
+  cartId: string | null;
+  status: string | null;
+};
+
+class CartSyncService {
+  private requestIdCounter = 0;
+  private saveQueues = new Map<string, CartSaveQueue>();
+  private snapshotRevisionHighWater = 0;
+
+  private nextSnapshotRevision(ownerKey: string): number {
+    const clockRevision = Math.floor(Date.now() * 1_000);
+    const storageKey = `${SNAPSHOT_REVISION_STORAGE_PREFIX}:${ownerKey.slice(0, 200)}`;
+    let storedRevision = 0;
+    try {
+      const parsed = Number(window.sessionStorage.getItem(storageKey));
+      if (Number.isSafeInteger(parsed) && parsed > 0 && parsed < Number.MAX_SAFE_INTEGER) {
+        storedRevision = parsed;
+      }
+    } catch {
+      // Storage restrictions must not block checkout capture.
+    }
+    const revision = Math.max(
+      clockRevision,
+      this.snapshotRevisionHighWater + 1,
+      storedRevision + 1,
+    );
+    this.snapshotRevisionHighWater = revision;
+    try {
+      window.sessionStorage.setItem(storageKey, String(revision));
+    } catch {
+      // The in-memory high-water still orders this page's concurrent saves.
+    }
+    return revision;
+  }
+
+  /**
+   * Generate a unique request ID for tracking
+   */
+  private generateRequestId(): string {
+    return `req_${Date.now()}_${++this.requestIdCounter}`;
+  }
+
+  /**
+   * Emit a structured log event
+   */
+  private logEvent(data: CartEventData): void {
+    const timestamp = new Date().toISOString();
+    const logEntry = {
+      timestamp,
+      ...data,
+      // Exclude PII - hash user/session IDs
+      userId: data.userId ? `user_${data.userId.substring(0, 8)}...` : undefined,
+      sessionId: data.sessionId ? `session_${data.sessionId.substring(0, 8)}...` : undefined,
+    };
+
+    if (data.success) {
+      console.log(`✅ [${data.event}]`, logEntry);
+    } else {
+      console.error(`❌ [${data.event}]`, logEntry);
+    }
+
+    // TODO: Send to analytics/monitoring service
+    // Example: sendToDatadog(logEntry);
+  }
+
+  /**
+   * Get or create a session ID for guest users
+   */
+  getSessionId(): string {
+    if (typeof document === 'undefined') return '';
+
+    const existing = this.getExistingSessionId();
+    if (existing) return existing;
+
+    // Create new session ID
+    const sessionId = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+
+    // Set cookie with long lifetime
+    const expires = new Date();
+    expires.setDate(expires.getDate() + SESSION_LIFETIME_DAYS);
+    document.cookie = `${SESSION_COOKIE_NAME}=${sessionId}; expires=${expires.toUTCString()}; path=/; SameSite=Lax${window.location.protocol === 'https:' ? '; Secure' : ''}`;
+
+    return sessionId;
+  }
+
+  /**
+   * Return the current guest session without creating a new cookie. This lets
+   * the first authenticated snapshot reconcile the cart that was captured
+   * immediately before sign-in.
+   */
+  getExistingSessionId(): string | null {
+    if (typeof document === 'undefined') return null;
+    const cookies = document.cookie.split(';');
+    for (const cookie of cookies) {
+      const [name, value] = cookie.trim().split('=');
+      if (name === SESSION_COOKIE_NAME) {
+        return value || null;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Clear the guest session cookie
+   */
+  clearSessionCookie(): void {
+    if (typeof document === 'undefined') return;
+    document.cookie = `${SESSION_COOKIE_NAME}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax`;
+  }
+
+  /**
+   * Get current user ID from localStorage
+   */
+  getUserId(): string | null {
+    try {
+      if (typeof localStorage === 'undefined') return null;
+      const userStr = localStorage.getItem('banners_current_user');
+      if (!userStr) return null;
+      const user = JSON.parse(userStr);
+      const id = typeof user?.id === 'string' ? user.id.trim() : '';
+      // Defensive: treat the nil UUID (all zeros) as "no user". This sentinel
+      // can leak into localStorage from various server/auth paths and would
+      // otherwise pass the server's UUID format check, then cause the
+      // cart-load/cart-save Netlify functions to hang to gateway timeout
+      // (502/504) and strand the checkout page on "Loading your cart...".
+      // Synthetic admin identities are not commerce customers and must never
+      // inherit or close the browser's guest cart session. UUID-backed profile
+      // identities remain valid even when the profile also has admin access.
+      if (!isCartSyncIdentity(user)) return null;
+      return id;
+    } catch (error) {
+      console.error('Error getting user ID:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Check if cart sync is available (always true now with Netlify functions)
+   */
+  isAvailable(): boolean {
+    return true; // Always available via Netlify functions
+  }
+
+  /**
+   * Deep-match cart items by product attributes
+   * Returns true if items are the same product with same options
+   */
+  private itemsMatch(item1: CartItem, item2: CartItem): boolean {
+    // Match by dimensions, material, and options
+    return (
+      item1.width_in === item2.width_in &&
+      item1.height_in === item2.height_in &&
+      item1.material === item2.material &&
+      item1.grommets === item2.grommets &&
+      item1.pole_pockets === item2.pole_pockets &&
+      item1.pole_pocket_size === item2.pole_pocket_size &&
+      item1.rope_feet === item2.rope_feet &&
+      // Match file if both have files
+      ((!item1.file_key && !item2.file_key) || item1.file_key === item2.file_key)
+    );
+  }
+
+  /**
+   * Merge two cart item arrays with deep matching
+   * - Items with exact matches sum quantities
+   * - Unique items are added as separate line items
+   */
+  mergeCartItems(localItems: CartItem[], serverItems: CartItem[]): CartItem[] {
+    const requestId = this.generateRequestId();
+    
+    try {
+      const merged: CartItem[] = [];
+      const processedServerIndices = new Set<number>();
+
+      // Process local items
+      for (const localItem of localItems) {
+        let foundMatch = false;
+
+        // Try to find matching server item
+        for (let i = 0; i < serverItems.length; i++) {
+          if (processedServerIndices.has(i)) continue;
+
+          const serverItem = serverItems[i];
+          if (this.itemsMatch(localItem, serverItem)) {
+            // Found a match - merge quantities
+            const mergedQuantity = localItem.quantity + serverItem.quantity;
+            merged.push({
+              ...serverItem, // Use server item as base (it has the authoritative pricing)
+              quantity: mergedQuantity,
+              // Recalculate line total based on merged quantity
+              line_total_cents: Math.round(
+                (serverItem.line_total_cents / serverItem.quantity) * mergedQuantity
+              ),
+            });
+            processedServerIndices.add(i);
+            foundMatch = true;
+            break;
+          }
+        }
+
+        // No match found - add as unique item
+        if (!foundMatch) {
+          merged.push(localItem);
+        }
+      }
+
+      // Add remaining unprocessed server items
+      for (let i = 0; i < serverItems.length; i++) {
+        if (!processedServerIndices.has(i)) {
+          merged.push(serverItems[i]);
+        }
+      }
+
+      this.logEvent({
+        event: 'CART_MERGE',
+        requestId,
+        success: true,
+        metadata: {
+          localCount: localItems.length,
+          serverCount: serverItems.length,
+          mergedCount: merged.length,
+        },
+      });
+
+      return merged;
+    } catch (error) {
+      this.logEvent({
+        event: 'CART_MERGE',
+        requestId,
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      // Fallback: return all items without merging
+      return [...localItems, ...serverItems];
+    }
+  }
+
+  /**
+   * Load cart from database via Netlify function
+   * For authenticated users: load by user_id
+   * For guests: load by session_id
+   */
+  async loadCart(userId?: string, sessionId?: string): Promise<CartItem[]> {
+    const requestId = this.generateRequestId();
+
+    try {
+      const params = new URLSearchParams();
+      if (userId) params.append('userId', userId);
+      if (sessionId) params.append('sessionId', sessionId);
+
+      console.log('[cart-load] Calling Netlify function:', { userId: userId ? `${userId.substring(0, 8)}...` : null, sessionId: sessionId ? `${sessionId.substring(0, 12)}...` : null });
+
+      // Guard against hung Netlify functions stranding the UI in a loading
+      // state. Abort after 10s and let the caller handle the failure path.
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      let response: Response;
+      try {
+        response = await fetch(`/.netlify/functions/cart-load?${params.toString()}`, { signal: controller.signal });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+      }
+
+      const data = await response.json();
+      const cartData = data.cartData || [];
+
+      // DEBUG: Log what URLs are in the database
+      console.log('🔍 [cart-load] Inspecting loaded cart items:');
+      cartData.forEach((item: any, index: number) => {
+        console.log(`  Item ${index + 1}:`, {
+          id: item.id,
+          file_url: item.file_url,
+          web_preview_url: item.web_preview_url,
+          print_ready_url: item.print_ready_url,
+          file_url_is_blob: item.file_url?.startsWith('blob:'),
+          web_preview_url_is_blob: item.web_preview_url?.startsWith('blob:'),
+          print_ready_url_is_blob: item.print_ready_url?.startsWith('blob:'),
+        });
+      });
+
+      this.logEvent({
+        event: 'CART_LOAD',
+        userId,
+        sessionId,
+        requestId,
+        itemCount: cartData.length,
+        success: true,
+      });
+
+      console.log('[cart-load] Loaded', cartData.length, 'items from server');
+      return cartData;
+    } catch (error) {
+      this.logEvent({
+        event: 'CART_LOAD',
+        userId,
+        sessionId,
+        requestId,
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      console.error('[cart-load] Error loading cart:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Save cart to database via Netlify function
+   * Also saves snapshot to abandoned_carts table for recovery tracking
+   */
+  async saveCart(items: CartItem[], userId?: string, sessionId?: string): Promise<boolean> {
+    const ownerKey = userId
+      ? `user:${userId}`
+      : sessionId
+        ? `session:${sessionId}`
+        : null;
+    if (!ownerKey) return this.saveCartNow(items, userId, sessionId);
+
+    return new Promise<boolean>((resolve) => {
+      let queue = this.saveQueues.get(ownerKey);
+      if (!queue) {
+        queue = { running: false, pending: null };
+        this.saveQueues.set(ownerKey, queue);
+      }
+
+      if (queue.pending) {
+        // A save is already waiting behind the active request. Replace its
+        // payload with the newest full-cart snapshot and let every coalesced
+        // caller observe the result of that authoritative save.
+        queue.pending.items = items;
+        queue.pending.userId = userId;
+        queue.pending.sessionId = sessionId;
+        queue.pending.waiters.push(resolve);
+      } else {
+        queue.pending = { items, userId, sessionId, waiters: [resolve] };
+      }
+
+      void this.drainSaveQueue(ownerKey, queue);
+    });
+  }
+
+  private async drainSaveQueue(ownerKey: string, queue: CartSaveQueue): Promise<void> {
+    if (queue.running) return;
+    queue.running = true;
+    try {
+      while (queue.pending) {
+        const next = queue.pending;
+        queue.pending = null;
+        const success = await this.saveCartNow(next.items, next.userId, next.sessionId);
+        next.waiters.forEach((resolve) => resolve(success));
+      }
+    } finally {
+      queue.running = false;
+      if (queue.pending) {
+        void this.drainSaveQueue(ownerKey, queue);
+      } else if (this.saveQueues.get(ownerKey) === queue) {
+        this.saveQueues.delete(ownerKey);
+      }
+    }
+  }
+
+  private async saveCartNow(items: CartItem[], userId?: string, sessionId?: string): Promise<boolean> {
+    const requestId = this.generateRequestId();
+
+    if (!userId && !sessionId) {
+      this.logEvent({
+        event: 'CART_SAVE',
+        requestId,
+        success: false,
+        error: 'Either userId or sessionId must be provided',
+      });
+      return false;
+    }
+
+    try {
+      console.log('[cart-save] Calling Netlify function:', { userId: userId ? `${userId.substring(0, 8)}...` : null, sessionId: sessionId ? `${sessionId.substring(0, 12)}...` : null, itemCount: items.length });
+
+      // Guard against hung Netlify functions stranding the UI. Abort after
+      // 10s; saveCart returns false on failure and the caller carries on.
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      let response: Response;
+      try {
+        response = await fetch('/.netlify/functions/cart-save', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId,
+            sessionId,
+            cartData: items,
+          }),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+      }
+
+      this.logEvent({
+        event: 'CART_SAVE',
+        userId,
+        sessionId,
+        requestId,
+        itemCount: items.length,
+        success: true,
+      });
+
+      console.log('[cart-save] Saved', items.length, 'items to server');
+
+      // Also save a bounded snapshot for recovery tracking. Empty snapshots
+      // close the active recovery record so a cleared cart cannot be emailed.
+      await this.saveCartSnapshot(items, userId, sessionId);
+
+      return true;
+    } catch (error) {
+      console.error('[cart-save] Error saving cart:', error);
+      this.logEvent({
+        event: 'CART_SAVE',
+        userId,
+        sessionId,
+        requestId,
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      return false;
+    }
+  }
+
+  /**
+   * Save cart snapshot to abandoned_carts table for recovery tracking
+   * Failures are contained so recovery telemetry never blocks the cart flow.
+   */
+  async saveCartSnapshot(
+    items: CartItem[],
+    userId?: string,
+    sessionId?: string,
+    options: SaveCartSnapshotOptions = {},
+  ): Promise<CartSnapshotResult | null> {
+    try {
+      const snapshotSessionId = sessionId
+        || this.getExistingSessionId()
+        || this.getSessionId()
+        || undefined;
+      let storedUser: Record<string, unknown> = {};
+
+      try {
+        if (typeof localStorage !== 'undefined') {
+          const userStr = localStorage.getItem('banners_current_user');
+          if (userStr) {
+            storedUser = JSON.parse(userStr) || {};
+          }
+        }
+      } catch (e) {
+        console.warn('[save-cart-snapshot] Could not get user info from localStorage:', e);
+      }
+
+      const draft = readCheckoutCustomerDraft();
+      const explicitContact = normalizeCaptureContact(options.contact);
+      const draftContact = normalizeCaptureContact({
+        email: draft.email,
+        phone: draft.phone,
+        firstName: draft.firstName,
+        lastName: draft.lastName,
+      });
+      const userContact = normalizeCaptureContact({
+        email: storedUser.email as string | undefined,
+        phone: storedUser.phone as string | undefined,
+        firstName: (storedUser.firstName || storedUser.first_name) as string | undefined,
+        lastName: (storedUser.lastName || storedUser.last_name) as string | undefined,
+      });
+      const contact = {
+        email: explicitContact.email || draftContact.email || userContact.email,
+        phone: explicitContact.phone || draftContact.phone || userContact.phone,
+        firstName: explicitContact.firstName || draftContact.firstName || userContact.firstName,
+        lastName: explicitContact.lastName || draftContact.lastName || userContact.lastName,
+      };
+      const captureKind = options.captureKind === 'lifecycle' ? 'lifecycle' : 'full';
+      const sanitizedItems = sanitizeSnapshotItems(items, {
+        mode: captureKind === 'lifecycle' ? 'compact' : 'full',
+      });
+      const recoveryAttribution = items.length > 0
+        ? readStoredAbandonedCartRecoveryAttribution()
+        : null;
+      const existingCartId = readStoredAbandonedCartId();
+      // Assign at request construction—not response time—so a pagehide flush
+      // or later contact edit always outranks any older in-flight snapshot.
+      const snapshotRevision = this.nextSnapshotRevision(
+        recoveryAttribution?.cartId
+        || existingCartId
+        || (userId ? `user:${userId}` : `session:${snapshotSessionId || 'unknown'}`),
+      );
+      const fallbackSubtotalCents = sanitizedItems.reduce((sum, item) => {
+        const value = Number(item.line_total_cents);
+        return sum + (Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0);
+      }, 0);
+      const normalizeCents = (value: number | null | undefined, fallback: number | null): number | null => (
+        Number.isSafeInteger(value) && Number(value) >= 0 ? Number(value) : fallback
+      );
+      const subtotalCents = normalizeCents(options.totals?.subtotalCents, fallbackSubtotalCents);
+      const discountCents = normalizeCents(options.totals?.discountCents, null);
+      const taxCents = normalizeCents(options.totals?.taxCents, null);
+      // A cart-stage snapshot does not know tax/final checkout total. Preserve
+      // that distinction instead of presenting the line subtotal as a final
+      // estimate; the checkout hook supplies the real estimate once known.
+      const estimatedTotalCents = normalizeCents(options.totals?.estimatedTotalCents, null);
+
+      console.log('[save-cart-snapshot] Saving snapshot for abandoned cart tracking:', {
+        userId: userId ? `${userId.substring(0, 8)}...` : null,
+        sessionId: sessionId ? `${sessionId.substring(0, 12)}...` : null,
+        itemCount: items.length,
+        hasEmail: !!contact.email,
+        stage: options.stage || 'cart',
+      });
+
+      const response = await fetch('/.netlify/functions/save-cart-snapshot', {
+        method: 'POST',
+        headers: authorizedHeaders({
+          'Content-Type': 'application/json',
+        }),
+        credentials: 'same-origin',
+        keepalive: captureKind === 'lifecycle',
+        body: JSON.stringify({
+          userId,
+          sessionId: snapshotSessionId,
+          existingCartId,
+          recoveryCartId: recoveryAttribution?.cartId || null,
+          recoveryToken: recoveryAttribution?.token || null,
+          snapshotRevision,
+          captureKind,
+          abandonmentSignal: options.abandonmentSignal === true,
+          checkoutState: options.checkoutState || null,
+          email: contact.email,
+          phone: contact.phone,
+          firstName: contact.firstName,
+          lastName: contact.lastName,
+          cartItems: sanitizedItems,
+          stage: options.stage || 'cart',
+          subtotalCents,
+          discountCents,
+          taxCents,
+          estimatedTotalCents,
+          metadata: {
+            signed_in: Boolean(userId),
+            customer_type: userId ? 'signed_in' : 'guest',
+            ...options.metadata,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.warn('[save-cart-snapshot] Failed to save snapshot:', errorText);
+        return null; // Don't throw - this is non-critical
+      }
+
+      const result = await response.json();
+      if (items.length === 0) {
+        writeStoredAbandonedCartId(null);
+        writeStoredAbandonedCartRecoveryAttribution(null);
+      } else if (typeof result?.cartId === 'string') {
+        writeStoredAbandonedCartId(result.cartId);
+      }
+      console.log('[save-cart-snapshot] Snapshot saved successfully:', result);
+      return {
+        cartId: typeof result?.cartId === 'string' ? result.cartId : null,
+        status: typeof result?.status === 'string' ? result.status : null,
+      };
+
+    } catch (error) {
+      // Log but don't throw - abandoned cart tracking is non-critical
+      console.warn('[save-cart-snapshot] Error saving cart snapshot:', error);
+      return null;
+    }
+  }
+
+  async saveCheckoutProgress(
+    items: CartItem[],
+    options: SaveCartSnapshotOptions,
+  ): Promise<CartSnapshotResult | null> {
+    const userId = this.getUserId() || undefined;
+    const sessionId = this.getExistingSessionId() || this.getSessionId() || undefined;
+    return this.saveCartSnapshot(items, userId, sessionId, options);
+  }
+
+  /**
+   * Clear cart from database
+   */
+  async clearCart(userId?: string, sessionId?: string): Promise<boolean> {
+    const requestId = this.generateRequestId();
+
+    try {
+      // For now, just save an empty cart
+      const success = await this.saveCart([], userId, sessionId);
+
+      this.logEvent({
+        event: 'CART_CLEAR',
+        userId,
+        sessionId,
+        requestId,
+        success,
+      });
+
+      return success;
+    } catch (error) {
+      this.logEvent({
+        event: 'CART_CLEAR',
+        userId,
+        sessionId,
+        requestId,
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      return false;
+    }
+  }
+  /**
+   * Merge guest cart with user cart on login
+   * This is called when a guest user signs in from the checkout page
+   * 
+   * @param userId - The user ID of the newly authenticated user
+   * @param guestSessionId - Optional guest session ID (from checkout context or cookie)
+   * @returns The merged cart items
+   */
+  async mergeGuestCartOnLogin(userId: string, guestSessionId?: string): Promise<CartItem[]> {
+    const requestId = this.generateRequestId();
+
+    // Synthetic/admin identities are authorization principals, not profile
+    // UUIDs. Never let them touch a guest browser's commerce cart.
+    if (!isCartSyncIdentity({ id: userId, is_admin: false })) return [];
+    
+    try {
+      console.log('🔄 [mergeGuestCartOnLogin] Starting guest cart merge', {
+        userId: userId ? `${userId.substring(0, 8)}...` : null,
+        guestSessionId: guestSessionId ? `${guestSessionId.substring(0, 12)}...` : null,
+      });
+
+      // Get the current session ID if not provided
+      const sessionId = guestSessionId || this.getSessionId();
+      
+      console.log('🔄 [mergeGuestCartOnLogin] Using session ID:', sessionId ? `${sessionId.substring(0, 12)}...` : 'none');
+
+      // Load guest cart from database (by session ID)
+      const guestItems = sessionId ? await this.loadCart(undefined, sessionId) : [];
+      console.log('🔄 [mergeGuestCartOnLogin] Guest cart items:', guestItems.length);
+
+      // Load user's existing cart from database (by user ID)
+      const userItems = await this.loadCart(userId);
+      console.log('🔄 [mergeGuestCartOnLogin] User cart items:', userItems.length);
+
+      // Merge the carts (guest cart + user cart)
+      const mergedItems = this.mergeCartItems(guestItems, userItems);
+      console.log('🔄 [mergeGuestCartOnLogin] Merged cart items:', mergedItems.length);
+
+      // An empty login merge has nothing to persist. In particular, it must
+      // not flow through saveCartSnapshot([]), which is the explicit signal
+      // used to close a genuinely emptied customer cart.
+      if (mergedItems.length === 0) {
+        this.logEvent({
+          event: 'CART_MERGE',
+          userId,
+          sessionId,
+          requestId,
+          itemCount: 0,
+          success: true,
+          metadata: { guestItemCount: 0, userItemCount: 0, mergedItemCount: 0 },
+        });
+        return [];
+      }
+
+      // Save merged cart to user's account
+      const success = await this.saveCart(mergedItems, userId, sessionId || undefined);
+      
+      if (success) {
+        console.log('✅ [mergeGuestCartOnLogin] Merged cart saved successfully');
+        
+        // Clear the guest session cookie since cart is now associated with user
+        this.clearSessionCookie();
+        console.log('✅ [mergeGuestCartOnLogin] Guest session cookie cleared');
+        
+        this.logEvent({
+          event: 'CART_MERGE',
+          userId,
+          sessionId,
+          requestId,
+          itemCount: mergedItems.length,
+          success: true,
+          metadata: {
+            guestItemCount: guestItems.length,
+            userItemCount: userItems.length,
+            mergedItemCount: mergedItems.length,
+          },
+        });
+      } else {
+        console.error('❌ [mergeGuestCartOnLogin] Failed to save merged cart');
+      }
+
+      return mergedItems;
+    } catch (error) {
+      console.error('❌ [mergeGuestCartOnLogin] Error merging guest cart:', error);
+      this.logEvent({
+        event: 'CART_MERGE',
+        userId,
+        sessionId: guestSessionId,
+        requestId,
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      
+      // Fallback: just load user's cart
+      return await this.loadCart(userId);
+    }
+  }
+
+
+
+  /**
+   * Legacy compatibility: merge and sync cart (used by existing code)
+   */
+  async mergeAndSyncCart(userId: string, localItems: CartItem[]): Promise<CartItem[]> {
+    try {
+      // Load server cart
+      const serverItems = await this.loadCart(userId);
+      
+      // Merge carts
+      const mergedItems = this.mergeCartItems(localItems, serverItems);
+      
+      // Save merged cart
+      await this.saveCart(mergedItems, userId);
+      
+      return mergedItems;
+    } catch (error) {
+      console.error('Error in mergeAndSyncCart:', error);
+      return localItems;
+    }
+  }
+}
+
+// Export singleton instance
+const cartSyncService = new CartSyncService();
+
+// Export legacy interface for backward compatibility
+export const cartSync = {
+  isAvailable: () => cartSyncService.isAvailable(),
+  getUserId: () => cartSyncService.getUserId(),
+  getSessionId: () => cartSyncService.getSessionId(),
+  getExistingSessionId: () => cartSyncService.getExistingSessionId(),
+  loadCart: (userId: string) => cartSyncService.loadCart(userId),
+  saveCart: (items: CartItem[], userId?: string, sessionId?: string) => cartSyncService.saveCart(items, userId, sessionId),
+  mergeAndSyncCart: (userId: string, localItems: CartItem[]) => cartSyncService.mergeAndSyncCart(userId, localItems),
+  clearCart: (userId: string) => cartSyncService.clearCart(userId),
+  saveCartSnapshot: (
+    items: CartItem[],
+    userId?: string,
+    sessionId?: string,
+    options?: SaveCartSnapshotOptions,
+  ) => cartSyncService.saveCartSnapshot(items, userId, sessionId, options),
+  saveCheckoutProgress: (items: CartItem[], options: SaveCartSnapshotOptions) => (
+    cartSyncService.saveCheckoutProgress(items, options)
+  ),
+};
+
+// Export new service for enhanced features
+export { cartSyncService };

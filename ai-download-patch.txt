@@ -1,0 +1,15 @@
+        const orderResult = await sql`
+          SELECT 
+            o.id, 
+            o.email, 
+            oi.file_key,
+            oi.print_ready_url,
+            oi.web_preview_url,
+            oi.artwork_metadata_url,
+            oi.width_in,
+            oi.height_in
+          FROM orders o
+          JOIN order_items oi ON o.id = oi.order_id
+          WHERE o.id = ${order} AND oi.file_key = ${key}
+          LIMIT 1
+        `;

@@ -1,0 +1,534 @@
+import React, { useLayoutEffect } from 'react';
+import { Tag, DollarSign, Truck } from 'lucide-react';
+import { usd } from '@/lib/pricing';
+import {
+  LARGE_BANNER_PROMOTION_LABEL,
+  isLargeBannerPromotionIdentifier,
+} from '@/lib/largeBannerPromotion';
+import { setAutomaticPromotionDisplay } from '@/lib/automaticPromotionDisplay';
+
+/**
+ * Shared, site-wide pricing summary UI.
+ *
+ * This is the single approved style for displaying price breakdowns across
+ * /design, /google-ads-banner, and any other
+ * pricing surface. All input data must come pre-computed from the shared
+ * pricing engines (banner / yard-sign / car-magnet) so that the same
+ * configuration always renders the same numbers everywhere.
+ */
+
+export interface PriceBreakdownAddon {
+  label: string;
+  amountCents: number;
+}
+
+export interface PriceBreakdownDetailRow {
+  label: string;
+  value: React.ReactNode;
+}
+
+export interface PriceBreakdownPromo {
+  code: string;
+  applied: boolean;
+  onCodeChange: (code: string) => void;
+  onApply: () => void;
+  onRemove: () => void;
+  appliedLabel?: string;
+}
+
+export interface PriceBreakdownProps {
+  variant?: 'default' | 'compact';
+  /** Header heading shown above the big price (e.g. "Your Instant Quote"). */
+  heading?: string;
+  /** Header subheading (small caption under heading). */
+  subheading?: string;
+  /** When true, render a soft yellow header with icon. */
+  showHeader?: boolean;
+
+  /** Centered top-summary primary line, e.g. "8.00 sq ft • $4.50 per sq ft" */
+  topLine: string;
+  /** Centered top-summary secondary line, e.g. "for 2 banners" */
+  secondaryLine?: string;
+  /** When false, hides the top summary text block above the divider. */
+  showTopSummary?: boolean;
+
+  /** Optional small detail rows shown above the breakdown, e.g. Material/Print/Quantity. */
+  detailRows?: PriceBreakdownDetailRow[];
+
+  /** Base subtotal before any discounts (cents). Required. */
+  baseSubtotalCents: number;
+  /** Label for the base subtotal row. Defaults to "Base subtotal". */
+  baseSubtotalLabel?: string;
+
+  /** Add-on rows (rope, pole pockets, stakes, etc.). Hidden when empty / zero. */
+  addOns?: PriceBreakdownAddon[];
+
+  /** Quantity discount (positive cents amount; rendered as -$X.XX in green). */
+  quantityDiscountCents?: number;
+  /** Quantity discount rate (0..1). When set, label includes "(N% off)". */
+  quantityDiscountRate?: number;
+
+  /** Promo discount (positive cents amount; rendered as -$X.XX in green). */
+  promoDiscountCents?: number;
+  /** Promo discount rate (0..1). When set, label includes "(N% off)". */
+  promoDiscountRate?: number;
+  /** Promo code or automatic promotion identifier. */
+  promoDiscountCode?: string;
+
+  /** Optional minimum-order adjustment row (positive cents). */
+  minOrderAdjustmentCents?: number;
+
+  /**
+   * Same-Day Hit Service fee (positive cents). When > 0, a line item is
+   * shown and the shipping supporting text switches to the same-day message.
+   * The caller is responsible for including this in `totalCents`.
+   */
+  sameDayHitServiceCents?: number;
+
+  /** Tax (cents). */
+  taxCents: number;
+  /** Tax rate 0..1; controls label like "Tax (6%)". */
+  taxRate?: number;
+
+  /** Adjusted subtotal (after discounts, before tax) in cents. */
+  adjustedSubtotalCents: number;
+  /** Total with tax (cents) — visually emphasized. */
+  totalCents: number;
+
+  /** Optional promo input below the breakdown. */
+  promo?: PriceBreakdownPromo;
+
+  /** Footer note (e.g. "Tax calculated at checkout"). */
+  footerNote?: string;
+
+  /**
+   * When true, the destination is not known yet. Hide estimated tax and
+   * present a pre-tax subtotal so the product builder never implies a
+   * nationwide customer's final tax amount.
+   */
+  taxCalculatedAtCheckout?: boolean;
+
+  /** Class name on outer container. */
+  className?: string;
+}
+
+/**
+ * Compact, polished pricing summary card. Fully responsive; no overflow on
+ * mobile. All data should come from a normalized pricing engine output.
+ */
+const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
+  variant = 'default',
+  heading,
+  subheading,
+  showHeader = false,
+  topLine,
+  secondaryLine,
+  showTopSummary = true,
+  detailRows,
+  baseSubtotalCents,
+  baseSubtotalLabel = 'Base subtotal',
+  addOns,
+  quantityDiscountCents = 0,
+  quantityDiscountRate,
+  promoDiscountCents = 0,
+  promoDiscountRate,
+  promoDiscountCode,
+  minOrderAdjustmentCents = 0,
+  sameDayHitServiceCents = 0,
+  taxCents,
+  taxRate = 0.06,
+  adjustedSubtotalCents,
+  totalCents,
+  promo,
+  footerNote = 'Tax calculated at checkout',
+  taxCalculatedAtCheckout = false,
+  className = '',
+}) => {
+  const taxLabel = `Tax${taxRate ? ` (${Math.round(taxRate * 100)}%)` : ''}`;
+  const quantityDiscountLabel = `Quantity discount${
+    quantityDiscountRate ? ` (${Math.round(quantityDiscountRate * 100)}% off)` : ''
+  }`;
+
+  const hasSameDayFee = sameDayHitServiceCents > 0;
+  const visibleAddOns = (addOns || []).filter(a => a && a.amountCents > 0);
+  const hasQuantityDiscount = quantityDiscountCents > 0;
+  const hasPromoDiscount = promoDiscountCents > 0;
+  const isAutomaticLargeBannerPromotion = hasPromoDiscount
+    && isLargeBannerPromotionIdentifier(promoDiscountCode);
+  const promoDiscountLabel = isAutomaticLargeBannerPromotion
+    ? LARGE_BANNER_PROMOTION_LABEL
+    : `Promo${promoDiscountCode ? ` ${promoDiscountCode}` : ''}${
+        promoDiscountRate ? ` (${Math.round(promoDiscountRate * 100)}% off)` : ''
+      }`;
+  const originalTotalCents = totalCents + (isAutomaticLargeBannerPromotion ? promoDiscountCents : 0);
+  const enteredPromoCode = String(promo?.code || '').trim().toUpperCase();
+  const hasDifferentEnteredPromo = Boolean(
+    promo?.applied
+    && enteredPromoCode
+    && !isLargeBannerPromotionIdentifier(enteredPromoCode),
+  );
+
+  useLayoutEffect(() => {
+    if (!isAutomaticLargeBannerPromotion) {
+      setAutomaticPromotionDisplay(null);
+      return;
+    }
+
+    setAutomaticPromotionDisplay({
+      originalSubtotalCents: adjustedSubtotalCents + promoDiscountCents,
+      discountedSubtotalCents: adjustedSubtotalCents,
+    });
+
+    return () => setAutomaticPromotionDisplay(null);
+  }, [adjustedSubtotalCents, isAutomaticLargeBannerPromotion, promoDiscountCents]);
+
+  const shippingNote = hasSameDayFee
+    ? 'Same-Day production priority selected. Next-day air shipping is still included.'
+    : 'Most standard orders are produced within 24 hours; free next-day air begins after production.';
+  const shippingValueLabel = hasSameDayFee ? 'Next-Day Air Included' : 'FREE';
+  // Footer note: combine shipping language (per spec) with the caller's note
+  // (typically "Tax calculated at checkout") so the message is consistent
+  // across product pages, cart, and checkout.
+  const baseFooterNote = footerNote || '';
+  const composedFooterNote = hasSameDayFee
+    ? ['Next-Day Air Included', 'Same-Day production priority selected', baseFooterNote]
+        .filter(Boolean)
+        .join(' • ')
+    : ['Free Next-Day Air After Production', baseFooterNote].filter(Boolean).join(' • ');
+
+  const hasMinOrderAdjustment = minOrderAdjustmentCents > 0;
+  const hasDetailRows = Boolean(detailRows && detailRows.length > 0);
+  const detailRowsContainerClass = [
+    showTopSummary ? 'pt-3 mt-2 border-t border-slate-300/60' : '',
+    'space-y-1 text-sm text-gray-700',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const breakdownRowsClass = [
+    showTopSummary || hasDetailRows ? 'pt-3 mt-2 border-t border-slate-300/60' : '',
+    'space-y-1.5 text-sm',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  if (variant === 'compact') {
+    const discountCents = quantityDiscountCents + promoDiscountCents;
+    return (
+      <div data-testid="price-breakdown" data-variant="compact" className={className}>
+        <h3 className="text-xl font-bold text-[#061A31]">{heading || 'Your banner'}</h3>
+        <p className="mt-1 text-sm text-slate-600">{baseSubtotalCents > 0 ? secondaryLine : 'Choose a size to see your price.'}</p>
+        <div className="mt-4 flex flex-wrap items-baseline gap-3">
+          <p className="text-4xl font-bold tracking-tight text-[#061A31]">{usd(totalCents / 100)}</p>
+          {discountCents > 0 && <span className="text-sm text-slate-500 line-through">{usd((totalCents + discountCents) / 100)}</span>}
+        </div>
+        <p className="mt-1 text-xs text-slate-500">{taxCalculatedAtCheckout ? 'Subtotal before tax' : 'Total with tax'}</p>
+        {discountCents > 0 && <p className="mt-2 text-sm font-semibold text-emerald-700">{hasPromoDiscount ? promoDiscountLabel : quantityDiscountLabel} applied · You save {usd(discountCents / 100)}</p>}
+        <dl className="mt-4 space-y-2 border-t border-slate-200 pt-4 text-sm">
+          {detailRows?.map(row => <div key={row.label} className="flex justify-between gap-4"><dt className="text-slate-600">{row.label}</dt><dd className="text-right font-medium text-slate-800">{row.value}</dd></div>)}
+          {visibleAddOns.map(row => <div key={row.label} className="flex justify-between gap-4"><dt>{row.label}</dt><dd>{usd(row.amountCents / 100)}</dd></div>)}
+          {hasSameDayFee && <div className="flex justify-between gap-4"><dt>Same-Day Hit Service</dt><dd>{usd(sameDayHitServiceCents / 100)}</dd></div>}
+          {hasMinOrderAdjustment && <div className="flex justify-between gap-4"><dt>Minimum order adjustment</dt><dd>{usd(minOrderAdjustmentCents / 100)}</dd></div>}
+          <div className="flex justify-between gap-4"><dt>Shipping</dt><dd className="font-semibold text-emerald-700">{shippingValueLabel}</dd></div>
+          <div className="flex justify-between gap-4"><dt>Tax</dt><dd className="text-right">{taxCalculatedAtCheckout ? 'Calculated at checkout' : usd(taxCents / 100)}</dd></div>
+        </dl>
+        {promo && <details className="mt-4 border-t border-slate-200 pt-3" open={promo.applied || undefined}>
+          <summary className="cursor-pointer py-2 text-sm font-medium text-slate-700">Have a promo code?</summary>
+          {promo.applied ? <div className="flex items-center gap-3 py-2 text-xs text-slate-700"><p className="min-w-0 flex-1">{promo.appliedLabel || `${promo.code} applied`}</p><button type="button" onClick={promo.onRemove} className="min-h-11 px-2 font-semibold underline">Clear code</button></div> : <div className="mt-2 flex gap-2"><input aria-label="Promo code" placeholder="Promo Code" value={promo.code} onChange={e => promo.onCodeChange(e.target.value.toUpperCase())} className="min-w-0 flex-1 rounded-lg border px-3 py-2 text-base" autoComplete="off" /><button type="button" onClick={promo.onApply} className="min-h-11 rounded-lg bg-slate-100 px-3 text-sm font-semibold">Apply</button></div>}
+        </details>}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`bg-white border border-slate-300 rounded-xl overflow-hidden ${className}`}
+      style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.10), 0 4px 12px rgba(0,0,0,0.06)' }}
+      data-testid="price-breakdown"
+    >
+      {showHeader && (heading || subheading) && (
+        <div
+          className="px-6 py-5 border-b border-slate-200"
+          style={{
+            background:
+              'linear-gradient(180deg, #fefce8 0%, #fef9c3 50%, #fef08a 100%)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          }}
+        >
+          <div className="text-center">
+            <div className="inline-flex items-center gap-3 mb-2">
+              <div className="relative">
+                <div
+                  className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg"
+                  style={{ boxShadow: '0 6px 16px rgba(249,115,22,0.5)' }}
+                >
+                  <DollarSign className="h-6 w-6 text-white" />
+                </div>
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full shadow-sm animate-pulse border-2 border-white" />
+              </div>
+              {heading && (
+                <h3 className="text-2xl font-bold text-slate-900">{heading}</h3>
+              )}
+            </div>
+            {subheading && (
+              <p className="text-sm text-slate-600 font-medium">{subheading}</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div
+        className="p-6 sm:p-8"
+        style={{ background: 'linear-gradient(180deg, #ffffff 0%, #fafafa 100%)' }}
+      >
+        {/* SECTION A — Top summary (centered, large total) */}
+        <div className="text-center mb-6">
+          {isAutomaticLargeBannerPromotion ? (
+            <div data-testid="automatic-large-banner-sale-price">
+              <div className="mb-0.5 text-lg sm:text-xl font-semibold leading-none text-slate-400 line-through decoration-2">
+                {usd(originalTotalCents / 100)}
+              </div>
+              <div
+                className="text-4xl sm:text-5xl md:text-6xl font-bold leading-tight text-emerald-600"
+                style={{ textShadow: '0 2px 4px rgba(0,0,0,0.08)' }}
+              >
+                {usd(totalCents / 100)}
+              </div>
+              <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800">
+                <Tag className="h-3.5 w-3.5" aria-hidden="true" />
+                {LARGE_BANNER_PROMOTION_LABEL} automatically applied
+              </div>
+            </div>
+          ) : (
+            <div
+              className="text-4xl sm:text-5xl md:text-6xl font-bold text-slate-900 leading-tight"
+              style={{ textShadow: '0 2px 4px rgba(0,0,0,0.08)' }}
+            >
+              {usd(totalCents / 100)}
+            </div>
+          )}
+        </div>
+
+        {/* SECTION B — Boxed breakdown panel */}
+        <div
+          className="rounded-xl p-4 sm:p-5 space-y-2"
+          style={{
+            background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)',
+            boxShadow:
+              'inset 0 2px 4px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+            border: '1px solid rgba(148,163,184,0.3)',
+          }}
+        >
+          {/* Centered top summary line(s) */}
+          {showTopSummary && (
+            <>
+              <p className="font-bold text-gray-800 text-center break-words">{topLine}</p>
+              {secondaryLine && (
+                <p className="text-sm text-gray-600 font-medium text-center break-words">
+                  {secondaryLine}
+                </p>
+              )}
+            </>
+          )}
+
+          {/* Optional configuration detail rows */}
+          {hasDetailRows && (
+            <div className={detailRowsContainerClass}>
+              {detailRows!.map((row, idx) => (
+                <div
+                  key={`${row.label}-${idx}`}
+                  className="flex justify-between gap-3"
+                >
+                  <span className="text-gray-600">{row.label}</span>
+                  <span className="font-medium text-gray-800 text-right">
+                    {row.value}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Breakdown rows */}
+          <div className={breakdownRowsClass}>
+            <div className="flex justify-between gap-3">
+              <span className="text-gray-600">{baseSubtotalLabel}</span>
+              <span className="font-semibold text-gray-800">
+                {usd(baseSubtotalCents / 100)}
+              </span>
+            </div>
+
+            {visibleAddOns.map((addon, idx) => (
+              <div
+                key={`${addon.label}-${idx}`}
+                className="flex justify-between gap-3"
+              >
+                <span className="text-gray-600">{addon.label}</span>
+                <span className="font-semibold text-gray-800">
+                  {usd(addon.amountCents / 100)}
+                </span>
+              </div>
+            ))}
+
+            {hasQuantityDiscount && (
+              <div className="flex justify-between gap-3 text-green-700">
+                <span className="flex items-center gap-1">
+                  <Tag className="h-3.5 w-3.5" />
+                  {quantityDiscountLabel}
+                </span>
+                <span className="font-semibold">
+                  -{usd(quantityDiscountCents / 100)}
+                </span>
+              </div>
+            )}
+
+            {hasPromoDiscount && (
+              <div className="flex justify-between gap-3 text-green-700">
+                <span className="flex items-center gap-1">
+                  <Tag className="h-3.5 w-3.5" />
+                  {promoDiscountLabel}
+                </span>
+                <span className="font-semibold">
+                  -{usd(promoDiscountCents / 100)}
+                </span>
+              </div>
+            )}
+
+            {hasMinOrderAdjustment && (
+              <div className="flex justify-between gap-3">
+                <span className="text-gray-600">Minimum order adjustment</span>
+                <span className="font-semibold text-gray-800">
+                  {usd(minOrderAdjustmentCents / 100)}
+                </span>
+              </div>
+            )}
+
+            {hasSameDayFee && (
+              <div className="flex justify-between gap-3 text-amber-700">
+                <span className="font-medium">Same-Day Hit Service</span>
+                <span className="font-semibold">+{usd(sameDayHitServiceCents / 100)}</span>
+              </div>
+            )}
+
+            {/* Shipping: free next-day air, with label/value adjusted when
+                Same-Day Hit Service is selected so it is never implied that
+                the same-day fee is shipping. */}
+            <div className="flex flex-col gap-0.5">
+              <div className="flex justify-between gap-3">
+                <span className={`flex items-center gap-1.5 font-medium ${hasSameDayFee ? 'text-slate-700' : 'text-green-700'}`}>
+                  <Truck className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+                  Shipping
+                </span>
+                <span className={`font-semibold ${hasSameDayFee ? 'text-slate-700' : 'text-green-700'}`}>{shippingValueLabel}</span>
+              </div>
+              <p className="text-[11px] text-slate-500 leading-tight pl-5">{shippingNote}</p>
+            </div>
+
+            {!taxCalculatedAtCheckout && (
+              <div className="flex justify-between gap-3">
+                <span className="text-gray-600">{taxLabel}</span>
+                <span className="font-semibold text-gray-800">
+                  {usd(taxCents / 100)}
+                </span>
+              </div>
+            )}
+
+            {!taxCalculatedAtCheckout && (
+              <div className="flex justify-between gap-3 pt-2 mt-1 border-t border-slate-300/60">
+                <span className="font-bold text-gray-800">Adjusted subtotal</span>
+                <span className="font-bold text-gray-800">
+                  {usd(adjustedSubtotalCents / 100)}
+                </span>
+              </div>
+            )}
+            <div className="flex justify-between gap-3 pt-2 mt-1 border-t border-slate-300/60">
+              <span className="font-bold text-gray-800">
+                {taxCalculatedAtCheckout ? 'Subtotal before tax' : 'Total with tax'}
+              </span>
+              <span className="font-bold text-[#ff6b35]">
+                {usd(totalCents / 100)}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* SECTION C — Promo input */}
+        {promo && (
+          <div className="mt-4 space-y-2">
+            {isAutomaticLargeBannerPromotion && (
+              <div className="flex items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
+                <span className="flex min-w-0 items-center gap-1.5 text-sm font-semibold text-emerald-800">
+                  <Tag className="h-3.5 w-3.5 flex-shrink-0" />
+                  <span className="truncate">{LARGE_BANNER_PROMOTION_LABEL} applied automatically</span>
+                </span>
+                <span className="text-[10px] font-black uppercase tracking-wide text-emerald-700">25% OFF</span>
+              </div>
+            )}
+
+            {!promo.applied ? (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={promo.code}
+                  onChange={e => promo.onCodeChange(e.target.value.toUpperCase())}
+                  placeholder="Promo Code"
+                  aria-label="Promo code"
+                  autoComplete="off"
+                  className="flex-1 min-w-0 border rounded-xl px-3 py-2 text-base"
+                />
+                <button
+                  type="button"
+                  onClick={promo.onApply}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium whitespace-nowrap"
+                >
+                  Apply
+                </button>
+              </div>
+            ) : isAutomaticLargeBannerPromotion ? (
+              hasDifferentEnteredPromo ? (
+                <div className="flex items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                  <span className="min-w-0 text-xs font-medium leading-snug text-amber-800">
+                    {enteredPromoCode} was not combined. The automatic 25% large-banner price remains applied.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={promo.onRemove}
+                    className="whitespace-nowrap text-xs font-semibold text-red-500 hover:text-red-700"
+                  >
+                    Clear code
+                  </button>
+                </div>
+              ) : null
+            ) : (
+              <div className="flex items-center justify-between gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
+                <span className="text-sm font-semibold text-green-800 flex items-center gap-1.5 min-w-0">
+                  <Tag className="h-3.5 w-3.5 flex-shrink-0" />
+                  <span className="truncate">
+                    {promo.appliedLabel || `${promo.code} applied`}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={promo.onRemove}
+                  className="text-xs text-red-500 hover:text-red-700 font-medium whitespace-nowrap"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+
+            {isAutomaticLargeBannerPromotion && (
+              <p className="text-center text-[11px] font-medium text-slate-500">
+                Discounts cannot be combined. A larger eligible promotion will replace this one instead of stacking.
+              </p>
+            )}
+          </div>
+        )}
+
+        {composedFooterNote && (
+          <p className="text-xs text-gray-400 mt-4 text-center">{composedFooterNote}</p>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default PriceBreakdown;

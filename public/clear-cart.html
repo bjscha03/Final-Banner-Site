@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear Cart</title>
+    <style>
+        body { font-family: Arial; padding: 40px; max-width: 600px; margin: 0 auto; }
+        button { padding: 15px 30px; font-size: 18px; background: #18448D; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0f2d5e; }
+        .success { color: green; font-weight: bold; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Clear Cart & Fix Edit Issue</h1>
+    <p>This will clear your cart and remove old items that don't have the proper data structure.</p>
+    <button onclick="clearCart()">Clear Cart Now</button>
+    <div id="result"></div>
+    
+    <script>
+        function clearCart() {
+            localStorage.removeItem('cart-storage');
+            sessionStorage.clear();
+            document.getElementById('result').innerHTML = '<div class="success">✅ Cart cleared! Now go back to the design page and create a new banner.</div>';
+        }
+    </script>
+</body>
+</html>
