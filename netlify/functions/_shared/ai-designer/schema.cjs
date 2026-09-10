@@ -145,6 +145,16 @@ function stableHash(value) {
   return crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 }
 
+function validateImprovedPrompt(value, exactWording = []) {
+  const prompt = sanitizeText(value);
+  if (!prompt || prompt.length > 1200 || exactWording.some(text => !prompt.includes(text))) {
+    const error = new Error('The improved prompt did not preserve all of your wording. Your original prompt is unchanged; please try again.');
+    error.code = 'INVALID_REQUEST';
+    throw error;
+  }
+  return prompt;
+}
+
 module.exports = {
   COPY_FIELDS,
   normalizeCopy,
@@ -152,4 +162,5 @@ module.exports = {
   normalizeBrief,
   cleanText,
   stableHash,
+  validateImprovedPrompt,
 };

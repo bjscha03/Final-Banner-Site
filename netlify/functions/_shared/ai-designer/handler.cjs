@@ -3,7 +3,7 @@
 const crypto = require('crypto');
 const { mergeLayerEdits, removePhotoLayers } = require('./layers.cjs');
 const { isEnabled, getImageModel, getValidationModel, getImageQuality, MODEL_SNAPSHOT } = require('./config.cjs');
-const { normalizeBrief, cleanText, stableHash } = require('./schema.cjs');
+const { normalizeBrief, cleanText, stableHash, validateImprovedPrompt } = require('./schema.cjs');
 const { buildGenerationPrompt, buildEditPrompt, buildRepairPrompt } = require('./prompt.cjs');
 const { verifyModelAccess, verifyValidationModelAccess, generateImage, editImage, structureCreativeBrief, planDesignEdit } = require('./provider.cjs');
 const {
@@ -319,6 +319,7 @@ async function workerHandler(event) {
 async function runBriefRequest(body, session, jobId = crypto.randomUUID()) {
   const current = normalizeBrief({ ...(body.brief || body), structured: false });
   const interpreted = await structureCreativeBrief({
+    improvePrompt: body.improvePrompt === true,
     description: current.description,
     current: {
       purpose: current.purpose,
@@ -352,7 +353,11 @@ async function runBriefRequest(body, session, jobId = crypto.randomUUID()) {
     description: current.description,
     structured: true,
   });
-  return { ok: true, brief: publicBrief(brief), model: interpreted.model, requestId: interpreted.requestId };
+  let improvedPrompt;
+  if (body.improvePrompt === true) {
+    improvedPrompt = validateImprovedPrompt(interpreted.brief.improvedPrompt, brief.requiredText);
+  }
+  return { ok: true, brief: publicBrief(brief), improvedPrompt, model: interpreted.model, requestId: interpreted.requestId };
 }
 
 async function briefHandler(event) {

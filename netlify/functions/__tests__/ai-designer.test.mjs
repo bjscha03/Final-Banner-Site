@@ -16,7 +16,7 @@ const { normalizeLayers, mergeLayerEdits, removePhotoLayers } = require('../_sha
 const { temporaryArtworkUrl } = require('../_shared/ai-designer/storage.cjs');
 const { planCanvas, prepareOutpaintInput, PROVIDER_MAX_EDGE, PROVIDER_MAX_PIXELS } = require('../_shared/ai-designer/image-utils.cjs');
 const { compositeArtwork, wrapText } = require('../_shared/ai-designer/compositor.cjs');
-const { normalizeBrief } = require('../_shared/ai-designer/schema.cjs');
+const { normalizeBrief, validateImprovedPrompt } = require('../_shared/ai-designer/schema.cjs');
 const { buildGenerationPrompt, buildEditPrompt } = require('../_shared/ai-designer/prompt.cjs');
 const { MODEL_ALIAS, MODEL_SNAPSHOT, getImageModel, isEnabled } = require('../_shared/ai-designer/config.cjs');
 const { classifyProviderError, isTransientConnectionError } = require('../_shared/ai-designer/provider.cjs');
@@ -377,6 +377,13 @@ describe('GPT Image 2 provider contract', () => {
 });
 
 describe('flat-artwork structured prompts', () => {
+  it('rejects prompt rewrites that lose or change exact customer wording', () => {
+    const wording = ['Happy Birthday Bryson!', 'September 19'];
+    expect(validateImprovedPrompt('Create playful lettering: Happy Birthday Bryson! Date: September 19.', wording)).toContain('Bryson!');
+    expect(() => validateImprovedPrompt('Happy Birthday Bryson! September 20', wording)).toThrow(/original prompt is unchanged/);
+    expect(() => validateImprovedPrompt('', wording)).toThrow();
+    expect(() => validateImprovedPrompt('x'.repeat(1201), [])).toThrow();
+  });
   it('art-directs complete AI lettering without contradictory no-text instructions', () => {
     const brief = productionBrief({ typographyMode: 'ai', copy: { headline: 'Happy Birthday Bryson!' } });
     const plan = planCanvas(brief.widthIn, brief.heightIn);

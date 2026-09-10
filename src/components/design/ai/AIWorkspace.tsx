@@ -290,6 +290,7 @@ export default function AIWorkspace(props: Props) {
   const [recoveryReady, setRecoveryReady] = useState(false);
   const [saveNotice, setSaveNotice] = useState('');
   const [editInstruction, setEditInstruction] = useState('');
+  const [promptBeforeImprovement, setPromptBeforeImprovement] = useState<CreativeBrief | null>(null);
   const [stage, setStage] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [fullPreview, setFullPreview] = useState(false);
@@ -455,6 +456,25 @@ export default function AIWorkspace(props: Props) {
       controllerRef.current = null;
       setStage(null);
     }
+  };
+
+  const improvePrompt = async () => {
+    if (!access.ready || !requirementsMet || stage || controllerRef.current) return;
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    const original = brief;
+    setError('');
+    setStage('Polishing your prompt');
+    try {
+      const body = await runBackgroundJob('/.netlify/functions/ai-designer-brief', { brief: original, improvePrompt: true }, controller.signal, 'Polishing your prompt while keeping your wording and details', setStage);
+      if (!body.improvedPrompt) throw new Error('Your prompt could not be improved. Your original is unchanged.');
+      setPromptBeforeImprovement(original);
+      setBrief({ ...original, description: body.improvedPrompt, structured: false });
+      setBriefReviewed(false);
+      setSaveNotice('Prompt updated. Review it or undo below.');
+    } catch (reason) {
+      if ((reason as Error)?.name !== 'AbortError') setError(reason instanceof Error ? reason.message : 'Your original prompt is unchanged.');
+    } finally { controllerRef.current = null; setStage(null); }
   };
 
   const generate = async () => {
@@ -690,7 +710,11 @@ export default function AIWorkspace(props: Props) {
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">{brief.widthIn}&quot; × {brief.heightIn}&quot; · {props.materialLabel || brief.material}</span>
             </div>
             <label htmlFor="ai-description" className="mt-4 block text-sm font-bold text-slate-800">Describe the design you want</label>
-            <textarea id="ai-description" value={brief.description} onChange={(event) => updateBrief('description', event.target.value.slice(0, 1200))} rows={5} className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-3 text-base shadow-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" placeholder="Example: A polished grand-opening design for a family restaurant, with warm food photography, strong contrast, and space for a headline and offer." />
+            <textarea id="ai-description" value={brief.description} disabled={Boolean(stage)} onChange={(event) => updateBrief('description', event.target.value.slice(0, 1200))} rows={5} className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-3 text-base shadow-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" placeholder="Example: A polished grand-opening design for a family restaurant, with warm food photography, strong contrast, and space for a headline and offer." />
+            <div className="mt-1 flex flex-wrap items-center gap-x-4">
+              <button type="button" onClick={() => void improvePrompt()} disabled={!access.ready || !recoveryReady || !requirementsMet || Boolean(stage)} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-[#0b1f3a] hover:text-orange-600 disabled:opacity-40"><WandSparkles className="h-4 w-4" /> Improve prompt with AI</button>
+              {promptBeforeImprovement && <button type="button" disabled={Boolean(stage)} onClick={() => { setBrief(promptBeforeImprovement); setBriefReviewed(promptBeforeImprovement.structured); setPromptBeforeImprovement(null); setSaveNotice('Original prompt restored.'); }} className="min-h-11 text-xs text-slate-500 underline underline-offset-4">Undo prompt update</button>}
+            </div>
             <details className="mt-3"><summary className="cursor-pointer py-2 text-sm font-semibold text-slate-600">Style & layout (optional)</summary>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label className="text-sm font-semibold text-slate-700">Purpose<select value={brief.purpose} onChange={(event) => updateBrief('purpose', event.target.value)} className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3">{PURPOSES.map((value) => <option key={value}>{value}</option>)}</select></label>

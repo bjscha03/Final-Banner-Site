@@ -266,7 +266,7 @@ async function editImage({ prompt, size, currentImage, currentMime = 'image/jpeg
   }
 }
 
-function creativeBriefSchema() {
+function creativeBriefSchema(improvePrompt = false) {
   const properties = Object.fromEntries([
     'purpose', 'targetAudience', 'primaryMessage', 'visualStyle', 'brandPersonality',
     'colorPalette', 'subjectMatter', 'composition', 'focalPoint', 'viewingDistance',
@@ -275,10 +275,11 @@ function creativeBriefSchema() {
   properties.textPosition = { type: 'string', enum: ['left', 'center', 'right'] };
   properties.textColor = { type: 'string' };
   properties.accentColor = { type: 'string' };
+  if (improvePrompt) properties.improvedPrompt = { type: 'string' };
   return { type: 'object', additionalProperties: false, required: Object.keys(properties), properties };
 }
 
-async function structureCreativeBrief({ description, current, dimensions, usage, user, idempotencyKey }) {
+async function structureCreativeBrief({ description, current, dimensions, usage, user, idempotencyKey, improvePrompt = false }) {
   const { client } = await getClient();
   try {
     const response = await requestWithTransientRetry((options) => client.responses.create({
@@ -296,6 +297,7 @@ async function structureCreativeBrief({ description, current, dimensions, usage,
             `Physical dimensions: ${dimensions}. Usage: ${usage}.`,
             `Existing user selections to respect when useful: ${JSON.stringify(current)}.`,
             `Customer request to interpret: ${JSON.stringify(description)}.`,
+            ...(improvePrompt ? ['Also write improvedPrompt: a polished, ready-to-use banner design request, maximum 1200 characters. Keep the customer\'s intent, theme and every factual detail. Include every nonempty copy value verbatim. Improve composition, expressive typography, hierarchy, color and readability with specific art direction suited to the theme. Do not invent names, dates, offers, phone numbers, URLs, slogans, or uploaded assets. Write plain English as the customer speaking to a designer, no preamble, no markdown, no claim that the result is guaranteed or perfect.'] : []),
           ].join('\n'),
         }],
       }],
@@ -304,7 +306,7 @@ async function structureCreativeBrief({ description, current, dimensions, usage,
           type: 'json_schema',
           name: 'commercial_print_creative_brief',
           strict: true,
-          schema: creativeBriefSchema(),
+          schema: creativeBriefSchema(improvePrompt),
         },
       },
       max_output_tokens: 4000,
