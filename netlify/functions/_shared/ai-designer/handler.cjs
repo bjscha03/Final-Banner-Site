@@ -11,7 +11,7 @@ async function reportProgress(stage, preview) {
 const { mergeLayerEdits, removePhotoLayers } = require('./layers.cjs');
 const { isUploadedLogoRemoval } = require('./edit-intent.cjs');
 const { isEnabled, getImageModel, getValidationModel, getImageQuality, MODEL_SNAPSHOT } = require('./config.cjs');
-const { normalizeBrief, cleanText, stableHash, buildImprovedPrompt, freshPromptBrief, fitInterpretedDirection } = require('./schema.cjs');
+const { normalizeBrief, cleanText, stableHash, buildImprovedPrompt, freshPromptBrief, fitInterpretedDirection, groundedCopy } = require('./schema.cjs');
 const { buildGenerationPrompt, buildEditPrompt, buildCopyChangeInstruction } = require('./prompt.cjs');
 const { verifyModelAccess, verifyValidationModelAccess, generateImage, editImage, structureCreativeBrief, planDesignEdit } = require('./provider.cjs');
 const {
@@ -340,52 +340,44 @@ async function workerHandler(event) {
 }
 
 async function runBriefRequest(body, session, jobId = crypto.randomUUID()) {
-  const current = body.improvePrompt === true
-    ? freshPromptBrief(body.brief || body)
-    : normalizeBrief({ ...(body.brief || body), structured: false });
+  const current = freshPromptBrief(body.brief || body);
   const { parseDataImage, validateInputImage } = require('./image-utils.cjs');
   const { prepareLogo, logoPaletteDirection } = require('./logo.cjs');
   const logo = await prepareLogo(await validateInputImage(parseDataImage(body.logoImage, 2 * 1024 * 1024), 12_000_000));
   if (logo) current.colorPalette = logoPaletteDirection(current, true);
   const interpreted = await structureCreativeBrief({
     logoImage: logo,
+    logoRendering: current.logoRendering,
     improvePrompt: body.improvePrompt === true,
     description: current.description,
-    current: body.improvePrompt === true ? { copy: current.copy } : {
-      purpose: current.purpose,
-      targetAudience: current.targetAudience,
-      visualStyle: current.visualStyle,
-      brandPersonality: current.brandPersonality,
-      colorPalette: current.colorPalette,
-      subjectMatter: current.subjectMatter,
-      composition: current.composition,
-      focalPoint: current.focalPoint,
-      viewingDistance: current.viewingDistance,
-      textPosition: current.textPosition,
-      copy: current.copy,
-    },
+    current: { ...current.directionOverrides, ...(logo ? { colorPalette: current.colorPalette } : {}), copy: current.copy },
     dimensions: `${current.widthIn} inches wide by ${current.heightIn} inches high (${current.aspectRatio.toFixed(6)}:1)`,
     usage: current.usage,
     user: providerUser(session),
     idempotencyKey: providerRequestKey(jobId, 'brief'),
   });
+  const copy = groundedCopy(interpreted.brief.copy, current);
   const brief = normalizeBrief({
     ...current,
     ...fitInterpretedDirection(interpreted.brief),
-    copy: Object.fromEntries(Object.entries(current.copy).map(([key, value]) => [key, current.copyOverrides[key] ?? (value || interpreted.brief.copy?.[key] || '')])),
+    ...current.directionOverrides,
+    copy,
+    logoRendering: current.logoRendering,
+    logoWording: logo ? interpreted.brief.logoWording : [],
     widthIn: current.widthIn,
     heightIn: current.heightIn,
     material: current.material,
     quantity: current.quantity,
     productType: current.productType,
-    textPosition: interpreted.brief.textPosition || current.textPosition,
+    textPosition: current.directionOverrides.textPosition || interpreted.brief.textPosition || current.textPosition,
     logoPosition: current.logoPosition,
     description: current.description,
     structured: true,
   });
   let improvedPrompt;
   if (body.improvePrompt === true) {
-    improvedPrompt = buildImprovedPrompt(interpreted.brief.improvedPrompt, brief);
+    const discardedWording = Object.keys(copy).some(key => interpreted.brief.copy?.[key] && !copy[key]);
+    improvedPrompt = buildImprovedPrompt(discardedWording ? '' : interpreted.brief.improvedPrompt, brief);
   }
   return { ok: true, brief: publicBrief(brief), improvedPrompt, model: interpreted.model, requestId: interpreted.requestId };
 }
@@ -404,7 +396,7 @@ async function finalizeConcept({ rawBackground, brief, plan, logo, photos, provi
   await reportProgress('Your artwork is ready — checking wording and print details', {
     imageBase64: composite.preview.toString('base64'), mimeType: 'image/jpeg',
   });
-  const validation = await validateArtwork({ background, artwork: composite.buffer, brief, plan, protectedRegions: [composite.logoLayer, ...composite.photoLayers].filter(Boolean), reuseVisualValidation });
+  const validation = await validateArtwork({ background, artwork: composite.buffer, brief, plan, protectedRegions: [composite.logoLayer, ...composite.photoLayers].filter(Boolean), logoReference: brief.logoRendering === 'integrated' ? logo : null, reuseVisualValidation });
   // Never hide another paid image edit behind a validation failure.
   return { background, composite, validation, repaired: false, provider: providerResult };
 }
@@ -462,7 +454,8 @@ async function runGenerateRequest(body, session, jobId = crypto.randomUUID()) {
   // New designs use integrated, art-directed AI lettering. Older saved versions
   // retain their explicit layer mode so undo/recovery never doubles their text.
   brief.typographyMode = 'ai';
-  brief.hasProtectedLogo = Boolean(logo);
+  brief.hasProtectedLogo = Boolean(logo) && brief.logoRendering !== 'integrated';
+  brief.hasIntegratedLogo = Boolean(logo) && brief.logoRendering === 'integrated';
   if (!brief.structured) {
     const error = new Error('Review and confirm the structured creative brief before generating.');
     error.code = 'INVALID_REQUEST';
@@ -480,7 +473,7 @@ async function runGenerateRequest(body, session, jobId = crypto.randomUUID()) {
     idempotencyKey: providerRequestKey(jobId, 'generate'),
   };
   const generated = await withPipelineStage('Creating your artwork', () => reference || logo
-    ? editImage({ ...generationOptions, prompt: `${generationOptions.prompt}\nCreate a NEW banner composition. ${reference ? 'The first supplied image is visual style guidance only; do not copy its wording.' : 'The first supplied image is the customer logo for brand colors and visual identity only, not a banner composition to preserve.'} ${reference && logo ? 'The second supplied image is the customer logo for brand colors and visual identity only.' : ''} Print only the approved wording; never reproduce the supplied logo in the generated artwork.`, currentImage: (reference || logo).buffer, currentMime: (reference || logo).mimeType, logoReferenceImage: reference ? logo : null })
+    ? editImage({ ...generationOptions, prompt: `${generationOptions.prompt}\nCreate a NEW banner composition. ${reference ? 'The first supplied image is visual style guidance only; do not copy its wording.' : 'The first supplied image is the customer logo, not a banner composition to preserve.'} ${reference && logo ? 'The second supplied image is the customer logo reference.' : ''} ${brief.hasIntegratedLogo ? 'Print the approved banner wording and the exact source-logo wording; integrate that logo faithfully once as part of the design without a second logo overlay.' : 'Print only the approved wording; never reproduce the supplied logo in the generated artwork.'}`, currentImage: (reference || logo).buffer, currentMime: (reference || logo).mimeType, logoReferenceImage: reference ? logo : null, logoRendering: brief.logoRendering })
     : generateImage(generationOptions));
   const providerCalls = [generated];
   let guided = generated;
@@ -502,6 +495,7 @@ async function runGenerateRequest(body, session, jobId = crypto.randomUUID()) {
       maskImage: outpaint?.mask,
       referenceImage: reference,
       logoReferenceImage: logo,
+      logoRendering: brief.logoRendering,
       user: providerUser(session),
       idempotencyKey: providerRequestKey(jobId, 'outpaint'),
     }));
@@ -569,6 +563,8 @@ async function runEditRequest(body, session, jobId = crypto.randomUUID()) {
     throw error;
   }
   const removeUploadedLogo = body.editMode === 'remove-logo' || isUploadedLogoRemoval(instruction, Boolean(logo));
+  const integratedLogo = brief.logoRendering === 'integrated' && Boolean(logo);
+  const previousLogoWording = [...brief.logoWording];
   const logoOnly = body.editMode === 'logo' || removeUploadedLogo;
   const manual = body.editMode === 'layers' || logoOnly;
   const editPlan = manual ? { backgroundInstruction: '', removeLogo: removeUploadedLogo, removePhotos: [] } : await withPipelineStage('understanding your changes', () => planDesignEdit({ brief, instruction, photos, user: providerUser(session), idempotencyKey: providerRequestKey(jobId, 'edit-plan') }));
@@ -582,19 +578,27 @@ async function runEditRequest(body, session, jobId = crypto.randomUUID()) {
       photos = photos.filter((_, index) => !editPlan.removePhotos.includes(index));
     }
   }
-  if (editPlan.removeLogo) logo = null;
-  brief.hasProtectedLogo = Boolean(logo);
-  if (logo) brief.logoAspectRatio = logo.width / logo.height;
+  if (editPlan.removeLogo) {
+    logo = null;
+    brief.logoWording = [];
+  }
+  brief.hasProtectedLogo = Boolean(logo) && brief.logoRendering !== 'integrated';
+  brief.hasIntegratedLogo = Boolean(logo) && brief.logoRendering === 'integrated';
+  if (logo) {
+    brief.logoAspectRatio = logo.width / logo.height;
+    brief.logoNeedsContrastPlate = logo.needsContrastPlate;
+  }
   // A protected-layer removal must never be forwarded as "remove logo" to the
   // image model, which would erase artwork already baked into the background.
   // For mixed requests, forward only the separately planned artwork/copy edits.
   const removalArtworkInstruction = editPlan.removeLogo ? [
+    integratedLogo ? `Remove the integrated customer logo and its logo-specific lettering ${JSON.stringify(previousLogoWording)} from the existing artwork. Fill that area with coherent surrounding artwork. Preserve all unrelated illustration and approved banner wording; do not redraw or replace the removed logo.` : '',
     cleanText(editPlan.backgroundInstruction, 700),
     buildCopyChangeInstruction(previousBrief.copy, brief.copy),
     ...Object.keys(brief.copy).filter((role) => JSON.stringify(previousBrief.layers?.[role] || {}) !== JSON.stringify(brief.layers?.[role] || {}))
       .map((role) => `Apply these text layer settings to ${role}: ${JSON.stringify(brief.layers[role])}.`),
   ].filter(Boolean).join('\n') : '';
-  const backgroundInstruction = logoOnly ? '' : brief.typographyMode === 'ai'
+  const backgroundInstruction = logoOnly ? integratedLogo ? editPlan.removeLogo ? removalArtworkInstruction : `Edit the existing integrated customer logo in place: ${instruction}. Apply requested placement/scale settings ${JSON.stringify(brief.layers.logo || {})}; preserve its lettering and identity, with exactly one logo in the artwork.` : '' : brief.typographyMode === 'ai'
     ? editPlan.removeLogo ? removalArtworkInstruction : [manual ? `Apply the updated wording and requested text styling/placement: ${JSON.stringify(brief.layers)}. Preserve the existing artistic lettering style unless a style change is requested.` : instruction, buildCopyChangeInstruction(body.previousCopy, brief.copy)].filter(Boolean).join('\n')
     : cleanText(editPlan.backgroundInstruction, 700);
   const edited = backgroundInstruction ? await withPipelineStage('editing the artwork', () => editImage({
@@ -604,11 +608,12 @@ async function runEditRequest(body, session, jobId = crypto.randomUUID()) {
     currentMime: current.mimeType,
     referenceImage: reference,
     logoReferenceImage: logo,
+    logoRendering: brief.logoRendering,
     user: providerUser(session),
     idempotencyKey: providerRequestKey(jobId, 'edit'),
   })) : { buffer: current.buffer, model: getImageModel(), requestId: null, usage: null };
   const providerCalls = backgroundInstruction ? [edited] : [];
-  const finalized = await withPipelineStage('compositing and validating the edited artwork', () => finalizeConcept({ rawBackground: edited.buffer, brief, plan, logo, photos, reference, session, providerResult: edited, providerCalls, providerKey: jobId, preserveBackground: !backgroundInstruction, reuseVisualValidation: logoOnly ? body.previousValidation : null }));
+  const finalized = await withPipelineStage('compositing and validating the edited artwork', () => finalizeConcept({ rawBackground: edited.buffer, brief, plan, logo, photos, reference, session, providerResult: edited, providerCalls, providerKey: jobId, preserveBackground: !backgroundInstruction, reuseVisualValidation: logoOnly && !integratedLogo ? body.previousValidation : null }));
   const [backgroundRef, artworkRef] = await withPipelineStage('Saving your changes', () => Promise.all([backgroundInstruction ? storeTemporaryArtwork(finalized.background, { session, generationId }) : Promise.resolve(body.currentBackgroundRef), storeTemporaryArtwork(finalized.composite.buffer, { session, generationId })]));
   const aggregateUsage = aggregateImageUsage(providerCalls);
   const concept = conceptPayload({

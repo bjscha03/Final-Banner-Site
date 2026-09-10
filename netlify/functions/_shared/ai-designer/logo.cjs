@@ -74,6 +74,9 @@ async function prepareLogo(image) {
 }
 
 function logoPrompt(brief) {
+  if (brief.logoRendering === 'integrated') {
+    return `Integrate the supplied customer logo ONCE into the finished artwork as a natural part of the composition. Preserve its recognizable identity, shapes, brand colors and lettering faithfully: ${JSON.stringify(brief.logoWording || [])}. Keep all visible logo wording accurate; do not invent extra taglines or brand claims. Treat plain surrounding upload background as source-image background, not a white rectangle that must be pasted onto the banner. Give the logo natural space and visual balance with the headline and illustration; choose its best position as the designer. Do not add a second version, repeated brand mark, extra logo badge, or duplicate lettering. No original-logo overlay will be added afterward, so there is no reserved corner or placeholder to leave. If an approved copy value repeats the same business name already inside the logo, the logo can satisfy that wording once; do not repeat it separately. Keep the logo and all lettering legible and clear of overlapping objects.`;
+  }
   const w = brief.outputWidthPx || 1000;
   const h = brief.outputHeightPx || w / brief.aspectRatio;
   const placement = logoPlacement(brief, w, h, brief.logoAspectRatio || 1);

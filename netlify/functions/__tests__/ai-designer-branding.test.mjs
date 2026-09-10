@@ -30,19 +30,116 @@ async function fixture({ outpaint = false } = {}) {
   const structureCreativeBrief = vi.fn(async () => ({ brief: interpreted, model: 'mock' }));
   const generateImage = vi.fn(async () => ({ buffer: background, model: 'mock' }));
   const editImage = vi.fn(async () => ({ buffer: background, model: 'mock' }));
+  const planDesignEdit = vi.fn(async () => ({ copy: brief.copy, layers: {}, removeLogo: false, removePhotos: [], backgroundInstruction: 'Make the background lighter' }));
   const compositeArtwork = vi.fn(localRequire('./compositor.cjs').compositeArtwork);
+  const validateArtwork = vi.fn(async () => ({ passed: true, status: 'passed', checks: {} }));
   const overrides = {
-    './provider.cjs': { structureCreativeBrief, generateImage, editImage },
-    './storage.cjs': { storeTemporaryArtwork: vi.fn(async () => 'artwork-ref') },
+    './provider.cjs': { structureCreativeBrief, generateImage, editImage, planDesignEdit },
+    './storage.cjs': { storeTemporaryArtwork: vi.fn(async () => 'artwork-ref'), readTemporaryArtwork: vi.fn(async () => ({ buffer: background, mimeType: 'image/png' })) },
     './image-utils.cjs': { ...localRequire('./image-utils.cjs'), normalizeBackground: async buffer => buffer, planCanvas: () => ({ finalWidth: 320, finalHeight: 160, providerSize: '320x160', strategy: outpaint ? 'gpt-image-2-outpainting' : 'native-exact-ratio' }), prepareOutpaintInput: async () => ({ image: background, mimeType: 'image/png', mask: background }) },
     './compositor.cjs': { compositeArtwork },
-    './validation.cjs': { validateArtwork: vi.fn(async () => ({ passed: true, status: 'passed', checks: {} })) },
+    './validation.cjs': { validateArtwork },
   };
-  const handlers = loadModule(handlerPath, overrides, '\nmodule.exports.runGenerateRequest = runGenerateRequest; module.exports.runBriefRequest = runBriefRequest;');
-  return { handlers, brief, logoImage, logoBuffer, background, structureCreativeBrief, generateImage, editImage, compositeArtwork };
+  const handlers = loadModule(handlerPath, overrides, '\nmodule.exports.runGenerateRequest = runGenerateRequest; module.exports.runBriefRequest = runBriefRequest; module.exports.runEditRequest = runEditRequest;');
+  return { handlers, brief, logoImage, logoBuffer, background, structureCreativeBrief, generateImage, editImage, compositeArtwork, validateArtwork, planDesignEdit };
 }
 
 describe('logo-aware brand planning and image generation', () => {
+  it('defaults legacy briefs to the original-logo treatment and preserves an explicit integrated choice', () => {
+    const { freshPromptBrief } = localRequire('./schema.cjs');
+    const input = { description: 'Coming soon', widthIn: 48, heightIn: 24 };
+    expect(normalizeBrief(input).logoRendering).toBe('original');
+    expect(freshPromptBrief({ ...input, logoRendering: 'integrated' }).logoRendering).toBe('integrated');
+  });
+
+  it('allows a conventional birthday headline but never an invented factual tagline', () => {
+    const { groundedCopy } = localRequire('./schema.cjs');
+    const brief = normalizeBrief({ description: 'A birthday banner for James', widthIn: 48, heightIn: 24 });
+    expect(groundedCopy({ headline: 'Happy Birthday James!', supportingText: 'The best birthday parties in town' }, brief)).toMatchObject({ headline: 'Happy Birthday James!', supportingText: '' });
+    expect(groundedCopy({ headline: 'Happy Birthday Thomas!' }, brief).headline).toBe('');
+  });
+
+  it('integrates one source logo without an overlay, fixed reservation, or duplicate logo wording in banner copy', async () => {
+    const f = await fixture();
+    f.structureCreativeBrief.mockResolvedValue({ brief: { copy: { headline: 'COMING SOON' }, logoWording: ['Bake My Day', 'Gluten Free Bakery'] } });
+    const result = await f.handlers.runGenerateRequest({ brief: { ...f.brief, logoRendering: 'integrated' }, logoImage: f.logoImage }, { sub: 'admin' }, 'job');
+    expect(f.structureCreativeBrief.mock.calls[0][0].logoRendering).toBe('integrated');
+    const generation = f.editImage.mock.calls[0][0];
+    expect(generation.logoRendering).toBe('integrated');
+    expect(generation.prompt).toContain('Integrate the supplied customer logo ONCE');
+    expect(generation.prompt).toContain('Gluten Free Bakery');
+    expect(generation.prompt).not.toContain('will be placed afterward at');
+    expect(generation.prompt).not.toContain('never reproduce the supplied logo');
+    expect(result.brief.logoWording).toEqual(['Bake My Day', 'Gluten Free Bakery']);
+    expect(result.brief.requiredText).toEqual(['COMING SOON']);
+    expect(result.concepts[0].logoLayer).toBeNull();
+    const validation = f.validateArtwork.mock.calls[0][0];
+    expect(validation.logoReference.buffer.equals((await prepareLogo({ buffer: f.logoBuffer })).buffer)).toBe(true);
+    const withoutLogo = await localRequire('./compositor.cjs').compositeArtwork({ background: f.background, brief: f.compositeArtwork.mock.calls[0][0].brief });
+    expect(validation.artwork.equals(withoutLogo.buffer)).toBe(true);
+  });
+
+  it.each(['original', 'integrated'])('routes %s logo removal according to where the pixels live', async logoRendering => {
+    const f = await fixture();
+    const result = await f.handlers.runEditRequest({ brief: { ...f.brief, structured: true, typographyMode: 'ai', logoRendering, logoWording: ['Bake My Day'] }, logoImage: f.logoImage, currentBackgroundRef: 'original-ref', editMode: 'remove-logo', editInstruction: 'Remove logo', previousValidation: { passed: true } }, { sub: 'admin' }, 'job');
+    expect(f.planDesignEdit).not.toHaveBeenCalled();
+    expect(result.logoRemoved).toBe(true);
+    expect(result.brief.logoWording).toEqual([]);
+    expect(result.concept.logoLayer).toBeNull();
+    expect(result.backgroundUnchanged).toBe(logoRendering === 'original');
+    if (logoRendering === 'integrated') {
+      expect(f.editImage).toHaveBeenCalledOnce();
+      expect(f.editImage.mock.calls[0][0].prompt).toContain('Remove the integrated customer logo');
+      expect(f.editImage.mock.calls[0][0].prompt).not.toContain('Integrate the supplied customer logo ONCE');
+      expect(f.editImage.mock.calls[0][0].logoReferenceImage).toBeNull();
+      expect(f.validateArtwork.mock.calls[0][0].reuseVisualValidation).toBeNull();
+    } else expect(f.editImage).not.toHaveBeenCalled();
+  });
+
+  it('keeps integrated treatment through ordinary edits without introducing an overlay', async () => {
+    const f = await fixture();
+    const result = await f.handlers.runEditRequest({ brief: { ...f.brief, structured: true, typographyMode: 'ai', logoRendering: 'integrated', logoWording: ['Bake My Day'] }, logoImage: f.logoImage, currentBackgroundRef: 'original-ref', editInstruction: 'Make the background lighter' }, { sub: 'admin' }, 'job');
+    expect(f.editImage.mock.calls[0][0].logoRendering).toBe('integrated');
+    expect(f.editImage.mock.calls[0][0].prompt).toContain('Integrate the supplied customer logo ONCE');
+    expect(result.concept.logoLayer).toBeNull();
+    expect(f.validateArtwork.mock.calls[0][0].logoReference).toBeTruthy();
+  });
+
+  it('discards stale inferred copy and art direction and blocks an invented supporting claim', async () => {
+    const f = await fixture();
+    f.structureCreativeBrief.mockResolvedValue({ brief: {
+      colorPalette: 'Pink and cream', copy: { headline: 'COMING SOON', supportingText: 'Neighborhood bakery — freshly baked gluten-free pastries' },
+    } });
+    const result = await f.handlers.runBriefRequest({ brief: {
+      ...f.brief, copyOverrides: {}, copy: { headline: 'OLD OPENING', supportingText: 'Old brand claims' },
+      subjectMatter: 'Gluten-free bakery pastries', visualStyle: 'Old navy storefront',
+    }, logoImage: f.logoImage }, { sub: 'admin' }, 'job');
+    const source = f.structureCreativeBrief.mock.calls[0][0].current;
+    expect(JSON.stringify(source)).not.toMatch(/Old|gluten-free|navy|OLD OPENING/i);
+    expect(result.brief.copy.headline).toBe('COMING SOON');
+    expect(result.brief.copy.supportingText).toBe('');
+    expect(result.brief.requiredText).toEqual(['COMING SOON']);
+  });
+
+  it('preserves explicit style and exact wording overrides through fresh planning', async () => {
+    const f = await fixture();
+    const result = await f.handlers.runBriefRequest({ brief: {
+      ...f.brief, directionOverrides: { visualStyle: 'Watercolor illustration', colorPalette: 'Pink and cream', textPosition: 'right' },
+      copyOverrides: { headline: 'OPENING THIS FALL', supportingText: 'Locally owned', offer: '' },
+    } }, { sub: 'admin' }, 'job');
+    expect(f.structureCreativeBrief.mock.calls[0][0].current).toMatchObject({ visualStyle: 'Watercolor illustration', colorPalette: 'Pink and cream', textPosition: 'right' });
+    expect(result.brief).toMatchObject({ visualStyle: 'Watercolor illustration', colorPalette: 'Pink and cream', textPosition: 'right' });
+    expect(result.brief.copy).toMatchObject({ headline: 'OPENING THIS FALL', supportingText: 'Locally owned', offer: '' });
+  });
+
+  it('does not carry rejected invented copy into an improved prompt', async () => {
+    const f = await fixture();
+    f.structureCreativeBrief.mockResolvedValue({ brief: { copy: { headline: 'COMING SOON', supportingText: 'Gluten-free pastries' }, improvedPrompt: 'Create a COMING SOON banner with the slogan Gluten-free pastries.' } });
+    const result = await f.handlers.runBriefRequest({ brief: { ...f.brief, copyOverrides: {} }, improvePrompt: true }, { sub: 'admin' }, 'job');
+    expect(result.improvedPrompt).toContain('COMING SOON');
+    expect(result.improvedPrompt).not.toContain('Gluten-free');
+  });
+
   it('plans an unstructured request with the actual logo, then generates once using that logo', async () => {
     const f = await fixture();
     const result = await f.handlers.runGenerateRequest({ brief: f.brief, logoImage: f.logoImage }, { sub: 'admin' }, 'job');
@@ -132,5 +229,31 @@ describe('logo-aware brand planning and image generation', () => {
     expect(prompt).toContain(`left ${(plate.left / 320 * 100).toFixed(1)}%`);
     expect(prompt).toContain(`width ${(plate.width / 320 * 100).toFixed(1)}%`);
     expect(prompt).toContain('at least 3% canvas breathing room');
+  });
+});
+
+describe('integrated logo validation', () => {
+  it.each([
+    { logoMatchesReference: true, duplicateLogo: false, expected: true },
+    { logoMatchesReference: false, duplicateLogo: false, expected: false },
+    { logoMatchesReference: true, duplicateLogo: true, expected: false },
+  ])('compares original source and rejects mismatch/duplicates: %j', async ({ logoMatchesReference, duplicateLogo, expected }) => {
+    const f = await fixture();
+    const create = vi.fn(async () => ({ output_text: JSON.stringify({ requiredTextExact: true, logoMatchesReference, duplicateLogo, detectedText: ['COMING SOON', 'Bake My Day', 'Gluten Free Bakery'], reasons: [], confidence: 0.98 }) }));
+    const validationPath = localRequire.resolve('./validation.cjs');
+    const validation = loadModule(validationPath, { './provider.cjs': { getClient: async () => ({ client: { responses: { create } } }), getValidationModel: () => 'mock', withTimeout: task => task(undefined) } });
+    const artwork = await sharp({ create: { width: 600, height: 600, channels: 3, background: '#fff2de' } }).png().toBuffer();
+    const logo = await prepareLogo({ buffer: f.logoBuffer });
+    const brief = normalizeBrief({ description: 'Coming soon', widthIn: 6, heightIn: 6, typographyMode: 'ai', logoRendering: 'integrated', logoWording: ['Bake My Day', 'Gluten Free Bakery'], copy: { headline: 'COMING SOON' } });
+    const result = await validation.validateArtwork({ artwork, background: artwork, brief, plan: { finalWidth: 600, finalHeight: 600 }, logoReference: logo, reuseVisualValidation: { passed: true, vision: { available: true } } });
+    expect(create).toHaveBeenCalledOnce();
+    const content = create.mock.calls[0][0].input[0].content;
+    expect(content.filter(item => item.type === 'input_image')).toHaveLength(2);
+    expect(content[2].image_url).toBe(`data:image/png;base64,${logo.buffer.toString('base64')}`);
+    expect(content[0].text).toContain('Source logo wording');
+    expect(content[0].text).toContain('including its small tagline');
+    expect(result.checks.exactText.required).toEqual(['COMING SOON', 'Bake My Day', 'Gluten Free Bakery']);
+    expect(result.checks.logoIdentity.passed).toBe(expected);
+    expect(result.passed).toBe(expected);
   });
 });

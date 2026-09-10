@@ -49,6 +49,8 @@ function validationSchema() {
     illegibleOrOverlappingText: { type: 'boolean' },
     requiredTextExact: { type: 'boolean' },
     unexpectedText: { type: 'boolean' },
+    logoMatchesReference: { type: 'boolean' },
+    duplicateLogo: { type: 'boolean' },
     detectedText: { type: 'array', items: { type: 'string' } },
     reasons: { type: 'array', items: { type: 'string' } },
     confidence: { type: 'number' },
@@ -67,7 +69,7 @@ function matchesDetectedWording(required, detected) {
   });
 }
 
-async function visualInspection(buffer, requiredText, protectedRegions = []) {
+async function visualInspection(buffer, requiredText, protectedRegions = [], logoReference = null, logoWording = []) {
   try {
     const { client } = await getClient();
     const expected = requiredText.length ? requiredText.map((value) => JSON.stringify(value)).join(', ') : '(none)';
@@ -78,9 +80,10 @@ async function visualInspection(buffer, requiredText, protectedRegions = []) {
         content: [
           {
             type: 'input_text',
-            text: `Inspect this final commercial print artwork. It must be flat edge-to-edge artwork only, not a photograph or mockup. Flag physical banners, installations, rooms, walls, fences, sky/environment surrounding a banner, folds, ripples, grommets, eyelets, rope, poles, hooks, mounting hardware, frames, blank bars, distortion, or important content outside a 5% safe margin. Flag illegibleOrOverlappingText if text overlaps other text or a logo, or has insufficient contrast to read. Required wording must preserve spelling, names, numbers and internal punctuation exactly. Artistic capitalization, line breaks and omitted sentence-ending periods are acceptable: ${expected}. If no wording is required, requiredTextExact must be true. Flag unexpectedText for invented taglines, unrelated labels, gibberish, signatures or watermarks outside the supplied original customer asset regions. Original customer assets may contain their own text: exempt these pixel rectangles from unexpectedText only: ${JSON.stringify(protectedRegions)}. Decorative lettering effects are allowed when legible. Return only the requested schema.`,
+            text: `Inspect the FIRST image as the final commercial print artwork. It must be flat edge-to-edge artwork only, not a photograph or mockup. Flag physical banners, installations, rooms, walls, fences, sky/environment surrounding a banner, folds, ripples, grommets, eyelets, rope, poles, hooks, mounting hardware, frames, blank bars, distortion, or important content outside a 5% safe margin. Flag illegibleOrOverlappingText if text overlaps other text or a logo, or has insufficient contrast to read. Required wording must preserve spelling, names, numbers and internal punctuation exactly. Artistic capitalization, line breaks and omitted sentence-ending periods are acceptable: ${expected}. If no wording is required, requiredTextExact must be true. Flag unexpectedText for invented taglines, unrelated labels, gibberish, signatures or watermarks outside the supplied original customer asset regions. Original customer assets may contain their own text: exempt these pixel rectangles from unexpectedText only: ${JSON.stringify(protectedRegions)}. ${logoReference?.buffer ? `The SECOND image is the original customer logo for comparison only, not another artwork to inspect. The final artwork must contain exactly ONE recognizable faithful integrated version of this logo, preserving its identity, key shapes, brand colors and all visible source lettering. Compare against the actual source image, including its small tagline. Source logo wording ${JSON.stringify(logoWording)} is required/allowed in the integrated logo, not an invented banner claim; any other wording actually visible in the original logo is also allowed. Do not count source-image text itself as detected artwork text. Set logoMatchesReference=false if the logo is missing or its identity/lettering is materially altered. Set duplicateLogo=true if the artwork contains multiple versions/copies of the logo. Adapted position, scale, or removal of plain source-image background is acceptable.` : 'No separate source logo comparison is requested: set logoMatchesReference=true and duplicateLogo=false.'} Decorative lettering effects are allowed when legible. Return only the requested schema.`,
           },
           { type: 'input_image', image_url: toDataUrl(buffer), detail: 'high' },
+          ...(logoReference?.buffer ? [{ type: 'input_image', image_url: toDataUrl(logoReference.buffer, logoReference.mimeType), detail: 'high' }] : []),
         ],
       }],
       text: {
@@ -102,7 +105,9 @@ async function visualInspection(buffer, requiredText, protectedRegions = []) {
   }
 }
 
-async function validateArtwork({ background, artwork, brief, plan, protectedRegions = [], reuseVisualValidation = null }) {
+async function validateArtwork({ background, artwork, brief, plan, protectedRegions = [], logoReference = null, reuseVisualValidation = null }) {
+  const integratedLogo = brief.logoRendering === 'integrated' && Boolean(logoReference?.buffer);
+  const expectedText = [...new Set([...brief.requiredText, ...(integratedLogo ? brief.logoWording || [] : [])])];
   const [backgroundMeta, artworkMeta] = await Promise.all([sharp(background).metadata(), sharp(artwork).metadata()]);
   const dimensionPass = artworkMeta.width === plan.finalWidth && artworkMeta.height === plan.finalHeight;
   const aspectError = Math.abs((artworkMeta.width / artworkMeta.height) - brief.aspectRatio);
@@ -114,7 +119,7 @@ async function validateArtwork({ background, artwork, brief, plan, protectedRegi
   // Logo-only changes preserve every background and lettering pixel. Reuse the
   // preceding completed visual inspection so a size/position adjustment is a
   // quick deterministic composite, rather than another 45-second AI review.
-  const reused = reuseVisualValidation?.passed === true && reuseVisualValidation?.vision?.available === true
+  const reused = !integratedLogo && reuseVisualValidation?.passed === true && reuseVisualValidation?.vision?.available === true
     ? reuseVisualValidation
     : null;
   const vision = reused ? {
@@ -126,17 +131,19 @@ async function validateArtwork({ background, artwork, brief, plan, protectedRegi
     detectedText: reused.checks?.exactText?.detected || [],
     reasons: reused.reasons || [],
     ...Object.fromEntries((reused.checks?.flatArtwork?.flags || []).map((key) => [key, true])),
-  } : await visualInspection(artwork, brief.requiredText, protectedRegions);
+  } : await visualInspection(artwork, expectedText, protectedRegions, integratedLogo ? logoReference : null, brief.logoWording);
   const visualFlags = vision.available ? [
     'physicalBannerMockup', 'surroundingScene', 'grommetsOrEyelets', 'mountingHardware',
     'foldsOrMaterialRipples', 'frameOrBorder', 'blankBarsOrLetterboxing',
     'distortedComposition', 'importantContentOutsideSafeMargins', 'illegibleOrOverlappingText',
     'unexpectedText',
   ].filter((key) => vision[key] === true) : ['visionUnavailable'];
+  if (integratedLogo && vision.available && vision.logoMatchesReference !== true) visualFlags.push('logoMismatch');
+  if (integratedLogo && vision.duplicateLogo === true) visualFlags.push('duplicateLogo');
   // Artistic lettering must pass independent visual wording inspection.
   // Legacy saved designs still use the exact-copy vector compositor.
   const textPass = brief.typographyMode === 'ai'
-    ? vision.available && (vision.requiredTextExact === true || matchesDetectedWording(brief.requiredText, vision.detectedText))
+    ? vision.available && (vision.requiredTextExact === true || matchesDetectedWording(expectedText, vision.detectedText))
     : true;
   const passed = dimensionPass && exactRatioPass && coverage.passed && resolutionPass && visualFlags.length === 0 && textPass;
   const reasons = [];
@@ -147,6 +154,8 @@ async function validateArtwork({ background, artwork, brief, plan, protectedRegi
   if (!vision.available) reasons.push('Vision/OCR validation was unavailable; approval is blocked.');
   if (vision.available && visualFlags.length) reasons.push(...(vision.reasons || visualFlags));
   if (!textPass) reasons.push('Required wording did not pass character-accuracy validation.');
+  if (visualFlags.includes('logoMismatch')) reasons.push('The integrated logo did not match the uploaded logo identity and wording.');
+  if (visualFlags.includes('duplicateLogo')) reasons.push('The artwork contains more than one copy of the uploaded logo.');
   return {
     status: passed ? 'passed' : 'failed',
     passed,
@@ -157,7 +166,8 @@ async function validateArtwork({ background, artwork, brief, plan, protectedRegi
       edgeCoverage: coverage,
       resolution: { passed: resolutionPass, effectivePpi: Number(ppi.toFixed(1)), minimumPpi },
       flatArtwork: { passed: vision.available && visualFlags.length === 0, flags: visualFlags, confidence: vision.confidence || 0 },
-      exactText: { passed: textPass, required: brief.requiredText, detected: brief.typographyMode === 'ai' ? (vision.detectedText || []) : brief.requiredText },
+      exactText: { passed: textPass, required: expectedText, detected: brief.typographyMode === 'ai' ? (vision.detectedText || []) : expectedText },
+      ...(integratedLogo ? { logoIdentity: { passed: vision.available && vision.logoMatchesReference === true && vision.duplicateLogo !== true } } : {}),
     },
     vision: { available: vision.available, model: vision.model, requestId: vision.requestId || null },
   };

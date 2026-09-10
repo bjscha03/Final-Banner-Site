@@ -231,7 +231,7 @@ async function generateImage({ prompt, size, user, idempotencyKey }) {
   }
 }
 
-async function editImage({ prompt, size, currentImage, currentMime = 'image/jpeg', maskImage, referenceImage, logoReferenceImage, user, idempotencyKey }) {
+async function editImage({ prompt, size, currentImage, currentMime = 'image/jpeg', maskImage, referenceImage, logoReferenceImage, logoRendering = 'original', user, idempotencyKey }) {
   const { client, toFile } = await getClient();
   const model = getImageModel();
   try {
@@ -242,7 +242,9 @@ async function editImage({ prompt, size, currentImage, currentMime = 'image/jpeg
     }
     if (logoReferenceImage?.buffer) {
       images.push(await toFile(logoReferenceImage.buffer, 'customer-logo-brand-reference.png', { type: logoReferenceImage.mimeType }));
-      prompt += '\nThe final supplied image is the customer logo: use it only for brand identity and colors, never as artwork to copy or redraw. Its exact original is added afterward in the reserved footprint. The first image remains the composition to edit unless this request explicitly calls for a NEW banner composition.';
+      prompt += logoRendering === 'integrated'
+        ? '\nThe final supplied image is the original customer logo reference. Integrate it faithfully exactly once in the artwork; preserve the logo identity, lettering and brand colors, without pasting the source image as a white rectangular overlay. No logo overlay will be added afterward. The first image remains the composition to edit unless this request explicitly calls for a NEW banner composition.'
+        : '\nThe final supplied image is the customer logo: use it only for brand identity and colors, never as artwork to copy or redraw. Its exact original is added afterward in the reserved footprint. The first image remains the composition to edit unless this request explicitly calls for a NEW banner composition.';
     }
     const mask = maskImage
       ? await toFile(maskImage, 'outpaint-mask.png', { type: 'image/png' })
@@ -278,11 +280,12 @@ function creativeBriefSchema(improvePrompt = false) {
   properties.textPosition = { type: 'string', enum: ['left', 'center', 'right'] };
   properties.textColor = { type: 'string' };
   properties.accentColor = { type: 'string' };
+  properties.logoWording = { type: 'array', items: { type: 'string' } };
   if (improvePrompt) properties.improvedPrompt = { type: 'string' };
   return { type: 'object', additionalProperties: false, required: Object.keys(properties), properties };
 }
 
-async function structureCreativeBrief({ description, current, dimensions, usage, logoImage, user, idempotencyKey, improvePrompt = false }) {
+async function structureCreativeBrief({ description, current, dimensions, usage, logoImage, logoRendering = 'original', user, idempotencyKey, improvePrompt = false }) {
   const { client } = await getClient();
   try {
     const response = await requestWithTransientRetry((options) => client.responses.create({
@@ -294,12 +297,15 @@ async function structureCreativeBrief({ description, current, dimensions, usage,
           text: [
             'Convert this banner request into a concise commercial-print creative brief.',
             'Do not invent customer wording, contact details, offers, dates, prices, or brand claims.',
-            'Extract the actual requested banner wording into the copy fields. Preserve names, dates, offers, addresses and phone numbers exactly. Leave unprovided fields empty; never invent them. Do not put design instructions into the printed copy. Use a short prominent headline, a secondary offer and smaller contact details. Respect any nonempty exact copy fields supplied by the user.',
+            'Extract the actual requested banner wording into the copy fields. Preserve names, dates, offers, addresses and phone numbers exactly. Leave unprovided fields empty; never invent them. Do not put design instructions into the printed copy. A headline-only request needs only a headline: do not fill supportingText, offers or contact fields just to populate the layout. Respect explicit exact copy fields, including empty values. Every other printed value must be a phrase present in the customer request (capitalization and typography punctuation may change). A birthday request may use the conventional Happy Birthday headline with only the name/age actually provided. Do not turn inferred imagery, brand identity or prior art direction into printed claims. For example, a coming soon request supports COMING SOON but not neighborhood bakery, freshly baked, gluten-free, or other unprovided claims.',
             'Choose a left, center or right textPosition and six-digit hex textColor/accentColor with strong contrast. Use a centered, wide text zone for portrait banners and text-only requests.',
             'Art-direct a cohesive finished design with theme-appropriate expressive lettering, strong visual hierarchy, large-format legibility and safe internal margins. Avoid default block type and a generic empty half-canvas text panel. Celebration banners can use playful dimensional lettering; business designs should match their brand. The customer request takes precedence over generic default style selections.',
-            ...(logoImage?.buffer ? ['The attached image is the actual uploaded customer logo. Inspect its visible colors and identity. If the request asks for logo/brand colors, derive colorPalette, textColor and accentColor from this image, overriding inherited/default colors. Describe the visible palette concisely with hex values. Otherwise respect explicit customer colors. Plan a balanced layout around one original logo, which will be added afterward; never request a redrawn or duplicate logo. Do not transcribe logo wording into copy fields unless the customer separately requests that wording.'] : []),
+            ...(logoImage?.buffer ? [
+              'The attached image is the actual uploaded customer logo. Inspect its visible colors and identity. If the request asks for logo/brand colors, derive colorPalette, textColor and accentColor from this image, overriding inherited/default colors. Describe the visible palette concisely with hex values. Otherwise respect explicit customer colors. Extract logoWording as an array of the EXACT visible words/phrases in this supplied logo only, preserving spelling; do not infer invisible text or invent slogans. This source-logo transcription is separate from the general banner copy fields. Do not transcribe logo wording into copy fields unless the customer separately requests that wording.',
+              logoRendering === 'integrated' ? 'The logo will be integrated faithfully once by the image model. Compose it naturally with the artwork, not in a pasted white rectangle or a fixed reserved corner. No second original-logo overlay will be added.' : 'Plan a balanced layout around one original logo, which will be added afterward; never request a redrawn or duplicate logo.',
+            ] : ['There is no uploaded logo. Return an empty logoWording array.']),
             `Physical dimensions: ${dimensions}. Usage: ${usage}.`,
-            `Existing user selections to respect when useful: ${JSON.stringify(current)}.`,
+            `Explicit customer selections (all other old inferred metadata has been discarded): ${JSON.stringify(current)}.`,
             `Customer request to interpret: ${JSON.stringify(description)}.`,
             ...(improvePrompt ? ['Also write improvedPrompt: a polished, ready-to-use banner design request, maximum 1200 characters. Keep the customer\'s intent, theme and every factual detail. Include every nonempty copy value verbatim. Improve composition, expressive typography, hierarchy, color and readability with specific art direction suited to the theme. Do not invent names, dates, offers, phone numbers, URLs, slogans, or uploaded assets. Write plain English as the customer speaking to a designer, no preamble, no markdown, no claim that the result is guaranteed or perfect.'] : []),
           ].join('\n'),
@@ -350,9 +356,12 @@ async function planDesignEdit({ brief, instruction, photos = [], user, idempoten
       input: [{ role: 'user', content: [{ type: 'input_text', text: [
         'Edit this layered commercial banner according to the request. Return complete exact copy and layer settings; preserve all unrelated wording and existing settings.',
         brief.typographyMode === 'ai'
-          ? 'The existing design contains artistic AI-rendered lettering. Update the complete approved copy to match requested wording changes. Preserve the original lettering style unless asked to change it. Logo and uploaded photo positions remain protected separate layers. Do not replace artistic fonts with generic font settings unless explicitly requested.'
+          ? 'The existing design contains artistic AI-rendered lettering. Update the complete approved copy to match requested wording changes. Preserve the original lettering style unless asked to change it. Uploaded photos remain protected separate layers; logo treatment is specified below. Do not replace artistic fonts with generic font settings unless explicitly requested.'
           : 'Text and logo changes are deterministic. NEVER ask the image model to change words, spelling, fonts, sizes or logos. Put only visual background/image changes in backgroundInstruction; otherwise use an empty string.',
-        'Layer x/y are normalized canvas coordinates, width is a normalized text-zone width, scale is relative to default type size. Preserve unspecified values using the current settings or null if unset. Fonts must be from the supplied enum. Colors are six-digit hex. Increase sizes moderately (about 1.2x) when asked for bigger. For logo left/right use x=0.05/0.75; top/bottom use y=0.06/0.7. Remove text by emptying its copy field. Never invent contact information. Only set removeLogo when explicitly requested. removeLogo means remove only the protected customer-uploaded logo overlay; never describe that removal in backgroundInstruction and never remove or alter a logo-like badge, lettering, or artwork already baked into the generated background. For a logo-only removal, keep copy and layers unchanged and return an empty backgroundInstruction.',
+        'Layer x/y are normalized canvas coordinates, width is a normalized text-zone width, scale is relative to default type size. Preserve unspecified values using the current settings or null if unset. Fonts must be from the supplied enum. Colors are six-digit hex. Increase sizes moderately (about 1.2x) when asked for bigger. For logo left/right use x=0.05/0.75; top/bottom use y=0.06/0.7. Remove text by emptying its copy field. Never invent contact information. Only set removeLogo when explicitly requested.',
+        brief.logoRendering === 'integrated'
+          ? 'The customer logo is integrated into the artwork, not a separate overlay. A request to remove it requires removeLogo=true and erasing that integrated brand mark and its logo-specific lettering from the artwork. Preserve unrelated banner copy and illustration. Logo position or size edits are also artwork edits. Do not propose adding another copy of the logo.'
+          : 'removeLogo means remove only the protected customer-uploaded logo overlay; never describe that removal in backgroundInstruction and never remove or alter a logo-like badge, lettering, or artwork already baked into the generated background. For a logo-only removal, keep copy and layers unchanged and return an empty backgroundInstruction.',
         `Uploaded photos are supplied after this text in zero-based order (photo0, photo1, photo2). Return their indexes in removePhotos only if requested. Current design: ${JSON.stringify(brief)}`,
         `Requested change: ${JSON.stringify(instruction)}`,
       ].join('\n') }, ...photos.map(photo => ({ type: 'input_image', image_url: `data:${photo.mimeType};base64,${photo.buffer.toString('base64')}`, detail: 'low' }))] }],

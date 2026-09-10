@@ -44,6 +44,14 @@ const BRIEF_LIMITS = {
   viewingDistance: 60,
 };
 
+const DIRECTION_FIELDS = ['purpose', 'targetAudience', 'visualStyle', 'brandPersonality', 'colorPalette', 'subjectMatter', 'composition', 'focalPoint', 'viewingDistance', 'textPosition', 'textColor', 'accentColor'];
+
+function normalizeDirectionOverrides(input = {}) {
+  return Object.fromEntries(DIRECTION_FIELDS.filter(field => Object.prototype.hasOwnProperty.call(input || {}, field)).map(field => [field,
+    boundedText(input[field], BRIEF_LIMITS[field] || 20, field),
+  ]));
+}
+
 function sanitizeText(value) {
   return String(value || '')
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
@@ -124,11 +132,14 @@ function normalizeBrief(input = {}) {
     textPosition,
     typographyMode: input.typographyMode === 'ai' ? 'ai' : 'layers',
     logoPosition,
+    logoRendering: input.logoRendering === 'integrated' ? 'integrated' : 'original',
+    logoWording: Array.isArray(input.logoWording) ? [...new Set(input.logoWording.slice(0, 12).map(value => boundedText(value, 180, 'Logo wording')).filter(Boolean))] : [],
     layers: normalizeLayers(input.layers),
     textColor: /^#[a-f0-9]{6}$/i.test(input.textColor || '') ? input.textColor : '#ffffff',
     accentColor: /^#[a-f0-9]{6}$/i.test(input.accentColor || '') ? input.accentColor : '#f97316',
     copy,
     copyOverrides: Object.fromEntries(COPY_FIELDS.filter(field => Object.prototype.hasOwnProperty.call(input.copyOverrides || {}, field)).map(field => [field, boundedText(input.copyOverrides[field], TEXT_LIMITS[field], field)])),
+    directionOverrides: normalizeDirectionOverrides(input.directionOverrides),
     requiredText: requiredText(copy),
     safeZonePercent: 5,
     prohibitedElements: [
@@ -172,12 +183,29 @@ function fitInterpretedDirection(input = {}) {
 // Prompt rewriting starts from the current request, not inferred metadata from
 // a previously selected design. Explicit customer wording remains authoritative.
 function freshPromptBrief(input) {
+  const directionOverrides = normalizeDirectionOverrides(input.directionOverrides);
   return normalizeBrief({
     productType: input.productType, widthIn: input.widthIn, heightIn: input.heightIn,
     material: input.material, quantity: input.quantity, usage: input.usage,
     description: input.description, copy: input.copyOverrides || {},
-    copyOverrides: input.copyOverrides || {}, structured: false,
+    copyOverrides: input.copyOverrides || {}, logoPosition: input.logoPosition, logoRendering: input.logoRendering,
+    ...directionOverrides, directionOverrides, structured: false,
   });
+}
+
+function groundedCopy(candidate, brief) {
+  const normalize = value => sanitizeText(value).normalize('NFKC').toLowerCase().replace(/[’']/g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  const source = ` ${normalize(brief.description)} `;
+  return Object.fromEntries(COPY_FIELDS.map(field => {
+    if (Object.prototype.hasOwnProperty.call(brief.copyOverrides, field)) return [field, brief.copyOverrides[field]];
+    const value = boundedText(candidate?.[field], TEXT_LIMITS[field], field);
+    const wording = normalize(value);
+    // Art direction and imagery are not evidence for commercial claims. Only
+    // the actual customer request or explicit exact-copy fields may print.
+    const birthdayHeadline = field === 'headline' && /\bbirthday\b/.test(source) && /^happy birthday(?: .+)?$/.test(wording)
+      && wording.replace(/^happy birthday\s*/, '').split(' ').filter(Boolean).every(word => source.includes(` ${word} `));
+    return [field, wording && (source.includes(` ${wording} `) || birthdayHeadline) ? value : ''];
+  }));
 }
 
 function buildImprovedPrompt(candidate, brief) {
@@ -209,4 +237,5 @@ module.exports = {
   fitInterpretedDirection,
   buildImprovedPrompt,
   freshPromptBrief,
+  groundedCopy,
 };

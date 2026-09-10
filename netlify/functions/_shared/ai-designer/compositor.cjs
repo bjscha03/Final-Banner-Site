@@ -167,7 +167,7 @@ async function compositeArtwork({ background, brief, logo, photos = [] }) {
   }
   // Keep typography readable above customer photos.
   composites.push({ input: Buffer.from(svg), top: 0, left: 0 });
-  if (logo?.buffer) {
+  if (logo?.buffer && brief.logoRendering !== 'integrated') {
     const { prepareLogo, logoPlacement, logoPlate } = require('./logo.cjs');
     const validLogo = await prepareLogo(await validateInputImage(logo, 12_000_000));
     const placement = logoPlacement(brief, width, height, validLogo.width / validLogo.height);

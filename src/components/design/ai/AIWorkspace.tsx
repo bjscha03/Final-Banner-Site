@@ -59,6 +59,7 @@ const EMPTY_COPY: ExactCopy = {
 };
 
 const STYLES = ['Clean and professional', 'Bold and energetic', 'Modern minimal', 'Premium and elegant', 'Friendly and approachable', 'Rustic and handcrafted'];
+const DIRECTION_FIELDS = new Set<keyof CreativeBrief>(['purpose', 'targetAudience', 'visualStyle', 'brandPersonality', 'colorPalette', 'subjectMatter', 'composition', 'focalPoint', 'viewingDistance', 'textPosition', 'textColor', 'accentColor']);
 const PURPOSES = ['Promote a sale or offer', 'Announce an event', 'Promote a business', 'Grand opening', 'Directional or informational', 'Celebrate a milestone'];
 const USAGE = ['outdoor', 'indoor'];
 const COPY_LIMITS: Record<keyof ExactCopy, number> = {
@@ -96,6 +97,7 @@ function makeBrief(props: Props): CreativeBrief {
     productType: props.productType,
     textPosition: 'left',
     logoPosition: 'upper-right',
+    logoRendering: 'integrated',
     textColor: '#ffffff',
     accentColor: '#333333',
     copy: { ...EMPTY_COPY },
@@ -405,7 +407,7 @@ export default function AIWorkspace(props: Props) {
   }, [props.widthIn, props.heightIn, props.material, props.quantity, props.productType]);
 
   const updateBrief = <K extends keyof CreativeBrief>(key: K, value: CreativeBrief[K]) => {
-    setBrief((current) => ({ ...current, [key]: value, ...(key === 'description' ? { copy: { ...EMPTY_COPY, ...current.copyOverrides } } : {}), structured: false }));
+    setBrief((current) => ({ ...current, [key]: value, ...(DIRECTION_FIELDS.has(key) ? { directionOverrides: { ...current.directionOverrides, [key]: value } } : {}), ...(key === 'description' ? { copy: { ...EMPTY_COPY, ...current.copyOverrides } } : {}), structured: false }));
     setBriefReviewed(false);
   };
 
@@ -456,7 +458,7 @@ export default function AIWorkspace(props: Props) {
     try {
       const body = await runBackgroundJob(
         '/.netlify/functions/ai-designer-brief',
-        { brief, logoImage },
+        { brief: { ...brief, logoRendering: brief.logoRendering || 'integrated' }, logoImage },
         controller.signal,
         'Organizing your wording',
         setStage,
@@ -488,7 +490,7 @@ export default function AIWorkspace(props: Props) {
     setImprovingPrompt(true);
     setStage('Improving your prompt');
     try {
-      const body = await runBackgroundJob('/.netlify/functions/ai-designer-brief', { brief: original, logoImage, improvePrompt: true }, controller.signal, 'Polishing your prompt while keeping your wording and details', setStage);
+      const body = await runBackgroundJob('/.netlify/functions/ai-designer-brief', { brief: { ...original, logoRendering: original.logoRendering || 'integrated' }, logoImage, improvePrompt: true }, controller.signal, 'Polishing your prompt while keeping your wording and details', setStage);
       if (!body.improvedPrompt) throw new Error('Your prompt could not be improved. Your original is unchanged.');
       setPromptBeforeImprovement(original);
       setBrief({ ...body.brief, logoPosition: original.logoPosition, description: body.improvedPrompt, structured: true });
@@ -511,7 +513,7 @@ export default function AIWorkspace(props: Props) {
     try {
       // Plan and generate in one worker, so customers do not wait for a second
       // round of queue creation, worker startup and result polling.
-      const readyBrief = { ...brief, structured: briefReviewed && brief.structured };
+      const readyBrief = { ...brief, logoRendering: brief.logoRendering || 'integrated' as const, structured: briefReviewed && brief.structured && brief.directionOverrides !== undefined && (!logoImage || Array.isArray(brief.logoWording)) };
       setStage('Creating your banner');
       const body = await runBackgroundJob(
         '/.netlify/functions/ai-designer-generate',
@@ -556,8 +558,9 @@ export default function AIWorkspace(props: Props) {
     setStage(removeLogo ? 'Removing your uploaded logo' : logoOnly ? 'Updating your logo' : 'Refining your design');
     trackAIEvent('ai_edit_started', { concept_id: selected.id });
     try {
+      const integratedLogo = selected.brief?.logoRendering === 'integrated';
       const normalizedInstruction = editInstruction.toLowerCase();
-      const requestedLogoPosition: CreativeBrief['logoPosition'] | null = manual || !logoImage ? null
+      const requestedLogoPosition: CreativeBrief['logoPosition'] | null = manual || !logoImage || integratedLogo ? null
         : /logo.{0,24}(upper|top)[ -]?left|(?:upper|top)[ -]?left.{0,24}logo/.test(normalizedInstruction) ? 'upper-left'
           : /logo.{0,24}(upper|top)[ -]?right|(?:upper|top)[ -]?right.{0,24}logo/.test(normalizedInstruction) ? 'upper-right'
             : /logo.{0,24}(lower|bottom)[ -]?left|(?:lower|bottom)[ -]?left.{0,24}logo/.test(normalizedInstruction) ? 'lower-left'
@@ -568,7 +571,7 @@ export default function AIWorkspace(props: Props) {
       const body = await runBackgroundJob(
         '/.netlify/functions/ai-designer-edit',
         {
-          brief: { ...briefForEdit, structured: true },
+          brief: { ...briefForEdit, logoRendering: selected.brief?.logoRendering || 'original', logoWording: selected.brief?.logoWording, structured: true },
           editMode: removeLogo ? 'remove-logo' : logoOnly ? 'logo' : manual ? 'layers' : 'ai',
           conceptId: selected.id,
           generationId: selected.generationId,
@@ -581,7 +584,7 @@ export default function AIWorkspace(props: Props) {
           photoImages: editPhotos,
         },
         controller.signal,
-        removeLogo ? 'Removing only your uploaded logo and preserving the artwork underneath' : logoOnly ? 'Placing your original logo and checking the result' : 'Applying your changes to the existing artwork.',
+        removeLogo ? integratedLogo ? 'Removing the logo from your design' : 'Removing only your uploaded logo and preserving the artwork underneath' : logoOnly ? 'Placing your original logo and checking the result' : 'Applying your changes to the existing artwork.',
         setStage,
         setProgressPreview,
       );
@@ -589,7 +592,7 @@ export default function AIWorkspace(props: Props) {
       setPendingEdit({ ...body.concept, logoImage: body.logoRemoved ? null : logoImage, referenceImage, photoImages: editPhotos.filter((_, index) => !body.removedPhotos?.includes(index)) });
       setPendingBrief(body.brief || briefForEdit);
       setPendingLogoRemoved(body.logoRemoved === true);
-      setPendingLogoOnly(logoOnly || (body.logoRemoved === true && body.backgroundUnchanged === true));
+      setPendingLogoOnly(body.backgroundUnchanged === true && (logoOnly || body.logoRemoved === true));
       if (!body.concept.validation.passed) trackAIEvent('ai_validation_failed', { count: 1 });
     } catch (reason) {
       if ((reason as Error)?.name !== 'AbortError') setError(reason instanceof Error ? reason.message : 'The edit failed.');
@@ -813,7 +816,7 @@ export default function AIWorkspace(props: Props) {
             <details><summary className="cursor-pointer py-2 text-sm font-semibold text-slate-600">Logo & photos (optional)</summary>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white p-3 text-center hover:border-orange-400"><ImagePlus className="h-5 w-5 text-orange-600" /><span className="mt-1 text-sm font-bold">Reference image</span><span className="text-xs text-slate-500">Photo, artwork or style reference</span><input type="file" className="sr-only" accept="image/png,image/jpeg,image/webp" onChange={(event) => setImage('reference', event.target.files?.[0])} /></label>
-              <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white p-3 text-center hover:border-orange-400"><ImagePlus className="h-5 w-5 text-orange-600" /><span className="mt-1 text-sm font-bold">Logo</span><span className="text-xs text-slate-500">Your logo is never redrawn by AI</span><input type="file" className="sr-only" accept="image/png,image/jpeg,image/webp" onChange={(event) => setImage('logo', event.target.files?.[0])} /></label>
+              <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white p-3 text-center hover:border-orange-400"><ImagePlus className="h-5 w-5 text-orange-600" /><span className="mt-1 text-sm font-bold">Logo</span><span className="text-xs text-slate-500">Use your logo and brand colors</span><input type="file" className="sr-only" accept="image/png,image/jpeg,image/webp" onChange={(event) => setImage('logo', event.target.files?.[0])} /></label>
             </div>
             <label className="mt-3 block rounded-xl border border-dashed border-slate-300 bg-white p-3 text-sm font-semibold">Add photos to the banner (up to 3)<input type="file" multiple accept="image/png,image/jpeg,image/webp" className="mt-2 block w-full text-sm" disabled={Boolean(stage)} onChange={async event => {
               const files = Array.from(event.target.files || []);
@@ -825,7 +828,7 @@ export default function AIWorkspace(props: Props) {
             </details>
             {photoImages.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{photoImages.map((src, index) => <div key={index} className="w-24"><img src={src} alt={`Uploaded photo ${index + 1}`} className="h-16 w-24 rounded object-contain" /><button type="button" className="min-h-11 text-xs underline" onClick={() => setPhotoImages(current => current.filter((_, item) => item !== index))}>Remove photo {index + 1}</button></div>)}</div>}
             {(referenceImage || logoImage) && <div className="mt-3 grid grid-cols-2 gap-3">{[['Reference', referenceImage], ['Logo included on banner', logoImage]].map(([label, src]) => src && <figure key={label} className="min-w-0 rounded-lg border border-slate-200 bg-white p-2"><img src={src} alt={label || 'Attached image'} className="h-20 w-full object-contain" /><figcaption className="mt-1 text-xs text-slate-500">{label}</figcaption></figure>)}</div>}
-            {(referenceImage || logoImage) && <div className="mt-2 flex flex-wrap items-center gap-2">{referenceImage && <button type="button" onClick={() => removeImage('reference')} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold">Remove reference</button>}{logoImage && <><label className="text-sm font-semibold text-slate-700">Logo position<select value={brief.logoPosition} onChange={(event) => updateBrief('logoPosition', event.target.value as CreativeBrief['logoPosition'])} className="ml-2 min-h-11 rounded-lg border border-slate-300 bg-white px-3"><option value="upper-left">Upper left</option><option value="upper-right">Upper right</option><option value="lower-left">Lower left</option><option value="lower-right">Lower right</option></select></label><button type="button" onClick={() => removeImage('logo')} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold">Remove uploaded logo</button></>}</div>}
+            {(referenceImage || logoImage) && <div className="mt-2 flex flex-wrap items-center gap-2">{referenceImage && <button type="button" onClick={() => removeImage('reference')} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold">Remove reference</button>}{logoImage && <><label className="text-sm font-semibold text-slate-700">Logo treatment<select aria-label="Logo treatment" value={brief.logoRendering || 'integrated'} onChange={event => updateBrief('logoRendering', event.target.value as CreativeBrief['logoRendering'])} className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3"><option value="integrated">Blend into design</option><option value="original">Keep original logo</option></select></label>{brief.logoRendering === 'original' && <label className="text-sm font-semibold text-slate-700">Logo position<select value={brief.logoPosition} onChange={(event) => updateBrief('logoPosition', event.target.value as CreativeBrief['logoPosition'])} className="ml-2 min-h-11 rounded-lg border border-slate-300 bg-white px-3"><option value="upper-left">Upper left</option><option value="upper-right">Upper right</option><option value="lower-left">Lower left</option><option value="lower-right">Lower right</option></select></label>}<p className="w-full text-xs text-slate-500">{brief.logoRendering !== 'original' ? 'AI recreates your logo as part of the artwork. Check its lettering and details before ordering. Your original file stays saved.' : 'Places your original logo unchanged, including its background.'}{selected && ' Treatment applies to your next new design.'}</p><button type="button" onClick={() => removeImage('logo')} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold">Remove uploaded logo</button></>}</div>}
           </div>
 
           <button type="button" onClick={() => void generate()} disabled={!access.ready || !recoveryReady || !requirementsMet || Boolean(stage)} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 text-base font-bold text-white hover:bg-orange-700 disabled:opacity-50"><Sparkles className="h-5 w-5" />{concepts.length ? 'Create another design' : 'Create my banner'}</button>
@@ -871,7 +874,7 @@ export default function AIWorkspace(props: Props) {
 
             {pendingEdit && <div className="mt-4 rounded-xl border-2 border-orange-300 bg-orange-50 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><h5 className="font-black text-[#0b1f3a]">Review the proposed edit</h5><p className="mt-1 max-w-3xl text-sm text-slate-700">{pendingLogoOnly ? pendingLogoRemoved ? 'Only your uploaded logo was removed; the AI-created artwork underneath stayed unchanged.' : 'Only your original logo was resized or moved; the generated artwork was not changed.' : 'Image editing preserves unrelated details when technically possible, but cannot guarantee pixel-identical regions. Compare the complete canvases before accepting.'}</p></div><StatusBadge concept={pendingEdit} /></div><div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2"><figure><figcaption className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-600">Before</figcaption><div className="flex h-56 items-center justify-center overflow-hidden rounded-lg border border-slate-300 bg-slate-100"><img src={imageSrc(selected)} alt="Artwork before proposed edit" className="h-full w-full object-contain" /></div></figure><figure><figcaption className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-600">Proposed edit</figcaption><div className="flex h-56 items-center justify-center overflow-hidden rounded-lg border border-orange-300 bg-slate-100"><img src={imageSrc(pendingEdit)} alt="Artwork after proposed edit" className="h-full w-full object-contain" /></div></figure></div><div className="mt-3 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" onClick={rejectPendingEdit} className="min-h-11 rounded-lg border border-slate-400 bg-white px-5 text-sm font-bold text-slate-800">Reject edit</button><button type="button" onClick={acceptPendingEdit} className="min-h-11 rounded-lg bg-orange-600 px-5 text-sm font-black text-white hover:bg-orange-700">Accept edit</button></div></div>}
 
-            {logoImage && <fieldset disabled={Boolean(stage || pendingEdit)} className="mt-4 rounded-xl border border-slate-200 bg-white p-4 disabled:opacity-50">
+            {logoImage && selected.brief?.logoRendering !== 'integrated' && <fieldset disabled={Boolean(stage || pendingEdit)} className="mt-4 rounded-xl border border-slate-200 bg-white p-4 disabled:opacity-50">
               <div className="flex flex-wrap items-center justify-between gap-2"><h5 className="text-sm font-bold text-[#0b1f3a]">Your logo</h5><span className="text-xs text-slate-500">Original logo · no AI redraw</span></div>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <label className="text-sm font-semibold">Logo size<input aria-label="Logo size" type="range" min="0.4" max="2" step="0.05" value={brief.layers?.logo?.scale || 1} onChange={event => setBrief(current => ({ ...current, layers: { ...current.layers, logo: { ...current.layers?.logo, scale: Number(event.target.value) } } }))} className="h-11 w-full" /></label>
@@ -880,6 +883,7 @@ export default function AIWorkspace(props: Props) {
               <div className="mt-2 flex flex-wrap gap-2"><button type="button" onClick={() => void edit(true, true)} className="min-h-11 rounded-lg bg-[#0b1f3a] px-4 text-sm font-bold text-white">Apply logo changes</button><button type="button" onClick={() => removeImage('logo')} className="min-h-11 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700">Remove uploaded logo</button></div>
               <p className="mt-2 text-xs text-slate-500">Adjusts your logo without generating the artwork again. Review the placement before accepting.</p>
             </fieldset>}
+            {logoImage && selected.brief?.logoRendering === 'integrated' && <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600"><span>Logo blended into this design · use Edit with AI to adjust it</span><button type="button" disabled={Boolean(stage || pendingEdit)} onClick={() => removeImage('logo')} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 font-semibold disabled:opacity-40">Remove logo</button></div>}
             <LayerControls brief={brief} concept={selected} photoCount={photoImages.length} busy={Boolean(stage || pendingEdit)} onChange={setBrief} onApply={() => void edit(true)} />
             {hasUnappliedChanges && !stage && !pendingEdit && <button type="button" onClick={() => { if (selected.brief) setBrief(selected.brief); setLogoImage(selected.logoImage || null); setPhotoImages(selected.photoImages || []); setReferenceImage(selected.referenceImage || null); }} className="mt-2 min-h-11 text-xs text-slate-500 underline underline-offset-4">Discard unapplied changes</button>}
             <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-[1fr_auto]">
