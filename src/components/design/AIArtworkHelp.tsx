@@ -129,7 +129,7 @@ const AIArtworkHelp: React.FC<AIArtworkHelpProps> = ({
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[92dvh] w-[calc(100%-1.5rem)] max-w-2xl overflow-y-auto rounded-2xl border-0 p-0 shadow-2xl [&>button]:text-white [&>button]:opacity-90 [&>button]:hover:opacity-100">
+        <DialogContent className="max-h-[92dvh] w-[calc(100%_-_1.5rem)] max-w-2xl gap-0 overflow-x-hidden overflow-y-auto rounded-2xl border-0 p-0 shadow-2xl [&>button]:text-white [&>button]:opacity-90 [&>button]:hover:opacity-100">
           <div className="border-b border-slate-200 bg-[#0B2E59] px-5 py-5 pr-12 text-white sm:px-6">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-left text-xl font-extrabold text-white">
@@ -137,12 +137,12 @@ const AIArtworkHelp: React.FC<AIArtworkHelpProps> = ({
                 AI Artwork Help
               </DialogTitle>
               <DialogDescription className="text-left text-sm text-blue-100">
-                No paid website AI and no account needed here—just copy a prompt and use it in your preferred AI image tool.
+                Copy your ready-made instructions, use them in ChatGPT or Gemini, then upload your finished JPEG here.
               </DialogDescription>
             </DialogHeader>
           </div>
 
-          <div className="space-y-5 p-4 sm:p-6">
+          <div className="min-w-0 space-y-4 p-4 sm:p-6">
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="tablist" aria-label="Artwork help options">
               <button
                 type="button"
@@ -193,9 +193,12 @@ const AIArtworkHelp: React.FC<AIArtworkHelpProps> = ({
                   </label>
                 )}
 
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
-                  <pre className="max-h-56 whitespace-pre-wrap break-words font-sans text-sm leading-relaxed text-slate-700" data-ai-prompt>{prompt}</pre>
-                </div>
+                <details className="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                  <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-[#0B2E59] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#C94008]">
+                    View the full prompt
+                  </summary>
+                  <pre tabIndex={0} aria-label="Full artwork prompt" className="m-0 max-h-56 overflow-y-auto overscroll-contain whitespace-pre-wrap break-words border-t border-slate-200 p-4 font-sans text-sm leading-relaxed text-slate-700 [overflow-wrap:anywhere]" data-ai-prompt>{prompt}</pre>
+                </details>
 
                 <button
                   type="button"
