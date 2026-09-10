@@ -2,6 +2,7 @@
 
 const crypto = require('crypto');
 const { AsyncLocalStorage } = require('node:async_hooks');
+const { createProgressWriter } = require('./progress.cjs');
 const pipelineProgress = new AsyncLocalStorage();
 async function reportProgress(stage, preview) {
   const report = pipelineProgress.getStore();
@@ -59,19 +60,22 @@ function publicBrief(brief) {
   };
 }
 
-function withPipelineStage(stage, task) {
-  return Promise.resolve()
-    .then(() => reportProgress(stage))
-    .then(task)
-    .catch((error) => {
-      const currentCode = String(error?.code || '');
-      if (!/^(AI_|INVALID_|PROVIDER_|MODEL_|UNAPPROVED_|VALIDATION_|DESCRIPTION_|IDEMPOTENCY_)/.test(currentCode)) {
-        error.originalCode = currentCode || null;
-        error.code = 'AI_PIPELINE_FAILED';
-      }
-      error.pipelineStage = error.pipelineStage || stage;
-      throw error;
-    });
+async function withPipelineStage(stage, task) {
+  await reportProgress(stage);
+  const startedAt = Date.now();
+  try {
+    return await task();
+  } catch (error) {
+    const currentCode = String(error?.code || '');
+    if (!/^(AI_|INVALID_|PROVIDER_|MODEL_|UNAPPROVED_|VALIDATION_|DESCRIPTION_|IDEMPOTENCY_)/.test(currentCode)) {
+      error.originalCode = currentCode || null;
+      error.code = 'AI_PIPELINE_FAILED';
+    }
+    error.pipelineStage = error.pipelineStage || stage;
+    throw error;
+  } finally {
+    pipelineProgress.getStore()?.timings?.push({ stage, durationMs: Date.now() - startedAt });
+  }
 }
 
 function aggregateImageUsage(providerCalls) {
@@ -120,6 +124,7 @@ function conceptPayload({ id, versionId, generationId, backgroundRef, artworkRef
       modelSnapshot: model === MODEL_SNAPSHOT ? MODEL_SNAPSHOT : null,
       providerRequestId: requestId,
       durationMs,
+      stageTimings: [...(pipelineProgress.getStore()?.timings || [])],
       outputDimensions: `${plan.finalWidth}x${plan.finalHeight}`,
       requestedAspectRatio: brief.aspectRatio,
       finalAspectRatio: plan.finalWidth / plan.finalHeight,
@@ -137,15 +142,17 @@ async function prepareInputs(body) {
   // respond without loading a native image-processing binary.
   const { planCanvas, parseDataImage, validateInputImage } = require('./image-utils.cjs');
   const brief = normalizeBrief(body.brief || body);
-  brief.textColor = /^#[0-9a-f]{6}$/i.test(body?.brief?.textColor || '') ? body.brief.textColor : '#ffffff';
-  brief.accentColor = /^#[0-9a-f]{6}$/i.test(body?.brief?.accentColor || '') ? body.brief.accentColor : '#f97316';
   const plan = planCanvas(brief.widthIn, brief.heightIn);
   brief.outputWidthPx = plan.finalWidth;
   brief.outputHeightPx = plan.finalHeight;
   const reference = await validateInputImage(parseDataImage(body.referenceImage, 3 * 1024 * 1024));
-  const { prepareLogo } = require('./logo.cjs');
+  const { prepareLogo, logoPaletteDirection } = require('./logo.cjs');
   const logo = await prepareLogo(await validateInputImage(parseDataImage(body.logoImage, 2 * 1024 * 1024), 12_000_000));
-  if (logo) brief.logoAspectRatio = logo.width / logo.height;
+  if (logo) {
+    brief.logoAspectRatio = logo.width / logo.height;
+    brief.logoNeedsContrastPlate = logo.needsContrastPlate;
+    brief.colorPalette = logoPaletteDirection(brief);
+  }
   if (body.photoImages != null && (!Array.isArray(body.photoImages) || body.photoImages.length > 3)) {
     const error = new Error('Choose up to three photos.'); error.code = 'INVALID_IMAGE'; throw error;
   }
@@ -162,7 +169,7 @@ function requestForJob(body) {
 }
 
 const JOB_LIMITS = {
-  brief: { bytes: 100 * 1024, requests: 20 },
+  brief: { bytes: 3 * 1024 * 1024, requests: 20 },
   generate: { bytes: 5 * 1024 * 1024, requests: 8 },
   edit: { bytes: 5 * 1024 * 1024, requests: 12 },
 };
@@ -180,17 +187,9 @@ async function enqueueHandler(event, action) {
   try {
     const body = parseBody(event);
     ensureConfigured(event);
-    // Moving, resizing or removing an original logo is deterministic;
-    // it does not need an image-model access probe or a paid image request.
-    const deterministicLogoEdit = action === 'edit' && (body.editMode === 'logo' || body.editMode === 'remove-logo' || isUploadedLogoRemoval(body.editInstruction, Boolean(body.logoImage)));
-    if (!deterministicLogoEdit) {
-      const access = await verifyModelAccess();
-      if (!access.available) {
-        const error = new Error('Model unavailable.');
-        error.code = 'MODEL_ACCESS_DENIED';
-        throw error;
-      }
-    }
+    // Readiness checks already verify access. The actual provider request is
+    // authoritative if access changes; do not add a second cold network probe
+    // before every queue submission. Auth, configuration and limits still gate it.
     const key = idempotencyKey(event, body, auth.session, action);
     return await runIdempotent(key, async () => {
       const job = await createJob({
@@ -279,16 +278,19 @@ async function workerHandler(event) {
   if (sizeError) return sizeError;
   let reference;
   let claimed;
+  let progressWriter;
   try {
     reference = String(parseBody(event).jobRef || '');
     const record = await readJobInternal(reference);
     claimed = await claimJob(reference, record);
     if (!claimed) return json(200, { ok: true, status: record?.status || 'ignored' });
     ensureConfigured(event);
+    progressWriter = createProgressWriter(record => writeJobReliable(reference, record));
     const progress = async (stage, preview) => {
       claimed = { ...claimed, stage, ...(preview ? { preview, previewVersion: crypto.randomUUID() } : {}) };
-      await writeJobReliable(reference, claimed);
+      progressWriter.publish(claimed);
     };
+    progress.timings = [];
     const result = await pipelineProgress.run(progress, async () => {
       if (claimed.action === 'brief') return runBriefRequest(claimed.request, claimed.session, claimed.jobId);
       if (claimed.action === 'generate') return runGenerateRequest(claimed.request, claimed.session, claimed.jobId);
@@ -297,6 +299,7 @@ async function workerHandler(event) {
       error.code = 'INVALID_REQUEST';
       throw error;
     });
+    await progressWriter.close();
     await writeJobReliable(reference, {
       version: claimed.version,
       jobId: claimed.jobId,
@@ -308,6 +311,7 @@ async function workerHandler(event) {
     });
     return json(200, { ok: true, status: 'completed' });
   } catch (error) {
+    await progressWriter?.close();
     const diagnosticId = String(claimed?.jobId || crypto.randomUUID()).slice(0, 12);
     console.error('[ai_designer_background_failed]', {
       diagnosticId,
@@ -339,7 +343,12 @@ async function runBriefRequest(body, session, jobId = crypto.randomUUID()) {
   const current = body.improvePrompt === true
     ? freshPromptBrief(body.brief || body)
     : normalizeBrief({ ...(body.brief || body), structured: false });
+  const { parseDataImage, validateInputImage } = require('./image-utils.cjs');
+  const { prepareLogo, logoPaletteDirection } = require('./logo.cjs');
+  const logo = await prepareLogo(await validateInputImage(parseDataImage(body.logoImage, 2 * 1024 * 1024), 12_000_000));
+  if (logo) current.colorPalette = logoPaletteDirection(current, true);
   const interpreted = await structureCreativeBrief({
+    logoImage: logo,
     improvePrompt: body.improvePrompt === true,
     description: current.description,
     current: body.improvePrompt === true ? { copy: current.copy } : {
@@ -445,6 +454,10 @@ async function statusHandler(event) {
 
 async function runGenerateRequest(body, session, jobId = crypto.randomUUID()) {
   const started = Date.now();
+  if ((body.brief || body).structured !== true) {
+    const planned = await withPipelineStage('Planning your banner and organizing the wording', () => runBriefRequest(body, session, jobId));
+    body = { ...body, brief: planned.brief };
+  }
   const { brief, plan, reference, logo, photos } = await withPipelineStage('preparing the design inputs', () => prepareInputs(body));
   // New designs use integrated, art-directed AI lettering. Older saved versions
   // retain their explicit layer mode so undo/recovery never doubles their text.
@@ -466,8 +479,8 @@ async function runGenerateRequest(body, session, jobId = crypto.randomUUID()) {
     user: providerUser(session),
     idempotencyKey: providerRequestKey(jobId, 'generate'),
   };
-  const generated = await withPipelineStage('Creating your artwork', () => reference
-    ? editImage({ ...generationOptions, prompt: `${generationOptions.prompt}\nUse the supplied image only as visual style guidance for this new design. Print only the approved wording.`, currentImage: reference.buffer, currentMime: reference.mimeType })
+  const generated = await withPipelineStage('Creating your artwork', () => reference || logo
+    ? editImage({ ...generationOptions, prompt: `${generationOptions.prompt}\nCreate a NEW banner composition. ${reference ? 'The first supplied image is visual style guidance only; do not copy its wording.' : 'The first supplied image is the customer logo for brand colors and visual identity only, not a banner composition to preserve.'} ${reference && logo ? 'The second supplied image is the customer logo for brand colors and visual identity only.' : ''} Print only the approved wording; never reproduce the supplied logo in the generated artwork.`, currentImage: (reference || logo).buffer, currentMime: (reference || logo).mimeType, logoReferenceImage: reference ? logo : null })
     : generateImage(generationOptions));
   const providerCalls = [generated];
   let guided = generated;
@@ -488,6 +501,7 @@ async function runGenerateRequest(body, session, jobId = crypto.randomUUID()) {
       currentMime: outpaint?.mimeType || 'image/jpeg',
       maskImage: outpaint?.mask,
       referenceImage: reference,
+      logoReferenceImage: logo,
       user: providerUser(session),
       idempotencyKey: providerRequestKey(jobId, 'outpaint'),
     }));
@@ -589,6 +603,7 @@ async function runEditRequest(body, session, jobId = crypto.randomUUID()) {
     currentImage: current.buffer,
     currentMime: current.mimeType,
     referenceImage: reference,
+    logoReferenceImage: logo,
     user: providerUser(session),
     idempotencyKey: providerRequestKey(jobId, 'edit'),
   })) : { buffer: current.buffer, model: getImageModel(), requestId: null, usage: null };

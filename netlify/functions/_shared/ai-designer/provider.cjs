@@ -231,7 +231,7 @@ async function generateImage({ prompt, size, user, idempotencyKey }) {
   }
 }
 
-async function editImage({ prompt, size, currentImage, currentMime = 'image/jpeg', maskImage, referenceImage, user, idempotencyKey }) {
+async function editImage({ prompt, size, currentImage, currentMime = 'image/jpeg', maskImage, referenceImage, logoReferenceImage, user, idempotencyKey }) {
   const { client, toFile } = await getClient();
   const model = getImageModel();
   try {
@@ -239,6 +239,10 @@ async function editImage({ prompt, size, currentImage, currentMime = 'image/jpeg
     const images = [sourceFile];
     if (referenceImage?.buffer) {
       images.push(await toFile(referenceImage.buffer, 'reference-image', { type: referenceImage.mimeType }));
+    }
+    if (logoReferenceImage?.buffer) {
+      images.push(await toFile(logoReferenceImage.buffer, 'customer-logo-brand-reference.png', { type: logoReferenceImage.mimeType }));
+      prompt += '\nThe final supplied image is the customer logo: use it only for brand identity and colors, never as artwork to copy or redraw. Its exact original is added afterward in the reserved footprint. The first image remains the composition to edit unless this request explicitly calls for a NEW banner composition.';
     }
     const mask = maskImage
       ? await toFile(maskImage, 'outpaint-mask.png', { type: 'image/png' })
@@ -278,7 +282,7 @@ function creativeBriefSchema(improvePrompt = false) {
   return { type: 'object', additionalProperties: false, required: Object.keys(properties), properties };
 }
 
-async function structureCreativeBrief({ description, current, dimensions, usage, user, idempotencyKey, improvePrompt = false }) {
+async function structureCreativeBrief({ description, current, dimensions, usage, logoImage, user, idempotencyKey, improvePrompt = false }) {
   const { client } = await getClient();
   try {
     const response = await requestWithTransientRetry((options) => client.responses.create({
@@ -293,12 +297,13 @@ async function structureCreativeBrief({ description, current, dimensions, usage,
             'Extract the actual requested banner wording into the copy fields. Preserve names, dates, offers, addresses and phone numbers exactly. Leave unprovided fields empty; never invent them. Do not put design instructions into the printed copy. Use a short prominent headline, a secondary offer and smaller contact details. Respect any nonempty exact copy fields supplied by the user.',
             'Choose a left, center or right textPosition and six-digit hex textColor/accentColor with strong contrast. Use a centered, wide text zone for portrait banners and text-only requests.',
             'Art-direct a cohesive finished design with theme-appropriate expressive lettering, strong visual hierarchy, large-format legibility and safe internal margins. Avoid default block type and a generic empty half-canvas text panel. Celebration banners can use playful dimensional lettering; business designs should match their brand. The customer request takes precedence over generic default style selections.',
+            ...(logoImage?.buffer ? ['The attached image is the actual uploaded customer logo. Inspect its visible colors and identity. If the request asks for logo/brand colors, derive colorPalette, textColor and accentColor from this image, overriding inherited/default colors. Describe the visible palette concisely with hex values. Otherwise respect explicit customer colors. Plan a balanced layout around one original logo, which will be added afterward; never request a redrawn or duplicate logo. Do not transcribe logo wording into copy fields unless the customer separately requests that wording.'] : []),
             `Physical dimensions: ${dimensions}. Usage: ${usage}.`,
             `Existing user selections to respect when useful: ${JSON.stringify(current)}.`,
             `Customer request to interpret: ${JSON.stringify(description)}.`,
             ...(improvePrompt ? ['Also write improvedPrompt: a polished, ready-to-use banner design request, maximum 1200 characters. Keep the customer\'s intent, theme and every factual detail. Include every nonempty copy value verbatim. Improve composition, expressive typography, hierarchy, color and readability with specific art direction suited to the theme. Do not invent names, dates, offers, phone numbers, URLs, slogans, or uploaded assets. Write plain English as the customer speaking to a designer, no preamble, no markdown, no claim that the result is guaranteed or perfect.'] : []),
           ].join('\n'),
-        }],
+        }, ...(logoImage?.buffer ? [{ type: 'input_image', image_url: `data:${logoImage.mimeType};base64,${logoImage.buffer.toString('base64')}`, detail: 'high' }] : [])],
       }],
       text: {
         format: {

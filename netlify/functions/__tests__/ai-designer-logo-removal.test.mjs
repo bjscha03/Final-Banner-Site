@@ -53,11 +53,11 @@ describe('protected uploaded-logo removal', () => {
     expect(f.verifyModelAccess).not.toHaveBeenCalled();
   });
 
-  it('still probes image model access before queuing a mixed artwork edit', async () => {
+  it('queues mixed artwork edits without a redundant model-access round trip', async () => {
     const f = await fixture();
     const response = await f.enqueue({ editInstruction: 'remove logo and make background blue' });
     expect(response.statusCode).toBe(202);
-    expect(f.verifyModelAccess).toHaveBeenCalledOnce();
+    expect(f.verifyModelAccess).not.toHaveBeenCalled();
   });
   it.each(['remove logo', 'Remove the uploaded logo.', 'Please remove my attached logo!', 'delete only the logo', 'remove the logo I attached', 'remove the logo overlay', 'could you remove the original logo please'])('recognizes standalone command: %s', instruction => {
     expect(isUploadedLogoRemoval(instruction, true)).toBe(true);

@@ -18,6 +18,25 @@ function logoPlacement(brief, width, height, aspectRatio = 1) {
   return { left, top, width: logoWidth, height: logoHeight, position };
 }
 
+function logoPlate(placement, width, height) {
+  const padX = Math.max(8, Math.round(placement.width * 0.08));
+  const padY = Math.max(6, Math.round(placement.height * 0.14));
+  const left = Math.max(0, placement.left - padX);
+  const top = Math.max(0, placement.top - padY);
+  return { left, top, width: Math.min(width - left, placement.width + padX * 2), height: Math.min(height - top, placement.height + padY * 2) };
+}
+
+// Historical drafts carry the application's navy/orange preset as if the
+// customer chose it. A request to use the uploaded logo must take precedence.
+function requestsLogoColors(brief) {
+  return /(?:colou?rs?|palette).{0,90}(?:logo|brand mark)|(?:logo|brand mark).{0,90}(?:colou?rs?|palette)/i.test(brief.description || '');
+}
+
+function logoPaletteDirection(brief, resetInferred = false) {
+  const legacyDefault = /^Navy, white, and (?:restrained orange accents|orange)$/i.test(brief.colorPalette || '');
+  return (resetInferred && requestsLogoColors(brief)) || legacyDefault ? 'Use the uploaded logo’s actual colors as the brand palette' : brief.colorPalette;
+}
+
 async function prepareLogo(image) {
   if (!image?.buffer) return null;
   if (image.prepared === true && image.width > 0 && image.height > 0) return image;
@@ -55,9 +74,11 @@ async function prepareLogo(image) {
 }
 
 function logoPrompt(brief) {
-  const placement = logoPlacement(brief, 1000, 1000 / brief.aspectRatio, brief.logoAspectRatio || 1);
-  const h = 1000 / brief.aspectRatio;
+  const w = brief.outputWidthPx || 1000;
+  const h = brief.outputHeightPx || w / brief.aspectRatio;
+  const placement = logoPlacement(brief, w, h, brief.logoAspectRatio || 1);
+  const footprint = brief.logoNeedsContrastPlate ? logoPlate(placement, w, h) : placement;
   const pct = (value, total) => `${(value / total * 100).toFixed(1)}%`;
-  return `The original customer logo will be placed afterward at ${brief.logoPosition}: left ${pct(placement.left, 1000)}, top ${pct(placement.top, h)}, width ${pct(placement.width, 1000)}, height ${pct(placement.height, h)} of the final canvas. Compose around this exact footprint so the logo reads as an intentional brand element. Keep important wording and illustration outside it. Continue a quiet, low-detail version of the surrounding background through this area. Do not draw a placeholder, empty white badge, cloud, frame, circle, label, extra panel, or a replacement logo.`;
+  return `The supplied customer logo is a BRAND REFERENCE ONLY. Do not draw, copy, recreate, or render that logo anywhere in the generated artwork; the exact original is composited once afterward. Do not copy its lettering into the artwork unless separately included in the approved copy. The original customer logo${brief.logoNeedsContrastPlate ? ' and its fitted backing' : ', including any opaque background in the upload,'} will be placed afterward at ${brief.logoPosition}: left ${pct(footprint.left, w)}, top ${pct(footprint.top, h)}, width ${pct(footprint.width, w)}, height ${pct(footprint.height, h)} of the final canvas. Compose around this exact footprint so the logo reads as an intentional brand element. Keep ALL lettering, headline strokes, outlines, shadows and important illustration completely outside this rectangle with at least 3% canvas breathing room. Never run a headline behind or underneath the logo. Place the headline in the remaining space; reduce or reflow it as needed. Continue a quiet, low-detail version of the surrounding background through this area. Do not draw a placeholder, empty white badge, cloud, frame, circle, label, extra panel, or a replacement logo.`;
 }
-module.exports = { logoPlacement, prepareLogo, logoPrompt };
+module.exports = { logoPlacement, logoPlate, prepareLogo, logoPrompt, logoPaletteDirection, requestsLogoColors };

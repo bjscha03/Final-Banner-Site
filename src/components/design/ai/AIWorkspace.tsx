@@ -83,7 +83,7 @@ function makeBrief(props: Props): CreativeBrief {
     primaryMessage: '',
     visualStyle: STYLES[0],
     brandPersonality: 'Confident and trustworthy',
-    colorPalette: 'Navy, white, and restrained orange accents',
+    colorPalette: 'Brand-appropriate colors from the request or uploaded logo',
     subjectMatter: '',
     composition: 'Clear focal image with a clean typography zone',
     focalPoint: 'Primary subject and headline zone',
@@ -97,7 +97,7 @@ function makeBrief(props: Props): CreativeBrief {
     textPosition: 'left',
     logoPosition: 'upper-right',
     textColor: '#ffffff',
-    accentColor: '#f97316',
+    accentColor: '#333333',
     copy: { ...EMPTY_COPY },
   };
 }
@@ -185,6 +185,7 @@ async function runBackgroundJob(
   onStage: (message: string) => void,
   onPreview?: (source: string) => void,
 ) {
+  const requestStartedAt = Date.now();
   const pendingKey = 'banners_ai_designer_pending_job';
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(payload)));
   const payloadFingerprint = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
@@ -256,6 +257,9 @@ async function runBackgroundJob(
     }
     if (job?.status === 'completed') {
       window.sessionStorage.removeItem(pendingKey);
+      for (const concept of [...(job.concepts || []), ...(job.concept ? [job.concept] : [])]) {
+        concept.diagnostics = { ...concept.diagnostics, clientDurationMs: Date.now() - requestStartedAt };
+      }
       return job;
     }
     if (job?.status === 'failed') {
@@ -452,7 +456,7 @@ export default function AIWorkspace(props: Props) {
     try {
       const body = await runBackgroundJob(
         '/.netlify/functions/ai-designer-brief',
-        { brief },
+        { brief, logoImage },
         controller.signal,
         'Organizing your wording',
         setStage,
@@ -484,7 +488,7 @@ export default function AIWorkspace(props: Props) {
     setImprovingPrompt(true);
     setStage('Improving your prompt');
     try {
-      const body = await runBackgroundJob('/.netlify/functions/ai-designer-brief', { brief: original, improvePrompt: true }, controller.signal, 'Polishing your prompt while keeping your wording and details', setStage);
+      const body = await runBackgroundJob('/.netlify/functions/ai-designer-brief', { brief: original, logoImage, improvePrompt: true }, controller.signal, 'Polishing your prompt while keeping your wording and details', setStage);
       if (!body.improvedPrompt) throw new Error('Your prompt could not be improved. Your original is unchanged.');
       setPromptBeforeImprovement(original);
       setBrief({ ...body.brief, logoPosition: original.logoPosition, description: body.improvedPrompt, structured: true });
@@ -505,13 +509,9 @@ export default function AIWorkspace(props: Props) {
     trackAIEvent('ai_prompt_entered', { product_type: brief.productType });
     trackAIEvent('ai_generation_started', { concept_count: conceptCount, product_type: brief.productType });
     try {
-      let readyBrief = brief;
-      if (!briefReviewed) {
-        const interpreted = await runBackgroundJob('/.netlify/functions/ai-designer-brief', { brief }, controller.signal, 'Planning your banner and organizing the wording', setStage);
-        if (!interpreted?.brief?.structured) throw new Error('Your banner request could not be understood. Please try again.');
-        readyBrief = interpreted.brief;
-        setBrief(readyBrief); setBriefReviewed(true);
-      }
+      // Plan and generate in one worker, so customers do not wait for a second
+      // round of queue creation, worker startup and result polling.
+      const readyBrief = { ...brief, structured: briefReviewed && brief.structured };
       setStage('Creating your banner');
       const body = await runBackgroundJob(
         '/.netlify/functions/ai-designer-generate',
@@ -524,6 +524,7 @@ export default function AIWorkspace(props: Props) {
       const nextConcepts = Array.isArray(body.concepts) ? body.concepts.map((concept: AIConcept) => ({ ...concept, logoImage, referenceImage, photoImages })) : [];
       if (!nextConcepts.length) throw new Error('No artwork was returned.');
       setBrief(nextConcepts[0].brief || body.brief || readyBrief);
+      setBriefReviewed(true);
       setGenerationId(body.generationId);
       setConcepts((current) => [...current, ...nextConcepts].slice(-4));
       setSelectedId(nextConcepts[0].id);
@@ -885,18 +886,18 @@ export default function AIWorkspace(props: Props) {
               <label className="text-sm font-bold text-slate-800">Edit with AI<textarea value={editInstruction} onChange={(event) => setEditInstruction(event.target.value.slice(0, 700))} rows={3} className="mt-1 w-full rounded-xl border border-slate-300 p-3 text-base" placeholder='Example: “Make the background lighter and keep everything else exactly the same.”' /></label>
               <button type="button" onClick={() => void edit()} disabled={!editInstruction.trim() || Boolean(stage) || !access.ready || Boolean(pendingEdit)} className="inline-flex min-h-11 items-center justify-center gap-2 self-end rounded-lg bg-[#0b1f3a] px-5 py-3 text-sm font-black text-white disabled:opacity-50"><WandSparkles className="h-4 w-4" /> Edit current design</button>
             </div>
-            <div className="mt-2 flex flex-wrap gap-2">{['Make the background lighter', 'Change colors to navy and orange', ...(logoImage ? ['Move the logo to the upper-left'] : []), 'Remove the people', 'Make it more professional', 'Keep everything else exactly the same'].map((value) => <button key={value} type="button" onClick={() => setEditInstruction(value)} className="min-h-11 rounded-full border border-slate-300 bg-slate-50 px-3 text-xs font-semibold text-slate-700 hover:border-orange-400">{value}</button>)}</div>
+            <div className="mt-2 flex flex-wrap gap-2">{['Make the background lighter', 'Use the colors from my logo', ...(logoImage ? ['Move the logo to the upper-left'] : []), 'Remove the people', 'Make it more professional', 'Keep everything else exactly the same'].map((value) => <button key={value} type="button" onClick={() => setEditInstruction(value)} className="min-h-11 rounded-full border border-slate-300 bg-slate-50 px-3 text-xs font-semibold text-slate-700 hover:border-orange-400">{value}</button>)}</div>
 
             <details className="mt-5 border-t border-slate-200 pt-3"><summary className="cursor-pointer py-2 text-sm text-slate-500">Print checks & generation details</summary><div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className={`rounded-xl border p-4 ${selected.validation.passed ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}><div className="flex items-center gap-2 font-black text-[#0b1f3a]">{selected.validation.passed ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : <AlertCircle className="h-5 w-5 text-amber-700" />} Print-readiness validation</div><ul className="mt-2 space-y-1 text-sm text-slate-700"><li>Dimensions: {selected.validation.checks.dimensions.passed ? 'Exact' : 'Failed'}</li><li>Full edge coverage: {selected.validation.checks.edgeCoverage.passed ? 'Passed' : 'Failed'}</li><li>Flat artwork / no hardware: {selected.validation.checks.flatArtwork.passed ? 'Passed' : 'Failed'}</li><li>Wording check: {selected.validation.checks.exactText.passed ? 'Passed' : 'Failed'}</li><li>Output canvas resolution: {selected.validation.checks.resolution.effectivePpi} PPI ({selected.validation.checks.resolution.passed ? 'passed' : 'failed'})</li></ul>{selected.validation.reasons.length > 0 && <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-amber-900">{selected.validation.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>}</div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><div className="flex items-center gap-2 font-black text-[#0b1f3a]"><Clock3 className="h-5 w-5 text-slate-500" /> Version and output</div><ul className="mt-2 space-y-1 text-sm text-slate-700"><li>Output: {selected.diagnostics.outputDimensions}px</li><li>Ratio method: {selected.diagnostics.ratioStrategy.replace(/-/g, ' ')}</li><li>Model: {selected.diagnostics.modelSnapshot || selected.diagnostics.model}</li><li>Generation time: {formatDuration(selected.diagnostics.durationMs)}</li><li>Estimated image API cost: {selected.diagnostics.estimatedCostUsd == null ? 'Unavailable' : `$${selected.diagnostics.estimatedCostUsd.toFixed(4)}`}</li><li>Auto-repaired: {selected.diagnostics.repaired ? 'Yes' : 'No'}</li></ul></div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><div className="flex items-center gap-2 font-black text-[#0b1f3a]"><Clock3 className="h-5 w-5 text-slate-500" /> Version and output</div><ul className="mt-2 space-y-1 text-sm text-slate-700"><li>Output: {selected.diagnostics.outputDimensions}px</li><li>Ratio method: {selected.diagnostics.ratioStrategy.replace(/-/g, ' ')}</li><li>Model: {selected.diagnostics.modelSnapshot || selected.diagnostics.model}</li><li>Artwork processing: {formatDuration(selected.diagnostics.durationMs)}</li>{selected.diagnostics.clientDurationMs != null && <li>Total wait: {formatDuration(selected.diagnostics.clientDurationMs)}</li>}<li>Estimated image API cost: {selected.diagnostics.estimatedCostUsd == null ? 'Unavailable' : `$${selected.diagnostics.estimatedCostUsd.toFixed(4)}`}</li><li>Auto-repaired: {selected.diagnostics.repaired ? 'Yes' : 'No'}</li></ul></div>
             </div>
 
             </details>
 
             {history.length > 0 && <div className="mt-4"><h5 className="text-sm font-black text-[#0b1f3a]">Version history</h5><div className="mt-2 flex gap-2 overflow-x-auto pb-2">{history.map((version, index) => <button key={version.versionId} type="button" onClick={() => { if (!selected) return; setRedo((items) => [...items, selected]); setConcepts((items) => items.map((item) => item.id === selected.id ? version : item)); }} className="w-32 shrink-0 rounded-lg border border-slate-300 bg-white p-2 text-left"><div className="flex h-20 items-center justify-center overflow-hidden bg-slate-100"><img src={imageSrc(version)} alt={`Version ${index + 1}`} className="h-full w-full object-contain" /></div><span className="mt-1 block text-xs font-semibold">Version {index + 1}</span></button>)}</div></div>}
 
-            <details className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3"><summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-bold text-[#0b1f3a]">Admin diagnostics <ChevronDown className="h-4 w-4" /></summary><dl className="grid grid-cols-1 gap-x-4 gap-y-2 pt-3 text-xs text-slate-600 sm:grid-cols-2"><div><dt className="font-bold">Generation ID</dt><dd className="break-all">{selected.generationId || generationId}</dd></div><div><dt className="font-bold">Version ID</dt><dd className="break-all">{selected.versionId}</dd></div><div><dt className="font-bold">Provider request ID</dt><dd className="break-all">{selected.diagnostics.providerRequestId || 'Not returned'}</dd></div><div><dt className="font-bold">Validation model</dt><dd>{selected.validation.vision.model}</dd></div></dl></details>
+            <details className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3"><summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-bold text-[#0b1f3a]">Admin diagnostics <ChevronDown className="h-4 w-4" /></summary><dl className="grid grid-cols-1 gap-x-4 gap-y-2 pt-3 text-xs text-slate-600 sm:grid-cols-2"><div><dt className="font-bold">Generation ID</dt><dd className="break-all">{selected.generationId || generationId}</dd></div><div><dt className="font-bold">Version ID</dt><dd className="break-all">{selected.versionId}</dd></div><div><dt className="font-bold">Provider request ID</dt><dd className="break-all">{selected.diagnostics.providerRequestId || 'Not returned'}</dd></div><div><dt className="font-bold">Validation model</dt><dd>{selected.validation.vision.model}</dd></div>{selected.diagnostics.stageTimings?.map((timing, index) => <div key={index}><dt className="font-bold">{timing.stage}</dt><dd>{formatDuration(timing.durationMs)}</dd></div>)}</dl></details>
 
             <button type="button" onClick={apply} disabled={!selected.validation.passed || hasUnappliedChanges || Boolean(stage) || Boolean(pendingEdit)} className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 text-base font-black text-white shadow-sm hover:bg-orange-700 disabled:cursor-not-allowed disabled:bg-slate-300"><CheckCircle2 className="h-5 w-5" /> {pendingEdit ? 'Accept or reject the proposed edit first' : hasUnappliedChanges ? 'Apply your changes before continuing' : selected.validation.passed ? 'Use this banner' : 'Correct the design before continuing'}</button>
           </div>}

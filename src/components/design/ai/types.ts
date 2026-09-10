@@ -84,6 +84,8 @@ export type AIConcept = {
     modelSnapshot: string | null;
     providerRequestId: string | null;
     durationMs: number;
+    clientDurationMs?: number;
+    stageTimings?: Array<{ stage: string; durationMs: number }>;
     outputDimensions: string;
     requestedAspectRatio: number;
     finalAspectRatio: number;
