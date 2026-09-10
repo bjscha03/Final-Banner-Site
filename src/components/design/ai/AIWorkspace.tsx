@@ -183,6 +183,7 @@ async function runBackgroundJob(
   signal: AbortSignal,
   waitingMessage: string,
   onStage: (message: string) => void,
+  onPreview?: (source: string) => void,
 ) {
   const pendingKey = 'banners_ai_designer_pending_job';
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(payload)));
@@ -235,7 +236,8 @@ async function runBackgroundJob(
     window.sessionStorage.setItem(pendingKey, JSON.stringify(start));
   }
 
-  const deadline = Date.now() + 15 * 60 * 1000;
+  const deadline = Date.now() + 7 * 60 * 1000;
+  let previewVersion = "";
   const pollPath = String(start.pollPath || '/.netlify/functions/ai-designer-job');
   while (Date.now() < deadline) {
     await waitFor(Math.max(2000, Number(start.pollAfterMs) || 4000), signal);
@@ -244,10 +246,14 @@ async function runBackgroundJob(
       credentials: 'same-origin',
       signal,
       headers: authorizedHeaders({ 'Content-Type': 'application/json' }),
-      body: authenticatedJsonBody({ jobRef: start.jobRef }),
+      body: authenticatedJsonBody({ jobRef: start.jobRef, previewVersion }),
     });
     const job = await pollResponse.json().catch(() => ({}));
     if (!pollResponse.ok) throw new Error(job?.message || 'The AI job status could not be checked.');
+    if (job?.preview?.mimeType === 'image/jpeg' && job.preview.imageBase64) {
+      previewVersion = job.previewVersion;
+      onPreview?.(`data:image/jpeg;base64,${job.preview.imageBase64}`);
+    }
     if (job?.status === 'completed') {
       window.sessionStorage.removeItem(pendingKey);
       return job;
@@ -261,7 +267,7 @@ async function runBackgroundJob(
     }
     onStage(job?.stage === 'Preparing the AI request' ? waitingMessage : (job?.stage || waitingMessage));
   }
-  throw new Error('The AI job took too long to finish. Retry once; the previous job will not be charged again if it already completed.');
+  throw new Error('The AI job took too long to finish. Your draft is saved. Retry the same request to check its existing result.');
 }
 
 function StatusBadge({ concept }: { concept: AIConcept }) {
@@ -293,6 +299,8 @@ export default function AIWorkspace(props: Props) {
   const [editInstruction, setEditInstruction] = useState('');
   const [promptBeforeImprovement, setPromptBeforeImprovement] = useState<CreativeBrief | null>(null);
   const [stage, setStage] = useState<string | null>(null);
+  const [progressPreview, setProgressPreview] = useState<string | null>(null);
+  useEffect(() => { if (!stage) setProgressPreview(null); }, [stage]);
   const [error, setError] = useState('');
   const [fullPreview, setFullPreview] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
@@ -441,6 +449,7 @@ export default function AIWorkspace(props: Props) {
         controller.signal,
         'Organizing your wording',
         setStage,
+        setProgressPreview,
       );
       if (!body?.brief?.structured) throw new Error('The production brief could not be interpreted safely.');
       setBrief((current) => ({
@@ -483,6 +492,7 @@ export default function AIWorkspace(props: Props) {
     const controller = new AbortController();
     controllerRef.current = controller;
     setError('');
+    setProgressPreview(null);
     setStage('Planning your design');
     trackAIEvent('ai_prompt_entered', { product_type: brief.productType });
     trackAIEvent('ai_generation_started', { concept_count: conceptCount, product_type: brief.productType });
@@ -499,8 +509,9 @@ export default function AIWorkspace(props: Props) {
         '/.netlify/functions/ai-designer-generate',
         { brief: readyBrief, conceptCount, referenceImage, logoImage, photoImages },
         controller.signal,
-        'Creating your artwork and checking the finishing details. This usually takes a few minutes.',
+        'Creating your artwork. Your preview will appear as soon as it is ready.',
         setStage,
+        setProgressPreview,
       );
       const nextConcepts = Array.isArray(body.concepts) ? body.concepts.map((concept: AIConcept) => ({ ...concept, logoImage, referenceImage, photoImages })) : [];
       if (!nextConcepts.length) throw new Error('No artwork was returned.');
@@ -532,6 +543,7 @@ export default function AIWorkspace(props: Props) {
     const controller = new AbortController();
     controllerRef.current = controller;
     setError('');
+    setProgressPreview(null);
     setStage('Refining your design');
     trackAIEvent('ai_edit_started', { concept_id: selected.id });
     try {
@@ -558,8 +570,9 @@ export default function AIWorkspace(props: Props) {
           photoImages,
         },
         controller.signal,
-        'Refining your design. This can take a few minutes.',
+        'Applying your changes to the existing artwork.',
         setStage,
+        setProgressPreview,
       );
       if (!body?.usedOriginalImage || !body?.concept) throw new Error('The server did not confirm use of the current artwork.');
       setPendingEdit({ ...body.concept, logoImage: body.logoRemoved ? null : logoImage, referenceImage, photoImages: photoImages.filter((_, index) => !body.removedPhotos?.includes(index)) });
@@ -794,10 +807,11 @@ export default function AIWorkspace(props: Props) {
           </div>
 
           {stage && <div role="status" aria-live="polite" className="flex min-h-52 flex-col items-center justify-center rounded-xl bg-[#0b1f3a] px-6 py-8 text-center text-white">
+            {progressPreview && <img src={progressPreview} alt="New artwork — print checks in progress" className="mb-5 max-h-[420px] w-full rounded-lg object-contain" />}
             <Loader2 className="h-7 w-7 animate-spin text-orange-400 motion-reduce:animate-none" />
-            <h4 className="mt-4 text-xl font-semibold tracking-tight">{selected ? 'Making your changes' : 'Bringing your idea to life'}</h4>
+            <h4 className="mt-4 text-xl font-semibold tracking-tight">{progressPreview ? 'Your first look' : selected ? 'Making your changes' : 'Bringing your idea to life'}</h4>
             <p className="mt-2 max-w-md text-sm leading-relaxed text-slate-300">{stage}</p>
-            <button type="button" onClick={() => controllerRef.current?.abort()} className="mt-4 min-h-11 px-3 text-xs text-slate-300 underline underline-offset-4" title="Your draft stays saved. The current job can be resumed.">Stop waiting</button>
+            <button type="button" onClick={() => controllerRef.current?.abort()} className="mt-4 min-h-11 px-3 text-xs text-slate-300 underline underline-offset-4" title="Your draft stays saved. This stops waiting here; the current job may still finish.">Stop waiting</button>
           </div>}
           {error && <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><XCircle className="mt-0.5 h-5 w-5 shrink-0" /><span>{error}</span></div>}
 

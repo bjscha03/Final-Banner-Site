@@ -31,10 +31,8 @@ async function getClient() {
   if (!cachedClient) {
     const sdk = await import('openai');
     cachedClient = {
-      // The SDK retries ordinary connection and 5xx failures twice. A single
-      // additional application-level retry below covers a terminal dropped
-      // connection while preserving one stable idempotency key.
-      client: new sdk.default({ apiKey: process.env.OPENAI_API_KEY, maxRetries: 2 }),
+      // Retry once at the application boundary, within one total deadline.
+      client: new sdk.default({ apiKey: process.env.OPENAI_API_KEY, maxRetries: 0 }),
       toFile: sdk.toFile,
     };
   }
@@ -133,7 +131,7 @@ async function withTimeout(task, timeoutMs = getTimeoutMs()) {
 function providerRequestOptions(signal, idempotencyKey) {
   return {
     signal,
-    maxRetries: 2,
+    maxRetries: 0,
     ...(idempotencyKey ? {
       idempotencyKey,
       // The base OpenAI SDK currently leaves idempotencyHeader unset, so send
@@ -144,16 +142,17 @@ function providerRequestOptions(signal, idempotencyKey) {
 }
 
 async function requestWithTransientRetry(task, { idempotencyKey, timeoutMs = getTimeoutMs() } = {}) {
+  const startedAt = Date.now();
   let lastError;
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       return await withTimeout(
         (signal) => task(providerRequestOptions(signal, idempotencyKey)),
-        timeoutMs,
+        Math.max(1, timeoutMs - (Date.now() - startedAt)),
       );
     } catch (error) {
       lastError = error;
-      if (attempt === 0 && isTransientConnectionError(error)) {
+      if (attempt === 0 && Date.now() - startedAt < Math.min(10000, timeoutMs / 2) && isTransientConnectionError(error)) {
         await new Promise((resolve) => setTimeout(resolve, 750));
         continue;
       }
@@ -312,7 +311,7 @@ async function structureCreativeBrief({ description, current, dimensions, usage,
       max_output_tokens: 4000,
       ...(getValidationModel() === 'gpt-5-mini' ? { reasoning: { effort: 'minimal' } } : {}),
       safety_identifier: user,
-    }, options), { idempotencyKey });
+    }, options), { idempotencyKey, timeoutMs: 45000 });
     const raw = response.output_text || response.output?.flatMap((item) => item.content || []).find((item) => item.type === 'output_text')?.text;
     return { brief: JSON.parse(raw || ''), requestId: response?._request_id || null, model: getValidationModel() };
   } catch (error) {
@@ -356,7 +355,7 @@ async function planDesignEdit({ brief, instruction, photos = [], user, idempoten
       max_output_tokens: 6000,
       ...(getValidationModel() === 'gpt-5-mini' ? { reasoning: { effort: 'minimal' } } : {}),
       safety_identifier: user,
-    }, options), { idempotencyKey });
+    }, options), { idempotencyKey, timeoutMs: 45000 });
     const raw = response.output_text || response.output?.flatMap(item => item.content || []).find(item => item.type === 'output_text')?.text;
     return JSON.parse(raw || '');
   } catch (error) { classifyProviderError(error); }

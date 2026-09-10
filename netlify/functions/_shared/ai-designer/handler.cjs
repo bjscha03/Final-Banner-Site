@@ -1,10 +1,16 @@
 'use strict';
 
 const crypto = require('crypto');
+const { AsyncLocalStorage } = require('node:async_hooks');
+const pipelineProgress = new AsyncLocalStorage();
+async function reportProgress(stage, preview) {
+  const report = pipelineProgress.getStore();
+  if (report) await report(stage, preview).catch(() => null);
+}
 const { mergeLayerEdits, removePhotoLayers } = require('./layers.cjs');
 const { isEnabled, getImageModel, getValidationModel, getImageQuality, MODEL_SNAPSHOT } = require('./config.cjs');
 const { normalizeBrief, cleanText, stableHash, buildImprovedPrompt, fitInterpretedDirection } = require('./schema.cjs');
-const { buildGenerationPrompt, buildEditPrompt, buildRepairPrompt, buildCopyChangeInstruction } = require('./prompt.cjs');
+const { buildGenerationPrompt, buildEditPrompt, buildCopyChangeInstruction } = require('./prompt.cjs');
 const { verifyModelAccess, verifyValidationModelAccess, generateImage, editImage, structureCreativeBrief, planDesignEdit } = require('./provider.cjs');
 const {
   isTemporaryStorageConfigured,
@@ -54,6 +60,7 @@ function publicBrief(brief) {
 
 function withPipelineStage(stage, task) {
   return Promise.resolve()
+    .then(() => reportProgress(stage))
     .then(task)
     .catch((error) => {
       const currentCode = String(error?.code || '');
@@ -220,6 +227,7 @@ async function jobHandler(event) {
       stage: record.stage,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
+      ...(record.preview && body.previewVersion !== record.previewVersion ? { preview: record.preview, previewVersion: record.previewVersion } : {}),
     });
   } catch (error) {
     return safeError(error);
@@ -269,15 +277,18 @@ async function workerHandler(event) {
     claimed = await claimJob(reference, record);
     if (!claimed) return json(200, { ok: true, status: record?.status || 'ignored' });
     ensureConfigured(event);
-    let result;
-    if (claimed.action === 'brief') result = await runBriefRequest(claimed.request, claimed.session, claimed.jobId);
-    else if (claimed.action === 'generate') result = await runGenerateRequest(claimed.request, claimed.session, claimed.jobId);
-    else if (claimed.action === 'edit') result = await runEditRequest(claimed.request, claimed.session, claimed.jobId);
-    else {
+    const progress = async (stage, preview) => {
+      claimed = { ...claimed, stage, ...(preview ? { preview, previewVersion: crypto.randomUUID() } : {}) };
+      await writeJobReliable(reference, claimed);
+    };
+    const result = await pipelineProgress.run(progress, async () => {
+      if (claimed.action === 'brief') return runBriefRequest(claimed.request, claimed.session, claimed.jobId);
+      if (claimed.action === 'generate') return runGenerateRequest(claimed.request, claimed.session, claimed.jobId);
+      if (claimed.action === 'edit') return runEditRequest(claimed.request, claimed.session, claimed.jobId);
       const error = new Error('Unknown AI job action.');
       error.code = 'INVALID_REQUEST';
       throw error;
-    }
+    });
     await writeJobReliable(reference, {
       version: claimed.version,
       jobId: claimed.jobId,
@@ -364,44 +375,19 @@ async function briefHandler(event) {
   return enqueueHandler(event, 'brief');
 }
 
-function repairableFailures(validation) {
-  if (validation.passed) return [];
-  const failures = [];
-  if (!validation.checks.edgeCoverage.passed) failures.push('blank or letterboxed edge coverage');
-  if (validation.vision.available && !validation.checks.flatArtwork.passed && validation.checks.flatArtwork.flags.length) failures.push(...validation.checks.flatArtwork.flags);
-  if (!validation.checks.aspectRatio.passed) failures.push('incorrect aspect ratio');
-  if (!validation.checks.exactText.passed) failures.push('missing or misspelled required wording; replace incorrect lettering with the exact approved wording');
-  return failures;
-}
-
-async function finalizeConcept({ rawBackground, brief, plan, logo, photos, reference, session, providerResult, providerCalls, providerKey, allowRepair = true, preserveBackground = false }) {
+async function finalizeConcept({ rawBackground, brief, plan, logo, photos, providerResult, preserveBackground = false }) {
   const { normalizeBackground } = require('./image-utils.cjs');
   const { compositeArtwork } = require('./compositor.cjs');
   const { validateArtwork } = require('./validation.cjs');
-  let background = preserveBackground ? rawBackground : await normalizeBackground(rawBackground, plan);
-  let composite = await compositeArtwork({ background, brief, logo, photos });
-  let validation = await validateArtwork({ background, artwork: composite.buffer, brief, plan, protectedRegions: [composite.logoLayer, ...composite.photoLayers].filter(Boolean) });
-  let repaired = false;
-  let lastProvider = providerResult;
-  const failures = repairableFailures(validation);
-  if (!validation.passed && allowRepair && failures.length) {
-    const repair = await editImage({
-      prompt: buildRepairPrompt(brief, plan, failures),
-      size: plan.providerSize,
-      currentImage: background,
-      currentMime: 'image/jpeg',
-      referenceImage: reference,
-      user: providerUser(session),
-      idempotencyKey: providerRequestKey(providerKey, 'repair'),
-    });
-    background = await normalizeBackground(repair.buffer, plan);
-    composite = await compositeArtwork({ background, brief, logo, photos });
-    validation = await validateArtwork({ background, artwork: composite.buffer, brief, plan, protectedRegions: [composite.logoLayer, ...composite.photoLayers].filter(Boolean) });
-    repaired = true;
-    lastProvider = repair;
-    providerCalls.push(repair);
-  }
-  return { background, composite, validation, repaired, provider: lastProvider };
+  const background = preserveBackground ? rawBackground : await normalizeBackground(rawBackground, plan);
+  const composite = await compositeArtwork({ background, brief, logo, photos });
+  // Show the actual artwork immediately. Approval remains gated by checks.
+  await reportProgress('Your artwork is ready — checking wording and print details', {
+    imageBase64: composite.preview.toString('base64'), mimeType: 'image/jpeg',
+  });
+  const validation = await validateArtwork({ background, artwork: composite.buffer, brief, plan, protectedRegions: [composite.logoLayer, ...composite.photoLayers].filter(Boolean) });
+  // Never hide another paid image edit behind a validation failure.
+  return { background, composite, validation, repaired: false, provider: providerResult };
 }
 
 async function statusHandler(event) {
@@ -464,15 +450,18 @@ async function runGenerateRequest(body, session, jobId = crypto.randomUUID()) {
   // concepts for comparison across separate requests.
   const generationId = crypto.randomUUID();
   const conceptStarted = Date.now();
-  const generated = await withPipelineStage('generating the artwork', () => generateImage({
+  const generationOptions = {
     prompt: buildGenerationPrompt(brief, plan, 0),
     size: plan.providerSize,
     user: providerUser(session),
     idempotencyKey: providerRequestKey(jobId, 'generate'),
-  }));
+  };
+  const generated = await withPipelineStage('Creating your artwork', () => reference
+    ? editImage({ ...generationOptions, prompt: `${generationOptions.prompt}\nUse the supplied image only as visual style guidance for this new design. Print only the approved wording.`, currentImage: reference.buffer, currentMime: reference.mimeType })
+    : generateImage(generationOptions));
   const providerCalls = [generated];
   let guided = generated;
-  if (reference || plan.strategy === 'gpt-image-2-outpainting') {
+  if (plan.strategy === 'gpt-image-2-outpainting') {
     const { prepareOutpaintInput } = require('./image-utils.cjs');
     const outpaint = await withPipelineStage('preparing the exact banner ratio', () => prepareOutpaintInput(generated.buffer, plan));
     const guidance = [
@@ -581,7 +570,7 @@ async function runEditRequest(body, session, jobId = crypto.randomUUID()) {
     idempotencyKey: providerRequestKey(jobId, 'edit'),
   })) : { buffer: current.buffer, model: getImageModel(), requestId: null, usage: null };
   const providerCalls = backgroundInstruction ? [edited] : [];
-  const finalized = await withPipelineStage('compositing and validating the edited artwork', () => finalizeConcept({ rawBackground: edited.buffer, brief, plan, logo, photos, reference, session, providerResult: edited, providerCalls, providerKey: jobId, allowRepair: Boolean(backgroundInstruction), preserveBackground: !backgroundInstruction }));
+  const finalized = await withPipelineStage('compositing and validating the edited artwork', () => finalizeConcept({ rawBackground: edited.buffer, brief, plan, logo, photos, reference, session, providerResult: edited, providerCalls, providerKey: jobId, preserveBackground: !backgroundInstruction }));
   const backgroundRef = await withPipelineStage('saving the editable artwork', () => storeTemporaryArtwork(finalized.background, { session, generationId: String(body.generationId || 'edit') }));
   const aggregateUsage = aggregateImageUsage(providerCalls);
   const concept = conceptPayload({

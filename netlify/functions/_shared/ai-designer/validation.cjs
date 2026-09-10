@@ -93,7 +93,7 @@ async function visualInspection(buffer, requiredText, protectedRegions = []) {
       },
       max_output_tokens: 4000,
       ...(getValidationModel() === 'gpt-5-mini' ? { reasoning: { effort: 'low' } } : {}),
-    }, { signal }));
+    }, { signal, maxRetries: 0 }), 45000);
     const raw = response.output_text || response.output?.flatMap((item) => item.content || []).find((item) => item.type === 'output_text')?.text;
     const parsed = JSON.parse(raw || '');
     return { available: true, model: getValidationModel(), requestId: response?._request_id || null, ...parsed };

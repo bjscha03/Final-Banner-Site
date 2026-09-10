@@ -50,8 +50,8 @@ export default function AIDesignerPage() {
     return <Navigate to="/admin/setup" replace />;
   }
 
-  const useInConfigurator = (result: CreateWithAIResult) => {
-    const aiHandoffId = createAIHandoff(result, { widthIn, heightIn, material, quantity });
+  const useInConfigurator = async (result: CreateWithAIResult) => {
+    const aiHandoffId = await createAIHandoff(result, { widthIn, heightIn, material, quantity });
     navigate('/design?product=banner', {
       state: { aiHandoffId },
     });

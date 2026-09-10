@@ -79,7 +79,7 @@ import { useAuth } from '@/lib/auth';
 import CreateWithAIModal, { type AIDesignSession, type CreateWithAIResult } from '@/components/design/CreateWithAIModal';
 import EditWithAIModal from '@/components/design/EditWithAIModal';
 import { useAIAdminAccess } from '@/hooks/useAIAdminAccess';
-import { consumeAIHandoff } from '@/lib/aiDesignHandoff';
+import { readAIHandoff, completeAIHandoff } from '@/lib/aiDesignHandoff';
 import { trackAIEvent } from '@/lib/aiAnalytics';
 import { canUseAIAdminPreview } from '@/lib/aiAdminVisibility';
 import type { ArtworkManifest } from '@/types/artwork';
@@ -711,7 +711,8 @@ const Design: React.FC = () => {
   const [aiEditModalOpen, setAiEditModalOpen] = useState(false);
   const [aiEditPrompt, setAiEditPrompt] = useState<string | null>(null);
   const [aiDesignSession, setAiDesignSession] = useState<AIDesignSession | null>(null);
-  const aiHandoffProcessedRef = useRef(false);
+  const aiHandoffProcessedRef = useRef<string | null>(null);
+  const [aiHandoff, setAIHandoff] = useState<Awaited<ReturnType<typeof readAIHandoff>>>(null);
 
   const quoteStore = useQuoteStore();
   const cartStore = useCartStore();
@@ -1538,7 +1539,7 @@ const Design: React.FC = () => {
   }, [retryActiveArtworkUpload, toast]);
 
   // Handle a successful "Create with AI" generation: convert the returned
-  // base64 PNG into a File and run it through the SAME upload pipeline used
+  // high-quality JPEG into a File and run it through the SAME upload pipeline used
   // for user-uploaded artwork. This guarantees the AI image flows through
   // cart, checkout, admin, and the print PDF export with no special-casing.
   const handleAIGenerated = useCallback(
@@ -1556,40 +1557,53 @@ const Design: React.FC = () => {
     [handleFileUpload],
   );
 
-  // The admin AI workspace hands this route a short-lived in-memory token.
-  // High-resolution image bytes never enter browser history, local/session
-  // storage, or the cart. The existing upload handler persists the consumed
-  // artifact through the same permanent pipeline used by normal uploads.
+  // Prepare dimensions first; upload on the following committed render. Never
+  // consume a transfer in an effect that its own state updates can cancel.
   useEffect(() => {
-    const state = location.state as { aiHandoffId?: string } | null;
-    if (!state?.aiHandoffId || aiHandoffProcessedRef.current) return;
-    const handoff = consumeAIHandoff(state.aiHandoffId);
-    if (!handoff) {
-      navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
-      toast({ title: 'AI handoff expired', description: 'Return to the AI Designer and approve the artwork again.', variant: 'destructive' });
-      return;
-    }
-    aiHandoffProcessedRef.current = true;
-    const config = handoff.configurator;
-    const targetWidth = Number(config.widthIn || handoff.result.width);
-    const targetHeight = Number(config.heightIn || handoff.result.height);
-    setProductType('banner');
-    setUnit('in');
-    setWidthCustomInStr(String(targetWidth));
-    setHeightCustomInStr(String(targetHeight));
-    if (config.material) setMaterial(config.material);
-    if (config.quantity) setQuantity(Math.max(1, Number(config.quantity)));
-    setHasEnteredBuilder(true);
-
-    const frame = window.requestAnimationFrame(() => {
-      void handleAIGenerated(handoff.result)
-        .then(() => navigate(`${location.pathname}${location.search}`, { replace: true, state: null }))
-        .catch(() => {
-          aiHandoffProcessedRef.current = false;
-        });
+    const id = (location.state as { aiHandoffId?: string } | null)?.aiHandoffId;
+    if (!id) return;
+    let cancelled = false;
+    void readAIHandoff(id).then(handoff => {
+      if (cancelled) return;
+      if (!handoff) {
+        toast({ title: 'Your saved design is still in the AI Designer', description: 'Open it there and choose Use this banner again.' });
+        navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+        return;
+      }
+      const config = handoff.configurator;
+      setProductType('banner');
+      setUnit('in');
+      setWidthCustomInStr(String(config.widthIn));
+      setHeightCustomInStr(String(config.heightIn));
+      setWidthFtStr(String(Math.floor(config.widthIn / 12)));
+      setWidthInRStr(String(config.widthIn % 12));
+      setHeightFtStr(String(Math.floor(config.heightIn / 12)));
+      setHeightInRStr(String(config.heightIn % 12));
+      setMaterial(config.material);
+      setQuantity(config.quantity);
+      setHasEnteredBuilder(true);
+      setAIHandoff(handoff);
+    }).catch(() => {
+      if (!cancelled) toast({ title: 'Could not load your saved artwork', description: 'Reload this page to retry. Your AI design is still saved.' });
     });
-    return () => window.cancelAnimationFrame(frame);
-  }, [handleAIGenerated, location.pathname, location.search, location.state, navigate, setProductType, toast]);
+    return () => { cancelled = true; };
+  }, [location.pathname, location.search, location.state, navigate, setProductType, toast]);
+
+  useEffect(() => {
+    if (!aiHandoff || aiHandoffProcessedRef.current === aiHandoff.id) return;
+    if (productType !== 'banner' || widthIn !== aiHandoff.configurator.widthIn || heightIn !== aiHandoff.configurator.heightIn) return;
+    aiHandoffProcessedRef.current = aiHandoff.id;
+    void handleAIGenerated(aiHandoff.result).then(async () => {
+      if (!uploadedFileRef.current || uploadedFileRef.current.name !== aiHandoff.result.fileName || !hasPermanentArtwork(uploadedFileRef.current)) {
+        throw new Error('Artwork has not loaded yet.');
+      }
+      await completeAIHandoff(aiHandoff.id);
+      setAIHandoff(null);
+      navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+    }).catch(() => {
+      toast({ title: 'Your artwork transfer is saved', description: 'Reload this page to retry loading it onto the canvas.' });
+    });
+  }, [aiHandoff, handleAIGenerated, heightIn, widthIn, productType, location.pathname, location.search, navigate, toast]);
 
   // Handle a successful "Edit with AI" update: replace the existing AI image
   // on the canvas (no second image layer) and persist the edit prompt.

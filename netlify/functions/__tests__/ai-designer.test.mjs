@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -332,7 +332,8 @@ describe('GPT Image 2 provider contract', () => {
     expect(provider).toContain('isTransientConnectionError(error)');
     expect(handler).toContain("providerRequestKey(jobId, 'generate')");
     expect(handler).toContain("providerRequestKey(jobId, 'edit')");
-    expect(handler).toContain("providerRequestKey(providerKey, 'repair')");
+    expect(handler).not.toContain("providerRequestKey(providerKey, 'repair')");
+    expect(provider).toContain('maxRetries: 0');
   });
 
   it('retries one transient connection with the same provider request options', async () => {
@@ -351,6 +352,38 @@ describe('GPT Image 2 provider contract', () => {
     expect(received).toHaveLength(2);
     expect(received[0].headers['Idempotency-Key']).toBe('stable-provider-key');
     expect(received[1].headers['Idempotency-Key']).toBe('stable-provider-key');
+  });
+
+  it('does not restart a slow failed image request', async () => {
+    const { requestWithTransientRetry } = require('../_shared/ai-designer/provider.cjs');
+    const clock = vi.spyOn(Date, 'now');
+    clock.mockReturnValue(1000);
+    let calls = 0;
+    try {
+      await expect(requestWithTransientRetry(async () => {
+        calls += 1;
+        clock.mockReturnValue(21000);
+        const error = new Error('connection dropped after processing');
+        error.name = 'APIConnectionError';
+        throw error;
+      }, { timeoutMs: 165000 })).rejects.toThrow('connection dropped');
+      expect(calls).toBe(1);
+    } finally { clock.mockRestore(); }
+  });
+
+  it('aborts the provider at its deadline without another image call', async () => {
+    const { requestWithTransientRetry } = require('../_shared/ai-designer/provider.cjs');
+    let calls = 0;
+    await expect(requestWithTransientRetry(({ signal, maxRetries }) => {
+      calls += 1;
+      expect(maxRetries).toBe(0);
+      return new Promise((_, reject) => signal.addEventListener('abort', () => {
+        const error = new Error('deadline reached');
+        error.name = 'AbortError';
+        reject(error);
+      }, { once: true }));
+    }, { timeoutMs: 20 })).rejects.toThrow('deadline reached');
+    expect(calls).toBe(1);
   });
 
   it('returns a safe stage, category, and request reference for production diagnosis', () => {
