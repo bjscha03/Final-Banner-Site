@@ -63,7 +63,7 @@ const AIArtworkHelp: React.FC<AIArtworkHelpProps> = ({
   }, [prompt]);
 
   useEffect(() => {
-    const desktop = window.matchMedia('(min-width: 768px)');
+    const desktop = window.matchMedia('(min-width: 1024px)');
     const closeOnMobile = () => {
       if (!desktop.matches) setOpen(false);
     };
@@ -89,7 +89,7 @@ const AIArtworkHelp: React.FC<AIArtworkHelpProps> = ({
   };
 
   return (
-    <div className="mb-4 hidden md:block" data-ai-artwork-help>
+    <div className="mb-4 hidden lg:block" data-ai-artwork-help>
       <button
         type="button"
         onClick={() => showHelp(hasArtwork ? 'fix' : 'create')}
