@@ -114,7 +114,9 @@ async function validateArtwork({ background, artwork, brief, plan, protectedRegi
   // Logo-only changes preserve every background and lettering pixel. Reuse the
   // preceding completed visual inspection so a size/position adjustment is a
   // quick deterministic composite, rather than another 45-second AI review.
-  const reused = reuseVisualValidation?.vision?.available === true ? reuseVisualValidation : null;
+  const reused = reuseVisualValidation?.passed === true && reuseVisualValidation?.vision?.available === true
+    ? reuseVisualValidation
+    : null;
   const vision = reused ? {
     available: true,
     model: reused.vision.model,
