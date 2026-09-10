@@ -571,6 +571,12 @@ async function runEditRequest(body, session, jobId = crypto.randomUUID()) {
   const previousBrief = brief;
   if (!manual) {
     brief = normalizeBrief({ ...brief, copy: editPlan.copy, layers: mergeLayerEdits(brief.layers, editPlan.layers), structured: true });
+    // Accepted wording changes become the source of truth for later planning,
+    // including deletions; do not restore an older explicit override later.
+    brief.copyOverrides = {
+      ...brief.copyOverrides,
+      ...Object.fromEntries(Object.entries(brief.copy).filter(([role, value]) => value !== previousBrief.copy[role])),
+    };
     brief.outputWidthPx = plan.finalWidth;
     brief.outputHeightPx = plan.finalHeight;
     if (Array.isArray(editPlan.removePhotos) && editPlan.removePhotos.length) {
@@ -581,6 +587,22 @@ async function runEditRequest(body, session, jobId = crypto.randomUUID()) {
   if (editPlan.removeLogo) {
     logo = null;
     brief.logoWording = [];
+  }
+  const replaceIntegratedLogo = integratedLogo && body.logoSourceChanged === true && !editPlan.removeLogo;
+  if (replaceIntegratedLogo) {
+    const extracted = await withPipelineStage('Reading the new logo', () => structureCreativeBrief({
+      logoImage: logo,
+      logoRendering: 'integrated',
+      description: brief.description,
+      current: { copy: brief.copy },
+      dimensions: `${brief.widthIn} inches wide by ${brief.heightIn} inches high`,
+      usage: brief.usage,
+      user: providerUser(session),
+      idempotencyKey: providerRequestKey(jobId, 'replacement-logo-wording'),
+    }));
+    // This call transcribes only the changed source. Its inferred banner copy
+    // and art direction must not overwrite the current approved design.
+    brief.logoWording = normalizeBrief({ ...brief, logoWording: extracted.brief.logoWording }).logoWording;
   }
   brief.hasProtectedLogo = Boolean(logo) && brief.logoRendering !== 'integrated';
   brief.hasIntegratedLogo = Boolean(logo) && brief.logoRendering === 'integrated';
@@ -598,9 +620,10 @@ async function runEditRequest(body, session, jobId = crypto.randomUUID()) {
     ...Object.keys(brief.copy).filter((role) => JSON.stringify(previousBrief.layers?.[role] || {}) !== JSON.stringify(brief.layers?.[role] || {}))
       .map((role) => `Apply these text layer settings to ${role}: ${JSON.stringify(brief.layers[role])}.`),
   ].filter(Boolean).join('\n') : '';
-  const backgroundInstruction = logoOnly ? integratedLogo ? editPlan.removeLogo ? removalArtworkInstruction : `Edit the existing integrated customer logo in place: ${instruction}. Apply requested placement/scale settings ${JSON.stringify(brief.layers.logo || {})}; preserve its lettering and identity, with exactly one logo in the artwork.` : '' : brief.typographyMode === 'ai'
+  let backgroundInstruction = logoOnly ? integratedLogo ? editPlan.removeLogo ? removalArtworkInstruction : `Edit the existing integrated customer logo in place: ${instruction}. Apply requested placement/scale settings ${JSON.stringify(brief.layers.logo || {})}; preserve its lettering and identity, with exactly one logo in the artwork.` : '' : brief.typographyMode === 'ai'
     ? editPlan.removeLogo ? removalArtworkInstruction : [manual ? `Apply the updated wording and requested text styling/placement: ${JSON.stringify(brief.layers)}. Preserve the existing artistic lettering style unless a style change is requested.` : instruction, buildCopyChangeInstruction(body.previousCopy, brief.copy)].filter(Boolean).join('\n')
     : cleanText(editPlan.backgroundInstruction, 700);
+  if (replaceIntegratedLogo) backgroundInstruction += `\nThe customer has supplied a NEW logo reference. Replace the old integrated logo and its old logo-specific lettering ${JSON.stringify(previousLogoWording)} with this new source logo exactly ONCE, using its actual wording ${JSON.stringify(brief.logoWording)}. If the artwork has no logo, add this logo once. Do not retain the old mark, old logo-only wording, or add a duplicate. Preserve unrelated approved banner wording, layout and styling.`;
   const edited = backgroundInstruction ? await withPipelineStage('editing the artwork', () => editImage({
     prompt: buildEditPrompt(brief, plan, backgroundInstruction),
     size: plan.providerSize,

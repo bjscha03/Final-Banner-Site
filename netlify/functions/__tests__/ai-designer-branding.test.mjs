@@ -103,6 +103,43 @@ describe('logo-aware brand planning and image generation', () => {
     expect(f.editImage.mock.calls[0][0].prompt).toContain('Integrate the supplied customer logo ONCE');
     expect(result.concept.logoLayer).toBeNull();
     expect(f.validateArtwork.mock.calls[0][0].logoReference).toBeTruthy();
+    expect(f.structureCreativeBrief).not.toHaveBeenCalled();
+  });
+
+  it.each([{ oldLogoWording: ['Old Bakery'] }, { oldLogoWording: [] }])('refreshes only source wording when replacing/adding an integrated logo: %j', async ({ oldLogoWording }) => {
+    const f = await fixture();
+    const brief = normalizeBrief({ ...f.brief, structured: true, typographyMode: 'ai', logoRendering: 'integrated', logoWording: oldLogoWording, colorPalette: 'Pink and cream', visualStyle: 'Watercolor', copy: { headline: 'COMING SOON' } });
+    f.planDesignEdit.mockResolvedValue({ copy: brief.copy, layers: {}, removeLogo: false, removePhotos: [], backgroundInstruction: '' });
+    f.structureCreativeBrief.mockResolvedValue({ brief: { logoWording: ['NEW BAKERY', 'Fresh Daily'], copy: { headline: 'UNWANTED HEADLINE' }, colorPalette: 'Blue and green', visualStyle: 'Unwanted style' } });
+    const result = await f.handlers.runEditRequest({ brief, logoImage: f.logoImage, logoSourceChanged: true, currentBackgroundRef: 'original-ref', editInstruction: 'Use this new logo' }, { sub: 'admin' }, 'job');
+    expect(f.structureCreativeBrief).toHaveBeenCalledOnce();
+    expect(f.structureCreativeBrief.mock.calls[0][0].logoImage.buffer.equals((await prepareLogo({ buffer: f.logoBuffer })).buffer)).toBe(true);
+    expect(result.brief).toMatchObject({ logoWording: ['NEW BAKERY', 'Fresh Daily'], colorPalette: 'Pink and cream', visualStyle: 'Watercolor', copy: { headline: 'COMING SOON' } });
+    expect(f.editImage.mock.calls[0][0].prompt).toContain('Replace the old integrated logo');
+    expect(f.editImage.mock.calls[0][0].prompt).toContain('If the artwork has no logo, add this logo once');
+    expect(f.editImage.mock.calls[0][0].prompt).toContain('NEW BAKERY');
+    expect(f.editImage.mock.calls[0][0].prompt).toContain(`old logo-specific lettering ${JSON.stringify(oldLogoWording)}`);
+    expect(f.validateArtwork.mock.calls[0][0].brief.logoWording).toEqual(['NEW BAKERY', 'Fresh Daily']);
+    expect(result.concept.logoLayer).toBeNull();
+  });
+
+  it('does not transcribe changed sources during original-logo replacement or logo removal', async () => {
+    for (const [logoRendering, editMode] of [['original', 'logo'], ['integrated', 'remove-logo']]) {
+      const f = await fixture();
+      await f.handlers.runEditRequest({ brief: { ...f.brief, structured: true, typographyMode: 'ai', logoRendering }, logoImage: f.logoImage, logoSourceChanged: true, currentBackgroundRef: 'original-ref', editMode, editInstruction: editMode === 'remove-logo' ? 'Remove logo' : 'Apply logo changes' }, { sub: 'admin' }, 'job');
+      expect(f.structureCreativeBrief).not.toHaveBeenCalled();
+    }
+  });
+
+  it('makes accepted AI wording changes and deletions authoritative for future planning', async () => {
+    const f = await fixture();
+    const brief = normalizeBrief({ ...f.brief, structured: true, typographyMode: 'ai', copy: { headline: 'COMING SOON', supportingText: 'OPEN THIS FALL', phone: '555-1234' }, copyOverrides: { headline: 'COMING SOON', supportingText: 'OPEN THIS FALL', phone: '555-1234', website: '' } });
+    f.planDesignEdit.mockResolvedValue({ copy: { ...brief.copy, headline: 'NOW OPEN', supportingText: '' }, layers: {}, removeLogo: false, removePhotos: [], backgroundInstruction: '' });
+    const result = await f.handlers.runEditRequest({ brief, currentBackgroundRef: 'original-ref', editInstruction: 'Change the headline to NOW OPEN and remove supporting text' }, { sub: 'admin' }, 'job');
+    expect(result.brief.copyOverrides).toMatchObject({ headline: 'NOW OPEN', supportingText: '', phone: '555-1234', website: '' });
+    const fresh = localRequire('./schema.cjs').freshPromptBrief(result.brief);
+    expect(fresh.copy).toMatchObject({ headline: 'NOW OPEN', supportingText: '', phone: '555-1234' });
+    expect(f.structureCreativeBrief).not.toHaveBeenCalled();
   });
 
   it('discards stale inferred copy and art direction and blocks an invented supporting claim', async () => {
