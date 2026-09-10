@@ -79,7 +79,8 @@ async function visualInspection(buffer, requiredText) {
           schema: validationSchema(),
         },
       },
-      max_output_tokens: 1200,
+      max_output_tokens: 4000,
+      ...(getValidationModel() === 'gpt-5-mini' ? { reasoning: { effort: 'low' } } : {}),
     }, { signal }));
     const raw = response.output_text || response.output?.flatMap((item) => item.content || []).find((item) => item.type === 'output_text')?.text;
     const parsed = JSON.parse(raw || '');

@@ -499,6 +499,12 @@ describe('deterministic exact-copy composition', () => {
     const background = await sharp({ create: { width, height, channels: 3, background: color } }).jpeg().toBuffer();
     const result = await compositeArtwork({ background, brief });
     expect(result.textLayers.map(layer => layer.value).sort()).toEqual(Object.values(brief.copy).filter(Boolean).sort());
+    for (let index = 1; index < result.textLayers.length; index += 1) {
+      const previous = result.textLayers[index - 1];
+      const current = result.textLayers[index];
+      const previousBottom = previous.y + previous.fontSize * (0.2 + (previous.lines.length - 1) * 1.08);
+      expect(current.y - current.fontSize).toBeGreaterThanOrEqual(previousBottom - 0.01);
+    }
     expect((await sharp(result.buffer).metadata()).format).toBe('jpeg');
     if (process.env.AI_QA_RENDER_DIR) {
       fs.mkdirSync(process.env.AI_QA_RENDER_DIR, { recursive: true });

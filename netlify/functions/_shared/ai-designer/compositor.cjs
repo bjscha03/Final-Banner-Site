@@ -65,7 +65,7 @@ function renderTextBlock({ value, x, y, fontSize, width, weight = 700, color = '
 
   return {
     svg: textPaths(lines, { x, y, fontSize: fittedFontSize, font, color, anchor, lineHeight }),
-    height: fittedFontSize * (1 + (lines.length - 1) * lineHeight),
+    height: fittedFontSize * (1.2 + (lines.length - 1) * lineHeight),
     layer: { role, value, x, y, fontSize: fittedFontSize, color, weight, anchor, lines, font, width },
   };
 }
@@ -93,13 +93,12 @@ async function compositeArtwork({ background, brief, logo, photos = [] }) {
 
   const layoutAtScale = (scale) => {
     const laidOut = [];
-    let y = height * 0.12;
+    let top = height * 0.06;
     for (const [value, sizePct, role, options] of specs) {
-      if (value && laidOut.length === 0) y = height * (0.06 + sizePct * scale);
-      const block = renderTextBlock({
+      let block = renderTextBlock({
         value,
         x,
-        y,
+        y: 0,
         fontSize: height * sizePct * scale,
         width: maxWidth,
         anchor,
@@ -109,11 +108,12 @@ async function compositeArtwork({ background, brief, logo, photos = [] }) {
         role,
       });
       if (block.layer) {
+        block = renderTextBlock({ ...block.layer, y: top + block.layer.fontSize, maxLines: block.layer.lines.length });
         laidOut.push(block);
-        y += block.height + height * (options.gapPct || 0.035) * scale;
+        top += block.height + height * (options.gapPct || 0.035) * scale;
       }
     }
-    return { blocks: laidOut, bottom: y };
+    return { blocks: laidOut, bottom: top };
   };
 
   let scale = 1.5;

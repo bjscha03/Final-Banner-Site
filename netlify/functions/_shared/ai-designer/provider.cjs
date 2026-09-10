@@ -307,7 +307,8 @@ async function structureCreativeBrief({ description, current, dimensions, usage,
           schema: creativeBriefSchema(),
         },
       },
-      max_output_tokens: 1800,
+      max_output_tokens: 4000,
+      ...(getValidationModel() === 'gpt-5-mini' ? { reasoning: { effort: 'minimal' } } : {}),
       safety_identifier: user,
     }, options), { idempotencyKey });
     const raw = response.output_text || response.output?.flatMap((item) => item.content || []).find((item) => item.type === 'output_text')?.text;
@@ -348,7 +349,8 @@ async function planDesignEdit({ brief, instruction, photos = [], user, idempoten
         `Requested change: ${JSON.stringify(instruction)}`,
       ].join('\n') }, ...photos.map(photo => ({ type: 'input_image', image_url: `data:${photo.mimeType};base64,${photo.buffer.toString('base64')}`, detail: 'low' }))] }],
       text: { format: { type: 'json_schema', name: 'banner_layer_edit', strict: true, schema: { type: 'object', additionalProperties: false, required: Object.keys(properties), properties } } },
-      max_output_tokens: 2500,
+      max_output_tokens: 6000,
+      ...(getValidationModel() === 'gpt-5-mini' ? { reasoning: { effort: 'minimal' } } : {}),
       safety_identifier: user,
     }, options), { idempotencyKey });
     const raw = response.output_text || response.output?.flatMap(item => item.content || []).find(item => item.type === 'output_text')?.text;
