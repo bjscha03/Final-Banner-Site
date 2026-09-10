@@ -172,8 +172,20 @@ async function compositeArtwork({ background, brief, logo, photos = [] }) {
     const validLogo = await prepareLogo(await validateInputImage(logo, 12_000_000));
     const placement = logoPlacement(brief, width, height, validLogo.width / validLogo.height);
     const resized = await sharp(validLogo.buffer).resize(placement.width, placement.height, { fit: 'fill' }).png().toBuffer();
+    if (validLogo.needsContrastPlate) {
+      const padX = Math.max(8, Math.round(placement.width * 0.08));
+      const padY = Math.max(6, Math.round(placement.height * 0.14));
+      const plateLeft = Math.max(0, placement.left - padX);
+      const plateTop = Math.max(0, placement.top - padY);
+      const plateWidth = Math.min(width - plateLeft, placement.width + padX * 2);
+      const plateHeight = Math.min(height - plateTop, placement.height + padY * 2);
+      const radius = Math.max(8, Math.round(Math.min(plateWidth, plateHeight) * 0.12));
+      const plate = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${plateWidth}" height="${plateHeight}"><rect width="100%" height="100%" rx="${radius}" fill="${validLogo.contrastPlate}" fill-opacity="0.96"/></svg>`);
+      composites.push({ input: plate, left: plateLeft, top: plateTop });
+      logoLayer = { ...placement, plate: { left: plateLeft, top: plateTop, width: plateWidth, height: plateHeight, color: validLogo.contrastPlate } };
+    }
     composites.push({ input: resized, left: placement.left, top: placement.top });
-    logoLayer = { ...placement, sourceWidth: validLogo.width, sourceHeight: validLogo.height };
+    logoLayer = { ...logoLayer, ...placement, sourceWidth: validLogo.width, sourceHeight: validLogo.height };
 
   }
 

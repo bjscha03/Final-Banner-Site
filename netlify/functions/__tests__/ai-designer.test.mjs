@@ -594,10 +594,23 @@ describe('deterministic exact-copy composition', () => {
   it('removes transparent logo padding but never removes a visible white background', async () => {
     const mark = await sharp({ create: { width: 40, height: 20, channels: 4, background: '#ff7800' } }).extend({ top: 30, bottom: 30, left: 40, right: 40, background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer();
     const trimmed = await prepareLogo({ buffer: mark, mimeType: 'image/png' });
-    expect(trimmed).toMatchObject({ width: 40, height: 20, prepared: true });
+    expect(trimmed).toMatchObject({ width: 40, height: 20, prepared: true, needsContrastPlate: false });
     const white = await sharp({ create: { width: 120, height: 80, channels: 4, background: '#ffffff' } }).png().toBuffer();
     const preserved = await prepareLogo({ buffer: white, mimeType: 'image/png' });
-    expect(preserved).toMatchObject({ width: 120, height: 80 });
+    expect(preserved).toMatchObject({ width: 120, height: 80, needsContrastPlate: false });
+  });
+
+  it('adds a fitted contrast plate behind transparent wordmarks', async () => {
+    const mark = await sharp({ create: { width: 160, height: 80, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+      .composite([{ input: Buffer.from('<svg width="160" height="80"><text x="8" y="55" font-size="52" fill="white">LOGO</text></svg>') }]).png().toBuffer();
+    const prepared = await prepareLogo({ buffer: mark, mimeType: 'image/png' });
+    expect(prepared.needsContrastPlate).toBe(true);
+    expect(prepared.contrastPlate).toBe('#0b1f3a');
+    const brief = productionBrief({ typographyMode: 'ai' }); brief.outputWidthPx = 960; brief.outputHeightPx = 480;
+    const background = await sharp({ create: { width: 960, height: 480, channels: 3, background: '#f97316' } }).png().toBuffer();
+    const result = await compositeArtwork({ background, brief, logo: prepared });
+    expect(result.logoLayer.plate).toMatchObject({ color: '#0b1f3a' });
+    expect(result.logoLayer.plate.width).toBeGreaterThan(result.logoLayer.width);
   });
 
   it('keeps wide and tall logos inside safe edges and reserves the same footprint in the AI prompt', () => {

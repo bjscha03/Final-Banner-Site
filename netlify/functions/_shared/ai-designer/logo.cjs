@@ -24,10 +24,16 @@ async function prepareLogo(image) {
   const sharp = require('sharp');
   const { data, info } = await sharp(image.buffer).rotate().ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   let left = info.width, top = info.height, right = -1, bottom = -1;
+  let visiblePixels = 0, weightedLuminance = 0, alphaWeight = 0;
   for (let y = 0; y < info.height; y += 1) for (let x = 0; x < info.width; x += 1) {
-    if (data[(y * info.width + x) * 4 + 3] === 0) continue;
+    const offset = (y * info.width + x) * 4;
+    const alpha = data[offset + 3] / 255;
+    if (alpha === 0) continue;
     left = Math.min(left, x); right = Math.max(right, x);
     top = Math.min(top, y); bottom = Math.max(bottom, y);
+    visiblePixels += 1;
+    alphaWeight += alpha;
+    weightedLuminance += alpha * (0.2126 * data[offset] + 0.7152 * data[offset + 1] + 0.0722 * data[offset + 2]) / 255;
   }
   if (right < left || bottom < top) {
     const error = new Error('This logo is completely transparent. Choose a visible logo file.');
@@ -37,7 +43,15 @@ async function prepareLogo(image) {
   // Only fully transparent outer pixels are removed. White backgrounds and
   // every visible mark remain exactly as supplied; no AI redraw or stretching.
   const buffer = await sharp(data, { raw: info }).extract({ left, top, width, height }).png().toBuffer();
-  return { buffer, mimeType: 'image/png', width, height, prepared: true };
+  const visibleCoverage = visiblePixels / (width * height);
+  const averageLuminance = alphaWeight ? weightedLuminance / alphaWeight : 0.5;
+  return {
+    buffer, mimeType: 'image/png', width, height, prepared: true,
+    // Transparent wordmarks need a quiet fitted backing so generated lettering
+    // can never show through them. Opaque rectangular logos already provide it.
+    needsContrastPlate: visibleCoverage < 0.9,
+    contrastPlate: averageLuminance >= 0.52 ? '#0b1f3a' : '#ffffff',
+  };
 }
 
 function logoPrompt(brief) {
