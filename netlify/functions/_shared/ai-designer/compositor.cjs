@@ -79,7 +79,8 @@ async function compositeArtwork({ background, brief, logo, photos = [] }) {
   const maxWidth = zoneWidth(position, width);
   const textColor = /^#[0-9a-f]{6}$/i.test(brief.textColor || '') ? brief.textColor : '#ffffff';
   const accentColor = /^#[0-9a-f]{6}$/i.test(brief.accentColor || '') ? brief.accentColor : '#f97316';
-  const copy = brief.copy;
+  // AI lettering is already part of the artwork. Never overlay fallback type.
+  const copy = brief.typographyMode === 'ai' ? {} : brief.copy;
   const overrides = normalizeLayers(brief.layers);
   const specs = [
     [copy.businessName, 0.045, 'businessName', { color: accentColor, weight: 700, maxLines: 1, gapPct: 0.035 }],

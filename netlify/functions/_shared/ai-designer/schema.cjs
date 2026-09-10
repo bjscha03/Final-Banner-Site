@@ -122,6 +122,7 @@ function normalizeBrief(input = {}) {
     quantity: Math.max(1, Math.min(999, Math.floor(Number(input.quantity) || 1))),
     productType,
     textPosition,
+    typographyMode: input.typographyMode === 'ai' ? 'ai' : 'layers',
     logoPosition,
     layers: normalizeLayers(input.layers),
     textColor: /^#[a-f0-9]{6}$/i.test(input.textColor || '') ? input.textColor : '#ffffff',

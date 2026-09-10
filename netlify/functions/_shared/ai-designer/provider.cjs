@@ -292,7 +292,7 @@ async function structureCreativeBrief({ description, current, dimensions, usage,
             'Do not invent customer wording, contact details, offers, dates, prices, or brand claims.',
             'Extract the actual requested banner wording into the copy fields. Preserve names, dates, offers, addresses and phone numbers exactly. Leave unprovided fields empty; never invent them. Do not put design instructions into the printed copy. Use a short prominent headline, a secondary offer and smaller contact details. Respect any nonempty exact copy fields supplied by the user.',
             'Choose a left, center or right textPosition and six-digit hex textColor/accentColor with strong contrast. Use a centered, wide text zone for portrait banners and text-only requests.',
-            'Favor a flat edge-to-edge composition, large-format legibility, a clean deterministic typography zone, and safe internal margins.',
+            'Art-direct a cohesive finished design with theme-appropriate expressive lettering, strong visual hierarchy, large-format legibility and safe internal margins. Avoid default block type and a generic empty half-canvas text panel. Celebration banners can use playful dimensional lettering; business designs should match their brand. The customer request takes precedence over generic default style selections.',
             `Physical dimensions: ${dimensions}. Usage: ${usage}.`,
             `Existing user selections to respect when useful: ${JSON.stringify(current)}.`,
             `Customer request to interpret: ${JSON.stringify(description)}.`,
@@ -343,7 +343,9 @@ async function planDesignEdit({ brief, instruction, photos = [], user, idempoten
       model: getValidationModel(),
       input: [{ role: 'user', content: [{ type: 'input_text', text: [
         'Edit this layered commercial banner according to the request. Return complete exact copy and layer settings; preserve all unrelated wording and existing settings.',
-        'Text and logo changes are deterministic. NEVER ask the image model to change words, spelling, fonts, sizes or logos. Put only visual background/image changes in backgroundInstruction; otherwise use an empty string.',
+        brief.typographyMode === 'ai'
+          ? 'The existing design contains artistic AI-rendered lettering. Update the complete approved copy to match requested wording changes. Preserve the original lettering style unless asked to change it. Logo and uploaded photo positions remain protected separate layers. Do not replace artistic fonts with generic font settings unless explicitly requested.'
+          : 'Text and logo changes are deterministic. NEVER ask the image model to change words, spelling, fonts, sizes or logos. Put only visual background/image changes in backgroundInstruction; otherwise use an empty string.',
         'Layer x/y are normalized canvas coordinates, width is a normalized text-zone width, scale is relative to default type size. Preserve unspecified values using the current settings or null if unset. Fonts must be from the supplied enum. Colors are six-digit hex. Increase sizes moderately (about 1.2x) when asked for bigger. For logo left/right use x=0.05/0.75; top/bottom use y=0.06/0.7. Remove text by emptying its copy field. Never invent contact information. Only set removeLogo when explicitly requested.',
         `Uploaded photos are supplied after this text in zero-based order (photo0, photo1, photo2). Return their indexes in removePhotos only if requested. Current design: ${JSON.stringify(brief)}`,
         `Requested change: ${JSON.stringify(instruction)}`,

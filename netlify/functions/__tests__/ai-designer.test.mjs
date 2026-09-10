@@ -377,6 +377,18 @@ describe('GPT Image 2 provider contract', () => {
 });
 
 describe('flat-artwork structured prompts', () => {
+  it('art-directs complete AI lettering without contradictory no-text instructions', () => {
+    const brief = productionBrief({ typographyMode: 'ai', copy: { headline: 'Happy Birthday Bryson!' } });
+    const plan = planCanvas(brief.widthIn, brief.heightIn);
+    for (const prompt of [buildGenerationPrompt(brief, plan), buildEditPrompt(brief, plan, 'Make the lettering playful and dimensional')]) {
+      expect(prompt).toContain('Happy Birthday Bryson!');
+      expect(prompt).toMatch(/COMPLETE finished banner/);
+      expect(prompt).not.toMatch(/Do not render words|Do not add any words|deterministic typography/);
+      expect(prompt).toMatch(/5% safe margins/);
+    }
+    expect(normalizeBrief(brief).typographyMode).toBe('ai');
+    expect(productionBrief().typographyMode).toBe('layers');
+  });
   it('applies the required production exclusions to generation and edits', () => {
     const brief = productionBrief();
     const plan = planCanvas(brief.widthIn, brief.heightIn);
@@ -479,6 +491,19 @@ describe('exact dimensions and template fill', () => {
 });
 
 describe('deterministic exact-copy composition', () => {
+  it('does not paint fallback block text over integrated AI artwork', async () => {
+    const brief = productionBrief({ typographyMode: 'ai', copy: { headline: 'Happy Birthday Bryson!' } });
+    brief.outputWidthPx = 960; brief.outputHeightPx = 480;
+    const background = await sharp({ create: { width: 960, height: 480, channels: 3, background: '#123456' } }).png().toBuffer();
+    const logo = { buffer: await sharp({ create: { width: 80, height: 40, channels: 3, background: '#ff0000' } }).png().toBuffer(), mimeType: 'image/png' };
+    const result = await compositeArtwork({ background, brief, logo });
+    expect(result.textLayers).toEqual([]);
+    expect(result.logoLayer).toMatchObject({ width: 80, height: 40 });
+    const noLogo = await compositeArtwork({ background, brief });
+    const stats = await sharp(noLogo.buffer).stats();
+    expect(stats.channels.every(channel => channel.stdev < 1)).toBe(true);
+    expect((await sharp(result.buffer).metadata()).format).toBe('jpeg');
+  });
   const scenarios = [
     ['grand-opening', "Tony’s Pizza", 'GRAND OPENING', 'Free slice with any drink', 'Saturday September 19', '#981c22'],
     ['birthday', '', 'HAPPY 50TH BIRTHDAY', 'Celebrating Maria', 'September 19', '#55337d'],

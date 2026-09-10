@@ -365,6 +365,7 @@ function repairableFailures(validation) {
   if (!validation.checks.edgeCoverage.passed) failures.push('blank or letterboxed edge coverage');
   if (validation.vision.available && !validation.checks.flatArtwork.passed && validation.checks.flatArtwork.flags.length) failures.push(...validation.checks.flatArtwork.flags);
   if (!validation.checks.aspectRatio.passed) failures.push('incorrect aspect ratio');
+  if (!validation.checks.exactText.passed) failures.push('missing or misspelled required wording; replace incorrect lettering with the exact approved wording');
   return failures;
 }
 
@@ -374,7 +375,7 @@ async function finalizeConcept({ rawBackground, brief, plan, logo, photos, refer
   const { validateArtwork } = require('./validation.cjs');
   let background = preserveBackground ? rawBackground : await normalizeBackground(rawBackground, plan);
   let composite = await compositeArtwork({ background, brief, logo, photos });
-  let validation = await validateArtwork({ background, artwork: composite.buffer, brief, plan });
+  let validation = await validateArtwork({ background, artwork: composite.buffer, brief, plan, protectedRegions: [composite.logoLayer, ...composite.photoLayers].filter(Boolean) });
   let repaired = false;
   let lastProvider = providerResult;
   const failures = repairableFailures(validation);
@@ -390,7 +391,7 @@ async function finalizeConcept({ rawBackground, brief, plan, logo, photos, refer
     });
     background = await normalizeBackground(repair.buffer, plan);
     composite = await compositeArtwork({ background, brief, logo, photos });
-    validation = await validateArtwork({ background, artwork: composite.buffer, brief, plan });
+    validation = await validateArtwork({ background, artwork: composite.buffer, brief, plan, protectedRegions: [composite.logoLayer, ...composite.photoLayers].filter(Boolean) });
     repaired = true;
     lastProvider = repair;
     providerCalls.push(repair);
@@ -444,6 +445,10 @@ async function statusHandler(event) {
 async function runGenerateRequest(body, session, jobId = crypto.randomUUID()) {
   const started = Date.now();
   const { brief, plan, reference, logo, photos } = await withPipelineStage('preparing the design inputs', () => prepareInputs(body));
+  // New designs use integrated, art-directed AI lettering. Older saved versions
+  // retain their explicit layer mode so undo/recovery never doubles their text.
+  brief.typographyMode = 'ai';
+  brief.hasProtectedLogo = Boolean(logo);
   if (!brief.structured) {
     const error = new Error('Review and confirm the structured creative brief before generating.');
     error.code = 'INVALID_REQUEST';
@@ -557,7 +562,10 @@ async function runEditRequest(body, session, jobId = crypto.randomUUID()) {
       photos = photos.filter((_, index) => !editPlan.removePhotos.includes(index));
     }
   }
-  const backgroundInstruction = cleanText(editPlan.backgroundInstruction, 700);
+  brief.hasProtectedLogo = Boolean(logo);
+  const backgroundInstruction = brief.typographyMode === 'ai'
+    ? (manual ? `Apply the updated wording and requested text styling/placement: ${JSON.stringify(brief.layers)}. Preserve the existing artistic lettering style unless a style change is requested.` : instruction)
+    : cleanText(editPlan.backgroundInstruction, 700);
   const edited = backgroundInstruction ? await withPipelineStage('editing the artwork', () => editImage({
     prompt: buildEditPrompt(brief, plan, backgroundInstruction),
     size: plan.providerSize,

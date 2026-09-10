@@ -431,13 +431,13 @@ export default function AIWorkspace(props: Props) {
     const controller = new AbortController();
     controllerRef.current = controller;
     setError('');
-    setStage('Interpreting your request as a structured production brief');
+    setStage('Organizing your wording');
     try {
       const body = await runBackgroundJob(
         '/.netlify/functions/ai-designer-brief',
         { brief },
         controller.signal,
-        'Interpreting your request as a structured production brief',
+        'Organizing your wording',
         setStage,
       );
       if (!body?.brief?.structured) throw new Error('The production brief could not be interpreted safely.');
@@ -462,7 +462,7 @@ export default function AIWorkspace(props: Props) {
     const controller = new AbortController();
     controllerRef.current = controller;
     setError('');
-    setStage('Preparing the structured creative brief');
+    setStage('Planning your design');
     trackAIEvent('ai_prompt_entered', { product_type: brief.productType });
     trackAIEvent('ai_generation_started', { concept_count: conceptCount, product_type: brief.productType });
     try {
@@ -478,7 +478,7 @@ export default function AIWorkspace(props: Props) {
         '/.netlify/functions/ai-designer-generate',
         { brief: readyBrief, conceptCount, referenceImage, logoImage, photoImages },
         controller.signal,
-        'Generating artwork, correcting the exact ratio, and validating print readiness. This can take a few minutes.',
+        'Creating your artwork and checking the finishing details. This usually takes a few minutes.',
         setStage,
       );
       const nextConcepts = Array.isArray(body.concepts) ? body.concepts.map((concept: AIConcept) => ({ ...concept, logoImage, referenceImage, photoImages })) : [];
@@ -510,7 +510,7 @@ export default function AIWorkspace(props: Props) {
     const controller = new AbortController();
     controllerRef.current = controller;
     setError('');
-    setStage('Editing the current artwork and preserving exact text layers');
+    setStage('Refining your design');
     trackAIEvent('ai_edit_started', { concept_id: selected.id });
     try {
       const normalizedInstruction = editInstruction.toLowerCase();
@@ -520,7 +520,7 @@ export default function AIWorkspace(props: Props) {
             : /logo.{0,24}(lower|bottom)[ -]?left|(?:lower|bottom)[ -]?left.{0,24}logo/.test(normalizedInstruction) ? 'lower-left'
               : /logo.{0,24}(lower|bottom)[ -]?right|(?:lower|bottom)[ -]?right.{0,24}logo/.test(normalizedInstruction) ? 'lower-right'
                 : null;
-      const briefForEdit = requestedLogoPosition ? { ...brief, logoPosition: requestedLogoPosition } : brief;
+      const briefForEdit = { ...brief, ...(requestedLogoPosition ? { logoPosition: requestedLogoPosition } : {}), typographyMode: manual ? brief.typographyMode : 'ai' as const };
       const body = await runBackgroundJob(
         '/.netlify/functions/ai-designer-edit',
         {
@@ -529,13 +529,13 @@ export default function AIWorkspace(props: Props) {
           conceptId: selected.id,
           generationId: selected.generationId,
           currentBackgroundRef: selected.backgroundRef,
-          editInstruction: manual ? 'Apply exact layer changes without changing the background.' : editInstruction.trim(),
+          editInstruction: manual ? 'Apply the updated wording and element settings to this design.' : editInstruction.trim(),
           referenceImage,
           logoImage,
           photoImages,
         },
         controller.signal,
-        'Editing the current artwork and preserving exact text layers. This can take a few minutes.',
+        'Refining your design. This can take a few minutes.',
         setStage,
       );
       if (!body?.usedOriginalImage || !body?.concept) throw new Error('The server did not confirm use of the current artwork.');
@@ -662,18 +662,18 @@ export default function AIWorkspace(props: Props) {
             : null;
 
   return (
-    <div className="min-h-0 bg-[#f8f6f1] text-slate-900" data-testid="ai-workspace">
+    <div className="min-h-0 bg-white text-slate-900" data-testid="ai-workspace">
       <div className="border-b border-slate-200 bg-white px-4 py-4 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-[0.16em] text-orange-600"><WandSparkles className="h-4 w-4" /> Banners On The Fly</div>
-            <h2 className="mt-1 text-2xl font-black tracking-tight text-[#0b1f3a] sm:text-3xl">Create professional artwork with AI</h2>
-            <p className="mt-1 max-w-3xl text-sm text-slate-600">Describe it. Make it yours. Print it.</p>
+            <h2 className="mt-1 text-2xl font-black tracking-tight text-[#0b1f3a] sm:text-3xl">Your banner studio</h2>
+            <p className="mt-1 max-w-3xl text-sm text-slate-600">One idea. A banner made for you.</p>
           </div>
           <div className="flex items-center gap-2">
             <span className={`inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-semibold ${access.ready ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-900'}`}>
               {access.loading ? <Loader2 className="h-4 w-4 animate-spin" /> : access.ready ? <ShieldCheck className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
-              {access.ready ? `${access.model} ready` : 'Configuration check'}
+              {access.ready ? 'Admin preview' : 'Configuration check'}
             </span>
             {props.onClose && <button type="button" onClick={props.onClose} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"><ArrowLeft className="h-4 w-4" /> Back</button>}
           </div>
@@ -682,8 +682,8 @@ export default function AIWorkspace(props: Props) {
       </div>
 
       {saveNotice && <p className="px-4 pt-3 text-xs text-slate-500" role="status">{saveNotice}</p>}
-      <div className="grid min-h-0 grid-cols-1 xl:grid-cols-[minmax(330px,0.86fr)_minmax(480px,1.45fr)]">
-        <section className="space-y-5 border-b border-slate-200 p-4 sm:p-6 xl:border-b-0 xl:border-r">
+      <div className="grid min-h-0 grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)]">
+        <section className="space-y-5 border-b border-slate-200 bg-white p-4 sm:p-6 lg:border-b-0 lg:border-r">
           <div>
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-lg font-black text-[#0b1f3a]">Describe your banner</h3>
@@ -738,7 +738,7 @@ export default function AIWorkspace(props: Props) {
           </details>
 
           <div>
-            <h3 className="text-lg font-black text-[#0b1f3a]">Add a logo or image (optional)</h3>
+            <details><summary className="cursor-pointer py-2 text-sm font-semibold text-slate-600">Logo & photos (optional)</summary>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white p-3 text-center hover:border-orange-400"><ImagePlus className="h-5 w-5 text-orange-600" /><span className="mt-1 text-sm font-bold">Reference image</span><span className="text-xs text-slate-500">Photo, artwork or style reference</span><input type="file" className="sr-only" accept="image/png,image/jpeg,image/webp" onChange={(event) => setImage('reference', event.target.files?.[0])} /></label>
               <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white p-3 text-center hover:border-orange-400"><ImagePlus className="h-5 w-5 text-orange-600" /><span className="mt-1 text-sm font-bold">Logo</span><span className="text-xs text-slate-500">Your logo is never redrawn by AI</span><input type="file" className="sr-only" accept="image/png,image/jpeg,image/webp" onChange={(event) => setImage('logo', event.target.files?.[0])} /></label>
@@ -750,7 +750,9 @@ export default function AIWorkspace(props: Props) {
               catch (reason) { setError(reason instanceof Error ? reason.message : 'The photos could not be added.'); }
               event.target.value = '';
             }} /></label>
+            </details>
             {photoImages.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{photoImages.map((src, index) => <div key={index} className="w-24"><img src={src} alt={`Uploaded photo ${index + 1}`} className="h-16 w-24 rounded object-contain" /><button type="button" className="min-h-11 text-xs underline" onClick={() => setPhotoImages(current => current.filter((_, item) => item !== index))}>Remove photo {index + 1}</button></div>)}</div>}
+            {(referenceImage || logoImage) && <div className="mt-3 grid grid-cols-2 gap-3">{[['Reference', referenceImage], ['Logo included on banner', logoImage]].map(([label, src]) => src && <figure key={label} className="min-w-0 rounded-lg border border-slate-200 bg-white p-2"><img src={src} alt={label || 'Attached image'} className="h-20 w-full object-contain" /><figcaption className="mt-1 text-xs text-slate-500">{label}</figcaption></figure>)}</div>}
             {(referenceImage || logoImage) && <div className="mt-2 flex flex-wrap items-center gap-2">{referenceImage && <button type="button" onClick={() => removeImage('reference')} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold">Remove reference</button>}{logoImage && <><label className="text-sm font-semibold text-slate-700">Logo position<select value={brief.logoPosition} onChange={(event) => updateBrief('logoPosition', event.target.value as CreativeBrief['logoPosition'])} className="ml-2 min-h-11 rounded-lg border border-slate-300 bg-white px-3"><option value="upper-left">Upper left</option><option value="upper-right">Upper right</option><option value="lower-left">Lower left</option><option value="lower-right">Lower right</option></select></label><button type="button" onClick={() => removeImage('logo')} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold">Remove logo</button></>}</div>}
           </div>
 
@@ -758,29 +760,34 @@ export default function AIWorkspace(props: Props) {
           <details className="text-sm text-slate-600"><summary className="cursor-pointer py-2">Review wording before creating (optional)</summary><button type="button" onClick={() => void reviewBrief()} disabled={!requirementsMet || !access.ready || Boolean(stage)} className="min-h-11 underline">Extract wording from my description</button></details>
         </section>
 
-        <section className="min-w-0 space-y-5 p-4 sm:p-6">
+        <section className="min-w-0 space-y-5 bg-slate-50 p-4 sm:p-6">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div><h3 className="text-lg font-black text-[#0b1f3a]">Your banner</h3><p className="text-sm text-slate-600">Preview your banner, make changes, then use it in your order.</p></div>
 
           </div>
 
-          {stage && <div role="status" aria-live="polite" className="flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm font-semibold text-blue-900"><span className="flex items-center gap-2"><Loader2 className="h-5 w-5 animate-spin" /> {stage}</span><button type="button" onClick={() => controllerRef.current?.abort()} className="min-h-11 rounded-lg border border-blue-300 px-3" title="The secure background job will continue and can be resumed by repeating the same action.">Stop waiting</button></div>}
+          {stage && <div role="status" aria-live="polite" className="flex min-h-52 flex-col items-center justify-center rounded-xl bg-[#0b1f3a] px-6 py-8 text-center text-white">
+            <Loader2 className="h-7 w-7 animate-spin text-orange-400 motion-reduce:animate-none" />
+            <h4 className="mt-4 text-xl font-semibold tracking-tight">{selected ? 'Making your changes' : 'Bringing your idea to life'}</h4>
+            <p className="mt-2 max-w-md text-sm leading-relaxed text-slate-300">{stage}</p>
+            <button type="button" onClick={() => controllerRef.current?.abort()} className="mt-4 min-h-11 px-3 text-xs text-slate-300 underline underline-offset-4" title="Your draft stays saved. The current job can be resumed.">Stop waiting</button>
+          </div>}
           {error && <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><XCircle className="mt-0.5 h-5 w-5 shrink-0" /><span>{error}</span></div>}
 
-          {!concepts.length && !stage && <div className="grid min-h-72 place-items-center rounded-2xl border-2 border-dashed border-slate-300 bg-white p-8 text-center"><div><Sparkles className="mx-auto h-9 w-9 text-orange-500" /><h4 className="mt-3 text-lg font-black text-[#0b1f3a]">Your concepts will appear here</h4><p className="mt-1 max-w-md text-sm text-slate-600">Tell us what your banner should say and look like, then choose Create my banner.</p></div></div>}
+          {!concepts.length && !stage && <div className="grid min-h-[420px] place-items-center rounded-xl bg-white p-8 text-center"><div><Sparkles className="mx-auto h-9 w-9 text-orange-500" /><h4 className="mt-3 text-lg font-black text-[#0b1f3a]">A little imagination. A big impression.</h4><p className="mt-1 max-w-md text-sm text-slate-600">Tell us what your banner should say and look like, then choose Create my banner.</p></div></div>}
 
-          {concepts.length > 0 && <div className="grid grid-cols-1 gap-4 2xl:grid-cols-2">{concepts.map((concept, index) => (
-            <article key={concept.versionId} className={`rounded-2xl border-2 bg-white p-3 shadow-sm transition ${selected?.versionId === concept.versionId ? 'border-orange-500 ring-2 ring-orange-100' : 'border-slate-200 hover:border-slate-300'}`}>
+          {concepts.length > 1 && <div className="flex gap-3 overflow-x-auto pb-2">{concepts.map((concept, index) => (
+            <article key={concept.versionId} className={`w-40 shrink-0 rounded-lg border bg-white p-2 transition ${selected?.versionId === concept.versionId ? 'border-[#0b1f3a] ring-1 ring-[#0b1f3a]' : 'border-slate-200 hover:border-slate-300'}`}>
               <button type="button" disabled={Boolean(pendingEdit)} onClick={() => { setSelectedId(concept.id); trackAIEvent('ai_concept_selected', { concept_index: index }); }} className="block w-full text-left disabled:cursor-not-allowed disabled:opacity-70" aria-pressed={selected?.versionId === concept.versionId}>
-                <div className="flex h-72 w-full items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-100"><img src={imageSrc(concept)} alt={`Complete AI concept ${index + 1}`} className="h-full w-full object-contain" /></div>
+                <div className="flex h-20 w-full items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-100"><img src={imageSrc(concept)} alt={`Complete AI concept ${index + 1}`} className="h-full w-full object-contain" /></div>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2"><div><div className="text-sm font-black text-[#0b1f3a]">Concept {index + 1}</div><div className="text-xs text-slate-500">{concept.widthIn}&quot; × {concept.heightIn}&quot; · {concept.aspectRatio.toFixed(4)}:1</div></div><StatusBadge concept={concept} /></div>
               </button>
               <div className="mt-3 flex gap-2"><button type="button" disabled={Boolean(pendingEdit)} onClick={() => setSelectedId(concept.id)} className="min-h-11 flex-1 rounded-lg bg-[#0b1f3a] px-3 text-sm font-bold text-white disabled:opacity-50">Select</button><button type="button" disabled={Boolean(pendingEdit)} onClick={() => removeConcept(concept.id)} aria-label={`Delete concept ${index + 1}`} className="min-h-11 min-w-11 rounded-lg border border-slate-300 text-slate-600 hover:bg-red-50 hover:text-red-700 disabled:opacity-50"><Trash2 className="mx-auto h-4 w-4" /></button></div>
             </article>
           ))}</div>}
 
-          {selected && <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3"><div><h4 className="text-lg font-black text-[#0b1f3a]">Selected production design</h4><p className="text-sm text-slate-600">Edit the existing background while exact text and logo layers remain controlled.</p></div><div className="flex gap-2"><button type="button" onClick={undo} disabled={!history.length || Boolean(stage) || Boolean(pendingEdit)} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-3 text-sm font-semibold disabled:opacity-40"><Undo2 className="h-4 w-4" /> Undo</button><button type="button" onClick={redoEdit} disabled={!redo.length || Boolean(stage) || Boolean(pendingEdit)} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-3 text-sm font-semibold disabled:opacity-40"><Redo2 className="h-4 w-4" /> Redo</button><button type="button" onClick={() => setFullPreview(true)} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-3 text-sm font-semibold"><Maximize2 className="h-4 w-4" /> Full preview</button></div></div>
+          {selected && <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3"><div><h4 className="text-lg font-black text-[#0b1f3a]">Your design</h4><p className="text-sm text-slate-600">Tell us what to change. Keep the version you love.</p></div><div className="flex gap-2"><button type="button" onClick={undo} disabled={!history.length || Boolean(stage) || Boolean(pendingEdit)} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-3 text-sm font-semibold disabled:opacity-40"><Undo2 className="h-4 w-4" /> Undo</button><button type="button" onClick={redoEdit} disabled={!redo.length || Boolean(stage) || Boolean(pendingEdit)} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-3 text-sm font-semibold disabled:opacity-40"><Redo2 className="h-4 w-4" /> Redo</button><button type="button" onClick={() => setFullPreview(true)} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-3 text-sm font-semibold"><Maximize2 className="h-4 w-4" /> Full preview</button></div></div>
             <div className="mt-4 flex h-[min(55vh,36rem)] w-full items-center justify-center overflow-hidden rounded-xl border border-slate-300 bg-slate-100"><img src={imageSrc(selected)} alt="Complete selected flat print artwork" className="h-full w-full object-contain" /></div>
 
             {pendingEdit && <div className="mt-4 rounded-xl border-2 border-orange-300 bg-orange-50 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><h5 className="font-black text-[#0b1f3a]">Review the proposed edit</h5><p className="mt-1 max-w-3xl text-sm text-slate-700">Image editing preserves unrelated details when technically possible, but cannot guarantee pixel-identical regions. Compare the complete canvases before accepting.</p></div><StatusBadge concept={pendingEdit} /></div><div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2"><figure><figcaption className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-600">Before</figcaption><div className="flex h-56 items-center justify-center overflow-hidden rounded-lg border border-slate-300 bg-slate-100"><img src={imageSrc(selected)} alt="Artwork before proposed AI edit" className="h-full w-full object-contain" /></div></figure><figure><figcaption className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-600">Proposed edit</figcaption><div className="flex h-56 items-center justify-center overflow-hidden rounded-lg border border-orange-300 bg-slate-100"><img src={imageSrc(pendingEdit)} alt="Artwork after proposed AI edit" className="h-full w-full object-contain" /></div></figure></div><div className="mt-3 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" onClick={rejectPendingEdit} className="min-h-11 rounded-lg border border-slate-400 bg-white px-5 text-sm font-bold text-slate-800">Reject edit</button><button type="button" onClick={acceptPendingEdit} className="min-h-11 rounded-lg bg-orange-600 px-5 text-sm font-black text-white hover:bg-orange-700">Accept edit</button></div></div>}
@@ -792,10 +799,12 @@ export default function AIWorkspace(props: Props) {
             </div>
             <div className="mt-2 flex flex-wrap gap-2">{['Make the background lighter', 'Change colors to navy and orange', ...(logoImage ? ['Move the logo to the upper-left'] : []), 'Remove the people', 'Make it more professional', 'Keep everything else exactly the same'].map((value) => <button key={value} type="button" onClick={() => setEditInstruction(value)} className="min-h-11 rounded-full border border-slate-300 bg-slate-50 px-3 text-xs font-semibold text-slate-700 hover:border-orange-400">{value}</button>)}</div>
 
-            <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className={`rounded-xl border p-4 ${selected.validation.passed ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}><div className="flex items-center gap-2 font-black text-[#0b1f3a]">{selected.validation.passed ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : <AlertCircle className="h-5 w-5 text-amber-700" />} Print-readiness validation</div><ul className="mt-2 space-y-1 text-sm text-slate-700"><li>Dimensions: {selected.validation.checks.dimensions.passed ? 'Exact' : 'Failed'}</li><li>Full edge coverage: {selected.validation.checks.edgeCoverage.passed ? 'Passed' : 'Failed'}</li><li>Flat artwork / no hardware: {selected.validation.checks.flatArtwork.passed ? 'Passed' : 'Failed'}</li><li>Exact wording layers: {selected.validation.checks.exactText.passed ? 'Passed' : 'Failed'}</li><li>Output canvas resolution: {selected.validation.checks.resolution.effectivePpi} PPI ({selected.validation.checks.resolution.passed ? 'passed' : 'failed'})</li></ul>{selected.validation.reasons.length > 0 && <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-amber-900">{selected.validation.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>}</div>
+            <details className="mt-5 border-t border-slate-200 pt-3"><summary className="cursor-pointer py-2 text-sm text-slate-500">Print checks & generation details</summary><div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className={`rounded-xl border p-4 ${selected.validation.passed ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}><div className="flex items-center gap-2 font-black text-[#0b1f3a]">{selected.validation.passed ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : <AlertCircle className="h-5 w-5 text-amber-700" />} Print-readiness validation</div><ul className="mt-2 space-y-1 text-sm text-slate-700"><li>Dimensions: {selected.validation.checks.dimensions.passed ? 'Exact' : 'Failed'}</li><li>Full edge coverage: {selected.validation.checks.edgeCoverage.passed ? 'Passed' : 'Failed'}</li><li>Flat artwork / no hardware: {selected.validation.checks.flatArtwork.passed ? 'Passed' : 'Failed'}</li><li>Wording check: {selected.validation.checks.exactText.passed ? 'Passed' : 'Failed'}</li><li>Output canvas resolution: {selected.validation.checks.resolution.effectivePpi} PPI ({selected.validation.checks.resolution.passed ? 'passed' : 'failed'})</li></ul>{selected.validation.reasons.length > 0 && <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-amber-900">{selected.validation.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>}</div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><div className="flex items-center gap-2 font-black text-[#0b1f3a]"><Clock3 className="h-5 w-5 text-slate-500" /> Version and output</div><ul className="mt-2 space-y-1 text-sm text-slate-700"><li>Output: {selected.diagnostics.outputDimensions}px</li><li>Ratio method: {selected.diagnostics.ratioStrategy.replace(/-/g, ' ')}</li><li>Model: {selected.diagnostics.modelSnapshot || selected.diagnostics.model}</li><li>Generation time: {formatDuration(selected.diagnostics.durationMs)}</li><li>Estimated image API cost: {selected.diagnostics.estimatedCostUsd == null ? 'Unavailable' : `$${selected.diagnostics.estimatedCostUsd.toFixed(4)}`}</li><li>Auto-repaired: {selected.diagnostics.repaired ? 'Yes' : 'No'}</li></ul></div>
             </div>
+
+            </details>
 
             {history.length > 0 && <div className="mt-4"><h5 className="text-sm font-black text-[#0b1f3a]">Version history</h5><div className="mt-2 flex gap-2 overflow-x-auto pb-2">{history.map((version, index) => <button key={version.versionId} type="button" onClick={() => { if (!selected) return; setRedo((items) => [...items, selected]); setConcepts((items) => items.map((item) => item.id === selected.id ? version : item)); }} className="w-32 shrink-0 rounded-lg border border-slate-300 bg-white p-2 text-left"><div className="flex h-20 items-center justify-center overflow-hidden bg-slate-100"><img src={imageSrc(version)} alt={`Version ${index + 1}`} className="h-full w-full object-contain" /></div><span className="mt-1 block text-xs font-semibold">Version {index + 1}</span></button>)}</div></div>}
 

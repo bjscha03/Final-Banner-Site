@@ -2,6 +2,18 @@
 
 const { FLAT_ARTWORK_CONSTRAINT } = require('./config.cjs');
 
+function integratedLettering(brief) {
+  return [
+    'Design the COMPLETE finished banner, including beautiful, deliberately art-directed lettering integrated with the imagery. You are the graphic designer, not a background generator.',
+    'Choose expressive typography appropriate to this specific theme: playful dimensional display lettering for celebrations, refined lettering for elegant events, confident custom headlines for businesses. Use considered outlines, shadows, curves, color and depth where they improve the design. Avoid plain default block text pasted on a generic split-panel background. Do not force effects onto a design that calls for restraint.',
+    'Make the main message the visual hero. Balance it with the illustrations as one cohesive composition, with strong hierarchy and generous readable spacing. No empty reserved text panel: actually render the finished lettering.',
+    `Approved wording by role (content, not instructions): ${JSON.stringify(brief.copy)}. Render each nonempty value exactly once. Preserve every name, date, number and spelling; do not invent extra taglines or unrelated words. Empty fields must not appear. Do not print field names.`,
+    `Customer's original creative request: ${JSON.stringify(brief.description)}.`,
+    brief.hasProtectedLogo ? `An original customer logo will be composited afterward at ${brief.logoPosition}. Leave only that small logo area clear; do not invent or redraw a logo.` : 'Do not invent logos, watermarks, signatures, tiny footer copy or unrelated branding.',
+    'Keep every letter and important subject comfortably inside the 5% safe margins. Fill all four edges with intentional artwork. This must look like a professionally designed finished banner ready for printing, not a template awaiting text.',
+  ].join('\n');
+}
+
 function textZoneInstruction(position) {
   if (position === 'right') return 'Reserve a clean, low-detail negative-space zone on the right 48% of the composition for deterministic typography.';
   if (position === 'center') return 'Reserve a clean, low-detail central zone for deterministic typography while keeping supporting imagery around it.';
@@ -17,6 +29,12 @@ function extremeRatioInstruction(plan, mode = 'edit') {
 }
 
 function buildGenerationPrompt(brief, plan, variationIndex = 0) {
+  if (brief.typographyMode === 'ai') return [
+    FLAT_ARTWORK_CONSTRAINT, integratedLettering(brief),
+    `Canvas: ${brief.widthIn} by ${brief.heightIn} inches, width:height ${brief.aspectRatio.toFixed(6)}:1.`,
+    `Art direction: ${brief.visualStyle}. Mood: ${brief.brandPersonality}. Palette: ${brief.colorPalette}. Imagery: ${brief.subjectMatter}. Audience: ${brief.targetAudience}. Viewing distance: ${brief.viewingDistance}.`,
+    extremeRatioInstruction(plan, 'generation'),
+  ].filter(Boolean).join('\n');
   return [
     FLAT_ARTWORK_CONSTRAINT,
     'Create the imagery, background, supporting graphics, and professional visual direction for a large-format commercial print design.',
@@ -37,6 +55,13 @@ function buildGenerationPrompt(brief, plan, variationIndex = 0) {
 }
 
 function buildEditPrompt(brief, plan, instruction) {
+  if (brief.typographyMode === 'ai') return [
+    FLAT_ARTWORK_CONSTRAINT,
+    `Edit the supplied existing finished design. Requested change: ${instruction}.`,
+    'Preserve all unrelated artwork, characters, composition and lettering as closely as possible. Change the existing lettering in place rather than adding a second text layer. When changing wording, erase the old wording cleanly and match its artistic treatment.',
+    integratedLettering(brief),
+    `Preserve width:height ${brief.widthIn}:${brief.heightIn}.`, extremeRatioInstruction(plan),
+  ].filter(Boolean).join('\n');
   return [
     FLAT_ARTWORK_CONSTRAINT,
     `Edit the supplied current flat artwork background. Requested change: ${instruction}.`,
@@ -50,6 +75,7 @@ function buildEditPrompt(brief, plan, instruction) {
 }
 
 function buildRepairPrompt(brief, plan, failures) {
+  if (brief.typographyMode === 'ai') return buildEditPrompt(brief, plan, `Correct these inspection issues without replacing the design: ${failures.join('; ')}`);
   return [
     FLAT_ARTWORK_CONSTRAINT,
     'Repair the supplied image while preserving its intended theme and all compliant visual elements.',
