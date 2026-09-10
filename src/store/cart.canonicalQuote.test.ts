@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createRequire } from 'node:module';
 import { useCartStore, type CanonicalCartQuote } from './cart';
+
+const require = createRequire(import.meta.url);
+const { computeTotals } = require('../../netlify/functions/_shared/checkoutTotals.cjs');
 
 vi.mock('@/lib/cartSync', () => ({
   cartSync: {
@@ -36,6 +40,55 @@ describe('canonical stale-cart quote application', () => {
     sameDayHitService: false,
     saturdayDelivery: false,
   }));
+
+  it.each([2024, 2025, 2026, 2075, 8125])(
+    'matches server tax and accepts recovery for a %i-cent banner',
+    (subtotalCents) => {
+      const smallBanner = {
+        ...item,
+        width_in: 36,
+        height_in: 18,
+        quantity: 1,
+        area_sqft: 4.5,
+        rope_feet: 0,
+        rope_placement: null,
+        rope_cost_cents: 0,
+        unit_price_cents: subtotalCents,
+        line_total_cents: subtotalCents,
+        file_key: 'existing-customer-artwork',
+      };
+      useCartStore.setState({ items: [smallBanner] });
+      const server = computeTotals([smallBanner], 0.06, { freeShipping: true });
+      const quote: CanonicalCartQuote = {
+        items: [{
+          index: 0,
+          cartItemId: smallBanner.id,
+          productType: 'banner',
+          unitPriceCents: subtotalCents,
+          lineTotalCents: subtotalCents,
+          ropeFeet: 0,
+          ropeCostCents: 0,
+          polePocketCostCents: 0,
+        }],
+        subtotalCents,
+        taxCents: server.tax_cents,
+        shippingCents: server.shipping_cents,
+        totalCents: server.total_cents,
+        appliedDiscountCents: server.applied_discount_cents,
+        appliedDiscountType: server.applied_discount_type,
+        discountCode: null,
+      };
+
+      expect(useCartStore.getState().getTaxCents()).toBe(server.tax_cents);
+      expect(useCartStore.getState().getTotalCents()).toBe(server.total_cents);
+      expect(useCartStore.getState().applyCanonicalPricingQuote(quote)).toBe(true);
+      expect(useCartStore.getState().items[0].file_key).toBe('existing-customer-artwork');
+      if (subtotalCents === 2025) {
+        expect(server.tax_cents).toBe(122);
+        expect(server.total_cents).toBe(2147);
+      }
+    },
+  );
 
   it('updates only exact-bound authoritative price fields', () => {
     const quote: CanonicalCartQuote = {

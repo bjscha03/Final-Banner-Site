@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { QuoteState, MaterialKey, Grommets, TextElement } from './quote';
-import { calculateTax, calculateTotalWithTax, getFeatureFlags, getPricingOptions, computeTotals, PricingItem, MINIMUM_UNIT_PRICE_CENTS } from '@/lib/pricing';
+import { TAX_RATE, getFeatureFlags, getPricingOptions, computeTotals, PricingItem, MINIMUM_UNIT_PRICE_CENTS } from '@/lib/pricing';
+import { calculateTaxCents } from '@/lib/money';
 import { calculateQuantityDiscount } from '@/lib/quantity-discount';
 import {
   getPromoDiscountSubtotalCents,
@@ -1116,7 +1117,7 @@ export const useCartStore = create<CartState>()(
         });
         const subtotalAfterDiscountCents = projectedSubtotalCents
           - projectedDiscount.appliedDiscountAmountCents;
-        const projectedTaxCents = Math.round(calculateTax(subtotalAfterDiscountCents / 100) * 100);
+        const projectedTaxCents = calculateTaxCents(subtotalAfterDiscountCents, TAX_RATE);
         const projectedShippingCents = 0;
         const projectedFees = currentState.sameDayHitService
           ? computeSameDayFeesCents(getEligibleSubtotalCents(projectedItems), {
@@ -1474,7 +1475,9 @@ export const useCartStore = create<CartState>()(
         const rawSubtotal = get().getSubtotalCents();
         const resolved = get().getResolvedDiscount();
         const subtotalAfterDiscount = rawSubtotal - resolved.appliedDiscountAmountCents;
-        return Math.round(calculateTax(subtotalAfterDiscount / 100) * 100);
+        // Match server rounding in cents. Converting to dollars and back can
+        // turn a half-cent (e.g. $20.25 * 6%) into 121.49999999999999 cents.
+        return calculateTaxCents(subtotalAfterDiscount, TAX_RATE);
       },
 
       // Total = subtotal - best discount + tax + same-day fees (no stacking)
@@ -1482,7 +1485,7 @@ export const useCartStore = create<CartState>()(
         const rawSubtotal = get().getSubtotalCents();
         const resolved = get().getResolvedDiscount();
         const subtotalAfterDiscount = rawSubtotal - resolved.appliedDiscountAmountCents;
-        const tax = Math.round(calculateTax(subtotalAfterDiscount / 100) * 100);
+        const tax = calculateTaxCents(subtotalAfterDiscount, TAX_RATE);
         // Same-Day Hit Service and Saturday Delivery fees are added AFTER tax
         // and do NOT affect the existing tax base or free next-day shipping.
         const sameDayFee = get().getSameDayFeeCents();
