@@ -1,6 +1,29 @@
 import { expect, test, type Page } from '@playwright/test';
 import sharp from 'sharp';
 
+test('expanded prompt stays above the copy button at narrow and desktop widths', async ({ page }) => {
+  await installDesignerHarness(page, 'ai-help-layout');
+  for (const width of [320, 390, 667, 1440]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto('/google-ads-banner', { waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: "6' × 3' — Most popular — 25% off automatically", exact: true }).click();
+    await page.getByRole('button', { name: 'Open AI artwork help' }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.locator('[data-ai-prompt]')).not.toBeVisible();
+    await dialog.getByText('View the full prompt', { exact: true }).click();
+    for (const mode of ['Create New Artwork with AI', 'Fix Existing Artwork with AI']) {
+      await dialog.getByRole('tab', { name: mode, exact: true }).click();
+      const prompt = dialog.locator('[data-ai-prompt]');
+      await expect(prompt).toBeVisible();
+      await expect(prompt).toHaveCSS('overflow-y', 'auto');
+      const promptBox = await prompt.boundingBox();
+      const copyBox = await dialog.getByRole('button', { name: 'Copy Prompt', exact: true }).boundingBox();
+      expect(promptBox!.y + promptBox!.height).toBeLessThan(copyBox!.y);
+      expect(await dialog.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+    }
+  }
+});
+
 async function installDesignerHarness(page: Page, scenario: string) {
   await page.route('**/*', async (route) => {
     const request = route.request();
