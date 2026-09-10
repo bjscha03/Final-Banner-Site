@@ -62,6 +62,15 @@ const AIArtworkHelp: React.FC<AIArtworkHelpProps> = ({
     setCopiedMode(null);
   }, [prompt]);
 
+  useEffect(() => {
+    const desktop = window.matchMedia('(min-width: 768px)');
+    const closeOnMobile = () => {
+      if (!desktop.matches) setOpen(false);
+    };
+    desktop.addEventListener('change', closeOnMobile);
+    return () => desktop.removeEventListener('change', closeOnMobile);
+  }, []);
+
   const showHelp = (nextMode: AIArtworkHelpMode) => {
     setMode(nextMode);
     setCopiedMode(null);
@@ -80,7 +89,7 @@ const AIArtworkHelp: React.FC<AIArtworkHelpProps> = ({
   };
 
   return (
-    <div className="mb-4 space-y-3" data-ai-artwork-help>
+    <div className="mb-4 hidden md:block" data-ai-artwork-help>
       <button
         type="button"
         onClick={() => showHelp(hasArtwork ? 'fix' : 'create')}
