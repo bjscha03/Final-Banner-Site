@@ -65,7 +65,7 @@ async function installDesignerHarness(page: Page, scenario: string) {
   });
 }
 
-test('AI artwork help updates prompts, copies, warns conservatively, and preserves the upload', async ({ page }, testInfo) => {
+test('AI artwork help stays optional, updates prompts, copies, and preserves the upload', async ({ page }, testInfo) => {
   await installDesignerHarness(page, `ai-help-${testInfo.project.name}`);
   await page.goto('/design?product=banner', { waitUntil: 'domcontentloaded' });
 
@@ -106,8 +106,9 @@ test('AI artwork help updates prompts, copies, warns conservatively, and preserv
   await expect(preview).toBeVisible({ timeout: 30_000 });
   const previewSource = await preview.getAttribute('src');
   const warning = page.locator('[data-ai-whitespace-warning]');
-  await expect(warning).toContainText('may leave white space');
-  await warning.getByRole('button', { name: 'Fix it with AI' }).click();
+  await expect(warning).toHaveCount(0);
+  await expect(dialog).not.toBeVisible();
+  await helpButton.click();
   await expect(dialog.getByRole('tab', { name: 'Fix Existing Artwork with AI' })).toHaveAttribute('aria-selected', 'true');
   await expect(dialog.locator('[data-ai-prompt]')).toContainText('72 × 36 inch vinyl banner');
   await expect(dialog.locator('[data-ai-prompt]')).toContainText('Do not give me a PNG');
