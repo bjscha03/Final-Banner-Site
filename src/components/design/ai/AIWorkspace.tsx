@@ -428,6 +428,10 @@ export default function AIWorkspace(props: Props) {
   };
 
   const removeImage = (kind: 'reference' | 'logo') => {
+    if (kind === 'logo' && selected?.logoImage) {
+      void edit(true, true, true);
+      return;
+    }
     if (kind === 'logo') setLogoImage(null);
     else setReferenceImage(null);
     setBriefReviewed(false);
@@ -542,13 +546,13 @@ export default function AIWorkspace(props: Props) {
     }
   };
 
-  const edit = async (manual = false, logoOnly = false) => {
+  const edit = async (manual = false, logoOnly = false, removeLogo = false) => {
     if (!selected || (!manual && !editInstruction.trim()) || stage || controllerRef.current || !access.ready) return;
     const controller = new AbortController();
     controllerRef.current = controller;
     setError('');
     setProgressPreview(null);
-    setStage(logoOnly ? 'Updating your logo' : 'Refining your design');
+    setStage(removeLogo ? 'Removing your uploaded logo' : logoOnly ? 'Updating your logo' : 'Refining your design');
     trackAIEvent('ai_edit_started', { concept_id: selected.id });
     try {
       const normalizedInstruction = editInstruction.toLowerCase();
@@ -558,32 +562,33 @@ export default function AIWorkspace(props: Props) {
             : /logo.{0,24}(lower|bottom)[ -]?left|(?:lower|bottom)[ -]?left.{0,24}logo/.test(normalizedInstruction) ? 'lower-left'
               : /logo.{0,24}(lower|bottom)[ -]?right|(?:lower|bottom)[ -]?right.{0,24}logo/.test(normalizedInstruction) ? 'lower-right'
                 : null;
-      const briefForEdit = { ...(logoOnly && selected.brief ? { ...selected.brief, logoPosition: brief.logoPosition, layers: { ...selected.brief.layers, logo: brief.layers?.logo } } : brief), ...(requestedLogoPosition ? { logoPosition: requestedLogoPosition } : {}), typographyMode: manual ? brief.typographyMode : 'ai' as const };
+      const briefForEdit = removeLogo && selected.brief ? selected.brief : { ...(logoOnly && selected.brief ? { ...selected.brief, logoPosition: brief.logoPosition, layers: { ...selected.brief.layers, logo: brief.layers?.logo } } : brief), ...(requestedLogoPosition ? { logoPosition: requestedLogoPosition } : {}), typographyMode: manual ? brief.typographyMode : 'ai' as const };
+      const editPhotos = removeLogo ? selected.photoImages || [] : photoImages;
       const body = await runBackgroundJob(
         '/.netlify/functions/ai-designer-edit',
         {
           brief: { ...briefForEdit, structured: true },
-          editMode: logoOnly ? 'logo' : manual ? 'layers' : 'ai',
+          editMode: removeLogo ? 'remove-logo' : logoOnly ? 'logo' : manual ? 'layers' : 'ai',
           conceptId: selected.id,
           generationId: selected.generationId,
           currentBackgroundRef: selected.backgroundRef,
           previousCopy: selected.brief?.copy,
           previousValidation: selected.validation,
-          editInstruction: manual ? 'Apply the updated wording and element settings to this design.' : editInstruction.trim(),
+          editInstruction: removeLogo ? 'Remove the uploaded logo.' : manual ? 'Apply the updated wording and element settings to this design.' : editInstruction.trim(),
           referenceImage,
           logoImage,
-          photoImages,
+          photoImages: editPhotos,
         },
         controller.signal,
-        logoOnly ? 'Placing your original logo and checking the result' : 'Applying your changes to the existing artwork.',
+        removeLogo ? 'Removing only your uploaded logo and preserving the artwork underneath' : logoOnly ? 'Placing your original logo and checking the result' : 'Applying your changes to the existing artwork.',
         setStage,
         setProgressPreview,
       );
       if (!body?.usedOriginalImage || !body?.concept) throw new Error('The server did not confirm use of the current artwork.');
-      setPendingEdit({ ...body.concept, logoImage: body.logoRemoved ? null : logoImage, referenceImage, photoImages: photoImages.filter((_, index) => !body.removedPhotos?.includes(index)) });
+      setPendingEdit({ ...body.concept, logoImage: body.logoRemoved ? null : logoImage, referenceImage, photoImages: editPhotos.filter((_, index) => !body.removedPhotos?.includes(index)) });
       setPendingBrief(body.brief || briefForEdit);
       setPendingLogoRemoved(body.logoRemoved === true);
-      setPendingLogoOnly(logoOnly);
+      setPendingLogoOnly(logoOnly || (body.logoRemoved === true && body.backgroundUnchanged === true));
       if (!body.concept.validation.passed) trackAIEvent('ai_validation_failed', { count: 1 });
     } catch (reason) {
       if ((reason as Error)?.name !== 'AbortError') setError(reason instanceof Error ? reason.message : 'The edit failed.');
@@ -819,7 +824,7 @@ export default function AIWorkspace(props: Props) {
             </details>
             {photoImages.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{photoImages.map((src, index) => <div key={index} className="w-24"><img src={src} alt={`Uploaded photo ${index + 1}`} className="h-16 w-24 rounded object-contain" /><button type="button" className="min-h-11 text-xs underline" onClick={() => setPhotoImages(current => current.filter((_, item) => item !== index))}>Remove photo {index + 1}</button></div>)}</div>}
             {(referenceImage || logoImage) && <div className="mt-3 grid grid-cols-2 gap-3">{[['Reference', referenceImage], ['Logo included on banner', logoImage]].map(([label, src]) => src && <figure key={label} className="min-w-0 rounded-lg border border-slate-200 bg-white p-2"><img src={src} alt={label || 'Attached image'} className="h-20 w-full object-contain" /><figcaption className="mt-1 text-xs text-slate-500">{label}</figcaption></figure>)}</div>}
-            {(referenceImage || logoImage) && <div className="mt-2 flex flex-wrap items-center gap-2">{referenceImage && <button type="button" onClick={() => removeImage('reference')} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold">Remove reference</button>}{logoImage && <><label className="text-sm font-semibold text-slate-700">Logo position<select value={brief.logoPosition} onChange={(event) => updateBrief('logoPosition', event.target.value as CreativeBrief['logoPosition'])} className="ml-2 min-h-11 rounded-lg border border-slate-300 bg-white px-3"><option value="upper-left">Upper left</option><option value="upper-right">Upper right</option><option value="lower-left">Lower left</option><option value="lower-right">Lower right</option></select></label><button type="button" onClick={() => removeImage('logo')} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold">Remove logo</button></>}</div>}
+            {(referenceImage || logoImage) && <div className="mt-2 flex flex-wrap items-center gap-2">{referenceImage && <button type="button" onClick={() => removeImage('reference')} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold">Remove reference</button>}{logoImage && <><label className="text-sm font-semibold text-slate-700">Logo position<select value={brief.logoPosition} onChange={(event) => updateBrief('logoPosition', event.target.value as CreativeBrief['logoPosition'])} className="ml-2 min-h-11 rounded-lg border border-slate-300 bg-white px-3"><option value="upper-left">Upper left</option><option value="upper-right">Upper right</option><option value="lower-left">Lower left</option><option value="lower-right">Lower right</option></select></label><button type="button" onClick={() => removeImage('logo')} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold">Remove uploaded logo</button></>}</div>}
           </div>
 
           <button type="button" onClick={() => void generate()} disabled={!access.ready || !recoveryReady || !requirementsMet || Boolean(stage)} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 text-base font-bold text-white hover:bg-orange-700 disabled:opacity-50"><Sparkles className="h-5 w-5" />{concepts.length ? 'Create another design' : 'Create my banner'}</button>
@@ -863,7 +868,7 @@ export default function AIWorkspace(props: Props) {
             <div className="flex flex-wrap items-center justify-between gap-3"><div><h4 className="text-lg font-black text-[#0b1f3a]">Your design</h4><p className="text-sm text-slate-600">Tell us what to change. Keep the version you love.</p></div><div className="flex gap-2"><button type="button" onClick={undo} disabled={!history.length || Boolean(stage) || Boolean(pendingEdit)} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-3 text-sm font-semibold disabled:opacity-40"><Undo2 className="h-4 w-4" /> Undo</button><button type="button" onClick={redoEdit} disabled={!redo.length || Boolean(stage) || Boolean(pendingEdit)} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-3 text-sm font-semibold disabled:opacity-40"><Redo2 className="h-4 w-4" /> Redo</button><button type="button" onClick={() => setFullPreview(true)} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-3 text-sm font-semibold"><Maximize2 className="h-4 w-4" /> Full preview</button></div></div>
             <div className="mt-4 flex h-[min(55vh,36rem)] w-full items-center justify-center overflow-hidden rounded-xl border border-slate-300 bg-slate-100"><img src={imageSrc(selected)} alt="Complete selected flat print artwork" className="h-full w-full object-contain" /></div>
 
-            {pendingEdit && <div className="mt-4 rounded-xl border-2 border-orange-300 bg-orange-50 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><h5 className="font-black text-[#0b1f3a]">Review the proposed edit</h5><p className="mt-1 max-w-3xl text-sm text-slate-700">{pendingLogoOnly ? 'Only your original logo was resized or moved; the generated artwork was not changed.' : 'Image editing preserves unrelated details when technically possible, but cannot guarantee pixel-identical regions. Compare the complete canvases before accepting.'}</p></div><StatusBadge concept={pendingEdit} /></div><div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2"><figure><figcaption className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-600">Before</figcaption><div className="flex h-56 items-center justify-center overflow-hidden rounded-lg border border-slate-300 bg-slate-100"><img src={imageSrc(selected)} alt="Artwork before proposed edit" className="h-full w-full object-contain" /></div></figure><figure><figcaption className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-600">Proposed edit</figcaption><div className="flex h-56 items-center justify-center overflow-hidden rounded-lg border border-orange-300 bg-slate-100"><img src={imageSrc(pendingEdit)} alt="Artwork after proposed edit" className="h-full w-full object-contain" /></div></figure></div><div className="mt-3 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" onClick={rejectPendingEdit} className="min-h-11 rounded-lg border border-slate-400 bg-white px-5 text-sm font-bold text-slate-800">Reject edit</button><button type="button" onClick={acceptPendingEdit} className="min-h-11 rounded-lg bg-orange-600 px-5 text-sm font-black text-white hover:bg-orange-700">Accept edit</button></div></div>}
+            {pendingEdit && <div className="mt-4 rounded-xl border-2 border-orange-300 bg-orange-50 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><h5 className="font-black text-[#0b1f3a]">Review the proposed edit</h5><p className="mt-1 max-w-3xl text-sm text-slate-700">{pendingLogoOnly ? pendingLogoRemoved ? 'Only your uploaded logo was removed; the AI-created artwork underneath stayed unchanged.' : 'Only your original logo was resized or moved; the generated artwork was not changed.' : 'Image editing preserves unrelated details when technically possible, but cannot guarantee pixel-identical regions. Compare the complete canvases before accepting.'}</p></div><StatusBadge concept={pendingEdit} /></div><div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2"><figure><figcaption className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-600">Before</figcaption><div className="flex h-56 items-center justify-center overflow-hidden rounded-lg border border-slate-300 bg-slate-100"><img src={imageSrc(selected)} alt="Artwork before proposed edit" className="h-full w-full object-contain" /></div></figure><figure><figcaption className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-600">Proposed edit</figcaption><div className="flex h-56 items-center justify-center overflow-hidden rounded-lg border border-orange-300 bg-slate-100"><img src={imageSrc(pendingEdit)} alt="Artwork after proposed edit" className="h-full w-full object-contain" /></div></figure></div><div className="mt-3 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" onClick={rejectPendingEdit} className="min-h-11 rounded-lg border border-slate-400 bg-white px-5 text-sm font-bold text-slate-800">Reject edit</button><button type="button" onClick={acceptPendingEdit} className="min-h-11 rounded-lg bg-orange-600 px-5 text-sm font-black text-white hover:bg-orange-700">Accept edit</button></div></div>}
 
             {logoImage && <fieldset disabled={Boolean(stage || pendingEdit)} className="mt-4 rounded-xl border border-slate-200 bg-white p-4 disabled:opacity-50">
               <div className="flex flex-wrap items-center justify-between gap-2"><h5 className="text-sm font-bold text-[#0b1f3a]">Your logo</h5><span className="text-xs text-slate-500">Original logo · no AI redraw</span></div>
@@ -871,7 +876,7 @@ export default function AIWorkspace(props: Props) {
                 <label className="text-sm font-semibold">Logo size<input aria-label="Logo size" type="range" min="0.4" max="2" step="0.05" value={brief.layers?.logo?.scale || 1} onChange={event => setBrief(current => ({ ...current, layers: { ...current.layers, logo: { ...current.layers?.logo, scale: Number(event.target.value) } } }))} className="h-11 w-full" /></label>
                 <label className="text-sm font-semibold">Place logo<select aria-label="Place logo" value={brief.logoPosition} onChange={event => setBrief(current => ({ ...current, logoPosition: event.target.value as CreativeBrief['logoPosition'], layers: { ...current.layers, logo: { scale: current.layers?.logo?.scale || 1 } } }))} className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3"><option value="upper-left">Top left</option><option value="upper-right">Top right</option><option value="lower-left">Bottom left</option><option value="lower-right">Bottom right</option></select></label>
               </div>
-              <button type="button" onClick={() => void edit(true, true)} className="mt-2 min-h-11 rounded-lg bg-[#0b1f3a] px-4 text-sm font-bold text-white">Apply logo changes</button>
+              <div className="mt-2 flex flex-wrap gap-2"><button type="button" onClick={() => void edit(true, true)} className="min-h-11 rounded-lg bg-[#0b1f3a] px-4 text-sm font-bold text-white">Apply logo changes</button><button type="button" onClick={() => removeImage('logo')} className="min-h-11 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700">Remove uploaded logo</button></div>
               <p className="mt-2 text-xs text-slate-500">Adjusts your logo without generating the artwork again. Review the placement before accepting.</p>
             </fieldset>}
             <LayerControls brief={brief} concept={selected} photoCount={photoImages.length} busy={Boolean(stage || pendingEdit)} onChange={setBrief} onApply={() => void edit(true)} />

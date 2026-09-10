@@ -8,6 +8,7 @@ async function reportProgress(stage, preview) {
   if (report) await report(stage, preview).catch(() => null);
 }
 const { mergeLayerEdits, removePhotoLayers } = require('./layers.cjs');
+const { isUploadedLogoRemoval } = require('./edit-intent.cjs');
 const { isEnabled, getImageModel, getValidationModel, getImageQuality, MODEL_SNAPSHOT } = require('./config.cjs');
 const { normalizeBrief, cleanText, stableHash, buildImprovedPrompt, freshPromptBrief, fitInterpretedDirection } = require('./schema.cjs');
 const { buildGenerationPrompt, buildEditPrompt, buildCopyChangeInstruction } = require('./prompt.cjs');
@@ -179,9 +180,10 @@ async function enqueueHandler(event, action) {
   try {
     const body = parseBody(event);
     ensureConfigured(event);
-    // Moving or resizing an original logo is a deterministic image operation;
+    // Moving, resizing or removing an original logo is deterministic;
     // it does not need an image-model access probe or a paid image request.
-    if (!(action === 'edit' && body.editMode === 'logo')) {
+    const deterministicLogoEdit = action === 'edit' && (body.editMode === 'logo' || body.editMode === 'remove-logo' || isUploadedLogoRemoval(body.editInstruction, Boolean(body.logoImage)));
+    if (!deterministicLogoEdit) {
       const access = await verifyModelAccess();
       if (!access.available) {
         const error = new Error('Model unavailable.');
@@ -552,23 +554,34 @@ async function runEditRequest(body, session, jobId = crypto.randomUUID()) {
     error.code = 'INVALID_REQUEST';
     throw error;
   }
-  const logoOnly = body.editMode === 'logo';
+  const removeUploadedLogo = body.editMode === 'remove-logo' || isUploadedLogoRemoval(instruction, Boolean(logo));
+  const logoOnly = body.editMode === 'logo' || removeUploadedLogo;
   const manual = body.editMode === 'layers' || logoOnly;
-  const editPlan = manual ? { backgroundInstruction: '', removeLogo: false, removePhotos: [] } : await withPipelineStage('understanding your changes', () => planDesignEdit({ brief, instruction, photos, user: providerUser(session), idempotencyKey: providerRequestKey(jobId, 'edit-plan') }));
+  const editPlan = manual ? { backgroundInstruction: '', removeLogo: removeUploadedLogo, removePhotos: [] } : await withPipelineStage('understanding your changes', () => planDesignEdit({ brief, instruction, photos, user: providerUser(session), idempotencyKey: providerRequestKey(jobId, 'edit-plan') }));
+  const previousBrief = brief;
   if (!manual) {
     brief = normalizeBrief({ ...brief, copy: editPlan.copy, layers: mergeLayerEdits(brief.layers, editPlan.layers), structured: true });
     brief.outputWidthPx = plan.finalWidth;
     brief.outputHeightPx = plan.finalHeight;
-    if (editPlan.removeLogo) logo = null;
     if (Array.isArray(editPlan.removePhotos) && editPlan.removePhotos.length) {
       brief.layers = removePhotoLayers(brief.layers, photos.length, editPlan.removePhotos);
       photos = photos.filter((_, index) => !editPlan.removePhotos.includes(index));
     }
   }
+  if (editPlan.removeLogo) logo = null;
   brief.hasProtectedLogo = Boolean(logo);
   if (logo) brief.logoAspectRatio = logo.width / logo.height;
+  // A protected-layer removal must never be forwarded as "remove logo" to the
+  // image model, which would erase artwork already baked into the background.
+  // For mixed requests, forward only the separately planned artwork/copy edits.
+  const removalArtworkInstruction = editPlan.removeLogo ? [
+    cleanText(editPlan.backgroundInstruction, 700),
+    buildCopyChangeInstruction(previousBrief.copy, brief.copy),
+    ...Object.keys(brief.copy).filter((role) => JSON.stringify(previousBrief.layers?.[role] || {}) !== JSON.stringify(brief.layers?.[role] || {}))
+      .map((role) => `Apply these text layer settings to ${role}: ${JSON.stringify(brief.layers[role])}.`),
+  ].filter(Boolean).join('\n') : '';
   const backgroundInstruction = logoOnly ? '' : brief.typographyMode === 'ai'
-    ? [manual ? `Apply the updated wording and requested text styling/placement: ${JSON.stringify(brief.layers)}. Preserve the existing artistic lettering style unless a style change is requested.` : instruction, buildCopyChangeInstruction(body.previousCopy, brief.copy)].filter(Boolean).join('\n')
+    ? editPlan.removeLogo ? removalArtworkInstruction : [manual ? `Apply the updated wording and requested text styling/placement: ${JSON.stringify(brief.layers)}. Preserve the existing artistic lettering style unless a style change is requested.` : instruction, buildCopyChangeInstruction(body.previousCopy, brief.copy)].filter(Boolean).join('\n')
     : cleanText(editPlan.backgroundInstruction, 700);
   const edited = backgroundInstruction ? await withPipelineStage('editing the artwork', () => editImage({
     prompt: buildEditPrompt(brief, plan, backgroundInstruction),
