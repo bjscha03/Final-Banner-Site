@@ -16,7 +16,7 @@ const { normalizeLayers, mergeLayerEdits, removePhotoLayers } = require('../_sha
 const { temporaryArtworkUrl } = require('../_shared/ai-designer/storage.cjs');
 const { planCanvas, prepareOutpaintInput, PROVIDER_MAX_EDGE, PROVIDER_MAX_PIXELS } = require('../_shared/ai-designer/image-utils.cjs');
 const { compositeArtwork, wrapText } = require('../_shared/ai-designer/compositor.cjs');
-const { normalizeBrief, validateImprovedPrompt } = require('../_shared/ai-designer/schema.cjs');
+const { normalizeBrief, validateImprovedPrompt, fitInterpretedDirection } = require('../_shared/ai-designer/schema.cjs');
 const { buildGenerationPrompt, buildEditPrompt } = require('../_shared/ai-designer/prompt.cjs');
 const { MODEL_ALIAS, MODEL_SNAPSHOT, getImageModel, isEnabled } = require('../_shared/ai-designer/config.cjs');
 const { classifyProviderError, isTransientConnectionError } = require('../_shared/ai-designer/provider.cjs');
@@ -377,6 +377,15 @@ describe('GPT Image 2 provider contract', () => {
 });
 
 describe('flat-artwork structured prompts', () => {
+  it('fits verbose AI planning without truncating customer wording', () => {
+    const copy = { headline: 'Happy Birthday Bryson!' };
+    const result = fitInterpretedDirection({ composition: 'Detailed direction '.repeat(40), copy, description: 'Exact request', improvedPrompt: 'Exact rewrite' });
+    expect(result.composition.length).toBeLessThanOrEqual(100);
+    expect(result.copy).toEqual(copy);
+    expect(result.description).toBe('Exact request');
+    expect(result.improvedPrompt).toBe('Exact rewrite');
+    expect(() => normalizeBrief({ ...productionBrief(), ...result })).not.toThrow();
+  });
   it('rejects prompt rewrites that lose or change exact customer wording', () => {
     const wording = ['Happy Birthday Bryson!', 'September 19'];
     expect(validateImprovedPrompt('Create playful lettering: Happy Birthday Bryson! Date: September 19.', wording)).toContain('Bryson!');

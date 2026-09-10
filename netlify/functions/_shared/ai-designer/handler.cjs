@@ -3,7 +3,7 @@
 const crypto = require('crypto');
 const { mergeLayerEdits, removePhotoLayers } = require('./layers.cjs');
 const { isEnabled, getImageModel, getValidationModel, getImageQuality, MODEL_SNAPSHOT } = require('./config.cjs');
-const { normalizeBrief, cleanText, stableHash, validateImprovedPrompt } = require('./schema.cjs');
+const { normalizeBrief, cleanText, stableHash, validateImprovedPrompt, fitInterpretedDirection } = require('./schema.cjs');
 const { buildGenerationPrompt, buildEditPrompt, buildRepairPrompt } = require('./prompt.cjs');
 const { verifyModelAccess, verifyValidationModelAccess, generateImage, editImage, structureCreativeBrief, planDesignEdit } = require('./provider.cjs');
 const {
@@ -341,7 +341,7 @@ async function runBriefRequest(body, session, jobId = crypto.randomUUID()) {
   });
   const brief = normalizeBrief({
     ...current,
-    ...interpreted.brief,
+    ...fitInterpretedDirection(interpreted.brief),
     copy: Object.fromEntries(Object.entries(current.copy).map(([key, value]) => [key, value || interpreted.brief.copy?.[key] || ''])),
     widthIn: current.widthIn,
     heightIn: current.heightIn,

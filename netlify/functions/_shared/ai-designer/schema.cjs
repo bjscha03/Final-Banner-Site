@@ -155,6 +155,16 @@ function validateImprovedPrompt(value, exactWording = []) {
   return prompt;
 }
 
+function fitInterpretedDirection(input = {}) {
+  // Only internal art-direction summaries may be shortened. Never truncate
+  // the customer's description, improved prompt, or exact printed wording.
+  const result = { ...input };
+  for (const [key, limit] of Object.entries(BRIEF_LIMITS)) {
+    if (key !== 'description' && typeof result[key] === 'string') result[key] = cleanText(result[key], limit);
+  }
+  return result;
+}
+
 module.exports = {
   COPY_FIELDS,
   normalizeCopy,
@@ -163,4 +173,5 @@ module.exports = {
   cleanText,
   stableHash,
   validateImprovedPrompt,
+  fitInterpretedDirection,
 };
