@@ -56,6 +56,17 @@ function validationSchema() {
   return { type: 'object', additionalProperties: false, required: Object.keys(properties), properties };
 }
 
+function matchesDetectedWording(required, detected) {
+  if (!Array.isArray(detected)) return false;
+  const normalize = text => String(text).normalize('NFKC').toLowerCase().replace(/[‘’]/g, "'").replace(/[‐‑–—]/g, '-').replace(/\s+/g, ' ').trim().replace(/\.+$/, '');
+  const sources = [...detected, detected.join(' ')].map(normalize);
+  return required.every(text => {
+    const expected = normalize(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const pattern = new RegExp(`(?:^|[^\\p{L}\\p{N}])${expected}(?=$|[^\\p{L}\\p{N}])`, 'u');
+    return sources.some(source => pattern.test(source));
+  });
+}
+
 async function visualInspection(buffer, requiredText, protectedRegions = []) {
   try {
     const { client } = await getClient();
@@ -67,7 +78,7 @@ async function visualInspection(buffer, requiredText, protectedRegions = []) {
         content: [
           {
             type: 'input_text',
-            text: `Inspect this final commercial print artwork. It must be flat edge-to-edge artwork only, not a photograph or mockup. Flag physical banners, installations, rooms, walls, fences, sky/environment surrounding a banner, folds, ripples, grommets, eyelets, rope, poles, hooks, mounting hardware, frames, blank bars, distortion, or important content outside a 5% safe margin. Flag illegibleOrOverlappingText if text overlaps other text or a logo, or has insufficient contrast to read. Required wording must appear character-for-character: ${expected}. If no wording is required, requiredTextExact must be true. Flag unexpectedText for invented taglines, unrelated labels, gibberish, signatures or watermarks outside the supplied original customer asset regions. Original customer assets may contain their own text: exempt these pixel rectangles from unexpectedText only: ${JSON.stringify(protectedRegions)}. Decorative lettering effects are allowed when legible. Return only the requested schema.`,
+            text: `Inspect this final commercial print artwork. It must be flat edge-to-edge artwork only, not a photograph or mockup. Flag physical banners, installations, rooms, walls, fences, sky/environment surrounding a banner, folds, ripples, grommets, eyelets, rope, poles, hooks, mounting hardware, frames, blank bars, distortion, or important content outside a 5% safe margin. Flag illegibleOrOverlappingText if text overlaps other text or a logo, or has insufficient contrast to read. Required wording must preserve spelling, names, numbers and internal punctuation exactly. Artistic capitalization, line breaks and omitted sentence-ending periods are acceptable: ${expected}. If no wording is required, requiredTextExact must be true. Flag unexpectedText for invented taglines, unrelated labels, gibberish, signatures or watermarks outside the supplied original customer asset regions. Original customer assets may contain their own text: exempt these pixel rectangles from unexpectedText only: ${JSON.stringify(protectedRegions)}. Decorative lettering effects are allowed when legible. Return only the requested schema.`,
           },
           { type: 'input_image', image_url: toDataUrl(buffer), detail: 'high' },
         ],
@@ -109,7 +120,9 @@ async function validateArtwork({ background, artwork, brief, plan, protectedRegi
   ].filter((key) => vision[key] === true) : ['visionUnavailable'];
   // Artistic lettering must pass independent visual wording inspection.
   // Legacy saved designs still use the exact-copy vector compositor.
-  const textPass = brief.typographyMode === 'ai' ? vision.available && vision.requiredTextExact === true : true;
+  const textPass = brief.typographyMode === 'ai'
+    ? vision.available && (vision.requiredTextExact === true || matchesDetectedWording(brief.requiredText, vision.detectedText))
+    : true;
   const passed = dimensionPass && exactRatioPass && coverage.passed && resolutionPass && visualFlags.length === 0 && textPass;
   const reasons = [];
   if (!dimensionPass) reasons.push('Output pixel dimensions do not match the exact target canvas.');
@@ -135,4 +148,4 @@ async function validateArtwork({ background, artwork, brief, plan, protectedRegi
   };
 }
 
-module.exports = { requiredPpi, edgeCoverage, visualInspection, validateArtwork };
+module.exports = { requiredPpi, edgeCoverage, visualInspection, validateArtwork, matchesDetectedWording };

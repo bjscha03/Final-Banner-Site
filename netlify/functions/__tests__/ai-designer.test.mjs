@@ -21,6 +21,7 @@ const { buildGenerationPrompt, buildEditPrompt } = require('../_shared/ai-design
 const { MODEL_ALIAS, MODEL_SNAPSHOT, getImageModel, isEnabled } = require('../_shared/ai-designer/config.cjs');
 const { classifyProviderError, isTransientConnectionError } = require('../_shared/ai-designer/provider.cjs');
 const { safeErrorPayload } = require('../_shared/ai-designer/security.cjs');
+const { matchesDetectedWording } = require('../_shared/ai-designer/validation.cjs');
 
 const originalEnvironment = { ...process.env };
 
@@ -377,6 +378,15 @@ describe('GPT Image 2 provider contract', () => {
 });
 
 describe('flat-artwork structured prompts', () => {
+  it('accepts artistic capitalization and line breaks but rejects changed words and numbers', () => {
+    expect(matchesDetectedWording(['Happy Birthday Bryson!'], ['HAPPY', 'BIRTHDAY', 'BRYSON!'])).toBe(true);
+    expect(matchesDetectedWording(['CUSTOM BANNERS.'], ['CUSTOM BANNERS'])).toBe(true);
+    expect(matchesDetectedWording(['Happy Birthday Bryson!'], ['HAPPY BIRTHDAY BRYON!'])).toBe(false);
+    expect(matchesDetectedWording(['September 19'], ['SEPTEMBER 20'])).toBe(false);
+    expect(matchesDetectedWording(['SALE'], ['WHOLESALE'])).toBe(false);
+    expect(matchesDetectedWording(['$8.99'], ['$899'])).toBe(false);
+    expect(matchesDetectedWording(['example.com'], ['examplecom'])).toBe(false);
+  });
   it('recovers a verbose rewrite using AI direction without losing names or dates', () => {
     const brief = productionBrief({ copy: { headline: 'Happy Birthday Bryson!', date: 'September 19' }, subjectMatter: 'Playful rescue pups' });
     const result = buildImprovedPrompt('too long '.repeat(300), brief);

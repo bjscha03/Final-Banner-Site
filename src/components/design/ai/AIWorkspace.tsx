@@ -23,6 +23,7 @@ import { trackAIEvent } from '@/lib/aiAnalytics';
 import { useAuth } from '@/lib/auth';
 import { loadDraft, saveDraft } from './draftStore';
 import LayerControls from './LayerControls';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import type {
   AIConcept,
   AIDesignSession,
@@ -316,7 +317,7 @@ export default function AIWorkspace(props: Props) {
     if (props.initialSession) { setRecoveryReady(true); return; }
     loadDraft<{ brief: CreativeBrief; concepts: AIConcept[]; selectedId: string; history: AIConcept[]; redo: AIConcept[]; logoImage: string | null; referenceImage: string | null; photoImages?: string[] }>(draftKey).then(draft => {
       if (!active || !draft) return;
-      restoringDraftRef.current = true;
+      restoringDraftRef.current = draft.concepts.length > 0;
       setBrief(draft.brief); setBriefReviewed(draft.brief.structured);
       setConcepts(draft.concepts); setSelectedId(draft.selectedId);
       setHistory(draft.history); setRedo(draft.redo);
@@ -503,6 +504,7 @@ export default function AIWorkspace(props: Props) {
       );
       const nextConcepts = Array.isArray(body.concepts) ? body.concepts.map((concept: AIConcept) => ({ ...concept, logoImage, referenceImage, photoImages })) : [];
       if (!nextConcepts.length) throw new Error('No artwork was returned.');
+      setBrief(nextConcepts[0].brief || body.brief || readyBrief);
       setGenerationId(body.generationId);
       setConcepts((current) => [...current, ...nextConcepts].slice(-4));
       setSelectedId(nextConcepts[0].id);
@@ -817,6 +819,7 @@ export default function AIWorkspace(props: Props) {
             {pendingEdit && <div className="mt-4 rounded-xl border-2 border-orange-300 bg-orange-50 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><h5 className="font-black text-[#0b1f3a]">Review the proposed edit</h5><p className="mt-1 max-w-3xl text-sm text-slate-700">Image editing preserves unrelated details when technically possible, but cannot guarantee pixel-identical regions. Compare the complete canvases before accepting.</p></div><StatusBadge concept={pendingEdit} /></div><div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2"><figure><figcaption className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-600">Before</figcaption><div className="flex h-56 items-center justify-center overflow-hidden rounded-lg border border-slate-300 bg-slate-100"><img src={imageSrc(selected)} alt="Artwork before proposed AI edit" className="h-full w-full object-contain" /></div></figure><figure><figcaption className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-600">Proposed edit</figcaption><div className="flex h-56 items-center justify-center overflow-hidden rounded-lg border border-orange-300 bg-slate-100"><img src={imageSrc(pendingEdit)} alt="Artwork after proposed AI edit" className="h-full w-full object-contain" /></div></figure></div><div className="mt-3 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" onClick={rejectPendingEdit} className="min-h-11 rounded-lg border border-slate-400 bg-white px-5 text-sm font-bold text-slate-800">Reject edit</button><button type="button" onClick={acceptPendingEdit} className="min-h-11 rounded-lg bg-orange-600 px-5 text-sm font-black text-white hover:bg-orange-700">Accept edit</button></div></div>}
 
             <LayerControls brief={brief} concept={selected} hasLogo={Boolean(logoImage)} photoCount={photoImages.length} busy={Boolean(stage || pendingEdit)} onChange={setBrief} onApply={() => void edit(true)} />
+            {hasUnappliedChanges && !stage && !pendingEdit && <button type="button" onClick={() => { if (selected.brief) setBrief(selected.brief); setLogoImage(selected.logoImage || null); setPhotoImages(selected.photoImages || []); setReferenceImage(selected.referenceImage || null); }} className="mt-2 min-h-11 text-xs text-slate-500 underline underline-offset-4">Discard unapplied changes</button>}
             <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-[1fr_auto]">
               <label className="text-sm font-bold text-slate-800">Edit with AI<textarea value={editInstruction} onChange={(event) => setEditInstruction(event.target.value.slice(0, 700))} rows={3} className="mt-1 w-full rounded-xl border border-slate-300 p-3 text-base" placeholder='Example: “Make the background lighter and keep everything else exactly the same.”' /></label>
               <button type="button" onClick={() => void edit()} disabled={!editInstruction.trim() || Boolean(stage) || !access.ready || Boolean(pendingEdit)} className="inline-flex min-h-11 items-center justify-center gap-2 self-end rounded-lg bg-[#0b1f3a] px-5 py-3 text-sm font-black text-white disabled:opacity-50"><WandSparkles className="h-4 w-4" /> Edit current design</button>
@@ -839,7 +842,13 @@ export default function AIWorkspace(props: Props) {
         </section>
       </div>
 
-      {fullPreview && selected && <div role="dialog" aria-modal="true" aria-label="Full artwork preview" className="fixed inset-0 z-[10020] grid place-items-center bg-slate-950/85 p-4" onClick={() => setFullPreview(false)}><div className="w-full max-w-[95vw]" onClick={(event) => event.stopPropagation()}><div className="mb-3 flex justify-end"><button type="button" onClick={() => setFullPreview(false)} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-white px-4 text-sm font-bold text-slate-900"><XCircle className="h-4 w-4" /> Close</button></div><img src={imageSrc(selected)} alt="Full-size flat print artwork" className="max-h-[85vh] w-full object-contain" /></div></div>}
+      <Dialog open={fullPreview && Boolean(selected)} onOpenChange={setFullPreview}>
+        <DialogContent className="z-[10020] w-[96vw] max-w-[96vw] border-0 bg-slate-950 p-4 pt-12 text-white [&>button]:text-white">
+          <DialogTitle className="sr-only">Full artwork preview</DialogTitle>
+          <DialogDescription className="sr-only">Complete banner artwork at the selected proportions.</DialogDescription>
+          {selected && <img src={imageSrc(selected)} alt="Full-size flat print artwork" className="max-h-[82dvh] w-full object-contain" />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
