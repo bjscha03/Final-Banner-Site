@@ -1,14 +1,16 @@
 'use strict';
 
 const crypto = require('crypto');
+const { mergeLayerEdits, removePhotoLayers } = require('./layers.cjs');
 const { isEnabled, getImageModel, getValidationModel, getImageQuality, MODEL_SNAPSHOT } = require('./config.cjs');
 const { normalizeBrief, cleanText, stableHash } = require('./schema.cjs');
 const { buildGenerationPrompt, buildEditPrompt, buildRepairPrompt } = require('./prompt.cjs');
-const { verifyModelAccess, verifyValidationModelAccess, generateImage, editImage, structureCreativeBrief } = require('./provider.cjs');
+const { verifyModelAccess, verifyValidationModelAccess, generateImage, editImage, structureCreativeBrief, planDesignEdit } = require('./provider.cjs');
 const {
   isTemporaryStorageConfigured,
   storeTemporaryArtwork,
   readTemporaryArtwork,
+  temporaryArtworkUrl,
   createJob,
   readJob,
   readJobInternal,
@@ -85,12 +87,13 @@ function estimatedImageCostUsd(usage) {
   return Number((imageInput + textInput + output).toFixed(6));
 }
 
-function conceptPayload({ id, versionId, generationId, backgroundRef, artwork, brief, plan, validation, model, requestId, durationMs, textLayers, logoLayer, repaired, usage, estimatedCostUsd }) {
+function conceptPayload({ id, versionId, generationId, backgroundRef, artworkRef, artwork, brief, plan, validation, model, requestId, durationMs, textLayers, logoLayer, photoLayers, repaired, usage, estimatedCostUsd }) {
   return {
     id,
     versionId,
     generationId,
     backgroundRef,
+    artworkRef,
     imageBase64: artwork.toString('base64'),
     mimeType: 'image/jpeg',
     widthPx: plan.finalWidth,
@@ -102,6 +105,8 @@ function conceptPayload({ id, versionId, generationId, backgroundRef, artwork, b
     printReady: validation.passed,
     textLayers,
     logoLayer,
+    photoLayers: photoLayers || [],
+    brief: publicBrief(brief),
     diagnostics: {
       model,
       modelSnapshot: model === MODEL_SNAPSHOT ? MODEL_SNAPSHOT : null,
@@ -131,7 +136,12 @@ async function prepareInputs(body) {
   brief.outputHeightPx = plan.finalHeight;
   const reference = await validateInputImage(parseDataImage(body.referenceImage, 3 * 1024 * 1024));
   const logo = await validateInputImage(parseDataImage(body.logoImage, 2 * 1024 * 1024), 12_000_000);
-  return { brief, plan, reference, logo };
+  if (body.photoImages != null && (!Array.isArray(body.photoImages) || body.photoImages.length > 3)) {
+    const error = new Error('Choose up to three photos.'); error.code = 'INVALID_IMAGE'; throw error;
+  }
+  const photos = await Promise.all((body.photoImages || []).map(value => validateInputImage(parseDataImage(value, 384 * 1024), 12_000_000)));
+  if (photos.some(photo => !photo)) { const error = new Error('Invalid photo.'); error.code = 'INVALID_IMAGE'; throw error; }
+  return { brief, plan, reference, logo, photos };
 }
 
 function requestForJob(body) {
@@ -321,6 +331,7 @@ async function runBriefRequest(body, session, jobId = crypto.randomUUID()) {
       focalPoint: current.focalPoint,
       viewingDistance: current.viewingDistance,
       textPosition: current.textPosition,
+      copy: current.copy,
     },
     dimensions: `${current.widthIn} inches wide by ${current.heightIn} inches high (${current.aspectRatio.toFixed(6)}:1)`,
     usage: current.usage,
@@ -330,13 +341,13 @@ async function runBriefRequest(body, session, jobId = crypto.randomUUID()) {
   const brief = normalizeBrief({
     ...current,
     ...interpreted.brief,
-    copy: current.copy,
+    copy: Object.fromEntries(Object.entries(current.copy).map(([key, value]) => [key, value || interpreted.brief.copy?.[key] || ''])),
     widthIn: current.widthIn,
     heightIn: current.heightIn,
     material: current.material,
     quantity: current.quantity,
     productType: current.productType,
-    textPosition: current.textPosition,
+    textPosition: interpreted.brief.textPosition || current.textPosition,
     logoPosition: current.logoPosition,
     description: current.description,
     structured: true,
@@ -357,12 +368,12 @@ function repairableFailures(validation) {
   return failures;
 }
 
-async function finalizeConcept({ rawBackground, brief, plan, logo, reference, session, providerResult, providerCalls, providerKey, allowRepair = true }) {
+async function finalizeConcept({ rawBackground, brief, plan, logo, photos, reference, session, providerResult, providerCalls, providerKey, allowRepair = true, preserveBackground = false }) {
   const { normalizeBackground } = require('./image-utils.cjs');
   const { compositeArtwork } = require('./compositor.cjs');
   const { validateArtwork } = require('./validation.cjs');
-  let background = await normalizeBackground(rawBackground, plan);
-  let composite = await compositeArtwork({ background, brief, logo });
+  let background = preserveBackground ? rawBackground : await normalizeBackground(rawBackground, plan);
+  let composite = await compositeArtwork({ background, brief, logo, photos });
   let validation = await validateArtwork({ background, artwork: composite.buffer, brief, plan });
   let repaired = false;
   let lastProvider = providerResult;
@@ -378,7 +389,7 @@ async function finalizeConcept({ rawBackground, brief, plan, logo, reference, se
       idempotencyKey: providerRequestKey(providerKey, 'repair'),
     });
     background = await normalizeBackground(repair.buffer, plan);
-    composite = await compositeArtwork({ background, brief, logo });
+    composite = await compositeArtwork({ background, brief, logo, photos });
     validation = await validateArtwork({ background, artwork: composite.buffer, brief, plan });
     repaired = true;
     lastProvider = repair;
@@ -432,7 +443,7 @@ async function statusHandler(event) {
 
 async function runGenerateRequest(body, session, jobId = crypto.randomUUID()) {
   const started = Date.now();
-  const { brief, plan, reference, logo } = await withPipelineStage('preparing the design inputs', () => prepareInputs(body));
+  const { brief, plan, reference, logo, photos } = await withPipelineStage('preparing the design inputs', () => prepareInputs(body));
   if (!brief.structured) {
     const error = new Error('Review and confirm the structured creative brief before generating.');
     error.code = 'INVALID_REQUEST';
@@ -473,7 +484,7 @@ async function runGenerateRequest(body, session, jobId = crypto.randomUUID()) {
     }));
     providerCalls.push(guided);
   }
-  const finalized = await withPipelineStage('compositing and validating the artwork', () => finalizeConcept({ rawBackground: guided.buffer, brief, plan, logo, reference, session, providerResult: guided, providerCalls, providerKey: jobId }));
+  const finalized = await withPipelineStage('compositing and validating the artwork', () => finalizeConcept({ rawBackground: guided.buffer, brief, plan, logo, photos, reference, session, providerResult: guided, providerCalls, providerKey: jobId }));
   const backgroundRef = await withPipelineStage('saving the editable artwork', () => storeTemporaryArtwork(finalized.background, { session, generationId }));
   const aggregateUsage = aggregateImageUsage(providerCalls);
   const concept = conceptPayload({
@@ -481,7 +492,8 @@ async function runGenerateRequest(body, session, jobId = crypto.randomUUID()) {
     versionId: crypto.randomUUID(),
     generationId,
     backgroundRef,
-    artwork: finalized.composite.buffer,
+    artworkRef: await storeTemporaryArtwork(finalized.composite.buffer, { session, generationId }),
+    artwork: finalized.composite.preview,
     brief,
     plan,
     validation: finalized.validation,
@@ -490,6 +502,7 @@ async function runGenerateRequest(body, session, jobId = crypto.randomUUID()) {
     durationMs: Date.now() - conceptStarted,
     textLayers: finalized.composite.textLayers,
     logoLayer: finalized.composite.logoLayer,
+    photoLayers: finalized.composite.photoLayers,
     repaired: finalized.repaired,
     usage: aggregateUsage,
     estimatedCostUsd: estimatedImageCostUsd(aggregateUsage),
@@ -512,8 +525,9 @@ async function generateHandler(event) {
 
 async function runEditRequest(body, session, jobId = crypto.randomUUID()) {
   const { validateInputImage } = require('./image-utils.cjs');
+  const generationId = String(body.generationId || crypto.randomUUID());
   const started = Date.now();
-  const { brief, plan, reference, logo } = await withPipelineStage('preparing the edit inputs', () => prepareInputs(body));
+  let { brief, plan, reference, logo, photos } = await withPipelineStage('preparing the edit inputs', () => prepareInputs(body));
   if (!brief.structured) {
     const error = new Error('A confirmed structured creative brief is required for editing.');
     error.code = 'INVALID_REQUEST';
@@ -531,17 +545,30 @@ async function runEditRequest(body, session, jobId = crypto.randomUUID()) {
     error.code = 'INVALID_REQUEST';
     throw error;
   }
-  const edited = await withPipelineStage('editing the artwork', () => editImage({
-    prompt: buildEditPrompt(brief, plan, instruction),
+  const manual = body.editMode === 'layers';
+  const editPlan = manual ? { backgroundInstruction: '', removeLogo: false, removePhotos: [] } : await withPipelineStage('understanding your changes', () => planDesignEdit({ brief, instruction, photos, user: providerUser(session), idempotencyKey: providerRequestKey(jobId, 'edit-plan') }));
+  if (!manual) {
+    brief = normalizeBrief({ ...brief, copy: editPlan.copy, layers: mergeLayerEdits(brief.layers, editPlan.layers), structured: true });
+    brief.outputWidthPx = plan.finalWidth;
+    brief.outputHeightPx = plan.finalHeight;
+    if (editPlan.removeLogo) logo = null;
+    if (Array.isArray(editPlan.removePhotos) && editPlan.removePhotos.length) {
+      brief.layers = removePhotoLayers(brief.layers, photos.length, editPlan.removePhotos);
+      photos = photos.filter((_, index) => !editPlan.removePhotos.includes(index));
+    }
+  }
+  const backgroundInstruction = cleanText(editPlan.backgroundInstruction, 700);
+  const edited = backgroundInstruction ? await withPipelineStage('editing the artwork', () => editImage({
+    prompt: buildEditPrompt(brief, plan, backgroundInstruction),
     size: plan.providerSize,
     currentImage: current.buffer,
     currentMime: current.mimeType,
     referenceImage: reference,
     user: providerUser(session),
     idempotencyKey: providerRequestKey(jobId, 'edit'),
-  }));
-  const providerCalls = [edited];
-  const finalized = await withPipelineStage('compositing and validating the edited artwork', () => finalizeConcept({ rawBackground: edited.buffer, brief, plan, logo, reference, session, providerResult: edited, providerCalls, providerKey: jobId }));
+  })) : { buffer: current.buffer, model: getImageModel(), requestId: null, usage: null };
+  const providerCalls = backgroundInstruction ? [edited] : [];
+  const finalized = await withPipelineStage('compositing and validating the edited artwork', () => finalizeConcept({ rawBackground: edited.buffer, brief, plan, logo, photos, reference, session, providerResult: edited, providerCalls, providerKey: jobId, allowRepair: Boolean(backgroundInstruction), preserveBackground: !backgroundInstruction }));
   const backgroundRef = await withPipelineStage('saving the editable artwork', () => storeTemporaryArtwork(finalized.background, { session, generationId: String(body.generationId || 'edit') }));
   const aggregateUsage = aggregateImageUsage(providerCalls);
   const concept = conceptPayload({
@@ -549,7 +576,8 @@ async function runEditRequest(body, session, jobId = crypto.randomUUID()) {
     versionId: crypto.randomUUID(),
     generationId: String(body.generationId || crypto.randomUUID()),
     backgroundRef,
-    artwork: finalized.composite.buffer,
+    artworkRef: await storeTemporaryArtwork(finalized.composite.buffer, { session, generationId }),
+    artwork: finalized.composite.preview,
     brief,
     plan,
     validation: finalized.validation,
@@ -558,9 +586,10 @@ async function runEditRequest(body, session, jobId = crypto.randomUUID()) {
     durationMs: Date.now() - started,
     textLayers: finalized.composite.textLayers,
     logoLayer: finalized.composite.logoLayer,
+    photoLayers: finalized.composite.photoLayers,
     repaired: finalized.repaired,
     usage: aggregateUsage,
-    estimatedCostUsd: estimatedImageCostUsd(aggregateUsage),
+    estimatedCostUsd: backgroundInstruction ? estimatedImageCostUsd(aggregateUsage) : 0,
   });
   console.info('[ai_designer_edit]', {
     conceptId: concept.id,
@@ -571,11 +600,47 @@ async function runEditRequest(body, session, jobId = crypto.randomUUID()) {
     outputDimensions: `${plan.finalWidth}x${plan.finalHeight}`,
     validationStatus: concept.validation.status,
   });
-  return { ok: true, brief: publicBrief(brief), concept, usedOriginalImage: true, durationMs: Date.now() - started };
+  return { ok: true, brief: publicBrief(brief), concept, usedOriginalImage: true, logoRemoved: editPlan.removeLogo === true, removedPhotos: editPlan.removePhotos || [], backgroundUnchanged: !backgroundInstruction, durationMs: Date.now() - started };
 }
 
 async function editHandler(event) {
   return enqueueHandler(event, 'edit');
+}
+
+async function exportHandler(event) {
+  const auth = authorize(event);
+  if (auth.response) return auth.response;
+  if (event.httpMethod !== 'POST') return json(405, { error: 'METHOD_NOT_ALLOWED' });
+  try {
+    const tooLarge = enforceBodyLimit(event, 8192);
+    if (tooLarge) return tooLarge;
+    const body = parseBody(event);
+    return json(200, { url: temporaryArtworkUrl(body.artworkRef, auth.session) });
+  } catch (error) { return safeError(error); }
+}
+
+async function eventsHandler(event) {
+  const auth = authorize(event);
+  if (auth.response) return auth.response;
+  if (event.httpMethod !== 'POST') return json(405, { error: 'METHOD_NOT_ALLOWED' });
+  const tooLarge = enforceBodyLimit(event, 8192);
+  if (tooLarge) return tooLarge;
+  const limited = rateLimit(event, auth.session, 'events', 180, 600_000);
+  if (limited) return limited;
+  try {
+    const body = parseBody(event);
+    const events = new Set(['ai_designer_opened', 'ai_prompt_entered', 'ai_brief_created', 'ai_generation_started', 'ai_generation_succeeded', 'ai_generation_failed', 'ai_validation_failed', 'ai_concept_selected', 'ai_edit_started', 'ai_edit_succeeded', 'ai_edit_rejected', 'ai_design_approved', 'ai_applied_to_configurator', 'ai_added_to_cart', 'ai_checkout_started', 'ai_purchase_completed']);
+    if (!events.has(body.event)) return json(400, { error: 'INVALID_EVENT' });
+    const properties = {};
+    const keys = ['product_type', 'concept_id', 'version_id', 'order_id', 'concept_count', 'validation_failures', 'validation_passed', 'exact_copy_fields', 'count', 'category'];
+    for (const key of keys) {
+      const value = body.properties?.[key];
+      if (typeof value === 'boolean' || (typeof value === 'number' && Number.isFinite(value))) properties[key] = value;
+      else if (typeof value === 'string' && /^[a-zA-Z0-9_.:-]{1,100}$/.test(value)) properties[key] = value;
+    }
+    console.info('[ai_designer_funnel]', { event: body.event, ...properties, adminTest: true });
+    return json(202, { ok: true });
+  } catch (error) { return safeError(error); }
 }
 
 function retiredHandler(event) {
@@ -587,4 +652,4 @@ function retiredHandler(event) {
   });
 }
 
-module.exports = { statusHandler, briefHandler, generateHandler, editHandler, jobHandler, workerHandler, retiredHandler };
+module.exports = { statusHandler, briefHandler, generateHandler, editHandler, exportHandler, eventsHandler, jobHandler, workerHandler, retiredHandler };

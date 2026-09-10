@@ -271,6 +271,10 @@ function creativeBriefSchema() {
     'purpose', 'targetAudience', 'primaryMessage', 'visualStyle', 'brandPersonality',
     'colorPalette', 'subjectMatter', 'composition', 'focalPoint', 'viewingDistance',
   ].map((key) => [key, { type: 'string' }]));
+  properties.copy = copySchema();
+  properties.textPosition = { type: 'string', enum: ['left', 'center', 'right'] };
+  properties.textColor = { type: 'string' };
+  properties.accentColor = { type: 'string' };
   return { type: 'object', additionalProperties: false, required: Object.keys(properties), properties };
 }
 
@@ -286,7 +290,8 @@ async function structureCreativeBrief({ description, current, dimensions, usage,
           text: [
             'Convert this banner request into a concise commercial-print creative brief.',
             'Do not invent customer wording, contact details, offers, dates, prices, or brand claims.',
-            'Do not repeat exact required copy in these fields; exact copy is maintained separately.',
+            'Extract the actual requested banner wording into the copy fields. Preserve names, dates, offers, addresses and phone numbers exactly. Leave unprovided fields empty; never invent them. Do not put design instructions into the printed copy. Use a short prominent headline, a secondary offer and smaller contact details. Respect any nonempty exact copy fields supplied by the user.',
+            'Choose a left, center or right textPosition and six-digit hex textColor/accentColor with strong contrast. Use a centered, wide text zone for portrait banners and text-only requests.',
             'Favor a flat edge-to-edge composition, large-format legibility, a clean deterministic typography zone, and safe internal margins.',
             `Physical dimensions: ${dimensions}. Usage: ${usage}.`,
             `Existing user selections to respect when useful: ${JSON.stringify(current)}.`,
@@ -302,7 +307,7 @@ async function structureCreativeBrief({ description, current, dimensions, usage,
           schema: creativeBriefSchema(),
         },
       },
-      max_output_tokens: 900,
+      max_output_tokens: 1800,
       safety_identifier: user,
     }, options), { idempotencyKey });
     const raw = response.output_text || response.output?.flatMap((item) => item.content || []).find((item) => item.type === 'output_text')?.text;
@@ -310,6 +315,45 @@ async function structureCreativeBrief({ description, current, dimensions, usage,
   } catch (error) {
     classifyProviderError(error);
   }
+}
+
+function copySchema() {
+  const { COPY_FIELDS } = require('./schema.cjs');
+  return { type: 'object', additionalProperties: false, required: COPY_FIELDS, properties: Object.fromEntries(COPY_FIELDS.map(key => [key, { type: 'string' }])) };
+}
+
+async function planDesignEdit({ brief, instruction, photos = [], user, idempotencyKey }) {
+  const { ROLES, FONTS } = require('./layers.cjs');
+  const fields = {
+    x: { type: ['number', 'null'] }, y: { type: ['number', 'null'] },
+    scale: { type: ['number', 'null'] }, width: { type: ['number', 'null'] },
+    color: { type: ['string', 'null'] }, font: { type: ['string', 'null'], enum: [...FONTS, null] },
+  };
+  const properties = {
+    copy: copySchema(),
+    layers: { type: 'object', additionalProperties: false, required: ROLES, properties: Object.fromEntries(ROLES.map(role => [role, { type: 'object', additionalProperties: false, required: Object.keys(fields), properties: fields }])) },
+    backgroundInstruction: { type: 'string' },
+    removeLogo: { type: 'boolean' },
+    removePhotos: { type: 'array', items: { type: 'integer', enum: [0, 1, 2] } },
+  };
+  const { client } = await getClient();
+  try {
+    const response = await requestWithTransientRetry(options => client.responses.create({
+      model: getValidationModel(),
+      input: [{ role: 'user', content: [{ type: 'input_text', text: [
+        'Edit this layered commercial banner according to the request. Return complete exact copy and layer settings; preserve all unrelated wording and existing settings.',
+        'Text and logo changes are deterministic. NEVER ask the image model to change words, spelling, fonts, sizes or logos. Put only visual background/image changes in backgroundInstruction; otherwise use an empty string.',
+        'Layer x/y are normalized canvas coordinates, width is a normalized text-zone width, scale is relative to default type size. Preserve unspecified values using the current settings or null if unset. Fonts must be from the supplied enum. Colors are six-digit hex. Increase sizes moderately (about 1.2x) when asked for bigger. For logo left/right use x=0.05/0.75; top/bottom use y=0.06/0.7. Remove text by emptying its copy field. Never invent contact information. Only set removeLogo when explicitly requested.',
+        `Uploaded photos are supplied after this text in zero-based order (photo0, photo1, photo2). Return their indexes in removePhotos only if requested. Current design: ${JSON.stringify(brief)}`,
+        `Requested change: ${JSON.stringify(instruction)}`,
+      ].join('\n') }, ...photos.map(photo => ({ type: 'input_image', image_url: `data:${photo.mimeType};base64,${photo.buffer.toString('base64')}`, detail: 'low' }))] }],
+      text: { format: { type: 'json_schema', name: 'banner_layer_edit', strict: true, schema: { type: 'object', additionalProperties: false, required: Object.keys(properties), properties } } },
+      max_output_tokens: 2500,
+      safety_identifier: user,
+    }, options), { idempotencyKey });
+    const raw = response.output_text || response.output?.flatMap(item => item.content || []).find(item => item.type === 'output_text')?.text;
+    return JSON.parse(raw || '');
+  } catch (error) { classifyProviderError(error); }
 }
 
 module.exports = {
@@ -322,6 +366,7 @@ module.exports = {
   generateImage,
   editImage,
   structureCreativeBrief,
+  planDesignEdit,
   getValidationModel,
   withTimeout,
 };

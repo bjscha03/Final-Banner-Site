@@ -20,6 +20,9 @@ import {
 import { authenticatedJsonBody, authorizedHeaders, setServerSessionToken } from '@/lib/serverAuth';
 import { useAIAdminAccess } from '@/hooks/useAIAdminAccess';
 import { trackAIEvent } from '@/lib/aiAnalytics';
+import { useAuth } from '@/lib/auth';
+import { loadDraft, saveDraft } from './draftStore';
+import LayerControls from './LayerControls';
 import type {
   AIConcept,
   AIDesignSession,
@@ -112,7 +115,7 @@ async function fileToDataUrl(file: Blob) {
   });
 }
 
-async function readImage(file: File, maxBytes: number, maxDimension: number) {
+async function readImage(file: File, maxBytes: number, maxDimension: number, preserveTransparency = false) {
   if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 20 * 1024 * 1024) {
     const megabytes = maxBytes / 1024 / 1024;
     throw new Error(`Choose a PNG, JPEG, or WebP image. It will be optimized automatically to the ${Number.isInteger(megabytes) ? megabytes : megabytes.toFixed(2)}MB request limit.`);
@@ -136,7 +139,7 @@ async function readImage(file: File, maxBytes: number, maxDimension: number) {
       const context = canvas.getContext('2d');
       if (!context) throw new Error('This browser could not prepare the image.');
       context.drawImage(image, 0, 0, canvas.width, canvas.height);
-      const optimized = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/webp', Math.max(0.62, 0.9 - attempt * 0.06)));
+      const optimized = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, preserveTransparency ? 'image/png' : 'image/webp', Math.max(0.62, 0.9 - attempt * 0.06)));
       if (optimized && optimized.size <= maxBytes) return fileToDataUrl(optimized);
       edgeLimit = Math.max(640, Math.round(edgeLimit * 0.78));
     }
@@ -181,7 +184,8 @@ async function runBackgroundJob(
   onStage: (message: string) => void,
 ) {
   const pendingKey = 'banners_ai_designer_pending_job';
-  const payloadFingerprint = JSON.stringify(payload);
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(payload)));
+  const payloadFingerprint = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
   let start: Record<string, unknown> | null = null;
   try {
     const pending = JSON.parse(window.sessionStorage.getItem(pendingKey) || 'null');
@@ -194,8 +198,12 @@ async function runBackgroundJob(
     window.sessionStorage.removeItem(pendingKey);
   }
 
-  if (!start) {
-    const idempotencyKey = requestId();
+  if (!start?.jobRef) {
+    const idempotencyKey = String(start?.idempotencyKey || requestId());
+    // Persist request identity before sending: retrying a lost response must
+    // not create a second paid generation.
+    start = { startPath, payloadFingerprint, idempotencyKey, createdAt: Date.now(), dispatched: false };
+    window.sessionStorage.setItem(pendingKey, JSON.stringify(start));
     const startResponse = await fetch(startPath, {
       method: 'POST',
       credentials: 'same-origin',
@@ -208,7 +216,7 @@ async function runBackgroundJob(
     });
     const started = await startResponse.json().catch(() => ({}));
     if (!startResponse.ok || !started?.jobRef) throw new Error(started?.message || 'The AI job could not be started safely.');
-    start = { ...started, startPath, payloadFingerprint, createdAt: Date.now(), dispatched: false };
+    start = { ...started, startPath, payloadFingerprint, idempotencyKey, createdAt: Date.now(), dispatched: false };
     window.sessionStorage.setItem(pendingKey, JSON.stringify(start));
   }
 
@@ -263,9 +271,11 @@ function StatusBadge({ concept }: { concept: AIConcept }) {
 }
 
 export default function AIWorkspace(props: Props) {
+  const { user } = useAuth();
   const access = useAIAdminAccess(true);
   const [brief, setBrief] = useState<CreativeBrief>(() => props.initialSession?.brief || makeBrief(props));
   const [referenceImage, setReferenceImage] = useState<string | null>(props.initialSession?.referenceImage || null);
+  const [photoImages, setPhotoImages] = useState<string[]>(props.initialSession?.photoImages || []);
   const [logoImage, setLogoImage] = useState<string | null>(props.initialSession?.logoImage || null);
   const [briefReviewed, setBriefReviewed] = useState(Boolean(props.initialSession));
   const conceptCount = 1;
@@ -276,6 +286,9 @@ export default function AIWorkspace(props: Props) {
   const [redo, setRedo] = useState<AIConcept[]>([]);
   const [pendingEdit, setPendingEdit] = useState<AIConcept | null>(null);
   const [pendingBrief, setPendingBrief] = useState<CreativeBrief | null>(null);
+  const [pendingLogoRemoved, setPendingLogoRemoved] = useState(false);
+  const [recoveryReady, setRecoveryReady] = useState(false);
+  const [saveNotice, setSaveNotice] = useState('');
   const [editInstruction, setEditInstruction] = useState('');
   const [stage, setStage] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -284,10 +297,51 @@ export default function AIWorkspace(props: Props) {
   const [reconnecting, setReconnecting] = useState(false);
   const [reconnectError, setReconnectError] = useState('');
   const controllerRef = useRef<AbortController | null>(null);
+  const restoringDraftRef = useRef(false);
 
   const selected = concepts.find((concept) => concept.id === selectedId) || concepts[0] || null;
   const ratio = (Number(brief.widthIn) || 1) / (Number(brief.heightIn) || 1);
   const requirementsMet = brief.widthIn > 0 && brief.heightIn > 0 && Boolean(brief.material) && Boolean(brief.description.trim());
+  const draftKey = `admin:${user?.id || 'session'}:${props.productType}:${props.widthIn}:${props.heightIn}`;
+  const hasUnappliedChanges = Boolean(selected && (
+    (selected.brief && JSON.stringify(selected.brief) !== JSON.stringify(brief)) ||
+    ('logoImage' in selected && selected.logoImage !== logoImage) ||
+    ('photoImages' in selected && JSON.stringify(selected.photoImages || []) !== JSON.stringify(photoImages))
+  ));
+
+  useEffect(() => {
+    let active = true;
+    if (!user?.id || !user.is_admin) return;
+    if (props.initialSession) { setRecoveryReady(true); return; }
+    loadDraft<{ brief: CreativeBrief; concepts: AIConcept[]; selectedId: string; history: AIConcept[]; redo: AIConcept[]; logoImage: string | null; referenceImage: string | null; photoImages?: string[] }>(draftKey).then(draft => {
+      if (!active || !draft) return;
+      restoringDraftRef.current = true;
+      setBrief(draft.brief); setBriefReviewed(draft.brief.structured);
+      setConcepts(draft.concepts); setSelectedId(draft.selectedId);
+      setHistory(draft.history); setRedo(draft.redo);
+      setLogoImage(draft.logoImage); setReferenceImage(draft.referenceImage); setPhotoImages(draft.photoImages || []);
+      setSaveNotice('Your previous draft has been restored.');
+    }).catch(() => { if (active) setSaveNotice('Draft recovery is unavailable in this browser. Keep this window open while designing.'); })
+      .finally(() => { if (active) setRecoveryReady(true); });
+    return () => { active = false; };
+  }, [draftKey, props.initialSession, user?.id, user?.is_admin]);
+
+  useEffect(() => {
+    if (!recoveryReady || !user?.id || !user.is_admin) return;
+    const timer = window.setTimeout(() => {
+      saveDraft(draftKey, { brief, concepts, selectedId, history, redo, logoImage, referenceImage, photoImages })
+        .catch(() => setSaveNotice('This browser could not save your draft. Keep this window open while designing.'));
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [recoveryReady, draftKey, brief, concepts, selectedId, history, redo, logoImage, referenceImage, photoImages, user?.id, user?.is_admin]);
+
+  useEffect(() => {
+    if (restoringDraftRef.current) { restoringDraftRef.current = false; return; }
+    if (selected?.brief) setBrief(selected.brief);
+    if (selected && 'photoImages' in selected) setPhotoImages(selected.photoImages || []);
+    if (selected && 'logoImage' in selected) setLogoImage(selected.logoImage || null);
+    if (selected && 'referenceImage' in selected) setReferenceImage(selected.referenceImage || null);
+  }, [selected]);
 
   const reconnectAdmin = async () => {
     if (!adminPassword || reconnecting) return;
@@ -336,27 +390,11 @@ export default function AIWorkspace(props: Props) {
   const updateBrief = <K extends keyof CreativeBrief>(key: K, value: CreativeBrief[K]) => {
     setBrief((current) => ({ ...current, [key]: value, structured: false }));
     setBriefReviewed(false);
-    if (concepts.length) {
-      setConcepts([]);
-      setSelectedId('');
-      setHistory([]);
-      setRedo([]);
-      setPendingEdit(null);
-      setPendingBrief(null);
-    }
   };
 
   const updateCopy = (key: keyof ExactCopy, value: string) => {
     setBrief((current) => ({ ...current, structured: false, copy: { ...current.copy, [key]: value } }));
     setBriefReviewed(false);
-    if (concepts.length) {
-      setConcepts([]);
-      setSelectedId('');
-      setHistory([]);
-      setRedo([]);
-      setPendingEdit(null);
-      setPendingBrief(null);
-    }
   };
 
   const setImage = async (kind: 'reference' | 'logo', file?: File) => {
@@ -365,14 +403,10 @@ export default function AIWorkspace(props: Props) {
     try {
       // Keep the combined JSON request below Netlify's fixed buffered payload
       // limit after Base64 expansion.
-      const data = await readImage(file, kind === 'logo' ? 768 * 1024 : 1536 * 1024, kind === 'logo' ? 1400 : 2048);
+      const data = await readImage(file, kind === 'logo' ? 768 * 1024 : 1536 * 1024, kind === 'logo' ? 2400 : 2048, kind === 'logo');
       if (kind === 'logo') setLogoImage(data);
       else setReferenceImage(data);
       setBriefReviewed(false);
-      setConcepts([]);
-      setSelectedId('');
-      setHistory([]);
-      setRedo([]);
       setPendingEdit(null);
       setPendingBrief(null);
     } catch (reason) {
@@ -384,10 +418,6 @@ export default function AIWorkspace(props: Props) {
     if (kind === 'logo') setLogoImage(null);
     else setReferenceImage(null);
     setBriefReviewed(false);
-    setConcepts([]);
-    setSelectedId('');
-    setHistory([]);
-    setRedo([]);
     setPendingEdit(null);
     setPendingBrief(null);
   };
@@ -397,7 +427,7 @@ export default function AIWorkspace(props: Props) {
       setError('Select dimensions and material, then describe the design you want.');
       return;
     }
-    if (!access.ready || stage) return;
+    if (!access.ready || stage || controllerRef.current) return;
     const controller = new AbortController();
     controllerRef.current = controller;
     setError('');
@@ -415,9 +445,7 @@ export default function AIWorkspace(props: Props) {
         ...current,
         ...body.brief,
         structured: true,
-        copy: current.copy,
-        textColor: current.textColor,
-        accentColor: current.accentColor,
+        copy: body.brief.copy || current.copy,
       }));
       setBriefReviewed(true);
       trackAIEvent('ai_brief_created', { product_type: brief.productType, exact_copy_fields: Object.values(brief.copy).filter(Boolean).length });
@@ -430,22 +458,30 @@ export default function AIWorkspace(props: Props) {
   };
 
   const generate = async () => {
-    if (!access.ready || !briefReviewed || !requirementsMet || stage) return;
+    if (!access.ready || !recoveryReady || !requirementsMet || stage || controllerRef.current) return;
     const controller = new AbortController();
     controllerRef.current = controller;
     setError('');
     setStage('Preparing the structured creative brief');
+    trackAIEvent('ai_prompt_entered', { product_type: brief.productType });
     trackAIEvent('ai_generation_started', { concept_count: conceptCount, product_type: brief.productType });
     try {
-      setStage('Generating artwork, correcting the exact ratio, and validating print readiness');
+      let readyBrief = brief;
+      if (!briefReviewed) {
+        const interpreted = await runBackgroundJob('/.netlify/functions/ai-designer-brief', { brief }, controller.signal, 'Planning your banner and organizing the wording', setStage);
+        if (!interpreted?.brief?.structured) throw new Error('Your banner request could not be understood. Please try again.');
+        readyBrief = interpreted.brief;
+        setBrief(readyBrief); setBriefReviewed(true);
+      }
+      setStage('Creating your banner');
       const body = await runBackgroundJob(
         '/.netlify/functions/ai-designer-generate',
-        { brief, conceptCount, referenceImage, logoImage },
+        { brief: readyBrief, conceptCount, referenceImage, logoImage, photoImages },
         controller.signal,
         'Generating artwork, correcting the exact ratio, and validating print readiness. This can take a few minutes.',
         setStage,
       );
-      const nextConcepts = Array.isArray(body.concepts) ? body.concepts : [];
+      const nextConcepts = Array.isArray(body.concepts) ? body.concepts.map((concept: AIConcept) => ({ ...concept, logoImage, referenceImage, photoImages })) : [];
       if (!nextConcepts.length) throw new Error('No artwork was returned.');
       setGenerationId(body.generationId);
       setConcepts((current) => [...current, ...nextConcepts].slice(-4));
@@ -469,8 +505,8 @@ export default function AIWorkspace(props: Props) {
     }
   };
 
-  const edit = async () => {
-    if (!selected || !editInstruction.trim() || stage || !access.ready) return;
+  const edit = async (manual = false) => {
+    if (!selected || (!manual && !editInstruction.trim()) || stage || controllerRef.current || !access.ready) return;
     const controller = new AbortController();
     controllerRef.current = controller;
     setError('');
@@ -478,7 +514,7 @@ export default function AIWorkspace(props: Props) {
     trackAIEvent('ai_edit_started', { concept_id: selected.id });
     try {
       const normalizedInstruction = editInstruction.toLowerCase();
-      const requestedLogoPosition: CreativeBrief['logoPosition'] | null = !logoImage ? null
+      const requestedLogoPosition: CreativeBrief['logoPosition'] | null = manual || !logoImage ? null
         : /logo.{0,24}(upper|top)[ -]?left|(?:upper|top)[ -]?left.{0,24}logo/.test(normalizedInstruction) ? 'upper-left'
           : /logo.{0,24}(upper|top)[ -]?right|(?:upper|top)[ -]?right.{0,24}logo/.test(normalizedInstruction) ? 'upper-right'
             : /logo.{0,24}(lower|bottom)[ -]?left|(?:lower|bottom)[ -]?left.{0,24}logo/.test(normalizedInstruction) ? 'lower-left'
@@ -488,21 +524,24 @@ export default function AIWorkspace(props: Props) {
       const body = await runBackgroundJob(
         '/.netlify/functions/ai-designer-edit',
         {
-          brief: briefForEdit,
+          brief: { ...briefForEdit, structured: true },
+          editMode: manual ? 'layers' : 'ai',
           conceptId: selected.id,
           generationId: selected.generationId,
           currentBackgroundRef: selected.backgroundRef,
-          editInstruction: editInstruction.trim(),
+          editInstruction: manual ? 'Apply exact layer changes without changing the background.' : editInstruction.trim(),
           referenceImage,
           logoImage,
+          photoImages,
         },
         controller.signal,
         'Editing the current artwork and preserving exact text layers. This can take a few minutes.',
         setStage,
       );
       if (!body?.usedOriginalImage || !body?.concept) throw new Error('The server did not confirm use of the current artwork.');
-      setPendingEdit(body.concept);
-      setPendingBrief(briefForEdit);
+      setPendingEdit({ ...body.concept, logoImage: body.logoRemoved ? null : logoImage, referenceImage, photoImages: photoImages.filter((_, index) => !body.removedPhotos?.includes(index)) });
+      setPendingBrief(body.brief || briefForEdit);
+      setPendingLogoRemoved(body.logoRemoved === true);
       if (!body.concept.validation.passed) trackAIEvent('ai_validation_failed', { count: 1 });
     } catch (reason) {
       if ((reason as Error)?.name !== 'AbortError') setError(reason instanceof Error ? reason.message : 'The edit failed.');
@@ -519,6 +558,8 @@ export default function AIWorkspace(props: Props) {
     setConcepts((items) => items.map((item) => item.id === selected.id ? pendingEdit : item));
     setSelectedId(pendingEdit.id);
     if (pendingBrief) setBrief(pendingBrief);
+    if (pendingLogoRemoved) setLogoImage(null);
+    setPendingLogoRemoved(false);
     setPendingEdit(null);
     setPendingBrief(null);
     setEditInstruction('');
@@ -527,6 +568,11 @@ export default function AIWorkspace(props: Props) {
 
   const rejectPendingEdit = () => {
     if (!pendingEdit) return;
+    if (selected?.brief) setBrief(selected.brief);
+    if (selected && 'logoImage' in selected) setLogoImage(selected.logoImage || null);
+    if (selected && 'photoImages' in selected) setPhotoImages(selected.photoImages || []);
+    if (selected && 'referenceImage' in selected) setReferenceImage(selected.referenceImage || null);
+    setPendingLogoRemoved(false);
     setPendingEdit(null);
     setPendingBrief(null);
     setEditInstruction('');
@@ -558,7 +604,9 @@ export default function AIWorkspace(props: Props) {
   };
 
   const apply = async () => {
-    if (!selected?.validation.passed) return;
+    if (!selected?.validation.passed || hasUnappliedChanges) return;
+    setError('');
+    setStage('Preparing your artwork for the banner designer');
     const session: AIDesignSession = {
       generationId: selected.generationId || generationId,
       brief,
@@ -566,18 +614,35 @@ export default function AIWorkspace(props: Props) {
       referenceImage,
       logoImage,
       versionHistory: history,
+      photoImages,
     };
     trackAIEvent('ai_design_approved', { concept_id: selected.id, version_id: selected.versionId });
+    try {
+    let imageBase64 = selected.imageBase64;
+    if (selected.artworkRef) {
+      const response = await fetch('/.netlify/functions/ai-designer-export', {
+        method: 'POST', credentials: 'same-origin',
+        headers: authorizedHeaders({ 'Content-Type': 'application/json' }),
+        body: authenticatedJsonBody({ artworkRef: selected.artworkRef }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.url) throw new Error('The production artwork could not be retrieved. Your preview is still available.');
+      const file = await fetch(result.url);
+      if (!file.ok) throw new Error('The production artwork download failed. Please try again.');
+      imageBase64 = (await fileToDataUrl(await file.blob())).split(',')[1];
+    }
     await props.onGenerated({
-      imageBase64: selected.imageBase64,
+      imageBase64,
       mimeType: selected.mimeType,
       width: brief.widthIn,
       height: brief.heightIn,
-      fileName: `ai-${brief.productType}-${brief.widthIn}x${brief.heightIn}-${Date.now()}.jpg`,
+      fileName: `ai-${brief.productType}-${brief.widthIn}x${brief.heightIn}-${selected.versionId}.jpg`,
       prompt: brief.description,
       session,
     });
     trackAIEvent('ai_applied_to_configurator', { product_type: brief.productType });
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'The artwork could not be transferred. Your design is still saved here.'); }
+    finally { setStage(null); }
   };
 
   const blockerCopy = access.loading
@@ -603,7 +668,7 @@ export default function AIWorkspace(props: Props) {
           <div>
             <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-[0.16em] text-orange-600"><WandSparkles className="h-4 w-4" /> Banners On The Fly</div>
             <h2 className="mt-1 text-2xl font-black tracking-tight text-[#0b1f3a] sm:text-3xl">Create professional artwork with AI</h2>
-            <p className="mt-1 max-w-3xl text-sm text-slate-600">Flat, edge-to-edge print artwork only. Exact wording and logos stay in controlled layers—never left to the image model.</p>
+            <p className="mt-1 max-w-3xl text-sm text-slate-600">Describe it. Make it yours. Print it.</p>
           </div>
           <div className="flex items-center gap-2">
             <span className={`inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-semibold ${access.ready ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-900'}`}>
@@ -616,15 +681,17 @@ export default function AIWorkspace(props: Props) {
         {blockerCopy && !access.loading && <div role="alert" className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><div className="flex items-start gap-2"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /> {blockerCopy}</div>{!access.authorized && <div className="mt-3 flex flex-col gap-2 sm:flex-row"><input aria-label="Admin password" type="password" autoComplete="current-password" value={adminPassword} onChange={(event) => setAdminPassword(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void reconnectAdmin(); }} placeholder="Enter admin password" className="min-h-11 flex-1 rounded-lg border border-amber-300 bg-white px-3 text-base text-slate-900" /><button type="button" onClick={() => void reconnectAdmin()} disabled={!adminPassword || reconnecting} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#0b1f3a] px-4 font-bold text-white disabled:opacity-50">{reconnecting && <Loader2 className="h-4 w-4 animate-spin" />} Reconnect admin</button></div>}{reconnectError && <div className="mt-2 text-sm font-semibold text-red-700">{reconnectError}</div>}</div>}
       </div>
 
+      {saveNotice && <p className="px-4 pt-3 text-xs text-slate-500" role="status">{saveNotice}</p>}
       <div className="grid min-h-0 grid-cols-1 xl:grid-cols-[minmax(330px,0.86fr)_minmax(480px,1.45fr)]">
         <section className="space-y-5 border-b border-slate-200 p-4 sm:p-6 xl:border-b-0 xl:border-r">
           <div>
             <div className="flex items-center justify-between gap-3">
-              <h3 className="text-lg font-black text-[#0b1f3a]">1. Creative brief</h3>
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">{brief.widthIn}&quot; × {brief.heightIn}&quot; · {ratio.toFixed(3)}:1</span>
+              <h3 className="text-lg font-black text-[#0b1f3a]">Describe your banner</h3>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">{brief.widthIn}&quot; × {brief.heightIn}&quot; · {props.materialLabel || brief.material}</span>
             </div>
             <label htmlFor="ai-description" className="mt-4 block text-sm font-bold text-slate-800">Describe the design you want</label>
             <textarea id="ai-description" value={brief.description} onChange={(event) => updateBrief('description', event.target.value.slice(0, 1200))} rows={5} className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-3 text-base shadow-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" placeholder="Example: A polished grand-opening design for a family restaurant, with warm food photography, strong contrast, and space for a headline and offer." />
+            <details className="mt-3"><summary className="cursor-pointer py-2 text-sm font-semibold text-slate-600">Style & layout (optional)</summary>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label className="text-sm font-semibold text-slate-700">Purpose<select value={brief.purpose} onChange={(event) => updateBrief('purpose', event.target.value)} className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3">{PURPOSES.map((value) => <option key={value}>{value}</option>)}</select></label>
               <label className="text-sm font-semibold text-slate-700">Visual direction<select value={brief.visualStyle} onChange={(event) => updateBrief('visualStyle', event.target.value)} className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3">{STYLES.map((value) => <option key={value}>{value}</option>)}</select></label>
@@ -642,11 +709,12 @@ export default function AIWorkspace(props: Props) {
                 <label className="text-sm font-semibold text-slate-700">Viewing distance<input value={brief.viewingDistance} onChange={(event) => updateBrief('viewingDistance', event.target.value)} className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 px-3" /></label>
               </div>
             </details>
+            </details>
           </div>
 
-          <div>
-            <h3 className="text-lg font-black text-[#0b1f3a]">2. Exact wording</h3>
-            <p className="mt-1 text-sm text-slate-600">These fields are rendered separately so phone numbers, prices, dates, and business names stay exact.</p>
+          <details>
+            <summary className="cursor-pointer py-2 text-sm font-semibold text-slate-600">Exact wording & colors (optional)</summary>
+            <p className="mt-1 text-sm text-slate-600">We extract wording from your description automatically. Use these fields if you want to supply specific wording.</p>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               {([
                 ['headline', 'Headline', 'GRAND OPENING'],
@@ -667,42 +735,39 @@ export default function AIWorkspace(props: Props) {
               <label className="text-sm font-semibold text-slate-700">Text color<input type="color" value={brief.textColor} onChange={(event) => updateBrief('textColor', event.target.value)} className="ml-2 h-11 w-14 rounded border border-slate-300 align-middle" /></label>
               <label className="text-sm font-semibold text-slate-700">Accent color<input type="color" value={brief.accentColor} onChange={(event) => updateBrief('accentColor', event.target.value)} className="ml-2 h-11 w-14 rounded border border-slate-300 align-middle" /></label>
             </div>
-          </div>
+          </details>
 
           <div>
-            <h3 className="text-lg font-black text-[#0b1f3a]">3. Optional brand assets</h3>
+            <h3 className="text-lg font-black text-[#0b1f3a]">Add a logo or image (optional)</h3>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white p-3 text-center hover:border-orange-400"><ImagePlus className="h-5 w-5 text-orange-600" /><span className="mt-1 text-sm font-bold">Reference image</span><span className="text-xs text-slate-500">Style guidance · optimized automatically</span><input type="file" className="sr-only" accept="image/png,image/jpeg,image/webp" onChange={(event) => setImage('reference', event.target.files?.[0])} /></label>
-              <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white p-3 text-center hover:border-orange-400"><ImagePlus className="h-5 w-5 text-orange-600" /><span className="mt-1 text-sm font-bold">Logo</span><span className="text-xs text-slate-500">Controlled layer · optimized automatically</span><input type="file" className="sr-only" accept="image/png,image/jpeg,image/webp" onChange={(event) => setImage('logo', event.target.files?.[0])} /></label>
+              <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white p-3 text-center hover:border-orange-400"><ImagePlus className="h-5 w-5 text-orange-600" /><span className="mt-1 text-sm font-bold">Reference image</span><span className="text-xs text-slate-500">Photo, artwork or style reference</span><input type="file" className="sr-only" accept="image/png,image/jpeg,image/webp" onChange={(event) => setImage('reference', event.target.files?.[0])} /></label>
+              <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white p-3 text-center hover:border-orange-400"><ImagePlus className="h-5 w-5 text-orange-600" /><span className="mt-1 text-sm font-bold">Logo</span><span className="text-xs text-slate-500">Your logo is never redrawn by AI</span><input type="file" className="sr-only" accept="image/png,image/jpeg,image/webp" onChange={(event) => setImage('logo', event.target.files?.[0])} /></label>
             </div>
+            <label className="mt-3 block rounded-xl border border-dashed border-slate-300 bg-white p-3 text-sm font-semibold">Add photos to the banner (up to 3)<input type="file" multiple accept="image/png,image/jpeg,image/webp" className="mt-2 block w-full text-sm" disabled={Boolean(stage)} onChange={async event => {
+              const files = Array.from(event.target.files || []);
+              if (files.length + photoImages.length > 3) { setError('Choose up to three photos.'); return; }
+              try { const images = await Promise.all(files.map(file => readImage(file, 256 * 1024, 1600))); setPhotoImages(current => [...current, ...images]); }
+              catch (reason) { setError(reason instanceof Error ? reason.message : 'The photos could not be added.'); }
+              event.target.value = '';
+            }} /></label>
+            {photoImages.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{photoImages.map((src, index) => <div key={index} className="w-24"><img src={src} alt={`Uploaded photo ${index + 1}`} className="h-16 w-24 rounded object-contain" /><button type="button" className="min-h-11 text-xs underline" onClick={() => setPhotoImages(current => current.filter((_, item) => item !== index))}>Remove photo {index + 1}</button></div>)}</div>}
             {(referenceImage || logoImage) && <div className="mt-2 flex flex-wrap items-center gap-2">{referenceImage && <button type="button" onClick={() => removeImage('reference')} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold">Remove reference</button>}{logoImage && <><label className="text-sm font-semibold text-slate-700">Logo position<select value={brief.logoPosition} onChange={(event) => updateBrief('logoPosition', event.target.value as CreativeBrief['logoPosition'])} className="ml-2 min-h-11 rounded-lg border border-slate-300 bg-white px-3"><option value="upper-left">Upper left</option><option value="upper-right">Upper right</option><option value="lower-left">Lower left</option><option value="lower-right">Lower right</option></select></label><button type="button" onClick={() => removeImage('logo')} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold">Remove logo</button></>}</div>}
           </div>
 
-          <div className="rounded-xl border border-orange-200 bg-orange-50 p-4">
-            <h3 className="font-black text-[#0b1f3a]">Interpreted production brief</h3>
-            <ul className="mt-2 space-y-1 text-sm text-slate-700">
-              <li><strong>Canvas:</strong> {brief.widthIn}&quot; × {brief.heightIn}&quot;, exact {ratio.toFixed(4)}:1 ratio</li>
-              <li><strong>Artwork:</strong> flat and edge-to-edge; no mockup, scene, frame, grommets, eyelets, hardware, folds, rulers, or blank bars</li>
-              <li><strong>Copy:</strong> {Object.values(brief.copy).filter(Boolean).length} controlled exact-text field(s)</li>
-              <li><strong>Finishing:</strong> preview overlays remain separate and will not be printed</li>
-            </ul>
-            <button type="button" onClick={() => void reviewBrief()} disabled={!requirementsMet || !access.ready || Boolean(stage)} className={`mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg px-4 text-sm font-black transition ${briefReviewed ? 'bg-emerald-600 text-white' : 'bg-[#0b1f3a] text-white hover:bg-[#12345d]'} disabled:cursor-not-allowed disabled:opacity-50`}>{stage?.startsWith('Interpreting') ? <><Loader2 className="h-4 w-4 animate-spin" /> Interpreting brief…</> : briefReviewed ? <><Check className="h-4 w-4" /> Brief reviewed</> : 'Interpret, review, and confirm brief'}</button>
-          </div>
+          <button type="button" onClick={() => void generate()} disabled={!access.ready || !recoveryReady || !requirementsMet || Boolean(stage)} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 text-base font-bold text-white hover:bg-orange-700 disabled:opacity-50"><Sparkles className="h-5 w-5" />{concepts.length ? 'Create another design' : 'Create my banner'}</button>
+          <details className="text-sm text-slate-600"><summary className="cursor-pointer py-2">Review wording before creating (optional)</summary><button type="button" onClick={() => void reviewBrief()} disabled={!requirementsMet || !access.ready || Boolean(stage)} className="min-h-11 underline">Extract wording from my description</button></details>
         </section>
 
         <section className="min-w-0 space-y-5 p-4 sm:p-6">
           <div className="flex flex-wrap items-end justify-between gap-3">
-            <div><h3 className="text-lg font-black text-[#0b1f3a]">4. Generate and refine</h3><p className="text-sm text-slate-600">Concept previews always show the complete canvas—never a square crop.</p></div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm font-semibold text-slate-600">One concept per request · compare up to four</span>
-              <button type="button" onClick={generate} disabled={!access.ready || !briefReviewed || !requirementsMet || Boolean(stage)} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-orange-600 px-5 text-sm font-black text-white shadow-sm hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-50"><Sparkles className="h-4 w-4" /> {concepts.length ? 'Generate new concepts' : 'Generate concepts'}</button>
-            </div>
+            <div><h3 className="text-lg font-black text-[#0b1f3a]">Your banner</h3><p className="text-sm text-slate-600">Preview your banner, make changes, then use it in your order.</p></div>
+
           </div>
 
           {stage && <div role="status" aria-live="polite" className="flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm font-semibold text-blue-900"><span className="flex items-center gap-2"><Loader2 className="h-5 w-5 animate-spin" /> {stage}</span><button type="button" onClick={() => controllerRef.current?.abort()} className="min-h-11 rounded-lg border border-blue-300 px-3" title="The secure background job will continue and can be resumed by repeating the same action.">Stop waiting</button></div>}
           {error && <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><XCircle className="mt-0.5 h-5 w-5 shrink-0" /><span>{error}</span></div>}
 
-          {!concepts.length && !stage && <div className="grid min-h-72 place-items-center rounded-2xl border-2 border-dashed border-slate-300 bg-white p-8 text-center"><div><Sparkles className="mx-auto h-9 w-9 text-orange-500" /><h4 className="mt-3 text-lg font-black text-[#0b1f3a]">Your concepts will appear here</h4><p className="mt-1 max-w-md text-sm text-slate-600">Confirm the creative brief, then GPT Image 2 will create the background, apply exact text and logo layers, and validate the finished artwork.</p></div></div>}
+          {!concepts.length && !stage && <div className="grid min-h-72 place-items-center rounded-2xl border-2 border-dashed border-slate-300 bg-white p-8 text-center"><div><Sparkles className="mx-auto h-9 w-9 text-orange-500" /><h4 className="mt-3 text-lg font-black text-[#0b1f3a]">Your concepts will appear here</h4><p className="mt-1 max-w-md text-sm text-slate-600">Tell us what your banner should say and look like, then choose Create my banner.</p></div></div>}
 
           {concepts.length > 0 && <div className="grid grid-cols-1 gap-4 2xl:grid-cols-2">{concepts.map((concept, index) => (
             <article key={concept.versionId} className={`rounded-2xl border-2 bg-white p-3 shadow-sm transition ${selected?.versionId === concept.versionId ? 'border-orange-500 ring-2 ring-orange-100' : 'border-slate-200 hover:border-slate-300'}`}>
@@ -720,14 +785,15 @@ export default function AIWorkspace(props: Props) {
 
             {pendingEdit && <div className="mt-4 rounded-xl border-2 border-orange-300 bg-orange-50 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><h5 className="font-black text-[#0b1f3a]">Review the proposed edit</h5><p className="mt-1 max-w-3xl text-sm text-slate-700">Image editing preserves unrelated details when technically possible, but cannot guarantee pixel-identical regions. Compare the complete canvases before accepting.</p></div><StatusBadge concept={pendingEdit} /></div><div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2"><figure><figcaption className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-600">Before</figcaption><div className="flex h-56 items-center justify-center overflow-hidden rounded-lg border border-slate-300 bg-slate-100"><img src={imageSrc(selected)} alt="Artwork before proposed AI edit" className="h-full w-full object-contain" /></div></figure><figure><figcaption className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-600">Proposed edit</figcaption><div className="flex h-56 items-center justify-center overflow-hidden rounded-lg border border-orange-300 bg-slate-100"><img src={imageSrc(pendingEdit)} alt="Artwork after proposed AI edit" className="h-full w-full object-contain" /></div></figure></div><div className="mt-3 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" onClick={rejectPendingEdit} className="min-h-11 rounded-lg border border-slate-400 bg-white px-5 text-sm font-bold text-slate-800">Reject edit</button><button type="button" onClick={acceptPendingEdit} className="min-h-11 rounded-lg bg-orange-600 px-5 text-sm font-black text-white hover:bg-orange-700">Accept edit</button></div></div>}
 
+            <LayerControls brief={brief} concept={selected} hasLogo={Boolean(logoImage)} photoCount={photoImages.length} busy={Boolean(stage || pendingEdit)} onChange={setBrief} onApply={() => void edit(true)} />
             <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-[1fr_auto]">
               <label className="text-sm font-bold text-slate-800">Edit with AI<textarea value={editInstruction} onChange={(event) => setEditInstruction(event.target.value.slice(0, 700))} rows={3} className="mt-1 w-full rounded-xl border border-slate-300 p-3 text-base" placeholder='Example: “Make the background lighter and keep everything else exactly the same.”' /></label>
-              <button type="button" onClick={edit} disabled={!editInstruction.trim() || Boolean(stage) || !access.ready || Boolean(pendingEdit)} className="inline-flex min-h-11 items-center justify-center gap-2 self-end rounded-lg bg-[#0b1f3a] px-5 py-3 text-sm font-black text-white disabled:opacity-50"><WandSparkles className="h-4 w-4" /> Edit current design</button>
+              <button type="button" onClick={() => void edit()} disabled={!editInstruction.trim() || Boolean(stage) || !access.ready || Boolean(pendingEdit)} className="inline-flex min-h-11 items-center justify-center gap-2 self-end rounded-lg bg-[#0b1f3a] px-5 py-3 text-sm font-black text-white disabled:opacity-50"><WandSparkles className="h-4 w-4" /> Edit current design</button>
             </div>
             <div className="mt-2 flex flex-wrap gap-2">{['Make the background lighter', 'Change colors to navy and orange', ...(logoImage ? ['Move the logo to the upper-left'] : []), 'Remove the people', 'Make it more professional', 'Keep everything else exactly the same'].map((value) => <button key={value} type="button" onClick={() => setEditInstruction(value)} className="min-h-11 rounded-full border border-slate-300 bg-slate-50 px-3 text-xs font-semibold text-slate-700 hover:border-orange-400">{value}</button>)}</div>
 
             <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className={`rounded-xl border p-4 ${selected.validation.passed ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}><div className="flex items-center gap-2 font-black text-[#0b1f3a]">{selected.validation.passed ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : <AlertCircle className="h-5 w-5 text-amber-700" />} Print-readiness validation</div><ul className="mt-2 space-y-1 text-sm text-slate-700"><li>Dimensions: {selected.validation.checks.dimensions.passed ? 'Exact' : 'Failed'}</li><li>Full edge coverage: {selected.validation.checks.edgeCoverage.passed ? 'Passed' : 'Failed'}</li><li>Flat artwork / no hardware: {selected.validation.checks.flatArtwork.passed ? 'Passed' : 'Failed'}</li><li>Exact text OCR: {selected.validation.checks.exactText.passed ? 'Passed' : 'Failed'}</li><li>Resolution: {selected.validation.checks.resolution.effectivePpi} PPI ({selected.validation.checks.resolution.passed ? 'passed' : 'failed'})</li></ul>{selected.validation.reasons.length > 0 && <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-amber-900">{selected.validation.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>}</div>
+              <div className={`rounded-xl border p-4 ${selected.validation.passed ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}><div className="flex items-center gap-2 font-black text-[#0b1f3a]">{selected.validation.passed ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : <AlertCircle className="h-5 w-5 text-amber-700" />} Print-readiness validation</div><ul className="mt-2 space-y-1 text-sm text-slate-700"><li>Dimensions: {selected.validation.checks.dimensions.passed ? 'Exact' : 'Failed'}</li><li>Full edge coverage: {selected.validation.checks.edgeCoverage.passed ? 'Passed' : 'Failed'}</li><li>Flat artwork / no hardware: {selected.validation.checks.flatArtwork.passed ? 'Passed' : 'Failed'}</li><li>Exact wording layers: {selected.validation.checks.exactText.passed ? 'Passed' : 'Failed'}</li><li>Output canvas resolution: {selected.validation.checks.resolution.effectivePpi} PPI ({selected.validation.checks.resolution.passed ? 'passed' : 'failed'})</li></ul>{selected.validation.reasons.length > 0 && <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-amber-900">{selected.validation.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>}</div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><div className="flex items-center gap-2 font-black text-[#0b1f3a]"><Clock3 className="h-5 w-5 text-slate-500" /> Version and output</div><ul className="mt-2 space-y-1 text-sm text-slate-700"><li>Output: {selected.diagnostics.outputDimensions}px</li><li>Ratio method: {selected.diagnostics.ratioStrategy.replace(/-/g, ' ')}</li><li>Model: {selected.diagnostics.modelSnapshot || selected.diagnostics.model}</li><li>Generation time: {formatDuration(selected.diagnostics.durationMs)}</li><li>Estimated image API cost: {selected.diagnostics.estimatedCostUsd == null ? 'Unavailable' : `$${selected.diagnostics.estimatedCostUsd.toFixed(4)}`}</li><li>Auto-repaired: {selected.diagnostics.repaired ? 'Yes' : 'No'}</li></ul></div>
             </div>
 
@@ -735,12 +801,12 @@ export default function AIWorkspace(props: Props) {
 
             <details className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3"><summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-bold text-[#0b1f3a]">Admin diagnostics <ChevronDown className="h-4 w-4" /></summary><dl className="grid grid-cols-1 gap-x-4 gap-y-2 pt-3 text-xs text-slate-600 sm:grid-cols-2"><div><dt className="font-bold">Generation ID</dt><dd className="break-all">{selected.generationId || generationId}</dd></div><div><dt className="font-bold">Version ID</dt><dd className="break-all">{selected.versionId}</dd></div><div><dt className="font-bold">Provider request ID</dt><dd className="break-all">{selected.diagnostics.providerRequestId || 'Not returned'}</dd></div><div><dt className="font-bold">Validation model</dt><dd>{selected.validation.vision.model}</dd></div></dl></details>
 
-            <button type="button" onClick={apply} disabled={!selected.validation.passed || Boolean(stage) || Boolean(pendingEdit)} className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 text-base font-black text-white shadow-sm hover:bg-orange-700 disabled:cursor-not-allowed disabled:bg-slate-300"><CheckCircle2 className="h-5 w-5" /> {pendingEdit ? 'Accept or reject the proposed edit first' : selected.validation.passed ? 'Approve and use in banner configurator' : 'Approval blocked until validation passes'}</button>
+            <button type="button" onClick={apply} disabled={!selected.validation.passed || hasUnappliedChanges || Boolean(stage) || Boolean(pendingEdit)} className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 text-base font-black text-white shadow-sm hover:bg-orange-700 disabled:cursor-not-allowed disabled:bg-slate-300"><CheckCircle2 className="h-5 w-5" /> {pendingEdit ? 'Accept or reject the proposed edit first' : hasUnappliedChanges ? 'Apply your changes before continuing' : selected.validation.passed ? 'Use this banner' : 'Correct the design before continuing'}</button>
           </div>}
         </section>
       </div>
 
-      {fullPreview && selected && <div role="dialog" aria-modal="true" aria-label="Full artwork preview" className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/85 p-4" onClick={() => setFullPreview(false)}><div className="w-full max-w-[95vw]" onClick={(event) => event.stopPropagation()}><div className="mb-3 flex justify-end"><button type="button" onClick={() => setFullPreview(false)} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-white px-4 text-sm font-bold text-slate-900"><XCircle className="h-4 w-4" /> Close</button></div><img src={imageSrc(selected)} alt="Full-size flat print artwork" className="max-h-[85vh] w-full object-contain" /></div></div>}
+      {fullPreview && selected && <div role="dialog" aria-modal="true" aria-label="Full artwork preview" className="fixed inset-0 z-[10020] grid place-items-center bg-slate-950/85 p-4" onClick={() => setFullPreview(false)}><div className="w-full max-w-[95vw]" onClick={(event) => event.stopPropagation()}><div className="mb-3 flex justify-end"><button type="button" onClick={() => setFullPreview(false)} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-white px-4 text-sm font-bold text-slate-900"><XCircle className="h-4 w-4" /> Close</button></div><img src={imageSrc(selected)} alt="Full-size flat print artwork" className="max-h-[85vh] w-full object-contain" /></div></div>}
     </div>
   );
 }

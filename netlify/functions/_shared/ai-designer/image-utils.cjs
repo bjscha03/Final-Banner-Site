@@ -10,29 +10,23 @@ const SUPPORTED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp']);
 const PROVIDER_MAX_EDGE = 2560;
 const PROVIDER_MAX_PIXELS = 2560 * 1440;
 
-function gcd(a, b) {
-  let x = Math.abs(a);
-  let y = Math.abs(b);
-  while (y) [x, y] = [y, x % y];
-  return x || 1;
-}
-
 function planCanvas(widthIn, heightIn) {
-  const scaledW = Math.max(1, Math.round(widthIn * 100));
-  const scaledH = Math.max(1, Math.round(heightIn * 100));
-  const divisor = gcd(scaledW, scaledH);
-  const unitW = scaledW / divisor;
-  const unitH = scaledH / divisor;
-  const maxW = 3840;
-  const maxH = 2160;
-  const finalK = Math.floor(Math.min(maxW / (unitW * 16), maxH / (unitH * 16)));
-  if (finalK < 1) {
-    const error = new Error('This custom aspect ratio is outside the supported print canvas range.');
+  if (![widthIn, heightIn].every(value => Number.isFinite(value) && value > 0)) {
+    const error = new Error('Choose valid banner dimensions.');
     error.code = 'INVALID_DIMENSIONS';
     throw error;
   }
-  const finalWidth = unitW * 16 * finalK;
-  const finalHeight = unitH * 16 * finalK;
+  const longest = Math.max(widthIn, heightIn);
+  const minimumPpi = longest <= 24 ? 100 : longest <= 48 ? 60 : longest <= 96 ? 40 : 30;
+  // Render typography at print size regardless of orientation. Bound memory for
+  // unusually large banners; validation still blocks insufficient resolution.
+  const targetPpi = Math.min(
+    Math.max(minimumPpi, 3840 / longest),
+    8000 / longest,
+    Math.sqrt(24_000_000 / (widthIn * heightIn)),
+  );
+  const finalWidth = Math.max(1, Math.round(widthIn * targetPpi));
+  const finalHeight = Math.max(1, Math.round(heightIn * targetPpi));
   const ratio = widthIn / heightIn;
   let providerWidth = finalWidth;
   let providerHeight = finalHeight;
@@ -57,7 +51,7 @@ function planCanvas(widthIn, heightIn) {
     PROVIDER_MAX_EDGE / providerHeight,
     Math.sqrt(PROVIDER_MAX_PIXELS / (providerWidth * providerHeight)),
   );
-  if (providerScale < 1) {
+  {
     providerWidth = Math.max(16, Math.floor((providerWidth * providerScale) / 16) * 16);
     providerHeight = Math.max(16, Math.floor((providerHeight * providerScale) / 16) * 16);
   }
@@ -96,7 +90,9 @@ async function prepareOutpaintInput(buffer, plan) {
   // keeps all original content recoverable and avoids blind crop/fill behavior.
   const source = await sharp(buffer, { limitInputPixels: 40_000_000 })
     .rotate()
-    .resize(plan.finalWidth, plan.finalHeight, {
+    .resize(
+      Math.max(1, Math.floor(Math.min(plan.providerWidth, plan.providerHeight * plan.ratio))),
+      Math.max(1, Math.floor(Math.min(plan.providerHeight, plan.providerWidth / plan.ratio))), {
       fit: 'inside',
       withoutEnlargement: false,
     })

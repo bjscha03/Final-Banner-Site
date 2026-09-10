@@ -11,7 +11,9 @@ const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const { createSessionToken } = require('../_shared/server-auth.cjs');
-const { statusHandler, briefHandler, generateHandler, editHandler, workerHandler, retiredHandler } = require('../_shared/ai-designer/handler.cjs');
+const { statusHandler, briefHandler, generateHandler, editHandler, exportHandler, workerHandler, retiredHandler } = require('../_shared/ai-designer/handler.cjs');
+const { normalizeLayers, mergeLayerEdits, removePhotoLayers } = require('../_shared/ai-designer/layers.cjs');
+const { temporaryArtworkUrl } = require('../_shared/ai-designer/storage.cjs');
 const { planCanvas, prepareOutpaintInput, PROVIDER_MAX_EDGE, PROVIDER_MAX_PIXELS } = require('../_shared/ai-designer/image-utils.cjs');
 const { compositeArtwork, wrapText } = require('../_shared/ai-designer/compositor.cjs');
 const { normalizeBrief } = require('../_shared/ai-designer/schema.cjs');
@@ -447,8 +449,6 @@ describe('exact dimensions and template fill', () => {
 
   it.each(sizes)('%s produces an exact, undistorted final ratio', (_label, widthIn, heightIn) => {
     const plan = planCanvas(widthIn, heightIn);
-    expect(plan.finalWidth % 16).toBe(0);
-    expect(plan.finalHeight % 16).toBe(0);
     expect(plan.providerWidth % 16).toBe(0);
     expect(plan.providerHeight % 16).toBe(0);
     expect(plan.finalWidth / plan.finalHeight).toBeCloseTo(widthIn / heightIn, 10);
@@ -457,8 +457,11 @@ describe('exact dimensions and template fill', () => {
     expect(plan.providerWidth).toBeLessThanOrEqual(PROVIDER_MAX_EDGE);
     expect(plan.providerHeight).toBeLessThanOrEqual(PROVIDER_MAX_EDGE);
     expect(plan.providerWidth * plan.providerHeight).toBeLessThanOrEqual(PROVIDER_MAX_PIXELS);
-    expect(plan.finalWidth).toBeLessThanOrEqual(3840);
-    expect(plan.finalHeight).toBeLessThanOrEqual(2160);
+    expect(plan.finalWidth).toBeLessThanOrEqual(8000);
+    expect(plan.finalHeight).toBeLessThanOrEqual(8000);
+    expect(plan.finalWidth * plan.finalHeight).toBeLessThanOrEqual(24_010_000);
+    const minimumPpi = Math.max(widthIn, heightIn) <= 48 ? 60 : Math.max(widthIn, heightIn) <= 96 ? 40 : 30;
+    expect(Math.min(plan.finalWidth / widthIn, plan.finalHeight / heightIn)).toBeGreaterThanOrEqual(minimumPpi);
   });
 
   it('keeps common banner requests out of GPT Image 2 experimental resolutions', () => {
@@ -476,6 +479,85 @@ describe('exact dimensions and template fill', () => {
 });
 
 describe('deterministic exact-copy composition', () => {
+  const scenarios = [
+    ['grand-opening', "Tony’s Pizza", 'GRAND OPENING', 'Free slice with any drink', 'Saturday September 19', '#981c22'],
+    ['birthday', '', 'HAPPY 50TH BIRTHDAY', 'Celebrating Maria', 'September 19', '#55337d'],
+    ['graduation', 'CLASS OF 2026', 'CONGRATULATIONS!', 'We are proud of you, Jordan', '', '#133f65'],
+    ['real-estate', 'NORTHLINE REALTY', 'OPEN HOUSE', 'Find your next home', 'Sunday 1–4 PM', '#23493d'],
+    ['construction', 'NORTHLINE CONSTRUCTION', 'BUILT TO LAST', 'Residential & Commercial', '(502) 555-0101', '#18334c'],
+    ['church', 'COMMUNITY CHURCH', 'YOU BELONG HERE', 'Join us this Sunday', '10:00 AM', '#184d60'],
+    ['school', 'LINCOLN ELEMENTARY', 'FALL FESTIVAL', 'Games • Food • Family Fun', 'October 3 • 4–7 PM', '#224d77'],
+    ['sale', 'WEEKEND SPECIAL', '25% OFF', 'All outdoor furniture', 'Friday through Sunday', '#202a3a'],
+    ['restaurant', 'TONY’S PIZZA', 'LUNCH SPECIAL', '2 slices + a drink — $8.99', 'Monday–Friday • 11 AM–2 PM', '#9b2720'],
+    ['sports', 'NORTHLINE HIGH SCHOOL', 'GO EAGLES!', 'One team. One goal.', 'SEASON 2026', '#164d42'],
+  ];
+  it.each(scenarios)('renders the complete %s scenario with safe, editable wording', async (name, businessName, headline, offer, date, color) => {
+    const portrait = name === 'birthday';
+    const width = portrait ? 480 : 960; const height = portrait ? 960 : 480;
+    const brief = productionBrief({ textPosition: portrait ? 'center' : 'left', copy: { businessName, headline, offer, date } });
+    brief.outputWidthPx = width; brief.outputHeightPx = height;
+    const background = await sharp({ create: { width, height, channels: 3, background: color } }).jpeg().toBuffer();
+    const result = await compositeArtwork({ background, brief });
+    expect(result.textLayers.map(layer => layer.value).sort()).toEqual(Object.values(brief.copy).filter(Boolean).sort());
+    expect((await sharp(result.buffer).metadata()).format).toBe('jpeg');
+    if (process.env.AI_QA_RENDER_DIR) {
+      fs.mkdirSync(process.env.AI_QA_RENDER_DIR, { recursive: true });
+      fs.writeFileSync(path.join(process.env.AI_QA_RENDER_DIR, `${name}.jpg`), result.buffer);
+    }
+  });
+  it('clamps layer positions and rejects injected font/color properties', () => {
+    expect(normalizeLayers({ headline: { x: -5, y: 100, scale: 8, color: 'red\"/><script>', font: 'url(secret)', width: null }, arbitrary: { x: 0.5 } }))
+      .toEqual({ headline: { x: 0.05, y: 0.95, scale: 3 } });
+  });
+
+  it('preserves unrelated layer settings during conversational changes', () => {
+    expect(mergeLayerEdits({ headline: { x: 0.2, color: '#112233', scale: 1.2 }, logo: { y: 0.6 } }, { headline: { scale: 1.5, x: null, color: null } }))
+      .toEqual({ headline: { x: 0.2, color: '#112233', scale: 1.5 }, logo: { y: 0.6 } });
+  });
+
+  it('keeps the remaining photo positions when deleting a photo', () => {
+    expect(removePhotoLayers({ photo0: { x: 0.1 }, photo1: { x: 0.5 }, photo2: { x: 0.7 }, headline: { scale: 2 } }, 3, [1]))
+      .toEqual({ photo0: { x: 0.1 }, photo1: { x: 0.7 }, headline: { scale: 2 } });
+  });
+
+  it('handles decimal custom sizes within one output pixel', () => {
+    const plan = planCanvas(73.23, 35.71);
+    expect(Math.abs(plan.finalWidth / plan.finalHeight / (73.23 / 35.71) - 1)).toBeLessThan(1 / plan.finalHeight);
+    expect(plan.providerWidth % 16).toBe(0);
+    expect(plan.providerHeight % 16).toBe(0);
+  });
+
+  it('keeps print quality and layer coordinates independently of the small preview', async () => {
+    const brief = productionBrief({ copy: { headline: 'TONY’S <PIZZA> & MORE' }, layers: { headline: { x: 0.9, y: 0.9, scale: 1.3, font: 'Georgia', color: '#ffffff' }, logo: { x: 0.8, y: 0.05 }, photo0: { x: 0.6, y: 0.5 } } });
+    brief.outputWidthPx = 1920; brief.outputHeightPx = 960;
+    const background = await sharp({ create: { width: 1920, height: 960, channels: 3, background: '#143453' } }).jpeg().toBuffer();
+    const asset = { buffer: await sharp({ create: { width: 200, height: 100, channels: 4, background: '#e86414' } }).png().toBuffer(), mimeType: 'image/png' };
+    const result = await compositeArtwork({ background, brief, logo: asset, photos: [asset, asset] });
+    expect((await sharp(result.buffer).metadata()).width).toBe(1920);
+    expect((await sharp(result.preview).metadata()).width).toBe(1600);
+    expect(result.textLayers[0]).toMatchObject({ value: 'TONY’S <PIZZA> & MORE', font: 'Georgia' });
+    expect(result.textLayers[0].x + result.textLayers[0].width).toBeLessThanOrEqual(1920 * 0.95);
+    expect(result.photoLayers).toHaveLength(2);
+    for (const layer of [...result.photoLayers, result.logoLayer]) {
+      expect(layer.left).toBeGreaterThanOrEqual(1920 * 0.05);
+      expect(layer.top).toBeGreaterThanOrEqual(960 * 0.05);
+      expect(layer.left + layer.width).toBeLessThanOrEqual(1920 * 0.95);
+      expect(layer.top + layer.height).toBeLessThanOrEqual(960 * 0.95);
+    }
+  });
+
+  it('denies anonymous and non-admin production exports', async () => {
+    const anonymous = await exportHandler({ httpMethod: 'POST', headers: {}, body: '{}' });
+    expect(anonymous.statusCode).toBe(401);
+    const event = adminEvent();
+    event.headers.authorization = `Bearer ${createSessionToken({ id: 'customer', email: 'customer@example.test', is_admin: false })}`;
+    expect((await exportHandler(event)).statusCode).toBe(401);
+  });
+
+  it('rejects forged production artwork references before making a download request', () => {
+    process.env.CLOUDINARY_CLOUD_NAME = 'test'; process.env.CLOUDINARY_API_KEY = 'test'; process.env.CLOUDINARY_API_SECRET = 'test';
+    expect(() => temporaryArtworkUrl('forged.signature', { sub: 'test-admin' })).toThrow(/invalid or expired/);
+  });
   it('never drops characters while wrapping', () => {
     const value = 'CALL 1-800-555-0199 OR VISIT EXAMPLE.COM TODAY';
     const lines = wrapText(value, 12);

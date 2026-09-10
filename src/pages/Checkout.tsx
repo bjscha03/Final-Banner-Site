@@ -1,4 +1,5 @@
 import CartLinePrice from '@/components/cart/CartLinePrice';
+import { trackAIEvent } from '@/lib/aiAnalytics';
 import { getCartDisplayPrices, getEnteredPromoLabel } from '@/lib/cartDisplayPricing';
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -551,6 +552,8 @@ const Checkout: React.FC = () => {
       quantity: Math.max(1, item.quantity),
     }));
     checkoutTrackedRef.current = true;
+    const aiItems = items.filter(item => /^ai-(banner|yard-sign|car-magnet)-/i.test(item.file_name || ''));
+    if (aiItems.length) trackAIEvent('ai_checkout_started', { count: aiItems.length });
     trackBeginCheckout(analyticsItems, totalCents, discountCode?.code || null);
     trackViewCart(analyticsItems, totalCents, discountCode?.code || null);
 
@@ -567,6 +570,8 @@ const Checkout: React.FC = () => {
     try {
       console.log('Payment success handler called with order ID:', orderId);
       const paidItems = items;
+      const aiItems = paidItems.filter(item => /^ai-(banner|yard-sign|car-magnet)-/i.test(item.file_name || ''));
+      if (aiItems.length) trackAIEvent('ai_purchase_completed', { order_id: orderId, count: aiItems.length });
       const paidTotalCents = Number.isInteger(Number(orderData?.total_cents))
         ? Number(orderData.total_cents)
         : totalCents;

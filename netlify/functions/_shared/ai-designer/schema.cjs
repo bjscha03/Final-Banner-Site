@@ -1,6 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const { normalizeLayers } = require('./layers.cjs');
 
 const COPY_FIELDS = [
   'headline',
@@ -122,6 +123,9 @@ function normalizeBrief(input = {}) {
     productType,
     textPosition,
     logoPosition,
+    layers: normalizeLayers(input.layers),
+    textColor: /^#[a-f0-9]{6}$/i.test(input.textColor || '') ? input.textColor : '#ffffff',
+    accentColor: /^#[a-f0-9]{6}$/i.test(input.accentColor || '') ? input.accentColor : '#f97316',
     copy,
     requiredText: requiredText(copy),
     safeZonePercent: 5,

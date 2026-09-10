@@ -97,15 +97,15 @@ async function storeTemporaryArtwork(buffer, { session, generationId }) {
   });
 }
 
-async function readTemporaryArtwork(reference, session) {
+function temporaryArtworkUrl(reference, session) {
   configure();
   const payload = readPayload(reference, session);
-  if (!payload) {
+  if (!payload || payload.kind) {
     const error = new Error('The editable artwork reference is invalid or expired.');
     error.code = 'INVALID_IMAGE';
     throw error;
   }
-  const url = cloudinary.url(payload.publicId, {
+  return cloudinary.url(payload.publicId, {
     resource_type: 'image',
     type: 'authenticated',
     version: payload.version,
@@ -113,6 +113,10 @@ async function readTemporaryArtwork(reference, session) {
     secure: true,
     sign_url: true,
   });
+}
+
+async function readTemporaryArtwork(reference, session) {
+  const url = temporaryArtworkUrl(reference, session);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15000);
   try {
@@ -299,6 +303,7 @@ module.exports = {
   isTemporaryStorageConfigured,
   storeTemporaryArtwork,
   readTemporaryArtwork,
+  temporaryArtworkUrl,
   createJob,
   readJob,
   readJobInternal,

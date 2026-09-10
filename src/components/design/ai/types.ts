@@ -14,6 +14,7 @@ export type ExactCopy = {
 };
 
 export type CreativeBrief = {
+  layers?: Record<string, { x?: number; y?: number; scale?: number; width?: number; color?: string; font?: string }>;
   structured: boolean;
   description: string;
   purpose: string;
@@ -55,10 +56,16 @@ export type AIValidation = {
 };
 
 export type AIConcept = {
+  photoImages?: string[];
+  photoLayers?: Array<{ role: string; left: number; top: number; width: number; height: number }>;
+  logoImage?: string | null;
+  referenceImage?: string | null;
+  brief?: CreativeBrief;
   id: string;
   versionId: string;
   generationId: string;
   backgroundRef: string;
+  artworkRef?: string;
   imageBase64: string;
   mimeType: string;
   widthPx: number;
@@ -85,6 +92,7 @@ export type AIConcept = {
 };
 
 export type AIDesignSession = {
+  photoImages?: string[];
   generationId: string;
   brief: CreativeBrief;
   selectedConcept: AIConcept;

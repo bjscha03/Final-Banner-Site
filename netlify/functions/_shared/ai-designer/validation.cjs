@@ -46,6 +46,7 @@ function validationSchema() {
     blankBarsOrLetterboxing: { type: 'boolean' },
     distortedComposition: { type: 'boolean' },
     importantContentOutsideSafeMargins: { type: 'boolean' },
+    illegibleOrOverlappingText: { type: 'boolean' },
     requiredTextExact: { type: 'boolean' },
     detectedText: { type: 'array', items: { type: 'string' } },
     reasons: { type: 'array', items: { type: 'string' } },
@@ -65,7 +66,7 @@ async function visualInspection(buffer, requiredText) {
         content: [
           {
             type: 'input_text',
-            text: `Inspect this final commercial print artwork. It must be flat edge-to-edge artwork only, not a photograph or mockup. Flag physical banners, installations, rooms, walls, fences, sky/environment surrounding a banner, folds, ripples, grommets, eyelets, rope, poles, hooks, mounting hardware, frames, blank bars, distortion, or important content outside a 5% safe margin. Required deterministic wording must appear character-for-character: ${expected}. If no wording is required, requiredTextExact must be true. Return only the requested schema.`,
+            text: `Inspect this final commercial print artwork. It must be flat edge-to-edge artwork only, not a photograph or mockup. Flag physical banners, installations, rooms, walls, fences, sky/environment surrounding a banner, folds, ripples, grommets, eyelets, rope, poles, hooks, mounting hardware, frames, blank bars, distortion, or important content outside a 5% safe margin. Flag illegibleOrOverlappingText if text overlaps other text or a logo, or has insufficient contrast to read. Required deterministic wording must appear character-for-character: ${expected}. If no wording is required, requiredTextExact must be true. Return only the requested schema.`,
           },
           { type: 'input_image', image_url: toDataUrl(buffer), detail: 'high' },
         ],
@@ -92,7 +93,7 @@ async function validateArtwork({ background, artwork, brief, plan }) {
   const [backgroundMeta, artworkMeta] = await Promise.all([sharp(background).metadata(), sharp(artwork).metadata()]);
   const dimensionPass = artworkMeta.width === plan.finalWidth && artworkMeta.height === plan.finalHeight;
   const aspectError = Math.abs((artworkMeta.width / artworkMeta.height) - brief.aspectRatio);
-  const exactRatioPass = aspectError <= 1 / Math.max(plan.finalWidth, plan.finalHeight);
+  const exactRatioPass = aspectError / brief.aspectRatio <= 1 / Math.min(plan.finalWidth, plan.finalHeight);
   const coverage = await edgeCoverage(background, backgroundMeta.width, backgroundMeta.height);
   const ppi = Math.min(artworkMeta.width / brief.widthIn, artworkMeta.height / brief.heightIn);
   const minimumPpi = requiredPpi(brief.widthIn, brief.heightIn);
@@ -101,7 +102,7 @@ async function validateArtwork({ background, artwork, brief, plan }) {
   const visualFlags = vision.available ? [
     'physicalBannerMockup', 'surroundingScene', 'grommetsOrEyelets', 'mountingHardware',
     'foldsOrMaterialRipples', 'frameOrBorder', 'blankBarsOrLetterboxing',
-    'distortedComposition', 'importantContentOutsideSafeMargins',
+    'distortedComposition', 'importantContentOutsideSafeMargins', 'illegibleOrOverlappingText',
   ].filter((key) => vision[key] === true) : ['visionUnavailable'];
   // Required copy is drawn by the deterministic SVG compositor after the AI
   // background is complete. The compositor never truncates or ellipsizes a

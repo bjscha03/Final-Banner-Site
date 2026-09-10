@@ -36,7 +36,7 @@ const CLOSED: Omit<AIAdminStatus, 'refresh'> = {
 };
 
 export function useAIAdminAccess(active = true) {
-  const [status, setStatus] = useState<AIAdminStatus>(() => (
+  const [status, setStatus] = useState<Omit<AIAdminStatus, 'refresh'>>(() => (
     ENABLE_AI && active ? { ...CLOSED, loading: true, enabled: true, blocker: null } : CLOSED
   ));
   const [refreshKey, setRefreshKey] = useState(0);
