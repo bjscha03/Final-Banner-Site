@@ -755,3 +755,35 @@ describe('sitewide orange button contrast', () => {
     expect(1.05 / (luminance + 0.05)).toBeGreaterThanOrEqual(4.5);
   });
 });
+
+describe('fresh AI prompt rewriting', () => {
+  it('does not carry inferred wording or art direction from the previous design', () => {
+    const { freshPromptBrief } = require('../_shared/ai-designer/schema.cjs');
+    const brief = freshPromptBrief({
+      widthIn: 72, heightIn: 36, material: '13oz', productType: 'banner',
+      description: 'A clean grand opening banner for a coffee shop.',
+      copy: { headline: 'Happy Birthday Bryson!' },
+      subjectMatter: 'Paw Patrol rescue pups', focalPoint: 'Bryson',
+      visualStyle: 'Birthday cartoon lettering', composition: 'Rescue tower',
+    });
+    expect(brief.description).toBe('A clean grand opening banner for a coffee shop.');
+    expect(JSON.stringify(brief)).not.toMatch(/Bryson|Paw Patrol|Rescue tower|Birthday cartoon/);
+    expect(brief.requiredText).toEqual([]);
+    expect(brief.widthIn).toBe(72);
+    expect(brief.heightIn).toBe(36);
+  });
+
+  it('keeps only explicitly entered exact wording while rewriting', () => {
+    const { freshPromptBrief } = require('../_shared/ai-designer/schema.cjs');
+    const brief = freshPromptBrief({
+      widthIn: 96, heightIn: 48, material: '13oz', productType: 'banner',
+      description: 'Create a coffee shop opening banner.',
+      copy: { headline: 'OLD HEADLINE', phone: 'Invented old phone' },
+      copyOverrides: { headline: 'NORTHLINE COFFEE', supportingText: '' },
+    });
+    expect(brief.copy.headline).toBe('NORTHLINE COFFEE');
+    expect(brief.copy.phone).toBe('');
+    expect(brief.copyOverrides.supportingText).toBe('');
+    expect(brief.requiredText).toEqual(['NORTHLINE COFFEE']);
+  });
+});

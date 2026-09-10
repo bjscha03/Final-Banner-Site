@@ -169,6 +169,17 @@ function fitInterpretedDirection(input = {}) {
   return result;
 }
 
+// Prompt rewriting starts from the current request, not inferred metadata from
+// a previously selected design. Explicit customer wording remains authoritative.
+function freshPromptBrief(input) {
+  return normalizeBrief({
+    productType: input.productType, widthIn: input.widthIn, heightIn: input.heightIn,
+    material: input.material, quantity: input.quantity, usage: input.usage,
+    description: input.description, copy: input.copyOverrides || {},
+    copyOverrides: input.copyOverrides || {}, structured: false,
+  });
+}
+
 function buildImprovedPrompt(candidate, brief) {
   try { return validateImprovedPrompt(candidate, brief.requiredText); } catch {
     // A verbose or imperfect prose rewrite must not require another paid call.
@@ -197,4 +208,5 @@ module.exports = {
   validateImprovedPrompt,
   fitInterpretedDirection,
   buildImprovedPrompt,
+  freshPromptBrief,
 };

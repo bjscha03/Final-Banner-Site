@@ -9,7 +9,7 @@ async function reportProgress(stage, preview) {
 }
 const { mergeLayerEdits, removePhotoLayers } = require('./layers.cjs');
 const { isEnabled, getImageModel, getValidationModel, getImageQuality, MODEL_SNAPSHOT } = require('./config.cjs');
-const { normalizeBrief, cleanText, stableHash, buildImprovedPrompt, fitInterpretedDirection } = require('./schema.cjs');
+const { normalizeBrief, cleanText, stableHash, buildImprovedPrompt, freshPromptBrief, fitInterpretedDirection } = require('./schema.cjs');
 const { buildGenerationPrompt, buildEditPrompt, buildCopyChangeInstruction } = require('./prompt.cjs');
 const { verifyModelAccess, verifyValidationModelAccess, generateImage, editImage, structureCreativeBrief, planDesignEdit } = require('./provider.cjs');
 const {
@@ -328,11 +328,13 @@ async function workerHandler(event) {
 }
 
 async function runBriefRequest(body, session, jobId = crypto.randomUUID()) {
-  const current = normalizeBrief({ ...(body.brief || body), structured: false });
+  const current = body.improvePrompt === true
+    ? freshPromptBrief(body.brief || body)
+    : normalizeBrief({ ...(body.brief || body), structured: false });
   const interpreted = await structureCreativeBrief({
     improvePrompt: body.improvePrompt === true,
     description: current.description,
-    current: {
+    current: body.improvePrompt === true ? { copy: current.copy } : {
       purpose: current.purpose,
       targetAudience: current.targetAudience,
       visualStyle: current.visualStyle,
