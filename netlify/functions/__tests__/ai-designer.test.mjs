@@ -17,7 +17,7 @@ const { temporaryArtworkUrl } = require('../_shared/ai-designer/storage.cjs');
 const { planCanvas, prepareOutpaintInput, PROVIDER_MAX_EDGE, PROVIDER_MAX_PIXELS } = require('../_shared/ai-designer/image-utils.cjs');
 const { compositeArtwork, wrapText } = require('../_shared/ai-designer/compositor.cjs');
 const { normalizeBrief, validateImprovedPrompt, fitInterpretedDirection, buildImprovedPrompt } = require('../_shared/ai-designer/schema.cjs');
-const { buildGenerationPrompt, buildEditPrompt } = require('../_shared/ai-designer/prompt.cjs');
+const { buildGenerationPrompt, buildEditPrompt, buildCopyChangeInstruction } = require('../_shared/ai-designer/prompt.cjs');
 const { MODEL_ALIAS, MODEL_SNAPSHOT, getImageModel, isEnabled } = require('../_shared/ai-designer/config.cjs');
 const { classifyProviderError, isTransientConnectionError } = require('../_shared/ai-designer/provider.cjs');
 const { safeErrorPayload } = require('../_shared/ai-designer/security.cjs');
@@ -378,6 +378,13 @@ describe('GPT Image 2 provider contract', () => {
 });
 
 describe('flat-artwork structured prompts', () => {
+  it('tells image edits exactly which words to replace without restoring the original request', () => {
+    const instruction = buildCopyChangeInstruction({ headline: 'CUSTOM BANNERS', offer: 'FAST DELIVERY' }, { headline: 'CUSTOM SIGNS', offer: 'FAST DELIVERY' });
+    expect(instruction).toContain('"replace":"CUSTOM BANNERS","with":"CUSTOM SIGNS"');
+    expect(instruction).not.toContain('FAST DELIVERY');
+    const brief = productionBrief({ typographyMode: 'ai' });
+    expect(buildEditPrompt(brief, planCanvas(48, 24), instruction)).not.toContain(brief.description);
+  });
   it('accepts artistic capitalization and line breaks but rejects changed words and numbers', () => {
     expect(matchesDetectedWording(['Happy Birthday Bryson!'], ['HAPPY', 'BIRTHDAY', 'BRYSON!'])).toBe(true);
     expect(matchesDetectedWording(['CUSTOM BANNERS.'], ['CUSTOM BANNERS'])).toBe(true);

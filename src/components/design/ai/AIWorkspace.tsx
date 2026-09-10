@@ -551,6 +551,7 @@ export default function AIWorkspace(props: Props) {
           conceptId: selected.id,
           generationId: selected.generationId,
           currentBackgroundRef: selected.backgroundRef,
+          previousCopy: selected.brief?.copy,
           editInstruction: manual ? 'Apply the updated wording and element settings to this design.' : editInstruction.trim(),
           referenceImage,
           logoImage,

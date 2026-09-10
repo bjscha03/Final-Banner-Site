@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const { mergeLayerEdits, removePhotoLayers } = require('./layers.cjs');
 const { isEnabled, getImageModel, getValidationModel, getImageQuality, MODEL_SNAPSHOT } = require('./config.cjs');
 const { normalizeBrief, cleanText, stableHash, buildImprovedPrompt, fitInterpretedDirection } = require('./schema.cjs');
-const { buildGenerationPrompt, buildEditPrompt, buildRepairPrompt } = require('./prompt.cjs');
+const { buildGenerationPrompt, buildEditPrompt, buildRepairPrompt, buildCopyChangeInstruction } = require('./prompt.cjs');
 const { verifyModelAccess, verifyValidationModelAccess, generateImage, editImage, structureCreativeBrief, planDesignEdit } = require('./provider.cjs');
 const {
   isTemporaryStorageConfigured,
@@ -569,7 +569,7 @@ async function runEditRequest(body, session, jobId = crypto.randomUUID()) {
   }
   brief.hasProtectedLogo = Boolean(logo);
   const backgroundInstruction = brief.typographyMode === 'ai'
-    ? (manual ? `Apply the updated wording and requested text styling/placement: ${JSON.stringify(brief.layers)}. Preserve the existing artistic lettering style unless a style change is requested.` : instruction)
+    ? [manual ? `Apply the updated wording and requested text styling/placement: ${JSON.stringify(brief.layers)}. Preserve the existing artistic lettering style unless a style change is requested.` : instruction, buildCopyChangeInstruction(body.previousCopy, brief.copy)].filter(Boolean).join('\n')
     : cleanText(editPlan.backgroundInstruction, 700);
   const edited = backgroundInstruction ? await withPipelineStage('editing the artwork', () => editImage({
     prompt: buildEditPrompt(brief, plan, backgroundInstruction),

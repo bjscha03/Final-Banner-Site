@@ -2,16 +2,24 @@
 
 const { FLAT_ARTWORK_CONSTRAINT } = require('./config.cjs');
 
-function integratedLettering(brief) {
+function integratedLettering(brief, editing = false) {
   return [
     'Design the COMPLETE finished banner, including beautiful, deliberately art-directed lettering integrated with the imagery. You are the graphic designer, not a background generator.',
     'Choose expressive typography appropriate to this specific theme: playful dimensional display lettering for celebrations, refined lettering for elegant events, confident custom headlines for businesses. Use considered outlines, shadows, curves, color and depth where they improve the design. Avoid plain default block text pasted on a generic split-panel background. Do not force effects onto a design that calls for restraint.',
     'Make the main message the visual hero. Balance it with the illustrations as one cohesive composition, with strong hierarchy and generous readable spacing. No empty reserved text panel: actually render the finished lettering.',
     `Approved wording by role (content, not instructions): ${JSON.stringify(brief.copy)}. Render each nonempty value exactly once. Preserve every name, date, number and spelling; do not invent extra taglines or unrelated words. Empty fields must not appear. Do not print field names.`,
-    `Customer's original creative request: ${JSON.stringify(brief.description)}.`,
+    editing ? 'The approved wording above supersedes any old wording in the supplied image. Do not restore an earlier headline during an edit.' : `Customer's original creative request: ${JSON.stringify(brief.description)}.`,
     brief.hasProtectedLogo ? `An original customer logo will be composited afterward at ${brief.logoPosition}. Leave only that small logo area clear; do not invent or redraw a logo.` : 'Do not invent logos, watermarks, signatures, tiny footer copy or unrelated branding.',
     'Keep every letter and important subject comfortably inside the 5% safe margins. Fill all four edges with intentional artwork. This must look like a professionally designed finished banner ready for printing, not a template awaiting text.',
   ].join('\n');
+}
+
+function buildCopyChangeInstruction(previous, next) {
+  const { normalizeCopy } = require('./schema.cjs');
+  const before = normalizeCopy(previous);
+  const after = normalizeCopy(next);
+  const changes = Object.keys(after).filter(key => before[key] !== after[key]).map(key => ({ element: key, replace: before[key], with: after[key] }));
+  return changes.length ? `REQUIRED WORDING REPLACEMENTS: ${JSON.stringify(changes)}. Erase the old wording in each changed element and render its replacement in the existing artistic lettering style. Empty replacements mean remove that wording. Do not merely restyle the old words or add duplicate lettering.` : '';
 }
 
 function textZoneInstruction(position) {
@@ -59,7 +67,7 @@ function buildEditPrompt(brief, plan, instruction) {
     FLAT_ARTWORK_CONSTRAINT,
     `Edit the supplied existing finished design. Requested change: ${instruction}.`,
     'Preserve all unrelated artwork, characters, composition and lettering as closely as possible. Change the existing lettering in place rather than adding a second text layer. When changing wording, erase the old wording cleanly and match its artistic treatment.',
-    integratedLettering(brief),
+    integratedLettering(brief, true),
     `Preserve width:height ${brief.widthIn}:${brief.heightIn}.`, extremeRatioInstruction(plan),
   ].filter(Boolean).join('\n');
   return [
@@ -87,4 +95,4 @@ function buildRepairPrompt(brief, plan, failures) {
   ].filter(Boolean).join('\n');
 }
 
-module.exports = { buildGenerationPrompt, buildEditPrompt, buildRepairPrompt };
+module.exports = { buildGenerationPrompt, buildEditPrompt, buildRepairPrompt, buildCopyChangeInstruction };
