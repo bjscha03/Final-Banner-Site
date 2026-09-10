@@ -1631,15 +1631,10 @@ export const useCartStore = create<CartState>()(
           const storedCartOwnerId = (state as any)?._cartOwnerId;
           const lsCartOwnerId = localStorage.getItem('cart_owner_user_id');
           const cartOwnerId = storedCartOwnerId || lsCartOwnerId;
-          const currentUserStr = localStorage.getItem('banners_current_user');
-          let currentUserId = null;
-          try {
-            if (currentUserStr) {
-              currentUserId = JSON.parse(currentUserStr)?.id;
-            }
-          } catch (e) {
-            console.error('💾 CART STORAGE: Error parsing current user:', e);
-          }
+          // Use the same commerce identity rule as cart sync. A standalone
+          // server-admin login authorizes the AI studio but still owns a guest
+          // cart; treating it as a customer here erased that cart on reload.
+          const currentUserId = cartSync.getUserId();
           
           debugLog('💾 CART STORAGE: Current user ID:', currentUserId);
           

@@ -161,7 +161,10 @@ function fitInterpretedDirection(input = {}) {
   // the customer's description, improved prompt, or exact printed wording.
   const result = { ...input };
   for (const [key, limit] of Object.entries(BRIEF_LIMITS)) {
-    if (key !== 'description' && typeof result[key] === 'string') result[key] = cleanText(result[key], limit);
+    if (key !== 'description' && typeof result[key] === 'string') {
+      const cleaned = sanitizeText(result[key]);
+      result[key] = cleaned.length > limit ? cleaned.slice(0, limit).replace(/\s+\S*$/, '').replace(/[ ,;:–—-]+$/, '') : cleaned;
+    }
   }
   return result;
 }
@@ -174,7 +177,6 @@ function buildImprovedPrompt(candidate, brief) {
     for (const sentence of [
       `Theme and imagery: ${brief.subjectMatter}.`,
       `Visual style: ${brief.visualStyle}.`,
-      `Composition: ${brief.composition}.`,
       `Colors: ${brief.colorPalette}.`,
       `Make ${brief.focalPoint} the focal point.`,
       'Integrate expressive, theme-appropriate lettering with the artwork. Keep it readable with strong hierarchy and safe margins. Fill the canvas edge to edge.',
