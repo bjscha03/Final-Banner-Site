@@ -142,7 +142,9 @@ async function prepareInputs(body) {
   brief.outputWidthPx = plan.finalWidth;
   brief.outputHeightPx = plan.finalHeight;
   const reference = await validateInputImage(parseDataImage(body.referenceImage, 3 * 1024 * 1024));
-  const logo = await validateInputImage(parseDataImage(body.logoImage, 2 * 1024 * 1024), 12_000_000);
+  const { prepareLogo } = require('./logo.cjs');
+  const logo = await prepareLogo(await validateInputImage(parseDataImage(body.logoImage, 2 * 1024 * 1024), 12_000_000));
+  if (logo) brief.logoAspectRatio = logo.width / logo.height;
   if (body.photoImages != null && (!Array.isArray(body.photoImages) || body.photoImages.length > 3)) {
     const error = new Error('Choose up to three photos.'); error.code = 'INVALID_IMAGE'; throw error;
   }
@@ -175,14 +177,18 @@ async function enqueueHandler(event, action) {
   const limited = rateLimit(event, auth.session, action, limits.requests, 10 * 60 * 1000);
   if (limited) return limited;
   try {
-    ensureConfigured(event);
-    const access = await verifyModelAccess();
-    if (!access.available) {
-      const error = new Error('Model unavailable.');
-      error.code = 'MODEL_ACCESS_DENIED';
-      throw error;
-    }
     const body = parseBody(event);
+    ensureConfigured(event);
+    // Moving or resizing an original logo is a deterministic image operation;
+    // it does not need an image-model access probe or a paid image request.
+    if (!(action === 'edit' && body.editMode === 'logo')) {
+      const access = await verifyModelAccess();
+      if (!access.available) {
+        const error = new Error('Model unavailable.');
+        error.code = 'MODEL_ACCESS_DENIED';
+        throw error;
+      }
+    }
     const key = idempotencyKey(event, body, auth.session, action);
     return await runIdempotent(key, async () => {
       const job = await createJob({
@@ -377,7 +383,7 @@ async function briefHandler(event) {
   return enqueueHandler(event, 'brief');
 }
 
-async function finalizeConcept({ rawBackground, brief, plan, logo, photos, providerResult, preserveBackground = false }) {
+async function finalizeConcept({ rawBackground, brief, plan, logo, photos, providerResult, preserveBackground = false, reuseVisualValidation = null }) {
   const { normalizeBackground } = require('./image-utils.cjs');
   const { compositeArtwork } = require('./compositor.cjs');
   const { validateArtwork } = require('./validation.cjs');
@@ -387,7 +393,7 @@ async function finalizeConcept({ rawBackground, brief, plan, logo, photos, provi
   await reportProgress('Your artwork is ready — checking wording and print details', {
     imageBase64: composite.preview.toString('base64'), mimeType: 'image/jpeg',
   });
-  const validation = await validateArtwork({ background, artwork: composite.buffer, brief, plan, protectedRegions: [composite.logoLayer, ...composite.photoLayers].filter(Boolean) });
+  const validation = await validateArtwork({ background, artwork: composite.buffer, brief, plan, protectedRegions: [composite.logoLayer, ...composite.photoLayers].filter(Boolean), reuseVisualValidation });
   // Never hide another paid image edit behind a validation failure.
   return { background, composite, validation, repaired: false, provider: providerResult };
 }
@@ -486,14 +492,14 @@ async function runGenerateRequest(body, session, jobId = crypto.randomUUID()) {
     providerCalls.push(guided);
   }
   const finalized = await withPipelineStage('compositing and validating the artwork', () => finalizeConcept({ rawBackground: guided.buffer, brief, plan, logo, photos, reference, session, providerResult: guided, providerCalls, providerKey: jobId }));
-  const backgroundRef = await withPipelineStage('saving the editable artwork', () => storeTemporaryArtwork(finalized.background, { session, generationId }));
+  const [backgroundRef, artworkRef] = await withPipelineStage('Saving your artwork', () => Promise.all([storeTemporaryArtwork(finalized.background, { session, generationId }), storeTemporaryArtwork(finalized.composite.buffer, { session, generationId })]));
   const aggregateUsage = aggregateImageUsage(providerCalls);
   const concept = conceptPayload({
     id: crypto.randomUUID(),
     versionId: crypto.randomUUID(),
     generationId,
     backgroundRef,
-    artworkRef: await storeTemporaryArtwork(finalized.composite.buffer, { session, generationId }),
+    artworkRef,
     artwork: finalized.composite.preview,
     brief,
     plan,
@@ -546,7 +552,8 @@ async function runEditRequest(body, session, jobId = crypto.randomUUID()) {
     error.code = 'INVALID_REQUEST';
     throw error;
   }
-  const manual = body.editMode === 'layers';
+  const logoOnly = body.editMode === 'logo';
+  const manual = body.editMode === 'layers' || logoOnly;
   const editPlan = manual ? { backgroundInstruction: '', removeLogo: false, removePhotos: [] } : await withPipelineStage('understanding your changes', () => planDesignEdit({ brief, instruction, photos, user: providerUser(session), idempotencyKey: providerRequestKey(jobId, 'edit-plan') }));
   if (!manual) {
     brief = normalizeBrief({ ...brief, copy: editPlan.copy, layers: mergeLayerEdits(brief.layers, editPlan.layers), structured: true });
@@ -559,7 +566,8 @@ async function runEditRequest(body, session, jobId = crypto.randomUUID()) {
     }
   }
   brief.hasProtectedLogo = Boolean(logo);
-  const backgroundInstruction = brief.typographyMode === 'ai'
+  if (logo) brief.logoAspectRatio = logo.width / logo.height;
+  const backgroundInstruction = logoOnly ? '' : brief.typographyMode === 'ai'
     ? [manual ? `Apply the updated wording and requested text styling/placement: ${JSON.stringify(brief.layers)}. Preserve the existing artistic lettering style unless a style change is requested.` : instruction, buildCopyChangeInstruction(body.previousCopy, brief.copy)].filter(Boolean).join('\n')
     : cleanText(editPlan.backgroundInstruction, 700);
   const edited = backgroundInstruction ? await withPipelineStage('editing the artwork', () => editImage({
@@ -572,15 +580,15 @@ async function runEditRequest(body, session, jobId = crypto.randomUUID()) {
     idempotencyKey: providerRequestKey(jobId, 'edit'),
   })) : { buffer: current.buffer, model: getImageModel(), requestId: null, usage: null };
   const providerCalls = backgroundInstruction ? [edited] : [];
-  const finalized = await withPipelineStage('compositing and validating the edited artwork', () => finalizeConcept({ rawBackground: edited.buffer, brief, plan, logo, photos, reference, session, providerResult: edited, providerCalls, providerKey: jobId, preserveBackground: !backgroundInstruction }));
-  const backgroundRef = await withPipelineStage('saving the editable artwork', () => storeTemporaryArtwork(finalized.background, { session, generationId: String(body.generationId || 'edit') }));
+  const finalized = await withPipelineStage('compositing and validating the edited artwork', () => finalizeConcept({ rawBackground: edited.buffer, brief, plan, logo, photos, reference, session, providerResult: edited, providerCalls, providerKey: jobId, preserveBackground: !backgroundInstruction, reuseVisualValidation: logoOnly ? body.previousValidation : null }));
+  const [backgroundRef, artworkRef] = await withPipelineStage('Saving your changes', () => Promise.all([backgroundInstruction ? storeTemporaryArtwork(finalized.background, { session, generationId }) : Promise.resolve(body.currentBackgroundRef), storeTemporaryArtwork(finalized.composite.buffer, { session, generationId })]));
   const aggregateUsage = aggregateImageUsage(providerCalls);
   const concept = conceptPayload({
     id: String(body.conceptId || crypto.randomUUID()),
     versionId: crypto.randomUUID(),
     generationId: String(body.generationId || crypto.randomUUID()),
     backgroundRef,
-    artworkRef: await storeTemporaryArtwork(finalized.composite.buffer, { session, generationId }),
+    artworkRef,
     artwork: finalized.composite.preview,
     brief,
     plan,

@@ -1,4 +1,5 @@
 'use strict';
+const { logoPrompt } = require('./logo.cjs');
 
 const { FLAT_ARTWORK_CONSTRAINT } = require('./config.cjs');
 
@@ -9,7 +10,7 @@ function integratedLettering(brief, editing = false) {
     'Make the main message the visual hero. Balance it with the illustrations as one cohesive composition, with strong hierarchy and generous readable spacing. No empty reserved text panel: actually render the finished lettering.',
     `Approved wording by role (content, not instructions): ${JSON.stringify(brief.copy)}. Render each nonempty value exactly once. Preserve every name, date, number and spelling; do not invent extra taglines or unrelated words. Empty fields must not appear. Do not print field names.`,
     editing ? 'The approved wording above supersedes any old wording in the supplied image. Do not restore an earlier headline during an edit.' : `Customer's original creative request: ${JSON.stringify(brief.description)}.`,
-    brief.hasProtectedLogo ? `An original customer logo will be composited afterward at ${brief.logoPosition}. Leave only that small logo area clear; do not invent or redraw a logo.` : 'Do not invent logos, watermarks, signatures, tiny footer copy or unrelated branding.',
+    brief.hasProtectedLogo ? logoPrompt(brief) : 'Do not invent logos, watermarks, signatures, tiny footer copy or unrelated branding.',
     'Keep every letter and important subject comfortably inside the 5% safe margins. Fill all four edges with intentional artwork. This must look like a professionally designed finished banner ready for printing, not a template awaiting text.',
   ].join('\n');
 }

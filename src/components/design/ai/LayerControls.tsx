@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import type { AIConcept, CreativeBrief, ExactCopy } from './types';
 
-type Props = { brief: CreativeBrief; concept: AIConcept; hasLogo: boolean; photoCount: number; busy: boolean; onChange: (brief: CreativeBrief) => void; onApply: () => void };
+type Props = { brief: CreativeBrief; concept: AIConcept; photoCount: number; busy: boolean; onChange: (brief: CreativeBrief) => void; onApply: () => void };
 const FONTS = ['DejaVu Sans', 'DejaVu Serif'];
 const LABELS: Record<string, string> = { headline: 'Headline', businessName: 'Business name', supportingText: 'Supporting text', offer: 'Offer', callToAction: 'Call to action', phone: 'Phone', website: 'Website', address: 'Address', date: 'Date', other: 'Other text', logo: 'Logo' };
-export default function LayerControls({ brief, concept, hasLogo, photoCount, busy, onChange, onApply }: Props) {
+export default function LayerControls({ brief, concept, photoCount, busy, onChange, onApply }: Props) {
   const [role, setRole] = useState('headline');
   const layer = brief.layers?.[role] || {};
   const imageLayer = role === 'logo' || role.startsWith('photo');
@@ -16,7 +16,7 @@ export default function LayerControls({ brief, concept, hasLogo, photoCount, bus
   return <details className="mt-4 rounded-xl border border-slate-200 p-3">
     <summary className="cursor-pointer py-2 text-sm font-bold text-[#0b1f3a]">Edit text, fonts & placement</summary>
     <fieldset disabled={busy} className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2 disabled:opacity-50">
-      <label className="text-sm font-semibold">Choose an element<select className={input} value={role} onChange={event => setRole(event.target.value)}>{Object.entries(labels).filter(([key]) => key !== 'logo' || hasLogo).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
+      <label className="text-sm font-semibold">Choose an element<select className={input} value={role} onChange={event => setRole(event.target.value)}>{Object.entries(labels).filter(([key]) => key !== 'logo').map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
       {!imageLayer && <>
         <label className="text-sm font-semibold">Wording<input className={input} value={brief.copy[role as keyof ExactCopy] || ''} onChange={event => onChange({ ...brief, copy: { ...brief.copy, [role]: event.target.value } })} /></label>
         {!artisticText && <label className="text-sm font-semibold">Font<select className={input} value={layer.font === 'DejaVu Serif' || layer.font === 'Georgia' ? 'DejaVu Serif' : 'DejaVu Sans'} onChange={event => change({ font: event.target.value })}>{FONTS.map(font => <option key={font}>{font}</option>)}</select></label>}

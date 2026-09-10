@@ -1,1 +1,0 @@
-# Canva Integration Functions

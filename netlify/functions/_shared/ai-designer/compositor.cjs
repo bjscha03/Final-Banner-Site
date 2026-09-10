@@ -168,19 +168,13 @@ async function compositeArtwork({ background, brief, logo, photos = [] }) {
   // Keep typography readable above customer photos.
   composites.push({ input: Buffer.from(svg), top: 0, left: 0 });
   if (logo?.buffer) {
-    const validLogo = await validateInputImage(logo, 12_000_000);
-    const logoScale = overrides.logo?.scale || 1;
-    const maxLogoW = Math.round(width * Math.min(0.5, 0.2 * logoScale));
-    const maxLogoH = Math.round(height * Math.min(0.5, 0.22 * logoScale));
-    const resized = await sharp(validLogo.buffer).resize(maxLogoW, maxLogoH, { fit: 'inside', withoutEnlargement: true }).png().toBuffer({ resolveWithObject: true });
-    const marginX = Math.round(width * 0.05);
-    const marginY = Math.round(height * 0.06);
-    const right = brief.logoPosition.includes('right');
-    const lower = brief.logoPosition.includes('lower');
-    const left = Math.round(Math.max(marginX, Math.min(width - resized.info.width - marginX, overrides.logo?.x !== undefined ? width * overrides.logo.x : right ? width - resized.info.width - marginX : marginX)));
-    const top = Math.round(Math.max(marginY, Math.min(height - resized.info.height - marginY, overrides.logo?.y !== undefined ? height * overrides.logo.y : lower ? height - resized.info.height - marginY : marginY)));
-    composites.push({ input: resized.data, left, top });
-    logoLayer = { left, top, width: resized.info.width, height: resized.info.height, position: brief.logoPosition };
+    const { prepareLogo, logoPlacement } = require('./logo.cjs');
+    const validLogo = await prepareLogo(await validateInputImage(logo, 12_000_000));
+    const placement = logoPlacement(brief, width, height, validLogo.width / validLogo.height);
+    const resized = await sharp(validLogo.buffer).resize(placement.width, placement.height, { fit: 'fill' }).png().toBuffer();
+    composites.push({ input: resized, left: placement.left, top: placement.top });
+    logoLayer = { ...placement, sourceWidth: validLogo.width, sourceHeight: validLogo.height };
+
   }
 
   const buffer = await sharp(background)

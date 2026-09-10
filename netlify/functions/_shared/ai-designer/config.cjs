@@ -1,8 +1,13 @@
 'use strict';
 
-const MODEL_ALIAS = 'gpt-image-2';
-const MODEL_SNAPSHOT = 'gpt-image-2-2026-04-21';
-const ALLOWED_IMAGE_MODELS = new Set([MODEL_ALIAS, MODEL_SNAPSHOT]);
+const MODEL_ALIAS = 'gpt-image-2.5-flare';
+const MODEL_SNAPSHOT = 'gpt-image-2.5-flare-2026-09-08';
+const ALLOWED_IMAGE_MODELS = new Set([
+  MODEL_ALIAS,
+  MODEL_SNAPSHOT,
+  'gpt-image-2',
+  'gpt-image-2-2026-04-21',
+]);
 const ALLOWED_IMAGE_QUALITIES = new Set(['low', 'medium', 'high']);
 const FLAT_ARTWORK_CONSTRAINT = [
   'Create only flat, edge-to-edge commercial print artwork.',
@@ -22,7 +27,7 @@ function isEnabled(deployContext = null) {
 function getImageModel() {
   const configured = String(process.env.OPENAI_IMAGE_MODEL || MODEL_SNAPSHOT).trim();
   if (!ALLOWED_IMAGE_MODELS.has(configured)) {
-    const error = new Error('The configured image model is not an approved GPT Image 2 model.');
+    const error = new Error('The configured image model is not an approved GPT Image model.');
     error.code = 'UNAPPROVED_IMAGE_MODEL';
     throw error;
   }

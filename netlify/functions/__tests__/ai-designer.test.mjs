@@ -16,12 +16,13 @@ const { normalizeLayers, mergeLayerEdits, removePhotoLayers } = require('../_sha
 const { temporaryArtworkUrl } = require('../_shared/ai-designer/storage.cjs');
 const { planCanvas, prepareOutpaintInput, PROVIDER_MAX_EDGE, PROVIDER_MAX_PIXELS } = require('../_shared/ai-designer/image-utils.cjs');
 const { compositeArtwork, wrapText } = require('../_shared/ai-designer/compositor.cjs');
+const { logoPlacement, prepareLogo, logoPrompt } = require('../_shared/ai-designer/logo.cjs');
 const { normalizeBrief, validateImprovedPrompt, fitInterpretedDirection, buildImprovedPrompt } = require('../_shared/ai-designer/schema.cjs');
 const { buildGenerationPrompt, buildEditPrompt, buildCopyChangeInstruction } = require('../_shared/ai-designer/prompt.cjs');
 const { MODEL_ALIAS, MODEL_SNAPSHOT, getImageModel, isEnabled } = require('../_shared/ai-designer/config.cjs');
 const { classifyProviderError, isTransientConnectionError } = require('../_shared/ai-designer/provider.cjs');
 const { safeErrorPayload } = require('../_shared/ai-designer/security.cjs');
-const { matchesDetectedWording } = require('../_shared/ai-designer/validation.cjs');
+const { matchesDetectedWording, validateArtwork } = require('../_shared/ai-designer/validation.cjs');
 
 const originalEnvironment = { ...process.env };
 
@@ -255,13 +256,13 @@ describe('AI designer authorization and fail-closed controls', () => {
   });
 });
 
-describe('GPT Image 2 provider contract', () => {
-  it('centralizes and restricts the production model to GPT Image 2', () => {
-    expect(MODEL_ALIAS).toBe('gpt-image-2');
-    expect(MODEL_SNAPSHOT).toBe('gpt-image-2-2026-04-21');
+describe('GPT Image provider contract', () => {
+  it('defaults to the pinned fast, high-quality GPT Image 2.5 Flare snapshot', () => {
+    expect(MODEL_ALIAS).toBe('gpt-image-2.5-flare');
+    expect(MODEL_SNAPSHOT).toBe('gpt-image-2.5-flare-2026-09-08');
     expect(getImageModel()).toBe(MODEL_SNAPSHOT);
     process.env.OPENAI_IMAGE_MODEL = 'gpt-image-1';
-    expect(() => getImageModel()).toThrow(/approved GPT Image 2/i);
+    expect(() => getImageModel()).toThrow(/approved GPT Image/i);
   });
 
   it('uses the official generation and edit methods and supplies the current image first', () => {
@@ -272,7 +273,7 @@ describe('GPT Image 2 provider contract', () => {
     expect(provider).toMatch(/const images = \[sourceFile\]/);
     expect(provider).toContain('image: images');
     expect(provider).not.toContain("input_fidelity: 'high'");
-    expect(provider).toMatch(/GPT Image 2 always processes image inputs at high fidelity/i);
+    expect(provider).toMatch(/Preserve the complete source image as the first input/i);
     expect(provider).toContain("toFile(maskImage, 'outpaint-mask.png'");
     expect(provider.match(/moderation: 'low'/g)).toHaveLength(2);
   });
@@ -573,11 +574,60 @@ describe('deterministic exact-copy composition', () => {
     const logo = { buffer: await sharp({ create: { width: 80, height: 40, channels: 3, background: '#ff0000' } }).png().toBuffer(), mimeType: 'image/png' };
     const result = await compositeArtwork({ background, brief, logo });
     expect(result.textLayers).toEqual([]);
-    expect(result.logoLayer).toMatchObject({ width: 80, height: 40 });
+    expect(result.logoLayer).toMatchObject({ width: 230, height: 115 });
     const noLogo = await compositeArtwork({ background, brief });
     const stats = await sharp(noLogo.buffer).stats();
     expect(stats.channels.every(channel => channel.stdev < 1)).toBe(true);
     expect((await sharp(result.buffer).metadata()).format).toBe('jpeg');
+  });
+
+  it('enlarges small logos proportionally into an intentional banner footprint', async () => {
+    const brief = productionBrief({ typographyMode: 'ai', copy: { headline: 'OPENING SOON' } });
+    brief.outputWidthPx = 960; brief.outputHeightPx = 480;
+    const background = await sharp({ create: { width: 960, height: 480, channels: 3, background: '#123456' } }).png().toBuffer();
+    const logo = { buffer: await sharp({ create: { width: 80, height: 40, channels: 4, background: '#ff7800' } }).png().toBuffer(), mimeType: 'image/png' };
+    const result = await compositeArtwork({ background, brief, logo });
+    expect(result.logoLayer).toMatchObject({ width: 230, height: 115, position: 'upper-right', sourceWidth: 80, sourceHeight: 40 });
+    expect(result.logoLayer.width / result.logoLayer.height).toBeCloseTo(2, 2);
+  });
+
+  it('removes transparent logo padding but never removes a visible white background', async () => {
+    const mark = await sharp({ create: { width: 40, height: 20, channels: 4, background: '#ff7800' } }).extend({ top: 30, bottom: 30, left: 40, right: 40, background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer();
+    const trimmed = await prepareLogo({ buffer: mark, mimeType: 'image/png' });
+    expect(trimmed).toMatchObject({ width: 40, height: 20, prepared: true });
+    const white = await sharp({ create: { width: 120, height: 80, channels: 4, background: '#ffffff' } }).png().toBuffer();
+    const preserved = await prepareLogo({ buffer: white, mimeType: 'image/png' });
+    expect(preserved).toMatchObject({ width: 120, height: 80 });
+  });
+
+  it('keeps wide and tall logos inside safe edges and reserves the same footprint in the AI prompt', () => {
+    for (const ratio of [0.1, 1, 8]) {
+      for (const logoPosition of ['upper-left', 'upper-right', 'lower-left', 'lower-right']) {
+        const placement = logoPlacement(productionBrief({ logoPosition, layers: { logo: { scale: 2 } } }), 1200, 400, ratio);
+        expect(placement.left).toBeGreaterThanOrEqual(60);
+        expect(placement.top).toBeGreaterThanOrEqual(24);
+        expect(placement.left + placement.width).toBeLessThanOrEqual(1140);
+        expect(placement.top + placement.height).toBeLessThanOrEqual(376);
+      }
+    }
+    const prompt = logoPrompt({ ...productionBrief(), aspectRatio: 2, logoAspectRatio: 2 });
+    expect(prompt).toMatch(/exact footprint/i);
+    expect(prompt).toMatch(/Do not draw a placeholder, empty white badge, cloud/i);
+  });
+
+  it('reuses completed visual checks for a logo-only composite', async () => {
+    const brief = productionBrief({ typographyMode: 'ai', copy: { headline: 'OPENING SOON' } });
+    const plan = planCanvas(brief.widthIn, brief.heightIn);
+    brief.outputWidthPx = plan.finalWidth; brief.outputHeightPx = plan.finalHeight;
+    const artwork = await sharp({ create: { width: plan.finalWidth, height: plan.finalHeight, channels: 3, background: '#123456' } }).jpeg().toBuffer();
+    const previousValidation = {
+      passed: true, reasons: [],
+      checks: { flatArtwork: { flags: [], confidence: 0.98 }, exactText: { passed: true, detected: brief.requiredText } },
+      vision: { available: true, model: 'gpt-5-mini', requestId: 'prior-check' },
+    };
+    const result = await validateArtwork({ background: artwork, artwork, brief, plan, reuseVisualValidation: previousValidation });
+    expect(result.passed).toBe(true);
+    expect(result.vision).toMatchObject({ available: true, requestId: 'prior-check' });
   });
   const scenarios = [
     ['grand-opening', "Tony’s Pizza", 'GRAND OPENING', 'Free slice with any drink', 'Saturday September 19', '#981c22'],

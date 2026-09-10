@@ -92,7 +92,7 @@ function classifyProviderError(error) {
     throw safeProviderError(error, 'OpenAI could not create this request as written. Adjust the description or supplied image and try again.', 'PROVIDER_USER_ERROR');
   }
   if ([401, 403, 404].includes(status) || code === 'model_not_found') {
-    throw safeProviderError(error, 'GPT Image 2 is unavailable to the configured project.', 'MODEL_ACCESS_DENIED');
+    throw safeProviderError(error, 'The configured GPT Image model is unavailable to this project.', 'MODEL_ACCESS_DENIED');
   }
   if (isBillingError(error)) {
     throw safeProviderError(error, 'The configured OpenAI project has no available API budget.', 'PROVIDER_BILLING_REQUIRED');
@@ -251,8 +251,8 @@ async function editImage({ prompt, size, currentImage, currentMime = 'image/jpeg
       n: 1,
       size,
       quality: getImageQuality(),
-      // GPT Image 2 always processes image inputs at high fidelity and rejects
-      // an explicit input_fidelity override.
+      // Preserve the complete source image as the first input. An explicit
+      // input_fidelity override is intentionally omitted for model portability.
       output_format: 'jpeg',
       output_compression: 90,
       background: 'opaque',

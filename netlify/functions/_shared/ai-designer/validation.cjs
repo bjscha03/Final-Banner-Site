@@ -102,7 +102,7 @@ async function visualInspection(buffer, requiredText, protectedRegions = []) {
   }
 }
 
-async function validateArtwork({ background, artwork, brief, plan, protectedRegions = [] }) {
+async function validateArtwork({ background, artwork, brief, plan, protectedRegions = [], reuseVisualValidation = null }) {
   const [backgroundMeta, artworkMeta] = await Promise.all([sharp(background).metadata(), sharp(artwork).metadata()]);
   const dimensionPass = artworkMeta.width === plan.finalWidth && artworkMeta.height === plan.finalHeight;
   const aspectError = Math.abs((artworkMeta.width / artworkMeta.height) - brief.aspectRatio);
@@ -111,7 +111,20 @@ async function validateArtwork({ background, artwork, brief, plan, protectedRegi
   const ppi = Math.min(artworkMeta.width / brief.widthIn, artworkMeta.height / brief.heightIn);
   const minimumPpi = requiredPpi(brief.widthIn, brief.heightIn);
   const resolutionPass = ppi >= minimumPpi;
-  const vision = await visualInspection(artwork, brief.requiredText, protectedRegions);
+  // Logo-only changes preserve every background and lettering pixel. Reuse the
+  // preceding completed visual inspection so a size/position adjustment is a
+  // quick deterministic composite, rather than another 45-second AI review.
+  const reused = reuseVisualValidation?.vision?.available === true ? reuseVisualValidation : null;
+  const vision = reused ? {
+    available: true,
+    model: reused.vision.model,
+    requestId: reused.vision.requestId || null,
+    confidence: reused.checks?.flatArtwork?.confidence || 0,
+    requiredTextExact: reused.checks?.exactText?.passed === true,
+    detectedText: reused.checks?.exactText?.detected || [],
+    reasons: reused.reasons || [],
+    ...Object.fromEntries((reused.checks?.flatArtwork?.flags || []).map((key) => [key, true])),
+  } : await visualInspection(artwork, brief.requiredText, protectedRegions);
   const visualFlags = vision.available ? [
     'physicalBannerMockup', 'surroundingScene', 'grommetsOrEyelets', 'mountingHardware',
     'foldsOrMaterialRipples', 'frameOrBorder', 'blankBarsOrLetterboxing',
