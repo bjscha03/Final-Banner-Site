@@ -29,6 +29,7 @@ import DeliveryTimer from '@/components/delivery/DeliveryTimer';
 import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
 import BannerDiscountOffer from '@/components/design/BannerDiscountOffer';
 import MobileSubtotalBar from '@/components/design/MobileSubtotalBar';
+import AIArtworkHelp from '@/components/design/AIArtworkHelp';
 import RealOrdersStrip from '@/components/design/RealOrdersStrip';
 import FileUploader, { type FileUploaderHandle } from '@/components/ui/FileUploader';
 import GrommetOverlay from '@/components/preview/GrommetOverlay';
@@ -2777,6 +2778,16 @@ const GoogleAdsBanner: React.FC = () => {
                       </p>
                     );
                   })()}
+                  {!isYardSign && !isCarMagnet && (
+                    <AIArtworkHelp
+                      widthIn={widthIn}
+                      heightIn={heightIn}
+                      hasSelectedSize={hasCommittedBannerSize}
+                      hasArtwork={Boolean(uploadedFile)}
+                      artworkWidth={uploadedFile?.originalWidth}
+                      artworkHeight={uploadedFile?.originalHeight}
+                    />
+                  )}
                   {!uploadedFile ? (
                     <>
                       <FileUploader

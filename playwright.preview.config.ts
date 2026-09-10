@@ -22,6 +22,7 @@ export default defineConfig({
     'mobile-designer-consistency.playwright.spec.ts',
     'mobile-upload-entry.playwright.spec.ts',
     'mobile-checkout-details.playwright.spec.ts',
+    'ai-artwork-help.playwright.spec.ts',
   ],
   fullyParallel: true,
   workers: process.env.CI ? 4 : 2,

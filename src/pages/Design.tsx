@@ -27,6 +27,7 @@ import PriceBreakdown from '@/components/pricing/PriceBreakdown';
 import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
 import DeliveryTimer from '@/components/delivery/DeliveryTimer';
 import MobileSubtotalBar from '@/components/design/MobileSubtotalBar';
+import AIArtworkHelp from '@/components/design/AIArtworkHelp';
 import DesignPageHero from '@/components/design/DesignPageHero';
 import RealOrdersStrip from '@/components/design/RealOrdersStrip';
 import FileUploader, { type FileUploaderHandle } from '@/components/ui/FileUploader';
@@ -3256,6 +3257,16 @@ const Design: React.FC = () => {
                     </p>
                   );
                 })()}
+                {!isYardSign && !isCarMagnet && (
+                  <AIArtworkHelp
+                    widthIn={widthIn}
+                    heightIn={heightIn}
+                    hasSelectedSize={hasCommittedBannerSize}
+                    hasArtwork={Boolean(uploadedFile)}
+                    artworkWidth={uploadedFile?.originalWidth}
+                    artworkHeight={uploadedFile?.originalHeight}
+                  />
+                )}
                 {!uploadedFile ? (
                   <>
                     <FileUploader
