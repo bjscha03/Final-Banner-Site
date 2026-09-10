@@ -4,7 +4,6 @@ import {
   buildCreateArtworkPrompt,
   buildFixArtworkPrompt,
   getBannerDimensionLabel,
-  shouldWarnAboutArtworkWhitespace,
   type AIArtworkHelpMode,
 } from '@/lib/aiArtworkHelp';
 import {
@@ -45,20 +44,12 @@ const AIArtworkHelp: React.FC<AIArtworkHelpProps> = ({
   heightIn,
   hasSelectedSize,
   hasArtwork,
-  artworkWidth,
-  artworkHeight,
 }) => {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<AIArtworkHelpMode>('create');
   const [description, setDescription] = useState('');
   const [copiedMode, setCopiedMode] = useState<AIArtworkHelpMode | null>(null);
   const validSize = hasSelectedSize && widthIn > 0 && heightIn > 0;
-  const mismatch = validSize && hasArtwork && shouldWarnAboutArtworkWhitespace(
-    widthIn,
-    heightIn,
-    artworkWidth,
-    artworkHeight,
-  );
 
   const prompt = useMemo(() => {
     if (!validSize) return '';
@@ -90,42 +81,14 @@ const AIArtworkHelp: React.FC<AIArtworkHelpProps> = ({
 
   return (
     <div className="mb-4 space-y-3" data-ai-artwork-help>
-      {mismatch && (
-        <div className="rounded-xl border border-amber-300 bg-amber-50 p-3.5 shadow-sm" role="status" data-ai-whitespace-warning>
-          <div className="flex items-start gap-3">
-            <div className="mt-0.5 rounded-full bg-amber-100 p-2 text-amber-700">
-              <WandSparkles className="h-4 w-4" aria-hidden="true" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold text-amber-950">Your artwork may leave white space on this banner.</p>
-              <p className="mt-0.5 text-xs leading-relaxed text-amber-800">An AI image tool can resize or extend it to fit without stretching the important parts.</p>
-              <button
-                type="button"
-                onClick={() => showHelp('fix')}
-                className="mt-2 inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#C94008] px-3.5 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#B93808] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C94008] focus-visible:ring-offset-2"
-              >
-                <Sparkles className="h-4 w-4" aria-hidden="true" />
-                Fix it with AI
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       <button
         type="button"
         onClick={() => showHelp(hasArtwork ? 'fix' : 'create')}
-        className="group flex w-full items-center gap-3 rounded-xl border border-[#0B2E59]/15 bg-gradient-to-r from-[#F4F8FC] to-white p-3.5 text-left shadow-sm transition-all hover:border-[#C94008]/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C94008] focus-visible:ring-offset-2"
+        className="inline-flex min-h-11 items-center gap-2 rounded-md px-1 text-left text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4 transition-colors hover:text-[#0B2E59] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C94008] focus-visible:ring-offset-2"
         aria-label="Open AI artwork help"
       >
-        <span className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-[#0B2E59] text-white shadow-sm transition-transform group-hover:scale-105">
-          <Sparkles className="h-5 w-5" aria-hidden="true" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-extrabold text-[#0B2E59]">Need help creating or fixing your artwork?</span>
-          <span className="mt-0.5 block text-xs leading-relaxed text-slate-600">Copy a free prompt for ChatGPT, Gemini, or another image-capable AI tool.</span>
-        </span>
-        <span className="hidden flex-none rounded-full bg-[#C94008] px-3 py-1.5 text-xs font-bold text-white sm:inline">AI Artwork Help</span>
+        <Sparkles className="h-4 w-4 flex-none text-[#0B2E59]" aria-hidden="true" />
+        <span>Need help with your artwork?</span>
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
