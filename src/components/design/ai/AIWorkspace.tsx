@@ -677,6 +677,7 @@ export default function AIWorkspace(props: Props) {
       session,
     });
     trackAIEvent('ai_applied_to_configurator', { product_type: brief.productType });
+    props.onClose?.();
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'The artwork could not be transferred. Your design is still saved here.'); }
     finally { setStage(null); }
   };

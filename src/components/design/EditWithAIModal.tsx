@@ -24,7 +24,7 @@ const EditWithAIModal: React.FC<EditWithAIModalProps> = (props) => {
   if (!ENABLE_AI) return null;
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <DialogContent className="h-[94dvh] w-[98vw] max-w-[1800px] overflow-y-auto border-0 bg-[#f8f6f1] p-0 shadow-2xl sm:rounded-2xl">
+      <DialogContent className="h-[94dvh] w-[98vw] max-w-[1800px] overflow-y-auto border-0 bg-white p-0 shadow-2xl sm:rounded-2xl">
         <DialogTitle className="sr-only">Edit the current artwork with AI</DialogTitle>
         <DialogDescription className="sr-only">Edit the actual current image while preserving exact dimensions, text, logos, and previous versions.</DialogDescription>
         {props.session ? (
@@ -39,7 +39,7 @@ const EditWithAIModal: React.FC<EditWithAIModalProps> = (props) => {
             onGenerated={(result) => props.onEdited({ ...result, editPrompt: 'Approved GPT Image 2 edit' })}
           />
         ) : (
-          <div className="grid min-h-[60vh] place-items-center bg-[#f8f6f1] p-6">
+          <div className="grid min-h-[60vh] place-items-center bg-white p-6">
             <div className="max-w-lg rounded-2xl border border-amber-200 bg-white p-6 text-center shadow-sm">
               <AlertTriangle className="mx-auto h-8 w-8 text-amber-600" />
               <h2 className="mt-3 text-xl font-black text-[#0b1f3a]">This design has no recoverable AI source</h2>
