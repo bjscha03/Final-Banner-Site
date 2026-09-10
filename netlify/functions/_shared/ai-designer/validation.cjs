@@ -49,6 +49,7 @@ function validationSchema() {
     illegibleOrOverlappingText: { type: 'boolean' },
     requiredTextExact: { type: 'boolean' },
     unexpectedText: { type: 'boolean' },
+    unexpectedTextSamples: { type: 'array', items: { type: 'string' } },
     logoMatchesReference: { type: 'boolean' },
     duplicateLogo: { type: 'boolean' },
     detectedText: { type: 'array', items: { type: 'string' } },
@@ -69,10 +70,11 @@ function matchesDetectedWording(required, detected) {
   });
 }
 
-async function visualInspection(buffer, requiredText, protectedRegions = [], logoReference = null, logoWording = []) {
+async function visualInspection(buffer, requiredText, protectedRegions = [], logoReference = null, logoWording = [], bannerWording = requiredText) {
   try {
     const { client } = await getClient();
     const expected = requiredText.length ? requiredText.map((value) => JSON.stringify(value)).join(', ') : '(none)';
+    const authorizedTextInstruction = `AUTHORIZED TEXT HAS TWO INDEPENDENT SOURCES. (A) Approved banner copy: ${JSON.stringify(bannerWording)}. This headline and other approved wording MUST appear in the artwork and is allowed even when completely absent from the source logo. (B) Original source-logo lettering: ${JSON.stringify(logoWording)}${logoReference?.buffer ? ', plus any other lettering actually visible in the supplied original logo' : ''}. Both A and B are authorized together; the logo is not the sole list of permitted banner wording. Never flag approved banner copy as an added brand claim merely because it is not inside the source logo. If unexpectedText=true, return unexpectedTextSamples containing every exact visible unauthorized phrase you flagged (not explanations); otherwise return an empty array.`;
     const response = await withTimeout((signal) => client.responses.create({
       model: getValidationModel(),
       input: [{
@@ -80,7 +82,7 @@ async function visualInspection(buffer, requiredText, protectedRegions = [], log
         content: [
           {
             type: 'input_text',
-            text: `Inspect the FIRST image as the final commercial print artwork. It must be flat edge-to-edge artwork only, not a photograph or mockup. Flag physical banners, installations, rooms, walls, fences, sky/environment surrounding a banner, folds, ripples, grommets, eyelets, rope, poles, hooks, mounting hardware, frames, blank bars, distortion, or important content outside a 5% safe margin. Flag illegibleOrOverlappingText if text overlaps other text or a logo, or has insufficient contrast to read. Required wording must preserve spelling, names, numbers and internal punctuation exactly. Artistic capitalization, line breaks and omitted sentence-ending periods are acceptable: ${expected}. If no wording is required, requiredTextExact must be true. Flag unexpectedText for invented taglines, unrelated labels, gibberish, signatures or watermarks outside the supplied original customer asset regions. Original customer assets may contain their own text: exempt these pixel rectangles from unexpectedText only: ${JSON.stringify(protectedRegions)}. ${logoReference?.buffer ? `The SECOND image is the original customer logo for comparison only, not another artwork to inspect. The final artwork must contain exactly ONE recognizable faithful integrated version of this logo, preserving its identity, key shapes, brand colors and all visible source lettering. Compare against the actual source image, including its small tagline. Source logo wording ${JSON.stringify(logoWording)} is required/allowed in the integrated logo, not an invented banner claim; any other wording actually visible in the original logo is also allowed. Do not count source-image text itself as detected artwork text. Set logoMatchesReference=false if the logo is missing or its identity/lettering is materially altered. Set duplicateLogo=true if the artwork contains multiple versions/copies of the logo. Adapted position, scale, or removal of plain source-image background is acceptable.` : 'No separate source logo comparison is requested: set logoMatchesReference=true and duplicateLogo=false.'} Decorative lettering effects are allowed when legible. Return only the requested schema.`,
+            text: `${authorizedTextInstruction} Inspect the FIRST image as the final commercial print artwork. It must be flat edge-to-edge artwork only, not a photograph or mockup. Flag physical banners, installations, rooms, walls, fences, sky/environment surrounding a banner, folds, ripples, grommets, eyelets, rope, poles, hooks, mounting hardware, frames, blank bars, distortion, or important content outside a 5% safe margin. Flag illegibleOrOverlappingText if text overlaps other text or a logo, or has insufficient contrast to read. Required wording must preserve spelling, names, numbers and internal punctuation exactly. Artistic capitalization, line breaks and omitted sentence-ending periods are acceptable: ${expected}. If no wording is required, requiredTextExact must be true. Flag unexpectedText for invented taglines, unrelated labels, gibberish, signatures or watermarks outside the supplied original customer asset regions. Original customer assets may contain their own text: exempt these pixel rectangles from unexpectedText only: ${JSON.stringify(protectedRegions)}. ${logoReference?.buffer ? `The SECOND image is the original customer logo for comparison only, not another artwork to inspect. The final artwork must contain exactly ONE recognizable faithful integrated version of this logo, preserving its identity, key shapes, brand colors and all visible source lettering. Compare against the actual source image, including its small tagline. Source logo wording ${JSON.stringify(logoWording)} is required/allowed in the integrated logo, not an invented banner claim; any other wording actually visible in the original logo is also allowed. Do not count source-image text itself as detected artwork text. Set logoMatchesReference=false if the logo is missing or its identity/lettering is materially altered. Set duplicateLogo=true if the artwork contains multiple versions/copies of the logo. Adapted position, scale, or removal of plain source-image background is acceptable.` : 'No separate source logo comparison is requested: set logoMatchesReference=true and duplicateLogo=false.'} Decorative lettering effects are allowed when legible. Return only the requested schema.`,
           },
           { type: 'input_image', image_url: toDataUrl(buffer), detail: 'high' },
           ...(logoReference?.buffer ? [{ type: 'input_image', image_url: toDataUrl(logoReference.buffer, logoReference.mimeType), detail: 'high' }] : []),
@@ -131,7 +133,15 @@ async function validateArtwork({ background, artwork, brief, plan, protectedRegi
     detectedText: reused.checks?.exactText?.detected || [],
     reasons: reused.reasons || [],
     ...Object.fromEntries((reused.checks?.flatArtwork?.flags || []).map((key) => [key, true])),
-  } : await visualInspection(artwork, expectedText, protectedRegions, integratedLogo ? logoReference : null, brief.logoWording);
+  } : await visualInspection(artwork, expectedText, protectedRegions, integratedLogo ? logoReference : null, brief.logoWording, brief.requiredText);
+  // Reconcile only a demonstrable false alarm: every reported unauthorized
+  // phrase must equal one approved phrase under the existing OCR normalization.
+  // Missing samples, substrings, real extras, and every other flag stay blocked.
+  if (vision.unexpectedText === true && Array.isArray(vision.unexpectedTextSamples) && vision.unexpectedTextSamples.length > 0
+    && vision.unexpectedTextSamples.every(sample => typeof sample === 'string' && sample.trim() && expectedText.some(expected =>
+      matchesDetectedWording([sample], [expected]) && matchesDetectedWording([expected], [sample])))) {
+    vision.unexpectedText = false;
+  }
   const visualFlags = vision.available ? [
     'physicalBannerMockup', 'surroundingScene', 'grommetsOrEyelets', 'mountingHardware',
     'foldsOrMaterialRipples', 'frameOrBorder', 'blankBarsOrLetterboxing',

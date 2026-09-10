@@ -271,6 +271,34 @@ describe('logo-aware brand planning and image generation', () => {
 
 describe('integrated logo validation', () => {
   it.each([
+    { samples: ['NOW OPEN'], expected: true },
+    { samples: [' now\nopen. '], expected: true },
+    { samples: ['NOW OPEN', 'Bake My Day'], expected: true },
+    { samples: ['Best Bakery In Town'], expected: false },
+    { samples: ['NOW OPEN', 'Best Bakery In Town'], expected: false },
+    { samples: ['OPEN'], expected: false },
+    { samples: [], expected: false },
+    { samples: undefined, expected: false },
+    { samples: ['NOW OPEN'], overlapping: true, expected: false },
+  ])('reconciles only exactly authorized unexpected-text samples: %j', async ({ samples, overlapping = false, expected }) => {
+    const f = await fixture();
+    const create = vi.fn(async () => ({ output_text: JSON.stringify({ requiredTextExact: true, logoMatchesReference: true, duplicateLogo: false, unexpectedText: true, unexpectedTextSamples: samples, illegibleOrOverlappingText: overlapping, detectedText: ['NOW OPEN', 'Bake My Day'], reasons: ['Flagged text'], confidence: 0.98 }) }));
+    const validation = loadModule(localRequire.resolve('./validation.cjs'), { './provider.cjs': { getClient: async () => ({ client: { responses: { create } } }), getValidationModel: () => 'mock', withTimeout: task => task(undefined) } });
+    const artwork = await sharp({ create: { width: 600, height: 600, channels: 3, background: '#fff2de' } }).png().toBuffer();
+    const brief = normalizeBrief({ description: 'Coming soon', widthIn: 6, heightIn: 6, typographyMode: 'ai', logoRendering: 'integrated', logoWording: ['Bake My Day'], copy: { headline: 'NOW OPEN' } });
+    const result = await validation.validateArtwork({ artwork, background: artwork, brief, plan: { finalWidth: 600, finalHeight: 600 }, logoReference: await prepareLogo({ buffer: f.logoBuffer }) });
+    expect(create).toHaveBeenCalledOnce();
+    const request = create.mock.calls[0][0];
+    expect(request.input[0].content[0].text).toContain('(A) Approved banner copy: ["NOW OPEN"]');
+    expect(request.input[0].content[0].text).toContain('(B) Original source-logo lettering: ["Bake My Day"]');
+    expect(request.text.format.schema.properties.unexpectedTextSamples).toEqual({ type: 'array', items: { type: 'string' } });
+    expect(result.passed).toBe(expected);
+    expect(result.checks.logoIdentity.passed).toBe(true);
+    if (overlapping) expect(result.checks.flatArtwork.flags).toContain('illegibleOrOverlappingText');
+    else expect(result.checks.flatArtwork.flags.includes('unexpectedText')).toBe(!expected);
+  });
+
+  it.each([
     { logoMatchesReference: true, duplicateLogo: false, expected: true },
     { logoMatchesReference: false, duplicateLogo: false, expected: false },
     { logoMatchesReference: true, duplicateLogo: true, expected: false },
