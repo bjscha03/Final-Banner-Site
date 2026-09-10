@@ -389,12 +389,12 @@ export default function AIWorkspace(props: Props) {
   }, [props.widthIn, props.heightIn, props.material, props.quantity, props.productType]);
 
   const updateBrief = <K extends keyof CreativeBrief>(key: K, value: CreativeBrief[K]) => {
-    setBrief((current) => ({ ...current, [key]: value, structured: false }));
+    setBrief((current) => ({ ...current, [key]: value, ...(key === 'description' ? { copy: { ...EMPTY_COPY, ...current.copyOverrides } } : {}), structured: false }));
     setBriefReviewed(false);
   };
 
   const updateCopy = (key: keyof ExactCopy, value: string) => {
-    setBrief((current) => ({ ...current, structured: false, copy: { ...current.copy, [key]: value } }));
+    setBrief((current) => ({ ...current, structured: false, copy: { ...current.copy, [key]: value }, copyOverrides: { ...current.copyOverrides, [key]: value } }));
     setBriefReviewed(false);
   };
 

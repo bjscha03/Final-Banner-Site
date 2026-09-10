@@ -128,6 +128,7 @@ function normalizeBrief(input = {}) {
     textColor: /^#[a-f0-9]{6}$/i.test(input.textColor || '') ? input.textColor : '#ffffff',
     accentColor: /^#[a-f0-9]{6}$/i.test(input.accentColor || '') ? input.accentColor : '#f97316',
     copy,
+    copyOverrides: Object.fromEntries(COPY_FIELDS.filter(field => Object.prototype.hasOwnProperty.call(input.copyOverrides || {}, field)).map(field => [field, boundedText(input.copyOverrides[field], TEXT_LIMITS[field], field)])),
     requiredText: requiredText(copy),
     safeZonePercent: 5,
     prohibitedElements: [
@@ -165,6 +166,25 @@ function fitInterpretedDirection(input = {}) {
   return result;
 }
 
+function buildImprovedPrompt(candidate, brief) {
+  try { return validateImprovedPrompt(candidate, brief.requiredText); } catch {
+    // A verbose or imperfect prose rewrite must not require another paid call.
+    // Assemble the same AI art direction around the approved exact wording.
+    let prompt = `Create a finished banner. Use exactly this wording: ${brief.requiredText.map(text => JSON.stringify(text)).join('; ') || 'No text'}.`;
+    for (const sentence of [
+      `Theme and imagery: ${brief.subjectMatter}.`,
+      `Visual style: ${brief.visualStyle}.`,
+      `Composition: ${brief.composition}.`,
+      `Colors: ${brief.colorPalette}.`,
+      `Make ${brief.focalPoint} the focal point.`,
+      'Integrate expressive, theme-appropriate lettering with the artwork. Keep it readable with strong hierarchy and safe margins. Fill the canvas edge to edge.',
+    ]) {
+      if (`${prompt} ${sentence}`.length <= 1200) prompt += ` ${sentence}`;
+    }
+    return validateImprovedPrompt(prompt, brief.requiredText);
+  }
+}
+
 module.exports = {
   COPY_FIELDS,
   normalizeCopy,
@@ -174,4 +194,5 @@ module.exports = {
   stableHash,
   validateImprovedPrompt,
   fitInterpretedDirection,
+  buildImprovedPrompt,
 };

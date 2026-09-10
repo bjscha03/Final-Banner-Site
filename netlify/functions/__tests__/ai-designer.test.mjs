@@ -16,7 +16,7 @@ const { normalizeLayers, mergeLayerEdits, removePhotoLayers } = require('../_sha
 const { temporaryArtworkUrl } = require('../_shared/ai-designer/storage.cjs');
 const { planCanvas, prepareOutpaintInput, PROVIDER_MAX_EDGE, PROVIDER_MAX_PIXELS } = require('../_shared/ai-designer/image-utils.cjs');
 const { compositeArtwork, wrapText } = require('../_shared/ai-designer/compositor.cjs');
-const { normalizeBrief, validateImprovedPrompt, fitInterpretedDirection } = require('../_shared/ai-designer/schema.cjs');
+const { normalizeBrief, validateImprovedPrompt, fitInterpretedDirection, buildImprovedPrompt } = require('../_shared/ai-designer/schema.cjs');
 const { buildGenerationPrompt, buildEditPrompt } = require('../_shared/ai-designer/prompt.cjs');
 const { MODEL_ALIAS, MODEL_SNAPSHOT, getImageModel, isEnabled } = require('../_shared/ai-designer/config.cjs');
 const { classifyProviderError, isTransientConnectionError } = require('../_shared/ai-designer/provider.cjs');
@@ -377,6 +377,15 @@ describe('GPT Image 2 provider contract', () => {
 });
 
 describe('flat-artwork structured prompts', () => {
+  it('recovers a verbose rewrite using AI direction without losing names or dates', () => {
+    const brief = productionBrief({ copy: { headline: 'Happy Birthday Bryson!', date: 'September 19' }, subjectMatter: 'Playful rescue pups' });
+    const result = buildImprovedPrompt('too long '.repeat(300), brief);
+    expect(result.length).toBeLessThanOrEqual(1200);
+    expect(result).toContain('Happy Birthday Bryson!');
+    expect(result).toContain('September 19');
+    expect(result).toContain('Playful rescue pups');
+    expect(buildImprovedPrompt('Happy Birthday Bryson! September 20', brief)).not.toContain('September 20');
+  });
   it('fits verbose AI planning without truncating customer wording', () => {
     const copy = { headline: 'Happy Birthday Bryson!' };
     const result = fitInterpretedDirection({ composition: 'Detailed direction '.repeat(40), copy, description: 'Exact request', improvedPrompt: 'Exact rewrite' });

@@ -15,6 +15,7 @@ export type ExactCopy = {
 
 export type CreativeBrief = {
   typographyMode?: 'ai' | 'layers';
+  copyOverrides?: Partial<ExactCopy>;
   layers?: Record<string, { x?: number; y?: number; scale?: number; width?: number; color?: string; font?: string }>;
   structured: boolean;
   description: string;
