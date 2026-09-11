@@ -12,7 +12,7 @@ test('expanded prompt stays above the copy button at narrow and desktop widths',
       await expect(page.locator('[data-ai-whitespace-warning]')).toHaveCount(0);
       continue;
     }
-    await page.getByRole('button', { name: "6' × 3' — Most popular — 25% off automatically", exact: true }).click();
+    await page.getByRole('button', { name: "6' × 3' — Most popular", exact: true }).click();
     await page.getByRole('button', { name: 'Open AI artwork help' }).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog.locator('[data-ai-prompt]')).not.toBeVisible();
@@ -84,7 +84,7 @@ test('AI artwork help stays optional, updates prompts, copies, and preserves the
   await dialog.getByRole('button', { name: 'Close' }).click();
 
   const size = page.locator('#size-section');
-  await size.getByRole('button', { name: "6' × 3' — Most popular — 25% off automatically", exact: true }).click();
+  await size.getByRole('button', { name: "6' × 3' — Most popular", exact: true }).click();
   await helpButton.click();
   await expect(dialog.getByText('72 × 36 inches', { exact: true })).toBeVisible();
   await expect(dialog.locator('[data-ai-prompt]')).toContainText('72:36 shape');
@@ -95,13 +95,13 @@ test('AI artwork help stays optional, updates prompts, copies, and preserves the
   await expect(dialog.getByRole('button', { name: 'Copied!' })).toBeVisible();
   await dialog.getByRole('button', { name: 'Close' }).click();
 
-  await size.getByRole('button', { name: "8' × 3' — 25% off automatically", exact: true }).click();
+  await size.getByRole('button', { name: "8' × 3'", exact: true }).click();
   await helpButton.click();
   await expect(dialog.getByText('96 × 36 inches', { exact: true })).toBeVisible();
   await expect(dialog.locator('[data-ai-prompt]')).toContainText('96:36 shape');
   await dialog.getByRole('button', { name: 'Close' }).click();
 
-  await size.getByRole('button', { name: "6' × 3' — Most popular — 25% off automatically", exact: true }).click();
+  await size.getByRole('button', { name: "6' × 3' — Most popular", exact: true }).click();
   const squareArtwork = await sharp({
     create: { width: 900, height: 900, channels: 3, background: '#1d4ed8' },
   }).jpeg().toBuffer();
@@ -131,7 +131,7 @@ test('Google Ads banner page serves the same dimension-aware AI artwork help', a
   await page.goto('/google-ads-banner?product=banner', { waitUntil: 'domcontentloaded' });
 
   const size = page.locator('#size-section');
-  await size.getByRole('button', { name: "6' × 3' — Most popular — 25% off automatically", exact: true }).click();
+  await size.getByRole('button', { name: "6' × 3' — Most popular", exact: true }).click();
   await page.getByRole('button', { name: 'Open AI artwork help' }).click();
 
   const dialog = page.getByRole('dialog');
