@@ -7,6 +7,7 @@
 // always matches the amount the existing order pipeline persists.
 
 const {
+  LARGE_BANNER_PROMOTION_ENABLED,
   AUTOMATIC_LARGE_BANNER_PERCENTAGE,
   AUTOMATIC_LARGE_BANNER_PROMOTION_ID,
   AUTOMATIC_LARGE_BANNER_PROMOTION_LABEL,
@@ -86,7 +87,7 @@ const resolveBestDiscount = (
   const promoPercentage = Number(promoDiscount?.discountPercentage || 0);
   const fixedPromoAmountCents = normalizedCents(promoDiscount?.discountAmountCents);
 
-  if (promoDiscount) {
+  if (promoDiscount && (LARGE_BANNER_PROMOTION_ENABLED || !(isAutomaticAlias(promoCode) || ['recovery_qualifying_banner_lines', 'qualifying_large_banner_lines'].includes(promoDiscount.discountScope)))) {
     if (promoPercentage > 0) {
       promoDiscountRate = promoPercentage / 100;
       promoDiscountAmountCents = Math.round(promoBaseCents * promoDiscountRate);
@@ -97,7 +98,7 @@ const resolveBestDiscount = (
     promoDiscountAmountCents = capPromoDiscountAmount(promoDiscountAmountCents, promoDiscount);
   }
 
-  const automaticRate = AUTOMATIC_LARGE_BANNER_PERCENTAGE / 100;
+  const automaticRate = LARGE_BANNER_PROMOTION_ENABLED ? AUTOMATIC_LARGE_BANNER_PERCENTAGE / 100 : 0;
   const automaticDiscountAmountCents = Math.round(automaticBaseCents * automaticRate);
 
   if (automaticDiscountAmountCents > 0) {

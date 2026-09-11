@@ -14,6 +14,7 @@
 
 import { getQuantityDiscountRate } from './quantity-discount';
 import {
+  LARGE_BANNER_PROMOTION_ENABLED,
   LARGE_BANNER_PROMOTION_ID,
   LARGE_BANNER_PROMOTION_LABEL,
   LARGE_BANNER_PROMOTION_PERCENTAGE,
@@ -298,7 +299,7 @@ export function resolveBestDiscount(input: DiscountResolverInput): ResolvedDisco
     ? String(promoDiscount.code).trim().toUpperCase()
     : null;
 
-  if (promoDiscount) {
+  if (promoDiscount && (LARGE_BANNER_PROMOTION_ENABLED || !(isLargeBannerPromotionIdentifier(promoDiscount.code) || promoDiscount.discountScope === SEPTEMBER_LARGE_BANNER_SCOPE || promoDiscount.discountScope === LARGE_BANNER_RECOVERY_SCOPE))) {
     const percentage = Number(promoDiscount.discountPercentage || 0);
     const fixedAmountCents = normalizedCents(promoDiscount.discountAmountCents);
     if (percentage > 0) {

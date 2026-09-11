@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
-import { isQualifyingLargeBannerDimensions } from '@/lib/largeBannerPromotion';
+import { LARGE_BANNER_PROMOTION_ENABLED, isQualifyingLargeBannerDimensions } from '@/lib/largeBannerPromotion';
 import StepHeader from './StepHeader';
 
 export interface ConfigCardProps {
@@ -85,7 +85,7 @@ export default function ConfigCard({
       );
       if (isPopular) popularButton = button;
 
-      const isEligible = isQualifyingLargeBannerDimensions(
+      const isEligible = LARGE_BANNER_PROMOTION_ENABLED && isQualifyingLargeBannerDimensions(
         dimensions.widthIn,
         dimensions.heightIn,
         'banner',
