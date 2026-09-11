@@ -3384,7 +3384,7 @@ const GoogleAdsBanner: React.FC = () => {
         <MobileSubtotalBar
           cartItemCount={cartItemCount}
           onViewCart={openCartDrawer}
-          priceNote={showPopularBannerPriceNote ? POPULAR_BANNER_PRESET.mobilePriceNote : undefined}
+          priceNote={showPopularBannerPriceNote ? "Popular 6′ × 3′ size preselected" : undefined}
           subtotal={
             !isYardSign && !isCarMagnet ? (
               <div>
