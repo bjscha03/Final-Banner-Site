@@ -1,3 +1,4 @@
+export const LARGE_BANNER_PROMOTION_ENABLED = false;
 export const LARGE_BANNER_PROMOTION_ID = 'LARGE_BANNER_25';
 export const LARGE_BANNER_PROMOTION_LABEL = 'Large Banner 25% Off';
 export const LARGE_BANNER_PROMOTION_PERCENTAGE = 25;
@@ -24,6 +25,7 @@ export function isQualifyingLargeBannerDimensions(
 }
 
 export function calculateLargeBannerDiscountCents(eligibleSubtotalCents: number): number {
+  if (!LARGE_BANNER_PROMOTION_ENABLED) return 0;
   const subtotal = Number(eligibleSubtotalCents);
   if (!Number.isFinite(subtotal) || subtotal <= 0) return 0;
   return Math.round(subtotal * LARGE_BANNER_PROMOTION_RATE);

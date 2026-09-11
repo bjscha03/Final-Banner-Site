@@ -374,7 +374,7 @@ test('Resend error names distinguish terminal idempotency/configuration failures
   assert.match(fixture.state.failureQuery, /THEN 'skipped'[\s\S]+ELSE 'failed'/);
 });
 
-test('a qualifying 72x36 first email includes the scoped RECOVER25 offer, actual preview, brand, and one-hour activation', async () => {
+test('a 72x36 recovery email preserves artwork and checkout without issuing the retired 25% offer', async () => {
   const fixture = deliveryFixture({
     cartItems: [{
       id: 'qualifying-banner-line',
@@ -408,47 +408,14 @@ test('a qualifying 72x36 first email includes the scoped RECOVER25 offer, actual
   });
 
   assert.equal(result.success, true);
-  assert.match(result.discountCode, /^RECOVER25-[A-F0-9]{24}$/);
-  assert.equal(result.discountCode, fixture.state.issuedCode);
-  assert.equal(fixture.state.payload.subject, 'Your banner is saved — 25% off for the next hour');
-  assert.match(fixture.state.payload.html, /25% OFF THIS ORDER/);
-  assert.match(fixture.state.payload.html, new RegExp(result.discountCode));
-  assert.match(fixture.state.payload.html, /You left this behind/);
+  assert.equal(result.discountCode, null);
+  assert.doesNotMatch(fixture.state.payload.html, /25%|RECOVER25|ONE-HOUR/);
+  assert.doesNotMatch(fixture.state.payload.text, /25%|RECOVER25|ONE-HOUR/);
   assert.match(fixture.state.payload.html, /customer-preview\.png/);
   assert.match(fixture.state.payload.html, /logo-compact\.svg/);
   assert.match(fixture.state.payload.html, /\/checkout#recovery=/);
-  assert.match(fixture.state.payload.text, /PRIVATE ONE-HOUR RECOVERY OFFER/);
-  assert.match(fixture.state.payload.text, /25% OFF THIS ORDER/);
-  assert.match(fixture.state.payload.text, new RegExp(`Code: ${result.discountCode}`));
-  assert.match(fixture.state.payload.text, /You left this behind/);
-  assert.match(fixture.state.payload.text, /FINISH MY ORDER/);
-  const issuance = fixture.state.queries.find(({ query }) => /inserted_offer AS/.test(query));
-  assert.ok(issuance);
-  assert.match(issuance.query, /discount_percentage[\s\S]+discount_scope[\s\S]+eligible_cart_item_ids/);
-  assert.equal(issuance.values.includes(25), true);
-  assert.equal(issuance.values.includes('abandoned_cart_large_banner_25'), true);
-  assert.equal(issuance.values.includes('recovery_qualifying_banner_lines'), true);
-  assert.equal(issuance.values.includes('["qualifying-banner-line"]'), true);
-  assert.equal(issuance.values.includes(2025), true);
-  assert.match(fixture.state.completionQuery, /WITH eligible_delivery AS MATERIALIZED[\s\S]+activated_offer AS[\s\S]+delivered AS/);
-  assert.match(fixture.state.completionQuery, /expires_at = CASE[\s\S]+WHEN activated_at IS NULL THEN \?::timestamptz[\s\S]+ELSE expires_at/);
-  assert.match(fixture.state.completionQuery, /activated_at = COALESCE\(activated_at, \?::timestamptz\)/);
-  assert.match(fixture.state.completionQuery, /issued_at = COALESCE\(issued_at, \?::timestamptz\)/);
-  assert.equal(fixture.state.completionValues.includes(1), true);
-  assert.equal(fixture.state.completionValues.includes(result.discountCode), true);
-  assert.equal(fixture.state.completionValues.includes(cartId), true);
-  assert.equal(fixture.state.completionValues.includes('abandoned_cart_large_banner_25'), true);
-  assert.equal(fixture.state.queries.some(({ query }) => /'coupon_issued'/.test(query)), true);
-  assert.notEqual(fixture.state.deliveryMetadata.offerExpiresAt, fixture.state.offerExpiresAt);
-  assert.equal(
-    new Date(fixture.state.deliveryMetadata.offerExpiresAt).getTime()
-      - new Date(fixture.state.deliveryMetadata.offerActivatedAt).getTime(),
-    60 * 60 * 1000,
-  );
-  assert.equal(fixture.state.deliveryMetadata.offerCode, result.discountCode);
-  assert.equal(fixture.state.deliveryMetadata.offerMaxDiscountAmountCents, 2025);
-  assert.equal(fixture.state.completionValues.includes(fixture.state.offerExpiresAt), true);
-  assert.match(fixture.state.payload.html, /Expires exactly one hour after this email was sent/);
+  assert.equal(fixture.state.queries.some(({ query }) => /inserted_offer AS/.test(query)), false);
+
 });
 
 test('offer activation is a hard gate for recording provider-accepted delivery', async () => {
@@ -503,7 +470,7 @@ test('offer activation is a hard gate for recording provider-accepted delivery',
   assert.equal(completionValues.includes(activatedExpiry), true);
 });
 
-test('an unactivated offer retry reuses its exact deadline and never refreshes expiry', async () => {
+test('a retry does not reactivate a retired offer or refresh its expiry', async () => {
   const authoritativeItems = [{
     id: 'line-1', product_type: 'banner', width_in: 72, height_in: 36,
     quantity: 1, material: '13oz', grommets: 'none', line_total_cents: 8100,
@@ -529,7 +496,7 @@ test('an unactivated offer retry reuses its exact deadline and never refreshes e
     return [];
   }, cart, 1, authoritativeItems);
 
-  assert.equal(offer.expiresAt, expiresAt);
+  assert.equal(offer, null);
   assert.equal(queries.some((query) => /UPDATE discount_codes[\s\S]+SET expires_at/i.test(query)), false);
 });
 

@@ -16,6 +16,7 @@ const {
   selectWinningRecoveryDiscount,
 } = require('../abandoned-cart-discount-selection.cjs');
 const {
+  LARGE_BANNER_PROMOTION_ENABLED,
   LARGE_BANNER_RECOVERY_CAMPAIGN,
   LARGE_BANNER_RECOVERY_PERCENTAGE,
   LARGE_BANNER_RECOVERY_SCOPE,
@@ -1269,7 +1270,7 @@ async function completeClaim(
 }
 
 async function getOrCreateDiscountCode(sql, cart, sequenceNumber, authoritativeItems = null) {
-  if (sequenceNumber !== 1) return null;
+  if (!LARGE_BANNER_PROMOTION_ENABLED || sequenceNumber !== 1) return null;
   let items = authoritativeItems;
   if (!Array.isArray(items)) {
     try {

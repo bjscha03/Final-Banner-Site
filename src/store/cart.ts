@@ -1,3 +1,4 @@
+import { LARGE_BANNER_PROMOTION_ENABLED, isLargeBannerPromotionIdentifier } from '@/lib/largeBannerPromotion';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { QuoteState, MaterialKey, Grommets, TextElement } from './quote';
@@ -1622,6 +1623,10 @@ export const useCartStore = create<CartState>()(
       // Items ARE persisted to localStorage as a cache for page navigation
       // Server is the source of truth - useCartSync loads/merges from server
             onRehydrateStorage: () => (state) => {
+        // Retired offers must not block returning shoppers at checkout. Keep their items and delivery choices.
+        if (state?.discountCode && !LARGE_BANNER_PROMOTION_ENABLED && (isLargeBannerPromotionIdentifier(state.discountCode.code) || ['recovery_qualifying_banner_lines', 'qualifying_large_banner_lines'].includes(state.discountCode.discountScope || ''))) {
+          state.discountCode = null;
+        }
         debugLog('💾 CART STORAGE: Rehydrating from localStorage...');
         debugLog('💾 CART STORAGE: Items count after rehydration:', state?.items?.length ?? 0);
         

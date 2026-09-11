@@ -4,7 +4,7 @@ import { resolvePromo } from './promoEngine';
 import { isPopularBannerPreset, POPULAR_BANNER_PRESET } from './bannerDefaults';
 
 describe('popular banner defaults', () => {
-  it('defines 6 by 3 as the selected default and resolves its automatic 25% price', () => {
+  it('defines 6 by 3 as the selected default and shows its undiscounted starting price', () => {
     expect(POPULAR_BANNER_PRESET).toMatchObject({ widthIn: 72, heightIn: 36, presetIndex: 2 });
     expect(isPopularBannerPreset('banner', 72, 36, 2)).toBe(true);
 
@@ -28,11 +28,11 @@ describe('popular banner defaults', () => {
       }],
     });
     expect(discount).toMatchObject({
-      promotionId: 'LARGE_BANNER_25',
-      appliedDiscountType: 'promo',
-      appliedDiscountAmountCents: 2025,
+      promotionId: null,
+      appliedDiscountType: 'none',
+      appliedDiscountAmountCents: 0,
     });
-    expect(pricing.subtotalBeforeDiscountCents - discount.appliedDiscountAmountCents).toBe(6075);
+    expect(pricing.subtotalBeforeDiscountCents - discount.appliedDiscountAmountCents).toBe(8100);
   });
 
   it('does not show the recommendation note after the customer changes size or product', () => {
@@ -48,7 +48,7 @@ describe('popular banner defaults', () => {
     expect(isPopularBannerPreset('banner', POPULAR_BANNER_PRESET.widthIn, POPULAR_BANNER_PRESET.heightIn, null)).toBe(false);
   });
 
-  it('resolves the automatic 25% discount to $60.75 from $81.00 once 6×3 is explicitly selected', () => {
+  it('keeps the selected 6×3 at $81 until a valid promo is applied', () => {
     expect(isPopularBannerPreset('banner', POPULAR_BANNER_PRESET.widthIn, POPULAR_BANNER_PRESET.heightIn, POPULAR_BANNER_PRESET.presetIndex)).toBe(true);
 
     const pricing = calculateBannerPricing({
@@ -71,6 +71,6 @@ describe('popular banner defaults', () => {
       }],
     });
     const finalCents = pricing.subtotalBeforeDiscountCents - discount.appliedDiscountAmountCents;
-    expect(finalCents / 100).toBe(60.75);
+    expect(finalCents / 100).toBe(81);
   });
 });

@@ -1,6 +1,7 @@
 'use strict';
 
 const {
+  LARGE_BANNER_PROMOTION_ENABLED,
   AUTOMATIC_LARGE_BANNER_PROMOTION_ID,
   LARGE_BANNER_RECOVERY_CAMPAIGN,
   LARGE_BANNER_RECOVERY_SCOPE,
@@ -98,6 +99,7 @@ async function validateDiscountForCheckout({
   const normalizedEmail = email ? String(email).trim().toLowerCase() : null;
   const normalizedRecoveryCartId = normalizedCartId(recoveryCartId);
   if (!normalizedCode) return invalidResult('Discount code is required');
+  if (!LARGE_BANNER_PROMOTION_ENABLED && [AUTOMATIC_LARGE_BANNER_PROMOTION_ID, SEPTEMBER_LARGE_BANNER_CODE].includes(normalizedCode)) return invalidResult('This large-banner promotion has ended');
 
   const hasQualifyingLargeBanner = Array.isArray(items)
     && items.some(isQualifyingLargeBannerLine);
@@ -133,7 +135,7 @@ async function validateDiscountForCheckout({
     // A customer may have applied NEW20 before adding a qualifying banner.
     // Resolve that stale state to the automatic 25% offer instead of stacking
     // discounts or failing the provider checkout after the cart is repriced.
-    if (hasQualifyingLargeBanner) {
+    if (LARGE_BANNER_PROMOTION_ENABLED && hasQualifyingLargeBanner) {
       return validResult(buildAutomaticLargeBannerDiscount());
     }
 
@@ -207,6 +209,7 @@ async function validateDiscountForCheckout({
   if (!rows.length) return invalidResult('Invalid discount code');
 
   const discount = rows[0];
+  if (!LARGE_BANNER_PROMOTION_ENABLED && discount.campaign === LARGE_BANNER_RECOVERY_CAMPAIGN) return invalidResult('This large-banner promotion has ended');
   const boundEmail = discount.email ? String(discount.email).trim().toLowerCase() : null;
   const recoveryOffer = Boolean(discount.cart_id);
   const discountRecoveryCartId = normalizedCartId(discount.cart_id);

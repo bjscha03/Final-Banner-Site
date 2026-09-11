@@ -28,7 +28,6 @@ import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
 import DeliveryTimer from '@/components/delivery/DeliveryTimer';
 import { sameDayConfig } from '@/lib/sameDayConfig';
 import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
-import BannerDiscountOffer from '@/components/design/BannerDiscountOffer';
 import MobileSubtotalBar from '@/components/design/MobileSubtotalBar';
 import AIArtworkHelp from '@/components/design/AIArtworkHelp';
 import RealOrdersStrip from '@/components/design/RealOrdersStrip';
@@ -145,42 +144,82 @@ function formatPresetLabel(w: number, h: number, unit: 'in' | 'ft'): string {
 }
 
 const FastBannerAdHero: React.FC<{ onStart: () => void }> = ({ onStart }) => (
-  <section data-google-ads-hero className="border-b border-slate-100 bg-white text-[#061A31]">
-    <div className="mx-auto grid max-w-[1536px] gap-6 px-5 py-7 sm:px-8 sm:py-10 lg:grid-cols-[0.92fr_1.08fr] lg:items-center lg:gap-10 lg:px-10 lg:py-12">
-      <div className="min-w-0">
-        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#FF6A00] sm:text-sm">Custom vinyl banners</p>
-        <h1 className="mt-3 font-sans text-[clamp(2.2rem,8.7vw,3.5rem)] font-extrabold leading-[1.05] tracking-[-0.045em] lg:text-[clamp(2.5rem,4.25vw,4.5rem)]">
-          <span className="block">Big impact.</span>
-          <span className="block text-[#FF6A00]">Without the wait.</span>
+  <section
+    data-google-ads-hero
+    className="relative isolate overflow-hidden border-b-4 border-[#FF6A00] bg-[#F86408] text-[#071C35]"
+  >
+    <div
+      className="pointer-events-none absolute inset-0 z-0 opacity-45"
+      style={{
+        backgroundImage: 'radial-gradient(circle at 13% 18%, rgba(255,188,74,.72), transparent 35%), radial-gradient(circle at 39% 76%, rgba(146,48,0,.24), transparent 38%)',
+      }}
+      aria-hidden="true"
+    />
+
+    <div className="relative z-10 mx-auto flex max-w-[1855px] items-center px-5 py-10 sm:px-8 sm:py-12 xl:min-h-[700px] xl:px-16 xl:py-16 2xl:min-h-[748px]">
+      <div className="w-full xl:max-w-[760px]">
+        <h1 className="homepage-condensed max-w-[760px] [--homepage-mobile-size:clamp(3.8rem,17vw,5.1rem)] text-[5.1rem] font-black uppercase leading-[0.86] tracking-[-0.015em] text-[#071C35] sm:text-[6.6rem] xl:text-[7.5rem]">
+          Custom banners.<br />Without the wait.
         </h1>
-        <p className="mt-5 text-base leading-relaxed text-[#243e5c] sm:text-xl">
-          24-hour standard production.<br />Free next-day air after production.
-        </p>
+
         <button
           type="button"
           onClick={onStart}
-          className="mt-6 inline-flex min-h-14 w-full items-center justify-center gap-3 rounded-lg bg-[#FF6A00] px-4 py-4 text-base font-bold text-[#061A31] transition-colors hover:bg-[#FF6A00] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#061A31] focus-visible:ring-offset-4 sm:max-w-[505px] sm:text-lg"
+          className="mt-7 inline-flex min-h-14 w-full max-w-[505px] items-center justify-center gap-4 rounded-md bg-[#071C35] px-6 py-4 text-base font-black uppercase tracking-[0.035em] text-white shadow-[0_12px_30px_rgba(7,28,53,.2)] transition-colors hover:bg-[#10375f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#F86408] sm:w-auto sm:min-w-[440px] sm:text-lg"
         >
-          Build &amp; price my banner <ArrowRight className="h-5 w-5 shrink-0" aria-hidden="true" />
+          Build &amp; price my banner <ArrowRight className="h-6 w-6" aria-hidden="true" />
         </button>
-        <p className="mt-2 text-xs leading-5 text-slate-600 sm:text-sm">Upload your artwork · See your price · Preview instantly</p>
-        <BannerDiscountOffer variant="light" className="mt-6 w-full" />
-        <HeroDeliveryStatus variant="light" className="mt-6 w-full" />
+
+        <div className="mt-5 grid w-full max-w-[505px] grid-cols-[auto_1fr] items-center gap-4 rounded-md border border-white/70 bg-white px-5 py-4 text-[#071C35] shadow-[0_9px_20px_rgba(57,20,0,.2)] sm:gap-5 sm:px-6">
+          <p className="homepage-condensed whitespace-nowrap [--homepage-mobile-size:3rem] text-5xl font-black uppercase leading-none text-[#E95413] sm:text-[4rem]">20% off</p>
+          <div className="border-l-2 border-[#E95413] pl-4 text-sm font-bold uppercase leading-5 tracking-[0.04em] sm:text-base sm:leading-6">
+            First order<br />Use code NEW20
+          </div>
+        </div>
+        <HeroDeliveryStatus className="mt-5 w-full max-w-[505px]" />
       </div>
-      <figure className="min-w-0">
-        <picture>
-          <source type="image/avif" srcSet="/images/google-ads/light-hero-640.avif 640w, /images/google-ads/light-hero-1200.avif 1200w" sizes="(min-width: 1536px) 760px, (min-width: 1024px) 52vw, 100vw" />
-          <img
-            src="/images/google-ads/light-hero-1200.webp"
-            srcSet="/images/google-ads/light-hero-640.webp 640w, /images/google-ads/light-hero-1200.webp 1200w"
-            sizes="(min-width: 1536px) 760px, (min-width: 1024px) 52vw, 100vw"
-            alt="Cream and orange grand opening vinyl banner mounted with grommets outside a sunny coffee shop"
-            width="1200" height="900" loading="eager" decoding="async" fetchPriority="high"
-            className="aspect-[4/3] w-full rounded-xl object-cover"
-          />
-        </picture>
-        <figcaption className="mt-2 text-center text-xs text-slate-600">Your artwork. Printed big. Ready to hang.</figcaption>
-      </figure>
+    </div>
+
+    <picture className="relative z-[5] block w-full overflow-hidden bg-[#15283e] xl:absolute xl:bottom-[82px] xl:right-0 xl:top-0 xl:w-[57%]">
+      <source
+        type="image/avif"
+        srcSet="/images/google-ads/banner-collage-520.avif 520w, /images/google-ads/banner-collage-800.avif 800w, /images/google-ads/banner-collage-1040.avif 1040w"
+        sizes="(min-width: 1280px) 57vw, 100vw"
+      />
+      <source
+        type="image/webp"
+        srcSet="/images/google-ads/banner-collage-520.webp 520w, /images/google-ads/banner-collage-800.webp 800w, /images/google-ads/banner-collage-1040.webp 1040w"
+        sizes="(min-width: 1280px) 57vw, 100vw"
+      />
+      <img
+        src="/images/google-ads/banner-collage-1040.webp"
+        alt="Custom vinyl and mesh banners installed at a storefront, sports field, and market event"
+        width="1040"
+        height="748"
+        loading="eager"
+        decoding="sync"
+        fetchPriority="high"
+        className="aspect-[1040/748] h-auto w-full object-cover xl:h-full xl:object-cover xl:object-center"
+      />
+    </picture>
+
+    <div className="pointer-events-none absolute inset-y-0 left-0 z-[6] hidden w-[58%] bg-[linear-gradient(90deg,#F86408_0%,rgba(248,100,8,.99)_64%,rgba(248,100,8,.86)_82%,transparent_100%)] xl:block" aria-hidden="true" />
+
+    <div className="relative z-20 border-t border-[#FF6A00] bg-[#101820]/95 text-white">
+      <ul className="mx-auto grid max-w-[1600px] grid-cols-3 divide-x divide-[#FF6900]/80 px-2 py-3 sm:px-7 sm:py-4 xl:py-5" aria-label="Banner ordering benefits">
+        <li className="flex items-center justify-center gap-2 px-2 sm:gap-4 sm:px-6">
+          <Clock className="h-5 w-5 flex-none text-[#FF6900] sm:h-9 sm:w-9" aria-hidden="true" />
+          <span className="text-[9px] font-bold uppercase leading-3 sm:text-sm xl:text-base">24-hour standard production</span>
+        </li>
+        <li className="flex items-center justify-center gap-2 px-2 sm:gap-4 sm:px-6">
+          <Truck className="h-5 w-5 flex-none text-[#FF6900] sm:h-9 sm:w-9" aria-hidden="true" />
+          <span className="text-[9px] font-bold uppercase leading-3 sm:text-sm xl:text-base">Free next-day air after production</span>
+        </li>
+        <li className="flex items-center justify-center gap-2 px-2 sm:gap-4 sm:px-6">
+          <Monitor className="h-5 w-5 flex-none text-[#FF6900] sm:h-9 sm:w-9" aria-hidden="true" />
+          <span className="text-[9px] font-bold uppercase leading-3 sm:text-sm xl:text-base">Live print preview</span>
+        </li>
+      </ul>
     </div>
   </section>
 );
@@ -404,18 +443,14 @@ const GoogleAdsBanner: React.FC = () => {
     activePdfPreviewCleanupRef.current = null;
   }, []);
   const [uploadError, setUploadError] = useState('');
-  // Fresh banner-page loads start with NO preset selected/highlighted and NO
-  // committed size, so the order summary shows $0.00 until the customer
-  // explicitly clicks a preset (e.g. 6′ × 3′) or confirms/changes a custom
-  // size. The 6′ × 3′ "MOST POPULAR" badge remains a recommendation only —
-  // see ConfigCard / isPopularBannerPreset for the informational badge logic.
-  const [activePreset, setActivePreset] = useState<number | null>(null);
+  // Restore the visible, immediately priced popular banner default.
+  const [activePreset, setActivePreset] = useState<number | null>(initialProductType === 'banner' ? POPULAR_BANNER_PRESET.presetIndex : null);
   const [quantity, setQuantity] = useState(initialProductType === 'yard_sign' ? 10 : 1);
   const storedPromoAtLoad = useCartStore.getState().discountCode;
-  const [promoCode, setPromoCode] = useState(storedPromoAtLoad?.code || '');
+  const [promoCode, setPromoCode] = useState(storedPromoAtLoad?.code || 'NEW20');
   const [promoApplied, setPromoApplied] = useState(Boolean(storedPromoAtLoad));
 
-  const [hasConfirmedSize, setHasConfirmedSize] = useState(false);
+  const [hasConfirmedSize, setHasConfirmedSize] = useState(initialProductType === 'banner');
   const [hasConfirmedMaterial, setHasConfirmedMaterial] = useState(false);
   const [hasConfirmedQuantity, setHasConfirmedQuantity] = useState(false);
   const [hasReviewedOptions, setHasReviewedOptions] = useState(false);
@@ -1125,41 +1160,13 @@ const GoogleAdsBanner: React.FC = () => {
         return;
       }
 
-      const selectedBannerQualifiesForAutomaticPrice = productType === 'banner'
-        && hasConfirmedSize
-        && Math.max(Number(widthIn), Number(heightIn)) >= 72
-        && Math.min(Number(widthIn), Number(heightIn)) >= 36;
       const validatedPercentage = Number(result.discount.discountPercentage || 0);
-      const isSmallBannerPromoCode = String(result.discount.code || '').trim().toUpperCase() === SMALL_BANNER_PROMOTION_ID;
-
-      if (
-        selectedBannerQualifiesForAutomaticPrice
-        && validatedPercentage > 0
-        && validatedPercentage <= 25
-        && !isSmallBannerPromoCode
-      ) {
-        cartStore.removeDiscountCode();
-        setPromoCode(normalizedCode);
-        setPromoApplied(false);
-        toast({
-          title: 'Large Banner 25% Off already applied',
-          description: `${normalizedCode} cannot be combined with the automatic 25% large-banner price.`,
-        });
-        return;
-      }
-
-      // 20OFF is saved to the cart even when the current banner already
-      // qualifies for the larger automatic 25% off — the resolver picks the
-      // best discount, and switching back to a smaller banner later will let
-      // 20OFF apply again without having to re-enter it.
       cartStore.applyDiscountCode(result.discount);
       setPromoCode(result.discount.code);
       setPromoApplied(true);
       toast({
         title: 'Discount applied',
-        description: isSmallBannerPromoCode && selectedBannerQualifiesForAutomaticPrice
-          ? 'Your banner already qualifies for the automatic 25% off, which is larger than 20OFF. We saved 20OFF to your cart for smaller banners.'
-          : validatedPercentage > 0
+        description: validatedPercentage > 0
             ? `${validatedPercentage}% off is saved to your cart and will carry into checkout.`
             : 'Your promotion is saved to your cart and will carry into checkout.',
       });
@@ -2960,7 +2967,7 @@ const GoogleAdsBanner: React.FC = () => {
           intro: 'Choose a size and material, upload artwork, and review the on-screen print preview before ordering.',
           priceLabel: 'Popular 4′ × 2′ banner',
           price: '$36',
-          offer: 'Large banners 6′ × 3′ and up: 25% off automatically',
+          offer: '20% off your first order with code NEW20',
           cta: 'Build & price my banner',
         };
 
@@ -3325,7 +3332,7 @@ const GoogleAdsBanner: React.FC = () => {
                   }
                 />
 
-                {isCarMagnet ? <>
+                <>
                 <button onClick={handleCheckout} disabled={!uploadedFile || !hasCommittedBannerSize || isUploading || isProcessingUpsell} className={`group w-full font-bold text-lg py-5 rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${uploadedFile && hasCommittedBannerSize && !isUploading && !isProcessingUpsell ? 'bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white cursor-pointer shadow-orange-500/30' : 'bg-orange-300 text-white/80 cursor-not-allowed'}`}>
                   <Lock className="h-4 w-4" aria-hidden="true" />
                   {isProcessingUpsell ? 'Preparing exact preview…' : 'Review and continue'}
@@ -3343,7 +3350,7 @@ const GoogleAdsBanner: React.FC = () => {
                   {isProcessingUpsell ? 'Preparing exact preview…' : 'Add to Cart'}
                 </button>
 
-                </> : <button type="button" data-banner-primary-action onClick={bannerAction.onClick} disabled={bannerAction.disabled} className="hidden min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-[#FF6A00] px-4 py-3 text-base font-bold text-[#061A31] hover:bg-[#FF6A00] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#061A31] focus-visible:ring-offset-2 disabled:opacity-60 lg:flex">{bannerAction.label}<ArrowRight className="h-5 w-5" aria-hidden="true" /></button>}
+                </>
 
                 <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mt-1">
                   <Lock className="h-3 w-3" />
@@ -3375,10 +3382,9 @@ const GoogleAdsBanner: React.FC = () => {
       </div>
 
         <MobileSubtotalBar
-          primaryAction={!isYardSign && !isCarMagnet ? bannerAction : undefined}
           cartItemCount={cartItemCount}
           onViewCart={openCartDrawer}
-          priceNote={showPopularBannerPriceNote ? POPULAR_BANNER_PRESET.mobilePriceNote : undefined}
+          priceNote={showPopularBannerPriceNote ? "Popular 6′ × 3′ size preselected" : undefined}
           subtotal={
             !isYardSign && !isCarMagnet ? (
               <div>

@@ -160,7 +160,7 @@ const PRODUCT_MODE_CONTENT = {
     topFeatures: [
       { icon: Clock, iconClass: 'text-orange-500', label: 'Most: 24-Hr Production' },
       { icon: Truck, iconClass: 'text-orange-500', label: 'Free Next-Day Air' },
-      { icon: Tag, iconClass: 'text-orange-500', label: '25% Off · 6′×3′+' },
+      { icon: Tag, iconClass: 'text-orange-500', label: '20% Off First Order' },
       { icon: Brush, iconClass: 'text-orange-500', label: 'Designer Reviewed' },
     ],
   },
@@ -1161,41 +1161,13 @@ const Design: React.FC = () => {
         return;
       }
 
-      const selectedBannerQualifiesForAutomaticPrice = productType === 'banner'
-        && hasConfirmedSize
-        && Math.max(Number(widthIn), Number(heightIn)) >= 72
-        && Math.min(Number(widthIn), Number(heightIn)) >= 36;
       const validatedPercentage = Number(result.discount.discountPercentage || 0);
-      const isSmallBannerPromoCode = String(result.discount.code || '').trim().toUpperCase() === SMALL_BANNER_PROMOTION_ID;
-
-      if (
-        selectedBannerQualifiesForAutomaticPrice
-        && validatedPercentage > 0
-        && validatedPercentage <= 25
-        && !isSmallBannerPromoCode
-      ) {
-        cartStore.removeDiscountCode();
-        setPromoCode(normalizedCode);
-        setPromoApplied(false);
-        toast({
-          title: 'Large Banner 25% Off already applied',
-          description: `${normalizedCode} cannot be combined with the automatic 25% large-banner price.`,
-        });
-        return;
-      }
-
-      // 20OFF is saved to the cart even when the current banner already
-      // qualifies for the larger automatic 25% off — the resolver picks the
-      // best discount, and switching back to a smaller banner later will let
-      // 20OFF apply again without having to re-enter it.
       cartStore.applyDiscountCode(result.discount);
       setPromoCode(result.discount.code);
       setPromoApplied(true);
       toast({
         title: 'Discount applied',
-        description: isSmallBannerPromoCode && selectedBannerQualifiesForAutomaticPrice
-          ? 'Your banner already qualifies for the automatic 25% off, which is larger than 20OFF. We saved 20OFF to your cart for smaller banners.'
-          : validatedPercentage > 0
+        description: validatedPercentage > 0
             ? `${validatedPercentage}% off is saved to your cart and will carry into checkout.`
             : 'Your promotion is saved to your cart and will carry into checkout.',
       });

@@ -150,7 +150,7 @@ test('canonical recovery validation requires the exact proven cart as well as em
   assert.match(wrongCart.error, /different cart/i);
 });
 
-test('the large-banner campaign exposes only complete activated trusted scope metadata', async () => {
+test('retired large-banner campaign cannot be redeemed even with previously valid metadata', async () => {
   const scopedRow = {
     code: 'CART25-SECURE',
     campaign: 'abandoned_cart_large_banner_25',
@@ -170,10 +170,8 @@ test('the large-banner campaign exposes only complete activated trusted scope me
     requireRecoveryEmailMatch: true,
     requireRecoveryCartMatch: true,
   });
-  assert.equal(valid.valid, true);
-  assert.deepEqual(valid.discount.eligibleCartItemIds, ['large-line']);
-  assert.equal(valid.discount.maxDiscountAmountCents, 2500);
-  assert.equal(valid.discount.discountScope, 'recovery_qualifying_banner_lines');
+  assert.equal(valid.valid, false);
+  assert.match(valid.error, /ended/i);
 
   const inactive = await validateDiscountForCheckout({
     sql: recoveryDiscountSql({ ...scopedRow, activated_at: null }),
@@ -184,7 +182,7 @@ test('the large-banner campaign exposes only complete activated trusted scope me
     requireRecoveryCartMatch: true,
   });
   assert.equal(inactive.valid, false);
-  assert.match(inactive.error, /not available/i);
+  assert.match(inactive.error, /ended/i);
 
   const expiredOwnedCheckout = await validateDiscountForCheckout({
     sql: recoveryDiscountSql({
@@ -201,5 +199,5 @@ test('the large-banner campaign exposes only complete activated trusted scope me
     requireRecoveryCartMatch: true,
   });
   assert.equal(expiredOwnedCheckout.valid, false);
-  assert.match(expiredOwnedCheckout.error, /expired/i);
+  assert.match(expiredOwnedCheckout.error, /ended/i);
 });

@@ -1,3 +1,4 @@
+const LARGE_BANNER_PROMOTION_ENABLED = false;
 'use strict';
 
 const LARGE_BANNER_RECOVERY_CAMPAIGN = 'abandoned_cart_large_banner_25';
@@ -241,6 +242,7 @@ function buildSeptemberLargeBannerDiscount(now = new Date()) {
 }
 
 function promoSubtotalForItems(items, fullSubtotalCents, promoDiscount) {
+  if (!LARGE_BANNER_PROMOTION_ENABLED && [LARGE_BANNER_RECOVERY_SCOPE, AUTOMATIC_LARGE_BANNER_SCOPE].includes(promoDiscount?.discountScope)) return 0;
   if (!promoDiscount || ![LARGE_BANNER_RECOVERY_SCOPE, AUTOMATIC_LARGE_BANNER_SCOPE, SMALL_BANNER_SCOPE]
     .includes(promoDiscount.discountScope)) {
     return Math.max(0, Number(fullSubtotalCents) || 0);
@@ -270,6 +272,7 @@ function capPromoDiscountAmount(amountCents, promoDiscount) {
 }
 
 module.exports = {
+  LARGE_BANNER_PROMOTION_ENABLED,
   AUTOMATIC_LARGE_BANNER_CAMPAIGN,
   AUTOMATIC_LARGE_BANNER_PERCENTAGE,
   AUTOMATIC_LARGE_BANNER_PROMOTION_ID,

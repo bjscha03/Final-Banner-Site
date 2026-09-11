@@ -34,7 +34,7 @@ for (const route of ROUTES) {
     await page.goto(route, { waitUntil: 'domcontentloaded' });
 
     const isAds = route.startsWith('/google-ads-banner');
-    const isMobile = (page.viewportSize()?.width ?? 1024) < (isAds ? 1024 : 768);
+    const isMobile = (page.viewportSize()?.width ?? 1024) < 768;
     const mobileTimer = page.locator('[data-mobile-delivery-timer]');
     const mobileFooter = page.getByTestId('mobile-subtotal-bar');
 
@@ -47,8 +47,8 @@ for (const route of ROUTES) {
 
       }
       await expect(mobileFooter).toBeVisible();
-      await expect(mobileFooter.getByText(isAds ? 'Before tax · Free shipping' : 'Subtotal', { exact: true })).toBeVisible();
-      await expect(mobileFooter.getByRole('button', { name: isAds ? 'Choose a size' : /View Cart \(0\)/i })).toBeVisible();
+      await expect(mobileFooter.getByText('Subtotal', { exact: true })).toBeVisible();
+      await expect(mobileFooter.getByRole('button', { name: /View Cart \(0\)/i })).toBeVisible();
       await expect(page.locator('[data-mobile-guided-action]')).toHaveCount(0);
       await expect(page.getByRole('button', { name: /^Upload Artwork$/i })).toHaveCount(0);
     } else {
