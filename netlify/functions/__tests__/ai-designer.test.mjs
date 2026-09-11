@@ -791,7 +791,12 @@ describe('admin-only UI integration and permanent artwork handoff', () => {
     expect(adminPage).toContain('canUseAIAdminPreview(user)');
     expect(adminPage).not.toContain('user && !access.authorized');
     expect(adminPage).toContain('createAIHandoff(result');
+    expect(design).toContain("document.getElementById('ai-artwork-preview')");
+    expect(design).toContain("preview.scrollIntoView({ behavior: 'smooth', block: 'start' })");
+    expect(design).toContain('pendingAIArtworkScrollRef.current = true');
     expect(workspace).toContain('Reconnect admin');
+    expect(workspace).toContain('This can take close to a minute.');
+    expect(workspace).toContain('your design will appear here automatically.');
     expect(workspace).toContain('body: authenticatedJsonBody(');
     expect(accessHook).toContain('const authenticationFailed = response.status === 401');
     expect(clientAuth).toContain("const SESSION_HEADER = 'X-Banners-Admin-Session'");

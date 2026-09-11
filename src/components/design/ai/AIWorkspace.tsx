@@ -306,6 +306,7 @@ export default function AIWorkspace(props: Props) {
   const [editInstruction, setEditInstruction] = useState('');
   const [promptBeforeImprovement, setPromptBeforeImprovement] = useState<CreativeBrief | null>(null);
   const [stage, setStage] = useState<string | null>(null);
+  const [activeImageJob, setActiveImageJob] = useState(false);
   const [improvingPrompt, setImprovingPrompt] = useState(false);
   const [confirmNewDesign, setConfirmNewDesign] = useState(false);
   const [progressPreview, setProgressPreview] = useState<string | null>(null);
@@ -507,6 +508,7 @@ export default function AIWorkspace(props: Props) {
     controllerRef.current = controller;
     setError('');
     setProgressPreview(null);
+    setActiveImageJob(true);
     setStage('Planning your design');
     trackAIEvent('ai_prompt_entered', { product_type: brief.productType });
     trackAIEvent('ai_generation_started', { concept_count: conceptCount, product_type: brief.productType });
@@ -546,6 +548,7 @@ export default function AIWorkspace(props: Props) {
     } finally {
       controllerRef.current = null;
       setStage(null);
+      setActiveImageJob(false);
     }
   };
 
@@ -555,6 +558,7 @@ export default function AIWorkspace(props: Props) {
     controllerRef.current = controller;
     setError('');
     setProgressPreview(null);
+    setActiveImageJob(true);
     setStage(removeLogo ? 'Removing your uploaded logo' : logoOnly ? 'Updating your logo' : 'Refining your design');
     trackAIEvent('ai_edit_started', { concept_id: selected.id });
     try {
@@ -600,6 +604,7 @@ export default function AIWorkspace(props: Props) {
     } finally {
       controllerRef.current = null;
       setStage(null);
+      setActiveImageJob(false);
     }
   };
 
@@ -853,6 +858,7 @@ export default function AIWorkspace(props: Props) {
             <Loader2 className="h-7 w-7 animate-spin text-orange-400 motion-reduce:animate-none" />
             <h4 className="mt-4 text-xl font-semibold tracking-tight">{progressPreview ? 'Your first look' : selected ? 'Making your changes' : 'Bringing your idea to life'}</h4>
             <p className="mt-2 max-w-md text-sm leading-relaxed text-slate-300">{stage}</p>
+            {activeImageJob && <div className="mt-4 flex max-w-md items-start gap-2 rounded-lg border border-white/15 bg-white/10 px-4 py-3 text-left text-sm leading-relaxed text-slate-100"><Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-orange-300" /><span><strong className="font-bold text-white">This can take close to a minute.</strong> Hang tight and keep this page open—your design will appear here automatically.</span></div>}
             <button type="button" onClick={() => controllerRef.current?.abort()} className="mt-4 min-h-11 px-3 text-xs text-slate-300 underline underline-offset-4" title="Your draft stays saved. This stops waiting here; the current job may still finish.">Stop waiting</button>
           </div>}
           {error && <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><XCircle className="mt-0.5 h-5 w-5 shrink-0" /><span>{error}</span></div>}

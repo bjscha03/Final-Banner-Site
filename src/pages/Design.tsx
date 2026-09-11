@@ -713,6 +713,7 @@ const Design: React.FC = () => {
   const [aiEditPrompt, setAiEditPrompt] = useState<string | null>(null);
   const [aiDesignSession, setAiDesignSession] = useState<AIDesignSession | null>(null);
   const aiHandoffProcessedRef = useRef<string | null>(null);
+  const pendingAIArtworkScrollRef = useRef(false);
   const [aiHandoff, setAIHandoff] = useState<Awaited<ReturnType<typeof readAIHandoff>>>(null);
 
   const quoteStore = useQuoteStore();
@@ -1519,6 +1520,10 @@ const Design: React.FC = () => {
   // cart, checkout, admin, and the print PDF export with no special-casing.
   const handleAIGenerated = useCallback(
     async (result: CreateWithAIResult) => {
+      // The AI workspace can live either in a modal on this page or on the
+      // dedicated admin route. In both cases, wait until the normal designer
+      // has actually rendered the transferred artwork before scrolling.
+      pendingAIArtworkScrollRef.current = true;
       const file = base64ToFile(result.imageBase64, result.fileName, result.mimeType);
       setAiPrompt(result.prompt);
       setAiEditPrompt(null);
@@ -1531,6 +1536,28 @@ const Design: React.FC = () => {
     },
     [handleFileUpload],
   );
+
+  useEffect(() => {
+    if (!pendingAIArtworkScrollRef.current || !uploadedFile || aiModalOpen) return;
+    pendingAIArtworkScrollRef.current = false;
+
+    // Two animation frames allow the upload card to switch from the uploader
+    // to the live preview and finish measuring its responsive canvas.
+    let secondFrame = 0;
+    const firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        const preview = document.getElementById('ai-artwork-preview');
+        if (!preview) return;
+        preview.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        preview.focus({ preventScroll: true });
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      if (secondFrame) window.cancelAnimationFrame(secondFrame);
+    };
+  }, [aiModalOpen, uploadedFile]);
 
   // Prepare dimensions first; upload on the following committed render. Never
   // consume a transfer in an effect that its own state updates can cancel.
@@ -3290,7 +3317,7 @@ const Design: React.FC = () => {
                     )}
                   </>
                 ) : (
-                  <div>
+                  <div id="ai-artwork-preview" tabIndex={-1} className="scroll-mt-28 outline-none md:scroll-mt-24">
                     <div className="mb-2">
                       <h3 className="text-sm font-bold text-gray-800">{isYardSign ? 'Live Yard Sign Preview' : isCarMagnet ? 'Live Car Magnet Preview' : 'Live Banner Preview'}</h3>
                       <p className="text-xs text-gray-400">Final print preview — what you see is what you get</p>
