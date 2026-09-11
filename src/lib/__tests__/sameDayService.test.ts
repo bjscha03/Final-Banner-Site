@@ -146,8 +146,8 @@ describe('Same-Day Hit Service: fee computation', () => {
   it('Saturday flat fee stacks ON TOP of 60% upcharge', () => {
     const fees = computeSameDayFeesCents(10000, { sameDay: true, saturday: true });
     expect(fees.sameDayFeeCents).toBe(6000);
-    expect(fees.saturdayFeeCents).toBe(4500);
-    expect(fees.totalAddOnCents).toBe(10500);
+    expect(fees.saturdayFeeCents).toBe(5000);
+    expect(fees.totalAddOnCents).toBe(11000);
   });
 
   it('Saturday alone (sameDay=false) yields zero fees', () => {

@@ -300,3 +300,22 @@ describe('delivery/engine — Labor Day 2026 holiday blackout', () => {
     expect(ship.dayOfWeek).toBe(2); // Tuesday
   });
 });
+
+describe('Friday HIT and Saturday delivery', () => {
+  it('ships Friday and arrives Monday with HIT alone', () => {
+    const result = getDeliveryEstimate({ nowET: et(2026, 9, 11, 12, 59), isHitSelected: true });
+    expect(result.state).toBe('hit_selected');
+    expect(result.shipDate.ymd).toBe('2026-09-11');
+    expect(result.deliveryDate.ymd).toBe('2026-09-14');
+  });
+  it('arrives Saturday only when both options are selected before cutoff', () => {
+    const input = { nowET: et(2026, 9, 11, 12, 59), isHitSelected: true, isSaturdaySelected: true };
+    expect(getDeliveryEstimate(input).deliveryDate.ymd).toBe('2026-09-12');
+    expect(getDeliveryEstimate({ ...input, isHitSelected: false }).deliveryDate.ymd).toBe('2026-09-15');
+    expect(getDeliveryEstimate({ ...input, nowET: et(2026, 9, 11, 13, 0) }).deliveryDate.ymd).toBe('2026-09-15');
+  });
+  it('keeps standard Tuesday arrival and skips Monday holidays for regular HIT', () => {
+    expect(getDeliveryEstimate({ nowET: et(2026, 9, 11, 9, 0) }).deliveryDate.ymd).toBe('2026-09-15');
+    expect(getDeliveryEstimate({ nowET: et(2026, 9, 4, 9, 0), isHitSelected: true }).deliveryDate.ymd).toBe('2026-09-08');
+  });
+});

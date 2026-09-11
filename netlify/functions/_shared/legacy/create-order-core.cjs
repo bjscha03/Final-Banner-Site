@@ -1519,6 +1519,19 @@ exports.handler = async (event, context) => {
       };
     }
 
+    // Never silently downgrade a requested Saturday shipment before payment.
+    if (orderData.saturdayDelivery && !sameDayResult.saturday) {
+      return {
+        statusCode: 409,
+        headers,
+        body: JSON.stringify({
+          ok: false,
+          error: 'SATURDAY_DELIVERY_NOT_AVAILABLE',
+          message: 'Saturday delivery requires Same-Day Hit Service on Friday before 1:00 PM ET. Please review your delivery selection.',
+        }),
+      };
+    }
+
     const orderSameDayHitService = sameDayResult.sameDay;
     const orderSaturdayDelivery = sameDayResult.saturday;
     const orderSameDayFeeCents = sameDayResult.fees.sameDayFeeCents;
