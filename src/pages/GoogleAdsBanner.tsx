@@ -26,6 +26,7 @@ import YardSignPriceSummary from '@/components/design/YardSignPriceSummary';
 import PriceBreakdown from '@/components/pricing/PriceBreakdown';
 import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
 import DeliveryTimer from '@/components/delivery/DeliveryTimer';
+import { sameDayConfig } from '@/lib/sameDayConfig';
 import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
 import BannerDiscountOffer from '@/components/design/BannerDiscountOffer';
 import MobileSubtotalBar from '@/components/design/MobileSubtotalBar';
@@ -820,6 +821,7 @@ const GoogleAdsBanner: React.FC = () => {
 
   // Same-Day Hit Service preview fee for product-page summary.
   const sameDayHitService = useCartStore(s => s.sameDayHitService);
+  const saturdayDelivery = useCartStore(s => s.saturdayDelivery);
   const previewSameDayFeeCents = useMemo(() => {
     if (!sameDayHitService) return 0;
     let previewSubtotal: number;
@@ -832,6 +834,7 @@ const GoogleAdsBanner: React.FC = () => {
     }
     return computeSameDayFeesCents(previewSubtotal, { sameDay: true, saturday: false }).sameDayFeeCents;
   }, [sameDayHitService, isCarMagnet, isYardSign, carMagnetPricing?.baseSubtotalCents, yardSignPricing?.totalCents, bannerPricing.subtotalBeforeDiscountCents]);
+  const previewSaturdayFeeCents = saturdayDelivery && previewSameDayFeeCents > 0 ? Math.round(sameDayConfig.saturdayDeliveryFee * 100) : 0;
 
   useEffect(() => {
     // Flag this session as coming from Google Ads landing page
@@ -3007,7 +3010,7 @@ const GoogleAdsBanner: React.FC = () => {
               </p>
 
               <div data-mobile-delivery-timer className="mx-auto mt-5 max-w-xl text-left md:hidden">
-                <DeliveryTimer variant="compact" className="shadow-lg" />
+                <DeliveryTimer reflectCartSelection variant="compact" className="shadow-lg" />
               </div>
 
               <div className="mt-6 flex flex-wrap justify-center gap-x-5 gap-y-3 text-sm font-semibold text-white lg:justify-start">
@@ -3145,13 +3148,14 @@ const GoogleAdsBanner: React.FC = () => {
                       onPromoApply={handlePromoApply}
                       onPromoRemove={handlePromoRemove}
                       sameDayHitServiceCents={previewSameDayFeeCents}
+                    saturdayDeliveryCents={previewSaturdayFeeCents}
                       taxCalculatedAtCheckout
                     />
                   )}
 
                   {/* Same-Day Hit Service upsell — production priority (NOT shipping). */}
                   <div className="hidden md:block">
-                    <DeliveryTimer variant="compact" />
+                    <DeliveryTimer reflectCartSelection variant="compact" />
                   </div>
                   <SameDayHitServiceCard
                     variant="compact"
@@ -3222,10 +3226,11 @@ const GoogleAdsBanner: React.FC = () => {
                     quantityDiscountCents={carMagnetPricing.quantityDiscountCents}
                     quantityDiscountRate={carMagnetPricing.quantityDiscountRate}
                     sameDayHitServiceCents={previewSameDayFeeCents}
+                    saturdayDeliveryCents={previewSaturdayFeeCents}
                     taxCents={0}
                     taxRate={0.06}
                     adjustedSubtotalCents={carMagnetPricing.subtotalCents}
-                    totalCents={carMagnetPricing.subtotalCents + previewSameDayFeeCents}
+                    totalCents={carMagnetPricing.subtotalCents + previewSameDayFeeCents + previewSaturdayFeeCents}
                     taxCalculatedAtCheckout
                     footerNote="Destination-based tax calculated at checkout"
                   />
@@ -3278,10 +3283,11 @@ const GoogleAdsBanner: React.FC = () => {
                         : undefined
                     }
                     sameDayHitServiceCents={previewSameDayFeeCents}
+                    saturdayDeliveryCents={previewSaturdayFeeCents}
                     taxCents={0}
                     taxRate={0.06}
                     adjustedSubtotalCents={bannerSubtotalAfterAllDiscountsCents}
-                    totalCents={bannerSubtotalAfterAllDiscountsCents + previewSameDayFeeCents}
+                    totalCents={bannerSubtotalAfterAllDiscountsCents + previewSameDayFeeCents + previewSaturdayFeeCents}
                     taxCalculatedAtCheckout
                     promo={{
                       code: promoCode,
@@ -3304,7 +3310,7 @@ const GoogleAdsBanner: React.FC = () => {
                 )}
 
                 {/* Same-Day Hit Service upsell — production priority (NOT shipping). */}
-                {isCarMagnet ? <div className="hidden md:block"><DeliveryTimer variant="compact" /></div> : <HeroDeliveryStatus variant="light" />}
+                {isCarMagnet ? <div className="hidden md:block"><DeliveryTimer reflectCartSelection variant="compact" /></div> : <HeroDeliveryStatus variant="light" />}
                 <SameDayHitServiceCard
                   variant="compact"
                   previewHasPrice={
@@ -3376,8 +3382,8 @@ const GoogleAdsBanner: React.FC = () => {
           subtotal={
             !isYardSign && !isCarMagnet ? (
               <div>
-                {bannerPromoResolution.appliedDiscountAmountCents > 0 && <p className="text-xs text-slate-500 line-through">{usd((bannerSubtotalAfterAllDiscountsCents + previewSameDayFeeCents + bannerPromoResolution.appliedDiscountAmountCents) / 100)}</p>}
-                <p className="text-xl font-bold text-[#061A31]">{usd((bannerSubtotalAfterAllDiscountsCents + previewSameDayFeeCents) / 100)}</p>
+                {bannerPromoResolution.appliedDiscountAmountCents > 0 && <p className="text-xs text-slate-500 line-through">{usd((bannerSubtotalAfterAllDiscountsCents + previewSameDayFeeCents + previewSaturdayFeeCents + bannerPromoResolution.appliedDiscountAmountCents) / 100)}</p>}
+                <p className="text-xl font-bold text-[#061A31]">{usd((bannerSubtotalAfterAllDiscountsCents + previewSameDayFeeCents + previewSaturdayFeeCents) / 100)}</p>
               </div>
             ) : isYardSign && yardSignPricing ? (
               <p className="text-xl font-bold text-gray-900">

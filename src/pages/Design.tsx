@@ -26,6 +26,7 @@ import YardSignPriceSummary from '@/components/design/YardSignPriceSummary';
 import PriceBreakdown from '@/components/pricing/PriceBreakdown';
 import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
 import DeliveryTimer from '@/components/delivery/DeliveryTimer';
+import { sameDayConfig } from '@/lib/sameDayConfig';
 import MobileSubtotalBar from '@/components/design/MobileSubtotalBar';
 import AIArtworkHelp from '@/components/design/AIArtworkHelp';
 import DesignPageHero from '@/components/design/DesignPageHero';
@@ -1073,6 +1074,7 @@ const Design: React.FC = () => {
   // Read cart-level flag; if selected compute the fee against the product subtotal
   // so the PriceBreakdown shows the line item and updated total before adding to cart.
   const sameDayHitService = useCartStore(s => s.sameDayHitService);
+  const saturdayDelivery = useCartStore(s => s.saturdayDelivery);
   // Compute the Same-Day Hit Service fee preview for the currently selected product type.
   // Used to update PriceBreakdown totals and show the line item before adding to cart.
   const previewSameDayFeeCents = useMemo(() => {
@@ -1087,6 +1089,7 @@ const Design: React.FC = () => {
     }
     return computeSameDayFeesCents(previewSubtotal, { sameDay: true, saturday: false }).sameDayFeeCents;
   }, [sameDayHitService, isCarMagnet, isYardSign, carMagnetPricing?.baseSubtotalCents, yardSignPricing?.totalCents, bannerPricing.subtotalBeforeDiscountCents]);
+  const previewSaturdayFeeCents = saturdayDelivery && previewSameDayFeeCents > 0 ? Math.round(sameDayConfig.saturdayDeliveryFee * 100) : 0;
 
   const scrollToOrder = useCallback(() => {
     setHasEnteredBuilder(true);
@@ -2956,13 +2959,14 @@ const Design: React.FC = () => {
                     onPromoApply={handlePromoApply}
                     onPromoRemove={handlePromoRemove}
                     sameDayHitServiceCents={previewSameDayFeeCents}
+                    saturdayDeliveryCents={previewSaturdayFeeCents}
                     taxCalculatedAtCheckout
                   />
                 )}
 
                 {/* Same-Day Hit Service upsell — production priority (NOT shipping). */}
                 <div className="hidden md:block">
-                  <DeliveryTimer variant="compact" />
+                  <DeliveryTimer reflectCartSelection variant="compact" />
                 </div>
                 <SameDayHitServiceCard
                   variant="compact"
@@ -2994,7 +2998,7 @@ const Design: React.FC = () => {
                   Add to Cart
                 </button>
                 <div className="flex items-center justify-center gap-2 mt-3 py-2 px-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <span className="text-sm font-medium text-blue-700">📦 Orders made on Friday will be delivered on Tuesday.</span>
+                  <span className="text-sm font-medium text-blue-700">Standard Friday orders are expected Tuesday. Selected HIT upgrades have earlier delivery estimates above.</span>
                 </div>
                 <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mt-1">
                   <Lock className="h-3 w-3" />
@@ -3439,10 +3443,11 @@ const Design: React.FC = () => {
                   quantityDiscountCents={carMagnetPricing.quantityDiscountCents}
                   quantityDiscountRate={carMagnetPricing.quantityDiscountRate}
                   sameDayHitServiceCents={previewSameDayFeeCents}
+                    saturdayDeliveryCents={previewSaturdayFeeCents}
                   taxCents={0}
                   taxRate={0.06}
                   adjustedSubtotalCents={carMagnetPricing.subtotalCents}
-                  totalCents={carMagnetPricing.subtotalCents + previewSameDayFeeCents}
+                  totalCents={carMagnetPricing.subtotalCents + previewSameDayFeeCents + previewSaturdayFeeCents}
                   taxCalculatedAtCheckout
                   footerNote="Destination-based tax calculated at checkout"
                 />
@@ -3493,10 +3498,11 @@ const Design: React.FC = () => {
                       : undefined
                   }
                   sameDayHitServiceCents={previewSameDayFeeCents}
+                    saturdayDeliveryCents={previewSaturdayFeeCents}
                   taxCents={0}
                   taxRate={0.06}
                   adjustedSubtotalCents={bannerSubtotalAfterAllDiscountsCents}
-                  totalCents={bannerSubtotalAfterAllDiscountsCents + previewSameDayFeeCents}
+                  totalCents={bannerSubtotalAfterAllDiscountsCents + previewSameDayFeeCents + previewSaturdayFeeCents}
                   taxCalculatedAtCheckout
                   promo={{
                     code: promoCode,
@@ -3520,7 +3526,7 @@ const Design: React.FC = () => {
 
               {/* Same-Day Hit Service upsell — production priority (NOT shipping). */}
               <div className="hidden md:block">
-                <DeliveryTimer variant="compact" />
+                <DeliveryTimer reflectCartSelection variant="compact" />
               </div>
               <SameDayHitServiceCard
                 variant="compact"
@@ -3554,7 +3560,7 @@ const Design: React.FC = () => {
               </button>
               {/* Friday shipping badge */}
               <div className="flex items-center justify-center gap-2 mt-3 py-2 px-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <span className="text-sm font-medium text-blue-700">📦 Orders made on Friday will be delivered on Tuesday.</span>
+                <span className="text-sm font-medium text-blue-700">Standard Friday orders are expected Tuesday. Selected HIT upgrades have earlier delivery estimates above.</span>
               </div>
               <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mt-1">
                 <Lock className="h-3 w-3" />

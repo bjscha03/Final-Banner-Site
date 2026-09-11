@@ -84,6 +84,7 @@ export interface PriceBreakdownProps {
    * The caller is responsible for including this in `totalCents`.
    */
   sameDayHitServiceCents?: number;
+  saturdayDeliveryCents?: number;
 
   /** Tax (cents). */
   taxCents: number;
@@ -135,6 +136,7 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
   promoDiscountCode,
   minOrderAdjustmentCents = 0,
   sameDayHitServiceCents = 0,
+  saturdayDeliveryCents = 0,
   taxCents,
   taxRate = 0.06,
   adjustedSubtotalCents,
@@ -227,6 +229,7 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
           {detailRows?.map(row => <div key={row.label} className="flex justify-between gap-4"><dt className="text-slate-600">{row.label}</dt><dd className="text-right font-medium text-slate-800">{row.value}</dd></div>)}
           {visibleAddOns.map(row => <div key={row.label} className="flex justify-between gap-4"><dt>{row.label}</dt><dd>{usd(row.amountCents / 100)}</dd></div>)}
           {hasSameDayFee && <div className="flex justify-between gap-4"><dt>Same-Day Hit Service</dt><dd>{usd(sameDayHitServiceCents / 100)}</dd></div>}
+          {saturdayDeliveryCents > 0 && <div className="flex justify-between gap-4"><dt>Saturday Delivery</dt><dd>{usd(saturdayDeliveryCents / 100)}</dd></div>}
           {hasMinOrderAdjustment && <div className="flex justify-between gap-4"><dt>Minimum order adjustment</dt><dd>{usd(minOrderAdjustmentCents / 100)}</dd></div>}
           <div className="flex justify-between gap-4"><dt>Shipping</dt><dd className="font-semibold text-emerald-700">{shippingValueLabel}</dd></div>
           <div className="flex justify-between gap-4"><dt>Tax</dt><dd className="text-right">{taxCalculatedAtCheckout ? 'Calculated at checkout' : usd(taxCents / 100)}</dd></div>
@@ -405,6 +408,13 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
               <div className="flex justify-between gap-3 text-amber-700">
                 <span className="font-medium">Same-Day Hit Service</span>
                 <span className="font-semibold">+{usd(sameDayHitServiceCents / 100)}</span>
+              </div>
+            )}
+
+            {saturdayDeliveryCents > 0 && (
+              <div className="flex justify-between gap-3 text-amber-700">
+                <span className="font-medium">Saturday Delivery</span>
+                <span className="font-semibold">+{usd(saturdayDeliveryCents / 100)}</span>
               </div>
             )}
 
