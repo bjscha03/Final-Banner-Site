@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DeliveryTimer } from './DeliveryTimer';
 
-const cartSnapshot = vi.hoisted(() => ({ sameDayHitService: false }));
+const cartSnapshot = vi.hoisted(() => ({ sameDayHitService: false, saturdayDelivery: false }));
 
 vi.mock('@/store/cart', () => ({
   useCartStore: (selector: (state: typeof cartSnapshot) => unknown) => selector(cartSnapshot),
@@ -29,6 +29,7 @@ function renderSlimAt(isoTime: string, reflectCartSelection = false): string {
 
 afterEach(() => {
   cartSnapshot.sameDayHitService = false;
+  cartSnapshot.saturdayDelivery = false;
   vi.useRealTimers();
 });
 
@@ -130,5 +131,15 @@ describe('DeliveryTimer', () => {
 
     expect(html).toContain('data-state="hit_available"');
     expect(html).not.toContain('data-state="weekend_lock"');
+  });
+});
+
+describe('Friday delivery selection', () => {
+  it('shows Monday for HIT and Saturday for the paid upgrade', () => {
+    cartSnapshot.sameDayHitService = true;
+    expect(renderSlimAt('2026-09-11T16:59:59Z', true)).toContain('HIT active · expected Monday delivery');
+    cartSnapshot.saturdayDelivery = true;
+    expect(renderSlimAt('2026-09-11T16:59:59Z', true)).toContain('HIT active · expected Saturday delivery');
+    expect(renderSlimAt('2026-09-11T17:00:00Z', true)).toContain('Expected Tuesday delivery');
   });
 });

@@ -45,9 +45,11 @@ export const DeliveryTimer: React.FC<DeliveryTimerProps> = ({
   className,
 }) => {
   const cartHitSelected = useCartStore((s) => s.sameDayHitService);
+  const cartSaturdaySelected = useCartStore((s) => s.saturdayDelivery);
+  const isSaturdaySelected = reflectCartSelection && cartSaturdaySelected;
   const isHitSelected = reflectCartSelection ? cartHitSelected : false;
 
-  const { estimate, remainingMs } = useDeliveryCountdown({ isHitSelected });
+  const { estimate, remainingMs } = useDeliveryCountdown({ isHitSelected, isSaturdaySelected });
   const isCompact = variant === 'compact';
   const isSlim = variant === 'slim';
 

@@ -9,7 +9,7 @@ const sameDayConfig = {
   cutoffMinute: 0,
   resetHour: 0,
   upchargeRate: 0.60,
-  saturdayDeliveryFee: 45,
+  saturdayDeliveryFee: 50,
   eligibleProducts: ['banners', 'yardSigns', 'magnets'],
   maxQuantities: {
     banners: 25,
@@ -76,8 +76,7 @@ function isSameDayWindowOpen(now, cfg) {
 function qualifiesForSaturdayDelivery(now, cfg) {
   cfg = cfg || sameDayConfig;
   if (!isSameDayWindowOpen(now, cfg)) return false;
-  // Saturday delivery is meaningless under the new weekend-lock rules
-  // (Friday is locked) but kept here for forward compatibility.
+  // Friday production can ship for the paid Saturday delivery upgrade.
   return getEasternTimeParts(now).dayOfWeek === 5;
 }
 

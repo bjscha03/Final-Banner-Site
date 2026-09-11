@@ -38,7 +38,7 @@ export const sameDayConfig: SameDayConfig = {
   cutoffMinute: 0,
   resetHour: 0,
   upchargeRate: 0.60,
-  saturdayDeliveryFee: 45,
+  saturdayDeliveryFee: 50,
   eligibleProducts: ['banners', 'yardSigns', 'magnets'],
   // Defaults are intentionally moderate; tune per production capacity.
   maxQuantities: {

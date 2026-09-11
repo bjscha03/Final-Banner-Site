@@ -606,7 +606,7 @@ async function sendEmail(type, payload) {
             <tr><td style="padding:14px;">
               <p style="margin:0 0 4px;color:#9a3412;font-size:14px;font-weight:700;">Same-Day Hit Service: Added</p>
               <p style="margin:0;color:#7c2d12;font-size:13px;">Your order has been prioritized for same-day production based on Eastern Time cutoff.</p>
-              ${saturdayDelivery ? `<p style="margin:6px 0 0;color:#7c2d12;font-size:13px;font-weight:600;">Saturday Delivery: Added</p>` : ''}
+              ${saturdayDelivery ? `<p style="margin:6px 0 0;color:#7c2d12;font-size:13px;font-weight:600;">Saturday Delivery: Added — expected Saturday arrival (subject to carrier availability).</p>` : ''}
             </td></tr>
           </table>
         `

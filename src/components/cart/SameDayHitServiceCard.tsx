@@ -6,6 +6,7 @@ import { useSameDayService } from '@/hooks/useSameDayService';
 import { computeSameDayFeesCents } from '@/lib/sameDayService';
 import { sameDayConfig } from '@/lib/sameDayConfig';
 import { usd } from '@/lib/pricing';
+import { etPartsOf, formatWeekdayLong, getDeliveryEstimate } from '@/lib/delivery';
 
 export interface SameDayHitServiceCardProps {
   /**
@@ -127,6 +128,36 @@ const SameDayHitServiceCard: React.FC<SameDayHitServiceCardProps> = ({
   });
   const feeDisplay = usd(fees.sameDayFeeCents / 100);
 
+  const fridayEstimate = getDeliveryEstimate({
+    nowET: etPartsOf(new Date(evalResult.ETnow.utcIso)),
+    isHitSelected: true,
+    isSaturdaySelected: saturdayDelivery,
+  });
+  const saturdayOption = sameDayHitService && evalResult.saturdayEligible ? (
+    <div className="mt-3 border-t border-amber-200 pt-3" data-testid="saturday-delivery-option">
+      <label className="flex items-start justify-between gap-3 cursor-pointer select-none">
+        <span className="flex items-start gap-2 text-sm text-slate-800">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+            checked={saturdayDelivery}
+            disabled={disabled}
+            onChange={(e) => setSaturdayDelivery(e.target.checked)}
+            aria-label="Add Saturday Delivery"
+          />
+          <span className="font-semibold">Need it Saturday?</span>
+        </span>
+        <span className="text-sm font-bold text-amber-700 whitespace-nowrap">+{usd(sameDayConfig.saturdayDeliveryFee)}</span>
+      </label>
+      <p className="mt-1 pl-6 text-sm text-slate-600" aria-live="polite">
+        {saturdayDelivery
+          ? 'Ships today · expected Saturday delivery.'
+          : `HIT ships today · expected ${formatWeekdayLong(fridayEstimate.deliveryDate)} delivery without this upgrade.`}
+      </p>
+      <p className="mt-1 pl-6 text-xs text-slate-500">Saturday delivery is subject to carrier availability at your address.</p>
+    </div>
+  ) : null;
+
   // Compact (product-page) variant — single checkbox row, branded accent.
   if (isCompact) {
     return (
@@ -161,7 +192,8 @@ const SameDayHitServiceCard: React.FC<SameDayHitServiceCardProps> = ({
               </span>
             </label>
 
-            <p className="text-[11px] text-slate-500 mt-2">Available before 1:00 PM ET.</p>
+            {saturdayOption}
+            <p className="text-xs text-slate-500 mt-2">Available before 1:00 PM ET.</p>
           </div>
         </div>
       </div>
@@ -201,24 +233,7 @@ const SameDayHitServiceCard: React.FC<SameDayHitServiceCardProps> = ({
               <span className="font-bold text-amber-700 whitespace-nowrap">+{feeDisplay}</span>
             </label>
 
-            {sameDayHitService && evalResult.saturdayEligible && (
-              <label className="flex items-center justify-between gap-3 cursor-pointer select-none pl-7">
-                <span className="flex items-center gap-3 text-sm text-slate-800">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
-                    checked={saturdayDelivery}
-                    disabled={disabled}
-                    onChange={(e) => setSaturdayDelivery(e.target.checked)}
-                    aria-label="Add Saturday Delivery"
-                  />
-                  <span className="font-semibold">Add Saturday Delivery</span>
-                </span>
-                <span className="font-bold text-amber-700 whitespace-nowrap">
-                  +{usd(sameDayConfig.saturdayDeliveryFee)}
-                </span>
-              </label>
-            )}
+            {saturdayOption}
           </div>
 
           <p className="text-xs text-slate-500 mt-3">

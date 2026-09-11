@@ -8,6 +8,7 @@ import {
 export interface UseDeliveryCountdownOptions {
   /** Whether the customer has currently selected HIT. */
   isHitSelected?: boolean;
+  isSaturdaySelected?: boolean;
   /** Optional override for the tick interval (ms). Defaults to 1000. */
   tickMs?: number;
 }
@@ -37,7 +38,7 @@ export interface UseDeliveryCountdownResult {
  *     is computed synchronously on the next render.
  */
 export function useDeliveryCountdown(options: UseDeliveryCountdownOptions = {}): UseDeliveryCountdownResult {
-  const { isHitSelected = false, tickMs = 1000 } = options;
+  const { isHitSelected = false, isSaturdaySelected = false, tickMs = 1000 } = options;
   const [tick, setTick] = useState<number>(() => Date.now());
 
   // Tick every `tickMs`.
@@ -58,10 +59,10 @@ export function useDeliveryCountdown(options: UseDeliveryCountdownOptions = {}):
   }, []);
 
   const estimate = useMemo<DeliveryEstimate>(
-    () => getDeliveryEstimate({ nowET: nowET(), isHitSelected }),
+    () => getDeliveryEstimate({ nowET: nowET(), isHitSelected, isSaturdaySelected }),
     // `tick` is intentionally a dependency so we recompute every interval.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tick, isHitSelected],
+    [tick, isHitSelected, isSaturdaySelected],
   );
 
   const remainingMs = Math.max(0, estimate.cutoffTime.getTime() - Date.now());

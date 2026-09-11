@@ -218,6 +218,8 @@ export interface DeliveryEstimateInput {
   nowET?: ETParts;
   /** Whether the customer has selected HIT. */
   isHitSelected?: boolean;
+  /** Paid Friday-only Saturday delivery upgrade; requires HIT. */
+  isSaturdaySelected?: boolean;
   /** Optional blackout-date override (testing). */
   blackoutDates?: string[];
 }
@@ -311,7 +313,11 @@ export function getDeliveryEstimate(input: DeliveryEstimateInput = {}): Delivery
   const now = input.nowET ?? nowET();
   const isHitSelected = !!input.isHitSelected;
 
-  const weekendLock = isWeekendLock(now, blackoutDates);
+  // The standard weekend schedule still applies unless Friday HIT is selected.
+  // Rush production accepts Friday orders before 1 PM ET independently of it.
+  const fridayHitSelected = isHitSelected && now.dayOfWeek === 5
+    && cmpClock(now, HIT_CLOSE) < 0 && isBusinessDay(now, blackoutDates);
+  const weekendLock = isWeekendLock(now, blackoutDates) && !fridayHitSelected;
   const hitWindowOpen = isHitWindowOpen(now);
   const hitAvailable = hitWindowOpen && !weekendLock;
 
@@ -330,9 +336,12 @@ export function getDeliveryEstimate(input: DeliveryEstimateInput = {}): Delivery
   // Compute ship + delivery for the chosen branch.
   const shipDate =
     state === 'hit_selected'
-      ? getHitShipDate(now, blackoutDates)
+      ? (fridayHitSelected ? now : getHitShipDate(now, blackoutDates))
       : getStandardShipDate(now, blackoutDates);
-  const deliveryDate = getDeliveryDate(shipDate, blackoutDates);
+  const saturdayDate = addDaysET(shipDate, 1);
+  const deliveryDate = fridayHitSelected && input.isSaturdaySelected && !isBlackout(saturdayDate, blackoutDates)
+    ? saturdayDate
+    : getDeliveryDate(shipDate, blackoutDates);
 
   const { at: cutoffTime, kind: cutoffKind } = computeNextCutoff(now, state, blackoutDates);
   const message = buildMessage(state, shipDate, deliveryDate);
