@@ -1,6 +1,9 @@
 'use strict';
 
-const SEPTEMBER_PROMO_CAMPAIGN_KEY = 'september-large-banner-2026';
+// The customer admin historically exposed the latest one-off campaign through
+// septemberDealStatus fields. Keep that API shape for compatibility, but point
+// the shared default campaign at the current AI Designer past-customer test.
+const SEPTEMBER_PROMO_CAMPAIGN_KEY = 'ai-designer-test-2026';
 const SEPTEMBER_PROMO_PROCESSING_LEASE_MINUTES = 10;
 
 let schemaPromise = null;
