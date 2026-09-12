@@ -18,18 +18,20 @@ export function buildAiDesignerTestEmail({
   discountCode,
   unsubscribeUrl,
   physicalAddress,
-  siteUrl = 'https://www.bannersonthefly.com',
+  siteUrl = 'https://bannersonthefly.com',
 }) {
   const name = firstName(customerName);
   const safeName = escapeHtml(name);
   const safeCode = escapeHtml(discountCode);
   const safeAddress = escapeHtml(physicalAddress);
   const safeUnsubscribe = escapeHtml(unsubscribeUrl);
-  const normalizedSiteUrl = String(siteUrl || 'https://www.bannersonthefly.com').replace(/\/$/, '');
-  // /designer does not exist. Send customers into the live banner builder,
-  // where the Create with AI entry is available for banner artwork.
+  const normalizedSiteUrl = String(siteUrl || 'https://bannersonthefly.com').replace(/\/$/, '');
   const designerUrl = `${normalizedSiteUrl}/design?product=banner`;
-  const promoImageUrl = `${normalizedSiteUrl}/images/ai-banner-designer-promo-email.jpg`;
+
+  // Use a direct, version-pinned public image URL for promotional email clients.
+  // This avoids site redirects/CDN cache behavior that caused the image to render
+  // as broken in Resend's preview even after the asset existed in production.
+  const promoImageUrl = 'https://raw.githubusercontent.com/bjscha03/Final-Banner-Site/2593fed0e9364bc8785d56e8f8a1408afe1c63bf/public/images/ai-banner-designer-promo-email.jpg';
 
   const html = `<!doctype html>
 <html>
@@ -47,7 +49,7 @@ export function buildAiDesignerTestEmail({
             <tr>
               <td>
                 <a href="${designerUrl}" style="display:block;text-decoration:none;border:0;">
-                  <img src="${promoImageUrl}" alt="Banners On The Fly AI Banner Designer — from prompt to printed vinyl banner" width="680" style="display:block;width:100%;height:auto;border:0;" />
+                  <img src="${promoImageUrl}" alt="Banners On The Fly AI Banner Designer — from prompt to printed vinyl banner" width="680" style="display:block;width:100%;max-width:680px;height:auto;border:0;outline:none;text-decoration:none;" />
                 </a>
               </td>
             </tr>
