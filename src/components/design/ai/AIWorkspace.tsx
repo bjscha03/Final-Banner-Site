@@ -294,7 +294,9 @@ export default function AIWorkspace(props: Props) {
   const conceptCount = 1;
   const [concepts, setConcepts] = useState<AIConcept[]>(() => props.initialSession ? [props.initialSession.selectedConcept] : []);
   const [generationId, setGenerationId] = useState(props.initialSession?.generationId || '');
-  const [selectedId, setSelectedId] = useState(props.initialSession?.selectedConcept.id || '');
+  // Track the exact artwork version, not only its concept family. Edits retain
+  // the concept id, so selecting by id can resolve back to the pre-edit image.
+  const [selectedId, setSelectedId] = useState(props.initialSession?.selectedConcept.versionId || props.initialSession?.selectedConcept.id || '');
   const [history, setHistory] = useState<AIConcept[]>(props.initialSession?.versionHistory || []);
   const [redo, setRedo] = useState<AIConcept[]>([]);
   const [pendingEdit, setPendingEdit] = useState<AIConcept | null>(null);
@@ -309,6 +311,7 @@ export default function AIWorkspace(props: Props) {
   const [activeImageJob, setActiveImageJob] = useState(false);
   const [improvingPrompt, setImprovingPrompt] = useState(false);
   const [confirmNewDesign, setConfirmNewDesign] = useState(false);
+  const [confirmValidationOverride, setConfirmValidationOverride] = useState(false);
   const [progressPreview, setProgressPreview] = useState<string | null>(null);
   useEffect(() => { if (!stage) setProgressPreview(null); }, [stage]);
   const [error, setError] = useState('');
@@ -319,7 +322,11 @@ export default function AIWorkspace(props: Props) {
   const controllerRef = useRef<AbortController | null>(null);
   const restoringDraftRef = useRef(false);
 
-  const selected = concepts.find((concept) => concept.id === selectedId) || concepts[0] || null;
+  // The id fallback keeps drafts saved by older builds recoverable.
+  const selected = concepts.find((concept) => concept.versionId === selectedId)
+    || concepts.find((concept) => concept.id === selectedId)
+    || concepts[0]
+    || null;
   const ratio = (Number(brief.widthIn) || 1) / (Number(brief.heightIn) || 1);
   const requirementsMet = brief.widthIn > 0 && brief.heightIn > 0 && Boolean(brief.material) && Boolean(brief.description.trim());
   const draftKey = `admin:${user?.id || 'session'}:${props.productType}:${props.widthIn}:${props.heightIn}`;
@@ -543,7 +550,7 @@ export default function AIWorkspace(props: Props) {
       setBriefReviewed(true);
       setGenerationId(body.generationId);
       setConcepts((current) => [...current, ...nextConcepts].slice(-4));
-      setSelectedId(nextConcepts[0].id);
+      setSelectedId(nextConcepts[0].versionId);
       setHistory([]);
       setRedo([]);
       setPendingEdit(null);
@@ -622,18 +629,22 @@ export default function AIWorkspace(props: Props) {
 
   const acceptPendingEdit = () => {
     if (!selected || !pendingEdit) return;
+    const acceptedEdit = { ...pendingEdit, id: selected.id };
     setHistory((items) => [...items, selected].slice(-20));
     setRedo([]);
-    setConcepts((items) => items.map((item) => item.id === selected.id ? pendingEdit : item));
-    setSelectedId(pendingEdit.id);
-    if (pendingBrief) setBrief(pendingBrief);
-    if (pendingLogoRemoved) setLogoImage(null);
+    setConcepts((items) => items.map((item) => item.versionId === selected.versionId ? acceptedEdit : item));
+    setSelectedId(acceptedEdit.versionId);
+    setBrief(acceptedEdit.brief || pendingBrief || brief);
+    setLogoImage(acceptedEdit.logoImage || null);
+    setPhotoImages(acceptedEdit.photoImages || []);
+    setReferenceImage(acceptedEdit.referenceImage || null);
     setPendingLogoRemoved(false);
     setPendingLogoOnly(false);
     setPendingEdit(null);
     setPendingBrief(null);
     setEditInstruction('');
-    trackAIEvent('ai_edit_succeeded', { validation_passed: pendingEdit.validation.passed });
+    setSaveNotice('Edit accepted. The edited artwork is now your current design.');
+    trackAIEvent('ai_edit_succeeded', { validation_passed: acceptedEdit.validation.passed, version_id: acceptedEdit.versionId });
   };
 
   const rejectPendingEdit = () => {
@@ -655,8 +666,8 @@ export default function AIWorkspace(props: Props) {
     const previous = history[history.length - 1];
     setHistory((items) => items.slice(0, -1));
     setRedo((items) => [...items, selected].slice(-20));
-    setConcepts((items) => items.map((item) => item.id === selected.id ? previous : item));
-    setSelectedId(previous.id);
+    setConcepts((items) => items.map((item) => item.versionId === selected.versionId ? previous : item));
+    setSelectedId(previous.versionId);
   };
 
   const redoEdit = () => {
@@ -664,11 +675,12 @@ export default function AIWorkspace(props: Props) {
     const next = redo[redo.length - 1];
     setRedo((items) => items.slice(0, -1));
     setHistory((items) => [...items, selected].slice(-20));
-    setConcepts((items) => items.map((item) => item.id === selected.id ? next : item));
-    setSelectedId(next.id);
+    setConcepts((items) => items.map((item) => item.versionId === selected.versionId ? next : item));
+    setSelectedId(next.versionId);
   };
 
   const startNewDesign = async () => {
+    setConfirmValidationOverride(false);
     if (stage || controllerRef.current) return;
     const fresh = makeBrief(props);
     const emptyDraft = { brief: fresh, concepts: [], selectedId: '', history: [], redo: [], logoImage: null, referenceImage: null, photoImages: [] };
@@ -684,14 +696,15 @@ export default function AIWorkspace(props: Props) {
     catch { setSaveNotice('The new draft could not be saved. Keep this window open.'); }
   };
 
-  const removeConcept = (conceptId: string) => {
-    const next = concepts.filter((concept) => concept.id !== conceptId);
+  const removeConcept = (versionId: string) => {
+    const next = concepts.filter((concept) => concept.versionId !== versionId);
     setConcepts(next);
-    if (selectedId === conceptId) setSelectedId(next[0]?.id || '');
+    if (selected?.versionId === versionId) setSelectedId(next[0]?.versionId || '');
   };
 
-  const apply = async () => {
-    if (!selected?.validation.passed || hasUnappliedChanges) return;
+  const apply = async (validationOverride = false) => {
+    if (!selected || (!selected.validation.passed && !validationOverride) || hasUnappliedChanges || stage || pendingEdit) return;
+    setConfirmValidationOverride(false);
     setError('');
     setStage('Preparing your artwork for the banner designer');
     const session: AIDesignSession = {
@@ -703,7 +716,7 @@ export default function AIWorkspace(props: Props) {
       versionHistory: history,
       photoImages,
     };
-    trackAIEvent('ai_design_approved', { concept_id: selected.id, version_id: selected.versionId });
+    trackAIEvent('ai_design_approved', { concept_id: selected.id, version_id: selected.versionId, validation_override: validationOverride });
     try {
     let imageBase64 = selected.imageBase64;
     if (selected.artworkRef) {
@@ -879,11 +892,11 @@ export default function AIWorkspace(props: Props) {
 
           {concepts.length > 1 && <div className="flex gap-3 overflow-x-auto pb-2">{concepts.map((concept, index) => (
             <article key={concept.versionId} className={`w-40 shrink-0 rounded-lg border bg-white p-2 transition ${selected?.versionId === concept.versionId ? 'border-[#0b1f3a] ring-1 ring-[#0b1f3a]' : 'border-slate-200 hover:border-slate-300'}`}>
-              <button type="button" disabled={Boolean(pendingEdit)} onClick={() => { setSelectedId(concept.id); trackAIEvent('ai_concept_selected', { concept_index: index }); }} className="block w-full text-left disabled:cursor-not-allowed disabled:opacity-70" aria-pressed={selected?.versionId === concept.versionId}>
+              <button type="button" disabled={Boolean(pendingEdit)} onClick={() => { setSelectedId(concept.versionId); trackAIEvent('ai_concept_selected', { concept_index: index }); }} className="block w-full text-left disabled:cursor-not-allowed disabled:opacity-70" aria-pressed={selected?.versionId === concept.versionId}>
                 <div className="flex h-20 w-full items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-100"><img src={imageSrc(concept)} alt={`Complete AI concept ${index + 1}`} className="h-full w-full object-contain" /></div>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2"><div><div className="text-sm font-black text-[#0b1f3a]">Concept {index + 1}</div><div className="text-xs text-slate-500">{concept.widthIn}&quot; × {concept.heightIn}&quot; · {concept.aspectRatio.toFixed(4)}:1</div></div><StatusBadge concept={concept} /></div>
               </button>
-              <div className="mt-3 flex gap-2"><button type="button" disabled={Boolean(pendingEdit)} onClick={() => setSelectedId(concept.id)} className="min-h-11 flex-1 rounded-lg bg-[#0b1f3a] px-3 text-sm font-bold text-white disabled:opacity-50">Select</button><button type="button" disabled={Boolean(pendingEdit)} onClick={() => removeConcept(concept.id)} aria-label={`Delete concept ${index + 1}`} className="min-h-11 min-w-11 rounded-lg border border-slate-300 text-slate-600 hover:bg-red-50 hover:text-red-700 disabled:opacity-50"><Trash2 className="mx-auto h-4 w-4" /></button></div>
+              <div className="mt-3 flex gap-2"><button type="button" disabled={Boolean(pendingEdit)} onClick={() => setSelectedId(concept.versionId)} className="min-h-11 flex-1 rounded-lg bg-[#0b1f3a] px-3 text-sm font-bold text-white disabled:opacity-50">Select</button><button type="button" disabled={Boolean(pendingEdit)} onClick={() => removeConcept(concept.versionId)} aria-label={`Delete concept ${index + 1}`} className="min-h-11 min-w-11 rounded-lg border border-slate-300 text-slate-600 hover:bg-red-50 hover:text-red-700 disabled:opacity-50"><Trash2 className="mx-auto h-4 w-4" /></button></div>
             </article>
           ))}</div>}
 
@@ -918,14 +931,25 @@ export default function AIWorkspace(props: Props) {
 
             </details>
 
-            {history.length > 0 && <div className="mt-4"><h5 className="text-sm font-black text-[#0b1f3a]">Version history</h5><div className="mt-2 flex gap-2 overflow-x-auto pb-2">{history.map((version, index) => <button key={version.versionId} type="button" onClick={() => { if (!selected) return; setRedo((items) => [...items, selected]); setConcepts((items) => items.map((item) => item.id === selected.id ? version : item)); }} className="w-32 shrink-0 rounded-lg border border-slate-300 bg-white p-2 text-left"><div className="flex h-20 items-center justify-center overflow-hidden bg-slate-100"><img src={imageSrc(version)} alt={`Version ${index + 1}`} className="h-full w-full object-contain" /></div><span className="mt-1 block text-xs font-semibold">Version {index + 1}</span></button>)}</div></div>}
+            {history.length > 0 && <div className="mt-4"><h5 className="text-sm font-black text-[#0b1f3a]">Version history</h5><div className="mt-2 flex gap-2 overflow-x-auto pb-2">{history.map((version, index) => <button key={version.versionId} type="button" onClick={() => { if (!selected) return; setRedo((items) => [...items, selected]); setConcepts((items) => items.map((item) => item.versionId === selected.versionId ? version : item)); setSelectedId(version.versionId); }} className="w-32 shrink-0 rounded-lg border border-slate-300 bg-white p-2 text-left"><div className="flex h-20 items-center justify-center overflow-hidden bg-slate-100"><img src={imageSrc(version)} alt={`Version ${index + 1}`} className="h-full w-full object-contain" /></div><span className="mt-1 block text-xs font-semibold">Version {index + 1}</span></button>)}</div></div>}
 
             <details className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3"><summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-bold text-[#0b1f3a]">Admin diagnostics <ChevronDown className="h-4 w-4" /></summary><dl className="grid grid-cols-1 gap-x-4 gap-y-2 pt-3 text-xs text-slate-600 sm:grid-cols-2"><div><dt className="font-bold">Generation ID</dt><dd className="break-all">{selected.generationId || generationId}</dd></div><div><dt className="font-bold">Version ID</dt><dd className="break-all">{selected.versionId}</dd></div><div><dt className="font-bold">Provider request ID</dt><dd className="break-all">{selected.diagnostics.providerRequestId || 'Not returned'}</dd></div><div><dt className="font-bold">Validation model</dt><dd>{selected.validation.vision.model}</dd></div>{selected.diagnostics.stageTimings?.map((timing, index) => <div key={index}><dt className="font-bold">{timing.stage}</dt><dd>{formatDuration(timing.durationMs)}</dd></div>)}</dl></details>
 
-            <button type="button" onClick={apply} disabled={!selected.validation.passed || hasUnappliedChanges || Boolean(stage) || Boolean(pendingEdit)} className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 text-base font-black text-white shadow-sm hover:bg-orange-700 disabled:cursor-not-allowed disabled:bg-slate-300"><CheckCircle2 className="h-5 w-5" /> {pendingEdit ? 'Accept or reject the proposed edit first' : hasUnappliedChanges ? 'Apply your changes before continuing' : selected.validation.passed ? 'Use this banner' : 'Correct the design before continuing'}</button>
+            {!selected.validation.passed && !hasUnappliedChanges && !pendingEdit && <p className="mt-4 text-center text-sm text-amber-800">The automated check flagged something. If the complete banner looks right to you, you can review the warning and continue.</p>}
+            <button type="button" onClick={() => selected.validation.passed ? void apply() : setConfirmValidationOverride(true)} disabled={hasUnappliedChanges || Boolean(stage) || Boolean(pendingEdit)} className="mt-3 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 text-base font-black text-white shadow-sm hover:bg-orange-700 disabled:cursor-not-allowed disabled:bg-slate-300"><CheckCircle2 className="h-5 w-5" /> {pendingEdit ? 'Accept or reject the proposed edit first' : hasUnappliedChanges ? 'Apply your changes before continuing' : selected.validation.passed ? 'Use this banner' : 'Review warning & continue'}</button>
           </div>}
         </section>
       </div>
+
+      <Dialog open={confirmValidationOverride} onOpenChange={setConfirmValidationOverride}>
+        <DialogContent className="z-[10020] max-w-lg bg-white">
+          <DialogTitle>Use this banner anyway?</DialogTitle>
+          <DialogDescription>The automated print check found a possible issue. It can occasionally flag artwork that is actually acceptable.</DialogDescription>
+          {selected?.validation.reasons?.length ? <ul className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">{selected.validation.reasons.slice(0, 4).map(reason => <li key={reason}>• {reason}</li>)}</ul> : null}
+          <p className="text-sm text-slate-700">Check the full preview for readable wording, complete edge-to-edge artwork, and nothing important cut off. If it looks right, you can continue.</p>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" onClick={() => setConfirmValidationOverride(false)} className="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-semibold">Go back</button><button type="button" onClick={() => void apply(true)} className="min-h-11 rounded-lg bg-orange-600 px-4 text-sm font-black text-white hover:bg-orange-700">Use this banner anyway</button></div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={fullPreview && Boolean(selected)} onOpenChange={setFullPreview}>
         <DialogContent className="z-[10020] w-[96vw] max-w-[96vw] border-0 bg-slate-950 p-4 pt-12 text-white [&>button]:text-white">
