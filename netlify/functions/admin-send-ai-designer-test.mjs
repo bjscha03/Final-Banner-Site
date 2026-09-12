@@ -12,6 +12,7 @@ import marketingToken from './_shared/marketing-email-token.cjs';
 import {
   buildAiDesignerTestEmail,
   AI_DESIGNER_TEST_SUBJECT,
+  AI_DESIGNER_PROMO_CONTENT_ID,
 } from '../../src/lib/marketing/aiDesignerTestEmail.mjs';
 
 const CAMPAIGN_KEY = 'ai-designer-test-2026';
@@ -19,6 +20,7 @@ const DISCOUNT_CAMPAIGN = 'ai_designer_test_30';
 const PROCESSING_LEASE_MINUTES = 10;
 const DISCOUNT_PERCENTAGE = 30;
 const DISCOUNT_DAYS = 30;
+const PROMO_IMAGE_PATH = 'https://raw.githubusercontent.com/bjscha03/Final-Banner-Site/2593fed0e9364bc8785d56e8f8a1408afe1c63bf/public/images/ai-banner-designer-promo-email.jpg';
 
 const JSON_HEADERS = {
   'Content-Type': 'application/json',
@@ -290,6 +292,13 @@ export async function handler(event) {
         subject: emailContent.subject,
         html: emailContent.html,
         text: emailContent.text,
+        attachments: [
+          {
+            path: PROMO_IMAGE_PATH,
+            filename: 'banners-on-the-fly-ai-designer.jpg',
+            contentId: AI_DESIGNER_PROMO_CONTENT_ID,
+          },
+        ],
         headers: {
           'List-Unsubscribe': `<${unsubscribeUrl}>`,
           'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
