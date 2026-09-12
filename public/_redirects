@@ -10,6 +10,11 @@
 /ai-test-direct.html   /ai-test-direct.html   200
 /ai-button-test.html   /ai-button-test.html   200
 
+# Backward compatibility for the first AI test email that linked to /designer.
+# Keep already-delivered emails useful by routing that old URL into the live
+# banner builder instead of the 404 page.
+/designer   /design?product=banner   302!
+
 # Retired seasonal campaign pages and server functions. These rules belong
 # here as well as netlify.toml so production, branch, and preview contexts all
 # resolve them before the SPA catch-all below.
