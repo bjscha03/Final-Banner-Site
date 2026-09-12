@@ -13,7 +13,13 @@ const firstName = (value) => {
   return cleaned.split(/\s+/)[0];
 };
 
+// Kept for backwards compatibility with the sender while the old inline
+// attachment is removed separately. The template itself intentionally uses a
+// normal public HTTPS image because Resend's dashboard preview does not render
+// CID images.
 export const AI_DESIGNER_PROMO_CONTENT_ID = 'bof-ai-designer-promo';
+
+const AI_DESIGNER_PROMO_IMAGE_URL = 'https://res.cloudinary.com/dtrxl120u/image/upload/c_scale,w_680/e_sharpen/f_jpg/q_auto:best/v1789237977/banners-on-the-fly/email/ai-designer-promo-canva.jpg';
 
 export function buildAiDesignerTestEmail({
   customerName,
@@ -44,9 +50,9 @@ export function buildAiDesignerTestEmail({
               </td>
             </tr>
             <tr>
-              <td>
+              <td style="padding:0;line-height:0;">
                 <a href="${designerUrl}" style="display:block;text-decoration:none;border:0;">
-                  <img src="cid:${AI_DESIGNER_PROMO_CONTENT_ID}" alt="Banners On The Fly AI Banner Designer — from prompt to printed vinyl banner" width="680" style="display:block;width:100%;height:auto;border:0;" />
+                  <img src="${AI_DESIGNER_PROMO_IMAGE_URL}" alt="Banners On The Fly AI Banner Designer — from prompt to printed vinyl banner" width="680" style="display:block;width:100%;max-width:680px;height:auto;border:0;outline:none;text-decoration:none;" />
                 </a>
               </td>
             </tr>
