@@ -26,7 +26,9 @@ export function buildAiDesignerTestEmail({
   const safeAddress = escapeHtml(physicalAddress);
   const safeUnsubscribe = escapeHtml(unsubscribeUrl);
   const normalizedSiteUrl = String(siteUrl || 'https://www.bannersonthefly.com').replace(/\/$/, '');
-  const designerUrl = `${normalizedSiteUrl}/designer`;
+  // /designer does not exist. Send customers into the live banner builder,
+  // where the Create with AI entry is available for banner artwork.
+  const designerUrl = `${normalizedSiteUrl}/design?product=banner`;
   const promoImageUrl = `${normalizedSiteUrl}/images/ai-banner-designer-promo-email.jpg`;
 
   const html = `<!doctype html>
@@ -44,7 +46,9 @@ export function buildAiDesignerTestEmail({
             </tr>
             <tr>
               <td>
-                <img src="${promoImageUrl}" alt="Banners On The Fly AI Banner Designer — from prompt to printed vinyl banner" width="680" style="display:block;width:100%;height:auto;border:0;" />
+                <a href="${designerUrl}" style="display:block;text-decoration:none;border:0;">
+                  <img src="${promoImageUrl}" alt="Banners On The Fly AI Banner Designer — from prompt to printed vinyl banner" width="680" style="display:block;width:100%;height:auto;border:0;" />
+                </a>
               </td>
             </tr>
             <tr>
