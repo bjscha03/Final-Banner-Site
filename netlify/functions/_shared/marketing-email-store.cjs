@@ -1,9 +1,7 @@
 'use strict';
 
-// The customer admin historically exposed the latest one-off campaign through
-// septemberDealStatus fields. Keep that API shape for compatibility, but point
-// the shared default campaign at the current AI Designer past-customer test.
-const SEPTEMBER_PROMO_CAMPAIGN_KEY = 'ai-designer-test-2026';
+const SEPTEMBER_PROMO_CAMPAIGN_KEY = 'september-large-banner-2026';
+const AI_DESIGNER_TEST_CAMPAIGN_KEY = 'ai-designer-test-2026';
 const SEPTEMBER_PROMO_PROCESSING_LEASE_MINUTES = 10;
 
 let schemaPromise = null;
@@ -78,7 +76,7 @@ async function ensureMarketingEmailSchema(sql) {
   return schemaPromise;
 }
 
-async function loadMarketingSendStatuses(sql, emails, campaignKey = SEPTEMBER_PROMO_CAMPAIGN_KEY) {
+async function loadMarketingSendStatuses(sql, emails, campaignKey = AI_DESIGNER_TEST_CAMPAIGN_KEY) {
   const candidates = Array.from(new Set((emails || [])
     .map((email) => String(email || '').trim().toLowerCase())
     .filter(Boolean)));
@@ -109,6 +107,7 @@ function resetMarketingEmailSchemaForTests() {
 
 module.exports = {
   SEPTEMBER_PROMO_CAMPAIGN_KEY,
+  AI_DESIGNER_TEST_CAMPAIGN_KEY,
   SEPTEMBER_PROMO_PROCESSING_LEASE_MINUTES,
   ensureMarketingEmailSchema,
   loadMarketingSendStatuses,
