@@ -3,6 +3,7 @@ import { createRoot, hydrateRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 import './admin-preview.css';
+import './adminAiTestUiEnhancer';
 import { isPreviewEnvironment, isProductionHost } from './lib/environment';
 import { installPayPalCheckoutStorageGuard } from './lib/paypalCheckoutStorageGuard';
 import { installPayPalCaptureResponseGuard } from './lib/paypalCaptureResponseGuard';
