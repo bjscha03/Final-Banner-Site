@@ -64,6 +64,16 @@ function buildGenerationPrompt(brief, plan, variationIndex = 0) {
   ].filter(Boolean).join('\n');
 }
 
+function customerPhotoPrompt(photoCount) {
+  if (!photoCount) return '';
+  return [
+    `${photoCount} customer-supplied visual reference${photoCount === 1 ? ' is' : 's are'} included.`,
+    'Use recognizable people or products from those sources as prominent, naturally integrated subjects in the finished composition. Preserve identity, uniforms and meaningful details.',
+    'Never paste an uploaded file onto the banner as a raw rectangle, screenshot, thumbnail, sticker, framed inset or stacked collage tile. Crop, isolate, enlarge and recompose it professionally.',
+    'Classify each input by what is visibly shown. If an input is a logo, crest or badge rather than a photograph, treat it as branding and palette guidance—not as a small photo pasted over the headline.',
+  ].join(' ');
+}
+
 function buildEditPrompt(brief, plan, instruction) {
   if (brief.typographyMode === 'ai') return [
     FLAT_ARTWORK_CONSTRAINT,
@@ -97,4 +107,4 @@ function buildRepairPrompt(brief, plan, failures) {
   ].filter(Boolean).join('\n');
 }
 
-module.exports = { buildGenerationPrompt, buildEditPrompt, buildRepairPrompt, buildCopyChangeInstruction };
+module.exports = { buildGenerationPrompt, buildEditPrompt, buildRepairPrompt, buildCopyChangeInstruction, customerPhotoPrompt };

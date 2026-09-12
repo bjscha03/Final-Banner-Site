@@ -205,8 +205,24 @@ describe('logo-aware brand planning and image generation', () => {
     expect(f.structureCreativeBrief).not.toHaveBeenCalled();
     const generation = f.editImage.mock.calls[0][0];
     expect(generation.currentImage.equals(f.background)).toBe(true);
+    expect(generation.currentImageRole).toBe('style-reference');
     expect(generation.logoReferenceImage.buffer).toBeTruthy();
-    expect(generation.prompt).toContain('second supplied image is the customer logo');
+    expect(generation.prompt).toContain('never reproduce a separately uploaded logo');
+  });
+
+  it('sends customer photos into one image request instead of pasting thumbnails afterward', async () => {
+    const f = await fixture();
+    const photoTwo = `data:image/png;base64,${f.logoBuffer.toString('base64')}`;
+    const result = await f.handlers.runGenerateRequest({ brief: { ...f.brief, structured: true }, photoImages: [`data:image/png;base64,${f.background.toString('base64')}`, photoTwo] }, { sub: 'admin' }, 'job');
+    expect(f.generateImage).not.toHaveBeenCalled();
+    const generation = f.editImage.mock.calls[0][0];
+    expect(generation.currentImageRole).toBe('featured-photo');
+    expect(generation.currentImage.equals(f.background)).toBe(true);
+    expect(generation.photoReferenceImages).toHaveLength(1);
+    expect(generation.prompt).toMatch(/prominent, naturally integrated subjects/i);
+    expect(generation.prompt).toMatch(/never paste an uploaded file/i);
+    expect(f.compositeArtwork.mock.calls[0][0].photos).toBeUndefined();
+    expect(result.concepts[0].photoLayers).toEqual([]);
   });
 
   it('still uses text-only image generation when no upload exists', async () => {
@@ -246,11 +262,13 @@ describe('logo-aware brand planning and image generation', () => {
     await provider.structureCreativeBrief({ description: f.brief.description, current: {}, logoImage: logo });
     const content = create.mock.calls[0][0].input[0].content;
     expect(content.find(item => item.type === 'input_image')).toMatchObject({ image_url: `data:image/png;base64,${logo.buffer.toString('base64')}`, detail: 'high' });
-    await provider.editImage({ prompt: 'Edit the current banner', size: '320x160', currentImage: f.background, referenceImage: { buffer: f.background, mimeType: 'image/png' }, logoReferenceImage: logo });
+    await provider.editImage({ prompt: 'Edit the current banner', size: '320x160', currentImage: f.background, referenceImage: { buffer: f.background, mimeType: 'image/png' }, photoReferenceImages: [{ buffer: f.background, mimeType: 'image/png' }], logoReferenceImage: logo });
     const request = edit.mock.calls[0][0];
-    expect(request.image).toHaveLength(3);
-    expect(request.image[2].buffer).toBe(logo.buffer);
-    expect(request.image[2].name).toBe('customer-logo-brand-reference.png');
+    expect(request.image).toHaveLength(4);
+    expect(request.image[2].name).toBe('customer-visual-1');
+    expect(request.image[3].buffer).toBe(logo.buffer);
+    expect(request.image[3].name).toBe('customer-logo-brand-reference.png');
+    expect(request.prompt).toContain('not raw rectangular photos');
     expect(request.prompt).toContain('never as artwork to copy or redraw');
   });
 

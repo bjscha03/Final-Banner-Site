@@ -17,7 +17,7 @@ const { temporaryArtworkUrl } = require('../_shared/ai-designer/storage.cjs');
 const { planCanvas, prepareOutpaintInput, PROVIDER_MAX_EDGE, PROVIDER_MAX_PIXELS } = require('../_shared/ai-designer/image-utils.cjs');
 const { compositeArtwork, wrapText } = require('../_shared/ai-designer/compositor.cjs');
 const { logoPlacement, prepareLogo, logoPrompt } = require('../_shared/ai-designer/logo.cjs');
-const { normalizeBrief, validateImprovedPrompt, fitInterpretedDirection, buildImprovedPrompt } = require('../_shared/ai-designer/schema.cjs');
+const { normalizeBrief, validateImprovedPrompt, fitInterpretedDirection, buildImprovedPrompt, groundedCopy } = require('../_shared/ai-designer/schema.cjs');
 const { buildGenerationPrompt, buildEditPrompt, buildCopyChangeInstruction } = require('../_shared/ai-designer/prompt.cjs');
 const { MODEL_ALIAS, MODEL_SNAPSHOT, getImageModel, isEnabled } = require('../_shared/ai-designer/config.cjs');
 const { classifyProviderError, isTransientConnectionError } = require('../_shared/ai-designer/provider.cjs');
@@ -437,6 +437,14 @@ describe('flat-artwork structured prompts', () => {
     expect(result).toContain('Playful rescue pups');
     expect(buildImprovedPrompt('Happy Birthday Bryson! September 20', brief)).not.toContain('September 20');
   });
+  it('grounds a requested name from possessive wording and never writes "No text" as literal copy', () => {
+    const source = normalizeBrief({ description: "Celebrate Makenzie's volleyball season with a large Makenzie headline", widthIn: 96, heightIn: 48 });
+    expect(groundedCopy({ headline: 'Makenzie' }, source).headline).toBe('Makenzie');
+    const noCopy = normalizeBrief({ description: 'A scenic background with no wording', widthIn: 96, heightIn: 48, subjectMatter: 'School volleyball' });
+    const improved = buildImprovedPrompt('', noCopy);
+    expect(improved).toContain('no written words');
+    expect(improved).not.toContain('wording: No text');
+  });
   it('fits verbose AI planning without truncating customer wording', () => {
     const copy = { headline: 'Happy Birthday Bryson!' };
     const result = fitInterpretedDirection({ composition: 'Detailed direction '.repeat(40), copy, description: 'Exact request', improvedPrompt: 'Exact rewrite' });
@@ -706,8 +714,10 @@ describe('deterministic exact-copy composition', () => {
     expect((await sharp(result.preview).metadata()).width).toBe(1600);
     expect(result.textLayers[0]).toMatchObject({ value: 'TONY’S <PIZZA> & MORE', font: 'Georgia' });
     expect(result.textLayers[0].x + result.textLayers[0].width).toBeLessThanOrEqual(1920 * 0.95);
-    expect(result.photoLayers).toHaveLength(2);
-    for (const layer of [...result.photoLayers, result.logoLayer]) {
+    const withoutPhotos = await compositeArtwork({ background, brief, logo: asset });
+    expect(result.photoLayers).toEqual([]);
+    expect(result.buffer.equals(withoutPhotos.buffer)).toBe(true);
+    for (const layer of [result.logoLayer]) {
       expect(layer.left).toBeGreaterThanOrEqual(1920 * 0.05);
       expect(layer.top).toBeGreaterThanOrEqual(960 * 0.05);
       expect(layer.left + layer.width).toBeLessThanOrEqual(1920 * 0.95);

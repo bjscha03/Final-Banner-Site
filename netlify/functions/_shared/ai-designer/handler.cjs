@@ -12,7 +12,7 @@ const { mergeLayerEdits, removePhotoLayers } = require('./layers.cjs');
 const { isUploadedLogoRemoval } = require('./edit-intent.cjs');
 const { isEnabled, getImageModel, getValidationModel, getImageQuality, MODEL_SNAPSHOT } = require('./config.cjs');
 const { normalizeBrief, cleanText, stableHash, buildImprovedPrompt, freshPromptBrief, fitInterpretedDirection, groundedCopy } = require('./schema.cjs');
-const { buildGenerationPrompt, buildEditPrompt, buildCopyChangeInstruction } = require('./prompt.cjs');
+const { buildGenerationPrompt, buildEditPrompt, buildCopyChangeInstruction, customerPhotoPrompt } = require('./prompt.cjs');
 const { verifyModelAccess, verifyValidationModelAccess, generateImage, editImage, structureCreativeBrief, planDesignEdit } = require('./provider.cjs');
 const {
   isTemporaryStorageConfigured,
@@ -386,17 +386,17 @@ async function briefHandler(event) {
   return enqueueHandler(event, 'brief');
 }
 
-async function finalizeConcept({ rawBackground, brief, plan, logo, photos, providerResult, preserveBackground = false, reuseVisualValidation = null }) {
+async function finalizeConcept({ rawBackground, brief, plan, logo, providerResult, preserveBackground = false, reuseVisualValidation = null }) {
   const { normalizeBackground } = require('./image-utils.cjs');
   const { compositeArtwork } = require('./compositor.cjs');
   const { validateArtwork } = require('./validation.cjs');
   const background = preserveBackground ? rawBackground : await normalizeBackground(rawBackground, plan);
-  const composite = await compositeArtwork({ background, brief, logo, photos });
+  const composite = await compositeArtwork({ background, brief, logo });
   // Show the actual artwork immediately. Approval remains gated by checks.
   await reportProgress('Your artwork is ready — checking wording and print details', {
     imageBase64: composite.preview.toString('base64'), mimeType: 'image/jpeg',
   });
-  const validation = await validateArtwork({ background, artwork: composite.buffer, brief, plan, protectedRegions: [composite.logoLayer, ...composite.photoLayers].filter(Boolean), logoReference: brief.logoRendering === 'integrated' ? logo : null, reuseVisualValidation });
+  const validation = await validateArtwork({ background, artwork: composite.buffer, brief, plan, protectedRegions: [composite.logoLayer].filter(Boolean), logoReference: brief.logoRendering === 'integrated' ? logo : null, reuseVisualValidation });
   // Never hide another paid image edit behind a validation failure.
   return { background, composite, validation, repaired: false, provider: providerResult };
 }
@@ -472,8 +472,11 @@ async function runGenerateRequest(body, session, jobId = crypto.randomUUID()) {
     user: providerUser(session),
     idempotencyKey: providerRequestKey(jobId, 'generate'),
   };
-  const generated = await withPipelineStage('Creating your artwork', () => reference || logo
-    ? editImage({ ...generationOptions, prompt: `${generationOptions.prompt}\nCreate a NEW banner composition. ${reference ? 'The first supplied image is visual style guidance only; do not copy its wording.' : 'The first supplied image is the customer logo, not a banner composition to preserve.'} ${reference && logo ? 'The second supplied image is the customer logo reference.' : ''} ${brief.hasIntegratedLogo ? 'Print the approved banner wording and the exact source-logo wording; integrate that logo faithfully once as part of the design without a second logo overlay.' : 'Print only the approved wording; never reproduce the supplied logo in the generated artwork.'}`, currentImage: (reference || logo).buffer, currentMime: (reference || logo).mimeType, logoReferenceImage: reference ? logo : null, logoRendering: brief.logoRendering })
+  const primaryInput = reference || photos[0] || logo;
+  const currentImageRole = reference ? 'style-reference' : photos.length ? 'featured-photo' : 'logo-reference';
+  const remainingPhotos = reference ? photos : photos.slice(1);
+  const generated = await withPipelineStage('Creating your artwork', () => primaryInput
+    ? editImage({ ...generationOptions, prompt: `${generationOptions.prompt}\nCreate a NEW banner composition. ${customerPhotoPrompt(photos.length)} ${brief.hasIntegratedLogo ? 'Print the approved banner wording and the exact source-logo wording; integrate that logo faithfully once as part of the design without a second logo overlay.' : 'Print only the approved wording; never reproduce a separately uploaded logo in the generated artwork.'}`, currentImage: primaryInput.buffer, currentMime: primaryInput.mimeType, currentImageRole, photoReferenceImages: remainingPhotos, logoReferenceImage: primaryInput === logo ? null : logo, logoRendering: brief.logoRendering })
     : generateImage(generationOptions));
   const providerCalls = [generated];
   let guided = generated;
@@ -630,6 +633,7 @@ async function runEditRequest(body, session, jobId = crypto.randomUUID()) {
     currentImage: current.buffer,
     currentMime: current.mimeType,
     referenceImage: reference,
+    photoReferenceImages: photos,
     logoReferenceImage: logo,
     logoRendering: brief.logoRendering,
     user: providerUser(session),

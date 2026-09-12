@@ -446,6 +446,18 @@ export default function AIWorkspace(props: Props) {
     setPendingBrief(null);
   };
 
+  const movePhotoToLogo = (index: number) => {
+    const source = photoImages[index];
+    if (!source) return;
+    setLogoImage(source);
+    setPhotoImages(current => current.filter((_, item) => item !== index));
+    setBrief(current => ({ ...current, logoRendering: 'integrated', structured: false }));
+    setBriefReviewed(false);
+    setPendingEdit(null);
+    setPendingBrief(null);
+    setSaveNotice('Moved to the Logo slot. It will be blended into the next design.');
+  };
+
   const reviewBrief = async () => {
     if (!requirementsMet) {
       setError('Select dimensions and material, then describe the design you want.');
@@ -824,7 +836,7 @@ export default function AIWorkspace(props: Props) {
               <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white p-3 text-center hover:border-orange-400"><ImagePlus className="h-5 w-5 text-orange-600" /><span className="mt-1 text-sm font-bold">Reference image</span><span className="text-xs text-slate-500">Photo, artwork or style reference</span><input type="file" className="sr-only" accept="image/png,image/jpeg,image/webp" onChange={(event) => setImage('reference', event.target.files?.[0])} /></label>
               <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white p-3 text-center hover:border-orange-400"><ImagePlus className="h-5 w-5 text-orange-600" /><span className="mt-1 text-sm font-bold">Logo</span><span className="text-xs text-slate-500">Use your logo and brand colors</span><input type="file" className="sr-only" accept="image/png,image/jpeg,image/webp" onChange={(event) => setImage('logo', event.target.files?.[0])} /></label>
             </div>
-            <label className="mt-3 block rounded-xl border border-dashed border-slate-300 bg-white p-3 text-sm font-semibold">Add photos to the banner (up to 3)<input type="file" multiple accept="image/png,image/jpeg,image/webp" className="mt-2 block w-full text-sm" disabled={Boolean(stage)} onChange={async event => {
+            <label className="mt-3 block rounded-xl border border-dashed border-slate-300 bg-white p-3 text-sm font-semibold">Add people or product photos (up to 3)<span className="mt-1 block text-xs font-normal text-slate-500">These become part of the design. Add school or business marks in the Logo box above.</span><input type="file" multiple accept="image/png,image/jpeg,image/webp" className="mt-2 block w-full text-sm" disabled={Boolean(stage)} onChange={async event => {
               const files = Array.from(event.target.files || []);
               if (files.length + photoImages.length > 3) { setError('Choose up to three photos.'); return; }
               try { const images = await Promise.all(files.map(file => readImage(file, 256 * 1024, 1600))); setPhotoImages(current => [...current, ...images]); }
@@ -832,7 +844,7 @@ export default function AIWorkspace(props: Props) {
               event.target.value = '';
             }} /></label>
             </details>
-            {photoImages.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{photoImages.map((src, index) => <div key={index} className="w-24"><img src={src} alt={`Uploaded photo ${index + 1}`} className="h-16 w-24 rounded object-contain" /><button type="button" className="min-h-11 text-xs underline" onClick={() => setPhotoImages(current => current.filter((_, item) => item !== index))}>Remove photo {index + 1}</button></div>)}</div>}
+            {photoImages.length > 0 && <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">{photoImages.map((src, index) => <div key={index} className="flex min-w-0 items-center gap-3 rounded-lg border border-slate-200 bg-white p-2"><img src={src} alt={`Customer visual ${index + 1}`} className="h-16 w-20 shrink-0 rounded bg-slate-50 object-contain" /><div className="min-w-0"><p className="text-xs font-bold text-slate-700">Photo {index + 1}</p><div className="mt-1 flex flex-wrap gap-x-3"><button type="button" className="min-h-8 text-xs font-semibold text-orange-700 underline underline-offset-2" onClick={() => movePhotoToLogo(index)}>Use as logo</button><button type="button" className="min-h-8 text-xs text-slate-500 underline underline-offset-2" onClick={() => setPhotoImages(current => current.filter((_, item) => item !== index))}>Remove</button></div></div></div>)}</div>}
             {(referenceImage || logoImage) && <div className="mt-3 grid grid-cols-2 gap-3">{[['Reference', referenceImage], ['Logo included on banner', logoImage]].map(([label, src]) => src && <figure key={label} className="min-w-0 rounded-lg border border-slate-200 bg-white p-2"><img src={src} alt={label || 'Attached image'} className="h-20 w-full object-contain" /><figcaption className="mt-1 text-xs text-slate-500">{label}</figcaption></figure>)}</div>}
             {(referenceImage || logoImage) && <div className="mt-2 flex flex-wrap items-center gap-2">{referenceImage && <button type="button" onClick={() => removeImage('reference')} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold">Remove reference</button>}{logoImage && <><label className="text-sm font-semibold text-slate-700">Logo treatment<select aria-label="Logo treatment" value={brief.logoRendering || 'integrated'} onChange={event => updateBrief('logoRendering', event.target.value as CreativeBrief['logoRendering'])} className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3"><option value="integrated">Blend into design</option><option value="original">Keep original logo</option></select></label>{brief.logoRendering === 'original' && <label className="text-sm font-semibold text-slate-700">Logo position<select value={brief.logoPosition} onChange={(event) => updateBrief('logoPosition', event.target.value as CreativeBrief['logoPosition'])} className="ml-2 min-h-11 rounded-lg border border-slate-300 bg-white px-3"><option value="upper-left">Upper left</option><option value="upper-right">Upper right</option><option value="lower-left">Lower left</option><option value="lower-right">Lower right</option></select></label>}<p className="w-full text-xs text-slate-500">{brief.logoRendering !== 'original' ? 'AI recreates your logo as part of the artwork. Check its lettering and details before ordering. Your original file stays saved.' : 'Places your original logo unchanged, including its background.'}{selected && ' Treatment applies to your next new design.'}</p><button type="button" onClick={() => removeImage('logo')} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold">Remove uploaded logo</button></>}</div>}
           </div>
@@ -891,7 +903,7 @@ export default function AIWorkspace(props: Props) {
               <p className="mt-2 text-xs text-slate-500">Adjusts your logo without generating the artwork again. Review the placement before accepting.</p>
             </fieldset>}
             {logoImage && selected.brief?.logoRendering === 'integrated' && <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600"><span>Logo blended into this design · use Edit with AI to adjust it</span><button type="button" disabled={Boolean(stage || pendingEdit)} onClick={() => removeImage('logo')} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 font-semibold disabled:opacity-40">Remove logo</button></div>}
-            <LayerControls brief={brief} concept={selected} photoCount={photoImages.length} busy={Boolean(stage || pendingEdit)} onChange={setBrief} onApply={() => void edit(true)} />
+            <LayerControls brief={brief} concept={selected} busy={Boolean(stage || pendingEdit)} onChange={setBrief} onApply={() => void edit(true)} />
             {hasUnappliedChanges && !stage && !pendingEdit && <button type="button" onClick={() => { if (selected.brief) setBrief(selected.brief); setLogoImage(selected.logoImage || null); setPhotoImages(selected.photoImages || []); setReferenceImage(selected.referenceImage || null); }} className="mt-2 min-h-11 text-xs text-slate-500 underline underline-offset-4">Discard unapplied changes</button>}
             <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-[1fr_auto]">
               <label className="text-sm font-bold text-slate-800">Edit with AI<textarea value={editInstruction} onChange={(event) => setEditInstruction(event.target.value.slice(0, 700))} rows={3} className="mt-1 w-full rounded-xl border border-slate-300 p-3 text-base" placeholder='Example: “Make the background lighter and keep everything else exactly the same.”' /></label>

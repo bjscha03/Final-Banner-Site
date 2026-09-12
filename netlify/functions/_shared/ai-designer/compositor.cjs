@@ -70,7 +70,7 @@ function renderTextBlock({ value, x, y, fontSize, width, weight = 700, color = '
   };
 }
 
-async function compositeArtwork({ background, brief, logo, photos = [] }) {
+async function compositeArtwork({ background, brief, logo }) {
   const width = Math.round(brief.outputWidthPx);
   const height = Math.round(brief.outputHeightPx);
   const position = brief.textPosition;
@@ -153,19 +153,8 @@ async function compositeArtwork({ background, brief, logo, photos = [] }) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><g>${blocks.map((block) => block.svg).join('')}</g></svg>`;
   const composites = [];
   let logoLayer = null;
-  const photoLayers = [];
-  for (let index = 0; index < Math.min(3, photos.length); index += 1) {
-    const source = await validateInputImage(photos[index], 12_000_000);
-    const role = `photo${index}`;
-    const change = overrides[role] || {};
-    const scale = change.scale || 1;
-    const image = await sharp(source.buffer).rotate().resize(Math.round(width * Math.min(0.8, 0.38 * scale)), Math.round(height * Math.min(0.8, 0.52 / photos.length * scale)), { fit: 'inside', withoutEnlargement: true }).png().toBuffer({ resolveWithObject: true });
-    const left = Math.round(Math.max(width * 0.05, Math.min(width * 0.95 - image.info.width, width * (change.x ?? (position === 'right' ? 0.05 : 0.57)))));
-    const top = Math.round(Math.max(height * 0.05, Math.min(height * 0.95 - image.info.height, height * (change.y ?? (0.35 + index * 0.55 / photos.length)))));
-    composites.push({ input: image.data, left, top });
-    photoLayers.push({ role, left, top, width: image.info.width, height: image.info.height });
-  }
-  // Keep typography readable above customer photos.
+  // Customer photos are composed by GPT Image as part of the artwork. Raw
+  // rectangular uploads must never be pasted over the finished design here.
   composites.push({ input: Buffer.from(svg), top: 0, left: 0 });
   if (logo?.buffer && brief.logoRendering !== 'integrated') {
     const { prepareLogo, logoPlacement, logoPlate } = require('./logo.cjs');
@@ -191,7 +180,7 @@ async function compositeArtwork({ background, brief, logo, photos = [] }) {
     .toBuffer();
   // The production JPEG is stored intact. Only the UI preview travels in JSON.
   const preview = await sharp(buffer).resize(1600, 1600, { fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 85 }).toBuffer();
-  return { buffer, preview, textLayers: blocks.map((block) => block.layer), logoLayer, photoLayers };
+  return { buffer, preview, textLayers: blocks.map((block) => block.layer), logoLayer, photoLayers: [] };
 }
 
 module.exports = { compositeArtwork, wrapText, escapeXml };

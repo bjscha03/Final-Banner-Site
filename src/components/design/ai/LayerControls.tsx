@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import type { AIConcept, CreativeBrief, ExactCopy } from './types';
 
-type Props = { brief: CreativeBrief; concept: AIConcept; photoCount: number; busy: boolean; onChange: (brief: CreativeBrief) => void; onApply: () => void };
+type Props = { brief: CreativeBrief; concept: AIConcept; busy: boolean; onChange: (brief: CreativeBrief) => void; onApply: () => void };
 const FONTS = ['DejaVu Sans', 'DejaVu Serif'];
 const LABELS: Record<string, string> = { headline: 'Headline', businessName: 'Business name', supportingText: 'Supporting text', offer: 'Offer', callToAction: 'Call to action', phone: 'Phone', website: 'Website', address: 'Address', date: 'Date', other: 'Other text', logo: 'Logo' };
-export default function LayerControls({ brief, concept, photoCount, busy, onChange, onApply }: Props) {
+export default function LayerControls({ brief, concept, busy, onChange, onApply }: Props) {
   const [role, setRole] = useState('headline');
   const layer = brief.layers?.[role] || {};
   const imageLayer = role === 'logo' || role.startsWith('photo');
   const artisticText = brief.typographyMode === 'ai' && !imageLayer;
-  const labels = { ...LABELS, ...Object.fromEntries(Array.from({ length: photoCount }, (_, index) => [`photo${index}`, `Photo ${index + 1}`])) };
+  const labels = LABELS;
   const rendered: Record<string, unknown> | undefined = imageLayer ? concept.photoLayers?.find(item => item.role === role) : concept.textLayers.find(item => item.role === role);
   const change = (patch: typeof layer) => onChange({ ...brief, layers: { ...brief.layers, [role]: { ...layer, ...patch } } });
   const input = 'mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3';

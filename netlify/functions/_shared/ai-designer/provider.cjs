@@ -231,14 +231,28 @@ async function generateImage({ prompt, size, user, idempotencyKey }) {
   }
 }
 
-async function editImage({ prompt, size, currentImage, currentMime = 'image/jpeg', maskImage, referenceImage, logoReferenceImage, logoRendering = 'original', user, idempotencyKey }) {
+async function editImage({ prompt, size, currentImage, currentMime = 'image/jpeg', currentImageRole = 'artwork', maskImage, referenceImage, photoReferenceImages = [], logoReferenceImage, logoRendering = 'original', user, idempotencyKey }) {
   const { client, toFile } = await getClient();
   const model = getImageModel();
   try {
     const sourceFile = await toFile(currentImage, 'current-artwork.jpg', { type: currentMime });
     const images = [sourceFile];
+    if (currentImageRole === 'featured-photo') {
+      prompt += '\nThe FIRST supplied image is the primary customer photo. Build a NEW banner composition around its recognizable person or subject. Make that subject prominent and naturally integrated into the scene. Preserve recognizable appearance, uniform, team colors and important details. Crop, isolate, enlarge or recompose it professionally; NEVER paste the source as a small rectangle, thumbnail, sticker, framed inset or screenshot.';
+    } else if (currentImageRole === 'style-reference') {
+      prompt += '\nThe FIRST supplied image is visual style guidance only. Create a NEW banner composition and do not copy its wording.';
+    } else if (currentImageRole === 'logo-reference') {
+      prompt += '\nThe FIRST supplied image is a customer logo/brand reference, not an existing banner composition. Create a NEW banner composition.';
+    }
     if (referenceImage?.buffer) {
       images.push(await toFile(referenceImage.buffer, 'reference-image', { type: referenceImage.mimeType }));
+    }
+    for (let index = 0; index < Math.min(3, photoReferenceImages.length); index += 1) {
+      const photo = photoReferenceImages[index];
+      if (photo?.buffer) images.push(await toFile(photo.buffer, `customer-visual-${index + 1}`, { type: photo.mimeType }));
+    }
+    if (photoReferenceImages.some(photo => photo?.buffer)) {
+      prompt += '\nThe additional customer visuals before the final logo (if any) are composition references. Work real people/products into the artwork as prominent, natural subjects—not raw rectangular photos, thumbnails, stickers, frames or collage tiles. If an input is visibly a logo, crest or badge, treat it as branding: use its identity and palette only where the request calls for it, and never paste its source rectangle over the design. Do not stack attachments over the headline.';
     }
     if (logoReferenceImage?.buffer) {
       images.push(await toFile(logoReferenceImage.buffer, 'customer-logo-brand-reference.png', { type: logoReferenceImage.mimeType }));
@@ -356,13 +370,13 @@ async function planDesignEdit({ brief, instruction, photos = [], user, idempoten
       input: [{ role: 'user', content: [{ type: 'input_text', text: [
         'Edit this layered commercial banner according to the request. Return complete exact copy and layer settings; preserve all unrelated wording and existing settings.',
         brief.typographyMode === 'ai'
-          ? 'The existing design contains artistic AI-rendered lettering. Update the complete approved copy to match requested wording changes. Preserve the original lettering style unless asked to change it. Uploaded photos remain protected separate layers; logo treatment is specified below. Do not replace artistic fonts with generic font settings unless explicitly requested.'
+          ? 'The existing design contains artistic AI-rendered lettering. Update the complete approved copy to match requested wording changes. Preserve the original lettering style unless asked to change it. Customer photos are already integrated into the artwork; logo treatment is specified below. Do not replace artistic fonts with generic font settings unless explicitly requested.'
           : 'Text and logo changes are deterministic. NEVER ask the image model to change words, spelling, fonts, sizes or logos. Put only visual background/image changes in backgroundInstruction; otherwise use an empty string.',
         'Layer x/y are normalized canvas coordinates, width is a normalized text-zone width, scale is relative to default type size. Preserve unspecified values using the current settings or null if unset. Fonts must be from the supplied enum. Colors are six-digit hex. Increase sizes moderately (about 1.2x) when asked for bigger. For logo left/right use x=0.05/0.75; top/bottom use y=0.06/0.7. Remove text by emptying its copy field. Never invent contact information. Only set removeLogo when explicitly requested.',
         brief.logoRendering === 'integrated'
           ? 'The customer logo is integrated into the artwork, not a separate overlay. A request to remove it requires removeLogo=true and erasing that integrated brand mark and its logo-specific lettering from the artwork. Preserve unrelated banner copy and illustration. Logo position or size edits are also artwork edits. Do not propose adding another copy of the logo.'
           : 'removeLogo means remove only the protected customer-uploaded logo overlay; never describe that removal in backgroundInstruction and never remove or alter a logo-like badge, lettering, or artwork already baked into the generated background. For a logo-only removal, keep copy and layers unchanged and return an empty backgroundInstruction.',
-        `Uploaded photos are supplied after this text in zero-based order (photo0, photo1, photo2). Return their indexes in removePhotos only if requested. Current design: ${JSON.stringify(brief)}`,
+        `Customer photo references are supplied after this text in zero-based order (photo0, photo1, photo2). They are integrated subjects in the existing artwork, not movable overlay layers. Return indexes in removePhotos only when removal is requested, and describe the corresponding subject removal in backgroundInstruction so the artwork is actually updated. Current design: ${JSON.stringify(brief)}`,
         `Requested change: ${JSON.stringify(instruction)}`,
       ].join('\n') }, ...photos.map(photo => ({ type: 'input_image', image_url: `data:${photo.mimeType};base64,${photo.buffer.toString('base64')}`, detail: 'low' }))] }],
       text: { format: { type: 'json_schema', name: 'banner_layer_edit', strict: true, schema: { type: 'object', additionalProperties: false, required: Object.keys(properties), properties } } },

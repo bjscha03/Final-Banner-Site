@@ -194,7 +194,9 @@ function freshPromptBrief(input) {
 }
 
 function groundedCopy(candidate, brief) {
-  const normalize = value => sanitizeText(value).normalize('NFKC').toLowerCase().replace(/[’']/g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  // Treat possessives as a separate token so a request such as "Makenzie's
+  // season" grounds the exact headline "Makenzie" instead of discarding it.
+  const normalize = value => sanitizeText(value).normalize('NFKC').toLowerCase().replace(/[’']/g, ' ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
   const source = ` ${normalize(brief.description)} `;
   return Object.fromEntries(COPY_FIELDS.map(field => {
     if (Object.prototype.hasOwnProperty.call(brief.copyOverrides, field)) return [field, brief.copyOverrides[field]];
@@ -212,7 +214,9 @@ function buildImprovedPrompt(candidate, brief) {
   try { return validateImprovedPrompt(candidate, brief.requiredText); } catch {
     // A verbose or imperfect prose rewrite must not require another paid call.
     // Assemble the same AI art direction around the approved exact wording.
-    let prompt = `Create a finished banner. Use exactly this wording: ${brief.requiredText.map(text => JSON.stringify(text)).join('; ') || 'No text'}.`;
+    let prompt = brief.requiredText.length
+      ? `Create a finished banner. Use exactly this wording: ${brief.requiredText.map(text => JSON.stringify(text)).join('; ')}.`
+      : 'Create a finished banner with no written words, letters, or placeholder text.';
     for (const sentence of [
       `Theme and imagery: ${brief.subjectMatter}.`,
       `Visual style: ${brief.visualStyle}.`,
