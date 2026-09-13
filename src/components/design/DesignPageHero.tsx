@@ -1,4 +1,5 @@
 import React from 'react';
+import ProductVisual from '@/components/product/ProductVisual';
 import { ArrowRight, Clock3, Layers3, Magnet, Monitor, Truck, type LucideIcon } from 'lucide-react';
 import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
 import BannerDiscountOffer from '@/components/design/BannerDiscountOffer';
@@ -56,29 +57,9 @@ interface SceneProps {
   className: string;
 }
 
-const DesignScene: React.FC<SceneProps> = ({ definition, className }) => {
-  const { productSlug } = definition;
-  const directory = productSlug === 'vinyl-banners' ? 'design-heroes' : 'product-heroes';
-
-  return (
-    <picture className={className}>
-      <source media="(max-width: 1023px)" type="image/avif" srcSet={`/images/${directory}/${productSlug}-mobile-640.avif 640w`} sizes="100vw" />
-      <source media="(max-width: 1023px)" type="image/webp" srcSet={`/images/${directory}/${productSlug}-mobile-640.webp 640w`} sizes="100vw" />
-      <source type="image/avif" srcSet={`/images/${directory}/${productSlug}-720.avif 720w, /images/${directory}/${productSlug}-1100.avif 1100w`} sizes="61vw" />
-      <source type="image/webp" srcSet={`/images/${directory}/${productSlug}-720.webp 720w, /images/${directory}/${productSlug}-1100.webp 1100w`} sizes="61vw" />
-      <img
-        src={`/images/${directory}/${productSlug}-1100.webp`}
-        alt={definition.alt}
-        width="1100"
-        height="690"
-        loading="eager"
-        decoding="sync"
-        fetchPriority="high"
-        className="h-full w-full object-cover object-center"
-      />
-    </picture>
-  );
-};
+const DesignScene: React.FC<SceneProps> = ({ definition, className }) => (
+  <ProductVisual productSlug={definition.productSlug} priority className={className} />
+);
 
 interface DesignPageHeroProps {
   productType: ProductTypeSlug;

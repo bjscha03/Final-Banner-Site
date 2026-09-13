@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2 } from 'lucide-react';
+import { ArrowRight, CheckCircle2 } from 'lucide-react';
 import type { ProductTypeSlug } from '@/lib/products';
 import type { CityProductSlug } from '@/lib/seo/cityData';
 import ProductVisual from '@/components/product/ProductVisual';
@@ -50,12 +50,13 @@ const ProductTypeSwitcher: React.FC<ProductTypeSwitcherProps> = ({ productType, 
     </div>
 
     <div className="mb-10 hidden md:block">
-      <div className="mb-5 flex items-end justify-between gap-4">
-        <div><p className="brand-eyebrow">Step 1</p><h2 className="mt-2 font-display text-2xl font-bold text-[#0B1F3A]">Choose a product</h2></div>
-        <p className="text-sm text-slate-500">You can switch without leaving the order builder.</p>
+      <div className="mb-6">
+        <p className="brand-eyebrow">Step 1</p>
+        <h2 className="homepage-condensed mt-2 text-5xl font-black uppercase leading-none text-[#0B1F3A] lg:text-6xl">Choose your product</h2>
+        <p className="mt-3 text-base text-slate-500">Pick your product. You can switch anytime.</p>
       </div>
-      <div className="grid border border-slate-200 md:grid-cols-3" role="tablist" aria-label="Select product type">
-        {options.map((option, index) => {
+      <div className="grid gap-3 md:grid-cols-3" role="tablist" aria-label="Select product type">
+        {options.map((option) => {
           const active = productType === option.type;
           return (
             <button
@@ -65,20 +66,21 @@ const ProductTypeSwitcher: React.FC<ProductTypeSwitcherProps> = ({ productType, 
               aria-selected={active}
               onClick={() => onProductTypeChange(option.type)}
               className={cn(
-                'group relative overflow-hidden bg-white text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#FF6A00]',
-                index > 0 && 'border-l border-slate-200',
-                active ? 'bg-[#FFF7F1]' : 'hover:bg-[#F7F7F7]',
+                'group relative aspect-[6/5] overflow-hidden bg-[#0B1F3A] text-left text-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#FF6A00] focus-visible:ring-offset-4',
               )}
             >
-              {active && <div className="absolute inset-x-0 top-0 z-10 h-1 bg-[#FF6A00]" aria-hidden="true" />}
               <ProductVisual
                 productSlug={option.slug}
                 presentation="selector"
-                className="aspect-video border-b border-slate-200"
+                className="absolute inset-0"
               />
-              <div className="flex items-start justify-between gap-4 p-5">
-                <div><p className="font-display text-lg font-bold text-[#0B1F3A]">{option.label}</p><p className="mt-1 text-xs text-slate-500">{option.subtext}</p></div>
-                {active && <CheckCircle2 className="h-5 w-5 flex-none text-[#FF6A00]" aria-label="Selected" />}
+              <div className="absolute inset-0 bg-gradient-to-t from-[#061A31] via-transparent to-transparent" aria-hidden="true" />
+              {option.type === 'banner' && <span className="absolute left-4 top-4 bg-[#C94008] px-3 py-2 text-xs font-black uppercase tracking-wide">Most popular</span>}
+              {active && <><span className="pointer-events-none absolute inset-0 z-10 border-4 border-[#FF6A00]" aria-hidden="true" /><CheckCircle2 className="absolute right-4 top-4 h-9 w-9 rounded-full bg-[#FF6A00] text-white" aria-label="Selected" /></>}
+              <div className="absolute inset-x-0 bottom-0 p-5 lg:p-6">
+                <p className="homepage-condensed text-3xl font-black uppercase leading-none lg:text-4xl">{option.label}</p>
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2"><p className="text-sm text-white">{option.subtext}</p>
+                {!active && <span className="inline-flex items-center gap-2 border-b border-white/70 pb-1 text-xs font-bold uppercase">Select <ArrowRight className="h-4 w-4" aria-hidden="true" /></span>}</div>
               </div>
             </button>
           );

@@ -2888,7 +2888,7 @@ const Design: React.FC = () => {
           <h2
             ref={builderStartRef}
             id="builder-start"
-            className="mb-10 scroll-mt-[140px] text-center font-display text-2xl font-bold text-[#0B1F3A] md:scroll-mt-24 md:text-3xl"
+            className="homepage-condensed mb-10 scroll-mt-[140px] bg-[#061A31] px-4 py-6 text-center text-4xl font-bold uppercase text-white md:scroll-mt-24 md:text-5xl"
           >
             {isYardSign ? 'Build Your Yard Sign Order' : isCarMagnet ? 'Design Your Custom Car Magnets' : 'Build Your Banner'}
           </h2>

@@ -1,4 +1,5 @@
 import React from 'react';
+import ProductVisual from '@/components/product/ProductVisual';
 import {
   ArrowRight,
   Clock3,
@@ -64,47 +65,8 @@ const HERO_DEFINITIONS: Record<CityProductSlug, ProductHeroDefinition> = {
   },
 };
 
-interface ProductSceneProps {
-  productSlug: CityProductSlug;
-  alt: string;
-  className: string;
-}
-
-const ProductScene: React.FC<ProductSceneProps> = ({ productSlug, alt, className }) => (
-  <picture className={className}>
-    <source
-      media="(max-width: 1023px)"
-      type="image/avif"
-      srcSet={`/images/product-heroes/${productSlug}-mobile-640.avif 640w`}
-      sizes="100vw"
-    />
-    <source
-      media="(max-width: 1023px)"
-      type="image/webp"
-      srcSet={`/images/product-heroes/${productSlug}-mobile-640.webp 640w`}
-      sizes="100vw"
-    />
-    <source
-      type="image/avif"
-      srcSet={`/images/product-heroes/${productSlug}-720.avif 720w, /images/product-heroes/${productSlug}-1100.avif 1100w`}
-      sizes="58vw"
-    />
-    <source
-      type="image/webp"
-      srcSet={`/images/product-heroes/${productSlug}-720.webp 720w, /images/product-heroes/${productSlug}-1100.webp 1100w`}
-      sizes="58vw"
-    />
-    <img
-      src={`/images/product-heroes/${productSlug}-1100.webp`}
-      alt={alt}
-      width="1100"
-      height="720"
-      loading="eager"
-      decoding="sync"
-      fetchPriority="high"
-      className="h-full w-full object-cover object-center"
-    />
-  </picture>
+const ProductScene: React.FC<{ productSlug: CityProductSlug; alt: string; className: string }> = ({ productSlug, className }) => (
+  <ProductVisual productSlug={productSlug} priority className={className} />
 );
 
 interface ProductPageHeroProps {
