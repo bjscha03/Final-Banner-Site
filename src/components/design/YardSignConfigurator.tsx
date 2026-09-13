@@ -211,7 +211,7 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
   const [previewImgPos, setPreviewImgPos] = useState({ x: 0, y: 0 });
   const [previewImgScale, setPreviewImgScale] = useState(1);
   const [previewImgScaleY, setPreviewImgScaleY] = useState(1);
-  const [previewConstrain, setPreviewConstrain] = useState(false);
+  const [previewConstrain, setPreviewConstrain] = useState(true);
   const [mobileToolbarEl, setMobileToolbarEl] = useState<HTMLDivElement | null>(null);
   const previewDesign = designs.find(d => d.id === previewDesignId);
 
@@ -223,7 +223,7 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
     setPreviewImgPos(design?.imgPos || { x: 0, y: 0 });
     setPreviewImgScale(design?.imgScale ?? 1);
     setPreviewImgScaleY(design?.imgScaleY ?? design?.imgScale ?? 1);
-    setPreviewConstrain(design?.imgConstrain ?? false);
+    setPreviewConstrain(design?.imgConstrain ?? true);
   }, [designs]);
 
   // Auto-open preview when editing from cart (autoOpenDesignId prop)
