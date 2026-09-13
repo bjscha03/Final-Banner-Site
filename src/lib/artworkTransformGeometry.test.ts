@@ -52,4 +52,20 @@ describe('artwork transform geometry', () => {
 
     expect(restored).toEqual({ x: 30, y: 10, scaleX: 1.8, scaleY: 0.8 });
   });
+  it.each([
+    { w: 800, h: 800 },
+    { w: 1200, h: 400 },
+    { w: 400, h: 1200 },
+  ])('keeps the rendered frame unchanged when unlocking $w × $h artwork', (natural) => {
+    const canvas = { w: 600, h: 300 };
+    // The cache can predate image loading and contain full-canvas fractions.
+    const staleGeometry = { xPct: 0.08, yPct: -0.04, widthPct: 1, heightPct: 1 };
+    const displayed = restoreArtworkTransformFromGeometry(staleGeometry, canvas, natural, true);
+    const captured = captureNormalizedArtworkGeometry(displayed, canvas, natural);
+    const unlocked = restoreArtworkTransformFromGeometry(captured, canvas, natural, false);
+    for (const key of ['x', 'y', 'scaleX', 'scaleY'] as const) {
+      expect(unlocked[key]).toBeCloseTo(displayed[key], 10);
+    }
+  });
+
 });
