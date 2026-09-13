@@ -1,4 +1,8 @@
-import { describe, expect, it } from 'vitest';
+// @vitest-environment jsdom
+import React, { act, useState } from 'react';
+import { createRoot } from 'react-dom/client';
+import { describe, expect, it, vi } from 'vitest';
+import ArtworkPreviewEditor from '../ArtworkPreviewEditor';
 import {
   getPreviewCrossOrigin,
   isRawPdfPreviewSource,
@@ -73,5 +77,52 @@ describe('ArtworkPreviewEditor preview source resolution', () => {
       rawPdfRejected: false,
       loadedPreviewSrc: previewUrl,
     })).toBe(false);
+  });
+});
+
+
+describe('ArtworkPreviewEditor unlock interaction', () => {
+  it.each([[800, 800], [1200, 400], [400, 1200]])('does not move or stretch %i × %i artwork on unlock', async (width, height) => {
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+    vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+    const bounds = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 600, height: 300, x: 0, y: 0, left: 0, top: 0, right: 600, bottom: 300, toJSON() {},
+    });
+    const host = document.createElement('div');
+    const toolbarSlot = document.createElement('div');
+    document.body.append(host, toolbarSlot);
+    const root = createRoot(host);
+    const originalElementFromPoint = document.elementFromPoint;
+    document.elementFromPoint = () => host.querySelector('img');
+    function Harness() {
+      const [value, setValue] = useState({ x: 24, y: -12, scaleX: 1, scaleY: 1 });
+      const [locked, setLocked] = useState(true);
+      return React.createElement(ArtworkPreviewEditor, {
+        src: `test-${width}-${height}.png`, paddingPct: '50%', value,
+        onChange: setValue, constrain: locked, onConstrainChange: setLocked,
+        mobileToolbarContainer: toolbarSlot,
+      });
+    }
+    try {
+      await act(async () => root.render(React.createElement(Harness)));
+      const image = host.querySelector('img')!;
+      Object.defineProperties(image, {
+        complete: { value: true }, naturalWidth: { value: width }, naturalHeight: { value: height },
+      });
+      await act(async () => image.dispatchEvent(new Event('load')));
+      const frame = image.parentElement!;
+      const before = frame.getAttribute('style');
+      expect(parseFloat(frame.style.width) / parseFloat(frame.style.height)).toBeCloseTo(width / height);
+      const unlock = Array.from(toolbarSlot.querySelectorAll('button')).find(b => b.textContent === 'Unlock free resize')!;
+      expect(unlock).toBeDefined();
+      await act(async () => unlock.click());
+      expect(frame.getAttribute('style')).toBe(before);
+      expect(toolbarSlot.textContent).toContain('Free resize enabled');
+      expect(toolbarSlot.textContent).toContain('Lock proportions');
+    } finally {
+      await act(async () => root.unmount());
+      host.remove(); toolbarSlot.remove(); bounds.mockRestore(); vi.unstubAllGlobals();
+      document.elementFromPoint = originalElementFromPoint;
+    }
   });
 });
