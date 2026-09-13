@@ -3,34 +3,37 @@ import { ArrowRight, Quote } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const CompanySpotlight: React.FC = () => (
-  <section className="bg-[#061A31] text-white" aria-labelledby="spotlight-heading">
-    <article className="grid w-full overflow-hidden lg:grid-cols-[1fr_1.08fr]">
-      <div className="relative min-h-[430px] bg-[#0a294a] sm:min-h-[520px] lg:min-h-[610px]">
+  <section className="bg-white py-8 text-[#061A31] lg:py-10" aria-labelledby="spotlight-heading">
+    <article className="mx-auto grid max-w-[1500px] items-center gap-6 px-4 sm:grid-cols-[180px_1fr] sm:px-7 lg:grid-cols-[260px_0.85fr_1.25fr] lg:gap-10 lg:px-10">
+      <div className="h-[220px] w-[220px] overflow-hidden bg-[#252727] sm:h-[200px] sm:w-full lg:h-[260px]">
         <img
           src="https://res.cloudinary.com/dtrxl120u/image/upload/f_auto,q_auto,w_1100/v1759799151/dan-oliver_1200xx3163-3170-1048-0_zgphzw.jpg"
           alt="Dan Oliver, founder of Dan-O's Seasoning"
           width="1100"
           height="900"
           loading="lazy"
-          className="absolute inset-0 h-full w-full object-cover object-center"
+          className="h-full w-full object-cover object-center"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-[#061A31]/20" aria-hidden="true" />
       </div>
-      <div className="flex flex-col justify-center px-6 py-12 sm:px-10 sm:py-16 lg:px-16 xl:px-20">
-        <p className="text-xs font-black uppercase tracking-[0.2em] text-[#FF6900] sm:text-sm">Customer spotlight</p>
-        <h2 id="spotlight-heading" className="homepage-condensed mt-4 max-w-2xl [--homepage-mobile-size:3rem] text-5xl font-black uppercase leading-[0.9] text-white sm:text-6xl lg:text-[5rem]">
-          Print support for a brand on the move.
+      <div>
+        <p className="text-xs font-black uppercase tracking-[0.2em] text-[#C94008]">Customer spotlight</p>
+        <h2 id="spotlight-heading" className="homepage-condensed mt-3 [--homepage-mobile-size:2.5rem] text-[2.5rem] font-black uppercase leading-none xl:text-5xl">
+          Big flavor.<br />Bold presence.
         </h2>
-        <Quote className="mt-7 h-9 w-9 fill-none stroke-[2.2] text-[#FF6900]" aria-hidden="true" />
-        <blockquote className="mt-3 max-w-2xl text-xl font-semibold italic leading-8 text-white sm:text-2xl sm:leading-9">
+        <p className="mt-3 text-lg">Dan-O's Seasoning</p>
+      </div>
+      <div className="sm:col-span-2 lg:col-span-1">
+        <Quote className="h-7 w-7 fill-none stroke-[2.2] text-[#FF6900]" aria-hidden="true" />
+        <blockquote className="mt-2 text-lg leading-7 xl:text-xl xl:leading-8">
           “Banners on the Fly delivered exactly what we needed for our nationwide events. Fast, professional, and high quality every time.”
         </blockquote>
-        <p className="mt-6 text-xs font-black uppercase tracking-[0.14em] text-slate-300 sm:text-sm">Dan Oliver · Founder, Dan-O's Seasoning</p>
-        <Link to="/design" className="mt-7 inline-flex min-h-12 w-fit items-center justify-center gap-3 rounded-md bg-[#C94008] px-6 py-3 font-extrabold uppercase text-white transition-colors hover:bg-[#B93808] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
-          Start an order <ArrowRight className="h-5 w-5" aria-hidden="true" />
+        <p className="mt-3 text-[11px] font-bold uppercase leading-5 tracking-[0.12em]">Dan Oliver · Founder, Dan-O's Seasoning</p>
+        <Link to="/design" className="mt-3 inline-flex min-h-11 w-fit items-center gap-3 border-b-2 border-[#F45B08] text-sm font-bold uppercase transition-colors hover:text-[#C94008] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
+          Start an order <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
       </div>
     </article>
+    <div className="mx-auto mt-8 max-w-[1420px] border-b border-slate-200" aria-hidden="true" />
   </section>
 );
 
