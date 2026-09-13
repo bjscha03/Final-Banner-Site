@@ -37,7 +37,8 @@ import { useAuth, isAdmin } from '@/lib/auth';
 import { adminFetch } from '@/lib/serverAuth';
 import { usd } from '@/lib/pricing';
 import {
-  EMPTY_ABANDONED_CART_FILTERS,
+  DEFAULT_ABANDONED_CART_FILTERS,
+  getCartDisplayStatus,
   isRecoveryEmailEligible,
   summarizeAbandonedCarts,
   type AbandonedCartAdminRecord,
@@ -50,7 +51,7 @@ import {
 } from '@/lib/abandoned-cart-admin';
 
 const STAGE_OPTIONS = ['cart', 'checkout', 'contact', 'payment_started', 'unknown'];
-const STATUS_OPTIONS = ['active', 'abandoned', 'recovered', 'expired'];
+const STATUS_OPTIONS = ['abandoned', 'active', 'completed', 'recovered', 'expired'];
 const CARTS_PER_PAGE = 25;
 
 type CartPagination = {
@@ -121,6 +122,7 @@ const getThumbnailUrl = (imageUrl: string | null, maxWidth = 160): string | null
 };
 
 const statusBadge = (status: string) => {
+  if (status === 'completed') return <Badge className="bg-green-600 hover:bg-green-600">Completed</Badge>;
   if (status === 'recovered') return <Badge className="bg-green-600 hover:bg-green-600">Recovered</Badge>;
   if (status === 'abandoned') return <Badge variant="destructive">Abandoned</Badge>;
   if (status === 'expired') return <Badge variant="outline">Expired</Badge>;
@@ -415,7 +417,7 @@ const CartCard: React.FC<CartCardProps> = ({ cart, sending, deleting, onSend, on
               <Badge variant="outline">{humanize(cart.checkout_stage)}</Badge>
               {cart.has_artwork === true && <Badge variant="outline" className="border-blue-200 text-blue-700">Artwork</Badge>}
               {cart.has_artwork === null && <Badge variant="outline" className="text-gray-500">Artwork unknown</Badge>}
-              {statusBadge(cart.recovery_status)}
+              {statusBadge(getCartDisplayStatus(cart))}
             </div>
           </div>
 
@@ -446,7 +448,7 @@ const CartCard: React.FC<CartCardProps> = ({ cart, sending, deleting, onSend, on
         </div>
 
         <div className="flex min-w-[11rem] flex-col gap-2 lg:border-l lg:pl-4">
-          <div className="grid grid-cols-3 gap-2">
+          {cart.recovery_status === 'abandoned' && <div className="grid grid-cols-3 gap-2">
             {[1, 2, 3].map((sequence) => {
               const alreadySent = cart.recovery_emails_sent >= sequence;
               const outOfSequence = sequence > cart.recovery_emails_sent + 1;
@@ -463,7 +465,7 @@ const CartCard: React.FC<CartCardProps> = ({ cart, sending, deleting, onSend, on
                 </Button>
               );
             })}
-          </div>
+          </div>}
           {ineligibleReason ? (
             <div className="flex items-start gap-1.5 text-xs text-amber-700">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
@@ -597,8 +599,8 @@ const AbandonedCarts: React.FC = () => {
   const [serverAnalytics, setServerAnalytics] = useState<AbandonedCartAnalytics | null>(null);
   const [filteredAnalytics, setFilteredAnalytics] = useState<AbandonedCartAnalytics | null>(null);
   const [outcomeComparison, setOutcomeComparison] = useState<AbandonedCartOutcomeComparison | null>(null);
-  const [filters, setFilters] = useState<AbandonedCartFilters>({ ...EMPTY_ABANDONED_CART_FILTERS });
-  const [appliedFilters, setAppliedFilters] = useState<AbandonedCartFilters>({ ...EMPTY_ABANDONED_CART_FILTERS });
+  const [filters, setFilters] = useState<AbandonedCartFilters>({ ...DEFAULT_ABANDONED_CART_FILTERS });
+  const [appliedFilters, setAppliedFilters] = useState<AbandonedCartFilters>({ ...DEFAULT_ABANDONED_CART_FILTERS });
   const [sort, setSort] = useState<AbandonedCartSort>('activity_desc');
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<CartPagination>(EMPTY_PAGINATION);
@@ -700,7 +702,7 @@ const AbandonedCarts: React.FC = () => {
   };
 
   const clearFilters = () => {
-    const cleared = { ...EMPTY_ABANDONED_CART_FILTERS };
+    const cleared = { ...DEFAULT_ABANDONED_CART_FILTERS };
     setFilters(cleared);
     setAppliedFilters(cleared);
     setPage(1);
@@ -808,9 +810,9 @@ const AbandonedCarts: React.FC = () => {
           <div>
             <div className="flex items-center gap-3">
               <ShoppingCart className="h-7 w-7 text-[#18448D]" />
-              <h1 className="text-2xl font-bold sm:text-3xl">Abandoned Cart Analytics</h1>
+              <h1 className="text-2xl font-bold sm:text-3xl">Abandoned Carts</h1>
             </div>
-            <p className="mt-1 text-sm text-gray-600">Checkout behavior, recovery eligibility, and item-level demand.</p>
+            <p className="mt-1 text-sm text-gray-600">Abandoned carts are shown by default. Completed orders and expired sessions stay in history.</p>
           </div>
           <Button onClick={() => void loadCarts()} disabled={loading} variant="outline" className="w-full sm:w-auto">
             <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
@@ -827,7 +829,23 @@ const AbandonedCarts: React.FC = () => {
           </Tabs>
         </nav>
 
-        <section className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-5" aria-label="All-time abandoned cart metrics">
+        <div className="mt-6 overflow-x-auto">
+          <Tabs value={appliedFilters.recoveryStatus} onValueChange={(recoveryStatus) => {
+            const next = { ...appliedFilters, recoveryStatus };
+            setFilters(next);
+            setAppliedFilters(next);
+            setPage(1);
+          }}>
+            <TabsList className="h-auto min-w-max" aria-label="Cart status views">
+              {STATUS_OPTIONS.map((status) => <TabsTrigger key={status} value={status}>{humanize(status)}</TabsTrigger>)}
+              <TabsTrigger value="all">All history</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <p className="mt-2 text-xs text-gray-500">Completed = no recorded abandonment. Recovered = ordered after abandonment. Expired sessions are closed and excluded from the abandoned list.</p>
+        </div>
+
+        <h2 className="mt-6 text-sm font-semibold text-gray-600">All-time capture and recovery totals · all statuses</h2>
+        <section className="mt-2 grid grid-cols-2 gap-3 lg:grid-cols-5" aria-label="All-time abandoned cart metrics">
           <div className="min-w-0 rounded-lg border bg-white p-4"><div className="text-xs text-gray-500">Total captured carts</div><div className="mt-1 break-words text-lg font-bold sm:text-2xl">{allAnalytics.totalCount}</div><div className="text-xs text-gray-500">{allAnalytics.activeCount + allAnalytics.abandonedCount} still open</div></div>
           <div className="min-w-0 rounded-lg border bg-white p-4"><div className="text-xs text-gray-500">Total captured value</div><div className="mt-1 break-words text-lg font-bold sm:text-2xl">{formatCents(allAnalytics.totalCapturedValueCents)}</div><div className="text-xs text-gray-500">{formatCents(allAnalytics.activeValueCents)} still open</div></div>
           <div className="min-w-0 rounded-lg border border-green-200 bg-green-50 p-4"><div className="text-xs text-green-700">Exact retained recovery revenue</div><div className="mt-1 break-words text-lg font-bold text-green-700 sm:text-2xl">{formatCents(allAnalytics.recoveredValueCents)}</div><div className="text-xs text-green-700">{allAnalytics.recoveredRetainedCount} retained of {allAnalytics.recoveredCount} recorded recovery events</div><div className="mt-1 text-[11px] text-green-800">{allAnalytics.recoveredRefundedCount} refunded · {allAnalytics.recoveredRevenueUnknownCount} link/status unknown</div></div>
@@ -835,11 +853,13 @@ const AbandonedCarts: React.FC = () => {
           <div className="col-span-2 min-w-0 rounded-lg border border-amber-200 bg-amber-50 p-4 lg:col-span-1"><div className="text-xs text-amber-800">Recorded cart suppressions</div><div className="mt-1 break-words text-lg font-bold text-amber-800 sm:text-2xl">{allAnalytics.suppressedCount}</div><div className="text-xs text-amber-700">Stored on cart; controls also honor current suppression sources</div></div>
         </section>
         <p className="mt-2 text-xs leading-5 text-gray-500">
+          Captured totals are session estimates, not sales or unique customers. A shopper can have more than one session, and final order totals can differ.
+          {' '}
           Retained recovery revenue uses the actual total on an exactly linked, settled order. Refunded links and historical missing or unverifiable links are excluded rather than assumed retained.
         </p>
 
         <section className="mt-6 rounded-xl border bg-white p-4" aria-label="Cart filters">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+          <div className="grid items-end gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>div]:min-w-0 [&_label]:flex [&_label]:min-h-10 [&_label]:items-end [&_label]:pb-1 [&_input]:min-w-0 [&_input]:w-full">
             <div><Label htmlFor="cart-from">Captured from (UTC)</Label><Input id="cart-from" type="date" value={filters.fromDate} onChange={(event) => setFilter('fromDate', event.target.value)} className="mt-1" /></div>
             <div><Label htmlFor="cart-to">Captured through (UTC)</Label><Input id="cart-to" type="date" value={filters.toDate} onChange={(event) => setFilter('toDate', event.target.value)} className="mt-1" /></div>
             <div><Label htmlFor="cart-size">Size</Label><Input id="cart-size" placeholder="e.g. 48x24" value={filters.sizeQuery} onChange={(event) => setFilter('sizeQuery', event.target.value)} className="mt-1" /></div>
@@ -899,7 +919,7 @@ const AbandonedCarts: React.FC = () => {
           {loading ? (
             <div className="flex items-center justify-center rounded-xl border bg-white py-16"><Loader2 className="h-8 w-8 animate-spin text-[#18448D]" /></div>
           ) : carts.length === 0 ? (
-            <div className="rounded-xl border bg-white py-16 text-center"><ShoppingCart className="mx-auto h-10 w-10 text-gray-300" /><p className="mt-3 font-medium text-gray-700">No carts match these filters</p><p className="text-sm text-gray-500">Clear filters or choose a wider range.</p></div>
+            <div className="rounded-xl border bg-white py-16 text-center"><ShoppingCart className="mx-auto h-10 w-10 text-gray-300" /><p className="mt-3 font-medium text-gray-700">No {appliedFilters.recoveryStatus === 'all' ? '' : `${appliedFilters.recoveryStatus} `}carts match these filters</p><p className="text-sm text-gray-500">Choose another status tab or adjust the date and search filters.</p></div>
           ) : (
             <div className="space-y-4">
               {carts.map((cart) => (
