@@ -1,6 +1,6 @@
 import { getProductConfig } from '@/lib/products';
 
-export const CAR_MAGNET_IMAGE_URL = 'https://res.cloudinary.com/dtrxl120u/image/upload/v1776755781/car_magnet_yinavh.png';
+export const CAR_MAGNET_IMAGE_URL = '/images/product-editorial/car-magnets-1440.webp';
 
 export type CarMagnetRoundedCorner = 'none' | '0.5' | '1';
 
