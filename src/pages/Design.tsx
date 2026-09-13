@@ -349,7 +349,7 @@ const Design: React.FC = () => {
     imgScale: number;
     // PR3: per-axis scale + constrain-proportions toggle. scaleY defaults
     // to imgScale (uniform) for backward compatibility; constrainProps
-    // defaults to OFF so dragging can resize each axis immediately.
+    // defaults to ON.
     imgScaleY: number;
     constrainProps: boolean;
   };
@@ -360,7 +360,7 @@ const Design: React.FC = () => {
   // dependencies (those `useState` calls are declared further down in
   // the function body and would cause a TDZ error if referenced in this
   // useCallback's deps array).
-  const latestDesignRef = useRef<DesignSnapshot>({ uploadedFile: null, imgPos: { x: 0, y: 0 }, imgScale: 1, imgScaleY: 1, constrainProps: false });
+  const latestDesignRef = useRef<DesignSnapshot>({ uploadedFile: null, imgPos: { x: 0, y: 0 }, imgScale: 1, imgScaleY: 1, constrainProps: true });
 
   // Handle product type switch — reset state
   const handleProductTypeChange = useCallback((newType: ProductTypeSlug) => {
@@ -376,7 +376,7 @@ const Design: React.FC = () => {
       imgPos: { x: 0, y: 0 },
       imgScale: 1,
       imgScaleY: 1,
-      constrainProps: false,
+      constrainProps: true,
     };
     setUploadedFile(restored.uploadedFile);
     setImgPos(restored.imgPos);
@@ -659,9 +659,9 @@ const Design: React.FC = () => {
   const [imgScale, setImgScale] = useState(1);
   // PR3: per-axis Y scale (defaults to imgScale → uniform). The
   // "Constrain proportions" toggle, when ON, keeps scaleY tied to scaleX
-  // when the customer opts into proportional resizing.
+  // so freeform mode is opt-in.
   const [imgScaleY, setImgScaleY] = useState(1);
-  const [constrainProps, setConstrainProps] = useState(false);
+  const [constrainProps, setConstrainProps] = useState(true);
   const [restoredNormalizedTransform, setRestoredNormalizedTransform] = useState<NormalizedArtworkTransform | null>(null);
   const [restoredCompositionRevision, setRestoredCompositionRevision] = useState(0);
   // Keep the latest design snapshot mirrored in a ref so
@@ -1876,7 +1876,7 @@ const Design: React.FC = () => {
         imgPos: primaryDesign.imgPos || { x: 0, y: 0 },
         imgScale: primaryDesign.imgScale || 1,
         imgScaleY: primaryDesign.imgScaleY ?? primaryDesign.imgScale ?? 1,
-        constrainProportions: primaryDesign.imgConstrain ?? false,
+        constrainProportions: primaryDesign.imgConstrain ?? true,
         normalizedPlacement: {
           x_pct: primaryPlacement.positionPct.x,
           y_pct: primaryPlacement.positionPct.y,
