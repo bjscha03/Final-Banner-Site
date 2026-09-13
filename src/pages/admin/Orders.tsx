@@ -168,6 +168,9 @@ const getPrintFileLabel = (item: any, index: number, fallbackPrefix = 'PDF'): st
   return label === 'Product' ? `${fallbackPrefix} ${index + 1}` : `${label} Print File`;
 };
 
+// Banner production uses the original artwork download, not generated print PDFs.
+const showPrintFileAction = (item: any): boolean => !getProductTypeLabel(item).includes('BANNER');
+
 const toTitleCase = (value: string): string => value.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
 
 const stripAsciiControlCharacters = (value: string): string => Array.from(value)
@@ -1542,6 +1545,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   const getFilesWithDownload = () => {
     const filesWithDownload = orderItems
       .map((item, index) => ({ item, index }))
+      .filter(({ item }) => showPrintFileAction(item))
       .filter(({ item }) => 
         item.file_key || 
         item.print_ready_url || 
@@ -1560,7 +1564,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   const originalFiles = getOriginalFileEntries(orderItems);
   const finalPrintFiles = orderItems
     .map((item, index) => ({ item, index }))
-    .filter(({ item }) => item.final_print_pdf_url);
+    .filter(({ item }) => showPrintFileAction(item) && item.final_print_pdf_url);
   const activePreview = previewIndex === null ? null : previewItems[previewIndex];
   const ORDER_ACCENT_TEXT_CLASS = 'text-[#18448D]';
 
@@ -1957,6 +1961,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
   const getFilesWithDownload = () => {
     return orderItems
       .map((item, index) => ({ item, index }))
+      .filter(({ item }) => showPrintFileAction(item))
       .filter(({ item }) => 
         item.file_key || 
         item.print_ready_url || 
@@ -2077,7 +2082,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
         <AdminTrackingManager order={order} instanceSuffix="mobile" onUpdated={(update) => onTrackingUpdated(order.id, update)} />
       </div>
 
-      {(originalFiles.length > 0 || getFilesWithDownload().length > 0 || orderItems.some(item => item.final_print_pdf_url)) && (
+      {(originalFiles.length > 0 || getFilesWithDownload().length > 0 || orderItems.some(item => showPrintFileAction(item) && item.final_print_pdf_url)) && (
         <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50/70 p-3" data-admin-file-group>
           <div className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">Order Files</div>
           <div className="grid grid-cols-1 gap-2">
@@ -2105,7 +2110,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
             })}
             {orderItems
               .map((item, index) => ({ item, index }))
-              .filter(({ item }) => item.final_print_pdf_url)
+              .filter(({ item }) => showPrintFileAction(item) && item.final_print_pdf_url)
               .map(({ item, index }) => (
                 <a
                   key={`final-pdf-${index}`}
