@@ -471,7 +471,7 @@ const GoogleAdsBanner: React.FC = () => {
   const [imgScale, setImgScale] = useState(1);
   // PR3: per-axis Y scale + constrain-proportions toggle (see Design.tsx).
   const [imgScaleY, setImgScaleY] = useState(1);
-  const [constrainProps, setConstrainProps] = useState(false);
+  const [constrainProps, setConstrainProps] = useState(true);
   const [restoredNormalizedTransform, setRestoredNormalizedTransform] = useState<NormalizedArtworkTransform | null>(null);
   const [restoredCompositionRevision, setRestoredCompositionRevision] = useState(0);
   const [isDraggingPreview, setIsDraggingPreview] = useState(false);
@@ -1059,7 +1059,7 @@ const GoogleAdsBanner: React.FC = () => {
     constrainProps: boolean;
   };
   const productDesignStashRef = useRef<Record<string, DesignSnapshot>>({});
-  const latestDesignRef = useRef<DesignSnapshot>({ uploadedFile: null, imgPos: { x: 0, y: 0 }, imgScale: 1, imgScaleY: 1, constrainProps: false });
+  const latestDesignRef = useRef<DesignSnapshot>({ uploadedFile: null, imgPos: { x: 0, y: 0 }, imgScale: 1, imgScaleY: 1, constrainProps: true });
   useEffect(() => {
     latestDesignRef.current = { uploadedFile, imgPos, imgScale, imgScaleY, constrainProps };
   }, [uploadedFile, imgPos, imgScale, imgScaleY, constrainProps]);
@@ -1075,7 +1075,7 @@ const GoogleAdsBanner: React.FC = () => {
       imgPos: { x: 0, y: 0 },
       imgScale: 1,
       imgScaleY: 1,
-      constrainProps: false,
+      constrainProps: true,
     };
     setUploadedFile(restored.uploadedFile);
     setImgPos(restored.imgPos);
@@ -1773,7 +1773,7 @@ const GoogleAdsBanner: React.FC = () => {
         imgPos: primaryDesign.imgPos || { x: 0, y: 0 },
         imgScale: primaryDesign.imgScale || 1,
         imgScaleY: primaryDesign.imgScaleY ?? primaryDesign.imgScale ?? 1,
-        constrainProportions: primaryDesign.imgConstrain ?? false,
+        constrainProportions: primaryDesign.imgConstrain ?? true,
         normalizedPlacement: {
           x_pct: primaryPlacement.positionPct.x,
           y_pct: primaryPlacement.positionPct.y,
