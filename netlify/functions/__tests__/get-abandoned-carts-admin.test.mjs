@@ -6,6 +6,17 @@ const require = createRequire(import.meta.url);
 const { handler, _test } = require('../_shared/legacy/get-abandoned-carts.cjs');
 
 describe('get-abandoned-carts admin endpoint', () => {
+  it('keeps completed and recovered cohorts disjoint in server pagination and totals', () => {
+    for (const status of ['completed', 'recovered']) {
+      const options = _test.parseRequestOptions({ queryStringParameters: { status } });
+      expect(options.filters.recoveryStatus).toBe(status);
+      const query = _test.buildFilterSql(options.filters);
+      expect(query.params).toContain('recovered');
+      expect(query.clause).toContain(`cart.abandoned_at IS ${status === 'completed' ? '' : 'NOT '}NULL`);
+    }
+    const abandoned = _test.buildFilterSql(_test.parseRequestOptions({ queryStringParameters: { status: 'abandoned' } }).filters);
+    expect(abandoned.params).toContain('abandoned');
+  });
   it('rejects unauthenticated access before reading database configuration', async () => {
     const response = await handler({ httpMethod: 'GET', headers: {} });
 

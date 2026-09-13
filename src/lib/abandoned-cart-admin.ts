@@ -186,6 +186,14 @@ export const EMPTY_ABANDONED_CART_FILTERS: AbandonedCartFilters = {
   recoveryStatus: 'all',
 };
 
+export const DEFAULT_ABANDONED_CART_FILTERS: AbandonedCartFilters = {
+  ...EMPTY_ABANDONED_CART_FILTERS,
+  recoveryStatus: 'abandoned',
+};
+
+export const getCartDisplayStatus = (cart: Pick<AbandonedCartAdminRecord, 'recovery_status' | 'abandoned_at'>): string =>
+  cart.recovery_status === 'recovered' && !cart.abandoned_at ? 'completed' : cart.recovery_status;
+
 const clean = (value: unknown): string => String(value ?? '').trim().toLowerCase();
 
 const finiteNumber = (value: string): number | null => {
@@ -242,7 +250,7 @@ export function filterAndSortAbandonedCarts(
     if (maxValue !== null && value > maxValue) return false;
 
     if (filters.checkoutStage !== 'all' && cart.checkout_stage !== filters.checkoutStage) return false;
-    if (filters.recoveryStatus !== 'all' && cart.recovery_status !== filters.recoveryStatus) return false;
+    if (filters.recoveryStatus !== 'all' && getCartDisplayStatus(cart) !== filters.recoveryStatus) return false;
     if (filters.emailPresence === 'with_email' && !cart.email) return false;
     if (filters.emailPresence === 'without_email' && cart.email) return false;
 

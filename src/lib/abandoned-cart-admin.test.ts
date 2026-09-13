@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   EMPTY_ABANDONED_CART_FILTERS,
+  DEFAULT_ABANDONED_CART_FILTERS,
+  getCartDisplayStatus,
   filterAndSortAbandonedCarts,
   isRecoveryEmailEligible,
   summarizeAbandonedCarts,
@@ -63,6 +65,21 @@ const cart = (overrides: Partial<AbandonedCartAdminRecord> = {}): AbandonedCartA
 });
 
 describe('abandoned-cart admin analytics', () => {
+  it('defaults to abandoned carts and separates direct completions from recoveries', () => {
+    const records = [
+      cart({ id: 'open', recovery_status: 'abandoned', abandoned_at: '2026-08-15T13:00:00Z' }),
+      cart({ id: 'direct', recovery_status: 'recovered', abandoned_at: null }),
+      cart({ id: 'won-back', recovery_status: 'recovered', abandoned_at: '2026-08-15T13:00:00Z' }),
+      cart({ id: 'expired', recovery_status: 'expired' }),
+      cart({ id: 'active', recovery_status: 'active' }),
+    ];
+    const ids = (recoveryStatus: string) => filterAndSortAbandonedCarts(records, { ...EMPTY_ABANDONED_CART_FILTERS, recoveryStatus }, 'activity_desc').map(record => record.id);
+    expect(ids(DEFAULT_ABANDONED_CART_FILTERS.recoveryStatus)).toEqual(['open']);
+    expect(ids('completed')).toEqual(['direct']);
+    expect(ids('recovered')).toEqual(['won-back']);
+    expect(ids('all')).toHaveLength(5);
+    expect(getCartDisplayStatus(records[1])).toBe('completed');
+  });
   it('filters by captured date, size, value, stage, email presence, and status', () => {
     const matching = cart();
     const other = cart({
