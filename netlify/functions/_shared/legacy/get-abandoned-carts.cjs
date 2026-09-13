@@ -621,7 +621,7 @@ function parseRequestOptions(event = {}) {
     || safeString(raw.stage).toLowerCase() === 'unknown'
     ? safeString(raw.stage).toLowerCase()
     : 'all';
-  const recoveryStatus = new Set(['active', 'abandoned', 'recovered', 'expired']).has(raw.status) ? raw.status : 'all';
+  const recoveryStatus = new Set(['active', 'abandoned', 'completed', 'recovered', 'expired']).has(raw.status) ? raw.status : 'all';
   const filters = {
     fromDate: safeDate(raw.from),
     toDate: safeDate(raw.to),
@@ -664,7 +664,12 @@ function buildFilterSql(filters, alias = 'cart') {
   if (filters.minValueCents !== null) add(`${capturedValueSql(alias)} >= ?`, filters.minValueCents);
   if (filters.maxValueCents !== null) add(`${capturedValueSql(alias)} <= ?`, filters.maxValueCents);
   if (filters.checkoutStage !== 'all') add(`COALESCE(NULLIF(LOWER(BTRIM(${alias}.checkout_stage)), ''), 'unknown') = ?`, filters.checkoutStage);
-  if (filters.recoveryStatus !== 'all') add(`${alias}.recovery_status = ?`, filters.recoveryStatus);
+  if (filters.recoveryStatus === 'completed' || filters.recoveryStatus === 'recovered') {
+    add(`${alias}.recovery_status = ?`, 'recovered');
+    clauses.push(`${alias}.abandoned_at IS ${filters.recoveryStatus === 'completed' ? '' : 'NOT '}NULL`);
+  } else if (filters.recoveryStatus !== 'all') {
+    add(`${alias}.recovery_status = ?`, filters.recoveryStatus);
+  }
   if (filters.emailPresence === 'with_email') clauses.push(`NULLIF(BTRIM(${alias}.email), '') IS NOT NULL`);
   if (filters.emailPresence === 'without_email') clauses.push(`NULLIF(BTRIM(${alias}.email), '') IS NULL`);
   if (filters.size) {
