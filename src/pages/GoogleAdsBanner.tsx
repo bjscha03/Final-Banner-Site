@@ -452,6 +452,7 @@ const GoogleAdsBanner: React.FC = () => {
   const storedPromoAtLoad = useCartStore.getState().discountCode;
   const [promoCode, setPromoCode] = useState(storedPromoAtLoad?.code || 'NEW20');
   const [promoBusy, setPromoBusy] = useState(false);
+  const [promoFeedback, setPromoFeedback] = useState<string | null>(null);
   const [promoApplied, setPromoApplied] = useState(Boolean(storedPromoAtLoad));
 
   const [hasConfirmedSize, setHasConfirmedSize] = useState(initialProductType === 'banner');
@@ -1139,6 +1140,7 @@ const GoogleAdsBanner: React.FC = () => {
     }
 
     setPromoBusy(true);
+    setPromoFeedback(null);
     try {
       const response = await fetch('/.netlify/functions/validate-discount-code', {
         method: 'POST',
@@ -1157,6 +1159,7 @@ const GoogleAdsBanner: React.FC = () => {
       });
       const result = await response.json();
       if (!response.ok || !result.valid || !result.discount) {
+        setPromoFeedback(result.error || 'This offer could not be applied. Your current price is unchanged.');
         setPromoApplied(false);
         toast({
           title: 'Promo not applied',
@@ -1177,6 +1180,7 @@ const GoogleAdsBanner: React.FC = () => {
             : 'Your promotion is saved to your cart and will carry into checkout.',
       });
     } catch {
+      setPromoFeedback('We could not verify this offer. Your price is unchanged. Please try again.');
       setPromoApplied(false);
       toast({
         title: 'Promo could not be verified',
@@ -1190,6 +1194,7 @@ const GoogleAdsBanner: React.FC = () => {
 
   const handlePromoRemove = () => {
     cartStore.removeDiscountCode();
+    setPromoFeedback(null);
     setPromoApplied(false);
     setPromoCode('');
   };
@@ -3258,6 +3263,7 @@ const GoogleAdsBanner: React.FC = () => {
                   {!promoApplied && <div className="mb-3 rounded-lg border border-orange-200 bg-orange-50 p-3">
                     <button type="button" disabled={promoBusy} onClick={() => handlePromoApply('NEW20')} className="min-h-11 w-full rounded-lg bg-orange-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">{promoBusy ? 'Checking offer…' : 'Apply 20% first-order discount'}</button>
                     <p className="mt-1 text-xs text-slate-600">Eligibility checked before applying. The best eligible offer is used.</p>
+                    {promoFeedback && <p role="status" className="mt-2 text-sm font-medium text-slate-800">{promoFeedback}</p>}
                   </div>}
                   <PriceBreakdown
                     variant="compact"
