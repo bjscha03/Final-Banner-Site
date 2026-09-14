@@ -22,7 +22,8 @@ import { emailApi } from '@/lib/api';
 import { CartItem } from '@/store/cart';
 import BannerPreview from '@/components/cart/BannerPreview';
 import ThumbnailPreviewWrapper from '@/components/preview/ThumbnailPreviewWrapper';
-import CheckoutOrderTotals from '@/components/checkout/CheckoutOrderTotals';
+import CheckoutOrderTotals, { type CheckoutOrderTotalsProps } from '@/components/checkout/CheckoutOrderTotals';
+import CheckoutReviewDialog from '@/components/checkout/CheckoutReviewDialog';
 import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
 import DeliveryTimer from '@/components/delivery/DeliveryTimer';
 import { trackBeginCheckout, trackViewCart, trackFBInitiateCheckout } from '@/lib/analytics';
@@ -818,6 +819,19 @@ const Checkout: React.FC = () => {
     );
   }
 
+  const orderTotalsProps: CheckoutOrderTotalsProps = {
+    subtotalCents,
+    minOrderAdjustmentCents: showMinOrderAdjustment ? minOrderAdjustmentCents : 0,
+    discountAmountCents: resolvedDiscount.appliedDiscountAmountCents,
+    discountLabel: resolvedDiscount.appliedDiscountLabel,
+    discountHelperMessage: resolvedDiscount.helperMessage,
+    shippingLabel: flags.freeShipping ? flags.shippingMethodLabel : 'Shipping',
+    taxCents,
+    sameDayFeeCents,
+    saturdayFeeCents,
+    totalCents,
+  };
+
   return (
     <Layout showFooterBanner={false} checkoutMode>
       <div className="min-h-[calc(100vh-4rem)] bg-[#F7F7F7] py-5 sm:py-12">
@@ -1106,18 +1120,7 @@ const Checkout: React.FC = () => {
                 </div>
 
                 <div className="mt-5">
-                  <CheckoutOrderTotals
-                    subtotalCents={subtotalCents}
-                    minOrderAdjustmentCents={showMinOrderAdjustment ? minOrderAdjustmentCents : 0}
-                    discountAmountCents={resolvedDiscount.appliedDiscountAmountCents}
-                    discountLabel={resolvedDiscount.appliedDiscountLabel}
-                    discountHelperMessage={resolvedDiscount.helperMessage}
-                    shippingLabel={flags.freeShipping ? flags.shippingMethodLabel : 'Shipping'}
-                    taxCents={taxCents}
-                    sameDayFeeCents={sameDayFeeCents}
-                    saturdayFeeCents={saturdayFeeCents}
-                    totalCents={totalCents}
-                  />
+                  <CheckoutOrderTotals {...orderTotalsProps} />
                 </div>
 
                 {/* Add Another Item button — product-aware for correct tab routing */}
@@ -1339,13 +1342,7 @@ const Checkout: React.FC = () => {
                   </p>
                   <p className="text-lg font-bold text-[#0B1F3A]">{usd(totalCents / 100)} total</p>
                 </div>
-                <button
-                  type="button"
-                  className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-bold text-[#18448D] hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#18448D]"
-                  onClick={() => document.getElementById('checkout-order-summary')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                >
-                  Review order
-                </button>
+                <CheckoutReviewDialog items={items} prices={displayPrices} totals={orderTotalsProps} />
               </div>
               <div className="relative z-0 rounded-xl border border-gray-100 bg-white p-4 shadow-md sm:p-5">
                 <div className="flex items-center justify-between mb-6">
