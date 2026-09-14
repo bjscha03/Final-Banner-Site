@@ -148,6 +148,12 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
   const initialCompositionRevisionRef = useRef(initialCompositionRevision);
   initialCompositionRevisionRef.current = initialCompositionRevision;
 
+  const [sizeReviewNeeded, setSizeReviewNeeded] = useState(false);
+  const previousShapeRef = useRef(paddingPct);
+  useEffect(() => {
+    if (previousShapeRef.current !== paddingPct && naturalSizeRef.current) setSizeReviewNeeded(true);
+    previousShapeRef.current = paddingPct;
+  }, [paddingPct]);
   const [selected, setSelected] = useState(autoSelect);
   const [naturalSize, setNaturalSize] = useState<Size | null>(null);
   const [canvasSize, setCanvasSize] = useState<Size | null>(null);
@@ -588,7 +594,7 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
     return () => document.removeEventListener('click', outside, true);
   }, [selected]);
 
-  const reset = useCallback(() => commitTransform({ x: 0, y: 0, scaleX: 1, scaleY: 1 }), [commitTransform]);
+  const reset = useCallback(() => { setSizeReviewNeeded(false); commitTransform({ x: 0, y: 0, scaleX: 1, scaleY: 1 }); }, [commitTransform]);
   const fit = reset;
   const fill = useCallback(() => {
     if (!naturalSize || !canvasSizeRef.current) {
@@ -620,6 +626,10 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
       onClick={(event) => event.stopPropagation()}
       className={`pointer-events-auto w-full max-w-xl rounded-xl border border-slate-200 bg-white shadow-sm ${compactControls ? 'p-3' : 'p-3 sm:p-4'}`}
     >
+      {sizeReviewNeeded && <div role="status" className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-slate-800">
+        <p>Your banner shape changed. Check for cropped edges or blank margins.</p>
+        <div className="mt-2 flex flex-wrap gap-2"><button type="button" onClick={fit} className="min-h-11 rounded-lg bg-white px-3 font-semibold text-orange-700">Fit entire artwork</button><button type="button" onClick={() => setSizeReviewNeeded(false)} className="min-h-11 rounded-lg px-3 font-medium">Keep current placement</button></div>
+      </div>}
       <div className="mb-3 flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-slate-700 sm:hidden">
         <Hand aria-hidden="true" className="h-5 w-5 shrink-0" />
         <div><p className="text-sm font-semibold">Pinch to zoom · Drag to move</p><p className="text-xs">Use two fingers on your artwork to zoom.</p></div>
@@ -712,10 +722,10 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
 
         {showDragHint && <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center"><span className="rounded-full bg-black/60 px-3 py-1.5 text-xs text-white">Drag to reposition · Drag corners to resize</span></div>}
         {overlay}
-        {!loading && selected && !mobileToolbarContainer && <div className="pointer-events-none absolute bottom-2 left-2 right-2 z-40 flex justify-center">{toolbar}</div>}
+        {!loading && !previewError && !mobileToolbarContainer && <div className="pointer-events-none absolute bottom-2 left-2 right-2 z-40 flex justify-center">{toolbar}</div>}
       </div>
 
-      {!loading && selected && mobileToolbarContainer
+      {!loading && !previewError && mobileToolbarContainer
         ? createPortal(<div className="flex w-full justify-center">{toolbar}</div>, mobileToolbarContainer)
         : null}
     </div>

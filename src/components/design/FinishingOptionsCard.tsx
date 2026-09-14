@@ -155,7 +155,7 @@ const FinishingOptionsCard: React.FC<FinishingOptionsCardProps> = ({
         active={finishingType === 'grommets'}
         onClick={selectGrommets}
         title="Grommets"
-        badge="Included Free"
+        badge={finishingType === 'grommets' ? 'Selected · Free' : 'Add grommets · Free'}
         badgeColor="green"
         description="Metal reinforced holes are placed around the edges for easy hanging."
         imageSrc={FINISHING_IMAGES.grommets}

@@ -130,7 +130,7 @@ describe('Stripe ConfirmationToken client flow', () => {
     expect(source).toContain("applePay: 'always'");
     expect(source).toContain("googlePay: 'always'");
     expect(source).toContain("buttonTheme: { applePay: 'black', googlePay: 'black' }");
-    expect(source).toContain('aria-hidden={!expressCheckoutVisible}');
+    expect(source).toContain('aria-hidden={walletsReady && !expressCheckoutVisible}');
     expect(source).toContain("'pointer-events-none absolute inset-x-0 top-0 invisible -z-10'");
     expect(source).not.toContain('Wallet checkout appears automatically on supported devices with an eligible wallet.');
     expect(source).not.toContain('Loading available express payment methods');
@@ -145,7 +145,7 @@ describe('Stripe ConfirmationToken client flow', () => {
 
   it('keeps the wallet Element mounted throughout confirmation', () => {
     expect(source).toContain('const expressCheckoutVisible = walletsAvailable && !verificationMessage');
-    expect(source).toContain('aria-hidden={!expressCheckoutVisible}');
+    expect(source).toContain('aria-hidden={walletsReady && !expressCheckoutVisible}');
     expect(source).not.toContain('{!verificationMessage ? <section');
     expect(source).toMatch(/<section[\s\S]*<ExpressCheckoutElement[\s\S]*<\/section>/);
   });

@@ -1,8 +1,9 @@
+import { cartEditUrl } from '@/lib/cartEditUrl';
 import CartLinePrice from '@/components/cart/CartLinePrice';
 import { trackAIEvent } from '@/lib/aiAnalytics';
 import { getCartDisplayPrices, getEnteredPromoLabel } from '@/lib/cartDisplayPricing';
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useCartStore, type CanonicalCartQuote } from '@/store/cart';
 import { useAuth, getCurrentUser } from '@/lib/auth';
 import { getOrdersAdapter } from '../lib/orders/adapter';
@@ -58,6 +59,7 @@ const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : us
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { items: rawItems, getMigratedItems, isLoading, syncToServer, replaceItemsFromRecovery, restoreRecoveredCheckoutPreferences, clearCart, getSubtotalCents, getTaxCents, getTotalCents, updateQuantity, removeItem, applyCanonicalPricingQuote, discountCode, applyDiscountCode, removeDiscountCode, getResolvedDiscount, sameDayHitService, saturdayDelivery, getSameDayFeeCents, getSaturdayDeliveryFeeCents } = useCartStore();
 
   // CRITICAL: Use migrated items to ensure rope/pole pocket costs are calculated
@@ -824,16 +826,16 @@ const Checkout: React.FC = () => {
           <div className="mb-6 sm:mb-10">
             <Button
               variant="ghost"
-              onClick={() => { if (!checkoutLocked) navigate(-1); }}
+              onClick={() => { if (!checkoutLocked) { const returnTo = location.state?.returnTo; const saved = items.find(item => cartEditUrl(item) === returnTo) || items[items.length - 1]; navigate(saved ? cartEditUrl(saved) : (isFromGoogleAds ? "/google-ads-banner" : "/design")); } }}
               disabled={checkoutLocked}
               className="mb-6 hover:bg-gray-100 transition-colors"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
+              Back to designer
             </Button>
             <div className="text-center mb-8">
               <div className="mb-3 inline-flex items-center gap-2 border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
-                <span>Design</span><span>→</span><span>Review</span><span>→</span><span className="text-[#18448D]">Checkout</span><span>→</span><span>Complete</span>
+                <span>Design</span><span>→</span><span className="text-[#18448D]">Checkout</span><span>→</span><span>Complete</span>
               </div>
               <h1 className="mb-2 font-display text-3xl font-bold tracking-[-0.035em] text-[#0B1F3A] sm:text-4xl">Secure checkout</h1>
               <p className="text-base text-gray-600">Most standard orders are produced within 24 hours; free next-day air begins after production.</p>
@@ -863,7 +865,7 @@ const Checkout: React.FC = () => {
                 <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-xs text-blue-700 mb-4">
                   <Eye className="h-4 w-4 flex-shrink-0 mt-0.5 text-blue-500" />
                   <p>
-                    <span className="font-medium">Preview only.</span> {productCopy.reviewNoticeBody}
+                    <span className="font-medium">Your print layout.</span> {productCopy.reviewNoticeBody}
                   </p>
                 </div>
 
@@ -1087,6 +1089,7 @@ const Checkout: React.FC = () => {
                           </div>
                         </div>
 
+                        <Button variant="outline" disabled={checkoutLocked} onClick={() => navigate(cartEditUrl(item))} className="min-h-11">Edit {item.product_type === 'banner' || !item.product_type ? 'banner' : 'design'}</Button>
                         <Button
                           variant="ghost"
                           size="sm"

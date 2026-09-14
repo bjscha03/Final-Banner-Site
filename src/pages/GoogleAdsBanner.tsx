@@ -1,5 +1,6 @@
+import { cartEditUrl } from '@/lib/cartEditUrl';
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { Shield, Clock, CheckCircle, Truck, Users, FileCheck, X, Loader2, ArrowRight, Brush, Minus, Plus, Lock, Mail, Tag, Move, ZoomIn, ZoomOut, ShoppingCart, Ruler, Layers, Package, Sparkles, Monitor } from 'lucide-react';
 import { useQuoteStore, type MaterialKey } from '@/store/quote';
@@ -321,6 +322,8 @@ function buildCartArtworkForEditor(item: CartItem): UploadedArtworkFile | null {
 
 const GoogleAdsBanner: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const designerPath = location.pathname === "/google-ads-banner" ? "/google-ads-banner" : "/design";
   const [searchParams] = useSearchParams();
   const getProductQuerySlug = useCallback((type: ProductTypeSlug) => {
     if (type === 'yard_sign') return 'yard-signs';
@@ -448,6 +451,7 @@ const GoogleAdsBanner: React.FC = () => {
   const [quantity, setQuantity] = useState(initialProductType === 'yard_sign' ? 10 : 1);
   const storedPromoAtLoad = useCartStore.getState().discountCode;
   const [promoCode, setPromoCode] = useState(storedPromoAtLoad?.code || 'NEW20');
+  const [promoBusy, setPromoBusy] = useState(false);
   const [promoApplied, setPromoApplied] = useState(Boolean(storedPromoAtLoad));
 
   const [hasConfirmedSize, setHasConfirmedSize] = useState(initialProductType === 'banner');
@@ -873,14 +877,14 @@ const GoogleAdsBanner: React.FC = () => {
 
   useEffect(() => {
     // Flag this session as coming from Google Ads landing page
-    sessionStorage.setItem('isGoogleAdsLanding', 'true');
+    if (designerPath === '/google-ads-banner') sessionStorage.setItem('isGoogleAdsLanding', 'true');
     const gclid = searchParams.get('gclid');
     if (gclid) sessionStorage.setItem('gclid', gclid);
     ['utm_source','utm_medium','utm_campaign','utm_term','utm_content'].forEach(k => {
       const v = searchParams.get(k);
       if (v) sessionStorage.setItem(k, v);
     });
-  }, [searchParams]);
+  }, [searchParams, designerPath]);
 
   // Restore cart item state when editing from cart (editItem query param)
   const editItemId = searchParams.get('editItem');
@@ -1069,7 +1073,7 @@ const GoogleAdsBanner: React.FC = () => {
     if (newType === productType) return;
     productDesignStashRef.current[productType] = { ...latestDesignRef.current };
     setProductType(newType);
-    navigate(`/google-ads-banner?product=${getProductQuerySlug(newType)}`, { replace: true });
+    navigate(`${designerPath}?product=${getProductQuerySlug(newType)}`, { replace: true });
     const restored: DesignSnapshot = productDesignStashRef.current[newType] ?? {
       uploadedFile: null,
       imgPos: { x: 0, y: 0 },
@@ -1114,7 +1118,7 @@ const GoogleAdsBanner: React.FC = () => {
       setAddRope(false);
       setFinishingType('none');
     }
-  }, [productType, getProductQuerySlug, navigate]);
+  }, [productType, getProductQuerySlug, navigate, designerPath]);
 
   const applyPreset = (idx: number) => {
     const p = PRESET_SIZES[idx];
@@ -1126,13 +1130,15 @@ const GoogleAdsBanner: React.FC = () => {
     setHasConfirmedSize(true);
   };
 
-  const handlePromoApply = async () => {
-    const normalizedCode = promoCode.trim().toUpperCase();
+  const handlePromoApply = async (offerCode?: string) => {
+    if (promoBusy) return;
+    const normalizedCode = (typeof offerCode === "string" ? offerCode : promoCode).trim().toUpperCase();
     if (!normalizedCode) {
       toast({ title: 'Enter a promo code', description: 'Add the code shown in the offer and try again.' });
       return;
     }
 
+    setPromoBusy(true);
     try {
       const response = await fetch('/.netlify/functions/validate-discount-code', {
         method: 'POST',
@@ -1177,6 +1183,8 @@ const GoogleAdsBanner: React.FC = () => {
         description: 'Your order is unchanged. Please try applying the code again.',
         variant: 'destructive',
       });
+    } finally {
+      setPromoBusy(false);
     }
   };
 
@@ -1605,18 +1613,18 @@ const GoogleAdsBanner: React.FC = () => {
       if (actionType === 'checkout') trackAIEvent('ai_checkout_started', { product_type: 'banner' });
     }
     if (actionType === 'checkout') {
-      if (navigateUrl) {
-        window.history.replaceState(null, '', navigateUrl);
-      }
-      navigate('/checkout');
+      const savedItems = useCartStore.getState().items;
+      const savedItem = savedItems.find(item => item.id === editItemId) || savedItems[savedItems.length - 1];
+      navigate('/checkout', { state: { returnTo: savedItem ? cartEditUrl(savedItem) : navigateUrl } });
     } else {
       toast({
-        title: 'Added to cart ✓',
+        title: editItemId ? 'Banner updated' : 'Added to cart ✓',
       });
-      resetAfterSuccessfulAdd();
+      if (editItemId) navigate('/checkout', { state: { returnTo: `${designerPath}?product=banner&editItem=${encodeURIComponent(editItemId)}` } });
+      else resetAfterSuccessfulAdd();
       logUx('add_to_cart_completed', { source: 'finish_add_to_cart' });
     }
-  }, [aiDesignSession, navigate, toast, resetAfterSuccessfulAdd]);
+  }, [aiDesignSession, navigate, toast, resetAfterSuccessfulAdd, editItemId, designerPath]);
 
   const prepareCurrentPlacementPreview = useCallback(async (
     editorSource: 'inline' | 'modal',
@@ -2080,8 +2088,8 @@ const GoogleAdsBanner: React.FC = () => {
     else cartStore.addFromQuote(bannerQuoteState, undefined, pricing);
 
     console.log('[FINAL_RENDER_HTML] ✅ Cart item created with verified permanent placement preview');
-    finishAddToCart(actionType, '/google-ads-banner?product=banner');
-  }, [ensurePermanentArtworkUploaded, pendingCheckoutData, grommets, addRope, polePockets, polePocketSize, widthIn, heightIn, quantity, material, quoteStore, cartStore, isYardSign, isCarMagnet, carMagnetPricing, carMagnetRoundedCorners, yardSignMaterial, yardSignPricing, productType, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, yardSignSidedness, yardSignAddStepStakes, yardSignStepStakeQty, finishAddToCart, toast, editItemId, aiPrompt, aiEditPrompt, ropePlacement, constrainProps]);
+    finishAddToCart(actionType, `${designerPath}?product=banner`);
+  }, [ensurePermanentArtworkUploaded, pendingCheckoutData, grommets, addRope, polePockets, polePocketSize, widthIn, heightIn, quantity, material, quoteStore, cartStore, isYardSign, isCarMagnet, carMagnetPricing, carMagnetRoundedCorners, yardSignMaterial, yardSignPricing, productType, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, yardSignSidedness, yardSignAddStepStakes, yardSignStepStakeQty, finishAddToCart, toast, editItemId, aiPrompt, aiEditPrompt, ropePlacement, constrainProps, designerPath]);
 
   const prepareAndRoutePlacement = useCallback((
     actionType: 'checkout' | 'cart',
@@ -2120,7 +2128,7 @@ const GoogleAdsBanner: React.FC = () => {
         }
         const transform = toCheckoutTransform(prepared.spec);
         setPendingActionType(actionType);
-        if (isCarMagnet || finishingType !== 'none' || hasReviewedOptions) {
+        if (productType === 'banner' || isCarMagnet || finishingType !== 'none' || hasReviewedOptions) {
           await performCheckout([], transform, actionType);
           if (editorSource === 'modal') setShowPreview(false);
         } else {
@@ -2527,7 +2535,7 @@ const GoogleAdsBanner: React.FC = () => {
         ? { label: 'Choose a size', disabled: false, onClick: () => { setHasEnteredBuilder(true); scrollToStepAnchor('size-section'); } }
         : !uploadedFile
           ? { label: uploadError ? 'Retry upload' : 'Upload artwork', disabled: false, onClick: openOrScrollToUpload }
-          : { label: 'Add to cart', disabled: false, onClick: handleAddToCart };
+          : { label: editItemId ? 'Save changes' : 'Add to cart', disabled: false, onClick: handleAddToCart };
 
   const materialCard = (<ConfigCard compact={!isCarMagnet} step={2} title="Material" id="material-section">
                     <div ref={materialDropdownRef} className="relative">
@@ -2794,6 +2802,8 @@ const GoogleAdsBanner: React.FC = () => {
                       heightIn={heightIn}
                       hasSelectedSize={hasCommittedBannerSize}
                       hasArtwork={Boolean(uploadedFile)}
+                      onCreate={showCreateWithAI ? () => setAiModalOpen(true) : undefined}
+                      onAdjust={uploadedFile ? () => setShowPreview(true) : undefined}
                       artworkWidth={uploadedFile?.originalWidth}
                       artworkHeight={uploadedFile?.originalHeight}
                     />
@@ -3242,6 +3252,11 @@ const GoogleAdsBanner: React.FC = () => {
                     footerNote="Destination-based tax calculated at checkout"
                   />
                 ) : (
+                  <>
+                  {!promoApplied && <div className="mb-3 rounded-lg border border-orange-200 bg-orange-50 p-3">
+                    <button type="button" disabled={promoBusy} onClick={() => handlePromoApply('NEW20')} className="min-h-11 w-full rounded-lg bg-orange-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">{promoBusy ? 'Checking offer…' : 'Apply 20% first-order discount'}</button>
+                    <p className="mt-1 text-xs text-slate-600">Eligibility checked before applying. The best eligible offer is used.</p>
+                  </div>}
                   <PriceBreakdown
                     variant="compact"
                     heading="Your banner"
@@ -3314,6 +3329,7 @@ const GoogleAdsBanner: React.FC = () => {
                     }}
                     footerNote="Destination-based tax calculated at checkout"
                   />
+                  </>
                 )}
 
                 {/* Same-Day Hit Service upsell — production priority (NOT shipping). */}
@@ -3335,7 +3351,7 @@ const GoogleAdsBanner: React.FC = () => {
                 <>
                 <button onClick={handleCheckout} disabled={!uploadedFile || !hasCommittedBannerSize || isUploading || isProcessingUpsell} className={`group w-full font-bold text-lg py-5 rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${uploadedFile && hasCommittedBannerSize && !isUploading && !isProcessingUpsell ? 'bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white cursor-pointer shadow-orange-500/30' : 'bg-orange-300 text-white/80 cursor-not-allowed'}`}>
                   <Lock className="h-4 w-4" aria-hidden="true" />
-                  {isProcessingUpsell ? 'Preparing exact preview…' : 'Review and continue'}
+                  {isProcessingUpsell ? 'Preparing exact preview…' : (editItemId ? 'Save changes & checkout' : 'Continue to checkout')}
                   <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
                 </button>
                 <button
@@ -3347,7 +3363,7 @@ const GoogleAdsBanner: React.FC = () => {
                       : 'border-slate-200 text-slate-400 cursor-not-allowed'
                   }`}
                 >
-                  {isProcessingUpsell ? 'Preparing exact preview…' : 'Add to Cart'}
+                  {isProcessingUpsell ? 'Preparing exact preview…' : (editItemId ? 'Save changes' : 'Add to Cart')}
                 </button>
 
                 </>
