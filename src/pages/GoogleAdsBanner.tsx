@@ -888,7 +888,7 @@ const GoogleAdsBanner: React.FC = () => {
 
   // Restore cart item state when editing from cart (editItem query param)
   const editItemId = searchParams.get('editItem');
-  const [editItemRestored, setEditItemRestored] = useState(false);
+  const [editItemRestored, setEditItemRestored] = useState<string | null>(null);
   const editCartItems = useCartStore((state) => state.items);
   const cartRestoreTransformRef = useRef<{
     productType: ProductTypeSlug;
@@ -901,10 +901,10 @@ const GoogleAdsBanner: React.FC = () => {
     revision: number;
   } | null>(null);
   useEffect(() => {
-    if (!editItemId || editItemRestored) return;
+    if (!editItemId || editItemRestored === editItemId) return;
     const item = editCartItems.find((i: CartItem) => i.id === editItemId);
     if (!item) return;
-    setEditItemRestored(true);
+    setEditItemRestored(editItemId);
     // Editing an existing cart item: every section is implicitly already
     // confirmed so the user doesn't have to re-confirm to update artwork.
     setHasConfirmedSize(true);
@@ -1003,8 +1003,8 @@ const GoogleAdsBanner: React.FC = () => {
         constrain: designerRecovery.constrain_proportions,
         revision: recoveredRevision,
       };
-      if (item.grommets) setGrommets(item.grommets);
-      if (item.pole_pockets) setPolePockets(item.pole_pockets);
+      setGrommets(item.grommets || 'none');
+      setPolePockets(item.pole_pockets || 'none');
       setPolePocketSize(item.pole_pocket_size || '2');
       setAddRope(!!item.rope_feet);
       if (item.rope_placement) setRopePlacement(item.rope_placement as RopePlacement);
@@ -1615,7 +1615,9 @@ const GoogleAdsBanner: React.FC = () => {
     if (actionType === 'checkout') {
       const savedItems = useCartStore.getState().items;
       const savedItem = savedItems.find(item => item.id === editItemId) || savedItems[savedItems.length - 1];
-      navigate('/checkout', { state: { returnTo: savedItem ? cartEditUrl(savedItem) : navigateUrl } });
+      const returnTo = savedItem ? cartEditUrl(savedItem) : navigateUrl;
+      if (returnTo) navigate(returnTo, { replace: true });
+      navigate('/checkout', { state: { returnTo } });
     } else {
       toast({
         title: editItemId ? 'Banner updated' : 'Added to cart ✓',
