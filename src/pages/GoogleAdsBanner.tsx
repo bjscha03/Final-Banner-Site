@@ -902,7 +902,8 @@ const GoogleAdsBanner: React.FC = () => {
     revision: number;
   } | null>(null);
   useEffect(() => {
-    if (!editItemId || editItemRestored === editItemId) return;
+    if (!editItemId) { setEditItemRestored(null); return; }
+    if (editItemRestored === editItemId) return;
     const item = editCartItems.find((i: CartItem) => i.id === editItemId);
     if (!item) return;
     setEditItemRestored(editItemId);
@@ -1597,13 +1598,22 @@ const GoogleAdsBanner: React.FC = () => {
   }, [isYardSign]);
   const resetAfterSuccessfulAdd = useCallback(() => {
     resetPreview();
-    // Keep the page in a distinct success state until the shopper explicitly
-    // opens the cart or chooses to build another product. This prevents the
-    // sticky bar from falling back to a stale "Use [size]" prompt.
-    setHasJustAddedToCart(true);
     setShowPostAddResetNotice(true);
-    setIsCartOpen(true);
-  }, [resetPreview, setIsCartOpen]);
+    if (productType === 'banner') {
+      setHasJustAddedToCart(false);
+      setHasEnteredBuilder(true);
+      setHasConfirmedSize(true);
+      setConstrainProps(true);
+      setShowPreview(false);
+      setIsCartOpen(false);
+      // Clear edit mode before the next upload so it creates a new cart item.
+      navigate(`${designerPath}?product=banner`, { replace: true });
+      requestAnimationFrame(() => scrollToStepAnchor('size-section'));
+    } else {
+      setHasJustAddedToCart(true);
+      setIsCartOpen(true);
+    }
+  }, [resetPreview, setIsCartOpen, productType, navigate, designerPath]);
 
   // Shared post-add-to-cart UX:
   //  - 'checkout' -> navigate directly to /checkout (no cart drawer hop)
@@ -1627,8 +1637,7 @@ const GoogleAdsBanner: React.FC = () => {
       toast({
         title: editItemId ? 'Banner updated' : 'Added to cart ✓',
       });
-      if (editItemId) navigate('/checkout', { state: { returnTo: `${designerPath}?product=banner&editItem=${encodeURIComponent(editItemId)}` } });
-      else resetAfterSuccessfulAdd();
+      resetAfterSuccessfulAdd();
       logUx('add_to_cart_completed', { source: 'finish_add_to_cart' });
     }
   }, [aiDesignSession, navigate, toast, resetAfterSuccessfulAdd, editItemId, designerPath]);
@@ -2542,7 +2551,7 @@ const GoogleAdsBanner: React.FC = () => {
         ? { label: 'Choose a size', disabled: false, onClick: () => { setHasEnteredBuilder(true); scrollToStepAnchor('size-section'); } }
         : !uploadedFile
           ? { label: uploadError ? 'Retry upload' : 'Upload artwork', disabled: false, onClick: openOrScrollToUpload }
-          : { label: editItemId ? 'Save changes' : 'Add to cart', disabled: false, onClick: handleAddToCart };
+          : { label: editItemId ? 'Save & design another' : 'Add & design another', disabled: false, onClick: handleAddToCart };
 
   const materialCard = (<ConfigCard compact={!isCarMagnet} step={2} title="Material" id="material-section">
                     <div ref={materialDropdownRef} className="relative">
@@ -3359,7 +3368,7 @@ const GoogleAdsBanner: React.FC = () => {
                 <>
                 <button onClick={handleCheckout} disabled={!uploadedFile || !hasCommittedBannerSize || isUploading || isProcessingUpsell} className={`group w-full font-bold text-lg py-5 rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${uploadedFile && hasCommittedBannerSize && !isUploading && !isProcessingUpsell ? 'bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white cursor-pointer shadow-orange-500/30' : 'bg-orange-300 text-white/80 cursor-not-allowed'}`}>
                   <Lock className="h-4 w-4" aria-hidden="true" />
-                  {isProcessingUpsell ? 'Preparing exact preview…' : (editItemId ? 'Save changes & checkout' : 'Continue to checkout')}
+                  {isProcessingUpsell ? 'Preparing exact preview…' : (editItemId ? 'Save & checkout' : 'Continue to checkout')}
                   <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
                 </button>
                 <button
@@ -3371,7 +3380,7 @@ const GoogleAdsBanner: React.FC = () => {
                       : 'border-slate-200 text-slate-400 cursor-not-allowed'
                   }`}
                 >
-                  {isProcessingUpsell ? 'Preparing exact preview…' : (editItemId ? 'Save changes' : 'Add to Cart')}
+                  {isProcessingUpsell ? 'Preparing exact preview…' : (editItemId ? 'Save & design another' : 'Add & design another')}
                 </button>
 
                 </>
