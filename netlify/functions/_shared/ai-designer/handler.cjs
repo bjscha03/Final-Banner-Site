@@ -24,6 +24,7 @@ const {
   readJobInternal,
   writeJobInternal,
 } = require('./storage.cjs');
+const { customerLimit } = require('./customer-limits.cjs');
 const { json, authorize, enforceBodyLimit, rateLimit, idempotencyKey, runIdempotent, safeError, safeErrorPayload } = require('./security.cjs');
 
 function parseBody(event) {
@@ -187,6 +188,10 @@ async function enqueueHandler(event, action) {
   try {
     const body = parseBody(event);
     ensureConfigured(event);
+    let customerQuota;
+    try { customerQuota = await customerLimit(event, auth.session, action, limits.requests, 10 * 60 * 1000); }
+    catch { return json(503, { error: 'AI_LIMITS_UNAVAILABLE', message: 'The artwork designer is temporarily busy. Please try again shortly.' }); }
+    if (customerQuota) return json(429, { error: 'RATE_LIMITED', message: 'You have reached the current AI request limit. Please wait before trying again.' }, { 'Retry-After': String(customerQuota.retryAfter) });
     // Readiness checks already verify access. The actual provider request is
     // authoritative if access changes; do not add a second cold network probe
     // before every queue submission. Auth, configuration and limits still gate it.
@@ -271,7 +276,7 @@ async function claimJob(reference, record) {
 async function workerHandler(event) {
   if (event.httpMethod !== 'POST') return json(405, { error: 'METHOD_NOT_ALLOWED', message: 'Use POST.' }, { Allow: 'POST' });
   // The signed job reference protects the stored payload, but the worker is
-  // still an AI/billing surface and therefore also requires a verified admin.
+  // still an AI/billing surface and therefore also verifies the customer session and job ownership.
   const auth = authorize(event, { skipOrigin: true });
   if (auth.response) return auth.response;
   const sizeError = enforceBodyLimit(event, 64 * 1024);
@@ -281,7 +286,7 @@ async function workerHandler(event) {
   let progressWriter;
   try {
     reference = String(parseBody(event).jobRef || '');
-    const record = await readJobInternal(reference);
+    const record = await readJob(reference, auth.session);
     claimed = await claimJob(reference, record);
     if (!claimed) return json(200, { ok: true, status: record?.status || 'ignored' });
     ensureConfigured(event);
@@ -311,6 +316,7 @@ async function workerHandler(event) {
     });
     return json(200, { ok: true, status: 'completed' });
   } catch (error) {
+    if (!claimed) return safeError(error);
     await progressWriter?.close();
     const diagnosticId = String(claimed?.jobId || crypto.randomUUID()).slice(0, 12);
     console.error('[ai_designer_background_failed]', {
@@ -406,7 +412,7 @@ async function statusHandler(event) {
   if (!['GET', 'POST'].includes(event.httpMethod)) return json(405, { error: 'METHOD_NOT_ALLOWED', message: 'Use GET or POST.' }, { Allow: 'GET, POST, OPTIONS' });
   // This endpoint is read-only. Do not let Netlify's preview drawer/proxy host
   // rewriting turn a valid signed session into a false 403.
-  const auth = authorize(event, { skipOrigin: true });
+  const auth = authorize(event, { skipOrigin: true, issueCustomer: true });
   if (auth.response) return auth.response;
   const enabled = isEnabled(event?.netlify?.deployContext);
   const keyConfigured = Boolean(process.env.OPENAI_API_KEY);
@@ -425,6 +431,7 @@ async function statusHandler(event) {
   }
   return json(200, {
     authorized: true,
+    sessionKey: crypto.createHash('sha256').update(String(auth.session.sub)).digest('hex'),
     enabled,
     keyConfigured,
     temporaryStorageConfigured,
@@ -441,7 +448,7 @@ async function statusHandler(event) {
         : !temporaryStorageConfigured ? 'TEMP_STORAGE_NOT_CONFIGURED'
           : !access.available ? access.error
             : validationAccess.available ? null : 'VALIDATION_MODEL_ACCESS_DENIED',
-  });
+  }, auth.cookie ? { 'Set-Cookie': auth.cookie } : {});
 }
 
 async function runGenerateRequest(body, session, jobId = crypto.randomUUID()) {
@@ -710,7 +717,7 @@ async function eventsHandler(event) {
       if (typeof value === 'boolean' || (typeof value === 'number' && Number.isFinite(value))) properties[key] = value;
       else if (typeof value === 'string' && /^[a-zA-Z0-9_.:-]{1,100}$/.test(value)) properties[key] = value;
     }
-    console.info('[ai_designer_funnel]', { event: body.event, ...properties, adminTest: true });
+    console.info('[ai_designer_funnel]', { event: body.event, ...properties, adminTest: auth.session.admin === true });
     return json(202, { ok: true });
   } catch (error) { return safeError(error); }
 }

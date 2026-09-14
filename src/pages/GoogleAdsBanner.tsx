@@ -60,7 +60,7 @@ import CreateWithAIModal, { type AIDesignSession, type CreateWithAIResult } from
 import EditWithAIModal from '@/components/design/EditWithAIModal';
 import { useAIAdminAccess } from '@/hooks/useAIAdminAccess';
 import { trackAIEvent } from '@/lib/aiAnalytics';
-import { canUseAIAdminPreview } from '@/lib/aiAdminVisibility';
+import { ENABLE_AI } from '@/lib/featureFlags';
 import { base64ToFile } from '@/utils/base64ToFile';
 import {
   getArtworkUploadDiagnostic,
@@ -336,7 +336,7 @@ const GoogleAdsBanner: React.FC = () => {
   // Admin detection for yard signs visibility
   const { user } = useAuth();
   const aiAccess = useAIAdminAccess(Boolean(user));
-  const showCreateWithAI = canUseAIAdminPreview(user);
+  const showCreateWithAI = ENABLE_AI;
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;

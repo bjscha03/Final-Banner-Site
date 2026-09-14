@@ -152,6 +152,7 @@ describe('AI designer authorization and fail-closed controls', () => {
     expect(receivedEvent.netlify).toEqual({
       deployContext: 'deploy-preview',
       deployId: 'deploy-test',
+      clientIp: null,
     });
   });
 
@@ -769,7 +770,7 @@ describe('deterministic exact-copy composition', () => {
   });
 });
 
-describe('admin-only UI integration and permanent artwork handoff', () => {
+describe('customer entry points, protected admin tools, and artwork handoff', () => {
   it('shows entry points for a signed admin without hiding them behind provider readiness', () => {
     expect(shouldShowAIAdminEntry({
       featureEnabled: true,
@@ -792,7 +793,7 @@ describe('admin-only UI integration and permanent artwork handoff', () => {
     const clientAuth = fs.readFileSync(path.resolve(__dirname, '../../../src/lib/serverAuth.ts'), 'utf8');
     const handoff = fs.readFileSync(path.resolve(__dirname, '../../../src/lib/aiDesignHandoff.ts'), 'utf8');
     for (const source of [design, alternate]) {
-      expect(source).toContain('const showCreateWithAI = canUseAIAdminPreview(user)');
+      expect(source).toContain('const showCreateWithAI = ENABLE_AI');
       expect(source).not.toContain('const showCreateWithAI = aiAccess.ready');
       expect(source).toContain('await handleFileUpload(file)');
       expect(source).toContain('session={aiDesignSession}');
@@ -804,7 +805,8 @@ describe('admin-only UI integration and permanent artwork handoff', () => {
     expect(design).toContain("document.getElementById('ai-artwork-preview')");
     expect(design).toContain("preview.scrollIntoView({ behavior: 'smooth', block: 'start' })");
     expect(design).toContain('pendingAIArtworkScrollRef.current = true');
-    expect(workspace).toContain('Reconnect admin');
+    expect(workspace).toContain('Retry connection');
+    expect(workspace).not.toContain('Admin password');
     expect(workspace).toContain('This can take close to a minute.');
     expect(workspace).toContain('your design will appear here automatically.');
     expect(workspace).toContain('Review warning & continue');

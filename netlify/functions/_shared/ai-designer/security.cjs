@@ -2,6 +2,7 @@
 
 const crypto = require('crypto');
 const { requireAdmin } = require('../server-auth.cjs');
+const { createCustomerSession, readCustomerSession } = require('./customer-session.cjs');
 
 const buckets = new Map();
 const inFlight = new Map();
@@ -69,13 +70,27 @@ function enforceSameOrigin(event, { requireOrigin = true } = {}) {
 }
 
 function authorize(event, options = {}) {
-  const auth = requireAdmin(event);
-  if (!auth.ok) return { response: auth.response };
+  const admin = requireAdmin(event);
+  const trustedAdmin = admin.ok && (!admin.session.preview || event.netlify?.deployContext === 'deploy-preview');
+  let session = trustedAdmin ? admin.session : readCustomerSession(event);
+  let cookie;
+  if (!session && options.issueCustomer && event.httpMethod === 'POST') {
+    const originError = enforceSameOrigin(event);
+    if (originError) return { response: originError };
+    try {
+      const created = createCustomerSession();
+      session = created.session;
+      cookie = created.cookie;
+    } catch {
+      return { response: json(503, { error: 'AI_SESSION_UNAVAILABLE', message: 'The artwork designer is temporarily unavailable. Please try again.' }) };
+    }
+  }
+  if (!session) return { response: json(401, { error: 'AI_SESSION_REQUIRED', message: 'Open the artwork designer to start a secure session.' }) };
   if (!options.skipOrigin) {
     const originError = enforceSameOrigin(event, options);
     if (originError) return { response: originError };
   }
-  return { session: auth.session };
+  return { session, ...(cookie ? { cookie } : {}) };
 }
 
 function enforceBodyLimit(event, maxBytes) {

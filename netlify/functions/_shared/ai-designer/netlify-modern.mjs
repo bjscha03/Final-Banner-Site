@@ -12,6 +12,7 @@ export function withDesignerRuntime(handler) {
       netlify: {
         deployContext: context?.deploy?.context || null,
         deployId: context?.deploy?.id || null,
+        clientIp: context?.ip || null,
       },
     }, lambdaContext));
 
