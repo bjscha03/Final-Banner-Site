@@ -1206,7 +1206,19 @@ const Checkout: React.FC = () => {
             className="mb-4 sm:mb-6"
           />
 
-          <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
+            {/* Desktop has room for an inline review beside payment. */}
+            <section aria-label="Order summary" className="hidden w-full lg:col-span-2 lg:block">
+              <div className="border border-slate-200 border-t-4 border-t-[#FF6A00] bg-white p-6 shadow-[0_10px_28px_rgba(11,31,58,0.06)] sm:p-8">
+                <div className="mb-6 flex items-center justify-between gap-3">
+                  <h2 className="text-2xl font-bold text-[#18448D]">Order Summary</h2>
+                  <span className="rounded-full bg-blue-50 px-4 py-2 text-sm font-semibold text-[#18448D]">{items.length} {items.length === 1 ? 'Item' : 'Items'}</span>
+                </div>
+                {orderReviewContent}
+              </div>
+            </section>
+
+            <div className="w-full space-y-4 lg:col-start-3">
             {/* Minimum Order Warning */}
             {!minimumOrderValidation.isValid && (
               <div className="bg-amber-50 border border-amber-200 rounded-lg shadow-sm p-6 mb-6">
@@ -1255,8 +1267,8 @@ const Checkout: React.FC = () => {
               </div>
             )}
             {/* Payment */}
-            <div className="w-full space-y-4 sm:space-y-6">
-              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <div className="w-full space-y-4 lg:space-y-6">
+              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm lg:hidden">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
                     {items.length} {items.length === 1 ? 'item' : 'items'}
@@ -1577,6 +1589,7 @@ const Checkout: React.FC = () => {
                   </div>
                 </div>
               )}
+            </div>
             </div>
           </div>
         </div>
