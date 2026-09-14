@@ -68,26 +68,11 @@ describe('public AI sessions', () => {
 });
 
 describe('distributed customer request limits', () => {
-  function memoryStore() {
-    const entries = new Map(); let revision = 0;
-    return {
-      async getWithMetadata(key) { const item = entries.get(key); return item ? structuredClone(item) : null; },
-      async setJSON(key, data, options) {
-        const previous = entries.get(key);
-        if ((options.onlyIfNew && previous) || (options.onlyIfMatch && previous?.etag !== options.onlyIfMatch)) return { modified: false };
-        entries.set(key, { data, etag: String(++revision) }); return { modified: true };
-      },
-    };
-  }
-  it('enforces a shared quota across concurrent requests and resets after the window', async () => {
-    const store = memoryStore();
-    const results = await Promise.all(Array.from({ length: 20 }, () => consumeQuota(store, 'ip/one/generate', 4, 60_000, 1000)));
-    expect(results.filter(r => r.allowed)).toHaveLength(4);
-    expect((await consumeQuota(store, 'ip/one/generate', 4, 60_000, 2000)).allowed).toBe(false);
-    expect((await consumeQuota(store, 'ip/one/generate', 4, 60_000, 62_000)).allowed).toBe(true);
-    expect((await consumeQuota(store, 'ip/two/generate', 4, 60_000, 2000)).allowed).toBe(true);
+  it('allows a consumed database slot and rejects an exhausted quota', async () => {
+    expect((await consumeQuota(async () => [{ hit_count: 1 }], 'key', 4, 60_000)).allowed).toBe(true);
+    expect(await consumeQuota(async () => [], 'key', 4, 60_000)).toEqual({ allowed: false, retryAfter: 60 });
   });
-  it('does not turn storage errors into unlimited public generation', async () => {
-    await expect(consumeQuota({ getWithMetadata: async () => { throw new Error('offline'); } }, 'key', 4, 60_000)).rejects.toThrow('offline');
+  it('does not turn database errors into unlimited public generation', async () => {
+    await expect(consumeQuota(async () => { throw new Error('offline'); }, 'key', 4, 60_000)).rejects.toThrow('offline');
   });
 });
