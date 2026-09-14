@@ -26,7 +26,8 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - name: Install dependencies without the inherited broken lockfile\n        run: npm install --package-lock=false --no-audit --no-fund
+      - name: Install dependencies without the inherited broken lockfile
+        run: npm install --package-lock=false --no-audit --no-fund
       - run: npx playwright install --with-deps chromium webkit
       - name: Campaign selection tests
         run: npx vitest run src/lib/__tests__/seasonalCampaigns.test.ts
