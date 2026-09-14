@@ -3299,7 +3299,8 @@ const Design: React.FC = () => {
                       className="mx-auto"
                     />
                     {!isYardSign && !isCarMagnet && showCreateWithAI && (
-                      <div className="mt-3 flex flex-col items-center gap-1">
+                      <div className="mt-3 flex flex-col items-center gap-2">
+                        <span className="text-sm font-medium text-slate-500">or</span>
                         <button
                           type="button"
                           onClick={() => setAiModalOpen(true)}
@@ -3308,6 +3309,7 @@ const Design: React.FC = () => {
                         >
                           <Sparkles className="w-4 h-4" />
                           Create with AI
+                            <span className="rounded bg-yellow-300 px-1.5 py-0.5 text-[10px] font-bold leading-none tracking-wide text-slate-900">BETA</span>
                         </button>
                         {(!widthIn || !heightIn || !material) && (
                           <p className="text-xs text-gray-500">
