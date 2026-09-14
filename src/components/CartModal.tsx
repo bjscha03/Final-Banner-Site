@@ -1,3 +1,4 @@
+import { cartEditUrl } from '@/lib/cartEditUrl';
 import CartLinePrice from '@/components/cart/CartLinePrice';
 import { getCartDisplayPrices } from '@/lib/cartDisplayPricing';
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -364,7 +365,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
               <div className="space-y-4">
                 <div className="flex items-start gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-700">
                   <Eye className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-500" />
-                  <p><span className="font-medium">Preview only.</span> {productCopy.reviewNoticeBody}</p>
+                  <p><span className="font-medium">Your print layout.</span> {productCopy.reviewNoticeBody}</p>
                 </div>
 
                 {items.map((item) => {
@@ -510,6 +511,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                           </div>
                         </div>
 
+                        <button type="button" onClick={() => { onClose(); navigate(cartEditUrl(item)); }} className="min-h-11 rounded-lg px-3 text-sm font-semibold text-blue-800 hover:bg-blue-50">Edit {item.product_type === 'banner' || !item.product_type ? 'banner' : 'design'}</button>
                         <button
                           onClick={() => removeItem(item.id)}
                           className="flex items-center gap-1 rounded-lg bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-100"

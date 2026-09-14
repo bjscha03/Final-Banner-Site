@@ -303,6 +303,12 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
   const { items, discountCode, sameDayHitService, saturdayDelivery } = useCartStore();
   const resumedStripe = resumeCheckout?.provider === 'stripe' ? resumeCheckout : null;
   const [walletsAvailable, setWalletsAvailable] = useState(false);
+  const [walletsReady, setWalletsReady] = useState(false);
+  useEffect(() => {
+    // Card checkout remains available if a wallet provider never reports readiness.
+    const timer = window.setTimeout(() => setWalletsReady(true), 8000);
+    return () => window.clearTimeout(timer);
+  }, []);
   const [walletPhoneRequired, setWalletPhoneRequired] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isPolling, setIsPolling] = useState(false);
@@ -1168,12 +1174,13 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
     <div className="relative space-y-5">
       <section
         aria-labelledby="express-checkout-heading"
-        aria-hidden={!expressCheckoutVisible}
-        className={expressCheckoutVisible
+        aria-hidden={walletsReady && !expressCheckoutVisible}
+        className={!walletsReady ? "relative min-h-36" : expressCheckoutVisible
           ? 'block animate-in fade-in duration-200'
           : 'pointer-events-none absolute inset-x-0 top-0 invisible -z-10'}
       >
-        <div>
+        {!walletsReady && <p role="status" className="absolute inset-x-0 top-0 rounded-lg bg-slate-50 p-4 text-sm text-slate-600">Checking available express payment options…</p>}
+        <div className={!walletsReady ? 'invisible' : undefined}>
           <div className="mb-3">
             <h3 id="express-checkout-heading" className="text-base font-bold text-[#0B1F3A]">
               Fast checkout
@@ -1231,12 +1238,15 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
                   shippingRates: getStripeExpressShippingRates(),
                 }}
                 onReady={(event: any) => {
+                  setWalletsReady(true);
                   setWalletsAvailable(hasSupportedWallet(event));
                 }}
                 onAvailablePaymentMethodsChange={(event: any) => {
+                  setWalletsReady(true);
                   setWalletsAvailable(hasSupportedWallet(event));
                 }}
                 onLoadError={() => {
+                  setWalletsReady(true);
                   setWalletsAvailable(false);
                 }}
                 onClick={(event: any) => {
@@ -1381,7 +1391,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
           <div ref={customerDetailsRef} className="rounded-lg bg-slate-50/80 p-3 sm:p-4">
             <div className="mb-3 flex items-center gap-2">
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#18448D] text-xs font-bold text-white" aria-hidden="true">1</span>
-              <h4 className="text-sm font-bold text-[#0B1F3A]">Contact &amp; delivery</h4>
+              <h4 className="text-sm font-bold text-[#0B1F3A]">Contact &amp; billing address</h4>
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {customerFields
@@ -1424,7 +1434,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
                   checked={customer.shippingSame}
                   onChange={(event) => updateCustomer('shippingSame', event.target.checked)}
                 />
-                Shipping address is the same as billing
+                Deliver to my billing address
               </label>
 
               {!customer.shippingSame ? <>

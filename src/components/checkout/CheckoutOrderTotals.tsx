@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { CircleCheck, Tag } from 'lucide-react';
 import { usd } from '@/lib/pricing';
 
@@ -34,18 +34,19 @@ const CheckoutOrderTotals: React.FC<CheckoutOrderTotalsProps> = ({
   saturdayFeeCents = 0,
   totalCents,
 }) => {
+  const headingId = useId();
   const itemSubtotalCents = Math.max(0, subtotalCents - minOrderAdjustmentCents);
   const taxLabel = `Tax (${Math.round(taxRate * 100)}%)`;
 
   return (
     <section
-      aria-labelledby="checkout-price-details-heading"
+      aria-labelledby={headingId}
       className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 shadow-inner sm:p-5"
       data-testid="checkout-order-totals"
     >
       <div className="mb-4 flex items-end justify-between gap-4 border-b border-slate-200 pb-3">
         <div>
-          <h3 id="checkout-price-details-heading" className="text-base font-bold text-[#0B1F3A] sm:text-lg">
+          <h3 id={headingId} className="text-base font-bold text-[#0B1F3A] sm:text-lg">
             Price details
           </h3>
           <p className="text-xs text-slate-500">Complete total, including tax</p>

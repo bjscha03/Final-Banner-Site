@@ -36,7 +36,7 @@ const bannerCopy: ProductCopyConfig = {
   pluralLabel: 'Banners',
   addAnotherCta: 'Add Another Banner',
   reviewNoticeBody:
-    'Our team personally reviews every banner before production and will reach out if anything needs attention.',
+    'This preview shows your artwork placement. We check printability before production and contact you if needed. No separate proof is sent.',
   upsellHeader: 'Complete Your Banner',
   minimumOrderSuggestionsSmall: [
     'Consider increasing your banner quantity by 1',

@@ -1,3 +1,4 @@
+import GoogleAdsBanner from './GoogleAdsBanner';
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams, useLocation, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
@@ -3753,4 +3754,10 @@ const Design: React.FC = () => {
   );
 };
 
-export default Design;
+// Banners share the landing-page implementation; retain specialized product flows.
+const DesignerRoute: React.FC = () => {
+  const [params] = useSearchParams();
+  const product = params.get('tab') || params.get('product') || 'banner';
+  return /^(yard[-_]?signs?|car[-_]?magnets?)$/.test(product) ? <Design /> : <GoogleAdsBanner />;
+};
+export default DesignerRoute;

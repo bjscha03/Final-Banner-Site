@@ -1,8 +1,9 @@
+import { cartEditUrl } from '@/lib/cartEditUrl';
 import CartLinePrice from '@/components/cart/CartLinePrice';
 import { trackAIEvent } from '@/lib/aiAnalytics';
 import { getCartDisplayPrices, getEnteredPromoLabel } from '@/lib/cartDisplayPricing';
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useCartStore, type CanonicalCartQuote } from '@/store/cart';
 import { useAuth, getCurrentUser } from '@/lib/auth';
 import { getOrdersAdapter } from '../lib/orders/adapter';
@@ -21,7 +22,8 @@ import { emailApi } from '@/lib/api';
 import { CartItem } from '@/store/cart';
 import BannerPreview from '@/components/cart/BannerPreview';
 import ThumbnailPreviewWrapper from '@/components/preview/ThumbnailPreviewWrapper';
-import CheckoutOrderTotals from '@/components/checkout/CheckoutOrderTotals';
+import CheckoutOrderTotals, { type CheckoutOrderTotalsProps } from '@/components/checkout/CheckoutOrderTotals';
+import CheckoutReviewDialog from '@/components/checkout/CheckoutReviewDialog';
 import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
 import DeliveryTimer from '@/components/delivery/DeliveryTimer';
 import { trackBeginCheckout, trackViewCart, trackFBInitiateCheckout } from '@/lib/analytics';
@@ -58,6 +60,7 @@ const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : us
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { items: rawItems, getMigratedItems, isLoading, syncToServer, replaceItemsFromRecovery, restoreRecoveredCheckoutPreferences, clearCart, getSubtotalCents, getTaxCents, getTotalCents, updateQuantity, removeItem, applyCanonicalPricingQuote, discountCode, applyDiscountCode, removeDiscountCode, getResolvedDiscount, sameDayHitService, saturdayDelivery, getSameDayFeeCents, getSaturdayDeliveryFeeCents } = useCartStore();
 
   // CRITICAL: Use migrated items to ensure rope/pole pocket costs are calculated
@@ -816,54 +819,26 @@ const Checkout: React.FC = () => {
     );
   }
 
-  return (
-    <Layout showFooterBanner={false} checkoutMode>
-      <div className="min-h-[calc(100vh-4rem)] bg-[#F7F7F7] py-5 sm:py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Header */}
-          <div className="mb-6 sm:mb-10">
-            <Button
-              variant="ghost"
-              onClick={() => { if (!checkoutLocked) navigate(-1); }}
-              disabled={checkoutLocked}
-              className="mb-6 hover:bg-gray-100 transition-colors"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
-            </Button>
-            <div className="text-center mb-8">
-              <div className="mb-3 inline-flex items-center gap-2 border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
-                <span>Design</span><span>→</span><span>Review</span><span>→</span><span className="text-[#18448D]">Checkout</span><span>→</span><span>Complete</span>
-              </div>
-              <h1 className="mb-2 font-display text-3xl font-bold tracking-[-0.035em] text-[#0B1F3A] sm:text-4xl">Secure checkout</h1>
-              <p className="text-base text-gray-600">Most standard orders are produced within 24 hours; free next-day air begins after production.</p>
-              <p className="text-sm text-[#18448D] font-medium">Your expected shipping and delivery dates are shown below.</p>
-            </div>
-            
-          </div>
+  const orderTotalsProps: CheckoutOrderTotalsProps = {
+    subtotalCents,
+    minOrderAdjustmentCents: showMinOrderAdjustment ? minOrderAdjustmentCents : 0,
+    discountAmountCents: resolvedDiscount.appliedDiscountAmountCents,
+    discountLabel: resolvedDiscount.appliedDiscountLabel,
+    discountHelperMessage: resolvedDiscount.helperMessage,
+    shippingLabel: flags.freeShipping ? flags.shippingMethodLabel : 'Shipping',
+    taxCents,
+    sameDayFeeCents,
+    saturdayFeeCents,
+    totalCents,
+  };
 
-          <DeliveryTimer
-            variant="slim"
-            reflectCartSelection
-            className="mb-4 sm:mb-6"
-          />
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-            {/* Order Summary - Takes 2 columns on large screens */}
-            <div id="checkout-order-summary" className="order-2 w-full space-y-6 lg:order-1 lg:col-span-2">
-              <div className="border border-slate-200 border-t-4 border-t-[#FF6A00] bg-white p-6 shadow-[0_10px_28px_rgba(11,31,58,0.06)] sm:p-8">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-[#18448D]">Order Summary</h2>
-                  <div className="bg-blue-50 px-4 py-2 rounded-full">
-                    <span className="text-sm font-semibold text-[#18448D]">{items.length} {items.length === 1 ? 'Item' : 'Items'}</span>
-                  </div>
-                </div>
-                
+  const orderReviewContent = (
+    <>
                 {/* Thumbnail preview notice - shown once above all items */}
                 <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-xs text-blue-700 mb-4">
                   <Eye className="h-4 w-4 flex-shrink-0 mt-0.5 text-blue-500" />
                   <p>
-                    <span className="font-medium">Preview only.</span> {productCopy.reviewNoticeBody}
+                    <span className="font-medium">Your print layout.</span> {productCopy.reviewNoticeBody}
                   </p>
                 </div>
 
@@ -1068,6 +1043,7 @@ const Checkout: React.FC = () => {
                             <Button
                               variant="outline"
                               size="sm"
+                              aria-label={`Decrease quantity for ${getItemDisplayName(item)}`}
                               onClick={() => handleDecreaseQuantity(item.id)}
                               disabled={checkoutLocked || item.quantity <= 1}
                               className="h-11 w-11 p-0 border-2 hover:bg-[#18448D] hover:text-white hover:border-[#18448D] transition-all"
@@ -1078,6 +1054,7 @@ const Checkout: React.FC = () => {
                             <Button
                               variant="outline"
                               size="sm"
+                              aria-label={`Increase quantity for ${getItemDisplayName(item)}`}
                               onClick={() => handleIncreaseQuantity(item.id)}
                               disabled={checkoutLocked || item.quantity >= 999}
                               className="h-11 w-11 p-0 border-2 hover:bg-[#18448D] hover:text-white hover:border-[#18448D] transition-all"
@@ -1087,6 +1064,7 @@ const Checkout: React.FC = () => {
                           </div>
                         </div>
 
+                        <Button variant="outline" disabled={checkoutLocked} onClick={() => navigate(cartEditUrl(item))} className="min-h-11">Edit {item.product_type === 'banner' || !item.product_type ? 'banner' : 'design'}</Button>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -1103,18 +1081,7 @@ const Checkout: React.FC = () => {
                 </div>
 
                 <div className="mt-5">
-                  <CheckoutOrderTotals
-                    subtotalCents={subtotalCents}
-                    minOrderAdjustmentCents={showMinOrderAdjustment ? minOrderAdjustmentCents : 0}
-                    discountAmountCents={resolvedDiscount.appliedDiscountAmountCents}
-                    discountLabel={resolvedDiscount.appliedDiscountLabel}
-                    discountHelperMessage={resolvedDiscount.helperMessage}
-                    shippingLabel={flags.freeShipping ? flags.shippingMethodLabel : 'Shipping'}
-                    taxCents={taxCents}
-                    sameDayFeeCents={sameDayFeeCents}
-                    saturdayFeeCents={saturdayFeeCents}
-                    totalCents={totalCents}
-                  />
+                  <CheckoutOrderTotals {...orderTotalsProps} />
                 </div>
 
                 {/* Add Another Item button — product-aware for correct tab routing */}
@@ -1204,8 +1171,115 @@ const Checkout: React.FC = () => {
                   })()}
                 </div>
 
+    </>
+  );
+
+  return (
+    <Layout showFooterBanner={false} checkoutMode>
+      <div className="min-h-[calc(100vh-4rem)] bg-[#F7F7F7] py-5 sm:py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Header */}
+          <div className="mb-6 sm:mb-10">
+            <Button
+              variant="ghost"
+              onClick={() => { if (!checkoutLocked) { const returnTo = location.state?.returnTo; const saved = items.find(item => cartEditUrl(item) === returnTo) || items[items.length - 1]; navigate(saved ? cartEditUrl(saved) : (isFromGoogleAds ? "/google-ads-banner" : "/design")); } }}
+              disabled={checkoutLocked}
+              className="mb-6 hover:bg-gray-100 transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to designer
+            </Button>
+            <div className="text-center mb-8">
+              <div className="mb-3 inline-flex items-center gap-2 border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
+                <span>Design</span><span>→</span><span className="text-[#18448D]">Checkout</span><span>→</span><span>Complete</span>
+              </div>
+              <h1 className="mb-2 font-display text-3xl font-bold tracking-[-0.035em] text-[#0B1F3A] sm:text-4xl">Secure checkout</h1>
+              <p className="text-base text-gray-600">Most standard orders are produced within 24 hours; free next-day air begins after production.</p>
+              <p className="text-sm text-[#18448D] font-medium">Your expected shipping and delivery dates are shown below.</p>
+            </div>
+
+          </div>
+
+          <DeliveryTimer
+            variant="slim"
+            reflectCartSelection
+            className="mb-4 sm:mb-6"
+          />
+
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
+            {/* Desktop has room for an inline review beside payment. */}
+            <section aria-label="Order summary" className="hidden w-full lg:col-span-2 lg:block">
+              <div className="border border-slate-200 border-t-4 border-t-[#FF6A00] bg-white p-6 shadow-[0_10px_28px_rgba(11,31,58,0.06)] sm:p-8">
+                <div className="mb-6 flex items-center justify-between gap-3">
+                  <h2 className="text-2xl font-bold text-[#18448D]">Order Summary</h2>
+                  <span className="rounded-full bg-blue-50 px-4 py-2 text-sm font-semibold text-[#18448D]">{items.length} {items.length === 1 ? 'Item' : 'Items'}</span>
+                </div>
+                {orderReviewContent}
+              </div>
+            </section>
+
+            <div className="w-full space-y-4 lg:col-start-3">
+            {/* Minimum Order Warning */}
+            {!minimumOrderValidation.isValid && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg shadow-sm p-6 mb-6">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0">
+                    <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                      <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-amber-800 mb-2">Minimum Order Required</h3>
+                    <p className="text-amber-700 mb-4">{minimumOrderValidation.message}</p>
+                    {minimumOrderValidation.suggestions.length > 0 && (
+                      <div className="bg-amber-100 rounded-lg p-4">
+                        <p className="font-medium text-amber-800 mb-2">Suggestions to reach minimum:</p>
+                        <ul className="list-disc list-inside space-y-1 text-sm text-amber-700">
+                          {minimumOrderValidation.suggestions.slice(0, 3).map((suggestion, index) => (
+                            <li key={index}>{suggestion}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Yard Sign Validation Warning */}
+            {yardSignInvalid && (
+              <div className="bg-red-50 border border-red-200 rounded-lg shadow-sm p-6 mb-6">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0">
+                    <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                      <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-red-800 mb-2">Yard Sign Order Issue</h3>
+                    <p className="text-red-700">{yardSignValidationMessage}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            {/* Payment */}
+            <div className="w-full space-y-4 lg:space-y-6">
+              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm lg:hidden">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                    {items.length} {items.length === 1 ? 'item' : 'items'}
+                  </p>
+                  <p className="text-lg font-bold text-[#0B1F3A]">{usd(totalCents / 100)} total</p>
+                </div>
+                <CheckoutReviewDialog>{orderReviewContent}</CheckoutReviewDialog>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white px-4 pb-4">
                 {/* Discount Code Section */}
-                <div className="border-t border-gray-200 pt-6 mt-6">
+                <div className="pt-3">
                   {!discountCode ? (
                     <div className="space-y-3">
                       <button
@@ -1274,75 +1348,7 @@ const Checkout: React.FC = () => {
                 </div>
 
                 {/* Same-Day Hit Service upsell — production priority (NOT shipping) */}
-                <div className="border-t border-gray-200 pt-6 mt-6">
-                  <SameDayHitServiceCard disabled={checkoutLocked} />
-                </div>
-              </div>
-            </div>
-
-            {/* Minimum Order Warning */}
-            {!minimumOrderValidation.isValid && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg shadow-sm p-6 mb-6">
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0">
-                    <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
-                      <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z" />
-                      </svg>
-                    </div>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-amber-800 mb-2">Minimum Order Required</h3>
-                    <p className="text-amber-700 mb-4">{minimumOrderValidation.message}</p>
-                    {minimumOrderValidation.suggestions.length > 0 && (
-                      <div className="bg-amber-100 rounded-lg p-4">
-                        <p className="font-medium text-amber-800 mb-2">Suggestions to reach minimum:</p>
-                        <ul className="list-disc list-inside space-y-1 text-sm text-amber-700">
-                          {minimumOrderValidation.suggestions.slice(0, 3).map((suggestion, index) => (
-                            <li key={index}>{suggestion}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Yard Sign Validation Warning */}
-            {yardSignInvalid && (
-              <div className="bg-red-50 border border-red-200 rounded-lg shadow-sm p-6 mb-6">
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0">
-                    <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                      <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z" />
-                      </svg>
-                    </div>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-red-800 mb-2">Yard Sign Order Issue</h3>
-                    <p className="text-red-700">{yardSignValidationMessage}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-            {/* Payment */}
-            <div className="order-1 w-full space-y-4 lg:order-2 lg:space-y-6">
-              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm lg:hidden">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                    {items.length} {items.length === 1 ? 'item' : 'items'}
-                  </p>
-                  <p className="text-lg font-bold text-[#0B1F3A]">{usd(totalCents / 100)} total</p>
-                </div>
-                <button
-                  type="button"
-                  className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-bold text-[#18448D] hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#18448D]"
-                  onClick={() => document.getElementById('checkout-order-summary')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                >
-                  Review order
-                </button>
+                <SameDayHitServiceCard disabled={checkoutLocked} />
               </div>
               <div className="relative z-0 rounded-xl border border-gray-100 bg-white p-4 shadow-md sm:p-5">
                 <div className="flex items-center justify-between mb-6">
@@ -1583,6 +1589,7 @@ const Checkout: React.FC = () => {
                   </div>
                 </div>
               )}
+            </div>
             </div>
           </div>
         </div>

@@ -1212,7 +1212,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
       >
         <div className="mb-4">
           <h3 id="checkout-customer-heading" className="text-base font-bold text-[#0B1F3A]">
-            Contact &amp; delivery
+            Contact &amp; billing address
           </h3>
           <p className="mt-1 text-xs leading-5 text-slate-600">
             Enter these details once, then choose card or PayPal below. We use them for your receipt, artwork questions, and delivery.
@@ -1269,7 +1269,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
                 setCheckoutError(null);
               }}
             />
-            Shipping address is the same as billing
+            Deliver to my billing address
           </label>
 
           {!customer.shippingSame

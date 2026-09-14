@@ -378,7 +378,7 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
           <div className="flex items-start gap-2 border-l-4 border-[#FF6A00] bg-[#FFF7F1] px-3 py-2 text-xs text-[#7A3212]">
             <Eye className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#A63C00]" />
             <p>
-              <span className="font-medium">Preview only.</span> {copy.reviewNoticeBody}
+              <span className="font-medium">Your print layout.</span> {copy.reviewNoticeBody}
             </p>
           </div>
 
