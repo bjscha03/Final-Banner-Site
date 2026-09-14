@@ -17,8 +17,8 @@ import {
   WandSparkles,
   XCircle,
 } from 'lucide-react';
-import { authenticatedJsonBody, authorizedHeaders, setServerSessionToken } from '@/lib/serverAuth';
-import { useAIAdminAccess } from '@/hooks/useAIAdminAccess';
+import { authenticatedJsonBody, authorizedHeaders } from '@/lib/serverAuth';
+import { useAIDesignerAccess } from '@/hooks/useAIAdminAccess';
 import { trackAIEvent } from '@/lib/aiAnalytics';
 import { useAuth } from '@/lib/auth';
 import { loadDraft, saveDraft } from './draftStore';
@@ -285,7 +285,7 @@ function StatusBadge({ concept }: { concept: AIConcept }) {
 
 export default function AIWorkspace(props: Props) {
   const { user } = useAuth();
-  const access = useAIAdminAccess(true);
+  const access = useAIDesignerAccess(true);
   const [brief, setBrief] = useState<CreativeBrief>(() => props.initialSession?.brief || makeBrief(props));
   const [referenceImage, setReferenceImage] = useState<string | null>(props.initialSession?.referenceImage || null);
   const [photoImages, setPhotoImages] = useState<string[]>(props.initialSession?.photoImages || []);
@@ -316,9 +316,6 @@ export default function AIWorkspace(props: Props) {
   useEffect(() => { if (!stage) setProgressPreview(null); }, [stage]);
   const [error, setError] = useState('');
   const [fullPreview, setFullPreview] = useState(false);
-  const [adminPassword, setAdminPassword] = useState('');
-  const [reconnecting, setReconnecting] = useState(false);
-  const [reconnectError, setReconnectError] = useState('');
   const controllerRef = useRef<AbortController | null>(null);
   const restoringDraftRef = useRef(false);
 
@@ -329,7 +326,7 @@ export default function AIWorkspace(props: Props) {
     || null;
   const ratio = (Number(brief.widthIn) || 1) / (Number(brief.heightIn) || 1);
   const requirementsMet = brief.widthIn > 0 && brief.heightIn > 0 && Boolean(brief.material) && Boolean(brief.description.trim());
-  const draftKey = `admin:${user?.id || 'session'}:${props.productType}:${props.widthIn}:${props.heightIn}`;
+  const draftKey = `${user?.is_admin && user.id ? `admin:${user.id}` : `customer:${access.sessionKey || 'pending'}`}:${props.productType}:${props.widthIn}:${props.heightIn}`;
   const hasUnappliedChanges = Boolean(selected && (
     (selected.brief && JSON.stringify(selected.brief) !== JSON.stringify(brief)) ||
     ('logoImage' in selected && selected.logoImage !== logoImage) ||
@@ -338,7 +335,7 @@ export default function AIWorkspace(props: Props) {
 
   useEffect(() => {
     let active = true;
-    if (!user?.id || !user.is_admin) return;
+    if (!access.authorized || !access.sessionKey) return;
     if (props.initialSession) { setRecoveryReady(true); return; }
     loadDraft<{ brief: CreativeBrief; concepts: AIConcept[]; selectedId: string; history: AIConcept[]; redo: AIConcept[]; logoImage: string | null; referenceImage: string | null; photoImages?: string[] }>(draftKey).then(draft => {
       if (!active || !draft) return;
@@ -351,16 +348,16 @@ export default function AIWorkspace(props: Props) {
     }).catch(() => { if (active) setSaveNotice('Draft recovery is unavailable in this browser. Keep this window open while designing.'); })
       .finally(() => { if (active) setRecoveryReady(true); });
     return () => { active = false; };
-  }, [draftKey, props.initialSession, user?.id, user?.is_admin]);
+  }, [draftKey, props.initialSession, access.authorized, access.sessionKey]);
 
   useEffect(() => {
-    if (!recoveryReady || !user?.id || !user.is_admin) return;
+    if (!recoveryReady || !access.authorized || !access.sessionKey) return;
     const timer = window.setTimeout(() => {
       saveDraft(draftKey, { brief, concepts, selectedId, history, redo, logoImage, referenceImage, photoImages })
         .catch(() => setSaveNotice('This browser could not save your draft. Keep this window open while designing.'));
     }, 400);
     return () => window.clearTimeout(timer);
-  }, [recoveryReady, draftKey, brief, concepts, selectedId, history, redo, logoImage, referenceImage, photoImages, user?.id, user?.is_admin]);
+  }, [recoveryReady, draftKey, brief, concepts, selectedId, history, redo, logoImage, referenceImage, photoImages, access.authorized, access.sessionKey]);
 
   useEffect(() => {
     if (restoringDraftRef.current) { restoringDraftRef.current = false; return; }
@@ -370,32 +367,6 @@ export default function AIWorkspace(props: Props) {
     if (selected && 'referenceImage' in selected) setReferenceImage(selected.referenceImage || null);
   }, [selected]);
 
-  const reconnectAdmin = async () => {
-    if (!adminPassword || reconnecting) return;
-    setReconnecting(true);
-    setReconnectError('');
-    try {
-      const response = await fetch('/.netlify/functions/admin-sign-in', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: adminPassword }),
-      });
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok || !body?.sessionToken || body?.user?.is_admin !== true) {
-        throw new Error(body?.error || 'The admin session could not be reconnected.');
-      }
-      setServerSessionToken(body.sessionToken);
-      localStorage.setItem('banners_current_user', JSON.stringify(body.user));
-      window.dispatchEvent(new Event('user-changed'));
-      setAdminPassword('');
-      access.refresh();
-    } catch (reason) {
-      setReconnectError(reason instanceof Error ? reason.message : 'The admin session could not be reconnected.');
-    } finally {
-      setReconnecting(false);
-    }
-  };
 
   useEffect(() => {
     trackAIEvent('ai_designer_opened', { product_type: props.productType });
@@ -747,20 +718,12 @@ export default function AIWorkspace(props: Props) {
   };
 
   const blockerCopy = access.loading
-    ? 'Checking secure GPT Image 2 configuration…'
+    ? 'Getting your artwork designer ready…'
     : !access.authorized
-      ? 'A verified administrator session is required.'
-      : !access.enabled
-        ? 'AI is disabled for this deployment.'
-      : !access.keyConfigured
-          ? 'No server-side OpenAI key is configured for this deployment.'
-          : !access.temporaryStorageConfigured
-            ? 'Authenticated temporary artwork storage is not configured for this deployment.'
-          : !access.modelAvailable
-            ? 'GPT Image 2 is not available to the configured OpenAI project.'
-            : !access.validationModelAvailable
-              ? 'The configured validation model is not available to the OpenAI project.'
-            : null;
+      ? 'Your design session could not connect. Retry to continue.'
+      : !access.ready
+        ? 'The artwork designer is temporarily unavailable. Your draft is saved; please try again shortly.'
+        : null;
 
   return (
     <div className="min-h-0 bg-white text-slate-900" data-testid="ai-workspace">
@@ -774,12 +737,12 @@ export default function AIWorkspace(props: Props) {
           <div className="flex items-center gap-2">
             <span className={`inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-semibold ${access.ready ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-900'}`}>
               {access.loading ? <Loader2 className="h-4 w-4 animate-spin" /> : access.ready ? <ShieldCheck className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
-              {access.ready ? 'Admin preview' : 'Configuration check'}
+              {access.ready ? 'Ready to create' : 'Connecting…'}
             </span>
             {props.onClose && <button type="button" onClick={props.onClose} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"><ArrowLeft className="h-4 w-4" /> Back</button>}
           </div>
         </div>
-        {blockerCopy && !access.loading && <div role="alert" className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><div className="flex items-start gap-2"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /> {blockerCopy}</div>{!access.authorized && <div className="mt-3 flex flex-col gap-2 sm:flex-row"><input aria-label="Admin password" type="password" autoComplete="current-password" value={adminPassword} onChange={(event) => setAdminPassword(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void reconnectAdmin(); }} placeholder="Enter admin password" className="min-h-11 flex-1 rounded-lg border border-amber-300 bg-white px-3 text-base text-slate-900" /><button type="button" onClick={() => void reconnectAdmin()} disabled={!adminPassword || reconnecting} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#0b1f3a] px-4 font-bold text-white disabled:opacity-50">{reconnecting && <Loader2 className="h-4 w-4 animate-spin" />} Reconnect admin</button></div>}{reconnectError && <div className="mt-2 text-sm font-semibold text-red-700">{reconnectError}</div>}</div>}
+        {blockerCopy && !access.loading && <div role="alert" className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><p>{blockerCopy}</p><button type="button" onClick={access.refresh} className="mt-2 min-h-11 rounded-lg bg-[#0b1f3a] px-4 font-bold text-white">Retry connection</button></div>}
       </div>
 
       {saveNotice && <p className="px-4 pt-3 text-xs text-slate-500" role="status">{saveNotice}</p>}
@@ -924,16 +887,16 @@ export default function AIWorkspace(props: Props) {
             </div>
             <div className="mt-2 flex flex-wrap gap-2">{['Make the background lighter', 'Use the colors from my logo', ...(logoImage ? ['Move the logo to the upper-left'] : []), 'Remove the people', 'Make it more professional', 'Keep everything else exactly the same'].map((value) => <button key={value} type="button" onClick={() => setEditInstruction(value)} className="min-h-11 rounded-full border border-slate-300 bg-slate-50 px-3 text-xs font-semibold text-slate-700 hover:border-orange-400">{value}</button>)}</div>
 
-            <details className="mt-5 border-t border-slate-200 pt-3"><summary className="cursor-pointer py-2 text-sm text-slate-500">Print checks & generation details</summary><div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <details className="mt-5 border-t border-slate-200 pt-3"><summary className="cursor-pointer py-2 text-sm text-slate-500">Print checks</summary><div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className={`rounded-xl border p-4 ${selected.validation.passed ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}><div className="flex items-center gap-2 font-black text-[#0b1f3a]">{selected.validation.passed ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : <AlertCircle className="h-5 w-5 text-amber-700" />} Print-readiness validation</div><ul className="mt-2 space-y-1 text-sm text-slate-700"><li>Dimensions: {selected.validation.checks.dimensions.passed ? 'Exact' : 'Failed'}</li><li>Full edge coverage: {selected.validation.checks.edgeCoverage.passed ? 'Passed' : 'Failed'}</li><li>Flat artwork / no hardware: {selected.validation.checks.flatArtwork.passed ? 'Passed' : 'Failed'}</li><li>Wording check: {selected.validation.checks.exactText.passed ? 'Passed' : 'Failed'}</li><li>Output canvas resolution: {selected.validation.checks.resolution.effectivePpi} PPI ({selected.validation.checks.resolution.passed ? 'passed' : 'failed'})</li></ul>{selected.validation.reasons.length > 0 && <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-amber-900">{selected.validation.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>}</div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><div className="flex items-center gap-2 font-black text-[#0b1f3a]"><Clock3 className="h-5 w-5 text-slate-500" /> Version and output</div><ul className="mt-2 space-y-1 text-sm text-slate-700"><li>Output: {selected.diagnostics.outputDimensions}px</li><li>Ratio method: {selected.diagnostics.ratioStrategy.replace(/-/g, ' ')}</li><li>Model: {selected.diagnostics.modelSnapshot || selected.diagnostics.model}</li><li>Artwork processing: {formatDuration(selected.diagnostics.durationMs)}</li>{selected.diagnostics.clientDurationMs != null && <li>Total wait: {formatDuration(selected.diagnostics.clientDurationMs)}</li>}<li>Estimated image API cost: {selected.diagnostics.estimatedCostUsd == null ? 'Unavailable' : `$${selected.diagnostics.estimatedCostUsd.toFixed(4)}`}</li><li>Auto-repaired: {selected.diagnostics.repaired ? 'Yes' : 'No'}</li></ul></div>
+              {user?.is_admin && (<div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><div className="flex items-center gap-2 font-black text-[#0b1f3a]"><Clock3 className="h-5 w-5 text-slate-500" /> Version and output</div><ul className="mt-2 space-y-1 text-sm text-slate-700"><li>Output: {selected.diagnostics.outputDimensions}px</li><li>Ratio method: {selected.diagnostics.ratioStrategy.replace(/-/g, ' ')}</li><li>Model: {selected.diagnostics.modelSnapshot || selected.diagnostics.model}</li><li>Artwork processing: {formatDuration(selected.diagnostics.durationMs)}</li>{selected.diagnostics.clientDurationMs != null && <li>Total wait: {formatDuration(selected.diagnostics.clientDurationMs)}</li>}<li>Estimated image API cost: {selected.diagnostics.estimatedCostUsd == null ? 'Unavailable' : `$${selected.diagnostics.estimatedCostUsd.toFixed(4)}`}</li><li>Auto-repaired: {selected.diagnostics.repaired ? 'Yes' : 'No'}</li></ul></div>)}
             </div>
 
             </details>
 
             {history.length > 0 && <div className="mt-4"><h5 className="text-sm font-black text-[#0b1f3a]">Version history</h5><div className="mt-2 flex gap-2 overflow-x-auto pb-2">{history.map((version, index) => <button key={version.versionId} type="button" onClick={() => { if (!selected) return; setRedo((items) => [...items, selected]); setConcepts((items) => items.map((item) => item.versionId === selected.versionId ? version : item)); setSelectedId(version.versionId); }} className="w-32 shrink-0 rounded-lg border border-slate-300 bg-white p-2 text-left"><div className="flex h-20 items-center justify-center overflow-hidden bg-slate-100"><img src={imageSrc(version)} alt={`Version ${index + 1}`} className="h-full w-full object-contain" /></div><span className="mt-1 block text-xs font-semibold">Version {index + 1}</span></button>)}</div></div>}
 
-            <details className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3"><summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-bold text-[#0b1f3a]">Admin diagnostics <ChevronDown className="h-4 w-4" /></summary><dl className="grid grid-cols-1 gap-x-4 gap-y-2 pt-3 text-xs text-slate-600 sm:grid-cols-2"><div><dt className="font-bold">Generation ID</dt><dd className="break-all">{selected.generationId || generationId}</dd></div><div><dt className="font-bold">Version ID</dt><dd className="break-all">{selected.versionId}</dd></div><div><dt className="font-bold">Provider request ID</dt><dd className="break-all">{selected.diagnostics.providerRequestId || 'Not returned'}</dd></div><div><dt className="font-bold">Validation model</dt><dd>{selected.validation.vision.model}</dd></div>{selected.diagnostics.stageTimings?.map((timing, index) => <div key={index}><dt className="font-bold">{timing.stage}</dt><dd>{formatDuration(timing.durationMs)}</dd></div>)}</dl></details>
+              {user?.is_admin && (<details className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3"><summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-bold text-[#0b1f3a]">Admin diagnostics <ChevronDown className="h-4 w-4" /></summary><dl className="grid grid-cols-1 gap-x-4 gap-y-2 pt-3 text-xs text-slate-600 sm:grid-cols-2"><div><dt className="font-bold">Generation ID</dt><dd className="break-all">{selected.generationId || generationId}</dd></div><div><dt className="font-bold">Version ID</dt><dd className="break-all">{selected.versionId}</dd></div><div><dt className="font-bold">Provider request ID</dt><dd className="break-all">{selected.diagnostics.providerRequestId || 'Not returned'}</dd></div><div><dt className="font-bold">Validation model</dt><dd>{selected.validation.vision.model}</dd></div>{selected.diagnostics.stageTimings?.map((timing, index) => <div key={index}><dt className="font-bold">{timing.stage}</dt><dd>{formatDuration(timing.durationMs)}</dd></div>)}</dl></details>)}
 
             {!selected.validation.passed && !hasUnappliedChanges && !pendingEdit && <p className="mt-4 text-center text-sm text-amber-800">The automated check flagged something. If the complete banner looks right to you, you can review the warning and continue.</p>}
             <button type="button" onClick={() => selected.validation.passed ? void apply() : setConfirmValidationOverride(true)} disabled={hasUnappliedChanges || Boolean(stage) || Boolean(pendingEdit)} className="mt-3 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 text-base font-black text-white shadow-sm hover:bg-orange-700 disabled:cursor-not-allowed disabled:bg-slate-300"><CheckCircle2 className="h-5 w-5" /> {pendingEdit ? 'Accept or reject the proposed edit first' : hasUnappliedChanges ? 'Apply your changes before continuing' : selected.validation.passed ? 'Use this banner' : 'Review warning & continue'}</button>

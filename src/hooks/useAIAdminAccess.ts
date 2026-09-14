@@ -5,6 +5,7 @@ import { authenticatedJsonBody, authorizedHeaders } from '@/lib/serverAuth';
 export type AIAdminStatus = {
   loading: boolean;
   authorized: boolean;
+  sessionKey: string | null;
   authenticationFailed: boolean;
   enabled: boolean;
   keyConfigured: boolean;
@@ -22,6 +23,7 @@ export type AIAdminStatus = {
 const CLOSED: Omit<AIAdminStatus, 'refresh'> = {
   loading: false,
   authorized: false,
+  sessionKey: null,
   authenticationFailed: false,
   enabled: false,
   keyConfigured: false,
@@ -71,6 +73,7 @@ export function useAIAdminAccess(active = true) {
         setStatus({
           loading: false,
           authorized: body.authorized === true,
+          sessionKey: typeof body.sessionKey === 'string' ? body.sessionKey : null,
           authenticationFailed: false,
           enabled: body.enabled === true,
           keyConfigured: body.keyConfigured === true,
@@ -97,3 +100,6 @@ export function useAIAdminAccess(active = true) {
 
   return { ...status, refresh };
 }
+
+// The same session-aware status flow supports customer and administrator workspaces.
+export const useAIDesignerAccess = useAIAdminAccess;
