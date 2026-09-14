@@ -247,21 +247,35 @@ const ProductPreviewFrame: React.FC<{ item: any; thumbUrl: string | null; large?
       data-preview-failed={failed ? 'true' : 'false'}
     >
       {candidates.length > 0 && !failed ? (
-        <StablePreviewImage
-          sources={candidates}
-          alt={`${getProductTitleLabel(item)} finished preview`}
-          className="absolute inset-0 block h-full w-full object-contain"
-          retainPreviousWhileLoading
-          loadTimeoutMs={25_000}
-          onReady={() => {
-            setReady(true);
-            setFailed(false);
-          }}
-          onExhausted={() => {
-            setReady(false);
-            setFailed(true);
-          }}
-        />
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          preserveAspectRatio="xMidYMid meet"
+          className="absolute inset-0 h-full w-full"
+          aria-hidden="true"
+        >
+          {/* Fit artwork and hardware together, including in square rows and
+              height-limited lightboxes. Match the email's centered cover fit. */}
+          <foreignObject width={width} height={height}>
+            <StablePreviewImage
+              sources={candidates}
+              alt=""
+              className="absolute inset-0 block h-full w-full object-cover"
+              retainPreviousWhileLoading
+              loadTimeoutMs={25_000}
+              onReady={() => {
+                setReady(true);
+                setFailed(false);
+              }}
+              onExhausted={() => {
+                setReady(false);
+                setFailed(true);
+              }}
+            />
+          </foreignObject>
+          {ready && (
+            <GrommetOverlay widthIn={width} heightIn={height} option={grommets} idSuffix={idSuffix} />
+          )}
+        </svg>
       ) : (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-50 px-2 text-center text-xs font-medium text-gray-500">
           Preview unavailable
@@ -274,13 +288,6 @@ const ProductPreviewFrame: React.FC<{ item: any; thumbUrl: string | null; large?
         </div>
       ) : null}
 
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        className="pointer-events-none absolute inset-0 z-[3] h-full w-full"
-        aria-hidden="true"
-      >
-        <GrommetOverlay widthIn={width} heightIn={height} option={grommets} idSuffix={idSuffix} />
-      </svg>
     </div>
   );
 };
