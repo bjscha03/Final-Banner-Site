@@ -252,6 +252,15 @@ export const RoutedApplication = () => (
                 </>
               }
             />
+            <Route
+              path="/fall-festival-banners"
+              element={
+                <>
+                  <PromoBanner />
+                  <GoogleAdsBanner />
+                </>
+              }
+            />
 
             {/* Programmatic SEO city pages (vinyl banners, yard signs, car magnets) */}
             <Route path="/vinyl-banners/:citySlug" element={<CityProductPage productSlug="vinyl-banners" />} />
