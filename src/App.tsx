@@ -252,6 +252,7 @@ export const RoutedApplication = () => (
                 </>
               }
             />
+            <Route path="/large-banners-fast" element={<><PromoBanner /><GoogleAdsBanner key="large-banners-fast" /></>} />
             <Route path="/double-sided-banners" element={<><PromoBanner /><GoogleAdsBanner key="double-sided" /></>} />
             <Route
               path="/fall-festival-banners"

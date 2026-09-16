@@ -14,7 +14,7 @@ import { Link } from 'react-router-dom';
 import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
 import type { CityProductSlug } from '@/lib/seo/cityData';
 
-type HeroProductSlug = CityProductSlug | 'double-sided-banners';
+type HeroProductSlug = CityProductSlug | 'double-sided-banners' | 'large-banners-fast';
 
 interface HeroBenefit {
   label: string;
@@ -23,6 +23,7 @@ interface HeroBenefit {
 
 interface ProductHeroDefinition {
   eyebrow: string;
+  intro?: string;
   title: string[];
   primaryLabel: string;
   secondaryLabel: string;
@@ -37,6 +38,15 @@ const sharedBenefits: HeroBenefit[] = [
 ];
 
 const HERO_DEFINITIONS: Record<HeroProductSlug, ProductHeroDefinition> = {
+  'large-banners-fast': {
+    eyebrow: 'Large custom banners · Printed fast · Shipped nationwide',
+    title: ['Large banners.', 'Fast.'],
+    intro: 'Big visibility for your next opening, event, or deadline. Choose 8 × 4 ft, 10 × 4 ft, or a custom size. Upload your artwork or create with AI.',
+    primaryLabel: 'Build & price my large banner',
+    secondaryLabel: 'Choose your size & get instant pricing',
+    imageAlt: 'Large custom vinyl banner installed outside a business',
+    benefits: sharedBenefits,
+  },
   'double-sided-banners': {
     eyebrow: 'Double-sided banners · Heavy-duty 18 oz vinyl',
     title: ['Double-sided', 'banners.', 'Seen both ways.'],
@@ -78,7 +88,7 @@ const HERO_DEFINITIONS: Record<HeroProductSlug, ProductHeroDefinition> = {
 const ProductScene: React.FC<{ productSlug: HeroProductSlug; alt: string; className: string }> = ({ productSlug, alt, className }) => (
   productSlug === 'double-sided-banners'
     ? <div className={className}><img src="/images/double-sided-banner-hero.webp" alt={alt} width="1536" height="1024" fetchPriority="high" loading="eager" className="h-full w-full object-cover" /></div>
-    : <ProductVisual productSlug={productSlug} priority className={className} />
+    : <ProductVisual productSlug={productSlug === 'large-banners-fast' ? 'vinyl-banners' : productSlug} priority className={className} />
 );
 
 interface ProductPageHeroProps {
@@ -124,6 +134,8 @@ const ProductPageHero: React.FC<ProductPageHeroProps> = ({ productSlug, ctaUrl, 
             ))}
           </h1>
 
+          {hero.intro && <p className="mt-5 max-w-lg text-base font-medium leading-relaxed sm:text-lg">{hero.intro}</p>}
+
           <div className="mt-7 flex flex-col items-start gap-5 sm:mt-8">
             <Link
               to={ctaUrl}
@@ -134,7 +146,7 @@ const ProductPageHero: React.FC<ProductPageHeroProps> = ({ productSlug, ctaUrl, 
               <ArrowRight className="h-5 w-5 flex-none" aria-hidden="true" />
             </Link>
             <a
-              href={productSlug === 'double-sided-banners' ? '#order-builder' : '#sizes-pricing'}
+              href={(productSlug === 'double-sided-banners' || productSlug === 'large-banners-fast') ? '#order-builder' : '#sizes-pricing'}
               className="inline-flex min-h-11 items-center border-b-2 border-[#061A31] pb-0.5 text-sm font-black uppercase tracking-[0.035em] text-[#061A31] transition-colors hover:border-white hover:text-white sm:text-base"
             >
               {hero.secondaryLabel}
