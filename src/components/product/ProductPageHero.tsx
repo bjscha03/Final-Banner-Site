@@ -14,6 +14,8 @@ import { Link } from 'react-router-dom';
 import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
 import type { CityProductSlug } from '@/lib/seo/cityData';
 
+type HeroProductSlug = CityProductSlug | 'double-sided-banners';
+
 interface HeroBenefit {
   label: string;
   icon: LucideIcon;
@@ -34,7 +36,15 @@ const sharedBenefits: HeroBenefit[] = [
   { label: 'Live print preview', icon: Monitor },
 ];
 
-const HERO_DEFINITIONS: Record<CityProductSlug, ProductHeroDefinition> = {
+const HERO_DEFINITIONS: Record<HeroProductSlug, ProductHeroDefinition> = {
+  'double-sided-banners': {
+    eyebrow: 'Double-sided banners · Heavy-duty 18 oz vinyl',
+    title: ['Double-sided', 'banners.', 'Seen both ways.'],
+    primaryLabel: 'Design your double-sided banner',
+    secondaryLabel: 'Choose your size & options',
+    imageAlt: 'Front and back views of a finished green grand-opening vinyl banner with matching full-color artwork',
+    benefits: sharedBenefits,
+  },
   'vinyl-banners': {
     eyebrow: 'Custom vinyl banners · Indoor · Outdoor · Mesh',
     title: ['Custom banners', 'built to get', 'noticed.'],
@@ -65,16 +75,19 @@ const HERO_DEFINITIONS: Record<CityProductSlug, ProductHeroDefinition> = {
   },
 };
 
-const ProductScene: React.FC<{ productSlug: CityProductSlug; alt: string; className: string }> = ({ productSlug, className }) => (
-  <ProductVisual productSlug={productSlug} priority className={className} />
+const ProductScene: React.FC<{ productSlug: HeroProductSlug; alt: string; className: string }> = ({ productSlug, alt, className }) => (
+  productSlug === 'double-sided-banners'
+    ? <div className={className}><img src="/images/double-sided-banner-hero.webp" alt={alt} width="1536" height="1024" fetchPriority="high" loading="eager" className="h-full w-full object-cover" /></div>
+    : <ProductVisual productSlug={productSlug} priority className={className} />
 );
 
 interface ProductPageHeroProps {
-  productSlug: CityProductSlug;
+  productSlug: HeroProductSlug;
   ctaUrl: string;
+  onStart?: () => void;
 }
 
-const ProductPageHero: React.FC<ProductPageHeroProps> = ({ productSlug, ctaUrl }) => {
+const ProductPageHero: React.FC<ProductPageHeroProps> = ({ productSlug, ctaUrl, onStart }) => {
   const hero = HERO_DEFINITIONS[productSlug];
 
   return (
@@ -114,13 +127,14 @@ const ProductPageHero: React.FC<ProductPageHeroProps> = ({ productSlug, ctaUrl }
           <div className="mt-7 flex flex-col items-start gap-5 sm:mt-8">
             <Link
               to={ctaUrl}
+              onClick={onStart ? (event) => { event.preventDefault(); onStart(); } : undefined}
               className="inline-flex min-h-14 w-full items-center justify-center gap-4 rounded-md bg-[#061A31] px-7 py-3.5 text-center text-sm font-black uppercase tracking-[0.035em] text-white shadow-[0_12px_30px_rgba(6,26,49,.22)] transition-colors hover:bg-[#0C2B50] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:w-auto sm:text-base"
             >
               {hero.primaryLabel}
               <ArrowRight className="h-5 w-5 flex-none" aria-hidden="true" />
             </Link>
             <a
-              href="#sizes-pricing"
+              href={productSlug === 'double-sided-banners' ? '#order-builder' : '#sizes-pricing'}
               className="inline-flex min-h-11 items-center border-b-2 border-[#061A31] pb-0.5 text-sm font-black uppercase tracking-[0.035em] text-[#061A31] transition-colors hover:border-white hover:text-white sm:text-base"
             >
               {hero.secondaryLabel}
