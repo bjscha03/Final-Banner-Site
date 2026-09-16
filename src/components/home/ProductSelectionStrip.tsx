@@ -49,6 +49,10 @@ const ProductSelectionStrip: React.FC = () => {
             </Link>
           ))}
         </div>
+        <Link to="/double-sided-banners" className="mt-5 flex min-h-16 flex-wrap items-center justify-between gap-3 border-l-4 border-[#FF6A00] bg-white p-5 text-[#0B1F3A] hover:bg-orange-50">
+          <span><strong className="text-lg">Double-Sided Banners</strong><span className="mt-1 block text-sm">18 oz vinyl · Same artwork on both sides · $6.25 per sq. ft.</span></span>
+          <span className="inline-flex items-center gap-2 font-semibold">Design yours <ArrowRight className="h-4 w-4" /></span>
+        </Link>
         <p className="mt-5 text-sm text-slate-600">Free next-day air after production on orders $20 and up.</p>
       </div>
     </section>

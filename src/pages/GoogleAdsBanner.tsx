@@ -343,8 +343,9 @@ function buildCartArtworkForEditor(item: CartItem): UploadedArtworkFile | null {
 const GoogleAdsBanner: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const isDoubleSidedBanner = location.pathname.replace(/\/+$/, '') === '/double-sided-banners';
   const isFallFestivalLanding = location.pathname.replace(/\/+$/, '') === '/fall-festival-banners';
-  const designerPath = location.pathname === "/google-ads-banner" ? "/google-ads-banner" : "/design";
+  const designerPath = isDoubleSidedBanner ? "/double-sided-banners" : location.pathname === "/google-ads-banner" ? "/google-ads-banner" : "/design";
   const [searchParams] = useSearchParams();
   const getProductQuerySlug = useCallback((type: ProductTypeSlug) => {
     if (type === 'yard_sign') return 'yard-signs';
@@ -375,6 +376,7 @@ const GoogleAdsBanner: React.FC = () => {
   // Product type state — public for both banners and yard signs
   // Read ?tab= (preferred) or ?product= (legacy) query param so "Add Another Yard Sign" links open the correct tab
   const initialProductType = (() => {
+    if (isDoubleSidedBanner) return 'banner' as ProductTypeSlug;
     const tab = searchParams.get('tab');
     const product = searchParams.get('product');
     const param = tab || product;
@@ -427,7 +429,8 @@ const GoogleAdsBanner: React.FC = () => {
   const widthInR = parseInt(widthInRStr, 10) || 0;
   const heightFt = parseInt(heightFtStr, 10) || 0;
   const heightInR = parseInt(heightInRStr, 10) || 0;
-  const [material, setMaterial] = useState<MaterialKey>('13oz');
+  const [selectedMaterialKey, setMaterial] = useState<MaterialKey>('13oz');
+  const material: MaterialKey = isDoubleSidedBanner ? '18oz_double' : selectedMaterialKey;
   const [materialDropdownOpen, setMaterialDropdownOpen] = useState(false);
   const materialDropdownRef = useRef<HTMLDivElement>(null);
   const [grommets, setGrommets] = useState('none');
@@ -827,7 +830,9 @@ const GoogleAdsBanner: React.FC = () => {
   });
 
   const pricePerSqFt = PRICE_PER_SQFT[material];
-  const selectedMaterial = MATERIALS.find(m => m.mapped === material) || MATERIALS[0];
+  const selectedMaterial = isDoubleSidedBanner
+    ? { ...MATERIALS.find(m => m.mapped === '18oz')!, label: '18oz Vinyl · Double-Sided' }
+    : MATERIALS.find(m => m.mapped === material) || MATERIALS[0];
   const materialLabel = isCarMagnet ? 'Premium Magnetic Material' : selectedMaterial.label;
   const grommetsLabel = DESIGN_GROMMET_OPTIONS.find(o => o.value === grommets)?.label || 'None';
   const widthDisplay = (isYardSign || isCarMagnet) ? `${widthIn}"` : (widthInR > 0 ? `${widthFt}'${widthInR}"` : `${widthFt}'`);
@@ -2061,6 +2066,7 @@ const GoogleAdsBanner: React.FC = () => {
       containerCssHeight: container?.offsetHeight || null,
       bgColor: '#fafafa',
       productType: 'banner',
+      ...(isDoubleSidedBanner ? { productName: 'Double-Sided Banner', material: '18oz', printSides: 2, sameArtworkBothSides: true } : {}),
       canonicalComposition: preparedPlacement.spec,
       placementPreview: preparedPlacement.artifact,
       ...(aiPrompt ? { aiPrompt } : {}),
@@ -2126,7 +2132,7 @@ const GoogleAdsBanner: React.FC = () => {
 
     console.log('[FINAL_RENDER_HTML] ✅ Cart item created with verified permanent placement preview');
     finishAddToCart(actionType, `${designerPath}?product=banner`);
-  }, [ensurePermanentArtworkUploaded, pendingCheckoutData, grommets, addRope, polePockets, polePocketSize, widthIn, heightIn, quantity, material, quoteStore, cartStore, isYardSign, isCarMagnet, carMagnetPricing, carMagnetRoundedCorners, yardSignMaterial, yardSignPricing, productType, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, yardSignSidedness, yardSignAddStepStakes, yardSignStepStakeQty, finishAddToCart, toast, editItemId, aiPrompt, aiEditPrompt, ropePlacement, constrainProps, designerPath]);
+  }, [ensurePermanentArtworkUploaded, pendingCheckoutData, grommets, addRope, polePockets, polePocketSize, widthIn, heightIn, quantity, material, quoteStore, cartStore, isYardSign, isCarMagnet, carMagnetPricing, carMagnetRoundedCorners, yardSignMaterial, yardSignPricing, productType, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, yardSignSidedness, yardSignAddStepStakes, yardSignStepStakeQty, finishAddToCart, toast, editItemId, aiPrompt, aiEditPrompt, ropePlacement, constrainProps, designerPath, isDoubleSidedBanner]);
 
   const prepareAndRoutePlacement = useCallback((
     actionType: 'checkout' | 'cart',
@@ -2400,7 +2406,7 @@ const GoogleAdsBanner: React.FC = () => {
     quantityConfirmed: quantity > 0,
     optionsReviewed: true,
     sizeLabel: `${widthIn}" × ${heightIn}"`,
-    materialLabel: material === '13oz' ? '13oz Vinyl' : material === '15oz' ? '15oz Vinyl' : material,
+    materialLabel: isDoubleSidedBanner ? '18oz Vinyl · Double-Sided' : material === '13oz' ? '13oz Vinyl' : material === '15oz' ? '15oz Vinyl' : material,
     quantityLabel: `Qty ${quantity}`,
     optionsLabel: isCarMagnet
       ? getCarMagnetRoundedCornersLabel(carMagnetRoundedCorners)
@@ -2574,7 +2580,12 @@ const GoogleAdsBanner: React.FC = () => {
           ? { label: uploadError ? 'Retry upload' : 'Upload artwork', disabled: false, onClick: openOrScrollToUpload }
           : { label: editItemId ? 'Save & design another' : 'Add & design another', disabled: false, onClick: handleAddToCart };
 
-  const materialCard = (<ConfigCard compact={!isCarMagnet} step={2} title="Material" id="material-section">
+  const materialCard = isDoubleSidedBanner ? (
+    <ConfigCard compact step={2} title="Material & printing" id="material-section">
+      <p className="font-semibold text-[#0B1F3A]">18 oz vinyl · Double-sided</p>
+      <p className="mt-2 text-sm text-slate-600">$6.25 per sq. ft. includes printing on both sides. Your approved artwork prints on the front and back, with the same placement on each side.</p>
+    </ConfigCard>
+  ) : (<ConfigCard compact={!isCarMagnet} step={2} title="Material" id="material-section">
                     <div ref={materialDropdownRef} className="relative">
                       <button
                         type="button"
@@ -3023,9 +3034,10 @@ const GoogleAdsBanner: React.FC = () => {
   return (
     <>
       <Helmet>
-        <title>{isFallFestivalLanding ? 'Custom Fall Festival Banners' : isYardSign ? 'Custom Yard Signs' : isCarMagnet ? 'Car Magnets' : 'Custom Banner Printing'} - 24 Hour Production | Banners On The Fly</title>
-        <meta name="description" content={isFallFestivalLanding ? 'Custom fall festival banners for churches, schools, harvest festivals and trunk-or-treats. Upload artwork or create with AI. 24-hour production.' : isYardSign ? "Upload yard-sign artwork, review the supported size and current price, and see production and shipping details before checkout." : isCarMagnet ? "Configure a supported car-magnet size, upload artwork, preview the print, and review production and shipping before checkout." : "Upload banner artwork, choose size and material, preview the print, and review production and shipping before checkout."} />
-        <meta name="robots" content={isFallFestivalLanding ? "index, follow" : "noindex, nofollow"} />
+        <title>{isDoubleSidedBanner ? 'Double-Sided 18oz Vinyl Banners — $6.25/sq ft' : isFallFestivalLanding ? 'Custom Fall Festival Banners' : isYardSign ? 'Custom Yard Signs' : isCarMagnet ? 'Car Magnets' : 'Custom Banner Printing'} - 24 Hour Production | Banners On The Fly</title>
+        <meta name="description" content={isDoubleSidedBanner ? 'Custom double-sided banners on 18 oz vinyl. $6.25 per square foot includes both sides. Upload artwork or create with AI. Free next-day air shipping.' : isFallFestivalLanding ? 'Custom fall festival banners for churches, schools, harvest festivals and trunk-or-treats. Upload artwork or create with AI. 24-hour production.' : isYardSign ? "Upload yard-sign artwork, review the supported size and current price, and see production and shipping details before checkout." : isCarMagnet ? "Configure a supported car-magnet size, upload artwork, preview the print, and review production and shipping before checkout." : "Upload banner artwork, choose size and material, preview the print, and review production and shipping before checkout."} />
+        <meta name="robots" content={isDoubleSidedBanner || isFallFestivalLanding ? "index, follow" : "noindex, nofollow"} />
+        {isDoubleSidedBanner && <link rel="canonical" href="https://bannersonthefly.com/double-sided-banners" />}
         {isFallFestivalLanding && <link rel="canonical" href="https://bannersonthefly.com/fall-festival-banners" />}
       </Helmet>
       <div className="min-h-screen bg-white text-gray-900">
@@ -3053,7 +3065,20 @@ const GoogleAdsBanner: React.FC = () => {
 
         {/* HERO */}
         {!isYardSign && !isCarMagnet ? (
-          isFallFestivalLanding ? <FallFestivalHero onStart={scrollToOrder} /> : <FastBannerAdHero onStart={scrollToOrder} />
+          isDoubleSidedBanner ? (
+            <section className="border-b-4 border-[#FF6A00] bg-[#F3F6FB] px-4 py-10 sm:py-14">
+              <div className="mx-auto max-w-5xl">
+                <a href="/" className="text-sm font-semibold text-[#18448D]">Home</a>
+                <p className="mt-6 text-sm font-bold uppercase tracking-widest text-[#C94008]">18 oz vinyl · Printed on both sides</p>
+                <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-[#0B1F3A] sm:text-6xl">Double-Sided Banners</h1>
+                <p className="mt-4 max-w-2xl text-lg text-slate-700">Get your message seen from either direction. Your design, printed on both sides of heavy-duty 18 oz vinyl.</p>
+                <p className="mt-5 text-2xl font-bold text-[#0B1F3A]">$6.25 per sq. ft. <span className="text-base font-normal">Both sides included</span></p>
+                <p className="mt-2 text-sm text-slate-600">Custom sizes · 24-hour production · Free next-day air shipping</p>
+                <button type="button" onClick={scrollToOrder} className="mt-6 min-h-12 rounded-lg bg-[#C94E00] px-6 py-3 font-bold text-white hover:bg-[#B84300]">Design your double-sided banner</button>
+                <p className="mt-3 text-sm text-slate-600">Same artwork on the front and back. Standard $20 minimum per banner.</p>
+              </div>
+            </section>
+          ) : isFallFestivalLanding ? <FallFestivalHero onStart={scrollToOrder} /> : <FastBannerAdHero onStart={scrollToOrder} />
         ) : (
         <section className="relative overflow-hidden border-b-4 border-[#FF6A00] bg-[#0B1F3A] px-4 py-10 sm:py-12 lg:py-16">
           <div className="relative mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] lg:gap-14">
@@ -3133,14 +3158,14 @@ const GoogleAdsBanner: React.FC = () => {
         <section ref={orderRef} id="order-builder" className="py-12 px-4 bg-gray-50">
           <div className="max-w-4xl lg:max-w-7xl mx-auto">
             <p className="mb-3 text-center text-xs font-bold uppercase tracking-[0.18em] text-[#FF6A00]">
-              {isYardSign ? '24″ × 18″ yard signs' : isCarMagnet ? 'Custom car magnets' : 'Custom vinyl banners'}
+              {isDoubleSidedBanner ? 'Double-sided · 18 oz vinyl' : isYardSign ? '24″ × 18″ yard signs' : isCarMagnet ? 'Custom car magnets' : 'Custom vinyl banners'}
             </p>
             <h2
               ref={builderStartRef}
               id="builder-start"
               className="homepage-condensed bg-[#061A31] px-4 py-6 text-4xl md:text-5xl uppercase text-white font-bold text-center mb-10 scroll-mt-[140px] md:scroll-mt-24"
             >
-              {isYardSign ? 'Build Your Yard Sign Order' : isCarMagnet ? 'Design Your Custom Car Magnets' : 'Build Your Banner'}
+              {isDoubleSidedBanner ? 'Build Your Double-Sided Banner' : isYardSign ? 'Build Your Yard Sign Order' : isCarMagnet ? 'Design Your Custom Car Magnets' : 'Build Your Banner'}
             </h2>
             {showPostAddResetNotice && (
               <div

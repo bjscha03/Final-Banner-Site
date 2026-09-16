@@ -2,7 +2,7 @@ import type { AdminBusinessMetrics } from '../admin-business-metrics';
 import type { AdminOrderOverview } from '../admin-order-overview';
 import type { PlacementPreviewManifest } from '@/types/artwork';
 
-export type MaterialKey = '13oz' | '15oz' | '18oz' | 'mesh' | 'corrugated' | 'magnetic' | 'aluminum_040' | 'aluminum_063';
+export type MaterialKey = '13oz' | '15oz' | '18oz' | '18oz_double' | 'mesh' | 'corrugated' | 'magnetic' | 'aluminum_040' | 'aluminum_063';
 export type OrderStatus = 'paid' | 'pending' | 'failed' | 'refunded' | 'shipped' | 'delivered' | 'fulfilled' | 'in_production';
 export type TrackingCarrier = 'fedex';
 

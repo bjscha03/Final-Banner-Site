@@ -84,6 +84,9 @@ const estimateBannerCost = (item: OrderItem): LineEstimate => {
     return { ...baseLineDetails(item), reviewRequired: true, productionCostCents: 0, lineCostCents: 0, reason: 'Missing banner fields' };
   }
 
+  if (item.material === '18oz_double') {
+    return { ...baseLineDetails(item), productLabel: 'Double-Sided Banner', reviewRequired: true, productionCostCents: 0, lineCostCents: 0, reason: 'Double-sided banner supplier cost has not been configured' };
+  }
   const materialRate = bannerMaterialCostPerSqFt[item.material];
   if (!materialRate) {
     return { ...baseLineDetails(item), reviewRequired: true, productionCostCents: 0, lineCostCents: 0, reason: `Unknown banner material: ${item.material}` };
