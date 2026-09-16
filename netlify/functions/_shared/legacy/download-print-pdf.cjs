@@ -10,6 +10,7 @@ const { neon } = require('@neondatabase/serverless');
 const { v2: cloudinary } = require('cloudinary');
 const sharp = require('sharp');
 const { PDFDocument, rgb } = require('pdf-lib');
+const { prepareDoubleSidedBannerPdf } = require('../double-sided-banner-pdf.cjs');
 const { requireAdmin } = require('../server-auth.cjs');
 
 cloudinary.config({
@@ -286,7 +287,7 @@ async function createApprovedSnapshotPdf(snapshot, widthIn, heightIn, background
 async function loadOrderItem(itemId) {
   if (!sql || !itemId) return null;
   const rows = await sql`
-    SELECT id, width_in, height_in, file_key, file_url, print_ready_url, web_preview_url,
+    SELECT id, material, width_in, height_in, file_key, file_url, print_ready_url, web_preview_url,
            text_elements, overlay_image, overlay_images, canvas_background_color,
            image_scale, image_position, thumbnail_url,
            final_render_url, final_render_file_key, final_render_width_px,
@@ -362,6 +363,7 @@ function buildAuthoritativeRequest(request, item) {
   return {
     ...request,
     itemId: item.id,
+    material: item.material,
     bannerWidthIn: item.width_in,
     bannerHeightIn: item.height_in,
     fileKey: item.file_key || request.fileKey || null,
@@ -384,7 +386,8 @@ function buildAuthoritativeRequest(request, item) {
   };
 }
 
-function pdfResponse(request, buffer, source, metadata = {}) {
+async function pdfResponse(request, buffer, source, metadata = {}) {
+  buffer = await prepareDoubleSidedBannerPdf(buffer, request.material);
   return {
     statusCode: 200,
     headers: {
@@ -438,7 +441,7 @@ exports.handler = async (event) => {
     const item = await loadOrderItem(request.itemId);
     if (!item) {
       const fallbackBuffer = await renderThroughProductionRenderer(request);
-      return pdfResponse(request, fallbackBuffer, 'request-fallback');
+      return await pdfResponse(request, fallbackBuffer, 'request-fallback');
     }
 
     const authoritativeRequest = buildAuthoritativeRequest(request, item);
@@ -448,7 +451,7 @@ exports.handler = async (event) => {
     if (isNativeSceneV2) {
       authoritativeRequest.canvasStateJson = JSON.stringify(parsedState);
       const vectorBuffer = await renderThroughProductionRenderer(authoritativeRequest);
-      return pdfResponse(authoritativeRequest, vectorBuffer, 'native-scene-v2');
+      return await pdfResponse(authoritativeRequest, vectorBuffer, 'native-scene-v2');
     }
 
     const snapshot = await selectBestApprovedSnapshot(
@@ -465,7 +468,7 @@ exports.handler = async (event) => {
         authoritativeRequest.bannerHeightIn,
         authoritativeRequest.canvasBackgroundColor,
       );
-      return pdfResponse(
+      return await pdfResponse(
         authoritativeRequest,
         snapshotPdf,
         `legacy-approved-${snapshot.source}-direct`,
@@ -476,7 +479,7 @@ exports.handler = async (event) => {
     // There is no permanent approved snapshot. Preserve old compatibility as a
     // final fallback, but do not silently use this path when a proof exists.
     const fallbackBuffer = await renderThroughProductionRenderer(authoritativeRequest);
-    return pdfResponse(authoritativeRequest, fallbackBuffer, 'legacy-reconstruction-fallback');
+    return await pdfResponse(authoritativeRequest, fallbackBuffer, 'legacy-reconstruction-fallback');
   } catch (error) {
     console.error('[ADMIN_PRINT_PDF] generation failed:', error);
     return {

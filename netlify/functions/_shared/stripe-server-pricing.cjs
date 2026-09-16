@@ -6,6 +6,7 @@ const BANNER_MATERIAL_CENTS_PER_SQ_FT = Object.freeze({
   '13oz': 450,
   '15oz': 600,
   '18oz': 750,
+  '18oz_double': 625, // Both sides, 18oz vinyl only.
   mesh: 600,
 });
 const BANNER_GROMMETS = new Set([

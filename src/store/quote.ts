@@ -3,7 +3,7 @@ import { useEditorStore } from './editor';
 import type { RopePlacement } from '@/lib/bannerPricingEngine';
 import type { ArtworkManifest, PlacementPreviewManifest } from '@/types/artwork';
 
-export type MaterialKey = '13oz' | '15oz' | '18oz' | 'mesh' | 'corrugated' | 'magnetic' | 'aluminum_040' | 'aluminum_063';
+export type MaterialKey = '13oz' | '15oz' | '18oz' | '18oz_double' | 'mesh' | 'corrugated' | 'magnetic' | 'aluminum_040' | 'aluminum_063';
 export type Grommets =
   | 'none'
   | 'every-2-3ft'
