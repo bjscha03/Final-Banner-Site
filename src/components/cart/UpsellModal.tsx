@@ -398,7 +398,7 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
                 heightIn={quote.heightIn}
                 details={[
                   { label: 'Size', value: formatDimensions(quote.widthIn, quote.heightIn) },
-                  { label: 'Material', value: `${quote.material} vinyl` },
+                  { label: 'Material', value: quote.material === '18oz_double' ? '18oz Vinyl · Double-Sided' : `${quote.material} vinyl` },
                   { label: 'Quantity', value: String(quote.quantity) },
                   ...(effectiveGrommets !== 'none'
                     ? [{ label: 'Grommets', value: String(effectiveGrommets) }]
@@ -451,7 +451,7 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
                   {formatDimensions(quote.widthIn, quote.heightIn)} {copy.singularLabel}
                 </h3>
                 <p className="mt-1 break-words text-center text-sm text-slate-600 sm:text-left">
-                  {quote.quantity} {quote.quantity === 1 ? copy.singularLabel.toLowerCase() : copy.pluralLabel.toLowerCase()} • {quote.material} vinyl
+                  {quote.quantity} {quote.quantity === 1 ? copy.singularLabel.toLowerCase() : copy.pluralLabel.toLowerCase()} • {quote.material === '18oz_double' ? '18oz Vinyl · Double-Sided' : `${quote.material} vinyl`}
                 </p>
               </div>
             </div>
