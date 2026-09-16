@@ -2670,6 +2670,7 @@ const GoogleAdsBanner: React.FC = () => {
                   )}
                 </ConfigCard>);
   const sizeCard = (<ConfigCard
+                  popularPreset={isLargeBannerLanding ? { widthIn: 96, heightIn: 48 } : undefined}
                   step={1}
                   title={isCarMagnet ? "Choose your size" : "Size & quantity"}
                   id="size-section"
