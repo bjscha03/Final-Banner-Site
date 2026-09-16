@@ -3067,7 +3067,8 @@ const GoogleAdsBanner: React.FC = () => {
         {!isYardSign && !isCarMagnet ? (
           isDoubleSidedBanner ? (
             <section className="border-b-4 border-[#FF6A00] bg-[#F3F6FB] px-4 py-10 sm:py-14">
-              <div className="mx-auto max-w-5xl">
+              <div className="mx-auto grid max-w-7xl items-center gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:gap-12">
+                <div className="order-2 lg:order-1">
                 <a href="/" className="text-sm font-semibold text-[#18448D]">Home</a>
                 <p className="mt-6 text-sm font-bold uppercase tracking-widest text-[#C94008]">18 oz vinyl · Printed on both sides</p>
                 <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-[#0B1F3A] sm:text-6xl">Double-Sided Banners</h1>
@@ -3076,6 +3077,11 @@ const GoogleAdsBanner: React.FC = () => {
                 <p className="mt-2 text-sm text-slate-600">Custom sizes · 24-hour production · Free next-day air shipping</p>
                 <button type="button" onClick={scrollToOrder} className="mt-6 min-h-12 rounded-lg bg-[#C94E00] px-6 py-3 font-bold text-white hover:bg-[#B84300]">Design your double-sided banner</button>
                 <p className="mt-3 text-sm text-slate-600">Same artwork on the front and back. Standard $20 minimum per banner.</p>
+                </div>
+                <figure className="order-1 min-w-0 lg:order-2">
+                  <img src="/images/double-sided-banner-hero.webp" alt="Front and back views of a finished green grand-opening vinyl banner, with the same full-color design on both sides" width="1536" height="1024" fetchPriority="high" loading="eager" className="h-auto w-full rounded-2xl border border-white bg-white shadow-xl" />
+                  <figcaption className="mt-3 text-center text-sm font-semibold text-[#18448D]">One banner. Two printed sides. The same design, seen from either direction.</figcaption>
+                </figure>
               </div>
             </section>
           ) : isFallFestivalLanding ? <FallFestivalHero onStart={scrollToOrder} /> : <FastBannerAdHero onStart={scrollToOrder} />
