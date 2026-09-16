@@ -344,9 +344,10 @@ function buildCartArtworkForEditor(item: CartItem): UploadedArtworkFile | null {
 const GoogleAdsBanner: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const isLargeBannerLanding = location.pathname.replace(/\/+$/, '') === '/large-banners-fast';
   const isDoubleSidedBanner = location.pathname.replace(/\/+$/, '') === '/double-sided-banners';
   const isFallFestivalLanding = location.pathname.replace(/\/+$/, '') === '/fall-festival-banners';
-  const designerPath = isDoubleSidedBanner ? "/double-sided-banners" : location.pathname === "/google-ads-banner" ? "/google-ads-banner" : "/design";
+  const designerPath = isLargeBannerLanding ? "/large-banners-fast" : isDoubleSidedBanner ? "/double-sided-banners" : location.pathname === "/google-ads-banner" ? "/google-ads-banner" : "/design";
   const [searchParams] = useSearchParams();
   const getProductQuerySlug = useCallback((type: ProductTypeSlug) => {
     if (type === 'yard_sign') return 'yard-signs';
@@ -377,7 +378,7 @@ const GoogleAdsBanner: React.FC = () => {
   // Product type state — public for both banners and yard signs
   // Read ?tab= (preferred) or ?product= (legacy) query param so "Add Another Yard Sign" links open the correct tab
   const initialProductType = (() => {
-    if (isDoubleSidedBanner) return 'banner' as ProductTypeSlug;
+    if (isDoubleSidedBanner || isLargeBannerLanding) return 'banner' as ProductTypeSlug;
     const tab = searchParams.get('tab');
     const product = searchParams.get('product');
     const param = tab || product;
@@ -417,14 +418,14 @@ const GoogleAdsBanner: React.FC = () => {
   const [autoOpenDesignId, setAutoOpenDesignId] = useState<string | null>(null);
 
   // Use string state for dimension inputs so users can clear and retype freely
-  const [widthFtStr, setWidthFtStr] = useState('6');
+  const [widthFtStr, setWidthFtStr] = useState(isLargeBannerLanding ? '8' : '6');
   const [widthInRStr, setWidthInRStr] = useState('0');
-  const [heightFtStr, setHeightFtStr] = useState('3');
+  const [heightFtStr, setHeightFtStr] = useState(isLargeBannerLanding ? '4' : '3');
   const [heightInRStr, setHeightInRStr] = useState('0');
   // Raw string state for the inches-mode "Custom Size" inputs. See Design.tsx
   // for rationale: keeps user keystrokes literal so "3" never becomes "03".
-  const [widthCustomInStr, setWidthCustomInStr] = useState('72');
-  const [heightCustomInStr, setHeightCustomInStr] = useState('36');
+  const [widthCustomInStr, setWidthCustomInStr] = useState(isLargeBannerLanding ? '96' : '72');
+  const [heightCustomInStr, setHeightCustomInStr] = useState(isLargeBannerLanding ? '48' : '36');
   // Derived numeric values for calculations (treat empty as 0)
   const widthFt = parseInt(widthFtStr, 10) || 0;
   const widthInR = parseInt(widthInRStr, 10) || 0;
@@ -472,7 +473,7 @@ const GoogleAdsBanner: React.FC = () => {
   }, []);
   const [uploadError, setUploadError] = useState('');
   // Restore the visible, immediately priced popular banner default.
-  const [activePreset, setActivePreset] = useState<number | null>(initialProductType === 'banner' ? POPULAR_BANNER_PRESET.presetIndex : null);
+  const [activePreset, setActivePreset] = useState<number | null>(initialProductType === 'banner' ? (isLargeBannerLanding ? 4 : POPULAR_BANNER_PRESET.presetIndex) : null);
   const [quantity, setQuantity] = useState(initialProductType === 'yard_sign' ? 10 : 1);
   const storedPromoAtLoad = useCartStore.getState().discountCode;
   const [promoCode, setPromoCode] = useState(storedPromoAtLoad?.code || 'NEW20');
@@ -3035,9 +3036,10 @@ const GoogleAdsBanner: React.FC = () => {
   return (
     <>
       <Helmet>
-        <title>{isDoubleSidedBanner ? 'Double-Sided 18oz Vinyl Banners — $6.25/sq ft' : isFallFestivalLanding ? 'Custom Fall Festival Banners' : isYardSign ? 'Custom Yard Signs' : isCarMagnet ? 'Car Magnets' : 'Custom Banner Printing'} - 24 Hour Production | Banners On The Fly</title>
-        <meta name="description" content={isDoubleSidedBanner ? 'Custom double-sided banners on 18 oz vinyl. $6.25 per square foot includes both sides. Upload artwork or create with AI. Free next-day air shipping.' : isFallFestivalLanding ? 'Custom fall festival banners for churches, schools, harvest festivals and trunk-or-treats. Upload artwork or create with AI. 24-hour production.' : isYardSign ? "Upload yard-sign artwork, review the supported size and current price, and see production and shipping details before checkout." : isCarMagnet ? "Configure a supported car-magnet size, upload artwork, preview the print, and review production and shipping before checkout." : "Upload banner artwork, choose size and material, preview the print, and review production and shipping before checkout."} />
-        <meta name="robots" content={isDoubleSidedBanner || isFallFestivalLanding ? "index, follow" : "noindex, nofollow"} />
+        <title>{isLargeBannerLanding ? 'Large Banners Fast — Free Next-Day Air Shipping' : isDoubleSidedBanner ? 'Double-Sided 18oz Vinyl Banners — $6.25/sq ft' : isFallFestivalLanding ? 'Custom Fall Festival Banners' : isYardSign ? 'Custom Yard Signs' : isCarMagnet ? 'Car Magnets' : 'Custom Banner Printing'} - 24 Hour Production | Banners On The Fly</title>
+        <meta name="description" content={isLargeBannerLanding ? "Order large custom vinyl banners with 24-hour production and free next-day air shipping after production. Choose 8 × 4 ft, 10 × 4 ft or custom sizes. Get instant pricing and design online." : isDoubleSidedBanner ? 'Custom double-sided banners on 18 oz vinyl. $6.25 per square foot includes both sides. Upload artwork or create with AI. Free next-day air shipping.' : isFallFestivalLanding ? 'Custom fall festival banners for churches, schools, harvest festivals and trunk-or-treats. Upload artwork or create with AI. 24-hour production.' : isYardSign ? "Upload yard-sign artwork, review the supported size and current price, and see production and shipping details before checkout." : isCarMagnet ? "Configure a supported car-magnet size, upload artwork, preview the print, and review production and shipping before checkout." : "Upload banner artwork, choose size and material, preview the print, and review production and shipping before checkout."} />
+        <meta name="robots" content={isLargeBannerLanding ? "noindex, follow" : isDoubleSidedBanner || isFallFestivalLanding ? "index, follow" : "noindex, nofollow"} />
+        {isLargeBannerLanding && <link rel="canonical" href="https://bannersonthefly.com/large-banners-fast" />}
         {isDoubleSidedBanner && <link rel="canonical" href="https://bannersonthefly.com/double-sided-banners" />}
         {isFallFestivalLanding && <link rel="canonical" href="https://bannersonthefly.com/fall-festival-banners" />}
       </Helmet>
@@ -3066,7 +3068,7 @@ const GoogleAdsBanner: React.FC = () => {
 
         {/* HERO */}
         {!isYardSign && !isCarMagnet ? (
-          isDoubleSidedBanner ? (
+          isLargeBannerLanding ? <ProductPageHero productSlug="large-banners-fast" ctaUrl="#order-builder" onStart={scrollToOrder} /> : isDoubleSidedBanner ? (
             <ProductPageHero productSlug="double-sided-banners" ctaUrl="#order-builder" onStart={scrollToOrder} />
           ) : isFallFestivalLanding ? <FallFestivalHero onStart={scrollToOrder} /> : <FastBannerAdHero onStart={scrollToOrder} />
         ) : (
@@ -3155,7 +3157,7 @@ const GoogleAdsBanner: React.FC = () => {
               id="builder-start"
               className="homepage-condensed bg-[#061A31] px-4 py-6 text-4xl md:text-5xl uppercase text-white font-bold text-center mb-10 scroll-mt-[140px] md:scroll-mt-24"
             >
-              {isDoubleSidedBanner ? 'Build Your Double-Sided Banner' : isYardSign ? 'Build Your Yard Sign Order' : isCarMagnet ? 'Design Your Custom Car Magnets' : 'Build Your Banner'}
+              {isLargeBannerLanding ? 'Build Your Large Banner' : isDoubleSidedBanner ? 'Build Your Double-Sided Banner' : isYardSign ? 'Build Your Yard Sign Order' : isCarMagnet ? 'Design Your Custom Car Magnets' : 'Build Your Banner'}
             </h2>
             {showPostAddResetNotice && (
               <div
@@ -3456,7 +3458,7 @@ const GoogleAdsBanner: React.FC = () => {
         <MobileSubtotalBar
           cartItemCount={cartItemCount}
           onViewCart={openCartDrawer}
-          priceNote={showPopularBannerPriceNote ? "Popular 6′ × 3′ size preselected" : undefined}
+          priceNote={isLargeBannerLanding && widthIn === 96 && heightIn === 48 ? "8′ × 4′ large banner selected" : showPopularBannerPriceNote ? "Popular 6′ × 3′ size preselected" : undefined}
           subtotal={
             !isYardSign && !isCarMagnet ? (
               <div>
