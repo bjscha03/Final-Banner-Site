@@ -482,6 +482,24 @@ const GoogleAdsBanner: React.FC = () => {
   const [promoApplied, setPromoApplied] = useState(Boolean(storedPromoAtLoad));
 
   const [hasConfirmedSize, setHasConfirmedSize] = useState(initialProductType === 'banner');
+
+  // /design renders this component for banners. Honor the selected size card.
+  useEffect(() => {
+    if (productType !== 'banner' || searchParams.get('editItem')) return;
+    const w = Number(searchParams.get('width'));
+    const h = Number(searchParams.get('height'));
+    if (!Number.isFinite(w) || !Number.isFinite(h) || w < 6 || h < 6
+      || Math.max(w, h) > 600 || Math.min(w, h) > 192) return;
+    setWidthFtStr(String(Math.floor(w / 12)));
+    setWidthInRStr(String(w % 12));
+    setHeightFtStr(String(Math.floor(h / 12)));
+    setHeightInRStr(String(h % 12));
+    setWidthCustomInStr(String(w));
+    setHeightCustomInStr(String(h));
+    const preset = PRESET_SIZES.findIndex(size => size.w === w && size.h === h);
+    setActivePreset(preset >= 0 ? preset : null);
+    setHasConfirmedSize(true);
+  }, [productType, searchParams]);
   const [hasConfirmedMaterial, setHasConfirmedMaterial] = useState(false);
   const [hasConfirmedQuantity, setHasConfirmedQuantity] = useState(false);
   const [hasReviewedOptions, setHasReviewedOptions] = useState(false);
