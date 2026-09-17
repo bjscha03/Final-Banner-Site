@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { calculateBannerPricing } from '@/lib/bannerPricingEngine';
+import { calculateBannerPricing, calculateBannerUnitBasePriceCents } from '@/lib/bannerPricingEngine';
 
 describe('bannerPricingEngine', () => {
+  it.each([[20,10000],[21,10325],[50,19750],[51,20025],[250,74750],[800,226000]])('prices %s square feet progressively', (area, cents) => {
+    expect(calculateBannerUnitBasePriceCents(area, '13oz')).toBe(cents);
+  });
+
   it('calculates base banner pricing with no add-ons', () => {
     const result = calculateBannerPricing({
       widthIn: 48,
@@ -13,13 +17,13 @@ describe('bannerPricingEngine', () => {
       addRope: false,
     });
 
-    expect(result.baseBannerPriceCents).toBe(3600);
+    expect(result.baseBannerPriceCents).toBe(4000);
     expect(result.ropeCostCents).toBe(0);
     expect(result.polePocketCostCents).toBe(0);
     expect(result.quantityDiscountCents).toBe(0);
-    expect(result.subtotalCents).toBe(3600);
-    expect(result.taxCents).toBe(216);
-    expect(result.totalCents).toBe(3816);
+    expect(result.subtotalCents).toBe(4000);
+    expect(result.taxCents).toBe(240);
+    expect(result.totalCents).toBe(4240);
   });
 
   it('applies quantity discount for qty 2', () => {
@@ -34,9 +38,9 @@ describe('bannerPricingEngine', () => {
     });
 
     expect(result.quantityDiscountRate).toBe(0.05);
-    expect(result.subtotalBeforeDiscountCents).toBe(7200);
-    expect(result.quantityDiscountCents).toBe(360);
-    expect(result.subtotalCents).toBe(6840);
+    expect(result.subtotalBeforeDiscountCents).toBe(8000);
+    expect(result.quantityDiscountCents).toBe(400);
+    expect(result.subtotalCents).toBe(7600);
   });
 
   it('includes pole pocket setup + linear foot charge', () => {
@@ -83,7 +87,7 @@ describe('bannerPricingEngine', () => {
 
     expect(result.polePocketCostCents).toBe(3100);
     expect(result.ropeCostCents).toBe(800);
-    expect(result.subtotalBeforeDiscountCents).toBe(7500);
+    expect(result.subtotalBeforeDiscountCents).toBe(7900);
   });
 
   it('uses material pricing map correctly', () => {
@@ -124,7 +128,7 @@ describe('bannerPricingEngine', () => {
     }
   });
 
-  it("preserves the existing 6' × 3' price after the customer selects it", () => {
+  it("calculates the updated 6' × 3' price after the customer selects it", () => {
     const result = calculateBannerPricing({
       widthIn: 72,
       heightIn: 36,
@@ -135,10 +139,10 @@ describe('bannerPricingEngine', () => {
       addRope: false,
     });
 
-    expect(result.baseBannerPriceCents).toBe(8100);
-    expect(result.subtotalCents).toBe(8100);
-    expect(result.taxCents).toBe(486);
-    expect(result.totalCents).toBe(8586);
+    expect(result.baseBannerPriceCents).toBe(9000);
+    expect(result.subtotalCents).toBe(9000);
+    expect(result.taxCents).toBe(540);
+    expect(result.totalCents).toBe(9540);
   });
 
 });
