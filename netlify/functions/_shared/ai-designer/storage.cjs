@@ -160,24 +160,24 @@ async function uploadJobRecord(publicId, record) {
 
 async function fetchJobRecord(payload) {
   configure();
-  let asset;
-  try {
-    asset = await cloudinary.api.resource(payload.publicId, { resource_type: 'raw', type: 'authenticated' });
-  } catch (error) {
-    if (Number(error?.http_code || error?.status || 0) === 404) return null;
-    throw error;
-  }
-  const url = cloudinary.url(payload.publicId, {
+  // Job records change several times per second. Media CDN versions are
+  // timestamp-based and invalidation is asynchronous, so a claim read can see
+  // the queued record after we have already written "processing". The worker
+  // then abandons its own claim and leaves the customer waiting indefinitely.
+  // Read mutable control data through Cloudinary's uncached, signed download
+  // API. Keep image delivery on the CDN. This also removes an Admin API call
+  // from every customer poll. This short-lived URL stays entirely server-side.
+  const url = cloudinary.utils.private_download_url(payload.publicId, undefined, {
     resource_type: 'raw',
     type: 'authenticated',
-    version: asset.version,
-    secure: true,
-    sign_url: true,
+    expires_at: Math.floor(Date.now() / 1000) + 60,
+    attachment: false,
   });
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15000);
   try {
-    const response = await fetch(url, { signal: controller.signal, headers: { Accept: 'application/json' } });
+    const response = await fetch(url, { signal: controller.signal, cache: 'no-store', headers: { Accept: 'application/json' } });
+    if (response.status === 404) return null;
     if (!response.ok) throw new Error('AI job record could not be retrieved.');
     const buffer = Buffer.from(await response.arrayBuffer());
     if (!buffer.length || buffer.length > 12 * 1024 * 1024) throw new Error('AI job record is invalid.');

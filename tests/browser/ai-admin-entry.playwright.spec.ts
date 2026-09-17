@@ -180,5 +180,5 @@ test('admin completes the background brief and generation workflow', async ({ pa
   await page.getByRole('button', { name: 'Create my banner' }).click();
   await expect(page.getByRole('heading', { name: 'Selected production design' })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText('Print ready')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Use this banner' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Use selected version & continue' })).toBeEnabled();
 });
