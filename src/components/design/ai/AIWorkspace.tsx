@@ -23,6 +23,7 @@ import { trackAIEvent } from '@/lib/aiAnalytics';
 import { useAuth } from '@/lib/auth';
 import { loadDraft, saveDraft } from './draftStore';
 import { collectVersions } from './versions';
+import { fetchAIRequest } from './jobRequest';
 import LayerControls from './LayerControls';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import type {
@@ -210,7 +211,7 @@ async function runBackgroundJob(
     // not create a second paid generation.
     start = { startPath, payloadFingerprint, idempotencyKey, createdAt: Date.now(), dispatched: false };
     window.sessionStorage.setItem(pendingKey, JSON.stringify(start));
-    const startResponse = await fetch(startPath, {
+    const startResponse = await fetchAIRequest(startPath, {
       method: 'POST',
       credentials: 'same-origin',
       signal,
@@ -228,7 +229,7 @@ async function runBackgroundJob(
 
   onStage(waitingMessage);
   if (start.dispatched !== true) {
-    const workerResponse = await fetch(String(start.workerPath || '/.netlify/functions/ai-designer-worker-background'), {
+    const workerResponse = await fetchAIRequest(String(start.workerPath || '/.netlify/functions/ai-designer-worker-background'), {
       method: 'POST',
       credentials: 'same-origin',
       signal,
@@ -245,7 +246,7 @@ async function runBackgroundJob(
   const pollPath = String(start.pollPath || '/.netlify/functions/ai-designer-job');
   while (Date.now() < deadline) {
     await waitFor(Math.max(1000, Number(start.pollAfterMs) || 2000), signal);
-    const pollResponse = await fetch(pollPath, {
+    const pollResponse = await fetchAIRequest(pollPath, {
       method: 'POST',
       credentials: 'same-origin',
       signal,
@@ -329,7 +330,7 @@ export default function AIWorkspace(props: Props) {
   useEffect(() => {
     let active = true;
     if (!access.authorized || !access.sessionKey) return;
-    loadDraft<{ versionGallery?: boolean; brief: CreativeBrief; concepts: AIConcept[]; selectedId: string; history: AIConcept[]; redo: AIConcept[]; logoImage: string | null; referenceImage: string | null; photoImages?: string[] }>(draftKey).then(draft => {
+    loadDraft<{ versionGallery?: boolean; editInstruction?: string; brief: CreativeBrief; concepts: AIConcept[]; selectedId: string; history: AIConcept[]; redo: AIConcept[]; logoImage: string | null; referenceImage: string | null; photoImages?: string[] }>(draftKey).then(draft => {
       if (!active || !draft) return;
       // Reopening Edit with AI must recover newer work from this same artwork,
       // but never replace a different banner with an unrelated saved draft.
@@ -338,6 +339,7 @@ export default function AIWorkspace(props: Props) {
       setBrief(draft.brief); setBriefReviewed(draft.brief.structured);
       setConcepts(draft.versionGallery ? draft.concepts : collectVersions(draft.history || [], draft.concepts, draft.redo || [])); setSelectedId(draft.selectedId);
       setHistory(draft.history || []); setRedo(draft.redo || []);
+      setEditInstruction(draft.editInstruction || '');
       setLogoImage(draft.logoImage); setReferenceImage(draft.referenceImage); setPhotoImages(draft.photoImages || []);
       setSaveNotice('Your previous draft has been restored.');
     }).catch(() => { if (active) setSaveNotice('Draft recovery is unavailable in this browser. Keep this window open while designing.'); })
@@ -347,14 +349,14 @@ export default function AIWorkspace(props: Props) {
 
   useEffect(() => {
     if (!recoveryReady || !access.authorized || !access.sessionKey) return;
-    const value = { versionGallery: true, brief, concepts, selectedId, history, redo, logoImage, referenceImage, photoImages };
+    const value = { versionGallery: true, brief, concepts, selectedId, history, redo, logoImage, referenceImage, photoImages, editInstruction };
     latestDraftRef.current = { key: draftKey, value };
     const timer = window.setTimeout(() => {
       saveDraft(draftKey, value)
         .catch(() => setSaveNotice('This browser could not save your draft. Keep this window open while designing.'));
     }, 400);
     return () => window.clearTimeout(timer);
-  }, [recoveryReady, draftKey, brief, concepts, selectedId, history, redo, logoImage, referenceImage, photoImages, access.authorized, access.sessionKey]);
+  }, [recoveryReady, draftKey, brief, concepts, selectedId, history, redo, logoImage, referenceImage, photoImages, editInstruction, access.authorized, access.sessionKey]);
 
   // Flush the latest selection if the customer closes the studio before the
   // debounced save. Generated artwork should not disappear on a quick Back.
@@ -677,14 +679,14 @@ export default function AIWorkspace(props: Props) {
     try {
     let imageBase64 = selected.imageBase64;
     if (selected.artworkRef) {
-      const response = await fetch('/.netlify/functions/ai-designer-export', {
+      const response = await fetchAIRequest('/.netlify/functions/ai-designer-export', {
         method: 'POST', credentials: 'same-origin',
         headers: authorizedHeaders({ 'Content-Type': 'application/json' }),
         body: authenticatedJsonBody({ artworkRef: selected.artworkRef }),
       });
       const result = await response.json();
       if (!response.ok || !result.url) throw new Error('The production artwork could not be retrieved. Your preview is still available.');
-      const file = await fetch(result.url);
+      const file = await fetchAIRequest(result.url);
       if (!file.ok) throw new Error('The production artwork download failed. Please try again.');
       imageBase64 = (await fileToDataUrl(await file.blob())).split(',')[1];
     }
