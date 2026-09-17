@@ -31,6 +31,10 @@ export const validateProductConfiguration = ({
     };
   }
 
+  if (productType === 'banner' && (Math.max(widthIn, heightIn) > 600 || Math.min(widthIn, heightIn) > 192)) {
+    return { valid: false, code: 'DIMENSIONS_OUT_OF_RANGE', message: 'Standard online banner orders are limited to 50 feet on the long side and 16 feet on the short side. Please request a custom quote for larger sizes.' };
+  }
+
   const areaSqFt = (widthIn * heightIn) / 144;
   if (areaSqFt > config.dimensions.maxSqFt) {
     return { valid: false, code: 'AREA_LIMIT_EXCEEDED', message: config.dimensions.sizeLimitMessage };

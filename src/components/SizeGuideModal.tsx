@@ -33,7 +33,7 @@ const SizeGuideModal: React.FC<SizeGuideModalProps> = ({ isOpen, onClose }) => {
     },
     {
       title: 'Custom Sizes',
-      description: 'We can print any size from 1" to 1000" in width or height. Pricing is based on total square footage.'
+      description: 'Standard online banner orders can be up to 50 feet on the long side and 16 feet on the short side. Larger projects are available by custom quote.'
     },
     {
       title: 'Orientation',

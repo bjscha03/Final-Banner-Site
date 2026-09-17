@@ -27,6 +27,7 @@ interface ProductHeroDefinition {
   title: string[];
   primaryLabel: string;
   secondaryLabel: string;
+  secondaryUrl?: string;
   imageAlt: string;
   benefits: HeroBenefit[];
 }
@@ -41,11 +42,16 @@ const HERO_DEFINITIONS: Record<HeroProductSlug, ProductHeroDefinition> = {
   'large-banners-fast': {
     eyebrow: 'Large custom banners · Printed fast · Shipped nationwide',
     title: ['Large banners.', 'Fast.'],
-    intro: 'Big visibility for your next opening, event, or deadline. Choose 8 × 4 ft, 10 × 4 ft, or a custom size. Upload your artwork or create with AI.',
+    intro: 'Big visibility for your next opening, event, or deadline. Order standard sizes online up to 50 × 16 ft. Larger projects, including single-piece banners up to 16 × 150 ft, are available by custom quote.',
     primaryLabel: 'Build & price my large banner',
-    secondaryLabel: 'Choose your size & get instant pricing',
+    secondaryLabel: 'Need a larger size? Request a custom quote',
+    secondaryUrl: '/custom-quote',
     imageAlt: 'Large custom vinyl banner installed outside a business',
-    benefits: sharedBenefits,
+    benefits: [
+      { label: '24-hour standard production', icon: Clock3 },
+      { label: 'Oversized banners may ship by freight', icon: Truck },
+      { label: 'Custom quote for larger projects', icon: Monitor },
+    ],
   },
   'double-sided-banners': {
     eyebrow: 'Double-sided banners · Heavy-duty 18 oz vinyl',
@@ -146,7 +152,7 @@ const ProductPageHero: React.FC<ProductPageHeroProps> = ({ productSlug, ctaUrl, 
               <ArrowRight className="h-5 w-5 flex-none" aria-hidden="true" />
             </Link>
             <a
-              href={(productSlug === 'double-sided-banners' || productSlug === 'large-banners-fast') ? '#order-builder' : '#sizes-pricing'}
+              href={hero.secondaryUrl ?? ((productSlug === 'double-sided-banners' || productSlug === 'large-banners-fast') ? '#order-builder' : '#sizes-pricing')}
               className="inline-flex min-h-11 items-center border-b-2 border-[#061A31] pb-0.5 text-sm font-black uppercase tracking-[0.035em] text-[#061A31] transition-colors hover:border-white hover:text-white sm:text-base"
             >
               {hero.secondaryLabel}

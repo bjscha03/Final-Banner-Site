@@ -2,6 +2,8 @@
 
 const PRODUCT_LIMIT = 50;
 const MAX_QUANTITY = 1000;
+const MAX_BANNER_LONG_SIDE_INCHES = 600;
+const MAX_BANNER_SHORT_SIDE_INCHES = 192;
 const BANNER_MATERIAL_CENTS_PER_SQ_FT = Object.freeze({
   '13oz': 450,
   '15oz': 600,
@@ -73,9 +75,22 @@ function lineFeet(width, height, position) {
   }
 }
 
+function bannerUnitPriceCents(areaSqFt, material) {
+  if (material === '13oz') {
+    const firstTier = Math.min(areaSqFt, 20) * 500;
+    const secondTier = Math.min(Math.max(areaSqFt - 20, 0), 30) * 325;
+    const finalTier = Math.max(areaSqFt - 50, 0) * 275;
+    return Math.max(2000, Math.round(firstTier + secondTier + finalTier));
+  }
+  return Math.max(2000, Math.round(areaSqFt * BANNER_MATERIAL_CENTS_PER_SQ_FT[material]));
+}
+
 function normalizeBanner(item, index) {
   const width = number(item.width_in, `items[${index}].width_in`, { min: 6, max: 600 });
   const height = number(item.height_in, `items[${index}].height_in`, { min: 6, max: 600 });
+  if (Math.max(width, height) > MAX_BANNER_LONG_SIDE_INCHES || Math.min(width, height) > MAX_BANNER_SHORT_SIDE_INCHES) {
+    fail('BANNER_CUSTOM_QUOTE_REQUIRED', 'Standard online banner orders are limited to 50 feet by 16 feet. Please request a custom quote for larger sizes.', { index });
+  }
   if ((width * height) / 144 > 1000) {
     fail('BANNER_CUSTOM_QUOTE_REQUIRED', 'Banners over 1,000 square feet require a custom quote.', { index });
   }
@@ -90,7 +105,7 @@ function normalizeBanner(item, index) {
   }
 
   const areaSqFt = (width * height) / 144;
-  const unitPriceCents = Math.max(2000, Math.round(areaSqFt * BANNER_MATERIAL_CENTS_PER_SQ_FT[material]));
+  const unitPriceCents = bannerUnitPriceCents(areaSqFt, material);
   const baseCents = unitPriceCents * quantity;
 
   const rawRopePlacement = clean(item.rope_placement).toLowerCase();
@@ -272,7 +287,7 @@ function repriceStripeCart(rawItems) {
     fail('CART_ITEMS_INVALID', 'The cart must contain between 1 and 50 items.');
   }
 
-  return rawItems.map((rawItem, index) => {
+  const normalizedItems = rawItems.map((rawItem, index) => {
     if (!rawItem || typeof rawItem !== 'object' || Array.isArray(rawItem)) {
       fail('CART_ITEM_INVALID', `Cart item ${index + 1} is invalid.`, { index });
     }
@@ -282,10 +297,19 @@ function repriceStripeCart(rawItems) {
     if (productType === 'car_magnet') return normalizeCarMagnet(rawItem, index);
     fail('PRODUCT_TYPE_UNSUPPORTED', 'This product cannot be purchased through checkout.', { index, productType });
   });
+  const totalBannerSqFt = rawItems.reduce((total, item) => {
+    if (clean(item?.product_type || 'banner').toLowerCase() !== 'banner') return total;
+    return total + ((Number(item.width_in) * Number(item.height_in)) / 144) * Number(item.quantity || 1);
+  }, 0);
+  if (totalBannerSqFt > 1000) {
+    fail('BANNER_CUSTOM_QUOTE_REQUIRED', 'Banner orders over 1,000 total square feet require a custom quote and 1-5 business days of production.', { totalBannerSqFt });
+  }
+  return normalizedItems;
 }
 
 module.exports = {
   BANNER_MATERIAL_CENTS_PER_SQ_FT,
+  bannerUnitPriceCents,
   MAGNET_PRICES,
   StripePricingError,
   repriceStripeCart,

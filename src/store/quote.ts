@@ -117,7 +117,10 @@ export const calculateSquareFootage = (widthIn: number, heightIn: number): numbe
 
 export const ORDER_SIZE_LIMIT_SQFT = 1000;
 
-export const getSizeLimitMessage = (sqft: number): string | null => {
+export const getSizeLimitMessage = (sqft: number, widthIn?: number, heightIn?: number): string | null => {
+  if (widthIn && heightIn && (Math.max(widthIn, heightIn) > 600 || Math.min(widthIn, heightIn) > 192)) {
+    return 'Standard online banner orders are limited to 50 feet on the long side and 16 feet on the short side. Please request a custom quote for larger sizes.';
+  }
   if (sqft > ORDER_SIZE_LIMIT_SQFT) {
     return 'Orders over 1,000 sq ft require a custom quote. Please contact support@bannersonthefly.com before placing your order.';
   }
@@ -314,12 +317,12 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
     return calculateSquareFootage(state.widthIn, state.heightIn);
   },
   isOverSizeLimit: () => {
-    const sqft = get().getSquareFootage();
-    return sqft > ORDER_SIZE_LIMIT_SQFT;
+    const state = get();
+    return Boolean(getSizeLimitMessage(calculateSquareFootage(state.widthIn, state.heightIn), state.widthIn, state.heightIn));
   },
   getSizeLimitMessage: () => {
-    const sqft = get().getSquareFootage();
-    return getSizeLimitMessage(sqft);
+    const state = get();
+    return getSizeLimitMessage(calculateSquareFootage(state.widthIn, state.heightIn), state.widthIn, state.heightIn);
   },
   addTextElement: (element) => set((state) => ({
     ...state,

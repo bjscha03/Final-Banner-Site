@@ -832,6 +832,9 @@ const GoogleAdsBanner: React.FC = () => {
   });
 
   const pricePerSqFt = PRICE_PER_SQFT[material];
+  const priceSummary = material === '13oz'
+    ? 'tiered volume pricing'
+    : `${usd(pricePerSqFt)} per sq ft`;
   const selectedMaterial = isDoubleSidedBanner
     ? { ...MATERIALS.find(m => m.mapped === '18oz')!, label: '18oz Vinyl · Double-Sided' }
     : MATERIALS.find(m => m.mapped === material) || MATERIALS[0];
@@ -3319,7 +3322,7 @@ const GoogleAdsBanner: React.FC = () => {
                   <PriceBreakdown
                     variant="compact"
                     heading="Your banner"
-                    topLine={`${sqft.toFixed(2)} sq ft • ${usd(pricePerSqFt)} per sq ft`}
+                    topLine={`${sqft.toFixed(2)} sq ft • ${priceSummary}`}
                     secondaryLine={`for ${quantity} ${quantity === 1 ? 'banner' : 'banners'} • ${widthDisplay} × ${heightDisplay} • ${materialLabel}`}
                     showTopSummary={false}
                     detailRows={[

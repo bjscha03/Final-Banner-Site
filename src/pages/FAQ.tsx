@@ -21,7 +21,7 @@ const FAQ: React.FC = () => {
     },
     {
       question: "What banner sizes do you offer?",
-      answer: "The banner configurator accepts dimensions from 6 inches to 600 inches per side, up to 1,000 square feet. Larger work requires a custom quote and may need additional production time.",
+      answer: "Standard banner orders can be placed online up to 50 feet on the long side and 16 feet on the short side, with a 1,000-square-foot total order limit. Larger work requires a custom quote.",
       category: "Specifications"
     },
     {
@@ -61,7 +61,7 @@ const FAQ: React.FC = () => {
     },
     {
       question: "What if I order more than 1,000 square feet?",
-      answer: "For quantities greater than 1,000 sq ft, production time of 1–5 business days may be required. Ground or freight shipping may apply. Orders over 1,000 sq ft require a custom quote. Please contact us before placing your order.",
+      answer: "Orders over 1,000 sq ft require a custom quote. They may need 1–5 business days of production and may ship by freight; carrier transit timing is separate from production.",
       category: "Production"
     },
     {

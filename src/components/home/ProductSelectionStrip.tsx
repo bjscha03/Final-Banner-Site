@@ -31,7 +31,7 @@ const ProductSelectionStrip: React.FC = () => {
         <p className="mt-3 text-base text-slate-600 sm:text-lg">Your message. The right format. Ready to get noticed.</p>
         <div className="mt-7 grid gap-4 md:grid-cols-3">
           {products.map((product) => (
-            <Link key={product.slug} to={`/${product.slug}`}
+            <Link key={product.slug} to={product.slug === 'vinyl-banners' ? '/design' : `/${product.slug}`}
               onClick={() => trackSelectItem({ item_list_id: LIST_ID, item_list_name: LIST_NAME, item: toAnalyticsItem(product) })}
               className="group relative block aspect-[6/5] overflow-hidden bg-[#061A31] text-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#FF6A00] focus-visible:ring-offset-4"
             >
@@ -43,7 +43,7 @@ const ProductSelectionStrip: React.FC = () => {
                 <p className="mt-2 text-sm">{product.details}</p>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-bold">{product.price}</p>
-                  <span className="inline-flex items-center gap-2 border-b border-white/70 pb-1 text-xs font-bold uppercase transition-colors group-hover:text-orange-200">Product details <ArrowRight className="h-4 w-4" aria-hidden="true" /></span>
+                  <span className="inline-flex items-center gap-2 border-b border-white/70 pb-1 text-xs font-bold uppercase transition-colors group-hover:text-orange-200">{product.slug === 'vinyl-banners' ? 'Start designing' : 'Product details'} <ArrowRight className="h-4 w-4" aria-hidden="true" /></span>
                 </div>
               </div>
             </Link>
