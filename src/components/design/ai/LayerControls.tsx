@@ -27,6 +27,6 @@ export default function LayerControls({ brief, concept, busy, onChange, onApply 
       {!imageLayer && <button type="button" onClick={() => onChange({ ...brief, copy: { ...brief.copy, [role]: '' }, copyOverrides: { ...brief.copyOverrides, [role]: '' } })} className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm">Remove this text</button>}
       <button type="button" onClick={onApply} className="min-h-11 rounded-lg bg-[#0b1f3a] px-4 text-sm font-bold text-white">Apply changes</button>
     </fieldset>
-    <p className="mt-2 text-xs text-slate-500">{brief.typographyMode === 'ai' ? 'AI applies text changes to the existing design. For a different lettering style, describe it in Edit with AI. Review the result before accepting.' : 'Applies to your current artwork. No new image generation. Placement stays inside the print-safe edges.'}</p>
+    <p className="mt-2 text-xs text-slate-500">{brief.typographyMode === 'ai' ? 'AI applies text changes to the selected design. For a different lettering style, describe it in Edit with AI. Your earlier versions stay available.' : 'Applies to your current artwork. No new image generation. Placement stays inside the print-safe edges.'}</p>
   </details>;
 }

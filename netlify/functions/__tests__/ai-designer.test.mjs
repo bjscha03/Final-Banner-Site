@@ -807,15 +807,15 @@ describe('customer entry points, protected admin tools, and artwork handoff', ()
     expect(design).toContain('pendingAIArtworkScrollRef.current = true');
     expect(workspace).toContain('Retry connection');
     expect(workspace).not.toContain('Admin password');
-    expect(workspace).toContain('This can take close to a minute.');
+    expect(workspace).toContain('This may take a few minutes.');
     expect(workspace).toContain('your design will appear here automatically.');
     expect(workspace).toContain('Review warning & continue');
     expect(workspace).toContain('Use this banner anyway');
     expect(workspace).toContain('validation_override: validationOverride');
     expect(workspace).not.toContain('disabled={!selected.validation.passed');
     expect(workspace).toContain('concept.versionId === selectedId');
-    expect(workspace).toContain('setSelectedId(acceptedEdit.versionId)');
-    expect(workspace).toContain('Edit accepted. The edited artwork is now your current design.');
+    expect(workspace).toContain('setSelectedId(edited.versionId)');
+    expect(workspace).toContain('Your updated design is selected.');
     expect(workspace).toContain('body: authenticatedJsonBody(');
     expect(accessHook).toContain('const authenticationFailed = response.status === 401');
     expect(clientAuth).toContain("const SESSION_HEADER = 'X-Banners-Admin-Session'");
