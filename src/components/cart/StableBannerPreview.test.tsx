@@ -15,6 +15,12 @@ const renderPreview = (isFinalizedSnapshot: boolean, maxSize = 200) => renderToS
 );
 
 describe('StableBannerPreview', () => {
+  it('fills the exact 50-by-5 proof frame without border-induced letterboxing', () => {
+    const html = renderToStaticMarkup(<StableBannerPreview widthIn={600} heightIn={60} grommets="none" imageUrl="https://example.com/proof.jpg" isFinalizedSnapshot maxSize={820} />);
+    expect(html).toContain('aspect-ratio:600 / 60');
+    expect(html).toContain('object-fit:fill');
+    expect(html).not.toContain('border-2');
+  });
   it('overscans finalized proof images to hide baked edge seams', () => {
     const html = renderPreview(true);
 

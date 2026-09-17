@@ -47,6 +47,19 @@ export const calculateBannerAreaSqFt = (widthIn: number, heightIn: number): numb
   return (widthIn * heightIn) / 144;
 };
 
+/** Progressive 13oz pricing; other materials keep their configured rate. */
+export const calculateBannerUnitBasePriceCents = (areaSqFt: number, material: MaterialKey): number => {
+  if (!Number.isFinite(areaSqFt) || areaSqFt <= 0) return 0;
+  if (material === '13oz') {
+    const firstTier = Math.min(areaSqFt, 20) * 5;
+    const secondTier = Math.min(Math.max(areaSqFt - 20, 0), 30) * 3.25;
+    const finalTier = Math.max(areaSqFt - 50, 0) * 2.75;
+    return Math.max(MINIMUM_UNIT_PRICE_CENTS, Math.round((firstTier + secondTier + finalTier) * 100));
+  }
+  const materialRate = MATERIAL_PRICE_MAP[material] ?? MATERIAL_PRICE_MAP['13oz'];
+  return Math.max(MINIMUM_UNIT_PRICE_CENTS, Math.round(areaSqFt * materialRate * 100));
+};
+
 export const getPolePocketLinearFeet = (
   widthIn: number,
   heightIn: number,
@@ -98,9 +111,8 @@ export const calculateBannerPricing = ({
 
   const hasConfiguredSize = safeWidthIn > 0 && safeHeightIn > 0;
   const areaSqFt = calculateBannerAreaSqFt(safeWidthIn, safeHeightIn);
-  const materialRate = MATERIAL_PRICE_MAP[material] ?? MATERIAL_PRICE_MAP['13oz'];
   const unitBasePriceCents = hasConfiguredSize
-    ? Math.max(MINIMUM_UNIT_PRICE_CENTS, Math.round(areaSqFt * materialRate * 100))
+    ? calculateBannerUnitBasePriceCents(areaSqFt, material)
     : 0;
   const baseBannerPriceCents = unitBasePriceCents * safeQuantity;
 

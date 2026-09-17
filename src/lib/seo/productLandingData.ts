@@ -102,8 +102,8 @@ export const PRODUCT_LANDING_DATA: Record<CityProductSlug, ProductLandingDefinit
     minimumOrderLabel: `One banner; ${formatMoney(bannerConfig.minimumUnitPriceCents)} minimum unit price`,
     priceExamples: [bannerExample(24, 48), bannerExample(36, 72), bannerExample(48, 96)],
     sizes: [
-      `Custom width and height from ${bannerConfig.dimensions.minIn}″ to ${bannerConfig.dimensions.maxIn}″`,
-      `Up to ${bannerConfig.dimensions.maxSqFt.toLocaleString()} square feet per configured banner`,
+      'Custom sizes online up to 50 feet on the long side and 16 feet on the short side',
+      'Larger projects are available by custom quote',
     ],
     materials: bannerConfig.materials.map((material) => material.label),
     options: [
@@ -113,7 +113,8 @@ export const PRODUCT_LANDING_DATA: Record<CityProductSlug, ProductLandingDefinit
     ],
     useCases: ['Storefront and grand-opening signage', 'Events and sponsorships', 'Job sites and fencing', 'Indoor promotions and backdrops'],
     limitations: [
-      'Orders over 1,000 square feet require a custom quote and may need additional production time.',
+      'Orders over 1,000 square feet require a custom quote and may need 1-5 business days of production.',
+      'Oversized orders may ship by freight; carrier transit timing is separate from production.',
       'Production time is separate from carrier transit time.',
       'Color on a screen can differ from printed output because screens use emitted RGB light and printing uses ink.',
     ],

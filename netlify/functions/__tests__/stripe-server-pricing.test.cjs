@@ -46,10 +46,10 @@ test('banner price is rebuilt from registry rules and ignores browser totals', (
     line_total_cents: 1,
     unit_price_cents: 1,
   }]);
-  assert.equal(item.unit_price_cents, 3600);
+  assert.equal(item.unit_price_cents, 4000);
   assert.equal(item.rope_cost_cents, 1600);
   assert.equal(item.pole_pocket_cost_cents, 4700);
-  assert.equal(item.line_total_cents, 13500);
+  assert.equal(item.line_total_cents, 14300);
 
   const [bottomCorners] = repriceStripeCart([{
     product_type: 'banner', width_in: 48, height_in: 24, quantity: 1,
@@ -119,4 +119,14 @@ test('unsupported products, materials, sizes, and options fail closed', () => {
     }]),
     (error) => error.code === 'BANNER_POLE_POCKET_SIZE_INVALID',
   );
+});
+
+
+test('large banner tiers and aggregate online area limits are enforced', () => {
+  const banner = { product_type: 'banner', width_in: 600, height_in: 60, quantity: 1, material: '13oz', grommets: 'none' };
+  assert.equal(repriceStripeCart([banner])[0].unit_price_cents, 74750);
+  assert.equal(repriceStripeCart([{ ...banner, quantity: 4 }])[0].line_total_cents, 299000);
+  assert.throws(() => repriceStripeCart([{ ...banner, quantity: 5 }]));
+  assert.throws(() => repriceStripeCart([{ ...banner, height_in: 193 }]));
+  assert.equal(repriceStripeCart([{ ...banner, height_in: 192 }])[0].unit_price_cents, 226000);
 });

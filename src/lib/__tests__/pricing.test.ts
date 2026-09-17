@@ -25,11 +25,11 @@ describe('Pricing calculations', () => {
     });
 
     expect(result.area).toBe(8);
-    expect(result.unit).toBe(36); // 8 * 4.5 = 36
+    expect(result.unit).toBe(40);
     expect(result.rope).toBe(0);
-    expect(result.materialTotal).toBe(36);
-    expect(result.tax).toBe(2.16); // 36 * 0.06 = 2.16
-    expect(result.totalWithTax).toBe(38.16); // 36 + 2.16 = 38.16
+    expect(result.materialTotal).toBe(40);
+    expect(result.tax).toBe(2.4);
+    expect(result.totalWithTax).toBe(42.4);
   });
 
   it('should calculate totals correctly with rope', () => {
@@ -42,11 +42,11 @@ describe('Pricing calculations', () => {
     });
 
     expect(result.area).toBe(8);
-    expect(result.unit).toBe(36); // 8 * 4.5 = 36
-    expect(result.rope).toBe(16); // (48/12) * 2 * 2 = 16
-    expect(result.materialTotal).toBe(88); // 36 * 2 + 16 = 88
-    expect(result.tax).toBeCloseTo(5.28, 2); // 88 * 0.06 = 5.28
-    expect(result.totalWithTax).toBeCloseTo(93.28, 2); // 88 + 5.28 = 93.28
+    expect(result.unit).toBe(40);
+    expect(result.rope).toBe(16);
+    expect(result.materialTotal).toBe(96);
+    expect(result.tax).toBeCloseTo(5.76, 2);
+    expect(result.totalWithTax).toBeCloseTo(101.76, 2);
   });
 
   it('keeps designer totals in parity for top-and-bottom rope placement', () => {
@@ -70,8 +70,8 @@ describe('Pricing calculations', () => {
       polePockets: params.polePockets,
     });
 
-    expect(result.rope).toBe(32); // 8 linear feet * $2 * quantity 2
-    expect(result.materialTotal).toBe(104); // $72 banners + $32 rope
+    expect(result.rope).toBe(32);
+    expect(result.materialTotal).toBe(112);
     expect(result.rope * 100).toBe(canonical.ropeCostCents);
     expect(result.materialTotal * 100).toBe(canonical.subtotalBeforeDiscountCents);
   });
@@ -93,8 +93,8 @@ describe('Pricing calculations', () => {
     it('should calculate correct prices for different materials with 48x24 banner', () => {
       const baseParams = { widthIn: 48, heightIn: 24, qty: 1, addRope: false };
 
-      // 13oz: 8 sq ft * $4.50 = $36.00
-      expect(calcTotals({ ...baseParams, material: '13oz' }).materialTotal).toBe(36);
+      // 13oz: 8 sq ft * $5.00 = $40.00
+      expect(calcTotals({ ...baseParams, material: '13oz' }).materialTotal).toBe(40);
 
       // 15oz: 8 sq ft * $6.00 = $48.00
       expect(calcTotals({ ...baseParams, material: '15oz' }).materialTotal).toBe(48);
@@ -116,10 +116,10 @@ describe('Pricing calculations', () => {
       });
 
       expect(result.area).toBe(8);
-      expect(result.unit).toBe(36); // per banner
-      expect(result.materialTotal).toBe(108); // 36 * 3
-      expect(result.tax).toBeCloseTo(6.48, 2); // 108 * 0.06 = 6.48
-      expect(result.totalWithTax).toBeCloseTo(114.48, 2); // 108 + 6.48 = 114.48
+      expect(result.unit).toBe(40);
+      expect(result.materialTotal).toBe(120);
+      expect(result.tax).toBeCloseTo(7.2, 2);
+      expect(result.totalWithTax).toBeCloseTo(127.2, 2);
     });
   });
 

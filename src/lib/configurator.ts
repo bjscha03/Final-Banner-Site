@@ -43,6 +43,13 @@ export function getConfiguratorUrl(
   return `/design?${params.toString()}`;
 }
 
+/** Opens the banner designer with a specific size already selected. */
+export function getBannerConfiguratorUrl(widthIn: number, heightIn: number, sourcePage?: string): string {
+  const params = new URLSearchParams({ product: 'banner', width: String(widthIn), height: String(heightIn) });
+  if (sourcePage) params.set('source_page', sourcePage.startsWith('/') ? sourcePage : `/${sourcePage}`);
+  return `/design?${params.toString()}`;
+}
+
 export function getAbsoluteConfiguratorUrl(
   productSlug: CityProductSlug,
   sourcePage?: string,

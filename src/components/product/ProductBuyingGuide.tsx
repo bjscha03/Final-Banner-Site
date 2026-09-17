@@ -1,8 +1,10 @@
 import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { Check, ChevronDown, Clock3, FileCheck2, Info, PackageCheck, ShieldCheck, Truck } from 'lucide-react';
 import { formatMoney, type ProductLandingDefinition } from '@/lib/seo/productLandingData';
 import { SITE_POLICIES } from '@/lib/sitePolicies';
 import ProductVisual from '@/components/product/ProductVisual';
+import { getBannerConfiguratorUrl } from '@/lib/configurator';
 
 interface ProductBuyingGuideProps {
   product: ProductLandingDefinition;
@@ -54,6 +56,7 @@ const ProductBuyingGuide: React.FC<ProductBuyingGuideProps> = ({
   includeFaq = true,
   faqHeading = `${product.singular} FAQs`,
 }) => {
+  const location = useLocation();
   const isFixedSizeYardSign = product.slug === 'yard-signs';
   const sharedConfiguration = product.priceExamples.every(
     (example) => example.configuration === product.priceExamples[0]?.configuration,
@@ -123,8 +126,12 @@ const ProductBuyingGuide: React.FC<ProductBuyingGuideProps> = ({
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {product.priceExamples.map((example, index) => (
-                <article data-size-snapshot key={`${example.label}-${example.configuration}`} className="flex min-h-[300px] min-w-0 flex-col border border-slate-200 bg-white p-5 sm:p-6">
+              {product.priceExamples.map((example, index) => {
+                const dimensions = example.label.match(/([\d.]+)′ × ([\d.]+)′/);
+                const widthIn = dimensions ? Number(dimensions[1]) * 12 : 0;
+                const heightIn = dimensions ? Number(dimensions[2]) * 12 : 0;
+                const isBannerExample = product.slug === 'vinyl-banners' && widthIn > 0 && heightIn > 0;
+                const card = <article data-size-snapshot className="flex min-h-[300px] min-w-0 flex-col border border-slate-200 bg-white p-5 transition-colors hover:border-[#FF6A00] hover:bg-[#FFF9F5] sm:p-6">
                   <SizeSnapshot productSlug={product.slug} index={index} />
                   <h3 className="mt-5 font-display text-lg font-bold leading-6 text-[#0B1F3A]">{example.label}</h3>
                   {!sharedConfiguration && <p className="mt-2 text-sm leading-5 text-slate-600">{example.configuration}</p>}
@@ -133,8 +140,11 @@ const ProductBuyingGuide: React.FC<ProductBuyingGuideProps> = ({
                     <p data-shipping-included className="mt-1 text-xs font-semibold leading-4 text-[#0B1F3A]">Includes free next-day air shipping</p>
                     <p className="mt-1 text-xs leading-4 text-slate-500">{example.note || 'Before tax'} · Carrier transit after production</p>
                   </div>
-                </article>
-              ))}
+                </article>;
+                return isBannerExample
+                  ? <Link key={`${example.label}-${example.configuration}`} to={getBannerConfiguratorUrl(widthIn, heightIn, location.pathname)} aria-label={`Design a ${example.label}`}>{card}</Link>
+                  : <React.Fragment key={`${example.label}-${example.configuration}`}>{card}</React.Fragment>;
+              })}
             </div>
           )}
         </div>

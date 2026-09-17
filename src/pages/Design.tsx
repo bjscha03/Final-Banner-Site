@@ -630,6 +630,24 @@ const Design: React.FC = () => {
   const [promoApplied, setPromoApplied] = useState(Boolean(storedPromoAtLoad));
 
   const [hasConfirmedSize, setHasConfirmedSize] = useState(false);
+
+  // Landing-page size cards can open the designer with their chosen size.
+  useEffect(() => {
+    if (productType !== 'banner' || editItemId) return;
+    const requestedWidth = Number(searchParams.get('width'));
+    const requestedHeight = Number(searchParams.get('height'));
+    if (!Number.isFinite(requestedWidth) || !Number.isFinite(requestedHeight)
+      || requestedWidth < 6 || requestedHeight < 6 || requestedWidth > 600 || requestedHeight > 600) return;
+    setWidthFtStr(String(Math.floor(requestedWidth / 12)));
+    setWidthInRStr(String(requestedWidth % 12));
+    setHeightFtStr(String(Math.floor(requestedHeight / 12)));
+    setHeightInRStr(String(requestedHeight % 12));
+    setWidthCustomInStr(String(requestedWidth));
+    setHeightCustomInStr(String(requestedHeight));
+    const presetIndex = PRESET_SIZES.findIndex(({ w, h }) => w === requestedWidth && h === requestedHeight);
+    setActivePreset(presetIndex >= 0 ? presetIndex : null);
+    setHasConfirmedSize(true);
+  }, [editItemId, productType, searchParams]);
   const [hasConfirmedMaterial, setHasConfirmedMaterial] = useState(false);
   const [hasConfirmedQuantity, setHasConfirmedQuantity] = useState(false);
   const [hasReviewedOptions, setHasReviewedOptions] = useState(false);
