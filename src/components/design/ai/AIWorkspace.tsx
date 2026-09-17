@@ -205,6 +205,7 @@ async function runBackgroundJob(
     window.sessionStorage.removeItem(pendingKey);
   }
 
+  const resumingJob = Boolean(start?.jobRef);
   if (!start?.jobRef) {
     const idempotencyKey = String(start?.idempotencyKey || requestId());
     // Persist request identity before sending: retrying a lost response must
@@ -228,7 +229,10 @@ async function runBackgroundJob(
   }
 
   onStage(waitingMessage);
-  if (start.dispatched !== true) {
+  // The worker ignores completed or actively claimed jobs. Redispatch the
+  // same reference on an explicit retry so an abandoned claim can recover;
+  // never enqueue a second paid job merely because polling was interrupted.
+  if (start.dispatched !== true || resumingJob) {
     const workerResponse = await fetchAIRequest(String(start.workerPath || '/.netlify/functions/ai-designer-worker-background'), {
       method: 'POST',
       credentials: 'same-origin',
