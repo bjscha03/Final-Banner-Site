@@ -228,6 +228,8 @@ export interface CanonicalCartQuote {
 }
 
 export interface DiscountCode {
+  /** Session-only automatic welcome offer; never persisted across accounts. */
+  automaticFirstOrder?: boolean;
   id: string;
   code: string;
   discountPercentage: number;

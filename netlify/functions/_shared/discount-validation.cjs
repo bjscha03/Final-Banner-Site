@@ -139,14 +139,24 @@ async function validateDiscountForCheckout({
       return validResult(buildAutomaticLargeBannerDiscount());
     }
 
-    if (userId) {
+    if (userId || normalizedEmail) {
       const priorOrders = await sql`
         SELECT id FROM orders
-        WHERE user_id = ${userId} AND status = 'paid'
+        WHERE (
+          (${userId || null}::uuid IS NOT NULL AND user_id = ${userId || null}::uuid)
+          OR (${normalizedEmail}::text IS NOT NULL AND LOWER(BTRIM(email)) = ${normalizedEmail})
+        )
+          AND COALESCE(is_test_order, FALSE) = FALSE
+          AND (
+            status IN ('paid', 'in_production', 'shipped', 'delivered', 'fulfilled', 'refunded')
+            OR NULLIF(to_jsonb(orders)->>'paypal_capture_id', '') IS NOT NULL
+            OR (status = 'pending' AND payment_reconciliation_status IN ('complete', 'completed'))
+          )
+          AND (${checkoutKey || null}::text IS NULL OR checkout_idempotency_key IS DISTINCT FROM ${checkoutKey || null})
         LIMIT 1
       `;
       if (priorOrders.length) {
-        return invalidResult('NEW20 is valid for first-time customers only. You have a previous order on this account.');
+        return invalidResult('The first-order offer is not available for this customer.');
       }
     }
     return validResult({

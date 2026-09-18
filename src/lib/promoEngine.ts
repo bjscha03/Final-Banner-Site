@@ -8,8 +8,8 @@
  *
  * USAGE RULES
  * -----------
- *  - Promo codes are NEVER auto-applied. They must come from explicit user
- *    input (e.g. the Apply button on /design or in Checkout).
+ *  - NEW20 is the automatic, server-validated first-order offer. Other promo
+ *    codes still come from explicit input or a verified recovery flow.
  *  - Promo discounts do NOT stack with the quantity discount; the resolver
  *    picks the larger of the two ("best discount wins").
  *  - Yard signs are excluded from quantity-discount tiering at the
