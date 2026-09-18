@@ -23,6 +23,7 @@ export function BlogPost({ post, relatedPosts }: BlogPostProps) {
   
   // Handle both 'hero' and 'heroImage' field names
   const heroImageUrl = (frontmatter as any).heroImage || (frontmatter as any).hero || 'https://via.placeholder.com/1200x600/18448D/ffffff?text=Blog+Post+Image';
+  const isAiDesignerArticle = frontmatter.slug === 'how-to-create-vinyl-banner-with-ai';
   
   useEffect(() => {
     gtag('event', 'blog_view', {
@@ -65,13 +66,26 @@ export function BlogPost({ post, relatedPosts }: BlogPostProps) {
           Back to Blog
         </Link>
         
-        <OptimizedImage
-          src={heroImageUrl}
-          alt={frontmatter.alt}
-          width={1200}
-          className="w-full h-96 rounded-lg mb-8"
-          priority
-        />
+        {isAiDesignerArticle ? (
+          <img
+            src={heroImageUrl}
+            alt={frontmatter.alt || frontmatter.title}
+            width={1200}
+            height={630}
+            loading="eager"
+            decoding="async"
+            fetchPriority="high"
+            className="w-full h-auto rounded-lg mb-8"
+          />
+        ) : (
+          <OptimizedImage
+            src={heroImageUrl}
+            alt={frontmatter.alt}
+            width={1200}
+            className="w-full h-96 rounded-lg mb-8"
+            priority
+          />
+        )}
         
         <header className="mb-10">
           <div className="flex flex-wrap gap-2 mb-6">

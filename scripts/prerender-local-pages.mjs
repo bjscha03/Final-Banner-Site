@@ -63,3 +63,8 @@ const manifest = prerenderRoutes.map((route) => ({
 await writeFile(path.join(distDir, 'local-page-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
 
 console.log(`Prerendered ${prerenderRoutes.length} routes plus 404.html; ${indexablePrerenderRoutes.length} routes are sitemap-eligible.`);
+
+// Publish the approved editorial article using the same application renderer.
+// Its separate verification leaves all existing local-route gates unchanged.
+const { publishAIArticle } = await import('./prerender-ai-blog.mjs');
+await publishAIArticle({ distDir, makeDocument });
