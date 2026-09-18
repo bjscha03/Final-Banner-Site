@@ -19,6 +19,24 @@ jobs:
         with:
           node-version: '20'
           cache: npm
+      - name: Restore optional native Rollup metadata in the QA checkout
+        # The existing lockfile marks foreign-platform Rollup binaries as
+        # required. Keep every locked version and integrity hash unchanged;
+        # repair only optional platform metadata in this disposable checkout.
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
+          let repaired = 0;
+          for (const [path, pkg] of Object.entries(lock.packages || {})) {
+            if (/(?:^|\/)node_modules\/@rollup\/rollup-/.test(path) && (pkg.os || pkg.cpu) && pkg.optional !== true) {
+              pkg.optional = true;
+              repaired++;
+            }
+          }
+          fs.writeFileSync('package-lock.json', JSON.stringify(lock, null, 2) + '\n');
+          console.log(`Restored optional metadata on ${repaired} platform-specific Rollup packages.`);
+          NODE
       - run: npm ci
       - name: Verify price and shipping display regressions
         run: npx vitest run src/components/pricing src/components/design/MobileSubtotalBar.test.tsx
