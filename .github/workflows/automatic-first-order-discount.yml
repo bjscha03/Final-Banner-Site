@@ -1,0 +1,61 @@
+name: Automatic first-order discount
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'netlify/functions/_shared/discount-validation.cjs'
+      - 'netlify/functions/_shared/payment-discount-reservation.cjs'
+      - 'netlify/functions/__tests__/automatic-first-order-eligibility.test.cjs'
+      - 'tests/browser/automatic-first-order.playwright.spec.ts'
+      - 'playwright.first-order.config.ts'
+      - '.github/workflows/automatic-first-order-discount.yml'
+permissions:
+  contents: read
+jobs:
+  first-order:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Restore declared optional native metadata in the QA checkout
+        # Existing lock metadata marks foreign-platform Rollup/fsevents
+        # packages as required. Only restore packages that their parents
+        # explicitly declare optional. Versions/integrity hashes stay fixed;
+        # this disposable checkout does not change the production lockfile.
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
+          const packages = Object.entries(lock.packages || {});
+          const optionalNames = new Set(packages.flatMap(([, pkg]) => Object.keys(pkg.optionalDependencies || {})));
+          let repaired = 0;
+          for (const [path, pkg] of packages) {
+            const name = path.slice(path.lastIndexOf('node_modules/') + 'node_modules/'.length);
+            if ((pkg.os || pkg.cpu) && optionalNames.has(name) && pkg.optional !== true) {
+              pkg.optional = true;
+              repaired++;
+            }
+          }
+          fs.writeFileSync('package-lock.json', JSON.stringify(lock, null, 2) + '\n');
+          console.log(`Restored optional metadata on ${repaired} declared optional native packages.`);
+          NODE
+      - run: npm ci
+      - name: First-order eligibility and provider reservation tests
+        run: node --test netlify/functions/__tests__/automatic-first-order-eligibility.test.cjs netlify/functions/__tests__/payment-discount-reservation.test.cjs netlify/functions/__tests__/stripe-checkout-service.test.cjs
+      - name: First-order pricing and UI regressions
+        run: npx vitest run src/hooks/useAutomaticFirstOrderDiscount.test.tsx src/components/pricing src/components/design/MobileSubtotalBar.test.tsx src/components/checkout/checkoutCustomerDraft.test.ts src/lib/__tests__/promoEngine.test.ts src/lib/cartDisplayPricing.test.ts
+      - name: Build the existing production application
+        run: npm run build
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Verify automatic prices, better codes and returning-customer checkout
+        run: npx playwright test --config=playwright.first-order.config.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: automatic-first-order-results
+          path: test-results/
+          retention-days: 7
