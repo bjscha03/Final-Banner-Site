@@ -11,6 +11,7 @@ export interface MobileSubtotalBarProps {
   primaryAction?: { label: string; onClick: () => void; disabled: boolean };
   subtotal: ReactNode;
   priceNote?: ReactNode;
+  promotionNote?: ReactNode;
   cartItemCount: number;
   onViewCart: () => void;
 }
@@ -23,6 +24,7 @@ export default function MobileSubtotalBar({
   primaryAction,
   subtotal,
   priceNote,
+  promotionNote,
   cartItemCount,
   onViewCart,
 }: MobileSubtotalBarProps) {
@@ -90,6 +92,7 @@ export default function MobileSubtotalBar({
               {displayedSubtotal}
             </div>
             <ShippingBenefitBadge variant="sticky" className="shrink-0" />
+            {promotionNote && <p data-testid="mobile-applied-discount" className="basis-full text-[11px] font-bold leading-tight text-emerald-700">{promotionNote}</p>}
             {priceNote ? (
               <p data-testid="mobile-subtotal-note" className="basis-full text-[11px] font-medium leading-tight text-orange-700">
                 {priceNote}

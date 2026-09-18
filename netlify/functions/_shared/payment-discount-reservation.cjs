@@ -121,15 +121,18 @@ async function claimNew20(sql, order) {
         SELECT candidate.id
           FROM orders candidate
          WHERE candidate.id <> ${order.id}
-           AND UPPER(COALESCE(candidate.discount_code, '')) = 'NEW20'
+           AND COALESCE(candidate.is_test_order, FALSE) = FALSE
            AND (
              (${order.user_id || null}::uuid IS NOT NULL AND candidate.user_id = ${order.user_id || null}::uuid)
-             OR (${order.email || null}::text IS NOT NULL AND LOWER(candidate.email) = LOWER(${order.email || null}))
+             OR (${order.email || null}::text IS NOT NULL AND LOWER(BTRIM(candidate.email)) = LOWER(BTRIM(${order.email || null})))
            )
            AND (
-             candidate.status IN ('paid', 'in_production', 'shipped', 'delivered', 'fulfilled')
+             candidate.status IN ('paid', 'in_production', 'shipped', 'delivered', 'fulfilled', 'refunded')
+             OR NULLIF(to_jsonb(candidate)->>'paypal_capture_id', '') IS NOT NULL
+             OR (candidate.status = 'pending' AND candidate.payment_reconciliation_status IN ('complete', 'completed'))
              OR (
                candidate.status = 'pending'
+               AND UPPER(COALESCE(candidate.discount_code, '')) = 'NEW20'
                AND candidate.payment_reconciliation_status = 'discount_reserved'
              )
            )
