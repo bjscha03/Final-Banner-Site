@@ -32,7 +32,11 @@ export async function publishAIArticle({ distDir, makeDocument }) {
   assert(data.description.length <= 160, 'Meta description exceeds 160 characters.');
   assert.equal((html.match(/<link\b(?=[^>]*rel="canonical")[^>]*>/gi) || []).length, 1, 'Duplicate canonicals.');
   assert(html.includes(`href="${canonical}"`), 'Canonical does not match the published route.');
-  assert(!/<meta\b(?=[^>]*name="robots")(?=[^>]*content="[^"]*noindex)/i.test(html), 'Published article must not be noindex.');
+  // Netlify intentionally blocks preview deployments from search. Keep that
+  // protection intact; only the actual production article must be indexable.
+  const isPreview = ['deploy-preview', 'branch-deploy'].includes(process.env.CONTEXT || '');
+  const hasNoindex = /<meta\b(?=[^>]*name="robots")(?=[^>]*content="[^"]*noindex)/i.test(html);
+  if (!isPreview) assert(!hasNoindex, 'Published production article must not be noindex.');
   for (const property of ['og:title', 'og:description', 'og:url', 'og:image']) {
     const expression = new RegExp(`<meta\\b(?=[^>]*property="${property}")[^>]*>`, 'gi');
     assert.equal((html.match(expression) || []).length, 1, `Expected one ${property} tag.`);
