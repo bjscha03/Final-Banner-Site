@@ -1,3 +1,4 @@
+import LargeBannerSizeCards from '@/components/design/LargeBannerSizeCards';
 import ProductPageHero from '@/components/product/ProductPageHero';
 import { cartEditUrl } from '@/lib/cartEditUrl';
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
@@ -2693,7 +2694,7 @@ const GoogleAdsBanner: React.FC = () => {
   const sizeCard = (<ConfigCard
                   popularPreset={isLargeBannerLanding ? { widthIn: 96, heightIn: 48 } : undefined}
                   step={1}
-                  title={isCarMagnet ? "Choose your size" : "Size & quantity"}
+                  title={isCarMagnet ? "Choose your size" : isLargeBannerLanding ? "Choose your large banner size" : "Size & quantity"}
                   id="size-section"
                   headerRight={!isCarMagnet ? (
                     <div className="inline-flex items-center rounded-lg border border-gray-200 bg-white p-0.5 text-xs" role="group" aria-label="Display unit">
@@ -2716,8 +2717,19 @@ const GoogleAdsBanner: React.FC = () => {
                     </div>
                   ) : undefined}
                 >
-                  <div className={isCarMagnet ? '' : 'grid lg:grid-cols-2 lg:gap-6'}>
-                    <div>
+                  <div className={isCarMagnet || isLargeBannerLanding ? '' : 'grid lg:grid-cols-2 lg:gap-6'}>
+                    {isLargeBannerLanding ? <LargeBannerSizeCards widthIn={widthIn} heightIn={heightIn} unit={unit}
+                      onSelect={(w, h) => {
+                        setWidthFtStr(String(Math.floor(w / 12)));
+                        setWidthInRStr(String(w % 12));
+                        setHeightFtStr(String(Math.floor(h / 12)));
+                        setHeightInRStr(String(h % 12));
+                        setWidthCustomInStr(String(w));
+                        setHeightCustomInStr(String(h));
+                        const index = PRESET_SIZES.findIndex(p => p.w === w && p.h === h);
+                        setActivePreset(index >= 0 ? index : null);
+                        setHasConfirmedSize(true);
+                      }} /> : <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Popular Sizes</label>
                       <div className="grid grid-cols-3 gap-2">
                         {isCarMagnet
@@ -2732,10 +2744,10 @@ const GoogleAdsBanner: React.FC = () => {
                               </button>
                             ))}
                       </div>
-                    </div>
+                    </div>}
                     {!isCarMagnet && (
-                    <div className="mt-6 lg:mt-0">
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Custom Size</label>
+                    <div className={isLargeBannerLanding ? "mt-5 rounded-xl bg-slate-50 p-4" : "mt-6 lg:mt-0"}>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">{isLargeBannerLanding ? "Need a different size?" : "Custom Size"}</label>
                       {unit === 'in' ? (
                         <div className="grid grid-cols-2 gap-4">
                           <div>
@@ -2826,6 +2838,7 @@ const GoogleAdsBanner: React.FC = () => {
                     </div>
                     )}
                   </div>
+                {isLargeBannerLanding && <p className="mt-3 text-xs text-slate-600">Online sizes up to 50 ft on the long side and 16 ft on the short side. Larger project? <Link to="/custom-quote" className="font-semibold text-orange-700 underline">Request a quote</Link>.</p>}
                 {!isCarMagnet && <div className="mt-5 grid gap-4 border-t border-slate-200 pt-4 sm:grid-cols-[minmax(0,1fr)_auto]">{materialCard}{quantityCard}</div>}
                 </ConfigCard>);
   const finishingCard = (<ConfigCard step={3} title={isCarMagnet ? 'Rounded Corners' : 'Finishing options'} id="options-section">
