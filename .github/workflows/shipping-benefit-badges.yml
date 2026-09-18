@@ -19,23 +19,27 @@ jobs:
         with:
           node-version: '20'
           cache: npm
-      - name: Restore optional native Rollup metadata in the QA checkout
-        # The existing lockfile marks foreign-platform Rollup binaries as
-        # required. Keep every locked version and integrity hash unchanged;
-        # repair only optional platform metadata in this disposable checkout.
+      - name: Restore declared optional native metadata in the QA checkout
+        # Existing lock metadata marks foreign-platform Rollup/fsevents
+        # packages as required. Only restore packages that their parents
+        # explicitly declare optional. Versions/integrity hashes stay fixed;
+        # this disposable checkout does not change the production lockfile.
         run: |
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
+          const packages = Object.entries(lock.packages || {});
+          const optionalNames = new Set(packages.flatMap(([, pkg]) => Object.keys(pkg.optionalDependencies || {})));
           let repaired = 0;
-          for (const [path, pkg] of Object.entries(lock.packages || {})) {
-            if (/(?:^|\/)node_modules\/@rollup\/rollup-/.test(path) && (pkg.os || pkg.cpu) && pkg.optional !== true) {
+          for (const [path, pkg] of packages) {
+            const name = path.slice(path.lastIndexOf('node_modules/') + 'node_modules/'.length);
+            if ((pkg.os || pkg.cpu) && optionalNames.has(name) && pkg.optional !== true) {
               pkg.optional = true;
               repaired++;
             }
           }
           fs.writeFileSync('package-lock.json', JSON.stringify(lock, null, 2) + '\n');
-          console.log(`Restored optional metadata on ${repaired} platform-specific Rollup packages.`);
+          console.log(`Restored optional metadata on ${repaired} declared optional native packages.`);
           NODE
       - run: npm ci
       - name: Verify price and shipping display regressions
