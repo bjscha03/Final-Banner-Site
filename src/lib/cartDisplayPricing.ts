@@ -42,6 +42,7 @@ export function getEnteredPromoLabel(promo: PromoDiscountInput, resolved: Resolv
     && resolved.promotionId !== LARGE_BANNER_PROMOTION_ID
     && resolved.promoDiscountCode?.toUpperCase() === promo.code.toUpperCase()
     && resolved.appliedDiscountAmountCents > 0;
+  if (applied && promo.code.toUpperCase() === 'NEW20') return '20% off first order applied';
   return applied
     ? `${resolved.appliedDiscountLabel} applied`
     : `${promo.code} not applied — ${resolved.appliedDiscountAmountCents > 0 ? `${resolved.appliedDiscountLabel} applied instead` : 'no eligible items in this cart'}`;

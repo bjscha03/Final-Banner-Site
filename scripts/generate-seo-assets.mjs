@@ -9,9 +9,10 @@ const products = [
   { file: 'og-vinyl-banners.png', eyebrow: 'CUSTOM PRINTING', title: 'Vinyl Banners', subtitle: 'Custom sizes, materials & online pricing' },
   { file: 'og-yard-signs.png', eyebrow: 'CUSTOM PRINTING', title: 'Yard Signs', subtitle: 'One 24 × 18 size · Print-side options' },
   { file: 'og-car-magnets.png', eyebrow: 'CUSTOM PRINTING', title: 'Car Magnets', subtitle: 'Supported sizes, options & online pricing' },
+  { file: 'og-ai-banner-designer.png', eyebrow: 'FROM IDEA TO PRINT', title: 'AI Banner Designer', subtitle: 'Your idea. Your logo. Your banner.', footer: '24-hour production • Free next-day air' },
 ];
 
-function cardSvg({ eyebrow, title, subtitle }) {
+function cardSvg({ eyebrow, title, subtitle, footer = 'Live preview • Nationwide shipping' }) {
   return Buffer.from(`
     <svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
       <rect width="1200" height="630" fill="#0B1F3A"/>
@@ -22,7 +23,7 @@ function cardSvg({ eyebrow, title, subtitle }) {
       <text x="132" y="368" fill="#CBD5E1" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="600">${subtitle.replace('&', '&amp;')}</text>
       <rect x="132" y="429" width="414" height="76" rx="8" fill="#FF6A00"/>
       <text x="170" y="479" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="800">Banners On The Fly</text>
-      <text x="132" y="550" fill="#CBD5E1" font-family="Arial, Helvetica, sans-serif" font-size="25">Live preview • Nationwide shipping</text>
+      <text x="132" y="550" fill="#CBD5E1" font-family="Arial, Helvetica, sans-serif" font-size="25">${footer}</text>
     </svg>
   `);
 }

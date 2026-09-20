@@ -8,6 +8,11 @@ type StoredCheckoutCustomerDraft = {
   customer: CustomerFormState;
 };
 
+export const CHECKOUT_CUSTOMER_DRAFT_CHANGED = 'bof:checkout-customer-draft-changed';
+const notifyDraftChange = (email: string) => {
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(CHECKOUT_CUSTOMER_DRAFT_CHANGED, { detail: { email } }));
+};
+
 const CHECKOUT_CUSTOMER_DRAFT_KEY = 'bof-checkout-customer-v1';
 const CHECKOUT_CUSTOMER_DRAFT_TTL_MS = 2 * 60 * 60 * 1000;
 
@@ -116,6 +121,7 @@ export const writeCheckoutCustomerDraft = (
   customer: CustomerFormState,
   storage?: CheckoutDraftStorage | null,
 ): void => {
+  if (storage === undefined) notifyDraftChange(customer.email);
   const target = resolveStorage(storage);
   if (!target) return;
   try {
@@ -131,6 +137,7 @@ export const writeCheckoutCustomerDraft = (
 };
 
 export const clearCheckoutCustomerDraft = (storage?: CheckoutDraftStorage | null): void => {
+  if (storage === undefined) notifyDraftChange('');
   const target = resolveStorage(storage);
   if (!target) return;
   try {

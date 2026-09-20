@@ -43,7 +43,7 @@ test('NEW20 locks every identity used by its user-or-email ownership predicate',
   assert.match(source, /ORDER BY lock_id/);
   assert.match(source, /pg_advisory_xact_lock/);
   assert.match(source, /isolationLevel:\s*'ReadCommitted'/);
-  assert.match(source, /LOWER\(candidate\.email\)/);
+  assert.match(source, /LOWER\(BTRIM\(candidate\.email\)\)/);
   assert.match(source, /candidate\.user_id/);
 });
 

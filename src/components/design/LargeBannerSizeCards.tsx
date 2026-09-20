@@ -1,21 +1,25 @@
 import React from 'react';
+import { calculateBannerUnitBasePriceCents } from '@/lib/bannerPricingEngine';
+import { usd } from '@/lib/pricing';
+import type { MaterialKey } from '@/store/quote';
 import { LARGE_BANNER_PROMOTION_ENABLED, isQualifyingLargeBannerDimensions } from '@/lib/largeBannerPromotion';
 
 export const LARGE_BANNER_SIZES = [
-  { w: 96, h: 48 }, { w: 120, h: 48 }, { w: 144, h: 48 },
-  { w: 120, h: 96 }, { w: 120, h: 120 }, { w: 240, h: 120 },
+  { w: 120, h: 48 }, { w: 144, h: 48 }, { w: 192, h: 48 },
+  { w: 240, h: 60 }, { w: 240, h: 120 }, { w: 360, h: 120 },
 ];
 
 interface Props {
   widthIn: number;
   heightIn: number;
   unit: 'in' | 'ft';
+  material: MaterialKey;
   onSelect: (widthIn: number, heightIn: number) => void;
 }
 
-export default function LargeBannerSizeCards({ widthIn, heightIn, unit, onSelect }: Props) {
+export default function LargeBannerSizeCards({ widthIn, heightIn, unit, material, onSelect }: Props) {
   return <div role="group" aria-label="Large banner sizes">
-    <p className="mb-4 text-sm text-slate-600">Choose a size below or enter your own dimensions. Sizes shown as width × height.</p>
+    <p className="mb-4 text-sm text-slate-600">Choose a size below or enter your own dimensions. Sizes shown as width × height. Illustrations show shape, not relative scale.</p>
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
       {LARGE_BANNER_SIZES.map(({ w, h }) => {
         const selected = widthIn === w && heightIn === h;
@@ -36,9 +40,11 @@ export default function LargeBannerSizeCards({ widthIn, heightIn, unit, onSelect
             {[ [x + 4, y + 4], [x + sw - 4, y + 4], [x + 4, y + sh - 4], [x + sw - 4, y + sh - 4] ].map(([cx, cy], i) => <circle key={i} cx={cx} cy={cy} r="1.5" fill="white" stroke="#94a3b8" />)}
           </svg>
           <span className="mt-2 text-base font-bold sm:text-lg">{label}</span>
+          <span className="mt-1 text-sm font-semibold">{usd(calculateBannerUnitBasePriceCents(w * h / 144, material) / 100)} base / banner</span>
           {offer && <span className="mt-1 text-xs font-semibold text-orange-700">25% off automatically</span>}
         </button>;
       })}
     </div>
+    <p className="mt-3 text-xs text-slate-500">Base prices use your selected material, before discounts, tax and optional finishing. Your order total updates below.</p>
   </div>;
 }

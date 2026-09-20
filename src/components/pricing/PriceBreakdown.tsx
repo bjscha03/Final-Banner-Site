@@ -1,6 +1,8 @@
+import { FIRST_ORDER_APPLIED_LABEL } from '@/lib/firstOrderPromotion';
 import React, { useLayoutEffect } from 'react';
 import { Tag, DollarSign, Truck } from 'lucide-react';
 import { usd } from '@/lib/pricing';
+import ShippingBenefitBadge from './ShippingBenefitBadge';
 import {
   LARGE_BANNER_PROMOTION_LABEL,
   isLargeBannerPromotionIdentifier,
@@ -28,6 +30,7 @@ export interface PriceBreakdownDetailRow {
 }
 
 export interface PriceBreakdownPromo {
+  automatic?: boolean;
   code: string;
   applied: boolean;
   onCodeChange: (code: string) => void;
@@ -38,6 +41,7 @@ export interface PriceBreakdownPromo {
 
 export interface PriceBreakdownProps {
   variant?: 'default' | 'compact';
+  firstOrderEligibilityNote?: string | null;
   /** Header heading shown above the big price (e.g. "Your Instant Quote"). */
   heading?: string;
   /** Header subheading (small caption under heading). */
@@ -119,6 +123,7 @@ export interface PriceBreakdownProps {
  */
 const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
   variant = 'default',
+  firstOrderEligibilityNote,
   heading,
   subheading,
   showHeader = false,
@@ -157,12 +162,14 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
   const hasPromoDiscount = promoDiscountCents > 0;
   const isAutomaticLargeBannerPromotion = hasPromoDiscount
     && isLargeBannerPromotionIdentifier(promoDiscountCode);
-  const promoDiscountLabel = isAutomaticLargeBannerPromotion
+  const isFirstOrderPromotion = hasPromoDiscount && promoDiscountCode?.trim().toUpperCase() === 'NEW20';
+  const promoDiscountLabel = isFirstOrderPromotion ? '20% off first order' : isAutomaticLargeBannerPromotion
     ? LARGE_BANNER_PROMOTION_LABEL
     : `Promo${promoDiscountCode ? ` ${promoDiscountCode}` : ''}${
         promoDiscountRate ? ` (${Math.round(promoDiscountRate * 100)}% off)` : ''
       }`;
-  const originalTotalCents = totalCents + (isAutomaticLargeBannerPromotion ? promoDiscountCents : 0);
+  const originalTotalCents = totalCents + ((isAutomaticLargeBannerPromotion || isFirstOrderPromotion) ? promoDiscountCents : 0)
+    + (isFirstOrderPromotion && !taxCalculatedAtCheckout ? Math.round((adjustedSubtotalCents + promoDiscountCents) * taxRate) - taxCents : 0);
   const enteredPromoCode = String(promo?.code || '').trim().toUpperCase();
   const hasDifferentEnteredPromo = Boolean(
     promo?.applied
@@ -187,7 +194,7 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
   const shippingNote = hasSameDayFee
     ? 'Same-Day production priority selected. Next-day air shipping is still included.'
     : 'Most standard orders are produced within 24 hours; free next-day air begins after production.';
-  const shippingValueLabel = hasSameDayFee ? 'Next-Day Air Included' : 'FREE';
+  const shippingValueLabel = hasSameDayFee ? 'Next-Day Air Included' : 'FREE Next-Day Air';
   // Footer note: combine shipping language (per spec) with the caller's note
   // (typically "Tax calculated at checkout") so the message is consistent
   // across product pages, cart, and checkout.
@@ -219,12 +226,18 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
       <div data-testid="price-breakdown" data-variant="compact" className={className}>
         <h3 className="text-xl font-bold text-[#061A31]">{heading || 'Your banner'}</h3>
         <p className="mt-1 text-sm text-slate-600">{baseSubtotalCents > 0 ? secondaryLine : 'Choose a size to see your price.'}</p>
-        <div className="mt-4 flex flex-wrap items-baseline gap-3">
-          <p className="text-4xl font-bold tracking-tight text-[#061A31]">{usd(totalCents / 100)}</p>
-          {discountCents > 0 && <span className="text-sm text-slate-500 line-through">{usd((totalCents + discountCents) / 100)}</span>}
+        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-baseline gap-3">
+              {discountCents > 0 && <s aria-label="Original price" className="text-lg font-medium text-slate-500">{usd((isFirstOrderPromotion ? originalTotalCents : totalCents + discountCents) / 100)}</s>}
+              <p className="text-4xl font-bold tracking-tight text-[#061A31]">{usd(totalCents / 100)}</p>
+            </div>
+            <p className="mt-1 text-xs text-slate-500">{taxCalculatedAtCheckout ? 'Subtotal before tax' : 'Total with tax'}</p>
+          </div>
+          <ShippingBenefitBadge className="flex-1 basis-[14rem]" />
         </div>
-        <p className="mt-1 text-xs text-slate-500">{taxCalculatedAtCheckout ? 'Subtotal before tax' : 'Total with tax'}</p>
-        {discountCents > 0 && <p className="mt-2 text-sm font-semibold text-emerald-700">{hasPromoDiscount ? promoDiscountLabel : quantityDiscountLabel} applied · You save {usd(discountCents / 100)}</p>}
+        {discountCents > 0 && <p data-testid="applied-price-discount" className="mt-2 text-sm font-semibold text-emerald-700">{isFirstOrderPromotion ? FIRST_ORDER_APPLIED_LABEL : `${hasPromoDiscount ? promoDiscountLabel : quantityDiscountLabel} applied`} · You save {usd(discountCents / 100)}</p>}
+        {isFirstOrderPromotion && firstOrderEligibilityNote && <p className="mt-1 text-xs leading-snug text-slate-500">{firstOrderEligibilityNote}</p>}
         <dl className="mt-4 space-y-2 border-t border-slate-200 pt-4 text-sm">
           {detailRows?.map(row => <div key={row.label} className="flex justify-between gap-4"><dt className="text-slate-600">{row.label}</dt><dd className="text-right font-medium text-slate-800">{row.value}</dd></div>)}
           {visibleAddOns.map(row => <div key={row.label} className="flex justify-between gap-4"><dt>{row.label}</dt><dd>{usd(row.amountCents / 100)}</dd></div>)}
@@ -234,9 +247,9 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
           <div className="flex justify-between gap-4"><dt>Shipping</dt><dd className="font-semibold text-emerald-700">{shippingValueLabel}</dd></div>
           <div className="flex justify-between gap-4"><dt>Tax</dt><dd className="text-right">{taxCalculatedAtCheckout ? 'Calculated at checkout' : usd(taxCents / 100)}</dd></div>
         </dl>
-        {promo && <details className="mt-4 border-t border-slate-200 pt-3" open={promo.applied || undefined}>
+        {promo && <details className="mt-4 border-t border-slate-200 pt-3" open={(promo.applied && !promo.automatic) || undefined}>
           <summary className="cursor-pointer py-2 text-sm font-medium text-slate-700">Have a promo code?</summary>
-          {promo.applied ? <div className="flex items-center gap-3 py-2 text-xs text-slate-700"><p className="min-w-0 flex-1">{promo.appliedLabel || `${promo.code} applied`}</p><button type="button" onClick={promo.onRemove} className="min-h-11 px-2 font-semibold underline">Clear code</button></div> : <div className="mt-2 flex gap-2"><input aria-label="Promo code" placeholder="Promo Code" value={promo.code} onChange={e => promo.onCodeChange(e.target.value.toUpperCase())} className="min-w-0 flex-1 rounded-lg border px-3 py-2 text-base" autoComplete="off" /><button type="button" onClick={promo.onApply} className="min-h-11 rounded-lg bg-slate-100 px-3 text-sm font-semibold">Apply</button></div>}
+          {promo.applied && !promo.automatic ? <div className="flex items-center gap-3 py-2 text-xs text-slate-700"><p className="min-w-0 flex-1">{promo.appliedLabel || `${promo.code} applied`}</p><button type="button" onClick={promo.onRemove} className="min-h-11 px-2 font-semibold underline">Clear code</button></div> : <div className="mt-2 flex gap-2"><input aria-label="Promo code" placeholder="Promo Code" value={promo.code} onChange={e => promo.onCodeChange(e.target.value.toUpperCase())} className="min-w-0 flex-1 rounded-lg border px-3 py-2 text-base" autoComplete="off" /><button type="button" onClick={promo.onApply} className="min-h-11 rounded-lg bg-slate-100 px-3 text-sm font-semibold">Apply</button></div>}
         </details>}
       </div>
     );
@@ -283,32 +296,36 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
         className="p-6 sm:p-8"
         style={{ background: 'linear-gradient(180deg, #ffffff 0%, #fafafa 100%)' }}
       >
-        {/* SECTION A — Top summary (centered, large total) */}
-        <div className="text-center mb-6">
-          {isAutomaticLargeBannerPromotion ? (
-            <div data-testid="automatic-large-banner-sale-price">
-              <div className="mb-0.5 text-lg sm:text-xl font-semibold leading-none text-slate-400 line-through decoration-2">
-                {usd(originalTotalCents / 100)}
+        {/* SECTION A — Total and shipping benefit */}
+        <div className="mb-6 flex flex-wrap items-center justify-center gap-4 text-center">
+          <div className="min-w-0">
+            {isAutomaticLargeBannerPromotion || isFirstOrderPromotion ? (
+              <div data-testid={isFirstOrderPromotion ? 'automatic-first-order-sale-price' : 'automatic-large-banner-sale-price'}>
+                <div className="mb-0.5 text-lg sm:text-xl font-semibold leading-none text-slate-400 line-through decoration-2">
+                  {usd(originalTotalCents / 100)}
+                </div>
+                <div
+                  className="text-4xl sm:text-5xl md:text-6xl font-bold leading-tight text-emerald-600"
+                  style={{ textShadow: '0 2px 4px rgba(0,0,0,0.08)' }}
+                >
+                  {usd(totalCents / 100)}
+                </div>
+                <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800">
+                  <Tag className="h-3.5 w-3.5" aria-hidden="true" />
+                  {isFirstOrderPromotion ? FIRST_ORDER_APPLIED_LABEL : `${LARGE_BANNER_PROMOTION_LABEL} automatically applied`}
+                </div>
+                {isFirstOrderPromotion && firstOrderEligibilityNote && <p className="mt-1 text-xs text-slate-500">{firstOrderEligibilityNote}</p>}
               </div>
+            ) : (
               <div
-                className="text-4xl sm:text-5xl md:text-6xl font-bold leading-tight text-emerald-600"
+                className="text-4xl sm:text-5xl md:text-6xl font-bold text-slate-900 leading-tight"
                 style={{ textShadow: '0 2px 4px rgba(0,0,0,0.08)' }}
               >
                 {usd(totalCents / 100)}
               </div>
-              <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800">
-                <Tag className="h-3.5 w-3.5" aria-hidden="true" />
-                {LARGE_BANNER_PROMOTION_LABEL} automatically applied
-              </div>
-            </div>
-          ) : (
-            <div
-              className="text-4xl sm:text-5xl md:text-6xl font-bold text-slate-900 leading-tight"
-              style={{ textShadow: '0 2px 4px rgba(0,0,0,0.08)' }}
-            >
-              {usd(totalCents / 100)}
-            </div>
-          )}
+            )}
+          </div>
+          <ShippingBenefitBadge />
         </div>
 
         {/* SECTION B — Boxed breakdown panel */}
@@ -473,7 +490,7 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
               </div>
             )}
 
-            {!promo.applied ? (
+            {!promo.applied || promo.automatic ? (
               <div className="flex gap-2">
                 <input
                   type="text"
