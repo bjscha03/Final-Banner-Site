@@ -1,4 +1,5 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { logUx } from '@/lib/uxAnalytics';
 import { createPortal } from 'react-dom';
 import { Hand, Lock, Maximize2, Minimize2, RotateCcw, Unlock } from 'lucide-react';
 import { getPreviewCrossOrigin, resolveArtworkPreviewImageSrc } from './artworkPreviewSource';
@@ -22,6 +23,7 @@ export type ArtworkTransform = {
 };
 
 export interface ArtworkPreviewEditorProps {
+  interactive?: boolean;
   src: string;
   previewUrl?: string | null;
   productionUrl?: string | null;
@@ -103,6 +105,7 @@ function isTopmostCanvas(node: HTMLElement): boolean {
 }
 
 const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPreviewEditorProps>(({
+  interactive = true,
   src,
   previewUrl,
   productionUrl,
@@ -424,6 +427,14 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
     height: Math.max(1, baseRect.height * localValue.scaleY),
   } : null;
 
+  const placementWarning = artworkFrame && canvasSize
+    ? artworkFrame.left > 2 || artworkFrame.top > 2 || artworkFrame.left + artworkFrame.width < canvasSize.w - 2 || artworkFrame.top + artworkFrame.height < canvasSize.h - 2
+      ? 'margins' : artworkFrame.left < -2 || artworkFrame.top < -2 || artworkFrame.left + artworkFrame.width > canvasSize.w + 2 || artworkFrame.top + artworkFrame.height > canvasSize.h + 2 ? 'cropped' : null
+    : null;
+  useEffect(() => {
+    if (interactive && placementWarning) logUx('artwork_placement_warning', { kind: placementWarning });
+  }, [interactive, placementWarning]);
+
   const dragRef = useRef({ active: false, pointerId: -1, startX: 0, startY: 0, original: value });
   const resizeRef = useRef<null | {
     active: boolean;
@@ -451,12 +462,49 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
     originalY: number;
   }>(null);
 
+  type HistoryEntry = { geometry: NormalizedArtworkGeometry; constrained: boolean };
+  const undoRef = useRef<HistoryEntry[]>([]);
+  const redoRef = useRef<HistoryEntry[]>([]);
+  const [, refreshHistory] = useState(0);
+  useEffect(() => { undoRef.current = []; redoRef.current = []; refreshHistory(n => n + 1); }, [artworkKey]);
+  const captureHistory = (): HistoryEntry | null => {
+    const size = canvasSizeRef.current;
+    const natural = naturalSizeRef.current;
+    return size && natural ? { geometry: captureNormalizedArtworkGeometry(localValueRef.current, size, natural), constrained: constrainRef.current } : null;
+  };
+  const checkpoint = () => {
+    const entry = captureHistory();
+    if (!entry) return;
+    undoRef.current = [...undoRef.current.slice(-29), entry];
+    redoRef.current = [];
+    refreshHistory(n => n + 1);
+  };
+  const travelHistory = (undo: boolean) => {
+    const from = undo ? undoRef.current : redoRef.current;
+    const to = undo ? redoRef.current : undoRef.current;
+    const entry = from.pop();
+    const current = captureHistory();
+    if (!entry || !current || !canvasSizeRef.current || !naturalSizeRef.current) return;
+    to.push(current);
+    onConstrainChange(entry.constrained);
+    commitTransform(restoreArtworkTransformFromGeometry(entry.geometry, canvasSizeRef.current, naturalSizeRef.current, entry.constrained));
+    refreshHistory(n => n + 1);
+    logUx(undo ? 'artwork_undo' : 'artwork_redo');
+  };
+  const adjust = (next: ArtworkTransform, action: string) => {
+    checkpoint();
+    commitTransform(next);
+    logUx('artwork_adjustment', { action });
+  };
+
   const startPointer = useCallback((event: React.PointerEvent) => {
+    if (!interactive || loading || previewError) return;
     const target = event.target as HTMLElement;
     if (target.closest('[data-artwork-toolbar="true"]') || target.dataset.handle) return;
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     event.preventDefault();
     setSelected(true);
+    if (pointerMapRef.current.size === 0) { checkpoint(); logUx('artwork_adjustment', { action: 'gesture' }); }
     pointerMapRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
     try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* no-op */ }
 
@@ -488,11 +536,12 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
       startY: event.clientY,
       original: localValueRef.current,
     };
-  }, []);
+  }, [interactive, loading, previewError]);
 
   const startResize = useCallback((corner: Corner) => (event: React.PointerEvent) => {
     event.preventDefault();
     event.stopPropagation();
+    checkpoint();
     const baseW = containedRect?.w || canvasSizeRef.current?.w || 1;
     const baseH = containedRect?.h || canvasSizeRef.current?.h || 1;
     resizeRef.current = {
@@ -563,7 +612,12 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
 
     const end = (event: PointerEvent) => {
       pointerMapRef.current.delete(event.pointerId);
+      const wasPinching = Boolean(pinchRef.current);
       if (pointerMapRef.current.size < 2) pinchRef.current = null;
+      if (wasPinching && pointerMapRef.current.size === 1) {
+        const [pointerId, point] = Array.from(pointerMapRef.current.entries())[0];
+        dragRef.current = { active: true, pointerId, startX: point.x, startY: point.y, original: localValueRef.current };
+      }
       if (dragRef.current.pointerId === event.pointerId) dragRef.current.active = false;
       if (resizeRef.current?.pointerId === event.pointerId) resizeRef.current.active = false;
     };
@@ -594,9 +648,11 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
     return () => document.removeEventListener('click', outside, true);
   }, [selected]);
 
-  const reset = useCallback(() => { setSizeReviewNeeded(false); commitTransform({ x: 0, y: 0, scaleX: 1, scaleY: 1 }); }, [commitTransform]);
+  const reset = () => { setSizeReviewNeeded(false); adjust({ x: 0, y: 0, scaleX: 1, scaleY: 1 }, 'fit'); };
   const fit = reset;
-  const fill = useCallback(() => {
+  const fill = () => {
+    checkpoint();
+    logUx('artwork_adjustment', { action: 'fill' });
     if (!naturalSize || !canvasSizeRef.current) {
       commitTransform({ x: 0, y: 0, scaleX: 1.5, scaleY: 1.5 });
       return;
@@ -605,9 +661,10 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
     const imageAspect = naturalSize.w / naturalSize.h;
     const scale = clamp(imageAspect > canvasAspect ? imageAspect / canvasAspect : canvasAspect / imageAspect, 1, MAX_SCALE);
     commitTransform({ x: 0, y: 0, scaleX: scale, scaleY: scale });
-  }, [naturalSize, commitTransform]);
+  };
 
-  const toggleConstrain = useCallback(() => {
+  const toggleConstrain = () => {
+    checkpoint();
     const next = !constrain;
     // Save the geometry currently rendered on canvas before changing modes.
     // Cached geometry may still contain an unconstrained height from loading
@@ -617,7 +674,7 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
     if (next && localValueRef.current.scaleX !== localValueRef.current.scaleY) {
       commitTransform({ ...localValueRef.current, scaleY: localValueRef.current.scaleX });
     }
-  }, [constrain, onConstrainChange, commitTransform]);
+  };
 
   const toolbar = (
     <div
@@ -640,20 +697,32 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
             {constrain ? <Lock aria-hidden="true" className="h-3.5 w-3.5" /> : <Unlock aria-hidden="true" className="h-3.5 w-3.5" />}
             {constrain ? 'Proportions locked' : 'Free resize enabled'}
           </p>
-          <div className="mt-1 grid grid-cols-3 gap-1">
-            <button type="button" onClick={fit} className="inline-flex min-h-11 items-center justify-center gap-1 rounded-lg px-3 text-xs font-medium text-slate-700 hover:bg-slate-100"><Minimize2 aria-hidden="true" className="h-4 w-4" />Fit</button>
-            <button type="button" onClick={fill} className="inline-flex min-h-11 items-center justify-center gap-1 rounded-lg px-3 text-xs font-medium text-slate-700 hover:bg-slate-100"><Maximize2 aria-hidden="true" className="h-4 w-4" />Fill</button>
-            <button type="button" onClick={reset} className="inline-flex min-h-11 items-center justify-center gap-1 rounded-lg px-3 text-xs font-medium text-orange-600 hover:bg-orange-50"><RotateCcw aria-hidden="true" className="h-4 w-4" />Reset</button>
+          <div className="mt-1 grid grid-cols-2 gap-1">
+            <button type="button" onClick={fit} className="inline-flex min-h-11 items-center justify-center gap-1 rounded-lg px-3 text-xs font-medium text-slate-700 hover:bg-slate-100"><Minimize2 aria-hidden="true" className="h-4 w-4" />Show entire design</button>
+            <button type="button" onClick={fill} className="inline-flex min-h-11 items-center justify-center gap-1 rounded-lg px-3 text-xs font-medium text-slate-700 hover:bg-slate-100"><Maximize2 aria-hidden="true" className="h-4 w-4" />Cover banner</button>
+
           </div>
         </div>
-        <button type="button" onClick={toggleConstrain} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-3 text-sm font-semibold text-white hover:bg-orange-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600">
+        <details className="text-sm"><summary className="min-h-11 cursor-pointer py-3">Advanced: stretch artwork</summary><p className="mb-2 text-xs">Stretching can distort logos and lettering.</p><button type="button" onClick={toggleConstrain} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-3 text-sm font-semibold text-white hover:bg-orange-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600">
           {constrain ? <Unlock aria-hidden="true" className="h-4 w-4" /> : <Lock aria-hidden="true" className="h-4 w-4" />}
           {constrain ? 'Unlock free resize' : 'Lock proportions'}
-        </button>
+        </button></details>
       </div>
-      <p className="mt-2 text-center text-xs leading-relaxed text-slate-500">
-        {constrain ? 'Want to stretch it? Unlock, then drag a corner.' : 'Drag a corner to adjust width and height freely.'}
-      </p>
+      <p className="mt-2 text-xs text-slate-600">Show entire design may leave white margins. Cover banner may crop the edges.</p>
+      <div className="mt-3 grid grid-cols-3 gap-2" aria-label="Artwork adjustment controls">
+        <button type="button" className="min-h-11 rounded-lg border px-2 text-sm" onClick={() => adjust({ ...localValueRef.current, scaleX: clamp(localValueRef.current.scaleX / 1.1, MIN_SCALE, MAX_SCALE), scaleY: clamp(localValueRef.current.scaleY / 1.1, MIN_SCALE, MAX_SCALE) }, 'zoom_out')}>− Zoom out</button>
+        <button type="button" className="min-h-11 rounded-lg border px-2 text-sm" onClick={() => adjust({ ...localValueRef.current, x: 0, y: 0 }, 'center')}>Center</button>
+        <button type="button" className="min-h-11 rounded-lg border px-2 text-sm" onClick={() => adjust({ ...localValueRef.current, scaleX: clamp(localValueRef.current.scaleX * 1.1, MIN_SCALE, MAX_SCALE), scaleY: clamp(localValueRef.current.scaleY * 1.1, MIN_SCALE, MAX_SCALE) }, 'zoom_in')}>+ Zoom in</button>
+      </div>
+      <div className="mt-2 grid grid-cols-4 gap-2" aria-label="Move artwork">
+        {([['Left', -1, 0], ['Up', 0, -1], ['Down', 0, 1], ['Right', 1, 0]] as const).map(([label, x, y]) => <button key={label} type="button" className="min-h-11 rounded-lg border text-sm" onClick={() => adjust({ ...localValueRef.current, x: localValueRef.current.x + x * (canvasSizeRef.current?.w || 100) * .01, y: localValueRef.current.y + y * (canvasSizeRef.current?.h || 100) * .01 }, 'nudge')}>{label}</button>)}
+      </div>
+      <div className="mt-2 flex gap-2">
+        <button type="button" className="min-h-11 flex-1 rounded-lg border text-sm disabled:opacity-40" disabled={!undoRef.current.length} onClick={() => travelHistory(true)}>Undo</button>
+        <button type="button" className="min-h-11 flex-1 rounded-lg border text-sm disabled:opacity-40" disabled={!redoRef.current.length} onClick={() => travelHistory(false)}>Redo</button>
+      </div>
+      {artworkFrame && canvasSize && <p role="status" className="mt-2 text-xs text-slate-700">{artworkFrame.left > 2 || artworkFrame.top > 2 || artworkFrame.left + artworkFrame.width < canvasSize.w - 2 || artworkFrame.top + artworkFrame.height < canvasSize.h - 2 ? 'White margins are visible and will print.' : artworkFrame.left < -2 || artworkFrame.top < -2 || artworkFrame.left + artworkFrame.width > canvasSize.w + 2 || artworkFrame.top + artworkFrame.height > canvasSize.h + 2 ? 'Part of your artwork is outside the banner and will be cropped.' : 'Your artwork covers the banner.'}</p>}
+
     </div>
   );
 
@@ -669,9 +738,9 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
       <div
         ref={setContainerNode}
         className="relative w-full select-none overflow-hidden"
-        style={{ paddingBottom: paddingPct, touchAction: 'none', cursor: loading ? 'default' : selected ? 'move' : 'pointer', ...canvasStyle }}
+        style={{ paddingBottom: paddingPct, touchAction: interactive ? 'none' : 'pan-y', cursor: !interactive || loading ? 'default' : selected ? 'move' : 'pointer', ...canvasStyle }}
         onPointerDown={startPointer}
-        onClick={(event) => { setSelected(true); event.stopPropagation(); }}
+        onClick={interactive ? (event) => { setSelected(true); event.stopPropagation(); } : undefined}
       >
         {loading && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/80 text-xs text-gray-700">
@@ -708,7 +777,7 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
             />
           ) : null}
 
-          {!loading && naturalSize && selected && !previewError && (
+          {!loading && interactive && naturalSize && selected && !previewError && (
             <>
               <div className="pointer-events-none absolute inset-0 z-10" style={{ outline: '1.5px solid rgba(249,115,22,.95)', outlineOffset: '-1.5px' }} />
               {(['tl', 'tr', 'bl', 'br'] as Corner[]).map((corner) => (
@@ -720,12 +789,12 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
           )}
         </div>
 
-        {showDragHint && <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center"><span className="rounded-full bg-black/60 px-3 py-1.5 text-xs text-white">Drag to reposition · Drag corners to resize</span></div>}
+        {interactive && showDragHint && <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center"><span className="rounded-full bg-black/60 px-3 py-1.5 text-xs text-white">Drag to reposition · Drag corners to resize</span></div>}
         {overlay}
-        {!loading && !previewError && !mobileToolbarContainer && <div className="pointer-events-none absolute bottom-2 left-2 right-2 z-40 flex justify-center">{toolbar}</div>}
+        {!loading && interactive && !previewError && !mobileToolbarContainer && <div className="pointer-events-none absolute bottom-2 left-2 right-2 z-40 flex justify-center">{toolbar}</div>}
       </div>
 
-      {!loading && !previewError && mobileToolbarContainer
+      {!loading && interactive && !previewError && mobileToolbarContainer
         ? createPortal(<div className="flex w-full justify-center">{toolbar}</div>, mobileToolbarContainer)
         : null}
     </div>

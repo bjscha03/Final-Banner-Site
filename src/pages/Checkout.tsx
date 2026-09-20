@@ -825,6 +825,7 @@ const Checkout: React.FC = () => {
   }
 
   const orderTotalsProps: CheckoutOrderTotalsProps = {
+    estimated: !activeCheckout,
     subtotalCents,
     minOrderAdjustmentCents: showMinOrderAdjustment ? minOrderAdjustmentCents : 0,
     discountAmountCents: resolvedDiscount.appliedDiscountAmountCents,
@@ -1549,7 +1550,7 @@ const Checkout: React.FC = () => {
                       </span>
                     ))}
                   </div>
-                  <p className="mt-2 text-xs text-gray-600">Secure checkout · No PayPal account required · Upload almost any file type · We check your file before production.</p>
+                  <p className="mt-2 text-xs text-gray-600">Secure checkout · No PayPal account required · Upload PNG, JPG or PDF · We check your file before production.</p>
                   <p className="text-xs text-gray-600">Production time and carrier transit are separate; delivery dates are estimates.</p>
                 </div>
               </div>

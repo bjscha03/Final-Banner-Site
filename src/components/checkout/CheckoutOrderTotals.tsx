@@ -3,6 +3,7 @@ import { CircleCheck, Tag } from 'lucide-react';
 import { usd } from '@/lib/pricing';
 
 export interface CheckoutOrderTotalsProps {
+  estimated?: boolean;
   subtotalCents: number;
   minOrderAdjustmentCents?: number;
   discountAmountCents?: number;
@@ -22,6 +23,7 @@ export interface CheckoutOrderTotalsProps {
  * already-computed values and never recalculates checkout pricing.
  */
 const CheckoutOrderTotals: React.FC<CheckoutOrderTotalsProps> = ({
+  estimated = false,
   subtotalCents,
   minOrderAdjustmentCents = 0,
   discountAmountCents = 0,
@@ -49,7 +51,7 @@ const CheckoutOrderTotals: React.FC<CheckoutOrderTotalsProps> = ({
           <h3 id={headingId} className="text-base font-bold text-[#0B1F3A] sm:text-lg">
             Price details
           </h3>
-          <p className="text-xs text-slate-500">Complete total, including tax</p>
+          <p className="text-xs text-slate-500">{estimated ? 'Estimated total, including displayed tax' : 'Complete total, including tax'}</p>
         </div>
         <span className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">USD</span>
       </div>
@@ -125,8 +127,8 @@ const CheckoutOrderTotals: React.FC<CheckoutOrderTotalsProps> = ({
 
         <div className="mt-3 flex items-end justify-between gap-4 border-t-2 border-slate-300 pt-3">
           <div>
-            <p className="font-bold text-[#0B1F3A]">Final total</p>
-            <p className="text-[11px] text-slate-500">Tax included</p>
+            <p className="font-bold text-[#0B1F3A]">{estimated ? 'Estimated total' : 'Final total'}</p>
+            <p className="text-[11px] text-slate-500">{estimated ? 'Confirmed before payment' : 'Tax included'}</p>
           </div>
           <span className="whitespace-nowrap text-xl font-black text-[#FF6A00] sm:text-2xl">
             {usd(totalCents / 100)}
