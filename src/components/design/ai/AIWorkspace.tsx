@@ -306,7 +306,6 @@ export default function AIWorkspace(props: Props) {
   const [activeImageJob, setActiveImageJob] = useState(false);
   const [improvingPrompt, setImprovingPrompt] = useState(false);
   const [confirmNewDesign, setConfirmNewDesign] = useState(false);
-  const [confirmValidationOverride, setConfirmValidationOverride] = useState(false);
   const [progressPreview, setProgressPreview] = useState<string | null>(null);
   useEffect(() => { if (!stage) setProgressPreview(null); }, [stage]);
   const [error, setError] = useState('');
@@ -629,7 +628,6 @@ export default function AIWorkspace(props: Props) {
     setSelectedId(version.versionId);
     setEditInstruction('');
     setError('');
-    setConfirmValidationOverride(false);
     trackAIEvent('ai_concept_selected', { version_id: version.versionId, version_number: concepts.indexOf(version) + 1 });
   };
 
@@ -650,7 +648,6 @@ export default function AIWorkspace(props: Props) {
   };
 
   const startNewDesign = async () => {
-    setConfirmValidationOverride(false);
     if (stage || controllerRef.current) return;
     const fresh = makeBrief(props);
     const emptyDraft = { brief: fresh, concepts: [], selectedId: '', history: [], redo: [], logoImage: null, referenceImage: null, photoImages: [] };
@@ -665,9 +662,9 @@ export default function AIWorkspace(props: Props) {
     catch { setSaveNotice('The new draft could not be saved. Keep this window open.'); }
   };
 
-  const apply = async (validationOverride = false) => {
-    if (!selected || (!selected.validation.passed && !validationOverride) || hasUnappliedChanges || stage || controllerRef.current) return;
-    setConfirmValidationOverride(false);
+  const apply = async () => {
+    if (!selected || hasUnappliedChanges || stage || controllerRef.current) return;
+    const validationOverride = !selected.validation.passed;
     setError('');
     setStage('Preparing your artwork for the banner designer');
     const session: AIDesignSession = {
@@ -898,18 +895,8 @@ export default function AIWorkspace(props: Props) {
 
       {selected && <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white p-4 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] sm:px-6" data-testid="ai-selection-footer">
         <div className="flex min-w-0 items-center gap-3"><img src={imageSrc(selected)} alt="Selected version to continue with" className="h-12 w-24 rounded border border-slate-200 object-contain" /><div><p className="text-sm font-bold text-[#0b1f3a]">Version {concepts.findIndex(item => item.versionId === selected.versionId) + 1} selected</p><p className="text-xs text-slate-600">{hasUnappliedChanges ? 'Apply or discard your changes first.' : 'Your selected artwork goes with you.'}</p></div></div>
-        <button type="button" onClick={() => selected.validation.passed ? void apply() : setConfirmValidationOverride(true)} disabled={hasUnappliedChanges || Boolean(stage)} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 text-base font-black text-white hover:bg-orange-700 disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto"><CheckCircle2 className="h-5 w-5" /> {stage ? 'Please wait…' : hasUnappliedChanges ? 'Apply your changes before continuing' : selected.validation.passed ? 'Use selected version & continue' : 'Review warning & continue'}</button>
+        <button type="button" onClick={() => void apply()} disabled={hasUnappliedChanges || Boolean(stage)} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 text-base font-black text-white hover:bg-orange-700 disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto"><CheckCircle2 className="h-5 w-5" /> {stage ? 'Please wait…' : hasUnappliedChanges ? 'Apply your changes before continuing' : 'Use selected version & continue'}</button>
       </div>}
-
-      <Dialog open={confirmValidationOverride} onOpenChange={setConfirmValidationOverride}>
-        <DialogContent className="z-[10020] max-w-lg bg-white">
-          <DialogTitle>Use this banner anyway?</DialogTitle>
-          <DialogDescription>The automated print check found a possible issue. It can occasionally flag artwork that is actually acceptable.</DialogDescription>
-          {selected?.validation.reasons?.length ? <ul className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">{selected.validation.reasons.slice(0, 4).map(reason => <li key={reason}>• {reason}</li>)}</ul> : null}
-          <p className="text-sm text-slate-700">Check the full preview for readable wording, complete edge-to-edge artwork, and nothing important cut off. If it looks right, you can continue.</p>
-          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" onClick={() => setConfirmValidationOverride(false)} className="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-semibold">Go back</button><button type="button" onClick={() => void apply(true)} className="min-h-11 rounded-lg bg-orange-600 px-4 text-sm font-black text-white hover:bg-orange-700">Use this banner anyway</button></div>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={fullPreview && Boolean(selected)} onOpenChange={setFullPreview}>
         <DialogContent className="z-[10020] w-[96vw] max-w-[96vw] border-0 bg-slate-950 p-4 pt-12 text-white [&>button]:text-white">
