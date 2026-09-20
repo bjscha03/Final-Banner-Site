@@ -968,9 +968,11 @@ const GoogleAdsBanner: React.FC = () => {
         setDraftSaved(saved);
       } catch { /* Wait until artwork and geometry are ready. */ }
     };
-    const timer = window.setTimeout(save, 350);
+    const timers = [350, 1500, 5000].map(delay => window.setTimeout(save, delay));
+    const onVisibility = () => { if (document.visibilityState === 'hidden') save(); };
     window.addEventListener('pagehide', save);
-    return () => { window.clearTimeout(timer); window.removeEventListener('pagehide', save); };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => { timers.forEach(window.clearTimeout); window.removeEventListener('pagehide', save); document.removeEventListener('visibilitychange', onVisibility); };
   }, [uploadedFile, imgPos, imgScale, imgScaleY, widthIn, heightIn, selectedMaterialKey, quantity, grommets, polePockets, polePocketSize, addRope, ropePlacement, finishingType, constrainProps, showPreview, productType, editItemId, designerPath]);
   const restoreDraft = () => {
     if (!savedDraft) return;
