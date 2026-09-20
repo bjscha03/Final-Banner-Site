@@ -1,3 +1,4 @@
+import LargeBannerSizeCards from '@/components/design/LargeBannerSizeCards';
 import { useAutomaticFirstOrderDiscount } from '@/hooks/useAutomaticFirstOrderDiscount';
 import { FIRST_ORDER_APPLIED_LABEL } from '@/lib/firstOrderPromotion';
 import ProductPageHero from '@/components/product/ProductPageHero';
@@ -420,13 +421,13 @@ const GoogleAdsBanner: React.FC = () => {
   const [autoOpenDesignId, setAutoOpenDesignId] = useState<string | null>(null);
 
   // Use string state for dimension inputs so users can clear and retype freely
-  const [widthFtStr, setWidthFtStr] = useState(isLargeBannerLanding ? '8' : '6');
+  const [widthFtStr, setWidthFtStr] = useState(isLargeBannerLanding ? '10' : '6');
   const [widthInRStr, setWidthInRStr] = useState('0');
   const [heightFtStr, setHeightFtStr] = useState(isLargeBannerLanding ? '4' : '3');
   const [heightInRStr, setHeightInRStr] = useState('0');
   // Raw string state for the inches-mode "Custom Size" inputs. See Design.tsx
   // for rationale: keeps user keystrokes literal so "3" never becomes "03".
-  const [widthCustomInStr, setWidthCustomInStr] = useState(isLargeBannerLanding ? '96' : '72');
+  const [widthCustomInStr, setWidthCustomInStr] = useState(isLargeBannerLanding ? '120' : '72');
   const [heightCustomInStr, setHeightCustomInStr] = useState(isLargeBannerLanding ? '48' : '36');
   // Derived numeric values for calculations (treat empty as 0)
   const widthFt = parseInt(widthFtStr, 10) || 0;
@@ -475,7 +476,7 @@ const GoogleAdsBanner: React.FC = () => {
   }, []);
   const [uploadError, setUploadError] = useState('');
   // Restore the visible, immediately priced popular banner default.
-  const [activePreset, setActivePreset] = useState<number | null>(initialProductType === 'banner' ? (isLargeBannerLanding ? 4 : POPULAR_BANNER_PRESET.presetIndex) : null);
+  const [activePreset, setActivePreset] = useState<number | null>(initialProductType === 'banner' ? (isLargeBannerLanding ? 5 : POPULAR_BANNER_PRESET.presetIndex) : null);
   const [quantity, setQuantity] = useState(initialProductType === 'yard_sign' ? 10 : 1);
   const storedPromoAtLoad = useCartStore.getState().discountCode;
   const [promoCode, setPromoCode] = useState(storedPromoAtLoad?.code || 'NEW20');
@@ -2699,9 +2700,9 @@ const GoogleAdsBanner: React.FC = () => {
                   )}
                 </ConfigCard>);
   const sizeCard = (<ConfigCard
-                  popularPreset={isLargeBannerLanding ? { widthIn: 96, heightIn: 48 } : undefined}
+                  popularPreset={isLargeBannerLanding ? { widthIn: 120, heightIn: 48 } : undefined}
                   step={1}
-                  title={isCarMagnet ? "Choose your size" : "Size & quantity"}
+                  title={isCarMagnet ? "Choose your size" : isLargeBannerLanding ? "Choose your large banner size" : "Size & quantity"}
                   id="size-section"
                   headerRight={!isCarMagnet ? (
                     <div className="inline-flex items-center rounded-lg border border-gray-200 bg-white p-0.5 text-xs" role="group" aria-label="Display unit">
@@ -2724,8 +2725,19 @@ const GoogleAdsBanner: React.FC = () => {
                     </div>
                   ) : undefined}
                 >
-                  <div className={isCarMagnet ? '' : 'grid lg:grid-cols-2 lg:gap-6'}>
-                    <div>
+                  <div className={isCarMagnet || isLargeBannerLanding ? '' : 'grid lg:grid-cols-2 lg:gap-6'}>
+                    {isLargeBannerLanding ? <LargeBannerSizeCards widthIn={widthIn} heightIn={heightIn} unit={unit} material={material}
+                      onSelect={(w, h) => {
+                        setWidthFtStr(String(Math.floor(w / 12)));
+                        setWidthInRStr(String(w % 12));
+                        setHeightFtStr(String(Math.floor(h / 12)));
+                        setHeightInRStr(String(h % 12));
+                        setWidthCustomInStr(String(w));
+                        setHeightCustomInStr(String(h));
+                        const index = PRESET_SIZES.findIndex(p => p.w === w && p.h === h);
+                        setActivePreset(index >= 0 ? index : null);
+                        setHasConfirmedSize(true);
+                      }} /> : <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Popular Sizes</label>
                       <div className="grid grid-cols-3 gap-2">
                         {isCarMagnet
@@ -2740,10 +2752,10 @@ const GoogleAdsBanner: React.FC = () => {
                               </button>
                             ))}
                       </div>
-                    </div>
+                    </div>}
                     {!isCarMagnet && (
-                    <div className="mt-6 lg:mt-0">
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Custom Size</label>
+                    <div className={isLargeBannerLanding ? "mt-5 rounded-xl bg-slate-50 p-4" : "mt-6 lg:mt-0"}>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">{isLargeBannerLanding ? "Need a different size?" : "Custom Size"}</label>
                       {unit === 'in' ? (
                         <div className="grid grid-cols-2 gap-4">
                           <div>
@@ -2834,6 +2846,7 @@ const GoogleAdsBanner: React.FC = () => {
                     </div>
                     )}
                   </div>
+                {isLargeBannerLanding && <p className="mt-3 text-xs text-slate-600">Online sizes up to 50 ft on the long side and 16 ft on the short side. Larger project? <Link to="/custom-quote" className="font-semibold text-orange-700 underline">Request a quote</Link>.</p>}
                 {!isCarMagnet && <div className="mt-5 grid gap-4 border-t border-slate-200 pt-4 sm:grid-cols-[minmax(0,1fr)_auto]">{materialCard}{quantityCard}</div>}
                 </ConfigCard>);
   const finishingCard = (<ConfigCard step={3} title={isCarMagnet ? 'Rounded Corners' : 'Finishing options'} id="options-section">
@@ -3492,7 +3505,7 @@ const GoogleAdsBanner: React.FC = () => {
           promotionNote={bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20' ? FIRST_ORDER_APPLIED_LABEL : undefined}
           cartItemCount={cartItemCount}
           onViewCart={openCartDrawer}
-          priceNote={isLargeBannerLanding && widthIn === 96 && heightIn === 48 ? "8′ × 4′ large banner selected" : showPopularBannerPriceNote ? "Popular 6′ × 3′ size preselected" : undefined}
+          priceNote={isLargeBannerLanding && widthIn === 120 && heightIn === 48 ? "10′ × 4′ large banner selected" : showPopularBannerPriceNote ? "Popular 6′ × 3′ size preselected" : undefined}
           subtotal={
             !isYardSign && !isCarMagnet ? (
               <div>

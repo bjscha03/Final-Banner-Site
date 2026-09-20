@@ -105,6 +105,7 @@ interface ProductPageHeroProps {
 
 const ProductPageHero: React.FC<ProductPageHeroProps> = ({ productSlug, ctaUrl, onStart }) => {
   const hero = HERO_DEFINITIONS[productSlug];
+  const isLargeBanner = productSlug === 'large-banners-fast';
 
   return (
     <section
@@ -128,19 +129,19 @@ const ProductPageHero: React.FC<ProductPageHeroProps> = ({ productSlug, ctaUrl, 
 
       <div className="relative mx-auto w-full max-w-[1740px] px-5 py-9 sm:px-8 sm:py-12 lg:flex lg:min-h-[650px] lg:items-center lg:px-12 lg:py-14 xl:px-16">
         <div className="relative z-10 max-w-[690px] lg:w-[47%]">
-          <p className="text-[11px] font-black uppercase tracking-[0.17em] text-[#061A31] sm:text-sm lg:text-base">
+          {!isLargeBanner && <p className="text-[11px] font-black uppercase tracking-[0.17em] text-[#061A31] sm:text-sm lg:text-base">
             {hero.eyebrow}
-          </p>
+          </p>}
           <h1
             id={`${productSlug}-hero-heading`}
-            className="homepage-condensed mt-5 [--homepage-mobile-size:clamp(3.55rem,17vw,5.2rem)] text-[5.2rem] font-black uppercase leading-[0.84] tracking-[-0.018em] text-[#061A31] sm:text-[6.35rem] lg:text-[6.4rem] xl:text-[7.15rem]"
+            className={`${isLargeBanner ? 'mt-0' : 'mt-5'} homepage-condensed [--homepage-mobile-size:clamp(3.55rem,17vw,5.2rem)] text-[5.2rem] font-black uppercase leading-[0.84] tracking-[-0.018em] text-[#061A31] sm:text-[6.35rem] lg:text-[6.4rem] xl:text-[7.15rem]`}
           >
             {hero.title.map((line) => (
               <span key={line} className="block">{line}</span>
             ))}
           </h1>
 
-          {hero.intro && <p className="mt-5 max-w-lg text-base font-medium leading-relaxed sm:text-lg">{hero.intro}</p>}
+          {!isLargeBanner && hero.intro && <p className="mt-5 max-w-lg text-base font-medium leading-relaxed sm:text-lg">{hero.intro}</p>}
 
           <div className="mt-7 flex flex-col items-start gap-5 sm:mt-8">
             <Link
@@ -151,14 +152,20 @@ const ProductPageHero: React.FC<ProductPageHeroProps> = ({ productSlug, ctaUrl, 
               {hero.primaryLabel}
               <ArrowRight className="h-5 w-5 flex-none" aria-hidden="true" />
             </Link>
-            <a
+            {!isLargeBanner && <a
               href={hero.secondaryUrl ?? ((productSlug === 'double-sided-banners' || productSlug === 'large-banners-fast') ? '#order-builder' : '#sizes-pricing')}
               className="inline-flex min-h-11 items-center border-b-2 border-[#061A31] pb-0.5 text-sm font-black uppercase tracking-[0.035em] text-[#061A31] transition-colors hover:border-white hover:text-white sm:text-base"
             >
               {hero.secondaryLabel}
-            </a>
+            </a>}
           </div>
-          <HeroDeliveryStatus className="mt-6 w-full max-w-[570px]" />
+          {isLargeBanner && (<div className="mt-5 grid w-full max-w-[505px] grid-cols-[auto_1fr] items-center gap-4 rounded-md border border-white/70 bg-white px-5 py-4 text-[#071C35] shadow-[0_9px_20px_rgba(57,20,0,.2)] sm:gap-5 sm:px-6">
+          <p className="homepage-condensed whitespace-nowrap [--homepage-mobile-size:3rem] text-5xl font-black uppercase leading-none text-[#E95413] sm:text-[4rem]">20% off</p>
+          <div className="border-l-2 border-[#E95413] pl-4 text-sm font-bold uppercase leading-5 tracking-[0.04em] sm:text-base sm:leading-6">
+            First order<br />Automatically applied
+          </div>
+        </div>)}
+          <HeroDeliveryStatus className={isLargeBanner ? "mt-5 w-full max-w-[505px]" : "mt-6 w-full max-w-[570px]"} />
         </div>
       </div>
 
