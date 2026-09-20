@@ -1,3 +1,5 @@
+import { readBannerDraft, saveBannerDraft, clearBannerDraft } from '@/lib/bannerDraft';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import LargeBannerSizeCards from '@/components/design/LargeBannerSizeCards';
 import { useAutomaticFirstOrderDiscount } from '@/hooks/useAutomaticFirstOrderDiscount';
 import { FIRST_ORDER_APPLIED_LABEL } from '@/lib/firstOrderPromotion';
@@ -946,6 +948,48 @@ const GoogleAdsBanner: React.FC = () => {
 
   // Restore cart item state when editing from cart (editItem query param)
   const editItemId = searchParams.get('editItem');
+  const [savedDraft, setSavedDraft] = useState(() => readBannerDraft(designerPath));
+  const [draftSaved, setDraftSaved] = useState(false);
+  const draftPausedRef = useRef(false);
+  useEffect(() => {
+    if (productType !== 'banner' || editItemId || !uploadedFile || draftPausedRef.current) return;
+    const save = () => {
+      if (draftPausedRef.current) return;
+      try {
+        const snapshot = (showPreview ? modalEditorRef : inlineEditorRef).current?.getCompositionSnapshot();
+        if (!snapshot) return;
+        const permanentPreview = uploadedFile.previewUrl || uploadedFile.thumbnailUrl || uploadedFile.url;
+        const saved = saveBannerDraft(designerPath, {
+          version: 1, savedAt: Date.now(), width: widthIn, height: heightIn,
+          material: selectedMaterialKey, quantity, grommets, polePockets, polePocketSize,
+          addRope, ropePlacement, finishingType, constrained: constrainProps,
+          artwork: { ...uploadedFile, previewUrl: permanentPreview }, transform: snapshot.transform,
+        });
+        setDraftSaved(saved);
+      } catch { /* Wait until artwork and geometry are ready. */ }
+    };
+    const timers = [350, 1500, 5000].map(delay => window.setTimeout(save, delay));
+    const onVisibility = () => { if (document.visibilityState === 'hidden') save(); };
+    window.addEventListener('pagehide', save);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => { timers.forEach(window.clearTimeout); window.removeEventListener('pagehide', save); document.removeEventListener('visibilitychange', onVisibility); };
+  }, [uploadedFile, imgPos, imgScale, imgScaleY, widthIn, heightIn, selectedMaterialKey, quantity, grommets, polePockets, polePocketSize, addRope, ropePlacement, finishingType, constrainProps, showPreview, productType, editItemId, designerPath]);
+  const restoreDraft = () => {
+    if (!savedDraft) return;
+    cartRestoreTransformRef.current = widthIn === savedDraft.width && heightIn === savedDraft.height ? null : { productType: 'banner', widthIn: savedDraft.width, heightIn: savedDraft.height, normalizedTransform: savedDraft.transform, scaleX: savedDraft.transform.scaleX, scaleY: savedDraft.transform.scaleY, constrain: savedDraft.constrained, revision: Date.now() };
+    setWidthFtStr(String(Math.floor(savedDraft.width / 12))); setWidthInRStr(String(savedDraft.width % 12));
+    setHeightFtStr(String(Math.floor(savedDraft.height / 12))); setHeightInRStr(String(savedDraft.height % 12));
+    setWidthCustomInStr(String(savedDraft.width)); setHeightCustomInStr(String(savedDraft.height));
+    setActivePreset(PRESET_SIZES.findIndex(size => size.w === savedDraft.width && size.h === savedDraft.height));
+    setMaterial(savedDraft.material); setQuantity(savedDraft.quantity); setGrommets(savedDraft.grommets);
+    setPolePockets(savedDraft.polePockets); setPolePocketSize(savedDraft.polePocketSize); setAddRope(savedDraft.addRope);
+    setRopePlacement(savedDraft.ropePlacement as RopePlacement); setFinishingType(savedDraft.finishingType as FinishingType);
+    setConstrainProps(savedDraft.constrained); setRestoredNormalizedTransform(savedDraft.transform);
+    setRestoredCompositionRevision(Date.now()); setUploadedFile(savedDraft.artwork as UploadedArtworkFile);
+    setImgPos({ x: 0, y: 0 }); setImgScale(savedDraft.transform.scaleX); setImgScaleY(savedDraft.transform.scaleY);
+    setHasConfirmedSize(true); setSavedDraft(null); logUx('artwork_draft_restored');
+  };
+
   const [editItemRestored, setEditItemRestored] = useState<string | null>(null);
   const editCartItems = useCartStore((state) => state.items);
   const cartRestoreTransformRef = useRef<{
@@ -1449,6 +1493,7 @@ const GoogleAdsBanner: React.FC = () => {
     setRestoredNormalizedTransform(null);
     setRestoredCompositionRevision(0);
 
+    draftPausedRef.current = false;
     const generation = uploadGenerationRef.current + 1;
     uploadGenerationRef.current = generation;
     activeUploadAbortControllerRef.current?.abort();
@@ -1656,6 +1701,7 @@ const GoogleAdsBanner: React.FC = () => {
   }, [isYardSign]);
   const resetAfterSuccessfulAdd = useCallback(() => {
     resetPreview();
+    draftPausedRef.current = false;
     setShowPostAddResetNotice(true);
     if (productType === 'banner') {
       setHasJustAddedToCart(false);
@@ -1680,6 +1726,7 @@ const GoogleAdsBanner: React.FC = () => {
     actionType: 'checkout' | 'cart',
     navigateUrl?: string,
   ) => {
+    draftPausedRef.current = true; clearBannerDraft(designerPath); setSavedDraft(null); setDraftSaved(false);
     setPendingCheckoutData(null);
     if (aiDesignSession) {
       trackAIEvent('ai_added_to_cart', { product_type: 'banner' });
@@ -2216,6 +2263,7 @@ const GoogleAdsBanner: React.FC = () => {
         }
       } catch (error) {
         const explained = explainPreviewLifecycleError(error);
+        logUx('artwork_checkout_failed', { code: explained.code });
         console.error('[gab_placement_preview_failed]', {
           code: explained.code,
           reason: explained.technicalReason,
@@ -2224,8 +2272,8 @@ const GoogleAdsBanner: React.FC = () => {
           editorSource,
         });
         toast({
-          title: explained.code,
-          description: `${explained.description} Technical reason: ${explained.technicalReason}`,
+          title: 'We could not prepare your preview',
+          description: 'Your artwork is still here. Please reopen Adjust artwork, check the preview, and try again.',
           variant: 'destructive',
         });
       } finally {
@@ -2245,7 +2293,7 @@ const GoogleAdsBanner: React.FC = () => {
       if (!yardSignQuantityValid.valid) return;
       void performCheckout([], { pos: { x: 0, y: 0 }, scale: 1 }).catch((error) => {
         const explained = explainPreviewLifecycleError(error);
-        toast({ title: explained.code, description: `${explained.description} Technical reason: ${explained.technicalReason}`, variant: 'destructive' });
+        toast({ title: 'We could not prepare your preview', description: 'Your artwork is still here. Please reopen Adjust artwork, check the preview, and try again.', variant: 'destructive' });
       });
       return;
     }
@@ -2259,7 +2307,7 @@ const GoogleAdsBanner: React.FC = () => {
       if (!yardSignQuantityValid.valid) return;
       void performCheckout([], { pos: { x: 0, y: 0 }, scale: 1 }, 'cart').catch((error) => {
         const explained = explainPreviewLifecycleError(error);
-        toast({ title: explained.code, description: `${explained.description} Technical reason: ${explained.technicalReason}`, variant: 'destructive' });
+        toast({ title: 'We could not prepare your preview', description: 'Your artwork is still here. Please reopen Adjust artwork, check the preview, and try again.', variant: 'destructive' });
       });
       return;
     }
@@ -2294,7 +2342,7 @@ const GoogleAdsBanner: React.FC = () => {
     } catch (error) {
       const explained = explainPreviewLifecycleError(error);
       setShowUpsellModal(true);
-      toast({ title: explained.code, description: `${explained.description} Technical reason: ${explained.technicalReason}`, variant: 'destructive' });
+      toast({ title: 'We could not prepare your preview', description: 'Your artwork is still here. Please reopen Adjust artwork, check the preview, and try again.', variant: 'destructive' });
     } finally {
       setIsProcessingUpsell(false);
     }
@@ -2610,7 +2658,7 @@ const GoogleAdsBanner: React.FC = () => {
         ? { label: 'Choose a size', disabled: false, onClick: () => { setHasEnteredBuilder(true); scrollToStepAnchor('size-section'); } }
         : !uploadedFile
           ? { label: uploadError ? 'Retry upload' : 'Upload artwork', disabled: false, onClick: openOrScrollToUpload }
-          : { label: editItemId ? 'Save & design another' : 'Add & design another', disabled: false, onClick: handleAddToCart };
+          : { label: editItemId ? 'Save & checkout' : 'Continue to checkout', disabled: false, onClick: handleCheckout };
 
   const materialCard = isDoubleSidedBanner ? (
     <ConfigCard compact step={2} title="Material & printing" id="material-section">
@@ -2875,6 +2923,12 @@ const GoogleAdsBanner: React.FC = () => {
                   </div>
                 </ConfigCard>);
   const uploadCard = (<ConfigCard step={isCarMagnet ? 4 : 2} title="Upload your artwork" id="upload-section">
+                  {productType === 'banner' && !editItemId && savedDraft && !uploadedFile && <div className="mb-4 rounded-lg border border-orange-200 bg-orange-50 p-3" role="status">
+                    <p className="font-semibold">Continue your saved banner?</p><p className="text-sm">{savedDraft.artwork.name} · {savedDraft.width / 12} × {savedDraft.height / 12} ft</p>
+                    <button type="button" onClick={restoreDraft} className="mt-2 min-h-11 rounded-lg bg-orange-600 px-4 text-white">Restore design</button>
+                    <button type="button" onClick={() => { clearBannerDraft(designerPath); setSavedDraft(null); }} className="ml-2 min-h-11 px-3 underline">Discard saved draft</button>
+                  </div>}
+                  {draftSaved && uploadedFile && <p role="status" className="mb-2 text-xs text-emerald-700">Draft saved on this device for 7 days.</p>}
                   {/* Helper banner: shown when the user reaches the upload card before
                       completing required choices. Doesn't block upload — just surfaces
                       what still needs to happen before "Add to Cart" works. */}
@@ -2939,8 +2993,9 @@ const GoogleAdsBanner: React.FC = () => {
                     <div>
                       {/* Preview labeling */}
                       <div className="mb-2">
+                        <button type="button" onClick={() => { setShowPreview(true); logUx('artwork_editor_opened'); }} className="mb-3 min-h-11 w-full rounded-lg bg-orange-600 px-4 py-3 font-semibold text-white">Adjust artwork / Larger preview</button>
                         <h3 className="text-sm font-bold text-gray-800">{isYardSign ? 'Live Yard Sign Preview' : isCarMagnet ? 'Live Car Magnet Preview' : 'Live Banner Preview'}</h3>
-                        <p className="text-xs text-gray-400">Final print preview — what you see is what you get</p>
+                        <p className="text-xs text-gray-400">Your print layout — check text, edges and any white margins</p>
                       </div>
                       {/* Banner preview with depth background */}
                       <div className="rounded-xl p-4 md:p-6 max-w-full overflow-hidden bg-slate-300 border border-slate-400/70 shadow-inner">
@@ -2957,6 +3012,7 @@ const GoogleAdsBanner: React.FC = () => {
                               resize handles, fit/fill/reset/constrain). */}
                           <ArtworkPreviewEditor
                             ref={inlineEditorRef}
+                            interactive={false}
                             compositionKey={buildArtworkCompositionKey(uploadedFile, productType)}
                             initialNormalizedTransform={restoredNormalizedTransform}
                             initialCompositionRevision={restoredCompositionRevision}
@@ -3026,7 +3082,7 @@ const GoogleAdsBanner: React.FC = () => {
                           <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
                           <span className="text-sm font-semibold text-green-800 truncate">{uploadedFile.name}</span>
                         </div>
-                        <button type="button" aria-label="Remove uploaded artwork" onClick={() => { setUploadedFile(null); setImgPos({ x: 0, y: 0 }); setImgScale(1); setImgScaleY(1); setAiPrompt(null); setAiEditPrompt(null); setAiDesignSession(null); }} className="ml-2 flex-shrink-0 p-2.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
+                        <button type="button" aria-label="Remove uploaded artwork" onClick={() => { if (!window.confirm('Remove this artwork? You can keep it by choosing Cancel.')) return; clearBannerDraft(designerPath); setDraftSaved(false); setSavedDraft(null); setUploadedFile(null); setImgPos({ x: 0, y: 0 }); setImgScale(1); setImgScaleY(1); setAiPrompt(null); setAiEditPrompt(null); setAiDesignSession(null); }} className="ml-2 flex-shrink-0 p-2.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
                       </div>
                       {aiPrompt && !isYardSign && !isCarMagnet && showCreateWithAI && (
                         <div className="mt-2 flex justify-center">
@@ -3044,7 +3100,7 @@ const GoogleAdsBanner: React.FC = () => {
                     </div>
                   )}
                   {uploadError && <p className="text-xs text-red-600 mt-2">{uploadError}</p>}
-                  <p className="text-xs text-gray-400 mt-2 text-center">Every file reviewed by a real designer before printing.</p>
+                  <p className="text-xs text-gray-400 mt-2 text-center">We check printability before production and contact you if needed. No separate proof is sent.</p>
                 </ConfigCard>);
   const heroContent = isYardSign
     ? {
@@ -3529,18 +3585,16 @@ const GoogleAdsBanner: React.FC = () => {
 
       {/* Preview Modal */}
       {showPreview && uploadedFile && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm sm:p-4">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-3xl w-full max-h-[95vh] sm:max-h-[90vh] flex flex-col modal-dvh-fix">
+        <Dialog open={showPreview} onOpenChange={(open) => { setShowPreview(open); if (!open) logUx('artwork_editor_saved'); }}>
+          <DialogContent className="max-w-3xl w-[calc(100%-1rem)] max-h-[95dvh] flex flex-col gap-0 p-0 overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b">
               <div>
-                <h3 className="text-lg font-bold text-gray-900">{isYardSign ? 'Live Yard Sign Preview' : isCarMagnet ? 'Live Car Magnet Preview' : 'Live Banner Preview'}</h3>
-                <p className="text-xs text-gray-400">Final print preview — what you see is what you get</p>
+                <DialogTitle className="text-lg font-bold text-gray-900">{isYardSign ? 'Live Yard Sign Preview' : isCarMagnet ? 'Live Car Magnet Preview' : 'Adjust your artwork'}</DialogTitle>
+                <DialogDescription className="text-xs text-slate-600">Changes apply to your banner. Use Undo to reverse an adjustment.</DialogDescription>
               </div>
-              <button type="button" aria-label="Close preview" onClick={() => setShowPreview(false)} className="p-2.5 hover:bg-gray-100 rounded-full">
-                <X className="w-5 h-5" />
-              </button>
+
             </div>
-            <div className="p-4 flex-1 overflow-auto">
+            <div className="p-3 sm:p-4 flex-1 min-h-0 overflow-auto">
               <p className="text-sm text-gray-500 mb-3 flex items-center gap-1"><Move className="w-4 h-4" /> Drag to reposition · Drag corners to resize</p>
               {/* Banner surface */}
               <div className="rounded-lg p-3 border border-slate-300" style={{ background: 'linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%)' }}>
@@ -3617,11 +3671,11 @@ const GoogleAdsBanner: React.FC = () => {
               <p className="text-xs text-gray-500 text-center mt-2 font-medium">Your design will be printed based on this preview</p>
             </div>
             <div className="flex gap-3 p-4 border-t">
-              <button onClick={() => setShowPreview(false)} className="flex-1 py-3.5 sm:py-3 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50">Cancel</button>
-              <button onClick={() => handleConfirmPosition(imgPos, imgScale, imgScaleY)} className="flex-1 py-3.5 sm:py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold shadow-lg">Confirm & Checkout</button>
+              <button onClick={() => { setShowPreview(false); logUx('artwork_editor_saved'); }} className="flex-1 min-h-12 rounded-xl border border-gray-300 text-gray-700 font-semibold">Done adjusting</button>
+              <button disabled={isProcessingUpsell || isUploading} onClick={() => handleConfirmPosition(imgPos, imgScale, imgScaleY)} className="flex-1 py-3.5 sm:py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold shadow-lg">{isProcessingUpsell ? 'Preparing preview…' : 'Continue to checkout'}</button>
             </div>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
       {/* Upsell Modal */}
       <UpsellModal

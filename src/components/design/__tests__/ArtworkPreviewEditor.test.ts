@@ -169,3 +169,46 @@ describe('banner size change review', () => {
     }
   });
 });
+
+describe('explicit editing and recovery controls', () => {
+  it('keeps a read-only preview scrollable and supports zoom undo/redo in edit mode', async () => {
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+    vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+    const bounds = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ width: 600, height: 300, x: 0, y: 0, left: 0, top: 0, right: 600, bottom: 300, toJSON() {} });
+    const host = document.createElement('div'); const slot = document.createElement('div');
+    document.body.append(host, slot); const root = createRoot(host);
+    const original = document.elementFromPoint; document.elementFromPoint = () => host.querySelector('img');
+    function Harness({ interactive }: { interactive: boolean }) {
+      const [value, setValue] = useState({ x: 0, y: 0, scaleX: 1, scaleY: 1 });
+      return React.createElement(ArtworkPreviewEditor, { src: 'audit-history.png', interactive, value, onChange: setValue, constrain: true, onConstrainChange: () => {}, paddingPct: '50%', mobileToolbarContainer: slot });
+    }
+    try {
+      await act(async () => root.render(React.createElement(Harness, { interactive: false })));
+      const img = host.querySelector('img')!;
+      Object.defineProperties(img, { complete: { value: true }, naturalWidth: { value: 1200 }, naturalHeight: { value: 600 } });
+      await act(async () => img.dispatchEvent(new Event('load')));
+      expect(img.parentElement!.parentElement!.style.touchAction).toBe('pan-y');
+      expect(slot.querySelector('button')).toBeNull();
+      await act(async () => root.render(React.createElement(Harness, { interactive: true })));
+      const button = (text: string) => Array.from(slot.querySelectorAll('button')).find(b => b.textContent === text)!;
+      const before = img.parentElement!.style.width;
+      await act(async () => button('+ Zoom in').click());
+      expect(parseFloat(img.parentElement!.style.width)).toBeGreaterThan(parseFloat(before));
+      await act(async () => button('Undo').click());
+      expect(img.parentElement!.style.width).toBe(before);
+      await act(async () => button('Redo').click());
+      expect(parseFloat(img.parentElement!.style.width)).toBeGreaterThan(parseFloat(before));
+      const canvas = img.parentElement!.parentElement!;
+      const pointer = (type: string, pointerId: number, clientX: number, clientY: number) => Object.assign(new Event(type, { bubbles: true, cancelable: true }), { pointerId, pointerType: 'touch', clientX, clientY });
+      await act(async () => canvas.dispatchEvent(pointer('pointerdown', 1, 100, 100)));
+      await act(async () => canvas.dispatchEvent(pointer('pointerdown', 2, 200, 100)));
+      await act(async () => window.dispatchEvent(pointer('pointermove', 2, 230, 100)));
+      await act(async () => window.dispatchEvent(pointer('pointerup', 2, 230, 100)));
+      const leftBefore = parseFloat(img.parentElement!.style.left);
+      await act(async () => window.dispatchEvent(pointer('pointermove', 1, 120, 100)));
+      expect(parseFloat(img.parentElement!.style.left)).toBeCloseTo(leftBefore + 20);
+      await act(async () => window.dispatchEvent(pointer('pointerup', 1, 120, 100)));
+
+    } finally { await act(async () => root.unmount()); host.remove(); slot.remove(); bounds.mockRestore(); document.elementFromPoint = original; vi.unstubAllGlobals(); }
+  });
+});

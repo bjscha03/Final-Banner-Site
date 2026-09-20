@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { initializeCustomerAnalytics, stopScheduledAnalyticsLoads } from '@/lib/analyticsLoader';
-import { trackFBPageView, trackPageView } from '@/lib/analytics';
+import { trackFBPageView, trackFBViewContent, trackPageView } from '@/lib/analytics';
 import { initPostHog, trackPostHogPageView } from '@/lib/posthog';
 import { getSanitizedAnalyticsPath, isCustomerTrackingAllowed } from '@/lib/trackingPolicy';
 import { markCurrentDeviceAsInternal } from '@/lib/trackingPolicy';
@@ -45,6 +45,9 @@ const AnalyticsController = () => {
     const timer = window.setTimeout(() => {
       trackPageView({ page_title: document.title, page_path: pagePath });
       trackFBPageView();
+      if (['/google-ads-banner', '/large-banners-fast'].includes(location.pathname)) {
+        trackFBViewContent({ content_name: location.pathname === '/large-banners-fast' ? 'Large banner designer' : 'Custom product designer', content_category: 'Product configurator' });
+      }
       trackPostHogPageView(pagePath);
     }, 0);
     return () => window.clearTimeout(timer);

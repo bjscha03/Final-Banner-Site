@@ -22,6 +22,15 @@ import { sendClarity } from './trackingRuntime';
 import { isCustomerTrackingAllowed } from './trackingPolicy';
 
 export type UxEvent =
+  | 'upload_picker_requested'
+  | 'artwork_placement_warning'
+  | 'artwork_adjustment'
+  | 'artwork_undo'
+  | 'artwork_redo'
+  | 'artwork_editor_opened'
+  | 'artwork_editor_saved'
+  | 'artwork_draft_restored'
+  | 'artwork_checkout_failed'
   | 'cta_click'
   | 'sticky_cta_rendered'
   | 'step_validation_failed'
