@@ -1,3 +1,4 @@
+const { createHash } = require('node:crypto');
 const { neon } = require('@neondatabase/serverless');
 const { Resend } = require('resend');
 const { requireAdmin } = require('./server-auth.cjs');
@@ -43,11 +44,11 @@ function isRetryableProviderError(error) {
   return statusCode === 429 || statusCode >= 500 || message.includes('too many requests') || message.includes('rate limit');
 }
 
-async function sendWithRetry(resend, payload, maxAttempts = 3) {
+async function sendWithRetry(resend, payload, maxAttempts = 3, idempotencyKey) {
   let lastError;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      const result = await resend.emails.send(payload);
+      const result = await resend.emails.send(payload, idempotencyKey ? { idempotencyKey } : undefined);
       if (!result?.error && result?.data?.id) return result;
       lastError = result?.error || new Error('Resend did not return a message ID');
     } catch (error) {
@@ -146,7 +147,7 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { orderId } = JSON.parse(event.body || '{}');
+    const { orderId, requestId, expectedTrackingNumbers } = JSON.parse(event.body || '{}');
     if (!orderId || typeof orderId !== 'string') {
       return { statusCode: 400, headers, body: JSON.stringify({ ok: false, error: 'Order ID is required' }) };
     }
@@ -191,6 +192,17 @@ exports.handler = async (event) => {
     if (!trackingNumbers.length) {
       return { statusCode: 400, headers, body: JSON.stringify({ ok: false, error: 'Add at least one tracking number before sending the tracking email.' }) };
     }
+
+    // Reject a stale card instead of emailing tracking changed in another session.
+    if (expectedTrackingNumbers && JSON.stringify(normalizeTrackingEntries({ tracking_numbers: expectedTrackingNumbers })) !== JSON.stringify(trackingNumbers)) {
+      return { statusCode: 409, headers, body: JSON.stringify({ ok: false, error: 'Tracking changed since this card was loaded. Refresh and verify this order before sending.' }) };
+    }
+    // Initial sends share a key for the same order/package list. Explicit resends
+    // use a client request ID, retained on retries after an uncertain response.
+    const explicitResend = String(event.path || '').includes('resend-tracking-email');
+    const deliveryKey = 'tracking-' + createHash('sha256').update(JSON.stringify([
+      orderId, trackingNumbers, explicitResend ? String(requestId || order.shipping_notification_sent_at || '') : 'initial',
+    ])).digest('hex');
 
     const customerEmail = String(order.email || order.profile_email || '').trim().toLowerCase();
     if (!customerEmail) {
@@ -252,7 +264,7 @@ exports.handler = async (event) => {
         trackingNumbers,
         from: emailFrom,
         replyTo,
-      }));
+      }), 3, deliveryKey);
       providerId = result.data.id;
     } catch (error) {
       const errorMessage = providerErrorMessage(error);

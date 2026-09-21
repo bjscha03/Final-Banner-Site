@@ -197,11 +197,10 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
     };
   }, [overlayImage, safeWidth, safeHeight, maxSize]);
 
-  // Baked snapshots already match the product frame. `contain` preserves that
-  // identity without stretching or cropping if a legacy derivative has a few
-  // extra pixels. Originals retain their saved transform; explicit stretch is
-  // the only path that uses fill.
-  const imageObjectFit: React.CSSProperties['objectFit'] = fitMode === 'stretch'
+  // Baked snapshots already contain the approved crop: map them to the exact
+  // product frame without adding contain-letterboxing. Originals retain their
+  // saved transform. The frame's inset ring must not change its aspect ratio.
+  const imageObjectFit: React.CSSProperties['objectFit'] = isApprovedSnapshot || fitMode === 'stretch'
     ? 'fill'
     : 'contain';
 
@@ -220,7 +219,7 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
         }}
       >
         <div
-          className="relative block w-full overflow-hidden rounded-lg border-2 border-gray-200 bg-white shadow-lg"
+          className="relative block w-full overflow-hidden rounded-lg ring-2 ring-inset ring-gray-200 bg-white shadow-lg"
           style={{
             aspectRatio: `${safeWidth} / ${safeHeight}`,
             minHeight: '1px',

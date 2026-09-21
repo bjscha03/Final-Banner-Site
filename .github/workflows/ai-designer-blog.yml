@@ -1,0 +1,88 @@
+name: AI designer blog publication
+on:
+  pull_request:
+    paths:
+      - 'content/blog/how-to-create-vinyl-banner-with-ai.mdx'
+      - 'src/lib/blog/prerenderedPosts.ts'
+      - 'src/pages/BlogPostPage.tsx'
+      - 'scripts/prerender-ai-blog.mjs'
+      - 'scripts/prerender-local-pages.mjs'
+      - 'scripts/generate-seo-assets.mjs'
+      - '.github/workflows/ai-designer-blog.yml'
+permissions:
+  contents: read
+jobs:
+  publication-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VITE_AI_BANNER_ENABLED: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Restore declared optional native metadata in the disposable QA checkout
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
+          const packages = Object.entries(lock.packages || {});
+          const optionalNames = new Set(packages.flatMap(([, pkg]) => Object.keys(pkg.optionalDependencies || {})));
+          for (const [path, pkg] of packages) {
+            const name = path.slice(path.lastIndexOf('node_modules/') + 'node_modules/'.length);
+            if ((pkg.os || pkg.cpu) && optionalNames.has(name)) pkg.optional = true;
+          }
+          fs.writeFileSync('package-lock.json', JSON.stringify(lock, null, 2) + '\n');
+          NODE
+      - run: npm ci
+      - name: Build and validate existing routes plus the new article
+        run: npm run build
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Check desktop and mobile article, blog listing and designer links
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/blog-preview.log 2>&1 &
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { mkdir } from 'node:fs/promises';
+          import { chromium, webkit } from '@playwright/test';
+          const base = 'http://127.0.0.1:4173';
+          const route = '/blog/how-to-create-vinyl-banner-with-ai';
+          for (let attempt = 0; attempt < 60; attempt++) {
+            try { if ((await fetch(base)).ok) break; } catch {}
+            if (attempt === 59) throw new Error('Preview server did not start.');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+          await mkdir('test-results/ai-blog', { recursive: true });
+          for (const [name, browserType] of [['chromium', chromium], ['webkit', webkit]]) {
+            const browser = await browserType.launch();
+            for (const width of [375, 1440]) {
+              const page = await browser.newPage({ viewport: { width, height: 900 } });
+              await page.goto(base + route, { waitUntil: 'networkidle' });
+              await page.getByRole('heading', { level: 1, name: 'How to Create a Custom Vinyl Banner with AI' }).waitFor();
+              assert.equal(await page.locator('h1').count(), 1);
+              const image = page.locator('article img').first();
+              await image.waitFor();
+              assert(await image.evaluate(img => img.complete && img.naturalWidth > 0), 'Article image did not load.');
+              assert(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), 'Article overflows horizontally.');
+              const cta = page.getByRole('link', { name: 'Create Your Banner with AI', exact: true }).first();
+              const href = await cta.getAttribute('href');
+              assert.equal(new URL(href, base).searchParams.get('product'), 'banner');
+              await page.screenshot({ path: `test-results/ai-blog/${name}-${width}.png`, fullPage: true });
+              await cta.click();
+              await page.waitForURL(url => url.pathname === '/design');
+              await page.goto(base + '/blog', { waitUntil: 'networkidle' });
+              await page.getByRole('link', { name: /How to Create a Custom Vinyl Banner with AI/ }).first().waitFor();
+              await page.close();
+            }
+            await browser.close();
+          }
+          console.log('Article, image, CTA destination and blog discovery passed at 375px and 1440px in Chromium and WebKit.');
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ai-designer-blog-browser-results
+          path: test-results/ai-blog/
+          retention-days: 7

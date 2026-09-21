@@ -4,6 +4,7 @@ import StepHeader from './StepHeader';
 
 export interface ConfigCardProps {
   compact?: boolean;
+  popularPreset?: { widthIn: number; heightIn: number };
   step?: number;
   title?: string;
   headerRight?: React.ReactNode;
@@ -42,6 +43,7 @@ function parsePresetDimensions(label: string): { widthIn: number; heightIn: numb
  */
 export default function ConfigCard({
   compact = false,
+  popularPreset = { widthIn: 72, heightIn: 36 },
   step,
   title,
   headerRight,
@@ -79,9 +81,9 @@ export default function ConfigCard({
       if (!dimensions) return;
 
       const isPopular = (
-        dimensions.widthIn === 72 && dimensions.heightIn === 36
+        dimensions.widthIn === popularPreset.widthIn && dimensions.heightIn === popularPreset.heightIn
       ) || (
-        dimensions.widthIn === 36 && dimensions.heightIn === 72
+        dimensions.widthIn === popularPreset.heightIn && dimensions.heightIn === popularPreset.widthIn
       );
       if (isPopular) popularButton = button;
 

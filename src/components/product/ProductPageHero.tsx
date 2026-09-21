@@ -14,6 +14,8 @@ import { Link } from 'react-router-dom';
 import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
 import type { CityProductSlug } from '@/lib/seo/cityData';
 
+type HeroProductSlug = CityProductSlug | 'double-sided-banners' | 'large-banners-fast';
+
 interface HeroBenefit {
   label: string;
   icon: LucideIcon;
@@ -21,9 +23,11 @@ interface HeroBenefit {
 
 interface ProductHeroDefinition {
   eyebrow: string;
+  intro?: string;
   title: string[];
   primaryLabel: string;
   secondaryLabel: string;
+  secondaryUrl?: string;
   imageAlt: string;
   benefits: HeroBenefit[];
 }
@@ -34,7 +38,29 @@ const sharedBenefits: HeroBenefit[] = [
   { label: 'Live print preview', icon: Monitor },
 ];
 
-const HERO_DEFINITIONS: Record<CityProductSlug, ProductHeroDefinition> = {
+const HERO_DEFINITIONS: Record<HeroProductSlug, ProductHeroDefinition> = {
+  'large-banners-fast': {
+    eyebrow: 'Large custom banners · Printed fast · Shipped nationwide',
+    title: ['Large banners.', 'Fast.'],
+    intro: 'Big visibility for your next opening, event, or deadline. Order standard sizes online up to 50 × 16 ft. Larger projects, including single-piece banners up to 16 × 150 ft, are available by custom quote.',
+    primaryLabel: 'Build & price my large banner',
+    secondaryLabel: 'Need a larger size? Request a custom quote',
+    secondaryUrl: '/custom-quote',
+    imageAlt: 'Large custom vinyl banner installed outside a business',
+    benefits: [
+      { label: '24-hour standard production', icon: Clock3 },
+      { label: 'Oversized banners may ship by freight', icon: Truck },
+      { label: 'Custom quote for larger projects', icon: Monitor },
+    ],
+  },
+  'double-sided-banners': {
+    eyebrow: 'Double-sided banners · Heavy-duty 18 oz vinyl',
+    title: ['Double-sided', 'banners.', 'Seen both ways.'],
+    primaryLabel: 'Design your double-sided banner',
+    secondaryLabel: 'Choose your size & options',
+    imageAlt: 'Front and back views of a finished green grand-opening vinyl banner with matching full-color artwork',
+    benefits: sharedBenefits,
+  },
   'vinyl-banners': {
     eyebrow: 'Custom vinyl banners · Indoor · Outdoor · Mesh',
     title: ['Custom banners', 'built to get', 'noticed.'],
@@ -65,17 +91,21 @@ const HERO_DEFINITIONS: Record<CityProductSlug, ProductHeroDefinition> = {
   },
 };
 
-const ProductScene: React.FC<{ productSlug: CityProductSlug; alt: string; className: string }> = ({ productSlug, className }) => (
-  <ProductVisual productSlug={productSlug} priority className={className} />
+const ProductScene: React.FC<{ productSlug: HeroProductSlug; alt: string; className: string }> = ({ productSlug, alt, className }) => (
+  productSlug === 'double-sided-banners'
+    ? <div className={className}><img src="/images/double-sided-banner-hero.webp" alt={alt} width="1536" height="1024" fetchPriority="high" loading="eager" className="h-full w-full object-cover" /></div>
+    : <ProductVisual productSlug={productSlug === 'large-banners-fast' ? 'vinyl-banners' : productSlug} priority className={className} />
 );
 
 interface ProductPageHeroProps {
-  productSlug: CityProductSlug;
+  productSlug: HeroProductSlug;
   ctaUrl: string;
+  onStart?: () => void;
 }
 
-const ProductPageHero: React.FC<ProductPageHeroProps> = ({ productSlug, ctaUrl }) => {
+const ProductPageHero: React.FC<ProductPageHeroProps> = ({ productSlug, ctaUrl, onStart }) => {
   const hero = HERO_DEFINITIONS[productSlug];
+  const isLargeBanner = productSlug === 'large-banners-fast';
 
   return (
     <section
@@ -99,34 +129,43 @@ const ProductPageHero: React.FC<ProductPageHeroProps> = ({ productSlug, ctaUrl }
 
       <div className="relative mx-auto w-full max-w-[1740px] px-5 py-9 sm:px-8 sm:py-12 lg:flex lg:min-h-[650px] lg:items-center lg:px-12 lg:py-14 xl:px-16">
         <div className="relative z-10 max-w-[690px] lg:w-[47%]">
-          <p className="text-[11px] font-black uppercase tracking-[0.17em] text-[#061A31] sm:text-sm lg:text-base">
+          {!isLargeBanner && <p className="text-[11px] font-black uppercase tracking-[0.17em] text-[#061A31] sm:text-sm lg:text-base">
             {hero.eyebrow}
-          </p>
+          </p>}
           <h1
             id={`${productSlug}-hero-heading`}
-            className="homepage-condensed mt-5 [--homepage-mobile-size:clamp(3.55rem,17vw,5.2rem)] text-[5.2rem] font-black uppercase leading-[0.84] tracking-[-0.018em] text-[#061A31] sm:text-[6.35rem] lg:text-[6.4rem] xl:text-[7.15rem]"
+            className={`${isLargeBanner ? 'mt-0' : 'mt-5'} homepage-condensed [--homepage-mobile-size:clamp(3.55rem,17vw,5.2rem)] text-[5.2rem] font-black uppercase leading-[0.84] tracking-[-0.018em] text-[#061A31] sm:text-[6.35rem] lg:text-[6.4rem] xl:text-[7.15rem]`}
           >
             {hero.title.map((line) => (
               <span key={line} className="block">{line}</span>
             ))}
           </h1>
 
+          {!isLargeBanner && hero.intro && <p className="mt-5 max-w-lg text-base font-medium leading-relaxed sm:text-lg">{hero.intro}</p>}
+
           <div className="mt-7 flex flex-col items-start gap-5 sm:mt-8">
             <Link
               to={ctaUrl}
+              onClick={onStart ? (event) => { event.preventDefault(); onStart(); } : undefined}
               className="inline-flex min-h-14 w-full items-center justify-center gap-4 rounded-md bg-[#061A31] px-7 py-3.5 text-center text-sm font-black uppercase tracking-[0.035em] text-white shadow-[0_12px_30px_rgba(6,26,49,.22)] transition-colors hover:bg-[#0C2B50] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:w-auto sm:text-base"
             >
               {hero.primaryLabel}
               <ArrowRight className="h-5 w-5 flex-none" aria-hidden="true" />
             </Link>
-            <a
-              href="#sizes-pricing"
+            {!isLargeBanner && <a
+              href={hero.secondaryUrl ?? ((productSlug === 'double-sided-banners' || productSlug === 'large-banners-fast') ? '#order-builder' : '#sizes-pricing')}
               className="inline-flex min-h-11 items-center border-b-2 border-[#061A31] pb-0.5 text-sm font-black uppercase tracking-[0.035em] text-[#061A31] transition-colors hover:border-white hover:text-white sm:text-base"
             >
               {hero.secondaryLabel}
-            </a>
+            </a>}
           </div>
-          <HeroDeliveryStatus className="mt-6 w-full max-w-[570px]" />
+          {isLargeBanner && (<div className="mt-5 grid w-full max-w-[505px] grid-cols-[auto_1fr] items-center gap-4 rounded-md border border-white/70 bg-white px-5 py-4 text-[#071C35] shadow-[0_9px_20px_rgba(57,20,0,.2)] sm:gap-5 sm:px-6">
+          <p className="homepage-condensed whitespace-nowrap [--homepage-mobile-size:3rem] text-5xl font-black uppercase leading-none text-[#E95413] sm:text-[4rem]">20% off</p>
+          <div className="border-l-2 border-[#E95413] pl-4 text-sm font-bold uppercase leading-5 tracking-[0.04em] sm:text-base sm:leading-6">
+            First order<br />Automatically applied
+          </div>
+        </div>)}
+          <HeroDeliveryStatus className={isLargeBanner ? "mt-5 w-full max-w-[505px]" : "mt-6 w-full max-w-[570px]"} />
         </div>
       </div>
 

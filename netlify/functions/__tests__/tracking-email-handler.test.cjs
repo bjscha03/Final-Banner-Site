@@ -135,3 +135,16 @@ function expectTerminalGuard(source) {
   assert.match(source, /\['refunded', 'canceled', 'cancelled', 'failed'\]\.includes\(currentStatus\)/);
   assert.match(source, /statusCode: 409/);
 }
+
+test('tracking delivery forwards the same idempotency key on provider retries', async () => {
+  const keys = [];
+  const client = { emails: { send: async (_payload, options) => {
+    keys.push(options.idempotencyKey);
+    return keys.length === 1
+      ? { error: { statusCode: 503, message: 'Temporary failure' } }
+      : { data: { id: 'one-message' } };
+  } } };
+  const result = await sendWithRetry(client, {to: 'test@example.com'}, 2, 'tracking-test-request');
+  assert.equal(result.data.id, 'one-message');
+  assert.deepEqual(keys, ['tracking-test-request', 'tracking-test-request']);
+});

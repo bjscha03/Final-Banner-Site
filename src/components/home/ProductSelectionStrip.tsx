@@ -31,7 +31,7 @@ const ProductSelectionStrip: React.FC = () => {
         <p className="mt-3 text-base text-slate-600 sm:text-lg">Your message. The right format. Ready to get noticed.</p>
         <div className="mt-7 grid gap-4 md:grid-cols-3">
           {products.map((product) => (
-            <Link key={product.slug} to={`/${product.slug}`}
+            <Link key={product.slug} to={product.slug === 'vinyl-banners' ? '/design' : `/${product.slug}`}
               onClick={() => trackSelectItem({ item_list_id: LIST_ID, item_list_name: LIST_NAME, item: toAnalyticsItem(product) })}
               className="group relative block aspect-[6/5] overflow-hidden bg-[#061A31] text-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#FF6A00] focus-visible:ring-offset-4"
             >
@@ -43,12 +43,16 @@ const ProductSelectionStrip: React.FC = () => {
                 <p className="mt-2 text-sm">{product.details}</p>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-bold">{product.price}</p>
-                  <span className="inline-flex items-center gap-2 border-b border-white/70 pb-1 text-xs font-bold uppercase transition-colors group-hover:text-orange-200">Product details <ArrowRight className="h-4 w-4" aria-hidden="true" /></span>
+                  <span className="inline-flex items-center gap-2 border-b border-white/70 pb-1 text-xs font-bold uppercase transition-colors group-hover:text-orange-200">{product.slug === 'vinyl-banners' ? 'Start designing' : 'Product details'} <ArrowRight className="h-4 w-4" aria-hidden="true" /></span>
                 </div>
               </div>
             </Link>
           ))}
         </div>
+        <Link to="/double-sided-banners" className="mt-5 flex min-h-16 flex-wrap items-center justify-between gap-3 border-l-4 border-[#FF6A00] bg-white p-5 text-[#0B1F3A] hover:bg-orange-50">
+          <span><strong className="text-lg">Double-Sided Banners</strong><span className="mt-1 block text-sm">18 oz vinyl · Same artwork on both sides · $6.25 per sq. ft.</span></span>
+          <span className="inline-flex items-center gap-2 font-semibold">Design yours <ArrowRight className="h-4 w-4" /></span>
+        </Link>
         <p className="mt-5 text-sm text-slate-600">Free next-day air after production on orders $20 and up.</p>
       </div>
     </section>

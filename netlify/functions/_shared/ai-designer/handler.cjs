@@ -708,10 +708,10 @@ async function eventsHandler(event) {
   if (limited) return limited;
   try {
     const body = parseBody(event);
-    const events = new Set(['ai_designer_opened', 'ai_prompt_entered', 'ai_brief_created', 'ai_generation_started', 'ai_generation_succeeded', 'ai_generation_failed', 'ai_validation_failed', 'ai_concept_selected', 'ai_edit_started', 'ai_edit_succeeded', 'ai_edit_rejected', 'ai_design_approved', 'ai_applied_to_configurator', 'ai_added_to_cart', 'ai_checkout_started', 'ai_purchase_completed']);
+    const events = new Set(['ai_designer_opened', 'ai_prompt_entered', 'ai_brief_created', 'ai_generation_started', 'ai_generation_succeeded', 'ai_generation_failed', 'ai_validation_failed', 'ai_concept_selected', 'ai_edit_started', 'ai_edit_succeeded', 'ai_edit_failed', 'ai_transfer_failed', 'ai_edit_rejected', 'ai_design_approved', 'ai_applied_to_configurator', 'ai_added_to_cart', 'ai_checkout_started', 'ai_purchase_completed']);
     if (!events.has(body.event)) return json(400, { error: 'INVALID_EVENT' });
     const properties = {};
-    const keys = ['product_type', 'concept_id', 'version_id', 'order_id', 'concept_count', 'validation_failures', 'validation_passed', 'exact_copy_fields', 'count', 'category'];
+    const keys = ['product_type', 'concept_id', 'version_id', 'order_id', 'concept_count', 'validation_failures', 'validation_passed', 'exact_copy_fields', 'count', 'category', 'version_number', 'edit_round'];
     for (const key of keys) {
       const value = body.properties?.[key];
       if (typeof value === 'boolean' || (typeof value === 'number' && Number.isFinite(value))) properties[key] = value;

@@ -228,6 +228,8 @@ export interface CanonicalCartQuote {
 }
 
 export interface DiscountCode {
+  /** Session-only automatic welcome offer; never persisted across accounts. */
+  automaticFirstOrder?: boolean;
   id: string;
   code: string;
   discountPercentage: number;
@@ -651,7 +653,9 @@ export const useCartStore = create<CartState>()(
           artwork_height: quote.file?.artworkHeight,
           created_at: new Date().toISOString(),
           // Auto-detect source based on current page
-          source: (typeof window !== 'undefined' && window.location.pathname.includes('google-ads')) ? 'google-ads' : 'design',
+          source: (typeof window !== 'undefined' && (window.location.pathname.includes('google-ads') || window.location.pathname.includes('fall-festival-banners')))
+            ? 'google-ads'
+            : 'design',
           // FINAL_RENDER: High-res snapshot for admin PDF
           final_render_url: (quote as any).finalRenderUrl || undefined,
           final_render_file_key: (quote as any).finalRenderFileKey || undefined,

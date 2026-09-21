@@ -56,7 +56,7 @@ export type NormalizableOrderItem = {
 
 export type NormalizedOrderItemDisplay = {
   productType: 'banner' | 'yard-sign' | 'car-magnet';
-  productLabel: 'Banner' | 'Yard Sign' | 'Car Magnets';
+  productLabel: 'Banner' | 'Double-Sided Banner' | 'Yard Sign' | 'Car Magnets';
   displayName: string;
   sizeDisplay: string;
   materialDisplay: string;
@@ -91,6 +91,7 @@ export function getDisplayMaterial(item: { product_type?: string; material?: str
   if (item.product_type === 'car_magnet') return 'Premium Magnetic Material';
   const raw = String(item.material || '').trim().toLowerCase();
   if (!raw) return '';
+  if (raw === '18oz_double') return '18oz Vinyl · Double-Sided · Same artwork on both sides';
   if (raw === 'corrugated' || raw === 'corrugated plastic') return 'Corrugated Plastic';
   if (raw === 'magnetic' || raw === 'premium magnetic material') return 'Premium Magnetic Material';
   if (raw === '13oz' || raw === '13 oz' || raw === '13oz vinyl') return '13oz Vinyl';
@@ -172,6 +173,7 @@ export function getDisplayPlacement(value?: string | null): string {
  * Banners:    "Custom Banner 48" × 24""
  */
 export function getItemDisplayName(item: {
+  material?: string;
   product_type?: string;
   width_in?: number;
   height_in?: number;
@@ -182,7 +184,7 @@ export function getItemDisplayName(item: {
   if (item.product_type === 'car_magnet') {
     return `Car Magnets ${getDisplaySize(item)}`;
   }
-  return `Custom Banner ${getDisplaySize(item)}`;
+  return `${item.material === '18oz_double' ? 'Double-Sided Banner' : 'Custom Banner'} ${getDisplaySize(item)}`;
 }
 
 /**
@@ -247,7 +249,7 @@ export function getEmailItemName(item: {
   if (item.product_type === 'car_magnet') {
     return `Car Magnets ${getDisplaySize(item)}`;
   }
-  return `Custom Banner ${getDisplaySize(item)}`;
+  return `${item.material === '18oz_double' ? 'Double-Sided Banner' : 'Custom Banner'} ${getDisplaySize(item)}`;
 }
 
 /**
@@ -326,7 +328,7 @@ export function normalizeOrderItemDisplay(item: NormalizableOrderItem): Normaliz
   const isYardSign = item.product_type === 'yard_sign';
   const isCarMagnet = item.product_type === 'car_magnet';
   const productType: NormalizedOrderItemDisplay['productType'] = isYardSign ? 'yard-sign' : (isCarMagnet ? 'car-magnet' : 'banner');
-  const productLabel: NormalizedOrderItemDisplay['productLabel'] = isYardSign ? 'Yard Sign' : (isCarMagnet ? 'Car Magnets' : 'Banner');
+  const productLabel: NormalizedOrderItemDisplay['productLabel'] = isYardSign ? 'Yard Sign' : (isCarMagnet ? 'Car Magnets' : item.material === '18oz_double' ? 'Double-Sided Banner' : 'Banner');
   const qty = Number(item.quantity || 0);
   const lineTotalCents = Number(item.line_total_cents || 0);
   const unitPriceCents = Number(
@@ -365,7 +367,7 @@ export function normalizeOrderItemDisplay(item: NormalizableOrderItem): Normaliz
     materialDisplay: getDisplayMaterial(item) || (isYardSign ? 'Corrugated Plastic' : '13oz Vinyl'),
     printDisplay: isYardSign
       ? (item.yard_sign_sidedness === 'double' ? 'Double-Sided' : 'Single-Sided')
-      : 'Single-Sided',
+      : item.material === '18oz_double' ? 'Double-Sided — same artwork on both sides' : 'Single-Sided',
     qtyDisplay: String(Math.max(qty, 0)),
     unitPriceCents,
     lineTotalCents,

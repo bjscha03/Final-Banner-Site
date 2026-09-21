@@ -1,3 +1,5 @@
+import { useAutomaticFirstOrderDiscount } from '@/hooks/useAutomaticFirstOrderDiscount';
+import { FIRST_ORDER_APPLIED_LABEL } from '@/lib/firstOrderPromotion';
 import GoogleAdsBanner from './GoogleAdsBanner';
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams, useLocation, Link } from 'react-router-dom';
@@ -293,7 +295,7 @@ function buildCartArtworkForEditor(item: CartItem): UploadedArtworkFile | null {
 }
 
 const Design: React.FC = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const aiAccess = useAIAdminAccess(Boolean(user));
   const showCreateWithAI = ENABLE_AI;
 
@@ -630,6 +632,24 @@ const Design: React.FC = () => {
   const [promoApplied, setPromoApplied] = useState(Boolean(storedPromoAtLoad));
 
   const [hasConfirmedSize, setHasConfirmedSize] = useState(false);
+
+  // Landing-page size cards can open the designer with their chosen size.
+  useEffect(() => {
+    if (productType !== 'banner' || editItemId) return;
+    const requestedWidth = Number(searchParams.get('width'));
+    const requestedHeight = Number(searchParams.get('height'));
+    if (!Number.isFinite(requestedWidth) || !Number.isFinite(requestedHeight)
+      || requestedWidth < 6 || requestedHeight < 6 || requestedWidth > 600 || requestedHeight > 600) return;
+    setWidthFtStr(String(Math.floor(requestedWidth / 12)));
+    setWidthInRStr(String(requestedWidth % 12));
+    setHeightFtStr(String(Math.floor(requestedHeight / 12)));
+    setHeightInRStr(String(requestedHeight % 12));
+    setWidthCustomInStr(String(requestedWidth));
+    setHeightCustomInStr(String(requestedHeight));
+    const presetIndex = PRESET_SIZES.findIndex(({ w, h }) => w === requestedWidth && h === requestedHeight);
+    setActivePreset(presetIndex >= 0 ? presetIndex : null);
+    setHasConfirmedSize(true);
+  }, [editItemId, productType, searchParams]);
   const [hasConfirmedMaterial, setHasConfirmedMaterial] = useState(false);
   const [hasConfirmedQuantity, setHasConfirmedQuantity] = useState(false);
   const [hasReviewedOptions, setHasReviewedOptions] = useState(false);
@@ -719,7 +739,12 @@ const Design: React.FC = () => {
 
   const quoteStore = useQuoteStore();
   const cartStore = useCartStore();
-  const activeCartPromo = promoApplied ? cartStore.discountCode : null;
+  const firstOrderOffer = useAutomaticFirstOrderDiscount({ user, authLoading });
+  const activeCartPromo = cartStore.discountCode;
+  useEffect(() => {
+    setPromoApplied(Boolean(cartStore.discountCode));
+    setPromoCode(cartStore.discountCode?.automaticFirstOrder ? '' : (cartStore.discountCode?.code || ''));
+  }, [cartStore.discountCode]);
   const { setIsCartOpen } = useUIStore();
 
   // Dimensions: for banners, use ft+in inputs; for yard signs, fixed 24" × 18"
@@ -1030,7 +1055,7 @@ const Design: React.FC = () => {
   // pre-discount subtotal (subtotalBeforeDiscountCents) so the resolver
   // chooses correctly between the quantity tier and the promo rate without
   // double-discounting.
-  const effectivePromoCode = promoApplied ? promoCode : null;
+  const effectivePromoCode = activeCartPromo?.code || null;
   const bannerPromoResolution = useMemo(() => resolvePromo({
     subtotalCents: bannerPricing.subtotalBeforeDiscountCents,
     quantity,
@@ -1144,6 +1169,7 @@ const Design: React.FC = () => {
         body: JSON.stringify({
           code: normalizedCode,
           userId: user?.id || null,
+          email: user?.email || null,
           items: [{
             id: 'current-configurator-line',
             product_type: productType,
@@ -3299,7 +3325,8 @@ const Design: React.FC = () => {
                       className="mx-auto"
                     />
                     {!isYardSign && !isCarMagnet && showCreateWithAI && (
-                      <div className="mt-3 flex flex-col items-center gap-1">
+                      <div className="mt-3 flex flex-col items-center gap-2">
+                        <span className="text-sm font-medium text-slate-500">or</span>
                         <button
                           type="button"
                           onClick={() => setAiModalOpen(true)}
@@ -3308,6 +3335,7 @@ const Design: React.FC = () => {
                         >
                           <Sparkles className="w-4 h-4" />
                           Create with AI
+                            <span className="rounded bg-yellow-300 px-1.5 py-0.5 text-[10px] font-bold leading-none tracking-wide text-slate-900">BETA</span>
                         </button>
                         {(!widthIn || !heightIn || !material) && (
                           <p className="text-xs text-gray-500">
@@ -3497,7 +3525,8 @@ const Design: React.FC = () => {
                       ? bannerPromoResolution.promoDiscountCode
                       : undefined
                   }
-                  sameDayHitServiceCents={previewSameDayFeeCents}
+                  firstOrderEligibilityNote={activeCartPromo?.code === 'NEW20' ? firstOrderOffer.message : null}
+                    sameDayHitServiceCents={previewSameDayFeeCents}
                     saturdayDeliveryCents={previewSaturdayFeeCents}
                   taxCents={0}
                   taxRate={0.06}
@@ -3506,7 +3535,8 @@ const Design: React.FC = () => {
                   taxCalculatedAtCheckout
                   promo={{
                     code: promoCode,
-                    applied: promoApplied,
+                    applied: Boolean(activeCartPromo),
+                      automatic: Boolean(activeCartPromo?.automaticFirstOrder),
                     onCodeChange: setPromoCode,
                     onApply: handlePromoApply,
                     onRemove: handlePromoRemove,
@@ -3580,6 +3610,7 @@ const Design: React.FC = () => {
       <TrustStrip />
 
       <MobileSubtotalBar
+          promotionNote={bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20' ? FIRST_ORDER_APPLIED_LABEL : undefined}
         cartItemCount={cartItemCount}
         onViewCart={openCartDrawer}
         priceNote={showPopularBannerPriceNote ? POPULAR_BANNER_PRESET.mobilePriceNote : undefined}

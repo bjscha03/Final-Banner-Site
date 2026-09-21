@@ -165,6 +165,7 @@ const bannerProduct: ProductTypeConfig = {
     '13oz': 4.5,
     '15oz': 6.0,
     '18oz': 7.5,
+    '18oz_double': 6.25, // Separate double-sided product; both printed sides included.
     'mesh': 6.0,
   },
 

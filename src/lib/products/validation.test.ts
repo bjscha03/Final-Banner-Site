@@ -13,7 +13,7 @@ describe('product registry checkout validation', () => {
     });
     expect(validateProductConfiguration({ productType: 'banner', widthIn: 600, heightIn: 241 })).toMatchObject({
       valid: false,
-      code: 'AREA_LIMIT_EXCEEDED',
+      code: 'DIMENSIONS_OUT_OF_RANGE',
     });
   });
 

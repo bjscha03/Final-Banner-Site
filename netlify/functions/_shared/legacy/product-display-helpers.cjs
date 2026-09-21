@@ -30,6 +30,7 @@ function getDisplayMaterial(item) {
   if (item.product_type === 'car_magnet') return 'Premium Magnetic Material';
   const raw = String(item.material || '').trim().toLowerCase();
   if (!raw) return '';
+  if (raw === '18oz_double') return '18oz Vinyl · Double-Sided · Same artwork on both sides';
   if (raw === 'corrugated' || raw === 'corrugated plastic') return 'Corrugated Plastic';
   if (raw === 'magnetic' || raw === 'premium magnetic material') return 'Premium Magnetic Material';
   if (raw === '13oz' || raw === '13 oz' || raw === '13oz vinyl') return '13oz Vinyl';
@@ -98,7 +99,7 @@ function getItemDisplayName(item) {
   if (item.product_type === 'car_magnet') {
     return `Car Magnets ${getDisplaySize(item)}`;
   }
-  return `Custom Banner ${getDisplaySize(item)}`;
+  return `${item.material === '18oz_double' ? 'Double-Sided Banner' : 'Custom Banner'} ${getDisplaySize(item)}`;
 }
 
 /**
@@ -201,13 +202,13 @@ function normalizeOrderItemDisplay(item) {
 
   return {
     productType: isYardSign ? 'yard-sign' : (isCarMagnet ? 'car-magnet' : 'banner'),
-    productLabel: isYardSign ? 'Yard Sign' : (isCarMagnet ? 'Car Magnets' : 'Banner'),
+    productLabel: isYardSign ? 'Yard Sign' : (isCarMagnet ? 'Car Magnets' : item.material === '18oz_double' ? 'Double-Sided Banner' : 'Banner'),
     displayName: getItemDisplayName(item),
     sizeDisplay: getDisplaySize(item),
     materialDisplay: getDisplayMaterial(item) || (isYardSign ? 'Corrugated Plastic' : (isCarMagnet ? 'Premium Magnetic Material' : '13oz Vinyl')),
     printDisplay: isYardSign
       ? (item.yard_sign_sidedness === 'double' ? 'Double-Sided' : 'Single-Sided')
-      : 'Single-Sided',
+      : item.material === '18oz_double' ? 'Double-Sided — same artwork on both sides' : 'Single-Sided',
     qtyDisplay: String(Math.max(qty, 0)),
     unitPriceCents,
     lineTotalCents,

@@ -1,3 +1,5 @@
+import { readCheckoutCustomerDraft } from '@/components/checkout/checkoutCustomerDraft';
+import { useAutomaticFirstOrderDiscount } from '@/hooks/useAutomaticFirstOrderDiscount';
 import { cartEditUrl } from '@/lib/cartEditUrl';
 import CartLinePrice from '@/components/cart/CartLinePrice';
 import { trackAIEvent } from '@/lib/aiAnalytics';
@@ -65,7 +67,7 @@ const Checkout: React.FC = () => {
 
   // CRITICAL: Use migrated items to ensure rope/pole pocket costs are calculated
   const items = getMigratedItems();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [isAdminUser, setIsAdminUser] = useState(false);
   const { toast } = useToast();
   const [discountCodeInput, setDiscountCodeInput] = useState('');
@@ -109,6 +111,9 @@ const Checkout: React.FC = () => {
     || recoveryChecking
     || cartRecoveryLoading
     || cartRecoveryCanRetry;
+  const firstOrderOffer = useAutomaticFirstOrderDiscount({
+    user, authLoading, enabled: !checkoutLocked && !isLoading && items.length > 0,
+  });
 
   // Keep signed recovery authoritative only for this checkout visit. A
   // zero-delay cleanup survives React's development effect replay (the next
@@ -433,10 +438,8 @@ const Checkout: React.FC = () => {
     checkAdminStatus();
   }, [user?.email]);
 
-  // NOTE: We intentionally do NOT auto-prefill the discount code from
-  // sessionStorage. Promo codes must be entered explicitly by the user
-  // in checkout to prevent silent/auto-application of stale codes
-  // (e.g. NEW20 leaking from a previous design-page session).
+  // Only the welcome offer is automatic; other codes remain explicitly entered.
+  // Session-only NEW20 is revalidated when the account or checkout email changes.
   // Cart management functions
   const handleIncreaseQuantity = (itemId: string) => {
     if (checkoutLocked) return;
@@ -482,6 +485,7 @@ const Checkout: React.FC = () => {
         body: JSON.stringify({ 
           code: discountCodeInput.trim(),
           userId: user?.id || null,
+          email: readCheckoutCustomerDraft(user?.email || '').email || null,
           items: items.map((item) => ({
             id: item.id,
             product_type: item.product_type || 'banner',
@@ -772,6 +776,7 @@ const Checkout: React.FC = () => {
     const basePage = isFromGoogleAds ? '/google-ads-banner' : '/design';
     if (productType === 'yard_sign') return `${basePage}?product=yard-signs`;
     if (productType === 'car_magnet') return `${basePage}?product=car-magnets`;
+    if (items.length > 0 && items.every(item => item.material === '18oz_double')) return '/double-sided-banners';
     return `${basePage}?product=banner`;
   };
 
@@ -1280,7 +1285,9 @@ const Checkout: React.FC = () => {
               <div className="rounded-xl border border-slate-200 bg-white px-4 pb-4">
                 {/* Discount Code Section */}
                 <div className="pt-3">
-                  {!discountCode ? (
+                  {discountCode?.automaticFirstOrder && <p className="mb-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">{getEnteredPromoLabel(discountCode, resolvedDiscount)}</p>}
+                  {firstOrderOffer.message && (!discountCode || discountCode.code === 'NEW20') && <p role="status" data-testid="first-order-eligibility" className="mb-2 text-xs leading-snug text-slate-600">{firstOrderOffer.message}{firstOrderOffer.status === 'unavailable' && <button type="button" onClick={firstOrderOffer.retry} className="ml-2 min-h-11 font-semibold underline">Retry offer</button>}</p>}
+                  {!discountCode || discountCode.automaticFirstOrder ? (
                     <div className="space-y-3">
                       <button
                         type="button"
@@ -1477,7 +1484,7 @@ const Checkout: React.FC = () => {
                     {paymentProvider === 'stripe' ? (
                       <StripeCheckout
                         publishableKey={stripeRuntime.publishableKey}
-                        disabled={paymentSubmissionBlocked || checkoutLocked}
+                        disabled={firstOrderOffer.checking || paymentSubmissionBlocked || checkoutLocked}
                         total={providerTotalCents}
                         onSuccess={handlePaymentSuccess}
                         onError={handlePaymentError}
@@ -1487,7 +1494,7 @@ const Checkout: React.FC = () => {
                       />
                     ) : (
                       <PayPalCheckout
-                        disabled={paymentSubmissionBlocked || (checkoutLocked && activeCheckout?.provider !== 'paypal')}
+                        disabled={firstOrderOffer.checking || paymentSubmissionBlocked || (checkoutLocked && activeCheckout?.provider !== 'paypal')}
                         providerLocked={checkoutLocked}
                         total={providerTotalCents}
                         onSuccess={handlePaymentSuccess}
@@ -1516,7 +1523,7 @@ const Checkout: React.FC = () => {
                       </div>
                     </div>
                     <PayPalCheckout
-                      disabled={paymentSubmissionBlocked || (checkoutLocked && activeCheckout?.provider !== 'paypal')}
+                      disabled={firstOrderOffer.checking || paymentSubmissionBlocked || (checkoutLocked && activeCheckout?.provider !== 'paypal')}
                       providerLocked={checkoutLocked}
                       total={providerTotalCents}
                       onSuccess={handlePaymentSuccess}

@@ -1,3 +1,7 @@
+import LargeBannerSizeCards from '@/components/design/LargeBannerSizeCards';
+import { useAutomaticFirstOrderDiscount } from '@/hooks/useAutomaticFirstOrderDiscount';
+import { FIRST_ORDER_APPLIED_LABEL } from '@/lib/firstOrderPromotion';
+import ProductPageHero from '@/components/product/ProductPageHero';
 import { cartEditUrl } from '@/lib/cartEditUrl';
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams, useLocation, Link } from 'react-router-dom';
@@ -174,7 +178,7 @@ const FastBannerAdHero: React.FC<{ onStart: () => void }> = ({ onStart }) => (
         <div className="mt-5 grid w-full max-w-[505px] grid-cols-[auto_1fr] items-center gap-4 rounded-md border border-white/70 bg-white px-5 py-4 text-[#071C35] shadow-[0_9px_20px_rgba(57,20,0,.2)] sm:gap-5 sm:px-6">
           <p className="homepage-condensed whitespace-nowrap [--homepage-mobile-size:3rem] text-5xl font-black uppercase leading-none text-[#E95413] sm:text-[4rem]">20% off</p>
           <div className="border-l-2 border-[#E95413] pl-4 text-sm font-bold uppercase leading-5 tracking-[0.04em] sm:text-base sm:leading-6">
-            First order<br />Use code NEW20
+            First order<br />Automatically applied
           </div>
         </div>
         <HeroDeliveryStatus className="mt-5 w-full max-w-[505px]" />
@@ -221,6 +225,26 @@ const FastBannerAdHero: React.FC<{ onStart: () => void }> = ({ onStart }) => (
           <span className="text-[9px] font-bold uppercase leading-3 sm:text-sm xl:text-base">Live print preview</span>
         </li>
       </ul>
+    </div>
+  </section>
+);
+
+
+const FallFestivalHero: React.FC<{ onStart: () => void }> = ({ onStart }) => (
+  <section data-fall-festival-hero className="border-b border-amber-100 bg-[#fffaf1] text-[#3a1f12]">
+    <div className="mx-auto grid max-w-[1536px] gap-6 px-5 py-7 sm:px-8 sm:py-10 lg:grid-cols-[0.92fr_1.08fr] lg:items-center lg:gap-10 lg:px-10 lg:py-12">
+      <div className="min-w-0">
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#b45309] sm:text-sm">Custom banners for autumn events</p>
+        <h1 className="mt-3 font-sans text-[clamp(2.2rem,8.7vw,3.5rem)] font-extrabold leading-[1.05] tracking-[-0.045em] lg:text-[clamp(2.5rem,4.25vw,4.5rem)]">Custom Fall Festival Banners <span className="text-[#b45309]">— Printed &amp; Shipped Fast</span></h1>
+        <p className="mt-5 max-w-xl text-base leading-relaxed text-[#65412c] sm:text-xl">Full-color vinyl banners for fall festivals, church festivals, harvest events, and trunk-or-treats. Upload your own artwork or create a banner with AI, then order online in minutes.</p>
+        <button type="button" onClick={onStart} className="mt-6 inline-flex min-h-14 w-full items-center justify-center gap-3 rounded-lg bg-[#b45309] px-4 py-4 text-base font-bold text-white transition-colors hover:bg-[#92400e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3a1f12] focus-visible:ring-offset-4 sm:max-w-[505px] sm:text-lg">Create my fall festival banner <ArrowRight className="h-5 w-5 shrink-0" aria-hidden="true" /></button>
+        <p className="mt-2 text-xs leading-5 text-[#76503a] sm:text-sm">24-hour production · Free next-day air shipping · Easy online ordering</p>
+        <HeroDeliveryStatus variant="light" className="mt-6 w-full" />
+      </div>
+      <figure className="min-w-0">
+        <img src="/images/seasonal-halloween-2026-desktop.webp" alt="Finished custom Fall Festival vinyl banner at a church fall festival with pumpkins and families arriving" width="1448" height="1086" loading="eager" decoding="async" fetchPriority="high" className="aspect-[4/3] w-full rounded-xl object-cover shadow-sm" />
+        <figcaption className="mt-2 text-center text-xs text-[#76503a]">Made for church, school, business, and community fall events.</figcaption>
+      </figure>
     </div>
   </section>
 );
@@ -323,7 +347,10 @@ function buildCartArtworkForEditor(item: CartItem): UploadedArtworkFile | null {
 const GoogleAdsBanner: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const designerPath = location.pathname === "/google-ads-banner" ? "/google-ads-banner" : "/design";
+  const isLargeBannerLanding = location.pathname.replace(/\/+$/, '') === '/large-banners-fast';
+  const isDoubleSidedBanner = location.pathname.replace(/\/+$/, '') === '/double-sided-banners';
+  const isFallFestivalLanding = location.pathname.replace(/\/+$/, '') === '/fall-festival-banners';
+  const designerPath = isLargeBannerLanding ? "/large-banners-fast" : isDoubleSidedBanner ? "/double-sided-banners" : location.pathname === "/google-ads-banner" ? "/google-ads-banner" : "/design";
   const [searchParams] = useSearchParams();
   const getProductQuerySlug = useCallback((type: ProductTypeSlug) => {
     if (type === 'yard_sign') return 'yard-signs';
@@ -337,7 +364,7 @@ const GoogleAdsBanner: React.FC = () => {
   const [isBuilderInView, setIsBuilderInView] = useState(false);
 
   // Admin detection for yard signs visibility
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const aiAccess = useAIAdminAccess(Boolean(user));
   const showCreateWithAI = ENABLE_AI;
 
@@ -354,6 +381,7 @@ const GoogleAdsBanner: React.FC = () => {
   // Product type state — public for both banners and yard signs
   // Read ?tab= (preferred) or ?product= (legacy) query param so "Add Another Yard Sign" links open the correct tab
   const initialProductType = (() => {
+    if (isDoubleSidedBanner || isLargeBannerLanding) return 'banner' as ProductTypeSlug;
     const tab = searchParams.get('tab');
     const product = searchParams.get('product');
     const param = tab || product;
@@ -393,20 +421,21 @@ const GoogleAdsBanner: React.FC = () => {
   const [autoOpenDesignId, setAutoOpenDesignId] = useState<string | null>(null);
 
   // Use string state for dimension inputs so users can clear and retype freely
-  const [widthFtStr, setWidthFtStr] = useState('6');
+  const [widthFtStr, setWidthFtStr] = useState(isLargeBannerLanding ? '10' : '6');
   const [widthInRStr, setWidthInRStr] = useState('0');
-  const [heightFtStr, setHeightFtStr] = useState('3');
+  const [heightFtStr, setHeightFtStr] = useState(isLargeBannerLanding ? '4' : '3');
   const [heightInRStr, setHeightInRStr] = useState('0');
   // Raw string state for the inches-mode "Custom Size" inputs. See Design.tsx
   // for rationale: keeps user keystrokes literal so "3" never becomes "03".
-  const [widthCustomInStr, setWidthCustomInStr] = useState('72');
-  const [heightCustomInStr, setHeightCustomInStr] = useState('36');
+  const [widthCustomInStr, setWidthCustomInStr] = useState(isLargeBannerLanding ? '120' : '72');
+  const [heightCustomInStr, setHeightCustomInStr] = useState(isLargeBannerLanding ? '48' : '36');
   // Derived numeric values for calculations (treat empty as 0)
   const widthFt = parseInt(widthFtStr, 10) || 0;
   const widthInR = parseInt(widthInRStr, 10) || 0;
   const heightFt = parseInt(heightFtStr, 10) || 0;
   const heightInR = parseInt(heightInRStr, 10) || 0;
-  const [material, setMaterial] = useState<MaterialKey>('13oz');
+  const [selectedMaterialKey, setMaterial] = useState<MaterialKey>('13oz');
+  const material: MaterialKey = isDoubleSidedBanner ? '18oz_double' : selectedMaterialKey;
   const [materialDropdownOpen, setMaterialDropdownOpen] = useState(false);
   const materialDropdownRef = useRef<HTMLDivElement>(null);
   const [grommets, setGrommets] = useState('none');
@@ -447,7 +476,7 @@ const GoogleAdsBanner: React.FC = () => {
   }, []);
   const [uploadError, setUploadError] = useState('');
   // Restore the visible, immediately priced popular banner default.
-  const [activePreset, setActivePreset] = useState<number | null>(initialProductType === 'banner' ? POPULAR_BANNER_PRESET.presetIndex : null);
+  const [activePreset, setActivePreset] = useState<number | null>(initialProductType === 'banner' ? (isLargeBannerLanding ? 5 : POPULAR_BANNER_PRESET.presetIndex) : null);
   const [quantity, setQuantity] = useState(initialProductType === 'yard_sign' ? 10 : 1);
   const storedPromoAtLoad = useCartStore.getState().discountCode;
   const [promoCode, setPromoCode] = useState(storedPromoAtLoad?.code || 'NEW20');
@@ -456,6 +485,24 @@ const GoogleAdsBanner: React.FC = () => {
   const [promoApplied, setPromoApplied] = useState(Boolean(storedPromoAtLoad));
 
   const [hasConfirmedSize, setHasConfirmedSize] = useState(initialProductType === 'banner');
+
+  // /design renders this component for banners. Honor the selected size card.
+  useEffect(() => {
+    if (productType !== 'banner' || searchParams.get('editItem')) return;
+    const w = Number(searchParams.get('width'));
+    const h = Number(searchParams.get('height'));
+    if (!Number.isFinite(w) || !Number.isFinite(h) || w < 6 || h < 6
+      || Math.max(w, h) > 600 || Math.min(w, h) > 192) return;
+    setWidthFtStr(String(Math.floor(w / 12)));
+    setWidthInRStr(String(w % 12));
+    setHeightFtStr(String(Math.floor(h / 12)));
+    setHeightInRStr(String(h % 12));
+    setWidthCustomInStr(String(w));
+    setHeightCustomInStr(String(h));
+    const preset = PRESET_SIZES.findIndex(size => size.w === w && size.h === h);
+    setActivePreset(preset >= 0 ? preset : null);
+    setHasConfirmedSize(true);
+  }, [productType, searchParams]);
   const [hasConfirmedMaterial, setHasConfirmedMaterial] = useState(false);
   const [hasConfirmedQuantity, setHasConfirmedQuantity] = useState(false);
   const [hasReviewedOptions, setHasReviewedOptions] = useState(false);
@@ -521,7 +568,12 @@ const GoogleAdsBanner: React.FC = () => {
 
   const quoteStore = useQuoteStore();
   const cartStore = useCartStore();
-  const activeCartPromo = promoApplied ? cartStore.discountCode : null;
+  const firstOrderOffer = useAutomaticFirstOrderDiscount({ user, authLoading });
+  const activeCartPromo = cartStore.discountCode;
+  useEffect(() => {
+    setPromoApplied(Boolean(cartStore.discountCode));
+    setPromoCode(cartStore.discountCode?.automaticFirstOrder ? '' : (cartStore.discountCode?.code || ''));
+  }, [cartStore.discountCode]);
   const { isCartOpen, setIsCartOpen } = useUIStore();
   const cartItemCount = useCartStore(s => s.getItemCount());
   const { toast } = useToast();
@@ -806,7 +858,12 @@ const GoogleAdsBanner: React.FC = () => {
   });
 
   const pricePerSqFt = PRICE_PER_SQFT[material];
-  const selectedMaterial = MATERIALS.find(m => m.mapped === material) || MATERIALS[0];
+  const priceSummary = material === '13oz'
+    ? 'tiered volume pricing'
+    : `${usd(pricePerSqFt)} per sq ft`;
+  const selectedMaterial = isDoubleSidedBanner
+    ? { ...MATERIALS.find(m => m.mapped === '18oz')!, label: '18oz Vinyl · Double-Sided' }
+    : MATERIALS.find(m => m.mapped === material) || MATERIALS[0];
   const materialLabel = isCarMagnet ? 'Premium Magnetic Material' : selectedMaterial.label;
   const grommetsLabel = DESIGN_GROMMET_OPTIONS.find(o => o.value === grommets)?.label || 'None';
   const widthDisplay = (isYardSign || isCarMagnet) ? `${widthIn}"` : (widthInR > 0 ? `${widthFt}'${widthInR}"` : `${widthFt}'`);
@@ -817,7 +874,7 @@ const GoogleAdsBanner: React.FC = () => {
 
   // Banner promo math: route through promoEngine so /google-ads-banner uses the SAME
   // best-discount-wins logic as /design, cart and checkout.
-  const effectivePromoCode = promoApplied ? promoCode : null;
+  const effectivePromoCode = activeCartPromo?.code || null;
   const bannerPromoResolution = useMemo(() => resolvePromo({
     subtotalCents: bannerPricing.subtotalBeforeDiscountCents,
     quantity,
@@ -1149,6 +1206,7 @@ const GoogleAdsBanner: React.FC = () => {
         body: JSON.stringify({
           code: normalizedCode,
           userId: user?.id || null,
+          email: user?.email || null,
           items: [{
             id: 'current-configurator-line',
             product_type: productType,
@@ -1161,7 +1219,7 @@ const GoogleAdsBanner: React.FC = () => {
       const result = await response.json();
       if (!response.ok || !result.valid || !result.discount) {
         setPromoFeedback(result.error || 'This offer could not be applied. Your current price is unchanged.');
-        setPromoApplied(false);
+        setPromoApplied(Boolean(cartStore.discountCode));
         toast({
           title: 'Promo not applied',
           description: result.error || 'This promotion is not available for this order.',
@@ -1182,7 +1240,7 @@ const GoogleAdsBanner: React.FC = () => {
       });
     } catch {
       setPromoFeedback('We could not verify this offer. Your price is unchanged. Please try again.');
-      setPromoApplied(false);
+      setPromoApplied(Boolean(cartStore.discountCode));
       toast({
         title: 'Promo could not be verified',
         description: 'Your order is unchanged. Please try applying the code again.',
@@ -2040,6 +2098,7 @@ const GoogleAdsBanner: React.FC = () => {
       containerCssHeight: container?.offsetHeight || null,
       bgColor: '#fafafa',
       productType: 'banner',
+      ...(isDoubleSidedBanner ? { productName: 'Double-Sided Banner', material: '18oz', printSides: 2, sameArtworkBothSides: true } : {}),
       canonicalComposition: preparedPlacement.spec,
       placementPreview: preparedPlacement.artifact,
       ...(aiPrompt ? { aiPrompt } : {}),
@@ -2105,7 +2164,7 @@ const GoogleAdsBanner: React.FC = () => {
 
     console.log('[FINAL_RENDER_HTML] ✅ Cart item created with verified permanent placement preview');
     finishAddToCart(actionType, `${designerPath}?product=banner`);
-  }, [ensurePermanentArtworkUploaded, pendingCheckoutData, grommets, addRope, polePockets, polePocketSize, widthIn, heightIn, quantity, material, quoteStore, cartStore, isYardSign, isCarMagnet, carMagnetPricing, carMagnetRoundedCorners, yardSignMaterial, yardSignPricing, productType, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, yardSignSidedness, yardSignAddStepStakes, yardSignStepStakeQty, finishAddToCart, toast, editItemId, aiPrompt, aiEditPrompt, ropePlacement, constrainProps, designerPath]);
+  }, [ensurePermanentArtworkUploaded, pendingCheckoutData, grommets, addRope, polePockets, polePocketSize, widthIn, heightIn, quantity, material, quoteStore, cartStore, isYardSign, isCarMagnet, carMagnetPricing, carMagnetRoundedCorners, yardSignMaterial, yardSignPricing, productType, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, yardSignSidedness, yardSignAddStepStakes, yardSignStepStakeQty, finishAddToCart, toast, editItemId, aiPrompt, aiEditPrompt, ropePlacement, constrainProps, designerPath, isDoubleSidedBanner]);
 
   const prepareAndRoutePlacement = useCallback((
     actionType: 'checkout' | 'cart',
@@ -2379,7 +2438,7 @@ const GoogleAdsBanner: React.FC = () => {
     quantityConfirmed: quantity > 0,
     optionsReviewed: true,
     sizeLabel: `${widthIn}" × ${heightIn}"`,
-    materialLabel: material === '13oz' ? '13oz Vinyl' : material === '15oz' ? '15oz Vinyl' : material,
+    materialLabel: isDoubleSidedBanner ? '18oz Vinyl · Double-Sided' : material === '13oz' ? '13oz Vinyl' : material === '15oz' ? '15oz Vinyl' : material,
     quantityLabel: `Qty ${quantity}`,
     optionsLabel: isCarMagnet
       ? getCarMagnetRoundedCornersLabel(carMagnetRoundedCorners)
@@ -2553,7 +2612,12 @@ const GoogleAdsBanner: React.FC = () => {
           ? { label: uploadError ? 'Retry upload' : 'Upload artwork', disabled: false, onClick: openOrScrollToUpload }
           : { label: editItemId ? 'Save & design another' : 'Add & design another', disabled: false, onClick: handleAddToCart };
 
-  const materialCard = (<ConfigCard compact={!isCarMagnet} step={2} title="Material" id="material-section">
+  const materialCard = isDoubleSidedBanner ? (
+    <ConfigCard compact step={2} title="Material & printing" id="material-section">
+      <p className="font-semibold text-[#0B1F3A]">18 oz vinyl · Double-sided</p>
+      <p className="mt-2 text-sm text-slate-600">$6.25 per sq. ft. includes printing on both sides. Your approved artwork prints on the front and back, with the same placement on each side.</p>
+    </ConfigCard>
+  ) : (<ConfigCard compact={!isCarMagnet} step={2} title="Material" id="material-section">
                     <div ref={materialDropdownRef} className="relative">
                       <button
                         type="button"
@@ -2636,8 +2700,9 @@ const GoogleAdsBanner: React.FC = () => {
                   )}
                 </ConfigCard>);
   const sizeCard = (<ConfigCard
+                  popularPreset={isLargeBannerLanding ? { widthIn: 120, heightIn: 48 } : undefined}
                   step={1}
-                  title={isCarMagnet ? "Choose your size" : "Size & quantity"}
+                  title={isCarMagnet ? "Choose your size" : isLargeBannerLanding ? "Choose your large banner size" : "Size & quantity"}
                   id="size-section"
                   headerRight={!isCarMagnet ? (
                     <div className="inline-flex items-center rounded-lg border border-gray-200 bg-white p-0.5 text-xs" role="group" aria-label="Display unit">
@@ -2660,8 +2725,19 @@ const GoogleAdsBanner: React.FC = () => {
                     </div>
                   ) : undefined}
                 >
-                  <div className={isCarMagnet ? '' : 'grid lg:grid-cols-2 lg:gap-6'}>
-                    <div>
+                  <div className={isCarMagnet || isLargeBannerLanding ? '' : 'grid lg:grid-cols-2 lg:gap-6'}>
+                    {isLargeBannerLanding ? <LargeBannerSizeCards widthIn={widthIn} heightIn={heightIn} unit={unit} material={material}
+                      onSelect={(w, h) => {
+                        setWidthFtStr(String(Math.floor(w / 12)));
+                        setWidthInRStr(String(w % 12));
+                        setHeightFtStr(String(Math.floor(h / 12)));
+                        setHeightInRStr(String(h % 12));
+                        setWidthCustomInStr(String(w));
+                        setHeightCustomInStr(String(h));
+                        const index = PRESET_SIZES.findIndex(p => p.w === w && p.h === h);
+                        setActivePreset(index >= 0 ? index : null);
+                        setHasConfirmedSize(true);
+                      }} /> : <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Popular Sizes</label>
                       <div className="grid grid-cols-3 gap-2">
                         {isCarMagnet
@@ -2676,10 +2752,10 @@ const GoogleAdsBanner: React.FC = () => {
                               </button>
                             ))}
                       </div>
-                    </div>
+                    </div>}
                     {!isCarMagnet && (
-                    <div className="mt-6 lg:mt-0">
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Custom Size</label>
+                    <div className={isLargeBannerLanding ? "mt-5 rounded-xl bg-slate-50 p-4" : "mt-6 lg:mt-0"}>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">{isLargeBannerLanding ? "Need a different size?" : "Custom Size"}</label>
                       {unit === 'in' ? (
                         <div className="grid grid-cols-2 gap-4">
                           <div>
@@ -2770,6 +2846,7 @@ const GoogleAdsBanner: React.FC = () => {
                     </div>
                     )}
                   </div>
+                {isLargeBannerLanding && <p className="mt-3 text-xs text-slate-600">Online sizes up to 50 ft on the long side and 16 ft on the short side. Larger project? <Link to="/custom-quote" className="font-semibold text-orange-700 underline">Request a quote</Link>.</p>}
                 {!isCarMagnet && <div className="mt-5 grid gap-4 border-t border-slate-200 pt-4 sm:grid-cols-[minmax(0,1fr)_auto]">{materialCard}{quantityCard}</div>}
                 </ConfigCard>);
   const finishingCard = (<ConfigCard step={3} title={isCarMagnet ? 'Rounded Corners' : 'Finishing options'} id="options-section">
@@ -2838,7 +2915,8 @@ const GoogleAdsBanner: React.FC = () => {
                         className="mx-auto"
                       />
                       {!isYardSign && !isCarMagnet && showCreateWithAI && (
-                        <div className="mt-3 flex flex-col items-center gap-1">
+                        <div className="mt-3 flex flex-col items-center gap-2">
+                        <span className="text-sm font-medium text-slate-500">or</span>
                           <button
                             type="button"
                             onClick={() => setAiModalOpen(true)}
@@ -2847,6 +2925,7 @@ const GoogleAdsBanner: React.FC = () => {
                           >
                             <Sparkles className="w-4 h-4" />
                             Create with AI
+                            <span className="rounded bg-yellow-300 px-1.5 py-0.5 text-[10px] font-bold leading-none tracking-wide text-slate-900">BETA</span>
                           </button>
                           {(!widthIn || !heightIn || !material) && (
                             <p className="text-xs text-gray-500">
@@ -3000,9 +3079,12 @@ const GoogleAdsBanner: React.FC = () => {
   return (
     <>
       <Helmet>
-        <title>{isYardSign ? 'Custom Yard Signs' : isCarMagnet ? 'Car Magnets' : 'Custom Banner Printing'} - 24 Hour Production | Banners On The Fly</title>
-        <meta name="description" content={isYardSign ? "Upload yard-sign artwork, review the supported size and current price, and see production and shipping details before checkout." : isCarMagnet ? "Configure a supported car-magnet size, upload artwork, preview the print, and review production and shipping before checkout." : "Upload banner artwork, choose size and material, preview the print, and review production and shipping before checkout."} />
-        <meta name="robots" content="noindex, nofollow" />
+        <title>{isLargeBannerLanding ? 'Large Banners Fast — Free Next-Day Air Shipping' : isDoubleSidedBanner ? 'Double-Sided 18oz Vinyl Banners — $6.25/sq ft' : isFallFestivalLanding ? 'Custom Fall Festival Banners' : isYardSign ? 'Custom Yard Signs' : isCarMagnet ? 'Car Magnets' : 'Custom Banner Printing'} - 24 Hour Production | Banners On The Fly</title>
+        <meta name="description" content={isLargeBannerLanding ? "Order large custom vinyl banners with 24-hour production and free next-day air shipping after production. Choose 8 × 4 ft, 10 × 4 ft or custom sizes. Get instant pricing and design online." : isDoubleSidedBanner ? 'Custom double-sided banners on 18 oz vinyl. $6.25 per square foot includes both sides. Upload artwork or create with AI. Free next-day air shipping.' : isFallFestivalLanding ? 'Custom fall festival banners for churches, schools, harvest festivals and trunk-or-treats. Upload artwork or create with AI. 24-hour production.' : isYardSign ? "Upload yard-sign artwork, review the supported size and current price, and see production and shipping details before checkout." : isCarMagnet ? "Configure a supported car-magnet size, upload artwork, preview the print, and review production and shipping before checkout." : "Upload banner artwork, choose size and material, preview the print, and review production and shipping before checkout."} />
+        <meta name="robots" content={isLargeBannerLanding ? "noindex, follow" : isDoubleSidedBanner || isFallFestivalLanding ? "index, follow" : "noindex, nofollow"} />
+        {isLargeBannerLanding && <link rel="canonical" href="https://bannersonthefly.com/large-banners-fast" />}
+        {isDoubleSidedBanner && <link rel="canonical" href="https://bannersonthefly.com/double-sided-banners" />}
+        {isFallFestivalLanding && <link rel="canonical" href="https://bannersonthefly.com/fall-festival-banners" />}
       </Helmet>
       <div className="min-h-screen bg-white text-gray-900">
         <header data-site-header className="w-full border-b border-gray-100 bg-white py-3 px-4 sticky top-0 z-50">
@@ -3029,7 +3111,9 @@ const GoogleAdsBanner: React.FC = () => {
 
         {/* HERO */}
         {!isYardSign && !isCarMagnet ? (
-          <FastBannerAdHero onStart={scrollToOrder} />
+          isLargeBannerLanding ? <ProductPageHero productSlug="large-banners-fast" ctaUrl="#order-builder" onStart={scrollToOrder} /> : isDoubleSidedBanner ? (
+            <ProductPageHero productSlug="double-sided-banners" ctaUrl="#order-builder" onStart={scrollToOrder} />
+          ) : isFallFestivalLanding ? <FallFestivalHero onStart={scrollToOrder} /> : <FastBannerAdHero onStart={scrollToOrder} />
         ) : (
         <section className="relative overflow-hidden border-b-4 border-[#FF6A00] bg-[#0B1F3A] px-4 py-10 sm:py-12 lg:py-16">
           <div className="relative mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] lg:gap-14">
@@ -3109,14 +3193,14 @@ const GoogleAdsBanner: React.FC = () => {
         <section ref={orderRef} id="order-builder" className="py-12 px-4 bg-gray-50">
           <div className="max-w-4xl lg:max-w-7xl mx-auto">
             <p className="mb-3 text-center text-xs font-bold uppercase tracking-[0.18em] text-[#FF6A00]">
-              {isYardSign ? '24″ × 18″ yard signs' : isCarMagnet ? 'Custom car magnets' : 'Custom vinyl banners'}
+              {isDoubleSidedBanner ? 'Double-sided · 18 oz vinyl' : isYardSign ? '24″ × 18″ yard signs' : isCarMagnet ? 'Custom car magnets' : 'Custom vinyl banners'}
             </p>
             <h2
               ref={builderStartRef}
               id="builder-start"
               className="homepage-condensed bg-[#061A31] px-4 py-6 text-4xl md:text-5xl uppercase text-white font-bold text-center mb-10 scroll-mt-[140px] md:scroll-mt-24"
             >
-              {isYardSign ? 'Build Your Yard Sign Order' : isCarMagnet ? 'Design Your Custom Car Magnets' : 'Build Your Banner'}
+              {isLargeBannerLanding ? 'Build Your Large Banner' : isDoubleSidedBanner ? 'Build Your Double-Sided Banner' : isYardSign ? 'Build Your Yard Sign Order' : isCarMagnet ? 'Design Your Custom Car Magnets' : 'Build Your Banner'}
             </h2>
             {showPostAddResetNotice && (
               <div
@@ -3269,15 +3353,16 @@ const GoogleAdsBanner: React.FC = () => {
                   />
                 ) : (
                   <>
-                  {!promoApplied && <div className="mb-3 rounded-lg border border-orange-200 bg-orange-50 p-3">
-                    <button type="button" disabled={promoBusy} onClick={() => handlePromoApply('NEW20')} className="min-h-11 w-full rounded-lg bg-orange-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">{promoBusy ? 'Checking offer…' : 'Apply 20% first-order discount'}</button>
-                    <p className="mt-1 text-xs text-slate-600">Eligibility checked before applying. The best eligible offer is used.</p>
-                    {promoFeedback && <p role="status" className="mt-2 text-sm font-medium text-slate-800">{promoFeedback}</p>}
-                  </div>}
+                  {(!activeCartPromo || activeCartPromo.code === 'NEW20') && firstOrderOffer.status !== 'eligible' && firstOrderOffer.status !== 'unverified' && (
+                    <div role="status" className="mb-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+                      {firstOrderOffer.message}
+                      {firstOrderOffer.status === 'unavailable' && <button type="button" onClick={firstOrderOffer.retry} className="ml-2 min-h-11 font-semibold underline">Retry offer</button>}
+                    </div>
+                  )}
                   <PriceBreakdown
                     variant="compact"
                     heading="Your banner"
-                    topLine={`${sqft.toFixed(2)} sq ft • ${usd(pricePerSqFt)} per sq ft`}
+                    topLine={`${sqft.toFixed(2)} sq ft • ${priceSummary}`}
                     secondaryLine={`for ${quantity} ${quantity === 1 ? 'banner' : 'banners'} • ${widthDisplay} × ${heightDisplay} • ${materialLabel}`}
                     showTopSummary={false}
                     detailRows={[
@@ -3321,6 +3406,7 @@ const GoogleAdsBanner: React.FC = () => {
                         ? bannerPromoResolution.promoDiscountCode
                         : undefined
                     }
+                    firstOrderEligibilityNote={activeCartPromo?.code === 'NEW20' ? firstOrderOffer.message : null}
                     sameDayHitServiceCents={previewSameDayFeeCents}
                     saturdayDeliveryCents={previewSaturdayFeeCents}
                     taxCents={0}
@@ -3330,7 +3416,8 @@ const GoogleAdsBanner: React.FC = () => {
                     taxCalculatedAtCheckout
                     promo={{
                       code: promoCode,
-                      applied: promoApplied,
+                      applied: Boolean(activeCartPromo),
+                      automatic: Boolean(activeCartPromo?.automaticFirstOrder),
                       onCodeChange: setPromoCode,
                       onApply: handlePromoApply,
                       onRemove: handlePromoRemove,
@@ -3415,9 +3502,10 @@ const GoogleAdsBanner: React.FC = () => {
       </div>
 
         <MobileSubtotalBar
+          promotionNote={bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20' ? FIRST_ORDER_APPLIED_LABEL : undefined}
           cartItemCount={cartItemCount}
           onViewCart={openCartDrawer}
-          priceNote={showPopularBannerPriceNote ? "Popular 6′ × 3′ size preselected" : undefined}
+          priceNote={isLargeBannerLanding && widthIn === 120 && heightIn === 48 ? "10′ × 4′ large banner selected" : showPopularBannerPriceNote ? "Popular 6′ × 3′ size preselected" : undefined}
           subtotal={
             !isYardSign && !isCarMagnet ? (
               <div>

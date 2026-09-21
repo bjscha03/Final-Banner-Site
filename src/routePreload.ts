@@ -3,7 +3,7 @@
 // the route, eliminating an avoidable second network waterfall on mobile.
 const pathname = window.location.pathname.replace(/\/+$/, '') || '/';
 
-if (pathname === '/google-ads-banner') {
+if (pathname === '/google-ads-banner' || pathname === '/fall-festival-banners') {
   void import('./pages/GoogleAdsBanner');
 } else if (pathname === '/design' || pathname === '/halloween-banner') {
   void import('./pages/Design');

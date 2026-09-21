@@ -222,7 +222,7 @@ const ProductPreviewFrame: React.FC<{ item: any; thumbUrl: string | null; large?
   const grommets = item?.grommets || 'none';
   const candidates = useMemo(() => [
     thumbUrl,
-    ...getFinalizedThumbnailCandidates(item, large ? 1200 : 320),
+    ...getFinalizedThumbnailCandidates(item, large ? 1200 : 720),
   ].filter((value): value is string => Boolean(value)), [item, thumbUrl, large]);
   const candidateSignature = candidates.join('\n');
   const [ready, setReady] = useState(false);
@@ -247,21 +247,35 @@ const ProductPreviewFrame: React.FC<{ item: any; thumbUrl: string | null; large?
       data-preview-failed={failed ? 'true' : 'false'}
     >
       {candidates.length > 0 && !failed ? (
-        <StablePreviewImage
-          sources={candidates}
-          alt={`${getProductTitleLabel(item)} finished preview`}
-          className="absolute inset-0 block h-full w-full object-contain"
-          retainPreviousWhileLoading
-          loadTimeoutMs={25_000}
-          onReady={() => {
-            setReady(true);
-            setFailed(false);
-          }}
-          onExhausted={() => {
-            setReady(false);
-            setFailed(true);
-          }}
-        />
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          preserveAspectRatio="xMidYMid meet"
+          className="absolute inset-0 h-full w-full"
+          aria-hidden="true"
+        >
+          {/* Fit artwork and hardware together, including in square rows and
+              height-limited lightboxes. Keep every artwork edge visible. */}
+          <foreignObject width={width} height={height}>
+            <StablePreviewImage
+              sources={candidates}
+              alt=""
+              className="absolute inset-0 block h-full w-full object-contain"
+              retainPreviousWhileLoading
+              loadTimeoutMs={25_000}
+              onReady={() => {
+                setReady(true);
+                setFailed(false);
+              }}
+              onExhausted={() => {
+                setReady(false);
+                setFailed(true);
+              }}
+            />
+          </foreignObject>
+          {ready && (
+            <GrommetOverlay widthIn={width} heightIn={height} option={grommets} idSuffix={idSuffix} />
+          )}
+        </svg>
       ) : (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-50 px-2 text-center text-xs font-medium text-gray-500">
           Preview unavailable
@@ -274,13 +288,6 @@ const ProductPreviewFrame: React.FC<{ item: any; thumbUrl: string | null; large?
         </div>
       ) : null}
 
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        className="pointer-events-none absolute inset-0 z-[3] h-full w-full"
-        aria-hidden="true"
-      >
-        <GrommetOverlay widthIn={width} heightIn={height} option={grommets} idSuffix={idSuffix} />
-      </svg>
     </div>
   );
 };
@@ -639,8 +646,9 @@ const AdminOrders: React.FC = () => {
   };
 
   const handleTrackingUpdated = (orderId: string, update: Partial<Order>) => {
+    // Keep cards mounted and in their current order, even when a status filter
+    // would exclude the updated order. Reapply filters on the next explicit load.
     updateOrderEverywhere(orderId, (order) => ({ ...order, ...update }));
-    void loadOrders(page);
   };
 
   const handleFileDownload = async (fileKey: string, orderId: string, itemIndex: number, originalFilename?: string) => {
@@ -1385,7 +1393,7 @@ const AdminOrders: React.FC = () => {
             ) : (
               <>
                 {/* Mobile Card View */}
-                  <div className="block md:hidden overflow-x-clip">
+                  <div className="block md:hidden overflow-x-clip space-y-5 bg-slate-100 p-3">
                   {orders.map((order) => (
                     <AdminOrderCard
                       key={order.id}
@@ -1410,7 +1418,7 @@ const AdminOrders: React.FC = () => {
                 </div>
                 
                 {/* Desktop Card-Row View */}
-                <div className="hidden md:block bg-gray-50 p-4 lg:p-5 space-y-3">
+                <div className="hidden md:block bg-slate-100 p-4 lg:p-5 space-y-6">
                   {orders.map((order) => (
                     <AdminOrderRow
                       key={order.id}
@@ -1569,14 +1577,14 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   const ORDER_ACCENT_TEXT_CLASS = 'text-[#18448D]';
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+    <div data-admin-order-id={order.id} className="rounded-xl border-2 border-slate-300 odd:bg-white even:bg-slate-50 p-5 shadow-sm focus-within:border-[#18448D] focus-within:ring-2 focus-within:ring-blue-200">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(260px,0.95fr)_minmax(300px,1.1fr)] xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.9fr)_minmax(360px,1.15fr)] lg:items-start">
         {/* LEFT SECTION */}
         <div className="flex min-w-0 flex-col gap-3">
           <div className="space-y-2">
             {previewItems.map(({ item, index, thumbUrl }) => (
-              <div key={index} className="flex min-w-0 items-center gap-3 rounded-lg border border-gray-100 bg-gray-50 p-2">
-                <button type="button" onClick={() => setPreviewIndex(index)} className="h-[72px] w-[72px] flex-shrink-0 overflow-hidden rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#18448D]" aria-label={`Open ${getProductTypeLabel(item)} preview`}>
+              <div key={index} className="flex min-w-0 flex-col items-stretch gap-3 rounded-lg border border-gray-200 bg-white p-3">
+                <button type="button" onClick={() => setPreviewIndex(index)} className="h-[240px] xl:h-[280px] w-full flex-shrink-0 overflow-hidden rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#18448D]" aria-label={`Open ${getProductTypeLabel(item)} preview`}>
                   <ProductPreviewFrame item={item} thumbUrl={thumbUrl} idSuffix={`row-${order.id}-${index}`} />
                 </button>
                 <div className="min-w-0">
@@ -1977,12 +1985,12 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
   const previewItems = useMemo(() => orderItems.map((item: any, index) => ({ item, index, thumbUrl: getFinalizedThumbnailUrl(item, 720) })), [orderItems]);
 
   return (
-    <div className="border-b border-gray-200 p-4 hover:bg-gray-50 overflow-x-clip">
+    <div data-admin-order-id={order.id} className="rounded-xl border-2 border-slate-300 odd:bg-white even:bg-slate-50 p-4 shadow-sm overflow-x-clip focus-within:border-[#18448D] focus-within:ring-2 focus-within:ring-blue-200">
       <div className="space-y-3 min-w-0">
         <div className="grid grid-cols-1 gap-2">
           {previewItems.map(({ item, index, thumbUrl }) => (
-            <div key={index} className="flex min-w-0 items-center gap-3 rounded-lg border border-gray-100 bg-gray-50 p-2">
-              <div className="h-14 w-16 flex-shrink-0 overflow-hidden rounded border border-gray-200 bg-white">
+            <div key={index} className="flex min-w-0 flex-col items-stretch gap-3 rounded-lg border border-gray-200 bg-white p-3">
+              <div className="h-[180px] w-full flex-shrink-0 overflow-hidden rounded border border-gray-200 bg-white">
                 {thumbUrl ? <img src={thumbUrl} alt={`${getProductTypeLabel(item)} preview`} className="h-full w-full object-contain" /> : <span className="flex h-full items-center justify-center text-xs text-gray-400">No img</span>}
               </div>
               <div className="min-w-0">
