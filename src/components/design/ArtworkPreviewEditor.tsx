@@ -696,7 +696,7 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
         ref={setContainerNode}
         data-artwork-canvas="true"
         className="relative w-full select-none overflow-visible"
-        style={{ paddingBottom: paddingPct, touchAction: 'none', cursor: loading ? 'default' : selected ? 'move' : 'pointer', ...canvasStyle }}
+        style={{ aspectRatio: 100 / parseFloat(paddingPct), boxSizing: 'border-box', touchAction: 'none', cursor: loading ? 'default' : selected ? 'move' : 'pointer', ...canvasStyle }}
         onPointerDown={startPointer}
         onClick={(event) => { setSelected(true); event.stopPropagation(); }}
       >

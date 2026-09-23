@@ -172,7 +172,7 @@ describe('banner size change review', () => {
 });
 
 describe('true corner interaction', () => {
-  it('resizes cropped artwork by pointer and keyboard without moving the opposite corner', async () => {
+  it.each([1, 0.5])('resizes cropped artwork and continues pinch dragging at %s view zoom', async (zoom) => {
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
     vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
     const bounds = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
@@ -188,7 +188,7 @@ describe('true corner interaction', () => {
     function Harness() {
       const [value, setValue] = useState({ x: 0, y: 0, scaleX: 3, scaleY: 3 });
       return React.createElement(ArtworkPreviewEditor, {
-        src: 'cropped-controls-regression.png', paddingPct: '50%', value, constrain: true,
+        src: `cropped-controls-regression-${zoom}.png`, paddingPct: '50%', value, constrain: true,
         onChange: next => { changes(next); setValue(next); }, onConstrainChange: vi.fn(), mobileToolbarContainer: slot,
       });
     }
@@ -198,7 +198,7 @@ describe('true corner interaction', () => {
       return event;
     };
     try {
-      await act(async () => root.render(React.createElement(Harness)));
+      await act(async () => root.render(React.createElement(ArtworkWorkspaceZoomContext.Provider, { value: zoom }, React.createElement(Harness))));
       const img = host.querySelector('img')!;
       Object.defineProperties(img, { complete: { value: true }, naturalWidth: { value: 600 }, naturalHeight: { value: 300 } });
       await act(async () => img.dispatchEvent(new Event('load')));
@@ -229,7 +229,7 @@ describe('true corner interaction', () => {
       await act(async () => window.dispatchEvent(pointer('pointerup', 210, 75, 3)));
       const afterPinch = { ...changes.mock.lastCall![0] };
       await act(async () => window.dispatchEvent(pointer('pointermove', 110, 80, 2)));
-      expect(changes.mock.lastCall?.[0]).toEqual({ ...afterPinch, x: afterPinch.x + 10, y: afterPinch.y + 5 });
+      expect(changes.mock.lastCall?.[0]).toEqual({ ...afterPinch, x: afterPinch.x + 10 / zoom, y: afterPinch.y + 5 / zoom });
       await act(async () => window.dispatchEvent(pointer('pointercancel', 110, 80, 2)));
       const count = changes.mock.calls.length;
       await act(async () => window.dispatchEvent(pointer('pointermove', 120, 90, 2)));

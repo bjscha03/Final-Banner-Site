@@ -2964,6 +2964,7 @@ const GoogleAdsBanner: React.FC = () => {
                       <div className="mb-2">
                         <h3 className="text-sm font-bold text-gray-800">{isYardSign ? 'Live Yard Sign Preview' : isCarMagnet ? 'Live Car Magnet Preview' : 'Live Banner Preview'}</h3>
                         <p className="text-xs text-gray-500">Check your artwork before checkout</p>
+                        <button type="button" onClick={() => setShowPreview(true)} className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"><Monitor aria-hidden="true" className="h-4 w-4" />Edit full screen</button>
                       </div>
                       {/* Banner preview with depth background */}
                       <div className="rounded-xl max-w-full overflow-hidden border border-slate-300">
