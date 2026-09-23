@@ -338,17 +338,14 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
       if (natural && seedInitialNormalizedComposition(next, natural)) {
         normalized = normalizedCompositionByArtwork.get(artworkKey);
       }
+      // An undecoded image has no contained dimensions yet. Saving the canvas
+      // as its geometry here makes a fresh logo expand to canvas width on load.
+      // Let image decode seed the real contained (Fit) geometry instead.
+      if (!normalized && !natural) return;
       if (!normalized) {
         const base = previous || next;
         normalized = {
-          ...(natural
-            ? captureNormalizedArtworkGeometry(valueRef.current, base, natural)
-            : {
-                xPct: base.w ? valueRef.current.x / base.w : 0,
-                yPct: base.h ? valueRef.current.y / base.h : 0,
-                widthPct: valueRef.current.scaleX,
-                heightPct: valueRef.current.scaleY,
-              }),
+          ...captureNormalizedArtworkGeometry(valueRef.current, base, natural!),
           revision: 0,
         };
         normalizedCompositionByArtwork.set(artworkKey, normalized);
