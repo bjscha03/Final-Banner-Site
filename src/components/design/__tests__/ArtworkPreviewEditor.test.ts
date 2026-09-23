@@ -169,3 +169,60 @@ describe('banner size change review', () => {
     }
   });
 });
+
+describe('reachable corner interaction', () => {
+  it('resizes cropped artwork by pointer and keyboard without moving the opposite corner', async () => {
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+    vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+    const bounds = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 300, height: 150, x: 0, y: 0, left: 0, top: 0, right: 300, bottom: 150, toJSON() {},
+    });
+    const host = document.createElement('div');
+    const slot = document.createElement('div');
+    document.body.append(host, slot);
+    const root = createRoot(host);
+    const previousHitTest = document.elementFromPoint;
+    document.elementFromPoint = () => host.querySelector('img');
+    const changes = vi.fn();
+    function Harness() {
+      const [value, setValue] = useState({ x: 0, y: 0, scaleX: 3, scaleY: 3 });
+      return React.createElement(ArtworkPreviewEditor, {
+        src: 'cropped-controls-regression.png', paddingPct: '50%', value, constrain: true,
+        onChange: next => { changes(next); setValue(next); }, onConstrainChange: vi.fn(), mobileToolbarContainer: slot,
+      });
+    }
+    const pointer = (type: string, x: number, y: number) => {
+      const event = new MouseEvent(type, { bubbles: true, clientX: x, clientY: y });
+      Object.defineProperties(event, { pointerId: { value: 1 }, pointerType: { value: 'touch' } });
+      return event;
+    };
+    try {
+      await act(async () => root.render(React.createElement(Harness)));
+      const img = host.querySelector('img')!;
+      Object.defineProperties(img, { complete: { value: true }, naturalWidth: { value: 600 }, naturalHeight: { value: 300 } });
+      await act(async () => img.dispatchEvent(new Event('load')));
+      const handle = host.querySelector('[data-handle="br"]')!;
+      expect(host.querySelectorAll('button[data-handle]')).toHaveLength(4);
+      expect(handle.closest('[data-artwork-controls]')?.getAttribute('data-html2canvas-ignore')).toBe('true');
+      const frame = img.parentElement!;
+      const left = parseFloat(frame.style.left), top = parseFloat(frame.style.top);
+      await act(async () => handle.dispatchEvent(pointer('pointerdown', 278, 128)));
+      await act(async () => window.dispatchEvent(pointer('pointermove', 308, 143)));
+      await act(async () => window.dispatchEvent(pointer('pointerup', 308, 143)));
+      expect(parseFloat(frame.style.left)).toBeCloseTo(left);
+      expect(parseFloat(frame.style.top)).toBeCloseTo(top);
+      expect(changes.mock.lastCall?.[0].scaleX).toBeCloseTo(3.1);
+      await act(async () => handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })));
+      expect(parseFloat(frame.style.left)).toBeCloseTo(left);
+      expect(parseFloat(frame.style.top)).toBeCloseTo(top);
+      const center = Array.from(slot.querySelectorAll('button')).find(b => b.textContent === 'Center')!;
+      await act(async () => center.click());
+      expect(changes.mock.lastCall?.[0].x).toBe(0);
+      expect(changes.mock.lastCall?.[0].y).toBe(0);
+      expect(changes.mock.lastCall?.[0].scaleX).toBeGreaterThan(3);
+    } finally {
+      await act(async () => root.unmount()); host.remove(); slot.remove(); bounds.mockRestore();
+      document.elementFromPoint = previousHitTest; vi.unstubAllGlobals();
+    }
+  });
+});

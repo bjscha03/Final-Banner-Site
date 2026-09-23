@@ -1,5 +1,6 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { reachableArtworkFrame, resizeArtworkFromCorner } from '@/lib/artworkInteraction';
 import { Hand, Lock, Maximize2, Minimize2, RotateCcw, Unlock } from 'lucide-react';
 import { getPreviewCrossOrigin, resolveArtworkPreviewImageSrc } from './artworkPreviewSource';
 import {
@@ -453,7 +454,7 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
 
   const startPointer = useCallback((event: React.PointerEvent) => {
     const target = event.target as HTMLElement;
-    if (target.closest('[data-artwork-toolbar="true"]') || target.dataset.handle) return;
+    if (target.closest('[data-artwork-toolbar="true"]') || target.closest('[data-handle]')) return;
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     event.preventDefault();
     setSelected(true);
@@ -491,8 +492,13 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
   }, []);
 
   const startResize = useCallback((corner: Corner) => (event: React.PointerEvent) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
+    try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* unsupported capture */ }
+    dragRef.current.active = false;
+    pinchRef.current = null;
+    pointerMapRef.current.clear();
     const baseW = containedRect?.w || canvasSizeRef.current?.w || 1;
     const baseH = containedRect?.h || canvasSizeRef.current?.h || 1;
     resizeRef.current = {
@@ -536,18 +542,10 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
       if (resize?.active && resize.pointerId === event.pointerId) {
         const dx = event.clientX - resize.startX;
         const dy = event.clientY - resize.startY;
-        const signX = resize.corner === 'tr' || resize.corner === 'br' ? 1 : -1;
-        const signY = resize.corner === 'bl' || resize.corner === 'br' ? 1 : -1;
-        let scaleX = clamp(resize.startScaleX + signX * (2 * dx / resize.baseW), MIN_SCALE, MAX_SCALE);
-        let scaleY = clamp(resize.startScaleY + signY * (2 * dy / resize.baseH), MIN_SCALE, MAX_SCALE);
-        if (constrainRef.current) {
-          const ratioX = scaleX / resize.startScaleX;
-          const ratioY = scaleY / resize.startScaleY;
-          const ratio = Math.abs(ratioX - 1) >= Math.abs(ratioY - 1) ? ratioX : ratioY;
-          scaleX = clamp(resize.startScaleX * ratio, MIN_SCALE, MAX_SCALE);
-          scaleY = clamp(resize.startScaleY * ratio, MIN_SCALE, MAX_SCALE);
-        }
-        commitTransform({ x: resize.originalX, y: resize.originalY, scaleX, scaleY });
+        commitTransform(resizeArtworkFromCorner({
+          x: resize.originalX, y: resize.originalY,
+          scaleX: resize.startScaleX, scaleY: resize.startScaleY,
+        }, { w: resize.baseW, h: resize.baseH }, resize.corner, dx, dy, constrainRef.current));
         return;
       }
 
@@ -563,6 +561,11 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
 
     const end = (event: PointerEvent) => {
       pointerMapRef.current.delete(event.pointerId);
+      if (pinchRef.current && pointerMapRef.current.size === 1) {
+        // Continue moving smoothly when one finger lifts after a pinch.
+        const [pointerId, point] = Array.from(pointerMapRef.current.entries())[0];
+        dragRef.current = { active: true, pointerId, startX: point.x, startY: point.y, original: localValueRef.current };
+      }
       if (pointerMapRef.current.size < 2) pinchRef.current = null;
       if (dragRef.current.pointerId === event.pointerId) dragRef.current.active = false;
       if (resizeRef.current?.pointerId === event.pointerId) resizeRef.current.active = false;
@@ -619,6 +622,19 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
     }
   }, [constrain, onConstrainChange, commitTransform]);
 
+  const resizeBy = (factor: number) => {
+    const current = localValueRef.current;
+    const ratio = clamp(factor, Math.max(MIN_SCALE / current.scaleX, MIN_SCALE / current.scaleY),
+      Math.min(MAX_SCALE / current.scaleX, MAX_SCALE / current.scaleY));
+    commitTransform({ ...current, scaleX: current.scaleX * ratio, scaleY: current.scaleY * ratio });
+    setSelected(true);
+  };
+  const reachableFrame = artworkFrame && canvasSize ? reachableArtworkFrame(artworkFrame, canvasSize) : null;
+  const handlesClipped = artworkFrame && reachableFrame && (
+    Math.abs(artworkFrame.left - reachableFrame.left) > 1 || Math.abs(artworkFrame.top - reachableFrame.top) > 1
+    || Math.abs(artworkFrame.width - reachableFrame.width) > 1 || Math.abs(artworkFrame.height - reachableFrame.height) > 1
+  );
+
   const toolbar = (
     <div
       data-artwork-toolbar="true"
@@ -653,6 +669,12 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
           {constrain ? 'Unlock free resize' : 'Lock proportions'}
         </button>
         </details>
+      </div>
+      <div className="mt-1 flex items-center justify-center gap-1" role="group" aria-label="Artwork size and position">
+        <button type="button" aria-label="Make artwork smaller" onClick={() => resizeBy(1 / 1.1)} disabled={Math.min(localValue.scaleX, localValue.scaleY) <= MIN_SCALE + 0.001} className="min-h-11 min-w-11 rounded-lg border border-slate-200 text-xl disabled:opacity-40">−</button>
+        <span className="min-w-14 text-center text-xs tabular-nums" aria-live="polite">{Math.round(localValue.scaleX * 100)}%</span>
+        <button type="button" aria-label="Make artwork larger" onClick={() => resizeBy(1.1)} disabled={Math.max(localValue.scaleX, localValue.scaleY) >= MAX_SCALE - 0.001} className="min-h-11 min-w-11 rounded-lg border border-slate-200 text-xl disabled:opacity-40">+</button>
+        <button type="button" onClick={() => { commitTransform({ ...localValueRef.current, x: 0, y: 0 }); setSelected(true); }} className="min-h-11 rounded-lg px-3 text-xs font-semibold text-slate-700 hover:bg-slate-100">Center</button>
       </div>
       <p className="mt-2 text-center text-xs leading-relaxed text-slate-500">
         Fit shows the whole image. Fill covers the banner and may crop edges.
@@ -711,17 +733,33 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
             />
           ) : null}
 
-          {!loading && naturalSize && selected && !previewError && (
-            <>
-              <div className="pointer-events-none absolute inset-0 z-10" style={{ outline: '1.5px solid rgba(249,115,22,.95)', outlineOffset: '-1.5px' }} />
-              {(['tl', 'tr', 'bl', 'br'] as Corner[]).map((corner) => (
-                <div key={corner} data-handle={corner} onPointerDown={startResize(corner)} className="pointer-events-auto absolute z-30 flex h-11 w-11 items-center justify-center" style={handlePositions[corner]}>
-                  <span className="block h-4 w-4 rounded-sm border-2 border-orange-500 bg-white shadow" />
-                </div>
-              ))}
-            </>
-          )}
         </div>
+
+        {!loading && naturalSize && selected && !previewError && artworkFrame && reachableFrame && (
+          <div data-artwork-controls="true" className="pointer-events-none absolute inset-0 z-30" data-html2canvas-ignore="true">
+            <div className="absolute" style={{ ...artworkFrame, outline: '1.5px solid #f97316', outlineOffset: '-1.5px' }} />
+            <div className="absolute" style={reachableFrame}>
+              {(['tl', 'tr', 'bl', 'br'] as Corner[]).map((corner) => (
+                <button type="button" key={corner} data-handle={corner}
+                  aria-label={`Resize artwork from ${ { tl: 'top left', tr: 'top right', bl: 'bottom left', br: 'bottom right' }[corner]}`}
+                  title={handlesClipped ? 'Drag to resize artwork beyond the banner edge' : 'Drag to resize artwork'}
+                  onPointerDown={startResize(corner)}
+                  onKeyDown={(event) => {
+                    const delta = event.shiftKey ? 10 : 2;
+                    const dx = event.key === 'ArrowLeft' ? -delta : event.key === 'ArrowRight' ? delta : 0;
+                    const dy = event.key === 'ArrowUp' ? -delta : event.key === 'ArrowDown' ? delta : 0;
+                    if ((!dx && !dy) || !containedRect) return;
+                    event.preventDefault(); event.stopPropagation();
+                    commitTransform(resizeArtworkFromCorner(localValueRef.current, containedRect, corner, dx, dy, constrainRef.current));
+                  }}
+                  className="pointer-events-auto absolute flex h-11 w-11 touch-none items-center justify-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-600"
+                  style={handlePositions[corner]}>
+                  <span className="pointer-events-none block h-4 w-4 rounded-full border-2 border-orange-500 bg-white shadow" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {showDragHint && <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center"><span className="rounded-full bg-black/60 px-3 py-1.5 text-xs text-white">Drag to reposition · Drag corners to resize</span></div>}
         {overlay}
