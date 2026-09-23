@@ -79,6 +79,7 @@ const clamp = (value: number, min: number, max: number) => Math.max(min, Math.mi
 // Store one canonical canvas-relative composition per artwork so inline/modal
 // canvases and banner-size changes cannot fight over pixel coordinates or
 // visually resize the customer's approved artwork.
+const unresolvedArtworkGeometry = new Set<string>();
 const normalizedCompositionByArtwork = new Map<string, NormalizedComposition>();
 type HistoryEntry = { geometry: NormalizedArtworkGeometry; locked: boolean };
 const artworkHistory = new Map<string, { past: HistoryEntry[]; future: HistoryEntry[] }>();
@@ -200,12 +201,13 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
     setNaturalSize(nextNaturalSize);
     const canvas = canvasSizeRef.current;
     const seeded = canvas ? seedInitialNormalizedComposition(canvas, nextNaturalSize) : false;
-    if (canvas && !seeded && !normalizedCompositionByArtwork.has(artworkKey)) {
+    if (canvas && !seeded && (!normalizedCompositionByArtwork.has(artworkKey) || unresolvedArtworkGeometry.has(artworkKey))) {
       normalizedCompositionByArtwork.set(artworkKey, {
         ...captureNormalizedArtworkGeometry(localValueRef.current, canvas, nextNaturalSize),
         revision: 0,
       });
     }
+    unresolvedArtworkGeometry.delete(artworkKey);
     setLoading(false);
     setPreviewError(null);
     return true;
@@ -361,6 +363,7 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
         normalized = normalizedCompositionByArtwork.get(artworkKey);
       }
       if (!normalized) {
+        if (!natural) unresolvedArtworkGeometry.add(artworkKey);
         const base = previous || next;
         normalized = {
           ...(natural

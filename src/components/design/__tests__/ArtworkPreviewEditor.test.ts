@@ -114,6 +114,8 @@ describe('ArtworkPreviewEditor unlock interaction', () => {
       const frame = image.parentElement!;
       const before = frame.getAttribute('style');
       expect(parseFloat(frame.style.width) / parseFloat(frame.style.height)).toBeCloseTo(width / height);
+      expect(parseFloat(frame.style.width)).toBeLessThanOrEqual(600);
+      expect(parseFloat(frame.style.height)).toBeLessThanOrEqual(300);
       const unlock = Array.from(toolbarSlot.querySelectorAll('button')).find(b => b.textContent === 'Unlock free resize')!;
       expect(unlock).toBeDefined();
       await act(async () => unlock.click());
