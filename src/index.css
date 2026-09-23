@@ -887,3 +887,13 @@ embed[type="application/pdf"] .pdfViewer .toolbar {
     }
   }
 }
+
+/* Keep phone artwork and review controls inside the dynamic viewport. */
+@media (max-width: 639px) {
+  .banner-modal-canvas {
+    width: min(100%, calc(max(120px, 100dvh - 300px) * var(--banner-aspect))) !important;
+  }
+  .checkout-review-dialog {
+    border-radius: 0 !important;
+  }
+}

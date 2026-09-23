@@ -117,6 +117,7 @@ type UploadedArtworkFile = {
   isPdf: boolean;
   thumbnailUrl?: string;
   previewUrl?: string;
+  permanentPreviewUrl?: string;
   productionUrl?: string;
   productionPublicId?: string;
   resourceType?: 'image' | 'raw' | string;
@@ -282,24 +283,10 @@ function hasPermanentArtwork(file: UploadedArtworkFile | null | undefined): file
   );
 }
 
-function preloadPermanentArtwork(url: string, timeoutMs = 20_000): Promise<boolean> {
-  return new Promise((resolve) => {
-    if (!url) { resolve(false); return; }
-    const image = new Image();
-    let settled = false;
-    const finish = (value: boolean) => {
-      if (settled) return;
-      settled = true;
-      window.clearTimeout(timeoutId);
-      image.onload = null;
-      image.onerror = null;
-      resolve(value);
-    };
-    const timeoutId = window.setTimeout(() => finish(false), timeoutMs);
-    image.onload = () => finish(Boolean(image.naturalWidth && image.naturalHeight));
-    image.onerror = () => finish(false);
-    image.src = url;
-  });
+// Cart/order metadata must remain usable after this tab revokes its blob URLs.
+function persistentArtworkPreview(file: UploadedArtworkFile): string {
+  const original = file.productionUrl || file.url;
+  return file.permanentPreviewUrl || (file.isPdf ? getPdfThumbnailUrl(original) : getImagePreviewUrl(original));
 }
 
 function buildCartArtworkForEditor(item: CartItem): UploadedArtworkFile | null {
@@ -454,6 +441,7 @@ const GoogleAdsBanner: React.FC = () => {
   const [finishingType, setFinishingType] = useState<FinishingType>('none');
   const [ropePlacement, setRopePlacement] = useState<RopePlacement>('top');
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadedFile, setUploadedFile] = useState<UploadedArtworkFile | null>(null);
   const fileUploaderRef = useRef<FileUploaderHandle>(null);
   const uploadedFileRef = useRef<UploadedArtworkFile | null>(null);
@@ -1337,13 +1325,18 @@ const GoogleAdsBanner: React.FC = () => {
     activeUploadAbortControllerRef.current?.abort();
     activeUploadAbortControllerRef.current = controller;
     setIsUploading(true);
+    setUploadProgress(0);
     setUploadError('');
 
     const promise = (async () => {
       const result = await uploadArtworkFile(file, {
         correlationId,
         signal: controller.signal,
+        onProgress: (fraction) => {
+          if (generation === uploadGenerationRef.current) setUploadProgress(Math.round(fraction * 100));
+        },
         onAttempt: (attempt, maximum) => {
+          if (generation === uploadGenerationRef.current) setUploadProgress(0);
           console.info('[artwork_upload]', {
             correlationId,
             stage: 'direct_upload_attempt',
@@ -1355,10 +1348,10 @@ const GoogleAdsBanner: React.FC = () => {
       });
       if (generation !== uploadGenerationRef.current) return null;
 
-      let browserPreviewUrl = initialArtwork.previewUrl || initialArtwork.thumbnailUrl || initialArtwork.url;
-      const permanentPreviewUrl = result.previewUrl || result.secureUrl;
-      const permanentPreviewLoaded = await preloadPermanentArtwork(permanentPreviewUrl);
-      if (permanentPreviewLoaded) browserPreviewUrl = permanentPreviewUrl;
+      // The upload response already confirms durable artwork. Keep the decoded
+      // local preview: downloading the same file again delayed readiness by up
+      // to 20 seconds and could reset the canvas on slower mobile connections.
+      const browserPreviewUrl = initialArtwork.previewUrl || initialArtwork.thumbnailUrl || initialArtwork.url;
 
       const completedArtwork: UploadedArtworkFile = {
         ...initialArtwork,
@@ -1366,6 +1359,7 @@ const GoogleAdsBanner: React.FC = () => {
         fileKey: result.fileKey,
         thumbnailUrl: browserPreviewUrl,
         previewUrl: browserPreviewUrl,
+        permanentPreviewUrl: result.previewUrl || result.secureUrl,
         productionUrl: result.productionUrl,
         productionPublicId: result.productionPublicId,
         resourceType: result.resourceType,
@@ -1395,14 +1389,6 @@ const GoogleAdsBanner: React.FC = () => {
         mimeType: uploadDescriptor.mimeType,
       });
 
-      if (permanentPreviewLoaded) {
-        window.setTimeout(() => {
-          activeImagePreviewCleanupRef.current?.();
-          activePdfPreviewCleanupRef.current?.();
-          activeImagePreviewCleanupRef.current = null;
-          activePdfPreviewCleanupRef.current = null;
-        }, 0);
-      }
       return completedArtwork;
     })();
 
@@ -1468,6 +1454,7 @@ const GoogleAdsBanner: React.FC = () => {
       : (file.type || (extension === 'png' ? 'image/png' : 'image/jpeg'));
 
     setIsUploading(true);
+    setUploadProgress(0);
     const uploadDescriptor = getArtworkUploadDiagnostic(null, file);
     logUx('upload_start', {
       correlationId,
@@ -1540,6 +1527,32 @@ const GoogleAdsBanner: React.FC = () => {
       setIsUploading(false);
     }
   }, [generateValidatedPdfPreview, persistArtworkUpload]);
+
+  const removeUploadedArtwork = useCallback(() => {
+    // Ignore late upload completions after removal, including an in-flight retry.
+    uploadGenerationRef.current += 1;
+    activeUploadAbortControllerRef.current?.abort();
+    activeUploadPromiseRef.current = null;
+    activeUploadFileRef.current = null;
+    uploadedFileRef.current = null;
+    activePdfPreviewFileRef.current = null;
+    activeImagePreviewCleanupRef.current?.();
+    activePdfPreviewCleanupRef.current?.();
+    activeImagePreviewCleanupRef.current = null;
+    activePdfPreviewCleanupRef.current = null;
+    preparedPlacementRef.current = null;
+    setPendingPlacementPreview(null);
+    setIsUploading(false);
+    setUploadProgress(0);
+    setUploadError('');
+    setUploadedFile(null);
+    setImgPos({ x: 0, y: 0 });
+    setImgScale(1);
+    setImgScaleY(1);
+    setAiPrompt(null);
+    setAiEditPrompt(null);
+    setAiDesignSession(null);
+  }, []);
 
   const retryActiveArtworkUpload = useCallback(async (): Promise<UploadedArtworkFile | null> => {
     const file = activeUploadFileRef.current;
@@ -1941,7 +1954,7 @@ const GoogleAdsBanner: React.FC = () => {
         originalImageUrl: checkoutArtwork.productionUrl || checkoutArtwork.url,
         originalImageFileKey: checkoutArtwork.productionPublicId || checkoutArtwork.fileKey,
         isPdf: checkoutArtwork.isPdf,
-        previewUrl: checkoutArtwork.previewUrl || checkoutArtwork.thumbnailUrl || null,
+        previewUrl: persistentArtworkPreview(checkoutArtwork),
         productionUrl: checkoutArtwork.productionUrl || checkoutArtwork.url,
         productionPublicId: checkoutArtwork.productionPublicId || checkoutArtwork.fileKey,
         resourceType: checkoutArtwork.resourceType,
@@ -1995,8 +2008,8 @@ const GoogleAdsBanner: React.FC = () => {
         webPreviewUrl: approvedThumbnailUrl,
         artworkManifest: checkoutArtwork.artworkManifest,
         placementPreview: preparedPlacement.artifact,
-        file: { name: checkoutArtwork.name, url: checkoutArtwork.url, fileKey: checkoutArtwork.fileKey, size: checkoutArtwork.size, isPdf: checkoutArtwork.isPdf, thumbnailUrl: checkoutArtwork.previewUrl || checkoutArtwork.thumbnailUrl,
-              previewUrl: checkoutArtwork.previewUrl,
+        file: { name: checkoutArtwork.name, url: checkoutArtwork.url, fileKey: checkoutArtwork.fileKey, size: checkoutArtwork.size, isPdf: checkoutArtwork.isPdf, thumbnailUrl: persistentArtworkPreview(checkoutArtwork),
+              previewUrl: persistentArtworkPreview(checkoutArtwork),
               productionUrl: checkoutArtwork.productionUrl || checkoutArtwork.url,
               productionPublicId: checkoutArtwork.productionPublicId || checkoutArtwork.fileKey,
               resourceType: checkoutArtwork.resourceType,
@@ -2069,7 +2082,7 @@ const GoogleAdsBanner: React.FC = () => {
       originalImageUrl: checkoutArtwork.productionUrl || checkoutArtwork.url,
       originalImageFileKey: checkoutArtwork.productionPublicId || checkoutArtwork.fileKey,
       isPdf: checkoutArtwork.isPdf,
-      previewUrl: checkoutArtwork.previewUrl || checkoutArtwork.thumbnailUrl || null,
+      previewUrl: persistentArtworkPreview(checkoutArtwork),
       productionUrl: checkoutArtwork.productionUrl || checkoutArtwork.url,
       productionPublicId: checkoutArtwork.productionPublicId || checkoutArtwork.fileKey,
       resourceType: checkoutArtwork.resourceType,
@@ -2129,8 +2142,8 @@ const GoogleAdsBanner: React.FC = () => {
       fitMode: 'fit',
       thumbnailUrl: approvedThumbnailUrl,
       webPreviewUrl: approvedThumbnailUrl,
-      file: { name: checkoutArtwork.name, url: checkoutArtwork.url, fileKey: checkoutArtwork.fileKey, size: checkoutArtwork.size, isPdf: checkoutArtwork.isPdf, thumbnailUrl: checkoutArtwork.previewUrl || checkoutArtwork.thumbnailUrl,
-              previewUrl: checkoutArtwork.previewUrl,
+      file: { name: checkoutArtwork.name, url: checkoutArtwork.url, fileKey: checkoutArtwork.fileKey, size: checkoutArtwork.size, isPdf: checkoutArtwork.isPdf, thumbnailUrl: persistentArtworkPreview(checkoutArtwork),
+              previewUrl: persistentArtworkPreview(checkoutArtwork),
               productionUrl: checkoutArtwork.productionUrl || checkoutArtwork.url,
               productionPublicId: checkoutArtwork.productionPublicId || checkoutArtwork.fileKey,
               resourceType: checkoutArtwork.resourceType,
@@ -2901,6 +2914,15 @@ const GoogleAdsBanner: React.FC = () => {
                       artworkHeight={uploadedFile?.originalHeight}
                     />
                   )}
+                  {isUploading && <div role="status" aria-live="polite" className="mt-3 rounded-lg bg-blue-50 p-3 text-sm text-blue-900">
+                    <p className="font-semibold">{uploadProgress >= 100 ? 'Finishing upload…' : `Uploading artwork… ${uploadProgress}%`}</p>
+                    <progress aria-label="Artwork upload progress" value={uploadProgress} max={100} className="mt-2 h-2 w-full" />
+                    <p className="mt-1 text-xs">You can adjust your preview while we save your file. Checkout unlocks when the upload finishes.</p>
+                  </div>}
+                  {uploadError && <div role="alert" className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                    <p>{uploadError}</p>
+                    {uploadedFile && activeUploadFileRef.current && !hasPermanentArtwork(uploadedFile) && <button type="button" disabled={isUploading} onClick={() => void retryActiveArtworkUpload()} className="mt-2 min-h-11 rounded-lg border border-red-300 bg-white px-4 font-semibold disabled:opacity-50">Retry upload</button>}
+                  </div>}
                   {!uploadedFile ? (
                     <>
                       <FileUploader
@@ -2940,7 +2962,7 @@ const GoogleAdsBanner: React.FC = () => {
                       {/* Preview labeling */}
                       <div className="mb-2">
                         <h3 className="text-sm font-bold text-gray-800">{isYardSign ? 'Live Yard Sign Preview' : isCarMagnet ? 'Live Car Magnet Preview' : 'Live Banner Preview'}</h3>
-                        <p className="text-xs text-gray-400">Final print preview — what you see is what you get</p>
+                        <p className="text-xs text-gray-500">Check your artwork before checkout</p>
                       </div>
                       {/* Banner preview with depth background */}
                       <div className="rounded-xl p-4 md:p-6 max-w-full overflow-hidden bg-slate-300 border border-slate-400/70 shadow-inner">
@@ -3023,10 +3045,10 @@ const GoogleAdsBanner: React.FC = () => {
                       {/* File info bar */}
                       <div className="mt-2 p-3 flex items-center justify-between bg-green-50 border border-green-200 rounded-lg">
                         <div className="flex items-center gap-2 min-w-0">
-                          <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+                          {isUploading ? <Loader2 className="h-5 w-5 animate-spin text-blue-600 flex-shrink-0" /> : <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />}
                           <span className="text-sm font-semibold text-green-800 truncate">{uploadedFile.name}</span>
                         </div>
-                        <button type="button" aria-label="Remove uploaded artwork" onClick={() => { setUploadedFile(null); setImgPos({ x: 0, y: 0 }); setImgScale(1); setImgScaleY(1); setAiPrompt(null); setAiEditPrompt(null); setAiDesignSession(null); }} className="ml-2 flex-shrink-0 p-2.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
+                        <button type="button" aria-label="Remove uploaded artwork" onClick={removeUploadedArtwork} className="ml-2 flex-shrink-0 p-2.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
                       </div>
                       {aiPrompt && !isYardSign && !isCarMagnet && showCreateWithAI && (
                         <div className="mt-2 flex justify-center">
@@ -3043,7 +3065,6 @@ const GoogleAdsBanner: React.FC = () => {
                       )}
                     </div>
                   )}
-                  {uploadError && <p className="text-xs text-red-600 mt-2">{uploadError}</p>}
                   <p className="text-xs text-gray-400 mt-2 text-center">Every file reviewed by a real designer before printing.</p>
                 </ConfigCard>);
   const heroContent = isYardSign
@@ -3455,7 +3476,7 @@ const GoogleAdsBanner: React.FC = () => {
                 <>
                 <button onClick={handleCheckout} disabled={!uploadedFile || !hasCommittedBannerSize || isUploading || isProcessingUpsell} className={`group w-full font-bold text-lg py-5 rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${uploadedFile && hasCommittedBannerSize && !isUploading && !isProcessingUpsell ? 'bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white cursor-pointer shadow-orange-500/30' : 'bg-orange-300 text-white/80 cursor-not-allowed'}`}>
                   <Lock className="h-4 w-4" aria-hidden="true" />
-                  {isProcessingUpsell ? 'Preparing exact preview…' : (editItemId ? 'Save & checkout' : 'Continue to checkout')}
+                  {isUploading ? `Uploading artwork… ${uploadProgress}%` : isProcessingUpsell ? 'Preparing exact preview…' : (editItemId ? 'Save & checkout' : 'Continue to checkout')}
                   <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
                 </button>
                 <button
@@ -3529,27 +3550,26 @@ const GoogleAdsBanner: React.FC = () => {
 
       {/* Preview Modal */}
       {showPreview && uploadedFile && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm sm:p-4">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-3xl w-full max-h-[95vh] sm:max-h-[90vh] flex flex-col modal-dvh-fix">
-            <div className="flex items-center justify-between p-4 border-b">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm sm:p-4">
+          <div role="dialog" aria-modal="true" aria-label="Live artwork preview" className="banner-preview-dialog bg-white sm:rounded-2xl shadow-2xl max-w-3xl w-full h-[100dvh] sm:h-auto sm:max-h-[90dvh] flex flex-col">
+            <div className="flex shrink-0 items-center justify-between px-3 py-2 sm:p-4 border-b">
               <div>
                 <h3 className="text-lg font-bold text-gray-900">{isYardSign ? 'Live Yard Sign Preview' : isCarMagnet ? 'Live Car Magnet Preview' : 'Live Banner Preview'}</h3>
-                <p className="text-xs text-gray-400">Final print preview — what you see is what you get</p>
+                <p className="text-xs text-gray-500">Check your artwork before checkout</p>
               </div>
               <button type="button" aria-label="Close preview" onClick={() => setShowPreview(false)} className="p-2.5 hover:bg-gray-100 rounded-full">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-4 flex-1 overflow-auto">
-              <p className="text-sm text-gray-500 mb-3 flex items-center gap-1"><Move className="w-4 h-4" /> Drag to reposition · Drag corners to resize</p>
+            <div className="min-h-0 p-2 sm:p-4 flex-1 overflow-y-auto overscroll-contain">
               {/* Banner surface */}
-              <div className="rounded-lg p-3 border border-slate-300" style={{ background: 'linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%)' }}>
+              <div className="rounded-lg p-2 sm:p-3 border border-slate-300" style={{ background: 'linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%)' }}>
                 <PreviewRulerFrame
                   widthIn={widthIn}
                   heightIn={heightIn}
                   unit={isCarMagnet ? 'in' : unit}
-                  className="mx-auto max-w-full"
-                  style={previewWrapperStyle}
+                  className="banner-modal-canvas mx-auto max-w-full"
+                  style={{ ...previewWrapperStyle, '--banner-aspect': widthIn / heightIn } as React.CSSProperties}
                 >
                   <ArtworkPreviewEditor
                     ref={modalEditorRef}
@@ -3613,12 +3633,11 @@ const GoogleAdsBanner: React.FC = () => {
               <p className="text-xs text-gray-400 text-center mt-2">
                 Size: {widthFt} ft{widthInR > 0 ? ` ${widthInR} in` : ''} × {heightFt} ft{heightInR > 0 ? ` ${heightInR} in` : ''} ({sqft.toFixed(1)} sq ft)
               </p>
-              {/* Confidence text */}
-              <p className="text-xs text-gray-500 text-center mt-2 font-medium">Your design will be printed based on this preview</p>
+
             </div>
-            <div className="flex gap-3 p-4 border-t">
-              <button onClick={() => setShowPreview(false)} className="flex-1 py-3.5 sm:py-3 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50">Cancel</button>
-              <button onClick={() => handleConfirmPosition(imgPos, imgScale, imgScaleY)} className="flex-1 py-3.5 sm:py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold shadow-lg">Confirm & Checkout</button>
+            <div className="flex shrink-0 gap-2 p-2 sm:p-4 border-t pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+              <button onClick={() => setShowPreview(false)} className="min-h-11 px-4 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50">Back</button>
+              <button disabled={isUploading || isProcessingUpsell} onClick={() => handleConfirmPosition(imgPos, imgScale, imgScaleY)} className="min-h-11 flex-1 px-2 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white font-semibold shadow-lg">{isUploading ? `Uploading… ${uploadProgress}%` : isProcessingUpsell ? 'Preparing preview…' : 'Confirm & checkout'}</button>
             </div>
           </div>
         </div>
@@ -3680,7 +3699,7 @@ const GoogleAdsBanner: React.FC = () => {
           material={material || null}
           materialLabel={materialLabel}
           originalPrompt={aiPrompt}
-          currentImageUrl={uploadedFile?.thumbnailUrl || uploadedFile?.url || null}
+          currentImageUrl={uploadedFile ? persistentArtworkPreview(uploadedFile) : null}
           session={aiDesignSession}
           onEdited={handleAIEdited}
         />

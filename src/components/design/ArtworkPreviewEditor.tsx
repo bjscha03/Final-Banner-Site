@@ -624,35 +624,38 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
       data-artwork-toolbar="true"
       onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => event.stopPropagation()}
-      className={`pointer-events-auto w-full max-w-xl rounded-xl border border-slate-200 bg-white shadow-sm ${compactControls ? 'p-3' : 'p-3 sm:p-4'}`}
+      className={`pointer-events-auto w-full max-w-xl rounded-xl border border-slate-200 bg-white shadow-sm ${compactControls ? 'p-2' : 'p-3 sm:p-4'}`}
     >
       {sizeReviewNeeded && <div role="status" className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-slate-800">
         <p>Your banner shape changed. Check for cropped edges or blank margins.</p>
-        <div className="mt-2 flex flex-wrap gap-2"><button type="button" onClick={fit} className="min-h-11 rounded-lg bg-white px-3 font-semibold text-orange-700">Fit entire artwork</button><button type="button" onClick={() => setSizeReviewNeeded(false)} className="min-h-11 rounded-lg px-3 font-medium">Keep current placement</button></div>
+        <div className="mt-2 flex flex-wrap gap-2"><button type="button" title="Show the whole image; may leave blank margins" onClick={fit} className="min-h-11 rounded-lg bg-white px-3 font-semibold text-orange-700">Fit entire artwork</button><button type="button" onClick={() => setSizeReviewNeeded(false)} className="min-h-11 rounded-lg px-3 font-medium">Keep current placement</button></div>
       </div>}
-      <div className="mb-3 flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-slate-700 sm:hidden">
+      <div className="mb-1 flex items-center justify-center gap-2 text-slate-700 sm:hidden">
         <Hand aria-hidden="true" className="h-5 w-5 shrink-0" />
-        <div><p className="text-sm font-semibold">Pinch to zoom · Drag to move</p><p className="text-xs">Use two fingers on your artwork to zoom.</p></div>
+        <p className="text-xs font-semibold">Pinch to zoom · Drag to move</p>
       </div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-700 sm:justify-start" role="status">
             {constrain ? <Lock aria-hidden="true" className="h-3.5 w-3.5" /> : <Unlock aria-hidden="true" className="h-3.5 w-3.5" />}
             {constrain ? 'Proportions locked' : 'Free resize enabled'}
           </p>
           <div className="mt-1 grid grid-cols-3 gap-1">
-            <button type="button" onClick={fit} className="inline-flex min-h-11 items-center justify-center gap-1 rounded-lg px-3 text-xs font-medium text-slate-700 hover:bg-slate-100"><Minimize2 aria-hidden="true" className="h-4 w-4" />Fit</button>
-            <button type="button" onClick={fill} className="inline-flex min-h-11 items-center justify-center gap-1 rounded-lg px-3 text-xs font-medium text-slate-700 hover:bg-slate-100"><Maximize2 aria-hidden="true" className="h-4 w-4" />Fill</button>
+            <button type="button" title="Show the whole image; may leave blank margins" onClick={fit} className="inline-flex min-h-11 items-center justify-center gap-1 rounded-lg px-3 text-xs font-medium text-slate-700 hover:bg-slate-100"><Minimize2 aria-hidden="true" className="h-4 w-4" />Fit</button>
+            <button type="button" title="Cover the banner; may crop the image edges" onClick={fill} className="inline-flex min-h-11 items-center justify-center gap-1 rounded-lg px-3 text-xs font-medium text-slate-700 hover:bg-slate-100"><Maximize2 aria-hidden="true" className="h-4 w-4" />Fill</button>
             <button type="button" onClick={reset} className="inline-flex min-h-11 items-center justify-center gap-1 rounded-lg px-3 text-xs font-medium text-orange-600 hover:bg-orange-50"><RotateCcw aria-hidden="true" className="h-4 w-4" />Reset</button>
           </div>
         </div>
+        <details className="text-xs text-slate-600">
+          <summary className="flex min-h-11 cursor-pointer items-center justify-center underline">Advanced resize</summary>
         <button type="button" onClick={toggleConstrain} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-3 text-sm font-semibold text-white hover:bg-orange-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600">
           {constrain ? <Unlock aria-hidden="true" className="h-4 w-4" /> : <Lock aria-hidden="true" className="h-4 w-4" />}
           {constrain ? 'Unlock free resize' : 'Lock proportions'}
         </button>
+        </details>
       </div>
       <p className="mt-2 text-center text-xs leading-relaxed text-slate-500">
-        {constrain ? 'Want to stretch it? Unlock, then drag a corner.' : 'Drag a corner to adjust width and height freely.'}
+        Fit shows the whole image. Fill covers the banner and may crop edges.
       </p>
     </div>
   );
