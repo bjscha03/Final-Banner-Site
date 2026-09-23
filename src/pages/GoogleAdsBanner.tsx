@@ -1,3 +1,4 @@
+import * as EditorDialog from '@radix-ui/react-dialog';
 import LargeBannerSizeCards from '@/components/design/LargeBannerSizeCards';
 import { useAutomaticFirstOrderDiscount } from '@/hooks/useAutomaticFirstOrderDiscount';
 import { FIRST_ORDER_APPLIED_LABEL } from '@/lib/firstOrderPromotion';
@@ -3554,21 +3555,23 @@ const GoogleAdsBanner: React.FC = () => {
 
       {/* Preview Modal */}
       {showPreview && uploadedFile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm sm:p-4">
-          <div role="dialog" aria-modal="true" aria-label="Live artwork preview" className="banner-preview-dialog bg-white sm:rounded-2xl shadow-2xl max-w-3xl w-full h-[100dvh] sm:h-auto sm:max-h-[90dvh] flex flex-col">
+        <EditorDialog.Root open={showPreview} onOpenChange={setShowPreview}>
+        <EditorDialog.Portal>
+          <EditorDialog.Overlay className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm" />
+          <EditorDialog.Content onPointerDownOutside={event => event.preventDefault()} aria-label="Live artwork preview" className="fixed inset-0 z-[10000] m-auto banner-preview-dialog bg-white sm:rounded-2xl shadow-2xl max-w-6xl w-full h-[100dvh] sm:h-[94dvh] flex flex-col">
             <div className="flex shrink-0 items-center justify-between px-3 py-2 sm:p-4 border-b">
               <div>
-                <h3 className="text-lg font-bold text-gray-900">{isYardSign ? 'Live Yard Sign Preview' : isCarMagnet ? 'Live Car Magnet Preview' : 'Live Banner Preview'}</h3>
-                <p className="text-xs text-gray-500">Check your artwork before checkout</p>
+                <EditorDialog.Title className="text-lg font-bold text-gray-900">Edit artwork</EditorDialog.Title>
+                <EditorDialog.Description className="text-xs text-gray-500">{widthFt} ft{widthInR > 0 ? ` ${widthInR} in` : ''} × {heightFt} ft{heightInR > 0 ? ` ${heightInR} in` : ''}</EditorDialog.Description>
               </div>
               <button type="button" aria-label="Close preview" onClick={() => setShowPreview(false)} className="p-2.5 hover:bg-gray-100 rounded-full">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="min-h-0 p-2 sm:p-4 flex-1 overflow-y-auto overscroll-contain">
+            <div className="min-h-0 p-2 sm:p-3 flex flex-1 flex-col gap-2 overflow-hidden">
               {/* Banner surface */}
-              <div className="overflow-hidden rounded-lg border border-slate-300">
-                <ArtworkWorkspace aspect={heightIn / widthIn}>
+              <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-slate-300">
+                <ArtworkWorkspace expanded aspect={heightIn / widthIn}>
                 <PreviewRulerFrame
                   widthIn={widthIn}
                   heightIn={heightIn}
@@ -3631,21 +3634,17 @@ const GoogleAdsBanner: React.FC = () => {
                   canvas on all screen sizes. */}
               <div
                 ref={setModalMobileToolbarEl}
-                className="mt-2"
+                className="shrink-0"
                 data-mobile-artwork-toolbar="ga-modal"
               />
-              {/* Size below preview */}
-              <p className="text-xs text-gray-400 text-center mt-2">
-                Size: {widthFt} ft{widthInR > 0 ? ` ${widthInR} in` : ''} × {heightFt} ft{heightInR > 0 ? ` ${heightInR} in` : ''} ({sqft.toFixed(1)} sq ft)
-              </p>
 
             </div>
             <div className="flex shrink-0 gap-2 p-2 sm:p-4 border-t pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-              <button onClick={() => setShowPreview(false)} className="min-h-11 px-4 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50">Back</button>
-              <button disabled={isUploading || isProcessingUpsell} onClick={() => handleConfirmPosition(imgPos, imgScale, imgScaleY)} className="min-h-11 flex-1 px-2 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white font-semibold shadow-lg">{isUploading ? `Uploading… ${uploadProgress}%` : isProcessingUpsell ? 'Preparing preview…' : 'Confirm & checkout'}</button>
+              <button disabled={isProcessingUpsell || (Boolean(editItemId) && isUploading)} onClick={() => editItemId ? handleConfirmPosition(imgPos, imgScale, imgScaleY) : setShowPreview(false)} className="min-h-11 w-full px-4 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white font-semibold">{isProcessingUpsell ? 'Preparing preview…' : editItemId ? (isUploading ? 'Uploading artwork…' : 'Save & checkout') : 'Done editing'}</button>
             </div>
-          </div>
-        </div>
+          </EditorDialog.Content>
+        </EditorDialog.Portal>
+        </EditorDialog.Root>
       )}
       {/* Upsell Modal */}
       <UpsellModal

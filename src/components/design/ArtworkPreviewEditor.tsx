@@ -1,8 +1,8 @@
 import React, { forwardRef, useCallback, useContext, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { resizeArtworkFromCorner } from '@/lib/artworkInteraction';
-import { ArtworkWorkspaceZoomContext } from './ArtworkWorkspace';
-import { Hand, Lock, Maximize2, Minimize2, RotateCcw, Unlock } from 'lucide-react';
+import { ArtworkWorkspaceZoomContext, ArtworkCameraGestureContext } from './ArtworkWorkspace';
+import { Hand, Lock, Maximize2, Minimize2, RotateCcw, Undo2, Redo2, Unlock } from 'lucide-react';
 import { getPreviewCrossOrigin, resolveArtworkPreviewImageSrc } from './artworkPreviewSource';
 import {
   PreviewLifecycleError,
@@ -80,6 +80,8 @@ const clamp = (value: number, min: number, max: number) => Math.max(min, Math.mi
 // canvases and banner-size changes cannot fight over pixel coordinates or
 // visually resize the customer's approved artwork.
 const normalizedCompositionByArtwork = new Map<string, NormalizedComposition>();
+type HistoryEntry = { geometry: NormalizedArtworkGeometry; locked: boolean };
+const artworkHistory = new Map<string, { past: HistoryEntry[]; future: HistoryEntry[] }>();
 const seededInitialTransformByArtwork = new Map<string, string>();
 
 export function geometryFromNormalizedArtworkTransform(
@@ -130,6 +132,10 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
   initialNormalizedTransform,
   initialCompositionRevision = 0,
 }, forwardedRef) => {
+  const cameraGesture = useContext(ArtworkCameraGestureContext);
+  const editingGesture = useRef(false);
+  const gestureRecorded = useRef(false);
+  const restoringHistory = useRef(false);
   const workspaceZoom = useContext(ArtworkWorkspaceZoomContext);
   const workspaceZoomRef = useRef(workspaceZoom);
   workspaceZoomRef.current = workspaceZoom;
@@ -276,6 +282,16 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
             widthPct: previous?.widthPct ?? next.scaleX,
             heightPct: previous?.heightPct ?? next.scaleY,
           };
+      const changed = previous && ['xPct', 'yPct', 'widthPct', 'heightPct'].some(key =>
+        Math.abs(previous[key as keyof NormalizedArtworkGeometry] - geometry[key as keyof NormalizedArtworkGeometry]) > 0.000001);
+      if (changed && !restoringHistory.current && (!editingGesture.current || !gestureRecorded.current)) {
+        const history = artworkHistory.get(artworkKey) || { past: [], future: [] };
+        history.past.push({ geometry: { ...previous }, locked: constrainRef.current });
+        if (history.past.length > 50) history.past.shift();
+        history.future = [];
+        artworkHistory.set(artworkKey, history);
+        if (editingGesture.current) gestureRecorded.current = true;
+      }
       normalizedCompositionByArtwork.set(artworkKey, {
         ...geometry,
         revision: (previous?.revision ?? 0) + 1,
@@ -458,6 +474,8 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
   }>(null);
 
   const startPointer = useCallback((event: React.PointerEvent) => {
+    if (cameraGesture?.current) { dragRef.current.active = false; return; }
+    if (!editingGesture.current) { editingGesture.current = true; gestureRecorded.current = false; }
     const target = event.target as HTMLElement;
     if (target.closest('[data-artwork-toolbar="true"]') || target.closest('[data-handle]')) return;
     if (event.pointerType === 'mouse' && event.button !== 0) return;
@@ -494,10 +512,11 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
       startY: event.clientY,
       original: localValueRef.current,
     };
-  }, []);
+  }, [cameraGesture]);
 
   const startResize = useCallback((corner: Corner) => (event: React.PointerEvent) => {
-    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    if (cameraGesture?.current || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    editingGesture.current = true; gestureRecorded.current = false;
     event.preventDefault();
     event.stopPropagation();
     try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* unsupported capture */ }
@@ -520,10 +539,11 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
       baseH,
     };
     setSelected(true);
-  }, [containedRect]);
+  }, [containedRect, cameraGesture]);
 
   useEffect(() => {
     const move = (event: PointerEvent) => {
+      if (cameraGesture?.current) return;
       if (pointerMapRef.current.has(event.pointerId)) {
         pointerMapRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
       }
@@ -575,6 +595,7 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
       if (pointerMapRef.current.size < 2) pinchRef.current = null;
       if (dragRef.current.pointerId === event.pointerId) dragRef.current.active = false;
       if (resizeRef.current?.pointerId === event.pointerId) resizeRef.current.active = false;
+      if (!pointerMapRef.current.size && !resizeRef.current?.active) { editingGesture.current = false; gestureRecorded.current = false; }
     };
 
     window.addEventListener('pointermove', move);
@@ -585,7 +606,7 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
       window.removeEventListener('pointerup', end);
       window.removeEventListener('pointercancel', end);
     };
-  }, [commitTransform]);
+  }, [commitTransform, cameraGesture]);
 
   useEffect(() => {
     if (!selected) return;
@@ -636,50 +657,55 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
     setSelected(true);
   };
 
+  const restoreHistory = (direction: 'past' | 'future') => {
+    const history = artworkHistory.get(artworkKey);
+    const current = normalizedCompositionByArtwork.get(artworkKey);
+    const canvas = canvasSizeRef.current, natural = naturalSizeRef.current;
+    if (!history || !current || !canvas || !natural) return;
+    const entry = history[direction].pop();
+    if (!entry) return;
+    history[direction === 'past' ? 'future' : 'past'].push({ geometry: { ...current }, locked: constrainRef.current });
+    onConstrainChange(entry.locked);
+    restoringHistory.current = true;
+    try { commitTransform(restoreArtworkTransformFromGeometry(entry.geometry, canvas, natural, entry.locked)); }
+    finally { restoringHistory.current = false; }
+    setSelected(true);
+  };
+  const history = artworkHistory.get(artworkKey);
+  const toolClass = 'flex min-h-11 min-w-11 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-[11px] font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-35';
   const toolbar = (
-    <div
-      data-artwork-toolbar="true"
-      onPointerDown={(event) => event.stopPropagation()}
-      onClick={(event) => event.stopPropagation()}
-      className={`pointer-events-auto w-full max-w-xl rounded-xl border border-slate-200 bg-white shadow-sm ${compactControls ? 'p-2' : 'p-3 sm:p-4'}`}
-    >
-      {sizeReviewNeeded && <div role="status" className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-slate-800">
+    <div data-artwork-toolbar="true" onPointerDown={event => event.stopPropagation()} onClick={event => event.stopPropagation()}
+      className="pointer-events-auto relative w-full rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+      {sizeReviewNeeded && <div role="status" className="rounded-lg bg-amber-50 p-2 text-xs text-slate-800">
         <p>Your banner shape changed. Check for cropped edges or blank margins.</p>
-        <div className="mt-2 flex flex-wrap gap-2"><button type="button" title="Show the whole image; may leave blank margins" onClick={fit} className="min-h-11 rounded-lg bg-white px-3 font-semibold text-orange-700">Fit entire artwork</button><button type="button" onClick={() => setSizeReviewNeeded(false)} className="min-h-11 rounded-lg px-3 font-medium">Keep current placement</button></div>
+        <div className="flex gap-2"><button type="button" onClick={fit} className="min-h-11 px-2 font-semibold">Fit entire artwork</button><button type="button" onClick={() => setSizeReviewNeeded(false)} className="min-h-11 px-2">Keep current placement</button></div>
       </div>}
-      <div className="mb-1 flex items-center justify-center gap-2 text-slate-700 sm:hidden">
-        <Hand aria-hidden="true" className="h-5 w-5 shrink-0" />
-        <p className="text-xs font-semibold">Pinch to zoom · Drag to move</p>
-      </div>
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-700 sm:justify-start" role="status">
-            {constrain ? <Lock aria-hidden="true" className="h-3.5 w-3.5" /> : <Unlock aria-hidden="true" className="h-3.5 w-3.5" />}
-            {constrain ? 'Proportions locked' : 'Free resize enabled'}
-          </p>
-          <div className="mt-1 grid grid-cols-3 gap-1">
-            <button type="button" title="Show the whole image; may leave blank margins" onClick={fit} className="inline-flex min-h-11 items-center justify-center gap-1 rounded-lg px-3 text-xs font-medium text-slate-700 hover:bg-slate-100"><Minimize2 aria-hidden="true" className="h-4 w-4" />Fit</button>
-            <button type="button" title="Cover the banner; may crop the image edges" onClick={fill} className="inline-flex min-h-11 items-center justify-center gap-1 rounded-lg px-3 text-xs font-medium text-slate-700 hover:bg-slate-100"><Maximize2 aria-hidden="true" className="h-4 w-4" />Fill</button>
-            <button type="button" onClick={reset} className="inline-flex min-h-11 items-center justify-center gap-1 rounded-lg px-3 text-xs font-medium text-orange-600 hover:bg-orange-50"><RotateCcw aria-hidden="true" className="h-4 w-4" />Reset</button>
+      <div className="flex items-center gap-0.5">
+        <button type="button" title="Show the whole image; may leave blank margins" onClick={fit} className={toolClass}><Minimize2 aria-hidden="true" className="h-4 w-4" />Fit</button>
+        <button type="button" title="Cover the banner; may crop image edges" onClick={fill} className={toolClass}><Maximize2 aria-hidden="true" className="h-4 w-4" />Fill</button>
+        <button type="button" disabled={!history?.past.length} onClick={() => restoreHistory('past')} className={toolClass}><Undo2 aria-hidden="true" className="h-4 w-4" />Undo</button>
+        <button type="button" disabled={!history?.future.length} onClick={() => restoreHistory('future')} className={toolClass}><Redo2 aria-hidden="true" className="h-4 w-4" />Redo</button>
+        <details className="flex-1 text-xs text-slate-700">
+          <summary className="flex min-h-11 min-w-11 cursor-pointer list-none items-center justify-center rounded-lg font-semibold hover:bg-slate-100">More</summary>
+          <div className="absolute inset-x-0 bottom-full z-50 mb-1 max-h-[45dvh] overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
+            <p className="mb-1 text-xs font-semibold">Artwork size</p>
+            <div className="flex items-center gap-1" role="group" aria-label="Artwork size and position">
+              <button type="button" aria-label="Make artwork smaller" onClick={() => resizeBy(1 / 1.1)} disabled={Math.min(localValue.scaleX, localValue.scaleY) <= MIN_SCALE + 0.001} className="min-h-11 min-w-11 rounded-lg border text-xl disabled:opacity-40">−</button>
+              <span className="min-w-14 text-center tabular-nums">{Math.round(localValue.scaleX * 100)}%</span>
+              <button type="button" aria-label="Make artwork larger" onClick={() => resizeBy(1.1)} disabled={Math.max(localValue.scaleX, localValue.scaleY) >= MAX_SCALE - 0.001} className="min-h-11 min-w-11 rounded-lg border text-xl disabled:opacity-40">+</button>
+              <button type="button" onClick={() => { commitTransform({ ...localValueRef.current, x: 0, y: 0 }); setSelected(true); }} className="min-h-11 px-2 font-semibold">Center</button>
+            </div>
+            <button type="button" onClick={toggleConstrain} className="mt-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border px-2 font-semibold">
+              {constrain ? <Lock aria-hidden="true" className="h-4 w-4" /> : <Unlock aria-hidden="true" className="h-4 w-4" />}
+              {constrain ? 'Unlock free resize' : 'Lock proportions'}
+            </button>
+            <p className="mt-1 text-center text-[11px]" role="status">{constrain ? 'Proportions locked' : 'Free resize enabled'}</p>
+            <button type="button" onClick={reset} className="mt-1 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg text-orange-700"><RotateCcw aria-hidden="true" className="h-4 w-4" />Reset</button>
+            <p className="text-[11px] text-slate-500">Fit shows the whole image. Fill covers the banner and may crop edges.</p>
           </div>
-        </div>
-        <details className="text-xs text-slate-600">
-          <summary className="flex min-h-11 cursor-pointer items-center justify-center underline">Advanced resize</summary>
-        <button type="button" onClick={toggleConstrain} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-3 text-sm font-semibold text-white hover:bg-orange-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600">
-          {constrain ? <Unlock aria-hidden="true" className="h-4 w-4" /> : <Lock aria-hidden="true" className="h-4 w-4" />}
-          {constrain ? 'Unlock free resize' : 'Lock proportions'}
-        </button>
         </details>
       </div>
-      <div className="mt-1 flex items-center justify-center gap-1" role="group" aria-label="Artwork size and position">
-        <button type="button" aria-label="Make artwork smaller" onClick={() => resizeBy(1 / 1.1)} disabled={Math.min(localValue.scaleX, localValue.scaleY) <= MIN_SCALE + 0.001} className="min-h-11 min-w-11 rounded-lg border border-slate-200 text-xl disabled:opacity-40">−</button>
-        <span className="min-w-14 text-center text-xs tabular-nums" aria-live="polite">{Math.round(localValue.scaleX * 100)}%</span>
-        <button type="button" aria-label="Make artwork larger" onClick={() => resizeBy(1.1)} disabled={Math.max(localValue.scaleX, localValue.scaleY) >= MAX_SCALE - 0.001} className="min-h-11 min-w-11 rounded-lg border border-slate-200 text-xl disabled:opacity-40">+</button>
-        <button type="button" onClick={() => { commitTransform({ ...localValueRef.current, x: 0, y: 0 }); setSelected(true); }} className="min-h-11 rounded-lg px-3 text-xs font-semibold text-slate-700 hover:bg-slate-100">Center</button>
-      </div>
-      <p className="mt-2 text-center text-xs leading-relaxed text-slate-500">
-        Fit shows the whole image. Fill covers the banner and may crop edges.
-      </p>
+      <p className="py-1 text-center text-[11px] text-slate-500">{!constrain ? 'Free resize on · Lock proportions in More' : cameraGesture ? 'Drag artwork · Pinch to zoom view' : 'Drag artwork · Pinch to resize'}</p>
     </div>
   );
 
@@ -691,10 +717,23 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
   };
 
   return (
-    <div className={`w-full ${className || ''}`}>
+    <div className={`w-full ${className || ''}`} onKeyDown={event => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+        event.preventDefault(); restoreHistory(event.shiftKey ? 'future' : 'past');
+      }
+    }}>
       <div
         ref={setContainerNode}
         data-artwork-canvas="true"
+        tabIndex={0}
+        aria-label="Artwork editing canvas"
+        onKeyDown={event => {
+          if (event.target !== event.currentTarget) return;
+          const step = event.shiftKey ? 10 : 1;
+          const dx = event.key === 'ArrowLeft' ? -step : event.key === 'ArrowRight' ? step : 0;
+          const dy = event.key === 'ArrowUp' ? -step : event.key === 'ArrowDown' ? step : 0;
+          if (dx || dy) { event.preventDefault(); commitTransform({ ...localValueRef.current, x: localValueRef.current.x + dx, y: localValueRef.current.y + dy }); }
+        }}
         className="relative w-full select-none overflow-visible"
         style={{ aspectRatio: 100 / parseFloat(paddingPct), boxSizing: 'border-box', touchAction: 'none', cursor: loading ? 'default' : selected ? 'move' : 'pointer', ...canvasStyle }}
         onPointerDown={startPointer}

@@ -208,10 +208,18 @@ describe('true corner interaction', () => {
       const frame = img.parentElement!;
       const left = parseFloat(frame.style.left), top = parseFloat(frame.style.top);
       await act(async () => handle.dispatchEvent(pointer('pointerdown', 278, 128)));
+      await act(async () => window.dispatchEvent(pointer('pointermove', 293, 135)));
       await act(async () => window.dispatchEvent(pointer('pointermove', 308, 143)));
       await act(async () => window.dispatchEvent(pointer('pointerup', 308, 143)));
       expect(parseFloat(frame.style.left)).toBeCloseTo(left);
       expect(parseFloat(frame.style.top)).toBeCloseTo(top);
+      expect(changes.mock.lastCall?.[0].scaleX).toBeCloseTo(3.1);
+      const undo = Array.from(slot.querySelectorAll('button')).find(b => b.textContent === 'Undo')!;
+      const redo = Array.from(slot.querySelectorAll('button')).find(b => b.textContent === 'Redo')!;
+      await act(async () => undo.click());
+      expect(changes.mock.lastCall?.[0].scaleX).toBeCloseTo(3);
+      expect(changes.mock.lastCall?.[0].x).toBeCloseTo(0);
+      await act(async () => redo.click());
       expect(changes.mock.lastCall?.[0].scaleX).toBeCloseTo(3.1);
       await act(async () => handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })));
       expect(parseFloat(frame.style.left)).toBeCloseTo(left);
