@@ -82,7 +82,7 @@ describe('ArtworkPreviewEditor preview source resolution', () => {
 
 
 describe('ArtworkPreviewEditor unlock interaction', () => {
-  it.each([[800, 800], [1200, 400], [400, 1200]])('does not move or stretch %i × %i artwork on unlock', async (width, height) => {
+  it.each([[800, 800], [1200, 400], [400, 1200], [1200, 600]])('does not move or stretch %i × %i artwork on unlock', async (width, height) => {
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
     vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
     const bounds = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
@@ -112,6 +112,11 @@ describe('ArtworkPreviewEditor unlock interaction', () => {
       await act(async () => image.dispatchEvent(new Event('load')));
       const frame = image.parentElement!;
       const before = frame.getAttribute('style');
+      // Canvas measurement happens before image decode in this harness.
+      // Fresh artwork must still use its contained size, never canvas width.
+      const fitScale = Math.min(600 / width, 300 / height);
+      expect(parseFloat(frame.style.width)).toBeCloseTo(width * fitScale);
+      expect(parseFloat(frame.style.height)).toBeCloseTo(height * fitScale);
       expect(parseFloat(frame.style.width) / parseFloat(frame.style.height)).toBeCloseTo(width / height);
       const unlock = Array.from(toolbarSlot.querySelectorAll('button')).find(b => b.textContent === 'Unlock free resize')!;
       expect(unlock).toBeDefined();

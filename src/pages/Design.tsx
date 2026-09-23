@@ -1400,6 +1400,11 @@ const Design: React.FC = () => {
 
     // A prepared preview is tied to one exact source identity. Never allow a
     // newly selected file to inherit the previous file's verified artifact.
+    // Every new upload starts fully visible, centered, and proportional.
+    setImgPos({ x: 0, y: 0 });
+    setImgScale(1);
+    setImgScaleY(1);
+    setConstrainProps(true);
     preparedPlacementRef.current = null;
     setPendingPlacementPreview(null);
     setRestoredNormalizedTransform(null);
