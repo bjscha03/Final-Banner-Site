@@ -1,25 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { reachableArtworkFrame, resizeArtworkFromCorner, type ArtworkCorner } from './artworkInteraction';
-
-describe('reachable artwork controls', () => {
-  it.each([{ w: 240, h: 120 }, { w: 320, h: 40 }, { w: 900, h: 450 }])('keeps controls inside %o without changing artwork', canvas => {
-    for (const frame of [
-      { left: -1000, top: -500, width: 2000, height: 1000 },
-      { left: 2000, top: 2000, width: 10, height: 10 },
-      { left: -2000, top: -2000, width: 10, height: 10 },
-    ]) {
-      const original = { ...frame };
-      const controls = reachableArtworkFrame(frame, canvas);
-      expect(controls.left).toBeGreaterThanOrEqual(0);
-      expect(controls.top).toBeGreaterThanOrEqual(0);
-      expect(controls.left + controls.width).toBeLessThanOrEqual(canvas.w);
-      expect(controls.top + controls.height).toBeLessThanOrEqual(canvas.h);
-      expect(controls.width).toBeGreaterThan(0);
-      expect(controls.height).toBeGreaterThan(0);
-      expect(frame).toEqual(original);
-    }
-  });
-});
+import { resizeArtworkFromCorner, type ArtworkCorner } from './artworkInteraction';
 
 describe('corner resizing', () => {
   it.each(['tl', 'tr', 'bl', 'br'] as ArtworkCorner[])('keeps opposite corner fixed for %s, locked/unlocked and at limits', corner => {
@@ -39,7 +19,7 @@ describe('corner resizing', () => {
     }
   });
 
-  it('does not jump when grabbing a proxy corner', () => {
+  it('does not jump when grabbing an oversized artwork corner', () => {
     const original = { x: -800, y: 400, scaleX: 4, scaleY: 4 };
     expect(resizeArtworkFromCorner(original, { w: 400, h: 200 }, 'br', 0, 0, true)).toEqual(original);
   });

@@ -2,7 +2,8 @@
 import React, { act, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { describe, expect, it, vi } from 'vitest';
-import ArtworkPreviewEditor from '../ArtworkPreviewEditor';
+import ArtworkPreviewEditor, { type ArtworkPreviewEditorHandle } from '../ArtworkPreviewEditor';
+import { ArtworkWorkspaceZoomContext } from '../ArtworkWorkspace';
 import {
   getPreviewCrossOrigin,
   isRawPdfPreviewSource,
@@ -170,7 +171,7 @@ describe('banner size change review', () => {
   });
 });
 
-describe('reachable corner interaction', () => {
+describe('true corner interaction', () => {
   it('resizes cropped artwork by pointer and keyboard without moving the opposite corner', async () => {
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
     vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
@@ -191,9 +192,9 @@ describe('reachable corner interaction', () => {
         onChange: next => { changes(next); setValue(next); }, onConstrainChange: vi.fn(), mobileToolbarContainer: slot,
       });
     }
-    const pointer = (type: string, x: number, y: number) => {
+    const pointer = (type: string, x: number, y: number, id = 1) => {
       const event = new MouseEvent(type, { bubbles: true, clientX: x, clientY: y });
-      Object.defineProperties(event, { pointerId: { value: 1 }, pointerType: { value: 'touch' } });
+      Object.defineProperties(event, { pointerId: { value: id }, pointerType: { value: 'touch' } });
       return event;
     };
     try {
@@ -220,6 +221,63 @@ describe('reachable corner interaction', () => {
       expect(changes.mock.lastCall?.[0].x).toBe(0);
       expect(changes.mock.lastCall?.[0].y).toBe(0);
       expect(changes.mock.lastCall?.[0].scaleX).toBeGreaterThan(3);
+      // Pinching then lifting one finger must resume dragging without a jump.
+      const canvas = frame.parentElement!;
+      await act(async () => canvas.dispatchEvent(pointer('pointerdown', 100, 75, 2)));
+      await act(async () => canvas.dispatchEvent(pointer('pointerdown', 200, 75, 3)));
+      await act(async () => window.dispatchEvent(pointer('pointermove', 210, 75, 3)));
+      await act(async () => window.dispatchEvent(pointer('pointerup', 210, 75, 3)));
+      const afterPinch = { ...changes.mock.lastCall![0] };
+      await act(async () => window.dispatchEvent(pointer('pointermove', 110, 80, 2)));
+      expect(changes.mock.lastCall?.[0]).toEqual({ ...afterPinch, x: afterPinch.x + 10, y: afterPinch.y + 5 });
+      await act(async () => window.dispatchEvent(pointer('pointercancel', 110, 80, 2)));
+      const count = changes.mock.calls.length;
+      await act(async () => window.dispatchEvent(pointer('pointermove', 120, 90, 2)));
+      expect(changes.mock.calls).toHaveLength(count);
+    } finally {
+      await act(async () => root.unmount()); host.remove(); slot.remove(); bounds.mockRestore();
+      document.elementFromPoint = previousHitTest; vi.unstubAllGlobals();
+    }
+  });
+});
+
+describe('workspace camera isolation', () => {
+  it('keeps the print snapshot identical at 100%, 50%, and 25% view zoom', async () => {
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+    vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+    let zoom = 1;
+    const bounds = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(() => ({
+      width: 600 * zoom, height: 300 * zoom, x: 0, y: 0, left: 0, top: 0,
+      right: 600 * zoom, bottom: 300 * zoom, toJSON() {},
+    }));
+    const host = document.createElement('div'), slot = document.createElement('div');
+    document.body.append(host, slot);
+    const root = createRoot(host), editor = React.createRef<ArtworkPreviewEditorHandle>();
+    const previousHitTest = document.elementFromPoint;
+    document.elementFromPoint = () => host.querySelector('img');
+    const onChange = vi.fn();
+    const render = () => React.createElement(ArtworkWorkspaceZoomContext.Provider, { value: zoom },
+      React.createElement(ArtworkPreviewEditor, { ref: editor, src: 'view-zoom-isolation.png', paddingPct: '50%',
+        value: { x: 24, y: -12, scaleX: 1.8, scaleY: 1.8 }, onChange, constrain: true,
+        onConstrainChange: vi.fn(), mobileToolbarContainer: slot }));
+    try {
+      await act(async () => root.render(render()));
+      const img = host.querySelector('img')!;
+      Object.defineProperties(img, { complete: { value: true }, naturalWidth: { value: 1200 }, naturalHeight: { value: 600 } });
+      await act(async () => img.dispatchEvent(new Event('load')));
+      const before = editor.current!.getCompositionSnapshot();
+      const callCount = onChange.mock.calls.length;
+      const artStyle = img.parentElement!.getAttribute('style');
+      for (zoom of [0.5, 0.25, 1]) {
+        await act(async () => root.render(render()));
+        expect(editor.current!.getCompositionSnapshot()).toEqual(before);
+        expect(img.parentElement!.getAttribute('style')).toBe(artStyle);
+        expect(onChange.mock.calls).toHaveLength(callCount);
+        const handle = host.querySelector('[data-handle="br"]') as HTMLElement;
+        expect(parseFloat(handle.style.width) * zoom).toBeCloseTo(44);
+        expect(handle.parentElement!.style.left).toBe(img.parentElement!.style.left);
+        expect(handle.parentElement!.style.width).toBe(img.parentElement!.style.width);
+      }
     } finally {
       await act(async () => root.unmount()); host.remove(); slot.remove(); bounds.mockRestore();
       document.elementFromPoint = previousHitTest; vi.unstubAllGlobals();

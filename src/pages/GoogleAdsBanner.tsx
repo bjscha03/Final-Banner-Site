@@ -33,6 +33,7 @@ import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
 import DeliveryTimer from '@/components/delivery/DeliveryTimer';
 import { sameDayConfig } from '@/lib/sameDayConfig';
 import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
+import ArtworkWorkspace from '@/components/design/ArtworkWorkspace';
 import MobileSubtotalBar from '@/components/design/MobileSubtotalBar';
 import AIArtworkHelp from '@/components/design/AIArtworkHelp';
 import RealOrdersStrip from '@/components/design/RealOrdersStrip';
@@ -2965,7 +2966,8 @@ const GoogleAdsBanner: React.FC = () => {
                         <p className="text-xs text-gray-500">Check your artwork before checkout</p>
                       </div>
                       {/* Banner preview with depth background */}
-                      <div className="rounded-xl p-4 md:p-6 max-w-full overflow-hidden bg-slate-300 border border-slate-400/70 shadow-inner">
+                      <div className="rounded-xl max-w-full overflow-hidden border border-slate-300">
+                        <ArtworkWorkspace aspect={heightIn / widthIn}>
                         {/* Width wrapper — constrains max-width so padding-bottom produces correct height */}
                         <PreviewRulerFrame
                           widthIn={widthIn}
@@ -2973,7 +2975,7 @@ const GoogleAdsBanner: React.FC = () => {
                           unit={isCarMagnet ? 'in' : unit}
                           debug={import.meta.env.DEV}
                           className="mx-auto max-w-full"
-                          style={previewWrapperStyle}
+
                         >
                           {/* PR3: Modern Canva-style artwork editor (drag,
                               resize handles, fit/fill/reset/constrain). */}
@@ -3026,7 +3028,8 @@ const GoogleAdsBanner: React.FC = () => {
                               ) : null
                             }
                           />
-                        </PreviewRulerFrame>{/* close ruler frame */}
+                        </PreviewRulerFrame>
+                        </ArtworkWorkspace>
                       </div>
                       {/* Toolbar slot: Fit/Fill/Reset/Locked render here
                           BELOW the canvas on every screen size so they
@@ -3563,13 +3566,13 @@ const GoogleAdsBanner: React.FC = () => {
             </div>
             <div className="min-h-0 p-2 sm:p-4 flex-1 overflow-y-auto overscroll-contain">
               {/* Banner surface */}
-              <div className="rounded-lg p-2 sm:p-3 border border-slate-300" style={{ background: 'linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%)' }}>
+              <div className="overflow-hidden rounded-lg border border-slate-300">
+                <ArtworkWorkspace aspect={heightIn / widthIn}>
                 <PreviewRulerFrame
                   widthIn={widthIn}
                   heightIn={heightIn}
                   unit={isCarMagnet ? 'in' : unit}
-                  className="banner-modal-canvas mx-auto max-w-full"
-                  style={{ ...previewWrapperStyle, '--banner-aspect': widthIn / heightIn } as React.CSSProperties}
+                  className="mx-auto max-w-full"
                 >
                   <ArtworkPreviewEditor
                     ref={modalEditorRef}
@@ -3621,6 +3624,7 @@ const GoogleAdsBanner: React.FC = () => {
                     }
                   />
                 </PreviewRulerFrame>
+                </ArtworkWorkspace>
               </div>
               {/* Toolbar slot for the modal preview — rendered below the
                   canvas on all screen sizes. */}

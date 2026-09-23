@@ -1,6 +1,7 @@
-import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import React, { forwardRef, useCallback, useContext, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { reachableArtworkFrame, resizeArtworkFromCorner } from '@/lib/artworkInteraction';
+import { resizeArtworkFromCorner } from '@/lib/artworkInteraction';
+import { ArtworkWorkspaceZoomContext } from './ArtworkWorkspace';
 import { Hand, Lock, Maximize2, Minimize2, RotateCcw, Unlock } from 'lucide-react';
 import { getPreviewCrossOrigin, resolveArtworkPreviewImageSrc } from './artworkPreviewSource';
 import {
@@ -129,6 +130,9 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
   initialNormalizedTransform,
   initialCompositionRevision = 0,
 }, forwardedRef) => {
+  const workspaceZoom = useContext(ArtworkWorkspaceZoomContext);
+  const workspaceZoomRef = useRef(workspaceZoom);
+  workspaceZoomRef.current = workspaceZoom;
   const imageSrc = resolveArtworkPreviewImageSrc({ src, previewUrl, resourceType, mimeType });
   const artworkKey = compositionKey || productionUrl || imageSrc || src;
   const resolvedCrossOrigin = getPreviewCrossOrigin(imageSrc, imageCrossOrigin);
@@ -286,7 +290,8 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
     getCompositionSnapshot: () => {
       const node = internalRef.current;
       const image = imageRef.current;
-      const rect = node?.getBoundingClientRect();
+      const screenRect = node?.getBoundingClientRect();
+      const rect = screenRect ? { width: screenRect.width / workspaceZoomRef.current, height: screenRect.height / workspaceZoomRef.current } : null;
       if (!node || !rect || rect.width <= 0 || rect.height <= 0) {
         throw new PreviewLifecycleError(
           'PREVIEW_GEOMETRY_NOT_READY',
@@ -330,7 +335,7 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
     const update = () => {
       const rect = node.getBoundingClientRect();
       if (rect.width <= 0 || rect.height <= 0) return;
-      const next = { w: rect.width, h: rect.height };
+      const next = { w: rect.width / workspaceZoomRef.current, h: rect.height / workspaceZoomRef.current };
       canvasSizeRef.current = next;
       setCanvasSize((current) => current && current.w === next.w && current.h === next.h ? current : next);
 
@@ -532,16 +537,17 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
         const centerY = (a.y + b.y) / 2;
         const scaleX = clamp(pinch.startScaleX * ratio, MIN_SCALE, MAX_SCALE);
         const scaleY = clamp(pinch.startScaleY * ratio, MIN_SCALE, MAX_SCALE);
-        const x = centerX - pinch.canvasCenterX - ratio * (pinch.startCenterX - pinch.canvasCenterX - pinch.originalX);
-        const y = centerY - pinch.canvasCenterY - ratio * (pinch.startCenterY - pinch.canvasCenterY - pinch.originalY);
+        const zoom = workspaceZoomRef.current;
+        const x = (centerX - pinch.canvasCenterX - ratio * (pinch.startCenterX - pinch.canvasCenterX)) / zoom + ratio * pinch.originalX;
+        const y = (centerY - pinch.canvasCenterY - ratio * (pinch.startCenterY - pinch.canvasCenterY)) / zoom + ratio * pinch.originalY;
         commitTransform({ x, y, scaleX, scaleY });
         return;
       }
 
       const resize = resizeRef.current;
       if (resize?.active && resize.pointerId === event.pointerId) {
-        const dx = event.clientX - resize.startX;
-        const dy = event.clientY - resize.startY;
+        const dx = (event.clientX - resize.startX) / workspaceZoomRef.current;
+        const dy = (event.clientY - resize.startY) / workspaceZoomRef.current;
         commitTransform(resizeArtworkFromCorner({
           x: resize.originalX, y: resize.originalY,
           scaleX: resize.startScaleX, scaleY: resize.startScaleY,
@@ -553,8 +559,8 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
       if (drag.active && drag.pointerId === event.pointerId) {
         commitTransform({
           ...drag.original,
-          x: drag.original.x + event.clientX - drag.startX,
-          y: drag.original.y + event.clientY - drag.startY,
+          x: drag.original.x + (event.clientX - drag.startX) / workspaceZoomRef.current,
+          y: drag.original.y + (event.clientY - drag.startY) / workspaceZoomRef.current,
         });
       }
     };
@@ -629,11 +635,6 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
     commitTransform({ ...current, scaleX: current.scaleX * ratio, scaleY: current.scaleY * ratio });
     setSelected(true);
   };
-  const reachableFrame = artworkFrame && canvasSize ? reachableArtworkFrame(artworkFrame, canvasSize) : null;
-  const handlesClipped = artworkFrame && reachableFrame && (
-    Math.abs(artworkFrame.left - reachableFrame.left) > 1 || Math.abs(artworkFrame.top - reachableFrame.top) > 1
-    || Math.abs(artworkFrame.width - reachableFrame.width) > 1 || Math.abs(artworkFrame.height - reachableFrame.height) > 1
-  );
 
   const toolbar = (
     <div
@@ -693,7 +694,8 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
     <div className={`w-full ${className || ''}`}>
       <div
         ref={setContainerNode}
-        className="relative w-full select-none overflow-hidden"
+        data-artwork-canvas="true"
+        className="relative w-full select-none overflow-visible"
         style={{ paddingBottom: paddingPct, touchAction: 'none', cursor: loading ? 'default' : selected ? 'move' : 'pointer', ...canvasStyle }}
         onPointerDown={startPointer}
         onClick={(event) => { setSelected(true); event.stopPropagation(); }}
@@ -704,7 +706,8 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
           </div>
         )}
 
-        <div className="absolute" style={artworkFrame ? { left: artworkFrame.left, top: artworkFrame.top, width: artworkFrame.width, height: artworkFrame.height } : { inset: 0 }}>
+        <div className="absolute inset-0 overflow-hidden">
+        <div data-artwork-frame="true" className="absolute" style={artworkFrame ? { left: artworkFrame.left, top: artworkFrame.top, width: artworkFrame.width, height: artworkFrame.height } : { inset: 0 }}>
           {previewError ? (
             <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-white/95 p-4 text-center text-sm text-red-700">
               <span>{previewError}</span>
@@ -735,14 +738,17 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
 
         </div>
 
-        {!loading && naturalSize && selected && !previewError && artworkFrame && reachableFrame && (
+        {overlay}
+        </div>
+
+        {!loading && naturalSize && selected && !previewError && artworkFrame && (
           <div data-artwork-controls="true" className="pointer-events-none absolute inset-0 z-30" data-html2canvas-ignore="true">
-            <div className="absolute" style={{ ...artworkFrame, outline: '1.5px solid #f97316', outlineOffset: '-1.5px' }} />
-            <div className="absolute" style={reachableFrame}>
+            <div data-artwork-outline="true" className="absolute" style={{ ...artworkFrame, outline: `${1.5 / workspaceZoom}px solid #7c3aed` }} />
+            <div className="absolute" style={artworkFrame}>
               {(['tl', 'tr', 'bl', 'br'] as Corner[]).map((corner) => (
                 <button type="button" key={corner} data-handle={corner}
                   aria-label={`Resize artwork from ${ { tl: 'top left', tr: 'top right', bl: 'bottom left', br: 'bottom right' }[corner]}`}
-                  title={handlesClipped ? 'Drag to resize artwork beyond the banner edge' : 'Drag to resize artwork'}
+                  title="Drag to resize artwork"
                   onPointerDown={startResize(corner)}
                   onKeyDown={(event) => {
                     const delta = event.shiftKey ? 10 : 2;
@@ -753,8 +759,8 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
                     commitTransform(resizeArtworkFromCorner(localValueRef.current, containedRect, corner, dx, dy, constrainRef.current));
                   }}
                   className="pointer-events-auto absolute flex h-11 w-11 touch-none items-center justify-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-600"
-                  style={handlePositions[corner]}>
-                  <span className="pointer-events-none block h-4 w-4 rounded-full border-2 border-orange-500 bg-white shadow" />
+                  style={{ ...handlePositions[corner], width: 44 / workspaceZoom, height: 44 / workspaceZoom }}>
+                  <span className="pointer-events-none block rounded-full border border-violet-600 bg-white shadow" style={{ width: 14 / workspaceZoom, height: 14 / workspaceZoom, borderWidth: 1.5 / workspaceZoom }} />
                 </button>
               ))}
             </div>
@@ -762,7 +768,6 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
         )}
 
         {showDragHint && <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center"><span className="rounded-full bg-black/60 px-3 py-1.5 text-xs text-white">Drag to reposition · Drag corners to resize</span></div>}
-        {overlay}
         {!loading && !previewError && !mobileToolbarContainer && <div className="pointer-events-none absolute bottom-2 left-2 right-2 z-40 flex justify-center">{toolbar}</div>}
       </div>
 
