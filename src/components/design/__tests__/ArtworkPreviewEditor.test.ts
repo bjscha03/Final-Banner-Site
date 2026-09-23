@@ -2,7 +2,8 @@
 import React, { act, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { describe, expect, it, vi } from 'vitest';
-import ArtworkPreviewEditor from '../ArtworkPreviewEditor';
+import ArtworkPreviewEditor, { type ArtworkPreviewEditorHandle } from '../ArtworkPreviewEditor';
+import { ArtworkWorkspaceZoomContext } from '../ArtworkWorkspace';
 import {
   getPreviewCrossOrigin,
   isRawPdfPreviewSource,
@@ -113,6 +114,8 @@ describe('ArtworkPreviewEditor unlock interaction', () => {
       const frame = image.parentElement!;
       const before = frame.getAttribute('style');
       expect(parseFloat(frame.style.width) / parseFloat(frame.style.height)).toBeCloseTo(width / height);
+      expect(parseFloat(frame.style.width)).toBeLessThanOrEqual(600);
+      expect(parseFloat(frame.style.height)).toBeLessThanOrEqual(300);
       const unlock = Array.from(toolbarSlot.querySelectorAll('button')).find(b => b.textContent === 'Unlock free resize')!;
       expect(unlock).toBeDefined();
       await act(async () => unlock.click());
@@ -166,6 +169,128 @@ describe('banner size change review', () => {
       await act(async () => root.unmount());
       host.remove(); slot.remove(); bounds.mockRestore(); vi.unstubAllGlobals();
       document.elementFromPoint = originalElementFromPoint;
+    }
+  });
+});
+
+describe('true corner interaction', () => {
+  it.each([1, 0.5])('resizes cropped artwork and continues pinch dragging at %s view zoom', async (zoom) => {
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+    vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+    const bounds = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 300, height: 150, x: 0, y: 0, left: 0, top: 0, right: 300, bottom: 150, toJSON() {},
+    });
+    const host = document.createElement('div');
+    const slot = document.createElement('div');
+    document.body.append(host, slot);
+    const root = createRoot(host);
+    const previousHitTest = document.elementFromPoint;
+    document.elementFromPoint = () => host.querySelector('img');
+    const changes = vi.fn();
+    function Harness() {
+      const [value, setValue] = useState({ x: 0, y: 0, scaleX: 3, scaleY: 3 });
+      return React.createElement(ArtworkPreviewEditor, {
+        src: `cropped-controls-regression-${zoom}.png`, paddingPct: '50%', value, constrain: true,
+        onChange: next => { changes(next); setValue(next); }, onConstrainChange: vi.fn(), mobileToolbarContainer: slot,
+      });
+    }
+    const pointer = (type: string, x: number, y: number, id = 1) => {
+      const event = new MouseEvent(type, { bubbles: true, clientX: x, clientY: y });
+      Object.defineProperties(event, { pointerId: { value: id }, pointerType: { value: 'touch' } });
+      return event;
+    };
+    try {
+      await act(async () => root.render(React.createElement(ArtworkWorkspaceZoomContext.Provider, { value: zoom }, React.createElement(Harness))));
+      const img = host.querySelector('img')!;
+      Object.defineProperties(img, { complete: { value: true }, naturalWidth: { value: 600 }, naturalHeight: { value: 300 } });
+      await act(async () => img.dispatchEvent(new Event('load')));
+      const handle = host.querySelector('[data-handle="br"]')!;
+      expect(host.querySelectorAll('button[data-handle]')).toHaveLength(4);
+      expect(handle.closest('[data-artwork-controls]')?.getAttribute('data-html2canvas-ignore')).toBe('true');
+      const frame = img.parentElement!;
+      const left = parseFloat(frame.style.left), top = parseFloat(frame.style.top);
+      await act(async () => handle.dispatchEvent(pointer('pointerdown', 278, 128)));
+      await act(async () => window.dispatchEvent(pointer('pointermove', 293, 135)));
+      await act(async () => window.dispatchEvent(pointer('pointermove', 308, 143)));
+      await act(async () => window.dispatchEvent(pointer('pointerup', 308, 143)));
+      expect(parseFloat(frame.style.left)).toBeCloseTo(left);
+      expect(parseFloat(frame.style.top)).toBeCloseTo(top);
+      expect(changes.mock.lastCall?.[0].scaleX).toBeCloseTo(3.1);
+      const undo = Array.from(slot.querySelectorAll('button')).find(b => b.textContent === 'Undo')!;
+      const redo = Array.from(slot.querySelectorAll('button')).find(b => b.textContent === 'Redo')!;
+      await act(async () => undo.click());
+      expect(changes.mock.lastCall?.[0].scaleX).toBeCloseTo(3);
+      expect(changes.mock.lastCall?.[0].x).toBeCloseTo(0);
+      await act(async () => redo.click());
+      expect(changes.mock.lastCall?.[0].scaleX).toBeCloseTo(3.1);
+      await act(async () => handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })));
+      expect(parseFloat(frame.style.left)).toBeCloseTo(left);
+      expect(parseFloat(frame.style.top)).toBeCloseTo(top);
+      const center = Array.from(slot.querySelectorAll('button')).find(b => b.textContent === 'Center')!;
+      await act(async () => center.click());
+      expect(changes.mock.lastCall?.[0].x).toBe(0);
+      expect(changes.mock.lastCall?.[0].y).toBe(0);
+      expect(changes.mock.lastCall?.[0].scaleX).toBeGreaterThan(3);
+      // Pinching then lifting one finger must resume dragging without a jump.
+      const canvas = frame.parentElement!;
+      await act(async () => canvas.dispatchEvent(pointer('pointerdown', 100, 75, 2)));
+      await act(async () => canvas.dispatchEvent(pointer('pointerdown', 200, 75, 3)));
+      await act(async () => window.dispatchEvent(pointer('pointermove', 210, 75, 3)));
+      await act(async () => window.dispatchEvent(pointer('pointerup', 210, 75, 3)));
+      const afterPinch = { ...changes.mock.lastCall![0] };
+      await act(async () => window.dispatchEvent(pointer('pointermove', 110, 80, 2)));
+      expect(changes.mock.lastCall?.[0]).toEqual({ ...afterPinch, x: afterPinch.x + 10 / zoom, y: afterPinch.y + 5 / zoom });
+      await act(async () => window.dispatchEvent(pointer('pointercancel', 110, 80, 2)));
+      const count = changes.mock.calls.length;
+      await act(async () => window.dispatchEvent(pointer('pointermove', 120, 90, 2)));
+      expect(changes.mock.calls).toHaveLength(count);
+    } finally {
+      await act(async () => root.unmount()); host.remove(); slot.remove(); bounds.mockRestore();
+      document.elementFromPoint = previousHitTest; vi.unstubAllGlobals();
+    }
+  });
+});
+
+describe('workspace camera isolation', () => {
+  it('keeps the print snapshot identical at 100%, 50%, and 25% view zoom', async () => {
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+    vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+    let zoom = 1;
+    const bounds = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(() => ({
+      width: 600 * zoom, height: 300 * zoom, x: 0, y: 0, left: 0, top: 0,
+      right: 600 * zoom, bottom: 300 * zoom, toJSON() {},
+    }));
+    const host = document.createElement('div'), slot = document.createElement('div');
+    document.body.append(host, slot);
+    const root = createRoot(host), editor = React.createRef<ArtworkPreviewEditorHandle>();
+    const previousHitTest = document.elementFromPoint;
+    document.elementFromPoint = () => host.querySelector('img');
+    const onChange = vi.fn();
+    const render = () => React.createElement(ArtworkWorkspaceZoomContext.Provider, { value: zoom },
+      React.createElement(ArtworkPreviewEditor, { ref: editor, src: 'view-zoom-isolation.png', paddingPct: '50%',
+        value: { x: 24, y: -12, scaleX: 1.8, scaleY: 1.8 }, onChange, constrain: true,
+        onConstrainChange: vi.fn(), mobileToolbarContainer: slot }));
+    try {
+      await act(async () => root.render(render()));
+      const img = host.querySelector('img')!;
+      Object.defineProperties(img, { complete: { value: true }, naturalWidth: { value: 1200 }, naturalHeight: { value: 600 } });
+      await act(async () => img.dispatchEvent(new Event('load')));
+      const before = editor.current!.getCompositionSnapshot();
+      const callCount = onChange.mock.calls.length;
+      const artStyle = img.parentElement!.getAttribute('style');
+      for (zoom of [0.5, 0.25, 1]) {
+        await act(async () => root.render(render()));
+        expect(editor.current!.getCompositionSnapshot()).toEqual(before);
+        expect(img.parentElement!.getAttribute('style')).toBe(artStyle);
+        expect(onChange.mock.calls).toHaveLength(callCount);
+        const handle = host.querySelector('[data-handle="br"]') as HTMLElement;
+        expect(parseFloat(handle.style.width) * zoom).toBeCloseTo(44);
+        expect(handle.parentElement!.style.left).toBe(img.parentElement!.style.left);
+        expect(handle.parentElement!.style.width).toBe(img.parentElement!.style.width);
+      }
+    } finally {
+      await act(async () => root.unmount()); host.remove(); slot.remove(); bounds.mockRestore();
+      document.elementFromPoint = previousHitTest; vi.unstubAllGlobals();
     }
   });
 });
