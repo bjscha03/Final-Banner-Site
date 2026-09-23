@@ -643,7 +643,7 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
             <button type="button" onClick={reset} className="inline-flex min-h-11 items-center justify-center gap-1 rounded-lg px-3 text-xs font-medium text-orange-600 hover:bg-orange-50"><RotateCcw aria-hidden="true" className="h-4 w-4" />Reset</button>
           </div>
         </div>
-        <button type="button" onClick={toggleConstrain} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-3 text-sm font-semibold text-white hover:bg-orange-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600">
+        <button type="button" onClick={toggleConstrain} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600">
           {constrain ? <Unlock aria-hidden="true" className="h-4 w-4" /> : <Lock aria-hidden="true" className="h-4 w-4" />}
           {constrain ? 'Unlock free resize' : 'Lock proportions'}
         </button>
