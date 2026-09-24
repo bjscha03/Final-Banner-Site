@@ -185,7 +185,7 @@ async function renderPrintSceneToPdfBuffer(sceneInput) {
         });
       } else {
         const fmt = String(source.format || source.mimeType || '').toLowerCase();
-        const image = fmt.includes('png') ? await pdfDoc.embedPng(buffer) : await pdfDoc.embedJpg(buffer);
+        const image = fmt.includes('png') ? await pdfDoc.embedPng(buffer) : await pdfDoc.embedJpg(new Uint8Array(buffer));
         page.drawImage(image, { x: drawOrigin.x, y: drawOrigin.y, width: w, height: h, rotate, opacity });
       }
     } else if (obj.type === 'text' && obj.text?.content) {

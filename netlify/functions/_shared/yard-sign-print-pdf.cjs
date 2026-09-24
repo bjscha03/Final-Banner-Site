@@ -1,4 +1,5 @@
 const sharp = require('sharp');
+const { isStoredOriginalUrl } = require('./original-artwork-url.cjs');
 const { PDFDocument } = require('pdf-lib');
 
 const DEFAULT_WIDTH_IN = 24;
@@ -55,8 +56,8 @@ function buildHighResolutionSourceUrl(value, targetWidthPx) {
 async function fetchBuffer(value) {
   const dataBuffer = decodeDataImage(value);
   if (dataBuffer) return dataBuffer;
-  if (!isAllowedCloudinaryUrl(value)) {
-    throw new Error('Yard sign print source must be a permanent Cloudinary image URL');
+  if (!isAllowedCloudinaryUrl(value) && !isStoredOriginalUrl(value)) {
+    throw new Error('Yard sign print source must be a permanent artwork URL');
   }
 
   const controller = new AbortController();
@@ -248,6 +249,19 @@ async function renderYardSignPrintPdf({
   const pageHeightPt = dimensions.heightIn * 72;
 
   for (const design of normalizedDesigns) {
+    if (isStoredOriginalUrl(design?.fileUrl) && /\.pdf(?:$|[?#])/i.test(design.fileUrl)) {
+      const [embedded] = await pdf.embedPdf(await fetchBuffer(design.fileUrl), [0]);
+      const reference = await getReferenceCanvasSize(design, pageWidthPt, pageHeightPt);
+      const placement = computePlacement({ sourceWidth: embedded.width, sourceHeight: embedded.height,
+        targetWidth: pageWidthPt, targetHeight: pageHeightPt,
+        referenceWidth: reference.width, referenceHeight: reference.height,
+        scaleX: design.imgScale, scaleY: design.imgScaleY ?? design.imgScale,
+        offsetX: design.imgPos?.x, offsetY: design.imgPos?.y });
+      const page = pdf.addPage([pageWidthPt, pageHeightPt]);
+      page.drawPage(embedded, { x: placement.left, y: pageHeightPt - placement.top - placement.displayHeight,
+        width: placement.displayWidth, height: placement.displayHeight });
+      continue;
+    }
     const jpeg = await renderDesignToJpeg(design, dimensions);
     const image = await pdf.embedJpg(jpeg);
     const page = pdf.addPage([pageWidthPt, pageHeightPt]);

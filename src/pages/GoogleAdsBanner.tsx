@@ -70,6 +70,8 @@ import { base64ToFile } from '@/utils/base64ToFile';
 import {
   getArtworkUploadDiagnostic,
   uploadArtworkFile,
+  MAX_ARTWORK_BYTES,
+  getArtworkUploadMessage,
   validateArtworkFile,
 } from '@/utils/uploadArtworkFile';
 import { computeSameDayFeesCents } from '@/lib/sameDayService';
@@ -1341,6 +1343,9 @@ const GoogleAdsBanner: React.FC = () => {
 
     const promise = (async () => {
       const result = await uploadArtworkFile(file, {
+        previewUrl: initialArtwork.previewUrl,
+        originalWidth: initialArtwork.originalWidth,
+        originalHeight: initialArtwork.originalHeight,
         correlationId,
         signal: controller.signal,
         onAttempt: (attempt, maximum) => {
@@ -1424,7 +1429,7 @@ const GoogleAdsBanner: React.FC = () => {
           mimeType: diagnostic.mimeType,
         });
         setUploadError(
-          'Artwork upload did not finish. Your file and choices are still here. Check your connection, then try again.',
+          getArtworkUploadMessage(error),
         );
       }
       return null;
@@ -1724,7 +1729,7 @@ const GoogleAdsBanner: React.FC = () => {
       artwork = uploadedFileRef.current || artwork;
       const manifest = artwork.artworkManifest;
       const originalUrl = manifest?.originalUrl || artwork.productionUrl || artwork.url;
-      const sourceUrl = artwork.isPdf
+      const sourceUrl = (artwork.isPdf || artwork.resourceType === 'original')
         ? (artwork.previewUrl && /^https?:\/\//i.test(artwork.previewUrl) ? artwork.previewUrl : getPdfThumbnailUrl(originalUrl))
         : originalUrl;
       const spec: ArtworkCompositionSpec = {
@@ -1752,7 +1757,7 @@ const GoogleAdsBanner: React.FC = () => {
       const latestOriginalUrl = latestManifest?.originalUrl || latestArtwork.productionUrl || latestArtwork.url;
       const latestSpec: ArtworkCompositionSpec = {
         version: PREVIEW_ARTIFACT_VERSION,
-        sourceUrl: latestArtwork.isPdf
+        sourceUrl: (latestArtwork.isPdf || latestArtwork.resourceType === 'original')
           ? (latestArtwork.previewUrl && /^https?:\/\//i.test(latestArtwork.previewUrl) ? latestArtwork.previewUrl : getPdfThumbnailUrl(latestOriginalUrl))
           : latestOriginalUrl,
         sourceIdentity: [latestManifest?.publicId || latestArtwork.productionPublicId || latestArtwork.fileKey, latestManifest?.version ?? '', latestArtwork.pdfPageNumber || 1].join('@'),
@@ -2912,7 +2917,7 @@ const GoogleAdsBanner: React.FC = () => {
                         ref={fileUploaderRef}
                         onUpload={handleFileUpload}
                         acceptedTypes="image/png,image/jpeg,application/pdf,.png,.jpg,.jpeg,.pdf"
-                        maxSize={50 * 1024 * 1024}
+                        maxSize={MAX_ARTWORK_BYTES}
                         label="Upload your artwork"
                         subText={`PNG, JPG, or PDF • Max 50MB • ${widthDisplay} × ${heightDisplay}`}
                         isUploading={isUploading}
