@@ -25,7 +25,7 @@ export interface FileUploaderHandle {
   focus: () => void;
 }
 
-const DEFAULT_SUBTEXT = 'PNG, JPG, or PDF • Max 50MB';
+const DEFAULT_SUBTEXT = 'PNG, JPG, or PDF • Max 20MB';
 
 const FileUploader = forwardRef<FileUploaderHandle, FileUploaderProps>(({
   onUpload,

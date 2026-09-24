@@ -2,7 +2,7 @@
 
 const { v2: cloudinary } = require('cloudinary');
 
-const MAX_BYTES = 50 * 1024 * 1024;
+const MAX_BYTES = 20 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set([
   'application/pdf',
   'image/jpeg',
@@ -71,7 +71,7 @@ exports.handler = async (event) => {
       return reply(400, { error: 'File metadata is required.' });
     }
     if (size > MAX_BYTES) {
-      return reply(413, { error: 'File too large. Maximum artwork size is 50MB.' });
+      return reply(413, { error: 'File too large. Maximum artwork size is 20MB.' });
     }
     if (!isAllowedArtwork({ fileName, mimeType })) {
       return reply(415, { error: 'Please upload a PDF, PNG, JPG, or JPEG file.' });

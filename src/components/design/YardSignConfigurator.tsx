@@ -40,6 +40,8 @@ import {
   buildCloudinaryPdfPreviewUrl,
   isPdfArtwork,
   uploadArtworkFile,
+  MAX_ARTWORK_BYTES,
+  getArtworkUploadMessage,
   validateArtworkFile,
 } from '@/utils/uploadArtworkFile';
 import StablePreviewImage from '@/components/preview/StablePreviewImage';
@@ -383,7 +385,7 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
       setUploadError('');
     } catch (error) {
       console.error('[YardSign] original upload failed', error);
-      setUploadError('Upload failed after automatic retries. Your file was not added; please check your connection and try again.');
+      setUploadError(getArtworkUploadMessage(error));
       logUx('upload_error', {
         source: 'yard_sign',
         message: error instanceof Error ? error.message : String(error),
@@ -612,9 +614,9 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
               ref={fileUploaderRef}
               onUpload={handleFileUpload}
               acceptedTypes="image/png,image/jpeg,.pdf"
-              maxSize={50 * 1024 * 1024}
+              maxSize={MAX_ARTWORK_BYTES}
               label={designs.length === 0 ? 'Upload your artwork' : 'Add another design'}
-              subText="PNG, JPG, or PDF • Max 50MB"
+              subText="PNG, JPG, or PDF • Max 20MB"
               isUploading={isUploading}
             />
             <div className="mt-3 flex justify-center">

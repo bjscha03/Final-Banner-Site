@@ -1,6 +1,9 @@
 import type { ArtworkManifest } from '@/types/artwork';
 
-export const MAX_ARTWORK_BYTES = 50 * 1024 * 1024;
+// Must match the live Cloudinary account's per-image limit. Chunking does not
+// bypass that limit; accepting larger files leaves a preview with no original.
+export const MAX_ARTWORK_BYTES = 20 * 1024 * 1024;
+export const ARTWORK_SIZE_MESSAGE = 'This file exceeds the 20MB upload limit. Choose a PDF, PNG, or JPG up to 20MB, or email support@bannersonthefly.com for help with larger artwork.';
 export const LEGACY_FUNCTION_SAFE_BYTES = 3.75 * 1024 * 1024;
 export const DIRECT_UPLOAD_ATTEMPTS = 3;
 export const CHUNKED_UPLOAD_THRESHOLD_BYTES = 8 * 1024 * 1024;
@@ -144,9 +147,25 @@ export function validateArtworkFile(file: Pick<File, 'name' | 'type' | 'size'>):
     return 'The selected file is empty. Please choose a different file.';
   }
   if (file.size > MAX_ARTWORK_BYTES) {
-    return 'File too large. Please upload a file under 50MB.';
+    return ARTWORK_SIZE_MESSAGE;
   }
   return null;
+}
+
+export function getArtworkUploadMessage(error: unknown): string {
+  if (error instanceof ArtworkUploadError) {
+    if (error.phase === 'validation') return error.message;
+    if (error.status === 413 || /file size too large|maximum.*20971520/i.test(error.message)) {
+      return ARTWORK_SIZE_MESSAGE;
+    }
+    if (error.status === 400 || error.status === 415) {
+      return 'We could not accept this artwork file. Try exporting it as a PDF, PNG, or JPG up to 20MB, or email support@bannersonthefly.com for help.';
+    }
+    if (error.phase === 'ticket' || error.status === 401 || error.status === 403 || (error.status ?? 0) >= 500) {
+      return 'Artwork storage is temporarily unavailable. Your choices are still here. Please retry, or email support@bannersonthefly.com for help.';
+    }
+  }
+  return 'Artwork upload did not finish. Your choices are still here. Please retry the upload, or email support@bannersonthefly.com for help.';
 }
 
 export function buildCloudinaryPdfPreviewUrl(url: string): string {

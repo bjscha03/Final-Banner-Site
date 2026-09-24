@@ -25,9 +25,9 @@ export const SITE_POLICIES = {
       'Review the order carefully before payment. Once a final order is submitted, it cannot be cancelled or modified because production can begin immediately.',
   },
   artwork: {
-    short: 'PDF, JPG, or PNG artwork up to 50 MB',
+    short: 'PDF, JPG, or PNG artwork up to 20 MB',
     detail:
-      'Upload a print-ready PDF, JPG, or PNG up to 50 MB. Use high-resolution artwork, embed fonts in PDFs, and review the on-screen preview for cropping and placement before checkout.',
+      'Upload a print-ready PDF, JPG, or PNG up to 20 MB. Use high-resolution artwork, embed fonts in PDFs, and review the on-screen preview for cropping and placement before checkout.',
   },
 } as const;
 

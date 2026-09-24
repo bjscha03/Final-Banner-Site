@@ -70,6 +70,8 @@ import { base64ToFile } from '@/utils/base64ToFile';
 import {
   getArtworkUploadDiagnostic,
   uploadArtworkFile,
+  MAX_ARTWORK_BYTES,
+  getArtworkUploadMessage,
   validateArtworkFile,
 } from '@/utils/uploadArtworkFile';
 import { computeSameDayFeesCents } from '@/lib/sameDayService';
@@ -1424,7 +1426,7 @@ const GoogleAdsBanner: React.FC = () => {
           mimeType: diagnostic.mimeType,
         });
         setUploadError(
-          'Artwork upload did not finish. Your file and choices are still here. Check your connection, then try again.',
+          getArtworkUploadMessage(error),
         );
       }
       return null;
@@ -2912,9 +2914,9 @@ const GoogleAdsBanner: React.FC = () => {
                         ref={fileUploaderRef}
                         onUpload={handleFileUpload}
                         acceptedTypes="image/png,image/jpeg,application/pdf,.png,.jpg,.jpeg,.pdf"
-                        maxSize={50 * 1024 * 1024}
+                        maxSize={MAX_ARTWORK_BYTES}
                         label="Upload your artwork"
-                        subText={`PNG, JPG, or PDF • Max 50MB • ${widthDisplay} × ${heightDisplay}`}
+                        subText={`PNG, JPG, or PDF • Max 20MB • ${widthDisplay} × ${heightDisplay}`}
                         isUploading={isUploading}
                         style={previewCanvasStyle}
                         className="mx-auto"
