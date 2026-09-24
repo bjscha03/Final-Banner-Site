@@ -1299,6 +1299,9 @@ const Design: React.FC = () => {
 
     const promise = (async () => {
       const result = await uploadArtworkFile(file, {
+        previewUrl: initialArtwork.previewUrl,
+        originalWidth: initialArtwork.originalWidth,
+        originalHeight: initialArtwork.originalHeight,
         correlationId,
         signal: controller.signal,
         onAttempt: (attempt, maximum) => {
@@ -1757,7 +1760,7 @@ const Design: React.FC = () => {
       artwork = uploadedFileRef.current || artwork;
       const manifest = artwork.artworkManifest;
       const permanentOriginalUrl = manifest?.originalUrl || artwork.productionUrl || artwork.url;
-      const permanentPreviewUrl = artwork.isPdf
+      const permanentPreviewUrl = (artwork.isPdf || artwork.resourceType === 'original')
         ? (artwork.previewUrl && /^https?:\/\//i.test(artwork.previewUrl)
             ? artwork.previewUrl
             : getPdfThumbnailUrl(permanentOriginalUrl))
@@ -1791,7 +1794,7 @@ const Design: React.FC = () => {
       const latestSnapshot = latestEditor.getCompositionSnapshot();
       const latestManifest = latestArtwork.artworkManifest;
       const latestOriginalUrl = latestManifest?.originalUrl || latestArtwork.productionUrl || latestArtwork.url;
-      const latestSourceUrl = latestArtwork.isPdf
+      const latestSourceUrl = (latestArtwork.isPdf || latestArtwork.resourceType === 'original')
         ? (latestArtwork.previewUrl && /^https?:\/\//i.test(latestArtwork.previewUrl)
             ? latestArtwork.previewUrl
             : getPdfThumbnailUrl(latestOriginalUrl))
@@ -3326,7 +3329,7 @@ const Design: React.FC = () => {
                       acceptedTypes="image/png,image/jpeg,application/pdf,.png,.jpg,.jpeg,.pdf"
                       maxSize={MAX_ARTWORK_BYTES}
                       label="Upload your artwork"
-                      subText={`PNG, JPG, or PDF • Max 20MB • ${widthDisplay} × ${heightDisplay}`}
+                      subText={`PNG, JPG, or PDF • Max 50MB • ${widthDisplay} × ${heightDisplay}`}
                       isUploading={isUploading}
                       style={previewCanvasStyle}
                       className="mx-auto"

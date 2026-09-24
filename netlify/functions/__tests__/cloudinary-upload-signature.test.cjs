@@ -64,7 +64,7 @@ test('accepts PDF metadata while keeping the upload resource type image', async 
   assert.match(payload.uploadUrl, /\/image\/upload$/);
 });
 
-test('rejects files larger than the storage account 20MB limit', async () => {
+test('rejects files larger than the application 50MB limit', async () => {
   configure();
   const response = await moduleUnderTest.handler({
     httpMethod: 'POST',

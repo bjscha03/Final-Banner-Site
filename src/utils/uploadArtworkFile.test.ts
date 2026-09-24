@@ -137,27 +137,27 @@ afterEach(() => {
 });
 
 describe('uploadArtworkFile', () => {
-  it('rejects a 24MB original before requesting a ticket or starting an upload', async () => {
+  it('rejects an original above 50MB before requesting a ticket or starting an upload', async () => {
     const fetchSpy = vi.fn();
     const xhrSpy = vi.fn();
     vi.stubGlobal('fetch', fetchSpy);
     vi.stubGlobal('XMLHttpRequest', xhrSpy);
     const file = new File(['original'], 'large-banner.png', { type: 'image/png' });
-    Object.defineProperty(file, 'size', { value: 24_009_388 });
+    Object.defineProperty(file, 'size', { value: MAX_ARTWORK_BYTES + 1 });
     await expect(uploadArtworkFile(file)).rejects.toThrow(ARTWORK_SIZE_MESSAGE);
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(xhrSpy).not.toHaveBeenCalled();
   });
 
   it('accepts the exact storage limit and rejects the next byte', () => {
-    expect(MAX_ARTWORK_BYTES).toBe(20_971_520);
+    expect(MAX_ARTWORK_BYTES).toBe(52_428_800);
     expect(validateArtworkFile({ name: 'banner.pdf', type: 'application/pdf', size: MAX_ARTWORK_BYTES })).toBeNull();
     expect(validateArtworkFile({ name: 'banner.pdf', type: 'application/pdf', size: MAX_ARTWORK_BYTES + 1 })).toBe(ARTWORK_SIZE_MESSAGE);
   });
 
   it('explains the actual storage rejection without blaming the customer connection', () => {
     const error = new ArtworkUploadError('File size too large. Got 24009388. Maximum is 20971520.', { phase: 'chunked', status: 400 });
-    expect(getArtworkUploadMessage(error)).toBe(ARTWORK_SIZE_MESSAGE);
+    expect(getArtworkUploadMessage(error)).toContain('retry');
     expect(getArtworkUploadMessage(new ArtworkUploadError('Unavailable', { phase: 'ticket', status: 503 })))
       .toContain('storage is temporarily unavailable');
     expect(getArtworkUploadMessage(new Error('Network failure'))).toContain('retry');
@@ -171,7 +171,7 @@ describe('uploadArtworkFile', () => {
 
     const oversized = new File(['x'], 'banner.png', { type: 'image/png' });
     Object.defineProperty(oversized, 'size', { value: MAX_ARTWORK_BYTES + 1 });
-    expect(validateArtworkFile(oversized)).toContain('20MB');
+    expect(validateArtworkFile(oversized)).toContain('50MB');
   });
 
   it('creates a browser-safe first-page image for Cloudinary PDFs', () => {

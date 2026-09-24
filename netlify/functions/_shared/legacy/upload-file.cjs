@@ -2,7 +2,7 @@ const Busboy = require('busboy');
 const { v2: cloudinary } = require('cloudinary');
 const crypto = require('crypto');
 
-const MAX_BYTES = 20 * 1024 * 1024;
+const MAX_BYTES = 50 * 1024 * 1024;
 const ALLOWED = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
 
 cloudinary.config({

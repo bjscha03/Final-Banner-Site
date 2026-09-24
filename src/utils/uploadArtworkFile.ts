@@ -1,9 +1,8 @@
 import type { ArtworkManifest } from '@/types/artwork';
 
-// Must match the live Cloudinary account's per-image limit. Chunking does not
-// bypass that limit; accepting larger files leaves a preview with no original.
-export const MAX_ARTWORK_BYTES = 20 * 1024 * 1024;
-export const ARTWORK_SIZE_MESSAGE = 'This file exceeds the 20MB upload limit. Choose a PDF, PNG, or JPG up to 20MB, or email support@bannersonthefly.com for help with larger artwork.';
+export const MAX_ARTWORK_BYTES = 50 * 1024 * 1024;
+export const CLOUDINARY_ARTWORK_BYTES = 20 * 1024 * 1024;
+export const ARTWORK_SIZE_MESSAGE = 'File too large. Please upload a PDF, PNG, or JPG up to 50MB.';
 export const LEGACY_FUNCTION_SAFE_BYTES = 3.75 * 1024 * 1024;
 export const DIRECT_UPLOAD_ATTEMPTS = 3;
 export const CHUNKED_UPLOAD_THRESHOLD_BYTES = 8 * 1024 * 1024;
@@ -51,7 +50,7 @@ export interface ArtworkUploadResult {
   version: number | null;
   uploadedAt: string;
   artworkManifest: ArtworkManifest;
-  transport: 'cloudinary-direct' | 'netlify-legacy-fallback';
+  transport: 'cloudinary-direct' | 'netlify-legacy-fallback' | 'netlify-original';
 }
 
 export interface UploadArtworkOptions {
@@ -59,6 +58,10 @@ export interface UploadArtworkOptions {
   onAttempt?: (attempt: number, maximum: number) => void;
   onProgress?: (fraction: number) => void;
   signal?: AbortSignal;
+  /** Existing local preview; only the preview may be resized, never the original. */
+  previewUrl?: string;
+  originalWidth?: number | null;
+  originalHeight?: number | null;
 }
 
 export type ArtworkUploadPhase =
@@ -156,10 +159,10 @@ export function getArtworkUploadMessage(error: unknown): string {
   if (error instanceof ArtworkUploadError) {
     if (error.phase === 'validation') return error.message;
     if (error.status === 413 || /file size too large|maximum.*20971520/i.test(error.message)) {
-      return ARTWORK_SIZE_MESSAGE;
+      return 'We could not store this artwork. Please retry, or contact support@bannersonthefly.com.';
     }
     if (error.status === 400 || error.status === 415) {
-      return 'We could not accept this artwork file. Try exporting it as a PDF, PNG, or JPG up to 20MB, or email support@bannersonthefly.com for help.';
+      return 'We could not accept this artwork file. Try exporting it as a PDF, PNG, or JPG up to 50MB, or email support@bannersonthefly.com for help.';
     }
     if (error.phase === 'ticket' || error.status === 401 || error.status === 403 || (error.status ?? 0) >= 500) {
       return 'Artwork storage is temporarily unavailable. Your choices are still here. Please retry, or email support@bannersonthefly.com for help.';
@@ -495,7 +498,7 @@ async function uploadThroughLegacyFunction(
   }
 }
 
-function normalizeUploadResponse(
+export function normalizeUploadResponse(
   payload: any,
   file: File,
   transport: ArtworkUploadResult['transport'],
@@ -519,7 +522,9 @@ function normalizeUploadResponse(
   }
 
   const pdf = isPdfArtwork(file);
-  const previewUrl = pdf ? buildCloudinaryPdfPreviewUrl(secureUrl) : secureUrl;
+  const previewUrl = transport === 'netlify-original' && payload.previewUrl
+    ? payload.previewUrl
+    : pdf ? buildCloudinaryPdfPreviewUrl(secureUrl) : secureUrl;
   const uploadedAt = new Date().toISOString();
   const format = String(payload?.format || extensionOf(file.name) || (pdf ? 'pdf' : 'jpg'));
   const resourceType = String(payload?.resource_type || payload?.resourceType || 'image');
@@ -584,6 +589,11 @@ export async function uploadArtworkFile(
   const validationError = validateArtworkFile(file);
   if (validationError) {
     throw new ArtworkUploadError(validationError, { phase: 'validation', retryable: false });
+  }
+
+  if (file.size > CLOUDINARY_ARTWORK_BYTES) {
+    const { uploadLargeArtworkFile } = await import('./uploadLargeArtworkFile');
+    return uploadLargeArtworkFile(file, options);
   }
 
   let lastError: unknown = null;
