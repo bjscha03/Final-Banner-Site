@@ -563,6 +563,7 @@ const GoogleAdsBanner: React.FC = () => {
   // "Create with AI" modal state. Available for banner & car_magnet on this
   // page — yard signs use YardSignConfigurator which has its own button.
   const [aiModalOpen, setAiModalOpen] = useState(false);
+  const pendingAIArtworkScrollRef = useRef(false);
   const [aiPrompt, setAiPrompt] = useState<string | null>(null);
   const [aiEditModalOpen, setAiEditModalOpen] = useState(false);
   const [aiEditPrompt, setAiEditPrompt] = useState<string | null>(null);
@@ -1600,6 +1601,7 @@ const GoogleAdsBanner: React.FC = () => {
   // for user-uploaded artwork.
   const handleAIGenerated = useCallback(
     async (result: CreateWithAIResult) => {
+      pendingAIArtworkScrollRef.current = true;
       const file = base64ToFile(result.imageBase64, result.fileName, result.mimeType);
       setAiPrompt(result.prompt);
       setAiEditPrompt(null);
@@ -1611,6 +1613,25 @@ const GoogleAdsBanner: React.FC = () => {
     },
     [handleFileUpload],
   );
+
+  // Wait for the AI modal to close and the uploaded preview to mount.
+  useEffect(() => {
+    if (!pendingAIArtworkScrollRef.current || !uploadedFile || aiModalOpen) return;
+    let secondFrame = 0;
+    const firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        const preview = document.getElementById('ai-artwork-preview');
+        if (!preview) return;
+        pendingAIArtworkScrollRef.current = false;
+        preview.scrollIntoView({ behavior: 'instant', block: 'start' });
+        preview.focus({ preventScroll: true });
+      });
+    });
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      window.cancelAnimationFrame(secondFrame);
+    };
+  }, [aiModalOpen, uploadedFile]);
 
   // Handle a successful "Edit with AI" update.
   const handleAIEdited = useCallback(
@@ -2946,7 +2967,7 @@ const GoogleAdsBanner: React.FC = () => {
                       )}
                     </>
                   ) : (
-                    <div>
+                    <div id="ai-artwork-preview" tabIndex={-1} className="scroll-mt-28 outline-none md:scroll-mt-24">
                       {/* Preview labeling */}
                       <div className="mb-2">
                         <h3 className="text-sm font-bold text-gray-800">{isYardSign ? 'Live Yard Sign Preview' : isCarMagnet ? 'Live Car Magnet Preview' : 'Live Banner Preview'}</h3>
