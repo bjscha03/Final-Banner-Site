@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Deploy Preview Order Test</title>
+  <style>
+    body{font-family:Arial,sans-serif;background:#f5f7fb;color:#111827;margin:0;padding:24px}.card{max-width:720px;margin:0 auto;background:#fff;border:1px solid #dbe2ea;border-radius:14px;padding:24px;box-shadow:0 10px 30px rgba(15,23,42,.08)}h1{margin-top:0}.warning{background:#fff7ed;border:1px solid #fdba74;padding:12px;border-radius:8px;margin-bottom:18px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.full{grid-column:1/-1}label{display:block;font-weight:700;font-size:14px;margin-bottom:5px}input{box-sizing:border-box;width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:8px;font-size:16px}button{width:100%;margin-top:18px;padding:13px;border:0;border-radius:8px;background:#ea580c;color:#fff;font-weight:800;font-size:16px;cursor:pointer}button:disabled{opacity:.55;cursor:not-allowed}.result{margin-top:18px;padding:14px;border-radius:8px;white-space:pre-wrap}.ok{background:#ecfdf5;border:1px solid #6ee7b7}.bad{background:#fef2f2;border:1px solid #fca5a5}a{color:#1d4ed8;font-weight:700}@media(max-width:620px){.grid{grid-template-columns:1fr}.full{grid-column:auto}}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Deploy Preview Order Test</h1>
+    <div class="warning"><strong>No payment is processed.</strong> This creates one clearly marked Admin test order and attempts both the Admin notification and customer confirmation emails.</div>
+    <form id="form">
+      <div class="grid">
+        <div><label for="email">Customer email</label><input id="email" type="email" required autocomplete="email" /></div>
+        <div><label for="name">Customer name</label><input id="name" required autocomplete="name" /></div>
+        <div class="full"><label for="street">Street address</label><input id="street" required autocomplete="street-address" /></div>
+        <div><label for="city">City</label><input id="city" required autocomplete="address-level2" /></div>
+        <div><label for="state">State</label><input id="state" required maxlength="2" placeholder="KY" autocomplete="address-level1" /></div>
+        <div><label for="zip">ZIP code</label><input id="zip" required autocomplete="postal-code" /></div>
+      </div>
+      <button id="submit" type="submit">Create Test Order — No Payment</button>
+    </form>
+    <div id="result" hidden></div>
+  </div>
+<script>
+const form=document.getElementById('form');
+const button=document.getElementById('submit');
+const result=document.getElementById('result');
+const value=id=>document.getElementById(id).value.trim();
+form.addEventListener('submit',async(e)=>{
+  e.preventDefault();button.disabled=true;button.textContent='Creating test order…';result.hidden=true;
+  const email=value('email');const name=value('name');
+  const unique=Date.now();
+  const payload={
+    user_id:null,email,customer_name:name,
+    shippingAddress:{name,line1:value('street'),line2:'',city:value('city'),state:value('state').toUpperCase(),postalCode:value('zip'),country:'US'},
+    subtotal_cents:3600,tax_cents:216,total_cents:3816,currency:'USD',
+    payment_method:'admin_deploy_preview_test',checkout_mode:'admin_deploy_preview_test',
+    is_test_order:true,test_order_reason:'Deploy preview Admin + email verification '+unique,
+    items:[{product_type:'banner',width_in:24,height_in:12,quantity:1,material:'13oz',grommets:'none',line_total_cents:3600,file_name:'deploy-preview-test.txt',canvas_background_color:'#FFFFFF',text_elements:[{text:'DEPLOY PREVIEW TEST '+unique,x:50,y:50}]}]
+  };
+  try{
+    const response=await fetch('/.netlify/functions/create-order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok||!data.orderId) throw new Error(data.details||data.error||'Order creation failed');
+    result.className='result ok';result.hidden=false;
+    result.innerHTML='<strong>Test order created successfully.</strong><br><br>Order ID: <code>'+data.orderId+'</code><br>Customer email used: <strong>'+email+'</strong><br><br><a href="/admin/orders" target="_blank" rel="noopener">Open this deploy preview’s Admin Orders</a><br><br>Verify: 1 Admin email, 1 customer confirmation email, and this order in the preview Admin.';
+  }catch(err){result.className='result bad';result.hidden=false;result.textContent='FAILED: '+err.message;}
+  finally{button.disabled=false;button.textContent='Create Test Order — No Payment';}
+});
+</script>
+</body>
+</html>
