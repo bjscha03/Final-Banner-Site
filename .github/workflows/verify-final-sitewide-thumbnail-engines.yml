@@ -1,0 +1,91 @@
+name: Verify Final Sitewide Thumbnail Previews Across Browser Engines
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/verify-final-sitewide-thumbnail-engines.yml'
+      - '.github/scripts/verify-final-sitewide-preview-engines.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  final-sitewide-preview-matrix:
+    name: ${{ matrix.browser }} final sitewide preview matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        browser:
+          - chromium
+          - firefox
+          - webkit
+
+    steps:
+      - name: Check out exact merged production source
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install exact application dependencies
+        run: npm ci
+
+      - name: Install Playwright and ${{ matrix.browser }}
+        run: |
+          set -euo pipefail
+          npm install --no-save --package-lock=false playwright@1.54.1
+          npx playwright install --with-deps ${{ matrix.browser }}
+
+      - name: Start exact merged preview harness
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx vite --config tests/browser/vite.handoff.config.ts > /tmp/final-sitewide-preview-vite.log 2>&1 &
+          echo $! > /tmp/final-sitewide-preview-vite.pid
+
+          ready='false'
+          for attempt in $(seq 1 90); do
+            status=$(curl --silent --show-error \
+              --output /tmp/final-sitewide-preview-shell.html \
+              --write-out '%{http_code}' \
+              http://127.0.0.1:4175/tests/browser/order-surface-preview.html || true)
+            if [[ "${status}" == '200' ]]; then
+              ready='true'
+              break
+            fi
+            sleep 1
+          done
+
+          if [[ "${ready}" != 'true' ]]; then
+            cat /tmp/final-sitewide-preview-vite.log
+            exit 1
+          fi
+
+      - name: Run all three preview surfaces in desktop phone portrait and phone landscape
+        env:
+          PLAYWRIGHT_BROWSER: ${{ matrix.browser }}
+          PREVIEW_HARNESS_BASE_URL: http://127.0.0.1:4175
+        run: node .github/scripts/verify-final-sitewide-preview-engines.mjs
+
+      - name: Upload failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-sitewide-preview-${{ matrix.browser }}-failure
+          if-no-files-found: ignore
+          path: |
+            test-results/final-sitewide-preview-engines/**
+            /tmp/final-sitewide-preview-vite.log
+
+      - name: Stop preview server
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f /tmp/final-sitewide-preview-vite.pid ]]; then
+            kill "$(cat /tmp/final-sitewide-preview-vite.pid)" 2>/dev/null || true
+          fi
