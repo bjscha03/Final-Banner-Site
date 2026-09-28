@@ -3620,6 +3620,11 @@ const Design: React.FC = () => {
       <TrustStrip />
 
       <MobileSubtotalBar
+        primaryAction={!isYardSign && uploadedFile && !hasJustAddedToCart ? {
+          label: isUploading ? 'Uploading…' : isProcessingUpsell ? 'Preparing preview…' : editItemId ? 'Save & checkout' : 'Continue to checkout',
+          onClick: handleCheckout,
+          disabled: !hasCommittedBannerSize || isUploading || isProcessingUpsell,
+        } : undefined}
           promotionNote={bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20' ? FIRST_ORDER_APPLIED_LABEL : undefined}
         cartItemCount={cartItemCount}
         onViewCart={openCartDrawer}
