@@ -35,6 +35,18 @@ export const deliveryProofImages: DeliveryProofImage[] = [
   { id: 'delivery-21', version: 1776363042, fileName: 'download-3_qfh54f.jpg' },
   { id: 'delivery-22', version: 1776363042, fileName: 'download-1_yffld3.jpg' },
   { id: 'delivery-23', version: 1776363042, fileName: 'download-2_scks5q.jpg' },
+  { id: 'delivery-24', version: 1790629467, fileName: 'bof-deliveries/2026-09-28/delivery-01.jpg' },
+  { id: 'delivery-25', version: 1790629470, fileName: 'bof-deliveries/2026-09-28/delivery-02.jpg' },
+  { id: 'delivery-26', version: 1790629472, fileName: 'bof-deliveries/2026-09-28/delivery-03.jpg' },
+  { id: 'delivery-27', version: 1790629475, fileName: 'bof-deliveries/2026-09-28/delivery-04.jpg' },
+  { id: 'delivery-28', version: 1790629478, fileName: 'bof-deliveries/2026-09-28/delivery-05.jpg' },
+  { id: 'delivery-29', version: 1790629481, fileName: 'bof-deliveries/2026-09-28/delivery-06.jpg' },
+  { id: 'delivery-30', version: 1790629484, fileName: 'bof-deliveries/2026-09-28/delivery-07.jpg' },
+  { id: 'delivery-31', version: 1790629487, fileName: 'bof-deliveries/2026-09-28/delivery-08.jpg' },
+  { id: 'delivery-32', version: 1790629489, fileName: 'bof-deliveries/2026-09-28/delivery-09.jpg' },
+  { id: 'delivery-33', version: 1790629492, fileName: 'bof-deliveries/2026-09-28/delivery-10.jpg' },
+  { id: 'delivery-34', version: 1790629494, fileName: 'bof-deliveries/2026-09-28/delivery-11.jpg' },
+  { id: 'delivery-35', version: 1790629455, fileName: 'bof-deliveries/2026-09-28/delivery-12.jpg' },
 ];
 
 export const featuredDeliveryProofImages = deliveryProofImages.slice(0, 6);

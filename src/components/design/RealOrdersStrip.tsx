@@ -53,6 +53,7 @@ const RealOrdersStrip: React.FC<{ expanded?: boolean }> = ({ expanded = false })
           <div
             className="real-orders-strip-track flex h-full w-max items-center"
             data-real-orders-strip-track
+            style={{ animationDuration: `${24 * deliveryProofImages.length / 23}s` }}
           >
             <DeliveryImageSet expanded={expanded} />
             <DeliveryImageSet duplicate expanded={expanded} />

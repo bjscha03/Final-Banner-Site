@@ -33,10 +33,10 @@ describe('RealOrdersStrip', () => {
     expect(html).toContain('Real orders');
     expect(html).toContain('delivered fast');
 
-    expect(deliveryProofImages).toHaveLength(23);
-    expect(new Set(allowedSources).size).toBe(23);
+    expect(deliveryProofImages).toHaveLength(35);
+    expect(new Set(allowedSources).size).toBe(35);
     expect(countMatches(html, /data-real-orders-strip-set="true"/g)).toBe(2);
-    expect(imageTags).toHaveLength(46);
+    expect(imageTags).toHaveLength(70);
     expect(new Set(imageSources)).toEqual(new Set(allowedSources));
 
     for (const source of allowedSources) {
