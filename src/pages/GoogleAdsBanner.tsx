@@ -1,3 +1,4 @@
+import GoogleReviewSpotlight from '@/components/design/GoogleReviewSpotlight';
 import LargeBannerSizeCards from '@/components/design/LargeBannerSizeCards';
 import { useAutomaticFirstOrderDiscount } from '@/hooks/useAutomaticFirstOrderDiscount';
 import { FIRST_ORDER_APPLIED_LABEL } from '@/lib/firstOrderPromotion';
@@ -3118,6 +3119,8 @@ const GoogleAdsBanner: React.FC = () => {
             </button>
           </div>
         </header>
+
+        {!isYardSign && !isCarMagnet && <GoogleReviewSpotlight />}
 
         {/* HERO */}
         {!isYardSign && !isCarMagnet ? (
