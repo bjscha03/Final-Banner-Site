@@ -1,3 +1,4 @@
+import GoogleReviewSpotlight from '@/components/design/GoogleReviewSpotlight';
 import { useAutomaticFirstOrderDiscount } from '@/hooks/useAutomaticFirstOrderDiscount';
 import { FIRST_ORDER_APPLIED_LABEL } from '@/lib/firstOrderPromotion';
 import GoogleAdsBanner from './GoogleAdsBanner';
@@ -2913,6 +2914,8 @@ const Design: React.FC = () => {
         <meta name="description" content="Design custom vinyl banners online. Upload artwork, choose size and material, preview the print, and review production and shipping before checkout." />
         <link rel="canonical" href="https://bannersonthefly.com/design" />
       </Helmet>
+
+      {productType === 'banner' && <GoogleReviewSpotlight />}
 
       <DesignPageHero productType={productType} onStart={scrollToOrder} />
 
