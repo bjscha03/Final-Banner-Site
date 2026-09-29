@@ -16,7 +16,8 @@
 .google-review-count { min-width: 38px; text-align: center; font-size: 12px; color: #526174; }
 @media (max-width: 767px) {
   .google-review-inner { padding: 12px 16px; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; }
-  .google-review-label { gap: 4px; }
+  .google-review-label { gap: 4px; min-width: 0; }
+  .google-review-source { white-space: normal; }
   .google-review-slides { grid-column: 1 / -1; grid-row: 2; }
   .google-review-controls { grid-column: 2; grid-row: 1; }
 }
