@@ -49,7 +49,7 @@ import GrommetOverlay from '@/components/preview/GrommetOverlay';
 import StablePreviewImage from '@/components/preview/StablePreviewImage';
 import { getGrommetLabel } from '@/lib/grommets';
 import EditCustomerInfoDialog from '@/components/orders/EditCustomerInfoDialog';
-import ReviewRequestAction from '@/components/orders/ReviewRequestAction';
+import ReviewRequestAction, { type ReviewRequestUpdate } from '@/components/orders/ReviewRequestAction';
 import AdminRefundOrderAction from '@/components/orders/AdminRefundOrderAction';
 import AdminTrackingManager from '@/components/orders/AdminTrackingManager';
 import {
@@ -584,6 +584,12 @@ const AdminOrders: React.FC = () => {
             reporting_customer_email: summary.reporting_customer_email || detail.reporting_customer_email || null,
             review_request_customer_email: summary.review_request_customer_email || detail.review_request_customer_email || null,
             review_request_last_sent_at: summary.review_request_last_sent_at || detail.review_request_last_sent_at || null,
+            review_request_initial_sent_at: summary.review_request_initial_sent_at || detail.review_request_initial_sent_at,
+            review_followup_sent_at: summary.review_followup_sent_at || detail.review_followup_sent_at,
+            review_offer_percentage: summary.review_offer_percentage || detail.review_offer_percentage,
+            review_coupon_code: summary.review_coupon_code || detail.review_coupon_code,
+            review_coupon_sent_at: summary.review_coupon_sent_at || detail.review_coupon_sent_at,
+            review_coupon_used: summary.review_coupon_used || detail.review_coupon_used,
             review_request_sent_count: Math.max(
               Number(summary.review_request_sent_count || 0),
               Number(detail.review_request_sent_count || 0),
@@ -636,12 +642,17 @@ const AdminOrders: React.FC = () => {
     updateOrderEverywhere(updated.id, (order) => ({ ...order, ...updated }));
     void loadOrders(page);
   };
-  const handleReviewRequestSent = (orderId: string, update: { sentAt: string; customerEmail: string }) => {
+  const handleReviewRequestSent = (orderId: string, update: ReviewRequestUpdate) => {
     updateOrderEverywhere(orderId, (order) => ({
       ...order,
       review_request_last_sent_at: update.sentAt,
       review_request_customer_email: update.customerEmail,
       review_request_sent_count: Math.max(Number(order.review_request_sent_count || 0), 1),
+      review_request_initial_sent_at: update.action === 'initial' ? update.sentAt : order.review_request_initial_sent_at,
+      review_followup_sent_at: update.followupSentAt ?? order.review_followup_sent_at,
+      review_offer_percentage: update.offerPercentage ?? order.review_offer_percentage,
+      review_coupon_code: update.couponCode ?? order.review_coupon_code,
+      review_coupon_sent_at: update.couponSentAt ?? order.review_coupon_sent_at,
     }));
   };
 
@@ -1492,7 +1503,7 @@ interface AdminOrderRowProps {
   pdfLoadingStates: Record<string, boolean>;
   fileLoadingStates: Record<string, boolean>;
   onCustomerInfoUpdated: (order: Order) => void;
-  onReviewRequestSent: (orderId: string, update: { sentAt: string; customerEmail: string }) => void;
+  onReviewRequestSent: (orderId: string, update: ReviewRequestUpdate) => void;
   onLoadDetails: (orderId: string) => Promise<void>;
   detailError: boolean;
 }
@@ -1930,7 +1941,7 @@ interface AdminOrderCardProps {
   pdfLoadingStates: Record<string, boolean>;
   fileLoadingStates: Record<string, boolean>;
   onCustomerInfoUpdated: (order: Order) => void;
-  onReviewRequestSent: (orderId: string, update: { sentAt: string; customerEmail: string }) => void;
+  onReviewRequestSent: (orderId: string, update: ReviewRequestUpdate) => void;
   onLoadDetails: (orderId: string) => Promise<void>;
   detailError: boolean;
 }

@@ -108,6 +108,8 @@ jobs:
       - name: Run checkout, preview, order, email, and tracking tests
         run: |
           node --test \
+            netlify/functions/__tests__/review-request-email.test.cjs \
+            netlify/functions/__tests__/review-followup-coupon.test.cjs \
             netlify/functions/__tests__/checkout-payment-providers.test.cjs \
             netlify/functions/__tests__/stripe-checkout-service.test.cjs \
             netlify/functions/__tests__/stripe-finalize-order.test.cjs \

@@ -527,9 +527,12 @@ async function enrichOrderPaymentMetadata(sql, orders, options = {}) {
     const reviewRows = await sql(
       `SELECT order_id::text AS order_id,
               MAX(sent_at) AS last_sent_at,
+              MAX(sent_at) FILTER (WHERE COALESCE(to_jsonb(review_request_history)->>'email_kind', 'initial') = 'initial') AS initial_sent_at,
+              MAX(sent_at) FILTER (WHERE to_jsonb(review_request_history)->>'email_kind' = 'followup') AS followup_sent_at,
               COUNT(*)::int AS sent_count
          FROM review_request_history
         WHERE status = 'sent'
+          AND COALESCE(to_jsonb(review_request_history)->>'email_kind', 'initial') <> 'coupon'
           AND order_id::text IN (${placeholders})
         GROUP BY order_id`,
       ids,
@@ -543,7 +546,20 @@ async function enrichOrderPaymentMetadata(sql, orders, options = {}) {
     }
   }
 
+  let reviewCouponById = new Map();
+  try {
+    const coupons = await sql(
+      `SELECT r.order_id::text AS order_id, r.code, r.offer_percentage, r.sent_at, d.used
+         FROM review_coupon_rewards r JOIN discount_codes d ON d.code = r.code
+        WHERE r.order_id::text IN (${placeholders})`, ids,
+    );
+    reviewCouponById = new Map(coupons.map((row) => [String(row.order_id), row]));
+  } catch (error) {
+    if (String(error?.code || '') !== '42P01') console.warn('[get-orders] review coupon metadata unavailable');
+  }
+
   return orders.map((order) => {
+    const coupon = reviewCouponById.get(String(order.id));
     const payment = paymentById.get(String(order.id));
     const review = reviewById.get(String(order.id));
     if (!payment) return order;
@@ -595,6 +611,12 @@ async function enrichOrderPaymentMetadata(sql, orders, options = {}) {
         || null,
       review_request_last_sent_at: review?.last_sent_at || null,
       review_request_sent_count: Number(review?.sent_count || 0),
+      review_request_initial_sent_at: review?.initial_sent_at || null,
+      review_followup_sent_at: review?.followup_sent_at || null,
+      review_offer_percentage: Number(coupon?.offer_percentage || (review?.followup_sent_at ? 30 : 25)),
+      review_coupon_code: coupon?.code || null,
+      review_coupon_sent_at: coupon?.sent_at || null,
+      review_coupon_used: coupon?.used === true,
     };
   });
 }
