@@ -461,5 +461,5 @@ test('existing review request upgrades to 30%, sends one coupon, and remains com
   await page.reload();
   await expect(page.getByRole('button', { name: '30% Coupon Sent', exact: true }).filter({ visible: true })).toBeDisabled();
   await expect(page.getByText(/THANKS30-123456ABCDEF/).filter({ visible: true })).toBeVisible();
-  await page.screenshot({ path: `/tmp/bof-review-admin-${test.info().project.name}.png`, fullPage: true });
+  await page.screenshot({ path: test.info().outputPath('review-coupon-complete.png'), fullPage: true });
 });
