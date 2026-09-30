@@ -142,6 +142,12 @@ export interface Order {
   review_request_customer_email?: string | null;
   review_request_last_sent_at?: string | null;
   review_request_sent_count?: number;
+  review_request_initial_sent_at?: string | null;
+  review_followup_sent_at?: string | null;
+  review_offer_percentage?: number;
+  review_coupon_code?: string | null;
+  review_coupon_sent_at?: string | null;
+  review_coupon_used?: boolean;
   item_count?: number;
   items_truncated?: boolean;
   admin_detail_loaded?: boolean;

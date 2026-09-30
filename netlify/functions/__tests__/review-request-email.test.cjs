@@ -47,6 +47,8 @@ function createFakeData({ order = paidOrder, latestSent = null, sendGate = null 
     state,
     data: {
       async loadOrder() { return order; },
+      async loadCoupon() { return null; },
+      async savePayload() {},
       async loadLatestSent() { return latestSent; },
       async beginAttempt() {
         state.beginCalls += 1;
@@ -164,7 +166,7 @@ test('failed provider response records failure, never completes, and returns a s
       adminIdentifier: 'server-admin@example.com',
       data,
       emailConfig,
-      sendEmail: async () => { throw new Error('Provider rejected jane@example.com'); },
+      sendEmail: async () => { throw Object.assign(new Error('Provider rejected jane@example.com'), { statusCode: 422 }); },
     }),
     (error) => error.code === 'REVIEW_REQUEST_SEND_FAILED' && error.statusCode === 502,
   );
