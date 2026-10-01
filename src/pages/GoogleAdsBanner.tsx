@@ -1631,10 +1631,14 @@ const GoogleAdsBanner: React.FC = () => {
   // user can immediately start building another product.
   const resetPreview = useCallback(() => {
     uploadGenerationRef.current += 1;
+    // The canceled generation's finally handler deliberately cannot update
+    // this generation. Release its busy state here for the next file picker.
+    setIsUploading(false);
     activeUploadAbortControllerRef.current?.abort();
     activeUploadAbortControllerRef.current = null;
     activeUploadPromiseRef.current = null;
     activeUploadFileRef.current = null;
+    activePdfPreviewFileRef.current = null;
     activeImagePreviewCleanupRef.current?.();
     activePdfPreviewCleanupRef.current?.();
     activeImagePreviewCleanupRef.current = null;

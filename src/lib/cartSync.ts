@@ -470,6 +470,8 @@ class CartSyncService {
       return false;
     }
 
+    // Start capture immediately; a slow or failed cart-save must not prevent it.
+    const snapshotPromise = this.saveCartSnapshot(items, userId, sessionId);
     try {
       console.log('[cart-save] Calling Netlify function:', { userId: userId ? `${userId.substring(0, 8)}...` : null, sessionId: sessionId ? `${sessionId.substring(0, 12)}...` : null, itemCount: items.length });
 
@@ -510,10 +512,6 @@ class CartSyncService {
 
       console.log('[cart-save] Saved', items.length, 'items to server');
 
-      // Also save a bounded snapshot for recovery tracking. Empty snapshots
-      // close the active recovery record so a cleared cart cannot be emailed.
-      await this.saveCartSnapshot(items, userId, sessionId);
-
       return true;
     } catch (error) {
       console.error('[cart-save] Error saving cart:', error);
@@ -526,6 +524,10 @@ class CartSyncService {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
       return false;
+    } finally {
+      // Capture even when cart-save fails. Keep this inside the owner's queue
+      // so an older save cannot overwrite a newer cart or reopen a cleared one.
+      await snapshotPromise;
     }
   }
 
@@ -539,6 +541,10 @@ class CartSyncService {
     sessionId?: string,
     options: SaveCartSnapshotOptions = {},
   ): Promise<CartSnapshotResult | null> {
+    const controller = new AbortController();
+    const timeoutId = options.captureKind === 'lifecycle'
+      ? null
+      : setTimeout(() => controller.abort(), 10_000);
     try {
       const snapshotSessionId = sessionId
         || this.getExistingSessionId()
@@ -622,6 +628,7 @@ class CartSyncService {
         }),
         credentials: 'same-origin',
         keepalive: captureKind === 'lifecycle',
+        signal: controller.signal,
         body: JSON.stringify({
           userId,
           sessionId: snapshotSessionId,
@@ -673,6 +680,8 @@ class CartSyncService {
       // Log but don't throw - abandoned cart tracking is non-critical
       console.warn('[save-cart-snapshot] Error saving cart snapshot:', error);
       return null;
+    } finally {
+      if (timeoutId !== null) clearTimeout(timeoutId);
     }
   }
 

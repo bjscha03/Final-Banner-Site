@@ -1666,6 +1666,8 @@ const Design: React.FC = () => {
   // artwork/transform state from the previous item.
   const resetPreview = useCallback(() => {
     uploadGenerationRef.current += 1;
+    // Canceled uploads cannot clear the next generation's busy state.
+    setIsUploading(false);
     activeUploadAbortControllerRef.current?.abort();
     activeUploadAbortControllerRef.current = null;
     activeUploadPromiseRef.current = null;
