@@ -801,6 +801,7 @@ test('period profit stands out and both pagination controls jump to page four', 
   await page.goto('/admin/orders');
   const metrics = page.locator('[data-admin-period-metrics]');
   const profit = metrics.locator('div').filter({ has: page.getByText('Net Profit', { exact: true }) }).first();
+  await page.getByRole('button', { name: 'This Month', exact: true }).click();
   await expect(profit).toContainText('$154.02');
   await expect(profit.locator('.text-green-700')).toHaveCSS('font-weight', '800');
   await page.getByRole('button', { name: 'All Time', exact: true }).click();
