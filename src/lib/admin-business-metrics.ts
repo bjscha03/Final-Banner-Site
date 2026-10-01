@@ -8,6 +8,8 @@ export type AdminOrderDateRange = {
 };
 
 export type AdminBusinessMetrics = {
+  netProfitCents?: number;
+  profitOrdersNeedingReview?: number;
   totalOrders: number;
   grossSalesCents: number;
   averageOrderValueCents: number;
