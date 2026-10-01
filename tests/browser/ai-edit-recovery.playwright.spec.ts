@@ -59,7 +59,7 @@ test('cleared description recovers wording, preserves deletion, retries, and con
   await expect(page.getByRole('button', { name: 'Apply your changes before continuing' })).toBeDisabled();
   await page.getByText('Edit text, fonts & placement', { exact: true }).click();
   await page.getByRole('button', { name: 'Remove this text' }).click();
-  await page.getByLabel('Edit with AI', { exact: true }).fill('Make the background lighter');
+  await page.getByLabel(/^Edit with AI/).fill('Make the background lighter');
   state.fail = true;
   await page.getByRole('button', { name: 'Edit current design', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('Please retry this edit.');
@@ -78,11 +78,11 @@ test('cleared description recovers wording, preserves deletion, retries, and con
 test('quick close and reopen preserves a pending edit and restores its selected context', async ({ page }) => {
   const { edits } = await setup(page);
   await page.getByLabel('Describe the design you want').fill('');
-  await page.getByLabel('Edit with AI', { exact: true }).fill('Make the background lighter');
+  await page.getByLabel(/^Edit with AI/).fill('Make the background lighter');
   await page.getByRole('button', { name: 'Back', exact: true }).click();
   await page.getByRole('button', { name: 'Reopen banner studio' }).click();
   await expect(page.getByLabel('Describe the design you want')).toHaveValue('');
-  await expect(page.getByLabel('Edit with AI', { exact: true })).toHaveValue('Make the background lighter');
+  await expect(page.getByLabel(/^Edit with AI/)).toHaveValue('Make the background lighter');
   await page.getByRole('button', { name: 'Edit current design', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Select version 2' })).toHaveAttribute('aria-pressed', 'true');
   expect(edits[0].brief).toMatchObject({ description: brief.description, copy: brief.copy });
@@ -90,10 +90,10 @@ test('quick close and reopen preserves a pending edit and restores its selected 
 
 test('missing saved description focuses the local repair field without submitting a job', async ({ page }) => {
   const { edits } = await setup(page, { ...brief, description: '' });
-  await page.getByLabel('Edit with AI', { exact: true }).fill('Make the background lighter');
+  await page.getByLabel(/^Edit with AI/).fill('Make the background lighter');
   await page.getByRole('button', { name: 'Edit current design', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('Add a description');
   await expect(page.getByLabel('Describe the design you want')).toBeFocused();
   expect(edits).toHaveLength(0);
-  await expect(page.getByLabel('Edit with AI', { exact: true })).toHaveValue('Make the background lighter');
+  await expect(page.getByLabel(/^Edit with AI/)).toHaveValue('Make the background lighter');
 });
