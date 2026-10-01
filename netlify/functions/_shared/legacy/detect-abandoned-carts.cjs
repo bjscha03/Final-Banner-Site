@@ -21,6 +21,7 @@ const WORKER_SOFT_LIMIT_MS = 12 * 60 * 1000;
 const WORKER_LEASE_MINUTES = 14;
 const WORKER_JOB_NAME = 'abandoned-cart-recovery';
 const QUIET_ABANDONMENT_MINUTES = 3;
+const ANONYMOUS_ABANDONMENT_MINUTES = 30;
 const PAYMENT_HANDOFF_GRACE_MINUTES = 30;
 const CART_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -369,24 +370,33 @@ async function abandonInactiveCarts(sql) {
       SELECT id
         FROM abandoned_carts
        WHERE recovery_status = 'active'
-         -- Only carts captured by the immediate-recovery program are eligible.
-         -- Rows created by the legacy collector have neither marker and must
-         -- not be swept into a campaign when this worker first goes live.
-         AND (
-           abandonment_signaled_at IS NOT NULL
-           OR first_recovery_due_at IS NOT NULL
-         )
+         -- Email recovery retains its existing opt-in markers. Anonymous
+         -- modern snapshots become visible in admin without joining a campaign.
          AND (
            (
-             checkout_stage IS DISTINCT FROM 'payment_started'
-             AND (
-               abandonment_signaled_at IS NOT NULL
-               OR first_recovery_due_at <= NOW()
-             )
+             NULLIF(BTRIM(email), '') IS NULL
+             AND NULLIF(BTRIM(normalized_email), '') IS NULL
+             AND snapshot_revision IS NOT NULL
+             AND last_activity_at <= NOW() - (${ANONYMOUS_ABANDONMENT_MINUTES} * INTERVAL '1 minute')
            )
            OR (
-             checkout_stage = 'payment_started'
-             AND last_activity_at <= NOW() - (${PAYMENT_HANDOFF_GRACE_MINUTES} * INTERVAL '1 minute')
+             (
+               abandonment_signaled_at IS NOT NULL
+               OR first_recovery_due_at IS NOT NULL
+             )
+             AND (
+               (
+                 checkout_stage IS DISTINCT FROM 'payment_started'
+                 AND (
+                   abandonment_signaled_at IS NOT NULL
+                   OR first_recovery_due_at <= NOW()
+                 )
+               )
+               OR (
+                 checkout_stage = 'payment_started'
+                 AND last_activity_at <= NOW() - (${PAYMENT_HANDOFF_GRACE_MINUTES} * INTERVAL '1 minute')
+               )
+             )
            )
          )
          AND last_activity_at > NOW() - INTERVAL '96 hours'
@@ -398,8 +408,8 @@ async function abandonInactiveCarts(sql) {
                     THEN first_recovery_due_at END,
                   last_activity_at + (
                     CASE WHEN checkout_stage = 'payment_started'
-                      THEN ${PAYMENT_HANDOFF_GRACE_MINUTES}
-                      ELSE ${QUIET_ABANDONMENT_MINUTES}
+                      THEN ${PAYMENT_HANDOFF_GRACE_MINUTES}::integer
+                      ELSE ${QUIET_ABANDONMENT_MINUTES}::integer
                     END * INTERVAL '1 minute'
                   )
                 ) ASC,
@@ -416,9 +426,12 @@ async function abandonInactiveCarts(sql) {
              CASE WHEN cart.checkout_stage IS DISTINCT FROM 'payment_started'
                THEN cart.first_recovery_due_at END,
              cart.last_activity_at + (
-               CASE WHEN cart.checkout_stage = 'payment_started'
-                 THEN ${PAYMENT_HANDOFF_GRACE_MINUTES}
-                 ELSE ${QUIET_ABANDONMENT_MINUTES}
+               CASE WHEN NULLIF(BTRIM(cart.email), '') IS NULL
+                    AND NULLIF(BTRIM(cart.normalized_email), '') IS NULL
+                   THEN ${ANONYMOUS_ABANDONMENT_MINUTES}::integer
+                 WHEN cart.checkout_stage = 'payment_started'
+                 THEN ${PAYMENT_HANDOFF_GRACE_MINUTES}::integer
+                 ELSE ${QUIET_ABANDONMENT_MINUTES}::integer
                END * INTERVAL '1 minute'
              )
            ),
@@ -427,20 +440,30 @@ async function abandonInactiveCarts(sql) {
      WHERE cart.id = candidates.id
        AND cart.recovery_status = 'active'
        AND (
-         cart.abandonment_signaled_at IS NOT NULL
-         OR cart.first_recovery_due_at IS NOT NULL
-       )
-       AND (
          (
-           cart.checkout_stage IS DISTINCT FROM 'payment_started'
-           AND (
-             cart.abandonment_signaled_at IS NOT NULL
-             OR cart.first_recovery_due_at <= NOW()
-           )
+           NULLIF(BTRIM(cart.email), '') IS NULL
+           AND NULLIF(BTRIM(cart.normalized_email), '') IS NULL
+           AND cart.snapshot_revision IS NOT NULL
+           AND cart.last_activity_at <= NOW() - (${ANONYMOUS_ABANDONMENT_MINUTES} * INTERVAL '1 minute')
          )
          OR (
-           cart.checkout_stage = 'payment_started'
-           AND cart.last_activity_at <= NOW() - (${PAYMENT_HANDOFF_GRACE_MINUTES} * INTERVAL '1 minute')
+           (
+             cart.abandonment_signaled_at IS NOT NULL
+             OR cart.first_recovery_due_at IS NOT NULL
+           )
+           AND (
+             (
+               cart.checkout_stage IS DISTINCT FROM 'payment_started'
+               AND (
+                 cart.abandonment_signaled_at IS NOT NULL
+                 OR cart.first_recovery_due_at <= NOW()
+               )
+             )
+             OR (
+               cart.checkout_stage = 'payment_started'
+               AND cart.last_activity_at <= NOW() - (${PAYMENT_HANDOFF_GRACE_MINUTES} * INTERVAL '1 minute')
+             )
+           )
          )
        )
        AND cart.last_activity_at > NOW() - INTERVAL '96 hours'

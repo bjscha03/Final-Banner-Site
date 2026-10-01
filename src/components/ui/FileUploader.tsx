@@ -107,6 +107,7 @@ const FileUploader = forwardRef<FileUploaderHandle, FileUploaderProps>(({
         accept={acceptedTypes}
         multiple={multiple}
         className="hidden"
+        onClick={(event) => event.stopPropagation()}
         onChange={(e) => {
           handleFiles(e.target.files);
           e.target.value = '';
