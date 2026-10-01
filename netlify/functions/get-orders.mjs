@@ -1,3 +1,4 @@
+import { estimateOrderProfit } from '../../src/lib/admin-profit-estimate.ts';
 import { neon } from '@neondatabase/serverless';
 import { withLambda } from '@netlify/aws-lambda-compat';
 import legacyModule from './_shared/legacy/get-orders.cjs';
@@ -220,6 +221,32 @@ const buildAdminSummaryQuery = () => `${orderBaseCteSql()},
          AND effective_status IN ('paid', 'in_production', 'shipped', 'delivered', 'fulfilled', 'refunded')
          AND ($1::timestamptz IS NULL OR created_at >= $1::timestamptz)
          AND ($2::timestamptz IS NULL OR created_at < $2::timestamptz)
+    ), period_profit_orders AS (
+      SELECT o.id, o.subtotal_cents,
+             COALESCE((to_jsonb(o)->>'applied_discount_cents')::bigint, 0) AS applied_discount_cents,
+             COALESCE((to_jsonb(o)->>'same_day_fee_cents')::bigint, 0) AS same_day_fee_cents,
+             COALESCE((to_jsonb(o)->>'saturday_fee_cents')::bigint, 0) AS saturday_fee_cents,
+             COALESCE((SELECT jsonb_agg(jsonb_build_object(
+                     'product_type', to_jsonb(oi)->'product_type',
+                     'product_name', to_jsonb(oi)->'product_name',
+                     'name', to_jsonb(oi)->'name',
+                     'sku', to_jsonb(oi)->'sku',
+                     'size', to_jsonb(oi)->'size',
+                     'dimensions', to_jsonb(oi)->'dimensions',
+                     'selected_size', to_jsonb(oi)->'selected_size',
+                     'variant_title', to_jsonb(oi)->'variant_title',
+                     'material', to_jsonb(oi)->'material',
+                     'width_in', to_jsonb(oi)->'width_in',
+                     'height_in', to_jsonb(oi)->'height_in',
+                     'quantity', to_jsonb(oi)->'quantity',
+                     'line_total_cents', to_jsonb(oi)->'line_total_cents',
+                     'grommets', to_jsonb(oi)->'grommets',
+                     'pole_pockets', to_jsonb(oi)->'pole_pockets',
+                     'pole_pocket_position', to_jsonb(oi)->'pole_pocket_position',
+                     'rope_feet', to_jsonb(oi)->'rope_feet'
+               )) FROM order_items oi WHERE oi.order_id = o.id), '[]'::jsonb) AS items
+        FROM period_successful p
+        JOIN orders o ON o.id::text = p.id
     ), customer_flags AS (
       SELECT reporting_customer_email,
              BOOL_OR(lifetime_rank = 1) AS is_new,
@@ -264,6 +291,7 @@ const buildAdminSummaryQuery = () => `${orderBaseCteSql()},
         FROM visible_orders
     )
     SELECT period_totals.*,
+           COALESCE((SELECT jsonb_agg(p) FROM period_profit_orders p), '[]'::jsonb) AS profit_orders,
            (period_totals.gross_sales_cents - period_totals.recorded_refunds_cents)::bigint AS net_sales_cents,
            CASE WHEN period_totals.total_orders > 0 THEN
              ROUND(
@@ -673,8 +701,22 @@ const asRate = (value) => {
 };
 
 function normalizeAdminSummary(row = {}) {
+  const profitOrders = Array.isArray(row.profit_orders) ? row.profit_orders : [];
+  let netProfitCents = 0;
+  let profitOrdersNeedingReview = 0;
+  for (const order of profitOrders) {
+    if (!Array.isArray(order.items) || order.items.length === 0) {
+      profitOrdersNeedingReview += 1;
+      continue;
+    }
+    const profit = estimateOrderProfit(order);
+    if (profit.needsReview) profitOrdersNeedingReview += 1;
+    else netProfitCents += profit.netProfitCents;
+  }
   return {
     metrics: {
+      netProfitCents,
+      profitOrdersNeedingReview,
       totalOrders: asInteger(row.total_orders),
       grossSalesCents: asInteger(row.gross_sales_cents),
       averageOrderValueCents: asInteger(row.average_order_value_cents),

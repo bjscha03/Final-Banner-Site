@@ -1,5 +1,5 @@
 import type { Order, OrderItem } from './orders/types';
-import { normalizeSizeKey, resolveFixedProductCost } from './admin-product-costs';
+import { normalizeSizeKey, resolveFixedProductCost } from './admin-product-costs.ts';
 
 export const ADMIN_PROFIT_SHIPPING_COST_PER_LINE_ITEM_CENTS = 1000;
 

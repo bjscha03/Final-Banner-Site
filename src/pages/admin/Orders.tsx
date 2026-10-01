@@ -65,7 +65,33 @@ import {
 
 const PAGE_SIZE = 20;
 
+const OrderPagination = ({ page, totalPages, loading, onPageChange, position }: {
+  page: number; totalPages: number; loading: boolean; onPageChange: (page: number) => void; position: 'top' | 'bottom';
+}) => {
+  if (totalPages <= 1) return null;
+  const pages = totalPages <= 12
+    ? Array.from({ length: totalPages }, (_, index) => index + 1)
+    : Array.from(new Set([1, 2, 3, 4, 5, page - 1, page, page + 1, totalPages]))
+      .filter((number) => number >= 1 && number <= totalPages).sort((a, b) => a - b);
+  return (
+    <nav aria-label={`Orders pagination ${position}`} className="my-4 flex flex-wrap items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white p-3">
+      <Button type="button" variant="outline" disabled={loading || page <= 1} onClick={() => onPageChange(page - 1)}><ChevronLeft className="mr-1 h-4 w-4" />Previous</Button>
+      <div className="flex max-w-full flex-wrap justify-center gap-1">
+        {pages.map((number) => <Button key={number} type="button" variant={page === number ? 'default' : 'outline'} size="sm" className="min-h-10 min-w-10" aria-label={`Go to page ${number}`} aria-current={page === number ? 'page' : undefined} disabled={loading} onClick={() => onPageChange(number)}>{number}</Button>)}
+      </div>
+      <Button type="button" variant="outline" disabled={loading || page >= totalPages} onClick={() => onPageChange(page + 1)}>Next<ChevronRight className="ml-1 h-4 w-4" /></Button>
+      {totalPages > 12 && <label className="flex items-center gap-2 text-sm text-slate-600">Go to page
+        <Input type="number" min={1} max={totalPages} disabled={loading} key={page} defaultValue={page} className="w-24"
+          onKeyDown={(event) => { if (event.key === 'Enter') { const value = Number(event.currentTarget.value); if (Number.isInteger(value) && value >= 1 && value <= totalPages) onPageChange(value); } }} />
+      </label>}
+      <span className="w-full text-center text-xs text-slate-600" aria-live="polite">Page {page} of {totalPages}</span>
+    </nav>
+  );
+};
+
 const emptyBusinessMetrics = (): AdminBusinessMetrics => ({
+  netProfitCents: 0,
+  profitOrdersNeedingReview: 0,
   totalOrders: 0,
   grossSalesCents: 0,
   averageOrderValueCents: 0,
@@ -525,7 +551,7 @@ const AdminOrders: React.FC = () => {
   }, [page, pagination.totalPages]);
 
   const goToPage = (newPage: number) => {
-    setPage(newPage);
+    setPage(Math.min(pagination.totalPages, Math.max(1, newPage)));
     // Scroll to top of orders section
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -1289,13 +1315,14 @@ const AdminOrders: React.FC = () => {
               </div>
             )}
 
-            <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8" data-admin-period-metrics>
+            <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-9" data-admin-period-metrics>
               {[
                 { label: 'Total Orders', value: businessMetrics.totalOrders.toLocaleString() },
                 { label: 'Gross Sales', value: usd(businessMetrics.grossSalesCents / 100) },
                 { label: 'AOV', value: usd(businessMetrics.averageOrderValueCents / 100) },
                 { label: 'Recorded Refunds', value: usd(businessMetrics.recordedRefundsCents / 100) },
                 { label: 'Net Sales', value: usd(businessMetrics.netSalesCents / 100) },
+                { label: 'Net Profit', value: businessMetrics.netProfitCents == null ? 'Unavailable' : usd(businessMetrics.netProfitCents / 100) },
                 { label: 'New Customers', value: businessMetrics.newCustomers.toLocaleString(), href: '/admin/customers?segment=new' },
                 { label: 'Repeat Customers', value: businessMetrics.repeatCustomers.toLocaleString(), href: '/admin/customers?segment=repeat' },
                 { label: 'Repeat Rate', value: `${(businessMetrics.repeatRate * 100).toFixed(1)}%` },
@@ -1303,7 +1330,7 @@ const AdminOrders: React.FC = () => {
                 const content = (
                   <>
                     <p className="text-[11px] text-gray-600">{metric.label}</p>
-                    <p className="mt-1 break-words text-base font-bold text-gray-900">
+                    <p className={metric.label === 'Net Profit' ? 'mt-1 break-words text-xl font-extrabold text-green-700' : 'mt-1 break-words text-base font-bold text-gray-900'}>
                       {!reportReady || loading ? 'Loading…' : metric.value}
                     </p>
                     {metric.href && <p className="mt-1 text-[11px] font-semibold text-[#18448D]">View customers →</p>}
@@ -1329,6 +1356,11 @@ const AdminOrders: React.FC = () => {
               AOV is net sales divided by successful orders. A new customer placed their first successful lifetime order in this period; a repeat customer placed a successful period order after an earlier successful order. Customer counts use valid, normalized email addresses and omit generated guest/preview addresses.
             </p>
           </section>
+
+          <p className="-mt-5 mb-6 text-xs text-slate-600" data-admin-profit-note>
+            Net profit is estimated across the selected period using the same costs as each order: sales after discounts minus production and supplier shipping. Excludes tax, refunded orders, advertising and payment fees.
+            {Boolean(businessMetrics.profitOrdersNeedingReview) && <strong className="ml-1 text-amber-800">{businessMetrics.profitOrdersNeedingReview} orders need cost review and are excluded from this profit subtotal.</strong>}
+          </p>
 
           {/* Search */}
           <div className="mb-8 rounded-2xl bg-white p-6 shadow-lg">
@@ -1362,6 +1394,8 @@ const AdminOrders: React.FC = () => {
               </div>
             </div>
           </div>
+
+          <OrderPagination page={page} totalPages={pagination.totalPages} loading={loading} onPageChange={goToPage} position="top" />
 
           {/* Orders Table */}
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
@@ -1456,32 +1490,7 @@ const AdminOrders: React.FC = () => {
             )}
           </div>
 
-          {/* Pagination */}
-          {!loading && pagination.totalPages > 1 && (
-            <div className="flex items-center justify-between mt-6">
-              <Button
-                variant="outline"
-                onClick={() => goToPage(page - 1)}
-                disabled={page <= 1}
-                className="flex items-center gap-1"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Previous
-              </Button>
-              <span className="text-sm text-gray-600">
-                Page {page} of {pagination.totalPages}
-              </span>
-              <Button
-                variant="outline"
-                onClick={() => goToPage(page + 1)}
-                disabled={page >= pagination.totalPages}
-                className="flex items-center gap-1"
-              >
-                Next
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
+          <OrderPagination page={page} totalPages={pagination.totalPages} loading={loading} onPageChange={goToPage} position="bottom" />
         </div>
       </div>
     </Layout>

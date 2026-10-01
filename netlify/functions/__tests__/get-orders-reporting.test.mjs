@@ -33,7 +33,7 @@ test('Admin reporting request parsing bounds page, page size, search, and UTC pe
   }).error, /Invalid order reporting period/i);
 });
 
-test('page SQL admits only settled commerce lifecycles while exact business metrics stay search-independent and item-free', () => {
+test('page SQL admits only settled commerce lifecycles while business metrics stay search-independent with minimal profit inputs', () => {
   const pageQuery = _test.buildAdminPageQuery();
   const summaryQuery = _test.buildAdminSummaryQuery();
 
@@ -55,7 +55,7 @@ test('page SQL admits only settled commerce lifecycles while exact business metr
   assert.match(summaryQuery, /effective_status = 'refunded'/i);
   assert.match(summaryQuery, /gross_sales_cents - period_totals\.recorded_refunds_cents/i);
   assert.match(summaryQuery, /repeat_customers::double precision \/ customer_totals\.identified_customers/i);
-  assert.doesNotMatch(summaryQuery, /\$3|order_items|json_agg/i);
+  assert.doesNotMatch(summaryQuery, /\$3|file_key|overlay_image|text_elements/i);
 
   // A pending PayPal row with completed capture/reconciliation evidence is
   // promoted into the same successful lifecycle used by the existing Admin.
@@ -333,4 +333,36 @@ test('ordinary signed-in users cannot access Admin report SQL', async () => {
     if (originalDatabase === undefined) delete process.env.NETLIFY_DATABASE_URL;
     else process.env.NETLIFY_DATABASE_URL = originalDatabase;
   }
+});
+
+
+test('profit covers the full period beyond one page and excludes unpaid, refunded and test orders', async () => {
+  const { PGlite } = await import('@electric-sql/pglite');
+  const db = new PGlite();
+  try {
+    await db.exec(`CREATE TABLE profiles (id text PRIMARY KEY, email text);
+      CREATE TABLE orders (id text PRIMARY KEY, user_id text, created_at timestamptz, status text,
+        total_cents integer, subtotal_cents integer, is_test_order boolean DEFAULT false,
+        applied_discount_cents integer DEFAULT 200);
+      CREATE TABLE order_items (order_id text, material text, width_in integer, height_in integer,
+        quantity integer, line_total_cents integer);
+      INSERT INTO orders (id, created_at, status, total_cents, subtotal_cents)
+        SELECT 'paid-' || n, '2026-09-15'::timestamptz, 'paid', 6148, 5800 FROM generate_series(1,25) n;
+      INSERT INTO orders (id, created_at, status, total_cents, subtotal_cents, is_test_order) VALUES
+        ('refund', '2026-09-15', 'refunded', 6148, 5800, false),
+        ('pending', '2026-09-15', 'pending', 6148, 5800, false),
+        ('test', '2026-09-15', 'paid', 6148, 5800, true),
+        ('old', '2026-08-15', 'paid', 6148, 5800, false);
+      INSERT INTO order_items SELECT id, '13oz', 24, 36, 1, 6000 FROM orders;
+      INSERT INTO orders (id, created_at, status, total_cents, subtotal_cents)
+        VALUES ('missing-items', '2026-09-15', 'paid', 5000, 5000);`);
+    const result = await db.query(_test.buildAdminSummaryQuery(), ['2026-09-01T00:00:00Z', '2026-10-01T00:00:00Z']);
+    const summary = _test.normalizeAdminSummary(result.rows[0]);
+    assert.equal(summary.metrics.totalOrders, 26);
+    assert.equal(summary.metrics.netProfitCents, 25 * (6000 - 200 - 750 - 1000));
+    assert.equal(summary.metrics.profitOrdersNeedingReview, 1);
+    assert.equal(summary.profit_orders, undefined);
+    const empty = await db.query(_test.buildAdminSummaryQuery(), ['2027-01-01T00:00:00Z', '2027-02-01T00:00:00Z']);
+    assert.equal(_test.normalizeAdminSummary(empty.rows[0]).metrics.netProfitCents, 0);
+  } finally { await db.close(); }
 });
