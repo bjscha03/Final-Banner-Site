@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { Star } from 'lucide-react';
 import './GoogleReviewSpotlight.css';
 
-// Transcribed from the five Google review screenshots supplied by the owner.
+// Transcribed from the Google review screenshots supplied by the owner.
 // Ellipses identify excerpts; stars describe each review, not an aggregate rating.
 const reviews = [
+  { name: 'Alma Sanchez', text: 'Great quality for the price! Will be ordering again from this company.' },
+  { name: 'Greg Hood', text: 'Great quality banner supper fast to ship' },
   { name: 'Tasha Forrest', text: 'Delivered as quickly as stated. AWESOME BANNER! High Quality, should last years!' },
   { name: 'Nicole Tedesche', text: 'Both banners look amazing and super fast creating and shipping them Thank you very much I will be making more purchases' },
   { name: 'Ina M.', text: '…I have already shared this website to relatives and letting them know easy it was to order and fast delivery. …' },
