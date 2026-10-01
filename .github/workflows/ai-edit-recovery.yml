@@ -1,0 +1,42 @@
+name: AI edit recovery
+on:
+  pull_request:
+    paths:
+      - 'src/components/design/ai/**'
+      - 'src/components/design/CreateWithAIModal.tsx'
+      - 'netlify/functions/_shared/ai-designer/**'
+      - 'tests/browser/ai-edit-recovery*'
+      - 'playwright.preview.config.ts'
+      - '.github/workflows/ai-edit-recovery.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ai-edit-recovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Verify edit recovery and server validation
+        run: npx vitest run --config vitest.ai.config.ts src/components/design/ai/AIWorkspace.test.tsx src/components/design/ai/editBrief.test.ts src/components/design/ai/jobRequest.test.ts netlify/functions/__tests__/ai-designer.test.mjs netlify/functions/__tests__/ai-designer-branding.test.mjs netlify/functions/__tests__/ai-designer-progress.test.mjs
+      - name: Lint changed AI and browser files
+        run: npx eslint src/components/design/ai/AIWorkspace.tsx src/components/design/ai/AIWorkspace.test.tsx src/components/design/ai/editBrief.ts src/components/design/ai/editBrief.test.ts tests/browser/ai-edit-recovery.tsx tests/browser/ai-edit-recovery.playwright.spec.ts playwright.preview.config.ts
+      - name: Verify desktop and Android-sized browser recovery
+        run: |
+          browser=$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)
+          test -n "$browser"
+          PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="$browser" npx playwright test tests/browser/ai-edit-recovery.playwright.spec.ts --config=playwright.preview.config.ts --project=chromium-1440x900 --project=chromium-pixel8-portrait
+      - name: Build production assets
+        run: npm run build
+      - name: Save browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-edit-recovery-browser-evidence
+          path: test-results
+          retention-days: 7

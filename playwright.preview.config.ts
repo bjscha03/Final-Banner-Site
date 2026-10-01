@@ -16,6 +16,7 @@ export default defineConfig({
     'admin-review-request.playwright.spec.ts',
     'admin-commerce-analytics.playwright.spec.ts',
     'ai-admin-entry.playwright.spec.ts',
+    'ai-edit-recovery.playwright.spec.ts',
     'admin-sales-foundation.playwright.ts',
     'tracking-isolation.playwright.spec.ts',
     'cart-short-viewport.playwright.spec.ts',
