@@ -1,6 +1,6 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Hand, Lock, Maximize2, Minimize2, RotateCcw, Unlock } from 'lucide-react';
+import { Hand, Lock, Maximize2, Minimize2, Minus, Plus, RotateCcw, Unlock } from 'lucide-react';
 import { getPreviewCrossOrigin, resolveArtworkPreviewImageSrc } from './artworkPreviewSource';
 import {
   PreviewLifecycleError,
@@ -490,6 +490,8 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
   const startResize = useCallback((corner: Corner) => (event: React.PointerEvent) => {
     event.preventDefault();
     event.stopPropagation();
+    // Keep receiving movement when a corner passes outside the clipped canvas.
+    try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* no-op */ }
     const baseW = containedRect?.w || canvasSizeRef.current?.w || 1;
     const baseH = containedRect?.h || canvasSizeRef.current?.h || 1;
     resizeRef.current = {
@@ -616,6 +618,19 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
     }
   }, [constrain, onConstrainChange, commitTransform]);
 
+  const zoom = useCallback((factor: number) => {
+    const current = localValueRef.current;
+    // Use one bounded ratio for both axes, including intentionally stretched art.
+    const ratio = clamp(factor,
+      Math.max(MIN_SCALE / current.scaleX, MIN_SCALE / current.scaleY),
+      Math.min(MAX_SCALE / current.scaleX, MAX_SCALE / current.scaleY));
+    commitTransform({ ...current, scaleX: current.scaleX * ratio, scaleY: current.scaleY * ratio });
+  }, [commitTransform]);
+
+  const center = useCallback(() => {
+    commitTransform({ ...localValueRef.current, x: 0, y: 0 });
+  }, [commitTransform]);
+
   const toolbar = (
     <div
       data-artwork-toolbar="true"
@@ -629,7 +644,13 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
       </div>}
       <div className="mb-3 flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-slate-700 sm:hidden">
         <Hand aria-hidden="true" className="h-5 w-5 shrink-0" />
-        <div><p className="text-sm font-semibold">Pinch to zoom · Drag to move</p><p className="text-xs">Use two fingers on your artwork to zoom.</p></div>
+        <div><p className="text-sm font-semibold">Drag artwork to move it</p><p className="text-xs">Use − / + below to resize, or pinch on the artwork.</p></div>
+      </div>
+      <div className="mb-3 flex items-center justify-center gap-2" aria-label="Artwork size and position">
+        <button type="button" aria-label="Zoom out artwork" onClick={() => zoom(1 / 1.1)} disabled={Math.min(localValue.scaleX, localValue.scaleY) <= MIN_SCALE + 0.001} className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-slate-300 text-slate-800 disabled:opacity-40"><Minus aria-hidden="true" className="h-5 w-5" /></button>
+        <output aria-label="Artwork zoom" className="min-w-14 text-center text-sm font-semibold tabular-nums">{Math.round(localValue.scaleX * 100)}%</output>
+        <button type="button" aria-label="Zoom in artwork" onClick={() => zoom(1.1)} disabled={Math.max(localValue.scaleX, localValue.scaleY) >= MAX_SCALE - 0.001} className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-slate-300 text-slate-800 disabled:opacity-40"><Plus aria-hidden="true" className="h-5 w-5" /></button>
+        <button type="button" onClick={center} className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-medium text-slate-700">Center artwork</button>
       </div>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -648,6 +669,9 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
           {constrain ? 'Unlock free resize' : 'Lock proportions'}
         </button>
       </div>
+      <p className="mt-2 text-center text-xs leading-relaxed text-slate-500">
+        Fit shows the whole image and may leave white space. Fill covers the banner and may crop the edges.
+      </p>
       <p className="mt-2 text-center text-xs leading-relaxed text-slate-500">
         {constrain ? 'Want to stretch it? Unlock, then drag a corner.' : 'Drag a corner to adjust width and height freely.'}
       </p>

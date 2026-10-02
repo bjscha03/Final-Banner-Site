@@ -174,3 +174,63 @@ describe('banner size change review', () => {
     }
   });
 });
+
+describe('artwork adjustments when Fill hides the corner handles', () => {
+  it('can zoom out, center and restore the entire image without touching a clipped corner', async () => {
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+    vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+    const bounds = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 300, height: 150, x: 0, y: 0, left: 0, top: 0, right: 300, bottom: 150, toJSON() {},
+    });
+    const host = document.createElement('div');
+    const slot = document.createElement('div');
+    document.body.append(host, slot);
+    const root = createRoot(host);
+    const originalElementFromPoint = document.elementFromPoint;
+    document.elementFromPoint = () => host.querySelector('img');
+    const editorRef = React.createRef<import('../ArtworkPreviewEditor').ArtworkPreviewEditorHandle>();
+    function Harness() {
+      const [value, setValue] = useState({ x: 0, y: 0, scaleX: 1, scaleY: 1 });
+      return React.createElement(ArtworkPreviewEditor, {
+        ref: editorRef, src: 'clipped-corners-regression.png', paddingPct: '50%', value,
+        onChange: setValue, constrain: true, onConstrainChange: vi.fn(), mobileToolbarContainer: slot,
+      });
+    }
+    const button = (name: string) => Array.from(slot.querySelectorAll('button')).find(
+      b => b.getAttribute('aria-label') === name || b.textContent === name,
+    )!;
+    try {
+      await act(async () => root.render(React.createElement(Harness)));
+      const img = host.querySelector('img')!;
+      Object.defineProperties(img, { complete: { value: true }, naturalWidth: { value: 1600 }, naturalHeight: { value: 600 } });
+      await act(async () => img.dispatchEvent(new Event('load')));
+      const frame = img.parentElement!;
+      await act(async () => button('Fill').click());
+      expect(parseFloat(frame.style.left)).toBeLessThan(0);
+      expect(parseFloat(frame.style.width)).toBeCloseTo(400);
+      const filledScale = editorRef.current!.getCompositionSnapshot().transform.scaleX;
+      await act(async () => button('Zoom out artwork').click());
+      expect(parseFloat(frame.style.width)).toBeLessThan(400);
+      expect(editorRef.current!.getCompositionSnapshot().transform.scaleX).toBeLessThan(filledScale);
+      await act(async () => button('Zoom in artwork').click());
+      expect(parseFloat(frame.style.width)).toBeCloseTo(400);
+      await act(async () => button('Center artwork').click());
+      expect(editorRef.current!.getCompositionSnapshot().transform.xPct).toBe(0);
+      await act(async () => button('Fit').click());
+      expect(parseFloat(frame.style.left)).toBeCloseTo(0);
+      expect(parseFloat(frame.style.width)).toBeCloseTo(300);
+      expect(parseFloat(frame.style.height)).toBeCloseTo(112.5);
+      const corner = host.querySelector('[data-handle="br"]')! as HTMLElement;
+      const capture = vi.fn();
+      corner.setPointerCapture = capture;
+      const down = new MouseEvent('pointerdown', { bubbles: true, clientX: 300, clientY: 130 });
+      Object.defineProperty(down, 'pointerId', { value: 17 });
+      await act(async () => corner.dispatchEvent(down));
+      expect(capture).toHaveBeenCalledWith(17);
+    } finally {
+      await act(async () => root.unmount());
+      host.remove(); slot.remove(); bounds.mockRestore(); vi.unstubAllGlobals();
+      document.elementFromPoint = originalElementFromPoint;
+    }
+  });
+});
