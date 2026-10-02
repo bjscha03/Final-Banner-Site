@@ -856,7 +856,10 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
               <div className="mt-6 bg-gradient-to-br from-emerald-50 to-emerald-100 border-2 border-emerald-200 rounded-xl p-6 shadow-sm">
                 <h3 className="text-lg font-bold text-emerald-800 mb-4">Profit Estimate</h3>
                 {profit.needsReview ? (
-                  <div className="inline-flex rounded bg-amber-100 px-2 py-1 text-sm font-semibold text-amber-800">Needs review</div>
+                  <div className="rounded bg-amber-100 px-2 py-1 text-sm text-amber-800">
+                    <div className="font-semibold">Needs review</div>
+                    {profit.reviewReasons.map((reason) => <div key={reason}>{reason}</div>)}
+                  </div>
                 ) : (
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between"><span>Original Subtotal</span><span className="font-semibold">{usd(profit.originalSubtotalCents / 100)}</span></div>

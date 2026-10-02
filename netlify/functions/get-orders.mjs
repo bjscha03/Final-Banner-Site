@@ -243,7 +243,12 @@ const buildAdminSummaryQuery = () => `${orderBaseCteSql()},
                      'grommets', to_jsonb(oi)->'grommets',
                      'pole_pockets', to_jsonb(oi)->'pole_pockets',
                      'pole_pocket_position', to_jsonb(oi)->'pole_pocket_position',
-                     'rope_feet', to_jsonb(oi)->'rope_feet'
+                     'rope_feet', to_jsonb(oi)->'rope_feet',
+                     'rope_pricing_mode', to_jsonb(oi)->'rope_pricing_mode',
+                     'yard_sign_sidedness', to_jsonb(oi)->'yard_sign_sidedness',
+                     'yard_sign_step_stakes_enabled', to_jsonb(oi)->'yard_sign_step_stakes_enabled',
+                     'yard_sign_step_stakes_qty', to_jsonb(oi)->'yard_sign_step_stakes_qty',
+                     'yard_sign_stakes_subtotal_cents', to_jsonb(oi)->'yard_sign_stakes_subtotal_cents'
                )) FROM order_items oi WHERE oi.order_id = o.id), '[]'::jsonb) AS items
         FROM period_successful p
         JOIN orders o ON o.id::text = p.id
@@ -379,7 +384,8 @@ const buildAdminHydrationQuery = () => `
                  LEFT(to_jsonb(oi)->>'product_type', 100) AS product_type,
                  LEFT(to_jsonb(oi)->>'grommets', 100) AS grommets,
                  LEFT(to_jsonb(oi)->>'rounded_corners', 100) AS rounded_corners,
-                 COALESCE((to_jsonb(oi)->>'rope_feet')::integer, 0) AS rope_feet,
+                 COALESCE((to_jsonb(oi)->>'rope_feet')::numeric, 0) AS rope_feet,
+                 LEFT(to_jsonb(oi)->>'rope_pricing_mode', 100) AS rope_pricing_mode,
                  LEFT(to_jsonb(oi)->>'pole_pockets', 100) AS pole_pockets,
                  LEFT(to_jsonb(oi)->>'pole_pocket_position', 100) AS pole_pocket_position,
                  LEFT(to_jsonb(oi)->>'pole_pocket_size', 100) AS pole_pocket_size,
