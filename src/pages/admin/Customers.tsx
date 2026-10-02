@@ -587,6 +587,7 @@ const AdminCustomers: React.FC = () => {
             </div>
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" onClick={() => navigate('/admin/abandoned-carts')}>Abandoned Carts</Button>
+              <Button variant="outline" onClick={() => navigate('/admin/blog-leads')}>Blog Leads</Button>
               <Button variant="outline" onClick={() => navigate('/admin/orders')}>
                 <ArrowLeft className="mr-2 h-4 w-4" /> Orders
               </Button>
