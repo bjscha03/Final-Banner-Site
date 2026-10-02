@@ -1577,7 +1577,6 @@ const Design: React.FC = () => {
 
   useEffect(() => {
     if (!pendingAIArtworkScrollRef.current || !uploadedFile || aiModalOpen) return;
-    pendingAIArtworkScrollRef.current = false;
 
     // Two animation frames allow the upload card to switch from the uploader
     // to the live preview and finish measuring its responsive canvas.
@@ -1586,7 +1585,8 @@ const Design: React.FC = () => {
       secondFrame = window.requestAnimationFrame(() => {
         const preview = document.getElementById('ai-artwork-preview');
         if (!preview) return;
-        preview.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        pendingAIArtworkScrollRef.current = false;
+        preview.scrollIntoView({ behavior: 'instant', block: 'start' });
         preview.focus({ preventScroll: true });
       });
     });

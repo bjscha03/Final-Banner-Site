@@ -115,6 +115,15 @@ afterEach(async () => {
 });
 
 describe('customer AI version selection and handoff', () => {
+  it('continues with flagged artwork directly without a warning confirmation', async () => {
+    const artwork = concept(1);
+    artwork.validation = { ...artwork.validation, passed: false, reasons: ['Possible extra wording'] };
+    await mount(session(artwork));
+    await click('Use selected version & continue');
+    expect(generated).toHaveBeenCalledWith(expect.objectContaining({ imageBase64: artwork.imageBase64 }));
+    expect(closed).toHaveBeenCalledOnce();
+    expect(document.body.textContent).not.toContain('Use this banner anyway?');
+  });
   it('completes three edits from the latest source and continues with the third edited image', async () => {
     await mount(session());
     await edit('First edit'); await edit('Second edit'); await edit('Third edit');
