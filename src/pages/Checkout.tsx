@@ -26,6 +26,7 @@ import BannerPreview from '@/components/cart/BannerPreview';
 import ThumbnailPreviewWrapper from '@/components/preview/ThumbnailPreviewWrapper';
 import CheckoutOrderTotals, { type CheckoutOrderTotalsProps } from '@/components/checkout/CheckoutOrderTotals';
 import CheckoutReviewDialog from '@/components/checkout/CheckoutReviewDialog';
+import CheckoutArtworkSummary from '@/components/checkout/CheckoutArtworkSummary';
 import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
 import DeliveryTimer from '@/components/delivery/DeliveryTimer';
 import { trackBeginCheckout, trackViewCart, trackFBInitiateCheckout } from '@/lib/analytics';
@@ -1184,23 +1185,24 @@ const Checkout: React.FC = () => {
       <div className="min-h-[calc(100vh-4rem)] bg-[#F7F7F7] py-5 sm:py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
-          <div className="mb-6 sm:mb-10">
+          <div className="mb-4 sm:mb-10">
             <Button
               variant="ghost"
               onClick={() => { if (!checkoutLocked) { const returnTo = location.state?.returnTo; const saved = items.find(item => cartEditUrl(item) === returnTo) || items[items.length - 1]; navigate(saved ? cartEditUrl(saved) : (isFromGoogleAds ? "/google-ads-banner" : "/design")); } }}
               disabled={checkoutLocked}
-              className="mb-6 hover:bg-gray-100 transition-colors"
+              className="mb-3 hover:bg-gray-100 transition-colors sm:mb-6"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to designer
             </Button>
-            <div className="text-center mb-8">
+            <div className="text-center sm:mb-8">
               <div className="mb-3 inline-flex items-center gap-2 border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
                 <span>Design</span><span>→</span><span className="text-[#18448D]">Checkout</span><span>→</span><span>Complete</span>
               </div>
               <h1 className="mb-2 font-display text-3xl font-bold tracking-[-0.035em] text-[#0B1F3A] sm:text-4xl">Secure checkout</h1>
-              <p className="text-base text-gray-600">Most standard orders are produced within 24 hours; free next-day air begins after production.</p>
-              <p className="text-sm text-[#18448D] font-medium">Your expected shipping and delivery dates are shown below.</p>
+              <p className="text-sm text-gray-600 sm:hidden">Your design is below. Add your details to complete your order.</p>
+              <p className="hidden text-base text-gray-600 sm:block">Most standard orders are produced within 24 hours; free next-day air begins after production.</p>
+              <p className="hidden text-sm text-[#18448D] font-medium sm:block">Your expected shipping and delivery dates are shown below.</p>
             </div>
 
           </div>
@@ -1273,14 +1275,12 @@ const Checkout: React.FC = () => {
             )}
             {/* Payment */}
             <div className="w-full space-y-4 lg:space-y-6">
-              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm lg:hidden">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                    {items.length} {items.length === 1 ? 'item' : 'items'}
-                  </p>
-                  <p className="text-lg font-bold text-[#0B1F3A]">{usd(totalCents / 100)} total</p>
-                </div>
-                <CheckoutReviewDialog>{orderReviewContent}</CheckoutReviewDialog>
+              <div className="lg:hidden">
+                <CheckoutArtworkSummary
+                  items={items}
+                  totalCents={totalCents}
+                  editAction={<CheckoutReviewDialog label="Edit order">{orderReviewContent}</CheckoutReviewDialog>}
+                />
               </div>
               <div className="rounded-xl border border-slate-200 bg-white px-4 pb-4">
                 {/* Discount Code Section */}

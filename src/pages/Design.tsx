@@ -2709,11 +2709,11 @@ const Design: React.FC = () => {
   } = (() => {
     if (isProcessingUpsell) {
       return {
-        label: 'Preparing exact preview…',
+        label: 'Saving your design…',
         onClick: undefined,
         disabled: true,
         loading: true,
-        helper: 'Verifying the permanent customer-approved composition.',
+        helper: 'Your artwork and layout will carry through to checkout.',
       };
     }
     // Post-add-to-cart success state — applies to ALL product types. The
@@ -3589,7 +3589,7 @@ const Design: React.FC = () => {
 
               <button onClick={handleCheckout} disabled={!uploadedFile || !hasCommittedBannerSize || isUploading || isProcessingUpsell} className={`group w-full font-bold text-lg py-5 rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${uploadedFile && hasCommittedBannerSize && !isUploading && !isProcessingUpsell ? 'bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white cursor-pointer shadow-orange-500/30' : 'bg-orange-300 text-white/80 cursor-not-allowed'}`}>
                 <Lock className="h-4 w-4" aria-hidden="true" />
-                {isProcessingUpsell ? 'Preparing exact preview…' : 'Checkout securely'}
+                {isProcessingUpsell ? 'Saving your design…' : 'Checkout securely'}
                 <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
               </button>
               <button
@@ -3601,7 +3601,7 @@ const Design: React.FC = () => {
                     : 'border-slate-200 text-slate-400 cursor-not-allowed'
                 }`}
               >
-                {isProcessingUpsell ? 'Preparing exact preview…' : 'Add to Cart'}
+                {isProcessingUpsell ? 'Saving your design…' : 'Add to Cart'}
               </button>
               {/* Friday shipping badge */}
               <div className="flex items-center justify-center gap-2 mt-3 py-2 px-3 bg-blue-50 border border-blue-200 rounded-lg">
