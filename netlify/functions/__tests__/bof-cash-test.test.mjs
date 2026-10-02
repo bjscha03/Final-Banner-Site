@@ -21,7 +21,7 @@ const invitation = async (email = TESTER) => {
 };
 beforeAll(async () => {
   db = new PGlite();
-  await db.exec(`CREATE TABLE profiles(id uuid PRIMARY KEY,email text UNIQUE,full_name text,username text,is_admin boolean DEFAULT false,email_verified boolean DEFAULT false,created_at timestamptz DEFAULT now(),updated_at timestamptz);
+  await db.exec(`CREATE TABLE profiles(id uuid PRIMARY KEY,email varchar(255) UNIQUE,full_name varchar(255),username varchar(255),is_admin boolean DEFAULT false,email_verified boolean DEFAULT false,created_at timestamptz DEFAULT now(),updated_at timestamptz);
     CREATE TABLE orders(id uuid PRIMARY KEY,user_id uuid REFERENCES profiles(id),email text,status text,subtotal_cents integer NOT NULL,tax_cents integer NOT NULL,total_cents integer NOT NULL,is_test_order boolean DEFAULT false,payment_reconciliation_status text,checkout_idempotency_key text,paypal_capture_id text,paypal_order_id text,stripe_payment_intent_id text,created_at timestamptz DEFAULT now());`);
   await db.exec(await readFile(new URL("../../../migrations/045_bof_referral_program.sql", import.meta.url), "utf8"));
 }, 30000);
@@ -132,6 +132,9 @@ describe("isolated owner BOF test", () => {
     expect(html).not.toContain("bof_referral_v1");
     expect(html).not.toContain("/checkout");
     expect(html).not.toContain(claim.data.sessionToken);
+    const publicRoute = await handler(new Request(`https://bannersonthefly.com/bof-cash-test/share/${data.code}`));
+    expect(publicRoute.status).toBe(200);
+    expect(await publicRoute.text()).toContain(`BOF Cash TEST · ${data.code}`);
   });
 
   it("supports only the configured test preview origin and strips injected public code text", async () => {

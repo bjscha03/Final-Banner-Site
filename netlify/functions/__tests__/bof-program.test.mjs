@@ -100,7 +100,7 @@ const quote = async (member, amount, hash = "cart") => {
 
 beforeAll(async () => {
   db = new PGlite();
-  await db.exec(`CREATE TABLE profiles(id uuid PRIMARY KEY,email text UNIQUE,full_name text,username text,is_admin boolean DEFAULT false,email_verified boolean DEFAULT false,created_at timestamptz DEFAULT now(),updated_at timestamptz);
+  await db.exec(`CREATE TABLE profiles(id uuid PRIMARY KEY,email varchar(255) UNIQUE,full_name varchar(255),username varchar(255),is_admin boolean DEFAULT false,email_verified boolean DEFAULT false,created_at timestamptz DEFAULT now(),updated_at timestamptz);
 CREATE TABLE orders(id uuid PRIMARY KEY,user_id uuid REFERENCES profiles(id),email text,status text,total_cents integer,is_test_order boolean DEFAULT false,payment_reconciliation_status text,checkout_idempotency_key text,paypal_capture_id text,paypal_order_id text,stripe_payment_intent_id text,created_at timestamptz DEFAULT now());`);
   await db.exec(
     await readFile(

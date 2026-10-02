@@ -220,7 +220,7 @@ BEGIN
   INSERT INTO bof_members(user_id,code) VALUES(person.id,p_member_code) ON CONFLICT(user_id) DO NOTHING;
   UPDATE orders o SET user_id=person.id WHERE o.user_id IS NULL AND lower(btrim(o.email))=invite.email;
   UPDATE bof_invitations SET claimed_at=now() WHERE bof_invitations.email=invite.email AND claimed_at IS NULL;
-  RETURN QUERY SELECT person.id,person.email,person.full_name,person.username,false;
+  RETURN QUERY SELECT person.id,person.email::text,person.full_name::text,person.username::text,false;
 END $$;
 
 ALTER TABLE bof_order_benefits ADD COLUMN IF NOT EXISTS capture_started_at timestamptz;

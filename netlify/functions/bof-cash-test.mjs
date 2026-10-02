@@ -67,7 +67,11 @@ function sharePage(code, origin) {
 }
 export default async function handler(request) {
   try {
-    const url = new URL(request.url), action = url.searchParams.get("action") || "wallet";
+    const url = new URL(request.url);
+    // Modern Netlify functions can retain the original public URL rather than
+    // the rewrite target's query string. Support that canonical share route.
+    const pathCode = url.pathname.match(/^\/bof-cash-test\/share\/([^/]+)\/?$/)?.[1];
+    const action = pathCode ? "share" : url.searchParams.get("action") || "wallet";
     if (!["GET", "POST", "HEAD"].includes(request.method)) return json(405, { error: "Method not allowed." });
     const origin = request.headers.get("origin");
     if (request.method === "POST" && origin && origin !== url.origin) return json(403, { error: "Open this test on the BOF website." });
@@ -78,7 +82,7 @@ export default async function handler(request) {
     const branch = await sql`SELECT current_setting('neon.branch_id',true) AS branch_id`;
     if (branch[0]?.branch_id !== BRANCH) return json(503, { error: "The isolated test database could not be verified." });
     if (action === "share") {
-      const code = url.searchParams.get("code") || "";
+      const code = pathCode || url.searchParams.get("code") || "";
       if (!CODE.test(code)) return json(404, { error: "Test referral not found." });
       const member = await sql`SELECT 1 FROM bof_members m JOIN profiles p ON p.id=m.user_id WHERE m.code=${code.slice(7)} AND m.enabled AND lower(btrim(p.email))=${TESTER} LIMIT 1`;
       if (!member.length) return json(404, { error: "Test referral not found." });
