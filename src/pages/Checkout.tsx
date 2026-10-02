@@ -24,6 +24,7 @@ import { emailApi } from '@/lib/api';
 import { CartItem } from '@/store/cart';
 import BannerPreview from '@/components/cart/BannerPreview';
 import ThumbnailPreviewWrapper from '@/components/preview/ThumbnailPreviewWrapper';
+import RealisticBannerPreview from '@/components/preview/RealisticBannerPreview';
 import CheckoutOrderTotals, { type CheckoutOrderTotalsProps } from '@/components/checkout/CheckoutOrderTotals';
 import CheckoutReviewDialog from '@/components/checkout/CheckoutReviewDialog';
 import CheckoutArtworkSummary from '@/components/checkout/CheckoutArtworkSummary';
@@ -951,7 +952,7 @@ const Checkout: React.FC = () => {
                             </ThumbnailPreviewWrapper>
                           </div>
                         ) : (
-                          <div className="flex justify-center shrink-0">
+                          <div className="flex shrink-0 flex-col items-center gap-4">
                             <ThumbnailPreviewWrapper
                               title={getItemDisplayName(item)}
                               widthIn={item.width_in}
@@ -1011,6 +1012,7 @@ const Checkout: React.FC = () => {
                                 compositionSignature={compositionSignature}
                               />
                             </ThumbnailPreviewWrapper>
+                            <RealisticBannerPreview item={item} />
                           </div>
                         )}
 

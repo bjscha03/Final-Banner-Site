@@ -2,6 +2,7 @@ import React from 'react';
 import type { CartItem } from '@/store/cart';
 import BannerPreview from '@/components/cart/StableBannerPreview';
 import ThumbnailPreviewWrapper from '@/components/preview/StableThumbnailPreviewWrapper';
+import RealisticBannerPreview from '@/components/preview/RealisticBannerPreview';
 import { getSmallPreviewSelection, getExpandedPreviewSelection } from '@/lib/previewSelection';
 import { getGrommetModeForPreview } from '@/lib/cartGrommet';
 import { getItemDisplayName, normalizeOrderItemDisplay } from '@/lib/product-display';
@@ -64,6 +65,7 @@ export default function CheckoutArtworkSummary({ items, totalCents, editAction }
                   <BannerPreview {...previewProps} imageUrl={small.url} isFinalizedSnapshot={small.isExactComposition} maxSize={240} />
                 </ThumbnailPreviewWrapper>
               </div>
+              <div className="mt-3 flex justify-center"><RealisticBannerPreview item={item} /></div>
               <h3 className="mt-3 text-sm font-semibold text-[#0B1F3A]">{title}</h3>
               <p className="mt-1 text-sm text-slate-600">{details.sizeDisplay} · Qty {details.qtyDisplay} · {details.materialDisplay}</p>
             </div>
