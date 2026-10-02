@@ -300,6 +300,53 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
       },
     ],
   },
+  {
+    id: 'holiday-events-2026',
+    status: 'ready',
+    tier: 1,
+    priority: 94,
+    startDate: '2026-11-15',
+    endDate: '2026-12-23',
+    eyebrow: 'Christmas events · Holiday programs · Winter promotions',
+    headline: 'Bring every holiday gathering into view.',
+    description:
+      'Welcome guests, share event times, and guide holiday traffic with bright custom banners and yard signs.',
+    primaryCta: { label: 'Design holiday signage', href: '/design' },
+    secondaryCta: { label: 'Explore vinyl banners', href: '/vinyl-banners' },
+    valueProps: ['24-hour standard production', 'Free next-day air after production', 'Live print preview'],
+    artwork: {
+      desktopSrc: '/images/seasonal-holiday-events-2026-desktop.webp',
+      desktopWidth: 1400,
+      desktopHeight: 875,
+      mobileSrc: '/images/seasonal-holiday-events-2026-mobile.webp',
+      mobileWidth: 900,
+      mobileHeight: 1125,
+      alt: 'Cedar and Bell Community Arts Center Winter Lights Festival vinyl banner securely mounted to an outdoor railing',
+    },
+    merchandising: [
+      {
+        icon: 'calendar',
+        title: 'Festivals & holiday programs',
+        description: 'Put the event name, date, and time where guests can understand the plan before they arrive.',
+        label: 'Create an event banner',
+        href: '/design',
+      },
+      {
+        icon: 'heart',
+        title: 'Services, concerts & school events',
+        description: 'Share schedules and welcoming messages with signage designed to stay readable from the street.',
+        label: 'Shop vinyl banners',
+        href: '/vinyl-banners',
+      },
+      {
+        icon: 'map',
+        title: 'Parking, entrances & pickup',
+        description: 'Guide guests, deliveries, and seasonal traffic with matching entrance and directional yard signs.',
+        label: 'Shop yard signs',
+        href: '/yard-signs',
+      },
+    ],
+  },
 ];
 
 export function getCampaignDateIso(date = new Date()): string {
