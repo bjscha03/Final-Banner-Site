@@ -4,6 +4,7 @@ import { useAuth } from '../lib/auth';
 import { getOrdersAdapter } from '../lib/orders/adapter';
 import { Order } from '../lib/orders/types';
 import Layout from '@/components/Layout';
+import BOFAccountCard from '@/components/BOFAccountCard';
 import OrdersTable from '@/components/orders/OrdersTable';
 import ScrollToTopLink from '@/components/ScrollToTopLink';
 import { Button } from '@/components/ui/button';
@@ -263,6 +264,8 @@ const MyOrders: React.FC = () => {
               </div>
             </div>
           </div>
+
+          <BOFAccountCard userId={user.id} />
 
           {/* Account Info */}
           <div className="bg-white rounded-lg shadow-sm p-6 mb-8">

@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { Copy, Gift, Share2, Wallet, ArrowRight } from "lucide-react";
+import { Gift, Wallet, ArrowRight } from "lucide-react";
 import Layout from "@/components/Layout";
 import BOFCashTerms from "@/components/BOFCashTerms";
+import BOFReferralShare from "@/components/BOFReferralShare";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth";
@@ -37,6 +38,13 @@ export default function BOFCash() {
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(""),
     [error, setError] = useState("");
+  const [shareChannel] = useState(() =>
+    new URLSearchParams(window.location.search).get("share"),
+  );
+  useEffect(() => {
+    if (wallet?.joined && shareChannel)
+      document.getElementById("share")?.scrollIntoView({ block: "start" });
+  }, [wallet?.joined, shareChannel]);
   const [claimToken] = useState(() =>
     new URLSearchParams(window.location.hash.slice(1)).get("claim"),
   );
@@ -79,18 +87,15 @@ export default function BOFCash() {
       setBusy(false);
     }
   };
-  const link = wallet?.code
-    ? `https://bannersonthefly.com/refer/${wallet.code}`
-    : "";
-  const shareText =
-    "Need banners, yard signs, or car magnets? My BOF referral link gives eligible first orders savings of up to $25. I earn BOF Cash if your order qualifies.";
   const claim = () =>
     act(async () => {
       const result = await bofRequest("claim", { token: claimToken });
       setServerSessionToken(result.sessionToken);
       safeStorage.setItem("banners_current_user", JSON.stringify(result.user));
       window.dispatchEvent(new Event("user-changed"));
-      setMessage("Your BOF Cash account is ready.");
+      setMessage(
+        "Your referral link is ready. Share it below to start earning BOF Cash.",
+      );
       setWallet(await bofRequest("wallet"));
     });
   const publicValid = !!publicCode && /^BOFREF-[A-F0-9]{12}$/.test(publicCode);
@@ -102,14 +107,18 @@ export default function BOFCash() {
         <meta name="referrer" content="no-referrer" />
       </Helmet>
       <main className="max-w-4xl mx-auto px-4 py-10 sm:py-16">
-        <div className="rounded-3xl bg-[#18448D] p-7 sm:p-10 text-white">
+        <div
+          className={`rounded-3xl bg-[#122641] text-white ${wallet?.joined && !publicCode ? "p-6 sm:p-7" : "p-7 sm:p-10"}`}
+        >
           <div className="flex items-center gap-2 text-orange-200 font-semibold">
             <Gift size={22} /> BOF CASH
           </div>
           <h1 className="mt-4 text-3xl sm:text-4xl font-bold">
             {publicCode
               ? "A little help with your next big idea."
-              : "Good things are worth sharing."}
+              : wallet?.joined
+                ? "Your BOF Cash."
+                : "Good things are worth sharing."}
           </h1>
           <p className="mt-4 max-w-2xl text-blue-100 text-lg">
             {publicCode
@@ -186,78 +195,87 @@ export default function BOFCash() {
             )}
           </section>
         )}
-        {enabled && !publicCode && !wallet?.joined && (
-          <section className="my-6 rounded-2xl border bg-white p-6 sm:p-8">
-            <h2 className="text-xl font-bold">
-              {claimToken
-                ? "Activate your BOF Cash"
-                : "One account. All your BOF Cash."}
-            </h2>
-            <p className="mt-2 mb-5 text-slate-600">
-              Use the email from your order. We'll connect your past purchases,
-              even if you checked out as a guest.
-            </p>
-            {claimToken && (
-              <Button
-                disabled={busy}
-                onClick={claim}
-                className="mb-5 bg-orange-600 hover:bg-orange-700"
-              >
-                {busy
-                  ? "Opening your account…"
-                  : "Activate and open my account"}
-              </Button>
-            )}
-            {user && !claimToken && (
-              <Button
-                disabled={busy}
-                onClick={() =>
-                  act(async () => {
-                    await bofRequest("join", {});
-                    await load();
-                  })
-                }
-              >
-                Activate my BOF Cash
-              </Button>
-            )}
-            <form
-              className="max-w-md space-y-3"
-              onSubmit={(e) => {
-                e.preventDefault();
-                act(async () => {
-                  const result = await bofRequest("request-link", { email });
-                  setMessage(result.message);
-                });
-              }}
-            >
-              <label htmlFor="bof-email" className="block font-medium">
-                {claimToken ? "Need a fresh link?" : "Order email address"}
-              </label>
-              <Input
-                id="bof-email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-              />
-              <Button
-                disabled={busy}
-                type="submit"
-                variant={claimToken ? "outline" : "default"}
-              >
-                Email me a secure link
-              </Button>
-            </form>
-            <p className="mt-4 text-xs text-slate-500">
-              No password needed. Activating accepts the BOF Cash terms below.
-            </p>
-          </section>
-        )}
+        {enabled &&
+          !publicCode &&
+          !wallet?.joined &&
+          (!user || claimToken || wallet !== null) && (
+            <section className="my-6 rounded-2xl border bg-white p-6 sm:p-8">
+              <h2 className="text-xl font-bold">
+                {claimToken
+                  ? "Get your personal referral link"
+                  : "One account. All your BOF Cash."}
+              </h2>
+              <p className="mt-2 mb-5 text-slate-600">
+                Use the email from your order. We'll connect your past
+                purchases, even if you checked out as a guest. After activation,
+                you’ll see your own link, code, and sharing buttons.
+              </p>
+              {claimToken && (
+                <Button
+                  disabled={busy}
+                  onClick={claim}
+                  className="mb-5 bg-orange-600 hover:bg-orange-700"
+                >
+                  {busy
+                    ? "Opening your account…"
+                    : "Activate and get my referral link"}
+                </Button>
+              )}
+              {user && !claimToken && (
+                <Button
+                  disabled={busy}
+                  onClick={() =>
+                    act(async () => {
+                      await bofRequest("join", {});
+                      await load();
+                    })
+                  }
+                >
+                  Activate and get my referral link
+                </Button>
+              )}
+              {(!user || claimToken) && (
+                <form
+                  className="max-w-md space-y-3"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    act(async () => {
+                      const result = await bofRequest("request-link", {
+                        email,
+                      });
+                      setMessage(result.message);
+                    });
+                  }}
+                >
+                  <label htmlFor="bof-email" className="block font-medium">
+                    {claimToken ? "Need a fresh link?" : "Order email address"}
+                  </label>
+                  <Input
+                    id="bof-email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                  />
+                  <Button
+                    disabled={busy}
+                    type="submit"
+                    variant={claimToken ? "outline" : "default"}
+                  >
+                    Email me a secure link
+                  </Button>
+                </form>
+              )}
+              <p className="mt-4 text-xs text-slate-500">
+                No password needed. Activating accepts the BOF Cash terms below.
+              </p>
+            </section>
+          )}
         {enabled && wallet?.joined && !publicCode && (
           <div className="my-6 space-y-6">
+            <BOFReferralShare code={wallet.code} channel={shareChannel} />
             <section
               aria-label="BOF Cash balance"
               className="grid grid-cols-2 sm:grid-cols-3 gap-3"
@@ -318,74 +336,6 @@ export default function BOFCash() {
                 ))}
               </section>
             )}
-            <section className="border rounded-2xl p-6 bg-white">
-              <h2 className="text-xl font-bold">Your link. Your rewards.</h2>
-              <p className="my-3 text-slate-600">
-                Earn $5 or $10 for each qualifying new customer. Share by text,
-                email, or Facebook—whatever works for you.
-              </p>
-              <label htmlFor="bof-link" className="text-sm font-semibold">
-                Your referral link
-              </label>
-              <Input
-                id="bof-link"
-                readOnly
-                value={link}
-                className="mt-2"
-                onFocus={(e) => e.target.select()}
-              />
-              <div className="flex flex-wrap gap-3 mt-4">
-                <Button
-                  onClick={() =>
-                    act(async () => {
-                      await navigator.clipboard.writeText(link);
-                      setMessage("Referral link copied.");
-                    })
-                  }
-                >
-                  <Copy size={16} className="mr-2" />
-                  Copy link
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    act(async () => {
-                      if (navigator.share)
-                        await navigator.share({
-                          title: "Banners On The Fly",
-                          text: shareText,
-                          url: link,
-                        });
-                      else {
-                        await navigator.clipboard.writeText(
-                          `${shareText}\n${link}`,
-                        );
-                        setMessage("Message and link copied.");
-                      }
-                    })
-                  }
-                >
-                  <Share2 size={16} className="mr-2" />
-                  Share
-                </Button>
-                <Button asChild variant="outline">
-                  <a
-                    href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Facebook
-                  </a>
-                </Button>
-              </div>
-              <p className="mt-4 text-sm">
-                Or share your code:{" "}
-                <strong className="font-mono">{wallet.code}</strong>
-              </p>
-              <p className="mt-2 text-xs text-slate-500">
-                Let friends know you may earn BOF Cash when they order.
-              </p>
-            </section>
             <section className="rounded-2xl border p-6">
               <h2 className="text-xl font-bold flex gap-2 items-center">
                 <Wallet size={22} />

@@ -1,6 +1,5 @@
-import {bofRequest} from '@/lib/bofCash';
 import React, { useState, useEffect, useRef } from 'react';
-import { ShoppingCart, Menu, X, User, LogOut, Package, Shield, Mail, UserCheck, Users } from 'lucide-react';
+import { ShoppingCart, Menu, X, User, LogOut, Package, Shield, Mail, UserCheck, Users, Gift } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import ScrollToTopLink from './ScrollToTopLink';
 import { useAuth, isAdmin } from '@/lib/auth';
@@ -19,8 +18,6 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
-  const [bofEnabled,setBofEnabled] = useState(false);
-  useEffect(() => {bofRequest('status').then(s=>setBofEnabled(s.enabled)).catch(()=>{});}, []);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const { user, loading, signOut } = useAuth();
@@ -163,7 +160,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
                             <Package className="h-4 w-4" />
                             My Orders
                           </ScrollToTopLink>
-                          {bofEnabled && <ScrollToTopLink to="/bof-cash" className="block px-4 py-3 text-sm font-medium text-slate-700" onClick={()=>setIsMenuOpen(false)}>BOF Cash</ScrollToTopLink>}
+                          <ScrollToTopLink to="/bof-cash" className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-[#18448D] hover:bg-slate-50" onClick={()=>setIsMenuOpen(false)}><Gift className="h-4 w-4" />BOF Cash</ScrollToTopLink>
                           {isAdmin(user) && (
                             <>
                               <a
@@ -319,7 +316,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
                           My Orders
                         </ScrollToTopLink>
                       </DropdownMenuItem>
-                      {bofEnabled && <DropdownMenuItem asChild><ScrollToTopLink to="/bof-cash">BOF Cash</ScrollToTopLink></DropdownMenuItem>}
+                      <DropdownMenuItem asChild><ScrollToTopLink to="/bof-cash" className="flex items-center font-semibold text-[#18448D]"><Gift className="h-4 w-4 mr-2" />BOF Cash</ScrollToTopLink></DropdownMenuItem>
                       {isAdmin(user) && (
                         <>
                           <DropdownMenuSeparator />

@@ -5,7 +5,13 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { useEffect, useState } from "react";
-import { CheckCircle2, Mail, PackageCheck, ShoppingBag } from "lucide-react";
+import {
+  CheckCircle2,
+  Mail,
+  PackageCheck,
+  ShoppingBag,
+  Share2,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -13,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import BOFMemberBadge from "@/components/BOFMemberBadge";
 import BOFCashTerms from "@/components/BOFCashTerms";
 import BOFEmailPreview from "@/components/admin/BOFEmailPreview";
+import BOFReferralShare from "@/components/BOFReferralShare";
 import { bofRequest, bofMoney } from "@/lib/bofCash";
 import { useAuth, isAdmin } from "@/lib/auth";
 
@@ -44,6 +51,9 @@ export default function Referrals() {
     [confirm, setConfirm] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(true);
   const [previewError, setPreviewError] = useState("");
+  const [sharingPreview, setSharingPreview] = useState(
+    () => typeof window !== "undefined" && window.location.hash === "#sharing",
+  );
   const loadPreview = async () => {
     setPreviewLoading(true);
     setPreviewError("");
@@ -120,7 +130,11 @@ export default function Referrals() {
               <p className="font-semibold text-[#18448D]">CUSTOMER REFERRALS</p>
               <h1 className="text-3xl font-bold mt-1">BOF Cash</h1>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => setSharingPreview(true)}>
+                <Share2 size={16} className="mr-2" />
+                See customer sharing
+              </Button>
               <Button asChild variant="outline">
                 <Link to="/admin/orders">Orders</Link>
               </Button>
@@ -292,6 +306,14 @@ export default function Referrals() {
                 This is the invitation your customers will receive. Check it on
                 desktop and mobile before sending.
               </p>
+              <Button
+                variant="outline"
+                className="mt-4"
+                onClick={() => setSharingPreview(true)}
+              >
+                <Share2 size={16} className="mr-2" />
+                See customer sharing
+              </Button>
               <div className="mt-6 space-y-5">
                 {[
                   [
@@ -356,6 +378,23 @@ export default function Referrals() {
             )}
           </section>
           <BOFCashTerms />
+          <Dialog open={sharingPreview} onOpenChange={setSharingPreview}>
+            <DialogContent className="max-h-[90dvh] w-[calc(100%_-_2rem)] max-w-2xl overflow-y-auto bg-slate-50 p-4 sm:p-6">
+              <DialogTitle>What customers see after activation</DialogTitle>
+              <DialogDescription>
+                The sharing tools appear at the top of their BOF Cash page. This
+                preview uses an example code; sharing and copying are disabled
+                here.
+              </DialogDescription>
+              <BOFReferralShare code="BOFREF-YOUR-CODE" preview />
+              <Button
+                variant="outline"
+                onClick={() => setSharingPreview(false)}
+              >
+                Close sharing preview
+              </Button>
+            </DialogContent>
+          </Dialog>
           <Dialog
             open={confirm}
             onOpenChange={(value) => {

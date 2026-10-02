@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Mail, Monitor, Smartphone } from "lucide-react";
 
 export default function BOFEmailPreview({
@@ -14,13 +14,8 @@ export default function BOFEmailPreview({
   const observer = useRef<ResizeObserver | null>(null);
   useEffect(() => () => observer.current?.disconnect(), []);
 
-  const preparePreview = () => {
-    observer.current?.disconnect();
-    const document = frame.current?.contentDocument;
-    if (!document) return;
-    // This is a visual preview, never an account-activation or unsubscribe flow.
-    // Scripts remain sandboxed. Same-origin access only lets the parent measure
-    // this trusted, server-rendered template and neutralize its links.
+  const previewHtml = useMemo(() => {
+    const document = new DOMParser().parseFromString(html, "text/html");
     document.querySelectorAll("a").forEach((link) => {
       link.removeAttribute("href");
       link.setAttribute("role", "link");
@@ -29,6 +24,16 @@ export default function BOFEmailPreview({
       link.title = "Preview only — links are personalized when sent";
       link.style.cursor = "default";
     });
+    return "<!doctype html>" + document.documentElement.outerHTML;
+  }, [html]);
+
+  const preparePreview = () => {
+    observer.current?.disconnect();
+    const document = frame.current?.contentDocument;
+    if (!document) return;
+    // This is a visual preview, never an account-activation or unsubscribe flow.
+    // Scripts remain sandboxed. Same-origin access only lets the parent measure
+    // this trusted, server-rendered template and neutralize its links.
     const root = document.querySelector("[data-email-root]") || document.body;
     const resize = () =>
       setHeight(
@@ -86,7 +91,7 @@ export default function BOFEmailPreview({
             title="BOF Cash invitation preview"
             sandbox="allow-same-origin"
             referrerPolicy="no-referrer"
-            srcDoc={html}
+            srcDoc={previewHtml}
             onLoad={preparePreview}
             className="block w-full border-0"
             style={{ height }}

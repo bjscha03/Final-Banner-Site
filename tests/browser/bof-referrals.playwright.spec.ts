@@ -64,7 +64,10 @@ async function signIn(page: Page, admin = false) {
     { u: { ...user, is_admin: admin }, i: item },
   );
 }
-async function mock(page: Page, { expired = false, enabled = true } = {}) {
+async function mock(
+  page: Page,
+  { expired = false, enabled = true, joined = true } = {},
+) {
   const calls: string[] = [];
   await page.route("**/*", async (route) => {
     const request = route.request(),
@@ -77,7 +80,9 @@ async function mock(page: Page, { expired = false, enabled = true } = {}) {
       if (url.pathname.endsWith("/bof-cash")) {
         calls.push(action);
         if (action === "status") body = { enabled };
-        if (action === "wallet") body = wallet;
+        if (action === "wallet") body = { ...wallet, joined };
+        if (action === "join" || (action === "claim" && !expired))
+          joined = true;
         if (action === "claim") {
           body = expired
             ? {
@@ -197,6 +202,7 @@ async function mock(page: Page, { expired = false, enabled = true } = {}) {
           overview: {},
         };
       } else if (url.pathname.endsWith("/get-order")) body = { order };
+      else if (url.pathname.endsWith("/get-credit-purchases")) body = [];
       else if (url.pathname.endsWith("/validate-discount-code"))
         body = { valid: false, error: "Returning customer" };
       else if (url.pathname.endsWith("/cart-load"))
@@ -215,6 +221,14 @@ async function mock(page: Page, { expired = false, enabled = true } = {}) {
         body: JSON.stringify(body),
       });
     } else if (
+      url.hostname === "bannersonthefly.com" &&
+      [
+        "/images/header-logo.png",
+        "/images/email/september-grand-opening-banner.jpg",
+      ].includes(url.pathname)
+    ) {
+      await route.fulfill({ path: `public${url.pathname}` });
+    } else if (
       !["localhost", "127.0.0.1"].includes(url.hostname) &&
       !["blob:", "data:"].includes(url.protocol)
     )
@@ -228,15 +242,16 @@ test("a guest activates with one click; loading the email link never consumes it
 }, info) => {
   const calls = await mock(page);
   await page.goto(
-    "/bof-cash#claim=11111111-1111-4111-8111-111111111111." + "a".repeat(64),
+    "/bof-cash?share=facebook#claim=11111111-1111-4111-8111-111111111111." +
+      "a".repeat(64),
   );
   await expect(
-    page.getByRole("button", { name: "Activate and open my account" }),
+    page.getByRole("button", { name: "Activate and get my referral link" }),
   ).toBeVisible();
   expect(calls).not.toContain("claim");
   expect(new URL(page.url()).hash).toBe("");
   await page
-    .getByRole("button", { name: "Activate and open my account" })
+    .getByRole("button", { name: "Activate and get my referral link" })
     .click();
   await expect(
     page.getByRole("region", { name: "BOF Cash balance" }),
@@ -263,7 +278,7 @@ test("an expired invitation offers a fresh sign-in link", async ({ page }) => {
     "/bof-cash#claim=11111111-1111-4111-8111-111111111111." + "b".repeat(64),
   );
   await page
-    .getByRole("button", { name: "Activate and open my account" })
+    .getByRole("button", { name: "Activate and get my referral link" })
     .click();
   await expect(page.getByRole("alert")).toContainText("expired");
   await page.getByLabel("Need a fresh link?").fill("guest@customer.com");
@@ -318,8 +333,32 @@ test("admin distinguishes a joined member from an invitation and requires an ema
     'iframe[title="BOF Cash invitation preview"]',
   );
   const activationLink = emailFrame.getByRole("link", {
-    name: /Activate my BOF Cash/,
+    name: /Get my referral link/,
   });
+  await expect(emailFrame.getByAltText("Banners On The Fly")).toBeVisible();
+  await expect
+    .poll(() =>
+      emailFrame
+        .getByAltText("Banners On The Fly")
+        .evaluate((image: HTMLImageElement) => image.naturalWidth),
+    )
+    .toBeGreaterThan(0);
+  await expect
+    .poll(() =>
+      emailFrame
+        .getByAltText(/A colorful grand-opening/)
+        .evaluate((image: HTMLImageElement) => image.naturalWidth),
+    )
+    .toBeGreaterThan(0);
+  await expect(
+    emailFrame.getByRole("link", { name: "Share on Facebook" }),
+  ).toBeVisible();
+  await expect(
+    emailFrame.getByRole("link", { name: "Text a friend" }),
+  ).toBeVisible();
+  await expect(
+    emailFrame.getByRole("link", { name: "Email a friend" }),
+  ).toBeVisible();
   await expect(activationLink).toHaveAttribute("aria-disabled", "true");
   await expect(activationLink).not.toHaveAttribute("href");
   await activationLink.dispatchEvent("click");
@@ -348,6 +387,27 @@ test("admin distinguishes a joined member from an invitation and requires an ema
     style: "header { visibility: hidden !important; }",
   });
   await page.getByRole("button", { name: "Desktop", exact: true }).click();
+  await page
+    .getByRole("button", { name: "See customer sharing", exact: true })
+    .first()
+    .click();
+  const previewDialog = page.getByRole("dialog");
+  await expect(previewDialog).toContainText(
+    "What customers see after activation",
+  );
+  await expect(
+    previewDialog.getByRole("link", { name: "Share on Facebook" }),
+  ).not.toHaveAttribute("href");
+  await previewDialog
+    .getByRole("button", { name: "Copy link", exact: true })
+    .click();
+  await expect(previewDialog.getByRole("status")).toContainText(
+    "This is a preview",
+  );
+  await previewDialog.screenshot({
+    path: info.outputPath("bof-customer-sharing-preview.png"),
+  });
+  await page.getByRole("button", { name: "Close sharing preview" }).click();
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({
     path: info.outputPath("bof-admin.png"),
@@ -381,3 +441,157 @@ for (const route of ["/admin/customers", "/admin/orders"]) {
     await expect(star.locator("..")).toContainText("Alex Member");
   });
 }
+
+test("sharing uses the public referral link across Facebook, text, email, and copy controls", async ({
+  page,
+}, info) => {
+  await signIn(page);
+  await mock(page);
+  await page.addInitScript(() => {
+    (window as any).sharedValues = [];
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: async (value: string) => {
+          (window as any).sharedValues.push(value);
+        },
+      },
+    });
+    Object.defineProperty(navigator, "share", {
+      configurable: true,
+      value: async (value: unknown) => {
+        (window as any).nativeShare = value;
+      },
+    });
+  });
+  await page.goto("/bof-cash?share=facebook");
+  const sharing = page.getByRole("region", {
+    name: "Share BOF and earn rewards",
+  });
+  const link = "https://bannersonthefly.com/refer/BOFREF-ABCDEF123456";
+  const facebook = new URL(
+    (await sharing
+      .getByRole("link", { name: "Share on Facebook" })
+      .getAttribute("href"))!,
+  );
+  expect(facebook.hostname).toBe("www.facebook.com");
+  expect(facebook.searchParams.get("u")).toBe(link);
+  for (const label of ["Text a friend", "Email a friend"]) {
+    const href = (await sharing
+      .getByRole("link", { name: label })
+      .getAttribute("href"))!;
+    expect(decodeURIComponent(href)).toContain(link);
+    expect(decodeURIComponent(href)).toContain(
+      "I earn BOF Cash if your order qualifies",
+    );
+    expect(href).not.toContain("claim");
+  }
+  for (const name of ["Copy link", "Copy code", "Copy message"])
+    await sharing.getByRole("button", { name, exact: true }).click();
+  const copied = await page.evaluate(() => (window as any).sharedValues);
+  expect(copied[0]).toBe(link);
+  expect(copied[1]).toBe("BOFREF-ABCDEF123456");
+  expect(copied[2]).toContain(link);
+  expect(copied[2]).toContain("qualifying");
+  expect(
+    await sharing
+      .getByLabel("A message ready to share")
+      .evaluate((el) => el.scrollHeight <= el.clientHeight + 1),
+  ).toBe(true);
+  await sharing.getByRole("button", { name: "More sharing options" }).click();
+  expect(await page.evaluate(() => (window as any).nativeShare.url)).toBe(link);
+  expect(
+    await sharing.evaluate((el) =>
+      Boolean(
+        el.compareDocumentPosition(
+          document.querySelector('[aria-label="BOF Cash balance"]')!,
+        ) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ),
+    ),
+  ).toBe(true);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth - innerWidth,
+    ),
+  ).toBeLessThanOrEqual(1);
+  await sharing.screenshot({
+    path: info.outputPath("bof-sharing-tools.png"),
+    style: "header { visibility: hidden !important; }",
+  });
+});
+
+test("a signed-in customer finds BOF Cash in their account and joins without re-entering an email", async ({
+  page,
+}, info) => {
+  await signIn(page);
+  const calls = await mock(page, { joined: false });
+  await page.goto("/my-orders");
+  const card = page.getByRole("region", { name: "Your BOF Cash" });
+  await expect(
+    card.getByRole("link", { name: "Get my referral link" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Account", exact: true }).click();
+  await expect(
+    page.getByRole("menuitem", { name: "BOF Cash", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("menuitem", { name: "BOF Cash", exact: true }).click();
+  await expect(page.getByLabel("Order email address")).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Activate and get my referral link" })
+    .click();
+  expect(calls).toContain("join");
+  await expect(
+    page.getByRole("region", { name: "Share BOF and earn rewards" }),
+  ).toBeVisible();
+  await page.goto("/my-orders");
+  await expect(card).toContainText("$25.00 available");
+  await expect(
+    card.getByRole("link", { name: "Share & view my wallet" }),
+  ).toBeVisible();
+  await card.screenshot({
+    path: info.outputPath("bof-account-card.png"),
+    style: "header { visibility: hidden !important; }",
+  });
+});
+
+test("the account keeps BOF Cash discoverable before launch without activating rewards", async ({
+  page,
+}) => {
+  await signIn(page);
+  const calls = await mock(page, { enabled: false });
+  await page.goto("/my-orders");
+  const card = page.getByRole("region", { name: "Your BOF Cash" });
+  await expect(card).toContainText("Referral rewards are coming soon");
+  await page.getByRole("button", { name: "Account", exact: true }).click();
+  await expect(
+    page.getByRole("menuitem", { name: "BOF Cash", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("menuitem", { name: "BOF Cash", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Coming soon" }),
+  ).toBeVisible();
+  expect(calls).not.toContain("wallet");
+  expect(calls).not.toContain("join");
+});
+
+test("a friend opens a shared link and keeps the referral when shopping as a guest", async ({
+  page,
+}) => {
+  await mock(page);
+  await page.goto("/refer/BOFREF-ABCDEF123456");
+  await expect(
+    page.getByRole("heading", {
+      name: "Save up to $25 on a qualifying first order",
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("You can check out as a guest.", { exact: false }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Shop with this referral" }).click();
+  await expect(page).toHaveURL(/\/$/);
+  const saved = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("bof_referral_v1")!),
+  );
+  expect(saved.code).toBe("BOFREF-ABCDEF123456");
+  expect(saved.expires).toBeGreaterThan(Date.now());
+});

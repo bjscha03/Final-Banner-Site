@@ -6,7 +6,9 @@ The feature is implemented for review and defaults to OFF. This change does not 
 
 - An eligible customer opens an invitation and explicitly activates their account. Opening the email link does not consume it. The single-use link verifies the purchase email, reuses an existing profile or creates a non-admin account, and connects guest orders with that email.
 - Returning customers can request a 15-minute sign-in link; no password is required. Existing admin accounts use their normal sign-in.
-- The wallet shows available, pending, and reserved credit, a public referral link/code, copying, native sharing, and Facebook sharing. Photos, posts, and reviews are optional.
+- BOF Cash is visible in the signed-in account menu and on My Orders. Before launch, the account card explains that rewards are coming soon; it never invents a balance. After launch, joined customers see available/pending credit and a direct link to share and open their wallet.
+- The wallet puts sharing first: Facebook, text, email, native sharing, copy-link, copy-code, and a ready-to-send message. All shared messages use the public referral URL and disclose the reward; private activation links are never shared. Photos, posts, and reviews are optional.
+- Invitations reuse the existing BOF logo and banner imagery. Email sharing buttons open the customer’s activation/account page with the chosen channel retained; a new customer explicitly activates before sharing. Admin can inspect the email on desktop/mobile and open “See customer sharing” without sending or copying anything.
 - A friend can check out as a guest. Referral attribution lasts 30 days in the browser. Entering a valid referral code replaces the previous attribution.
 - Signed-in members check their usable credit at checkout and apply it with one control. A better existing promotion preserves the credit. Product/service changes or expiration require a fresh quote before payment.
 - A gold star labeled **BOF Cash member** appears in admin order views and the Customers tab only after activation. Invitations have a separate **Invited** label. The referral admin page filters joined/invited/not-invited customers and previews each selected send.
@@ -57,7 +59,7 @@ Manual sends preview up to 20 selected customers, require a final send action, u
 
 The focused suite covers supplier-cost rules, caps, unknown costs, owner/cart binding, serialized wallet spending, one reward per new customer, payment retries, duplicate settlements, shipment maturity, partial/full refunds, pre-settlement refunds, account reuse, expired/single-use links, preview and authorization guards, membership indicators, and reserve accounting.
 
-The browser suite exercises real application routes with mocked APIs and blocks all external requests, live emails, and payments. It covers desktop/mobile activation, expired-link recovery, wallet redemption/removal, membership stars, invitation preview, and the inactive switch. CI also runs WebKit and the production build.
+The browser suite exercises real application routes with mocked APIs and blocks all external requests, live emails, and payments. It covers desktop/mobile activation, expired-link recovery, wallet redemption/removal, membership stars, branded invitation previews, channel-specific sharing and copying, account discovery/joining, guest referral attribution, and the inactive switch. CI also runs WebKit and the production build.
 
 Existing unrelated large-banner promotion tests expect a retired 25% campaign and fail on the unchanged base branch. The application-wide TypeScript check also encounters pre-existing syntax errors in the unused `BannerEditor.tsx`. These are separate from the focused referral checks and production build.
 
