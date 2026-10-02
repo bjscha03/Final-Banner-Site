@@ -30,6 +30,10 @@ export interface OrderItem {
   pole_pocket_pricing_mode?: 'per_item' | 'per_order';
   rope_cost_cents?: number;
   rope_pricing_mode?: 'per_item' | 'per_order';
+  yard_sign_sidedness?: 'single' | 'double' | null;
+  yard_sign_step_stakes_enabled?: boolean;
+  yard_sign_step_stakes_qty?: number;
+  yard_sign_stakes_subtotal_cents?: number;
   area_sqft: number;
   unit_price_cents: number;
   line_total_cents: number;
