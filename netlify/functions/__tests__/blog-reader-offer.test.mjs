@@ -127,3 +127,14 @@ test('email template escapes configurable content and includes truthful terms', 
   assert.match(rendered.text, /One use\. Expires/);
   assert.match(rendered.text, /Cannot be combined/);
 });
+
+test('signed provider feedback suppresses only the matching blog send and is replay safe', async () => {
+  await offer.recordDeliveryEvent(sql, { type: 'email.complained' }, 'wrong-message', 'eligible@bof-offer-fixture.com');
+  assert.equal((await db.query("SELECT * FROM marketing_email_suppressions WHERE normalized_email = 'eligible@bof-offer-fixture.com'")).rows.length, 0);
+  await offer.recordDeliveryEvent(sql, { type: 'email.complained' }, 'provider-confirmed', 'eligible@bof-offer-fixture.com');
+  await offer.recordDeliveryEvent(sql, { type: 'email.complained' }, 'provider-confirmed', 'eligible@bof-offer-fixture.com');
+  const rows = (await db.query("SELECT * FROM marketing_email_suppressions WHERE normalized_email = 'eligible@bof-offer-fixture.com'")).rows;
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].reason, 'spam_complaint');
+  assert.equal(rows[0].active, true);
+});

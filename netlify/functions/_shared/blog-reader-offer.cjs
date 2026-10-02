@@ -161,5 +161,27 @@ async function listLeads(sql, { page = 1, pageSize = 100 } = {}) {
     }) };
 }
 
+// Called only after the canonical Resend webhook has verified its signature.
+async function recordDeliveryEvent(sql, event, providerId, recipient) {
+  const email = tokens.normalizeEmail(recipient);
+  if (!email || !providerId) return;
+  const detail = {
+    'email.bounced': ['bounced', 'hard_bounce'],
+    'email.complained': ['complained', 'spam_complaint'],
+    'email.suppressed': ['suppressed', 'provider_suppressed'],
+  }[event.type];
+  if (!detail) return;
+  await sql`WITH target AS (
+    UPDATE marketing_email_sends SET status = ${detail[0]}, resend_message_id = ${providerId}, updated_at = NOW()
+    WHERE campaign_key = ${CAMPAIGN} AND normalized_email = ${email}
+      AND (resend_message_id = ${providerId} OR resend_message_id IS NULL)
+    RETURNING normalized_email
+  ) INSERT INTO marketing_email_suppressions (normalized_email, reason, source, campaign_key, active)
+    SELECT normalized_email, ${detail[1]}, 'resend_webhook', ${CAMPAIGN}, TRUE FROM target
+    ON CONFLICT (normalized_email) DO UPDATE SET reason = EXCLUDED.reason, source = EXCLUDED.source,
+      campaign_key = EXCLUDED.campaign_key, active = TRUE, updated_at = NOW()`;
+}
+
 module.exports = { CAMPAIGN, CONSENT_TEXT, ensureSchema, emailContent, rateLimit, getOrCreateLead, claimEmail, createService, listLeads,
+  recordDeliveryEvent,
   resetSchemaForTests() { schemaPromise = null; } };
