@@ -13,15 +13,11 @@ describe('realistic banner order geometry', () => {
     expect(formatBannerDimensions(72, 36)).toEqual({ feet: '6 ft × 3 ft', inches: '(72″ × 36″)' });
     expect(formatBannerDimensions(75, 42)).toEqual({ feet: '6 ft 3 in × 3 ft 6 in', inches: '(75″ × 42″)' });
   });
-  it('keeps a six-foot reference at physical scale as the banner gets larger', () => {
+  it('centers both small and large banners against the wall', () => {
     for (const [w, h] of [[72, 36], [240, 120], [600, 60]]) {
       const g = getRealisticBannerGeometry({ ...item, width_in: w, height_in: h });
-      expect(g.referenceHeight).toBe(72);
-      expect((g.h / g.sceneHeight) / (g.referenceHeight / g.sceneHeight)).toBeCloseTo(h / 72);
-      expect(g.referenceX).toBeGreaterThan(g.x + g.w);
-      expect(g.referenceX + 22).toBeLessThan(g.sceneWidth);
-      expect(g.referenceY).toBeGreaterThan(0);
-      expect(g.referenceY + 72).toBeLessThan(g.sceneHeight);
+      expect(g.x).toBeCloseTo((g.sceneWidth - w) / 2);
+      expect(g.y).toBeCloseTo((g.sceneHeight - h) / 2);
     }
   });
   it.each([

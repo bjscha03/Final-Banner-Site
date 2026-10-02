@@ -38,23 +38,13 @@ export function RealisticBannerScene({ item, expanded = false }: { item: CartIte
       className={`realistic-banner-scene${expanded ? ' realistic-banner-scene-expanded' : ''}`}
       style={{ aspectRatio: sceneRatio, '--scene-ratio': sceneRatio } as React.CSSProperties}
       role="img"
-      aria-label={`${formatBannerDimensions(w, h).feet} ${isMesh ? 'mesh' : 'vinyl'} banner on brick beside a 6-foot person for scale, ${grommets.length} grommets`}
+      aria-label={`${formatBannerDimensions(w, h).feet} ${isMesh ? 'mesh' : 'vinyl'} banner on brick, ${grommets.length} grommets`}
       data-realistic-scene
       data-realistic-material={isMesh ? 'mesh' : 'vinyl'}
       data-banner-width={w}
       data-banner-height={h}
     >
       <div className="realistic-banner-wall" style={{ backgroundSize: `${60 / sceneWidth * 100}% ${40 / sceneHeight * 100}%` }} aria-hidden="true" />
-      <svg className="realistic-banner-hardware" viewBox={`0 0 ${sceneWidth} ${sceneHeight}`} aria-hidden="true">
-        <path d={`M0 ${geometry.groundY + 2} H${sceneWidth}`} stroke="#332c24" strokeOpacity=".2" strokeWidth=".4"/>
-        <g transform={`translate(${geometry.referenceX} ${geometry.referenceY})`} data-realistic-size-reference data-height-in="72">
-          <ellipse cx="10" cy="72" rx="12" ry="1.5" fill="#211b18" opacity=".22"/>
-          <g fill="#f8f6ef" stroke="#34404d" strokeWidth=".25" opacity=".94">
-            <circle cx="10" cy="4.3" r="4.3"/>
-            <path d="M7 9H13L18 12Q20 14 20 19L22 35Q22 38 19 38L16 19L15 38L16 68Q16 72 12 72L10 43L8 72Q4 72 4 68L5 38L4 19L1 38Q-2 38-2 35L0 19Q0 14 2 12Z"/>
-          </g>
-        </g>
-      </svg>
       <div className={`realistic-banner-shadow${grommets.length ? ' is-suspended' : ''}`} style={surfaceStyle} aria-hidden="true" />
 
       {/* Anchors and tension ties appear only where the order has a grommet. */}
@@ -166,7 +156,6 @@ export default function RealisticBannerPreview({ item, className = '' }: { item:
             <span className="realistic-banner-expand-label">Click to expand</span>
           </button>
         </DialogTrigger>
-        <p className="mt-1 text-center text-[10px] text-slate-500">6 ft person shown for scale</p>
       </div>
       <DialogContent className="realistic-banner-dialog z-[11020] gap-0 overflow-hidden rounded-2xl p-0" data-realistic-lightbox>
         <header className="border-b border-slate-100 px-4 py-4 pr-14 sm:px-6">
@@ -179,7 +168,6 @@ export default function RealisticBannerPreview({ item, className = '' }: { item:
         <div className="realistic-banner-dialog-body">
           <RealisticBannerScene item={item} expanded/>
           <div className="px-4 py-3 sm:px-6">
-            <p className="mb-3 text-xs text-slate-600">Size reference: 6 ft person (72″). Banner, person and brickwork share the same scale.</p>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-slate-600">
               <div><dt className="font-semibold text-slate-800">Grommets</dt><dd>{grommets}</dd></div>
               <div><dt className="font-semibold text-slate-800">Pole pockets</dt><dd>{details.polePocketsDisplay || 'None'}</dd></div>
