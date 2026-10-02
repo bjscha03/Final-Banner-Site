@@ -200,6 +200,12 @@ async function sendInvitation(sql, email, admin = {}) {
 }
 async function confirmationBlock(sql, email, isTest) {
   if (!bof.active() || isTest || auth.isDeployPreviewEnvironment({})) return "";
+  if (
+    (
+      await sql`SELECT 1 FROM bof_members m JOIN profiles p ON p.id=m.user_id WHERE lower(btrim(p.email))=${String(email).trim().toLowerCase()}`
+    ).length
+  )
+    return "";
   if ((await suppression.findEmailSuppression(sql, email)).suppressed)
     return "";
   const link = await invitation(sql, email);

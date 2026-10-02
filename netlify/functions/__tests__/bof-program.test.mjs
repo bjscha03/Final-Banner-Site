@@ -516,6 +516,21 @@ describe("Atomic ledger", () => {
 });
 
 describe("Guest claiming and membership", () => {
+  it("omits the order-confirmation invitation after the customer has joined", async () => {
+    process.env.BOF_REFERRAL_ENABLED = "true";
+    try {
+      await newPerson("alreadyjoined@customer.com");
+      expect(
+        await email.confirmationBlock(
+          sql,
+          " AlreadyJoined@customer.com ",
+          false,
+        ),
+      ).toBe("");
+    } finally {
+      delete process.env.BOF_REFERRAL_ENABLED;
+    }
+  });
   it("uses a single-use link and creates one non-admin account for a guest", async () => {
     const address = "newguest@customer.com",
       id = randomUUID(),
