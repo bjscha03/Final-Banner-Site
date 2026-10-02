@@ -54,18 +54,82 @@ export function getRealisticBannerGeometry(item: CartItem) {
 export type RealisticBannerGeometry = ReturnType<typeof getRealisticBannerGeometry>;
 
 /** A physical surface mask: perforations and eyelet openings reveal the wall. */
-export function createBannerSurfaceMask(geometry: RealisticBannerGeometry): string {
+function createSvgBannerSurfaceMask(geometry: RealisticBannerGeometry): string {
   const { w, h, isMesh, grommets, grommetRadius: radius, pocketEdges, pocketDepth } = geometry;
   // A fine mesh visual approximation, independent of artwork pixels. The
   // reinforced perimeter/pockets remain opaque. Never export this to production.
-  const mesh = isMesh ? `<defs><pattern id="mesh" width="0.09" height="0.09" patternUnits="userSpaceOnUse"><rect width="0.09" height="0.09" fill="white"/><rect x="0.025" y="0.022" width="0.04" height="0.046" fill="black"/></pattern></defs><rect x="0.7" y="0.7" width="${Math.max(0, w - 1.4)}" height="${Math.max(0, h - 1.4)}" fill="url(#mesh)"/>` : '';
+  // Paint the solid mesh strands over transparent gaps. Using real alpha
+  // instead of nested luminance masks keeps Safari and Chromium consistent.
+  const mesh = isMesh ? '<pattern id="mesh" width="0.09" height="0.09" patternUnits="userSpaceOnUse"><path d="M0 0H.09V.09H0Z M.025 .022H.065V.068H.025Z" fill="white" fill-rule="evenodd"/></pattern>' : '';
   const pockets = pocketEdges.map((edge) => {
     const vertical = edge === 'left' || edge === 'right';
     return `<rect x="${edge === 'right' ? w - pocketDepth : 0}" y="${edge === 'bottom' ? h - pocketDepth : 0}" width="${vertical ? pocketDepth : w}" height="${vertical ? h : pocketDepth}" fill="white"/>`;
   }).join('');
-  const holes = grommets.map((point) => `<circle cx="${point.x}" cy="${point.y}" r="${radius * 0.54}" fill="black"/>`).join('');
-  // SVG mask converts black to transparent before CSS consumes its alpha.
+  const holes = grommets.map((point) => {
+    const r = radius * 0.54;
+    return `M${point.x + r} ${point.y}a${r} ${r} 0 1 0 ${-2 * r} 0a${r} ${r} 0 1 0 ${2 * r} 0Z`;
+  }).join(' ');
+  const perimeter = isMesh ? `<path d="M0 0H${w}V${h}H0Z M.7 .7H${w - .7}V${h - .7}H.7Z" fill="white" fill-rule="evenodd"/>` : '';
   const maskScale = Math.min(20, 1600 / Math.max(w, h));
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w * maskScale}" height="${h * maskScale}" viewBox="0 0 ${w} ${h}"><defs><mask id="surface" maskUnits="userSpaceOnUse" x="0" y="0" width="${w}" height="${h}"><rect width="${w}" height="${h}" fill="white"/>${mesh}${pockets}${holes}</mask></defs><rect width="${w}" height="${h}" fill="white" mask="url(#surface)"/></svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w * maskScale}" height="${h * maskScale}" viewBox="0 0 ${w} ${h}"><defs>${mesh}<clipPath id="eyelets"><path d="M0 0H${w}V${h}H0Z ${holes}" clip-rule="evenodd"/></clipPath></defs><g clip-path="url(#eyelets)"><rect width="${w}" height="${h}" fill="${isMesh ? 'url(#mesh)' : 'white'}"/>${perimeter}${pockets}</g></svg>`;
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+}
+
+const surfaceMaskCache = new Map<string, string>();
+
+/**
+ * Rasterize the physical mask once per finishing configuration. WebKit can
+ * drop subpixel SVG patterns when they are used as CSS masks, even though the
+ * same SVG decodes correctly as an image. A bounded PNG alpha mask preserves
+ * perforations on Safari, Chrome and Firefox without touching the artwork.
+ */
+export function createBannerSurfaceMask(geometry: RealisticBannerGeometry): string {
+  if (typeof document === 'undefined') return createSvgBannerSurfaceMask(geometry);
+  const { w, h, isMesh, grommets, grommetRadius: radius, pocketEdges, pocketDepth } = geometry;
+  const key = JSON.stringify([w, h, isMesh, grommets, radius, pocketEdges, pocketDepth]);
+  const cached = surfaceMaskCache.get(key);
+  if (cached) return cached;
+  const scale = Math.min(20, 1600 / Math.max(w, h));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(w * scale));
+  canvas.height = Math.max(1, Math.round(h * scale));
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return createSvgBannerSurfaceMask(geometry);
+  ctx.fillStyle = 'white';
+  if (isMesh) {
+    if (0.09 * scale < 1.5) {
+      // At very large sizes individual perforations are subpixel. Render their
+      // average coverage rather than inventing oversized visible mesh holes.
+      ctx.globalAlpha = 0.77;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.globalAlpha = 1;
+    } else {
+      const tile = document.createElement('canvas');
+      tile.width = tile.height = 2;
+      const tileCtx = tile.getContext('2d')!;
+      tileCtx.fillStyle = 'white'; tileCtx.fillRect(0, 0, 2, 2);
+      tileCtx.clearRect(1, 1, 1, 1);
+      ctx.fillStyle = ctx.createPattern(tile, 'repeat')!;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    ctx.fillStyle = 'white';
+    const hem = Math.min(0.7, w / 2, h / 2) * scale;
+    ctx.fillRect(0, 0, canvas.width, hem); ctx.fillRect(0, canvas.height - hem, canvas.width, hem);
+    ctx.fillRect(0, 0, hem, canvas.height); ctx.fillRect(canvas.width - hem, 0, hem, canvas.height);
+  } else {
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+  pocketEdges.forEach(edge => {
+    const vertical = edge === 'left' || edge === 'right';
+    ctx.fillStyle = 'white';
+    ctx.fillRect((edge === 'right' ? w - pocketDepth : 0) * scale, (edge === 'bottom' ? h - pocketDepth : 0) * scale, (vertical ? pocketDepth : w) * scale, (vertical ? h : pocketDepth) * scale);
+  });
+  ctx.globalCompositeOperation = 'destination-out';
+  grommets.forEach(point => {
+    ctx.beginPath(); ctx.arc(point.x * scale, point.y * scale, radius * 0.54 * scale, 0, Math.PI * 2); ctx.fill();
+  });
+  const result = `url("${canvas.toDataURL('image/png')}")`;
+  if (surfaceMaskCache.size >= 24) surfaceMaskCache.delete(surfaceMaskCache.keys().next().value!);
+  surfaceMaskCache.set(key, result);
+  return result;
 }

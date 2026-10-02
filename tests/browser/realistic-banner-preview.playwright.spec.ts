@@ -59,6 +59,34 @@ for (const scenario of [
     await expect(lightbox.locator('[data-preview-bleed-compensated]')).toHaveAttribute('data-preview-bleed-compensated', 'false');
     await expect(lightbox.locator('[data-realistic-scene]')).toHaveAttribute('data-realistic-material', scenario.material === 'mesh' ? 'mesh' : 'vinyl');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    const maskAlpha = await lightbox.locator('[data-realistic-surface]').evaluate(async (surface) => {
+      const mask = getComputedStyle(surface).maskImage || getComputedStyle(surface).webkitMaskImage;
+      const match = mask.match(/url\(["']?(.*?)["']?\)$/);
+      if (!match) throw new Error('Material mask missing');
+      const image = new Image(); image.src = match[1]; await image.decode();
+      const canvas = document.createElement('canvas'); canvas.width = 360; canvas.height = 360;
+      const ctx = canvas.getContext('2d')!; ctx.drawImage(image, 0, 0, 360, 360);
+      const pixels = ctx.getImageData(80, 80, 200, 200).data;
+      let sum = 0; for (let i = 3; i < pixels.length; i += 4) sum += pixels[i];
+      for (const path of ['/images/preview/brick-wall.webp', '/images/preview/vinyl-surface.webp']) {
+        const asset = new Image(); asset.src = path; await asset.decode();
+      }
+      await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+      return sum / (pixels.length / 4);
+    });
+    if (scenario.material === 'mesh') {
+      expect(maskAlpha).toBeGreaterThan(150);
+      expect(maskAlpha).toBeLessThan(235);
+      const surfaceImage = sharp(await lightbox.locator('[data-realistic-surface]').screenshot());
+      const { width = 0, height = 0 } = await surfaceImage.metadata();
+      const patch = await surfaceImage.extract({ left: Math.round(width * .3), top: Math.round(height * .1), width: 12, height: 12 }).toBuffer();
+      const color = await sharp(patch).stats();
+      // The wall must actually show through the navy print, not merely exist
+      // in an unused mask URL. Catch CSS-mask rendering failures in Safari.
+      expect(color.channels[0].mean).toBeGreaterThan(20);
+      expect(color.channels[0].mean).toBeLessThan(100);
+    }
+    else expect(maskAlpha).toBeGreaterThan(250);
     await lightbox.screenshot({ path: testInfo.outputPath(`${scenario.name}.png`) });
     await page.keyboard.press('Escape');
     await expect(lightbox).toHaveCount(0);
