@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import sharp from 'sharp';
 
 const CHECKOUT_ITEM = {
   id: 'mobile-checkout-banner',
@@ -15,6 +16,7 @@ const CHECKOUT_ITEM = {
   rope_cost_cents: 0,
   pole_pocket_cost_cents: 0,
   line_total_cents: 3600,
+  final_render_url: 'https://assets.example.test/checkout-artwork.png',
   created_at: '2026-08-07T12:00:00.000Z',
 };
 
@@ -25,24 +27,27 @@ const PAYMENT_ENDPOINTS = new Set([
   '/.netlify/functions/paypal-payment-status',
 ]);
 
-const installCheckoutHarness = async (page: Page) => {
+const installCheckoutHarness = async (page: Page, items = [CHECKOUT_ITEM]) => {
   const paymentEndpointRequests: string[] = [];
 
-  await page.addInitScript((item) => {
+  await page.addInitScript((cartItems) => {
     window.localStorage.clear();
     window.sessionStorage.clear();
     window.localStorage.setItem('cart-storage', JSON.stringify({
-      state: { items: [item], _cartOwnerId: null },
+      state: { items: cartItems, _cartOwnerId: null },
       version: 0,
     }));
-  }, CHECKOUT_ITEM);
+  }, items);
+
+  const artwork = await sharp({ create: { width: 480, height: 240, channels: 3, background: '#18448D' } }).png().toBuffer();
+  await page.route('https://assets.example.test/**', (route) => route.fulfill({ status: 200, contentType: 'image/png', body: artwork }));
 
   await page.route('**/.netlify/functions/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
     if (PAYMENT_ENDPOINTS.has(path)) paymentEndpointRequests.push(path);
 
     const body = path.endsWith('/cart-load')
-      ? { cartData: [CHECKOUT_ITEM] }
+      ? { cartData: items }
       : path.endsWith('/paypal-config')
         ? {
             enabled: true,
@@ -153,12 +158,16 @@ test('contact and delivery details are visible before either payment method', as
   }
 
   if ((page.viewportSize()?.width ?? 1024) < 1024) {
+    const artworkSummary = page.getByTestId('checkout-artwork-summary');
+    await expect(artworkSummary).toBeVisible();
+    await expect(artworkSummary.locator('[data-preview-ready="true"]')).toHaveCount(1);
     const paymentBox = await page.getByRole('heading', { name: 'Payment', exact: true }).boundingBox();
-    const orderSummaryBox = await page.getByRole('heading', { name: 'Order Summary', exact: true }).boundingBox();
+    const orderSummaryBox = await artworkSummary.boundingBox();
     expect(paymentBox).not.toBeNull();
     expect(orderSummaryBox).not.toBeNull();
-    expect(paymentBox!.y).toBeLessThan(orderSummaryBox!.y);
-    await expect(page.getByRole('button', { name: 'Review order' })).toBeVisible();
+    expect(orderSummaryBox!.y).toBeLessThan(paymentBox!.y);
+    await expect(artworkSummary.getByRole('button', { name: 'Edit order', exact: true })).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
   }
 
   const shippingSame = page.getByLabel('Shipping address is the same as billing');
@@ -169,6 +178,32 @@ test('contact and delivery details are visible before either payment method', as
   expect(await page.evaluate(() => (
     document.documentElement.scrollWidth <= window.innerWidth + 1
   ))).toBe(true);
+});
+
+test('mobile artwork is visible on arrival, enlarges directly, and keeps all items after editing', async ({ page }) => {
+  test.skip((page.viewportSize()?.width ?? 1024) >= 1024, 'Mobile summary only');
+  const second = { ...CHECKOUT_ITEM, id: 'second-checkout-banner', width_in: 72 };
+  const { paymentEndpointRequests } = await installCheckoutHarness(page, [CHECKOUT_ITEM, second]);
+  await page.goto('/checkout', { waitUntil: 'domcontentloaded' });
+  const summary = page.getByTestId('checkout-artwork-summary');
+  await expect(summary.locator('[data-preview-ready="true"]')).toHaveCount(2);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+
+  await summary.getByRole('button', { name: /Enlarge artwork for item 1/ }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByRole('dialog').locator('[data-preview-ready="true"]')).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+
+  await summary.getByRole('button', { name: 'Edit order', exact: true }).click();
+  const editor = page.getByRole('dialog');
+  await expect(editor).toContainText('Review your order');
+  await editor.getByRole('button', { name: /Increase quantity/ }).first().click();
+  await editor.getByRole('button', { name: 'Back to checkout', exact: true }).click();
+  await expect(summary.locator('[data-checkout-artwork-item="mobile-checkout-banner"]')).toContainText('Qty 2');
+  await expect(summary.locator('[data-preview-ready="true"]')).toHaveCount(2);
+  expect(paymentEndpointRequests).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 });
 
 test('debit or credit card disclosure opens before required contact details are complete', async ({ page }) => {

@@ -1,9 +1,9 @@
 import React from 'react';
 import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog';
 
-export default function CheckoutReviewDialog({ children }: { children: React.ReactNode }) {
+export default function CheckoutReviewDialog({ children, label = 'Review order' }: { children: React.ReactNode; label?: string }) {
   return <Dialog>
-    <DialogTrigger asChild><button type="button" className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-bold text-[#18448D] hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#18448D]">Review order</button></DialogTrigger>
+    <DialogTrigger asChild><button type="button" className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-bold text-[#18448D] hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#18448D]">{label}</button></DialogTrigger>
     <DialogContent className="flex max-h-[90dvh] w-[calc(100%-2rem)] max-w-3xl flex-col gap-0 overflow-hidden rounded-2xl bg-white p-0">
       <header className="shrink-0 border-b border-slate-200 p-5 pr-12">
         <DialogTitle>Review your order</DialogTitle>
