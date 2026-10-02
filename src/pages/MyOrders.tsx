@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { getOrdersAdapter } from '../lib/orders/adapter';
@@ -9,7 +9,6 @@ import OrdersTable from '@/components/orders/OrdersTable';
 import ScrollToTopLink from '@/components/ScrollToTopLink';
 import { Button } from '@/components/ui/button';
 import { Package, Plus, ArrowLeft } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
 import { CreditPurchasesList } from '@/components/orders/CreditPurchasesList';
 import { authorizedHeaders } from '@/lib/serverAuth';
 
@@ -19,180 +18,74 @@ const MyOrders: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [creditPurchases, setCreditPurchases] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [nextPage, setNextPage] = useState(2);
+  const [hasMoreOrders, setHasMoreOrders] = useState(false);
+  const [ordersError, setOrdersError] = useState('');
+  const currentUserId = useRef(user?.id);
+  currentUserId.current = user?.id;
+
+  const loadCreditPurchases = useCallback(async () => {
+    if (!user) return;
+    const requestedUserId = user.id;
+    try {
+      const response = await fetch(`/.netlify/functions/get-credit-purchases?user_id=${encodeURIComponent(user.id)}`, {
+        headers: authorizedHeaders(),
+        cache: 'no-store',
+      });
+      if (!response.ok) throw new Error('Credit purchase history could not be loaded.');
+      const purchases = await response.json();
+      if (currentUserId.current === requestedUserId) setCreditPurchases(Array.isArray(purchases) ? purchases : []);
+    } catch (error) {
+      console.warn('Credit purchase history unavailable:', error);
+    }
+  }, [user?.id]);
+
+  const loadOrders = useCallback(async (page = 1) => {
+    if (!user) return;
+    const requestedUserId = user.id;
+    page === 1 ? setLoading(true) : setLoadingMore(true);
+    setOrdersError('');
+    try {
+      const rows = await getOrdersAdapter().listByUser(user.id, page);
+      if (currentUserId.current !== requestedUserId) return;
+      setOrders((previous) => page === 1 ? rows : [...previous, ...rows.filter((row) => !previous.some((existing) => existing.id === row.id))]);
+      setHasMoreOrders(rows.length === 20);
+      setNextPage(page + 1);
+    } catch (error) {
+      if (currentUserId.current !== requestedUserId) return;
+      console.warn('Order history unavailable:', error);
+      setOrdersError('Your order history could not be loaded. Please try again.');
+    } finally {
+      if (currentUserId.current === requestedUserId) {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    }
+  }, [user?.id]);
 
   useEffect(() => {
-    // Redirect to sign-in if not authenticated
     if (!authLoading && !user) {
       navigate('/sign-in?next=/my-orders');
       return;
     }
-
+    setOrders([]);
+    setCreditPurchases([]);
+    setHasMoreOrders(false);
+    setNextPage(2);
     if (user) {
-      loadOrders();
+      void loadOrders();
+      void loadCreditPurchases();
     }
-  }, [user, authLoading, navigate]);
+  }, [user?.id, authLoading, navigate, loadOrders, loadCreditPurchases]);
 
-  const loadCreditPurchases = async () => {
-    if (!user) {
-      console.log('⚠️ loadCreditPurchases: No user, skipping');
-      return;
-    }
-
-    try {
-      console.log('🔍 Loading credit purchases for user:', user.id, 'email:', user.email);
-      const url = `/.netlify/functions/get-credit-purchases?user_id=${user.id}`;
-      console.log('📡 Fetching from:', url);
-      
-      const response = await fetch(url, {
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
-      });
-      
-      console.log('📡 Credit purchases response status:', response.status);
-      console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
-      
-      if (response.ok) {
-        const purchases = await response.json();
-        console.log('✅ Loaded credit purchases:', purchases.length, 'purchases');
-        console.log('📦 Purchase data:', JSON.stringify(purchases, null, 2));
-        setCreditPurchases(purchases);
-        console.log('✅ State updated with', purchases.length, 'purchases');
-      } else {
-        const errorText = await response.text();
-        console.error('❌ Failed to load credit purchases:', response.status, errorText);
-        toast({
-          title: 'Error Loading Credit Purchases',
-          description: `Status: ${response.status}. ${errorText}`,
-          variant: 'destructive',
-        });
-      }
-    } catch (error) {
-      console.error('❌ Error loading credit purchases:', error);
-      console.error('❌ Error stack:', error.stack);
-      toast({
-        title: 'Error Loading Credit Purchases',
-        description: error.message,
-        variant: 'destructive',
-      });
-    }
-  };
-
-  // Reload credit purchases when page becomes visible (e.g., after purchase)
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (!document.hidden && user) {
-        console.log('📄 Page became visible, reloading credit purchases...');
-        loadCreditPurchases();
-      }
+      if (!document.hidden && user) void loadCreditPurchases();
     };
-
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [user, loadCreditPurchases]);
-
-
-  const loadOrders = async () => {
-    if (!user) return;
-
-    try {
-      setLoading(true);
-      console.log('Loading orders for user:', user.id, user.email);
-
-      // Get orders adapter with error handling
-      let ordersAdapter;
-      try {
-        ordersAdapter = getOrdersAdapter();
-        console.log('Orders adapter obtained:', ordersAdapter);
-      } catch (adapterError) {
-        console.error('Failed to get orders adapter:', adapterError);
-        toast({
-          title: "System Error",
-          description: "Unable to initialize orders system. Please refresh the page.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Attempt to load orders with multiple fallback strategies
-      let userOrders: Order[] = [];
-      let loadAttempts = 0;
-      const maxAttempts = 3;
-
-      while (loadAttempts < maxAttempts && userOrders.length === 0) {
-        loadAttempts++;
-        console.log(`Orders load attempt ${loadAttempts}/${maxAttempts}`);
-
-        try {
-          userOrders = await ordersAdapter.listByUser(user.id);
-          console.log(`Attempt ${loadAttempts}: Loaded ${userOrders.length} orders`);
-
-          if (userOrders.length > 0) {
-            break; // Success!
-          }
-        } catch (loadError) {
-          console.warn(`Attempt ${loadAttempts} failed:`, loadError);
-
-          // If this is the last attempt, try a different approach
-          if (loadAttempts === maxAttempts) {
-            console.log('All direct attempts failed, trying fallback methods...');
-
-            // Try to fetch via Netlify function directly if available
-            try {
-              const response = await fetch(`/.netlify/functions/get-orders?user_id=${user.id}`, { headers: authorizedHeaders() });
-              if (response.ok) {
-                userOrders = await response.json();
-                console.log('Fallback method succeeded:', userOrders.length, 'orders');
-              }
-            } catch (fallbackError) {
-              console.warn('Fallback method also failed:', fallbackError);
-            }
-          } else {
-            // Wait a bit before retrying
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
-        }
-      }
-
-      setOrders(userOrders);
-      
-      // Also load credit purchases
-      await loadCreditPurchases();
-      console.log('Final orders set:', userOrders.length);
-
-      // Debug: If no orders found, try to fetch all orders to see what's in the database
-      if (userOrders.length === 0) {
-        console.log('No orders found for user, checking all orders...');
-        try {
-          const allOrdersResponse = await fetch('/.netlify/functions/get-orders', { headers: authorizedHeaders() });
-          if (allOrdersResponse.ok) {
-            const allOrders = await allOrdersResponse.json();
-            console.log('All orders in database:', allOrders.length, 'total orders');
-
-            // Check if any orders belong to this user but weren't returned
-            const userOrdersInAll = allOrders.filter((order: Order) => order.user_id === user.id);
-            if (userOrdersInAll.length > 0) {
-              console.warn('Found user orders in all orders but not in user-specific query:', userOrdersInAll);
-              setOrders(userOrdersInAll);
-            }
-          }
-        } catch (allOrdersError) {
-          console.warn('Could not fetch all orders:', allOrdersError);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading orders:', error);
-      toast({
-        title: "Error Loading Orders",
-        description: "There was an error loading your orders. Please try refreshing the page.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [user?.id, loadCreditPurchases]);
 
   // Show loading state while checking authentication
   if (authLoading) {
@@ -228,12 +121,12 @@ const MyOrders: React.FC = () => {
                   My Orders
                 </h1>
                 <p className="text-gray-600 mt-2 text-sm sm:text-base">
-                  Track your custom banner orders and reorder your favorites
+                  Your past orders using this verified email appear here, including guest checkouts.
                 </p>
                 {user && (
                   <div className="mt-3 text-xs sm:text-sm text-gray-500">
                     <span className="font-medium">Account:</span>{' '}
-                    {user.username ? (
+                    {user.username && !/^bof_[a-f0-9]{12}$/i.test(user.username) ? (
                       <>
                         <span className="text-orange-500 font-medium">@{user.username}</span>
                         <span className="mx-2">•</span>
@@ -272,27 +165,39 @@ const MyOrders: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">Account Information</h2>
-                <p className="text-gray-600">{user.email}</p>
+                <p className="break-all text-gray-600">{user.email}</p>
               </div>
               <div className="text-right">
-                <p className="text-sm text-gray-600">Total Orders</p>
+                <p className="text-sm text-gray-600">{hasMoreOrders ? 'Orders shown' : 'Total Orders'}</p>
                 <p className="text-2xl font-bold text-gray-900">{orders.length}</p>
               </div>
             </div>
           </div>
 
           {/* Credit Purchases */}
-          {console.log('🎨 Rendering credit purchases section. Count:', creditPurchases.length, 'Data:', creditPurchases)}
-          {creditPurchases.length > 0 ? (
+          {creditPurchases.length > 0 && (
             <div className="mb-8">
               <CreditPurchasesList purchases={creditPurchases} />
             </div>
-          ) : (
-            console.log('⚠️ No credit purchases to display')
           )}
 
           {/* Orders Table */}
-          <OrdersTable orders={orders} loading={loading} />
+          {ordersError && (
+            <div role="alert" className="mb-4 rounded-lg border border-orange-200 bg-orange-50 p-4 text-sm text-slate-800">
+              <p>{ordersError}</p>
+              <Button className="mt-3" variant="outline" onClick={() => void loadOrders(orders.length ? nextPage : 1)} disabled={loading || loadingMore}>
+                Try again
+              </Button>
+            </div>
+          )}
+          {(!ordersError || orders.length > 0) && <OrdersTable orders={orders} loading={loading} />}
+          {hasMoreOrders && !ordersError && (
+            <div className="mt-6 flex justify-center">
+              <Button variant="outline" onClick={() => void loadOrders(nextPage)} disabled={loadingMore}>
+                {loadingMore ? 'Loading older orders…' : 'Load more orders'}
+              </Button>
+            </div>
+          )}
 
           {/* Help Section */}
           {orders.length > 0 && (

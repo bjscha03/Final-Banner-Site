@@ -26,14 +26,19 @@ type WalletData = {
   pendingCents: number;
   reservedCents: number;
   adjustmentCents?: number;
+  publicOrigin?: string;
+  hasReceivedOrder?: boolean;
   entries: Entry[];
   reservations?: Array<{ order_id: string; wallet_cents: number }>;
 };
 export default function BOFCash() {
   const { code: publicCode } = useParams();
   const { user } = useAuth();
-  const [enabled, setEnabled] = useState<boolean | null>(null),
-    [wallet, setWallet] = useState<WalletData | null>(null);
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [walletSnapshot, setWalletSnapshot] = useState<{ ownerId: string; data: WalletData } | null>(null);
+  // Never display one account's wallet while another account is loading, or
+  // after sign-out. An in-flight response remains bound to its original owner.
+  const wallet = user?.id && walletSnapshot?.ownerId === user.id ? walletSnapshot.data : null;
   const [email, setEmail] = useState(""),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(""),
@@ -55,21 +60,28 @@ export default function BOFCash() {
   const load = async () => {
     const status = await bofRequest("status");
     setEnabled(status.enabled);
-    if (status.enabled && user) setWallet(await bofRequest("wallet"));
+    if (status.enabled && user) setWalletSnapshot({ ownerId: user.id, data: await bofRequest("wallet") });
   };
   useEffect(() => {
     let live = true;
+    setWalletSnapshot(null);
     bofRequest("status")
       .then(async (status) => {
         if (!live) return;
         setEnabled(status.enabled);
         if (status.enabled && user && !publicCode) {
           const data = await bofRequest("wallet");
-          if (live) setWallet(data);
+          if (live) setWalletSnapshot({ ownerId: user.id, data });
         }
       })
       .catch((e) => {
-        if (live) setError(e.message);
+        if (!live) return;
+        if (e.status === 401 && user) {
+          setServerSessionToken(null);
+          safeStorage.removeItem("banners_current_user");
+          window.dispatchEvent(new Event("user-changed"));
+          setError("Your sign-in has expired. Request a fresh secure link below.");
+        } else setError(e.message);
       });
     return () => {
       live = false;
@@ -96,7 +108,7 @@ export default function BOFCash() {
       setMessage(
         "Your referral link is ready. Share it below to start earning BOF Cash.",
       );
-      setWallet(await bofRequest("wallet"));
+      setWalletSnapshot({ ownerId: result.user.id, data: await bofRequest("wallet") });
     });
   const publicValid = !!publicCode && /^BOFREF-[A-F0-9]{12}$/.test(publicCode);
   return (
@@ -202,7 +214,7 @@ export default function BOFCash() {
             <section className="my-6 rounded-2xl border bg-white p-6 sm:p-8">
               <h2 className="text-xl font-bold">
                 {claimToken
-                  ? "Get your personal referral link"
+                  ? "Activate your free BOF Cash account"
                   : "One account. All your BOF Cash."}
               </h2>
               <p className="mt-2 mb-5 text-slate-600">
@@ -218,7 +230,7 @@ export default function BOFCash() {
                 >
                   {busy
                     ? "Opening your account…"
-                    : "Activate and get my referral link"}
+                    : "Activate BOF Cash & Start Sharing"}
                 </Button>
               )}
               {user && !claimToken && (
@@ -231,7 +243,7 @@ export default function BOFCash() {
                     })
                   }
                 >
-                  Activate and get my referral link
+                  Activate BOF Cash & Start Sharing
                 </Button>
               )}
               {(!user || claimToken) && (
@@ -275,7 +287,7 @@ export default function BOFCash() {
           )}
         {enabled && wallet?.joined && !publicCode && (
           <div className="my-6 space-y-6">
-            <BOFReferralShare code={wallet.code} channel={shareChannel} />
+            <BOFReferralShare code={wallet.code} channel={shareChannel} publicOrigin={wallet.publicOrigin} hasReceivedOrder={wallet.hasReceivedOrder} />
             <section
               aria-label="BOF Cash balance"
               className="grid grid-cols-2 sm:grid-cols-3 gap-3"

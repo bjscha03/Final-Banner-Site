@@ -9,7 +9,7 @@ export async function bofRequest(action: string, payload?: unknown) {
     },
   );
   const result = await response.json();
-  if (!response.ok) throw new Error(result.error || "Please try again.");
+  if (!response.ok) throw Object.assign(new Error(result.error || "Please try again."), { status: response.status });
   return result;
 }
 const REFERRAL_KEY = "bof_referral_v1";

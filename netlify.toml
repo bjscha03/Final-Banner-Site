@@ -180,6 +180,19 @@
   status = 301
   force = true
 
+# Public referral cards must be rendered on the server for social sharing.
+[[redirects]]
+  from = "/bof-cash-test/share/:code"
+  to = "/.netlify/functions/bof-cash-test?action=share&code=:code"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/refer/:code"
+  to = "/.netlify/functions/bof-referral?code=:code"
+  status = 200
+  force = true
+
 # AI Banner Generator API redirects (must be before SPA fallback)
 [[redirects]]
   from = "/api/ai/generate-banner"

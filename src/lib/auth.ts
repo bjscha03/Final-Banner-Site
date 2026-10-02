@@ -1,7 +1,29 @@
 import { User, AuthAdapter } from './orders/types';
 import { useState, useEffect } from 'react';
-import { generateUUID, safeStorage } from './utils';
-import { setServerSessionToken } from './serverAuth';
+import { safeStorage } from './utils';
+import { getServerSessionToken, setServerSessionToken } from './serverAuth';
+
+// This is only a browser recovery check. Server endpoints verify the token's
+// signature and permissions before returning orders or changing a wallet.
+function browserSession(token: string | null): { sub: string; exp: number } | null {
+  if (!token) return null;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
+    const bytes = Uint8Array.from(atob(parts[0].replace(/-/g, '+').replace(/_/g, '/')), (char) => char.charCodeAt(0));
+    const payload = JSON.parse(new TextDecoder().decode(bytes));
+    if (typeof payload.sub !== 'string' || !Number.isFinite(payload.exp)) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+function previewAdminReview(user: User): boolean {
+  return user.is_admin === true && typeof window !== 'undefined' && typeof document !== 'undefined'
+    && /^deploy-preview-\d+--.+\.netlify\.app$/i.test(window.location.hostname)
+    && /(?:^|;\s*)botf_preview_admin=1(?:;|$)/.test(document.cookie);
+}
 
 const console = {
   log: import.meta.env.DEV ? globalThis.console.log.bind(globalThis.console) : (..._args: unknown[]) => undefined,
@@ -54,6 +76,16 @@ class SecureAuthAdapter implements AuthAdapter {
           console.warn('Malformed JSON in banners_current_user; clearing value', parseError);
           safeStorage.removeItem(this.CURRENT_USER_KEY);
         }
+      }
+
+      const token = getServerSessionToken();
+      const session = browserSession(token);
+      if ((!user || !previewAdminReview(user)) && (!user || !session || session.sub !== user.id || session.exp * 1000 <= Date.now())) {
+        const hadIdentity = !!stored || !!token;
+        safeStorage.removeItem(this.CURRENT_USER_KEY);
+        setServerSessionToken(null);
+        if (hadIdentity && typeof window !== 'undefined') window.dispatchEvent(new Event('user-changed'));
+        return null;
       }
 
       // Debug logging for production troubleshooting
@@ -234,26 +266,62 @@ export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const loadUser = async () => {
-    try {
-      const currentUser = await getCurrentUser();
-      setUser(currentUser);
-    } catch (error) {
-      console.error('Error loading user:', error);
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    loadUser();
+    let current = true;
+    let loadVersion = 0;
+    let expiryTimer: ReturnType<typeof setTimeout> | undefined;
+    let storageTimer: ReturnType<typeof setTimeout> | undefined;
+    const loadUser = async () => {
+      const version = ++loadVersion;
+      clearTimeout(expiryTimer);
+      try {
+        const currentUser = await getCurrentUser();
+        if (!current || version !== loadVersion) return;
+        setUser(currentUser);
+        const session = currentUser ? browserSession(getServerSessionToken()) : null;
+        if (session) expiryTimer = setTimeout(() => void loadUser(), Math.min(2_147_483_647, Math.max(0, session.exp * 1000 - Date.now() + 50)));
+      } catch (error) {
+        if (!current || version !== loadVersion) return;
+        console.error('Error loading user:', error);
+        setUser(null);
+      } finally {
+        if (current && version === loadVersion) setLoading(false);
+      }
+    };
+    const identityChanged = () => void loadUser();
+    const storageChanged = (event: StorageEvent) => {
+      if (event.key !== null && !['banners_current_user', 'banners_server_session'].includes(event.key)) return;
+      // Another tab writes the token and profile together. Read their final
+      // snapshot after the storage events rather than keeping this tab's old
+      // sessionStorage credential or reacting to half of an account switch.
+      clearTimeout(storageTimer);
+      ++loadVersion;
+      storageTimer = setTimeout(() => {
+        if (!current) return;
+        setServerSessionToken(safeStorage.getItem('banners_server_session'));
+        void loadUser();
+      }, 0);
+    };
+    const visibilityChanged = () => { if (!document.hidden) void loadUser(); };
+    window.addEventListener('user-changed', identityChanged);
+    window.addEventListener('storage', storageChanged);
+    window.addEventListener('focus', identityChanged);
+    document.addEventListener('visibilitychange', visibilityChanged);
+    void loadUser();
+    return () => {
+      current = false;
+      ++loadVersion;
+      clearTimeout(expiryTimer);
+      clearTimeout(storageTimer);
+      window.removeEventListener('user-changed', identityChanged);
+      window.removeEventListener('storage', storageChanged);
+      window.removeEventListener('focus', identityChanged);
+      document.removeEventListener('visibilitychange', visibilityChanged);
+    };
   }, []);
 
   const handleSignIn = async (email: string, password: string) => {
-    const user = await signIn(email, password);
-    setUser(user);
-    return user;
+    return signIn(email, password);
   };
 
   const handleSignUp = async (email: string, password: string, fullName?: string, username?: string) => {
@@ -265,9 +333,6 @@ export function useAuth() {
 
   const handleSignOut = async () => {
     await signOut();
-    setUser(null);
-    // Force a reload of user state to ensure UI updates
-    await loadUser();
   };
 
   return {

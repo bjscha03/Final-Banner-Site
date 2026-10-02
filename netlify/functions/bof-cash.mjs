@@ -180,12 +180,18 @@ export async function handler(event) {
         await cancelReservation(sql, person.id, input.orderId, event),
       );
     }
-    if (action === "wallet")
+    if (action === "wallet") {
+      const received = person.code
+        ? await sql`SELECT 1 FROM orders WHERE lower(btrim(email))=${String(person.email).trim().toLowerCase()} AND NOT coalesce(is_test_order,false) AND status='delivered' LIMIT 1`
+        : [];
       return reply(200, {
         joined: !!person.code,
         code: person.code ? `BOFREF-${person.code}` : null,
+        publicOrigin: emailService.siteOrigin(),
+        hasReceivedOrder: received.length > 0,
         ...(person.code ? await bof.wallet(sql, person.id) : {}),
       });
+    }
     if (action === "quote") {
       if (event.httpMethod !== "POST" || !person.code)
         return reply(400, { error: "Activate your BOF Cash account first." });

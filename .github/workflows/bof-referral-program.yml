@@ -5,7 +5,7 @@ on:
       - 'src/**'
       - 'netlify/functions/**'
       - 'migrations/045_bof_referral_program.sql'
-      - 'tests/browser/bof-referrals.playwright.spec.ts'
+      - 'tests/browser/bof-*.playwright.spec.ts'
       - 'playwright.bof-referrals.config.ts'
       - '.github/workflows/bof-referral-program.yml'
 permissions:
@@ -44,11 +44,11 @@ jobs:
           NODE
       - run: npm ci
       - name: Ledger, guest access, margin, and tracking tests
-        run: npx vitest run --config vitest.ai.config.ts netlify/functions/__tests__/bof-program.test.mjs netlify/functions/__tests__/bof-api.test.mjs src/lib/__tests__/admin-profit-estimate.test.ts src/lib/trackingPolicy.test.ts
+        run: npx vitest run --config vitest.ai.config.ts netlify/functions/__tests__/bof-*.test.mjs netlify/functions/__tests__/verified-guest-orders.test.mjs src/lib/__tests__/admin-profit-estimate.test.ts src/lib/trackingPolicy.test.ts src/lib/auth.lifecycle.test.tsx src/lib/auth.logout.test.ts
       - name: Production build
         run: npm run build
       - name: Bundle payment and referral functions for the production Node version
-        run: npx esbuild netlify/functions/bof-cash.mjs netlify/functions/bof-maintenance.mjs netlify/functions/bof-maintenance-background.mjs netlify/functions/get-orders.mjs netlify/functions/admin-customers.mjs netlify/functions/stripe-webhook.mjs netlify/functions/stripe-create-payment-intent.mjs netlify/functions/paypal-capture-order.mjs --bundle --platform=node --target=node20 --format=esm --packages=external --outdir=/tmp/bof-function-bundles
+        run: npx esbuild netlify/functions/bof-cash.mjs netlify/functions/bof-cash-test.mjs netlify/functions/bof-referral.ts netlify/functions/bof-maintenance.mjs netlify/functions/bof-maintenance-background.mjs netlify/functions/get-orders.mjs netlify/functions/admin-customers.mjs netlify/functions/stripe-webhook.mjs netlify/functions/stripe-create-payment-intent.mjs netlify/functions/paypal-capture-order.mjs netlify/functions/sign-in.mjs netlify/functions/sign-up.mjs netlify/functions/verify-email.mjs netlify/functions/google-callback.mts netlify/functions/linkedin-callback.mts netlify/functions/get-credit-purchases.mjs --bundle --platform=node --target=node20 --format=esm --packages=external --outdir=/tmp/bof-function-bundles
       - name: Existing customer and order reports
         run: |
           node netlify/functions/__tests__/admin-customers-handler.test.mjs

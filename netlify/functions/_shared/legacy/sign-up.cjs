@@ -151,11 +151,13 @@ exports.handler = async (event) => {
 
     const db = neon(dbUrl);
     const normalizedEmail = email.toLowerCase().trim();
-    const isAdmin = normalizedEmail.includes('admin');
+    // Public registration never grants administrator privileges. Existing
+    // administrators are provisioned separately and use the normal sign-in.
+    const isAdmin = false;
 
     // Check if user already exists
     const existingUsers = await db`
-      SELECT id, email_verified FROM profiles WHERE email = ${normalizedEmail}
+      SELECT id, email_verified FROM profiles WHERE lower(btrim(email)) = ${normalizedEmail}
     `;
     
     console.log(`🔍 SIGN-UP: Checking for existing user with email: ${normalizedEmail}`);
@@ -231,4 +233,3 @@ exports.handler = async (event) => {
     };
   }
 };
-

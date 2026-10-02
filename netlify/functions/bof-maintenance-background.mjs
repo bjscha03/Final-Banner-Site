@@ -5,6 +5,7 @@ import bof from "./_shared/bof-service.cjs";
 import email from "./_shared/bof-email.cjs";
 import auth from "./_shared/server-auth.cjs";
 import runtime from "./_shared/stripe-runtime-config.cjs";
+import queries from "./_shared/bof-maintenance-queries.cjs";
 // Scheduled functions run on the published deploy only. The request cannot
 // turn on this job: launch gates are server configuration, not query/body data.
 export default async function handler(request) {
@@ -25,8 +26,7 @@ export default async function handler(request) {
     process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL,
   );
   await bof.sync(sql);
-  const refunds =
-    await sql`SELECT r.order_id,sum(r.amount_cents)::integer AS cents,o.total_cents FROM bof_provider_refunds r JOIN orders o ON o.id=r.order_id JOIN bof_order_benefits b ON b.order_id=o.id WHERE b.state IN ('paid','reversed') GROUP BY r.order_id,o.total_cents LIMIT 100`;
+  const refunds = await queries.pendingRefunds(sql);
   for (const r of refunds)
     await bof.reverse(sql, r.order_id, Number(r.cents), Number(r.total_cents));
   const held =
@@ -75,11 +75,11 @@ export default async function handler(request) {
     if (Number.isNaN(launched.getTime()))
       throw new Error("BOF_REFERRAL_LAUNCHED_AT must be an ISO timestamp");
     await sql`INSERT INTO bof_order_touchpoints(order_id) SELECT id FROM orders WHERE status IN ('shipped','delivered','fulfilled') AND created_at>=${launched.toISOString()}::timestamptz AND NOT coalesce(is_test_order,false) ON CONFLICT DO NOTHING`;
-    const due =
-      await sql`SELECT DISTINCT lower(btrim(o.email)) AS email FROM orders o
-      WHERE (o.status='delivered' OR (o.status IN ('shipped','fulfilled') AND EXISTS (SELECT 1 FROM bof_order_touchpoints t WHERE t.order_id=o.id AND t.first_shipped_at<=now()-interval '3 days'))) AND o.created_at>=${launched.toISOString()}::timestamptz AND NOT coalesce(o.is_test_order,false)
-        AND NOT EXISTS (SELECT 1 FROM bof_members m JOIN profiles p ON p.id=m.user_id WHERE lower(btrim(p.email))=lower(btrim(o.email)))
-        AND NOT EXISTS (SELECT 1 FROM marketing_email_sends s WHERE s.normalized_email=lower(btrim(o.email)) AND s.campaign_key=${email.CAMPAIGN}) LIMIT 10`;
+    const due = await queries.dueInvitations(
+      sql,
+      launched.toISOString(),
+      email.CAMPAIGN,
+    );
     for (const customer of due) await email.sendInvitation(sql, customer.email);
   }
   await sql`DELETE FROM bof_rate_limits WHERE expires_at<now()`;

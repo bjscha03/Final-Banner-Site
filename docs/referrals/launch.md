@@ -1,6 +1,6 @@
 # BOF Cash: implementation and launch notes
 
-The feature is implemented for review and defaults to OFF. This change does not migrate the live database, enable the program, send invitations, or issue live credit.
+BOF Cash defaults to OFF. The owner authorized production rollout and a test email on October 2, 2026, after two functionality/design audits. Record the verified rollout status below before enabling the program.
 
 ## Customer flow
 
@@ -8,7 +8,7 @@ The feature is implemented for review and defaults to OFF. This change does not 
 - Returning customers can request a 15-minute sign-in link; no password is required. Existing admin accounts use their normal sign-in.
 - BOF Cash is visible in the signed-in account menu and on My Orders. Before launch, the account card explains that rewards are coming soon; it never invents a balance. After launch, joined customers see available/pending credit and a direct link to share and open their wallet.
 - The wallet puts sharing first: Facebook, text, email, native sharing, copy-link, copy-code, and a ready-to-send message. All shared messages use the public referral URL and disclose the reward; private activation links are never shared. Photos, posts, and reviews are optional.
-- Invitations reuse the existing BOF logo and banner imagery. Email sharing buttons open the customer’s activation/account page with the chosen channel retained; a new customer explicitly activates before sharing. Admin can inspect the email on desktop/mobile and open “See customer sharing” without sending or copying anything.
+- Invitations reuse the existing BOF logo and banner imagery. The primary email button says “Activate BOF Cash & Start Sharing.” A new customer explicitly activates before sharing; the account then opens Facebook, text, or email with their own public link. Text and email include an editable message, real code, link and reward disclosure. Facebook uses a server-rendered branded link card, with an optional customer-written caption. Admin can inspect the email on desktop/mobile and open “See customer sharing” without sending or copying anything.
 - A friend can check out as a guest. Referral attribution lasts 30 days in the browser. Entering a valid referral code replaces the previous attribution.
 - Signed-in members check their usable credit at checkout and apply it with one control. A better existing promotion preserves the credit. Product/service changes or expiration require a fresh quote before payment.
 - A gold star labeled **BOF Cash member** appears in admin order views and the Customers tab only after activation. Invitations have a separate **Invited** label. The referral admin page filters joined/invited/not-invited customers and previews each selected send.
@@ -66,3 +66,14 @@ Existing unrelated large-banner promotion tests expect a retired 25% campaign an
 Other baseline CI failures include Node 20 tests importing the existing uncompiled TypeScript profit calculator, four AI Designer logo-removal assertions, and a PayPal source-copy assertion for a billing-address label absent on the base branch. The new BOF workflow uses Node 24 for source tests and separately bundles the affected production functions for Node 20.
 
 Provider references: [Stripe Charge](https://docs.stripe.com/api/charges/object), [Stripe cancellation](https://docs.stripe.com/api/payment_intents/cancel), [PayPal Payments v2](https://developer.paypal.com/docs/api/payments/v2/).
+
+## October 2 activation and sharing revision
+
+- Guest history now attaches after verified signup, password sign-in, OAuth, and BOF enrollment; only unowned orders matching the verified account email are linked. My Orders supports histories longer than 20 orders and recoverable pagination errors.
+- Signed account state refreshes after activation, sign-out, and cross-tab changes. Expired credentials return the customer to secure email access; a previous account’s wallet cannot remain visible.
+- The invitation uses one activation-first call to action. Sharing drafts include the actual code and link and remain editable. Social crawlers receive the real public offer metadata directly from the server.
+- Record-only admin refunds revoke referral rewards but do not restore spent credit without provider confirmation. Maintenance queues skip completed work, advance past suppressed recipients, and retry transient sends safely.
+- An owner-only isolated test at `/bof-cash-test` uses a dedicated database branch, credential, session, and storage. The configured test branch is checked on every request. Payment, shipping, and elapsed time are explicitly simulated; the pricing policy and wallet ledger are real. Test links never apply discounts to ordinary checkout.
+- Local verification: 141 focused backend/auth/tracking checks, 51 desktop/Android/iPhone browser checks, complete production/prerender build, and 16 Node 20 function bundles passed. Separate provider handler suites cover Stripe and PayPal. Two independent code/design audit passes found and resolved the account, refund and maintenance issues above.
+
+Deployment-specific database/provider checks and the final release identifiers are recorded when rollout finishes. Actual Facebook composer rendering must be distinguished from verified Open Graph metadata and automated share-button checks.

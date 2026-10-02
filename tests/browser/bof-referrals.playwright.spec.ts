@@ -9,6 +9,11 @@ const user = {
   full_name: "Alex Member",
   is_admin: false,
 };
+// This is only a browser identity fixture. Every protected API is intercepted;
+// the deliberately fake signature cannot authenticate against a real server.
+const browserSession = (admin = false) =>
+  `${Buffer.from(JSON.stringify({ sub: user.id, email: user.email, admin, exp: 4102444800 })).toString("base64url")}.test-signature`;
+const sessionToken = browserSession();
 const wallet = {
   joined: true,
   code: "BOFREF-ABCDEF123456",
@@ -49,10 +54,10 @@ const order = {
 };
 async function signIn(page: Page, admin = false) {
   await page.addInitScript(
-    ({ u, i }) => {
+    ({ u, i, token }) => {
       localStorage.setItem("banners_current_user", JSON.stringify(u));
       localStorage.setItem("cart_owner_user_id", u.id);
-      localStorage.setItem("banners_server_session", "test-signed-token");
+      localStorage.setItem("banners_server_session", token);
       localStorage.setItem(
         "cart-storage",
         JSON.stringify({
@@ -61,7 +66,7 @@ async function signIn(page: Page, admin = false) {
         }),
       );
     },
-    { u: { ...user, is_admin: admin }, i: item },
+    { u: { ...user, is_admin: admin }, i: item, token: browserSession(admin) },
   );
 }
 async function mock(
@@ -89,7 +94,7 @@ async function mock(
                 error:
                   "This link has expired or was already used. Request a new one below.",
               }
-            : { user, sessionToken: "test-signed-token" };
+            : { user, sessionToken };
           status = expired ? 410 : 200;
         }
         if (action === "request-link")
@@ -246,12 +251,12 @@ test("a guest activates with one click; loading the email link never consumes it
       "a".repeat(64),
   );
   await expect(
-    page.getByRole("button", { name: "Activate and get my referral link" }),
+    page.getByRole("button", { name: "Activate BOF Cash & Start Sharing" }),
   ).toBeVisible();
   expect(calls).not.toContain("claim");
   expect(new URL(page.url()).hash).toBe("");
   await page
-    .getByRole("button", { name: "Activate and get my referral link" })
+    .getByRole("button", { name: "Activate BOF Cash & Start Sharing" })
     .click();
   await expect(
     page.getByRole("region", { name: "BOF Cash balance" }),
@@ -278,12 +283,99 @@ test("an expired invitation offers a fresh sign-in link", async ({ page }) => {
     "/bof-cash#claim=11111111-1111-4111-8111-111111111111." + "b".repeat(64),
   );
   await page
-    .getByRole("button", { name: "Activate and get my referral link" })
+    .getByRole("button", { name: "Activate BOF Cash & Start Sharing" })
     .click();
   await expect(page.getByRole("alert")).toContainText("expired");
   await page.getByLabel("Need a fresh link?").fill("guest@customer.com");
   await page.getByRole("button", { name: "Email me a secure link" }).click();
   await expect(page.getByRole("status")).toContainText("secure sign-in link");
+});
+test("guest activation opens past orders and older orders load without losing history after a retry", async ({
+  page,
+}) => {
+  await mock(page);
+  // A reserved, fully intercepted origin exercises the production order adapter.
+  // localhost deliberately selects the app's unrelated demo-order storage.
+  const historyOrigin = "https://bof-browser-history.test";
+  await page.route(`${historyOrigin}/**`, async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname.startsWith("/.netlify/functions/"))
+      return route.fallback();
+    const response = await route.fetch({
+      url: `http://127.0.0.1:4175${url.pathname}${url.search}`,
+    });
+    await route.fulfill({ response });
+  });
+  const history = Array.from({ length: 25 }, (_, index) => ({
+    ...order,
+    id: `11111111-1111-4111-8111-1111${String(index + 1).padStart(8, "0")}`,
+    order_number: `BOF-HISTORY-${index + 1}`,
+  }));
+  const requestedPages: string[] = [];
+  let failedSecondPage = false;
+  await page.route("**/.netlify/functions/get-orders?**", async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    expect(url.searchParams.get("user_id")).toBe(user.id);
+    expect(request.headers().authorization).toBe(`Bearer ${sessionToken}`);
+    const requestedPage = url.searchParams.get("page") || "1";
+    requestedPages.push(requestedPage);
+    if (requestedPage === "2" && !failedSecondPage) {
+      failedSecondPage = true;
+      return route.fulfill({
+        status: 503,
+        json: { error: "Order history temporarily unavailable" },
+      });
+    }
+    await route.fulfill({
+      json: requestedPage === "1" ? history.slice(0, 20) : history.slice(20),
+    });
+  });
+  await page.goto(
+    `${historyOrigin}/bof-cash#claim=11111111-1111-4111-8111-111111111111.` +
+      "c".repeat(64),
+  );
+  await page
+    .getByRole("button", { name: "Activate BOF Cash & Start Sharing" })
+    .click();
+  await expect(
+    page.getByRole("region", { name: "Share BOF and earn rewards" }),
+  ).toBeVisible();
+  await page.goto(`${historyOrigin}/my-orders`);
+  await expect(
+    page.getByText(
+      "Your past orders using this verified email appear here, including guest checkouts.",
+    ),
+  ).toBeVisible();
+  await expect(page.getByText("Orders shown").locator("..")).toContainText(
+    "20",
+  );
+  await expect(
+    page.getByText("#00000020", { exact: true }).filter({ visible: true }),
+  ).toBeVisible();
+  await expect(page.getByText("#00000025", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Load more orders" }).click();
+  await expect(page.getByRole("alert")).toContainText(
+    "Your order history could not be loaded. Please try again.",
+  );
+  await expect(
+    page.getByText("#00000020", { exact: true }).filter({ visible: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Try again", exact: true }).click();
+  await expect(page.getByText("Total Orders").locator("..")).toContainText(
+    "25",
+  );
+  await expect(
+    page.getByText("#00000001", { exact: true }).filter({ visible: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("#00000025", { exact: true }).filter({ visible: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Load more orders" }),
+  ).toHaveCount(0);
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  expect(requestedPages).toEqual(["1", "2", "2"]);
 });
 test("checkout shows usable credit, applies it once, and restores totals on removal", async ({
   page,
@@ -333,7 +425,7 @@ test("admin distinguishes a joined member from an invitation and requires an ema
     'iframe[title="BOF Cash invitation preview"]',
   );
   const activationLink = emailFrame.getByRole("link", {
-    name: /Get my referral link/,
+    name: /Activate BOF Cash & Start Sharing/,
   });
   await expect(emailFrame.getByAltText("Banners On The Fly")).toBeVisible();
   await expect
@@ -350,15 +442,15 @@ test("admin distinguishes a joined member from an invitation and requires an ema
         .evaluate((image: HTMLImageElement) => image.naturalWidth),
     )
     .toBeGreaterThan(0);
+  await expect(activationLink).toHaveCount(1);
   await expect(
-    emailFrame.getByRole("link", { name: "Share on Facebook" }),
+    emailFrame.getByText("Choose Facebook, text, or email", { exact: true }),
   ).toBeVisible();
-  await expect(
-    emailFrame.getByRole("link", { name: "Text a friend" }),
-  ).toBeVisible();
-  await expect(
-    emailFrame.getByRole("link", { name: "Email a friend" }),
-  ).toBeVisible();
+  await expect(emailFrame.locator("body")).toContainText(
+    "Your past orders under this email will appear in your account automatically, including guest orders.",
+  );
+  for (const name of ["Share on Facebook", "Text a friend", "Email a friend"])
+    await expect(emailFrame.getByRole("link", { name })).toHaveCount(0);
   await expect(activationLink).toHaveAttribute("aria-disabled", "true");
   await expect(activationLink).not.toHaveAttribute("href");
   await activationLink.dispatchEvent("click");
@@ -482,7 +574,7 @@ test("sharing uses the public referral link across Facebook, text, email, and co
       .getAttribute("href"))!;
     expect(decodeURIComponent(href)).toContain(link);
     expect(decodeURIComponent(href)).toContain(
-      "I earn BOF Cash if your order qualifies",
+      "I earn BOF Cash on qualifying referrals, too.",
     );
     expect(href).not.toContain("claim");
   }
@@ -495,7 +587,7 @@ test("sharing uses the public referral link across Facebook, text, email, and co
   expect(copied[2]).toContain("qualifying");
   expect(
     await sharing
-      .getByLabel("A message ready to share")
+      .getByLabel("Your ready-to-send message")
       .evaluate((el) => el.scrollHeight <= el.clientHeight + 1),
   ).toBe(true);
   await sharing.getByRole("button", { name: "More sharing options" }).click();
@@ -537,7 +629,7 @@ test("a signed-in customer finds BOF Cash in their account and joins without re-
   await page.getByRole("menuitem", { name: "BOF Cash", exact: true }).click();
   await expect(page.getByLabel("Order email address")).toHaveCount(0);
   await page
-    .getByRole("button", { name: "Activate and get my referral link" })
+    .getByRole("button", { name: "Activate BOF Cash & Start Sharing" })
     .click();
   expect(calls).toContain("join");
   await expect(
@@ -572,6 +664,101 @@ test("the account keeps BOF Cash discoverable before launch without activating r
   ).toBeVisible();
   expect(calls).not.toContain("wallet");
   expect(calls).not.toContain("join");
+});
+
+for (const duringLoad of [false, true]) {
+  test(`signing out clears the prior customer's wallet${duringLoad ? " even while it is loading" : " and sharing tools"}`, async ({
+    page,
+  }) => {
+    await signIn(page);
+    await mock(page);
+    let releaseWallet: (() => void) | undefined;
+    let notifyWalletRequest: (() => void) | undefined;
+    const walletRequested = new Promise<void>((resolve) => {
+      notifyWalletRequest = resolve;
+    });
+    if (duringLoad)
+      await page.route(
+        "**/.netlify/functions/bof-cash?action=wallet",
+        async (route) => {
+          notifyWalletRequest?.();
+          await new Promise<void>((resolve) => {
+            releaseWallet = resolve;
+          });
+          await route.fulfill({ json: wallet });
+        },
+      );
+    await page.goto("/bof-cash");
+    if (duringLoad) await walletRequested;
+    else
+      await expect(
+        page.getByRole("region", { name: "BOF Cash balance" }),
+      ).toContainText("$25.00");
+    await page.evaluate(() => {
+      localStorage.removeItem("banners_current_user");
+      localStorage.removeItem("banners_server_session");
+      sessionStorage.removeItem("banners_server_session");
+      window.dispatchEvent(new Event("user-changed"));
+    });
+    await expect(page.getByLabel("Order email address")).toBeVisible();
+    if (duringLoad) {
+      const response = page.waitForResponse(
+        (result) =>
+          new URL(result.url()).searchParams.get("action") === "wallet",
+      );
+      releaseWallet?.();
+      await (await response).finished();
+      await page.evaluate(
+        () =>
+          new Promise<void>((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+          ),
+      );
+    }
+    await expect(
+      page.getByRole("region", { name: "BOF Cash balance" }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("region", { name: "Share BOF and earn rewards" }),
+    ).toHaveCount(0);
+    await expect(page.getByLabel("Your referral link")).toHaveCount(0);
+  });
+}
+
+test("an expired account session clears the wallet and offers a new secure sign-in link", async ({
+  page,
+}) => {
+  await signIn(page);
+  const calls = await mock(page);
+  await page.route(
+    "**/.netlify/functions/bof-cash?action=wallet",
+    async (route) => {
+      await route.fulfill({
+        status: 401,
+        json: { error: "Verified sign-in required" },
+      });
+    },
+  );
+  await page.goto("/bof-cash");
+  await expect(page.getByRole("alert")).toContainText(
+    "Your sign-in has expired. Request a fresh secure link below.",
+  );
+  await expect(
+    page.getByRole("region", { name: "BOF Cash balance" }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("region", { name: "Share BOF and earn rewards" }),
+  ).toHaveCount(0);
+  expect(
+    await page.evaluate(() => localStorage.getItem("banners_current_user")),
+  ).toBeNull();
+  expect(
+    await page.evaluate(() => localStorage.getItem("banners_server_session")),
+  ).toBeNull();
+  await page.getByLabel("Order email address").fill(user.email);
+  await page.getByRole("button", { name: "Email me a secure link" }).click();
+  await expect(page.getByRole("status")).toContainText("secure sign-in link");
+  expect(calls).toContain("request-link");
 });
 
 test("a friend opens a shared link and keeps the referral when shopping as a guest", async ({

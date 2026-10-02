@@ -1,6 +1,7 @@
 "use strict";
 const crypto = require("node:crypto");
 const { getSession } = require("./server-auth.cjs");
+const { linkVerifiedGuestOrders } = require("./verified-guest-orders.cjs");
 const active = () => process.env.BOF_REFERRAL_ENABLED === "true";
 const launched = () => active() || !!process.env.BOF_REFERRAL_LAUNCHED_AT;
 const norm = (value) =>
@@ -51,7 +52,10 @@ async function sync(sql, memberId = null) {
         OR (b.state IN ('held','paid') AND o.status='refunded')) ORDER BY b.created_at LIMIT 200`;
     for (const order of orders) {
       if (order.status === "refunded")
-        await sql`SELECT bof_reverse(${order.order_id}::uuid,${Number(order.total_cents)},${Number(order.total_cents)},false)`;
+        // The admin refund action only records a status; it does not verify
+        // provider money movement. Revoke the reward and flag review now,
+        // but only a canonical provider refund may return spent BOF Cash.
+        await sql`SELECT bof_reverse(${order.order_id}::uuid,0,${Number(order.total_cents)},false)`;
       else await sql`SELECT bof_settle(${order.order_id}::uuid)`;
     }
   });
@@ -97,6 +101,7 @@ async function join(sql, person) {
       "BOF_CUSTOMER_REQUIRED",
       "BOF Cash opens after your first paid order.",
     );
+  await linkVerifiedGuestOrders(sql, person);
   const code = crypto.randomBytes(6).toString("hex").toUpperCase();
   const rows =
     await sql`INSERT INTO bof_members(user_id,code) VALUES(${person.id}::uuid,${code})

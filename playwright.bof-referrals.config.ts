@@ -2,7 +2,11 @@ import { defineConfig } from "@playwright/test";
 import previewConfig from "./playwright.preview.config";
 export default defineConfig({
   ...previewConfig,
-  testMatch: "bof-referrals.playwright.spec.ts",
+  testMatch: [
+    "bof-referrals.playwright.spec.ts",
+    "bof-sharing-editable.playwright.spec.ts",
+    "bof-owner-test.playwright.spec.ts",
+  ],
   projects: previewConfig.projects?.filter((p) =>
     [
       "chromium-1440x900",

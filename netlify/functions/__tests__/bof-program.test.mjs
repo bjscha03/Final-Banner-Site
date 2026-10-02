@@ -448,6 +448,36 @@ describe("Atomic ledger", () => {
     );
     expect(result.rows[0]).toEqual({ cents: 1000, n: 2 });
   });
+  it("does not return spent credit from a record-only refund status before the provider confirms it", async () => {
+    const member = await newPerson();
+    await seed(member, 1000);
+    const order = await newOrder();
+    await reserve({
+      order,
+      emailAddress: "record-only-refund@customer.com",
+      member,
+      cash: 1000,
+      quote: await quote(member, 1000),
+    });
+    await db.query("UPDATE orders SET status='paid' WHERE id=$1", [order]);
+    await service.settle(sql, { id: order });
+    await db.query("UPDATE orders SET status='refunded' WHERE id=$1", [order]);
+    // The admin action only records a status; it does not move provider money.
+    expect((await service.wallet(sql, member)).availableCents).toBe(0);
+    expect(
+      (
+        await db.query(
+          "SELECT count(*)::integer AS n FROM bof_cash_entries WHERE order_id=$1 AND kind='redemption_refund'",
+          [order],
+        )
+      ).rows[0].n,
+    ).toBe(0);
+    // A later canonical partial refund returns only its proportional credit.
+    await service.reverse(sql, order, 3975, 7950);
+    expect((await service.wallet(sql, member)).availableCents).toBe(500);
+    await service.reverse(sql, order, 7950, 7950);
+    expect((await service.wallet(sql, member)).availableCents).toBe(1000);
+  });
   it("prevents canceled pending rewards from maturing later", async () => {
     const m = await newPerson(),
       o = await newOrder("revoked@customer.com");
@@ -619,7 +649,7 @@ describe("Guest claiming and membership", () => {
   });
   it("does not demand photos and makes the invitation and login distinct", () => {
     expect(email.content().text).toContain(
-      "No photo or public post is required",
+      "No photos, reviews, or public posts required.",
     );
     expect(email.content({ access: true }).text).toContain("15 minutes");
   });

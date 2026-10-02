@@ -195,6 +195,14 @@ const SignIn: React.FC = () => {
 
           {/* Main Card */}
           <div className="space-y-6 border border-slate-200 border-t-4 border-t-[#FF6A00] bg-white p-7 shadow-[0_12px_30px_rgba(11,31,58,0.07)] sm:p-8">
+            <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
+              <p className="text-sm font-semibold text-[#0B1F3A]">BOF Cash member?</p>
+              <Link to="/bof-cash" className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-[#18448D] underline underline-offset-4">
+                Sign in with a secure email link
+                <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+              </Link>
+              <p className="mt-2 text-xs leading-5 text-slate-600">Use the email from your order. No password needed.</p>
+            </div>
             <form className="space-y-5" onSubmit={handleSubmit}>
               <div>
                 <Label htmlFor="email" className="text-sm font-semibold text-gray-700 mb-2 block">
