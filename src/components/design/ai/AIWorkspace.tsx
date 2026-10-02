@@ -24,6 +24,7 @@ import { useAuth } from '@/lib/auth';
 import { loadDraft, saveDraft } from './draftStore';
 import { collectVersions } from './versions';
 import { fetchAIRequest } from './jobRequest';
+import { resolveEditBrief } from './editBrief';
 import LayerControls from './LayerControls';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import type {
@@ -314,6 +315,7 @@ export default function AIWorkspace(props: Props) {
   const controllerRef = useRef<AbortController | null>(null);
   const restoringDraftRef = useRef(false);
   const previewRef = useRef<HTMLDivElement | null>(null);
+  const descriptionRef = useRef<HTMLTextAreaElement | null>(null);
   const [revealResult, setRevealResult] = useState(0);
   const latestDraftRef = useRef<{ key: string; value: unknown } | null>(null);
 
@@ -554,6 +556,35 @@ export default function AIWorkspace(props: Props) {
 
   const edit = async (manual = false, logoOnly = false, removeLogo = false) => {
     if (!selected || (!manual && !editInstruction.trim()) || stage || controllerRef.current || !access.ready) return;
+    const integratedLogo = selected.brief?.logoRendering === 'integrated';
+    const normalizedInstruction = editInstruction.toLowerCase();
+    const requestedLogoPosition: CreativeBrief['logoPosition'] | null = manual || !logoImage || integratedLogo ? null
+      : /logo.{0,24}(upper|top)[ -]?left|(?:upper|top)[ -]?left.{0,24}logo/.test(normalizedInstruction) ? 'upper-left'
+        : /logo.{0,24}(upper|top)[ -]?right|(?:upper|top)[ -]?right.{0,24}logo/.test(normalizedInstruction) ? 'upper-right'
+          : /logo.{0,24}(lower|bottom)[ -]?left|(?:lower|bottom)[ -]?left.{0,24}logo/.test(normalizedInstruction) ? 'lower-left'
+            : /logo.{0,24}(lower|bottom)[ -]?right|(?:lower|bottom)[ -]?right.{0,24}logo/.test(normalizedInstruction) ? 'lower-right'
+              : null;
+    // Logo-only actions keep the selected artwork's copy/settings isolated from
+    // pending form edits, but must accept a replacement for missing context.
+    const logoBrief = selected.brief && {
+      ...selected.brief,
+      description: selected.brief.description?.trim() ? selected.brief.description : brief.description,
+    };
+    const requestedBrief = removeLogo && logoBrief ? logoBrief : {
+      ...(logoOnly && logoBrief ? {
+        ...logoBrief,
+        logoPosition: brief.logoPosition,
+        layers: { ...logoBrief.layers, logo: brief.layers?.logo },
+      } : brief),
+      ...(requestedLogoPosition ? { logoPosition: requestedLogoPosition } : {}),
+      typographyMode: manual ? brief.typographyMode : 'ai' as const,
+    };
+    const briefForEdit = resolveEditBrief(requestedBrief, selected.brief);
+    if (!briefForEdit) {
+      setError('This version is missing its original description. Add a description in “Describe the design you want”, then try your edit again. Your artwork is still saved.');
+      descriptionRef.current?.focus();
+      return;
+    }
     const controller = new AbortController();
     controllerRef.current = controller;
     setError('');
@@ -562,15 +593,6 @@ export default function AIWorkspace(props: Props) {
     setStage(removeLogo ? 'Removing your uploaded logo' : logoOnly ? 'Updating your logo' : 'Refining your design');
     trackAIEvent('ai_edit_started', { concept_id: selected.id, version_number: concepts.indexOf(selected) + 1, edit_round: concepts.filter(item => item.id === selected.id).length });
     try {
-      const integratedLogo = selected.brief?.logoRendering === 'integrated';
-      const normalizedInstruction = editInstruction.toLowerCase();
-      const requestedLogoPosition: CreativeBrief['logoPosition'] | null = manual || !logoImage || integratedLogo ? null
-        : /logo.{0,24}(upper|top)[ -]?left|(?:upper|top)[ -]?left.{0,24}logo/.test(normalizedInstruction) ? 'upper-left'
-          : /logo.{0,24}(upper|top)[ -]?right|(?:upper|top)[ -]?right.{0,24}logo/.test(normalizedInstruction) ? 'upper-right'
-            : /logo.{0,24}(lower|bottom)[ -]?left|(?:lower|bottom)[ -]?left.{0,24}logo/.test(normalizedInstruction) ? 'lower-left'
-              : /logo.{0,24}(lower|bottom)[ -]?right|(?:lower|bottom)[ -]?right.{0,24}logo/.test(normalizedInstruction) ? 'lower-right'
-                : null;
-      const briefForEdit = removeLogo && selected.brief ? selected.brief : { ...(logoOnly && selected.brief ? { ...selected.brief, logoPosition: brief.logoPosition, layers: { ...selected.brief.layers, logo: brief.layers?.logo } } : brief), ...(requestedLogoPosition ? { logoPosition: requestedLogoPosition } : {}), typographyMode: manual ? brief.typographyMode : 'ai' as const };
       const editPhotos = removeLogo ? selected.photoImages || [] : photoImages;
       const body = await runBackgroundJob(
         '/.netlify/functions/ai-designer-edit',
@@ -749,7 +771,7 @@ export default function AIWorkspace(props: Props) {
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">{brief.widthIn}&quot; × {brief.heightIn}&quot; · {props.materialLabel || brief.material}</span>
             </div>
             <label htmlFor="ai-description" className="mt-4 block text-sm font-bold text-slate-800">Describe the design you want</label>
-            <textarea id="ai-description" value={brief.description} disabled={Boolean(stage)} onChange={(event) => updateBrief('description', event.target.value.slice(0, 1200))} rows={5} className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-3 text-base shadow-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" placeholder="Example: A polished grand-opening design for a family restaurant, with warm food photography, strong contrast, and space for a headline and offer." />
+            <textarea ref={descriptionRef} id="ai-description" value={brief.description} disabled={Boolean(stage)} onChange={(event) => updateBrief('description', event.target.value.slice(0, 1200))} rows={5} className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-3 text-base shadow-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" placeholder="Example: A polished grand-opening design for a family restaurant, with warm food photography, strong contrast, and space for a headline and offer." />
             <div className="mt-1 flex flex-wrap items-center gap-x-4">
               <button type="button" onClick={() => void improvePrompt()} disabled={!access.ready || !recoveryReady || !requirementsMet || Boolean(stage)} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-[#0b1f3a] hover:text-orange-600 disabled:opacity-40">{improvingPrompt ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <WandSparkles className="h-4 w-4" />} {improvingPrompt ? 'Improving your prompt…' : 'Improve prompt with AI'}</button>
               {improvingPrompt && <p role="status" className="text-xs text-slate-600">Rewriting your text. Your artwork stays unchanged. <button type="button" onClick={() => controllerRef.current?.abort()} className="min-h-11 underline">Cancel</button></p>}
