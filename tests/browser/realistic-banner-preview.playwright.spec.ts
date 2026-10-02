@@ -58,9 +58,8 @@ for (const scenario of [
     await expect(lightbox.locator('[data-realistic-grommet]')).toHaveCount(scenario.count);
     await expect(lightbox.locator('[data-banner-dimensions]')).toContainText(`${scenario.width_in / 12} ft × ${scenario.height_in / 12} ft`);
     await expect(lightbox.locator('[data-banner-dimensions]')).toContainText(`(${scenario.width_in}″ × ${scenario.height_in}″)`);
-    const reference = await lightbox.locator('[data-realistic-size-reference] > g').boundingBox();
-    const banner = await lightbox.locator('[data-realistic-surface]').boundingBox();
-    expect(banner!.height / reference!.height).toBeCloseTo(scenario.height_in / 72, 1);
+    await expect(lightbox.locator('[data-realistic-size-reference]')).toHaveCount(0);
+    await expect(lightbox).not.toContainText('person');
     await expect(lightbox.locator('img').first()).toHaveAttribute('src', baseItem.final_render_url);
     await expect(lightbox.locator('[data-preview-bleed-compensated]')).toHaveAttribute('data-preview-bleed-compensated', 'false');
     await expect(lightbox.locator('[data-realistic-scene]')).toHaveAttribute('data-realistic-material', scenario.material === 'mesh' ? 'mesh' : 'vinyl');
