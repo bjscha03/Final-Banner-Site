@@ -238,3 +238,19 @@ describe('admin profitability fixed product costs', () => {
     warn.mockRestore();
   });
 });
+
+describe('BOF Cash reward reserves', () => {
+  const merchandise = { product_type:'banner', material:'13oz', width_in:60, height_in:24, quantity:1, line_total_cents:5000 };
+  it('budgets a new reward at issuance, then releases the reserve on redemption without counting it twice', () => {
+    const original = baseOrder([merchandise]);
+    const normal = estimateOrderProfit(original);
+    const earning = estimateOrderProfit({...original,bof_reward_reserve_cents:500});
+    const spending = estimateOrderProfit({...original,applied_discount_cents:500,bof_reserve_released_cents:500});
+    expect(earning.netProfitCents).toBe(normal.netProfitCents-500);
+    expect(spending.netProfitCents).toBe(normal.netProfitCents);
+    expect(earning.netProfitCents+spending.netProfitCents).toBe(normal.netProfitCents*2-500);
+  });
+  it('flags refunds and disputes for review instead of displaying a misleading profit',()=>{
+    expect(estimateOrderProfit({...baseOrder([merchandise]),bof_profit_review:true}).needsReview).toBe(true);
+  });
+});

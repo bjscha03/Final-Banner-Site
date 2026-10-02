@@ -1,3 +1,5 @@
+import BOFCashCheckout from '@/components/checkout/BOFCashCheckout';
+import {saveBofReferral,bofPricingItems} from '@/lib/bofCash';
 import { readCheckoutCustomerDraft } from '@/components/checkout/checkoutCustomerDraft';
 import { useAutomaticFirstOrderDiscount } from '@/hooks/useAutomaticFirstOrderDiscount';
 import { cartEditUrl } from '@/lib/cartEditUrl';
@@ -490,13 +492,7 @@ const Checkout: React.FC = () => {
           code: discountCodeInput.trim(),
           userId: user?.id || null,
           email: readCheckoutCustomerDraft(user?.email || '').email || null,
-          items: items.map((item) => ({
-            id: item.id,
-            product_type: item.product_type || 'banner',
-            width_in: item.width_in,
-            height_in: item.height_in,
-            line_total_cents: item.line_total_cents,
-          })),
+          items: bofPricingItems(items),
         }),
       });
 
@@ -504,6 +500,7 @@ const Checkout: React.FC = () => {
 
       if (result.valid && result.discount) {
         applyDiscountCode(result.discount);
+        if (result.discount.code.startsWith('BOFREF-')) saveBofReferral(result.discount.code);
         
         // Track successful promo application
         trackPromoEvent('promo_applied_success', {
@@ -565,8 +562,8 @@ const Checkout: React.FC = () => {
     checkoutTrackedRef.current = true;
     const aiItems = items.filter(item => /^ai-(banner|yard-sign|car-magnet)-/i.test(item.file_name || ''));
     if (aiItems.length) trackAIEvent('ai_checkout_started', { count: aiItems.length });
-    trackBeginCheckout(analyticsItems, totalCents, discountCode?.code || null);
-    trackViewCart(analyticsItems, totalCents, discountCode?.code || null);
+    trackBeginCheckout(analyticsItems, totalCents, discountCode?.code.startsWith('BOFCASH-') ? 'BOFCASH' : discountCode?.code || null);
+    trackViewCart(analyticsItems, totalCents, discountCode?.code.startsWith('BOFCASH-') ? 'BOFCASH' : discountCode?.code || null);
 
     // Track Facebook Pixel InitiateCheckout
     trackFBInitiateCheckout({
@@ -1289,6 +1286,7 @@ const Checkout: React.FC = () => {
               <div className="rounded-xl border border-slate-200 bg-white px-4 pb-4">
                 {/* Discount Code Section */}
                 <div className="pt-3">
+                  <BOFCashCheckout locked={checkoutLocked}/>
                   {discountCode?.automaticFirstOrder && <p className="mb-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">{getEnteredPromoLabel(discountCode, resolvedDiscount)}</p>}
                   {firstOrderOffer.message && (!discountCode || discountCode.code === 'NEW20') && <p role="status" data-testid="first-order-eligibility" className="mb-2 text-xs leading-snug text-slate-600">{firstOrderOffer.message}{firstOrderOffer.status === 'unavailable' && <button type="button" onClick={firstOrderOffer.retry} className="ml-2 min-h-11 font-semibold underline">Retry offer</button>}</p>}
                   {!discountCode || discountCode.automaticFirstOrder ? (

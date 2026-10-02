@@ -139,7 +139,8 @@ function manualPromoLabel(
   const valueLabel = percentage > 0
     ? `${percentage}% off`
     : `$${(amountCents / 100).toFixed(2)} off`;
-  return `${code} (${valueLabel})`;
+  const label = code.startsWith('BOFCASH-') ? 'BOF Cash' : code.startsWith('BOFREF-') ? 'Friend referral' : code;
+  return `${label} (${valueLabel})`;
 }
 
 // ============================================================================

@@ -1,3 +1,5 @@
+import {readBofReferral} from '@/lib/bofCash';
+import {authorizedHeaders} from '@/lib/serverAuth';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Elements,
@@ -560,7 +562,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
           const response = await fetchWithTimeout(STATUS_ENDPOINT, {
             method: 'POST',
             credentials: 'same-origin',
-            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            headers: authorizedHeaders({ 'Content-Type': 'application/json', Accept: 'application/json' }),
             body: JSON.stringify({ checkoutKey }),
           }, STATUS_REQUEST_TIMEOUT_MS);
           const payload = await readJson(response);
@@ -700,7 +702,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
       shippingTrackedRef.current = trackShippingInfoEntered({
         items: analyticsItems,
         value: total,
-        coupon: discountCode?.code || null,
+        coupon: discountCode?.code.startsWith('BOFCASH-') ? 'BOFCASH' : discountCode?.code || null,
       });
     }
     if (!paymentTrackedRef.current.has(method)) {
@@ -708,7 +710,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
         paymentType: 'stripe',
         items: analyticsItems,
         value: total,
-        coupon: discountCode?.code || null,
+        coupon: discountCode?.code.startsWith('BOFCASH-') ? 'BOFCASH' : discountCode?.code || null,
       });
       if (queued) paymentTrackedRef.current.add(method);
     }
@@ -718,7 +720,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
     const response = await fetchWithTimeout(url, {
       method: 'POST',
       credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      headers: authorizedHeaders({ 'Content-Type': 'application/json', Accept: 'application/json' }),
       body: JSON.stringify(body),
     }, APP_REQUEST_TIMEOUT_MS);
     const payload = await readJson(response);
@@ -919,6 +921,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
         billingAddress: submittedCustomer.billingAddress,
         shippingAddress: submittedCustomer.shippingAddress,
         discountCode: discountCode?.code ? { code: discountCode.code } : null,
+        bofReferralCode: readBofReferral(),
         sameDayHitService,
         saturdayDelivery,
         attribution: getStoredAttribution(),

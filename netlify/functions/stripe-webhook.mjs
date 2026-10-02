@@ -6,6 +6,8 @@ import 'resend';
 import Stripe from 'stripe';
 import { neon } from '@neondatabase/serverless';
 import { withLambda } from '@netlify/aws-lambda-compat';
+import bofProviderEvents from './_shared/bof-provider-events.cjs';
+import bofService from './_shared/bof-service.cjs';
 import runtimeModule from './_shared/stripe-runtime-config.cjs';
 import checkoutModule from './_shared/stripe-checkout-service.cjs';
 import finalizerModule from './_shared/finalizeStripeOrder.cjs';
@@ -62,6 +64,16 @@ const handler = async (event) => {
   } catch (error) {
     console.warn('[stripe-webhook] signature rejected', { message: error?.message || String(error) });
     return reply(400, { ok: false, error: 'INVALID_SIGNATURE' });
+  }
+
+  if ((bofService.active() || process.env.BOF_REFERRAL_LAUNCHED_AT) && ['charge.refunded','charge.dispute.created'].includes(stripeEvent.type)) {
+    try {
+      await bofProviderEvents.stripeAdjustment(neonFactory(process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL), stripe, stripeEvent);
+      return reply(200, {received:true});
+    } catch (error) {
+      console.error('[stripe-webhook] BOF adjustment retry', {code:error.code||null});
+      return reply(503, {error:'BOF_ADJUSTMENT_RETRY'});
+    }
   }
 
   const eventIntent = stripeEvent?.data?.object;

@@ -30,6 +30,8 @@ const Design = lazy(() => import("./pages/Design"));
 const DesignComplete = lazy(() => import("./pages/DesignComplete"));
 const CanvaEditor = lazy(() => import("./pages/CanvaEditor"));
 const CanvaTest = lazy(() => import("./pages/CanvaTest"));
+const BOFCash = lazy(() => import("./pages/BOFCash"));
+const AdminReferrals = lazy(() => import("./pages/admin/Referrals"));
 const Checkout = lazy(() => import("./pages/Checkout"));
 const OrderConfirmation = lazy(() => import("./pages/OrderConfirmation"));
 const PaymentSuccess = lazy(() => import("./pages/PaymentSuccess"));
@@ -168,6 +170,9 @@ export const RoutedApplication = () => (
             
             {/* Checkout flow */}
             <Route path="/checkout" element={<Checkout />} />
+            <Route path="/bof-cash" element={<BOFCash />} />
+            <Route path="/refer/:code" element={<BOFCash />} />
+            <Route path="/admin/referrals" element={<AdminReferrals />} />
             <Route path="/payment-success" element={<PaymentSuccess />} />
             <Route path="/order-confirmation" element={<OrderConfirmation />} />
             

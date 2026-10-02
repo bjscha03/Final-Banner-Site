@@ -1,3 +1,5 @@
+import BOFProfitAdjustments from '@/components/orders/BOFProfitAdjustments';
+import BOFMemberBadge from '@/components/BOFMemberBadge';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, isAdmin } from '../../lib/auth';
@@ -1628,7 +1630,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
               {new Date(order.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
             </div>
             <div className="text-sm font-medium text-gray-900 break-words" title={order.customer_name || order.shipping_name || "Guest Customer"}>
-              {order.customer_name || order.shipping_name || 'Guest Customer'}
+              {order.customer_name || order.shipping_name || 'Guest Customer'}<BOFMemberBadge joined={order.bof_member}/>
             </div>
             <div className="text-xs text-gray-600 break-all" title={order.email || (order.user_id ? `${order.user_id.slice(0, 8)}...` : "No email")}>
               {order.email || (order.user_id ? `${order.user_id.slice(0, 8)}...` : 'No email')}
@@ -1666,6 +1668,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                     <div className="text-gray-600">Production Cost: <span className="font-semibold">{usd(profit.productionCostCents / 100)}</span></div>
                     <div className="text-gray-600">Shipping/Handling Cost: <span className="font-semibold">{usd(profit.shippingCostCents / 100)}</span></div>
                     <div className="text-gray-600">Total Cost: <span className="font-semibold">{usd(profit.totalCostCents / 100)}</span></div>
+                    <BOFProfitAdjustments rewardCents={profit.bofRewardReserveCents} releasedCents={profit.bofReserveReleasedCents}/>
                     <div className="pt-1 text-sm text-slate-800">Net Profit: <span className={`text-base font-bold ${profit.netProfitCents >= 0 ? 'text-green-700' : 'text-red-700'}`}>{usd(profit.netProfitCents / 100)}</span></div>
                     <div className="text-slate-700">Margin: <span className={`font-semibold ${profit.marginPct >= 50 ? 'text-green-700' : profit.marginPct >= 35 ? 'text-amber-700' : 'text-red-700'}`}>{profit.marginPct.toFixed(1)}%</span></div>
                     <button type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); setShowCostBreakdown((value) => !value); }} className="mt-2 inline-flex items-center text-xs font-semibold text-[#18448D] hover:underline">
@@ -2036,7 +2039,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
               <div className="text-xs text-gray-500">
                 {new Date(order.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
               </div>
-              <div className="text-sm font-medium text-gray-900 break-words">{order.customer_name || order.shipping_name || 'Not provided'}</div>
+              <div className="text-sm font-medium text-gray-900 break-words">{order.customer_name || order.shipping_name || 'Not provided'}<BOFMemberBadge joined={order.bof_member}/></div>
               <div className="text-xs text-gray-600 break-all">{order.email || 'No email'}</div>
             </div>
             <div className="flex flex-col gap-1 items-end shrink-0">
@@ -2083,7 +2086,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
               <div className="text-lg font-bold text-[#18448D]">{usd(getDisplayOrderTotalCents(order as any) / 100)}</div>
             {detailRequired ? (
               detailError ? <div className="text-xs text-slate-500">Cost details unavailable</div> : null
-            ) : (() => { const profit = estimateOrderProfit(order); return profit.needsReview ? (<div className="rounded bg-amber-100 px-2 py-1 text-xs text-amber-800"><div className="font-semibold">Needs review</div>{profit.reviewReasons.map((reason) => <div key={reason}>{reason}</div>)}</div>) : (<div className="text-xs text-slate-700">Rev {usd(profit.originalSubtotalCents/100)}{profit.discountsAppliedCents>0 ? ` · Disc -${usd(profit.discountsAppliedCents/100)}` : ''}{profit.adjustedRetailSubtotalCents !== profit.originalSubtotalCents ? ` · Adj ${usd(profit.adjustedRetailSubtotalCents/100)}` : ''} · Prod {usd(profit.productionCostCents/100)} · Ship {usd(profit.shippingCostCents/100)} · Total Cost {usd(profit.totalCostCents/100)} · <span className={`${profit.netProfitCents>=0?'text-green-700':'text-red-700'} font-semibold`}>Profit {usd(profit.netProfitCents/100)}</span> · <span className={`${profit.marginPct >= 50 ? 'text-green-700' : profit.marginPct >= 35 ? 'text-amber-700' : 'text-red-700'} font-semibold`}>Margin {profit.marginPct.toFixed(1)}%</span></div>); })()}
+            ) : (() => { const profit = estimateOrderProfit(order); return profit.needsReview ? (<div className="rounded bg-amber-100 px-2 py-1 text-xs text-amber-800"><div className="font-semibold">Needs review</div>{profit.reviewReasons.map((reason) => <div key={reason}>{reason}</div>)}</div>) : (<div className="text-xs text-slate-700">Rev {usd(profit.originalSubtotalCents/100)}{profit.discountsAppliedCents>0 ? ` · Disc -${usd(profit.discountsAppliedCents/100)}` : ''}{profit.adjustedRetailSubtotalCents !== profit.originalSubtotalCents ? ` · Adj ${usd(profit.adjustedRetailSubtotalCents/100)}` : ''}{profit.bofRewardReserveCents>0?` · BOF reserve -${usd(profit.bofRewardReserveCents/100)}`:''}{profit.bofReserveReleasedCents>0?` · BOF reserve used +${usd(profit.bofReserveReleasedCents/100)}`:''} · Prod {usd(profit.productionCostCents/100)} · Ship {usd(profit.shippingCostCents/100)} · Total Cost {usd(profit.totalCostCents/100)} · <span className={`${profit.netProfitCents>=0?'text-green-700':'text-red-700'} font-semibold`}>Profit {usd(profit.netProfitCents/100)}</span> · <span className={`${profit.marginPct >= 50 ? 'text-green-700' : profit.marginPct >= 35 ? 'text-amber-700' : 'text-red-700'} font-semibold`}>Margin {profit.marginPct.toFixed(1)}%</span></div>); })()}
             </div>
           </div>
         </div>

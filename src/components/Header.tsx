@@ -1,3 +1,4 @@
+import {bofRequest} from '@/lib/bofCash';
 import React, { useState, useEffect, useRef } from 'react';
 import { ShoppingCart, Menu, X, User, LogOut, Package, Shield, Mail, UserCheck, Users } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -18,6 +19,8 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
+  const [bofEnabled,setBofEnabled] = useState(false);
+  useEffect(() => {bofRequest('status').then(s=>setBofEnabled(s.enabled)).catch(()=>{});}, []);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const { user, loading, signOut } = useAuth();
@@ -160,6 +163,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
                             <Package className="h-4 w-4" />
                             My Orders
                           </ScrollToTopLink>
+                          {bofEnabled && <ScrollToTopLink to="/bof-cash" className="block px-4 py-3 text-sm font-medium text-slate-700" onClick={()=>setIsMenuOpen(false)}>BOF Cash</ScrollToTopLink>}
                           {isAdmin(user) && (
                             <>
                               <a
@@ -186,6 +190,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
                                 <Users className="h-4 w-4" />
                                 Admin: Customers
                               </a>
+                              <a href="/admin/referrals" className="block px-4 py-3 text-sm font-medium text-slate-700">Admin: BOF Cash</a>
                               <a
                                 href="/admin/email-templates"
                                 className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-700 hover:text-[#18448D] hover:bg-slate-50"
@@ -314,6 +319,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
                           My Orders
                         </ScrollToTopLink>
                       </DropdownMenuItem>
+                      {bofEnabled && <DropdownMenuItem asChild><ScrollToTopLink to="/bof-cash">BOF Cash</ScrollToTopLink></DropdownMenuItem>}
                       {isAdmin(user) && (
                         <>
                           <DropdownMenuSeparator />
@@ -335,6 +341,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
                               Admin: Customers
                             </a>
                           </DropdownMenuItem>
+                          <DropdownMenuItem asChild><a href="/admin/referrals">Admin: BOF Cash</a></DropdownMenuItem>
                           <DropdownMenuItem asChild>
                             <a href="/admin/email-templates" className="flex items-center">
                               <Mail className="h-4 w-4 mr-2" />

@@ -267,14 +267,18 @@ export const estimateOrderProfit = (order: Order) => {
 
   const reviewReasons = [...new Set(lineEstimates.filter((x) => x.reviewRequired).map((x) => x.reason || 'Supplier cost needs review'))];
   if (lineEstimates.length === 0) reviewReasons.push('Order items are missing');
+  if (order.bof_profit_review) reviewReasons.push('BOF Cash refund or dispute needs financial review');
   const needsReview = reviewReasons.length > 0;
   const productionCostCents = lineEstimates.reduce((sum, x) => sum + x.productionCostCents, 0);
   const revenue = getRevenueBreakdownCents(order);
   const retailSubtotalCents = revenue.adjustedRetailSubtotalCents;
   const shippingCostCents = estimateSupplierShippingCostCents(order);
   const totalCostCents = productionCostCents + shippingCostCents;
-  const estimatedNetProfitCents = retailSubtotalCents - totalCostCents;
-  const marginPct = retailSubtotalCents > 0 ? (estimatedNetProfitCents / retailSubtotalCents) * 100 : 0;
+  const bofRewardReserveCents = Math.max(0, Math.round(Number(order.bof_reward_reserve_cents) || 0));
+  const bofReserveReleasedCents = Math.max(0, Math.round(Number(order.bof_reserve_released_cents) || 0));
+  const estimatedNetProfitCents = retailSubtotalCents - totalCostCents - bofRewardReserveCents + bofReserveReleasedCents;
+  const contributionRevenueCents = retailSubtotalCents + bofReserveReleasedCents;
+  const marginPct = contributionRevenueCents > 0 ? (estimatedNetProfitCents / contributionRevenueCents) * 100 : 0;
 
   return {
     needsReview,
@@ -286,6 +290,8 @@ export const estimateOrderProfit = (order: Order) => {
     productionCostCents,
     shippingCostCents,
     totalCostCents,
+    bofRewardReserveCents,
+    bofReserveReleasedCents,
     estimatedNetProfitCents,
     // Backwards-compatible alias used across existing admin UI surfaces.
     netProfitCents: estimatedNetProfitCents,

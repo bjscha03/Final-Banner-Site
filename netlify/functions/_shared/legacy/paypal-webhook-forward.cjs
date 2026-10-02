@@ -143,6 +143,11 @@ exports.handler = async (event) => {
       `;
     }
 
+    if ((require('../bof-service.cjs').active() || process.env.BOF_REFERRAL_LAUNCHED_AT) && await require('../bof-provider-events.cjs').paypalAdjustment(sql, payload, getPayPalAccessToken)) {
+      await updateEvent(sql, eventId, 'completed');
+      return reply(200, {ok:true,bofAdjustment:true});
+    }
+
     if (eventType !== 'PAYMENT.CAPTURE.COMPLETED') {
       await updateEvent(sql, eventId, 'ignored');
       return reply(200, { ok: true, ignored: eventType });

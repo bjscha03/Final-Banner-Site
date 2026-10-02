@@ -172,6 +172,7 @@ test('Admin hydration keeps the selected settled rows in deterministic page orde
       }));
     }
     if (/FROM review_request_history/i.test(text)) return [];
+    if (/FROM bof_order_benefits/i.test(text)) return [];
     throw new Error(`unexpected SQL: ${text.slice(0, 120)}`);
   };
 

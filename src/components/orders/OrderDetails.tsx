@@ -1,3 +1,4 @@
+import BOFProfitAdjustments from './BOFProfitAdjustments';
 import React, { useState } from 'react';
 import { Order } from '../../lib/orders/types';
 import { usd } from "@/lib/pricing";
@@ -868,6 +869,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                     <div className="flex justify-between text-slate-700"><span>Production Cost</span><span className="font-semibold">{usd(profit.productionCostCents / 100)}</span></div>
                     <div className="flex justify-between text-slate-700"><span>Shipping/Handling Cost</span><span className="font-semibold">{usd(profit.shippingCostCents / 100)}</span></div>
                     <div className="flex justify-between text-slate-700"><span>Total Cost</span><span className="font-semibold">{usd(profit.totalCostCents / 100)}</span></div>
+                    <BOFProfitAdjustments rewardCents={profit.bofRewardReserveCents} releasedCents={profit.bofReserveReleasedCents}/>
                     <div className="flex justify-between border-t pt-2"><span className="font-semibold">Estimated Net Profit</span><span className={`font-bold ${profit.netProfitCents >= 0 ? 'text-green-700' : 'text-red-700'}`}>{usd(profit.netProfitCents / 100)}</span></div>
                     <div className="flex justify-between"><span>Profit Margin %</span><span className={`font-semibold ${profit.marginPct >= 0 ? 'text-green-700' : 'text-red-700'}`}>{profit.marginPct.toFixed(1)}%</span></div>
                   </div>

@@ -25,11 +25,11 @@ let orderSchemaReadyPromise = null;
 // trusted mode or mark a live charge as a preview/test order.
 const TRUSTED_STRIPE_CONTEXT = Symbol('trusted-stripe-create-order-context');
 
-function createTrustedStripeContext(mode) {
+function createTrustedStripeContext(mode, authenticatedUserId = null) {
   if (!['test', 'live'].includes(mode)) {
     throw new TypeError('Trusted Stripe mode must be test or live.');
   }
-  return Object.freeze({ [TRUSTED_STRIPE_CONTEXT]: mode });
+  return Object.freeze({ [TRUSTED_STRIPE_CONTEXT]: mode, authenticatedUserId });
 }
 
 function ensureOrderSchemaOnce(migrate) {
@@ -747,6 +747,11 @@ exports.handler = async (event, context) => {
     const sql = neon(databaseUrl);
 
     orderData = JSON.parse(event.body);
+    // BOF wallet ownership comes exclusively from a signed session, never body.user_id.
+    const bofSession = require('../server-auth.cjs').getSession(event);
+    const bofAuthenticatedUserId = context?.[TRUSTED_STRIPE_CONTEXT]
+      ? context.authenticatedUserId : (bofSession && !bofSession.preview ? bofSession.sub : null);
+    orderData.bofOriginalDiscountCode = String(orderData.discountCode?.code || '').trim().toUpperCase();
     const trustedStripeMode = context && context[TRUSTED_STRIPE_CONTEXT];
     const requestedPaymentMethod = String(orderData.payment_method || '').trim().toLowerCase();
     const isPayPalPendingCheckout = !trustedStripeMode
@@ -1281,6 +1286,7 @@ exports.handler = async (event, context) => {
           userId: isRealUserId(orderData.user_id) ? orderData.user_id : null,
           checkoutKey: orderData.checkout_idempotency_key || null,
           items: orderData.items,
+          authenticatedUserId: bofAuthenticatedUserId,
         });
         if (!authoritativeDiscount.valid) {
           return {
@@ -1462,6 +1468,13 @@ exports.handler = async (event, context) => {
       };
     }
     orderData.discountCode = canonicalRecoveryDiscount.discount;
+    if (require('../bof-service.cjs').isBofCode(orderData.bofOriginalDiscountCode)) {
+      const bofCheck = await require('../bof-service.cjs').validate(sql, {
+        code: orderData.bofOriginalDiscountCode, items: orderData.items, email: userEmail,
+        userId: finalUserId, authenticatedUserId: bofAuthenticatedUserId, checkoutKey: orderData.checkout_idempotency_key || null,
+      });
+      if (!bofCheck.valid) throw Object.assign(new Error(bofCheck.error), {statusCode:409,code:'BOF_OFFER_CHANGED'});
+    }
     // Recompute after canonical binding. This is deliberately the last base
     // price calculation before post-tax service fees are reconciled.
     applyAuthoritativeOrderTotals(orderData);
@@ -1643,6 +1656,7 @@ exports.handler = async (event, context) => {
         expectedItemSignature,
       );
       console.log('create-order: verified idempotent retry', verifiedOrder.id);
+      await require('../bof-service.cjs').attach(sql, verifiedOrder.id, orderData, {email:userEmail,userId:finalUserId,authenticatedUserId:bofAuthenticatedUserId});
       return {
         statusCode: 200,
         headers,
@@ -1764,6 +1778,7 @@ exports.handler = async (event, context) => {
         expectedItemCount,
         expectedItemSignature,
       );
+      await require('../bof-service.cjs').attach(sql, verifiedOrder.id, orderData, {email:userEmail,userId:finalUserId,authenticatedUserId:bofAuthenticatedUserId});
       return {
         statusCode: 200,
         headers,
@@ -1777,6 +1792,7 @@ exports.handler = async (event, context) => {
     }
 
     const order = orderResult[0];
+    await require('../bof-service.cjs').attach(sql, order.id, orderData, {email:userEmail,userId:finalUserId,authenticatedUserId:bofAuthenticatedUserId});
     console.log('Order and all order items committed atomically:', order.id);
 
     if (finalUserId && normalizedCustomerName.fullName) {

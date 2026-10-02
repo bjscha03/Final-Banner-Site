@@ -43,7 +43,8 @@ export function getEnteredPromoLabel(promo: PromoDiscountInput, resolved: Resolv
     && resolved.promoDiscountCode?.toUpperCase() === promo.code.toUpperCase()
     && resolved.appliedDiscountAmountCents > 0;
   if (applied && promo.code.toUpperCase() === 'NEW20') return '20% off first order applied';
+  const label = promo.code.startsWith('BOFCASH-') ? 'BOF Cash' : promo.code.startsWith('BOFREF-') ? 'Friend referral' : promo.code;
   return applied
     ? `${resolved.appliedDiscountLabel} applied`
-    : `${promo.code} not applied — ${resolved.appliedDiscountAmountCents > 0 ? `${resolved.appliedDiscountLabel} applied instead` : 'no eligible items in this cart'}`;
+    : `${label} not applied — ${resolved.appliedDiscountAmountCents > 0 ? `${resolved.appliedDiscountLabel} applied instead` : 'no eligible items in this cart'}`;
 }

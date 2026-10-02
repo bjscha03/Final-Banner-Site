@@ -1,3 +1,4 @@
+import BOFMemberBadge from '@/components/BOFMemberBadge';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
@@ -60,6 +61,8 @@ type CustomerOrder = {
 };
 
 type Customer = {
+  bof_member?: boolean;
+  bof_invitation_status?: string | null;
   email: string;
   fullName: string;
   firstName: string;
@@ -587,6 +590,7 @@ const AdminCustomers: React.FC = () => {
             </div>
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" onClick={() => navigate('/admin/abandoned-carts')}>Abandoned Carts</Button>
+              <Button variant="outline" onClick={() => navigate('/admin/referrals')}>BOF Cash</Button>
               <Button variant="outline" onClick={() => navigate('/admin/blog-leads')}>Blog Leads</Button>
               <Button variant="outline" onClick={() => navigate('/admin/orders')}>
                 <ArrowLeft className="mr-2 h-4 w-4" /> Orders
@@ -732,7 +736,7 @@ const AdminCustomers: React.FC = () => {
                             }
                           }}
                         >
-                          <TableCell><p className="font-bold text-slate-900">{customer.fullName || 'Name unavailable'}</p><p className="text-sm text-slate-500">{customer.email}</p></TableCell>
+                          <TableCell><p className="font-bold text-slate-900">{customer.fullName || 'Name unavailable'}<BOFMemberBadge joined={customer.bof_member}/></p>{!customer.bof_member&&customer.bof_invitation_status==='sent'&&<span className="text-xs text-blue-700">BOF Cash invited</span>}<p className="text-sm text-slate-500">{customer.email}</p></TableCell>
                           <TableCell><CustomerSegmentBadges customer={customer} inactivityDays={lapsedDays} /></TableCell>
                           <TableCell className="text-right font-bold">{customer.completedOrderCount}</TableCell>
                           <TableCell className="text-right font-bold">{formatMoney(customer.lifetimeRevenueCents)}</TableCell>
@@ -758,7 +762,7 @@ const AdminCustomers: React.FC = () => {
                   {customers.map((customer) => (
                     <div key={customer.email} className="p-4">
                       <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0"><p className="break-words font-black text-slate-900">{customer.fullName || customer.email}</p>{customer.fullName && <p className="break-all text-sm text-slate-500">{customer.email}</p>}</div>
+                        <div className="min-w-0"><p className="break-words font-black text-slate-900">{customer.fullName || customer.email}<BOFMemberBadge joined={customer.bof_member}/></p>{!customer.bof_member&&customer.bof_invitation_status==='sent'&&<span className="text-xs text-blue-700">BOF Cash invited</span>}{customer.fullName && <p className="break-all text-sm text-slate-500">{customer.email}</p>}</div>
                         <div className="shrink-0"><MarketingBadge customer={customer} /></div>
                       </div>
                       <div className="mt-3"><CustomerSegmentBadges customer={customer} inactivityDays={lapsedDays} /></div>
@@ -826,7 +830,7 @@ const AdminCustomers: React.FC = () => {
           {selectedCustomer && (
             <>
               <DialogHeader>
-                <DialogTitle>{customerLabel(selectedCustomer)}</DialogTitle>
+                <DialogTitle>{customerLabel(selectedCustomer)}<BOFMemberBadge joined={selectedCustomer.bof_member}/></DialogTitle>
                 <DialogDescription>{selectedCustomer.email}</DialogDescription>
               </DialogHeader>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
