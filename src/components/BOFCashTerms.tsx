@@ -1,6 +1,19 @@
+import { useEffect, useRef } from "react";
+
 export default function BOFCashTerms() {
+  const details = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    if (window.location.hash === "#terms" && details.current) {
+      details.current.open = true;
+      details.current.scrollIntoView({ block: "start" });
+    }
+  }, []);
   return (
-    <details className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
+    <details
+      id="terms"
+      ref={details}
+      className="scroll-mt-24 rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600"
+    >
       <summary className="cursor-pointer font-semibold text-slate-900">
         How BOF Cash works
       </summary>

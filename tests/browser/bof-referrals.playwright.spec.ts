@@ -1,4 +1,8 @@
 import { test, expect, Page } from "@playwright/test";
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
+const invitationEmail =
+  require("../../netlify/functions/_shared/bof-email.cjs").content();
 const user = {
   id: "8f511111-1111-4111-8111-111111111111",
   email: "member@customer.com",
@@ -138,10 +142,7 @@ async function mock(page: Page, { expired = false, enabled = true } = {}) {
           };
         if (action === "admin-preview")
           body = {
-            email: {
-              subject: "Your next banner could start with BOF Cash",
-              html: "<h1>BOF Cash invitation preview</h1>",
-            },
+            email: invitationEmail,
           };
         if (action === "send-invitations")
           throw new Error("Browser checks must not send invitations");
@@ -313,6 +314,41 @@ test("admin distinguishes a joined member from an invitation and requires an ema
   await expect(page.getByRole("dialog")).toContainText("new@customer.com");
   expect(calls).not.toContain("send-invitations");
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  const emailFrame = page.frameLocator(
+    'iframe[title="BOF Cash invitation preview"]',
+  );
+  const activationLink = emailFrame.getByRole("link", {
+    name: /Activate my BOF Cash/,
+  });
+  await expect(activationLink).toHaveAttribute("aria-disabled", "true");
+  await expect(activationLink).not.toHaveAttribute("href");
+  await activationLink.dispatchEvent("click");
+  await expect(
+    emailFrame.getByRole("heading", { name: "Share BOF. Earn BOF Cash." }),
+  ).toBeVisible();
+  expect(calls).not.toContain("claim");
+  const email = page.locator('iframe[title="BOF Cash invitation preview"]');
+  await email.screenshot({
+    path: info.outputPath("bof-invitation-email-desktop.png"),
+    style: "header { visibility: hidden !important; }",
+  });
+  await page.getByRole("button", { name: "Mobile", exact: true }).click();
+  await expect
+    .poll(async () => (await email.boundingBox())?.width)
+    .toBeLessThanOrEqual(375);
+  await expect
+    .poll(() =>
+      emailFrame
+        .locator("body")
+        .evaluate((el) => el.scrollWidth <= el.clientWidth),
+    )
+    .toBe(true);
+  await email.screenshot({
+    path: info.outputPath("bof-invitation-email-mobile.png"),
+    style: "header { visibility: hidden !important; }",
+  });
+  await page.getByRole("button", { name: "Desktop", exact: true }).click();
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({
     path: info.outputPath("bof-admin.png"),
     fullPage: true,
