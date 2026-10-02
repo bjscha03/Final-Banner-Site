@@ -28,6 +28,8 @@ type ReviewRequestActionProps = {
   fullWidth?: boolean;
 };
 
+const sentButtonClasses = 'border border-slate-300 bg-slate-200 text-slate-600 disabled:opacity-100';
+
 const ReviewRequestAction: React.FC<ReviewRequestActionProps> = ({ order, onSent, fullWidth = false }) => {
   const { toast } = useToast();
   const eligibility = getReviewRequestEligibility(order);
@@ -51,6 +53,14 @@ const ReviewRequestAction: React.FC<ReviewRequestActionProps> = ({ order, onSent
   }, [order.review_request_last_sent_at, order.review_followup_sent_at, order.review_coupon_code, order.review_coupon_sent_at, order.review_offer_percentage]);
   useEffect(() => { setCustomerEmail(eligibility.customerEmail); }, [eligibility.customerEmail]);
 
+  const initialSent = Boolean(lastSentAt || followupSentAt || couponCode || couponSentAt);
+  const blocked = !eligibility.eligible || sending;
+  const actionDisabled: Record<ReviewAction, boolean> = {
+    initial: blocked || initialSent,
+    followup: blocked || !lastSentAt || Boolean(followupSentAt || couponCode),
+    coupon: blocked || !lastSentAt || Boolean(couponSentAt),
+  };
+
   const applyUpdate = (update: ReviewRequestUpdate) => {
     setLastSentAt(update.sentAt);
     setCustomerEmail(update.customerEmail);
@@ -61,7 +71,7 @@ const ReviewRequestAction: React.FC<ReviewRequestActionProps> = ({ order, onSent
     onSent(order.id, update);
   };
   const handleSend = async () => {
-    if (sendingRef.current || !eligibility.eligible) return;
+    if (sendingRef.current || actionDisabled[action]) return;
     sendingRef.current = true;
     setSending(true);
     try {
@@ -73,7 +83,8 @@ const ReviewRequestAction: React.FC<ReviewRequestActionProps> = ({ order, onSent
       if (response.status === 409 && result.code === 'REVIEW_REQUEST_ALREADY_SENT' && result.lastSentAt) {
         applyUpdate({ sentAt: result.lastSentAt, customerEmail: result.customerEmail || customerEmail,
           offerPercentage: result.offerPercentage, followupSentAt: result.followupSentAt });
-        toast({ title: 'Review history updated', description: 'Please check the updated offer and confirm again.' });
+        setOpen(false);
+        toast({ title: 'Review history updated', description: 'The saved send history has been refreshed. Completed requests are marked as sent.' });
         return;
       }
       if (!response.ok || !result.ok || !result.sentAt) throw new Error(result.error || 'The email could not be sent.');
@@ -87,24 +98,27 @@ const ReviewRequestAction: React.FC<ReviewRequestActionProps> = ({ order, onSent
       toast({ title: 'Unable to complete email delivery', description: error instanceof Error ? error.message : 'Please try again.', variant: 'destructive' });
     } finally { sendingRef.current = false; setSending(false); }
   };
-  const openAction = (next: ReviewAction) => { setAction(next); setOpen(true); };
-  const blocked = !eligibility.eligible || sending;
+  const openAction = (next: ReviewAction) => {
+    if (actionDisabled[next]) return;
+    setAction(next);
+    setOpen(true);
+  };
   const formattedLastSentAt = formatReviewRequestSentAt(lastSentAt);
   const actionLabel = action === 'coupon' ? `Verify Review & Send ${offer}% Coupon` : action === 'followup' ? 'Send 30% Follow-Up' : 'Send Review Email';
 
   return (
     <div className={cn('rounded-md border border-indigo-200 bg-indigo-50/70 p-2', fullWidth ? 'w-full' : 'min-w-[220px]')}>
       <div className="flex flex-col gap-2">
-        <Button type="button" size="sm" onClick={() => openAction('initial')} disabled={blocked || Boolean(followupSentAt || couponCode)}
-          aria-describedby={`review-request-status-${order.id}`} className="h-auto min-h-9 whitespace-normal bg-indigo-700 px-2 py-2 text-white hover:bg-indigo-800">
-          <Star className="mr-1.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />Send Review Email
+        <Button type="button" size="sm" onClick={() => openAction('initial')} disabled={actionDisabled.initial}
+          aria-describedby={`review-request-status-${order.id}`} className={cn('h-auto min-h-9 whitespace-normal px-2 py-2', initialSent ? sentButtonClasses : 'bg-indigo-700 text-white hover:bg-indigo-800')}>
+          <Star className="mr-1.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />{initialSent ? 'Review Email Sent' : 'Send Review Email'}
         </Button>
         <Button type="button" size="sm" variant="outline" onClick={() => openAction('followup')}
-          disabled={blocked || !lastSentAt || Boolean(followupSentAt || couponCode)} className="h-auto min-h-9 whitespace-normal border-indigo-300 px-2 py-2 text-indigo-900">
+          disabled={actionDisabled.followup} className={cn('h-auto min-h-9 whitespace-normal px-2 py-2', followupSentAt ? sentButtonClasses : 'border-indigo-300 text-indigo-900')}>
           <Mail className="mr-1.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />{followupSentAt ? '30% Follow-Up Sent' : 'Send 30% Follow-Up'}
         </Button>
         <Button type="button" size="sm" onClick={() => openAction('coupon')}
-          disabled={blocked || !lastSentAt || Boolean(couponSentAt)} className="h-auto min-h-9 whitespace-normal bg-emerald-700 px-2 py-2 text-white hover:bg-emerald-800">
+          disabled={actionDisabled.coupon} className="h-auto min-h-9 whitespace-normal bg-emerald-700 px-2 py-2 text-white hover:bg-emerald-800">
           <Gift className="mr-1.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />{couponSentAt ? `${offer}% Coupon Sent` : `Verify Review & Send ${offer}% Coupon`}
         </Button>
       </div>
@@ -119,7 +133,7 @@ const ReviewRequestAction: React.FC<ReviewRequestActionProps> = ({ order, onSent
       <AlertDialog open={open} onOpenChange={(value) => { if (!sending) setOpen(value); }}>
         <AlertDialogContent className="max-h-[90dvh] max-w-md overflow-y-auto">
           <AlertDialogHeader>
-            <AlertDialogTitle>{action === 'coupon' ? `Send the ${offer}% thank-you coupon?` : action === 'followup' ? 'Send a friendly 30% follow-up?' : lastSentAt ? 'Send another review request?' : 'Send review request?'}</AlertDialogTitle>
+            <AlertDialogTitle>{action === 'coupon' ? `Send the ${offer}% thank-you coupon?` : action === 'followup' ? 'Send a friendly 30% follow-up?' : 'Send review request?'}</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3 text-left">
                 <p className="break-all rounded-md border border-slate-200 bg-slate-50 px-3 py-2 font-medium text-slate-900">{customerEmail}</p>
@@ -130,7 +144,6 @@ const ReviewRequestAction: React.FC<ReviewRequestActionProps> = ({ order, onSent
                   <p>A gentle reminder will thank them for their business, invite an honest Google review, and increase the offer from 25% to <strong>30% off their next order</strong> after manual verification.</p>
                   <p>Only send this if you have checked that they have not already left a review. This follow-up can be sent once.</p>
                 </> : <>
-                  {lastSentAt && <p>A review request was already sent to this customer on <strong>{formattedLastSentAt}</strong>. Send another request?</p>}
                   <p>This request offers a 25% thank-you coupon after you manually verify their review.</p>
                 </>}
                 <p>No email will be sent until you confirm.</p>
@@ -139,7 +152,7 @@ const ReviewRequestAction: React.FC<ReviewRequestActionProps> = ({ order, onSent
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={sending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={(event) => { event.preventDefault(); void handleSend(); }} disabled={sending}
+            <AlertDialogAction onClick={(event) => { event.preventDefault(); void handleSend(); }} disabled={actionDisabled[action]}
               className="h-auto min-h-10 whitespace-normal bg-indigo-700 py-2 text-white hover:bg-indigo-800">
               {sending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending…</> : actionLabel}
             </AlertDialogAction>

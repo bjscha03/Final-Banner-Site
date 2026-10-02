@@ -62,6 +62,7 @@ const adminOrdersReportResponse = (order: AdminOrderFixture) => {
 
 test('Admin review request requires confirmation, prevents repeat clicks, and updates persisted status', async ({ page }) => {
   let reviewSendCalls = 0;
+  let reviewSendAttempts = 0;
   let detailLoadCalls = 0;
   const order = {
     id: ORDER_ID,
@@ -140,11 +141,16 @@ test('Admin review request requires confirmation, prevents repeat clicks, and up
     }
 
     if (url.pathname.endsWith('/send-review-request')) {
-      reviewSendCalls += 1;
+      reviewSendAttempts += 1;
       expect(request.method()).toBe('POST');
       const payload = JSON.parse(request.postData() || '{}');
       expect(payload).toEqual({ orderId: ORDER_ID, confirmedPreviousSentAt: null, action: 'initial', reviewVerified: false });
       await new Promise((resolve) => setTimeout(resolve, 500));
+      if (reviewSendAttempts === 1) {
+        await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ ok: false, error: 'Test delivery failure' }) });
+        return;
+      }
+      reviewSendCalls += 1;
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -177,21 +183,29 @@ test('Admin review request requires confirmation, prevents repeat clicks, and up
   const confirmButton = dialog.getByRole('button', { name: 'Send Review Email', exact: true });
   await confirmButton.click();
   await expect(dialog.getByRole('button', { name: 'Sending…', exact: true })).toBeDisabled();
+  await expect(page.getByText('Unable to complete email delivery', { exact: true })).toBeVisible();
+  await expect(confirmButton).toBeEnabled();
+  expect(reviewSendCalls).toBe(0);
+  await confirmButton.click();
   await expect(page.getByText('Review request sent', { exact: true })).toBeVisible();
   expect(reviewSendCalls).toBe(1);
 
   await expect(page.getByText(/Review request sent .*2026/).filter({ visible: true })).toBeVisible();
+  const sentButton = page.getByRole('button', { name: 'Review Email Sent', exact: true }).filter({ visible: true });
+  await expect(sentButton).toBeDisabled();
+  await expect(sentButton).toHaveCSS('background-color', 'rgb(226, 232, 240)');
+  await expect(sentButton).toHaveCSS('opacity', '1');
+  await expect(page.getByRole('button', { name: 'Send 30% Follow-Up', exact: true }).filter({ visible: true })).toBeEnabled();
 
   await page.reload({ waitUntil: 'domcontentloaded' });
   await expect.poll(() => detailLoadCalls).toBe(2);
   await expect(page.getByText(/Review request sent .*2026/).filter({ visible: true })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Send Review Email', exact: true }).filter({ visible: true }).click();
-  const duplicateDialog = page.getByRole('alertdialog');
-  await expect(duplicateDialog.getByRole('heading', { name: 'Send another review request?' })).toBeVisible();
-  await expect(duplicateDialog.getByText(/already sent to this customer on/i)).toBeVisible();
+  await expect(sentButton).toBeDisabled();
+  await expect(sentButton).toHaveCSS('background-color', 'rgb(226, 232, 240)');
+  await expect(page.getByRole('button', { name: 'Send 30% Follow-Up', exact: true }).filter({ visible: true })).toBeEnabled();
   expect(reviewSendCalls).toBe(1);
-  await duplicateDialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await page.screenshot({ path: test.info().outputPath('first-review-request-sent.png'), fullPage: true });
 });
 
 test('Admin order files, organized actions, and nested preview zoom work together', async ({ page }) => {
@@ -444,14 +458,24 @@ test('existing review request upgrades to 30%, sends one coupon, and remains com
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
   });
   await page.goto('/admin/orders');
+  const initialSentButton = page.getByRole('button', { name: 'Review Email Sent', exact: true }).filter({ visible: true });
+  await expect(initialSentButton).toBeDisabled();
+  await expect(initialSentButton).toHaveCSS('background-color', 'rgb(226, 232, 240)');
   await expect(page.getByRole('button', { name: 'Verify Review & Send 25% Coupon', exact: true }).filter({ visible: true })).toBeEnabled();
   const followup = page.getByRole('button', { name: 'Send 30% Follow-Up', exact: true }).filter({ visible: true });
   await followup.click();
   expect(sends).toHaveLength(0);
   await page.getByRole('alertdialog').getByRole('button', { name: 'Send 30% Follow-Up', exact: true }).click();
   await expect(page.getByRole('alertdialog')).toBeHidden();
-  await expect(page.getByRole('button', { name: '30% Follow-Up Sent', exact: true }).filter({ visible: true })).toBeDisabled();
-  await expect(page.getByRole('button', { name: 'Send Review Email', exact: true }).filter({ visible: true })).toBeDisabled();
+  const followupSentButton = page.getByRole('button', { name: '30% Follow-Up Sent', exact: true }).filter({ visible: true });
+  await expect(followupSentButton).toBeDisabled();
+  await expect(followupSentButton).toHaveCSS('background-color', 'rgb(226, 232, 240)');
+  await expect(followupSentButton).toHaveCSS('opacity', '1');
+  await expect(initialSentButton).toBeDisabled();
+  await page.reload();
+  await expect(initialSentButton).toBeDisabled();
+  await expect(followupSentButton).toBeDisabled();
+  await expect(followupSentButton).toHaveCSS('background-color', 'rgb(226, 232, 240)');
   await page.getByRole('button', { name: 'Verify Review & Send 30% Coupon', exact: true }).filter({ visible: true }).click();
   await expect(page.getByRole('alertdialog').getByText(/checked this customer’s Google review/)).toBeVisible();
   expect(sends).toEqual(['followup']);
