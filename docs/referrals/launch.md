@@ -61,4 +61,6 @@ The browser suite exercises real application routes with mocked APIs and blocks 
 
 Existing unrelated large-banner promotion tests expect a retired 25% campaign and fail on the unchanged base branch. The application-wide TypeScript check also encounters pre-existing syntax errors in the unused `BannerEditor.tsx`. These are separate from the focused referral checks and production build.
 
+Other baseline CI failures include Node 20 tests importing the existing uncompiled TypeScript profit calculator, four AI Designer logo-removal assertions, and a PayPal source-copy assertion for a billing-address label absent on the base branch. The new BOF workflow uses Node 24 for source tests and separately bundles the affected production functions for Node 20.
+
 Provider references: [Stripe Charge](https://docs.stripe.com/api/charges/object), [Stripe cancellation](https://docs.stripe.com/api/payment_intents/cancel), [PayPal Payments v2](https://developer.paypal.com/docs/api/payments/v2/).

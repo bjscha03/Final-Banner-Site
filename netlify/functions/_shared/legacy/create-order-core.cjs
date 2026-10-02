@@ -29,7 +29,7 @@ function createTrustedStripeContext(mode, authenticatedUserId = null) {
   if (!['test', 'live'].includes(mode)) {
     throw new TypeError('Trusted Stripe mode must be test or live.');
   }
-  return Object.freeze({ [TRUSTED_STRIPE_CONTEXT]: mode, authenticatedUserId });
+  return Object.freeze({ [TRUSTED_STRIPE_CONTEXT]: Object.freeze({ mode, authenticatedUserId }) });
 }
 
 function ensureOrderSchemaOnce(migrate) {
@@ -750,9 +750,9 @@ exports.handler = async (event, context) => {
     // BOF wallet ownership comes exclusively from a signed session, never body.user_id.
     const bofSession = require('../server-auth.cjs').getSession(event);
     const bofAuthenticatedUserId = context?.[TRUSTED_STRIPE_CONTEXT]
-      ? context.authenticatedUserId : (bofSession && !bofSession.preview ? bofSession.sub : null);
+      ? context[TRUSTED_STRIPE_CONTEXT].authenticatedUserId : (bofSession && !bofSession.preview ? bofSession.sub : null);
     orderData.bofOriginalDiscountCode = String(orderData.discountCode?.code || '').trim().toUpperCase();
-    const trustedStripeMode = context && context[TRUSTED_STRIPE_CONTEXT];
+    const trustedStripeMode = context?.[TRUSTED_STRIPE_CONTEXT]?.mode;
     const requestedPaymentMethod = String(orderData.payment_method || '').trim().toLowerCase();
     const isPayPalPendingCheckout = !trustedStripeMode
       && requestedPaymentMethod === 'paypal'
