@@ -14,6 +14,15 @@ export function isRealisticBannerItem(item: CartItem): boolean {
     && Number.isFinite(item.height_in) && item.height_in > 0;
 }
 
+export function formatBannerDimensions(widthIn: number, heightIn: number) {
+  const length = (inches: number) => {
+    const feet = Math.floor(inches / 12);
+    const remainder = Number((inches - feet * 12).toFixed(3));
+    return `${feet} ft${remainder ? ` ${remainder} in` : ''}`;
+  };
+  return { feet: `${length(widthIn)} × ${length(heightIn)}`, inches: `(${widthIn}″ × ${heightIn}″)` };
+}
+
 function selectedEdges(value?: string | null): BannerEdge[] {
   switch (value) {
     case 'top': return ['top'];
@@ -29,11 +38,16 @@ function selectedEdges(value?: string | null): BannerEdge[] {
 export function getRealisticBannerGeometry(item: CartItem) {
   const w = item.width_in;
   const h = item.height_in;
-  const sceneRatio = Math.max(0.9, Math.min(1.8, w / h));
-  const sceneWidth = Math.max(w / 0.80, h * sceneRatio / 0.80);
+  // Reserve real inches for a 6-foot person beside the banner. Camera framing
+  // may zoom out, but the person, brick courses and banner share one scale.
+  const contentHeight = Math.max(h, 72);
+  const contentWidth = w + 36;
+  const sceneRatio = Math.max(0.9, Math.min(1.8, (contentWidth + 24) / (contentHeight + 32)));
+  const sceneWidth = Math.max(contentWidth + 24, (contentHeight + 32) * sceneRatio);
   const sceneHeight = sceneWidth / sceneRatio;
-  const x = (sceneWidth - w) / 2;
+  const x = (sceneWidth - contentWidth) / 2;
   const y = (sceneHeight - h) / 2;
+  const groundY = (sceneHeight + contentHeight) / 2;
   const mode = getGrommetModeForPreview(item);
   // Unknown legacy options must not invent hardware.
   const grommets = SUPPORTED_GROMMETS.has(mode)
@@ -45,6 +59,7 @@ export function getRealisticBannerGeometry(item: CartItem) {
   const ropeEdges = item.rope_feet > 0 ? selectedEdges(item.rope_placement || 'top') : [];
   return {
     w, h, x, y, sceneWidth, sceneHeight, sceneRatio, grommets,
+    referenceX: x + w + 16, referenceY: groundY - 72, referenceHeight: 72, groundY,
     grommetRadius: grommetRadius(w, h) * 1.25,
     pocketEdges, pocketDepth, ropeEdges,
     isMesh: item.material === 'mesh',

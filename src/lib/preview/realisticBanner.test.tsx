@@ -2,13 +2,28 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { CartItem } from '@/store/cart';
-import { createBannerSurfaceMask, getRealisticBannerGeometry, isRealisticBannerItem } from './realisticBanner';
+import { createBannerSurfaceMask, formatBannerDimensions, getRealisticBannerGeometry, isRealisticBannerItem } from './realisticBanner';
 import { RealisticBannerScene } from '@/components/preview/RealisticBannerPreview';
 import { rememberDecodedPreviewImage } from '@/lib/previewImageCache';
 
 const item = { id: 'preview', product_type: 'banner', width_in: 72, height_in: 36, material: '13oz', grommets: 'none', pole_pockets: 'none', rope_feet: 0, final_render_url: 'https://example.test/exact-artwork.png' } as CartItem;
 
 describe('realistic banner order geometry', () => {
+  it('shows feet first and preserves exact inches, including non-whole feet', () => {
+    expect(formatBannerDimensions(72, 36)).toEqual({ feet: '6 ft × 3 ft', inches: '(72″ × 36″)' });
+    expect(formatBannerDimensions(75, 42)).toEqual({ feet: '6 ft 3 in × 3 ft 6 in', inches: '(75″ × 42″)' });
+  });
+  it('keeps a six-foot reference at physical scale as the banner gets larger', () => {
+    for (const [w, h] of [[72, 36], [240, 120], [600, 60]]) {
+      const g = getRealisticBannerGeometry({ ...item, width_in: w, height_in: h });
+      expect(g.referenceHeight).toBe(72);
+      expect((g.h / g.sceneHeight) / (g.referenceHeight / g.sceneHeight)).toBeCloseTo(h / 72);
+      expect(g.referenceX).toBeGreaterThan(g.x + g.w);
+      expect(g.referenceX + 22).toBeLessThan(g.sceneWidth);
+      expect(g.referenceY).toBeGreaterThan(0);
+      expect(g.referenceY + 72).toBeLessThan(g.sceneHeight);
+    }
+  });
   it.each([
     ['none', 0], ['4-corners', 4], ['top-corners', 2], ['bottom-corners', 2],
     ['left-corners', 2], ['right-corners', 2], ['every-2-3ft', 10], ['every-1-2ft', 12],

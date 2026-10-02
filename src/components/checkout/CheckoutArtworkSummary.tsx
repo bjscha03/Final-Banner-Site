@@ -3,6 +3,8 @@ import type { CartItem } from '@/store/cart';
 import BannerPreview from '@/components/cart/StableBannerPreview';
 import ThumbnailPreviewWrapper from '@/components/preview/StableThumbnailPreviewWrapper';
 import RealisticBannerPreview from '@/components/preview/RealisticBannerPreview';
+import BannerDimensions from '@/components/preview/BannerDimensions';
+import { formatBannerDimensions } from '@/lib/preview/realisticBanner';
 import { getSmallPreviewSelection, getExpandedPreviewSelection } from '@/lib/previewSelection';
 import { getGrommetModeForPreview } from '@/lib/cartGrommet';
 import { getItemDisplayName, normalizeOrderItemDisplay } from '@/lib/product-display';
@@ -28,7 +30,9 @@ export default function CheckoutArtworkSummary({ items, totalCents, editAction }
           const small = getSmallPreviewSelection(item);
           const expanded = getExpandedPreviewSelection(item);
           const details = normalizeOrderItemDisplay(item);
-          const title = getItemDisplayName(item);
+          const isBanner = details.productType === 'banner';
+          const bannerSize = formatBannerDimensions(item.width_in, item.height_in);
+          const title = isBanner ? `${item.material === '18oz_double' ? 'Double-Sided Banner' : 'Custom Banner'} ${bannerSize.feet}` : getItemDisplayName(item);
           const previewProps = {
             widthIn: item.width_in,
             heightIn: item.height_in,
@@ -54,7 +58,7 @@ export default function CheckoutArtworkSummary({ items, totalCents, editAction }
                   className="max-w-full"
                   ariaLabel={`Enlarge artwork for item ${index + 1}: ${title}`}
                   details={[
-                    { label: 'Size', value: details.sizeDisplay },
+                    { label: 'Size', value: isBanner ? `${bannerSize.feet} ${bannerSize.inches}` : details.sizeDisplay },
                     { label: 'Material', value: details.materialDisplay },
                     { label: 'Qty', value: details.qtyDisplay },
                   ]}
@@ -67,7 +71,10 @@ export default function CheckoutArtworkSummary({ items, totalCents, editAction }
               </div>
               <div className="mt-3 flex justify-center"><RealisticBannerPreview item={item} /></div>
               <h3 className="mt-3 text-sm font-semibold text-[#0B1F3A]">{title}</h3>
-              <p className="mt-1 text-sm text-slate-600">{details.sizeDisplay} · Qty {details.qtyDisplay} · {details.materialDisplay}</p>
+              <div className="mt-1 text-sm text-slate-600">
+                {isBanner ? <BannerDimensions widthIn={item.width_in} heightIn={item.height_in}/> : details.sizeDisplay}
+                <p className="mt-1">Qty {details.qtyDisplay} · {details.materialDisplay}</p>
+              </div>
             </div>
           );
         })}

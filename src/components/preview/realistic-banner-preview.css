@@ -2,7 +2,7 @@
 .realistic-banner-trigger { display: block; position: relative; width: 100%; overflow: hidden; border: 1px solid #dfe5ec; border-radius: 9px; cursor: zoom-in; background: #eef1f4; text-align: left; }
 .realistic-banner-trigger:focus-visible { outline: 2px solid #18448d; outline-offset: 3px; }
 .realistic-banner-scene { width: 100%; position: relative; overflow: hidden; isolation: isolate; background: #a5755e; }
-.realistic-banner-wall { position: absolute; inset: 0; background: url('/images/preview/brick-wall.webp') center / cover; }
+.realistic-banner-wall { position: absolute; inset: 0; background: url('/images/preview/brick-wall.webp') center / auto repeat; }
 .realistic-banner-wall::after { content: ''; position: absolute; inset: 0; background: linear-gradient(120deg, #ffffff08, transparent 55%, #21190e19); }
 .realistic-banner-shadow { position: absolute; background: #241b13; opacity: .25; filter: blur(2px); transform: translate(1px, 2px); }
 .realistic-banner-shadow.is-suspended { filter: blur(3px); transform: translate(3px, 5px); opacity: .35; }
