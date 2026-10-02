@@ -24,6 +24,9 @@ import { emailApi } from '@/lib/api';
 import { CartItem } from '@/store/cart';
 import BannerPreview from '@/components/cart/BannerPreview';
 import ThumbnailPreviewWrapper from '@/components/preview/ThumbnailPreviewWrapper';
+import RealisticBannerPreview from '@/components/preview/RealisticBannerPreview';
+import BannerDimensions from '@/components/preview/BannerDimensions';
+import { formatBannerDimensions } from '@/lib/preview/realisticBanner';
 import CheckoutOrderTotals, { type CheckoutOrderTotalsProps } from '@/components/checkout/CheckoutOrderTotals';
 import CheckoutReviewDialog from '@/components/checkout/CheckoutReviewDialog';
 import CheckoutArtworkSummary from '@/components/checkout/CheckoutArtworkSummary';
@@ -871,7 +874,7 @@ const Checkout: React.FC = () => {
                       });
                     }
                     const details = [
-                      { label: 'Size', value: normalized.sizeDisplay },
+                      { label: 'Size', value: normalized.productType === 'banner' ? `${formatBannerDimensions(item.width_in, item.height_in).feet} ${formatBannerDimensions(item.width_in, item.height_in).inches}` : normalized.sizeDisplay },
                       { label: 'Material', value: normalized.materialDisplay },
                       { label: 'Print', value: normalized.printDisplay },
                       ...(normalized.uploadedDesignsCount ? [{ label: 'Uploaded Designs', value: String(normalized.uploadedDesignsCount) }] : []),
@@ -951,7 +954,7 @@ const Checkout: React.FC = () => {
                             </ThumbnailPreviewWrapper>
                           </div>
                         ) : (
-                          <div className="flex justify-center shrink-0">
+                          <div className="flex shrink-0 flex-col items-center gap-4">
                             <ThumbnailPreviewWrapper
                               title={getItemDisplayName(item)}
                               widthIn={item.width_in}
@@ -1011,6 +1014,7 @@ const Checkout: React.FC = () => {
                                 compositionSignature={compositionSignature}
                               />
                             </ThumbnailPreviewWrapper>
+                            <RealisticBannerPreview item={item} />
                           </div>
                         )}
 
@@ -1019,7 +1023,7 @@ const Checkout: React.FC = () => {
                             <div className="min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <h3 className="font-bold text-[#18448D] text-lg sm:text-xl leading-snug break-words">
-                                  {getItemDisplayName(item)}
+                                  {normalized.productType === 'banner' ? `${item.material === '18oz_double' ? 'Double-Sided Banner' : 'Custom Banner'} ${formatBannerDimensions(item.width_in, item.height_in).feet}` : getItemDisplayName(item)}
                                 </h3>
                                 <span className="inline-flex items-center rounded-full bg-blue-50 text-[#18448D] border border-blue-100 px-2 py-0.5 text-xs font-semibold">
                                   {normalized.productLabel}
@@ -1033,7 +1037,7 @@ const Checkout: React.FC = () => {
                             {details.map((detail) => (
                               <div key={`${item.id}-${detail.label}`} className="min-w-0 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2">
                                 <dt className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">{detail.label}</dt>
-                                <dd className="mt-0.5 break-words text-sm font-semibold leading-5 text-slate-800">{detail.value}</dd>
+                                <dd className="mt-0.5 break-words text-sm font-semibold leading-5 text-slate-800">{detail.label === 'Size' && normalized.productType === 'banner' ? <BannerDimensions widthIn={item.width_in} heightIn={item.height_in}/> : detail.value}</dd>
                               </div>
                             ))}
                           </dl>
