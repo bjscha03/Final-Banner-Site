@@ -352,6 +352,16 @@ exports.handler = async (event) => {
     ? evt.data.to[0]
     : (evt?.data?.to || (Array.isArray(evt?.data?.email?.to) ? evt.data.email.to[0] : evt?.data?.email?.to) || null);
 
+  if (tagValue(tagsFromPayload(evt), 'campaign') === 'blog-reader-25-2026') {
+    try {
+      await require('../blog-reader-offer.cjs').recordDeliveryEvent(db, evt, providerMsgId, toEmail);
+      return { statusCode: 200, body: JSON.stringify({ ok: true, campaign: 'blog-reader-25-2026' }) };
+    } catch {
+      // Ask Resend to retry if suppression persistence is unavailable.
+      return { statusCode: 503, body: JSON.stringify({ ok: false, error: 'BLOG_EVENT_RETRY' }) };
+    }
+  }
+
   const statusMap = {
     'email.delivered': 'delivered',
     'email.bounced': 'bounced',
