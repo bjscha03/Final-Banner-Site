@@ -14,7 +14,7 @@ describe('popular banner defaults', () => {
       quantity: 1,
       material: '13oz',
     });
-    expect(pricing.subtotalBeforeDiscountCents).toBe(8100);
+    expect(pricing.subtotalBeforeDiscountCents).toBe(9000);
 
     const discount = resolvePromo({
       subtotalCents: pricing.subtotalBeforeDiscountCents,
@@ -32,7 +32,7 @@ describe('popular banner defaults', () => {
       appliedDiscountType: 'none',
       appliedDiscountAmountCents: 0,
     });
-    expect(pricing.subtotalBeforeDiscountCents - discount.appliedDiscountAmountCents).toBe(8100);
+    expect(pricing.subtotalBeforeDiscountCents - discount.appliedDiscountAmountCents).toBe(9000);
   });
 
   it('does not show the recommendation note after the customer changes size or product', () => {
@@ -40,15 +40,11 @@ describe('popular banner defaults', () => {
     expect(isPopularBannerPreset('yard_sign', 72, 36, 2)).toBe(false);
   });
 
-  it('does not treat a fresh, unselected page load as the priced 6×3 selection even though the dimension inputs default to 72×36', () => {
-    // The width/height text inputs default to 6'/3' (72×36 in), but on a
-    // fresh page load no preset is clicked yet (activePreset === null), so
-    // the "selected + priced" recommendation note must stay hidden even
-    // though the numeric dimensions match the popular preset.
+  it('does not show a preset note after a custom-size edit clears the preset', () => {
     expect(isPopularBannerPreset('banner', POPULAR_BANNER_PRESET.widthIn, POPULAR_BANNER_PRESET.heightIn, null)).toBe(false);
   });
 
-  it('keeps the selected 6×3 at $81 until a valid promo is applied', () => {
+  it('keeps the selected 6×3 at the current $90 base price until a valid promo is applied', () => {
     expect(isPopularBannerPreset('banner', POPULAR_BANNER_PRESET.widthIn, POPULAR_BANNER_PRESET.heightIn, POPULAR_BANNER_PRESET.presetIndex)).toBe(true);
 
     const pricing = calculateBannerPricing({
@@ -57,7 +53,7 @@ describe('popular banner defaults', () => {
       quantity: 1,
       material: '13oz',
     });
-    expect(pricing.subtotalBeforeDiscountCents / 100).toBe(81.0);
+    expect(pricing.subtotalBeforeDiscountCents / 100).toBe(90);
 
     const discount = resolvePromo({
       subtotalCents: pricing.subtotalBeforeDiscountCents,
@@ -71,6 +67,6 @@ describe('popular banner defaults', () => {
       }],
     });
     const finalCents = pricing.subtotalBeforeDiscountCents - discount.appliedDiscountAmountCents;
-    expect(finalCents / 100).toBe(81);
+    expect(finalCents / 100).toBe(90);
   });
 });

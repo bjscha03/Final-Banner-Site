@@ -479,9 +479,11 @@ const GoogleAdsBanner: React.FC = () => {
     activePdfPreviewCleanupRef.current = null;
   }, []);
   const [uploadError, setUploadError] = useState('');
-  // A popular-size recommendation is not a customer selection. Price only
-  // after choosing a preset/custom size or restoring an existing cart item.
-  const [activePreset, setActivePreset] = useState<number | null>(null);
+  // Start with the displayed banner size selected and priced. Explicit URL
+  // dimensions and restored cart items still override this initial selection.
+  const [activePreset, setActivePreset] = useState<number | null>(
+    initialProductType === 'banner' ? (isLargeBannerLanding ? 5 : POPULAR_BANNER_PRESET.presetIndex) : null,
+  );
   const [quantity, setQuantity] = useState(initialProductType === 'yard_sign' ? 10 : 1);
   const storedPromoAtLoad = useCartStore.getState().discountCode;
   const [promoCode, setPromoCode] = useState(storedPromoAtLoad?.code || 'NEW20');
@@ -489,7 +491,7 @@ const GoogleAdsBanner: React.FC = () => {
   const [promoFeedback, setPromoFeedback] = useState<string | null>(null);
   const [promoApplied, setPromoApplied] = useState(Boolean(storedPromoAtLoad));
 
-  const [hasConfirmedSize, setHasConfirmedSize] = useState(false);
+  const [hasConfirmedSize, setHasConfirmedSize] = useState(initialProductType === 'banner');
 
   // /design renders this component for banners. Honor the selected size card.
   useEffect(() => {
@@ -1157,7 +1159,7 @@ const GoogleAdsBanner: React.FC = () => {
     // Switching product tabs is otherwise a fresh start — clear confirmation flags so
     // the new product's mobile guided flow walks the user back through
     // size → material → quantity → options → upload from Step 1.
-    setHasConfirmedSize(false);
+    setHasConfirmedSize(newType === 'banner');
     setHasConfirmedMaterial(false);
     setHasConfirmedQuantity(false);
     setHasReviewedOptions(false);
@@ -1663,14 +1665,14 @@ const GoogleAdsBanner: React.FC = () => {
     setShowPostAddResetNotice(false);
     setHasReviewedYardSignStakes(false);
     setHasReviewedYardSignPrintSide(false);
-    setHasConfirmedSize(false);
+    setHasConfirmedSize(productType === 'banner');
     setHasConfirmedMaterial(false);
     setHasConfirmedQuantity(false);
     setHasReviewedOptions(false);
     if (isYardSign) {
       setYardSignDesigns([]);
     }
-  }, [isYardSign]);
+  }, [isYardSign, productType]);
   const resetAfterSuccessfulAdd = useCallback(() => {
     resetPreview();
     setShowPostAddResetNotice(true);
@@ -2447,7 +2449,7 @@ const GoogleAdsBanner: React.FC = () => {
     uploadError: uploadError || null,
     hasUpload: Boolean(uploadedFile),
     optionsRequired: true,
-    // Keep the mobile next step aligned with the same explicit size choice
+    // Keep the mobile next step aligned with the same selected size
     // that enables pricing and checkout.
     sizeConfirmed: hasCommittedBannerSize,
     materialConfirmed: isCarMagnet || Boolean(material),
@@ -2619,14 +2621,14 @@ const GoogleAdsBanner: React.FC = () => {
 
 
   const bannerAction = isProcessingUpsell || isUploading
-    ? { label: isUploading ? 'Uploading…' : 'Preparing preview…', disabled: true, onClick: () => {} }
+    ? { label: isUploading ? 'Uploading…' : 'Saving your design…', disabled: true, onClick: () => {} }
     : hasJustAddedToCart
       ? { label: 'View cart', disabled: false, onClick: openCartDrawer }
       : !hasCommittedBannerSize
         ? { label: 'Choose a size', disabled: false, onClick: () => { setHasEnteredBuilder(true); scrollToStepAnchor('size-section'); } }
         : !uploadedFile
           ? { label: uploadError ? 'Retry upload' : 'Upload artwork', disabled: false, onClick: openOrScrollToUpload }
-          : { label: editItemId ? 'Save & design another' : 'Add & design another', disabled: false, onClick: handleAddToCart };
+          : { label: editItemId ? 'Save & checkout' : 'Continue to checkout', disabled: false, onClick: handleCheckout };
 
   const materialCard = isDoubleSidedBanner ? (
     <ConfigCard compact step={2} title="Material & printing" id="material-section">
@@ -3518,6 +3520,7 @@ const GoogleAdsBanner: React.FC = () => {
       </div>
 
         <MobileSubtotalBar
+          primaryAction={productType === 'banner' ? bannerAction : undefined}
           promotionNote={bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20' ? FIRST_ORDER_APPLIED_LABEL : undefined}
           cartItemCount={cartItemCount}
           onViewCart={openCartDrawer}
