@@ -246,3 +246,79 @@ CREATE TABLE IF NOT EXISTS bof_order_touchpoints (
   order_id uuid PRIMARY KEY REFERENCES orders(id),
   first_shipped_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- Stripe refund objects may move from pending to succeeded, or later fail.
+-- Keep a provider-event watermark and reconcile only successfully refunded cash.
+-- Signed adjustments prevent a failed refund from leaving spendable BOF Cash.
+CREATE TABLE IF NOT EXISTS bof_stripe_refund_state (
+  order_id uuid PRIMARY KEY REFERENCES orders(id),
+  event_created bigint NOT NULL DEFAULT 0 CHECK (event_created >= 0),
+  confirmed_cents integer NOT NULL DEFAULT 0 CHECK (confirmed_cents >= 0),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE bof_stripe_refund_state ADD COLUMN IF NOT EXISTS revision bigint
+  NOT NULL DEFAULT 0 CHECK (revision>=0);
+
+-- Capture this revision BEFORE fetching the canonical Stripe charge/refunds.
+-- The revision spans that network read and the later atomic reconciliation.
+CREATE OR REPLACE FUNCTION bof_stripe_refund_revision(p_order uuid)
+RETURNS bigint LANGUAGE plpgsql AS $$
+DECLARE current_revision bigint;
+BEGIN
+  PERFORM order_id FROM bof_order_benefits WHERE order_id=p_order FOR UPDATE;
+  IF NOT FOUND THEN RETURN NULL; END IF;
+  INSERT INTO bof_stripe_refund_state(order_id) VALUES(p_order)
+    ON CONFLICT(order_id) DO NOTHING;
+  SELECT revision INTO current_revision FROM bof_stripe_refund_state
+    WHERE order_id=p_order FOR UPDATE;
+  RETURN current_revision;
+END $$;
+
+-- Retain the previous signature only to reject callers without a snapshot
+-- revision. They must retry using the five-argument guarded function below.
+CREATE OR REPLACE FUNCTION bof_reconcile_stripe_refund(
+  p_order uuid, p_confirmed integer, p_paid integer, p_event_created bigint DEFAULT 0
+) RETURNS boolean LANGUAGE plpgsql AS $$
+BEGIN
+  RAISE EXCEPTION 'BOF_REFUND_REVISION_REQUIRED';
+END $$;
+
+CREATE OR REPLACE FUNCTION bof_reconcile_stripe_refund(
+  p_order uuid, p_confirmed integer, p_paid integer, p_event_created bigint, p_expected_revision bigint
+) RETURNS boolean LANGUAGE plpgsql AS $$
+DECLARE b bof_order_benefits%ROWTYPE; previous_event bigint; current_revision bigint; returned bigint; target integer;
+BEGIN
+  IF p_confirmed IS NULL OR p_confirmed<0 OR p_paid IS NULL OR p_paid<=0
+    OR p_confirmed>p_paid OR p_event_created IS NULL OR p_event_created<0
+  THEN RAISE EXCEPTION 'BOF_REFUND_AMOUNT_INVALID'; END IF;
+  IF p_expected_revision IS NULL OR p_expected_revision<0
+    THEN RAISE EXCEPTION 'BOF_REFUND_REVISION_REQUIRED'; END IF;
+  -- Use the same benefit-then-member lock order as settlement and reversal.
+  SELECT * INTO b FROM bof_order_benefits WHERE order_id=p_order FOR UPDATE;
+  IF NOT FOUND THEN RETURN false; END IF;
+  SELECT event_created,revision INTO previous_event,current_revision FROM bof_stripe_refund_state
+    WHERE order_id=p_order FOR UPDATE;
+  IF NOT FOUND OR p_expected_revision<>current_revision
+    THEN RAISE EXCEPTION 'BOF_REFUND_SNAPSHOT_CHANGED'; END IF;
+  IF p_event_created<previous_event THEN RETURN false; END IF;
+  -- Revoke referral rewards, without the monotonic cash-return behavior used by
+  -- PayPal. This also records any paid checkout's not-yet-settled wallet spend.
+  IF NOT bof_reverse(p_order,0,p_paid,false) THEN RETURN false; END IF;
+  IF b.wallet_cents>0 THEN
+    target := floor(b.wallet_cents::numeric*p_confirmed/p_paid);
+    SELECT coalesce(sum(amount_cents),0) INTO returned FROM bof_cash_entries
+      WHERE order_id=p_order AND kind='redemption_refund';
+    IF target<>returned THEN
+      INSERT INTO bof_cash_entries(member_id,order_id,event_key,kind,amount_cents,available_at)
+        VALUES(b.wallet_member_id,p_order,'stripe-return:'||p_order||':'||gen_random_uuid(),
+          'redemption_refund',target-returned,now());
+    END IF;
+  END IF;
+  -- Advance even for an unchanged cash amount: a concurrent canonical read may
+  -- have observed a different provider state within the same event second.
+  UPDATE bof_stripe_refund_state SET
+    event_created=greatest(event_created,p_event_created),
+    confirmed_cents=p_confirmed,revision=revision+1,updated_at=now()
+    WHERE order_id=p_order;
+  RETURN true;
+END $$;

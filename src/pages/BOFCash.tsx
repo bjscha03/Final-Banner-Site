@@ -315,7 +315,7 @@ export default function BOFCash() {
             {!!wallet.adjustmentCents && wallet.adjustmentCents < 0 && (
               <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">
                 {bofMoney(-wallet.adjustmentCents)} of future rewards will cover
-                a reversed referral. This is not a charge to your card.
+                a reward or refund-credit adjustment. This is not a charge to your card.
               </p>
             )}
             {!!wallet.reservations?.length && (
@@ -382,7 +382,7 @@ export default function BOFCash() {
                             reward: "Referral reward",
                             redemption: "Used at checkout",
                             reward_reversal: "Reward adjustment",
-                            redemption_refund: "Returned after refund",
+                            redemption_refund: Number(entry.amount_cents) < 0 ? "Refund credit adjustment" : "Returned after refund",
                           }[entry.kind] || "Adjustment"}
                         </p>
                         <p className="text-xs text-slate-500">

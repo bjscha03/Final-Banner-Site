@@ -66,7 +66,7 @@ const handler = async (event) => {
     return reply(400, { ok: false, error: 'INVALID_SIGNATURE' });
   }
 
-  if ((bofService.active() || process.env.BOF_REFERRAL_LAUNCHED_AT) && ['charge.refunded','charge.dispute.created'].includes(stripeEvent.type)) {
+  if ((bofService.active() || process.env.BOF_REFERRAL_LAUNCHED_AT) && bofProviderEvents.STRIPE_ADJUSTMENT_TYPES.includes(stripeEvent.type)) {
     try {
       await bofProviderEvents.stripeAdjustment(neonFactory(process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL), stripe, stripeEvent);
       return reply(200, {received:true});

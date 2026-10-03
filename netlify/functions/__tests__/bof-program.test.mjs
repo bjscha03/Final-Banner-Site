@@ -139,13 +139,14 @@ describe("Provider-confirmed refund adapters", () => {
       [`pi_${order}`, order],
     );
     const charge = {
+      id: "ch_test",
       payment_intent: `pi_${order}`,
       currency: "usd",
       amount: 7950,
       amount_refunded: 3975,
     };
     const retrieve = vi.fn(async () => charge);
-    const stripe = { charges: { retrieve } };
+    const stripe = { charges: { retrieve }, refunds: { list: async () => ({ data: [{ id: "re_test", charge: charge.id, currency: "usd", amount: charge.amount_refunded, status: "succeeded" }], has_more: false }) } };
     const event = {
       type: "charge.refunded",
       data: { object: { id: "ch_test", amount_refunded: 7950 } },

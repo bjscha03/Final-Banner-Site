@@ -148,6 +148,8 @@ describe("public BOF referral page", () => {
     const hash = createHash("sha256").update(script).digest("base64");
     expect(response.headers.get("content-security-policy")).toContain(`script-src 'sha256-${hash}'`);
     expect(response.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");
+    expect(response.headers.get("content-security-policy")).toContain("img-src https://bannersonthefly.com https://res.cloudinary.com/dtrxl120u/;");
+    expect(response.headers.get("content-security-policy")).not.toContain("*");
   });
 
   it("supports HEAD without a body and refuses mutation requests", async () => {

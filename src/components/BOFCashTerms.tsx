@@ -46,7 +46,9 @@ export default function BOFCashTerms() {
           rewards for the same customer, cash withdrawals, or transfers. Credits
           do not expire. Refunds or chargebacks may reverse rewards; credit
           already spent can offset future earnings. Spent credit is returned
-          proportionally when an order is refunded.
+          proportionally after a payment refund succeeds. If that refund later
+          fails, returned credit is adjusted; any amount already used offsets
+          future earnings rather than charging your card.
         </p>
       </div>
     </details>

@@ -125,7 +125,9 @@ function response(request: Request, code: string, state: PageState, status = 200
       "X-Content-Type-Options": "nosniff",
       "Referrer-Policy": "strict-origin-when-cross-origin",
       "X-Robots-Tag": "noindex, follow",
-      "Content-Security-Policy": `default-src 'none'; img-src ${origin}; style-src 'unsafe-inline'; script-src 'sha256-${scriptHash}'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`,
+      // The existing Netlify image integration redirects BOF image paths to
+      // this Cloudinary account, including the logo and referral hero.
+      "Content-Security-Policy": `default-src 'none'; img-src ${origin} https://res.cloudinary.com/dtrxl120u/; style-src 'unsafe-inline'; script-src 'sha256-${scriptHash}'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`,
       ...(status === 503 ? { "Retry-After": "60" } : {}),
     },
   });

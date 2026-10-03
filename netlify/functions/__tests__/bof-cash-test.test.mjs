@@ -138,8 +138,18 @@ describe("isolated owner BOF test", () => {
   });
 
   it("supports only the configured test preview origin and strips injected public code text", async () => {
+    const claim = await call("claim", { token: await invitation() });
+    const { data } = await call("wallet", {}, claim.data.sessionToken);
     process.env.BOF_TEST_PUBLIC_SITE_URL = "https://deploy-preview-553--bannersonthefly.netlify.app";
     expect(testConfiguration().origin).toBe(process.env.BOF_TEST_PUBLIC_SITE_URL);
+    const preview = await handler(new Request(`${process.env.BOF_TEST_PUBLIC_SITE_URL}/bof-cash-test/share/${data.code}`));
+    const html = await preview.text();
+    const image = `${process.env.BOF_TEST_PUBLIC_SITE_URL}/images/email/september-grand-opening-banner.jpg`;
+    expect(preview.status).toBe(200);
+    expect(html).toContain(`<meta property="og:image" content="${image}">`);
+    expect(html).toContain(`<img src="${image}"`);
+    expect(html).not.toContain("https://bannersonthefly.com/images/");
+    expect(preview.headers.get("content-security-policy")).toContain("img-src 'self' https://res.cloudinary.com/dtrxl120u/;");
     expect(() => testConfiguration({ ...process.env, BOF_TEST_PUBLIC_SITE_URL:"https://bannersonthefly.com.evil.example" })).toThrow();
     const invalid = await handler(new Request("https://bannersonthefly.com/.netlify/functions/bof-cash-test?action=share&code=%22%3E%3Cscript%3E"));
     expect(invalid.status).toBe(404);
