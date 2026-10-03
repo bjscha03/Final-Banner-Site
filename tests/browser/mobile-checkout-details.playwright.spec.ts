@@ -140,7 +140,7 @@ test('contact and delivery details are visible before either payment method', as
 
   await expect(checkoutHeader).toBeVisible();
   await expect(checkoutHeader).toContainText('Secure checkout');
-  await expect(page.locator('nav[aria-label="Primary navigation"]')).toHaveCount(0);
+  await expect(page.locator('nav[aria-label="Primary navigation"]')).toHaveCount(1);
   await expect(page.getByLabel('Email address for newsletter')).toHaveCount(0);
   await expect(contactHeading).toBeVisible({ timeout: 20_000 });
   await expect(firstName).toBeVisible();

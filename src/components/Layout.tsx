@@ -31,29 +31,15 @@ const Layout: React.FC<LayoutProps> = ({ children, checkoutMode = false }) => {
     <div className="brand-page max-w-[100vw] overflow-x-clip">
       <ScrollToTop />
       {!location.pathname.startsWith('/admin') && <PromoBanner showStandardPromo={isHomepage} />}
-      {checkoutMode ? (
-        <header data-checkout-header className="border-b border-white/10 bg-[#061A31] text-white shadow-[0_8px_24px_rgba(6,26,49,0.16)]">
-          <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-            <ScrollToTopLink to="/" aria-label="Banners On The Fly home" className="flex items-center">
-              <img
-                src="/images/homepage/header-logo-reverse.png"
-                alt="Banners On The Fly"
-                width="248"
-                height="70"
-                className="h-10 w-auto max-w-[205px] object-contain sm:h-11 sm:max-w-[240px]"
-              />
-            </ScrollToTopLink>
-            <div className="inline-flex items-center gap-2 text-sm font-semibold text-white/90">
-              <LockKeyhole className="h-4 w-4 text-[#FF8A3D]" aria-hidden="true" />
-              <span>Secure checkout</span>
-            </div>
-          </div>
-        </header>
-      ) : (
-        <Header
-          cartCount={hasMounted ? getItemCount() : 0}
-          onCartClick={openCart}
-        />
+      <Header
+        cartCount={hasMounted ? getItemCount() : 0}
+        onCartClick={openCart}
+      />
+      {checkoutMode && (
+        <div data-checkout-header className="flex items-center justify-center gap-2 bg-[#061A31] px-4 py-2 text-sm font-semibold text-white">
+          <LockKeyhole className="h-4 w-4 text-[#FF8A3D]" aria-hidden="true" />
+          <span>Secure checkout</span>
+        </div>
       )}
       <main className="w-full max-w-[100vw] overflow-x-clip">
         {children}
@@ -75,12 +61,10 @@ const Layout: React.FC<LayoutProps> = ({ children, checkoutMode = false }) => {
       ) : (
         <Footer />
       )}
-      {!checkoutMode ? (
-        <CartModal
-          isOpen={isCartOpen}
-          onClose={closeCart}
-        />
-      ) : null}
+      <CartModal
+        isOpen={isCartOpen}
+        onClose={closeCart}
+      />
     </div>
   );
 };
