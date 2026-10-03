@@ -74,6 +74,12 @@ export interface OrderItem {
 }
 
 export interface Order {
+  bof_member?: boolean;
+  bof_reward_reserve_cents?: number;
+  bof_reserve_released_cents?: number;
+  bof_profit_review?: boolean;
+  bof_joined_at?: string | null;
+  bof_invitation_status?: string | null;
   id: string;
   user_id: string | null;
   email?: string; // Customer email for guest orders

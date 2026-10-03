@@ -612,6 +612,13 @@ async function sendEmail(type, payload) {
         `
         : '';
 
+      let bofBlock = '';
+      if (type === 'order.confirmation' && require('../bof-service.cjs').active()) {
+        try {
+          const bofDb = neon(process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL);
+          bofBlock = await require('../bof-email.cjs').confirmationBlock(bofDb, String(order.email || payload.to).trim().toLowerCase(), order.isTestOrder);
+        } catch (error) { console.warn('[notify-order] BOF invitation skipped', {code:error.code||null}); }
+      }
       if (type === 'order.confirmation') {
         subject = `Order Confirmation #${order.number} - Banners On The Fly`;
         html = renderEmailLayout({
@@ -625,6 +632,7 @@ async function sendEmail(type, payload) {
             ${sameDayBlock}
             ${totalsHtml}
             ${shippingHtml}
+            ${bofBlock}
             <p style="margin:16px 0 0;font-size:13px;color:#64748b;">You’ll receive another email when your order ships.</p>
             <div style="margin-top:16px;">
               <a href="${escapeHtml(payload.invoiceUrl)}" style="display:inline-block;background:#ff6b35;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:600;font-size:14px;">View Order Details</a>
@@ -910,6 +918,7 @@ exports.handler = async (event) => {
       to: order.email,
       idempotencyAttemptId,
       order: {
+        isTestOrder: !!order.is_test_order,
         id: order.id,
         number: order.id ? order.id.slice(-8).toUpperCase() : 'UNKNOWN',
         customerName: customerName,

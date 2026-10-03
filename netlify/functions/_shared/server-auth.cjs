@@ -109,4 +109,4 @@ function requireAdmin(event) {
   return session?.admin === true ? { ok: true, session } : { ok: false, response: unauthorized('Verified administrator session required') };
 }
 
-module.exports = { createSessionToken, verifySessionToken, getSession, requireAdmin, unauthorized, sessionCookie };
+module.exports = { isDeployPreviewEnvironment, createSessionToken, verifySessionToken, getSession, requireAdmin, unauthorized, sessionCookie };

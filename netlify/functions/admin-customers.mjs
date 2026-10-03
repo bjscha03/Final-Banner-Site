@@ -1,3 +1,4 @@
+import bofMembership from './_shared/bof-membership.cjs';
 import { neon } from '@neondatabase/serverless';
 import { withLambda } from '@netlify/aws-lambda-compat';
 import serverAuth from './_shared/server-auth.cjs';
@@ -483,7 +484,7 @@ async function handleList(sql, query, suppressionState, now) {
   return {
     ok: true,
     generatedAt: now.toISOString(),
-    customers: customers.map((customer) => attachSeptemberDealStatus(customer, septemberStatuses)),
+    customers: await bofMembership.enrichMembership(sql, customers.map((customer) => attachSeptemberDealStatus(customer, septemberStatuses))),
     stats,
     filteredSummary,
     exportSummary: {

@@ -1,4 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
+const { linkVerifiedGuestOrders } = require('../verified-guest-orders.cjs');
 
 const headers = {
   'Content-Type': 'application/json',
@@ -93,6 +94,7 @@ exports.handler = async (event) => {
 
     // Check if already verified
     if (verificationToken.verified || verificationToken.verified_at) {
+      await linkVerifiedGuestOrders(db, { id: verificationToken.user_id, email: verificationToken.email });
       return {
         statusCode: 200,
         headers,
@@ -113,6 +115,8 @@ exports.handler = async (event) => {
       SET email_verified = true, email_verified_at = NOW()
       WHERE id = ${verificationToken.user_id}
     `;
+
+    await linkVerifiedGuestOrders(db, { id: verificationToken.user_id, email: verificationToken.email });
 
     console.log(`Email verification completed successfully for user: ${verificationToken.email}`);
 
@@ -141,4 +145,3 @@ exports.handler = async (event) => {
     };
   }
 };
-

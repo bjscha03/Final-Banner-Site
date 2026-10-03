@@ -1,3 +1,4 @@
+import bofMembership from './_shared/bof-membership.cjs';
 import { estimateOrderProfit } from '../../src/lib/admin-profit-estimate.ts';
 import { neon } from '@neondatabase/serverless';
 import { withLambda } from '@netlify/aws-lambda-compat';
@@ -875,9 +876,9 @@ async function loadAdminReportData({ event, sql, request }) {
       [ids, ADMIN_LIST_ITEM_LIMIT],
     ));
 
-    let enrichedOrders = rawOrders;
+    let enrichedOrders = await bofMembership.enrichFinancials(sql, rawOrders);
     try {
-      enrichedOrders = await enrichOrderPaymentMetadata(sql, rawOrders, {
+      enrichedOrders = await enrichOrderPaymentMetadata(sql, enrichedOrders, {
         includeStripeReferences: true,
         event,
         reconcilePendingPayments: false,
@@ -899,7 +900,9 @@ async function loadAdminReportData({ event, sql, request }) {
     orders = ids.map((id) => byId.get(id)).filter(Boolean);
   }
 
-  const summary = normalizeAdminSummary(summaryRows[0] || {});
+  const summaryRow = summaryRows[0] || {};
+  if (Array.isArray(summaryRow.profit_orders)) summaryRow.profit_orders = await bofMembership.enrichFinancials(sql, summaryRow.profit_orders);
+  const summary = normalizeAdminSummary(summaryRow);
   return {
     orders,
     pagination: {
@@ -953,6 +956,7 @@ const handleRequest = async (event, context) => {
         sql: neon(dbUrl),
         request,
       });
+      report.orders = await bofMembership.enrichMembership(neon(dbUrl), report.orders);
       let body = report;
       if (String(query.history_scan || '') === '1') {
         body = {

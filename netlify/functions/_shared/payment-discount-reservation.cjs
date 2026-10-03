@@ -251,6 +251,12 @@ async function claimStoredCode(sql, order, code) {
 }
 
 async function claimPaymentDiscount(sql, order) {
+  const bof = require('./bof-service.cjs');
+  if (bof.launched() || bof.isBofCode(order.discount_code)) {
+    const held = await bof.assertHeld(sql, order);
+    if (!held.ok) return held;
+  }
+  if (bof.isBofCode(order.discount_code)) return {ok:true,claimed:true,kind:'bof'};
   const code = normalizedCode(order);
   if (!code) return { ok: true, claimed: false, kind: 'none' };
   if (isTestOrder(order)) return { ok: true, claimed: false, kind: 'test' };
@@ -267,8 +273,15 @@ async function claimPaymentDiscount(sql, order) {
 }
 
 async function releasePaymentDiscount(sql, order, reconciliationStatus = 'payment_failed') {
+  // A declined Stripe Intent can still be retried with its client secret.
+  // Keep BOF credit reserved until cancellation is confirmed, so a later retry
+  // cannot spend credit that has already been released to another order.
+  if ((require('./bof-service.cjs').launched() || require('./bof-service.cjs').isBofCode(order.discount_code))
+      && (reconciliationStatus === 'canceled' || order.payment_method === 'paypal')) {
+    await require('./bof-service.cjs').release(sql, order);
+  }
   const code = normalizedCode(order);
-  if (code && code !== 'NEW20' && !isNonStoredCampaignCode(code)
+  if (code && !require('./bof-service.cjs').isBofCode(code) && code !== 'NEW20' && !isNonStoredCampaignCode(code)
       && hasAppliedPromo(order) && !isTestOrder(order)) {
     await sql`
       UPDATE discount_codes dc
@@ -296,6 +309,8 @@ async function releasePaymentDiscount(sql, order, reconciliationStatus = 'paymen
 }
 
 async function completePaymentDiscount(sql, order) {
+  if (require('./bof-service.cjs').launched() || require('./bof-service.cjs').isBofCode(order.discount_code)) await require('./bof-service.cjs').settle(sql, order);
+  if (require('./bof-service.cjs').isBofCode(order.discount_code)) return {ok:true,kind:'bof'};
   const code = normalizedCode(order);
   if (!code || isTestOrder(order) || !hasAppliedPromo(order)
       || code === 'NEW20' || isNonStoredCampaignCode(code)) {

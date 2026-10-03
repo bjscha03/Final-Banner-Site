@@ -235,7 +235,7 @@ export interface DiscountCode {
   discountPercentage: number;
   discountAmountCents: number | null;
   expiresAt: string;
-  source?: 'new_customer' | 'trade_show' | 'discount_codes' | 'seasonal_promotion' | 'small_banner_promo';
+  source?: 'new_customer' | 'trade_show' | 'discount_codes' | 'seasonal_promotion' | 'small_banner_promo' | 'bof_wallet' | 'bof_referral';
   tradeShowSlug?: string;
   recoveryOffer?: boolean;
   recoveryCartId?: string | null;

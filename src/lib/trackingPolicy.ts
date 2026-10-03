@@ -24,6 +24,8 @@ export type TrackingContext = {
 
 const NON_CUSTOMER_PATHS = [
   '/admin',
+  '/bof-cash',
+  '/bof-cash-test',
   '/canva-test',
   '/logo-showcase',
   '/pdf-diagnostic',

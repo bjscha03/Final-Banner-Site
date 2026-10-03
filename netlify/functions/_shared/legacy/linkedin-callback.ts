@@ -15,6 +15,10 @@
 
 import { Handler } from '@netlify/functions';
 import { neon } from '@neondatabase/serverless';
+import history from '../verified-guest-orders.cjs';
+import serverAuth from '../server-auth.cjs';
+
+const scriptJson = (value: unknown) => JSON.stringify(value).replace(/</g, '\\u003c');
 
 export const handler: Handler = async (event) => {
   console.log('🔵 LinkedIn callback triggered');
@@ -127,18 +131,22 @@ export const handler: Handler = async (event) => {
 
     const profile = await profileResponse.json();
 
+    const normalizedEmail = String(profile.email || '').trim().toLowerCase();
+    if (!normalizedEmail || profile.email_verified !== true) {
+      return { statusCode: 302, headers: { Location: '/sign-in?error=' + encodeURIComponent('LinkedIn could not confirm your email. Please sign in with your email instead.') }, body: '' };
+    }
+
     // Step 3: Create or update user in database
     const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
     const sql = neon(dbUrl);
 
-    const normalizedEmail = profile.email?.toLowerCase();
-
     // Check if user already exists with this email
     const existingUsers = await sql`
       SELECT * FROM profiles
-      WHERE email = ${normalizedEmail}
-      LIMIT 1
+      WHERE lower(btrim(email)) = ${normalizedEmail}
     `;
+
+    if (existingUsers.length > 1) throw new Error('Ambiguous account email; contact support.');
 
     let user: any;
 
@@ -151,11 +159,12 @@ export const handler: Handler = async (event) => {
         UPDATE profiles
         SET
           full_name = COALESCE(full_name, ${profile.name}),
+          email_verified = true,
           updated_at = NOW()
         WHERE id = ${existingUser.id}
       `;
 
-      user = existingUser;
+      user = { ...existingUser, email_verified: true };
     } else {
       // NEW USER - Create account
       const newUsers = await sql`
@@ -197,6 +206,7 @@ export const handler: Handler = async (event) => {
       console.log('🔵 New user details:', { id: user.id, email: user.email, email_verified: user.email_verified });
     }
 
+    await history.linkVerifiedGuestOrders(sql, user);
     console.log('🔵 Final user object before creating safeUser:', { id: user.id, email: user.email, email_verified: user.email_verified, is_admin: user.is_admin });
 
     // Step 4: Create safe user object (exclude password)
@@ -209,6 +219,8 @@ export const handler: Handler = async (event) => {
       created_at: user.created_at,
       updated_at: user.updated_at
     };
+
+    const sessionToken = serverAuth.createSessionToken(safeUser);
 
     // Step 6: Return HTML page that stores user in localStorage and redirects
     const html = `<!DOCTYPE html>
@@ -260,7 +272,17 @@ export const handler: Handler = async (event) => {
   </div>
   <script>
     try {
-      const user = ${JSON.stringify(safeUser)};
+      const user = ${scriptJson(safeUser)};
+      const callbackState = ${scriptJson(state || '')};
+      const storedState = sessionStorage.getItem('linkedin_oauth_state');
+      if (!callbackState || !storedState || callbackState !== storedState) {
+        throw new Error('Security validation failed. Please try signing in again.');
+      }
+      sessionStorage.removeItem('linkedin_oauth_state');
+      const sessionToken = ${scriptJson(sessionToken)};
+      localStorage.setItem('banners_server_session', sessionToken);
+      sessionStorage.setItem('banners_server_session', sessionToken);
+      document.cookie = 'banners_admin_session=' + encodeURIComponent(sessionToken) + '; Path=/; SameSite=Strict; Max-Age=28800; Secure';
       console.log('✅ LinkedIn OAuth: Storing user in localStorage:', user);
       localStorage.setItem('banners_current_user', JSON.stringify(user));
       
@@ -316,6 +338,8 @@ export const handler: Handler = async (event) => {
       statusCode: 200,
       headers: {
         'Content-Type': 'text/html',
+        'Cache-Control': 'private, no-store',
+        'Referrer-Policy': 'no-referrer',
       },
       body: html,
     };
@@ -330,4 +354,3 @@ export const handler: Handler = async (event) => {
     };
   }
 };
-

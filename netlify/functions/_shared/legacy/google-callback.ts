@@ -5,6 +5,10 @@
 
 import { Handler } from '@netlify/functions';
 import { neon } from '@neondatabase/serverless';
+import history from '../verified-guest-orders.cjs';
+import serverAuth from '../server-auth.cjs';
+
+const scriptJson = (value: unknown) => JSON.stringify(value).replace(/</g, '\\u003c');
 
 export const handler: Handler = async (event) => {
   console.log('🔵 Google callback triggered');
@@ -151,13 +155,13 @@ export const handler: Handler = async (event) => {
       };
     }
 
-    const normalizedEmail = (googleUser.email || '').toLowerCase();
-    if (!normalizedEmail) {
+    const normalizedEmail = String(googleUser.email || '').trim().toLowerCase();
+    if (!normalizedEmail || googleUser.verified_email !== true) {
       console.error('❌ Google user info missing email');
       return {
         statusCode: 302,
         headers: {
-          Location: '/sign-in?error=' + encodeURIComponent('google_callback_no_email'),
+          Location: '/sign-in?error=' + encodeURIComponent('Google could not confirm your email. Please sign in with your email instead.'),
         },
         body: '',
       };
@@ -173,7 +177,7 @@ export const handler: Handler = async (event) => {
       console.log('🔵 [db] BEFORE SELECT profiles by email');
       const selectStartedAt = Date.now();
       const existingUsers = await withTimeout(
-        sql`SELECT * FROM profiles WHERE email = ${normalizedEmail} LIMIT 1` as unknown as Promise<any[]>,
+        sql`SELECT * FROM profiles WHERE lower(btrim(email)) = ${normalizedEmail}` as unknown as Promise<any[]>,
         DB_TIMEOUT_MS,
         'SELECT profiles by email',
       );
@@ -181,6 +185,7 @@ export const handler: Handler = async (event) => {
         `🔵 [db] AFTER  SELECT profiles by email (${Date.now() - selectStartedAt}ms, rows=${existingUsers.length})`,
       );
 
+      if (existingUsers.length > 1) throw new Error('Ambiguous account email; contact support.');
       if (existingUsers.length > 0) {
         // EXISTING USER - link Google id and continue
         const existingUser = existingUsers[0];
@@ -190,6 +195,7 @@ export const handler: Handler = async (event) => {
           sql`
             UPDATE profiles
             SET google_id = ${googleUser.id},
+                email_verified = true,
                 updated_at = NOW()
             WHERE id = ${existingUser.id}
           ` as unknown as Promise<unknown>,
@@ -197,7 +203,7 @@ export const handler: Handler = async (event) => {
           'UPDATE profiles set google_id',
         );
         console.log(`🔵 [db] AFTER  UPDATE profiles set google_id (${Date.now() - updateStartedAt}ms)`);
-        user = { ...existingUser, google_id: googleUser.id };
+        user = { ...existingUser, google_id: googleUser.id, email_verified: true };
       } else {
         // NEW USER - insert profile
         console.log('🔵 [db] BEFORE INSERT profiles (new user)');
@@ -242,6 +248,7 @@ export const handler: Handler = async (event) => {
           console.warn('⚠️ ai_credits grant skipped:', creditsError?.message || creditsError);
         }
       }
+      await withTimeout(history.linkVerifiedGuestOrders(sql, user), DB_TIMEOUT_MS, 'Link verified guest orders');
     } catch (dbError: any) {
       const elapsed = Date.now() - dbStartedAt;
       console.error(`❌ [db] Neon operation failed after ${elapsed}ms:`, dbError?.message || dbError);
@@ -268,11 +275,13 @@ export const handler: Handler = async (event) => {
       id: user.id,
       email: user.email,
       full_name: user.full_name,
-      email_verified: user.email_verified || true,
+      email_verified: user.email_verified === true,
       is_admin: user.is_admin || false,
       created_at: user.created_at,
       updated_at: user.updated_at
     };
+
+    const sessionToken = serverAuth.createSessionToken(safeUser);
 
     // Return HTML page that stores user in localStorage and redirects
     const html = `<!DOCTYPE html>
@@ -324,7 +333,7 @@ export const handler: Handler = async (event) => {
   </div>
   <script>
     try {
-      const user = ${JSON.stringify(safeUser)};
+      const user = ${scriptJson(safeUser)};
       const redirectBase = '/';
 
       const buildRedirectUrl = (path, params = {}) => {
@@ -335,13 +344,17 @@ export const handler: Handler = async (event) => {
         return nextUrl.pathname + nextUrl.search;
       };
 
-      const callbackState = ${JSON.stringify(state || '')};
+      const callbackState = ${scriptJson(state || '')};
       const storedState = sessionStorage.getItem('google_oauth_state');
       if (!callbackState || !storedState || callbackState !== storedState) {
         throw new Error('Security validation failed. Please try signing in again.');
       }
       sessionStorage.removeItem('google_oauth_state');
 
+      const sessionToken = ${scriptJson(sessionToken)};
+      localStorage.setItem('banners_server_session', sessionToken);
+      sessionStorage.setItem('banners_server_session', sessionToken);
+      document.cookie = 'banners_admin_session=' + encodeURIComponent(sessionToken) + '; Path=/; SameSite=Strict; Max-Age=28800; Secure';
       localStorage.setItem('banners_current_user', JSON.stringify(user));
       const stored = localStorage.getItem('banners_current_user');
       if (!stored) throw new Error('Failed to store user in localStorage');
@@ -372,6 +385,8 @@ export const handler: Handler = async (event) => {
       statusCode: 200,
       headers: {
         'Content-Type': 'text/html',
+        'Cache-Control': 'private, no-store',
+        'Referrer-Policy': 'no-referrer',
       },
       body: html,
     };
@@ -387,4 +402,3 @@ export const handler: Handler = async (event) => {
     };
   }
 };
-

@@ -1,3 +1,5 @@
+import {readBofReferral} from '@/lib/bofCash';
+import {authorizedHeaders} from '@/lib/serverAuth';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   PayPalButtons,
@@ -601,7 +603,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
         try {
           response = await fetch('/.netlify/functions/paypal-payment-status', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: authorizedHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify({
               internalOrderId,
               checkoutKey: checkoutKeyRef.current,
@@ -747,7 +749,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     try {
       const response = await fetch('/.netlify/functions/create-order', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authorizedHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           user_id: user?.id || null,
           email: user?.email || `preview-${checkoutKeyRef.current}@bannersonthefly.com`,
@@ -757,6 +759,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
           currency: 'usd',
           items,
           discountCode,
+          bofReferralCode: readBofReferral(),
           sameDayHitService: Boolean(sameDayHitService),
           saturdayDelivery: Boolean(saturdayDelivery),
           attribution: getStoredAttribution(),
@@ -813,7 +816,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
       if (!internalOrderIdRef.current) {
         const pendingResponse = await fetch('/.netlify/functions/create-order', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authorizedHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({
             user_id: user?.id || null,
             email: submitted.email,
@@ -841,6 +844,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
             ...abandonedCartAttribution,
             items,
             discountCode,
+            bofReferralCode: readBofReferral(),
             sameDayHitService: Boolean(sameDayHitService),
             saturdayDelivery: Boolean(saturdayDelivery),
             attribution: getStoredAttribution(),
@@ -882,7 +886,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
 
       const response = await fetch('/.netlify/functions/paypal-create-order', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authorizedHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           internalOrderId: internalOrderIdRef.current,
           checkoutKey: checkoutKeyRef.current,
@@ -896,6 +900,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
           user_id: user?.id || null,
           ...abandonedCartAttribution,
           discountCode,
+          bofReferralCode: readBofReferral(),
           sameDayHitService: Boolean(sameDayHitService),
           saturdayDelivery: Boolean(saturdayDelivery),
           attribution: getStoredAttribution(),
@@ -952,7 +957,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
 
       const response = await fetch('/.netlify/functions/paypal-capture-minimal', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authorizedHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           orderID: data.orderID,
           internalOrderId: internalOrderIdRef.current,
@@ -1100,7 +1105,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
       shippingInfoTrackedRef.current = trackShippingInfoEntered({
         items: analyticsItems,
         value: total,
-        coupon: discountCode?.code || null,
+        coupon: discountCode?.code.startsWith('BOFCASH-') ? 'BOFCASH' : discountCode?.code || null,
       });
     }
     if (!paymentInfoTrackedRef.current.has(method)) {
@@ -1108,7 +1113,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
         paymentType: method,
         items: analyticsItems,
         value: total,
-        coupon: discountCode?.code || null,
+        coupon: discountCode?.code.startsWith('BOFCASH-') ? 'BOFCASH' : discountCode?.code || null,
       });
       if (queued) paymentInfoTrackedRef.current.add(method);
     }

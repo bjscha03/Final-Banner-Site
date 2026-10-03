@@ -41,6 +41,7 @@ exports.handler = async (event) => {
       recoveryCartId: payload.cartId || null,
       requireRecoveryCartMatch: true,
       items: Array.isArray(payload.items) ? payload.items : null,
+      authenticatedUserId: require('../server-auth.cjs').getSession(event)?.sub || null,
     });
     return reply(200, result);
   } catch (error) {

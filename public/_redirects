@@ -6,6 +6,10 @@
 /api/paypal/capture-order  /.netlify/functions/paypal-capture-order  200
 /api/*   /.netlify/functions/:splat   200
 
+# Server-rendered public referral card, before the SPA fallback.
+/bof-cash-test/share/:code   /.netlify/functions/bof-cash-test?action=share&code=:code   200!
+/refer/:code   /.netlify/functions/bof-referral?code=:code   200!
+
 # Direct test pages - serve as-is (no React routing)
 /ai-test-direct.html   /ai-test-direct.html   200
 /ai-button-test.html   /ai-button-test.html   200

@@ -389,10 +389,11 @@ async function createPendingOrderDirect({ input, items, customer, checkoutKey, m
     sameDayHitService: input?.sameDayHitService === true,
     saturdayDelivery: input?.saturdayDelivery === true,
     attribution: input?.attribution || null,
+    bofReferralCode: input?.bofReferralCode || null,
   };
   const response = await createOrderModule.handler(
     { httpMethod: 'POST', headers: {}, body: JSON.stringify(orderData) },
-    createOrderModule.createTrustedStripeContext(mode),
+    createOrderModule.createTrustedStripeContext(mode, input?.userId || input?.user_id || null),
   );
   const payload = parseFunctionPayload(response);
   const statusCode = Number(response?.statusCode || 500);
