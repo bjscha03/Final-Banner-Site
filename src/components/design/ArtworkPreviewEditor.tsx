@@ -591,9 +591,11 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
     return () => document.removeEventListener('click', outside, true);
   }, [selected]);
 
-  const reset = useCallback(() => { setSizeReviewNeeded(false); commitTransform({ x: 0, y: 0, scaleX: 1, scaleY: 1 }); }, [commitTransform]);
+  const reset = useCallback(() => { setSizeReviewNeeded(false); onConstrainChange(true); commitTransform({ x: 0, y: 0, scaleX: 1, scaleY: 1 }); }, [commitTransform, onConstrainChange]);
   const fit = reset;
   const fill = useCallback(() => {
+    onConstrainChange(true);
+    setSizeReviewNeeded(false);
     if (!naturalSize || !canvasSizeRef.current) {
       commitTransform({ x: 0, y: 0, scaleX: 1.5, scaleY: 1.5 });
       return;
@@ -602,7 +604,7 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
     const imageAspect = naturalSize.w / naturalSize.h;
     const scale = clamp(imageAspect > canvasAspect ? imageAspect / canvasAspect : canvasAspect / imageAspect, 1, MAX_SCALE);
     commitTransform({ x: 0, y: 0, scaleX: scale, scaleY: scale });
-  }, [naturalSize, commitTransform]);
+  }, [naturalSize, commitTransform, onConstrainChange]);
 
   const toggleConstrain = useCallback(() => {
     const next = !constrain;
@@ -616,6 +618,17 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
     }
   }, [constrain, onConstrainChange, commitTransform]);
 
+  const artworkIsCropped = Boolean(artworkFrame && canvasSize && (
+    artworkFrame.left < -1 || artworkFrame.top < -1
+    || artworkFrame.left + artworkFrame.width > canvasSize.w + 1
+    || artworkFrame.top + artworkFrame.height > canvasSize.h + 1
+  ));
+  const artworkHasMargins = Boolean(artworkFrame && canvasSize && (
+    artworkFrame.left > 1 || artworkFrame.top > 1
+    || artworkFrame.left + artworkFrame.width < canvasSize.w - 1
+    || artworkFrame.top + artworkFrame.height < canvasSize.h - 1
+  ));
+
   const toolbar = (
     <div
       data-artwork-toolbar="true"
@@ -627,30 +640,37 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
         <p>Your banner shape changed. Check for cropped edges or blank margins.</p>
         <div className="mt-2 flex flex-wrap gap-2"><button type="button" onClick={fit} className="min-h-11 rounded-lg bg-white px-3 font-semibold text-orange-700">Fit entire artwork</button><button type="button" onClick={() => setSizeReviewNeeded(false)} className="min-h-11 rounded-lg px-3 font-medium">Keep current placement</button></div>
       </div>}
-      <div className="mb-3 flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-slate-700 sm:hidden">
-        <Hand aria-hidden="true" className="h-5 w-5 shrink-0" />
-        <div><p className="text-sm font-semibold">Pinch to zoom · Drag to move</p><p className="text-xs">Use two fingers on your artwork to zoom.</p></div>
-      </div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-700 sm:justify-start" role="status">
-            {constrain ? <Lock aria-hidden="true" className="h-3.5 w-3.5" /> : <Unlock aria-hidden="true" className="h-3.5 w-3.5" />}
-            {constrain ? 'Proportions locked' : 'Free resize enabled'}
-          </p>
-          <div className="mt-1 grid grid-cols-3 gap-1">
-            <button type="button" onClick={fit} className="inline-flex min-h-11 items-center justify-center gap-1 rounded-lg px-3 text-xs font-medium text-slate-700 hover:bg-slate-100"><Minimize2 aria-hidden="true" className="h-4 w-4" />Fit</button>
-            <button type="button" onClick={fill} className="inline-flex min-h-11 items-center justify-center gap-1 rounded-lg px-3 text-xs font-medium text-slate-700 hover:bg-slate-100"><Maximize2 aria-hidden="true" className="h-4 w-4" />Fill</button>
-            <button type="button" onClick={reset} className="inline-flex min-h-11 items-center justify-center gap-1 rounded-lg px-3 text-xs font-medium text-orange-600 hover:bg-orange-50"><RotateCcw aria-hidden="true" className="h-4 w-4" />Reset</button>
-          </div>
-        </div>
-        <button type="button" onClick={toggleConstrain} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600">
-          {constrain ? <Unlock aria-hidden="true" className="h-4 w-4" /> : <Lock aria-hidden="true" className="h-4 w-4" />}
-          {constrain ? 'Unlock free resize' : 'Lock proportions'}
+      <div className="grid grid-cols-2 gap-2">
+        <button type="button" onClick={fit} className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg border border-slate-200 px-2 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-600">
+          <span className="inline-flex items-center gap-1.5"><Minimize2 aria-hidden="true" className="h-4 w-4 shrink-0" />Show entire design</span>
+          <span className="text-[11px] font-normal text-slate-500">May leave blank margins</span>
+        </button>
+        <button type="button" onClick={fill} className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg border border-slate-200 px-2 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-600">
+          <span className="inline-flex items-center gap-1.5"><Maximize2 aria-hidden="true" className="h-4 w-4 shrink-0" />Fill banner</span>
+          <span className="text-[11px] font-normal text-slate-500">Edges may crop</span>
         </button>
       </div>
-      <p className="mt-2 text-center text-xs leading-relaxed text-slate-500">
-        {constrain ? 'Want to stretch it? Unlock, then drag a corner.' : 'Drag a corner to adjust width and height freely.'}
+      <p role="status" className={`mt-2 rounded-lg px-2 py-2 text-xs leading-relaxed ${artworkIsCropped ? 'bg-amber-50 text-amber-900' : 'text-slate-600'}`}>
+        {artworkIsCropped
+          ? 'Part of your design is outside the banner and will be cropped. Drag to reposition, or choose Show entire design.'
+          : artworkHasMargins
+          ? 'Your preview includes blank margins. Choose Fill banner only if cropping the edges is OK.'
+          : 'Your design fills the banner. Check that all important text and images are visible.'}
       </p>
+      <p className="mt-1 flex items-center justify-center gap-1.5 text-[11px] text-slate-500">
+        <Hand aria-hidden="true" className="h-3.5 w-3.5" />Drag to move · Pinch or drag corners to resize
+      </p>
+      <details className="mt-2 border-t border-slate-100 pt-2">
+        <summary className="min-h-11 cursor-pointer py-3 text-xs font-semibold text-slate-600">Advanced adjustments</summary>
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={reset} className="inline-flex min-h-11 items-center justify-center gap-1 rounded-lg px-3 text-xs font-medium text-orange-600 hover:bg-orange-50"><RotateCcw aria-hidden="true" className="h-4 w-4" />Reset</button>
+          <button type="button" onClick={toggleConstrain} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 px-3 text-xs font-medium text-slate-700 hover:bg-slate-50">
+            {constrain ? <Unlock aria-hidden="true" className="h-4 w-4" /> : <Lock aria-hidden="true" className="h-4 w-4" />}
+            {constrain ? 'Unlock free resize' : 'Lock proportions'}
+          </button>
+        </div>
+        <p className="mt-2 text-xs text-slate-500">{constrain ? 'Proportions locked to prevent stretching.' : 'Free resize can stretch your design. Lock proportions to keep its original shape.'}</p>
+      </details>
     </div>
   );
 
@@ -719,9 +739,9 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
 
         {showDragHint && <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center"><span className="rounded-full bg-black/60 px-3 py-1.5 text-xs text-white">Drag to reposition · Drag corners to resize</span></div>}
         {overlay}
-        {!loading && !previewError && !mobileToolbarContainer && <div className="pointer-events-none absolute bottom-2 left-2 right-2 z-40 flex justify-center">{toolbar}</div>}
       </div>
 
+      {!loading && !previewError && !mobileToolbarContainer && <div className="mt-3 flex justify-center">{toolbar}</div>}
       {!loading && !previewError && mobileToolbarContainer
         ? createPortal(<div className="flex w-full justify-center">{toolbar}</div>, mobileToolbarContainer)
         : null}

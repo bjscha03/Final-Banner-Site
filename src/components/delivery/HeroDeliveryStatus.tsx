@@ -1,4 +1,5 @@
 import React from 'react';
+import WeekendDeliveryEstimate from './WeekendDeliveryEstimate';
 import { CalendarCheck2, Clock3, Truck } from 'lucide-react';
 import { useDeliveryCountdown } from '@/hooks/useDeliveryCountdown';
 import { formatCountdown, type ETParts } from '@/lib/delivery';
@@ -21,11 +22,23 @@ interface HeroDeliveryStatusProps {
 
 const HeroDeliveryStatus: React.FC<HeroDeliveryStatusProps> = ({ className, variant = 'compact' }) => {
   const { estimate, remainingMs } = useDeliveryCountdown({ isHitSelected: false });
-  const countdownLabel = estimate.state === 'weekend_lock'
-    ? 'Next production'
-    : estimate.state === 'hit_available'
+  const countdownLabel = estimate.state === 'hit_available'
       ? 'Fast-service cutoff'
       : 'Order cutoff';
+
+  if (estimate.state === 'weekend_lock') {
+    return (
+      <div
+        data-hero-delivery-status data-state={estimate.state} data-variant={variant}
+        className={`${variant === 'light'
+          ? 'rounded-xl border border-orange-200 bg-[#FFF4EA]'
+          : 'border-t-[3px] border-[#F45B08] bg-[#061A31]'} ${className || ''}`}
+        aria-label="Estimated delivery and shipping dates"
+      >
+        <WeekendDeliveryEstimate estimate={estimate} dark={variant !== 'light'} editorial={variant === 'editorial'} />
+      </div>
+    );
+  }
 
   if (variant === 'light') {
     return (

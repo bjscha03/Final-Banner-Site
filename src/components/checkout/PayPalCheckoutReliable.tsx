@@ -1,3 +1,4 @@
+import { trackCheckoutDiagnostic } from '@/lib/checkoutDiagnostics';
 import {readBofReferral} from '@/lib/bofCash';
 import {authorizedHeaders} from '@/lib/serverAuth';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -565,6 +566,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     clearState();
     writeStoredAbandonedCartRecoveryAttribution(null);
     clearCheckoutCustomerDraft();
+    trackCheckoutDiagnostic('payment_succeeded', { provider: 'paypal' });
 
     const shippingAddress = extractShipping(payload)
       || submittedCustomerRef.current?.shippingAddress
@@ -1028,6 +1030,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     if (verificationLockedRef.current) return;
     if (Date.now() - lastDeclineAtRef.current < 5000) return;
     if (Date.now() - staleCartHandledAtRef.current < 5000) return;
+    trackCheckoutDiagnostic('provider_error', { provider: 'paypal', code: error?.code });
 
     console.error('[PayPalCheckout] provider error', error);
     setIsPreparing(false);
@@ -1120,8 +1123,10 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
   };
 
   const prepareCustomerForPayment = (method: 'card' | 'paypal'): boolean => {
+    trackCheckoutDiagnostic('pay_clicked', { provider: 'paypal', method });
     const validation = validateCustomer();
     if (validation) {
+      trackCheckoutDiagnostic('validation_blocked', { provider: 'paypal', method, field: validation.field });
       setCheckoutError(validation.message);
       window.requestAnimationFrame(() => {
         const field = customerDetailsRef.current?.querySelector<HTMLInputElement>(
@@ -1147,6 +1152,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     <PayPalButtons
       key={`paypal-${hash(checkoutSignature)}`}
       fundingSource="paypal"
+      onInit={() => trackCheckoutDiagnostic('payment_fields_ready', { provider: 'paypal', method: 'paypal' })}
       style={{ layout: 'vertical', color: 'gold', shape: 'rect', label: 'paypal', height: 42 }}
       disabled={buttonsDisabled}
       onClick={(_data, actions) => {
@@ -1181,13 +1187,13 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     autoComplete?: string;
     wide?: boolean;
   }> = [
+    { field: 'email', label: 'Email *', type: 'email', inputMode: 'email', autoComplete: 'email', wide: true },
     { field: 'firstName', label: 'First Name *', autoComplete: 'given-name' },
     { field: 'lastName', label: 'Last Name *', autoComplete: 'family-name' },
-    { field: 'email', label: 'Email *', type: 'email', inputMode: 'email', autoComplete: 'email' },
-    { field: 'phone', label: 'Phone *', type: 'tel', inputMode: 'tel', autoComplete: 'tel' },
+    { field: 'phone', label: 'Phone *', type: 'tel', inputMode: 'tel', autoComplete: 'tel', wide: true },
     { field: 'street', label: 'Street Address *', autoComplete: 'address-line1', wide: true },
     { field: 'street2', label: 'Apartment / Suite', autoComplete: 'address-line2', wide: true },
-    { field: 'city', label: 'City *', autoComplete: 'address-level2' },
+    { field: 'city', label: 'City *', autoComplete: 'address-level2', wide: true },
     { field: 'state', label: 'State *', autoComplete: 'address-level1' },
     { field: 'zip', label: 'ZIP *', inputMode: 'numeric', autoComplete: 'postal-code' },
   ];
@@ -1199,10 +1205,10 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     autoComplete?: string;
     wide?: boolean;
   }> = [
-    { field: 'shippingName', label: 'Shipping Name *', autoComplete: 'shipping name' },
+    { field: 'shippingName', label: 'Shipping Name *', autoComplete: 'shipping name', wide: true },
     { field: 'shippingStreet', label: 'Shipping Address *', autoComplete: 'shipping address-line1', wide: true },
     { field: 'shippingStreet2', label: 'Shipping Apartment / Suite', autoComplete: 'shipping address-line2', wide: true },
-    { field: 'shippingCity', label: 'Shipping City *', autoComplete: 'shipping address-level2' },
+    { field: 'shippingCity', label: 'Shipping City *', autoComplete: 'shipping address-level2', wide: true },
     { field: 'shippingState', label: 'Shipping State *', autoComplete: 'shipping address-level1' },
     { field: 'shippingZip', label: 'Shipping ZIP *', inputMode: 'numeric', autoComplete: 'shipping postal-code' },
   ];
@@ -1217,22 +1223,22 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
       >
         <div className="mb-4">
           <h3 id="checkout-customer-heading" className="text-base font-bold text-[#0B1F3A]">
-            Contact &amp; billing address
+            Contact &amp; address
           </h3>
           <p className="mt-1 text-xs leading-5 text-slate-600">
-            Enter these details once, then choose card or PayPal below. We use them for your receipt, artwork questions, and delivery.
+            Enter your address once for billing and delivery. Your details stay saved while you edit your artwork.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-3">
           {customerFields.map(({ field, label, type = 'text', inputMode, autoComplete, wide }) => {
             const required = field !== 'street2';
             const isInvalid = currentValidation?.field === field;
-            return (
+            const fieldInput = (
               <label
                 key={field}
                 htmlFor={`checkout-${field}`}
-                className={`text-sm font-medium text-slate-800 ${wide ? 'sm:col-span-2' : ''}`}
+                className={`text-sm font-medium text-slate-800 ${wide ? 'col-span-2' : ''}`}
               >
                 {label}
                 <Input
@@ -1253,18 +1259,21 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
                     setCheckoutError(null);
                   }}
                 />
+                {field === 'phone' && <span className="mt-1 block text-xs font-normal text-slate-500">For delivery or artwork questions.</span>}
+                {field === 'email' && <span className="mt-1 block text-xs font-normal text-slate-500">For your receipt and order updates.</span>}
               </label>
             );
+            return field === 'street2' ? (
+              <details key={field} className="col-span-2" open={customer.street2 ? true : undefined}>
+                <summary className="min-h-11 cursor-pointer py-3 text-xs font-medium text-[#18448D]">Add apartment / suite (optional)</summary>
+                {fieldInput}
+              </details>
+            ) : fieldInput;
           })}
 
-          <div className="text-sm font-medium text-slate-800">
-            Country *
-            <div className="mt-1 flex h-11 items-center rounded-md border border-slate-200 bg-slate-100 px-3 text-slate-700" aria-label="Country: United States">
-              United States
-            </div>
-          </div>
+          <p className="col-span-2 text-xs text-slate-500">Delivery within the United States.</p>
 
-          <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-medium text-slate-800 sm:col-span-2">
+          <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-medium text-slate-800 col-span-2">
             <input
               type="checkbox"
               className="h-5 w-5 flex-none accent-[#18448D]"
@@ -1274,7 +1283,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
                 setCheckoutError(null);
               }}
             />
-            Deliver to my billing address
+            Use this address for delivery
           </label>
 
           {!customer.shippingSame
@@ -1286,7 +1295,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
                   <label
                     key={field}
                     htmlFor={`checkout-${field}`}
-                    className={`text-sm font-medium text-slate-800 ${wide ? 'sm:col-span-2' : ''}`}
+                    className={`text-sm font-medium text-slate-800 ${wide ? 'col-span-2' : ''}`}
                   >
                     {label}
                     <Input
