@@ -18,6 +18,7 @@ import { SMALL_BANNER_PROMOTION_ID } from '@/lib/discount-resolver';
 import { DESIGN_GROMMET_OPTIONS } from '@/lib/grommets';
 import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
 import CartModal from '@/components/CartModal';
+import Header from '@/components/Header';
 
 import { getQuantityDiscountRate } from '@/lib/quantity-discount';
 import { generateFinalRenderFromHTML } from '@/utils/generateFinalRenderFromHTML';
@@ -3102,6 +3103,7 @@ const GoogleAdsBanner: React.FC = () => {
         {isFallFestivalLanding && <link rel="canonical" href="https://bannersonthefly.com/fall-festival-banners" />}
       </Helmet>
       <div className="min-h-screen bg-white text-gray-900">
+        {location.pathname.replace(/\/+$/, "") === "/google-ads-banner" ? (
         <header data-site-header className="w-full border-b border-gray-100 bg-white py-3 px-4 sticky top-0 z-50">
           <div className="max-w-5xl mx-auto flex items-center justify-between">
             <div className="w-10" />
@@ -3123,6 +3125,9 @@ const GoogleAdsBanner: React.FC = () => {
             </button>
           </div>
         </header>
+        ) : (
+          <Header cartCount={cartItemCount} onCartClick={() => setIsCartOpen(true)} />
+        )}
 
         {!isYardSign && !isCarMagnet && <GoogleReviewSpotlight />}
 

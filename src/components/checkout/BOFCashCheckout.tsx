@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { useCartStore, type DiscountCode } from "@/store/cart";
 import {
@@ -37,6 +36,14 @@ export default function BOFCashCheckout({
     [quote, setQuote] = useState<Quote | null>(null),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState("");
+  const [referralMessage, setReferralMessage] = useState("");
+  const [walletSnapshot, setWalletSnapshot] = useState<{
+    ownerId: string;
+    joined: boolean;
+    availableCents: number;
+  } | null>(null);
+  const wallet =
+    user?.id && walletSnapshot?.ownerId === user.id ? walletSnapshot : null;
   const previous = useRef<DiscountCode | null>(null),
     appliedKey = useRef<string | null>(null),
     generation = useRef(0);
@@ -70,6 +77,26 @@ export default function BOFCashCheckout({
       live = false;
     };
   }, []);
+  useEffect(() => {
+    let live = true;
+    setWalletSnapshot(null);
+    if (enabled && user?.id) {
+      const ownerId = user.id;
+      bofRequest("wallet")
+        .then((result) => {
+          if (live)
+            setWalletSnapshot({
+              ownerId,
+              joined: result.joined === true,
+              availableCents: Number(result.availableCents) || 0,
+            });
+        })
+        .catch(() => {});
+    }
+    return () => {
+      live = false;
+    };
+  }, [enabled, user?.id]);
   useEffect(() => {
     if (isCash && appliedKey.current !== key && !locked) {
       removeDiscountCode();
@@ -140,6 +167,7 @@ export default function BOFCashCheckout({
       (discountCode && !discountCode.automaticFirstOrder)
     )
       return;
+    setReferralMessage("");
     const ref = readBofReferral();
     if (!ref) return;
     let cancelled = false;
@@ -164,17 +192,17 @@ export default function BOFCashCheckout({
             applyDiscountCode(result.discount);
             saveBofReferral(ref);
           }
-          setMessage(
+          setReferralMessage(
             "Your friend’s referral is linked. The best available offer is applied.",
           );
         } else
-          setMessage(
+          setReferralMessage(
             result.error || "Check referral eligibility before paying.",
           );
       })
       .catch(() => {
         if (!cancelled)
-          setMessage(
+          setReferralMessage(
             "Your referral is saved. You can retry its code before paying.",
           );
       });
@@ -183,71 +211,69 @@ export default function BOFCashCheckout({
     };
   }, [enabled, key, user?.id, locked, discountCode?.code]);
   if (!enabled) return null;
+  // A rewards redemption control is only relevant to a verified member who
+  // has available credit (or is currently removing an applied credit).
+  if (!wallet?.joined || (wallet.availableCents <= 0 && !isCash)) {
+    return referralMessage ? (
+      <p role="status" className="my-3 text-sm text-slate-600">
+        {referralMessage}
+      </p>
+    ) : null;
+  }
   return (
     <section
       className="my-4 rounded-xl border border-blue-200 bg-blue-50 p-4"
       aria-label="BOF Cash at checkout"
     >
       <h3 className="font-semibold text-[#18448D]">BOF Cash</h3>
-      {!user ? (
-        <p className="mt-2 text-sm text-slate-600">
-          <Link className="underline font-medium" to="/bof-cash">
-            Open your BOF Cash account
-          </Link>{" "}
-          to use your credit. You can still place this order as a guest.
-        </p>
-      ) : (
-        <>
-          <p className="my-2 text-sm text-slate-600">
-            {isCash
-              ? "BOF Cash applied."
-              : quote
-                ? `${bofMoney(quote.availableCents)} available · ${bofMoney(quote.usableCents)} usable on this order`
-                : "Check your balance and see exactly what you can use."}
-          </p>
-          {quote && !isCash && (
-            <p className="my-2 text-sm text-slate-600">{quote.message}</p>
-          )}
-          {isCash ? (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={locked}
-              onClick={() => {
-                if (previous.current) applyDiscountCode(previous.current);
-                else removeDiscountCode();
-                setQuote(null);
-              }}
-            >
-              Remove BOF Cash
-            </Button>
-          ) : quote?.discount ? (
-            <Button
-              size="sm"
-              disabled={locked || busy}
-              onClick={() => {
-                previous.current = discountCode;
-                appliedKey.current = key;
-                applyDiscountCode(quote.discount!);
-              }}
-            >
-              Use {bofMoney(quote.usableCents)} BOF Cash
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={locked || busy}
-              onClick={refresh}
-            >
-              {busy ? "Checking…" : "Check my BOF Cash"}
-            </Button>
-          )}
-        </>
+      <p className="my-2 text-sm text-slate-600">
+        {isCash
+          ? "BOF Cash applied."
+          : quote
+            ? `${bofMoney(quote.availableCents)} available · ${bofMoney(quote.usableCents)} usable on this order`
+            : "Check your balance and see exactly what you can use."}
+      </p>
+      {quote && !isCash && (
+        <p className="my-2 text-sm text-slate-600">{quote.message}</p>
       )}
-      {message && (
+      {isCash ? (
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={locked}
+          onClick={() => {
+            if (previous.current) applyDiscountCode(previous.current);
+            else removeDiscountCode();
+            setQuote(null);
+          }}
+        >
+          Remove BOF Cash
+        </Button>
+      ) : quote?.discount ? (
+        <Button
+          size="sm"
+          disabled={locked || busy}
+          onClick={() => {
+            previous.current = discountCode;
+            appliedKey.current = key;
+            applyDiscountCode(quote.discount!);
+          }}
+        >
+          Use {bofMoney(quote.usableCents)} BOF Cash
+        </Button>
+      ) : (
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={locked || busy}
+          onClick={refresh}
+        >
+          {busy ? "Checking…" : "Check my BOF Cash"}
+        </Button>
+      )}
+      {(message || referralMessage) && (
         <p role="status" className="mt-2 text-sm text-slate-700">
-          {message}
+          {message || referralMessage}
         </p>
       )}
     </section>

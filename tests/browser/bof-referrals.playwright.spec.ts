@@ -71,7 +71,7 @@ async function signIn(page: Page, admin = false) {
 }
 async function mock(
   page: Page,
-  { expired = false, enabled = true, joined = true } = {},
+  { expired = false, enabled = true, joined = true, availableCents = 2500 } = {},
 ) {
   const calls: string[] = [];
   await page.route("**/*", async (route) => {
@@ -85,7 +85,7 @@ async function mock(
       if (url.pathname.endsWith("/bof-cash")) {
         calls.push(action);
         if (action === "status") body = { enabled };
-        if (action === "wallet") body = { ...wallet, joined };
+        if (action === "wallet") body = { ...wallet, joined, availableCents };
         if (action === "join" || (action === "claim" && !expired))
           joined = true;
         if (action === "claim") {
@@ -377,6 +377,45 @@ test("guest activation opens past orders and older orders load without losing hi
   await expect(page.getByRole("alert")).toHaveCount(0);
   expect(requestedPages).toEqual(["1", "2", "2"]);
 });
+for (const scenario of ["guest", "new-account", "empty-wallet", "pending-only"] as const) {
+  test(`checkout hides BOF Cash for ${scenario}`, async ({ page }) => {
+    if (scenario === "guest") {
+      await page.addInitScript((i) => {
+        localStorage.setItem("cart-storage", JSON.stringify({ state: { items: [i] }, version: 0 }));
+      }, item);
+    } else {
+      await signIn(page);
+    }
+    const calls = await mock(page, { joined: scenario !== "new-account", availableCents: 0 });
+    await page.goto("/checkout");
+    await expect(page.getByTestId("checkout-order-totals").first()).toBeVisible();
+    await expect.poll(() => calls.includes(scenario === "guest" ? "status" : "wallet")).toBe(true);
+    await expect(page.getByRole("region", { name: "BOF Cash at checkout" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Check my BOF Cash" })).toHaveCount(0);
+    expect(calls).not.toContain("quote");
+    if (scenario === "guest") expect(calls).not.toContain("wallet");
+  });
+}
+
+test("site navigation is present across routes except the Google Ads landing page", async ({ page }, info) => {
+  await mock(page);
+  const mobile = info.project.name.includes("portrait");
+  for (const path of ["/design", "/design?product=yard-sign", "/double-sided-banners", "/large-banners-fast", "/fall-festival-banners", "/bof-cash-test", "/canva-test", "/design/canva-editor", "/pdf-diagnostic", "/missing-page"]) {
+    await page.goto(path);
+    if (mobile) {
+      await page.getByRole("button", { name: "Open navigation menu" }).click();
+      await expect(page.getByRole("navigation", { name: "Mobile navigation" })).toBeVisible();
+      await page.getByRole("button", { name: "Close navigation menu" }).click();
+    } else {
+      await expect(page.getByRole("navigation", { name: "Primary navigation" })).toBeVisible();
+    }
+  }
+  await page.goto("/google-ads-banner");
+  await expect(page.getByRole("button", { name: "Shopping cart", exact: true })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Primary navigation" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Open navigation menu" })).toHaveCount(0);
+});
+
 test("checkout shows usable credit, applies it once, and restores totals on removal", async ({
   page,
 }) => {

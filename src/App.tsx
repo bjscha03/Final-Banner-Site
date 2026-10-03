@@ -10,6 +10,7 @@ import AnalyticsController from "@/components/AnalyticsController";
 import RouteRobotsPolicy from "@/components/RouteRobotsPolicy";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import PromoBanner from "@/components/PromoBanner";
+import Layout from "@/components/Layout";
 // DISABLED: Popup promo flow replaced with static NEW20 code in PromoBanner
 // import { PromoPopup } from "@/components/PromoPopup";
 // import { usePromoPopup } from "@/hooks/usePromoPopup";
@@ -166,13 +167,13 @@ export const RoutedApplication = () => (
             <Route path="/design-editor" element={<Navigate to="/design" replace />} />
             <Route path="/halloween-banner" element={<Design />} />
             <Route path="/design/complete" element={<DesignComplete />} />
-            <Route path="/design/canva-editor" element={<CanvaEditor />} />
-            <Route path="/canva-test" element={<CanvaTest />} />
+            <Route path="/design/canva-editor" element={<Layout><CanvaEditor /></Layout>} />
+            <Route path="/canva-test" element={<Layout><CanvaTest /></Layout>} />
             
             {/* Checkout flow */}
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/bof-cash" element={<BOFCash />} />
-            <Route path="/bof-cash-test" element={<BOFCashTest />} />
+            <Route path="/bof-cash-test" element={<Layout><BOFCashTest /></Layout>} />
             <Route path="/refer/:code" element={<BOFCash />} />
             <Route path="/admin/referrals" element={<AdminReferrals />} />
             <Route path="/payment-success" element={<PaymentSuccess />} />
@@ -236,7 +237,7 @@ export const RoutedApplication = () => (
             
             {/* Utility pages */}
             <Route path="/logo-showcase" element={<LogoShowcase />} />
-            <Route path="/pdf-diagnostic" element={<PdfDiagnostic />} />
+            <Route path="/pdf-diagnostic" element={<Layout><PdfDiagnostic /></Layout>} />
             
             {/* SEO Category Pages */}
             <Route path="/vinyl-banners" element={<ProductHubPage productSlug="vinyl-banners" />} />
@@ -281,7 +282,7 @@ export const RoutedApplication = () => (
             <Route path="/political-signs" element={<PoliticalSigns />} />
 
             {/* 404 – catch-all must be last */}
-            <Route path="*" element={<NotFound />} />
+            <Route path="*" element={<Layout><NotFound /></Layout>} />
           </Routes>
           </Suspense>
           </ErrorBoundary>

@@ -51,7 +51,6 @@ export default function BOFCashTest() {
   return <>
     <Helmet><title>BOF Cash | Isolated owner test</title><meta name="robots" content="noindex,nofollow" /><meta name="referrer" content="no-referrer" /></Helmet>
     <div className="min-h-screen bg-slate-50 text-[#122641]">
-      <header className="border-b bg-white px-5 py-5"><div className="mx-auto max-w-4xl"><img src="/images/header-logo.png" width="210" height="59" alt="Banners On The Fly" /></div></header>
       <main className="mx-auto max-w-4xl space-y-6 px-4 py-8 sm:py-12">
         <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-950"><strong>ISOLATED OWNER TEST</strong><br />All orders, referral savings, and wallet amounts on this page are test simulations. No payment is collected and no live account, order, or credit is changed.</div>
         <div><h1 className="text-3xl font-bold">Try the complete BOF Cash flow.</h1><p className="mt-3 leading-7 text-slate-600">Activate once, try the sharing buttons, open your referral link, and see how a qualifying order moves through the test wallet.</p></div>
