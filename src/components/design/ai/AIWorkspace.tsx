@@ -23,7 +23,7 @@ import { trackAIEvent } from '@/lib/aiAnalytics';
 import { useAuth } from '@/lib/auth';
 import { loadDraft, saveDraft } from './draftStore';
 import { collectVersions } from './versions';
-import { getPrintReview, SPACING_EDIT } from './printReview';
+import { getPrintReview } from './printReview';
 import { fetchAIRequest } from './jobRequest';
 import { AIJobFailedError, forgetPendingJob, resumeBackgroundJob, runBackgroundJob, type PendingAIJob } from './backgroundJob';
 import LayerControls from './LayerControls';
@@ -493,8 +493,8 @@ export default function AIWorkspace(props: Props) {
     }
   };
 
-  const edit = async (manual = false, logoOnly = false, removeLogo = false, instructionOverride?: string) => {
-    const requestedInstruction = instructionOverride ?? editInstruction;
+  const edit = async (manual = false, logoOnly = false, removeLogo = false) => {
+    const requestedInstruction = editInstruction;
     if (pendingImageJob) { await recoverImageJob(); return; }
     if (!selected || (!manual && !requestedInstruction.trim()) || stage || controllerRef.current || !access.ready) return;
     const controller = new AbortController();
@@ -791,11 +791,10 @@ export default function AIWorkspace(props: Props) {
             <div className="mt-4 flex h-[min(55vh,36rem)] w-full items-center justify-center overflow-hidden rounded-xl border border-slate-300 bg-slate-100"><img src={imageSrc(selected)} alt="Complete selected flat print artwork" className="h-full w-full object-contain" /></div>
 
             {printReview.messages.length > 0 && <div className={`mt-4 rounded-xl border p-4 ${printReview.requiresConfirmation ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-slate-50'}`} data-testid="ai-print-review">
-              <h5 className="text-sm font-bold text-[#0b1f3a]">{printReview.requiresConfirmation ? 'Review your design' : printReview.spacing ? 'Check text spacing' : 'Review your preview'}</h5>
+              <h5 className="text-sm font-bold text-[#0b1f3a]">{printReview.requiresConfirmation ? 'Review your design' : 'Review your preview'}</h5>
               <ul className="mt-2 space-y-2 text-sm text-slate-700">{printReview.messages.map(message => <li key={message}>{message}</li>)}</ul>
               <div className="mt-3 flex flex-wrap gap-2">
                 <button type="button" onClick={() => setFullPreview(true)} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold">View full design</button>
-                {printReview.spacing && <button type="button" onClick={() => void edit(false, false, false, SPACING_EDIT)} disabled={hasUnappliedChanges || Boolean(stage) || !access.ready} className="min-h-11 rounded-lg bg-[#0b1f3a] px-3 text-sm font-bold text-white disabled:opacity-50">Give text more space</button>}
               </div>
             </div>}
 

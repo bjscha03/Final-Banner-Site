@@ -266,10 +266,11 @@ describe('customer print review', () => {
     result.validation.reasons = ['Internal checker diagnostic'];
     return result;
   }
-  it('lets an existing margin-only design continue with a visible advisory and no override dialog', async () => {
+  it('lets an existing margin-only design continue without any spacing warning or override dialog', async () => {
     const original = flagged(['importantContentOutsideSafeMargins']);
     await mount(session(original));
-    expect(host.querySelector('[data-testid="ai-print-review"]')?.textContent).toContain('close to the edge');
+    expect(host.querySelector('[data-testid="ai-print-review"]')).toBeNull();
+    expect(host.textContent).not.toMatch(/Check text spacing|Give text more space|close to the edge/);
     expect(host.textContent).not.toContain('Internal checker diagnostic');
     expect(host.textContent).not.toContain('Review warning');
     await click('Use selected version & continue');
@@ -285,12 +286,14 @@ describe('customer print review', () => {
     expect(generated).toHaveBeenCalledOnce();
     expect(generated.mock.calls[0][0].session.selectedConcept.validation.vision.available).toBe(false);
   });
-  it.each(['clippedContent', 'unexpectedText'])('retains explicit review for %s even alongside a margin advisory', async flag => {
+  it.each(['clippedContent', 'unexpectedText'])('retains explicit review for %s without displaying the accompanying margin flag', async flag => {
     await mount(session(flagged(['importantContentOutsideSafeMargins', flag])));
     await click('Review design & continue');
     expect(generated).not.toHaveBeenCalled();
     const dialog = document.querySelector('[role="dialog"]')!;
     expect(dialog.textContent).toContain(flag === 'clippedContent' ? 'cut off at the edge' : 'extra wording');
+    expect(host.textContent).not.toMatch(/Check text spacing|Give text more space|close to the edge/);
+    expect(dialog.textContent).not.toMatch(/Check text spacing|Give text more space|close to the edge/);
     const approve = [...dialog.querySelectorAll('button')].find(item => item.textContent === 'Approve design & continue')!;
     await act(async () => (approve as HTMLButtonElement).click());
     expect(generated).toHaveBeenCalledOnce();
@@ -302,21 +305,25 @@ describe('customer print review', () => {
     expect(host.textContent).toContain('image may look soft');
     expect(button('Review design & continue')).toBeDefined();
   });
-  it('creates a spacing edit from the selected version and preserves the original for undo', async () => {
-    await mount(session(flagged(['importantContentOutsideSafeMargins'])));
-    await click('Give text more space');
-    await finishJob();
-    expect(editRequests).toHaveLength(1);
-    expect(editRequests[0]).toMatchObject({ currentBackgroundRef: 'background-1', previousCopy: concept(1).brief!.copy });
-    expect(editRequests[0].editInstruction).toContain('Preserve every word');
-    expect(selectedImage()).toContain(concept(2).imageBase64);
-    await click('Undo');
-    expect(selectedImage()).toContain(concept(1).imageBase64);
+  it('silently retains new margin-check diagnostics while allowing the original artwork to continue', async () => {
+    const original = concept(1);
+    original.validation.passed = false;
+    original.validation.status = 'review';
+    original.validation.checks.safeMargins = { passed: false };
+    original.validation.reasons = ['Important content is outside the safe margin'];
+    await mount(session(original));
+    expect(host.querySelector('[data-testid="ai-print-review"]')).toBeNull();
+    expect(host.textContent).not.toMatch(/Check text spacing|Give text more space|safe margin/);
+    expect(editRequests).toHaveLength(0);
+    await click('Use selected version & continue');
+    expect(generated).toHaveBeenCalledOnce();
+    expect(generated.mock.calls[0][0].session.selectedConcept.validation).toEqual(original.validation);
   });
-  it('keeps the selected artwork usable when a spacing edit fails', async () => {
-    await mount(session(flagged(['importantContentOutsideSafeMargins']))); failJob = true;
-    await click('Give text more space'); await finishJob();
-    expect(selectedImage()).toContain(concept(1).imageBase64);
-    expect(button('Use selected version & continue').disabled).toBe(false);
+  it('does not bring the spacing warning back when another review notice is present', async () => {
+    await mount(session(flagged(['importantContentOutsideSafeMargins', 'visionUnavailable'], true)));
+    expect(host.textContent).toContain('automatic visual check could not finish');
+    expect(host.textContent).not.toMatch(/Check text spacing|Give text more space|close to the edge/);
+    await click('Use selected version & continue');
+    expect(generated).toHaveBeenCalledOnce();
   });
 });
