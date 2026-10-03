@@ -115,6 +115,79 @@ afterEach(async () => {
 });
 
 describe('customer AI version selection and handoff', () => {
+  it('keeps a new preview through an HTML gateway error and recovers the same edited result', async () => {
+    await mount(session());
+    const normal = fetchMock.getMockImplementation()!;
+    let polls = 0;
+    fetchMock.mockImplementation(async (url, init) => {
+      if (url.endsWith('/ai-designer-job')) {
+        polls += 1;
+        if (polls === 1) return new Response(JSON.stringify({ status: 'processing', previewVersion: 'preview-2', preview: { mimeType: 'image/jpeg', imageBase64: concept(2).imageBase64 } }));
+        if (polls === 2) return new Response('<html>Bad gateway</html>', { status: 502 });
+      }
+      return normal(url, init);
+    });
+    await edit();
+    const preview = () => host.querySelector('img[alt="New artwork — print checks in progress"]');
+    expect(preview()?.getAttribute('src')).toBe(`data:image/jpeg;base64,${concept(2).imageBase64}`);
+    await act(async () => { await vi.advanceTimersByTimeAsync(1100); });
+    expect(host.textContent).toContain('Reconnecting to your design');
+    expect(preview()).not.toBeNull();
+    expect(selectedImage()).toContain(concept(1).imageBase64);
+    await act(async () => { await vi.advanceTimersByTimeAsync(2100); });
+    expect(selectedImage()).toContain(concept(2).imageBase64);
+    expect(editRequests).toHaveLength(1);
+    expect(fetchMock.mock.calls.filter(([url]) => url.endsWith('/ai-designer-worker-background'))).toHaveLength(1);
+    await click('Use selected version & continue');
+    expect(generated.mock.calls[0][0].imageBase64).toBe(concept(2).imageBase64);
+  });
+  it('preserves an interrupted preview across closing and reopening, then retrieves the same edit', async () => {
+    await mount(session());
+    const normal = fetchMock.getMockImplementation()!;
+    let polls = 0;
+    fetchMock.mockImplementation(async (url, init) => {
+      if (url.endsWith('/ai-designer-job')) {
+        polls += 1;
+        if (polls === 1) return new Response(JSON.stringify({ status: 'processing', previewVersion: 'preview-2', preview: { mimeType: 'image/jpeg', imageBase64: concept(2).imageBase64 } }));
+        return new Response('', { status: 503 });
+      }
+      return normal(url, init);
+    });
+    await edit();
+    await act(async () => { await vi.advanceTimersByTimeAsync(95_000); });
+    expect(host.querySelector('img[alt="Latest artwork preview — not yet finalized"]')?.getAttribute('src')).toContain(concept(2).imageBase64);
+    expect(button('Check for finished design').disabled).toBe(false);
+    expect(button('Create another design').disabled).toBe(true);
+    await act(async () => root.unmount()); root = createRoot(host); await mount(session());
+    expect(host.querySelector('img[alt="Latest artwork preview — not yet finalized"]')).not.toBeNull();
+    fetchMock.mockImplementation(normal);
+    await click('Check for finished design'); await finishJob();
+    expect(selectedImage()).toContain(concept(2).imageBase64);
+    expect(editRequests).toHaveLength(1);
+    expect(fetchMock.mock.calls.filter(([url]) => url.endsWith('/ai-designer-worker-background'))).toHaveLength(1);
+    expect(host.querySelector('img[alt="Latest artwork preview — not yet finalized"]')).toBeNull();
+  });
+  it('recovers after Stop waiting without regenerating or losing saved versions', async () => {
+    await mount(session());
+    await enterEdit('Change the headline'); await click('Edit current design');
+    await act(async () => { await new Promise<void>(resolve => setImmediate(resolve)); });
+    await click('Stop waiting');
+    expect(selectedImage()).toContain(concept(1).imageBase64);
+    await click('Check for finished design'); await finishJob();
+    expect(selectedImage()).toContain(concept(2).imageBase64);
+    expect(editRequests).toHaveLength(1);
+  });
+  it('allows a new request after a definitive worker failure, without approving its unfinished preview', async () => {
+    await mount(session()); failJob = true;
+    await edit('Change the headline');
+    expect(host.textContent).toContain('Please retry this edit.');
+    expect(host.textContent).not.toContain('Check for finished design');
+    expect(button('Create another design').disabled).toBe(false);
+    expect(selectedImage()).toContain(concept(1).imageBase64);
+    failJob = false; await edit('Change the headline');
+    expect(selectedImage()).toContain(concept(2).imageBase64);
+    expect(editRequests).toHaveLength(2);
+  });
   it('completes three edits from the latest source and continues with the third edited image', async () => {
     await mount(session());
     await edit('First edit'); await edit('Second edit'); await edit('Third edit');

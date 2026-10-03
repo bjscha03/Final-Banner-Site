@@ -17,6 +17,20 @@ beforeEach(() => {
 });
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 describe('uncached AI job state', () => {
+  it('never overwrites an existing paid job when checking storage temporarily fails', async () => {
+    const upload = vi.spyOn(cloudinary.uploader, 'upload_stream');
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 503 })));
+    await expect(storage.createJob({ session, action: 'edit', request: { instruction: 'Change text' }, jobId: 'a'.repeat(64) })).rejects.toThrow('could not be retrieved');
+    expect(upload).not.toHaveBeenCalled();
+  });
+  it('returns the completed result for an existing request without uploading or regenerating', async () => {
+    const upload = vi.spyOn(cloudinary.uploader, 'upload_stream');
+    const record = { status: 'completed', result: { concept: { versionId: 'edited-version' } } };
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(record))));
+    const result = await storage.createJob({ session, action: 'edit', request: {}, jobId: 'a'.repeat(64) });
+    expect(result.created).toBe(false); expect(result.record).toEqual(record);
+    expect(upload).not.toHaveBeenCalled();
+  });
   it('reads immediate same-second state changes from the origin, without a CDN or Admin API lookup', async () => {
     const resource = vi.spyOn(cloudinary.api, 'resource');
     const url = vi.spyOn(cloudinary, 'url');
