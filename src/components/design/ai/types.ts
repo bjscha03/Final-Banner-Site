@@ -46,7 +46,7 @@ export type CreativeBrief = {
 };
 
 export type AIValidation = {
-  status: 'passed' | 'failed';
+  status: 'passed' | 'failed' | 'review' | 'unavailable';
   passed: boolean;
   reasons: string[];
   checks: {
@@ -55,6 +55,7 @@ export type AIValidation = {
     edgeCoverage: { passed: boolean; suspiciousEdges: string[] };
     resolution: { passed: boolean; effectivePpi: number; minimumPpi: number };
     flatArtwork: { passed: boolean; flags: string[]; confidence: number };
+    safeMargins?: { passed: boolean | null };
     exactText: { passed: boolean; required: string[]; detected: string[] };
   };
   vision: { available: boolean; model: string; requestId: string | null };
