@@ -7,6 +7,9 @@ import { useCartStore } from '@/store/cart';
 import { FIRST_ORDER_DISCOUNT } from '@/lib/firstOrderPromotion';
 import { CHECKOUT_CUSTOMER_DRAFT_CHANGED } from '@/components/checkout/checkoutCustomerDraft';
 import { writeActiveCheckoutMarker } from '@/components/checkout/checkoutPaymentState';
+import { isPreviewEnvironment } from '@/lib/environment';
+
+vi.mock('@/lib/environment', () => ({ isPreviewEnvironment: vi.fn(() => false) }));
 
 let root: Root; let container: HTMLDivElement;
 function Harness({ user = null, enabled = true }: { user?: { id: string; email: string } | null; enabled?: boolean }) {
@@ -17,6 +20,7 @@ const render = async (element = <Harness />) => { await act(async () => root.ren
 const settle = async () => { await act(async () => { await vi.advanceTimersByTimeAsync(350); }); };
 const valid = () => Promise.resolve({ ok: true, json: async () => ({ valid: true, discount: { code: 'NEW20', discountPercentage: 20 } }) });
 beforeEach(() => {
+  vi.mocked(isPreviewEnvironment).mockReturnValue(false);
   vi.useFakeTimers(); sessionStorage.clear(); localStorage.clear();
   useCartStore.setState({ items: [], discountCode: null });
   container = document.createElement('div'); document.body.append(container); root = createRoot(container);
@@ -43,6 +47,23 @@ describe('automatic first-order offer', () => {
     expect(useCartStore.getState().discountCode).toBeNull(); await settle();
     expect(useCartStore.getState().discountCode?.code).toBe('NEW20');
     expect(JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string).email).toBe('first@example.com');
+  });
+  it('does not send the synthetic preview administrator to customer eligibility', async () => {
+    vi.mocked(isPreviewEnvironment).mockReturnValue(true);
+    await render(<Harness user={{ id: 'preview-admin', email: '' }} />); await settle();
+    expect(fetch).not.toHaveBeenCalled();
+    expect(useCartStore.getState().discountCode?.code).toBe('NEW20');
+    expect(container.textContent).toContain('Eligibility confirmed');
+  });
+  it('still verifies a checkout email when using the preview administrator', async () => {
+    vi.mocked(isPreviewEnvironment).mockReturnValue(true);
+    await render(<Harness user={{ id: 'preview-admin', email: '' }} />);
+    await act(async () => window.dispatchEvent(new CustomEvent(CHECKOUT_CUSTOMER_DRAFT_CHANGED, { detail: { email: 'returning@example.com' } })));
+    vi.mocked(fetch).mockResolvedValue({ ok: true, json: async () => ({ valid: false }) } as Response);
+    await settle();
+    const request = JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);
+    expect(request.userId).toBeNull(); expect(request.email).toBe('returning@example.com');
+    expect(useCartStore.getState().discountCode).toBeNull();
   });
   it('does not change an active provider authorization', async () => {
     writeActiveCheckoutMarker({ provider: 'stripe', checkoutKey: 'existing-payment-key-12345', phase: 'requires_action' });
