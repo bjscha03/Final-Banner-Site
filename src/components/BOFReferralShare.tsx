@@ -39,7 +39,7 @@ export default function BOFReferralShare({
   }
   const path = referralPath?.startsWith("/bof-cash-test/share/") ? `/bof-cash-test/share/${encodeURIComponent(code)}` : `/refer/${encodeURIComponent(code)}`;
   const link = `${origin}${path}`;
-  const initialMessage = testMode ? `[TEST — no real discount or reward]\nI’m testing BOF Cash sharing. This link and code ${code} belong only to an isolated test:\n${link}\n\nNo live payment or BOF Cash is involved.` : `${hasReceivedOrder ? "Hey! I recently ordered from Banners On The Fly." : "Hey! Check out Banners On The Fly for banners, yard signs, and car magnets."} Use my code ${code} to save up to $25 on your first qualifying order:\n${link}\n\nI earn BOF Cash on qualifying referrals, too.`;
+  const initialMessage = testMode ? `[TEST — no real discount or reward]\nI’m testing BOF Cash sharing. This link and code ${code} belong only to an isolated test:\n${link}\n\nNo live payment or BOF Cash is involved.` : `${hasReceivedOrder ? "Hey! I recently ordered from Banners On The Fly, and the quality was great and shipping was super fast! If you need a banner, check them out!" : "Hey! If you need a banner, check out Banners On The Fly for great quality and super fast shipping!"} Use my code ${code} to save up to $25 on your first qualifying order:\n${link}`;
   const initialSubject = testMode ? "[TEST] BOF Cash referral sharing" : "Save on your next BOF order";
   const [message, setMessage] = useState(initialMessage);
   const [subject, setSubject] = useState(initialSubject);

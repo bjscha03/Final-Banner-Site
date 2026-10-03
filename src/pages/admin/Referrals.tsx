@@ -144,15 +144,25 @@ export default function Referrals() {
             </div>
           </div>
           <p
-            className={`my-5 rounded-xl p-4 ${data?.enabled ? "bg-emerald-50 text-emerald-900" : "bg-amber-50 text-amber-900"}`}
+            role="status"
+            aria-live="polite"
+            className={`my-5 rounded-xl p-4 ${!data ? "bg-slate-100 text-slate-700" : data.enabled ? "bg-emerald-50 text-emerald-900" : "bg-amber-50 text-amber-900"}`}
           >
             <strong>
-              {data?.enabled
+              {!data
+                ? error
+                  ? "Program status could not be loaded"
+                  : "Checking program status…"
+                : data.enabled
                 ? "Program is live"
-                : "Program is awaiting approval"}
+                : "Program is currently disabled"}
             </strong>{" "}
             ·{" "}
-            {data?.enabled
+            {!data
+              ? error
+                ? "Refresh this page to check the current status."
+                : "Loading the current BOF Cash status."
+              : data.enabled
               ? "Invitations are available for selected customers."
               : "Sending invitations and issuing credit are disabled."}
             {data && !data.schemaReady
@@ -187,7 +197,7 @@ export default function Referrals() {
             ].map(([label, value]) => (
               <div key={label} className="border rounded-xl bg-white p-4">
                 <p className="text-sm text-slate-600">{label}</p>
-                <p className="font-bold text-2xl mt-2">{value}</p>
+                <p className="font-bold text-2xl mt-2">{data ? value : "—"}</p>
               </div>
             ))}
           </div>
@@ -386,7 +396,7 @@ export default function Referrals() {
                 preview uses an example code; sharing and copying are disabled
                 here.
               </DialogDescription>
-              <BOFReferralShare code="BOFREF-YOUR-CODE" preview />
+              <BOFReferralShare code="BOFREF-YOUR-CODE" preview hasReceivedOrder />
               <Button
                 variant="outline"
                 onClick={() => setSharingPreview(false)}
