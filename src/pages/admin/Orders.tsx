@@ -1219,7 +1219,7 @@ const AdminOrders: React.FC = () => {
                 Global totals across admin sections
               </span>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
+            <div className="grid auto-rows-fr grid-cols-2 gap-3 md:grid-cols-4">
               {[
                 {
                   label: 'Total Orders',
@@ -1262,9 +1262,9 @@ const AdminOrders: React.FC = () => {
                   ready: globalOverviewLoading.customQuotes,
                 },
               ].map((metric) => (
-                <div key={metric.label} className="rounded-xl border border-white/20 bg-white/10 p-3 backdrop-blur-sm">
-                  <p className="text-[11px] sm:text-xs text-white/80">{metric.label}</p>
-                  <p className="text-base sm:text-lg font-bold text-white mt-1 break-words">{metric.ready ? metric.value : 'Loading…'}</p>
+                <div key={metric.label} className="min-w-0 rounded-xl border border-white/20 bg-white/10 p-3 backdrop-blur-sm sm:p-4">
+                  <p className="min-h-8 text-[11px] leading-4 text-white/80 sm:text-xs">{metric.label}</p>
+                  <p className="mt-2 whitespace-nowrap text-base font-bold leading-7 tabular-nums text-white sm:text-lg">{metric.ready ? metric.value : 'Loading…'}</p>
                 </div>
               ))}
             </div>
@@ -1317,7 +1317,7 @@ const AdminOrders: React.FC = () => {
               </div>
             )}
 
-            <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-9" data-admin-period-metrics>
+            <div className="mt-5 grid auto-rows-fr grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6" data-admin-period-metrics>
               {[
                 { label: 'Total Orders', value: businessMetrics.totalOrders.toLocaleString() },
                 { label: 'Gross Sales', value: usd(businessMetrics.grossSalesCents / 100) },
@@ -1329,26 +1329,28 @@ const AdminOrders: React.FC = () => {
                 { label: 'Repeat Customers', value: businessMetrics.repeatCustomers.toLocaleString(), href: '/admin/customers?segment=repeat' },
                 { label: 'Repeat Rate', value: `${(businessMetrics.repeatRate * 100).toFixed(1)}%` },
               ].map((metric) => {
+                const customerMetric = Boolean(metric.href) || metric.label === 'Repeat Rate';
+                const cardClass = `flex min-h-32 min-w-0 flex-col rounded-xl border p-3 sm:p-4 ${customerMetric ? 'xl:col-span-2' : ''}`;
                 const content = (
                   <>
-                    <p className="text-[11px] text-gray-600">{metric.label}</p>
-                    <p className={metric.label === 'Net Profit' ? 'mt-1 break-words text-xl font-extrabold text-green-700' : 'mt-1 break-words text-base font-bold text-gray-900'}>
+                    <p className="min-h-8 text-xs leading-4 text-gray-600">{metric.label}</p>
+                    <p className={`mt-2 whitespace-nowrap text-base leading-7 tabular-nums sm:text-xl ${metric.label === 'Net Profit' ? 'font-extrabold text-green-700' : 'font-bold text-gray-900'}`}>
                       {!reportReady || loading ? 'Loading…' : metric.value}
                     </p>
-                    {metric.href && <p className="mt-1 text-[11px] font-semibold text-[#18448D]">View customers →</p>}
+                    {metric.href && <p className="mt-auto whitespace-nowrap pt-3 text-[11px] font-semibold leading-4 text-[#18448D]">View customers →</p>}
                   </>
                 );
                 return metric.href ? (
                   <a
                     key={metric.label}
                     href={metric.href}
-                    className="rounded-xl border border-blue-200 bg-blue-50 p-3 transition-colors hover:border-[#18448D] hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#18448D] focus-visible:ring-offset-2"
+                    className={`${cardClass} border-blue-200 bg-blue-50 transition-colors hover:border-[#18448D] hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#18448D] focus-visible:ring-offset-2`}
                     aria-label={`View ${metric.label.toLowerCase()}`}
                   >
                     {content}
                   </a>
                 ) : (
-                  <div key={metric.label} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <div key={metric.label} className={`${cardClass} border-slate-200 bg-slate-50`}>
                     {content}
                   </div>
                 );
