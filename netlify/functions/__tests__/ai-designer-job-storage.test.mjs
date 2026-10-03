@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 const require = createRequire(import.meta.url);
 const cloudinary = require('cloudinary').v2;
 const storage = require('../_shared/ai-designer/storage.cjs');
+const { runIdempotent } = require('../_shared/ai-designer/security.cjs');
 const secret = 'test-job-storage-secret';
 const session = { sub: 'test-customer' };
 const publicId = `uploads/ai-designer-jobs/${'a'.repeat(64)}`;
@@ -17,6 +18,35 @@ beforeEach(() => {
 });
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 describe('uncached AI job state', () => {
+  it('retries a rejected queue read immediately with the same identity, then reuses success', async () => {
+    const task = vi.fn().mockRejectedValueOnce(new Error('storage unavailable')).mockResolvedValueOnce({ jobRef: 'same-job' });
+    const key = crypto.randomUUID();
+    await expect(runIdempotent(key, task)).rejects.toThrow('storage unavailable');
+    expect(await runIdempotent(key, task)).toEqual({ jobRef: 'same-job' });
+    expect(await runIdempotent(key, task)).toEqual({ jobRef: 'same-job' });
+    expect(task).toHaveBeenCalledTimes(2);
+  });
+  it('shares one accepted queue request between simultaneous retries', async () => {
+    const task = vi.fn(async () => ({ jobRef: 'same-job' }));
+    const key = crypto.randomUUID();
+    const results = await Promise.all([runIdempotent(key, task), runIdempotent(key, task)]);
+    expect(results).toEqual([{ jobRef: 'same-job' }, { jobRef: 'same-job' }]);
+    expect(task).toHaveBeenCalledOnce();
+  });
+  it('never overwrites an existing paid job when checking storage temporarily fails', async () => {
+    const upload = vi.spyOn(cloudinary.uploader, 'upload_stream');
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 503 })));
+    await expect(storage.createJob({ session, action: 'edit', request: { instruction: 'Change text' }, jobId: 'a'.repeat(64) })).rejects.toThrow('could not be retrieved');
+    expect(upload).not.toHaveBeenCalled();
+  });
+  it('returns the completed result for an existing request without uploading or regenerating', async () => {
+    const upload = vi.spyOn(cloudinary.uploader, 'upload_stream');
+    const record = { status: 'completed', result: { concept: { versionId: 'edited-version' } } };
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(record))));
+    const result = await storage.createJob({ session, action: 'edit', request: {}, jobId: 'a'.repeat(64) });
+    expect(result.created).toBe(false); expect(result.record).toEqual(record);
+    expect(upload).not.toHaveBeenCalled();
+  });
   it('reads immediate same-second state changes from the origin, without a CDN or Admin API lookup', async () => {
     const resource = vi.spyOn(cloudinary.api, 'resource');
     const url = vi.spyOn(cloudinary, 'url');

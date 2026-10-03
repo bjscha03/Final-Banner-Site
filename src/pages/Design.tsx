@@ -3179,15 +3179,6 @@ const Design: React.FC = () => {
                         </div>
                       </div>
                     )}
-                    <p className="text-xs text-gray-500 mt-1">{sqft.toFixed(1)} sq ft</p>
-                    {/* Equivalent size — shows the size in the OTHER unit so the
-                        Feet/Inches toggle gives users an instant cross-reference.
-                        Display-only; never touches pricing or cart. */}
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {unit === 'in'
-                        ? `≈ ${widthFt}${widthInR > 0 ? ` ft ${widthInR} in` : ' ft'} × ${heightFt}${heightInR > 0 ? ` ft ${heightInR} in` : ' ft'}`
-                        : `≈ ${widthIn} in × ${heightIn} in`}
-                    </p>
                   </div>
                   )}
                 </div>
@@ -3274,7 +3265,7 @@ const Design: React.FC = () => {
                   <p className="text-xs text-gray-500 mt-1.5">Use +/- to adjust quantity quickly.</p>
                 )}
                 {!isCarMagnet && quantity === 1 && (
-                  <p className="text-xs text-gray-400 mt-1">Order 2+ for up to 13% off</p>
+                  <p className="text-xs text-gray-700 mt-1">Order 2+ for up to 13% off</p>
                 )}
               </ConfigCard>
               <ConfigCard step={isCarMagnet ? 3 : 4} title={isCarMagnet ? 'Rounded Corners' : 'More options'} id="options-section">

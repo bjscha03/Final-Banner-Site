@@ -479,8 +479,9 @@ const GoogleAdsBanner: React.FC = () => {
     activePdfPreviewCleanupRef.current = null;
   }, []);
   const [uploadError, setUploadError] = useState('');
-  // Restore the visible, immediately priced popular banner default.
-  const [activePreset, setActivePreset] = useState<number | null>(initialProductType === 'banner' ? (isLargeBannerLanding ? 5 : POPULAR_BANNER_PRESET.presetIndex) : null);
+  // A popular-size recommendation is not a customer selection. Price only
+  // after choosing a preset/custom size or restoring an existing cart item.
+  const [activePreset, setActivePreset] = useState<number | null>(null);
   const [quantity, setQuantity] = useState(initialProductType === 'yard_sign' ? 10 : 1);
   const storedPromoAtLoad = useCartStore.getState().discountCode;
   const [promoCode, setPromoCode] = useState(storedPromoAtLoad?.code || 'NEW20');
@@ -488,7 +489,7 @@ const GoogleAdsBanner: React.FC = () => {
   const [promoFeedback, setPromoFeedback] = useState<string | null>(null);
   const [promoApplied, setPromoApplied] = useState(Boolean(storedPromoAtLoad));
 
-  const [hasConfirmedSize, setHasConfirmedSize] = useState(initialProductType === 'banner');
+  const [hasConfirmedSize, setHasConfirmedSize] = useState(false);
 
   // /design renders this component for banners. Honor the selected size card.
   useEffect(() => {
@@ -2446,10 +2447,9 @@ const GoogleAdsBanner: React.FC = () => {
     uploadError: uploadError || null,
     hasUpload: Boolean(uploadedFile),
     optionsRequired: true,
-    // The paid landing page is a single scrolling configurator, not a wizard.
-    // Valid visible defaults count as selected so mobile shoppers are never
-    // forced through redundant "Use…" confirmation taps.
-    sizeConfirmed: widthIn > 0 && heightIn > 0,
+    // Keep the mobile next step aligned with the same explicit size choice
+    // that enables pricing and checkout.
+    sizeConfirmed: hasCommittedBannerSize,
     materialConfirmed: isCarMagnet || Boolean(material),
     quantityConfirmed: quantity > 0,
     optionsReviewed: true,
@@ -2712,7 +2712,7 @@ const GoogleAdsBanner: React.FC = () => {
                     </p>
                   )}
                   {!isCarMagnet && quantity === 1 && bannerPromoResolution.promotionId !== 'LARGE_BANNER_25' && (
-                    <p className="text-xs text-gray-400 mt-1.5">Order 2+ for up to 13% off</p>
+                    <p className="text-xs text-gray-700 mt-1.5">Order 2+ for up to 13% off</p>
                   )}
                 </ConfigCard>);
   const sizeCard = (<ConfigCard
@@ -2853,12 +2853,6 @@ const GoogleAdsBanner: React.FC = () => {
                           </div>
                         </div>
                       )}
-                      <p className="text-xs text-gray-500 mt-1">{sqft.toFixed(1)} sq ft</p>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        {unit === 'in'
-                          ? `≈ ${widthFt}${widthInR > 0 ? ` ft ${widthInR} in` : ' ft'} × ${heightFt}${heightInR > 0 ? ` ft ${heightInR} in` : ' ft'}`
-                          : `≈ ${widthIn} in × ${heightIn} in`}
-                      </p>
                     </div>
                     )}
                   </div>
@@ -3527,7 +3521,7 @@ const GoogleAdsBanner: React.FC = () => {
           promotionNote={bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20' ? FIRST_ORDER_APPLIED_LABEL : undefined}
           cartItemCount={cartItemCount}
           onViewCart={openCartDrawer}
-          priceNote={isLargeBannerLanding && widthIn === 120 && heightIn === 48 ? "10′ × 4′ large banner selected" : showPopularBannerPriceNote ? "Popular 6′ × 3′ size preselected" : undefined}
+          priceNote={!hasCommittedBannerSize ? undefined : isLargeBannerLanding && widthIn === 120 && heightIn === 48 ? "10′ × 4′ large banner selected" : showPopularBannerPriceNote ? POPULAR_BANNER_PRESET.mobilePriceNote : undefined}
           subtotal={
             !isYardSign && !isCarMagnet ? (
               <div>

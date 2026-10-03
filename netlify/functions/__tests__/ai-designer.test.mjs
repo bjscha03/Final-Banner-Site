@@ -526,7 +526,8 @@ describe('private temporary artwork storage', () => {
     const storage = fs.readFileSync(path.resolve(__dirname, '../_shared/ai-designer/storage.cjs'), 'utf8');
     expect(worker).toContain('background: true');
     expect(workspace).toContain('runBackgroundJob');
-    expect(workspace).toContain('ai-designer-job');
+    const jobs = fs.readFileSync(path.resolve('src/components/design/ai/backgroundJob.ts'), 'utf8');
+    expect(jobs).toContain('ai-designer-job');
     expect(storage).toContain("kind: 'ai-designer-job'");
     expect(storage).toContain('payload.sub !== subjectHash(session)');
   });
