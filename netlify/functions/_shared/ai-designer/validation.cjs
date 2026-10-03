@@ -46,6 +46,7 @@ function validationSchema() {
     blankBarsOrLetterboxing: { type: 'boolean' },
     distortedComposition: { type: 'boolean' },
     importantContentOutsideSafeMargins: { type: 'boolean' },
+    clippedContent: { type: 'boolean' },
     illegibleOrOverlappingText: { type: 'boolean' },
     requiredTextExact: { type: 'boolean' },
     unexpectedText: { type: 'boolean' },
@@ -75,6 +76,7 @@ async function visualInspection(buffer, requiredText, protectedRegions = [], log
     const { client } = await getClient();
     const expected = requiredText.length ? requiredText.map((value) => JSON.stringify(value)).join(', ') : '(none)';
     const authorizedTextInstruction = `AUTHORIZED TEXT HAS TWO INDEPENDENT SOURCES. (A) Approved banner copy: ${JSON.stringify(bannerWording)}. This headline and other approved wording MUST appear in the artwork and is allowed even when completely absent from the source logo. (B) Original source-logo lettering: ${JSON.stringify(logoWording)}${logoReference?.buffer ? ', plus any other lettering actually visible in the supplied original logo' : ''}. Both A and B are authorized together; the logo is not the sole list of permitted banner wording. Never flag approved banner copy as an added brand claim merely because it is not inside the source logo. If unexpectedText=true, return unexpectedTextSamples containing every exact visible unauthorized phrase you flagged (not explanations); otherwise return an empty array.`;
+    const marginInstruction = 'Distinguish breathing room from actual clipping. Set importantContentOutsideSafeMargins when text, a logo or another essential element is wholly visible but enters the outer 5% of the canvas. Backgrounds, decorative stripes and nonessential accents may bleed to the edges. Set clippedContent only when a letter, logo or essential subject is visibly cut off at the actual canvas boundary. Near-edge placement alone is not clippedContent, a frame, a physical mockup or distorted artwork.';
     const response = await withTimeout((signal) => client.responses.create({
       model: getValidationModel(),
       input: [{
@@ -82,7 +84,7 @@ async function visualInspection(buffer, requiredText, protectedRegions = [], log
         content: [
           {
             type: 'input_text',
-            text: `${authorizedTextInstruction} Inspect the FIRST image as the final commercial print artwork. It must be flat edge-to-edge artwork only, not a photograph or mockup. Flag physical banners, installations, rooms, walls, fences, sky/environment surrounding a banner, folds, ripples, grommets, eyelets, rope, poles, hooks, mounting hardware, frames, blank bars, distortion, or important content outside a 5% safe margin. Flag illegibleOrOverlappingText if text overlaps other text or a logo, or has insufficient contrast to read. Required wording must preserve spelling, names, numbers and internal punctuation exactly. Artistic capitalization, line breaks and omitted sentence-ending periods are acceptable: ${expected}. If no wording is required, requiredTextExact must be true. Flag unexpectedText for invented taglines, unrelated labels, gibberish, signatures or watermarks outside the supplied original customer asset regions. Original customer assets may contain their own text: exempt these pixel rectangles from unexpectedText only: ${JSON.stringify(protectedRegions)}. ${logoReference?.buffer ? `The SECOND image is the original customer logo for comparison only, not another artwork to inspect. The final artwork must contain exactly ONE recognizable faithful integrated version of this logo, preserving its identity, key shapes, brand colors and all visible source lettering. Compare against the actual source image, including its small tagline. Source logo wording ${JSON.stringify(logoWording)} is required/allowed in the integrated logo, not an invented banner claim; any other wording actually visible in the original logo is also allowed. Do not count source-image text itself as detected artwork text. Set logoMatchesReference=false if the logo is missing or its identity/lettering is materially altered. Set duplicateLogo=true if the artwork contains multiple versions/copies of the logo. Adapted position, scale, or removal of plain source-image background is acceptable.` : 'No separate source logo comparison is requested: set logoMatchesReference=true and duplicateLogo=false.'} Decorative lettering effects are allowed when legible. Return only the requested schema.`,
+            text: `${authorizedTextInstruction} ${marginInstruction} Inspect the FIRST image as the final commercial print artwork. It must be flat edge-to-edge artwork only, not a photograph or mockup. Flag physical banners, installations, rooms, walls, fences, sky/environment surrounding a banner, folds, ripples, grommets, eyelets, rope, poles, hooks, mounting hardware, frames, blank bars, distortion, or visibly clipped essential content. Record near-edge placement separately as a safe-margin advisory. Flag illegibleOrOverlappingText if text overlaps other text or a logo, or has insufficient contrast to read. Required wording must preserve spelling, names, numbers and internal punctuation exactly. Artistic capitalization, line breaks and omitted sentence-ending periods are acceptable: ${expected}. If no wording is required, requiredTextExact must be true. Flag unexpectedText for invented taglines, unrelated labels, gibberish, signatures or watermarks outside the supplied original customer asset regions. Original customer assets may contain their own text: exempt these pixel rectangles from unexpectedText only: ${JSON.stringify(protectedRegions)}. ${logoReference?.buffer ? `The SECOND image is the original customer logo for comparison only, not another artwork to inspect. The final artwork must contain exactly ONE recognizable faithful integrated version of this logo, preserving its identity, key shapes, brand colors and all visible source lettering. Compare against the actual source image, including its small tagline. Source logo wording ${JSON.stringify(logoWording)} is required/allowed in the integrated logo, not an invented banner claim; any other wording actually visible in the original logo is also allowed. Do not count source-image text itself as detected artwork text. Set logoMatchesReference=false if the logo is missing or its identity/lettering is materially altered. Set duplicateLogo=true if the artwork contains multiple versions/copies of the logo. Adapted position, scale, or removal of plain source-image background is acceptable.` : 'No separate source logo comparison is requested: set logoMatchesReference=true and duplicateLogo=false.'} Decorative lettering effects are allowed when legible. Return only the requested schema.`,
           },
           { type: 'input_image', image_url: toDataUrl(buffer), detail: 'high' },
           ...(logoReference?.buffer ? [{ type: 'input_image', image_url: toDataUrl(logoReference.buffer, logoReference.mimeType), detail: 'high' }] : []),
@@ -145,7 +147,7 @@ async function validateArtwork({ background, artwork, brief, plan, protectedRegi
   const visualFlags = vision.available ? [
     'physicalBannerMockup', 'surroundingScene', 'grommetsOrEyelets', 'mountingHardware',
     'foldsOrMaterialRipples', 'frameOrBorder', 'blankBarsOrLetterboxing',
-    'distortedComposition', 'importantContentOutsideSafeMargins', 'illegibleOrOverlappingText',
+    'distortedComposition', 'clippedContent', 'illegibleOrOverlappingText',
     'unexpectedText',
   ].filter((key) => vision[key] === true) : ['visionUnavailable'];
   if (integratedLogo && vision.available && vision.logoMatchesReference !== true) visualFlags.push('logoMismatch');
@@ -155,19 +157,22 @@ async function validateArtwork({ background, artwork, brief, plan, protectedRegi
   const textPass = brief.typographyMode === 'ai'
     ? vision.available && (vision.requiredTextExact === true || matchesDetectedWording(expectedText, vision.detectedText))
     : true;
-  const passed = dimensionPass && exactRatioPass && coverage.passed && resolutionPass && visualFlags.length === 0 && textPass;
+  const safeMarginsPass = vision.available ? vision.importantContentOutsideSafeMargins !== true : null;
+  const technicalPass = dimensionPass && exactRatioPass && coverage.passed && resolutionPass;
+  const passed = technicalPass && visualFlags.length === 0 && textPass && safeMarginsPass === true;
   const reasons = [];
   if (!dimensionPass) reasons.push('Output pixel dimensions do not match the exact target canvas.');
   if (!exactRatioPass) reasons.push('Output aspect ratio does not match the selected physical dimensions.');
   if (!coverage.passed) reasons.push(`Possible blank or letterboxed edge: ${coverage.suspiciousEdges.join(', ')}.`);
   if (!resolutionPass) reasons.push(`Effective resolution ${ppi.toFixed(1)} PPI is below the ${minimumPpi} PPI requirement for this size.`);
-  if (!vision.available) reasons.push('Vision/OCR validation was unavailable; approval is blocked.');
+  if (!vision.available) reasons.push('The automatic visual check could not finish. Review the wording and layout in the full preview.');
   if (vision.available && visualFlags.length) reasons.push(...(vision.reasons || visualFlags));
-  if (!textPass) reasons.push('Required wording did not pass character-accuracy validation.');
+  if (!textPass && vision.available) reasons.push('Required wording did not pass character-accuracy validation.');
+  if (safeMarginsPass === false) reasons.push('Some text or important artwork is close to the edge.');
   if (visualFlags.includes('logoMismatch')) reasons.push('The integrated logo did not match the uploaded logo identity and wording.');
   if (visualFlags.includes('duplicateLogo')) reasons.push('The artwork contains more than one copy of the uploaded logo.');
   return {
-    status: passed ? 'passed' : 'failed',
+    status: passed ? 'passed' : !technicalPass ? 'failed' : !vision.available ? 'unavailable' : visualFlags.length || !textPass ? 'failed' : 'review',
     passed,
     reasons,
     checks: {
@@ -176,6 +181,7 @@ async function validateArtwork({ background, artwork, brief, plan, protectedRegi
       edgeCoverage: coverage,
       resolution: { passed: resolutionPass, effectivePpi: Number(ppi.toFixed(1)), minimumPpi },
       flatArtwork: { passed: vision.available && visualFlags.length === 0, flags: visualFlags, confidence: vision.confidence || 0 },
+      safeMargins: { passed: safeMarginsPass },
       exactText: { passed: textPass, required: expectedText, detected: brief.typographyMode === 'ai' ? (vision.detectedText || []) : expectedText },
       ...(integratedLogo ? { logoIdentity: { passed: vision.available && vision.logoMatchesReference === true && vision.duplicateLogo !== true } } : {}),
     },

@@ -469,7 +469,7 @@ describe('flat-artwork structured prompts', () => {
       expect(prompt).toContain('Happy Birthday Bryson!');
       expect(prompt).toMatch(/COMPLETE finished banner/);
       expect(prompt).not.toMatch(/Do not render words|Do not add any words|deterministic typography/);
-      expect(prompt).toMatch(/5% safe margins/);
+      expect(prompt).toMatch(/central 84%/);
     }
     expect(normalizeBrief(brief).typographyMode).toBe('ai');
     expect(productionBrief().typographyMode).toBe('layers');
@@ -810,8 +810,10 @@ describe('customer entry points, protected admin tools, and artwork handoff', ()
     expect(workspace).not.toContain('Admin password');
     expect(workspace).toContain('This may take a few minutes.');
     expect(workspace).toContain('your design will appear here automatically.');
-    expect(workspace).toContain('Review warning & continue');
-    expect(workspace).toContain('Use this banner anyway');
+    expect(workspace).toContain('Review design & continue');
+    expect(workspace).not.toContain('Review warning & continue');
+    expect(workspace).toContain('Approve design & continue');
+    expect(workspace).not.toContain('Use this banner anyway');
     expect(workspace).toContain('validation_override: validationOverride');
     expect(workspace).not.toContain('disabled={!selected.validation.passed');
     expect(workspace).toContain('concept.versionId === selectedId');

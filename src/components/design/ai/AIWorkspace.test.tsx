@@ -254,3 +254,69 @@ describe('customer AI version selection and handoff', () => {
     expect(host.textContent).toContain('production artwork could not be retrieved');
   });
 });
+
+describe('customer print review', () => {
+  function flagged(flags: string[], unavailable = false) {
+    const result = concept(1);
+    result.validation.passed = false;
+    result.validation.status = 'failed';
+    result.validation.checks.flatArtwork = { passed: false, flags, confidence: 0.98 };
+    result.validation.vision.available = !unavailable;
+    if (unavailable) result.validation.checks.exactText.passed = false;
+    result.validation.reasons = ['Internal checker diagnostic'];
+    return result;
+  }
+  it('lets an existing margin-only design continue with a visible advisory and no override dialog', async () => {
+    const original = flagged(['importantContentOutsideSafeMargins']);
+    await mount(session(original));
+    expect(host.querySelector('[data-testid="ai-print-review"]')?.textContent).toContain('close to the edge');
+    expect(host.textContent).not.toContain('Internal checker diagnostic');
+    expect(host.textContent).not.toContain('Review warning');
+    await click('Use selected version & continue');
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(generated.mock.calls[0][0].session.selectedConcept.validation.passed).toBe(false);
+    expect(generated.mock.calls[0][0].imageBase64).toBe(original.imageBase64);
+  });
+  it('allows review and continuation when visual checking is unavailable without claiming it passed', async () => {
+    await mount(session(flagged(['visionUnavailable'], true)));
+    expect(host.textContent).toContain('automatic visual check could not finish');
+    expect(host.textContent).not.toContain('Wording check: Failed');
+    await click('Use selected version & continue');
+    expect(generated).toHaveBeenCalledOnce();
+    expect(generated.mock.calls[0][0].session.selectedConcept.validation.vision.available).toBe(false);
+  });
+  it.each(['clippedContent', 'unexpectedText'])('retains explicit review for %s even alongside a margin advisory', async flag => {
+    await mount(session(flagged(['importantContentOutsideSafeMargins', flag])));
+    await click('Review design & continue');
+    expect(generated).not.toHaveBeenCalled();
+    const dialog = document.querySelector('[role="dialog"]')!;
+    expect(dialog.textContent).toContain(flag === 'clippedContent' ? 'cut off at the edge' : 'extra wording');
+    const approve = [...dialog.querySelectorAll('button')].find(item => item.textContent === 'Approve design & continue')!;
+    await act(async () => (approve as HTMLButtonElement).click());
+    expect(generated).toHaveBeenCalledOnce();
+  });
+  it('does not dismiss a real resolution failure when the visual checker is unavailable', async () => {
+    const original = flagged(['visionUnavailable'], true);
+    original.validation.checks.resolution.passed = false;
+    await mount(session(original));
+    expect(host.textContent).toContain('image may look soft');
+    expect(button('Review design & continue')).toBeDefined();
+  });
+  it('creates a spacing edit from the selected version and preserves the original for undo', async () => {
+    await mount(session(flagged(['importantContentOutsideSafeMargins'])));
+    await click('Give text more space');
+    await finishJob();
+    expect(editRequests).toHaveLength(1);
+    expect(editRequests[0]).toMatchObject({ currentBackgroundRef: 'background-1', previousCopy: concept(1).brief!.copy });
+    expect(editRequests[0].editInstruction).toContain('Preserve every word');
+    expect(selectedImage()).toContain(concept(2).imageBase64);
+    await click('Undo');
+    expect(selectedImage()).toContain(concept(1).imageBase64);
+  });
+  it('keeps the selected artwork usable when a spacing edit fails', async () => {
+    await mount(session(flagged(['importantContentOutsideSafeMargins']))); failJob = true;
+    await click('Give text more space'); await finishJob();
+    expect(selectedImage()).toContain(concept(1).imageBase64);
+    expect(button('Use selected version & continue').disabled).toBe(false);
+  });
+});
