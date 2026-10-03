@@ -3520,7 +3520,6 @@ const GoogleAdsBanner: React.FC = () => {
       </div>
 
         <MobileSubtotalBar
-          primaryAction={productType === 'banner' ? bannerAction : undefined}
           promotionNote={bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20' ? FIRST_ORDER_APPLIED_LABEL : undefined}
           cartItemCount={cartItemCount}
           onViewCart={openCartDrawer}
