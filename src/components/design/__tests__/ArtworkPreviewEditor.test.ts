@@ -120,13 +120,29 @@ describe('ArtworkPreviewEditor unlock interaction', () => {
       expect(parseFloat(frame.style.width) / parseFloat(frame.style.height)).toBeCloseTo(width / height);
       const unlock = Array.from(toolbarSlot.querySelectorAll('button')).find(b => b.textContent === 'Unlock free resize')!;
       expect(unlock).toBeDefined();
+      expect(toolbarSlot.querySelector('details')?.open).toBe(false);
       await act(async () => unlock.click());
       expect(frame.getAttribute('style')).toBe(before);
-      expect(toolbarSlot.textContent).toContain('Free resize enabled');
+      expect(toolbarSlot.textContent).toContain('Free resize can stretch your design');
       expect(toolbarSlot.textContent).toContain('Lock proportions');
       await act(async () => document.body.click());
       expect(toolbarSlot.textContent).toContain('Lock proportions');
       expect(frame.getAttribute('style')).toBe(before);
+      const fill = Array.from(toolbarSlot.querySelectorAll('button')).find(b => b.textContent?.startsWith('Fill banner'))!;
+      await act(async () => fill.click());
+      expect(toolbarSlot.textContent).toContain('Proportions locked to prevent stretching');
+      expect(parseFloat(frame.style.width) / parseFloat(frame.style.height)).toBeCloseTo(width / height);
+      // Preserve the editor's existing 5x zoom limit, including very tall art.
+      const fillScale = Math.min(5, Math.max(600 / width, 300 / height) / fitScale);
+      expect(parseFloat(frame.style.width)).toBeCloseTo(width * fitScale * fillScale);
+      expect(parseFloat(frame.style.height)).toBeCloseTo(height * fitScale * fillScale);
+      if (width / height !== 2) expect(toolbarSlot.textContent).toContain('will be cropped');
+      const fit = Array.from(toolbarSlot.querySelectorAll('button')).find(b => b.textContent?.startsWith('Show entire design'))!;
+      await act(async () => fit.click());
+      expect(parseFloat(frame.style.width)).toBeCloseTo(width * fitScale);
+      expect(parseFloat(frame.style.height)).toBeCloseTo(height * fitScale);
+      expect(toolbarSlot.textContent).not.toContain('will be cropped');
+      if (width / height !== 2) expect(toolbarSlot.textContent).toContain('Your preview includes blank margins');
     } finally {
       await act(async () => root.unmount());
       host.remove(); toolbarSlot.remove(); bounds.mockRestore(); vi.unstubAllGlobals();

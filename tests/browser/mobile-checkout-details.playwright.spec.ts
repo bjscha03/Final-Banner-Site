@@ -170,7 +170,7 @@ test('contact and delivery details are visible before either payment method', as
     await expect(page.getByRole('dialog')).toHaveCount(0);
   }
 
-  const shippingSame = page.getByLabel('Shipping address is the same as billing');
+  const shippingSame = page.getByLabel('Use this address for delivery');
   await expect(shippingSame).toBeChecked();
   await shippingSame.uncheck();
   await expect(page.getByLabel(/Shipping Name/)).toBeVisible();
