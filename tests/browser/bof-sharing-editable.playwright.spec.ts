@@ -33,6 +33,7 @@ test("referral drafts are ready to send and preserve customer edits in text, ema
       if (url.searchParams.get("action") === "wallet")
         body = {
           joined: true,
+          hasReceivedOrder: true,
           code,
           availableCents: 2500,
           pendingCents: 1000,
@@ -52,10 +53,9 @@ test("referral drafts are ready to send and preserve customer edits in text, ema
   const initialMessage = await draft.inputValue();
   expect(initialMessage).toContain(code);
   expect(initialMessage).toContain(link);
-  expect(initialMessage).toContain(
-    "I earn BOF Cash on qualifying referrals, too.",
-  );
-  expect(initialMessage).not.toContain("I recently ordered");
+  expect(initialMessage).toContain("I recently ordered from Banners On The Fly");
+  expect(initialMessage).toContain("the quality was great and shipping was super fast");
+  expect(initialMessage).not.toContain("I earn BOF Cash");
   const facebook = new URL(
     (await sharing
       .getByRole("link", { name: "Share on Facebook" })
@@ -65,7 +65,7 @@ test("referral drafts are ready to send and preserve customer edits in text, ema
   expect(facebook.searchParams.get("u")).toBe(link);
   expect(facebook.searchParams.has("quote")).toBe(false);
 
-  const editedMessage = `Hey Taylor! These could work for our fall event. Use my code ${code}:\n${link}\nI earn BOF Cash if you order.`;
+  const editedMessage = `Hey Taylor! These could work for our fall event. Use my code ${code}:\n${link}`;
   await draft.fill(editedMessage);
   await sharing.getByLabel("Email subject").fill("An idea for our fall event");
   for (const label of ["Text a friend", "Email a friend"]) {
