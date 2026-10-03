@@ -1,7 +1,5 @@
 import type { AIValidation } from './types';
 
-export const SPACING_EDIT = 'Give all text and logos more breathing room: move or reduce them proportionally inside the central 84% of the banner, at least 8% from every edge. Preserve every word, the lettering style, colors, and all unrelated artwork. Keep the background full bleed to every edge; do not add a border or blank padding.';
-
 const FLAG_MESSAGES: Record<string, string> = {
   physicalBannerMockup: 'The artwork may include a pictured banner instead of just the design to print.',
   surroundingScene: 'Check for an unwanted scene around the banner artwork.',
@@ -36,7 +34,8 @@ export function getPrintReview(validation?: AIValidation) {
   if (!checks.flatArtwork.passed && !flags.length && !unavailable) messages.push('Review the full preview for an artwork issue.');
   if (!validation.passed && !messages.length && !spacing && !unavailable) messages.push('Review the full preview before using this design.');
   const requiresConfirmation = messages.length > 0;
-  if (spacing) messages.push('Some text or artwork is close to the edge. Check the full preview, or give it more space before continuing.');
+  // Margin estimates are internal diagnostics only: they must not warn customers,
+  // suggest a spacing edit, or trigger the fallback review for saved designs.
   if (unavailable) messages.push('The automatic visual check could not finish. Review the wording and layout in the full preview before continuing.');
   return { requiresConfirmation, spacing, unavailable, messages: [...new Set(messages)] };
 }
