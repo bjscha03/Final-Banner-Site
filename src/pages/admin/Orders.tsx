@@ -1210,8 +1210,8 @@ const AdminOrders: React.FC = () => {
           </div>
 
           {/* Stats */}
-          <div className="mb-4 rounded-2xl border border-[#18448D]/20 bg-gradient-to-r from-[#18448D] to-[#0f2d5c] p-4 sm:p-5 shadow-lg">
-            <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="mb-4 rounded-2xl border border-[#18448D]/20 bg-gradient-to-r from-[#18448D] to-[#0f2d5c] p-3 sm:p-4 shadow-lg">
+            <div className="mb-2 flex items-center justify-between gap-3">
               <h2 className="text-sm sm:text-base font-semibold tracking-wide text-white uppercase">
                 All Admin Overview
               </h2>
@@ -1219,7 +1219,7 @@ const AdminOrders: React.FC = () => {
                 Global totals across admin sections
               </span>
             </div>
-            <div className="grid auto-rows-fr grid-cols-2 gap-3 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
               {[
                 {
                   label: 'Total Orders',
@@ -1262,15 +1262,15 @@ const AdminOrders: React.FC = () => {
                   ready: globalOverviewLoading.customQuotes,
                 },
               ].map((metric) => (
-                <div key={metric.label} className="min-w-0 rounded-xl border border-white/20 bg-white/10 p-3 backdrop-blur-sm sm:p-4">
-                  <p className="min-h-8 text-[11px] leading-4 text-white/80 sm:text-xs">{metric.label}</p>
-                  <p className="mt-2 whitespace-nowrap text-base font-bold leading-7 tabular-nums text-white sm:text-lg">{metric.ready ? metric.value : 'Loading…'}</p>
+                <div key={metric.label} className="min-w-0 rounded-lg border border-white/20 bg-white/10 px-2.5 py-2 backdrop-blur-sm">
+                  <p className="min-h-7 text-[11px] leading-[14px] text-white/80">{metric.label}</p>
+                  <p className="mt-1 whitespace-nowrap text-base font-bold leading-5 tabular-nums text-white">{metric.ready ? metric.value : 'Loading…'}</p>
                 </div>
               ))}
             </div>
           </div>
 
-          <section className="mb-8 rounded-2xl border border-slate-200 bg-white p-4 shadow-lg sm:p-6" aria-labelledby="order-report-heading">
+          <section className="mb-8 rounded-2xl border border-slate-200 bg-white p-3 shadow-lg sm:p-4" aria-labelledby="order-report-heading">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <h2 id="order-report-heading" className="text-lg font-bold text-gray-900">Order performance</h2>
@@ -1317,7 +1317,7 @@ const AdminOrders: React.FC = () => {
               </div>
             )}
 
-            <div className="mt-5 grid auto-rows-fr grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6" data-admin-period-metrics>
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9" data-admin-period-metrics>
               {[
                 { label: 'Total Orders', value: businessMetrics.totalOrders.toLocaleString() },
                 { label: 'Gross Sales', value: usd(businessMetrics.grossSalesCents / 100) },
@@ -1329,15 +1329,14 @@ const AdminOrders: React.FC = () => {
                 { label: 'Repeat Customers', value: businessMetrics.repeatCustomers.toLocaleString(), href: '/admin/customers?segment=repeat' },
                 { label: 'Repeat Rate', value: `${(businessMetrics.repeatRate * 100).toFixed(1)}%` },
               ].map((metric) => {
-                const customerMetric = Boolean(metric.href) || metric.label === 'Repeat Rate';
-                const cardClass = `flex min-h-32 min-w-0 flex-col rounded-xl border p-3 sm:p-4 ${customerMetric ? 'xl:col-span-2' : ''}`;
+                const cardClass = 'flex min-w-0 flex-col rounded-lg border px-2.5 py-2';
                 const content = (
                   <>
-                    <p className="min-h-8 text-xs leading-4 text-gray-600">{metric.label}</p>
-                    <p className={`mt-2 whitespace-nowrap text-base leading-7 tabular-nums sm:text-xl ${metric.label === 'Net Profit' ? 'font-extrabold text-green-700' : 'font-bold text-gray-900'}`}>
+                    <p className="min-h-7 text-[11px] leading-[14px] text-gray-600">{metric.label}</p>
+                    <p className={`mt-1 whitespace-nowrap text-base leading-5 tabular-nums ${metric.label === 'Net Profit' ? 'font-extrabold text-green-700' : 'font-bold text-gray-900'}`}>
                       {!reportReady || loading ? 'Loading…' : metric.value}
                     </p>
-                    {metric.href && <p className="mt-auto whitespace-nowrap pt-3 text-[11px] font-semibold leading-4 text-[#18448D]">View customers →</p>}
+                    {metric.href && <p className="mt-1 whitespace-nowrap text-[10px] font-semibold leading-[14px] text-[#18448D]">View customers →</p>}
                   </>
                 );
                 return metric.href ? (
