@@ -1040,56 +1040,6 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
     onError(error instanceof Error ? error : new Error(message));
   };
 
-  if (isDeployPreview) {
-    return (
-      <div className="space-y-4">
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">
-          <strong>Deploy Preview Test Checkout:</strong> Create an order without processing a real payment.
-        </div>
-        <Button
-          onClick={handleTestPayment}
-          disabled={disabled || isPreparing}
-          variant="outline"
-          className="w-full"
-          size="lg"
-        >
-          {isPreparing
-            ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing Test Order...</>
-            : 'Place Test Order — No Payment'}
-        </Button>
-        {checkoutError ? <p className="text-sm text-red-700">{checkoutError}</p> : null}
-      </div>
-    );
-  }
-
-  if (isLoadingConfig) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-        <span>Loading secure checkout…</span>
-      </div>
-    );
-  }
-
-  if (!paypalConfig?.enabled || !paypalConfig.clientId || !paypalConfig.clientToken) {
-    return (
-      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-        Secure checkout is temporarily unavailable. Please refresh the page or contact support.
-      </div>
-    );
-  }
-
-  const initialOptions: any = {
-    clientId: paypalConfig.clientId,
-    currency: 'USD',
-    intent: 'capture',
-    commit: true,
-    vault: false,
-    components: paypalOnly ? 'buttons' : 'buttons,card-fields',
-    dataClientToken: paypalConfig.clientToken,
-    disableFunding: 'paylater,credit',
-  };
-
   const buttonsDisabled = disabled
     || providerLocked
     || isPreparing
@@ -1370,6 +1320,57 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
       ) : null}
     </div>
   );
+
+  if (isDeployPreview) {
+    return (
+      <div className="space-y-4">
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">
+          <strong>Deploy Preview Test Checkout:</strong> Create an order without processing a real payment.
+        </div>
+        {renderCustomerDetails()}
+        <Button
+          onClick={handleTestPayment}
+          disabled={disabled || isPreparing}
+          variant="outline"
+          className="w-full"
+          size="lg"
+        >
+          {isPreparing
+            ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing Test Order...</>
+            : 'Place Test Order — No Payment'}
+        </Button>
+        {checkoutError ? <p className="text-sm text-red-700">{checkoutError}</p> : null}
+      </div>
+    );
+  }
+
+  if (isLoadingConfig) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+        <span>Loading secure checkout…</span>
+      </div>
+    );
+  }
+
+  if (!paypalConfig?.enabled || !paypalConfig.clientId || !paypalConfig.clientToken) {
+    return (
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+        Secure checkout is temporarily unavailable. Please refresh the page or contact support.
+      </div>
+    );
+  }
+
+  const initialOptions: any = {
+    clientId: paypalConfig.clientId,
+    currency: 'USD',
+    intent: 'capture',
+    commit: true,
+    vault: false,
+    components: paypalOnly ? 'buttons' : 'buttons,card-fields',
+    dataClientToken: paypalConfig.clientToken,
+    disableFunding: 'paylater,credit',
+  };
 
   return (
     <div className="space-y-4">

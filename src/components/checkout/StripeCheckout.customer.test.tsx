@@ -3,6 +3,7 @@ import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import StripeCheckout from './StripeCheckout';
+import PayPalCheckoutReliable from './PayPalCheckoutReliable';
 import { readCheckoutCustomerDraft } from './checkoutCustomerDraft';
 import { trackCheckoutDiagnostic } from '@/lib/checkoutDiagnostics';
 
@@ -10,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   stripe: { createConfirmationToken: vi.fn() },
   elements: { submit: vi.fn() },
   capture: vi.fn(),
+  paypalProvider: vi.fn(() => null),
   cart: { items: [], discountCode: null, sameDayHitService: false, saturdayDelivery: false },
 }));
 vi.mock('@stripe/react-stripe-js', () => ({
@@ -20,6 +22,13 @@ vi.mock('@stripe/react-stripe-js', () => ({
   useElements: () => mocks.elements,
 }));
 vi.mock('@stripe/stripe-js', () => ({ loadStripe: () => Promise.resolve(null) }));
+vi.mock('@paypal/react-paypal-js', () => ({
+  PayPalScriptProvider: mocks.paypalProvider, PayPalButtons: () => null,
+  PayPalCardFieldsForm: () => null, PayPalCardFieldsProvider: () => null,
+  usePayPalCardFields: () => ({}),
+}));
+vi.mock('./checkoutEnvironment', () => ({ shouldUseDeployPreviewTestCheckout: () => true }));
+vi.mock('@/components/ui/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
 vi.mock('@/lib/auth', () => ({ useAuth: () => ({ user: null }) }));
 vi.mock('@/store/cart', () => ({ useCartStore: () => mocks.cart }));
 vi.mock('@/hooks/useAbandonedCartCapture', () => ({ useAbandonedCartCapture: (input: any) => {
@@ -27,7 +36,7 @@ vi.mock('@/hooks/useAbandonedCartCapture', () => ({ useAbandonedCartCapture: (in
   return { markPaymentStarted: vi.fn(), getCartId: () => null, getSessionId: () => null, getRecoveryAttribution: () => null };
 } }));
 vi.mock('@/lib/checkoutDiagnostics', () => ({ trackCheckoutDiagnostic: vi.fn() }));
-vi.mock('@/lib/analytics', () => ({ trackPaymentInfoAdded: vi.fn(), trackShippingInfoEntered: vi.fn() }));
+vi.mock('@/lib/analytics', () => ({ gtag: vi.fn(), trackPaymentInfoAdded: vi.fn(), trackShippingInfoEntered: vi.fn() }));
 vi.mock('@/lib/serverAuth', () => ({ authorizedHeaders: vi.fn() }));
 
 let host: HTMLDivElement;
@@ -54,6 +63,16 @@ afterEach(async () => {
 });
 
 describe('checkout contact form', () => {
+  it('makes the real contact form reviewable in preview without mounting a payment provider', async () => {
+    const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
+    await act(async () => root.render(<PayPalCheckoutReliable total={3392} onSuccess={vi.fn()} onError={vi.fn()} />));
+    expect(host.querySelector('input')?.id).toBe('checkout-email');
+    expect(host.textContent).toContain('Place Test Order — No Payment');
+    expect(host.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked).toBe(true);
+    expect(mocks.paypalProvider).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it('collects email first, feeds capture, and preserves the draft after returning from artwork editing', async () => {
     expect(host.querySelector('input')?.id).toBe('stripe-email');
     expect(host.querySelector<HTMLDetailsElement>('details')?.open).toBe(false);
