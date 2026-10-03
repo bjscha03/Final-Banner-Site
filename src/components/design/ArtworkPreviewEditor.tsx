@@ -618,17 +618,6 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
     }
   }, [constrain, onConstrainChange, commitTransform]);
 
-  const artworkIsCropped = Boolean(artworkFrame && canvasSize && (
-    artworkFrame.left < -1 || artworkFrame.top < -1
-    || artworkFrame.left + artworkFrame.width > canvasSize.w + 1
-    || artworkFrame.top + artworkFrame.height > canvasSize.h + 1
-  ));
-  const artworkHasMargins = Boolean(artworkFrame && canvasSize && (
-    artworkFrame.left > 1 || artworkFrame.top > 1
-    || artworkFrame.left + artworkFrame.width < canvasSize.w - 1
-    || artworkFrame.top + artworkFrame.height < canvasSize.h - 1
-  ));
-
   const toolbar = (
     <div
       data-artwork-toolbar="true"
@@ -650,13 +639,6 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
           <span className="text-[11px] font-normal text-slate-500">Edges may crop</span>
         </button>
       </div>
-      <p role="status" className={`mt-2 rounded-lg px-2 py-2 text-xs leading-relaxed ${artworkIsCropped ? 'bg-amber-50 text-amber-900' : 'text-slate-600'}`}>
-        {artworkIsCropped
-          ? 'Part of your design is outside the banner and will be cropped. Drag to reposition, or choose Show entire design.'
-          : artworkHasMargins
-          ? 'Your preview includes blank margins. Choose Fill banner only if cropping the edges is OK.'
-          : 'Your design fills the banner. Check that all important text and images are visible.'}
-      </p>
       <p className="mt-1 flex items-center justify-center gap-1.5 text-[11px] text-slate-500">
         <Hand aria-hidden="true" className="h-3.5 w-3.5" />Drag to move · Pinch or drag corners to resize
       </p>

@@ -136,13 +136,13 @@ describe('ArtworkPreviewEditor unlock interaction', () => {
       const fillScale = Math.min(5, Math.max(600 / width, 300 / height) / fitScale);
       expect(parseFloat(frame.style.width)).toBeCloseTo(width * fitScale * fillScale);
       expect(parseFloat(frame.style.height)).toBeCloseTo(height * fitScale * fillScale);
-      if (width / height !== 2) expect(toolbarSlot.textContent).toContain('will be cropped');
+      expect(toolbarSlot.textContent).not.toContain('will be cropped');
       const fit = Array.from(toolbarSlot.querySelectorAll('button')).find(b => b.textContent?.startsWith('Show entire design'))!;
       await act(async () => fit.click());
       expect(parseFloat(frame.style.width)).toBeCloseTo(width * fitScale);
       expect(parseFloat(frame.style.height)).toBeCloseTo(height * fitScale);
       expect(toolbarSlot.textContent).not.toContain('will be cropped');
-      if (width / height !== 2) expect(toolbarSlot.textContent).toContain('Your preview includes blank margins');
+      expect(toolbarSlot.textContent).not.toContain('Your preview includes blank margins');
     } finally {
       await act(async () => root.unmount());
       host.remove(); toolbarSlot.remove(); bounds.mockRestore(); vi.unstubAllGlobals();
