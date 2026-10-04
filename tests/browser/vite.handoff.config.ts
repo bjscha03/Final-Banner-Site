@@ -20,6 +20,27 @@ export default defineConfig({
         const assets = new Map<string, Buffer>();
         server.middlewares.use(async (req, res, next) => {
           const url = new URL(req.url || '/', 'http://127.0.0.1:4175');
+          const browserScenario = String(req.headers.cookie || '').match(/(?:^|;\s*)compact_browser_scenario=([^;]+)/)?.[1];
+          if (browserScenario && String(req.headers.accept).includes('text/html')) {
+            // Keep this fixture isolated from external services without enabling
+            // Playwright's WebKit interception, which can strip multipart Blobs.
+            res.setHeader('Content-Security-Policy', "connect-src 'self'; img-src 'self' data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; frame-src 'none'");
+          }
+          if (browserScenario && url.pathname.startsWith('/.netlify/functions/')) {
+            req.resume();
+            const body = url.pathname.endsWith('/cloudinary-upload-signature') ? {
+              apiKey: 'browser-test-key', cloudName: 'browser-test-cloud',
+              expiresAt: Date.now() + 60_000, folder: 'browser-tests', overwrite: false,
+              resourceType: 'image', signature: 'browser-test-signature',
+              timestamp: Math.floor(Date.now() / 1000), uniqueFilename: true, useFilename: true,
+              uploadUrl: `http://${req.headers.host}/__compact-test-upload?scenario=${encodeURIComponent(browserScenario)}`,
+            } : url.pathname.endsWith('/cart-load') ? { cartData: [] }
+              : url.pathname.endsWith('/paypal-config') ? { enabled: false }
+              : { success: true };
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify(body));
+            return;
+          }
           if (!url.pathname.startsWith('/__compact-test-')) return next();
           const scenario = url.searchParams.get('scenario') || 'default';
           if (url.pathname === '/__compact-test-asset') {

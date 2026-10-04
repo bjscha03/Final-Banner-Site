@@ -1,92 +1,14 @@
-import { expect, test, type Page, type Request } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import sharp from 'sharp';
-type UploadHarness = {
-  originalUrl: string;
-  artifactUrl: string;
-  artifactBuffer: Buffer | null;
-  savedCarts: any[][];
-};
-
-function extractMultipartFile(request: Request): { filename: string; bytes: Buffer } {
-  const contentType = request.headers()['content-type'] || '';
-  const boundary = contentType.match(/boundary=(?:"([^"]+)"|([^;]+))/)?.slice(1).find(Boolean);
-  const body = request.postDataBuffer();
-  if (!boundary || !body) throw new Error('Direct-upload multipart body was unavailable.');
-
-  const filenameMarker = Buffer.from('filename="');
-  const filenameStartMarker = body.indexOf(filenameMarker);
-  if (filenameStartMarker < 0) throw new Error('Direct-upload filename was unavailable.');
-  const filenameStart = filenameStartMarker + filenameMarker.length;
-  const filenameEnd = body.indexOf(Buffer.from('"'), filenameStart);
-  const filename = body.subarray(filenameStart, filenameEnd).toString('utf8');
-  const headersEnd = body.indexOf(Buffer.from('\r\n\r\n'), filenameEnd);
-  const fileStart = headersEnd + 4;
-  const fileEnd = body.indexOf(Buffer.from(`\r\n--${boundary}`), fileStart);
-  if (headersEnd < 0 || fileEnd < 0) throw new Error('Direct-upload file bytes were unavailable.');
-  return { filename, bytes: body.subarray(fileStart, fileEnd) };
-}
-
-async function installUploadAndFunctionHarness(
-  page: Page,
-  originalBytes: Buffer,
-  scenario: string,
-): Promise<UploadHarness> {
-  const state: UploadHarness = {
-    originalUrl: `http://127.0.0.1:4175/__compact-test-asset?scenario=${scenario}&kind=original`,
+async function installUploadAndFunctionHarness(page: Page, scenario: string) {
+  // WebKit globally intercepts multipart bodies when any page.route is active,
+  // even when its URL predicate excludes the upload. Serve mocks in Vite instead.
+  await page.context().addCookies([{
+    name: 'compact_browser_scenario', value: scenario, url: 'http://127.0.0.1:4175',
+  }]);
+  return {
     artifactUrl: `http://127.0.0.1:4175/__compact-test-asset?scenario=${scenario}&kind=placement`,
-    artifactBuffer: null,
-    savedCarts: [],
   };
-
-  // Let multipart uploads go directly to the receiver. WebKit interception
-  // can strip Blob file bytes even when the route simply continues.
-  await page.route(url => url.pathname !== '/__compact-test-upload', async (route) => {
-    const request = route.request();
-    const url = new URL(request.url());
-
-    if (url.pathname === '/.netlify/functions/cloudinary-upload-signature') {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          apiKey: 'browser-test-key',
-          cloudName: 'browser-test-cloud',
-          expiresAt: Date.now() + 60_000,
-          folder: 'browser-tests',
-          overwrite: false,
-          resourceType: 'image',
-          signature: 'browser-test-signature',
-          timestamp: Math.floor(Date.now() / 1000),
-          uniqueFilename: true,
-          uploadUrl: `http://127.0.0.1:4175/__compact-test-upload?scenario=${scenario}`,
-          useFilename: true,
-        }),
-      });
-      return;
-    }
-
-    if (url.pathname.startsWith('/.netlify/functions/')) {
-      if (url.pathname.endsWith('/cart-save')) {
-        const payload = JSON.parse(request.postData() || '{}');
-        state.savedCarts.push(payload.cartData || []);
-      }
-      const body = url.pathname.endsWith('/cart-load')
-        ? { cartData: [] }
-        : url.pathname.endsWith('/paypal-config')
-          ? { enabled: false }
-          : { success: true };
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
-      return;
-    }
-
-    if (url.protocol !== 'blob:' && url.protocol !== 'data:' && url.hostname !== '127.0.0.1' && url.hostname !== 'localhost') {
-      await route.abort();
-      return;
-    }
-    await route.continue();
-  });
-
-  return state;
 }
 
 async function asymmetricArtwork(): Promise<Buffer> {
@@ -120,7 +42,7 @@ async function sparseArtwork(): Promise<Buffer> {
 
 test('banner finishing preserves the artwork, price and cart through add-another and checkout', async ({ page }, testInfo) => {
   const artwork = await asymmetricArtwork();
-  const harness = await installUploadAndFunctionHarness(page, artwork, `compact-${testInfo.project.name}`);
+  const harness = await installUploadAndFunctionHarness(page, `compact-${testInfo.project.name}`);
   await page.goto('/google-ads-banner', { waitUntil: 'domcontentloaded' });
   const mobile = (page.viewportSize()?.width ?? 1024) < 1024;
   const footer = page.getByTestId('mobile-subtotal-bar');
