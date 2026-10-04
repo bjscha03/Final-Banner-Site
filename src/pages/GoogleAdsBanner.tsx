@@ -38,6 +38,7 @@ import { sameDayConfig } from '@/lib/sameDayConfig';
 import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
 import MobileSubtotalBar from '@/components/design/MobileSubtotalBar';
 import MobileFinishingStep from '@/components/design/MobileFinishingStep';
+import LiveFinishingPreview from '@/components/design/LiveFinishingPreview';
 import AIArtworkHelp from '@/components/design/AIArtworkHelp';
 import RealOrdersStrip from '@/components/design/RealOrdersStrip';
 import FileUploader, { type FileUploaderHandle } from '@/components/ui/FileUploader';
@@ -461,6 +462,7 @@ const GoogleAdsBanner: React.FC = () => {
   const [finishingType, setFinishingType] = useState<FinishingType>('none');
   const [mobileFinishingOpen, setMobileFinishingOpen] = useState(false);
   const [mobileFinishingSource, setMobileFinishingSource] = useState<'inline' | 'modal'>('inline');
+  const [finishingPreviewTransform, setFinishingPreviewTransform] = useState<NormalizedArtworkTransform | null>(null);
   const [dismissedOrientation, setDismissedOrientation] = useState<string | null>(null);
   const [finishingChoiceConfirmed, setFinishingChoiceConfirmed] = useState(false);
   const [ropePlacement, setRopePlacement] = useState<RopePlacement>('top');
@@ -2303,16 +2305,31 @@ const GoogleAdsBanner: React.FC = () => {
   }, [uploadedFile, performCheckout, isYardSign, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, prepareAndRoutePlacement, toast]);
 
 
+  const openMobileFinishing = useCallback((source: 'inline' | 'modal') => {
+    const editor = source === 'modal'
+      ? (modalEditorRef.current || inlineEditorRef.current)
+      : (inlineEditorRef.current || modalEditorRef.current);
+    try {
+      if (!editor) throw new Error('Artwork preview is still loading.');
+      // Capture the editor's canvas-relative placement before opening the step.
+      // Finishing changes update the scene without touching the artwork.
+      setFinishingPreviewTransform(editor.getCompositionSnapshot().transform);
+      setMobileFinishingSource(source);
+      setMobileFinishingOpen(true);
+    } catch {
+      toast({ title: 'Your artwork is still loading', description: 'Wait for your artwork preview, then try again.' });
+    }
+  }, [toast]);
+
 // Trigger upsell modal after confirming position
   const handleConfirmPosition = useCallback((_pos: { x: number; y: number }, _scale: number, _scaleY?: number) => {
     if (!uploadedFile) return;
     if (!isYardSign && !isCarMagnet && !isLgScreen) {
-      setMobileFinishingSource('modal');
-      setMobileFinishingOpen(true);
+      openMobileFinishing('modal');
       return;
     }
     void prepareAndRoutePlacement('checkout', 'modal');
-  }, [uploadedFile, prepareAndRoutePlacement, isYardSign, isCarMagnet, isLgScreen]);
+  }, [uploadedFile, prepareAndRoutePlacement, isYardSign, isCarMagnet, isLgScreen, openMobileFinishing]);
 
   // Handle upsell modal continue
   const handleUpsellContinue = useCallback(async (selectedOptions: UpsellOption[], dontAskAgain: boolean) => {
@@ -2432,28 +2449,21 @@ const GoogleAdsBanner: React.FC = () => {
 
   const showEntryCta = !hasEnteredBuilder;
 
-  // Open the native picker directly from the sticky CTA's user gesture. iOS
-  // Safari can reject delayed/programmatic file-dialog requests, so scrolling
-  // to the upload card is only the fallback when the input is unavailable.
+  // Scroll on every upload request and open the picker in the same user
+  // gesture. Delaying the picker until after scrolling breaks iOS Safari.
   const openOrScrollToUpload = useCallback(() => {
     setHasEnteredBuilder(true);
+    const target = document.getElementById('upload-section') ?? builderStartRef.current ?? orderRef.current;
+    target?.scrollIntoView({ behavior: 'instant', block: 'start' });
     const opened = fileUploaderRef.current?.openFilePicker() ?? false;
     logUx('upload_picker_requested', { source: 'sticky_cta', opened });
-    if (opened) return;
-    const el = typeof document !== 'undefined' ? document.getElementById('upload-section') : null;
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else {
-      const target = builderStartRef.current ?? orderRef.current;
-      target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
   }, []);
 
   const openOrScrollToYardSignUpload = useCallback(() => {
     setHasEnteredBuilder(true);
+    scrollToStepAnchor(YARD_SIGN_ANCHORS.upload);
     const opened = yardSignConfiguratorRef.current?.openFilePicker() ?? false;
     logUx('upload_picker_requested', { source: 'sticky_cta', productType: 'yard_sign', opened });
-    if (!opened) scrollToStepAnchor(YARD_SIGN_ANCHORS.upload);
   }, []);
 
   // Shared step-machine state — drives both the mobile sticky CTA and the
@@ -2651,7 +2661,7 @@ const GoogleAdsBanner: React.FC = () => {
           : { label: editItemId ? 'Save & checkout' : 'Continue to checkout', disabled: false, onClick: handleCheckout };
 
   const mobileBannerAction = uploadedFile && hasCommittedBannerSize && !isProcessingUpsell && !isUploading
-    ? { label: 'Next: Finishing', disabled: false, onClick: () => { setMobileFinishingSource('inline'); setMobileFinishingOpen(true); } }
+    ? { label: 'Next: Finishing', disabled: false, onClick: () => openMobileFinishing('inline') }
     : bannerAction;
   const orientationKey = `${uploadedFile?.editorIdentity || uploadedFile?.fileKey}:${widthIn}:${heightIn}`;
   const artworkRatio = uploadedFile?.originalWidth && uploadedFile?.originalHeight
@@ -3358,7 +3368,7 @@ const GoogleAdsBanner: React.FC = () => {
         </section>
         )}
 
-        <div className={compactMobileLanding ? "hidden lg:block" : undefined}><RealOrdersStrip expanded /></div>
+        <RealOrdersStrip compactMobile={compactMobileLanding} expanded />
 
         <section ref={orderRef} id="order-builder" className={compactMobileLanding ? "bg-gray-50 px-4 py-3 lg:py-12" : "py-12 px-4 bg-gray-50"}>
           <div className="max-w-4xl lg:max-w-7xl mx-auto">
@@ -3581,7 +3591,7 @@ const GoogleAdsBanner: React.FC = () => {
           </div>
         </section>
 
-        {compactMobileLanding && <div className="lg:hidden"><MobileBannerLandingProof /><RealOrdersStrip expanded /></div>}
+        {compactMobileLanding && <div className="lg:hidden"><MobileBannerLandingProof /></div>}
         <TrustStrip />
 
         <div className="py-4 pb-24 md:pb-4 text-center text-xs text-gray-400 border-t border-gray-100">
@@ -3611,6 +3621,20 @@ const GoogleAdsBanner: React.FC = () => {
           onAddAnother={() => { if (finishingChoiceConfirmed) void prepareAndRoutePlacement('cart', mobileFinishingSource); }}
           summary={<>{bannerSummary}<HeroDeliveryStatus variant="light" /><SameDayHitServiceCard variant="compact" previewHasPrice={Boolean(uploadedFile)} previewSubtotalCents={bannerPricing.subtotalBeforeDiscountCents} /></>}
         >
+          {uploadedFile && finishingPreviewTransform && <LiveFinishingPreview
+            src={uploadedFile.previewUrl || uploadedFile.thumbnailUrl || uploadedFile.url}
+            transform={finishingPreviewTransform}
+            choiceConfirmed={finishingChoiceConfirmed}
+            item={{
+              id: 'finishing-preview', product_type: 'banner',
+              width_in: widthIn, height_in: heightIn, quantity, material,
+              grommets: grommets as CartItem['grommets'],
+              pole_pockets: polePockets, pole_pocket_size: polePocketSize,
+              rope_feet: bannerPricing.ropeLinearFeet, rope_placement: addRope ? ropePlacement : null,
+              area_sqft: sqft, unit_price_cents: 0, rope_cost_cents: 0,
+              pole_pocket_cost_cents: 0, line_total_cents: 0,
+            }}
+          />}
           {bannerFinishingOptions}
           {(!activeCartPromo || activeCartPromo.code === 'NEW20') && firstOrderOffer.status === 'unavailable' && <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{firstOrderOffer.message} <button type="button" onClick={firstOrderOffer.retry} className="min-h-11 font-semibold underline">Retry offer</button></p>}
         </MobileFinishingStep>

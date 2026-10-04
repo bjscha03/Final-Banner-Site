@@ -1185,7 +1185,7 @@ const Checkout: React.FC = () => {
 
   const paymentOrderSummary = (
     <section aria-label="Review order before payment" data-testid="payment-order-summary" className="space-y-3">
-      <CheckoutArtworkSummary compact items={items} totalCents={totalCents}
+      <CheckoutArtworkSummary showTotal={false} items={items} totalCents={totalCents}
         editAction={<CheckoutReviewDialog label="Edit order">{orderReviewContent}</CheckoutReviewDialog>} />
       {orderTotals}
     </section>
