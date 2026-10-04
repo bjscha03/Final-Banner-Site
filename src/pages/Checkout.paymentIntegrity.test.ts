@@ -29,7 +29,7 @@ describe('provider-neutral checkout integrity', () => {
     expect(checkout).toContain('disabled={checkoutLocked}');
     expect(checkout).toContain('if (!checkoutLocked) setPaymentProvider');
     expect(checkout).toContain('providerLocked={checkoutLocked}');
-    expect(checkout).toContain('disabled={paymentSubmissionBlocked || checkoutLocked}');
+    expect(checkout).toContain('disabled={firstOrderOffer.checking || paymentSubmissionBlocked || checkoutLocked}');
   });
 
   it('defers signed cart recovery until Stripe or PayPal reconciliation releases the marker', () => {

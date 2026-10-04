@@ -59,6 +59,7 @@ import { isValidCheckoutPhone, selectWalletCheckoutPhone } from './stripeWalletP
 import { stripeCardPaymentElementOptions } from './stripePaymentElementOptions';
 
 interface StripeCheckoutProps {
+  orderSummary?: React.ReactNode;
   publishableKey: string;
   total: number;
   onSuccess: (orderId: string, orderData?: any) => void;
@@ -299,6 +300,7 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
   onPaymentStateChange,
   onCanonicalQuote,
   signature,
+  orderSummary,
 }) => {
   const stripe = useStripe();
   const elements = useElements();
@@ -1509,6 +1511,8 @@ const StripeCheckoutForm: React.FC<Omit<StripeCheckoutProps, 'publishableKey'> &
               }}
             />
           </div>
+
+          {orderSummary}
 
           <Button
             type="button"

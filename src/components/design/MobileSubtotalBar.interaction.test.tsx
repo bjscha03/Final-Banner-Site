@@ -20,18 +20,20 @@ it('offers the current banner action with an empty cart and blocks repeat taps w
       primaryAction={{ label, onClick, disabled }}
     />,
   ));
-  const button = () => container.querySelector('button')!;
+  const button = () => container.querySelector<HTMLButtonElement>('[data-banner-primary-action]')!;
   try {
     render('Upload artwork', upload);
-    expect(container.textContent).not.toContain('View Cart (0)');
+    expect(container.textContent).toContain('View cart (0)');
+    act(() => container.querySelector<HTMLButtonElement>('button:not([data-banner-primary-action])')!.click());
+    expect(viewCart).toHaveBeenCalledOnce();
     act(() => button().click());
     expect(upload).toHaveBeenCalledOnce();
 
-    render('Continue to checkout', checkout);
-    expect(button().textContent).toBe('Continue to checkout');
+    render('Next: Finishing', checkout);
+    expect(button().textContent).toBe('Next: Finishing');
     act(() => button().click());
     expect(checkout).toHaveBeenCalledOnce();
-    expect(viewCart).not.toHaveBeenCalled();
+    expect(viewCart).toHaveBeenCalledOnce();
 
     render('Saving your design…', checkout, true);
     act(() => button().click());

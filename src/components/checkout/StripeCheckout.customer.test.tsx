@@ -73,6 +73,16 @@ describe('checkout contact form', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it('lets customers review the order after card details and before submitting payment', async () => {
+    await act(async () => root.render(<StripeCheckout publishableKey="pk_test_mock" total={3392} onSuccess={vi.fn()} onError={vi.fn()} orderSummary={<section data-testid="order-review">Order total $33.92</section>} />));
+    const cardFields = Array.from(host.querySelectorAll('div')).find(node => node.textContent === 'Secure card fields')!;
+    const summary = host.querySelector('[data-testid="order-review"]')!;
+    const pay = Array.from(host.querySelectorAll('button')).find(button => button.textContent === 'Pay $33.92')!;
+    expect(cardFields.compareDocumentPosition(summary) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(summary.compareDocumentPosition(pay) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(mocks.stripe.createConfirmationToken).not.toHaveBeenCalled();
+  });
+
   it('collects email first, feeds capture, and preserves the draft after returning from artwork editing', async () => {
     expect(host.querySelector('input')?.id).toBe('stripe-email');
     expect(host.querySelector<HTMLDetailsElement>('details')?.open).toBe(false);

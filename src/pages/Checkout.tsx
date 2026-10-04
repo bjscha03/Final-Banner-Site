@@ -838,6 +838,8 @@ const Checkout: React.FC = () => {
     totalCents,
   };
 
+  const orderTotals = <CheckoutOrderTotals {...orderTotalsProps} />;
+
   const orderReviewContent = (
     <>
                 {/* Thumbnail preview notice - shown once above all items */}
@@ -1088,7 +1090,7 @@ const Checkout: React.FC = () => {
                 </div>
 
                 <div className="mt-5">
-                  <CheckoutOrderTotals {...orderTotalsProps} />
+                  {orderTotals}
                 </div>
 
                 {/* Add Another Item button — product-aware for correct tab routing */}
@@ -1181,10 +1183,18 @@ const Checkout: React.FC = () => {
     </>
   );
 
+  const paymentOrderSummary = (
+    <section aria-label="Review order before payment" data-testid="payment-order-summary" className="space-y-3">
+      <CheckoutArtworkSummary compact items={items} totalCents={totalCents}
+        editAction={<CheckoutReviewDialog label="Edit order">{orderReviewContent}</CheckoutReviewDialog>} />
+      {orderTotals}
+    </section>
+  );
+
   return (
     <Layout showFooterBanner={false} checkoutMode>
       <div className="min-h-[calc(100vh-4rem)] bg-[#F7F7F7] py-5 sm:py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
           <div className="mb-4 sm:mb-10">
             <Button
@@ -1198,10 +1208,10 @@ const Checkout: React.FC = () => {
             </Button>
             <div className="text-center sm:mb-8">
               <div className="mb-3 inline-flex items-center gap-2 border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
-                <span>Design</span><span>→</span><span className="text-[#18448D]">Checkout</span><span>→</span><span>Complete</span>
+                <span>Design</span><span>→</span><span>Finishing</span><span>→</span><span className="text-[#18448D]" aria-current="step">Checkout</span>
               </div>
               <h1 className="mb-2 font-display text-3xl font-bold tracking-[-0.035em] text-[#0B1F3A] sm:text-4xl">Secure checkout</h1>
-              <p className="text-sm text-gray-600 sm:hidden">Your design is below. Add your details to complete your order.</p>
+              <p className="text-sm text-gray-600 sm:hidden">Add your details, then review your order before you pay.</p>
               <p className="hidden text-base text-gray-600 sm:block">Most standard orders are produced within 24 hours; free next-day air begins after production.</p>
               <p className="hidden text-sm text-[#18448D] font-medium sm:block">Your expected shipping and delivery dates are shown below.</p>
             </div>
@@ -1214,19 +1224,8 @@ const Checkout: React.FC = () => {
             className="mb-4 sm:mb-6"
           />
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
-            {/* Desktop has room for an inline review beside payment. */}
-            <section aria-label="Order summary" className="hidden w-full lg:col-span-2 lg:block">
-              <div className="border border-slate-200 border-t-4 border-t-[#FF6A00] bg-white p-6 shadow-[0_10px_28px_rgba(11,31,58,0.06)] sm:p-8">
-                <div className="mb-6 flex items-center justify-between gap-3">
-                  <h2 className="text-2xl font-bold text-[#18448D]">Order Summary</h2>
-                  <span className="rounded-full bg-blue-50 px-4 py-2 text-sm font-semibold text-[#18448D]">{items.length} {items.length === 1 ? 'Item' : 'Items'}</span>
-                </div>
-                {orderReviewContent}
-              </div>
-            </section>
-
-            <div className="w-full space-y-4 lg:col-start-3">
+          <div data-testid="checkout-flow" className="space-y-6">
+            <div className="w-full space-y-4">
             {/* Minimum Order Warning */}
             {!minimumOrderValidation.isValid && (
               <div className="bg-amber-50 border border-amber-200 rounded-lg shadow-sm p-6 mb-6">
@@ -1276,13 +1275,6 @@ const Checkout: React.FC = () => {
             )}
             {/* Payment */}
             <div className="w-full space-y-4 lg:space-y-6">
-              <div className="lg:hidden">
-                <CheckoutArtworkSummary
-                  items={items}
-                  totalCents={totalCents}
-                  editAction={<CheckoutReviewDialog label="Edit order">{orderReviewContent}</CheckoutReviewDialog>}
-                />
-              </div>
               <div className="rounded-xl border border-slate-200 bg-white px-4 pb-4">
                 {/* Discount Code Section */}
                 <div className="pt-3">
@@ -1361,7 +1353,7 @@ const Checkout: React.FC = () => {
               </div>
               <div className="relative z-0 rounded-xl border border-gray-100 bg-white p-4 shadow-md sm:p-5">
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-[#18448D]">Payment</h2>
+                  <h2 className="text-2xl font-bold text-[#18448D]">Complete your order</h2>
                   <div className="flex items-center gap-2 bg-green-50 px-3 py-1.5 rounded-full">
                     <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -1485,6 +1477,7 @@ const Checkout: React.FC = () => {
 
                     {paymentProvider === 'stripe' ? (
                       <StripeCheckout
+                        orderSummary={paymentOrderSummary}
                         publishableKey={stripeRuntime.publishableKey}
                         disabled={firstOrderOffer.checking || paymentSubmissionBlocked || checkoutLocked}
                         total={providerTotalCents}
@@ -1496,6 +1489,7 @@ const Checkout: React.FC = () => {
                       />
                     ) : (
                       <PayPalCheckout
+                        orderSummary={paymentOrderSummary}
                         disabled={firstOrderOffer.checking || paymentSubmissionBlocked || (checkoutLocked && activeCheckout?.provider !== 'paypal')}
                         providerLocked={checkoutLocked}
                         total={providerTotalCents}
@@ -1525,6 +1519,7 @@ const Checkout: React.FC = () => {
                       </div>
                     </div>
                     <PayPalCheckout
+                        orderSummary={paymentOrderSummary}
                       disabled={firstOrderOffer.checking || paymentSubmissionBlocked || (checkoutLocked && activeCheckout?.provider !== 'paypal')}
                       providerLocked={checkoutLocked}
                       total={providerTotalCents}

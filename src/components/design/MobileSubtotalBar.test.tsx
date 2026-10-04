@@ -19,7 +19,7 @@ describe('MobileSubtotalBar', () => {
     expect(html).toContain('$36.00');
     expect(html).toContain('Popular 6′ × 3′ size preselected');
     expect(html).toContain('data-testid="mobile-subtotal-note"');
-    expect(html).toContain('View Cart (0)');
+    expect(html).toContain('View cart (0)');
     expect(html).not.toContain('Upload Artwork');
     expect(html).not.toContain('data-mobile-guided-action');
     expect(html).toContain('env(safe-area-inset-bottom, 0.75rem)');

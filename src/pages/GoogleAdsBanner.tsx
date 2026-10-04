@@ -36,6 +36,7 @@ import DeliveryTimer from '@/components/delivery/DeliveryTimer';
 import { sameDayConfig } from '@/lib/sameDayConfig';
 import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
 import MobileSubtotalBar from '@/components/design/MobileSubtotalBar';
+import MobileFinishingStep from '@/components/design/MobileFinishingStep';
 import AIArtworkHelp from '@/components/design/AIArtworkHelp';
 import RealOrdersStrip from '@/components/design/RealOrdersStrip';
 import FileUploader, { type FileUploaderHandle } from '@/components/ui/FileUploader';
@@ -456,6 +457,10 @@ const GoogleAdsBanner: React.FC = () => {
   );
   const [addRope, setAddRope] = useState(false);
   const [finishingType, setFinishingType] = useState<FinishingType>('none');
+  const [mobileFinishingOpen, setMobileFinishingOpen] = useState(false);
+  const [mobileFinishingSource, setMobileFinishingSource] = useState<'inline' | 'modal'>('inline');
+  const [dismissedOrientation, setDismissedOrientation] = useState<string | null>(null);
+  const [finishingChoiceConfirmed, setFinishingChoiceConfirmed] = useState(false);
   const [ropePlacement, setRopePlacement] = useState<RopePlacement>('top');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<UploadedArtworkFile | null>(null);
@@ -1074,6 +1079,7 @@ const GoogleAdsBanner: React.FC = () => {
       setPolePocketSize(item.pole_pocket_size || '2');
       setAddRope(!!item.rope_feet);
       if (item.rope_placement) setRopePlacement(item.rope_placement as RopePlacement);
+      setFinishingChoiceConfirmed(true);
       // Restore finishingType from cart item so the correct card appears selected
       if (item.grommets && item.grommets !== 'none') {
         setFinishingType('grommets');
@@ -1675,6 +1681,12 @@ const GoogleAdsBanner: React.FC = () => {
   }, [isYardSign, productType]);
   const resetAfterSuccessfulAdd = useCallback(() => {
     resetPreview();
+    setMobileFinishingOpen(false);
+    setFinishingChoiceConfirmed(false);
+    setFinishingType('none');
+    setGrommets('none');
+    setPolePockets('none');
+    setAddRope(false);
     setShowPostAddResetNotice(true);
     if (productType === 'banner') {
       setHasJustAddedToCart(false);
@@ -1700,6 +1712,7 @@ const GoogleAdsBanner: React.FC = () => {
     navigateUrl?: string,
   ) => {
     setPendingCheckoutData(null);
+    setMobileFinishingOpen(false);
     if (aiDesignSession) {
       trackAIEvent('ai_added_to_cart', { product_type: 'banner' });
       if (actionType === 'checkout') trackAIEvent('ai_checkout_started', { product_type: 'banner' });
@@ -2291,8 +2304,13 @@ const GoogleAdsBanner: React.FC = () => {
 // Trigger upsell modal after confirming position
   const handleConfirmPosition = useCallback((_pos: { x: number; y: number }, _scale: number, _scaleY?: number) => {
     if (!uploadedFile) return;
+    if (!isYardSign && !isCarMagnet && !isLgScreen) {
+      setMobileFinishingSource('modal');
+      setMobileFinishingOpen(true);
+      return;
+    }
     void prepareAndRoutePlacement('checkout', 'modal');
-  }, [uploadedFile, prepareAndRoutePlacement]);
+  }, [uploadedFile, prepareAndRoutePlacement, isYardSign, isCarMagnet, isLgScreen]);
 
   // Handle upsell modal continue
   const handleUpsellContinue = useCallback(async (selectedOptions: UpsellOption[], dontAskAgain: boolean) => {
@@ -2630,6 +2648,115 @@ const GoogleAdsBanner: React.FC = () => {
           ? { label: uploadError ? 'Retry upload' : 'Upload artwork', disabled: false, onClick: openOrScrollToUpload }
           : { label: editItemId ? 'Save & checkout' : 'Continue to checkout', disabled: false, onClick: handleCheckout };
 
+  const mobileBannerAction = uploadedFile && hasCommittedBannerSize && !isProcessingUpsell && !isUploading
+    ? { label: 'Next: Finishing', disabled: false, onClick: () => { setMobileFinishingSource('inline'); setMobileFinishingOpen(true); } }
+    : bannerAction;
+  const orientationKey = `${uploadedFile?.editorIdentity || uploadedFile?.fileKey}:${widthIn}:${heightIn}`;
+  const artworkRatio = uploadedFile?.originalWidth && uploadedFile?.originalHeight
+    ? uploadedFile.originalWidth / uploadedFile.originalHeight : 0;
+  const offerOrientationSwap = !isYardSign && !isCarMagnet && artworkRatio > 0
+    && widthIn > 0 && heightIn > 0 && dismissedOrientation !== orientationKey
+    && ((artworkRatio < 0.8 && widthIn > heightIn) || (artworkRatio > 1.25 && heightIn > widthIn));
+  const swapBannerOrientation = () => {
+    setWidthFtStr(String(Math.floor(heightIn / 12)));
+    setWidthInRStr(String(heightIn % 12));
+    setHeightFtStr(String(Math.floor(widthIn / 12)));
+    setHeightInRStr(String(widthIn % 12));
+    setWidthCustomInStr(String(heightIn));
+    setHeightCustomInStr(String(widthIn));
+    setActivePreset(null);
+    setHasConfirmedSize(true);
+  };
+  const bannerPrice = (
+    <div className="flex flex-wrap items-baseline gap-x-2">
+      <span className="text-xl font-bold text-[#061A31]">{usd((bannerSubtotalAfterAllDiscountsCents + previewSameDayFeeCents + previewSaturdayFeeCents) / 100)}</span>
+      {bannerPromoResolution.appliedDiscountAmountCents > 0 && <span className="text-xs text-slate-500 line-through">{usd((bannerSubtotalAfterAllDiscountsCents + previewSameDayFeeCents + previewSaturdayFeeCents + bannerPromoResolution.appliedDiscountAmountCents) / 100)}</span>}
+    </div>
+  );
+
+  const bannerSummary = (<>
+                  {(!activeCartPromo || activeCartPromo.code === 'NEW20') && firstOrderOffer.status !== 'eligible' && firstOrderOffer.status !== 'unverified' && (
+                    <div role="status" className="mb-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+                      {firstOrderOffer.message}
+                      {firstOrderOffer.status === 'unavailable' && <button type="button" onClick={firstOrderOffer.retry} className="ml-2 min-h-11 font-semibold underline">Retry offer</button>}
+                    </div>
+                  )}
+                  <PriceBreakdown
+                    variant="compact"
+                    heading="Your banner"
+                    topLine={`${sqft.toFixed(2)} sq ft • ${priceSummary}`}
+                    secondaryLine={`for ${quantity} ${quantity === 1 ? 'banner' : 'banners'} • ${widthDisplay} × ${heightDisplay} • ${materialLabel}`}
+                    showTopSummary={false}
+                    detailRows={[
+                      { label: 'Grommets', value: formatOptionValue(grommetsLabel) },
+                      { label: 'Pole Pockets', value: formatOptionValue(getDisplayPlacement(polePockets)) },
+                      { label: 'Rope Hemming', value: formatOptionValue(addRope ? getDisplayPlacement(ropePlacement) : '') },
+                      { label: 'Hemming', value: 'Always Included' },
+                    ]}
+                    baseSubtotalCents={bannerPricing.baseBannerPriceCents}
+                    baseSubtotalLabel="Base banner"
+                    addOns={[
+                      ...(bannerPricing.polePocketCostCents > 0
+                        ? [{ label: 'Pole pockets', amountCents: bannerPricing.polePocketCostCents }]
+                        : []),
+                      ...(bannerPricing.ropeCostCents > 0
+                        ? [{ label: 'Rope', amountCents: bannerPricing.ropeCostCents }]
+                        : []),
+                    ]}
+                    quantityDiscountCents={
+                      bannerPromoResolution.appliedDiscountType === 'quantity'
+                        ? bannerPromoResolution.appliedDiscountAmountCents
+                        : 0
+                    }
+                    quantityDiscountRate={
+                      bannerPromoResolution.appliedDiscountType === 'quantity'
+                        ? bannerPromoResolution.quantityDiscountRate
+                        : undefined
+                    }
+                    promoDiscountCents={
+                      bannerPromoActuallyApplied
+                        ? bannerPromoResolution.appliedDiscountAmountCents
+                        : 0
+                    }
+                    promoDiscountRate={
+                      bannerPromoActuallyApplied
+                        ? bannerPromoResolution.promoDiscountRate
+                        : undefined
+                    }
+                    promoDiscountCode={
+                      bannerPromoActuallyApplied
+                        ? bannerPromoResolution.promoDiscountCode
+                        : undefined
+                    }
+                    firstOrderEligibilityNote={activeCartPromo?.code === 'NEW20' ? firstOrderOffer.message : null}
+                    sameDayHitServiceCents={previewSameDayFeeCents}
+                    saturdayDeliveryCents={previewSaturdayFeeCents}
+                    taxCents={0}
+                    taxRate={0.06}
+                    adjustedSubtotalCents={bannerSubtotalAfterAllDiscountsCents}
+                    totalCents={bannerSubtotalAfterAllDiscountsCents + previewSameDayFeeCents + previewSaturdayFeeCents}
+                    taxCalculatedAtCheckout
+                    promo={{
+                      code: promoCode,
+                      applied: Boolean(activeCartPromo),
+                      automatic: Boolean(activeCartPromo?.automaticFirstOrder),
+                      onCodeChange: setPromoCode,
+                      onApply: handlePromoApply,
+                      onRemove: handlePromoRemove,
+                      appliedLabel: bannerPromoResolution.promotionId === 'LARGE_BANNER_25'
+                        ? (promoCode.trim().toUpperCase() === SMALL_BANNER_PROMOTION_ID
+                            ? 'Large Banner 25% Off applied automatically — 20OFF is saved for smaller banners'
+                            : 'Large Banner 25% Off applied automatically')
+                        : bannerPromoActuallyApplied
+                          ? `${promoCode} — ${Math.round(bannerPromoResolution.promoDiscountRate * 100)}% off applied`
+                          : bannerPromoResolution.appliedDiscountType === 'quantity'
+                          ? `${promoCode} entered — quantity discount is larger, so we kept that`
+                          : `${promoCode} saved — select an eligible size to see your discount`,
+                    }}
+                    footerNote="Destination-based tax calculated at checkout"
+                  />
+  </>);
+
   const materialCard = isDoubleSidedBanner ? (
     <ConfigCard compact step={2} title="Material & printing" id="material-section">
       <p className="font-semibold text-[#0B1F3A]">18 oz vinyl · Double-sided</p>
@@ -2861,19 +2988,13 @@ const GoogleAdsBanner: React.FC = () => {
                 {isLargeBannerLanding && <p className="mt-3 text-xs text-slate-600">Online sizes up to 50 ft on the long side and 16 ft on the short side. Larger project? <Link to="/custom-quote" className="font-semibold text-orange-700 underline">Request a quote</Link>.</p>}
                 {!isCarMagnet && <div className="mt-5 grid gap-4 border-t border-slate-200 pt-4 sm:grid-cols-[minmax(0,1fr)_auto]">{materialCard}{quantityCard}</div>}
                 </ConfigCard>);
-  const finishingCard = (<ConfigCard step={3} title={isCarMagnet ? 'Rounded Corners' : 'Finishing options'} id="options-section">
-                  <div className="space-y-3">
-                    {isCarMagnet ? (
-                      <div>
-                        <select value={carMagnetRoundedCorners} onChange={e => setCarMagnetRoundedCorners(e.target.value as CarMagnetRoundedCorner)} className="w-full border rounded-xl px-3 py-1.5 text-base mt-1 bg-white">
-                          {CAR_MAGNET_ROUNDED_CORNERS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-                        </select>
-                      </div>
-                    ) : (
-                      <FinishingOptionsCard
+  const bannerFinishingOptions = (
+<FinishingOptionsCard
                         compact
                         finishingType={finishingType}
-                        setFinishingType={setFinishingType}
+                        explicitChoice={!isLgScreen}
+                        choiceConfirmed={finishingChoiceConfirmed}
+                        setFinishingType={(value) => { setFinishingType(value); setFinishingChoiceConfirmed(true); }}
                         grommets={grommets}
                         setGrommets={setGrommets}
                         polePockets={polePockets}
@@ -2883,6 +3004,17 @@ const GoogleAdsBanner: React.FC = () => {
                         ropePlacement={ropePlacement}
                         setRopePlacement={setRopePlacement}
                       />
+  );
+  const finishingCard = (<ConfigCard step={3} title={isCarMagnet ? 'Rounded Corners' : 'Finishing options'} id="options-section">
+                  <div className="space-y-3">
+                    {isCarMagnet ? (
+                      <div>
+                        <select value={carMagnetRoundedCorners} onChange={e => setCarMagnetRoundedCorners(e.target.value as CarMagnetRoundedCorner)} className="w-full border rounded-xl px-3 py-1.5 text-base mt-1 bg-white">
+                          {CAR_MAGNET_ROUNDED_CORNERS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                        </select>
+                      </div>
+                    ) : (
+                      {bannerFinishingOptions}
                     )}
                   </div>
                 </ConfigCard>);
@@ -3030,6 +3162,14 @@ const GoogleAdsBanner: React.FC = () => {
                       <p className="text-xs text-gray-400 text-center mt-2">
                         Size: {isCarMagnet ? `${widthIn}" × ${heightIn}"` : `${widthFt} ft${widthInR > 0 ? ` ${widthInR} in` : ''} × ${heightFt} ft${heightInR > 0 ? ` ${heightInR} in` : ''}`} ({sqft.toFixed(1)} sq ft)
                       </p>
+                      {offerOrientationSwap && <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-[#0B1F3A]">
+                        <p className="font-semibold">Your artwork is {artworkRatio < 1 ? 'portrait' : 'landscape'}. Want your banner to match?</p>
+                        <p className="mt-1 text-xs text-slate-600">Swap the width and height, then check your preview. Your artwork stays uploaded.</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <button type="button" onClick={swapBannerOrientation} className="min-h-11 rounded-lg bg-[#0B1F3A] px-3 py-2 text-sm font-semibold text-white">Switch to {heightDisplay} × {widthDisplay}</button>
+                          <button type="button" onClick={() => setDismissedOrientation(orientationKey)} className="min-h-11 rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-semibold">Keep this size</button>
+                        </div>
+                      </div>}
                       {/* Confidence text */}
                       <p className="text-xs text-gray-500 text-center mt-1 font-medium">Your design will be printed based on this preview</p>
                       {/* File info bar */}
@@ -3038,6 +3178,10 @@ const GoogleAdsBanner: React.FC = () => {
                           <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
                           <span className="text-sm font-semibold text-green-800 truncate">{uploadedFile.name}</span>
                         </div>
+                        <label className="ml-2 flex min-h-11 shrink-0 cursor-pointer items-center px-2 text-sm font-semibold text-[#18448D] underline">
+                          Replace
+                          <input type="file" aria-label="Replace uploaded artwork" className="sr-only" disabled={isUploading || isProcessingUpsell} onChange={(event) => { const file = event.target.files?.[0]; if (file) void handleFileUpload(file); event.target.value = ''; }} />
+                        </label>
                         <button type="button" aria-label="Remove uploaded artwork" onClick={() => { setUploadedFile(null); setImgPos({ x: 0, y: 0 }); setImgScale(1); setImgScaleY(1); setAiPrompt(null); setAiEditPrompt(null); setAiDesignSession(null); }} className="ml-2 flex-shrink-0 p-2.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
                       </div>
                       {aiPrompt && !isYardSign && !isCarMagnet && showCreateWithAI && (
@@ -3339,11 +3483,11 @@ const GoogleAdsBanner: React.FC = () => {
               <div className="space-y-5 min-w-0 max-w-full">
                 {sizeCard}
                 {isCarMagnet && quantityCard}
-                {isCarMagnet ? <>{finishingCard}{uploadCard}</> : <>{uploadCard}{finishingCard}</>}
+                {isCarMagnet ? <>{finishingCard}{uploadCard}</> : <>{uploadCard}{isLgScreen && finishingCard}</>}
 
               </div>
 
-              <div className={isCarMagnet ? "space-y-6 min-w-0 max-w-full lg:sticky lg:top-24 self-start" : "space-y-4 min-w-0 max-w-full self-start rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:sticky lg:top-24 lg:p-5"}>
+              <div className={isCarMagnet ? "space-y-6 min-w-0 max-w-full lg:sticky lg:top-24 self-start" : "hidden lg:block space-y-4 min-w-0 max-w-full self-start rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:sticky lg:top-24 lg:p-5"}>
                 <p className={isCarMagnet ? "text-sm text-emerald-700 -mt-1 font-medium" : "sr-only"}>
                   Most standard orders are produced within 24 hours; <span className="text-emerald-700 font-semibold">carrier transit follows production</span>
                 </p>
@@ -3371,86 +3515,7 @@ const GoogleAdsBanner: React.FC = () => {
                   />
                 ) : (
                   <>
-                  {(!activeCartPromo || activeCartPromo.code === 'NEW20') && firstOrderOffer.status !== 'eligible' && firstOrderOffer.status !== 'unverified' && (
-                    <div role="status" className="mb-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-                      {firstOrderOffer.message}
-                      {firstOrderOffer.status === 'unavailable' && <button type="button" onClick={firstOrderOffer.retry} className="ml-2 min-h-11 font-semibold underline">Retry offer</button>}
-                    </div>
-                  )}
-                  <PriceBreakdown
-                    variant="compact"
-                    heading="Your banner"
-                    topLine={`${sqft.toFixed(2)} sq ft • ${priceSummary}`}
-                    secondaryLine={`for ${quantity} ${quantity === 1 ? 'banner' : 'banners'} • ${widthDisplay} × ${heightDisplay} • ${materialLabel}`}
-                    showTopSummary={false}
-                    detailRows={[
-                      { label: 'Grommets', value: formatOptionValue(grommetsLabel) },
-                      { label: 'Pole Pockets', value: formatOptionValue(getDisplayPlacement(polePockets)) },
-                      { label: 'Rope Hemming', value: formatOptionValue(addRope ? getDisplayPlacement(ropePlacement) : '') },
-                      { label: 'Hemming', value: 'Always Included' },
-                    ]}
-                    baseSubtotalCents={bannerPricing.baseBannerPriceCents}
-                    baseSubtotalLabel="Base banner"
-                    addOns={[
-                      ...(bannerPricing.polePocketCostCents > 0
-                        ? [{ label: 'Pole pockets', amountCents: bannerPricing.polePocketCostCents }]
-                        : []),
-                      ...(bannerPricing.ropeCostCents > 0
-                        ? [{ label: 'Rope', amountCents: bannerPricing.ropeCostCents }]
-                        : []),
-                    ]}
-                    quantityDiscountCents={
-                      bannerPromoResolution.appliedDiscountType === 'quantity'
-                        ? bannerPromoResolution.appliedDiscountAmountCents
-                        : 0
-                    }
-                    quantityDiscountRate={
-                      bannerPromoResolution.appliedDiscountType === 'quantity'
-                        ? bannerPromoResolution.quantityDiscountRate
-                        : undefined
-                    }
-                    promoDiscountCents={
-                      bannerPromoActuallyApplied
-                        ? bannerPromoResolution.appliedDiscountAmountCents
-                        : 0
-                    }
-                    promoDiscountRate={
-                      bannerPromoActuallyApplied
-                        ? bannerPromoResolution.promoDiscountRate
-                        : undefined
-                    }
-                    promoDiscountCode={
-                      bannerPromoActuallyApplied
-                        ? bannerPromoResolution.promoDiscountCode
-                        : undefined
-                    }
-                    firstOrderEligibilityNote={activeCartPromo?.code === 'NEW20' ? firstOrderOffer.message : null}
-                    sameDayHitServiceCents={previewSameDayFeeCents}
-                    saturdayDeliveryCents={previewSaturdayFeeCents}
-                    taxCents={0}
-                    taxRate={0.06}
-                    adjustedSubtotalCents={bannerSubtotalAfterAllDiscountsCents}
-                    totalCents={bannerSubtotalAfterAllDiscountsCents + previewSameDayFeeCents + previewSaturdayFeeCents}
-                    taxCalculatedAtCheckout
-                    promo={{
-                      code: promoCode,
-                      applied: Boolean(activeCartPromo),
-                      automatic: Boolean(activeCartPromo?.automaticFirstOrder),
-                      onCodeChange: setPromoCode,
-                      onApply: handlePromoApply,
-                      onRemove: handlePromoRemove,
-                      appliedLabel: bannerPromoResolution.promotionId === 'LARGE_BANNER_25'
-                        ? (promoCode.trim().toUpperCase() === SMALL_BANNER_PROMOTION_ID
-                            ? 'Large Banner 25% Off applied automatically — 20OFF is saved for smaller banners'
-                            : 'Large Banner 25% Off applied automatically')
-                        : bannerPromoActuallyApplied
-                          ? `${promoCode} — ${Math.round(bannerPromoResolution.promoDiscountRate * 100)}% off applied`
-                          : bannerPromoResolution.appliedDiscountType === 'quantity'
-                          ? `${promoCode} entered — quantity discount is larger, so we kept that`
-                          : `${promoCode} saved — select an eligible size to see your discount`,
-                    }}
-                    footerNote="Destination-based tax calculated at checkout"
-                  />
+                  {bannerSummary}
                   </>
                 )}
 
@@ -3519,17 +3584,33 @@ const GoogleAdsBanner: React.FC = () => {
         </div>
       </div>
 
+        <MobileFinishingStep
+          open={mobileFinishingOpen && !isLgScreen && !isYardSign && !isCarMagnet}
+          onBack={() => setMobileFinishingOpen(false)}
+          description={`${widthDisplay} × ${heightDisplay} · ${materialLabel} · Qty ${quantity}`}
+          price={bannerPrice}
+          promotionNote={bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20' ? FIRST_ORDER_APPLIED_LABEL : undefined}
+          ready={finishingChoiceConfirmed && Boolean(uploadedFile) && hasCommittedBannerSize}
+          busy={isUploading || isProcessingUpsell}
+          editing={Boolean(editItemId)}
+          cartItemCount={cartItemCount}
+          onViewCart={() => { setMobileFinishingOpen(false); setShowPreview(false); openCartDrawer(); }}
+          onCheckout={() => { if (finishingChoiceConfirmed) void prepareAndRoutePlacement('checkout', mobileFinishingSource); }}
+          onAddAnother={() => { if (finishingChoiceConfirmed) void prepareAndRoutePlacement('cart', mobileFinishingSource); }}
+          summary={<>{bannerSummary}<HeroDeliveryStatus variant="light" /><SameDayHitServiceCard variant="compact" previewHasPrice={Boolean(uploadedFile)} previewSubtotalCents={bannerPricing.subtotalBeforeDiscountCents} /></>}
+        >
+          {bannerFinishingOptions}
+          {(!activeCartPromo || activeCartPromo.code === 'NEW20') && firstOrderOffer.status === 'unavailable' && <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{firstOrderOffer.message} <button type="button" onClick={firstOrderOffer.retry} className="min-h-11 font-semibold underline">Retry offer</button></p>}
+        </MobileFinishingStep>
         <MobileSubtotalBar
+          primaryAction={!isYardSign && !isCarMagnet ? mobileBannerAction : undefined}
           promotionNote={bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20' ? FIRST_ORDER_APPLIED_LABEL : undefined}
           cartItemCount={cartItemCount}
           onViewCart={openCartDrawer}
           priceNote={!hasCommittedBannerSize ? undefined : isLargeBannerLanding && widthIn === 120 && heightIn === 48 ? "10′ × 4′ large banner selected" : showPopularBannerPriceNote ? POPULAR_BANNER_PRESET.mobilePriceNote : undefined}
           subtotal={
             !isYardSign && !isCarMagnet ? (
-              <div>
-                {bannerPromoResolution.appliedDiscountAmountCents > 0 && <p className="text-xs text-slate-500 line-through">{usd((bannerSubtotalAfterAllDiscountsCents + previewSameDayFeeCents + previewSaturdayFeeCents + bannerPromoResolution.appliedDiscountAmountCents) / 100)}</p>}
-                <p className="text-xl font-bold text-[#061A31]">{usd((bannerSubtotalAfterAllDiscountsCents + previewSameDayFeeCents + previewSaturdayFeeCents) / 100)}</p>
-              </div>
+              bannerPrice
             ) : isYardSign && yardSignPricing ? (
               <p className="text-xl font-bold text-gray-900">
                 {yardSignTotalQty > 0 ? usd(yardSignPricing.totalCents / 100) : '—'}
@@ -3636,7 +3717,7 @@ const GoogleAdsBanner: React.FC = () => {
             </div>
             <div className="flex gap-3 p-4 border-t">
               <button onClick={() => setShowPreview(false)} className="flex-1 py-3.5 sm:py-3 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50">Cancel</button>
-              <button onClick={() => handleConfirmPosition(imgPos, imgScale, imgScaleY)} className="flex-1 py-3.5 sm:py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold shadow-lg">Confirm & Checkout</button>
+              <button onClick={() => handleConfirmPosition(imgPos, imgScale, imgScaleY)} className="flex-1 py-3.5 sm:py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold shadow-lg">{!isYardSign && !isCarMagnet && !isLgScreen ? 'Next: Finishing' : 'Confirm & Checkout'}</button>
             </div>
           </div>
         </div>

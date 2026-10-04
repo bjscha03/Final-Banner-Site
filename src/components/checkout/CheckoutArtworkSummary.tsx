@@ -11,10 +11,11 @@ import { getItemDisplayName, normalizeOrderItemDisplay } from '@/lib/product-dis
 import { usd } from '@/lib/pricing';
 
 /** Keep the saved composition visible on arrival without opening an order dialog. */
-export default function CheckoutArtworkSummary({ items, totalCents, editAction }: {
+export default function CheckoutArtworkSummary({ items, totalCents, editAction, compact = false }: {
   items: CartItem[];
   totalCents: number;
   editAction: React.ReactNode;
+  compact?: boolean;
 }) {
   return (
     <section aria-label="Your artwork and order" className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm" data-testid="checkout-artwork-summary">
@@ -49,8 +50,8 @@ export default function CheckoutArtworkSummary({ items, totalCents, editAction }
             compositionSignature: item.placement_preview?.compositionSignature || item.composition_signature,
           };
           return (
-            <div key={item.id} className="py-3 first:pt-0 last:pb-0" data-checkout-artwork-item={item.id}>
-              <div className="flex justify-center rounded-lg bg-slate-50 px-2 py-3">
+            <div key={item.id} className={`py-3 first:pt-0 last:pb-0 ${compact ? "grid grid-cols-[80px_minmax(0,1fr)] gap-x-3" : ""}`} data-checkout-artwork-item={item.id}>
+              <div className={`flex items-center justify-center rounded-lg bg-slate-50 px-2 py-3 ${compact ? "row-span-2" : ""}`}>
                 <ThumbnailPreviewWrapper
                   title={title}
                   widthIn={item.width_in}
@@ -66,10 +67,10 @@ export default function CheckoutArtworkSummary({ items, totalCents, editAction }
                     <BannerPreview {...previewProps} imageUrl={expanded.url} isFinalizedSnapshot={expanded.isExactComposition} maxSize={820} />
                   )}
                 >
-                  <BannerPreview {...previewProps} imageUrl={small.url} isFinalizedSnapshot={small.isExactComposition} maxSize={240} />
+                  <BannerPreview {...previewProps} imageUrl={small.url} isFinalizedSnapshot={small.isExactComposition} maxSize={compact ? 64 : 240} />
                 </ThumbnailPreviewWrapper>
               </div>
-              <div className="mt-3 flex justify-center"><RealisticBannerPreview item={item} /></div>
+              {!compact && <div className="mt-3 flex justify-center"><RealisticBannerPreview item={item} /></div>}
               <h3 className="mt-3 text-sm font-semibold text-[#0B1F3A]">{title}</h3>
               <div className="mt-1 text-sm text-slate-600">
                 {isBanner ? <BannerDimensions widthIn={item.width_in} heightIn={item.height_in}/> : details.sizeDisplay}
@@ -79,13 +80,13 @@ export default function CheckoutArtworkSummary({ items, totalCents, editAction }
           );
         })}
       </div>
-      <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-200 pt-3">
+      {!compact && <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-200 pt-3">
         <div>
           <p className="text-sm font-semibold text-slate-700">Order total</p>
           <p className="text-xs text-slate-500">Including tax</p>
         </div>
         <p className="text-xl font-bold text-[#0B1F3A]">{usd(totalCents / 100)}</p>
-      </div>
+      </div>}
     </section>
   );
 }

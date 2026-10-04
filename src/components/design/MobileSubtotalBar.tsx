@@ -88,7 +88,7 @@ export default function MobileSubtotalBar({
         <div className="flex min-h-[44px] items-center justify-between gap-3">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1.5">
             <div className="min-w-0 max-w-full [overflow-wrap:anywhere]">
-              <p className="text-xs text-gray-500">{primaryAction ? 'Before tax' : 'Subtotal'}</p>
+              <p className="text-xs text-gray-500">{primaryAction ? 'This banner · Before tax' : 'Subtotal'}</p>
               {displayedSubtotal}
             </div>
             <ShippingBenefitBadge variant="sticky" className="shrink-0" />
@@ -99,14 +99,15 @@ export default function MobileSubtotalBar({
               </p>
             ) : null}
           </div>
-          {primaryAction ? <button type="button" data-banner-primary-action onClick={primaryAction.onClick} disabled={primaryAction.disabled} className="inline-flex min-h-12 max-w-[52%] items-center justify-center rounded-lg bg-[#FF6A00] px-4 py-3 text-sm font-bold leading-snug text-[#061A31] hover:bg-[#FF6A00] focus-visible:ring-2 focus-visible:ring-[#061A31] disabled:opacity-60">{primaryAction.label}</button> : <button
+          <button
             type="button"
             onClick={onViewCart}
-            className="inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-[#18448D] transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#18448D] focus-visible:ring-offset-2"
+            className="inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-md px-2 py-2 text-sm font-semibold text-[#18448D] underline underline-offset-4 focus-visible:ring-2 focus-visible:ring-[#18448D]"
           >
-            View Cart ({cartItemCount})
-          </button>}
+            View cart ({cartItemCount})
+          </button>
         </div>
+        {primaryAction && <button type="button" data-banner-primary-action onClick={primaryAction.onClick} disabled={primaryAction.disabled} className="mt-2 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#FF6A00] px-4 py-3 text-base font-bold text-[#061A31] focus-visible:ring-2 focus-visible:ring-[#061A31] disabled:opacity-60">{primaryAction.label}</button>}
       </div>
     </>
   );
