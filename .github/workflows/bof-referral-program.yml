@@ -44,7 +44,7 @@ jobs:
           NODE
       - run: npm ci
       - name: Ledger, guest access, margin, and tracking tests
-        run: npx vitest run --config vitest.ai.config.ts netlify/functions/__tests__/bof-*.test.mjs netlify/functions/__tests__/verified-guest-orders.test.mjs src/lib/__tests__/admin-profit-estimate.test.ts src/lib/trackingPolicy.test.ts src/lib/auth.lifecycle.test.tsx src/lib/auth.logout.test.ts
+        run: npx vitest run --config vitest.ai.config.ts netlify/functions/__tests__/bof-*.test.mjs netlify/functions/__tests__/verified-guest-orders.test.mjs src/lib/__tests__/admin-profit-estimate.test.ts src/lib/trackingPolicy.test.ts src/lib/auth.lifecycle.test.tsx src/lib/auth.logout.test.ts src/pages/BOFCash.test.tsx
       - name: Production build
         run: npm run build
       - name: Bundle payment and referral functions for the production Node version
