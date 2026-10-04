@@ -17,7 +17,7 @@ function formatHeroDate(parts: ETParts): string {
 
 interface HeroDeliveryStatusProps {
   className?: string;
-  variant?: 'compact' | 'editorial' | 'light';
+  variant?: 'compact' | 'editorial' | 'light' | 'arrival';
 }
 
 const HeroDeliveryStatus: React.FC<HeroDeliveryStatusProps> = ({ className, variant = 'compact' }) => {
@@ -25,6 +25,25 @@ const HeroDeliveryStatus: React.FC<HeroDeliveryStatusProps> = ({ className, vari
   const countdownLabel = estimate.state === 'hit_available'
       ? 'Fast-service cutoff'
       : 'Order cutoff';
+
+  if (variant === 'arrival') {
+    const dateLabel = (parts: ETParts) => new Intl.DateTimeFormat('en-US', {
+      weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC',
+    }).format(new Date(Date.UTC(parts.year, parts.month - 1, parts.day)));
+    return (
+      <div data-hero-delivery-status data-state={estimate.state} data-variant="arrival" className={`rounded-xl border border-orange-300 bg-[#FFF0E2] px-3 py-2 text-[#061A31] ${className || ''}`} aria-label="Estimated delivery and shipping dates">
+        <div className="flex items-start gap-2.5">
+          <Truck className="mt-1 h-6 w-6 shrink-0" aria-hidden="true" />
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-600">Estimated delivery</p>
+            <p className="mt-0.5 text-[clamp(1.125rem,5vw,1.25rem)] font-extrabold leading-tight">{dateLabel(estimate.deliveryDate)}</p>
+            <p className="mt-0.5 text-[11px]">Expected to ship {dateLabel(estimate.shipDate)}</p>
+            <p className="mt-0.5 text-[10px] text-slate-600">Free next-business-day air after production.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (estimate.state === 'weekend_lock') {
     return (

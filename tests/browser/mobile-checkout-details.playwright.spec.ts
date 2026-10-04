@@ -161,11 +161,11 @@ test('contact and delivery details are visible before either payment method', as
     const artworkSummary = page.getByTestId('checkout-artwork-summary');
     await expect(artworkSummary).toBeVisible();
     await expect(artworkSummary.locator('[data-preview-ready="true"]')).toHaveCount(1);
-    const paymentBox = await page.getByRole('heading', { name: 'Payment', exact: true }).boundingBox();
+    const paymentBox = await page.getByRole('heading', { name: 'Complete your order', exact: true }).boundingBox();
     const orderSummaryBox = await artworkSummary.boundingBox();
     expect(paymentBox).not.toBeNull();
     expect(orderSummaryBox).not.toBeNull();
-    expect(orderSummaryBox!.y).toBeLessThan(paymentBox!.y);
+    expect(orderSummaryBox!.y).toBeGreaterThan(paymentBox!.y);
     await expect(artworkSummary.getByRole('button', { name: 'Edit order', exact: true })).toBeVisible();
     await expect(page.getByRole('dialog')).toHaveCount(0);
   }
@@ -180,7 +180,7 @@ test('contact and delivery details are visible before either payment method', as
   ))).toBe(true);
 });
 
-test('mobile artwork is visible on arrival, enlarges directly, and keeps all items after editing', async ({ page }) => {
+test('order review below payment enlarges artwork directly, and keeps all items after editing', async ({ page }) => {
   test.skip((page.viewportSize()?.width ?? 1024) >= 1024, 'Mobile summary only');
   const second = { ...CHECKOUT_ITEM, id: 'second-checkout-banner', width_in: 72 };
   const { paymentEndpointRequests } = await installCheckoutHarness(page, [CHECKOUT_ITEM, second]);

@@ -82,31 +82,38 @@ export default function MobileSubtotalBar({
       <div
         ref={barRef}
         data-testid="mobile-subtotal-bar"
-        className={`fixed inset-x-0 bottom-0 z-40 overflow-x-clip border-t border-gray-200 bg-white px-4 pt-3 shadow-lg ${primaryAction ? 'lg:hidden' : 'md:hidden'}`}
+        className={`fixed inset-x-0 bottom-0 z-40 overflow-x-clip border-t border-gray-200 bg-white px-4 shadow-lg ${primaryAction ? 'pt-2 lg:hidden' : 'pt-3 md:hidden'}`}
         style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0.75rem))' }}
       >
         <div className="flex min-h-[44px] items-center justify-between gap-3">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1.5">
             <div className="min-w-0 max-w-full [overflow-wrap:anywhere]">
-              <p className="text-xs text-gray-500">{primaryAction ? 'Before tax' : 'Subtotal'}</p>
+              <p className="text-xs text-gray-500">{primaryAction ? 'This banner · Before tax' : 'Subtotal'}</p>
               {displayedSubtotal}
             </div>
-            <ShippingBenefitBadge variant="sticky" className="shrink-0" />
-            {promotionNote && <p data-testid="mobile-applied-discount" className="basis-full text-[11px] font-bold leading-tight text-emerald-700">{promotionNote}</p>}
-            {priceNote ? (
+            {!primaryAction && <ShippingBenefitBadge variant="sticky" className="shrink-0" />}
+            {!primaryAction && promotionNote && <p data-testid="mobile-applied-discount" className="basis-full text-[11px] font-bold leading-tight text-emerald-700">{promotionNote}</p>}
+            {!primaryAction && priceNote ? (
               <p data-testid="mobile-subtotal-note" className="basis-full text-[11px] font-medium leading-tight text-orange-700">
                 {priceNote}
               </p>
             ) : null}
           </div>
-          {primaryAction ? <button type="button" data-banner-primary-action onClick={primaryAction.onClick} disabled={primaryAction.disabled} className="inline-flex min-h-12 max-w-[52%] items-center justify-center rounded-lg bg-[#FF6A00] px-4 py-3 text-sm font-bold leading-snug text-[#061A31] hover:bg-[#FF6A00] focus-visible:ring-2 focus-visible:ring-[#061A31] disabled:opacity-60">{primaryAction.label}</button> : <button
+          <button
             type="button"
             onClick={onViewCart}
-            className="inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-[#18448D] transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#18448D] focus-visible:ring-offset-2"
+            className="inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-md px-2 py-2 text-sm font-semibold text-[#18448D] underline underline-offset-4 focus-visible:ring-2 focus-visible:ring-[#18448D]"
           >
-            View Cart ({cartItemCount})
-          </button>}
+            {primaryAction ? 'View cart' : 'View Cart'} ({cartItemCount})
+          </button>
         </div>
+        {primaryAction && <>
+          <div className="mt-0.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+            {promotionNote && <p data-testid="mobile-applied-discount" className="text-[11px] font-bold leading-tight text-emerald-700">{promotionNote}</p>}
+            <ShippingBenefitBadge variant="sticky" className="shrink-0 !border-0 !bg-transparent !p-0 [&>svg]:h-3.5 [&>svg]:w-3.5 [&_p]:text-[10px] [&_p>span:first-child]:inline" />
+          </div>
+          <button type="button" data-banner-primary-action onClick={primaryAction.onClick} disabled={primaryAction.disabled} className="mt-2 inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-[#FF6A00] px-4 py-2 text-base font-bold text-white focus-visible:ring-2 focus-visible:ring-[#061A31] disabled:opacity-60">{primaryAction.label}</button>
+        </>}
       </div>
     </>
   );

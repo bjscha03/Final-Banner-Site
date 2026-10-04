@@ -16,3 +16,22 @@
   .google-review-slides { grid-column: 1 / -1; grid-row: 2; }
 }
 @media (prefers-reduced-motion: reduce) { .google-review-slide { transition: none; } }
+
+.google-review-compact-inner { display: none; }
+@keyframes google-review-marquee { to { transform: translateX(-50%); } }
+@media (max-width: 1023px) {
+  .google-review-spotlight--compact-mobile { border-top: 0; }
+  .google-review-spotlight--compact-mobile .google-review-inner { display: none; }
+  .google-review-compact-inner { display: flex; height: 46px; gap: 10px; align-items: center; padding-left: 16px; }
+  .google-review-marquee { flex: 1; min-width: 0; overflow: hidden; }
+  .google-review-marquee-track { display: flex; width: max-content; animation: google-review-marquee 155s linear infinite; }
+  .google-review-marquee-set { display: flex; flex-shrink: 0; align-items: center; }
+  .google-review-marquee-set p { margin: 0; padding-right: 40px; white-space: nowrap; font-size: 12px; line-height: 20px; }
+  .google-review-compact-inner:hover .google-review-marquee-track,
+  .google-review-compact-inner:focus-within .google-review-marquee-track { animation-play-state: paused; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .google-review-marquee-track { animation: none; }
+  .google-review-marquee { overflow-x: auto; }
+  .google-review-marquee-set[aria-hidden="true"] { display: none; }
+}

@@ -21,7 +21,7 @@ function attachment(point: { x: number; y: number }, geometry: RealisticBannerGe
 }
 
 /** A deterministic display-only scene. Customer artwork never leaves the image pipeline. */
-export function RealisticBannerScene({ item, expanded = false }: { item: CartItem; expanded?: boolean }) {
+export function RealisticBannerScene({ item, expanded = false, previewSize = 320, artwork }: { item: CartItem; expanded?: boolean; previewSize?: number; artwork?: React.ReactNode }) {
   const id = useId().replace(/:/g, '');
   const geometry = useMemo(() => getRealisticBannerGeometry(item), [item]);
   const surfaceMask = useMemo(() => createBannerSurfaceMask(geometry), [geometry]);
@@ -74,7 +74,7 @@ export function RealisticBannerScene({ item, expanded = false }: { item: CartIte
       </svg>
 
       <div className="realistic-banner-surface" style={{ ...surfaceStyle, maskImage: surfaceMask, WebkitMaskImage: surfaceMask }} data-realistic-surface>
-        <StableBannerPreview
+        {artwork ?? <StableBannerPreview
           key={`${item.id}:${selection.url}:${item.placement_preview?.compositionSignature || item.composition_signature || ''}`}
           widthIn={w} heightIn={h} grommets="none"
           imageUrl={selection.url}
@@ -83,9 +83,9 @@ export function RealisticBannerScene({ item, expanded = false }: { item: CartIte
           imageScale={item.image_scale} imageScaleY={item.image_scale_y}
           imagePosition={item.image_position} fitMode={item.fit_mode || 'fill'}
           overlayImage={item.overlay_image} textElements={item.text_elements}
-          maxSize={expanded ? 1600 : 320}
+          maxSize={expanded ? 1600 : previewSize}
           surfaceOnly backgroundColor={background}
-        />
+        />}
         <div className="realistic-banner-material-texture" style={{ opacity: isMesh ? 0.4 : grommets.length ? 0.94 : 0.5 }} aria-hidden="true" />
         <svg className="realistic-banner-surface-light" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden="true">
           <defs>
@@ -138,7 +138,7 @@ export function RealisticBannerScene({ item, expanded = false }: { item: CartIte
   );
 }
 
-export default function RealisticBannerPreview({ item, className = '' }: { item: CartItem; className?: string }) {
+export default function RealisticBannerPreview({ item, className = '', previewSize = 320 }: { item: CartItem; className?: string; previewSize?: number }) {
   const small = getSmallPreviewSelection(item);
   // A design-service reference image is not a finished banner composition.
   if (!isRealisticBannerItem(item) || !small.url || item.design_service_enabled) return null;
@@ -151,7 +151,7 @@ export default function RealisticBannerPreview({ item, className = '' }: { item:
         <p className="mb-1.5 text-xs font-semibold text-[#18448D]">Realistic preview</p>
         <DialogTrigger asChild>
           <button type="button" className="realistic-banner-trigger group" aria-label={`Enlarge realistic preview: ${formatBannerDimensions(item.width_in, item.height_in).feet} ${details.materialDisplay}`}>
-            <RealisticBannerScene item={item}/>
+            <RealisticBannerScene item={item} previewSize={previewSize}/>
             <span className="realistic-banner-zoom" aria-hidden="true"><ZoomIn size={16}/></span>
             <span className="realistic-banner-expand-label">Click to expand</span>
           </button>

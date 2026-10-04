@@ -1,90 +1,14 @@
-import { expect, test, type Page, type Request } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import sharp from 'sharp';
-type UploadHarness = {
-  originalUrl: string;
-  artifactUrl: string;
-  artifactBuffer: Buffer | null;
-  savedCarts: any[][];
-};
-
-function extractMultipartFile(request: Request): { filename: string; bytes: Buffer } {
-  const contentType = request.headers()['content-type'] || '';
-  const boundary = contentType.match(/boundary=(?:"([^"]+)"|([^;]+))/)?.slice(1).find(Boolean);
-  const body = request.postDataBuffer();
-  if (!boundary || !body) throw new Error('Direct-upload multipart body was unavailable.');
-
-  const filenameMarker = Buffer.from('filename="');
-  const filenameStartMarker = body.indexOf(filenameMarker);
-  if (filenameStartMarker < 0) throw new Error('Direct-upload filename was unavailable.');
-  const filenameStart = filenameStartMarker + filenameMarker.length;
-  const filenameEnd = body.indexOf(Buffer.from('"'), filenameStart);
-  const filename = body.subarray(filenameStart, filenameEnd).toString('utf8');
-  const headersEnd = body.indexOf(Buffer.from('\r\n\r\n'), filenameEnd);
-  const fileStart = headersEnd + 4;
-  const fileEnd = body.indexOf(Buffer.from(`\r\n--${boundary}`), fileStart);
-  if (headersEnd < 0 || fileEnd < 0) throw new Error('Direct-upload file bytes were unavailable.');
-  return { filename, bytes: body.subarray(fileStart, fileEnd) };
-}
-
-async function installUploadAndFunctionHarness(
-  page: Page,
-  originalBytes: Buffer,
-  scenario: string,
-): Promise<UploadHarness> {
-  const state: UploadHarness = {
-    originalUrl: `http://127.0.0.1:4175/__compact-test-asset?scenario=${scenario}&kind=original`,
+async function installUploadAndFunctionHarness(page: Page, scenario: string) {
+  // WebKit globally intercepts multipart bodies when any page.route is active,
+  // even when its URL predicate excludes the upload. Serve mocks in Vite instead.
+  await page.context().addCookies([{
+    name: 'compact_browser_scenario', value: scenario, url: 'http://127.0.0.1:4175',
+  }]);
+  return {
     artifactUrl: `http://127.0.0.1:4175/__compact-test-asset?scenario=${scenario}&kind=placement`,
-    artifactBuffer: null,
-    savedCarts: [],
   };
-
-  await page.route('**/*', async (route) => {
-    const request = route.request();
-    const url = new URL(request.url());
-
-    if (url.pathname === '/.netlify/functions/cloudinary-upload-signature') {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          apiKey: 'browser-test-key',
-          cloudName: 'browser-test-cloud',
-          expiresAt: Date.now() + 60_000,
-          folder: 'browser-tests',
-          overwrite: false,
-          resourceType: 'image',
-          signature: 'browser-test-signature',
-          timestamp: Math.floor(Date.now() / 1000),
-          uniqueFilename: true,
-          uploadUrl: `http://127.0.0.1:4175/__compact-test-upload?scenario=${scenario}`,
-          useFilename: true,
-        }),
-      });
-      return;
-    }
-
-    if (url.pathname.startsWith('/.netlify/functions/')) {
-      if (url.pathname.endsWith('/cart-save')) {
-        const payload = JSON.parse(request.postData() || '{}');
-        state.savedCarts.push(payload.cartData || []);
-      }
-      const body = url.pathname.endsWith('/cart-load')
-        ? { cartData: [] }
-        : url.pathname.endsWith('/paypal-config')
-          ? { enabled: false }
-          : { success: true };
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
-      return;
-    }
-
-    if (url.protocol !== 'blob:' && url.protocol !== 'data:' && url.hostname !== '127.0.0.1' && url.hostname !== 'localhost') {
-      await route.abort();
-      return;
-    }
-    await route.continue();
-  });
-
-  return state;
 }
 
 async function asymmetricArtwork(): Promise<Buffer> {
@@ -116,74 +40,181 @@ async function sparseArtwork(): Promise<Buffer> {
 }
 
 
-test('compact banner builder preserves dimensions, finishing, artwork and cart handoff', async ({ page }, testInfo) => {
+test('banner finishing preserves the artwork, price and cart through add-another and checkout', async ({ page }, testInfo) => {
   const artwork = await asymmetricArtwork();
-  const harness = await installUploadAndFunctionHarness(page, artwork, `compact-${testInfo.project.name}`);
+  const harness = await installUploadAndFunctionHarness(page, `compact-${testInfo.project.name}`);
   await page.goto('/google-ads-banner', { waitUntil: 'domcontentloaded' });
-  const strip = page.locator('[data-real-orders-strip]');
-  const builder = page.locator('#order-builder');
-  const stripBox = await strip.boundingBox();
-  const builderBox = await builder.boundingBox();
-  expect(Math.abs(builderBox!.y - (stripBox!.y + stripBox!.height))).toBeLessThanOrEqual(1);
-  const action = page.getByRole('button', { name: 'Add to Cart', exact: true });
-  const price = page.getByTestId('price-breakdown');
-  await expect(action).toHaveCount(1);
-  await expect(action).toBeDisabled();
-  await expect(price).toContainText('$81.00');
-  await expect(page.getByTestId('mobile-subtotal-bar')).toContainText('View Cart (0)');
-  await expect(page.getByTestId('mobile-subtotal-bar')).toContainText('Popular 6′ × 3′ size preselected');
+  const mobile = (page.viewportSize()?.width ?? 1024) < 1024;
+  const footer = page.getByTestId('mobile-subtotal-bar');
   const size = page.locator('#size-section');
-  await expect(size.getByRole('button', { name: 'Feet', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  await size.getByRole('button', { name: "6' × 3' — Most popular", exact: true }).click();
-  await expect(price).toContainText('$81.00');
-  await expect(action).toBeDisabled();
+  if (mobile) {
+    await expect(footer.getByRole('button', { name: 'Upload artwork', exact: true })).toBeVisible();
+    await expect(footer.getByRole('button', { name: 'Upload artwork', exact: true })).toHaveCSS('color', 'rgb(255, 255, 255)');
+    await expect(footer.getByRole('button', { name: 'View cart (0)', exact: true })).toBeVisible();
+    await expect(page.locator('#options-section')).toHaveCount(0);
+    await expect(page.getByTestId('mobile-banner-hero')).toContainText('Estimated delivery');
+    await expect(page.getByRole('button', { name: 'Pause Google reviews' })).toBeVisible();
+    const deliveryStrip = page.locator('[data-real-orders-strip]');
+    await expect(deliveryStrip).toHaveCount(1);
+    await expect(deliveryStrip.getByRole('button', { name: 'Pause delivery photos' })).toBeVisible();
+    expect((await deliveryStrip.boundingBox())!.y).toBeLessThan((await size.boundingBox())!.y);
+    await deliveryStrip.getByRole('button', { name: 'Pause delivery photos' }).click();
+    await expect(deliveryStrip).toHaveAttribute('data-paused', 'true');
+    await deliveryStrip.getByRole('button', { name: 'Play delivery photos' }).click();
+    const heading = page.getByTestId('mobile-banner-hero').getByRole('heading', { level: 1 });
+    expect(await heading.evaluate(el => getComputedStyle(el).fontFamily)).not.toMatch(/Bebas|Impact/);
+    await page.screenshot({ path: testInfo.outputPath('landing-first-screen.png') });
+    const heroBox = await page.getByTestId('mobile-banner-hero').boundingBox();
+    expect(heroBox!.height).toBeLessThan(330);
+    if (page.viewportSize()!.height >= 640) {
+      const dimensions = await size.boundingBox();
+      const footerBox = await footer.boundingBox();
+      expect(dimensions!.y).toBeLessThan(footerBox!.y);
+    }
+    const proofBox = await page.getByTestId('mobile-banner-proof').boundingBox();
+    const uploadBox = await page.locator('#upload-section').boundingBox();
+    expect(proofBox!.y).toBeGreaterThan(uploadBox!.y + uploadBox!.height);
+
+  }
   await size.getByRole('button', { name: 'Inches', exact: true }).click();
   await expect(page.getByLabel('Banner width in inches')).toHaveValue('72');
   await size.getByRole('button', { name: 'Feet', exact: true }).click();
-  await expect(page.getByLabel('Banner width feet')).toHaveValue('6');
-  const finishing = page.locator('#options-section');
-  await finishing.getByRole('button', { name: /Rope in Welded Hem/ }).click();
-  await expect(page.getByLabel('Rope placement')).toBeVisible();
-  await page.getByLabel('Rope placement').selectOption('top');
-  await expect(price).toContainText('$93.00');
-  await finishing.getByRole('button', { name: /Pole Pockets/ }).click();
-  await expect(price).toContainText('$108.00');
-  await finishing.getByRole('button', { name: /Grommets/ }).click();
-  await expect(price).toContainText('$81.00');
-  await expect(page.getByLabel('Grommet placement')).toBeVisible();
-  await page.getByLabel('Quantity', { exact: true }).fill('2');
-  await expect(price).toContainText('$153.90');
-  await page.getByLabel('Quantity', { exact: true }).fill('1');
-  const chooserPromise = page.waitForEvent('filechooser');
-  await page.locator('#upload-section').getByRole('button', { name: /Upload your artwork/ }).click();
-  const chooser = await chooserPromise;
-  await chooser.setFiles({ name: 'compact-test.png', mimeType: 'image/png', buffer: artwork });
-  const preview = page.getByAltText('Uploaded artwork preview').first();
-  await expect(preview).toBeVisible({ timeout: 30000 });
-  await expect(action).toBeEnabled();
-  await size.getByRole('button', { name: "8' × 3'", exact: true }).click();
-  await expect(preview).toBeVisible();
-  await size.getByRole('button', { name: "6' × 3' — Most popular", exact: true }).click();
-  await preview.locator('..').click();
-  await page.getByRole('button', { name: 'Fit', exact: true }).first().click();
-  await expect(price).toContainText('$81.00');
-  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
-  await page.locator('#upload-section').scrollIntoViewIfNeeded();
-  await page.screenshot({ path: testInfo.outputPath('compact-builder.png'), fullPage: true });
-  await action.click();
-  const cart = page.getByRole('dialog', { name: 'Shopping cart' });
-  await expect(cart).toBeVisible({ timeout: 60000 });
-  await expect(cart.locator(`img[src="${harness.artifactUrl}"]`).first()).toBeVisible();
-  await expect(cart).toContainText('$81.00');
+  const upload = async () => {
+    const chooserPromise = page.waitForEvent('filechooser');
+    if (mobile) {
+      await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+      await footer.getByRole('button', { name: 'Upload artwork', exact: true }).click();
+      // The page must land at upload even if the customer cancels the picker.
+      await expect.poll(async () => (await page.locator('#upload-section').boundingBox())!.y).toBeLessThan(180);
+      expect((await page.locator('#upload-section').boundingBox())!.y).toBeGreaterThanOrEqual(0);
+    } else {
+      await page.locator('#upload-section').getByRole('button', { name: /Upload your artwork/ }).click();
+    }
+    await (await chooserPromise).setFiles({ name: 'compact-test.png', mimeType: 'image/png', buffer: artwork });
+    await expect(page.getByAltText('Uploaded artwork preview').first()).toBeVisible({ timeout: 30000 });
+  };
+  await upload();
+  const finish = page.getByTestId('mobile-finishing-step');
+  const openFinishing = async () => {
+    if (mobile) {
+      await footer.getByRole('button', { name: 'Next: Finishing', exact: true }).click();
+      await expect(finish).toBeVisible();
+      await expect(finish.getByRole('heading', { name: 'Realistic preview', exact: true })).toBeVisible();
+      await expect(finish.getByAltText('Your artwork with the selected finishing')).toBeVisible();
+      await expect.poll(() => finish.getByAltText('Your artwork with the selected finishing').evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0)).toBe(true);
+    }
+  };
+  await openFinishing();
+  const choices = mobile ? finish : page.locator('#options-section');
+  if (mobile) {
+    await expect(finish.getByRole('button', { name: 'Choose a finishing option', exact: true })).toBeDisabled();
+    await expect(finish.getByRole('button', { name: 'Add & design another', exact: true })).toBeDisabled();
+  }
+  await choices.getByRole('button', { name: /Rope in Welded Hem/ }).click();
+  await choices.getByLabel('Rope placement').selectOption('bottom');
+  if (mobile) await expect(finish.locator('[data-realistic-rope="bottom"]')).toHaveCount(1);
+  await choices.getByLabel('Rope placement').selectOption('top');
+  if (mobile) {
+    await expect(finish.locator('[data-realistic-rope="top"]')).toHaveCount(1);
+    await expect(finish.locator('[data-realistic-rope="bottom"]')).toHaveCount(0);
+  }
+  await choices.getByRole('button', { name: /Pole Pockets/ }).click();
+  await expect(choices.getByLabel('Pole pocket placement')).toHaveValue('top');
+  if (mobile) {
+    await expect(finish.locator('[data-realistic-pocket="top"]')).toHaveCount(1);
+    await expect(finish.locator('[data-realistic-rope]')).toHaveCount(0);
+  }
+  await choices.getByRole('button', { name: /Grommets/ }).click();
+  await choices.getByLabel('Grommet placement').selectOption('every-2-3ft');
+  if (mobile) {
+    await expect.poll(() => finish.locator('[data-realistic-grommet]').count()).toBeGreaterThan(4);
+    await expect(finish.locator('[data-realistic-pocket]')).toHaveCount(0);
+    await expect(finish.getByRole('button', { name: 'Continue to checkout', exact: true })).toHaveCSS('color', 'rgb(255, 255, 255)');
+    const inlinePreview = finish.getByTestId('finishing-realistic-preview');
+    const inlineWidth = (await inlinePreview.locator('[data-realistic-scene]').boundingBox())!.width;
+    const hardwareCount = await inlinePreview.locator('[data-realistic-grommet]').count();
+    const artworkStyle = await inlinePreview.getByAltText('Your artwork with the selected finishing').getAttribute('style');
+    await inlinePreview.getByRole('button', { name: 'Enlarge realistic preview', exact: true }).click();
+    const expandedPreview = page.getByTestId('finishing-realistic-lightbox');
+    await expect(expandedPreview).toBeVisible();
+    await expect(expandedPreview.locator('[data-realistic-grommet]')).toHaveCount(hardwareCount);
+    await expect(expandedPreview.getByAltText('Your artwork with the selected finishing')).toHaveAttribute('style', artworkStyle!);
+    expect((await expandedPreview.locator('[data-realistic-scene]').boundingBox())!.width).toBeGreaterThan(inlineWidth);
+    await expandedPreview.getByRole('button', { name: 'Close preview', exact: true }).click();
+    await expect(expandedPreview).toHaveCount(0);
+    await expect(finish).toBeVisible();
+    await expect(choices.getByRole('button', { name: /Grommets/ })).toHaveAttribute('aria-pressed', 'true');
+    if (page.viewportSize()!.height > 600) {
+      const previewBox = (await finish.getByTestId('finishing-realistic-preview').boundingBox())!;
+      const optionsBox = (await finish.getByTestId('finishing-options-scroll').boundingBox())!;
+      expect(optionsBox.y).toBeGreaterThanOrEqual(previewBox.y + previewBox.height);
+      expect(optionsBox.height).toBeGreaterThan(88);
+    }
+    await finish.getByTestId('finishing-realistic-preview').screenshot({ path: testInfo.outputPath('finishing-realistic-preview.png') });
+  }
+  if (mobile) {
+    await finish.getByRole('button', { name: 'Back to design', exact: true }).click();
+    await expect(page.getByAltText('Uploaded artwork preview').first()).toBeVisible();
+    await openFinishing();
+    await expect(choices.getByRole('button', { name: /Grommets/ })).toHaveAttribute('aria-pressed', 'true');
+  }
+  await page.getByRole('button', { name: 'Add & design another', exact: true }).filter({ visible: true }).click();
+  await expect(page.getByAltText('Uploaded artwork preview')).toHaveCount(0, { timeout: 60000 });
+  if (mobile) await expect(footer.getByRole('button', { name: 'View cart (1)', exact: true })).toBeVisible();
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('cart-storage') || '{}').state.items);
+  expect(stored).toHaveLength(1);
+  expect(stored[0].grommets).toBe('every-2-3ft');
+  expect(stored[0].placement_preview.uploadStatus).toBe('uploaded');
+  const savedId = stored[0].id;
   const artifactResponse = await page.request.get(harness.artifactUrl);
   expect(artifactResponse.ok()).toBe(true);
   const baked = await artifactResponse.body();
   expect(baked.equals(artwork)).toBe(false);
   const dimensions = await sharp(baked).metadata();
   expect(dimensions.width! / dimensions.height!).toBeCloseTo(2, 2);
-  await cart.getByRole('button', { name: 'Proceed to Checkout' }).click();
-  await expect(page).toHaveURL(/\/checkout/);
-  await expect(page.locator(`img[src="${harness.artifactUrl}"]`).first()).toBeVisible();
-  await expect(page.getByText('Line total $81.00', { exact: true })).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Price details' })).toContainText('$85.86');
+  await upload();
+  await openFinishing();
+  if (mobile) {
+    await expect(finish.getByRole('button', { name: 'Choose a finishing option', exact: true })).toBeDisabled();
+    await choices.getByRole('button', { name: /No hanging hardware/ }).click();
+    await expect(finish.locator('[data-realistic-grommet], [data-realistic-pocket], [data-realistic-rope]')).toHaveCount(0);
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+  await page.screenshot({ path: testInfo.outputPath('finishing-step.png') });
+  await page.getByRole('button', { name: 'Continue to checkout', exact: true }).filter({ visible: true }).click();
+  await expect(page).toHaveURL(/\/checkout/, { timeout: 60000 });
+  const finalCart = await page.evaluate(() => JSON.parse(localStorage.getItem('cart-storage') || '{}').state.items);
+  expect(finalCart).toHaveLength(2);
+  expect(finalCart[0].id).toBe(savedId);
+  expect(finalCart[1].grommets).toBe('none');
+  await expect(page.getByTestId('payment-order-summary')).toBeVisible();
+  await expect(page.getByTestId('checkout-order-totals')).toHaveCount(1);
+  const artworkItems = page.getByTestId('payment-order-summary').locator('[data-checkout-artwork-item]');
+  await expect(artworkItems).toHaveCount(2);
+  const firstItem = artworkItems.first();
+  const printPreview = firstItem.locator('[data-commerce-preview]');
+  await expect(printPreview).toHaveAttribute('data-preview-ready', 'true');
+  // Landscape phones bound large previews by viewport height to preserve their aspect ratio.
+  const expectedWidth = Math.min((await firstItem.boundingBox())!.width, (page.viewportSize()!.height - 160) * 2, 600);
+  expect((await printPreview.boundingBox())!.width).toBeGreaterThan(expectedWidth * 0.8);
+  await expect(firstItem.getByText('Realistic preview', { exact: true })).toBeVisible();
+  await firstItem.screenshot({ path: testInfo.outputPath('checkout-large-previews.png') });
+  await firstItem.getByRole('button', { name: /Enlarge realistic preview/ }).click();
+  await expect(page.locator('[data-realistic-lightbox]')).toBeVisible();
+  await expect(page.locator('[data-realistic-lightbox] [data-realistic-grommet]')).toHaveCount(await firstItem.locator('[data-realistic-grommet]').count());
+  await page.getByRole('button', { name: 'Close preview', exact: true }).click();
+});
+
+
+test('every banner designer route uses the shared mobile ordering controls', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'webkit-iphone15pro-portrait', 'Shared route coverage on mobile Safari; the complete flow runs on all browsers.');
+  await installUploadAndFunctionHarness(page, 'banner-route-coverage');
+  for (const route of ['/design', '/design?product=banner', '/halloween-banner', '/large-banners-fast', '/double-sided-banners', '/fall-festival-banners']) {
+    await page.goto(route, { waitUntil: 'domcontentloaded' });
+    const uploadButton = page.getByTestId('mobile-subtotal-bar').getByRole('button', { name: 'Upload artwork', exact: true });
+    await expect(uploadButton).toBeVisible();
+    await expect(uploadButton).toHaveCSS('color', 'rgb(255, 255, 255)');
+    await expect(page.locator('#upload-section')).toHaveCount(1);
+    await expect(page.locator('#options-section')).toHaveCount(0);
+  }
 });

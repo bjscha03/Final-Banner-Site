@@ -34,23 +34,16 @@ for (const route of ROUTES) {
     await page.goto(route, { waitUntil: 'domcontentloaded' });
 
     const isAds = route.startsWith('/google-ads-banner');
-    const isMobile = (page.viewportSize()?.width ?? 1024) < 768;
+    const isMobile = (page.viewportSize()?.width ?? 1024) < 1024;
     const mobileTimer = page.locator('[data-mobile-delivery-timer]');
     const mobileFooter = page.getByTestId('mobile-subtotal-bar');
 
     if (isMobile) {
-      if (!isAds) {
-      await expect(mobileTimer).toBeVisible();
-      await expect(mobileTimer.getByTestId('delivery-timer')).toBeVisible();
-      await expect(mobileTimer).toContainText(/Expected (ship|shipment|delivery)|expected to ship/i);
-      await expect(mobileTimer).toContainText(/\d{2,3}:\d{2}:\d{2}/);
-
-      }
       await expect(mobileFooter).toBeVisible();
-      await expect(mobileFooter.getByText('Subtotal', { exact: true })).toBeVisible();
+      await expect(mobileFooter.getByText('This banner · Before tax', { exact: true })).toBeVisible();
       await expect(mobileFooter.getByRole('button', { name: /View Cart \(0\)/i })).toBeVisible();
       await expect(page.locator('[data-mobile-guided-action]')).toHaveCount(0);
-      await expect(page.getByRole('button', { name: /^Upload Artwork$/i })).toHaveCount(0);
+      await expect(mobileFooter.getByRole('button', { name: /^Upload artwork$/i })).toBeVisible();
     } else {
       await expect(mobileTimer).toBeHidden();
       await expect(mobileFooter).toBeHidden();

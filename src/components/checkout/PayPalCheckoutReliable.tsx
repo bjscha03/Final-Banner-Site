@@ -43,6 +43,7 @@ import type {
 import { togglePayPalCardFields } from './paypalCardDisclosure';
 
 interface PayPalCheckoutProps {
+  orderSummary?: React.ReactNode;
   total: number;
   onSuccess: (orderId: string, orderData?: any) => void;
   onError: (error: any) => void;
@@ -304,6 +305,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
   resumeCheckout = null,
   onPaymentStateChange,
   onCanonicalQuote,
+  orderSummary,
 }) => {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -1311,6 +1313,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
             }}
           >
             <PayPalCardFieldsForm />
+            {orderSummary}
             <InlineCardSubmit
               disabled={buttonsDisabled}
               beforeSubmit={() => prepareCustomerForPayment('card')}
@@ -1328,6 +1331,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
           <strong>Deploy Preview Test Checkout:</strong> Create an order without processing a real payment.
         </div>
         {renderCustomerDetails()}
+        {orderSummary}
         <Button
           onClick={handleTestPayment}
           disabled={disabled || isPreparing}
@@ -1355,8 +1359,9 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
 
   if (!paypalConfig?.enabled || !paypalConfig.clientId || !paypalConfig.clientToken) {
     return (
-      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-        Secure checkout is temporarily unavailable. Please refresh the page or contact support.
+      <div className="space-y-4">
+        <div role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Secure checkout is temporarily unavailable. Please refresh the page or contact support.</div>
+        {orderSummary}
       </div>
     );
   }
@@ -1429,6 +1434,7 @@ const PayPalCheckoutReliable: React.FC<PayPalCheckoutProps> = ({
           <p className="mb-3 text-xs text-gray-600">
             {paypalOnly ? 'Complete your order securely with PayPal.' : 'Pay securely by card or PayPal. No PayPal account required.'}
           </p>
+          {(!cardFieldsExpanded || paypalOnly) && orderSummary}
           {paypalOnly ? (
             renderPayPalButton()
           ) : cardFirstLayout ? (

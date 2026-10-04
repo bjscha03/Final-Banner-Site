@@ -43,6 +43,9 @@ const ROPE_PLACEMENTS: { value: RopePlacement; label: string }[] = [
 
 export interface FinishingOptionsCardProps {
   compact?: boolean;
+  /** A required, explicit choice, including hem only. */
+  explicitChoice?: boolean;
+  choiceConfirmed?: boolean;
   finishingType: FinishingType;
   setFinishingType: (v: FinishingType) => void;
   /** Grommet placement value — can be 'none' when type is 'grommets' but user hasn't chosen */
@@ -62,6 +65,8 @@ export interface FinishingOptionsCardProps {
 // ---------------------------------------------------------------------------
 const FinishingOptionsCard: React.FC<FinishingOptionsCardProps> = ({
   compact = false,
+  explicitChoice = false,
+  choiceConfirmed = true,
   finishingType,
   setFinishingType,
   grommets,
@@ -100,7 +105,7 @@ const FinishingOptionsCard: React.FC<FinishingOptionsCardProps> = ({
 
   const selectGrommets = () => {
     // Toggle off if already selected
-    if (finishingType === 'grommets') {
+    if (finishingType === 'grommets' && !explicitChoice) {
       clearFinishing();
       return;
     }
@@ -115,7 +120,7 @@ const FinishingOptionsCard: React.FC<FinishingOptionsCardProps> = ({
   };
 
   const selectPolePockets = () => {
-    if (finishingType === 'pole_pockets') {
+    if (finishingType === 'pole_pockets' && !explicitChoice) {
       clearFinishing();
       return;
     }
@@ -127,7 +132,7 @@ const FinishingOptionsCard: React.FC<FinishingOptionsCardProps> = ({
   };
 
   const selectRope = () => {
-    if (finishingType === 'rope') {
+    if (finishingType === 'rope' && !explicitChoice) {
       clearFinishing();
       return;
     }
@@ -168,7 +173,7 @@ const FinishingOptionsCard: React.FC<FinishingOptionsCardProps> = ({
               aria-label="Grommet placement"
               value={grommets}
               onChange={(e) => setGrommets(e.target.value)}
-              className="w-52 max-w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-52 max-w-full border border-gray-300 rounded-lg px-3 min-h-11 py-2 text-base bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
               {grommetOptions.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -198,7 +203,7 @@ const FinishingOptionsCard: React.FC<FinishingOptionsCardProps> = ({
               aria-label="Pole pocket placement"
               value={polePockets === 'none' ? 'top' : polePockets}
               onChange={(e) => setPolePockets(e.target.value)}
-              className="w-52 max-w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-52 max-w-full border border-gray-300 rounded-lg px-3 min-h-11 py-2 text-base bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
               {POLE_POCKET_PLACEMENTS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -228,7 +233,7 @@ const FinishingOptionsCard: React.FC<FinishingOptionsCardProps> = ({
               aria-label="Rope placement"
               value={ropePlacement}
               onChange={(e) => setRopePlacement(e.target.value as RopePlacement)}
-              className="w-52 max-w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-52 max-w-full border border-gray-300 rounded-lg px-3 min-h-11 py-2 text-base bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
               {ROPE_PLACEMENTS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -239,6 +244,13 @@ const FinishingOptionsCard: React.FC<FinishingOptionsCardProps> = ({
           </div>
         )}
       </FinishingCard>
+
+      {explicitChoice && (
+        <FinishingCard compact active={choiceConfirmed && finishingType === 'none'}
+          onClick={clearFinishing} title="No hanging hardware" badge="Hem only · Free"
+          description="A finished, heat-welded hem without grommets, pole pockets or rope."
+          imageSrc="" calloutText="" />
+      )}
 
       {/* ── Hemming footer ───────────────────────────────────────── */}
       <div className="flex items-center gap-3 rounded-xl bg-blue-50 border border-blue-100 px-4 py-3">
@@ -296,7 +308,7 @@ const FinishingCard: React.FC<FinishingCardProps> = ({
     <button type="button" aria-pressed={active} onClick={onClick} className="flex min-h-16 w-full items-center gap-3 px-3 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-orange-600">
       <span aria-hidden="true" className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${active ? 'border-orange-600' : 'border-slate-300'}`}>{active && <span className="h-2.5 w-2.5 rounded-full bg-orange-600" />}</span>
       <span className="min-w-0 flex-1"><span className="block text-sm font-bold text-slate-900">{title}</span><span className="block text-xs text-slate-600">{badge || priceLabel}</span></span>
-      <img src={imageSrc} alt="" className="h-12 w-14 shrink-0 rounded object-cover" loading="lazy" />
+      {imageSrc && <img src={imageSrc} alt="" className="h-12 w-14 shrink-0 rounded object-cover" loading="lazy" />}
     </button>
     {active && <div className="px-4 pb-3">{children}</div>}
     <details className="border-t border-slate-100 px-3 text-xs text-slate-600"><summary className="cursor-pointer py-2">About {title.toLowerCase()}</summary><p className="pb-3">{description}</p></details>

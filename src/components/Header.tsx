@@ -13,11 +13,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 interface HeaderProps {
+  compactMobile?: boolean;
   cartCount?: number;
   onCartClick?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
+const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobile = false }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const { user, loading, signOut } = useAuth();
@@ -97,7 +98,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
     >
       {!isHomepage && <div className="h-1 bg-[#F45B08]" />}
       <div className="mx-auto max-w-[1740px] px-4 sm:px-6 lg:px-8">
-        <div className={isHomepage ? 'flex h-[72px] items-center justify-between lg:h-[92px]' : 'flex h-[72px] items-center justify-between lg:h-[78px]'}>
+        <div className={isHomepage ? 'flex h-[72px] items-center justify-between lg:h-[92px]' : compactMobile ? 'flex h-[52px] items-center justify-between lg:h-[78px]' : 'flex h-[72px] items-center justify-between lg:h-[78px]'}>
           {/* Compact navigation for mobile and tablet */}
           <div className="flex items-center w-12 lg:hidden" ref={menuRef}>
             <button
@@ -253,7 +254,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
                 alt="Banners On The Fly"
                 width="248"
                 height="70"
-                className={isHomepage ? 'h-10 w-auto max-w-[205px] object-contain sm:h-12 sm:max-w-[260px] lg:h-[58px]' : 'h-10 w-auto max-w-[205px] object-contain sm:h-12 sm:max-w-[250px] lg:h-[54px]'}
+                className={isHomepage ? 'h-10 w-auto max-w-[205px] object-contain sm:h-12 sm:max-w-[260px] lg:h-[58px]' : compactMobile ? 'h-8 w-auto max-w-[175px] object-contain sm:max-w-[220px] lg:h-[54px]' : 'h-10 w-auto max-w-[205px] object-contain sm:h-12 sm:max-w-[250px] lg:h-[54px]'}
               />
             </ScrollToTopLink>
           </div>
