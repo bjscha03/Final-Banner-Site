@@ -32,6 +32,13 @@ async function memberForSession(sql, event) {
     throw Object.assign(new Error("Sign in to see your BOF Cash."), {
       statusCode: 401,
     });
+  // Password-only site administration uses "server-admin", not a profile ID.
+  // It cannot own a customer wallet and must never reach Postgres' UUID cast.
+  if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(session.sub))
+    throw Object.assign(
+      new Error("Open your BOF Cash invitation or sign in to your customer account."),
+      { statusCode: 409 },
+    );
   const rows =
     await sql`SELECT p.id,p.email,p.full_name,p.username,p.is_admin,p.email_verified,m.code,m.enabled
     FROM profiles p LEFT JOIN bof_members m ON m.user_id=p.id

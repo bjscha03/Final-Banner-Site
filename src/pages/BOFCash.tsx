@@ -34,6 +34,10 @@ type WalletData = {
 export default function BOFCash() {
   const { code: publicCode } = useParams();
   const { user } = useAuth();
+  // The password-only admin session has no customer profile or wallet.
+  const hasCustomerSession =
+    !!user?.id &&
+    /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(user.id);
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [walletSnapshot, setWalletSnapshot] = useState<{ ownerId: string; data: WalletData } | null>(null);
   // Never display one account's wallet while another account is loading, or
@@ -50,7 +54,7 @@ export default function BOFCash() {
     if (wallet?.joined && shareChannel)
       document.getElementById("share")?.scrollIntoView({ block: "start" });
   }, [wallet?.joined, shareChannel]);
-  const [claimToken] = useState(() =>
+  const [claimToken, setClaimToken] = useState(() =>
     new URLSearchParams(window.location.hash.slice(1)).get("claim"),
   );
   useEffect(() => {
@@ -60,7 +64,7 @@ export default function BOFCash() {
   const load = async () => {
     const status = await bofRequest("status");
     setEnabled(status.enabled);
-    if (status.enabled && user) setWalletSnapshot({ ownerId: user.id, data: await bofRequest("wallet") });
+    if (status.enabled && user && hasCustomerSession) setWalletSnapshot({ ownerId: user.id, data: await bofRequest("wallet") });
   };
   useEffect(() => {
     let live = true;
@@ -69,7 +73,9 @@ export default function BOFCash() {
       .then(async (status) => {
         if (!live) return;
         setEnabled(status.enabled);
-        if (status.enabled && user && !publicCode) {
+        // An email invitation may belong to a different customer than the
+        // current session. Claim it explicitly before loading that wallet.
+        if (status.enabled && user && hasCustomerSession && !publicCode && !claimToken) {
           const data = await bofRequest("wallet");
           if (live) setWalletSnapshot({ ownerId: user.id, data });
         }
@@ -86,7 +92,7 @@ export default function BOFCash() {
     return () => {
       live = false;
     };
-  }, [user?.id, publicCode]);
+  }, [user?.id, hasCustomerSession, publicCode, claimToken]);
   const act = async (fn: () => Promise<void>) => {
     setBusy(true);
     setError("");
@@ -104,6 +110,7 @@ export default function BOFCash() {
       const result = await bofRequest("claim", { token: claimToken });
       setServerSessionToken(result.sessionToken);
       safeStorage.setItem("banners_current_user", JSON.stringify(result.user));
+      setClaimToken(null);
       window.dispatchEvent(new Event("user-changed"));
       setMessage(
         "Your referral link is ready. Share it below to start earning BOF Cash.",
@@ -210,7 +217,7 @@ export default function BOFCash() {
         {enabled &&
           !publicCode &&
           !wallet?.joined &&
-          (!user || claimToken || wallet !== null) && (
+          (!hasCustomerSession || claimToken || wallet !== null) && (
             <section className="my-6 rounded-2xl border bg-white p-6 sm:p-8">
               <h2 className="text-xl font-bold">
                 {claimToken
@@ -233,7 +240,7 @@ export default function BOFCash() {
                     : "Activate BOF Cash & Start Sharing"}
                 </Button>
               )}
-              {user && !claimToken && (
+              {hasCustomerSession && !claimToken && (
                 <Button
                   disabled={busy}
                   onClick={() =>
@@ -246,7 +253,7 @@ export default function BOFCash() {
                   Activate BOF Cash & Start Sharing
                 </Button>
               )}
-              {(!user || claimToken) && (
+              {(!hasCustomerSession || claimToken) && (
                 <form
                   className="max-w-md space-y-3"
                   onSubmit={(e) => {

@@ -43,6 +43,15 @@ it("rejects an unsigned wallet request, including forged user/admin body fields"
   expect(response.statusCode).toBe(401);
   expect(query).not.toHaveBeenCalled();
 });
+it("does not cast the site-admin session into a customer UUID", async () => {
+  const token = auth.createSessionToken({ id: "server-admin", email: "", is_admin: true });
+  const e = event("wallet");
+  e.headers.authorization = "Bearer " + token;
+  const response = await handler(e);
+  expect(response.statusCode).toBe(409);
+  expect(parse(response).error).toContain("customer account");
+  expect(query).not.toHaveBeenCalled();
+});
 it("does not send an invitation before launch even for a real admin session", async () => {
   delete process.env.BOF_REFERRAL_ENABLED;
   const token = auth.createSessionToken({
