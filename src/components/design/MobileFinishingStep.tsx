@@ -31,7 +31,7 @@ export default function MobileFinishingStep({ open, onBack, children, preview, s
         <Dialog.Overlay className="fixed inset-0 z-[60] bg-slate-950/40" />
         <Dialog.Content
           data-testid="mobile-finishing-step"
-          className="fixed inset-0 z-[60] flex h-[100dvh] flex-col bg-slate-50 text-[#0B1F3A] focus:outline-none"
+          className="fixed inset-0 z-[60] flex h-[100dvh] flex-col bg-slate-50 text-[#0B1F3A] focus:outline-none [@media(max-height:600px)]:block [@media(max-height:600px)]:overflow-y-auto"
           onEscapeKeyDown={(event) => { if (busy) event.preventDefault(); }}
           onPointerDownOutside={(event) => event.preventDefault()}
           onCloseAutoFocus={(event) => {
