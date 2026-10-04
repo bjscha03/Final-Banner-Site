@@ -112,7 +112,7 @@ export default function MobileSubtotalBar({
             {promotionNote && <p data-testid="mobile-applied-discount" className="text-[11px] font-bold leading-tight text-emerald-700">{promotionNote}</p>}
             <ShippingBenefitBadge variant="sticky" className="shrink-0 !border-0 !bg-transparent !p-0 [&>svg]:h-3.5 [&>svg]:w-3.5 [&_p]:text-[10px] [&_p>span:first-child]:inline" />
           </div>
-          <button type="button" data-banner-primary-action onClick={primaryAction.onClick} disabled={primaryAction.disabled} className="mt-2 inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-[#FF6A00] px-4 py-2 text-base font-bold text-[#061A31] focus-visible:ring-2 focus-visible:ring-[#061A31] disabled:opacity-60">{primaryAction.label}</button>
+          <button type="button" data-banner-primary-action onClick={primaryAction.onClick} disabled={primaryAction.disabled} className="mt-2 inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-[#FF6A00] px-4 py-2 text-base font-bold text-white focus-visible:ring-2 focus-visible:ring-[#061A31] disabled:opacity-60">{primaryAction.label}</button>
         </>}
       </div>
     </>

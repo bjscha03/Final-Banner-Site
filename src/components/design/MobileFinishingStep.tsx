@@ -71,7 +71,7 @@ export default function MobileFinishingStep({ open, onBack, children, preview, s
                 <button type="button" disabled={busy} onClick={onViewCart} className="min-h-11 px-2 text-sm font-semibold underline underline-offset-4 disabled:opacity-50">View cart ({cartItemCount})</button>
               </div>
               {promotionNote && <p className="mb-2 text-xs font-semibold text-emerald-700">{promotionNote}</p>}
-              <button type="button" onClick={onCheckout} disabled={!ready || busy} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#FF6A00] px-4 py-3 text-base font-bold text-[#061A31] disabled:bg-slate-200 disabled:text-slate-500">
+              <button type="button" onClick={onCheckout} disabled={!ready || busy} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#FF6A00] px-4 py-3 text-base font-bold text-white disabled:bg-slate-200 disabled:text-slate-500">
                 {busy ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving your design…</> : ready ? <>Continue to checkout <ArrowRight className="h-4 w-4" /></> : 'Choose a finishing option'}
               </button>
               <button type="button" onClick={onAddAnother} disabled={!ready || busy} className="mt-1 min-h-11 w-full px-4 text-sm font-semibold text-[#18448D] disabled:text-slate-400">{editing ? 'Save & design another' : 'Add & design another'}</button>

@@ -49,6 +49,7 @@ test('banner finishing preserves the artwork, price and cart through add-another
   const size = page.locator('#size-section');
   if (mobile) {
     await expect(footer.getByRole('button', { name: 'Upload artwork', exact: true })).toBeVisible();
+    await expect(footer.getByRole('button', { name: 'Upload artwork', exact: true })).toHaveCSS('color', 'rgb(255, 255, 255)');
     await expect(footer.getByRole('button', { name: 'View cart (0)', exact: true })).toBeVisible();
     await expect(page.locator('#options-section')).toHaveCount(0);
     await expect(page.getByTestId('mobile-banner-hero')).toContainText('Estimated delivery');
@@ -128,6 +129,21 @@ test('banner finishing preserves the artwork, price and cart through add-another
   if (mobile) {
     await expect.poll(() => finish.locator('[data-realistic-grommet]').count()).toBeGreaterThan(4);
     await expect(finish.locator('[data-realistic-pocket]')).toHaveCount(0);
+    await expect(finish.getByRole('button', { name: 'Continue to checkout', exact: true })).toHaveCSS('color', 'rgb(255, 255, 255)');
+    const inlinePreview = finish.getByTestId('finishing-realistic-preview');
+    const inlineWidth = (await inlinePreview.locator('[data-realistic-scene]').boundingBox())!.width;
+    const hardwareCount = await inlinePreview.locator('[data-realistic-grommet]').count();
+    const artworkStyle = await inlinePreview.getByAltText('Your artwork with the selected finishing').getAttribute('style');
+    await inlinePreview.getByRole('button', { name: 'Enlarge realistic preview', exact: true }).click();
+    const expandedPreview = page.getByTestId('finishing-realistic-lightbox');
+    await expect(expandedPreview).toBeVisible();
+    await expect(expandedPreview.locator('[data-realistic-grommet]')).toHaveCount(hardwareCount);
+    await expect(expandedPreview.getByAltText('Your artwork with the selected finishing')).toHaveAttribute('style', artworkStyle!);
+    expect((await expandedPreview.locator('[data-realistic-scene]').boundingBox())!.width).toBeGreaterThan(inlineWidth);
+    await expandedPreview.getByRole('button', { name: 'Close preview', exact: true }).click();
+    await expect(expandedPreview).toHaveCount(0);
+    await expect(finish).toBeVisible();
+    await expect(choices.getByRole('button', { name: /Grommets/ })).toHaveAttribute('aria-pressed', 'true');
     if (page.viewportSize()!.height > 600) {
       const previewBox = (await finish.getByTestId('finishing-realistic-preview').boundingBox())!;
       const optionsBox = (await finish.getByTestId('finishing-options-scroll').boundingBox())!;
@@ -187,4 +203,18 @@ test('banner finishing preserves the artwork, price and cart through add-another
   await expect(page.locator('[data-realistic-lightbox]')).toBeVisible();
   await expect(page.locator('[data-realistic-lightbox] [data-realistic-grommet]')).toHaveCount(await firstItem.locator('[data-realistic-grommet]').count());
   await page.getByRole('button', { name: 'Close preview', exact: true }).click();
+});
+
+
+test('every banner designer route uses the shared mobile ordering controls', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'webkit-iphone15pro-portrait', 'Shared route coverage on mobile Safari; the complete flow runs on all browsers.');
+  await installUploadAndFunctionHarness(page, 'banner-route-coverage');
+  for (const route of ['/design', '/design?product=banner', '/halloween-banner', '/large-banners-fast', '/double-sided-banners', '/fall-festival-banners']) {
+    await page.goto(route, { waitUntil: 'domcontentloaded' });
+    const uploadButton = page.getByTestId('mobile-subtotal-bar').getByRole('button', { name: 'Upload artwork', exact: true });
+    await expect(uploadButton).toBeVisible();
+    await expect(uploadButton).toHaveCSS('color', 'rgb(255, 255, 255)');
+    await expect(page.locator('#upload-section')).toHaveCount(1);
+    await expect(page.locator('#options-section')).toHaveCount(0);
+  }
 });
