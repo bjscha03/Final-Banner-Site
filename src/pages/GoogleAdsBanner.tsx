@@ -3620,8 +3620,7 @@ const GoogleAdsBanner: React.FC = () => {
           onCheckout={() => { if (finishingChoiceConfirmed) void prepareAndRoutePlacement('checkout', mobileFinishingSource); }}
           onAddAnother={() => { if (finishingChoiceConfirmed) void prepareAndRoutePlacement('cart', mobileFinishingSource); }}
           summary={<>{bannerSummary}<HeroDeliveryStatus variant="light" /><SameDayHitServiceCard variant="compact" previewHasPrice={Boolean(uploadedFile)} previewSubtotalCents={bannerPricing.subtotalBeforeDiscountCents} /></>}
-        >
-          {uploadedFile && finishingPreviewTransform && <LiveFinishingPreview
+          preview={uploadedFile && finishingPreviewTransform && <LiveFinishingPreview
             src={uploadedFile.previewUrl || uploadedFile.thumbnailUrl || uploadedFile.url}
             transform={finishingPreviewTransform}
             choiceConfirmed={finishingChoiceConfirmed}
@@ -3635,6 +3634,7 @@ const GoogleAdsBanner: React.FC = () => {
               pole_pocket_cost_cents: 0, line_total_cents: 0,
             }}
           />}
+        >
           {bannerFinishingOptions}
           {(!activeCartPromo || activeCartPromo.code === 'NEW20') && firstOrderOffer.status === 'unavailable' && <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{firstOrderOffer.message} <button type="button" onClick={firstOrderOffer.retry} className="min-h-11 font-semibold underline">Retry offer</button></p>}
         </MobileFinishingStep>

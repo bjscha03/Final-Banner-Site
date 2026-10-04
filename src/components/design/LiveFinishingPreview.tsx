@@ -20,9 +20,9 @@ export default function LiveFinishingPreview({ item, src, transform, choiceConfi
         : 'Hem only · No hanging hardware';
   const ratio = Math.max(0.9, Math.min(1.8, item.width_in / item.height_in));
   return (
-    <section className="sticky top-0 z-10 rounded-xl border border-slate-200 bg-white p-3 shadow-sm [@media(max-height:600px)]:static" aria-label="Realistic preview" data-testid="finishing-realistic-preview">
+    <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm" aria-label="Realistic preview" data-testid="finishing-realistic-preview">
       <h2 className="mb-2 text-sm font-bold">Realistic preview</h2>
-      <div className="mx-auto overflow-hidden rounded-lg" style={{ maxWidth: `min(100%, calc(28dvh * ${ratio}))` }}>
+      <div className="mx-auto overflow-hidden rounded-lg" style={{ maxWidth: `min(100%, calc(20dvh * ${ratio}))` }}>
         <RealisticBannerScene item={item} artwork={
           <div className="relative overflow-hidden bg-white">
             <img src={src} alt="Your artwork with the selected finishing" className="absolute inset-0 h-full w-full object-contain" style={{

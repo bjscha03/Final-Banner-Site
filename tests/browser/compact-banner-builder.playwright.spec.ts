@@ -128,6 +128,12 @@ test('banner finishing preserves the artwork, price and cart through add-another
   if (mobile) {
     await expect.poll(() => finish.locator('[data-realistic-grommet]').count()).toBeGreaterThan(4);
     await expect(finish.locator('[data-realistic-pocket]')).toHaveCount(0);
+    if (page.viewportSize()!.height > 600) {
+      const previewBox = (await finish.getByTestId('finishing-realistic-preview').boundingBox())!;
+      const optionsBox = (await finish.getByTestId('finishing-options-scroll').boundingBox())!;
+      expect(optionsBox.y).toBeGreaterThanOrEqual(previewBox.y + previewBox.height);
+      expect(optionsBox.height).toBeGreaterThan(88);
+    }
     await finish.getByTestId('finishing-realistic-preview').screenshot({ path: testInfo.outputPath('finishing-realistic-preview.png') });
   }
   if (mobile) {
@@ -172,7 +178,9 @@ test('banner finishing preserves the artwork, price and cart through add-another
   const firstItem = artworkItems.first();
   const printPreview = firstItem.locator('[data-commerce-preview]');
   await expect(printPreview).toHaveAttribute('data-preview-ready', 'true');
-  expect((await printPreview.boundingBox())!.width).toBeGreaterThan((await firstItem.boundingBox())!.width * 0.8);
+  // Landscape phones bound large previews by viewport height to preserve their aspect ratio.
+  const expectedWidth = Math.min((await firstItem.boundingBox())!.width, (page.viewportSize()!.height - 160) * 2, 600);
+  expect((await printPreview.boundingBox())!.width).toBeGreaterThan(expectedWidth * 0.8);
   await expect(firstItem.getByText('Realistic preview', { exact: true })).toBeVisible();
   await firstItem.screenshot({ path: testInfo.outputPath('checkout-large-previews.png') });
   await firstItem.getByRole('button', { name: /Enlarge realistic preview/ }).click();
