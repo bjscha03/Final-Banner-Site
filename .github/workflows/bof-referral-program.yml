@@ -5,6 +5,7 @@ on:
       - 'src/**'
       - 'netlify/functions/**'
       - 'migrations/045_bof_referral_program.sql'
+      - 'migrations/046_bof_activation_exceptions.sql'
       - 'tests/browser/bof-*.playwright.spec.ts'
       - 'playwright.bof-referrals.config.ts'
       - '.github/workflows/bof-referral-program.yml'

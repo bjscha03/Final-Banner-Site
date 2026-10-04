@@ -111,6 +111,7 @@ CREATE TABLE orders(id uuid PRIMARY KEY,user_id uuid REFERENCES profiles(id),ema
       "utf8",
     ),
   );
+  await db.exec(await readFile(new URL("../../../migrations/046_bof_activation_exceptions.sql", import.meta.url), "utf8"));
 }, 30000);
 afterAll(async () => {
   delete process.env.BOF_REFERRAL_ENABLED;
@@ -547,6 +548,90 @@ describe("Atomic ledger", () => {
 });
 
 describe("Guest claiming and membership", () => {
+  const exceptionProfile = async (address) => {
+    const id = randomUUID();
+    await db.query("INSERT INTO profiles(id,email) VALUES($1,$2)", [id, address]);
+    await db.query("INSERT INTO bof_activation_exceptions(user_id,email,reason) VALUES($1,$2,'Owner-approved test')", [id, address]);
+    return id;
+  };
+  it("sends one secure access email to the approved account and skips unapproved accounts", async () => {
+    const address = "approved-email@example.com";
+    await exceptionProfile(address);
+    const sent = [];
+    vi.stubEnv("AUTH_SESSION_SECRET", "isolated-owner-access-secret");
+    vi.stubEnv("RESEND_API_KEY", "re_isolated_no_network");
+    vi.stubGlobal("fetch", async (url, options) => {
+      if (String(url) !== "https://api.resend.com/emails") throw new Error("Unexpected request");
+      sent.push(JSON.parse(options.body));
+      return new Response(JSON.stringify({ id: "isolated-access-email" }), { status: 200 });
+    });
+    try {
+      await email.sendAccess(sql, "unapproved-email@example.com");
+      expect(sent).toHaveLength(0);
+      await email.sendAccess(sql, address);
+      expect(sent).toHaveLength(1);
+      expect(sent[0]).toMatchObject({ to: address, subject: "Your secure BOF Cash sign-in link" });
+      expect(sent[0].text).toContain("expires in 15 minutes and works once");
+      const link = sent[0].text.match(/https:\/\/[^\s]+#claim=([^\s]+)/)[1];
+      const invitation = (await db.query("SELECT email,claimed_at FROM bof_invitations WHERE token_hash=$1", [email.hash(link)])).rows[0];
+      expect(invitation).toEqual({ email: address, claimed_at: null });
+    } finally {
+      vi.unstubAllEnvs();
+      vi.unstubAllGlobals();
+    }
+  });
+  it("activates only the approved existing account without creating orders or cash", async () => {
+    const address = "approved-owner@example.com";
+    const id = await exceptionProfile(address);
+    expect(await service.canActivate(sql, " Approved-Owner@Example.com ")).toBe(true);
+    expect(await email.isCustomer(sql, address)).toBe(false);
+    await db.query("INSERT INTO bof_invitations(id,email,token_hash,expires_at) VALUES($1,$2,'owner-exception-link',now()+interval '15 minutes')", [randomUUID(), address]);
+    const claimed = (await db.query("SELECT * FROM bof_claim_invitation('owner-exception-link','ABCDEF123457')")).rows[0];
+    expect(claimed).toMatchObject({ id, email: address, is_admin: false });
+    expect((await db.query("SELECT email_verified FROM profiles WHERE id=$1", [id])).rows[0].email_verified).toBe(true);
+    expect((await db.query("SELECT count(*)::integer AS n FROM orders WHERE user_id=$1 OR email=$2", [id, address])).rows[0].n).toBe(0);
+    expect((await service.wallet(sql, id)).availableCents).toBe(0);
+    await expect(db.query("SELECT * FROM bof_claim_invitation('owner-exception-link','ABCDEF123457')")).rejects.toThrow("BOF_LINK_EXPIRED");
+  });
+  it("uses the same exception for signed-in enrollment and preserves the paid-order requirement for everyone else", async () => {
+    const address = "approved-join@example.com";
+    const id = await exceptionProfile(address);
+    expect((await service.join(sql, { id, email: address })).user_id).toBe(id);
+    const outsider = "unapproved-owner@example.com";
+    const outsiderId = randomUUID();
+    await db.query("INSERT INTO profiles(id,email) VALUES($1,$2)", [outsiderId, outsider]);
+    expect(await service.canActivate(sql, outsider)).toBe(false);
+    await expect(service.join(sql, { id: outsiderId, email: outsider })).rejects.toThrow("BOF Cash opens after your first paid order.");
+    await db.query("INSERT INTO bof_invitations(id,email,token_hash,expires_at) VALUES($1,$2,'unapproved-link',now()+interval '15 minutes')", [randomUUID(), outsider]);
+    await expect(db.query("SELECT * FROM bof_claim_invitation('unapproved-link','ABCDEF123458')")).rejects.toThrow("BOF_CUSTOMER_REQUIRED");
+    const testOrder = await newOrder(outsider, "paid");
+    await db.query("UPDATE orders SET is_test_order=true WHERE id=$1", [testOrder]);
+    expect(await service.canActivate(sql, outsider)).toBe(false);
+    await newOrder(outsider, "paid");
+    expect(await service.canActivate(sql, outsider)).toBe(true);
+  });
+  it("rejects revoked, renamed, replacement, and admin exception accounts", async () => {
+    const address = "revocable-owner@example.com";
+    const id = await exceptionProfile(address);
+    const duplicateId = randomUUID();
+    await db.query("INSERT INTO profiles(id,email) VALUES($1,$2)", [duplicateId, address.toUpperCase()]);
+    expect(await service.canActivate(sql, address)).toBe(false);
+    await db.query("DELETE FROM profiles WHERE id=$1", [duplicateId]);
+    await db.query("UPDATE bof_activation_exceptions SET revoked_at=now() WHERE user_id=$1", [id]);
+    expect(await service.canActivate(sql, address)).toBe(false);
+    await db.query("UPDATE bof_activation_exceptions SET revoked_at=NULL WHERE user_id=$1", [id]);
+    await db.query("UPDATE profiles SET email='renamed-owner@example.com' WHERE id=$1", [id]);
+    expect(await service.canActivate(sql, address)).toBe(false);
+    expect(await service.canActivate(sql, "renamed-owner@example.com")).toBe(false);
+    const replacementId = randomUUID();
+    await db.query("INSERT INTO profiles(id,email) VALUES($1,$2)", [replacementId, address]);
+    expect(await service.canActivate(sql, address)).toBe(false);
+    await db.query("DELETE FROM profiles WHERE id=$1", [replacementId]);
+    await db.query("UPDATE profiles SET email=$2,is_admin=true WHERE id=$1", [id, address]);
+    expect(await service.canActivate(sql, address)).toBe(false);
+    await db.query("INSERT INTO bof_invitations(id,email,token_hash,expires_at) VALUES($1,$2,'exception-admin-link',now()+interval '15 minutes')", [randomUUID(), address]);
+    await expect(db.query("SELECT * FROM bof_claim_invitation('exception-admin-link','ABCDEF123459')")).rejects.toThrow("BOF_ADMIN_SIGN_IN_REQUIRED");
+  });
   it("omits the order-confirmation invitation after the customer has joined", async () => {
     process.env.BOF_REFERRAL_ENABLED = "true";
     try {

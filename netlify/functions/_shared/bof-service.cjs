@@ -99,11 +99,12 @@ async function wallet(sql, memberId) {
     reservations,
   };
 }
+async function canActivate(sql, email) {
+  const rows = await sql`SELECT bof_can_activate(${emailOf(email)}) AS eligible`;
+  return rows[0]?.eligible === true;
+}
 async function join(sql, person) {
-  const paid =
-    await sql`SELECT id FROM orders WHERE lower(btrim(email))=${emailOf(person.email)}
-    AND NOT coalesce(is_test_order,false) AND status IN ('paid','in_production','shipped','delivered','fulfilled') LIMIT 1`;
-  if (!paid.length)
+  if (!(await canActivate(sql, person.email)))
     fail(
       "BOF_CUSTOMER_REQUIRED",
       "BOF Cash opens after your first paid order.",
@@ -446,6 +447,7 @@ module.exports = {
   launched,
   isBofCode,
   memberForSession,
+  canActivate,
   wallet,
   join,
   validate,
