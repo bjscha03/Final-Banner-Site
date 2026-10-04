@@ -3,14 +3,14 @@ import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
 /** Short mobile introduction: the next content on the page is the builder. */
 export default function MobileBannerLandingHero() {
   return (
-    <section data-testid="mobile-banner-hero" className="border-b-4 border-[#FF6A00] bg-[#061A31] px-4 py-4 text-white lg:hidden">
+    <section data-testid="mobile-banner-hero" className="border-b-4 border-[#FF6A00] bg-[#061A31] px-4 py-3 text-white lg:hidden">
       <div className="mx-auto max-w-xl">
-        <h1 className="homepage-condensed [--homepage-mobile-size:2.5rem] text-[2.5rem] font-black leading-[1.02] tracking-tight">
+        <h1 className="homepage-condensed [--homepage-mobile-size:2rem] text-[2rem] font-black leading-[1.02] tracking-tight">
           Custom banners.<br /><span className="text-[#FF791F]">Without the wait.</span>
         </h1>
-        <p className="mt-1.5 text-sm font-medium text-sky-200">Upload. Preview. Order.</p>
-        <p className="mt-2 text-xs font-semibold text-orange-200">20% off your first order · Applied automatically</p>
-        <HeroDeliveryStatus variant="arrival" className="mt-3" />
+        <p className="mt-1 text-xs font-medium text-sky-200">Upload. Preview. Order.</p>
+        <p className="mt-1 text-[11px] font-semibold text-orange-200">20% off your first order · Applied automatically</p>
+        <HeroDeliveryStatus variant="arrival" className="mt-2" />
       </div>
     </section>
   );

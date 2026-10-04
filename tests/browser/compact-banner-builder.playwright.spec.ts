@@ -38,7 +38,9 @@ async function installUploadAndFunctionHarness(
     savedCarts: [],
   };
 
-  await page.route('**/*', async (route) => {
+  // Let multipart uploads go directly to the receiver. WebKit interception
+  // can strip Blob file bytes even when the route simply continues.
+  await page.route(url => url.pathname !== '/__compact-test-upload', async (route) => {
     const request = route.request();
     const url = new URL(request.url());
 
@@ -132,6 +134,11 @@ test('banner finishing preserves the artwork, price and cart through add-another
     await page.screenshot({ path: testInfo.outputPath('landing-first-screen.png') });
     const heroBox = await page.getByTestId('mobile-banner-hero').boundingBox();
     expect(heroBox!.height).toBeLessThan(330);
+    if (page.viewportSize()!.height >= 640) {
+      const dimensions = await page.getByLabel('Banner width feet').boundingBox();
+      const footerBox = await footer.boundingBox();
+      expect(dimensions!.y + dimensions!.height).toBeLessThanOrEqual(footerBox!.y);
+    }
     const proofBox = await page.getByTestId('mobile-banner-proof').boundingBox();
     const uploadBox = await page.locator('#upload-section').boundingBox();
     expect(proofBox!.y).toBeGreaterThan(uploadBox!.y + uploadBox!.height);

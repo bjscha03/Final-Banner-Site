@@ -3358,18 +3358,18 @@ const GoogleAdsBanner: React.FC = () => {
 
         <div className={compactMobileLanding ? "hidden lg:block" : undefined}><RealOrdersStrip expanded /></div>
 
-        <section ref={orderRef} id="order-builder" className={compactMobileLanding ? "bg-gray-50 px-4 py-4 lg:py-12" : "py-12 px-4 bg-gray-50"}>
+        <section ref={orderRef} id="order-builder" className={compactMobileLanding ? "bg-gray-50 px-4 py-3 lg:py-12" : "py-12 px-4 bg-gray-50"}>
           <div className="max-w-4xl lg:max-w-7xl mx-auto">
             <p className={`mb-3 text-center text-xs font-bold uppercase tracking-[0.18em] text-[#FF6A00] ${compactMobileLanding ? "hidden lg:block" : ""}`}>
               {isDoubleSidedBanner ? 'Double-sided · 18 oz vinyl' : isYardSign ? '24″ × 18″ yard signs' : isCarMagnet ? 'Custom car magnets' : 'Custom vinyl banners'}
             </p>
-            {compactMobileLanding && <p className="mb-3 flex items-center justify-between gap-2 text-xs font-medium text-slate-500 lg:hidden" aria-label="Ordering steps">
+            {compactMobileLanding && <p className="mb-2 flex items-center justify-between gap-2 text-xs font-medium text-slate-500 lg:hidden" aria-label="Ordering steps">
               <span className="font-bold text-orange-700" aria-current="step">1 Design</span><span aria-hidden="true">→</span><span>2 Finishing</span><span aria-hidden="true">→</span><span>3 Checkout</span>
             </p>}
             <h2
               ref={builderStartRef}
               id="builder-start"
-              className={compactMobileLanding ? "homepage-condensed [--homepage-mobile-size:2rem] mb-4 text-3xl font-bold text-[#061A31] scroll-mt-20 lg:mb-10 lg:bg-[#061A31] lg:px-4 lg:py-6 lg:text-center lg:text-5xl lg:uppercase lg:text-white" : "homepage-condensed bg-[#061A31] px-4 py-6 text-4xl md:text-5xl uppercase text-white font-bold text-center mb-10 scroll-mt-[140px] md:scroll-mt-24"}
+              className={compactMobileLanding ? "homepage-condensed [--homepage-mobile-size:1.5rem] mb-2 text-2xl font-bold text-[#061A31] scroll-mt-20 lg:mb-10 lg:bg-[#061A31] lg:px-4 lg:py-6 lg:text-center lg:text-5xl lg:uppercase lg:text-white" : "homepage-condensed bg-[#061A31] px-4 py-6 text-4xl md:text-5xl uppercase text-white font-bold text-center mb-10 scroll-mt-[140px] md:scroll-mt-24"}
             >
               {isLargeBannerLanding ? 'Build Your Large Banner' : isDoubleSidedBanner ? 'Build Your Double-Sided Banner' : isYardSign ? 'Build Your Yard Sign Order' : isCarMagnet ? 'Design Your Custom Car Magnets' : 'Build Your Banner'}
             </h2>
