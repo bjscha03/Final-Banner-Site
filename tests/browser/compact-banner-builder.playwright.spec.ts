@@ -169,7 +169,7 @@ test('banner finishing preserves the artwork, price and cart through add-another
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('cart-storage') || '{}').state.items);
   expect(stored).toHaveLength(1);
   expect(stored[0].grommets).toBe('every-2-3ft');
-  expect(stored[0].placement_preview.uploadStatus).toBe('ready');
+  expect(stored[0].placement_preview.uploadStatus).toBe('uploaded');
   const savedId = stored[0].id;
   const artifactResponse = await page.request.get(harness.artifactUrl);
   expect(artifactResponse.ok()).toBe(true);
