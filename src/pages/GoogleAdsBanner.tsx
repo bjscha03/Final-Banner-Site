@@ -2933,6 +2933,8 @@ const GoogleAdsBanner: React.FC = () => {
                     </div>
   );
   const sizeCard = (<ConfigCard
+                  className={compactMobileLanding ? '!p-3 lg:!p-6' : undefined}
+                  bodyClassName={compactMobileLanding ? '!mt-2 lg:!mt-4' : undefined}
                   popularPreset={isLargeBannerLanding ? { widthIn: 120, heightIn: 48 } : undefined}
                   step={1}
                   title={isCarMagnet ? "Choose your size" : isLargeBannerLanding ? "Choose your large banner size" : "Size & quantity"}
@@ -3369,7 +3371,7 @@ const GoogleAdsBanner: React.FC = () => {
             <h2
               ref={builderStartRef}
               id="builder-start"
-              className={compactMobileLanding ? "homepage-condensed [--homepage-mobile-size:1.5rem] mb-2 text-2xl font-bold text-[#061A31] scroll-mt-20 lg:mb-10 lg:bg-[#061A31] lg:px-4 lg:py-6 lg:text-center lg:text-5xl lg:uppercase lg:text-white" : "homepage-condensed bg-[#061A31] px-4 py-6 text-4xl md:text-5xl uppercase text-white font-bold text-center mb-10 scroll-mt-[140px] md:scroll-mt-24"}
+              className={compactMobileLanding ? "sr-only homepage-condensed scroll-mt-20 lg:not-sr-only lg:mb-10 lg:bg-[#061A31] lg:px-4 lg:py-6 lg:text-center lg:text-5xl lg:font-bold lg:uppercase lg:text-white" : "homepage-condensed bg-[#061A31] px-4 py-6 text-4xl md:text-5xl uppercase text-white font-bold text-center mb-10 scroll-mt-[140px] md:scroll-mt-24"}
             >
               {isLargeBannerLanding ? 'Build Your Large Banner' : isDoubleSidedBanner ? 'Build Your Double-Sided Banner' : isYardSign ? 'Build Your Yard Sign Order' : isCarMagnet ? 'Design Your Custom Car Magnets' : 'Build Your Banner'}
             </h2>
