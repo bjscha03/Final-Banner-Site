@@ -58,6 +58,10 @@ beforeAll(async () => {
     CREATE TABLE email_verifications(id uuid PRIMARY KEY,user_id uuid REFERENCES profiles(id),token text,expires_at timestamptz,verified boolean DEFAULT false,verified_at timestamptz,created_at timestamptz DEFAULT now());
     CREATE TABLE credit_purchases(id uuid PRIMARY KEY,user_id uuid REFERENCES profiles(id),credits_purchased integer,created_at timestamptz DEFAULT now());
     CREATE TABLE bof_members(user_id uuid PRIMARY KEY REFERENCES profiles(id),code text UNIQUE);`);
+  // This fixture covers signed-in membership; invitation claims have their own
+  // full-schema coverage in bof-program.test.mjs.
+  await db.exec(readFileSync(new URL('../../../migrations/046_bof_activation_exceptions.sql', import.meta.url), 'utf8')
+    .split('CREATE OR REPLACE FUNCTION bof_claim_invitation')[0]);
 }, 30000);
 afterAll(async () => {
   delete process.env.DATABASE_URL;

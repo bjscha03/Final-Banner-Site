@@ -87,3 +87,20 @@ Deployment-specific database/provider checks and the final release identifiers a
 - Facebook's external sharing page retained the full referral URL and code but required sign-in. The signed-in composer and Facebook-rendered card remain outside this session's visual verification. Public server metadata and automated button checks are verified; no Facebook post was published.
 - Deployed browser inspection caught the existing image integration's Cloudinary redirect. Both referral pages now permit the specific existing Cloudinary account in their image security policy; preview test images use the configured preview origin.
 - Live Stripe and PayPal webhook event configuration is enabled. Production activation and the final owner email remain gated on the final isolated provider checks and deployment verification.
+
+## Owner-approved activation exceptions
+
+Migration 046 adds a revocable activation grant bound to an existing profile ID
+and its exact normalized email. Grants are provisioned only through an authorized
+server-side database operation; there is no public grant endpoint. They allow
+secure access emails, invitation claims, and signed-in enrollment without a paid
+order. Claiming still verifies the email, rejects admin profiles, and consumes a
+single-use token. A renamed or replaced profile cannot inherit the grant.
+
+Apply migration 046 before deploying the corresponding server functions. An
+explicitly authorized grant records its reason in `bof_activation_exceptions`;
+set `revoked_at=now()` to remove that activation exception. Revoking a grant does
+not delete an already activated membership. Activation grants do not create
+orders or cash, alter balances, or change referral/payment rules. Automatic and
+promotional invitations continue to require a real paid order. Use the normal
+`request-link` flow to send an approved owner's transactional activation email.

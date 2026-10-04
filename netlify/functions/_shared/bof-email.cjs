@@ -165,7 +165,7 @@ async function rateLimit(sql, email, ip) {
   }
 }
 async function sendAccess(sql, email) {
-  if (!(await isCustomer(sql, email))) return;
+  if (!(await bof.canActivate(sql, email))) return;
   const stop = await suppression.findEmailSuppression(sql, email);
   if (
     stop?.suppressed &&
