@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import HeroDeliveryStatus from './HeroDeliveryStatus';
 
-function renderAt(isoTime: string, variant: 'compact' | 'editorial' | 'light' = 'compact'): string {
+function renderAt(isoTime: string, variant: 'compact' | 'editorial' | 'light' | 'arrival' = 'compact'): string {
   vi.useFakeTimers();
   vi.setSystemTime(new Date(isoTime));
 
@@ -15,7 +15,7 @@ afterEach(() => {
 });
 
 describe('HeroDeliveryStatus', () => {
-  it.each(['compact', 'light', 'editorial'] as const)('renders holiday dates without a reset countdown (%s)', (variant) => {
+  it.each(['compact', 'light', 'editorial', 'arrival'] as const)('renders holiday dates without a reset countdown (%s)', (variant) => {
     // Friday, September 4, 2026 at noon ET.
     const html = renderAt('2026-09-04T16:00:00.000Z', variant);
 
@@ -42,5 +42,14 @@ describe('HeroDeliveryStatus', () => {
     expect(html).not.toContain('data-state="weekend_lock"');
     expect(html).toContain('Wed, Sep 9');
     expect(html).toContain('Thu, Sep 10');
+  });
+
+  it('shows the actual arrival and ship dates in the compact mobile hero', () => {
+    const html = renderAt('2026-10-04T16:00:00.000Z', 'arrival');
+
+    expect(html).toContain('Estimated delivery');
+    expect(html).toContain('Tuesday, October 6');
+    expect(html).toContain('Expected to ship Monday, October 5');
+    expect(html).toContain('data-variant="arrival"');
   });
 });

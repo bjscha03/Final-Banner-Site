@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Star } from 'lucide-react';
+import { Star, Pause, Play } from 'lucide-react';
 import './GoogleReviewSpotlight.css';
 
 // Transcribed from the Google review screenshots supplied by the owner.
@@ -14,7 +14,8 @@ const reviews = [
   { name: 'janelle coulcher', text: 'I needed a banner fast for a retirement party for my brother in law out of state and they were great. He loved it and what a wonderful keepsake! 😊' },
 ];
 
-export default function GoogleReviewSpotlight() {
+export default function GoogleReviewSpotlight({ compactMobile = false }: { compactMobile?: boolean }) {
+  const [paused, setPaused] = useState(false);
   const [active, setActive] = useState(0);
   const [visible, setVisible] = useState(true);
   useEffect(() => {
@@ -24,12 +25,28 @@ export default function GoogleReviewSpotlight() {
     return () => document.removeEventListener('visibilitychange', syncVisibility);
   }, []);
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || paused) return;
     const timer = window.setInterval(() => setActive(index => (index + 1) % reviews.length), 4000);
     return () => window.clearInterval(timer);
-  }, [visible]);
+  }, [visible, paused]);
   return (
-    <section className="google-review-spotlight" aria-label="Customer Google reviews" aria-roledescription="carousel">
+    <section data-testid="google-reviews" className={`google-review-spotlight${compactMobile ? ' google-review-spotlight--compact-mobile' : ''}`} aria-label="Customer Google reviews" aria-roledescription="carousel">
+      {compactMobile && <div className="google-review-compact-inner">
+        <div className="shrink-0" aria-label="Google reviews, 5 out of 5 stars">
+          <p className="text-[10px] font-bold">Google reviews</p>
+          <div className="flex text-[#B76B00]" aria-hidden="true">{[0, 1, 2, 3, 4].map(star => <Star key={star} size={12} fill="currentColor" />)}</div>
+        </div>
+        <div className="google-review-marquee" aria-live="off">
+          <div className="google-review-marquee-track" style={{ animationPlayState: paused || !visible ? 'paused' : undefined }}>
+            {[false, true].map(duplicate => <div key={String(duplicate)} className="google-review-marquee-set" aria-hidden={duplicate || undefined}>
+              {reviews.map(review => <p key={review.name}>“{review.text}” <span className="text-slate-500">— {review.name}</span></p>)}
+            </div>)}
+          </div>
+        </div>
+        <button type="button" onClick={() => setPaused(value => !value)} aria-label={paused ? 'Play Google reviews' : 'Pause Google reviews'} aria-pressed={paused} className="flex h-11 w-11 shrink-0 items-center justify-center rounded text-slate-500 focus-visible:ring-2 focus-visible:ring-orange-600">
+          {paused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
+        </button>
+      </div>}
       <div className="google-review-inner">
         <div className="google-review-label">
           <span className="google-review-source">Google reviews</span>

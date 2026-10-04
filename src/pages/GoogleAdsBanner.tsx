@@ -1,3 +1,4 @@
+import MobileBannerLandingHero, { MobileBannerLandingProof } from '@/components/design/MobileBannerLandingHero';
 import GoogleReviewSpotlight from '@/components/design/GoogleReviewSpotlight';
 import LargeBannerSizeCards from '@/components/design/LargeBannerSizeCards';
 import { useAutomaticFirstOrderDiscount } from '@/hooks/useAutomaticFirstOrderDiscount';
@@ -397,6 +398,7 @@ const GoogleAdsBanner: React.FC = () => {
   const [productType, setProductType] = useState<ProductTypeSlug>(initialProductType);
   const isYardSign = productType === 'yard_sign';
   const isCarMagnet = productType === 'car_magnet';
+  const compactMobileLanding = !isYardSign && !isCarMagnet && !isLargeBannerLanding && !isDoubleSidedBanner && !isFallFestivalLanding;
 
   useEffect(() => {
     const slug = productType === 'yard_sign'
@@ -2844,63 +2846,9 @@ const GoogleAdsBanner: React.FC = () => {
                     <p className="text-xs text-gray-700 mt-1.5">Order 2+ for up to 13% off</p>
                   )}
                 </ConfigCard>);
-  const sizeCard = (<ConfigCard
-                  popularPreset={isLargeBannerLanding ? { widthIn: 120, heightIn: 48 } : undefined}
-                  step={1}
-                  title={isCarMagnet ? "Choose your size" : isLargeBannerLanding ? "Choose your large banner size" : "Size & quantity"}
-                  id="size-section"
-                  headerRight={!isCarMagnet ? (
-                    <div className="inline-flex items-center rounded-lg border border-gray-200 bg-white p-0.5 text-xs" role="group" aria-label="Display unit">
-                      <button
-                        type="button"
-                        aria-pressed={unit === 'in'}
-                        onClick={() => setUnit('in')}
-                        className={`px-2.5 py-1 rounded-md transition-colors ${unit === 'in' ? 'bg-orange-500 text-white font-semibold' : 'text-gray-600 hover:text-gray-800'}`}
-                      >
-                        Inches
-                      </button>
-                      <button
-                        type="button"
-                        aria-pressed={unit === 'ft'}
-                        onClick={() => setUnit('ft')}
-                        className={`px-2.5 py-1 rounded-md transition-colors ${unit === 'ft' ? 'bg-orange-500 text-white font-semibold' : 'text-gray-600 hover:text-gray-800'}`}
-                      >
-                        Feet
-                      </button>
-                    </div>
-                  ) : undefined}
-                >
-                  <div className={isCarMagnet || isLargeBannerLanding ? '' : 'grid lg:grid-cols-2 lg:gap-6'}>
-                    {isLargeBannerLanding ? <LargeBannerSizeCards widthIn={widthIn} heightIn={heightIn} unit={unit} material={material}
-                      onSelect={(w, h) => {
-                        setWidthFtStr(String(Math.floor(w / 12)));
-                        setWidthInRStr(String(w % 12));
-                        setHeightFtStr(String(Math.floor(h / 12)));
-                        setHeightInRStr(String(h % 12));
-                        setWidthCustomInStr(String(w));
-                        setHeightCustomInStr(String(h));
-                        const index = PRESET_SIZES.findIndex(p => p.w === w && p.h === h);
-                        setActivePreset(index >= 0 ? index : null);
-                        setHasConfirmedSize(true);
-                      }} /> : <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Popular Sizes</label>
-                      <div className="grid grid-cols-3 gap-2">
-                        {isCarMagnet
-                          ? CAR_MAGNET_SIZES.map((p) => (
-                              <button key={p.label} onClick={() => setCarMagnetSizeLabel(p.label)} className={`border rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${carMagnetSizeLabel === p.label ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
-                                {p.label}
-                              </button>
-                            ))
-                          : PRESET_SIZES.map((p, i) => (
-                              <button key={i} onClick={() => applyPreset(i)} className={`border rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${activePreset === i ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
-                                {formatPresetLabel(p.w, p.h, unit)}
-                              </button>
-                            ))}
-                      </div>
-                    </div>}
-                    {!isCarMagnet && (
-                    <div className={isLargeBannerLanding ? "mt-5 rounded-xl bg-slate-50 p-4" : "mt-6 lg:mt-0"}>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">{isLargeBannerLanding ? "Need a different size?" : "Custom Size"}</label>
+  const sizeDimensions = (
+                    <div className={isLargeBannerLanding ? "mt-5 rounded-xl bg-slate-50 p-4" : compactMobileLanding && !isLgScreen ? "mb-4" : "mt-6 lg:mt-0"}>
+                      <label className={compactMobileLanding && !isLgScreen ? "sr-only" : "block text-sm font-semibold text-gray-700 mb-2"}>{isLargeBannerLanding ? "Need a different size?" : "Custom Size"}</label>
                       {unit === 'in' ? (
                         <div className="grid grid-cols-2 gap-4">
                           <div>
@@ -2983,6 +2931,64 @@ const GoogleAdsBanner: React.FC = () => {
                         </div>
                       )}
                     </div>
+  );
+  const sizeCard = (<ConfigCard
+                  popularPreset={isLargeBannerLanding ? { widthIn: 120, heightIn: 48 } : undefined}
+                  step={1}
+                  title={isCarMagnet ? "Choose your size" : isLargeBannerLanding ? "Choose your large banner size" : "Size & quantity"}
+                  id="size-section"
+                  headerRight={!isCarMagnet ? (
+                    <div className="inline-flex items-center rounded-lg border border-gray-200 bg-white p-0.5 text-xs" role="group" aria-label="Display unit">
+                      <button
+                        type="button"
+                        aria-pressed={unit === 'in'}
+                        onClick={() => setUnit('in')}
+                        className={`px-2.5 py-1 rounded-md transition-colors ${unit === 'in' ? 'bg-orange-500 text-white font-semibold' : 'text-gray-600 hover:text-gray-800'}`}
+                      >
+                        Inches
+                      </button>
+                      <button
+                        type="button"
+                        aria-pressed={unit === 'ft'}
+                        onClick={() => setUnit('ft')}
+                        className={`px-2.5 py-1 rounded-md transition-colors ${unit === 'ft' ? 'bg-orange-500 text-white font-semibold' : 'text-gray-600 hover:text-gray-800'}`}
+                      >
+                        Feet
+                      </button>
+                    </div>
+                  ) : undefined}
+                >
+                  <div className={isCarMagnet || isLargeBannerLanding ? '' : 'grid lg:grid-cols-2 lg:gap-6'}>
+                    {compactMobileLanding && !isLgScreen && sizeDimensions}
+                    {isLargeBannerLanding ? <LargeBannerSizeCards widthIn={widthIn} heightIn={heightIn} unit={unit} material={material}
+                      onSelect={(w, h) => {
+                        setWidthFtStr(String(Math.floor(w / 12)));
+                        setWidthInRStr(String(w % 12));
+                        setHeightFtStr(String(Math.floor(h / 12)));
+                        setHeightInRStr(String(h % 12));
+                        setWidthCustomInStr(String(w));
+                        setHeightCustomInStr(String(h));
+                        const index = PRESET_SIZES.findIndex(p => p.w === w && p.h === h);
+                        setActivePreset(index >= 0 ? index : null);
+                        setHasConfirmedSize(true);
+                      }} /> : <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Popular Sizes</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {isCarMagnet
+                          ? CAR_MAGNET_SIZES.map((p) => (
+                              <button key={p.label} onClick={() => setCarMagnetSizeLabel(p.label)} className={`border rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${carMagnetSizeLabel === p.label ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
+                                {p.label}
+                              </button>
+                            ))
+                          : PRESET_SIZES.map((p, i) => (
+                              <button key={i} onClick={() => applyPreset(i)} className={`border rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${activePreset === i ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
+                                {formatPresetLabel(p.w, p.h, unit)}
+                              </button>
+                            ))}
+                      </div>
+                    </div>}
+                    {!isCarMagnet && !(compactMobileLanding && !isLgScreen) && (
+                    sizeDimensions
                     )}
                   </div>
                 {isLargeBannerLanding && <p className="mt-3 text-xs text-slate-600">Online sizes up to 50 ft on the long side and 16 ft on the short side. Larger project? <Link to="/custom-quote" className="font-semibold text-orange-700 underline">Request a quote</Link>.</p>}
@@ -3013,9 +3019,7 @@ const GoogleAdsBanner: React.FC = () => {
                           {CAR_MAGNET_ROUNDED_CORNERS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
                         </select>
                       </div>
-                    ) : (
-                      {bannerFinishingOptions}
-                    )}
+                    ) : bannerFinishingOptions}
                   </div>
                 </ConfigCard>);
   const uploadCard = (<ConfigCard step={isCarMagnet ? 4 : 2} title="Upload your artwork" id="upload-section">
@@ -3243,11 +3247,13 @@ const GoogleAdsBanner: React.FC = () => {
         {isFallFestivalLanding && <link rel="canonical" href="https://bannersonthefly.com/fall-festival-banners" />}
       </Helmet>
       <div className="min-h-screen bg-white text-gray-900">
-        {location.pathname.replace(/\/+$/, "") === "/google-ads-banner" ? (
-        <header data-site-header className="w-full border-b border-gray-100 bg-white py-3 px-4 sticky top-0 z-50">
+        {compactMobileLanding && !isLgScreen ? (
+          <Header compactMobile cartCount={cartItemCount} onCartClick={() => setIsCartOpen(true)} />
+        ) : location.pathname.replace(/\/+$/, "") === "/google-ads-banner" ? (
+        <header data-site-header className="w-full border-b border-white/10 bg-[#061A31] py-2 px-4 sticky top-0 z-50 lg:border-gray-100 lg:bg-white lg:py-3">
           <div className="max-w-5xl mx-auto flex items-center justify-between">
             <div className="w-10" />
-            <img src="/images/header-logo.png" alt="Banners On The Fly" width="248" height="70" className="h-10 object-contain" loading="eager" />
+            <picture><source media="(max-width: 1023px)" srcSet="/images/homepage/header-logo-reverse.png" /><img src="/images/header-logo.png" alt="Banners On The Fly" width="248" height="70" className="h-8 w-auto object-contain lg:h-10" loading="eager" /></picture>
             <button
               onClick={() => setIsCartOpen(true)}
               aria-label="Shopping cart"
@@ -3266,16 +3272,16 @@ const GoogleAdsBanner: React.FC = () => {
           </div>
         </header>
         ) : (
-          <Header cartCount={cartItemCount} onCartClick={() => setIsCartOpen(true)} />
+          <Header compactMobile={compactMobileLanding} cartCount={cartItemCount} onCartClick={() => setIsCartOpen(true)} />
         )}
 
-        {!isYardSign && !isCarMagnet && <GoogleReviewSpotlight />}
+        {!isYardSign && !isCarMagnet && <GoogleReviewSpotlight compactMobile={compactMobileLanding} />}
 
         {/* HERO */}
         {!isYardSign && !isCarMagnet ? (
           isLargeBannerLanding ? <ProductPageHero productSlug="large-banners-fast" ctaUrl="#order-builder" onStart={scrollToOrder} /> : isDoubleSidedBanner ? (
             <ProductPageHero productSlug="double-sided-banners" ctaUrl="#order-builder" onStart={scrollToOrder} />
-          ) : isFallFestivalLanding ? <FallFestivalHero onStart={scrollToOrder} /> : <FastBannerAdHero onStart={scrollToOrder} />
+          ) : isFallFestivalLanding ? <FallFestivalHero onStart={scrollToOrder} /> : <><MobileBannerLandingHero /><div className="hidden lg:block"><FastBannerAdHero onStart={scrollToOrder} /></div></>
         ) : (
         <section className="relative overflow-hidden border-b-4 border-[#FF6A00] bg-[#0B1F3A] px-4 py-10 sm:py-12 lg:py-16">
           <div className="relative mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] lg:gap-14">
@@ -3350,17 +3356,20 @@ const GoogleAdsBanner: React.FC = () => {
         </section>
         )}
 
-        <RealOrdersStrip expanded />
+        <div className={compactMobileLanding ? "hidden lg:block" : undefined}><RealOrdersStrip expanded /></div>
 
-        <section ref={orderRef} id="order-builder" className="py-12 px-4 bg-gray-50">
+        <section ref={orderRef} id="order-builder" className={compactMobileLanding ? "bg-gray-50 px-4 py-4 lg:py-12" : "py-12 px-4 bg-gray-50"}>
           <div className="max-w-4xl lg:max-w-7xl mx-auto">
-            <p className="mb-3 text-center text-xs font-bold uppercase tracking-[0.18em] text-[#FF6A00]">
+            <p className={`mb-3 text-center text-xs font-bold uppercase tracking-[0.18em] text-[#FF6A00] ${compactMobileLanding ? "hidden lg:block" : ""}`}>
               {isDoubleSidedBanner ? 'Double-sided · 18 oz vinyl' : isYardSign ? '24″ × 18″ yard signs' : isCarMagnet ? 'Custom car magnets' : 'Custom vinyl banners'}
             </p>
+            {compactMobileLanding && <p className="mb-3 flex items-center justify-between gap-2 text-xs font-medium text-slate-500 lg:hidden" aria-label="Ordering steps">
+              <span className="font-bold text-orange-700" aria-current="step">1 Design</span><span aria-hidden="true">→</span><span>2 Finishing</span><span aria-hidden="true">→</span><span>3 Checkout</span>
+            </p>}
             <h2
               ref={builderStartRef}
               id="builder-start"
-              className="homepage-condensed bg-[#061A31] px-4 py-6 text-4xl md:text-5xl uppercase text-white font-bold text-center mb-10 scroll-mt-[140px] md:scroll-mt-24"
+              className={compactMobileLanding ? "homepage-condensed [--homepage-mobile-size:2rem] mb-4 text-3xl font-bold text-[#061A31] scroll-mt-20 lg:mb-10 lg:bg-[#061A31] lg:px-4 lg:py-6 lg:text-center lg:text-5xl lg:uppercase lg:text-white" : "homepage-condensed bg-[#061A31] px-4 py-6 text-4xl md:text-5xl uppercase text-white font-bold text-center mb-10 scroll-mt-[140px] md:scroll-mt-24"}
             >
               {isLargeBannerLanding ? 'Build Your Large Banner' : isDoubleSidedBanner ? 'Build Your Double-Sided Banner' : isYardSign ? 'Build Your Yard Sign Order' : isCarMagnet ? 'Design Your Custom Car Magnets' : 'Build Your Banner'}
             </h2>
@@ -3570,6 +3579,7 @@ const GoogleAdsBanner: React.FC = () => {
           </div>
         </section>
 
+        {compactMobileLanding && <div className="lg:hidden"><MobileBannerLandingProof /><RealOrdersStrip expanded /></div>}
         <TrustStrip />
 
         <div className="py-4 pb-24 md:pb-4 text-center text-xs text-gray-400 border-t border-gray-100">

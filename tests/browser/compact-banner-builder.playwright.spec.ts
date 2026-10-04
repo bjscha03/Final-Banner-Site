@@ -127,6 +127,15 @@ test('banner finishing preserves the artwork, price and cart through add-another
     await expect(footer.getByRole('button', { name: 'Upload artwork', exact: true })).toBeVisible();
     await expect(footer.getByRole('button', { name: 'View cart (0)', exact: true })).toBeVisible();
     await expect(page.locator('#options-section')).toHaveCount(0);
+    await expect(page.getByTestId('mobile-banner-hero')).toContainText('Estimated delivery');
+    await expect(page.getByRole('button', { name: 'Pause Google reviews' })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath('landing-first-screen.png') });
+    const heroBox = await page.getByTestId('mobile-banner-hero').boundingBox();
+    expect(heroBox!.height).toBeLessThan(330);
+    const proofBox = await page.getByTestId('mobile-banner-proof').boundingBox();
+    const uploadBox = await page.locator('#upload-section').boundingBox();
+    expect(proofBox!.y).toBeGreaterThan(uploadBox!.y + uploadBox!.height);
+
   }
   await size.getByRole('button', { name: 'Inches', exact: true }).click();
   await expect(page.getByLabel('Banner width in inches')).toHaveValue('72');

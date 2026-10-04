@@ -104,7 +104,7 @@ export default function MobileSubtotalBar({
             onClick={onViewCart}
             className="inline-flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-md px-2 py-2 text-sm font-semibold text-[#18448D] underline underline-offset-4 focus-visible:ring-2 focus-visible:ring-[#18448D]"
           >
-            View cart ({cartItemCount})
+            {primaryAction ? 'View cart' : 'View Cart'} ({cartItemCount})
           </button>
         </div>
         {primaryAction && <button type="button" data-banner-primary-action onClick={primaryAction.onClick} disabled={primaryAction.disabled} className="mt-2 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#FF6A00] px-4 py-3 text-base font-bold text-[#061A31] focus-visible:ring-2 focus-visible:ring-[#061A31] disabled:opacity-60">{primaryAction.label}</button>}
