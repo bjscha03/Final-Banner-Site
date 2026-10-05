@@ -8,6 +8,7 @@ import { isPreviewEnvironment, isProductionHost } from './lib/environment';
 import { installPayPalCheckoutStorageGuard } from './lib/paypalCheckoutStorageGuard';
 import { installPayPalCaptureResponseGuard } from './lib/paypalCaptureResponseGuard';
 import { installChunkRecovery } from './lib/chunkRecovery';
+import { installSiteIssueMonitoring } from './lib/siteIssueReporter';
 import { consumeOrderViewCredentialFromCurrentRoute } from './lib/orderViewCredential';
 import { createPreviewAdminCookie, hasPreviewAdminCookie } from './lib/previewAdmin';
 
@@ -166,6 +167,7 @@ installPayPalCaptureResponseGuard();
 // An already-open tab can request an obsolete lazy chunk after a Netlify
 // deploy. Refresh once to load the new chunk map instead of leaving a blank
 // root-level spinner forever.
+installSiteIssueMonitoring();
 installChunkRecovery();
 establishPreviewAdminSession();
 

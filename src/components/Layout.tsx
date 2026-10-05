@@ -9,6 +9,7 @@ import CartModal from './CartModal';
 import ScrollToTop from './ScrollToTop';
 import PromoBanner from './PromoBanner';
 import ScrollToTopLink from './ScrollToTopLink';
+const SiteIssueAlert = React.lazy(() => import('./admin/SiteIssueAlert'));
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -42,6 +43,7 @@ const Layout: React.FC<LayoutProps> = ({ children, checkoutMode = false }) => {
         </div>
       )}
       <main className="w-full max-w-[100vw] overflow-x-clip">
+        {location.pathname.startsWith('/admin') && location.pathname !== '/admin/setup' && location.pathname !== '/admin/site-issues' && <React.Suspense fallback={null}><SiteIssueAlert /></React.Suspense>}
         {children}
       </main>
 

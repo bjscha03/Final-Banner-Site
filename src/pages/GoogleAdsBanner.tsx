@@ -1578,6 +1578,7 @@ const GoogleAdsBanner: React.FC = () => {
     } catch (error) {
       if (generation !== uploadGenerationRef.current) return;
       console.error('[artwork_upload]', { correlationId, stage: 'local_preview_failed', error });
+      logUx('upload_preview_error', { correlationId, ...getArtworkUploadDiagnostic(error, file), phase: 'local_preview' });
       setUploadError('We could not open that artwork file. Please choose a PDF, PNG, JPG, or JPEG file.');
       setIsUploading(false);
     }

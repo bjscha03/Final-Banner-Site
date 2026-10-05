@@ -1,5 +1,6 @@
 import React from 'react';
 import { reloadLatestVersion } from '@/lib/chunkRecovery';
+import { reportPageIssue } from '@/lib/siteIssueReporter';
 
 interface Props {
   children: React.ReactNode;
@@ -44,6 +45,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    reportPageIssue('page_crash', error);
     console.error('ErrorBoundary caught an error:', error, errorInfo);
   }
 

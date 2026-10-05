@@ -20,6 +20,7 @@
 import { gtag } from './analytics';
 import { sendClarity } from './trackingRuntime';
 import { isCustomerTrackingAllowed } from './trackingPolicy';
+import { trackUploadIssue } from './siteIssueReporter';
 
 export type UxEvent =
   | 'cta_click'
@@ -30,6 +31,7 @@ export type UxEvent =
   | 'upload_success'
   | 'upload_error'
   | 'upload_timeout'
+  | 'upload_preview_error'
   | 'preview_opened'
   | 'preview_done'
   | 'quantity_valid'
@@ -56,6 +58,8 @@ export type UxPayload = Record<string, unknown> | undefined;
  * @param payload Optional small JSON-serializable context.
  */
 export function logUx(event: UxEvent, payload?: UxPayload): void {
+  // Operational failures are independent of optional analytics delivery.
+  try { trackUploadIssue(event, payload); } catch { /* Never block the user flow. */ }
   try {
     // Console line — visible in DevTools and captured by Clarity replays.
     if (payload && Object.keys(payload).length > 0) {
