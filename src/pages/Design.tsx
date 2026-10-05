@@ -602,6 +602,7 @@ const Design: React.FC = () => {
   const [finishingType, setFinishingType] = useState<FinishingType>('none');
   const [ropePlacement, setRopePlacement] = useState<RopePlacement>('top');
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadedFile, setUploadedFile] = useState<UploadedArtworkFile | null>(null);
   const fileUploaderRef = useRef<FileUploaderHandle>(null);
   const uploadedFileRef = useRef<UploadedArtworkFile | null>(null);
@@ -1296,6 +1297,7 @@ const Design: React.FC = () => {
     activeUploadAbortControllerRef.current?.abort();
     activeUploadAbortControllerRef.current = controller;
     setIsUploading(true);
+    setUploadProgress(0);
     setUploadError('');
 
     const promise = (async () => {
@@ -1305,6 +1307,9 @@ const Design: React.FC = () => {
         originalHeight: initialArtwork.originalHeight,
         correlationId,
         signal: controller.signal,
+        onProgress: (fraction) => {
+          if (generation === uploadGenerationRef.current) setUploadProgress(Math.round(fraction * 100));
+        },
         onAttempt: (attempt, maximum) => {
           console.info('[artwork_upload]', {
             correlationId,
@@ -1319,8 +1324,9 @@ const Design: React.FC = () => {
 
       let browserPreviewUrl = initialArtwork.previewUrl || initialArtwork.thumbnailUrl || initialArtwork.url;
       const permanentPreviewUrl = result.previewUrl || result.secureUrl;
-      const permanentPreviewLoaded = await preloadPermanentArtwork(permanentPreviewUrl);
-      if (permanentPreviewLoaded) browserPreviewUrl = permanentPreviewUrl;
+      if (generation !== uploadGenerationRef.current || controller.signal.aborted) return null;
+      // The original is saved. Keep the already loaded local preview while the
+      // permanent display image loads; downloading it must not block ordering.
 
       const completedArtwork: UploadedArtworkFile = {
         ...initialArtwork,
@@ -1357,14 +1363,21 @@ const Design: React.FC = () => {
         mimeType: uploadDescriptor.mimeType,
       });
 
-      if (permanentPreviewLoaded) {
+      void preloadPermanentArtwork(permanentPreviewUrl).then((loaded) => {
+        if (!loaded || generation !== uploadGenerationRef.current) return;
+        const current = uploadedFileRef.current;
+        if (current?.fileKey !== completedArtwork.fileKey) return;
+        const refreshedArtwork = { ...current, thumbnailUrl: permanentPreviewUrl, previewUrl: permanentPreviewUrl };
+        uploadedFileRef.current = refreshedArtwork;
+        setUploadedFile(refreshedArtwork);
         window.setTimeout(() => {
+          if (generation !== uploadGenerationRef.current) return;
           activeImagePreviewCleanupRef.current?.();
           activePdfPreviewCleanupRef.current?.();
           activeImagePreviewCleanupRef.current = null;
           activePdfPreviewCleanupRef.current = null;
         }, 0);
-      }
+      });
       return completedArtwork;
     })();
 
@@ -1520,6 +1533,15 @@ const Design: React.FC = () => {
       `artwork-retry-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     );
   }, [persistArtworkUpload]);
+
+  const cancelArtworkUpload = useCallback(() => {
+    uploadGenerationRef.current += 1;
+    activeUploadAbortControllerRef.current?.abort();
+    activeUploadAbortControllerRef.current = null;
+    activeUploadPromiseRef.current = null;
+    setIsUploading(false);
+    setUploadError('Upload paused. Your file and choices are still here. Retry when you are ready.');
+  }, []);
 
   const ensurePermanentArtworkUploaded = useCallback(async (): Promise<UploadedArtworkFile | null> => {
     let current = uploadedFileRef.current;
@@ -3454,7 +3476,11 @@ const Design: React.FC = () => {
                     )}
                   </div>
                 )}
-                {uploadError && <p className="text-xs text-red-600 mt-2">{uploadError}</p>}
+                {isUploading && <div role="status" className="mt-3 rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm text-slate-700">
+                    <p>{uploadProgress >= 100 ? 'Finalizing artwork…' : `Uploading artwork${uploadProgress > 0 ? ` · ${uploadProgress}%` : '…'}`}</p>
+                    <button type="button" onClick={cancelArtworkUpload} className="min-h-11 font-semibold underline">Cancel upload</button>
+                  </div>}
+                  {uploadError && <div role="alert" className="mt-2 text-sm text-red-600"><p>{uploadError}</p>{uploadedFile && activeUploadFileRef.current && <button type="button" disabled={isUploading} onClick={() => void retryActiveArtworkUpload()} className="min-h-11 font-semibold underline">Retry upload</button>}</div>}
                 <p className="text-xs text-gray-400 mt-2 text-center">Every file reviewed by a real designer before printing.</p>
               </ConfigCard>
             </div>

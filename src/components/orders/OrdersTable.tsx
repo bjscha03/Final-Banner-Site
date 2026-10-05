@@ -9,6 +9,7 @@ import { useToast } from '@/components/ui/use-toast';
 import TrackingBadge from './TrackingBadge';
 import OrderDetails from './OrderDetails';
 import { getDisplayOrderTotalCents } from '@/lib/order-totals';
+import { orderItemToReorderQuote } from '@/lib/orders/reorder';
 
 interface OrdersTableProps {
   orders: Order[];
@@ -73,25 +74,16 @@ const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading = false }) =>
 
   const handleReorderAll = (order: Order) => {
     let totalItems = 0;
-
-    order.items.forEach(item => {
-      // Convert order item back to quote format for cart
-      const quoteData = {
-        widthIn: item.width_in,
-        heightIn: item.height_in,
-        quantity: item.quantity,
-        material: item.material,
-        grommets: item.grommets || 'none',
-        polePockets: 'none',
-        addRope: item.rope_feet > 0,
-        previewScalePct: 150,
-        file: item.file_key ? { name: item.file_key, type: '', size: 0 } : undefined,
-        set: () => {},
-      };
-
-      addFromQuote(quoteData);
-      totalItems += item.quantity;
-    });
+    try {
+      const quotes = order.items.map(orderItemToReorderQuote);
+      quotes.forEach(quote => {
+        addFromQuote(quote);
+        totalItems += quote.quantity;
+      });
+    } catch (error) {
+      toast({ title: 'Unable to reorder', description: error instanceof Error ? error.message : 'Please review the saved artwork.', variant: 'destructive' });
+      return;
+    }
 
     toast({
       title: "Added to Cart",

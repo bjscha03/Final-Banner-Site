@@ -1,6 +1,7 @@
 const { neon } = require('@neondatabase/serverless');
 const { createHash, randomUUID } = require('crypto');
 const { normalizeArtworkManifest } = require('../artwork-manifest.cjs');
+const { assertOrderArtworkReady } = require('../order-artwork-readiness.cjs');
 const {
   PreviewArtifactValidationError,
   normalizeCartItemPlacement,
@@ -415,6 +416,7 @@ function prepareOrderItems(rawItems) {
     validatePrintSceneV2(rawItem.canvas_state_json);
     const item = normalizeCartItemPlacement(cleanItemForDb(rawItem));
     item.artwork_manifest = normalizeArtworkManifest(item);
+    assertOrderArtworkReady(item, index);
 
     const quantity = Number(item.quantity ?? 1);
     const lineTotalCents = Number(item.line_total_cents ?? 0);
@@ -856,6 +858,7 @@ exports.handler = async (event, context) => {
         };
       }
       if (error.code === 'ORDER_ITEMS_INVALID'
+          || error.code === 'ORDER_ARTWORK_REQUIRED'
           || error.code === 'ORDER_ITEM_INVALID'
           || error?.name === 'StripePricingError') {
         return {

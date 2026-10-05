@@ -7,6 +7,7 @@ export const LEGACY_FUNCTION_SAFE_BYTES = 3.75 * 1024 * 1024;
 export const DIRECT_UPLOAD_ATTEMPTS = 3;
 export const CHUNKED_UPLOAD_THRESHOLD_BYTES = 8 * 1024 * 1024;
 export const UPLOAD_CHUNK_BYTES = 6 * 1024 * 1024;
+export const UPLOAD_STALL_TIMEOUT_MS = 30_000;
 
 const SIGNATURE_ENDPOINT = '/.netlify/functions/cloudinary-upload-signature';
 const LEGACY_UPLOAD_ENDPOINT = '/.netlify/functions/upload-file';
@@ -280,9 +281,21 @@ function uploadDirectWithProgress(
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     let settled = false;
+    let stallTimer: ReturnType<typeof setTimeout>;
+    const resetStallTimer = () => {
+      clearTimeout(stallTimer);
+      stallTimer = setTimeout(() => {
+        finish(() => reject(new ArtworkUploadError(
+          'Artwork upload stopped making progress.',
+          { phase: 'direct', retryable: true },
+        )));
+        xhr.abort();
+      }, UPLOAD_STALL_TIMEOUT_MS);
+    };
     const finish = (callback: () => void) => {
       if (settled) return;
       settled = true;
+      clearTimeout(stallTimer);
       options.signal?.removeEventListener('abort', onAbort);
       callback();
     };
@@ -295,6 +308,7 @@ function uploadDirectWithProgress(
     xhr.responseType = 'json';
     xhr.timeout = 180_000;
     xhr.upload.onprogress = (event) => {
+      resetStallTimer();
       if (!event.lengthComputable || event.total <= 0) return;
       options.onProgress?.(Math.max(0, Math.min(1, event.loaded / event.total)));
     };
@@ -341,6 +355,7 @@ function uploadDirectWithProgress(
     const formData = new FormData();
     formData.append('file', file, file.name);
     appendTicketFields(formData, ticket);
+    resetStallTimer();
     xhr.send(formData);
   });
 }
@@ -368,9 +383,21 @@ function uploadChunkWithProgress(
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     let settled = false;
+    let stallTimer: ReturnType<typeof setTimeout>;
+    const resetStallTimer = () => {
+      clearTimeout(stallTimer);
+      stallTimer = setTimeout(() => {
+        finish(() => reject(new ArtworkUploadError(
+          'Artwork upload stopped making progress.',
+          { phase: 'chunked', retryable: true },
+        )));
+        xhr.abort();
+      }, UPLOAD_STALL_TIMEOUT_MS);
+    };
     const finish = (callback: () => void) => {
       if (settled) return;
       settled = true;
+      clearTimeout(stallTimer);
       options.signal?.removeEventListener('abort', onAbort);
       callback();
     };
@@ -388,6 +415,7 @@ function uploadChunkWithProgress(
     xhr.setRequestHeader('X-Unique-Upload-Id', uploadId);
     xhr.setRequestHeader('Content-Range', `bytes ${start}-${end}/${file.size}`);
     xhr.upload.onprogress = (event) => {
+      resetStallTimer();
       if (!event.lengthComputable || event.total <= 0) return;
       const uploadedBytes = start + Math.min(event.loaded, end - start + 1);
       options.onProgress?.(Math.max(0, Math.min(1, uploadedBytes / file.size)));
@@ -439,6 +467,7 @@ function uploadChunkWithProgress(
     const formData = new FormData();
     formData.append('file', chunk, file.name);
     appendTicketFields(formData, ticket);
+    resetStallTimer();
     xhr.send(formData);
   });
 }
@@ -611,7 +640,8 @@ export async function uploadArtworkFile(
       lastError = error;
       if (options.signal?.aborted) throw error;
       const retryable = error instanceof ArtworkUploadError ? error.retryable : true;
-      if (!retryable || attempt >= DIRECT_UPLOAD_ATTEMPTS) break;
+      if (!retryable || attempt >= DIRECT_UPLOAD_ATTEMPTS
+        || file.size <= LEGACY_FUNCTION_SAFE_BYTES) break;
       const delay = (600 * (2 ** (attempt - 1))) + Math.floor(Math.random() * 250);
       await sleep(delay);
     }

@@ -467,6 +467,7 @@ const GoogleAdsBanner: React.FC = () => {
   const [finishingChoiceConfirmed, setFinishingChoiceConfirmed] = useState(false);
   const [ropePlacement, setRopePlacement] = useState<RopePlacement>('top');
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadedFile, setUploadedFile] = useState<UploadedArtworkFile | null>(null);
   const fileUploaderRef = useRef<FileUploaderHandle>(null);
   const uploadedFileRef = useRef<UploadedArtworkFile | null>(null);
@@ -1354,6 +1355,7 @@ const GoogleAdsBanner: React.FC = () => {
     activeUploadAbortControllerRef.current?.abort();
     activeUploadAbortControllerRef.current = controller;
     setIsUploading(true);
+    setUploadProgress(0);
     setUploadError('');
 
     const promise = (async () => {
@@ -1363,6 +1365,9 @@ const GoogleAdsBanner: React.FC = () => {
         originalHeight: initialArtwork.originalHeight,
         correlationId,
         signal: controller.signal,
+        onProgress: (fraction) => {
+          if (generation === uploadGenerationRef.current) setUploadProgress(Math.round(fraction * 100));
+        },
         onAttempt: (attempt, maximum) => {
           console.info('[artwork_upload]', {
             correlationId,
@@ -1377,8 +1382,9 @@ const GoogleAdsBanner: React.FC = () => {
 
       let browserPreviewUrl = initialArtwork.previewUrl || initialArtwork.thumbnailUrl || initialArtwork.url;
       const permanentPreviewUrl = result.previewUrl || result.secureUrl;
-      const permanentPreviewLoaded = await preloadPermanentArtwork(permanentPreviewUrl);
-      if (permanentPreviewLoaded) browserPreviewUrl = permanentPreviewUrl;
+      if (generation !== uploadGenerationRef.current || controller.signal.aborted) return null;
+      // The original is saved. Keep the already loaded local preview while the
+      // permanent display image loads; downloading it must not block ordering.
 
       const completedArtwork: UploadedArtworkFile = {
         ...initialArtwork,
@@ -1415,14 +1421,21 @@ const GoogleAdsBanner: React.FC = () => {
         mimeType: uploadDescriptor.mimeType,
       });
 
-      if (permanentPreviewLoaded) {
+      void preloadPermanentArtwork(permanentPreviewUrl).then((loaded) => {
+        if (!loaded || generation !== uploadGenerationRef.current) return;
+        const current = uploadedFileRef.current;
+        if (current?.fileKey !== completedArtwork.fileKey) return;
+        const refreshedArtwork = { ...current, thumbnailUrl: permanentPreviewUrl, previewUrl: permanentPreviewUrl };
+        uploadedFileRef.current = refreshedArtwork;
+        setUploadedFile(refreshedArtwork);
         window.setTimeout(() => {
+          if (generation !== uploadGenerationRef.current) return;
           activeImagePreviewCleanupRef.current?.();
           activePdfPreviewCleanupRef.current?.();
           activeImagePreviewCleanupRef.current = null;
           activePdfPreviewCleanupRef.current = null;
         }, 0);
-      }
+      });
       return completedArtwork;
     })();
 
@@ -1578,6 +1591,15 @@ const GoogleAdsBanner: React.FC = () => {
       `artwork-retry-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     );
   }, [persistArtworkUpload]);
+
+  const cancelArtworkUpload = useCallback(() => {
+    uploadGenerationRef.current += 1;
+    activeUploadAbortControllerRef.current?.abort();
+    activeUploadAbortControllerRef.current = null;
+    activeUploadPromiseRef.current = null;
+    setIsUploading(false);
+    setUploadError('Upload paused. Your file and choices are still here. Retry when you are ready.');
+  }, []);
 
   const ensurePermanentArtworkUploaded = useCallback(async (): Promise<UploadedArtworkFile | null> => {
     let current = uploadedFileRef.current;
@@ -3215,7 +3237,11 @@ const GoogleAdsBanner: React.FC = () => {
                       )}
                     </div>
                   )}
-                  {uploadError && <p className="text-xs text-red-600 mt-2">{uploadError}</p>}
+                  {isUploading && <div role="status" className="mt-3 rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm text-slate-700">
+                    <p>{uploadProgress >= 100 ? 'Finalizing artwork…' : `Uploading artwork${uploadProgress > 0 ? ` · ${uploadProgress}%` : '…'}`}</p>
+                    <button type="button" onClick={cancelArtworkUpload} className="min-h-11 font-semibold underline">Cancel upload</button>
+                  </div>}
+                  {uploadError && <div role="alert" className="mt-2 text-sm text-red-600"><p>{uploadError}</p>{uploadedFile && activeUploadFileRef.current && <button type="button" disabled={isUploading} onClick={() => void retryActiveArtworkUpload()} className="min-h-11 font-semibold underline">Retry upload</button>}</div>}
                   <p className="text-xs text-gray-400 mt-2 text-center">Every file reviewed by a real designer before printing.</p>
                 </ConfigCard>);
   const heroContent = isYardSign
@@ -3259,9 +3285,8 @@ const GoogleAdsBanner: React.FC = () => {
         {isFallFestivalLanding && <link rel="canonical" href="https://bannersonthefly.com/fall-festival-banners" />}
       </Helmet>
       <div className="min-h-screen bg-white text-gray-900">
-        {compactMobileLanding && !isLgScreen ? (
-          <Header compactMobile cartCount={cartItemCount} onCartClick={() => setIsCartOpen(true)} />
-        ) : location.pathname.replace(/\/+$/, "") === "/google-ads-banner" ? (
+        {/* Keep the paid landing page's logo-and-cart header at every viewport size. */}
+        {location.pathname.replace(/\/+$/, "") === "/google-ads-banner" ? (
         <header data-site-header className="w-full border-b border-white/10 bg-[#061A31] py-2 px-4 sticky top-0 z-50 lg:border-gray-100 lg:bg-white lg:py-3">
           <div className="max-w-5xl mx-auto flex items-center justify-between">
             <div className="w-10" />

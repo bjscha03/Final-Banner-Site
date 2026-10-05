@@ -8,6 +8,7 @@ import {
   ARTWORK_SIZE_MESSAGE,
   getArtworkUploadMessage,
   UPLOAD_CHUNK_BYTES,
+  UPLOAD_STALL_TIMEOUT_MS,
   uploadArtworkFile,
   validateArtworkFile,
 } from './uploadArtworkFile';
@@ -130,6 +131,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   SuccessfulUploadXhr.sentFormData = null;
@@ -290,5 +292,34 @@ describe('uploadArtworkFile', () => {
       sizeBucket: '4mb-8mb',
       mimeType: 'png',
     });
+  });
+});
+
+
+describe('stalled upload recovery', () => {
+  it('aborts a silent direct request and saves the original through the same-origin fallback', async () => {
+    vi.useFakeTimers();
+    const abort = vi.fn();
+    class SilentXhr extends SuccessfulUploadXhr {
+      send(_body: FormData) {}
+      abort() { abort(); this.onabort?.(); }
+    }
+    const fetchSpy = vi.fn(async (url: string, _options?: RequestInit) => new Response(JSON.stringify(
+      url.includes('signature') ? {
+        apiKey: 'public-key', signature: 'signature', timestamp: 123, folder: 'uploads',
+        uploadUrl: 'https://api.cloudinary.com/v1_1/test/image/upload',
+      } : { secure_url: 'https://res.cloudinary.com/test/image/upload/original.png', public_id: 'uploads/original' }
+    ), { status: 200 }));
+    vi.stubGlobal('fetch', fetchSpy);
+    vi.stubGlobal('XMLHttpRequest', SilentXhr);
+    const pending = uploadArtworkFile(new File(['original bytes'], 'original.png', { type: 'image/png' }));
+    await vi.advanceTimersByTimeAsync(UPLOAD_STALL_TIMEOUT_MS + 1);
+    const result = await pending;
+    expect(abort).toHaveBeenCalledOnce();
+    expect(result.transport).toBe('netlify-legacy-fallback');
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    const fallbackBody = fetchSpy.mock.calls[1][1]?.body;
+    expect(fallbackBody).toBeInstanceOf(FormData);
+    expect((fallbackBody as FormData).get('file')).toBeTruthy();
   });
 });

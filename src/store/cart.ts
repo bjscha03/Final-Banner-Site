@@ -635,7 +635,7 @@ export const useCartStore = create<CartState>()(
             if (explicitWebPreview && !explicitWebPreview.startsWith('blob:') && !explicitWebPreview.startsWith('data:')) return explicitWebPreview;
             return (aiMetadata?.assets?.proofUrl?.startsWith('blob:') ? null : aiMetadata?.assets?.proofUrl) || null;
           })(),
-          print_ready_url: (aiMetadata?.assets?.finalUrl?.startsWith('blob:') ? null : aiMetadata?.assets?.finalUrl) || null,
+          print_ready_url: (quote as any).printReadyUrl || (aiMetadata?.assets?.finalUrl?.startsWith('blob:') ? null : aiMetadata?.assets?.finalUrl) || null,
           is_pdf: quote.file?.isPdf || false,
           text_elements: quote.textElements && quote.textElements.length > 0 ? quote.textElements : undefined,
           overlay_image: quote.overlayImage ? {
