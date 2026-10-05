@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-const campaignDate = '2026-12-01T17:00:00.000Z';
+const campaignDate = '2026-12-24T17:00:00.000Z';
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript((fixedDate) => {
@@ -22,16 +22,16 @@ test.beforeEach(async ({ page }) => {
   }, campaignDate);
 });
 
-test('holiday events campaign passes responsive creative QA', async ({ page }, testInfo) => {
+test('New Year campaign passes responsive creative QA', async ({ page }, testInfo) => {
   const pageErrors: string[] = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
 
   await page.goto('/', { waitUntil: 'domcontentloaded' });
 
-  const hero = page.locator('[data-seasonal-campaign="holiday-events-2026"]');
+  const hero = page.locator('[data-seasonal-campaign="new-year-2027"]');
   await expect(hero).toBeVisible();
-  await expect(hero.getByRole('heading', { level: 1, name: 'Bring every holiday gathering into view.' })).toBeVisible();
-  await expect(hero.getByRole('button', { name: /Design holiday signage/i })).toBeVisible();
+  await expect(hero.getByRole('heading', { level: 1, name: 'Make the final celebration impossible to miss.' })).toBeVisible();
+  await expect(hero.getByRole('button', { name: /Create a New Year's banner/i })).toBeVisible();
   await expect(hero.getByRole('link', { name: /Explore vinyl banners/i })).toBeVisible();
   await expect(hero.locator('[data-hero-delivery-status]')).toBeVisible();
 
@@ -45,11 +45,11 @@ test('holiday events campaign passes responsive creative QA', async ({ page }, t
     naturalHeight: image.naturalHeight,
   }));
   expect(imageState.complete).toBe(true);
-  expect(imageState.currentSrc).toContain(`seasonal-holiday-events-2026-${mobile ? 'mobile' : 'desktop'}.webp`);
+  expect(imageState.currentSrc).toContain(`seasonal-new-year-2027-${mobile ? 'mobile' : 'desktop'}.webp`);
   expect(imageState.naturalWidth).toBe(mobile ? 900 : 1400);
   expect(imageState.naturalHeight).toBe(mobile ? 1125 : 875);
 
-  const merchandising = page.locator('[data-seasonal-merchandising="holiday-events-2026"]');
+  const merchandising = page.locator('[data-seasonal-merchandising="new-year-2027"]');
   await expect(merchandising).toBeVisible();
   await expect(merchandising.locator('article')).toHaveCount(3);
 
@@ -78,10 +78,6 @@ test('holiday events campaign passes responsive creative QA', async ({ page }, t
   expect(seriousViolations, JSON.stringify(seriousViolations, null, 2)).toEqual([]);
   expect(pageErrors).toEqual([]);
 
-  await hero.screenshot({
-    path: testInfo.outputPath(`holiday-events-${testInfo.project.name}-hero.png`),
-  });
-  await merchandising.screenshot({
-    path: testInfo.outputPath(`holiday-events-${testInfo.project.name}-modules.png`),
-  });
+  await hero.screenshot({ path: testInfo.outputPath(`new-year-${testInfo.project.name}-hero.png`) });
+  await merchandising.screenshot({ path: testInfo.outputPath(`new-year-${testInfo.project.name}-modules.png`) });
 });

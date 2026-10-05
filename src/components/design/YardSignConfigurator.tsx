@@ -40,6 +40,8 @@ import {
   buildCloudinaryPdfPreviewUrl,
   isPdfArtwork,
   uploadArtworkFile,
+  MAX_ARTWORK_BYTES,
+  getArtworkUploadMessage,
   validateArtworkFile,
 } from '@/utils/uploadArtworkFile';
 import StablePreviewImage from '@/components/preview/StablePreviewImage';
@@ -89,6 +91,7 @@ function getPdfPreviewUrl(pdfUrl: string): string {
  * 3. Repeated edits don't degrade quality
  */
 function getPreviewModalSrc(design: YardSignDesign): string {
+  if (design.fileUrl.includes('/artwork-original/')) return design.thumbnailUrl || design.fileUrl;
   if (design.isPdf) {
     return getPdfPreviewUrl(design.fileUrl);
   }
@@ -359,7 +362,7 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
         correlationId: `yard-sign-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       });
       const isPdf = isPdfArtwork(file);
-      const thumbnailUrl = isPdf ? result.previewUrl : result.secureUrl;
+      const thumbnailUrl = result.previewUrl || result.secureUrl;
       const presetFirstDesignQuantity = Math.max(
         YARD_SIGN_MIN_QUANTITY,
         Math.min(YARD_SIGN_MAX_QUANTITY, initialDesignQuantity || YARD_SIGN_MIN_QUANTITY),
@@ -383,7 +386,7 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
       setUploadError('');
     } catch (error) {
       console.error('[YardSign] original upload failed', error);
-      setUploadError('Upload failed after automatic retries. Your file was not added; please check your connection and try again.');
+      setUploadError(getArtworkUploadMessage(error));
       logUx('upload_error', {
         source: 'yard_sign',
         message: error instanceof Error ? error.message : String(error),
@@ -612,7 +615,7 @@ const YardSignConfigurator = forwardRef<YardSignConfiguratorHandle, YardSignConf
               ref={fileUploaderRef}
               onUpload={handleFileUpload}
               acceptedTypes="image/png,image/jpeg,.pdf"
-              maxSize={50 * 1024 * 1024}
+              maxSize={MAX_ARTWORK_BYTES}
               label={designs.length === 0 ? 'Upload your artwork' : 'Add another design'}
               subText="PNG, JPG, or PDF • Max 50MB"
               isUploading={isUploading}

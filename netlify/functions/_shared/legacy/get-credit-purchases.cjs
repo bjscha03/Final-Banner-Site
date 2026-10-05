@@ -5,12 +5,14 @@
  */
 
 const { neon } = require('@neondatabase/serverless');
+const { getSession, unauthorized } = require('../server-auth.cjs');
 
 const headers = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Banners-Admin-Session',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
   'Content-Type': 'application/json',
+  'Cache-Control': 'private, no-store',
+  'Cross-Origin-Resource-Policy': 'same-origin',
 };
 
 exports.handler = async (event) => {
@@ -35,6 +37,11 @@ exports.handler = async (event) => {
         headers,
         body: JSON.stringify({ error: 'MISSING_USER_ID' }),
       };
+    }
+
+    const session = getSession(event);
+    if (!session || session.preview || (!session.admin && session.sub !== userId)) {
+      return unauthorized('Credit purchase ownership could not be verified');
     }
 
     const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
@@ -73,4 +80,3 @@ exports.handler = async (event) => {
     };
   }
 };
-

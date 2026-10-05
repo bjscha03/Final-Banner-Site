@@ -28,9 +28,9 @@ const REQUIRED_BILLING_FIELDS: Array<{
   field: keyof CustomerFormState;
   message: string;
 }> = [
+  { field: 'email', message: 'Enter your email address.' },
   { field: 'firstName', message: 'Enter your first name.' },
   { field: 'lastName', message: 'Enter your last name.' },
-  { field: 'email', message: 'Enter your email address.' },
   { field: 'phone', message: 'Enter your phone number.' },
   { field: 'country', message: 'Enter your billing country.' },
   { field: 'street', message: 'Enter your billing street address.' },

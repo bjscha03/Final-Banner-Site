@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ShoppingCart, Menu, X, User, LogOut, Package, Shield, Mail, UserCheck, Users } from 'lucide-react';
+import { ShoppingCart, Menu, X, User, LogOut, Package, Shield, Mail, UserCheck, Users, Gift } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import ScrollToTopLink from './ScrollToTopLink';
 import { useAuth, isAdmin } from '@/lib/auth';
@@ -13,11 +13,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 interface HeaderProps {
+  compactMobile?: boolean;
   cartCount?: number;
   onCartClick?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
+const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobile = false }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const { user, loading, signOut } = useAuth();
@@ -97,7 +98,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
     >
       {!isHomepage && <div className="h-1 bg-[#F45B08]" />}
       <div className="mx-auto max-w-[1740px] px-4 sm:px-6 lg:px-8">
-        <div className={isHomepage ? 'flex h-[72px] items-center justify-between lg:h-[92px]' : 'flex h-[72px] items-center justify-between lg:h-[78px]'}>
+        <div className={isHomepage ? 'flex h-[72px] items-center justify-between lg:h-[92px]' : compactMobile ? 'flex h-[52px] items-center justify-between lg:h-[78px]' : 'flex h-[72px] items-center justify-between lg:h-[78px]'}>
           {/* Compact navigation for mobile and tablet */}
           <div className="flex items-center w-12 lg:hidden" ref={menuRef}>
             <button
@@ -160,6 +161,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
                             <Package className="h-4 w-4" />
                             My Orders
                           </ScrollToTopLink>
+                          <ScrollToTopLink to="/bof-cash" className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-[#18448D] hover:bg-slate-50" onClick={()=>setIsMenuOpen(false)}><Gift className="h-4 w-4" />BOF Cash</ScrollToTopLink>
                           {isAdmin(user) && (
                             <>
                               <a
@@ -186,6 +188,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
                                 <Users className="h-4 w-4" />
                                 Admin: Customers
                               </a>
+                              <a href="/admin/referrals" className="block px-4 py-3 text-sm font-medium text-slate-700">Admin: BOF Cash</a>
                               <a
                                 href="/admin/email-templates"
                                 className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-700 hover:text-[#18448D] hover:bg-slate-50"
@@ -251,7 +254,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
                 alt="Banners On The Fly"
                 width="248"
                 height="70"
-                className={isHomepage ? 'h-10 w-auto max-w-[205px] object-contain sm:h-12 sm:max-w-[260px] lg:h-[58px]' : 'h-10 w-auto max-w-[205px] object-contain sm:h-12 sm:max-w-[250px] lg:h-[54px]'}
+                className={isHomepage ? 'h-10 w-auto max-w-[205px] object-contain sm:h-12 sm:max-w-[260px] lg:h-[58px]' : compactMobile ? 'h-8 w-auto max-w-[175px] object-contain sm:max-w-[220px] lg:h-[54px]' : 'h-10 w-auto max-w-[205px] object-contain sm:h-12 sm:max-w-[250px] lg:h-[54px]'}
               />
             </ScrollToTopLink>
           </div>
@@ -314,6 +317,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
                           My Orders
                         </ScrollToTopLink>
                       </DropdownMenuItem>
+                      <DropdownMenuItem asChild><ScrollToTopLink to="/bof-cash" className="flex items-center font-semibold text-[#18448D]"><Gift className="h-4 w-4 mr-2" />BOF Cash</ScrollToTopLink></DropdownMenuItem>
                       {isAdmin(user) && (
                         <>
                           <DropdownMenuSeparator />
@@ -335,6 +339,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
                               Admin: Customers
                             </a>
                           </DropdownMenuItem>
+                          <DropdownMenuItem asChild><a href="/admin/referrals">Admin: BOF Cash</a></DropdownMenuItem>
                           <DropdownMenuItem asChild>
                             <a href="/admin/email-templates" className="flex items-center">
                               <Mail className="h-4 w-4 mr-2" />

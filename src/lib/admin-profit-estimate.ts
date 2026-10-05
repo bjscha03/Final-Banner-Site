@@ -1,5 +1,5 @@
 import type { Order, OrderItem } from './orders/types';
-import { normalizeSizeKey, resolveFixedProductCost } from './admin-product-costs';
+import { normalizeSizeKey, resolveFixedProductCost } from './admin-product-costs.ts';
 
 export const ADMIN_PROFIT_SHIPPING_COST_PER_LINE_ITEM_CENTS = 1000;
 
@@ -70,17 +70,19 @@ const baseLineDetails = (item: OrderItem) => ({
   quantity: Number.isFinite(Number(item.quantity)) ? Number(item.quantity) : 0,
 });
 
-const parsePolePocketEdges = (polePocketPosition?: string): string[] => {
-  if (!polePocketPosition) return [];
-  return polePocketPosition
-    .toLowerCase()
-    .split(/[|,+]/g)
+const parsePolePocketEdges = (polePocketPosition: unknown): string[] | null => {
+  const value = String(polePocketPosition ?? '').trim().toLowerCase();
+  if (['', 'none', 'false', '0'].includes(value)) return [];
+  const edges = value
+    .split(/[|,+\s-]+/g)
     .map((x) => x.trim())
-    .filter((edge) => ['top', 'bottom', 'left', 'right'].includes(edge));
+    .filter(Boolean);
+  if (!edges.every((edge) => ['top', 'bottom', 'left', 'right'].includes(edge))) return null;
+  return [...new Set(edges)];
 };
 
 const estimateBannerCost = (item: OrderItem): LineEstimate => {
-  if (!item.material || !Number.isFinite(item.width_in) || !Number.isFinite(item.height_in) || !Number.isFinite(item.quantity)) {
+  if (!item.material || !Number.isFinite(item.width_in) || item.width_in <= 0 || !Number.isFinite(item.height_in) || item.height_in <= 0 || !Number.isInteger(item.quantity) || item.quantity <= 0) {
     return { ...baseLineDetails(item), reviewRequired: true, productionCostCents: 0, lineCostCents: 0, reason: 'Missing banner fields' };
   }
 
@@ -98,7 +100,10 @@ const estimateBannerCost = (item: OrderItem): LineEstimate => {
   const baseUnitCostCents = Math.round(squareFeetPerBanner * materialRate * 100);
   const addOnCosts: Array<{ label: string; costCents: number }> = [];
 
-  const edges = parsePolePocketEdges(item.pole_pocket_position);
+  const edges = parsePolePocketEdges(item.pole_pocket_position || item.pole_pockets);
+  if (!edges) {
+    return { ...baseLineDetails(item), reviewRequired: true, productionCostCents: 0, lineCostCents: 0, reason: 'Pole-pocket position is missing or unsupported' };
+  }
   if (edges.length > 0) {
     let linearFeet = 0;
     for (const edge of edges) {
@@ -112,8 +117,16 @@ const estimateBannerCost = (item: OrderItem): LineEstimate => {
     }
   }
 
-  if (Number.isFinite(item.rope_feet) && (item.rope_feet || 0) > 0) {
-    const ropeCost = (item.rope_feet || 0) * 1.0;
+  if (item.rope_feet != null && (!Number.isFinite(item.rope_feet) || item.rope_feet < 0)) {
+    return { ...baseLineDetails(item), reviewRequired: true, productionCostCents: 0, lineCostCents: 0, reason: 'Rope length is invalid' };
+  }
+  if ((item.rope_feet || 0) > 0) {
+    // Current checkout stores feet per banner. Legacy per_order rows store
+    // the line's total feet and must not be multiplied a second time.
+    if (item.rope_pricing_mode && !['per_item', 'per_order'].includes(item.rope_pricing_mode)) {
+      return { ...baseLineDetails(item), reviewRequired: true, productionCostCents: 0, lineCostCents: 0, reason: 'Rope pricing mode is unsupported' };
+    }
+    const ropeCost = (item.rope_feet || 0) * (item.rope_pricing_mode === 'per_order' ? 1 : qty);
     totalCost += ropeCost;
     addOnCosts.push({ label: 'Rope', costCents: Math.round(ropeCost * 100) });
   }
@@ -151,16 +164,28 @@ const estimateFixedProductCost = (item: OrderItem): LineEstimate => {
 };
 
 const estimateYardSignCost = (item: OrderItem): LineEstimate => {
-  if (!Number.isFinite(item.quantity)) return { ...baseLineDetails(item), reviewRequired: true, productionCostCents: 0, lineCostCents: 0, reason: 'Missing yard sign quantity' };
+  if (!Number.isInteger(item.quantity) || item.quantity <= 0) return { ...baseLineDetails(item), reviewRequired: true, productionCostCents: 0, lineCostCents: 0, reason: 'Missing or invalid yard sign quantity' };
   const qty = item.quantity || 0;
   if (qty % 10 !== 0) return { ...baseLineDetails(item), reviewRequired: true, productionCostCents: 0, lineCostCents: 0, reason: `Yard sign qty not divisible by 10: ${qty}` };
 
-  const doubleSided = [item.grommets, item.pole_pockets, item.pole_pocket_position]
+  const sidedness = String(item.yard_sign_sidedness || '').trim().toLowerCase();
+  if (sidedness && !['single', 'double'].includes(sidedness)) {
+    return { ...baseLineDetails(item), reviewRequired: true, productionCostCents: 0, lineCostCents: 0, reason: 'Yard sign sidedness is unsupported' };
+  }
+  const legacyDoubleSided = [item.grommets, item.pole_pockets, item.pole_pocket_position]
     .filter(Boolean)
     .join(' ')
     .toLowerCase()
     .includes('double');
 
+  const hasStakes = ['true', '1', 'yes'].includes(String(item.yard_sign_step_stakes_enabled).toLowerCase())
+    || Number(item.yard_sign_step_stakes_qty) > 0
+    || Number(item.yard_sign_stakes_subtotal_cents) > 0;
+  if (hasStakes) {
+    return { ...baseLineDetails(item), reviewRequired: true, productionCostCents: 0, lineCostCents: 0, reason: 'Yard sign stake supplier cost has not been configured' };
+  }
+  // The dedicated saved selection is authoritative; old orders used finishing fields.
+  const doubleSided = sidedness ? sidedness === 'double' : legacyDoubleSided;
   const unit = doubleSided ? 5.5 : 4.4;
   return { ...baseLineDetails(item), reviewRequired: false, productionCostCents: Math.round(unit * qty * 100), lineCostCents: Math.round(unit * qty * 100), unitCostCents: Math.round(unit * 100) };
 };
@@ -240,17 +265,24 @@ export const estimateOrderProfit = (order: Order) => {
     return estimate;
   });
 
-  const needsReview = lineEstimates.some((x) => x.reviewRequired);
+  const reviewReasons = [...new Set(lineEstimates.filter((x) => x.reviewRequired).map((x) => x.reason || 'Supplier cost needs review'))];
+  if (lineEstimates.length === 0) reviewReasons.push('Order items are missing');
+  if (order.bof_profit_review) reviewReasons.push('BOF Cash refund or dispute needs financial review');
+  const needsReview = reviewReasons.length > 0;
   const productionCostCents = lineEstimates.reduce((sum, x) => sum + x.productionCostCents, 0);
   const revenue = getRevenueBreakdownCents(order);
   const retailSubtotalCents = revenue.adjustedRetailSubtotalCents;
   const shippingCostCents = estimateSupplierShippingCostCents(order);
   const totalCostCents = productionCostCents + shippingCostCents;
-  const estimatedNetProfitCents = retailSubtotalCents - totalCostCents;
-  const marginPct = retailSubtotalCents > 0 ? (estimatedNetProfitCents / retailSubtotalCents) * 100 : 0;
+  const bofRewardReserveCents = Math.max(0, Math.round(Number(order.bof_reward_reserve_cents) || 0));
+  const bofReserveReleasedCents = Math.max(0, Math.round(Number(order.bof_reserve_released_cents) || 0));
+  const estimatedNetProfitCents = retailSubtotalCents - totalCostCents - bofRewardReserveCents + bofReserveReleasedCents;
+  const contributionRevenueCents = retailSubtotalCents + bofReserveReleasedCents;
+  const marginPct = contributionRevenueCents > 0 ? (estimatedNetProfitCents / contributionRevenueCents) * 100 : 0;
 
   return {
     needsReview,
+    reviewReasons,
     originalSubtotalCents: revenue.originalSubtotalCents,
     discountsAppliedCents: revenue.discountsAppliedCents,
     adjustedRetailSubtotalCents: revenue.adjustedRetailSubtotalCents,
@@ -258,6 +290,8 @@ export const estimateOrderProfit = (order: Order) => {
     productionCostCents,
     shippingCostCents,
     totalCostCents,
+    bofRewardReserveCents,
+    bofReserveReleasedCents,
     estimatedNetProfitCents,
     // Backwards-compatible alias used across existing admin UI surfaces.
     netProfitCents: estimatedNetProfitCents,

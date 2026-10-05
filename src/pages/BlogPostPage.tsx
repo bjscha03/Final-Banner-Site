@@ -8,6 +8,7 @@ import { useParams, Navigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import Layout from '@/components/Layout';
 import { BlogPost } from '@/components/blog';
+import BlogReaderOffer from '@/components/blog/BlogReaderOffer';
 import { getPostBySlug, getRelatedPosts } from '@/lib/blog';
 import { getPrerenderedPost } from '@/lib/blog/prerenderedPosts';
 import type { BlogPost as BlogPostType, BlogListItem } from '@/lib/blog';
@@ -127,6 +128,7 @@ function BlogPostContent({ slug }: { slug: string | undefined }) {
         <script type="application/ld+json">{JSON.stringify(schema)}</script>
       </Helmet>
       <BlogPost post={post} relatedPosts={relatedPosts} />
+      <BlogReaderOffer slug={frontmatter.slug} />
     </Layout>
   );
 }

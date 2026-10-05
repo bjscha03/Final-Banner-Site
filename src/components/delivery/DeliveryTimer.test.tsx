@@ -34,21 +34,17 @@ afterEach(() => {
 });
 
 describe('DeliveryTimer', () => {
-  it('renders a clock plus both expected days during the Friday weekend state', () => {
-    // Friday, August 7, 2026 at noon ET. Monday midnight is 60 hours away.
-    const html = renderAt('2026-08-07T16:00:00.000Z');
-
+  it('shows calendar dates instead of a weekend reset countdown', () => {
+    // The observed Friday checkout session: the old clock read about 56 hours.
+    const html = renderAt('2026-10-02T19:38:42.000Z');
     expect(html).toContain('data-state="weekend_lock"');
-    expect(html).toContain('Order now for expected Tuesday delivery');
-    expect(html).toContain('Expected ship');
-    expect(html).toContain('Expected delivery');
-    expect(html).toContain('Monday');
-    expect(html).toContain('Tuesday');
-    expect(html).toContain('data-testid="delivery-countdown"');
-    expect(html).toContain('role="timer"');
-    expect(html).toContain('60:00:00');
-    expect(html).toContain('Next production window');
-    expect(html).toContain('Eastern Time');
+    expect(html).toContain('Estimated delivery');
+    expect(html).toContain('Tuesday, October 6');
+    expect(html).toContain('Monday, October 5');
+    expect(html).toContain('Free next-business-day air after production.');
+    expect(html).not.toContain('role="timer"');
+    expect(html).not.toContain('Next production window');
+    expect(html).not.toMatch(/\d{2}:\d{2}:\d{2}/);
   });
 
   it('renders standard shipment, delivery, and cutoff countdown together', () => {
@@ -87,42 +83,42 @@ describe('DeliveryTimer', () => {
     const html = renderSlimAt('2026-08-07T16:00:00.000Z');
 
     expect(html).toContain('data-variant="slim"');
-    expect(html).toContain('Expected Tuesday delivery');
-    expect(html).toContain('Ships Monday · next production window');
-    expect(html).toContain('60:00:00');
+    expect(html).toContain('Tuesday, August 11');
+    expect(html).toContain('Monday, August 10');
+    expect(html).not.toContain('role="timer"');
     expect(html).not.toContain('Expected ship</p>');
   });
 
-  it('renders the Labor Day 2026 holiday lock on Friday with a Tue/Wed schedule and 84h countdown', () => {
+  it('renders the Labor Day 2026 holiday lock on Friday with a Tue/Wed schedule', () => {
     // Friday, September 4, 2026 at noon ET. Tuesday midnight is 84 hours away.
     const html = renderAt('2026-09-04T16:00:00.000Z');
 
     expect(html).toContain('data-state="weekend_lock"');
-    expect(html).toContain('Order now for expected Wednesday delivery');
+    expect(html).toContain('Wednesday, September 9');
     expect(html).toContain('Tuesday');
     expect(html).toContain('Wednesday');
     expect(html).not.toContain('Monday');
-    expect(html).toContain('84:00:00');
+    expect(html).not.toContain('role="timer"');
   });
 
-  it('renders the Labor Day 2026 holiday lock on Labor Day itself with a 12h countdown', () => {
+  it('renders the Labor Day 2026 holiday lock on Labor Day itself with calendar dates', () => {
     // Monday, September 7, 2026 (Labor Day) at noon ET. Tuesday midnight is 12 hours away.
     const html = renderAt('2026-09-07T16:00:00.000Z');
 
     expect(html).toContain('data-state="weekend_lock"');
-    expect(html).toContain('Order now for expected Wednesday delivery');
+    expect(html).toContain('Wednesday, September 9');
     expect(html).toContain('Tuesday');
     expect(html).toContain('Wednesday');
-    expect(html).toContain('12:00:00');
+    expect(html).not.toContain('role="timer"');
   });
 
-  it('renders the Labor Day holiday lock as a slim checkout strip with Tuesday/Wednesday and extended countdown', () => {
+  it('renders the Labor Day holiday lock as a slim checkout strip with Tuesday/Wednesday without a countdown', () => {
     const html = renderSlimAt('2026-09-07T16:00:00.000Z');
 
     expect(html).toContain('data-variant="slim"');
-    expect(html).toContain('Expected Wednesday delivery');
-    expect(html).toContain('Ships Tuesday · next production window');
-    expect(html).toContain('12:00:00');
+    expect(html).toContain('Wednesday, September 9');
+    expect(html).toContain('Tuesday, September 8');
+    expect(html).not.toContain('role="timer"');
   });
 
   it('exits the Labor Day lock automatically at Tuesday 12:00 AM ET', () => {
@@ -140,6 +136,6 @@ describe('Friday delivery selection', () => {
     expect(renderSlimAt('2026-09-11T16:59:59Z', true)).toContain('HIT active · expected Monday delivery');
     cartSnapshot.saturdayDelivery = true;
     expect(renderSlimAt('2026-09-11T16:59:59Z', true)).toContain('HIT active · expected Saturday delivery');
-    expect(renderSlimAt('2026-09-11T17:00:00Z', true)).toContain('Expected Tuesday delivery');
+    expect(renderSlimAt('2026-09-11T17:00:00Z', true)).toContain('Tuesday, September 15');
   });
 });

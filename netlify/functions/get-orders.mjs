@@ -1,3 +1,5 @@
+import bofMembership from './_shared/bof-membership.cjs';
+import { estimateOrderProfit } from '../../src/lib/admin-profit-estimate.ts';
 import { neon } from '@neondatabase/serverless';
 import { withLambda } from '@netlify/aws-lambda-compat';
 import legacyModule from './_shared/legacy/get-orders.cjs';
@@ -220,6 +222,37 @@ const buildAdminSummaryQuery = () => `${orderBaseCteSql()},
          AND effective_status IN ('paid', 'in_production', 'shipped', 'delivered', 'fulfilled', 'refunded')
          AND ($1::timestamptz IS NULL OR created_at >= $1::timestamptz)
          AND ($2::timestamptz IS NULL OR created_at < $2::timestamptz)
+    ), period_profit_orders AS (
+      SELECT o.id, o.subtotal_cents,
+             COALESCE((to_jsonb(o)->>'applied_discount_cents')::bigint, 0) AS applied_discount_cents,
+             COALESCE((to_jsonb(o)->>'same_day_fee_cents')::bigint, 0) AS same_day_fee_cents,
+             COALESCE((to_jsonb(o)->>'saturday_fee_cents')::bigint, 0) AS saturday_fee_cents,
+             COALESCE((SELECT jsonb_agg(jsonb_build_object(
+                     'product_type', to_jsonb(oi)->'product_type',
+                     'product_name', to_jsonb(oi)->'product_name',
+                     'name', to_jsonb(oi)->'name',
+                     'sku', to_jsonb(oi)->'sku',
+                     'size', to_jsonb(oi)->'size',
+                     'dimensions', to_jsonb(oi)->'dimensions',
+                     'selected_size', to_jsonb(oi)->'selected_size',
+                     'variant_title', to_jsonb(oi)->'variant_title',
+                     'material', to_jsonb(oi)->'material',
+                     'width_in', to_jsonb(oi)->'width_in',
+                     'height_in', to_jsonb(oi)->'height_in',
+                     'quantity', to_jsonb(oi)->'quantity',
+                     'line_total_cents', to_jsonb(oi)->'line_total_cents',
+                     'grommets', to_jsonb(oi)->'grommets',
+                     'pole_pockets', to_jsonb(oi)->'pole_pockets',
+                     'pole_pocket_position', to_jsonb(oi)->'pole_pocket_position',
+                     'rope_feet', to_jsonb(oi)->'rope_feet',
+                     'rope_pricing_mode', to_jsonb(oi)->'rope_pricing_mode',
+                     'yard_sign_sidedness', to_jsonb(oi)->'yard_sign_sidedness',
+                     'yard_sign_step_stakes_enabled', to_jsonb(oi)->'yard_sign_step_stakes_enabled',
+                     'yard_sign_step_stakes_qty', to_jsonb(oi)->'yard_sign_step_stakes_qty',
+                     'yard_sign_stakes_subtotal_cents', to_jsonb(oi)->'yard_sign_stakes_subtotal_cents'
+               )) FROM order_items oi WHERE oi.order_id = o.id), '[]'::jsonb) AS items
+        FROM period_successful p
+        JOIN orders o ON o.id::text = p.id
     ), customer_flags AS (
       SELECT reporting_customer_email,
              BOOL_OR(lifetime_rank = 1) AS is_new,
@@ -264,6 +297,7 @@ const buildAdminSummaryQuery = () => `${orderBaseCteSql()},
         FROM visible_orders
     )
     SELECT period_totals.*,
+           COALESCE((SELECT jsonb_agg(p) FROM period_profit_orders p), '[]'::jsonb) AS profit_orders,
            (period_totals.gross_sales_cents - period_totals.recorded_refunds_cents)::bigint AS net_sales_cents,
            CASE WHEN period_totals.total_orders > 0 THEN
              ROUND(
@@ -351,7 +385,8 @@ const buildAdminHydrationQuery = () => `
                  LEFT(to_jsonb(oi)->>'product_type', 100) AS product_type,
                  LEFT(to_jsonb(oi)->>'grommets', 100) AS grommets,
                  LEFT(to_jsonb(oi)->>'rounded_corners', 100) AS rounded_corners,
-                 COALESCE((to_jsonb(oi)->>'rope_feet')::integer, 0) AS rope_feet,
+                 COALESCE((to_jsonb(oi)->>'rope_feet')::numeric, 0) AS rope_feet,
+                 LEFT(to_jsonb(oi)->>'rope_pricing_mode', 100) AS rope_pricing_mode,
                  LEFT(to_jsonb(oi)->>'pole_pockets', 100) AS pole_pockets,
                  LEFT(to_jsonb(oi)->>'pole_pocket_position', 100) AS pole_pocket_position,
                  LEFT(to_jsonb(oi)->>'pole_pocket_size', 100) AS pole_pocket_size,
@@ -527,9 +562,12 @@ async function enrichOrderPaymentMetadata(sql, orders, options = {}) {
     const reviewRows = await sql(
       `SELECT order_id::text AS order_id,
               MAX(sent_at) AS last_sent_at,
+              MAX(sent_at) FILTER (WHERE COALESCE(to_jsonb(review_request_history)->>'email_kind', 'initial') = 'initial') AS initial_sent_at,
+              MAX(sent_at) FILTER (WHERE to_jsonb(review_request_history)->>'email_kind' = 'followup') AS followup_sent_at,
               COUNT(*)::int AS sent_count
          FROM review_request_history
         WHERE status = 'sent'
+          AND COALESCE(to_jsonb(review_request_history)->>'email_kind', 'initial') <> 'coupon'
           AND order_id::text IN (${placeholders})
         GROUP BY order_id`,
       ids,
@@ -543,7 +581,20 @@ async function enrichOrderPaymentMetadata(sql, orders, options = {}) {
     }
   }
 
+  let reviewCouponById = new Map();
+  try {
+    const coupons = await sql(
+      `SELECT r.order_id::text AS order_id, r.code, r.offer_percentage, r.sent_at, d.used
+         FROM review_coupon_rewards r JOIN discount_codes d ON d.code = r.code
+        WHERE r.order_id::text IN (${placeholders})`, ids,
+    );
+    reviewCouponById = new Map(coupons.map((row) => [String(row.order_id), row]));
+  } catch (error) {
+    if (String(error?.code || '') !== '42P01') console.warn('[get-orders] review coupon metadata unavailable');
+  }
+
   return orders.map((order) => {
+    const coupon = reviewCouponById.get(String(order.id));
     const payment = paymentById.get(String(order.id));
     const review = reviewById.get(String(order.id));
     if (!payment) return order;
@@ -595,6 +646,12 @@ async function enrichOrderPaymentMetadata(sql, orders, options = {}) {
         || null,
       review_request_last_sent_at: review?.last_sent_at || null,
       review_request_sent_count: Number(review?.sent_count || 0),
+      review_request_initial_sent_at: review?.initial_sent_at || null,
+      review_followup_sent_at: review?.followup_sent_at || null,
+      review_offer_percentage: Number(coupon?.offer_percentage || (review?.followup_sent_at ? 30 : 25)),
+      review_coupon_code: coupon?.code || null,
+      review_coupon_sent_at: coupon?.sent_at || null,
+      review_coupon_used: coupon?.used === true,
     };
   });
 }
@@ -651,8 +708,22 @@ const asRate = (value) => {
 };
 
 function normalizeAdminSummary(row = {}) {
+  const profitOrders = Array.isArray(row.profit_orders) ? row.profit_orders : [];
+  let netProfitCents = 0;
+  let profitOrdersNeedingReview = 0;
+  for (const order of profitOrders) {
+    if (!Array.isArray(order.items) || order.items.length === 0) {
+      profitOrdersNeedingReview += 1;
+      continue;
+    }
+    const profit = estimateOrderProfit(order);
+    if (profit.needsReview) profitOrdersNeedingReview += 1;
+    else netProfitCents += profit.netProfitCents;
+  }
   return {
     metrics: {
+      netProfitCents,
+      profitOrdersNeedingReview,
       totalOrders: asInteger(row.total_orders),
       grossSalesCents: asInteger(row.gross_sales_cents),
       averageOrderValueCents: asInteger(row.average_order_value_cents),
@@ -805,9 +876,9 @@ async function loadAdminReportData({ event, sql, request }) {
       [ids, ADMIN_LIST_ITEM_LIMIT],
     ));
 
-    let enrichedOrders = rawOrders;
+    let enrichedOrders = await bofMembership.enrichFinancials(sql, rawOrders);
     try {
-      enrichedOrders = await enrichOrderPaymentMetadata(sql, rawOrders, {
+      enrichedOrders = await enrichOrderPaymentMetadata(sql, enrichedOrders, {
         includeStripeReferences: true,
         event,
         reconcilePendingPayments: false,
@@ -829,7 +900,9 @@ async function loadAdminReportData({ event, sql, request }) {
     orders = ids.map((id) => byId.get(id)).filter(Boolean);
   }
 
-  const summary = normalizeAdminSummary(summaryRows[0] || {});
+  const summaryRow = summaryRows[0] || {};
+  if (Array.isArray(summaryRow.profit_orders)) summaryRow.profit_orders = await bofMembership.enrichFinancials(sql, summaryRow.profit_orders);
+  const summary = normalizeAdminSummary(summaryRow);
   return {
     orders,
     pagination: {
@@ -883,6 +956,7 @@ const handleRequest = async (event, context) => {
         sql: neon(dbUrl),
         request,
       });
+      report.orders = await bofMembership.enrichMembership(neon(dbUrl), report.orders);
       let body = report;
       if (String(query.history_scan || '') === '1') {
         body = {

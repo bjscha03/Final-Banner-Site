@@ -45,6 +45,9 @@ export interface BannerPreviewProps {
   isFinalizedSnapshot?: boolean;
   maxSize?: number;
   compositionSignature?: string | null;
+  /** Artwork-only surface for material mockups. Never changes the print artifact. */
+  surfaceOnly?: boolean;
+  backgroundColor?: string;
 }
 
 type Point = { x: number; y: number };
@@ -114,6 +117,8 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
   isFinalizedSnapshot = false,
   maxSize: maxSizeProp,
   compositionSignature,
+  surfaceOnly = false,
+  backgroundColor = '#ffffff',
 }) => {
   const safeWidth = Number.isFinite(widthIn) && widthIn > 0 ? widthIn : 1;
   const safeHeight = Number.isFinite(heightIn) && heightIn > 0 ? heightIn : 1;
@@ -212,23 +217,27 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
       <div
         className="min-w-0"
         style={{
-          width: `${previewWidth}px`,
-          maxWidth: largePreview
+          width: surfaceOnly ? '100%' : `${previewWidth}px`,
+          maxWidth: largePreview && !surfaceOnly
             ? `min(100%, calc((100dvh - 160px) * ${aspectRatio}))`
             : '100%',
         }}
       >
         <div
-          className="relative block w-full overflow-hidden rounded-lg ring-2 ring-inset ring-gray-200 bg-white shadow-lg"
+          className={surfaceOnly
+            ? 'relative block w-full overflow-hidden'
+            : 'relative block w-full overflow-hidden rounded-lg ring-2 ring-inset ring-gray-200 bg-white shadow-lg'}
           style={{
             aspectRatio: `${safeWidth} / ${safeHeight}`,
             minHeight: '1px',
             contain: 'layout paint',
+            backgroundColor,
           }}
           aria-label="Banner preview"
           aria-busy={showLoadingState}
-          data-commerce-preview="true"
-          data-preview-ready={baseReady ? 'true' : 'false'}
+          data-commerce-preview={surfaceOnly ? undefined : 'true'}
+          data-preview-ready={surfaceOnly ? undefined : baseReady ? 'true' : 'false'}
+          data-realistic-artwork-ready={surfaceOnly ? String(baseReady) : undefined}
           data-preview-failed={baseFailed ? 'true' : 'false'}
           data-preview-exact={isApprovedSnapshot ? 'true' : 'false'}
         >
@@ -253,10 +262,10 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
           ) : imageUrl && !baseFailed ? (
             <div
               className="absolute inset-0 h-full w-full"
-              data-preview-bleed-compensated={isApprovedSnapshot ? 'true' : 'false'}
+              data-preview-bleed-compensated={isApprovedSnapshot && !surfaceOnly ? 'true' : 'false'}
               style={{
                 transform: isApprovedSnapshot
-                  ? `scale(${FINALIZED_PREVIEW_BLEED_SCALE})`
+                  ? `scale(${surfaceOnly ? 1 : FINALIZED_PREVIEW_BLEED_SCALE})`
                   : `translate(${x}%, ${y}%) scale(${scaleX}, ${scaleY})`,
                 transformOrigin: 'center center',
               }}
@@ -301,7 +310,7 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
             </div>
           ) : null}
 
-          {showComposition && overlay?.sources?.length ? (
+          {showComposition && !(surfaceOnly && isApprovedSnapshot) && overlay?.sources?.length ? (
             <StablePreviewImage
               sources={overlay.sources}
               alt=""
@@ -324,7 +333,7 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
               preserveAspectRatio="none"
               aria-hidden="true"
             >
-              {textElements.map((textElement, index) => {
+              {(surfaceOnly && isApprovedSnapshot ? [] : textElements).map((textElement, index) => {
                 const fontSize = Math.max(
                   safeHeight * 0.02,
                   Number(textElement.fontSize || 24) * (safeHeight / 400),

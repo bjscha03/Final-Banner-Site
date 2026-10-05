@@ -1,3 +1,5 @@
+import BOFCashCheckout from '@/components/checkout/BOFCashCheckout';
+import {saveBofReferral,bofPricingItems} from '@/lib/bofCash';
 import { readCheckoutCustomerDraft } from '@/components/checkout/checkoutCustomerDraft';
 import { useAutomaticFirstOrderDiscount } from '@/hooks/useAutomaticFirstOrderDiscount';
 import { cartEditUrl } from '@/lib/cartEditUrl';
@@ -24,8 +26,12 @@ import { emailApi } from '@/lib/api';
 import { CartItem } from '@/store/cart';
 import BannerPreview from '@/components/cart/BannerPreview';
 import ThumbnailPreviewWrapper from '@/components/preview/ThumbnailPreviewWrapper';
+import RealisticBannerPreview from '@/components/preview/RealisticBannerPreview';
+import BannerDimensions from '@/components/preview/BannerDimensions';
+import { formatBannerDimensions } from '@/lib/preview/realisticBanner';
 import CheckoutOrderTotals, { type CheckoutOrderTotalsProps } from '@/components/checkout/CheckoutOrderTotals';
 import CheckoutReviewDialog from '@/components/checkout/CheckoutReviewDialog';
+import CheckoutArtworkSummary from '@/components/checkout/CheckoutArtworkSummary';
 import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
 import DeliveryTimer from '@/components/delivery/DeliveryTimer';
 import { trackBeginCheckout, trackViewCart, trackFBInitiateCheckout } from '@/lib/analytics';
@@ -486,13 +492,7 @@ const Checkout: React.FC = () => {
           code: discountCodeInput.trim(),
           userId: user?.id || null,
           email: readCheckoutCustomerDraft(user?.email || '').email || null,
-          items: items.map((item) => ({
-            id: item.id,
-            product_type: item.product_type || 'banner',
-            width_in: item.width_in,
-            height_in: item.height_in,
-            line_total_cents: item.line_total_cents,
-          })),
+          items: bofPricingItems(items),
         }),
       });
 
@@ -500,6 +500,7 @@ const Checkout: React.FC = () => {
 
       if (result.valid && result.discount) {
         applyDiscountCode(result.discount);
+        if (result.discount.code.startsWith('BOFREF-')) saveBofReferral(result.discount.code);
         
         // Track successful promo application
         trackPromoEvent('promo_applied_success', {
@@ -561,8 +562,8 @@ const Checkout: React.FC = () => {
     checkoutTrackedRef.current = true;
     const aiItems = items.filter(item => /^ai-(banner|yard-sign|car-magnet)-/i.test(item.file_name || ''));
     if (aiItems.length) trackAIEvent('ai_checkout_started', { count: aiItems.length });
-    trackBeginCheckout(analyticsItems, totalCents, discountCode?.code || null);
-    trackViewCart(analyticsItems, totalCents, discountCode?.code || null);
+    trackBeginCheckout(analyticsItems, totalCents, discountCode?.code.startsWith('BOFCASH-') ? 'BOFCASH' : discountCode?.code || null);
+    trackViewCart(analyticsItems, totalCents, discountCode?.code.startsWith('BOFCASH-') ? 'BOFCASH' : discountCode?.code || null);
 
     // Track Facebook Pixel InitiateCheckout
     trackFBInitiateCheckout({
@@ -837,6 +838,8 @@ const Checkout: React.FC = () => {
     totalCents,
   };
 
+  const orderTotals = <CheckoutOrderTotals {...orderTotalsProps} />;
+
   const orderReviewContent = (
     <>
                 {/* Thumbnail preview notice - shown once above all items */}
@@ -870,7 +873,7 @@ const Checkout: React.FC = () => {
                       });
                     }
                     const details = [
-                      { label: 'Size', value: normalized.sizeDisplay },
+                      { label: 'Size', value: normalized.productType === 'banner' ? `${formatBannerDimensions(item.width_in, item.height_in).feet} ${formatBannerDimensions(item.width_in, item.height_in).inches}` : normalized.sizeDisplay },
                       { label: 'Material', value: normalized.materialDisplay },
                       { label: 'Print', value: normalized.printDisplay },
                       ...(normalized.uploadedDesignsCount ? [{ label: 'Uploaded Designs', value: String(normalized.uploadedDesignsCount) }] : []),
@@ -950,7 +953,7 @@ const Checkout: React.FC = () => {
                             </ThumbnailPreviewWrapper>
                           </div>
                         ) : (
-                          <div className="flex justify-center shrink-0">
+                          <div className="flex shrink-0 flex-col items-center gap-4">
                             <ThumbnailPreviewWrapper
                               title={getItemDisplayName(item)}
                               widthIn={item.width_in}
@@ -1010,6 +1013,7 @@ const Checkout: React.FC = () => {
                                 compositionSignature={compositionSignature}
                               />
                             </ThumbnailPreviewWrapper>
+                            <RealisticBannerPreview item={item} />
                           </div>
                         )}
 
@@ -1018,7 +1022,7 @@ const Checkout: React.FC = () => {
                             <div className="min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <h3 className="font-bold text-[#18448D] text-lg sm:text-xl leading-snug break-words">
-                                  {getItemDisplayName(item)}
+                                  {normalized.productType === 'banner' ? `${item.material === '18oz_double' ? 'Double-Sided Banner' : 'Custom Banner'} ${formatBannerDimensions(item.width_in, item.height_in).feet}` : getItemDisplayName(item)}
                                 </h3>
                                 <span className="inline-flex items-center rounded-full bg-blue-50 text-[#18448D] border border-blue-100 px-2 py-0.5 text-xs font-semibold">
                                   {normalized.productLabel}
@@ -1032,7 +1036,7 @@ const Checkout: React.FC = () => {
                             {details.map((detail) => (
                               <div key={`${item.id}-${detail.label}`} className="min-w-0 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2">
                                 <dt className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">{detail.label}</dt>
-                                <dd className="mt-0.5 break-words text-sm font-semibold leading-5 text-slate-800">{detail.value}</dd>
+                                <dd className="mt-0.5 break-words text-sm font-semibold leading-5 text-slate-800">{detail.label === 'Size' && normalized.productType === 'banner' ? <BannerDimensions widthIn={item.width_in} heightIn={item.height_in}/> : detail.value}</dd>
                               </div>
                             ))}
                           </dl>
@@ -1086,7 +1090,7 @@ const Checkout: React.FC = () => {
                 </div>
 
                 <div className="mt-5">
-                  <CheckoutOrderTotals {...orderTotalsProps} />
+                  {orderTotals}
                 </div>
 
                 {/* Add Another Item button — product-aware for correct tab routing */}
@@ -1179,28 +1183,37 @@ const Checkout: React.FC = () => {
     </>
   );
 
+  const paymentOrderSummary = (
+    <section aria-label="Review order before payment" data-testid="payment-order-summary" className="space-y-3">
+      <CheckoutArtworkSummary showTotal={false} items={items} totalCents={totalCents}
+        editAction={<CheckoutReviewDialog label="Edit order">{orderReviewContent}</CheckoutReviewDialog>} />
+      {orderTotals}
+    </section>
+  );
+
   return (
     <Layout showFooterBanner={false} checkoutMode>
       <div className="min-h-[calc(100vh-4rem)] bg-[#F7F7F7] py-5 sm:py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
-          <div className="mb-6 sm:mb-10">
+          <div className="mb-4 sm:mb-10">
             <Button
               variant="ghost"
               onClick={() => { if (!checkoutLocked) { const returnTo = location.state?.returnTo; const saved = items.find(item => cartEditUrl(item) === returnTo) || items[items.length - 1]; navigate(saved ? cartEditUrl(saved) : (isFromGoogleAds ? "/google-ads-banner" : "/design")); } }}
               disabled={checkoutLocked}
-              className="mb-6 hover:bg-gray-100 transition-colors"
+              className="mb-3 hover:bg-gray-100 transition-colors sm:mb-6"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to designer
             </Button>
-            <div className="text-center mb-8">
+            <div className="text-center sm:mb-8">
               <div className="mb-3 inline-flex items-center gap-2 border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
-                <span>Design</span><span>→</span><span className="text-[#18448D]">Checkout</span><span>→</span><span>Complete</span>
+                <span>Design</span><span>→</span><span>Finishing</span><span>→</span><span className="text-[#18448D]" aria-current="step">Checkout</span>
               </div>
               <h1 className="mb-2 font-display text-3xl font-bold tracking-[-0.035em] text-[#0B1F3A] sm:text-4xl">Secure checkout</h1>
-              <p className="text-base text-gray-600">Most standard orders are produced within 24 hours; free next-day air begins after production.</p>
-              <p className="text-sm text-[#18448D] font-medium">Your expected shipping and delivery dates are shown below.</p>
+              <p className="text-sm text-gray-600 sm:hidden">Add your details, then review your order before you pay.</p>
+              <p className="hidden text-base text-gray-600 sm:block">Most standard orders are produced within 24 hours; free next-day air begins after production.</p>
+              <p className="hidden text-sm text-[#18448D] font-medium sm:block">Your expected shipping and delivery dates are shown below.</p>
             </div>
 
           </div>
@@ -1211,19 +1224,8 @@ const Checkout: React.FC = () => {
             className="mb-4 sm:mb-6"
           />
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
-            {/* Desktop has room for an inline review beside payment. */}
-            <section aria-label="Order summary" className="hidden w-full lg:col-span-2 lg:block">
-              <div className="border border-slate-200 border-t-4 border-t-[#FF6A00] bg-white p-6 shadow-[0_10px_28px_rgba(11,31,58,0.06)] sm:p-8">
-                <div className="mb-6 flex items-center justify-between gap-3">
-                  <h2 className="text-2xl font-bold text-[#18448D]">Order Summary</h2>
-                  <span className="rounded-full bg-blue-50 px-4 py-2 text-sm font-semibold text-[#18448D]">{items.length} {items.length === 1 ? 'Item' : 'Items'}</span>
-                </div>
-                {orderReviewContent}
-              </div>
-            </section>
-
-            <div className="w-full space-y-4 lg:col-start-3">
+          <div data-testid="checkout-flow" className="space-y-6">
+            <div className="w-full space-y-4">
             {/* Minimum Order Warning */}
             {!minimumOrderValidation.isValid && (
               <div className="bg-amber-50 border border-amber-200 rounded-lg shadow-sm p-6 mb-6">
@@ -1273,18 +1275,10 @@ const Checkout: React.FC = () => {
             )}
             {/* Payment */}
             <div className="w-full space-y-4 lg:space-y-6">
-              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm lg:hidden">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                    {items.length} {items.length === 1 ? 'item' : 'items'}
-                  </p>
-                  <p className="text-lg font-bold text-[#0B1F3A]">{usd(totalCents / 100)} total</p>
-                </div>
-                <CheckoutReviewDialog>{orderReviewContent}</CheckoutReviewDialog>
-              </div>
               <div className="rounded-xl border border-slate-200 bg-white px-4 pb-4">
                 {/* Discount Code Section */}
                 <div className="pt-3">
+                  <BOFCashCheckout locked={checkoutLocked}/>
                   {discountCode?.automaticFirstOrder && <p className="mb-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">{getEnteredPromoLabel(discountCode, resolvedDiscount)}</p>}
                   {firstOrderOffer.message && (!discountCode || discountCode.code === 'NEW20') && <p role="status" data-testid="first-order-eligibility" className="mb-2 text-xs leading-snug text-slate-600">{firstOrderOffer.message}{firstOrderOffer.status === 'unavailable' && <button type="button" onClick={firstOrderOffer.retry} className="ml-2 min-h-11 font-semibold underline">Retry offer</button>}</p>}
                   {!discountCode || discountCode.automaticFirstOrder ? (
@@ -1359,7 +1353,7 @@ const Checkout: React.FC = () => {
               </div>
               <div className="relative z-0 rounded-xl border border-gray-100 bg-white p-4 shadow-md sm:p-5">
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-[#18448D]">Payment</h2>
+                  <h2 className="text-2xl font-bold text-[#18448D]">Complete your order</h2>
                   <div className="flex items-center gap-2 bg-green-50 px-3 py-1.5 rounded-full">
                     <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -1483,6 +1477,7 @@ const Checkout: React.FC = () => {
 
                     {paymentProvider === 'stripe' ? (
                       <StripeCheckout
+                        orderSummary={paymentOrderSummary}
                         publishableKey={stripeRuntime.publishableKey}
                         disabled={firstOrderOffer.checking || paymentSubmissionBlocked || checkoutLocked}
                         total={providerTotalCents}
@@ -1494,6 +1489,7 @@ const Checkout: React.FC = () => {
                       />
                     ) : (
                       <PayPalCheckout
+                        orderSummary={paymentOrderSummary}
                         disabled={firstOrderOffer.checking || paymentSubmissionBlocked || (checkoutLocked && activeCheckout?.provider !== 'paypal')}
                         providerLocked={checkoutLocked}
                         total={providerTotalCents}
@@ -1523,6 +1519,7 @@ const Checkout: React.FC = () => {
                       </div>
                     </div>
                     <PayPalCheckout
+                        orderSummary={paymentOrderSummary}
                       disabled={firstOrderOffer.checking || paymentSubmissionBlocked || (checkoutLocked && activeCheckout?.provider !== 'paypal')}
                       providerLocked={checkoutLocked}
                       total={providerTotalCents}

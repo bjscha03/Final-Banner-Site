@@ -21,7 +21,43 @@ const item = (id: string) => ({
 
 describe('cartSync same-owner save queue', () => {
   afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
     vi.unstubAllGlobals();
+  });
+
+  it('captures immediately even when the main cart save is slow and then fails', async () => {
+    let failSave!: () => void;
+    const mainSave = new Promise<Response>((resolve) => {
+      failSave = () => resolve(new Response('unavailable', { status: 503 }));
+    });
+    const snapshots: any[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (url, init) => {
+      if (String(url).endsWith('/cart-save')) return mainSave;
+      snapshots.push(JSON.parse(init.body));
+      return new Response(JSON.stringify({ success: true }), { status: 200 });
+    }));
+    const saving = cartSyncService.saveCart([item('kept')], undefined, 'test_capture_failure');
+    await vi.waitFor(() => expect(snapshots).toHaveLength(1));
+    expect(snapshots[0].cartItems[0].id).toBe('kept');
+    failSave();
+    await expect(saving).resolves.toBe(false);
+    await expect(cartSyncService.saveCart([], undefined, 'test_capture_failure')).resolves.toBe(false);
+    expect(snapshots[1].cartItems).toEqual([]);
+    expect(snapshots[1].snapshotRevision).toBeGreaterThan(snapshots[0].snapshotRevision);
+  });
+
+  it('releases the save queue when recovery capture hangs', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', vi.fn(async (url, init) => {
+      if (String(url).endsWith('/cart-save')) return new Response('{}', { status: 200 });
+      return new Promise((_resolve, reject) => {
+        init.signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+      });
+    }));
+    const saving = cartSyncService.saveCart([item('timeout')], undefined, 'test_capture_timeout');
+    await vi.advanceTimersByTimeAsync(10_001);
+    await expect(saving).resolves.toBe(true);
   });
 
   it('serializes saves and coalesces waiting snapshots to the newest cart', async () => {

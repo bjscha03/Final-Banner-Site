@@ -788,3 +788,34 @@ test('commerce admin analytics, customer history, and order tracking stay usable
   await captureArtifact(page, testInfo, 'admin-orders');
   expect(pageErrors).toEqual([]);
 });
+
+test('period profit stands out and both pagination controls jump to page four', async ({ page }) => {
+  await page.route('**/.netlify/functions/get-orders?*', async (route) => {
+    const url = new URL(route.request().url());
+    const response = adminOrdersReportResponse(url);
+    const currentPage = Number(url.searchParams.get('page') || 1);
+    response.pagination = { page: currentPage, pageSize: 20, totalItems: 187, totalPages: 10, hasPrevious: currentPage > 1, hasNext: currentPage < 10 };
+    Object.assign(response.metrics, { netProfitCents: url.searchParams.has('start') ? 15402 : 62805, profitOrdersNeedingReview: 0 });
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(response) });
+  });
+  await page.goto('/admin/orders');
+  const metrics = page.locator('[data-admin-period-metrics]');
+  const profit = metrics.locator('div').filter({ has: page.getByText('Net Profit', { exact: true }) }).first();
+  await page.getByRole('button', { name: 'This Month', exact: true }).click();
+  await expect(profit).toContainText('$154.02');
+  await expect(profit.locator('.text-green-700')).toHaveCSS('font-weight', '800');
+  await page.getByRole('button', { name: 'All Time', exact: true }).click();
+  await expect(profit).toContainText('$628.05');
+  const top = page.getByRole('navigation', { name: 'Orders pagination top' });
+  const bottom = page.getByRole('navigation', { name: 'Orders pagination bottom' });
+  await top.getByRole('button', { name: 'Go to page 4', exact: true }).click();
+  await expect(top).toContainText('Page 4 of 10');
+  await expect(bottom.getByRole('button', { name: 'Go to page 4', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(profit).toContainText('$628.05');
+  await bottom.getByRole('button', { name: 'Previous', exact: true }).click();
+  await expect(top).toContainText('Page 3 of 10');
+  await top.getByRole('button', { name: 'Next', exact: true }).click();
+  await expect(top).toContainText('Page 4 of 10');
+  await expect(page.getByRole('heading', { name: 'Order performance' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});

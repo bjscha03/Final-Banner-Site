@@ -218,9 +218,11 @@ test('export cursor preserves Postgres microseconds across a keyset boundary', a
 
 test('list response is exactly paged, omits order arrays, and returns all-page filtered summary', async () => {
   const calls = [];
-  const sql = async (query, parameters = []) => {
+  const sql = async (statement, parameters = []) => {
+    const query = Array.isArray(statement) ? statement.join('?') : statement;
     calls.push({ query, parameters });
     if (/LIMIT 0\s*$/i.test(query)) return [];
+    if (query.includes('FROM bof_members')) return [{ email: customerRow().email, joined_at: '2026-10-02T00:00:00Z' }];
     if (query.includes('FROM marketing_email_sends')) return [];
     if (query.includes('SELECT population_stats.*')) return [statsRow()];
     if (query.includes('FROM selected_population') && query.includes('LIMIT $7 OFFSET $8')) return [customerRow()];
@@ -239,6 +241,7 @@ test('list response is exactly paged, omits order arrays, and returns all-page f
 
   assert.equal(response.statusCode, 200);
   assert.equal(body.customers.length, 1);
+  assert.equal(body.customers[0].bof_member, true);
   assert.equal(Object.hasOwn(body.customers[0], 'orders'), false);
   assert.deepEqual(body.stats, {
     all: 12,

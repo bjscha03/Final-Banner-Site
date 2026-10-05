@@ -1,0 +1,23 @@
+.realistic-banner-preview { width: 200px; max-width: 100%; }
+.realistic-banner-trigger { display: block; position: relative; width: 100%; overflow: hidden; border: 1px solid #dfe5ec; border-radius: 9px; cursor: zoom-in; background: #eef1f4; text-align: left; }
+.realistic-banner-trigger:focus-visible { outline: 2px solid #18448d; outline-offset: 3px; }
+.realistic-banner-scene { width: 100%; position: relative; overflow: hidden; isolation: isolate; background: #a5755e; }
+.realistic-banner-wall { position: absolute; inset: 0; background: url('/images/preview/brick-wall.webp') center / auto repeat; }
+.realistic-banner-wall::after { content: ''; position: absolute; inset: 0; background: linear-gradient(120deg, #ffffff08, transparent 55%, #21190e19); }
+.realistic-banner-shadow { position: absolute; background: #241b13; opacity: .25; filter: blur(2px); transform: translate(1px, 2px); }
+.realistic-banner-shadow.is-suspended { filter: blur(3px); transform: translate(3px, 5px); opacity: .35; }
+.realistic-banner-hardware, .realistic-banner-surface-light { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.realistic-banner-surface { position: absolute; mask-size: 100% 100%; -webkit-mask-size: 100% 100%; mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; }
+.realistic-banner-surface > div { width: 100%; height: 100%; }
+.realistic-banner-material-texture { position: absolute; inset: 0; pointer-events: none; background: url('/images/preview/vinyl-surface.webp') center / 100% 100%; mix-blend-mode: multiply; }
+.realistic-banner-zoom { position: absolute; right: 6px; top: 6px; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: #ffffffed; color: #18448d; box-shadow: 0 1px 4px #0002; }
+.realistic-banner-expand-label { display: block; padding: 5px 8px; background: #fff; font-size: 10px; line-height: 1.4; text-align: center; color: #64748b; }
+.realistic-banner-dialog { display: flex; flex-direction: column; width: calc(100% - 24px); max-width: 1000px; max-height: calc(100dvh - 24px); }
+.realistic-banner-dialog > button { min-width: 44px; min-height: 44px; top: 8px; right: 8px; display: flex; align-items: center; justify-content: center; }
+.realistic-banner-dialog-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.realistic-banner-scene-expanded { max-height: 64dvh; max-width: calc(64dvh * var(--scene-ratio)); margin: 0 auto; }
+.realistic-banner-scene-expanded .realistic-banner-shadow.is-suspended { transform: translate(5px, 8px); filter: blur(6px); }
+@media (max-width: 639px) {
+  .realistic-banner-preview { width: 240px; }
+  .realistic-banner-dialog { width: calc(100% - 16px); max-height: calc(100dvh - 16px); }
+}

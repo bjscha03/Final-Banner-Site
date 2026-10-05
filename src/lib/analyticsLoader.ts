@@ -9,7 +9,7 @@ import {
 
 export const ANALYTICS_IDS = Object.freeze({
   ga4: 'G-2TQ6JYYZV7',
-  metaPixel: '1487321805934457',
+  metaPixel: '2439201039848260',
   clarity: 'vb952a5v2f',
   contentsquare: 'f68a18990d1b7',
   linkedInPartner: '8163164',

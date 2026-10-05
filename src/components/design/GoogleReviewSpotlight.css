@@ -1,0 +1,37 @@
+.google-review-spotlight { background: #fff; color: #0b1f3a; border-bottom: 1px solid #e2e8f0; border-top: 3px solid #ff6a00; }
+.google-review-inner { max-width: 1200px; margin: 0 auto; padding: 16px 24px; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 24px; }
+.google-review-label { display: flex; flex-direction: column; gap: 8px; }
+.google-review-source { font-size: 14px; font-weight: 700; white-space: nowrap; }
+.google-review-stars { display: flex; gap: 2px; color: #b76b00; }
+/* All slides share a grid cell so the tallest reserves space at every width. */
+.google-review-slides { display: grid; min-width: 0; }
+.google-review-slide { grid-area: 1 / 1; margin: 0; opacity: 0; visibility: hidden; transition: opacity 450ms ease, visibility 450ms; pointer-events: none; }
+.google-review-slide.is-active { opacity: 1; visibility: visible; }
+.google-review-slide blockquote { margin: 0; font-size: 16px; line-height: 1.5; overflow-wrap: anywhere; }
+.google-review-slide figcaption { margin-top: 5px; color: #526174; font-size: 13px; line-height: 1.5; }
+@media (max-width: 767px) {
+  .google-review-inner { padding: 12px 16px; grid-template-columns: minmax(0, 1fr); gap: 8px 12px; }
+  .google-review-label { flex-direction: row; align-items: center; gap: 10px; min-width: 0; }
+  .google-review-source { white-space: normal; }
+  .google-review-slides { grid-column: 1 / -1; grid-row: 2; }
+}
+@media (prefers-reduced-motion: reduce) { .google-review-slide { transition: none; } }
+
+.google-review-compact-inner { display: none; }
+@keyframes google-review-marquee { to { transform: translateX(-50%); } }
+@media (max-width: 1023px) {
+  .google-review-spotlight--compact-mobile { border-top: 0; }
+  .google-review-spotlight--compact-mobile .google-review-inner { display: none; }
+  .google-review-compact-inner { display: flex; height: 46px; gap: 10px; align-items: center; padding-left: 16px; }
+  .google-review-marquee { flex: 1; min-width: 0; overflow: hidden; }
+  .google-review-marquee-track { display: flex; width: max-content; animation: google-review-marquee 155s linear infinite; }
+  .google-review-marquee-set { display: flex; flex-shrink: 0; align-items: center; }
+  .google-review-marquee-set p { margin: 0; padding-right: 40px; white-space: nowrap; font-size: 12px; line-height: 20px; }
+  .google-review-compact-inner:hover .google-review-marquee-track,
+  .google-review-compact-inner:focus-within .google-review-marquee-track { animation-play-state: paused; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .google-review-marquee-track { animation: none; }
+  .google-review-marquee { overflow-x: auto; }
+  .google-review-marquee-set[aria-hidden="true"] { display: none; }
+}

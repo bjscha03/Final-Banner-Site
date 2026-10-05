@@ -347,6 +347,53 @@ export const SEASONAL_CAMPAIGNS: SeasonalCampaign[] = [
       },
     ],
   },
+  {
+    id: 'new-year-2027',
+    status: 'ready',
+    tier: 2,
+    priority: 93,
+    startDate: '2026-12-14',
+    endDate: '2027-01-02',
+    eyebrow: "New Year's Eve · Year-end sales · January openings",
+    headline: 'Make the final celebration impossible to miss.',
+    description:
+      "Promote New Year's events, year-end offers, and January openings with custom banners and yard signs made fast.",
+    primaryCta: { label: "Create a New Year's banner", href: '/design' },
+    secondaryCta: { label: 'Explore vinyl banners', href: '/vinyl-banners' },
+    valueProps: ['24-hour standard production', 'Free next-day air after production', 'Live print preview'],
+    artwork: {
+      desktopSrc: '/images/seasonal-new-year-2027-desktop.webp',
+      desktopWidth: 1400,
+      desktopHeight: 875,
+      mobileSrc: '/images/seasonal-new-year-2027-mobile.webp',
+      mobileWidth: 900,
+      mobileHeight: 1125,
+      alt: "Northline Social Hall New Year's Eve vinyl banner securely mounted to a terrace railing",
+    },
+    merchandising: [
+      {
+        icon: 'calendar',
+        title: "New Year's Eve events",
+        description: 'Lead with the event name, date, and time so guests can understand the plan at a glance.',
+        label: 'Create an event banner',
+        href: '/design',
+      },
+      {
+        icon: 'store',
+        title: 'Year-end sales & clearances',
+        description: 'Make one offer and its deadline readable from the street before the calendar turns.',
+        label: 'Shop vinyl banners',
+        href: '/vinyl-banners',
+      },
+      {
+        icon: 'map',
+        title: 'Entrances, parking & pickup',
+        description: 'Guide celebration traffic and holiday orders with matching directional yard signs.',
+        label: 'Shop yard signs',
+        href: '/yard-signs',
+      },
+    ],
+  },
 ];
 
 export function getCampaignDateIso(date = new Date()): string {

@@ -1,3 +1,5 @@
+import BOFProfitAdjustments from '@/components/orders/BOFProfitAdjustments';
+import BOFMemberBadge from '@/components/BOFMemberBadge';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, isAdmin } from '../../lib/auth';
@@ -49,7 +51,7 @@ import GrommetOverlay from '@/components/preview/GrommetOverlay';
 import StablePreviewImage from '@/components/preview/StablePreviewImage';
 import { getGrommetLabel } from '@/lib/grommets';
 import EditCustomerInfoDialog from '@/components/orders/EditCustomerInfoDialog';
-import ReviewRequestAction from '@/components/orders/ReviewRequestAction';
+import ReviewRequestAction, { type ReviewRequestUpdate } from '@/components/orders/ReviewRequestAction';
 import AdminRefundOrderAction from '@/components/orders/AdminRefundOrderAction';
 import AdminTrackingManager from '@/components/orders/AdminTrackingManager';
 import {
@@ -65,7 +67,33 @@ import {
 
 const PAGE_SIZE = 20;
 
+const OrderPagination = ({ page, totalPages, loading, onPageChange, position }: {
+  page: number; totalPages: number; loading: boolean; onPageChange: (page: number) => void; position: 'top' | 'bottom';
+}) => {
+  if (totalPages <= 1) return null;
+  const pages = totalPages <= 12
+    ? Array.from({ length: totalPages }, (_, index) => index + 1)
+    : Array.from(new Set([1, 2, 3, 4, 5, page - 1, page, page + 1, totalPages]))
+      .filter((number) => number >= 1 && number <= totalPages).sort((a, b) => a - b);
+  return (
+    <nav aria-label={`Orders pagination ${position}`} className="my-4 flex flex-wrap items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white p-3">
+      <Button type="button" variant="outline" disabled={loading || page <= 1} onClick={() => onPageChange(page - 1)}><ChevronLeft className="mr-1 h-4 w-4" />Previous</Button>
+      <div className="flex max-w-full flex-wrap justify-center gap-1">
+        {pages.map((number) => <Button key={number} type="button" variant={page === number ? 'default' : 'outline'} size="sm" className="min-h-10 min-w-10" aria-label={`Go to page ${number}`} aria-current={page === number ? 'page' : undefined} disabled={loading} onClick={() => onPageChange(number)}>{number}</Button>)}
+      </div>
+      <Button type="button" variant="outline" disabled={loading || page >= totalPages} onClick={() => onPageChange(page + 1)}>Next<ChevronRight className="ml-1 h-4 w-4" /></Button>
+      {totalPages > 12 && <label className="flex items-center gap-2 text-sm text-slate-600">Go to page
+        <Input type="number" min={1} max={totalPages} disabled={loading} key={page} defaultValue={page} className="w-24"
+          onKeyDown={(event) => { if (event.key === 'Enter') { const value = Number(event.currentTarget.value); if (Number.isInteger(value) && value >= 1 && value <= totalPages) onPageChange(value); } }} />
+      </label>}
+      <span className="w-full text-center text-xs text-slate-600" aria-live="polite">Page {page} of {totalPages}</span>
+    </nav>
+  );
+};
+
 const emptyBusinessMetrics = (): AdminBusinessMetrics => ({
+  netProfitCents: 0,
+  profitOrdersNeedingReview: 0,
   totalOrders: 0,
   grossSalesCents: 0,
   averageOrderValueCents: 0,
@@ -525,7 +553,7 @@ const AdminOrders: React.FC = () => {
   }, [page, pagination.totalPages]);
 
   const goToPage = (newPage: number) => {
-    setPage(newPage);
+    setPage(Math.min(pagination.totalPages, Math.max(1, newPage)));
     // Scroll to top of orders section
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -584,6 +612,12 @@ const AdminOrders: React.FC = () => {
             reporting_customer_email: summary.reporting_customer_email || detail.reporting_customer_email || null,
             review_request_customer_email: summary.review_request_customer_email || detail.review_request_customer_email || null,
             review_request_last_sent_at: summary.review_request_last_sent_at || detail.review_request_last_sent_at || null,
+            review_request_initial_sent_at: summary.review_request_initial_sent_at || detail.review_request_initial_sent_at,
+            review_followup_sent_at: summary.review_followup_sent_at || detail.review_followup_sent_at,
+            review_offer_percentage: summary.review_offer_percentage || detail.review_offer_percentage,
+            review_coupon_code: summary.review_coupon_code || detail.review_coupon_code,
+            review_coupon_sent_at: summary.review_coupon_sent_at || detail.review_coupon_sent_at,
+            review_coupon_used: summary.review_coupon_used || detail.review_coupon_used,
             review_request_sent_count: Math.max(
               Number(summary.review_request_sent_count || 0),
               Number(detail.review_request_sent_count || 0),
@@ -636,12 +670,17 @@ const AdminOrders: React.FC = () => {
     updateOrderEverywhere(updated.id, (order) => ({ ...order, ...updated }));
     void loadOrders(page);
   };
-  const handleReviewRequestSent = (orderId: string, update: { sentAt: string; customerEmail: string }) => {
+  const handleReviewRequestSent = (orderId: string, update: ReviewRequestUpdate) => {
     updateOrderEverywhere(orderId, (order) => ({
       ...order,
       review_request_last_sent_at: update.sentAt,
       review_request_customer_email: update.customerEmail,
       review_request_sent_count: Math.max(Number(order.review_request_sent_count || 0), 1),
+      review_request_initial_sent_at: update.action === 'initial' ? update.sentAt : order.review_request_initial_sent_at,
+      review_followup_sent_at: update.followupSentAt ?? order.review_followup_sent_at,
+      review_offer_percentage: update.offerPercentage ?? order.review_offer_percentage,
+      review_coupon_code: update.couponCode ?? order.review_coupon_code,
+      review_coupon_sent_at: update.couponSentAt ?? order.review_coupon_sent_at,
     }));
   };
 
@@ -1171,8 +1210,8 @@ const AdminOrders: React.FC = () => {
           </div>
 
           {/* Stats */}
-          <div className="mb-4 rounded-2xl border border-[#18448D]/20 bg-gradient-to-r from-[#18448D] to-[#0f2d5c] p-4 sm:p-5 shadow-lg">
-            <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="mb-4 rounded-2xl border border-[#18448D]/20 bg-gradient-to-r from-[#18448D] to-[#0f2d5c] p-3 sm:p-4 shadow-lg">
+            <div className="mb-2 flex items-center justify-between gap-3">
               <h2 className="text-sm sm:text-base font-semibold tracking-wide text-white uppercase">
                 All Admin Overview
               </h2>
@@ -1180,7 +1219,7 @@ const AdminOrders: React.FC = () => {
                 Global totals across admin sections
               </span>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
               {[
                 {
                   label: 'Total Orders',
@@ -1223,15 +1262,15 @@ const AdminOrders: React.FC = () => {
                   ready: globalOverviewLoading.customQuotes,
                 },
               ].map((metric) => (
-                <div key={metric.label} className="rounded-xl border border-white/20 bg-white/10 p-3 backdrop-blur-sm">
-                  <p className="text-[11px] sm:text-xs text-white/80">{metric.label}</p>
-                  <p className="text-base sm:text-lg font-bold text-white mt-1 break-words">{metric.ready ? metric.value : 'Loading…'}</p>
+                <div key={metric.label} className="min-w-0 rounded-lg border border-white/20 bg-white/10 px-2.5 py-2 backdrop-blur-sm">
+                  <p className="min-h-7 text-[11px] leading-[14px] text-white/80">{metric.label}</p>
+                  <p className="mt-1 whitespace-nowrap text-base font-bold leading-5 tabular-nums text-white">{metric.ready ? metric.value : 'Loading…'}</p>
                 </div>
               ))}
             </div>
           </div>
 
-          <section className="mb-8 rounded-2xl border border-slate-200 bg-white p-4 shadow-lg sm:p-6" aria-labelledby="order-report-heading">
+          <section className="mb-8 rounded-2xl border border-slate-200 bg-white p-3 shadow-lg sm:p-4" aria-labelledby="order-report-heading">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <h2 id="order-report-heading" className="text-lg font-bold text-gray-900">Order performance</h2>
@@ -1278,37 +1317,39 @@ const AdminOrders: React.FC = () => {
               </div>
             )}
 
-            <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8" data-admin-period-metrics>
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9" data-admin-period-metrics>
               {[
                 { label: 'Total Orders', value: businessMetrics.totalOrders.toLocaleString() },
                 { label: 'Gross Sales', value: usd(businessMetrics.grossSalesCents / 100) },
                 { label: 'AOV', value: usd(businessMetrics.averageOrderValueCents / 100) },
                 { label: 'Recorded Refunds', value: usd(businessMetrics.recordedRefundsCents / 100) },
                 { label: 'Net Sales', value: usd(businessMetrics.netSalesCents / 100) },
+                { label: 'Net Profit', value: businessMetrics.netProfitCents == null ? 'Unavailable' : usd(businessMetrics.netProfitCents / 100) },
                 { label: 'New Customers', value: businessMetrics.newCustomers.toLocaleString(), href: '/admin/customers?segment=new' },
                 { label: 'Repeat Customers', value: businessMetrics.repeatCustomers.toLocaleString(), href: '/admin/customers?segment=repeat' },
                 { label: 'Repeat Rate', value: `${(businessMetrics.repeatRate * 100).toFixed(1)}%` },
               ].map((metric) => {
+                const cardClass = 'flex min-w-0 flex-col rounded-lg border px-2.5 py-2';
                 const content = (
                   <>
-                    <p className="text-[11px] text-gray-600">{metric.label}</p>
-                    <p className="mt-1 break-words text-base font-bold text-gray-900">
+                    <p className="min-h-7 text-[11px] leading-[14px] text-gray-600">{metric.label}</p>
+                    <p className={`mt-1 whitespace-nowrap text-base leading-5 tabular-nums ${metric.label === 'Net Profit' ? 'font-extrabold text-green-700' : 'font-bold text-gray-900'}`}>
                       {!reportReady || loading ? 'Loading…' : metric.value}
                     </p>
-                    {metric.href && <p className="mt-1 text-[11px] font-semibold text-[#18448D]">View customers →</p>}
+                    {metric.href && <p className="mt-1 whitespace-nowrap text-[10px] font-semibold leading-[14px] text-[#18448D]">View customers →</p>}
                   </>
                 );
                 return metric.href ? (
                   <a
                     key={metric.label}
                     href={metric.href}
-                    className="rounded-xl border border-blue-200 bg-blue-50 p-3 transition-colors hover:border-[#18448D] hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#18448D] focus-visible:ring-offset-2"
+                    className={`${cardClass} border-blue-200 bg-blue-50 transition-colors hover:border-[#18448D] hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#18448D] focus-visible:ring-offset-2`}
                     aria-label={`View ${metric.label.toLowerCase()}`}
                   >
                     {content}
                   </a>
                 ) : (
-                  <div key={metric.label} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <div key={metric.label} className={`${cardClass} border-slate-200 bg-slate-50`}>
                     {content}
                   </div>
                 );
@@ -1318,6 +1359,11 @@ const AdminOrders: React.FC = () => {
               AOV is net sales divided by successful orders. A new customer placed their first successful lifetime order in this period; a repeat customer placed a successful period order after an earlier successful order. Customer counts use valid, normalized email addresses and omit generated guest/preview addresses.
             </p>
           </section>
+
+          <p className="-mt-5 mb-6 text-xs text-slate-600" data-admin-profit-note>
+            Net profit is estimated across the selected period using the same costs as each order: sales after discounts minus production and supplier shipping. Excludes tax, refunded orders, advertising and payment fees.
+            {Boolean(businessMetrics.profitOrdersNeedingReview) && <strong className="ml-1 text-amber-800">{businessMetrics.profitOrdersNeedingReview} orders need cost review and are excluded from this profit subtotal.</strong>}
+          </p>
 
           {/* Search */}
           <div className="mb-8 rounded-2xl bg-white p-6 shadow-lg">
@@ -1351,6 +1397,8 @@ const AdminOrders: React.FC = () => {
               </div>
             </div>
           </div>
+
+          <OrderPagination page={page} totalPages={pagination.totalPages} loading={loading} onPageChange={goToPage} position="top" />
 
           {/* Orders Table */}
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
@@ -1445,32 +1493,7 @@ const AdminOrders: React.FC = () => {
             )}
           </div>
 
-          {/* Pagination */}
-          {!loading && pagination.totalPages > 1 && (
-            <div className="flex items-center justify-between mt-6">
-              <Button
-                variant="outline"
-                onClick={() => goToPage(page - 1)}
-                disabled={page <= 1}
-                className="flex items-center gap-1"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Previous
-              </Button>
-              <span className="text-sm text-gray-600">
-                Page {page} of {pagination.totalPages}
-              </span>
-              <Button
-                variant="outline"
-                onClick={() => goToPage(page + 1)}
-                disabled={page >= pagination.totalPages}
-                className="flex items-center gap-1"
-              >
-                Next
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
+          <OrderPagination page={page} totalPages={pagination.totalPages} loading={loading} onPageChange={goToPage} position="bottom" />
         </div>
       </div>
     </Layout>
@@ -1492,7 +1515,7 @@ interface AdminOrderRowProps {
   pdfLoadingStates: Record<string, boolean>;
   fileLoadingStates: Record<string, boolean>;
   onCustomerInfoUpdated: (order: Order) => void;
-  onReviewRequestSent: (orderId: string, update: { sentAt: string; customerEmail: string }) => void;
+  onReviewRequestSent: (orderId: string, update: ReviewRequestUpdate) => void;
   onLoadDetails: (orderId: string) => Promise<void>;
   detailError: boolean;
 }
@@ -1608,7 +1631,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
               {new Date(order.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
             </div>
             <div className="text-sm font-medium text-gray-900 break-words" title={order.customer_name || order.shipping_name || "Guest Customer"}>
-              {order.customer_name || order.shipping_name || 'Guest Customer'}
+              {order.customer_name || order.shipping_name || 'Guest Customer'}<BOFMemberBadge joined={order.bof_member}/>
             </div>
             <div className="text-xs text-gray-600 break-all" title={order.email || (order.user_id ? `${order.user_id.slice(0, 8)}...` : "No email")}>
               {order.email || (order.user_id ? `${order.user_id.slice(0, 8)}...` : 'No email')}
@@ -1634,7 +1657,10 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
             return (
               <div className="rounded-md border border-slate-200 bg-slate-50 p-2 text-xs"> 
                 {profit.needsReview ? (
-                  <div className="inline-flex rounded bg-amber-100 px-2 py-1 font-semibold text-amber-800">Needs review</div>
+                  <div className="rounded bg-amber-100 px-2 py-1 text-amber-800">
+                    <div className="font-semibold">Needs review</div>
+                    {profit.reviewReasons.map((reason) => <div key={reason}>{reason}</div>)}
+                  </div>
                 ) : (
                   <>
                     <div className="text-slate-700">Revenue: <span className="font-semibold">{usd(profit.originalSubtotalCents / 100)}</span></div>
@@ -1643,6 +1669,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                     <div className="text-gray-600">Production Cost: <span className="font-semibold">{usd(profit.productionCostCents / 100)}</span></div>
                     <div className="text-gray-600">Shipping/Handling Cost: <span className="font-semibold">{usd(profit.shippingCostCents / 100)}</span></div>
                     <div className="text-gray-600">Total Cost: <span className="font-semibold">{usd(profit.totalCostCents / 100)}</span></div>
+                    <BOFProfitAdjustments rewardCents={profit.bofRewardReserveCents} releasedCents={profit.bofReserveReleasedCents}/>
                     <div className="pt-1 text-sm text-slate-800">Net Profit: <span className={`text-base font-bold ${profit.netProfitCents >= 0 ? 'text-green-700' : 'text-red-700'}`}>{usd(profit.netProfitCents / 100)}</span></div>
                     <div className="text-slate-700">Margin: <span className={`font-semibold ${profit.marginPct >= 50 ? 'text-green-700' : profit.marginPct >= 35 ? 'text-amber-700' : 'text-red-700'}`}>{profit.marginPct.toFixed(1)}%</span></div>
                     <button type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); setShowCostBreakdown((value) => !value); }} className="mt-2 inline-flex items-center text-xs font-semibold text-[#18448D] hover:underline">
@@ -1930,7 +1957,7 @@ interface AdminOrderCardProps {
   pdfLoadingStates: Record<string, boolean>;
   fileLoadingStates: Record<string, boolean>;
   onCustomerInfoUpdated: (order: Order) => void;
-  onReviewRequestSent: (orderId: string, update: { sentAt: string; customerEmail: string }) => void;
+  onReviewRequestSent: (orderId: string, update: ReviewRequestUpdate) => void;
   onLoadDetails: (orderId: string) => Promise<void>;
   detailError: boolean;
 }
@@ -2013,7 +2040,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
               <div className="text-xs text-gray-500">
                 {new Date(order.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
               </div>
-              <div className="text-sm font-medium text-gray-900 break-words">{order.customer_name || order.shipping_name || 'Not provided'}</div>
+              <div className="text-sm font-medium text-gray-900 break-words">{order.customer_name || order.shipping_name || 'Not provided'}<BOFMemberBadge joined={order.bof_member}/></div>
               <div className="text-xs text-gray-600 break-all">{order.email || 'No email'}</div>
             </div>
             <div className="flex flex-col gap-1 items-end shrink-0">
@@ -2060,7 +2087,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
               <div className="text-lg font-bold text-[#18448D]">{usd(getDisplayOrderTotalCents(order as any) / 100)}</div>
             {detailRequired ? (
               detailError ? <div className="text-xs text-slate-500">Cost details unavailable</div> : null
-            ) : (() => { const profit = estimateOrderProfit(order); return profit.needsReview ? (<div className="inline-flex rounded bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">Needs review</div>) : (<div className="text-xs text-slate-700">Rev {usd(profit.originalSubtotalCents/100)}{profit.discountsAppliedCents>0 ? ` · Disc -${usd(profit.discountsAppliedCents/100)}` : ''}{profit.adjustedRetailSubtotalCents !== profit.originalSubtotalCents ? ` · Adj ${usd(profit.adjustedRetailSubtotalCents/100)}` : ''} · Prod {usd(profit.productionCostCents/100)} · Ship {usd(profit.shippingCostCents/100)} · Total Cost {usd(profit.totalCostCents/100)} · <span className={`${profit.netProfitCents>=0?'text-green-700':'text-red-700'} font-semibold`}>Profit {usd(profit.netProfitCents/100)}</span> · <span className={`${profit.marginPct >= 50 ? 'text-green-700' : profit.marginPct >= 35 ? 'text-amber-700' : 'text-red-700'} font-semibold`}>Margin {profit.marginPct.toFixed(1)}%</span></div>); })()}
+            ) : (() => { const profit = estimateOrderProfit(order); return profit.needsReview ? (<div className="rounded bg-amber-100 px-2 py-1 text-xs text-amber-800"><div className="font-semibold">Needs review</div>{profit.reviewReasons.map((reason) => <div key={reason}>{reason}</div>)}</div>) : (<div className="text-xs text-slate-700">Rev {usd(profit.originalSubtotalCents/100)}{profit.discountsAppliedCents>0 ? ` · Disc -${usd(profit.discountsAppliedCents/100)}` : ''}{profit.adjustedRetailSubtotalCents !== profit.originalSubtotalCents ? ` · Adj ${usd(profit.adjustedRetailSubtotalCents/100)}` : ''}{profit.bofRewardReserveCents>0?` · BOF reserve -${usd(profit.bofRewardReserveCents/100)}`:''}{profit.bofReserveReleasedCents>0?` · BOF reserve used +${usd(profit.bofReserveReleasedCents/100)}`:''} · Prod {usd(profit.productionCostCents/100)} · Ship {usd(profit.shippingCostCents/100)} · Total Cost {usd(profit.totalCostCents/100)} · <span className={`${profit.netProfitCents>=0?'text-green-700':'text-red-700'} font-semibold`}>Profit {usd(profit.netProfitCents/100)}</span> · <span className={`${profit.marginPct >= 50 ? 'text-green-700' : profit.marginPct >= 35 ? 'text-amber-700' : 'text-red-700'} font-semibold`}>Margin {profit.marginPct.toFixed(1)}%</span></div>); })()}
             </div>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import type { Order } from './orders/types';
 
-const ELIGIBLE_PAID_STATUSES = new Set(['paid', 'in_production', 'shipped']);
+const ELIGIBLE_PAID_STATUSES = new Set(['paid', 'in_production', 'shipped', 'delivered', 'fulfilled']);
 
 const normalize = (value: unknown): string => String(value || '').trim().toLowerCase();
 

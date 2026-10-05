@@ -22,27 +22,27 @@
 # Function-specific configuration
 [functions."detect-abandoned-carts"]
   schedule = "* * * * *"
-  memory = 512
+  memory = 1024
 
 [functions."detect-abandoned-carts-background"]
   background = true
-  memory = 512
+  memory = 1024
 
 [functions."reconcile-pending-paypal"]
   schedule = "*/5 * * * *"
-  memory = 512
+  memory = 1024
 
 [functions."reconcile-pending-paypal-background"]
   background = true
-  memory = 512
+  memory = 1024
 
 [functions."upload-file"]
   timeout = 60
-  memory = 1008
+  memory = 1024
 
 [functions."canva-export"]
   timeout = 60
-  memory = 1008
+  memory = 1024
 
 [functions."render-order-pdf"]
   timeout = 120
@@ -78,15 +78,15 @@
   memory = 2048
 
 [functions."ai-designer-job"]
-  memory = 512
+  memory = 1024
 
 [functions."ai-designer-status"]
   timeout = 30
-  memory = 512
+  memory = 1024
 
 [functions."ai-designer-brief"]
   timeout = 30
-  memory = 512
+  memory = 1024
 
 [functions."outbound-sales-manual-review"]
   timeout = 60
@@ -99,7 +99,7 @@
 [functions."ai-designer-cleanup"]
   schedule = "@daily"
   timeout = 60
-  memory = 512
+  memory = 1024
 
 # Manual-sales preparation only. These jobs discover/research leads and prepare
 # email drafts; they never create artwork, call Resend, or send email. Netlify cron is UTC, so the
@@ -108,22 +108,22 @@
 [functions."outbound-sales-morning-launch"]
   schedule = "30 9 * * *"
   timeout = 30
-  memory = 512
+  memory = 1024
 
 [functions."outbound-sales-morning-replenish"]
   schedule = "30 10 * * *"
   timeout = 30
-  memory = 512
+  memory = 1024
 
 [functions."outbound-sales-morning-finalize"]
   schedule = "0 11 * * *"
   timeout = 30
-  memory = 512
+  memory = 1024
 
 [functions."outbound-sales-morning-finalize-retry"]
   schedule = "30 11 * * *"
   timeout = 30
-  memory = 512
+  memory = 1024
 
 [functions."outbound-sales-morning-prepare-background"]
   background = true
@@ -133,7 +133,7 @@
 # Both endpoints are preparation-only; neither endpoint imports delivery code.
 [functions."outbound-sales-event-import"]
   timeout = 30
-  memory = 512
+  memory = 1024
 
 [functions."outbound-sales-event-import-background"]
   background = true
@@ -178,6 +178,19 @@
   from = "/proof/*"
   to = "/custom-banners"
   status = 301
+  force = true
+
+# Public referral cards must be rendered on the server for social sharing.
+[[redirects]]
+  from = "/bof-cash-test/share/:code"
+  to = "/.netlify/functions/bof-cash-test?action=share&code=:code"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/refer/:code"
+  to = "/.netlify/functions/bof-referral?code=:code"
+  status = 200
   force = true
 
 # AI Banner Generator API redirects (must be before SPA fallback)

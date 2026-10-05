@@ -30,6 +30,10 @@ export interface OrderItem {
   pole_pocket_pricing_mode?: 'per_item' | 'per_order';
   rope_cost_cents?: number;
   rope_pricing_mode?: 'per_item' | 'per_order';
+  yard_sign_sidedness?: 'single' | 'double' | null;
+  yard_sign_step_stakes_enabled?: boolean;
+  yard_sign_step_stakes_qty?: number;
+  yard_sign_stakes_subtotal_cents?: number;
   area_sqft: number;
   unit_price_cents: number;
   line_total_cents: number;
@@ -70,6 +74,12 @@ export interface OrderItem {
 }
 
 export interface Order {
+  bof_member?: boolean;
+  bof_reward_reserve_cents?: number;
+  bof_reserve_released_cents?: number;
+  bof_profit_review?: boolean;
+  bof_joined_at?: string | null;
+  bof_invitation_status?: string | null;
   id: string;
   user_id: string | null;
   email?: string; // Customer email for guest orders
@@ -142,6 +152,12 @@ export interface Order {
   review_request_customer_email?: string | null;
   review_request_last_sent_at?: string | null;
   review_request_sent_count?: number;
+  review_request_initial_sent_at?: string | null;
+  review_followup_sent_at?: string | null;
+  review_offer_percentage?: number;
+  review_coupon_code?: string | null;
+  review_coupon_sent_at?: string | null;
+  review_coupon_used?: boolean;
   item_count?: number;
   items_truncated?: boolean;
   admin_detail_loaded?: boolean;

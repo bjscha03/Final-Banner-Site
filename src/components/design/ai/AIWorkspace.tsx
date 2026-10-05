@@ -23,7 +23,9 @@ import { trackAIEvent } from '@/lib/aiAnalytics';
 import { useAuth } from '@/lib/auth';
 import { loadDraft, saveDraft } from './draftStore';
 import { collectVersions } from './versions';
+import { getPrintReview } from './printReview';
 import { fetchAIRequest } from './jobRequest';
+import { AIJobFailedError, forgetPendingJob, resumeBackgroundJob, runBackgroundJob, type PendingAIJob } from './backgroundJob';
 import LayerControls from './LayerControls';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import type {
@@ -46,6 +48,14 @@ type Props = {
   onGenerated: (result: CreateWithAIResult) => void | Promise<void>;
   onClose?: () => void;
 };
+
+type ImageJobContext = {
+  sourceVersionId?: string;
+  logoImage: string | null;
+  referenceImage: string | null;
+  photoImages: string[];
+};
+type PendingImageJob = { job: PendingAIJob; context: ImageJobContext };
 
 const EMPTY_COPY: ExactCopy = {
   headline: '',
@@ -106,11 +116,6 @@ function makeBrief(props: Props): CreativeBrief {
   };
 }
 
-function requestId() {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
 async function fileToDataUrl(file: Blob) {
   return await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -163,125 +168,6 @@ function formatDuration(milliseconds: number) {
   return `${(milliseconds / 1000).toFixed(1)}s`;
 }
 
-function waitFor(milliseconds: number, signal: AbortSignal) {
-  return new Promise<void>((resolve, reject) => {
-    if (signal.aborted) {
-      reject(new DOMException('Aborted', 'AbortError'));
-      return;
-    }
-    const onAbort = () => {
-      window.clearTimeout(timer);
-      reject(new DOMException('Aborted', 'AbortError'));
-    };
-    const timer = window.setTimeout(() => {
-      signal.removeEventListener('abort', onAbort);
-      resolve();
-    }, milliseconds);
-    signal.addEventListener('abort', onAbort, { once: true });
-  });
-}
-
-async function runBackgroundJob(
-  startPath: string,
-  payload: Record<string, unknown>,
-  signal: AbortSignal,
-  waitingMessage: string,
-  onStage: (message: string) => void,
-  onPreview?: (source: string) => void,
-) {
-  const requestStartedAt = Date.now();
-  const pendingKey = 'banners_ai_designer_pending_job';
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(payload)));
-  const payloadFingerprint = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
-  let start: Record<string, unknown> | null = null;
-  try {
-    const pending = JSON.parse(window.sessionStorage.getItem(pendingKey) || 'null');
-    if (
-      pending?.startPath === startPath
-      && pending?.payloadFingerprint === payloadFingerprint
-      && Date.now() - Number(pending.createdAt || 0) < 2 * 60 * 60 * 1000
-    ) start = pending;
-  } catch {
-    window.sessionStorage.removeItem(pendingKey);
-  }
-
-  const resumingJob = Boolean(start?.jobRef);
-  if (!start?.jobRef) {
-    const idempotencyKey = String(start?.idempotencyKey || requestId());
-    // Persist request identity before sending: retrying a lost response must
-    // not create a second paid generation.
-    start = { startPath, payloadFingerprint, idempotencyKey, createdAt: Date.now(), dispatched: false };
-    window.sessionStorage.setItem(pendingKey, JSON.stringify(start));
-    const startResponse = await fetchAIRequest(startPath, {
-      method: 'POST',
-      credentials: 'same-origin',
-      signal,
-      headers: authorizedHeaders({
-        'Content-Type': 'application/json',
-        'X-Idempotency-Key': idempotencyKey,
-      }),
-      body: authenticatedJsonBody({ ...payload, idempotencyKey }),
-    });
-    const started = await startResponse.json().catch(() => ({}));
-    if (!startResponse.ok || !started?.jobRef) throw new Error(started?.message || 'The AI job could not be started safely.');
-    start = { ...started, startPath, payloadFingerprint, idempotencyKey, createdAt: Date.now(), dispatched: false };
-    window.sessionStorage.setItem(pendingKey, JSON.stringify(start));
-  }
-
-  onStage(waitingMessage);
-  // The worker ignores completed or actively claimed jobs. Redispatch the
-  // same reference on an explicit retry so an abandoned claim can recover;
-  // never enqueue a second paid job merely because polling was interrupted.
-  if (start.dispatched !== true || resumingJob) {
-    const workerResponse = await fetchAIRequest(String(start.workerPath || '/.netlify/functions/ai-designer-worker-background'), {
-      method: 'POST',
-      credentials: 'same-origin',
-      signal,
-      headers: authorizedHeaders({ 'Content-Type': 'application/json' }),
-      body: authenticatedJsonBody({ jobRef: start.jobRef }),
-    });
-    if (!workerResponse.ok) throw new Error('The secure AI worker could not be started. Please retry.');
-    start.dispatched = true;
-    window.sessionStorage.setItem(pendingKey, JSON.stringify(start));
-  }
-
-  const deadline = Date.now() + 7 * 60 * 1000;
-  let previewVersion = "";
-  const pollPath = String(start.pollPath || '/.netlify/functions/ai-designer-job');
-  while (Date.now() < deadline) {
-    await waitFor(Math.max(1000, Number(start.pollAfterMs) || 2000), signal);
-    const pollResponse = await fetchAIRequest(pollPath, {
-      method: 'POST',
-      credentials: 'same-origin',
-      signal,
-      headers: authorizedHeaders({ 'Content-Type': 'application/json' }),
-      body: authenticatedJsonBody({ jobRef: start.jobRef, previewVersion }),
-    });
-    const job = await pollResponse.json().catch(() => ({}));
-    if (!pollResponse.ok) throw new Error(job?.message || 'The AI job status could not be checked.');
-    if (job?.preview?.mimeType === 'image/jpeg' && job.preview.imageBase64) {
-      previewVersion = job.previewVersion;
-      onPreview?.(`data:image/jpeg;base64,${job.preview.imageBase64}`);
-    }
-    if (job?.status === 'completed') {
-      window.sessionStorage.removeItem(pendingKey);
-      for (const concept of [...(job.concepts || []), ...(job.concept ? [job.concept] : [])]) {
-        concept.diagnostics = { ...concept.diagnostics, clientDurationMs: Date.now() - requestStartedAt };
-      }
-      return job;
-    }
-    if (job?.status === 'failed') {
-      window.sessionStorage.removeItem(pendingKey);
-      const stage = job?.stage ? ` Stage: ${String(job.stage)}.` : '';
-      const category = job?.error ? ` Category: ${String(job.error)}.` : '';
-      const reference = job?.diagnosticId ? ` Reference: ${job.diagnosticId}.` : '';
-      throw new Error(`${job?.message || 'The AI job could not be completed safely.'}${stage}${category}${reference}`);
-    }
-    onStage(job?.stage === 'Preparing the AI request' ? waitingMessage : (job?.stage || waitingMessage));
-  }
-  throw new Error('The AI job took too long to finish. Your draft is saved. Retry the same request to check its existing result.');
-}
-
 export default function AIWorkspace(props: Props) {
   const { user } = useAuth();
   const access = useAIDesignerAccess(true);
@@ -308,7 +194,7 @@ export default function AIWorkspace(props: Props) {
   const [confirmNewDesign, setConfirmNewDesign] = useState(false);
   const [confirmValidationOverride, setConfirmValidationOverride] = useState(false);
   const [progressPreview, setProgressPreview] = useState<string | null>(null);
-  useEffect(() => { if (!stage) setProgressPreview(null); }, [stage]);
+  const [pendingImageJob, setPendingImageJob] = useState<PendingImageJob | null>(null);
   const [error, setError] = useState('');
   const [fullPreview, setFullPreview] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
@@ -322,6 +208,7 @@ export default function AIWorkspace(props: Props) {
     || concepts.find((concept) => concept.id === selectedId)
     || concepts[0]
     || null;
+  const printReview = getPrintReview(selected?.validation);
   const ratio = (Number(brief.widthIn) || 1) / (Number(brief.heightIn) || 1);
   const requirementsMet = brief.widthIn > 0 && brief.heightIn > 0 && Boolean(brief.material) && Boolean(brief.description.trim());
   const draftKey = `${user?.is_admin && user.id ? `admin:${user.id}` : `customer:${access.sessionKey || 'pending'}`}:${props.productType}:${props.widthIn}:${props.heightIn}`;
@@ -334,7 +221,7 @@ export default function AIWorkspace(props: Props) {
   useEffect(() => {
     let active = true;
     if (!access.authorized || !access.sessionKey) return;
-    loadDraft<{ versionGallery?: boolean; editInstruction?: string; brief: CreativeBrief; concepts: AIConcept[]; selectedId: string; history: AIConcept[]; redo: AIConcept[]; logoImage: string | null; referenceImage: string | null; photoImages?: string[] }>(draftKey).then(draft => {
+    loadDraft<{ versionGallery?: boolean; editInstruction?: string; brief: CreativeBrief; concepts: AIConcept[]; selectedId: string; history: AIConcept[]; redo: AIConcept[]; logoImage: string | null; referenceImage: string | null; photoImages?: string[]; pendingImageJob?: PendingImageJob; progressPreview?: string }>(draftKey).then(draft => {
       if (!active || !draft) return;
       // Reopening Edit with AI must recover newer work from this same artwork,
       // but never replace a different banner with an unrelated saved draft.
@@ -345,6 +232,8 @@ export default function AIWorkspace(props: Props) {
       setHistory(draft.history || []); setRedo(draft.redo || []);
       setEditInstruction(draft.editInstruction || '');
       setLogoImage(draft.logoImage); setReferenceImage(draft.referenceImage); setPhotoImages(draft.photoImages || []);
+      setPendingImageJob(draft.pendingImageJob || null);
+      setProgressPreview(draft.progressPreview || null);
       setSaveNotice('Your previous draft has been restored.');
     }).catch(() => { if (active) setSaveNotice('Draft recovery is unavailable in this browser. Keep this window open while designing.'); })
       .finally(() => { if (active) setRecoveryReady(true); });
@@ -353,14 +242,14 @@ export default function AIWorkspace(props: Props) {
 
   useEffect(() => {
     if (!recoveryReady || !access.authorized || !access.sessionKey) return;
-    const value = { versionGallery: true, brief, concepts, selectedId, history, redo, logoImage, referenceImage, photoImages, editInstruction };
+    const value = { versionGallery: true, brief, concepts, selectedId, history, redo, logoImage, referenceImage, photoImages, editInstruction, pendingImageJob, progressPreview };
     latestDraftRef.current = { key: draftKey, value };
     const timer = window.setTimeout(() => {
       saveDraft(draftKey, value)
         .catch(() => setSaveNotice('This browser could not save your draft. Keep this window open while designing.'));
     }, 400);
     return () => window.clearTimeout(timer);
-  }, [recoveryReady, draftKey, brief, concepts, selectedId, history, redo, logoImage, referenceImage, photoImages, editInstruction, access.authorized, access.sessionKey]);
+  }, [recoveryReady, draftKey, brief, concepts, selectedId, history, redo, logoImage, referenceImage, photoImages, editInstruction, pendingImageJob, progressPreview, access.authorized, access.sessionKey]);
 
   // Flush the latest selection if the customer closes the studio before the
   // debounced save. Generated artwork should not disappear on a quick Back.
@@ -464,6 +353,8 @@ export default function AIWorkspace(props: Props) {
         'Organizing your wording',
         setStage,
         setProgressPreview,
+        undefined,
+        draftKey,
       );
       if (!body?.brief?.structured) throw new Error('The production brief could not be interpreted safely.');
       setBrief((current) => ({
@@ -491,7 +382,7 @@ export default function AIWorkspace(props: Props) {
     setImprovingPrompt(true);
     setStage('Improving your prompt');
     try {
-      const body = await runBackgroundJob('/.netlify/functions/ai-designer-brief', { brief: { ...original, logoRendering: original.logoRendering || 'integrated' }, logoImage, improvePrompt: true }, controller.signal, 'Polishing your prompt while keeping your wording and details', setStage);
+      const body = await runBackgroundJob('/.netlify/functions/ai-designer-brief', { brief: { ...original, logoRendering: original.logoRendering || 'integrated' }, logoImage, improvePrompt: true }, controller.signal, 'Polishing your prompt while keeping your wording and details', setStage, undefined, undefined, draftKey);
       if (!body.improvedPrompt) throw new Error('Your prompt could not be improved. Your original is unchanged.');
       setPromptBeforeImprovement(original);
       setBrief({ ...body.brief, logoPosition: original.logoPosition, description: body.improvedPrompt, structured: true });
@@ -502,7 +393,66 @@ export default function AIWorkspace(props: Props) {
     } finally { controllerRef.current = null; setStage(null); setImprovingPrompt(false); }
   };
 
+  const acceptImageResult = (body: Record<string, any>, context: ImageJobContext) => {
+    if (context.sourceVersionId) {
+      const source = concepts.find(item => item.versionId === context.sourceVersionId);
+      if (!body?.usedOriginalImage || !body?.concept) throw new Error('The server did not confirm use of the current artwork.');
+      const edited: AIConcept = {
+        ...body.concept,
+        brief: body.concept.brief || body.brief || brief,
+        logoImage: body.logoRemoved ? null : context.logoImage,
+        referenceImage: context.referenceImage,
+        photoImages: context.photoImages.filter((_, index) => !body.removedPhotos?.includes(index)),
+      };
+      setConcepts(items => collectVersions(items, [edited]));
+      if (source) setHistory(items => [...items, source].slice(-20));
+      setRedo([]);
+      setSelectedId(edited.versionId);
+      setBrief(edited.brief!);
+      setBriefReviewed(true);
+      setEditInstruction('');
+      setRevealResult(value => value + 1);
+      setSaveNotice('Your updated design is selected. Keep editing, choose an earlier version, or use this banner.');
+      trackAIEvent('ai_edit_succeeded', { validation_passed: edited.validation.passed, version_id: edited.versionId, version_number: concepts.length + 1 });
+      if (getPrintReview(body.concept.validation).requiresConfirmation) trackAIEvent('ai_validation_failed', { count: 1 });
+    } else {
+      const nextConcepts = Array.isArray(body.concepts) ? body.concepts.map((concept: AIConcept) => ({ ...concept, ...context })) : [];
+      if (!nextConcepts.length) throw new Error('No artwork was returned.');
+      setBrief(nextConcepts[0].brief || body.brief || brief);
+      setBriefReviewed(true);
+      setGenerationId(body.generationId);
+      setConcepts((current) => collectVersions(current, nextConcepts));
+      setSelectedId(nextConcepts[0].versionId);
+      setRevealResult(value => value + 1);
+      setSaveNotice('Your new design is selected. Use it below or choose another version.');
+      setHistory([]);
+      setRedo([]);
+      const failed = nextConcepts.filter((concept: AIConcept) => getPrintReview(concept.validation).requiresConfirmation).length;
+      trackAIEvent('ai_generation_succeeded', { concept_count: nextConcepts.length, validation_failures: failed });
+      if (failed) trackAIEvent('ai_validation_failed', { count: failed });
+    }
+    setPendingImageJob(null);
+    setProgressPreview(null);
+  };
+
+  const recoverImageJob = async () => {
+    if (!pendingImageJob || stage || controllerRef.current || !access.ready) return;
+    const pending = pendingImageJob;
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    setError(''); setActiveImageJob(true); setStage('Checking for your finished design');
+    try {
+      const body = await resumeBackgroundJob(pending.job, controller.signal, 'Checking for your finished design', setStage, setProgressPreview,
+        job => setPendingImageJob({ ...pending, job }));
+      acceptImageResult(body, pending.context);
+    } catch (reason) {
+      if (reason instanceof AIJobFailedError) { forgetPendingJob(pending.job); setPendingImageJob(null); }
+      if ((reason as Error)?.name !== 'AbortError') setError(reason instanceof Error ? reason.message : 'Your design could not be retrieved yet. Please check again.');
+    } finally { controllerRef.current = null; setStage(null); setActiveImageJob(false); }
+  };
+
   const generate = async () => {
+    if (pendingImageJob) { await recoverImageJob(); return; }
     if (!access.ready || !recoveryReady || !requirementsMet || stage || controllerRef.current) return;
     const controller = new AbortController();
     controllerRef.current = controller;
@@ -510,6 +460,7 @@ export default function AIWorkspace(props: Props) {
     setProgressPreview(null);
     setActiveImageJob(true);
     setStage('Planning your design');
+    const imageContext: ImageJobContext = { logoImage, referenceImage, photoImages };
     trackAIEvent('ai_prompt_entered', { product_type: brief.productType });
     trackAIEvent('ai_generation_started', { concept_count: conceptCount, product_type: brief.productType });
     try {
@@ -524,24 +475,14 @@ export default function AIWorkspace(props: Props) {
         'Creating your artwork. Your preview will appear as soon as it is ready.',
         setStage,
         setProgressPreview,
+        job => setPendingImageJob({ job, context: imageContext }),
+        draftKey,
       );
-      const nextConcepts = Array.isArray(body.concepts) ? body.concepts.map((concept: AIConcept) => ({ ...concept, logoImage, referenceImage, photoImages })) : [];
-      if (!nextConcepts.length) throw new Error('No artwork was returned.');
-      setBrief(nextConcepts[0].brief || body.brief || readyBrief);
-      setBriefReviewed(true);
-      setGenerationId(body.generationId);
-      setConcepts((current) => collectVersions(current, nextConcepts));
-      setSelectedId(nextConcepts[0].versionId);
-      setRevealResult(value => value + 1);
-      setSaveNotice('Your new design is selected. Use it below or choose another version.');
-      setHistory([]);
-      setRedo([]);
-      const failed = nextConcepts.filter((concept: AIConcept) => !concept.validation.passed).length;
-      trackAIEvent('ai_generation_succeeded', { concept_count: nextConcepts.length, validation_failures: failed });
-      if (failed) trackAIEvent('ai_validation_failed', { count: failed });
+      acceptImageResult(body, imageContext);
     } catch (reason) {
       if ((reason as Error)?.name !== 'AbortError') {
         const message = reason instanceof Error ? reason.message : 'Generation failed.';
+        if (reason instanceof AIJobFailedError) setPendingImageJob(null);
         setError(message);
         trackAIEvent('ai_generation_failed', { category: 'safe_request_failure' });
       }
@@ -553,7 +494,9 @@ export default function AIWorkspace(props: Props) {
   };
 
   const edit = async (manual = false, logoOnly = false, removeLogo = false) => {
-    if (!selected || (!manual && !editInstruction.trim()) || stage || controllerRef.current || !access.ready) return;
+    const requestedInstruction = editInstruction;
+    if (pendingImageJob) { await recoverImageJob(); return; }
+    if (!selected || (!manual && !requestedInstruction.trim()) || stage || controllerRef.current || !access.ready) return;
     const controller = new AbortController();
     controllerRef.current = controller;
     setError('');
@@ -563,7 +506,7 @@ export default function AIWorkspace(props: Props) {
     trackAIEvent('ai_edit_started', { concept_id: selected.id, version_number: concepts.indexOf(selected) + 1, edit_round: concepts.filter(item => item.id === selected.id).length });
     try {
       const integratedLogo = selected.brief?.logoRendering === 'integrated';
-      const normalizedInstruction = editInstruction.toLowerCase();
+      const normalizedInstruction = requestedInstruction.toLowerCase();
       const requestedLogoPosition: CreativeBrief['logoPosition'] | null = manual || !logoImage || integratedLogo ? null
         : /logo.{0,24}(upper|top)[ -]?left|(?:upper|top)[ -]?left.{0,24}logo/.test(normalizedInstruction) ? 'upper-left'
           : /logo.{0,24}(upper|top)[ -]?right|(?:upper|top)[ -]?right.{0,24}logo/.test(normalizedInstruction) ? 'upper-right'
@@ -572,6 +515,7 @@ export default function AIWorkspace(props: Props) {
                 : null;
       const briefForEdit = removeLogo && selected.brief ? selected.brief : { ...(logoOnly && selected.brief ? { ...selected.brief, logoPosition: brief.logoPosition, layers: { ...selected.brief.layers, logo: brief.layers?.logo } } : brief), ...(requestedLogoPosition ? { logoPosition: requestedLogoPosition } : {}), typographyMode: manual ? brief.typographyMode : 'ai' as const };
       const editPhotos = removeLogo ? selected.photoImages || [] : photoImages;
+      const imageContext: ImageJobContext = { sourceVersionId: selected.versionId, logoImage: removeLogo ? selected.logoImage || null : logoImage, referenceImage, photoImages: editPhotos };
       const body = await runBackgroundJob(
         '/.netlify/functions/ai-designer-edit',
         {
@@ -582,7 +526,7 @@ export default function AIWorkspace(props: Props) {
           currentBackgroundRef: selected.backgroundRef,
           previousCopy: selected.brief?.copy,
           previousValidation: selected.validation,
-          editInstruction: removeLogo ? 'Remove the uploaded logo.' : manual ? 'Apply the updated wording and element settings to this design.' : editInstruction.trim(),
+          editInstruction: removeLogo ? 'Remove the uploaded logo.' : manual ? 'Apply the updated wording and element settings to this design.' : requestedInstruction.trim(),
           referenceImage,
           logoImage: removeLogo ? selected.logoImage : logoImage,
           logoSourceChanged: !removeLogo && logoImage !== selected.logoImage,
@@ -592,27 +536,12 @@ export default function AIWorkspace(props: Props) {
         removeLogo ? integratedLogo ? 'Removing the logo from your design' : 'Removing only your uploaded logo and preserving the artwork underneath' : logoOnly ? 'Placing your original logo and checking the result' : 'Applying your changes to the existing artwork.',
         setStage,
         setProgressPreview,
+        job => setPendingImageJob({ job, context: imageContext }),
+        draftKey,
       );
-      if (!body?.usedOriginalImage || !body?.concept) throw new Error('The server did not confirm use of the current artwork.');
-      const edited: AIConcept = {
-        ...body.concept,
-        brief: body.concept.brief || body.brief || briefForEdit,
-        logoImage: body.logoRemoved ? null : logoImage,
-        referenceImage,
-        photoImages: editPhotos.filter((_, index) => !body.removedPhotos?.includes(index)),
-      };
-      setConcepts(items => collectVersions(items, [edited]));
-      setHistory(items => [...items, selected].slice(-20));
-      setRedo([]);
-      setSelectedId(edited.versionId);
-      setBrief(edited.brief!);
-      setBriefReviewed(true);
-      setEditInstruction('');
-      setRevealResult(value => value + 1);
-      setSaveNotice('Your updated design is selected. Keep editing, choose an earlier version, or use this banner.');
-      trackAIEvent('ai_edit_succeeded', { validation_passed: edited.validation.passed, version_id: edited.versionId, version_number: concepts.length + 1 });
-      if (!body.concept.validation.passed) trackAIEvent('ai_validation_failed', { count: 1 });
+      acceptImageResult(body, imageContext);
     } catch (reason) {
+      if (reason instanceof AIJobFailedError) setPendingImageJob(null);
       trackAIEvent('ai_edit_failed', { category: (reason as Error)?.name === 'AbortError' ? 'stopped_waiting' : 'request_failed', version_number: concepts.indexOf(selected) + 1 });
       if ((reason as Error)?.name !== 'AbortError') setError(reason instanceof Error ? reason.message : 'The edit failed.');
     } finally {
@@ -656,6 +585,8 @@ export default function AIWorkspace(props: Props) {
     const emptyDraft = { brief: fresh, concepts: [], selectedId: '', history: [], redo: [], logoImage: null, referenceImage: null, photoImages: [] };
     restoringDraftRef.current = false;
     setBrief(fresh); setBriefReviewed(false); setConcepts([]); setSelectedId('');
+    if (pendingImageJob) forgetPendingJob(pendingImageJob.job);
+    setPendingImageJob(null);
     setGenerationId(''); setHistory([]); setRedo([]);
     setLogoImage(null); setReferenceImage(null); setPhotoImages([]);
     setEditInstruction(''); setPromptBeforeImprovement(null); setProgressPreview(null);
@@ -666,7 +597,7 @@ export default function AIWorkspace(props: Props) {
   };
 
   const apply = async (validationOverride = false) => {
-    if (!selected || (!selected.validation.passed && !validationOverride) || hasUnappliedChanges || stage || controllerRef.current) return;
+    if (!selected || (getPrintReview(selected.validation).requiresConfirmation && !validationOverride) || hasUnappliedChanges || stage || controllerRef.current) return;
     setConfirmValidationOverride(false);
     setError('');
     setStage('Preparing your artwork for the banner designer');
@@ -820,7 +751,7 @@ export default function AIWorkspace(props: Props) {
             {(referenceImage || logoImage) && <div className="mt-2 flex flex-wrap items-center gap-2">{referenceImage && <button type="button" onClick={() => removeImage('reference')} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold">Remove reference</button>}{logoImage && <><label className="text-sm font-semibold text-slate-700">Logo treatment<select aria-label="Logo treatment" value={brief.logoRendering || 'integrated'} onChange={event => updateBrief('logoRendering', event.target.value as CreativeBrief['logoRendering'])} className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3"><option value="integrated">Blend into design</option><option value="original">Keep original logo</option></select></label>{brief.logoRendering === 'original' && <label className="text-sm font-semibold text-slate-700">Logo position<select value={brief.logoPosition} onChange={(event) => updateBrief('logoPosition', event.target.value as CreativeBrief['logoPosition'])} className="ml-2 min-h-11 rounded-lg border border-slate-300 bg-white px-3"><option value="upper-left">Upper left</option><option value="upper-right">Upper right</option><option value="lower-left">Lower left</option><option value="lower-right">Lower right</option></select></label>}<p className="w-full text-xs text-slate-500">{brief.logoRendering !== 'original' ? 'AI recreates your logo as part of the artwork. Check its lettering and details before ordering. Your original file stays saved.' : 'Places your original logo unchanged, including its background.'}{selected && ' Treatment applies to your next new design.'}</p><button type="button" onClick={() => removeImage('logo')} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold">Remove uploaded logo</button></>}</div>}
           </div>
 
-          <button type="button" onClick={() => void generate()} disabled={!access.ready || !recoveryReady || !requirementsMet || Boolean(stage)} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 text-base font-bold text-white hover:bg-orange-700 disabled:opacity-50"><Sparkles className="h-5 w-5" />{concepts.length ? 'Create another design' : 'Create my banner'}</button>
+          <button type="button" onClick={() => void generate()} disabled={!access.ready || !recoveryReady || !requirementsMet || Boolean(stage) || Boolean(pendingImageJob)} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 text-base font-bold text-white hover:bg-orange-700 disabled:opacity-50"><Sparkles className="h-5 w-5" />{concepts.length ? 'Create another design' : 'Create my banner'}</button>
           <details className="text-sm text-slate-600"><summary className="cursor-pointer py-2">Review wording before creating (optional)</summary><button type="button" onClick={() => void reviewBrief()} disabled={!requirementsMet || !access.ready || Boolean(stage)} className="min-h-11 underline">Extract wording from my description</button></details>
         </section>
 
@@ -846,11 +777,26 @@ export default function AIWorkspace(props: Props) {
           </div>}
           {error && <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><XCircle className="mt-0.5 h-5 w-5 shrink-0" /><span>{error}</span></div>}
 
-          {!concepts.length && !stage && <div className="grid min-h-[420px] place-items-center rounded-xl bg-white p-8 text-center"><div><Sparkles className="mx-auto h-9 w-9 text-orange-500" /><h4 className="mt-3 text-lg font-black text-[#0b1f3a]">A little imagination. A big impression.</h4><p className="mt-1 max-w-md text-sm text-slate-600">Tell us what your banner should say and look like, then choose Create my banner.</p></div></div>}
+          {!stage && (pendingImageJob || progressPreview) && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4" role="status">
+            <h4 className="font-bold text-[#0b1f3a]">Your latest preview</h4>
+            <p className="mt-1 text-sm text-slate-700">{pendingImageJob ? 'Your last request may still be finishing. Check for its result, or use a saved version below.' : 'This preview was not finalized. Your saved versions remain available below.'}</p>
+            {progressPreview && <img src={progressPreview} alt="Latest artwork preview — not yet finalized" className="mt-3 max-h-[420px] w-full rounded-lg object-contain" />}
+            {pendingImageJob && <button type="button" disabled={!access.ready} onClick={() => void recoverImageJob()} className="mt-3 min-h-11 rounded-lg bg-[#0b1f3a] px-4 text-sm font-bold text-white disabled:opacity-50">Check for finished design</button>}
+          </div>}
+
+          {!concepts.length && !stage && !pendingImageJob && !progressPreview && <div className="grid min-h-[420px] place-items-center rounded-xl bg-white p-8 text-center"><div><Sparkles className="mx-auto h-9 w-9 text-orange-500" /><h4 className="mt-3 text-lg font-black text-[#0b1f3a]">A little imagination. A big impression.</h4><p className="mt-1 max-w-md text-sm text-slate-600">Tell us what your banner should say and look like, then choose Create my banner.</p></div></div>}
 
           {selected && <div ref={previewRef} tabIndex={-1} className="scroll-mt-4 rounded-xl border border-slate-200 bg-white p-4 outline-none sm:p-5">
             <div className="flex flex-wrap items-center justify-between gap-3"><div><h4 className="text-lg font-black text-[#0b1f3a]">Version {concepts.findIndex(item => item.versionId === selected.versionId) + 1} — selected</h4><p className="text-sm text-slate-600">This is the artwork that will continue to your order.</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={undo} disabled={!history.length || Boolean(stage)} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-3 text-sm font-semibold disabled:opacity-40"><Undo2 className="h-4 w-4" /> Undo</button><button type="button" onClick={redoEdit} disabled={!redo.length || Boolean(stage)} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-3 text-sm font-semibold disabled:opacity-40"><Redo2 className="h-4 w-4" /> Redo</button><button type="button" onClick={() => setFullPreview(true)} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-3 text-sm font-semibold"><Maximize2 className="h-4 w-4" /> Full preview</button></div></div>
             <div className="mt-4 flex h-[min(55vh,36rem)] w-full items-center justify-center overflow-hidden rounded-xl border border-slate-300 bg-slate-100"><img src={imageSrc(selected)} alt="Complete selected flat print artwork" className="h-full w-full object-contain" /></div>
+
+            {printReview.messages.length > 0 && <div className={`mt-4 rounded-xl border p-4 ${printReview.requiresConfirmation ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-slate-50'}`} data-testid="ai-print-review">
+              <h5 className="text-sm font-bold text-[#0b1f3a]">{printReview.requiresConfirmation ? 'Review your design' : 'Review your preview'}</h5>
+              <ul className="mt-2 space-y-2 text-sm text-slate-700">{printReview.messages.map(message => <li key={message}>{message}</li>)}</ul>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button type="button" onClick={() => setFullPreview(true)} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold">View full design</button>
+              </div>
+            </div>}
 
             {concepts.length > 1 && <div className="mt-4" aria-label="Saved design versions">
               <h5 className="text-sm font-bold text-[#0b1f3a]">Choose your favorite version</h5>
@@ -882,32 +828,32 @@ export default function AIWorkspace(props: Props) {
             </div>
             <div className="mt-2 flex flex-wrap gap-2">{['Make the background lighter', 'Use the colors from my logo', ...(logoImage ? ['Move the logo to the upper-left'] : []), 'Remove the people', 'Make it more professional', 'Keep everything else exactly the same'].map((value) => <button key={value} type="button" disabled={Boolean(stage)} onClick={() => setEditInstruction(value)} className="min-h-11 rounded-full border border-slate-300 bg-slate-50 px-3 text-xs font-semibold text-slate-700 hover:border-orange-400">{value}</button>)}</div>
 
-            <details className="mt-5 border-t border-slate-200 pt-3"><summary className="cursor-pointer py-2 text-sm text-slate-500">Print checks</summary><div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className={`rounded-xl border p-4 ${selected.validation.passed ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}><div className="flex items-center gap-2 font-black text-[#0b1f3a]">{selected.validation.passed ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : <AlertCircle className="h-5 w-5 text-amber-700" />} Print-readiness validation</div><ul className="mt-2 space-y-1 text-sm text-slate-700"><li>Dimensions: {selected.validation.checks.dimensions.passed ? 'Exact' : 'Failed'}</li><li>Full edge coverage: {selected.validation.checks.edgeCoverage.passed ? 'Passed' : 'Failed'}</li><li>Flat artwork / no hardware: {selected.validation.checks.flatArtwork.passed ? 'Passed' : 'Failed'}</li><li>Wording check: {selected.validation.checks.exactText.passed ? 'Passed' : 'Failed'}</li><li>Output canvas resolution: {selected.validation.checks.resolution.effectivePpi} PPI ({selected.validation.checks.resolution.passed ? 'passed' : 'failed'})</li></ul>{selected.validation.reasons.length > 0 && <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-amber-900">{selected.validation.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>}</div>
+            {user?.is_admin && <details className="mt-5 border-t border-slate-200 pt-3"><summary className="cursor-pointer py-2 text-sm text-slate-500">Print check diagnostics</summary><div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className={`rounded-xl border p-4 ${selected.validation.passed ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}><div className="flex items-center gap-2 font-black text-[#0b1f3a]">{selected.validation.passed ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : <AlertCircle className="h-5 w-5 text-amber-700" />} Print-readiness validation</div><ul className="mt-2 space-y-1 text-sm text-slate-700"><li>Dimensions: {selected.validation.checks.dimensions.passed ? 'Exact' : 'Failed'}</li><li>Full edge coverage: {selected.validation.checks.edgeCoverage.passed ? 'Passed' : 'Failed'}</li><li>Flat artwork / no hardware: {!selected.validation.vision.available ? 'Not checked' : selected.validation.checks.flatArtwork.passed ? 'Passed' : 'Needs review'}</li><li>Wording check: {!selected.validation.vision.available ? 'Not checked' : selected.validation.checks.exactText.passed ? 'Passed' : 'Needs review'}</li><li>Text spacing: {printReview.unavailable ? 'Not checked' : printReview.spacing ? 'Review spacing' : 'Passed'}</li><li>Output canvas resolution: {selected.validation.checks.resolution.effectivePpi} PPI ({selected.validation.checks.resolution.passed ? 'passed' : 'failed'})</li></ul>{selected.validation.reasons.length > 0 && <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-amber-900">{selected.validation.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>}</div>
               {user?.is_admin && (<div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><div className="flex items-center gap-2 font-black text-[#0b1f3a]"><Clock3 className="h-5 w-5 text-slate-500" /> Version and output</div><ul className="mt-2 space-y-1 text-sm text-slate-700"><li>Output: {selected.diagnostics.outputDimensions}px</li><li>Ratio method: {selected.diagnostics.ratioStrategy.replace(/-/g, ' ')}</li><li>Model: {selected.diagnostics.modelSnapshot || selected.diagnostics.model}</li><li>Artwork processing: {formatDuration(selected.diagnostics.durationMs)}</li>{selected.diagnostics.clientDurationMs != null && <li>Total wait: {formatDuration(selected.diagnostics.clientDurationMs)}</li>}<li>Estimated image API cost: {selected.diagnostics.estimatedCostUsd == null ? 'Unavailable' : `$${selected.diagnostics.estimatedCostUsd.toFixed(4)}`}</li><li>Auto-repaired: {selected.diagnostics.repaired ? 'Yes' : 'No'}</li></ul></div>)}
             </div>
 
-            </details>
+            </details>}
 
               {user?.is_admin && (<details className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3"><summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-bold text-[#0b1f3a]">Admin diagnostics <ChevronDown className="h-4 w-4" /></summary><dl className="grid grid-cols-1 gap-x-4 gap-y-2 pt-3 text-xs text-slate-600 sm:grid-cols-2"><div><dt className="font-bold">Generation ID</dt><dd className="break-all">{selected.generationId || generationId}</dd></div><div><dt className="font-bold">Version ID</dt><dd className="break-all">{selected.versionId}</dd></div><div><dt className="font-bold">Provider request ID</dt><dd className="break-all">{selected.diagnostics.providerRequestId || 'Not returned'}</dd></div><div><dt className="font-bold">Validation model</dt><dd>{selected.validation.vision.model}</dd></div>{selected.diagnostics.stageTimings?.map((timing, index) => <div key={index}><dt className="font-bold">{timing.stage}</dt><dd>{formatDuration(timing.durationMs)}</dd></div>)}</dl></details>)}
 
-            {!selected.validation.passed && !hasUnappliedChanges && <p className="mt-4 text-center text-sm text-amber-800">The automated check flagged something. If the complete banner looks right to you, you can review the warning and continue.</p>}
           </div>}
         </section>
       </div>
 
       {selected && <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white p-4 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] sm:px-6" data-testid="ai-selection-footer">
         <div className="flex min-w-0 items-center gap-3"><img src={imageSrc(selected)} alt="Selected version to continue with" className="h-12 w-24 rounded border border-slate-200 object-contain" /><div><p className="text-sm font-bold text-[#0b1f3a]">Version {concepts.findIndex(item => item.versionId === selected.versionId) + 1} selected</p><p className="text-xs text-slate-600">{hasUnappliedChanges ? 'Apply or discard your changes first.' : 'Your selected artwork goes with you.'}</p></div></div>
-        <button type="button" onClick={() => selected.validation.passed ? void apply() : setConfirmValidationOverride(true)} disabled={hasUnappliedChanges || Boolean(stage)} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 text-base font-black text-white hover:bg-orange-700 disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto"><CheckCircle2 className="h-5 w-5" /> {stage ? 'Please wait…' : hasUnappliedChanges ? 'Apply your changes before continuing' : selected.validation.passed ? 'Use selected version & continue' : 'Review warning & continue'}</button>
+        <button type="button" onClick={() => printReview.requiresConfirmation ? setConfirmValidationOverride(true) : void apply()} disabled={hasUnappliedChanges || Boolean(stage)} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 text-base font-black text-white hover:bg-orange-700 disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto"><CheckCircle2 className="h-5 w-5" /> {stage ? 'Please wait…' : hasUnappliedChanges ? 'Apply your changes before continuing' : printReview.requiresConfirmation ? 'Review design & continue' : 'Use selected version & continue'}</button>
       </div>}
 
       <Dialog open={confirmValidationOverride} onOpenChange={setConfirmValidationOverride}>
-        <DialogContent className="z-[10020] max-w-lg bg-white">
-          <DialogTitle>Use this banner anyway?</DialogTitle>
-          <DialogDescription>The automated print check found a possible issue. It can occasionally flag artwork that is actually acceptable.</DialogDescription>
-          {selected?.validation.reasons?.length ? <ul className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">{selected.validation.reasons.slice(0, 4).map(reason => <li key={reason}>• {reason}</li>)}</ul> : null}
+        <DialogContent className="z-[10020] max-h-[90dvh] max-w-lg overflow-y-auto bg-white">
+          <DialogTitle>Review your design before continuing</DialogTitle>
+          <DialogDescription>Check these details in your artwork. You can return to the editor to make changes.</DialogDescription>
+          <ul className="space-y-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">{printReview.messages.map(message => <li key={message}>{message}</li>)}</ul>
+          {selected && <img src={imageSrc(selected)} alt="Design to review before continuing" className="max-h-[30dvh] w-full object-contain" />}
           <p className="text-sm text-slate-700">Check the full preview for readable wording, complete edge-to-edge artwork, and nothing important cut off. If it looks right, you can continue.</p>
-          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" onClick={() => setConfirmValidationOverride(false)} className="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-semibold">Go back</button><button type="button" onClick={() => void apply(true)} className="min-h-11 rounded-lg bg-orange-600 px-4 text-sm font-black text-white hover:bg-orange-700">Use this banner anyway</button></div>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" onClick={() => setConfirmValidationOverride(false)} className="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-semibold">Go back</button><button type="button" onClick={() => void apply(true)} className="min-h-11 rounded-lg bg-orange-600 px-4 text-sm font-black text-white hover:bg-orange-700">Approve design & continue</button></div>
         </DialogContent>
       </Dialog>
 

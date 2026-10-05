@@ -26,6 +26,7 @@ describe('seasonal campaign selection', () => {
     expect(getActiveSeasonalCampaignForDate('2026-11-12')?.id).toBe('thanksgiving-community-2026');
     expect(getActiveSeasonalCampaignForDate('2026-11-27')?.id).toBe('holiday-sales-2026');
     expect(getActiveSeasonalCampaignForDate('2026-12-01')?.id).toBe('holiday-events-2026');
+    expect(getActiveSeasonalCampaignForDate('2026-12-24')?.id).toBe('new-year-2027');
   });
 
   it('hands overlapping windows to the campaign with the nearest expiration', () => {
@@ -37,11 +38,13 @@ describe('seasonal campaign selection', () => {
     expect(getActiveSeasonalCampaignForDate('2026-12-01')?.id).toBe('holiday-events-2026');
   });
 
-  it('hands off after holiday sales and expires holiday events before Christmas', () => {
+  it('hands off after holiday sales and holiday events, then expires New Year on January 2', () => {
     expect(getActiveSeasonalCampaignForDate('2026-11-30')?.id).toBe('holiday-sales-2026');
     expect(getActiveSeasonalCampaignForDate('2026-12-01')?.id).toBe('holiday-events-2026');
     expect(getActiveSeasonalCampaignForDate('2026-12-23')?.id).toBe('holiday-events-2026');
-    expect(getActiveSeasonalCampaignForDate('2026-12-24')).toBeNull();
+    expect(getActiveSeasonalCampaignForDate('2026-12-24')?.id).toBe('new-year-2027');
+    expect(getActiveSeasonalCampaignForDate('2027-01-02')?.id).toBe('new-year-2027');
+    expect(getActiveSeasonalCampaignForDate('2027-01-03')).toBeNull();
   });
 
   it('uses the campaign operating timezone for date boundaries', () => {

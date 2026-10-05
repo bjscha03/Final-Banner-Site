@@ -1,6 +1,7 @@
 const { neon } = require('@neondatabase/serverless');
 const { v2: cloudinary } = require('cloudinary');
 const { requireAdmin } = require('../server-auth.cjs');
+const { isStoredOriginalUrl } = require('../original-artwork-url.cjs');
 
 // Configure Cloudinary
 cloudinary.config({
@@ -127,6 +128,11 @@ exports.handler = async (event, context) => {
       : isGeneratedPdf ? 'generated-production.pdf'
         : manifest.originalFilename || event.__verifiedArtwork?.original_filename || event.__verifiedArtwork?.file_name || 'customer-artwork';
     if (/^https?:\/\//i.test(requestedKey)) {
+      if (isStoredOriginalUrl(requestedKey)) {
+        const original = new URL(requestedKey);
+        original.searchParams.set('download', '1');
+        return { statusCode: 302, headers: { ...headers, Location: original.href, 'Cache-Control': 'private, no-store' }, body: '' };
+      }
       const response = await fetch(requestedKey);
       if (!response.ok) return { statusCode: 404, headers, body: JSON.stringify({ error: 'Original artwork is unavailable' }) };
       const fileBuffer = Buffer.from(await response.arrayBuffer());
@@ -234,4 +240,3 @@ exports.handler = async (event, context) => {
     };
   }
 };
-

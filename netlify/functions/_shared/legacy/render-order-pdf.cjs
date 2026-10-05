@@ -140,6 +140,8 @@ function convertPdfUrlToImage(pdfUrl) {
  * Fetch image from URL and return as Buffer
  */
 async function fetchImage(urlOrKey, isFileKey = false) {
+  // Large originals use a stable same-site URL as their immutable file key.
+  if (require('../original-artwork-url.cjs').isStoredOriginalUrl(urlOrKey)) isFileKey = false;
   const startTime = Date.now();
   const FETCH_TIMEOUT_MS = 25000; // 25 second timeout — fail fast, leave budget for fallbacks
   
@@ -660,6 +662,10 @@ async function updateOrder(orderId, fields) {
  * Upload PDF buffer to Cloudinary and return the secure URL
  */
 async function uploadPdfToCloudinary(pdfBuffer, orderId) {
+  if (pdfBuffer.length > 20 * 1024 * 1024) {
+    const { storePrintPdf } = require("../store-print-pdf.cjs");
+    return storePrintPdf(pdfBuffer, `order-${orderId}-print.pdf`);
+  }
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {
@@ -1356,7 +1362,8 @@ exports.handler = async (event) => {
           // then fall back to full download + Sharp metadata.
           let origW, origH;
           let originalBuffer = null; // only populated when we can't use Cloudinary pre-resize
-          const hasCloudinaryKey = !!designState.originalImageFileKey;
+          const hasCloudinaryKey = !!designState.originalImageFileKey
+            && !require('../original-artwork-url.cjs').isStoredOriginalUrl(designState.originalImageFileKey);
 
           if (hasCloudinaryKey) {
             const dims = await getCloudinaryImageDimensions(designState.originalImageFileKey);
@@ -2496,4 +2503,3 @@ exports.handler = async (event) => {
     };
   }
 };
-

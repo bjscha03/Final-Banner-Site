@@ -202,7 +202,9 @@ async function createJob({ session, action, request, jobId }) {
     sub: subjectHash(session),
     exp: Math.floor(Date.now() / 1000) + JOB_TTL_SECONDS,
   });
-  const existing = await fetchJobRecord(jobPayload(reference)).catch(() => null);
+  // Only an actual 404 permits creation. A temporary storage failure must not
+  // overwrite an existing paid job or its completed result on a client retry.
+  const existing = await fetchJobRecord(jobPayload(reference));
   if (existing) return { reference, record: existing, created: false };
   const now = new Date().toISOString();
   const record = {

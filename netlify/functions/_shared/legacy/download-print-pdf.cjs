@@ -388,6 +388,11 @@ function buildAuthoritativeRequest(request, item) {
 
 async function pdfResponse(request, buffer, source, metadata = {}) {
   buffer = await prepareDoubleSidedBannerPdf(buffer, request.material);
+  if (buffer.length > 4 * 1024 * 1024) {
+    const { storePrintPdf } = require("../store-print-pdf.cjs");
+    const url = await storePrintPdf(buffer, `order-${request.orderId}-print.pdf`);
+    return { statusCode: 302, headers: { ...CORS_HEADERS, Location: `${url}?download=1`, "Cache-Control": "no-store" }, body: "" };
+  }
   return {
     statusCode: 200,
     headers: {

@@ -1,5 +1,6 @@
 const { neon } = require('@neondatabase/serverless');
 const { createSessionToken } = require('../server-auth.cjs');
+const { linkVerifiedGuestOrders } = require('../verified-guest-orders.cjs');
 
 const headers = {
   'Content-Type': 'application/json',
@@ -82,10 +83,10 @@ exports.handler = async (event) => {
     const users = await db`
       SELECT id, email, full_name, username, is_admin, password_hash, email_verified
       FROM profiles 
-      WHERE email = ${normalizedEmail}
+      WHERE lower(btrim(email)) = ${normalizedEmail}
     `;
     
-    if (users.length === 0) {
+    if (users.length !== 1) {
       // Return generic error to prevent email enumeration
       return {
         statusCode: 401,
@@ -166,6 +167,8 @@ exports.handler = async (event) => {
       };
     }
 
+    await linkVerifiedGuestOrders(db, user);
+
     // Return user data (excluding password hash)
     const userData = {
       id: user.id,
@@ -200,4 +203,3 @@ exports.handler = async (event) => {
     };
   }
 };
-

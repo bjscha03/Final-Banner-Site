@@ -5,6 +5,8 @@ import 'cloudinary';
 import 'sharp';
 import 'pdfkit';
 import 'pdf-lib';
+import '@netlify/blobs';
+import printStorage from './_shared/store-print-pdf.cjs';
 import { createRequire } from 'node:module';
 import { neon } from '@neondatabase/serverless';
 import { withLambda } from '@netlify/aws-lambda-compat';
@@ -116,7 +118,9 @@ const handler = async (event, context) => {
       orderId,
     });
 
-    const upload = await uploadPdf(rendered.buffer, orderId, itemId);
+    const upload = rendered.buffer.length > 20 * 1024 * 1024
+      ? { secure_url: await printStorage.storePrintPdf(rendered.buffer, `order-${safeSegment(orderId)}-yard-sign-print.pdf`) }
+      : await uploadPdf(rendered.buffer, orderId, itemId);
     const metadata = {
       source: 'yard-sign-original-artwork-render',
       pageCount: rendered.pageCount,

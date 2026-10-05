@@ -1,3 +1,4 @@
+import GoogleReviewSpotlight from '@/components/design/GoogleReviewSpotlight';
 import { useAutomaticFirstOrderDiscount } from '@/hooks/useAutomaticFirstOrderDiscount';
 import { FIRST_ORDER_APPLIED_LABEL } from '@/lib/firstOrderPromotion';
 import GoogleAdsBanner from './GoogleAdsBanner';
@@ -60,6 +61,8 @@ import { base64ToFile } from '@/utils/base64ToFile';
 import {
   getArtworkUploadDiagnostic,
   uploadArtworkFile,
+  MAX_ARTWORK_BYTES,
+  getArtworkUploadMessage,
   validateArtworkFile,
 } from '@/utils/uploadArtworkFile';
 import { computeSameDayFeesCents } from '@/lib/sameDayService';
@@ -1297,6 +1300,9 @@ const Design: React.FC = () => {
 
     const promise = (async () => {
       const result = await uploadArtworkFile(file, {
+        previewUrl: initialArtwork.previewUrl,
+        originalWidth: initialArtwork.originalWidth,
+        originalHeight: initialArtwork.originalHeight,
         correlationId,
         signal: controller.signal,
         onAttempt: (attempt, maximum) => {
@@ -1380,7 +1386,7 @@ const Design: React.FC = () => {
           mimeType: diagnostic.mimeType,
         });
         setUploadError(
-          'Artwork upload did not finish. Your file and choices are still here. Check your connection, then try again.',
+          getArtworkUploadMessage(error),
         );
       }
       return null;
@@ -1400,6 +1406,11 @@ const Design: React.FC = () => {
 
     // A prepared preview is tied to one exact source identity. Never allow a
     // newly selected file to inherit the previous file's verified artifact.
+    // Every new upload starts fully visible, centered, and proportional.
+    setImgPos({ x: 0, y: 0 });
+    setImgScale(1);
+    setImgScaleY(1);
+    setConstrainProps(true);
     preparedPlacementRef.current = null;
     setPendingPlacementPreview(null);
     setRestoredNormalizedTransform(null);
@@ -1655,6 +1666,8 @@ const Design: React.FC = () => {
   // artwork/transform state from the previous item.
   const resetPreview = useCallback(() => {
     uploadGenerationRef.current += 1;
+    // Canceled uploads cannot clear the next generation's busy state.
+    setIsUploading(false);
     activeUploadAbortControllerRef.current?.abort();
     activeUploadAbortControllerRef.current = null;
     activeUploadPromiseRef.current = null;
@@ -1750,7 +1763,7 @@ const Design: React.FC = () => {
       artwork = uploadedFileRef.current || artwork;
       const manifest = artwork.artworkManifest;
       const permanentOriginalUrl = manifest?.originalUrl || artwork.productionUrl || artwork.url;
-      const permanentPreviewUrl = artwork.isPdf
+      const permanentPreviewUrl = (artwork.isPdf || artwork.resourceType === 'original')
         ? (artwork.previewUrl && /^https?:\/\//i.test(artwork.previewUrl)
             ? artwork.previewUrl
             : getPdfThumbnailUrl(permanentOriginalUrl))
@@ -1784,7 +1797,7 @@ const Design: React.FC = () => {
       const latestSnapshot = latestEditor.getCompositionSnapshot();
       const latestManifest = latestArtwork.artworkManifest;
       const latestOriginalUrl = latestManifest?.originalUrl || latestArtwork.productionUrl || latestArtwork.url;
-      const latestSourceUrl = latestArtwork.isPdf
+      const latestSourceUrl = (latestArtwork.isPdf || latestArtwork.resourceType === 'original')
         ? (latestArtwork.previewUrl && /^https?:\/\//i.test(latestArtwork.previewUrl)
             ? latestArtwork.previewUrl
             : getPdfThumbnailUrl(latestOriginalUrl))
@@ -2696,11 +2709,11 @@ const Design: React.FC = () => {
   } = (() => {
     if (isProcessingUpsell) {
       return {
-        label: 'Preparing exact preview…',
+        label: 'Saving your design…',
         onClick: undefined,
         disabled: true,
         loading: true,
-        helper: 'Verifying the permanent customer-approved composition.',
+        helper: 'Your artwork and layout will carry through to checkout.',
       };
     }
     // Post-add-to-cart success state — applies to ALL product types. The
@@ -2903,6 +2916,8 @@ const Design: React.FC = () => {
         <meta name="description" content="Design custom vinyl banners online. Upload artwork, choose size and material, preview the print, and review production and shipping before checkout." />
         <link rel="canonical" href="https://bannersonthefly.com/design" />
       </Helmet>
+
+      {productType === 'banner' && <GoogleReviewSpotlight />}
 
       <DesignPageHero productType={productType} onStart={scrollToOrder} />
 
@@ -3164,15 +3179,6 @@ const Design: React.FC = () => {
                         </div>
                       </div>
                     )}
-                    <p className="text-xs text-gray-500 mt-1">{sqft.toFixed(1)} sq ft</p>
-                    {/* Equivalent size — shows the size in the OTHER unit so the
-                        Feet/Inches toggle gives users an instant cross-reference.
-                        Display-only; never touches pricing or cart. */}
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {unit === 'in'
-                        ? `≈ ${widthFt}${widthInR > 0 ? ` ft ${widthInR} in` : ' ft'} × ${heightFt}${heightInR > 0 ? ` ft ${heightInR} in` : ' ft'}`
-                        : `≈ ${widthIn} in × ${heightIn} in`}
-                    </p>
                   </div>
                   )}
                 </div>
@@ -3259,7 +3265,7 @@ const Design: React.FC = () => {
                   <p className="text-xs text-gray-500 mt-1.5">Use +/- to adjust quantity quickly.</p>
                 )}
                 {!isCarMagnet && quantity === 1 && (
-                  <p className="text-xs text-gray-400 mt-1">Order 2+ for up to 13% off</p>
+                  <p className="text-xs text-gray-700 mt-1">Order 2+ for up to 13% off</p>
                 )}
               </ConfigCard>
               <ConfigCard step={isCarMagnet ? 3 : 4} title={isCarMagnet ? 'Rounded Corners' : 'More options'} id="options-section">
@@ -3317,7 +3323,7 @@ const Design: React.FC = () => {
                       ref={fileUploaderRef}
                       onUpload={handleFileUpload}
                       acceptedTypes="image/png,image/jpeg,application/pdf,.png,.jpg,.jpeg,.pdf"
-                      maxSize={50 * 1024 * 1024}
+                      maxSize={MAX_ARTWORK_BYTES}
                       label="Upload your artwork"
                       subText={`PNG, JPG, or PDF • Max 50MB • ${widthDisplay} × ${heightDisplay}`}
                       isUploading={isUploading}
@@ -3574,7 +3580,7 @@ const Design: React.FC = () => {
 
               <button onClick={handleCheckout} disabled={!uploadedFile || !hasCommittedBannerSize || isUploading || isProcessingUpsell} className={`group w-full font-bold text-lg py-5 rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${uploadedFile && hasCommittedBannerSize && !isUploading && !isProcessingUpsell ? 'bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white cursor-pointer shadow-orange-500/30' : 'bg-orange-300 text-white/80 cursor-not-allowed'}`}>
                 <Lock className="h-4 w-4" aria-hidden="true" />
-                {isProcessingUpsell ? 'Preparing exact preview…' : 'Checkout securely'}
+                {isProcessingUpsell ? 'Saving your design…' : 'Checkout securely'}
                 <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
               </button>
               <button
@@ -3586,7 +3592,7 @@ const Design: React.FC = () => {
                     : 'border-slate-200 text-slate-400 cursor-not-allowed'
                 }`}
               >
-                {isProcessingUpsell ? 'Preparing exact preview…' : 'Add to Cart'}
+                {isProcessingUpsell ? 'Saving your design…' : 'Add to Cart'}
               </button>
               {/* Friday shipping badge */}
               <div className="flex items-center justify-center gap-2 mt-3 py-2 px-3 bg-blue-50 border border-blue-200 rounded-lg">

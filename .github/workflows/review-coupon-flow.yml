@@ -1,0 +1,39 @@
+name: Review follow-up and coupon flow
+on:
+  pull_request:
+    paths:
+      - 'netlify/functions/_shared/review-request-*.cjs'
+      - 'netlify/functions/__tests__/review-*.test.cjs'
+      - 'src/components/orders/ReviewRequestAction.tsx'
+      - 'tests/browser/admin-review-request.playwright.spec.ts'
+      - '.github/workflows/review-coupon-flow.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  review-coupon-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Verify email, coupon, and checkout behavior
+        run: |
+          node --test netlify/functions/__tests__/review-request-email.test.cjs netlify/functions/__tests__/review-followup-coupon.test.cjs netlify/functions/__tests__/payment-discount-reservation.test.cjs netlify/functions/__tests__/get-orders-reporting.test.mjs netlify/functions/__tests__/get-orders-legacy-readonly.test.cjs
+          npx vitest run src/lib/__tests__/review-request.test.ts src/lib/orders/admin-detail-hydration.test.ts
+      - name: Verify desktop and mobile admin controls
+        run: |
+          browser=$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)
+          test -n "$browser"
+          PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="$browser" npx playwright test tests/browser/admin-review-request.playwright.spec.ts --config=playwright.preview.config.ts --project=chromium-1440x900 --project=chromium-pixel8-portrait
+      - name: Save browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: review-coupon-browser-evidence
+          path: test-results
+          retention-days: 7

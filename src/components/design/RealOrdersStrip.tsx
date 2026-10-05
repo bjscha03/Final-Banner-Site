@@ -30,12 +30,12 @@ const DeliveryImageSet: React.FC<{ duplicate?: boolean; expanded?: boolean }> = 
   </div>
 );
 
-const RealOrdersStrip: React.FC<{ expanded?: boolean }> = ({ expanded = false }) => {
+const RealOrdersStrip: React.FC<{ expanded?: boolean; compactMobile?: boolean }> = ({ expanded = false, compactMobile = false }) => {
   const [isPaused, setIsPaused] = useState(false);
 
   return (
     <section
-      className={`real-orders-strip relative ${expanded ? 'h-24' : 'h-16'} overflow-hidden border-y border-[#FF6A00]/70 bg-[#061A31] text-white`}
+      className={`real-orders-strip relative ${compactMobile ? 'h-16 lg:h-24' : expanded ? 'h-24' : 'h-16'} overflow-hidden border-y border-[#FF6A00]/70 bg-[#061A31] text-white`}
       aria-label="Real customer order delivery photos"
       data-real-orders-strip
       data-paused={isPaused}
@@ -53,6 +53,7 @@ const RealOrdersStrip: React.FC<{ expanded?: boolean }> = ({ expanded = false })
           <div
             className="real-orders-strip-track flex h-full w-max items-center"
             data-real-orders-strip-track
+            style={{ animationDuration: `${24 * deliveryProofImages.length / 23}s` }}
           >
             <DeliveryImageSet expanded={expanded} />
             <DeliveryImageSet duplicate expanded={expanded} />

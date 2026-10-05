@@ -147,7 +147,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
   imageScale: 1,
   imageScaleY: 1,
   imagePosition: { x: 0, y: 0 },
-  fitMode: 'fill',
+  fitMode: 'fit',
   set: (partial) => set((state) => {
     // Handle mutual exclusivity between grommets and pole pockets
     const updates = { ...partial };
@@ -371,7 +371,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
     imageScale: 1,
     imageScaleY: 1,
     imagePosition: { x: 0, y: 0 },
-    fitMode: 'fill',
+    fitMode: 'fit',
   };
     
     

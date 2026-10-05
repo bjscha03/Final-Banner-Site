@@ -6,6 +6,7 @@ import 'cloudinary';
 import 'sharp';
 import 'pdfkit';
 import 'pdf-lib';
+import '@netlify/blobs';
 import { withLambda } from '@netlify/aws-lambda-compat';
 import legacyModule from './_shared/legacy/render-order-pdf.cjs';
 

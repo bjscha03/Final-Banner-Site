@@ -1,3 +1,4 @@
+import BOFProfitAdjustments from './BOFProfitAdjustments';
 import React, { useState } from 'react';
 import { Order } from '../../lib/orders/types';
 import { usd } from "@/lib/pricing";
@@ -856,7 +857,10 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
               <div className="mt-6 bg-gradient-to-br from-emerald-50 to-emerald-100 border-2 border-emerald-200 rounded-xl p-6 shadow-sm">
                 <h3 className="text-lg font-bold text-emerald-800 mb-4">Profit Estimate</h3>
                 {profit.needsReview ? (
-                  <div className="inline-flex rounded bg-amber-100 px-2 py-1 text-sm font-semibold text-amber-800">Needs review</div>
+                  <div className="rounded bg-amber-100 px-2 py-1 text-sm text-amber-800">
+                    <div className="font-semibold">Needs review</div>
+                    {profit.reviewReasons.map((reason) => <div key={reason}>{reason}</div>)}
+                  </div>
                 ) : (
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between"><span>Original Subtotal</span><span className="font-semibold">{usd(profit.originalSubtotalCents / 100)}</span></div>
@@ -865,6 +869,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                     <div className="flex justify-between text-slate-700"><span>Production Cost</span><span className="font-semibold">{usd(profit.productionCostCents / 100)}</span></div>
                     <div className="flex justify-between text-slate-700"><span>Shipping/Handling Cost</span><span className="font-semibold">{usd(profit.shippingCostCents / 100)}</span></div>
                     <div className="flex justify-between text-slate-700"><span>Total Cost</span><span className="font-semibold">{usd(profit.totalCostCents / 100)}</span></div>
+                    <BOFProfitAdjustments rewardCents={profit.bofRewardReserveCents} releasedCents={profit.bofReserveReleasedCents}/>
                     <div className="flex justify-between border-t pt-2"><span className="font-semibold">Estimated Net Profit</span><span className={`font-bold ${profit.netProfitCents >= 0 ? 'text-green-700' : 'text-red-700'}`}>{usd(profit.netProfitCents / 100)}</span></div>
                     <div className="flex justify-between"><span>Profit Margin %</span><span className={`font-semibold ${profit.marginPct >= 0 ? 'text-green-700' : 'text-red-700'}`}>{profit.marginPct.toFixed(1)}%</span></div>
                   </div>

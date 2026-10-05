@@ -89,6 +89,7 @@ async function validateDiscountForCheckout({
   email = null,
   userId = null,
   checkoutKey = null,
+  authenticatedUserId = null,
   recoveryCartId = null,
   requireRecoveryEmailMatch = false,
   requireRecoveryCartMatch = false,
@@ -99,6 +100,9 @@ async function validateDiscountForCheckout({
   const normalizedEmail = email ? String(email).trim().toLowerCase() : null;
   const normalizedRecoveryCartId = normalizedCartId(recoveryCartId);
   if (!normalizedCode) return invalidResult('Discount code is required');
+  if (require('./bof-service.cjs').isBofCode(normalizedCode)) {
+    return require('./bof-service.cjs').validate(sql, {code:normalizedCode,items,email,userId,authenticatedUserId,checkoutKey});
+  }
   if (!LARGE_BANNER_PROMOTION_ENABLED && [AUTOMATIC_LARGE_BANNER_PROMOTION_ID, SEPTEMBER_LARGE_BANNER_CODE].includes(normalizedCode)) return invalidResult('This large-banner promotion has ended');
 
   const hasQualifyingLargeBanner = Array.isArray(items)

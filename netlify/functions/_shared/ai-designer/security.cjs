@@ -128,9 +128,18 @@ function idempotencyKey(event, body, session, action = 'request') {
 
 async function runIdempotent(key, task) {
   if (inFlight.has(key)) return inFlight.get(key);
-  const promise = Promise.resolve().then(task).finally(() => {
-    setTimeout(() => inFlight.delete(key), 5 * 60 * 1000).unref?.();
-  });
+  const promise = Promise.resolve().then(task).then(
+    result => {
+      setTimeout(() => inFlight.delete(key), 5 * 60 * 1000).unref?.();
+      return result;
+    },
+    error => {
+      // A failed storage read is not an accepted job. Let the same request
+      // retry immediately; durable job identity still prevents regeneration.
+      inFlight.delete(key);
+      throw error;
+    },
+  );
   inFlight.set(key, promise);
   return promise;
 }
