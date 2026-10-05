@@ -3259,9 +3259,8 @@ const GoogleAdsBanner: React.FC = () => {
         {isFallFestivalLanding && <link rel="canonical" href="https://bannersonthefly.com/fall-festival-banners" />}
       </Helmet>
       <div className="min-h-screen bg-white text-gray-900">
-        {compactMobileLanding && !isLgScreen ? (
-          <Header compactMobile cartCount={cartItemCount} onCartClick={() => setIsCartOpen(true)} />
-        ) : location.pathname.replace(/\/+$/, "") === "/google-ads-banner" ? (
+        {/* Keep the paid landing page's logo-and-cart header at every viewport size. */}
+        {location.pathname.replace(/\/+$/, "") === "/google-ads-banner" ? (
         <header data-site-header className="w-full border-b border-white/10 bg-[#061A31] py-2 px-4 sticky top-0 z-50 lg:border-gray-100 lg:bg-white lg:py-3">
           <div className="max-w-5xl mx-auto flex items-center justify-between">
             <div className="w-10" />
