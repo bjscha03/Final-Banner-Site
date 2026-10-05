@@ -186,22 +186,10 @@ exports.handler = async (event) => {
 
     const sql = neon(dbUrl);
 
-    // AUTO-MIGRATE: Ensure the status constraint includes 'in_production' and tracking columns exist
-    try {
-      await sql`ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_status_check`;
-      await sql`ALTER TABLE orders ADD CONSTRAINT orders_status_check
-        CHECK (status IN ('pending', 'paid', 'failed', 'refunded', 'shipped', 'in_production'))`;
-      await sql`
-        ALTER TABLE orders
-        ADD COLUMN IF NOT EXISTS production_email_sent BOOLEAN DEFAULT FALSE,
-        ADD COLUMN IF NOT EXISTS production_email_sent_at TIMESTAMP WITH TIME ZONE,
-        ADD COLUMN IF NOT EXISTS production_email_status TEXT DEFAULT 'pending'
-      `;
-      console.log('[mark-in-production] Auto-migration: constraint and columns verified');
-    } catch (migErr) {
-      console.warn('[mark-in-production] Auto-migration warning (non-fatal):', migErr.message);
-    }
-
+    // Do not run schema DDL from an Admin button click. ALTER TABLE requires an
+    // ACCESS EXCLUSIVE lock and can make this synchronous action time out while
+    // normal order traffic is active. The production schema is managed by the
+    // database migration path and is verified separately from this request.
     const { orderId, retryEmail = false } = JSON.parse(event.body || '{}');
 
     if (!orderId || typeof orderId !== 'string') {
