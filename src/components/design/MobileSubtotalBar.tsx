@@ -8,6 +8,7 @@ import {
 } from '@/lib/automaticPromotionDisplay';
 
 export interface MobileSubtotalBarProps {
+  uploadRecovery?: { onCancel: () => void };
   primaryAction?: { label: string; onClick: () => void; disabled: boolean };
   subtotal: ReactNode;
   priceNote?: ReactNode;
@@ -22,6 +23,7 @@ export interface MobileSubtotalBarProps {
  */
 export default function MobileSubtotalBar({
   primaryAction,
+  uploadRecovery,
   subtotal,
   priceNote,
   promotionNote,
@@ -107,6 +109,7 @@ export default function MobileSubtotalBar({
             {primaryAction ? 'View cart' : 'View Cart'} ({cartItemCount})
           </button>
         </div>
+        {uploadRecovery && <button type="button" onClick={uploadRecovery.onCancel} className="min-h-11 w-full text-sm font-semibold text-slate-700 underline">Cancel upload</button>}
         {primaryAction && <>
           <div className="mt-0.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
             {promotionNote && <p data-testid="mobile-applied-discount" className="text-[11px] font-bold leading-tight text-emerald-700">{promotionNote}</p>}

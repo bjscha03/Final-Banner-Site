@@ -4,6 +4,8 @@ import {
   CHUNKED_UPLOAD_THRESHOLD_BYTES,
   getArtworkUploadDiagnostic,
   MAX_ARTWORK_BYTES,
+  LEGACY_FUNCTION_SAFE_BYTES,
+  SAME_ORIGIN_UPLOAD_TIMEOUT_MS,
   ArtworkUploadError,
   ARTWORK_SIZE_MESSAGE,
   getArtworkUploadMessage,
@@ -209,7 +211,7 @@ describe('uploadArtworkFile', () => {
     vi.stubGlobal('XMLHttpRequest', SuccessfulUploadXhr as any);
 
     const progress: number[] = [];
-    const file = new File(['original customer bytes'], 'customer-art.png', { type: 'image/png' });
+    const file = new File([new Uint8Array(LEGACY_FUNCTION_SAFE_BYTES + 1)], 'customer-art.png', { type: 'image/png' });
     const result = await uploadArtworkFile(file, {
       correlationId: 'test-upload',
       onProgress: (value) => progress.push(value),
@@ -296,30 +298,87 @@ describe('uploadArtworkFile', () => {
 });
 
 
-describe('stalled upload recovery', () => {
-  it('aborts a silent direct request and saves the original through the same-origin fallback', async () => {
+describe('same-origin uploads and stalled recovery', () => {
+  const saved = { secure_url: 'https://res.cloudinary.com/test/image/upload/original.png', public_id: 'uploads/original' };
+  const ticket = { apiKey: 'public-key', signature: 'signature', timestamp: 123, folder: 'uploads', uploadUrl: 'https://api.cloudinary.com/v1_1/test/image/upload' };
+
+  it('saves small originals through the same origin without waiting for a direct request', async () => {
+    const fetchSpy = vi.fn(async () => new Response(JSON.stringify(saved), { status: 200 }));
+    const xhrSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    vi.stubGlobal('XMLHttpRequest', xhrSpy);
+    const original = 'unchanged original customer bytes';
+    const result = await uploadArtworkFile(new File([original], 'original.png', { type: 'image/png' }));
+    expect(result.transport).toBe('netlify-same-origin');
+    expect(result.artworkManifest.uploadStatus).toBe('uploaded');
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    expect(fetchSpy.mock.calls[0][0]).toBe('/.netlify/functions/upload-file');
+    const body = fetchSpy.mock.calls[0][1].body as FormData;
+    expect(await (body.get('file') as File).text()).toBe(original);
+    expect(xhrSpy).not.toHaveBeenCalled();
+  });
+
+  it('switches routes if same-origin fetch never settles, even when it ignores abort', async () => {
+    vi.useFakeTimers();
+    let primarySignal: AbortSignal | undefined;
+    const fetchSpy = vi.fn(async (url: string, options?: RequestInit) => {
+      if (url.includes('upload-file')) {
+        primarySignal = options?.signal as AbortSignal;
+        return new Promise<Response>(() => {});
+      }
+      return new Response(JSON.stringify(ticket), { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    vi.stubGlobal('XMLHttpRequest', SuccessfulUploadXhr);
+    const pending = uploadArtworkFile(new File(['original'], 'original.png', { type: 'image/png' }));
+    await vi.advanceTimersByTimeAsync(SAME_ORIGIN_UPLOAD_TIMEOUT_MS + 1);
+    const result = await pending;
+    expect(primarySignal?.aborted).toBe(true);
+    expect(result.transport).toBe('cloudinary-direct');
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('bounds stalled response parsing and recovers through the alternate route', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => url.includes('upload-file')
+      ? { ok: true, json: () => new Promise(() => {}) }
+      : new Response(JSON.stringify(ticket), { status: 200 })));
+    vi.stubGlobal('XMLHttpRequest', SuccessfulUploadXhr);
+    const pending = uploadArtworkFile(new File(['original'], 'original.png', { type: 'image/png' }));
+    await vi.advanceTimersByTimeAsync(SAME_ORIGIN_UPLOAD_TIMEOUT_MS + 1);
+    expect((await pending).transport).toBe('cloudinary-direct');
+  });
+
+  it('does not start another transport after cancellation', async () => {
+    const controller = new AbortController();
+    const fetchSpy = vi.fn(() => new Promise<Response>(() => {}));
+    const xhrSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    vi.stubGlobal('XMLHttpRequest', xhrSpy);
+    const pending = uploadArtworkFile(new File(['original'], 'original.png', { type: 'image/png' }), { signal: controller.signal });
+    const rejected = expect(pending).rejects.toThrow();
+    await Promise.resolve();
+    controller.abort();
+    await rejected;
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    expect(xhrSpy).not.toHaveBeenCalled();
+  });
+
+  it('rejects a silent direct request after its independent stall timer', async () => {
     vi.useFakeTimers();
     const abort = vi.fn();
     class SilentXhr extends SuccessfulUploadXhr {
       send(_body: FormData) {}
       abort() { abort(); this.onabort?.(); }
     }
-    const fetchSpy = vi.fn(async (url: string, _options?: RequestInit) => new Response(JSON.stringify(
-      url.includes('signature') ? {
-        apiKey: 'public-key', signature: 'signature', timestamp: 123, folder: 'uploads',
-        uploadUrl: 'https://api.cloudinary.com/v1_1/test/image/upload',
-      } : { secure_url: 'https://res.cloudinary.com/test/image/upload/original.png', public_id: 'uploads/original' }
-    ), { status: 200 }));
-    vi.stubGlobal('fetch', fetchSpy);
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => new Response(JSON.stringify(
+      url.includes('upload-file') ? { error: 'Unavailable' } : ticket
+    ), { status: url.includes('upload-file') ? 503 : 200 })));
     vi.stubGlobal('XMLHttpRequest', SilentXhr);
-    const pending = uploadArtworkFile(new File(['original bytes'], 'original.png', { type: 'image/png' }));
+    const pending = uploadArtworkFile(new File(['original'], 'original.png', { type: 'image/png' }));
+    const rejected = expect(pending).rejects.toThrow('stopped making progress');
     await vi.advanceTimersByTimeAsync(UPLOAD_STALL_TIMEOUT_MS + 1);
-    const result = await pending;
+    await rejected;
     expect(abort).toHaveBeenCalledOnce();
-    expect(result.transport).toBe('netlify-legacy-fallback');
-    expect(fetchSpy).toHaveBeenCalledTimes(2);
-    const fallbackBody = fetchSpy.mock.calls[1][1]?.body;
-    expect(fallbackBody).toBeInstanceOf(FormData);
-    expect((fallbackBody as FormData).get('file')).toBeTruthy();
   });
 });

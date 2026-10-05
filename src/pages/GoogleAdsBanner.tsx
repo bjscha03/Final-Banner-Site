@@ -1,3 +1,4 @@
+import { useUploadWatchdog } from '@/hooks/useUploadWatchdog';
 import MobileBannerLandingHero, { MobileBannerLandingProof } from '@/components/design/MobileBannerLandingHero';
 import GoogleReviewSpotlight from '@/components/design/GoogleReviewSpotlight';
 import LargeBannerSizeCards from '@/components/design/LargeBannerSizeCards';
@@ -1505,6 +1506,9 @@ const GoogleAdsBanner: React.FC = () => {
       ? 'application/pdf'
       : (file.type || (extension === 'png' ? 'image/png' : 'image/jpeg'));
 
+    uploadedFileRef.current = null;
+    setUploadedFile(null);
+    setUploadProgress(0);
     setIsUploading(true);
     const uploadDescriptor = getArtworkUploadDiagnostic(null, file);
     logUx('upload_start', {
@@ -1582,15 +1586,20 @@ const GoogleAdsBanner: React.FC = () => {
   const retryActiveArtworkUpload = useCallback(async (): Promise<UploadedArtworkFile | null> => {
     const file = activeUploadFileRef.current;
     const current = uploadedFileRef.current;
-    if (!file || !current) return null;
+    if (!file) return null;
+    if (!current) {
+      await handleFileUpload(file);
+      return uploadedFileRef.current;
+    }
     if (hasPermanentArtwork(current)) return current;
+    uploadGenerationRef.current += 1;
     return persistArtworkUpload(
       file,
       current,
       uploadGenerationRef.current,
       `artwork-retry-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     );
-  }, [persistArtworkUpload]);
+  }, [handleFileUpload, persistArtworkUpload]);
 
   const cancelArtworkUpload = useCallback(() => {
     uploadGenerationRef.current += 1;
@@ -1600,6 +1609,17 @@ const GoogleAdsBanner: React.FC = () => {
     setIsUploading(false);
     setUploadError('Upload paused. Your file and choices are still here. Retry when you are ready.');
   }, []);
+
+  useUploadWatchdog(isUploading, uploadProgress, () => {
+    uploadGenerationRef.current += 1;
+    activeUploadAbortControllerRef.current?.abort();
+    activeUploadAbortControllerRef.current = null;
+    activeUploadPromiseRef.current = null;
+    setIsUploading(false);
+    setUploadError('This upload stopped responding. Your file and choices are saved here. Tap Retry upload to try again.');
+    const file = activeUploadFileRef.current;
+    logUx('upload_timeout', file ? getArtworkUploadDiagnostic(null, file) : undefined);
+  });
 
   const ensurePermanentArtworkUploaded = useCallback(async (): Promise<UploadedArtworkFile | null> => {
     let current = uploadedFileRef.current;
@@ -2673,7 +2693,9 @@ const GoogleAdsBanner: React.FC = () => {
 
 
   const bannerAction = isProcessingUpsell || isUploading
-    ? { label: isUploading ? 'Uploading…' : 'Saving your design…', disabled: true, onClick: () => {} }
+    ? { label: isUploading ? (uploadProgress >= 100 ? 'Finalizing artwork…' : uploadProgress > 0 ? `Uploading · ${uploadProgress}%` : 'Uploading artwork…') : 'Saving your design…', disabled: true, onClick: () => {} }
+    : uploadError && activeUploadFileRef.current && !hasPermanentArtwork(uploadedFile)
+      ? { label: 'Retry upload', disabled: false, onClick: () => { void retryActiveArtworkUpload(); } }
     : hasJustAddedToCart
       ? { label: 'View cart', disabled: false, onClick: openCartDrawer }
       : !hasCommittedBannerSize
@@ -2682,7 +2704,7 @@ const GoogleAdsBanner: React.FC = () => {
           ? { label: uploadError ? 'Retry upload' : 'Upload artwork', disabled: false, onClick: openOrScrollToUpload }
           : { label: editItemId ? 'Save & checkout' : 'Continue to checkout', disabled: false, onClick: handleCheckout };
 
-  const mobileBannerAction = uploadedFile && hasCommittedBannerSize && !isProcessingUpsell && !isUploading
+  const mobileBannerAction = hasPermanentArtwork(uploadedFile) && hasCommittedBannerSize && !isProcessingUpsell && !isUploading
     ? { label: 'Next: Finishing', disabled: false, onClick: () => openMobileFinishing('inline') }
     : bannerAction;
   const orientationKey = `${uploadedFile?.editorIdentity || uploadedFile?.fileKey}:${widthIn}:${heightIn}`;
@@ -3241,7 +3263,7 @@ const GoogleAdsBanner: React.FC = () => {
                     <p>{uploadProgress >= 100 ? 'Finalizing artwork…' : `Uploading artwork${uploadProgress > 0 ? ` · ${uploadProgress}%` : '…'}`}</p>
                     <button type="button" onClick={cancelArtworkUpload} className="min-h-11 font-semibold underline">Cancel upload</button>
                   </div>}
-                  {uploadError && <div role="alert" className="mt-2 text-sm text-red-600"><p>{uploadError}</p>{uploadedFile && activeUploadFileRef.current && <button type="button" disabled={isUploading} onClick={() => void retryActiveArtworkUpload()} className="min-h-11 font-semibold underline">Retry upload</button>}</div>}
+                  {uploadError && <div role="alert" className="mt-2 text-sm text-red-600"><p>{uploadError}</p>{activeUploadFileRef.current && <button type="button" disabled={isUploading} onClick={() => void retryActiveArtworkUpload()} className="min-h-11 font-semibold underline">Retry upload</button>}</div>}
                   <p className="text-xs text-gray-400 mt-2 text-center">Every file reviewed by a real designer before printing.</p>
                 </ConfigCard>);
   const heroContent = isYardSign
@@ -3664,6 +3686,7 @@ const GoogleAdsBanner: React.FC = () => {
           {(!activeCartPromo || activeCartPromo.code === 'NEW20') && firstOrderOffer.status === 'unavailable' && <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{firstOrderOffer.message} <button type="button" onClick={firstOrderOffer.retry} className="min-h-11 font-semibold underline">Retry offer</button></p>}
         </MobileFinishingStep>
         <MobileSubtotalBar
+          uploadRecovery={!isYardSign && !isCarMagnet && isUploading ? { onCancel: cancelArtworkUpload } : undefined}
           primaryAction={!isYardSign && !isCarMagnet ? mobileBannerAction : undefined}
           promotionNote={bannerPromoActuallyApplied && bannerPromoResolution.promoDiscountCode === 'NEW20' ? FIRST_ORDER_APPLIED_LABEL : undefined}
           cartItemCount={cartItemCount}

@@ -1,3 +1,4 @@
+import { useUploadWatchdog } from '@/hooks/useUploadWatchdog';
 import GoogleReviewSpotlight from '@/components/design/GoogleReviewSpotlight';
 import { useAutomaticFirstOrderDiscount } from '@/hooks/useAutomaticFirstOrderDiscount';
 import { FIRST_ORDER_APPLIED_LABEL } from '@/lib/firstOrderPromotion';
@@ -1447,6 +1448,9 @@ const Design: React.FC = () => {
       ? 'application/pdf'
       : (file.type || (extension === 'png' ? 'image/png' : 'image/jpeg'));
 
+    uploadedFileRef.current = null;
+    setUploadedFile(null);
+    setUploadProgress(0);
     setIsUploading(true);
     const uploadDescriptor = getArtworkUploadDiagnostic(null, file);
     logUx('upload_start', {
@@ -1524,15 +1528,20 @@ const Design: React.FC = () => {
   const retryActiveArtworkUpload = useCallback(async (): Promise<UploadedArtworkFile | null> => {
     const file = activeUploadFileRef.current;
     const current = uploadedFileRef.current;
-    if (!file || !current) return null;
+    if (!file) return null;
+    if (!current) {
+      await handleFileUpload(file);
+      return uploadedFileRef.current;
+    }
     if (hasPermanentArtwork(current)) return current;
+    uploadGenerationRef.current += 1;
     return persistArtworkUpload(
       file,
       current,
       uploadGenerationRef.current,
       `artwork-retry-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     );
-  }, [persistArtworkUpload]);
+  }, [handleFileUpload, persistArtworkUpload]);
 
   const cancelArtworkUpload = useCallback(() => {
     uploadGenerationRef.current += 1;
@@ -1542,6 +1551,17 @@ const Design: React.FC = () => {
     setIsUploading(false);
     setUploadError('Upload paused. Your file and choices are still here. Retry when you are ready.');
   }, []);
+
+  useUploadWatchdog(isUploading, uploadProgress, () => {
+    uploadGenerationRef.current += 1;
+    activeUploadAbortControllerRef.current?.abort();
+    activeUploadAbortControllerRef.current = null;
+    activeUploadPromiseRef.current = null;
+    setIsUploading(false);
+    setUploadError('This upload stopped responding. Your file and choices are saved here. Tap Retry upload to try again.');
+    const file = activeUploadFileRef.current;
+    logUx('upload_timeout', file ? getArtworkUploadDiagnostic(null, file) : undefined);
+  });
 
   const ensurePermanentArtworkUploaded = useCallback(async (): Promise<UploadedArtworkFile | null> => {
     let current = uploadedFileRef.current;
@@ -3480,7 +3500,7 @@ const Design: React.FC = () => {
                     <p>{uploadProgress >= 100 ? 'Finalizing artwork…' : `Uploading artwork${uploadProgress > 0 ? ` · ${uploadProgress}%` : '…'}`}</p>
                     <button type="button" onClick={cancelArtworkUpload} className="min-h-11 font-semibold underline">Cancel upload</button>
                   </div>}
-                  {uploadError && <div role="alert" className="mt-2 text-sm text-red-600"><p>{uploadError}</p>{uploadedFile && activeUploadFileRef.current && <button type="button" disabled={isUploading} onClick={() => void retryActiveArtworkUpload()} className="min-h-11 font-semibold underline">Retry upload</button>}</div>}
+                  {uploadError && <div role="alert" className="mt-2 text-sm text-red-600"><p>{uploadError}</p>{activeUploadFileRef.current && <button type="button" disabled={isUploading} onClick={() => void retryActiveArtworkUpload()} className="min-h-11 font-semibold underline">Retry upload</button>}</div>}
                 <p className="text-xs text-gray-400 mt-2 text-center">Every file reviewed by a real designer before printing.</p>
               </ConfigCard>
             </div>

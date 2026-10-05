@@ -1,4 +1,5 @@
 import type { ArtworkManifest } from '@/types/artwork';
+import { withUploadDeadline } from './uploadDeadline';
 
 export const MAX_ARTWORK_BYTES = 50 * 1024 * 1024;
 export const CLOUDINARY_ARTWORK_BYTES = 20 * 1024 * 1024;
@@ -8,6 +9,7 @@ export const DIRECT_UPLOAD_ATTEMPTS = 3;
 export const CHUNKED_UPLOAD_THRESHOLD_BYTES = 8 * 1024 * 1024;
 export const UPLOAD_CHUNK_BYTES = 6 * 1024 * 1024;
 export const UPLOAD_STALL_TIMEOUT_MS = 30_000;
+export const SAME_ORIGIN_UPLOAD_TIMEOUT_MS = 20_000;
 
 const SIGNATURE_ENDPOINT = '/.netlify/functions/cloudinary-upload-signature';
 const LEGACY_UPLOAD_ENDPOINT = '/.netlify/functions/upload-file';
@@ -51,7 +53,7 @@ export interface ArtworkUploadResult {
   version: number | null;
   uploadedAt: string;
   artworkManifest: ArtworkManifest;
-  transport: 'cloudinary-direct' | 'netlify-legacy-fallback' | 'netlify-original';
+  transport: 'cloudinary-direct' | 'netlify-same-origin' | 'netlify-legacy-fallback' | 'netlify-original';
 }
 
 export interface UploadArtworkOptions {
@@ -195,58 +197,39 @@ const messageFromPayload = (payload: any, fallback: string): string => {
   return typeof message === 'string' && message.trim() ? message.trim() : fallback;
 };
 
-const withTimeoutSignal = (
-  timeoutMs: number,
-  externalSignal?: AbortSignal,
-): { signal: AbortSignal; cleanup: () => void } => {
-  const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
-  const onAbort = () => controller.abort();
-  if (externalSignal) {
-    if (externalSignal.aborted) controller.abort();
-    else externalSignal.addEventListener('abort', onAbort, { once: true });
-  }
-  return {
-    signal: controller.signal,
-    cleanup: () => {
-      window.clearTimeout(timeoutId);
-      externalSignal?.removeEventListener('abort', onAbort);
-    },
-  };
-};
-
 async function requestUploadTicket(
   file: File,
   options: UploadArtworkOptions,
 ): Promise<ArtworkUploadTicket> {
-  const timed = withTimeoutSignal(15_000, options.signal);
   try {
-    const response = await fetch(SIGNATURE_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        correlationId: options.correlationId || null,
-        fileName: file.name,
-        mimeType: file.type || null,
-        size: file.size,
-      }),
-      signal: timed.signal,
-    });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new ArtworkUploadError(
-        messageFromPayload(payload, `Could not prepare upload (${response.status}).`),
-        {
-          phase: 'ticket',
-          status: response.status,
-          retryable: response.status >= 500 || response.status === 408 || response.status === 429,
-        },
-      );
-    }
-    if (!payload?.uploadUrl || !payload?.apiKey || !payload?.signature || !payload?.timestamp) {
-      throw new ArtworkUploadError('The upload ticket was incomplete.', { phase: 'ticket', retryable: true });
-    }
-    return payload as ArtworkUploadTicket;
+    return await withUploadDeadline(async (signal) => {
+      const response = await fetch(SIGNATURE_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          correlationId: options.correlationId || null,
+          fileName: file.name,
+          mimeType: file.type || null,
+          size: file.size,
+        }),
+        signal,
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new ArtworkUploadError(
+          messageFromPayload(payload, `Could not prepare upload (${response.status}).`),
+          {
+            phase: 'ticket',
+            status: response.status,
+            retryable: response.status >= 500 || response.status === 408 || response.status === 429,
+          },
+        );
+      }
+      if (!payload?.uploadUrl || !payload?.apiKey || !payload?.signature || !payload?.timestamp) {
+        throw new ArtworkUploadError('The upload ticket was incomplete.', { phase: 'ticket', retryable: true });
+      }
+      return payload as ArtworkUploadTicket;
+    }, 15_000, options.signal);
   } catch (error) {
     if ((error as { name?: string })?.name === 'AbortError') {
       throw new ArtworkUploadError('Preparing the upload timed out.', { phase: 'ticket', retryable: true });
@@ -256,8 +239,6 @@ async function requestUploadTicket(
       error instanceof Error ? error.message : 'Could not prepare artwork upload.',
       { phase: 'ticket', retryable: true },
     );
-  } finally {
-    timed.cleanup();
   }
 }
 
@@ -498,32 +479,31 @@ async function uploadThroughLegacyFunction(
   file: File,
   options: UploadArtworkOptions,
 ): Promise<any> {
-  const timed = withTimeoutSignal(75_000, options.signal);
   try {
-    const formData = new FormData();
-    formData.append('file', file, file.name);
-    const response = await fetch(LEGACY_UPLOAD_ENDPOINT, {
-      method: 'POST',
-      body: formData,
-      signal: timed.signal,
-    });
-    const payload = await response.json().catch(async () => ({
-      error: await response.text().catch(() => ''),
-    }));
-    if (!response.ok) {
-      throw new ArtworkUploadError(
-        messageFromPayload(payload, `Fallback upload failed (${response.status}).`),
-        { phase: 'fallback', status: response.status, retryable: false },
-      );
-    }
-    return payload;
+    return await withUploadDeadline(async (signal) => {
+      const formData = new FormData();
+      formData.append('file', file, file.name);
+      const response = await fetch(LEGACY_UPLOAD_ENDPOINT, {
+        method: 'POST',
+        body: formData,
+        signal,
+      });
+      const payload = await response.json().catch(async () => ({
+        error: await response.text().catch(() => ''),
+      }));
+      if (!response.ok) {
+        throw new ArtworkUploadError(
+          messageFromPayload(payload, `Same-origin upload failed (${response.status}).`),
+          { phase: 'fallback', status: response.status, retryable: false },
+        );
+      }
+      return payload;
+    }, SAME_ORIGIN_UPLOAD_TIMEOUT_MS, options.signal);
   } catch (error) {
     if ((error as { name?: string })?.name === 'AbortError') {
-      throw new ArtworkUploadError('Fallback upload timed out.', { phase: 'fallback', retryable: false });
+      throw new ArtworkUploadError('Same-origin upload timed out.', { phase: 'fallback', retryable: false });
     }
     throw error;
-  } finally {
-    timed.cleanup();
   }
 }
 
@@ -607,9 +587,9 @@ export function normalizeUploadResponse(
 }
 
 /**
- * Upload the original customer file directly from the browser to Cloudinary.
- * Only the small signed ticket traverses Netlify, avoiding Netlify's effective
- * ~4.5MB binary request limit. The original bytes are never recompressed.
+ * Small originals use the site's own endpoint, avoiding a cross-origin mobile
+ * upload connection. Larger files go directly to storage to stay below Netlify's
+ * binary request limit. The original bytes are never recompressed.
  */
 export async function uploadArtworkFile(
   file: File,
@@ -626,6 +606,18 @@ export async function uploadArtworkFile(
   }
 
   let lastError: unknown = null;
+  if (file.size <= LEGACY_FUNCTION_SAFE_BYTES) {
+    try {
+      const payload = await uploadThroughLegacyFunction(file, options);
+      const result = normalizeUploadResponse(payload, file, 'netlify-same-origin');
+      options.onProgress?.(1);
+      return result;
+    } catch (error) {
+      if (options.signal?.aborted) throw error;
+      lastError = error;
+    }
+  }
+
   const useChunkedUpload = file.size >= CHUNKED_UPLOAD_THRESHOLD_BYTES;
   for (let attempt = 1; attempt <= DIRECT_UPLOAD_ATTEMPTS; attempt += 1) {
     options.onAttempt?.(attempt, DIRECT_UPLOAD_ATTEMPTS);
@@ -644,18 +636,6 @@ export async function uploadArtworkFile(
         || file.size <= LEGACY_FUNCTION_SAFE_BYTES) break;
       const delay = (600 * (2 ** (attempt - 1))) + Math.floor(Math.random() * 250);
       await sleep(delay);
-    }
-  }
-
-  // Existing upload endpoint remains as a conservative same-origin fallback
-  // only for files that fit safely inside Netlify's binary request envelope.
-  if (file.size <= LEGACY_FUNCTION_SAFE_BYTES && !options.signal?.aborted) {
-    try {
-      const payload = await uploadThroughLegacyFunction(file, options);
-      options.onProgress?.(1);
-      return normalizeUploadResponse(payload, file, 'netlify-legacy-fallback');
-    } catch (error) {
-      lastError = error;
     }
   }
 
