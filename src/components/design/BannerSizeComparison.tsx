@@ -7,7 +7,24 @@ export interface ComparisonArtwork {
 
 // Add only visually reviewed, people-free business/event artwork here.
 // Never pull an unreviewed order feed into this public display.
-export const comparisonArtworks: readonly ComparisonArtwork[] = [];
+export const comparisonArtworks: readonly ComparisonArtwork[] = [
+  {
+    "src": "https://res.cloudinary.com/dtrxl120u/image/upload/w_1000,q_auto,f_auto/v1790909041/uploads/af71e3ca-25f8-44db-8205-055ed54a3af8_o8sjz0.png",
+    "label": "Business banner"
+  },
+  {
+    "src": "https://res.cloudinary.com/dtrxl120u/image/upload/w_1000,q_auto,f_auto/v1790878174/uploads/ai-banner-72x36-3c1752ad-9d64-4193-ac90-75001de416fa_tdxpef.jpg",
+    "label": "Seasonal event banner"
+  },
+  {
+    "src": "https://res.cloudinary.com/dtrxl120u/image/upload/w_1000,q_auto,f_auto/v1790719468/uploads/placement-v3-1dv0rzq0q9e72r_kfg6a1.jpg",
+    "label": "Small business banner"
+  },
+  {
+    "src": "https://res.cloudinary.com/dtrxl120u/image/upload/w_1000,q_auto,f_auto/v1790732406/uploads/102_Popcorn_Banner_dprg0o.jpg",
+    "label": "Fundraising event banner"
+  }
+];
 
 export default function BannerSizeComparison({ artworks = comparisonArtworks }: { artworks?: readonly ComparisonArtwork[] }) {
   const [active, setActive] = useState(0);
@@ -38,6 +55,7 @@ export default function BannerSizeComparison({ artworks = comparisonArtworks }: 
   }, [artworks]);
 
   const loaded = artworks.filter(artwork => ready.includes(artwork.src));
+  const visibleArtworks = loaded.length ? loaded : artworks.slice(0, 1);
   useEffect(() => {
     if (paused || reducedMotion || loaded.length < 2) return;
     const timer = window.setInterval(() => {
@@ -48,14 +66,13 @@ export default function BannerSizeComparison({ artworks = comparisonArtworks }: 
 
   return <div className="mt-3 rounded-xl bg-orange-50 p-3">
     <p className="text-sm font-bold text-slate-900">Give your message more room</p>
-    <p className="mt-1 text-xs leading-relaxed text-slate-600">8′ × 4′ gives you <strong className="font-bold text-slate-900">78% more banner</strong> area than 6′ × 3′.</p>
+    <p className="mt-1 text-xs leading-relaxed text-slate-600">8′ × 4′ gives you <strong className="font-bold text-slate-900">78% MORE BANNER</strong> area than 6′ × 3′.</p>
     <div className="mt-3 flex items-end justify-center gap-5" aria-label="The same design shown at 6 by 3 feet and 8 by 4 feet, at the same scale">
-      {[6, 8].map(width => <div key={width} style={{ width: `${width * 5}%` }}>
+      {[6, 8].map(width => <div key={width} style={{ width: `${width * 6}%` }}>
         <div className="relative overflow-hidden rounded-sm border border-slate-900/10 bg-white shadow-md" style={{ aspectRatio: '2 / 1' }} aria-hidden="true">
-          {loaded.length ? loaded.map((artwork, index) => <img key={artwork.src} src={artwork.src} alt="" decoding="async"
+          {visibleArtworks.map((artwork, index) => <img key={artwork.src} src={artwork.src} alt="" decoding="async"
             className={`absolute inset-0 h-full w-full object-contain ${reducedMotion ? '' : 'transition-opacity duration-700 ease-in-out'}`}
-            style={{ opacity: index === active % loaded.length ? 1 : 0 }} />)
-            : <div className="flex h-full items-center justify-center bg-slate-900 text-center text-[9px] font-bold leading-tight text-white">GRAND<br />OPENING</div>}
+            style={{ opacity: index === active % visibleArtworks.length ? 1 : 0 }} />)}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/5" />
           {['left-1 top-1', 'right-1 top-1', 'left-1 bottom-1', 'right-1 bottom-1'].map(corner => <span key={corner} className={`pointer-events-none absolute h-1 w-1 rounded-full border border-slate-400 bg-white shadow-sm ${corner}`} />)}
         </div>
