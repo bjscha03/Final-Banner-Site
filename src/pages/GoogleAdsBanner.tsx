@@ -1,3 +1,4 @@
+import BannerSizeChoices from '@/components/design/BannerSizeChoices';
 import { useUploadWatchdog } from '@/hooks/useUploadWatchdog';
 import MobileBannerLandingHero, { MobileBannerLandingProof } from '@/components/design/MobileBannerLandingHero';
 import GoogleReviewSpotlight from '@/components/design/GoogleReviewSpotlight';
@@ -149,14 +150,7 @@ const PRESET_SIZES = [
   { w: 120, h: 48 },
 ];
 
-/**
- * Format a preset size label according to the user's selected display
- * unit. Pure UI helper — never affects pricing/cart/print.
- */
-function formatPresetLabel(w: number, h: number, unit: 'in' | 'ft'): string {
-  if (unit === 'ft') return `${w / 12}' × ${h / 12}'`;
-  return `${w}" × ${h}"`;
-}
+
 
 const FastBannerAdHero: React.FC<{ onStart: () => void }> = ({ onStart }) => (
   <section
@@ -3004,7 +2998,6 @@ const GoogleAdsBanner: React.FC = () => {
   const sizeCard = (<ConfigCard
                   className={compactMobileLanding ? '!p-3 lg:!p-6' : undefined}
                   bodyClassName={compactMobileLanding ? '!mt-2 lg:!mt-4' : undefined}
-                  popularPreset={isLargeBannerLanding ? { widthIn: 120, heightIn: 48 } : undefined}
                   step={1}
                   title={isCarMagnet ? "Choose your size" : isLargeBannerLanding ? "Choose your large banner size" : "Size & quantity"}
                   id="size-section"
@@ -3043,20 +3036,11 @@ const GoogleAdsBanner: React.FC = () => {
                         setActivePreset(index >= 0 ? index : null);
                         setHasConfirmedSize(true);
                       }} /> : <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Popular Sizes</label>
-                      <div className="grid grid-cols-3 gap-2">
-                        {isCarMagnet
-                          ? CAR_MAGNET_SIZES.map((p) => (
+                    {isCarMagnet ? <div><label className="block text-sm font-semibold text-gray-700 mb-2">Popular Sizes</label><div className="grid grid-cols-3 gap-2">{CAR_MAGNET_SIZES.map((p) => (
                               <button key={p.label} onClick={() => setCarMagnetSizeLabel(p.label)} className={`border rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${carMagnetSizeLabel === p.label ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
                                 {p.label}
                               </button>
-                            ))
-                          : PRESET_SIZES.map((p, i) => (
-                              <button key={i} type="button" aria-pressed={widthIn === p.w && heightIn === p.h} onClick={() => applyPreset(i)} className={`border rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${widthIn === p.w && heightIn === p.h ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
-                                {formatPresetLabel(p.w, p.h, unit)}
-                              </button>
-                            ))}
-                      </div>
+                            ))}</div></div> : <BannerSizeChoices sizes={PRESET_SIZES} widthIn={widthIn} heightIn={heightIn} unit={unit} onSelect={applyPreset} />}
                     </div>}
                     {!isCarMagnet && <CustomBannerSize hasCustomSize={!(isLargeBannerLanding ? LARGE_BANNER_SIZES : PRESET_SIZES).some(size => size.w === widthIn && size.h === heightIn)}>
                       {sizeDimensions}

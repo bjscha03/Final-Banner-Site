@@ -97,6 +97,15 @@ test('banner finishing preserves the artwork, price and cart through add-another
     await expect(page.getByAltText('Uploaded artwork preview').first()).toBeVisible({ timeout: 30000 });
   };
   await upload();
+  // A size upgrade must preserve uploaded artwork and remain selected across units.
+  await size.getByRole('button', { name: "8' × 4' — Bigger presence", exact: true }).click();
+  await expect(size.getByRole('button', { name: "8' × 4' — Bigger presence", exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByAltText('Uploaded artwork preview').first()).toBeVisible();
+  await size.getByRole('button', { name: 'Inches', exact: true }).click();
+  await expect(size.getByRole('button', { name: '96" × 48" — Bigger presence', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await size.getByRole('button', { name: 'Feet', exact: true }).click();
+  await size.getByRole('button', { name: "6' × 3' — Everyday displays", exact: true }).click();
+  await expect(page.getByAltText('Uploaded artwork preview').first()).toBeVisible();
   const finish = page.getByTestId('mobile-finishing-step');
   const openFinishing = async () => {
     if (mobile) {
