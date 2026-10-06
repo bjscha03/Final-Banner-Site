@@ -1,6 +1,6 @@
 import { gtag } from '@/lib/analytics';
 import { sendClarity } from '@/lib/trackingRuntime';
-import { reportSiteIssue } from '@/lib/siteIssueReporter';
+import { recordIssueAction, reportSiteIssue } from '@/lib/siteIssueReporter';
 
 type CheckoutDiagnostic =
   | 'payment_fields_ready' | 'payment_fields_load_failed'
@@ -17,6 +17,7 @@ type DiagnosticContext = {
 
 /** Never send field values, provider messages, artwork, payment IDs or secrets. */
 export function trackCheckoutDiagnostic(event: CheckoutDiagnostic, context: DiagnosticContext): void {
+  recordIssueAction(`checkout_${event}`);
   const properties: Record<string, string> = {};
   for (const key of ['provider', 'method', 'stage', 'field', 'code'] as const) {
     const value = context[key];

@@ -15,6 +15,14 @@ let lastWindow = 0;
 let sentInWindow = 0;
 const recent = new Map<string, number>();
 let uploadStartedAt = 0;
+const breadcrumbs: string[] = [];
+export function recordIssueAction(action: string): void {
+  try {
+    if (!/^[A-Za-z0-9_:-]{1,80}$/.test(action)) return;
+    breadcrumbs.push(`${new Date().toISOString()} ${issuePage(window.location.pathname)} ${action}`);
+    if (breadcrumbs.length > 8) breadcrumbs.shift();
+  } catch { /* Diagnostics must not affect the page. */ }
+}
 
 function enabled() { return typeof window !== 'undefined' && isProductionHost(window.location.hostname) && window.location.protocol === 'https:'; }
 function persist() { try { sessionStorage.setItem(QUEUE_KEY, JSON.stringify(queue)); } catch { /* Memory queue still works. */ } }
@@ -63,7 +71,11 @@ export function reportSiteIssue(kind: SiteIssueKind, details: Record<string, unk
     const now = Date.now();
     if (now - lastWindow > 300_000) { lastWindow = now; sentInWindow = 0; recent.clear(); }
     if (sentInWindow >= 10) return;
-    const safeDetails = issueDetails(details);
+    const safeDetails = issueDetails({ ...details,
+      breadcrumbs: breadcrumbs.join('\n'),
+      clientBuild: import.meta.env.VITE_COMMIT_REF || 'unknown',
+      browserVersion: navigator.userAgent.match(/(?:Chrome|CriOS|Firefox|FxiOS|Version|Edg)\/([\d.]+)/)?.[1],
+    });
     const page = issuePage(window.location.pathname);
     const fingerprint = JSON.stringify([kind, page, safeDetails]);
     if (now - (recent.get(fingerprint) || 0) < 5000) return;
@@ -76,32 +88,44 @@ export function reportSiteIssue(kind: SiteIssueKind, details: Record<string, unk
   } catch { /* Never throw into an upload or checkout. */ }
 }
 export function trackUploadIssue(event: string, details?: Record<string, unknown>): void {
+  recordIssueAction(event);
   if (event === 'upload_start') { uploadStartedAt = Date.now(); return; }
   if (event === 'upload_success') { uploadStartedAt = 0; return; }
   if (event === 'upload_error' || event === 'upload_timeout' || event === 'upload_preview_error') {
     reportSiteIssue(event, { ...details, ...(uploadStartedAt ? { durationMs: Date.now() - uploadStartedAt } : {}) });
   }
 }
-export function reportPageIssue(kind: 'page_error' | 'page_crash', error: unknown, source?: string, line?: number, column?: number) {
+export function reportPageIssue(kind: 'page_error' | 'page_crash', error: unknown, source?: string, line?: number, column?: number, componentStack?: string) {
   try {
     const err = error instanceof Error ? error : null;
     const errorName = err && ['Error', 'TypeError', 'ReferenceError', 'RangeError', 'SyntaxError', 'ChunkLoadError'].includes(err.name) ? err.name : 'Error';
     const frame = (err?.stack || '').match(/(\/assets\/[A-Za-z0-9_.-]+\.js):(\d+):(\d+)/);
     const sourcePath = source ? new URL(source, window.location.origin).pathname : frame?.[1];
-    reportSiteIssue(kind, { errorName, source: sourcePath, line: line || Number(frame?.[2] || 0), column: column || Number(frame?.[3] || 0) });
+    reportSiteIssue(kind, { errorMessage: err?.message || (typeof error === 'string' ? error : 'Non-Error rejection'), stack: err?.stack, componentStack, errorName, source: sourcePath, line: line || Number(frame?.[2] || 0), column: column || Number(frame?.[3] || 0) });
   } catch { /* Error reporting itself must remain safe. */ }
 }
 export function installSiteIssueMonitoring() {
   if (!enabled() || installed) return;
   installed = true;
+  recordIssueAction('monitor_started');
+  document.addEventListener('click', event => {
+    const target = event.target instanceof Element ? event.target.closest('button,a,[role="button"]') : null;
+    if (!target) return;
+    // Record control type and safe destination, never text, input values or artwork.
+    if (target instanceof HTMLAnchorElement && target.origin === window.location.origin) {
+      recordIssueAction('link_clicked');
+    } else recordIssueAction(target.tagName === 'BUTTON' ? 'button_clicked' : 'control_clicked');
+  }, { capture: true, passive: true });
+  window.addEventListener('popstate', () => recordIssueAction('navigation'));
+
   window.addEventListener('error', event => {
     // Ignore image loading failures, extensions, and opaque third-party errors.
-    if (!(event instanceof ErrorEvent) || !event.error) return;
+    if (!(event instanceof ErrorEvent) || (!event.error && !event.message)) return;
     if (event.filename && !event.filename.startsWith(window.location.origin + '/')) return;
-    reportPageIssue('page_error', event.error, event.filename, event.lineno, event.colno);
+    reportPageIssue('page_error', event.error || event.message, event.filename, event.lineno, event.colno);
   });
   window.addEventListener('unhandledrejection', event => {
-    if (event.reason instanceof Error && event.reason.name !== 'AbortError') reportPageIssue('page_error', event.reason);
+    if (!(event.reason instanceof Error && event.reason.name === 'AbortError')) reportPageIssue('page_error', event.reason);
   });
   window.addEventListener('online', () => { retries = 0; void flushSiteIssues(); });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { retries = 0; void flushSiteIssues(); } });

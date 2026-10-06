@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { SITE_ISSUE_KINDS, deviceInfo, issueDetails, issuePage, type SiteIssue } from '../../../src/lib/siteIssueSchema';
 
 export const STORE_NAME = 'site-issues-v1';
-export const MAX_REPORT_BYTES = 8192;
+export const MAX_REPORT_BYTES = 32768;
 export const RETENTION_MS = 30 * 86_400_000;
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 export const reply = (status: number, body?: unknown, extra: Record<string, string> = {}) => new Response(body === undefined ? null : JSON.stringify(body), {
