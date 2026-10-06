@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { authenticatedJsonBody, authorizedHeaders } from '@/lib/serverAuth';
 import type { UploadedArtworkFile } from '@/lib/cartArtworkForEditor';
 import { fetchAIJson } from './ai/jobRequest';
-import { runBackgroundJob } from './ai/backgroundJob';
+import { AIRequestRateLimitError, runBackgroundJob } from './ai/backgroundJob';
 import { artworkFitIdentity, canApplyArtworkFit, prepareArtworkFitSource, saveFittedArtwork, type ArtworkFitResult } from './ai/artworkFit';
 import { logUx } from '@/lib/uxAnalytics';
 
@@ -38,6 +38,9 @@ export default function AIArtworkFitDialog({ open, onOpenChange, artwork, widthI
   const [stage, setStage] = useState('');
   const [reviewed, setReviewed] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [retryPending, setRetryPending] = useState(false);
+  const [retryAt, setRetryAt] = useState(0);
+  const [retrySeconds, setRetrySeconds] = useState(0);
   const [zoom, setZoom] = useState(false);
   const [readinessAttempt, setReadinessAttempt] = useState(0);
   const controller = useRef<AbortController | null>(null);
@@ -47,8 +50,17 @@ export default function AIArtworkFitDialog({ open, onOpenChange, artwork, widthI
   useEffect(() => {
     controller.current?.abort(); inFlight.current = false; savedResult.current = null;
     setSource(''); setResult(null); setReady(false); setBusy(false); setApplying(false); setReviewed(false); setAttempt(0); setError(''); setZoom(false);
+    setRetryPending(false); setRetryAt(0); setRetrySeconds(0);
   }, [identity]);
   useEffect(() => () => controller.current?.abort(), []);
+
+  useEffect(() => {
+    const update = () => setRetrySeconds(Math.max(0, Math.ceil((retryAt - Date.now()) / 1000)));
+    update();
+    if (!retryAt) return;
+    const timer = window.setInterval(update, 1000);
+    return () => window.clearInterval(timer);
+  }, [retryAt]);
 
   useEffect(() => {
     if (!open) { setLoading(false); return; }
@@ -75,11 +87,11 @@ export default function AIArtworkFitDialog({ open, onOpenChange, artwork, widthI
   }, [open, identity, readinessAttempt]);
 
   async function generate(newVersion = false) {
-    if (!ready || !source || inFlight.current || applying) return;
+    if (!ready || !source || inFlight.current || applying || retryAt > Date.now()) return;
     const requestIdentity = identity;
     inFlight.current = true; setBusy(true); setError(''); setReviewed(false);
     const nextAttempt = newVersion ? attempt + 1 : attempt;
-    if (newVersion) { setAttempt(nextAttempt); setResult(null); savedResult.current = null; }
+    if (newVersion) setAttempt(nextAttempt);
     controller.current?.abort();
     const activeController = new AbortController(); controller.current = activeController;
     try {
@@ -89,10 +101,13 @@ export default function AIArtworkFitDialog({ open, onOpenChange, artwork, widthI
       }, activeController.signal, 'Preparing your design', setStage, undefined, undefined, requestIdentity);
       if (activeController.signal.aborted || requestIdentity !== identityRef.current) return;
       setResult(response.fit);
+      savedResult.current = null; setRetryPending(false); setRetryAt(0);
       logUx('ai_fit_complete', { widthIn, heightIn, checksPassed: response.fit.verification.passed });
     } catch (reason) {
       if (!activeController.signal.aborted && requestIdentity === identityRef.current) {
         setError(reason instanceof Error ? reason.message : 'AI fit could not finish. Your original is unchanged.');
+        setRetryPending(true);
+        if (reason instanceof AIRequestRateLimitError) { setRetryAt(reason.retryAt); setRetrySeconds(Math.max(0, Math.ceil((reason.retryAt - Date.now()) / 1000))); }
         logUx('ai_fit_error', { widthIn, heightIn });
       }
     } finally {
@@ -136,7 +151,7 @@ export default function AIArtworkFitDialog({ open, onOpenChange, artwork, widthI
         </figure>
       </div>}
       {busy && <div role="status" aria-live="polite" className="rounded-xl bg-orange-50 p-4 text-sm text-slate-800"><p className="flex items-center gap-2 font-semibold"><Loader2 className="h-5 w-5 animate-spin text-orange-600" />{stage}</p><p className="mt-2">This can take a few minutes. Please keep this window open while we finish your design.</p></div>}
-      {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
+      {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{retrySeconds > 0 ? `Please wait ${Math.floor(retrySeconds / 60)}:${String(retrySeconds % 60).padStart(2, '0')} before retrying. Your original and latest preview are safe.` : error}</p>}
       {result && !busy && <div className={`rounded-xl border p-4 text-sm ${result.verification.passed ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50'}`}>
         <p className="flex items-center gap-2 font-semibold">{result.verification.passed && <CheckCircle2 className="h-4 w-4" />} {result.verification.passed ? 'Automated wording and design checks passed' : canApply ? 'Review the visual changes' : 'This version needs another attempt'}</p>
         {result.verification.passed ? <p className="mt-1">Please still check every word, phone number, website and logo. Automated checks can miss details.</p> : <><p className="mt-1">{canApply ? 'The wording checks passed. Compare the artwork and review any visual differences below. If you are happy with the result, check the box to use this layout.' : 'We found a wording or essential-content issue, so this version cannot replace your original.'}</p><ul className="mt-2 list-disc pl-5">{reviewIssues.slice(0,4).map((issue,i) => <li key={i}>{issue}</li>)}</ul>{result.verification.missing.length > 0 && <p className="mt-2">Missing or changed wording: {result.verification.missing.join(', ')}</p>}{result.verification.added.length > 0 && <p className="mt-2">Unexpected wording: {result.verification.added.join(', ')}</p>}</>}
@@ -145,8 +160,8 @@ export default function AIArtworkFitDialog({ open, onOpenChange, artwork, widthI
       {!busy && <div className="flex flex-wrap gap-2 border-t pt-4">
         <button type="button" disabled={applying} onClick={() => onOpenChange(false)} className="min-h-11 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold disabled:opacity-50">Keep original</button>
         {error && !ready && !loading && <button type="button" onClick={() => setReadinessAttempt(value => value + 1)} className="min-h-11 rounded-lg bg-orange-600 px-5 py-2 text-sm font-bold text-white">Try opening AI fit again</button>}
-        {!result && !busy && (ready || loading) && <button type="button" disabled={!ready || loading || applying} onClick={() => void generate()} className="min-h-11 rounded-lg bg-orange-600 px-5 py-2 text-sm font-bold text-white disabled:opacity-50">{error ? 'Retry same request' : 'Create fitted version'}</button>}
-        {result && !busy && <button type="button" disabled={applying} onClick={() => void generate(true)} className="min-h-11 rounded-lg border border-orange-300 px-4 py-2 text-sm font-semibold text-orange-800 disabled:opacity-50">Try another layout</button>}
+        {!result && !busy && (ready || loading) && <button type="button" disabled={!ready || loading || applying || retrySeconds > 0} onClick={() => void generate()} className="min-h-11 rounded-lg bg-orange-600 px-5 py-2 text-sm font-bold text-white disabled:opacity-50">{error ? 'Retry same request' : 'Create fitted version'}</button>}
+        {result && !busy && <button type="button" disabled={applying || retrySeconds > 0} onClick={() => void generate(!retryPending)} className="min-h-11 rounded-lg border border-orange-300 px-4 py-2 text-sm font-semibold text-orange-800 disabled:opacity-50">{retryPending ? 'Retry same request' : 'Try another layout'}</button>}
         {result && <button type="button" disabled={busy || applying || !reviewed || !canApply} onClick={() => void apply()} className="min-h-11 rounded-lg bg-orange-600 px-5 py-2 text-sm font-bold text-white disabled:opacity-50">{applying ? 'Saving your layout…' : 'Use this version'}</button>}
       </div>}
       <Dialog open={zoom} onOpenChange={setZoom}><DialogContent className="max-h-[94dvh] w-[98vw] max-w-7xl overflow-auto p-3"><DialogTitle>Review your fitted design</DialogTitle><DialogDescription>Zoom in and check the wording, logos and fine details.</DialogDescription><img src={proposed} alt="Full fitted artwork for detailed review" className="h-auto w-full" /></DialogContent></Dialog>

@@ -4,6 +4,8 @@ import sharp from 'sharp';
 const require = createRequire(import.meta.url);
 const { FIT_MODEL, validateFitRequest, compareWording, runFitRequest } = require('../_shared/ai-designer/fit.cjs');
 const { fitHandler } = require('../_shared/ai-designer/handler.cjs');
+const { prepareFitRecovery } = require('../_shared/ai-designer/fit.cjs');
+const { planCanvas } = require('../_shared/ai-designer/image-utils.cjs');
 
 const inventory = { artworkType: 'design', incidentalText: [], lines: ['Acme Pizza', '$9.99', 'acme.com'], elements: ['Red pizza logo'], allTextLegible: true, contentPreserved: true, confidence: .99, issues: [], blockingIssues: [] };
 async function request() {
@@ -63,7 +65,7 @@ describe('faithful artwork fitting', () => {
     { allTextLegible: false },
   ])('blocks applying a result that cannot be verified: %j', async changed => {
     const dependencies = await fixtures();
-    dependencies.inspect.mockResolvedValueOnce(inventory).mockResolvedValueOnce({ ...inventory, ...changed });
+    dependencies.inspect.mockResolvedValue({ ...inventory, ...changed }).mockResolvedValueOnce(inventory);
     const result = await runFitRequest(await request(), { sub: 'customer-1' }, 'job-3', undefined, dependencies);
     expect(result.fit.verification.passed).toBe(false);
     expect(result.fit.verification.canApply).toBe(false);
@@ -114,7 +116,7 @@ it.each([
   { contentPreserved: true, blockingIssues: ['A person in the original photograph is missing'] },
 ])('keeps essential content failures blocked even with customer review: %j', async changed => {
   const dependencies = await fixtures();
-  dependencies.inspect.mockResolvedValueOnce(inventory).mockResolvedValueOnce({ ...inventory, blockingIssues: [], ...changed });
+  dependencies.inspect.mockResolvedValue({ ...inventory, blockingIssues: [], ...changed }).mockResolvedValueOnce(inventory);
   const result = await runFitRequest(await request(), { sub: 'customer-1' }, 'essential-content', undefined, dependencies);
   expect(result.fit.verification.canApply).toBe(false);
 });
@@ -160,7 +162,57 @@ it.each([
   { contentPreserved: false, blockingIssues: ['The original person was duplicated'] },
 ])('blocks invented text or damaged subjects in an adapted photograph: %j', async changed => {
   const dependencies = await fixtures();
-  dependencies.inspect.mockResolvedValueOnce(photoInventory).mockResolvedValueOnce({ ...photoInventory, ...changed });
+  dependencies.inspect.mockResolvedValue({ ...photoInventory, ...changed }).mockResolvedValueOnce(photoInventory);
   const result = await runFitRequest(await request(), { sub: 'customer-1' }, 'photo-content-error', undefined, dependencies);
   expect(result.fit.verification.canApply).toBe(false);
+});
+
+it('recovers top and bottom content clipped at the reported 120×36 ratio without redrawing it', async () => {
+  const dependencies = await fixtures();
+  const completeImage = await sharp(Buffer.from('<svg width="1500" height="1000"><rect width="1500" height="1000" fill="white"/><rect width="1500" height="60" fill="red"/><rect y="940" width="1500" height="60" fill="blue"/></svg>')).png().toBuffer();
+  const background = await sharp({ create: { width: 2560, height: 864, channels: 3, background: '#00ff00' } }).png().toBuffer();
+  dependencies.edit.mockResolvedValueOnce({ buffer: completeImage, model: FIT_MODEL }).mockResolvedValueOnce({ buffer: background, model: FIT_MODEL });
+  dependencies.inspect.mockResolvedValueOnce(inventory)
+    .mockResolvedValueOnce({ ...inventory, contentPreserved: false, blockingIssues: ['The headline is clipped at the top'] })
+    .mockResolvedValueOnce(inventory).mockResolvedValueOnce(inventory);
+  const result = await runFitRequest({ ...await request(), heightIn: 36 }, { sub: 'edge-test' }, 'recover-edges', undefined, dependencies);
+  expect(result.fit.verification.canApply).toBe(true);
+  expect(result.fit.diagnostics.edgeRecovery).toBe(true);
+  expect(result.fit.widthPx / result.fit.heightPx).toBe(120 / 36);
+  expect(dependencies.edit).toHaveBeenCalledTimes(2);
+  const recovery = dependencies.edit.mock.calls[1][0];
+  expect(recovery.maskImage).toBeInstanceOf(Buffer);
+  expect(recovery.idempotencyKey).not.toBe(dependencies.edit.mock.calls[0][0].idempotencyKey);
+  const { data, info } = await sharp(Buffer.from(result.fit.imageBase64, 'base64')).raw().toBuffer({ resolveWithObject: true });
+  const pixel = (x, y) => [...data.subarray((y * info.width + x) * info.channels, (y * info.width + x) * info.channels + 3)];
+  const top = pixel(Math.floor(info.width / 2), 40), bottom = pixel(Math.floor(info.width / 2), info.height - 40);
+  expect(top[0]).toBeGreaterThan(230); expect(top[1]).toBeLessThan(20);
+  expect(bottom[2]).toBeGreaterThan(230); expect(bottom[0]).toBeLessThan(20);
+  expect(dependencies.inspect.mock.calls.at(-1)[0].candidate.buffer.toString('base64')).toBe(result.fit.imageBase64);
+});
+
+it.each([[120, 36], [36, 120], [120, 6], [6, 120]])('keeps the complete protected image inside the final %s×%s trim', async (width, height) => {
+  const dependencies = await fixtures();
+  const input = (await dependencies.edit()).buffer;
+  const prepared = await prepareFitRecovery(input, planCanvas(width, height));
+  const protectedMeta = await sharp(prepared.protectedImage).metadata();
+  expect(prepared.placement.left).toBeGreaterThanOrEqual(prepared.crop.left);
+  expect(prepared.placement.top).toBeGreaterThanOrEqual(prepared.crop.top);
+  expect(prepared.placement.left + protectedMeta.width).toBeLessThanOrEqual(prepared.crop.left + prepared.crop.width);
+  expect(prepared.placement.top + protectedMeta.height).toBeLessThanOrEqual(prepared.crop.top + prepared.crop.height);
+  const imageMeta = await sharp(prepared.image).metadata(), maskMeta = await sharp(prepared.mask).metadata();
+  expect([imageMeta.width, imageMeta.height]).toEqual([maskMeta.width, maskMeta.height]);
+  expect(maskMeta.hasAlpha).toBe(true);
+});
+
+it('still blocks an edge repair if its new background introduces wording', async () => {
+  const dependencies = await fixtures();
+  dependencies.inspect.mockResolvedValueOnce(inventory)
+    .mockResolvedValueOnce({ ...inventory, blockingIssues: ['Clipped title'] })
+    .mockResolvedValueOnce(inventory)
+    .mockResolvedValueOnce({ ...inventory, lines: [...inventory.lines, 'SALE'] });
+  const result = await runFitRequest(await request(), { sub: 'edge-test' }, 'bad-repair', undefined, dependencies);
+  expect(result.fit.verification.canApply).toBe(false);
+  expect(result.fit.verification.added).toContain('sale');
+  expect(dependencies.edit).toHaveBeenCalledTimes(2);
 });

@@ -4,12 +4,12 @@ import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import AIArtworkFitDialog from './AIArtworkFitDialog';
 import { prepareArtworkFitSource, saveFittedArtwork, type ArtworkFitResult } from './ai/artworkFit';
-import { runBackgroundJob } from './ai/backgroundJob';
+import { AIRequestRateLimitError, runBackgroundJob } from './ai/backgroundJob';
 import { fetchAIJson } from './ai/jobRequest';
 import type { UploadedArtworkFile } from '@/lib/cartArtworkForEditor';
 
 vi.mock('./ai/artworkFit', async original => ({ ...await original<typeof import('./ai/artworkFit')>(), prepareArtworkFitSource: vi.fn(), saveFittedArtwork: vi.fn() }));
-vi.mock('./ai/backgroundJob', () => ({ runBackgroundJob: vi.fn() }));
+vi.mock('./ai/backgroundJob', async original => ({ ...await original<typeof import('./ai/backgroundJob')>(), runBackgroundJob: vi.fn() }));
 vi.mock('./ai/jobRequest', () => ({ fetchAIJson: vi.fn() }));
 vi.mock('@/lib/serverAuth', () => ({ authorizedHeaders: (value: unknown) => value, authenticatedJsonBody: JSON.stringify }));
 vi.mock('@/lib/uxAnalytics', () => ({ logUx: vi.fn() }));
@@ -113,4 +113,30 @@ it('keeps a changed admission price blocked even when cosmetic review would be a
   expect(document.querySelector('input[type="checkbox"]')).toBeNull();
   expect(document.body.textContent).toContain('The admission price changed');
   expect(saveFittedArtwork).not.toHaveBeenCalled();
+});
+
+it('keeps the last preview and retries the same attempt after a failed replacement', async () => {
+  await render(); await click('Create fitted version');
+  vi.mocked(runBackgroundJob).mockRejectedValueOnce(new Error('Temporary connection failure'));
+  await click('Try another layout');
+  expect(document.querySelector('img[alt="AI layout at your selected banner dimensions"]')).not.toBeNull();
+  expect(button('Retry same request')).toBeTruthy();
+  await click('Retry same request');
+  expect(vi.mocked(runBackgroundJob).mock.calls.slice(1).map(call => call[1].attempt)).toEqual([1, 1]);
+});
+
+it('shows the server cooldown and prevents repeated retry clicks until it expires', async () => {
+  vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+  try {
+    await render(); await click('Create fitted version');
+    vi.mocked(runBackgroundJob).mockRejectedValueOnce(new AIRequestRateLimitError('Limit reached', '65'));
+    await click('Try another layout');
+    expect(document.body.textContent).toContain('Please wait 1:05');
+    expect(button('Retry same request').disabled).toBe(true);
+    await click('Retry same request'); expect(runBackgroundJob).toHaveBeenCalledTimes(2);
+    await act(async () => vi.advanceTimersByTime(65_000));
+    expect(button('Retry same request').disabled).toBe(false);
+    await click('Retry same request');
+    expect(runBackgroundJob).toHaveBeenLastCalledWith(expect.any(String), expect.objectContaining({ attempt: 1 }), expect.anything(), expect.anything(), expect.anything(), undefined, undefined, 'original-1|120|48');
+  } finally { vi.useRealTimers(); }
 });
