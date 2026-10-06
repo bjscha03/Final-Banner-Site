@@ -9,20 +9,60 @@ export interface ComparisonArtwork {
 // Never pull an unreviewed order feed into this public display.
 export const comparisonArtworks: readonly ComparisonArtwork[] = [
   {
-    "src": "https://res.cloudinary.com/dtrxl120u/image/upload/w_1000,q_auto,f_auto/v1790909041/uploads/af71e3ca-25f8-44db-8205-055ed54a3af8_o8sjz0.png",
-    "label": "Business banner"
+    "src": "https://res.cloudinary.com/dtrxl120u/image/upload/w_800,c_limit,q_auto,f_auto/v1789129072/uploads/ai-banner-96x48-eca4c311-ed29-4543-a72d-242328c63c84_cticua.jpg",
+    "label": "Construction banner"
+  },
+  {
+    "src": "https://res.cloudinary.com/dtrxl120u/image/upload/w_800,c_limit,q_auto,f_auto/v1790138164/uploads/ndidi_oy9mgq.png",
+    "label": "Birthday celebration"
+  },
+  {
+    "src": "https://res.cloudinary.com/dtrxl120u/image/upload/w_800,c_limit,q_auto,f_auto/v1790041510/uploads/LIS_PHAM_PHEEB_color_corrected_sRGB_exvclz.png",
+    "label": "Business brand banner"
   },
   {
     "src": "https://res.cloudinary.com/dtrxl120u/image/upload/w_1000,q_auto,f_auto/v1790878174/uploads/ai-banner-72x36-3c1752ad-9d64-4193-ac90-75001de416fa_tdxpef.jpg",
     "label": "Seasonal event banner"
   },
   {
+    "src": "https://res.cloudinary.com/dtrxl120u/image/upload/w_800,c_limit,q_auto,f_auto/v1789258903/uploads/5BBCB119-4B9C-4BBB-9C67-92AF7665EF30_kkcudk.png",
+    "label": "Soccer team banner"
+  },
+  {
+    "src": "https://res.cloudinary.com/dtrxl120u/image/upload/w_800,c_limit,q_auto,f_auto/v1789130424/uploads/ai-banner-96x48-94dd9796-e1fa-49a7-b050-12f54659acf3_ukvysw.jpg",
+    "label": "Bakery opening"
+  },
+  {
+    "src": "https://res.cloudinary.com/dtrxl120u/image/upload/w_800,c_limit,q_auto,f_auto/v1789935170/uploads/ai-banner-72x36-8af99d88-ac0d-484f-8e08-f241e730bb5f_tokkjp.jpg",
+    "label": "Campus event"
+  },
+  {
+    "src": "https://res.cloudinary.com/dtrxl120u/image/upload/w_800,c_limit,q_auto,f_auto/v1789058108/uploads/Screenshot_2026-07-10_at_2.56.27_PM_idzbyu.png",
+    "label": "Craft business banner"
+  },
+  {
+    "src": "https://res.cloudinary.com/dtrxl120u/image/upload/w_800,c_limit,q_auto,f_auto/v1789657845/uploads/ai-banner-72x36-1a59c405-a77a-4d89-8662-96b79778fedd_kgpiwb.jpg",
+    "label": "Fall festival"
+  },
+  {
+    "src": "https://res.cloudinary.com/dtrxl120u/image/upload/w_800,c_limit,q_auto,f_auto/v1789079057/uploads/ai-banner-96x48-dbd5ff05-23f0-4ce9-a25e-ab4bed7ba3b0_at8irl.jpg",
+    "label": "Bakery grand opening"
+  },
+  {
     "src": "https://res.cloudinary.com/dtrxl120u/image/upload/w_1000,q_auto,f_auto/v1790719468/uploads/placement-v3-1dv0rzq0q9e72r_kfg6a1.jpg",
     "label": "Small business banner"
   },
   {
-    "src": "https://res.cloudinary.com/dtrxl120u/image/upload/w_1000,q_auto,f_auto/v1790732406/uploads/102_Popcorn_Banner_dprg0o.jpg",
-    "label": "Fundraising event banner"
+    "src": "https://res.cloudinary.com/dtrxl120u/image/upload/w_800,c_limit,q_auto,f_auto/v1789153324/uploads/ai-banner-96x48-2c853bf6-56d2-46d2-a46c-46aec74dc464_tc3ivm.jpg",
+    "label": "Volleyball team banner"
+  },
+  {
+    "src": "https://res.cloudinary.com/dtrxl120u/image/upload/w_800,c_limit,q_auto,f_auto/v1790179729/uploads/2F74F756-9196-4782-9BA4-BF7E6C6F5381_nvjvq1.png",
+    "label": "Fundraising celebration"
+  },
+  {
+    "src": "https://res.cloudinary.com/dtrxl120u/image/upload/w_800,c_limit,q_auto,f_auto/v1788775126/uploads/E086E061-37C4-4B8D-8AA1-2CE76033DE52_nmlgov.png",
+    "label": "Live music fundraiser"
   }
 ];
 
@@ -72,7 +112,7 @@ export default function BannerSizeComparison({ artworks = comparisonArtworks }: 
         <div className="relative overflow-hidden rounded-sm border border-slate-900/10 bg-white shadow-md" style={{ aspectRatio: '2 / 1' }} aria-hidden="true">
           {visibleArtworks.map((artwork, index) => <img key={artwork.src} src={artwork.src} alt="" decoding="async"
             className={`absolute inset-0 h-full w-full object-contain ${reducedMotion ? '' : 'transition-opacity duration-700 ease-in-out'}`}
-            style={{ opacity: index === active % visibleArtworks.length ? 1 : 0 }} />)}
+            style={{ objectFit: 'contain', opacity: index === active % visibleArtworks.length ? 1 : 0 }} />)}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/5" />
           {['left-1 top-1', 'right-1 top-1', 'left-1 bottom-1', 'right-1 bottom-1'].map(corner => <span key={corner} className={`pointer-events-none absolute h-1 w-1 rounded-full border border-slate-400 bg-white shadow-sm ${corner}`} />)}
         </div>
