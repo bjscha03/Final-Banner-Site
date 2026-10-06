@@ -70,3 +70,31 @@ describe('faithful artwork fitting', () => {
     expect(result.fit.imageBase64).toBeTruthy(); // Still available for comparison, never auto-applied.
   });
 });
+
+it('recovers stylized source lettering with a second reading before one image edit', async () => {
+  const dependencies = await fixtures();
+  const lettering = ['Hand Gathered', 'PETTING ZOO', '$5 ADMISSION', 'ALL CHILDREN MUST BE', 'ACCOMPANIED BY AN ADULT'];
+  const clear = { ...inventory, lines: lettering };
+  dependencies.inspect.mockResolvedValueOnce({ ...clear, allTextLegible: false, confidence: .8, issues: ['Script lettering is uncertain'] }).mockResolvedValueOnce(clear).mockResolvedValueOnce(clear);
+  const result = await runFitRequest(await request(), { sub: 'customer-1' }, 'stylized-source', undefined, dependencies);
+  expect(dependencies.inspect).toHaveBeenCalledTimes(3);
+  expect(dependencies.inspect.mock.calls[1][0]).toMatchObject({ secondLook: true });
+  expect(dependencies.edit).toHaveBeenCalledOnce();
+  expect(dependencies.edit.mock.calls[0][0].prompt).toContain('Hand Gathered');
+  expect(result.fit.verification.passed).toBe(true);
+  expect(result.fit.diagnostics).toMatchObject({ inspectionModel: 'gpt-6-astra', sourceReads: 2 });
+});
+
+it('does not reject two matching, fully legible transcriptions solely for a confidence score', async () => {
+  const dependencies = await fixtures();
+  dependencies.inspect.mockResolvedValueOnce({ ...inventory, confidence: .8 }).mockResolvedValueOnce({ ...inventory, confidence: .8 }).mockResolvedValueOnce(inventory);
+  const result = await runFitRequest(await request(), { sub: 'customer-1' }, 'confidence-only', undefined, dependencies);
+  expect(result.fit.verification.passed).toBe(true); expect(dependencies.edit).toHaveBeenCalledOnce();
+});
+
+it('does not generate when uncertain readings disagree about the source words', async () => {
+  const dependencies = await fixtures();
+  dependencies.inspect.mockResolvedValueOnce({ ...inventory, confidence: .8 }).mockResolvedValueOnce({ ...inventory, confidence: .8, lines: ['Uncertain text'] });
+  await expect(runFitRequest(await request(), { sub: 'customer-1' }, 'conflicting-source', undefined, dependencies)).rejects.toThrow('second check');
+  expect(dependencies.edit).not.toHaveBeenCalled();
+});

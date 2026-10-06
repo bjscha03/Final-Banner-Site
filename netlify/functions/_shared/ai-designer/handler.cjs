@@ -14,7 +14,7 @@ const { isEnabled, getImageModel, getValidationModel, getImageQuality, MODEL_SNA
 const { normalizeBrief, cleanText, stableHash, buildImprovedPrompt, freshPromptBrief, fitInterpretedDirection, groundedCopy } = require('./schema.cjs');
 const { buildGenerationPrompt, buildEditPrompt, buildCopyChangeInstruction, customerPhotoPrompt } = require('./prompt.cjs');
 const { verifyModelAccess, verifyNamedModelAccess, verifyValidationModelAccess, generateImage, editImage, structureCreativeBrief, planDesignEdit } = require('./provider.cjs');
-const { FIT_MODEL, validateFitRequest, runFitRequest } = require('./fit.cjs');
+const { FIT_MODEL, FIT_INSPECTION_MODEL, validateFitRequest, runFitRequest } = require('./fit.cjs');
 const {
   isTemporaryStorageConfigured,
   storeTemporaryArtwork,
@@ -428,7 +428,7 @@ async function statusHandler(event) {
   try {
     model = fitMode ? FIT_MODEL : getImageModel();
     if (enabled && keyConfigured && temporaryStorageConfigured) {
-      [access, validationAccess] = await Promise.all([fitMode ? verifyNamedModelAccess(FIT_MODEL) : verifyModelAccess(), verifyValidationModelAccess()]);
+      [access, validationAccess] = await Promise.all([fitMode ? verifyNamedModelAccess(FIT_MODEL) : verifyModelAccess(), fitMode ? verifyNamedModelAccess(FIT_INSPECTION_MODEL) : verifyValidationModelAccess()]);
     }
   } catch (error) {
     access = { available: false, error: error.code || 'UNAPPROVED_IMAGE_MODEL' };
@@ -442,7 +442,7 @@ async function statusHandler(event) {
     temporaryStorageConfigured,
     model,
     modelSnapshot: model === MODEL_SNAPSHOT ? MODEL_SNAPSHOT : null,
-    validationModel: getValidationModel(),
+    validationModel: fitMode ? FIT_INSPECTION_MODEL : getValidationModel(),
     imageQuality: getImageQuality(),
     modelAvailable: access.available === true,
     validationModelAvailable: validationAccess.available === true,

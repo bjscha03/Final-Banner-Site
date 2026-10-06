@@ -15,8 +15,35 @@ export function artworkFitIdentity(artwork: UploadedArtworkFile | null, widthIn:
   return [artwork?.editorIdentity || artwork?.productionPublicId || artwork?.fileKey || artwork?.url || '', widthIn, heightIn].join('|');
 }
 
+/** Read the uncomposed artwork at useful resolution, not its small UI thumbnail. */
+export function artworkFitSourceUrl(artwork: UploadedArtworkFile): string {
+  const isPdf = artwork.isPdf || artwork.mimeType === 'application/pdf' || /\.pdf(?:$|[?#])/i.test(artwork.url);
+  const original = artwork.artworkManifest?.originalUrl || artwork.productionUrl || artwork.url;
+  const src = resolveArtworkPreviewImageSrc({
+    src: original,
+    previewUrl: isPdf ? artwork.permanentPreviewUrl || artwork.previewUrl || artwork.thumbnailUrl : original,
+    resourceType: artwork.resourceType, mimeType: artwork.mimeType,
+  });
+  if (!src) return '';
+  try {
+    const url = new URL(src);
+    if (url.hostname === 'res.cloudinary.com' && url.pathname.includes('/image/upload/')) {
+      // Preserve page selection for PDFs but replace downscaled UI transforms.
+      const [prefix, tail] = url.pathname.split('/image/upload/');
+      const segments = tail.split('/');
+      let page = '';
+      while (segments.length > 1 && /^(?:w|h|c|q|f|pg|dpr|a|e|fl)_/.test(segments[0])) {
+        page = segments.shift()!.split(',').find(value => /^pg_\d+$/.test(value)) || page;
+      }
+      url.pathname = `${prefix}/image/upload/${page ? `${page},` : ''}w_2560,h_2560,c_limit,q_95,f_jpg/${segments.join('/')}`;
+      return url.toString();
+    }
+  } catch { /* Blob/data URLs and other sources are already usable. */ }
+  return src;
+}
+
 export async function prepareArtworkFitSource(artwork: UploadedArtworkFile): Promise<string> {
-  const src = resolveArtworkPreviewImageSrc({ src: artwork.url, previewUrl: artwork.previewUrl || artwork.thumbnailUrl, resourceType: artwork.resourceType, mimeType: artwork.mimeType });
+  const src = artworkFitSourceUrl(artwork);
   if (!src) throw new Error('Wait for your PDF preview to finish loading, then try again.');
   const image = await new Promise<HTMLImageElement>((resolve, reject) => {
     const img = new Image();
