@@ -171,7 +171,7 @@ function requestForJob(body) {
 }
 
 const JOB_LIMITS = {
-  fit: { bytes: 5 * 1024 * 1024, requests: 3 },
+  fit: { bytes: 5 * 1024 * 1024, requests: 8 },
   brief: { bytes: 3 * 1024 * 1024, requests: 20 },
   generate: { bytes: 5 * 1024 * 1024, requests: 8 },
   edit: { bytes: 5 * 1024 * 1024, requests: 12 },
@@ -185,14 +185,16 @@ async function enqueueHandler(event, action) {
   const limits = JOB_LIMITS[action];
   const sizeError = enforceBodyLimit(event, limits.bytes);
   if (sizeError) return sizeError;
-  const limited = rateLimit(event, auth.session, action, limits.requests, 10 * 60 * 1000);
+  // Keep a separate, bounded HTTP recovery allowance for fitting. Actual new
+  // generations are limited below, after checking for an existing paid job.
+  const limited = rateLimit(event, auth.session, action === 'fit' ? 'fit-queue' : action, action === 'fit' ? 60 : limits.requests, 10 * 60 * 1000);
   if (limited) return limited;
   try {
     const body = parseBody(event);
     ensureConfigured(event);
     if (action === 'fit') validateFitRequest(body);
     let customerQuota;
-    try { customerQuota = await customerLimit(event, auth.session, action, limits.requests, 10 * 60 * 1000); }
+    try { if (action !== 'fit') customerQuota = await customerLimit(event, auth.session, action, limits.requests, 10 * 60 * 1000); }
     catch { return json(503, { error: 'AI_LIMITS_UNAVAILABLE', message: 'The artwork designer is temporarily busy. Please try again shortly.' }); }
     if (customerQuota) return json(429, { error: 'RATE_LIMITED', message: 'You have reached the current AI request limit. Please wait before trying again.' }, { 'Retry-After': String(customerQuota.retryAfter) });
     // Readiness checks already verify access. The actual provider request is
@@ -205,6 +207,14 @@ async function enqueueHandler(event, action) {
         action,
         request: requestForJob(body),
         jobId: key,
+        ...(action === 'fit' ? { beforeCreate: async () => {
+          const localLimit = rateLimit(event, auth.session, action, limits.requests, 10 * 60 * 1000);
+          if (localLimit) throw Object.assign(new Error('AI fit limit reached'), { queueResponse: localLimit });
+          let quota;
+          try { quota = await customerLimit(event, auth.session, action, limits.requests, 10 * 60 * 1000); }
+          catch { throw Object.assign(new Error('AI limits unavailable'), { queueResponse: json(503, { error: 'AI_LIMITS_UNAVAILABLE', message: 'The artwork designer is temporarily busy. Please try again shortly.' }) }); }
+          if (quota) throw Object.assign(new Error('AI fit limit reached'), { queueResponse: json(429, { error: 'RATE_LIMITED', message: 'Please wait before creating another fitted layout. Your original is safe.' }, { 'Retry-After': String(quota.retryAfter) }) });
+        } } : {}),
       });
       return json(202, {
         ok: true,
@@ -216,6 +226,7 @@ async function enqueueHandler(event, action) {
       });
     });
   } catch (error) {
+    if (error.queueResponse) return error.queueResponse;
     return safeError(error);
   }
 }

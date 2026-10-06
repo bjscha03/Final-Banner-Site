@@ -187,7 +187,7 @@ async function fetchJobRecord(payload) {
   }
 }
 
-async function createJob({ session, action, request, jobId }) {
+async function createJob({ session, action, request, jobId, beforeCreate }) {
   configure();
   if (!['brief', 'generate', 'edit', 'fit'].includes(action) || !/^[a-f0-9]{64}$/.test(String(jobId || ''))) {
     const error = new Error('Invalid AI job.');
@@ -206,6 +206,9 @@ async function createJob({ session, action, request, jobId }) {
   // overwrite an existing paid job or its completed result on a client retry.
   const existing = await fetchJobRecord(jobPayload(reference));
   if (existing) return { reference, record: existing, created: false };
+  // Recovering an accepted request must not consume another generation slot.
+  // The caller can enforce new-job limits after the durable identity lookup.
+  if (beforeCreate) await beforeCreate();
   const now = new Date().toISOString();
   const record = {
     version: 1,
