@@ -37,6 +37,17 @@ describe('ArtworkPreviewEditor preview source resolution', () => {
     expect(isRawPdfPreviewSource('https://res.cloudinary.com/example/raw/upload/test.pdf')).toBe(true);
   });
 
+  it('normalizes legacy image transformations but still rejects unrendered PDFs with query strings', () => {
+    expect(resolveArtworkPreviewImageSrc({
+      src: 'https://res.cloudinary.com/demo/image/upload/pg_1,f_jpg,w_800/v1/banner.pdf?version=1',
+      mimeType: 'application/pdf',
+    })).toBe('https://res.cloudinary.com/demo/image/upload/pg_1,f_jpg,w_800/v1/banner.jpg?version=1');
+    expect(resolveArtworkPreviewImageSrc({
+      src: 'https://cdn.test/image/upload/banner.pdf?download=1',
+      previewUrl: 'https://cdn.test/image/upload/banner.pdf?download=1',
+    })).toBe('');
+  });
+
   it('allows a real PNG preview even when the production source is a raw PDF', () => {
     expect(resolveArtworkPreviewImageSrc({
       src: 'https://res.cloudinary.com/example/raw/upload/test.pdf',

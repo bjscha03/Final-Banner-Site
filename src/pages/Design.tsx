@@ -1,3 +1,6 @@
+import { resolveArtworkPreviewImageSrc } from '@/components/design/artworkPreviewSource';
+import { buildCartArtworkForEditor, getPermanentArtworkPreviewUrl, type UploadedArtworkFile } from '@/lib/cartArtworkForEditor';
+import { getPdfPreviewFile } from '@/utils/pdf/getPdfPreviewFile';
 import BannerSizeChoices from '@/components/design/BannerSizeChoices';
 import { useUploadWatchdog } from '@/hooks/useUploadWatchdog';
 import GoogleReviewSpotlight from '@/components/design/GoogleReviewSpotlight';
@@ -91,7 +94,6 @@ import { useAIAdminAccess } from '@/hooks/useAIAdminAccess';
 import { readAIHandoff, completeAIHandoff } from '@/lib/aiDesignHandoff';
 import { trackAIEvent } from '@/lib/aiAnalytics';
 import { ENABLE_AI } from '@/lib/featureFlags';
-import type { ArtworkManifest } from '@/types/artwork';
 import {
   PREVIEW_ARTIFACT_VERSION,
   PreviewLifecycleError,
@@ -111,26 +113,6 @@ import { shouldAutoConfirmBannerSize } from '@/lib/bannerCheckoutReadiness';
 import { buildArtworkCompositionKey } from '@/lib/artworkCompositionKey';
 import { isPopularBannerPreset, POPULAR_BANNER_PRESET } from '@/lib/bannerDefaults';
 
-type UploadedArtworkFile = {
-  editorIdentity?: string;
-  name: string;
-  url: string;
-  fileKey: string;
-  size: number;
-  isPdf: boolean;
-  thumbnailUrl?: string;
-  previewUrl?: string;
-  productionUrl?: string;
-  productionPublicId?: string;
-  resourceType?: 'image' | 'raw' | string;
-  mimeType?: string;
-  originalFormat?: string;
-  originalBytes?: number;
-  originalWidth?: number | null;
-  originalHeight?: number | null;
-  pdfPageNumber?: number;
-  artworkManifest?: ArtworkManifest;
-};
 
 const PRESET_SIZES = [
   { w: 48, h: 24 },
@@ -140,9 +122,6 @@ const PRESET_SIZES = [
   { w: 96, h: 48 },
   { w: 120, h: 48 },
 ];
-
-
-
 
 
 const PRODUCT_MODE_CONTENT = {
@@ -193,31 +172,6 @@ const PRODUCT_MODE_CONTENT = {
   },
 } as const;
 
-// Convert Cloudinary PDF URL to an image thumbnail (renders page 1)
-function getPdfThumbnailUrl(pdfUrl: string): string {
-  if (!pdfUrl || !pdfUrl.includes('cloudinary.com') || !pdfUrl.toLowerCase().endsWith('.pdf')) return pdfUrl;
-  return pdfUrl.replace('/upload/', '/upload/pg_1,f_jpg,w_800/');
-}
-
-// Build a downscaled, format/quality-optimized Cloudinary URL for the live
-// preview surface. The original full-resolution Cloudinary URL is preserved on
-// the cart/order item for print/admin export — only the on-screen preview uses
-// this transformed variant. This avoids decoding 10–50MB images in the browser
-// (which causes Chrome to hang and Safari to lay out the page incorrectly).
-function getImagePreviewUrl(imageUrl: string): string {
-  if (!imageUrl) return imageUrl;
-  let host = '';
-  try {
-    host = new URL(imageUrl).hostname.toLowerCase();
-  } catch {
-    return imageUrl;
-  }
-  if (host !== 'res.cloudinary.com' && !host.endsWith('.res.cloudinary.com')) return imageUrl;
-  if (!imageUrl.includes('/upload/')) return imageUrl;
-  // Skip if a transformation already exists right after /upload/.
-  if (/\/upload\/[a-z]_[^/]+\//.test(imageUrl)) return imageUrl;
-  return imageUrl.replace('/upload/', '/upload/f_auto,q_auto:good,w_1600,c_limit/');
-}
 
 function hasPermanentArtwork(file: UploadedArtworkFile | null | undefined): file is UploadedArtworkFile {
   return Boolean(
@@ -247,48 +201,6 @@ function preloadPermanentArtwork(url: string, timeoutMs = 20_000): Promise<boole
   });
 }
 
-function buildCartArtworkForEditor(item: CartItem): UploadedArtworkFile | null {
-  const manifest = item.artwork_manifest;
-  const originalUrl = manifest?.originalUrl
-    || item.placement_preview?.sourceUrl
-    || item.file_url
-    || '';
-  if (!originalUrl) return null;
-  const isPdf = Boolean(item.is_pdf || manifest?.mimeType === 'application/pdf');
-  const publicId = manifest?.publicId
-    || item.file_key
-    || String(item.placement_preview?.sourceIdentity || '').split('@')[0]
-    || '';
-  const browserPreviewUrl = isPdf
-    ? getPdfThumbnailUrl(originalUrl)
-    : getImagePreviewUrl(originalUrl);
-  const restored: UploadedArtworkFile = {
-    editorIdentity: [
-      'cart-source',
-      publicId || item.id,
-      manifest?.version ?? '',
-      item.placement_preview?.compositionRevision ?? item.composition_revision ?? '',
-    ].join('@'),
-    name: item.file_name || manifest?.originalFilename || 'artwork',
-    url: originalUrl,
-    fileKey: publicId,
-    size: Number(manifest?.bytes || 0),
-    isPdf,
-    thumbnailUrl: browserPreviewUrl,
-    previewUrl: browserPreviewUrl,
-    productionUrl: originalUrl,
-    productionPublicId: publicId,
-    resourceType: manifest?.resourceType || 'image',
-    mimeType: manifest?.mimeType || (isPdf ? 'application/pdf' : undefined),
-    originalFormat: manifest?.format,
-    originalBytes: manifest?.bytes,
-    originalWidth: manifest?.width ?? null,
-    originalHeight: manifest?.height ?? null,
-    pdfPageNumber: isPdf ? 1 : undefined,
-    artworkManifest: manifest || undefined,
-  };
-  return restored;
-}
 
 const Design: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
@@ -610,6 +522,7 @@ const Design: React.FC = () => {
     uploadedFileRef.current = uploadedFile;
   }, [uploadedFile]);
   useEffect(() => () => {
+    uploadGenerationRef.current += 1;
     activeUploadAbortControllerRef.current?.abort();
     activeImagePreviewCleanupRef.current?.();
     activePdfPreviewCleanupRef.current?.();
@@ -1253,31 +1166,71 @@ const Design: React.FC = () => {
       minHeight: 1200,
     });
     console.info('[artwork_upload]', { correlationId, stage: 'pdf_preview_blob_created', width: preview.width, height: preview.height, blobSize: preview.blobSize, pageNumber: preview.pageNumber });
-    const dimensions = await validatePdfPreviewImage(preview, correlationId);
-    return { preview, dimensions };
+    try {
+      const dimensions = await validatePdfPreviewImage(preview, correlationId);
+      return { preview, dimensions };
+    } catch (error) {
+      preview.cleanup();
+      throw error;
+    }
   }, [validatePdfPreviewImage]);
 
   const handleRetryPdfPreview = useCallback(async () => {
-    const file = activePdfPreviewFileRef.current;
-    if (!file) return;
+    const artwork = uploadedFileRef.current;
+    if (!artwork?.isPdf) return;
+    const generation = uploadGenerationRef.current;
     const correlationId = `artwork-retry-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     try {
+      // Returning from checkout creates a new page without the local File ref.
+      // Recover from the preserved original instead of making Retry a no-op.
+      const file = await getPdfPreviewFile(activePdfPreviewFileRef.current, artwork);
       const { preview, dimensions } = await generateValidatedPdfPreview(file, correlationId);
+      let permanentPreviewUrl = getPermanentArtworkPreviewUrl(artwork);
+      if (!permanentPreviewUrl) {
+        // Legacy large-PDF carts may have lost their separate image source.
+        // Save the regenerated page for checkout as well as the current canvas.
+        try {
+          const blob = await (await fetch(preview.previewUrl)).blob();
+          const saved = await uploadArtworkFile(new File([blob], 'pdf-page-preview.png', { type: 'image/png' }));
+          permanentPreviewUrl = saved.previewUrl;
+        } catch (error) {
+          preview.cleanup();
+          throw error;
+        }
+      }
+      if (generation !== uploadGenerationRef.current || uploadedFileRef.current?.fileKey !== artwork.fileKey) {
+        preview.cleanup();
+        return;
+      }
+      activePdfPreviewFileRef.current = file;
       activePdfPreviewCleanupRef.current?.();
       activePdfPreviewCleanupRef.current = preview.cleanup;
       setUploadedFile((current) => current && current.isPdf ? {
         ...current,
         previewUrl: preview.previewUrl,
+        permanentPreviewUrl,
         thumbnailUrl: preview.previewUrl,
         originalWidth: dimensions.width,
         originalHeight: dimensions.height,
         pdfPageNumber: preview.pageNumber,
       } : current);
     } catch (error) {
+      if (generation !== uploadGenerationRef.current || uploadedFileRef.current?.fileKey !== artwork.fileKey) return;
       console.error('[artwork_upload] PDF preview retry failed', { correlationId, error });
       setUploadError('We could not regenerate your PDF preview. Please retry the upload.');
     }
   }, [generateValidatedPdfPreview]);
+
+  useEffect(() => {
+    // Older carts may lack a saved browser preview. Recover their first page
+    // automatically from the original PDF, including after a full page reload.
+    if (uploadedFile?.isPdf && !resolveArtworkPreviewImageSrc({
+      src: uploadedFile.url,
+      previewUrl: uploadedFile.previewUrl || uploadedFile.thumbnailUrl,
+      resourceType: uploadedFile.resourceType,
+      mimeType: uploadedFile.mimeType,
+    })) void handleRetryPdfPreview();
+  }, [uploadedFile, handleRetryPdfPreview]);
 
   const persistArtworkUpload = useCallback(async (
     file: File,
@@ -1326,6 +1279,7 @@ const Design: React.FC = () => {
         fileKey: result.fileKey,
         thumbnailUrl: browserPreviewUrl,
         previewUrl: browserPreviewUrl,
+        permanentPreviewUrl,
         productionUrl: result.productionUrl,
         productionPublicId: result.productionPublicId,
         resourceType: result.resourceType,
@@ -1362,13 +1316,9 @@ const Design: React.FC = () => {
         const refreshedArtwork = { ...current, thumbnailUrl: permanentPreviewUrl, previewUrl: permanentPreviewUrl };
         uploadedFileRef.current = refreshedArtwork;
         setUploadedFile(refreshedArtwork);
-        window.setTimeout(() => {
-          if (generation !== uploadGenerationRef.current) return;
-          activeImagePreviewCleanupRef.current?.();
-          activePdfPreviewCleanupRef.current?.();
-          activeImagePreviewCleanupRef.current = null;
-          activePdfPreviewCleanupRef.current = null;
-        }, 0);
+        // SessionStableArtworkPreviewEditor keeps the local image painted.
+        // Release it only when replacing/removing the artwork or leaving the page;
+        // upload completion must not revoke a source still used by an editor.
       });
       return completedArtwork;
     })();
@@ -1796,12 +1746,7 @@ const Design: React.FC = () => {
       const config = latestPreviewConfigRef.current;
       artwork = uploadedFileRef.current || artwork;
       const manifest = artwork.artworkManifest;
-      const permanentOriginalUrl = manifest?.originalUrl || artwork.productionUrl || artwork.url;
-      const permanentPreviewUrl = (artwork.isPdf || artwork.resourceType === 'original')
-        ? (artwork.previewUrl && /^https?:\/\//i.test(artwork.previewUrl)
-            ? artwork.previewUrl
-            : getPdfThumbnailUrl(permanentOriginalUrl))
-        : permanentOriginalUrl;
+      const permanentPreviewUrl = getPermanentArtworkPreviewUrl(artwork);
       const sourceIdentity = [
         manifest?.publicId || artwork.productionPublicId || artwork.fileKey,
         manifest?.version ?? '',
@@ -1830,12 +1775,7 @@ const Design: React.FC = () => {
       }
       const latestSnapshot = latestEditor.getCompositionSnapshot();
       const latestManifest = latestArtwork.artworkManifest;
-      const latestOriginalUrl = latestManifest?.originalUrl || latestArtwork.productionUrl || latestArtwork.url;
-      const latestSourceUrl = (latestArtwork.isPdf || latestArtwork.resourceType === 'original')
-        ? (latestArtwork.previewUrl && /^https?:\/\//i.test(latestArtwork.previewUrl)
-            ? latestArtwork.previewUrl
-            : getPdfThumbnailUrl(latestOriginalUrl))
-        : latestOriginalUrl;
+      const latestSourceUrl = getPermanentArtworkPreviewUrl(latestArtwork);
       const latestSpec: ArtworkCompositionSpec = {
         version: PREVIEW_ARTIFACT_VERSION,
         sourceUrl: latestSourceUrl,

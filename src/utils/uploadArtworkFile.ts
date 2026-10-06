@@ -176,6 +176,11 @@ export function getArtworkUploadMessage(error: unknown): string {
 
 export function buildCloudinaryPdfPreviewUrl(url: string): string {
   if (!url || !/\.pdf(?:$|[?#])/i.test(url) || !url.includes('/image/upload/')) return url;
+  try {
+    if (new URL(url).hostname !== 'res.cloudinary.com') return url;
+  } catch {
+    return url;
+  }
   const transformed = url.includes('/image/upload/pg_1,')
     ? url
     : url.replace(
