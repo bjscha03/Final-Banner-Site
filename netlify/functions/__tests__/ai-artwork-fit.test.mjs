@@ -5,7 +5,7 @@ const require = createRequire(import.meta.url);
 const { FIT_MODEL, validateFitRequest, compareWording, runFitRequest } = require('../_shared/ai-designer/fit.cjs');
 const { fitHandler } = require('../_shared/ai-designer/handler.cjs');
 
-const inventory = { lines: ['Acme Pizza', '$9.99', 'acme.com'], elements: ['Red pizza logo'], allTextLegible: true, contentPreserved: true, confidence: .99, issues: [] };
+const inventory = { artworkType: 'design', incidentalText: [], lines: ['Acme Pizza', '$9.99', 'acme.com'], elements: ['Red pizza logo'], allTextLegible: true, contentPreserved: true, confidence: .99, issues: [], blockingIssues: [] };
 async function request() {
   const source = await sharp({ create: { width: 600, height: 600, channels: 3, background: '#ff6600' } }).png().toBuffer();
   return { sourceImage: `data:image/png;base64,${source.toString('base64')}`, widthIn: 120, heightIn: 48 };
@@ -116,5 +116,51 @@ it.each([
   const dependencies = await fixtures();
   dependencies.inspect.mockResolvedValueOnce(inventory).mockResolvedValueOnce({ ...inventory, blockingIssues: [], ...changed });
   const result = await runFitRequest(await request(), { sub: 'customer-1' }, 'essential-content', undefined, dependencies);
+  expect(result.fit.verification.canApply).toBe(false);
+});
+
+const photoInventory = { ...inventory, artworkType: 'photograph', lines: [],
+  elements: ['One seated person taking a gym mirror photo', 'Blue shirt and shoes', 'Gym equipment and metal wall'],
+  incidentalText: ['Tiny unreadable equipment sticker at the right edge'],
+  issues: ['The secondary equipment sticker cannot be transcribed'] };
+
+it('fits an ordinary photo with incidental labels without a wording rejection', async () => {
+  const dependencies = await fixtures();
+  dependencies.inspect.mockResolvedValueOnce(photoInventory).mockResolvedValueOnce(photoInventory);
+  const result = await runFitRequest(await request(), { sub: 'customer-1' }, 'gym-photo', undefined, dependencies);
+  expect(dependencies.edit).toHaveBeenCalledOnce();
+  expect(dependencies.inspect).toHaveBeenCalledTimes(2);
+  expect(dependencies.edit.mock.calls[0][0].prompt).toContain('extending the existing surroundings naturally');
+  expect(dependencies.edit.mock.calls[0][0].prompt).toContain('Tiny unreadable equipment sticker');
+  expect(dependencies.inspect.mock.calls[1][0]).toMatchObject({ expected: [], sourceContext: { artworkType: 'photograph', incidentalText: photoInventory.incidentalText } });
+  expect(result.fit.verification).toMatchObject({ canApply: true, missing: [], added: [], blockingIssues: [] });
+  expect(result.fit.diagnostics).toMatchObject({ artworkType: 'photograph', incidentalTextRegions: 1, sourceReads: 1 });
+});
+
+it('recovers when the second reading identifies background markings as incidental photo details', async () => {
+  const dependencies = await fixtures();
+  dependencies.inspect.mockResolvedValueOnce({ ...photoInventory, allTextLegible: false, blockingIssues: ['Unreadable equipment sticker'] })
+    .mockResolvedValueOnce(photoInventory).mockResolvedValueOnce(photoInventory);
+  const result = await runFitRequest(await request(), { sub: 'customer-1' }, 'gym-photo-second-look', undefined, dependencies);
+  expect(result.fit.verification.canApply).toBe(true);
+  expect(result.fit.diagnostics.sourceReads).toBe(2);
+  expect(dependencies.edit).toHaveBeenCalledOnce();
+});
+
+it.each(['photograph', 'mixed'])('still rejects unreadable essential sign/caption wording in a %s', async artworkType => {
+  const dependencies = await fixtures();
+  dependencies.inspect.mockResolvedValue({ ...photoInventory, artworkType, allTextLegible: false, blockingIssues: ['The price on the main sign is unreadable'] });
+  await expect(runFitRequest(await request(), { sub: 'customer-1' }, 'unreadable-main-sign', undefined, dependencies)).rejects.toThrow('clearer file');
+  expect(dependencies.edit).not.toHaveBeenCalled();
+});
+
+it.each([
+  { lines: ['FITNESS CLUB'] },
+  { contentPreserved: false, blockingIssues: ['The original face is distorted'] },
+  { contentPreserved: false, blockingIssues: ['The original person was duplicated'] },
+])('blocks invented text or damaged subjects in an adapted photograph: %j', async changed => {
+  const dependencies = await fixtures();
+  dependencies.inspect.mockResolvedValueOnce(photoInventory).mockResolvedValueOnce({ ...photoInventory, ...changed });
+  const result = await runFitRequest(await request(), { sub: 'customer-1' }, 'photo-content-error', undefined, dependencies);
   expect(result.fit.verification.canApply).toBe(false);
 });
