@@ -100,7 +100,7 @@ export const PRODUCT_LANDING_DATA: Record<CityProductSlug, ProductLandingDefinit
     productionSummary: `${SITE_POLICIES.production.short}. ${SITE_POLICIES.shipping.short}.`,
     startingPriceCents: bannerConfig.minimumUnitPriceCents,
     minimumOrderLabel: `One banner; ${formatMoney(bannerConfig.minimumUnitPriceCents)} minimum unit price`,
-    priceExamples: [bannerExample(24, 48), bannerExample(36, 72), bannerExample(48, 96)],
+    priceExamples: [bannerExample(48, 24), bannerExample(72, 36), bannerExample(96, 48)],
     sizes: [
       'Custom sizes online up to 50 feet on the long side and 16 feet on the short side',
       'Larger projects are available by custom quote',

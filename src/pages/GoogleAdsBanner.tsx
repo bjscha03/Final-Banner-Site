@@ -1,7 +1,7 @@
 import { useUploadWatchdog } from '@/hooks/useUploadWatchdog';
 import MobileBannerLandingHero, { MobileBannerLandingProof } from '@/components/design/MobileBannerLandingHero';
 import GoogleReviewSpotlight from '@/components/design/GoogleReviewSpotlight';
-import LargeBannerSizeCards from '@/components/design/LargeBannerSizeCards';
+import LargeBannerSizeCards, { LARGE_BANNER_SIZES } from '@/components/design/LargeBannerSizeCards';
 import { useAutomaticFirstOrderDiscount } from '@/hooks/useAutomaticFirstOrderDiscount';
 import { FIRST_ORDER_APPLIED_LABEL } from '@/lib/firstOrderPromotion';
 import ProductPageHero from '@/components/product/ProductPageHero';
@@ -37,6 +37,8 @@ import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
 import DeliveryTimer from '@/components/delivery/DeliveryTimer';
 import { sameDayConfig } from '@/lib/sameDayConfig';
 import HeroDeliveryStatus from '@/components/delivery/HeroDeliveryStatus';
+import PriceDeliveryEstimate from '@/components/delivery/PriceDeliveryEstimate';
+import CustomBannerSize from '@/components/design/CustomBannerSize';
 import MobileSubtotalBar from '@/components/design/MobileSubtotalBar';
 import MobileFinishingStep from '@/components/design/MobileFinishingStep';
 import LiveFinishingPreview from '@/components/design/LiveFinishingPreview';
@@ -447,7 +449,7 @@ const GoogleAdsBanner: React.FC = () => {
   const material: MaterialKey = isDoubleSidedBanner ? '18oz_double' : selectedMaterialKey;
   const [materialDropdownOpen, setMaterialDropdownOpen] = useState(false);
   const materialDropdownRef = useRef<HTMLDivElement>(null);
-  const [grommets, setGrommets] = useState('none');
+  const [grommets, setGrommets] = useState(initialProductType === 'banner' ? 'every-2-3ft' : 'none');
   const [polePockets, setPolePockets] = useState('none');
   const [polePocketSize, setPolePocketSize] = useState('2');
   // Display unit for size inputs and the live preview ruler. Single source
@@ -460,12 +462,12 @@ const GoogleAdsBanner: React.FC = () => {
     () => (localStorage.getItem('banner-unit-pref') as 'in' | 'ft' | null) ?? 'ft'
   );
   const [addRope, setAddRope] = useState(false);
-  const [finishingType, setFinishingType] = useState<FinishingType>('none');
+  const [finishingType, setFinishingType] = useState<FinishingType>(initialProductType === 'banner' ? 'grommets' : 'none');
   const [mobileFinishingOpen, setMobileFinishingOpen] = useState(false);
   const [mobileFinishingSource, setMobileFinishingSource] = useState<'inline' | 'modal'>('inline');
   const [finishingPreviewTransform, setFinishingPreviewTransform] = useState<NormalizedArtworkTransform | null>(null);
   const [dismissedOrientation, setDismissedOrientation] = useState<string | null>(null);
-  const [finishingChoiceConfirmed, setFinishingChoiceConfirmed] = useState(false);
+  const [finishingChoiceConfirmed, setFinishingChoiceConfirmed] = useState(initialProductType === 'banner');
   const [ropePlacement, setRopePlacement] = useState<RopePlacement>('top');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -1182,6 +1184,14 @@ const GoogleAdsBanner: React.FC = () => {
     // new product never starts with these auto-selected.
     useCartStore.getState().setSameDayHitService(false);
     useCartStore.getState().setSaturdayDelivery(false);
+    // Each new banner starts with free grommets. Cart edits restore their saved choice.
+    if (newType === 'banner') {
+      setGrommets('every-2-3ft');
+      setPolePockets('none');
+      setAddRope(false);
+      setFinishingType('grommets');
+      setFinishingChoiceConfirmed(true);
+    }
     // Reset yard sign state when switching
     if (newType === 'yard_sign') {
       setYardSignDesigns([]);
@@ -1729,9 +1739,9 @@ const GoogleAdsBanner: React.FC = () => {
   const resetAfterSuccessfulAdd = useCallback(() => {
     resetPreview();
     setMobileFinishingOpen(false);
-    setFinishingChoiceConfirmed(false);
-    setFinishingType('none');
-    setGrommets('none');
+    setFinishingChoiceConfirmed(productType === 'banner');
+    setFinishingType(productType === 'banner' ? 'grommets' : 'none');
+    setGrommets(productType === 'banner' ? 'every-2-3ft' : 'none');
     setPolePockets('none');
     setAddRope(false);
     setShowPostAddResetNotice(true);
@@ -2725,9 +2735,12 @@ const GoogleAdsBanner: React.FC = () => {
     setHasConfirmedSize(true);
   };
   const bannerPrice = (
+    <div>
     <div className="flex flex-wrap items-baseline gap-x-2">
       <span className="text-xl font-bold text-[#061A31]">{usd((bannerSubtotalAfterAllDiscountsCents + previewSameDayFeeCents + previewSaturdayFeeCents) / 100)}</span>
       {bannerPromoResolution.appliedDiscountAmountCents > 0 && <span className="text-xs text-slate-500 line-through">{usd((bannerSubtotalAfterAllDiscountsCents + previewSameDayFeeCents + previewSaturdayFeeCents + bannerPromoResolution.appliedDiscountAmountCents) / 100)}</span>}
+    </div>
+    <PriceDeliveryEstimate compact />
     </div>
   );
 
@@ -2741,6 +2754,7 @@ const GoogleAdsBanner: React.FC = () => {
                   <PriceBreakdown
                     variant="compact"
                     heading="Your banner"
+                    deliveryEstimate={<PriceDeliveryEstimate />}
                     topLine={`${sqft.toFixed(2)} sq ft • ${priceSummary}`}
                     secondaryLine={`for ${quantity} ${quantity === 1 ? 'banner' : 'banners'} • ${widthDisplay} × ${heightDisplay} • ${materialLabel}`}
                     showTopSummary={false}
@@ -2902,8 +2916,8 @@ const GoogleAdsBanner: React.FC = () => {
                   )}
                 </ConfigCard>);
   const sizeDimensions = (
-                    <div className={isLargeBannerLanding ? "mt-5 rounded-xl bg-slate-50 p-4" : compactMobileLanding && !isLgScreen ? "mb-4" : "mt-6 lg:mt-0"}>
-                      <label className={compactMobileLanding && !isLgScreen ? "sr-only" : "block text-sm font-semibold text-gray-700 mb-2"}>{isLargeBannerLanding ? "Need a different size?" : "Custom Size"}</label>
+                    <div>
+                      <p className="mb-2 text-xs font-semibold text-slate-600">Width × height</p>
                       {unit === 'in' ? (
                         <div className="grid grid-cols-2 gap-4">
                           <div>
@@ -3015,8 +3029,8 @@ const GoogleAdsBanner: React.FC = () => {
                     </div>
                   ) : undefined}
                 >
-                  <div className={isCarMagnet || isLargeBannerLanding ? '' : 'grid lg:grid-cols-2 lg:gap-6'}>
-                    {compactMobileLanding && !isLgScreen && sizeDimensions}
+                  <div>
+                    {!isCarMagnet && <p className="mb-2 text-xs text-slate-600">Sizes shown as width × height</p>}
                     {isLargeBannerLanding ? <LargeBannerSizeCards widthIn={widthIn} heightIn={heightIn} unit={unit} material={material}
                       onSelect={(w, h) => {
                         setWidthFtStr(String(Math.floor(w / 12)));
@@ -3038,15 +3052,15 @@ const GoogleAdsBanner: React.FC = () => {
                               </button>
                             ))
                           : PRESET_SIZES.map((p, i) => (
-                              <button key={i} onClick={() => applyPreset(i)} className={`border rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${activePreset === i ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
+                              <button key={i} type="button" aria-pressed={widthIn === p.w && heightIn === p.h} onClick={() => applyPreset(i)} className={`border rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${widthIn === p.w && heightIn === p.h ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
                                 {formatPresetLabel(p.w, p.h, unit)}
                               </button>
                             ))}
                       </div>
                     </div>}
-                    {!isCarMagnet && !(compactMobileLanding && !isLgScreen) && (
-                    sizeDimensions
-                    )}
+                    {!isCarMagnet && <CustomBannerSize hasCustomSize={!(isLargeBannerLanding ? LARGE_BANNER_SIZES : PRESET_SIZES).some(size => size.w === widthIn && size.h === heightIn)}>
+                      {sizeDimensions}
+                    </CustomBannerSize>}
                   </div>
                 {isLargeBannerLanding && <p className="mt-3 text-xs text-slate-600">Online sizes up to 50 ft on the long side and 16 ft on the short side. Larger project? <Link to="/custom-quote" className="font-semibold text-orange-700 underline">Request a quote</Link>.</p>}
                 {!isCarMagnet && <div className="mt-5 grid gap-4 border-t border-slate-200 pt-4 sm:grid-cols-[minmax(0,1fr)_auto]">{materialCard}{quantityCard}</div>}
@@ -3589,7 +3603,7 @@ const GoogleAdsBanner: React.FC = () => {
                 )}
 
                 {/* Same-Day Hit Service upsell — production priority (NOT shipping). */}
-                {isCarMagnet ? <div className="hidden md:block"><DeliveryTimer reflectCartSelection variant="compact" /></div> : <HeroDeliveryStatus variant="light" />}
+                {isCarMagnet && <div className="hidden md:block"><DeliveryTimer reflectCartSelection variant="compact" /></div>}
                 <SameDayHitServiceCard
                   variant="compact"
                   previewHasPrice={
@@ -3667,7 +3681,7 @@ const GoogleAdsBanner: React.FC = () => {
           onViewCart={() => { setMobileFinishingOpen(false); setShowPreview(false); openCartDrawer(); }}
           onCheckout={() => { if (finishingChoiceConfirmed) void prepareAndRoutePlacement('checkout', mobileFinishingSource); }}
           onAddAnother={() => { if (finishingChoiceConfirmed) void prepareAndRoutePlacement('cart', mobileFinishingSource); }}
-          summary={<>{bannerSummary}<HeroDeliveryStatus variant="light" /><SameDayHitServiceCard variant="compact" previewHasPrice={Boolean(uploadedFile)} previewSubtotalCents={bannerPricing.subtotalBeforeDiscountCents} /></>}
+          summary={<>{bannerSummary}<SameDayHitServiceCard variant="compact" previewHasPrice={Boolean(uploadedFile)} previewSubtotalCents={bannerPricing.subtotalBeforeDiscountCents} /></>}
           preview={uploadedFile && finishingPreviewTransform && <LiveFinishingPreview
             src={uploadedFile.previewUrl || uploadedFile.thumbnailUrl || uploadedFile.url}
             transform={finishingPreviewTransform}
