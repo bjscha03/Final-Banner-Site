@@ -73,6 +73,9 @@
 [functions."ai-designer-edit"]
   memory = 2048
 
+[functions."ai-designer-fit"]
+  memory = 1024
+
 [functions."ai-designer-worker-background"]
   background = true
   memory = 2048

@@ -1,3 +1,5 @@
+import AIArtworkFitDialog, { ArtworkFitButton } from '@/components/design/AIArtworkFitDialog';
+import { artworkFitIdentity } from '@/components/design/ai/artworkFit';
 import { resolveArtworkPreviewImageSrc } from '@/components/design/artworkPreviewSource';
 import { buildCartArtworkForEditor, getPermanentArtworkPreviewUrl, type UploadedArtworkFile } from '@/lib/cartArtworkForEditor';
 import { getPdfPreviewFile } from '@/utils/pdf/getPdfPreviewFile';
@@ -490,6 +492,15 @@ const GoogleAdsBanner: React.FC = () => {
 
   // "Create with AI" modal state. Available for banner & car_magnet on this
   // page — yard signs use YardSignConfigurator which has its own button.
+  const [fitModalOpen, setFitModalOpen] = useState(false);
+  const [fitUndo, setFitUndo] = useState<{
+    appliedIdentity: string;
+    artwork: UploadedArtworkFile;
+    pos: { x: number; y: number }; scale: number; scaleY: number; constrain: boolean;
+    normalized: NormalizedArtworkTransform | null;
+    prompt: string | null; session: AIDesignSession | null;
+    uploadFile: File | null; pdfFile: File | null;
+  } | null>(null);
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState<string | null>(null);
   const [aiEditModalOpen, setAiEditModalOpen] = useState(false);
@@ -1540,6 +1551,40 @@ const GoogleAdsBanner: React.FC = () => {
       setIsUploading(false);
     }
   }, [generateValidatedPdfPreview, persistArtworkUpload]);
+
+  const applyFittedArtwork = (next: UploadedArtworkFile, expectedIdentity: string) => {
+    const previous = uploadedFileRef.current;
+    if (!previous || expectedIdentity !== artworkFitIdentity(previous, widthIn, heightIn)) {
+      throw new Error('Your artwork or dimensions changed. Generate a fitted version for your current selection.');
+    }
+    let normalized: NormalizedArtworkTransform | null = null;
+    try { normalized = (modalEditorRef.current || inlineEditorRef.current)?.getCompositionSnapshot().transform || null; } catch { /* Pixel placement is also retained below. */ }
+    const original = fitUndo?.appliedIdentity === previous.editorIdentity ? fitUndo : {
+      artwork: previous, pos: imgPos, scale: imgScale, scaleY: imgScaleY, constrain: constrainProps,
+      normalized, prompt: aiPrompt, session: aiDesignSession,
+      uploadFile: activeUploadFileRef.current, pdfFile: activePdfPreviewFileRef.current,
+    };
+    setFitUndo({ ...original, appliedIdentity: next.editorIdentity! });
+    uploadGenerationRef.current += 1;
+    activeUploadFileRef.current = null; activePdfPreviewFileRef.current = null;
+    uploadedFileRef.current = next; setUploadedFile(next);
+    setImgPos({ x: 0, y: 0 }); setImgScale(1); setImgScaleY(1); setConstrainProps(true);
+    setRestoredNormalizedTransform(null); setRestoredCompositionRevision(0);
+    preparedPlacementRef.current = null; setPendingPlacementPreview(null);
+    setAiPrompt(null); setAiEditPrompt(null); setAiDesignSession(null); setUploadError('');
+  };
+
+  const restoreArtworkBeforeFit = () => {
+    if (!fitUndo || uploadedFileRef.current?.editorIdentity !== fitUndo.appliedIdentity) return;
+    uploadGenerationRef.current += 1;
+    uploadedFileRef.current = fitUndo.artwork; setUploadedFile(fitUndo.artwork);
+    activeUploadFileRef.current = fitUndo.uploadFile; activePdfPreviewFileRef.current = fitUndo.pdfFile;
+    setImgPos(fitUndo.pos); setImgScale(fitUndo.scale); setImgScaleY(fitUndo.scaleY); setConstrainProps(fitUndo.constrain);
+    setRestoredNormalizedTransform(fitUndo.normalized); setRestoredCompositionRevision(0);
+    preparedPlacementRef.current = null; setPendingPlacementPreview(null);
+    setAiPrompt(fitUndo.prompt); setAiDesignSession(fitUndo.session); setAiEditPrompt(null); setUploadError('');
+    setFitUndo(null);
+  };
 
   const retryActiveArtworkUpload = useCallback(async (): Promise<UploadedArtworkFile | null> => {
     const file = activeUploadFileRef.current;
@@ -3024,6 +3069,12 @@ const GoogleAdsBanner: React.FC = () => {
                     ) : bannerFinishingOptions}
                   </div>
                 </ConfigCard>);
+  const artworkFitControls = !isYardSign && !isCarMagnet && ENABLE_AI && uploadedFile ? (
+    <ArtworkFitButton onClick={() => setFitModalOpen(true)}
+      disabled={!hasCommittedBannerSize || isUploading || isProcessingUpsell || !hasPermanentArtwork(uploadedFile)}
+      onRestore={fitUndo?.appliedIdentity === uploadedFile.editorIdentity ? restoreArtworkBeforeFit : undefined} />
+  ) : null;
+
   const uploadCard = (<ConfigCard step={isCarMagnet ? 4 : 2} title="Upload your artwork" id="upload-section">
                   {/* Helper banner: shown when the user reaches the upload card before
                       completing required choices. Doesn't block upload — just surfaces
@@ -3047,6 +3098,7 @@ const GoogleAdsBanner: React.FC = () => {
                       hasArtwork={Boolean(uploadedFile)}
                       onCreate={showCreateWithAI ? () => setAiModalOpen(true) : undefined}
                       onAdjust={uploadedFile ? () => setShowPreview(true) : undefined}
+                      onFit={uploadedFile && !isYardSign && !isCarMagnet && hasCommittedBannerSize && ENABLE_AI && !isUploading && hasPermanentArtwork(uploadedFile) ? () => setFitModalOpen(true) : undefined}
                       artworkWidth={uploadedFile?.originalWidth}
                       artworkHeight={uploadedFile?.originalHeight}
                     />
@@ -3106,6 +3158,7 @@ const GoogleAdsBanner: React.FC = () => {
                           {/* PR3: Modern Canva-style artwork editor (drag,
                               resize handles, fit/fill/reset/constrain). */}
                           <ArtworkPreviewEditor
+                    key={uploadedFile.editorIdentity || uploadedFile.fileKey}
                             ref={inlineEditorRef}
                             compositionKey={buildArtworkCompositionKey(uploadedFile, productType)}
                             initialNormalizedTransform={restoredNormalizedTransform}
@@ -3164,6 +3217,7 @@ const GoogleAdsBanner: React.FC = () => {
                         className="mt-2"
                         data-mobile-artwork-toolbar="ga-inline"
                       />
+                      {artworkFitControls}
                       {/* Size dimensions below preview */}
                       <p className="text-xs text-gray-400 text-center mt-2">
                         Size: {isCarMagnet ? `${widthIn}" × ${heightIn}"` : `${widthFt} ft${widthInR > 0 ? ` ${widthInR} in` : ''} × ${heightFt} ft${heightInR > 0 ? ` ${heightInR} in` : ''}`} ({sqft.toFixed(1)} sq ft)
@@ -3656,6 +3710,9 @@ const GoogleAdsBanner: React.FC = () => {
           }
         />
 
+      <AIArtworkFitDialog open={fitModalOpen && !isYardSign && !isCarMagnet} onOpenChange={setFitModalOpen}
+        artwork={uploadedFile} widthIn={widthIn} heightIn={heightIn} onApply={applyFittedArtwork} />
+
       {/* Preview Modal */}
       {showPreview && uploadedFile && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm sm:p-4">
@@ -3681,6 +3738,7 @@ const GoogleAdsBanner: React.FC = () => {
                   style={previewWrapperStyle}
                 >
                   <ArtworkPreviewEditor
+                    key={uploadedFile.editorIdentity || uploadedFile.fileKey}
                     ref={modalEditorRef}
                     compositionKey={buildArtworkCompositionKey(uploadedFile, productType)}
                     initialNormalizedTransform={restoredNormalizedTransform}
@@ -3738,6 +3796,7 @@ const GoogleAdsBanner: React.FC = () => {
                 className="mt-2"
                 data-mobile-artwork-toolbar="ga-modal"
               />
+              {artworkFitControls}
               {/* Size below preview */}
               <p className="text-xs text-gray-400 text-center mt-2">
                 Size: {widthFt} ft{widthInR > 0 ? ` ${widthInR} in` : ''} × {heightFt} ft{heightInR > 0 ? ` ${heightInR} in` : ''} ({sqft.toFixed(1)} sq ft)

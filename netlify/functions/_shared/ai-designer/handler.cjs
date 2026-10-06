@@ -13,7 +13,8 @@ const { isUploadedLogoRemoval } = require('./edit-intent.cjs');
 const { isEnabled, getImageModel, getValidationModel, getImageQuality, MODEL_SNAPSHOT } = require('./config.cjs');
 const { normalizeBrief, cleanText, stableHash, buildImprovedPrompt, freshPromptBrief, fitInterpretedDirection, groundedCopy } = require('./schema.cjs');
 const { buildGenerationPrompt, buildEditPrompt, buildCopyChangeInstruction, customerPhotoPrompt } = require('./prompt.cjs');
-const { verifyModelAccess, verifyValidationModelAccess, generateImage, editImage, structureCreativeBrief, planDesignEdit } = require('./provider.cjs');
+const { verifyModelAccess, verifyNamedModelAccess, verifyValidationModelAccess, generateImage, editImage, structureCreativeBrief, planDesignEdit } = require('./provider.cjs');
+const { FIT_MODEL, validateFitRequest, runFitRequest } = require('./fit.cjs');
 const {
   isTemporaryStorageConfigured,
   storeTemporaryArtwork,
@@ -170,6 +171,7 @@ function requestForJob(body) {
 }
 
 const JOB_LIMITS = {
+  fit: { bytes: 5 * 1024 * 1024, requests: 3 },
   brief: { bytes: 3 * 1024 * 1024, requests: 20 },
   generate: { bytes: 5 * 1024 * 1024, requests: 8 },
   edit: { bytes: 5 * 1024 * 1024, requests: 12 },
@@ -188,6 +190,7 @@ async function enqueueHandler(event, action) {
   try {
     const body = parseBody(event);
     ensureConfigured(event);
+    if (action === 'fit') validateFitRequest(body);
     let customerQuota;
     try { customerQuota = await customerLimit(event, auth.session, action, limits.requests, 10 * 60 * 1000); }
     catch { return json(503, { error: 'AI_LIMITS_UNAVAILABLE', message: 'The artwork designer is temporarily busy. Please try again shortly.' }); }
@@ -300,6 +303,7 @@ async function workerHandler(event) {
       if (claimed.action === 'brief') return runBriefRequest(claimed.request, claimed.session, claimed.jobId);
       if (claimed.action === 'generate') return runGenerateRequest(claimed.request, claimed.session, claimed.jobId);
       if (claimed.action === 'edit') return runEditRequest(claimed.request, claimed.session, claimed.jobId);
+      if (claimed.action === 'fit') return runFitRequest(claimed.request, claimed.session, claimed.jobId, reportProgress);
       const error = new Error('Unknown AI job action.');
       error.code = 'INVALID_REQUEST';
       throw error;
@@ -417,13 +421,14 @@ async function statusHandler(event) {
   const enabled = isEnabled(event?.netlify?.deployContext);
   const keyConfigured = Boolean(process.env.OPENAI_API_KEY);
   const temporaryStorageConfigured = isTemporaryStorageConfigured();
+  const fitMode = event.httpMethod === 'POST' && (() => { try { return parseBody(event).mode === 'fit'; } catch { return false; } })();
   let model = null;
   let access = { available: false, error: enabled && keyConfigured ? 'MODEL_NOT_CHECKED' : 'AI_NOT_CONFIGURED' };
   let validationAccess = { available: false, error: enabled && keyConfigured ? 'MODEL_NOT_CHECKED' : 'AI_NOT_CONFIGURED' };
   try {
-    model = getImageModel();
+    model = fitMode ? FIT_MODEL : getImageModel();
     if (enabled && keyConfigured && temporaryStorageConfigured) {
-      [access, validationAccess] = await Promise.all([verifyModelAccess(), verifyValidationModelAccess()]);
+      [access, validationAccess] = await Promise.all([fitMode ? verifyNamedModelAccess(FIT_MODEL) : verifyModelAccess(), verifyValidationModelAccess()]);
     }
   } catch (error) {
     access = { available: false, error: error.code || 'UNAPPROVED_IMAGE_MODEL' };
@@ -731,4 +736,6 @@ function retiredHandler(event) {
   });
 }
 
-module.exports = { statusHandler, briefHandler, generateHandler, editHandler, exportHandler, eventsHandler, jobHandler, workerHandler, retiredHandler };
+async function fitHandler(event) { return enqueueHandler(event, 'fit'); }
+
+module.exports = { statusHandler, briefHandler, generateHandler, editHandler, fitHandler, exportHandler, eventsHandler, jobHandler, workerHandler, retiredHandler };
