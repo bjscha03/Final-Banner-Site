@@ -60,13 +60,13 @@ describe('faithful artwork fitting', () => {
   it.each([
     { lines: ['Acme Pizza', '$19.99', 'acme.com'] },
     { contentPreserved: false, issues: ['Logo was replaced'] },
-    { confidence: .7 },
     { allTextLegible: false },
   ])('blocks applying a result that cannot be verified: %j', async changed => {
     const dependencies = await fixtures();
     dependencies.inspect.mockResolvedValueOnce(inventory).mockResolvedValueOnce({ ...inventory, ...changed });
     const result = await runFitRequest(await request(), { sub: 'customer-1' }, 'job-3', undefined, dependencies);
     expect(result.fit.verification.passed).toBe(false);
+    expect(result.fit.verification.canApply).toBe(false);
     expect(result.fit.imageBase64).toBeTruthy(); // Still available for comparison, never auto-applied.
   });
 });
@@ -97,4 +97,24 @@ it('does not generate when uncertain readings disagree about the source words', 
   dependencies.inspect.mockResolvedValueOnce({ ...inventory, confidence: .8 }).mockResolvedValueOnce({ ...inventory, confidence: .8, lines: ['Uncertain text'] });
   await expect(runFitRequest(await request(), { sub: 'customer-1' }, 'conflicting-source', undefined, dependencies)).rejects.toThrow('second check');
   expect(dependencies.edit).not.toHaveBeenCalled();
+});
+
+it('returns reviewable cosmetic differences without blocking the customer from using the layout', async () => {
+  const dependencies = await fixtures();
+  dependencies.inspect.mockResolvedValueOnce(inventory).mockResolvedValueOnce({ ...inventory, confidence: .8, blockingIssues: [], issues: ['Wider lettering', 'Two additional divider dots', 'Different wood grain and knots'] });
+  const result = await runFitRequest(await request(), { sub: 'customer-1' }, 'cosmetic-review', undefined, dependencies);
+  expect(result.fit.verification).toMatchObject({ passed: false, canApply: true, blockingIssues: [], missing: [], added: [] });
+  expect(result.fit.verification.issues).toHaveLength(3);
+});
+
+it.each([
+  { lines: ['Acme Pizza', '$19.99', 'acme.com'] },
+  { allTextLegible: false },
+  { contentPreserved: false, blockingIssues: ['The main logo was replaced'] },
+  { contentPreserved: true, blockingIssues: ['A person in the original photograph is missing'] },
+])('keeps essential content failures blocked even with customer review: %j', async changed => {
+  const dependencies = await fixtures();
+  dependencies.inspect.mockResolvedValueOnce(inventory).mockResolvedValueOnce({ ...inventory, blockingIssues: [], ...changed });
+  const result = await runFitRequest(await request(), { sub: 'customer-1' }, 'essential-content', undefined, dependencies);
+  expect(result.fit.verification.canApply).toBe(false);
 });

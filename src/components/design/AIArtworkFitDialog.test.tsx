@@ -90,3 +90,27 @@ it('offers a working retry after readiness temporarily fails', async () => {
   await render(); await click('Try opening AI fit again');
   expect(button('Create fitted version').disabled).toBe(false);
 });
+
+it('lets the customer review and apply the cosmetic differences from the petting-zoo report', async () => {
+  const reviewable = { ...success, verification: { ...success.verification, passed: false, canApply: true, blockingIssues: [], confidence: .8, issues: ['The lettering appears wider.', 'The divider has two additional decorative dots.', 'The wood grain and knot pattern differ.'] } };
+  vi.mocked(runBackgroundJob).mockResolvedValue({ fit: reviewable });
+  await render(); await click('Create fitted version');
+  expect(document.body.textContent).toContain('Review the visual changes');
+  expect(document.body.textContent).not.toContain('This version needs another attempt');
+  expect(document.body.textContent).toContain('The wood grain and knot pattern differ.');
+  expect(button('Use this version').disabled).toBe(true);
+  await checkReview();
+  expect(button('Use this version').disabled).toBe(false);
+  await click('Use this version');
+  expect(saveFittedArtwork).toHaveBeenCalledExactlyOnceWith(reviewable);
+  expect(props.onApply).toHaveBeenCalledExactlyOnceWith(fitted, 'original-1|120|48');
+});
+
+it('keeps a changed admission price blocked even when cosmetic review would be available', async () => {
+  vi.mocked(runBackgroundJob).mockResolvedValue({ fit: { ...success, verification: { ...success.verification, passed: false, canApply: false, blockingIssues: ['The admission price changed'], missing: ['5'], added: ['15'] } } });
+  await render(); await click('Create fitted version');
+  expect(button('Use this version').disabled).toBe(true);
+  expect(document.querySelector('input[type="checkbox"]')).toBeNull();
+  expect(document.body.textContent).toContain('The admission price changed');
+  expect(saveFittedArtwork).not.toHaveBeenCalled();
+});

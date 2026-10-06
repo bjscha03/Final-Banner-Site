@@ -5,7 +5,7 @@ import { authenticatedJsonBody, authorizedHeaders } from '@/lib/serverAuth';
 import type { UploadedArtworkFile } from '@/lib/cartArtworkForEditor';
 import { fetchAIJson } from './ai/jobRequest';
 import { runBackgroundJob } from './ai/backgroundJob';
-import { artworkFitIdentity, prepareArtworkFitSource, saveFittedArtwork, type ArtworkFitResult } from './ai/artworkFit';
+import { artworkFitIdentity, canApplyArtworkFit, prepareArtworkFitSource, saveFittedArtwork, type ArtworkFitResult } from './ai/artworkFit';
 import { logUx } from '@/lib/uxAnalytics';
 
 export function ArtworkFitButton({ onClick, disabled, onRestore }: { onClick: () => void; disabled?: boolean; onRestore?: () => void }) {
@@ -101,7 +101,7 @@ export default function AIArtworkFitDialog({ open, onOpenChange, artwork, widthI
   }
 
   async function apply() {
-    if (!result?.verification.passed || !reviewed || applying || inFlight.current) return;
+    if (!canApplyArtworkFit(result) || !reviewed || applying || inFlight.current) return;
     const requestIdentity = identity; inFlight.current = true; setApplying(true); setError('');
     try {
       const saved = savedResult.current?.id === result.id ? savedResult.current.artwork : await saveFittedArtwork(result);
@@ -114,6 +114,8 @@ export default function AIArtworkFitDialog({ open, onOpenChange, artwork, widthI
   }
 
   const proposed = result ? `data:${result.mimeType};base64,${result.imageBase64}` : '';
+  const canApply = canApplyArtworkFit(result);
+  const reviewIssues = result ? [...new Set([...(result.verification.blockingIssues || []), ...result.verification.issues])] : [];
   return <Dialog open={open} onOpenChange={value => { if (!applying) onOpenChange(value); }}>
     <DialogContent className="max-h-[94dvh] w-[calc(100%_-_1rem)] overflow-y-auto p-4 sm:max-w-5xl sm:p-6" onInteractOutside={event => { if (busy || applying) event.preventDefault(); }}>
       <DialogHeader>
@@ -136,16 +138,16 @@ export default function AIArtworkFitDialog({ open, onOpenChange, artwork, widthI
       {busy && <div role="status" aria-live="polite" className="rounded-xl bg-orange-50 p-4 text-sm text-slate-800"><p className="flex items-center gap-2 font-semibold"><Loader2 className="h-5 w-5 animate-spin text-orange-600" />{stage}</p><p className="mt-2">This can take a few minutes. You can close this window and reopen it while the same request finishes.</p></div>}
       {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
       {result && !busy && <div className={`rounded-xl border p-4 text-sm ${result.verification.passed ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50'}`}>
-        <p className="flex items-center gap-2 font-semibold">{result.verification.passed && <CheckCircle2 className="h-4 w-4" />} {result.verification.passed ? 'Automated wording and design checks passed' : 'This version needs another attempt'}</p>
-        {result.verification.passed ? <p className="mt-1">Please still check every word, phone number, website and logo. Automated checks can miss details.</p> : <><p className="mt-1">We found differences or details we could not verify, so this version cannot replace your original.</p><ul className="mt-2 list-disc pl-5">{result.verification.issues.slice(0,4).map((issue,i) => <li key={i}>{issue}</li>)}</ul>{result.verification.missing.length > 0 && <p className="mt-2">Missing or changed wording: {result.verification.missing.join(', ')}</p>}{result.verification.added.length > 0 && <p className="mt-2">Unexpected wording: {result.verification.added.join(', ')}</p>}</>}
+        <p className="flex items-center gap-2 font-semibold">{result.verification.passed && <CheckCircle2 className="h-4 w-4" />} {result.verification.passed ? 'Automated wording and design checks passed' : canApply ? 'Review the visual changes' : 'This version needs another attempt'}</p>
+        {result.verification.passed ? <p className="mt-1">Please still check every word, phone number, website and logo. Automated checks can miss details.</p> : <><p className="mt-1">{canApply ? 'The wording checks passed. Compare the artwork and review any visual differences below. If you are happy with the result, check the box to use this layout.' : 'We found a wording or essential-content issue, so this version cannot replace your original.'}</p><ul className="mt-2 list-disc pl-5">{reviewIssues.slice(0,4).map((issue,i) => <li key={i}>{issue}</li>)}</ul>{result.verification.missing.length > 0 && <p className="mt-2">Missing or changed wording: {result.verification.missing.join(', ')}</p>}{result.verification.added.length > 0 && <p className="mt-2">Unexpected wording: {result.verification.added.join(', ')}</p>}</>}
       </div>}
-      {result?.verification.passed && !busy && <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm text-slate-800"><input type="checkbox" checked={reviewed} onChange={event => setReviewed(event.target.checked)} className="mt-1 h-5 w-5 accent-orange-600" />I checked the wording, logos and images and want to use this layout.</label>}
+      {canApply && !busy && <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm text-slate-800"><input type="checkbox" checked={reviewed} onChange={event => setReviewed(event.target.checked)} className="mt-1 h-5 w-5 accent-orange-600" />{result.verification.passed ? 'I checked the wording, logos and images and want to use this layout.' : 'I reviewed the visual changes, checked the wording, logos and images, and want to use this layout.'}</label>}
       <div className="flex flex-wrap gap-2 border-t pt-4">
         <button type="button" disabled={applying} onClick={() => onOpenChange(false)} className="min-h-11 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold disabled:opacity-50">{busy ? 'Close and keep working' : 'Keep original'}</button>
         {error && !ready && !loading && <button type="button" onClick={() => setReadinessAttempt(value => value + 1)} className="min-h-11 rounded-lg bg-orange-600 px-5 py-2 text-sm font-bold text-white">Try opening AI fit again</button>}
         {!result && !busy && (ready || loading) && <button type="button" disabled={!ready || loading || applying} onClick={() => void generate()} className="min-h-11 rounded-lg bg-orange-600 px-5 py-2 text-sm font-bold text-white disabled:opacity-50">{error ? 'Retry same request' : 'Create fitted version'}</button>}
         {result && !busy && <button type="button" disabled={applying} onClick={() => void generate(true)} className="min-h-11 rounded-lg border border-orange-300 px-4 py-2 text-sm font-semibold text-orange-800 disabled:opacity-50">Try another layout</button>}
-        {result && <button type="button" disabled={busy || applying || !reviewed || !result.verification.passed} onClick={() => void apply()} className="min-h-11 rounded-lg bg-orange-600 px-5 py-2 text-sm font-bold text-white disabled:opacity-50">{applying ? 'Saving your layout…' : 'Use this version'}</button>}
+        {result && <button type="button" disabled={busy || applying || !reviewed || !canApply} onClick={() => void apply()} className="min-h-11 rounded-lg bg-orange-600 px-5 py-2 text-sm font-bold text-white disabled:opacity-50">{applying ? 'Saving your layout…' : 'Use this version'}</button>}
       </div>
       <Dialog open={zoom} onOpenChange={setZoom}><DialogContent className="max-h-[94dvh] w-[98vw] max-w-7xl overflow-auto p-3"><DialogTitle>Review your fitted design</DialogTitle><DialogDescription>Zoom in and check the wording, logos and fine details.</DialogDescription><img src={proposed} alt="Full fitted artwork for detailed review" className="h-auto w-full" /></DialogContent></Dialog>
     </DialogContent>
