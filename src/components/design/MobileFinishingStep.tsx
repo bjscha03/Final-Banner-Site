@@ -58,7 +58,7 @@ export default function MobileFinishingStep({ open, onBack, children, preview, s
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pb-4 [@media(max-height:600px)]:overflow-visible" data-testid="finishing-options-scroll">
                 {children}
                 <details className="rounded-xl border border-slate-200 bg-white p-4">
-                  <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold">Price &amp; delivery details</summary>
+                  <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold">Price details</summary>
                   <div className="space-y-4 pt-2">{summary}</div>
                 </details>
               </div>

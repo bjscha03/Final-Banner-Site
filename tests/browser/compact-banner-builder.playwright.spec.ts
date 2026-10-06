@@ -76,9 +76,12 @@ test('banner finishing preserves the artwork, price and cart through add-another
     expect(proofBox!.y).toBeGreaterThan(uploadBox!.y + uploadBox!.height);
 
   }
+  await expect(size.getByRole('button', { name: 'Custom size', exact: true })).toHaveAttribute('aria-expanded', 'false');
+  await size.getByRole('button', { name: 'Custom size', exact: true }).click();
   await size.getByRole('button', { name: 'Inches', exact: true }).click();
   await expect(page.getByLabel('Banner width in inches')).toHaveValue('72');
   await size.getByRole('button', { name: 'Feet', exact: true }).click();
+  await size.getByRole('button', { name: 'Custom size', exact: true }).click();
   const upload = async () => {
     const chooserPromise = page.waitForEvent('filechooser');
     if (mobile) {
@@ -106,9 +109,12 @@ test('banner finishing preserves the artwork, price and cart through add-another
   };
   await openFinishing();
   const choices = mobile ? finish : page.locator('#options-section');
+  await expect(choices.getByRole('button', { name: /Grommets/ })).toHaveAttribute('aria-pressed', 'true');
+  await expect(choices.getByLabel('Grommet placement')).toHaveValue('every-2-3ft');
   if (mobile) {
-    await expect(finish.getByRole('button', { name: 'Choose a finishing option', exact: true })).toBeDisabled();
-    await expect(finish.getByRole('button', { name: 'Add & design another', exact: true })).toBeDisabled();
+    await expect(finish.getByRole('button', { name: 'Continue to checkout', exact: true })).toBeEnabled();
+    await expect(finish.getByRole('button', { name: 'Add & design another', exact: true })).toBeEnabled();
+    await expect(finish.locator('footer [data-price-delivery-estimate]')).toContainText('Estimated delivery:');
   }
   await choices.getByRole('button', { name: /Rope in Welded Hem/ }).click();
   await choices.getByLabel('Rope placement').selectOption('bottom');
@@ -174,15 +180,21 @@ test('banner finishing preserves the artwork, price and cart through add-another
   expect(dimensions.width! / dimensions.height!).toBeCloseTo(2, 2);
   await upload();
   await openFinishing();
+  await expect(choices.getByRole('button', { name: /Grommets/ })).toHaveAttribute('aria-pressed', 'true');
   if (mobile) {
-    await expect(finish.getByRole('button', { name: 'Choose a finishing option', exact: true })).toBeDisabled();
+    await expect(finish.getByRole('button', { name: 'Continue to checkout', exact: true })).toBeEnabled();
     await choices.getByRole('button', { name: /No hanging hardware/ }).click();
     await expect(finish.locator('[data-realistic-grommet], [data-realistic-pocket], [data-realistic-rope]')).toHaveCount(0);
+  } else {
+    await choices.getByRole('button', { name: /Grommets/ }).click();
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
   await page.screenshot({ path: testInfo.outputPath('finishing-step.png') });
   await page.getByRole('button', { name: 'Continue to checkout', exact: true }).filter({ visible: true }).click();
   await expect(page).toHaveURL(/\/checkout/, { timeout: 60000 });
+  await expect(page.locator('[data-checkout-header]')).toContainText('Secure checkout');
+  await expect(page.locator('header nav')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /menu/i })).toHaveCount(0);
   const finalCart = await page.evaluate(() => JSON.parse(localStorage.getItem('cart-storage') || '{}').state.items);
   expect(finalCart).toHaveLength(2);
   expect(finalCart[0].id).toBe(savedId);

@@ -134,6 +134,7 @@ const ProductBuyingGuide: React.FC<ProductBuyingGuideProps> = ({
                 const card = <article data-size-snapshot className="flex min-h-[300px] min-w-0 flex-col border border-slate-200 bg-white p-5 transition-colors hover:border-[#FF6A00] hover:bg-[#FFF9F5] sm:p-6">
                   <SizeSnapshot productSlug={product.slug} index={index} />
                   <h3 className="mt-5 font-display text-lg font-bold leading-6 text-[#0B1F3A]">{example.label}</h3>
+                  {isBannerExample && <p className="mt-1 text-xs text-slate-500">{widthIn / 12} ft wide × {heightIn / 12} ft high</p>}
                   {!sharedConfiguration && <p className="mt-2 text-sm leading-5 text-slate-600">{example.configuration}</p>}
                   <div className="mt-auto pt-5">
                     <p className="font-display text-2xl font-bold text-[#A63C00]">{formatMoney(example.totalCents)}</p>

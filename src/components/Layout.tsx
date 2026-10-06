@@ -20,6 +20,7 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children, checkoutMode = false }) => {
   const location = useLocation();
   const isHomepage = location.pathname === '/';
+  const isCheckout = checkoutMode || location.pathname === '/checkout';
   const { getItemCount } = useCartStore();
   const { isCartOpen, setIsCartOpen } = useUIStore();
   const [hasMounted, setHasMounted] = React.useState(false);
@@ -32,22 +33,22 @@ const Layout: React.FC<LayoutProps> = ({ children, checkoutMode = false }) => {
     <div className="brand-page max-w-[100vw] overflow-x-clip">
       <ScrollToTop />
       {!location.pathname.startsWith('/admin') && <PromoBanner showStandardPromo={isHomepage} />}
-      <Header
-        cartCount={hasMounted ? getItemCount() : 0}
-        onCartClick={openCart}
-      />
-      {checkoutMode && (
-        <div data-checkout-header className="flex items-center justify-center gap-2 bg-[#061A31] px-4 py-2 text-sm font-semibold text-white">
-          <LockKeyhole className="h-4 w-4 text-[#FF8A3D]" aria-hidden="true" />
-          <span>Secure checkout</span>
-        </div>
+      {isCheckout ? (
+        <header data-checkout-header className="border-b-2 border-[#FF6A00] bg-[#061A31] px-4 py-3 text-white">
+          <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
+            <img src="/images/homepage/header-logo-reverse.png" alt="Banners On The Fly" width="248" height="80" className="h-auto w-36 sm:w-44" />
+            <span className="flex items-center gap-2 text-xs font-semibold sm:text-sm"><LockKeyhole className="h-4 w-4 text-[#FF8A3D]" aria-hidden="true" />Secure checkout</span>
+          </div>
+        </header>
+      ) : (
+        <Header cartCount={hasMounted ? getItemCount() : 0} onCartClick={openCart} />
       )}
       <main className="w-full max-w-[100vw] overflow-x-clip">
         {location.pathname.startsWith('/admin') && location.pathname !== '/admin/setup' && location.pathname !== '/admin/site-issues' && <React.Suspense fallback={null}><SiteIssueAlert /></React.Suspense>}
         {children}
       </main>
 
-      {checkoutMode ? (
+      {isCheckout ? (
         <footer className="border-t border-slate-200 bg-white">
           <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-6 text-center text-xs text-slate-600 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:text-left lg:px-8">
             <p>Secure encrypted checkout · Nationwide U.S. delivery</p>
