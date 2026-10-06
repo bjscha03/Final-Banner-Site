@@ -29,7 +29,7 @@ describe('first-party issue capture', () => {
   it('rejects foreign origins, unsupported events, oversized bodies and non-production writes', async () => {
     expect((await report(request('POST', body(), { origin: 'https://attacker.example' }), context)).status).toBe(403);
     expect((await report(request('POST', { ...body(), kind: 'made_up' }), context)).status).toBe(400);
-    expect((await report(request('POST', { ...body(), extra: 'x'.repeat(9000) }), context)).status).toBe(413);
+    expect((await report(request('POST', { ...body(), extra: 'x'.repeat(33000) }), context)).status).toBe(413);
     expect((await report(request('POST', body()), { deploy: { context: 'deploy-preview' } } as any)).status).toBe(503);
     expect(mocks.getStore).not.toHaveBeenCalled();
   });
@@ -71,4 +71,16 @@ describe('protected issue log', () => {
     expect((await admin(request('PATCH', update, { authorization: 'test-token' }), context)).status).toBe(200);
     expect(mocks.records.get(update.key)).toMatchObject({ status: 'reviewed', details: event.details });
   });
+});
+
+it('preserves bounded crash evidence through storage normalization and redacts secrets', () => {
+  const saved = normalizeReport({ ...body(), page: '/banner-finishing?token=secret', details: {
+    errorMessage: 'Failed for customer@example.com token=abc sk_test_123456',
+    stack: 'TypeError: failed\n at render (https://bannersonthefly.com/assets/main-abc.js:9:3572)',
+    componentStack: '\n at Preview', breadcrumbs: 'upload_success',
+  } }, 'Chrome/130.0 Windows', 'deploy-test')!;
+  expect(saved.page).toBe('/banner-finishing');
+  expect(saved.details.stack).toContain('/assets/main-abc.js:9:3572');
+  expect(saved.details.componentStack).toContain('Preview');
+  expect(JSON.stringify(saved)).not.toMatch(/customer@example|token=abc|sk_test_123456/);
 });

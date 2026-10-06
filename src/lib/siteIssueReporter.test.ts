@@ -13,7 +13,7 @@ describe('operational issue reporter', () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(fetch).toHaveBeenCalledTimes(1);
     const sent = JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);
-    expect(sent.details).toEqual({ phase: 'direct_upload', mimeType: 'png' });
+    expect(sent.details).toMatchObject({ phase: 'direct_upload', mimeType: 'png' });
     expect(sent.page).toBe('/design'); expect(JSON.stringify(sent)).not.toContain('secret');
   });
   it('retains a failed report and retries it without throwing or changing the report ID', async () => {
@@ -48,4 +48,21 @@ describe('operational issue reporter', () => {
     expect(JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string).details.durationMs).toBe(45_000);
     trackUploadIssue('upload_success'); expect(fetch).toHaveBeenCalledTimes(1);
   });
+});
+
+it('captures actionable crash evidence and redacts sensitive URL data', async () => {
+  const { reportPageIssue, recordIssueAction } = await import('./siteIssueReporter');
+  window.history.replaceState({}, '', '/banner-finishing?token=private');
+  recordIssueAction('upload_success');
+  const error = new TypeError("Cannot read properties of undefined (reading 'width')");
+  error.stack = error.message + '\n at render (https://bannersonthefly.com/assets/designer-abc.js:9:3572)';
+  reportPageIssue('page_crash', error, undefined, undefined, undefined, '\n at BannerPreview');
+  await vi.advanceTimersByTimeAsync(1);
+  const sent = JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);
+  expect(sent.page).toBe('/banner-finishing');
+  expect(sent.details.errorMessage).toContain("reading 'width'");
+  expect(sent.details.stack).toContain('/assets/designer-abc.js:9:3572');
+  expect(sent.details.componentStack).toContain('BannerPreview');
+  expect(sent.details.breadcrumbs).toContain('upload_success');
+  expect(JSON.stringify(sent)).not.toContain('token=private');
 });

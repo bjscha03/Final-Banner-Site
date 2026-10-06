@@ -45,7 +45,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    reportPageIssue('page_crash', error);
+    reportPageIssue('page_crash', error, undefined, undefined, undefined, errorInfo.componentStack || undefined);
     console.error('ErrorBoundary caught an error:', error, errorInfo);
   }
 
