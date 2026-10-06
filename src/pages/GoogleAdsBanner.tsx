@@ -3173,6 +3173,7 @@ const GoogleAdsBanner: React.FC = () => {
                             paddingPct={previewPaddingPct}
                             containerRef={previewContainerRef}
                             mobileToolbarContainer={inlineMobileToolbarEl}
+                            fitControls={artworkFitControls}
                             value={{ x: imgPos.x, y: imgPos.y, scaleX: imgScale, scaleY: imgScaleY }}
                             onChange={(v) => {
                               setImgPos({ x: v.x, y: v.y });
@@ -3217,7 +3218,6 @@ const GoogleAdsBanner: React.FC = () => {
                         className="mt-2"
                         data-mobile-artwork-toolbar="ga-inline"
                       />
-                      {artworkFitControls}
                       {/* Size dimensions below preview */}
                       <p className="text-xs text-gray-400 text-center mt-2">
                         Size: {isCarMagnet ? `${widthIn}" × ${heightIn}"` : `${widthFt} ft${widthInR > 0 ? ` ${widthInR} in` : ''} × ${heightFt} ft${heightInR > 0 ? ` ${heightInR} in` : ''}`} ({sqft.toFixed(1)} sq ft)
@@ -3753,6 +3753,7 @@ const GoogleAdsBanner: React.FC = () => {
                     paddingPct={previewPaddingPct}
                     containerRef={previewContainerRef}
                     mobileToolbarContainer={modalMobileToolbarEl}
+                    fitControls={artworkFitControls}
                     value={{ x: imgPos.x, y: imgPos.y, scaleX: imgScale, scaleY: imgScaleY }}
                     onChange={(v) => {
                       setImgPos({ x: v.x, y: v.y });
@@ -3796,7 +3797,6 @@ const GoogleAdsBanner: React.FC = () => {
                 className="mt-2"
                 data-mobile-artwork-toolbar="ga-modal"
               />
-              {artworkFitControls}
               {/* Size below preview */}
               <p className="text-xs text-gray-400 text-center mt-2">
                 Size: {widthFt} ft{widthInR > 0 ? ` ${widthInR} in` : ''} × {heightFt} ft{heightInR > 0 ? ` ${heightInR} in` : ''} ({sqft.toFixed(1)} sq ft)

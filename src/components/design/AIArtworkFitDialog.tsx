@@ -9,7 +9,7 @@ import { artworkFitIdentity, canApplyArtworkFit, prepareArtworkFitSource, saveFi
 import { logUx } from '@/lib/uxAnalytics';
 
 export function ArtworkFitButton({ onClick, disabled, onRestore }: { onClick: () => void; disabled?: boolean; onRestore?: () => void }) {
-  return <div className="mt-3 rounded-xl border border-orange-200 bg-orange-50/70 p-3">
+  return <div className="mt-3 border-t border-slate-100 pt-3">
     <p className="text-sm font-semibold text-slate-900">Need a better fit for this size?</p>
     <p className="mt-1 text-xs leading-relaxed text-slate-600">Let AI rearrange your existing design. Compare it before making a change.</p>
     <div className="mt-2 flex flex-wrap gap-2">

@@ -3401,6 +3401,7 @@ const Design: React.FC = () => {
                           paddingPct={previewPaddingPct}
                           containerRef={previewContainerRef}
                           mobileToolbarContainer={inlineMobileToolbarEl}
+                          fitControls={artworkFitControls}
                           value={{ x: imgPos.x, y: imgPos.y, scaleX: imgScale, scaleY: imgScaleY }}
                           onChange={(v) => {
                             setImgPos({ x: v.x, y: v.y });
@@ -3446,7 +3447,6 @@ const Design: React.FC = () => {
                       className="mt-2"
                       data-mobile-artwork-toolbar="inline"
                     />
-                    {artworkFitControls}
                     <p className="text-xs text-gray-400 text-center mt-2">
                       Size: {widthFt} ft{widthInR > 0 ? ` ${widthInR} in` : ''} × {heightFt} ft{heightInR > 0 ? ` ${heightInR} in` : ''} ({sqft.toFixed(1)} sq ft)
                     </p>
@@ -3701,6 +3701,7 @@ const Design: React.FC = () => {
                     paddingPct={previewPaddingPct}
                     containerRef={previewContainerRef}
                     mobileToolbarContainer={modalMobileToolbarEl}
+                    fitControls={artworkFitControls}
                     value={{ x: imgPos.x, y: imgPos.y, scaleX: imgScale, scaleY: imgScaleY }}
                     onChange={(v) => {
                       setImgPos({ x: v.x, y: v.y });
@@ -3744,7 +3745,6 @@ const Design: React.FC = () => {
                 className="mt-2"
                 data-mobile-artwork-toolbar="modal"
               />
-              {artworkFitControls}
               <p className="text-xs text-gray-400 text-center mt-2">
                 Size: {widthFt} ft{widthInR > 0 ? ` ${widthInR} in` : ''} × {heightFt} ft{heightInR > 0 ? ` ${heightInR} in` : ''} ({sqft.toFixed(1)} sq ft)
               </p>
