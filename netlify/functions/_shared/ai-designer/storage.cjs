@@ -140,7 +140,7 @@ function jobFolder() {
 
 function jobPayload(reference, session = null) {
   const payload = readSignedPayload(reference);
-  if (!payload || payload.kind !== 'ai-designer-job' || !['brief', 'generate', 'edit'].includes(payload.action)) return null;
+  if (!payload || payload.kind !== 'ai-designer-job' || !['brief', 'generate', 'edit', 'fit'].includes(payload.action)) return null;
   if (session && payload.sub !== subjectHash(session)) return null;
   return payload;
 }
@@ -189,7 +189,7 @@ async function fetchJobRecord(payload) {
 
 async function createJob({ session, action, request, jobId }) {
   configure();
-  if (!['brief', 'generate', 'edit'].includes(action) || !/^[a-f0-9]{64}$/.test(String(jobId || ''))) {
+  if (!['brief', 'generate', 'edit', 'fit'].includes(action) || !/^[a-f0-9]{64}$/.test(String(jobId || ''))) {
     const error = new Error('Invalid AI job.');
     error.code = 'INVALID_REQUEST';
     throw error;

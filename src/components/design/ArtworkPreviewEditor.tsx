@@ -41,6 +41,7 @@ export interface ArtworkPreviewEditorProps {
   compactControls?: boolean;
   canvasStyle?: React.CSSProperties;
   mobileToolbarContainer?: HTMLElement | null;
+  fitControls?: React.ReactNode;
   imageCrossOrigin?: '' | 'anonymous' | 'use-credentials';
   onRetryPreview?: () => void | Promise<void>;
   /** Source + product configuration key used to isolate normalized geometry. */
@@ -122,6 +123,7 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
   compactControls = false,
   canvasStyle,
   mobileToolbarContainer,
+  fitControls,
   imageCrossOrigin,
   onRetryPreview,
   compositionKey,
@@ -642,6 +644,7 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
       <p className="mt-1 flex items-center justify-center gap-1.5 text-[11px] text-slate-500">
         <Hand aria-hidden="true" className="h-3.5 w-3.5" />Drag to move · Pinch or drag corners to resize
       </p>
+      {fitControls}
       <details className="mt-2 border-t border-slate-100 pt-2">
         <summary className="min-h-11 cursor-pointer py-3 text-xs font-semibold text-slate-600">Advanced adjustments</summary>
         <div className="flex flex-wrap items-center gap-2">

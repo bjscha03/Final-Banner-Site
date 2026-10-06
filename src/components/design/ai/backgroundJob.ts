@@ -31,6 +31,8 @@ export function forgetPendingJob(job: PendingAIJob) {
 export class AIJobFailedError extends Error {}
 
 function completedResultIsValid(job: Record<string, any>, startPath: string) {
+  if (startPath.endsWith('/ai-designer-fit')) return Boolean(job.fit?.id && job.fit.imageBase64
+    && job.fit.widthIn > 0 && job.fit.heightIn > 0 && typeof job.fit.verification?.passed === 'boolean');
   const validConcept = (concept: Record<string, any>) => Boolean(concept?.versionId && concept.imageBase64 && concept.backgroundRef && concept.validation?.checks && concept.diagnostics);
   if (startPath.endsWith('/ai-designer-edit')) return job.usedOriginalImage === true && validConcept(job.concept);
   if (startPath.endsWith('/ai-designer-generate')) return Array.isArray(job.concepts) && job.concepts.length > 0 && job.concepts.every(validConcept);

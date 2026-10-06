@@ -23,6 +23,10 @@ import { isCustomerTrackingAllowed } from './trackingPolicy';
 import { trackUploadIssue } from './siteIssueReporter';
 
 export type UxEvent =
+  | 'ai_fit_start'
+  | 'ai_fit_complete'
+  | 'ai_fit_error'
+  | 'ai_fit_applied'
   | 'cta_click'
   | 'sticky_cta_rendered'
   | 'step_validation_failed'
