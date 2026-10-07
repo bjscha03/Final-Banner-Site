@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderPdfToDataUrl } from '../renderPdfToDataUrl';
 
 const {
@@ -29,6 +29,10 @@ const {
       destroy: vi.fn(),
     },
     mockPdfjsLib: {
+      PDFDataRangeTransport: class {
+        onDataRange = vi.fn();
+        constructor(public length: number, public initialData: Uint8Array) {}
+      },
       getDocument: vi.fn(),
       GlobalWorkerOptions: { workerSrc: '' },
     },
@@ -60,6 +64,7 @@ describe('renderPdfToDataUrl', () => {
   let mockCanvas: ReturnType<typeof createMockCanvas>;
 
   beforeEach(() => {
+    vi.stubGlobal('window', { setTimeout, clearTimeout, matchMedia: () => ({ matches: false }) });
     vi.clearAllMocks();
     mockPdf.numPages = 2;
     mockLoadingTask.promise = Promise.resolve(mockPdf);
@@ -76,6 +81,7 @@ describe('renderPdfToDataUrl', () => {
       createElement: vi.fn().mockReturnValue(mockCanvas),
     } as unknown as Document;
   });
+  afterEach(() => vi.unstubAllGlobals());
 
   it('rejects non-PDF files', async () => {
     const file = new File(['content'], 'test.txt', { type: 'text/plain' });
@@ -127,6 +133,28 @@ describe('renderPdfToDataUrl', () => {
     expect(mockPdf.destroy).toHaveBeenCalled();
     expect(mockCanvas.context.imageSmoothingEnabled).toBe(true);
     expect(mockCanvas.context.imageSmoothingQuality).toBe('high');
+  });
+
+  it('reads only requested slices of a large PDF instead of copying the whole original', async () => {
+    const file = new File(['%PDF-1.7 page bytes'], 'large.pdf', { type: 'application/pdf' });
+    Object.defineProperty(file, 'size', { value: 300 * 1024 * 1024 });
+    const fullRead = vi.spyOn(file, 'arrayBuffer').mockRejectedValue(new Error('Full read must not run'));
+    const slice = vi.spyOn(file, 'slice');
+    mockPdfjsLib.getDocument.mockImplementationOnce(source => {
+      expect(source.data).toBeUndefined();
+      expect(source.disableAutoFetch).toBe(true);
+      expect(source.disableStream).toBe(true);
+      source.range.requestDataRange(8, 16);
+      return mockLoadingTask;
+    });
+    await renderPdfToDataUrl(file);
+    expect(fullRead).not.toHaveBeenCalled();
+    expect(slice).toHaveBeenCalledWith(0, 64 * 1024);
+    expect(slice).toHaveBeenCalledWith(8, 16);
+    const range = mockPdfjsLib.getDocument.mock.calls[0][0].range;
+    expect(range.onDataRange).toHaveBeenCalledWith(8, expect.any(Uint8Array));
+    range.requestDataRange(0, 8);
+    expect(slice).toHaveBeenCalledTimes(2);
   });
 
   it('preserves aspect ratio while honoring target dimensions and pixel caps', async () => {

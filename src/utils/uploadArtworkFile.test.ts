@@ -141,7 +141,7 @@ afterEach(() => {
 });
 
 describe('uploadArtworkFile', () => {
-  it('rejects an original above 50MB before requesting a ticket or starting an upload', async () => {
+  it('rejects an original above 300MB before requesting a ticket or starting an upload', async () => {
     const fetchSpy = vi.fn();
     const xhrSpy = vi.fn();
     vi.stubGlobal('fetch', fetchSpy);
@@ -154,9 +154,18 @@ describe('uploadArtworkFile', () => {
   });
 
   it('accepts the exact storage limit and rejects the next byte', () => {
-    expect(MAX_ARTWORK_BYTES).toBe(52_428_800);
+    expect(MAX_ARTWORK_BYTES).toBe(314_572_800);
     expect(validateArtworkFile({ name: 'banner.pdf', type: 'application/pdf', size: MAX_ARTWORK_BYTES })).toBeNull();
     expect(validateArtworkFile({ name: 'banner.pdf', type: 'application/pdf', size: MAX_ARTWORK_BYTES + 1 })).toBe(ARTWORK_SIZE_MESSAGE);
+  });
+
+  it('accepts print files above the former 50MB cap and reports their actual size bucket', () => {
+    for (const extension of ['pdf', 'png', 'jpg']) {
+      const file = { name: `banner.${extension}`, type: '', size: 51 * 1024 * 1024 };
+      expect(validateArtworkFile(file)).toBeNull();
+      expect(getArtworkUploadDiagnostic(null, file).sizeBucket).toBe('50mb-300mb');
+      expect(getArtworkUploadDiagnostic(null, { ...file, size: MAX_ARTWORK_BYTES + 1 }).sizeBucket).toBe('over-300mb');
+    }
   });
 
   it('explains the actual storage rejection without blaming the customer connection', () => {
@@ -175,7 +184,7 @@ describe('uploadArtworkFile', () => {
 
     const oversized = new File(['x'], 'banner.png', { type: 'image/png' });
     Object.defineProperty(oversized, 'size', { value: MAX_ARTWORK_BYTES + 1 });
-    expect(validateArtworkFile(oversized)).toContain('50MB');
+    expect(validateArtworkFile(oversized)).toContain('300MB');
   });
 
   it('creates a browser-safe first-page image for Cloudinary PDFs', () => {

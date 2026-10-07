@@ -1,6 +1,6 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 
-export const MAX_BYTES = 50 * 1024 * 1024;
+export const MAX_BYTES = 300 * 1024 * 1024;
 export const CHUNK_BYTES = 3 * 1024 * 1024;
 const TTL = 2 * 60 * 60 * 1000;
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -17,7 +17,7 @@ export function createLargeArtworkHandler(getStore, { cloudName, now = Date.now 
       const input = await request.json();
       const format = String(input.fileName || '').split('.').pop().toLowerCase();
       if (!['png', 'jpg', 'jpeg', 'pdf'].includes(format)) return json({ error: 'Unsupported artwork type' }, 415);
-      if (!Number.isSafeInteger(input.size) || input.size <= 0 || input.size > MAX_BYTES) return json({ error: 'Maximum artwork size is 50MB' }, 413);
+      if (!Number.isSafeInteger(input.size) || input.size <= 0 || input.size > MAX_BYTES) return json({ error: 'Maximum artwork size is 300MB' }, 413);
       const id = randomUUID();
       const token = randomBytes(32).toString('hex');
       const session = { id, tokenHash: digest(token), size: input.size, format, fileName: String(input.fileName).slice(0, 200), createdAt: now() };

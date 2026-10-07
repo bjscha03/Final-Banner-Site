@@ -85,6 +85,7 @@ import {
   getArtworkUploadDiagnostic,
   uploadArtworkFile,
   MAX_ARTWORK_BYTES,
+  MAX_ARTWORK_MB,
   getArtworkUploadMessage,
   validateArtworkFile,
 } from '@/utils/uploadArtworkFile';
@@ -1338,7 +1339,7 @@ const GoogleAdsBanner: React.FC = () => {
         correlationId,
         signal: controller.signal,
         onProgress: (fraction) => {
-          if (generation === uploadGenerationRef.current) setUploadProgress(Math.round(fraction * 100));
+          if (generation === uploadGenerationRef.current) setUploadProgress(fraction * 100);
         },
         onAttempt: (attempt, maximum) => {
           console.info('[artwork_upload]', {
@@ -1622,7 +1623,7 @@ const GoogleAdsBanner: React.FC = () => {
     setUploadError('This upload stopped responding. Your file and choices are saved here. Tap Retry upload to try again.');
     const file = activeUploadFileRef.current;
     logUx('upload_timeout', file ? getArtworkUploadDiagnostic(null, file) : undefined);
-  });
+  }, activeUploadFileRef.current?.size);
 
   const ensurePermanentArtworkUploaded = useCallback(async (): Promise<UploadedArtworkFile | null> => {
     let current = uploadedFileRef.current;
@@ -2690,7 +2691,7 @@ const GoogleAdsBanner: React.FC = () => {
 
 
   const bannerAction = isProcessingUpsell || isUploading
-    ? { label: isUploading ? (uploadProgress >= 100 ? 'Finalizing artwork…' : uploadProgress > 0 ? `Uploading · ${uploadProgress}%` : 'Uploading artwork…') : 'Saving your design…', disabled: true, onClick: () => {} }
+    ? { label: isUploading ? (uploadProgress >= 100 ? 'Finalizing artwork…' : uploadProgress > 0 ? `Uploading · ${Math.floor(uploadProgress)}%` : 'Uploading artwork…') : 'Saving your design…', disabled: true, onClick: () => {} }
     : uploadError && activeUploadFileRef.current && !hasPermanentArtwork(uploadedFile)
       ? { label: 'Retry upload', disabled: false, onClick: () => { void retryActiveArtworkUpload(); } }
     : hasJustAddedToCart
@@ -3111,7 +3112,7 @@ const GoogleAdsBanner: React.FC = () => {
                         acceptedTypes="image/png,image/jpeg,application/pdf,.png,.jpg,.jpeg,.pdf"
                         maxSize={MAX_ARTWORK_BYTES}
                         label="Upload your artwork"
-                        subText={`PNG, JPG, or PDF • Max 50MB • ${widthDisplay} × ${heightDisplay}`}
+                        subText={`PNG, JPG, or PDF • Max ${MAX_ARTWORK_MB}MB • ${widthDisplay} × ${heightDisplay}`}
                         isUploading={isUploading}
                         style={previewCanvasStyle}
                         className="mx-auto"
@@ -3260,7 +3261,7 @@ const GoogleAdsBanner: React.FC = () => {
                     </div>
                   )}
                   {isUploading && <div role="status" className="mt-3 rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm text-slate-700">
-                    <p>{uploadProgress >= 100 ? 'Finalizing artwork…' : `Uploading artwork${uploadProgress > 0 ? ` · ${uploadProgress}%` : '…'}`}</p>
+                    <p>{uploadProgress >= 100 ? 'Finalizing artwork…' : `Uploading artwork${uploadProgress > 0 ? ` · ${Math.floor(uploadProgress)}%` : '…'}`}</p>
                     <button type="button" onClick={cancelArtworkUpload} className="min-h-11 font-semibold underline">Cancel upload</button>
                   </div>}
                   {uploadError && <div role="alert" className="mt-2 text-sm text-red-600"><p>{uploadError}</p>{activeUploadFileRef.current && <button type="button" disabled={isUploading} onClick={() => void retryActiveArtworkUpload()} className="min-h-11 font-semibold underline">Retry upload</button>}</div>}
