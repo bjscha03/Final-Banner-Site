@@ -19,7 +19,7 @@ class ChunkXhr {
   send(body: Blob) { this.body = body; }
   abort = vi.fn(() => this.onabort?.());
 }
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 function upload(signal = new AbortController().signal) {
   vi.stubGlobal('XMLHttpRequest', ChunkXhr);
   const body = new Blob(['unchanged original file bytes']);
@@ -61,5 +61,57 @@ describe('large artwork chunk transfer', () => {
   it('marks transport timeouts as retryable', async () => {
     const { result, xhr } = upload(); xhr.ontimeout();
     await expect(result).rejects.toMatchObject({ phase: 'chunked', retryable: true });
+  });
+});
+
+describe('customer retry resumes the same original', () => {
+  it.each(['chunk', 'complete'])('retains accepted chunks after a failed %s response', async failureAt => {
+    vi.useFakeTimers();
+    vi.stubGlobal('window', { setTimeout, clearTimeout });
+    vi.stubGlobal('Image', class {
+      naturalWidth = 720; naturalHeight = 288; onload: any;
+      set src(_value: string) { queueMicrotask(() => this.onload?.()); }
+    });
+    vi.stubGlobal('document', { createElement: () => ({
+      width: 0, height: 0, getContext: () => ({ drawImage() {} }),
+      toBlob: (cb: any) => cb(new Blob(['preview'], { type: 'image/png' })),
+    }) });
+    let failing = true;
+    const sent: number[] = [];
+    vi.stubGlobal('XMLHttpRequest', class extends ChunkXhr {
+      index = -1;
+      open = vi.fn((_method: string, url: string) => { this.index = Number(new URL(url, 'https://test.local').searchParams.get('index')); });
+      send(body: Blob) {
+        this.body = body; sent.push(this.index);
+        queueMicrotask(() => {
+          if (failing && failureAt === 'chunk' && this.index === 1) this.onerror();
+          else this.onload();
+        });
+      }
+    });
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.includes('upload-file')) return Response.json({ secureUrl: 'https://res.cloudinary.com/test/image/upload/p.png', publicId: 'preview' });
+      if (url.includes('action=start')) return Response.json({ id: 'session-1', token: 'token-1', chunkBytes: 3 * 1024 * 1024 });
+      if (url.includes('action=complete')) {
+        if (failing && failureAt === 'complete') throw new TypeError('Lost final response');
+        return Response.json({ secureUrl: 'https://bannersonthefly.com/artwork-original/saved/original.pdf', publicId: 'saved', previewUrl: 'https://res.cloudinary.com/test/image/upload/p.png' });
+      }
+      throw new Error('Unexpected request');
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const { uploadLargeArtworkFile } = await import('./uploadLargeArtworkFile');
+    const file = new File([new Uint8Array(6 * 1024 * 1024 + 17)], 'original.pdf', { type: 'application/pdf' });
+    const first = uploadLargeArtworkFile(file, { previewUrl: 'blob:preview' }).catch(error => error);
+    await vi.runAllTimersAsync();
+    expect(await first).toBeInstanceOf(Error);
+    const sentBeforeRetry = sent.length;
+    failing = false;
+    const second = uploadLargeArtworkFile(file, { previewUrl: 'blob:preview' });
+    await vi.runAllTimersAsync();
+    expect((await second).transport).toBe('netlify-original');
+    expect(sent.slice(sentBeforeRetry)).toEqual(failureAt === 'chunk' ? [1, 2] : []);
+    expect(fetchMock.mock.calls.filter(([url]) => url.includes('action=start'))).toHaveLength(1);
+    expect(fetchMock.mock.calls.filter(([url]) => url.includes('upload-file'))).toHaveLength(1);
+    vi.useRealTimers();
   });
 });

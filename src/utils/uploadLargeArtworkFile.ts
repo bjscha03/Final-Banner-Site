@@ -4,6 +4,14 @@ import {
 } from './uploadArtworkFile';
 
 const ENDPOINT = '/.netlify/functions/artwork-original-upload';
+type OriginalUploadState = {
+  session: { id: string; token: string; chunkBytes: number };
+  previewUrl: string; width: number; height: number;
+  nextOffset: number; createdAt: number;
+};
+// Keep recovery tied to the exact File object, in memory only. A customer can
+// retry without re-sending confirmed chunks or persisting upload credentials.
+const pendingOriginals = new WeakMap<File, OriginalUploadState>();
 
 // Fetch has no upload progress events. Report bytes within each chunk so a
 // slow but healthy large upload does not look stalled to the page watchdog.
@@ -107,22 +115,44 @@ async function makePreview(file: File, options: UploadArtworkOptions): Promise<{
 }
 
 export async function uploadLargeArtworkFile(file: File, options: UploadArtworkOptions): Promise<ArtworkUploadResult> {
-  const preview = await makePreview(file, options);
-  // Preview upload uses the established small-file path. Production always
-  // points to the untouched original below, never to this display image.
-  const savedPreview = await uploadArtworkFile(preview.file, { signal: options.signal });
-  const session = await request('start', JSON.stringify({ fileName: file.name, size: file.size }), options);
-  if (!session.id || !session.token || !Number.isSafeInteger(session.chunkBytes) || session.chunkBytes <= 0 || session.chunkBytes > 3 * 1024 * 1024) {
-    throw new ArtworkUploadError('Artwork upload session was incomplete.', { phase: 'ticket', retryable: true });
+  let state = pendingOriginals.get(file);
+  if (state && Date.now() - state.createdAt >= 90 * 60_000) {
+    pendingOriginals.delete(file);
+    state = undefined;
   }
-  for (let offset = 0, index = 0; offset < file.size; offset += session.chunkBytes, index++) {
-    const end = Math.min(offset + session.chunkBytes, file.size);
-    await request('chunk', file.slice(offset, end), options, session, index, fraction => {
-      options.onProgress?.(0.95 * (offset + fraction * (end - offset)) / file.size);
-    });
-    options.onProgress?.(0.95 * end / file.size);
+  if (!state) {
+    const preview = await makePreview(file, options);
+    // Preview upload uses the established small-file path. Production always
+    // points to the untouched original below, never to this display image.
+    const savedPreview = await uploadArtworkFile(preview.file, { signal: options.signal });
+    const session = await request('start', JSON.stringify({ fileName: file.name, size: file.size }), options);
+    if (!session.id || !session.token || !Number.isSafeInteger(session.chunkBytes) || session.chunkBytes <= 0 || session.chunkBytes > 3 * 1024 * 1024) {
+      throw new ArtworkUploadError('Artwork upload session was incomplete.', { phase: 'ticket', retryable: true });
+    }
+    state = { session, previewUrl: savedPreview.secureUrl, width: preview.width, height: preview.height, nextOffset: 0, createdAt: Date.now() };
+    pendingOriginals.set(file, state);
   }
-  const result = await request('complete', JSON.stringify({ previewUrl: savedPreview.secureUrl, width: preview.width, height: preview.height }), options, session);
-  options.onProgress?.(1);
-  return normalizeUploadResponse(result, file, 'netlify-original');
+  const { session } = state;
+  options.onProgress?.(0.95 * state.nextOffset / file.size);
+  try {
+    for (let offset = state.nextOffset; offset < file.size; offset += session.chunkBytes) {
+      const index = offset / session.chunkBytes;
+      const end = Math.min(offset + session.chunkBytes, file.size);
+      await request('chunk', file.slice(offset, end), options, session, index, fraction => {
+        options.onProgress?.(0.95 * (offset + fraction * (end - offset)) / file.size);
+      });
+      state.nextOffset = end;
+      options.onProgress?.(0.95 * end / file.size);
+    }
+    const result = await request('complete', JSON.stringify({ previewUrl: state.previewUrl, width: state.width, height: state.height }), options, session);
+    const normalized = normalizeUploadResponse(result, file, 'netlify-original');
+    options.onProgress?.(1);
+    pendingOriginals.delete(file);
+    return normalized;
+  } catch (error) {
+    // Retain progress for network/timeout/cancel recovery, but never reuse an
+    // expired, unauthorized, or conflicting upload session.
+    if (error instanceof ArtworkUploadError && [403, 409, 410].includes(error.status || 0)) pendingOriginals.delete(file);
+    throw error;
+  }
 }

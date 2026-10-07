@@ -136,6 +136,18 @@ export function getArtworkUploadDiagnostic(
   };
 }
 
+/** Evidence for the first-party admin issue log, never analytics tags. */
+export function getArtworkUploadEvidence(error: unknown, file: Pick<File, 'name' | 'size'>) {
+  const err = error instanceof Error ? error : null;
+  const message = err?.message || (typeof error === 'string' ? error : 'Artwork operation failed');
+  return {
+    fileBytes: file.size,
+    fileLimitBytes: MAX_ARTWORK_BYTES,
+    errorName: err?.name || 'Error',
+    errorMessage: file.name ? message.split(file.name).join('[artwork]') : message,
+  };
+}
+
 const extensionOf = (fileName: string) => {
   const match = String(fileName || '').trim().toLowerCase().match(/\.([a-z0-9]+)$/);
   return match?.[1] || '';

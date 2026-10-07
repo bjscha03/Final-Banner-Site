@@ -84,3 +84,8 @@ it('preserves bounded crash evidence through storage normalization and redacts s
   expect(saved.details.componentStack).toContain('Preview');
   expect(JSON.stringify(saved)).not.toMatch(/customer@example|token=abc|sk_test_123456/);
 });
+
+it('preserves exact upload sizes and validation evidence through the admin report', () => {
+  const saved = normalizeReport({ ...body(), details: { phase: 'validation', status: 413, fileBytes: 400000000, fileLimitBytes: 314572800, errorMessage: 'File exceeds upload limit' } }, 'Mobile Safari', 'deploy-test')!;
+  expect(saved.details).toEqual({ phase: 'validation', status: 413, fileBytes: 400000000, fileLimitBytes: 314572800, errorMessage: 'File exceeds upload limit' });
+});

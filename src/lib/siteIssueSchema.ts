@@ -45,6 +45,10 @@ export function issueDetails(input: unknown): SiteIssue['details'] {
     const value = values[key];
     if (typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 86_400_000) result[key] = Math.round(value);
   }
+  for (const key of ['fileBytes', 'fileLimitBytes']) {
+    const value = values[key];
+    if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 && value <= 5 * 1024 * 1024 * 1024) result[key] = value;
+  }
   for (const [key, limit] of Object.entries({ errorMessage: 1000, stack: 3000, componentStack: 1500, breadcrumbs: 1500 })) {
     const text = diagnosticText(values[key], limit); if (text) result[key] = text;
   }
