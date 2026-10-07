@@ -15,12 +15,9 @@ import {
 import StablePreviewImage from '@/components/preview/StablePreviewImage';
 
 const BRAND_BLUE = '#18448D';
-// Exact proof JPEGs can contain a very small white matte caused by source and
-// product aspect ratios differing by only a few pixels. A presentation-only
-// overscan hides that seam in compact and expanded previews without changing
-// the saved placement, production artwork, or grommet geometry. Realistic
-// surfaces must use the same artwork crop as the regular preview.
-export const FINALIZED_PREVIEW_BLEED_SCALE = 1.03;
+// Saved proofs are the approved print layout. Display every pixel, including
+// intentional margins; preview-only zoom would hide content and white edges
+// that remain in the production file.
 
 export interface BannerPreviewProps {
   widthIn: number;
@@ -263,10 +260,10 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
           ) : imageUrl && !baseFailed ? (
             <div
               className="absolute inset-0 h-full w-full"
-              data-preview-bleed-compensated={isApprovedSnapshot ? 'true' : 'false'}
+              data-preview-bleed-compensated="false"
               style={{
                 transform: isApprovedSnapshot
-                  ? `scale(${FINALIZED_PREVIEW_BLEED_SCALE})`
+                  ? 'none'
                   : `translate(${x}%, ${y}%) scale(${scaleX}, ${scaleY})`,
                 transformOrigin: 'center center',
               }}

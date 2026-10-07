@@ -61,7 +61,7 @@ for (const scenario of [
     await expect(lightbox.locator('[data-realistic-size-reference]')).toHaveCount(0);
     await expect(lightbox).not.toContainText('person');
     await expect(lightbox.locator('img').first()).toHaveAttribute('src', baseItem.final_render_url);
-    await expect(lightbox.locator('[data-preview-bleed-compensated]')).toHaveAttribute('data-preview-bleed-compensated', 'true');
+    await expect(lightbox.locator('[data-preview-bleed-compensated]')).toHaveAttribute('data-preview-bleed-compensated', 'false');
     await expect(lightbox.locator('[data-realistic-scene]')).toHaveAttribute('data-realistic-material', scenario.material === 'mesh' ? 'mesh' : 'vinyl');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
     const maskAlpha = await lightbox.locator('[data-realistic-surface]').evaluate(async (surface) => {

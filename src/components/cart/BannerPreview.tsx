@@ -8,7 +8,6 @@ import {
 } from '@/lib/commercePreviewUrl';
 
 const BRAND_BLUE = '#18448D';
-const FINALIZED_PREVIEW_BLEED_SCALE = 1.03;
 
 interface BannerPreviewProps {
   widthIn: number;
@@ -233,10 +232,10 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
           ) : activeUrl && !imageError ? (
             <div
               className="absolute inset-0 h-full w-full"
-              data-preview-bleed-compensated={isApprovedSnapshot ? 'true' : 'false'}
+              data-preview-bleed-compensated="false"
               style={{
                 transform: isApprovedSnapshot
-                  ? `scale(${FINALIZED_PREVIEW_BLEED_SCALE})`
+                  ? 'none'
                   : `translate(${x}%, ${y}%) scale(${scaleX}, ${scaleY})`,
                 transformOrigin: 'center center',
               }}
