@@ -671,7 +671,19 @@ const ArtworkPreviewEditor = forwardRef<ArtworkPreviewEditorHandle, ArtworkPrevi
       <div
         ref={setContainerNode}
         className="relative w-full select-none overflow-hidden"
-        style={{ paddingBottom: paddingPct, touchAction: 'none', cursor: loading ? 'default' : selected ? 'move' : 'pointer', ...canvasStyle }}
+        // The measured editor frame must have the exact product ratio. Percentage
+        // padding plus a decorative border adds height and makes Fill export
+        // an undersized image with white side strips, especially on mobile.
+        style={{
+          ...canvasStyle,
+          aspectRatio: `${100 / parseFloat(paddingPct)}`,
+          paddingBottom: 0,
+          border: 0,
+          outline: canvasStyle?.border,
+          outlineOffset: '-1px',
+          touchAction: 'none',
+          cursor: loading ? 'default' : selected ? 'move' : 'pointer',
+        }}
         onPointerDown={startPointer}
         onClick={(event) => { setSelected(true); event.stopPropagation(); }}
       >
