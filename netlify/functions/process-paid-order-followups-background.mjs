@@ -13,6 +13,7 @@ import { withLambda } from '@netlify/aws-lambda-compat';
 import notifyOrderModule from './_shared/legacy/notify-order.cjs';
 import pdfModule from './_shared/legacy/generate-paid-order-pdfs-background.cjs';
 import runtimeConfig from './_shared/paypal-runtime-config.cjs';
+import rewardEmail from './_shared/bof-reward-email.cjs';
 
 const json = (statusCode, body) => ({
   statusCode,
@@ -90,6 +91,10 @@ const handler = async (event) => {
   if (!['paid', 'in_production', 'shipped'].includes(order.status)) {
     return json(409, { ok: false, error: 'ORDER_NOT_PAID' });
   }
+
+  // Independent account notification: a mail outage must not block order
+  // confirmations or artwork processing. Scheduled maintenance retries it.
+  await rewardEmail.dispatchSafely(sql, { orderId });
 
   const failures = [];
 

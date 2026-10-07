@@ -6,6 +6,7 @@ import email from "./_shared/bof-email.cjs";
 import auth from "./_shared/server-auth.cjs";
 import runtime from "./_shared/stripe-runtime-config.cjs";
 import queries from "./_shared/bof-maintenance-queries.cjs";
+import rewardEmail from "./_shared/bof-reward-email.cjs";
 // Scheduled functions run on the published deploy only. The request cannot
 // turn on this job: launch gates are server configuration, not query/body data.
 export default async function handler(request) {
@@ -29,6 +30,9 @@ export default async function handler(request) {
   const refunds = await queries.pendingRefunds(sql);
   for (const r of refunds)
     await bof.reverse(sql, r.order_id, Number(r.cents), Number(r.total_cents));
+  // Reconcile refunds before notifying; recover missed sends and announce
+  // rewards that have reached their 14-day availability date.
+  await rewardEmail.dispatchSafely(sql);
   const held =
     await sql`SELECT o.*,b.capture_started_at FROM bof_order_benefits b JOIN orders o ON o.id=b.order_id WHERE b.state='held' AND o.status='pending' AND NOT coalesce(o.is_test_order,false) AND b.created_at<now()-interval '24 hours' LIMIT 20`;
   const stripeRuntime = runtime.resolveStripeRuntime({
