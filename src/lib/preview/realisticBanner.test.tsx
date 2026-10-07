@@ -3,7 +3,6 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { CartItem } from '@/store/cart';
 import { createBannerSurfaceMask, formatBannerDimensions, getRealisticBannerGeometry, isRealisticBannerItem } from './realisticBanner';
-import { FINALIZED_PREVIEW_BLEED_SCALE } from '@/components/cart/StableBannerPreview';
 import { RealisticBannerScene } from '@/components/preview/RealisticBannerPreview';
 import { rememberDecodedPreviewImage } from '@/lib/previewImageCache';
 
@@ -59,12 +58,12 @@ describe('realistic banner order geometry', () => {
     expect(isRealisticBannerItem({ ...item, material: 'magnetic', product_type: 'car_magnet' })).toBe(false);
     expect(isRealisticBannerItem({ ...item, width_in: 0 })).toBe(false);
   });
-  it('uses the regular preview crop without repeating already-baked layers', () => {
+  it('preserves the exact saved print layout without cropping or repeating baked layers', () => {
     rememberDecodedPreviewImage({ url: item.final_render_url!, naturalWidth: 1440, naturalHeight: 720 });
     const html = renderToStaticMarkup(<RealisticBannerScene item={{ ...item, text_elements: [{ id: 'baked', content: 'DO NOT REPEAT BAKED TEXT', xPercent: 50, yPercent: 50 } as any], grommets: 'none' }} expanded/>);
     expect(html).toContain(item.final_render_url);
-    expect(html).toContain(`transform:scale(${FINALIZED_PREVIEW_BLEED_SCALE})`);
-    expect(html).toContain('data-preview-bleed-compensated="true"');
+    expect(html).toContain('transform:none');
+    expect(html).toContain('data-preview-bleed-compensated="false"');
     expect(html).not.toContain('DO NOT REPEAT BAKED TEXT');
     expect(html).not.toContain('data-realistic-grommet');
     expect(html).not.toContain('data-realistic-anchor');

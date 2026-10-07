@@ -201,3 +201,51 @@ describe('banner size change review', () => {
     }
   });
 });
+
+
+describe('ArtworkPreviewEditor print-frame geometry', () => {
+  it.each([240, 390, 654])('exports edge-to-edge Fill at %i px despite decorative border styles', async (canvasWidth) => {
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+    vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+    // Model CSS sizing: the old percentage-padding frame adds border height;
+    // the corrected ratio frame keeps layout decoration out of print geometry.
+    const bounds = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
+      const ratio = Number(this.style.aspectRatio);
+      const border = parseFloat(this.style.borderWidth) || 0;
+      const height = ratio ? canvasWidth / ratio : canvasWidth * (parseFloat(this.style.paddingBottom) || 50) / 100 + border * 2;
+      return { width: canvasWidth, height, x: 0, y: 0, left: 0, top: 0, right: canvasWidth, bottom: height, toJSON() {} };
+    });
+    const host = document.createElement('div'); document.body.append(host);
+    const root = createRoot(host);
+    const ref = React.createRef<import('../ArtworkPreviewEditor').ArtworkPreviewEditorHandle>();
+    const originalElementFromPoint = document.elementFromPoint;
+    document.elementFromPoint = () => host.querySelector('img');
+    function Harness() {
+      const [value, setValue] = useState({ x: 0, y: 0, scaleX: 1, scaleY: 1 });
+      return React.createElement(ArtworkPreviewEditor, {
+        ref, src: `border-regression-${canvasWidth}.png`, paddingPct: '50%', value,
+        onChange: setValue, constrain: true, onConstrainChange: () => {},
+        canvasStyle: { border: '1px solid #94a3b8' },
+      });
+    }
+    try {
+      await act(async () => root.render(React.createElement(Harness)));
+      const image = host.querySelector('img')!;
+      Object.defineProperties(image, { complete: { value: true }, naturalWidth: { value: 1200 }, naturalHeight: { value: 800 } });
+      await act(async () => image.dispatchEvent(new Event('load')));
+      const fill = Array.from(host.querySelectorAll('button')).find(b => b.textContent?.startsWith('Fill banner'))!;
+      await act(async () => fill.click());
+      const snapshot = ref.current!.getCompositionSnapshot();
+      expect(snapshot.canvasWidthPx / snapshot.canvasHeightPx).toBeCloseTo(2, 8);
+      expect(snapshot.transform.scaleX).toBeCloseTo(4 / 3, 5);
+      expect(snapshot.transform.scaleY).toBeCloseTo(4 / 3, 5);
+      // Reproduce the exporter's contain × saved-scale calculation at 1400×700.
+      const exportedWidth = 1200 * Math.min(1400 / 1200, 700 / 800) * snapshot.transform.scaleX;
+      expect(exportedWidth).toBeCloseTo(1400, 2);
+      expect(image.parentElement!.parentElement!.style.borderWidth).toBe('0px');
+    } finally {
+      await act(async () => root.unmount()); host.remove(); bounds.mockRestore(); vi.unstubAllGlobals();
+      document.elementFromPoint = originalElementFromPoint;
+    }
+  });
+});

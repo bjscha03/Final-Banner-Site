@@ -1,7 +1,7 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import StableBannerPreview, { FINALIZED_PREVIEW_BLEED_SCALE } from './StableBannerPreview';
+import StableBannerPreview from './StableBannerPreview';
 
 const renderPreview = (isFinalizedSnapshot: boolean, maxSize = 200) => renderToStaticMarkup(
   <StableBannerPreview
@@ -21,22 +21,22 @@ describe('StableBannerPreview', () => {
     expect(html).toContain('object-fit:fill');
     expect(html).not.toContain('border-2');
   });
-  it('overscans finalized proof images to hide baked edge seams', () => {
+  it('preserves every finalized proof edge so margins cannot be hidden', () => {
     const html = renderPreview(true);
 
-    expect(html).toContain('data-preview-bleed-compensated="true"');
-    expect(html).toContain(`transform:scale(${FINALIZED_PREVIEW_BLEED_SCALE})`);
+    expect(html).toContain('data-preview-bleed-compensated="false"');
+    expect(html).toContain('transform:none');
   });
 
-  it.each([200, 600, 1600])('keeps regular and realistic proof crops identical at size %s', (maxSize) => {
+  it.each([200, 600, 1600])('keeps regular and realistic proofs uncropped at size %s', (maxSize) => {
     const common = { widthIn: 96, heightIn: 48, grommets: 'none' as const,
       imageUrl: 'https://example.com/proof-with-edge-matte.jpg', isFinalizedSnapshot: true, maxSize };
     const regular = renderToStaticMarkup(<StableBannerPreview {...common} />);
     const realistic = renderToStaticMarkup(<StableBannerPreview {...common} surfaceOnly />);
-    const crop = `transform:scale(${FINALIZED_PREVIEW_BLEED_SCALE})`;
+    const crop = 'transform:none';
     expect(regular).toContain(crop);
     expect(realistic).toContain(crop);
-    expect(realistic).toContain('data-preview-bleed-compensated="true"');
+    expect(realistic).toContain('data-preview-bleed-compensated="false"');
     expect(realistic).toContain('object-fit:fill');
   });
 
@@ -53,7 +53,7 @@ describe('StableBannerPreview', () => {
 
     expect(html).toContain('data-preview-bleed-compensated="false"');
     expect(html).toContain('transform:translate(0%, 0%) scale(1, 1)');
-    expect(html).not.toContain(`transform:scale(${FINALIZED_PREVIEW_BLEED_SCALE})`);
+    expect(html).not.toContain('transform:none');
   });
 
   it('honors a larger requested responsive preview size', () => {
