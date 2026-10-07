@@ -102,7 +102,7 @@ export default function BOFEmailPreview({
         </div>
       </div>
       <p className="border-t border-slate-200 px-4 py-3 text-xs leading-5 text-slate-500 sm:px-5">
-        Preview only. Each customer receives a personal activation link when you
+        Preview only. Each customer receives their personalized email when you
         send their invitation.
       </p>
     </div>
