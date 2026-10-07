@@ -1,5 +1,5 @@
 import React from 'react';
-import { reloadLatestVersion } from '@/lib/chunkRecovery';
+import { attemptChunkRecovery, isChunkLoadFailure, reloadLatestVersion } from '@/lib/chunkRecovery';
 import { reportPageIssue } from '@/lib/siteIssueReporter';
 
 interface Props {
@@ -47,6 +47,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     reportPageIssue('page_crash', error, undefined, undefined, undefined, errorInfo.componentStack || undefined);
     console.error('ErrorBoundary caught an error:', error, errorInfo);
+    if (isChunkLoadFailure(error)) attemptChunkRecovery();
   }
 
   render() {
