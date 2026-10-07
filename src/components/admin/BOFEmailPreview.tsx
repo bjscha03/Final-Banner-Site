@@ -4,9 +4,11 @@ import { Mail, Monitor, Smartphone } from "lucide-react";
 export default function BOFEmailPreview({
   subject,
   html,
+  title = "BOF Cash invitation preview",
 }: {
   subject: string;
   html: string;
+  title?: string;
 }) {
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
   const [height, setHeight] = useState(920);
@@ -88,7 +90,7 @@ export default function BOFEmailPreview({
         >
           <iframe
             ref={frame}
-            title="BOF Cash invitation preview"
+            title={title}
             sandbox="allow-same-origin"
             referrerPolicy="no-referrer"
             srcDoc={previewHtml}

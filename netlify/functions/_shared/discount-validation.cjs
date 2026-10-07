@@ -35,7 +35,8 @@ function normalizedCartId(value) {
 
 function storedDiscountFromRow(discount, recoveryOffer) {
   const campaign = String(discount.campaign || '').trim() || null;
-  const discountScope = String(discount.discount_scope || 'order').trim() || 'order';
+  const discountScope = campaign === 'louisville-neighbors-25-v1' ? 'banner_lines'
+    : String(discount.discount_scope || 'order').trim() || 'order';
   const result = {
     id: discount.id,
     code: String(discount.code).toUpperCase(),

@@ -189,6 +189,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
                                 Admin: Customers
                               </a>
                               <a href="/admin/referrals" className="block px-4 py-3 text-sm font-medium text-slate-700">Admin: BOF Cash</a>
+                              <a href="/admin/louisville-outreach" className="block px-4 py-3 text-sm font-medium text-slate-700">Admin: Louisville Outreach</a>
                               <a
                                 href="/admin/email-templates"
                                 className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-700 hover:text-[#18448D] hover:bg-slate-50"
@@ -340,6 +341,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick, compactMobi
                             </a>
                           </DropdownMenuItem>
                           <DropdownMenuItem asChild><a href="/admin/referrals">Admin: BOF Cash</a></DropdownMenuItem>
+                          <DropdownMenuItem asChild><a href="/admin/louisville-outreach">Admin: Louisville Outreach</a></DropdownMenuItem>
                           <DropdownMenuItem asChild>
                             <a href="/admin/email-templates" className="flex items-center">
                               <Mail className="h-4 w-4 mr-2" />
