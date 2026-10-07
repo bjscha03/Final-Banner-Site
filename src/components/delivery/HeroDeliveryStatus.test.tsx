@@ -1,16 +1,27 @@
-import React from 'react';
+// @vitest-environment jsdom
+import React, { act } from 'react';
+import { createRoot, hydrateRoot, type Root } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import HeroDeliveryStatus from './HeroDeliveryStatus';
+
+let root: Root | undefined;
+let container: HTMLDivElement;
+(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
 function renderAt(isoTime: string, variant: 'compact' | 'editorial' | 'light' | 'arrival' = 'compact'): string {
   vi.useFakeTimers();
   vi.setSystemTime(new Date(isoTime));
 
-  return renderToStaticMarkup(<HeroDeliveryStatus variant={variant} />);
+  container = document.createElement('div');
+  root = createRoot(container);
+  act(() => root!.render(<HeroDeliveryStatus variant={variant} />));
+  return container.innerHTML;
 }
 
 afterEach(() => {
+  if (root) act(() => root!.unmount());
+  root = undefined;
   vi.useRealTimers();
 });
 
@@ -51,5 +62,24 @@ describe('HeroDeliveryStatus', () => {
     expect(html).toContain('Tuesday, October 6');
     expect(html).toContain('Expected to ship Monday, October 5');
     expect(html).toContain('data-variant="arrival"');
+  });
+});
+
+
+describe('prerendered delivery hydration', () => {
+  it.each(['compact', 'light', 'editorial', 'arrival'] as const)('hydrates a days-old page without mismatches and shows current dates (%s)', async variant => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-02T16:00:00Z'));
+    const html = renderToStaticMarkup(<HeroDeliveryStatus variant={variant} />);
+    container = document.createElement('div');
+    container.innerHTML = html;
+    vi.setSystemTime(new Date('2026-10-06T14:00:00Z'));
+    const onRecoverableError = vi.fn();
+    await act(async () => {
+      root = hydrateRoot(container, <HeroDeliveryStatus variant={variant} />, { onRecoverableError });
+    });
+    expect(onRecoverableError).not.toHaveBeenCalled();
+    expect(container.textContent).toMatch(/Oct 8|October 8/);
+    expect(container.textContent).not.toMatch(/Oct 6|October 6/);
   });
 });
