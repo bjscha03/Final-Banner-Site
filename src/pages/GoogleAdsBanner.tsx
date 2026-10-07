@@ -83,6 +83,7 @@ import { ENABLE_AI } from '@/lib/featureFlags';
 import { base64ToFile } from '@/utils/base64ToFile';
 import {
   getArtworkUploadDiagnostic,
+  getArtworkUploadEvidence,
   uploadArtworkFile,
   MAX_ARTWORK_BYTES,
   MAX_ARTWORK_MB,
@@ -1425,7 +1426,7 @@ const GoogleAdsBanner: React.FC = () => {
           retryable: diagnostic.retryable,
           sizeBucket: diagnostic.sizeBucket,
           mimeType: diagnostic.mimeType,
-        });
+        }, getArtworkUploadEvidence(error, file));
         setUploadError(
           getArtworkUploadMessage(error),
         );
@@ -1441,6 +1442,11 @@ const GoogleAdsBanner: React.FC = () => {
   const handleFileUpload = useCallback(async (file: File) => {
     const validationError = validateArtworkFile(file);
     if (validationError) {
+      logUx('upload_error', {
+        ...getArtworkUploadDiagnostic(null, file),
+        phase: 'validation',
+        status: file.size > MAX_ARTWORK_BYTES ? 413 : file.size <= 0 ? 400 : 415,
+      }, getArtworkUploadEvidence(validationError, file));
       setUploadError(validationError);
       return;
     }
@@ -1547,7 +1553,7 @@ const GoogleAdsBanner: React.FC = () => {
     } catch (error) {
       if (generation !== uploadGenerationRef.current) return;
       console.error('[artwork_upload]', { correlationId, stage: 'local_preview_failed', error });
-      logUx('upload_preview_error', { correlationId, ...getArtworkUploadDiagnostic(error, file), phase: 'local_preview' });
+      logUx('upload_preview_error', { correlationId, ...getArtworkUploadDiagnostic(error, file), phase: 'local_preview' }, getArtworkUploadEvidence(error, file));
       setUploadError('We could not open that artwork file. Please choose a PDF, PNG, JPG, or JPEG file.');
       setIsUploading(false);
     }
@@ -1622,7 +1628,7 @@ const GoogleAdsBanner: React.FC = () => {
     setIsUploading(false);
     setUploadError('This upload stopped responding. Your file and choices are saved here. Tap Retry upload to try again.');
     const file = activeUploadFileRef.current;
-    logUx('upload_timeout', file ? getArtworkUploadDiagnostic(null, file) : undefined);
+    logUx('upload_timeout', file ? getArtworkUploadDiagnostic(null, file) : undefined, file ? getArtworkUploadEvidence('Upload stopped making progress or exceeded its time limit', file) : undefined);
   }, activeUploadFileRef.current?.size);
 
   const ensurePermanentArtworkUploaded = useCallback(async (): Promise<UploadedArtworkFile | null> => {

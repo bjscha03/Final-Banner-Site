@@ -60,10 +60,11 @@ export type UxPayload = Record<string, unknown> | undefined;
  *
  * @param event Stable, snake_case event name.
  * @param payload Optional small JSON-serializable context.
+ * @param operationalEvidence Additional failure evidence for the first-party admin report only.
  */
-export function logUx(event: UxEvent, payload?: UxPayload): void {
+export function logUx(event: UxEvent, payload?: UxPayload, operationalEvidence?: UxPayload): void {
   // Operational failures are independent of optional analytics delivery.
-  try { trackUploadIssue(event, payload); } catch { /* Never block the user flow. */ }
+  try { trackUploadIssue(event, { ...payload, ...operationalEvidence }); } catch { /* Never block the user flow. */ }
   try {
     // Console line — visible in DevTools and captured by Clarity replays.
     if (payload && Object.keys(payload).length > 0) {

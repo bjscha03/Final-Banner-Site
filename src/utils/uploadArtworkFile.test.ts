@@ -3,6 +3,7 @@ import {
   buildCloudinaryPdfPreviewUrl,
   CHUNKED_UPLOAD_THRESHOLD_BYTES,
   getArtworkUploadDiagnostic,
+  getArtworkUploadEvidence,
   MAX_ARTWORK_BYTES,
   LEGACY_FUNCTION_SAFE_BYTES,
   SAME_ORIGIN_UPLOAD_TIMEOUT_MS,
@@ -390,4 +391,9 @@ describe('same-origin uploads and stalled recovery', () => {
     await rejected;
     expect(abort).toHaveBeenCalledOnce();
   });
+});
+
+it('includes file size and failure reason for admin reports without exposing the filename', () => {
+  const evidence = getArtworkUploadEvidence(new Error('Could not decode customer-private.pdf'), { name: 'customer-private.pdf', size: 62914560 });
+  expect(evidence).toMatchObject({ fileBytes: 62914560, fileLimitBytes: 314572800, errorMessage: 'Could not decode [artwork]' });
 });
