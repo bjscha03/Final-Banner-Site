@@ -1,9 +1,10 @@
 import type { ArtworkManifest } from '@/types/artwork';
 import { withUploadDeadline } from './uploadDeadline';
 
-export const MAX_ARTWORK_BYTES = 50 * 1024 * 1024;
+export const MAX_ARTWORK_MB = 300;
+export const MAX_ARTWORK_BYTES = MAX_ARTWORK_MB * 1024 * 1024;
 export const CLOUDINARY_ARTWORK_BYTES = 20 * 1024 * 1024;
-export const ARTWORK_SIZE_MESSAGE = 'File too large. Please upload a PDF, PNG, or JPG up to 50MB.';
+export const ARTWORK_SIZE_MESSAGE = `This file exceeds ${MAX_ARTWORK_MB}MB. Please email support@bannersonthefly.com a download link so we can help with your artwork.`;
 export const LEGACY_FUNCTION_SAFE_BYTES = 3.75 * 1024 * 1024;
 export const DIRECT_UPLOAD_ATTEMPTS = 3;
 export const CHUNKED_UPLOAD_THRESHOLD_BYTES = 8 * 1024 * 1024;
@@ -79,7 +80,7 @@ export interface ArtworkUploadDiagnostic {
   phase: ArtworkUploadPhase;
   retryable: boolean;
   status: number | null;
-  sizeBucket: 'under-4mb' | '4mb-8mb' | '8mb-20mb' | '20mb-50mb';
+  sizeBucket: 'under-4mb' | '4mb-8mb' | '8mb-20mb' | '20mb-50mb' | '50mb-300mb' | 'over-300mb';
   mimeType: 'pdf' | 'png' | 'jpeg' | 'unknown';
 }
 
@@ -114,7 +115,9 @@ export function getArtworkUploadDiagnostic(
       ? '4mb-8mb'
       : file.size < 20 * 1024 * 1024
         ? '8mb-20mb'
-        : '20mb-50mb';
+        : file.size <= 50 * 1024 * 1024
+          ? '20mb-50mb'
+          : file.size <= MAX_ARTWORK_BYTES ? '50mb-300mb' : 'over-300mb';
   const normalizedType = String(file.type || '').toLowerCase();
   const extension = extensionOf(file.name);
   const mimeType = normalizedType === 'application/pdf' || extension === 'pdf'
@@ -165,7 +168,7 @@ export function getArtworkUploadMessage(error: unknown): string {
       return 'We could not store this artwork. Please retry, or contact support@bannersonthefly.com.';
     }
     if (error.status === 400 || error.status === 415) {
-      return 'We could not accept this artwork file. Try exporting it as a PDF, PNG, or JPG up to 50MB, or email support@bannersonthefly.com for help.';
+      return `We could not accept this artwork file. Try exporting it as a PDF, PNG, or JPG up to ${MAX_ARTWORK_MB}MB, or email support@bannersonthefly.com for help.`;
     }
     if (error.phase === 'ticket' || error.status === 401 || error.status === 403 || (error.status ?? 0) >= 500) {
       return 'Artwork storage is temporarily unavailable. Your choices are still here. Please retry, or email support@bannersonthefly.com for help.';
