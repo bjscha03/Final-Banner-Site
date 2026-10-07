@@ -48,16 +48,16 @@ describe('automatic first-order offer', () => {
     expect(useCartStore.getState().discountCode?.code).toBe('NEW20');
     expect(JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string).email).toBe('first@example.com');
   });
-  it('does not send the synthetic preview administrator to customer eligibility', async () => {
+  it.each(['preview-admin', 'server-admin'])('does not send synthetic %s to customer eligibility', async (id) => {
     vi.mocked(isPreviewEnvironment).mockReturnValue(true);
-    await render(<Harness user={{ id: 'preview-admin', email: '' }} />); await settle();
+    await render(<Harness user={{ id, email: '' }} />); await settle();
     expect(fetch).not.toHaveBeenCalled();
     expect(useCartStore.getState().discountCode?.code).toBe('NEW20');
     expect(container.textContent).toContain('Eligibility confirmed');
   });
-  it('still verifies a checkout email when using the preview administrator', async () => {
+  it.each(['preview-admin', 'server-admin'])('still verifies a checkout email when using %s', async (id) => {
     vi.mocked(isPreviewEnvironment).mockReturnValue(true);
-    await render(<Harness user={{ id: 'preview-admin', email: '' }} />);
+    await render(<Harness user={{ id, email: '' }} />);
     await act(async () => window.dispatchEvent(new CustomEvent(CHECKOUT_CUSTOMER_DRAFT_CHANGED, { detail: { email: 'returning@example.com' } })));
     vi.mocked(fetch).mockResolvedValue({ ok: true, json: async () => ({ valid: false }) } as Response);
     await settle();
