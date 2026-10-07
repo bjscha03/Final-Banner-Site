@@ -1,5 +1,3 @@
-import BannerSizeComparison from './BannerSizeComparison';
-
 interface Props {
   sizes: readonly { w: number; h: number }[];
   widthIn: number;
@@ -14,7 +12,7 @@ const benefits: Record<string, string> = {
   '72x36': 'Everyday displays',
   '96x36': 'Wider displays',
   '96x48': 'Bigger presence',
-  '120x48': 'Largest preset',
+  '120x48': 'High-impact displays',
 };
 
 export default function BannerSizeChoices({ sizes, widthIn, heightIn, unit, onSelect }: Props) {
@@ -36,6 +34,5 @@ export default function BannerSizeChoices({ sizes, widthIn, heightIn, unit, onSe
         </button>;
       })}
     </div>
-    <BannerSizeComparison />
   </div>;
 }
