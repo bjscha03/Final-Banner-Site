@@ -3,7 +3,6 @@ import { getCurrentUser } from '@/lib/auth';
 import { useCartStore } from '@/store/cart';
 import { readCheckoutCustomerDraft, CHECKOUT_CUSTOMER_DRAFT_CHANGED } from '@/components/checkout/checkoutCustomerDraft';
 import { readActiveCheckoutMarker } from '@/components/checkout/checkoutPaymentState';
-import { isPreviewEnvironment } from '@/lib/environment';
 
 import { FIRST_ORDER_DISCOUNT } from '@/lib/firstOrderPromotion';
 type Eligibility = 'unverified' | 'checking' | 'eligible' | 'ineligible' | 'unavailable';
@@ -22,9 +21,10 @@ export function useAutomaticFirstOrderDiscount({ user, authLoading = false, enab
   const [retry, setRetry] = useState(0);
   const [result, setResult] = useState<{ key: string; status: Eligibility }>({ key: '', status: 'checking' });
   const email = normalize(draftEmail || liveUser?.email);
-  // Preview access uses a synthetic administrator, not a customer database ID.
-  // Keep preview pricing in the guest flow until an actual checkout email is provided.
-  const userId = isPreviewEnvironment() && liveUser?.id === 'preview-admin' ? null : liveUser?.id || null;
+  // Admin sessions have synthetic IDs in production and previews. Customer
+  // identities are UUIDs; a checkout email still verifies their order history.
+  const userId = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(liveUser?.id || '')
+    ? liveUser!.id : null;
   const key = JSON.stringify([userId, normalize(liveUser?.email), email]);
   const hasIdentity = Boolean(email || userId);
 
