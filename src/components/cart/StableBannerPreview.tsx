@@ -18,7 +18,8 @@ const BRAND_BLUE = '#18448D';
 // Exact proof JPEGs can contain a very small white matte caused by source and
 // product aspect ratios differing by only a few pixels. A presentation-only
 // overscan hides that seam in compact and expanded previews without changing
-// the saved placement, production artwork, or grommet geometry.
+// the saved placement, production artwork, or grommet geometry. Realistic
+// surfaces must use the same artwork crop as the regular preview.
 export const FINALIZED_PREVIEW_BLEED_SCALE = 1.03;
 
 export interface BannerPreviewProps {
@@ -262,10 +263,10 @@ const StableBannerPreview: React.FC<BannerPreviewProps> = ({
           ) : imageUrl && !baseFailed ? (
             <div
               className="absolute inset-0 h-full w-full"
-              data-preview-bleed-compensated={isApprovedSnapshot && !surfaceOnly ? 'true' : 'false'}
+              data-preview-bleed-compensated={isApprovedSnapshot ? 'true' : 'false'}
               style={{
                 transform: isApprovedSnapshot
-                  ? `scale(${surfaceOnly ? 1 : FINALIZED_PREVIEW_BLEED_SCALE})`
+                  ? `scale(${FINALIZED_PREVIEW_BLEED_SCALE})`
                   : `translate(${x}%, ${y}%) scale(${scaleX}, ${scaleY})`,
                 transformOrigin: 'center center',
               }}
