@@ -38,6 +38,7 @@ export {
 export type DiscountType = 'quantity' | 'promo' | 'none';
 export type DiscountScope =
   | 'order'
+  | 'banner_lines'
   | 'recovery_qualifying_banner_lines'
   | 'qualifying_large_banner_lines'
   | 'qualifying_small_banner_lines';
@@ -203,6 +204,11 @@ export function getPromoDiscountSubtotalCents(
   // base into resolveBestDiscount. No discount is synthesized from a code.
   if (!promoDiscount) return automaticSubtotalCents;
 
+  if (promoDiscount.discountScope === 'banner_lines') {
+    if (promoDiscount.campaign !== 'louisville-neighbors-25-v1' || Number(promoDiscount.discountPercentage) !== 25) return 0;
+    return items.reduce((sum, item) => item.product_type === 'banner' ? sum + normalizedCents(item.line_total_cents) : sum, 0);
+  }
+
   if (promoDiscount.discountScope === SMALL_BANNER_PROMOTION_SCOPE) {
     const code = String(promoDiscount.code || '').trim().toUpperCase();
     const validSmallBannerPromotion = code === SMALL_BANNER_PROMOTION_ID
@@ -270,7 +276,8 @@ export function resolveBestDiscount(input: DiscountResolverInput): ResolvedDisco
     ? normalizedSubtotalCents
     : normalizedCents(quantitySubtotalCents);
 
-  const promoIsScoped = promoDiscount?.discountScope === LARGE_BANNER_RECOVERY_SCOPE
+  const promoIsScoped = promoDiscount?.discountScope === 'banner_lines'
+    || promoDiscount?.discountScope === LARGE_BANNER_RECOVERY_SCOPE
     || promoDiscount?.discountScope === SEPTEMBER_LARGE_BANNER_SCOPE
     || promoDiscount?.discountScope === SMALL_BANNER_PROMOTION_SCOPE;
   const manualPromoBaseCents = promoSubtotalCents == null
