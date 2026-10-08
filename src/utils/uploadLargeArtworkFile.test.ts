@@ -115,3 +115,82 @@ describe('customer retry resumes the same original', () => {
     vi.useRealTimers();
   });
 });
+
+describe('large artwork stalled control requests', () => {
+  function setup(stallAt: 'start' | 'complete', stalledBody: boolean, alwaysStall = false) {
+    vi.useFakeTimers();
+    vi.stubGlobal('window', { setTimeout, clearTimeout });
+    vi.stubGlobal('Image', class {
+      naturalWidth = 720; naturalHeight = 288; onload: any;
+      set src(_value: string) { queueMicrotask(() => this.onload?.()); }
+    });
+    vi.stubGlobal('document', { createElement: () => ({
+      width: 0, height: 0, getContext: () => ({ drawImage() {} }),
+      toBlob: (cb: any) => cb(new Blob(['preview'], { type: 'image/png' })),
+    }) });
+    const sent: Blob[] = [];
+    vi.stubGlobal('XMLHttpRequest', class extends ChunkXhr {
+      send(body: Blob) { sent.push(body); queueMicrotask(() => this.onload()); }
+    });
+    let stalledRequests = 0;
+    const signals: AbortSignal[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init: RequestInit) => {
+      if (url.includes('upload-file')) return Response.json({ secureUrl: 'https://res.cloudinary.com/test/image/upload/p.png', publicId: 'preview' });
+      if (url.includes(`action=${stallAt}`)) {
+        signals.push(init.signal as AbortSignal);
+        if (++stalledRequests === 1 || alwaysStall) {
+          // Reproduce a browser operation that ignores abort, including a
+          // response whose headers arrived but whose body never completes.
+          const pending = new Promise<Response>(() => {});
+          return stalledBody ? { ok: true, json: () => pending } : pending;
+        }
+      }
+      if (url.includes('action=start')) return Response.json({ id: 'session-stall', token: 'token', chunkBytes: 3 * 1024 * 1024 });
+      return Response.json({ secureUrl: 'https://bannersonthefly.com/artwork-original/saved/original.pdf', publicId: 'saved', previewUrl: 'https://res.cloudinary.com/test/image/upload/p.png' });
+    }));
+    const file = new File(['original bytes'], 'original.pdf', { type: 'application/pdf' });
+    return { file, signals, sent };
+  }
+
+  it.each([
+    ['start', false], ['start', true], ['complete', false], ['complete', true],
+  ] as const)('recovers from a stalled %s request (body stall: %s)', async (action, bodyStall) => {
+    const { file, signals, sent } = setup(action, bodyStall);
+    const { uploadLargeArtworkFile } = await import('./uploadLargeArtworkFile');
+    const onAttempt = vi.fn();
+    const result = uploadLargeArtworkFile(file, { previewUrl: 'blob:preview', onAttempt });
+    await vi.advanceTimersByTimeAsync(action === 'start' ? 30_600 : 90_600);
+    expect((await result).transport).toBe('netlify-original');
+    expect(signals).toHaveLength(2);
+    expect(signals[0].aborted).toBe(true);
+    expect(sent).toHaveLength(1);
+    expect(await sent[0].text()).toBe('original bytes');
+    expect(onAttempt).toHaveBeenCalledWith(2, 3);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('settles after three stalled requests without waiting for the page watchdog', async () => {
+    const { file, signals } = setup('start', true, true);
+    const { uploadLargeArtworkFile } = await import('./uploadLargeArtworkFile');
+    const result = uploadLargeArtworkFile(file, { previewUrl: 'blob:preview' }).catch(error => error);
+    await vi.advanceTimersByTimeAsync(91_800);
+    expect(await result).toMatchObject({ name: 'AbortError' });
+    expect(signals).toHaveLength(3);
+    expect(signals.every(signal => signal.aborted)).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('cancels a stalled response immediately and never starts another attempt', async () => {
+    const { file, signals } = setup('complete', true, true);
+    const { uploadLargeArtworkFile } = await import('./uploadLargeArtworkFile');
+    const controller = new AbortController();
+    const result = uploadLargeArtworkFile(file, { previewUrl: 'blob:preview', signal: controller.signal }).catch(error => error);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(signals).toHaveLength(1);
+    controller.abort();
+    expect(await result).toMatchObject({ name: 'AbortError' });
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(signals).toHaveLength(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+});

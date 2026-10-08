@@ -1426,6 +1426,10 @@ const Design: React.FC = () => {
       if (isPdf) {
         activePdfPreviewFileRef.current = file;
         const pdfPreview = await generateValidatedPdfPreview(file, correlationId);
+        if (generation !== uploadGenerationRef.current) {
+          pdfPreview.preview.cleanup();
+          return;
+        }
         previewUrl = pdfPreview.preview.previewUrl;
         activePdfPreviewCleanupRef.current = pdfPreview.preview.cleanup;
         dimensions = pdfPreview.dimensions;
@@ -1699,10 +1703,9 @@ const Design: React.FC = () => {
     [handleFileUpload],
   );
 
-  // Reset the preview/builder state after a successful "Add to Cart" so the
-  // user can immediately start building another product without lingering
-  // artwork/transform state from the previous item.
-  const resetPreview = useCallback(() => {
+  // Invalidate pending work before clearing the artwork so a late upload
+  // or preview result cannot restore something the customer removed.
+  const removeArtwork = useCallback(() => {
     uploadGenerationRef.current += 1;
     // Canceled uploads cannot clear the next generation's busy state.
     setIsUploading(false);
@@ -1710,6 +1713,7 @@ const Design: React.FC = () => {
     activeUploadAbortControllerRef.current = null;
     activeUploadPromiseRef.current = null;
     activeUploadFileRef.current = null;
+    activePdfPreviewFileRef.current = null;
     activeImagePreviewCleanupRef.current?.();
     activePdfPreviewCleanupRef.current?.();
     activeImagePreviewCleanupRef.current = null;
@@ -1718,16 +1722,22 @@ const Design: React.FC = () => {
     preparedPlacementRef.current = null;
     setPendingPlacementPreview(null);
     setUploadedFile(null);
+    setFitUndo(null);
+    setUploadProgress(0);
     setImgPos({ x: 0, y: 0 });
     setImgScale(1);
     setImgScaleY(1);
     setRestoredNormalizedTransform(null);
     setRestoredCompositionRevision(0);
-    setPolePocketSize('2');
     setUploadError('');
     setAiPrompt(null);
     setAiEditPrompt(null);
     setAiDesignSession(null);
+  }, []);
+
+  const resetPreview = useCallback(() => {
+    removeArtwork();
+    setPolePocketSize('2');
     setHasJustAddedToCart(false);
     setHasReviewedYardSignStakes(false);
     setHasReviewedYardSignPrintSide(false);
@@ -1738,7 +1748,7 @@ const Design: React.FC = () => {
     if (isYardSign) {
       setYardSignDesigns([]);
     }
-  }, [isYardSign]);
+  }, [isYardSign, removeArtwork]);
 
   const resetAfterSuccessfulAdd = useCallback(() => {
     resetPreview();
@@ -3465,7 +3475,7 @@ const Design: React.FC = () => {
                         <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
                         <span className="text-sm font-semibold text-green-800 truncate">{uploadedFile.name}</span>
                       </div>
-                      <button onClick={() => { setUploadedFile(null); setImgPos({ x: 0, y: 0 }); setImgScale(1); setImgScaleY(1); setAiPrompt(null); setAiEditPrompt(null); setAiDesignSession(null); }} className="ml-2 flex-shrink-0 p-1.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
+                      <button type="button" aria-label="Remove uploaded artwork" onClick={removeArtwork} className="ml-2 flex-shrink-0 p-1.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
                     </div>
                     {aiPrompt && !isYardSign && !isCarMagnet && showCreateWithAI && (
                       <div className="mt-2 flex justify-center">
