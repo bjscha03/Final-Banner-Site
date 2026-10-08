@@ -45,6 +45,8 @@ on:
       - 'src/pages/PoliticalSigns.tsx'
       - 'src/store/cart.ts'
       - 'src/utils/generatePositionedThumbnail.ts'
+      - 'src/utils/upload*.ts'
+      - 'src/pages/artworkRemoval.test.ts'
       - 'src/pages/OrderDetail.tsx'
       - 'tests/browser/**'
       - 'playwright.preview.config.ts'
@@ -94,6 +96,14 @@ jobs:
 
       - name: Install exact dependencies
         run: npm ci
+
+      - name: Verify artwork removal and upload recovery
+        run: >-
+          npx vitest run
+          src/utils/uploadArtworkFile.test.ts
+          src/utils/uploadLargeArtworkFile.test.ts
+          src/hooks/useUploadWatchdog.test.tsx
+          src/pages/artworkRemoval.test.ts
 
       - name: Reject tracked environment files
         run: |
