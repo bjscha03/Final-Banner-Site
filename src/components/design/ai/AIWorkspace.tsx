@@ -1,7 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
+import './AIWorkspace.css';
 import {
   AlertCircle,
   ArrowLeft,
+  ArrowRight,
+  PackageCheck,
+  Truck,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -161,6 +165,10 @@ async function readImage(file: File, maxBytes: number, maxDimension: number, pre
 
 function imageSrc(concept: AIConcept) {
   return `data:${concept.mimeType};base64,${concept.imageBase64}`;
+}
+
+function formatDimension(inches: number) {
+  return inches % 12 === 0 ? `${inches / 12} ft` : `${inches} in`;
 }
 
 function formatDuration(milliseconds: number) {
@@ -652,40 +660,54 @@ export default function AIWorkspace(props: Props) {
         : null;
 
   return (
-    <div className="min-h-0 bg-white text-slate-900" data-testid="ai-workspace">
-      <div className="border-b border-slate-200 bg-white px-4 py-4 sm:px-6">
+    <div className="ai-studio min-h-0 text-slate-900" data-testid="ai-workspace">
+      <div className="ai-studio-header">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-[0.16em] text-orange-600"><WandSparkles className="h-4 w-4" /> Banners On The Fly</div>
-            <h2 className="mt-1 text-2xl font-black tracking-tight text-[#0b1f3a] sm:text-3xl">Your banner studio</h2>
-            <p className="mt-1 max-w-3xl text-sm text-slate-600">One idea. A banner made for you.</p>
+          <div className="ai-studio-brand">
+            <img src="/images/logo-full.svg" alt="Banners On The Fly" width="200" height="50" />
+            <span>AI DESIGN STUDIO</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className={`inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-semibold ${access.ready ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-900'}`}>
+            <span className={`ai-studio-status inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-semibold ${access.ready ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-900'}`}>
               {access.loading ? <Loader2 className="h-4 w-4 animate-spin" /> : access.ready ? <ShieldCheck className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
               {access.ready ? 'Ready to create' : 'Connecting…'}
             </span>
-            {props.onClose && <button type="button" onClick={props.onClose} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"><ArrowLeft className="h-4 w-4" /> Back</button>}
+            {props.onClose && <button type="button" onClick={props.onClose} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"><ArrowLeft className="h-4 w-4" /> Back to order</button>}
           </div>
         </div>
         {blockerCopy && !access.loading && <div role="alert" className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><p>{blockerCopy}</p><button type="button" onClick={access.refresh} className="mt-2 min-h-11 rounded-lg bg-[#0b1f3a] px-4 font-bold text-white">Retry connection</button></div>}
       </div>
 
+      <div className="ai-studio-intro">
+        <div><h2>Big ideas. <span>Bold banners.</span></h2><p>Describe it. Create it. Make it yours.</p></div>
+        <ol className="ai-studio-steps" aria-label="Design progress">
+          {['Describe', 'Create', 'Finish'].map((label, index) => {
+            const current = selected ? 2 : stage || pendingImageJob ? 1 : 0;
+            return <li key={label} aria-current={index === current ? 'step' : undefined} data-complete={index < current}><span>{index < current ? <Check className="h-4 w-4" /> : index + 1}</span>{label}</li>;
+          })}
+        </ol>
+      </div>
       {saveNotice && <p className="px-4 pt-3 text-xs text-slate-500" role="status">{saveNotice}</p>}
-      <div className="grid min-h-0 grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)]">
-        <section className="space-y-5 border-b border-slate-200 bg-white p-4 sm:p-6 lg:border-b-0 lg:border-r">
+      <div className="ai-studio-layout">
+        <section className="ai-studio-controls space-y-5">
           <div>
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="text-lg font-black text-[#0b1f3a]">Describe your banner</h3>
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">{brief.widthIn}&quot; × {brief.heightIn}&quot; · {props.materialLabel || brief.material}</span>
+            <div className="ai-studio-control-heading">
+              <h3>Bring your idea to life</h3>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">{formatDimension(brief.widthIn)} × {formatDimension(brief.heightIn)} · {props.materialLabel || brief.material}</span>
             </div>
-            <label htmlFor="ai-description" className="mt-4 block text-sm font-bold text-slate-800">Describe the design you want</label>
-            <textarea id="ai-description" value={brief.description} disabled={Boolean(stage)} onChange={(event) => updateBrief('description', event.target.value.slice(0, 1200))} rows={5} className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-3 text-base shadow-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" placeholder="Example: A polished grand-opening design for a family restaurant, with warm food photography, strong contrast, and space for a headline and offer." />
+            <label htmlFor="ai-description" className="mt-4 block text-sm font-bold text-slate-800">What are we creating?</label>
+            <textarea id="ai-description" aria-label="Describe the design you want" value={brief.description} disabled={Boolean(stage)} onChange={(event) => updateBrief('description', event.target.value.slice(0, 1200))} rows={5} className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-3 text-base shadow-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" placeholder="Example: A polished grand-opening design for a family restaurant, with warm food photography, strong contrast, and space for a headline and offer." />
             <div className="mt-1 flex flex-wrap items-center gap-x-4">
               <button type="button" onClick={() => void improvePrompt()} disabled={!access.ready || !recoveryReady || !requirementsMet || Boolean(stage)} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-[#0b1f3a] hover:text-orange-600 disabled:opacity-40">{improvingPrompt ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <WandSparkles className="h-4 w-4" />} {improvingPrompt ? 'Improving your prompt…' : 'Improve prompt with AI'}</button>
               {improvingPrompt && <p role="status" className="text-xs text-slate-600">Rewriting your text. Your artwork stays unchanged. <button type="button" onClick={() => controllerRef.current?.abort()} className="min-h-11 underline">Cancel</button></p>}
               {promptBeforeImprovement && <button type="button" disabled={Boolean(stage)} onClick={() => { setBrief(promptBeforeImprovement); setBriefReviewed(promptBeforeImprovement.structured); setPromptBeforeImprovement(null); setSaveNotice('Original prompt restored.'); }} className="min-h-11 text-xs text-slate-500 underline underline-offset-4">Undo prompt update</button>}
             </div>
+            <fieldset className="ai-studio-styles" disabled={Boolean(stage)}>
+              <legend>Choose a style <span>(optional)</span></legend>
+              <div>{[
+                ['Clean', STYLES[0]], ['Bold', STYLES[1]], ['Modern', STYLES[2]], ['Elegant', STYLES[3]],
+              ].map(([label, value]) => <button type="button" key={value} aria-pressed={brief.visualStyle === value} onClick={() => updateBrief('visualStyle', value)}>{brief.visualStyle === value && <Check className="h-3.5 w-3.5" />}{label}</button>)}</div>
+            </fieldset>
             <details className="mt-3"><summary className="cursor-pointer py-2 text-sm font-semibold text-slate-600">Style & layout (optional)</summary>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label className="text-sm font-semibold text-slate-700">Purpose<select value={brief.purpose} onChange={(event) => updateBrief('purpose', event.target.value)} className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3">{PURPOSES.map((value) => <option key={value}>{value}</option>)}</select></label>
@@ -733,7 +755,7 @@ export default function AIWorkspace(props: Props) {
           </details>
 
           <div>
-            <details><summary className="cursor-pointer py-2 text-sm font-semibold text-slate-600">Logo & photos (optional)</summary>
+            <details className="ai-studio-uploads"><summary className="cursor-pointer py-2 text-sm font-semibold text-slate-600"><ImagePlus className="h-5 w-5" /> Add your logo or photos <span>(optional)</span></summary>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white p-3 text-center hover:border-orange-400"><ImagePlus className="h-5 w-5 text-orange-600" /><span className="mt-1 text-sm font-bold">Reference image</span><span className="text-xs text-slate-500">Photo, artwork or style reference</span><input type="file" className="sr-only" accept="image/png,image/jpeg,image/webp" onChange={(event) => setImage('reference', event.target.files?.[0])} /></label>
               <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-white p-3 text-center hover:border-orange-400"><ImagePlus className="h-5 w-5 text-orange-600" /><span className="mt-1 text-sm font-bold">Logo</span><span className="text-xs text-slate-500">Use your logo and brand colors</span><input type="file" className="sr-only" accept="image/png,image/jpeg,image/webp" onChange={(event) => setImage('logo', event.target.files?.[0])} /></label>
@@ -751,11 +773,12 @@ export default function AIWorkspace(props: Props) {
             {(referenceImage || logoImage) && <div className="mt-2 flex flex-wrap items-center gap-2">{referenceImage && <button type="button" onClick={() => removeImage('reference')} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold">Remove reference</button>}{logoImage && <><label className="text-sm font-semibold text-slate-700">Logo treatment<select aria-label="Logo treatment" value={brief.logoRendering || 'integrated'} onChange={event => updateBrief('logoRendering', event.target.value as CreativeBrief['logoRendering'])} className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3"><option value="integrated">Blend into design</option><option value="original">Keep original logo</option></select></label>{brief.logoRendering === 'original' && <label className="text-sm font-semibold text-slate-700">Logo position<select value={brief.logoPosition} onChange={(event) => updateBrief('logoPosition', event.target.value as CreativeBrief['logoPosition'])} className="ml-2 min-h-11 rounded-lg border border-slate-300 bg-white px-3"><option value="upper-left">Upper left</option><option value="upper-right">Upper right</option><option value="lower-left">Lower left</option><option value="lower-right">Lower right</option></select></label>}<p className="w-full text-xs text-slate-500">{brief.logoRendering !== 'original' ? 'AI recreates your logo as part of the artwork. Check its lettering and details before ordering. Your original file stays saved.' : 'Places your original logo unchanged, including its background.'}{selected && ' Treatment applies to your next new design.'}</p><button type="button" onClick={() => removeImage('logo')} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold">Remove uploaded logo</button></>}</div>}
           </div>
 
-          <button type="button" onClick={() => void generate()} disabled={!access.ready || !recoveryReady || !requirementsMet || Boolean(stage) || Boolean(pendingImageJob)} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 text-base font-bold text-white hover:bg-orange-700 disabled:opacity-50"><Sparkles className="h-5 w-5" />{concepts.length ? 'Create another design' : 'Create my banner'}</button>
+          <button type="button" onClick={() => void generate()} disabled={!access.ready || !recoveryReady || !requirementsMet || Boolean(stage) || Boolean(pendingImageJob)} className="ai-studio-create inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 text-base font-bold text-white hover:bg-orange-700 disabled:opacity-50"><Sparkles className="h-5 w-5" />{concepts.length ? 'Create another design' : 'Create my banner'}</button>
+          <p className="ai-studio-helper">You can refine your design after creating.</p>
           <details className="text-sm text-slate-600"><summary className="cursor-pointer py-2">Review wording before creating (optional)</summary><button type="button" onClick={() => void reviewBrief()} disabled={!requirementsMet || !access.ready || Boolean(stage)} className="min-h-11 underline">Extract wording from my description</button></details>
         </section>
 
-        <section className="min-w-0 space-y-5 bg-slate-50 p-4 sm:p-6">
+        <section className="ai-studio-workspace min-w-0 space-y-5">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div><h3 className="text-lg font-black text-[#0b1f3a]">Your banner</h3><p className="text-sm text-slate-600">Preview your banner, make changes, then use it in your order.</p></div>
             <button type="button" onClick={() => setConfirmNewDesign(true)} disabled={Boolean(stage) || !recoveryReady} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40"><Trash2 className="h-4 w-4" /> Delete &amp; start new</button>
@@ -784,11 +807,34 @@ export default function AIWorkspace(props: Props) {
             {pendingImageJob && <button type="button" disabled={!access.ready} onClick={() => void recoverImageJob()} className="mt-3 min-h-11 rounded-lg bg-[#0b1f3a] px-4 text-sm font-bold text-white disabled:opacity-50">Check for finished design</button>}
           </div>}
 
-          {!concepts.length && !stage && !pendingImageJob && !progressPreview && <div className="grid min-h-[420px] place-items-center rounded-xl bg-white p-8 text-center"><div><Sparkles className="mx-auto h-9 w-9 text-orange-500" /><h4 className="mt-3 text-lg font-black text-[#0b1f3a]">A little imagination. A big impression.</h4><p className="mt-1 max-w-md text-sm text-slate-600">Tell us what your banner should say and look like, then choose Create my banner.</p></div></div>}
+          {!concepts.length && !stage && !pendingImageJob && !progressPreview && <div className="ai-studio-empty">
+            <span className="ai-studio-eyebrow"><Sparkles className="h-4 w-4" /> YOUR NEXT BIG IDEA STARTS HERE</span>
+            <div className="ai-studio-inspiration" aria-hidden="true">
+              <div className="ai-studio-sample ai-studio-sample-event"><span>LET’S CELEBRATE</span><strong>Make it<br />a big day.</strong><i>Birthdays · Milestones · Events</i></div>
+              <div className="ai-studio-sample ai-studio-sample-opening"><span>HELLO, NEIGHBORHOOD</span><strong>GRAND<br />OPENING</strong><i>Big news deserves a bold banner.</i></div>
+              <div className="ai-studio-sample ai-studio-sample-sale"><span>YOUR NEXT BIG THING</span><strong>Stand out.<br />Get noticed.</strong><i>Businesses · Sales · Promotions</i></div>
+            </div>
+            <h4>A little imagination.<br /><span>A big impression.</span></h4>
+            <p>Tell us what you have in mind.<br />We’ll turn your idea into a banner made for you.</p>
+            <span className="ai-studio-empty-hint"><ArrowLeft className="h-4 w-4" /> Start with your description</span>
+          </div>}
 
-          {selected && <div ref={previewRef} tabIndex={-1} className="scroll-mt-4 rounded-xl border border-slate-200 bg-white p-4 outline-none sm:p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3"><div><h4 className="text-lg font-black text-[#0b1f3a]">Version {concepts.findIndex(item => item.versionId === selected.versionId) + 1} — selected</h4><p className="text-sm text-slate-600">This is the artwork that will continue to your order.</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={undo} disabled={!history.length || Boolean(stage)} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-3 text-sm font-semibold disabled:opacity-40"><Undo2 className="h-4 w-4" /> Undo</button><button type="button" onClick={redoEdit} disabled={!redo.length || Boolean(stage)} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-3 text-sm font-semibold disabled:opacity-40"><Redo2 className="h-4 w-4" /> Redo</button><button type="button" onClick={() => setFullPreview(true)} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-3 text-sm font-semibold"><Maximize2 className="h-4 w-4" /> Full preview</button></div></div>
-            <div className="mt-4 flex h-[min(55vh,36rem)] w-full items-center justify-center overflow-hidden rounded-xl border border-slate-300 bg-slate-100"><img src={imageSrc(selected)} alt="Complete selected flat print artwork" className="h-full w-full object-contain" /></div>
+          {selected && <div ref={previewRef} tabIndex={-1} className="ai-studio-result scroll-mt-4 outline-none">
+            <div className="ai-studio-canvas">
+            <div className="ai-studio-canvas-toolbar flex flex-wrap items-center justify-between gap-3"><div><h4 className="text-lg font-black text-[#0b1f3a]">Version {concepts.findIndex(item => item.versionId === selected.versionId) + 1} — selected</h4><p className="text-sm text-slate-600">This is the artwork that will continue to your order.</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={undo} disabled={!history.length || Boolean(stage)} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-3 text-sm font-semibold disabled:opacity-40"><Undo2 className="h-4 w-4" /> Undo</button><button type="button" onClick={redoEdit} disabled={!redo.length || Boolean(stage)} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-3 text-sm font-semibold disabled:opacity-40"><Redo2 className="h-4 w-4" /> Redo</button><button type="button" onClick={() => setFullPreview(true)} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 px-3 text-sm font-semibold"><Maximize2 className="h-4 w-4" /> Full preview</button></div></div>
+            <div className="ai-studio-artwork">
+              <div className="ai-studio-width">{formatDimension(brief.widthIn)}</div>
+              <div className="ai-studio-height">{formatDimension(brief.heightIn)}</div>
+              <div className="ai-studio-artwork-image"><img src={imageSrc(selected)} alt="Complete selected flat print artwork" className="h-full w-full object-contain" /></div>
+            </div>
+            <p className="ai-studio-canvas-caption">Complete artwork · Nothing cropped from your preview</p>
+            </div>
+            <div className="ai-studio-result-controls">
+            <div className="ai-studio-edit grid grid-cols-1 gap-3 lg:grid-cols-[1fr_auto]">
+              <label className="text-sm font-bold text-slate-800">Want to change something?<textarea aria-label="Edit with AI" disabled={Boolean(stage)} value={editInstruction} onChange={(event) => setEditInstruction(event.target.value.slice(0, 700))} rows={2} className="mt-1 w-full rounded-xl border border-slate-300 p-3 text-base" placeholder='Example: “Make the background lighter and keep everything else exactly the same.”' /></label>
+              <button type="button" onClick={() => void edit()} disabled={!editInstruction.trim() || Boolean(stage) || !access.ready} className="inline-flex min-h-11 items-center justify-center gap-2 self-end rounded-lg bg-[#0b1f3a] px-5 py-3 text-sm font-black text-white disabled:opacity-50"><WandSparkles className="h-4 w-4" /> Edit current design</button>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2">{['Make the background lighter', 'Use the colors from my logo', ...(logoImage ? ['Move the logo to the upper-left'] : []), 'Remove the people', 'Make it more professional', 'Keep everything else exactly the same'].map((value) => <button key={value} type="button" disabled={Boolean(stage)} onClick={() => setEditInstruction(value)} className="min-h-11 rounded-full border border-slate-300 bg-slate-50 px-3 text-xs font-semibold text-slate-700 hover:border-orange-400">{value}</button>)}</div>
 
             {printReview.messages.length > 0 && <div className={`mt-4 rounded-xl border p-4 ${printReview.requiresConfirmation ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-slate-50'}`} data-testid="ai-print-review">
               <h5 className="text-sm font-bold text-[#0b1f3a]">{printReview.requiresConfirmation ? 'Review your design' : 'Review your preview'}</h5>
@@ -799,9 +845,9 @@ export default function AIWorkspace(props: Props) {
             </div>}
 
             {concepts.length > 1 && <div className="mt-4" aria-label="Saved design versions">
-              <h5 className="text-sm font-bold text-[#0b1f3a]">Choose your favorite version</h5>
+              <h5 className="text-sm font-bold text-[#0b1f3a]">Your designs</h5>
               <p className="mt-1 text-sm text-slate-600">Every finished edit is saved here. Select any version to keep editing or continue.</p>
-              <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">{concepts.map((concept, index) => (
+              <div className="ai-studio-version-list">{concepts.map((concept, index) => (
                 <button key={concept.versionId} type="button" disabled={Boolean(stage)} onClick={() => selectVersion(concept)} aria-label={`Select version ${index + 1}`} aria-pressed={selected.versionId === concept.versionId} className={`min-w-0 rounded-lg border-2 p-2 text-left disabled:cursor-wait disabled:opacity-60 ${selected.versionId === concept.versionId ? 'border-orange-600 bg-orange-50' : 'border-slate-200 bg-white hover:border-orange-300'}`}>
                   <img src={imageSrc(concept)} alt={`Saved banner version ${index + 1}`} className="h-20 w-full rounded object-contain" />
                   <span className="mt-2 flex flex-wrap items-center justify-between gap-1 text-sm font-bold"><span>Version {index + 1}</span>{selected.versionId === concept.versionId && <span className="inline-flex items-center gap-1 text-orange-700"><Check className="h-4 w-4" /> Selected</span>}</span>
@@ -822,11 +868,7 @@ export default function AIWorkspace(props: Props) {
             {logoImage && selected.brief?.logoRendering === 'integrated' && <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600"><span>Logo blended into this design · use Edit with AI to adjust it</span><button type="button" disabled={Boolean(stage)} onClick={() => removeImage('logo')} className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 font-semibold disabled:opacity-40">Remove logo</button></div>}
             <LayerControls brief={brief} concept={selected} busy={Boolean(stage)} onChange={setBrief} onApply={() => void edit(true)} />
             {hasUnappliedChanges && !stage && <button type="button" onClick={() => { if (selected.brief) setBrief(selected.brief); setLogoImage(selected.logoImage || null); setPhotoImages(selected.photoImages || []); setReferenceImage(selected.referenceImage || null); }} className="mt-2 min-h-11 text-xs text-slate-500 underline underline-offset-4">Discard unapplied changes</button>}
-            <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-[1fr_auto]">
-              <label className="text-sm font-bold text-slate-800">Edit with AI<textarea disabled={Boolean(stage)} value={editInstruction} onChange={(event) => setEditInstruction(event.target.value.slice(0, 700))} rows={3} className="mt-1 w-full rounded-xl border border-slate-300 p-3 text-base" placeholder='Example: “Make the background lighter and keep everything else exactly the same.”' /></label>
-              <button type="button" onClick={() => void edit()} disabled={!editInstruction.trim() || Boolean(stage) || !access.ready} className="inline-flex min-h-11 items-center justify-center gap-2 self-end rounded-lg bg-[#0b1f3a] px-5 py-3 text-sm font-black text-white disabled:opacity-50"><WandSparkles className="h-4 w-4" /> Edit current design</button>
-            </div>
-            <div className="mt-2 flex flex-wrap gap-2">{['Make the background lighter', 'Use the colors from my logo', ...(logoImage ? ['Move the logo to the upper-left'] : []), 'Remove the people', 'Make it more professional', 'Keep everything else exactly the same'].map((value) => <button key={value} type="button" disabled={Boolean(stage)} onClick={() => setEditInstruction(value)} className="min-h-11 rounded-full border border-slate-300 bg-slate-50 px-3 text-xs font-semibold text-slate-700 hover:border-orange-400">{value}</button>)}</div>
+
 
             {user?.is_admin && <details className="mt-5 border-t border-slate-200 pt-3"><summary className="cursor-pointer py-2 text-sm text-slate-500">Print check diagnostics</summary><div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className={`rounded-xl border p-4 ${selected.validation.passed ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}><div className="flex items-center gap-2 font-black text-[#0b1f3a]">{selected.validation.passed ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : <AlertCircle className="h-5 w-5 text-amber-700" />} Print-readiness validation</div><ul className="mt-2 space-y-1 text-sm text-slate-700"><li>Dimensions: {selected.validation.checks.dimensions.passed ? 'Exact' : 'Failed'}</li><li>Full edge coverage: {selected.validation.checks.edgeCoverage.passed ? 'Passed' : 'Failed'}</li><li>Flat artwork / no hardware: {!selected.validation.vision.available ? 'Not checked' : selected.validation.checks.flatArtwork.passed ? 'Passed' : 'Needs review'}</li><li>Wording check: {!selected.validation.vision.available ? 'Not checked' : selected.validation.checks.exactText.passed ? 'Passed' : 'Needs review'}</li><li>Text spacing: {printReview.unavailable ? 'Not checked' : printReview.spacing ? 'Review spacing' : 'Passed'}</li><li>Output canvas resolution: {selected.validation.checks.resolution.effectivePpi} PPI ({selected.validation.checks.resolution.passed ? 'passed' : 'failed'})</li></ul>{selected.validation.reasons.length > 0 && <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-amber-900">{selected.validation.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>}</div>
@@ -837,13 +879,15 @@ export default function AIWorkspace(props: Props) {
 
               {user?.is_admin && (<details className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3"><summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-bold text-[#0b1f3a]">Admin diagnostics <ChevronDown className="h-4 w-4" /></summary><dl className="grid grid-cols-1 gap-x-4 gap-y-2 pt-3 text-xs text-slate-600 sm:grid-cols-2"><div><dt className="font-bold">Generation ID</dt><dd className="break-all">{selected.generationId || generationId}</dd></div><div><dt className="font-bold">Version ID</dt><dd className="break-all">{selected.versionId}</dd></div><div><dt className="font-bold">Provider request ID</dt><dd className="break-all">{selected.diagnostics.providerRequestId || 'Not returned'}</dd></div><div><dt className="font-bold">Validation model</dt><dd>{selected.validation.vision.model}</dd></div>{selected.diagnostics.stageTimings?.map((timing, index) => <div key={index}><dt className="font-bold">{timing.stage}</dt><dd>{formatDuration(timing.durationMs)}</dd></div>)}</dl></details>)}
 
+            </div>
           </div>}
+          <div className="ai-studio-benefits"><div><PackageCheck /><span><strong>24-hour production</strong><small>Printed fast. Made to impress.</small></span></div><div><Truck /><span><strong>Free Next-Day Air shipping</strong><small>Orders $20+</small></span></div></div>
         </section>
       </div>
 
-      {selected && <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white p-4 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] sm:px-6" data-testid="ai-selection-footer">
+      {selected && <div className="ai-studio-footer sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white p-4 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] sm:px-6" data-testid="ai-selection-footer">
         <div className="flex min-w-0 items-center gap-3"><img src={imageSrc(selected)} alt="Selected version to continue with" className="h-12 w-24 rounded border border-slate-200 object-contain" /><div><p className="text-sm font-bold text-[#0b1f3a]">Version {concepts.findIndex(item => item.versionId === selected.versionId) + 1} selected</p><p className="text-xs text-slate-600">{hasUnappliedChanges ? 'Apply or discard your changes first.' : 'Your selected artwork goes with you.'}</p></div></div>
-        <button type="button" onClick={() => printReview.requiresConfirmation ? setConfirmValidationOverride(true) : void apply()} disabled={hasUnappliedChanges || Boolean(stage)} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 text-base font-black text-white hover:bg-orange-700 disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto"><CheckCircle2 className="h-5 w-5" /> {stage ? 'Please wait…' : hasUnappliedChanges ? 'Apply your changes before continuing' : printReview.requiresConfirmation ? 'Review design & continue' : 'Use selected version & continue'}</button>
+        <button type="button" onClick={() => printReview.requiresConfirmation ? setConfirmValidationOverride(true) : void apply()} disabled={hasUnappliedChanges || Boolean(stage)} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 text-base font-black text-white hover:bg-orange-700 disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto"><ArrowRight className="h-5 w-5" /> {stage ? 'Please wait…' : hasUnappliedChanges ? 'Apply your changes before continuing' : printReview.requiresConfirmation ? 'Review design & continue' : 'Use this design'}</button>
       </div>}
 
       <Dialog open={confirmValidationOverride} onOpenChange={setConfirmValidationOverride}>
