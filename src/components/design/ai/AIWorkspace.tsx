@@ -808,13 +808,16 @@ export default function AIWorkspace(props: Props) {
           </div>}
 
           {!concepts.length && !stage && !pendingImageJob && !progressPreview && <div className="ai-studio-empty">
-            <span className="ai-studio-eyebrow"><Sparkles className="h-4 w-4" /> YOUR NEXT BIG IDEA STARTS HERE</span>
-            <div className="ai-studio-inspiration" aria-hidden="true">
-              <div className="ai-studio-sample ai-studio-sample-event"><span>LET’S CELEBRATE</span><strong>Make it<br />a big day.</strong><i>Birthdays · Milestones · Events</i></div>
-              <div className="ai-studio-sample ai-studio-sample-opening"><span>HELLO, NEIGHBORHOOD</span><strong>GRAND<br />OPENING</strong><i>Big news deserves a bold banner.</i></div>
-              <div className="ai-studio-sample ai-studio-sample-sale"><span>YOUR NEXT BIG THING</span><strong>Stand out.<br />Get noticed.</strong><i>Businesses · Sales · Promotions</i></div>
-            </div>
-            <h4>A little imagination.<br /><span>A big impression.</span></h4>
+            <img
+              className="ai-studio-banner-showcase"
+              src="/images/ai-studio-banner-showcase-1774.webp"
+              srcSet="/images/ai-studio-banner-showcase-960.webp 960w, /images/ai-studio-banner-showcase-1774.webp 1774w"
+              sizes="(max-width: 800px) calc(100vw - 50px), (max-width: 1100px) calc(100vw - 390px), (max-width: 1599px) calc(100vw - 440px), calc(100vw - 480px)"
+              width={1774}
+              height={887}
+              decoding="async"
+              alt="Crosby Cougars volleyball and Anderson Construction designs displayed as finished vinyl banners with metal grommets and reinforced hems. A little imagination. A big impression."
+            />
             <p>Tell us what you have in mind.<br />We’ll turn your idea into a banner made for you.</p>
             <span className="ai-studio-empty-hint"><ArrowLeft className="h-4 w-4" /> Start with your description</span>
           </div>}

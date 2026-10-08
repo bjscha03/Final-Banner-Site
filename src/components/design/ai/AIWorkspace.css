@@ -46,21 +46,9 @@
 .ai-studio-helper { margin-top: 8px !important; text-align: center; font-size: 12px; color: #64748b; }
 .ai-studio-workspace > div:first-child { padding: 0 4px; }
 .ai-studio-empty, .ai-studio-canvas { background: radial-gradient(ellipse at 65% 0%, #214363 0%, transparent 58%), #0a1c32; border: 1px solid #17304d; border-radius: 16px; color: white; box-shadow: 0 8px 28px #0b1f3a0a; }
-.ai-studio-empty { padding: 30px 28px; min-height: 510px; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; text-align: center; }
-.ai-studio-eyebrow { display: flex; align-items: center; gap: 8px; font-size: 10px; letter-spacing: .2em; font-weight: 700; color: #b9cbe0; }
-.ai-studio-eyebrow svg { color: #fb923c; }
-.ai-studio-inspiration { width: 100%; max-width: 740px; height: 220px; display: flex; align-items: center; justify-content: center; margin: 26px 0 14px; }
-.ai-studio-sample { flex-shrink: 0; width: 40%; padding: 20px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 9px; aspect-ratio: 1.85; text-align: left; box-shadow: 0 15px 30px #0005; }
-.ai-studio-sample > span { font-size: clamp(6px, .7vw, 9px); font-weight: 700; letter-spacing: .18em; }
-.ai-studio-sample strong { font-size: clamp(22px, 2.5vw, 40px); line-height: .95; letter-spacing: -.04em; font-weight: 900; }
-.ai-studio-sample i { font-size: clamp(6px, .65vw, 9px); font-style: normal; }
-.ai-studio-sample-event { transform: rotate(-9deg) translate(7%, 8%); background: #efe7db; color: #1d493e; }
-.ai-studio-sample-opening { position: relative; z-index: 1; width: 44%; background: radial-gradient(circle at 100% 0%, #ffcf73 0 18%, transparent 18.5%), #fb6415; color: #fff4df; transform: rotate(-2deg); }
-.ai-studio-sample-opening strong { font-size: clamp(27px, 3vw, 48px); }
-.ai-studio-sample-sale { transform: rotate(8deg) translate(-7%, 8%); background: #264f48; color: #eaf0a2; }
-.ai-studio-empty h4 { margin-top: 4px; font-size: clamp(24px, 2.2vw, 34px); line-height: 1.2; font-weight: 800; letter-spacing: -.03em; }
-.ai-studio-empty h4 span { color: #ffab70; }
-.ai-studio-empty > p { margin-top: 12px; font-size: 14px; line-height: 1.6; color: #c4d1df; }
+.ai-studio-empty { padding: 0 0 26px; min-height: 510px; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; text-align: center; }
+.ai-studio-banner-showcase { display: block; width: 100%; height: auto; flex-shrink: 0; object-fit: contain; }
+.ai-studio-empty > p { margin-top: 16px; padding: 0 18px; font-size: 14px; line-height: 1.6; color: #c4d1df; }
 .ai-studio-empty-hint { display: flex; align-items: center; gap: 8px; margin-top: 22px; padding: 10px 14px; border: 1px solid #ffffff26; border-radius: 100px; font-size: 12px; color: #d1dce9; }
 .ai-studio-canvas { padding: 20px; }
 .ai-studio-canvas-toolbar h4 { color: white; font-size: 15px; }
@@ -96,9 +84,6 @@
   .ai-studio-controls { padding: 18px; }
   .ai-studio-intro { padding: 24px; }
   .ai-studio-status { display: none; }
-  .ai-studio-empty { padding: 24px 18px; }
-  .ai-studio-sample { padding: 14px; }
-  .ai-studio-inspiration { height: 175px; }
 }
 @media (max-width: 800px) {
   .ai-studio-header { padding: 12px 16px; }
@@ -115,12 +100,7 @@
   .ai-studio-layout { grid-template-columns: minmax(0, 1fr); padding: 0 12px 20px; gap: 24px; }
   .ai-studio-controls { padding: 20px; }
   .ai-studio-control-heading h3 { font-size: 20px; }
-  .ai-studio-empty { min-height: 390px; padding: 24px 18px; }
-  .ai-studio-inspiration { max-width: 540px; height: 165px; margin: 12px 0; }
-  .ai-studio-sample strong { font-size: clamp(20px, 4.7vw, 32px); }
-  .ai-studio-sample-opening strong { font-size: clamp(24px, 5.4vw, 38px); }
-  .ai-studio-sample > span, .ai-studio-sample i { font-size: 6px; }
-  .ai-studio-sample { gap: 6px; padding: 12px; }
+  .ai-studio-empty { min-height: 0; padding: 0 0 24px; }
   .ai-studio-empty-hint svg { transform: rotate(90deg); }
   .ai-studio-canvas { padding: 16px 12px; }
   .ai-studio-artwork-image { height: min(40vh, 350px); min-height: 150px; }
