@@ -6,7 +6,7 @@ export const LARGE_UPLOAD_TOTAL_LIMIT_MS = 30 * 60_000;
 export const LARGE_UPLOAD_IDLE_LIMIT_MS = 120_000;
 
 /** Covers preview preparation, storage, response parsing, and transport retries. */
-export function useUploadWatchdog(active: boolean, progress: number, onTimeout: () => void, fileBytes = 0) {
+export function useUploadWatchdog(active: boolean, progress: number, onTimeout: () => void, fileBytes = 0, attemptActivity = 0) {
   const large = fileBytes > 20 * 1024 * 1024;
   const totalLimit = large ? LARGE_UPLOAD_TOTAL_LIMIT_MS : UPLOAD_TOTAL_LIMIT_MS;
   const idleLimit = large ? LARGE_UPLOAD_IDLE_LIMIT_MS : UPLOAD_IDLE_LIMIT_MS;
@@ -33,5 +33,7 @@ export function useUploadWatchdog(active: boolean, progress: number, onTimeout: 
       timeoutRef.current();
     }, idleLimit);
     return () => window.clearTimeout(timer);
-  }, [active, progress, idleLimit]);
+  // A new bounded transport attempt is activity even before any bytes move.
+  // It resets only the idle deadline; the total lifecycle deadline stays fixed.
+  }, [active, progress, idleLimit, attemptActivity]);
 }
