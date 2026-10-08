@@ -159,7 +159,7 @@ describe('large artwork stalled control requests', () => {
     const { uploadLargeArtworkFile } = await import('./uploadLargeArtworkFile');
     const onAttempt = vi.fn();
     const result = uploadLargeArtworkFile(file, { previewUrl: 'blob:preview', onAttempt });
-    await vi.advanceTimersByTimeAsync(30_600);
+    await vi.advanceTimersByTimeAsync(action === 'start' ? 30_600 : 90_600);
     expect((await result).transport).toBe('netlify-original');
     expect(signals).toHaveLength(2);
     expect(signals[0].aborted).toBe(true);

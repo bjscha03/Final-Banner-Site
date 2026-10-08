@@ -66,7 +66,7 @@ async function request(action: string, body: BodyInit, options: UploadArtworkOpt
           });
         const data = await response.json().catch(() => ({}));
         return { response, data };
-      }, action === 'chunk' ? 120_000 : 30_000, options.signal);
+      }, action === 'start' ? 30_000 : action === 'complete' ? 90_000 : 120_000, options.signal);
       if (!response.ok) throw new ArtworkUploadError(data.error || `Artwork upload failed (${response.status}).`, {
         phase: 'chunked', status: response.status, retryable: response.status >= 500 || response.status === 408 || response.status === 429,
       });
