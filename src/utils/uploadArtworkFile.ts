@@ -652,8 +652,10 @@ export async function uploadArtworkFile(
       lastError = error;
       if (options.signal?.aborted) throw error;
       const retryable = error instanceof ArtworkUploadError ? error.retryable : true;
-      if (!retryable || attempt >= DIRECT_UPLOAD_ATTEMPTS
-        || file.size <= LEGACY_FUNCTION_SAFE_BYTES) break;
+      // A failed same-origin attempt must not disable recovery for small files.
+      // Mobile connections can recover after the first ticket request times out,
+      // and no original bytes have been sent by that preparation request.
+      if (!retryable || attempt >= DIRECT_UPLOAD_ATTEMPTS) break;
       const delay = (600 * (2 ** (attempt - 1))) + Math.floor(Math.random() * 250);
       await sleep(delay);
     }
